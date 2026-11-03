@@ -272,7 +272,7 @@ async function buildRaceInstance(instance) {
   if (instance.type !== undefined) throw new Error(`meta-fabricator: an instance is a registered type or a ${kind}, not both`);
   const spec = instance[kind];
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error(`meta-fabricator: a ${kind} instance is its recipe { … } (describeFamily('${kind}').tunables)`);
-  if (kind === 'cycle') { const { cycleInstanceFaces } = await import('./cycle-shelf/cycle-figure.js'); return { kind, ...cycleInstanceFaces(spec) }; }
+  if (kind === 'cycle') { const { cycleInstanceFaces } = await import('./cycle-shelf/cycle-figure.js'); return { kind, ...(await cycleInstanceFaces(spec)) }; }
   const { racerInstanceFaces, supercarInstanceFaces, loftInstanceFaces } = await import('./car-designer/race-families.js');
   return { kind, ...(kind === 'racer' ? racerInstanceFaces(spec) : kind === 'loft' ? loftInstanceFaces(spec) : supercarInstanceFaces(spec)) };
 }

@@ -9,8 +9,8 @@ import { cycleFigure, cycleInstanceFaces, readCycleSpec } from './cycle-figure.j
 const ID = Object.keys(CYCLE_ARCHETYPES).find((k) => CYCLE_ARCHETYPES[k].layout.some((e) => CYCLE_ODM[e.sku].kind === 'cycle-stand'));
 
 describe('a cycle drawn', () => {
-  it('on the grid: its faces, and what it is', () => {
-    const { faces, stats } = cycleInstanceFaces({ archetype: ID });
+  it('on the grid: its faces, and what it is', async () => {
+    const { faces, stats } = await cycleInstanceFaces({ archetype: ID });
     expect(faces.length).toBeGreaterThan(1000);
     expect(stats).toMatchObject({ archetype: ID, layout: 'inline', laws: true, faces: faces.length });
   });
@@ -31,5 +31,10 @@ describe('a cycle drawn', () => {
     expect(() => readCycleSpec({ archetype: ID, colour: 'red' })).toThrow(/not a cycle's word/);
     expect(() => readCycleSpec({ archetype: ID, pose: { wheelie: 1 } })).toThrow(/not a cycle's pose/);
     expect(() => readCycleSpec({ archetype: ID, look: 'tartan' })).toThrow(/expected one of/);
+    expect(() => readCycleSpec({ archetype: ID, rider: { form: 'tiered' } })).toThrow(/realistic hero/);
+    expect(() => readCycleSpec({ archetype: ID, rider: true, pose: { stand: 'down' } })).toThrow(/stand up/);
+    expect(() => readCycleSpec({ archetype: ID, posture: 'sport' })).toThrow(/give a rider/);
+    expect(() => readCycleSpec({ archetype: ID, rider: true, posture: 'sidesaddle' })).toThrow(/expected one of/);
+    expect(() => cycleFigure({ archetype: ID, rider: true })).toThrow(/no rider/);
   });
 });

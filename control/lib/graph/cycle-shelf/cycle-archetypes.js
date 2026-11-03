@@ -11,6 +11,7 @@
  *   label, classOf     what it is
  *   physics            its class in roads/vehicles.js: the wheelbase the chassis is solved to, the figures it is held to
  *   palette            its stock palette (cycle-common.js)
+ *   posture            how its rider sits it (cycle-rider.js POSTURES)
  *   chassis            its card: the steering geometry (rake, the fork's offset), and where on THIS machine each part
  *                      sits (cycle-chassis.js solves the rest)
  *   laws               the bands its geometry is held to (cycle-laws.js)
@@ -300,6 +301,7 @@ export const CYCLE_ARCHETYPES = Object.freeze({
     classOf: '450 cc motocross',
     physics: 'dirtBike',
     palette: 'mxRed',
+    posture: 'mx',
     chassis: MX_CHASSIS,
     // the bands a motocross machine is held to (cycle-laws.js)
     laws: Object.freeze({ trail: [0.09, 0.15], seat: [0.92, 1.0], clearance: 0.3, lean: 50, stand: [5, 12] }),
@@ -341,7 +343,7 @@ export const CYCLE_ARCHETYPES = Object.freeze({
       L('tank', 'tank-street'), L('seat', 'seat-street'), L('tail', 'tail-street'), L('bars', 'bars-street', { steers: true }),
       L('fenderF', 'fender-street-front', F), L('fenderR', 'fender-street-rear', { slot: 'rear' }), L('headLamp', 'lamp-head-round', { steers: true }), L('tailLamp', 'lamp-tail-led'),
       L('peg', 'peg-road', { pair: true }), L('stand', 'stand-side-road'),
-    ]),
+    ], 'upright'),
   sportBike: archetype('sport bike', '1000 cc sport', 'sportBike', 'sportBlue', SPORT_CHASSIS,
     { trail: [0.09, 0.11], seat: [0.8, 0.86], clearance: 0.12, lean: 50, stand: [5, 12] }, [
       L('frame', 'frame-spar-sport'), L('fork', 'fork-usd-43', { steers: true }), L('wheelF', 'wheel-cast-120-17', F), L('brakeF', 'brake-twin-320', F),
@@ -351,7 +353,7 @@ export const CYCLE_ARCHETYPES = Object.freeze({
       L('fairing', 'fairing-sport-upper'), L('sides', 'fairing-sport-side'), L('belly', 'fairing-sport-belly'), L('screen', 'screen-sport'),
       L('fenderF', 'fender-street-front', F), L('fenderR', 'fender-street-rear', { slot: 'rear' }), L('headLamp', 'lamp-head-fairing'), L('tailLamp', 'lamp-tail-led'),
       L('peg', 'peg-road', { pair: true }), L('stand', 'stand-side-road'),
-    ]),
+    ], 'sport'),
   raceBike: archetype('grand prix race bike', 'grand prix', 'raceBike', 'raceWhite', RACE_CHASSIS,
     { trail: [0.09, 0.11], seat: [0.82, 0.9], clearance: 0.12, lean: 55 }, [
       L('frame', 'frame-spar-sport'), L('fork', 'fork-usd-43', { steers: true }), L('wheelF', 'wheel-slick-120-17', F), L('brakeF', 'brake-twin-320', F),
@@ -360,7 +362,7 @@ export const CYCLE_ARCHETYPES = Object.freeze({
       L('tank', 'tank-street'), L('seat', 'seat-sport'), L('tail', 'tail-street'), L('bars', 'bars-clipon', { steers: true }),
       L('fairing', 'fairing-sport-upper'), L('sides', 'fairing-sport-side'), L('belly', 'fairing-sport-belly'), L('screen', 'screen-sport'), L('number', 'number-race'),
       L('fenderF', 'fender-street-front', F), L('peg', 'peg-road', { pair: true }),
-    ]),
+    ], 'race'),
   cruiserBike: archetype('cruiser motorcycle', 'V-twin cruiser', 'cruiserBike', 'cruiserBlack', CRUISER_CHASSIS,
     { trail: [0.12, 0.16], seat: [0.64, 0.74], clearance: 0.12, lean: 30, stand: [5, 12] }, [
       L('frame', 'frame-cradle-cruiser'), L('fork', 'fork-tele-41', { steers: true }), L('wheelF', 'wheel-wire-19', F), L('brakeF', 'brake-disc-300', F),
@@ -369,7 +371,7 @@ export const CYCLE_ARCHETYPES = Object.freeze({
       L('tank', 'tank-teardrop-cruiser'), L('seat', 'seat-cruiser-solo'), L('bars', 'bars-pullback', { steers: true }),
       L('fenderF', 'fender-cruiser-front', F), L('fenderR', 'fender-cruiser-rear', { slot: 'rear' }), L('headLamp', 'lamp-head-chrome', { steers: true }), L('tailLamp', 'lamp-tail-led'),
       L('peg', 'peg-road', { pair: true }), L('stand', 'stand-side-road'),
-    ]),
+    ], 'cruiser'),
   scooter: archetype('scooter', '150 cc scooter', 'scooter', 'scooterMint', SCOOTER_CHASSIS,
     { trail: [0.07, 0.1], seat: [0.76, 0.84], clearance: 0.12, lean: 38, stand: [5, 12] }, [
       L('frame', 'frame-spine-scooter'), L('fork', 'fork-tele-scooter', { steers: true }), L('wheelF', 'wheel-cast-12', F), L('brakeF', 'brake-disc-220', F),
@@ -377,7 +379,7 @@ export const CYCLE_ARCHETYPES = Object.freeze({
       L('exhaust', 'exhaust-scooter'), L('seat', 'seat-scooter'), L('bars', 'bars-scooter', { steers: true }), L('headLamp', 'cowl-scooter', { steers: true }),
       L('shield', 'shield-scooter'), L('rearBody', 'body-scooter-rear'), L('fenderF', 'fender-scooter-front', F), L('floor', 'floor-scooter'),
       L('tailLamp', 'lamp-tail-led'), L('stand', 'stand-side-small'),
-    ]),
+    ], 'scooter'),
   moped: archetype('moped', '110 cc underbone', 'moped', 'mopedBlue', MOPED_CHASSIS,
     { trail: [0.06, 0.09], seat: [0.74, 0.8], clearance: 0.15, lean: 40, stand: [5, 12] }, [
       L('frame', 'frame-spine-moped'), L('fork', 'fork-tele-moped', { steers: true }), L('wheelF', 'wheel-wire-17-moped', F), L('brakeF', 'brake-drum-110', F),
@@ -386,13 +388,13 @@ export const CYCLE_ARCHETYPES = Object.freeze({
       L('bars', 'bars-moped', { steers: true }), L('headLamp', 'cowl-scooter', { steers: true }), L('shield', 'shield-moped'), L('rearBody', 'body-moped-covers'),
       L('fenderF', 'fender-moped-front', F), L('fenderR', 'fender-moped-rear', { slot: 'rear' }), L('tailLamp', 'lamp-tail-led'),
       L('peg', 'peg-road', { pair: true }), L('stand', 'stand-side-small'),
-    ]),
+    ], 'upright'),
   bicycle: archetype('bicycle', 'upright bicycle', 'bicycle', 'bikeGreen', BICYCLE_CHASSIS,
     { trail: [0.05, 0.08], seat: [0.95, 1.08], clearance: 0.2, lean: 40, stand: [5, 12] }, [
       L('frame', 'frame-diamond-road'), L('fork', 'fork-rigid-700', { steers: true }), L('wheelF', 'wheel-wire-700', F), L('brakeF', 'brake-disc-160', F),
       L('wheelR', 'wheel-wire-700', { slot: 'rear' }), L('brakeR', 'brake-disc-160', { slot: 'rear' }), L('drive', 'drive-pedal-road'),
       L('seat', 'saddle-road'), L('bars', 'bars-flat-bicycle', { steers: true }), L('stand', 'stand-kick-bicycle'),
-    ]),
+    ], 'cyclist'),
   eBike: archetype('e-bike', 'pedelec', 'eBike', 'ebikeGrey', EBIKE_CHASSIS,
     { trail: [0.06, 0.09], seat: [0.95, 1.08], clearance: 0.2, lean: 40, stand: [5, 12] }, [
       L('frame', 'frame-step-ebike'), L('fork', 'fork-rigid-ebike', { steers: true }), L('wheelF', 'wheel-wire-700', F), L('brakeF', 'brake-disc-160', F),
@@ -400,9 +402,9 @@ export const CYCLE_ARCHETYPES = Object.freeze({
       L('battery', 'battery-downtube-500'), L('seat', 'saddle-comfort'), L('bars', 'bars-riser-ebike', { steers: true }),
       L('fenderF', 'fender-ebike-front', F), L('fenderR', 'fender-ebike-rear', { slot: 'rear' }), L('headLamp', 'lamp-head-bicycle', { steers: true }), L('tailLamp', 'lamp-tail-bicycle'),
       L('stand', 'stand-kick-bicycle'),
-    ]),
+    ], 'upright'),
 });
 
-function archetype(label, classOf, physics, palette, chassis, laws, layout) {
-  return Object.freeze({ label, classOf, physics, palette, chassis, laws: Object.freeze(laws), bom: bomOf(layout), layout: Object.freeze(layout) });
+function archetype(label, classOf, physics, palette, chassis, laws, layout, posture) {
+  return Object.freeze({ label, classOf, physics, palette, posture, chassis, laws: Object.freeze(laws), bom: bomOf(layout), layout: Object.freeze(layout) });
 }

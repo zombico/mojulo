@@ -4,7 +4,7 @@
  * laws. The machine gate's eyes are the operator's: this draws, it does not judge. No database writes.
  *
  * From control/:
- *   node scripts/render-cycles.mjs <output-directory> [archetype,…|all] [--views side,quarter,front,top,rear] [--pose '{"stand":"down","steer":20}'] [--look police]
+ *   node scripts/render-cycles.mjs <output-directory> [archetype,…|all] [--views side,quarter,front,top,rear] [--pose '{"stand":"down","steer":20}'] [--look police] [--rider [posture]]
  * Writes <archetype>-<view>.png, the pages and index.html.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -27,6 +27,8 @@ const flag = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : n
 const views = (flag('--views') || 'side,quarter,front,top').split(',');
 const pose = flag('--pose') ? JSON.parse(flag('--pose')) : {};
 const look = flag('--look') ?? undefined;
+const ridden = args.includes('--rider'), posture = ridden && flag('--rider') && !flag('--rider').startsWith('--') ? flag('--rider') : undefined;
+const { riderOn } = await import('../lib/graph/cycle-shelf/cycle-rider.js');
 const pick = args[1] && !args[1].startsWith('--') && args[1] !== 'all' ? args[1].split(',') : Object.keys(CYCLE_ARCHETYPES);
 const outDir = path.resolve(output); mkdirSync(outDir, { recursive: true });
 const width = 960, height = 600;
@@ -35,9 +37,12 @@ for (const id of pick) {
   const { manifest, readout } = assembleCycle(id, { pose, ...(look ? { look } : {}) });
   const { payload } = await resolveWorldScene({ ref: id, kind: 'assembler', manifest });
   const faces = payload.faces.filter((f) => !f.studio);
+  // (its rider astride, posed on its own rider points: cycle-rider.js)
+  const rider = ridden ? await riderOn(id, { posture, rider: readout.rider }) : null;
+  if (rider) faces.push(...rider.faces);
   const tris = faces.reduce((n, f) => n + f.corners.length - 2, 0);
   const pts = faces.flatMap((f) => f.corners);
-  const lo = [0, 1, 2].map((i) => Math.min(...pts.map((p) => p[i]))), hi = [0, 1, 2].map((i) => Math.max(...pts.map((p) => p[i])));
+  const lo = [0, 1, 2].map((i) => pts.reduce((m, p) => Math.min(m, p[i]), Infinity)), hi = [0, 1, 2].map((i) => pts.reduce((m, p) => Math.max(m, p[i]), -Infinity));
   const mid = lo.map((v, i) => (v + hi[i]) / 2), L = hi[1] - lo[1];
   faces.push({ corners: [[mid[0] - L * 3, mid[1] - L * 3, -0.002], [mid[0] + L * 3, mid[1] - L * 3, -0.002], [mid[0] + L * 3, mid[1] + L * 3, -0.002], [mid[0] - L * 3, mid[1] + L * 3, -0.002]], fill: '#9aa0a4' });
   const cams = {
@@ -48,7 +53,7 @@ for (const id of pick) {
     top: [mid[0] + L * 0.02, mid[1] - L * 0.05, mid[2] + L * 1.8],
   };
   const fail = readout.laws.laws.filter((l) => !l.ok).map((l) => l.id);
-  gallery += `<h2>${id}: ${readout.label}</h2><p>${tris.toLocaleString('en-US')} triangles · ${JSON.stringify(readout.measures)} · ${JSON.stringify(readout.geometry)} · laws ${fail.length ? `failing ${fail.join(', ')}` : 'all hold'}${readout.lean ? ` · on its stand at ${readout.lean}°` : ''}</p><section>`;
+  gallery += `<h2>${id}: ${readout.label}</h2><p>${tris.toLocaleString('en-US')} triangles · ${JSON.stringify(readout.measures)} · ${JSON.stringify(readout.geometry)} · laws ${fail.length ? `failing ${fail.join(', ')}` : 'all hold'}${readout.lean ? ` · on its stand at ${readout.lean}°` : ''}${rider ? ` · ridden ${rider.report.posture}, leaning ${rider.report.hinge}°, hands ${rider.report.hands.L} / ${rider.report.hands.R} m off` : ''}</p><section>`;
   for (const view of views) {
     const html = emitThreeWorld({ faces, textures: payload.textures ?? {}, inline: true, hud: false, title: id, bg: '#cfd5da', metersPerUnit: 1, cameras: [{ name: view, worldFraming: { cameraPosition: cams[view], lookAt: mid, horizontalFov: 36, pictureCenter: [width / 2, height / 2] } }], viewBox: { width, height } });
     const png = await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 });

@@ -199,3 +199,45 @@ astride and steers by a bar.
     - `parked.test.js`: a cycle parked dressed, its figure's recipe, its box; a machine that cannot stand refused; a
       look refused on a car; a level drawing its figure.
     - Every other door's bytes held: no pin moved.
+- **The rider astride** (`cycle-shelf/cycle-rider.js`):
+  - **The realistic hero is seated on a machine:**
+    - its sit bones on the seat, as the seated rest sets them;
+    - its feet planted by the rig's own foot targets on the pegs, the floorboard or the pedals;
+    - its hands reached to the grips by its arm reach, its elbows dropped.
+
+    Nothing new in the rig.
+  - **Its trunk's lean is searched** within its posture's range, most upright first, until both hands reach. The
+    geometry says the rest: upright on the cruiser, a tuck on the sport and race bikes, leaning to the bar on the
+    bicycle.
+  - **Postures are cards** (`POSTURES`): `upright`, `sport`, `race`, `cruiser`, `mx` (sat forward), `mxStand`
+    (standing on the pegs), `scooter`, `cyclist`.
+    - Each is a lean range, the upper back's curl, the gaze held against the lean, where on the seat the rider sits,
+      how far it rises off it.
+    - Each machine names its own (`posture` on its archetype); the operator's word overrides it.
+  - **`solveRider(R, rider, posture)`** gives the rig pose and a report: its lean, how far each hand is off, whether
+    each leg reached. **`riderOn(archetype, { hero?, posture? })`** gives the hero posed on the machine, its faces in
+    the machine's frame. The hero is built once a process.
+  - **On the studio grid:** `mint_solid({ kind: 'vehicle', spec: { vehicle: 'sport bike', rider: true, posture? } })`
+    or `cycle: { archetype, rider, posture }`. The readout says how the rider sits.
+    - A rider rides upright: a ridden machine on its stand, or steered, is refused.
+    - A rider is the realistic hero; another form is refused.
+    - A parked machine has no rider.
+  - **The car sheet no longer says "not built yet":** a machine ridden astride is refused there with where it is
+    built (the cycle shelf, its rider astride on it). Its `UNBUILT` table is empty.
+  - **Not built:** a helmet on the rider. The motocross and full-face helmet cards fit the tiered body only, so a
+    realistic rider wears none until they are fitted to it.
+  - **Review:** `scripts/render-cycles.mjs --rider [posture]` draws the machine ridden.
+  - **Held:**
+    - `cycle-rider.test.js`: every machine's posture a card, every card's lean within what the trunk holds, the
+      postures named, only the realistic hero.
+    - `cycle-figure.test.js`: a rider's words refused (another form, on its stand, a posture with no rider, a
+      parked rider).
+    - `sheet.test.js` and `road-military.test.js`: a class ridden astride refused by the car sheet, pointing at the
+      cycle shelf.
+    - The deep `cycle-rider.deep.test.js`, on the realistic hero's rig:
+      - every machine ridden in its posture, its feet reached and its hands within 5 mm, its lean in its range;
+      - a rider standing on the pegs;
+      - one rider drawn, its seat's patch on the seat and its shoes at the pegs;
+      - the grid's instance carrying its rider.
+  - **Seen** (machine gate only; the eyes gate is open): the motocross, sport, race, cruiser, scooter, bicycle and
+    e-bike ridden; the motocross bike ridden standing.

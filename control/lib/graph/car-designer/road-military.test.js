@@ -23,7 +23,8 @@ const unitLen = (n) => Math.abs(Math.hypot(...n) - 1) < 1e-4;
 const polyArea = (c) => { const n = [0, 0, 0]; for (let i = 0; i < c.length; i++) { const a = c[i], b = c[(i + 1) % c.length]; n[0] += a[1] * b[2] - a[2] * b[1]; n[1] += a[2] * b[0] - a[0] * b[2]; n[2] += a[0] * b[1] - a[1] * b[0]; } return Math.hypot(...n) / 2; };
 const LOOK = { part: 'p', material: 'milPaint', albedo: '#4b5320' };
 const FIELD = Object.keys(MILITARY_CLASSES)[0];
-const WAITING = Object.keys(PHYSICS).filter((k) => UNBUILT[k] && rowOfHandle('physics', k) && VEHICLES[rowOfHandle('physics', k)].role !== 'racer');
+// (a class the car sheet does not build: a machine ridden astride, the cycle shelf's)
+const ASTRIDE = Object.keys(PHYSICS).filter((k) => !PHYSICS[k].track && rowOfHandle('physics', k));
 const field = (opts = {}) => compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: FIELD }, seed: 3 }), opts);
 
 describe('the hull kit', () => {
@@ -198,8 +199,8 @@ describe('through the registry', () => {
   });
   it('a class whose realistic body waits is named and searchable, refused as a ride, and says what it needs', () => {
     // (the car sheet's refusal: a class it does not build; the upscale's: a row with no realistic body at all, found in code)
-    expect(WAITING.length).toBeGreaterThan(0);
-    expect(() => rollVehicleSheet({ facets: { pole: 'realistic', class: WAITING[0] }, seed: 1 })).toThrow(/not built yet/);
+    expect(ASTRIDE.length).toBeGreaterThan(0);
+    expect(() => rollVehicleSheet({ facets: { pole: 'realistic', class: ASTRIDE[0] }, seed: 1 })).toThrow(/cycle shelf builds it/);
     const wid = Object.keys(VEHICLES).find((id) => VEHICLES[id].handles.physics && upscaleOf(id).realistic === 'none' && /not built yet/.test(upscaleOf(id).next));
     expect(wid).toBeTruthy();
     expect(rideableRows()).not.toContain(wid);

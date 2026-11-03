@@ -96,8 +96,9 @@ describe('the poles', () => {
     expect(bodies).toEqual(['body = coupeThree']);
     expect(s.notes.silhouette[0]).toEqual({ line: SILHOUETTES.brick.notes.silhouette, from: 'silhouette.brick' });
   });
-  it('a two-wheeler is not built yet, and an unknown word names the known', () => {
-    expect(() => readVehicleSheet({ class: 'dirtBike' })).toThrow(/not built yet .* astride/);
+  it('a machine ridden astride is the cycle shelf\'s, and an unknown word names the known', () => {
+    const cycle = Object.keys(VEHICLES).find((k) => wheelLayout(VEHICLES[k]) === 'inline');
+    expect(() => readVehicleSheet({ class: cycle })).toThrow(/ridden astride: the cycle shelf builds it/);
     expect(() => readVehicleSheet({ silhouette: 'blob' })).toThrow(/unknown silhouette 'blob' \(known: wedge/);
     expect(() => readVehicleSheet({ colour: 'red' })).toThrow(/unknown facet 'colour'/);
   });

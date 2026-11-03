@@ -20,9 +20,10 @@
  * numbers (car-designer/realistic.js), the registry's realistic build of a car, a truck or a bus; a field vehicle's
  * livery and wear (`livery`, `wear` beside its word: car-designer/livery-cut.js, mil-wear.js) carried in its recipe.
  *
- * A CYCLE is an instance too: { cycle: { archetype, look?, pose? } }, a machine ridden astride off the cycle shelf
- * (cycle-shelf/), the registry's realistic build of a motorcycle, a scooter, a bicycle; `look` beside its word dresses it
- * (cycle-shelf/cycle-looks.js), and `pose` parks it on its stand or steers it.
+ * A CYCLE is an instance too: { cycle: { archetype, look?, pose?, rider?, posture? } }, a machine ridden astride off the
+ * cycle shelf (cycle-shelf/), the registry's realistic build of a motorcycle, a scooter, a bicycle; `look` beside its word
+ * dresses it (cycle-shelf/cycle-looks.js), `pose` parks it on its stand or steers it, and `rider` (true: the realistic
+ * hero, or its spec) seats a rider astride in its `posture` (cycle-shelf/cycle-rider.js).
  *
  * Stored manifest: { kind:'vehicle-instance', vehicle?, type | racer | supercar | loft | cycle, decoration?, pose?, viewBox?, title? }
  * (`vehicle`: the registry row it was asked as, when it was; the renderer reads the build's own keys).
@@ -126,6 +127,12 @@ export async function previewVehicleInstanceHandler(input) {
     if (!read.instance.cycle) throw new Error('mint_solid vehicle: a look dresses a machine ridden astride (a motorcycle: { vehicle: \'motorcycle\', look: \'police\' }); this build is dressed by its own words');
     lookCard(input.look);
     read.instance.cycle = { ...read.instance.cycle, look: input.look };
+  }
+  // a rider astride (true: the realistic hero, or its spec) and the posture it sits in, beside the word (cycle-rider.js)
+  for (const key of ['rider', 'posture']) {
+    if (input[key] === undefined) continue;
+    if (!read.instance.cycle) throw new Error(`mint_solid vehicle: a ${key} is a machine ridden astride's (a motorcycle: { vehicle: 'motorcycle', rider: true }); this build has none`);
+    read.instance.cycle = { ...read.instance.cycle, [key]: input[key] };
   }
   if (read.instance.cycle) readCycleSpec(read.instance.cycle, 'mint_solid vehicle: cycle');
   // a field vehicle's livery beside its word (car-designer/livery-cut.js: a camo or mono, its stencils), carried in its
