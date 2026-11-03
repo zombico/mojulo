@@ -556,6 +556,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   requestAnimationFrame(tick);
 })();
 ` : '';
+  // (a tempo whose moments carry a look: the page lays it over the grade)
+  const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
 const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''} });
@@ -3611,7 +3613,18 @@ ${hangarHook}  __msHookParams();
     __updateBreaks(${tempo ? 'wdt' : 'dt'});` : ''}${runner ? `
     __updateRunner(${tempo ? 'wdt' : 'dt'});` : ''}
   }
-  if (__ctrlOwnsCamera) __driveCamera(dt);
+  if (__ctrlOwnsCamera) __driveCamera(dt);${tempoLook ? `
+  // a moment's look over the world's grade (channels/grade.js), by the moment's weight; its impact frame hard for its
+  // frames as it fires; its zoom aimed at whom it is about, on the screen as the camera now stands
+  if (window.__mojGrade) {
+    const P = __world.tempo && __world.tempo.playing, L = P && P.m.look;
+    if (L) {
+      const hit = L.impact && P.t < L.impact / 60, who = P.who && (__world.byId[P.who.b] || __world.byId[P.who.a]);
+      let at = null;
+      if (who) { camera.updateMatrixWorld(); __tmAt.set(who.transform.pos[0], who.transform.pos[1], who.transform.pos[2] + 1).project(camera); at = [(__tmAt.x + 1) / 2, (__tmAt.y + 1) / 2]; }
+      window.__mojGrade.moment(hit ? { ...L, invert: 1 } : L, hit ? 1 : __CW.tempoWeight(__world), at);
+    } else if (window.__mojGrade.look) window.__mojGrade.moment(null);
+  }` : ''}
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame
   __updateBoostHud();
   __updateRadar();${lock ? '\n  __updateLock();' : ''}
@@ -3620,7 +3633,7 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-${tempo ? `let __tmLast = null;
-window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on) => __CW.tempoMoment(__world, on) };
+${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
+window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who) };
 ` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
 }

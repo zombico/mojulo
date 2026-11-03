@@ -153,6 +153,8 @@ import { compileOutfit, OUTFIT_KIND_NAMES, uOfStation } from '../../graph/polygo
 import { tierKit } from '../../graph/polygonizer/adorn-tier.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 import { stampHero, withDefaultWalk, withDefaultForm } from '../../graph/polygonizer/motion-stamp.js';
+import { withHandShapes } from '../../graph/polygonizer/hero-digits.js';
+import { servoRead } from '../../graph/polygonizer/hero-servo.js';
 import { resolveMotion } from '../../graph/gameworld/hero-vibe.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
@@ -190,6 +192,9 @@ export function planLayered(manifest) {
       const a = auditRig(mesh, skin, R, Object.values(clips).flat());
       if (a.badWeights || a.restIdentity > 1e-9 || a.maxPlantedDrift > 1e-9) throw new Error(`bad weights ${a.badWeights}, rest identity ${a.restIdentity}, planted drift ${a.maxPlantedDrift}`);
       rig = { bones: R.bones.length, blendedVertices: a.blended, clips: Object.keys(clips), maxLengthError: a.maxLengthError, legs: a.poses.map((p) => p.legs) };
+      // a hero's clips read against the arm's and the hand's SERVOS (hero-servo.js): every key as the player plays it, what
+      // passes a hard stop stamped; advisory (nothing refuses, a read that cannot be made says nothing), absent when none does
+      if (manifest.hero) { const sv = servoStamp(R, clips); if (sv) rig.servos = sv; }
     } catch (err) { throw new Error(`layered rig: ${err.message} — manual: get_solid_vocab({ id: 'layered' }).`); }
   }
   // a minted animal's MOTION (fauna/rig.js) pays its gates here too: every vertex bound to the species' skeleton with
@@ -215,6 +220,25 @@ export function planLayered(manifest) {
   return { mesh, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, auditFailures: stats.auditFailures, ...(rig ? { rig } : {}) } } };
 }
 
+/** The SERVO STAMP of a rig's clips: { past: [{ clip, key, side, joint, value, range }] (the first 24), count, read (keys
+ * read) } over every key whose arm or hand passes a hard stop (hero-servo.js servoRead: the shoulder's cone and
+ * rotation, the elbow, the wrist; the hand's joints on a rig with digits), or null when none does. Advisory. */
+export function servoStamp(R, clips) {
+  const past = []; let read = 0;
+  for (const [clip, c] of Object.entries(clips || {})) {
+    const list = Array.isArray(c) ? c : c?.keys; if (!Array.isArray(list)) continue;
+    list.forEach((key, i) => {
+      let rd; try { rd = servoRead(R, key); read++; } catch { return; }
+      for (const [side, r] of Object.entries(rd)) {
+        const at = (joint, v) => { if (v && !v.inRange) past.push({ clip, key: i, side, joint, value: v.value, range: v.range }); };
+        at('shoulder.swing', r.shoulder.swing); at('shoulder.twist', r.shoulder.twist); at('elbow', r.elbow);
+        for (const [k, v] of Object.entries(r.wrist)) at(`wrist.${k}`, v);
+        if (r.hand) for (const [d, j] of Object.entries(r.hand)) for (const [k, v] of Object.entries(j)) at(`${d}.${k}`, v);
+      }
+    });
+  }
+  return past.length ? { past: past.slice(0, 24), count: past.length, read } : null;
+}
 /** A manifest carrying a `plan` regenerates its recipe from it; one carrying `hero` regenerates the PLAN from the hero
  * record first (`from: 'plan'` keeps a hand-edited plan and re-expands it alone). Dial values for dials the new recipe
  * lacks are dropped. */
@@ -222,7 +246,9 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
   if (!manifest?.plan && !manifest?.hero) return manifest;
   const hero = manifest.hero && from !== 'plan' ? normalizeHero(manifest.hero) : manifest.hero;
   const plan = manifest.hero && from !== 'plan' ? heroPlanOf(hero) : manifest.plan;
-  const recipe = heldIdle(expandHeroAwarePlan(plan, hero ? wornHero(hero) : hero, hero ? null : manifest.geocube), hero);
+  // a hand shape or a digit given joint by joint in a clip (hero-digits.js withHandShapes) is solved on the recipe's own rig,
+  // both sides built: a stand, a door clip and a swing's keys alike; none named ⇒ the recipe as it was
+  const recipe = withHandShapes(heldIdle(expandHeroAwarePlan(plan, hero ? wornHero(hero) : hero, hero ? null : manifest.geocube), hero));
   const known = new Set(Object.keys(recipe.dials || {}));
   const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
   return { ...manifest, ...(hero ? { hero } : {}), plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };

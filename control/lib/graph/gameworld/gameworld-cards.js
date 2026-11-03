@@ -259,7 +259,8 @@ function juiceCard() {
     'type\'s strength), and a status\'s coat the look\'s rim; rim: 0 turns it off.',
     'A composed world writes \'auto\'; design_game\'s readout suggests one (a `juice` step) for a world that writes none.',
     'TEMPO, the world clock: \'auto\' | false | finisher | kill-cam | impact | bullet | { moments: [{ on, scale, hold }] }:',
-    'slows the world on strike, down:foe, last-down, dodge, the camera on real time (manual: the controllable card).',
+    'slows the world on strike, down:foe, last-down, dodge; a moment\'s cam and look take the camera and the grade.',
+    'GRADE, the look over every frame: \'auto\' (anime vivid, western film) | false | film | noir | bleach | vivid | pastel.',
     '',
     'registers and their looks (look: a register\'s first is its own; an anime fighter or brawler is drawn cel):',
     ...Object.entries(JUICE_REGISTERS).flatMap(([r, R]) => R.looks.map((l) => `  ${r} · ${l}  ${JUICE_LOOKS[l].says}`)),
@@ -645,6 +646,7 @@ function foesCard() {
     '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',
     'CAST    /bible?book=foes, the cast sheet: parts foes:cast, foes:<id>. None kept: design_game\'s `foes` step proposes one.',
     'A world or level without foes is laid as it was.',
+    'GAUNTLET a level\'s goal: { gauntlet: { arenas: [{ waves: [{ <id>: <n> }] }], checkpoint? } }: sealed in waves (card wave-gauntlet).',
   );
 }
 
