@@ -33,7 +33,7 @@
  */
 import { roundStreetKit, roundKitFaces, isRoundKitShape } from '../city/round-kit.js';
 import { litFactor, scaleHex } from '../polygonizer/vexar.js';
-import { leanFaces } from '../era/exaggerate.js';
+import { leanFaces, skewCorners } from '../era/exaggerate.js';
 import { toyCarOf, proportions, lampOf, postOf, binOf, hydrantOf, postboxOf, lathe, tilted, tube } from '../geotown/doodads.js';
 import { signalHead, mastArm, signOf, place } from '../geotown/signs.js';
 import { receptacleOf, RECEPTACLES } from '../geotown/receptacles.js';
@@ -208,14 +208,30 @@ const flat = (len, w, off, fill, L) => [quad([[0, off - w / 2, 0], [len, off - w
 // ── an exaggerated metro's pieces, the geotown's (doodads.js, signs.js, receptacles.js): round, lathed; in a toon
 // register each of LOUD_VARIANTS shapes exaggerated and incongruent, a stamp picking one ──
 export const LOUD_VARIANTS = 3;
+// (a house's pieces, stamped on its walls and its yard: kit.js housePiece; a window's shapes, a loud one's off square)
+export const HOUSE_KINDS = new Set(['window', 'door', 'fence']), WINDOW_SHAPES = 6;
 // (the paints of its signs' and signals' roles, signs.js; a loud street's popped but the dark and the white)
-const SIGN_PAINT = { bollard: '#24272b', 'canopy-a': '#f4f2ea', 'canopy-b': '#2f6fb0', pole: '#555b62', signal: '#26282b', plate: '#22252b', border: '#f2d23a', rim: '#1c1d20', 'lens-red': '#e0463a', 'lens-amber': '#e3b13a', 'lens-green': '#46c06a', 'sign-red': '#c8202a', 'sign-white': '#f4f2ea', 'sign-yellow': '#f2c21a', 'sign-blue': '#1f5aa8', 'sign-green': '#1f6e3a', slot: '#1d2023', streetbin: '#2f4a3a', hydrant: '#c8372b', yellow: '#e3b13a', cap: '#d8d4c8', postbox: '#c8372b', lamp: '#f0d982' };
-const KEEP = new Set(['plate', 'rim', 'slot', 'sign-white', 'signal', 'pole', 'cap', 'canopy-a', 'bollard']);
+const SIGN_PAINT = { frame: '#ece8de', glass: '#2a3340', door: '#5a3a2a', fence: '#8a6a4a', bollard: '#24272b', 'canopy-a': '#f4f2ea', 'canopy-b': '#2f6fb0', pole: '#555b62', signal: '#26282b', plate: '#22252b', border: '#f2d23a', rim: '#1c1d20', 'lens-red': '#e0463a', 'lens-amber': '#e3b13a', 'lens-green': '#46c06a', 'sign-red': '#c8202a', 'sign-white': '#f4f2ea', 'sign-yellow': '#f2c21a', 'sign-blue': '#1f5aa8', 'sign-green': '#1f6e3a', slot: '#1d2023', streetbin: '#2f4a3a', hydrant: '#c8372b', yellow: '#e3b13a', cap: '#d8d4c8', postbox: '#c8372b', lamp: '#f0d982' };
+const KEEP = new Set(['plate', 'rim', 'slot', 'sign-white', 'signal', 'pole', 'cap', 'canopy-a', 'bollard', 'frame', 'glass', 'door', 'fence']);
 // (the roles a stamp's ink paints: its body; the rest, its lenses, its glass, its sign's face, keep their own colours)
-const BODY = new Set(['pole', 'signal', 'streetbin', 'hydrant', 'postbox', 'bollard', 'canopy-b']);
+const BODY = new Set(['pole', 'signal', 'streetbin', 'hydrant', 'postbox', 'bollard', 'canopy-b', 'frame', 'door', 'fence']);
 /** Faces in the local frame turned so its −y (a receptacle's front) looks toward (vx, vy). */
 const facingOf = (fs, [vx, vy]) => { const a = Math.atan2(vy, vx) + Math.PI / 2, c = Math.cos(a), sn = Math.sin(a), T = ([x, y, z]) => [x * c - y * sn, x * sn + y * c, z]; return fs.map((f) => ({ ...f, corners: f.corners.map(T), out: f.out ? T(f.out) : f.out })); };
 const LAMP_H = 2.35 * U, SIG_TOP = 6.2, SIG_ARM = 5.5;
+// (a house's window, its door and a metre of its fence, in the frame of the wall they stand on: `t` along it, out of it
+// toward (dx, dy); a window's shape v > 0 pulled off square by k, at least three corners off 90°: era/exaggerate.js)
+const WIN = [1.2, 1.4], WIN_FRAME = 0.12;
+function housePiece(kind, [dx, dy], v, k) {
+  const at = (tt, z, p) => [-dy * tt + dx * p, dx * tt + dy * p, z], o = [dx, dy, 0];
+  if (kind === 'door') return [{ corners: [at(-0.5, 0, 0.04), at(0.5, 0, 0.04), at(0.5, 2.1, 0.04), at(-0.5, 2.1, 0.04)], out: o, role: 'door' }];
+  if (kind === 'fence') return [{ corners: [at(-0.5, 0, 0.012), at(0.5, 0, 0.012), at(0.5, 1.15, 0.012), at(-0.5, 1.15, 0.012)], out: o, role: 'fence' }, { corners: [at(0.5, 0, -0.012), at(-0.5, 0, -0.012), at(-0.5, 1.15, -0.012), at(0.5, 1.15, -0.012)], out: [-dx, -dy, 0], role: 'fence' }];
+  const gw = WIN[0] - 2 * WIN_FRAME, gh = WIN[1] - 2 * WIN_FRAME, off = v > 0 && k > 0 ? skewCorners(strHash(`window|${v}`), gw, gh, k, 4.5) : [[0, 0], [0, 0], [0, 0], [0, 0]];
+  const inner = [[-gw / 2, WIN_FRAME], [gw / 2, WIN_FRAME], [gw / 2, WIN_FRAME + gh], [-gw / 2, WIN_FRAME + gh]].map((p, i) => [p[0] + off[i][0], p[1] + off[i][1]]);
+  const cu = inner.reduce((a, p) => a + p[0], 0) / 4, cz = inner.reduce((a, p) => a + p[1], 0) / 4, outer = inner.map(([u, z]) => [u + Math.sign(u - cu) * WIN_FRAME, z + Math.sign(z - cz) * WIN_FRAME]);
+  const out = [{ corners: inner.map(([u, z]) => at(u, z, 0.03)), out: o, role: 'glass' }];
+  for (let q = 0; q < 4; q++) { const b = (q + 1) % 4; out.push({ corners: [at(...outer[q], 0.08), at(...outer[b], 0.08), at(...inner[b], 0.08), at(...inner[q], 0.08)], out: o, role: 'frame' }); }
+  return out;
+}
 function loudPiece(kind, [dx, dy], D, R) {
   if (kind === 'lamp') return lampOf(0, 0, 0, [dx, dy], LAMP_H, D);
   if (kind === 'signal') {
@@ -267,7 +283,7 @@ export function kitTemplates(L0, { gauge = 1.495, poleReach = 4, exaggerate = nu
     const key = `${kind}:${facing}:${v}`;
     if (loudMade.has(key)) return loudMade.get(key);
     const R = mulberry32(strHash(`${kind}|${v}|shape`)), D = toon ? proportions(R, true) : { ...proportions(R, false), body: X ? X.chunk : 1 };
-    const fs = loudPiece(kind, FACE[facing] ?? [1, 0], D, mulberry32(strHash(`${kind}|${v}|parts`)));
+    const fs = HOUSE_KINDS.has(kind) ? housePiece(kind, FACE[facing] ?? [1, 0], v, exaggerate?.homes?.skew ?? 0) : loudPiece(kind, FACE[facing] ?? [1, 0], D, mulberry32(strHash(`${kind}|${v}|parts`)));
     const reaches = kind === 'lamp' || kind === 'signal', v2 = FACE[facing] ?? [1, 0], lean = (q) => (reaches ? leans(q, v2) : q);
     const whole = !!RECEPTACLES[kind], hexOf = (f) => f.hex ?? paintOf(f.role);
     const T = { body: lean(litKit(fs.filter((f) => whole || BODY.has(f.role)), hexOf, L0)), fixed: lean(litKit(fs.filter((f) => !whole && !BODY.has(f.role)), hexOf, L0)) };

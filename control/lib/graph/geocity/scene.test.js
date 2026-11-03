@@ -292,6 +292,23 @@ describe("a loud metro's street the geotown's: its lamps, signals, signs, post b
     expect(hues(X, 'coping')).toBeGreaterThan(hues(P, 'coping'));
     expect(ts(X, 'geocity:railing').every((t) => t.tint)).toBe(true);
   });
+  it('fronts its outskirts houses: each half its door, its windows, its path, its fenced yard and its bin; a loud pair\'s halves each its own mass, its windows off square and inked', () => {
+    const doors = ts(P, 'geocity:door').length;
+    expect(doors).toBe(P.geocity.counts.houses);
+    for (const k of ['window', 'fence', 'wheelie-240']) expect(ts(P, `geocity:${k}`).length).toBeGreaterThan(doors / 2);
+    expect(ts(P, 'geocity:window').every((t) => !t.tint)).toBe(true);
+    expect(P.faces.some((f) => f.group === 'geocity:path')).toBe(true);
+    // (the plain one's windows square, the loud one's every one off square at three corners or more)
+    const flat = (pts) => { const dx = pts[1][0] - pts[0][0], dy = pts[1][1] - pts[0][1], l = Math.hypot(dx, dy) || 1; return pts.map(([x, y, z]) => [((x - pts[0][0]) * dx + (y - pts[0][1]) * dy) / l, z]); };
+    const glass = (S) => reps(S, 'geocity:window-lit').map((r) => flat(r.template[0].corners));
+    expect(glass(P).every((g) => offSquare(g) === 0)).toBe(true);
+    expect(glass(X).length).toBeGreaterThan(4);
+    expect(glass(X).every((g) => offSquare(g) >= OFF_SQUARE)).toBe(true);
+    expect(ts(X, 'geocity:window').every((t) => t.tint)).toBe(true);
+    // (a loud pair's two halves each its own mass: more walls than the plain pair's one gable)
+    const walls = (S) => S.faces.filter((f) => f.group === 'geocity:house').length;
+    expect(walls(X)).toBeGreaterThan(walls(P));
+  });
   it('keeps a loud island\'s high shore under the budget: its blocks near its coping, no pier off a bluff', () => {
     const I = assembleGeocityScene({ ...M, cube: ex, seed: 3, geocity: { metro: 'harbour-island' } });
     expect(I.geocity.laws.find((l) => l.law === 'faces').ok).toBe(true);

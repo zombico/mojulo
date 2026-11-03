@@ -73,7 +73,14 @@
   the water (a planked deck on pairs of piles, railed, a lamp at its end). A loud one's wall in big askew blocks each
   its own pastel over the wall's grout, its coping in stripes of ink and paper, its pier's planks skewed pastel slabs,
   each pile, railing panel, bollard and parasol its own ink; a toon register's piles leaning. A high bluff's blocks
-  stay near its coping and no pier leaves it, so an island's shore keeps the faces' budget. The kit's new pieces:
+  stay near its coping and no pier leaves it, so an island's shore keeps the faces' budget.
+  Its outskirts houses, on a plain cube and a loud one: each half of a semi pair its door at its outer end and its
+  windows across its gable end storey by storey, framed, a path from the walk to its door, a patio behind it, its back
+  yard fenced along the block's middle and down its side, a wheelie bin in its front yard (the kit's `window`, `door`
+  and `fence`, stamped near the camera only, each on its wall where the cube's bend leaves it). A loud pair's two
+  halves each its own mass, wall hue and roof ink, never its partner's, the second raised over its partner's eave by
+  `homes.step`; each window off square at three corners or more (`homes.skew`), its frames, its door and its fence
+  each its own ink, never its partner's; its path and its patio skewed pastel slabs. The kit's new pieces:
   a railing panel, a mooring bollard and a parasol (`kit.js`).
 - **A loud street** (`exaggerate.streets`, `geotown/street-loud.js`; the `street` hand carries one), by the shops'
   principles over a plan that never moves: the walks laid in big pastel slabs over their own ground, cut on skewed lines

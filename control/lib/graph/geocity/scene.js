@@ -44,7 +44,7 @@ import { skinLot } from '../city/plan/facades.js';
 import { nightFaces } from '../city/plan/night.js';
 import { ORGANIC_SHAPES } from '../city/plan/organic.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
-import { kitTemplates, LOUD_VARIANTS } from './kit.js';
+import { kitTemplates, LOUD_VARIANTS, WINDOW_SHAPES } from './kit.js';
 import { RECEPTACLES } from '../geotown/receptacles.js';
 import { toonOf } from '../geotown/doodads.js';
 import { assembleGeotownScene, loudPlayground } from '../geotown/scene.js';
@@ -54,7 +54,7 @@ import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { litFactor } from '../polygonizer/vexar.js';
-import { bendFaces, exaggerateLaws } from '../era/exaggerate.js';
+import { bendFaces, exaggerateLaws, exaggerateField } from '../era/exaggerate.js';
 import { LOUD_WALLS, INK, popHex } from '../geotown/front-loud.js';
 import { slabsOf, groundSplat, inkPicker } from '../geotown/street-loud.js';
 import { loudFacade, loudWindowsOk } from './facade-loud.js';
@@ -239,6 +239,18 @@ export function assembleGeocityScene(m, ctx = {}) {
       put([[x1, y0, z0], [x1, y1, z0], [x1, y1, ze], [x1, y0, ze]], group, wall, [1, 0, 0]); put([[x1, y0, ze], [x1, y1, ze], [x1, ym, zr]], group, wall, [1, 0, 0]);
       put([[x0, y0, ze], [x1, y0, ze], [x1, ym, zr], [x0, ym, zr]], `${group}:roof`, roof); put([[x0, y1, ze], [x1, y1, ze], [x1, ym, zr], [x0, ym, zr]], `${group}:roof`, roof);
     }
+    counts.buildings++;
+  });
+  /** Half a semi pair under its gable: its outer wall at `co` across the ridge's axis, its party wall at `cr` (up to its
+   *  ridge, so a half raised over its partner shows it), its two ends, its roof from its eave up to the ridge; `axis`
+   *  the ridge's way, a0…a1 along it. Its own wall hue and roof ink (loudMass). */
+  const halfGable = (a0, a1, co, cr, z0, ze, zr, axis, wall0, roof0, group) => bent(z0, () => {
+    const [wall, roof] = loudMass(wall0, roof0), P = (al, ac, z) => (axis === 'x' ? [al, ac, z] : [ac, al, z]);
+    const V = (sg) => (axis === 'x' ? [0, sg, 0] : [sg, 0, 0]), A = (sg) => (axis === 'x' ? [sg, 0, 0] : [0, sg, 0]), so = Math.sign(co - cr);
+    put([P(a0, co, z0), P(a1, co, z0), P(a1, co, ze), P(a0, co, ze)], group, wall, V(so));
+    put([P(a0, cr, z0), P(a1, cr, z0), P(a1, cr, zr), P(a0, cr, zr)], group, wall, V(-so));
+    for (const [a, sg] of [[a0, -1], [a1, 1]]) put([P(a, co, z0), P(a, cr, z0), P(a, cr, zr), P(a, co, ze)], group, wall, A(sg));
+    put([P(a0, co, ze), P(a1, co, ze), P(a1, cr, zr), P(a0, cr, zr)], `${group}:roof`, roof, [...V(so * 0.5).slice(0, 2), 1]);
     counts.buildings++;
   });
   // at night a tall box's walls lit in runs along its floors: each floor's run its own length and place (the block's dice)
@@ -875,6 +887,9 @@ export function assembleGeocityScene(m, ctx = {}) {
 
   /** An outskirts block: two rows along its long sides, each the row its segment puts on that side. */
   function outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb }) {
+    // (a loud row's halves' trims, doors and fences each their own ink, never the last's; their windows' shapes)
+    const houseInk = HY ? inkPicker(streamOf(seed, 'house-ink', b.id), HY.pop) : null;
+    let lastWin = null;
     const sides = longY ? ['w', 'e'] : ['s', 'n'], med = Math.max(1, Math.round(b.storeys.median)), brickOf = () => HOUSE_BRICK[Math.floor(Rb() * HOUSE_BRICK.length)];
     const along = longY ? [y0, y1] : [x0, x1], deep = longY ? x1 - x0 : y1 - y0;
     // a row's frame: `u` along the block from its start, `v` into it from its side's edge
@@ -892,9 +907,52 @@ export function assembleGeocityScene(m, ctx = {}) {
         let ze = z0 + st * STOREY, zr = ze + Math.min(4.5, 0.32 * f);
         if (HY?.step && prevTop !== null && Math.abs(zr - prevTop) < HY.step) { ze += HY.step + 0.05; zr += HY.step + 0.05; }
         prevTop = zr;
-        // the gable to the street: its ridge runs into the block
-        gable(q[0], q[1], q[2], q[3], z0, ze, zr, longY ? 'x' : 'y', brickOf(), ROOFS[Math.floor(Rb() * ROOFS.length)], 'geocity:house');
+        // the gable to the street: its ridge runs into the block (a loud pair's two halves each its own mass, hue and
+        // roof, the second raised over its partner's eave by the step: never one height)
+        const wall0 = brickOf(), roof0 = ROOFS[Math.floor(Rb() * ROOFS.length)], axis = longY ? 'x' : 'y';
+        const [ua, ub] = s === 'w' || s === 'e' ? [q[1], q[3]] : [q[0], q[2]], um = (ua + ub) / 2, rise = HY?.step ? HY.step + 0.05 : 0;
+        if (HY) {
+          const [a0, a1] = axis === 'x' ? [q[0], q[2]] : [q[1], q[3]];
+          halfGable(a0, a1, ua, um, z0, ze, zr, axis, wall0, roof0, 'geocity:house');
+          halfGable(a0, a1, ub, um, z0, ze + rise, zr + rise, axis, wall0, roof0, 'geocity:house');
+          prevTop = zr + rise;
+        } else gable(q[0], q[1], q[2], q[3], z0, ze, zr, axis, wall0, roof0, 'geocity:house');
         counts.houses += 2;
+        frontsOf(s, q, ua, ub, z0, st, dpt, b);
+      }
+    };
+    /** A pair's two fronts and their yards, near the camera: each half's door at its outer end and its windows across
+     *  its gable end, storey by storey, a path to its door, a patio behind it, its back yard fenced, a wheelie bin in
+     *  its front yard beside its path. A loud half's windows each off square, its frames, its door and its fence each its own ink, never its
+     *  partner's; its path and its patio skewed pastel slabs. */
+    const frontsOf = (s, q, ua, ub, z0, st, dpt, b) => {
+      const um = (ua + ub) / 2, wallAt = (u) => (s === 's' ? [u, q[1]] : s === 'n' ? [u, q[3]] : s === 'w' ? [q[0], u] : [q[2], u]);
+      // (a point v into the block from its street edge, at u along it)
+      const vAt = (u, v) => (s === 's' ? [u, y0 + v] : s === 'n' ? [u, y1 - v] : s === 'w' ? [x0 + v, u] : [x1 - v, u]);
+      const rectUV = (u0, u1, v0, v1) => { const p = vAt(u0, v0), r = vAt(u1, v1); return [Math.min(p[0], r[0]), Math.min(p[1], r[1]), Math.max(p[0], r[0]), Math.max(p[1], r[1])]; };
+      const F = EX && (EX.lean || EX.sag) ? exaggerateField(EX) : null, bentAt = (p, z) => { if (!F) return [p[0], p[1], z]; const d0 = F.at(p[0], p[1], z + 0.7, z0); return [p[0] + d0[0], p[1] + d0[1], z + d0[2]]; };
+      const ns = s === 's' || s === 'n', alongF = ns ? 'n' : 'e', acrossF = ns ? 'e' : 'n', R = streamOf(seed, 'house-front', `${b.id}:${r5(ua)}`);
+      const piece = (kind, f, v, pos, scale, tint) => { put1(`${kind}:${f}:${v}`, pos, 0, scale, tint ? linC(tint) : null); if (KIT.piece(kind, f, v).fixed.length) put1(`${kind}-lit:${f}:${v}`, pos, 0, scale, null); };
+      for (const [h0, h1, outer] of [[ua, um, ua], [um, ub, ub]]) {
+        const dir = Math.sign(um - outer), ink = HY ? houseInk : null, trim = ink ? ink('trim') : null, door = ink ? ink('door') : null, fence = ink ? ink('fence') : null;
+        const shape = () => { if (!HY) return 0; let v; do v = 1 + Math.floor(R() * WINDOW_SHAPES); while (v === lastWin); lastWin = v; return v; };
+        // its door at its outer end, its windows across its front, storey by storey
+        const du = outer + dir * 1.3;
+        piece('door', s, 0, bentAt(wallAt(du), z0 + 0.02), null, door);
+        for (let k = 0; k < st; k++) for (const wu of k ? [outer + dir * 1.6, outer + dir * 4.3] : [outer + dir * 4.1]) if (Math.abs(wu - um) > 0.9) piece('window', s, shape(), bentAt(wallAt(wu), z0 + 0.9 + k * STOREY), null, trim);
+        // its path from the walk to its door; its patio behind it
+        const path = rectUV(du - 0.55, du + 0.55, 0, SETBACK), patio = rectUV(Math.min(h0, h1) + 0.3, Math.max(h0, h1) - 0.3, SETBACK + dpt, SETBACK + dpt + 3);
+        for (const [r, key] of [[path, 'path'], [patio, 'patio']]) {
+          const zz = zAt((r[0] + r[2]) / 2, (r[1] + r[3]) / 2) + 0.02;
+          if (HY) for (const sl of slabsOf(r, r[2] - r[0] >= r[3] - r[1] ? 'x' : 'y', () => zz + 0.005, { skew: STL?.skew ?? 0.35, pop: 0.7 }, col.walk, streamOf(seed, `house-${key}`, `${b.id}:${r5(h0)}`))) put(sl.corners, 'geocity:slab', sl.hex);
+          else put([[r[0], r[1], zz], [r[2], r[1], zz], [r[2], r[3], zz], [r[0], r[3], zz]], 'geocity:path', col.walk);
+        }
+        // its back yard's fences: along the block's middle, and down its side from its house's back
+        const mid = deep / 2 - 0.06, lo = Math.min(h0, h1), hi = Math.max(h0, h1), [rx, ry] = vAt((lo + hi) / 2, mid), back = SETBACK + dpt, [sx, sy] = vAt(outer, (back + mid) / 2);
+        piece('fence', alongF, 0, [rx, ry, zAt(rx, ry)], ns ? [r5(hi - lo), 1, 1] : [1, r5(hi - lo), 1], fence);
+        piece('fence', acrossF, 0, [sx, sy, zAt(sx, sy)], ns ? [1, r5(mid - back), 1] : [r5(mid - back), 1, 1], fence);
+        // its wheelie bin in its front yard, beside its path between its door and its window
+        const [bx, by] = vAt(outer + dir * 2.7, SETBACK - 1.1); stamp(`wheelie-240:${s}`, [bx, by, zAt(bx, by)], 0);
       }
     };
     const shops = (s, storeys, group) => {
