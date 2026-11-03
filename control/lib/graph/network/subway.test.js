@@ -196,3 +196,40 @@ describe('a subway line run on past its ends', () => {
     expect(() => readSubway({ stations: [{ id: 'u' }], runOn: 900 })).toThrow(/runOn is 0 to 600/);
   });
 });
+
+describe('a teleport over elevation', () => {
+  it('runs a stub out of each station as it stands (a tunnel, a cut, an el to its buffer wall), its warps standing the walker on each next platform at its height', () => {
+    const spec = { stations: [{ id: 'a', plan: box }, { id: 'b', plan: box, elevation: 'cut' }, { id: 'c', plan: box, elevation: 'elevated' }], gap: 100, tunnels: 'teleport' };
+    const M = { kind: 'stage', subway: spec, level: {} }, P = assembleStageScene(M, {}), L = withBuildingLevel(M, 'ref');
+    // (no track joins its stations: its gaps as asked, not lengthened for a climb)
+    expect(P.subway.gaps).toBeUndefined();
+    for (const l of P.subway.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+    // (a stub out of the el an el to its buffer wall; a box out of the cut deep enough to be a tunnel by its end, ending in
+    // the dark)
+    const buffers = P.colliders.filter((c) => /:buffer-b$/.test(c.of));
+    expect(buffers).toHaveLength(1);
+    expect(buffers[0].min[2]).toBeGreaterThan(8);
+    const warps = P.anchors.filter((a) => a.kind === 'warp'), walk = walker(P), byTo = (id) => warps.filter((x) => x.to === `station-${id}`);
+    expect(warps).toHaveLength(4);
+    for (const x of warps) {
+      for (const pts of [x.walk, x.walk.slice().reverse()]) {
+        const r = walk(pts);
+        expect({ id: x.id, steepest: r.steepest <= 0.36, crossed: r.crossed, gaps: r.gaps, boxes: r.boxes }).toEqual({ id: x.id, steepest: true, crossed: [], gaps: [], boxes: [] });
+      }
+      const on = walk([x.spot, [x.spot[0], x.spot[1] + Math.sin(x.heading) * 3, x.spot[2]]]);
+      expect({ crossed: on.crossed, gaps: on.gaps, boxes: on.boxes }).toEqual({ crossed: [], gaps: [], boxes: [] });
+    }
+    // (stood on the el's platform over the street, on the cut's under it)
+    for (const x of byTo('c')) expect(x.spot[2]).toBeGreaterThan(8);
+    for (const x of byTo('b')) expect(x.spot[2]).toBeLessThan(-3);
+    // its level: a piece walked between each two warps, won on the street under the el
+    const ws = L.game.mechanics.filter((m) => m.kind === 'warp'), exit = L.game.mechanics.at(-1), pieces = [];
+    let piece = [exit.via[0]];
+    for (let i = 1; i < exit.via.length; i++) { if (ws.some((m) => Math.abs(m.at[0] - exit.via[i - 1][0]) < 1e-6 && Math.abs(m.at[1] - exit.via[i - 1][1]) < 1e-6)) { pieces.push(piece); piece = [exit.via[i]]; } else piece.push(exit.via[i]); }
+    pieces.push(piece);
+    expect(pieces).toHaveLength(3);
+    for (const c of pieces) { const r = walk(c); expect({ steepest: r.steepest <= 0.36, crossed: r.crossed, gaps: r.gaps, boxes: r.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] }); }
+    expect(exit.via.at(-1)[2]).toBeCloseTo(0, 5);
+    expect(L.play.scenes).toHaveLength(new Set(ws.map((m) => m.then)).size);
+  });
+});

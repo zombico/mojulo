@@ -62,3 +62,12 @@
     end).
 
   The readout's `runOn` gives each run-on's length and spans. A stage's line still ends at its buffers unless asked.
+- **Levels and teleport over elevation.** A teleport's stations are joined by no track, so its gaps stay as asked and
+  are not lengthened for a climb.
+  - Each stub runs out of its station as the station stands: a tunnel out of a deep one, out of a cut one (a box deep
+    enough to be a tunnel by its end), and an el out of an elevated one, to a buffer wall.
+  - Each warp stands the walker on the next platform at its height: up from a deep stub onto the el, down into the cut.
+    Its arrival is shown over the walker's shoulder down the el's platform.
+  - Played as a level on the stage and in the geocity, a piece walked between each two warps, and won on the street
+    under the el, or on a sidewalk down its flight. The warp up onto the el moves the walker in the page and fires its
+    arrival scene (checked in headless Chrome).

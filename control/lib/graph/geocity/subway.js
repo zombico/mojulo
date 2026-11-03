@@ -79,7 +79,7 @@ export function subwayPlan(d, { S, kerb = 0.15 }) {
       if (zs[i] > zs[i + 1] + most) zs[i] = zs[i + 1] + most;
     }
     P = { l, ns, total, t0, W, N, ground, zs, ys, lo, hi };
-    const next = gaps.map((g, i) => Math.max(gap, Math.ceil(Math.abs(zs[i + 1] - zs[i]) / (1 / 30) - 1e-9)));
+    const next = gaps.map((g, i) => Math.max(gap, SP.tunnels === 'teleport' ? 0 : Math.ceil(Math.abs(zs[i + 1] - zs[i]) / (1 / 30) - 1e-9)));
     if (next.every((g, i) => g === gaps[i])) break;
     gaps = next;
   }

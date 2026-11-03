@@ -173,6 +173,27 @@ describe('an el over an evocation\'s street', () => {
     }
   });
 
+  it('as a teleport from its deep station up to the el, is played as a level: its warp standing the walker on the el\'s platform', () => {
+    const T = { ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: { tunnels: 'teleport', elevation: ['deep', 'elevated'] } }, level: {} };
+    const P = assembleGeocityScene(T), V = P.geocity.subway, L = withBuildingLevel(T, 'ref');
+    expect(V.gaps).toBeUndefined();
+    const ws = L.game.mechanics.filter((m) => m.kind === 'warp'), exit = L.game.mechanics.find((m) => m.kind === 'reach-exit'), walk = walker(P);
+    expect(ws).toHaveLength(2);
+    // (the warp up: from the deep stub to the el's platform, its eye over it, high over the street)
+    const up = ws.find((m) => m.to[2] > m.at[2]);
+    expect(up.to[2] - 1.7 - S(up.to[0], up.to[1])).toBeGreaterThan(8);
+    const pieces = [];
+    let piece = [exit.via[0]];
+    for (let i = 1; i < exit.via.length; i++) { if (ws.some((m) => Math.abs(m.at[0] - exit.via[i - 1][0]) < 1e-3 && Math.abs(m.at[1] - exit.via[i - 1][1]) < 1e-3)) { pieces.push(piece); piece = [exit.via[i]]; } else piece.push(exit.via[i]); }
+    pieces.push(piece);
+    expect(pieces).toHaveLength(2);
+    for (const c of pieces) { const r = walk(c); expect({ steepest: r.steepest <= 0.36, crossed: r.crossed, gaps: r.gaps, boxes: r.boxes }).toEqual({ steepest: true, crossed: [], gaps: [], boxes: [] }); }
+    // (won on a sidewalk under the el, down the flight from its platform)
+    const foot = exit.via.at(-1), off = Math.abs(foot[across] - l.at);
+    expect(off).toBeGreaterThan(l.road / 2);
+    expect(off).toBeLessThan(l.half);
+  });
+
   it('dives from the el to a deep station through a cut in the road, its gap lengthened for the fall, played as a level', () => {
     const sub = { stations: 3, elevation: ['elevated', 'elevated', 'deep'] }, T = { ...M, geocity: { ...geocity, evoke: 'neighbourhood', subway: sub }, level: {} };
     const P = assembleGeocityScene(T), V = P.geocity.subway, dive = V.runs.at(-1);

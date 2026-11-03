@@ -132,7 +132,8 @@ export function laySubway(c0, { z0: zBed = null, ground = () => 0, street = null
     y += s.length ?? 72;
     if (i + 1 < c.stations.length) {
       const nx = c.stations[i + 1], zn = openAt(i + 1) ? ground(0, y + gap + (nx.length ?? 72) / 2) + OPEN_BED[nx.elevation] : zs[i + 1];
-      gaps.push(Math.max(least?.[i] ?? gap, Math.ceil(Math.abs(zn - zs[i]) / S.grade - 1e-9)));
+      // (a teleport's stations are joined by no track: the gap is as asked)
+      gaps.push(Math.max(least?.[i] ?? gap, c.tunnels === 'teleport' ? 0 : Math.ceil(Math.abs(zn - zs[i]) / S.grade - 1e-9)));
       y += gaps[i];
     }
   });
