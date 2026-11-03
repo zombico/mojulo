@@ -37,6 +37,8 @@ export const CRAFT_PALETTES = {
   ribGrey: { paint: '#eceeee', trim: '#6f777e', glass: '#26323c', rubber: '#202224', chrome: '#c9ced3', light: '#e94b3c' },
   // a centre console's white moulding, its navy stripe and cushions, smoked glass, stainless
   ccWhite: { paint: '#f1f2f0', trim: '#22364f', glass: '#2f3a44', rubber: '#1b1c1e', chrome: '#d3d7db', light: '#e94b3c' },
+  // a cuddy's white moulding, its sea-blue stripe and upholstery, smoked glass, stainless, a black outboard
+  cuddyBlue: { paint: '#f2f2ef', trim: '#2f6f9a', glass: '#2c3640', rubber: '#1a1b1d', chrome: '#d3d7db', light: '#e94b3c' },
   // a racer's bare carbon, aluminium standoffs, bright props (its 'rubber': the shelf's role for the props)
   fpvCarbon: { paint: '#2a2c2f', trim: '#1b1c1e', glass: '#22303a', rubber: '#e8642a', chrome: '#a8adb2', light: '#7dff6a' },
   // an enterprise drone's dark grey, rugged

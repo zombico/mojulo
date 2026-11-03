@@ -82,6 +82,19 @@ The first boat is a small motor skiff; bigger and different boats follow from th
 
   The boat's hull is the centre console's with `navLights: { pole: false }`, its all-round light moved to the top. The
   registry's `t-top-console` row, its build asleep.
+- **The cuddy cabin** (`cuddyCabin`): a 19 ft moulded deep V, white with a sea-blue stripe and upholstery, a black
+  150 hp remote on a 25 in shaft in its motor well, in the `runabout` role. Its new words each fit the hull they are on:
+  - **`trunk`:** the cabin's top on the long foredeck, lofted bow-ward inboard of the sheer, its sides leaning in and its
+    top falling toward the bow, its portlights along its sides, its hatch and grab rails on top.
+  - **`companionway`:** the cabin's door in the deck's aft bulkhead.
+  - **A hull's `windscreen`:** across the boat on the deck's edge, its wings running forward along the gunwales, raked
+    aft, a walk-through in its middle to the cabin's door, its frame and posts.
+  - **Points off the centreline** (`[s, x]`): a split dash (`dash-helm-19` to starboard with its wheel and throttle,
+    `dash-passenger-19` to port with a grab handle and glovebox; the console builder now draws only the pieces a row
+    names, the centre console's bytes held) and two bucket seats on pedestals (`boat-seat`'s `bucket`).
+  - An aft bench with a `cushion`. It floats 1616 kg with 29 cm of freeboard at the notch; the 150 hp tilts into its
+    well clear of the transom and the bulkhead.
+  - The registry's `cuddy-cabin` row (cuddy, cabin runabout, weekender …), its build asleep.
 - **Afloat by its weight** (`boat-parts.js` `hullVolume`, `hullFloat`). The hull's displacement is worked out from the
   same sections it is lofted from, so what floats is what is drawn. An assembled boat's readout says where it floats
   (`afloat`): its parts' mass and its payload, the draft that displaces them in fresh or salt water (`water`), the
@@ -110,8 +123,11 @@ The first boat is a small motor skiff; bigger and different boats follow from th
     freeboard at the notch, the motor's plate at the keel on its shaft, tilted into the well and out of the transom's
     raked, notched block and the bulkhead; a T-top's feet on the sole beside the console, its hardtop over the helm with
     headroom, the all-round light moved to it.
+  - a cuddy cabin: its cabin top inboard of the sheer standing its height over the deck, its ports; its windscreen inside
+    the gunwales with its walk-through open and the cabin's door behind it; its split dash and bucket seats off the
+    centreline, the passenger's dash without a helm.
 
-  The shelf's new builder paths (the remote outboard, the console, the seat, the T-top) are pinned, and no existing pin
-  moved.
+  The shelf's new builder paths (the remote outboard, the console, the seat, the T-top, the bucket seat) are pinned, and
+  no existing pin moved.
 
   The shelf's first three boat builder paths were pinned when they joined.

@@ -82,4 +82,18 @@ export const BOAT_ARCHETYPES = {
       { id: 'frontSeat', sku: 'seat-cooler-120', at: 'hull.frontSeat' },
     ],
   },
+  cuddyCabin: {
+    realm: 'water', role: 'runabout', palette: 'cuddyBlue', class: 'cuddy cabin', label: '19 ft cuddy cabin', classOf: '19 ft cuddy cabin class (5.8 m, 150 hp remote in its motor well)',
+    payload: 420,
+    reference: { span: 2.41, length: 6.7, height: 2.4, mtow: 1700, draft: 0.33 },
+    bom: { 'boat-hull': 1, 'boat-outboard': 1, 'boat-console': 2, 'boat-seat': 2 },
+    layout: [
+      { id: 'hull', sku: 'hull-cuddy-19' },
+      { id: 'motor', sku: 'outboard-150-remote-25', at: 'hull.motor' },
+      { id: 'helm', sku: 'dash-helm-19', at: 'hull.helm' },
+      { id: 'passenger', sku: 'dash-passenger-19', at: 'hull.passenger' },
+      { id: 'helmSeat', sku: 'seat-bucket-pedestal', at: 'hull.helmSeat' },
+      { id: 'passengerSeat', sku: 'seat-bucket-pedestal', at: 'hull.passengerSeat' },
+    ],
+  },
 };

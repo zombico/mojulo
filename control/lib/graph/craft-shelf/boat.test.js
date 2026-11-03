@@ -5,8 +5,9 @@
 // boats; a boat by the words people say, its build asleep, never a transformer's craft. A hull's variations, each on the
 // hull that carries it: a flat bottom, a square bow, a sole, a collar that floats too; an outboard's leg at its size. A
 // helm on the sole: a console and seats on the hull's points, a gunwale cap, the nav lights and the bow rail, a remote
-// outboard. A motor well (the notch, the splashwell, the motor tilting into it) and a T-top over the helm. The cases are
-// chosen from the shelf in code.
+// outboard. A motor well (the notch, the splashwell, the motor tilting into it) and a T-top over the helm. A cuddy
+// cabin: its cabin top, a windscreen that fits the hull with its walk-through, the cabin's door, a split dash and bucket
+// seats off the centreline. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
 import { BOAT_KINDS, BOAT_ODM } from './boat-odm.js';
@@ -302,6 +303,42 @@ describe('a motor well, and a top over the helm', () => {
     const { manifest } = assembleCraft(TB), ids = (i) => i.source.lathes.map((l) => l.id);
     expect(ids(manifest.items[0])).not.toContain('all_round_light');
     expect(ids(manifest.items.find((i) => i.source.garage.kind === 'boat-top'))).toContain('all_round_light');
+  });
+});
+
+describe('a cuddy cabin', () => {
+  const CR = Object.keys(BOAT_ODM).find((x) => BOAT_ODM[x].kind === 'boat-hull' && BOAT_ODM[x].build.trunk), HC = BOAT_ODM[CR], H = hullLines(HC), K = HC.build;
+  const src = resolveCraftPart(CR, { seat: 'mount' }), only = (kind, re) => bounds(lowerObjectFaces({ ...src, lathes: [], extrudes: [], sweeps: [], lofts: [], [kind]: src[kind].filter((m) => re.test(m.id)) }));
+  it('its cabin top on the foredeck, inboard of the sheer by its inset, standing its height over the deck', () => {
+    const t = only('lofts', /^trunk$/), deck = (s) => H.at(s).sheer - K.deck.thickness;
+    expect(t.hi[0]).toBeLessThan(H.at(K.trunk.from).sheerHalf - K.trunk.inset + 0.001);
+    // (at its aft end: its top its height over the deck there; toward the bow the deck rises under it)
+    const aft = src.lofts.find((l) => l.id === 'trunk').stations[0];
+    expect(Math.max(...aft.profile.map(([, v]) => v))).toBeCloseTo(deck(K.trunk.from) - 0.03 + K.trunk.height, 3);
+    expect(t.hi[2]).toBeGreaterThan(deck(K.trunk.from));
+    expect(t.lo[1]).toBeCloseTo(H.at(K.trunk.from).y, 3);
+    expect(src.extrudes.filter((e) => /^port_/.test(e.id)).length).toBe(2 * K.trunk.ports.length);
+  });
+  it('its windscreen fits the hull: its wings inside the gunwales, its walk-through open, the cabin\'s door behind it', () => {
+    const ws = only('extrudes', /^windscreen/), W = K.windscreen;
+    expect(ws.hi[0]).toBeLessThan(Math.max(H.at(W.at).sheerHalf, H.at(W.to).sheerHalf));
+    const glass = lowerObjectFaces({ ...src, lathes: [], sweeps: [], lofts: [], extrudes: src.extrudes.filter((e) => /^windscreen/.test(e.id)) }).flatMap((f) => f.corners);
+    expect(glass.filter((c) => Math.abs(c[0]) < W.walk / 2 - 0.01)).toEqual([]);
+    const door = only('extrudes', /^companionway$/);
+    expect(door.hi[0]).toBeLessThan(W.walk / 2);
+    expect(door.hi[1]).toBeCloseTo(H.at(K.deck.from).y, 1);
+  });
+  it('its split dash and seats on points off the centreline; the passenger\'s dash with no helm but a grab handle', () => {
+    const B = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout[0].sku === CR), { manifest } = assembleCraft(B);
+    const dashes = manifest.items.filter((i) => i.source.garage.kind === 'boat-console');
+    expect(dashes.length).toBe(2);
+    expect(Math.sign(dashes[0].at[0])).toBe(-Math.sign(dashes[1].at[0]));
+    for (const d of dashes) expect(Math.abs(d.at[0])).toBeCloseTo(Math.abs(K.points[A[B].layout.find((e) => e.id === d.id).at.split('.')[1]][1]), 3);
+    const helm = dashes.find((d) => d.source.garage.hardpoints.wheel), pass = dashes.find((d) => !d.source.garage.hardpoints.wheel);
+    expect(helm.at[0]).toBeGreaterThan(0);
+    expect(pass.source.sweeps.some((w) => w.id === 'grab_handle')).toBe(true);
+    const seat = manifest.items.find((i) => i.source.garage.family === 'bucket');
+    expect(seat.source.garage.hardpoints.seat[2]).toBeCloseTo(CRAFT_ODM[seat.source.garage.sku].build.seat + 0.08, 3);
   });
 });
 

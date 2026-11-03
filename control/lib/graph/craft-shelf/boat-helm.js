@@ -2,13 +2,16 @@
  * boat-helm — the builders of the craft shelf's helm kinds (boat-odm.js), merged into BOAT_BUILDERS: a console, a seat
  * and a top over the helm, each standing on a hull's point on its sole (its mount the middle of its foot, +y the bow). Pure, as the shelf is.
  *
- *   boat-console  moulded   the console's body from its side's outline pushed across its width (its front, its dash
+ *   boat-console  moulded   (each piece only when its row names it: a dash under a hull's own windscreen has no
+ *                           windscreen or rail, a passenger's no helm or throttle but a grab handle and glovebox)
+ *                           the console's body from its side's outline pushed across its width (its front, its dash
  *                           sloping down aft to the helm, its back); its access door; the windscreen in three panels
  *                           (the middle, two wings swept aft) and its frame; the grab rail round its front and sides on
  *                           bent posts; on the dash the screen, two gauges and the compass; the helm: its pod, the
  *                           wheel's rim, hub and spokes, its axis raked toward the helmsman; the throttle's binnacle on
  *                           the starboard side and its lever. Points: `mount`, `wheel` (the wheel's middle)
  *   boat-seat     cooler    a cooler (its seam, its rope handles) and its cushion on top
+ *                 bucket    a bucket seat on a pedestal: its foot, post and swivel, its pan and shell, its back raked aft
  *   boat-top      tTop      a T-top: four legs from feet on the sole beside the console, bent in to its frame, a front
  *                           brace over the windscreen, the hardtop (`over`: its front and back, overhanging aft over the
  *                           helm) and its lip, rod holders along its back edge, spreader lights under it, the all-round
@@ -45,7 +48,10 @@ function buildConsole(row, C) {
   const nUp = n[2] < 0 ? scale(n, -1) : n;
   const on = (u, x, lift = 0) => { const p = lerp2(dF, dB, u); return add([x, p[0], p[1]], scale(nUp, lift)); };
   // the windscreen: its middle panel raked aft from the dash's front edge, two wings swept aft at its ends; its frame
-  const ws = b.windscreen, bot = [dF[0] + 0.03, dF[1] - 0.012], topY = bot[0] - ws.height * Math.sin(ws.rake * Math.PI / 180), topZ = bot[1] + ws.height * Math.cos(ws.rake * Math.PI / 180);
+  // (each piece the row names: a dash under a hull's own windscreen has none of its own, a passenger's no helm)
+  const ws = b.windscreen;
+  if (ws) {
+  const bot = [dF[0] + 0.03, dF[1] - 0.012], topY = bot[0] - ws.height * Math.sin(ws.rake * Math.PI / 180), topZ = bot[1] + ws.height * Math.cos(ws.rake * Math.PI / 180);
   const panel = (x0, x1, sweepAft) => {
     const t = 0.008, base = [[0, bot[0], bot[1]], [0, topY, topZ], [0, topY - t, topZ], [0, bot[0] - t, bot[1]]];
     return { from: [x0, 0, 0], to: [x1, -sweepAft, 0], base };
@@ -61,26 +67,33 @@ function buildConsole(row, C) {
   sweeps.push(sweep('windscreen_frame', [
     [-(ws.width / 2 + ws.wing), topY - ws.wingAft, topZ], [-ws.width / 2, topY, topZ], [ws.width / 2, topY, topZ], [ws.width / 2 + ws.wing, topY - ws.wingAft, topZ],
   ], fr, C.chrome, { sides: 6 }));
+  }
   // the grab rail round its front and sides on bent posts from its walls
-  const R = b.rail, zr = R.height, xo = W / 2 + R.out, yf = y1 + R.out;
+  const R = b.rail;
+  if (R) {
+  const zr = R.height, xo = W / 2 + R.out, yf = y1 + R.out;
   const railPath = [[xo, y0 + 0.06, zr], [xo, y1 - 0.08, zr], [xo * 0.7, yf, zr], [-xo * 0.7, yf, zr], [-xo, y1 - 0.08, zr], [-xo, y0 + 0.06, zr]];
   sweeps.push(sweep('grab_rail', railPath, R.radius, C.chrome, { sides: 8 }));
   for (const sx of [1, -1]) for (const [k, y] of [y0 + 0.08, (y0 + y1) / 2, y1 - 0.1].entries()) {
     sweeps.push(sweep(`rail_post_${sx > 0 ? 'r' : 'l'}${k}`, [[sx * (W / 2 - 0.02), y, zr - 0.3], [sx * xo, y, zr - 0.24], [sx * xo, y, zr]], R.radius * 0.85, C.chrome, { sides: 6 }));
   }
   for (const sx of [1, -1]) sweeps.push(sweep(`rail_post_f${sx > 0 ? 'r' : 'l'}`, [[sx * xo * 0.6, y1 - 0.02, zr - 0.28], [sx * xo * 0.65, yf, zr - 0.22], [sx * xo * 0.65, yf, zr]], R.radius * 0.85, C.chrome, { sides: 6 }));
+  }
   // on the dash: the screen, two gauges and the compass ahead of them
-  const screen = on(0.3, 0, 0.012);
-  extrudes.push(E('screen_bezel', on(0.3, 0, -0.005), on(0.3, 0, 0.02), rect([1, 0, 0], du, 0.32, 0.17), C.rubber));
-  extrudes.push(E('screen', on(0.3, 0, 0.019), on(0.3, 0, 0.023), rect([1, 0, 0], du, 0.29, 0.14), C.glass, { material: 'glass' }));
-  void screen;
-  for (const sx of [1, -1]) {
+  if (b.screen !== false) {
+    extrudes.push(E('screen_bezel', on(0.3, 0, -0.005), on(0.3, 0, 0.02), rect([1, 0, 0], du, 0.32, 0.17), C.rubber));
+    extrudes.push(E('screen', on(0.3, 0, 0.019), on(0.3, 0, 0.023), rect([1, 0, 0], du, 0.29, 0.14), C.glass, { material: 'glass' }));
+  }
+  if (b.gauges !== false) for (const sx of [1, -1]) {
     lathes.push(lathe(`gauge_${sx > 0 ? 'r' : 'l'}`, on(0.55, sx * 0.25, -0.004), on(0.55, sx * 0.25, 0.016), [[0, 0.05], [0.8, 0.048], [1, 0.044]], C.chrome, { samples: 16, crossSections: 3 }));
     lathes.push(lathe(`gauge_glass_${sx > 0 ? 'r' : 'l'}`, on(0.55, sx * 0.25, 0.016), on(0.55, sx * 0.25, 0.02), [[0, 0.042], [1, 0.042]], C.glass, { material: 'glass', samples: 16, crossSections: 2 }));
   }
-  lathes.push(lathe('compass', on(0.06, 0, -0.005), on(0.06, 0, 0.07), [[0, 0.06], [0.3, 0.06], [0.45, 0.055], [0.8, 0.035], [1, 0.005]], C.glass, { material: 'glass', samples: 16, crossSections: 5 }));
+  if (b.compass !== false) lathes.push(lathe('compass', on(0.06, 0, -0.005), on(0.06, 0, 0.07), [[0, 0.06], [0.3, 0.06], [0.45, 0.055], [0.8, 0.035], [1, 0.005]], C.glass, { material: 'glass', samples: 16, crossSections: 5 }));
   // the helm: its pod off the dash, the wheel on its axis raked toward the helmsman, its rim, hub and spokes
-  const H = b.helm, base = on(H.at, 0, 0), axis = unit(add(nUp, [0, -H.rake, 0])), wc = add(base, scale(axis, H.reach));
+  const H = b.helm, hardpoints = { mount: [0, 0, 0] };
+  if (H) {
+  const base = on(H.at, 0, 0), axis = unit(add(nUp, [0, -H.rake, 0])), wc = add(base, scale(axis, H.reach));
+  hardpoints.wheel = r3v(wc);
   lathes.push(lathe('helm_pod', add(base, scale(nUp, -0.01)), add(base, scale(nUp, 0.06)), [[0, 0.075], [1, 0.065]], C.rubber, { samples: 14, crossSections: 2 }));
   lathes.push(lathe('helm_shaft', add(base, scale(axis, 0.05)), wc, [[0, 0.03], [1, 0.022]], C.rubber, { samples: 10, crossSections: 2 }));
   const e1 = [1, 0, 0], e2 = unit(cross(axis, e1)), rim = H.diameter / 2;
@@ -91,17 +104,46 @@ function buildConsole(row, C) {
     const a = Math.PI / 2 + (2 * Math.PI * k) / 3, dir = add(scale(e1, Math.cos(a)), scale(e2, Math.sin(a)));
     sweeps.push(sweep(`spoke_${k}`, [add(wc, scale(dir, 0.03)), add(add(wc, scale(dir, rim * 0.6)), scale(axis, -0.012)), add(wc, scale(dir, rim))], 0.008, C.chrome, { sides: 6 }));
   }
+  }
   // the throttle's binnacle on the starboard wall, its lever and knob
-  const T = b.throttle, by = T.at, bz = T.height;
+  const T = b.throttle;
+  if (T) {
+  const by = T.at, bz = T.height;
   extrudes.push(E('binnacle', [W / 2 - 0.01, by, bz], [W / 2 + 0.08, by, bz], rect([0, 1, 0], [0, 0, 1], 0.13, 0.15), C.rubber));
   const lv = [[W / 2 + 0.06, by, bz + 0.05], [W / 2 + 0.075, by + 0.06, bz + 0.17]];
   sweeps.push(sweep('throttle', lv, 0.011, C.chrome, { sides: 6 }));
   lathes.push(lathe('throttle_knob', lv[1], add(lv[1], [0.02, 0.012, 0.03]), [[0, 0.022], [0.7, 0.02], [1, 0.008]], C.rubber, { samples: 10, crossSections: 3 }));
-  return { extrudes, lathes, sweeps, hardpoints: { mount: [0, 0, 0], wheel: r3v(wc) } };
+  }
+  // a passenger's: the grab handle across the dash's top, the glovebox's door in its back
+  if (b.grab) {
+    const g0 = on(0.2, W * 0.36, 0.01), g1 = on(0.2, -W * 0.36, 0.01);
+    sweeps.push(sweep('grab_handle', [g0, add(on(0.25, W * 0.33, 0.01), scale(nUp, 0.07)), add(on(0.25, -W * 0.33, 0.01), scale(nUp, 0.07)), g1], 0.012, C.chrome, { sides: 6 }));
+  }
+  if (b.glovebox) extrudes.push(E('glovebox', [0, y0 + 0.002, dB[1] * 0.55], [0, y0 - 0.008, dB[1] * 0.55], rect([1, 0, 0], [0, 0, 1], W * 0.6, dB[1] * 0.3), tone(C.paint, -0.07)));
+  return { extrudes, lathes, sweeps, hardpoints };
+}
+
+// a bucket seat on its pedestal: the pedestal's foot and post, the seat's pan and its bolsters, the back raked aft
+function buildBucket(row, C) {
+  const b = row.build, { width: W, length: D } = row.dims, zs = b.seat, back = b.back;
+  const lathes = [
+    lathe('pedestal_foot', [0, 0, -0.004], [0, 0, 0.02], [[0, 0.17], [0.6, 0.16], [1, 0.1]], C.chrome, { samples: 18, crossSections: 3 }),
+    lathe('pedestal', [0, 0, 0.02], [0, 0, zs - 0.06], [[0, 0.045], [1, 0.04]], C.chrome, { samples: 12, crossSections: 2 }),
+    lathe('swivel', [0, 0, zs - 0.07], [0, 0, zs - 0.03], [[0, 0.11], [1, 0.11]], C.rubber, { samples: 14, crossSections: 2 }),
+  ];
+  const pan = [[0.5, 0.0], [0.5, 0.75], [0.42, 1], [-0.42, 1], [-0.5, 0.75], [-0.5, 0]].map(([x, z]) => [x * W, 0, z * 0.11]);
+  const extrudes = [extrudeWorld('seat_pan', [0, D / 2 - 0.02, zs - 0.03], [0, -D / 2 + 0.04, zs - 0.03], ccw([0, D / 2 - 0.02, zs - 0.03], [0, -D / 2 + 0.04, zs - 0.03], pan), C.trim)];
+  // the back, raked aft from the pan's back edge
+  const r = back.rake * Math.PI / 180, b0 = [0, -D / 2 + 0.06, zs + 0.04], b1 = [0, b0[1] - Math.sin(r) * back.height, b0[2] + Math.cos(r) * back.height];
+  const bk = [[0.48, -0.04], [0.48, 0.04], [0.4, 0.07], [-0.4, 0.07], [-0.48, 0.04], [-0.48, -0.04]].map(([x, y]) => [x * W, y, 0]);
+  extrudes.push(extrudeWorld('seat_back', b0, b1, ccw(b0, b1, bk), C.trim));
+  extrudes.push(extrudeWorld('seat_shell', [0, D / 2 - 0.01, zs - 0.08], [0, -D / 2 + 0.03, zs - 0.08], ccw([0, D / 2 - 0.01, zs - 0.08], [0, -D / 2 + 0.03, zs - 0.08], rect([1, 0, 0], [0, 0, 1], W * 0.96, 0.06)), C.paint));
+  return { lathes, extrudes, hardpoints: { mount: [0, 0, 0], seat: [0, 0, zs + 0.08] } };
 }
 
 function buildSeat(row, C) {
   const b = row.build;
+  if (b.family === 'bucket') return buildBucket(row, C);
   if (b.family !== 'cooler') throw new Error(`Unknown boat-seat family '${b.family}'`);
   const { width: W, length: D, height: H } = row.dims, c = b.cushion;
   const box = (id, y, z0, z1, w, d, tint) => E(id, [0, y + d / 2, (z0 + z1) / 2], [0, y - d / 2, (z0 + z1) / 2], rect([1, 0, 0], [0, 0, 1], w, z1 - z0), tint);

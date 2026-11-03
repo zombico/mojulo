@@ -226,6 +226,8 @@ export const VEHICLES = {
     { craft: 'ccRunabout', tech: 'boat' }),
   't-top-console': row('centre console with a T-top', ['t-top boat', 't-top console', 'center console with a t-top', 'hardtop console', 't-top center console'], 'water', 'commuter', M, ['driven', 'parked', 'watched'],
     { craft: 'ccTTop', tech: 'boat' }),
+  'cuddy-cabin': row('cuddy cabin', ['cuddy', 'cuddy boat', 'cuddy cabin boat', 'cabin runabout', 'cabin cruiser', 'weekender'], 'water', 'commuter', M, ['driven', 'parked', 'watched'],
+    { craft: 'cuddyCabin', tech: 'boat' }),
   ship: row('ship', ['steamship', 'ferry', 'freighter', 'warship', 'galley', 'longship'], 'water', 'transport', ['myth', 'modern'], ['driven', 'watched', 'crewed'],
     { tech: 'ship' }),
   'sailing-ship': row('sailing ship', ['galleon', 'frigate', 'schooner', 'clipper', 'sloop', 'tall ship', 'junk', 'dhow'], 'water', 'transport', ['rustic', 'myth'], ['driven', 'watched', 'crewed'],

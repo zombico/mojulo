@@ -39,6 +39,7 @@ const ccw = (from, to, ring) => { const uv = planeUV(from, to, ring), a = uv.red
 const rect = (u, v, w, h) => [[0, 1], [1, 1], [1, 0], [0, 0]].map(([a, b]) => [0, 1, 2].map((k) => u[k] * (a - 0.5) * w + v[k] * (b - 0.5) * h));
 // a box from its centre: l along y (the extrude's axis), w across x, h up z
 const boxY = (id, c, l, w, h, tint, extra) => { const f = [c[0], c[1] + l / 2, c[2]], t = [c[0], c[1] - l / 2, c[2]]; return extrudeWorld(id, f, t, ccw(f, t, rect([1, 0, 0], [0, 0, 1], w, h)), tint, extra); };
+const ccwOf = (from, to, ring) => ccw(from, to, ring);
 const boxX = (id, c, l, w, h, tint, extra) => { const f = [c[0] - l / 2, c[1], c[2]], t = [c[0] + l / 2, c[1], c[2]]; return extrudeWorld(id, f, t, ccw(f, t, rect([0, 1, 0], [0, 0, 1], w, h)), tint, extra); };
 
 // ---- the lines ------------------------------------------------------------------------------
@@ -270,8 +271,10 @@ function buildHull(row, C) {
     const [y0, y1] = [s0, s1].map((s) => H.at(s).y);
     lofts.push(loftWorld(`bench_${bn.name}`, [0, y0, 0], [0, y1, 0], ends.map((e, k) => ({ t: k, points: inset(e).map(([x, z]) => [x, 0, z]) })), alu));
     const w = 2 * Math.min(ends[0][0][0], ends[1][0][0]) * 0.97;
-    extrudes.push(boxY(`bench_${bn.name}_top`, [0, (y0 + y1) / 2, bn.top + 0.011], y1 - y0 + 0.02, w, 0.022, seatTop));
-    hardpoints[bn.name] = r3v([0, (y0 + y1) / 2, bn.top + 0.022]);
+    // (`cushion`: an upholstered seat, its cushion in the trim)
+    if (bn.cushion) extrudes.push(boxY(`bench_${bn.name}_top`, [0, (y0 + y1) / 2, bn.top + 0.04], y1 - y0 + 0.01, w * 0.98, 0.08, C.trim));
+    else extrudes.push(boxY(`bench_${bn.name}_top`, [0, (y0 + y1) / 2, bn.top + 0.011], y1 - y0 + 0.02, w, 0.022, seatTop));
+    hardpoints[bn.name] = r3v([0, (y0 + y1) / 2, bn.top + (bn.cushion ? 0.08 : 0.022)]);
   }
   // the ribs across the floor, chine to chine, standing on the liner
   for (const [k, s] of (b.ribs || []).entries()) {
@@ -397,10 +400,68 @@ function buildHull(row, C) {
     }
     sweeps.push(sweep(`stripe_${sx > 0 ? 'r' : 'l'}`, path, K.radius, C[K.tint ?? 'trim'], { sides: 6 }));
   }
-  // named points on the sole (or the floor) along the boat: where a console or a seat stands, on the centreline
-  for (const [name, s] of Object.entries(b.points || {})) {
-    const I = lines(s).I, mid = (I.length - 1) / 2;
-    hardpoints[name] = r3v([0, H.at(s).y, Number.isFinite(b.sole) ? b.sole : I[mid][1]]);
+  // named points on the sole (or the floor) along the boat: where a console or a seat stands, on the centreline or, for
+  // `[s, x]`, x to starboard of it
+  for (const [name, at] of Object.entries(b.points || {})) {
+    const [s, x] = Array.isArray(at) ? at : [at, 0], I = lines(s).I, mid = (I.length - 1) / 2;
+    hardpoints[name] = r3v([x, H.at(s).y, Number.isFinite(b.sole) ? b.sole : I[mid][1]]);
+  }
+  // (a deck's top at s: the sheer less the deck's thickness)
+  const deckAt = (s) => H.at(s).sheer - (b.deck?.thickness ?? 0);
+  // a cuddy's cabin top on the foredeck: lofted bow-ward, its sides `inset` from the sheer and leaning in, its top
+  // falling toward the bow; its portlights along its sides, its hatch on top, a grab rail along each top edge
+  if (b.trunk) {
+    const K = b.trunk, n = 9, S = Array.from({ length: n }, (_, k) => K.from + ((K.to - K.from) * k) / (n - 1));
+    const half = (s) => Math.max(H.at(s).sheerHalf - K.inset, 0.12), ht = (s) => K.height * (1 - 0.35 * ((s - K.from) / (K.to - K.from)) ** 2);
+    const sec = (s) => {
+      const hb = half(s), h = ht(s), z0 = deckAt(s) - 0.03, lean = Math.min(0.08, hb * 0.25);
+      return [[hb, 0, z0], [hb - lean * 0.8, 0, z0 + h * 0.85], [hb - lean, 0, z0 + h], [-(hb - lean), 0, z0 + h], [-(hb - lean * 0.8), 0, z0 + h * 0.85], [-hb, 0, z0]];
+    };
+    lofts.push(loftWorld('trunk', [0, H.at(K.from).y, 0], [0, H.at(K.to).y, 0], S.map((s) => ({ t: (s - K.from) / (K.to - K.from), points: sec(s) })), C.paint));
+    for (const [k, f] of (K.ports || []).entries()) for (const sx of [1, -1]) {
+      const s = K.from + (K.to - K.from) * f, hb = half(s), h = ht(s), z = deckAt(s) - 0.03 + h * 0.45, x = sx * (hb - Math.min(0.08, hb * 0.25) * 0.4);
+      extrudes.push(boxX(`port_${sx > 0 ? 'r' : 'l'}${k}`, [x, H.at(s).y, z], 0.022, K.portLength ?? 0.34, h * 0.3, C.glass, { material: 'glass' }));
+    }
+    if (K.hatch) {
+      const s = K.from + (K.to - K.from) * K.hatch, z = deckAt(s) - 0.03 + ht(s);
+      extrudes.push(boxY('hatch_frame', [0, H.at(s).y, z + 0.012], 0.52, 0.52, 0.03, C.chrome));
+      extrudes.push(boxY('hatch', [0, H.at(s).y, z + 0.03], 0.48, 0.48, 0.012, C.glass, { material: 'glass' }));
+    }
+    for (const sx of [1, -1]) {
+      const path = [0.12, 0.35, 0.6, 0.82].map((f) => { const s = K.from + (K.to - K.from) * f, hb = half(s), lean = Math.min(0.08, hb * 0.25); return [sx * (hb - lean - 0.06), H.at(s).y, deckAt(s) - 0.03 + ht(s) + 0.05]; });
+      sweeps.push(sweep(`trunk_rail_${sx > 0 ? 'r' : 'l'}`, path, 0.011, C.chrome, { sides: 6 }));
+    }
+  }
+  // the cabin's companionway: its door in the deck's aft bulkhead, on the centreline (or `x` to starboard)
+  if (b.companionway && b.deck) {
+    const K = b.companionway, y = H.at(b.deck.from).y - 0.006, z0 = (Number.isFinite(b.sole) ? b.sole : 0) + 0.04, z1 = deckAt(b.deck.from) - 0.06;
+    extrudes.push(boxY('companionway', [K.x ?? 0, y, (z0 + z1) / 2], 0.012, K.width, z1 - z0, tone(C.paint, -0.55)));
+    extrudes.push(boxY('companionway_frame', [K.x ?? 0, y + 0.002, (z0 + z1) / 2], 0.008, K.width + 0.05, z1 - z0 + 0.05, C.chrome));
+  }
+  // a windscreen that fits the hull: its middle across the boat at `at` on the deck's edge, its wings running forward
+  // along the gunwales to `to`, raked aft; a walk-through in its middle (`walk` wide), its frame along its top
+  if (b.windscreen) {
+    const K = b.windscreen, r = K.rake * DEG, h = K.height, t = 0.01;
+    const sa = H.at(K.at), sb = H.at(K.to), za = deckAt(K.at), zb = deckAt(K.to), inset = (b.cap ? Math.min(b.cap, sb.sheerHalf * 0.45) * 0.5 : g + 0.02);
+    const xa = sa.sheerHalf - (b.cap ? Math.min(b.cap, sa.sheerHalf * 0.45) * 0.7 : g + 0.04), xb = sb.sheerHalf - inset, xw = K.walk / 2;
+    // (a panel from A to B along its foot, leaning `toward` (aft, or aft and in) by its rake)
+    const panel = (id, A, B) => {
+      const d = [B[0] - A[0], B[1] - A[1]], l = Math.hypot(d[0], d[1]) || 1;
+      let nrm = [-d[1] / l, d[0] / l];
+      if (nrm[1] > 0) nrm = [-nrm[0], -nrm[1]];
+      const lean = [nrm[0] * Math.sin(r) * h, nrm[1] * Math.sin(r) * h, Math.cos(r) * h], th = [nrm[0] * t, nrm[1] * t, 0];
+      extrudes.push(extrudeWorld(id, A, B, ccwOf(A, B, [[0, 0, 0], lean, add(lean, th), th]), C.glass, { material: 'glass' }));
+      return add(A, lean);
+    };
+    const tops = [];
+    for (const sx of [1, -1]) {
+      const inner = [sx * xw, sa.y, za], outer = [sx * xa, sa.y, za], fwd = [sx * xb, sb.y, zb];
+      tops.push([panel(`windscreen_${sx > 0 ? 'r' : 'l'}`, inner, outer), panel(`windscreen_wing_${sx > 0 ? 'r' : 'l'}`, outer, fwd)]);
+      const top = (p) => add(p, [0, -Math.sin(r) * h, Math.cos(r) * h]);
+      sweeps.push(sweep(`windscreen_frame_${sx > 0 ? 'r' : 'l'}`, [top(inner), top(outer), add(fwd, [0, 0, Math.cos(r) * h])], 0.012, C.chrome, { sides: 6 }));
+      lathes.push(lathe(`windscreen_post_${sx > 0 ? 'r' : 'l'}`, inner, top(inner), [[0, 0.014], [1, 0.012]], C.chrome, { samples: 8, crossSections: 2 }));
+    }
+    void tops;
   }
   // where a tank stands on the floor (its outboard edge on the bottom, the V falling away under its inboard one)
   if (b.tank) {

@@ -43,7 +43,11 @@
  * gunwale's cap, its width: the liner's top pulled inboard), `points` (named points on the sole at fractions of its
  * length, where a console or a seat stands), a `stripe` along the topsides; fittings `bowRail` (stanchions and a rail
  * round the bow), `navLights` (the sidelights on the bow, the all-round light aft), `rodHolders` (at fractions of its
- * length; `navLights.pole: false` when the all-round light is on a top). Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
+ * length; `navLights.pole: false` when the all-round light is on a top); a cuddy's `trunk` (its cabin top on the
+ * foredeck: from, to, inset from the sheer, height, `ports` along its sides, a `hatch`), its `companionway` (the cabin's
+ * door in the deck's aft bulkhead) and a `windscreen` that fits the hull (across the boat at `at`, its wings along the
+ * gunwales to `to`, a `walk`-through in its middle); a point may be `[s, x]`, x to starboard; a bench may carry a
+ * `cushion`. Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
  * rigging into the boat, a steering ram along its tilt tube, bolted through the transom), its brackets, leg and gearcase
  * drawn at `leg` of the 20 hp class's size, its pan `cowl.lift` over the clamp, its cowl's colour role `tint.cowl`. Sized to a public class, every name generic: a class, never a product.
  */
@@ -190,6 +194,43 @@ export const BOAT_ODM = {
       },
     },
   },
+  // ===== a 19 ft cuddy cabin: a long foredeck over its cabin, a windscreen across, a motor well =====
+  'hull-cuddy-19': {
+    kind: 'boat-hull', realm: 'water', label: '19 ft cuddy cabin hull', classOf: '19 ft cuddy cabin class (5.8 m, 150 hp)',
+    aliases: ['cuddy hull', 'cuddy cabin hull', 'cabin runabout hull'],
+    // (its depth amidships, keel to sheer)
+    dims: { length: 5.8, beam: 2.36, depth: 1.05 }, mass: 880, mount: 'keel',
+    perf: { persons: 7, load: 680, maxPower: 130 },
+    build: {
+      family: 'vee', bow: 'stem',
+      lines: {
+        keel: [[0, 0], [0.5, 0], [0.74, 0.07], [0.9, 0.28], [1, 0.66]],
+        sheer: [[0, 0.95], [0.45, 1.03], [0.7, 1.12], [0.9, 1.24], [1, 1.32]],
+        sheerHalf: [[0, 1.04], [0.35, 1.18], [0.6, 1.16], [0.8, 0.96], [0.93, 0.56], [1, 0]],
+        chine: [[0, 0.32], [0.5, 0.34], [0.75, 0.44], [0.9, 0.64], [1, 0.9]],
+        chineHalf: [[0, 0.96], [0.35, 1.06], [0.6, 1.0], [0.8, 0.74], [0.93, 0.34], [1, 0]],
+      },
+      // (moulded, white inside; its foredeck flush with its sheer over the cabin from `deck.from` to the bow; a sole aft)
+      tint: { liner: 'paint' }, cap: 0.12,
+      skin: 0.016, liner: 0.014, flare: 0.035, stations: { mid: 0.022, bow: 0.012 },
+      transom: { rake: 14, thickness: 0.06 },
+      sole: 0.3, deck: { from: 0.52, thickness: 0.04 },
+      well: { width: 0.82, notch: 0.645, floor: 0.6, length: 0.8, top: 0.86 },
+      gunwale: 0.024, keelStrip: 0,
+      strakes: { at: [0.32, 0.66], from: 0.12, to: 0.88, radius: 0.013 },
+      stripe: { at: 0.7, radius: 0.014, tint: 'trim' },
+      // (the cabin's top on the foredeck, its doorway below the windscreen's walk-through, the windscreen across)
+      trunk: { from: 0.54, to: 0.86, inset: 0.26, height: 0.42, ports: [0.22, 0.5], portLength: 0.4, hatch: 0.62 },
+      companionway: { width: 0.5 },
+      windscreen: { at: 0.525, to: 0.6, height: 0.42, rake: 32, walk: 0.56 },
+      benches: [{ name: 'seatAft', at: 0.145, depth: 0.46, top: 0.75, cushion: true }],
+      points: { helm: [0.462, 0.56], passenger: [0.462, -0.56], helmSeat: [0.37, 0.56], passengerSeat: [0.37, -0.56] },
+      fittings: {
+        bowEye: 0.74, cleats: 0.04, drain: true, transomEyes: 0.7, navLights: true, rodHolders: [0.1],
+        bowRail: { from: 0.8, to: 0.96, posts: 3, height: 0.4 },
+      },
+    },
+  },
   // ===== a 20 hp tiller outboard, short shaft ==================================================
   'outboard-20-tiller': {
     kind: 'boat-outboard', realm: 'water', label: '20 hp tiller outboard, short shaft', classOf: '20 hp four-stroke tiller outboard class',
@@ -243,6 +284,19 @@ export const BOAT_ODM = {
       tilt: 70, steer: 30, tint: { cowl: 'paint' }, rigging: { reach: 0.38, drop: 0.05 },
     },
   },
+  // ===== a 150 hp remote outboard, 25 in shaft =================================================
+  'outboard-150-remote-25': {
+    kind: 'boat-outboard', realm: 'water', label: '150 hp remote outboard, 25 in shaft', classOf: '150 hp four-stroke remote outboard class',
+    aliases: ['150 hp outboard', 'big outboard'],
+    dims: { length: 1.08, width: 0.66, height: 2.02 }, mass: 206, mount: 'transom-bolt',
+    perf: { power: 110 },
+    build: {
+      family: 'remote', shaft: 0.635, transom: 0.06, rake: 14, leg: 1.6,
+      cowl: { length: 0.9, width: 0.52, height: 0.68, lift: 0.22, pan: 1.5 },
+      prop: { blades: 3, diameter: 0.37, pitch: 0.48, hand: 'rh' },
+      tilt: 70, steer: 30, tint: { cowl: 'rubber' }, rigging: { reach: 0.5, drop: 0.12 },
+    },
+  },
   // ===== a centre console =====================================================================
   'console-cc-17': {
     kind: 'boat-console', realm: 'water', label: 'centre console with windscreen', classOf: '17 ft centre console class',
@@ -269,6 +323,30 @@ export const BOAT_ODM = {
       over: [0.5, -1.2],
       legs: { x: 0.52, xTop: 0.5, front: 0.28, aft: -0.34, lean: 0.12, radius: 0.024 },
     },
+  },
+  // ===== a split dash: the helm's and the passenger's, under a hull's windscreen ===============
+  'dash-helm-19': {
+    kind: 'boat-console', realm: 'water', label: 'helm dash, starboard', classOf: '19 ft cuddy cabin class',
+    aliases: ['helm dash', 'helm station'],
+    dims: { width: 0.66, length: 0.5, height: 0.8 }, mass: 40, mount: 'sole',
+    build: {
+      family: 'moulded', height: 0.66, dash: [[0.15, 0.8], [-0.2, 0.68]],
+      helm: { at: 0.72, reach: 0.1, rake: 0.25, diameter: 0.36 },
+      throttle: { at: -0.1, height: 0.6 },
+    },
+  },
+  'dash-passenger-19': {
+    kind: 'boat-console', realm: 'water', label: 'passenger dash, port', classOf: '19 ft cuddy cabin class',
+    aliases: ['passenger dash', 'passenger console'],
+    dims: { width: 0.66, length: 0.5, height: 0.8 }, mass: 34, mount: 'sole',
+    build: { family: 'moulded', height: 0.66, dash: [[0.15, 0.8], [-0.2, 0.68]], screen: false, gauges: false, grab: true, glovebox: true },
+  },
+  // ===== a bucket seat on a pedestal ==========================================================
+  'seat-bucket-pedestal': {
+    kind: 'boat-seat', realm: 'water', label: 'bucket seat on a pedestal', classOf: 'helm seat class',
+    aliases: ['bucket seat', 'helm seat', 'pedestal seat', 'captain seat'],
+    dims: { width: 0.52, length: 0.5, height: 1.15 }, mass: 18, mount: 'sole',
+    build: { family: 'bucket', seat: 0.6, back: { height: 0.5, rake: 14 } },
   },
   // ===== a cooler seat ========================================================================
   'seat-cooler-120': {

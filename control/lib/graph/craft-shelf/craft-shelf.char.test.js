@@ -17,7 +17,7 @@
  *     two cross-sections (a straight profile needs no more; an X8 cost 56k triangles), so the drone pins re-pinned.
  *   - The drone looks: the EO/IR ball's builder path pinned; no other pin moved.
  *   - The boat parts joined the shelf (boat-odm.js): their builder paths pinned; no existing pin moved. The centre
- *     console's (the remote outboard, the console, the seat) pinned when they joined, and the T-top's; no existing pin moved.
+ *     console's (the remote outboard, the console, the seat) pinned when they joined, and the T-top's and the bucket seat's; no existing pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -97,6 +97,8 @@ const PINS = {
   'seat-cooler-120': 'eb87cc30eb527062',
   // the T-top's builder path, pinned when it joined
   'top-t-cc-17': '7a337c0beca48ba5',
+  // the bucket seat's builder path, pinned when it joined (the cuddy cabin's)
+  'seat-bucket-pedestal': '201ef7ea2fff33f8',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
 };
 
