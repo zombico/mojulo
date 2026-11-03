@@ -400,3 +400,15 @@ push, load, haul and lift on a site.
     It is parked and watched, never driven: what one that drives needs is its ride (a skid steer's, skid steer).
   - **Held:** its words read and refused; its faces at a pose with a tool on; its figure centred, a tower crane at the
     height it is built to; the preview door minting a site machine at a pose and drawing it on the world page.
+- **The doors, step 2: parked in a level** (`vehicle-registry/parked.js`):
+  - A level's `parked` takes a site machine as its construction shelf machine. Beside its word:
+    - `pose` (a crane's outriggers out and its floats down by its `'rigged'`);
+    - `tool`;
+    - `height` (a tower crane on its base, built to the height under its hook);
+    - `palette`.
+  - **Its box is over what it stands on at its pose:** its parts within 3 m of the ground, never a boom overhead. A
+    crane rigged stands wider than one stowed, and a tower crane stands on its base. The figure is centred on that
+    footprint (`conFootprint`, `conFigure`).
+  - A site's words on any other vehicle are refused, naming whose they are.
+  - **Held:** a crane parked stowed and rigged; a tower crane at a height; the words refused; a parked site machine
+    compiled in a world at its pose, solid where it stands.
