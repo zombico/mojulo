@@ -57,6 +57,9 @@ import { cellTriangles } from './field-paint.js';
 import { axisTangent } from './normal-bake.js';
 import * as bv from './body-relational-vec.js';
 
+// how far past a leg's reach a planted toe may sit and be clamped under `reach: 'reject'` (metres): float noise, not a pose
+const REACH_SLACK = 1e-3;
+
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
 export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'seatL', 'seatR', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift', 'toeTurnL', 'toeTurnR'];
 
@@ -511,7 +514,8 @@ export function rigNodesAt(R, pose = {}) {
       let hock = add(nodes[L.toeBase], mul(metaDir, meta)); let metaError = 0;
       let sol = solveTwoBone(nodes[L.hip], hock, femur, tibia, pole);
       if (!sol.ok) {
-        if (R.reach === 'reject') throw new Error(`station-loft-rig: leg ${S} cannot reach its planted toe (hip→hock ${sol.d.toFixed(4)} m, femur+tibia ${(femur + tibia).toFixed(4)} m, excess ${sol.excess.toFixed(4)} m) — lower the crouch, change heel${S}, or set rig.reach: 'clamp'`);
+        // (a miss under a millimetre is a pose's float noise, a gait key's rounding: clamped as 'clamp' does, never refused)
+        if (R.reach === 'reject' && sol.excess > REACH_SLACK) throw new Error(`station-loft-rig: leg ${S} cannot reach its planted toe (hip→hock ${sol.d.toFixed(4)} m, femur+tibia ${(femur + tibia).toFixed(4)} m, excess ${sol.excess.toFixed(4)} m) — lower the crouch, change heel${S}, or set rig.reach: 'clamp'`);
         const axis = unit(sub(hock, nodes[L.hip])); const clamped = add(nodes[L.hip], mul(axis, sol.d > femur + tibia ? femur + tibia - 1e-9 : Math.abs(femur - tibia) + 1e-9));
         metaError = Math.abs(len(sub(nodes[L.toeBase], clamped)) - meta); hock = clamped; sol = solveTwoBone(nodes[L.hip], hock, femur, tibia, pole);
       }

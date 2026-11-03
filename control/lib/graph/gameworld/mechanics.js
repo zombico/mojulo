@@ -55,6 +55,8 @@ const OFFERED = Object.freeze(['stamina', 'equip']);
 /** Who carries the stats: the player world's pilot (playscape/player.js), so a bound stat (hp) reaches its body. */
 export const HOLDER = 'hero';
 /** The keys: the status page, and the powers in the page's order (1 … 9). */
+// how far and how wide an attack power looks for its foe (worlds/controllable/cast.js beam `to: { nearest }`)
+const POWER_REACH = Object.freeze({ range: 24, cone: 0.7 });
 export const KEYS = Object.freeze({ status: 'i', powers: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] });
 
 const ID = /^[a-z][a-z0-9-]*$/;
@@ -207,7 +209,7 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
     reasons.push('vigor and might: the sparse upgrades, bought at a rest');
   }
 
-  const derived = { holders: [HOLDER], stats, resources, level, epochs, tree, offers, bodies: { hpMax: 'hp' } };
+  const derived = { holders: [HOLDER], stats, resources, level, epochs, tree, offers, bodies: { hpMax: 'hp', power: 'power' } };
   for (const k of ['resources', 'epochs', 'tree', 'offers']) if (!derived[k].length) delete derived[k];
   // the creator's numbers, over the derived: lists by id, the level and the bodies by key
   const own = M.stats ?? {}, statsOut = { ...derived };
@@ -225,7 +227,7 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
   const powers = seed.verbs.map((v, i) => {
     const ix = stageIx(stageOf.get(v.id)), p = actions.powers.find((x) => x.id === v.id) ?? {};
     const look = LOOKS[p.look] ? p.look : LOOKS[p.element?.toLowerCase()] ? p.element.toLowerCase() : null;
-    return { id: v.id, ...(KEYS.powers[i] ? { key: KEYS.powers[i] } : {}), ...(res ? { spends: { [res]: 10 * S.cost * (ix + 1) } } : {}), ...(look ? { look } : {}), ...(p.attack ? { hurt: { stat: 'power', per: r2(1 + 0.2 * ix) } } : {}) };
+    return { id: v.id, ...(KEYS.powers[i] ? { key: KEYS.powers[i] } : {}), ...(res ? { spends: { [res]: 10 * S.cost * (ix + 1) } } : {}), ...(look ? { look } : {}), ...(p.attack ? { attack: p.attack, hurt: { stat: 'power', per: r2(1 + 0.2 * ix) } } : {}) };
   });
   for (const p of powers) if (!p.key) open.push(`power '${p.id}' has no key: only ${KEYS.powers.length} powers are on the keys`);
   // the creator's own spend over the derived, ledgered; a power the actions do not have is open, never thrown
@@ -238,7 +240,7 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
     if (own.spends === 0) delete p.spends; else p.spends = { [res]: own.spends };
   }
   // what the runtime cannot do yet: said on the page, never an advice the creator could act on
-  const limits = ['a power fires on its key whether it has been gained or can be afforded: the bus has no such guard yet (the resource is held at 0)', 'how hard a power lands is carried as data: the powers have no targets yet', 'the HP bar is designed on the UI board: the page draws it once the body publishes its hp to the bus (only the piloted shooter does today)'];
+  const limits = ['the HP bar is designed on the UI board: the page draws it once the body publishes its hp to the bus (only the piloted shooter does today)'];
 
   const play = { stats: statsOut, ui: M.ui ?? 'propose' };
   const hud = M.hud ?? 'derive';
@@ -246,9 +248,19 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
   else if (hud === 'derive') Object.assign(play, deriveHud(statsOut, res, epochs));
   // the keys: each power, and the status page when the HUD has one
   const inputs = [...powers.filter((p) => p.key).map((p) => ({ on: 'key', key: p.key, emit: { type: `power-${p.id}` } })), ...(play.menus ? [{ on: 'key', key: KEYS.status, emit: { type: 'status' } }] : [])];
+  // (a power fires only once it is the hero's and when its spend is there: the starting stage's powers are the hero's
+  // kit from the first level, a later one once its node is gained, as the system gains it; refused, it says so)
+  const gate = (p) => {
+    const later = stageIx(stageOf.get(p.id)) > 0, ifs = [...(later ? [{ var: statVar(HOLDER, p.id), gte: 1 }] : []), ...(p.spends ? [{ var: statVar(HOLDER, res), gte: p.spends[res] }] : [])];
+    return ifs.length ? { if: ifs, else: { say: `${p.id}: ${later && p.spends ? `not gained yet, or not enough ${res}` : later ? 'not gained yet' : `not enough ${res}`}`, as: 'toast' } } : {};
+  };
   play.cues = [...(play.cues ?? []), ...powers.filter((p) => p.key).map((p) => ({
-    id: `power-${p.id}`, when: { on: `power-${p.id}` },
-    then: [...(p.spends ? [{ grant: { res, by: -p.spends[res] } }] : []), ...(p.look ? [{ status: { who: HOLDER, is: p.id, look: p.look, for: 1.5 } }] : []), { say: p.id, as: 'toast' }],
+    id: `power-${p.id}`, when: { on: `power-${p.id}` }, ...gate(p),
+    then: [...(p.spends ? [{ grant: { res, by: -p.spends[res] } }] : []), ...(p.look ? [{ status: { who: HOLDER, is: p.id, look: p.look, for: 1.5 } }] : []),
+      // (an attack lands: its beam from the hero's hand at the nearest foe in front, taking the hero's power × its per)
+      // (its hurt the hero's power stat as it fires, raised by every level, × its per; the stat's base where no body holds it)
+      ...(p.hurt && p.attack ? [{ beam: { who: HOLDER, to: { nearest: POWER_REACH }, is: p.attack, hurt: { by: 'power', per: p.hurt.per, base: r2(statsOut.stats.find((x) => x.id === p.hurt.stat)?.base * p.hurt.per || p.hurt.per) } } }] : []),
+      { say: p.id, as: 'toast' }],
   })), ...(play.menus ? [{ id: 'open-status', when: { on: 'status' }, then: { open: 'status' } }] : [])];
   const legend = [...powers.filter((p) => p.key).map((p) => `${p.key} ${p.id}`), ...(play.menus ? [`${KEYS.status.toUpperCase()} status`] : [])].join(' · ');
   return { play, inputs, legend, powers, reasons, ledger, open, limits, ...(M.destruction ? { destruction: M.destruction } : {}) };

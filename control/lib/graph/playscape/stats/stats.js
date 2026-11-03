@@ -7,7 +7,8 @@
  *     holders?: ['player'],                     who carries stats (a character's id, or 'game'), or { id, stats?, resources? }
  *                                               (where that holder starts apart); the first is the default
  *     stats: [{ id, base?, min?, max? } | { id, from: formula, min?, max? }],   from: a DERIVED stat, never raised
- *     bodies?: { hpMax?: stat, speed?: stat },  a stat bound to each holder character's body
+ *     bodies?: { hpMax?: stat, speed?: stat, power?: stat },  a stat bound to each holder character's body (power: what
+ *                          its attacks hurt by, a cast beam's `hurt: { by: 'power' }`)
  *     resources?: [{ id, start?, cap? }],        stat currency (points), money (gold), anything a cost names
  *     level?: { start?: 1, max?, xp: [n, …] | { base, growth }, each?: gives, at?: { <level>: gives } },
  *     epochs?: [{ id, level?, cost?, requires? }],   ordered; the first is where a holder starts; reached by level, bought, or both
@@ -33,7 +34,7 @@ import { initStatVars } from './kernel.js';
 
 export const DEFAULT_HOLDER = 'player';
 export const RESERVED = Object.freeze(['level', 'xp', 'epoch']);
-export const BODY_FIELDS = Object.freeze(['hpMax', 'speed']);
+export const BODY_FIELDS = Object.freeze(['hpMax', 'speed', 'power']);
 // where a phenomenon may take a scaling in place of a number: the cue effect's key → its fields
 export const SCALABLE = Object.freeze({ hurt: ['by'], heal: ['by'], explode: ['scale'], status: ['for'], shake: ['k', 'for'], puff: ['shake'], walk: ['speed'] });
 

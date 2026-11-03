@@ -40,13 +40,21 @@ describe('moves: every person the run makes takes a blow on its own rig', () => 
 
   it('the book: the hero (through its motion page), the foe and the keeper made with them; each figure plays its own', () => {
     const S = runSteps({ ...MEADOWMARK_HERO, battles: {}, minigames: ['fishing'], moves: true }, { ref: 'gw' });
-    for (const key of ['hero', 'hero-equipped', 'foe', 'keeper']) expect(Object.keys(S.find((s) => s.key === key).order.spec.motion), key).toEqual(expect.arrayContaining(Object.keys(REACT_MOTION)));
+    // (each foe of the packs is its own step since per-foe figures: the person among them, the bandit, is made through the
+    // hero door as the one foe was; the beasts' and the peoples' moves are read off the level figures below)
+    for (const key of ['hero', 'hero-equipped', 'foe-bandit', 'keeper']) expect(Object.keys(S.find((s) => s.key === key).order.spec.motion), key).toEqual(expect.arrayContaining(Object.keys(REACT_MOTION)));
     const motion = S.find((s) => s.key === 'hero').order.motion?.find((o) => o.path === '/hero/motion');
     if (motion) expect(Object.keys(motion.value)).toEqual(expect.arrayContaining(Object.keys(REACT_MOTION)));
     const L = runSteps({ ...MEADOWMARK_HERO, battles: {}, minigames: ['fishing'], moves: true }, { ref: 'gw' }).filter((s) => s.key.startsWith('level-')).map((s) => s.order.manifest);
     const figs = L.flatMap((m) => Object.values(m.figures ?? {}));
     expect(figs.length).toBeGreaterThan(2);
-    for (const f of figs) expect(f.moves, f.heroRef).toEqual(REACT);
+    // (since per-foe figures: a person plays the hero door's reactions; a people foe the same, and its swings; a foe on a
+    // beast's body its own gaits' (a flinch, a fall, a rise), and none where its gaits hold none: a bat has no fall)
+    const people = figs.filter((f) => f.moves?.stagger === 'stagger'), beasts = figs.filter((f) => f.moves && f.moves.stagger !== 'stagger');
+    for (const f of figs.filter((x) => !/-foe-/.test(x.heroRef) || /-foe-bandit$/.test(x.heroRef))) expect(f.moves, f.heroRef).toEqual(REACT);
+    for (const f of people) expect(f.moves, f.heroRef).toMatchObject(REACT);
+    for (const f of beasts) expect(Object.keys(f.moves).sort(), f.heroRef).toEqual(['getup', 'stagger', 'topple']);
+    expect(people.length && beasts.length).toBeTruthy();
   });
 
   it('a quick game: the lever moves up to the world; every figure made is made with them, a mascot hero its own one-shots', () => {

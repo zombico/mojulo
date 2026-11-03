@@ -18,6 +18,8 @@
 - `startHp` — the in-level starting hp (default 100; shown on the HUD).
 - `hazards` — `[{ at, radius?, damage? }]`. `damage` per contact (default 20); `radius` the trigger
   (default 1.5).
+- `of: 'body'` — each contact hurts the player's body's own hp (`ctrl hurt`) instead of a level hp, beside a
+  `fail-on-death` of the body: no hp var, no HUD of its own.
 
 ## Lowers to
 

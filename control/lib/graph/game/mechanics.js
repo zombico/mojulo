@@ -172,11 +172,13 @@ const MECHANICS = {
     lower(p, ctx) {
       const hazards = Array.isArray(p.hazards) ? p.hazards : [];
       if (!hazards.length) throw new Error(`hazard-damage[${ctx.i}]: needs hazards: [{ at, radius?, damage? }]`);
-      const world = { sources: [], reactions: [], vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 }, hud: [{ var: 'hp', label: 'HP' }] };
+      // `of: 'body'`: the player's body's own hp takes it (the stats' hp, its bar), no level hp beside it
+      const body = ofBody(p, ctx, 'hazard-damage');
+      const world = { sources: [], reactions: [], ...(body ? {} : { vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 }, hud: [{ var: 'hp', label: 'HP' }] }) };
       hazards.forEach((hz, j) => {
-        const zone = `hz_${ctx.i}_${j}`;
+        const zone = `hz_${ctx.i}_${j}`, by = Number.isFinite(hz.damage) ? hz.damage : 20;
         world.sources.push({ type: 'zone', zone, at: hz.at || [0, 0, 0], radius: hz.radius != null ? hz.radius : 1.5, planar: true, watch: ctx.player });
-        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: 'hp', by: -(Number.isFinite(hz.damage) ? hz.damage : 20) });
+        world.reactions.push(body ? { on: 'enter', match: { zone }, do: 'ctrl', op: 'hurt', who: ctx.player, by } : { on: 'enter', match: { zone }, do: 'inc', var: 'hp', by: -by });
       });
       return { world };
     },
@@ -214,6 +216,12 @@ const MECHANICS = {
       // `hits`: what each hit the player takes (the cast's hit:<player>: a round, a blade, a splash) costs it, on the HUD
       const hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : null;
       if (p.hits !== undefined && !hits) throw new Error(`fail-on-death[${ctx.i}]: hits is the hp a hit on the player takes, above 0`);
+      // `of: 'body'`: the level is lost when the player's body is down (its own hp, the stats' hp and its bar, taken by
+      // whatever hurts it: a blow, a beam, a foe's touch, a hazard); no level hp, no readout of its own
+      if (ofBody(p, ctx, 'fail-on-death')) {
+        if (p.startHp !== undefined || p.hits !== undefined) throw new Error(`fail-on-death[${ctx.i}]: of: 'body' takes no startHp or hits: the body's hp is its own, and each hit takes what its source deals`);
+        return { world: { reactions: [{ on: 'down', match: { entity: ctx.player }, do: 'emit', type: 'dead' }] }, on: { dead: { end: 'fail' } } };
+      }
       return {
         world: {
           vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 },
@@ -1306,6 +1314,13 @@ const MECHANICS = {
   'escape-room': { role: 'terminal', ends: ['success'], requires: [], lower: lowerEscapeRoom },
 };
 
+// (a mechanic whose hp is the player's body's own, `of: 'body'`: the only value it takes)
+function ofBody(p, ctx, kind) {
+  if (p.of === undefined) return false;
+  if (p.of !== 'body') throw new Error(`${kind}[${ctx.i}]: of is 'body' (the player's body's own hp, the stats' hp), or absent (the level's hp)`);
+  return true;
+}
+
 export const MECHANIC_KINDS = Object.keys(MECHANICS);
 // what a supply gives
 export const SUPPLIES = Object.freeze(['health', 'ammo', 'armor', 'overdrive']);
@@ -1413,7 +1428,9 @@ export function composeMechanics(mechanics, ctx = {}) {
     const depth = 200;
     events.sources.push({ type: 'zone', zone: '__catch__', at: [spawn[0], spawn[1], fallZ - depth / 2], half: [half, half, depth / 2], watch: player });
     if (mode === 'lethal') {
-      events.reactions.push({ on: 'enter', match: { zone: '__catch__' }, do: 'set', var: 'hp', to: 0 });   // → fail-on-death if present
+      // → fail-on-death if present (on the body's own hp, its body downed)
+      const onBody = list.some((m) => m && m.kind === 'fail-on-death' && m.of === 'body');
+      events.reactions.push(onBody ? { on: 'enter', match: { zone: '__catch__' }, do: 'ctrl', op: 'kill', who: player } : { on: 'enter', match: { zone: '__catch__' }, do: 'set', var: 'hp', to: 0 });
     } else {   // respawn (default)
       const penalty = typeof fall === 'object' && Number.isFinite(fall.penalty) ? fall.penalty : 0;
       const to = (typeof fall === 'object' && Array.isArray(fall.to)) ? fall.to : spawn;

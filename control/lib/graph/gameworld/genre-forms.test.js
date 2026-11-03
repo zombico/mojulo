@@ -8,6 +8,7 @@ import { readActions, resolveActions } from './actions.js';
 import { GENRES } from './intent.js';
 import { composeGameworld } from './compose.js';
 import { readGameworld } from './world.js';
+import { runSteps } from './runner.js';
 
 describe('the genre\'s form', () => {
   it('names genres that exist, and each form\'s level is a level the book reads', () => {
@@ -64,7 +65,7 @@ describe('a genre the book cannot lay from a sentence yet', () => {
 describe('the hero frame: a genre on foot is laid with a hero, its camera and its screen', () => {
   it('a hero by default: the game\'s body, the genre\'s vibe, no powers said; none for a vehicle or an aircraft', () => {
     const F = heroFrameOf('metroidvania', 'anime');
-    expect(F).toEqual({ characters: { direction: { tradition: 'anime', body: 'game' }, hero: { motion: { vibe: ['nimble'] }, actions: { none: true }, adornment: { items: [{ id: 'blade', slot: 'right', build: { item: 'sword' }, serves: ['strike'] }] } } }, camera: 'side', screen: 'screen' });
+    expect(F).toEqual({ characters: { direction: { tradition: 'anime', body: 'game' }, hero: { motion: { vibe: ['nimble'] }, actions: { none: true }, adornment: { items: [{ id: 'blade', slot: 'right', build: { item: 'sword' }, serves: ['strike'] }] } } }, camera: 'side', screen: 'screen', moves: true });
     expect(heroFrameOf('flight-sim', 'anime')).toBeNull();
     // (armed by how the genre fights: a gun for its shot where it fights only at range, a first-person shooter from the
     // armed hero's eyes; a pistol where its fiction names one; nothing for a genre that does not fight)
@@ -74,6 +75,25 @@ describe('the hero frame: a genre on foot is laid with a hero, its camera and it
     expect(heroFrameOf('survival-horror', 'anime').characters.hero.adornment.items[0].build).toEqual({ item: 'pistol' });
     expect(heroFrameOf('collectathon', 'anime').characters.hero.adornment).toBeUndefined();
     expect(heroFrameOf('dungeon-crawler', 'western').camera).toBeNull();   // (third person: the hero's own chase)
+    expect(F.characters.casting).toBeUndefined();
+  });
+
+  it('a genre that fights turn by turn fights as a party: a casting page, its companions rolled from the sentence', () => {
+    const J = heroFrameOf('jrpg', 'anime');
+    expect(J.characters.casting).toEqual({});
+    // (its people take blows on their own rigs, and its hero carries the blade it swings in the battles)
+    expect(J.moves).toBe(true);
+    expect(J.characters.hero.adornment.items[0]).toMatchObject({ build: { item: 'sword' }, serves: ['strike'] });
+    expect(heroFrameOf('collectathon', 'anime').moves).toBeUndefined();
+    const W = composeGameworld({ prompt: 'a jrpg where a party of heroes battles monsters across the wilds', seed: 1, levels: 1 });
+    expect(W.characters.casting).toEqual({});
+    expect(W.moves).toBe(true);
+    expect(() => readGameworld(W)).not.toThrow();
+    // (each companion a cast member made by path, in the level's party battles beside the hero, each in a class)
+    const S = runSteps(W, { ref: 'gw' }), party = S.find((x) => x.key.startsWith('level')).order.manifest.play.rpg.party;
+    expect(party.length).toBeGreaterThan(1);
+    expect(party[0].id).toBe('hero');
+    for (const m of party.slice(1)) { expect(S.some((x) => x.key === `cast-${m.id}`), m.id).toBe(true); expect(typeof m.class).toBe('string'); }
   });
 
   it('no powers is an answer the actions page takes: nothing open, read twice the same, never beside a system', () => {

@@ -261,7 +261,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams'];
+const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -439,6 +439,13 @@ export function readQuick(Q) {
   if (Q.theme !== undefined && !isObj(Q.theme)) throw fail('.theme is the game shell\'s skin { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }');
   if (Q.camera !== undefined && !CAMERAS[Q.camera]) throw fail(`.camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
   if (Q.screen !== undefined) readScreen(Q.screen, 'quick.screen');
+  // a TOWN to walk (geotown/: its pattern, streetscape, a segment or a neighbourhood), its own ground: reached, its
+  // pickups collected along its walk, or survived
+  if (Q.geotown !== undefined) {
+    if (!isObj(Q.geotown)) throw fail('.geotown is a town to walk { pattern?, streetscape?, segment? | neighbourhood?, evoke? } (the geocube kind\'s geotown)');
+    if (Q.building !== undefined || Q.climb || Q.ride || Q.run !== undefined || Q.roadway !== undefined || Q.runner !== undefined || Q.racers || Q.supercars || Q.transformer || Q.craft || Q.airspace !== undefined) throw fail('.geotown is the town alone: no building, climb, ride, run, roadway, runner, racers, supercars, transformer or craft');
+    if (Q.goal !== undefined && !['reach', 'collect', 'survive'].includes(Q.goal)) throw fail('.geotown is walked to reach, collect or survive');
+  }
   if (Q.building !== undefined && !isObj(Q.building)) throw fail('.building is a building level { use, seed?, goal?, … } (card game-building)');
   if (Q.building !== undefined && Q.climb) throw fail('.climb and .building: a building is its own level, not a climb after a trail');
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
@@ -866,7 +873,7 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
       ...intent,
     };
   }
-  const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
+  const levels = flight ?? (quick.geotown ? { run: { name: name ?? id, geotown: quick.geotown } } : worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true, ...mood } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
     : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) },

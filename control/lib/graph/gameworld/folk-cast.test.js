@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runSteps, readGameworld, MEADOWMARK_HERO } from './index.js';
+import { runSteps, readGameworld, readMade, MEADOWMARK_HERO } from './index.js';
 import { gameStages, stageEnds } from './levels.js';
 import { stageFolk } from './folk-cast.js';
 import { whoOf } from '../folk/sidequests.js';
@@ -43,6 +43,8 @@ describe('folk on a stage: a town\'s people stood by their houses', () => {
     const folk = M.entities.filter((e) => e.id.startsWith('folk-'));
     expect(folk.length).toBeGreaterThan(mints.length - 1);
     for (const e of folk) expect(refs.has(M.figures[e.id].heroRef)).toBe(true);
+    // (and a run's made record keeps them: a body's key is something a run makes, so design_game can make it)
+    expect(() => readMade(Object.fromEntries(mints.map((m) => [m.key, { ref: m.ref, order: m.print, stored: m.print }])))).not.toThrow();
   });
 
   it('stands each one by their own house, or inside at their room, as the town\'s people', () => {

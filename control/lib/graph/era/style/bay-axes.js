@@ -163,6 +163,36 @@ export const CONSTRUCTIONS = Object.freeze({
     door: { width: 1.8, height: 2.7, frame: 0.1, out: 0.03 },
     shell: { base: { h: 0.12, out: 0.015 }, crown: { h: 0.5, out: 0.06 }, pilaster: { w: 0.4, out: 0.1, foot: 0.12 }, door: { frame: 0.1, out: 0.03, sill: 0.12 } },
   },
+  // VERNACULAR: a town's building before machines, lime-rendered or stone-walled over a stone socle, under boarded
+  // ceilings on timber beams, its posts and wall-plates timber, its floors flagged or boarded; no services, no ducts,
+  // no cables, no grating (a town's house, shop, hall or tavern: gameworld/town interiors)
+  vernacular: {
+    surfaces: {
+      floor: [d('ashlar', 2.4, { ...F, rows: 3, cols: 2, grit: 0.45 }), d('boards', 2.4, { ...F, cols: 10, grit: 0.4 })],
+      band: [d('ashlar', 1.2, { ...F, rows: 1, cols: 2, grit: 0.5 })],
+      hazard: [d('shaft', 0.6, { cols: 1, grit: 0.3 })],
+      base: [d('ashlar', 1.2, { rows: 2, cols: 3, grit: 0.5 })],
+      wall: [d('render', 3, { rows: 4, cols: 3, grit: 0.35, loss: 0.08 }), d('stucco', 3, { cols: 2, rows: 2, grit: 0.3 }), d('ashlar', 3, { rows: 5, cols: 4, grit: 0.4 })],
+      crown: [d('shaft', 2, { cols: 1, grit: 0.3 })],
+      column: [d('shaft', 3, { cols: 1, grit: 0.3 })],
+      paint: [d('stucco', 2, { cols: 1, rows: 1, grit: 0.3 })],
+      services: [d('shaft', 1, { cols: 1, grit: 0.3 })],
+      cabinet: [d('boards', 1, { cols: 3, grit: 0.3 })],
+      cable: [k(null, 1)],
+      trim: [d('shaft', 1.2, { cols: 1, grit: 0.3 })],
+      ceiling: [d('boards', 3, { cols: 12, grit: 0.3 }), d('stucco', 3, { cols: 2, rows: 2, grit: 0.25 })],
+      soffit: [d('boards', 3, { cols: 12, grit: 0.3 })],
+      concrete: [d('ashlar', 3, { rows: 3, cols: 2, grit: 0.5 })],
+      beam: [d('shaft', 4, { cols: 1, grit: 0.35 })],
+      duct: [k(null, 1)],
+      grate: [d('boards', 1, { ...F, cols: 6, grit: 0.3 })],
+      infill: [d('boards', 1, { cols: 4, grit: 0.3 })],
+    },
+    roofs: ['beams'], braced: false, air: false, duct: 'duct:spiral-450', glass: { clear: 'glass:crown-leaded', other: 'glass:crown-leaded', low: 'punched' }, booth: { dado: 0, none: true },
+    door: { width: 1.2, height: 2.2, frame: 0.12, out: 0.04 },
+    shell: { base: { h: 0.35, out: 0.04 }, crown: { h: 0.3, out: 0.08 }, pilaster: { w: 0.28, out: 0.12, foot: 0.35 }, door: { frame: 0.12, out: 0.04, sill: 0.1 },
+      beam: { perSpan: 0.06, min: 0.28, max: 0.36, w: 0.24, web: 0.24, flange: 0.08 }, glass: { punched: { w: 0.9, sill: 1.0, head: 2.0 }, every: 0.3, mullion: 0.03, cames: 0.24 } },
+  },
 });
 
 export const PALETTES = Object.freeze({
@@ -185,6 +215,7 @@ export const PALETTES = Object.freeze({
     grate: [s([128, 132, 134], [20, 21, 23])],
     infill: [s([112, 118, 124], [18, 19, 21])],
     cabinet: [s([72, 80, 62])],
+    trim: [s([120, 124, 126])],
   },
   // warm greys and pale block, yellow steel, safety green the secondary paint, blue services
   utility: {
@@ -204,6 +235,7 @@ export const PALETTES = Object.freeze({
     grate: [s([150, 152, 150], [24, 24, 26])],
     infill: [s([150, 154, 150], [24, 24, 26])],
     cabinet: [s([150, 152, 146])],
+    trim: [s([132, 128, 118])],
   },
   // whites and pale greys over a teal base band, deep blue the secondary paint, violet services
   science: {
@@ -223,6 +255,7 @@ export const PALETTES = Object.freeze({
     grate: [s([176, 180, 184], [36, 40, 44])],
     infill: [s([206, 210, 212], [40, 44, 48])],
     cabinet: [s([44, 46, 50], [40, 42, 46]), s([214, 218, 220])],
+    trim: [s([200, 204, 206])],
   },
   // warm whites and neutral greys, the catalog's carpet, vinyl, porcelain, laminate and oak their own, a muted teal the
   // secondary paint; the air neutral (an everyday room is lit white, not blue)
@@ -244,9 +277,44 @@ export const PALETTES = Object.freeze({
     beam: [s([200, 202, 204])],
     grate: [s([170, 172, 172], [30, 30, 32])],
     infill: [s([210, 212, 212], [40, 42, 44])],
+    trim: [s([150, 148, 144])],
+  },
+  // VERNACULAR: warm lime plaster, oak and pine, grey flags, a stone socle: a town's own colours derive over these
+  // (gameworld/town interiors' palette, from the town's language and its cube)
+  vernacular: {
+    ambient: '#4a4036',
+    floor: [s([150, 140, 124], [96, 88, 78]), s([132, 96, 62], [88, 62, 40])],
+    band: [s([140, 132, 118], [92, 86, 76])],
+    hazard: [s([110, 80, 52])],
+    base: [s([142, 134, 120], [104, 98, 88])],
+    wall: [s([226, 216, 196], [204, 194, 174]), s([222, 210, 188], [200, 190, 170]), s([170, 160, 142], [120, 112, 100])],
+    crown: [s([100, 72, 48])],
+    column: [s([104, 76, 50])],
+    paint: [s([200, 184, 156])],
+    services: [s([100, 72, 48])],
+    cabinet: [s([120, 88, 58])],
+    trim: [s([96, 70, 46])],
+    ceiling: [s([150, 112, 76], [100, 74, 50]), s([220, 210, 190], [200, 190, 170])],
+    soffit: [s([150, 112, 76], [100, 74, 50])],
+    concrete: [s([150, 142, 128], [104, 98, 88])],
+    beam: [s([92, 66, 44])],
+    grate: [s([130, 96, 62], [80, 58, 38])],
+    infill: [s([130, 96, 62], [80, 58, 38])],
   },
 });
 
+/** MADE PALETTES: a palette made for one place from its own colours (a town's interiors, from its exterior paint:
+ *  era/stage-buildings.js), registered under an id that carries its content's print, so a re-read registers the same
+ *  one; looked up beside the authored PALETTES (paletteOf), never in place of one. */
+const MADE_PALETTES = new Map(), MADE_CONSTRUCTIONS = new Map();
+/** MADE CONSTRUCTIONS: a construction made for one place from its own building language (a town's interiors: the
+ *  vernacular's, its walls in the language's materials and its windows the language's lights), as a made palette is. */
+export function registerConstruction(id, spec) { if (CONSTRUCTIONS[id]) throw new Error(`bay: construction '${id}' is an authored one`); MADE_CONSTRUCTIONS.set(id, Object.freeze(spec)); return id; }
+export const constructionOf = (id) => CONSTRUCTIONS[id] ?? MADE_CONSTRUCTIONS.get(id) ?? null;
+export function registerPalette(id, spec) { if (PALETTES[id]) throw new Error(`bay: palette '${id}' is an authored one`); MADE_PALETTES.set(id, Object.freeze(spec)); return id; }
+export const paletteOf = (id) => PALETTES[id] ?? MADE_PALETTES.get(id) ?? null;
+/** A table's lookup by axis: the palettes the authored and the made. */
+export const axisHas = (axis, table, v) => (axis === 'palette' ? !!paletteOf(v) : axis === 'construction' ? !!constructionOf(v) : !!table[v]);
 export const PLOTS = Object.freeze({
   // cool strips and white lamps, the secondary a warm signal against the cool key: a red-orange cove, amber at the doors
   military: {
@@ -280,6 +348,15 @@ export const PLOTS = Object.freeze({
     booth: { screen: '#d0e8ff' },
     shell: { pilaster: { strip: { w: 0.09, z0: 0.9, len: 0, every: 1 } } },
   },
+  // VERNACULAR: daylight through small windows, warm lamplight low (no strips, no high bays: the fixtures read as lamps)
+  vernacular: {
+    light: { strip: { color: '#ffcf8a', fill: '#ffe2b8', intensity: 0.35, radius: 4.5 }, highbay: { color: '#ffd8a0', fill: '#ffe8c8', intensity: 0.4, radius: 8, twoRows: 9, drop: 1.4, r: 0.2, h: 0.3 },
+      ceilingStrip: { color: '#ffd8a0', fill: '#ffe8c8', intensity: 0.3, radius: 4 }, inset: { color: '#ffc888', fill: '#ffe0b8', intensity: 0.25, radius: 2.4 },
+      door: { color: '#ffc070', fill: '#ffdcaa', intensity: 0.35, radius: 3 }, cove: { color: '#ffb870', fill: '#ffd8a8', intensity: 0.3, radius: 5 },
+      down: { color: '#ffc884', fill: '#ffe2bc', intensity: 0.45, radius: 4.2 }, daylight: { color: '#fff1d8', fill: '#fff8ea', intensity: 1.2, radius: 12 }, coffer: { color: '#ffe0b0', fill: '#fff0d8', intensity: 0.5, radius: 6 } },
+    booth: { screen: '#ffd8a0' },
+    shell: { pilaster: { strip: { w: 0.05, z0: 0.9, len: 0, every: 1 } } },
+  },
 });
 
 export const DRESSINGS = Object.freeze({
@@ -289,6 +366,8 @@ export const DRESSINGS = Object.freeze({
   science: {},
   // turned down: no grating band, no pad, services every third bay, no crane
   everyday: { shell: { floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 3 } }, craned: false },
+  // VERNACULAR: nothing a machine age lays: no grating band, no pad, no services, no high bays, no catwalk, no crane
+  vernacular: { shell: { floor: { minSpan: 1e9 }, pad: { minSpan: 1e9 }, services: { every: 1e9, long: 1e9, open: 0 }, highbay: { min: 1e9 }, catwalk: { min: 1e9 }, cove: { every: 1e9 } }, craned: false },
 });
 
 // (a register is a value on every axis; a construction that is no register, the bunker's, is chosen on its axis alone)

@@ -41,13 +41,15 @@ describe('the rail\'s cards', () => {
     // relations' words (summons, pair) and the win; a growing family, due to become an index and a card per member;
     // 4736 since 2026-10-30 (1030-foe-casting-call: one line naming the cast sheet and the casting call's step, 4657 bytes);
     // 5120 the same day (the patrol's row, a person's dress line and a building's rooms: 4916 bytes)
+    // the battles card too (2026-11-03, 1102-book-powers: it was 4092 bytes; its foes' looks, the shops and the inn, and
+    // the hub joined its keys, and it names the book's battles page that reads them back: 4864)
     // 4352 since 2026-11-02 (1102-urban-tunnelling: the building line names a hospital's uses, emergency | ward-block |
     // theatres, and a complex, 4323 bytes);
     // the dungeon card too (2026-11-02, 1102-urban-tunnelling: its spaces on one level stand as a complex, two lines on
     // where it is played and advised, 4296 bytes); the walled-core dungeon card (2026-11-02, 1101-vehicle-registry: a
     // base building's parked vehicles, the field's trucks and carriers in its hangar, beside its buildings: 4290 bytes);
     // 4608 since the two met on 1026-consolidated (2026-11-03: the complex's lines and the parked vehicles', 4574 bytes)
-    const CEIL = { 'gameworld-guide': 4480, 'gameworld-world': 4352, 'gameworld-foes': 5120, 'gameworld-wcd': 4608 };
+    const CEIL = { 'gameworld-guide': 4480, 'gameworld-world': 4352, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 4864 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

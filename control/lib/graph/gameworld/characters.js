@@ -229,7 +229,10 @@ function readCasting(c, written) {
     if (isObj(m) && m.joins !== undefined && !(typeof m.joins === 'string' && /^[a-z][a-z0-9-]{0,47}$/.test(m.joins))) throw err(`casting.cast.${key}.joins is the flag that brings them to the hero on the field`);
     cast[key] = isObj(m) ? Object.fromEntries(Object.entries(m).filter(([k]) => k !== 'name' && k !== 'joins')) : m;
   }
-  const own = { ...castOfScale(c.scale ?? 'hero', { n: c.n ?? 3 }), ...cast };
+  // (a member the book only names or flags is the scale's own under those words, casting.js requestOf)
+  const base = castOfScale(c.scale ?? 'hero', { n: c.n ?? 3 });
+  for (const key of Object.keys(cast)) if (isObj(cast[key]) && !Object.keys(cast[key]).length) delete cast[key];
+  const own = { ...base, ...cast };
   try { readCastRequest({ anchor: c.anchor, cast: own, factions: c.factions, bodies: c.bodies, seed: c.seed }); }
   catch (e) { throw err(`casting: ${e.message.replace(/^cast: /, '')}`); }
   for (const key of Object.keys(own)) {

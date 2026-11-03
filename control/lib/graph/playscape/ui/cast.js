@@ -64,7 +64,7 @@ export const CAST_THEN = Object.freeze({
   puff: `{ puff: who | { who? | at: place, is?, color?, shake?: 0..1 } } a moment at a character's feet or a place: is ${PUFFS.join(', ')} (smoke by default); shake shakes the camera too`,
   shake: '{ shake: k | { k, for? } } the camera shakes, k 0..1 (0.5 a thump, 1 a quake), over for seconds (0.4), dying away',
   explode: `{ explode: who | { who? | at: place, is?, color?, scale? } } an explosion at a character's feet or a place: is a preset (${EXPLOSION_NAMES.join(', ')}), a name in play.explosions, or its parts (blast by default); scale sizes it`,
-  beam: `{ beam: { who, to: who | place, is?, color? } } who fires an attack from its hand at a character or a place: is a preset (${BEAM_NAMES.join(', ')}), a name in play.beams, or its strands (orb by default); struck fires when it lands on a character`,
+  beam: `{ beam: { who, to: who | place | { nearest: { range?, cone? } }, is?, color?, hurt? } } who fires an attack from its hand at a character, a place, or the nearest foe in front of it (within range m, 30, and cone radians, 0.7; none, straight ahead): is a preset (${BEAM_NAMES.join(', ')}), a name in play.beams, or its strands (orb by default); struck fires when it lands on a character, and hurt is the hp it takes then (a number, or { by: 'power', per, base }: the caster's power stat as it fires × per)`,
 });
 // how a character comes or goes (the page plays it on the body, or on a ghost of it as it goes)
 export const TRANSITS = Object.freeze(['smoke', 'hologram', 'scan', 'transporter', 'galvatron']);
@@ -193,8 +193,18 @@ export function readCastEffect(k, t, where, ctx = {}) {
     if (o.color !== undefined) out.color = readColor(o.color, `${w}.color`);
   }
   if (k === 'beam') {
-    if (o.to === undefined) throw new Error(`${w}.to is a character's id or a place`);
-    out.to = isStr(o.to) ? o.to : readPlace(o.to, `${w}.to`);
+    if (o.to === undefined) throw new Error(`${w}.to is a character's id, a place, or { nearest: { range?, cone? } }`);
+    if (o.to && typeof o.to === 'object' && !Array.isArray(o.to)) {
+      const N = o.to.nearest;
+      if (Object.keys(o.to).join() !== 'nearest' || !N || typeof N !== 'object' || Array.isArray(N) || Object.keys(N).some((k) => !['range', 'cone'].includes(k)) || [N.range, N.cone].some((v) => v !== undefined && !(Number.isFinite(v) && v > 0))) throw new Error(`${w}.to: the nearest foe is { nearest: { range?: metres, cone?: radians } }`);
+      out.to = { nearest: { ...(N.range !== undefined ? { range: N.range } : {}), ...(N.cone !== undefined ? { cone: N.cone } : {}) } };
+    } else out.to = isStr(o.to) ? o.to : readPlace(o.to, `${w}.to`);
+    if (o.hurt !== undefined) {
+      // (a number, or by the caster's power as it fires: { by: 'power', per, base })
+      const H = o.hurt, byPower = H && typeof H === 'object' && !Array.isArray(H);
+      if (byPower ? !(H.by === 'power' && Object.keys(H).every((k) => ['by', 'per', 'base'].includes(k)) && Number.isFinite(H.per) && H.per > 0 && Number.isFinite(H.base) && H.base > 0) : !(Number.isFinite(H) && H > 0)) throw new Error(`${w}.hurt is the hp it takes when it lands, above 0, or { by: 'power', per, base } (its caster's power stat × per; base where it has none)`);
+      out.hurt = byPower ? { by: 'power', per: H.per, base: H.base } : H;
+    }
     out.spec = readBeam(o.is ?? 'orb', `${w}.is`, ctx.beams, ctx.explosions);
     if (isStr(o.is)) out.name = o.is;
     if (o.color !== undefined) out.color = readColor(o.color, `${w}.color`);
@@ -234,10 +244,11 @@ export function lowerCastEffect(t, on, frag, places = []) {
   if (t.op === 'shake') delete r.who;
   if (t.op === 'beam') {
     // at a place when one is called so, else at the character of that name
-    const p = placeAt(t.to, places);
+    const p = t.to && t.to.nearest ? null : placeAt(t.to, places);
     r.to = p ? p.at.slice() : t.to;
     r.spec = t.spec; r.land = beamLanding(t.spec);
     if (t.name) r.name = t.name;
+    if (t.hurt !== undefined) r.hurt = t.hurt;
   }
   if (t.op === 'puff') { if (!t.who) delete r.who; if (t.at !== undefined) { const p = placeAt(t.at, places); if (!p) return frag; r.at = p.at.slice(); } }
   if (t.op === 'spawn') {
