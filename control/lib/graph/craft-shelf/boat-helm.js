@@ -12,6 +12,7 @@
  *                           the starboard side and its lever. Points: `mount`, `wheel` (the wheel's middle)
  *   boat-seat     cooler    a cooler (its seam, its rope handles) and its cushion on top
  *                 bucket    a bucket seat on a pedestal: its foot, post and swivel, its pan and shell, its back raked aft
+ *                 jockey    a straddle seat on its box, its bolster behind, its grab bar across the front (boat-mil.js)
  *   boat-top      tTop      a T-top: four legs from feet on the sole beside the console, bent in to its frame, a front
  *                           brace over the windscreen, the hardtop (`over`: its front and back, overhanging aft over the
  *                           helm) and its lip, rod holders along its back edge, spreader lights under it, the all-round
@@ -20,6 +21,7 @@
  * Craft space: +y forward, +z up, +x starboard, metres.
  */
 import { lathe, sweep, extrudeWorld, loftWorld, section, planeUV, round3, tone } from './craft-common.js';
+import { buildJockey } from './boat-mil.js';
 
 const r3v = (v) => v.map(round3);
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -144,6 +146,7 @@ function buildBucket(row, C) {
 function buildSeat(row, C) {
   const b = row.build;
   if (b.family === 'bucket') return buildBucket(row, C);
+  if (b.family === 'jockey') return buildJockey(row, C);
   if (b.family !== 'cooler') throw new Error(`Unknown boat-seat family '${b.family}'`);
   const { width: W, length: D, height: H } = row.dims, c = b.cushion;
   const box = (id, y, z0, z1, w, d, tint) => E(id, [0, y + d / 2, (z0 + z1) / 2], [0, y - d / 2, (z0 + z1) / 2], rect([1, 0, 0], [0, 0, 1], w, z1 - z0), tint);

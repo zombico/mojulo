@@ -19,6 +19,7 @@ export const BOAT_ROLES = {
   utility: { label: 'utility boat', mission: 'a few people and their gear across a lake, a river or a harbour: fish, ferry, tend', realms: ['water'] },
   tender: { label: 'tender', mission: 'crew and stores between a boat at anchor and the shore: light, stable, hard to sink', realms: ['water'] },
   runabout: { label: 'runabout', mission: 'a day on the water for a family or a fishing party: quick onto the plane, dry enough offshore', realms: ['water'] },
+  raider: { label: 'raiding craft', mission: 'a small team in and out fast, armed and low on the water: a military RHIB', realms: ['water'] },
 };
 
 export const BOAT_ARCHETYPES = {
@@ -94,6 +95,24 @@ export const BOAT_ARCHETYPES = {
       { id: 'passenger', sku: 'dash-passenger-19', at: 'hull.passenger' },
       { id: 'helmSeat', sku: 'seat-bucket-pedestal', at: 'hull.helmSeat' },
       { id: 'passengerSeat', sku: 'seat-bucket-pedestal', at: 'hull.passengerSeat' },
+    ],
+  },
+  combatRhib: {
+    realm: 'water', role: 'raider', palette: 'rhibMilitary', class: 'combat RHIB', label: '7.5 m combat RHIB', classOf: '7.5 m combat RHIB class (twin 150 hp, its guns modelled, never fired)',
+    payload: 800,
+    reference: { span: 2.75, length: 8.2, height: 4.6, mtow: 2870, draft: 0.48 },
+    bom: { 'boat-hull': 1, 'boat-outboard': 2, 'boat-console': 1, 'boat-seat': 4, 'boat-arch': 1, 'boat-mount': 2 },
+    layout: [
+      { id: 'hull', sku: 'hull-rhib-mil-75' },
+      { id: 'motor', sku: 'outboard-150-remote-25', at: 'hull.motorPair', pair: true },
+      { id: 'console', sku: 'console-rhib-mil', at: 'hull.console' },
+      { id: 'jockeyF', sku: 'seat-jockey', at: 'hull.jockeyF' },
+      { id: 'jockeyFP', sku: 'seat-jockey', at: 'hull.jockeyFP' },
+      { id: 'jockeyA', sku: 'seat-jockey', at: 'hull.jockeyA' },
+      { id: 'jockeyAP', sku: 'seat-jockey', at: 'hull.jockeyAP' },
+      { id: 'arch', sku: 'arch-radar-rhib', at: 'hull.arch' },
+      { id: 'gunAft', sku: 'mount-mg-pedestal', at: 'hull.gunAft', yaw: 180 },
+      { id: 'gunBow', sku: 'mount-mg-deck', at: 'hull.gunBow' },
     ],
   },
 };

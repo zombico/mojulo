@@ -7,14 +7,16 @@
 // helm on the sole: a console and seats on the hull's points, a gunwale cap, the nav lights and the bow rail, a remote
 // outboard. A motor well (the notch, the splashwell, the motor tilting into it) and a T-top over the helm. A cuddy
 // cabin: its cabin top, a windscreen that fits the hull with its walk-through, the cabin's door, a split dash and bucket
-// seats off the centreline. The cases are chosen from the shelf in code.
+// seats off the centreline. A military boat: twin outboards mirrored and counter-rotating, its guns on their points and
+// trained, never fired, its radar arch, its row in the field's roles. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
 import { BOAT_KINDS, BOAT_ODM } from './boat-odm.js';
 import { BOAT_ROLES } from './boat-archetypes.js';
 import { hullLines, hullSection, hullVolume, hullFloat, curveAt } from './boat-parts.js';
 import { lowerObjectFaces } from '../worlds/workbench.js';
-import { resolveVehicle, handlesOf } from '../vehicle-registry/roster.js';
+import { resolveVehicle, handlesOf, VEHICLES } from '../vehicle-registry/roster.js';
+const VEHICLES_ROWS = () => VEHICLES;
 import { buildOf } from '../vehicle-registry/builds.js';
 import { quickVehicleWords } from '../vehicle-registry/doors.js';
 import { quickWorld } from '../gameworld/quick.js';
@@ -339,6 +341,57 @@ describe('a cuddy cabin', () => {
     expect(pass.source.sweeps.some((w) => w.id === 'grab_handle')).toBe(true);
     const seat = manifest.items.find((i) => i.source.garage.family === 'bucket');
     expect(seat.source.garage.hardpoints.seat[2]).toBeCloseTo(CRAFT_ODM[seat.source.garage.sku].build.seat + 0.08, 3);
+  });
+});
+
+describe('a military boat', () => {
+  // (a boat armed on the shelf: a layout with a weapon's mount on it)
+  const MB = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'boat-mount'));
+  const { manifest } = assembleCraft(MB), item = (id) => manifest.items.find((i) => i.id === id), hull = manifest.items[0], HR = CRAFT_ODM[hull.source.garage.sku];
+  const worldProp = (m, id) => { const i = m.items.find((x) => x.id === id), p = i.source.garage.hardpoints.prop, fx = (i.flip || '').includes('x') ? -1 : 1; return i.at[0] + fx * p[0]; };
+  it('its twin outboards a mirrored pair: steering together, their propellers counter-rotating', () => {
+    const pair = A[MB].layout.find((e) => CRAFT_ODM[e.sku].kind === 'boat-outboard' && e.pair);
+    const r = `${pair.id}-r`, l = `${pair.id}-l`, turned = assembleCraft(MB, { pose: { yaw: 1 } }).manifest;
+    expect(item(r).at[0]).toBeCloseTo(HR.build.motors.spacing / 2, 3);
+    expect(item(l).at[0]).toBeCloseTo(-HR.build.motors.spacing / 2, 3);
+    const dr = worldProp(turned, r) - worldProp(manifest, r), dl = worldProp(turned, l) - worldProp(manifest, l);
+    expect(Math.sign(dr)).toBe(Math.sign(dl));
+    expect(dr).toBeCloseTo(dl, 3);
+    // (each built the same hand, the port copy mirrored: it turns the other way)
+    const turn = (id) => { const i = item(id), d = i.source.garage.joints.find((j) => j.name === 'prop').dir[1]; return (i.flip || '').includes('x') ? -d : d; };
+    expect(turn(r)).toBe(-turn(l));
+  });
+  it('its guns on their points (the bow\'s on the deck), trained where the layout points them, modelled with joints, never fired', () => {
+    const guns = A[MB].layout.filter((e) => CRAFT_ODM[e.sku].kind === 'boat-mount');
+    for (const e of guns) {
+      const it = item(e.id), p = HR.build.points[e.at.split('.')[1]];
+      const z = Array.isArray(p) && p[2] === 'deck' ? hullLines(HR).at(p[0]).sheer - HR.build.deck.thickness : HR.build.sole;
+      expect(it.at[2] - hull.at[2], e.id).toBeCloseTo(z, 3);
+      expect(it.source.garage.joints.map((j) => j.control)).toEqual(['train', 'elevate']);
+      // (its muzzle ahead of its post the way it is trained: an aft gun's aft)
+      const muzzle = it.source.lathes.find((l) => l.id === 'flash_hider'), my = it.at[1] + Math.cos((e.yaw ?? 0) * Math.PI / 180) * (P(muzzle.axisTo)[1]);
+      expect(Math.sign(my - it.at[1])).toBe((e.yaw ?? 0) === 180 ? -1 : 1);
+    }
+    const g = resolveCraftPart(guns[0].sku, { seat: 'mount' }), t = resolveCraftPart(guns[0].sku, { seat: 'mount', pose: { train: 0.5, elevate: 1 } });
+    expect(lathe(t, 'post')).toEqual(lathe(g, 'post'));
+    expect(P(lathe(t, 'flash_hider').axisTo)).not.toEqual(P(lathe(g, 'flash_hider').axisTo));
+    expect(t.garage.joints.find((j) => j.name === 'train').angle).toBe(90);
+  });
+  it('its radar arch on the sole inside the cockpit, the guns and the tilted motors inside its legs', () => {
+    const arch = manifest.items.find((i) => i.source.garage.kind === 'boat-arch'), AR = CRAFT_ODM[arch.source.garage.sku], H = hullLines(HR);
+    expect(arch.at[2] - hull.at[2]).toBeCloseTo(HR.build.sole, 3);
+    const s = (arch.at[1] - hull.at[1] + H.L / 2) / H.L, legIn = AR.dims.width / 2 - AR.build.radius;
+    expect(AR.dims.width / 2 + AR.build.radius).toBeLessThan(H.at(s).sheerHalf - HR.build.skin - HR.build.liner);
+    const xs = (m, id) => { const i = m.items.find((x) => x.id === id); return lowerObjectFaces(i.source).flatMap((f) => f.corners).map((c) => Math.abs(i.at[0] + ((i.flip || '').includes('x') ? -c[0] : c[0]))); };
+    for (const e of A[MB].layout.filter((x) => CRAFT_ODM[x.sku].kind === 'boat-mount')) expect(Math.max(...xs(manifest, e.id))).toBeLessThan(legIn);
+    const up = assembleCraft(MB, { pose: { tilt: 1 } }).manifest;
+    for (const id of ['motor-r', 'motor-l']) expect(Math.max(...xs(up, id))).toBeLessThan(legIn);
+  });
+  it('on the roster in the field\'s military roles, crewed and fought from', () => {
+    const hit = Object.entries(VEHICLES_ROWS()).find(([, r]) => r.handles.craft?.includes(MB));
+    expect(hit[1].role).toBe('scout');
+    expect(hit[1].uses).toEqual(expect.arrayContaining(['crewed', 'driven', 'parked']));
+    expect(CRAFT_ROLES[A[MB].role].realms).toEqual(['water']);
   });
 });
 

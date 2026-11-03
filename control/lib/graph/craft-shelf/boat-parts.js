@@ -27,6 +27,7 @@
  */
 import { DEG, lathe, loftWorld, sweep, extrudeWorld, section, planeUV, round3, tone } from './craft-common.js';
 import { HELM_BUILDERS } from './boat-helm.js';
+import { MIL_BUILDERS } from './boat-mil.js';
 
 const r3v = (v) => v.map(round3);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, Number.isFinite(v) ? v : 0));
@@ -403,9 +404,12 @@ function buildHull(row, C) {
   // named points on the sole (or the floor) along the boat: where a console or a seat stands, on the centreline or, for
   // `[s, x]`, x to starboard of it
   for (const [name, at] of Object.entries(b.points || {})) {
-    const [s, x] = Array.isArray(at) ? at : [at, 0], I = lines(s).I, mid = (I.length - 1) / 2;
-    hardpoints[name] = r3v([x, H.at(s).y, Number.isFinite(b.sole) ? b.sole : I[mid][1]]);
+    // (`[s, x, 'deck']`: on the deck, a bow gun's)
+    const [s, x, on] = Array.isArray(at) ? at : [at, 0], I = lines(s).I, mid = (I.length - 1) / 2;
+    hardpoints[name] = r3v([x, H.at(s).y, on === 'deck' ? H.at(s).sheer - (b.deck?.thickness ?? 0) : Number.isFinite(b.sole) ? b.sole : I[mid][1]]);
   }
+  // (twin motors: the starboard one's point `spacing` apart from its mirror, for a layout entry paired across the boat)
+  if (b.motors) hardpoints.motorPair = r3v([b.motors.spacing / 2, hardpoints.motor[1], hardpoints.motor[2]]);
   // (a deck's top at s: the sheer less the deck's thickness)
   const deckAt = (s) => H.at(s).sheer - (b.deck?.thickness ?? 0);
   // a cuddy's cabin top on the foredeck: lofted bow-ward, its sides `inset` from the sheer and leaning in, its top
@@ -527,7 +531,9 @@ function buildOutboard(row, C, opts = {}) {
   const pose = opts.pose || {}, S = b.shaft, Tt = b.transom, rk = b.rake * DEG, tanR = Math.tan(rk);
   // its pose: tilted up about the tilt tube (0 … 1 of its travel), steered about the swivel (−1 … 1 of its lock: + the
   // tiller to port, the boat to starboard), its propeller turned (degrees)
-  const tiltA = clamp(pose.tilt, 0, 1) * b.tilt * DEG, steerA = clamp(pose.yaw, -1, 1) * b.steer * DEG;
+  // (a pair's port motor is its starboard one mirrored: it steers with it, so its own turn is the other way before the
+  // mirror; its propeller, mirrored, turns the other way, the pair counter-rotating)
+  const tiltA = clamp(pose.tilt, 0, 1) * b.tilt * DEG, steerA = clamp(pose.yaw, -1, 1) * b.steer * DEG * (opts.side === 'l' ? -1 : 1);
   // (its brackets, its leg and its gearcase at `leg` of the 20 hp class's size)
   const TILT = [0, -0.06, -0.045], SWIVEL = [0, -0.115], G = b.leg ?? 1;
   const rotX = (a, v) => [v[0], v[1] * Math.cos(a) - v[2] * Math.sin(a), v[1] * Math.sin(a) + v[2] * Math.cos(a)];
@@ -678,6 +684,7 @@ export const BOAT_BUILDERS = {
   'boat-hull': buildHull,
   'boat-outboard': buildOutboard,
   'boat-tank': buildTank,
-  // (the console and the seat: boat-helm.js)
+  // (the console, the seat and the top: boat-helm.js; the weapon's mount and the radar arch: boat-mil.js)
   ...HELM_BUILDERS,
+  ...MIL_BUILDERS,
 };

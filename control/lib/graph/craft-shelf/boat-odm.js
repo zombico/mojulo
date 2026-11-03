@@ -30,6 +30,12 @@
  *                  dash (a screen, gauges, a compass), helm (`helm`: where on the dash, its reach and rake, the wheel's
  *                  diameter) and the throttle's binnacle. Points: `mount` (the middle of its foot), `wheel`
  *   boat-seat      a seat on the sole: a cooler and its cushion. Points: `mount`, `seat` (its cushion's top)
+ *   boat-mount     a weapon on its mount (boat-mil.js): a pedestal `post` high from a deck or sole point, a generic medium
+ *                  machine gun on its cradle, its ammunition can; it trains (`pose.train`) and elevates (`pose.elevate`),
+ *                  modelled, never fired. A layout's `yaw` sets where it points at rest (an aft gun's 180). Points: `mount`,
+ *                  `grip` (where its gunner's hands are)
+ *   boat-arch      a radar arch on the sole across the cockpit (boat-mil.js): A-framed legs, the crossbar, the radar's
+ *                  dome, an all-round light, a light bar, whip antennas. Points: `mount`, `top`
  *   boat-top       a top over the helm standing on the console's point (boat-helm.js): its legs (`legs`: their feet's
  *                  places beside the console, their tops' and lean), its hardtop (`height` over the sole, `over` its front
  *                  and back, `thickness`), its front `brace`, `rods` rod holders. Points: `mount`
@@ -47,7 +53,9 @@
  * foredeck: from, to, inset from the sheer, height, `ports` along its sides, a `hatch`), its `companionway` (the cabin's
  * door in the deck's aft bulkhead) and a `windscreen` that fits the hull (across the boat at `at`, its wings along the
  * gunwales to `to`, a `walk`-through in its middle); a point may be `[s, x]`, x to starboard; a bench may carry a
- * `cushion`. Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
+ * `cushion`; a point may be `[s, x, 'deck']`, on the deck; `motors: { spacing }` gives twin outboards a `motorPair`
+ * point, a layout entry paired across the boat on it (the port motor its mirror, steering with it, its propeller
+ * counter-rotating). Outboard families: 'tiller' (steered by its own tiller) and 'remote' (steered and shifted from a helm: its
  * rigging into the boat, a steering ram along its tilt tube, bolted through the transom), its brackets, leg and gearcase
  * drawn at `leg` of the 20 hp class's size, its pan `cowl.lift` over the clamp, its cowl's colour role `tint.cowl`. Sized to a public class, every name generic: a class, never a product.
  */
@@ -59,6 +67,8 @@ export const BOAT_KINDS = Object.freeze({
   'boat-console': 'a boat\'s console: its windscreen, grab rail, helm, dash and throttle',
   'boat-seat': 'a seat on a boat\'s sole: a cooler seat, a leaning post',
   'boat-top': 'a top over a boat\'s helm: a T-top, its legs, hardtop, rod holders and lights',
+  'boat-mount': 'a weapon on its mount on a boat\'s deck or sole: a pintle-mounted machine gun (modelled, never fired)',
+  'boat-arch': 'a radar arch over a boat\'s cockpit: its legs, crossbar, radar dome, lights and antennas',
 });
 
 export const BOAT_ODM = {
@@ -231,6 +241,39 @@ export const BOAT_ODM = {
       },
     },
   },
+  // ===== a 7.5 m combat RHIB: a deep V in its collar, a full transom for twin outboards =========
+  'hull-rhib-mil-75': {
+    kind: 'boat-hull', realm: 'water', label: '7.5 m military RHIB hull', classOf: '7.5 m combat RHIB class (twin 150 hp)',
+    aliases: ['military rhib hull', 'combat rib hull', 'rhib hull'],
+    // (its length and beam over its collar; its hull's own length the lines', its depth amidships keel to sheer)
+    dims: { length: 7.0, beam: 2.7, depth: 0.7 }, mass: 1350, mount: 'keel',
+    perf: { persons: 10, load: 1000, maxPower: 230 },
+    build: {
+      family: 'vee', bow: 'stem',
+      lines: {
+        keel: [[0, 0], [0.55, 0], [0.78, 0.08], [0.92, 0.28], [1, 0.55]],
+        sheer: [[0, 0.65], [0.5, 0.7], [0.8, 0.8], [1, 0.92]],
+        sheerHalf: [[0, 0.88], [0.4, 0.95], [0.72, 0.84], [0.9, 0.48], [1, 0]],
+        chine: [[0, 0.36], [0.5, 0.38], [0.8, 0.48], [0.93, 0.62], [1, 0.8]],
+        chineHalf: [[0, 0.78], [0.4, 0.84], [0.72, 0.7], [0.9, 0.34], [1, 0]],
+      },
+      // (moulded; its collar's tubes in the trim, a self-bailing sole across the V above its loaded waterline, a locker
+      // under its bow's deck)
+      tint: { liner: 'paint' },
+      skin: 0.016, liner: 0.014, flare: 0, stations: { mid: 0.022, bow: 0.012 },
+      transom: { rake: 12, thickness: 0.06 },
+      sole: 0.54, deck: { from: 0.78, thickness: 0.1 },
+      keelStrip: 0,
+      strakes: { at: [0.35, 0.7], from: 0.15, to: 0.88, radius: 0.014 },
+      collar: { radius: 0.27, out: 0.5, up: -0.1, rise: 0.22, aft: 0.42, nose: 0.92, lifeline: true },
+      motors: { spacing: 0.72 },
+      points: {
+        console: 0.52, jockeyF: [0.42, 0.3], jockeyFP: [0.42, -0.3], jockeyA: [0.33, 0.3], jockeyAP: [0.33, -0.3],
+        arch: 0.13, gunAft: 0.215, gunBow: [0.84, 0, 'deck'],
+      },
+      fittings: { bowEye: 0.5, drain: true, transomEyes: 0.6 },
+    },
+  },
   // ===== a 20 hp tiller outboard, short shaft ==================================================
   'outboard-20-tiller': {
     kind: 'boat-outboard', realm: 'water', label: '20 hp tiller outboard, short shaft', classOf: '20 hp four-stroke tiller outboard class',
@@ -347,6 +390,46 @@ export const BOAT_ODM = {
     aliases: ['bucket seat', 'helm seat', 'pedestal seat', 'captain seat'],
     dims: { width: 0.52, length: 0.5, height: 1.15 }, mass: 18, mount: 'sole',
     build: { family: 'bucket', seat: 0.6, back: { height: 0.5, rake: 14 } },
+  },
+  // ===== a coxswain's console =================================================================
+  'console-rhib-mil': {
+    kind: 'boat-console', realm: 'water', label: 'coxswain console', classOf: '7.5 m combat RHIB class',
+    aliases: ['coxswain console', 'rhib console'],
+    dims: { width: 0.86, length: 0.7, height: 1.3 }, mass: 70, mount: 'sole',
+    build: {
+      family: 'moulded', height: 1.0, dash: [[0.22, 1.02], [-0.24, 0.9]],
+      windscreen: { width: 0.7, wing: 0.1, wingAft: 0.1, height: 0.26, rake: 30 },
+      rail: { height: 1.0, out: 0.05, radius: 0.014 },
+      helm: { at: 0.72, reach: 0.1, rake: 0.25, diameter: 0.38 },
+      throttle: { at: -0.14, height: 0.82 },
+    },
+  },
+  // ===== a jockey seat ========================================================================
+  'seat-jockey': {
+    kind: 'boat-seat', realm: 'water', label: 'jockey seat', classOf: 'RHIB crew seat class',
+    aliases: ['jockey seat', 'straddle seat', 'shock seat'],
+    dims: { width: 0.46, length: 0.62, height: 0.72 }, mass: 24, mount: 'sole',
+    build: { family: 'jockey', saddle: 0.12 },
+  },
+  // ===== a pintle-mounted machine gun, on a deck and on a pedestal ==============================
+  'mount-mg-deck': {
+    kind: 'boat-mount', realm: 'water', label: 'machine gun on a deck pintle', classOf: 'generic medium machine gun class (modelled, never fired)',
+    aliases: ['bow gun', 'deck machine gun', 'pintle gun'],
+    dims: { width: 0.36, length: 1.16, height: 0.75 }, mass: 38, mount: 'deck',
+    build: { family: 'pintle', post: 0.55, elevation: 30 },
+  },
+  'mount-mg-pedestal': {
+    kind: 'boat-mount', realm: 'water', label: 'machine gun on a pedestal', classOf: 'generic medium machine gun class (modelled, never fired)',
+    aliases: ['pedestal gun', 'stern gun', 'pedestal machine gun'],
+    dims: { width: 0.36, length: 1.16, height: 1.2 }, mass: 44, mount: 'sole',
+    build: { family: 'pintle', post: 1.0, elevation: 30 },
+  },
+  // ===== a radar arch =========================================================================
+  'arch-radar-rhib': {
+    kind: 'boat-arch', realm: 'water', label: 'radar arch', classOf: '7.5 m combat RHIB class',
+    aliases: ['radar arch', 'a-frame arch', 'radar mast'],
+    dims: { width: 1.62, length: 0.6, height: 2.3 }, mass: 62, mount: 'sole',
+    build: { family: 'radar', height: 1.95, foot: 0.3, radius: 0.04 },
   },
   // ===== a cooler seat ========================================================================
   'seat-cooler-120': {
