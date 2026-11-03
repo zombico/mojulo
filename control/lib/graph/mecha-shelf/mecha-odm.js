@@ -11,7 +11,8 @@
  *   build    { family, … } the builder's own words
  *
  * A limb's bodies are drawn for the right side; the left's are the same rows built mirrored (the builder's `side`): a
- * part number names a design, not a hand. Generic parts of a generic machine: no maker's part number, model or name, and
+ * part number names a design, not a hand. A part at another size is another row's design scaled (its `dims.scale`),
+ * drawn at the design's size and scaled whole. Generic parts of a generic machine: no maker's part number, model or name, and
  * no game's. Pure data.
  */
 
@@ -24,7 +25,7 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-ankle': 'an ankle\'s cross: a universal joint, its pitch and its roll axes meeting, its roll drive, the ankle ram\'s heel horn',
   'mecha-foot': 'a foot: its plate, its rubber sole pads at the heel and the toe, its toe guard',
   'mecha-seat': 'the rider\'s place: astride, the spine, the saddle and its tail, the tank and its knee grips and chest pad, the nose and its lamps, the clip-on bars, the pegs and the boarding step; or seated at the controls, a platform, its work seat and belt, its consoles, its pedals, its rail and its steps',
-  'mecha-cage': 'the rider\'s cabin, open above as a convertible\'s (its tub\'s sides, its framed windshield, its roll hoop behind the saddle, its lamps), or a torso frame round a seated operator (its posts, its shoulders, its hoop)',
+  'mecha-cage': 'the rider\'s cabin, open above as a convertible\'s (its tub\'s sides, its framed windshield, its roll hoop behind the saddle, its lamps), or a torso frame round a seated operator (its posts, its shoulders, its hoop), or a closed cab (its falling-object roof on four pillars, its glass and its guard bars, its door)',
   'mecha-pack': 'the power pack under the tail: the hydraulic power unit (its motor, its pump, its tank) and its cooler',
   'mecha-shoulder': 'an arm\'s shoulder: its yaw drive on the torso, its pitch clevis, the horn its shoulder ram drives',
   'mecha-upperarm': 'an upper arm: its box beam from the shoulder\'s axle to the elbow\'s clevis, its rams\' brackets',
@@ -37,8 +38,27 @@ export const MECHA_KINDS = Object.freeze({
 const R = (kind, label, classOf, dims, mass, build, aliases = []) => Object.freeze({ kind, label, classOf, aliases, dims: Object.freeze(dims), mass, build: Object.freeze(build) });
 const ATW = 'all-terrain walker';
 const UW = 'utility walker';
+const HW = 'heavy walker';
 
-export const MECHA_ODM = Object.freeze({
+// (what a part's size does not scale: its stops' angles, the battery's mass, the scale itself; a rotary drive's torque
+// is rated again for its size)
+export const UNSCALED = Object.freeze(['stop', 'torque', 'battery', 'scale']);
+/** Every length in a part's numbers times k (its angles and its ratings as they are). */
+export function scaleDims(d, k) {
+  if (Array.isArray(d)) return d.map((v) => scaleDims(v, k));
+  if (d && typeof d === 'object') return Object.fromEntries(Object.entries(d).map(([key, v]) => [key, UNSCALED.includes(key) ? v : scaleDims(v, k)]));
+  return typeof d === 'number' ? Math.round(d * k * 10000) / 10000 : d;
+}
+/** A part at another size (`from`, the row it is drawn from): another row's design at `k` times its lengths (its mass at k³, a drive's rated torque at k⁴:
+ *  its load's weight and its lever both grown), its `dims` in true metres; `scale` says the design it was drawn from. */
+const S = (base, k, label, classOf, aliases, over = {}) => {
+  const b = BASE[base], dims = { ...scaleDims(b.dims, k), ...over, scale: k };
+  if (Number.isFinite(b.dims.torque)) dims.torque = Math.round(b.dims.torque * k ** 4);
+  return Object.freeze({ ...b, label, classOf, aliases, from: base, dims: Object.freeze(dims), mass: Math.round(b.mass * k ** 3) });
+};
+let BASE = null;
+
+const ROWS = {
   // ── the all-terrain walker: a seat carried on two six-joint legs ────────────
   'pelvis-atw': R('mecha-pelvis', 'walker pelvis', ATW,
     { hipX: 0.4, keel: { w: 0.4, y0: -0.7, y1: 0.24, z0: -0.16, z1: 0.08 }, drum: { r: 0.11, z0: -0.02, z1: 0.1 }, seat: [0, 0, 0.08], cage: [0, 0, 0.08], pack: [0, -0.56, 0.08], battery: 105 },
@@ -113,4 +133,43 @@ export const MECHA_ODM = Object.freeze({
   'claw-uw': R('mecha-claw', 'utility claw', UW, { w: 0.2, finger: 0.24, gap: 0.24 }, 12, { family: 'twin' }, ['claw', 'gripper', 'hand', 'grabber']),
   'ram-shoulder-uw': R('mecha-ram', 'shoulder ram', UW, { bore: 0.063, rod: 0.036, closed: 0.352, stroke: 0.203 }, 6, { family: 'double' }, ['shoulder ram', 'arm lift ram', 'shoulder cylinder']),
   'ram-elbow-uw': R('mecha-ram', 'elbow ram', UW, { bore: 0.063, rod: 0.036, closed: 0.335, stroke: 0.197 }, 6, { family: 'double' }, ['elbow ram', 'elbow cylinder']),
-});
+};
+BASE = ROWS;
+
+// ── the heavy walker: the utility walker's frame drawn larger for heavy construction, its operator in a closed cab ───
+// (its legs, its pelvis and its arms the utility walker's designs at 1.4 times their lengths: its rams and their arcs
+// with them; its feet at 1.6, for its weight on soft ground; its power pack at 1.5, a counterweight to its arms)
+const K = 1.4;
+const HEAVY = {
+  'pelvis-hw': S('pelvis-uw', K, 'heavy walker pelvis', HW, ['heavy pelvis']),
+  'hip-hw': S('hip-uw', K, 'heavy hip yaw housing', HW, ['heavy hip']),
+  'yoke-hw': S('yoke-uw', K, 'heavy hip roll yoke', HW, ['heavy yoke']),
+  'thigh-hw': S('thigh-uw', K, 'heavy thigh', HW, ['heavy thigh']),
+  'shank-hw': S('shank-uw', K, 'heavy shank', HW, ['heavy shank']),
+  'ankle-hw': S('ankle-uw', K, 'heavy ankle cross', HW, ['heavy ankle']),
+  'foot-hw': S('foot-uw', 1.6, 'heavy foot', HW, ['heavy foot', 'heavy sole', 'track pad']),
+  'ram-roll-hw': S('ram-roll-uw', K, 'heavy hip roll ram', HW, ['heavy roll ram']),
+  'ram-hip-hw': S('ram-hip-uw', K, 'heavy hip pitch ram', HW, ['heavy hip ram']),
+  'ram-knee-hw': S('ram-knee-uw', K, 'heavy knee ram', HW, ['heavy knee ram']),
+  'ram-ankle-hw': S('ram-ankle-uw', K, 'heavy ankle ram', HW, ['heavy ankle ram']),
+  'pack-hw': S('pack-uw', 1.5, 'heavy power pack', HW, ['heavy power pack', 'counterweight pack']),
+  'shoulder-hw': S('shoulder-uw', K, 'heavy shoulder', HW, ['heavy shoulder']),
+  'upperarm-hw': S('upperarm-uw', K, 'heavy upper arm', HW, ['heavy upper arm', 'heavy arm']),
+  'forearm-hw': S('forearm-uw', K, 'heavy forearm', HW, ['heavy forearm']),
+  'wrist-hw': S('wrist-uw', K, 'heavy wrist', HW, ['heavy wrist']),
+  'claw-hw': S('claw-uw', K, 'heavy grapple', HW, ['grapple', 'heavy claw', 'heavy gripper']),
+  'ram-shoulder-hw': S('ram-shoulder-uw', K, 'heavy shoulder ram', HW, ['heavy shoulder ram']),
+  'ram-elbow-hw': S('ram-elbow-uw', K, 'heavy elbow ram', HW, ['heavy elbow ram']),
+  // (the operator stays a person's size: the work seat in its harness, its consoles, an emergency stop at the right
+  // hand, the pedals; a side ladder up to the cab's door)
+  'station-hw': R('mecha-seat', 'heavy operator station', HW,
+    { plate: { x: 0.3, y0: -0.34, y1: 0.42, z: 0.06 }, sit: [0, -0.04, 0.52], back: 0.6, grip: [0.27, 0.2, 0.74], peg: [0.13, 0.36, 0.07], side: 'l', step: [0.5, 0.1, -0.86], rungs: [-0.86, -0.6, -0.34, -0.08], harness: true, estop: true },
+    52, { family: 'seated' }, ['heavy operator seat', 'harness seat', 'emergency stop']),
+  // (the cab round the operator: a falling-object roof on four pillars, glass all round behind guard bars ahead, a door
+  // on the left, the shoulders carried out from its sides)
+  'cab-hw': R('mecha-cage', 'heavy walker cab', HW,
+    { x: 0.44, y0: -0.46, y1: 0.58, z0: 0.02, belt: 0.62, roof: 1.64, post: 0.075, door: [-0.12, 0.42], shoulder: [0.73, 0.02, 1.14], mount: 1.44, pack: { y: -0.6, z: [0.62, 1.12] } },
+    360, { family: 'cab' }, ['cab', 'operator cab', 'protective cab', 'closed cab', 'falling object guard', 'front guard']),
+};
+export const MECHA_ODM = Object.freeze({ ...ROWS, ...HEAVY });
+

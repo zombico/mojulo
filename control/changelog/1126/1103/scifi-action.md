@@ -2,7 +2,7 @@
 
 In progress. A new shelf, `control/lib/graph/mecha-shelf/`, for legged machines a rider sits in, built from the ground
 up. It starts with the all-terrain walker, the base of its bipedal locomotion, and grows a general-purpose work frame
-on it: the utility walker.
+on it: the utility walker, and the heavy walker drawn larger from it.
 
 - **The all-terrain walker** (`mecha-archetypes.js` `allTerrainWalker`): a pelvis, two legs and the rider's cabin.
   - **The legs:** six joints each, like a real biped's: hip yaw, roll and pitch, the knee, and the ankle's pitch and
@@ -44,6 +44,20 @@ on it: the utility walker.
     - `reach`: its claws' farthest ahead, level with the shoulders;
     - `lift`: its rated load at the carry, 75% of the load that first tips it or overruns an arm's actuator, as a crane
       or a loader is rated.
+- **The heavy walker** (`heavyWalker`): the utility walker's frame drawn larger for heavy construction, in the site's
+  yellow (the new `siteYellow` palette).
+  - **Drawn larger.** Its legs, pelvis and arms are the utility walker's designs at 1.4 times their lengths. Its feet
+    are at 1.6 times, for its weight on soft ground, and its power pack at 1.5, as a counterweight to the arms.
+    - A part at another size is another row's design scaled whole (`dims.scale`, its `from`), as the construction
+      shelf's are: its pins at k times, its mass at k³, a drive's rated torque at k⁴.
+    - Its rams scale with their pins, so every joint keeps its design's arc.
+  - **Its operator stays a person's size, in a closed cab:**
+    - a falling-object roof with guard bars, on four pillars;
+    - glass all round, with guard bars ahead of the windshield against what flies off the work;
+    - a door on the left, reached by a four-rung side ladder;
+    - mirrors, work lamps and a beacon;
+    - a harnessed work seat, the arms' sticks on its consoles, an emergency stop at the right hand, and the pedals.
+  - **Its laws add `cab`:** the operator's space held inside the cab's glass and under its roof, the nearest margin.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
     derived, never stated.
@@ -74,6 +88,7 @@ on it: the utility walker.
 - **In the registry:**
   - `all-terrain-walker` ('riding walker', 'bipedal walker', 'walking machine'…): the role `trail`, the era `future`.
   - `utility-walker` ('work walker', 'power frame', 'walking loader'…): the role `work`, the era `future`.
+  - `heavy-walker` ('construction walker', 'site walker', 'walking crane'…): the role `work`, the era `future`.
   - The new handle, `mecha`, points into the shelf's archetypes.
   - Their realistic builds are at `preview` status: the studio grid only, until its gait is built.
   - The `mech` row stays the battle mech's concept.
@@ -91,4 +106,6 @@ on it: the utility walker.
   - `mecha-shelf.char.test.js`: a byte pin per builder path (a kind and its family) and on the whole walker.
   - `mecha-shelf.test.js`, the frame with arms: its knees forward; each wrist where its pose asks, its claw at the
     asked angle; a load weighed (the centre of mass moves toward it, the arms work harder); every law holds.
+  - `mecha-shelf.test.js`, the frame drawn larger: a scaled part's pins at k times and its mass at k³; its operator
+    inside its cab; its arms' arcs its design's; every law holds.
   - The roster's, builds' and preview door's tests.

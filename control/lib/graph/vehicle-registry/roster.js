@@ -297,6 +297,9 @@ export const VEHICLES = {
   // on rams for the lifting)
   'utility-walker': row('utility walker', ['work walker', 'walking work frame', 'power frame', 'work frame', 'lifting walker', 'cargo walker', 'loader walker', 'walking loader'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
     { mecha: 'utilityWalker', tech: 'walker' }),
+  // (the utility walker drawn larger for heavy construction: its operator in a closed, guarded cab)
+  'heavy-walker': row('heavy walker', ['heavy work walker', 'construction walker', 'site walker', 'heavy lifting walker', 'walking crane', 'demolition walker', 'heavy power frame'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
+    { mecha: 'heavyWalker', tech: 'walker' }),
   hovercraft: row('hovercraft', ['hoverbike', 'speeder', 'skimmer', 'grav car'], 'offroad', 'transport', M.concat(F), ['driven', 'traffic', 'watched'],
     { tech: 'hover' }),
   // ── drawn ───────────────────────────────────────────────────────────────────

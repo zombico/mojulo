@@ -275,19 +275,83 @@ function station(row, C) {
     const pd = [s * d.peg[0], d.peg[1], P.z];
     extrudes.push(slab(`pedal_${side}`, pd[0] - 0.05, pd[0] + 0.05, [[pd[1] - 0.1, P.z + 0.01], [pd[1] + 0.08, P.z + 0.01], [pd[1] + 0.08, P.z + 0.06], [pd[1] - 0.1, P.z + 0.025]], tone(frame, 0.2)));
     // (the steps hung from the platform's back: a ladder of two rungs)
-    const st = [s * d.step[0], d.step[1], d.step[2]];
-    sweeps.push(tube(`ladder_${side}`, [[st[0], P.y0 + 0.02, P.z - 0.04], [st[0], st[1], st[2]]], 0.016, frame, 8));
+    if (!d.side) {
+      const st = [s * d.step[0], d.step[1], d.step[2]];
+      sweeps.push(tube(`ladder_${side}`, [[st[0], P.y0 + 0.02, P.z - 0.04], [st[0], st[1], st[2]]], 0.016, frame, 8));
+    }
   }
-  // (the rail at the waist round the seat: across ahead of the knees, back along each side to the seat's back)
-  const R = d.rail, x = P.x + 0.03, y1 = P.y1 + 0.03;
-  sweeps.push(tube('rail', rounded([[-x, S[1] - 0.2, R], [-x, y1, R], [x, y1, R], [x, S[1] - 0.2, R]], 0.08, 3), 0.02, frame, 8));
-  for (const s of [1, -1]) for (const [i, y] of [y1, S[1] - 0.2].entries()) sweeps.push(tube(`upright_${s > 0 ? 'r' : 'l'}${i}`, [[s * x, y, P.z], [s * x, y, R]], 0.018, frame, 8));
-  for (const [i, z] of [d.step[2], d.rung].entries()) extrudes.push(box(`rung_${i}`, [-d.step[0], d.step[1] + (z - d.step[2]) * -0.2, z], [d.step[0], d.step[1] + (z - d.step[2]) * -0.2, z], 0.06, 0.02, tone(C.trim, 0.25)));
+  // (a harness's shoulder straps down the back's pad, to the belt's buckle)
+  if (d.harness) for (const s of [1, -1]) extrudes.push(box(`strap_${s > 0 ? 'r' : 'l'}`, add(B1, [s * 0.09, 0.066, -0.14]), add(B0, [s * 0.07, 0.066, 0.1]), 0.045, 0.006, C.light, [0, 1, 0]));
+  // (the emergency stop at the right hand: a red mushroom on its console, every ram held where it is when struck)
+  if (d.estop) {
+    const g = [d.grip[0], d.grip[1] - 0.05, d.grip[2] - 0.03];
+    lathes.push(spin('estopBase', [g[0] + 0.04, g[1], g[2] - 0.01], [g[0] + 0.04, g[1], g[2] + 0.015], [[0, 0.022], [1, 0.022]], tone(C.light, -0.1), 12));
+    lathes.push(spin('estop', [g[0] + 0.04, g[1], g[2] + 0.015], [g[0] + 0.04, g[1], g[2] + 0.04], [[0, 0.018], [0.4, 0.026], [1, 0.022]], '#c62828', 12));
+  }
+  // (the rail at the waist round the seat: across ahead of the knees, back along each side to the seat's back; a closed
+  // cab's station has none)
+  if (d.rail) {
+    const R = d.rail, x = P.x + 0.03, y1 = P.y1 + 0.03;
+    sweeps.push(tube('rail', rounded([[-x, S[1] - 0.2, R], [-x, y1, R], [x, y1, R], [x, S[1] - 0.2, R]], 0.08, 3), 0.02, frame, 8));
+    for (const s of [1, -1]) for (const [i, y] of [y1, S[1] - 0.2].entries()) sweeps.push(tube(`upright_${s > 0 ? 'r' : 'l'}${i}`, [[s * x, y, P.z], [s * x, y, R]], 0.018, frame, 8));
+  }
+  if (d.side) {
+    // (a ladder up the side to the cab's door: its two stiles, its rungs, from the bottom rung to the platform's edge)
+    const x = -d.step[0], y = d.step[1];
+    for (const dy of [-0.18, 0.18]) sweeps.push(tube(`stile_${dy > 0 ? 'f' : 'b'}`, [[x, y + dy, d.rungs[0] - 0.04], [x, y + dy, P.z], [-(P.x - 0.02), y + dy, P.z]], 0.018, frame, 8));
+    for (const [i, z] of d.rungs.entries()) extrudes.push(box(`rung_${i}`, [x, y - 0.18, z], [x, y + 0.18, z], 0.07, 0.022, tone(C.trim, 0.25)));
+  } else for (const [i, z] of [d.step[2], d.rung].entries()) extrudes.push(box(`rung_${i}`, [-d.step[0], d.step[1] + (z - d.step[2]) * -0.2, z], [d.step[0], d.step[1] + (z - d.step[2]) * -0.2, z], 0.06, 0.02, tone(C.trim, 0.25)));
   const at = (p, s) => [s * p[0], p[1], p[2]];
   return {
     extrudes, lathes, sweeps,
-    hardpoints: { sit: [...S], 'grip.r': at(d.grip, 1), 'grip.l': at(d.grip, -1), 'peg.r': at(d.peg, 1), 'peg.l': at(d.peg, -1), 'step.r': add(at(d.step, 1), [0, 0, 0.01]), 'step.l': add(at(d.step, -1), [0, 0, 0.01]) },
+    hardpoints: { sit: [...S], 'grip.r': at(d.grip, 1), 'grip.l': at(d.grip, -1), 'peg.r': at(d.peg, 1), 'peg.l': at(d.peg, -1), ...(d.side ? { 'step.r': [-d.step[0], d.step[1], d.rungs[0] + 0.011], 'step.l': [-d.step[0], d.step[1], d.rungs[0] + 0.011] } : { 'step.r': add(at(d.step, 1), [0, 0, 0.01]), 'step.l': add(at(d.step, -1), [0, 0, 0.01]) }) },
   };
+}
+
+// ── a closed cab: a falling-object roof on four pillars, glass all round, guard bars ahead, a door, the shoulders ──
+const PANE = { preset: 'satin', ambient: 0.62, diffuse: 0.45, specular: 0.7, shininess: 70 };
+function cab(row, C) {
+  const d = row.dims, extrudes = [], sweeps = [], lathes = [], frame = C.trim, X = d.x, p = d.post, glass = tone(C.glass, 0.55), pane = (m) => ({ ...m, material: PANE });
+  const Z = d.roof, mid = (d.belt + Z) / 2, hG = Z - d.belt - 0.05;
+  // (the pillars: the cab's rollover frame, the roof's posts)
+  for (const x of [-X, X]) for (const y of [d.y0, d.y1]) extrudes.push(box(`pillar_${x > 0 ? 'r' : 'l'}${y > 0 ? 'f' : 'b'}`, [x, y, d.z0], [x, y, Z], p, p, frame, [0, 1, 0]));
+  // (the roof: a plate thick against what falls, its guard bars over it, its lamps, its beacon)
+  extrudes.push(box('roof', [0, d.y0 - 0.04, Z + 0.03], [0, d.y1 + 0.06, Z + 0.03], 2 * X + 0.08, 0.06, C.paint));
+  for (const x of [-0.25, 0, 0.25]) extrudes.push(box(`roofBar_${Math.round(x * 100)}`, [x, d.y0, Z + 0.08], [x, d.y1 + 0.02, Z + 0.08], 0.05, 0.04, frame));
+  for (const s of [1, -1]) {
+    const c = [s * (X - 0.12), d.y1 + 0.07, Z + 0.035];
+    extrudes.push(box(`lamp_${s > 0 ? 'r' : 'l'}`, add(c, [0, -0.04, 0]), add(c, [0, 0.02, 0]), 0.12, 0.05, frame));
+    extrudes.push(box(`lens_${s > 0 ? 'r' : 'l'}`, add(c, [0, 0.02, 0]), add(c, [0, 0.026, 0]), 0.1, 0.04, C.glass));
+  }
+  lathes.push(spin('beacon', [0, d.y0 + 0.1, Z + 0.1], [0, d.y0 + 0.1, Z + 0.17], [[0, 0.04], [0.8, 0.04], [1, 0.022]], C.light, 12));
+  // (the lower panels, sides and front and back, to the beltline; the glass over them)
+  for (const s of [1, -1]) extrudes.push(slab(`side_${s > 0 ? 'r' : 'l'}`, s * (X - 0.008), s * (X + 0.008), [[d.y0, d.z0], [d.y1, d.z0], [d.y1, d.belt], [d.y0, d.belt]], C.paint));
+  extrudes.push(box('front', [-X, d.y1, (d.z0 + d.belt - 0.08) / 2], [X, d.y1, (d.z0 + d.belt - 0.08) / 2], 0.016, d.belt - 0.08 - d.z0, C.paint));
+  extrudes.push(box('back', [-X, d.y0, (d.z0 + d.belt) / 2], [X, d.y0, (d.z0 + d.belt) / 2], 0.016, d.belt - d.z0, C.paint));
+  // (warning stripes along the front panel's foot)
+  for (let i = 0; i < 6; i++) extrudes.push(box(`stripe_${i}`, [-X + 0.06 + i * 0.15, d.y1 + 0.01, d.z0 + 0.08], [-X + 0.13 + i * 0.15, d.y1 + 0.01, d.z0 + 0.08], 0.006, 0.06, i % 2 ? frame : C.light));
+  for (const s of [1, -1]) extrudes.push(pane(slab(`glass_${s > 0 ? 'r' : 'l'}`, s * (X - 0.006), s * (X + 0.004), [[d.y0 + p / 2, d.belt + 0.02], [d.y1 - p / 2, d.belt + 0.02], [d.y1 - p / 2, Z - 0.03], [d.y0 + p / 2, Z - 0.03]], glass)));
+  extrudes.push(pane(box('windshield', [-X + p / 2, d.y1, d.belt - 0.06 + (hG + 0.08) / 2], [X - p / 2, d.y1, d.belt - 0.06 + (hG + 0.08) / 2], 0.012, hG + 0.08, glass)));
+  extrudes.push(pane(box('rearGlass', [-X + p / 2, d.y0, mid], [X - p / 2, d.y0, mid], 0.012, hG, glass)));
+  // (the door on the left: its frame cut in the side, its handle; the ladder comes up under it)
+  const [dy0, dy1] = d.door;
+  sweeps.push(tube('doorFrame', [[-X - 0.012, dy0, d.z0 + 0.04], [-X - 0.012, dy0, Z - 0.05], [-X - 0.012, dy1, Z - 0.05], [-X - 0.012, dy1, d.z0 + 0.04], [-X - 0.012, dy0, d.z0 + 0.04]], 0.012, frame, 6));
+  extrudes.push(box('doorHandle', [-X - 0.03, dy1 - 0.1, d.belt - 0.04], [-X - 0.03, dy1 - 0.02, d.belt - 0.04], 0.02, 0.03, C.chrome));
+  // (the guard ahead of the windshield: bars against what flies off the work)
+  for (const x of [-0.27, -0.09, 0.09, 0.27]) sweeps.push(tube(`guard_${Math.round(x * 100)}`, [[x, d.y1 + 0.07, d.belt - 0.04], [x, d.y1 + 0.07, Z - 0.02]], 0.014, frame, 8));
+  for (const z of [d.belt - 0.04, Z - 0.02]) sweeps.push(tube(`guardRail_${Math.round(z * 100)}`, [[-X + 0.02, d.y1 + 0.07, z], [X - 0.02, d.y1 + 0.07, z]], 0.016, frame, 8));
+  for (const s of [1, -1]) {
+    const side = s > 0 ? 'r' : 'l', Sh = [s * d.shoulder[0], d.shoulder[1], d.shoulder[2]];
+    // (the shoulder's mount out from the cab's side, braced down to its foot; the shoulder's drive hangs under it)
+    extrudes.push(box(`mount_${side}`, [s * (X - 0.02), Sh[1], d.mount], [s * (d.shoulder[0] + 0.08), Sh[1], d.mount], 0.24, 0.1, frame));
+    sweeps.push(tube(`mountBrace_${side}`, [[s * X, Sh[1], d.belt - 0.1], [s * (d.shoulder[0] - 0.06), Sh[1], d.mount - 0.05]], 0.03, frame, 8));
+    // (a mirror at each front pillar)
+    sweeps.push(tube(`mirrorArm_${side}`, [[s * X, d.y1, d.belt + 0.25], [s * (X + 0.14), d.y1 + 0.04, d.belt + 0.3]], 0.01, frame, 6));
+    extrudes.push(box(`mirror_${side}`, [s * (X + 0.14), d.y1 + 0.03, d.belt + 0.32], [s * (X + 0.14), d.y1 + 0.05, d.belt + 0.32], 0.1, 0.14, frame));
+    // (the power pack's arms back from the cab's rear)
+    for (const [i, z] of d.pack.z.entries()) extrudes.push(box(`packArm_${side}${i}`, [s * 0.3, d.y0, z], [s * 0.3, d.pack.y, z], 0.05, 0.06, frame));
+  }
+  return { sweeps, extrudes, lathes, hardpoints: { top: [0, 0, Z], 'shoulder.r': [...d.shoulder], 'shoulder.l': [-d.shoulder[0], d.shoulder[1], d.shoulder[2]] } };
 }
 
 // ── a torso frame round a seated operator: its posts, its shoulder beam and mounts, its hoop over the head ────
@@ -396,7 +460,7 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-ankle': ankle,
   'mecha-foot': foot,
   'mecha-seat': (row, C, ctx) => (row.build.family === 'seated' ? station : seat)(row, C, ctx),
-  'mecha-cage': (row, C, ctx) => (row.build.family === 'torso' ? torso : cage)(row, C, ctx),
+  'mecha-cage': (row, C, ctx) => ({ torso, cab }[row.build.family] ?? cage)(row, C, ctx),
   'mecha-shoulder': shoulder,
   'mecha-upperarm': upperarm,
   'mecha-forearm': forearm,

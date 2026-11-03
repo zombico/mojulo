@@ -29,6 +29,7 @@
 
 // (a leg's parts, by frame: the walker's, and the utility walker's bored up for its weight)
 const ATW_LEG = Object.freeze({ hip: 'hip-atw', yoke: 'yoke-atw', thigh: 'thigh-atw', shank: 'shank-atw', ankle: 'ankle-atw', foot: 'foot-atw', roll: 'ram-roll-atw', hipRam: 'ram-hip-atw', kneeRam: 'ram-knee-atw', ankleRam: 'ram-ankle-atw' });
+const HW_LEG = Object.freeze({ hip: 'hip-hw', yoke: 'yoke-hw', thigh: 'thigh-hw', shank: 'shank-hw', ankle: 'ankle-hw', foot: 'foot-hw', roll: 'ram-roll-hw', hipRam: 'ram-hip-hw', kneeRam: 'ram-knee-hw', ankleRam: 'ram-ankle-hw' });
 const UW_LEG = Object.freeze({ hip: 'hip-uw', yoke: 'yoke-uw', thigh: 'thigh-uw', shank: 'shank-uw', ankle: 'ankle-uw', foot: 'foot-uw', roll: 'ram-roll-uw', hipRam: 'ram-hip-uw', kneeRam: 'ram-knee-uw', ankleRam: 'ram-ankle-uw' });
 /** A leg of six joints on one side: its parts (a set above), its knee bent `back` (digitigrade) or `forward` (human). */
 const leg = (S, P = ATW_LEG, bend = 'back') => {
@@ -62,8 +63,11 @@ const leg = (S, P = ATW_LEG, bend = 'back') => {
     },
   };
 };
+// (an arm's parts, by frame)
+const UW_ARM = Object.freeze({ shoulder: 'shoulder-uw', upper: 'upperarm-uw', fore: 'forearm-uw', wrist: 'wrist-uw', claw: 'claw-uw', shoulderRam: 'ram-shoulder-uw', elbowRam: 'ram-elbow-uw' });
+const HW_ARM = Object.freeze({ shoulder: 'shoulder-hw', upper: 'upperarm-hw', fore: 'forearm-hw', wrist: 'wrist-hw', claw: 'claw-hw', shoulderRam: 'ram-shoulder-hw', elbowRam: 'ram-elbow-hw' });
 /** An arm on one side, on the torso's shoulder: its yaw drive, its pitch and elbow on rams, a rotary wrist, a claw. */
-const arm = (S) => {
+const arm = (S, P = UW_ARM) => {
   const s = S.toLowerCase();
   return {
     joints: {
@@ -73,13 +77,13 @@ const arm = (S) => {
       [`wrist${S}`]: Object.freeze({ kind: 'hinge', drive: `wrist${S}` }),
     },
     layout: [
-      { id: `shoulder${S}`, sku: 'shoulder-uw', side: s, on: `cage.shoulder.${s}`, joint: `shoulderYaw${S}` },
-      { id: `upperArm${S}`, sku: 'upperarm-uw', side: s, on: `shoulder${S}.pitch`, joint: `shoulderPitch${S}` },
-      { id: `foreArm${S}`, sku: 'forearm-uw', side: s, on: `upperArm${S}.elbow`, joint: `elbow${S}` },
-      { id: `wrist${S}`, sku: 'wrist-uw', side: s, on: `foreArm${S}.wrist`, joint: `wrist${S}` },
-      { id: `claw${S}`, sku: 'claw-uw', side: s, on: `wrist${S}.claw` },
-      { id: `shoulderRam${S}`, sku: 'ram-shoulder-uw', side: s, ram: [`shoulder${S}.horn`, `upperArm${S}.shoulderRam`] },
-      { id: `elbowRam${S}`, sku: 'ram-elbow-uw', side: s, ram: [`upperArm${S}.elbowRam`, `foreArm${S}.elbowEye`] },
+      { id: `shoulder${S}`, sku: P.shoulder, side: s, on: `cage.shoulder.${s}`, joint: `shoulderYaw${S}` },
+      { id: `upperArm${S}`, sku: P.upper, side: s, on: `shoulder${S}.pitch`, joint: `shoulderPitch${S}` },
+      { id: `foreArm${S}`, sku: P.fore, side: s, on: `upperArm${S}.elbow`, joint: `elbow${S}` },
+      { id: `wrist${S}`, sku: P.wrist, side: s, on: `foreArm${S}.wrist`, joint: `wrist${S}` },
+      { id: `claw${S}`, sku: P.claw, side: s, on: `wrist${S}.claw` },
+      { id: `shoulderRam${S}`, sku: P.shoulderRam, side: s, ram: [`shoulder${S}.horn`, `upperArm${S}.shoulderRam`] },
+      { id: `elbowRam${S}`, sku: P.elbowRam, side: s, ram: [`upperArm${S}.elbowRam`, `foreArm${S}.elbowEye`] },
     ],
     arms: {
       shoulder: `shoulder${S}`, upper: `upperArm${S}`, fore: `foreArm${S}`, wrist: `wrist${S}`, claw: `claw${S}`,
@@ -89,6 +93,7 @@ const arm = (S) => {
 };
 const R = leg('R'), L = leg('L');
 const UR = leg('R', UW_LEG, 'forward'), UL = leg('L', UW_LEG, 'forward'), AR = arm('R'), AL = arm('L');
+const HR = leg('R', HW_LEG, 'forward'), HL = leg('L', HW_LEG, 'forward'), HAR = arm('R', HW_ARM), HAL = arm('L', HW_ARM);
 
 export const MECHA_ARCHETYPES = Object.freeze({
   // the all-terrain walker: one rider astride a saddle on a pelvis, leaning onto clip-on bars as on a sport motorcycle, its
@@ -222,6 +227,72 @@ export const MECHA_ARCHETYPES = Object.freeze({
       clearance: [0.01, 9],
       reach: [0.9, 1.6],
       lift: [100, 400],
+      mass: 0.1,
+      distal: [0, 0.45],
+    }),
+    bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-shoulder': 2, 'mecha-upperarm': 2, 'mecha-forearm': 2, 'mecha-wrist': 2, 'mecha-claw': 2, 'mecha-ram': 12 }),
+  }),
+  // the heavy walker: the utility walker's frame drawn larger for heavy construction (its legs, its pelvis and its arms
+  // at 1.4 times, its feet at 1.6), its operator a person's size in a closed cab: a falling-object roof on four pillars,
+  // glass all round, guard bars ahead of the windshield, a door up a side ladder, a harness and an emergency stop
+  heavyWalker: Object.freeze({
+    label: 'heavy walker',
+    classOf: 'heavy construction biped, closed cab, two arms',
+    palette: 'siteYellow',
+    mass: 2300,
+    rider: Object.freeze({ mass: 95, com: Object.freeze([0, 0.08, 0.15]) }),
+    posture: 'operator',
+    station: 'seat',
+    bend: 'forward',
+    // (its operator's space in the cab: the trunk and head over the seat, the thighs and shins down to the pedals)
+    envelope: Object.freeze([
+      Object.freeze({ x: 0.24, y: Object.freeze([-0.3, 0.3]), z: Object.freeze([0.65, 1.56]) }),
+      Object.freeze({ x: 0.22, y: Object.freeze([-0.2, 0.5]), z: Object.freeze([0.19, 0.65]) }),
+    ]),
+    joints: Object.freeze({ ...HR.joints, ...HL.joints, ...HAR.joints, ...HAL.joints }),
+    layout: Object.freeze([
+      { id: 'pelvis', sku: 'pelvis-hw' },
+      { id: 'seat', sku: 'station-hw', on: 'pelvis.seat' },
+      { id: 'cage', sku: 'cab-hw', on: 'pelvis.cage' },
+      { id: 'pack', sku: 'pack-hw', on: 'pelvis.pack' },
+      ...HR.layout, ...HL.layout, ...HAR.layout, ...HAL.layout,
+    ].map(Object.freeze)),
+    legs: Object.freeze({ r: Object.freeze(HR.legs), l: Object.freeze(HL.legs) }),
+    arms: Object.freeze({ r: Object.freeze(HAR.arms), l: Object.freeze(HAL.arms) }),
+    armPoses: Object.freeze({
+      rest: Object.freeze({ wrist: Object.freeze([0.31, -1.09]), claw: 20 }),
+      carry: Object.freeze({ wrist: Object.freeze([0.87, -0.59]), claw: 90 }),
+      raise: Object.freeze({ wrist: Object.freeze([0.77, 0.63]), claw: 120 }),
+    }),
+    track: 0.7,
+    stances: Object.freeze({
+      stand: Object.freeze({ knee: 45, arms: 'rest' }),
+      board: Object.freeze({ knee: 110, fore: 0.14, track: 0.76, arms: 'rest' }),
+      stride: Object.freeze({ height: 'stand', arms: 'rest', feet: Object.freeze({ r: Object.freeze({ y: 0.42 }), l: Object.freeze({ y: -0.42 }) }) }),
+      lift: Object.freeze({ knee: 40, sway: 'l', arms: 'rest', feet: Object.freeze({ r: Object.freeze({ y: 0.21, lift: 0.3 }) }) }),
+      turn: Object.freeze({ knee: 45, arms: 'rest', feet: Object.freeze({ r: Object.freeze({ yaw: 15 }), l: Object.freeze({ yaw: 15 }) }) }),
+      // (a load held ahead in both grapples, the forearms level: a kerb stone, a pipe, a pallet of blocks)
+      carry: Object.freeze({ knee: 50, arms: 'carry', load: 400 }),
+      reach: Object.freeze({ knee: 45, arms: 'raise' }),
+    }),
+    rest: 'stand',
+    laws: Object.freeze({
+      arcs: Object.freeze({ hipRoll: [40, 64], hipPitch: [110, 140], knee: [100, 125], anklePitch: [60, 85], shoulderPitch: [120, 150], elbow: [100, 130] }),
+      knee: [25, 60],
+      stability: [0.05, 1],
+      sway: [0.02, 1],
+      actuators: [0, 0.8],
+      groundPressure: [25, 70],
+      step: [0.4, 1.1],
+      stride: [0.4, 0.85],
+      seat: [2.0, 2.8],
+      board: [1.6, 2.3],
+      stepIn: [0.3, 0.6],
+      tipover: [0.03, 9],
+      clearance: [0.01, 9],
+      cab: [0.03, 1],
+      reach: [1.6, 2.4],
+      lift: [500, 1500],
       mass: 0.1,
       distal: [0, 0.45],
     }),

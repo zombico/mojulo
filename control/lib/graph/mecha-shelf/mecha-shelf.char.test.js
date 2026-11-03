@@ -13,6 +13,8 @@
  *     path is a kind and its family); the walker's pins did not move.
  *   - The utility walker's operator seated (the platform's work seat, the torso frame lowered to it): the station and
  *     the torso re-pinned; the walker's pins did not move.
+ *   - The heavy walker (unreleased): its closed cab pinned. Its scaled parts are their designs' builder paths, drawn
+ *     larger; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -28,6 +30,7 @@ const ram = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-ram')[0]
 const PINS = {
   'seat-atw': '21cccf930c2dc585',
   'cage-atw': 'fd2c4a6f9121233c',
+  'torso-uw': '609e7d0794b91525',
   'pelvis-atw': '2bf43bb8301d2d01',
   'hip-atw': '7dfe96529b8d835d',
   'yoke-atw': 'e980194856eb1827',
@@ -35,8 +38,6 @@ const PINS = {
   'shank-atw': '9c982a643e837fda',
   'ankle-atw': '8133ce847f2c2453',
   'foot-atw': '3be20c16d08b2679',
-  'platform-uw': 'fb8cab49220662f2',
-  'torso-uw': '609e7d0794b91525',
   'pack-atw': 'aae25a1a90f1ab36',
   'shoulder-uw': '4274873688ac1ba8',
   'upperarm-uw': 'bdec84b9678a660a',
@@ -44,6 +45,8 @@ const PINS = {
   'wrist-uw': 'cad5b13936f7c5f7',
   'claw-uw': 'c3ab1299a2f96d73',
   'ram-roll-atw': 'e73d554306c2f29f',
+  'platform-uw': 'fb8cab49220662f2',
+  'cab-hw': 'c427bdb45dbc0655',
 };
 const LEFT = 'c9882af91b6cf973';
 const ROD = 'bcfdb3e1621e0b1a';

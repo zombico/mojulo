@@ -21,6 +21,7 @@
  *   seat            the saddle's or the seat's height standing; board, its height crouched to be boarded; stepIn, the boarding step's
  *   tipover         fallen on its side, it lands on its crash frame and its legs, never on the rider: the rider's space
  *                   inside the frame's outline seen from the front, at its sides (m)
+ *   cab             a closed cab holds the operator's space inside its glass and under its roof, the nearest margin (m)
  *   clearance       the legs and their rams never enter the rider's space at any stance, nor at the step's or the
  *                   stride's reach (m, the nearest)
  *   reach           a frame with arms: its claws' tip at its farthest ahead of the shoulders, level with them (m)
@@ -248,6 +249,18 @@ export function mechaLaws(key, kit) {
     }
     v = r3(v);
     law('tipover', v, band.tipover, within(v, band.tipover), v >= 0 ? `on its side it lands on its frame, the rider ${v} m inside it` : `on its side the rider stands ${-v} m outside its frame`);
+  }
+  if (band.cab && arch.envelope) {
+    // (a closed cab holds its operator's space inside its glass and under its roof, a margin all round: what the cab's
+    // frame protects in a rollover or under a falling load)
+    const cabRow = ctx.row(ctx.entry('cage').sku), D = cabRow.dims, o = ctx.hp('pelvis', 'cage'), t = D.post / 2;
+    const inner = { x: D.x - t, y0: D.y0 + t + o[1], y1: D.y1 - t + o[1], top: D.roof + o[2] };
+    let v = Infinity, why = '';
+    for (const E of arch.envelope) {
+      for (const [m, w] of [[inner.x - E.x, 'its sides'], [E.y[0] - inner.y0, 'its back'], [inner.y1 - E.y[1], 'its front'], [inner.top - E.z[1], 'its roof']]) if (m < v) { v = m; why = w; }
+    }
+    v = r3(v);
+    law('cab', v, band.cab, within(v, band.cab), `its cab holds the operator's space ${v} m inside ${why}, the nearest`);
   }
   if (band.clearance && arch.envelope) {
     const legBodies = arch.layout.filter((e) => e.side);

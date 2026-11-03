@@ -24,7 +24,7 @@ import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { framesOf, isStrut, rangeOf, solveChain } from '../construction-shelf/con-chain.js';
 import { G, I3, MECHA_COLOR_ROLES, MECHA_PALETTES, apply, clone, compose, eulerXYZ, resolveMechaPalette, round3 } from './mecha-common.js';
 import { MECHA_BUILDERS } from './mecha-parts.js';
-import { MECHA_KINDS, MECHA_ODM } from './mecha-odm.js';
+import { MECHA_KINDS, MECHA_ODM, scaleDims } from './mecha-odm.js';
 import { MECHA_ARCHETYPES, MECHA_ARCHETYPE_IDS } from './mecha-archetypes.js';
 import { solveStance } from './mecha-ik.js';
 import { mechaLaws } from './mecha-laws.js';
@@ -73,8 +73,24 @@ const homeOf = (sku) => MECHA_ARCHETYPE_IDS.find((id) => MECHA_ARCHETYPES[id].la
 const GEOM = new Map();
 function geomOf(sku, side, C, part) {
   const key = `${sku}|${side ?? ''}|${JSON.stringify(C)}|${part ?? ''}`;
-  if (!GEOM.has(key)) GEOM.set(key, MECHA_BUILDERS[partRow(sku).kind](partRow(sku), C, { side, part }));
+  if (!GEOM.has(key)) {
+    const row = partRow(sku), k = row.dims.scale, build = MECHA_BUILDERS[row.kind];
+    // (a part at another size is its design's: drawn at the design's size, then scaled, every length times k)
+    GEOM.set(key, k ? scaleGeom(build({ ...row, dims: scaleDims(row.dims, 1 / k) }, C, { side, part }), k) : build(row, C, { side, part }));
+  }
   return GEOM.get(key);
+}
+/** A builder's output scaled about its body's origin: every point, every radius, every section's offsets, times k. */
+function scaleGeom(g, k) {
+  const v = (p) => p.map((x) => round3(x * k) + 0), xyz = (p) => ({ x: round3(p.x * k), y: round3(p.y * k), z: round3(p.z * k) });
+  const out = { ...g };
+  if (g.lathes) out.lathes = g.lathes.map((m) => ({ ...m, axisFrom: xyz(m.axisFrom), axisTo: xyz(m.axisTo), profile: m.profile.map((q) => ({ t: q.t, radius: round3(q.radius * k) })) }));
+  if (g.sweeps) out.sweeps = g.sweeps.map((m) => ({ ...m, path: m.path.map(v), radius: round3(m.radius * k) }));
+  if (g.extrudes) out.extrudes = g.extrudes.map((m) => ({ ...m, axisFrom: xyz(m.axisFrom), axisTo: xyz(m.axisTo), profile: { ...m.profile, points: m.profile.points.map(v) } }));
+  if (g.lofts) out.lofts = g.lofts.map((m) => ({ ...m, axisFrom: xyz(m.axisFrom), axisTo: xyz(m.axisTo), stations: m.stations.map((st) => ({ ...st, profile: st.profile.map(v) })) }));
+  out.hardpoints = Object.fromEntries(Object.entries(g.hardpoints).map(([n, p]) => [n, v(p)]));
+  if (g.outline) out.outline = g.outline.map(v);
+  return out;
 }
 
 /**

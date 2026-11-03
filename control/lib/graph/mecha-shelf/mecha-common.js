@@ -34,6 +34,8 @@ export const MECHA_PALETTES = {
   rescueOrange: { paint: '#df6327', trim: '#2b2c2e', glass: '#26323a', rubber: '#1b1c1d', chrome: '#c9ced2', light: '#f2ece0' },
   // a desert patrol's sand over a brown frame
   desertSand: { paint: '#bda97f', trim: '#4a3f31', glass: '#2c3338', rubber: '#231f1b', chrome: '#a8a296', light: '#e6dcc2' },
+  // a construction site's yellow over a black frame
+  siteYellow: { paint: '#e5a91c', trim: '#26282a', glass: '#2b3a44', rubber: '#1a1b1c', chrome: '#c9ced2', light: '#f2ece0' },
   // a winter station's white and its signal red
   arcticWhite: { paint: '#e9ecee', trim: '#40464c', glass: '#26323a', rubber: '#1b1c1d', chrome: '#c9ced2', light: '#c8322c' },
 };

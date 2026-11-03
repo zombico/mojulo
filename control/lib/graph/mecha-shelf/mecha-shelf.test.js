@@ -113,6 +113,28 @@ describe('mecha shelf: a frame with arms, its knees forward', () => {
   });
 });
 
+describe('mecha shelf: a frame drawn larger, its operator in a closed cab', () => {
+  // (a scaled part and a frame with a closed cab: chosen in code by what they are)
+  const [sku, row] = Object.entries(MECHA_ODM).find(([, r]) => r.dims.scale);
+  const base = row.from;
+  it('draws a part at another size as its design scaled whole: its pins at k times, its mass at k³', () => {
+    const k = row.dims.scale, a = resolveMechaPart(base, { side: 'r' }).garage, b = resolveMechaPart(sku, { side: 'r' }).garage;
+    for (const [h, p] of Object.entries(a.hardpoints)) for (let i = 0; i < 3; i++) expect(b.hardpoints[h][i]).toBeCloseTo(p[i] * k, 2);
+    expect(row.mass).toBe(Math.round(MECHA_ODM[base].mass * k ** 3));
+  });
+  const cabbed = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].laws.cab);
+  it('holds its operator inside its cab, and every law on the larger frame', () => {
+    const { laws } = lawsOf(cabbed);
+    expect(laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+    expect(laws.find((l) => l.id === 'cab').value).toBeGreaterThan(0);
+    // (its arms' ranges are its design's: a ram scaled with its pins reaches the same arc)
+    const pitch = MECHA_ARCHETYPES[cabbed].arms.r.joints.pitch, utility = Object.keys(MECHA_ARCHETYPES).find((k) => k !== cabbed && MECHA_ARCHETYPES[k].arms);
+    const [lo, hi] = jointRange(cabbed, pitch), [lo0, hi0] = jointRange(utility, MECHA_ARCHETYPES[utility].arms.r.joints.pitch);
+    expect(lo).toBeCloseTo(lo0, 0);
+    expect(hi).toBeCloseTo(hi0, 0);
+  });
+});
+
 describe('mecha shelf: the actuators', () => {
   it('lays every ram within its stroke at every stance', () => {
     for (const name of Object.keys(arch.stances)) {
