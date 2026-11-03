@@ -394,6 +394,24 @@ drawn. They should agree, so the material reads accurately: a marble-skinned tom
 steel it should wear steel. Distortion makes a mismatch visible, because dents are drawn in the thing's own skin. When
 you give a thing a matter, read its skin; when you change a skin, check its matter.
 
+## In the geocube
+
+A physical world asked of a geocube breaks by what the cube's style says its things are made of. The cube's `matter`
+facet gives a matter by role (`wall`, `floor`, `accent`, `trim`, `roof`, `ground`, `wood`, `metal`, `glass`). A role it
+leaves out is read off its own look ([`look-matter.js`](../control/lib/graph/rupa/look-matter.js)), in order:
+
+1. its surfaces' tiles (a stone-brick wall, a flagstone floor and rock are stone; wood is timber);
+2. its interior kit (gothic stone and catacomb are stone; a research lab is concrete and steel);
+3. its settlements' material words (ashlar and rubble stone, hand-brick and wire-brick brick, adobe, boards and thatch
+   pine, slate stone, precast and stucco concrete);
+4. the defaults (wood timber, metal steel, glass glass).
+
+`cubeMatter(cube)` gives each role with its reason. `breakablesOf` hands a class the role's matter (walls and
+pilasters the wall's, set pieces and boulders the accent's, doors the wood's, lockers the metal's) and keeps the class's
+own fill, so a steel locker stays a steel shell; other props keep their class's matter. This is phase 1 of bringing rupa
+to the geocube. The way on: structures and settlement buildings as blocks, one wind for the flora, the ground grid from
+the substrate, the cube's water as the fluid layer, then the geocity's physical ring near the player.
+
 ## Where it plugs in
 
 - `breakability.js`: the `physical` degree; under it, each breakable carries `blockMatter` numbers and its matter's cut.

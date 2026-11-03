@@ -23,6 +23,9 @@
  *                                Under `physical` each block also carries its matter's numbers (rupa/matter.js
  *                                blockMatter: the thing's own `matter` and `fill`, else its class's): `matter`, `fill`,
  *                                `mass`, `joules`, `compressive`, `bond`, and its matter's cut (the thing's own wins).
+ *                                `matterOf` (a world's cube's matter by role, era/geocube.js cubeMatter) gives a class
+ *                                the role's matter (rupa/look-matter.js CLASS_ROLE: walls the wall's, set pieces the
+ *                                accent's), so a wall breaks as what it looks made of.
  *   piecesOf(breakables, faces)  → { [id]: { fill, tex?, cuts, pieces } }: each breakable pre-cut once per cut it can take, for
  *                                the page to swap in when it breaks. `cuts` maps how it broke (the runtime's `how`:
  *                                swing, shot, burst, fall, crush, call) to a cut's name (cuts.js cutOf: the thing's own
@@ -35,7 +38,8 @@
  */
 import { cleave } from './cleave.js';
 import { cutOf, CUT_PRESETS as CUT_NAMES } from './cuts.js';
-import { CLASS_MATTER, blockMatter, resolveMatter, cutOfMatter } from '../../rupa/matter.js';
+import { MATTER, CLASS_MATTER, blockMatter, resolveMatter, cutOfMatter } from '../../rupa/matter.js';
+import { CLASS_ROLE } from '../../rupa/look-matter.js';
 
 const CUT_IDS = Object.keys(CUT_NAMES);
 const same = (a, b) => ['pattern', 'style', 'count', 'cell'].every((k) => a[k] === b[k]);
@@ -66,7 +70,10 @@ export function breaksUnder(degree, cls, own) {
   return !!(degree && cls && DEGREES[degree] && DEGREES[degree].includes(cls));
 }
 
-export function breakablesOf(payload, degree, { hp = THING_HP } = {}) {
+// the solid share a class's thing has: its own word, else its matter's (a locker is sheet metal, a shell of 2 %): a role's
+// matter keeps it, so steel lockers stay a steel shell
+const classFill = (base) => base.fill ?? (MATTER[base.matter] && MATTER[base.matter].fill !== 1 ? MATTER[base.matter].fill : undefined);
+export function breakablesOf(payload, degree, { hp = THING_HP, matterOf = null } = {}) {
   if (!degree || degree === 'none') return null;
   const anchors = Array.isArray(payload?.anchors) ? payload.anchors : [];
   const faces = Array.isArray(payload?.faces) ? payload.faces : [];
@@ -82,7 +89,11 @@ export function breakablesOf(payload, degree, { hp = THING_HP } = {}) {
     if (!c) { skipped.push({ id: a.id, class: cls, why: 'it blocks nothing (no collider)' }); continue; }
     const b = { id: a.id, min: [...c.min], max: [...c.max], hp: hp[cls] ?? 1, ...(a.cut !== undefined ? { cut: a.cut } : {}) };
     if (degree === 'physical') {
-      const own = a.matter !== undefined ? { matter: a.matter, ...(a.fill !== undefined ? { fill: a.fill } : {}) } : CLASS_MATTER[cls] || CLASS_MATTER.block;
+      // its own word, else the role the world's cube gives its class (the cube's matter, read off its skins: a wall is what
+      // the cube's walls look made of), keeping the class's fill, else its class's own
+      const role = matterOf && CLASS_ROLE[cls] ? matterOf[CLASS_ROLE[cls]] : null, base = CLASS_MATTER[cls] || CLASS_MATTER.block;
+      const own = a.matter !== undefined ? { matter: a.matter, ...(a.fill !== undefined ? { fill: a.fill } : {}) }
+        : role ? { matter: role.matter, ...((role.fill ?? classFill(base)) !== undefined ? { fill: role.fill ?? classFill(base) } : {}), ...(role.porosity !== undefined ? { porosity: role.porosity } : {}) } : base;
       Object.assign(b, blockMatter(b, own, `${a.id}.matter`));
       if (b.cut === undefined) b.cut = cutOfMatter(resolveMatter(own.matter));
     }

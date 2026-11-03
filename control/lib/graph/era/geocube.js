@@ -27,6 +27,12 @@
  *             steel, kanamono as gold, leather as leather, by the armour's family and each metal group's own tone),
  *             or { age?, <group>: <material> } over that (`age`: new, worn, old or ancient: copper alloys tarnish
  *             and turn green, steel dulls and blackens); a hero takes it through its `geocube`. Absent: tones, as always
+ *   matter    (optional) what the cube's things are MADE of, by role (rupa/look-matter.js ROLES: wall, floor, accent,
+ *             trim, roof, ground, wood, metal, glass), each a matter (rupa/matter.js) or { matter, fill?, porosity? }: what
+ *             a physical level painted by it breaks by. Where it names a role none, the role is READ off the cube's own
+ *             look, so the matter agrees with the skin: its surfaces' tiles (a stone-brick wall is stone), its bones' kit
+ *             (a research lab concrete and steel), its settlements' material words (a slate roof stone, a thatch one
+ *             pine). cubeMatter(cube) says each role's matter and why
  *   inside    the bones (a room kit, bare), the specimen room's size, the accent wall; and its INTERIORS: the cube's own
  *             room is one (named by `interior`, 'room' unless named), `interiors` the others, each a few changes to it
  *             ({ reads?, bones?, size?, accentWall? }: a hall, a cellar)
@@ -124,6 +130,7 @@ import { readCrystals } from '../local-meru/crystals.js';
 import { rollTiers } from '../local-meru/roll.js';
 import { outTrailOf } from './out-trail-board.js';
 import { materialsErrors } from '../materials/dress-materials.js';
+import { ROLES as LOOK_ROLES, readRoleMatter, matterOfTile, matterOfWord, KIT_MATTER, DEFAULT_ROLE } from '../rupa/look-matter.js';
 import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
@@ -389,7 +396,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, matter: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -496,6 +503,14 @@ export function readGeocube(spec) {
   if (c.contrast === undefined && c.register.contrast !== undefined && c.register.contrast !== false) c.contrast = c.register.contrast;
   if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
   if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
+  // matter (optional): what its things are made of, by role (rupa/look-matter.js); a role it names none is read off its look
+  if (c.matter !== undefined) {
+    if (!c.matter || typeof c.matter !== 'object' || Array.isArray(c.matter)) no(`matter is { <role>: matter }, its roles ${LOOK_ROLES.join(', ')}`);
+    else for (const [k, v] of Object.entries(c.matter)) {
+      if (!LOOK_ROLES.includes(k)) no(`matter.${k} is not a role (${LOOK_ROLES.join(', ')})`);
+      else { try { readRoleMatter(v, `geocube matter.${k}`); } catch (e) { no(e.message); } }
+    }
+  }
   // biocube (optional): what grows on its land, its streets' flora unless a recipe names its own (era/biocube.js)
   if (c.biocube !== undefined) readBiocube(c.biocube);
   // snow (optional): the snow on its land, its trail's stage under it unless a recipe names its own (era/snow.js)
@@ -720,7 +735,7 @@ function onInterior(cube, name) {
 }
 
 // the keys of a cube that are its style or its ingredients: never a domain's to change
-const STYLE_WORDS = ['light', 'colour', 'palette', 'register', 'contrast', 'grit', 'surfaces', 'era', 'target', 'materials', 'why', 'avoid', 'buildings'];
+const STYLE_WORDS = ['light', 'colour', 'palette', 'register', 'contrast', 'grit', 'surfaces', 'era', 'target', 'materials', 'matter', 'why', 'avoid', 'buildings'];
 /** A domain read against the cube: outside on one of its terrains (at an hour), or inside one of its interiors. */
 function composeDomain(cube, d, at) {
   if (!isObj(d)) no(`${at} is { ${DOMAIN_KEYS.map((k) => `${k}?`).join(', ')} }: outside on a terrain (at an hour), or inside an interior`);
@@ -1043,6 +1058,36 @@ export function geocubeEraOf(manifest) {
   const spec = cubeSpecOf(m);
   if (spec === undefined || spec === null) return null;
   return readGeocube(spec).era;
+}
+
+/**
+ * What a cube's things are made of, by role: { <role>: { matter, fill?, porosity?, why } }. Its own `matter` words win;
+ * a role it names none is read off its look, in order: its surfaces' tiles (wall, floor, accent; a pillar's or a plinth's
+ * the trim's), its bones' kit, its settlements' material words (their walls, roofs and roads), then the defaults (wood
+ * timber, metal steel, glass glass). A role nothing says stays out: the class keeps its own.
+ */
+export function cubeMatter(cube) {
+  const out = {}, set = (role, spec, why) => { if (role && spec && !out[role]) out[role] = { ...spec, why: spec.why ?? why }; };
+  for (const [k, v] of Object.entries(cube.matter || {})) out[k] = { ...readRoleMatter(v, `geocube matter.${k}`), why: 'the cube says so' };
+  const S = cube.surfaces || {};
+  for (const [surface, role] of [['wall', 'wall'], ['floor', 'floor'], ['accent', 'accent'], ['pillar', 'trim'], ['plinth', 'trim']]) set(role, matterOfTile(S[surface]), `its ${surface}`);
+  const kit = KIT_MATTER[cube.inside?.bones];
+  if (kit) for (const [role, spec] of Object.entries(kit)) set(role, spec);
+  for (const st of Object.values(cube.settlements || {})) {
+    const words = st && typeof st.style === 'object' ? st.style.materials || {} : {};
+    const first = (w) => (Array.isArray(w) ? w[0] : w);
+    for (const [surface, role] of [['stone', 'wall'], ['plaster', 'wall'], ['roof', 'roof'], ['timber', 'wood'], ['road', 'ground'], ['walk', 'ground']]) set(role, matterOfWord(first(words[surface])));
+  }
+  for (const [role, spec] of Object.entries(DEFAULT_ROLE)) set(role, spec);
+  return out;
+}
+/** The cube a world manifest is painted by, as its matter by role (cubeMatter); null when no cube paints it. */
+export function geocubeMatterOf(manifest) {
+  const m = manifest ?? {};
+  if (m.kind === 'layered') return null;
+  const spec = cubeSpecOf(m);
+  if (spec === undefined || spec === null) return null;
+  return cubeMatter(readGeocube(spec));
 }
 
 /** The shows a new geocube scene is minted in the form render for (gen-7: its land, its trail and its plants as form,
