@@ -29,6 +29,8 @@
  *     and shank, the lugged foot, the field cabin, the racked pack), and its dressed faces whole (the military styling
  *     library's livery, kit, stencils and wear on it: a change there moves this pin); no other pin moved.
  *   - The field walker's armoured cabin (unreleased): its builder path pinned, and its slits shut; no other pin moved.
+ *   - The backpacks (unreleased): the weapons backpack's builder paths pinned (its pack, its mounts' ring and cradle, its
+ *     payloads and their spares, its tail's base, segments and head), and a frame carrying it whole; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -102,6 +104,16 @@ const PINS = {
   'shank-fw': '820c6a747c91d0b3',
   'thigh-fw': 'e472eeb2e0936709',
   'cabin-fw': 'ca168f1c2b7725ea',
+  'ammobox-wpn': 'ed9589d258b5e0f1',
+  'cradle-wpn': '875886ce6fe1b9e9',
+  'minigun-wpn': '7e61ad3144a97fdc',
+  'mount-wpn': '16118eb90116183e',
+  'pack-wpn': 'd78fc8082176f8ea',
+  'rocketpod-wpn': 'd8a1c37c30a6b17a',
+  'rockets-wpn': 'd2d608c151e476f6',
+  'tailbase-wpn': '65d91d9041a4821f',
+  'tailhead-wpn': 'ffcc4b825324ca65',
+  'tailseg1-wpn': 'bf0642359af46d10',
 };
 const LEFT = 'c9882af91b6cf973';
 const ROD = 'bcfdb3e1621e0b1a';
@@ -112,6 +124,7 @@ const HOUSE = '22d1c303d8f1b5ad';
 // (a dressed frame's faces at its rest stance, in its own dress)
 const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
+const BACKPACKED = '420fceac250411af';
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');
 
@@ -135,6 +148,10 @@ describe('mecha shelf: characterization', () => {
   it('pins a closed cabin with its slits shut', () => {
     const sku = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-cage' && r.dims.slits)[0];
     expect(hash(resolveMechaPart(sku, { part: 'shut' }))).toBe(SHUT);
+  });
+  it('pins a frame carrying a backpack, its tail stowed', () => {
+    const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].backpacks?.length);
+    expect(hash(assembleFrame(id, { backpack: MECHA_ARCHETYPES[id].backpacks[0], laws: false }).manifest)).toBe(BACKPACKED);
   });
   it('pins a dressed frame\'s faces in its dress', () => {
     const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].dress), { manifest, readout } = assembleFrame(id, { finish: false, laws: false });

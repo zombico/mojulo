@@ -2,7 +2,7 @@
  * mecha-figure — a mecha shelf frame as the doors draw it: its faces on the studio grid (mint_solid's vehicle preview,
  * the family layer's `mecha` instance), its rider seated in it.
  *
- *   readMechaSpec(spec, at?)    → { archetype, pose?, palette?, rider?, task?, tools?, arms?, packTask?, packTools?, packMaker?, cabin?, slits?, livery?, wear? }, or throws: `pose` a stance's
+ *   readMechaSpec(spec, at?)    → { archetype, pose?, palette?, rider?, task?, tools?, arms?, packTask?, packTools?, packMaker?, cabin?, slits?, backpack?, weapons?, livery?, wear? }, or throws: `pose` a stance's
  *                                 name ('board', 'lift'), a stance ({ knee | height, track?, fore?, sway?, feet? }) or
  *                                 joint values ({ joints: { kneeR: 60 } }), `palette` one of the shelf's, `rider` true (the
  *                                 realistic hero) or the hero's spec, astride the saddle in the frame's posture, its hands
@@ -10,7 +10,8 @@
  *                                 mecha-tools.js), `tools` ({ r?, l? }: a tool per arm) and `arms` ({ r?, l? }: an arm kit);
  *                                 a frame with a giant arm pack's `packTask` and `packTools` ({ r?, l? }) for its giant arms,
  *                                 its `packMaker` the design house whose pack it carries (mecha-gap-makers.js); a frame's
- *                                 `cabin` ('armoured': its closed cabin) and that cabin's `slits` ('open' | 'shut'); a
+ *                                 `cabin` ('armoured': its closed cabin) and that cabin's `slits` ('open' | 'shut'); its
+ *                                 `backpack` ('weapons': mecha-backpacks.js) and that backpack's `weapons` ({ r?, l? }); a
  *                                 dressed frame's `livery` and `wear` (mecha-military.js: the field walker's)
  *   mechaInstanceFaces(spec)    → (async) { faces, spec, stats }: the frame assembled at its stance, lowered to the grid's
  *                                 faces, its rider with it
@@ -24,7 +25,7 @@ import { dressFaces, readMechaDress } from './mecha-military.js';
 import { resolveMechaPalette } from './mecha-common.js';
 
 
-const KEYS = Object.freeze(['archetype', 'pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools', 'packMaker', 'cabin', 'slits', 'livery', 'wear']);
+const KEYS = Object.freeze(['archetype', 'pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools', 'packMaker', 'cabin', 'slits', 'backpack', 'weapons', 'livery', 'wear']);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function readMechaSpec(spec, at = 'mecha') {
@@ -33,9 +34,9 @@ export function readMechaSpec(spec, at = 'mecha') {
   if (!MECHA_ARCHETYPES[spec.archetype]) throw new Error(`${at}.archetype is one of ${Object.keys(MECHA_ARCHETYPES).join(', ')}`);
   if (spec.palette !== undefined && !MECHA_PALETTES[spec.palette]) throw new Error(`${at}.palette is one of ${Object.keys(MECHA_PALETTES).join(', ')}`);
   if (spec.pose !== undefined && typeof spec.pose !== 'string' && !isObj(spec.pose)) throw new Error(`${at}.pose is a stance's name, a stance { knee | height, … } or { joints }`);
-  for (const k of ['tools', 'arms', 'packTools']) if (spec[k] !== undefined && !isObj(spec[k])) throw new Error(`${at}.${k} is { r?, l? }: one per arm`);
+  for (const k of ['tools', 'arms', 'packTools', 'weapons']) if (spec[k] !== undefined && !isObj(spec[k])) throw new Error(`${at}.${k} is { r?, l? }: one per arm`);
   // (its fitting and its pose read as the shelf reads them: a task, a tool, an arm or a stance it has not, refused)
-  const key = composeFrame(spec.archetype, { task: spec.task, tools: spec.tools, arms: spec.arms, packTask: spec.packTask, packTools: spec.packTools, packMaker: spec.packMaker, cabin: spec.cabin, slits: spec.slits });
+  const key = composeFrame(spec.archetype, { task: spec.task, tools: spec.tools, arms: spec.arms, packTask: spec.packTask, packTools: spec.packTools, packMaker: spec.packMaker, cabin: spec.cabin, slits: spec.slits, backpack: spec.backpack, weapons: spec.weapons });
   if (spec.pose !== undefined) posedFrame(key, spec.pose);
   readMechaDress(key, { livery: spec.livery, wear: spec.wear });
   if (spec.rider !== undefined && spec.rider !== false) readRiderHero(spec.rider, `${at}.rider`);
@@ -56,7 +57,7 @@ export async function seatRider(archetype, readout, { hero, posture } = {}) {
 
 export async function mechaInstanceFaces(spec) {
   readMechaSpec(spec);
-  const words = { pose: spec.pose, palette: spec.palette, task: spec.task, tools: spec.tools, arms: spec.arms, packTask: spec.packTask, packTools: spec.packTools, packMaker: spec.packMaker, cabin: spec.cabin, slits: spec.slits };
+  const words = { pose: spec.pose, palette: spec.palette, task: spec.task, tools: spec.tools, arms: spec.arms, packTask: spec.packTask, packTools: spec.packTools, packMaker: spec.packMaker, cabin: spec.cabin, slits: spec.slits, backpack: spec.backpack, weapons: spec.weapons };
   const dressed = !!frameRow(spec.archetype).dress;
   const { manifest, readout } = assembleFrame(spec.archetype, { ...words, ...(dressed ? { finish: false } : {}) });
   // (a dressed frame in its styling library's look, its kit fitted: mecha-military.js; else its parts as finished)

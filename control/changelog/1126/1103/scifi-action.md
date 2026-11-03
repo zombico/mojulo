@@ -199,6 +199,39 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     at the nearest.
   - It is olive drab by default (a new palette, `oliveDrab`, the field's olive). `livery` and `wear` are words of a
     dressed frame on the door, the figure and the render script (`--livery`, `--wear`); a frame with no dress refuses them.
+- **Backpacks** (`mecha-shelf/mecha-backpacks.js`, `mecha-backpack-parts.js`; `backpack`, `weapons`): the giant arm
+  pack's functional cousin. A frame's back is fitted for a job, with no heavy arms. A backpack card names:
+  - its frame in the power pack's place, and its mounts each side, each a traverse ring and an elevation cradle on
+    rotary drives;
+  - the payloads they take, and a spare magazine racked each side;
+  - a service tail;
+  - the parts it asks the frame to carry heavier (a sku for a sku);
+  - its mass on the class's, and its laws.
+
+  A frame offers the backpacks it takes (`backpacks`), and the field walker takes the first.
+  - **The weapons backpack:** the power pack sits under a magazine bay, with a pylon each side out to a weapon mount
+    beside the rider. Its payloads (`MECHA_WEAPONS`, generic and invented) are a rotary machine gun with its
+    ammunition box and feed chute, and a launch rail under a five-round rocket pod. The pod is the launcher's magazine
+    and is swapped whole. The gun takes the right mount and the launcher the left by default; `weapons: { r, l }`
+    swaps them.
+  - **The service tail, a scorpion's:** a yaw drum on the bay's top, two armoured segments and a gripping head with
+    its own camera, each joint an electric rotary drive. It stays tucked down the bay's back, folded against it, until a magazine is to be switched.
+    It is solved by its own inverse kinematics (`mecha-ik.js tailAt`): yawed toward a service point, its root segment
+    raised past the line to it, the outer segment bent back down, the head straight down onto the magazine's lug.
+    Its service points (`TAIL_POSES`): each weapon's magazine (reload), each spare in its rack (fetch), and the drop
+    behind, where a spent magazine is let fall. Swapping a magazine from behind is the sequence of stances:
+    reload, drop, fetch, reload.
+  - **New stances:** the tail's service stances, and `brace` (crouched, a foot set back) to fire from.
+  - **New laws** (`mecha-laws.js`):
+    - `tailTorque`: the tail's hardest-worked drive holding the tail and a magazine still at every service point.
+    - `recoil`: a payload's sustained recoil at muzzle height against the frame's weight on its lever to its heels,
+      braced. Standing, the gun would push it over; braced, it holds.
+    - `backblast`: the rockets' backblast behind the breech, clear of the rider.
+    - `fireClear`: each payload's line of fire at either end of its traverse, clear of the rider.
+    - The clearance law now keeps the tail and the payloads out of the rider's space.
+
+  Carrying it, the field walker stands on heavy-duty hip roll rams, and its laden step's band starts lower. Every law
+  holds, with the open cabin or the armoured one.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
     derived, never stated.
@@ -242,7 +275,7 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   realistic hero astride it. The rider is solved in the pelvis's frame and carried with its sway
   (`seatRider`).
 - **Review:** `scripts/render-mecha.mjs` (stances × views, `--rider`, `--palette`, `--task`, `--tools`, `--arms`,
-  `--pack-task`, `--pack-tools`, `--pack-maker`, `--cabin`, `--slits`, `--livery`, `--wear`).
+  `--pack-task`, `--pack-tools`, `--pack-maker`, `--cabin`, `--slits`, `--backpack`, `--weapons`, `--livery`, `--wear`).
 - **Held:**
   - `mecha-shelf.test.js`: each foot where its stance asks, sole flat, at its heading; every ram within its stroke at
     every stance; a shorter stroke gives a shorter arc; the knees bend backward; the legs mirror; the sway puts the
@@ -271,4 +304,9 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     and a wear refused on a frame with no dress; its armoured cabin held round the rider, its mass on the class's, every
     law holding; no glass but the cameras' lenses; the lids alone moving between open and shut. The char pins add its
     hardened parts' builder paths, the armoured cabin open and shut, and its dressed faces whole.
-  - The roster's, builds' and preview door's tests (a dressed frame's livery and wear carried in its recipe).
+  - `mecha-shelf.test.js`, the backpack: in the power pack's place with its payloads, tail and heavier parts, its mass
+    on the class's; the tail's grip on every service point within its drives' stops; its torque, recoil, backblast and
+    line of fire holding; its payloads swapped side for side with every law holding; what it does not take refused.
+    The char pins add its builder paths and a frame carrying it whole.
+  - The roster's, builds' and preview door's tests (a dressed frame's livery and wear carried in its recipe, its
+    cabin and its backpack).

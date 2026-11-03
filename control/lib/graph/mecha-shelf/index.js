@@ -30,9 +30,11 @@ import { solveStance } from './mecha-ik.js';
 import { MECHA_ARM_KITS, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS } from './mecha-tools.js';
 import { mechaLaws } from './mecha-laws.js';
 import { MECHA_MAKERS, MECHA_MAKER_IDS, makerHand } from './mecha-gap-makers.js';
+import { MECHA_BACKPACKS, MECHA_WEAPONS, TAIL_POSES, backpackLayout } from './mecha-backpacks.js';
 
 export { MECHA_ARCHETYPES, MECHA_ARCHETYPE_IDS, MECHA_COLOR_ROLES, MECHA_KINDS, MECHA_ODM, MECHA_PALETTES };
 export { MECHA_MAKERS, MECHA_MAKER_IDS, makerHand } from './mecha-gap-makers.js';
+export { MECHA_BACKPACKS, MECHA_BACKPACK_IDS, MECHA_WEAPONS, MECHA_WEAPON_IDS, TAIL_POSES } from './mecha-backpacks.js';
 export { MECHA_ARM_KITS, MECHA_PACK_TASKS, MECHA_PACK_TASK_IDS, MECHA_TASKS, MECHA_TASK_IDS, MECHA_TOOLS, MECHA_TOOL_IDS } from './mecha-tools.js';
 
 const MONOMERS = ['lathes', 'sweeps', 'extrudes', 'lofts'];
@@ -86,8 +88,8 @@ export const frameRow = (id) => archetypeRow(id);
  * reach to the tool's working point, its lift capped by what its tools hold, its tools' flow). A tool or a kit its mount
  * does not take is refused, naming what it takes.
  */
-export function composeFrame(id, { task, tools, arms, packTask, packTools, packMaker, cabin, slits } = {}) {
-  if ([task, tools, arms, packTask, packTools, packMaker, cabin, slits].every((v) => v === undefined)) return id;
+export function composeFrame(id, { task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons } = {}) {
+  if ([task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons].every((v) => v === undefined)) return id;
   const base = MECHA_ARCHETYPES[id];
   if (!base) throw new Error(`Unknown mecha archetype '${id}'; expected one of: ${MECHA_ARCHETYPE_IDS.join(', ')}`);
   const M = base.mount, PM = base.packMount;
@@ -99,6 +101,13 @@ export function composeFrame(id, { task, tools, arms, packTask, packTools, packM
   if (slits !== undefined && !['open', 'shut'].includes(slits)) throw new Error(`mecha ${base.label}: its slits are 'open' or 'shut' (not '${slits}')`);
   if (slits !== undefined && !(cab && cab.sku !== CB.open?.sku)) throw new Error(`mecha ${base.label}: slits are a closed cabin's (cabin: 'armoured', slits: 'shut')`);
   const closed = cab && cab.sku !== CB.open?.sku;
+  // (a backpack in its power pack's place, its payloads on its mounts: its own loadout, or the operator's `weapons`)
+  const BP = backpack === undefined ? null : MECHA_BACKPACKS[backpack];
+  if (backpack !== undefined && !(base.backpacks ?? []).includes(backpack)) throw new Error(`mecha ${base.label}: backpack '${backpack}' is ${(base.backpacks ?? []).length ? `not one it takes (${base.backpacks.join(', ')})` : 'not one it takes (it takes none)'}`);
+  if (weapons !== undefined && !BP) throw new Error(`mecha ${base.label}: weapons are a backpack's (backpack: 'weapons', weapons: { r, l })`);
+  for (const k of Object.keys(weapons ?? {})) if (!BP.mounts.includes(k)) throw new Error(`mecha ${base.label}: its backpack's mounts are ${BP.mounts.join(', ')} (not '${k}')`);
+  const payload = BP ? Object.fromEntries(BP.mounts.map((S) => [S, weapons?.[S] ?? BP.loadout[S]])) : null;
+  for (const [S, w] of Object.entries(payload ?? {})) if (!BP.takes.includes(w)) throw new Error(`mecha ${base.label}: its ${S === 'r' ? 'right' : 'left'} mount takes ${BP.takes.join(', ')} (not '${w}')`);
   if (packMaker !== undefined && !MECHA_MAKERS[packMaker]) throw new Error(`mecha ${base.label}: packMaker '${packMaker}' is one of ${MECHA_MAKER_IDS.join(', ')}`);
   const T = task === undefined ? null : MECHA_TASKS[task], PT = packTask === undefined ? null : MECHA_PACK_TASKS[packTask];
   if (task !== undefined && !T) throw new Error(`mecha ${base.label}: task '${task}' is one of ${Object.keys(MECHA_TASKS).join(', ')}`);
@@ -119,12 +128,13 @@ export function composeFrame(id, { task, tools, arms, packTask, packTools, packM
   const loadout = M ? { r: side('r'), l: side('l') } : null, packLoadout = PM ? { r: packSide('r'), l: packSide('l') } : null;
   const own = (S) => !M || (loadout[S].tool === M.loadout[S].tool && loadout[S].arm === M.loadout[S].arm);
   const packOwn = (S) => !PM || packLoadout[S].tool === PM.loadout[S].tool;
-  if (packMaker === undefined && !closed && ['r', 'l'].every((S) => own(S) && packOwn(S))) return id;
+  if (packMaker === undefined && !closed && !BP && ['r', 'l'].every((S) => own(S) && packOwn(S))) return id;
   const keys = [];
   if (M && !(own('r') && own('l'))) keys.push(['r', 'l'].map((S) => `${S}:${loadout[S].tool}${loadout[S].arm !== 'standard' ? `/${loadout[S].arm}` : ''}`).join(','));
   if (PM && !(packOwn('r') && packOwn('l'))) keys.push(`pack:${['r', 'l'].map((S) => `${S}:${packLoadout[S].tool}`).join(',')}`);
   if (packMaker !== undefined) keys.push(`house:${packMaker}`);
   if (closed) keys.push(`cabin:${cabin}${slits === 'shut' ? '/shut' : ''}`);
+  if (BP) keys.push(`pack:${backpack}(${BP.mounts.map((S) => `${S}:${payload[S]}`).join(',')})`);
   const key = `${id}+${keys.join('+')}`;
   if (!COMPOSED.has(key)) {
     // (a house's pack: its pack and its giant arms' parts and rams in the frame's, its hand for the giant hand)
@@ -141,21 +151,34 @@ export function composeFrame(id, { task, tools, arms, packTask, packTools, packM
       // (a closed cabin in the open one's place, its lids shut when asked: the part's own state)
       if (closed && e.id === 'cage') return Object.freeze({ ...e, sku: cab.sku, ...(slits === 'shut' ? { part: 'shut' } : {}) });
       if (house && S && house[S][e.id]) return Object.freeze({ ...e, sku: house[S][e.id] });
+      if (BP && e.id === 'pack') return Object.freeze({ ...e, sku: BP.sku });
+      if (BP?.swap?.[e.sku]) return Object.freeze({ ...e, sku: BP.swap[e.sku] });
       return e;
     };
-    const layout = Object.freeze(base.layout.map(swap)), bom = {};
+    const added = BP ? backpackLayout(BP, payload) : null;
+    const layout = Object.freeze([...base.layout.map(swap), ...(added?.layout ?? [])]), bom = {};
     for (const e of layout) { const k = partRow(e.sku).kind; bom[k] = (bom[k] ?? 0) + 1; }
     const words = [
       ...(M && !(own('r') && own('l')) ? [task !== undefined ? MECHA_TASKS[task].label.split(':')[0] : ['r', 'l'].map((S) => MECHA_TOOLS[loadout[S].tool].label).join(' and ')] : []),
       ...(PM && !(packOwn('r') && packOwn('l')) ? [packTask !== undefined ? MECHA_PACK_TASKS[packTask].label.split(':')[0] : `${['r', 'l'].map((S) => MECHA_TOOLS[packLoadout[S].tool].label).join(' and ')} on its giant arms`] : []),
       ...(packMaker !== undefined ? [`its giant arm pack the ${MECHA_MAKERS[packMaker].label}'s`] : []),
       ...(closed ? [`${cab.label}${slits === 'shut' ? ', its slits shut' : ''}`] : []),
+      ...(BP ? [`its ${BP.label}: ${BP.mounts.map((S) => `a ${MECHA_WEAPONS[payload[S]].label} ${S === 'r' ? 'right' : 'left'}`).join(', ')}`] : []),
     ];
     COMPOSED.set(key, Object.freeze({
       ...base, label: `${base.label}, ${words.join(', ')}`, layout, bom: Object.freeze(bom),
       ...(loadout ? { loadout: Object.freeze(loadout) } : {}), ...(packLoadout ? { packLoadout: Object.freeze(packLoadout) } : {}),
       ...(task !== undefined ? { task } : {}), ...(packTask !== undefined ? { packTask } : {}), ...(packMaker !== undefined ? { packMaker } : {}),
-      ...(closed ? { cabin, ...(slits ? { slits } : {}), mass: base.mass + (cab.mass ?? 0), laws: Object.freeze({ ...base.laws, ...(cab.laws ?? {}) }) } : {}),
+      ...(closed ? { cabin, ...(slits ? { slits } : {}) } : {}),
+      // (what a closed cabin and a backpack add: their mass on the class's, their laws on the frame's; a backpack's
+      // joints, its tail, its payloads, its tail's service stances; the dress's kit off the pack it replaced)
+      mass: base.mass + (closed ? cab.mass ?? 0 : 0) + (BP ? BP.mass : 0),
+      laws: Object.freeze({ ...base.laws, ...(closed ? cab.laws ?? {} : {}), ...(BP ? BP.laws : {}) }),
+      ...(BP ? {
+        backpack, weapons: Object.freeze(payload), joints: Object.freeze({ ...base.joints, ...added.joints }), tail: added.tail, payloads: added.payloads,
+        stances: Object.freeze({ ...base.stances, ...(BP.brace ? { brace: BP.brace } : {}), ...Object.fromEntries(Object.keys(TAIL_POSES).filter((k) => k !== 'stow').map((k) => [k, Object.freeze({ knee: base.stances[base.rest].knee ?? 45, tail: k })])) }),
+        ...(base.dress ? { dress: Object.freeze({ ...base.dress, kit: Object.freeze(base.dress.kit.filter((k) => k.body !== 'pack')) }) } : {}),
+      } : {}),
     }));
   }
   return key;
@@ -174,6 +197,8 @@ const homeOf = (sku) => MECHA_ARCHETYPE_IDS.find((id) => MECHA_ARCHETYPES[id].la
   ?? MECHA_ARCHETYPE_IDS.find((id) => { const { mount: M, packMount: PM } = MECHA_ARCHETYPES[id]; return (M && (M.tools.some((t) => MECHA_TOOLS[t].sku === sku) || M.arms.some((a) => MECHA_ARM_KITS[a].fore === sku))) || (PM && PM.tools.some((t) => MECHA_TOOLS[t].sku === sku)); })
   // (a cabin to choose: the frame that offers it)
   ?? MECHA_ARCHETYPE_IDS.find((id) => Object.values(MECHA_ARCHETYPES[id].cabins ?? {}).some((c) => c.sku === sku))
+  // (a backpack's part, or a frame's part it asks heavier: the first frame that takes a backpack)
+  ?? (MECHA_ODM[sku]?.classOf === 'backpack' || Object.values(MECHA_BACKPACKS).some((b) => Object.values(b.swap ?? {}).includes(sku)) ? MECHA_ARCHETYPE_IDS.find((id) => MECHA_ARCHETYPES[id].backpacks?.length) : null)
   // (a design house's part: the first frame that carries a giant arm pack)
   ?? (MECHA_ODM[sku]?.build.maker ? MECHA_ARCHETYPE_IDS.find((id) => MECHA_ARCHETYPES[id].packMount) : null)
   ?? null;
@@ -319,7 +344,7 @@ export function massOf(archetype, joints, root = { R: I3, t: [0, 0, 0] }, { ride
 
 // ── poses ───────────────────────────────────────────────────────────────────
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const STANCE_KEYS = Object.freeze(['knee', 'height', 'track', 'fore', 'sway', 'feet', 'arms', 'packArms', 'load', 'loadOn']);
+const STANCE_KEYS = Object.freeze(['knee', 'height', 'track', 'fore', 'sway', 'feet', 'arms', 'packArms', 'load', 'loadOn', 'tail', 'aim']);
 const POSED = new Map();
 /**
  * A pose → { stance, joints (degrees), root (the pelvis's frame in the machine's), feet, legs }: a stance's name (the
@@ -353,7 +378,7 @@ export function posedFrame(archetype, pose) {
     if (r && (v < r[0] - 1e-6 || v > r[1] + 1e-6)) clamped.push(k);
     joints[k] = Math.round((r ? Math.max(r[0], Math.min(r[1], v)) : v) * 100) / 100;
   }
-  const res = Object.freeze({ ...out, joints, wanted: out.joints, clamped, reached: Object.values(out.legs ?? {}).every((l) => l.reach) });
+  const res = Object.freeze({ ...out, joints, wanted: out.joints, clamped, reached: Object.values(out.legs ?? {}).every((l) => l.reach) && out.tailReach !== false });
   POSED.set(key, res);
   return res;
 }
@@ -372,8 +397,8 @@ export function riderPoints(archetype, pose) {
  * at the archetype's own stances: mecha-laws.js; `laws: false` skips them, for a frame drawn as scenery), the measures
  * as it stands, the rider's points, the BOM.
  */
-export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish = true, title, laws: read = true, task, tools, arms, packTask, packTools, packMaker, cabin, slits } = {}) {
-  const archetype = composeFrame(archetypeIn, { task, tools, arms, packTask, packTools, packMaker, cabin, slits });
+export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish = true, title, laws: read = true, task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons } = {}) {
+  const archetype = composeFrame(archetypeIn, { task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons });
   const ctx = mechaCtx(archetype), arch = ctx.arch, P = posedFrame(archetype, pose);
   const chain = solveChain(arch, P.joints, ctx), root = P.root;
   const src = (e, part) => resolveMechaPart(e.sku, { archetype, side: e.side, part: part ?? e.part, palette, colors, finish });
@@ -398,6 +423,7 @@ export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish 
       ...(arch.packLoadout ?? arch.packMount?.loadout ? { packLoadout: arch.packLoadout ?? arch.packMount.loadout } : {}),
       ...(arch.packMaker ? { packMaker: arch.packMaker } : {}),
       ...(arch.cabin ? { cabin: arch.cabin, ...(arch.slits ? { slits: arch.slits } : {}) } : {}),
+      ...(arch.backpack ? { backpack: arch.backpack, weapons: arch.weapons } : {}),
       label: arch.label,
       classOf: arch.classOf,
       pose: typeof pose === 'string' ? pose : pose ? P.stance : arch.rest,

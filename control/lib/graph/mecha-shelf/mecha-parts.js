@@ -16,6 +16,7 @@ import { CON_BUILDERS } from '../construction-shelf/con-parts.js';
 import { TOOL_BUILDERS } from './mecha-tools-parts.js';
 import { houseBuilders } from './mecha-house-parts.js';
 import { fieldBuilders } from './mecha-field-parts.js';
+import { backpackBuilders } from './mecha-backpack-parts.js';
 import { ramParts } from '../construction-shelf/con-chain.js';
 import { add, box, cross, extrudeWorld, loftWorld, mul, pod, roundRect, spin, sub, tone, tube, unit } from './mecha-common.js';
 
@@ -548,10 +549,12 @@ function pack(row, C) {
 // (a design house's parts: the shelf's own redressed, mecha-house-parts.js)
 const HOUSE = houseBuilders({ boss, legBeam, plateBox, shoulder, upperarm, forearm });
 const SHOULDERS = { armoured: armouredShoulder, ...HOUSE.shoulder };
-const PACKS = { giant: giantPack, ...HOUSE.pack, rack: (row, C, ctx) => FIELD.pack(row, C, ctx) };
+const PACKS = { giant: giantPack, ...HOUSE.pack, rack: (row, C, ctx) => FIELD.pack(row, C, ctx), weapons: (row, C, ctx) => BACK.pack(row, C, ctx) };
 const BEAMS = new Set(['plated', 'tube', 'truss', 'sealed']);
 // (the field walker's parts: the walker's own hardened for rugged ground, mecha-field-parts.js)
 const FIELD = fieldBuilders({ slab, sgn, rounded, plate, lerp3, pelvis, thigh, shank, cage, pack });
+// (the backpacks' parts, mecha-backpack-parts.js)
+const BACK = backpackBuilders({ boss, legBeam, plateBox, sgn, pack });
 const by = (family, own, base) => (row, C, ctx) => (row.build.family === family ? own : base)(row, C, ctx);
 
 export const MECHA_BUILDERS = Object.freeze({
@@ -570,6 +573,9 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-wrist': wrist,
   'mecha-claw': claw,
   'mecha-tool': (row, C, ctx) => TOOL_BUILDERS[row.build.family](row, C, ctx),
+  'mecha-mount': (row, C, ctx) => BACK.mount[row.build.family](row, C, ctx),
+  'mecha-weapon': (row, C, ctx) => BACK.weapon[row.build.family](row, C, ctx),
+  'mecha-tail': (row, C, ctx) => BACK.tail[row.build.family](row, C, ctx),
   'mecha-pack': (row, C, ctx) => (PACKS[row.build.family] ?? pack)(row, C, ctx),
   // (a ram is the construction shelf's, its barrel a bare steel grey: the hydraulics read apart from the covers; an
   // electric screw actuator a house's)

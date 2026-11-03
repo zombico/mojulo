@@ -228,6 +228,9 @@ export const MECHA_ARCHETYPES = Object.freeze({
       open: Object.freeze({ sku: 'cage-fw', label: 'its open cabin' }),
       armoured: Object.freeze({ sku: 'cabin-fw', label: 'its armoured cabin', mass: 120, laws: Object.freeze({ cab: Object.freeze([0.03, 1]) }) }),
     }),
+    // (its backpacks, each in its power pack's place (`backpack`: mecha-backpacks.js): the weapons backpack, a payload
+    // each side and a service tail)
+    backpacks: Object.freeze(['weapons']),
     // (its dress: the military styling library's, at the faces (mecha-military.js): a livery, olive drab unless asked, cut
     // into its paint; its field kit on its bodies' anchors; its wear)
     dress: Object.freeze({

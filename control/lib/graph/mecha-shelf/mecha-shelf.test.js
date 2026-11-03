@@ -10,6 +10,7 @@ import { apply, ramForce } from './mecha-common.js';
 import { arcsFor, solveMount } from './mecha-gap-makers.js';
 import { framesOf, rangeOf, solveChain } from '../construction-shelf/con-chain.js';
 import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
+import { MECHA_BACKPACKS, MECHA_WEAPONS, TAIL_POSES } from './mecha-backpacks.js';
 import { MECHA_ARCHETYPES, MECHA_MAKERS, MECHA_MAKER_IDS, MECHA_ODM, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS, assembleFrame, composeFrame, frameRow, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, partShape, posedFrame, resolveMechaPart, riderPoints } from './index.js';
 import { readMechaSpec } from './mecha-figure.js';
 import { dressFaces } from './mecha-military.js';
@@ -358,6 +359,52 @@ describe('mecha shelf: a frame hardened for rough ground, dressed in the field\'
     expect(() => readMechaSpec({ archetype: field, livery: 'paisley' })).toThrow(/livery/);
     expect(() => readMechaSpec({ archetype: field, wear: 'shiny' })).toThrow(/wear/);
     expect(() => readMechaSpec({ archetype: base, livery: 'woodland' })).toThrow(/wears no dress/);
+  });
+});
+
+describe('mecha shelf: a functional backpack, its payloads and its service tail', () => {
+  // (a frame that takes a backpack, and the backpack, chosen in code)
+  const carrier = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].backpacks?.length), Ab = MECHA_ARCHETYPES[carrier];
+  const name = Ab.backpacks[0], BPc = MECHA_BACKPACKS[name], key = composeFrame(carrier, { backpack: name });
+  const law = (k, id) => lawsOf(k).laws.find((l) => l.id === id);
+  it('takes the power pack\'s place: its payloads on its mounts, its tail, its parts asked heavier, its mass on the class\'s', () => {
+    const A = frameRow(key);
+    expect(A.layout.find((e) => e.id === 'pack').sku).toBe(BPc.sku);
+    for (const S of BPc.mounts) expect(A.layout.find((e) => e.id === `weapon${S.toUpperCase()}`).sku).toBe(MECHA_WEAPONS[BPc.loadout[S]].sku);
+    for (const [from, to] of Object.entries(BPc.swap ?? {})) { expect(A.layout.some((e) => e.sku === from)).toBe(false); expect(A.layout.some((e) => e.sku === to)).toBe(true); }
+    expect(A.mass).toBe(Ab.mass + BPc.mass);
+    if (Ab.dress) expect(A.dress.kit.some((k) => k.body === 'pack')).toBe(false);
+    expect(Object.keys(A.joints)).toEqual(expect.arrayContaining(Object.values(A.tail.joints)));
+  });
+  it('reaches every service point with its tail from above, within its drives\' stops, its grip on the point', () => {
+    const ctx = mechaCtx(key), A = ctx.arch;
+    for (const [st, T] of Object.entries(TAIL_POSES).filter(([, t]) => t.at)) {
+      const P = posedFrame(key, st), F = framesOf(A, P.joints, ctx), dot = T.at.indexOf('.'), body = T.at.slice(0, dot);
+      expect(P.clamped).toEqual([]);
+      expect(P.reached).toBe(true);
+      const grip = apply(F[A.tail.head], ctx.hp(A.tail.head, 'grip')), want = apply(F[body], ctx.hp(body, T.at.slice(dot + 1)));
+      for (let k = 0; k < 3; k++) expect(grip[k]).toBeCloseTo(want[k], 2);
+    }
+  });
+  it('holds its tail and a magazine on its drives, fires braced without being pushed over, its backblast and its fire clear of the rider', () => {
+    expect(law(key, 'tailTorque').ok).toBe(true);
+    expect(law(key, 'recoil')).toMatchObject({ ok: true });
+    expect(law(key, 'recoil').says).toMatch(/braced/);
+    expect(law(key, 'backblast').ok).toBe(true);
+    expect(law(key, 'fireClear').ok).toBe(true);
+    expect(law(carrier, 'recoil')).toBeUndefined();
+    expect(lawsOf(key).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+  });
+  it('swaps its payloads side for side, every law holding, and refuses what it does not take', () => {
+    const [r, l] = BPc.mounts, swapped = composeFrame(carrier, { backpack: name, weapons: { [r]: BPc.loadout[l], [l]: BPc.loadout[r] } });
+    expect(frameRow(swapped).weapons).toEqual({ [r]: BPc.loadout[l], [l]: BPc.loadout[r] });
+    expect(lawsOf(swapped).laws.filter((x) => !x.ok).map((x) => `${x.id}: ${x.says}`)).toEqual([]);
+    expect(() => composeFrame(carrier, { weapons: { r: BPc.loadout.r } })).toThrow(/weapons are a backpack's/);
+    expect(() => composeFrame(carrier, { backpack: name, weapons: { r: 'catapult' } })).toThrow(/mount takes/);
+    expect(() => composeFrame(carrier, { backpack: name, weapons: { x: BPc.loadout.r } })).toThrow(/mounts are/);
+    expect(() => composeFrame(carrier, { backpack: 'jetpack' })).toThrow(/backpack 'jetpack'/);
+    expect(() => composeFrame(Object.keys(MECHA_ARCHETYPES).find((k) => !MECHA_ARCHETYPES[k].backpacks), { backpack: name })).toThrow(/it takes none/);
+    expect(readMechaSpec({ archetype: carrier, backpack: name, weapons: { r: BPc.loadout.r } }).backpack).toBe(name);
   });
 });
 

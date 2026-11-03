@@ -34,7 +34,9 @@
  *
  * Pure and deterministic.
  */
-import { DEG, I3 } from './mecha-common.js';
+import { DEG, I3, apply, sub } from './mecha-common.js';
+import { framesOf } from '../construction-shelf/con-chain.js';
+import { TAIL_POSES } from './mecha-backpacks.js';
 
 const SIDES = Object.freeze(['r', 'l']);
 
@@ -107,6 +109,40 @@ export function armsAt(arch, ctx, pose, set = 'arms') {
   return out;
 }
 
+/**
+ * A backpack's service tail at a named pose (mecha-backpacks.js TAIL_POSES): held at its joints (stow), or reaching a
+ * service point from above as a scorpion's tail does, curled over: its base yawed toward the point, its root segment
+ * raised past the line to it, its outer segment bent back down to the wrist, the head at the asked approach (0, straight
+ * down onto a magazine's lug). `joints` the frame's others (its payloads' too): where the point stands.
+ * → { values: { yaw, pitch, elbow, wrist joints }, reach }
+ */
+export function tailAt(arch, ctx, pose, joints = {}) {
+  if (!arch.tail) return { values: {}, reach: true };
+  const P = typeof pose === 'string' ? TAIL_POSES[pose] : pose, T = arch.tail, J = T.joints;
+  if (!P) throw new Error(`mecha stance: tail '${pose}' is one of ${Object.keys(TAIL_POSES).join(', ')}`);
+  if (P.joints) return { values: { [J.yaw]: P.joints.tailYaw, [J.pitch]: P.joints.tailPitch, [J.elbow]: P.joints.tailElbow, [J.wrist]: P.joints.tailWrist }, reach: true };
+  const F = framesOf(arch, { ...joints, [J.yaw]: 0, [J.pitch]: 0, [J.elbow]: 0, [J.wrist]: 0 }, ctx);
+  const dot = P.at.indexOf('.'), body = P.at.slice(0, dot), target = apply(F[body], ctx.hp(body, P.at.slice(dot + 1)));
+  const B = F[T.base], pivot = apply(B, ctx.hp(T.base, 'pivot')), d = sub(target, pivot);
+  // (the point in the base's own axes at its zero: its rotation's transpose)
+  const q = [0, 1, 2].map((k) => B.R[0][k] * d[0] + B.R[1][k] * d[1] + B.R[2][k] * d[2]);
+  const yaw = Math.atan2(-q[0], q[1]), ahead = Math.hypot(q[0], q[1]), up = q[2];
+  const l1 = -ctx.hp(T.seg1, 'end')[2], l2 = -ctx.hp(T.seg2, 'end')[2], lh = -ctx.hp(T.head, 'grip')[2], phi = (P.approach ?? 0) * DEG;
+  const wa = ahead - lh * Math.sin(phi), wu = up + lh * Math.cos(phi), d0 = Math.hypot(wa, wu);
+  const dd = Math.min(l1 + l2 - 1e-6, Math.max(Math.abs(l1 - l2) + 1e-6, d0));
+  const gamma = Math.atan2(wa, -wu), beta = Math.acos(Math.max(-1, Math.min(1, (l1 * l1 + dd * dd - l2 * l2) / (2 * l1 * dd))));
+  const e = Math.acos(Math.max(-1, Math.min(1, (dd * dd - l1 * l1 - l2 * l2) / (2 * l1 * l2))));
+  const D = (x) => x / DEG, wrap = (a) => ((((a + 180) % 360) + 360) % 360) - 180;
+  const pitch = D(gamma + beta), elbow = -D(e);
+  return { values: { [J.yaw]: D(yaw), [J.pitch]: pitch < 0 ? pitch + 360 : pitch, [J.elbow]: elbow, [J.wrist]: wrap(D(phi) - pitch - elbow) }, reach: d0 <= l1 + l2 };
+}
+/** A backpack's payloads' joints at a stance: each mount's traverse and elevation (`aim`: { traverse?, elevate? }). */
+export function payloadsAt(arch, aim = {}) {
+  const out = {};
+  for (const S of Object.keys(arch.payloads ?? {})) { const U = S.toUpperCase(); out[`traverse${U}`] = aim.traverse ?? 0; out[`elevate${U}`] = aim.elevate ?? 0; }
+  return out;
+}
+
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A stance's feet on the ground: each foot's sole centre, its lift and its heading. */
 function feetOf(arch, st) {
@@ -171,5 +207,7 @@ export function solveStance(arch, ctx, stance, { com, stand } = {}) {
       if (Math.hypot(dx, dy) < 1e-5) break;
     }
   }
-  return { joints: { ...solved.joints, ...arms }, root: { R: I3, t: [xy[0], xy[1], z] }, feet, legs: solved.legs, load: stance.load ?? 0, loadOn: stance.loadOn ?? 'arms' };
+  // (a backpack's payloads aimed, its tail at its pose: what it reaches is where the payloads stand)
+  const payloads = payloadsAt(arch, stance.aim), tail = tailAt(arch, ctx, stance.tail ?? 'stow', { ...solved.joints, ...arms, ...payloads });
+  return { joints: { ...solved.joints, ...arms, ...payloads, ...tail.values }, root: { R: I3, t: [xy[0], xy[1], z] }, feet, legs: solved.legs, load: stance.load ?? 0, loadOn: stance.loadOn ?? 'arms', ...(arch.tail ? { tailReach: tail.reach } : {}) };
 }

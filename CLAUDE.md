@@ -245,7 +245,8 @@ Pointers only; each target carries its own design notes.
   on a more robust frame, a giant arm pack's two giant arms over its cab, their own tools and tasks; packs by design house,
   each a philosophy solved into its pack and arms, `mecha-gap-makers.js`; the field walker the walker hardened as a military
   transport, `mecha-field-parts.js` (its optional armoured cabin: slits and a camera, no glass), dressed by car-designer's
-  military styling at its faces, `mecha-military.js`); review:
+  military styling at its faces, `mecha-military.js`; backpacks, a frame's back fitted for a function, its payloads and a
+  scorpion's service tail that swaps their magazines, `mecha-backpacks.js`); review:
   `scripts/render-mecha.mjs`.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).

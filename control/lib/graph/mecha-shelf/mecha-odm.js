@@ -35,6 +35,9 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-wrist': 'a wrist: its rotary drive turning the hand about the forearm\'s end',
   'mecha-claw': 'a hand: a two-fingered claw, its palm, its fingers and their pads',
   'mecha-tool': 'a tool on an arm\'s quick coupler in a claw\'s place: a bucket, a breaker, a crusher, forks, an auger, a vacuum lifter, a magnet, a hook; on a giant arm, a hand, a spreader, a prop, a shear, a vibratory driver, a clamshell',
+  'mecha-mount': 'a payload\'s mount on a backpack: its traverse ring and yoke, or its elevation cradle and tray',
+  'mecha-weapon': 'a backpack\'s payload on its cradle (a rotary machine gun and its ammunition box, a launch rail and its five-round rocket pod), or a spare magazine in its rack',
+  'mecha-tail': 'a backpack\'s service tail: its yaw drum, its armoured segments, its gripping head',
   'mecha-ram': 'a hydraulic ram across a joint: its barrel and its rod, each a body aimed at the other\'s pin; or an electric screw actuator in its place',
 });
 
@@ -277,12 +280,35 @@ const FIELD = {
 };
 BASE = { ...BASE, ...FIELD };
 
+// ── the backpacks (mecha-backpacks.js): a frame's back fitted for a function, its parts a person's tools' size ──────
+// (the weapons backpack first: the power pack under a magazine bay, a pylon each side to a weapon mount, a spare
+// magazine racked each side, a scorpion's service tail on the bay's top that swaps a magazine from behind)
+const BP = 'backpack';
+const BACKPACK = {
+  'pack-wpn': R('mecha-pack', 'weapons backpack', BP,
+    { hpu: { w: 0.5, d: 0.34, h: 0.28 }, bay: { w: 0.52, y0: -0.4, y1: -0.04, z0: 0.28, z1: 0.98 }, mount: [0.62, 0.42, 0.66], spare: [0.27, -0.22, 0.52], tail: [0, -0.22, 1.04], drop: [0, -0.74, 0.3], flow: 60 },
+    120, { family: 'weapons' }, ['weapons backpack', 'weapon pack', 'hardpoint backpack', 'combat backpack', 'weapon pylons', 'magazine bay']),
+  'mount-wpn': R('mecha-mount', 'weapon traverse ring', BP, { r: 0.08, cradle: [0, 0, 0.13], stop: [-20, 20], torque: 600 }, 14, { family: 'ring' }, ['weapon mount', 'traverse ring', 'turret ring']),
+  'cradle-wpn': R('mecha-mount', 'weapon elevation cradle', BP, { gun: [0, 0, 0.05], stop: [-10, 55], torque: 900 }, 12, { family: 'cradle' }, ['weapon cradle', 'elevation cradle']),
+  'minigun-wpn': R('mecha-weapon', 'rotary machine gun', BP, { barrels: 6, length: 0.72, r: 0.013, cluster: 0.038, axis: 0.08, box: [0.15, 0.3, 0.24] }, 68, { family: 'rotary' }, ['minigun', 'rotary machine gun', 'gatling gun', 'rotary gun', 'chain gun']),
+  'rockets-wpn': R('mecha-weapon', 'five-round rocket launcher', BP, { pod: [0.34, 0.82, 0.26], at: [0, 0.1, 0], r: 0.045, tubes: [[-0.1, 0.055], [0, 0.055], [0.1, 0.055], [-0.05, -0.055], [0.05, -0.055]] }, 62, { family: 'launcher' }, ['rocket launcher', 'rocket pod', 'five round rocket launcher', 'missile pod', 'rocket rack']),
+  'ammobox-wpn': R('mecha-weapon', 'spare ammunition box', BP, { box: [0.15, 0.3, 0.24] }, 30, { family: 'ammo' }, ['spare ammunition box', 'ammo box', 'spare ammo']),
+  'rocketpod-wpn': R('mecha-weapon', 'spare rocket pod', BP, { pod: [0.34, 0.82, 0.26], r: 0.045, tubes: [[-0.1, 0.055], [0, 0.055], [0.1, 0.055], [-0.05, -0.055], [0.05, -0.055]] }, 50, { family: 'pod' }, ['spare rocket pod', 'spare rockets']),
+  // (the service tail: a yaw drum, two armoured segments and a gripping head, each joint an electric rotary drive)
+  // (a frame carrying a backpack stands on heavy-duty hip roll rams: on one foot they hold its sway with the pack on)
+  'ram-roll-fw-hd': S('ram-roll-atw', KF, 'field walker heavy-duty hip roll ram', FW, ['heavy duty roll ram', 'backpack roll ram'], { bore: 0.08, rod: 0.045 }),
+  'tailbase-wpn': R('mecha-tail', 'service tail base', BP, { r: 0.1, pivot: [0, 0, 0.17], stop: [-200, 200], torque: 900 }, 14, { family: 'base' }, ['service tail', 'scorpion tail', 'reload arm', 'tail arm', 'loader arm']),
+  'tailseg1-wpn': R('mecha-tail', 'service tail root segment', BP, { length: 0.56, w0: 0.12, w1: 0.1, stop: [0, 215], torque: 900 }, 12, { family: 'segment' }, ['tail segment', 'tail root']),
+  'tailseg2-wpn': R('mecha-tail', 'service tail outer segment', BP, { length: 0.5, w0: 0.1, w1: 0.08, stop: [-165, 25], torque: 600 }, 9, { family: 'segment' }, ['outer tail segment']),
+  'tailhead-wpn': R('mecha-tail', 'service tail head', BP, { length: 0.24, stop: [-130, 130], torque: 300 }, 6, { family: 'head' }, ['tail head', 'tail gripper', 'stinger']),
+};
+
 // ── the design houses' giant arm packs: each house's philosophy solved into its pack and its giant arms ──────────
 // (mecha-gap-makers.js: solved the first time one of its rows is read, then kept; a house's rows are its own, never
 // another frame's)
 let MAKERS = null;
 const makers = () => (MAKERS ??= makerRows(R, scaleDims));
-const ODM = { ...ROWS, ...HEAVY, ...GIANT, ...FIELD };
+const ODM = { ...ROWS, ...HEAVY, ...GIANT, ...FIELD, ...BACKPACK };
 for (const house of MECHA_MAKER_IDS) for (const part of MAKER_PARTS) Object.defineProperty(ODM, `${part}-${house}`, { enumerable: true, get: () => makers()[`${part}-${house}`] });
 export const MECHA_ODM = Object.freeze(ODM);
 

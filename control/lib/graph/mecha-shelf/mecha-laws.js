@@ -19,6 +19,12 @@
  *                   other foot): a step, a kerb, a log (m)
  *   stride          the farthest a foot is set ahead, flat, the other where it stands (m)
  *   belly           standing, the lowest of the bodies the legs carry above the ground: what passes under it (m)
+ *   tailTorque      a backpack's service tail: its hardest-worked drive's share of its rating holding the tail, and the
+ *                   magazine in its grip, still at every service point
+ *   recoil          a payload's sustained recoil at its muzzle's height, as a share of the frame's weight on its lever to
+ *                   its soles' edge behind (it is not pushed over firing)
+ *   backblast       a rocket's backblast, along its tubes' axis behind its breech, clear of the rider's space (m)
+ *   fireClear       each payload's line of fire, at either end of its traverse, clear of the rider's space (m)
  *   seat            the saddle's or the seat's height standing; board, its height crouched to be boarded; stepIn, the boarding step's
  *   tipover         fallen on its side, it lands on its crash frame and its legs, never on the rider: the rider's space
  *                   inside the frame's outline seen from the front, at its sides (m)
@@ -40,6 +46,7 @@
 import { G, apply, cross, dot, ramForce, sub } from './mecha-common.js';
 import { isStrut } from '../construction-shelf/con-chain.js';
 import { armGeometry, solveArm, solveLeg, legGeometry } from './mecha-ik.js';
+import { TAIL_POSES } from './mecha-backpacks.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 const r3 = (n) => Math.round(n * 1000) / 1000;
@@ -250,6 +257,70 @@ export function mechaLaws(key, kit) {
     v = r2(v);
     law('belly', v, band.belly, within(v, band.belly), `standing, its belly (its ${low}'s lowest) is ${v} m off the ground`);
   }
+  // ── a backpack: its tail's drives holding it and a magazine at each service point; its payloads' recoil against the
+  // frame's footing, their backblast and their line of fire clear of the rider ──
+  if (arch.tail && band.tailTorque) {
+    const T = arch.tail, chainOf = { pitch: [T.seg1, T.seg2, T.head], elbow: [T.seg2, T.head], wrist: [T.head] };
+    let v = 0, why = '';
+    for (const [name, p] of Object.entries(P)) {
+      const st = arch.stances[name], pose = TAIL_POSES[st.tail ?? 'stow'], carry = pose?.carry ? arch.payloads[pose.carry].magMass : 0;
+      const F = frames(p.joints, p.root), grip = apply(F[T.head], ctx.hp(T.head, 'grip'));
+      for (const [k, bodies] of Object.entries(chainOf)) {
+        const J = arch.joints[T.joints[k]], B = bodies[0], pivot = F[B].t, axis = [F[B].R[0][0], F[B].R[1][0], F[B].R[2][0]];
+        const torque = (m, c) => Math.abs(dot(cross(sub(c, pivot), [0, 0, -m * G]), axis));
+        let tau = carry ? torque(carry, grip) : 0;
+        for (const id of bodies) { const e = ctx.entry(id); tau += torque(ctx.row(e.sku).mass, apply(F[id], shape(e.sku, e.side).centroid)); }
+        const share = tau / ctx.row(ctx.entry(J.drive).sku).dims.torque;
+        if (share > v) { v = share; why = `its tail's ${k} drive at its ${name}${carry ? `, a ${carry} kg magazine in its grip` : ''} (${Math.round(tau)} N·m)`; }
+      }
+    }
+    v = r2(v);
+    law('tailTorque', v, band.tailTorque, within(v, band.tailTorque), `its tail's hardest-worked drive is at ${Math.round(v * 100)}% of its rating: ${why}`);
+  }
+  if (arch.payloads && P.stand) {
+    const F = frames(P.stand.joints, P.stand.root), root = P.stand.root.t;
+    // (the rider's space where the frame stands, and how far a point is outside it)
+    const boxes = (arch.envelope ?? []).map((E) => ({ x: E.x, y: E.y.map((y) => y + root[1]), z: E.z.map((z) => z + root[2]), cx: root[0] }));
+    const clear = (q) => Math.min(...boxes.map((E) => Math.hypot(Math.max(0, Math.abs(q[0] - E.cx) - E.x), Math.max(0, E.y[0] - q[1], q[1] - E.y[1]), Math.max(0, E.z[0] - q[2], q[2] - E.z[1]))));
+    const along = (a, u, L, n = 24) => Array.from({ length: n + 1 }, (_, i) => [a[0] + u[0] * L * i / n, a[1] + u[1] * L * i / n, a[2] + u[2] * L * i / n]);
+    const fwd = (R) => [R[0][1], R[1][1], R[2][1]];
+    if (band.recoil) {
+      // (its sustained recoil pushing it back at the muzzle's height, against its weight's lever to its soles' edge behind;
+      // braced to fire when it has a brace, else standing)
+      const at = P.brace ? 'brace' : 'stand', Fb = frames(P[at].joints, P[at].root);
+      const { M, poly } = stab(at), W = M.mass * G, back = M.com[1] - Math.min(...poly.map((q) => q[1]));
+      let v = 0, why = '';
+      for (const [S, card] of Object.entries(arch.payloads)) {
+        if (!card.recoil) continue;
+        const id = `weapon${S.toUpperCase()}`, h = apply(Fb[id], ctx.hp(id, 'muzzle'))[2], share = (card.recoil * h) / (W * back);
+        if (share > v) { v = share; why = `its ${card.label}'s ${card.recoil} N at ${r2(h)} m`; }
+      }
+      v = r2(v);
+      law('recoil', v, band.recoil, within(v, band.recoil), `firing ${at === 'brace' ? 'braced' : 'standing'}, its recoil's lever is ${Math.round(v * 100)}% of its weight's to its heels (${why})`);
+    }
+    if (band.backblast) {
+      let v = Infinity, why = '';
+      for (const [S, card] of Object.entries(arch.payloads)) {
+        if (!card.backblast) continue;
+        const id = `weapon${S.toUpperCase()}`, u = fwd(F[id].R).map((x) => -x);
+        for (const q of along(apply(F[id], ctx.hp(id, 'breech')), u, card.backblast)) { const c = clear(q); if (c < v) { v = c; why = `its ${card.label}'s`; } }
+      }
+      if (Number.isFinite(v)) { v = r2(v); law('backblast', v, band.backblast, within(v, band.backblast), `${why} backblast passes ${v} m clear of the rider`); }
+    }
+    if (band.fireClear) {
+      // (each payload's line of fire at either end of its traverse, out to 4 m ahead of its muzzle)
+      let v = Infinity, why = '';
+      for (const [S, card] of Object.entries(arch.payloads)) {
+        const U = S.toUpperCase(), id = `weapon${U}`, J = `traverse${U}`;
+        for (const t of range(J)) {
+          const Fa = frames({ ...P.stand.joints, [J]: t }, P.stand.root);
+          for (const q of along(apply(Fa[id], ctx.hp(id, 'muzzle')), fwd(Fa[id].R), 4)) { const c = clear(q); if (c < v) { v = c; why = `its ${card.label}'s at ${t}° of traverse`; } }
+        }
+      }
+      v = r2(v);
+      law('fireClear', v, band.fireClear, within(v, band.fireClear), `${why} line of fire passes ${v} m clear of the rider, the nearest`);
+    }
+  }
   // ── the tools' hydraulics: both arms' tools working at once, on the power pack's pump ──
   if (band.flow && arch.arms) {
     const supply = ctx.row(ctx.entry('pack').sku).dims.flow, draw = ['arms', 'packArms'].filter((k) => arch[k]).reduce((t0, k) => t0 + SIDES.reduce((s, S) => s + (tool(S, k)?.flow ?? 0), 0), 0);
@@ -304,7 +375,8 @@ export function mechaLaws(key, kit) {
     law('cab', v, band.cab, within(v, band.cab), `its cab holds the operator's space ${v} m inside ${why}, the nearest`);
   }
   if (band.clearance && arch.envelope) {
-    const legBodies = arch.layout.filter((e) => e.side);
+    // (the legs, and a backpack's payloads and its tail: whatever moves near the rider)
+    const legBodies = arch.layout.filter((e) => e.side || e.tail);
     // (how deep a point is in the rider's space: its depth in the box it is deepest in, negative outside every box)
     const inside = (q) => Math.max(...arch.envelope.map((E) => Math.min(E.x - Math.abs(q[0]), q[1] - E.y[0], E.y[1] - q[1], q[2] - E.z[0], E.z[1] - q[2])));
     // (the envelope in the pelvis's frame: each pose's leg points taken there)
