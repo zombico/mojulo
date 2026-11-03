@@ -26,9 +26,10 @@ on it: the utility walker.
     - `desertSand`;
     - `arcticWhite`.
 - **The utility walker** (`utilityWalker`): a general-purpose work frame on the walker's locomotion.
-  - **Its operator stands** on a platform over the pelvis (the cycle shelf's new `operator` posture card). The operator
-    leans back on a hip pad behind a waist-high guardrail and works the arms from a console at each hand. The walker
-    is driven by foot pedals, boarded by a two-rung ladder at the back, and the head stays under the torso frame's hoop.
+  - **Its operator sits at the controls** (the cycle shelf's new `operator` posture card): belted into a suspension
+    work seat on a platform over the pelvis, with a rail round it at the waist. The arms are worked from a stick on
+    each armrest's console, and the walker by the pedals at the feet. It is boarded by a two-rung ladder at the back,
+    and the torso frame's hoop is over the head.
   - **Its legs bend at the knee forward**, as a person's do (the shelf's legs take either bend). The rams are bored up
     and the feet enlarged for its weight and its load.
   - **Its arms are for assistive strength work.** Each has a shoulder yaw drive on the torso frame, a shoulder pitch and
@@ -66,7 +67,7 @@ on it: the utility walker.
     its push or pull at the system pressure);
   - ground pressure on one sole;
   - the step-up height and the stride reach;
-  - the saddle's height standing and crouched, and the boarding step's;
+  - the saddle's or the seat's height standing and crouched, and the boarding step's;
   - the tip-over (fallen on its side, it lands on its cabin and legs, never on the rider);
   - the legs' clearance from the rider's space at every stance;
   - the parts' mass against the class's, and the share of a leg's mass below the knee.

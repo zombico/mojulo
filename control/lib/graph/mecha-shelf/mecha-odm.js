@@ -23,8 +23,8 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-shank': 'a shank: its box beam from the knee to the ankle\'s clevis, its knee horn, its ankle ram\'s bracket behind',
   'mecha-ankle': 'an ankle\'s cross: a universal joint, its pitch and its roll axes meeting, its roll drive, the ankle ram\'s heel horn',
   'mecha-foot': 'a foot: its plate, its rubber sole pads at the heel and the toe, its toe guard',
-  'mecha-seat': 'the rider\'s place: astride, the spine, the saddle and its tail, the tank and its knee grips and chest pad, the nose and its lamps, the clip-on bars, the pegs and the boarding step',
-  'mecha-cage': 'the rider\'s cabin, open above as a convertible\'s (its tub\'s sides, its framed windshield, its roll hoop behind the saddle, its lamps), or a torso frame round a standing operator (its posts, its shoulders, its hoop)',
+  'mecha-seat': 'the rider\'s place: astride, the spine, the saddle and its tail, the tank and its knee grips and chest pad, the nose and its lamps, the clip-on bars, the pegs and the boarding step; or seated at the controls, a platform, its work seat and belt, its consoles, its pedals, its rail and its steps',
+  'mecha-cage': 'the rider\'s cabin, open above as a convertible\'s (its tub\'s sides, its framed windshield, its roll hoop behind the saddle, its lamps), or a torso frame round a seated operator (its posts, its shoulders, its hoop)',
   'mecha-pack': 'the power pack under the tail: the hydraulic power unit (its motor, its pump, its tank) and its cooler',
   'mecha-shoulder': 'an arm\'s shoulder: its yaw drive on the torso, its pitch clevis, the horn its shoulder ram drives',
   'mecha-upperarm': 'an upper arm: its box beam from the shoulder\'s axle to the elbow\'s clevis, its rams\' brackets',
@@ -80,11 +80,11 @@ export const MECHA_ODM = Object.freeze({
   'ram-hip-atw': R('mecha-ram', 'hip pitch ram', ATW, { bore: 0.063, rod: 0.036, closed: 0.336, stroke: 0.201 }, 6, { family: 'double' }, ['hip ram', 'hip pitch ram', 'hip cylinder']),
   'ram-knee-atw': R('mecha-ram', 'knee ram', ATW, { bore: 0.063, rod: 0.036, closed: 0.313, stroke: 0.189 }, 7, { family: 'double' }, ['knee ram', 'knee cylinder', 'knee actuator']),
   'ram-ankle-atw': R('mecha-ram', 'ankle ram', ATW, { bore: 0.05, rod: 0.028, closed: 0.285, stroke: 0.176 }, 4, { family: 'double' }, ['ankle ram', 'ankle cylinder', 'ankle actuator']),
-  // ── the utility walker: an operator standing in a torso frame on two forward-kneed legs, two arms for the work ─────
+  // ── the utility walker: an operator seated in a torso frame on two forward-kneed legs, two arms for the work ──────
   // (its legs the walker's with the knee forward: the rams in front of the thigh and behind it as a human's muscles lie,
   // bored up for the heavier frame; its foot larger, for its weight and its load)
   'pelvis-uw': R('mecha-pelvis', 'utility walker pelvis', UW,
-    { hipX: 0.4, keel: { w: 0.44, y0: -0.4, y1: 0.36, z0: -0.18, z1: 0.08 }, drum: { r: 0.12, z0: -0.02, z1: 0.1 }, seat: [0, 0, 0.08], cage: [0, 0, 0.08], pack: [0, -0.5, 0.86], battery: 140 },
+    { hipX: 0.4, keel: { w: 0.44, y0: -0.4, y1: 0.36, z0: -0.18, z1: 0.08 }, drum: { r: 0.12, z0: -0.02, z1: 0.1 }, seat: [0, 0, 0.08], cage: [0, 0, 0.08], pack: [0, -0.54, 0.62], battery: 140 },
     185, { family: 'keel' }, ['work pelvis']),
   'hip-uw': R('mecha-hip', 'utility hip yaw housing', UW, { r: 0.105, drop: 0.1, rollRam: [0.22, 0, 0.08], stop: [-20, 20], torque: 1400 }, 18, { family: 'yaw' }, ['work hip']),
   'yoke-uw': R('mecha-yoke', 'utility hip roll yoke', UW, { drop: 0.08, rollEye: [0.18, 0, -0.24], horn: [0, 0.08, 0] }, 11, { family: 'yoke' }, ['work yoke']),
@@ -96,13 +96,13 @@ export const MECHA_ODM = Object.freeze({
   'ram-hip-uw': R('mecha-ram', 'utility hip pitch ram', UW, { bore: 0.08, rod: 0.045, closed: 0.336, stroke: 0.201 }, 9, { family: 'double' }, ['work hip ram']),
   'ram-knee-uw': R('mecha-ram', 'utility knee ram', UW, { bore: 0.08, rod: 0.045, closed: 0.313, stroke: 0.189 }, 9, { family: 'double' }, ['work knee ram']),
   'ram-ankle-uw': R('mecha-ram', 'utility ankle ram', UW, { bore: 0.063, rod: 0.036, closed: 0.292, stroke: 0.175 }, 6, { family: 'double' }, ['work ankle ram']),
-  // (the operator stands on a platform over the pelvis, leaning back on a hip pad, a guardrail ahead at the waist, the
-  // arms worked from a console at each hand)
-  'platform-uw': R('mecha-seat', 'operator platform', UW,
-    { plate: { x: 0.3, y0: -0.3, y1: 0.34, z: 0.06 }, sit: [0, -0.2, 0.8], grip: [0.25, 0.3, 1.02], peg: [0.12, 0.02, 0.07], step: [0.2, -0.36, -0.42], rung: -0.16, rail: 1.08 },
-    34, { family: 'standing' }, ['operator platform', 'platform', 'hip pad', 'guardrail', 'consoles']),
+  // (the operator sits at the controls: a suspension work seat on the platform over the pelvis, its belt, a console on
+  // each armrest working the arms, pedals at the feet for the walking, a rail round it at the waist)
+  'platform-uw': R('mecha-seat', 'operator station', UW,
+    { plate: { x: 0.3, y0: -0.34, y1: 0.42, z: 0.06 }, sit: [0, -0.04, 0.52], back: 0.6, grip: [0.27, 0.2, 0.74], peg: [0.13, 0.36, 0.07], step: [0.2, -0.4, -0.42], rung: -0.16, rail: 0.98 },
+    46, { family: 'seated' }, ['operator station', 'operator seat', 'work seat', 'suspension seat', 'consoles', 'joysticks']),
   'torso-uw': R('mecha-cage', 'utility torso frame', UW,
-    { post: { x: 0.36, y: -0.06 }, shoulder: [0.52, 0.02, 1.4], top: 1.98, r: 0.028, pack: { y: -0.36, z: [0.84, 1.16] } },
+    { post: { x: 0.36, y: -0.12 }, shoulder: [0.52, 0.02, 1.14], top: 1.66, r: 0.028, pack: { y: -0.4, z: [0.6, 0.92] } },
     58, { family: 'torso' }, ['torso', 'torso frame', 'operator cage', 'shoulder beam']),
   'pack-uw': R('mecha-pack', 'utility power pack', UW, { w: 0.5, d: 0.26, h: 0.42 }, 62, { family: 'hpu' }, ['work power pack', 'backpack']),
   // (the arms: a shoulder's yaw on the torso, its pitch and the elbow on rams, a rotary wrist, a two-fingered claw)

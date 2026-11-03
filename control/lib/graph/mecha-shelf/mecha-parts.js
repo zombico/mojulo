@@ -10,7 +10,7 @@
  * A ram is the construction shelf's (its barrel and its rod drawn along +y from their own pins, aimed by the chain). A
  * foot's `outline` is its sole's corners (what it stands on: the support polygon's). Pure: no clock, no dice. A part's
  * emission for its row is a compatibility promise (mecha-shelf.char.test.js). A family picks a kind's design: a seat
- * astride or a platform stood on, a convertible's cabin or a torso frame.
+ * astride or a work seat, a convertible's cabin or a torso frame.
  */
 import { CON_BUILDERS } from '../construction-shelf/con-parts.js';
 import { add, box, extrudeWorld, loftWorld, mul, pod, roundRect, spin, sub, tone, tube, unit } from './mecha-common.js';
@@ -245,32 +245,43 @@ function cage(row, C) {
   return { sweeps, extrudes, lathes, hardpoints: { top: [0, H.y, H.top] } };
 }
 
-// ── a standing operator's place: the platform, the hip pad, the guardrail, the consoles, the steps ───────────────
-function platform(row, C) {
+// ── a seated operator's station: the platform, the work seat, the consoles, the pedals, the rail, the steps ──────
+function station(row, C) {
   const d = row.dims, P = d.plate, extrudes = [], lathes = [], sweeps = [], frame = C.trim, cushion = tone(C.rubber, 0.16);
   extrudes.push(box('plate', [0, P.y0, P.z - 0.025], [0, P.y1, P.z - 0.025], 2 * P.x, 0.05, frame));
   extrudes.push(box('tread', [0, P.y0 + 0.03, P.z + 0.004], [0, P.y1 - 0.03, P.z + 0.004], 2 * P.x - 0.06, 0.008, C.rubber));
   extrudes.push(box('kick', [0, P.y1 - 0.01, P.z + 0.06], [0, P.y1 + 0.005, P.z + 0.06], 2 * P.x, 0.12, C.light));
-  // (the hip pad the operator leans back on, standing: a long day's work taken off the legs)
-  const S = d.sit;
-  extrudes.push(box('hipPad', [0, S[1] - 0.05, S[2]], [0, S[1] - 0.01, S[2]], 0.36, 0.16, cushion));
-  for (const s of [1, -1]) sweeps.push(tube(`padPost_${s > 0 ? 'r' : 'l'}`, [[s * 0.13, S[1] - 0.06, P.z], [s * 0.13, S[1] - 0.06, S[2] + 0.04]], 0.018, frame, 8));
-  // (the guardrail at the waist: across ahead, down each side to the hip pad)
-  const R = d.rail, x = P.x + 0.03, y1 = P.y1 + 0.04;
-  sweeps.push(tube('rail', rounded([[-x, S[1] - 0.02, R], [-x, y1, R], [x, y1, R], [x, S[1] - 0.02, R]], 0.08, 3), 0.02, frame, 8));
-  for (const s of [1, -1]) for (const [i, y] of [y1, 0.06].entries()) sweeps.push(tube(`upright_${s > 0 ? 'r' : 'l'}${i}`, [[s * x, y, P.z], [s * x, y, R]], 0.018, frame, 8));
-  // (a console at each hand, its stick the arm's master: the operator works the arms by hand, the walker by foot pedals)
+  // (the work seat on its pedestal and suspension: a long shift's ride taken by the seat, not the operator's back)
+  const S = d.sit, zc = S[2] - 0.04;
+  extrudes.push(box('pedestal', [0, S[1] - 0.02, P.z], [0, S[1] - 0.02, zc - 0.12], 0.2, 0.2, frame, [0, 1, 0]));
+  extrudes.push(box('bellows', [0, S[1] - 0.02, zc - 0.12], [0, S[1] - 0.02, zc - 0.05], 0.26, 0.24, C.rubber, [0, 1, 0]));
+  extrudes.push(box('pan', [0, S[1] - 0.22, zc - 0.035], [0, S[1] + 0.22, zc - 0.035], 0.46, 0.03, frame));
+  extrudes.push(box('cushion', [0, S[1] - 0.2, zc], [0, S[1] + 0.22, zc], 0.44, 0.08, cushion));
+  const lean = 0.18, B0 = [0, S[1] - 0.22, S[2] - 0.02], B1 = [0, S[1] - 0.22 - d.back * lean, S[2] - 0.02 + d.back];
+  extrudes.push(box('back', B0, B1, 0.46, 0.06, frame, [0, 1, 0]));
+  extrudes.push(box('backPad', add(B0, [0, 0.04, 0.05]), add(B1, [0, 0.04, -0.12]), 0.4, 0.04, cushion, [0, 1, 0]));
+  extrudes.push(box('headrest', add(B1, [0, 0.035, -0.1]), add(B1, [0, 0.03, 0.05]), 0.26, 0.07, cushion, [0, 1, 0]));
+  for (const s of [1, -1]) extrudes.push(box(`belt_${s > 0 ? 'r' : 'l'}`, [s * 0.18, S[1] + 0.06, S[2] + 0.02], [s * 0.05, S[1] + 0.1, S[2] + 0.06], 0.045, 0.008, C.light));
+  extrudes.push(box('buckle', [0, S[1] + 0.09, S[2] + 0.06], [0, S[1] + 0.13, S[2] + 0.06], 0.07, 0.014, C.chrome));
+  // (an armrest each side, its console at its front and its stick the arm's master; the pedals at the feet walk it)
   for (const s of [1, -1]) {
     const side = s > 0 ? 'r' : 'l', g = [s * d.grip[0], d.grip[1], d.grip[2]];
-    sweeps.push(tube(`consolePost_${side}`, [[s * (x - 0.02), g[1] - 0.06, P.z], [s * (x - 0.02), g[1] - 0.06, g[2] - 0.08]], 0.02, frame, 8));
-    extrudes.push(box(`console_${side}`, [g[0] + s * 0.05, g[1] - 0.14, g[2] - 0.07], [g[0] + s * 0.05, g[1] + 0.05, g[2] - 0.07], 0.12, 0.05, frame));
+    extrudes.push(box(`arm_${side}`, [g[0], S[1] - 0.16, g[2] - 0.1], [g[0], g[1] + 0.04, g[2] - 0.1], 0.08, 0.05, frame));
+    extrudes.push(box(`armPad_${side}`, [g[0], S[1] - 0.14, g[2] - 0.065], [g[0], g[1] - 0.08, g[2] - 0.065], 0.07, 0.02, cushion));
+    sweeps.push(tube(`armPost_${side}`, [[g[0], S[1] - 0.12, zc - 0.03], [g[0], S[1] - 0.12, g[2] - 0.12]], 0.016, frame, 8));
+    extrudes.push(box(`console_${side}`, [g[0], g[1] - 0.07, g[2] - 0.07], [g[0], g[1] + 0.06, g[2] - 0.06], 0.1, 0.05, frame));
     lathes.push(spin(`stick_${side}`, [g[0], g[1], g[2] - 0.06], [g[0], g[1], g[2] + 0.05], [[0, 0.016], [0.2, 0.02], [0.85, 0.021], [1, 0.012]], C.rubber, 12));
     lathes.push(spin(`thumb_${side}`, [g[0], g[1] + 0.005, g[2] + 0.045], [g[0], g[1] + 0.005, g[2] + 0.06], [[0, 0.012], [1, 0.012]], C.light, 10));
-    extrudes.push(box(`pedal_${side}`, [s * 0.12, 0.16, P.z + 0.02], [s * 0.12, 0.28, P.z + 0.04], 0.1, 0.012, tone(frame, 0.2)));
+    const pd = [s * d.peg[0], d.peg[1], P.z];
+    extrudes.push(slab(`pedal_${side}`, pd[0] - 0.05, pd[0] + 0.05, [[pd[1] - 0.1, P.z + 0.01], [pd[1] + 0.08, P.z + 0.01], [pd[1] + 0.08, P.z + 0.06], [pd[1] - 0.1, P.z + 0.025]], tone(frame, 0.2)));
     // (the steps hung from the platform's back: a ladder of two rungs)
     const st = [s * d.step[0], d.step[1], d.step[2]];
     sweeps.push(tube(`ladder_${side}`, [[st[0], P.y0 + 0.02, P.z - 0.04], [st[0], st[1], st[2]]], 0.016, frame, 8));
   }
+  // (the rail at the waist round the seat: across ahead of the knees, back along each side to the seat's back)
+  const R = d.rail, x = P.x + 0.03, y1 = P.y1 + 0.03;
+  sweeps.push(tube('rail', rounded([[-x, S[1] - 0.2, R], [-x, y1, R], [x, y1, R], [x, S[1] - 0.2, R]], 0.08, 3), 0.02, frame, 8));
+  for (const s of [1, -1]) for (const [i, y] of [y1, S[1] - 0.2].entries()) sweeps.push(tube(`upright_${s > 0 ? 'r' : 'l'}${i}`, [[s * x, y, P.z], [s * x, y, R]], 0.018, frame, 8));
   for (const [i, z] of [d.step[2], d.rung].entries()) extrudes.push(box(`rung_${i}`, [-d.step[0], d.step[1] + (z - d.step[2]) * -0.2, z], [d.step[0], d.step[1] + (z - d.step[2]) * -0.2, z], 0.06, 0.02, tone(C.trim, 0.25)));
   const at = (p, s) => [s * p[0], p[1], p[2]];
   return {
@@ -279,7 +290,7 @@ function platform(row, C) {
   };
 }
 
-// ── a torso frame round a standing operator: its posts, its shoulder beam and mounts, its hoop over the head ────
+// ── a torso frame round a seated operator: its posts, its shoulder beam and mounts, its hoop over the head ────
 function torso(row, C) {
   const d = row.dims, sweeps = [], extrudes = [], lathes = [], frame = C.trim, Sh = d.shoulder, P = d.post;
   for (const s of [1, -1]) {
@@ -384,7 +395,7 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-shank': shank,
   'mecha-ankle': ankle,
   'mecha-foot': foot,
-  'mecha-seat': (row, C, ctx) => (row.build.family === 'standing' ? platform : seat)(row, C, ctx),
+  'mecha-seat': (row, C, ctx) => (row.build.family === 'seated' ? station : seat)(row, C, ctx),
   'mecha-cage': (row, C, ctx) => (row.build.family === 'torso' ? torso : cage)(row, C, ctx),
   'mecha-shoulder': shoulder,
   'mecha-upperarm': upperarm,

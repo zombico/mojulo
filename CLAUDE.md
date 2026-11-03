@@ -240,7 +240,7 @@ Pointers only; each target carries its own design notes.
 - Legged frames: [mecha-shelf/](control/lib/graph/mecha-shelf/) (ridden walkers on real-robot principles: a frame's
   bodies on the construction shelf's chain, each joint its actuator's, a ram's stroke its range; a stance solved by the
   legs' inverse kinematics, `mecha-ik.js`; its laws measured, `mecha-laws.js`; the all-terrain walker its locomotion's
-  base, its rider astride; the utility walker on it, its operator standing, two arms); review: `scripts/render-mecha.mjs`.
+  base, its rider astride; the utility walker on it, its operator seated, two arms); review: `scripts/render-mecha.mjs`.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
   Boats are on the same shelf (`boat-odm.js`, `boat-parts.js`, `boat-archetypes.js`): a hull drawn from its lines and

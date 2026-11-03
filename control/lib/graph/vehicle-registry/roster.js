@@ -293,7 +293,7 @@ export const VEHICLES = {
   // two six-joint legs; drawn on the studio grid at a stance, ridden when its gait is built)
   'all-terrain-walker': row('all-terrain walker', ['all terrain walker', 'riding walker', 'ridden walker', 'bipedal walker', 'legged walker', 'walking machine', 'walker frame', 'walking chair'], 'offroad', 'trail', F, ['driven', 'parked', 'watched'],
     { mecha: 'allTerrainWalker', tech: 'walker' }),
-  // (a general-purpose work frame on the same shelf: its operator standing in a torso frame, knee-forward legs, two arms
+  // (a general-purpose work frame on the same shelf: its operator seated in a torso frame, knee-forward legs, two arms
   // on rams for the lifting)
   'utility-walker': row('utility walker', ['work walker', 'walking work frame', 'power frame', 'work frame', 'lifting walker', 'cargo walker', 'loader walker', 'walking loader'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
     { mecha: 'utilityWalker', tech: 'walker' }),

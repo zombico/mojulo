@@ -18,7 +18,7 @@
  *   step            the highest a foot is set down flat a pace ahead (the pelvis at its standing height, swayed over the
  *                   other foot): a step, a kerb, a log (m)
  *   stride          the farthest a foot is set ahead, flat, the other where it stands (m)
- *   seat            the saddle's height standing; board, its height crouched to be boarded; stepIn, the boarding step's
+ *   seat            the saddle's or the seat's height standing; board, its height crouched to be boarded; stepIn, the boarding step's
  *   tipover         fallen on its side, it lands on its crash frame and its legs, never on the rider: the rider's space
  *                   inside the frame's outline seen from the front, at its sides (m)
  *   clearance       the legs and their rams never enter the rider's space at any stance, nor at the step's or the
@@ -223,7 +223,7 @@ export function mechaLaws(key, kit) {
   }
   // ── the rider ──
   const sitOf = (p) => apply(frames(p.joints, p.root).seat, ctx.hp('seat', 'sit'));
-  const station = arch.station === 'platform' ? 'its hip pad' : 'its saddle';
+  const station = `its ${arch.station ?? 'seat'}`;
   if (band.seat) { const v = r2(sitOf(P.stand)[2]); law('seat', v, band.seat, within(v, band.seat), `standing, ${station} is ${v} m up`); }
   if (band.board && P.board) { const v = r2(sitOf(P.board)[2]); law('board', v, band.board, within(v, band.board), `crouched to be boarded, ${station} is ${v} m up`); }
   if (band.stepIn && P.board) {

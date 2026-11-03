@@ -11,6 +11,8 @@
  *     prow, the chin and the dash folded into it): the leg's parts, the saddle, the cabin and the frame re-pinned.
  *   - The utility walker (unreleased): its platform, its torso frame and its arm's parts pinned as builder paths (a
  *     path is a kind and its family); the walker's pins did not move.
+ *   - The utility walker's operator seated (the platform's work seat, the torso frame lowered to it): the station and
+ *     the torso re-pinned; the walker's pins did not move.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -33,8 +35,8 @@ const PINS = {
   'shank-atw': '9c982a643e837fda',
   'ankle-atw': '8133ce847f2c2453',
   'foot-atw': '3be20c16d08b2679',
-  'platform-uw': 'e048d2e60efc9cee',
-  'torso-uw': 'bdc2d3f8d61169d8',
+  'platform-uw': 'fb8cab49220662f2',
+  'torso-uw': '609e7d0794b91525',
   'pack-atw': 'aae25a1a90f1ab36',
   'shoulder-uw': '4274873688ac1ba8',
   'upperarm-uw': 'bdec84b9678a660a',

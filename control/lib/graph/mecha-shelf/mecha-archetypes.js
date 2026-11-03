@@ -159,22 +159,22 @@ export const MECHA_ARCHETYPES = Object.freeze({
     }),
     bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-ram': 8 }),
   }),
-  // the utility walker: a general-purpose work frame, its operator standing on a platform in a torso frame, leaning back on
-  // a hip pad behind a waist rail, working two arms from a console at each hand; its legs knee-forward as a person's,
+  // the utility walker: a general-purpose work frame, its operator belted into a work seat in a torso frame, a rail round
+  // it, working two arms from the console on each armrest, walking it by its pedals; its legs knee-forward as a person's,
   // bored up for its weight and its load; its battery low in the keel, its power pack on the torso's back
   utilityWalker: Object.freeze({
     label: 'utility walker',
-    classOf: 'standing-operator biped work frame, two arms',
+    classOf: 'seated-operator biped work frame, two arms',
     palette: 'proving',
     mass: 760,
     rider: Object.freeze({ mass: 95, com: Object.freeze([0, 0.08, 0.15]) }),
     posture: 'operator',
-    station: 'platform',
+    station: 'seat',
     bend: 'forward',
-    // (its operator's space: the body standing over the platform, the head under the hoop)
+    // (its operator's space: the trunk and head over the seat under the hoop, the thighs and shins down to the pedals)
     envelope: Object.freeze([
-      Object.freeze({ x: 0.24, y: Object.freeze([-0.27, 0.36]), z: Object.freeze([0.95, 1.9]) }),
-      Object.freeze({ x: 0.22, y: Object.freeze([-0.22, 0.3]), z: Object.freeze([0.16, 0.95]) }),
+      Object.freeze({ x: 0.24, y: Object.freeze([-0.3, 0.3]), z: Object.freeze([0.62, 1.52]) }),
+      Object.freeze({ x: 0.22, y: Object.freeze([-0.2, 0.5]), z: Object.freeze([0.16, 0.62]) }),
     ]),
     joints: Object.freeze({ ...UR.joints, ...UL.joints, ...AR.joints, ...AL.joints }),
     layout: Object.freeze([
@@ -189,7 +189,7 @@ export const MECHA_ARCHETYPES = Object.freeze({
     // (the arms' poses: each wrist's place from its shoulder's axle in the arm's plane [ahead, up], and its claw's angle
     // from hanging (90°: its fingers ahead))
     armPoses: Object.freeze({
-      rest: Object.freeze({ wrist: Object.freeze([0.14, -0.94]), claw: 10 }),
+      rest: Object.freeze({ wrist: Object.freeze([0.22, -0.78]), claw: 20 }),
       carry: Object.freeze({ wrist: Object.freeze([0.62, -0.42]), claw: 90 }),
       raise: Object.freeze({ wrist: Object.freeze([0.55, 0.45]), claw: 120 }),
     }),
@@ -215,8 +215,8 @@ export const MECHA_ARCHETYPES = Object.freeze({
       groundPressure: [25, 70],
       step: [0.3, 0.8],
       stride: [0.3, 0.6],
-      seat: [1.9, 2.4],
-      board: [1.5, 1.9],
+      seat: [1.6, 2.1],
+      board: [1.2, 1.7],
       stepIn: [0.3, 0.6],
       tipover: [0.03, 9],
       clearance: [0.01, 9],
