@@ -155,6 +155,8 @@ import { readFront } from '../game/play-front.js';
 import { readMinigameBook, minigamesOfWords } from './minigames.js';
 import { validateAirspace, isSpace } from '../skyscape/airspace.js';
 import { readGeotown } from '../geotown/read.js';
+/** The uses a town level opens at their doors when it names none: a shop, the hall (an old town's church), a dwelling. */
+export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -533,7 +535,11 @@ export function readGameworld(W) {
       // the level's geocube and walked from its streets; the town is its own ground
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a geotown level is the town alone: no walk, building, city, roadway, airspace, runner, places, ground or arena`);
       if (!isObj(L.geotown)) throw new Error(`gameworld: ${at}.geotown is { pattern?, streetscape?, segment? | neighbourhood?, evoke?, … } (the geocube kind's geotown)`);
-      try { readGeotown(L.geotown); } catch (e) { throw new Error(`gameworld: ${at}.geotown: ${e.message.replace(/^geotown:\s*/, '')}`); }
+      // (its `enter`: the uses whose doors open on a scene of their own, the nearest the walk of each; the town's own words
+      // without it)
+      const { enter: En, ...town } = L.geotown;
+      if (En !== undefined && !(Array.isArray(En) && En.length <= 6 && En.every((u) => typeof u === 'string'))) throw new Error(`gameworld: ${at}.geotown.enter is the uses entered at their door (['shop', 'hall', 'dwelling'], the default: the nearest the walk of each), [] for none`);
+      try { readGeotown(town); } catch (e) { throw new Error(`gameworld: ${at}.geotown: ${e.message.replace(/^geotown:\s*/, '')}`); }
     } else if (L.runner !== undefined) {
       // a runner level: an endless run down lanes (worlds/controllable/runner.js), its rows laid as it is played
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a runner level is the run alone: no walk, building, city, roadway, airspace, places, ground or arena beside it`);
@@ -730,7 +736,8 @@ export function resolveLevel(world, id) {
   // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light
   if (L.geotown) {
     const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec: L.geotown, cube, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
+    const { enter = GEOTOWN_ENTER, ...spec } = L.geotown;
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
   }
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
   if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };

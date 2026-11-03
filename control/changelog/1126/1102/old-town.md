@@ -45,3 +45,10 @@
   the form's height along the view (parallax, `scene/channels/leaf-relief.js`). A street of shutters costs the faces it
   had. The old town hangs persiane, its rose houses ledged boards and its stone houses panels. `boards` and `louvred`
   draw as they did. A page with no leaf carries none of the channel.
+- **A town's houses open at their doors.** A town level's `geotown.enter` names the uses entered at their door. The
+  default is `['shop', 'hall', 'dwelling']` (a shop, an old town's church, a dwelling), and `[]` opens none. Of each
+  use it takes the house whose door stands nearest the walk the hero is set down on.
+  - Each door is a `door` mechanic on the town's page: its zone on the walk before the door, and the way back out a
+    few steps further, facing away.
+  - Each inside is a level of its own after the town, built from its use's program and linked by its door both ways.
+  - A quick game walking a town gets them too.

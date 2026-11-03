@@ -124,7 +124,13 @@ export function gameStages(world) {
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
     if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: levelBuildingStage(G, R, level) }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
-    if (R.geotown) { out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...(R.geotown.hour !== undefined ? { hour: R.geotown.hour } : {}) } }); continue; }
+    if (R.geotown) {
+      out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...(R.geotown.hour !== undefined ? { hour: R.geotown.hour } : {}), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });
+      // (its houses entered at their doors, each a level of its own after the town, linked by its door)
+      const st = out[out.length - 1];
+      (stageEnds(st.manifest).doors ?? []).forEach((d, k) => out.push({ level, node: `town-${d.id}`, section: 'interior', index: k + 1, outside: { node: 'town', index: 0, door: d.id }, building: { use: d.inside.use }, manifest: inPalette(interiorStage(d.inside), R.style?.palette ?? G.style?.palette, `${level}/town-${d.id}`) }));
+      continue;
+    }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
     // a runner level is one stage: the run (worlds/controllable/runner.js), its ground a floor, its rows laid in play
@@ -407,13 +413,33 @@ function geotownEnds(manifest) {
   const beats = [];
   let last = route[0];
   for (const p of route.slice(1, far)) if (Math.hypot(p[0] - last[0], p[1] - last[1]) >= 12) { beats.push({ beat: 'along', at: on(p) }); last = p; }
-  const out = { spawn, heading, exit, exitFrom: 'the far side of the walk round its first block', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]) };
+  const doors = geotownDoors(P, manifest.enter ?? [], route, ground, manifest.seed ?? 1);
+  const out = { spawn, heading, exit, exitFrom: 'the far side of the walk round its first block', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]), ...(doors.length ? { doors } : {}) };
   Object.defineProperty(out, 'ground', { value: ground, enumerable: false });
   Object.defineProperty(out, 'surface', { value: ground, enumerable: false });
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
   Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
   return out;
+}
+
+// THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the
+// hero is set down on, entered at its door into a scene of its own (interiorStage): its zone on the walk before the door,
+// where a walker coming back out stands a few steps out, facing away from it
+function geotownDoors(P, enter, route, ground, seed) {
+  const houses = (P.anchors ?? []).filter((a) => a.kind === 'house' && Array.isArray(a.at) && Array.isArray(a.N));
+  const off = (p) => { let m = Infinity; for (let i = 1; i < route.length; i++) { const a = route[i - 1], b = route[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)); m = Math.min(m, Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)); } return m; };
+  const taken = new Set(), doors = [];
+  for (const use of enter) {
+    const h = houses.filter((a) => a.use === use && !taken.has(a.id)).map((a) => ({ a, d: off(a.at) })).sort((x, y) => x.d - y.d || (x.a.id < y.a.id ? -1 : 1))[0]?.a;
+    if (!h) continue;
+    taken.add(h.id);
+    const [nx, ny] = h.N, zone = [h.at[0] + nx * 0.7, h.at[1] + ny * 0.7], back = [h.at[0] + nx * 2.6, h.at[1] + ny * 2.6], gz = (p) => ground(p[0], p[1]) ?? h.floor;
+    const id = h.id.replace(/^house-/, '');
+    doors.push({ id, at: [r3(zone[0]), r3(zone[1]), r3(h.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.75, 1.4, 2] : [1.4, 0.75, 2], spawn: [r3(back[0]), r3(back[1]), r3(gz(back))], heading: r3(Math.atan2(ny, nx)),
+      inside: { use, seed: seed + doors.length + 1 } });
+  }
+  return doors;
 }
 
 // the stage's land as a height lookup: its walkable top faces bucketed by a 2 m grid, a point's height the highest face
