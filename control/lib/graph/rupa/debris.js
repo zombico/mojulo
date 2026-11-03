@@ -22,7 +22,7 @@
  *            A body meeting a liquid opens a cavity (gravity regime) and splashes when Mundo's √We·Re^¼ passes 57.7;
  *            how much flies is scaled by inertia over viscosity, so water splashes, honey gloops and lava plops.
  */
-import { resolveMatter, isLiquid, isSoil, blockMatter } from './matter.js';
+import { MATTER, resolveMatter, isLiquid, isSoil, blockMatter } from './matter.js';
 import { rupaPhysics } from './index.js';
 
 const G = 9.81;
@@ -43,7 +43,7 @@ export function splashOf({ liquid = 'water', at, speed, mass, size, seed } = {})
 }
 
 // a grain's settling speed in air: Stokes for the fine, Newton's drag (Cd 0.44) for the coarse, whichever is slower
-const AIR = { density: 1.2, viscosity: 1.8e-5 };
+const AIR = MATTER.air;   // the same air the runtime's wind moves
 export function settleSpeed(d, particle = 2650) {
   const stokes = (particle * G * d * d) / (18 * AIR.viscosity), newton = Math.sqrt((4 * particle * G * d) / (3 * 0.44 * AIR.density));
   return Math.min(stokes, newton);

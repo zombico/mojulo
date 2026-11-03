@@ -96,6 +96,30 @@ what it strikes only when its stagnation pressure, ½ρv², passes the matter's 
 MPa at the face) never wears a log away; a cutting jet at thousands of bar would. A body crossing a pool's surface also
 loses its heave to the waves it makes, so a dropped block settles at its draft in seconds.
 
+## One fluid law: water and air
+
+Air is a matter in the same table (`air`, family `gas`: density 1.204 kg/m³, viscosity 1.81×10⁻⁵ Pa·s), and every
+fluid, liquid or gas, goes through the same three functions in the runtime's physics. Nothing about water is
+special-cased:
+
+- `pressure(medium, { depth, flow, cp })` = ρ·g·depth + Cp·½ρv². The first term is a tank on its foot, a pool on a wall
+  and the pipes' heads (`fluid.js` uses it); the second is a hose jet on a log and the wind on a wall. `flowOf` is its
+  inverse (Bernoulli, √(2p/ρ)), which gives a nozzle's jet and a pipe opening's flow.
+- `immerse(box, mass, vel, medium, flow)` lifts a box by the fluid it puts aside and drags it toward the medium's own
+  flow. A pool is a medium with a surface; the air is the medium everywhere. `stepIn` applies it implicitly. The same
+  call floats pine in a pool, carries a light shell on the wind and slows the hose's spray (a parcel is a slug of the
+  breaking jet, `drop` 0.16 m across).
+- Grain settling in `debris.js` reads the same air from the table.
+
+**Wind** is the air moving: a level's `matter: { wind: { speed, dir, terrain?, gust?, seed? } }`. Its speed is given at
+10 m and rises with height by a power law (α: sea 0.11, open 0.14, city 0.3, where buildings slow the air near the
+ground). Gusts are three travelling waves of seeded phase, so the same wind blows the same way at the same place and
+time. Its pressure Cp·½ρu² (Cp 1.3) loads each exposed face; a block whose upwind face touches another is sheltered.
+At each joint a stack is tipped by the wind's moment and slid by its push. It's held by its weight and, at a mortared
+joint, by the joint's cohesion. A block's `joint` is `mortar` for masonry and `dry` for everything else. A stack that
+goes leaves the structure as falling bodies (`how: 'topple'`). A 70 m/s gale tips a dry pine pile; a mortared brick
+wall stands.
+
 ## Debris
 
 What a breaking leaves is deterministic in the force: the same blow on the same thing leaves the same debris, and a

@@ -11,7 +11,8 @@
  *
  *   POWER                 the tiers a world's blows are scaled by: each an order of magnitude or more over the last
  *   readMatterSpec(v)     → the level's `matter` ({ power?, swing?, shot?, blastZ?, heatShare?, fireTime?, cool?,
- *                           pools? }) checked, as the page's rupa spec (a pool: { min, max, liquid? }, its surface at max)
+ *                           pools?, wind? }) checked, as the page's rupa spec (a pool: { min, max, liquid? }, its surface
+ *                           at max; the wind: { speed at 10 m, dir, terrain?, gust?, seed? })
  *   impactJoules(m, v)    ½mv² (a cannonball, a car, a falling slab)
  *   breaches(matter, box, joules, fill?) → { joules, capacity, breaks, left } does that blow break that block
  *   rupaPhysics           blastKg, blastJoules, faceArea, burstShare, blowJoules, loadPass (the page's own functions)
@@ -33,7 +34,7 @@ export const POWER = Object.freeze({
 });
 export const POWER_IDS = Object.freeze(Object.keys(POWER));
 
-const SPEC_KEYS = ['power', 'swing', 'shot', 'blastZ', 'heatShare', 'fireTime', 'cool', 'pools'];
+const SPEC_KEYS = ['power', 'swing', 'shot', 'blastZ', 'heatShare', 'fireTime', 'cool', 'pools', 'wind'];
 const SPEC_UNITS = { swing: 'joules', shot: 'joules', blastZ: 'm/kg^⅓', fireTime: 'fire seconds a play second', cool: 'seconds' };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const pos = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0;
@@ -59,6 +60,13 @@ export function readMatterSpec(v, where = 'matter') {
       if (!isLiquid(m)) throw new Error(`${w}.liquid: ${m.id} is not a liquid`);
       return { min: [...p.min], max: [...p.max], liquid: m.id, density: m.density, viscosity: m.viscosity, tension: m.tension };
     });
+  }
+  if (v.wind !== undefined) {
+    const w = v.wind, at = `${where}.wind`;
+    if (!isObj(w) || !pos(w.speed)) throw new Error(`${at} is { speed (m/s at 10 m), dir? (degrees, or [x, y]), terrain? (sea, open, city), gust? (0 to 1), seed? }`);
+    if (w.terrain !== undefined && !['sea', 'open', 'city'].includes(w.terrain)) throw new Error(`${at}.terrain is sea, open or city`);
+    if (w.gust !== undefined && !(w.gust >= 0 && w.gust <= 1)) throw new Error(`${at}.gust is the gusts' share, 0 to 1`);
+    out.wind = { speed: w.speed, dir: w.dir ?? 0, ...(w.terrain ? { terrain: w.terrain } : {}), ...(w.gust !== undefined ? { gust: w.gust } : {}), ...(w.seed !== undefined ? { seed: w.seed } : {}) };
   }
   if (v.heatShare !== undefined) { if (!(Number.isFinite(v.heatShare) && v.heatShare >= 0 && v.heatShare <= 1)) throw new Error(`${where}.heatShare is the share of a burst's energy that is heat, 0 to 1`); out.heatShare = v.heatShare; }
   return out;

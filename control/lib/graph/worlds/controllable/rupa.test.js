@@ -165,6 +165,40 @@ describe('rupa debris on the runtime', () => {
   });
 });
 
+describe('rupa wind: the air moving, by the same law as water', () => {
+  const anchor = () => block('far', [60, 60, 0], [60.5, 60.5, 0.5], 'stone');
+  const drop = (w, matter, fill, x = 0) => CW.throwMatter(w, { size: 0.5, at: [x, 0, 6], vel: [0, 0, 0], matter, ...blockMatter({ min: [0, 0, 0], max: [0.5, 0.5, 0.5] }, fill ? { matter, fill } : matter) });
+
+  it('the wind carries a light shell far and a solid steel block barely', () => {
+    const w = world([anchor()], { wind: { speed: 25, dir: 0 } });
+    const shell = drop(w, 'pine', 0.02), steel = drop(w, 'steel', null, 3);
+    step(w, 60 * 3);
+    const x = (id) => w.rupa.bodies.find((b) => b.id === id).pos[0];
+    expect(x(shell)).toBeGreaterThan(2);
+    expect(x(steel) - 3).toBeLessThan(0.15);   // ~70 N on 980 kg through a 6 m fall
+  });
+
+  it('a crosswind bends the hose\'s spray', () => {
+    const w = world([anchor()], { wind: { speed: 15, dir: 90 } });
+    CW.spray(w, { at: [0, 0, 1], dir: [1, 0, 0.5], speed: 25, flow: 0.01, seconds: 0.5, spread: 0 });
+    step(w, 60 * 6);
+    const ys = w.rupa.wet.landed.map((p) => p[1]);
+    expect(ys.reduce((a, b) => a + b, 0) / ys.length).toBeGreaterThan(0.5);
+  });
+
+  it('a gale tips a dry-stacked pine pile into falling bodies; a mortared brick wall stands; a breeze moves neither', () => {
+    const pile = () => [block('p0', [0, 0, 0], [0.5, 0.5, 0.5], 'pine'), block('p1', [0, 0, 0.5], [0.5, 0.5, 1], 'pine')];
+    const wall = () => [0, 1, 2, 3].map((r) => block(`w${r}`, [3, 0, r * 0.5], [3.4, 1, (r + 1) * 0.5], 'brick'));
+    const run = (speed) => { const w = world([...pile(), ...wall()], { wind: { speed, dir: 0 } }); step(w, 60); return w; };
+    const gale = run(70);
+    expect(gale.rupa.toppled.map((t) => t.id).sort()).toEqual(['p0', 'p1']);
+    expect(gale.rupa.bodies.some((b) => b.id === 'topple:p1')).toBe(true);
+    expect(gale.breakables.filter((b) => b.id.startsWith('w')).every((b) => !b.broken)).toBe(true);
+    expect(run(15).rupa.toppled).toEqual([]);
+    expect(JSON.stringify(run(70).rupa.toppled)).toBe(JSON.stringify(gale.rupa.toppled));
+  });
+});
+
 describe('rupa heat: melt, burn, weaken', () => {
   it('heat factor: whole where it started, half at its soften, nothing at its melt', () => {
     const { heatFactor } = rupaPhysics, s = MATTER.steel;

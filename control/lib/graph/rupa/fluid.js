@@ -30,6 +30,10 @@
  *   jetOf(pressure, { radius, liquid? }) → { speed, flow, reach45 }: a nozzle's jet from the pressure behind it
  */
 import { resolveMatter, isLiquid } from './matter.js';
+import { rupaPhysics } from './index.js';
+
+// one pressure law with the runtime and the air (rupaPhysics.pressure: ρ·g·depth + Cp·½ρv²; flowOf its inverse)
+const { pressure, flowOf } = rupaPhysics;
 
 const G = 9.81, CD = 0.6, CV = 0.97;   // a sharp opening's discharge coefficient; a smooth nozzle's velocity coefficient
 const liquidOf = (id, where = 'liquid') => {
@@ -105,7 +109,7 @@ export function flow(field, { seconds = 1, maxDt = 0.05 } = {}) {
         const face = ds > 0 ? d[k] : d[kk];
         if (face <= 0) { q[at] = 0; continue; }
         if (m.yield > 0 && m.density * G * face * (Math.abs(ds) / l) <= m.yield) { q[at] = 0; continue; }
-        let v = q[at] + dt * G * face * ds;                                   // A_face = l·face, ÷ l
+        let v = q[at] + dt * G * face * ds;   // the pressure difference ρ·g·Δs over ρ, through a face l·face, ÷ l
         v /= 1 + dt * ((3 * m.viscosity) / (m.density * face * face) + BED);  // laminar film + the bed, implicit
         q[at] = v > 0 ? v : 0;
       }
@@ -131,7 +135,7 @@ export function flow(field, { seconds = 1, maxDt = 0.05 } = {}) {
 
 export function jetOf(pressure, { radius, liquid = 'water' } = {}) {
   const m = liquidOf(liquid), dp = Math.max(0, pressure);
-  const speed = CV * Math.sqrt((2 * dp) / m.density), flowRate = speed * Math.PI * radius * radius;
+  const speed = CV * flowOf(m, dp), flowRate = speed * Math.PI * radius * radius;
   return { speed, flow: flowRate, reach45: (speed * speed) / G };
 }
 
@@ -152,14 +156,14 @@ function endState(end, z, net, ground) {
     if (!v) throw new Error(`fluid: no vessel '${end}'`);
     if (v.burst) return { p: 0, over: 0, liquid: v.liquid, v };
     const m = liquidOf(v.liquid), surface = v.at[2] + v.volume / v.area, over = Math.max(0, surface - z);
-    return { p: m.density * G * over, over, liquid: v.liquid, v };
+    return { p: pressure(m, { depth: over }), over, liquid: v.liquid, v };
   }
   if (end && end.source) return { p: end.source.pressure, over: Infinity, liquid: end.source.liquid ?? 'water', source: true };
   if (end && end.nozzle) return { p: 0, over: 0, nozzle: end.nozzle };
   if (end && end.ground) {
     if (!ground) return { p: 0, over: 0, ground: end.ground };
     const { depth, surface } = fluidAt(ground, ...end.ground), m = ground.fluid ? liquidOf(ground.fluid.matter) : liquidOf('water');
-    return { p: m.density * G * Math.max(0, Math.min(depth, surface - z)), over: Math.max(0, Math.min(depth, surface - z)), liquid: ground.fluid && ground.fluid.matter, ground: end.ground };
+    return { p: pressure(m, { depth: Math.min(depth, surface - z) }), over: Math.max(0, Math.min(depth, surface - z)), liquid: ground.fluid && ground.fluid.matter, ground: end.ground };
   }
   throw new Error('fluid: a pipe end is a vessel id, { ground: [x, y] }, { source: { pressure } } or { nozzle: { at, dir } }');
 }
@@ -180,7 +184,7 @@ export function stepVessels(netIn, { seconds = 1, ground = null, maxDt = 0.02 } 
       const src = dp > 0 ? A : B, dst = dp > 0 ? B : A;
       if (!src.source && !(src.over > 0)) continue;
       const m = liquidOf(src.liquid ?? 'water'), r = p.radius, L = p.length ?? 1;
-      const lam = (Math.PI * r ** 4 * Math.abs(dp)) / (8 * m.viscosity * L), ori = (dst.nozzle ? CV : CD) * Math.PI * r * r * Math.sqrt((2 * Math.abs(dp)) / m.density);
+      const lam = (Math.PI * r ** 4 * Math.abs(dp)) / (8 * m.viscosity * L), ori = (dst.nozzle ? CV : CD) * Math.PI * r * r * flowOf(m, Math.abs(dp));
       let Q = Math.min(lam, ori), vol = Q * dt;
       if (src.v) vol = Math.min(vol, src.over * src.v.area);
       if (src.ground && g) vol = Math.min(vol, src.over * g.cell * g.cell);
@@ -198,7 +202,7 @@ export function stepVessels(netIn, { seconds = 1, ground = null, maxDt = 0.02 } 
       if (over > 1e-12) { v.volume -= over; toGround([v.at[0], v.at[1]], over, v.liquid); events.push({ t: +(t + dt).toFixed(4), kind: 'overflow', id: v.id, volume: over }); }
       if (v.wall) {
         const wm = resolveMatter(v.wall.matter, `vessel ${v.id} wall`), level = v.volume / v.area;
-        const stress = (liquidOf(v.liquid).density * G * level * Math.sqrt(v.area / Math.PI)) / v.wall.thick;
+        const stress = (pressure(liquidOf(v.liquid), { depth: level }) * Math.sqrt(v.area / Math.PI)) / v.wall.thick;
         const holds = Math.min(wm.tensile, wm.bond ?? wm.tensile) * (v.wall.left ?? 1);
         if (stress > holds) {
           events.push({ t: +(t + dt).toFixed(4), kind: 'burst', id: v.id, volume: v.volume, stress, holds });

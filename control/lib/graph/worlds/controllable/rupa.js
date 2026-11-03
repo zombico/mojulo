@@ -55,12 +55,21 @@
  *            its share of the joules, the fines a dust cloud; a burn leaves ash, a melt its liquid. A body entering a pool
  *            splashes (`state.rupa.splashes`, from `splash`). Seeded by the block and the break: the same blow, the same debris.
  *
+ *   MEDIA    water and air are one law (`pressure`, `immerse`, `stepIn`): a pool is a medium with a surface, the air the
+ *            medium everywhere, the WIND its motion (`rupa.wind: { speed, dir, terrain?, gust?, seed? }`: faster with
+ *            height, gusts seeded). Bodies and spray are lifted by the fluid they put aside and dragged toward its flow,
+ *            so the wind carries light things and bends a jet; its pressure Cp·½ρu² on exposed faces tips or slides a
+ *            stack whose weight and mortar cannot hold it, and the stack falls as bodies (`how: 'topple'`).
+ *
  *   rupaPhysics (E.rupaPhysics, also run in Node by lib/graph/rupa/index.js):
  *     blastKg(radius, blastZ?) · blastJoules(radius, blastZ?) · faceArea(box, from) · burstShare(box, at, joules, r0?)
  *     blowJoules(how, { swing, shot, blastZ, power }, extra) · heatFactor(T, soften, melt, T0?) · loadPass(blocks, { fixed, floor, g, touch })
  *     impact(mover { mass, stiff, bounce, joules? }, target { stiff, bounce, joules?, mass?, fixed? }, closing speed)
  *       → { e, dissipated, toA, toB, breaksB }
- *     submerged(box, surface) · inPool(box, pool) · wet(box, mass, vel, pool) → { V, lift, k } | null
+ *     pressure(medium, { depth?, flow?, cp? }) → Pa (ρ·g·depth + Cp·½ρv²) · flowOf(medium, p) → m/s (√(2p/ρ))
+ *     immerse(box, mass, vel, medium, flow?) → { V, lift, k, flow } | null · stepIn(vel, immersion, mass, h) → vel
+ *     submerged(box, surface) · inPool(box, pool) · wet(box, mass, vel, pool) (immerse in a still pool)
+ *     windOf({ speed, dir, terrain?, alpha?, gust?, seed? }) → wind · windAt(wind, pos, t) → [u, v, 0]
  *     fragments(box, { density, fill, frac, shape, spread, joules, how, from?, dir?, seed }) → { pieces, dust, liquid?, stats }
  *     splash(liquid { density, viscosity, tension }, { at, speed, mass, size, seed }) → { droplets, cavity, plop, stats }
  *       → { weight: Map, stress: Map, crush: [block], span: [[block]], groups } (pure over plain boxes)
@@ -123,11 +132,16 @@ export function buildRupa(E) {
     if (dE * sb >= capB) { const used = capB / sb; return { e, dissipated: used, toA: used * sa, toB: capB, breaksB: true }; }
     return { e, dissipated: dE, toA: dE * sa, toB: dE * sb, breaksB: false };
   }
-  // WET: a box in a pool of liquid (pool { min, max: its surface at max[2], density, viscosity }). The push up is the
-  // weight of the liquid it puts aside (Archimedes, the pressure ρ·g·depth on its faces summed: the bottom's beats the
-  // top's by ρ·g·V under); moving through it, the drag of pushing liquid aside (½ρ·Cd·A·v², a cube's Cd 1.05) and of its
-  // viscosity (Stokes, 3πηDv), as a rate the step applies implicitly
-  const WAVE = 1.5;   // 1/s: the surface's wave-making damping on a body crossing it
+  // ── MEDIA: one law for every fluid, liquid or gas. A medium is { density, viscosity }: a POOL is one with a surface
+  // (its max[2]) inside its footprint; the AIR is the medium everywhere, its motion the wind. The same three functions
+  // serve water and air alike, so a dam, a hose and a gale are one physics ──
+  const AIR = { density: 1.204, viscosity: 1.81e-5 };   // rupa/matter.js air
+  // PRESSURE: the weight of the fluid over a point (ρ·g·depth: a pool on a wall, a tank on its foot) and the push of
+  // its flow stopped against a face (Cp·½ρv²: a jet on a log, the wind on a wall)
+  function pressure(m, { depth = 0, flow = 0, cp = 1 } = {}) { return m.density * G * Math.max(0, depth) + cp * 0.5 * m.density * flow * flow; }
+  // the speed a pressure drives a fluid through an opening (its inverse: Bernoulli, √(2p/ρ))
+  const flowOf = (m, p) => Math.sqrt((2 * Math.max(0, p)) / m.density);
+  const WAVE = 1.5;   // 1/s: the surface's wave-making damping on a body crossing a pool's surface
   function submerged(b, surface) {
     const hz = b.max[2] - b.min[2], under = Math.max(0, Math.min(hz, surface - b.min[2]));
     return hz > 0 ? vol(b) * (under / hz) : 0;
@@ -136,16 +150,46 @@ export function buildRupa(E) {
     const c = centre(b);
     return c[0] >= pool.min[0] && c[0] <= pool.max[0] && c[1] >= pool.min[1] && c[1] <= pool.max[1] && b.min[2] < pool.max[2] && b.max[2] > pool.min[2];
   }
-  function wet(b, mass, v, pool) {
-    if (!inPool(b, pool)) return null;
-    const V = submerged(b, pool.max[2]);
+  // IMMERSION: a box in a medium moving at `flow`. The push up is the weight of the fluid it puts aside (Archimedes: the
+  // pressure on its faces summed, the bottom's beating the top's by ρ·g·V); the drag of moving THROUGH it, relative to
+  // its flow (½ρ·Cd·A·|v − u|², a cube's Cd 1.05, and Stokes' 3πηD|v − u|), as a rate the step relaxes the body toward
+  // the medium's own motion by: still water slows it, the wind carries it
+  function immerse(b, mass, v, m, flow = null) {
+    if (m.max && !inPool(b, m)) return null;
+    const V = m.max ? submerged(b, m.max[2]) : vol(b);
     if (!(V > 0)) return null;
-    const sx = b.max[0] - b.min[0], sy = b.max[1] - b.min[1], sz = b.max[2] - b.min[2], speed = Math.hypot(...v);
-    const A = speed > 1e-9 ? (Math.abs(v[0]) * sy * sz + Math.abs(v[1]) * sx * sz + Math.abs(v[2]) * sx * sy) / speed : sx * sy;
-    const frac = V / vol(b), rho = pool.density, eta = pool.viscosity ?? 1e-3;
-    // crossing the surface it also makes waves, which carry its heave away (a rate that settles a bobbing block in seconds)
-    const waves = frac < 1 ? WAVE : 0;
-    return { V, lift: rho * G * V, k: (frac * (0.5 * rho * 1.05 * A * speed + 3 * Math.PI * eta * Math.cbrt(vol(b)))) / mass + waves };
+    const u = flow || [0, 0, 0], rel = [v[0] - u[0], v[1] - u[1], v[2] - u[2]];
+    const sx = b.max[0] - b.min[0], sy = b.max[1] - b.min[1], sz = b.max[2] - b.min[2], speed = Math.hypot(...rel);
+    const A = speed > 1e-9 ? (Math.abs(rel[0]) * sy * sz + Math.abs(rel[1]) * sx * sz + Math.abs(rel[2]) * sx * sy) / speed : sx * sy;
+    const frac = V / vol(b), eta = m.viscosity ?? 1e-3;
+    const waves = m.max && frac < 1 ? WAVE : 0;   // crossing a surface it makes waves, which carry its heave away
+    return { V, lift: m.density * G * V, k: (frac * (0.5 * m.density * 1.05 * A * speed + 3 * Math.PI * eta * Math.cbrt(vol(b)))) / mass + waves, flow: u };
+  }
+  // one implicit step in a medium: lifted, and relaxed toward its flow at the drag's rate
+  function stepIn(v, w, mass, h) {
+    const k = w.k, out = [0, 1, 2].map((i) => (v[i] + h * k * w.flow[i]) / (1 + h * k));
+    out[2] += (w.lift / mass) * h / (1 + h * k);
+    return out;
+  }
+  const wet = (b, mass, v, pool) => immerse(b, mass, v, pool);   // a pool's name for it
+  // THE WIND: the air moving. A reference speed at 10 m rising with height by a power law (α: sea 0.11, open 0.14, city
+  // 0.3: buildings slow the air near the ground), and gusts as three travelling waves of seeded phase (`gust` their
+  // share), so the same wind blows the same way at the same place and time
+  const ALPHA = { sea: 0.11, open: 0.14, city: 0.3 };
+  function windOf(spec) {
+    if (!spec || !(spec.speed > 0)) return null;
+    const d = Array.isArray(spec.dir) ? spec.dir : [Math.cos(((spec.dir ?? 0) * Math.PI) / 180), Math.sin(((spec.dir ?? 0) * Math.PI) / 180)];
+    const L = Math.hypot(d[0], d[1]) || 1, r = rng(spec.seed ?? 7);
+    const phases = [0, 1, 2].map(() => { const w = 0.3 + 1.2 * r(); return { w, k: w / spec.speed, p: r() * 2 * Math.PI }; });
+    return { speed: spec.speed, dir: [d[0] / L, d[1] / L], alpha: spec.alpha ?? ALPHA[spec.terrain] ?? ALPHA.open, gust: spec.gust ?? 0, phases };
+  }
+  function windAt(wind, pos, t) {
+    if (!wind) return [0, 0, 0];
+    const base = wind.speed * Math.pow(Math.max(0.5, pos[2]) / 10, wind.alpha), x = pos[0] * wind.dir[0] + pos[1] * wind.dir[1];
+    let g = 0;
+    for (const ph of wind.phases) g += Math.sin(ph.w * t - ph.k * x + ph.p) / wind.phases.length;
+    const u = Math.max(0, base * (1 + wind.gust * g));
+    return [wind.dir[0] * u, wind.dir[1] * u, 0];
   }
   const touches = (a, s, touch) => restsOn(a, s, touch) || restsOn(s, a, touch) || !!sideFace(a, s, touch);
 
@@ -302,7 +346,7 @@ export function buildRupa(E) {
     return { droplets, cavity: Rc, plop: false, stats: { E, Re, We, K, kg: Ms, kinetic: Es } };
   }
 
-  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, submerged, inPool, wet, loadPass, fragments, splash, seedOf, vol, G, TNT };
+  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -322,11 +366,12 @@ export function buildRupa(E) {
       b.rupa = { cap: s.joules, joules: s.joules, mass: s.mass || 0, compressive: s.compressive || 0, cohesion: s.cohesion || 0,
         T: T0, T0, heatCap: s.heatCap || 0, soften: s.soften ?? 500, melt: Number.isFinite(s.melt) ? s.melt : null, fuse: s.fuse || 0, latent: 0,
         ignite: Number.isFinite(s.ignite) ? s.ignite : null, fuel: s.fuel || 0, fuelLeft: s.fuel || 0, burnRate: s.burnRate || 0, burning: false,
-        stiff: s.stiff || 1e10, bounce: s.bounce ?? 0.2, fill: s.fill ?? 1, frac: s.frac ?? 100, shape: s.shape || 'chunk', spread: s.spread ?? 1.2 };
+        stiff: s.stiff || 1e10, bounce: s.bounce ?? 0.2, fill: s.fill ?? 1, frac: s.frac ?? 100, shape: s.shape || 'chunk', spread: s.spread ?? 1.2, joint: s.joint || 'mortar' };
       b.hp = Infinity;   // the count never breaks it: the energy does
     });
     if (!any) return;
-    state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0 };
+    state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0,
+      air: { ...AIR, density: R.airDensity ?? AIR.density }, wind: windOf(R.wind), windAt: -1, toppled: [] };
   });
   // src: { joules (what the breaking took: its joules, and any blow past them), from?, dir? } for the debris
   function breakIt(state, b, how, by, src = {}) {
@@ -411,13 +456,12 @@ export function buildRupa(E) {
   };
   // ── spray: water thrown from a nozzle ──
   const WATER = { density: 1000, heat: 4186, boil: 100, vapor: 2.26e6, stiff: 2.2e9 };   // its bulk modulus stands for stiffness
-  const AIR_DRAG = 0.004;   // 1/m: a jet breaking into drops loses speed as c·v² (drops' terminal speed √(g/c) ≈ 50 m/s)
   const hash = (n) => { let x = (n ^ 0x9e3779b9) >>> 0; x = Math.imul(x ^ (x >>> 16), 0x85ebca6b); x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35); return ((x ^ (x >>> 16)) >>> 0) / 4294967296; };
   E.spray = (state, spec) => {
     const R = state.rupa;
     if (!R || !spec) return null;
     const L = Math.hypot(...spec.dir) || 1;
-    R.sprays.push({ at: [...spec.at], dir: spec.dir.map((x) => x / L), speed: spec.speed, flow: spec.flow, until: state.time + (spec.seconds ?? Infinity), spread: spec.spread ?? 0.03 });
+    R.sprays.push({ at: [...spec.at], dir: spec.dir.map((x) => x / L), speed: spec.speed, flow: spec.flow, until: state.time + (spec.seconds ?? Infinity), spread: spec.spread ?? 0.03, drop: spec.drop ?? 0.16 });
     return R.sprays.length - 1;
   };
   function douse(state, b, kg, by) {
@@ -436,13 +480,16 @@ export function buildRupa(E) {
       for (let k = 0; k < 2; k++) {
         const n = R.dropSeq++, jitter = [0, 1, 2].map((i) => (hash(n * 3 + i) - 0.5) * 2 * s.spread);
         const d = s.dir.map((x, i) => x + jitter[i]), L = Math.hypot(...d);
-        R.drops.push({ pos: [...s.at], vel: d.map((x) => (x / L) * s.speed), kg: (s.flow * WATER.density * dt) / 2 });
+        R.drops.push({ pos: [...s.at], vel: d.map((x) => (x / L) * s.speed), kg: (s.flow * WATER.density * dt) / 2, drop: s.drop });
       }
     }
     const live = [];
     for (const p of R.drops) {
-      const sp = Math.hypot(...p.vel), drag = 1 / (1 + dt * AIR_DRAG * sp);
-      p.vel = p.vel.map((x) => x * drag); p.vel[2] -= R.g * dt;
+      // a parcel is a slug of the breaking jet (`drop` across): the air's drag on it is the same immersion every body
+      // feels, relative to the wind, so a crosswind bends the spray
+      const sp = Math.hypot(...p.vel), d = p.drop, cube = { min: [0, 0, 0], max: [d, d, d] }, dm = WATER.density * d * d * d;
+      p.vel[2] -= R.g * dt;
+      p.vel = stepIn(p.vel, immerse(cube, dm, p.vel, R.air, windAt(R.wind, p.pos, state.time)), dm, dt);
       const next = p.pos.map((x, i) => x + p.vel[i] * dt);
       let hit = null;
       for (const b of state.breakables) if (!b.broken && next.every((x, i) => x >= b.min[i] && x <= b.max[i])) { hit = b; break; }
@@ -451,7 +498,7 @@ export function buildRupa(E) {
           // a jet stresses what it strikes by its stagnation pressure, ½ρv²; below the matter's strength the blow is
           // elastic and leaves it whole (a hose does not wear a log away; a cutting jet at thousands of bar would)
           const left = hit.rupa.cap > 0 ? Math.max(0, hit.rupa.joules) / hit.rupa.cap : 1;
-          if (0.5 * WATER.density * sp * sp > hit.rupa.compressive * left) spend(state, hit, impact({ mass: p.kg, stiff: WATER.stiff, bounce: 0 }, targetOf(hit), sp).toB, 'shot', 'spray', { dir: p.vel });
+          if (pressure(WATER, { flow: sp }) > hit.rupa.compressive * left) spend(state, hit, impact({ mass: p.kg, stiff: WATER.stiff, bounce: 0 }, targetOf(hit), sp).toB, 'shot', 'spray', { dir: p.vel });
           douse(state, hit, p.kg, 'spray');
         }
         continue;
@@ -479,19 +526,19 @@ export function buildRupa(E) {
       const fine = 0.8 * Math.min(...p.half), n = Math.min(256, Math.max(1, Math.ceil((Math.hypot(...p.vel) * dt) / fine))), h = dt / n;
       for (let k = 0; k < n && !p.broken && !p.rest; k++) {
         p.vel[2] -= R.g * h;
+        const box0 = { min: p.pos.map((x, i) => x - p.half[i]), max: p.pos.map((x, i) => x + p.half[i]) };
+        // the air it stands in (lift and drag toward the wind), then any pool: one immersion law for both
+        p.vel = stepIn(p.vel, immerse(box0, p.mass, p.vel, R.air, windAt(R.wind, p.pos, state.time)), p.mass, h);
         if (R.pools.length) {
-          const box0 = { min: p.pos.map((x, i) => x - p.half[i]), max: p.pos.map((x, i) => x + p.half[i]) };
           for (const pool of R.pools) {
-            const w = wet(box0, p.mass, p.vel, pool);
+            const w = immerse(box0, p.mass, p.vel, pool);
             if (!w) continue;
             if (!p.wet) {
               const sp0 = Math.hypot(...p.vel), at = [p.pos[0], p.pos[1], pool.max[2]];
               R.splashes.push({ seq: R.splashSeq++, t: state.time, by: p.id, at, ...splash(pool, { at, speed: sp0, mass: p.mass, size: 2 * Math.max(...p.half), seed: seedOf(p.id, R.splashSeq) }) });
               if (R.splashes.length > 32) R.splashes.shift();
             }
-            p.vel[2] += (w.lift / p.mass) * h;
-            const keep = 1 / (1 + h * w.k);
-            p.vel = p.vel.map((x) => x * keep);
+            p.vel = stepIn(p.vel, w, p.mass, h);
             p.wet = true;
           }
         }
@@ -590,4 +637,50 @@ export function buildRupa(E) {
     for (const grp of L.span) for (const x of grp) if (!x.ref.broken) { x.ref.bond = null; state.settleDirty = true; }
     R.seq = state.breakSeq;
   }, 36);
+  // ── WIND LOAD (order 37, a few times a second while the wind blows): the wind's pressure on each exposed face,
+  // Cp·½ρu² (Cp 1.3: the push on the windward face and the pull on the lee), u the wind at the block's height. A block
+  // whose upwind face touches another block is sheltered. At each joint a stack is tipped by the wind's moment about its
+  // downwind edge and slid by its push, and held by its weight (W·half its depth; μW) and, at a mortared joint, by the
+  // joint's cohesion (its bending section b·t²/6; its area). A stack that goes leaves the structure as falling bodies. ──
+  const MU = 0.6, CP = 1.3;
+  E.registerWorldPass('rupa-wind', (state) => {
+    const R = state.rupa;
+    if (!R || !R.wind || state.time - R.windAt < 0.25) return;
+    R.windAt = state.time;
+    const d = R.wind.dir, live = state.breakables.filter((b) => !b.broken && !b.falling && b.rupa && b.bond !== 'lateral');
+    if (!live.length) return;
+    const across = (b) => Math.abs(d[0]) * (b.max[1] - b.min[1]) + Math.abs(d[1]) * (b.max[0] - b.min[0]);
+    const depth = (b) => Math.abs(d[0]) * (b.max[0] - b.min[0]) + Math.abs(d[1]) * (b.max[1] - b.min[1]);
+    const sheltered = (b) => live.some((s2) => { if (s2 === b) return false; const f = sideFace(b, s2, TOUCH); if (!f) return false; const n = f.at === b.min[f.k] ? -1 : 1; return n * d[f.k] < -0.5; });
+    const force = new Map(live.map((b) => {
+      if (sheltered(b)) return [b, 0];
+      const u = Math.hypot(...windAt(R.wind, centre(b), state.time));
+      return [b, pressure(R.air, { flow: u, cp: CP }) * across(b) * (b.max[2] - b.min[2])];
+    }));
+    const above = (b) => { const out = [b], q = [b]; while (q.length) { const a = q.pop(); for (const s2 of live) if (!out.includes(s2) && restsOn(s2, a, TOUCH)) { out.push(s2); q.push(s2); } } return out; };
+    const gone = new Set();
+    for (const b of [...live].sort((p, q) => p.min[2] - q.min[2])) {
+      if (gone.has(b)) continue;
+      const stack = above(b), F = stack.reduce((a, s2) => a + force.get(s2), 0);
+      if (!(F > 0)) continue;
+      const z0 = b.min[2], M = stack.reduce((a, s2) => a + force.get(s2) * ((s2.min[2] + s2.max[2]) / 2 - z0), 0);
+      const W = stack.reduce((a, s2) => a + s2.rupa.mass * R.g, 0), t = depth(b), w = across(b);
+      const support = live.find((s2) => restsOn(b, s2, TOUCH));
+      const glued = b.rupa.joint === 'mortar' && (!support || support.rupa.joint === 'mortar');
+      const coh = glued ? Math.min(b.rupa.cohesion, support ? support.rupa.cohesion : b.rupa.cohesion) : 0;
+      const tips = M > W * (t / 2) + coh * ((w * t * t) / 6), slides = F > MU * W + coh * w * t;
+      if (!tips && !slides) continue;
+      for (const s2 of stack) {
+        gone.add(s2);
+        const r = s2.rupa, size = [0, 1, 2].map((k) => s2.max[k] - s2.min[k]);
+        s2.broken = { t: state.time, by: 'wind', how: 'topple' }; s2.hp = 0;
+        const k = state.colliders.indexOf(s2.collider);
+        if (k >= 0) state.colliders.splice(k, 1);
+        state.breaks.push({ seq: state.breakSeq++, id: s2.id, t: state.time, at: centre(s2), by: 'wind', how: 'topple', debris: null });
+        const id = E.throwMatter(state, { id: `topple:${s2.id}`, size, at: centre(s2), vel: [d[0] * 0.8, d[1] * 0.8, 0], mass: r.mass, joules: Math.max(1, r.joules), stiff: r.stiff, bounce: r.bounce });
+        R.toppled.push({ t: state.time, id: s2.id, body: id, how: tips ? 'tipped' : 'slid' });
+      }
+      state.settleDirty = true;
+    }
+  }, 37);
 }

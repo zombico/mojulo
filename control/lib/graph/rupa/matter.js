@@ -50,11 +50,13 @@
  *   MATTER_IDS, SOIL_IDS
  *   CLASS_MATTER           a class's matter when the thing names none (breakability.js classOf): { matter, fill }
  *   resolveMatter(spec, where?) → a matter record (an id, or { is?, ...overrides } over one), checked
- *   isBrittle(m), isSoil(m), isLiquid(m), LIQUID_IDS
+ *   isBrittle(m), isSoil(m), isLiquid(m), isGas(m), isFluid(m), LIQUID_IDS
+ *   a block's `joint` is how it sits on what holds it: 'mortar' (masonry's default: its cohesion binds the joint) or
+ *   'dry' (everything else: it rests by its weight alone, so wind can slide or tip it); `{ matter, joint }` says otherwise
  *   cutOfMatter(m)         → the cut a breaking of it plays (destruct/cuts.js presets): glass and ice shatter, brittle
  *                            masonry blasts apart, ductile stuff chips
  *   blockMatter(box, spec) → { matter, fill, mass, joules, compressive, cohesion, heatCap, soften, stiff, bounce, frac,
- *                            shape, spread, melt?,
+ *                            shape, spread, joint, melt?,
  *                            fuse?, ignite?, fuel?, burnRate? } for a block (`stiff` its E × fill, Pa: a shell gives): the numbers the runtime reads (`cohesion` its
  *                            matter's bond × fill, Pa: a block's `bond` word is how it is held; `heatCap` J/K; `fuse` the
  *                            joules to melt it once at `melt`; `fuel` the joules its burning gives, `burnRate` how fast, W)
@@ -116,6 +118,9 @@ const BASE = {
   honey: M('honey', { label: 'Honey', family: 'liquid', density: 1420, c: 0, phi: 0, viscosity: 10, yield: 0 }),
   mud: M('mud', { label: 'Mud (slurry)', family: 'liquid', density: 1600, c: 0, phi: 0, viscosity: 50, yield: 200 }),
   lava: M('lava', { label: 'Basaltic lava', family: 'liquid', density: 2600, c: 0, phi: 0, viscosity: 1000, yield: 500 }),
+  // ── a gas: the same fluid law at its lightest (no shear strength, its weight pressure, its motion drag): the air the
+  //    world stands in; the wind is this matter moving ──
+  air: M('air', { label: 'Air (sea level, 20 °C)', family: 'gas', density: 1.204, c: 0, phi: 0, viscosity: 1.81e-5, yield: 0 }),
 };
 
 // HEAT, its own numbers (handbook orders): melt and soften °C, heat J/(kg·K), fusion J/kg; ignite °C and burn J/kg for
@@ -137,7 +142,7 @@ const THERMAL = {
 const BOUNCE = {
   concrete: 0.2, 'reinforced-concrete': 0.2, brick: 0.2, stone: 0.3, sandstone: 0.2, adobe: 0.1, ceramic: 0.3, glass: 0.4, ice: 0.3,
   steel: 0.5, 'sheet-metal': 0.3, timber: 0.4, pine: 0.4, drywall: 0.1, bone: 0.4, sand: 0.05, loam: 0.05, clay: 0.03, gravel: 0.1, snow: 0.02,
-  water: 0, seawater: 0, oil: 0, honey: 0, mud: 0, lava: 0,
+  water: 0, seawater: 0, oil: 0, honey: 0, mud: 0, lava: 0, air: 0,
 };
 // DEBRIS, what a breaking leaves (handbook orders): `frac` the fracture energy, J/m² (the joules one square metre of new
 // crack costs: glass a few, concrete ~100, wood ~10⁴, a ductile steel ~10⁵, so the same joules shatter glass and only
@@ -179,6 +184,8 @@ export const CLASS_MATTER = Object.freeze({
 export const isBrittle = (m) => m.strain < 0.05;
 export const isSoil = (m) => m.family === 'soil';
 export const isLiquid = (m) => m.family === 'liquid';
+export const isGas = (m) => m.family === 'gas';
+export const isFluid = (m) => isLiquid(m) || isGas(m);
 export const isCombustible = (m) => Number.isFinite(m.ignite) && m.burn > 0;
 
 const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn', 'bounce', 'frac', 'shape', 'spread', 'mu', 'tension', 'grain', 'fines', 'particle'];
@@ -232,12 +239,13 @@ export function blockMatter(box, spec, where = 'matter') {
   const s = spec && typeof spec === 'object' && !Array.isArray(spec) && spec.matter !== undefined ? spec : { matter: spec };
   const m = resolveMatter(s.matter, where);
   if (isLiquid(m)) throw new Error(`${where}: ${m.id} is a liquid: it has no shape to be a block; pour it on the ground (rupa/fluid.js pour) or hold it in a tank`);
+  if (isGas(m)) throw new Error(`${where}: ${m.id} is a gas: it has no shape to be a block; it is the medium the world stands in (a level's wind)`);
   const fill = s.fill ?? m.fill;
   if (!(fill > 0 && fill <= 1)) throw new Error(`${where}.fill is the solid share of the box, above 0 and at most 1`);
   const vol = [0, 1, 2].reduce((a, k) => a * Math.max(0, box.max[k] - box.min[k]), 1);
   const mass = m.density * vol * fill;
   const out = { matter: m.id, fill, mass: r3(mass), joules: sig(m.toughness * vol * fill), compressive: sig(m.compressive * fill), cohesion: sig(m.bond * fill), heatCap: sig(mass * m.heat), soften: m.soften, stiff: sig(m.E * fill), bounce: m.bounce,
-    frac: m.frac, shape: m.shape, spread: m.spread };
+    frac: m.frac, shape: m.shape, spread: m.spread, joint: s.joint ?? (m.family === 'masonry' ? 'mortar' : 'dry') };
   if (m.melt !== null && m.melt !== undefined) Object.assign(out, { melt: m.melt, fuse: sig(mass * m.fusion) });
   if (isCombustible(m)) {
     // its exposed faces char inward at CHAR_RATE: the fuel it gives each second is that volume's mass × its heat of combustion

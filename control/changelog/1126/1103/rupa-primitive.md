@@ -39,6 +39,12 @@ Walls hold and objects break stays the default; a game that asks for destructibl
   on a body's faces: in a level's pools pine floats a third under, ice nine tenths, a hollow steel hull a sixth, and
   solid steel sinks. A spray (`spray`) throws water that pushes on what it hits and cools it by its heat and its boiling,
   so a hose puts out a burning block.
+- **One fluid law for water and air**: air joins the matter table as a gas, and pressure (ρ·g·depth + Cp·½ρv²),
+  immersion (lift by the fluid put aside, drag toward its flow) and Bernoulli's inverse serve every fluid: the tanks,
+  pipes and nozzles, the pools, the hose's spray and grain settling all call the same functions. **Wind** is the air
+  moving (a level's `matter.wind`: its speed at 10 m rising with height by terrain, gusts seeded): it carries light
+  bodies, bends the spray, and its pressure on exposed faces tips or slides stacks their weight and mortar cannot hold,
+  which fall as bodies; a gale tips a dry pine pile while a mortared brick wall stands.
 - **Debris, deterministic in the force** (`lib/graph/rupa/debris.js`; every break on the runtime carries it): a breaking
   opens new crack surface against the matter's fracture energy, so a harder blow leaves more, finer and faster pieces
   and more dust, the same joules shatter glass and split timber, and the pieces take the matter's shape (shards,
