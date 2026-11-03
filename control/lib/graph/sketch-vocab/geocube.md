@@ -222,7 +222,9 @@ A cube that names no domains offers one per terrain and one per interior.
   punched stone, brick, a tower's shape, lit windows at night), the neighbourhoods round them massing, the rest the
   skyline; `play` `game` (an evocation's default: what a walker covers compressed, never a storey) or `real`. The
   answer's `geocity` carries the counts, the ledger, the neighbourhoods (ring, storeys, park, the beyond where a
-  geotown joins later), the region graph and the laws (an evocation's `evokes`: the metro to scale's measures);
+  geotown joins later), the region graph and the laws (an evocation's `evokes`: the metro to scale's measures). It
+  takes play (`entities`, `camera`, `pilot`, `play`); with `destruction: 'physical'` its buildings within a city block
+  of the walk's start (the nearest two dozen) break by blocks, as their finishes are made, the rest stay massing;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

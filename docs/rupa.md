@@ -630,6 +630,14 @@ stands. The load pass finds supports through a grid over the blocks' footprints,
 the same order. A structure of a few hundred blocks steps in about a tenth of a millisecond at rest; a blast or a fall
 costs one settle, tens of milliseconds, so structures do not yet need to sleep.
 
+**A geocity's ring.** A geocube's `show: 'geocity'` takes play, and under `physical` its buildings within a city
+block of where the walk starts (100 m, the nearest two dozen: `RING`, `RING_MAX` in `geocity/scene.js`) are shell houses
+too: each mass as the city laid it (its footprint, foot, eave and top), claiming only its own faces, breaking as its finish
+is drawn (wire-brick brick, sawn-stone stone, precast concrete; a glass tower or a skyline slab its concrete frame), a flat
+roof a slab of its walls, in coarse panels (a quarter of a side and a sixth of its height at least) so a tower stays a few
+hundred blocks. The rest of the city stays massing, as decided with the operator: physical near the player, scenery
+beyond.
+
 This is phase 2 of bringing rupa to the geocube. The way on: one wind for the flora, the ground grid from the substrate,
 the cube's water as the fluid layer, then the geocity's physical ring near the player.
 
@@ -666,8 +674,8 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
   wood fire, flaming), smouldering, and a GPU path for puffs (the page places at most 480 sprites on the CPU).
 - Rivers as moving water on the ground, a drained lake's drawn surface going with it, snow as a source, water
   soaking into soil, and boats.
-- The shovel as an action on the page's ground, the dirt a ground crater throws (scars throw theirs), ground in the
-  geocity and terrain worlds (stages only), the live grass channel riding the ground on a world that has one only
+- The shovel as an action on the page's ground, the dirt a ground crater throws (scars throw theirs), ground and water in the
+  geocity and terrain worlds (stages only), the geocity's evoked detail blocks (their facades are not yet shells), the live grass channel riding the ground on a world that has one only
   when its blades are instanced, and a crater's bowl drawn finer than the stage's land grid.
 - Scars on what is not a box (a minted solid, a tree), and marks that fade or are cleared.
 - City buildings, houses entered by a door and walked-in buildings as blocks (structures and shell houses are), and

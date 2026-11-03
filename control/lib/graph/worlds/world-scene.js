@@ -871,6 +871,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // 'none' ⇒ nothing breaks, byte-identical.
     const destruction = readDegree(sketch.manifest.destruction, 'destruction');
     // under `physical`, a world painted by a geocube breaks by the cube's matter (era/geocube.js cubeMatter: read off its skins)
+    // (a physical geocity's near ring, geocity/scene.js: its nearest buildings as shell houses, each its eave, its own face
+    // groups and its finish's word, coarse panels for a city's masses; rupa/shell-blocks.js makes them walls and a roof)
+    if (destruction === 'physical' && Array.isArray(payload.physicalRing) && payload.physicalRing.length) {
+      payload.colliders = [...(payload.colliders || []), ...payload.physicalRing.map((b) => ({ min: b.min, max: b.max, of: `${b.id}:house`, eave: b.eave, group: b.group, coarse: true, ...(b.word ? { word: b.word } : {}), ...(b.flat ? { flat: true } : {}) }))];
+    }
     const cubeMatterOf = destruction === 'physical' ? geocubeMatterOf(sketch.manifest) : null;
     // (a town's houses break as the settlement they were built from: its style's words, era/geocube.js settlementMatter)
     const townMatterOf = destruction === 'physical' ? geocubeTownMatterOf(sketch.manifest, payload) : null;
@@ -1704,6 +1709,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // (a physical stage's tree records serve its blocks only: a world with no one in it, or no physics, never carries them)
   if (payload && payload.physicalTrees !== undefined) delete payload.physicalTrees;
   if (payload && payload.physicalGround !== undefined) delete payload.physicalGround;
+  if (payload && payload.physicalRing !== undefined) delete payload.physicalRing;
   return { payload, kind };
 }
 

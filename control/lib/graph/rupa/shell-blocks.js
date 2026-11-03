@@ -17,7 +17,8 @@
  *             with nothing under it at all, within a storey of its group's foot, it reaches down to the foot
  *   FOOTING   each group's lowest blocks stand on a fixed footing under them (the land, which holds), so a building on
  *             raised ground stands at minute zero instead of falling to the level's floor
- *   HOUSES    a shell house (`<id>:house`) is its walls, panels no wider or taller than COURSE, from its footing to its
+ *   HOUSES    a shell house (`<id>:house`; a geocity's mass too: the record carries its eave, its `group`, the faces it
+ *             claims, its finish's `word`, the matter it breaks as, `flat` for a flat roof's slab and `coarse` panels) is its walls, panels no wider or taller than COURSE, from its footing to its
  *             eave (the lowest face that looks up, above its first storey), and its roof from the eave to the ridge
  *             resting on them; walls take its settlement's facade words (else the cube's wall), the roof its roof word
  *             at a roof's fill (ROOF_FILL: rafters and tiles, mostly air); a structure takes the cube's `structure` role
@@ -31,6 +32,7 @@
  *     world has no structure and no shell house
  */
 import { blockMatter, resolveMatter, cutOfMatter } from './matter.js';
+import { matterOfWord } from './look-matter.js';
 
 export const COURSE = 3;
 export const WALL = 0.25;
@@ -115,6 +117,8 @@ function structureGroups(colliders, rings) {
   }));
 }
 
+// the faces a house claims: a town's, or a house record's own groups (a geocity mass: its walls' group and its roof's)
+const claims = (c, group) => (c.group ? group === c.group || group === `${c.group}:roof` : /^town:/.test(group || ''));
 // a shell house's eave: the lowest face looking up, above its first storey (its roof's foot); none, a flat roof's slab
 function eaveOf(box, faces) {
   const z0 = box.min[2], top = box.max[2];
@@ -133,22 +137,25 @@ function houseGroups(colliders, faces) {
     const m = /^(.+):house$/.exec(c?.of || '');
     if (!m) continue;
     const id = m[1], near = (f) => { const p = mid(f); return p[0] >= c.min[0] - 0.4 && p[0] <= c.max[0] + 0.4 && p[1] >= c.min[1] - 0.4 && p[1] <= c.max[1] + 0.4; };
-    const own = faces.filter((f) => f && /^town:/.test(f.group || '') && near(f));
-    const eave = r4(eaveOf(c, own)), [x0, y0, z0] = c.min, [x1, y1, z1] = c.max, t = Math.min(WALL, (x1 - x0) / 3, (y1 - y0) / 3);
+    const own = faces.filter((f) => f && claims(c, f.group) && near(f));
+    // (its eave as the house record says, else read off its faces; a big mass in coarser panels and courses, a quarter of
+    // a side and a sixth of its height at least, so a tower is a few hundred blocks)
+    const eave = r4(c.eave ?? eaveOf(c, own)), [x0, y0, z0] = c.min, [x1, y1, z1] = c.max, t = Math.min(WALL, (x1 - x0) / 3, (y1 - y0) / 3);
+    const panel = (len) => (c.coarse ? Math.max(COURSE, len / 4) : COURSE), lift = c.coarse ? Math.max(COURSE, (eave - z0) / 6) : COURSE;
     const walls = [
       ['s', [x0, y0], [x1, y0 + t], 0], ['n', [x0, y1 - t], [x1, y1], 0],
       ['w', [x0, y0 + t], [x0 + t, y1 - t], 1], ['e', [x1 - t, y0 + t], [x1, y1 - t], 1],
     ];
     const blocks = [];
     for (const [s, a, b, ax] of walls) {
-      const along = cuts(a[ax], b[ax], COURSE), zs = cuts(z0, eave, COURSE);
+      const along = cuts(a[ax], b[ax], panel(b[ax] - a[ax])), zs = cuts(z0, eave, lift);
       for (let k = 0; k + 1 < zs.length; k++) for (let i = 0; i + 1 < along.length; i++) {
         const lo = [a[0], a[1], zs[k]], hi = [b[0], b[1], zs[k + 1]]; lo[ax] = along[i]; hi[ax] = along[i + 1];
         blocks.push({ id: `${id}:wall-${s}${k}.${i}`, min: lo.map(r4), max: hi.map(r4), role: 'wall' });
       }
     }
-    blocks.push({ id: `${id}:roof`, min: [x0, y0, eave].map(r4), max: [x1, y1, z1].map(r4), role: 'roof' });
-    out.push({ id, kind: 'house', colliders: [c], blocks, eave });
+    blocks.push({ id: `${id}:roof`, min: [x0, y0, eave].map(r4), max: [x1, y1, z1].map(r4), role: c.flat ? 'slab' : 'roof' });
+    out.push({ id, kind: 'house', colliders: [c], blocks, eave, ...(c.word ? { word: c.word } : {}) });
   }
   return out;
 }
@@ -173,10 +180,14 @@ function seat(blocks, footZ) {
 
 // what a block is made of: a house's by its settlement's words (`town`: era/geocube.js settlementMatter), else the cube's
 // roles; a structure's by the cube's `structure` role (it is painted from the cube's stone)
-function matterFor(role, matterOf, kind) {
+function matterFor(role, matterOf, kind, word = null) {
   const town = kind === 'house' && matterOf && matterOf.town ? matterOf.town : null;
   const pick = (r) => (town && town[r]) || (matterOf && matterOf[r]) || null;
   const own = (m, fallback) => (m ? { matter: m.matter, ...(m.fill !== undefined ? { fill: m.fill } : {}) } : { matter: fallback });
+  // (a mass drawn in a finish breaks as its word says: wire-brick brick, sawn-stone stone, precast concrete; its flat roof
+  // a slab of the same)
+  const W = word ? matterOfWord(word) : null;
+  if (W && role !== 'roof') return own(W, 'brick');
   if (role === 'roof') { const m = pick('roof') || pick('wall'); return { matter: m ? m.matter : 'ceramic', fill: m?.fill ?? ROOF_FILL }; }
   if (kind === 'structure') return own(pick('structure'), 'stone');
   return own(pick('wall'), 'brick');
@@ -195,7 +206,7 @@ export function shellBlocks(payload, { rings = null, matterOf = null, floor = 0,
     // the land under its lowest blocks holds: a fixed footing a hand deep under each, where the level's floor does not
     if (footZ > floor + TOUCH) for (const b of g.blocks) if (b.min[2] <= footZ + TOUCH) footings.push({ min: [b.min[0], b.min[1], r4(footZ - 0.1)], max: [b.max[0], b.max[1], r4(footZ)], of: `${g.id}:footing` });
     for (const b of g.blocks) {
-      const own = matterFor(b.role, matterOf, g.kind), m = resolveMatter(own.matter, `${b.id}.matter`);
+      const own = matterFor(b.role, matterOf, g.kind, g.word), m = resolveMatter(own.matter, `${b.id}.matter`);
       breakables.push({ id: b.id, min: b.min, max: b.max, hp, ...(b.lateral ? { bond: 'lateral' } : {}), ...blockMatter(b, own, `${b.id}.matter`), cut: cutOfMatter(m) });
       owner.set(b.id, g);
     }
@@ -209,8 +220,8 @@ export function shellBlocks(payload, { rings = null, matterOf = null, floor = 0,
     let list = null;
     const sid = structureOf(f);
     if (sid && byGroup.has(sid)) list = byGroup.get(sid);
-    else if (/^town:/.test(f.group || '')) {
-      const p = mid(f), h = houses.find((g) => { const c = g.colliders[0]; return p[0] >= c.min[0] - 0.4 && p[0] <= c.max[0] + 0.4 && p[1] >= c.min[1] - 0.4 && p[1] <= c.max[1] + 0.4; });
+    else if (houses.length) {
+      const p = mid(f), h = houses.find((g) => { const c = g.colliders[0]; return claims(c, f.group) && p[0] >= c.min[0] - 0.4 && p[0] <= c.max[0] + 0.4 && p[1] >= c.min[1] - 0.4 && p[1] <= c.max[1] + 0.4; });
       if (h) list = byGroup.get(h.id);
     }
     if (!list || !list.length) return f;
