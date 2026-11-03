@@ -65,3 +65,64 @@ push, load, haul and lift on a site.
       site's crawler is the shelf's.
 
     No byte pin moved.
+- **The shelf, its chain and its first machine, the crawler excavator** (`construction-shelf/`: `con-common.js`,
+  `con-odm.js`, `con-parts.js`, `con-chain.js`, `con-archetypes.js`, `con-laws.js`, `index.js`):
+  - **The chain** (`con-chain.js`), the one new capability:
+    - A layout entry sits `on` its parent's hardpoint, fixed or on a `joint` (a slew about the parent's +z, a hinge
+      about its +x), and inherits the joint's angle. Every body is authored in its own frame, its pivot the origin, so
+      a pose moves frames and never a part's geometry.
+    - **A ram** is a barrel aimed from its base toward its eye and a rod aimed back, each a rigid body at its own length,
+      so the rod slides in the barrel at every pose without being drawn again.
+    - **A linkage** (the bucket's dogbones and H-link) is a four-bar the joint closes, its pin solved where its two
+      links meet.
+    - **A joint's range is its ram's:** where the ram's length lies between its closed length and its full stroke
+      (derived, never stated), in the run the joint works `near`. Its ends are rounded inward.
+  - **The parts of a 20 t excavator:**
+    - the crawler (its track laid link by link on the military running gear's path and pins, `mil-track.js`, its
+      sprockets, idlers, rollers and carriers, its frames and car body);
+    - the slewing ring;
+    - the upper (deck, hood, tank, the boom's foot);
+    - the cab, with its glass, its lamps and its seat;
+    - the counterweight, its tail an arc about the slew axis;
+    - a banana mono boom, the stick and its heel, a digging bucket with its teeth;
+    - the dogbones and the H-link;
+    - the boom, stick and bucket rams.
+  - **The machine** (`assembleMachine(archetype, { pose })`) at its named poses: rest (the bucket set down), travel,
+    transport (folded for shipping), dig (the teeth at grade), dump, reach, slewed. A pose is a name, or joint values
+    clamped into their ranges and said. A named pose is shares of each range, or `ground` (the joint lowered until the
+    tool touches the ground).
+  - **The laws, measured** (`con-laws.js`):
+    - each joint's working arc;
+    - the envelope swept over the ranges: reach along the ground, depth, cut height, dump height with the teeth plumb
+      under the pin;
+    - the counterweight's tail swing as built;
+    - ground pressure;
+    - the rated lift over the side at 6 m, 1.5 m up: 75% of tipping about the track's centreline, from every part's mass
+      where it is built and posed (ISO 10567's share);
+    - the parts' mass against the class's;
+    - the bucket never entering the cab over the ranges;
+    - the transport size folded (advisory).
+
+    The 20 t machine reaches 9.56 m, digs 6.37 m, dumps at 6.94 m, cuts at 9.36 m, swings its tail at 2.85 m, stands at
+    47 kPa and lifts a rated 2.8 t over the side.
+  - **Found while building:**
+    - The class's track gauge was a 20 t machine's too narrow (2.0 m): now 2.2 m, its width its shoes'.
+    - The extruder reads an outline wound anticlockwise about its axis: a panel extruded toward −x, and a plan outline,
+      now wind their own.
+  - **The registry:** the excavator row claims the archetype. Its realistic build is the shelf's, asleep until a door
+    draws it, parked and watched (a crawler is not driven until skid steer is built).
+  - **Held:**
+    - `construction-shelf.test.js`, the machine chosen in code by its linkage:
+      - at every named pose each body on its parent's joint, each ram within its stroke with its rod's end on its eye,
+        each link at its length;
+      - each ram-driven joint's ends at its ram's closed and full lengths;
+      - poses within their ranges and grounded;
+      - the operator's joint clamped and said;
+      - every law held;
+      - a pose moving frames and never parts;
+      - the slew turning the upper and never the undercarriage;
+      - the words.
+    - The char test pins every builder path, a ram's rod and the machine at rest.
+    - The deep sweep walks every joint's range finely, and every named pose.
+  - **Seen** (`scripts/render-construction.mjs`; machine gate only, the eyes gate is open): the excavator at rest, in
+    travel, digging, dumping, at reach and slewed.
