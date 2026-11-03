@@ -16,12 +16,13 @@
 import { lowerObjectFaces } from '../worlds/workbench.js';
 import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { planAssemblyBom } from '../vehicle-designer/assembly-bom.js';
-import { CRAFT_COLOR_ROLES, CRAFT_PALETTES, DEG, clone, resolveCraftPalette, round3 } from './craft-common.js';
+import { CRAFT_COLOR_ROLES, CRAFT_PALETTES, DEG, clone, hashSeed, resolveCraftPalette, round3 } from './craft-common.js';
 import { CRAFT_BUILDERS } from './craft-parts.js';
 import { lookCard, lookSwap } from './drone-looks.js';
 import { CRAFT_KINDS, CRAFT_ODM, CRAFT_REALMS } from './craft-odm.js';
 import { CRAFT_ARCHETYPES, CRAFT_ROLES } from './craft-archetypes.js';
-import { hullFloat, hullEnvelope } from './boat-parts.js';
+import { hullFloat, hullEnvelope, hullSection } from './boat-parts.js';
+import { boatWake, wakeRecipe } from './boat-wake.js';
 
 export { CRAFT_ARCHETYPES, CRAFT_COLOR_ROLES, CRAFT_KINDS, CRAFT_ODM, CRAFT_PALETTES, CRAFT_REALMS, CRAFT_ROLES };
 
@@ -265,8 +266,11 @@ function toManifest(row, order, { pitch, lift, title }) {
  * floats (`afloat`): the waterline its weight sets, its parts' mass and its payload displaced by its hull
  * (boat-parts.js hullFloat) in `water` 'fresh' (default) or 'salt'; `waterline` is that line's height in the manifest's
  * frame, where a level lays its water; a submarine's (a round hull) also its `ballast`, the water it floods to dive.
+ * `underway: { speed }` (m/s, or `{ knots }`) sets a boat moving: its readout's `underway` says what it does to the water
+ * (its Froude numbers, its regime, its wake's angle and wavelength: boat-wake.js) and a `wake` item lies on the water
+ * (its crests, its bow wave, its stern's foam, its wash, its spray). Absent, nothing of it is drawn or read.
  */
-export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = {}, attitude = 'ground', fold, pose = {}, finish = true, title, made = false, look, water = 'fresh' } = {}) {
+export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = {}, attitude = 'ground', fold, pose = {}, finish = true, title, made = false, look, water = 'fresh', underway } = {}) {
   const row = archetypeRow(archetype);
   let swap = swapIn;
   const foldNow = Math.max(0, Math.min(1, Number.isFinite(fold) ? fold : (row.fold || 0)));
@@ -327,7 +331,30 @@ export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = 
   const joints = manifest.items.flatMap((it) => (it.source.garage.joints || []).map((j) => ({
     item: it.id, name: j.name, control: j.control, kind: j.kind, range: j.range, ...(j.kind === 'slide' ? { travel: j.travel } : { angle: j.angle }),
   })));
-  return { manifest, readout: { ...readout, fold: foldNow, pose: clone(pose), gear, joints, ...(look ? { look } : {}), ...(afloat ? { afloat } : {}) } };
+  // (a boat underway: what it does to the water at its speed, its wake an item on the water, never in its measures)
+  let wake = null;
+  if (underway && afloat && !afloat.swamped) {
+    const speed = Number.isFinite(+underway.knots) ? +underway.knots * 0.514444 : +underway.speed;
+    if (!(speed > 0)) throw new Error(`craft underway needs a speed (m/s) or knots above 0; received ${JSON.stringify(underway)}`);
+    const HR = CRAFT_ODM[hull.recipe.garage.sku], DRIVE = { 'boat-outboard': ['outboard', 'prop'], 'boat-jet': ['jet', 'nozzle'], 'boat-shaft': ['shaft', 'prop'] };
+    // (its drives: those on the hull itself, never a stowed sea boat's)
+    const onHull = new Set(row.layout.filter((e) => e.at?.split('.')[0] === hull.slot).map((e) => e.id));
+    const drives = order.filter((p) => onHull.has(p.slot) && DRIVE[p.recipe.garage.kind] && p.recipe.garage.hardpoints[DRIVE[p.recipe.garage.kind][1]]).map((p) => {
+      const [kind, hp] = DRIVE[p.recipe.garage.kind], c = orient(p, p.recipe.garage.hardpoints[hp]);
+      return { kind, at: [p.at[0] + c[0] - hull.at[0], p.at[1] + c[1] - hull.at[1], p.at[2] + c[2] - hull.at[2]] };
+    });
+    // (a round hull's own screw, on its stern's tip)
+    if (HR.build.screw) drives.push({ kind: 'screw', at: [0, -HR.dims.length / 2 - 0.4, HR.build.body.axis] });
+    const w = boatWake({ row: HR, draft: afloat.draft, volume: afloat.volume, speed, drives, section: hullSection });
+    if (w) {
+      const { halfAt, ...numbers } = w;
+      void halfAt;
+      wake = numbers;
+      const hi = manifest.items.findIndex((it) => it.id === hull.id);
+      manifest.items.push({ id: 'wake', source: wakeRecipe(w, { seed: hashSeed(archetype) }), at: [manifest.items[hi].at[0], manifest.items[hi].at[1], afloat.waterline] });
+    }
+  }
+  return { manifest, readout: { ...readout, fold: foldNow, pose: clone(pose), gear, joints, ...(look ? { look } : {}), ...(afloat ? { afloat } : {}), ...(wake ? { underway: wake } : {}) } };
 }
 
 /** What the assembled craft measures, weighs and pushes, beside its reference figure. */

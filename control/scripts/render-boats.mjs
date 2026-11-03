@@ -4,11 +4,12 @@
  * the waterline its weight sets (its readout's `afloat`). No database writes.
  *
  * From control/:
- *   node scripts/render-boats.mjs <output-directory> [archetype,…|all] [--pose '{"tilt":0,"yaw":0,"prop":0}'] [--fold 0…1] [--views side,quarter,top,stern,bow,motor,transom] [--dry]
- *     [--look pleasure|naval] [--form [--livery <pattern|json>] [--wear pristine|used|battered]] [--deck]
+ *   node scripts/render-boats.mjs <output-directory> [archetype,…|all] [--pose '{"tilt":0,"yaw":0,"prop":0}'] [--fold 0…1] [--views side,quarter,top,stern,bow,motor,transom,wake] [--dry]
+ *     [--look pleasure|naval] [--form [--livery <pattern|json>] [--wear pristine|used|battered]] [--deck] [--knots <n>]
  * `--form` draws the form render (craft-form.js: its livery's camo and marks, its wear), each face its albedo under a
  * plain key light; `--look` dresses it in a look card (boat-looks.js). `--deck` parks a carrier's aircraft on its flight
- * deck's spots, wings folded (vehicle-registry/carry.js `flightDeck`: what a level lays there), for review.
+ * deck's spots, wings folded (vehicle-registry/carry.js `flightDeck`: what a level lays there), for review. `--knots`
+ * sets it underway at that speed (craft-shelf/boat-wake.js: its wake on the water), framed on the boat, not its wake.
  * `--fold` folds what folds (an outboard's tiller); `--dry` draws it out of the water. (The sheet of water runs through an
  * open hull's floor too: it is the review's water, not the boat's.) Writes <boat>-<view>.png, the pages, report.json and index.html.
  */
@@ -36,7 +37,7 @@ const pose = flag('--pose') ? JSON.parse(flag('--pose')) : {};
 const dry = args.includes('--dry');
 const fold = flag('--fold') !== null ? Number(flag('--fold')) : undefined;
 // (the form render: its marks and its wear, a look card; each face its albedo under a plain key light, for review)
-const deckFlag = args.includes('--deck'), form = args.includes('--form'), look = flag('--look') ?? undefined, livery = flag('--livery') ? (flag('--livery').startsWith('{') ? JSON.parse(flag('--livery')) : flag('--livery')) : undefined, wear = flag('--wear') ?? undefined;
+const knots = flag('--knots') !== null ? Number(flag('--knots')) : undefined, deckFlag = args.includes('--deck'), form = args.includes('--form'), look = flag('--look') ?? undefined, livery = flag('--livery') ? (flag('--livery').startsWith('{') ? JSON.parse(flag('--livery')) : flag('--livery')) : undefined, wear = flag('--wear') ?? undefined;
 const KEY = (() => { const v = [0.42, -0.5, 0.76], l = Math.hypot(...v); return v.map((x) => x / l); })();
 const shadeOf = (hex, n) => { const k = 0.42 + 0.58 * Math.abs(n[0] * KEY[0] + n[1] * KEY[1] + n[2] * KEY[2]), c = parseInt(hex.slice(1), 16); return `#${[16, 8, 0].map((b) => Math.min(255, Math.round(((c >> b) & 255) * k)).toString(16).padStart(2, '0')).join('')}`; };
 const avg = (hs) => { const t = [0, 0, 0]; for (const h of hs) { const c = parseInt(h.slice(1), 16); t[0] += (c >> 16) & 255; t[1] += (c >> 8) & 255; t[2] += c & 255; } return `#${t.map((v) => Math.round(v / hs.length).toString(16).padStart(2, '0')).join('')}`; };
@@ -48,17 +49,19 @@ const width = 960, height = 600;
 let gallery = '';
 const report = [];
 for (const id of pick) {
-  let faces, textures = {}, readout;
+  let faces, textures = {}, readout, frameOn = null;
   if (form) {
     const C = craftForm(id, { pose, ...(look ? { look } : {}), ...(livery ? { livery } : {}), ...(wear ? { wear } : {}) });
     readout = C.readout;
     faces = C.items.flatMap((it) => it.faces.map((f) => ({ corners: f.corners, outNormal: f.outNormal, fill: shadeOf(f.cornerAlbedo ? avg(f.cornerAlbedo) : f.albedo, f.outNormal) })));
   } else {
-    const A = assembleCraft(id, { pose, ...(fold !== undefined ? { fold } : {}), ...(look ? { look } : {}) });
+    const A = assembleCraft(id, { pose, ...(fold !== undefined ? { fold } : {}), ...(look ? { look } : {}), ...(knots ? { underway: { knots } } : {}) });
     readout = A.readout;
     const { payload } = await resolveWorldScene({ ref: id, kind: 'assembler', manifest: A.manifest });
     faces = payload.faces.filter((f) => !f.studio);
     textures = payload.textures ?? {};
+    // (framed on the boat: its wake runs far past the frame)
+    if (knots) frameOn = (await resolveWorldScene({ ref: id, kind: 'assembler', manifest: { ...A.manifest, items: A.manifest.items.filter((it) => it.id !== 'wake') } })).payload.faces.filter((f) => !f.studio);
   }
   // (a carrier's aircraft on its spots, wings folded: each turned to its heading, its wheels on the deck)
   const F = deckFlag ? flightDeck(id) : null;
@@ -80,7 +83,7 @@ for (const id of pick) {
     }
   }
   const tris = faces.reduce((n, f) => n + f.corners.length - 2, 0);
-  const pts = faces.flatMap((f) => f.corners);
+  const pts = (frameOn || faces).flatMap((f) => f.corners);
   // (bounds by a loop: a ship's corners are too many to spread into Math.min)
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const p of pts) for (let i = 0; i < 3; i += 1) { if (p[i] < lo[i]) lo[i] = p[i]; if (p[i] > hi[i]) hi[i] = p[i]; }
@@ -97,11 +100,13 @@ for (const id of pick) {
     motor: [mid[0] + L * 0.35, lo[1] - L * 0.25, mid[2] + L * 0.05],
     // (from astern and above, into a motor well: the notch, the splashwell, its bulkhead)
     transom: [mid[0] + L * 0.12, lo[1] - L * 0.38, hi[2] + L * 0.12],
+    // (from ahead and high above, down its track: the wake it leaves)
+    wake: [mid[0] + L * 0.9, mid[1] + L * 1.1, mid[2] + L * 1.6],
   };
-  gallery += `<h2>${id}</h2><p>${tris.toLocaleString('en-US')} triangles · ${JSON.stringify(readout.measures)} · ${JSON.stringify(readout.afloat ?? {})}</p><section>`;
+  gallery += `<h2>${id}</h2><p>${tris.toLocaleString('en-US')} triangles · ${JSON.stringify(readout.measures)} · ${JSON.stringify(readout.afloat ?? {})}${readout.underway ? ` · underway ${readout.underway.knots} kn, ${readout.underway.regime}, Fr ${readout.underway.froude}` : ''}</p><section>`;
   for (const view of views) {
-    const look = view === 'motor' ? [mid[0], lo[1] + 0.25, wl] : view === 'transom' ? [mid[0], lo[1] + L * 0.12, wl + 0.2] : mid;
-    const html = emitThreeWorld({ faces: scene, textures, inline: true, hud: false, title: id, bg: '#cfd5da', metersPerUnit: 1, cameras: [{ name: view, worldFraming: { cameraPosition: cams[view], lookAt: look, horizontalFov: view === 'motor' ? 30 : 40, pictureCenter: [width / 2, height / 2] } }], viewBox: { width, height } });
+    const look = view === 'motor' ? [mid[0], lo[1] + 0.25, wl] : view === 'transom' ? [mid[0], lo[1] + L * 0.12, wl + 0.2] : view === 'wake' ? [mid[0], mid[1] - L * 1.2, wl] : mid;
+    const html = emitThreeWorld({ faces: scene, textures, inline: true, hud: false, title: id, bg: '#cfd5da', metersPerUnit: 1, cameras: [{ name: view, worldFraming: { cameraPosition: cams[view], lookAt: look, horizontalFov: view === 'motor' ? 30 : view === 'wake' ? 55 : 40, pictureCenter: [width / 2, height / 2] } }], viewBox: { width, height } });
     const png = await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 });
     writeFileSync(path.join(outDir, `${id}-${view}.png`), png);
     writeFileSync(path.join(outDir, `${id}-${view}.html`), html);
@@ -109,7 +114,7 @@ for (const id of pick) {
     console.log(`Rendered ${id}-${view} (${tris} tris)`);
   }
   gallery += '</section>';
-  report.push({ id, triangles: tris, measures: readout.measures, reference: readout.reference, afloat: readout.afloat, joints: readout.joints, audit: readout.audit });
+  report.push({ id, triangles: tris, measures: readout.measures, reference: readout.reference, afloat: readout.afloat, ...(readout.underway ? { underway: readout.underway } : {}), joints: readout.joints, audit: readout.audit });
 }
 writeFileSync(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
 writeFileSync(path.join(outDir, 'index.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><title>Boats review</title><style>body{margin:0;padding:24px;background:#101722;color:#edf2f8;font:15px system-ui}section{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}figure{margin:0;background:#202b3b;border-radius:8px;overflow:hidden}img{width:100%;display:block}figcaption{padding:8px}p{color:#b8c4d4;font-size:13px;word-break:break-word}@media(max-width:700px){section{grid-template-columns:1fr}}</style><h1>Boats review</h1>${gallery}</html>`);
