@@ -41,7 +41,8 @@
  *   POOLS    liquid standing in the world (`rupa.pools: [{ min, max, density, viscosity }]`, its surface at max[2]): a body
  *            in one is pushed up by the weight of the liquid it puts aside and slowed by pushing it aside, so pine floats
  *            a third under, ice nine tenths, solid steel sinks and a hollow steel hull floats (Archimedes falls out of the
- *            pressure on its faces); a block standing in one weighs that much less on its supports.
+ *            pressure on its faces); a block standing in one weighs that much less on its supports. A pool is a basin:
+ *            what floats in it stays within its sides, whatever the wind.
  *
  *   SPRAY    a nozzle (`E.spray(state, { at, dir, speed, flow, seconds })`: a hose off a hydrant and a pump, the speed and
  *            flow from rupa/fluid.js jetOf or stepVessels) throws water in parcels that fly under gravity and the air's
@@ -543,6 +544,17 @@ export function buildRupa(E) {
           }
         }
         for (let i = 0; i < 3; i++) p.pos[i] += p.vel[i] * h;
+        // a pool is a basin: what floats in it stays within its sides
+        for (const pool of R.pools) {
+          if (!p.wet || p.pos[2] - p.half[2] >= pool.max[2]) continue;
+          const c0 = box0.min.map((x, i) => (x + box0.max[i]) / 2);
+          if (c0[0] < pool.min[0] || c0[0] > pool.max[0] || c0[1] < pool.min[1] || c0[1] > pool.max[1]) continue;
+          for (const i of [0, 1]) {
+            const lo = pool.min[i] + p.half[i], hi = pool.max[i] - p.half[i];
+            if (p.pos[i] < lo) { p.pos[i] = lo; if (p.vel[i] < 0) p.vel[i] = 0; }
+            if (p.pos[i] > hi) { p.pos[i] = hi; if (p.vel[i] > 0) p.vel[i] = 0; }
+          }
+        }
         const box = { min: p.pos.map((x, i) => x - p.half[i]), max: p.pos.map((x, i) => x + p.half[i]) };
         for (const b of state.breakables) {
           if (b.broken || !overlaps(box, b)) continue;

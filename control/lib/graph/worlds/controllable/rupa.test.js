@@ -178,6 +178,15 @@ describe('rupa wind: the air moving, by the same law as water', () => {
     expect(x(steel) - 3).toBeLessThan(0.15);   // ~70 N on 980 kg through a 6 m fall
   });
 
+  it('a pool is a basin: a gale drives a floating block to the far side, not out of the pool', () => {
+    const w = world([anchor()], { wind: { speed: 60, dir: 0 }, pools: [{ min: [-3, -3, 0], max: [3, 3, 2], density: 1000, viscosity: 1e-3 }] });
+    const id = CW.throwMatter(w, { size: 0.5, at: [0, 0, 2.5], vel: [0, 0, 0], matter: 'pine', ...blockMatter({ min: [0, 0, 0], max: [0.5, 0.5, 0.5] }, 'pine') });
+    step(w, 60 * 10);
+    const b = w.rupa.bodies.find((q) => q.id === id);
+    expect(b.pos[0]).toBeCloseTo(3 - 0.25, 6);
+    expect(b.pos[2] - b.half[2]).toBeGreaterThan(1);   // still afloat
+  });
+
   it('a crosswind bends the hose\'s spray', () => {
     const w = world([anchor()], { wind: { speed: 15, dir: 90 } });
     CW.spray(w, { at: [0, 0, 1], dir: [1, 0, 0.5], speed: 25, flow: 0.01, seconds: 0.5, spread: 0 });
