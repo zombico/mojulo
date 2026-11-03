@@ -338,6 +338,20 @@ the same at every size: about 39 m/s at a broadleaf's crown, 31 for a conifer's 
 trees of every size near 42 m/s (Virot et al. 2016). A geocube's trees are read by their biocube's leaf form
 (`plantOfLeaf`: an evergreen spire a conifer, every other crown a broadleaf). A stand of a species stands still in a breeze, bends in a fresh
 wind, and is handed to the physics when the strongest gust at its crown passes that speed.
+
+**Trees on the page.** In a physical stage the trees built whole near the trail are blocks
+([`tree-blocks.js`](../control/lib/graph/rupa/tree-blocks.js)); the stamped and far trees stay scenery. Each is a trunk
+of green wood with its own cross-section (a square post of the same area) in courses up to its crown, and a crown resting
+on it: leaves and twigs, 0.4% of the crown's box (a few kg a cubic metre) and 80% open to the wind. A tree on raised land
+stands on a footing. Its faces go with the tree they stand by, so a broken trunk or crown disappears with its block. A
+blast breaks it, fire burns it (the crown as fine fuel, the trunk as wood), an axe fells it as any block is felled, and a
+storm throws it: when the gust at its crown passes its break speed (from its plant form at its height), it turns downwind
+about its foot and lies along the wind, its crown beyond its trunk. The storm is a tree's only wind law: the stack
+tipping that topples a loose pile never tips a trunk, which is one piece of wood on its roots. The minute-zero load
+check counts the trees too.
+
+**Rain and snow.** A physical level's weather, or one under a geocube's wind, leans its rain and snow along the wind's
+way. Any other world keeps the seeded heading it always had, so its page is unchanged.
 ### Why air and water share their code
 
 Water and air follow the same laws with different numbers: water is heavy and slow, air is light and fast. So both go
@@ -602,8 +616,9 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - Cuts on any plane (they snap to the block's axes, so the halves stay boxes), a groove weakening the load pass before
   it goes through, a round's own tool word (rounds are steel-cored), and a cut half's own pre-cut pieces when it later
   breaks (it vanishes in its flash).
-- Snapped trees on the page (the solver says which go; the page's trees don't fall yet), weather's rain and snow
-  slanting with the level's wind (they pick their own heading), and the level's plants taking a physics-only wind.
+- The stamped and far trees as blocks (they stay scenery), trees in the form render (gen-7 draws its own), a tree
+  that snaps partway up its trunk instead of throwing its root plate, weather leaning with a level's own wind outside
+  physics (it keeps its seeded heading, so old pages stay as they were), and the level's plants taking a physics-only wind.
 - One flame per burning block, from its top (not on each burning face), no charred skin, no smouldering, and no air to
   run short of in a room.
 - Dust and smoke held by walls and ceilings (a puff passes through them; smoke doesn't yet pool under a vault or fill

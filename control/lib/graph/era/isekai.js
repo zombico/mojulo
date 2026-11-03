@@ -887,6 +887,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       ...(st.cloudBand ? { clouds: cloudBand(st.cloudBand) } : {}) },
     glow: !!Gl,
     pack: true,
+    // (a physical level, destructible physics: each tree built whole near the trail, by where it stands and what it is, for
+    // rupa/tree-blocks.js to make its trunk and crown breakable; the stamped and far trees stay scenery. Absent otherwise)
+    ...(manifest.destruction === 'physical' ? { physicalTrees: (TB ? TB.built : trees).filter((t) => t.trunks && t.crownAt).map((t, i) => ({ id: `tree-${i}`, foot: [r5(t.trunks[0].pts[0][0]), r5(t.trunks[0].pts[0][1]), r5(t.trunks[0].pts[0][2])], h: r5(t.h), trunk: r5(t.trunks[0].radii[0]), crownAt: t.crownAt, crownR: t.crownR, ...(st.trees.form ? { form: st.trees.form } : {}) })) } : {}),
     // (the live grass: asked for by the recipe, or the carpet a biocube's grass lays by default)
     // (under snow, the carpet the snow's depth leaves standing, as the tufts are, and no wildflowers in it: snow.js grassUnder)
     ...((manifest.wind || manifest.grass || (B?.flora?.grass && B.flora.grass.live !== null)) && grows ? { liveGrass: offSand(grittyGrass(liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass ?? (B?.flora?.flowers && !SN ? { flowers: B.flora.flowers } : undefined), inSnow), broken, st), onSand) } : {}),

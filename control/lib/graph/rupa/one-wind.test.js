@@ -102,3 +102,24 @@ describe('the geocube\'s own assets', () => {
     expect(own.trail.ground.dunes.wind).toBe(10);
   }, 120000);
 });
+
+describe('rain and snow lean with the one wind', () => {
+  it('a heading given is the page\'s; none, and the page is as it was (a seeded heading)', async () => {
+    const { weatherScript } = await import('../scene/channels/weather.js');
+    const input = { weather: { climate: { clear: 1, rain: 1 }, start: 'rain' }, seed: 3 };
+    const plain = weatherScript(input), led = weatherScript({ ...input, heading: Math.PI / 2 });
+    expect(plain).toContain('heading = dice(SEED, 0, 99) * 6.283185307179586;');
+    expect(plain).not.toContain('CFG.heading');
+    expect(led).toContain('heading = CFG.heading;');
+  });
+
+  it('a physical level\'s weather takes its wind\'s way', async () => {
+    const { resolveWorldScene } = await import('../worlds/world-scene.js');
+    const { starter } = await import('../era/entries.js');
+    const hero = { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5 }, transform: { pos: [0, 0, 0] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } };
+    const level = (extra) => ({ manifest: { ...starter('gothic-stone'), entities: [hero], weather: 'rain', wind: { speed: 6, dir: 90 }, ...extra }, title: 'yard' });
+    const phys = (await resolveWorldScene(level({ destruction: 'physical' }))).payload;
+    expect(phys.weather.heading).toBeCloseTo(Math.PI / 2, 6);
+    expect((await resolveWorldScene(level({}))).payload.weather.heading).toBeUndefined();
+  }, 120000);
+});

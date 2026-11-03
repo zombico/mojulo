@@ -110,6 +110,10 @@
  *            a wind shadow, calmer air for about six of its heights behind it; the wind moves a body lying on the ground
  *            again once its drag beats what the body's weight holds (leaves skitter; a brick stays).
  *
+ *   TREES    a level's trees as blocks (rupa/tree-blocks.js, `rupa.trees`: each its blocks, its foot, its crown and the
+ *            wind that snaps it): a gust at its crown past that speed throws it downwind about its foot (a felling); its
+ *            trunk breaks and burns as green wood, its crown as fine fuel
+ *
  *   SCARS    cosmetic damage on a map that may not change (`rupa.scars: { ground, wall }`, a soil's and a matter's
  *            numbers): a burst paints the crater it would dig and throws the dirt it would throw, scorches the fixed walls
  *            in its reach and spalls them, a round chips what it stops on; nothing breaks, nothing moves, every mark and
@@ -714,6 +718,8 @@ export function buildRupa(E) {
     if (!any) return;
     state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0,
       air: { ...AIR, density: R.airDensity ?? AIR.density }, wind: windOf(R.wind), windAt: -1, toppled: [], dents: [], dentSeq: 0, fells: [], fellSeq: 0, smoke: [], smokeSeq: 0,
+      trees: Array.isArray(R.trees) ? R.trees.map((t) => ({ id: t.id, blocks: t.blocks.slice(), foot: t.foot, crown: t.crown.slice(), breakSpeed: t.breakSpeed, snapped: null })) : [], treesAt: -1,
+      treeOf: Array.isArray(R.trees) ? Object.fromEntries(R.trees.flatMap((t) => t.blocks.map((id) => [id, t.id]))) : {},
       scars: R.scars ? { ground: R.scars.ground, wall: R.scars.wall, marks: [], seq: 0 } : null };
   });
   // src: { joules (what the breaking took: its joules, and any blow past them), from?, dir? } for the debris
@@ -1395,7 +1401,8 @@ export function buildRupa(E) {
     const R = state.rupa;
     if (!R || !R.wind || state.time - R.windAt < 0.25) return;
     R.windAt = state.time;
-    const d = R.wind.dir, live = state.breakables.filter((b) => !b.broken && !b.falling && b.rupa && b.bond !== 'lateral');
+    // (a tree's own law is its storm's, rupa-trees: its trunk is one piece of wood on its roots, not a stack)
+    const d = R.wind.dir, live = state.breakables.filter((b) => !b.broken && !b.falling && b.rupa && b.bond !== 'lateral' && !(R.treeOf && R.treeOf[b.id]));
     if (!live.length) return;
     const across = (b) => Math.abs(d[0]) * (b.max[1] - b.min[1]) + Math.abs(d[1]) * (b.max[0] - b.min[0]);
     const depth = (b) => Math.abs(d[0]) * (b.max[0] - b.min[0]) + Math.abs(d[1]) * (b.max[1] - b.min[1]);
@@ -1432,6 +1439,31 @@ export function buildRupa(E) {
       state.settleDirty = true;
     }
   }, 37);
+  // ── TREES IN A STORM (order 37.2, a few times a second while the wind blows): a tree (rupa/tree-blocks.js: its trunk in
+  // courses, its crown on it, the wind that snaps it from its plant form at its height) whose gust at its crown passes
+  // that speed is thrown downwind about its foot, its whole length turning as a felled stack does (fell); one whose foot
+  // is already gone, or that has fallen, is left to the rest of the physics ──
+  E.registerWorldPass('rupa-trees', (state) => {
+    const R = state.rupa;
+    if (!R || !R.wind || !R.trees.length || state.time - R.treesAt < 0.25) return;
+    R.treesAt = state.time;
+    for (const T of R.trees) {
+      if (T.snapped) continue;
+      const foot = state.breakables.find((q) => q.id === T.foot);
+      if (!foot || foot.broken || foot.fell != null || foot.falling || !foot.rupa) continue;
+      const u = windAt(R.wind, T.crown, state.time), speed = Math.hypot(u[0], u[1]);
+      if (speed <= T.breakSpeed) continue;
+      const ax = Math.abs(u[0]) >= Math.abs(u[1]) ? 0 : 1, sign = u[ax] >= 0 ? 1 : -1;
+      const top = T.blocks.filter((id) => id !== T.foot).map((id) => state.breakables.find((q) => q.id === id)).filter((q) => q && !q.broken && q.fell == null && q.rupa);
+      T.snapped = { t: state.time, speed, dir: [u[0] / speed, u[1] / speed] };
+      const n = R.fells.length;
+      fell(state, foot, { at: foot.min[2], ax, sign, edge: sign > 0 ? foot.max[ax] : foot.min[ax], top });
+      // the gust has done the first of it: its weight carried just past the edge it turns on (a slim trunk's few hundredths
+      // of a radian), and the crown already moving as the drag that snapped it leaves it; gravity takes it from there
+      const F = R.fells[n];
+      if (F) { F.theta = Math.max(0, -F.phi0) + 0.01; F.omega = Math.max(F.omega, 0.3); }
+    }
+  }, 37.2);
 
   // ── SCARS (order 34.5, after the projectiles and the blows): cosmetic damage, on a map that may not change. A burst
   // near the floor PAINTS the crater it would dig (craterSize from its energy, coupled less the higher it went off, in the

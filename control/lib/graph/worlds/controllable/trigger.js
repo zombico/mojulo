@@ -17,7 +17,8 @@
  *                                        (a structure `structure:<id>` or its own id, a house's id or `house-<id>`)
  *     break { id }                       one block, or each block of a group
  *   castFacts (wrapped): breached { entity: group } when a group's first block breaks; fell { entity: group } when half of
- *     its blocks are broken or have fallen (the first read seeds: nothing a world was minted with fires)
+ *     its blocks are broken, have fallen or were felled (a group of two or more: a lone block says broke:<id>; a block
+ *     restored at the start counts for nothing; the first read seeds: nothing a world was minted with fires)
  *
  * BUILDER CONTRACT (compose.js): import-free inside the function; after cast.js and rules-basic.js in the list.
  */
@@ -89,14 +90,17 @@ export function buildTrigger(E) {
     if (!state.breakables || !state.breakables.length) return out;
     const by = new Map();
     for (const b of state.breakables) {
+      // (a block restored at the start, an aftermath carried in, is no happening: it counts for nothing)
+      if (b.broken && b.broken.how === 'restore') continue;
       const g = groupOf(b.id), c = by.get(g) || { n: 0, broke: 0, down: 0 };
       c.n++;
-      if (b.broken && b.broken.how !== 'restore') c.broke++;
-      if (b.broken || (b.landed && b.landed.drop > 0.25) || b.falling) c.down++;
+      if (b.broken) c.broke++;
+      if (b.broken || (b.landed && b.landed.drop > 0.25) || b.falling || b.fell != null) c.down++;
       by.set(g, c);
     }
     const was = (prev && prev.__trigger) || null, cur = {};
     for (const [g, c] of by) {
+      if (c.n < 2) continue;   // (a lone block says broke:<id>; a group of them, a building or a tree, says these)
       const s = { b: c.broke > 0, f: c.down * 2 >= c.n };
       cur[g] = s;
       const p = was && was[g];

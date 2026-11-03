@@ -1110,6 +1110,15 @@ export function geocubeTownMatterOf(manifest, payload) {
   const cube = readGeocube(spec), t = cube.settlements?.[name] ?? (name === 'micro' ? MICRO_TOWN : null);
   return t ? settlementMatter(cube, t) : null;
 }
+/** The wind a world's cube gives it (its `wind`, when the recipe names none of its own), or null. */
+export function geocubeWindOf(manifest) {
+  const m = manifest ?? {};
+  if (m.wind !== undefined || m.kind === 'layered') return null;
+  const spec = cubeSpecOf(m);
+  if (spec === undefined || spec === null) return null;
+  const w = readGeocube(spec).wind;
+  return w === undefined || w === false ? null : w;
+}
 /** The cube a world manifest is painted by, as its matter by role (cubeMatter); null when no cube paints it. */
 export function geocubeMatterOf(manifest) {
   const m = manifest ?? {};
