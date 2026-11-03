@@ -18,7 +18,8 @@
  *   - The drone looks: the EO/IR ball's builder path pinned; no other pin moved.
  *   - The boat parts joined the shelf (boat-odm.js): their builder paths pinned; no existing pin moved. The centre
  *     console's (the remote outboard, the console, the seat) pinned when they joined, and the T-top's and the bucket seat's; the military boats' (the jockey seat, the pintle gun, the radar arch; the waterjet, the
- *     pilothouse, the gun tub; the bow ramp, the shaft drive) when they joined; no existing pin moved.
+ *     pilothouse, the gun tub; the bow ramp, the shaft drive; the bridge, the naval gun, the davit) when they
+ *     joined; no existing pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -111,6 +112,10 @@ const PINS = {
   // the landing craft's: the bow ramp, the shaft drive
   'ramp-landing-22': '70082edeb358c316',
   'shaft-diesel-450': '12f96a36627fbd1c',
+  // the navy patrol boat's: the bridge, the naval gun, the davit
+  'bridge-patrol-25': 'a7fab46289510326',
+  'mount-cannon-30': '14f456da3a12d27f',
+  'davit-sea-boat': '161303e108d517e1',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
 };
 

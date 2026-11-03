@@ -81,3 +81,27 @@ Every weapon is modelled, never fired.
     field's scout, transport and armour vehicles within its length, width and load, a boat without one holding none;
     the row in the field's `transport` role. The new builder paths (the ramp, the shaft) are pinned, and no existing pin
     moved.
+- **The navy patrol boat** (`navalPatrol`): a 25 m coastal patrol boat in haze grey, twin large waterjets, the
+  registry's `naval-patrol-boat` row (navy patrol boat, fast patrol boat, coastal patrol vessel …) in the field's
+  `patrol` role. Its pieces compose what the shelf has with what a ship needs:
+  - **Its hull:** a deep V with bow flare and a flush weather deck the whole length (the deck from just forward of
+    the transom, the aft deck closing its stern), guard rails along both sides (the hull's `rails`: stanchions and two
+    lifelines), a bow rail and four life-raft canisters on their cradles (`rafts`).
+  - **`boat-cabin`'s `bridge`:** a deckhouse with its doors and portholes, the bridge on it raked to a band of five
+    panes, three along each side, its wings out to the ship's side carrying a shielded machine gun each (trained
+    outboard) and a sidelight, and on its roof a tripod mast with its yard, the radar's array and a dome, the masthead
+    light and two whips.
+  - **`boat-mount`'s `cannon`:** a stabilised 30 mm naval gun on the foredeck: its drum and turntable (it trains), its
+    gun house (it elevates), the long barrel, recoil sleeve and muzzle brake, its ammunition box and its sight's head;
+    modelled, never fired.
+  - **Its sea boat:** the RIB tender's own hull and outboard as layout entries on its after deck, and a davit
+    (`boat-arch`'s `davit`) whose hook is over it; their weight in the ship's.
+  - **A stock livery:** an archetype may carry its own `livery`, worn in the form render when none and no look is asked
+    for (`craft-form.js`): the patrol boat's hull number on its bows and its emblem amidships. Drones and aircraft
+    carry none and are unchanged.
+  - It floats 83.5 t (its crew, stores and fuel) at a 1.33 m draft with 1.58 m of freeboard.
+  - Held: decked the whole length, its rails and rafts; the bridge on the deck, its wings past it to the beam, their
+    guns trained outboard; the naval gun on the foredeck trained ahead, with its joints; the sea boat on the after deck
+    under the davit's hook, its weight in the ship's; its number in the form render with nothing asked; its row in
+    the field's `patrol` role. The new builder paths (the bridge, the naval gun, the davit) are pinned, and no existing
+    pin moved.

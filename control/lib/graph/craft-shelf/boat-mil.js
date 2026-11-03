@@ -20,6 +20,12 @@
  *                         hinge and lip; it lowers (`pose.ramp`). Points: `mount`, `toe`
  *   boat-shaft   shaft    an inboard drive's running gear: the shaft out of the bottom, its strut, a four-bladed
  *                         propeller (`pose.prop`), the rudder on its stock (`pose.yaw`). Points: `mount`, `prop`
+ *                cannon   a stabilised naval autocannon: its drum and turntable (it trains), its gun house (it
+ *                         elevates), its long barrel, sleeve and brake, its ammunition box and its sight
+ *   boat-cabin   bridge   a patrol boat's superstructure: its deckhouse, the bridge raked to a band of windows, its wings
+ *                         out to the beam (`wingR`, `wingL`) with their rails and sidelights, the tripod mast on its
+ *                         roof with the radar's array and dome, the masthead light and the whips
+ *   boat-arch    davit    a davit: its post, head, jib, fall and hook (a layout's `yaw` swings it)
  *   boat-arch    radar    a radar arch: on each side an A-frame of two legs from feet on the sole up to the crossbar, the
  *                         crossbar across, a platform on it with the radar's dome, an all-round light, a light bar facing
  *                         forward, two whip antennas at its ends. Points: `mount`, `top`
@@ -30,6 +36,7 @@ import { DEG, lathe, sweep, extrudeWorld, loftWorld, planeUV, round3, tone } fro
 
 const r3v = (v) => v.map(round3);
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const unitV = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, Number.isFinite(v) ? v : 0));
 const ccw = (from, to, ring) => { const uv = planeUV(from, to, ring), a = uv.reduce((t, p, i) => { const q = uv[(i + 1) % uv.length]; return t + p[0] * q[1] - q[0] * p[1]; }, 0); return a < 0 ? ring.slice().reverse() : ring; };
 const rect = (u, v, w, h) => [[0, 1], [1, 1], [1, 0], [0, 0]].map(([a, b]) => [0, 1, 2].map((k) => u[k] * (a - 0.5) * w + v[k] * (b - 0.5) * h));
@@ -39,6 +46,7 @@ const GUNMETAL = '#2e3032', CAN = '#4b5132';
 
 function buildMount(row, C, opts = {}) {
   const b = row.build, pose = opts.pose || {};
+  if (b.family === 'cannon') return buildCannon(row, C, opts);
   if (b.family !== 'pintle' && b.family !== 'tub') throw new Error(`Unknown boat-mount family '${b.family}'`);
   const P = b.post, zG = P + 0.12;
   // its train about the post (its bearing and the pose's half-turn either way) and its elevation about the cradle's pin
@@ -106,6 +114,7 @@ function buildMount(row, C, opts = {}) {
 
 function buildArch(row, C, opts = {}) {
   const b = row.build;
+  if (b.family === 'davit') return buildDavit(row, C);
   if (b.family !== 'radar') throw new Error(`Unknown boat-arch family '${b.family}'`);
   const { width: W } = row.dims, H = b.height, x = W / 2, f = b.foot, r = b.radius;
   const lathes = [], sweeps = [], extrudes = [];
@@ -191,6 +200,7 @@ function buildJet(row, C, opts = {}) {
 // roof, a gun ring aft on it (its `roofGun` point)
 function buildPilothouse(row, C, opts = {}) {
   const b = row.build;
+  if (b.family === 'bridge') return buildBridge(row, C, opts);
   if (b.family !== 'pilothouse') throw new Error(`Unknown boat-cabin family '${b.family}'`);
   const { width: W, length: D } = row.dims, H = b.height, sh = b.shoulder * H, lean = b.lean, rake = b.rake;
   const sec = (k) => { const h = H * k, w = W / 2, s2 = Math.min(sh, h * 0.9), top = w - lean * Math.min(1, (h - s2) / Math.max(0.01, H - sh)); return [[w, 0, 0], [w, 0, s2], [top, 0, h], [-top, 0, h], [-w, 0, s2], [-w, 0, 0]]; };
@@ -312,6 +322,115 @@ function buildShaft(row, C, opts = {}) {
     { name: 'rudder', control: 'yaw', kind: 'hinge', at: [0, round3(ry), 0], dir: [0, 0, 1], range: [-b.steer, b.steer], angle: round3(steer / DEG) || 0 },
   ];
   return { lathes, extrudes, lofts, hardpoints: { mount: [0, 0, 0], prop: r3v(hub) }, joints };
+}
+
+// a stabilised naval autocannon on its pedestal: its drum and turntable (it trains: `pose.train`), its gun house on the
+// cradle (it elevates: `pose.elevate`), the long barrel with its recoil sleeve and muzzle brake, the ammunition box on its
+// left, the sight's head on its right; modelled, never fired. Points: `mount`, `muzzle`
+function buildCannon(row, C, opts = {}) {
+  const b = row.build, pose = opts.pose || {}, k = b.scale ?? 1;
+  const yaw = ((b.bearing ?? 0) + clamp(pose.train, -1, 1) * 180) * DEG, pitch = clamp(pose.elevate, -1, 1) * (b.elevation ?? 40) * DEG;
+  const Zt = b.pedestal, PIN = [0, 0, Zt + 0.42 * k];
+  const rz = (v) => [v[0] * Math.cos(yaw) - v[1] * Math.sin(yaw), v[0] * Math.sin(yaw) + v[1] * Math.cos(yaw), v[2]];
+  const rx = (v) => [v[0], v[1] * Math.cos(pitch) - v[2] * Math.sin(pitch), v[1] * Math.sin(pitch) + v[2] * Math.cos(pitch)];
+  const FR = { base: { P: (p) => p, D: (v) => v }, turn: { P: rz, D: rz }, gun: { P: (p) => rz(add(PIN, rx([p[0] - PIN[0], p[1] - PIN[1], p[2] - PIN[2]]))), D: (v) => rz(rx(v)) } };
+  const out = { lathes: [], extrudes: [] };
+  const L_ = (f, id, a, z, pairs, tint, extra) => out.lathes.push(lathe(id, FR[f].P(a), FR[f].P(z), pairs, tint, extra));
+  const box = (f, id, c, l, w, h, tint, extra) => { const A = FR[f].P([c[0], c[1] + l / 2, c[2]]), Z = FR[f].P([c[0], c[1] - l / 2, c[2]]); out.extrudes.push(extrudeWorld(id, A, Z, ccw(A, Z, rect([1, 0, 0], [0, 0, 1], w, h).map(FR[f].D)), tint, extra)); };
+  L_('base', 'drum', [0, 0, -0.01], [0, 0, Zt], [[0, 0.6 * k], [1, 0.55 * k]], C.paint, { samples: 24, crossSections: 2 });
+  L_('turn', 'turntable', [0, 0, Zt - 0.01], [0, 0, Zt + 0.16 * k], [[0, 0.72 * k], [1, 0.68 * k]], tone(C.paint, -0.08), { samples: 24, crossSections: 2 });
+  for (const sx of [1, -1]) box('turn', `trunnion_${sx > 0 ? 'r' : 'l'}`, [sx * 0.42 * k, 0, Zt + 0.3 * k], 0.5 * k, 0.08 * k, 0.32 * k, tone(C.paint, -0.08));
+  // the gun house (chamfered fore and aft), its barrel, sleeve and brake, its ammunition box and its sight's head
+  const hz = PIN[2], hl = 1.1 * k, hw = 0.7 * k, hh = 0.46 * k;
+  const house = [[hw / 2, 0, -hh / 2], [hw / 2, 0, hh / 2 - 0.08 * k], [hw / 2 - 0.08 * k, 0, hh / 2], [-(hw / 2 - 0.08 * k), 0, hh / 2], [-hw / 2, 0, hh / 2 - 0.08 * k], [-hw / 2, 0, -hh / 2]];
+  { const A = FR.gun.P([0, hl * 0.42, hz]), Z = FR.gun.P([0, -hl * 0.58, hz]); out.extrudes.push(extrudeWorld('gun_house', A, Z, ccw(A, Z, house.map(FR.gun.D)), C.paint)); }
+  L_('gun', 'recoil_sleeve', [0, hl * 0.4, hz + 0.02 * k], [0, hl * 0.4 + 0.55 * k, hz + 0.02 * k], [[0, 0.11 * k], [1, 0.09 * k]], tone(C.paint, -0.1), { samples: 14, crossSections: 2 });
+  L_('gun', 'barrel', [0, hl * 0.4 + 0.5 * k, hz + 0.02 * k], [0, hl * 0.4 + b.barrel, hz + 0.02 * k], [[0, 0.055 * k], [1, 0.045 * k]], GUNMETAL, { samples: 12, crossSections: 2 });
+  L_('gun', 'muzzle_brake', [0, hl * 0.4 + b.barrel - 0.02, hz + 0.02 * k], [0, hl * 0.4 + b.barrel + 0.2 * k, hz + 0.02 * k], [[0, 0.08 * k], [0.5, 0.085 * k], [1, 0.07 * k]], GUNMETAL, { samples: 12, crossSections: 3 });
+  box('gun', 'ammo_box', [-(hw / 2 + 0.16 * k), -0.1 * k, hz - 0.04 * k], 0.7 * k, 0.32 * k, 0.4 * k, tone(C.paint, -0.05));
+  box('gun', 'sight_head', [hw / 2 + 0.13 * k, 0.1 * k, hz + 0.26 * k], 0.34 * k, 0.24 * k, 0.26 * k, tone(C.paint, -0.15));
+  L_('gun', 'sight_lens', [hw / 2 + 0.13 * k, 0.27 * k, hz + 0.26 * k], [hw / 2 + 0.13 * k, 0.3 * k, hz + 0.26 * k], [[0, 0.08 * k], [1, 0.08 * k]], C.glass, { material: 'glass', samples: 14, crossSections: 2 });
+  const joints = [
+    { name: 'train', control: 'train', kind: 'hinge', at: [0, 0, Zt], dir: [0, 0, 1], range: [-180, 180], angle: round3((yaw / DEG) - (b.bearing ?? 0)) || 0 },
+    { name: 'elevate', control: 'elevate', kind: 'hinge', at: r3v(FR.turn.P(PIN)), dir: r3v(FR.turn.D([1, 0, 0])), range: [-(b.elevation ?? 40), b.elevation ?? 40], angle: round3(pitch / DEG) || 0 },
+  ];
+  return { ...out, hardpoints: { mount: [0, 0, 0], muzzle: r3v(FR.gun.P([0, hl * 0.4 + b.barrel + 0.2 * k, hz + 0.02 * k])) }, joints };
+}
+
+// a patrol boat's superstructure: its deckhouse on the deck (faceted, its doors and portholes), the bridge on it (raked
+// to a band of windows round its front and sides), the bridge's wings out to the beam (a heavy gun's point on each, its
+// rails, its sidelights), the tripod mast on the bridge's roof (its platform, its yard, the radar's array on its
+// pedestal and the dome on its bracket, the masthead light, the whips from its yard's ends). Points: `mount`, `wingR`,
+// `wingL`, `roof`
+function buildBridge(row, C, opts = {}) {
+  const b = row.build, { width: W, length: D } = row.dims, Hd = b.house, Hb = b.bridge.height, Lb = b.bridge.length, Wb = b.bridge.width;
+  const lofts = [], extrudes = [], lathes = [], sweeps = [];
+  const covert = opts.lights === 'covert', lit = (tint) => (covert ? [C.rubber, {}] : [tint, { material: 'neon' }]);
+  // (a faceted section: upright to its shoulder, leaning in above it; at z0, `h` high, `w` wide)
+  const sec = (w, h, z0, lean, sh) => [[w / 2, 0, z0], [w / 2, 0, z0 + sh], [w / 2 - lean, 0, z0 + h], [-(w / 2 - lean), 0, z0 + h], [-w / 2, 0, z0 + sh], [-w / 2, 0, z0]];
+  lofts.push(loftWorld('deckhouse', [0, -D / 2, 0], [0, D / 2, 0], [0, 1].map((t) => ({ t, points: sec(W, Hd, 0, 0.12, Hd * 0.75) })), C.paint));
+  // the bridge on it, at its front, raked from its brow to its sill
+  const yB0 = D / 2 - Lb, yB1 = D / 2 + 0.2, rk = b.bridge.rake;
+  const bsec = (k) => sec(Wb, Hb * k, Hd - 0.02, 0.35, Hb * 0.25);
+  lofts.push(loftWorld('bridge', [0, yB0, 0], [0, yB1, 0], [[0, 1], [1 - rk / (yB1 - yB0), 1], [1, 0.3]].map(([t, k]) => ({ t, points: bsec(k) })), C.paint));
+  // its windows: a band of panes on the raked front, three on each leaning side
+  const zs = Hd - 0.02 + Hb * 0.3, ze = Hd - 0.02 + Hb, yf = yB1 - rk, slope = unitV([0, yB1 - yf, zs - ze]), nrm = unitV([0, -slope[2], slope[1]].map((v) => v * (slope[1] > 0 ? -1 : 1)));
+  const up = nrm[2] < 0 ? nrm.map((v) => -v) : nrm, mid = [0, (yf + yB1) / 2, (ze + zs) / 2], span = Math.hypot(yB1 - yf, ze - zs);
+  for (let i = 0; i < 5; i += 1) {
+    const x = (i - 2) * (Wb - 0.9) / 5, c = add(mid, [x, 0, 0]), A = add(c, up.map((v) => -v * 0.01)), Z = add(c, up.map((v) => v * 0.02));
+    extrudes.push(extrudeWorld(`window_front_${i}`, A, Z, ccw(A, Z, rect([1, 0, 0], slope, (Wb - 0.9) / 5 - 0.08, span * 0.62)), C.glass, { material: 'glass' }));
+  }
+  for (const sx of [1, -1]) for (let i = 0; i < 3; i += 1) {
+    const y = yB0 + 0.5 + i * (yf - yB0 - 0.6) / 3, x = sx * (Wb / 2 - 0.2), z = Hd - 0.02 + Hb * 0.62;
+    extrudes.push(extrudeWorld(`window_side_${sx > 0 ? 'r' : 'l'}${i}`, [x - sx * 0.04, y, z], [x + sx * 0.03, y, z], ccw([x - sx * 0.04, y, z], [x + sx * 0.03, y, z], rect([0, 1, 0], [0, 0, 1], (yf - yB0 - 0.6) / 3 - 0.12, Hb * 0.38)), C.glass, { material: 'glass' }));
+  }
+  // the deckhouse's doors and portholes
+  for (const sx of [1, -1]) {
+    extrudes.push(extrudeWorld(`door_${sx > 0 ? 'r' : 'l'}`, [sx * (W / 2 - 0.005), -D * 0.1, Hd * 0.42], [sx * (W / 2 + 0.015), -D * 0.1, Hd * 0.42], ccw([sx * (W / 2 - 0.005), -D * 0.1, Hd * 0.42], [sx * (W / 2 + 0.015), -D * 0.1, Hd * 0.42], rect([0, 1, 0], [0, 0, 1], 0.8, Hd * 0.75)), tone(C.paint, -0.1)));
+    for (let i = 0; i < 4; i += 1) { const y = -D * 0.42 + i * D * 0.13 + (i > 1 ? D * 0.18 : 0); lathes.push(lathe(`port_${sx > 0 ? 'r' : 'l'}${i}`, [sx * (W / 2 - 0.01), y, Hd * 0.58], [sx * (W / 2 + 0.02), y, Hd * 0.58], [[0, 0.17], [0.4, 0.17], [0.5, 0.13], [1, 0.13]], C.glass, { material: 'glass', samples: 14, crossSections: 3 })); }
+  }
+  // the bridge's wings out to the beam, their rails, a sidelight at each end
+  const wing = b.wing, wy = yB0 + 0.6, wz = Hd - 0.02;
+  const hardpoints = { mount: [0, 0, 0], roof: r3v([0, (yB0 + yf) / 2, Hd - 0.02 + Hb]) };
+  for (const sx of [1, -1]) {
+    const x0 = sx * (Wb / 2 - 0.1), x1 = sx * wing.reach;
+    extrudes.push(extrudeWorld(`wing_${sx > 0 ? 'r' : 'l'}`, [x0, wy, wz], [x1, wy, wz], ccw([x0, wy, wz], [x1, wy, wz], [[0, 0.75, -0.06], [0, 0.75, 0.06], [0, -0.75, 0.06], [0, -0.75, -0.06]]), C.paint));
+    sweeps.push(sweep(`wing_rail_${sx > 0 ? 'r' : 'l'}`, [[x0, wy + 0.72, wz + 0.06], [x1 - sx * 0.05, wy + 0.72, wz + 1.0], [x1 - sx * 0.05, wy - 0.72, wz + 1.0], [x0, wy - 0.72, wz + 0.06]], 0.025, C.chrome, { sides: 6 }));
+    const L = lit(sx > 0 ? '#2fd36b' : '#e23b3b');
+    lathes.push(lathe(`sidelight_${sx > 0 ? 'r' : 'l'}`, [x1 - sx * 0.08, wy + 0.6, wz + 1.0], [x1 - sx * 0.08, wy + 0.6, wz + 1.12], [[0, 0.06], [1, 0.05]], L[0], { ...L[1], samples: 12, crossSections: 2 }));
+    // (its gun's place near the wing's end, outboard of the bridge's side)
+    hardpoints[sx > 0 ? 'wingR' : 'wingL'] = r3v([x1 - sx * 0.35, wy, wz + 0.06]);
+  }
+  // the tripod mast on the bridge's roof
+  const M = b.mast, rz = Hd - 0.02 + Hb, my = yB0 + Lb * 0.35, apex = [0, my - 0.2, rz + M.height];
+  for (const [k, [fx, fy]] of [[M.spread, my + M.spread * 0.5], [-M.spread, my + M.spread * 0.5], [0, my - M.spread]].entries()) sweeps.push(sweep(`mast_leg_${k}`, [[fx, fy, rz - 0.02], apex], 0.06, C.paint, { sides: 8 }));
+  lathes.push(lathe('mast_platform', add(apex, [0, 0, -0.04]), add(apex, [0, 0, 0.06]), [[0, 0.55], [1, 0.55]], C.paint, { samples: 18, crossSections: 2 }));
+  const yard = add(apex, [0, 0, -M.height * 0.28]);
+  sweeps.push(sweep('yard', [add(yard, [-M.yard / 2, 0, 0]), add(yard, [M.yard / 2, 0, 0])], 0.04, C.paint, { sides: 8 }));
+  lathes.push(lathe('radar_pedestal', add(apex, [0, 0, 0.06]), add(apex, [0, 0, 0.34]), [[0, 0.16], [1, 0.12]], tone(C.paint, -0.1), { samples: 12, crossSections: 2 }));
+  extrudes.push(extrudeWorld('radar_array', add(apex, [-M.array / 2, 0, 0.44]), add(apex, [M.array / 2, 0, 0.44]), ccw(add(apex, [-M.array / 2, 0, 0.44]), add(apex, [M.array / 2, 0, 0.44]), [[0, 0.12, -0.1], [0, 0.12, 0.1], [0, -0.05, 0.12], [0, -0.1, -0.1]]), tone(C.paint, 0.12)));
+  sweeps.push(sweep('dome_bracket', [add(apex, [0.3, 0, 0]), add(apex, [0.75, -0.2, -0.3])], 0.035, C.paint, { sides: 6 }));
+  lathes.push(lathe('dome', add(apex, [0.75, -0.2, -0.3]), add(apex, [0.75, -0.2, 0.05]), [[0, 0.3], [0.55, 0.3], [0.85, 0.22], [1, 0.05]], tone(C.paint, 0.15), { samples: 22, crossSections: 5 }));
+  const Lm = lit('#f4f6f8');
+  lathes.push(lathe('masthead_light', add(apex, [-0.35, 0, 0.06]), add(apex, [-0.35, 0, 0.18]), [[0, 0.05], [0.5, 0.055], [1, 0.03]], Lm[0], { ...Lm[1], samples: 12, crossSections: 3 }));
+  for (const sx of [1, -1]) { const e = add(yard, [sx * M.yard / 2, 0, 0]); sweeps.push(sweep(`whip_${sx > 0 ? 'r' : 'l'}`, [e, add(e, [sx * 0.05, -0.08, 1.4]), add(e, [sx * 0.12, -0.25, 2.8])], 0.008, C.rubber, { sides: 6 })); }
+  return { lofts, extrudes, lathes, sweeps, hardpoints };
+}
+
+// a davit: its post, its slewing head, its jib out along +x, the fall and its hook; a layout's `yaw` swings it
+function buildDavit(row, C) {
+  const b = row.build, H = b.height, J = b.reach;
+  const lathes = [
+    lathe('davit_foot', [0, 0, -0.01], [0, 0, 0.05], [[0, 0.3], [1, 0.25]], C.paint, { samples: 16, crossSections: 2 }),
+    lathe('davit_post', [0, 0, 0.05], [0, 0, H], [[0, 0.16], [1, 0.12]], C.paint, { samples: 14, crossSections: 2 }),
+    lathe('davit_head', [0, 0, H - 0.05], [0, 0, H + 0.2], [[0, 0.2], [1, 0.18]], tone(C.paint, -0.1), { samples: 14, crossSections: 2 }),
+    lathe('hook', [J, 0, H - b.drop - 0.15], [J, 0, H - b.drop], [[0, 0.02], [0.5, 0.06], [1, 0.05]], C.chrome, { samples: 10, crossSections: 3 }),
+  ];
+  const sweeps = [
+    sweep('jib', [[0, 0, H + 0.1], [J * 0.55, 0, H + 0.35], [J, 0, H + 0.2]], 0.09, C.paint, { sides: 10 }),
+    sweep('fall', [[J, 0, H + 0.12], [J, 0, H - b.drop]], 0.012, C.rubber, { sides: 6 }),
+  ];
+  return { lathes, sweeps, hardpoints: { mount: [0, 0, 0], hook: r3v([J, 0, H - b.drop - 0.15]) } };
 }
 
 export const MIL_BUILDERS = {

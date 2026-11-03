@@ -394,6 +394,28 @@ function buildHull(row, C, opts = {}) {
     const Lc = lit(NAVC.c);
     if (F.navLights.pole !== false) lathes.push(lathe('all_round_light', [x, sa.y, zp + 0.95], [x, sa.y, zp + 1.01], [[0, 0.02], [0.5, 0.022], [1, 0.012]], Lc.tint, { ...Lc.extra, samples: 12, crossSections: 3 }));
   }
+  // (the weather deck's height at a station: a deck forward of its `from`, an aft deck aft of its `to`, else the gunwale)
+  const deckTopAt = (st) => (b.deck && st.s >= b.deck.from ? st.sheer - b.deck.thickness : b.aftDeck && st.s < b.aftDeck.to ? b.aftDeck.z : top(st));
+  // guard rails along both sides of a weather deck: stanchions every `step`, two lifelines through them
+  if (F.rails) {
+    const R = F.rails, S = [];
+    for (let s = R.from; s <= R.to + 1e-9; s += R.step) S.push(s);
+    const inset = (st) => Math.max(st.sheerHalf - (g || 0.03) - 0.06, 0.05);
+    for (const sx of [1, -1]) {
+      for (const [k, s] of S.entries()) {
+        const st = H.at(s), x = sx * inset(st), z = deckTopAt(st);
+        lathes.push(lathe(`rail_stanchion_${sx > 0 ? 'r' : 'l'}${k}`, [x, st.y, z - 0.01], [x, st.y, z + R.height], [[0, 0.03], [0.04, 0.02], [1, 0.02]], C.chrome, { samples: 8, crossSections: 3 }));
+      }
+      for (const [j, f] of [1, 0.5].entries()) sweeps.push(sweep(`lifeline_${sx > 0 ? 'r' : 'l'}${j}`, S.map((s) => { const st = H.at(s); return [sx * inset(st), st.y, deckTopAt(st) + R.height * f]; }), j ? 0.008 : 0.012, C.chrome, { sides: 6 }));
+    }
+  }
+  // life-raft canisters on their cradles on the deck: `[s, x]` each
+  for (const [k, [s, x]] of (F.rafts || []).entries()) {
+    const st = H.at(s), z = deckTopAt(st);
+    extrudes.push(boxY(`raft_cradle_${k}`, [x, st.y, z + 0.12], 1.1, 0.5, 0.24, C.chrome));
+    lathes.push(lathe(`raft_${k}`, [x, st.y + 0.62, z + 0.42], [x, st.y - 0.62, z + 0.42], [[0, 0.2], [0.06, 0.3], [0.94, 0.3], [1, 0.2]], '#ecebe6', { samples: 18, crossSections: 5 }));
+    for (const f of [-0.3, 0.3]) lathes.push(lathe(`raft_band_${k}_${f > 0 ? 'f' : 'a'}`, [x, st.y + f - 0.02, z + 0.42], [x, st.y + f + 0.02, z + 0.42], [[0, 0.305], [1, 0.305]], C.rubber, { samples: 18, crossSections: 2 }));
+  }
   // rod holders flush in the gunwale's top, raked aft and outboard
   for (const [k, s] of (F.rodHolders || []).entries()) for (const sx of [1, -1]) {
     const st = H.at(s), x = sx * (st.sheerHalf - (b.cap ? Math.min(b.cap, st.sheerHalf * 0.45) / 2 : g)), z = top(st);

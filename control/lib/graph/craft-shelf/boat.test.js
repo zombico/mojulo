@@ -10,7 +10,8 @@
 // seats off the centreline. A military boat: twin outboards mirrored and counter-rotating, its guns on their points and
 // trained, never fired, its radar arch, its row in the field's roles. A riverine patrol boat: its waterjets paired, its
 // pilothouse and its roof's gun, its tubs open aft. A landing craft: its open bow and its ramp, its aft deck and its
-// shafts, the field's vehicles its well deck carries. In the military surface: a look card any boat wears,
+// shafts, the field's vehicles its well deck carries. A navy patrol boat: its flush deck, its bridge and wing guns, its
+// naval gun, its sea boat and davit, its stock livery. In the military surface: a look card any boat wears,
 // its number or registration on its bows, its wear. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
@@ -21,6 +22,7 @@ import { lookCard } from './drone-looks.js';
 import { CRAFT_PALETTES } from './craft-common.js';
 import { hullLines, hullSection, hullVolume, hullFloat, curveAt } from './boat-parts.js';
 import { lowerObjectFaces } from '../worlds/workbench.js';
+import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
 import { resolveVehicle, handlesOf, VEHICLES } from '../vehicle-registry/roster.js';
 const VEHICLES_ROWS = () => VEHICLES;
 import { buildOf } from '../vehicle-registry/builds.js';
@@ -482,6 +484,63 @@ describe('a landing craft', () => {
     expect(wellDeck(BOAT)).toBeNull();
     const hit = Object.entries(VEHICLES).find(([, r]) => r.handles.craft?.includes(LB));
     expect(hit[1].role).toBe('transport');
+  });
+});
+
+describe('a navy patrol boat', () => {
+  // (a boat with a bridge on it: a superstructure whose wings carry guns)
+  const NB = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.build?.family === 'bridge'));
+  const { manifest, readout } = assembleCraft(NB), item = (id) => manifest.items.find((i) => i.id === id), hull = manifest.items[0], HR = CRAFT_ODM[hull.source.garage.sku], H = hullLines(HR);
+  const lay = (pred) => A[NB].layout.filter((e) => pred(CRAFT_ODM[e.sku])), PLACED = resolveAssemblerPlacements(manifest);
+  const worldPts = (it) => lowerObjectFaces(it.source).flatMap((f) => f.corners).map((c) => [it.at[0] + ((it.flip || '').includes('x') ? -c[0] : c[0]), it.at[1] + c[1], it.at[2] + c[2]]);
+  it('decked the whole length: its weather deck flush from its stern to its bow', () => {
+    const liner = hull.source.lofts.find((l) => l.id === 'liner'), at = (s) => liner.stations.reduce((a, x) => (Math.abs(x.t - s) < Math.abs(a.t - s) ? x : a));
+    const lowest = (st) => Math.min(...st.profile.slice(st.profile.length / 2).map(([, v]) => v));
+    expect(lowest(at(0.03))).toBeCloseTo(HR.build.aftDeck.z, 1);
+    for (const s of [0.3, 0.6]) expect(lowest(at(s))).toBeCloseTo(H.at(s).sheer - HR.build.deck.thickness, 1);
+    const R = HR.build.fittings.rails, st = hull.source.lathes.filter((l) => /^rail_stanchion_r/.test(l.id));
+    expect(st.length).toBe(Math.floor((R.to - R.from) / R.step + 1e-9) + 1);
+    expect(hull.source.lathes.filter((l) => /^raft_\d/.test(l.id)).length).toBe(HR.build.fittings.rafts.length);
+  });
+  it('its bridge on the deck, its wings out past it to the beam, their guns trained outboard', () => {
+    const br = item(lay((r) => r.build.family === 'bridge')[0].id), BR = CRAFT_ODM[br.source.garage.sku];
+    const s = (br.at[1] - hull.at[1] + H.L / 2) / H.L;
+    expect(br.at[2] - hull.at[2]).toBeCloseTo(H.at(s).sheer - HR.build.deck.thickness, 1);
+    for (const e of A[NB].layout.filter((x) => /^bridge\.wing/.test(x.at ?? ''))) {
+      const g = item(e.id), sx = Math.sign(g.at[0]);
+      expect(Math.abs(g.at[0])).toBeGreaterThan(BR.build.bridge.width / 2);
+      expect(Math.abs(g.at[0])).toBeLessThan(H.at(s).sheerHalf);
+      // (its barrel reaching outboard of its post, as placed)
+      const b = PLACED[manifest.items.indexOf(g)].bounds, reach = sx > 0 ? b.max[0] - g.at[0] : g.at[0] - b.min[0], back = sx > 0 ? g.at[0] - b.min[0] : b.max[0] - g.at[0];
+      expect(reach).toBeGreaterThan(back + 0.3);
+    }
+  });
+  it('its naval gun on the foredeck trained ahead, modelled with its joints, never fired', () => {
+    const e = lay((r) => r.build.family === 'cannon')[0], g = item(e.id);
+    expect(g.at[1] - hull.at[1]).toBeGreaterThan(H.L * 0.2);
+    expect(g.source.garage.hardpoints.muzzle[1]).toBeGreaterThan(CRAFT_ODM[e.sku].build.barrel);
+    expect(g.source.garage.joints.map((j) => j.control)).toEqual(['train', 'elevate']);
+    const t = resolveCraftPart(e.sku, { seat: 'mount', pose: { train: 0.5 } });
+    expect(t.garage.hardpoints.muzzle[0]).toBeLessThan(-CRAFT_ODM[e.sku].build.barrel * 0.9);
+  });
+  it('its sea boat on its after deck, its outboard on its transom, the davit\'s hook over it; its weight in the ship\'s', () => {
+    const sb = A[NB].layout.find((e) => e !== A[NB].layout[0] && CRAFT_ODM[e.sku].kind === 'boat-hull'), boat = item(sb.id);
+    const s = (boat.at[1] - hull.at[1] + H.L / 2) / H.L;
+    expect(boat.at[2] - hull.at[2]).toBeCloseTo(H.at(s).sheer - HR.build.deck.thickness, 1);
+    expect(A[NB].layout.some((e) => e.at === `${sb.id}.motor`)).toBe(true);
+    const dv = item(lay((r) => r.build.family === 'davit')[0].id), hook = dv.source.garage.hardpoints.hook;
+    const hx = dv.at[0] + Math.cos(Math.PI) * hook[0], bp = worldPts(boat), bx = bp.map((p) => p[0]), by = bp.map((p) => p[1]);
+    expect(hx).toBeGreaterThan(Math.min(...bx));
+    expect(hx).toBeLessThan(Math.max(...bx));
+    expect(dv.at[1]).toBeGreaterThan(Math.min(...by));
+    expect(dv.at[1]).toBeLessThan(Math.max(...by));
+    expect(readout.afloat.displacement).toBe(readout.partsMass + A[NB].payload);
+  });
+  it('its stock livery: its number on its bows in the form render with nothing asked; on the roster in the field\'s patrol role', () => {
+    const m = craftForm(NB, { pose: {} }).items.flatMap((i) => i.faces).filter((f) => f.fitting === 'mark');
+    expect(m.length).toBeGreaterThan(0);
+    const hit = Object.entries(VEHICLES).find(([, r]) => r.handles.craft?.includes(NB));
+    expect(hit[1].role).toBe('patrol');
   });
 });
 

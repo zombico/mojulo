@@ -6,6 +6,7 @@
  * A boat's row also carries:
  *   payload    kilograms aboard beyond its parts (its crew and their gear): what it floats with (assembleCraft's
  *              readout `afloat`: the waterline its weight sets)
+ *   livery     its stock livery in the form render (craft-form.js), when no livery or look is asked for
  *   reference  its class's figures: length overall with its drive down, beam (`span`), height from its drive's skeg to the
  *              top of its cowl, `mtow` its loaded mass (its parts and its payload), `draft` the waterline's height above
  *              the keel loaded
@@ -145,6 +146,28 @@ export const BOAT_ARCHETYPES = {
       { id: 'gunRoof', sku: 'mount-mg-ring', at: 'pilothouse.roofGun' },
       { id: 'gunAftR', sku: 'mount-mg-tub', at: 'hull.gunAftR' },
       { id: 'gunAftL', sku: 'mount-mg-tub', at: 'hull.gunAftL' },
+    ],
+  },
+  navalPatrol: {
+    // (its stock look the naval card's slots; its stock livery its number on its bows and its emblem amidships)
+    realm: 'water', role: 'patrol', palette: 'navalHaze', look: 'naval', livery: { pattern: 'mono', marks: { style: 'military', emblem: 'bar', number: '512' } }, class: 'navy patrol boat', label: '25 m navy patrol boat', classOf: '25 m coastal patrol boat class (twin waterjets, its guns modelled, never fired)',
+    // (its crew, its stores and its fuel)
+    payload: 9400,
+    // (its span across its wing guns, trained outboard over the side)
+    reference: { span: 6.4, length: 26.4, height: 12.4, mtow: 83500, draft: 1.33 },
+    bom: { 'boat-hull': 2, 'boat-jet': 2, 'boat-cabin': 1, 'boat-mount': 3, 'boat-arch': 1, 'boat-outboard': 1 },
+    layout: [
+      { id: 'hull', sku: 'hull-patrol-25' },
+      { id: 'jet', sku: 'jet-waterjet-650', at: 'hull.jetPair', pair: true },
+      { id: 'bridge', sku: 'bridge-patrol-25', at: 'hull.bridge' },
+      { id: 'cannon', sku: 'mount-cannon-30', at: 'hull.cannon' },
+      // (trained outboard: a layout's yaw + turns a part to port)
+      { id: 'gunWingR', sku: 'mount-mg-ring', at: 'bridge.wingR', yaw: -90 },
+      { id: 'gunWingL', sku: 'mount-mg-ring', at: 'bridge.wingL', yaw: 90 },
+      // (its sea boat: the RIB tender, its hull and its outboard, on chocks on the after deck; the davit to lift it)
+      { id: 'seaBoat', sku: 'hull-rib-31', at: 'hull.seaBoat' },
+      { id: 'seaBoatMotor', sku: 'outboard-20-tiller', at: 'seaBoat.motor' },
+      { id: 'davit', sku: 'davit-sea-boat', at: 'hull.davit', yaw: 180 },
     ],
   },
 };

@@ -64,7 +64,8 @@
  * foredeck: from, to, inset from the sheer, height, `ports` along its sides, a `hatch`), its `companionway` (the cabin's
  * door in the deck's aft bulkhead) and a `windscreen` that fits the hull (across the boat at `at`, its wings along the
  * gunwales to `to`, a `walk`-through in its middle); a point may be `[s, x]`, x to starboard; a bench may carry a
- * `cushion`; a point may be `[s, x, 'deck']`, on the deck; `motors: { spacing }` gives twin outboards a `motorPair`
+ * `cushion`; fittings `rails` (guard rails along a weather deck: stanchions every `step`, two lifelines) and `rafts`
+ * (life-raft canisters on their cradles, `[s, x]` each); a point may be `[s, x, 'deck']`, on the deck; `motors: { spacing }` gives twin outboards a `motorPair`
  * point, a layout entry paired across the boat on it (the port motor its mirror, steering with it, its propeller
  * counter-rotating); a `ramp` bow (a square bow left open above its sole, for a `boat-ramp`), an `aftDeck` (`{ to, z }`:
  * the liner raised to a deck over an engine room aft of `to`; a point `[s, x, 'aft']` on it), a well deck's `cargo`
@@ -350,6 +351,39 @@ export const BOAT_ODM = {
       fittings: { cleats: 0.03, transomEyes: 2.2, navLights: { pole: false } },
     },
   },
+  // ===== a 25 m navy patrol boat: a deep V with bow flare, a flush weather deck ===================
+  'hull-patrol-25': {
+    kind: 'boat-hull', realm: 'water', label: '25 m navy patrol boat hull', classOf: '25 m coastal patrol boat class (twin waterjets)',
+    aliases: ['navy patrol hull', 'coastal patrol hull', 'fast patrol hull'],
+    // (its depth amidships, keel to sheer)
+    dims: { length: 25.0, beam: 5.6, depth: 3.0 }, mass: 52000, mount: 'keel',
+    perf: { persons: 18, load: 12000, maxPower: 3400 },
+    build: {
+      family: 'vee', bow: 'stem',
+      lines: {
+        keel: [[0, 0.05], [0.55, 0], [0.78, 0.25], [0.92, 0.95], [1, 2.3]],
+        sheer: [[0, 2.9], [0.5, 3.0], [0.8, 3.3], [1, 3.75]],
+        sheerHalf: [[0, 2.5], [0.4, 2.8], [0.72, 2.55], [0.9, 1.5], [1, 0]],
+        chine: [[0, 0.85], [0.5, 0.9], [0.8, 1.25], [0.93, 1.9], [1, 2.6]],
+        chineHalf: [[0, 2.3], [0.4, 2.5], [0.72, 2.1], [0.9, 1.0], [1, 0]],
+      },
+      // (welded, haze grey inside and out; a flush weather deck the whole length, its stern closed by the aft deck)
+      tint: { liner: 'paint' },
+      skin: 0.03, liner: 0.03, flare: 0.12, stations: { mid: 0.01, bow: 0.006 },
+      transom: { rake: 0, thickness: 0.15 },
+      deck: { from: 0.045, thickness: 0.12 }, aftDeck: { to: 0.05, z: 2.78 },
+      gunwale: 0.07, keelStrip: 0,
+      strakes: { at: [0.35, 0.7], from: 0.12, to: 0.88, radius: 0.03 },
+      jets: { spacing: 1.8, z: 0.55 },
+      points: { bridge: [0.52, 0, 'deck'], cannon: [0.8, 0, 'deck'], seaBoat: [0.13, 0, 'deck'], davit: [0.13, 2.05, 'deck'] },
+      fittings: {
+        cleats: 0.03, transomEyes: 2.0,
+        rails: { from: 0.05, to: 0.84, step: 0.035, height: 1.0 },
+        bowRail: { from: 0.85, to: 0.97, posts: 3, height: 1.0 },
+        rafts: [[0.29, 1.65], [0.29, -1.65], [0.335, 1.65], [0.335, -1.65]],
+      },
+    },
+  },
   // ===== a 20 hp tiller outboard, short shaft ==================================================
   'outboard-20-tiller': {
     kind: 'boat-outboard', realm: 'water', label: '20 hp tiller outboard, short shaft', classOf: '20 hp four-stroke tiller outboard class',
@@ -562,6 +596,40 @@ export const BOAT_ODM = {
       family: 'pilothouse', height: 2.3, shoulder: 0.45, lean: 0.26, rake: 0.6, front: 0.72, mast: 1.6,
       ring: { at: 0.28, radius: 0.45, height: 0.12 },
     },
+  },
+  // ===== a large waterjet drive ===============================================================
+  'jet-waterjet-650': {
+    kind: 'boat-jet', realm: 'water', label: 'waterjet drive, 650 mm', classOf: '650 mm waterjet class (its diesel inboard)',
+    aliases: ['large waterjet', 'big jet drive'],
+    dims: { length: 1.4, width: 1.1, height: 1.1 }, mass: 5200, mount: 'transom',
+    perf: { power: 1600 },
+    build: { family: 'jet', bowl: 0.42, length: 1.3, steer: 30 },
+  },
+  // ===== a patrol boat's bridge ===============================================================
+  'bridge-patrol-25': {
+    kind: 'boat-cabin', realm: 'water', label: 'deckhouse and bridge', classOf: '25 m coastal patrol boat class',
+    aliases: ['bridge', 'deckhouse', 'superstructure'],
+    dims: { width: 4.2, length: 8.0, height: 7.6 }, mass: 9000, mount: 'deck',
+    build: {
+      family: 'bridge', house: 2.3,
+      bridge: { length: 4.0, width: 4.0, height: 2.1, rake: 1.0 },
+      wing: { reach: 2.7 },
+      mast: { height: 3.2, spread: 0.9, yard: 2.6, array: 2.4 },
+    },
+  },
+  // ===== a naval autocannon ===================================================================
+  'mount-cannon-30': {
+    kind: 'boat-mount', realm: 'water', label: 'stabilised 30 mm naval gun', classOf: 'generic stabilised naval autocannon class (modelled, never fired)',
+    aliases: ['naval gun', 'deck gun', 'naval autocannon', 'gun mount'],
+    dims: { width: 1.5, length: 3.8, height: 1.4 }, mass: 1800, mount: 'deck',
+    build: { family: 'cannon', pedestal: 0.5, barrel: 2.6, elevation: 45 },
+  },
+  // ===== a davit ==============================================================================
+  'davit-sea-boat': {
+    kind: 'boat-arch', realm: 'water', label: 'sea boat davit', classOf: 'boat davit class',
+    aliases: ['davit', 'boat crane', 'deck crane'],
+    dims: { width: 2.1, length: 0.6, height: 2.8 }, mass: 600, mount: 'deck',
+    build: { family: 'davit', height: 2.4, reach: 1.95, drop: 1.0 },
   },
   // ===== a cooler seat ========================================================================
   'seat-cooler-120': {
