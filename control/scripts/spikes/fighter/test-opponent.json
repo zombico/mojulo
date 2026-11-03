@@ -36,6 +36,8 @@
     "guardHitHigh": true,
     "guardHitBody": true,
     "guardHitLow": true,
-    "guardStagger": true
+    "guardStagger": true,
+    "block": true,
+    "blockBody": true
   }
 }

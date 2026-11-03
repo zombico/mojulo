@@ -40,6 +40,8 @@ node control/scripts/spikes/fighter/bout.mjs --a /tmp/fighter/bare.glb --b /tmp/
 node control/scripts/spikes/fighter/bout-shot.mjs --out /tmp/bout --views side,close --at '[-0.06,0,0.05,0.2]'
 ```
 
-What it reads today: every punch connects (jab and cross on his raised gloves at 1.3 m, the hook and the uppercut on his
-gloves closer in, the body hook on his chest); no reaction yet tells a blocked punch from a clean one, and nothing keeps
-the two bodies apart (folding over the body hook, his head goes into the attacker's shoulder).
+A punch that lands on his glove or forearm plays his `block`, one on his body his hit (`guardHitBody`). He gives a
+knockback on contact, and the pushbox (`lib/graph/polygonizer/hero-pushbox.js`: capsules on each skeleton, the forearms
+and the gloves left out) pushes him back as far again as keeps the two bodies apart, never letting him back in;
+`bout-shot.mjs --push off` shoots the knockback alone. What it reads today: every head punch blocked on his gloves,
+the body hook clean on his chest; the uppercut's bodies would pass 4 cm into each other, the body hook's 2 cm.

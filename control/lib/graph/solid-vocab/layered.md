@@ -814,7 +814,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   fastest and carried through, the guarding arm kept out of the trunk), the showcase poses (`fistToSky`, `crossedArms`, …) and the REACTIONS, the versus fighter's own on any
   hero (`hitHigh`, `hitBody`, `hitLow`, `stagger`: struck fast, given back slowly, the feet planted, home on the stand;
   `guardHitHigh`, `guardHitBody`, `guardHitLow`, `guardStagger` the same blows taken out of the `guard` and back to it,
-  the arms kept out of the trunk);
+  the arms kept out of the trunk; `block` and `blockBody` a punch taken on the guard, the gloves driven back toward the
+  face or the elbows dropped onto the ribs);
   the rest `knockedOut` is the topple (`knockedOutDown`) and the rise (`knockedOutUp`). A cast's member is made with its
   move set (moveSetOf). Absent, the hero and every export are as before.
   Patch `/hero/motion` (set it to an object first), then `/hero/motion/<gait or jump>`.

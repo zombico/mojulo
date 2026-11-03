@@ -33,6 +33,16 @@ Every hero naming none of the new words is the hero it was. The eyes gate is the
 - **Blows taken in the guard** (`hero-react.js`): `guardHitHigh`, `guardHitBody`, `guardHitLow`, `guardStagger`, the same
   blows out of the `guard` stance's held pose and back to it (its feet, its sink, its fists), the blow's shoulders whole;
   the plain words start and end on the relaxed stand, so a fighter dropped its hands before the punch landed.
+- **Blocks** (`hero-react.js`): `block` (the high guard absorbing a punch: the gloves driven back toward the face, the
+  chin tucked, the body rocked back, the knees giving) and `blockBody` (the elbows dropped onto the ribs, the trunk
+  curled over them), each a change over the hero's own guard and home to it, as the fight's block is; with the guard's
+  blows, their laws `solid`, `planted`, `ends`. A bout plays a block where a punch lands on a glove or a forearm.
+- **Two bodies kept apart** (`polygonizer/hero-pushbox.js`, a fighting game's pushbox in the round): each fighter's body
+  as capsules on its skeleton (the trunk, the head, the thighs, the shins, the upper arms; never the forearms and the
+  gloves, which are meant to meet), each radius read off its own skin, and the least one must be pushed back along the
+  line so none passes into the other's. No imports, so a page or an engine's runtime loads it as it is. The bout gives
+  the defender a knockback on contact (less on a block) and the pushbox's push on top, never coming back in (folding
+  over the body hook, his head had gone into the attacker's shoulder).
 - **The body kept solid under its arms** (`polygonizer/hero-solid.js`): a clip's arm is never let deeper into the trunk
   than the stance it starts from holds it; past that, its shoulder is turned the least that brings it back, frame by
   frame (curved on their own, a shoulder's angles took a flung arm through the chest: the operator saw it in a bout).
@@ -41,12 +51,14 @@ Every hero naming none of the new words is the hero it was. The eyes gate is the
   can load it.
 - **The bout** (`control/scripts/spikes/fighter/bout.mjs`, `bout-shot.mjs`): two minted fighters' GLBs squared up on one
   page, each punch into the defender's reaction, the defender stepped in until the glove's travel into contact meets
-  his skin; the read says what each punch lands on, the range, the height and the speed. A second fighter's spec:
+  his skin, his block or his hit by what it lands on, the knockback and the pushbox through the exchange (`--push off`
+  to compare); the read says what each punch lands on, the range, the height, the speed, the reaction and how far the
+  bodies would have passed into each other. A second fighter's spec:
   `test-opponent.json`.
 - **The fighter's body rail**: `lowerBody` keeps the `muscular` rail's anime codename under a hero spec that names the
   realistic head (that pair was refused before), and leaves it off the landmark head as before.
 - **Seen, not fixed**: the realistic head's neck on the codename's frame is an ordinary man's (386 mm on Toji; the anime
   head's neck form gives Toji 449 mm); the `guard` stand's lead forearm sinks about 2 cm into Toji's chest (the mint's
   advisory names it); `jab` and `cross` (stored clips, a laws bump away) aim at the attacker's shoulder height and dig
-  the guarding arm up to 6 cm deeper into the trunk than the guard holds it; no reaction tells a blocked punch from a
-  clean one; nothing keeps two fighters' bodies apart.
+  the guarding arm up to 6 cm deeper into the trunk than the guard holds it; the pushbox and the knockback live in the
+  bout page and the module, not yet in a game's runtime (the versus arena keeps its own).

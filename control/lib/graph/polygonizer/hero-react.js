@@ -25,7 +25,7 @@
  * they are; the legs only as the knees' bend past the fight's guard and the drop of the hips (`sink`), since a planted
  * hero stands on its own feet, not the guard's.
  *
- *   REACTS, REACT_NAMES
+ *   REACTS, REACT_NAMES, BLOCK_NAMES (`block`, `blockBody`: a punch taken on the guard, below)
  *   heroReact(name, R, { seconds? }) → { fn, seconds, laws, act }   laws: the ends on the stand, the feet planted; act:
  *                                      the face it acts (hero-face-action.js `react`, anime-face-tracks.js)
  *
@@ -76,12 +76,40 @@ const BLOWS = Object.freeze({
 });
 /** the blows taken in the guard: each its plain blow's keys, laid over the guard's held pose on the rig (heroReact) */
 const IN_GUARD = Object.freeze(Object.fromEntries(Object.entries(BLOWS).map(([n, J]) => [`guard${n[0].toUpperCase()}${n.slice(1)}`, Object.freeze({ ...J, guard: true })])));
-export const REACTS = Object.freeze({ ...BLOWS, ...IN_GUARD });
+/**
+ * THE BLOCKS: a punch taken on the guard, not the body. The guard absorbing it as the fight's block does (versus-react.js
+ * `block`: rocked back into the guard, held, then out), on the hero's own guard: each key a CHANGE over the guard's held
+ * pose (`d`: degrees on its joints, metres on its sink), so the fists, the feet and the guard's shape are the hero's.
+ *   block      the high guard: the gloves driven back toward the face, the chin tucked behind them, the body rocked
+ *              back, the knees giving
+ *   blockBody  the elbows dropped onto the ribs, the trunk curled over them
+ */
+const BLOCKED = Object.freeze({
+  block: { seconds: 0.4, guard: true, block: true, keys: [
+    { t: 0, d: {} },
+    { t: 0.12, d: { hinge: -7, head: { pitch: -8 }, shR: { pitch: -10 }, shL: { pitch: -10 }, elbowR: 8, elbowL: 8, sink: 0.02 } },
+    { t: 0.45, d: { hinge: -5, head: { pitch: -6 }, shR: { pitch: -7 }, shL: { pitch: -7 }, elbowR: 6, elbowL: 6, sink: 0.015 } },
+    { t: 1, d: {} }] },
+  blockBody: { seconds: 0.45, guard: true, block: true, keys: [
+    { t: 0, d: {} },
+    { t: 0.14, d: { hinge: 8, head: { pitch: -6 }, shR: { pitch: -24 }, shL: { pitch: -20 }, elbowR: 12, elbowL: 10, sink: 0.03 } },
+    { t: 0.5, d: { hinge: 6, head: { pitch: -5 }, shR: { pitch: -18 }, shL: { pitch: -15 }, elbowR: 9, elbowL: 8, sink: 0.022 } },
+    { t: 1, d: {} }] },
+});
+export const REACTS = Object.freeze({ ...BLOWS, ...IN_GUARD, ...BLOCKED });
+/** the reactions a punch landing on the guard (a glove, a forearm) plays: the high block, or the body's */
+export const BLOCK_NAMES = Object.freeze(Object.keys(BLOCKED));
 export const REACT_NAMES = Object.freeze(Object.keys(REACTS));
 
 /** a blow's keys laid over the guard's held pose on a rig: the stand's keys the guard's own, an impact's pose over the
  * guard's (a joint the impact moves its, a shoulder whole, the rest the guard's: the fists stay closed), its sink added
  * to the guard's */
+/** a block's changes laid over the guard's held pose on a rig (each joint the guard's plus the change) */
+function overGuard(keys, R) {
+  const st = heroStance('guard', R), { t: _t, pose: G, sink: g0 = 0, ...feet } = st.keys.at(-1), r = (x) => Math.round(x * 1000) / 1000;
+  const plus = (g, d) => (d && typeof d === 'object' ? { ...(g ?? {}), ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k, r((g?.[k] ?? 0) + v)])) } : r((g ?? 0) + d));
+  return keys.map(({ t, d }) => { const { sink = 0, ...joints } = d, pose = { ...G }; for (const [j, v] of Object.entries(joints)) pose[j] = plus(G[j], v); return { t, ...feet, pose, sink: Math.round((g0 + sink) * 1e4) / 1e4 }; });
+}
 function inGuard(keys, R) {
   const st = heroStance('guard', R), { t: _t, pose: G, sink: g0 = 0, ...feet } = st.keys.at(-1);
   return keys.map((k) => {
@@ -97,7 +125,7 @@ function inGuard(keys, R) {
 export function heroReact(name, R, { seconds } = {}) {
   const J = REACTS[name];
   if (!J) throw new Error(`hero-react: no reaction '${name}' (have ${REACT_NAMES.join(', ')})`);
-  const keys = J.guard ? inGuard(J.keys, R) : J.keys;
+  const keys = J.block ? overGuard(J.keys, R) : J.guard ? inGuard(J.keys, R) : J.keys;
   const C0 = keyedClip({ ...J, keys }, R, { seconds });
   // (a blow taken in the guard keeps the body solid under its arms, hero-solid.js: between the guard and the blow each
   // shoulder's angles, curved on their own, took the arm through the chest)

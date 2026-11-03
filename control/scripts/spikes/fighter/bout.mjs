@@ -22,6 +22,8 @@ if (!opt.a || !opt.b) throw new Error('bout: --a and --b name the two fighters\'
 const out = path.resolve(opt.out ?? path.join(os.tmpdir(), 'bout'));
 mkdirSync(out, { recursive: true });
 copyFileSync(opt.a, path.join(out, 'a.glb')); copyFileSync(opt.b, path.join(out, 'b.glb'));
+// (the pushbox the page keeps the two bodies apart by: the library's own module, no imports, served beside the page)
+copyFileSync(path.join(CONTROL, 'lib/graph/polygonizer/hero-pushbox.js'), path.join(out, 'hero-pushbox.js'));
 const V = path.join(CONTROL, 'public/vendor/three');
 for (const f of ['three.core.min.js', 'three.module.min.js', 'addons/loaders/GLTFLoader.js', 'addons/controls/OrbitControls.js', 'addons/utils/BufferGeometryUtils.js', 'addons/utils/SkeletonUtils.js']) {
   mkdirSync(path.dirname(path.join(out, 'vendor/three', f)), { recursive: true }); copyFileSync(path.join(V, f), path.join(out, 'vendor/three', f));
@@ -29,11 +31,11 @@ for (const f of ['three.core.min.js', 'three.module.min.js', 'addons/loaders/GLT
 // the exchanges: a punch the attacker has, into the reaction the defender has for where it is aimed (taken in his guard
 // when he has those, else the plain one)
 const EXCHANGES = [
-  { label: 'jab', attack: 'jab', react: ['guardHitHigh', 'hitHigh'], aim: 'head' },
-  { label: 'cross', attack: 'cross', react: ['guardHitHigh', 'hitHigh'], aim: 'head' },
-  { label: 'lead hook', attack: 'hook', react: ['guardHitHigh', 'hitHigh'], aim: 'head' },
-  { label: 'rear uppercut', attack: 'uppercut', react: ['guardHitHigh', 'hitHigh'], aim: 'head' },
-  { label: 'body hook', attack: 'bodyHook', react: ['guardHitBody', 'hitBody'], aim: 'body' },
+  { label: 'jab', attack: 'jab', react: ['guardHitHigh', 'hitHigh'], block: 'block', aim: 'head' },
+  { label: 'cross', attack: 'cross', react: ['guardHitHigh', 'hitHigh'], block: 'block', aim: 'head' },
+  { label: 'lead hook', attack: 'hook', react: ['guardHitHigh', 'hitHigh'], block: 'block', aim: 'head' },
+  { label: 'rear uppercut', attack: 'uppercut', react: ['guardHitHigh', 'hitHigh'], block: 'block', aim: 'head' },
+  { label: 'body hook', attack: 'bodyHook', react: ['guardHitBody', 'hitBody'], block: 'blockBody', aim: 'body' },
 ];
 const manifest = { fighters: [{ name: opt['a-name'], file: 'a.glb' }, { name: opt['b-name'], file: 'b.glb' }], exchanges: EXCHANGES };
 const importmap = { imports: { three: './vendor/three/three.module.min.js', 'three/addons/': './vendor/three/addons/' } };

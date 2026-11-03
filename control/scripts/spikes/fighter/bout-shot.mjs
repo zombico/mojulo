@@ -6,6 +6,7 @@
 //
 //   --at     moments of each exchange, seconds from its contact (default: before, at, and two after)
 //   --views  the views to shoot each moment in (side, three, behind, over, close)
+//   --push   off: the frames without the pushbox (the knockback alone), to see what it keeps apart
 import { createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire, register } from 'node:module';
@@ -18,7 +19,7 @@ const CONTROL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.
 register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
 const sharp = createRequire(path.join(CONTROL, 'package.json'))('sharp');
 const { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } = await import(pathToFileURL(path.join(CONTROL, 'lib/graph/scene/chromium.js')).href);
-const { values: opt } = parseArgs({ options: { out: { type: 'string' }, at: { type: 'string', default: '[-0.12,0,0.12,0.3]' }, views: { type: 'string', default: 'side' }, cols: { type: 'string', default: '4' }, only: { type: 'string' } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string' }, at: { type: 'string', default: '[-0.12,0,0.12,0.3]' }, views: { type: 'string', default: 'side' }, cols: { type: 'string', default: '4' }, only: { type: 'string' }, push: { type: 'string', default: 'on' } } });
 const out = path.resolve(opt.out ?? path.join(os.tmpdir(), 'bout')), moments = JSON.parse(opt.at), views = opt.views.split(','), cols = Number(opt.cols);
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.glb': 'model/gltf-binary' };
 const server = createServer((rq, rs) => {
@@ -36,7 +37,8 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}/index.html`, { waitUntil: 'load', timeout: 120000 });
   await page.waitForFunction(() => window.bout, { timeout: 120000 }).catch(() => { throw new Error(`bout shot: the page never started: ${logs.join(' | ') || 'no console errors'}`); });
   const ex = await page.evaluate(() => window.bout.exchanges);
-  for (const X of ex) console.log(`${X.label.padEnd(14)} ${X.miss ? 'miss' : `lands on ${X.part.padEnd(14)} range ${(X.range * 100).toFixed(0)} cm  glove ${(X.headUp * 100).toFixed(0)} cm off his head's height  ${X.speed.toFixed(1)} m/s${X.laws === false ? '  (its own checks failed on this body)' : ''}`}`);
+  for (const X of ex) console.log(`${X.label.padEnd(14)} ${X.miss ? 'miss' : `lands on ${X.part.padEnd(14)} range ${(X.range * 100).toFixed(0)} cm  glove ${(X.headUp * 100).toFixed(0)} cm off his head's height  ${X.speed.toFixed(1)} m/s  → ${X.react}${X.blocked ? ' (blocked)' : ''}  bodies ${X.overlapRaw > 0 ? `${(X.overlapRaw * 100).toFixed(0)} cm into each other unpushed, pushed ${(X.pushed * 100).toFixed(0)} cm` : 'never meet'}${X.laws === false ? '  (its own checks failed on this body)' : ''}`}`);
+  if (opt.push === 'off') await page.evaluate(() => window.bout.pushbox(false));
   mkdirSync(path.join(out, 'shots'), { recursive: true });
   const tiles = [], only = opt.only ? opt.only.split(',') : null;
   for (const [i, X] of ex.entries()) {
@@ -44,7 +46,7 @@ try {
     for (const v of views) for (const m of moments) {
       await page.evaluate(({ i, v, m }) => { window.bout.exchange(i); window.bout.view(v); window.bout.seek(window.bout.contact() + m); }, { i, v, m });
       await new Promise((r) => setTimeout(r, 300));
-      const png = await (await page.$('#stage')).screenshot({ type: 'png' }), label = `${X.label} · ${v} · ${m === 0 ? 'contact' : `${m > 0 ? '+' : ''}${m.toFixed(2)} s`}`;
+      const png = await (await page.$('#stage')).screenshot({ type: 'png' }), label = `${X.label} · ${v} · ${m === 0 ? 'contact' : `${m > 0 ? '+' : ''}${m.toFixed(2)} s`}${opt.push === 'off' ? ' · no pushbox' : ''}`;
       writeFileSync(path.join(out, 'shots', `${tiles.length.toString().padStart(2, '0')}-${label.replace(/[^a-z0-9.+-]+/gi, '-')}.png`), png); tiles.push({ png, label });
     }
   }

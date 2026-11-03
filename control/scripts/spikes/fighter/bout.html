@@ -45,6 +45,7 @@
     </div>
     <div class="row" style="margin-top:10px">
       <button id="play" aria-pressed="true">Pause</button>
+      <button id="push" aria-pressed="true">Pushbox on</button>
       <button data-speed="1" aria-pressed="true">1×</button><button data-speed="0.25">¼×</button><button data-speed="0.1">⅒×</button>
       <span id="clock" style="font:12px var(--mono);color:var(--muted)"></span>
     </div>
@@ -61,6 +62,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { capsulesOf, capsuleRadii, overlap, pushApart } from './hero-pushbox.js';
 
 const M = JSON.parse(document.getElementById('manifest').textContent);
 const stage = document.getElementById('stage'), status = document.getElementById('status');
@@ -127,6 +129,24 @@ status.textContent = 'Squaring up…';
 // A faces +x at the origin; B faces −x
 for (const [P, sign] of [[A, 1], [B, -1]]) { const f = forwardOf(P); P.holder.rotation.y = Math.atan2(f.z, f.x) - (sign > 0 ? 0 : Math.PI); P.holder.updateMatrixWorld(true); }
 
+// ─── THE PUSHBOX (hero-pushbox.js): each fighter's body as capsules on its bones (the trunk, the head, the thighs, the
+// shins and the upper arms; the forearms and the gloves left out, meant to meet), each capsule's radius read off its own skin in its stand ─────
+const JOINTS = ['pelvis', 'neck', 'head', 'thighR', 'thighL', 'shankR', 'shankL', 'footR', 'footL', 'upperArmR', 'upperArmL', 'foreArmR', 'foreArmL'];
+const jointsOf = (P) => Object.fromEntries(JOINTS.map((n) => [n, P.bone(n)]).filter(([, b]) => b).map(([n, b]) => [n, at(b).toArray()]));
+const OWNERS = { pelvis: 'trunk', lumbar: 'trunk', torso: 'trunk', neck: 'trunk', head: 'head', jaw: 'head', thighR: 'thighR', hipFoldR: 'thighR', thighL: 'thighL', hipFoldL: 'thighL', shankR: 'shinR', kneeFoldR: 'shinR', shankL: 'shinL', kneeFoldL: 'shinL', upperArmR: 'upperArmR', shoulderFoldR: 'upperArmR', upperArmL: 'upperArmL', shoulderFoldL: 'upperArmL' };
+for (const P of [A, B]) {
+  pose(P, 'gesture', 0);
+  const body = P.meshes.reduce((a, m) => (!a || m.geometry.attributes.position.count > a.geometry.attributes.position.count ? m : a), null);
+  const G = body.geometry, n = G.attributes.position.count, si = G.attributes.skinIndex, sw = G.attributes.skinWeight, pts = [], own = [], v = new THREE.Vector3();
+  for (let i = 0; i < n; i += 3) {
+    let best = 0, bw = -1; for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; best = si.getComponent(i, k); } }
+    const name = body.skeleton.bones[best]?.name.replace(/^body:?/, '');
+    body.getVertexPosition(i, v); v.applyMatrix4(body.matrixWorld); pts.push(v.toArray()); own.push(OWNERS[name] ?? null);
+  }
+  P.radii = capsuleRadii(pts, (i) => own[i], jointsOf(P));
+}
+const capsOf = (P) => capsulesOf(jointsOf(P), P.radii);
+
 /** an exchange solved: the range B must stand at for A's glove to meet him at its contact frame */
 const ray = new THREE.Raycaster();
 function solve(X) {
@@ -154,15 +174,40 @@ function solve(X) {
   return { ...X, hand: S, contact: tc, D, range: pelvisB.x - pelvisA.x, at: p, part: partAt(B, p), speed, dir, aim: X.aim,
     headUp: g.y - head.y, laws: mv.laws ?? null, seconds: A.clips[X.attack].duration, reactSeconds: B.clips[X.react]?.duration ?? 0 };
 }
-const ex = M.exchanges.map((X) => ({ ...X, react: [].concat(X.react).find((r) => B.clips[r]) })).filter((X) => A.clips[X.attack] && X.react).map(solve);
+
 
 // ─── playing an exchange: A from its start; B holds its stand until A's contact, then reacts ─────────────────────
 const lead = 0.35, tail = 0.5;
-const S = { i: 0, t: 0, playing: true, speed: 1, view: 'side' };
+/** THE KNOCKBACK on contact (a fighting game's push), metres B gives over its first `KNOCK_S` seconds: less on a block */
+const KNOCK = { block: 0.05, blockBody: 0.06, guardHitHigh: 0.1, guardHitBody: 0.14, guardHitLow: 0.08, hitHigh: 0.1, hitBody: 0.14 }, KNOCK_S = 0.22;
+/** B's give back along the line through an exchange, sampled at 120 a second: the knockback, then as much more as keeps
+ * the two bodies' capsules apart (pushApart), never coming back in; and, for the read, how deep they would pass into
+ * each other without the pushbox */
+function pushTrack(X) {
+  const L = lead + Math.max(X.seconds, X.contact + X.reactSeconds) + tail, N = Math.ceil(L * 120), off = [], raw = [];
+  let o = 0, deepest = 0;
+  for (let i = 0; i <= N; i++) {
+    const t = (i / N) * L, ta = t - lead;
+    pose(A, ta < 0 ? 'gesture' : X.attack, Math.max(0, ta)); pose(B, X.react, Math.max(0, ta - X.contact));
+    const k = ta < X.contact ? 0 : (KNOCK[X.react] ?? 0.08) * (1 - (1 - Math.min(1, (ta - X.contact) / KNOCK_S)) ** 2);
+    B.holder.position.set(X.D, 0, 0); B.holder.updateMatrixWorld(true);
+    const cA = capsOf(A); deepest = Math.max(deepest, overlap(cA, capsOf(B)));
+    o = Math.max(o, k); B.holder.position.set(X.D + o, 0, 0); B.holder.updateMatrixWorld(true);
+    o += pushApart(cA, capsOf(B), [1, 0, 0]);
+    off.push(o); raw.push(k);
+  }
+  return { track: { L, N, off, raw }, overlapRaw: deepest, pushed: Math.max(...off.map((v, i) => v - raw[i])) };
+}
+const offsetAt = (X, t) => { if (!X.track) return 0; const T = X.track, f = Math.max(0, Math.min(1, t / T.L)) * T.N, i = Math.floor(f), j = Math.min(T.N, i + 1); const arr = S.push ? T.off : T.raw; return arr[i] + (arr[j] - arr[i]) * (f - i); };
+const S = { i: 0, t: 0, playing: true, speed: 1, view: 'side', push: true };
+// (the reaction by what the punch lands on: a glove or a forearm, the guard blocks it; anything else, he is hit)
+const ex = M.exchanges.map((X) => ({ ...X, react: [].concat(X.react).find((r) => B.clips[r]) })).filter((X) => A.clips[X.attack] && X.react).map(solve)
+  .map((X) => { const blk = /glove|forearm/.test(X.part ?? '') ? [].concat(X.block ?? []).find((r) => B.clips[r]) : null; return blk ? { ...X, hit: X.react, react: blk, blocked: true, reactSeconds: B.clips[blk].duration } : X; })
+  .map((X) => ({ ...X, ...(X.miss ? {} : pushTrack(X)) }));
 const lengthOf = (X) => lead + Math.max(X.seconds, X.contact + X.reactSeconds) + tail;
 function place(X) { B.holder.position.set(X.miss ? 2.2 : X.D, 0, 0); B.holder.updateMatrixWorld(true); }
 // (A in its stand for `lead` seconds, then its punch; B in its reaction's first frame, its stand, until A's contact)
-function frame(X, t) { const ta = t - lead; pose(A, ta < 0 ? 'gesture' : X.attack, Math.max(0, ta)); pose(B, X.react, Math.max(0, ta - X.contact)); }
+function frame(X, t) { const ta = t - lead; if (!X.miss) { B.holder.position.set(X.D + offsetAt(X, t), 0, 0); B.holder.updateMatrixWorld(true); } pose(A, ta < 0 ? 'gesture' : X.attack, Math.max(0, ta)); pose(B, X.react, Math.max(0, ta - X.contact)); }
 
 const VIEWS = { side: [0, 1.35, 5.2], three: [2.6, 1.6, 4.2], behind: [-2.4, 1.75, 0.9], over: [3.6, 1.7, -1.4], close: [0.2, 1.55, 2.3] };
 function view(v) {
@@ -180,7 +225,8 @@ function readOf(X) {
     `range: ${cm(X.range)} pelvis to pelvis`,
     `glove at contact: ${f2(X.headUp)} m from his head's height`,
     `glove speed into contact: ${X.speed.toFixed(1)} m/s`,
-    `reaction: ${X.react}, ${X.reactSeconds.toFixed(2)} s from contact`,
+    `reaction: ${X.react}${X.blocked ? ` (blocked: a clean one would have played ${X.hit})` : ''}, ${X.reactSeconds.toFixed(2)} s from contact`,
+    `bodies: ${X.overlapRaw > 0 ? `would pass ${cm(X.overlapRaw)} into each other; the pushbox gives ${cm(X.pushed)} more than the knockback` : 'never meet'}`,
     ...(X.laws === false ? ['the punch\'s own checks did not all hold on this body'] : [])].join('\n');
 }
 function select(i) {
@@ -193,6 +239,8 @@ document.getElementById('list').onclick = (e) => { const b = e.target.closest('b
 const playB = document.getElementById('play'), scrub = document.getElementById('scrub'), clock = document.getElementById('clock');
 playB.onclick = () => { S.playing = !S.playing; playB.textContent = S.playing ? 'Pause' : 'Play'; playB.setAttribute('aria-pressed', S.playing); };
 for (const b of document.querySelectorAll('[data-speed]')) b.onclick = () => { S.speed = +b.dataset.speed; for (const c of document.querySelectorAll('[data-speed]')) c.setAttribute('aria-pressed', c === b); };
+const pushB = document.getElementById('push');
+pushB.onclick = () => { S.push = !S.push; pushB.textContent = S.push ? 'Pushbox on' : 'Pushbox off'; pushB.setAttribute('aria-pressed', S.push); };
 scrub.oninput = () => { S.playing = false; playB.textContent = 'Play'; S.t = (scrub.value / 1000) * lengthOf(ex[S.i]); };
 
 function resize() { const r = stage.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); }
@@ -210,7 +258,8 @@ function tick() {
 select(0); status.textContent = `${M.fighters[0].name} vs ${M.fighters[1].name}`; tick();
 // the page driven from a script (shots): exchange(i | label), seek(seconds after the punch starts | 'contact' ± s), view(name)
 window.bout = {
-  exchanges: ex.map((X) => ({ label: X.label, attack: X.attack, react: X.react, hand: X.hand, contact: X.contact, range: X.range, part: X.part, miss: !!X.miss, headUp: X.headUp, speed: X.speed, laws: X.laws })),
+  exchanges: ex.map((X) => ({ label: X.label, attack: X.attack, react: X.react, blocked: !!X.blocked, hand: X.hand, contact: X.contact, range: X.range, part: X.part, miss: !!X.miss, headUp: X.headUp, speed: X.speed, laws: X.laws, overlapRaw: X.overlapRaw ?? 0, pushed: X.pushed ?? 0 })),
+  pushbox(on) { S.push = !!on; },
   exchange(k) { select(typeof k === 'number' ? k : ex.findIndex((X) => X.label === k || X.attack === k)); },
   seek(s) { S.playing = false; S.t = lead + s; frame(ex[S.i], S.t); },
   contact() { return ex[S.i].contact; },
