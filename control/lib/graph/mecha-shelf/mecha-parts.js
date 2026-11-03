@@ -13,6 +13,7 @@
  * astride or a work seat, a convertible's cabin or a torso frame.
  */
 import { CON_BUILDERS } from '../construction-shelf/con-parts.js';
+import { TOOL_BUILDERS } from './mecha-tools-parts.js';
 import { add, box, cross, extrudeWorld, loftWorld, mul, pod, roundRect, spin, sub, tone, tube, unit } from './mecha-common.js';
 
 const sgn = (side) => (side === 'l' ? -1 : 1);
@@ -514,6 +515,7 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-forearm': forearm,
   'mecha-wrist': wrist,
   'mecha-claw': claw,
+  'mecha-tool': (row, C, ctx) => TOOL_BUILDERS[row.build.family](row, C, ctx),
   'mecha-pack': pack,
   // (a ram is the construction shelf's, its barrel a bare steel grey: the hydraulics read apart from the covers)
   'mecha-ram': (row, C, ctx) => CON_BUILDERS['con-ram'](row, { ...C, paint: tone(C.chrome, -0.42) }, ctx),

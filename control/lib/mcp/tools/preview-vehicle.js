@@ -33,8 +33,9 @@
  *
  * A LEGGED FRAME is an instance too: { mecha: { archetype, pose?, palette?, rider? } }, the mecha shelf's frame
  * (mecha-shelf/), the registry's realistic build of an all-terrain walker; `pose` beside its word stands it (a stance's
- * name, a stance, or its joints' values), `palette` paints it, and `rider` seats the realistic hero in it
- * (mecha-shelf/mecha-figure.js).
+ * name, a stance, or its joints' values), `palette` paints it, `rider` seats the realistic hero in it, and a modular
+ * frame's `task` ('demolition', 'trenching'), `tools` ({ r, l }) and `arms` ({ r: 'long' }) fit its arms
+ * (mecha-shelf/mecha-figure.js, mecha-tools.js).
  *
  * Stored manifest: { kind:'vehicle-instance', vehicle?, type | racer | supercar | loft | cycle | construction | mecha, decoration?, pose?, viewBox?, title? }
  * (`vehicle`: the registry row it was asked as, when it was; the renderer reads the build's own keys).
@@ -149,8 +150,9 @@ export async function previewVehicleInstanceHandler(input) {
     readConSpec(read.instance.construction, 'mint_solid vehicle: construction');
     pose = undefined;
   } else if (read.instance.mecha) {
-    // a legged frame's words beside its word (mecha-shelf/mecha-figure.js): its stance, its palette, its rider seated
-    for (const key of ['pose', 'palette', 'rider']) if (input[key] !== undefined) read.instance.mecha = { ...read.instance.mecha, [key]: input[key] };
+    // a legged frame's words beside its word (mecha-shelf/mecha-figure.js): its stance, its palette, its rider seated, a
+    // modular frame's task, tools and arms
+    for (const key of ['pose', 'palette', 'rider', 'task', 'tools', 'arms']) if (input[key] !== undefined) read.instance.mecha = { ...read.instance.mecha, [key]: input[key] };
     readMechaSpec(read.instance.mecha, 'mint_solid vehicle: mecha');
     pose = undefined;
     for (const key of ['tool', 'carrier', 'height']) if (input[key] !== undefined) throw new Error(`mint_solid vehicle: a ${key} is a site machine's (an excavator: { vehicle: 'excavator', tool: 'breaker' }); this build has none`);

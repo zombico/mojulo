@@ -12,6 +12,8 @@
  *                    sits or stands on ('saddle' | 'platform')
  *   bend             which way its knees bend: 'back' (digitigrade) or 'forward' (a person's)
  *   arms, armPoses   its arms' bodies and joints by what they are, and their named poses (mecha-ik.js solves them)
+ *   mount            a modular frame's: the tools its wrists' couplers take, the arm kits its elbows take, and its own
+ *                    loadout ({ r: { tool, arm }, l }: mecha-tools.js)
  *   envelope         the rider's space in the pelvis's frame, boxes ({ x: half width, y: [aft, fore], z: [low, high] }):
  *                    the legs never enter it
  *   joints           { name: { kind, axis?, ram?, drive?, near? } } (con-chain.js; `drive` a rotary drive's body: its
@@ -92,6 +94,12 @@ const arm = (S, P = UW_ARM) => {
   };
 };
 const R = leg('R'), L = leg('L');
+// (an arm's poses, its wrist's place as shares of its length: the same pose on a short arm and a long one)
+const ARM_POSES = Object.freeze({
+  rest: Object.freeze({ wrist: Object.freeze([0.28, -0.7]), claw: 20 }),
+  carry: Object.freeze({ wrist: Object.freeze([0.58, -0.393]), claw: 90 }),
+  raise: Object.freeze({ wrist: Object.freeze([0.514, 0.42]), claw: 120 }),
+});
 const UR = leg('R', UW_LEG, 'forward'), UL = leg('L', UW_LEG, 'forward'), AR = arm('R'), AL = arm('L');
 const HR = leg('R', HW_LEG, 'forward'), HL = leg('L', HW_LEG, 'forward'), HAR = arm('R', HW_ARM), HAL = arm('L', HW_ARM);
 
@@ -191,13 +199,9 @@ export const MECHA_ARCHETYPES = Object.freeze({
     ].map(Object.freeze)),
     legs: Object.freeze({ r: Object.freeze(UR.legs), l: Object.freeze(UL.legs) }),
     arms: Object.freeze({ r: Object.freeze(AR.arms), l: Object.freeze(AL.arms) }),
-    // (the arms' poses: each wrist's place from its shoulder's axle in the arm's plane [ahead, up], and its claw's angle
-    // from hanging (90°: its fingers ahead))
-    armPoses: Object.freeze({
-      rest: Object.freeze({ wrist: Object.freeze([0.22, -0.78]), claw: 20 }),
-      carry: Object.freeze({ wrist: Object.freeze([0.62, -0.42]), claw: 90 }),
-      raise: Object.freeze({ wrist: Object.freeze([0.55, 0.45]), claw: 120 }),
-    }),
+    // (the arms' poses: each wrist's place from its shoulder's axle in the arm's plane [ahead, up], as shares of the arm's
+    // length (its upper arm's and its forearm's), and its claw's angle from hanging (90°: its fingers ahead))
+    armPoses: ARM_POSES,
     track: 0.5,
     stances: Object.freeze({
       stand: Object.freeze({ knee: 45, arms: 'rest' }),
@@ -237,6 +241,9 @@ export const MECHA_ARCHETYPES = Object.freeze({
   // glass all round, guard bars ahead of the windshield, a door up a side ladder, a harness and an emergency stop
   heavyWalker: Object.freeze({
     label: 'heavy walker',
+    // (its arms modular: any tool on its wrists' quick couplers, a standard or a long-reach arm, by task or by hand
+    // (mecha-tools.js); a grapple on each standard arm its own)
+    mount: Object.freeze({ tools: Object.freeze(['grapple', 'bucket', 'breaker', 'crusher', 'forks', 'auger', 'vacuum', 'magnet', 'hook']), arms: Object.freeze(['standard', 'long']), loadout: Object.freeze({ r: Object.freeze({ tool: 'grapple', arm: 'standard' }), l: Object.freeze({ tool: 'grapple', arm: 'standard' }) }) }),
     classOf: 'heavy construction biped, closed cab, two arms',
     palette: 'siteYellow',
     mass: 2300,
@@ -259,11 +266,7 @@ export const MECHA_ARCHETYPES = Object.freeze({
     ].map(Object.freeze)),
     legs: Object.freeze({ r: Object.freeze(HR.legs), l: Object.freeze(HL.legs) }),
     arms: Object.freeze({ r: Object.freeze(HAR.arms), l: Object.freeze(HAL.arms) }),
-    armPoses: Object.freeze({
-      rest: Object.freeze({ wrist: Object.freeze([0.31, -1.09]), claw: 20 }),
-      carry: Object.freeze({ wrist: Object.freeze([0.87, -0.59]), claw: 90 }),
-      raise: Object.freeze({ wrist: Object.freeze([0.77, 0.63]), claw: 120 }),
-    }),
+    armPoses: ARM_POSES,
     track: 0.7,
     stances: Object.freeze({
       stand: Object.freeze({ knee: 45, arms: 'rest' }),
@@ -291,8 +294,9 @@ export const MECHA_ARCHETYPES = Object.freeze({
       tipover: [0.03, 9],
       clearance: [0.01, 9],
       cab: [0.03, 1],
-      reach: [1.6, 2.4],
-      lift: [500, 1500],
+      flow: [0, 1],
+      reach: [1.6, 3.2],
+      lift: [100, 1500],
       mass: 0.1,
       distal: [0, 0.45],
     }),

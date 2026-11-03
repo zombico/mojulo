@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { apply } from './mecha-common.js';
 import { framesOf, rangeOf, solveChain } from '../construction-shelf/con-chain.js';
-import { MECHA_ARCHETYPES, MECHA_ODM, assembleFrame, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, posedFrame, resolveMechaPart, riderPoints } from './index.js';
+import { MECHA_ARCHETYPES, MECHA_ODM, MECHA_TASKS, MECHA_TOOLS, assembleFrame, composeFrame, frameRow, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, posedFrame, resolveMechaPart, riderPoints } from './index.js';
 import { readMechaSpec } from './mecha-figure.js';
 
 const id = Object.keys(MECHA_ARCHETYPES)[0], arch = MECHA_ARCHETYPES[id], ctx = mechaCtx(id);
@@ -89,9 +89,10 @@ describe('mecha shelf: a frame with arms, its knees forward', () => {
   it('sets each wrist where its arm pose asks, from the shoulder, its claw at the asked angle', () => {
     const P = posedFrame(worker, carryOf), F = wworld(P), want = W.armPoses[W.stances[carryOf].arms];
     for (const S of ['r', 'l']) {
-      const a = W.arms[S], sh = F[a.upper].t, wr = F[a.wrist].t;
-      expect(wr[1] - sh[1]).toBeCloseTo(want.wrist[0], 3);
-      expect(wr[2] - sh[2]).toBeCloseTo(want.wrist[1], 3);
+      // (the pose's wrist as shares of the arm's length)
+      const a = W.arms[S], sh = F[a.upper].t, wr = F[a.wrist].t, n = -wctx.hp(a.upper, 'elbow')[2] - wctx.hp(a.fore, 'wrist')[2];
+      expect(wr[1] - sh[1]).toBeCloseTo(want.wrist[0] * n, 3);
+      expect(wr[2] - sh[2]).toBeCloseTo(want.wrist[1] * n, 3);
       // (the claw's down axis turned forward by its angle: at 90° its fingers point ahead)
       const R = F[a.claw].R, ang = Math.atan2(-R[1][2], R[2][2]) * 180 / Math.PI;
       expect(Math.abs(ang)).toBeCloseTo(180 - want.claw, 1);
@@ -132,6 +133,51 @@ describe('mecha shelf: a frame drawn larger, its operator in a closed cab', () =
     const [lo, hi] = jointRange(cabbed, pitch), [lo0, hi0] = jointRange(utility, MECHA_ARCHETYPES[utility].arms.r.joints.pitch);
     expect(lo).toBeCloseTo(lo0, 0);
     expect(hi).toBeCloseTo(hi0, 0);
+  });
+});
+
+describe('mecha shelf: a modular frame fitted for its task', () => {
+  // (a frame with a mount, and loadouts chosen in code by what they carry)
+  const modular = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].mount), Mo = MECHA_ARCHETYPES[modular].mount;
+  const own = Mo.loadout.r.tool, other = Mo.tools.find((t) => t !== own && MECHA_TOOLS[t].holds > 0 && MECHA_TOOLS[t].sku !== MECHA_TOOLS[own].sku);
+  const idle = Mo.tools.filter((t) => MECHA_TOOLS[t].holds === 0), longKit = Mo.arms.find((a) => a !== Mo.loadout.r.arm);
+  const law = (key, id) => lawsOf(key).laws.find((l) => l.id === id);
+  it('puts each arm\'s tool in its claw\'s place: its mass the tools\' difference, its own loadout its own key', () => {
+    expect(composeFrame(modular, { tools: { r: own, l: own } })).toBe(modular);
+    const key = composeFrame(modular, { tools: { r: other, l: other } }), a = assembleFrame(modular).readout, b = assembleFrame(modular, { tools: { r: other, l: other } }).readout;
+    expect(b.composed).toBe(key);
+    expect(b.loadout).toMatchObject({ r: { tool: other }, l: { tool: other } });
+    expect(b.mass.parts - a.mass.parts).toBe(2 * (MECHA_ODM[MECHA_TOOLS[other].sku].mass - MECHA_ODM[MECHA_TOOLS[own].sku].mass));
+    expect(JSON.stringify(assembleFrame(modular, { tools: { r: other, l: other } }).manifest)).toBe(JSON.stringify(assembleFrame(modular, { tools: { r: other, l: other } }).manifest));
+  });
+  it('reads a task as its loadout, and refuses what its mount does not take', () => {
+    const task = Object.keys(MECHA_TASKS).find((k) => MECHA_TASKS[k].r.tool !== own);
+    expect(frameRow(composeFrame(modular, { task })).loadout.r.tool).toBe(MECHA_TASKS[task].r.tool);
+    expect(() => composeFrame(modular, { task: 'juggling' })).toThrow(/task 'juggling' is one of/);
+    expect(() => composeFrame(modular, { tools: { r: 'spoon' } })).toThrow(/takes a tool of/);
+    expect(() => composeFrame(Object.keys(MECHA_ARCHETYPES).find((k) => !MECHA_ARCHETYPES[k].mount), { task })).toThrow(/its arms are its own/);
+  });
+  it('rates its lift no higher than its tools hold, and reads none when neither tool holds', () => {
+    const key = composeFrame(modular, { tools: { r: other, l: other } });
+    expect(law(key, 'lift').value).toBeLessThanOrEqual(2 * MECHA_TOOLS[other].holds);
+    if (idle.length) expect(law(composeFrame(modular, { tools: { r: idle[0], l: idle[idle.length - 1] } }), 'lift')).toBeUndefined();
+  });
+  it('sums its tools\' flow against its pump\'s', () => {
+    const [a, b] = [...Mo.tools].sort((x, y) => MECHA_TOOLS[y].flow - MECHA_TOOLS[x].flow), key = composeFrame(modular, { tools: { r: a, l: b } });
+    const supply = MECHA_ODM[MECHA_ARCHETYPES[modular].layout.find((e) => e.id === 'pack').sku].dims.flow;
+    expect(law(key, 'flow').value).toBeCloseTo((MECHA_TOOLS[a].flow + MECHA_TOOLS[b].flow) / supply, 2);
+  });
+  it('trades lift for reach on a long arm, the same tool on it', () => {
+    // (its own tools: the arms' reach, and the load at its end, are what the kit changes)
+    const std = modular, long = composeFrame(modular, { arms: { r: longKit, l: longKit } });
+    expect(law(long, 'reach').value).toBeGreaterThan(law(std, 'reach').value);
+    expect(law(long, 'lift').value).toBeLessThan(law(std, 'lift').value);
+  });
+  it('holds every task\'s loadout to every law', () => {
+    // (one task per distinct procedure: one that lifts with both arms, one whose tools draw the most flow)
+    const flows = (k) => MECHA_TOOLS[MECHA_TASKS[k].r.tool].flow + MECHA_TOOLS[MECHA_TASKS[k].l.tool].flow;
+    const pick = [Object.keys(MECHA_TASKS).find((k) => ['r', 'l'].every((S) => MECHA_TOOLS[MECHA_TASKS[k][S].tool].holds > 0)), Object.keys(MECHA_TASKS).sort((x, y) => flows(y) - flows(x))[0]];
+    for (const task of pick) expect(lawsOf(composeFrame(modular, { task })).laws.filter((l) => !l.ok).map((l) => `${task} ${l.id}: ${l.says}`)).toEqual([]);
   });
 });
 

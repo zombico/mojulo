@@ -32,6 +32,7 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-forearm': 'a forearm: its box beam from the elbow to the wrist, its elbow horn',
   'mecha-wrist': 'a wrist: its rotary drive turning the hand about the forearm\'s end',
   'mecha-claw': 'a hand: a two-fingered claw, its palm, its fingers and their pads',
+  'mecha-tool': 'a tool on an arm\'s quick coupler in a claw\'s place: a bucket, a breaker, a crusher, forks, an auger, a vacuum lifter, a magnet, a hook',
   'mecha-ram': 'a hydraulic ram across a joint: its barrel and its rod, each a body aimed at the other\'s pin',
 });
 
@@ -53,7 +54,7 @@ export function scaleDims(d, k) {
  *  its load's weight and its lever both grown), its `dims` in true metres; `scale` says the design it was drawn from. */
 const S = (base, k, label, classOf, aliases, over = {}) => {
   const b = BASE[base], dims = { ...scaleDims(b.dims, k), ...over, scale: k };
-  if (Number.isFinite(b.dims.torque)) dims.torque = Math.round(b.dims.torque * k ** 4);
+  if (Number.isFinite(b.dims.torque) && over.torque === undefined) dims.torque = Math.round(b.dims.torque * k ** 4);
   return Object.freeze({ ...b, label, classOf, aliases, from: base, dims: Object.freeze(dims), mass: Math.round(b.mass * k ** 3) });
 };
 let BASE = null;
@@ -148,18 +149,33 @@ const HEAVY = {
   'shank-hw': S('shank-uw', K, 'heavy shank', HW, ['heavy shank']),
   'ankle-hw': S('ankle-uw', K, 'heavy ankle cross', HW, ['heavy ankle']),
   'foot-hw': S('foot-uw', 1.6, 'heavy foot', HW, ['heavy foot', 'heavy sole', 'track pad']),
-  'ram-roll-hw': S('ram-roll-uw', K, 'heavy hip roll ram', HW, ['heavy roll ram']),
+  // (its hip roll ram bored up past its design's: on one foot it holds the frame's sway with its heaviest tools on)
+  'ram-roll-hw': S('ram-roll-uw', K, 'heavy hip roll ram', HW, ['heavy roll ram'], { bore: 0.1, rod: 0.056 }),
   'ram-hip-hw': S('ram-hip-uw', K, 'heavy hip pitch ram', HW, ['heavy hip ram']),
   'ram-knee-hw': S('ram-knee-uw', K, 'heavy knee ram', HW, ['heavy knee ram']),
   'ram-ankle-hw': S('ram-ankle-uw', K, 'heavy ankle ram', HW, ['heavy ankle ram']),
-  'pack-hw': S('pack-uw', 1.5, 'heavy power pack', HW, ['heavy power pack', 'counterweight pack']),
+  // (its pump's flow shared by the arms' tools, l/min: a breaker's hammer, an auger's motor, a crusher's jaws)
+  'pack-hw': S('pack-uw', 1.5, 'heavy power pack', HW, ['heavy power pack', 'counterweight pack'], { flow: 110 }),
   'shoulder-hw': S('shoulder-uw', K, 'heavy shoulder', HW, ['heavy shoulder']),
   'upperarm-hw': S('upperarm-uw', K, 'heavy upper arm', HW, ['heavy upper arm', 'heavy arm']),
   'forearm-hw': S('forearm-uw', K, 'heavy forearm', HW, ['heavy forearm']),
-  'wrist-hw': S('wrist-uw', K, 'heavy wrist', HW, ['heavy wrist']),
-  'claw-hw': S('claw-uw', K, 'heavy grapple', HW, ['grapple', 'heavy claw', 'heavy gripper']),
+  // (its wrist a heavy-duty rotary actuator, rated past its design's: the tools hang their whole weight off it)
+  'wrist-hw': S('wrist-uw', K, 'heavy wrist', HW, ['heavy wrist'], { torque: 6000 }),
+  'claw-hw': S('claw-uw', K, 'heavy grapple', HW, ['grapple', 'heavy claw', 'heavy gripper', 'grab']),
+  // (a long-reach arm: the forearm drawn a third longer on the same elbow, its wrist farther out; reach traded for lift)
+  'forearm-hw-long': S('forearm-uw', K, 'heavy long-reach forearm', HW, ['long forearm', 'long reach forearm', 'extended forearm'], { length: 0.97 }),
   'ram-shoulder-hw': S('ram-shoulder-uw', K, 'heavy shoulder ram', HW, ['heavy shoulder ram']),
   'ram-elbow-hw': S('ram-elbow-uw', K, 'heavy elbow ram', HW, ['heavy elbow ram']),
+  // (the tools on an arm's quick coupler, each at its own size: what each is for, what it weighs and holds, and the
+  // flow it draws, are its card's: mecha-tools.js)
+  'bucket-hw': R('mecha-tool', 'heavy walker bucket', HW, { w: 0.46, depth: 0.36, length: 0.5, teeth: 5 }, 75, { family: 'bucket' }, ['bucket', 'digging bucket', 'trenching bucket']),
+  'breaker-hw': R('mecha-tool', 'heavy walker breaker', HW, { w: 0.2, body: 0.68, length: 0.98 }, 120, { family: 'breaker' }, ['breaker', 'hydraulic breaker', 'hammer', 'rock breaker', 'jackhammer']),
+  'crusher-hw': R('mecha-tool', 'heavy walker crusher', HW, { w: 0.2, gap: 0.34, length: 0.66 }, 100, { family: 'crusher' }, ['crusher', 'concrete crusher', 'demolition jaws', 'pulveriser', 'shear']),
+  'forks-hw': R('mecha-tool', 'heavy walker forks', HW, { w: 0.42, spread: 0.34, length: 0.82 }, 55, { family: 'forks' }, ['forks', 'pallet forks', 'fork tines']),
+  'auger-hw': R('mecha-tool', 'heavy walker auger', HW, { r: 0.13, length: 1.15 }, 90, { family: 'auger' }, ['auger', 'earth drill', 'post hole auger', 'drill']),
+  'vacuum-hw': R('mecha-tool', 'heavy walker vacuum lifter', HW, { w: 0.62, d: 0.42, length: 0.32 }, 45, { family: 'vacuum' }, ['vacuum lifter', 'suction pad', 'glass lifter', 'panel lifter']),
+  'magnet-hw': R('mecha-tool', 'heavy walker magnet', HW, { r: 0.28, length: 0.42 }, 95, { family: 'magnet' }, ['magnet', 'lifting magnet', 'electromagnet']),
+  'hook-hw': R('mecha-tool', 'heavy walker hook', HW, { length: 0.4 }, 18, { family: 'hook' }, ['hook', 'lifting hook', 'crane hook']),
   // (the operator stays a person's size: the work seat in its harness, its consoles, an emergency stop at the right
   // hand, the pedals; a side ladder up to the cab's door)
   'station-hw': R('mecha-seat', 'heavy operator station', HW,

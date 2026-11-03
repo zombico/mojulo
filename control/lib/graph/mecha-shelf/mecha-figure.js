@@ -2,22 +2,23 @@
  * mecha-figure — a mecha shelf frame as the doors draw it: its faces on the studio grid (mint_solid's vehicle preview,
  * the family layer's `mecha` instance), its rider seated in it.
  *
- *   readMechaSpec(spec, at?)    → { archetype, pose?, palette?, rider? }, or throws naming what it takes: `pose` a stance's
+ *   readMechaSpec(spec, at?)    → { archetype, pose?, palette?, rider?, task?, tools?, arms? }, or throws naming what it takes: `pose` a stance's
  *                                 name ('board', 'lift'), a stance ({ knee | height, track?, fore?, sway?, feet? }) or
  *                                 joint values ({ joints: { kneeR: 60 } }), `palette` one of the shelf's, `rider` true (the
  *                                 realistic hero) or the hero's spec, astride the saddle in the frame's posture, its hands
- *                                 on the grips, its feet on the pegs
+ *                                 on the grips, its feet on the pegs; a modular frame's `task` (a site's task: its loadout,
+ *                                 mecha-tools.js), `tools` ({ r?, l? }: a tool per arm) and `arms` ({ r?, l? }: an arm kit)
  *   mechaInstanceFaces(spec)    → (async) { faces, spec, stats }: the frame assembled at its stance, lowered to the grid's
  *                                 faces, its rider with it
  *
  * The recipe is the frame's words, never its geometry: it regenerates on every read. Pure.
  */
 import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
-import { MECHA_ARCHETYPES, MECHA_PALETTES, assembleFrame, posedFrame } from './index.js';
+import { MECHA_ARCHETYPES, MECHA_PALETTES, assembleFrame, composeFrame, frameRow, posedFrame } from './index.js';
 import { readRiderHero, riderOn } from '../cycle-shelf/cycle-rider.js';
 
 
-const KEYS = Object.freeze(['archetype', 'pose', 'palette', 'rider']);
+const KEYS = Object.freeze(['archetype', 'pose', 'palette', 'rider', 'task', 'tools', 'arms']);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function readMechaSpec(spec, at = 'mecha') {
@@ -26,8 +27,10 @@ export function readMechaSpec(spec, at = 'mecha') {
   if (!MECHA_ARCHETYPES[spec.archetype]) throw new Error(`${at}.archetype is one of ${Object.keys(MECHA_ARCHETYPES).join(', ')}`);
   if (spec.palette !== undefined && !MECHA_PALETTES[spec.palette]) throw new Error(`${at}.palette is one of ${Object.keys(MECHA_PALETTES).join(', ')}`);
   if (spec.pose !== undefined && typeof spec.pose !== 'string' && !isObj(spec.pose)) throw new Error(`${at}.pose is a stance's name, a stance { knee | height, … } or { joints }`);
-  // (its pose read as the shelf reads it: a stance it has not, a joint it has not, refused)
-  if (spec.pose !== undefined) posedFrame(spec.archetype, spec.pose);
+  for (const k of ['tools', 'arms']) if (spec[k] !== undefined && !isObj(spec[k])) throw new Error(`${at}.${k} is { r?, l? }: one per arm`);
+  // (its fitting and its pose read as the shelf reads them: a task, a tool, an arm or a stance it has not, refused)
+  const key = composeFrame(spec.archetype, { task: spec.task, tools: spec.tools, arms: spec.arms });
+  if (spec.pose !== undefined) posedFrame(key, spec.pose);
   if (spec.rider !== undefined && spec.rider !== false) readRiderHero(spec.rider, `${at}.rider`);
   return spec;
 }
@@ -39,23 +42,23 @@ export function readMechaSpec(spec, at = 'mecha') {
 export async function seatRider(archetype, readout, { hero, posture } = {}) {
   const [dx, dy] = readout.root, shift = (p) => [p[0] - dx, p[1] - dy, p[2]];
   const rider = Object.fromEntries(Object.entries(readout.rider).map(([k, p]) => [k, shift(p)]));
-  const out = await riderOn(archetype, { hero, posture: posture ?? MECHA_ARCHETYPES[archetype].posture, rider });
+  const out = await riderOn(archetype, { hero, posture: posture ?? frameRow(archetype).posture, rider });
   const back = (c) => [c[0] + dx, c[1] + dy, c[2]];
   return { ...out, faces: out.faces.map((f) => ({ ...f, corners: f.corners.map(back) })) };
 }
 
 export async function mechaInstanceFaces(spec) {
   readMechaSpec(spec);
-  const { manifest, readout } = assembleFrame(spec.archetype, { pose: spec.pose, palette: spec.palette });
+  const { manifest, readout } = assembleFrame(spec.archetype, { pose: spec.pose, palette: spec.palette, task: spec.task, tools: spec.tools, arms: spec.arms });
   const faces = lowerAssemblerFaces(manifest);
   // (its rider seated, posed on the frame's own rider points at its stance, in its frame)
-  const rider = spec.rider ? await seatRider(spec.archetype, readout, { hero: spec.rider }) : null;
+  const rider = spec.rider ? await seatRider(readout.composed ?? spec.archetype, readout, { hero: spec.rider }) : null;
   if (rider) faces.push(...rider.faces);
   return {
     faces,
     spec,
     stats: {
-      archetype: spec.archetype, label: readout.label, classOf: readout.classOf, pose: readout.pose, joints: readout.joints,
+      archetype: spec.archetype, ...(readout.composed ? { composed: readout.composed, loadout: readout.loadout } : {}), label: readout.label, classOf: readout.classOf, pose: readout.pose, joints: readout.joints,
       measures: readout.measures, mass: readout.mass.gross, laws: readout.laws.ok, faces: faces.length,
       ...(rider ? { rider: { reached: rider.report.reached, hands: rider.report.hands } } : {}),
     },

@@ -17,6 +17,8 @@
  *     larger; no other pin moved.
  *   - The heavy walker's cab angled (its windshield raked under a visor, its sides drawn in, framed glass, a low
  *     window, its plates on whole-millimetre axes): the cab re-pinned; no other pin moved.
+ *   - The manipulators' ODM (unreleased): each tool's builder path pinned (the bucket, the breaker, the crusher, the
+ *     forks, the auger, the vacuum lifter, the magnet, the hook); no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -43,10 +45,18 @@ const PINS = {
   'pack-atw': 'aae25a1a90f1ab36',
   'shoulder-uw': '4274873688ac1ba8',
   'upperarm-uw': 'bdec84b9678a660a',
-  'forearm-uw': '34748c5c9f4faad8',
   'wrist-uw': 'cad5b13936f7c5f7',
   'claw-uw': 'c3ab1299a2f96d73',
+  'forearm-uw': '34748c5c9f4faad8',
   'ram-roll-atw': 'e73d554306c2f29f',
+  'bucket-hw': 'd6a84deb6b46d43f',
+  'breaker-hw': '2cff9f9007aa0031',
+  'crusher-hw': '18bf87c48820c800',
+  'forks-hw': '257aaf34ebe07ec7',
+  'auger-hw': 'df34f317aaa81e23',
+  'vacuum-hw': '9be30f06723a9876',
+  'magnet-hw': 'bebb9f179bbcfe12',
+  'hook-hw': 'a1778d396709fe24',
   'platform-uw': 'fb8cab49220662f2',
   'cab-hw': '394d456754ef5919',
 };

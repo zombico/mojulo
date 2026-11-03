@@ -21,6 +21,7 @@
  *   feet     { r: { x?, y?, lift?, yaw? }, l: … } a foot's place on the ground (its sole's centre), its lift off it and
  *            its heading (degrees, + to the left)
  *   arms     a frame with arms: their pose's name (the archetype's `armPoses`), or { wrist: [ahead, up], claw, yaw? }
+ *            (the wrist's place as shares of the arm's length, from its shoulder's axle)
  *   load     kilograms held in the claws (half in each), weighed in its centre of mass
  *
  *   legGeometry(arch, ctx, S)            → { hip, a1, a2, l1, l2, hS }: a leg's numbers read from its built parts
@@ -96,7 +97,8 @@ export function armsAt(arch, ctx, pose) {
   if (!P) throw new Error(`mecha stance: arms '${pose}' is one of ${Object.keys(arch.armPoses ?? {}).join(', ')}, or { wrist: [ahead, up], claw }`);
   const out = {};
   for (const S of SIDES) {
-    const a = solveArm(armGeometry(arch, ctx, S), P.wrist, P.claw ?? 0, (S === 'r' ? -1 : 1) * (P.yaw ?? 0)), J = arch.arms[S].joints;
+    // (the pose's wrist as shares of the arm's length: its upper arm's and its forearm's)
+    const G = armGeometry(arch, ctx, S), n = G.l1 + G.l2, a = solveArm(G, [P.wrist[0] * n, P.wrist[1] * n], P.claw ?? 0, (S === 'r' ? -1 : 1) * (P.yaw ?? 0)), J = arch.arms[S].joints;
     for (const [k, v] of Object.entries(a.values)) out[J[k]] = v;
   }
   return out;

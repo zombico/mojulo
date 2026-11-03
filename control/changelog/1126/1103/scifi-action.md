@@ -61,6 +61,47 @@ on it: the utility walker, and the heavy walker drawn larger from it.
     - mirrors, work lamps and a beacon;
     - a harnessed work seat, the arms' sticks on its consoles, an emergency stop at the right hand, and the pedals.
   - **Its laws add `cab`:** the operator's space held inside the cab's glass and under its roof, the nearest margin.
+- **The manipulators' ODM** (`mecha-shelf/mecha-tools.js`, `mecha-tools-parts.js`): the heavy walker is modular, its
+  arms fitted for the task rather than built for it.
+  - **Its tools** go on the wrist's quick coupler (every tool carries the same coupler plate) in the claw's place. Each
+    is an inventory row for its geometry and a card for its work: what it does on a site, the load it holds as rated
+    (none for a breaker or an auger), what drives it, and the hydraulic flow it draws.
+    - the grapple, its own;
+    - a digging bucket;
+    - a hydraulic breaker;
+    - a concrete crusher;
+    - pallet forks;
+    - an earth auger;
+    - a vacuum lifter;
+    - a lifting magnet;
+    - a lifting hook.
+  - **Its arm kits:** the standard arm and a long-reach arm (a forearm a third longer on the same elbow, so its ram
+    keeps its arc).
+  - **Its tasks**, each a loadout per arm:
+    - demolition: a breaker and a crusher;
+    - high-reach demolition: a crusher and a grapple on long arms;
+    - trenching: a bucket and a grapple;
+    - pipe laying: two grapples;
+    - material handling: two pairs of forks;
+    - glazing: two vacuum lifters;
+    - piling: an auger and a grapple;
+    - steelwork: a magnet and a grapple;
+    - rigging: a hook on a long arm and a grapple.
+  - **A frame's `mount`** says the tools and arm kits it takes, and its own loadout. `composeFrame(id, { task, tools,
+    arms })` fits it under its own key (the construction shelf's `composeMachine` is the model), refusing what its mount
+    does not take. The laws re-read it as built: its mass, its reach to the tool's working point, its lift, its flow.
+  - **Its lift is rated as a lifting machine's is** (ISO 10567's shares): the least of 75% of the load that tips it,
+    87% of the load its arms' actuators hold, and what its tools hold as rated. A loadout whose tools hold nothing
+    reads no lift, and a load is shared only by the arms whose tools hold. The carry is read at its stance's load, no
+    more than it is rated for.
+  - **A new law, `flow`:** both arms' tools working at once, their flow as a share of the power pack's pump.
+  - **What the laws asked of the build:**
+    - the heavy hip roll ram was bored up past its design's, for the heaviest tools' sway on one foot;
+    - the heavy wrist is a heavy-duty rotary actuator, rated past its design's, so its arms' rams, not its wrist,
+      set what it lifts, and a long arm trades lift for reach.
+    - An arm's poses are shares of its length, the same pose on a standard arm and a long one.
+  - **On the studio grid** the door takes the words beside the vehicle: `task` ('demolition'), `tools` ({ r, l }) and
+    `arms` ({ r: 'long' }). The review render takes `--task`, `--tools r:breaker,l:grapple` and `--arms r:long`.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
     derived, never stated.
@@ -111,4 +152,8 @@ on it: the utility walker, and the heavy walker drawn larger from it.
     asked angle; a load weighed (the centre of mass moves toward it, the arms work harder); every law holds.
   - `mecha-shelf.test.js`, the frame drawn larger: a scaled part's pins at k times and its mass at k³; its operator
     inside its cab; its arms' arcs its design's; every law holds.
+  - `mecha-shelf.test.js`, the modular frame: a tool in its claw's place (its mass the tools' difference); a task its
+    loadout, and what its mount does not take refused; its lift no higher than its tools hold, and none read when
+    neither holds; its tools' flow summed against its pump's; a long arm trading lift for reach; the loadouts' laws
+    hold.
   - The roster's, builds' and preview door's tests.
