@@ -42,7 +42,7 @@ export function mintCometView({ title, scenario, scale, tails, viewBox, scene, r
 
 export async function createCometViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_comet_view requires a recipe object');
+    throw new Error('create_view({ kind: "comet" }) requires a recipe object');
   }
   const { title, scenario, scale, tails, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintCometView({ title, scenario, scale, tails, viewBox, scene, ref, folderRef });

@@ -24,7 +24,7 @@ export function mintActionWorld({ title, entities, idioms, events, faces, ground
   const recipe = Array.isArray(idioms) ? idioms : [];
   const hasRaw = events && typeof events === 'object';
   if (recipe.length === 0 && props.length === 0 && !hasRaw) {
-    throw new Error('create_action_world requires `idioms`, `entities`, or an `events` block (a world with no rules does nothing)');
+    throw new Error('compose_world({ base: "action" }) requires `idioms`, `entities`, or an `events` block (a world with no rules does nothing)');
   }
 
   // lower the idiom recipe to event-bus fragments through the shelf's one map (game-idioms.js IDIOM_LOWERING).
@@ -75,7 +75,7 @@ export function mintActionWorld({ title, entities, idioms, events, faces, ground
 }
 
 export async function createActionWorldHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_action_world requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('compose_world({ base: "action" }) requires a recipe object');
   const { title, entities, idioms, events, faces, ground, walk, worldFraming, viewBox, bg, ref, folder_ref: folderRef } = input;
   return mintActionWorld({ title, entities, idioms, events, faces, ground, walk, worldFraming, viewBox, bg, ref, folderRef });
 }

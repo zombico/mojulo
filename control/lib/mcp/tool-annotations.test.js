@@ -135,7 +135,8 @@ describe('the annotation table', () => {
       .listRegisteredToolNames()
       .map((name) => server.getRegisteredTool(name))
       .filter((t) => t.aliasOf);
-    expect(aliases.length).toBeGreaterThan(0);
+    // the concept, with or without a registered alias today: a folded name takes its door's row
+    expect(toolAnnotations('a_folded_name', 'mint_solid')).toEqual(toolAnnotations('mint_solid'));
     for (const alias of aliases) {
       expect(TOOL_ANNOTATIONS[alias.aliasOf], `${alias.name} → ${alias.aliasOf}`).toBeTruthy();
       expect(toolAnnotations(alias.name, alias.aliasOf)).toEqual(toolAnnotations(alias.aliasOf));

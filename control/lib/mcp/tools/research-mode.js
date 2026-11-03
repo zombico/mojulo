@@ -26,10 +26,9 @@
  *   - list_research         — list sessions.
  *
  * One-way coupling: research depends on plans (via lib/research/evaluate.js);
- * plans never import research. See
- * lite-template/integration/app-system/0528/research-mode.md.
+ * plans never import research.
  *
- * Research–science composition (research-science.plan.md): the `experiment`
+ * Research–science composition: the `experiment`
  * item kind binds a science-view artifact WITH its provenance ({ recipe,
  * stats } in metadata — gated at bind time), and synthesize_abstract's
  * `review: true` runs the deterministic reviewer over those items
@@ -268,7 +267,7 @@ export async function bindResearchItemHandler(input, _ctx) {
 // ("agent judges, server structures"). Experiments whose recipe kind has no reviewer
 // (REVIEWABLE_VIEW_KINDS) are counted as skipped, not failed.
 //
-// The same posture, generalized to LITERATURE (research-science.plan.md Phase 6): a
+// The same posture, generalized to LITERATURE: a
 // `quote` item anchored to a source in the same book via metadata.source_item_id gets:
 //   quote_source_missing — the anchor points at no item, or at one with no body;
 //   source_hash_mismatch — the source's body no longer matches its bind-time

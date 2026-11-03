@@ -44,7 +44,7 @@ import { PNG_MAGIC } from './sketch-image-render.js';
 
 export async function createPolygonizedSketchHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_polygonized_sketch requires { prompt }');
+    throw new Error('mint_solid({ kind: "manji-tree", via: "prompt" }) requires spec.prompt');
   }
   const {
     prompt,
@@ -167,7 +167,7 @@ export async function createPolygonizedSketchHandler(input) {
  */
 export async function getPolygonizerPacketHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('get_polygonizer_packet requires { prompt }');
+    throw new Error('mint_solid({ kind: "manji-tree", via: "packet" }) requires spec.prompt');
   }
   const { prompt, mode = 'one-trip', preload } = input;
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
@@ -200,7 +200,7 @@ export async function getPolygonizerPacketHandler(input) {
       userPrompt,
       schema: POLYGONIZER_SCHEMA,
       submit:
-        'submit_polygonizer_manifest({ prompt: <the SAME prompt string>, manifest, mode: "one-trip", title?, ref? }) — mojulo validates, applies deterministic repairs, lowers, and mints. On { ok: false } fix your manifest per `repairPrompt` and resubmit.',
+        'mint_solid({ kind: "manji-tree", via: "packet", spec: { prompt: <the SAME prompt string>, manifest, mode: "one-trip" }, title?, ref? }) — mojulo validates, applies deterministic repairs, lowers, and mints. On { ok: false } fix your manifest per `repairPrompt` and resubmit.',
       ...(preloadEcho ? { preload: preloadEcho } : {}),
     };
   }
@@ -216,14 +216,14 @@ export async function getPolygonizerPacketHandler(input) {
     userPrompt,
     schema: POLYGONIZER_PLANNING_SCHEMA,
     submit:
-      'submit_polygonizer_manifest({ prompt: <the SAME prompt string>, manifest, mode: "plan-then-skin", phase: "planning" }) — mojulo solves + gates the scaffold and returns `skinPacket` for your second (marks) turn.',
+      'mint_solid({ kind: "manji-tree", via: "packet", spec: { prompt: <the SAME prompt string>, manifest, mode: "plan-then-skin", phase: "planning" } }) — mojulo solves + gates the scaffold and returns `skinPacket` for your second (marks) turn.',
     ...(preloadEcho ? { preload: preloadEcho } : {}),
   };
 }
 
 export async function submitPolygonizerManifestHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('submit_polygonizer_manifest requires { prompt, manifest }');
+    throw new Error('mint_solid({ kind: "manji-tree", via: "packet" }) submits spec { prompt, manifest }');
   }
   const { prompt, manifest, mode = 'one-trip', phase, ref, title, mint = true } = input;
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
@@ -274,7 +274,7 @@ export async function submitPolygonizerManifestHandler(input) {
         userPrompt: buildSkinTurnUserPrompt(buildPolygonizerUserPrompt(prompt), result.scaffold),
         schema: POLYGONIZER_SCHEMA,
         submit:
-          'submit_polygonizer_manifest({ prompt: <the SAME prompt string>, manifest, mode: "plan-then-skin", phase: "skin", title?, ref? })',
+          'mint_solid({ kind: "manji-tree", via: "packet", spec: { prompt: <the SAME prompt string>, manifest, mode: "plan-then-skin", phase: "skin" }, title?, ref? })',
       },
     };
   }
@@ -289,7 +289,7 @@ export async function submitPolygonizerManifestHandler(input) {
       repairPrompt: result.repairPrompt,
       manifest: result.manifest,
       patchesApplied: result.patchesApplied,
-      next: 'Fix the manifest per `repairPrompt` and re-call submit_polygonizer_manifest with the SAME prompt.',
+      next: 'Fix the manifest per `repairPrompt` and re-call mint_solid({ kind: "manji-tree", via: "packet" }) with the SAME prompt.',
     };
   }
   const response = {
@@ -323,12 +323,12 @@ export async function submitPolygonizerManifestHandler(input) {
 const SKINNABLE_KINDS = new Set(['manji-tree', 'figure', 'workbench', 'assembler']);
 export async function getSkinPacketHandler(input) {
   const { ref } = input || {};
-  if (!ref || typeof ref !== 'string') throw new Error('get_skin_packet requires { ref }');
+  if (!ref || typeof ref !== 'string') throw new Error('edit_solid({ op: "skin" }) requires { ref }');
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`Sketch '${ref}' not found`);
   if (!SKINNABLE_KINDS.has(sketch.manifest?.kind)) {
     throw new Error(
-      `Sketch '${ref}' is kind '${sketch.manifest?.kind}' — get_skin_packet skins manji-tree polygomers (sketch_polygomer / create_manji_tree), workbench/assembler polygomers (create_workbench / create_assembler), or figures (create_figure)`,
+      `Sketch '${ref}' is kind '${sketch.manifest?.kind}' — edit_solid op 'skin' skins manji-tree polygomers (mint_solid kind manji-tree), workbench/assembler polygomers (kinds workbench / assembler), or figures (kind figure)`,
     );
   }
   const encoded = encodeURIComponent(sketch.ref);
@@ -343,7 +343,7 @@ export async function getSkinPacketHandler(input) {
       note: 'The FILLED lit-solid silhouette — paint your finished creature directly OVER this, matching its silhouette, proportions, and part layout. NOT the wireframe /svg (a wireframe fragments a diffusion skin into many objects).',
     },
     brief: `Paint a finished "${title}" over the scaffold: ONE coherent subject that keeps the scaffold's silhouette and massing. No wireframe / ring / dot / diagram language, no text.`,
-    submit: `skin_polygomer({ ref: "${sketch.ref}", image_path })  — hand back the painted PNG; it projects onto the model's faces.`,
+    submit: `edit_solid({ op: "skin", ref: "${sketch.ref}", spec: { image_path } })  — hand back the painted PNG; it projects onto the model's faces.`,
     then: sketch.manifest.kind === 'figure'
       ? `/api/sketches/${encoded}/skin.png — the figure wearing the skin deterministically (albedo × its own form shading). export_model({ ref }) exports the figure's 3D form (recipe colours; \`clips\` animates its motion) — baking the painted skin into that GLB is a follow-up.`
       : `export_model({ ref: "${sketch.ref}" }) → /api/sketches/${encoded}/model.glb (portable turnable GLB, skin baked into the vertex colours). Live turntable: /api/sketches/${encoded}/world`,
@@ -363,17 +363,17 @@ export async function getSkinPacketHandler(input) {
  */
 export async function skinPolygomerHandler(input) {
   const { ref, image_path: imagePath, image_base64: imageBase64 } = input || {};
-  if (!ref || typeof ref !== 'string') throw new Error('skin_polygomer requires { ref }');
+  if (!ref || typeof ref !== 'string') throw new Error('edit_solid({ op: "skin" }) requires { ref }');
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`Sketch '${ref}' not found`);
   if (input.mode === 'atlas') return skinAtlasModeHandler(input, sketch);
   if (!SKINNABLE_KINDS.has(sketch.manifest?.kind)) {
     throw new Error(
-      `Sketch '${ref}' is kind '${sketch.manifest?.kind}' — skin_polygomer wears a skin on a manji-tree/workbench/assembler polygomer or a figure`,
+      `Sketch '${ref}' is kind '${sketch.manifest?.kind}' — edit_solid op 'skin' wears a skin on a manji-tree/workbench/assembler polygomer or a figure`,
     );
   }
   if ((imagePath ? 1 : 0) + (imageBase64 ? 1 : 0) !== 1) {
-    throw new Error('skin_polygomer requires exactly one of image_path | image_base64');
+    throw new Error('edit_solid op "skin" requires exactly one of spec.image_path | spec.image_base64');
   }
   const skinBytes = imagePath ? await fs.readFile(imagePath) : Buffer.from(imageBase64, 'base64');
   if (skinBytes.length < 8 || !skinBytes.subarray(0, 4).equals(PNG_MAGIC)) {
@@ -447,7 +447,7 @@ async function skinAtlasModeHandler(input, sketch) {
   const manifest = sketch.manifest || {};
   if (manifest.kind !== 'figure' && manifest.kind !== 'animal') {
     throw new Error(
-      `skin_polygomer mode:'atlas' covers kinds 'figure' and 'animal' today (ring-stack islands) — '${manifest.kind}' still uses the screen-space projection mode (omit \`mode\`)`,
+      `edit_solid op 'skin' mode:'atlas' covers kinds 'figure' and 'animal' today (ring-stack islands) — '${manifest.kind}' still uses the screen-space projection mode (omit \`mode\`)`,
     );
   }
   const page = Number.isInteger(input.page) ? input.page : 1024;
@@ -466,9 +466,9 @@ async function skinAtlasModeHandler(input, sketch) {
       gutter,
       viewPlan: plan.views,
       paint: 'Paint each view as ONE coherent subject over a render of this figure from that exact camera '
-        + '(request_image_render img2img over the world render, or any painter). Keep the camera parameters '
+        + '(render_handoff({ medium: "image", op: "request" }) img2img over the world render, or any painter). Keep the camera parameters '
         + 'verbatim — they ARE the registration.',
-      submit: `skin_polygomer({ ref: "${sketch.ref}", mode: "atlas", views: [{ image_path, camera: { pos, target, vfov } }, …] })`,
+      submit: `edit_solid({ op: "skin", ref: "${sketch.ref}", spec: { mode: "atlas", views: [{ image_path, camera: { pos, target, vfov } }, …] } })`,
       ...(bound ? { alreadyBound: { n: bound.n, path: bound.path } } : {}),
     };
   }

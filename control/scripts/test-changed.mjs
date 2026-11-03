@@ -50,6 +50,7 @@ export const TEXT_READERS = Object.freeze([
   { reads: /^lib\/graph\/pixelizer\/[^/]+\.js$/, by: ['lib/graph/pixelizer/brickster-shell.js', 'lib/graph/pixelizer/philosophers-stone-shell.js'], why: 'the pixelizer shells inline their siblings' },
   { reads: /^lib\/graph\/scene\/scene-three\.js$/, by: ['lib/graph/era/era-marks.test.js'], why: 'the era marks read the World page\'s inputs from its source' },
   { reads: /^lib\/mcp\/apps\/preview-ui\.js$/, by: ['lib/mcp/apps/preview.js'], why: 'the app preview inlines its UI script' },
+  { reads: /^lib\/mcp\/(catalysts|routing-cards)\/[^/]+\.md$|^lib\/graph\/(.+\/)?[a-z-]+-vocab\/.+\.md$|^lib\/mcp\/tools\/[^/]+\.js$|^scripts\/orient-mcp\.mjs$/, by: ['lib/mcp/no-dead-pointers.test.js'], why: 'the dead-pointer guard reads the shelves, the cards and the tools\' prose for names an agent cannot call' },
 ]);
 /** Modules that read files beside them that are DATA (cards, tables, stores, fonts, versions), not code: their own
  * data files are covered by the folder rule. */

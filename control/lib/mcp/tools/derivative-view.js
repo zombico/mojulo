@@ -40,7 +40,7 @@ export function mintDerivativeView({ title, scenario, at, animate, scale, viewBo
 }
 
 export async function createDerivativeViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_derivative_view requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "derivative" }) requires a recipe object');
   const { title, scenario, at, animate, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintDerivativeView({ title, scenario, at, animate, scale, viewBox, scene, ref, folderRef });
 }

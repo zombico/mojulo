@@ -99,6 +99,28 @@ good.
 - **no-close**: a scene of many lines with no close-up. Save one for the turn.
 - **extra-speaks**: a speaking part played as an extra, its eyes off whoever speaks. Give it a style that regards its
   partner, unless it is meant to be background.
+- **slowed-line**: a line spoken under slow motion or a freeze. Slow the move, the look or the silence round it; play
+  the words in real time.
+
+## Time
+
+A shot shows the scene's time on the screen's time, and one map between the two (`shoot/time.js`, a shot's `time`,
+`clock` and `grain`) is read by everything that plays: the camera, the actors' takes and faces, their places, the
+captions. Presentation, not simulation: the map changes what the screen shows, never how the scene plays.
+
+- **Slow the action, not the words.** Slow motion stretches the picture, not the voice. In the screenplay, `Slow
+  motion.` (or `Slow motion 0.1.`) until `Real time.` slows a stretch of the scene; it takes no time of the scene's.
+- **Hold the moment.** `Freeze.` (or `Freeze 2 seconds.`) holds the scene at an instant: the beat after a blow, the look
+  that answers a line.
+- **Ramp, don't jump.** A speed ramp (a stretch's `ramp`) eases into slow motion and out of it, so the change reads as
+  the moment's weight rather than a jump in the film.
+- **The camera keeps its own time.** In bullet time the camera moves at its own pace while the world holds or crawls
+  (a shot's `clock: 'screen'`).
+- **Twos for the anime register.** The world shown on twos or threes, the camera on ones, as limited animation is
+  keyed (`grain`; `export-scene-blender.mjs --grain twos`).
+
+The coverage carries the screenplay's slow motion and freezes onto the shots they fall in, and the film pack plays the
+scene on the screen's clock: each take through an NLA strip whose time is keyed to it.
 
 ## The look
 
@@ -118,6 +140,6 @@ shades it.
 - **The dailies** (`control/scripts/spikes/actor/dailies.mjs`): every take on one clock, its timeline and its readings
   law by law; scenes drawn from above.
 - **The scene film** (`control/scripts/spikes/actor/scene-film.mjs`): both actors at once on a minted hero, cut by the
-  coverage, with captions.
+  coverage, with captions, on the coverage's time map (`--script` for a screenplay of your own, `--grain 2`).
 - **The hero-live viewer** (`/hero-live`): a take's face and body on the hero, as an engine plays the GLB.
 - **Blender**: the film pack, built as its `SCENE.md` says.

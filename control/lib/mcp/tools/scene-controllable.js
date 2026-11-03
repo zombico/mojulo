@@ -29,7 +29,7 @@ const KNOWN_RULES = new Set(['glide', 'walk', 'platform', 'drive', 'fly', 'follo
 
 export function mintControllableWorld({ title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, mapRef, match, lock, ref, folderRef } = {}) {
   if (match == null && (!Array.isArray(entities) || entities.length === 0)) {
-    throw new Error('create_controllable_world requires a non-empty `entities` array (or a `match` channel, which authors the seats)');
+    throw new Error('compose_world({ base: "controllable" }) requires a non-empty `entities` array (or a `match` channel, which authors the seats)');
   }
   // mapRef (worlds/map-ref.js): mint a LIGHT level that INHERITS terrain from a stored map world
   // instead of carrying faces of its own — the way to mint N level variants over ONE map (one map
@@ -170,7 +170,7 @@ export function mintControllableWorld({ title, entities, camera, figures, faces,
 }
 
 export async function createControllableWorldHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_controllable_world requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('compose_world({ base: "controllable" }) requires a recipe object');
   const { title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, mapRef, map_ref, match, lock, ref, folder_ref: folderRef } = input;
   return mintControllableWorld({ title, entities, camera, figures, faces, textures, ground, worldFraming, viewBox, bg, game, mapRef: mapRef ?? map_ref, match, lock, ref, folderRef });
 }
