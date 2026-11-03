@@ -174,3 +174,25 @@ describe('a subway line that rises out of the ground', () => {
     expect(() => readSubway({ stations: [{ id: 'u', elevation: 'sky' }] })).toThrow(/stations\[0\] \(u\).elevation is 'deep' \| 'cut' \| 'elevated'/);
   });
 });
+
+describe('a subway line run on past its ends', () => {
+  it('opens its end stations\' outer ends and runs its track on, a tunnel into the dark or an el to a buffer wall', () => {
+    for (const elevation of ['deep', 'elevated']) {
+      const spec = { stations: [{ id: 'a', plan: box, elevation }, { id: 'b', plan: box, elevation }], gap: 60, runOn: 80 };
+      const P = assembleStageScene({ kind: 'stage', subway: spec }, {}), A = P.anchors.filter((a) => a.kind === 'station');
+      // (a portal at each end of each station now, no buffer stops)
+      for (const s of A) expect(s.ports.tracks.length).toBe(2 * STATION_PLANS[box].tracks.length);
+      expect(P.faces.some((f) => f.group === 'station:buffer')).toBe(false);
+      expect(P.subway.runOn.map((t) => t.length)).toEqual([80, 80]);
+      if (elevation === 'elevated') {
+        for (const t of P.subway.runOn) expect(t.spans.viaduct).toBeCloseTo(80, 5);
+        expect(P.faces.some((f) => f.group === 'subway:tunnel-buffer')).toBe(true);
+        expect(P.colliders.filter((c) => /:buffer-b$/.test(c.of))).toHaveLength(2);
+      }
+      for (const l of P.subway.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+    }
+    // (none asked: its end stations closed on their buffers, as ever)
+    expect(assembleStageScene({ kind: 'stage', subway: CASES.box }, {}).subway.runOn).toBeUndefined();
+    expect(() => readSubway({ stations: [{ id: 'u' }], runOn: 900 })).toThrow(/runOn is 0 to 600/);
+  });
+});

@@ -54,3 +54,11 @@
     by name.
   - Walked along the el's platforms, its viaduct's walkway and down each flight to the sidewalk, and back; a line that
     dives from the el to a deep station is played as a level to the street. A deep line under the city is laid as before.
+- **A line's track runs on past its ends** (`subway.runOn`, network/subway.js; a geocity's line always, up to 240 m each
+  way as its land allows). The first and last stations open their outer ends (portals, the steps down to the
+  walkway), and the track runs on out of what is shown:
+  - from a deep station, a tunnel into the dark;
+  - from an elevated one, an el on its viaduct to a buffer wall at its far end, held (passage.js: an open run's blind
+    end).
+
+  The readout's `runOn` gives each run-on's length and spans. A stage's line still ends at its buffers unless asked.

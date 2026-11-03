@@ -230,8 +230,18 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
     for (let k = 0; k < ARC; k++) { const v0 = arcVs[k], v1 = arcVs[k + 1]; emit([at(sb, v0, z + arcZ(v0)), at(sb, v1, z + arcZ(v1)), at(sb, v1, z + H), at(sb, v0, z + H)], [d[0], d[1], 0], G('wall'), { surf: 'wall', tile: look.wall, uvOf: (w) => [w[0] + w[1], w[2]] }); }
   }
   // each end: its section round its node's doorway, facing in
+  const endHolds = [];
   for (const [s, E, dirIn] of [[0, a, 1], [L, b, -1]]) {
-    if (modeOf(Math.min(L, Math.max(0, s + dirIn * 0.5))) !== 'tunnel') continue;
+    if (modeOf(Math.min(L, Math.max(0, s + dirIn * 0.5))) !== 'tunnel') {
+      // (an open run's blind end, its track running out: a buffer wall across it, the line's red, held)
+      if (E.top > 0) continue;
+      const g = legAt(s), z = zf(s), d = [g.d[0] * dirIn, g.d[1] * dirIn, 0], s1 = s + dirIn * 0.6;
+      for (const [sx, n] of [[s, d], [s1, [-d[0], -d[1], 0]]]) emit([at(sx, -hw, z), at(sx, hw, z), at(sx, hw, z + OPEN.rail), at(sx, -hw, z + OPEN.rail)], n, G('buffer'), { hex: '#b8322a', g: 0.9 });
+      emit([at(s, -hw, z + OPEN.rail), at(s, hw, z + OPEN.rail), at(s1, hw, z + OPEN.rail), at(s1, -hw, z + OPEN.rail)], [0, 0, 1], G('buffer'), { hex: '#d9d4c8', g: 0.95 });
+      const p0 = at(s, -hw, z), p1 = at(s1, hw, z + OPEN.rail);
+      endHolds.push({ min: P3([Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), z]), max: P3([Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1]), z + OPEN.rail]), of: `tunnel:${id}:buffer-${dirIn > 0 ? 'a' : 'b'}` });
+      continue;
+    }
     const g = legAt(s), o = pos(s, 0), vOf = (p) => (p[0] - o[0]) * g.n[0] + (p[1] - o[1]) * g.n[1], [vlo, vhi] = [vOf(E.lo), vOf(E.hi)].sort((p, q) => p - q), z = E.z0;
     if (!vault) {
       const strips = [[-hw, vlo, z, z + H], [vhi, hw, z, z + H], [vlo, vhi, z + E.top, z + H]].filter(([p, q, c0, c1]) => q - p > 1e-3 && c1 - c0 > 1e-3);
@@ -250,7 +260,7 @@ export function passageOf({ id, path, a, b, section: sec, over, look = {}, prefi
   const atF = ws > 0 ? at : (s, v, z) => at(s, -v, z), acrossF = ws > 0 ? across : (s, sg) => across(s, -sg), inwardF = ws > 0 ? inward : (s, v) => inward(s, -v);
   const extra = finish(sec.finish, { emit, at: atF, legSpans, turns, cut, ceil, zf, across: acrossF, along, hw, H, L, G, look, legAt, sec, vault, arcZ, arcVs, spring, wallTop, inward: inwardF, walk, modeOf, clear: (s, r = 0.3) => !turns.some((c) => Math.abs(s - c.s) < hw + r) });
   // ── its walls held: a box down each side of each leg (to its junctions' bounds), and each junction's outer sides ──
-  const colliders = [...(extra?.colliders ?? []).map((c) => ({ min: P3(c.min), max: P3(c.max), of: `tunnel:${id}:${c.of}` }))];
+  const colliders = [...(extra?.colliders ?? []).map((c) => ({ min: P3(c.min), max: P3(c.max), of: `tunnel:${id}:${c.of}` })), ...endHolds];
   const zLo = Math.min(...cut.map((c) => Math.min(c[2], c[3]))), zHi = Math.max(...cut.map(([p, q]) => Math.max(ceil(p), ceil(q))));
   const box = (p, q, of) => colliders.push({ min: P3([Math.min(p[0], q[0]), Math.min(p[1], q[1]), zLo]), max: P3([Math.max(p[0], q[0]), Math.max(p[1], q[1]), zHi]), of: `tunnel:${id}:${of}` });
   const footprint = [];

@@ -159,6 +159,12 @@ describe('an el over an evocation\'s street', () => {
     }
   });
 
+  it('runs its track on past its first and last stations along the avenue, an el out of what is shown', () => {
+    expect(U.runOn.length).toBe(2);
+    for (const t of U.runOn) { expect(t.length).toBeGreaterThan(20); expect(t.spans.viaduct).toBeCloseTo(t.length, 5); }
+    expect(N.faces.some((f) => f.group === 'station:buffer')).toBe(false);
+  });
+
   it('is walked along its platforms, along each run\'s walkway, and down to each sidewalk, and back', () => {
     const walk = walker(N);
     for (const r of [...of('station').flatMap((s) => [...s.platforms, ...s.up]), ...of('rail-tunnel').map((t) => t.walk)]) for (const pts of [r, r.slice().reverse()]) {

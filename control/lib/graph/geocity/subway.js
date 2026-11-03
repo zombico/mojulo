@@ -24,6 +24,8 @@ import { STATION_PLANS } from '../network/station-plans.js';
 import { STATION } from '../network/station.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
+// how far a city's line runs on past its first and last stations (m)
+const RUN_ON = 240;
 const P3 = (p) => p.map(r5);
 
 /** The arterial a line runs under: its `along` (a line's id, or a spine), else the flatter spine over the span `at`
@@ -76,12 +78,14 @@ export function subwayPlan(d, { S, kerb = 0.15 }) {
       if (zs[i + 1] > zs[i] + most) zs[i + 1] = zs[i] + most;
       if (zs[i] > zs[i + 1] + most) zs[i] = zs[i + 1] + most;
     }
-    P = { l, ns, total, t0, W, N, ground, zs, ys };
+    P = { l, ns, total, t0, W, N, ground, zs, ys, lo, hi };
     const next = gaps.map((g, i) => Math.max(gap, Math.ceil(Math.abs(zs[i + 1] - zs[i]) / (1 / 30) - 1e-9)));
     if (next.every((g, i) => g === gaps[i])) break;
     gaps = next;
   }
-  const { l, ns, total, t0, W, N, ground, zs, ys } = P;
+  const { l, ns, total, t0, W, N, ground, zs, ys, lo, hi } = P;
+  // (its track run on past its first and last stations, out of what is shown, as far as its land allows)
+  const runOn = [lo, hi].map((e, k) => r5(Math.max(0, Math.min(RUN_ON, k ? hi - (t0 + total) - 20 : t0 - lo - 20))));
   const { line } = SP;
   const stations = Array.from({ length: n }, (_, i) => ({ id: `${l.id}-s${i + 1}`, plan: planId === 'terminus' ? (i === n - 1 ? 'terminus' : 'island') : planId, ...(els[i] !== 'deep' ? { elevation: els[i] } : {}) }));
   // each station's node: its hall in the city, and the reach a passage may leave it by (a mezzanine's beyond its street
@@ -97,7 +101,7 @@ export function subwayPlan(d, { S, kerb = 0.15 }) {
   // (the stations' own joins: each to the next by its running tunnels, for a network's every-node-reached; an elevated
   // station is no node of the network under the city)
   const under = new Set(nodes.map((q) => q.id)), rails = stations.slice(1).map((st, i) => ({ a: stations[i].id, b: st.id, cover: Infinity, slab: Infinity, grade: 0, length: 0 })).filter((r) => under.has(r.a) && under.has(r.b));
-  return { SP, l, ns, n, len, gap, gaps, ys, els, total, t0, W, N, ground, kerb, z0: zs.map(r5), depth, line, stations, nodes, rails, MEZZ, sideName };
+  return { SP, l, ns, n, len, gap, gaps, ys, els, total, t0, W, N, ground, kerb, z0: zs.map(r5), depth, line, stations, nodes, rails, MEZZ, sideName, runOn };
 }
 
 /** The line built: its stations with their ways out (each station's street entrance, and each `link` another network
@@ -121,22 +125,22 @@ export function subwayUnder(d, { S, kerb = 0.15, plan = null, links = {} }) {
   const out = (l.road / 2 + l.half) / 2;
   // (an el's: its piers and columns on the street itself, its flights out over the kerb onto each sidewalk)
   const el = PL.els.includes('elevated'), hwP = Math.max(...stations.map((st) => STATION_PLANS[st.plan ?? 'island'].width / 2));
-  const L = laySubway({ stations, gap, ...(line ? { line } : {}), ...(PL.SP.tunnels ? { tunnels: PL.SP.tunnels } : {}) }, { z0, ground, entrance: 'sidewalk', out, kerb: { at: l.road / 2, h: kerb }, exits, mezzDepth: MEZZ,
+  const L = laySubway({ stations, gap, ...(line ? { line } : {}), ...(PL.SP.tunnels ? { tunnels: PL.SP.tunnels } : {}) }, { z0, ground, entrance: 'sidewalk', out, kerb: { at: l.road / 2, h: kerb }, exits, mezzDepth: MEZZ, runOn: PL.runOn,
     ...(el ? { gaps, street: (x, y) => { const [wx, wy] = W([x, y, 0]); return S(wx, wy); }, flightGap: r5(Math.max(0, l.road / 2 + 0.4 - (hwP + 0.3))) } : {}) });
   // ── into the city's frame: every face, box, walk and camera ──
   const face = (f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(N(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(N(f.outNormal)) } : {}) });
   const box = (c) => { const a = W(c.min), b = W(c.max); return { min: P3([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])]), max: P3([Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])]), of: `subway:${c.of}` }; };
   const pts = (ps) => ps.map((p) => P3(W(p)));
   const rect = (q) => { const a = W([q[0], q[1], 0]), b = W([q[2], q[3], 0]); return P3([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]); };
-  const faces = [...L.stations.flatMap((s) => s.faces), ...L.tunnels.flatMap((t) => t.faces), ...L.stubs.flatMap((t) => t.faces), ...L.entrances.flatMap((e) => e.faces)].map(face);
-  const colliders = [...L.stations.flatMap((s) => s.colliders), ...L.tunnels.flatMap((t) => t.colliders), ...L.stubs.flatMap((t) => t.colliders), ...L.entrances.flatMap((e) => e.colliders)].map(box);
+  const faces = [...L.stations.flatMap((s) => s.faces), ...L.tunnels.flatMap((t) => t.faces), ...L.stubs.flatMap((t) => t.faces), ...L.tails.flatMap((t) => t.faces), ...L.entrances.flatMap((e) => e.faces)].map(face);
+  const colliders = [...L.stations.flatMap((s) => s.colliders), ...L.tunnels.flatMap((t) => t.colliders), ...L.stubs.flatMap((t) => t.colliders), ...L.tails.flatMap((t) => t.colliders), ...L.entrances.flatMap((e) => e.colliders)].map(box);
   // (a heading in the line's frame, in the city's)
   const turn = (h) => { const v = N([Math.cos(h), Math.sin(h), 0]); return r5(Math.atan2(v[1], v[0])); };
   const wells = L.entrances.map((e) => rect(e.well));
   // (an el's: the road open over a run's cut where it dives under the street; its plan over the street, kept clear of
   // what stands in the street, an elevated station's and a run's out of the ground, its flights' landings and runs)
-  const openings = [...L.tunnels, ...L.stubs].flatMap((t) => t.openings ?? []).map(rect);
-  const overhead = [...L.stations.filter((s) => s.street && !s.street.hole).flatMap((s) => [rect([s.box.min[0], s.box.min[1], s.box.max[0], s.box.max[1]]), ...s.street.clear.map(rect)]), ...[...L.tunnels, ...L.stubs].filter((t) => t.runs && t.runs.viaduct > 0).flatMap((t) => t.footprint.map(rect))];
+  const openings = [...L.tunnels, ...L.stubs, ...L.tails].flatMap((t) => t.openings ?? []).map(rect);
+  const overhead = [...L.stations.filter((s) => s.street && !s.street.hole).flatMap((s) => [rect([s.box.min[0], s.box.min[1], s.box.max[0], s.box.max[1]]), ...s.street.clear.map(rect)]), ...[...L.tunnels, ...L.stubs, ...L.tails].filter((t) => t.runs && t.runs.viaduct > 0).flatMap((t) => t.footprint.map(rect))];
   const anchors = [
     ...L.stations.map((s) => ({ id: `station-${s.id}`, kind: 'station', plan: s.plan, platforms: s.routes.platforms.map(pts), up: s.routes.up.map(pts), exits: s.ports.walks.map((q) => q.id) })),
     ...L.tunnels.map((t) => ({ id: `rail-${t.id}`, kind: 'rail-tunnel', from: `station-${t.a}`, to: `station-${t.b}`, length: t.length, walk: pts(t.walk) })),
@@ -161,6 +165,7 @@ export function subwayUnder(d, { S, kerb = 0.15, plan = null, links = {} }) {
     ...(L.warps.length ? { warps: L.warps.map((w) => ({ id: w.id, from: w.from, to: w.to })) } : {}),
     stations: L.stations.map((s) => ({ id: s.id, ...s.readout })),
     runs: L.tunnels.map((t) => ({ id: t.id, length: t.length, cover: t.cover, grade: t.grade, ...(t.runs ? { spans: t.runs } : {}), ...(t.findings.length ? { findings: t.findings } : {}) })),
+    ...(L.tails.length ? { runOn: L.tails.map((t) => ({ id: t.id, length: t.length, ...(t.runs ? { spans: t.runs } : {}) })) } : {}),
     entrances: L.entrances.map((e) => ({ id: e.id, rise: e.rise, steps: e.steps })),
   };
   // (each link's way out in the city: its jambs, its plane, its floor and head, as a passage meets it)
