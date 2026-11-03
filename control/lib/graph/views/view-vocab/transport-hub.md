@@ -31,6 +31,9 @@ Pass these via `compose_world`'s `overrides` (deep-merged over the theme pack). 
 - `primary` (string) — Airport only: the DOMINANT shape — 'core' (big central headhouse + radiating arms), 'spine' (a long dominant concourse spine), or 'hammerhead' (a primary pier ending in a perpendicular cross-bar). Omit to pick by seed.
 - `asymmetry` (number) — Airport only: how far the layout breaks from regular symmetry, 0–1 (default 0.6). Higher → more varied arm lengths/angles and more stub arms.
 - `chirality` (integer) — Airport only: the rotational sense of the manji hooks (the pinwheel). 1 or -1; omit to pick by seed.
+- `show` (string) — Airport only: 'miniature' draws the airport at its REAL figures (airport/plan.js: 20 m piers, stands nose-in sized to the craft shelf's liners, a parallel taxiway and a 2.8 km runway at their separations, the tower, a maintenance hangar) as an architect's presentation model on a walnut plinth (1:1000 by default), a `/world` kind `airport` you orbit. Omit for the CSS diorama above. Takes `seed`, `glyph` ('linear' | 'radial'), `chirality`, `asymmetry`.
+- `stands` (integer) — Airport miniature only: how many aircraft stand at its gates (1–40, default 30); each fits its stand or is not placed.
+- `scale` (number) — Airport miniature only: the model's scale denominator (250–4000, default 1000: 1:1000).
 - `time` (string) — Optional daylight model: 'day' (sun + cast shadows + day sky) or 'night' (flood-mast light pools + moonlight + stars).
 - `region` (object) — Optional world footprint { x, y, w, d } (default a 40×34 apron).
 - `viewBox` (object) — Optional render viewBox { width, height }.

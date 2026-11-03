@@ -21,6 +21,8 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { planTransportationHub, HUB_MODES, AIRPORT_GLYPHS, AIRPORT_PRIMARIES } from '@/lib/graph/architecture/transportation-hub';
 import { planSubwayStation, SUBWAY_LINES } from '@/lib/graph/architecture/subway-station';
+import { planAirport, AIRPORT_GLYPHS as AIRPORT_PLAN_GLYPHS } from '@/lib/graph/airport/plan';
+import { MINIATURE_SCALES } from '@/lib/graph/airport/miniature';
 import { stackSubway, planSubwayInterchange } from '@/lib/graph/architecture/subway-building';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
@@ -94,7 +96,29 @@ function mintSubwayBuilding({ title, seed, density, line, lineB, gates, atmosphe
   return { ...persistSubway(manifest, { title, ref, folderRef, fallbackTitle: `subway ${interchange ? 'interchange' : 'building'} ${manifest.seed}` }), stats };
 }
 
-export function mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef } = {}) {
+// Mint the AIRPORT at its real figures (airport/plan.js), drawn whole as a miniature on a plinth: a /world `airport`.
+// Persists only the recipe; the plan is laid once to validate it and read its stats.
+function mintAirport({ title, seed, glyph, chirality, asymmetry, stands, show, scale, viewBox, ref, folderRef } = {}) {
+  const manifest = {
+    kind: 'airport',
+    seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
+    show: show ?? 'miniature',
+    ...(AIRPORT_PLAN_GLYPHS.includes(glyph) ? { glyph } : {}),
+    ...(+chirality === 1 || +chirality === -1 ? { chirality: +chirality } : {}),
+    ...(Number.isFinite(+asymmetry) ? { asymmetry: Math.max(0, Math.min(1, +asymmetry)) } : {}),
+    ...(Number.isFinite(+stands) ? { stands: Math.max(1, Math.min(40, Math.trunc(+stands))) } : {}),
+    ...(Number.isFinite(+scale) ? { scale: Math.max(MINIATURE_SCALES[0], Math.min(MINIATURE_SCALES[1], +scale)) } : {}),
+    ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
+    ...(title ? { title } : {}),
+  };
+  if (manifest.show !== 'miniature') throw new Error("compose_world transport-hub: an airport's show is 'miniature' (the whole plan as a model); its wing at full scale is not built yet");
+  const { stats } = planAirport(manifest);
+  return { ...persistSubway(manifest, { title, ref, folderRef, fallbackTitle: `airport ${manifest.seed}` }), stats };
+}
+
+export function mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef, show, stands, scale } = {}) {
+  // (an airport asked to be shown as a model, at its real figures: the airport kind, not the CSS diorama)
+  if ((mode === undefined || mode === 'airport') && show !== undefined) return mintAirport({ title, seed, glyph, chirality, asymmetry, stands, show, scale, viewBox, ref, folderRef });
   // The interior subway is a distinct render path — delegate early. `building` mints the
   // 2-level station+concourse (a /world `subway-building`); `layout:'interchange'` makes it a
   // perpendicular two-line interchange; otherwise the single hall.
@@ -145,6 +169,6 @@ export async function createTransportationHubHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('compose_world({ base: "transport-hub" }) requires a recipe object');
   }
-  const { title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, line_b: lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folder_ref: folderRef } = input;
-  return mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef });
+  const { title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, line_b: lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folder_ref: folderRef, show, stands, scale } = input;
+  return mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef, show, stands, scale });
 }

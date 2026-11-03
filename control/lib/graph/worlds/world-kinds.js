@@ -38,6 +38,7 @@ import { assembleCityScene, cityFogBoxes } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { historicAudio } from '@/lib/graph/historic/soundtrack';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
+import { assembleAirportScene } from '@/lib/graph/airport/miniature';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
 import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
 import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-building';
@@ -622,6 +623,8 @@ export const WORLD_KINDS = {
   // floorplan 9ms · subway-station 195ms · subway-building 220ms · restaurant 353ms — acceptable
   // one-time emit cost. condo-complex is deliberately NOT defaulted: 692ms on 74k faces AND heavy
   // per-cell overflow at kPerCell=64 (reads lighter than truth) — opt in per manifest instead.
+  // the airport (airport/): its plan drawn whole as a miniature on a plinth (show: 'miniature'), turned and looked at
+  airport: view(assembleAirportScene, 'mojulo airport'),
   'subway-station': {
     walk: true,
     ao: true,
