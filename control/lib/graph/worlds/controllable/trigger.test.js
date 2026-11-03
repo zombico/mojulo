@@ -118,6 +118,15 @@ describe('from the cues to the page', () => {
     expect(bad({ break: 3 })).toThrow(/a block's id/);
   });
 
+  it('the page runs the builder from its own source (nothing outside the function)', () => {
+    const PW = new Function(`return ${emissionSource({ trigger: true })};`)();
+    const w = PW.createWorld({ entities: [], breakables: [crate] });
+    PW.stepWorld(w, {}, 1 / 60, { ground: () => 0 });
+    PW.castOps(w, [{ op: 'break', id: 'crate' }]);
+    PW.stepWorld(w, {}, 1 / 60, { ground: () => 0 });
+    expect(w.breakables[0].broken).not.toBeNull();
+  });
+
   it('only a world that uses them carries the builder', () => {
     expect(emissionSource({})).not.toContain("registerWorldPass('trigger'");
     expect(emissionSource({ trigger: true })).toContain("registerWorldPass('trigger'");

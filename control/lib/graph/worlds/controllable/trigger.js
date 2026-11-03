@@ -31,6 +31,7 @@ export const triggersIn = (events) => {
 };
 
 export function buildTrigger(E) {
+  const OPS = ['blast', 'collapse', 'break'];   // (TRIGGER_OPS, here again: the page runs this function's own source)
   const groupOf = (id) => { const s = String(id), k = s.lastIndexOf(':'); return k > 0 ? s.slice(0, k) : s; };
   const inGroup = (b, name) => {
     const g = groupOf(b.id);
@@ -47,7 +48,7 @@ export function buildTrigger(E) {
   E.castOps = function castOps(state, ops) {
     const rest = [];
     for (const o of ops || []) {
-      if (!o || o.who || !TRIGGER_OPS.includes(o.op)) { rest.push(o); continue; }
+      if (!o || o.who || !OPS.includes(o.op)) { rest.push(o); continue; }
       if (o.op === 'blast' && Array.isArray(o.at) && o.radius > 0) {
         const at = [o.at[0], o.at[1], o.at[2] ?? 0.5];
         if (!state.bursts) state.bursts = [];
