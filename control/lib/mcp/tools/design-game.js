@@ -38,6 +38,7 @@ import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { AUDIT_STEP } from '@/lib/graph/gameworld/runner.js';
 import { chapterBook, chapterById, chapterSteps, CHAPTERS } from '@/lib/graph/gameworld/chapters.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
+import { compileCheck, planError } from './design-game-check.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
@@ -314,6 +315,23 @@ async function runWorld(ref, world, { force = false, budgetMs = runBudgetMs(), c
   return { world: Object.keys(made).length ? { ...W, made } : W, ran, ...(pending.length ? { pending } : {}), ...(gaps.length ? { resonance: gaps } : {}) };
 }
 
+/** The pre-compile check (design-game-check.js) on the world as it stands: its plan, each order as its door would read
+ * it, the refs they name, and the build left, priced. Advice: a run goes ahead whatever it says. */
+async function compileReadout(ref, W) {
+  let steps;
+  try { steps = runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }); }
+  catch (err) { return { gate: 'machine', ready: false, blockers: [planError(err.message)] }; }
+  const made = W.made ?? {}, actions = {};
+  const moves = (k) => actions[k] === 'make' || actions[k] === 'remake';
+  for (const s of steps) {
+    if (s.adopt) actions[s.key] = made.hero?.ref === s.ref ? 'keep' : 'adopt';
+    // a walk is taken again when its level or its game is made or remade (the door prints it from the rows it walked)
+    else if (s.audit) actions[s.key] = !s.ready ? 'waiting' : !made[s.key] || moves(s.order.level) || moves('game') ? (made[s.key] ? 'remake' : 'make') : 'keep';
+    else actions[s.key] = decide(s, made[s.key], storedPrint(s.ref));
+  }
+  return compileCheck(steps, { actions, row: (r) => SketchRepository.getByRef(r), budgetMs: runBudgetMs() });
+}
+
 // the sport game's laws said when they hold too (gameworld/runner.js sportLaws, sportStyle)
 const SPORT_CHECKS = ['characters', 'venue', 'one-look'];
 
@@ -559,6 +577,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
     comparison = { reference: compare, ...compareWorlds(W, REFERENCES[compare]) };
   }
   const full = { ...readout(ref, W, context), ...(await fightReadout(W)) };
+  // the pre-compile check, on a run (what is left of the build) and on a chapter's view (each department its own
+  // blockers): what a run would hit, found before it is made; a next move while anything blocks
+  if (run || chapter) {
+    full.compile = await compileReadout(ref, W);
+    if (full.compile.blockers) full.next = [...full.next, { step: 'compile', blockers: full.compile.blockers.length, card: 'gameworld-next' }];
+  }
   // a run its budget stopped: the next move is the run again, before any other (runWorld's RUN_BUDGET_MS)
   if (pending) full.next = [{ step: 'run', pending: pending.length, card: 'gameworld-next' }, ...full.next.filter((n) => n.step !== 'run' && n.step !== 'rerun')];
   // a run's levels on their opening frame (machine gate, game/first-frame-check.js): { first_frame } or nothing

@@ -76,6 +76,32 @@ describe('design_game: one chapter', () => {
     expect(after.reads[0].print).not.toBe(before.reads[0].print);
   });
 
+  it('the build\'s view carries the pre-compile check: the build left, priced; nothing blocks a sound book', async () => {
+    await designGameHandler({ world: GATED, ref: 'gw' });
+    const build = await designGameHandler({ ref: 'gw', chapter: 'build' });
+    expect(build.compile).toMatchObject({ gate: 'machine', ready: true, make: 1, estimate: { calls: expect.any(Number) } });
+    expect(build.compile.waiting).toBeGreaterThan(5);
+    expect(build.compile.estimate.seconds).toBeGreaterThan(60);
+    expect(build.next.some((n) => n.step === 'compile')).toBe(false);
+    // the whole readout reads no check (a read is cheap): a run, or a chapter, asks for it
+    expect((await designGameHandler({ ref: 'gw' })).compile).toBeUndefined();
+  });
+
+  it('a blocker is said to the build whole and to its own chapter alone, as a next move', async () => {
+    // a hero adopted by a ref with no row: the hero's chapter would block the run
+    await designGameHandler({ world: { ...GATED, characters: { ...GATED.characters, hero: { ...GATED.characters.hero, ref: 'nobody-here' } } }, ref: 'gb' });
+    const build = await designGameHandler({ ref: 'gb', chapter: 'build' });
+    expect(build.compile.ready).toBe(false);
+    expect(build.next).toContainEqual({ step: 'compile', blockers: 1, card: 'gameworld-next' });
+    const hero = await designGameHandler({ ref: 'gb', chapter: 'hero' });
+    expect(hero.blockers).toEqual([expect.objectContaining({ chapter: 'hero', says: expect.stringMatching(/adopted hero 'nobody-here'/) })]);
+    expect(hero.next).toContainEqual({ step: 'compile', blockers: 1, card: 'gameworld-next' });
+    // a chapter with none of its own hears nothing of it
+    const levels = await designGameHandler({ ref: 'gb', chapter: 'levels' });
+    expect(levels.blockers).toBeUndefined();
+    expect(levels.next.some((n) => n.step === 'compile')).toBe(false);
+  });
+
   it('every next move the door says belongs to a chapter, or is split among its parts', () => {
     // the step ids the gameworld-next card documents (its two-space indented lines), all but the chapters note
     const card = gameworldCards().get('gameworld-next').body;

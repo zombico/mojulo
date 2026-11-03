@@ -34,7 +34,7 @@ export function chapterPages(world, id) {
 }
 
 // the readout's next moves, each by the chapter it is (gameworld-next's step ids); a move naming parts is each part's
-const MOVE = { play: 'build', share: 'build', run: 'build', rerun: 'build', adornment: 'adornment', intent: 'intent', target: 'intent', feel: 'feel', juice: 'feel', foes: 'foes', story: 'story', advice: 'intent' };
+const MOVE = { play: 'build', share: 'build', run: 'build', rerun: 'build', compile: 'build', adornment: 'adornment', intent: 'intent', target: 'intent', feel: 'feel', juice: 'feel', foes: 'foes', story: 'story', advice: 'intent' };
 /** The chapter a next move is, or null (a review names parts: each its own; a wait names its chapter; a form ask its
  * field, which is a chapter's id). */
 export function chapterOfMove(move) {
@@ -47,7 +47,7 @@ export function chapterOfMove(move) {
 export const MOVE_STEPS = Object.freeze([...Object.keys(MOVE), 'wait', 'form', 'review', 'advised']);
 
 // the readout's sections and advice, each by its chapter
-const SECTION = { intent: 'intent', composed: 'intent', concept: 'intent', feel: 'feel', juice: 'feel', numbers: 'systems', story: 'story', audits: 'build', fight: 'cast', first_frame: 'build', resonance: 'build', comparison: 'intent' };
+const SECTION = { intent: 'intent', composed: 'intent', concept: 'intent', feel: 'feel', juice: 'feel', numbers: 'systems', story: 'story', audits: 'build', fight: 'cast', first_frame: 'build', resonance: 'build', comparison: 'intent', compile: 'build' };
 const ADVICE = { authorship: 'intent', sameness: 'intent', questions: 'intent', land: 'world', wcd: 'levels', qow: 'levels' };
 // where a chapter's parts are drawn: its bible (the character book's chapters in the character bible, the foes in the cast sheet)
 const BOOK = { direction: 'characterBible', hero: 'characterBible', motion: 'characterBible', actions: 'characterBible', adornment: 'characterBible', systems: 'characterBible', equipment: 'characterBible', feel: 'feelBook', foes: 'foeBook' };
@@ -70,9 +70,15 @@ export function chapterView(full, world, id, { ran, pending, patched = [] } = {}
     } else if (m.step === 'form') {
       const own = (m.asks ?? []).filter((a) => a.for === id || a.field === id);
       if (own.length) next.push({ ...m, asks: own });
+    } else if (m.step === 'compile') {
+      // what the build would hit: the build's to see whole, each other chapter its own
+      const own = (full.compile?.blockers ?? []).filter((b) => b.chapter === id);
+      if (id === 'build' || own.length) next.push({ ...m, blockers: id === 'build' ? m.blockers : own.length });
     } else if ((m.step === 'run' && m.pending) || chapterOfMove(m) === c) next.push(m);
   }
   const advice = Object.fromEntries(Object.entries(full.advice ?? {}).filter(([k]) => ADVICE[k] === id));
+  // the pre-compile check: the build sees it whole, a chapter its own blockers
+  const blockers = (full.compile?.blockers ?? []).filter((b) => b.chapter === id);
   const sections = Object.fromEntries(Object.entries(full).filter(([k, v]) => SECTION[k] === id && v !== undefined));
   const made = Object.fromEntries(Object.entries(full.made ?? {}).filter(([k]) => chapterOfStep(k) === c));
   const mineRan = (ran ?? []).filter((r) => chapterOfStep(r.key) === c);
@@ -88,6 +94,7 @@ export function chapterView(full, world, id, { ran, pending, patched = [] } = {}
     // upstream: what it is derived from, each its state and the print of its pages (moved: read that chapter again)
     reads: c.reads.map((r) => ({ id: r, state: book.find((x) => x.id === r)?.state ?? 'empty', print: fingerprint(chapterPages(world, r)) })),
     ...(Object.keys(advice).length ? { advice } : {}),
+    ...(id !== 'build' && blockers.length ? { blockers } : {}),
     ...sections,
     ...(Object.keys(made).length ? { made } : {}),
     // (and what the run made for it in other chapters: the steps its orders name, a level's pilot, its foes)

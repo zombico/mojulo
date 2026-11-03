@@ -56,3 +56,19 @@ become chapters each department works alone, so the compile is one loop that mak
   checked, and its first frame read, before the characters are approved. The build is never a need (no game, no walks),
   and the build chapter's run is the whole run. A chapter's run does not report the compiler's resonance gaps, which
   belong to the whole run.
+- **The pre-compile check** (`design-game-check.js`, the readout's `compile`, machine gate). It finds what a run would hit
+  before anything is made, where it used to surface minutes into the run after the steps before it were made. It reads
+  the run's plan, and each order as its door would read it where that check is cheap and needs nothing made:
+  - every hero-door spec, for the hero, its cast, its foes and its folk;
+  - every level's houses and bodies;
+  - the game as create_game makes it, over the planned levels: its manifest, each level's contract dry-run against the
+    game's store, its links and its menu;
+  - every sketch an order names, which must be one a step makes or one that is stored (an adopted hero with no row, a
+    building played by a ref that is gone).
+
+  A refused plan is said on the chapter its field belongs to. Each blocker names its chapter: the build's view sees them
+  whole, and each other chapter sees its own, with a `compile` next move. It also prices the build left (what a run makes
+  now and what waits on approvals) at the step times measured on the reference book, divided by the run's budget, as
+  `estimate: { seconds, calls }`: an order of size, not a promise. It runs on a run and on a chapter's view, never on a
+  plain read; it advises, and a run goes ahead whatever it says. The world door's full resolve and the gear's workbench
+  are not run, since they need what the run makes.
