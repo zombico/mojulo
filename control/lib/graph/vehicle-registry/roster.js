@@ -33,6 +33,7 @@
  *     craft     craft-shelf CRAFT_ARCHETYPES
  *     sky       skyscape/eye.js CRAFT: the fly goal's flight model
  *     cycle     cycle-shelf CYCLE_ARCHETYPES: a machine ridden astride, or a three-wheeler made of one and its add-ons
+ *     construction  construction-shelf CON_ARCHETYPES: a site's machine, its carrier, its upper, its front and its tool
  *     tech      tech-crafter's vehicle trait: the concept it falls back to at every tier (many rows may share one)
  *
  * Pure data and pure functions: no clock, no dice.
@@ -63,6 +64,7 @@ export const ROLES = Object.freeze({
   scout: 'a light field vehicle: it scouts, patrols and carries a few',
   armour: 'armoured and armed: it fights',
   work: 'it works a field, a yard or a dock',
+  construction: 'it builds, digs, hauls or lifts on a site',
   trainer: 'a craft to learn to fly in',
   courier: 'a small fast craft for a few people',
   liner: 'a craft that carries passengers far',
@@ -209,8 +211,46 @@ export const VEHICLES = {
   // ── work and war on the ground ──────────────────────────────────────────────
   tractor: row('tractor', ['farm tractor'], 'offroad', 'work', M, ['driven', 'parked'],
     { tech: 'car' }),
-  forklift: row('forklift', ['fork lift', 'lift truck'], 'road', 'work', M, ['driven', 'parked'],
-    { tech: 'car' }),
+  forklift: row('forklift', ['fork lift', 'lift truck', 'counterbalance forklift', 'fork truck'], 'road', 'work', M, ['driven', 'parked'],
+    { physics: 'forklift', tech: 'car' }),
+  // ── the site's machines (the construction shelf's, construction-shelf/: each a carrier, an upper, a front and a tool;
+  // a crawler and a skid steer drawn and parked until skid steer is built; the tower crane stands where it is put) ───
+  excavator: row('excavator', ['digger', 'crawler excavator', 'tracked excavator', 'hydraulic excavator', 'trackhoe', 'power shovel'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'crawlerExcavator', tech: 'tracked' }),
+  'mini-excavator': row('mini excavator', ['mini digger', 'compact excavator', 'micro excavator'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'miniExcavator', tech: 'tracked' }),
+  'wheeled-excavator': row('wheeled excavator', ['wheel excavator', 'rubber tyred excavator', 'mobile excavator'], 'road', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'wheeledExcavator', tech: 'truck' }),
+  bulldozer: row('bulldozer', ['dozer', 'crawler dozer', 'crawler tractor', 'track dozer'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'crawlerDozer', tech: 'tracked' }),
+  'wheel-loader': row('wheel loader', ['front loader', 'front end loader', 'bucket loader', 'payloader', 'shovel loader'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'wheelLoader', tech: 'truck' }),
+  'backhoe-loader': row('backhoe loader', ['backhoe', 'loader backhoe', 'digger loader'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'backhoeLoader', tech: 'truck' }),
+  'skid-steer': row('skid steer loader', ['skid steer', 'skidsteer', 'skid loader'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'skidSteer', tech: 'car' }),
+  'compact-track-loader': row('compact track loader', ['track loader', 'tracked skid steer', 'multi terrain loader'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'compactTrackLoader', tech: 'tracked' }),
+  telehandler: row('telehandler', ['telescopic handler', 'telescopic forklift', 'reach forklift', 'boom lift truck'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'telehandler', tech: 'truck' }),
+  'tipper-truck': row('tipper truck', ['tipper', 'dump truck', 'dumper truck', 'tip truck', 'dump lorry', 'tipper lorry'], 'road', 'construction', M, ROAD.concat('watched'),
+    { physics: 'tipperTruck', tech: 'truck' }),
+  'mixer-truck': row('concrete mixer truck', ['mixer truck', 'cement truck', 'cement mixer', 'concrete mixer', 'transit mixer', 'concrete truck'], 'road', 'construction', M, ROAD.concat('watched'),
+    { physics: 'mixerTruck', tech: 'truck' }),
+  'articulated-dump-truck': row('articulated dump truck', ['articulated hauler', 'dumper', 'adt', 'site dumper'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'articulatedDumpTruck', tech: 'truck' }),
+  'haul-truck': row('haul truck', ['mining truck', 'off highway truck', 'rigid dump truck', 'quarry truck'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'haulTruck', tech: 'truck' }),
+  'mobile-crane': row('mobile crane', ['all terrain crane', 'truck crane', 'crane truck', 'rough terrain crane', 'telescopic crane'], 'road', 'construction', M, ROAD.concat('watched'),
+    { physics: 'mobileCrane', tech: 'truck' }),
+  // (a tower crane never drives: its words and its uses are a site's centrepiece, its size its own once built; its
+  // concept, a truck, is the crafter's nearest until the shelf draws it)
+  'tower-crane': row('tower crane', ['crane', 'building crane', 'construction crane', 'hammerhead crane', 'luffing crane', 'site crane'], 'road', 'construction', M, ['parked', 'watched'],
+    { tech: 'truck' }),
+  'road-roller': row('road roller', ['roller', 'steamroller', 'compactor', 'tandem roller', 'asphalt roller', 'drum roller'], 'road', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'roadRoller', tech: 'truck' }),
+  'motor-grader': row('motor grader', ['grader', 'road grader', 'blade grader'], 'road', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'motorGrader', tech: 'truck' }),
   // (the field's: a light utility 4x4, a canvas-topped cargo truck, an eight-wheeled carrier; their realistic bodies
   // are the military hull kit's, car-designer/road-military.js; "jeep" is said of any light military 4x4, so it is a
   // word here, the one maker's name the roster keeps)
@@ -372,6 +412,7 @@ export const HANDLE_TABLES = Object.freeze({
   craft: { claim: 'one', table: 'craft-shelf/craft-archetypes.js CRAFT_ARCHETYPES' },
   sky: { claim: 'one', table: 'skyscape/eye.js CRAFT' },
   cycle: { claim: 'one', table: 'cycle-shelf/cycle-archetypes.js CYCLE_ARCHETYPES' },
+  construction: { claim: 'one', table: 'construction-shelf/con-archetypes.js CON_ARCHETYPES' },
   tech: { claim: 'shared', table: 'gameworld/tech-crafter.js CRAFT_TRAITS.vehicle (a form\'s variant)' },
 });
 

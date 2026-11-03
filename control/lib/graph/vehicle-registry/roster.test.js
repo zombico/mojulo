@@ -15,6 +15,7 @@ import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
+import { CON_ARCHETYPES } from '../construction-shelf/con-archetypes.js';
 import { CRAFT_TRAITS } from '../gameworld/tech-crafter.js';
 
 const IDS = Object.keys(VEHICLES);
@@ -33,6 +34,7 @@ const TABLES = {
   craft: Object.keys(CRAFT_ARCHETYPES),
   sky: Object.keys(CRAFT),
   cycle: Object.keys(CYCLE_ARCHETYPES),
+  construction: Object.keys(CON_ARCHETYPES),
 };
 const NETS = [...Object.keys(CAR_NETS), ...Object.keys(SMOOTH_BOX_NETS), ...Object.keys(AIRCRAFT_FUSELAGE_NETS)];
 
@@ -179,6 +181,16 @@ describe('builds by tier', () => {
     const lofted = byVia.get('loft');
     expect(upscaleOf(lofted)).toMatchObject({ realistic: 'live', via: 'loft', next: null });
     expect(upscaleOf(IDS.find((id) => upscaleOf(id).realistic === 'none')).next).toMatch(/realistic body/);
+  });
+  it('sends a site machine to the construction shelf, and a skid steer\'s driving to skid steer', () => {
+    const site = IDS.filter((id) => VEHICLES[id].role === 'construction');
+    expect(site.length).toBeGreaterThan(0);
+    // (until the shelf builds one: a machine with no build of its own names the shelf)
+    const unbuilt = site.find((id) => upscaleOf(id).realistic === 'none');
+    if (unbuilt) expect(upscaleOf(unbuilt).next).toMatch(/construction shelf/);
+    // every site machine falls back to a concept the crafter draws, and its size is its class's or its own
+    for (const id of site) expect(buildOf(id, 'realistic').build).toBeTruthy();
+    expect(site.filter((id) => !handlesOf(id).physics)).toEqual(['tower-crane']);
   });
   it('reads a size from the table that measures it', () => {
     const fleet = byVia.get('fleet'), craft = byVia.get('craft');
