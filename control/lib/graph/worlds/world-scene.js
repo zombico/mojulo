@@ -1078,6 +1078,37 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = await atRigFidelity(loftFigure(rawSpec.loft, { form: ERAS[era]?.surface === 'form', setting: { sky: payload.sky ?? null, wet } }));
           continue;
         }
+        // CRAFT bodies (craft-shelf/craft-form.js): a figures-map entry may be a craft off the shelf standing on its gear
+        // (`craft`: { archetype, look?, livery?, wear?, fold?, pad?, made? }, what a parked helicopter, aircraft or drone
+        // writes), in the form render, made unless `made: false`, lit by its world's sky, its rotors still; `pad` a
+        // helipad under it. Absent ⇒ no craft is resolved, byte-identical.
+        if (rawSpec.craft && typeof rawSpec.craft === 'object') {
+          const { craftFormFigure } = await import('@/lib/graph/craft-shelf/craft-form.js');
+          const K = rawSpec.craft;
+          const opts = Object.fromEntries(['look', 'livery', 'wear', 'fold', 'pad'].filter((k) => K[k] !== undefined && K[k] !== false).map((k) => [k, K[k]]));
+          payload.figures[name] = await atRigFidelity(craftFormFigure(K.archetype, { setting: { sky: payload.sky ?? null }, pose: { gear: 0 }, attitude: 'ground', made: K.made !== false, ...opts }));
+          continue;
+        }
+        // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
+        // entry may be a cycle shelf machine (`cycle`: { archetype, look?, pose?, addons? }, what a parked cycle writes), at
+        // its class's true numbers in metres, parked on its stand, delivered as its rig (the machine the root, each wheel
+        // a bone); or ridden (`ride: true`, rider?, posture?: what a quick game's ride writes), its rider astride and its
+        // live overlay with it (its front steered, its lean). Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.cycle && typeof rawSpec.cycle === 'object') {
+          const { cycleFigure, cycleRideFigure } = await import('@/lib/graph/cycle-shelf/cycle-figure.js');
+          payload.figures[name] = rawSpec.cycle.ride ? await cycleRideFigure(rawSpec.cycle) : cycleFigure(rawSpec.cycle);
+          continue;
+        }
+        // CONSTRUCTION bodies (construction-shelf/: the vehicle registry's realistic build of a site machine): a figures-map
+        // entry may be a construction shelf machine (`construction`: { archetype, pose?, tool?, carrier?, height?,
+        // palette? }, what a parked site machine writes), at its class's true numbers in metres, at its pose (its rest
+        // unless it says), centred on its spot, delivered as its rig (the machine the root). Absent ⇒ none is resolved,
+        // byte-identical.
+        if (rawSpec.construction && typeof rawSpec.construction === 'object') {
+          const { conFigure } = await import('@/lib/graph/construction-shelf/con-figure.js');
+          payload.figures[name] = conFigure(rawSpec.construction);
+          continue;
+        }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms
         // (`transformer`: { robot?, vehicle?, scheme?, fold?, legs?, height? }): the robot a VARIABLE SUIT (`robot.variable`:
         // { palette?, build? }, a suit drawn to fold into its own waverider), an ALIEN BODY (`robot.alien`, pointed shells

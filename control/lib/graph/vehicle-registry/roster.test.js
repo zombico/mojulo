@@ -14,6 +14,9 @@ import { RIDES } from '../gameworld/ride.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { CRAFT } from '../skyscape/eye.js';
+import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
+import { CON_ARCHETYPES } from '../construction-shelf/con-archetypes.js';
+import { CAR_CARDS } from '../car-shelf/car-library.js';
 import { CRAFT_TRAITS } from '../gameworld/tech-crafter.js';
 
 const IDS = Object.keys(VEHICLES);
@@ -31,6 +34,9 @@ const TABLES = {
   supercar: Object.keys(SUPERCAR_LIBRARY),
   craft: Object.keys(CRAFT_ARCHETYPES),
   sky: Object.keys(CRAFT),
+  cycle: Object.keys(CYCLE_ARCHETYPES),
+  construction: Object.keys(CON_ARCHETYPES),
+  car: Object.keys(CAR_CARDS),
 };
 const NETS = [...Object.keys(CAR_NETS), ...Object.keys(SMOOTH_BOX_NETS), ...Object.keys(AIRCRAFT_FUSELAGE_NETS)];
 
@@ -138,7 +144,7 @@ describe('builds by tier', () => {
   for (const id of IDS) for (const b of buildsOf(id)) if (!byVia.has(b.via)) byVia.set(b.via, id);
 
   it('every builder has a row, and every build a tier, a status and the uses it serves', () => {
-    expect([...byVia.keys()].sort()).toEqual(['assembly', 'craft', 'fleet', 'loft', 'net', 'racer', 'ride', 'scenery', 'supercar', 'tech']);
+    expect([...byVia.keys()].sort()).toEqual(['assembly', 'construction', 'craft', 'cycle', 'fleet', 'loft', 'net', 'racer', 'ride', 'scenery', 'supercar', 'tech']);
     for (const id of byVia.values()) {
       for (const b of buildsOf(id)) {
         expect(b.tier === null || TIER_IDS.includes(b.tier)).toBe(true);
@@ -177,6 +183,21 @@ describe('builds by tier', () => {
     const lofted = byVia.get('loft');
     expect(upscaleOf(lofted)).toMatchObject({ realistic: 'live', via: 'loft', next: null });
     expect(upscaleOf(IDS.find((id) => upscaleOf(id).realistic === 'none')).next).toMatch(/realistic body/);
+  });
+  it('sends a site machine to the construction shelf, and a skid steer\'s driving to skid steer', () => {
+    const site = IDS.filter((id) => VEHICLES[id].role === 'construction');
+    expect(site.length).toBeGreaterThan(0);
+    // (each drawn and parked by the shelf; what one that drives needs is driving: a skid steer's by skid steer, the rest
+    // by its ride; one that never drives, a tower crane, needs nothing)
+    for (const id of site) {
+      expect(buildOf(id, 'realistic', { use: 'parked' }).build).toMatchObject({ via: 'construction', status: 'live' });
+      if (VEHICLES[id].uses.includes('driven')) expect(upscaleOf(id).next, id).toMatch(/^driving it: /);
+      else expect(upscaleOf(id)).toMatchObject({ realistic: 'live', via: 'construction', next: null });
+    }
+    expect(site.map((id) => upscaleOf(id).next).some((n) => /construction shelf/.test(n))).toBe(true);
+    // every site machine falls back to a concept the crafter draws, and its size is its class's or its own
+    for (const id of site) expect(buildOf(id, 'realistic').build).toBeTruthy();
+    expect(site.filter((id) => !handlesOf(id).physics)).toEqual(['tower-crane']);
   });
   it('reads a size from the table that measures it', () => {
     const fleet = byVia.get('fleet'), craft = byVia.get('craft');
