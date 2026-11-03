@@ -103,7 +103,14 @@ export function craftService(archetype) {
   const noseGear = nosePts.length ? [r3((Math.min(...nosePts.map((p) => p[0])) + Math.max(...nosePts.map((p) => p[0]))) / 2), r3((Math.min(...nosePts.map((p) => p[1])) + Math.max(...nosePts.map((p) => p[1]))) / 2)] : null;
   const wingRoot = pts(/^wing-r$/).filter((p) => p[0] < 4);
   const holds = [];
-  if (noseGear && wingRoot.length && row.role === 'liner') {
+  // (the row's own holds where it names them, their sills where its made finish draws their doors; else ahead of the
+  // wing, between it and the nose gear, and behind it)
+  const own = hullRow(archetype)?.build?.holds;
+  if (own) for (const [sf, zf, , h] of own) {
+    const y = yNose - sf * L, R = ring(y), cz = (R.z0 + R.z1) / 2, hh = (R.z1 - R.z0) / 2, sill = cz + zf * hh - h / 2;
+    holds.push({ y: r3(y), sill: r3(sill), x: r3(skinX(R, sill + 0.15, 1)) });
+  }
+  else if (noseGear && wingRoot.length && row.role === 'liner') {
     const le = Math.max(...wingRoot.map((p) => p[1])), te = Math.min(...wingRoot.map((p) => p[1]));
     for (const y of [le + (noseGear[1] - le) * 0.45, te - 1.6]) {
       const R = ring(y), sill = R.z0 + 0.35;

@@ -15,6 +15,7 @@ import { buildCockpit } from './cockpit-parts.js';
 import { armourPlates, doorKit } from './heli-made.js';
 import { BOAT_BUILDERS } from './boat-parts.js';
 import { asFitting, madeHull, madeCanopy, madeIntake, madeNozzle, madeWheel, madeLeg, madeWell, madeSurface, madeMissile } from './air-made.js';
+import { madeLiner, madeNacelle } from './liner-made.js';
 import { DEG, airfoil, airfoilAft, extrudeWorld, facetSection, foilAt, lathe, loftWorld, mulberry32, hashSeed, planeUV, round3, section, sweep, tone, turnAbout } from './craft-common.js';
 
 const r3v = (v) => v.map(round3);
@@ -198,9 +199,14 @@ function buildFuselage(row, C, opts = {}) {
   lofts.push(...detail.lofts);
   if (madeFor(row, opts)) {
     const ringAt = (s) => skinRing(stations, s, smooth, zp);
-    const mh = madeHull({ b, L, zp, ringAt, skinX, skinZ, C });
-    lofts.push(...mh.lofts);
-    made.push({ extrudes: mh.extrudes, sweeps: mh.sweeps });
+    // (a civil hull, its flight deck glazed and its cabin windowed, is an airliner's: liner-made.js; any other the
+    // fighter's: air-made.js)
+    if (b.windscreen && b.windows) made.push(madeLiner({ b, L, ringAt, skinX, skinZ, C }));
+    else {
+      const mh = madeHull({ b, L, zp, ringAt, skinX, skinZ, C });
+      lofts.push(...mh.lofts);
+      made.push({ extrudes: mh.extrudes, sweeps: mh.sweeps });
+    }
     // (a military hull's armour, unless its look is civilian; a step and a grab handle at each door: heli-made.js)
     if (b.armour && opts.made?.armour !== false) { const ap = armourPlates({ plates: b.armour, L, zp, ringAt, skinX, C }); lofts.push(...ap.lofts); made.push({ lathes: ap.lathes }); }
     if (b.grabs && b.doors) made.push(doorKit({ doors: b.doors, L, ringAt, skinX, C }));
@@ -779,7 +785,7 @@ function buildEngine(row, C, opts = {}) {
       ? [[0, 0.86 * R], [0.05, 0.97 * R], [0.28, R], [0.72, 0.9 * R], [1, 0.6 * R]]
       : [[0, 0.55 * R], [0.12, 0.92 * R], [0.35, R], [0.7, 0.85 * R], [1, 0.25 * R]];
     lathes.push(lathe('nacelle', [xc, yf, zc], [xc, yf - L, zc], nacelle, C.paint, { crossSections: 18, samples: 28 }));
-    const sweeps = [];
+    const sweeps = [], extrudesMade = [];
     const hardpoints = { mount: [0, 0, 0] };
     if (fam === 'turbofan') {
       const fanR = (b.fanDiameter || 1.6 * R) / 2;
@@ -791,6 +797,18 @@ function buildEngine(row, C, opts = {}) {
       lathes.push(lathe('reverser_seam', [xc, yf - 0.5 * L, zc], [xc, yf - 0.52 * L, zc], [[0, 0.975 * R], [1, 0.97 * R]], C.trim, { samples: 28, crossSections: 2 }));
       // the fan: blades from the spinner to the case, raked by their twist
       const n = b.fanBlades || 18;
+      // made: the intake deep to a fan face behind the blades (the disc that stood before them gone), the spinner's
+      // swirl, the fan nozzle and the core cowl, the latches (liner-made.js)
+      if (madeFor(row, opts)) {
+        const k = lathes.findIndex((q) => q.id === 'fan');
+        if (k >= 0) lathes.splice(k, 1);
+        // (the nacelle and its lip open at their ends, so the intake and the exhaust read as holes)
+        for (const q of lathes) if (q.id === 'nacelle' || q.id === 'lip') q.caps = false;
+        const mn = madeNacelle({ xc, yf, zc, L, R, fanR, C });
+        lathes.push(...mn.lathes);
+        sweeps.push(...mn.sweeps);
+        extrudesMade.push(...mn.extrudes);
+      }
       sweeps.push(...Array.from({ length: n }, (_, i) => {
         const a = (i / n) * 2 * Math.PI;
         const c = Math.cos(a);
@@ -804,7 +822,7 @@ function buildEngine(row, C, opts = {}) {
       lathes.push(lathe('scoop', [xc, yf - 0.06 * L, zc - 0.62 * R], [xc, yf - 0.2 * L, zc - 0.62 * R], [[0, 0.2 * R], [1, 0.26 * R]], C.trim, { samples: 16, crossSections: 3 }));
       hardpoints.propHub = r3v([xc, yf, zc]);
     }
-    return { lathes, ...(sweeps.length ? { sweeps } : {}), hardpoints };
+    return { lathes, ...(sweeps.length ? { sweeps } : {}), ...(extrudesMade.length ? { extrudes: extrudesMade } : {}), hardpoints };
   }
   if (fam === 'cowl') {
     // a nose cowling over a flat engine: the mount is the firewall, the hub the cowl's nose

@@ -134,6 +134,9 @@ export const CRAFT_ODM = {
       family: 'tube', n: 2, stations: AIRLINER_BARREL, windscreen: [0.045, 0.075],
       windows: { from: 0.11, to: 0.82, pitch: 0.533, zf: 0.26, w: 0.25, h: 0.33 },
       doors: [[0.075, 0.08, 0.81, 1.85], [0.885, 0.08, 0.81, 1.85], [0.415, 0.2, 0.51, 0.96]],
+      // (its cargo holds' doors on the right, forward of the wing and aft of it: drawn by the made finish, met by a
+      // turnaround's belt loaders)
+      holds: [[0.27, -0.62, 1.82, 1.24], [0.665, -0.62, 1.82, 1.24]],
       antennas: [[0.3, 0, 1, 0.32, 'blade'], [0.55, 0, -1, 0.28, 'blade']],
       points: { wingRoot: [0.4, 0.92, -0.6], stabRoot: [0.9, 0.2, 0.1], finRoot: [0.82, 0, 0.75], noseGear: [0.06, 0, -0.9] } },
   },
@@ -145,6 +148,7 @@ export const CRAFT_ODM = {
       family: 'tube', n: 2, stations: AIRLINER_BARREL, windscreen: [0.03, 0.05],
       windows: { from: 0.08, to: 0.86, pitch: 0.533, zf: 0.3, w: 0.27, h: 0.38 },
       doors: [[0.06, 0.08, 1.07, 1.93], [0.3, 0.08, 1.07, 1.93], [0.6, 0.08, 1.07, 1.93], [0.885, 0.08, 1.07, 1.93]],
+      holds: [[0.22, -0.55, 2.7, 1.7], [0.665, -0.55, 1.8, 1.7]],
       antennas: [[0.25, 0, 1, 0.38, 'blade'], [0.5, 0, -1, 0.32, 'blade']],
       points: { wingRoot: [0.4, 0.92, -0.6], stabRoot: [0.9, 0.2, 0.1], finRoot: [0.82, 0, 0.75], noseGear: [0.06, 0, -0.9] } },
   },
