@@ -127,10 +127,17 @@ export const VEHICLES = {
     { supercar: ['razor', 'strada', 'endurance', 'touring'], tech: 'car' }),
   'police-car': row('police car', ['cop car', 'squad car', 'patrol car', 'cruiser'], 'road', 'patrol', M, ROAD,
     { tech: 'car' }),
-  ambulance: row('ambulance', ['paramedic van'], 'road', 'service', M, ROAD,
-    { tech: 'truck' }),
-  'fire-engine': row('fire engine', ['fire truck', 'fire appliance'], 'road', 'service', M, ROAD,
-    { tech: 'truck' }),
+  // (the city's emergency vehicles, classes and not replicas, in no service's livery: a box ambulance on a van cab, a
+  // high-roofed paramedic van, a pumper fire engine, a rear-mount aerial ladder truck; their realistic bodies the hull
+  // kit's, road-civic.js)
+  ambulance: row('ambulance', ['box ambulance', 'ems truck', 'rescue ambulance', 'emergency ambulance', 'ambulance truck'], 'road', 'service', M, ROAD,
+    { physics: 'ambulance', tech: 'truck' }),
+  'paramedic-van': row('paramedic van', ['paramedic', 'van ambulance', 'paramedic unit', 'medic unit', 'ems van', 'high roof ambulance', 'emergency van', 'response van'], 'road', 'service', M, ROAD,
+    { physics: 'paramedicVan', tech: 'truck' }),
+  'fire-engine': row('fire engine', ['fire truck', 'fire appliance', 'pumper', 'fire pumper', 'pump truck', 'fire tender', 'pumping appliance'], 'road', 'service', M, ROAD,
+    { physics: 'fireEngine', tech: 'truck' }),
+  'ladder-truck': row('ladder truck', ['aerial ladder', 'aerial ladder truck', 'turntable ladder', 'hook and ladder', 'fire ladder truck', 'ladder engine', 'aerial appliance', 'tower ladder'], 'road', 'service', M, ROAD,
+    { physics: 'ladderTruck', tech: 'truck' }),
   // ── racers and trail machines ───────────────────────────────────────────────
   kart: row('kart', ['go-kart', 'go kart', 'cartoon racer', 'racer', 'kart racer'], 'road', 'racer', M, ['driven', 'watched'],
     { physics: 'kart', racer: true, tech: 'car' }),
@@ -191,6 +198,17 @@ export const VEHICLES = {
     { assembly: 'trailer', tech: 'cart' }),
   'tow-truck': row('tow truck', ['wrecker', 'breakdown truck', 'recovery truck'], 'road', 'service', M, ROAD,
     { assembly: 'towtruck', tech: 'truck' }),
+  // (the city's works: a rear-loading refuse truck, a plough truck and gritter, a street sweeper; classes, not replicas,
+  // their realistic bodies the hull kit's, road-civic.js)
+  'refuse-truck': row('garbage truck', ['refuse truck', 'trash truck', 'bin lorry', 'dustcart', 'refuse lorry', 'rubbish truck', 'dustbin lorry', 'waste truck', 'bin truck', 'refuse collection vehicle', 'garbage lorry', 'rear loader'], 'road', 'service', M, ROAD,
+    { physics: 'refuseTruck', tech: 'truck' }),
+  snowplow: row('snowplow', ['snowplough', 'snow plow', 'snow plough', 'plow truck', 'plough truck', 'gritter', 'gritting lorry', 'salt truck', 'salt spreader', 'snow removal truck', 'winter service vehicle', 'snow truck'], 'road', 'service', M, ROAD,
+    { physics: 'snowPlow', tech: 'truck' }),
+  'street-sweeper': row('street sweeper', ['road sweeper', 'sweeper truck', 'street cleaner', 'road cleaner', 'street sweeping truck', 'mechanical sweeper', 'sweeper'], 'road', 'service', M, ROAD,
+    { physics: 'streetSweeper', tech: 'truck' }),
+  // (a utility's bucket truck: an aerial work platform on a service body)
+  'bucket-truck': row('bucket truck', ['cherry picker', 'elevator truck', 'aerial lift truck', 'aerial work platform', 'utility bucket truck', 'lineman truck', 'boom lift truck', 'aerial device truck', 'man lift truck', 'bucket lift'], 'road', 'service', M, ROAD,
+    { physics: 'bucketTruck', tech: 'truck' }),
   // ── transit ─────────────────────────────────────────────────────────────────
   bus: row('bus', ['city bus', 'coach bus', 'omnibus', 'transit bus'], 'road', 'transit', M, ROAD,
     { scenery: 'cityBus', physics: 'bus', fleet: 'bus', tech: 'bus' }),

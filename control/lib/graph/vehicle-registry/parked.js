@@ -44,6 +44,7 @@ import { CYCLE_ODM } from '../cycle-shelf/cycle-odm.js';
 import { lookCard as cycleLookCard } from '../cycle-shelf/cycle-looks.js';
 import { wheelLayout } from '../roads/vehicles.js';
 import { AIRSIDE_REACH } from '../car-designer/road-airside.js';
+import { CIVIC_REACH, CIVIC_CLASSES } from '../car-designer/road-civic.js';
 import { crewFor, turnaround } from './turnaround.js';
 
 export const PARKED_MAX = 6;
@@ -120,8 +121,12 @@ export function readParked(list, at = 'parked') {
     if (p.look !== undefined && !cycle) throw new Error(`${w}.look: the ${vehicle} is dressed by its own build; a look dresses a machine ridden astride`);
     if (p.look !== undefined) cycleLookCard(p.look);
     // (a reach lifts an airside body: its galley, its belt, its platform, a pushback's cradle; metres, clamped to its range)
-    if (p.reach !== undefined && !(field && AIRSIDE_REACH[MILITARY_CLASSES[cls]])) throw new Error(`${w}.reach: the ${vehicle} lifts nothing; a reach is a catering truck's, a belt loader's, a stair truck's or a pushback's`);
-    if (p.reach !== undefined && !(Number.isFinite(p.reach) && p.reach >= 0 && p.reach <= 10)) throw new Error(`${w}.reach is metres from the ground, 0 to 10`);
+    // (or a city's body that deploys: a refuse truck's tailgate, a plough's blade, a sweeper's brooms, a ladder's tip, a
+    // bucket's floor; its range its own)
+    const civic = field && CIVIC_REACH[CIVIC_CLASSES[cls]];
+    if (p.reach !== undefined && !(field && (AIRSIDE_REACH[MILITARY_CLASSES[cls]] || civic))) throw new Error(`${w}.reach: the ${vehicle} lifts nothing; a reach is a catering truck's, a belt loader's, a stair truck's or a pushback's, or a city vehicle's that deploys (a garbage truck, a snowplow, a street sweeper, a ladder truck, a bucket truck)`);
+    const top = civic ? civic.range[1] : 10;
+    if (p.reach !== undefined && !(Number.isFinite(p.reach) && p.reach >= 0 && p.reach <= top)) throw new Error(`${w}.reach is metres from the ground, 0 to ${top}`);
     return [{ vehicle, class: cls, ...(cycle ? { cycle } : {}), at: p.at.map(r3), heading: r3(p.heading ?? 0), ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.look !== undefined ? { look: p.look } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}), seed: p.seed ?? k + 1 }];
   });
   if (read.length > PARKED_CREWED_MAX) throw new Error(`${at}: ${read.length} vehicles with their crews, more than a level stands (${PARKED_CREWED_MAX})`);
