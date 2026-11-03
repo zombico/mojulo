@@ -237,6 +237,9 @@ Pointers only; each target carries its own design notes.
   first. Its builds by tier (toy | stylised | realistic) and what each needs to be drawn realistic: `builds.js`. The
   field's vehicles (a military class's realistic body) are the hull kit's: `car-designer/road-military.js` over `mil-hull.js`, a
   tracked class's running gear `mil-track.js`; the airfield's ground crew (catering, belt loader, stairs) too, `road-airside.js`.
+- Cars: [car-shelf/](control/lib/graph/car-shelf/) (the personal and family cars: a body style, a design language, a trim and
+  its parts and a paint over a class's true numbers; named configurations are cards in `car-library.js`, a registry row's
+  `car` handle; a loft's `{ car }`; a new car is a card, a new look a language or a part word): [docs/car-shelf.md](docs/car-shelf.md).
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
   Boats are on the same shelf (`boat-odm.js`, `boat-parts.js`, `boat-archetypes.js`): a hull drawn from its lines and

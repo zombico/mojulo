@@ -16,6 +16,7 @@ import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
 import { CON_ARCHETYPES } from '../construction-shelf/con-archetypes.js';
+import { CAR_CARDS } from '../car-shelf/car-library.js';
 import { CRAFT_TRAITS } from '../gameworld/tech-crafter.js';
 
 const IDS = Object.keys(VEHICLES);
@@ -35,6 +36,7 @@ const TABLES = {
   sky: Object.keys(CRAFT),
   cycle: Object.keys(CYCLE_ARCHETYPES),
   construction: Object.keys(CON_ARCHETYPES),
+  car: Object.keys(CAR_CARDS),
 };
 const NETS = [...Object.keys(CAR_NETS), ...Object.keys(SMOOTH_BOX_NETS), ...Object.keys(AIRCRAFT_FUSELAGE_NETS)];
 

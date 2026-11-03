@@ -112,7 +112,8 @@ const provable = (order) => { const k = (order?.manifest?.game?.mechanics ?? [])
 function loftRide(Q, rode, seed) {
   const dims = FLEET[rode.class] ?? PHYSICS[rode.class];
   // (a field vehicle's livery as the world wrote it: its setting's camo, stamped at mint, or the operator's; its wear)
-  return { figure: { loft: { class: rode.class, seed, light: 'form', ...(Q.livery !== undefined ? { livery: Q.livery } : {}), ...(Q.wear !== undefined ? { wear: Q.wear } : {}) } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
+  // (a personal or family car is the car shelf's card at its class: car-shelf/, its own look)
+  return { figure: { loft: { class: rode.class, ...(rode.car ? { car: rode.car } : {}), seed, light: 'form', ...(Q.livery !== undefined ? { livery: Q.livery } : {}), ...(Q.wear !== undefined ? { wear: Q.wear } : {}) } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
 }
 
 // a machine ridden astride (vehicle-registry/ride.js, the cycle shelf's): its figure compiled by the world in place, its
