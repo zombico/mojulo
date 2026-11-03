@@ -13,6 +13,7 @@
  *
  * Pure.
  */
+import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
 import { TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS } from './characters.js';
 import { ELEMENT_WORDS } from './element-words.js';
@@ -256,6 +257,9 @@ function juiceCard() {
     'The characters near an effect take its rim light (the look\'s kind: a soft glow, a cel band, a thin line; the game',
     'type\'s strength), and a status\'s coat the look\'s rim; rim: 0 turns it off.',
     'A composed world writes \'auto\'; design_game\'s readout suggests one (a `juice` step) for a world that writes none.',
+    'TEMPO, the world clock: \'auto\' | false | finisher | kill-cam | impact | bullet | { moments: [{ on, scale, hold }] }:',
+    'slows the world on strike, down:foe, last-down, dodge; a moment\'s cam and look take the camera and the grade.',
+    'GRADE, the look over every frame: \'auto\' (anime vivid, western film) | false | film | noir | bleach | vivid | pastel.',
     '',
     'registers and their looks (look: a register\'s first is its own; an anime fighter or brawler is drawn cel):',
     ...Object.entries(JUICE_REGISTERS).flatMap(([r, R]) => R.looks.map((l) => `  ${r} · ${l}  ${JUICE_LOOKS[l].says}`)),
@@ -584,6 +588,11 @@ function qowCard() {
     '',
     'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.qow`, and never refuse)',
     ...Object.entries(QOW_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(11)} ${v}`),
+    '',
+    'ERRANDS (its element, as the escape room is the WCD\'s), on a map world (topology: interconnected): sent out, home with the goods.',
+    "errands [{ id, giver: '<level>', reward?: [{ item, n? }], list: [{ item, at: '<level>', count?, min?, needs?: ['<item>'],",
+    "        from?: { foe }, cargo?: { fragile?: true, perishable?: <s> } }] }]: needs spent where it is had; from, a bounty;",
+    '        the giver asks for the roots. Laws (advice.errands): ' + Object.keys(ERRAND_LAWS).join(', ') + '.',
   );
 }
 function foesCard() {
@@ -830,7 +839,7 @@ const CARDS = [
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
-  ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path', qowCard],
+  ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path, an errand, a fetch quest, a delivery run, a bounty board', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],

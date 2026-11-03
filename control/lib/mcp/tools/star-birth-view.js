@@ -45,7 +45,7 @@ export function mintStarBirthView({ title, scenario, inclination, exposure, view
 
 export async function createStarBirthViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_star_birth_view requires a recipe object');
+    throw new Error('create_view({ kind: "star-birth" }) requires a recipe object');
   }
   const { title, scenario, inclination, exposure, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintStarBirthView({ title, scenario, inclination, exposure, viewBox, scene, ref, folderRef });

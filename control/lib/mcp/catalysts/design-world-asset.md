@@ -12,7 +12,7 @@
     { "name": "assetIntent", "prompt": "What world asset are you designing? (e.g. 'a plaza fountain', 'a wrought-iron lamppost', 'an obelisk monument')" },
     { "name": "placement", "prompt": "How does it plug into the world? embedded-faces (drop into a scene's extraFaces) | landmark (registered, placed by the city planner) | city-prop (scattered like trees/lamps)", "default": "embedded-faces" }
   ],
-  "mcpTools": { "mojulo": ["create_workbench", "semantic_search"] },
+  "mcpTools": { "mojulo": ["mint_solid", "semantic_search"] },
   "outputContract": { "summary": "An authored asset (a workbench polygomer) + the faces it lowers to, embedded in a target world scene, and/or the registration edit that makes it placeable.", "fields": ["assetFaces", "placement"] }
 }
 ---

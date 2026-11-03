@@ -2,7 +2,7 @@
 {
   "id": "dream-edifice",
   "name": "Reconstruct a dreamed building as a bespoke walkable edifice",
-  "summary": "Use an image worker as the model's EYES to design a NEW, bespoke building — a campus, a connected complex, a custom building type the frozen generators (fractal city/school/hub) don't make — then rebuild it as a deterministic edifice recipe: a GRAPH of MASSES (footprint + floors + facade + roof) connected by CONCOURSES (halls), placed by RELATION not coordinates. Dream the building flat + orthographic, read off the massing + facades + connections, mint with create_edifice, WALK it, compare, adjust one dial at a time. The dreamed reference is discarded; only the edifice recipe persists — and it walks, exports .glb, and enters a world. Livability/reachability are SURFACED but NEVER enforced: a user's building is theirs, and mojulo's vocabulary is suggested defaults, not fences.",
+  "summary": "Use an image worker as the model's EYES to design a NEW, bespoke building — a campus, a connected complex, a custom building type the frozen generators (fractal city/school/hub) don't make — then rebuild it as a deterministic edifice recipe: a GRAPH of MASSES (footprint + floors + facade + roof) connected by CONCOURSES (halls), placed by RELATION not coordinates. Dream the building flat + orthographic, read off the massing + facades + connections, mint with mint_solid kind edifice, WALK it, compare, adjust one dial at a time. The dreamed reference is discarded; only the edifice recipe persists — and it walks, exports .glb, and enters a world. Livability/reachability are SURFACED but NEVER enforced: a user's building is theirs, and mojulo's vocabulary is suggested defaults, not fences.",
   "valueHook": "Turn a dreamed building into a real walkable edifice recipe — masses you can re-place, re-skin, re-roof, connect, walk, and export — instead of a paragraph of description and a one-off elevation.",
   "version": 2,
   "category": "substrate",
@@ -14,10 +14,10 @@
   "parameters": [
     {
       "name": "intent",
-      "description": "The building to reconstruct, in words (e.g. 'a small arts campus: a glass commons with a brick studio wing and a shed-roofed annex', 'a courtyard library with two reading wings', 'a lakeside research complex'). Bespoke inhabitable BUILDINGS only — a generic seed-sampled city / school / transit hub is compose_world instead; a single object is create_workbench / reconstruct-from-dream; a person is character-from-dream. Omit to ask the operator."
+      "description": "The building to reconstruct, in words (e.g. 'a small arts campus: a glass commons with a brick studio wing and a shed-roofed annex', 'a courtyard library with two reading wings', 'a lakeside research complex'). Bespoke inhabitable BUILDINGS only — a generic seed-sampled city / school / transit hub is compose_world instead; a single object is mint_solid kind workbench / reconstruct-from-dream; a person is character-from-dream. Omit to ask the operator."
     }
   ],
-  "mcpTools": { "mojulo": ["create_edifice", "create_sketch", "get_image_render_packet", "semantic_search", "forward_context"] }
+  "mcpTools": { "mojulo": ["mint_solid", "create_sketch", "get_image_render_packet", "semantic_search", "forward_context"] }
 }
 ---
 
@@ -28,7 +28,7 @@ An image worker dreams the building you imagine (or you read a supplied referenc
 and you rebuild it out of the substrate's deterministic **edifice grammar** — a
 GRAPH of **masses** wearing **facades** and **roofs**, joined by **concourses**,
 placed by RELATION. **The dreamed reference is a reasoning aid, never the artifact.**
-The sovereign output is a pure `create_edifice` recipe; the reference is discarded
+The sovereign output is a pure edifice recipe (`mint_solid` kind `edifice`); the reference is discarded
 once the walk reads as the building.
 
 Design + doctrine: `lite-template/integration/plan-archive/dream-architecture.plan.md` (archived).
@@ -44,7 +44,7 @@ Substrate: the assembler `architecture/edifice.js`, the primitives it composes
 - **This is for BESPOKE buildings.** A new, one-off building / campus / connected
   complex the frozen generators don't make. A generic seed-sampled city / school /
   transit hub is `compose_world` (a BASE × a THEME). A single object is
-  `create_workbench` / `reconstruct-from-dream`. A person is `character-from-dream`.
+  `mint_solid` kind `workbench` / `reconstruct-from-dream`. A person is `character-from-dream`.
   If the target isn't a bespoke building, say so and route it.
 - **Compose from the grammar, never freehand.** A mass is a footprint + floors + a
   facade (`material` glass|brick|concrete × `rhythm` curtain|punched|banded|pier|grid)
@@ -55,7 +55,7 @@ Substrate: the assembler `architecture/edifice.js`, the primitives it composes
 - **Compose by RELATION, not coordinates.** The root mass gets an `at:[x,y]`; every
   other sits `on:{anchor, side, align, gap}`. Let the assembler compute the running
   coordinates. Concourses connect masses that already face each other.
-- **Advisory, never gated — the building is the operator's.** `create_edifice`
+- **Advisory, never gated — the building is the operator's.** The edifice mint
   checks reachability/livability and SURFACES defects in its response, but it mints
   regardless. Mojulo's vocabulary (archetypes, facade rhythms, roof forms, palettes)
   is offered as **suggested defaults the operator overrides**, not fences. Surface a
@@ -111,8 +111,8 @@ which one you resolved — then use it. The loop's value is the dream.
             entrance (the spawn + reachability root). A concourse needs two masses
             that FACE each other (placed apart on one axis).
 
-5. BUILD    create_edifice({ masses:[{ id, at|on, footprint, floors, facade, roof }],
-            concourses:[{ from, to, width }], entrance }). It validates the graph,
+5. BUILD    mint_solid({ kind:'edifice', spec:{ masses:[{ id, at|on, footprint, floors,
+            facade, roof }], concourses:[{ from, to, width }], entrance } }). It validates the graph,
             mints the recipe, and returns worldUrl + the advisory readout.
 
 6. WALK     Open /api/sketches/<ref>/world and WALK it (it's walkable). Read the
@@ -146,7 +146,7 @@ them side by side, then pick one to finish. Say which variants you tried and loc
   vocabulary gap instead.
 - You don't hand-compute mass coordinates — compose by relation (`on` + concourses).
 - You don't force a generic city/school/hub, a single object, or a person through
-  this loop — those are `compose_world` / `create_workbench` / `character-from-dream`.
+  this loop — those are `compose_world` / `mint_solid` kind `workbench` / `character-from-dream`.
 - You don't skip the walk — a building you didn't set beside the dream is not a
   reconstruction.
 - You don't refuse or silently "fix" a building for being unconventional or failing a

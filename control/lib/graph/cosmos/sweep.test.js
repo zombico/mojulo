@@ -36,10 +36,13 @@ describe('rollCube', () => {
       return n;
     };
     const fair = count('fair'), flat = count('flat');
-    // flat: Mind (the most settings) is set far more than Time (the fewest); fair: within a fifth of each other
-    expect(flat.mind / flat.time).toBeGreaterThan(1.4);
-    expect(fair.mind / fair.time).toBeGreaterThan(0.8);
-    expect(fair.mind / fair.time).toBeLessThan(1.2);
+    // flat: the facet with the most settings is set far more than the one with the fewest; fair: within a fifth of each
+    // other (the two read off the registry, so a facet growing a setting does not move the test)
+    const reg = capabilityRegistry(), bySize = Object.keys(reg).sort((a, b) => Object.keys(reg[b]).length - Object.keys(reg[a]).length);
+    const most = bySize[0], fewest = bySize.at(-1);
+    expect(flat[most] / flat[fewest]).toBeGreaterThan(1.4);
+    expect(fair[most] / fair[fewest]).toBeGreaterThan(0.8);
+    expect(fair[most] / fair[fewest]).toBeLessThan(1.2);
   });
 });
 

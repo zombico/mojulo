@@ -7,8 +7,8 @@ import {
   getSolidVocabHandler,
 } from '@/lib/mcp/tools/mint-solid';
 
-// The 14 retired names folded into mint_solid / edit_solid. They must stay
-// CALLABLE (compiled plans / skills persisted them) but be absent from tools/list.
+// The names folded into mint_solid / edit_solid in 1.1.0. They were unlisted aliases for two majors and are gone:
+// nothing registers them, so a stored plan naming one compiles back to a draft that names it.
 const RETIRED = [
   'create_figure', 'emote_figure', 'create_manji_tree', 'sketch_polygomer',
   'create_polygonized_sketch', 'get_polygonizer_packet', 'submit_polygonizer_manifest',
@@ -29,11 +29,8 @@ describe('mint_solid consolidation', () => {
     }
   });
 
-  it('keeps every retired name callable but unlisted (append-only alias)', () => {
-    for (const name of RETIRED) {
-      expect(server.hasRegisteredTool(name), `${name} registered`).toBe(true);
-      expect(server.isToolListed(name), `${name} unlisted`).toBe(false);
-    }
+  it('the folded names are gone: none is registered', () => {
+    for (const name of RETIRED) expect(server.hasRegisteredTool(name), `${name} registered`).toBe(false);
   });
 
   it('get_solid_vocab lists a card per kind + op, and reads one by id', async () => {
@@ -77,21 +74,13 @@ describe('mint_solid consolidation', () => {
     await expect(editSolidHandler({ op: 'nope' })).rejects.toThrow(/unknown op 'nope'/);
   });
 
-  it('mint_solid dispatches a kind, and its retired alias mints the same manifest kind', async () => {
+  it('mint_solid dispatches a kind', async () => {
     // solid-turntable is the cheapest kind (no LLM, deterministic recipe).
     const spec = { shape: 'sphere', color: '#5f86ad' };
     const viaMint = await mintSolidHandler({ kind: 'solid-turntable', title: 'mint_solid smoke', spec });
     expect(viaMint.ok).toBe(true);
     expect(viaMint.ref).toBeTruthy();
-
-    // The retired name resolves through the registry (invokeRegisteredTool) and
-    // produces an equivalent result — geometry path unchanged, only tools/list moved.
-    const viaAlias = await server.invokeRegisteredTool('create_solid_turntable', {
-      title: 'alias smoke',
-      shape: 'sphere',
-      color: '#5f86ad',
-    });
-    expect(viaAlias.ok).toBe(true);
-    expect(viaAlias.ref).toBeTruthy();
+    const viaRegistry = await server.invokeRegisteredTool('mint_solid', { kind: 'solid-turntable', title: 'registry smoke', spec });
+    expect(viaRegistry.ok).toBe(true);
   });
 });

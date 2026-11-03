@@ -5,12 +5,16 @@
 // takes minutes an actor.
 //
 //   node scripts/export-scene-blender.mjs --out <dir> [--scene scene.json] [--style thespian] [--look film|anime]
-//                                         [--hero '<a hero spec>'] [--fps 24] [--title scene]
+//                                         [--hero '<a hero spec>'] [--fps 24] [--title scene] [--grain ones|twos|threes] [--grade film]
 //
 //   --scene  { cast, marks?, script, seed? } (actor/scene.js); a cast member's own `hero` spec plays it, else --hero's;
 //            default the baseline's blocked two-hander (actor/baseline.js BASELINE.blocked)
 //   --style  a playing style every actor without its own takes (actor/style.js); none: as the cast says
 //   --hero   the hero spec every actor without its own plays (default the baseline's realistic hero)
+//   --grain  the scene shown on twos or threes, the camera on ones (shoot/time.js), as an anime look is often keyed;
+//            the screenplay's slow motion and freezes play on the same time map whatever the grain
+//   --grade  the film's grade, built as compositor nodes by look.py: a word (film, noir, bleach, vivid, pastel, cold,
+//            warm) or the dials as JSON (scene/channels/grade.js, the World page's own)
 //
 // With a Blender found (MOJULO_BLENDER, lib/workers/find.js), the advisory gate builds film.blend, the cast, the shots and
 // the look, verifies the cameras (film-gate.json) and renders a still a shot; without one the pack is written and the gate
@@ -26,7 +30,7 @@ register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href)
 const lib = (p) => import(pathToFileURL(path.join(CONTROL, 'lib', p)).href);
 
 const argv = process.argv.slice(2), opt = {};
-for (let i = 0; i < argv.length; i++) { const k = argv[i].replace(/^--/, ''); if (!['out', 'scene', 'style', 'look', 'hero', 'fps', 'title'].includes(k) || argv[i + 1] === undefined) throw new Error(`export-scene-blender: unknown or empty option ${argv[i]}`); opt[k] = argv[++i]; }
+for (let i = 0; i < argv.length; i++) { const k = argv[i].replace(/^--/, ''); if (!['out', 'scene', 'style', 'look', 'hero', 'fps', 'title', 'grain', 'grade'].includes(k) || argv[i + 1] === undefined) throw new Error(`export-scene-blender: unknown or empty option ${argv[i]}`); opt[k] = argv[++i]; }
 if (!opt.out) throw new Error('export-scene-blender: --out <dir>');
 const out = path.resolve(opt.out), look = opt.look ?? 'film', fps = Number(opt.fps ?? 24), title = opt.title ?? 'scene';
 
@@ -35,6 +39,8 @@ const { actScene } = await lib('graph/actor/scene.js');
 const { coverScene } = await lib('graph/actor/coverage.js');
 const { sceneActOf } = await lib('graph/actor/act.js');
 const { sceneFilmFiles, LOOKS } = await lib('graph/actor/scene-film.js');
+const { readGrade } = await lib('graph/scene/channels/grade.js');
+const grade = opt.grade === undefined ? null : readGrade(opt.grade.trim().startsWith('{') ? JSON.parse(opt.grade) : opt.grade, '--grade');
 const { heroRecord, expandLayeredManifest } = await lib('mcp/tools/layered.js');
 const { resolveWorldScene } = await lib('graph/worlds/world-scene.js');
 const { facesToGlb } = await lib('graph/scene/scene-gltf.js');
@@ -42,7 +48,9 @@ if (!LOOKS.includes(look)) throw new Error(`export-scene-blender: --look ${LOOKS
 
 const spec = opt.scene ? JSON.parse(readFileSync(opt.scene, 'utf8')) : BASELINE.blocked;
 const cast = Object.fromEntries(Object.entries(spec.cast).map(([w, C]) => [w, { ...C, ...(opt.style && !C.style ? { style: opt.style } : {}) }]));
-const S = actScene({ ...spec, cast }), coverage = coverScene(S);
+const GRAIN = { ones: 1, twos: 2, threes: 3, 1: 1, 2: 2, 3: 3 }, grain = opt.grain === undefined ? null : GRAIN[opt.grain];
+if (grain === undefined) throw new Error('export-scene-blender: --grain ones | twos | threes');
+const S = actScene({ ...spec, cast }), coverage = coverScene(S, { grain });
 const heroSpec = (w) => cast[w].hero ?? (opt.hero ? JSON.parse(opt.hero) : BASELINE.hero);
 
 mkdirSync(path.join(out, 'actors'), { recursive: true });
@@ -60,7 +68,7 @@ for (const w of Object.keys(S.actors)) {
   console.log(`actors/${w}.glb: ${(glb.bytes.byteLength / 1e6).toFixed(1)} MB, ${Math.round((Date.now() - t0) / 1000)} s`);
 }
 
-const files = sceneFilmFiles({ S, coverage, actors, fps, title });
+const files = sceneFilmFiles({ S, coverage, actors, fps, title, grade });
 for (const f of files) { mkdirSync(path.dirname(path.join(out, f.file)), { recursive: true }); writeFileSync(path.join(out, f.file), f.text); }
 console.log(`${out}: ${files.length} files, ${coverage.shots.length} shots, ${S.seconds} s; look ${look}`);
 const { directorsNotes } = await lib('graph/actor/notes.js');

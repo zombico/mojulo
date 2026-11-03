@@ -17,7 +17,7 @@
       "description": "The mechanical character to reconstruct, in words (e.g. 'a stocky safety-yellow worker bot with massive practical limbs', 'a lanky recon mech with a single-lens head', 'a heavy black-and-orange loader android'). Articulated hardware characters only — an organic body goes through character-from-dream, a piece of furniture / a vessel / a relic goes through reconstruct-from-dream. Omit to ask the operator."
     }
   ],
-  "mcpTools": { "mojulo": ["create_sketch", "get_image_render_packet", "create_workbench", "create_manji_tree", "semantic_search", "get_sketch_vocab", "get_skin_packet", "skin_polygomer"] }
+  "mcpTools": { "mojulo": ["create_sketch", "get_image_render_packet", "mint_solid", "edit_solid", "semantic_search", "get_sketch_vocab"] }
 }
 ---
 
@@ -52,7 +52,7 @@ Substrate: `docs/POLYGONIZER-SYNTHESIS.md`; assembler
   invalid.
 - **NOT the figure protoform — and kill it fast.** A mech reads as *layered
   armor over a dark frame*, not a tuned body. If you catch yourself reaching for
-  `create_figure` / the protoform, stop — a four-minute rejection is a win, not a
+  the figure (`mint_solid` kind `figure`) / the protoform, stop — a four-minute rejection is a win, not a
   failure (this is the exact detour the reference build discarded). An
   organic-bodied character is `character-from-dream`'s job; if the target is
   really a person, say so and switch loops.
@@ -121,7 +121,7 @@ Dreaming the sheets needs an image worker (same ladder as
              here on purpose; you're learning the shape language, not budgeting.
              Gate: the subsystem reads as the part head-on before it joins.
 
-4. COMPOSE   create_workbench({ assembly: { parts: [ … ] }, sweeps: [ … ] }) —
+4. COMPOSE   mint_solid({ kind:'workbench', spec:{ assembly: { parts: [ … ] }, sweeps: [ … ] } }) —
    + MIRROR  ONE assembly holding all subsystems. Model the RIGHT arm + leg only
              and `mirror` them for the left. ACCEPT lower per-limb fidelity than
              the isolated sheets had — spend the part budget where it reads at
@@ -130,7 +130,7 @@ Dreaming the sheets needs an image worker (same ladder as
              metal ×10-15, one saturated cyan ×2-3 for eyes/lenses.
 
 5. RENDER    Open /api/sketches/<ref>/world — the three.js machine. (Validation
-             is at mint; a bad assembly fails at create_workbench, not render.)
+             is at mint; a bad assembly fails at the mint, not render.)
 
 6. COMPARE   Read /world against the sheets. Judge STRUCTURE + SILHOUETTE +
              the identity thesis, not shading (/world is flat-lit). Fix if a
@@ -139,9 +139,9 @@ Dreaming the sheets needs an image worker (same ladder as
 
 7. SKIN      (the coequal finish, not a garnish) Geometry gives mass +
    BAKE      turnability; the SKIN gives panel seams, bolts, scuffs, lens glow,
-             grime — the finished-prop feel. get_skin_packet({ ref }) → paint
-             over the ?control=1 scaffold with your worker → skin_polygomer({
-             ref, image_path }) → /skin.png. KNOWN LIMITATION: single-view skin
+             grime — the finished-prop feel. edit_solid({ op:'skin', ref,
+             spec:{ phase:'packet' } }) → paint over the ?control=1 scaffold with
+             your worker → edit_solid({ op:'skin', ref, spec:{ image_path } }) → /skin.png. KNOWN LIMITATION: single-view skin
              projection — front / three-quarter bake far stronger than side /
              back. Say so in your report; don't oversell "turnable" as skinned
              from every angle.

@@ -26,6 +26,7 @@
 import { rigNodesAt, handValue, boneFrames } from './station-loft-rig.js';
 import { WRIST_RANGE, WRIST_EASE, humeralTurn, wristFor, anatomicalForearm } from './hero-grip.js';
 import { LIMITS } from './figure-vajra.js';
+import { BEND_WORDS } from './figure-posing.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -131,7 +132,9 @@ export function servoRead(R, pose, nodes = null) {
   const n = nodes ?? rigNodesAt(R, pose).nodes, out = {};
   for (const S of ['R', 'L']) {
     if (!n[`elbow${S}`]) continue;
-    const elbowFlex = pose[`elbow${S}`] ?? 0;
+    // the elbow's channel: degrees, or a bend word as the rig reads it (figure-posing.js BEND_WORDS); a pose that names none
+    // (an arm aimed by a direction) is read off the skeleton, the rest's carrying angle taken off
+    const ew = pose[`elbow${S}`], elbowFlex = Number.isFinite(ew) ? ew : typeof ew === 'string' && Object.hasOwn(BEND_WORDS, ew) ? BEND_WORDS[ew] : Math.max(0, angle(sub(n[`elbow${S}`], n[`shoulder${S}`]), sub(n[`wrist${S}`], n[`elbow${S}`])) - angle(sub(R.joints[`elbow${S}`], R.joints[`shoulder${S}`]), sub(R.joints[`wrist${S}`], R.joints[`elbow${S}`])));
     const sh = shoulderAngles(n, S, elbowFlex);
     const cone = sh.plane === null ? { hard: 180, ease: 180 } : coneAt(sh.plane);
     const swing = { plane: sh.plane, value: sh.elevation, range: [0, r1(cone.hard)], ease: [0, r1(cone.ease)], margin: r1(cone.hard - sh.elevation), inRange: sh.elevation <= cone.hard + 1e-9, inEase: sh.elevation <= cone.ease + 1e-9 };

@@ -99,7 +99,7 @@ export function aimSwivel(r0, t) {
 }
 
 // ── hinges (elbow / knee): a word or a number of degrees ─────────────────────
-const BEND_WORDS = { straight: 0, slight: 25, half: 75, bent: 110, full: 145 };
+export const BEND_WORDS = Object.freeze({ straight: 0, slight: 25, half: 75, bent: 110, full: 145 });
 function bendAmount(a) {
   if (typeof a === 'number') return a;
   const d = BEND_WORDS[a];

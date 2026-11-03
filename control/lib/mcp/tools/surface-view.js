@@ -37,7 +37,7 @@ export function mintSurfaceView({ title, scenario, scale, viewBox, scene, ref, f
 }
 
 export async function createSurfaceViewHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('create_surface_view requires a recipe object');
+  if (!input || typeof input !== 'object') throw new Error('create_view({ kind: "surface" }) requires a recipe object');
   const { title, scenario, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintSurfaceView({ title, scenario, scale, viewBox, scene, ref, folderRef });
 }

@@ -40,7 +40,7 @@ export function mintWavepacketView({ title, scenario, density, viewBox, scene, r
 
 export async function createWavepacketViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_wavepacket_view requires a recipe object');
+    throw new Error('create_view({ kind: "wavepacket" }) requires a recipe object');
   }
   const { title, scenario, density, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintWavepacketView({ title, scenario, density, viewBox, scene, ref, folderRef });

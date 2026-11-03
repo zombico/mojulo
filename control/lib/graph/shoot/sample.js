@@ -18,6 +18,7 @@
 import { catmullRom, lerp, lerp3 } from '../../motion/easing.js';
 import { hfovForFocal } from './lens.js';
 import { followPoint } from './subjects.js';
+import { warped, timeline, clocksAt } from './time.js';
 
 const EASE_INF = 1 / 3;   // AE's Easy Ease influence
 const ARC_STEPS = 32;     // arc-length table resolution per segment
@@ -141,21 +142,27 @@ export function programOf(plan) {
   let at = 0;
   // a cued shot (`cue`: it plays when an event fires, in a live world) has no place in the running order
   const shots = plan.shots.filter((s) => !s.cue).map((s) => {
-    // a shot's length on the program clock: its span of the world, stretched by its speed
-    const row = { ...s, start: at, length: (s.span[1] - s.span[0]) / (s.speed || 1) };
+    // a shot's length on the program clock: its span of the world, stretched by its speed, or as its time map plays it
+    // (time.js: the compiled map rides the row as `tl`)
+    const tl = warped(s) ? timeline(s, plan.fps) : null;
+    const row = { ...s, start: at, length: tl ? tl.length : (s.span[1] - s.span[0]) / (s.speed || 1), ...(tl ? { tl } : {}) };
     at += row.length;
     return row;
   });
   return { shots, total: at };
 }
 
-/** Which shot plays at program time τ, and the camera-local time inside it. */
+/**
+ * Which shot plays at program time τ, and the world's time it shows (`t`). A shot with a time map (time.js) also says
+ * the camera's (`camera_t`) when the two part: bullet time's camera on the screen's clock, a grain's camera on ones.
+ */
 export function shotAt(program, tau) {
   const { shots, total } = program;
   const x = Math.max(0, Math.min(total, tau));
   let i = 0;
   while (i + 1 < shots.length && shots[i + 1].start <= x) i++;
   const s = shots[i];
+  if (s.tl) { const c = clocksAt(s.tl, s.span, x - s.start); return { shot: s, index: i, t: c.t, ...(c.camera_t !== c.t ? { camera_t: c.camera_t } : {}) }; }
   return { shot: s, index: i, t: s.span[0] + Math.min(s.span[1] - s.span[0], (x - s.start) * (s.speed || 1)) };
 }
 
@@ -170,7 +177,8 @@ export function frameOf(c) {
 /**
  * The program sampled at the plan's fps (or `fps`): one frame per tick from 0 to the end, the last frame on the
  * final instant. Each frame names its shot and camera, its time on the edit (`t`) and the world clock it shows
- * (`world_t`: the camera's own time, which every moving thing in the world must be stepped to). This array is what a
+ * (`world_t`: which every moving thing in the world must be stepped to; `camera_t` too when a time map parts the camera's
+ * clock from it, time.js). This array is what a
  * renderer (world-motion, Blender) eats.
  */
 export function sampleProgram(plan, { fps = plan.fps, subjects = null } = {}) {
@@ -181,7 +189,7 @@ export function sampleProgram(plan, { fps = plan.fps, subjects = null } = {}) {
   for (let j = 0; j < n; j++) {
     const tau = Math.min(program.total, j / fps);
     const at = shotAt(program, tau);
-    frames.push({ ...frameOf(cameraAt(compiled.get(at.shot.camera), at.t)), shot: at.shot.name, camera: at.shot.camera, t: r4(tau), world_t: r4(at.t) });
+    frames.push({ ...frameOf(cameraAt(compiled.get(at.shot.camera), at.camera_t ?? at.t)), shot: at.shot.name, camera: at.shot.camera, t: r4(tau), world_t: r4(at.t), ...(at.camera_t !== undefined ? { camera_t: r4(at.camera_t) } : {}) });
   }
   return frames;
 }
