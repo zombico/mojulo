@@ -107,6 +107,11 @@ describe('a level that lets things break, end to end', () => {
     expect(payload.breakables.map((b) => b.id).sort()).toEqual(world.breakables.map((b) => b.id).sort());
     for (const b of payload.breakables) expect(b.joules).toBeGreaterThan(0);
     expect(payload.rupa).toEqual({ power: 10 });
+    // what can burn carries its own flame from the flame library, off until it catches
+    const burns = payload.breakables.filter((b) => b.burnRate > 0).map((b) => b.id);
+    expect(burns.length).toBeGreaterThan(0);
+    expect(payload.fire.sources.filter((f) => f.rupa).map((f) => f.rupa)).toEqual(burns);
+    expect(world.fire === undefined || !world.fire.sources.some((f) => f.rupa)).toBe(true);
     const html = emitThreeWorld(payload);
     expect(html).toContain('rupa-blows');
     expect(html).toContain(', rupa: {"power":10}');

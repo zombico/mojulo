@@ -874,6 +874,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       payload.rupa = readMatterSpec(sketch.manifest.matter, 'matter');
       // what each striker strikes with (a tool word on its rule): checked here, read by the page as given
       for (const e of payload.entities || []) if (e && e.rule && e.rule.strikeTool !== undefined) readTool(e.rule.strikeTool, `${e.id || 'entity'}.rule.strikeTool`);
+      // what can burn carries its own flame (fire/fire.js blockFires), off until it catches; added to the level's fire
+      if (payload.breakables.some((b) => b.burnRate > 0)) {
+        const { blockFires, firePageChannel } = await import('@/lib/graph/fire/fire.js');
+        const had = payload.fire && Array.isArray(payload.fire.sources) ? payload.fire.sources : [], more = blockFires(payload.breakables, { from: had.length });
+        if (more.length) payload.fire = payload.fire ? { ...payload.fire, sources: [...had, ...more] }
+          : firePageChannel({ embers: true, smoke: true, light: 1, sources: more }, { terrainAir: !!payload.terrain, day: payload.sky && Number.isFinite(payload.sky.day) ? payload.sky.day : 0 });
+      }
     }
     // tutorial (tutorial-mode.plan.md T1): the scripted teaching layer — ordered prompt+goal steps
     // the engine director advances by edge-detecting the sim; the director is the level terminal

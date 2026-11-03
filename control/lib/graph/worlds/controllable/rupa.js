@@ -86,6 +86,12 @@
  *                       cuts as metal does; brittle stuff breaks as ever.
  *            `E.strikeBlock(state, id, joules, how?, src?)` lands a blow by id (a script, a test; src.tool a tool).
  *
+ *   COMBUSTION  a burning block's flame stands Heskestad's L = 0.235·Q^⅖ − 1.02·D tall (flameOf; fire/fire.js
+ *            blockFires draws it), and its heat leaves it three ways: its flame into what touches it (a tenth), radiation
+ *            from mid-flame (χr 0.3, by the solid angle a target's facing area fills, absorbed 0.9: a crate a metre off
+ *            catches, one five metres off does not), and its plume into what hangs over it (the convective heat, by the
+ *            share of its footprint covered, fading to nothing at twice the flame's height).
+ *
  *   SMOKE    dust and smoke drift on the wind, each a formula of time (puffAt; rupa/smoke-solver.js the scene's
  *            solver): smoke rises on its fire's heat (Briggs' plume rise), dust settles at its grains' speed, both spread
  *            as the air mixes them and fade as their mass thins; a size of dust settling faster than the air stirs it
@@ -394,6 +400,13 @@ export function buildRupa(E) {
     }
     return out;
   }
+  // ── COMBUSTION: a fire's flame and how its heat leaves it. The flame stands Heskestad's L = 0.235·Q^⅖ − 1.02·D tall
+  // (Q in kW, D the burning area's equivalent diameter, m: a 60 kW campfire half a metre across ~0.8 m); of its heat
+  // χr = 0.3 leaves as radiation from mid-flame (a point source, Modak: q = χr·Q / 4πd² on a face square to it), the rest
+  // rises in its plume, and what touches it is heated by its flame directly
+  const CHI_R = 0.3;
+  const flameOf = (Q, D) => ({ L: Math.max(0.05, 0.235 * Math.pow(Math.max(0, Q) / 1000, 0.4) - 1.02 * D), D });
+  const footD = (b) => Math.sqrt((4 * (b.max[0] - b.min[0]) * (b.max[1] - b.min[1])) / Math.PI);
   // ── BLOCKING: flow's opposite. A barrier is one number, its POROSITY φ (its open share: 0 a solid wall, ~0.5 a hedge
   // or a slatted fence, 1 nothing at all), and how flow gets past it follows from that, never from a tuned allowance:
   //   resistance  a perforated barrier's loss coefficient, k = (1/(Cc·φ) − 1)² (Borda–Carnot, Weisbach's contraction
@@ -567,7 +580,7 @@ export function buildRupa(E) {
     return { droplets, cavity: Rc, plop: false, stats: { E, Re, We, K, kg: Ms, kinetic: Es } };
   }
 
-  const physics = { settleOf, buoyancyOf, riseOf, puffAt, lifeOf, smokeOf, plumePuffs, SOOT_K, SOOT_YIELD, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
+  const physics = { flameOf, footD, CHI_R, settleOf, buoyancyOf, riseOf, puffAt, lifeOf, smokeOf, plumePuffs, SOOT_K, SOOT_YIELD, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -879,11 +892,24 @@ export function buildRupa(E) {
         const Q = Math.min(r.fuelLeft, r.burnRate * dt * R.fireTime);
         r.fuelLeft -= Q;
         if (r.fuel > 0) r.joules -= r.cap * (Q / r.fuel);   // its strength burns with its fuel (a blow's damage stays)
-        for (const s of live) if (s !== b && !s.broken && touches(b, s, TOUCH)) warm(state, s, Q * 0.1, b.id);
+        // its heat reaches what is around it: its flame what it touches, its radiation what faces it (by the solid angle
+        // the facing area fills from mid-flame, absorbed 0.9), its plume what hangs over it (the convective heat by the
+        // share of its footprint covered, within twice the flame's height)
+        const top = b.max[2], fl = flameOf(r.burnRate, footD(b)), src = [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, top + fl.L / 2], foot = (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]);
+        for (const s of live) {
+          if (s === b || s.broken || !s.rupa) continue;
+          if (touches(b, s, TOUCH)) warm(state, s, Q * 0.1, b.id);
+          const d = boxDist(s, src);
+          if (d < Math.max(3, 6 * fl.L)) warm(state, s, Q * CHI_R * 0.9 * Math.min(0.5, faceArea(s, src) / (4 * Math.PI * Math.max(d * d, 0.01))), b.id);
+          if (s.min[2] >= top - TOUCH && s.min[2] <= top + 2 * fl.L && foot > 0) {
+            const cover = Math.max(0, ovl(b, s, 0)) * Math.max(0, ovl(b, s, 1)) / foot;
+            if (cover > 0) warm(state, s, Q * (1 - CHI_R) * 0.5 * Math.min(1, cover) * (1 - (s.min[2] - top) / (2 * fl.L + 1e-9)), b.id);
+          }
+        }
         if (r.fuelLeft <= r.fuel * 0.05) breakIt(state, b, 'burn', null);
       } else if (r.T !== r.T0) {
         r.T = r.T0 + (r.T - r.T0) * Math.exp(-dt / R.cool);
-        if (Math.abs(r.T - r.T0) < 0.5) r.T = r.T0;
+        if (Math.abs(r.T - r.T0) < 0.01) r.T = r.T0;   // cooled: round off (finer than a far fire's warming a step)
         if (r.T > r.T0 + 0.1 * (r.soften - r.T0)) hot = true;
       }
     }

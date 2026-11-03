@@ -555,3 +555,34 @@ describe('rupa dust and smoke: their sources on the runtime', () => {
     expect(plume.t1).toBeGreaterThan(plume.t0);
   });
 });
+
+describe('rupa combustion: a fire\'s heat leaves it as heat does', () => {
+  const crate = (id, x) => block(id, [x, 0, 0], [x + 0.6, 0.6, 0.6], { matter: 'pine', fill: 0.02 });
+  const lit = (w, id) => w.rupa.hits.find((h) => h.id === id && h.how === 'ignite');
+  const burn = (w, id) => { const b = get(w, id); CW.heatBlock(w, id, b.rupa.heatCap * 400); };
+
+  it('a shell burns on both faces of its walls: planks round air flare, where the solid log smoulders on', () => {
+    const shell = blockMatter({ min: [0, 0, 0], max: [1, 1, 1] }, { matter: 'pine', fill: 0.02 }), solid = blockMatter({ min: [0, 0, 0], max: [1, 1, 1] }, 'pine');
+    expect(shell.burnRate / solid.burnRate).toBeCloseTo(2, 3);
+    expect(shell.fuel / shell.burnRate).toBeLessThan(solid.fuel / solid.burnRate / 50);
+  });
+
+  it('its radiation sets alight a crate across a gap, not one far off', () => {
+    const w = world([block('log', [0, 0, 0], [1, 0.6, 0.4], 'pine'), crate('near', 2), crate('far', 7)]);
+    burn(w, 'log');
+    step(w, 60 * 20);
+    expect(lit(w, 'near')).toBeDefined();
+    expect(lit(w, 'far')).toBeUndefined();
+    expect(get(w, 'far').rupa.T).toBeLessThan(get(w, 'far').rupa.ignite);
+  });
+
+  it('its plume sets alight what hangs over it before what stands beside it as far off', () => {
+    const over = block('over', [-0.2, 0, 1.2], [1.2, 0.2, 1.4], 'pine'), beside = block('beside', [2.2, 0, 0], [3.6, 0.2, 0.2], 'pine');
+    const w = world([block('log', [0, 0, 0], [1, 0.6, 0.4], 'pine'), over, beside, block('p1', [-0.6, 0, 0], [-0.4, 0.2, 1.2], 'brick'), block('p2', [1.2, 0, 0], [1.4, 0.2, 1.4], 'brick')]);
+    burn(w, 'log');
+    step(w, 60 * 10);
+    expect(lit(w, 'over')).toBeDefined();
+    const tb = lit(w, 'beside');
+    expect(!tb || tb.t > lit(w, 'over').t).toBe(true);
+  });
+});

@@ -401,11 +401,38 @@ rupa adds the load ([`controllable/rupa.js`](../control/lib/graph/worlds/control
 Each block has a temperature, starting where it was built (an ice block below freezing). Heat raises it by
 Q / heat capacity. At `melt` the joules go to latent heat, and once that is spent the block melts. Past `ignite`, a
 combustible block burns: its fuel goes at the char rate (Eurocode 5's ~0.65 mm/min into each face), scaled by
-`fireTime` (60 play-to-fire seconds by default), and its strength goes with it. A tenth of its heat goes into each
-block it touches, so fire spreads, and it ends as ash. Heat weakens: a block keeps `heatFactor` of its strength,
+`fireTime` (60 play-to-fire seconds by default), and its strength goes with it. A solid chars into its faces; a shell
+(a crate's planks round air, a crown's needles) is solid wood charring on both faces of its walls, so it flares in
+minutes where a log burns for hours. It ends as ash. Heat weakens: a block keeps `heatFactor` of its strength,
 whole where it started, half at `soften`, none at `melt`, so a steel frame in a fire comes down by the load pass.
 A block that isn't burning cools back (`cool`, 120 s). `heatBlock(state, id, joules)` is the entry point for a fire,
 a beam or a script.
+
+### Combustion: how a fire's heat leaves it
+
+A burning block's flame stands Heskestad's L = 0.235·Q^⅖ − 1.02·D tall (Q its heat release in kW, D its top's
+equivalent diameter; `flameOf`): a pine log's under a metre, a burning crate's about two. Its heat leaves three ways:
+
+- **into what it touches**, a tenth of it, by its flame;
+- **by radiation**: χr = 0.3 of it from mid-flame, as a point source, reaching each block by the solid angle its facing
+  area fills (absorbed 0.9). A crate a metre off a burning log catches in about twelve seconds; one five metres off
+  warms and never gets there;
+- **up its plume**: the rest rises, heating what hangs over the fire by the share of its footprint covered, fading to
+  nothing at twice the flame's height, so a beam over a fire catches in a few seconds, before anything beside it.
+
+`fireTime` hastens how long a fire burns, not how big it is: its flame, its light and its smoke are its real heat
+release's.
+
+### The flame
+
+What can burn carries its own flame from the flame library (`fire/fire.js` `blockFires`; the World page's fire
+channel): marched flamelets that puff and lean in the air, embers and light, sized from the block's heat release by
+the same law, as many narrow tongues as its breadth gives (a log's seven, a campfire's), its light and embers by the
+square root of its heat against a campfire's (light held at 30, so a big fire lights farther without whiting out
+what stands by it). It is off until the runtime has the block catch; then it kindles over a couple of seconds, rides
+the block, leans in the level's wind (destructible physics' own, where there is no terrain wind) and dies back when
+the block is doused or burnt out. It has no smoke of its own: its smoke is the plume above. A page whose blocks can't
+burn carries none of this.
 
 ## Ground
 
@@ -451,6 +478,8 @@ you give a thing a matter, read its skin; when you change a skin, check its matt
 - Cuts on any plane (they snap to the block's axes, so the halves stay boxes), a groove weakening the load pass before
   it goes through, a round's own tool word (rounds are steel-cored), and a cut half's own pre-cut pieces when it later
   breaks (it vanishes in its flash).
+- One flame per burning block, from its top (not on each burning face), no charred skin, no smouldering, and no air to
+  run short of in a room.
 - Dust and smoke held by walls and ceilings (a puff passes through them; smoke doesn't yet pool under a vault or fill
   a room), shelter for puffs behind a barrier (the leaves have it), a fuel's own smoke yield and colour (every fire is a
   wood fire, flaming), smouldering, and a GPU path for puffs (the page places at most 480 sprites on the CPU).
