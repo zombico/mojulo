@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { validateRig, rigNodesAt } from './station-loft-rig.js';
 import { heroReact, planeToVajra, REACTS, REACT_NAMES } from './hero-react.js';
 import { MOTION_GAITS } from './hero-motion.js';
+import { heroStance } from './hero-stance.js';
 import { HIT_PEAKS } from '../versus/versus-react.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
@@ -39,5 +40,17 @@ describe('hero-react', () => {
     expect(hHigh[1]).toBeLessThan(h0[1] - 0.03);   // back (the front is +y)
     expect(hBody[1]).toBeGreaterThan(h0[1] + 0.1);   // forward over the blow
     expect(hBody[2]).toBeLessThan(h0[2] - 0.05);   // and down
+  }, 60000);
+
+  it('takes a blow in the guard: out of the guard\'s held pose and back to it, the fists kept, the head still snapped back', () => {
+    const G = heroStance('guard', R).clip.fn(1), K = heroReact('guardHitHigh', R), P = heroReact('hitHigh', R);
+    expect(Object.values(K.laws).every(Boolean)).toBe(true);
+    const n = (pose) => rigNodesAt(R, pose).nodes, d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    const g = n(G), k0 = n(K.fn(0)), k1 = n(K.fn(1)), p0 = n(P.fn(0));
+    for (const j of ['wristR', 'wristL', 'headTop']) { expect(d(k0[j], g[j])).toBeLessThan(0.01); expect(d(k1[j], g[j])).toBeLessThan(0.01); }
+    expect(d(p0.wristR, g.wristR)).toBeGreaterThan(0.2);   // (the plain blow starts with the hands dropped)
+    expect(K.fn(0).fingersR).toEqual(G.fingersR);
+    expect(n(K.fn(0.1)).headTop[1]).toBeLessThan(k0.headTop[1] - 0.03);
+    for (const w of ['guardHitHigh', 'guardHitBody', 'guardHitLow', 'guardStagger']) expect(MOTION_GAITS[w]).toMatchObject({ motion: 'move', family: 'react' });
   }, 60000);
 });

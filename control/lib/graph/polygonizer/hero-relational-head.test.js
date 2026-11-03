@@ -13,8 +13,9 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 const refused = (spec) => { try { heroRecord(spec); return null; } catch (e) { return e.message; } };
 
 describe('the relational head on the realistic body', () => {
-  it('is the realistic body\'s word: refused without it; the door\'s hair and expression it reads onto its face', () => {
-    expect(refused({ cast: 'female', head: 'relational' })).toMatch(/head: the relational head is worn by the realistic body/);
+  it('is the realistic body\'s word, and the lofted body\'s (a fighter\'s); the door\'s hair and expression it reads onto its face', () => {
+    // (worn by the lofted body too, its laws stamped: fighter wiring, fighter-wiring.test.js)
+    expect(refused({ cast: 'female', head: 'relational' })).toBeNull();
     expect(refused({ cast: 'female', form: 'realistic', head: 'relational' })).toBeNull();
     // (the hair as the face's cut, the expression as its rest: layered.js scalpOfHair, layered.realistic-words.test.js)
     expect(refused({ cast: 'female', form: 'realistic', head: 'relational', hair: 'bob' })).toBeNull();

@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sparring Bout</title>
+<style>
+  /* bout: two heroes as an engine gets them (their skinned GLBs), squared up. Each exchange: the attacker throws one of
+     its punches; the defender is stepped in until the glove, at its contact frame, meets the first of its skin it
+     crosses; the defender holds its stand until contact, then plays its reaction. Written by bout.mjs; window.bout. */
+  :root { --bg: #ecebe7; --panel: #f7f6f3; --ink: #1d1f22; --muted: #62666c; --line: #d3d1cb; --accent: #b4532a; --stage: #d9d7d1; --warn: #9a5a00;
+    --body: "Helvetica Neue", Arial, sans-serif; --mono: ui-monospace, Menlo, "DejaVu Sans Mono", monospace; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #16181b; --panel: #1e2125; --ink: #ecebe7; --muted: #9a9ea5; --line: #33373d; --accent: #e07a4f; --stage: #23262b; --warn: #e0a64f; color-scheme: dark } }
+  :root[data-theme="dark"] { --bg: #16181b; --panel: #1e2125; --ink: #ecebe7; --muted: #9a9ea5; --line: #33373d; --accent: #e07a4f; --stage: #23262b; --warn: #e0a64f; color-scheme: dark }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); padding: 20px 16px 28px; }
+  h1 { font-size: 18px; margin: 0 0 4px; } .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; max-width: 1400px; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  .stage { position: relative; background: var(--stage); border-radius: 6px; overflow: hidden; aspect-ratio: 16 / 10; }
+  .stage canvas { display: block; width: 100%; height: 100%; }
+  .views { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .status { position: absolute; left: 10px; bottom: 8px; font: 11px var(--mono); color: var(--muted); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: grid; gap: 12px; align-content: start; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 6px; }
+  button { font: 600 13px var(--body); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  .views button { background: var(--panel); font-size: 12px; padding: 5px 9px; }
+  .list { display: grid; gap: 6px; } .list button { text-align: left; display: flex; justify-content: space-between; gap: 8px; }
+  .list small { color: var(--muted); font-weight: 400; }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  input[type=range] { width: 100%; }
+  pre { font: 11px/1.45 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px; margin: 0; white-space: pre-wrap; }
+  .warn { color: var(--warn); }
+</style>
+</head>
+<body>
+<h1>Sparring Bout</h1>
+<p class="sub">Both fighters are their exported skinned GLBs. Each exchange steps the defender in until the punch's glove meets him at its contact frame; he reacts from that frame.</p>
+<div class="wrap">
+  <div>
+    <div class="stage" id="stage">
+      <div class="views" id="views"></div>
+      <div class="status" id="status">Loading…</div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="play" aria-pressed="true">Pause</button>
+      <button data-speed="1" aria-pressed="true">1×</button><button data-speed="0.25">¼×</button><button data-speed="0.1">⅒×</button>
+      <span id="clock" style="font:12px var(--mono);color:var(--muted)"></span>
+    </div>
+    <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Time in the exchange">
+  </div>
+  <div class="panel">
+    <div><h2>Exchanges</h2><div class="list" id="list"></div></div>
+    <div><h2>The read</h2><pre id="read">…</pre></div>
+  </div>
+</div>
+<script type="application/json" id="manifest">@MANIFEST@</script>
+<script type="importmap">@IMPORTMAP@</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const M = JSON.parse(document.getElementById('manifest').textContent);
+const stage = document.getElementById('stage'), status = document.getElementById('status');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--stage').trim() || '#d9d7d1');
+const camera = new THREE.PerspectiveCamera(30, 1.6, 0.05, 50);
+const controls = new OrbitControls(camera, renderer.domElement);
+// the light the hero viewer plays a hero under: a warm key with soft shadows, a cool fill, a rim, a sky over the ground
+scene.add(new THREE.HemisphereLight(0xdfe6ee, 0x3a332e, 0.65));
+const key = new THREE.DirectionalLight(0xfff1e0, 2.4); key.position.set(1.2, 3.4, 2.8); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -2.5, right: 2.5, top: 2.4, bottom: -0.4, near: 0.5, far: 10 }); key.shadow.bias = -0.0004; scene.add(key);
+const fill = new THREE.DirectionalLight(0xc9dcff, 0.7); fill.position.set(-2.4, 1.6, 2.2); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 1.3); rim.position.set(0.3, 2.4, -3); scene.add(rim);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(3, 64), new THREE.ShadowMaterial({ opacity: 0.22 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+async function load(F) {
+  const gltf = await new GLTFLoader().loadAsync(F.file);
+  const holder = new THREE.Group(), root = gltf.scene; holder.add(root); scene.add(holder);
+  const meshes = [];
+  root.traverse((o) => {
+    if (o.isMesh && /static/.test(o.name)) o.visible = false;   // (the export's ground slab)
+    if (o.isCamera) o.visible = false;
+    if (o.isSkinnedMesh) { meshes.push(o); o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; for (const m of [o.material].flat()) if (!m.roughnessMap) { m.roughness = 0.62; m.metalness = 0; } }
+  });
+  const mixer = new THREE.AnimationMixer(root), clips = {}, moves = {};
+  const ex = gltf.parser.json.animations ?? [];
+  for (const clip of gltf.animations) if (clip.name.startsWith('body:')) {
+    const n = clip.name.slice(5); clips[n] = clip;
+    const E = ex.find((a) => a.name === clip.name)?.extras?.['moj:move']; if (E) moves[n] = E;
+  }
+  const bone = (n) => root.getObjectByName(`body${n}`) ?? root.getObjectByName(`body:${n}`);
+  return { ...F, holder, root, meshes, mixer, clips, moves, bone, action: null };
+}
+/** pose a fighter: its clip `name` at `t` seconds (held past its end) */
+function pose(P, name, t) {
+  const clip = P.clips[name] ?? P.clips.gesture;
+  if (!P.action || P.action.getClip() !== clip) { P.mixer.stopAllAction(); P.action = P.mixer.clipAction(clip); P.action.setLoop(THREE.LoopOnce, 1); P.action.clampWhenFinished = true; P.action.play(); }
+  P.action.paused = false; P.action.time = Math.max(0, Math.min(clip.duration, t)); P.mixer.update(0);
+  P.holder.updateMatrixWorld(true);
+}
+const at = (o) => o.getWorldPosition(new THREE.Vector3());
+/** the fighter's forward on the floor at rest: from the foot to its toes */
+function forwardOf(P) { pose(P, 'gesture', 0); const d = at(P.bone('toesR')).sub(at(P.bone('footR'))).add(at(P.bone('toesL')).sub(at(P.bone('footL')))); d.y = 0; return d.normalize(); }
+/** the glove's front at a moment: past the middle knuckle along the hand, by a glove's padding */
+function gloveOf(P, S) { const h = at(P.bone(`hand${S}`)), k = at(P.bone(`middle1${S}`)); return k.clone().add(k.clone().sub(h).normalize().multiplyScalar(0.07)); }
+/** what part of a fighter a point lies on: the nearest of its bones, named plainly */
+const PARTS = { head: 'head', jaw: 'jaw', neck: 'neck', torso: 'chest', lumbar: 'body', pelvis: 'hips', handR: 'right glove', handL: 'left glove', foreArmR: 'right forearm', foreArmL: 'left forearm', upperArmR: 'right arm', upperArmL: 'left arm', clavicleR: 'right shoulder', clavicleL: 'left shoulder' };
+function partAt(P, p) {
+  let best = null, d = Infinity;
+  for (const n of Object.keys(PARTS)) { const b = P.bone(n); if (!b) continue; let q = at(b);
+    // (a hand's mass is past its bone, a bone's along it to its child)
+    const c = b.children.find((x) => x.isBone); if (c) q = q.add(at(c)).multiplyScalar(0.5);
+    const e = q.distanceTo(p); if (e < d) { d = e; best = n; } }
+  return PARTS[best];
+}
+
+const [A, B] = await Promise.all(M.fighters.map(load));
+status.textContent = 'Squaring up…';
+// A faces +x at the origin; B faces −x
+for (const [P, sign] of [[A, 1], [B, -1]]) { const f = forwardOf(P); P.holder.rotation.y = Math.atan2(f.z, f.x) - (sign > 0 ? 0 : Math.PI); P.holder.updateMatrixWorld(true); }
+
+/** an exchange solved: the range B must stand at for A's glove to meet him at its contact frame */
+const ray = new THREE.Raycaster();
+function solve(X) {
+  const mv = A.moves[X.attack] ?? {}, S = mv.hand ?? 'R', tc = mv.contact ?? A.clips[X.attack].duration * 0.45;
+  pose(A, X.attack, tc); const g = gloveOf(A, S), g0 = (pose(A, X.attack, Math.max(0, tc - 0.05)), gloveOf(A, S));
+  pose(A, X.attack, tc);
+  // the glove's travel into contact (its last 50 ms), on the floor and up
+  const dir = g.clone().sub(g0); const speed = dir.length() / 0.05; dir.normalize();
+  pose(B, X.react, 0);
+  for (const m of B.meshes) { m.computeBoundingSphere(); m.computeBoundingBox?.(); }
+  // THE RANGE: B marched in along the line from far off, a centimetre at a time, until his skin, crossed by the glove's
+  // own travel into contact (a ray from 25 cm back along it), reaches the glove; the first range it does is where the
+  // punch lands, on whatever of him is first in its way (his guard included)
+  const back = g.clone().sub(dir.clone().multiplyScalar(0.25));
+  ray.set(back, dir); ray.far = 0.25 + 0.005;
+  let D = null, hit = null;
+  for (let d = 2.4; d >= 0.25; d -= 0.01) {
+    B.holder.position.set(d, 0, 0); B.holder.updateMatrixWorld(true);
+    const h = ray.intersectObjects(B.meshes, false)[0];
+    if (h) { D = d; hit = h; break; }
+  }
+  if (!hit) { B.holder.position.set(2.2, 0, 0); return { ...X, hand: S, contact: tc, miss: true, speed, seconds: A.clips[X.attack].duration, reactSeconds: B.clips[X.react]?.duration ?? 0 }; }
+  const p = hit.point.clone();
+  const head = at(B.bone('head')), pelvisA = at(A.bone('pelvis')), pelvisB = at(B.bone('pelvis'));
+  return { ...X, hand: S, contact: tc, D, range: pelvisB.x - pelvisA.x, at: p, part: partAt(B, p), speed, dir, aim: X.aim,
+    headUp: g.y - head.y, laws: mv.laws ?? null, seconds: A.clips[X.attack].duration, reactSeconds: B.clips[X.react]?.duration ?? 0 };
+}
+const ex = M.exchanges.map((X) => ({ ...X, react: [].concat(X.react).find((r) => B.clips[r]) })).filter((X) => A.clips[X.attack] && X.react).map(solve);
+
+// ─── playing an exchange: A from its start; B holds its stand until A's contact, then reacts ─────────────────────
+const lead = 0.35, tail = 0.5;
+const S = { i: 0, t: 0, playing: true, speed: 1, view: 'side' };
+const lengthOf = (X) => lead + Math.max(X.seconds, X.contact + X.reactSeconds) + tail;
+function place(X) { B.holder.position.set(X.miss ? 2.2 : X.D, 0, 0); B.holder.updateMatrixWorld(true); }
+// (A in its stand for `lead` seconds, then its punch; B in its reaction's first frame, its stand, until A's contact)
+function frame(X, t) { const ta = t - lead; pose(A, ta < 0 ? 'gesture' : X.attack, Math.max(0, ta)); pose(B, X.react, Math.max(0, ta - X.contact)); }
+
+const VIEWS = { side: [0, 1.35, 5.2], three: [2.6, 1.6, 4.2], behind: [-2.4, 1.75, 0.9], over: [3.6, 1.7, -1.4], close: [0.2, 1.55, 2.3] };
+function view(v) {
+  S.view = v; const X = ex[S.i], mid = new THREE.Vector3((X?.range ?? 0.8) / 2 + 0.1, 1.15, 0);
+  const p = VIEWS[v]; camera.position.set(mid.x + p[0], p[1], p[2]); controls.target.copy(v === 'close' ? new THREE.Vector3(mid.x + 0.1, 1.55, 0) : mid); controls.update();
+  for (const b of document.querySelectorAll('#views button')) b.setAttribute('aria-pressed', b.dataset.view === v);
+}
+document.getElementById('views').innerHTML = Object.keys(VIEWS).map((v) => `<button data-view="${v}">${{ side: 'Side', three: '¾', behind: 'Behind', over: 'Over', close: 'Close' }[v]}</button>`).join('');
+document.getElementById('views').onclick = (e) => { if (e.target.dataset.view) view(e.target.dataset.view); };
+const f2 = (x) => (x >= 0 ? '+' : '') + x.toFixed(2), cm = (x) => `${(x * 100).toFixed(0)} cm`;
+function readOf(X) {
+  if (X.miss) return `${X.label}: at no range does the glove's travel into contact meet ${M.fighters[1].name}: it passes beside him.`;
+  return [`${X.label} — ${M.fighters[0].name}'s ${X.hand === 'R' ? 'right' : 'left'} hand, contact at ${X.contact.toFixed(3)} s of ${X.seconds.toFixed(2)} s`,
+    `lands on: ${X.part}${X.aim && !X.part.includes(X.aim) ? `   (aimed at the ${X.aim})` : ''}`,
+    `range: ${cm(X.range)} pelvis to pelvis`,
+    `glove at contact: ${f2(X.headUp)} m from his head's height`,
+    `glove speed into contact: ${X.speed.toFixed(1)} m/s`,
+    `reaction: ${X.react}, ${X.reactSeconds.toFixed(2)} s from contact`,
+    ...(X.laws === false ? ['the punch\'s own checks did not all hold on this body'] : [])].join('\n');
+}
+function select(i) {
+  S.i = i; S.t = 0; const X = ex[i]; place(X); view(S.view);
+  for (const [k, b] of [...document.querySelectorAll('#list button')].entries()) b.setAttribute('aria-pressed', k === i);
+  document.getElementById('read').textContent = readOf(X) + '\n\n' + ex.map((Y) => `${Y.label.padEnd(16)} ${Y.miss ? 'miss' : `${cm(Y.range).padStart(7)}  ${Y.part}`}`).join('\n');
+}
+document.getElementById('list').innerHTML = ex.map((X, i) => `<button data-i="${i}">${X.label}<small>${X.miss ? 'miss' : `${X.part} · ${cm(X.range)}`}</small></button>`).join('');
+document.getElementById('list').onclick = (e) => { const b = e.target.closest('button'); if (b) select(+b.dataset.i); };
+const playB = document.getElementById('play'), scrub = document.getElementById('scrub'), clock = document.getElementById('clock');
+playB.onclick = () => { S.playing = !S.playing; playB.textContent = S.playing ? 'Pause' : 'Play'; playB.setAttribute('aria-pressed', S.playing); };
+for (const b of document.querySelectorAll('[data-speed]')) b.onclick = () => { S.speed = +b.dataset.speed; for (const c of document.querySelectorAll('[data-speed]')) c.setAttribute('aria-pressed', c === b); };
+scrub.oninput = () => { S.playing = false; playB.textContent = 'Play'; S.t = (scrub.value / 1000) * lengthOf(ex[S.i]); };
+
+function resize() { const r = stage.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+const clockT = new THREE.Clock();
+function tick() {
+  const dt = clockT.getDelta(), X = ex[S.i];
+  if (X) {
+    if (S.playing) { S.t += dt * S.speed; const L = lengthOf(X); if (S.t > L) S.t = 0; }
+    frame(X, S.t); scrub.value = Math.round((S.t / lengthOf(X)) * 1000);
+    const ta = S.t - lead; clock.textContent = `${Math.max(0, ta).toFixed(3)} s ${!X.miss && ta >= X.contact ? '· hit' : ''}`;
+  }
+  controls.update(); renderer.render(scene, camera); requestAnimationFrame(tick);
+}
+select(0); status.textContent = `${M.fighters[0].name} vs ${M.fighters[1].name}`; tick();
+// the page driven from a script (shots): exchange(i | label), seek(seconds after the punch starts | 'contact' ± s), view(name)
+window.bout = {
+  exchanges: ex.map((X) => ({ label: X.label, attack: X.attack, react: X.react, hand: X.hand, contact: X.contact, range: X.range, part: X.part, miss: !!X.miss, headUp: X.headUp, speed: X.speed, laws: X.laws })),
+  exchange(k) { select(typeof k === 'number' ? k : ex.findIndex((X) => X.label === k || X.attack === k)); },
+  seek(s) { S.playing = false; S.t = lead + s; frame(ex[S.i], S.t); },
+  contact() { return ex[S.i].contact; },
+  view,
+};
+</script>
+</body>
+</html>
