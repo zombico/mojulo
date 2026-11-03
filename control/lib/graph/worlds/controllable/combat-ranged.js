@@ -343,14 +343,20 @@ export function buildCombatRanged(E) {
       // the lateral (right) offset flips sign each shot, so the tracer/flash alternates left↔right hand.
       const mo = w.muzzleOffset, hf = fwdXY(t.heading), hr = rightXY(t.heading);
       const rMul = (mo && w.muzzleAlt && (w.shots % 2 === 0)) ? -1 : 1;
-      const from = mo
+      // AIM IN HAND (opt-in `input.aim`: { from, dir }, a headset's held muzzle or its controller's ray, channels/xr.js): the
+      // round leaves from there along it, the body's heading and pitch aside. Absent ⇒ the muzzle and the aim below
+      const held = input.aim && Array.isArray(input.aim.from) && Array.isArray(input.aim.dir) ? input.aim : null;
+      const from = held ? held.from.slice() : mo
         ? [t.pos[0] + hf[0] * (mo.f || 0) + hr[0] * (mo.r || 0) * rMul, t.pos[1] + hf[1] * (mo.f || 0) + hr[1] * (mo.r || 0) * rMul, t.pos[2] + (mo.u != null ? mo.u : w.eye)]
         : origin.slice();
       // the aim's base: the body's heading and pitch, or (CONVERGE, opt-in `weapon.converge`: an over-the-shoulder
       // camera's) the line from the muzzle to the point under the crosshair, the round leaving from the muzzle
       let baseH = t.heading, baseP = t.pitch || 0;
-      const conv = w.converge ? crosshairPoint(e, state, shotRange) : null;
-      if (conv) {
+      const conv = w.converge && !held ? crosshairPoint(e, state, shotRange) : null;
+      if (held) {
+        const d = held.dir, L = Math.hypot(d[0], d[1], d[2]) || 1e-6;
+        baseH = Math.atan2(d[1], d[0]); baseP = Math.asin(clamp(d[2] / L, -1, 1)); origin = from.slice();
+      } else if (conv) {
         const v = [conv[0] - from[0], conv[1] - from[1], conv[2] - from[2]], L = Math.hypot(v[0], v[1], v[2]) || 1e-6;
         baseH = Math.atan2(v[1], v[0]); baseP = Math.asin(clamp(v[2] / L, -1, 1)); origin = from.slice();
       }

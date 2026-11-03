@@ -47,6 +47,7 @@ import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, 
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
+import { complexRoute, complexLaws } from '../network/complex.js';
 import { withProgram, PROGRAMS } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 import { inferCity } from '../city/plan/card.js';
@@ -503,7 +504,9 @@ export function stageLevelOrder(G, stage, opts = {}) {
   const laid = stage.unlit === undefined ? laid0 : { ...laid0, laws: [...(laid0.laws ?? []), { concern: 'hour', law: 'lit', holds: false, says: `style.hour '${stage.unlit}' lights a stage the level's geocube paints; this ${stage.section} stage is not on one, so it is lit as before` }] };
   const L = opts.moves ? withOwnMoves(laid, opts.moves) : laid;
   // the screen the game is made for (game/screen.js): each level holds its frame. Absent: no key, every print as it was
-  return G.screen ? screenLevel(G.screen, L) : L;
+  const S = G.screen ? screenLevel(G.screen, L) : L;
+  // a game played in a headset (scene/channels/xr.js): each level's page opens a session that plays it. Absent: no key
+  return G.xr ? { ...S, args: { ...S.args, manifest: { ...S.args.manifest, xr: G.xr } } } : S;
 }
 function withOwnMoves(L, byRef) {
   const m = L.args?.manifest;
@@ -735,7 +738,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
   play = withBookUi(G, play);
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...(seats ? { seats } : {}), game };
+  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
@@ -1049,7 +1052,25 @@ function inPalette(manifest, P, at) {
 
 /** The stage a building level is built as (its program on its kit, in its palette): what a run makes and what the book
  *  shows its finishes from (finishes.js); null for a building by ref, played as it was made. */
-export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`));
+export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : R.building.complex ? complexStage(R.building) : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`));
+
+/** What a world's complex levels advise (network/complex.js complexLaws): each law that does not hold, by level, and
+ *  what it measured and wants. A level its world cannot resolve says so elsewhere; here it says nothing. */
+export function complexAdvice(world) {
+  const out = [];
+  for (const [id, L] of Object.entries(world?.levels ?? {})) {
+    if (L?.building?.complex === undefined) continue;
+    try {
+      const R = resolveLevel(world, id);
+      for (const l of complexLaws(complexStage(R.building))) if (!l.ok) out.push(`${id}: ${l.law}: ${l.value} (wants ${l.want})`);
+    } catch { /* refused where it is read */ }
+  }
+  return out;
+}
+
+/** A complex level's stage recipe (network/complex.js): its buildings on their yard, played from one's front door to
+ *  another's goal room through the passages (structure/level.js lowers its `level`). */
+export const complexStage = (B) => ({ kind: 'stage', complex: B.complex, level: { from: B.from, to: B.to } });
 
 /** The inside of a building entered by its door: its program on its room kit, played from its door `out` (which
  *  leads back out) to its goal room. */
@@ -1116,16 +1137,19 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
   const spawn = [walker.transform.pos[0], walker.transform.pos[1], r3(walker.transform.pos[2] - eye)], heading = walker.transform.heading;
   // the rooms between the way in and the goal stand in for a trail's beats: a quick goal's pickups lie in them
-  // (on storeys, each at its room's floor)
-  const plan = withProgram(stage.manifest), floors = plan.rooms.some((r) => r.storey) ? new Map(planStage(plan.geocube !== undefined ? withGeocube(plan) : plan).rooms.map((r) => [r.id, r.z0])) : null;
-  const beats = plan.rooms.filter((r) => r.id !== plan._program.entry && r.id !== plan._program.goal)
-    .map((r) => ({ beat: r.id, at: [r.x + r.w / 2, r.y + r.d / 2, floors ? floors.get(r.id) : 0] }));
+  // (on storeys, each at its room's floor; a complex's, every building's, its own name before each room's)
+  const cx = stage.manifest.complex !== undefined ? complexRoute(stage.manifest) : null;
+  const plan = cx ? null : withProgram(stage.manifest), floors = plan?.rooms.some((r) => r.storey) ? new Map(planStage(plan.geocube !== undefined ? withGeocube(plan) : plan).rooms.map((r) => [r.id, r.z0])) : null;
+  const rooms0 = cx ? cx.rooms.map((r) => ({ id: `${r.building}/${r.id}`, x: r.box.min[0], y: r.box.min[1], w: r3(r.box.max[0] - r.box.min[0]), d: r3(r.box.max[1] - r.box.min[1]), z: r.box.min[2] }))
+    : plan.rooms.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, d: r.d, z: floors ? floors.get(r.id) : 0 }));
+  const skip = cx ? new Set([`${cx.from}/lobby`, `${cx.goal.building}/${cx.goal.room}`]) : new Set([plan._program.entry, plan._program.goal]);
+  const mid = cx ? r3 : (v) => v, beats = rooms0.filter((r) => !skip.has(r.id)).map((r) => ({ beat: r.id, at: [mid(r.x + r.w / 2), mid(r.y + r.d / 2), r.z] }));
   const ends = { spawn, heading, exit: lowered.game.mechanics.at(-1).at, exitFrom: `the ${stage.building.use}'s goal room`, beats, planar: false };
   // (the goal room's floor, under the exit at the walker's eye: where a level goal's boss stands)
   const exit0 = ends.exit;
   Object.defineProperty(ends, 'bossAt', { value: [exit0[0], exit0[1], r3(exit0[2] - eye)], enumerable: false });
   // its rooms (each its box and floor) and its use, for a stage's extra to stand things in (a minigame's stall)
-  Object.defineProperty(ends, 'rooms', { value: plan.rooms.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, d: r.d, z: floors ? floors.get(r.id) : 0 })), enumerable: false });
+  Object.defineProperty(ends, 'rooms', { value: rooms0, enumerable: false });
   Object.defineProperty(ends, 'use', { value: stage.building.use, enumerable: false });
   // (its route to the goal room, through the doorways and up the flights: an escape room's keys lie on it, escape.js)
   Object.defineProperty(ends, 'via', { value: lowered.game.mechanics.at(-1).via ?? null, enumerable: false });
@@ -1169,7 +1193,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
-  const A = armedPilot(G, { ...P.entities[0], transform: { pos: steppedIn(plan, spawn, heading), heading } }, cam);
+  const A = armedPilot(G, { ...P.entities[0], transform: { pos: cx ? spawn : steppedIn(plan, spawn, heading), heading } }, cam);
   const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : A.camera ?? P.camera;
   const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted(A.entity), ...(X?.entities ?? [])], camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's

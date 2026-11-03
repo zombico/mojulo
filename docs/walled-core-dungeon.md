@@ -45,7 +45,22 @@ Its `look` composes the stage (`era/compose.js`), its `tone` colours it (`era/to
 survive a rerun. A base building (`BASE_USES`, `era/programs.js`) is always composed, so its rooms are stocked
 (`era/stocking.js`); the `bunker` construction (`era/style/bay-axes.js`, `era/bay.js`) dresses its walled layers.
 
+## Several spaces on one level: a complex
+
+A building level's `building: { complex: true }` stands the dungeon's spaces on that level as buildings on one yard
+(`network/complex.js`): in the critical path's order, each of its space's use and look, each beside the one before it,
+each with a basement. A door between two of them is the passage below grade that joins their basements (`network/`:
+a service tunnel by default, `network.section` to change it), whatever its via, both ways. The level is played in at
+the first one's front door, down, through the passages, up the last one's stair to its goal room. The network's laws
+(every building reached, cover, grade, run, and a way through) advise beside the dungeon's in `advice.wcd`; the book
+draws the level as a site plan, and the rings call such a door a passage. `complex: { buildings }` stands buildings of
+its own instead, and `complex: { campus }` a campus by its name (`network/campuses.js`: a hospital's emergency
+department, wards, plant and theatres joined by a public passage and a service tunnel; a base's hangar, barracks,
+armoury and command joined by bunker tunnels). A base's or a hospital's buildings are stocked by their rooms' roles
+(`era/stocking.js`), and two buildings a passage joins are held to differ in look (`complex-distinct`).
+
 ## Not yet
 
-The outside (how the spaces join as one map) waits on the geocube work. Two spaces cannot share a level, so a lift
-between levels is a stair.
+A gate does not hold a passage shut inside a level: there is no in-level barrier that opens on what the player holds,
+so a clearance on a complex's door is drawn and advised, not played. A lift and a teleporter between two buildings of a
+complex are built as passages. The outside of a level made of separate building levels waits on the geocube work.

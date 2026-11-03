@@ -181,6 +181,12 @@ in RPG proportions instead, the hero door has its own anime head and chibi build
 One known gap: a lid turned down over the big anime eye shows as a skin-coloured bump; anime would draw it as the lash
 coming down.
 
+## The feature style: animals as feature animation draws them
+
+`style: 'feature'` (or `feature style`, `stylized`, `cartoon realistic` in a brief) draws a species of the fauna roster in
+cartoon realism, one smooth skin on its own silhouette: [feature-style.md](feature-style.md). It alone takes a `tune`
+(the masses' sizes, the decoration's dials and a detail tier, `game` or `gen7`): see its Tuning section.
+
 ## Smooth forms
 
 Law 8 asks for forms a toy maker could cast, and a faceted ball is not one. Every trunk is drawn on twenty-slot rings

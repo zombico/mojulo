@@ -22,6 +22,8 @@
  */
 import { roundStreetKit, roundKitFaces, isRoundKitShape } from '../city/round-kit.js';
 import { litFactor, scaleHex } from '../polygonizer/vexar.js';
+import { streetcarTrack } from '../city/roads.js';
+import { CITY_METERS_PER_UNIT } from '../city/fractal-city.js';
 
 // the legacy metro's kit, at its scale (fractal-city.js: a city unit is 3.66 m; a kerb lamp's standard 2.35 units tall)
 const U = 3.66;
@@ -160,6 +162,21 @@ const car = ([dx], L) => {
   const along = !!dx, Lb = 4.3, Wb = 1.8, B = (l, w, z0, z1, tint, kind = 'car') => (along ? { kind, x: -l / 2, w: l, y: -w / 2, d: w, z0, z1, tint } : { kind, y: -l / 2, d: l, x: -w / 2, w, z0, z1, tint });
   return realize([B(Lb, Wb, 0.3, 0.95, '#e8e8e8'), B(2.3, 1.6, 0.95, 1.45, '#2a3038'), B(Lb - 0.6, Wb + 0.04, 0, 0.32, '#1c1d1f')], L);
 };
+/** A 10 m length of streetcar track as the city metro lays it (city/roads.js streetcarTrack: a dark tie band between
+ *  two steel rails standing proud of the street), at the metro's scale, its rails on the city's gauge: each ribbon a
+ *  bar along +x, its top and its two long sides, its foot at the street. */
+function railPiece(gauge, L) {
+  const U = CITY_METERS_PER_UNIT, { ribbons } = streetcarTrack({ path: [[0, 0], [10 / U, 0]], gauge: gauge / U, paved: false, poleEvery: 1e9 });
+  const base = Math.min(...ribbons.map((r) => r.z0));
+  return ribbons.filter((r) => r.z0 < 1).flatMap((r) => {
+    const y = r.path[0][1] * U, w = (r.width * U) / 2, z0 = (r.z0 - base) * U, z1 = (r.z1 - base) * U;
+    return [
+      quad([[0, y - w, z1], [10, y - w, z1], [10, y + w, z1], [0, y + w, z1]], [0, 0, 1], r.tint, L),
+      quad([[0, y - w, z0], [10, y - w, z0], [10, y - w, z1], [0, y - w, z1]], [0, -1, 0], r.tint, L),
+      quad([[0, y + w, z0], [10, y + w, z0], [10, y + w, z1], [0, y + w, z1]], [0, 1, 0], r.tint, L),
+    ];
+  });
+}
 /** A flat piece along +x, `len` long, `w` across at offset `off`, at z 0. */
 const flat = (len, w, off, fill, L) => [quad([[0, off - w / 2, 0], [len, off - w / 2, 0], [len, off + w / 2, 0], [0, off + w / 2, 0]], [0, 0, 1], fill, L)];
 
@@ -174,7 +191,7 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     dash: flat(3, 0.12, 0, '#e8e4d8', L),
     line: flat(10, 0.12, 0, '#e8e4d8', L),
     yellow: [...flat(10, 0.1, -0.12, '#e3b13a', L), ...flat(10, 0.1, 0.12, '#e3b13a', L)],
-    rail: [...flat(10, 0.1, -gauge / 2, '#b4b7bc', L), ...flat(10, 0.1, gauge / 2, '#b4b7bc', L)],
+    rail: railPiece(gauge, L),
     wire: [quad([[0, -0.015, 0], [1, -0.015, 0], [1, 0.015, 0], [0, 0.015, 0]], [0, 0, 1], '#202224', L)],
     bar: flat(3, 0.6, 0, '#e3ded0', L),
     // a street tree's pit in the walk: its grate's dark square, centred

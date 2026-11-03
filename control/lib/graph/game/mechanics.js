@@ -92,6 +92,27 @@ const MECHANICS = {
     },
   },
 
+  // a WARP within the level: walking into its zone moves the walker to `to` (its position, as its spawn is given: a fall
+  // caught moves it the same way), and says `then` (an event a scene starts on: the arrival shown). Not an end: a
+  // subway's tunnel left at one station and its next station's platform arrived on.
+  warp: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const at = p.at ?? [0, 0, 0], to = p.to ?? at;
+      if (!Array.isArray(at) || at.length !== 3 || !Array.isArray(to) || to.length !== 3) throw new Error(`warp[${ctx.i}]: at and to are [x, y, z] (its zone; where it sends the walker)`);
+      const zone = `warp_${ctx.i}`, shape = Array.isArray(p.half) ? { half: p.half } : { radius: p.radius != null ? p.radius : 1.2 };
+      return {
+        world: {
+          sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: ctx.player }],
+          reactions: [
+            { on: 'enter', match: { zone }, do: 'move', target: ctx.player, to },
+            ...(typeof p.then === 'string' ? [{ on: 'enter', match: { zone }, do: 'emit', type: p.then }] : []),
+          ],
+        },
+      };
+    },
+  },
+
   // survive a countdown → success (modeled on the countdownClock idiom, self-gated).
   survive: {
     role: 'terminal', ends: ['success'], requires: [],
@@ -638,6 +659,92 @@ const MECHANICS = {
     },
   },
 
+  // NOTES (a terminal: success, and fail with `misses`): a rhythm game's chart played by bodies the level mints asleep.
+  // Each lane is a straight path in the air toward the player, `from` its far end and `to` the cutting line, and owns a
+  // `pool` of note bodies (minted asleep, each floating at the lane's height: its rule's eye). A note of the chart
+  // ({ beat, lane, dir, hand }) wakes its lane's next body `lead` beats before its beat at `from` and walks it in at the
+  // pace that puts it on `to` on its beat, then on `beyond` metres past. A CUT of it (worlds/controllable/sweep.js: a
+  // headset's swing) in its direction (`up` | `down` | `left` | `right` | `any`) and with its hand (`left` | `right` |
+  // `any`) scores it (`note:hit`) and sends it away; one that walks past the line is a `note:miss`. Every note scored
+  // or missed: `notes:done`. The beat is the level's music's (audio.beat, as on-beat's); `bpm` its tempo.
+  notes: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower(p, ctx) {
+      const i = ctx.i, where = `notes[${i}]`;
+      const lanes = p.lanes && typeof p.lanes === 'object' ? p.lanes : null, chart = Array.isArray(p.chart) ? p.chart : null;
+      const xy = (q) => Array.isArray(q) && q.length >= 2 && Number.isFinite(q[0]) && Number.isFinite(q[1]);
+      if (!lanes || !Object.keys(lanes).length || !Object.values(lanes).every((L) => L && xy(L.from) && xy(L.to) && Array.isArray(L.pool) && L.pool.length && L.pool.every((id) => typeof id === 'string' && id))) {
+        throw new Error(`${where}: needs lanes: { <name>: { from: [x, y], to: [x, y], pool: [id, …] } } (the pool's bodies minted asleep, floating at the lane's height)`);
+      }
+      const every = Number.isFinite(p.every) && p.every > 0 ? p.every : Number.isFinite(p.bpm) && p.bpm > 0 ? 60 / p.bpm : null;
+      if (!every) throw new Error(`${where}: needs bpm (the music's tempo) or every (seconds a beat)`);
+      const lead = Number.isInteger(p.lead) && p.lead >= 1 ? p.lead : 4, beyond = Number.isFinite(p.beyond) && p.beyond > 0 ? p.beyond : 2;
+      // (the music's clock says each beat `early` seconds before it sounds, audio.beat's lead: a note walks that much longer)
+      const early = Number.isFinite(p.early) && p.early >= 0 ? p.early : 0.15;
+      const DIRS = ['up', 'down', 'left', 'right', 'any'], HANDS = { left: 'L', right: 'R', any: 'any' };
+      if (!chart || !chart.length) throw new Error(`${where}: needs chart: [{ beat, lane, dir?, hand? }, …]`);
+      const notes = chart.map((n, k) => {
+        if (!n || !Number.isInteger(n.beat) || n.beat < lead || !lanes[n.lane]) throw new Error(`${where}: chart[${k}] is { beat (a whole beat, ${lead} or later: it walks in for ${lead}), lane (one of ${Object.keys(lanes).join(', ')}), dir?, hand? }`);
+        const dir = n.dir ?? 'any', hand = n.hand ?? 'any';
+        if (!DIRS.includes(dir)) throw new Error(`${where}: chart[${k}].dir is one of ${DIRS.join(', ')}`);
+        if (!HANDS[hand]) throw new Error(`${where}: chart[${k}].hand is left, right or any`);
+        return { k, beat: n.beat, lane: n.lane, dir, hand: HANDS[hand] };
+      }).sort((a, b) => a.beat - b.beat || a.k - b.k);
+      // the lane's bodies in turn; a body comes back only once its last note has walked past the line
+      const r3 = (x) => Math.round(x * 1000) / 1000, used = {}, last = {}, bodies = new Set();
+      for (const n of notes) {
+        const L = lanes[n.lane], j = used[n.lane] = (used[n.lane] ?? -1) + 1, id = L.pool[j % L.pool.length];
+        const dist = Math.hypot(L.to[0] - L.from[0], L.to[1] - L.from[1]), past = dist > 0 ? Math.ceil((beyond / dist) * lead) + 1 : 1;
+        if (last[id] != null && n.beat - lead < last[id]) throw new Error(`${where}: lane '${n.lane}' needs more bodies in its pool: note ${n.k} (beat ${n.beat}) would wake '${id}' while its note before is still walking (a note walks ${lead + past} beats, from waking to past the line)`);
+        last[id] = n.beat + past; n.id = id; bodies.add(id);
+        const u = [(L.to[0] - L.from[0]) / (dist || 1), (L.to[1] - L.from[1]) / (dist || 1)];
+        n.points = [[L.to[0], L.to[1]], [r3(L.to[0] + u[0] * beyond), r3(L.to[1] + u[1] * beyond)]];
+        n.from = [L.from[0], L.from[1], Number.isFinite(L.from[2]) ? L.from[2] : 0];
+        n.speed = r3(dist / (lead * every + early));
+      }
+      const D = (id) => `__nd_${i}_${id}`, Hh = (id) => `__nh_${i}_${id}`, hits = `__nhits_${i}`, miss = `__nmiss_${i}`, done = `__ndone_${i}`;
+      const misses = Number.isInteger(p.misses) && p.misses > 0 ? p.misses : null;
+      const reactions = [];
+      // each note: on the beat `lead` before its own, its body wakes at the lane's far end, takes the note's cut and walks in
+      for (const n of notes) {
+        const on = { on: 'beat', match: { n: n.beat - lead } };
+        reactions.push(
+          { ...on, do: 'set', var: D(n.id), to: n.dir }, { ...on, do: 'set', var: Hh(n.id), to: n.hand },
+          { ...on, do: 'ctrl', op: 'spawn', who: n.id, at: n.from },
+          { ...on, do: 'ctrl', op: 'walk', who: n.id, points: n.points, names: ['line', 'past'], speed: n.speed, then: 'stay' },
+        );
+      }
+      // each body: a cut in its note's direction, then with its note's hand, is a hit; past the line, a miss
+      for (const id of bodies) {
+        reactions.push(
+          { on: 'cut', match: { entity: id }, if: { var: D(id), eq: 'any' }, do: 'emit', type: `__ncut_${i}`, entity: 'event.entity', hand: 'event.hand' },
+          ...['up', 'down', 'left', 'right'].map((d) => ({ on: 'cut', match: { entity: id, dir: d }, if: { var: D(id), eq: d }, do: 'emit', type: `__ncut_${i}`, entity: 'event.entity', hand: 'event.hand' })),
+          { on: `__ncut_${i}`, match: { entity: id }, if: { var: Hh(id), eq: 'any' }, do: 'emit', type: 'note:hit', entity: 'event.entity' },
+          ...['L', 'R'].map((h) => ({ on: `__ncut_${i}`, match: { entity: id, hand: h }, if: { var: Hh(id), eq: h }, do: 'emit', type: 'note:hit', entity: 'event.entity' })),
+          { on: 'arrive', match: { entity: id, last: 1 }, do: 'emit', type: 'note:miss', entity: 'event.entity' },
+          // (a note something stopped on its walk, a wall in its lane: a miss, so the chart always ends)
+          { on: 'stuck', match: { entity: id }, do: 'emit', type: 'note:miss', entity: 'event.entity' },
+        );
+      }
+      reactions.push(
+        // (a note scored once: its cut cleared, so a second blade in the same pass finds nothing)
+        ...[...bodies].map((id) => ({ on: 'note:hit', match: { entity: id }, do: 'set', var: D(id), to: '' })),
+        { on: 'note:hit', do: 'inc', var: hits, by: 1 }, { on: 'note:hit', do: 'inc', var: done, by: 1 }, { on: 'note:hit', do: 'ctrl', op: 'vanish', who: 'event.entity' },
+        { on: 'note:miss', do: 'inc', var: miss, by: 1 }, { on: 'note:miss', do: 'inc', var: done, by: 1 }, { on: 'note:miss', do: 'ctrl', op: 'vanish', who: 'event.entity' },
+      );
+      const world = {
+        vars: { [hits]: 0, [miss]: 0, [done]: 0, ...Object.fromEntries([...bodies].flatMap((id) => [[D(id), ''], [Hh(id), 'any']])) },
+        reactions,
+        watches: [{ type: 'notes:done', when: { var: done, gte: notes.length } }, ...(misses ? [{ type: 'notes:failed', when: { var: miss, gte: misses } }] : [])],
+        hud: [
+          { var: hits, label: 'Notes', as: 'counter', max: notes.length },
+          ...(misses ? [{ var: miss, label: 'Misses', as: 'counter', max: misses }] : []),
+          { on: 'note:miss', text: 'miss', as: 'toast', ttl: 0.5, color: 'harm' },
+        ],
+      };
+      return { world, on: { 'notes:done': { end: 'success' }, ...(misses ? { 'notes:failed': { end: 'fail' } } : {}) } };
+    },
+  },
   // THE WAVE GAUNTLET (a terminal): sealed in until nothing is left alive, arenas × waves, each wave after the last is
   // down, death beginning the arena (or its checkpoint) again (game/wave-gauntlet.js; "gauntlet" alone is the glove)
   'wave-gauntlet': { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerWaveGauntlet },

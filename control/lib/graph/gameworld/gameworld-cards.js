@@ -13,6 +13,7 @@
  *
  * Pure.
  */
+import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
 import { TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS } from './characters.js';
@@ -150,7 +151,7 @@ function worldCard() {
     '    the hero is \'hero\', the stage\'s places are spots (start, exit, pocket, pocket-2…, landmark…); scenes that read or set flags',
     '    (if, sets) ride a \'story\' flags slice from level to level.',
     `  or building: { use: ${PROGRAM_IDS.filter((u) => !BASE_USES.includes(u)).join(' | ')} | a base's (gameworld-wcd), seed?, goal?,`,
-    '  civilization? } | { ref } in place of the walk: played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
+    '  civilization? } | { ref } | { complex } for the walk: played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
     '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
@@ -549,6 +550,17 @@ function battlesCard() {
   );
 }
 
+function mountsCard() {
+  return lines(
+    `MOUNTS — horses the hero gets on and rides: mounts: 2 (that many bays beside each walking level's spawn) | [{ coat?`,
+    `  (${Object.keys(COATS).join(' | ')}), at?: [x, y], heading? }]. E in reach walks to the near side and gets on; W urges`,
+    '  it up through walk, trot, canter and gallop, letting go halts it, S checks it and reins back, A/D turn it (wider at',
+    '  speed), Space jumps at a trot or faster (a low wall cleared); E at a walk or halted gets off. Any hero rides: its',
+    '  riding clips are solved on its own rig to the horse\'s saddle, irons and bit.',
+    'A world whose levels walk lays them on each; a level whose hero is a car or a craft leaves them standing loose.',
+  );
+}
+
 function wcdCard() {
   return lines(
     'THE WALLED-CORE DUNGEON (WCD) — a dungeon built as layers on a critical path toward a final area, the CORE. Each layer',
@@ -561,7 +573,7 @@ function wcdCard() {
     'SPACES',
     ...Object.entries(WCD_KINDS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
     '  depth         0 the outermost; the core the deepest',
-    "  level         the world level it is in; use: a building use (the program's rooms); look: the composer's words or",
+    "  level         the world level it is in (several: a complex); use: a building use (the program's rooms); look: the composer's words or",
     '                { words?, construction?, palette? }, built into its level (a base building is composed and stocked);',
     '                tone: the stage\'s colour (its ramps), kept on the dungeon; built: false, on the path and not made yet',
     'DOORS (the intermediaries)',
@@ -577,6 +589,8 @@ function wcdCard() {
     'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.wcd`, and never refuse)',
     ...Object.entries(WCD_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
     '',
+    'COMPLEX: a level\'s building { complex: true | { campus: hospital | base } }: its spaces (or a campus) as buildings,',
+    '  joined below grade by their doors; played first door to last goal room; laws in advice.wcd; no gate held shut yet.',
     'A layer\'s construction and palette carry the change from the last. The book draws the dungeon as rings to the core,',
     'each gate on its join, each layer\'s finishes beside it: the approval sheet before a run. A level\'s style palette does',
     'not colour a bay building; its look or its tone does.',
@@ -863,6 +877,7 @@ const CARDS = [
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
+  ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],

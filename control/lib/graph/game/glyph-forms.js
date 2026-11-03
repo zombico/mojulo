@@ -1,7 +1,7 @@
 /**
  * glyph-forms — the game UI language's FORM SHELF (game-ui-language.plan.md, U1).
  *
- * Eight icon-grade procedural solids (gem coin key heart star orb flag skull) built from the
+ * Icon-grade procedural solids (gem coin key heart star orb flag skull, and the rhythm game's note blocks) built from the
  * lathe/extrude primitives, vexar-lit, one semantic tint each — the closed, player-facing pickup/
  * marker vocabulary. Not workbench-grade objects: these are silhouettes designed to read at
  * gameplay distance, the substrate's equivalent of a tinted icon set, kept pure-vector.
@@ -211,7 +211,37 @@ export const GLYPH_FORMS = {
       return [...cranium, ...jaw, eye(-0.17), eye(0.17), nose];
     },
   },
+
+  // THE NOTES: a rhythm game's blocks (game/mechanics.js `notes`, cut in a headset). A cube half a metre across, its
+  // arrow (white) on each of its four sides pointing the way the cut must go for whoever looks at that side, so it reads
+  // however it turns on its walk; the `any` note a dot in place of the arrow.
+  ...Object.fromEntries(['up', 'down', 'left', 'right', 'any'].map((dir) => [`note-${dir}`, {
+    name: dir === 'any' ? 'Note (any cut)' : `Note (cut ${dir})`,
+    summary: dir === 'any' ? 'A rhythm block cut any way: a cube with a dot on each side.' : `A rhythm block to cut ${dir}: a cube with its arrow on each side.`,
+    when: `a saber rhythm game's notes (the notes mechanic): ${dir === 'any' ? 'a cut in any direction' : `a cut ${dir}`}`,
+    tint: '#2f7fe0',
+    symmetry: 'radial-4',
+    idle: 'bob',
+    fit: { height: 0.5, cz: 0.25 },
+    build: ({ tint }) => noteBlock(dir, tint),
+  }])),
 };
+
+/** A note block (see the registry's notes): the cube, then on each side its mark, a hair out of the face. */
+function noteBlock(dir, tint) {
+  const H = 0.25, out = H + 0.004, cube = extrudeToFaces({ profile: { rect: { w: 2 * H, h: 2 * H } }, axisFrom: { x: 0, y: -H, z: H }, axisTo: { x: 0, y: H, z: H } }, { tint });
+  // the mark in a side's own (right, up) coordinates: an arrow up, turned to the cut; a square dot for `any`
+  const arrow = [[-0.12, -0.08], [0.12, -0.08], [0, 0.16]], dot = [[-0.06, -0.06], [0.06, -0.06], [0.06, 0.06], [-0.06, 0.06]];
+  const turn = { up: ([u, v]) => [u, v], down: ([u, v]) => [-u, -v], left: ([u, v]) => [-v, u], right: ([u, v]) => [v, -u], any: (q) => q }[dir];
+  const mark = (dir === 'any' ? dot : arrow).map(turn);
+  // each side: its outward normal n and the right of a viewer facing it (looking along −n, z up): −n × z
+  const sides = [[[0, 1, 0], [-1, 0, 0]], [[0, -1, 0], [1, 0, 0]], [[1, 0, 0], [0, 1, 0]], [[-1, 0, 0], [0, -1, 0]]];
+  const marks = sides.map(([n, r]) => ({
+    corners: mark.map(([u, v]) => [n[0] * out + r[0] * u, n[1] * out + r[1] * u, H + v]),
+    fill: '#ffffff', doubleSided: true, outNormal: n,
+  }));
+  return [...cube, ...marks];
+}
 
 export const GLYPH_IDS = Object.keys(GLYPH_FORMS);
 
@@ -254,8 +284,15 @@ export function lowerGlyphBodies(entities, figures) {
       ...e,
       // glyphs are mostly radial/forward-neutral: default yawOffset 0 (a figure's -π/2
       // convention would turn the coin/heart/flag sideways to the camera).
-      body: { type: 'figure-frames', figure: key, lerp: false, yawOffset: Number.isFinite(b.yawOffset) ? b.yawOffset : 0 },
+      // (what else the body says, a target's `hittable` and `egg`, rides on after the frame's own keys: a glyph that says
+      // nothing more is the body it always was)
+      body: { type: 'figure-frames', figure: key, lerp: false, yawOffset: Number.isFinite(b.yawOffset) ? b.yawOffset : 0, ...glyphKeeps(b) },
     };
   });
   return { entities: outEntities, figures: outFigures };
+}
+/** a glyph body's fields beyond its look (form, tint, scale, yawOffset): kept on the body it lowers to */
+function glyphKeeps(b) {
+  const { type: _t, form: _f, tint: _c, scale: _s, yawOffset: _y, ...keep } = b;
+  return keep;
 }

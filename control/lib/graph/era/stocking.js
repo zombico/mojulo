@@ -1,6 +1,6 @@
 /**
  * STOCKING — what a military base's rooms hold, as a supply chain stocks them (a base's buildings: programs.js
- * BASE_USES). A composed base building's rooms are laid from these tables (compose-dress.js layProps) in place of the
+ * BASE_USES), and a hospital's (HOSPITAL_USES, its own table: HOSPITAL_STOCK). A composed base building's rooms are laid from these tables (compose-dress.js layProps) in place of the
  * register's generic clusters: a bunk room its bunks, footlockers and lockers; an armoury's cage its weapon racks; a
  * magazine its ammunition; a plant's pump room its pumps and fuel. Every other stage is dressed as it was.
  *
@@ -76,8 +76,35 @@ export const STOCK = Object.freeze({
   'plant-control': [['radio-console', [2, 3], 'wall'], ['switchgear', [1, 2], 'wall']],
   'generator-hall': [['drum', [3, 5], 'wall'], ['barrier', [1, 2], 'centre'], ['tool-chest', [1, 2], 'wall']],
 });
-/** The great object a base use stands at its landmark's focus, in place of its register's. */
-export const GREAT = Object.freeze({ command: 'ops-table', plant: 'generator' });
+/** A hospital's rooms (programs.js HOSPITAL_USES): its lobby a waiting room, its beds head to the wall, its theatres'
+ *  table in the middle; the stores of its basement as a base's. */
+export const HOSPITAL_STOCK = Object.freeze({
+  lobby: [['chair-row', [2, 4], 'wall'], ['desk', [1, 1], 'centre']],
+  // emergency
+  triage: [['bed', [1, 2], 'wall'], ['cart', [1, 2], 'wall'], ['desk', [1, 1], 'centre']],
+  resus: [['bed', [1, 2], 'wall'], ['instrument-rack', [2, 3], 'wall'], ['cart', [1, 2], 'wall']],
+  cubicle: [['bed', [1, 2], 'wall'], ['cart', [1, 1], 'wall']],
+  imaging: [['instrument-rack', [1, 2], 'wall'], ['desk', [1, 1], 'wall']],
+  observation: [['bed', [3, 5], 'wall'], ['locker', [1, 2], 'wall']],
+  'ambulance-bay': [['cart', [2, 3], 'wall'], ['rack', [1, 1], 'wall']],
+  // ward block
+  sluice: [['sink-row', [1, 1], 'wall'], ['cart', [1, 1], 'wall']],
+  'nurses-station': [['desk', [1, 2], 'centre'], ['filing', [1, 2], 'wall'], ['cart', [1, 1], 'wall']],
+  ward: [['bed', [2, 4], 'wall'], ['locker', [1, 2], 'wall']],
+  dayroom: [['chair-row', [2, 3], 'wall'], ['mess-table', [1, 1], 'centre']],
+  'ward-office': [['desk', [1, 1], 'centre'], ['filing', [2, 3], 'wall']],
+  // theatres
+  scrub: [['sink-row', [1, 2], 'wall']],
+  anaesthetic: [['bed', [1, 1], 'wall'], ['instrument-rack', [1, 2], 'wall'], ['cart', [1, 1], 'wall']],
+  theatre: [['bed', [1, 1], 'centre'], ['instrument-rack', [2, 3], 'wall'], ['cart', [1, 2], 'wall']],
+  recovery: [['bed', [2, 4], 'wall'], ['instrument-rack', [1, 2], 'wall']],
+  sterile: [['rack', [2, 3], 'wall'], ['sink-row', [1, 1], 'wall'], ['cart', [1, 2], 'wall']],
+  // the basement's stores
+  store: STOCK.store,
+});
+/** The great object a base use stands at its landmark's focus, in place of its register's (a hospital's emergency
+ *  department its scanner). */
+export const GREAT = Object.freeze({ command: 'ops-table', plant: 'generator', emergency: 'scanner' });
 export const FUEL = Object.freeze(['drum']);
 export const AMMO = Object.freeze(['ammo-crate', 'ammo-can']);
 export const WEAPONS = Object.freeze(['weapon-rack']);
@@ -109,7 +136,8 @@ export function stockLaws(plan, items, openings) {
   }
   out.push({ id: 'extinguisher-by-exit', ok: !bare.length, says: bare.length ? `${bare.slice(0, 4).join(', ')}${bare.length > 4 ? ` and ${bare.length - 4} more` : ''}: no extinguisher within ${EXIT_REACH} m` : `an extinguisher within ${EXIT_REACH} m of every exit of a stocked room` });
   // every stocked role holds some of its stock
-  const empty = plan.rooms.filter((r) => STOCK[roleOf(r.id)] && !(by.get(r.id) ?? []).some((it) => STOCK[roleOf(r.id)].some(([k]) => k === it.kind))).map((r) => r.id);
+  const T = plan.stock === 'hospital' ? HOSPITAL_STOCK : STOCK;
+  const empty = plan.rooms.filter((r) => T[roleOf(r.id)] && !(by.get(r.id) ?? []).some((it) => T[roleOf(r.id)].some(([k]) => k === it.kind))).map((r) => r.id);
   out.push({ id: 'stocked', ok: !empty.length, says: empty.length ? `${empty.slice(0, 6).join(', ')}${empty.length > 6 ? ` and ${empty.length - 6} more` : ''}: none of its stock fits` : 'every room holds its stock' });
   return out;
 }

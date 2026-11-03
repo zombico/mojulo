@@ -119,6 +119,89 @@ export const species = {
         bandGroups: { ...band(7), 'st0-st1': Array(6).fill('Coat') }, caps: { back: [0, -0.31, 0.12], tip: [0, -0.775, 0.02] }, capGroups: { back: 'Coat', tip: 'Tip' } },
     ],
   },
+  // GROUNDHOG (Marmota monax, the woodchuck). Thesis: a STOUT round-bodied marmot, heavier through the hips, low on
+  // short strong legs with plain digging paws (no web) · a blunt broad head, the muzzle short and greyed, small round
+  // ears low on the crown, white-cream incisors · a short BUSHY flattened tail · grizzled brown above, the feet dark ·
+  // published: head-body 0.42–0.52 m, tail 0.10–0.15 m, 2–6 kg (Animal Diversity Web, Marmota monax). Authored in the
+  // family's beaver-size units, `scale` 0.6 brings it to size.
+  groundhog: {
+    eyeStyle: 'set',
+    family: 'rodent', name: 'a groundhog', scale: 0.6,
+    colors: { coat: '#7a5c3e', sock: '#2a2018', ash: '#9a7e60', ashAlt: '#8a6e50', ears: '#5a4230', belly: '#a88a6a',
+      mane: '#5a4430', tip: '#3a2c20', snout: '#a8968a', teeth: '#efe2bc', brow: '#4a3622', mouth: '#3a2818', nose: '#1a1410' },
+    muzzleW: 1.2, muzzleLen: 0.65,
+    // a stout round trunk, deepest over the hips
+    torso: [
+      { at: [0, -0.40, 0.17], r: [0.09, 0.08] },
+      { at: [0, -0.32, 0.17], r: [0.16, 0.14] },
+      { at: [0, -0.20, 0.17], r: [0.18, 0.16] },
+      { at: [0, -0.06, 0.17], r: [0.17, 0.14] },
+      { at: [0, 0.07, 0.17], r: [0.14, 0.11] },
+      { at: [0, 0.17, 0.17], r: [0.105, 0.085] },
+    ],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.045, 0.06], [0.03, 0.032], 'Coat', [0.6, 0.5], [0.04, 0.046]],
+      ['foreArmR', 'elbow', 'carpus', [0.03, 0.032], [0.022, 0.023], 'Coat', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.021, 0.02, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.026, 0.012], [0.03, 0.008], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.075, 0.095], [0.042, 0.046], 'Coat', [0.2, 0.5], [0.065, 0.075]],
+      ['shinR', 'stifle', 'hock', [0.038, 0.042], [0.026, 0.028], 'Coat', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.025, 0.022, 'Sock', [0.4, 0.4]],
+      // a plain digging foot: no web
+      ['hindPawR', 'hindPaw', 'hindToe', [0.026, 0.014], [0.028, 0.009], 'Sock', [0.5, 0.4], null, { up: [0, 0, 1] }],
+    ],
+    // the tail: short, bushy and a little flattened, carried low
+    extraSegments: [
+      { name: 'tailBush', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane',
+        stations: lofted([[0, -0.42, 0.15, [0.045, 0.035]], [0, -0.50, 0.12, [0.055, 0.04]], [0, -0.58, 0.10, [0.05, 0.036]], [0, -0.64, 0.09, [0.032, 0.024]]]),
+        caps: { back: [0, -0.40, 0.16], tip: [0, -0.67, 0.085] }, capGroups: { tip: 'Tip' } },
+    ],
+    markings: [{ on: ['torso', 'neck'], kind: 'belly', from: 0.68, group: 'Belly' }],
+  },
+  // CAPYBARA (Hydrochoerus hydrochaeris), the largest rodent: a guinea pig's build grown big and set on longer legs.
+  // Thesis: a heavy BARREL of a body, level-backed, blunt at both ends, with NO tail · a big long BOXY head, the muzzle
+  // deep and square-ended, the nostrils high on its front, the eyes and the small round ears set high (it swims with
+  // them above water) · a coarse reddish-brown coat · published: head-body 1.06–1.34 m, ~0.5–0.62 m at the shoulder,
+  // 35–66 kg (Animal Diversity Web, Hydrochoerus hydrochaeris). Authored in beaver-size units, `scale` 1.55.
+  capybara: {
+    eyeStyle: 'set', eyeSet: { sink: 0.1 },
+    family: 'rodent', name: 'a capybara', scale: 1.55,
+    colors: { coat: '#8a5a36', sock: '#5a3a24', ash: '#a07050', ashAlt: '#946a48', ears: '#6a4428', belly: '#9a6a46',
+      mane: '#6a4428', tip: '#5a3a24', snout: '#6a4a32', teeth: '#e8dcb4', brow: '#5a3a22', mouth: '#3a2418', nose: '#1e1612' },
+    joints: {
+      neckBase: [0, 0.18, 0.33], neckTop: [0, 0.26, 0.37],
+      shoulder: [0.1, 0.14, 0.27], elbow: [0.11, 0.12, 0.17], carpus: [0.11, 0.15, 0.06], forePaw: [0.11, 0.155, 0.012], foreToe: [0.11, 0.2, 0.008],
+      hip: [0.1, -0.3, 0.29], stifle: [0.13, -0.2, 0.18], hock: [0.13, -0.32, 0.06], hindPaw: [0.13, -0.31, 0.012], hindToe: [0.13, -0.21, 0.008],
+    },
+    // a long level barrel, blunt at the rump
+    torso: [
+      { at: [0, -0.44, 0.31], r: [0.11, 0.1] },
+      { at: [0, -0.38, 0.31], r: [0.16, 0.15] },
+      { at: [0, -0.24, 0.31], r: [0.175, 0.165] },
+      { at: [0, -0.08, 0.31], r: [0.17, 0.16] },
+      { at: [0, 0.06, 0.31], r: [0.155, 0.145] },
+      { at: [0, 0.16, 0.31], r: [0.125, 0.12] },
+    ],
+    torsoCaps: { back: [0, -0.49, 0.31], tip: [0, 0.21, 0.32] },
+    neckRA: [0.12, 0.115], neckRB: [0.105, 0.1], neckRMid: [0.11, 0.108],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.04, 0.05], [0.028, 0.03], 'Coat', [0.6, 0.5]],
+      ['foreArmR', 'elbow', 'carpus', [0.028, 0.03], [0.02, 0.021], 'Coat', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.02, 0.019, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.024, 0.012], [0.026, 0.008], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.07, 0.085], [0.04, 0.043], 'Coat', [0.2, 0.5], [0.06, 0.07]],
+      ['shinR', 'stifle', 'hock', [0.034, 0.037], [0.022, 0.024], 'Coat', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.021, 0.019, 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.024, 0.013], [0.026, 0.008], 'Sock', [0.5, 0.4], null, { up: [0, 0, 1] }],
+    ],
+    // a big long boxy head, the muzzle deep and square, the eyes and ears high
+    headScale: 0.82, muzzleLen: 1.3, muzzleW: 1.35,
+    headRelative: 0.5, relBrow: true, eyeAt: [2.4, 1.5], eyeR: 0.022, irisAngle: 50, headOrnaments: [], headPitch: -4,
+    earAt: [1.0, 1.6], earR: [0.035, 0.045, 0.045, 0.03], earSquash: [1, 0.3], earH: 0.4,
+    // no tail at all
+    extraSegments: [],
+    markings: [],
+  },
   // EASTERN GREY SQUIRREL (Sciurus carolinensis). Thesis: a slim light trunk on all fours, back arched (rump high),
   // longer slimmer legs than the beaver, long hind feet · a round head with a short muzzle, big dark eyes and small
   // rounded upright ears · ONE signature: the big BUSHY tail rising from the rump in an S-curve up over the back ·
@@ -453,6 +536,8 @@ export const species = {
 // into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
 // words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
 export const about = {
+  groundhog: { common: 'groundhog', aliases: ['woodchuck', 'marmot', 'whistle-pig'], sci: 'Marmota monax', size: 'head-body 0.42–0.52 m, tail 0.10–0.15 m', source: 'ADW, Marmota monax' },
+  capybara: { common: 'capybara', aliases: ['capybaras', 'carpincho'], sci: 'Hydrochoerus hydrochaeris', size: 'head-body 1.06–1.34 m, ~0.5–0.62 m at the shoulder, no tail', source: 'ADW, Hydrochoerus hydrochaeris' },
   beaver: { common: 'beaver', aliases: [], sci: 'Castor canadensis', size: '~0.30 m at the shoulder; head-body 0.74–0.90 m', source: 'ADW / Smithsonian NMNH' },
   squirrel: { common: 'squirrel', aliases: ['grey squirrel', 'gray squirrel'], sci: 'Sciurus carolinensis', size: '~0.12 m to the top of the back; head-body 0.23–0.30 m', source: 'ADW, Sciurus carolinensis' },
   mouse: { common: 'mouse', aliases: ['mice', 'house mouse', 'field mouse'], sci: 'Mus musculus', size: 'head-body 0.065–0.095 m, tail 0.06–0.105 m', source: 'ADW, Mus musculus' },
