@@ -484,6 +484,48 @@ function claw(row, C) {
   return { extrudes, sweeps, hardpoints: { tip: [0, 0, -F] } };
 }
 
+// ── a giant arm's shoulder: the arm's shoulder (its drive, its clevis, its horn) under an armoured block ──────────
+function armouredShoulder(row, C, ctx) {
+  // (the block round the joint itself, from just under its axle up over its drive: the arm comes out from under it)
+  const g = shoulder(row, C, ctx), d = row.dims, [w, dp, h] = d.block, z0 = -0.07, dark = tone(C.trim, -0.2);
+  const extrudes = [...g.extrudes];
+  // (its corners cut, a dark band round its waist, a lamp on its face)
+  extrudes.push(plateBox('armour', [0, 0, z0 + h / 2], w, dp, h, 0.06, C.paint));
+  extrudes.push(box('armourBand', [-w / 2 - 0.006, 0, z0 + h * 0.35], [w / 2 + 0.006, 0, z0 + h * 0.35], dp + 0.012, 0.05, dark));
+  extrudes.push(box('armourLamp', [0, dp / 2 - 0.01, z0 + h * 0.68], [0, dp / 2 + 0.012, z0 + h * 0.68], 0.12, 0.05, C.light));
+  extrudes.push(box('armourVent', [0, dp / 2 + 0.004, z0 + h * 0.2], [0, dp / 2 + 0.012, z0 + h * 0.2], w * 0.6, 0.06, dark));
+  return { ...g, extrudes };
+}
+/** A block `w` × `d` × `h` round its middle `c`, its eight upright corners cut by `cut` (an octagonal prism). */
+function plateBox(id, c, w, d, h, cut, tint) {
+  const x = w / 2, y = d / 2, k = cut;
+  const pts = [[x - k, -y], [x, -y + k], [x, y - k], [x - k, y], [-x + k, y], [-x, y - k], [-x, -y + k], [-x + k, -y]];
+  return extrudeWorld(id, [c[0], c[1], c[2] - h / 2], [c[0], c[1], c[2] + h / 2], pts.map(([px, py]) => [px, py, 0]), tint);
+}
+
+// ── the giant arm pack: its frame behind the cab, its power unit and cooler, its towers up to the shoulders ─────
+function giantPack(row, C) {
+  const d = row.dims, T = d.tower, extrudes = [], lathes = [], sweeps = [], frame = C.trim, dark = tone(C.trim, -0.2);
+  // (the spine: a frame plate against the cab's back, the power unit's case on it, its cooler's grille)
+  extrudes.push(box('spine', [0, d.d / 2 + 0.04, 0], [0, d.d / 2 + 0.04, d.h + 0.5], d.w + 0.1, 0.08, frame, [0, 1, 0]));
+  extrudes.push(plateBox('case', [0, 0, d.h / 2], d.w, d.d, d.h, 0.08, C.paint));
+  extrudes.push(box('grille', [0, -d.d / 2 - 0.012, d.h * 0.5], [0, -d.d / 2, d.h * 0.5], d.w - 0.16, d.h - 0.16, dark));
+  for (let i = 0; i < 6; i++) extrudes.push(box(`slat_${i}`, [0, -d.d / 2 - 0.02, 0.12 + i * 0.075], [0, -d.d / 2 - 0.012, 0.12 + i * 0.075], d.w - 0.18, 0.016, frame));
+  lathes.push(spin('fan', [0, -d.d / 2 - 0.03, d.h * 0.5], [0, -d.d / 2 - 0.012, d.h * 0.5], [[0, 0.2], [1, 0.2]], tone(frame, 0.1), 20));
+  extrudes.push(box('mark', [d.w / 2 + 0.002, -0.1, d.h * 0.75], [d.w / 2 + 0.01, 0.1, d.h * 0.75], 0.18, 0.08, C.light));
+  // (the yoke across the top, and a tower each side up and out to its giant arm's shoulder over the cab's roof)
+  extrudes.push(box('yoke', [-T.x, T.y * 0.5, d.h + 0.45], [T.x, T.y * 0.5, d.h + 0.45], 0.24, 0.2, frame));
+  for (const s of [1, -1]) {
+    const side = s > 0 ? 'r' : 'l', top = [s * d.shoulder[0], d.shoulder[1], d.shoulder[2] - 0.02];
+    extrudes.push(box(`tower_${side}`, [s * (d.w / 2 - 0.05), 0.1, d.h - 0.1], [s * (T.x - 0.05), T.y * 0.5, d.h + 0.45], T.w, T.w, C.paint));
+    extrudes.push(box(`post_${side}`, [s * T.x, T.y * 0.5, d.h + 0.45], top, T.w * 0.9, T.w * 0.9, C.paint));
+    sweeps.push(tube(`brace_${side}`, [[s * (d.w / 2), d.d / 2, d.h * 0.4], [s * (T.x - 0.06), T.y * 0.5 - 0.06, d.h + 0.4]], 0.04, frame, 8));
+    // (the hoses up the tower to its arm: the pack's pump feeds them)
+    sweeps.push(tube(`hose_${side}`, [[s * 0.3, d.d / 2 - 0.05, d.h], [s * (T.x - 0.14), T.y * 0.5 + 0.12, d.h + 0.5], [s * (d.shoulder[0] - 0.12), d.shoulder[1] + 0.12, d.shoulder[2] - 0.1]], 0.022, C.rubber, 8));
+  }
+  return { extrudes, lathes, sweeps, hardpoints: { 'shoulder.r': [...d.shoulder], 'shoulder.l': [-d.shoulder[0], d.shoulder[1], d.shoulder[2]] } };
+}
+
 // ── the power pack: the hydraulic power unit's case, its cooler, its hoses ──────────────────────────────────────
 function pack(row, C) {
   const d = row.dims, extrudes = [], lathes = [], sweeps = [], dark = tone(C.trim, -0.2), h = d.h;
@@ -510,13 +552,13 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-foot': foot,
   'mecha-seat': (row, C, ctx) => (row.build.family === 'seated' ? station : seat)(row, C, ctx),
   'mecha-cage': (row, C, ctx) => ({ torso, cab }[row.build.family] ?? cage)(row, C, ctx),
-  'mecha-shoulder': shoulder,
+  'mecha-shoulder': (row, C, ctx) => (row.build.family === 'armoured' ? armouredShoulder : shoulder)(row, C, ctx),
   'mecha-upperarm': upperarm,
   'mecha-forearm': forearm,
   'mecha-wrist': wrist,
   'mecha-claw': claw,
   'mecha-tool': (row, C, ctx) => TOOL_BUILDERS[row.build.family](row, C, ctx),
-  'mecha-pack': pack,
+  'mecha-pack': (row, C, ctx) => (row.build.family === 'giant' ? giantPack : pack)(row, C, ctx),
   // (a ram is the construction shelf's, its barrel a bare steel grey: the hydraulics read apart from the covers)
   'mecha-ram': (row, C, ctx) => CON_BUILDERS['con-ram'](row, { ...C, paint: tone(C.chrome, -0.42) }, ctx),
 });

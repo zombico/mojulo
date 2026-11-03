@@ -11,9 +11,12 @@
  *   MECHA_ARM_KITS   an arm's build: the forearm it carries ('standard', 'long' for reach, traded for lift)
  *   MECHA_TASKS      a site's tasks: the loadout each asks, per arm ({ tool, arm? }); a loadout of the operator's own is
  *                    `tools` and `arms` (mecha-shelf/index.js composeFrame)
+ *   MECHA_PACK_TASKS a giant arm pack's tasks: the loadout each asks of its two giant arms (`packTask`; the operator's own,
+ *                    `packTools`)
  *
  * A frame takes them through its `mount` (mecha-archetypes.js): the tools and arm kits its wrists' couplers and its
- * elbows are sized for, its own loadout by default. Generic tools of a generic machine: no maker's.
+ * elbows are sized for, its own loadout by default; a frame with a giant arm pack takes its giant arms' through its
+ * `packMount`. Generic tools of a generic machine: no maker's.
  */
 
 export const MECHA_TOOLS = Object.freeze({
@@ -26,6 +29,15 @@ export const MECHA_TOOLS = Object.freeze({
   vacuum: Object.freeze({ sku: 'vacuum-hw', label: 'vacuum lifter', task: 'lifts and sets glass, slabs and panels', holds: 300, circuit: 'electric', flow: 0 }),
   magnet: Object.freeze({ sku: 'magnet-hw', label: 'lifting magnet', task: 'lifts steel: plate, sections, scrap', holds: 400, circuit: 'electric', flow: 0 }),
   hook: Object.freeze({ sku: 'hook-hw', label: 'lifting hook', task: 'hangs a slung load from its arm', holds: 1000, circuit: 'none', flow: 0 }),
+  // (a giant arm pack's tools, on its arms' larger coupler)
+  giantHand: Object.freeze({ sku: 'hand-gw', label: 'giant hand', task: 'grips, carries and places what a crane would sling: beams, blocks, rubble', holds: 1500, circuit: 'clamp', flow: 40 }),
+  giantGrapple: Object.freeze({ sku: 'grapple-gw', label: 'giant grapple', task: 'grips and carries logs, pipe, wreckage', holds: 1800, circuit: 'clamp', flow: 40 }),
+  spreader: Object.freeze({ sku: 'spreader-gw', label: 'rescue spreader', task: 'forces apart: a fallen slab, a jammed door, wreckage over someone', holds: 800, circuit: 'clamp', flow: 60 }),
+  prop: Object.freeze({ sku: 'prop-gw', label: 'shoring prop', task: 'is set under a slab or a ceiling and left to hold it up (from the ground, not the arm)', holds: 0, circuit: 'none', flow: 0 }),
+  shear: Object.freeze({ sku: 'shear-gw', label: 'shear', task: 'fells and cuts: trees, steel sections, rebar', holds: 600, circuit: 'clamp', flow: 70 }),
+  vibro: Object.freeze({ sku: 'vibro-gw', label: 'vibratory driver', task: 'drives piles and sheet piles by vibration', holds: 0, circuit: 'motor', flow: 110 }),
+  clamshell: Object.freeze({ sku: 'clamshell-gw', label: 'clamshell grab', task: 'digs and grabs loose material: a shaft, a heap of rubble', holds: 1200, circuit: 'clamp', flow: 50 }),
+  giantHook: Object.freeze({ sku: 'hook-gw', label: 'giant hook', task: 'hangs a heavy slung load from a giant arm', holds: 2500, circuit: 'none', flow: 0 }),
 });
 export const MECHA_TOOL_IDS = Object.freeze(Object.keys(MECHA_TOOLS));
 
@@ -47,3 +59,15 @@ export const MECHA_TASKS = Object.freeze({
   rigging: t('rigging: a hook on a long arm, a grapple to steady the load', { tool: 'hook', arm: 'long' }, { tool: 'grapple' }),
 });
 export const MECHA_TASK_IDS = Object.freeze(Object.keys(MECHA_TASKS));
+
+// (a giant arm pack's tasks: a loadout for its two giant arms, the frame's own arms as they are or as its task fits them)
+export const MECHA_PACK_TASKS = Object.freeze({
+  heavyLift: t('heavy lifting: two giant hands under the load', { tool: 'giantHand' }, { tool: 'giantHand' }),
+  disasterResponse: t('disaster response: a giant hand to lift, a spreader to force a way', { tool: 'giantHand' }, { tool: 'spreader' }),
+  shoring: t('shoring: two props set under a slab while it is made safe', { tool: 'prop' }, { tool: 'prop' }),
+  forestry: t('forestry: a shear to fell, a giant grapple to carry', { tool: 'shear' }, { tool: 'giantGrapple' }),
+  pileDriving: t('pile driving: a vibratory driver, a giant hand to pitch the pile', { tool: 'vibro' }, { tool: 'giantHand' }),
+  debrisClearing: t('debris clearing: a clamshell to grab, a giant hand to sort', { tool: 'clamshell' }, { tool: 'giantHand' }),
+  heavyRigging: t('heavy rigging: a giant hook, a giant hand to steady the load', { tool: 'giantHook' }, { tool: 'giantHand' }),
+});
+export const MECHA_PACK_TASK_IDS = Object.freeze(Object.keys(MECHA_PACK_TASKS));

@@ -26,13 +26,13 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-foot': 'a foot: its plate, its rubber sole pads at the heel and the toe, its toe guard',
   'mecha-seat': 'the rider\'s place: astride, the spine, the saddle and its tail, the tank and its knee grips and chest pad, the nose and its lamps, the clip-on bars, the pegs and the boarding step; or seated at the controls, a platform, its work seat and belt, its consoles, its pedals, its rail and its steps',
   'mecha-cage': 'the rider\'s cabin, open above as a convertible\'s (its tub\'s sides, its framed windshield, its roll hoop behind the saddle, its lamps), or a torso frame round a seated operator (its posts, its shoulders, its hoop), or a closed cab (its falling-object roof on four pillars, its glass and its guard bars, its door)',
-  'mecha-pack': 'the power pack under the tail: the hydraulic power unit (its motor, its pump, its tank) and its cooler',
-  'mecha-shoulder': 'an arm\'s shoulder: its yaw drive on the torso, its pitch clevis, the horn its shoulder ram drives',
+  'mecha-pack': 'the power pack under the tail: the hydraulic power unit (its motor, its pump, its tank) and its cooler; or a giant arm pack, its frame, its power unit and its towers up to its arms\' shoulders',
+  'mecha-shoulder': 'an arm\'s shoulder: its yaw drive on the torso, its pitch clevis, the horn its shoulder ram drives; a giant arm\'s armoured over it',
   'mecha-upperarm': 'an upper arm: its box beam from the shoulder\'s axle to the elbow\'s clevis, its rams\' brackets',
   'mecha-forearm': 'a forearm: its box beam from the elbow to the wrist, its elbow horn',
   'mecha-wrist': 'a wrist: its rotary drive turning the hand about the forearm\'s end',
   'mecha-claw': 'a hand: a two-fingered claw, its palm, its fingers and their pads',
-  'mecha-tool': 'a tool on an arm\'s quick coupler in a claw\'s place: a bucket, a breaker, a crusher, forks, an auger, a vacuum lifter, a magnet, a hook',
+  'mecha-tool': 'a tool on an arm\'s quick coupler in a claw\'s place: a bucket, a breaker, a crusher, forks, an auger, a vacuum lifter, a magnet, a hook; on a giant arm, a hand, a spreader, a prop, a shear, a vibratory driver, a clamshell',
   'mecha-ram': 'a hydraulic ram across a joint: its barrel and its rod, each a body aimed at the other\'s pin',
 });
 
@@ -40,6 +40,7 @@ const R = (kind, label, classOf, dims, mass, build, aliases = []) => Object.free
 const ATW = 'all-terrain walker';
 const UW = 'utility walker';
 const HW = 'heavy walker';
+const GW = 'giant arm walker';
 
 // (what a part's size does not scale: its stops' angles, the battery's mass, the scale itself; a rotary drive's torque
 // is rated again for its size)
@@ -189,5 +190,54 @@ const HEAVY = {
       post: 0.06, door: [-0.14, 0.4], lowerWindow: [0.4, 0.86], shoulder: [0.73, 0.02, 1.14], mount: 1.44, pack: { y: -0.6, z: [0.62, 1.12] } },
     360, { family: 'cab' }, ['cab', 'operator cab', 'protective cab', 'closed cab', 'falling object guard', 'front guard']),
 };
-export const MECHA_ODM = Object.freeze({ ...ROWS, ...HEAVY });
+BASE = { ...ROWS, ...HEAVY };
+
+// ── the giant arm walker: a frame built to carry a giant arm pack on its back ────────────────────────────────────
+// (its pelvis and its legs the utility walker's designs at 1.6 times, more robust than the heavy walker's: their rams
+// with them, the hip's roll ram and the knee's bored up past their design's; its feet at 2.2, for its weight with the
+// pack's on soft ground)
+const G = 1.6, GA = 2;
+/** A scaled row with another builder's family (a design drawn larger, and dressed by its own builder). */
+const dressed = (row, family, over = {}) => Object.freeze({ ...row, build: Object.freeze({ ...row.build, family }), dims: Object.freeze({ ...row.dims, ...over }) });
+const GIANT = {
+  'pelvis-gw': S('pelvis-uw', G, 'giant arm walker pelvis', GW, ['giant pelvis', 'robust pelvis']),
+  'hip-gw': S('hip-uw', G, 'giant arm walker hip yaw housing', GW, ['giant hip']),
+  'yoke-gw': S('yoke-uw', G, 'giant arm walker hip roll yoke', GW, ['giant yoke']),
+  'thigh-gw': S('thigh-uw', G, 'giant arm walker thigh', GW, ['giant thigh', 'robust thigh']),
+  'shank-gw': S('shank-uw', G, 'giant arm walker shank', GW, ['giant shank', 'robust shank']),
+  'ankle-gw': S('ankle-uw', G, 'giant arm walker ankle cross', GW, ['giant ankle']),
+  'foot-gw': S('foot-uw', 2.2, 'giant arm walker foot', GW, ['giant foot', 'giant sole']),
+  'ram-roll-gw': S('ram-roll-uw', G, 'giant arm walker hip roll ram', GW, ['giant roll ram'], { bore: 0.145, rod: 0.08 }),
+  'ram-hip-gw': S('ram-hip-uw', G, 'giant arm walker hip pitch ram', GW, ['giant hip ram']),
+  // (its knee rams bored up past their design's too: the crouch holds the frame and its pack on them)
+  'ram-knee-gw': S('ram-knee-uw', G, 'giant arm walker knee ram', GW, ['giant knee ram'], { bore: 0.145, rod: 0.08 }),
+  'ram-ankle-gw': S('ram-ankle-uw', G, 'giant arm walker ankle ram', GW, ['giant ankle ram']),
+  // (its station the heavy walker's, its side ladder longer for the taller frame)
+  'station-gw': R('mecha-seat', 'giant arm walker operator station', GW,
+    { ...BASE['station-hw'].dims, step: [0.5, 0.1, -1.1], rungs: [-1.1, -0.84, -0.58, -0.32] },
+    56, { family: 'seated' }, ['giant operator seat']),
+  // (the giant arm pack on its back: a frame behind the cab, its own power unit and cooler, two towers up to the giant
+  // arms' shoulders over the cab's roof; its pump feeds every arm's tools)
+  'gap-gw': R('mecha-pack', 'giant arm pack', GW,
+    { w: 0.9, d: 0.5, h: 0.62, tower: { x: 0.98, y: 0.42, z: 1.0, w: 0.22 }, shoulder: [1.06, 0.42, 1.06], flow: 240 },
+    620, { family: 'giant' }, ['giant arm pack', 'giant arm backpack', 'gap', 'gau pack', 'arm pack', 'backpack arms']),
+  // (the giant arms: the utility walker's arm drawn twice as large; their shoulders armoured blocks over the pack's
+  // towers; their wrists heavy-duty rotary actuators; their hands three-fingered)
+  'shoulder-gw': dressed(S('shoulder-uw', GA, 'giant arm shoulder', GW, ['giant shoulder', 'armoured shoulder']), 'armoured', { block: [0.62, 0.7, 0.5] }),
+  'upperarm-gw': S('upperarm-uw', GA, 'giant upper arm', GW, ['giant upper arm', 'giant arm']),
+  'forearm-gw': S('forearm-uw', GA, 'giant forearm', GW, ['giant forearm']),
+  'wrist-gw': S('wrist-uw', GA, 'giant wrist', GW, ['giant wrist'], { torque: 30000 }),
+  'ram-shoulder-gw': S('ram-shoulder-uw', GA, 'giant shoulder ram', GW, ['giant shoulder ram']),
+  'ram-elbow-gw': S('ram-elbow-uw', GA, 'giant elbow ram', GW, ['giant elbow ram']),
+  // (the giant arms' tools, on their own larger coupler)
+  'hand-gw': R('mecha-tool', 'giant hand', GW, { palm: [0.36, 0.3, 0.26], finger: 0.42, thumb: 0.34, r: 0.05 }, 210, { family: 'hand' }, ['giant hand', 'three fingered hand', 'manipulator hand', 'big hand']),
+  'grapple-gw': S('claw-uw', GA, 'giant grapple', GW, ['giant grapple', 'giant claw']),
+  'spreader-gw': R('mecha-tool', 'giant rescue spreader', GW, { w: 0.3, arm: 0.9, open: 0.34 }, 240, { family: 'spreader' }, ['rescue spreader', 'spreader', 'jaws of life', 'hydraulic spreader']),
+  'prop-gw': R('mecha-tool', 'giant shoring prop', GW, { r: 0.09, length: 1.5, pad: [0.5, 0.36] }, 170, { family: 'prop' }, ['shoring prop', 'prop', 'shoring jack', 'support jack']),
+  'shear-gw': R('mecha-tool', 'giant shear', GW, { w: 0.26, length: 1.0, gap: 0.5 }, 320, { family: 'shear' }, ['tree shear', 'giant shear', 'steel shear', 'felling head']),
+  'vibro-gw': R('mecha-tool', 'giant vibratory driver', GW, { w: 0.5, d: 0.4, h: 0.62, jaw: 0.3 }, 380, { family: 'vibro' }, ['vibratory hammer', 'pile driver', 'vibro hammer', 'vibratory driver']),
+  'clamshell-gw': R('mecha-tool', 'giant clamshell', GW, { w: 0.7, r: 0.42, length: 0.95 }, 300, { family: 'clamshell' }, ['clamshell', 'clamshell grab', 'grab bucket', 'orange peel']),
+  'hook-gw': S('hook-hw', G, 'giant hook', GW, ['giant hook', 'heavy lifting hook']),
+};
+export const MECHA_ODM = Object.freeze({ ...ROWS, ...HEAVY, ...GIANT });
 

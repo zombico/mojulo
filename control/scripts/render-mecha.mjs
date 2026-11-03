@@ -5,7 +5,7 @@
  * operator's: this draws, it does not judge. No database writes.
  *
  * From control/:
- *   node scripts/render-mecha.mjs <output-directory> [archetype,…|all] [--poses stand,board] [--views side,quarter,front,rear,top] [--palette fieldOlive] [--rider] [--task demolition] [--tools r:breaker,l:grapple] [--arms r:long]
+ *   node scripts/render-mecha.mjs <output-directory> [archetype,…|all] [--poses stand,board] [--views side,quarter,front,rear,top] [--palette fieldOlive] [--rider] [--task demolition] [--tools r:breaker,l:grapple] [--arms r:long] [--pack-task heavyLift] [--pack-tools r:spreader,l:giantHand]
  * Writes <archetype>-<pose>-<view>.png, the pages and index.html.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -26,8 +26,8 @@ const output = args[0];
 if (!output) { console.error('Usage: node scripts/render-mecha.mjs <output-directory> [archetype,…|all] [--poses stand,board] [--views side,quarter,front,rear,top] [--palette id] [--rider]'); process.exit(2); }
 const flag = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const views = (flag('--views') || 'side,quarter,front').split(',');
-const palette = flag('--palette') ?? undefined, seated = args.includes('--rider'), task = flag('--task') ?? undefined;
-const pairs = (v) => (v ? Object.fromEntries(v.split(',').map((kv) => kv.split(':'))) : undefined), tools = pairs(flag('--tools')), arms = pairs(flag('--arms'));
+const palette = flag('--palette') ?? undefined, seated = args.includes('--rider'), task = flag('--task') ?? undefined, packTask = flag('--pack-task') ?? undefined;
+const pairs = (v) => (v ? Object.fromEntries(v.split(',').map((kv) => kv.split(':'))) : undefined), tools = pairs(flag('--tools')), arms = pairs(flag('--arms')), packTools = pairs(flag('--pack-tools'));
 const pick = args[1] && !args[1].startsWith('--') && args[1] !== 'all' ? args[1].split(',') : Object.keys(MECHA_ARCHETYPES);
 const outDir = path.resolve(output); mkdirSync(outDir, { recursive: true });
 const width = 960, height = 720;
@@ -35,9 +35,9 @@ let gallery = '';
 for (const id of pick) {
   const poses = (flag('--poses') || Object.keys(MECHA_ARCHETYPES[id].stances).join(',')).split(',');
   for (const pose of poses) {
-    const { manifest, readout } = assembleFrame(id, { pose, palette, task, tools, arms });
+    const { manifest, readout } = assembleFrame(id, { pose, palette, task, tools, arms, packTask, packTools });
     const { payload } = await resolveWorldScene({ ref: `${id}-${pose}`, kind: 'assembler', manifest });
-    const name = `${id}${palette ? `-${palette}` : ''}${task ? `-${task}` : ''}${tools ? `-${Object.values(tools).join('-')}` : ''}-${pose}${seated ? '-rider' : ''}`;
+    const name = `${id}${palette ? `-${palette}` : ''}${task ? `-${task}` : ''}${tools ? `-${Object.values(tools).join('-')}` : ''}${packTask ? `-${packTask}` : ''}${packTools ? `-${Object.values(packTools).join('-')}` : ''}-${pose}${seated ? '-rider' : ''}`;
     const faces = payload.faces.filter((f) => !f.studio);
     if (seated) {
       const { seatRider } = await import('../lib/graph/mecha-shelf/mecha-figure.js');

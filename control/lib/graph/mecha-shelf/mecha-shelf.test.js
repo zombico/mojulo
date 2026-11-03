@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { apply } from './mecha-common.js';
 import { framesOf, rangeOf, solveChain } from '../construction-shelf/con-chain.js';
-import { MECHA_ARCHETYPES, MECHA_ODM, MECHA_TASKS, MECHA_TOOLS, assembleFrame, composeFrame, frameRow, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, posedFrame, resolveMechaPart, riderPoints } from './index.js';
+import { MECHA_ARCHETYPES, MECHA_ODM, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS, assembleFrame, composeFrame, frameRow, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, posedFrame, resolveMechaPart, riderPoints } from './index.js';
 import { readMechaSpec } from './mecha-figure.js';
 
 const id = Object.keys(MECHA_ARCHETYPES)[0], arch = MECHA_ARCHETYPES[id], ctx = mechaCtx(id);
@@ -178,6 +178,49 @@ describe('mecha shelf: a modular frame fitted for its task', () => {
     const flows = (k) => MECHA_TOOLS[MECHA_TASKS[k].r.tool].flow + MECHA_TOOLS[MECHA_TASKS[k].l.tool].flow;
     const pick = [Object.keys(MECHA_TASKS).find((k) => ['r', 'l'].every((S) => MECHA_TOOLS[MECHA_TASKS[k][S].tool].holds > 0)), Object.keys(MECHA_TASKS).sort((x, y) => flows(y) - flows(x))[0]];
     for (const task of pick) expect(lawsOf(composeFrame(modular, { task })).laws.filter((l) => !l.ok).map((l) => `${task} ${l.id}: ${l.says}`)).toEqual([]);
+  });
+});
+
+describe('mecha shelf: a giant arm pack on a frame', () => {
+  // (a frame carrying a pack's arms, chosen in code)
+  const packed = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].packArms), Pk = MECHA_ARCHETYPES[packed], pctx = mechaCtx(packed);
+  const heave = Object.keys(Pk.stances).find((k) => Pk.stances[k].loadOn === 'packArms');
+  const law = (key, id) => lawsOf(key).laws.find((l) => l.id === id);
+  it('solves the pack\'s giant arms as the frame\'s own are: each wrist where its pose asks, from its own shoulder', () => {
+    const P = posedFrame(packed, heave), F = Object.fromEntries(Object.entries(framesOf(pctx.arch, P.joints, pctx)).map(([k, T]) => [k, { R: T.R, t: apply(P.root, T.t) }]));
+    const want = Pk.armPoses[Pk.stances[heave].packArms];
+    for (const S of ['r', 'l']) {
+      const a = Pk.packArms[S], n = -pctx.hp(a.upper, 'elbow')[2] - pctx.hp(a.fore, 'wrist')[2];
+      expect(F[a.wrist].t[1] - F[a.upper].t[1]).toBeCloseTo(want.wrist[0] * n, 3);
+      expect(F[a.wrist].t[2] - F[a.upper].t[2]).toBeCloseTo(want.wrist[1] * n, 3);
+    }
+  });
+  it('weighs a load on the pack\'s arms where it is held, and rates their lift apart from the frame\'s own', () => {
+    const P = posedFrame(packed, heave), on = massOf(packed, P.joints, P.root, { load: 1000, loadOn: 'packArms' }), off = massOf(packed, P.joints, P.root, { load: 1000 });
+    expect(on.parts.filter((q) => q.id.startsWith('load.')).every((q) => Pk.packArms[q.id.slice(-1)])).toBe(true);
+    expect(on.com[2]).not.toBeCloseTo(off.com[2], 3);
+    expect(law(packed, 'packLift').value).toBeGreaterThan(law(packed, 'lift').value);
+    expect(law(packed, 'packReach').value).toBeGreaterThan(law(packed, 'reach').value);
+  });
+  it('fits its giant arms by a pack task, and a pack tool that holds nothing reads no lift', () => {
+    const task = Object.keys(MECHA_PACK_TASKS).find((k) => ['r', 'l'].some((S) => MECHA_PACK_TASKS[k][S].tool !== Pk.packMount.loadout[S].tool));
+    expect(frameRow(composeFrame(packed, { packTask: task })).packLoadout.r.tool).toBe(MECHA_PACK_TASKS[task].r.tool);
+    const idle = Pk.packMount.tools.find((t) => MECHA_TOOLS[t].holds === 0);
+    if (idle) expect(law(composeFrame(packed, { packTools: { r: idle, l: idle } }), 'packLift')).toBeUndefined();
+    expect(() => composeFrame(Object.keys(MECHA_ARCHETYPES).find((k) => !MECHA_ARCHETYPES[k].packArms), { packTask: task })).toThrow(/carries no giant arm pack/);
+    expect(() => composeFrame(packed, { packTools: { r: 'grapple' } })).toThrow(/giant arm takes a tool of/);
+  });
+  it('sums every arm\'s tools\' flow, the pack\'s with the frame\'s, against its pump', () => {
+    const supply = MECHA_ODM[Pk.layout.find((e) => e.id === 'pack').sku].dims.flow;
+    const own = ['r', 'l'].reduce((s, S) => s + MECHA_TOOLS[Pk.mount.loadout[S].tool].flow + MECHA_TOOLS[Pk.packMount.loadout[S].tool].flow, 0);
+    expect(law(packed, 'flow').value).toBeCloseTo(own / supply, 2);
+  });
+  it('holds the frame and its pack to every law, its operator inside its cab', () => {
+    expect(lawsOf(packed).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+    // (the pack task whose tools draw the most flow, its heaviest working)
+    const flows = (k) => MECHA_TOOLS[MECHA_PACK_TASKS[k].r.tool].flow + MECHA_TOOLS[MECHA_PACK_TASKS[k].l.tool].flow;
+    const hardest = Object.keys(MECHA_PACK_TASKS).sort((x, y) => flows(y) - flows(x))[0];
+    expect(lawsOf(composeFrame(packed, { packTask: hardest })).laws.filter((l) => !l.ok).map((l) => `${hardest} ${l.id}: ${l.says}`)).toEqual([]);
   });
 });
 

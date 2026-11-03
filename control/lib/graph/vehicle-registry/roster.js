@@ -300,6 +300,9 @@ export const VEHICLES = {
   // (the utility walker drawn larger for heavy construction: its operator in a closed, guarded cab)
   'heavy-walker': row('heavy walker', ['heavy work walker', 'construction walker', 'site walker', 'heavy lifting walker', 'walking crane', 'demolition walker', 'heavy power frame'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
     { mecha: 'heavyWalker', tech: 'walker' }),
+  // (the heavy walker's cab and arms on a more robust frame, a giant arm pack on its back: two giant arms over the cab)
+  'giant-arm-walker': row('giant arm walker', ['giant arm pack walker', 'gap walker', 'gau walker', 'four arm walker', 'big arm walker', 'heavy lift walker', 'rescue walker'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
+    { mecha: 'giantArmWalker', tech: 'walker' }),
   hovercraft: row('hovercraft', ['hoverbike', 'speeder', 'skimmer', 'grav car'], 'offroad', 'transport', M.concat(F), ['driven', 'traffic', 'watched'],
     { tech: 'hover' }),
   // ── drawn ───────────────────────────────────────────────────────────────────

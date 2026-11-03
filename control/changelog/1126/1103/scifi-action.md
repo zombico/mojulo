@@ -2,7 +2,7 @@
 
 In progress. A new shelf, `control/lib/graph/mecha-shelf/`, for legged machines a rider sits in, built from the ground
 up. It starts with the all-terrain walker, the base of its bipedal locomotion, and grows a general-purpose work frame
-on it: the utility walker, and the heavy walker drawn larger from it.
+on it: the utility walker, the heavy walker drawn larger from it, and the giant arm walker carrying a giant arm pack.
 
 - **The all-terrain walker** (`mecha-archetypes.js` `allTerrainWalker`): a pelvis, two legs and the rider's cabin.
   - **The legs:** six joints each, like a real biped's: hip yaw, roll and pitch, the knee, and the ankle's pitch and
@@ -101,7 +101,47 @@ on it: the utility walker, and the heavy walker drawn larger from it.
       set what it lifts, and a long arm trades lift for reach.
     - An arm's poses are shares of its length, the same pose on a standard arm and a long one.
   - **On the studio grid** the door takes the words beside the vehicle: `task` ('demolition'), `tools` ({ r, l }) and
-    `arms` ({ r: 'long' }). The review render takes `--task`, `--tools r:breaker,l:grapple` and `--arms r:long`.
+    `arms` ({ r: 'long' }), and a pack's `packTask` and `packTools`. The review render takes `--task`, `--tools
+    r:breaker,l:grapple`, `--arms r:long`, `--pack-task heavyLift` and `--pack-tools r:spreader,l:giantHand`.
+- **The giant arm walker** (`giantArmWalker`): a frame built to carry a giant arm pack. It keeps the heavy walker's
+  closed cab, its station and its modular arms.
+  - **A more robust pelvis and legs:** the utility walker's designs at 1.6 times their lengths (the heavy walker's are
+    1.4), its feet at 2.2 times. Its hip roll and knee rams are bored up past their design's. The laws asked for each:
+    the crouch overloaded the knees, one foot overloaded the hip's roll with the heaviest pack tools on, and the sole's
+    pressure was over the band before the larger feet. Its side ladder reaches lower, for the taller frame.
+  - **The giant arm pack** (`gap-gw`), a backpack for work: a frame against the cab's back, its own power unit and
+    cooler, a yoke across its top, and two towers up and out to the giant arms' shoulders over the cab's roof. Its pump
+    feeds every arm's tools.
+  - **The giant arms:** the utility walker's arm drawn twice as large, on the same factory as the frame's own (a second
+    arm set, `packArms`, named under `giant`). Their shoulders are armoured blocks round the joint, the arm coming out
+    from under them. Their wrists are heavy-duty rotary actuators, and their own tool is a new three-fingered giant
+    hand.
+  - **Its stances:** the giant arms `stow` folded (the hands ahead at the chest), `heave` a load ahead in them, and
+    `hoist` them overhead.
+  - **Its laws read the pack's arms as the frame's are read:** `packReach`, and `packLift` at the heave, rated the same
+    way.
+    - A stance's `loadOn` says which arms hold its load.
+    - The flow law sums every arm's tools against the pump.
+    - The clearance and tip-over laws take the giant arms with the rest.
+- **The pack's tools** (on the giant arms' larger coupler, `packMount`), each with its card:
+  - the giant hand, its own;
+  - a giant grapple;
+  - a rescue spreader;
+  - a shoring prop (it holds a slab up from the ground, not from the arm: it reads no lift);
+  - a shear (a felling head, a steel shear);
+  - a vibratory pile driver;
+  - a clamshell grab;
+  - a giant hook.
+- **The pack's tasks** (`MECHA_PACK_TASKS`; `packTask`, or the operator's own `packTools`):
+  - heavy lifting (two giant hands);
+  - disaster response (a hand and a spreader);
+  - shoring (two props);
+  - forestry (a shear and a grapple);
+  - pile driving (a vibratory driver and a hand);
+  - debris clearing (a clamshell and a hand);
+  - heavy rigging (a hook and a hand).
+
+  `composeFrame` fits the frame's arms and the pack's together under one key.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
     derived, never stated.
@@ -133,6 +173,8 @@ on it: the utility walker, and the heavy walker drawn larger from it.
   - `all-terrain-walker` ('riding walker', 'bipedal walker', 'walking machine'…): the role `trail`, the era `future`.
   - `utility-walker` ('work walker', 'power frame', 'walking loader'…): the role `work`, the era `future`.
   - `heavy-walker` ('construction walker', 'site walker', 'walking crane'…): the role `work`, the era `future`.
+  - `giant-arm-walker` ('gap walker', 'four arm walker', 'heavy lift walker', 'rescue walker'…): the role `work`, the
+    era `future`.
   - The new handle, `mecha`, points into the shelf's archetypes.
   - Their realistic builds are at `preview` status: the studio grid only, until its gait is built.
   - The `mech` row stays the battle mech's concept.
@@ -156,4 +198,7 @@ on it: the utility walker, and the heavy walker drawn larger from it.
     loadout, and what its mount does not take refused; its lift no higher than its tools hold, and none read when
     neither holds; its tools' flow summed against its pump's; a long arm trading lift for reach; the loadouts' laws
     hold.
+  - `mecha-shelf.test.js`, the giant arm pack: its arms solved as the frame's are; a load weighed where it is held, the
+    pack's lift rated apart; a pack task its loadout, a prop reading no lift, a frame with no pack refused; every arm's
+    flow summed; the frame and its hardest pack task holding every law.
   - The roster's, builds' and preview door's tests.
