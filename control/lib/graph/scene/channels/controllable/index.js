@@ -336,6 +336,56 @@ function __updateDents() {
 `;
 }
 
+/**
+ * The page's dust and smoke (rupa, controllable/rupa.js SMOKE): each source on `state.rupa.smoke` is solved once by the
+ * runtime's own smokeOf (a fire's plume, a break's dust in the sizes that hang, a douse's steam) and its puffs placed
+ * every frame by the same formula of time (puffAt, plumePuffs), carried by the level's wind: soft sprites from one
+ * pool, as wide as a puff has spread and as opaque as its optical depth. Dust takes the colour of what broke as the
+ * scene lights it, greyed as powder is; wood smoke is grey and paler as it thins; steam paler still. Read from state the runtime owns, at
+ * its time, so a capture stays byte-identical.
+ */
+export function smokeViewScript() {
+  return `// dust and smoke: puffs on the wind
+const __smokeSolved = {}, __smokePool = [], __SMOKE_MAX = 480;
+const __smokeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  for (let i = 0; i <= 8; i++) { const r = i / 8; gr.addColorStop(r, 'rgba(255,255,255,' + Math.exp(-4.5 * r * r).toFixed(3) + ')'); }   // a Gaussian puff
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c); return t; })();
+function __smokeSprite(i) {
+  if (!__smokePool[i]) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: __smokeTex, transparent: true, depthWrite: false, fog: true })); m.raycast = function () {}; scene.add(m); __smokePool[i] = m; }
+  return __smokePool[i];
+}
+// wood smoke is grey (its tar and water droplets scatter light; black smoke is an oil's or a tyre's), paler as it
+// thins; steam paler still. Mid tones: a sprite is unlit
+const __smokeSoot = new THREE.Color('#77746f'), __smokeGrey = new THREE.Color('#9c9994'), __smokeSteam = new THREE.Color('#b8bcc1');
+function __updateSmoke() {
+  const R = __world.rupa, P = __CW.rupaPhysics;
+  if (!R || !R.smoke || !P) return;
+  const t = __world.time, wind = R.wind;
+  let n = 0;
+  for (const src of R.smoke) {
+    let S = __smokeSolved[src.seq];
+    if (!S) {
+      S = __smokeSolved[src.seq] = P.smokeOf(src, wind);
+      const show = src.skin && __breakPieces[src.skin];
+      // dust in the colour of what broke as the scene lights it (its faces' baked fill), a little greyed as powder is
+      if (src.kind === 'dust') { const c = new THREE.Color(show ? show.fill : '#8a8070'), l = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b; S.color = c.lerp(new THREE.Color(l, l, l), 0.3); }
+      else S.color = src.kind === 'steam' ? __smokeSteam : null;
+    }
+    const list = S.plume ? P.plumePuffs({ ...S.plume, t1: src.t1 }, wind, t) : S.puffs.map((p) => (t - p.t0 <= p.life ? P.puffAt(p, wind, t) : null)).filter(Boolean);
+    for (const q of list) {
+      if (n >= __SMOKE_MAX) break;
+      const m = __smokeSprite(n++), k = Math.min(1, q.alpha);
+      m.visible = true; m.position.set(q.pos[0], q.pos[1], q.pos[2]); m.scale.setScalar(3 * q.sigma);
+      m.material.opacity = Math.min(0.85, k);
+      if (S.plume) m.material.color.copy(__smokeSoot).lerp(__smokeGrey, Math.min(1, q.age / 6)); else m.material.color.copy(S.color);
+    }
+  }
+  for (let i = n; i < __smokePool.length; i++) __smokePool[i].visible = false;
+}
+`;
+}
+
 export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, trigger = false } = {}) {
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
   const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && (b.yield > 0 || b.kerfWork > 0)));
@@ -3753,7 +3803,7 @@ function __updateBreaks(dt) {
     }
   }
 }
-${distort ? distortViewScript() : ''}` : ''}${scarsOn ? scarsViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
+${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${scarsOn ? scarsViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
@@ -3768,7 +3818,8 @@ ${hangarHook}  __msHookParams();
     __updateThrusters(dt);${figHasJuice ? `
     __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
     __updateBreaks(dt);${distort ? `
-    __updateDents();` : ''}` : ''}${scarsOn ? `
+    __updateDents();` : ''}${rupa ? `
+    __updateSmoke();` : ''}` : ''}${scarsOn ? `
     __updateScars(dt);` : ''}${runner ? `
     __updateRunner(dt);` : ''}
   }
@@ -3781,5 +3832,5 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${distort ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src),' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
+window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
 }

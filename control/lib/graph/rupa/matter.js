@@ -300,7 +300,9 @@ export function blockMatter(box, spec, where = 'matter') {
   if (isCombustible(m)) {
     // its exposed faces char inward at CHAR_RATE: the fuel it gives each second is that volume's mass × its heat of combustion
     const [x, y, z] = [0, 1, 2].map((k) => Math.max(0, box.max[k] - box.min[k])), area = 2 * (x * y + y * z + x * z);
-    Object.assign(out, { ignite: m.ignite, fuel: sig(mass * m.burn), burnRate: sig(CHAR_RATE * area * m.density * fill * m.burn) });
+    // a solid chars into its faces; a shell (planks round air, a crown's needles) is solid wood charring on both faces of
+    // its walls, over twice its box's surface, until its fuel is gone (a crate flares in minutes, a log burns for hours)
+    Object.assign(out, { ignite: m.ignite, fuel: sig(mass * m.burn), burnRate: sig(CHAR_RATE * (fill < 1 ? 2 * area : area) * m.density * m.burn) });
   }
   return out;
 }

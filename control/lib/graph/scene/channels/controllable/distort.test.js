@@ -21,3 +21,13 @@ describe('distortion on the page: drawn only where matter can take it', () => {
     expect(page('timber')).toContain('__updateDents();');
   });
 });
+
+describe('dust and smoke on the page', () => {
+  it('every rupa page draws its puffs; a page without the physics carries none of it', async () => {
+    const { smokeViewScript } = await import('./index.js');
+    expect(page('brick')).toContain('__updateSmoke();');
+    expect(page('brick')).toContain(smokeViewScript());
+    expect(page('brick', null)).not.toContain('__updateSmoke');
+    expect(() => new Function('THREE', 'scene', 'document', '__world', '__CW', '__breakPieces', smokeViewScript())).not.toThrow();
+  });
+});

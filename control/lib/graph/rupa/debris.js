@@ -42,9 +42,10 @@ export function splashOf({ liquid = 'water', at, speed, mass, size, seed } = {})
   return rupaPhysics.splash(m, { at, speed, mass, size, seed: seed ?? rupaPhysics.seedOf(m.id, Math.round(speed * 1000 + mass)) });
 }
 
-// a grain's settling speed in air, and a crater's dirt: the runtime's physics (rupaPhysics.settleSpeed, .dirt), one law
-// for the bench, the kernels and the page
-export const settleSpeed = (d, particle = 2650) => rupaPhysics.settleSpeed(d, particle);
+// a grain's settling speed in air: Stokes for the fine, Newton's drag (Cd 0.44) for the coarse, whichever is slower;
+// the runtime's own law (rupaPhysics.settleOf), so the dust a page draws settles as the debris here does; a crater's dirt
+// is rupaPhysics.dirt (below)
+export function settleSpeed(d, particle = 2650) { return rupaPhysics.settleOf(d, particle); }
 
 /**
  * A crater's ejecta as it flies: CLUMPS, SPRAY and DUST (rupaPhysics.dirt, the law). The ejecta (its bank mass: the loose

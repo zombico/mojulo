@@ -86,6 +86,17 @@
  *                       cuts as metal does; brittle stuff breaks as ever.
  *            `E.strikeBlock(state, id, joules, how?, src?)` lands a blow by id (a script, a test; src.tool a tool).
  *
+ *   COMBUSTION  a burning block's flame stands Heskestad's L = 0.235·Q^⅖ − 1.02·D tall (flameOf; fire/fire.js
+ *            blockFires draws it), and its heat leaves it three ways: its flame into what touches it (a tenth), radiation
+ *            from mid-flame (χr 0.3, by the solid angle a target's facing area fills, absorbed 0.9: a crate a metre off
+ *            catches, one five metres off does not), and its plume into what hangs over it (the convective heat, by the
+ *            share of its footprint covered, fading to nothing at twice the flame's height).
+ *
+ *   SMOKE    dust and smoke drift on the wind, each a formula of time (puffAt; rupa/smoke-solver.js the scene's
+ *            solver): smoke rises on its fire's heat (Briggs' plume rise), dust settles at its grains' speed, both spread
+ *            as the air mixes them and fade as their mass thins; a size of dust settling faster than the air stirs it
+ *            falls out. Sources go on `state.rupa.smoke`: a break's dust, a burning block's plume, a douse's steam.
+ *
  *   DEBRIS   each break carries what it leaves (`state.breaks[].debris`, from `fragments`): pieces sized by the new surface
  *            the joules opened against the matter's fracture energy, shaped by the matter, flying away from the blow with
  *            its share of the joules, the fines a dust cloud; a burn leaves ash, a melt its liquid. A body entering a pool
@@ -293,6 +304,114 @@ export function buildRupa(E) {
     const u = Math.max(0, base * (1 + wind.gust * g));
     return [wind.dir[0] * u, wind.dir[1] * u, 0];
   }
+  // ── DUST AND SMOKE: puffs carried by the wind, each a formula of time, as a leaf's drift is (rupa/wind-script.js).
+  // A puff rides the wind at its height (the power law, held at its 0.5 m value below that) with the gusts' exact sums;
+  // smoke RISES on its heat by Briggs' plume rise, Δh = 1.6·F^⅓·t^⅔·u^(−⅓), F = g·Q / (π·cp·ρ·T) its buoyancy flux, to
+  // its final rise at x_f = 3.5·x* (x* = 14·F^⅝ below F = 55, 34·F^⅖ above), the calm air taken at 1 m/s (a plume
+  // stirs its own); dust SETTLES at its grains' speed (Stokes for the fine, Newton's drag for the coarse, the slower).
+  // It spreads as the air mixes it, σ = σ0 + i·u·t (i, the turbulence's intensity, from the ground's roughness: the
+  // wind's α), a rising plume at least half as wide as it has risen; its mass deposits at its settling speed over its
+  // depth (e^(−vs·t/H)) and steam's droplets evaporate; it shows by its optical depth, alpha = 1 − e^(−K·m/πσ²) (K the
+  // mass extinction: soot ~8700 m²/kg, a grain 3/(ρ·d)), so the same mass fades as it spreads. Seeded meander only.
+  const AIR_CP = 1005, AIR_T = 293, SOOT_K = 8700, SOOT_YIELD = 0.015, PUFF_RATE = 2, PUFF_MIN = 0.01, PUFF_LIFE = 90, PUFF_SUB = 5;
+  const DUST_BINS = [[0, 2e-5, 1e-5], [2e-5, 1e-4, 5e-5], [1e-4, 5e-4, 2.5e-4], [5e-4, 2e-3, 1e-3]];   // m: [from, to, as]
+  // a grain's settling speed in air: Stokes for the fine, Newton's drag (Cd 0.44) for the coarse, whichever is slower
+  const settleOf = (d, rho = 2650) => Math.min((rho * G * d * d) / (18 * AIR.viscosity), Math.sqrt((4 * rho * G * d) / (3 * 0.44 * AIR.density)));
+  const buoyancyOf = (Q) => (G * Math.max(0, Q)) / (Math.PI * AIR_CP * AIR.density * AIR_T);   // m⁴/s³, Q in W
+  const stir = (wind) => 1.05 * (wind ? wind.alpha : 0.14) + 0.1 * (wind ? wind.gust : 0);       // the turbulence's intensity
+  const uAt = (wind, z) => (wind ? wind.speed * Math.pow(Math.max(0.5, z) / 10, wind.alpha) : 0);
+  const hash01 = (n) => { let x = (n ^ 0x9e3779b9) >>> 0; x = Math.imul(x ^ (x >>> 16), 0x85ebca6b); x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35); return ((x ^ (x >>> 16)) >>> 0) / 4294967296; };
+  function riseOf(F, u, age) {
+    if (!(F > 0)) return 0;
+    const ue = Math.max(u, 1), xs = F < 55 ? 14 * Math.pow(F, 0.625) : 34 * Math.pow(F, 0.4), tf = (3.5 * xs) / ue;
+    return (1.6 * Math.cbrt(F) * Math.pow(Math.min(age, tf), 2 / 3)) / Math.cbrt(ue);
+  }
+  // a puff p { at, t0, m0, sigma0, vs, F, K, evap?, seed, floor? } at time t → { pos, sigma, alpha, m, age } or null
+  function puffAt(p, wind, t) {
+    const age = t - p.t0;
+    if (!(age >= 0)) return null;
+    const rise = riseOf(p.F, uAt(wind, p.at[2]), age), floor = p.floor ?? 0, z = Math.max(floor, p.at[2] + rise - p.vs * age);
+    const u = uAt(wind, (p.at[2] + z) / 2), d = wind ? wind.dir : [1, 0], across = [-d[1], d[0]];
+    let drift = u * age;
+    if (wind && wind.gust > 0) { let g = 0; for (const ph of wind.phases) g += (Math.sin(ph.w * t + ph.p) - Math.sin(ph.w * (t - age) + ph.p)) / ph.w; drift += (wind.gust * u * g) / wind.phases.length; }
+    const sigma = Math.max(p.sigma0 + stir(wind) * Math.max(u, 1) * age, p.F > 0 ? 0.5 * rise : 0);
+    const wob = 0.6 * (sigma - p.sigma0), h1 = hash01(p.seed * 2 + 1) - 0.5, h2 = hash01(p.seed * 2 + 2) - 0.5;
+    const pos = [p.at[0] + d[0] * drift + across[0] * 2 * wob * h1, p.at[1] + d[1] * drift + across[1] * 2 * wob * h1, Math.max(floor, z + 0.5 * wob * h2)];   // it wanders less up and down than across
+    const m = p.m0 * Math.exp((-p.vs * age) / Math.max(0.5, p.at[2] - floor, p.sigma0)) * (p.evap > 0 ? Math.exp(-age / p.evap) : 1);
+    return { pos, sigma, alpha: 1 - Math.exp((-p.K * m) / (Math.PI * sigma * sigma)), m, age };
+  }
+  // how long a puff stays in sight (its alpha above PUFF_MIN), found once by halving: a puff fades monotonically
+  function lifeOf(p, wind) {
+    const seen = (a) => { const q = puffAt({ ...p, t0: 0 }, wind, a); return q && q.alpha >= PUFF_MIN; };
+    if (!seen(0)) return 0;
+    if (seen(PUFF_LIFE)) return PUFF_LIFE;
+    let lo = 0, hi = PUFF_LIFE;
+    for (let k = 0; k < 24; k++) { const mid = (lo + hi) / 2; if (seen(mid)) lo = mid; else hi = mid; }
+    return lo;
+  }
+  // THE SMOKE SOLVER's decision for one source, with its reasons in numbers (rupa/smoke-solver.js solves a scene):
+  //   PLUME  a fire: continuous and buoyant, a puff every 1/PUFF_RATE seconds while it burns, each the soot of that
+  //          time (SOOT_YIELD of the fuel burnt) rising on the fire's heat release Q
+  //   PUFF   a break's dust (its grains below 2 mm in four sizes, shared by the break's Rosin–Rammler), a burst of steam
+  //   HANG / FALL  a size of dust hangs on the air when it settles slower than the air stirs it (vs < i·u, u at least
+  //          1 m/s), else it falls out with the debris's spray at once and is not smoke
+  //   SKIP   what starts too thin to see (alpha under PUFF_MIN)
+  // a source: { kind: 'fire', at, Q, fuel, t0, t1?, radius? } | { kind: 'dust', at, kg, grain?: { x0, n }, particle?,
+  // radius?, t0 } | { kind: 'steam', at, kg, t0 } → { puffs, plume?, fallout, reasons }
+  function smokeOf(src, wind) {
+    const reasons = [], fallout = [], puffs = [], seed = src.seed ?? 1;
+    if (src.kind === 'fire') {
+      const F = buoyancyOf(src.Q), soot = Math.max(0, src.fuel || 0) * (src.yield ?? SOOT_YIELD), dt = 1 / PUFF_RATE;
+      const tmpl = { at: [...src.at], m0: soot * dt, sigma0: Math.max(0.1, src.radius ?? 0.3), vs: 0, F, K: SOOT_K, floor: src.floor ?? 0, seed };
+      const life = lifeOf(tmpl, wind);
+      reasons.push(`plume: Q ${Math.round(src.Q)} W gives F ${F.toPrecision(3)} m⁴/s³; ${(soot * 1000).toPrecision(3)} g/s of soot; each puff in sight ${life.toFixed(1)} s`);
+      return { plume: { ...tmpl, rate: PUFF_RATE, life, t0: src.t0, t1: src.t1 ?? null }, puffs, fallout, reasons };
+    }
+    if (src.kind === 'steam') {
+      const p = { at: [...src.at], t0: src.t0, m0: src.kg, sigma0: 0.25, vs: 0, F: buoyancyOf(src.kg * 2.26e6), K: 300, evap: 1.5, floor: src.floor ?? 0, seed };
+      const life = lifeOf(p, wind);
+      reasons.push(`steam: ${src.kg.toPrecision(3)} kg boiled, its droplets evaporating in 1.5 s; in sight ${life.toFixed(1)} s`);
+      if (life > 0) puffs.push({ ...p, life, kind: 'steam' }); else reasons.push('steam: too thin to see');
+      return { puffs, fallout, reasons };
+    }
+    // dust: four sizes, each hanging or falling out
+    const x0 = src.grain && src.grain.x0 > 0 ? src.grain.x0 : 2e-4, n = src.grain && src.grain.n > 0 ? src.grain.n : 1, rho = src.particle ?? 2650;
+    const cdf = (x) => 1 - Math.exp(-Math.pow(x / x0, n)), whole = cdf(2e-3) || 1, w = stir(wind) * Math.max(uAt(wind, src.at[2]), 1);
+    DUST_BINS.forEach(([a, b, d], k) => {
+      const kg = (src.kg * (cdf(b) - cdf(a))) / whole, vs = settleOf(d, rho);
+      if (!(kg > 1e-9)) return;
+      const tag = `${Math.round(d * 1e6)} µm`;
+      if (vs >= w) { fallout.push({ d, kg, vs }); reasons.push(`dust ${tag}: settles at ${vs.toPrecision(2)} m/s, faster than the air stirs it (${w.toPrecision(2)} m/s): falls out`); return; }
+      // a cloud of PUFF_SUB puffs billowing from where it broke, each a share of the size's mass, seeded about it
+      const r0 = Math.max(0.1, src.radius ?? 0.5), floor = src.floor ?? 0, subs = [];
+      for (let j = 0; j < PUFF_SUB; j++) {
+        const sd = (seed * 5 + k) * 16 + j, off = [0, 1, 2].map((a) => (hash01(sd * 3 + a) - 0.5) * 1.2 * r0);
+        const at = [src.at[0] + off[0], src.at[1] + off[1], Math.max(floor + 0.3 * r0, src.at[2] + Math.abs(off[2]))];
+        subs.push({ at, t0: src.t0, m0: kg / PUFF_SUB, sigma0: 0.6 * r0, vs, F: 0, K: 3 / (rho * d), floor, seed: sd });
+      }
+      const life = lifeOf(subs[0], wind);
+      if (!(life > 0)) { reasons.push(`dust ${tag}: ${(kg * 1000).toPrecision(2)} g, too thin to see`); return; }
+      reasons.push(`dust ${tag}: settles at ${vs.toPrecision(2)} m/s under the air's ${w.toPrecision(2)}: hangs, in sight ${life.toFixed(1)} s`);
+      for (const p of subs) puffs.push({ ...p, life, kind: 'dust', d });
+    });
+    return { puffs, fallout, reasons };
+  }
+  // a plume's puffs alive at t: one let go every 1/rate seconds while it burned
+  function plumePuffs(pl, wind, t) {
+    const out = [], dt = 1 / pl.rate, end = pl.t1 == null ? t : Math.min(t, pl.t1);
+    for (let j = Math.floor(end / dt); j * dt >= pl.t0 && t - j * dt <= pl.life; j--) {
+      const q = puffAt({ ...pl, t0: j * dt, seed: pl.seed * 7919 + j }, wind, t);
+      if (q && q.alpha >= PUFF_MIN) out.push(q);
+    }
+    return out;
+  }
+  // ── COMBUSTION: a fire's flame and how its heat leaves it. The flame stands Heskestad's L = 0.235·Q^⅖ − 1.02·D tall
+  // (Q in kW, D the burning area's equivalent diameter, m: a 60 kW campfire half a metre across ~0.8 m); of its heat
+  // χr = 0.3 leaves as radiation from mid-flame (a point source, Modak: q = χr·Q / 4πd² on a face square to it), the rest
+  // rises in its plume, and what touches it is heated by its flame directly
+  const CHI_R = 0.3;
+  const flameOf = (Q, D) => ({ L: Math.max(0.05, 0.235 * Math.pow(Math.max(0, Q) / 1000, 0.4) - 1.02 * D), D });
+  const footD = (b) => Math.sqrt((4 * (b.max[0] - b.min[0]) * (b.max[1] - b.min[1])) / Math.PI);
   // ── BLOCKING: flow's opposite. A barrier is one number, its POROSITY φ (its open share: 0 a solid wall, ~0.5 a hedge
   // or a slatted fence, 1 nothing at all), and how flow gets past it follows from that, never from a tuned allowance:
   //   resistance  a perforated barrier's loss coefficient, k = (1/(Cc·φ) − 1)² (Borda–Carnot, Weisbach's contraction
@@ -436,7 +555,7 @@ export function buildRupa(E) {
   function fragments(b, { density, fill = 1, frac = 100, shape = 'chunk', spread = 1.2, joules, how = 'call', from = null, dir = null, seed = 1, max = 40 }) {
     const V = vol(b) * fill, M = V * density, c = centre(b), dims = [0, 1, 2].map((k) => b.max[k] - b.min[k]);
     if (how === 'melt') return { pieces: [], dust: null, liquid: { kg: M }, stats: { count: 0, kinetic: 0 } };
-    if (how === 'burn') { const kg = M * 0.01; return { pieces: [], dust: { kg, at: c, radius: cloud(kg), life: 6 }, stats: { count: 0, kinetic: 0, ash: kg } }; }
+    if (how === 'burn') { const kg = M * 0.01; return { pieces: [], dust: { kg, at: c, radius: cloud(kg), life: 6, grain: { x0: 2e-5, n: 1 }, particle: 300 }, stats: { count: 0, kinetic: 0, ash: kg } }; }
     const A0 = 2 * (dims[0] * dims[1] + dims[1] * dims[2] + dims[0] * dims[2]), Anew = (ETA_SURF * joules) / frac;
     const s = Math.min(Math.cbrt(V), (6 * V) / (Anew + A0)), x0 = s / gamma(1 + 1 / spread);
     const fd = 1 - Math.exp(-Math.pow(DUST / x0, spread)), Vp = V * (1 - fd), r = rng(seed), xs = [];
@@ -464,7 +583,7 @@ export function buildRupa(E) {
     const sum = pieces.reduce((a, p, i) => a + p.kg * ws[i] * ws[i], 0), k = sum > 0 ? Math.sqrt((2 * Ek) / sum) : 0;
     pieces.forEach((p, i) => { p.vel = ds[i].map((v) => v * ws[i] * k); });
     const dustKg = fd * M;
-    return { pieces, dust: dustKg > 1e-6 ? { kg: dustKg, at: c, radius: cloud(dustKg), life: 4 + 2 * cloud(dustKg) } : null, stats: { count: pieces.length, mean: s, surface: Anew, kinetic: Ek, dustShare: fd } };
+    return { pieces, dust: dustKg > 1e-6 ? { kg: dustKg, at: c, radius: cloud(dustKg), life: 4 + 2 * cloud(dustKg), grain: { x0, n: spread }, particle: density } : null, stats: { count: pieces.length, mean: s, surface: Anew, kinetic: Ek, dustShare: fd } };
   }
   // a body meeting a liquid: the cavity it opens (E = ρ·g·V·R, a hemisphere: R = (3E / 2πρg)^¼); it splashes when Mundo's
   // √We·Re^¼ passes 57.7 (inertia over surface tension and viscosity); a twentieth of the cavity flies as a crown of
@@ -497,7 +616,7 @@ export function buildRupa(E) {
     return { volume: V, radius: R, depth: 0.4 * R };
   }
   // a grain's settling speed in air: Stokes for the fine, Newton's drag (Cd 0.44) for the coarse, whichever is slower
-  const settleSpeed = (d, particle = 2650) => Math.min((particle * G * d * d) / (18 * AIR.viscosity), Math.sqrt((4 * particle * G * d) / (3 * 0.44 * AIR.density)));
+  const settleSpeed = settleOf;   // (the smoke's law, settleOf: Stokes or Newton, the slower)
   const DIRT_AIRBORNE = 0.03;   // the share of a soil's fines that hangs as a cloud; the rest falls with the spray
   // a crater's ejecta as clumps, spray and dust (rupa/debris.js dirtOf: the law), for a soil record { density, swell, c,
   // mu, grain, fines, particle }
@@ -564,7 +683,7 @@ export function buildRupa(E) {
     return { kind, at, normal, radius: Math.max(r, Math.min(cap, reach)), bowl: r, depth, debris };
   }
 
-  const physics = { craterSize, settleSpeed, dirt, scarOf, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
+  const physics = { craterSize, settleSpeed, dirt, scarOf, flameOf, footD, CHI_R, settleOf, buoyancyOf, riseOf, puffAt, lifeOf, smokeOf, plumePuffs, SOOT_K, SOOT_YIELD, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -594,13 +713,25 @@ export function buildRupa(E) {
     });
     if (!any) return;
     state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0,
-      air: { ...AIR, density: R.airDensity ?? AIR.density }, wind: windOf(R.wind), windAt: -1, toppled: [], dents: [], dentSeq: 0, fells: [], fellSeq: 0,
+      air: { ...AIR, density: R.airDensity ?? AIR.density }, wind: windOf(R.wind), windAt: -1, toppled: [], dents: [], dentSeq: 0, fells: [], fellSeq: 0, smoke: [], smokeSeq: 0,
       scars: R.scars ? { ground: R.scars.ground, wall: R.scars.wall, marks: [], seq: 0 } : null };
   });
   // src: { joules (what the breaking took: its joules, and any blow past them), from?, dir? } for the debris
+  // SMOKE SOURCES (`state.rupa.smoke`, seq-keyed, the last 128): what the page's dust and smoke are solved from
+  // (smokeOf, above): a break's dust, a burning block's plume (its real heat release: `fireTime` hastens how long a fire
+  // burns, not how big it is), the steam a douse boils off
+  function emitSmoke(state, src) {
+    const R = state.rupa, rec = { seq: R.smokeSeq++, floor: state.breakFloor ?? 0, ...src };
+    R.smoke.push(rec);
+    if (R.smoke.length > 128) R.smoke.shift();
+    return rec;
+  }
+  const topOf = (b) => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, b.max[2]];
+  function endPlume(state, r) { if (r.plume && r.plume.t1 == null) r.plume.t1 = state.time; }
   function breakIt(state, b, how, by, src = {}) {
     if (b.broken) return;
     const r = b.rupa, seq = state.breakSeq;
+    endPlume(state, r);
     const debris = fragments(b, { density: r.mass / Math.max(1e-9, vol(b) * r.fill), fill: r.fill, frac: r.frac, shape: r.shape, spread: r.spread,
       joules: src.joules ?? r.cap, how, from: src.from || null, dir: src.dir || null, seed: seedOf(b.id, seq) });
     r.joules = 0; b.hp = 0;
@@ -608,6 +739,8 @@ export function buildRupa(E) {
     const k = state.colliders.indexOf(b.collider);
     if (k >= 0) state.colliders.splice(k, 1);
     state.breaks.push({ seq: state.breakSeq++, id: b.id, t: state.time, at: [0, 1, 2].map((i) => (b.min[i] + b.max[i]) / 2), by: by ?? null, how, debris });
+    // its dust starts as big as what broke, and spreads from there
+    if (debris.dust) emitSmoke(state, { kind: 'dust', id: b.id, skin: b.skin || b.id, t0: state.time, at: [...debris.dust.at], kg: debris.dust.kg, grain: debris.dust.grain, particle: debris.dust.particle, radius: 0.6 * Math.max(...[0, 1, 2].map((k) => b.max[k] - b.min[k])), seed: seq + 1 });
     state.settleDirty = true;
   }
   // a blow of `joules` on a block. src: { from?, dir?, at?, ax?, side?, cap?, kind?, depth?, tool? } (where it lands and what
@@ -832,7 +965,11 @@ export function buildRupa(E) {
       if (r.ignite != null && r.T > FLAME) r.T = FLAME;   // what burns gets no hotter than its flame
     }
     if (r.melt != null && r.T >= r.melt && r.latent >= r.fuse) { breakIt(state, b, 'melt', by); return; }
-    if (!r.burning && r.ignite != null && r.T >= r.ignite && r.fuelLeft > 0) { r.burning = true; state.rupa.hits.push({ t: state.time, id: b.id, how: 'ignite', joules: Math.round(Q), left: Math.round(r.joules) }); }
+    if (!r.burning && r.ignite != null && r.T >= r.ignite && r.fuelLeft > 0) {
+      r.burning = true; state.rupa.hits.push({ t: state.time, id: b.id, how: 'ignite', joules: Math.round(Q), left: Math.round(r.joules) });
+      const heat = r.mass > 0 ? r.fuel / r.mass : 0;   // its heat of combustion, J/kg
+      r.plume = emitSmoke(state, { kind: 'fire', id: b.id, t0: state.time, t1: null, at: topOf(b), Q: r.burnRate, fuel: heat > 0 ? r.burnRate / heat : 0, radius: 0.5 * Math.min(b.max[0] - b.min[0], b.max[1] - b.min[1]), seed: state.rupa.smokeSeq + 1 });
+    }
   }
   // a block with matter broken by a call (a trigger, a script) breaks outright: its count is held infinite
   const basicBreak = E.breakBlock;
@@ -856,16 +993,30 @@ export function buildRupa(E) {
     for (const b of live) {
       const r = b.rupa;
       if (b.broken) continue;
+      if (r.steam > 0.02 && state.time - (r.steamAt ?? -1) >= 0.25) { emitSmoke(state, { kind: 'steam', id: b.id, t0: state.time, at: topOf(b), kg: r.steam, seed: R.smokeSeq + 1 }); r.steam = 0; r.steamAt = state.time; }
       if (r.burning) {
         hot = true;
         const Q = Math.min(r.fuelLeft, r.burnRate * dt * R.fireTime);
         r.fuelLeft -= Q;
         if (r.fuel > 0) r.joules -= r.cap * (Q / r.fuel);   // its strength burns with its fuel (a blow's damage stays)
-        for (const s of live) if (s !== b && !s.broken && touches(b, s, TOUCH)) warm(state, s, Q * 0.1, b.id);
+        // its heat reaches what is around it: its flame what it touches, its radiation what faces it (by the solid angle
+        // the facing area fills from mid-flame, absorbed 0.9), its plume what hangs over it (the convective heat by the
+        // share of its footprint covered, within twice the flame's height)
+        const top = b.max[2], fl = flameOf(r.burnRate, footD(b)), src = [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, top + fl.L / 2], foot = (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]);
+        for (const s of live) {
+          if (s === b || s.broken || !s.rupa) continue;
+          if (touches(b, s, TOUCH)) warm(state, s, Q * 0.1, b.id);
+          const d = boxDist(s, src);
+          if (d < Math.max(3, 6 * fl.L)) warm(state, s, Q * CHI_R * 0.9 * Math.min(0.5, faceArea(s, src) / (4 * Math.PI * Math.max(d * d, 0.01))), b.id);
+          if (s.min[2] >= top - TOUCH && s.min[2] <= top + 2 * fl.L && foot > 0) {
+            const cover = Math.max(0, ovl(b, s, 0)) * Math.max(0, ovl(b, s, 1)) / foot;
+            if (cover > 0) warm(state, s, Q * (1 - CHI_R) * 0.5 * Math.min(1, cover) * (1 - (s.min[2] - top) / (2 * fl.L + 1e-9)), b.id);
+          }
+        }
         if (r.fuelLeft <= r.fuel * 0.05) breakIt(state, b, 'burn', null);
       } else if (r.T !== r.T0) {
         r.T = r.T0 + (r.T - r.T0) * Math.exp(-dt / R.cool);
-        if (Math.abs(r.T - r.T0) < 0.5) r.T = r.T0;
+        if (Math.abs(r.T - r.T0) < 0.01) r.T = r.T0;   // cooled: round off (finer than a far fire's warming a step)
         if (r.T > r.T0 + 0.1 * (r.soften - r.T0)) hot = true;
       }
     }
@@ -902,8 +1053,9 @@ export function buildRupa(E) {
     const r = b.rupa;
     if (!r || !(r.heatCap > 0) || r.T <= r.T0) return;
     const Q = kg * (WATER.heat * Math.max(0, Math.min(r.T, WATER.boil) - Math.min(r.T0, WATER.boil)) + (r.T > WATER.boil ? WATER.vapor : 0));
+    if (r.T > WATER.boil) r.steam = (r.steam || 0) + kg;   // boiled off: it leaves as steam (rupa-heat lets it go)
     r.T = Math.max(r.T0, r.T - Q / r.heatCap);
-    if (r.burning && r.ignite != null && r.T < r.ignite) { r.burning = false; state.rupa.hits.push({ t: state.time, id: b.id, how: 'douse', joules: Math.round(Q), left: Math.round(r.joules) }); }
+    if (r.burning && r.ignite != null && r.T < r.ignite) { r.burning = false; endPlume(state, r); state.rupa.hits.push({ t: state.time, id: b.id, how: 'douse', joules: Math.round(Q), left: Math.round(r.joules) }); }
   }
   // order 31: the spray first, so a doused block is cooler before the fire's pass
   E.registerWorldPass('rupa-spray', (state, input, dt) => {
