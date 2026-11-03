@@ -184,6 +184,19 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     - a `livery` (any camo or mono) is cut into its paint, its structure a shade down;
     - its `wear` (used unless asked) cakes mud low on its legs, dust, fade and grounding;
     - it is baked under the studio's light.
+  - **An optional closed armoured cabin** (`cabin: 'armoured'`; the open cabin stays the default). It is a shell of
+    plates round the rider in the open cabin's place, with no glass:
+    - vision slits at the rider's eye level across the glacis and at each side, each under an armoured lid hinged at
+      its brow, swung up as a visor over the slot or shut flush (`slits: 'open' | 'shut'`, the part's state);
+    - a camera unit on the roof's front is the main vision: a pan ring, an armoured housing, twin lenses under a hood,
+      on a monitor inside before the rider's face. A small camera watches behind;
+    - a door on the boarding side and a hatch in the roof; armoured lamps behind grilles; the brush guard round the
+      nose as before;
+    - the field kit's anchors are on its plates.
+
+    A frame's `cabins` name what it may carry (`mecha-archetypes.js`): the closed cabin's mass is added to the class's,
+    and the `cab` law holds the rider's space inside its walls. It holds every law with the rider 4 cm inside its back
+    at the nearest.
   - It is olive drab by default (a new palette, `oliveDrab`, the field's olive). `livery` and `wear` are words of a
     dressed frame on the door, the figure and the render script (`--livery`, `--wear`); a frame with no dress refuses them.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
@@ -229,7 +242,7 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   realistic hero astride it. The rider is solved in the pelvis's frame and carried with its sway
   (`seatRider`).
 - **Review:** `scripts/render-mecha.mjs` (stances × views, `--rider`, `--palette`, `--task`, `--tools`, `--arms`,
-  `--pack-task`, `--pack-tools`, `--pack-maker`, `--livery`, `--wear`).
+  `--pack-task`, `--pack-tools`, `--pack-maker`, `--cabin`, `--slits`, `--livery`, `--wear`).
 - **Held:**
   - `mecha-shelf.test.js`: each foot where its stance asks, sole flat, at its heading; every ram within its stroke at
     every stance; a shorter stroke gives a shorter arc; the knees bend backward; the legs mirror; the sway puts the
@@ -255,6 +268,7 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   - `mecha-shelf.test.js`, the field walker: steadier, softer on the ground and stepping higher than the walker it
     hardens, every law holding; its cleated sole never below its solved sole; its kit's anchors where their bodies
     stand; its dress deterministic, its kit fitted, a camo cutting its paint, a harder wear caking more mud; a livery
-    and a wear refused on a frame with no dress. The char pins add its hardened parts' builder paths and its dressed
-    faces whole.
+    and a wear refused on a frame with no dress; its armoured cabin held round the rider, its mass on the class's, every
+    law holding; no glass but the cameras' lenses; the lids alone moving between open and shut. The char pins add its
+    hardened parts' builder paths, the armoured cabin open and shut, and its dressed faces whole.
   - The roster's, builds' and preview door's tests (a dressed frame's livery and wear carried in its recipe).

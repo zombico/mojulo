@@ -263,6 +263,14 @@ const FIELD = {
   'cage-fw': R('mecha-cage', 'field walker cabin', FW,
     { ...BASE['cage-atw'].dims, guard: { x: 0.3, y0: 0.62, y1: 1.18, z0: 0.12, z1: 0.46 }, kit: { tools: [0.352, 0.08, 0.27], antenna: [0.3, -0.52, 0.72], mark: [0.348, 0.42, 0.3] } },
     28, { family: 'field' }, ['field cabin', 'brush guard', 'bull bar', 'grille guard', 'field cage']),
+  // (the closed armoured cabin, an option in the open cabin's place: a shell of plates round the rider, no glass; its
+  // vision slits at the rider's eye level under armoured lids; a camera unit on the roof, the main vision, on a monitor
+  // inside; a door on the boarding side, a hatch in the roof; the brush guard as the open cabin's)
+  'cabin-fw': R('mecha-cage', 'field walker armoured cabin', FW,
+    { base: { x: 0.37, y0: -0.46, y1: 0.74 }, belt: { z: 0.7, x: 0.38, y0: -0.5, y1: 0.78 }, roof: { z: 1.32, x: 0.3, y0: -0.42, y1: 0.5 }, z0: 0.1, post: 0.04,
+      slits: { v: [0.42, 0.5], front: [[0.1, 0.32], [0.39, 0.61], [0.68, 0.9]], side: [0.66, 0.9] }, camera: { y: 0.36, h: 0.13 }, monitor: { w: 0.3, y: 0.6, z0: 0.84, z1: 0.98 },
+      door: [-0.22, 0.4], hatch: { y: 0.02, r: 0.2 }, guard: { x: 0.3, y0: 0.66, y1: 1.18, z0: 0.12, z1: 0.46 } },
+    150, { family: 'armoured' }, ['armoured cabin', 'armored cabin', 'closed cabin', 'armoured cab', 'armored cab', 'vision slits', 'camera unit', 'periscope camera']),
   // (the walker's saddle, its boarding step hung lower: the frame stands taller, crouched it is still a step up)
   'seat-fw': R('mecha-seat', 'field walker saddle', FW, { ...BASE['seat-atw'].dims, step: [0.27, -0.21, -0.64] }, 31, { family: 'straddle' }, ['field saddle', 'field seat']),
   'pack-fw': dressed(S('pack-atw', KF, 'field walker power pack', FW, ['cargo rack', 'field power pack', 'load rack']), 'rack'),

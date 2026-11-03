@@ -23,6 +23,8 @@
  *                    the bodies and joints of each leg, by what they are (mecha-ik.js solves them)
  *   stances          named stances (mecha-ik.js): what its pelvis, its feet and its arms do, and a load in its claws,
  *                    solved to joint values
+ *   cabins           a frame's cabins by name ({ sku, label, mass?, laws? }: the open one its own; another's mass on the
+ *                    class's, its laws on the frame's): the door's `cabin`, an armoured one's vision slits its `slits`
  *   dress            a frame dressed in a styling library's look at its faces ({ style: 'military', livery, wear, kit }:
  *                    mecha-military.js), its kit each fitting's anchor on a body (its hardpoint, the surface's out and up)
  *   laws             the bands it is held to (mecha-laws.js)
@@ -220,6 +222,12 @@ export const MECHA_ARCHETYPES = Object.freeze({
       turn: Object.freeze({ knee: 45, feet: Object.freeze({ r: Object.freeze({ yaw: 15 }), l: Object.freeze({ yaw: 15 }) }) }),
     }),
     rest: 'stand',
+    // (its cabins: open as the walker's, or closed and armoured, its vision slits open or shut (`cabin`, `slits`:
+    // index.js composeFrame); the armoured one's mass on the class's, its rider held inside its walls by the cab law)
+    cabins: Object.freeze({
+      open: Object.freeze({ sku: 'cage-fw', label: 'its open cabin' }),
+      armoured: Object.freeze({ sku: 'cabin-fw', label: 'its armoured cabin', mass: 120, laws: Object.freeze({ cab: Object.freeze([0.03, 1]) }) }),
+    }),
     // (its dress: the military styling library's, at the faces (mecha-military.js): a livery, olive drab unless asked, cut
     // into its paint; its field kit on its bodies' anchors; its wear)
     dress: Object.freeze({

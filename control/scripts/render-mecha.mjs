@@ -5,7 +5,7 @@
  * operator's: this draws, it does not judge. No database writes.
  *
  * From control/:
- *   node scripts/render-mecha.mjs <output-directory> [archetype,…|all] [--poses stand,board] [--views side,quarter,front,rear,top] [--palette fieldOlive] [--rider] [--task demolition] [--tools r:breaker,l:grapple] [--arms r:long] [--pack-task heavyLift] [--pack-tools r:spreader,l:giantHand] [--pack-maker forge] [--livery woodland] [--wear battered]
+ *   node scripts/render-mecha.mjs <output-directory> [archetype,…|all] [--poses stand,board] [--views side,quarter,front,rear,top] [--palette fieldOlive] [--rider] [--task demolition] [--tools r:breaker,l:grapple] [--arms r:long] [--pack-task heavyLift] [--pack-tools r:spreader,l:giantHand] [--pack-maker forge] [--cabin armoured] [--slits shut] [--livery woodland] [--wear battered]
  * Writes <archetype>-<pose>-<view>.png, the pages and index.html.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -23,10 +23,10 @@ const { renderWorldToPng } = await import('../lib/graph/scene/scene-png.js');
 
 const args = process.argv.slice(2);
 const output = args[0];
-if (!output) { console.error('Usage: node scripts/render-mecha.mjs <output-directory> [archetype,…|all] [--poses stand,board] [--views side,quarter,front,rear,top] [--palette id] [--rider] [--task id] [--tools r:x,l:y] [--arms r:long] [--pack-task id] [--pack-tools r:x,l:y] [--pack-maker house] [--livery pattern] [--wear level]'); process.exit(2); }
+if (!output) { console.error('Usage: node scripts/render-mecha.mjs <output-directory> [archetype,…|all] [--poses stand,board] [--views side,quarter,front,rear,top] [--palette id] [--rider] [--task id] [--tools r:x,l:y] [--arms r:long] [--pack-task id] [--pack-tools r:x,l:y] [--pack-maker house] [--cabin armoured] [--slits shut] [--livery pattern] [--wear level]'); process.exit(2); }
 const flag = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const views = (flag('--views') || 'side,quarter,front').split(',');
-const palette = flag('--palette') ?? undefined, seated = args.includes('--rider'), task = flag('--task') ?? undefined, packTask = flag('--pack-task') ?? undefined, packMaker = flag('--pack-maker') ?? undefined, livery = flag('--livery') ?? undefined, wear = flag('--wear') ?? undefined;
+const palette = flag('--palette') ?? undefined, seated = args.includes('--rider'), task = flag('--task') ?? undefined, packTask = flag('--pack-task') ?? undefined, packMaker = flag('--pack-maker') ?? undefined, livery = flag('--livery') ?? undefined, cabin = flag('--cabin') ?? undefined, slits = flag('--slits') ?? undefined, wear = flag('--wear') ?? undefined;
 const pairs = (v) => (v ? Object.fromEntries(v.split(',').map((kv) => kv.split(':'))) : undefined), tools = pairs(flag('--tools')), arms = pairs(flag('--arms')), packTools = pairs(flag('--pack-tools'));
 const pick = args[1] && !args[1].startsWith('--') && args[1] !== 'all' ? args[1].split(',') : Object.keys(MECHA_ARCHETYPES);
 const outDir = path.resolve(output); mkdirSync(outDir, { recursive: true });
@@ -36,7 +36,7 @@ for (const id of pick) {
   const poses = (flag('--poses') || Object.keys(MECHA_ARCHETYPES[id].stances).join(',')).split(',');
   for (const pose of poses) {
     const dressed = !!MECHA_ARCHETYPES[id].dress;
-    const { manifest, readout } = assembleFrame(id, { pose, palette, task, tools, arms, packTask, packTools, packMaker, ...(dressed ? { finish: false } : {}) });
+    const { manifest, readout } = assembleFrame(id, { pose, palette, task, tools, arms, packTask, packTools, packMaker, cabin, slits, ...(dressed ? { finish: false } : {}) });
     const { payload } = await resolveWorldScene({ ref: `${id}-${pose}`, kind: 'assembler', manifest });
     // (a dressed frame drawn in its dress, its kit fitted: mecha-military.js)
     if (dressed) {
@@ -44,7 +44,7 @@ for (const id of pick) {
       const { resolveMechaPalette } = await import('../lib/graph/mecha-shelf/mecha-common.js');
       payload.faces = [...payload.faces.filter((f) => f.studio), ...dressFaces({ manifest, anchors: readout.anchors, colors: resolveMechaPalette(palette, {}, MECHA_ARCHETYPES[id].palette).colors, archetype: id }, { livery, wear })];
     }
-    const name = `${id}${palette ? `-${palette}` : ''}${task ? `-${task}` : ''}${tools ? `-${Object.values(tools).join('-')}` : ''}${packTask ? `-${packTask}` : ''}${packTools ? `-${Object.values(packTools).join('-')}` : ''}${packMaker ? `-${packMaker}` : ''}${livery ? `-${livery}` : ''}${wear ? `-${wear}` : ''}-${pose}${seated ? '-rider' : ''}`;
+    const name = `${id}${palette ? `-${palette}` : ''}${task ? `-${task}` : ''}${tools ? `-${Object.values(tools).join('-')}` : ''}${packTask ? `-${packTask}` : ''}${packTools ? `-${Object.values(packTools).join('-')}` : ''}${packMaker ? `-${packMaker}` : ''}${cabin ? `-${cabin}` : ''}${slits ? `-${slits}` : ''}${livery ? `-${livery}` : ''}${wear ? `-${wear}` : ''}-${pose}${seated ? '-rider' : ''}`;
     const faces = payload.faces.filter((f) => !f.studio);
     if (seated) {
       const { seatRider } = await import('../lib/graph/mecha-shelf/mecha-figure.js');

@@ -325,6 +325,34 @@ describe('mecha shelf: a frame hardened for rough ground, dressed in the field\'
     expect(new Set(camo.map((f) => f.fill)).size).toBeGreaterThan(new Set(plain.map((f) => f.fill)).size);
     expect(hard.length).toBeGreaterThan(clean.length);
   });
+  it('closes its rider in an armoured cabin as an option: held inside its walls, its mass on the class\'s, every law holding', () => {
+    const [name, cab] = Object.entries(Fd.cabins).find(([, c]) => c.sku !== Fd.cabins.open.sku), key = composeFrame(field, { cabin: name });
+    expect(composeFrame(field, { cabin: 'open' })).toBe(field);
+    expect(frameRow(key).layout.find((e) => e.id === 'cage').sku).toBe(cab.sku);
+    expect(frameRow(key).mass).toBe(Fd.mass + cab.mass);
+    expect(law(key, 'cab').ok).toBe(true);
+    expect(law(field, 'cab')).toBeUndefined();
+    expect(lawsOf(key).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+  });
+  it('sees out through no glass: its vision slits under lids, open or shut, and a camera unit; the lids alone move', () => {
+    const sku = Object.values(Fd.cabins).find((c) => c.sku !== Fd.cabins.open.sku).sku, C = MECHA_PALETTES[Fd.palette];
+    const open = resolveMechaPart(sku, { finish: false }), shut = resolveMechaPart(sku, { part: 'shut', finish: false });
+    const glassy = ['extrudes', 'lathes', 'lofts', 'sweeps'].flatMap((k) => open[k] ?? []).filter((m) => m.tint === C.glass).map((m) => m.id);
+    expect(glassy.length).toBeGreaterThan(0);
+    expect(glassy.every((id) => /lens/i.test(id))).toBe(true);
+    const lids = (r) => r.extrudes.filter((m) => /Lid$/.test(m.id));
+    expect(lids(open).length).toBeGreaterThan(2);
+    expect(lids(open)).not.toEqual(lids(shut));
+    expect(open.extrudes.filter((m) => !/Lid$/.test(m.id))).toEqual(shut.extrudes.filter((m) => !/Lid$/.test(m.id)));
+    expect(open.garage.hardpoints).toEqual(shut.garage.hardpoints);
+    const key = composeFrame(field, { cabin: 'armoured', slits: 'shut' });
+    expect(frameRow(key).layout.find((e) => e.id === 'cage').part).toBe('shut');
+    expect(() => composeFrame(field, { slits: 'shut' })).toThrow(/slits are a closed cabin's/);
+    expect(() => composeFrame(field, { cabin: 'armoured', slits: 'ajar' })).toThrow(/'open' or 'shut'/);
+    expect(() => composeFrame(field, { cabin: 'tent' })).toThrow(/cabin 'tent' is one of/);
+    expect(() => composeFrame(base, { cabin: 'armoured' })).toThrow(/its cabin is its own/);
+    expect(readMechaSpec({ archetype: field, cabin: 'armoured', slits: 'shut' }).cabin).toBe('armoured');
+  });
   it('takes a livery and a wear on a dressed frame only, read as the field\'s words', () => {
     expect(readMechaSpec({ archetype: field, livery: 'desert', wear: 'battered' }).livery).toBe('desert');
     expect(() => readMechaSpec({ archetype: field, livery: 'paisley' })).toThrow(/livery/);

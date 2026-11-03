@@ -28,6 +28,7 @@
  *   - The field walker (unreleased): its hardened parts pinned as builder paths (the armoured pelvis, the guarded thigh
  *     and shank, the lugged foot, the field cabin, the racked pack), and its dressed faces whole (the military styling
  *     library's livery, kit, stencils and wear on it: a change there moves this pin); no other pin moved.
+ *   - The field walker's armoured cabin (unreleased): its builder path pinned, and its slits shut; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -100,6 +101,7 @@ const PINS = {
   'pelvis-fw': '7a692cd20a1e5fbe',
   'shank-fw': '820c6a747c91d0b3',
   'thigh-fw': 'e472eeb2e0936709',
+  'cabin-fw': 'ca168f1c2b7725ea',
 };
 const LEFT = 'c9882af91b6cf973';
 const ROD = 'bcfdb3e1621e0b1a';
@@ -109,6 +111,7 @@ const FOUR = 'eed71d6238d7aa3c';
 const HOUSE = '22d1c303d8f1b5ad';
 // (a dressed frame's faces at its rest stance, in its own dress)
 const DRESSED = '11e116ab05219a97';
+const SHUT = '82ad4d81d813b60e';
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');
 
@@ -128,6 +131,10 @@ describe('mecha shelf: characterization', () => {
     expect(hash(resolveMechaPart(fourFingered))).toBe(FOUR);
     const carrier = Object.keys(MECHA_ARCHETYPES).find((id) => MECHA_ARCHETYPES[id].packMount);
     expect(hash(assembleFrame(carrier, { packMaker: screwHouse, laws: false }).manifest)).toBe(HOUSE);
+  });
+  it('pins a closed cabin with its slits shut', () => {
+    const sku = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-cage' && r.dims.slits)[0];
+    expect(hash(resolveMechaPart(sku, { part: 'shut' }))).toBe(SHUT);
   });
   it('pins a dressed frame\'s faces in its dress', () => {
     const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].dress), { manifest, readout } = assembleFrame(id, { finish: false, laws: false });

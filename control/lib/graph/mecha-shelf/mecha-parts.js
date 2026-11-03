@@ -551,7 +551,7 @@ const SHOULDERS = { armoured: armouredShoulder, ...HOUSE.shoulder };
 const PACKS = { giant: giantPack, ...HOUSE.pack, rack: (row, C, ctx) => FIELD.pack(row, C, ctx) };
 const BEAMS = new Set(['plated', 'tube', 'truss', 'sealed']);
 // (the field walker's parts: the walker's own hardened for rugged ground, mecha-field-parts.js)
-const FIELD = fieldBuilders({ slab, sgn, rounded, pelvis, thigh, shank, cage, pack });
+const FIELD = fieldBuilders({ slab, sgn, rounded, plate, lerp3, pelvis, thigh, shank, cage, pack });
 const by = (family, own, base) => (row, C, ctx) => (row.build.family === family ? own : base)(row, C, ctx);
 
 export const MECHA_BUILDERS = Object.freeze({
@@ -563,7 +563,7 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-ankle': ankle,
   'mecha-foot': by('lugged', FIELD.foot, foot),
   'mecha-seat': (row, C, ctx) => (row.build.family === 'seated' ? station : seat)(row, C, ctx),
-  'mecha-cage': (row, C, ctx) => ({ torso, cab, field: FIELD.cage }[row.build.family] ?? cage)(row, C, ctx),
+  'mecha-cage': (row, C, ctx) => ({ torso, cab, field: FIELD.cage, armoured: FIELD.cabin }[row.build.family] ?? cage)(row, C, ctx),
   'mecha-shoulder': (row, C, ctx) => (SHOULDERS[row.build.family] ?? shoulder)(row, C, ctx),
   'mecha-upperarm': (row, C, ctx) => (BEAMS.has(row.build.family) ? HOUSE.upper : upperarm)(row, C, ctx),
   'mecha-forearm': (row, C, ctx) => (BEAMS.has(row.build.family) ? HOUSE.fore : forearm)(row, C, ctx),

@@ -110,6 +110,11 @@ describe('mint_solid vehicle: the registry is the way in', () => {
     const out = await previewVehicleInstanceHandler({ vehicle: VEHICLES[dressed].label, livery: camo, wear: 'battered', title: 'a dressed legged frame' });
     expect(SketchRepository.getByRef(out.ref).manifest.mecha).toMatchObject({ archetype: handlesOf(dressed).mecha[0], livery: camo, wear: 'battered' });
     await expect(previewVehicleInstanceHandler({ vehicle: VEHICLES[plain].label, livery: camo })).rejects.toThrow(/wears no dress/);
+    const cabin = Object.keys(MECHA_ARCHETYPES[handlesOf(dressed).mecha[0]].cabins ?? {}).find((k) => k !== 'open');
+    if (cabin) {
+      const shut = await previewVehicleInstanceHandler({ vehicle: VEHICLES[dressed].label, cabin, slits: 'shut', title: 'a closed legged frame' });
+      expect(SketchRepository.getByRef(shut.ref).manifest.mecha).toMatchObject({ cabin, slits: 'shut' });
+    }
   });
   it('carries a field vehicle\'s livery and wear in its loft\'s recipe, and refuses them on a build their words do not paint', async () => {
     const field = ids.find((id) => (handlesOf(id).physics ?? []).some((k) => MILITARY_CLASSES[k]) && buildsOf(id).some((b) => b.via === 'loft'));
