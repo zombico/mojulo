@@ -1,5 +1,5 @@
 ---
-{ "id": "wardrobe-construction", "name": "wardrobe construction — dressing a figure body (instrument × mugen score × tailoring)", "summary": "author an outfit on a create_figure / character-sheet body from a CLOSED vocabulary. THREE garment families: (1) TAILORED SHELLS — an offset shell over the body's own flesh: pick an INSTRUMENT (tee/tank/dress/jacket/trousers/…), set its MUGEN SCORE (clearance = slim↔baggy, the ONLY looseness dial), then TAILOR with svgile-row cuts (wedge/band/neck/armhole) + recolour panels + color{cloth,under}. (2) HANGING SHEETS — a cape/cloak/tabard/cowl as a wave-field (fit:'wave-drape'): an open sheet pinned to a body anchor (shoulders/waist/neck) that sags + folds. (3) CUT-AND-SEWN PATTERNS (fit:'pattern'): flat pieces in cm with named edges, placed on a body CHART by anchor and sewn by SEAMS — the tailor's construction, with girths, seam ease and a printable sheet. All auto-track any proto/dimorph/fluff tuning — the same spec re-fits every body. Keys OR an inline { id, pieces, cuts, panels } spec; arrays LAYER (a cloak over a tee).", "when": "dress a character / figure body, design an outfit or wardrobe row, put clothes on a create_figure or character-sheet, make something 'oversized'/'cropped'/'open-front'/'baggy'/'fitted', add a cape / cloak / tabard / mantle / cowl / hanging drape, reconstruct a dreamed outfit as a garment spec, or layer garments (jacket over tank, cloak over tee), draft a garment from pattern pieces / a sewing pattern / measurements (bust, waist, hip), sew seams between pieces, read a body's girths. NOT textile prints (that is garment-pattern) and NOT the body itself (that is proto / figure-fluff).", "tier": "recipe", "marks": [], "phase": "p1" }
+{ "id": "wardrobe-construction", "name": "wardrobe construction — dressing a figure body (instrument × mugen score × tailoring)", "summary": "author an outfit on a figure (mint_solid kind figure) / character-sheet body from a CLOSED vocabulary. THREE garment families: (1) TAILORED SHELLS — an offset shell over the body's own flesh: pick an INSTRUMENT (tee/tank/dress/jacket/trousers/…), set its MUGEN SCORE (clearance = slim↔baggy, the ONLY looseness dial), then TAILOR with svgile-row cuts (wedge/band/neck/armhole) + recolour panels + color{cloth,under}. (2) HANGING SHEETS — a cape/cloak/tabard/cowl as a wave-field (fit:'wave-drape'): an open sheet pinned to a body anchor (shoulders/waist/neck) that sags + folds. (3) CUT-AND-SEWN PATTERNS (fit:'pattern'): flat pieces in cm with named edges, placed on a body CHART by anchor and sewn by SEAMS — the tailor's construction, with girths, seam ease and a printable sheet. All auto-track any proto/dimorph/fluff tuning — the same spec re-fits every body. Keys OR an inline { id, pieces, cuts, panels } spec; arrays LAYER (a cloak over a tee).", "when": "dress a character / figure body, design an outfit or wardrobe row, put clothes on a figure (mint_solid kind figure) or character-sheet, make something 'oversized'/'cropped'/'open-front'/'baggy'/'fitted', add a cape / cloak / tabard / mantle / cowl / hanging drape, reconstruct a dreamed outfit as a garment spec, or layer garments (jacket over tank, cloak over tee), draft a garment from pattern pieces / a sewing pattern / measurements (bust, waist, hip), sew seams between pieces, read a body's girths. NOT textile prints (that is garment-pattern) and NOT the body itself (that is proto / figure-fluff).", "tier": "recipe", "marks": [], "phase": "p1" }
 ---
 
 A wardrobe is authored in three layers, each a closed vocabulary an LLM can
@@ -7,7 +7,7 @@ emit *from looking at a dreamed character*. A garment is never sculpted — it i
 an **offset shell over the figure's own flesh**, so it auto-tracks every
 proto / dimorph / fluff tuning with zero garment-specific math (a tee on the
 female pole follows the bust; on the male pole the pec plates). The same spec
-re-tailors onto any body. Feed it to `create_figure.garment` or a
+re-tailors onto any body. Feed it to a figure's `spec.garment` (`mint_solid` kind `figure`) or a
 character-sheet `outfit.garment`.
 
 ## 0. Thesis first (before any dial)
@@ -292,10 +292,10 @@ its edge names on the same physical edge, so the right leg's seams read exactly 
 Trouser dials: `length` (`ankle | knee | <cm>`), `ease_cm` (6), `ease_hem_cm` (16), `ease_waist_cm`
 (2), `fork_cm`.
 
-`create_figure` returns a **`pattern`** readout for a figure wearing one: the girths, every
+A figure mint (`mint_solid` kind `figure`) returns a **`pattern`** readout for a figure wearing one: the girths, every
 seam's ease and gap, every piece's strain — read it before you look at the render.
 
-The printable sheet is `GET /api/sketches/<ref>/pattern.svg` (`create_figure` returns it as
+The printable sheet is `GET /api/sketches/<ref>/pattern.svg` (the figure mint returns it as
 `patternSvgUrl`): the pieces flat at true scale with seam allowance, grain, notches and cut counts,
 drafted on the STAND whatever pose the figure holds — the designer's rule: a pattern is drafted on
 the dress form and worn on the pose, so the sheet never changes because the figure moved, while the
@@ -306,7 +306,7 @@ book, or a dream read as pieces — is the door that stays open beside the block
 
 `garment` is the LOWERED form (and the compatibility promise: a minted row keeps rendering
 byte-identical). `outfit` is the authoring form above it — a ladder where every rung is the rung
-below with fewer decisions made. Pass ONE of the two to `create_figure`:
+below with fewer decisions made. Pass ONE of the two in a figure's `spec` (`mint_solid` kind `figure`):
 
 ```jsonc
 "outfit": "shift-and-trousers"                       // tier 1: a named outfit from the attached book
@@ -350,7 +350,7 @@ garment of the same id. Their cards join this catalog by their `when`, so an ask
 head to toe" recalls the outfit. Draft once in centimetres, `save_recipe` it to the cookbook, and
 from then on "put my red shift on this figure" is a name.
 
-`create_figure` answers with `patternSvgUrl` (the sheet) and the `pattern` readout whenever a
+The figure mint answers with `patternSvgUrl` (the sheet) and the `pattern` readout whenever a
 pattern layer is worn.
 
 ## 8. Footwear — the foot is a chart too

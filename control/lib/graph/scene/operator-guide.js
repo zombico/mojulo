@@ -1,18 +1,17 @@
 /**
  * operator-guide.js — the shared T-numbered operator-guide emitter
- * (export-blender.plan.md rev 3, D10: the lift the Unity and Unreal legs waited for).
+ * (the lift the Unreal leg waited for).
  *
- * The protocol, proven at two human seams (Unity IMPORT-GUIDE, Unreal guide) and now
- * three (the Blender ARTPASS-GUIDE): one step one line; `T###[.##]` lines are actions
+ * The protocol, proven at two human seams (the Unreal guide, the Blender ARTPASS-GUIDE):
+ * one step one line; `T###[.##]` lines are actions
  * the operator takes in the tool, `####` lines are facts to read (verify-before-
  * instruct); exact UI paths; quote the current value; chunked by purpose; the
  * honest-loss ledger numbered from #101. Pure text — deterministic, no clock, no dice.
  *
- * Byte-identity promise: the Unity + Unreal guides migrated onto these helpers under
- * their snapshot tests; changing a helper here changes every leg's emitted pack.
+ * Byte-identity promise: the Unreal guide migrated onto these helpers under its
+ * snapshot test; changing a helper here changes every leg's emitted pack.
  */
 import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
-import { readScreen } from '../game/screen.js';
 
 /** Shortest decimal text at 1e-6, never "-0" (eye heights, dims). */
 export const fmt = (n) => {
@@ -37,7 +36,7 @@ export const guideLedger = (ledger, startAt = 101) => Object.entries(ledger)
 export const numberedFacts = (lines, startAt = 3) =>
   lines.map((line, i) => `#${String(startAt + i).padStart(3, '0')} ${line}`);
 
-// The greybox seam (skin-over-mesh.plan.md): stamped packs carry the handoff
+// The greybox seam: stamped packs carry the handoff
 // sentence as its own section; unstamped packs emit byte-identical text.
 export const greyboxSection = (stamped) => (stamped ? `## Greybox handoff
 
@@ -57,15 +56,3 @@ export const guidePreamble = ({
 #001 This pack is a derived artifact of a mojulo recipe (${recipeNote}); re-mint it from the recipe rather than hand-editing. Target editor: ${target}.
 #002 Steps marked T are editor actions, one per line, in order. Everything not listed here is done by ${doer} — do not set values by hand that ${doerShort} already sets.
 `;
-
-/** A game made for a screen (game/screen.js): the guide's section that matches the editor's play view and the build's
- * orientation to its frame — `steps(S)` the leg's own T-lines for the read screen — or '' when it has none. */
-export const screenSection = (screen, steps) => {
-  const S = screen == null ? null : readScreen(screen);
-  if (!S) return '';
-  return `## The screen it is made for
-
-#### the game is made for ${S.pole === 'custom' ? 'a custom screen' : `a ${S.pole}`}: a ${S.aspect.join(':')} frame, ${S.orientation} (the web build holds it; the touch pad and the screen's UI zones stay on the web)
-${steps(S)}
-`;
-};

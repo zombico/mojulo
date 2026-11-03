@@ -12,12 +12,18 @@
  *             roll bar, a grab handle, a guard, a whip's mount
  *   bolts     hex heads on a surface, `h` proud
  *   weld      a bead along a seam: two faces a step, rippled as a run of tacks is, on the surface it joins
+ *   slab      armour: a convex solid cut by the planes of its outline seen from the front, the side and above (the
+ *             intersection of the three prisms), each face flat, every edge sharper than `crease` chamfered, `chamfer`
+ *             taken off each face it joins (a narrow flat face, tagged `edge: true`, that catches a line of light as a cut plate's edge does)
  *
  *   plate({ axis, profile, from, to, r?, seg?, look })      → faces
  *   tube(points, radius, { sides?, look, caps?, smooth? })  → faces
  *   bend(points, radius, steps?)                            → the polyline with each inner corner rounded
  *   bolts(points, n, { r?, h?, look })                      → faces
  *   weld(a, b, n, { w?, h?, step?, look })                  → faces
+ *   slab({ front, side, plan?, chamfer?, crease?, look })   → faces; front [[x, z]…], side [[y, z]…], plan [[x, y]…],
+ *                                                             each convex; look(tag) with tag { view, i, n, edge } (the
+ *                                                             view and the outline's edge a face lies on; null: left off)
  *   flatNormals(faces)                                      → each face without corner normals given its own
  *   place(faces, { origin, ex, ey, ez })                    → faces built in a local frame, in vehicle space
  *
@@ -225,4 +231,88 @@ export function place(faces, { origin, ex, ey, ez }) {
   const at = (p) => P6([origin[0] + p[0] * ex[0] + p[1] * ey[0] + p[2] * ez[0], origin[1] + p[0] * ex[1] + p[1] * ey[1] + p[2] * ez[1], origin[2] + p[0] * ex[2] + p[1] * ey[2] + p[2] * ez[2]]);
   const turn = (n) => unit([n[0] * ex[0] + n[1] * ey[0] + n[2] * ez[0], n[0] * ex[1] + n[1] * ey[1] + n[2] * ez[1], n[0] * ex[2] + n[1] * ey[2] + n[2] * ez[2]]).map(r6);
   return faces.map((f) => ({ ...f, corners: f.corners.map(at), outNormal: turn(f.outNormal), ...(f.cornerNormals ? { cornerNormals: f.cornerNormals.map(turn) } : {}) }));
+}
+
+// ── the slab ────────────────────────────────────────────────────────────────────
+// each view's outline edge as a plane in vehicle space (n·p ≤ c inside)
+const VIEW = Object.freeze({
+  front: (u, v) => [u, 0, v],
+  side: (u, v) => [0, u, v],
+  plan: (u, v) => [u, v, 0],
+});
+function viewPlanes(view, outline) {
+  let P = outline.map((p) => [p[0], p[1]]);
+  if (area2(P) < 0) P = P.reverse();
+  return P.map((a, i) => {
+    const b = P[(i + 1) % P.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const nu = (b[1] - a[1]) / l, nv = -(b[0] - a[0]) / l;
+    return { n: VIEW[view](nu, nv), c: nu * a[0] + nv * a[1], tag: { view, i } };
+  });
+}
+const SLAB_EPS = 1e-9;
+// a convex solid (its faces' polygons) cut by a plane, the cut capped
+function clipSolid(solid, pl) {
+  if (!solid.some((f) => f.pts.some((p) => dot(pl.n, p) - pl.c > SLAB_EPS))) return solid;
+  const out = [], cut = [];
+  for (const f of solid) {
+    const P = f.pts, q = [];
+    for (let i = 0; i < P.length; i++) {
+      const a = P[i], b = P[(i + 1) % P.length], da = dot(pl.n, a) - pl.c, db = dot(pl.n, b) - pl.c;
+      if (da <= SLAB_EPS) q.push(a);
+      if (Math.abs(da) <= SLAB_EPS) cut.push(a);
+      if ((da < -SLAB_EPS && db > SLAB_EPS) || (da > SLAB_EPS && db < -SLAB_EPS)) { const p = add(a, mul(sub(b, a), da / (da - db))); q.push(p); cut.push(p); }
+    }
+    if (q.length >= 3) out.push({ ...f, pts: q });
+  }
+  const pts = [];
+  for (const p of cut) if (!pts.some((o) => len(sub(o, p)) < 1e-7)) pts.push(p);
+  if (pts.length >= 3) {
+    const mid = mul(pts.reduce((s, p) => add(s, p), [0, 0, 0]), 1 / pts.length);
+    const u = unit(sub(pts[0], mid)), w = cross(pl.n, u);
+    pts.sort((a, b) => Math.atan2(dot(sub(a, mid), w), dot(sub(a, mid), u)) - Math.atan2(dot(sub(b, mid), w), dot(sub(b, mid), u)));
+    out.push({ pts, n: pl.n, tag: pl.tag });
+  }
+  return out;
+}
+const solidOf = (planes) => {
+  const B = 100, box = [];
+  for (const [i, s] of [[0, -1], [0, 1], [1, -1], [1, 1], [2, -1], [2, 1]]) {
+    const n = [0, 0, 0]; n[i] = s;
+    const j = (i + 1) % 3, k = (i + 2) % 3, pts = [[-B, -B], [B, -B], [B, B], [-B, B]].map(([a, b]) => { const p = [0, 0, 0]; p[i] = s * B; p[j] = a; p[k] = b; return p; });
+    box.push({ pts, n, tag: { view: 'box', i: box.length } });
+  }
+  return planes.reduce(clipSolid, box);
+};
+
+/** Armour: the convex solid inside its outline from the front ([x, z]), the side ([y, z]) and above ([x, y], optional),
+ *  its edges sharper than `crease` degrees chamfered `chamfer` wide. */
+export function slab({ front, side, plan, chamfer = 0.02, crease = 12, look }) {
+  const planes = [...viewPlanes('front', front), ...viewPlanes('side', side), ...(plan ? viewPlanes('plan', plan) : [])];
+  let solid = solidOf(planes);
+  // (a face left off is inside another solid: its edges are not chamfered, nothing there to catch the light)
+  const shown = (f) => f.tag.view !== 'box' && !!lookOf(look, { ...f.tag, n: f.n, edge: false });
+  if (chamfer > 0) {
+    // (each edge two faces share, by its ends; a chamfer's plane across their bisector, cut so it takes `chamfer` off each
+    // face: a sharp edge's chamfer is broad, a shallow crease's a sliver)
+    const key = (p) => p.map((q) => Math.round(q * 1e5)).join(',');
+    const edges = new Map();
+    solid.forEach((f, fi) => f.pts.forEach((a, i) => { const b = f.pts[(i + 1) % f.pts.length], k = [key(a), key(b)].sort().join('|'); if (!edges.has(k)) edges.set(k, { a, fs: [] }); edges.get(k).fs.push(fi); }));
+    const cuts = [];
+    for (const { a, fs } of edges.values()) {
+      if (fs.length !== 2 || !shown(solid[fs[0]]) || !shown(solid[fs[1]])) continue;
+      const n1 = solid[fs[0]].n, n2 = solid[fs[1]].n, th = Math.acos(Math.max(-1, Math.min(1, dot(n1, n2))));
+      if (th < (crease * Math.PI) / 180) continue;
+      const n = unit(add(n1, n2)), d = chamfer * Math.sin(th / 2);
+      cuts.push({ n, c: dot(n, a) - d, tag: { view: 'chamfer', edge: true } });
+    }
+    solid = cuts.reduce(clipSolid, solid);
+  }
+  const out = [];
+  for (const f of solid) {
+    if (f.tag.view === 'box') continue;
+    const L = lookOf(look, { ...f.tag, n: f.n, edge: f.tag.view === 'chamfer' });
+    const g = L && face(f.pts, L, f.n, null, f.tag.view === 'chamfer' ? { edge: true } : {});
+    if (g) out.push(g);
+  }
+  return out;
 }

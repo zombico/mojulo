@@ -69,7 +69,7 @@ export const HOLDOUT = [
   // exporting, checking, animating, filming
   ['export the phone stand as 3mf for bambu studio', ['export_model']],
   ['can I get the orc as a glb with the skeleton so i can drop him into unity', ['export_model']],
-  ['turn the frog platformer into a godot project i can open', ['export_game']],
+  ['turn the frog platformer into a godot project i can open', ['export_game', 'export_model']],
   ['make a turntable gif of the dragon spinning', ['forge_motion']],
   ['record a playthrough of the museum level to prove it can actually be beaten', ['forge_motion']],
   ['set up a couple of cameras in the city, a slow drone shot over the river that pulls back to show downtown, and give me a shot list', ['forge_motion', 'create_shoot_plan']],

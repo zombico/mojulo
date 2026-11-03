@@ -31,7 +31,7 @@ function plate(W, esc, inComplex = () => false) {
   }
   const onPath = new Set((W.path ?? []).slice(1).map((id, i) => `${W.path[i]}>${id}`));
   const rings = [...new Set(sp.map((s) => s.depth))].filter((d) => d !== D).map((d) => `<circle cx="${C}" cy="${C}" r="${r1(radius(d))}" fill="none" style="stroke:var(--rule)" stroke-width="1.5"${sp.filter((s) => s.depth === d).every((s) => !s.built) ? ' stroke-dasharray="6 6"' : ''}/>`).join('');
-  const gateOf = (g) => (!g ? 'open' : g.clearance !== undefined ? `CL-${g.clearance}` : g.power);
+  const gateOf = (g) => (!g ? 'open' : g.clearance !== undefined ? `CL-${g.clearance}` : g.keys ? 'keys' : g.power);
   const doors = W.doors.map((d) => {
     const [a, b] = [at[d.from], at[d.to]], path = onPath.has(`${d.from}>${d.to}`) || (!d.oneWay && onPath.has(`${d.to}>${d.from}`));
     // (its gate's label off the line's middle, square to it, on the side away from the core)
@@ -61,7 +61,7 @@ export function wcdPage(G, esc, finishes = {}, made = null) {
   // (a door between two spaces of one complex level is a passage below grade between their buildings, network/complex.js)
   const complexLevel = (s) => !!s.level && G.levels?.[s.level]?.building?.complex !== undefined;
   const inComplex = (d) => complexLevel(W.spaces[d.from]) && W.spaces[d.from].level === W.spaces[d.to].level;
-  const level = (s) => (s.level ? `${esc(G.levels?.[s.level]?.name ?? s.level)}${complexLevel(s) ? ` · ${esc(s.use ?? 'building')}` : ''}` : '—');
+  const level = (s) => (s.level ? `${esc(G.levels?.[s.level]?.name ?? s.level)}${complexLevel(s) ? ` · ${esc(s.use ?? 'building')}` : ''}${G.levels?.[s.level]?.goal?.escape ? ' <span class="stamp st-revise">escape room</span>' : ''}` : '—');
   // (the look a layer is built in: its finishes' when its level is a building, as composed; else the look it names)
   const look = (s) => {
     const F = s.level ? finishes[s.level] : null, L = F?.axes ?? s.look;

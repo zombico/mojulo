@@ -104,7 +104,7 @@ describe('the Unreal asset pack text', () => {
     const withFigure = file(emit({ figure: FIGURE }), 'README.md');
     expect(withFigure).toContain('`body` ships skinned: one mesh on a 58-joint skeleton and its clips (`idle`, `walk`, `wave`).');
     expect(withFigure).toContain('`IK_Mojulo_<figure>` under `Content/Mojulo/sk_test_prop/Retarget`');
-    expect(readme).toContain("export_model { ref: 'sk_test-prop', format: 'unreal' }");
+    expect(readme).toContain("export_model { ref: 'sk_test-prop', engine: 'unreal' }");
   });
 
   it('guide snapshot', () => {

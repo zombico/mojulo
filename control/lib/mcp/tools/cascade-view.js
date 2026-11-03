@@ -44,7 +44,7 @@ export function mintCascadeView({ title, regime, nuclei, nu, seed, scale, viewBo
 
 export async function createCascadeViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_cascade_view requires a recipe object');
+    throw new Error('create_view({ kind: "cascade" }) requires a recipe object');
   }
   const { title, regime, nuclei, nu, seed, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintCascadeView({ title, regime, nuclei, nu, seed, scale, viewBox, scene, ref, folderRef });

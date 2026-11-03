@@ -29,7 +29,7 @@ import { HERO_FIELDS } from './layered.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
-  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport, landAdvice,
+  characterState, characterReady, approveCharacter, keepApproval, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport, landAdvice,
   castable, foeState, foeParts, approveFoe, castingCall,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
@@ -46,6 +46,7 @@ import { complexAdvice } from '@/lib/graph/gameworld/levels.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
 import { firstFrameReadout } from '@/lib/graph/game/first-frame-check.js';
+import { proveErrands, lastStageManifests } from '@/lib/graph/gameworld/errand-proof.js';
 
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -84,10 +85,13 @@ const handEdited = (world, lookup) => !!(world.made?.hero && lookup?.head && fin
 const storedPrint = (ref) => { const row = SketchRepository.getByRef(ref); return row ? fingerprint(row.manifest) : null; };
 const headRev = (ref) => (SketchRevisionRepository.head(ref)?.rev ?? 0) + 1;
 
-/** The world with the hero's base pinned (the looks page holds the pin). */
+/** The world with the hero's base pinned (the looks page holds the pin). An approval of the base that stood on the book
+ * as it was (given before the first mint, or before a remake of what was approved) is kept on what the run made from
+ * it (character-review.js keepApproval): the pin is the run carrying out the approved page, not a change to review. */
 function withPin(world, pin) {
   const hero = world.characters.hero ?? {};
-  return { ...world, characters: { ...world.characters, hero: { ...hero, looks: { ...(hero.looks ?? {}), base: pin } } } };
+  const pinned = { ...world, characters: { ...world.characters, hero: { ...hero, looks: { ...(hero.looks ?? {}), base: pin } } } };
+  return keepApproval(world, pinned, 'hero:base');
 }
 
 /** the steps a hero is made for, through the hero door (hero-mint.js): the book's hero and cast, a quick game's figures
@@ -287,6 +291,11 @@ const qowAdviceOf = (world) => {
   if (!world.qow) return [];
   try { return (readGameworld(world).qow?.laws ?? []).filter((l) => !l.holds).map((l) => `${l.law}: ${l.says}`); } catch { return []; }
 };
+// the errands' laws (gameworld/errand.js) that advise, each named by its errand
+const errandAdviceOf = (world) => {
+  if (!world.errands) return [];
+  try { return (readGameworld(world).errands ?? []).flatMap((E) => E.laws.filter((l) => !l.holds).map((l) => `${E.id} ${l.law}: ${l.says}`)); } catch { return []; }
+};
 function readout(ref, world, context = {}) {
   const lookup = world.characters ? heroLookup(heroRefOf(world, ref)) : undefined;
   // a hero edited by hand since the run has moved past its pinned base: said on the base's part, never refused
@@ -350,8 +359,6 @@ function readout(ref, world, context = {}) {
   if (!intent.written && !world.quick) next.push({ step: 'intent', ...(intent.suggest ? { suggest: intent.suggest.map((g) => g.id) } : {}), card: 'gameworld-intent' });
   // a quick game's goal changed since its genre was written: keep the written one or change it, the creator's call
   if (intent.drift) next.push({ step: 'intent', drift: intent.drift, card: 'gameworld-intent' });
-  // the engine the intent names, and what of the world it does not carry: advice, never a refusal
-  if (intent.target && !intent.target.carries) next.push({ step: 'target', engine: intent.target.engine, lost: intent.target.lost, card: 'gameworld-intent' });
   // how the hero moves (gameworld/feel): the template, its viewer, and what the runtime carries of its card
   const feel = world.feel !== undefined && world.feel !== null ? feelReport(world.feel) : null;
   if (feel?.lost.length) next.push({ step: 'feel', pole: feel.pole, lost: feel.lost.map((x) => x.field), card: 'gameworld-feel' });
@@ -374,7 +381,8 @@ function readout(ref, world, context = {}) {
   const landGaps = landGapsOf(world);
   const cxGaps = complexAdviceOf(world), wcdGaps = [...wcdAdviceOf(world), ...(world.wcd ? cxGaps : [])];
   const qowGaps = qowAdviceOf(world);
-  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(!world.wcd && cxGaps.length ? { complex: cxGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}) };
+  const errandGaps = errandAdviceOf(world);
+  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(!world.wcd && cxGaps.length ? { complex: cxGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}), ...(errandGaps.length ? { errands: errandGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
   return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }
@@ -516,12 +524,23 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
   }
   const full = { ...readout(ref, W, context), ...(await fightReadout(W)) };
   // a run's levels on their opening frame (machine gate, game/first-frame-check.js): { first_frame } or nothing
-  const eyes = await firstFrameReadout(W, ran);
+  const { record: framed, ...eyes } = await firstFrameReadout(W, ran);
+  // a run's errands walked on the bus across the levels it made, the bag carried (machine gate, gameworld/errand-proof.js)
+  const errandProof = ran && W.errands ? (() => {
+    try { return { errand_proof: { gate: 'machine', errands: proveErrands(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }))), note: 'machine gate: each errand walked on the bus, the bag carried level to level; the walk between levels, the fights and the knocks on the way are not played (the eyes gate has not run)' } }; } catch (e) { return { errand_proof: { gate: 'machine', error: e.message } }; }
+  })() : {};
+  // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
+  if (framed) {
+    const made = { ...W.made };
+    for (const [k, frame] of Object.entries(framed)) if (made[k]) made[k] = { ...made[k], frame };
+    W = { ...W, made };
+    await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...W } });
+  }
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
   const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};
-  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
-  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
+  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...(comparison ? { comparison } : {}), ...share };
+  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...(comparison ? { comparison } : {}), ...share };
 }
 
 /** A fight's readout (quick goal fight, once made): each fighter's character, the sheet it came from and what the sheet

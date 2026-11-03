@@ -21,6 +21,7 @@
 // per class, the grip on the wrist line, attach at rest then pose). Pure: no dice, no clock.
 import { expandEquipment, validateBuild, LAWS_VERSION, withEquipment, stampArms, isArmsBuild } from '../equipment/expand.js';
 import { ARMS_LAWS_VERSION } from '../equipment/arms/laws.js';
+import { fitRest, holdsByLaws } from './hero-hold.js';
 import { tierMonomers } from '../equipment/tier.js';
 import { heroTarget } from '../era/cast-light.js';
 import { readTarget, pxPerMetre, DEFAULT_TARGET } from '../era/target.js';
@@ -120,7 +121,9 @@ export function gearMounts(hero, R) {
     // (a staff short enough to swing, a haft or a wand (its `reach`), is held as a blade is: grip in the fist, the head
     // forward and down; only the long staff walks with its heel by the floor)
     const build = gearBuild(spec, hero); const e = expandEquipment(build); const item = build.item;
-    const hold = HOLD_OF[item] === 'haft' && SWUNG.has(e.trace.variants?.reach) ? 'blade' : HOLD_OF[item];
+    // laws 2 says how its hilt is held (equipment/compose.js trace.hold: a sword hilt or a short haft swung as a blade,
+    // a long haft or a pole as a haft); laws 1 by the item and its reach
+    const hold = e.trace.hold === 'blade' || e.trace.hold === 'haft' ? e.trace.hold : HOLD_OF[item] === 'haft' && SWUNG.has(e.trace.variants?.reach) ? 'blade' : HOLD_OF[item];
     const grip = e.sockets.grip; const len = e.trace.length;
     let M, o, t, b;
     if (slot === 'right' || slot === 'left') {
@@ -172,7 +175,15 @@ export function gearMounts(hero, R) {
       M = fromColumns(X, Y, Z); o = e.sockets.guard?.origin || grip.origin; t = c; b = 'pelvis';
     }
     const bi = bone(b); if (bi < 0) continue;
-    out.push({ slot, item, hold: slot === 'back' || slot === 'hip' ? slot : hold, build, sockets: e.sockets, trace: e.trace, bone: b, boneIndex: bi, M, o, t, k, length: r5(len * k), ...(detail ? { detail: { ppu: detail.ppm * k, error: detail.error } } : {}) });
+    let G = { slot, item, hold: slot === 'back' || slot === 'hip' ? slot : hold, build, sockets: e.sockets, trace: e.trace, bone: b, boneIndex: bi, M, o, t, k, length: r5(len * k), ...(detail ? { detail: { ppu: detail.ppm * k, error: detail.error } } : {}) };
+    // laws-2 gear is fitted at rest so it clears the body (hero-hold.js rule 1): a haft out past the head, a blade off
+    // the thigh, a shield off the arm; gear minted before keeps the hold it was minted with
+    if (holdsByLaws(build) && (slot === 'right' || slot === 'left')) {
+      const S = slot === 'right' ? 'R' : 'L', a = unit(sub(J[`knuckles${S}`], J[`wrist${S}`]));
+      const fit = fitRest(G, R, { out: [S === 'R' ? 1 : -1, 0, 0], f: perp([0, 1, 0], a), a, h: height });
+      G = { ...fit.G, restClearance: r5(fit.clearance.d) };
+    }
+    out.push(G);
   }
   return out;
 }

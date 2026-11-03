@@ -361,7 +361,7 @@ export function keyframeInstructions(manifest, options = {}) {
     '1. MERU (machine — mojulo audits on submit): this cel keeps the unit (crown at/below the line, soles on the ground line, same height as the base cel). A violation returns exact pixel targets — re-render over the guide.',
     `2. REGISTER (your eyes before submitting): it READS as the same character in ${face ? 'the same pose' : 'this pose'}, painted (not a vector tracing of the mannequin), front-facing, identity consistent with the sheet.`,
     '',
-    `Submit via \`submit_image_render { ref, target: '${face ? `key-${keyIndex}/face/${face.vocab}-${face.state}` : `key-${keyIndex}`}', image_path }\`.`,
+    `Submit via \`render_handoff { medium: 'image', op: 'submit', ref, target: '${face ? `key-${keyIndex}/face/${face.vocab}-${face.state}` : `key-${keyIndex}`}', image_path }\`.`,
   ];
   return [...head, ...identity, ...style, ...faceClause, ...gates].join('\n');
 }

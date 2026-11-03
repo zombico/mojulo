@@ -103,14 +103,16 @@ const paletteTheme = (G) => (G.style?.palette ? gameTheme(solvePalette(G.style.p
  * `allow_unaudited` stays on beside `auto_audit`: with no browser installed the audit is skipped (never downloaded
  * for), and a walk that does not prove a level stamps it rather than refusing the game (create-game.js mintGame).
  * (The flag moves the game order's print, so a game made before it is remade once on the next run, as it was.) */
-const PROVABLE = new Set(['reach-exit', 'survive']);
+// (an escape room's audit is a walk too: by its keys, then its locks, to its way out: game/escape-room.js)
+const PROVABLE = new Set(['reach-exit', 'survive', 'escape-room']);
 const provable = (order) => { const k = (order?.manifest?.game?.mechanics ?? []).map((m) => m?.kind); return k.length > 0 && k.every((x) => PROVABLE.has(x)); };
 // a realistic loft ridden (vehicle-registry/ride.js): its figure compiled by the world in place, in the form render (its
 // materials lit by the page: car-designer/road-form.js), on its class's own physics (roads/vehicles.js; quick.vehicle,
 // tuning and conditions still read as the ride's), chased at its length
 function loftRide(Q, rode, seed) {
   const dims = FLEET[rode.class] ?? PHYSICS[rode.class];
-  return { figure: { loft: { class: rode.class, seed, light: 'form' } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
+  // (a field vehicle's livery as the world wrote it: its setting's camo, stamped at mint, or the operator's; its wear)
+  return { figure: { loft: { class: rode.class, seed, light: 'form', ...(Q.livery !== undefined ? { livery: Q.livery } : {}), ...(Q.wear !== undefined ? { wear: Q.wear } : {}) } }, rule: quickRideRule(Q, vehicleRule(rode.class)), camera: loftCamera(dims) };
 }
 
 export function auditOrder(steps, stages) {

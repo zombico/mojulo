@@ -51,7 +51,7 @@ export function mintCellularView({ title, cellType, seed, scale, jellyAlpha, org
 
 export async function createCellularViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_cellular_view requires a recipe object');
+    throw new Error('create_view({ kind: "cellular" }) requires a recipe object');
   }
   const { title, cell_type: cellType, seed, scale, jelly_alpha: jellyAlpha, organelle_alpha: organelleAlpha, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintCellularView({ title, cellType, seed, scale, jellyAlpha, organelleAlpha, viewBox, scene, ref, folderRef });

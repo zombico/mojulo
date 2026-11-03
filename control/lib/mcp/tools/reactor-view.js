@@ -42,7 +42,7 @@ export function mintReactorView({ title, scenario, rods, seed, scale, viewBox, s
 
 export async function createReactorViewHandler(input) {
   if (!input || typeof input !== 'object') {
-    throw new Error('create_reactor_view requires a recipe object');
+    throw new Error('create_view({ kind: "reactor" }) requires a recipe object');
   }
   const { title, scenario, rods, seed, scale, viewBox, scene, ref, folder_ref: folderRef } = input;
   return mintReactorView({ title, scenario, rods, seed, scale, viewBox, scene, ref, folderRef });

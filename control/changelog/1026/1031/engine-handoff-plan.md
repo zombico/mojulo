@@ -1,0 +1,737 @@
+### Engine handoff plan (temporary: the working plan, parked here; delete before release)
+
+**Status:** phases 0 to 3 built; phase 4's Godot adapter built and run in a real Godot (4.7.2) on the operator's machine, the terrain shader with it; the sea as the engine's own water built; phases 5 to 7 done (one door; the runtimes culled; Godot, Unity, Unreal and Blender each an adapter on the contract, run in their engines on the operator's machine); phases 0 to 9 built (1102); left: the eyes gate (the operator's), the open findings below, and this plan's deletion before release.
+`control/changelog/1026/1031/engine-handoff.md`. No release has carried the engine game runtimes this plan removes, so
+nothing here needs a deprecation path.
+
+**Outcome.** Mojulo makes single-player and couch (local) multiplayer games, for two audiences, each with its own
+outcome. Online multiplayer is out of scope, on the web and in every handoff.
+
+- **The solo creator: the whole game, end to end, on the web.** `export_game` (`web`, `desktop`): every department
+  composed into a game that plays in the browser or as the Electron desktop app, alone or with two to four players on one
+  screen (the seats: `docs/local-multiplayer-principles.md`). Mojulo is the whole studio; nothing is handed anywhere.
+- **Developers and teams: assets, animation and levels handed to their engine.** One export, `export_model { engine }`,
+  gives Godot, Unity, Unreal and Blender as much as mojulo can make at the polygon level: every surface as a gen-7
+  material, every rig with its clips and faces, every level as layout, light, colliders and named markers, for a
+  developer to wire and finish there. It supersedes every prior engine export. The game runtimes ported into the engines
+  (Godot's GDScript kernel, Unity's C# runtime, Roblox's Luau kernel) are culled, and Roblox is dropped as a target. What
+  a team gets from it:
+  - **Mojulo as the team's design source ("Figma-ization").** As a design tool is where a product is drawn and a
+    developer's handoff is read from it, the recipe and its bible are where a game is designed, and the handoff is what
+    the engine reads from them. Anyone on the team (a designer, a producer, an artist, a writer) can make and change the
+    thing by conversation; the developer receives it as assets, levels and markers in their own engine.
+  - **Quick prototypes to validate the loop.** A loop is played on the web first (the same recipe, end to end) before an
+    engine hour is spent on it; what the team validated is what the handoff carries.
+  - **Faster iteration.** Change the recipe, hand it off again: the engine's scene takes the new version without losing
+    the developer's own wiring.
+  - **Broader contribution.** More people on a team can make a playable prototype, because making one takes a
+    conversation, not an engine.
+
+What this asks of the handoff (phases 3 onward; each a gate, not a wish):
+- **The loop travels with the level.** A level's handoff carries what the web prototype validated as data a developer
+  wires: its win and fail conditions (the contract), its markers (the spawns, the foes with their roles and tiers, the
+  triggers and what they fire, doors and their keys, pickups, the critical path, the shots), and a pointer to the
+  playable web build and the bible pages it was made from, so the engine's level and its reference prototype are one
+  thing.
+- **Couch multiplayer is in the level.** A level made for seats carries a spawn per seat, each seat's colour and its
+  camera's share of the screen (split or shared), as markers and data.
+- **Re-handoff is safe.** Every node, mesh, material and marker has a stable name derived from the recipe (never from an
+  order or a counter that a change to something else would shift), and a handoff of a changed recipe changes only what
+  changed. An engine-side importer replaces mojulo's nodes by name and leaves the developer's own nodes and scripts
+  alone. Held by a test: change one thing in a recipe, hand off twice, and diff the names.
+- **The prototype is the reference.** The web build of the same recipe ships beside the handoff (or is linked from it),
+  so a developer can play what they are building to.
+
+#### Why, and why now
+
+Mojulo changes and coalesces; it goes where the water wants to go. The engine legs grew game runtimes because a game in
+an engine seemed to need its rules there, and the hillclimb sweep grew "plays in Godot" and "plays in Roblox" columns to
+measure them. A game's rules are the web's, end to end; what an engine developer wants from upstream is the work that is
+hardest to make by hand (the materials, the rigs, the levels) in their engine's own terms.
+
+The runtimes cost more than they return:
+- About 14,000 lines of GDScript and shaders in `godot-kernel/` and `godot-arcade-kernel/`.
+- About 10,500 lines of Luau in `roblox-kernel/` and `roblox-place/`.
+- Unity's C# mirror (`Runtime/`).
+- Conformance corpora and probes to hold every port equal to the web, most of which no CI machine can run.
+- Every change on the web needs a re-port. `1025-godot-recoup` spent about 3,700 lines moving one number (near the genre
+  probes, 192 to 270 of 500 worlds playing in Godot), never ran in a real Godot, and is now stranded.
+- The result: Godot plays 48 of 500 random worlds, Roblox 3.
+
+`1025-unreal-recoup` already made the turn for Unreal ("Unreal takes assets, not games or levels") and ran the first real
+engine gate. This plan makes that the rule for every engine, adds levels to it, and raises it to gen 7.
+
+#### Why gen 7 is the bridge
+
+`era/eras.js` names gen-6's surface `paint` (the light held in the colour) and gen-7's `form` (material and geometry, lit
+by the renderer). Form is the engines' own model; paint is a web trick an engine either draws unlit or lights twice.
+
+The form render's content is already engine-neutral data:
+- `form/land-read.js` is pure and seeded, and its `formPayload` is "plain data, JSON-safe": the land's vertices, the
+  solved light, the layers' weights and their base / normal / ORM atlases, the path mask, the sea's depth, the scree's
+  stones, the rock's relief, the grass map.
+- `form/flora-read.js` returns the plants' templates and instances.
+- `form/bark-material.js` and `form/relief-material.js` return glTF's metal-rough set. `matte-paint/dressed.js` already
+  calls `reliefMaterial`.
+- `form/land-layers.js` calls itself "the engine's terrain primitive: Unreal's landscape layers, Godot's splat … a
+  renderer, or an engine pack, owns the materials".
+
+The World page's `channels/form-*.js` is only the web's adapter of `payload.form`. Today the engine path skips it
+(`resolveLevel` reads `paint: true`; `export_game` refuses an era for engine targets). This plan writes the engines'
+adapters of the same data.
+
+#### What exists (keep and build on)
+
+- **The GLB writer, `scene/scene-gltf.js`:** meshes, PBR materials with base, normal and ORM textures (today for figures:
+  the realistic head's normal bake, cloth relief, the beast-kin cover), `extras.mojulo` for what glTF has no slot for,
+  skinning, clips, face morphs, the engine skeleton and its VRM T-pose re-rest, a realistic hero's recorded takes. The
+  asset and animation handoff, already built.
+- **`scene/scene-usd.js`:** the second container, beside the GLB.
+- **`scene/engine-score.js`:** a level's entities, bus and posture. Becomes the level's markers.
+- **`scene/engine-audio.js`, `engine-sound.js`:** the soundtrack and sound effects as files.
+- **`scene/operator-guide.js`:** the import guides, already shared by Unity, Unreal and Blender.
+- **The importers:**
+  - Godot's import and material binding in `level.gd` (`_fix_materials`, `figure_parallax.gdshader`), `sky.gdshader`,
+    `water.gdshader`, `tone.gdshader`.
+  - Unity's `Editor/MojuloImport.cs` (builds and saves the scenes; deterministic `.meta` GUIDs).
+  - Unreal's `import_mojulo.py` (meshes, lights, a skinned figure's clips and face morphs, a humanoid's IK Rig and
+    retargeter, a preview map; proven against UE 5.8.0).
+  - Blender's art-pass pack, importer and Cycles bake (`blender-pack.js`, `blender-project.js`, `blender-bake.*`).
+- **The import gates:** `export-godot.mjs`'s headless import, one frame, the materials probe and the figure probe;
+  `godot-verify.mjs --screenshot`; Unreal's verify mode (`mojulo-gate.json`); `MOJULO_BLENDER`'s importer run.
+- **From `1025-godot-recoup`, taken as ideas, not merged:**
+  - Effects as data beside their fragment (`composeCloudDeck` returns `deck`).
+  - The Chrome fragment-parity harness (a `.gdshader` rewritten as GLSL ES 3.00, rendered against the page's fragment
+    into float targets, a drifted variant that must disagree), for any engine shader this plan keeps.
+
+#### What goes
+
+- **Godot's game runtime:** the kernel's game scripts (`bus.gd`, `store.gd`, `mind.gd`, `rules.gd`, `combat.gd`,
+  `cast.gd`, `quests.gd`, `hud.gd`, `menu.gd`, `game.gd`, `scenes.gd`, `walker.gd`, `stats.gd`, `nav.gd`, `beat.gd`,
+  `sound.gd` and the rest that run a game), `godot-arcade-kernel/` and `godot-arcade.js`, `godot-harness.js`. The
+  importer half of `level.gd` and the graphics shaders move into the Godot adapter.
+- **The conformance machinery for runtimes:** `*-conformance.js` under `scene/`, `engines/conformance.js`,
+  `scripts/conformance.mjs`, `scripts/conformance/`, the game probes (`godot-game-probe.gd`, `godot-bus-probe.gd`,
+  `godot-combat-probe.gd`, `godot-level-sim.gd`, `godot-keys-probe.gd`, `godot-sound-conformance.*`,
+  `godot-fixture-matrix.mjs`), and their tests. `science-conformance.mjs` holds the science views' shaders to their
+  model and stays.
+- **Unity's runtime:** `Runtime/` (`MojuloGame`, `MojuloLevel`, `MojuloMenu`, `MojuloWalker`, `MojuloWeather`).
+  `MojuloImport.cs` stays.
+- **Roblox, entirely:** `roblox-*.js`, `roblox-kernel/`, `roblox-place/`, `scripts/roblox/`, `export-roblox.mjs`,
+  `engines/roblox-*.test.js`, `MOJULO_ROJO` and `MOJULO_LUNE` in `workers/find.js`, its registry entry and marks.
+- **`export_game`'s engine targets** (`godot`, `unity`, `roblox`): they move to `export_model { engine }`.
+- **"Plays in an engine" as a measure:** the hillclimb page's "plays in Godot" and "plays in Roblox" columns, the
+  cosmos facets' engine readings (`cosmos/read-sources.js`, `cosmos.js`, `facets/power.js`, `space.js`, `reality.js`,
+  `soul.js`, `mind.js`), and the per-engine marks. They become one handoff ledger: what a level, an asset or a figure
+  carried into each engine and what it left behind.
+- **`1025-godot-recoup`:** closed unmerged.
+
+#### The contract
+
+`scene/handoff.js` (new): `resolveHandoff(sketch, { what })` → one engine-neutral handoff, written once, read by every
+adapter. Plain data, seeded, byte-stable.
+
+1. **Assets.**
+   - Every surface as a glTF metal-rough material: `baseColor` (the material's own colour, no light), `normal`, `orm`.
+   - What glTF has no slot for in `extras.mojulo`: `height` and `depth` for parallax, a layered ground's `splat`, a
+     plant's `sway`.
+   - A surface not yet built as form leaves as **albedo unlit**: the unshaded payload's colour as the material's, its
+     cavity kept, no light (the gen-7 cast convention `albedo-unlit`, today `planned`).
+   - Instances: stones, plants and grass drifts as a template mesh and its transforms.
+   - Characters, props and vehicles as their own assets, by ref, as well as placed in a level.
+2. **Animation.** What the GLB already carries: the skeleton (and the engine skeleton, VRM-named, T-posed), the clips,
+   the face morphs, the recorded takes with their voice.
+3. **Levels.**
+   - The layout as meshes in the level's own frame (z-up metres, each adapter converting once).
+   - The loop: the level's contract (its win and fail conditions, as the web's audit reads them) beside its markers.
+   - Seats: a couch level's spawn, colour and screen share per seat.
+   - The reference: a pointer to the level's web build and the bible pages it was made from.
+   - Colliders: walkable ground and walls, as the web's own traversal reads them.
+   - The environment at the level's hour: the sun's direction, colour and strength (`era/cube-light.js`), the ambient,
+     the sky, fog and haze, the shadow tier, occlusion on or off, a room's lamps, the cloud deck's numbers.
+   - **Markers**, named, with their data: the spawn, each foe's place, role and tier, triggers and their events, doors
+     and their keys, exits, the critical path, pickups, the cameras and the shoot plan's shots, sound emitters.
+   - The soundtrack and the sound effects as files beside it.
+   - A ledger: what the level carried and what stayed the web's (its rules, its HUD, its effects with no engine
+     feature).
+
+Each engine is an **adapter**, an importer and nothing more:
+- **Godot:** an import script that builds a `.tscn`: `StandardMaterial3D` with normal, ORM and `heightmap_enabled`;
+  `MultiMeshInstance3D` for instances; `DirectionalLight3D` with shadows, `OmniLight3D`, `WorldEnvironment` (fog, SSAO,
+  tone) and the sky shader; `StaticBody3D` collision; `Marker3D` nodes with their data as metadata.
+- **Unity:** `MojuloImport.cs` builds the scene from the same: URP Lit materials, lights and a Volume, mesh colliders,
+  empty GameObjects with a component holding each marker's data.
+- **Unreal:** `import_mojulo.py` grows from one asset to a level: a map with the meshes on the master material, lights,
+  sky and fog, collision, empty actors tagged as markers.
+- **Blender:** the art-pass pack on Principled BSDF, a World, lights, collection instances, empties as markers.
+
+#### Phases
+
+0. **Freeze and gates.** No new runtime ports; close `1025-godot-recoup`. Pin a Godot 4 download the CI gate can fetch
+   (this container's proxy refuses GitHub releases; CI can). Unity's and Unreal's gates stay local and advisory
+   (licensing). Check that the form data is byte-stable run to run and across the reference CPUs (`land-read.js` paints
+   its layer textures once per process) before anything pins it.
+1. **The contract, assets first.** `handoff.js`; read the world in form (`paint: false`, `unshaded: true`, so
+   `payload.form` is computed); every surface leaves as albedo unlit or as its form material; dressed faces and bark as
+   textured PBR with height in the extras; instances for plants and stones. The meru island first, then a trail.
+2. **The land and the rooms.** The layered ground **bake-first**: the layer blend baked into per-chunk base, normal and
+   ORM textures that every adapter reads as plain glTF, with `splat` and the layer atlases in the extras for a terrain
+   shader later. The rock relief's displacement moves from page script to the build side, so the displaced cliff is
+   geometry. Rooms: `room-form.js` tiles as materials, the lamps as lights, the baked indirect (`aLit`) as a second
+   vertex colour.
+3. **Levels.** The environment record, colliders and markers from `engine-score.js` and the level's own data; the
+   soundtrack and effects as files; the ledger. With the outcomes' asks: the level's contract (win and fail) and its
+   markers as the loop a developer wires, a spawn, colour and screen share per seat for a couch level, a pointer to the
+   web build and the bible pages, and stable names throughout (the re-handoff test).
+4. **The Godot adapter.** The import script and its gate: import, one frame, a materials probe (normal and ORM bound, no
+   vertex colour forced over a coloured material), an environment probe, a markers probe (every marker present, named,
+   carrying its data).
+5. **One door.** `export_model { engine: 'godot' | 'unity' | 'unreal' | 'blender', what: 'asset' | 'level' }`;
+   `format: 'unreal'` folds into `engine: 'unreal'`; `export_game` keeps `web` and `desktop`. Every pointer to the old
+   targets rewritten (`tool-lines.js`, the routing cards and `routing-eval.fixture.js`, the export dispatch in
+   `context.js`, the vocab drawers), the descriptions re-pinned with a comment saying why.
+6. **The cull.** One commit per engine: Godot's runtime, Unity's runtime, Roblox. The marks become the handoff ledger;
+   the cosmos facets stop reading engines; the hillclimb page loses its engine columns (`npm run tool-surface`);
+   `workers/find.js` loses Rojo and Lune; `desktop-shell.js`'s `ENGINE_OUT_DIRS` keeps the remaining engines' folders.
+   Byte pins that move say so in the same commit.
+7. **Unity, Unreal levels, Blender** on the same contract, each an adapter; the contract grows for every engine at once
+   when one finds a gap.
+8. **The visual gate.** The level's shoot-plan cameras render the same shots on the page and in each engine that can
+   run headless (Godot, Blender); a similarity score per shot, reported, never refusing.
+9. **The copy.** `get_substrate`'s honesty paragraph (the web is the game, an engine gets a handoff; the ladder becomes
+   what each adapter carries), the README's opening and "Where it goes" (no "Godot project", no Roblox), its kart-racer
+   example's export paragraph, `CLAUDE.md`'s engine-legs line and architecture map, `docs/AGENT-REFERENCE.md`,
+   `docs/tech-requirements.md`, the plugin and manifest descriptions where they name engines.
+
+#### Gates
+
+**Machine.**
+- Determinism: a handoff exports byte-identical twice on the reference runtime; `payload.form` is identical run to run.
+- The web is untouched: every web and desktop byte pin stays.
+- The GLB validates; every surface carries baseColor + normal + ORM or is albedo unlit, counted in the ledger; every
+  marker in the level's data reaches the handoff.
+- Godot (CI, when `MOJULO_GODOT`): import, one frame, the materials, environment and markers probes.
+- Blender (`MOJULO_BLENDER`): the importer runs headless and the same probes read the scene.
+- Unity and Unreal: their verify modes, run locally, reported.
+- Any engine shader kept (the sky, water, a terrain shader) is held to the page's fragment in Chrome, with a drifted
+  variant that must disagree.
+- The visual gate's per-shot similarity, reported.
+
+**Eyes.** The operator opens the meru island, a trail, a lit room and a walled-core base in Godot, then in Unity, Unreal
+and Blender, beside the World page at the same camera, and says what reads wrong and whether the markers are what a
+developer would want to wire. Never claimed by a machine.
+
+#### Out of scope
+
+- A game's rules in any engine, now or later: the web is the game.
+- Roblox.
+- A moving sun (a level is lit at one hour), HDR and image-based lighting beyond what each engine's environment gives
+  from the record, engine-baked lightmaps (a later option for rooms).
+- Changing the web's look, or making gen-7 the web's default.
+
+#### Open questions
+
+0. The team flow's re-import: how each engine's importer replaces mojulo's nodes by name and keeps a developer's own
+   (Godot: a scene inherited from the imported one; Unity: a prefab variant; Unreal: Interchange's reimport; Blender: a
+   linked library). Settle per adapter in phase 4 and 7.
+
+1. Which Godot 4 minor, and the CI download's source and checksum?
+2. The layered ground: is bake-first's texture budget acceptable for a chunked island, or does Godot go straight to a
+   splat terrain shader?
+3. Instances: do the targeted importers read `EXT_mesh_gpu_instancing`, or do the adapters build instances from the
+   transforms in the extras?
+4. Albedo unlit: is the unshaded payload's colour a fair material colour for every gen-6 surface, or do painted tiles
+   with light in them need their own unlit read?
+5. Colliders: the walkable mesh as one trimesh, or boxes and convex pieces from the builders' own parts?
+6. Markers: a fixed vocabulary (spawn, foe, trigger, door, key, exit, path, pickup, camera, emitter), or the score's
+   entity kinds as they are?
+7. Should `export_model { engine, what: 'game' }` exist at all, as "every level and every asset of a game, handed off
+   together", or is a game handed off as its levels?
+
+#### Log
+
+- 1031: plan written. `1025-godot-recoup` read: three commits on 10-25, unmerged, 528 commits behind, conflicting in the
+  changelog, the live registry, the marks and the hillclimb page; never run in a real Godot. `1025-unreal-recoup` read:
+  merged, Unreal already assets only, the first real engine gate. The form modules confirmed pure and seeded, and
+  `payload.form` confirmed plain data the engine path skips under `paint: true`. Reframed from "gen-7 as Godot's
+  graphics" to the engine handoff: the runtimes culled, Roblox dropped, the desktop app kept under `export_game`.
+- 1031, phase 0:
+  - Frozen: `CLAUDE.md`'s engine-legs line says the engine game runtimes take no new ports and give way to the handoff.
+    `1025-godot-recoup` has no pull request; it stays unmerged (the branch itself is kept until the operator says).
+  - CI's `godot` job (`.github/workflows/test.yml`): Godot 4.7.2 (the version the gate was last verified against; the
+    repository variable `GODOT_VERSION` overrides it) fetched from `godotengine/godot-builds`, checked against the
+    release's `SHA512-SUMS.txt`, cached, named as `MOJULO_GODOT`, and `godot-humanoid-pack.test.js` (a figure's import,
+    its engine skeleton, BoneMap and retarget, its clips) run against it. Not yet run: this container cannot reach
+    GitHub's release downloads, so the job's first run is on CI (a pull request or the workflow's manual run). If the
+    builds repository does not carry the version or its sums file, the first run says so.
+  - The form data is byte-stable: `form/land-read.char.test.js` hashes `formPayload` for a small meru island with its
+    grass map, painted fresh and then memoized, the two equal and the hash pinned; two separate runs gave the same hash
+    here (Node 22, x86_64). The pin runs on every reference leg, so the macOS leg is the cross-CPU check.
+  - Open question 1 answered in part: Godot 4.7.2 from the builds repository; a literal checksum pin can replace the
+    sums-file check once the first run prints it.
+- 1031, phase 1, first slice (the contract, the albedo floor, the stones):
+  - `scene/handoff.js`: `resolveHandoff(sketch, { what })` reads the world unshaded in gen-7 with `handoff: true` (a new
+    view option: `worlds/world-scene.js` lets the form render's land read run under the unshaded read only for it; absent,
+    every byte as before), writes the GLB lit (glTF metal-rough; the water lit too, a smooth translucent dielectric, under
+    `facesToGlb`'s new `handoff` flag), and returns `{ kind, payload, exported, instances, ledger }`. The ledger: the
+    version (`handoff/0`), the era, what was handed off, what it carried (faces, instances by set), and what stays the
+    web's (the land's layers, the stones' skin, the plants and grass, the light).
+  - The scree's stones as instances: `stoneInstances(payload.form.land.stones)`, one set per shape, size (near or far,
+    the page's `CAST_R` split) and tone (to 0.1), each stone a node standing +Z onto its ground's normal and yawed by its
+    index, as wide and as deep as `channels/form-land.js` draws it (the page's own jitter hash). `facesToGlb`'s new
+    `instances` option writes them (`GlbBuilder.addFormInstances`: a template with its normals and a node per instance
+    with a full TRS); absent, no bytes.
+  - `scene/handoff.test.js`: a gen-7 trail (`island-noon`, `show: 'trail'`) hands off lit, every material metal-rough,
+    its stones as instance nodes equal to the land's count, the same bytes twice; a stone stands on its normal; a
+    workbench piece hands off its albedo with no instances.
+  - Found on the way: `island-noon`'s default read is a room (`form.room`); its island is `show: 'land'` (about 30 s to
+    read), its trail `show: 'trail'` (about 8 s). Of 32 materials in the trail's handoff, only the water was unlit before
+    the `handoff` flag.
+  - The jitter hash is the page's `Math.sin` hash: deterministic per runtime, but V8's `Math.sin` may round its last bit
+    differently by CPU; if the macOS leg disagrees with a pin of a stone's scale, move the jitter into the land read's
+    stone pack (both the page and the handoff then read it).
+- Next slice, the plants (mapped, not built): a forest path (`{ kind: 'geocube', cube: 'limestone-crags', biocube: {
+  from: 'forest' }, show: 'path', seed: 1 }`, about 130 s to read: test the plants from `floraRead` directly, not through
+  a whole world) carries `payload.form.flora` = `{ templates, barks, trees, n, lod, leafRef }`:
+  - A template: `wood` and `woodFar` as `{ pos, nrm, uv, idx }` (metres; uv in bark tiles, u round the trunk, v up it),
+    `clumps` (b64 transforms of `clumpGeo`'s variants), `sites` and `sprayGeo` (sprays near the eye), `farGeo`, `bark`
+    (a key into `barks`), `trunk`, `cross`, `litter`.
+  - `barks[key]` = `{ metres, depth, base, normal, orm, … }`: PNG data URLs, glTF's metal-rough set already
+    (`form/bark-material.js`); the wood's uv is in tiles, so a repeating sampler takes it as it is, the height and depth
+    to `extras.mojulo` for parallax.
+  - `trees`: b64 Float32, `FLORA_STRIDE` (13) per plant (its template, place, turn, scale and tint: read the layout off
+    `channels/form-flora.js` before writing it).
+  - Plan: per template one wood mesh on its bark's textured PBR material and one foliage mesh (the clumps baked into the
+    template, its leaf tint as the material's colour), each tree a node referencing both. The sprays near the eye stay the
+    web's (a level of detail an engine makes its own).
+- After the plants: the dressed faces' relief (`matte-paint/dressed.js` already calls `reliefMaterial`) as textured PBR,
+  then phase 2.
+- 1031, phase 1, the plants:
+  - `floraInstances(payload.form.flora)`: per template its wood (the template's tubes: positions, normals, uv in bark
+    tiles, indices; a culm's own colours) on its bark (`barks[key]`'s base, normal and ORM as glTF's metal-rough set, its
+    height and depth in `extras.mojulo` for parallax) and its crown (`mergeClumps`: the page's `merged`, without three:
+    each clump's variant turned to its facing (a pad level along its branch, a cross card by its basis, any other +Z onto
+    its facing then rolled by its rank), scaled, each vertex its tone over its leaf; each triangle's normal bent toward
+    the clump's outside by the page's shader's 0.65). Each plant a node of each, turned about +Z by its yaw and scaled to
+    its height. A template's plants share one material: their mean leaf colour (a vertex's tone over it moved into the
+    material where it passes one) and their mean bark colour over the bark.
+  - `facesToGlb`: `addFormInstances` takes uv (v flipped as `addNode` flips it), colours and indices; a textured set
+    binds base, normal and ORM and puts the height in the material's extras; instances alone make a GLB.
+  - Left the web's (the ledger says so): each plant's own tint, the wind, the sprays near the eye, the far levels of
+    detail (an engine makes its own), a needled crown's needles (its sleeve, drawn by the page's shader), a shrub's
+    blossoms and berries.
+  - Tested from `floraRead` directly (a needled tree and a shrub's dome, as `form/flora-read.test.js` grows them), not
+    through a whole forest.
+- 1031, the runtime tests culled (phase 6's first cut, ahead of the code): the tests that held the engine game runtimes
+  to the web are gone, since the runtimes they prove are leaving:
+  - Godot: the bus and combat corpora (`bus-conformance`, `combat-conformance`), the kernel's own legs (`godot-beat`,
+    `godot-bus-level`, `godot-clock-dial`, `godot-edit`, `godot-frame`, `godot-game-shell`, `godot-looks`,
+    `godot-markers`, `godot-mind`, `godot-rules`, `godot-scenes`, `godot-sound`, `godot-story-rows`, `godot-travel`),
+    the planted bugs (`godot-plants`), the arcade kernel (`godot-arcade`), and the fixture matrix with its web half
+    (`level-equivalence.godot`, `level-equivalence`).
+  - Roblox: `roblox-look`, `roblox-project`, and the Lune corpora (`engines/roblox-combat`, `roblox-levelcast`,
+    `roblox-rules`, `roblox-scenes`), with the engine-neutral conformance protocol's test (`engines/conformance`).
+  - `godot-marks.test.js` loses "a built mark names the Godot leg that proves it" (its proofs were the culled tests);
+    its tables' other checks stay until the marks become the handoff ledger. `vitest.godot.config.js` stops listing the
+    level-equivalence test.
+  - Kept: `godot-humanoid*`, `godot-pack.figure`, `godot-look` (the sky and tone, for the environment adapter),
+    `engine-score`, `engine-voice`, `engines/pack`, `engines/marks`, `bus-abi`, `unity-project`, `unreal-*`.
+  - The runtime code itself (the kernels, the corpora's modules, the probes, `scripts/conformance*`) is still there and
+    still exported by `export_game`'s engine targets, now untested: it leaves in phase 6 with those targets.
+  - Found: `lib/motion/world-traversal.test.js` fails in this container only, because the app's browser finder does not
+    find the pre-installed Chromium; `MOJULO_CHROMIUM=/opt/pw-browsers/chromium` would point it there. Not this branch's.
+- 1031, phase 1, the dressed faces:
+  - `dressedMaterials(keys)`: each tile key the matte painter painted (`generatedSpecOf(key).gen === 'dressed'`, the
+    `dressed` generator of `era/tile-specs.js`'s families) painted again as the material it was painted from
+    (`dressedMaterial`, at its own size and seed, its cut's roughness from `form/room-form.js`'s `FORM_ROUGH`): its colour
+    under no light, its relief's normal, glTF's ORM (occlusion red, roughness green, no metal: `form/room-form.js`'s own
+    maps pack the height into the blue, which glTF reads as metal, so the handoff paints its own) and its height as a
+    grey map with its `depth` (the relief's range in metres) and `metres` (the repeat's size) in `extras.mojulo`.
+    Memoized per key. A cut that paints without a relief keeps its paint.
+  - `facesToGlb`'s new `materials` option: a textured group whose key has a material leaves on it (base, normal and ORM
+    bound, the height in the extras, no COLOR_0 under it); absent, the tile as it was.
+  - The ledger counts the tiles carried as material and those that left as their paint.
+  - Fixtures found: `island-noon`'s room and its town lay no dressed tile (their keys are the library's painted tiles); a
+    bay kit's stage does (`{ kind: 'stage', kit: 'bay-military', rooms: [{ id: 'low', x: 0, y: 0, w: 6, d: 8, h: 3.5 }] }`,
+    about 25 s: eight dressed surfaces, its floor, base, wall, crown, column, paint, soffit and vent). The town handed
+    off its plants (eight) and stones with textured bark.
+  - Left the web's: a tile painted other than from relief (the library's stone brick, flagstone, rock, wood, frieze):
+    it leaves as its paint, its light painted in. `form/room-form.js`'s `luminance` read (the paint's light read back as
+    height) could give those a normal and an ORM too; an approximation that says so, a later step if wanted.
+  - Phase 1 is done. Phase 2 next: the land's layered ground baked into textures, the rock relief as geometry, and the
+    rooms' lamps and baked indirect light.
+- 1031, phase 2 (the land and the rooms):
+  - **Decided against bake-first** (open question 2). The page lays each layer in world space along a face's dominant
+    axis (`channels/form-land.js`), so a baked texture needs a unique UV chart for every cliff and slope, and its blend
+    reads the path mask, the trail's dress, the moss, the undergrowth's grass map and the scree's thinning, about two
+    hundred lines of fragment shader. Instead the land leaves as FLOOR plus DATA:
+    - The floor: each part of the form land (`landParts`: a range of `formPayload`, a ground class) a mesh of its own,
+      shaded smooth as the page shades it, each corner its palette-solved base colour (the shader's layers multiply
+      their texture, normalised to a mean of one, by it, so it is the albedo a plain glTF reader shows; linear). The
+      shallows' floor faces straight up, as on the page.
+    - The data: on the layered ground, each corner's four layers' weights as `_SPLAT` (glTF's application attribute,
+      floats) and the material's `extras.mojulo.terrain` (its part, the attribute's name, the layers' base, normal and
+      ORM atlases as textures written once for every part, each layer's tile in metres, its mean, the layer keys, the
+      atlas's grid, and `ormBlue: 'height'`: the land's own ORM keeps its height in the blue, not glTF's metal). An
+      engine's terrain shader blends them as the page does; the Godot adapter ports the page's fragment in phase 4,
+      held to it in Chrome by recoup's harness, and the other adapters follow it.
+    - The painted faces the form's land stands for (`form.land.hides`) leave the export, but the water: the sea stays the
+      painted one (the page draws it as a plane over the depth; an engine as its own water). What the read could not
+      class (`unread`) stays painted.
+  - **The rock's relief as geometry:** the page's `reliefPart` ported (`reliefCut`): a cliff's triangles cut six a side,
+    each point pushed along its normal by the relief read along the face's two side axes, by how steep it stands; a
+    corner shared with another part stays put; the cut faces' normals their own, blended back where nothing moved. The
+    trail's cliff cuts to about 189,000 triangles.
+  - **A room's lamps:** the form render's room light now solves under the handoff though the read is unshaded
+    (`world-scene.js` sets `formLit` and passes `handoff`; `world-kinds.js` forwards it to the stage and the geocube;
+    `era/stage.js` solves when `ctx.handoff` and keeps the solve's faces), so a room's surfaces leave as their solved
+    bases (under no light) and its lamps (`roomLamps`) as glTF point lights: each at its flame, its solved key as colour
+    and π × its level as intensity (`out = base × light`, `form/room-light.js`), its radius as range. The stage's own
+    lights are dropped where the solve's stand (the same flames at the paint's levels). Absent the flag, every byte as
+    before.
+  - Left the web's (in the ledger): the layered ground's blend itself (carried as data), a room's baked bounce and
+    ambient (`cornerLight` per corner and `room.ambient`: phase 3's environment record takes the ambient; the bounce could
+    ride as an attribute or be left to an engine's own lightmapper), a room's painted tiles read back as relief
+    (`room.maps`, `form/room-form.js`'s luminance read; its ORM keeps height in the blue too).
+  - Size: the trail's handoff is about 48 MB: the land and its cut cliff leave as unwelded triangle soup with float
+    colours, normals and weights (about 716,000 vertices). Welding and indexing the land parts, and quantizing the
+    weights to bytes, is the obvious next saving.
+- 1031, the outcomes tuned (before phase 3): mojulo makes single-player and couch-multiplayer games (online is out of
+  scope) for two audiences: the solo creator gets the whole game end to end on the web; developers and teams get the
+  handoff, with mojulo as their design source ("Figma-ization"), quick prototypes to validate a loop on the web first,
+  faster iteration and broader contribution. Four asks follow for the handoff: the validated loop travels with the level
+  (contract, markers, a pointer to the web build and the bible), couch levels carry a spawn, colour and screen share per
+  seat, re-handoff is safe (stable names from the recipe; a test that changes one thing and diffs the names), and the
+  web build is the reference beside the handoff. Phase 3 builds the first three.
+- 1031, phase 3 (the level record):
+  - `levelRecord(sketch, payload)` (version `handoff-level/0`), carried whole in the GLB's scene extras as `moj:handoff`
+    (`facesToGlb`'s new `sceneExtras` option, merged beside the level's own `moj:spawn`, `moj:colliders`, `moj:rooms`,
+    `moj:anchors` and `moj:game`; absent, no bytes) and returned as the handoff's `level`:
+    - `environment`: the hour, the background, the sky (zenith, horizon), the sun at the cube's hour (its direction, its
+      colour, and π × its level as a renderer's strength, the room lamps' convention), the ambient (the land's or the
+      room's), the haze, whether the level has weather. A world without the form render's land (a controllable stage)
+      carries what it has.
+    - `markers`: the spawn; every entity by the name its GLB node already carries (`entity:<id>`, written by
+      `levelEntityNodes`), with its part in the loop (`pilot`, `seat` and its number, `foe` (a mind or an `ai` rule) with
+      its mind's rank, skill, group and motivation and its attack's timing, or `thing`), its rule and where it stands;
+      the anchors (`anchor:<id>`, era/anchors.js's doorways, doors, items, things, torches, niches); the cameras.
+    - `contract`: the level's game channel synthesized from its mechanics and normalized as `game/game-resolve.js` does
+      (`synthesizeLevel`, `normalizeLevelContract`): what it produces (its results and events), consumes, audits; a
+      manifest whose game cannot be synthesized carries it raw, marked `unsynthesized`.
+    - `seats` (a couch level): a row per seat (its number, `P1`…, its colour from the seats kernel's four-port
+      convention, its body's node and where it spawns: seat 1 the pilot), the screen (`shared`: the page's cameras hold
+      every seat; split is not built), lives, pool, join, drop.
+    - `reference`: the same recipe's web build (`/world`, `/play`) and bible (`/bible`), as routes of the sketch.
+  - Every name derives from the recipe. The re-handoff test hands off a couch level, adds one entity, hands off again,
+    and holds that every node, material and marker name of the first survives and that what is new is the added one's
+    alone.
+  - Still to come with the pack (phase 4): colliders as meshes (today the boxes ride `moj:colliders`, and an engine
+    builds the walkable ground's collision from its meshes), and the files beside the handoff (the web build, the
+    soundtrack and the sound effects).
+- 1031, phase 4, the Godot adapter (first slice):
+  - `scene/handoff-godot.js`: `handoffGodotFiles(handoff)` and `writeHandoffGodot(handoff, dir)` make a Godot 4 project:
+    `mojulo/level.glb` (the handoff's GLB), `mojulo/level.glb.import` naming the post-import script (Godot's own
+    `import_script/path`, so every import and reimport runs it), `mojulo/handoff.json` (the level record and the ledger,
+    each material's height map by the material's name in the GLB, the instanced sets' name prefixes, the terrain's
+    atlases and parts), `mojulo/textures/*.png`, the importer and the probe; and, written once and kept after,
+    `project.godot` and `level.tscn` (which instances `mojulo/level.glb`). `mojulo/` is cleared and written whole on
+    every handoff.
+  - The re-import answer for Godot (open question 0): the developer's scene is `level.tscn`, which instances the
+    imported GLB; mojulo's work lives in the GLB's import (its post-import script), so a re-handoff replaces `mojulo/`,
+    Godot reimports, and the developer's scene and anything they added to it stay. Tested without Godot: a second
+    handoff keeps an edited `level.tscn` and drops a stale file from `mojulo/`.
+  - `handoff-godot/handoff_post_import.gd` (`EditorScenePostImport`): every material's vertex colour as albedo (linear,
+    `vertex_color_is_srgb` false) and its height map where `handoff.json` names one (`heightmap_scale` from depth over
+    repeat, clamped 0.5 to 16: an eyes-gate number); trimesh collision on every mesh but the instanced sets; a
+    `WorldEnvironment` (a procedural sky from the zenith and horizon, the ambient as a colour and an energy, SSAO, the
+    filmic tone, fog where the level has haze) and the sun as a shadowed `DirectionalLight3D` (energy the solve's level,
+    intensity / π); every marker and seat a `Marker3D` under `MojuloMarkers` and `MojuloSeats`, its record in its
+    metadata, the whole level record on the root. What it adds is turned from z-up to y-up (`zup`).
+  - `handoff-godot/handoff_probe.gd`: instances the imported level and prints one JSON line (materials, albedo, normal,
+    ORM, height, bodies, markers, seats, environment, sky, SSAO, sun and its shadow, omni lights).
+  - `handoff-godot.test.js`: the pack (its importer named, its level record, each dressed face's height as a file, the
+    same bytes twice; the developer's files kept) runs here; with `MOJULO_GODOT` (CI's `godot` job, which now runs it):
+    the couch level imports and the probe's counts match the record (albedo on every material, the environment, every
+    marker and seat, collision), and the bay's dressed faces arrive with normal and height maps. `scripts/test-changed.mjs`
+    declares the adapter as the reader of `handoff-godot/`.
+  - Not run yet: this container has no Godot. The GDScript is written against Godot 4's API (`EditorScenePostImport`,
+    `BaseMaterial3D.heightmap_*`, `Basis.looking_at`, `create_trimesh_collision`, `ProceduralSkyMaterial`); the first
+    run on CI is its first check, and anything it finds is the next fix.
+  - Next in phase 4: the terrain shader (the page's layered-ground fragment as a `.gdshader` on the parts
+    `handoff.json` names, reading `_SPLAT` and the atlases, held to the page's fragment in Chrome), then `export_model
+    { engine: 'godot' }` writing this pack (phase 5's door).
+- 1031, phase 4, the first real Godot run (the operator's local agent, Godot 4.7.2, CI's pin): both packs imported and
+  probed with no Godot error; markers and seats right (z-up to y-up holds); the bay read well (its walls, ribs,
+  clerestory, column bases, floor lines and its five lamps). Five findings, fixed:
+  1. The dressed faces had no normals in the GLB, so Godot made no tangents and their normal maps and parallax were read
+     without them. `facesToGlb` now writes each textured group's own flat normals where a handoff material stands on it,
+     and the `.import` asks for tangents (`meshes/ensure_tangents=true`).
+  2. Neither level carried a sun: the couch (a controllable stage) has none of its own. A level with no sun and no lamp
+     is now given `DEFAULT_SUN` (high in the south-east, warm white, π), marked `default: true`, which the importer
+     marks on its light (`mojulo_default`); a room lit by its lamps takes none.
+  3. The background colour and the haze were ignored: with no sky, the environment's background is the level's colour
+     (`BG_COLOR`); the haze sets the fog's colour and density (the page's exp² density taken as Godot's: an eyes-gate
+     number).
+  4. Translucent overlays (the bay's sun patch, glint, wiring, sky panes) got trimesh collision: a mesh with any
+     see-through material now gets none.
+  5. No camera was current, so the scene ran empty: the importer makes the GLB's first camera current, or stands one
+     (`MojuloCamera`) at the level's camera marker looking at its `look` (camera markers now carry `look` and `yfov`),
+     or behind the spawn.
+  The probe now reports the background, the fog, the sun's default mark and a current camera, and the Godot legs hold
+  them: the couch has a default shadowed sun, its background and a camera; the bay no sun, its lamps and a camera.
+- 1031 (round 2 of the local Godot run): the five fixes held (no Godot error; the tangent warning gone; the see-through
+  meshes left without collision; the sun, background and camera right). The operator's eyes: the couch "is just a
+  rectangle". It is the test's stub, but it showed a real gap: **the cast left as markers**. An entity's node was empty
+  unless clips were asked for, and the handoff asked for none, so a level's heroes and foes reached the engine as empty
+  nodes. Fixed, with three findings of the round:
+  - The cast: the handoff asks `facesToGlb` for every clip, skinned (`clips: '_all', skinned: true`), so a rigged body
+    (a hero, a creature) leaves as its figure with its skeleton and clips on its entity's node, the node named as the
+    entity (`entity:<id>`, under the `handoff` flag) so the record's names hold; a primitive body (`mesh`: a box or a
+    sphere, `entityBodies`) leaves as its mesh in its colour on the entity's own node (`facesToGlb`'s new `bodies`
+    option), so moving the entity in the engine moves its body. The couch fixture's pilot is a rigged hero now (the
+    fast one: no head, low-poly) and the tests hold its skin and clips and the two bodies' meshes; the probe counts
+    skeletons, animation players and entity meshes.
+  - Parallax: at the relief's own depth (millimetres) Godot's parallax reads as nothing (the operator rendered it on and
+    off: a mean difference of hundredths of a level). The height map stays bound but off; the normal map carries the
+    relief, and a developer turns the parallax on.
+  - Fog: the page's fog is exp², Godot's exponential; the importer now takes the density × √(ln 2), so the half-fog
+    distance is the page's (at room scale the two were already close; outdoors the raw density read far hazier).
+  - The test's `line.sky` assertion was stale after the background fix (a level with a background and no sky has no
+    sky); the local agent's correction is the branch's.
+- 1101, round 3 of the local Godot run, and the terrain shader (the operator's local agent, Godot 4.7.2):
+  - Round 2's fixes held: the couch's hero arrives skinned with its clips (1 skeleton, 1 animation player), its box
+    bodies as meshes on their entities' nodes (2), no error in either import.
+  - A trail had never been through the Godot legs; its import raised a script error: the form read's sky is sRGB bytes
+    (`[52, 122, 214]`) where the importer expects hex. The record's sky is now hex (`environmentOf`), and every Godot leg
+    now fails on any `SCRIPT ERROR`, `SHADER ERROR` or importer error anywhere in its import or probe log.
+  - Godot drops a glTF application attribute (`_SPLAT` never reached the mesh) but imports `TEXCOORD_2` and `_3` as
+    `CUSTOM0`. `addFormInstances` now writes, on a layered part with no UVs of its own, `TEXCOORD_2` and `_3` as VEC2
+    views of `_SPLAT`'s own bytes (its view strided 16) and `TEXCOORD_0` = `TEXCOORD_1` as a VEC2 view of POSITION's
+    (strided 12: the plan's x and y in metres), since glTF's sets count up from 0: no byte added to the buffer.
+  - The terrain's read grows to what the page's fragment reads: `atlas.cells` names the atlas's seven layers
+    (`ATLAS_LAYERS`, land-read.js; it was the count of `keys`, the ground classes, seven only by coincidence), the
+    bases (path, clay, stone, under), green, moss, the dress, the wet line, the path's mask and the grass's cover placed
+    on the plan, and `GROUND_PARALLAX`; the dice, the mask and the cover leave as images beside the atlases.
+  - `handoff-godot/handoff_terrain.gdshader`: the page's `layeredGround` fragment ported line for line (every layer,
+    the path's feathered edge, the trail's dirts, patches and dust, the ledges' dirt, the moss, the undergrowth, the
+    scree's dice, the ground's parallax kinds, every near march, the wet line), in the mesh's own space (mojulo's z-up:
+    the GLB's root turns it). The importer binds one ShaderMaterial to every part `terrain.parts` names. A
+    `Texture2DArray` built in the post-import script does not survive the imported scene's save (its images reload
+    null), so the atlases ship with a `.import` naming Godot's own `2d_array_texture` importer (3 × 3, lossless,
+    mipmapped); the dice, mask and cover with `keep`, read raw so the mask's packed bytes stay exact. The dice is read
+    flipped (the page loads it as an image), the arrays and the mask not (the page's are data textures).
+  - Held to the page at two shots (the `island` camera and a close one at the spawn; the page in headless Chrome by its
+    capture bridge's `frame`): the same strata, cliff band, cracked patch, pebbles, scree and stones in the same places.
+    The environment then moved to the page's: the tone linear (the page's is Khronos neutral, which Godot lacks: equal
+    below its shoulder, ~0.76; its toe's 0.04 off the darks remains a difference), the ambient the solve's alone
+    (`ambient_light_sky_contribution` 0) with no sky reflection, the fog's colour the one the page shows (three mixes it
+    after sRGB encoding by its linear values) and the sky clear of it, the sky's ground the horizon's colour (Godot's
+    default grey band is gone). Measured after: the close shot's rock 216,198,168 against the page's 206,185,148, the
+    sky 151,186,231 against 166,198,235.
+  - Left (the next fixes): the sea is the painted sheet, a finite square whose edges show from the island camera, and
+    translucent over the cliff's cut faces below the waterline, where the page fades its sea by depth: the sea as the
+    engine's own water from `form.land.depth`. The dunes' and the snow's layers stay the page's. A painted face (the
+    trail's ribbon) is albedo under the engine's light where the page draws it unlit, by design.
+- 1101, the sea as the engine's own water:
+  - `seaPlane(land)` (handoff.js): where the land has a depth map, a bed and a water height (as the page draws its sea),
+    one quad `form:sea` at `waterZ` over `seabed`'s x and y, its material lit, its colour the sea's base (linear),
+    its roughness the water class's, `BLEND` at `SEA_OPACITY` (0.9), and `extras.mojulo.sea` its depth map (an image,
+    the map's red the depth over `max`), placed on the plan (`origin`, `metres`), `max`, `z`, `opacity`. `landHides`
+    now drops the painted water too where the plane stands; without a depth the sea stays the painted one, as before.
+  - `handoff-godot/handoff_sea.gdshader`: the page's sea ported: the base colour lit (Lambert), roughness, alpha the
+    opacity times `smoothstep(0, max, depth)` on the map and 1 off it, no depth written; the sky in its reflection as
+    the page's dome (horizon to zenith by `pow(max(0, R.z), 0.6)`) at Schlick's Fresnel (F0 0.04), added as emission
+    (the environment's own reflections are off, as on the land). The importer binds it to the plane `sea.part` names,
+    the zenith and horizon from the level's sky; the plane casts no shadow and takes no collision (it is see-through).
+    The probe reports `sea` and `sea_depth`; the trail's Godot leg holds them.
+  - The fog: Godot's exponential fog, matched to the page's exp² at its half distance only, lay three times as thick at
+    mid distance (0.18 at 60 m against 0.06). Godot's depth fog is `smoothstep(begin, end, d)^curve × density`
+    (checked in a render: 0.304 measured where it predicts 0.30); at begin 0, end 1.92 / ρ, curve 0.8, density 1 it
+    follows 1 − exp(−(ρd)²) within 0.03 at every distance.
+  - Held to the page at the two shots: the cliff below the waterline no longer shows through, the shore fades as the
+    page's. The near sea 84,163,204 against the page's 57,169,220 (the red mostly Khronos neutral's toe, as on the
+    land). Left: from the island camera a faint line where the shallows' floor ends under the open sea (the 10% the sea
+    lets through shows the floor inside it and the sky beyond it); the page shows none.
+- 1101, phase 5's door, for Godot:
+  - `export_model { engine: 'godot', what? }` (`sketch-model-export.js` `engineExport`, `MODEL_ENGINES`): resolves the
+    handoff (`what` 'level' by default, or 'asset') and writes it with `writeHandoffGodot` to `<ref>/godot-handoff/`
+    (the registry's new `handoff` folder per engine; the old game pack keeps `<ref>/godot/` until the cull). Returns
+    the files written and kept, the bytes, the ledger's `carried` and `stays`, the level's counts (markers, seats,
+    contract, environment, reference), the editor and gate commands, and a note naming only the shaders the level
+    has. `engine` is its own export: beside a `format` it refuses, as an unknown engine or `what` does.
+  - Run end to end: a trail through the door into a scratch outcomes folder, its gate command run as returned in Godot
+    4.7.2: a clean import, the probe's terrain (8 parts, 9 layers, the path), sea, sky, sun, 52 markers and a camera.
+  - The desktop app's packager skipped only export_game's engine folders: export_model's (`unreal/`, `blender/`, now
+    `godot-handoff/`) under the same outcome folder were packed into the app. `ENGINE_HANDOFF_DIRS` joins the skip.
+  - The surface: the description holds under its pin (2281 of 2285: the fidelity sentence tightened to pay for the
+    engine's); the two schema properties raise the tools/list pin 212,500 -> 212,800 (measured 212,719), said in the
+    pin's comment; the share-game card points a team's Godot level at the door, and a routing-eval row holds it.
+  - Next in phase 5: Unity, Unreal and Blender on `engine` as their adapters land (phase 7), `format: 'unreal'` folded
+    into `engine: 'unreal'`, and every pointer to the old engine targets rewritten (`context.js`'s engine paragraph,
+    the share-game card's `export_game` targets, the holdout's "export it all to Godot").
+- 1101, the rest of phase 5:
+  - `engine` takes 'godot' | 'unreal' | 'blender' (`MODEL_ENGINES`). 'unreal' is the Unreal asset pack, lit unless
+    `lit: false` (the handoff's materials are the engine's to light), `what` 'asset' only (a level refuses, pointing at
+    Godot); 'blender' the Blender pack (`what` refuses: the pack is the world as it stands). `format: 'unreal'` and
+    `'blender'` leave the schema and the description for `engine`; the handler still takes them, the same packs (the
+    Unreal one unlit unless asked, as before), for the calls and plan steps that name them. Unity is not on `engine`:
+    its adapter is phase 7's; until the cull its runtime leg is `export_game`'s, unadvertised.
+  - A game on `engine: 'godot'` hands off every level its manifest names (`normalizeGameManifest`), each its own
+    project under `<game>/godot-handoff/<level>/`; the game itself (its rules, menu, score, the flow between levels)
+    is the web build's. One project per level is this slice; a game as one project with a scene per level is later.
+  - `export_game`: its description ends on the web build being the game and a team's engine taking levels and assets
+    through `export_model { ref, engine }`; the schema's `target` is `web` | `desktop` and `posture` (engine packs
+    only) leaves it; the handler still takes godot / unity / roblox until each is culled. Its Unreal refusal points
+    at `engine: 'unreal'`.
+  - Pointers rewritten: the share offer's Godot option (`export_model({ ref, engine: 'godot' })`, its levels for a
+    team), the share-game card (its name, `when`, body), `tool-lines.js` (export_model's and export_game's lines),
+    `context.js`'s export dispatch and its Unreal pointer, the vocab cards (beats-world-audio's "in Godot" now says
+    the handoff carries no audio yet; blender-film, terrain and dungeon on `engine: 'blender'`), the Unreal pack's
+    own pointers, the registry's comment. The routing holdout's "godot project" request adds `export_model` to its
+    accept set (re-pinned, said why); the forward_context cells stay under their ceiling by the dispatch naming only
+    `engine`. Left for phase 9 (the copy): `SERVER_INSTRUCTIONS` and `get_substrate`'s engine paragraph, which still
+    describe the translations, the README, the docs and the manifests.
+- 1101, phase 6, the cull (one commit per engine: Roblox, Unity, Godot; about 38,000 lines):
+  - Roblox: the Luau kernel and place, its gate, look, marks, pack and project, export-roblox.mjs, its conformance
+    corpora (and the levelcast corpus and level-conformance's cast section only it ran), the Rojo and Lune workers.
+    A stored `intent.target: 'roblox'` is retired (`RETIRED_TARGETS`): read as none, no advice, the row resolves.
+  - Unity: unity-project.js whole (its data pack, its C# runtime and its importer, MojuloImport.cs: the operator chose
+    a fresh adapter for phase 7 over keeping one tied to the runtime's layout), unity-pack.js, export-unity.mjs,
+    operator-guide's screenSection. `findUnity` stays for that adapter's gate. Unity was never an intent target.
+  - Godot: the kernels, the runtime modules, the conformance infrastructure, the old .gd probes and CLIs, and the
+    modules only the runtime used (engine-audio, materials-gate, engine-portability, bus-abi, figure-gate,
+    brickster-replay). With no engine running a game, the per-engine marks go: the registry keeps `godot` (the
+    handoff's folder and `MOJULO_GODOT`), `unreal` and `blender`, no marks, no `MARKED_ENGINES` / `DEFAULT_ENGINE`;
+    the cosmos measures what the web build makes (the facets' and foes' marks, `dryRun().engines`, the sweep's engine
+    survive counts and ladders, the hillclimb page's engine columns gone; its verdict totals unchanged, 233/131/136
+    random, 369/50/81 near the probes); the foe cast sheet's Engines block goes. `intent.target` is inert ('godot'
+    joins the retired; any other target refuses); design_game drops the target step; a world that carried a target
+    loses the bible's target paragraph.
+  - `export_game`'s engine targets refuse together (`RETIRED_GAME_TARGETS`), pointing at `export_model { engine }`;
+    `posture` and the engine-pack era refusal go. The desktop packager still skips an old outcome's godot/, roblox/
+    and unity/ folders (the package.json bytes unchanged).
+  - The humanoid's real-Godot check is ported (`export-model.godot-humanoid.test.js`, `scripts/godot-humanoid-probe.gd`):
+    export_model's humanoid GLB with godot-humanoid's BoneMap, `.import` and import script, imported twice and probed
+    (GeneralSkeleton, Hips, the flat GLB's clips, its posed heads against the page's within 2e-3 at Godot's 30 fps bake
+    keys, each profile bone against the flat bone). Lost: keys off the bake (the runtime pack baked at 36 fps), and the
+    runtime scene's idle clip and turn. CI's `godot` job runs it and `handoff-godot.test.js`; `test:godot`
+    auto-discovers the `MOJULO_GODOT` suites.
+  - Pins: the engine-score snapshot drops the retired runtime's ledger row (no kept export emits the score); the
+    workbench card's pin shrinks; the agent-facing copy only shrank (get_substrate's engine paragraph 647 -> 520 bytes,
+    now the handoff). No recipe's export bytes changed.
+  - Left for phase 9: README, CONTRIBUTING and docs/ prose (some link to deleted files); level-equivalence.js still
+    describes the Godot twin though only `faceGround` is used outside it.
+- 1102, phase 7, every engine an adapter (each built against its real engine on the operator's machine, each a pack a
+  re-handoff replaces under the developer's own scene, each held to the World page at the same two trail cameras):
+  - Blender 5.2 (`handoff-blender.js`, `<ref>/blender-handoff/`): Principled materials, the layered ground ported to
+    nodes (not the marches; Blender's Voronoi for the parallax kinds), the sea, the World (the dome to the camera, the
+    solve's ambient to every other ray), exp² haze by depth, Khronos PBR Neutral; `level.blend` the artist's, mojulo's
+    tagged collections rebuilt. A world's fire rides along (the art pack's writer), so `fire_t` stays on `engine`;
+    `format: 'blender'` keeps the art pack and forge_motion's film is untouched. Units measured: a sun of strength S
+    lights white to S/π (the record's intensity in directly), a point of power P to P/(4π²d²) (P = 4π × the lamp's).
+  - Godot, found by Blender's round: the importer took a lamp's glTF intensity (π × level) as its energy; a lamp now
+    gets its level, as the sun does (the bay's brick 54,64,80 -> 33,40,51, the page's 26,41,61).
+  - Unreal 5.8.2 (`handoff-unreal.js`, `<ref>/unreal-handoff/`): a UE5 project (Lumen, SSR, auto-exposure and bloom
+    off), Interchange through mojulo's pipelines (Nanite off: its fallback cracked the cut cliff), a lit master's
+    instances, the Godot fragment as a Custom node over texture arrays (the face side by TwoSidedSign), the sea, a
+    post-process material applying Khronos PBR Neutral, the sRGB encode and the exp² haze; mojulo's sublevel rebuilt,
+    the developer's `/Game/Level` streaming it kept. Units by readback: lux = intensity, candela = glTF intensity,
+    the SkyLight the ambient. `engine: 'unreal'` without `what` now hands a walkable world off as a level, a thing as
+    the asset pack (unchanged). Stills from the editor offscreen (a commandlet never ticks the SkyLight).
+  - Unity 6000.2 (`handoff-unity.js`, `<ref>/unity-handoff/`): URP 17.2 and glTFast 6.20, `Assets/Mojulo/` replaced
+    whole with path-derived GUIDs, Mojulo/Lit, /Terrain (the Unreal fragment), /Sea, a full-screen pass applying
+    Khronos PBR Neutral, the encode and the haze (URP's Neutral is not Khronos's); mojulo's scene rebuilt and loaded
+    additively by the developer's `Level.unity`. Units by readback: sun and lamps at intensity / π, three's window.
+  - Held to the page (close shot / island shot): every engine within a few levels a channel on the rock, the ground
+    and the sky; Unity the nearest (about 5). Open, shared by the ports: the near sea 15 to 30 levels darker than the
+    page; the page's shaded cliff darker than every engine's (its contact occlusion, which the handoff does not
+    carry); the bay's indirect light, baked on the page, which no engine's lamps reproduce (the brick far darker in
+    all four). CI runs only Godot's leg; Blender's, Unreal's and Unity's are local, advisory, with `MOJULO_BLENDER`,
+    `MOJULO_UNREAL`, `MOJULO_UNITY`.
+- 1102, phase 8, the visual gate (`visual-gate.js`, `visual-gate-run.js`, `scripts/visual-gate.mjs`):
+  - The page framed exactly: the hand comparisons of phase 7 cropped the page's 1120×780 canvas in a 1280×720 window
+    (780/720 = 1.083× closer, ~30 px lower: the measured 1.087× and 26 px; `pictureCenter` was never read). A
+    capture-only `captureSize` on `emitThreeWorld` sizes the canvas from the first layout (zero bytes absent); the
+    driver checks each still through the bridge's `view()`. Every phase 7 page-vs-engine number was taken through that
+    crop: read them as content-matched approximations.
+  - Shots: camera markers, the shoot plan's shots at their first frame (roll not applied), explicit poses. Score:
+    SSIM on luminance over a box-filtered image (each renderer's anti-aliasing read alike), CIEDE2000 mean / p95 /
+    max, a 4×3 grid with the worst cell, a blank flag. Advisory; exit 0 unless it crashes.
+  - First run (SSIM / mean ΔE; Godot, Blender, Unreal, Unity): trail island .933/4.2, .962/2.9, .967/2.5, .976/2.1;
+    trail wide .890/4.7, .893/3.0, .918/2.4, .930/1.9; trail close ~.70/3-4.4 all four (fine texture; the page's hero
+    posed, the engines' at rest); trail top ~.71/3.6-4.6, Blender .415 (its parallax-kind Voronoi); trail seam .86/2.4
+    Blender, ~.67/19-22 the rest; bay ~.72-.80 / 6.5-8.4.
+  - Leads for the eyes gate, from the run: the `seam` camera stands in the hero's head, and Godot, Unreal and Unity
+    draw its insides (two-sided figure materials, likely); the page drops the cracked-earth network at distance where
+    every engine keeps it; the bay's lamps make specular spots and white windows the page's baked light has not; a
+    near wall the page cuts away; Unity's bay the darkest; Godot's faint line where the sea meets the far shallows.
+- 1102, phase 9, the copy: get_substrate's ladder (what each adapter carries), the README's opening, "Where it goes" and
+  the kart-racer's export, control/README, README-OUTLINE, CONTRIBUTING's engine section, CLAUDE.md, SECURITY.md, the
+  docs (AGENT-REFERENCE, tech-requirements with an adapter table, tour, ursa — its L3 now "hands off", an attestation
+  that each engine's import probe found the level's record: the operator to confirm it fits the standard — foes,
+  emote-bridge, realistic-body, local-voice-worker, mcp-integration), the plugin, marketplace, glama and package
+  descriptions, two HUD cards, the retired kernels' readers' headers; every dead link in those files fixed. No pin
+  moved. Left: sixteen dead links in vocab cards under control/lib (plan paths, a moved module), not this theme's.
+- Open after phase 9 (each a lead, measured by the machine gate, for the eyes gate; the seam camera's figure and the near
+  sea were fixed in the tightening round below): the page's contact occlusion and a
+  room's baked bounce not carried; the page dropping the cracked earth at distance; Blender's parallax kinds on its own
+  Voronoi; the dunes' and snow's layers, the files beside the handoff (the soundtrack, the sound effects) and the
+  handoff ledger replacing the marks, still to build.
+
+- 1102, after phase 9, four of its open leads closed (the visual gate before and after, trail and bay, all four engines; the page
+  rendered from the merged 1026-consolidated, its stills brighter than phase 8's, so the before numbers are this run's):
+  - The seam: not the materials' sides. The page draws the dummy walker double-sided too (channels/walkers.js,
+    MeshBasicMaterial DoubleSide); at the gate's t = 0 it stands in its walk's first frame, the head 8 cm lower than
+    the rig's rest, and every wall of it round the camera falls inside the near plane (rays through the frustum: all
+    hits 0.02-0.10 m; at the GLB's rest, up to 13 layers past 0.1 m). Blender's importer holds the first clip, which
+    is why it matched. `figureStands` (handoff.js): the clip whose first frame the page stands each rigged figure in
+    (a walker its walk, a body its idle clip where it has one, else none: the rest), carried as handoff.json's `stands`;
+    Godot's post-import, Unity's importer and Unreal's (a single-node animation held at 0) stand them so. No GLB
+    byte moves for it. Seam SSIM / ΔE before -> after: Godot .677/21.8 -> .858/7.2 (the rest is Godot's sky, a deeper
+    blue than the page's), Unreal .671/19.8 -> .877/3.1, Unity .665/20.0 -> .878/2.6, Blender .858/2.9 unchanged; close
+    .686 -> .697 in Godot, Unreal and Unity.
+  - The near sea: the envMap's diffuse. Measured on the page: the sea with three's IBL irradiance zeroed falls to
+    Unreal's and Unity's patch within 5 levels (island near sea 43,167,223 -> 38,154,194; Unreal 39,158,199). Three's
+    PMREM read for an up normal on the page's dome is the horizon 0.726 of the way to the zenith (the cosine-weighted
+    2/2.6 = 0.769 overstates it): `SEA_SKY_SHARE`, and seaPlane writes `irradiance` (linear) into the sea's record
+    (the handoff GLB's sea extras and every adapter's `read`). Each port adds base × irradiance × (1 - Fresnel) to its
+    emission. Island near sea (page 47,173,232): Godot 87,164,206 -> 86,178,237, Blender 75,159,200 -> 75,173,232,
+    Unreal 39,158,199 -> 43,173,232, Unity 39,160,202 -> 44,175,235; wide's right sea (page 64,173,230): Unreal and Unity
+    63,164-166,205-208 -> 65,176-177,231-235. Godot's and Blender's red stays ~30-40 high: their haze mixes in linear
+    light before the tone curve, the page's after the encode (a haze lead, not the sea's). Island mean ΔE 6.3/5.3/5.5/5.2
+    -> 6.2/4.8/4.3/4.1.
+  - Godot's line: Blender, Unreal and Unity make the sea whole off its depth map (the page's deep floor is not carried);
+    Godot let 10% of its sky through there. Godot now does the same; what is left is 1-3 levels where the map's deep
+    water has no floor under it.
+  - The bay unchanged in every engine (no sea, no figure). The handoff GLB moves only by the sea's `irradiance`; no pin
+    is on it. Sixteen dead links in vocab cards under control/lib fixed or dropped (plan links dropped, text kept), and
+    three plan links in mcp/tools/cad-aid.plan.md; no pin moved.
+- 1102, the review round (a code review of origin/1026-consolidated...HEAD; the visual gate before and after, trail and
+  bay, all four engines):
+  - The door: `export_model { engine }` dispatches before every format's leg, so `format: 'bundle'` (or ifc, sheets,
+    schedules, bom) beside an engine is refused, never silently taken. One table of the four adapters
+    (`HANDOFF_ENGINES`: dials, write, own fields, commands, note, a game's line) replaces the four `handoff*To` and the
+    note ternaries; every result's fields and notes word for word as before (pinned in export-model.engine.test.js).
+  - A game's level, and any world, hands off its level record read off the level as it is played
+    (worlds/world-scene.js `levelSketch`, which resolveWorldScene now reads every world through): a building with
+    `level: { goal }` carried no contract before (its raw row has no `game`); now it carries the game's reach-exit.
+  - `handoff-common.js`: what every adapter writes alike (the instanced prefixes, the atlas cut, the height maps, the
+    terrain's layers, the sea, handoff.json's common fields, the pack writer, the sources); no adapter imports another.
+    Unreal's and Unity's terrain and sea are one HLSL source (`handoff-hlsl/`: the body and its noise), included by each
+    port's small wrapper at pack time (`// @mojulo-include`, deterministic). Unity's stills identical to the pixel,
+    Unreal's SSIM 1.0000, mean ΔE ≤ 0.02 still for still.
+  - The lamps' units: the room's lamps are π × the solve's level, display-referred (exposure 1, the sun's convention:
+    out = base × light), and the page lights them by its own windowed falloff, not three's PointLight; a kind's own
+    lights (pot lights, 400 cd) are physical candela for an engine's exposure. Two conventions, so the GLB stays;
+    handoff.json carries `lamps` (their GLB node names) and Godot, Blender and Unreal light by the list, not by a
+    name's substring (Unity lights every point light one way already). The bay identical in all four engines.
+  - The gate: still names unique as files (`shotKey`); the page's sky and plants clocked by the capture under
+    `capture` (form-sky.js, form-flora.js; frame() pins `__mojClock` on a form page): every trail still stable at 3
+    frames (4 of 5 never settled before), two runs within 0.06 % of pixels; no non-capture page byte moved. Engine
+    projects kept between runs, stamped with their pack's key: an unchanged pack skips its import (the trail again:
+    Unity 141 s -> 8 s, Unreal 475 s -> 77 s), `--fresh` rebuilds, a game's levels share one project per engine.
+  - Plan paths dropped from tracked comments, cards and docs (about 1,000); the ones left sit inside emitted strings,
+    serialized kernels or exported cards. No pin moved; outside the handoff, no bytes.
+- 1102, CI on the PR: the plugin's description and README edits (phase 9) wait for the release, which raises its version
+  (check-plugin-version refuses a changed plugin at the released version); land-read.char re-pinned to the hash CI's
+  Node 22 runners agree on, the merged candidate's land read having changed the payload.
