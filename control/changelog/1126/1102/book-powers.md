@@ -418,3 +418,6 @@ its resource, put on a look and showed a toast. This theme makes them act.
   - **`check: true`:** walks and photographs each level as before. The game order still carries its audit, so no
     print moves and no game made before is remade.
   - **The cost:** the tool list grows by the `check` key, under its payload pin.
+- **The streamlined core's clothes stand where they did.** A clothed child's cuffs and wraps move to the nearest ring
+  its limb has, on the structured core only. The deprecated streamlined core finds a cuff between its rings as it always
+  did, so its pinned plans are byte for byte as before (`polygonizer/hero-dress.js`).

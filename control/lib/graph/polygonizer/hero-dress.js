@@ -360,7 +360,8 @@ export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette 
   if (detail === 'clothed') dropPectorals(plan);
   const ctx = dressContext(plan.style, scale, plan, laws);
   if (detail === 'swimsuit') swimsuit(plan, figure);
-  else if (wantDetail) plan.body = typeof detail === 'string' ? onOwnStations(clothedBody(ctx), plan) : detail;
+  // (on the structured core, whose limbs a child's form re-rings; the deprecated streamlined core's cuffs as they were)
+  else if (wantDetail) plan.body = typeof detail === 'string' ? (ctx.pelvis ? onOwnStations(clothedBody(ctx), plan) : clothedBody(ctx)) : detail;
   // an armour build expands on every read into a kit (armor/expand.js), from the register's ring halves and the scale
   // (`with`: a kit worn over the build, after it; a head piece in it (on the cranium: a helmet, a mask) replaces the
   // armour's own helm)
