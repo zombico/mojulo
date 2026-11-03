@@ -23,7 +23,11 @@ const SLID = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.fi
 const LEVEL = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].poses).some((p) => Object.values(p).includes('level')));
 const GROUNDS = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].poses).some((p) => Object.values(p).filter((v) => v === 'ground').length > 2));
 const SCALED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.some((e) => CON_ODM[e.sku].dims.scale));
-const MACHINES = [...new Set([ID, SWEPT, ROCKER, SWAPPED, SLID, LEVEL, GROUNDS, SCALED])];
+// (a ram of nested stages, a tipper's hoist; a body turning freely on a hinge, a mixer's drum; a load it carries)
+const TELESCOPED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.some((e) => (CON_ODM[e.sku].dims.stages ?? 2) > 2));
+const SPUN = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].joints).some((j) => j.kind === 'hinge' && !j.ram && !j.linkage));
+const LADEN = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].laws.payload);
+const MACHINES = [...new Set([ID, SWEPT, ROCKER, SWAPPED, SLID, LEVEL, GROUNDS, SCALED, TELESCOPED, SPUN, LADEN])];
 const ctx = machineCtx(ID), arch = ctx.arch;
 const near = (a, b, tol = 1e-6) => a.every((v, k) => Math.abs(v - b[k]) < tol);
 // (a point is 'body.hardpoint', the hardpoint's own name may hold a dot: 'rear.wheel.r')
@@ -53,6 +57,14 @@ describe.each(MACHINES)('%s: the chain holds together at every named pose', (mac
       for (const b of pairs.filter((s) => s.kind === 'barrel')) {
         const rod = pairs.find((s) => s.item === `${b.item}.rod`);
         expect(near(apply(b.frame, [0, b.length, 0]), rod.frame.t, 1e-9), b.item).toBe(true);
+        // (a telescopic ram's stages along its barrel, each overlapping the tube outside it and the next inside it)
+        const P = ramParts(ctx.row(ctx.entry(b.id).sku).dims), stages = pairs.filter((s) => s.item.startsWith(`${b.item}.s`));
+        const at = (s) => s.frame.t.reduce((v, x, k) => v + (x - b.frame.t[k]) * b.frame.R[k][1], 0);
+        const tubes = [[0, P.barrel], ...stages.map((s) => [at(s), at(s) + P.stage]), [b.length - P.rod, b.length]];
+        for (let k = 1; k < tubes.length; k++) {
+          expect(tubes[k][0], `${b.item} ${k}`).toBeGreaterThan(tubes[k - 1][0]);
+          expect(tubes[k - 1][1] - tubes[k][0], `${b.item} ${k}`).toBeGreaterThan(stages.length ? 0.05 : 0);
+        }
       }
     });
   }
@@ -72,8 +84,9 @@ describe('a joint\'s range is its ram\'s', () => {
   });
   it('the rod stays in its barrel at full stroke and clear of its base closed', () => {
     for (const row of Object.values(CON_ODM).filter((r) => r.kind === 'con-ram')) {
-      const P = ramParts(row.dims);
-      expect(row.dims.closed + row.dims.stroke - P.rod).toBeLessThan(P.barrel);
+      const P = ramParts(row.dims), n = row.dims.stages ?? 2;
+      // (a telescopic ram's barrel, stages and rod reach past full stroke, each still in the one outside it)
+      expect(row.dims.closed + row.dims.stroke - P.rod - (n - 2) * (P.stage ?? 0)).toBeLessThan(P.barrel - (n > 2 ? 0.05 * (n - 1) : 0));
       expect(row.dims.closed - P.rod).toBeGreaterThan(0);
     }
   });
@@ -105,7 +118,7 @@ describe.each(MACHINES)('%s as built', (machine) => {
   it('holds every law it is held to, and its bill of materials', () => {
     const { readout } = assembleMachine(machine);
     expect(readout.laws.laws.filter((l) => !l.ok)).toEqual([]);
-    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['transport', 'mass', ...(CON_ARCHETYPES[machine].laws.groundPressure ? ['groundPressure'] : []), ...Object.keys(CON_ARCHETYPES[machine].laws.measure ?? {})]));
+    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['transport', 'mass', ...(CON_ARCHETYPES[machine].laws.groundPressure ? ['groundPressure'] : []), ...(CON_ARCHETYPES[machine].laws.payload ? ['volume', 'payload'] : []), ...Object.keys(CON_ARCHETYPES[machine].laws.measure ?? {})]));
     expect(readout.audit.ok).toBe(true);
   });
 });
@@ -234,5 +247,22 @@ describe('the door\'s swaps', () => {
     const made = composeMachine(base, { carrier });
     expect(CON_ARCHETYPES[made].carrier).toBe(carrier);
     expect(assembleMachine(base, { carrier }).manifest).toEqual(assembleMachine(made).manifest);
+  });
+});
+
+describe('a hauler', () => {
+  it('turns a body on a free hinge as far as it is told, unclamped, a pose moving the body and never its parts', () => {
+    const arch = CON_ARCHETYPES[SPUN], [name] = Object.entries(arch.joints).find(([, j]) => j.kind === 'hinge' && !j.ram && !j.linkage);
+    expect(rangeOf(arch, name, machineCtx(SPUN))).toBe(null);
+    const a = assembleMachine(SPUN, { pose: { [name]: 720 } }), b = assembleMachine(SPUN, { pose: { [name]: 0 } });
+    expect(a.readout.clamped).toBeUndefined();
+    const body = arch.layout.find((e) => e.joint === name).id;
+    expect(a.manifest.items.map((i) => i.source)).toEqual(b.manifest.items.map((i) => i.source));
+    expect(near(a.manifest.items.find((i) => i.id === body).at, b.manifest.items.find((i) => i.id === body).at, 1e-6)).toBe(true);
+  });
+  it('carries its rated payload in its body: the weight off it as built, its material filling its volume', () => {
+    const { readout } = assembleMachine(LADEN), L = Object.fromEntries(readout.laws.laws.map((l) => [l.id, l]));
+    expect(CON_ARCHETYPES[LADEN].laws.massShift).toBe(-CON_ARCHETYPES[LADEN].laws.payload.kg);
+    expect(L.payload.ok && L.volume.ok).toBe(true);
   });
 });

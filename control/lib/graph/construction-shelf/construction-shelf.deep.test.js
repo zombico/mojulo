@@ -39,7 +39,8 @@ describe.each(MACHINES)('%s', (id) => {
   it('assembles at every named pose, its laws read', () => {
     for (const pose of Object.keys(arch.poses)) {
       const { manifest, readout } = assembleMachine(id, { pose });
-      expect(manifest.items.length, pose).toBeGreaterThan(arch.layout.length);
+      // (each body an item, each ram's barrel, stages and rod items besides; a machine with no ram, a mixer, its bodies)
+      expect(manifest.items.length, pose).toBeGreaterThanOrEqual(arch.layout.length);
       expect(readout.laws.laws.length, pose).toBeGreaterThan(0);
       expect(readout.clamped, pose).toBeUndefined();
     }

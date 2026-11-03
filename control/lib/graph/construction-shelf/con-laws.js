@@ -16,6 +16,9 @@
  *   clearance       the tool never enters the cab over its joints' ranges
  *   transport       its width and its height folded for shipping (its `transport` pose), against a road's limits
  *                   (advisory)
+ *   volume, payload a hauler's body's struck volume (a drum's gross volume) and its material's mass in it (a drum's
+ *                   share) against its rated payload
+ *   wheelbase       its front axle to its rear axles' middle, as built, against its class's (a share off)
  *   measure.*       a point swept over the joints it names (`over`), the joints it holds at a share of their ranges
  *                   (`at`), the rest at the machine's rest pose: its highest (`take: 'max'`) or how far below the
  *                   ground it goes (`take: 'depth'`): a blade's lift and its drop, a ripper's depth, a loader's hinge
@@ -103,6 +106,24 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
   if (shoe && band.groundPressure) {
     const kPa = r1((physics.mass * G) / (2 * shoe * physics.wheelbase) / 1000);
     law('groundPressure', kPa, band.groundPressure, kPa >= band.groundPressure[0] && kPa <= band.groundPressure[1], 'its mass on its tracks\' length on the ground');
+  }
+
+  // ── the payload: its body's (or its drum's) volume, its material's mass in it against what it is rated to carry ──
+  if (band.payload) {
+    const P = band.payload, carrier = arch.layout.find((e) => ['con-body', 'con-drum'].includes(ctx.row(e.sku).kind)), d = ctx.row(carrier.sku).dims;
+    // (a body's struck volume inside its sides; a drum's gross volume turned from its profile, of which it carries a share)
+    const volume = d.profile && d.axis ? d.profile.reduce((v, p, i, a) => (i ? v + Math.PI * d.length * (p[0] - a[i - 1][0]) * (p[1] ** 2 + p[1] * a[i - 1][1] + a[i - 1][1] ** 2) / 3 : v), 0) : d.length * (d.width - 0.1) * d.side;
+    law('volume', r1(volume), P.volume, volume >= P.volume[0] && volume <= P.volume[1], d.profile ? 'its drum\'s gross volume' : 'its body\'s struck volume');
+    const carried = volume * (P.share ?? 1) * P.density * 1000, ratio = r2(carried / P.kg);
+    law('payload', ratio, P.band, ratio >= P.band[0] && ratio <= P.band[1], `its ${P.material} filling what it carries (${Math.round(carried / 1000)} t) against its rated ${P.kg / 1000} t`);
+  }
+
+  // ── the wheelbase: its front axle to its rear axles' middle, as built, against its class's ──
+  if (band.wheelbase) {
+    const ys = arch.layout.filter((e) => ctx.row(e.sku).kind === 'con-wheel').map((e) => apply(rest[e.id], [0, 0, 0])[1]);
+    const front = Math.max(...ys), rear = ys.filter((y) => y < 0), wb = r2(front - rear.reduce((a, b) => a + b, 0) / rear.length);
+    const lo = r2(physics.wheelbase * (1 - band.wheelbase)), hi = r2(physics.wheelbase * (1 + band.wheelbase));
+    law('wheelbase', wb, [lo, hi], wb >= lo && wb <= hi, 'its front axle to its rear axles\' middle, as built, against its class\'s');
   }
 
   // ── the mass: every part's ──

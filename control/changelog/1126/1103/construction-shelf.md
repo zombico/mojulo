@@ -265,3 +265,33 @@ push, load, haul and lift on a site.
     - The review renderer takes `--tool` and `--carrier`.
   - **Seen** (machine gate only, the eyes gate is open): the excavator with its breaker, its grapple and its auger;
     the skid steer with its forks and its sweeper; the wheeled excavator travelling.
+- **The haulers** (`con-haulers.js`): a truck chassis of the shelf's own, its cab and its axles, carrying a body on a
+  joint (a road truck's body cannot sit on a joint without changing its output, so the shelf's chassis is its own):
+  - **The 8x4 tipper truck:** two steered axles and two driven on twin tyres, its body tipped on a telescopic hoist
+    under its front. It tips through 50°. Its body holds 13.5 m³ struck: gravel to 1.15 times its rated 20 t. Its
+    wheelbase is 5.43 m, and it is 2.89 m wide and 3.3 m high for the road.
+  - **The 8x4 mixer truck:** the same chassis, its drum on its pedestal and rollers, turning freely about its tilted
+    axis (a hinge with no ram and no range), its hopper and its chute at its back. Its drum holds 14 m³ gross, and the
+    concrete it carries in its share of that is its rated 19 t.
+  - **The 30 t articulated dump truck:** a front frame (its cab, its axle) steered at its hitch by two rams through
+    90°, and a rear frame on two axles with the rock body on its two hoists. It tips through 70.8° and carries rock to
+    its rated 30 t.
+  - **The 100 t rigid haul truck:** its frame, its deck and stairs, its cab offset to one side, twin rear tyres, its
+    body's canopy over the cab and its body on a three-stage hoist. It tips through 48.4° and holds 69.4 m³.
+  - **The chain:** a telescopic ram, its stages nested between its barrel and its rod, each slid out its share of the
+    extension so that each overlaps the tube outside it equally at full stroke. A ram's lengths are the chain's
+    (`ramParts` moved to `con-chain.js`, unchanged for a two-stage ram). A hinge with no ram turns freely.
+  - **The laws:** a body's struck volume (a drum's gross volume, turned from its profile) and its material's mass in it
+    against its rated payload; the wheelbase as built against the class's; its tare, the class's loaded mass less its
+    payload (`massShift`).
+  - **The registry:** the tipper-truck, mixer-truck, articulated-dump-truck and haul-truck rows claim their machines,
+    asleep.
+  - **Held:**
+    - The law tests pick, in code, a machine with a telescopic ram, one with a free hinge and one with a payload. A
+      telescopic ram's tubes overlap at every named pose. A free hinge takes any turn unclamped and moves its body,
+      never its parts. A payload is the weight off the class's mass.
+    - The deep sweep walks the four haulers over their ranges and at every pose.
+    - The char test pins the truck chassis, its cab, the three bodies, the drum, the dumper's frames, the haul
+      truck's frame, the telescopic hoist and a stage of it, and the four machines. No existing pin moved.
+  - **Seen** (machine gate only, the eyes gate is open): the tipper tipped, the mixer's drum turning, the dumper
+    tipped and steered, the haul truck tipped.

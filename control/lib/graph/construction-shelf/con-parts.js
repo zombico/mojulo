@@ -16,6 +16,8 @@ import { add, box, extrudeWorld, loftWorld, mul, panel as rawPanel, roundRect, s
 import { bellcrank, liftArms, loaderBucket, loaderFront, loaderRear, skidChassis, wheel } from './con-wheeled.js';
 import { backhoeChassis, boomSection, canopyCab, carriage, forkChassis, houseMini, mastChannel, stabLeg, swingFrame, swingPost, teleChassis, wheeledExChassis } from './con-handlers.js';
 import { auger, breaker, forks, grapple, sweeper } from './con-tools.js';
+import { adtFront, adtRear, haulFrame, mixerDrum, tipBody, truckCab, truckChassis } from './con-haulers.js';
+import { ramParts } from './con-chain.js';
 
 const X = [1, 0, 0];
 /** A pin's boss across x at a point, `r` round, from x0 to x1 (a bushing, an eye). */
@@ -201,6 +203,7 @@ function ripper(row, C) {
 function cab(row, C, ctx) {
   // (an open canopy over the seat: a mini excavator's, a roller's)
   if (row.build.family === 'canopy') return canopyCab(row, C, ctx);
+  if (row.build.family === 'truck') return truckCab(row, C, ctx);
   const { w, l, h } = row.dims, extrudes = [], lathes = [], frame = tone(C.trim, 0.05), glass = C.glass;
   const y0 = -0.35, y1 = y0 + l;
   extrudes.push(plan('floor', 0, 0.08, [[-w / 2, y0], [w / 2, y0], [w / 2, y1], [-w / 2, y1]], frame));
@@ -328,13 +331,16 @@ function link(row, C) {
 }
 
 // ── a ram: its barrel from its base's eye (the barrel kind), its rod from its rod's eye (the rod kind) ──────────
-/** A ram's barrel and rod lengths: the barrel the closed length less its eye's, the rod the stroke and its piston's
- *  length (so at full stroke the piston is still in the barrel, and at closed the rod's end is clear of the base). A
- *  short ram's eye and piston are short with it: a fifth of its length at most, its piston no longer than leaves its
- *  rod's end 5 cm clear of the base. */
-export const ramParts = (d) => ({ barrel: d.closed - Math.min(0.12, d.closed * 0.2), rod: d.stroke + Math.min(0.2, d.closed - d.stroke - 0.05) });
+// (its lengths are the chain's, which slides its stages: con-chain.js ramParts)
+export { ramParts };
 function ram(row, C, { part = 'barrel' } = {}) {
   const d = row.dims, L = ramParts(d), lathes = [], extrudes = [], R = d.bore / 2 + 0.018;
+  if (part.startsWith('stage')) {
+    // (a telescopic ram's stage k: a sleeve a step narrower than the one outside it, its collar at its mouth)
+    const k = Number(part.slice(5)), r = R - 0.022 * k;
+    lathes.push(spin('stage', [0, 0, 0], [0, L.stage, 0], [[0, r - 0.006], [0.94, r - 0.006], [0.97, r + 0.006], [1, r]], C.chrome, 16));
+    return { lathes, hardpoints: { eye: [0, 0, 0] } };
+  }
   if (part === 'rod') {
     lathes.push(boss('eye', [0, 0, 0], -0.05, 0.05, d.rod / 2 + 0.035, tone(C.trim, 0.2)));
     lathes.push(spin('rod', [0, 0.04, 0], [0, L.rod, 0], [[0, d.rod / 2], [1, d.rod / 2]], C.chrome, 16));
@@ -360,7 +366,9 @@ export const CON_BUILDERS = Object.freeze({
   'con-blade': blade,
   'con-ripper': ripper,
   'con-wheel': wheel,
-  'con-chassis': (row, C, ctx) => ({ loaderRear, loaderFront, skid: skidChassis, forklift: forkChassis, telehandler: teleChassis, backhoe: backhoeChassis, wheeledEx: wheeledExChassis })[row.build.family](row, C, ctx),
+  'con-chassis': (row, C, ctx) => ({ loaderRear, loaderFront, skid: skidChassis, forklift: forkChassis, telehandler: teleChassis, backhoe: backhoeChassis, wheeledEx: wheeledExChassis, truck: truckChassis, adtFront, adtRear, haul: haulFrame })[row.build.family](row, C, ctx),
+  'con-body': tipBody,
+  'con-drum': mixerDrum,
   'con-tool': (row, C, ctx) => ({ breaker, grapple, auger, forks, sweeper })[row.build.family](row, C, ctx),
   'con-mast': mastChannel,
   'con-carriage': carriage,

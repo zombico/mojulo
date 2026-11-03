@@ -35,6 +35,8 @@ export const CON_KINDS = Object.freeze({
   'con-post': 'a front\'s swing post: a mini excavator\'s kingpin bracket, a backhoe\'s swing frame',
   'con-leg': 'a stabiliser leg: its arm, its pad on the ground',
   'con-tool': 'a tool in place of a bucket: a breaker, a grapple, an auger, pallet forks, a sweeper',
+  'con-body': 'a tipping body: its floor, its sides, its headboard (a haul truck\'s canopy), its tailgate, its hinge',
+  'con-drum': 'a mixer\'s drum, turned about its own axis',
 });
 
 const R = (kind, label, classOf, dims, mass, build, aliases = []) => Object.freeze({ kind, label, classOf, aliases, dims: Object.freeze(dims), mass, build: Object.freeze(build) });
@@ -160,6 +162,33 @@ const ROWS = {
   // ── the 19 t wheeled excavator's carrier ──────────────────────────────────────
   'chassis-wex19': R('con-chassis', 'wheeled excavator chassis', 'wheeled excavator 19 t', { slewZ: 1.35, twin: 0.34 }, 2900, { family: 'wheeledEx' }, ['wheeled carrier', 'wheeled chassis']),
   'wheel-wex': R('con-wheel', 'twin tyre, wheeled excavator', 'wheeled excavator 19 t', { r: 0.5, width: 0.3, rim: 0.26, lugs: 18 }, 100, { family: 'otr' }, ['wheeled excavator tyre']),
+  // ── the haulers: the 8x4 tipper, the 8x4 mixer, the 30 t articulated dump truck, the 100 t haul truck ──────────
+  'chassis-tp84': R('con-chassis', 'tipper chassis, 8x4', 'tipper 8x4',
+    { axles: [{ y: 3.2 }, { y: 1.85 }, { y: -1.55, twin: true }, { y: -2.9, twin: true }], rails: { w: 0.86, z: 0.95, h: 0.3, front: 3.9, rear: -4.3 }, cab: [0, 2.25, 1.15], tank: 0.6, tip: [0, -4.25, 1.3], tipRam: [0, 1.95, 0.6] },
+    7200, { family: 'truck' }, ['tipper chassis', 'truck chassis', 'eight by four']),
+  'cab-truck': R('con-cab', 'truck cab', 'truck', { w: 2.45, l: 1.95, h: 2.15 }, 1200, { family: 'truck' }, ['truck cab', 'cab over']),
+  'wheel-truck': R('con-wheel', 'truck tyre 315/80R22.5', 'truck', { r: 0.53, width: 0.31, rim: 0.29, lugs: 16 }, 110, { family: 'otr' }, ['truck tyre', 'truck wheel']),
+  'body-tp84': R('con-body', 'tipper body, 8x4', 'tipper 8x4', { length: 6.0, width: 2.35, side: 1.0, floor: 0.3, head: 0.3, sub: 0.45, ramEye: [0, 5.9, 1.0] }, 2600, { family: 'tipper' }, ['tipper body', 'dump body', 'tipping body']),
+  'ram-tip-tp84': R('con-ram', 'tipper hoist, 5 stages', 'tipper 8x4', { bore: 0.2, rod: 0.1, closed: 1.72, stroke: 4.95, stages: 5 }, 250, { family: 'telescopic' }, ['tipper hoist', 'tipping ram', 'telescopic ram']),
+  'chassis-mx84': R('con-chassis', 'mixer chassis, 8x4', 'mixer 8x4',
+    { axles: [{ y: 3.0 }, { y: 1.65 }, { y: -1.4, twin: true }, { y: -2.75, twin: true }], rails: { w: 0.86, z: 0.95, h: 0.3, front: 3.7, rear: -4.3 }, cab: [0, 2.05, 1.15], tank: 0.3, drum: [0, 1.75, 1.95], mouth: [0, -2.71, 3.05] },
+    7400, { family: 'truck' }, ['mixer chassis']),
+  'drum-mx8': R('con-drum', 'mixer drum, 8 m³', 'mixer 8x4', { axis: [0, -0.97, 0.24], length: 4.6, profile: [[0, 0.55], [0.08, 0.95], [0.32, 1.18], [0.55, 1.15], [0.85, 0.78], [1, 0.42]], capacity: 8 }, 3800, { family: 'mixer' }, ['mixer drum', 'concrete drum', 'barrel']),
+  'adt-front30': R('con-chassis', 'articulated hauler front frame, 30 t', 'articulated dump truck 30 t',
+    { hitch: [0, 0.4, 0], nose: 3.7, axle: 2.2, cab: [0, 1.1, 1.3], steerRam: [0.35, 0.6, 0.9] }, 8500, { family: 'adtFront' }, ['hauler front frame', 'tractor unit']),
+  'adt-rear30': R('con-chassis', 'articulated hauler rear frame, 30 t', 'articulated dump truck 30 t',
+    { axles: [-1.75, -3.45], tip: [0, -4.1, 1.55], steerEye: [0.5, -1.0, 0.9], hoist: [1.1, -3.0, 1.2] }, 6500, { family: 'adtRear' }, ['hauler rear frame', 'bogie frame']),
+  'cab-adt': R('con-cab', 'hauler cab', 'articulated dump truck', { w: 1.5, l: 1.55, h: 1.85 }, 900, { family: 'excavator' }, ['hauler cab']),
+  'wheel-adt': R('con-wheel', 'hauler tyre 23.5R25', 'articulated dump truck 30 t', { r: 0.8, width: 0.6, rim: 0.42, lugs: 22 }, 400, { family: 'otr' }, ['hauler tyre']),
+  'body-adt30': R('con-body', 'hauler body, 30 t', 'articulated dump truck 30 t', { length: 4.3, width: 2.9, side: 1.35, floor: 0.35, head: 0.35, sub: 0.5, open: true, ramEye: [1.1, 2.7, -0.3] }, 4500, { family: 'rock' }, ['hauler body', 'rock body']),
+  'ram-hoist-adt30': R('con-ram', 'hauler hoist ram', 'articulated dump truck 30 t', { bore: 0.16, rod: 0.1, closed: 1.6, stroke: 1.2 }, 180, { family: 'double' }, ['hauler hoist']),
+  'ram-steer-adt30': R('con-ram', 'hauler steer ram', 'articulated dump truck 30 t', { bore: 0.1, rod: 0.06, closed: 0.9, stroke: 0.55 }, 60, { family: 'double' }, ['hauler steer ram']),
+  'frame-haul100': R('con-chassis', 'haul truck frame, 100 t', 'haul truck 100 t',
+    { tip: [0, -3.2, 2.1], axleF: 2.3, axleR: -2.3, nose: 4.6, deck: 3.2, deckW: 6.0, cab: [-1.85, 3.0, 3.2], hoist: [1.1, -0.2, 1.4], twin: 0.75 }, 30000, { family: 'haul' }, ['haul truck frame', 'mining truck frame']),
+  'cab-haul': R('con-cab', 'haul truck cab', 'haul truck', { w: 1.6, l: 2.0, h: 1.55 }, 1500, { family: 'excavator' }, ['haul truck cab']),
+  'wheel-haul': R('con-wheel', 'haul tyre 27.00R49', 'haul truck 100 t', { r: 1.35, width: 0.7, rim: 0.65, lugs: 26 }, 2800, { family: 'otr' }, ['haul tyre', 'mining tyre']),
+  'body-haul100': R('con-body', 'haul truck body, 100 t', 'haul truck 100 t', { length: 5.7, width: 5.9, side: 2.1, floor: 0.4, head: 0.4, sub: 0.7, open: true, canopy: 2.3, ramEye: [1.1, 4.4, -0.6] }, 15000, { family: 'haul' }, ['haul body', 'mining body', 'dump body with canopy']),
+  'ram-hoist-haul100': R('con-ram', 'haul truck hoist, 3 stages', 'haul truck 100 t', { bore: 0.3, rod: 0.18, closed: 1.4, stroke: 2.2, stages: 3 }, 600, { family: 'telescopic' }, ['haul truck hoist']),
 };
 BASE = ROWS;
 Object.assign(ROWS, {

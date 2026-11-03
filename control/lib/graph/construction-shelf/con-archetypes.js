@@ -479,4 +479,108 @@ const WHEELED = withCarrier(ARCHETYPES.crawlerExcavator, 'wheels', {
   label: 'wheeled excavator', classOf: 'wheeled excavator 19 t', physics: 'wheeledExcavator', carriers: Object.freeze([]),
   laws: Object.freeze({ ...ARCHETYPES.crawlerExcavator.laws, groundPressure: undefined, depth: [5.6, 7.0], dumpHeight: [6.2, 7.9], cutHeight: [9.0, 10.9], lift: [1.5, 5], transport: { W: 2.6, H: 3.6 } }),
 });
-export const CON_ARCHETYPES = Object.freeze({ ...ARCHETYPES, wheeledExcavator: WHEELED });
+// ── the haulers ────────────────────────────────────────────────────────────────
+const twinWheels = (body, axle, sku) => ['ro', 'ri', 'lo', 'li'].map((w) => ({ id: `wheel${axle}${w.toUpperCase()}`, sku, on: `${body}.axle${axle}.${w}` }));
+const singleWheels = (body, axle, sku, as = axle) => ['r', 'l'].map((w) => ({ id: `wheel${as}${w.toUpperCase()}`, sku, on: `${body}.axle${axle}.${w}` }));
+const HAULERS = Object.freeze({
+  // an 8x4 tipper: its chassis on two steered axles ahead and a twin-tyred tandem behind, its cab over the front axle,
+  // its body tipped about its tail by a five-stage telescopic hoist behind the cab
+  tipperTruck: Object.freeze({
+    label: 'tipper truck',
+    classOf: 'tipper 8x4',
+    physics: 'tipperTruck',
+    palette: 'municipalOrange',
+    joints: Object.freeze({ tip: Object.freeze({ kind: 'hinge', ram: 'tipRam', near: 10 }) }),
+    layout: Object.freeze([
+      { id: 'chassis', sku: 'chassis-tp84' },
+      { id: 'cab', sku: 'cab-truck', on: 'chassis.cab' },
+      ...singleWheels('chassis', 0, 'wheel-truck'), ...singleWheels('chassis', 1, 'wheel-truck'),
+      ...twinWheels('chassis', 2, 'wheel-truck'), ...twinWheels('chassis', 3, 'wheel-truck'),
+      { id: 'body', sku: 'body-tp84', on: 'chassis.tip', joint: 'tip' },
+      { id: 'tipRam', sku: 'ram-tip-tp84', ram: ['chassis.tipRam', 'body.ramEye'] },
+    ].map(Object.freeze)),
+    tip: 'body.tail',
+    poses: Object.freeze({ rest: Object.freeze({ tip: 0 }), travel: Object.freeze({ tip: 0 }), transport: Object.freeze({ tip: 0 }), half: Object.freeze({ tip: 0.5 }), tipped: Object.freeze({ tip: 1 }) }),
+    laws: Object.freeze({
+      arcs: { tip: [45, 56] }, payload: { kg: 20000, density: 1.7, material: 'gravel', volume: [12, 20], band: [1.0, 1.5] },
+      wheelbase: 0.06, mass: 0.12, massShift: -20000, transport: { W: 2.95, H: 3.4 },
+    }),
+    bom: Object.freeze({ 'con-chassis': 1, 'con-cab': 1, 'con-wheel': 12, 'con-body': 1, 'con-ram': 1 }),
+  }),
+  // an 8x4 concrete mixer: the same chassis, its drum on its pedestal and its rollers, turned about its own axis
+  mixerTruck: Object.freeze({
+    label: 'concrete mixer truck',
+    classOf: 'mixer 8x4',
+    physics: 'mixerTruck',
+    palette: 'rentalWhite',
+    joints: Object.freeze({ drum: Object.freeze({ kind: 'hinge', axis: Object.freeze([0, -0.97, 0.24]) }) }),
+    layout: Object.freeze([
+      { id: 'chassis', sku: 'chassis-mx84' },
+      { id: 'cab', sku: 'cab-truck', on: 'chassis.cab' },
+      ...singleWheels('chassis', 0, 'wheel-truck'), ...singleWheels('chassis', 1, 'wheel-truck'),
+      ...twinWheels('chassis', 2, 'wheel-truck'), ...twinWheels('chassis', 3, 'wheel-truck'),
+      { id: 'drum', sku: 'drum-mx8', on: 'chassis.drum', joint: 'drum' },
+    ].map(Object.freeze)),
+    tip: 'drum.mouth',
+    poses: Object.freeze({ rest: Object.freeze({ drum: 0 }), travel: Object.freeze({ drum: 0 }), transport: Object.freeze({ drum: 0 }), turning: Object.freeze({ drum: 120 }) }),
+    laws: Object.freeze({
+      payload: { kg: 19000, density: 2.4, share: 0.58, material: 'concrete', volume: [12, 16], band: [0.95, 1.3] },
+      wheelbase: 0.06, mass: 0.12, massShift: -19000, transport: { W: 2.95, H: 4.0 },
+    }),
+    bom: Object.freeze({ 'con-chassis': 1, 'con-cab': 1, 'con-wheel': 12, 'con-drum': 1 }),
+  }),
+  // a 30 t articulated dump truck: its front frame (the engine, the cab, its axle), its rear frame turned on the hitch
+  // by two steer rams (its bogie's two axles), its rock body tipped by two hoist rams
+  articulatedDumpTruck: Object.freeze({
+    label: 'articulated dump truck',
+    classOf: 'articulated dump truck 30 t',
+    physics: 'articulatedDumpTruck',
+    palette: 'siteYellow',
+    joints: Object.freeze({
+      steer: Object.freeze({ kind: 'slew', ram: 'steerRam', near: 0 }),
+      tip: Object.freeze({ kind: 'hinge', ram: 'hoistRam', near: 10 }),
+    }),
+    layout: Object.freeze([
+      { id: 'front', sku: 'adt-front30' },
+      { id: 'cab', sku: 'cab-adt', on: 'front.cab' },
+      ...singleWheels('front', 0, 'wheel-adt'),
+      { id: 'rear', sku: 'adt-rear30', on: 'front.hitch', joint: 'steer' },
+      ...singleWheels('rear', 0, 'wheel-adt', 1), ...singleWheels('rear', 1, 'wheel-adt', 2),
+      { id: 'body', sku: 'body-adt30', on: 'rear.tip', joint: 'tip' },
+      { id: 'steerRam', sku: 'ram-steer-adt30', ram: ['front.steerRam', 'rear.steerEye'], pair: true },
+      { id: 'hoistRam', sku: 'ram-hoist-adt30', ram: ['rear.hoistRam', 'body.ramEye'], pair: true },
+    ].map(Object.freeze)),
+    tip: 'body.tail',
+    poses: Object.freeze({ rest: Object.freeze({ steer: 0.5, tip: 0 }), travel: Object.freeze({ steer: 0.5, tip: 0 }), transport: Object.freeze({ steer: 0.5, tip: 0 }), tipped: Object.freeze({ steer: 0.5, tip: 1 }), turned: Object.freeze({ steer: 0.95, tip: 0 }) }),
+    laws: Object.freeze({
+      arcs: { steer: [80, 96], tip: [60, 76] }, payload: { kg: 30000, density: 1.8, material: 'rock', volume: [14, 22], band: [0.9, 1.4] },
+      wheelbase: 0.08, mass: 0.12, massShift: -30000, transport: { W: 3.1, H: 3.7 },
+    }),
+    bom: Object.freeze({ 'con-chassis': 2, 'con-cab': 1, 'con-wheel': 6, 'con-body': 1, 'con-ram': 4 }),
+  }),
+  // a 100 t rigid haul truck: its frame on a single front axle and twin-tyred rear, the cab on its deck, its body (its
+  // canopy over the cab) tipped by two telescopic hoists
+  haulTruck: Object.freeze({
+    label: 'haul truck',
+    classOf: 'haul truck 100 t',
+    physics: 'haulTruck',
+    palette: 'siteYellow',
+    joints: Object.freeze({ tip: Object.freeze({ kind: 'hinge', ram: 'hoistRam', near: 10 }) }),
+    layout: Object.freeze([
+      { id: 'frame', sku: 'frame-haul100' },
+      { id: 'cab', sku: 'cab-haul', on: 'frame.cab' },
+      ...singleWheels('frame', 0, 'wheel-haul'), ...twinWheels('frame', 1, 'wheel-haul'),
+      { id: 'body', sku: 'body-haul100', on: 'frame.tip', joint: 'tip' },
+      { id: 'hoistRam', sku: 'ram-hoist-haul100', ram: ['frame.hoistRam', 'body.ramEye'], pair: true },
+    ].map(Object.freeze)),
+    tip: 'body.tail',
+    poses: Object.freeze({ rest: Object.freeze({ tip: 0 }), travel: Object.freeze({ tip: 0 }), transport: Object.freeze({ tip: 0 }), tipped: Object.freeze({ tip: 1 }) }),
+    laws: Object.freeze({
+      arcs: { tip: [42, 56] }, payload: { kg: 100000, density: 1.8, material: 'rock', volume: [55, 80], band: [1.0, 1.5] },
+      wheelbase: 0.08, mass: 0.12, massShift: -100000, transport: { W: 6.2, H: 5.3 },
+    }),
+    bom: Object.freeze({ 'con-chassis': 1, 'con-cab': 1, 'con-wheel': 6, 'con-body': 1, 'con-ram': 2 }),
+  }),
+});
+
+export const CON_ARCHETYPES = Object.freeze({ ...ARCHETYPES, wheeledExcavator: WHEELED, ...HAULERS });

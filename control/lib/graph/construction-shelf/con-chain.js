@@ -42,6 +42,19 @@
  */
 import { DEG, IDENTITY, about, aimFrame, apply, compose } from './con-common.js';
 
+/** A ram's barrel and rod lengths: the barrel the closed length less its eye's, the rod the stroke and its piston's
+ *  length (so at full stroke the piston is still in the barrel, and at closed the rod's end is clear of the base). A
+ *  short ram's eye and piston are short with it: a fifth of its length at most, its piston no longer than leaves its
+ *  rod's end 5 cm clear of the base. A telescopic ram's stages overlap each other and its barrel and rod alike at full
+ *  stroke (`overlap`), each slid out its share between there and closed. */
+export const ramParts = (d) => ((d.stages ?? 2) > 2
+  // (a telescopic ram, a tipper's hoist: its stages each as long as its closed length allows, nested in the barrel
+  // from 10 cm past its base, its rod from 15 cm)
+  ? { barrel: d.closed - Math.min(0.12, d.closed * 0.2), stage: d.closed - 0.15, rod: d.closed - 0.15 }
+  : { barrel: d.closed - Math.min(0.12, d.closed * 0.2), rod: d.stroke + Math.min(0.2, d.closed - d.stroke - 0.05) });
+/** How far a telescopic ram's stages and rod overlap the tube outside them at full stroke, the same for each. */
+export const overlap = (d) => { const L = ramParts(d), n = d.stages ?? 2; return (L.barrel + (n - 2) * L.stage + L.rod - d.closed - d.stroke) / (n - 1); };
+
 const split = (ref) => { const i = ref.indexOf('.'); return i < 0 ? [ref, null] : [ref.slice(0, i), ref.slice(i + 1)]; };
 
 /** A joint's own frame at its value (degrees; a slide's metres), set at the hardpoint `at` of its parent: a slew about
@@ -258,6 +271,13 @@ export function solveChain(arch, pose, ctx) {
       if (e.ram) {
         const f = aimFrame(a, b, across), g = aimFrame(b, a, across);
         struts.push({ id: e.id, item: `${item}`, kind: 'barrel', frame: f, length: f.length, side });
+        // (a telescopic ram's stages between its barrel and its rod, each slid out its share of the extension: from 10 cm
+        // past its base closed to where each overlaps the tube outside it as much as the next at full stroke)
+        const d = ctx.row(ctx.entry(e.id).sku).dims, n = d.stages ?? 2, P = n > 2 ? ramParts(d) : null, o = n > 2 ? overlap(d) : 0;
+        for (let k = 1; k <= n - 2; k++) {
+          const off = 0.1 + ((f.length - d.closed) / d.stroke) * (P.barrel - o + (k - 1) * (P.stage - o) - 0.1), ax = [f.R[0][1], f.R[1][1], f.R[2][1]];
+          struts.push({ id: e.id, item: `${item}.s${k}`, kind: 'stage', part: `stage${k}`, frame: { R: f.R, t: f.t.map((v, i) => v + ax[i] * off) }, length: f.length, side });
+        }
         struts.push({ id: e.id, item: `${item}.rod`, kind: 'rod', frame: g, length: g.length, side });
       } else {
         const f = aimFrame(a, b, across);

@@ -20,6 +20,10 @@
  *   - The tool swap and the wheeled excavator (unreleased): the breaker, the grapple, the auger, the forks, the sweeper
  *     and the wheeled chassis pinned, the wheeled excavator and one composed machine (the excavator with its breaker);
  *     a carrier's parts set where the first part it drops stood moved no existing pin.
+ *   - The haulers (unreleased): the truck chassis, its cab, the tipper's body and its telescopic hoist (and a stage of it),
+ *     the mixer's drum, the articulated dumper's front and rear frames and its rock body, the haul truck's frame and
+ *     body pinned, and the four machines; a ram's lengths moving to the chain, and a telescopic ram's own lengths,
+ *     moved no existing pin.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -71,6 +75,17 @@ const PINS = {
   'frame-bh85': 'c794a1a8971fc065',
   'leg-bh-r': '2590b3b373250198',
   'ram-boom-ex20.rod': 'ee3b8d6daeffb743',
+  'chassis-tp84': '5ef327e645d4fcf4',
+  'cab-truck': '0998a2e44a5caca6',
+  'body-tp84': '562109146c9d1405',
+  'ram-tip-tp84': '224f1f5db0c9817e',
+  'ram-tip-tp84.stage1': '6c5b68fe3747c1d6',
+  'drum-mx8': 'a05deeec314ca9df',
+  'adt-front30': '3382ebbc704da751',
+  'adt-rear30': 'e35244614626b423',
+  'body-adt30': '242e0cecaabe2cbe',
+  'frame-haul100': 'd5165e9d72a554a3',
+  'body-haul100': '8d27a33af6919a4f',
   'con:crawlerExcavator': '0eefeb9e723f41ef',
   'con:bulldozer': '94272ebad7ce55a9',
   'con:wheelLoader': '8850036d94e7ed84',
@@ -81,6 +96,10 @@ const PINS = {
   'con:backhoeLoader': '3de6f9e6f20e0f31',
   'con:compactTrackLoader': 'c2f22ee973a96c2e',
   'con:wheeledExcavator': '8c317d51e544b82d',
+  'con:tipperTruck': 'bcf10a041ec4fa87',
+  'con:mixerTruck': 'd06c7887a2da4ba7',
+  'con:articulatedDumpTruck': '52a235b814da1955',
+  'con:haulTruck': '70f1b6a62a583ed4',
   'con:crawlerExcavator+breaker': '153954592e6736b8',
 };
 
@@ -95,14 +114,19 @@ const PROCEDURES = (() => {
 const RAM = PROCEDURES.find((s) => CON_ODM[s].kind === 'con-ram');
 
 describe('construction shelf emission pins', () => {
-  it('pins exactly one part per builder path, and a ram\'s rod', () => {
-    expect(Object.keys(PINS).filter((k) => !k.startsWith('con:') && !k.endsWith('.rod')).sort()).toEqual([...PROCEDURES].sort());
+  it('pins exactly one part per builder path, a ram\'s rod and a telescopic ram\'s stage', () => {
+    expect(Object.keys(PINS).filter((k) => !k.startsWith('con:') && !k.includes('.')).sort()).toEqual([...PROCEDURES].sort());
   });
   it.each(PROCEDURES)('%s', (sku) => {
     expect(hash(resolveConPart(sku))).toBe(PINS[sku]);
   });
   it('a ram\'s rod', () => {
     expect(hash(resolveConPart(RAM, { part: 'rod' }))).toBe(PINS[`${RAM}.rod`]);
+  });
+  it('a telescopic ram\'s stage', () => {
+    // (the first ram of nested stages, a tipper's hoist)
+    const ram = PROCEDURES.find((s) => CON_ODM[s].kind === 'con-ram' && (CON_ODM[s].dims.stages ?? 2) > 2);
+    expect(hash(resolveConPart(ram, { part: 'stage1' }))).toBe(PINS[`${ram}.stage1`]);
   });
   it.each(Object.keys(PINS).filter((k) => k.startsWith('con:')))('%s', (k) => {
     // (a machine composed by the door: its archetype and its tool, 'crawlerExcavator+breaker')

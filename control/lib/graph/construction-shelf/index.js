@@ -269,10 +269,11 @@ export function assembleMachine(archetypeIn, { pose = 'rest', palette, colors = 
   };
   const items = [];
   for (const e of arch.layout) if (!e.ram && !e.link) items.push(place(e.id, src(e.sku), chain.frames[e.id]));
-  for (const s of chain.struts) items.push(place(s.item, src(ctx.entry(s.id).sku, s.kind === 'link' ? undefined : s.kind), s.frame));
+  for (const s of chain.struts) items.push(place(s.item, src(ctx.entry(s.id).sku, s.kind === 'link' ? undefined : s.part ?? s.kind), s.frame));
   const manifest = { kind: 'assembler', title: title || `${arch.label} (${arch.classOf})`, units: 'm', items };
   const laws = conLaws(arch, ctx, { corners: (sku, part) => partCorners(archetype, sku, part), physics: PHYSICS[arch.physics], posed: (name) => posedJoints(archetype, name) });
-  const bom = planAssemblyBom(items.map((it) => ({ garage: { kind: it.source.garage.kind } })).filter((x, i) => !items[i].id.endsWith('.rod')), arch.bom);
+  // (a ram counts once: its rod and its stages are the barrel's)
+  const bom = planAssemblyBom(items.map((it) => ({ garage: { kind: it.source.garage.kind } })).filter((x, i) => !/\.(rod|s\d+)$/.test(items[i].id)), arch.bom);
   return {
     manifest,
     readout: {
