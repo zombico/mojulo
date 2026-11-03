@@ -48,3 +48,5 @@
     their scale, the static wake left to the water; the water's cells against its waves, buoys round the loop; the page
     carrying the channel only when asked, its script parsing. Seen in headless Chrome: no page errors, the boat round
     its loop.
+  - The `seaway` page input is classified wherever every page input is: a surface input to the eras (its boat's faces
+    hold their light in their colour), and absent in Godot and Roblox (the water and its wake are the page's own).
