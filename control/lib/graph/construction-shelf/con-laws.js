@@ -19,6 +19,7 @@
  *   volume, payload a hauler's body's struck volume (a drum's gross volume) and its material's mass in it (a drum's
  *                   share) against its rated payload
  *   wheelbase       its front axle to its rear axles' middle, as built, against its class's (a share off)
+ *   linearLoad      a roller's drums' shares of its mass, each over its width (kg/cm)
  *   spread, chart   a crane's outriggers' floats across, and its rated load at each radius over the side: 75% of
  *                   the load that tips it over its floats (ISO 4305's share), its shortest boom that reaches there
  *   freestanding, radius, balance, stability
@@ -42,6 +43,8 @@ const r1 = (n) => Math.round(n * 10) / 10;
 const span = (r, n) => Array.from({ length: n + 1 }, (_, i) => r[0] + ((r[1] - r[0]) * i) / n);
 
 const CACHE = new Map();
+/** A part the machine rolls on: a wheel, or a roller's drum. */
+const rolls = (row) => row.kind === 'con-wheel' || (row.kind === 'con-drum' && row.build.family === 'roller');
 export function conLaws(arch, ctx, { corners, physics, posed }) {
   if (CACHE.has(arch.key)) return CACHE.get(arch.key);
   const band = arch.laws, laws = [];
@@ -125,7 +128,8 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
 
   // ── the wheelbase: its front axle to its rear axles' middle, as built, against its class's ──
   if (band.wheelbase) {
-    const ys = arch.layout.filter((e) => ctx.row(e.sku).kind === 'con-wheel').map((e) => apply(rest[e.id], [0, 0, 0])[1]);
+    // (a wheel, or a roller's drum: its wheel)
+    const ys = arch.layout.filter((e) => rolls(ctx.row(e.sku))).map((e) => apply(rest[e.id], [0, 0, 0])[1]);
     const front = Math.max(...ys), rear = ys.filter((y) => y < 0), wb = r2(front - rear.reduce((a, b) => a + b, 0) / rear.length);
     const lo = r2(physics.wheelbase * (1 - band.wheelbase)), hi = r2(physics.wheelbase * (1 + band.wheelbase));
     law('wheelbase', wb, [lo, hi], wb >= lo && wb <= hi, 'its front axle to its rear axles\' middle, as built, against its class\'s');
@@ -195,7 +199,7 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
     law('transport', { W, H }, band.transport, W <= band.transport.W && H <= band.transport.H, 'its width and its height folded for shipping, within a road\'s (advisory)');
   }
 
-  // ── a crane's lifts: the mass of each body where it is built and posed, and the centroid of each ──
+  // ── the mass of each body where it is built and posed, and the centroid of each (a crane's lifts, a roller's load) ──
   const centroid = (sku) => { const pts = corners(sku); return pts.reduce((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0]).map((v) => v / pts.length); };
   const massAt = (F, struts) => {
     const out = [];
@@ -207,6 +211,15 @@ export function conLaws(arch, ctx, { corners, physics, posed }) {
     }
     return out;
   };
+
+  // ── a roller's linear load: each drum's share of the mass where its parts are built, over its width (kg/cm) ──
+  if (band.linearLoad) {
+    const C0 = solveChain(arch, posed('rest'), ctx), drums = arch.layout.filter((e) => rolls(ctx.row(e.sku))), y = drums.map((e) => apply(C0.frames[e.id], [0, 0, 0])[1]);
+    const [iF, iR] = y[0] > y[1] ? [0, 1] : [1, 0], all = massAt(C0.frames, C0.struts), M = all.reduce((m, [kg]) => m + kg, 0);
+    const front = all.reduce((m, [kg, p]) => m + (kg * (p[1] - y[iR])) / (y[iF] - y[iR]), 0), share = { front, rear: M - front };
+    const value = Object.fromEntries(Object.entries(share).map(([k, kg]) => [k, r1(kg / (ctx.row(drums[k === 'front' ? iF : iR].sku).dims.width * 100))]));
+    law('linearLoad', value, band.linearLoad, Object.values(value).every((v) => v >= band.linearLoad[0] && v <= band.linearLoad[1]), 'each drum\'s share of its mass over its width (kg/cm), its parts where they are built');
+  }
 
   // ── the outriggers' spread and the load chart: 75% of the load that tips it over its outriggers (ISO 4305's share)
   if (band.chart) {

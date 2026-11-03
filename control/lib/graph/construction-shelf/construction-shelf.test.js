@@ -33,7 +33,11 @@ const PLUMB = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.s
 const TURNED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].layout.some((e) => e.turn));
 const SECTIONS = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].sections);
 const CHARTED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].laws.chart);
-const MACHINES = [...new Set([ID, SWEPT, ROCKER, SWAPPED, SLID, LEVEL, GROUNDS, SCALED, TELESCOPED, SPUN, LADEN, PLUMB, TURNED, SECTIONS, CHARTED])];
+// (a machine on drums, a roller's, held to its linear load; a slide that runs both ways from its zero, a grader's
+// moldboard shifted along its saddle)
+const ROLLED = Object.keys(CON_ARCHETYPES).find((k) => CON_ARCHETYPES[k].laws.linearLoad);
+const SHIFTED = Object.keys(CON_ARCHETYPES).find((k) => Object.values(CON_ARCHETYPES[k].joints).some((j) => j.from < 0));
+const MACHINES = [...new Set([ID, SWEPT, ROCKER, SWAPPED, SLID, LEVEL, GROUNDS, SCALED, TELESCOPED, SPUN, LADEN, PLUMB, TURNED, SECTIONS, CHARTED, ROLLED, SHIFTED])];
 const ctx = machineCtx(ID), arch = ctx.arch;
 const near = (a, b, tol = 1e-6) => a.every((v, k) => Math.abs(v - b[k]) < tol);
 // (a point is 'body.hardpoint', the hardpoint's own name may hold a dot: 'rear.wheel.r')
@@ -143,7 +147,7 @@ describe.each(MACHINES)('%s as built', (machine) => {
     const { readout } = assembleMachine(machine);
     expect(readout.laws.laws.filter((l) => !l.ok)).toEqual([]);
     const L = CON_ARCHETYPES[machine].laws;
-    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['mass', ...(L.transport ? ['transport'] : []), ...(L.groundPressure ? ['groundPressure'] : []), ...(L.payload ? ['volume', 'payload'] : []), ...(L.chart ? ['chart', 'spread'] : []), ...(L.tower ? ['freestanding', 'radius', 'balance', 'stability'] : []), ...Object.keys(L.measure ?? {})]));
+    expect(readout.laws.laws.map((l) => l.id)).toEqual(expect.arrayContaining(['mass', ...(L.transport ? ['transport'] : []), ...(L.groundPressure ? ['groundPressure'] : []), ...(L.payload ? ['volume', 'payload'] : []), ...(L.chart ? ['chart', 'spread'] : []), ...(L.linearLoad ? ['linearLoad'] : []), ...(L.wheelbase ? ['wheelbase'] : []), ...(L.tower ? ['freestanding', 'radius', 'balance', 'stability'] : []), ...Object.keys(L.measure ?? {})]));
     expect(readout.audit.ok).toBe(true);
   });
 });
@@ -321,5 +325,20 @@ describe('a crane', () => {
     expect(assembleMachine(SECTIONS, { height: 1000 }).readout.sections).toBe(M.max);
     expect(up.laws.ok).toBe(true);
     expect(() => composeMachine(ID, { height: 30 })).toThrow(/its height is its own/);
+  });
+});
+
+describe('a finisher', () => {
+  it('rests its whole mass on its drums, each its share over its width', () => {
+    const { readout } = assembleMachine(ROLLED), L = readout.laws.laws.find((l) => l.id === 'linearLoad');
+    const drums = CON_ARCHETYPES[ROLLED].layout.filter((e) => CON_ODM[e.sku].kind === 'con-drum'), w = CON_ODM[drums[0].sku].dims.width * 100;
+    expect(drums).toHaveLength(2);
+    expect((L.value.front + L.value.rear) * w).toBeCloseTo(readout.partsMass, -2);
+  });
+  it('slides a body both ways from its zero, as far as its joint says each way', () => {
+    const ctx = machineCtx(SHIFTED), arch = ctx.arch, [name, J] = Object.entries(arch.joints).find(([, j]) => j.from < 0), e = arch.layout.find((x) => x.joint === name);
+    expect(rangeOf(arch, name, ctx)).toEqual([J.from, J.travel]);
+    const at = (v) => { const F = solveChain(arch, { ...posedJoints(SHIFTED, 'rest'), [name]: v }, ctx).frames; return apply({ R: F[split(e.on)[0]].R, t: [0, 0, 0] }, [1, 0, 0]).reduce((s, a, k) => s + a * (F[e.id].t[k] - F[split(e.on)[0]].t[k]), 0); };
+    expect(at(J.travel) - at(J.from)).toBeCloseTo(J.travel - J.from, 6);
   });
 });

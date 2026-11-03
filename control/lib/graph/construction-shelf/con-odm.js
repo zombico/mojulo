@@ -23,7 +23,7 @@ export const CON_KINDS = Object.freeze({
   'con-bucket': 'a digging bucket, its teeth, its ears and pins',
   'con-link': 'a linkage\'s link: a dogbone, an H-link',
   'con-ram': 'a hydraulic ram: its barrel and its rod, each a body aimed at the other\'s pin',
-  'con-blade': 'a dozer\'s blade on its push arms: the moldboard, its end bits and cutting edge, about the trunnions',
+  'con-blade': 'a blade: a dozer\'s on its push arms (its moldboard, its end bits and cutting edge, about the trunnions), a grader\'s moldboard',
   'con-ripper': 'a ripper at the tail: its beam on its pin, its shank and its tooth',
   'con-wheel': 'a site tyre on its rim: its casing, its lugs',
   'con-chassis': 'a wheeled machine\'s frame: a loader\'s rear and front halves, a skid steer\'s chassis',
@@ -36,13 +36,15 @@ export const CON_KINDS = Object.freeze({
   'con-leg': 'a stabiliser leg: its arm, its pad on the ground',
   'con-tool': 'a tool in place of a bucket: a breaker, a grapple, an auger, pallet forks, a sweeper',
   'con-body': 'a tipping body: its floor, its sides, its headboard (a haul truck\'s canopy), its tailgate, its hinge',
-  'con-drum': 'a mixer\'s drum, turned about its own axis',
+  'con-drum': 'a drum: a mixer\'s, turned about its own axis; a roller\'s, its wheel',
   'con-outrigger': 'an outrigger: its beam sliding out of its box, its jack\'s leg and float set on the ground',
   'con-hook': 'a hook block: its sheaves, its swivel and its hook, hung plumb on its rope',
   'con-rope': 'a hoist rope: its falls between a sheave and a hook block, drawn in lengths',
   'con-tower': 'a tower crane\'s tower: its cross base and ballast, a mast section of its lattice, its tower head and pendants',
   'con-jib': 'a tower crane\'s jib (its lattice, the trolley\'s rails) or its counter-jib (its winch, its ballast\'s seat)',
   'con-trolley': 'a tower crane\'s trolley: its wheels on the jib\'s rails, its sheaves under it',
+  'con-drawbar': 'a grader\'s drawbar: an A-frame from its ball under the nose back to the circle\'s drive',
+  'con-circle': 'a grader\'s circle (its toothed ring, its arms down to the moldboard) or the saddle its moldboard slides on',
 });
 
 const R = (kind, label, classOf, dims, mass, build, aliases = []) => Object.freeze({ kind, label, classOf, aliases, dims: Object.freeze(dims), mass, build: Object.freeze(build) });
@@ -227,6 +229,23 @@ const ROWS = {
   'cab-tc': R('con-cab', 'tower crane cab', 'tower crane 60 m', { w: 1.2, l: 2.0, h: 2.1 }, 900, { family: 'excavator' }, ['tower crane cab', 'crane driver cab']),
   'trolley-tc': R('con-trolley', 'tower crane trolley', 'tower crane 60 m', { rail: 0.75, l: 1.6, h: 0.55, travel: 53.5 }, 600, { family: 'trolley' }, ['trolley', 'crab', 'jib trolley']),
   'hook-tc': R('con-hook', 'tower crane hook block', 'tower crane 60 m', { w: 0.5, t: 0.34, h: 0.7, hook: 0.55, sheaves: 2 }, 400, { family: 'block' }, ['tower crane hook', 'tower hook block']),
+  // ── the finishers: the 10 t tandem roller, the 17 t motor grader ─────────────────────────────────────────────
+  'frame-rear-rl10': R('con-chassis', 'roller rear frame, 10 t', 'tandem roller 10 t', { drumW: 1.7, hoodTop: 2.05, deckZ: 1.55, platform: [-0.65, 0.55], cab: -0.25, steerRam: [0.45, -0.75, 0.75] }, 4000, { family: 'rollerRear' }, ['roller rear frame', 'roller engine frame']),
+  'frame-front-rl10': R('con-chassis', 'roller front frame, 10 t', 'tandem roller 10 t', { drumW: 1.7, tank: 0.7, tankTop: 1.95, steerEye: [0.375, 0.375, 0.75] }, 1500, { family: 'rollerFront' }, ['roller front frame', 'water tank frame']),
+  'drum-rl10': R('con-drum', 'smooth drum, 1.7 m', 'tandem roller 10 t', { r: 0.6, width: 1.7 }, 1800, { family: 'roller' }, ['roller drum', 'smooth drum', 'compaction drum']),
+  'ram-steer-rl10': R('con-ram', 'roller steer ram', 'tandem roller 10 t', { bore: 0.07, rod: 0.04, closed: 0.8, stroke: 0.55 }, 40, { family: 'double' }, ['roller steer ram']),
+  'frame-rear-gr17': R('con-chassis', 'grader rear frame, 17 t', 'motor grader 17 t', { axles: [-1.55, -3.05], tail: -4.25, hoodTop: 2.3, cab: [0, -0.7, 1.35], steerRam: [0.45, -0.75, 0.75] }, 7000, { family: 'graderRear' }, ['grader rear frame', 'engine module']),
+  'frame-front-gr17': R('con-chassis', 'grader front frame, 17 t', 'motor grader 17 t',
+    { axle: 3.9, beam: { rise: 0.9, drop: 3.3, z: 1.75, w: 0.42, h: 0.42 }, ball: [0, 3.55, 1.0], liftRam: [0.62, 1.15, 2.6], steerEye: [0.375, 0.375, 0.75] }, 2500, { family: 'graderFront' }, ['grader front frame', 'gooseneck', 'grader main frame']),
+  'cab-gr': R('con-cab', 'grader cab', 'motor grader', { w: 1.6, l: 1.6, h: 1.9 }, 900, { family: 'excavator' }, ['grader cab']),
+  'wheel-gr': R('con-wheel', 'grader tyre 14.00R24', 'motor grader 17 t', { r: 0.75, width: 0.37, rim: 0.36, lugs: 20 }, 450, { family: 'otr' }, ['grader tyre']),
+  'drawbar-gr17': R('con-drawbar', 'grader drawbar', 'motor grader 17 t', { circle: [0, -2.5, -0.4], spread: 0.55, liftEye: [0.8, -2.45, -0.25] }, 900, { family: 'drawbar' }, ['drawbar', 'grader drawbar', 'a frame drawbar']),
+  'circle-gr17': R('con-circle', 'grader circle', 'motor grader 17 t', { r: 0.85, arm: 0.6, pivot: [0, -0.1, -0.4], tipRam: [0.3, -0.95, 0.05] }, 800, { family: 'circle' }, ['circle', 'grader circle', 'turntable circle']),
+  'saddle-gr17': R('con-circle', 'moldboard saddle', 'motor grader 17 t', { arm: 0.6, rail: 0.12, rails: [0.05, 0.45], tipEye: [0.3, -0.05, 0.5] }, 300, { family: 'saddle' }, ['moldboard saddle', 'blade slide', 'tip frame']),
+  'moldboard-gr17': R('con-blade', 'grader moldboard, 3.7 m', 'motor grader 17 t', { length: 3.66, height: 0.61, travel: 0.65 }, 1300, { family: 'moldboard' }, ['moldboard', 'grader blade', 'mouldboard']),
+  'ram-lift-gr17': R('con-ram', 'grader lift ram', 'motor grader 17 t', { bore: 0.1, rod: 0.06, closed: 1.3, stroke: 1.1 }, 120, { family: 'double' }, ['blade lift ram', 'grader lift cylinder']),
+  'ram-tip-gr17': R('con-ram', 'moldboard tip ram', 'motor grader 17 t', { bore: 0.09, rod: 0.05, closed: 0.62, stroke: 0.36 }, 60, { family: 'double' }, ['tip ram', 'blade pitch ram']),
+  'ram-steer-gr17': R('con-ram', 'grader articulation ram', 'motor grader 17 t', { bore: 0.08, rod: 0.05, closed: 0.8, stroke: 0.55 }, 60, { family: 'double' }, ['articulation ram', 'grader steer ram']),
   'rope-tc': R('con-rope', 'tower crane hoist rope, 2 falls', 'tower crane 60 m', { length: 5, falls: [-0.18, 0.18], r: 0.011 }, 500, { family: 'wire' }, ['tower crane rope', 'hoist line']),
 };
 BASE = ROWS;
@@ -277,6 +296,8 @@ Object.assign(ROWS, {
   'ram-boom-bh': S('ram-boom-ex20', 0.62, 'backhoe boom ram', 'backhoe loader 8.5 t', ['backhoe boom ram']),
   'ram-stick-bh': S('ram-stick-ex20', 0.62, 'backhoe dipper ram', 'backhoe loader 8.5 t', ['backhoe dipper ram']),
   'ram-bucket-bh': S('ram-bucket-ex20', 0.62, 'backhoe bucket ram', 'backhoe loader 8.5 t', ['backhoe bucket ram']),
+  // (the roller's canopy, listed after the mini excavator's)
+  'canopy-rl10': R('con-cab', 'roller canopy', 'tandem roller 10 t', { w: 1.55, l: 1.15, h: 1.45 }, 300, { family: 'canopy' }, ['roller canopy', 'roller rops']),
 });
 // (the excavator's tools at the mini's and the backhoe's sizes: each the 20 t tool's design scaled)
 for (const [stem, label] of [['ditch', 'ditching bucket'], ['breaker', 'breaker'], ['grapple', 'grapple'], ['auger', 'auger']]) {

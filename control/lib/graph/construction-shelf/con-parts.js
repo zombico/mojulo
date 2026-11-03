@@ -18,6 +18,7 @@ import { backhoeChassis, boomSection, canopyCab, carriage, forkChassis, houseMin
 import { auger, breaker, forks, grapple, sweeper } from './con-tools.js';
 import { adtFront, adtRear, haulFrame, mixerDrum, tipBody, truckCab, truckChassis } from './con-haulers.js';
 import { ramParts } from './con-chain.js';
+import { drawbar, graderCircle, graderFront, graderRear, graderSaddle, moldboard, rollerDrum, rollerFront, rollerRear } from './con-finishers.js';
 import { counterJib, counterSlabs, craneCarrier, craneHouse, hookBlock, jibLattice, mastSection, outriggerBeam, outriggerJack, ropeFalls, slewingUnit, towerBase, towerHead, trolley } from './con-lifters.js';
 
 const X = [1, 0, 0];
@@ -160,8 +161,10 @@ function hullDozer(row, C, { physics }) {
 }
 
 // ── a dozer's blade on its push arms (one body: the C-frame and the moldboard), about the trunnions ──────────────
-function blade(row, C, { physics }) {
-  const d = row.dims, P = d.profile, w = d.width, extrudes = [], lathes = [], lofts = [], body = C.paint, steel = tone(C.trim, 0.2);
+function blade(row, C, ctx) {
+  // (a grader's moldboard, on its saddle under its circle)
+  if (row.build.family === 'moldboard') return moldboard(row, C, ctx);
+  const { physics } = ctx, d = row.dims, P = d.profile, w = d.width, extrudes = [], lathes = [], lofts = [], body = C.paint, steel = tone(C.trim, 0.2);
   const ax = physics.track / 2 + d.arm;   // (the push arms outside the tracks)
   // the moldboard: its curved face across the blade, each span a strip, its end bits, its cutting edge
   for (let i = 0; i + 1 < P.length; i++) {
@@ -370,9 +373,9 @@ export const CON_BUILDERS = Object.freeze({
   'con-blade': blade,
   'con-ripper': ripper,
   'con-wheel': wheel,
-  'con-chassis': (row, C, ctx) => ({ loaderRear, loaderFront, skid: skidChassis, forklift: forkChassis, telehandler: teleChassis, backhoe: backhoeChassis, wheeledEx: wheeledExChassis, truck: truckChassis, adtFront, adtRear, haul: haulFrame, crane: craneCarrier })[row.build.family](row, C, ctx),
+  'con-chassis': (row, C, ctx) => ({ loaderRear, loaderFront, skid: skidChassis, forklift: forkChassis, telehandler: teleChassis, backhoe: backhoeChassis, wheeledEx: wheeledExChassis, truck: truckChassis, adtFront, adtRear, haul: haulFrame, crane: craneCarrier, rollerRear, rollerFront, graderRear, graderFront })[row.build.family](row, C, ctx),
   'con-body': tipBody,
-  'con-drum': mixerDrum,
+  'con-drum': (row, C, ctx) => ({ mixer: mixerDrum, roller: rollerDrum })[row.build.family](row, C, ctx),
   'con-tool': (row, C, ctx) => ({ breaker, grapple, auger, forks, sweeper })[row.build.family](row, C, ctx),
   'con-mast': mastChannel,
   'con-carriage': carriage,
@@ -387,5 +390,7 @@ export const CON_BUILDERS = Object.freeze({
   'con-tower': (row, C, ctx) => ({ base: towerBase, mast: mastSection, head: towerHead })[row.build.family](row, C, ctx),
   'con-jib': (row, C, ctx) => ({ jib: jibLattice, counter: counterJib })[row.build.family](row, C, ctx),
   'con-trolley': trolley,
+  'con-drawbar': drawbar,
+  'con-circle': (row, C, ctx) => ({ circle: graderCircle, saddle: graderSaddle })[row.build.family](row, C, ctx),
 });
 export { X };

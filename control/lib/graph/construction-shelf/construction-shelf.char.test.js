@@ -29,6 +29,8 @@
  *     counter-jib and trolley pinned, and the two cranes. The truck cab's bumper was a box of no length (its corners
  *     not numbers); drawn across the cab, it re-pins the cab and the tipper and the mixer that carry it. A crane
  *     boom's sheaves, an entry's turn, a plumb body and a rope moved no other pin.
+ *   - The finishers (unreleased): the roller's frames and its drum, the grader's frames, its drawbar, its circle, its
+ *     saddle and its moldboard pinned, and the two machines; the wheelbase read off a roller's drums moved no pin.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -105,6 +107,15 @@ const PINS = {
   'jib-tc60': '691ff33937263397',
   'cjib-tc': '95802ec6e55e6e02',
   'trolley-tc': '3122a4fd64fa9265',
+  'frame-rear-rl10': '0c48cc1d7c750bae',
+  'frame-front-rl10': '7f8a565ce9aad4d4',
+  'drum-rl10': 'e11650024f12dc1f',
+  'frame-rear-gr17': '02b29f3985832cda',
+  'frame-front-gr17': 'fc646ddc6b4071db',
+  'drawbar-gr17': '6fff8f01afbad309',
+  'circle-gr17': 'd1c502c023c8b70f',
+  'saddle-gr17': 'ea452b75a100c835',
+  'moldboard-gr17': '719f7ec4225e8360',
   'con:crawlerExcavator': '0eefeb9e723f41ef',
   'con:bulldozer': '94272ebad7ce55a9',
   'con:wheelLoader': '8850036d94e7ed84',
@@ -121,6 +132,8 @@ const PINS = {
   'con:haulTruck': '70f1b6a62a583ed4',
   'con:mobileCrane': 'e6701022b17ca8f5',
   'con:towerCrane': '09060cd6a3c5622b',
+  'con:roadRoller': 'bd00b2a14b44fae3',
+  'con:motorGrader': '4c9676d53dd07840',
   'con:crawlerExcavator+breaker': '153954592e6736b8',
 };
 

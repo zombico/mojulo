@@ -351,3 +351,35 @@ push, load, haul and lift on a site.
     - The review renderer takes `--height`.
   - **Seen** (machine gate only, the eyes gate is open): the all-terrain crane stowed and lifting on its outriggers;
     the tower crane at rest, lifting and with its hook on the ground; the tipper's bumper.
+- **The finishers** (`con-finishers.js`):
+  - **The 10 t tandem roller:**
+    - Its two smooth 1.7 m drums are its wheels, each in its frame's yoke under a deck, a scraper and a sprinkler
+      bar.
+    - The rear frame carries the engine and the operator's platform (seat, console, wheel, canopy). The front frame
+      carries the water tank.
+    - The frames bend at the hitch on two rams, ±40°.
+    - Its drums rest 24.9 kg/cm at the front and 30.8 kg/cm at the rear, from each part's mass where it is built.
+    - Its wheelbase is 3.4 m, and it is 1.9 m wide and 3.05 m high for the road.
+  - **The 17 t motor grader:**
+    - Its rear frame carries the engine, the cab and two tandems.
+    - Its front frame's gooseneck runs from the hitch, over the blade, to the front axle. The frames bend ±40° on two
+      rams.
+    - Its drawbar hangs from the ball under the nose and is lifted by two rams from the saddle.
+    - Its circle turns under the drawbar.
+    - Its moldboard (3.66 m) is pitched through 42° on its saddle by the tip ram and shifts 0.65 m either way along
+      its rails.
+    - Its blade lifts 0.38 m and cuts 0.64 m below the ground. Its wheelbase is 6.2 m, and it travels 2.52 m wide
+      with its blade turned in.
+  - **The chain:** a slide's `from` may lie below its zero, so a body slides both ways (the moldboard's side shift).
+  - **The laws:**
+    - A roller's linear load: each drum's share of the mass over its width.
+    - The wheelbase reads a roller's drums as its wheels.
+  - **The registry:** the road-roller and motor-grader rows claim their machines, asleep.
+  - **Held:**
+    - The law tests pick, in code, a machine on drums and a slide running both ways.
+      - The drums' loads add up to the machine's mass.
+      - The moldboard shifts its whole travel along its saddle.
+    - The deep sweep walks both machines.
+    - The char test pins their parts and both machines; no existing pin moved.
+  - **Seen** (machine gate only, the eyes gate is open): the roller at rest and turned; the grader at rest, grading
+    and travelling, from the side and above.

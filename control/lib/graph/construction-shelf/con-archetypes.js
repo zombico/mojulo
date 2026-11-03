@@ -701,4 +701,92 @@ export function towerCraneAt(k) {
   return towerRow(k);
 }
 
-export const CON_ARCHETYPES = Object.freeze({ ...ARCHETYPES, wheeledExcavator: WHEELED, ...HAULERS, mobileCrane: MOBILE, towerCrane: towerRow(MAST.n) });
+// ── the finishers ───────────────────────────────────────────────────────────────────────────────────────────
+const FINISHERS = Object.freeze({
+  // a 10 t tandem roller: its two smooth drums its wheels, each in its frame's yoke, the frames bent at the hitch by
+  // two rams; its engine over the rear drum, its water tank over the front, the operator's platform over the hitch
+  roadRoller: Object.freeze({
+    label: 'tandem roller',
+    classOf: 'tandem roller 10 t',
+    physics: 'roadRoller',
+    palette: 'siteYellow',
+    joints: Object.freeze({
+      steer: Object.freeze({ kind: 'slew', ram: 'steerRam', near: 0 }),
+    }),
+    layout: Object.freeze([
+      { id: 'rear', sku: 'frame-rear-rl10' },
+      { id: 'canopy', sku: 'canopy-rl10', on: 'rear.cab' },
+      { id: 'drumR', sku: 'drum-rl10', on: 'rear.drum' },
+      { id: 'front', sku: 'frame-front-rl10', on: 'rear.hitch', joint: 'steer' },
+      { id: 'drumF', sku: 'drum-rl10', on: 'front.drum' },
+      { id: 'steerRam', sku: 'ram-steer-rl10', ram: ['rear.steerRam', 'front.steerEye'], pair: true },
+    ].map(Object.freeze)),
+    tip: 'drumF.hub',
+    poses: Object.freeze({
+      rest: Object.freeze({ steer: 0.5 }),
+      travel: Object.freeze({ steer: 0.5 }),
+      transport: Object.freeze({ steer: 0.5 }),
+      turned: Object.freeze({ steer: 0.95 }),
+    }),
+    laws: Object.freeze({
+      arcs: { steer: [60, 90] },
+      linearLoad: [24, 34],
+      wheelbase: 0.05, mass: 0.1, transport: { W: 2.0, H: 3.1 },
+    }),
+    bom: Object.freeze({ 'con-chassis': 2, 'con-cab': 1, 'con-drum': 2, 'con-ram': 2 }),
+  }),
+  // a 17 t motor grader: its rear frame on its two tandems, its front frame's gooseneck over the blade to its front
+  // axle, bent at the hitch; its drawbar hung from the ball under its nose and lifted by two rams from the saddle, the
+  // circle turning under it, the moldboard pitched on its saddle by the tip ram and shifted along its rails
+  motorGrader: Object.freeze({
+    label: 'motor grader',
+    classOf: 'motor grader 17 t',
+    physics: 'motorGrader',
+    palette: 'siteYellow',
+    joints: Object.freeze({
+      steer: Object.freeze({ kind: 'slew', ram: 'steerRam', near: 0 }),
+      lift: Object.freeze({ kind: 'hinge', ram: 'liftRam', near: 0 }),
+      circle: Object.freeze({ kind: 'slew' }),
+      pitch: Object.freeze({ kind: 'hinge', ram: 'tipRam', near: 0 }),
+      shift: Object.freeze({ kind: 'slide', axis: [1, 0, 0], from: -0.65, travel: 0.65 }),
+    }),
+    layout: Object.freeze([
+      { id: 'rear', sku: 'frame-rear-gr17' },
+      { id: 'cab', sku: 'cab-gr', on: 'rear.cab' },
+      ...singleWheels('rear', 0, 'wheel-gr', 'T0'), ...singleWheels('rear', 1, 'wheel-gr', 'T1'),
+      { id: 'front', sku: 'frame-front-gr17', on: 'rear.hitch', joint: 'steer' },
+      { id: 'wheelFR', sku: 'wheel-gr', on: 'front.axle.r' },
+      { id: 'wheelFL', sku: 'wheel-gr', on: 'front.axle.l' },
+      { id: 'drawbar', sku: 'drawbar-gr17', on: 'front.ball', joint: 'lift' },
+      { id: 'circle', sku: 'circle-gr17', on: 'drawbar.circle', joint: 'circle' },
+      { id: 'saddle', sku: 'saddle-gr17', on: 'circle.blade', joint: 'pitch' },
+      { id: 'moldboard', sku: 'moldboard-gr17', on: 'saddle.rail', joint: 'shift' },
+      { id: 'liftRam', sku: 'ram-lift-gr17', ram: ['front.liftRam', 'drawbar.liftEye'], pair: true },
+      { id: 'tipRam', sku: 'ram-tip-gr17', ram: ['circle.tipRam', 'saddle.tipEye'] },
+      { id: 'steerRam', sku: 'ram-steer-gr17', ram: ['rear.steerRam', 'front.steerEye'], pair: true },
+    ].map(Object.freeze)),
+    tip: 'moldboard.edge',
+    poses: Object.freeze({
+      // parked: its blade set square on the ground under it
+      rest: Object.freeze({ steer: 0.5, lift: 'ground', circle: 0, pitch: 0.5, shift: 0.5 }),
+      // travelling: its blade raised and turned in, within its wheels
+      travel: Object.freeze({ steer: 0.5, lift: 1, circle: 60, pitch: 0.5, shift: 0.5 }),
+      transport: Object.freeze({ steer: 0.5, lift: 1, circle: 60, pitch: 0.5, shift: 0.5 }),
+      // grading: its blade on the ground at an angle, shifted out to the right
+      grading: Object.freeze({ steer: 0.5, lift: 'ground', circle: 30, pitch: 0.45, shift: 0.8 }),
+      // turned at its hitch, its blade up
+      turned: Object.freeze({ steer: 0.9, lift: 1, circle: 60, pitch: 0.5, shift: 0.5 }),
+    }),
+    laws: Object.freeze({
+      arcs: { steer: [60, 90], pitch: [30, 60] },
+      measure: {
+        bladeLift: { point: 'moldboard.edge', over: ['lift'], at: { pitch: 0.5 }, take: 'max', band: [0.35, 0.65], says: 'its blade\'s edge over the ground, its drawbar lifted' },
+        cutDepth: { point: 'moldboard.edge', over: ['lift'], at: { pitch: 0.5 }, take: 'depth', band: [0.5, 0.85], says: 'its blade\'s edge under the ground, its drawbar lowered' },
+      },
+      wheelbase: 0.05, mass: 0.1, transport: { W: 2.65, H: 3.4 },
+    }),
+    bom: Object.freeze({ 'con-chassis': 2, 'con-cab': 1, 'con-wheel': 6, 'con-drawbar': 1, 'con-circle': 2, 'con-blade': 1, 'con-ram': 5 }),
+  }),
+});
+
+export const CON_ARCHETYPES = Object.freeze({ ...ARCHETYPES, wheeledExcavator: WHEELED, ...HAULERS, mobileCrane: MOBILE, towerCrane: towerRow(MAST.n), ...FINISHERS });

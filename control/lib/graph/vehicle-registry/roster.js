@@ -248,9 +248,9 @@ export const VEHICLES = {
   'tower-crane': row('tower crane', ['crane', 'building crane', 'construction crane', 'hammerhead crane', 'luffing crane', 'site crane'], 'road', 'construction', M, ['parked', 'watched'],
     { construction: 'towerCrane', tech: 'truck' }),
   'road-roller': row('road roller', ['roller', 'steamroller', 'compactor', 'tandem roller', 'asphalt roller', 'drum roller'], 'road', 'construction', M, ['driven', 'parked', 'watched'],
-    { physics: 'roadRoller', tech: 'truck' }),
+    { physics: 'roadRoller', construction: 'roadRoller', tech: 'truck' }),
   'motor-grader': row('motor grader', ['grader', 'road grader', 'blade grader'], 'road', 'construction', M, ['driven', 'parked', 'watched'],
-    { physics: 'motorGrader', tech: 'truck' }),
+    { physics: 'motorGrader', construction: 'motorGrader', tech: 'truck' }),
   // (the field's: a light utility 4x4, a canvas-topped cargo truck, an eight-wheeled carrier; their realistic bodies
   // are the military hull kit's, car-designer/road-military.js; "jeep" is said of any light military 4x4, so it is a
   // word here, the one maker's name the roster keeps)
