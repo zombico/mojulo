@@ -63,7 +63,10 @@ describe('a cab car\'s surface', () => {
     const seam = c.faces.front.flatMap((f) => f.corners).filter((p) => Math.abs(Math.abs(p[0]) - halfWidthAt(d, p[2])) < 1e-4 && halfWidthAt(d, p[2]) > 0.05);
     expect(seam.length).toBeGreaterThan(10);
     for (const p of seam) expect(side.has(key(p))).toBe(true);
-    const parts = (sx) => { const o = {}; for (const f of all(c)) { const m = f.corners.reduce((t, p) => t + p[0], 0) / f.corners.length; if (m * sx > 0.02) o[f.part] = (o[f.part] || 0) + 1; } return o; };
+    // (all but what is handed by design: a single wiper's sweep, a motor's gear on one side of its axle, a pantograph's
+    // guide rod on one side of its arm)
+    const handed = (part) => part === 'wiper' || part === 'panto.rod' || /^drive\./.test(part);
+    const parts = (sx) => { const o = {}; for (const f of all(c)) { const m = f.corners.reduce((t, p) => t + p[0], 0) / f.corners.length; if (m * sx > 0.02 && !handed(f.part)) o[f.part] = (o[f.part] || 0) + 1; } return o; };
     expect(parts(1)).toEqual(parts(-1));
   });
   it('its screen where the driver\'s eye is, within its band; lamps on the front\'s own surface, below the screen', () => {

@@ -15,7 +15,8 @@
  *   fittings headlamps and tail lamps on the front's own surface, a high lamp, wipers, the coupler (automatic, under a
  *           cover, or a buffer beam's buffers and hook), the anticlimber, the pilot (a plough), the roof's units, the
  *           gangway at the far end, and its two bogies (bogie-surface.js: the leading one its lifeguards, the trailing one
- *           turned end for end, the wheels turned by the pose's `spin`)
+ *           turned end for end, the wheels turned by the pose's `spin`), and on the roof its pantographs (panto-surface.js:
+ *           raised by the pose's `raise`, or to a contact wire at the pose's `wire` over the rail)
  *
  *   compileCabSurface(brief, { quality, livery }) → { design, quality, livery, faces: { body, front, fittings, bogies },
  *                                                     materials, census }
@@ -25,6 +26,7 @@
 import { solveCabDesign, halfWidthAt, frontAt, frontNormal } from './cab-odm.js';
 import { RAIL_MATERIALS, r4, sub, add, mul, cross, unit, face, box, cylinder, disc, finishRailFaces } from './rail-geom.js';
 import { compileBogieSurface } from './bogie-surface.js';
+import { compilePantoSurface } from './panto-surface.js';
 
 export { RAIL_MATERIALS, finishRailFaces, railMaterial } from './rail-geom.js';
 
@@ -166,8 +168,9 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
     const zb = 0.16, zt = S.z0 + 0.04, apex = [0, frontAt(d, 0, S.z0) + 0.18], wing = (sx) => [sx * (hw(S.z0) - 0.1), frontAt(d, sx * (hw(S.z0) - 0.1), S.z0) - 0.35];
     for (const sx of [1, -1]) { const w = wing(sx); push(fittings, face([[apex[0], apex[1], zb], [w[0], w[1], zb], [w[0], w[1], zt], [apex[0], apex[1], zt]], 'pilot', [0, root - 1, zb])); }
   }
-  // the roof's units: a long box on the crown (the cooling units of a car that carries people)
-  if (d.archetype !== 'boxCab' && d.archetype !== 'highSpeed') box(fittings, [-0.7, 0.7], [yTail + 2.4, root - 2.6], [H - 0.04, H + 0.26], 'roof.unit');
+  // the roof's units: a long box on the crown (the cooling units of a car that carries people), clear of its pantographs
+  const clear = (d.pantographs || []).map((p) => p.y), unitEnd = Math.min(root - 2.6, ...clear.map((y) => y - 2.6));
+  if (d.archetype !== 'boxCab' && d.archetype !== 'highSpeed' && unitEnd - (yTail + 2.4) > 2) box(fittings, [-0.7, 0.7], [yTail + 2.4, unitEnd], [H - 0.04, H + 0.26], 'roof.unit');
   // the gangway's bellows at the far end
   box(fittings, [-0.55, 0.55], [yTail - 0.28, yTail], [floor, floor + 2.05], 'gangway');
 
@@ -179,12 +182,20 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
     for (const f of Object.values(B.faces).flat()) bogieOut.push({ ...f, corners: f.corners.map(([x, y, z]) => [x, r4(y + yB), z]) });
   }
   for (const f of fittings) f.fill = f.fill ?? colour(f.part);
-  const faces = { body: finishRailFaces(body), front: finishRailFaces(front), fittings: finishRailFaces(fittings), bogies: bogieOut };
+  // the pantographs on the roof's crown, raised by the pose (`raise` 0…1, or `wire`: up to a contact wire that high over
+  // the rail)
+  const roof = [], pantos = [];
+  for (const p of d.pantographs || []) {
+    const P = compilePantoSurface({ seed: d.seed, archetype: p.kind }, { quality: LOD.bogie, facing: p.facing, pose: Number.isFinite(+pose.wire) ? { wire: +pose.wire - H } : { raise: pose.raise } });
+    for (const f of Object.values(P.faces).flat()) roof.push({ ...f, corners: f.corners.map(([x, y, z]) => [x, r4(y + p.y), r4(z + H)]) });
+    pantos.push({ kind: p.kind, y: p.y, raise: P.pose.raise, contact: r4(P.pose.contact + H), ...(P.pose.reached === undefined ? {} : { reached: P.pose.reached }) });
+  }
+  const faces = { body: finishRailFaces(body), front: finishRailFaces(front), fittings: finishRailFaces(fittings), bogies: bogieOut, ...(roof.length ? { roof } : {}) };
   const all = Object.values(faces).flat(), parts = {};
   for (const f of all) parts[f.part] = (parts[f.part] || 0) + 1;
   const census = { faces: all.length, triangles: all.reduce((t, f) => t + f.corners.length - 2, 0), rows: Z.length, columns: U.length, stations: Y.length,
     materialGroups: new Set(all.map((f) => f.material)).size, parts };
   const { P: _p, ...frontNumbers } = d.front;
   void _p;
-  return { design: { ...d, front: frontNumbers }, quality, livery: C, faces, materials: RAIL_MATERIALS, census };
+  return { design: { ...d, front: frontNumbers }, quality, livery: C, faces, materials: RAIL_MATERIALS, census, ...(pantos.length ? { pantographs: pantos } : {}) };
 }

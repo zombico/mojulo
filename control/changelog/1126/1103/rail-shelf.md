@@ -61,3 +61,31 @@
     archetype's springs, drive and brakes where it puts them; the lifeguards on a leading bogie alone; the spin turning
     the wheels and nothing else, the yaw turning the bogie about its pivot; the same brief the same bytes, a finer
     level more triangles; a cab car on its bogies under its floor, its wheels on the rail.
+- **The pantographs** (`panto-odm.js`, `panto-surface.js`) and **the overhead line** (`catenary.js`).
+  - **The grammar** (`solvePantoDesign`): a mainline single-arm pantograph, a streetcar's smaller arm, the older diamond,
+    a trolley pole, each solved into its arms, its base on its insulators, its head (its width, its two carbon strips,
+    their spacing, its horns) and its working range, held to laws: folded low on the roof, its range over its class's
+    roof covering its class's wire band, its arms able to close, a single arm's head riding near over its hinge.
+  - **The kinematics** (`pantoPose`): a pose's `raise` (folded to its highest), or `wire` (the head raised until its
+    strips meet a contact wire that high, as far as its arms reach, saying whether it did): a single arm's knee where
+    the circles of its two arms about the hinge and the head meet, leading; a diamond's knees its lozenge's sides; a
+    pole's angle the one that reaches the wire.
+  - **The surface** (`compilePantoSurface`): the insulators revolved with their sheds, the base frame, the drive (a single
+    arm's air bellows, a diamond's springs, a pole's sprung swivel), the lower arm's converging tubes and its guide rod,
+    the upper arm, the pan head's bar, its strips and its curled horns and the springs under it; a pole, its harp and its
+    wheel. Its hardpoints (its mount, its contact), its joint (the raise); turned end for end by its facing.
+  - **The catenary** (`compileCatenary`): a contact wire at its height over a stretch of track, staggered either side
+    of the track's centre mast to mast (`wireAt`), its messenger sagging over it on droppers, the masts beside the track
+    and their cantilevers and insulators; a tramway's a single wire on its spans.
+  - **The cab car carries them:** each archetype's pantographs on its roof's crown at their places along it, facing
+    their way (none on a metro car), raised by the cab's pose (`raise`, or `wire` over the rail), the roof's units kept
+    clear of them; its laws now hold its pantographs folded inside an electrified gauge's pantograph zone and raised
+    over their class's highest wire, and its bogies inside its body (which moved the high-speed car's bogie back from
+    under its narrowing nose). `scripts/render-rail.mjs` runs a cab with pantographs under a catenary, its pantographs
+    raised to it, and takes a pantograph's kind as a preset, folded, half raised and raised to its wire.
+  - Held (`panto.test.js`): each kind within its laws, its range over its class's roof covering its band; a single
+    arm's knee on both arms' circles and ahead of its head, the head rising with the raise; a diamond's sides its arms;
+    a pole's tip its length out, trailing; a wire met when in reach, clamped and said when not; the strips' top at the
+    contact, the insulators under the frame, the facing turning it end for end; folded and raised differing in the arms
+    alone; the same pose the same bytes; a catenary's wire at its height, staggered mast to mast, a tramway's without a
+    messenger; a cab car's pantographs folded inside the zone and raised to the wire, a car without them carrying none.

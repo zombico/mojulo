@@ -78,7 +78,9 @@ export function revolve(out, profile, { y0 = 0, z0 = 0, sx = 1, n = 16, a0 = 0, 
 // a part's material (the vehicle ODM's where it names one, the rail shelf's own over it)
 const OWN = { sign: 'sign', coupler: 'alloy', buffer: 'alloy', anticlimber: 'alloy', pilot: 'carbon', wiper: 'carbon', 'body.mask': 'carbon', 'glass.frame': 'seal', pillar: 'carbon',
   wheel: 'alloy', axle: 'alloy', gangway: 'rubber', underframe: 'seal', grille: 'carbon', seam: 'seal', 'lamp.bezel': 'carbon', headlamp: 'lamp', taillamp: 'tail',
-  'wheel.tread': 'alloy', 'wheel.mark': 'paint', 'brake.disc': 'brake', 'bogie.air': 'rubber', 'bogie.chevron': 'rubber', damper: 'paint' };
+  'wheel.tread': 'alloy', 'wheel.mark': 'paint', 'brake.disc': 'brake', 'bogie.air': 'rubber', 'bogie.chevron': 'rubber', damper: 'paint',
+  'panto.arm': 'alloy', 'panto.rod': 'alloy', 'panto.frame': 'alloy', 'panto.head': 'alloy', 'panto.horn': 'alloy', 'panto.strip': 'carbon', 'panto.drive': 'seal', 'panto.wheel': 'alloy', 'panto.insulator': 'paint',
+  'catenary.wire': 'alloy', 'catenary.messenger': 'alloy', 'catenary.arm': 'alloy', 'catenary.mast': 'seal', 'catenary.insulator': 'paint' };
 export function railMaterial(part) {
   if (OWN[part]) return OWN[part];
   if (/^bogie\./.test(part)) return 'seal';
