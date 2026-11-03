@@ -366,8 +366,11 @@ export const VEHICLES = {
     { scenery: 'regional', craft: 'regional', tech: 'winged' }),
   airliner: row('airliner', ['narrowbody', 'jetliner', 'passenger jet', 'single-aisle jet'], 'air', 'liner', M, AIR,
     { scenery: 'airliner', craft: 'narrowbody', tech: 'winged' }),
-  widebody: row('widebody airliner', ['widebody', 'jumbo jet', 'jumbo', 'long-haul jet', 'twin-aisle jet'], 'air', 'liner', M, AIR,
+  widebody: row('widebody airliner', ['widebody', 'long-haul jet', 'twin-aisle jet', 'twin-engine widebody'], 'air', 'liner', M, AIR,
     { scenery: 'widebody', craft: 'widebody', tech: 'winged' }),
+  // (the four-engined jumbo, an upper deck over its nose, a class and not a replica: the words "jumbo" are its)
+  'jumbo-jet': row('jumbo jet', ['jumbo', 'four-engine airliner', 'four engine jet', 'quad jet', 'upper deck airliner', 'humped airliner'], 'air', 'liner', M, AIR,
+    { craft: 'jumbo', tech: 'winged' }),
   'camera-drone': row('camera drone', ['quadcopter', 'camera quad', 'quad drone', 'consumer drone'], 'air', 'survey', M, AIR,
     { craft: 'cameraQuad', tech: 'rotor' }),
   'racing-drone': row('racing drone', ['fpv drone', 'fpv quad', 'racing quad', 'freestyle quad'], 'air', 'racer', M, ['driven', 'watched'],

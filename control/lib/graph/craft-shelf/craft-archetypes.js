@@ -153,6 +153,25 @@ export const CRAFT_ARCHETYPES = {
     ],
   },
 
+  jumbo: {
+    realm: 'earth', role: 'liner', palette: 'airlinerWhite', class: 'airliner', label: 'four-engined twin-aisle jumbo, an upper deck over its nose', classOf: '747-400 class',
+    reference: { span: 64.4, length: 70.6, height: 19.4, mtow: 396900 },
+    bom: { 'craft-fuselage': 1, 'craft-wing': 2, 'craft-stabilizer': 2, 'craft-fin': 1, 'craft-pylon': 4, 'craft-engine': 4, 'craft-gear': 5 },
+    layout: [
+      { id: 'hull', sku: 'fus-jumbo' },
+      { id: 'wing', sku: 'wing-jumbo', at: 'hull.wingRoot', pair: true },
+      { id: 'pylonIn', sku: 'pylon-underwing-jumbo', at: 'wing.engineIn', pair: true },
+      { id: 'pylonOut', sku: 'pylon-underwing-jumbo', at: 'wing.engineOut', pair: true },
+      { id: 'engineIn', sku: 'eng-turbofan-jumbo', at: 'pylonIn.carry', pair: true },
+      { id: 'engineOut', sku: 'eng-turbofan-jumbo', at: 'pylonOut.carry', pair: true },
+      { id: 'stab', sku: 'stab-jumbo', at: 'hull.stabRoot', pair: true },
+      { id: 'fin', sku: 'fin-jumbo', at: 'hull.finRoot' },
+      { id: 'main', sku: 'gear-bogie-jumbo', at: 'wing.gear', pair: true },
+      { id: 'body', sku: 'gear-bogie-jumbo', at: 'hull.bodyGear', pair: true },
+      { id: 'nose', sku: 'gear-nose-jumbo', at: 'hull.noseGear' },
+    ],
+  },
+
   // ===== space =================================================================================
   strikeFoil: {
     realm: 'space', role: 'superiority', palette: 'scoutIvory', class: 'space superiority fighter', label: 'four-foil snubfighter', classOf: 'strike-foil snubfighter register',

@@ -96,3 +96,17 @@ describe('through a level\'s parked vehicles', () => {
     expect(() => readParked([{ vehicle: word, at: [0, 0, 0], crew: ['sedan'] }])).toThrow(/not one of the ground crew/);
   });
 });
+
+describe('a four-engined jumbo\'s turnaround', () => {
+  // (a liner on four engines: its inner and outer pairs by their own ids)
+  const QUAD = LINERS.find((k) => CRAFT_ARCHETYPES[k].layout.filter((e) => /^engine/.test(e.id)).length > 1);
+  it('calls its whole crew, the fuel truck clear of every engine it has', () => {
+    const craft = { craft: QUAD, at: [0, 0, 0], heading: 0 }, crew = turnaround(craft);
+    expect(new Set(crew.map((e) => e.vehicle))).toEqual(new Set(Object.values(CREW_ROLES)));
+    const { items } = craftForm(QUAD, { attitude: 'ground', pose: { gear: 0 } }), all = items.flatMap((it) => it.faces.flatMap((f) => f.corners));
+    let cx = 0, cy = 0; { let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity; for (const p of all) { a = Math.min(a, p[0]); b = Math.max(b, p[0]); c = Math.min(c, p[1]); d = Math.max(d, p[1]); } cx = (a + b) / 2; cy = (c + d) / 2; }
+    const engines = items.filter((it) => /^engine/.test(it.id)).map((it) => boxOf(it.faces.flatMap((f) => f.corners.map((p) => [p[0] - cx, p[1] - cy]))));
+    expect(engines.length).toBe(4);
+    for (const e of crew) for (const B of engines) expect(overlap(boxOf(local(e, craft).corners), B), e.vehicle).toBe(false);
+  });
+});

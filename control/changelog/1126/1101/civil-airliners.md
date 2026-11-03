@@ -32,3 +32,17 @@ the fighter and the helicopters have, and a four-engined jumbo.
   `assembleCraft`, `craftForm`, a world's craft figure and a parked craft.
 - **A fixed wing's civil registration** is aft, under its tail, where an airliner's is; a helicopter's stays at its
   boom's root.
+- **The jumbo** (archetype `jumbo`, a class and not a replica): a four-engined twin-aisle with an upper deck over its
+  forward third.
+  - Its hull is `fus-jumbo`: its stations raise the hump and fair it into the main deck's barrel. Its windows run in a
+    row per deck, since a hull's `windows` may now be a list; the first row's ids stay a single row's, so every other
+    hull is unchanged. It has main-deck doors, an upper-deck door and two holds.
+  - Its wing carries inner and outer engines on their own pylons, and winglets.
+  - Its tailplane and fin are its own.
+  - It stands on four-wheel wing and body bogies and its own nose leg.
+
+  It measures within a few percent of its reference. The registry's new `jumbo jet` row (jumbo, quad jet, four-engine
+  airliner) names it, and the twin-aisle keeps `widebody` and `long-haul jet`.
+- **The turnaround** calls a jumbo's whole crew, and the fuel truck waits clear of every engine and pylon by their
+  layout's ids (a jumbo's inner and outer pairs). Its craft read loops over a big craft's corners rather than spreading
+  them into an argument list.

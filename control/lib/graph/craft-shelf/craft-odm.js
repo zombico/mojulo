@@ -60,6 +60,8 @@ const WEDGE = [[1, -0.2], [0.7, 0.6], [0.25, 1], [-0.25, 1], [-0.7, 0.6], [-1, -
 const STEALTH = [[1, -0.55], [0.55, 0.25], [0.12, 1], [-0.12, 1], [-0.55, 0.25], [-1, -0.55], [-0.85, -1], [0.85, -1]];
 
 // Shared station tables: a family of airframes is one shape at another size.
+// a jumbo's: its upper deck a hump over the forward third, faired down into the main deck's barrel behind it
+const JUMBO_BARREL = [[0, 0.02, 0.02, 0.45], [0.025, 0.46, 0.5, 0.46], [0.07, 0.86, 0.9, 0.49], [0.12, 0.98, 1, 0.5], [0.3, 1, 1, 0.5], [0.37, 1, 0.86, 0.43], [0.42, 1, 0.815, 0.407], [0.72, 1, 0.815, 0.407], [0.86, 0.62, 0.52, 0.47], [1, 0.1, 0.17, 0.62]];
 const AIRLINER_BARREL = [[0, 0.02, 0.02, 0.45], [0.03, 0.5, 0.52, 0.45], [0.08, 0.92, 0.94, 0.49], [0.14, 1, 1, 0.5], [0.7, 1, 1, 0.5], [0.86, 0.62, 0.66, 0.6], [1, 0.1, 0.22, 0.78]];
 
 export const CRAFT_ODM = {
@@ -153,6 +155,24 @@ export const CRAFT_ODM = {
       points: { wingRoot: [0.4, 0.92, -0.6], stabRoot: [0.9, 0.2, 0.1], finRoot: [0.82, 0, 0.75], noseGear: [0.06, 0, -0.9] } },
   },
 
+  'fus-jumbo': {
+    kind: 'craft-fuselage', realm: 'earth', label: 'four-engined jumbo fuselage, an upper deck over its forward third', classOf: '747-400 class',
+    aliases: ['jumbo fuselage', 'upper deck fuselage', 'humped fuselage'],
+    dims: { length: 70.6, width: 6.5, height: 8.1 }, mass: 45000, mount: null,
+    build: {
+      family: 'tube', n: 2, stations: JUMBO_BARREL, windscreen: [0.03, 0.05],
+      // (its main deck's windows under the hump and behind it at one height, the upper deck's over them)
+      windows: [
+        { from: 0.075, to: 0.31, pitch: 0.533, zf: 0.012, w: 0.27, h: 0.38 },
+        { from: 0.43, to: 0.85, pitch: 0.533, zf: 0.24, w: 0.27, h: 0.38 },
+        { from: 0.08, to: 0.29, pitch: 0.533, zf: 0.63, w: 0.27, h: 0.36 },
+      ],
+      doors: [[0.065, -0.012, 1.07, 1.93], [0.2, -0.012, 1.07, 1.93], [0.43, 0.21, 1.07, 1.93], [0.62, 0.21, 1.07, 1.93], [0.84, 0.21, 1.07, 1.93], [0.26, 0.58, 0.85, 1.55]],
+      holds: [[0.25, -0.57, 2.7, 1.68], [0.68, -0.47, 2.7, 1.68]],
+      antennas: [[0.36, 0, 1, 0.38, 'blade'], [0.55, 0, -1, 0.32, 'blade']],
+      points: { wingRoot: [0.43, 0.92, -0.6], stabRoot: [0.9, 0.2, 0.1], finRoot: [0.83, 0, 0.75], noseGear: [0.06, 0, -0.9], bodyGear: [0.52, 0.34, -0.76] } },
+  },
+
   // ===== earth: wings, tails ===================================================================
   'wing-light-high': {
     kind: 'craft-wing', realm: 'earth', label: 'high wing panel, light single', classOf: 'Cessna 172 class',
@@ -227,6 +247,20 @@ export const CRAFT_ODM = {
     aliases: ['airliner tailplane'], dims: { span: 6.2 }, mass: 640, mount: 'tail-root',
     build: { rootChord: 3.5, tipChord: 1.4, sweep: 32, dihedral: 6, thickness: 0.1, hinge: [0, 0.95, 0.3] },
   },
+  'wing-jumbo': {
+    kind: 'craft-wing', realm: 'earth', label: 'swept wing panel, four-engined jumbo', classOf: '747-400 class',
+    aliases: ['jumbo wing', 'four engine wing'], dims: { span: 29.0 }, mass: 21000, mount: 'wing-root',
+    build: {
+      planform: [[0, 14.6], [0.3, 8.9], [1, 3.9]], sweep: 37.5, dihedral: 7, thickness: 0.13, tipThickness: 0.09, camber: 0.02, twist: 3, hinge: [0.05, 0.93, 0.2],
+      fairings: [0.12, 0.25, 0.4, 0.55], winglet: { height: 1.8, root: 0.9, tip: 0.4, sweep: 45, cant: 25 },
+      points: { engineIn: [0.3, 0.06, 'lower'], engineOut: [0.6, 0.1, 'lower'], gear: [0.09, 0.62, 'lower'] },
+    },
+  },
+  'stab-jumbo': {
+    kind: 'craft-stabilizer', realm: 'earth', label: 'horizontal stabilizer, four-engined jumbo', classOf: '747-400 class',
+    aliases: ['jumbo tailplane'], dims: { span: 11.0 }, mass: 2900, mount: 'tail-root',
+    build: { rootChord: 7.0, tipChord: 2.2, sweep: 37, dihedral: 7, thickness: 0.1, hinge: [0, 0.95, 0.28] },
+  },
   'stab-widebody': {
     kind: 'craft-stabilizer', realm: 'earth', label: 'horizontal stabilizer, twin aisle', classOf: '777 class',
     aliases: ['widebody tailplane'], dims: { span: 10.8 }, mass: 2400, mount: 'tail-root',
@@ -261,6 +295,11 @@ export const CRAFT_ODM = {
     kind: 'craft-fin', realm: 'earth', label: 'vertical fin, single aisle', classOf: 'A320 class',
     aliases: ['airliner fin'], dims: { span: 5.9 }, mass: 560, mount: 'tail-root',
     build: { vertical: true, rootChord: 5.9, tipChord: 2.1, sweep: 40, thickness: 0.1, hinge: [0, 0.95, 0.3] },
+  },
+  'fin-jumbo': {
+    kind: 'craft-fin', realm: 'earth', label: 'vertical fin, four-engined jumbo', classOf: '747-400 class',
+    aliases: ['jumbo fin'], dims: { span: 11.4 }, mass: 2300, mount: 'tail-root',
+    build: { vertical: true, rootChord: 11.5, tipChord: 3.6, sweep: 45, thickness: 0.1, hinge: [0, 0.95, 0.28] },
   },
   'fin-widebody': {
     kind: 'craft-fin', realm: 'earth', label: 'vertical fin, twin aisle', classOf: '777 class',
@@ -298,6 +337,11 @@ export const CRAFT_ODM = {
     kind: 'craft-engine', realm: 'earth', label: 'large high-bypass turbofan powerplant', classOf: 'GE90 class',
     aliases: ['large turbofan', 'widebody engine'], dims: { length: 7.3, diameter: 3.9 }, mass: 7550, perf: { thrust: 417 }, mount: 'pod-mount',
     build: { family: 'turbofan', fanDiameter: 3.12, mountAt: 0.35 },
+  },
+  'eng-turbofan-jumbo': {
+    kind: 'craft-engine', realm: 'earth', label: 'high-bypass turbofan powerplant, a jumbo\'s', classOf: 'CF6-80 class',
+    aliases: ['jumbo engine', 'four engine turbofan'], dims: { length: 5.4, diameter: 2.75 }, mass: 4300, perf: { thrust: 252 }, mount: 'pod-mount',
+    build: { family: 'turbofan', fanDiameter: 2.36, mountAt: 0.35 },
   },
   'eng-turbofan-afterburning': {
     kind: 'craft-engine', realm: 'earth', label: 'afterburning low-bypass turbofan', classOf: 'F100 / F110 class',
@@ -386,6 +430,16 @@ export const CRAFT_ODM = {
     aliases: ['bogie', 'main bogie', 'six wheel truck'], dims: { height: 4.36 }, mass: 4800, mount: 'gear-well',
     build: { retract: 'inward', family: 'bogie', strut: 3.7, oleo: 0.22, rows: 3, tyre: [1.32, 0.51] },
   },
+  'gear-bogie-jumbo': {
+    kind: 'craft-gear', realm: 'earth', label: 'four-wheel main bogie, a jumbo\'s wing and body gear', classOf: '747-400 class, 49 in tyre',
+    aliases: ['jumbo bogie', 'body gear', 'four wheel truck'], dims: { height: 2.75 }, mass: 3600, mount: 'gear-well',
+    build: { retract: 'inward', family: 'bogie', strut: 2.15, oleo: 0.22, rows: 2, tyre: [1.25, 0.47] },
+  },
+  'gear-nose-jumbo': {
+    kind: 'craft-gear', realm: 'earth', label: 'twin-wheel nose leg, a jumbo\'s', classOf: '747-400 class, 49 in tyre',
+    aliases: ['jumbo nose gear'], dims: { height: 3.3 }, mass: 1000, mount: 'gear-well',
+    build: { family: 'leg', strut: 2.6, oleo: 0.14, wheels: 2, rake: 0.25, tyre: [1.25, 0.47] },
+  },
   'gear-nose-widebody': {
     kind: 'craft-gear', realm: 'earth', label: 'twin-wheel nose leg, twin aisle', classOf: '777 class, 43 in tyre',
     aliases: ['widebody nose gear'], dims: { height: 4.38 }, mass: 900, mount: 'gear-well',
@@ -407,6 +461,11 @@ export const CRAFT_ODM = {
     kind: 'craft-pylon', realm: 'earth', label: 'underwing engine pylon, single aisle', classOf: 'A320 class',
     aliases: ['engine pylon', 'strut'], dims: { length: 4.2, height: 0.2 }, mass: 600, mount: 'wing-store',
     build: { family: 'underwing', forward: 2.3, thickness: 0.18 },
+  },
+  'pylon-underwing-jumbo': {
+    kind: 'craft-pylon', realm: 'earth', label: 'underwing engine pylon, four-engined jumbo', classOf: '747-400 class',
+    aliases: ['jumbo pylon'], dims: { length: 6.2, height: 0.1 }, mass: 1400, mount: 'wing-store',
+    build: { family: 'underwing', forward: 3.0, thickness: 0.16 },
   },
   'pylon-underwing-widebody': {
     kind: 'craft-pylon', realm: 'earth', label: 'underwing engine pylon, twin aisle', classOf: '777 class',
