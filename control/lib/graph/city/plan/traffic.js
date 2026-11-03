@@ -3,9 +3,13 @@
  * model (scene/channels/traffic-model.js: stop lines, exclusive phases, following gaps, no two cars ever touching),
  * which the world path runs with its measured car bank (worlds/world-kinds.js attachCityCars).
  *
- *   cars: true | false | { turn?, heads? }  on (the default) drives every straight street; false leaves them empty;
+ *   cars: true | false | { turn?, heads?, machines? }
+ *                                           on (the default) drives every straight street; false leaves them empty;
  *                                           turn the share of junctions a car turns at (its near side, on its green:
- *                                           traffic-model.js laneTurns), heads the signal heads shown at the junctions
+ *                                           traffic-model.js laneTurns), heads the signal heads shown at the junctions,
+ *                                           machines true puts the road's site machines among the cars (a tipper, a
+ *                                           mixer, a mobile crane in transit: the construction shelf's, folded to
+ *                                           drive; construction-shelf/con-figure.js conTrafficMesh). Absent, none
  *
  * A street wide enough for two cars abreast carries a lane each way, on the grammar's side (`traffic`); a narrower
  * one carries one lane, its direction alternating street by street along each axis (a one-way grid). Every place two
@@ -26,9 +30,10 @@ export const CAR_DEFAULTS = Object.freeze({ turn: 0.35, heads: true });
 export function readCars(v) {
   if (v === undefined || v === true) return { ...CAR_DEFAULTS };
   if (v === false) return null;
-  const no = () => { throw new Error('city: cars is true (the streets driven, the default), false (empty streets), or { turn?: 0…1 (the share of junctions a car turns at, its near side), heads?: true | false (the signal heads shown) }'); };
+  const no = () => { throw new Error('city: cars is true (the streets driven, the default), false (empty streets), or { turn?: 0…1 (the share of junctions a car turns at, its near side), heads?: true | false (the signal heads shown), machines?: true | false (the road\'s site machines among the cars: a tipper, a mixer, a mobile crane) }'); };
   if (!v || typeof v !== 'object' || Array.isArray(v)) no();
-  for (const k of Object.keys(v)) if (!['turn', 'heads'].includes(k)) no();
+  for (const k of Object.keys(v)) if (!['turn', 'heads', 'machines'].includes(k)) no();
+  if (v.machines !== undefined && typeof v.machines !== 'boolean') no();
   if (v.turn !== undefined && !(typeof v.turn === 'number' && v.turn >= 0 && v.turn <= 1)) no();
   if (v.heads !== undefined && typeof v.heads !== 'boolean') no();
   return { ...CAR_DEFAULTS, ...v };

@@ -327,14 +327,31 @@ function carMeshBank(scale = CITY_CAR_SCALE) {
   }
   return _carBanks.get(scale);
 }
+// the road's site machines as moving cars (construction-shelf/con-figure.js conTrafficMesh), each at the bank's scale:
+// a sedan baked at it against a midsize sedan's true length gives the world's units a metre
+const SITE_TRAFFIC = Object.freeze([{ vehicle: 'tipperTruck' }, { vehicle: 'mixerTruck' }, { vehicle: 'mobileCrane' }]);
+const _siteBanks = new Map();
+function siteMeshBank(scale = CITY_CAR_SCALE) {
+  if (!_siteBanks.has(scale)) {
+    _siteBanks.set(scale, (async () => {
+      const [{ bakeCarMesh }, { conTrafficMesh }, { VEHICLES: PHYS }] = await Promise.all([import('@/lib/graph/vehicles/car-bake'), import('@/lib/graph/construction-shelf/con-figure.js'), import('@/lib/graph/roads/vehicles.js')]);
+      const k = bakeCarMesh({ type: 'sedan', scale }).len / PHYS.midsize.L;
+      return Object.fromEntries(SITE_TRAFFIC.map((t, i) => [`site${i}`, conTrafficMesh({ archetype: t.vehicle }, k)]));
+    })().catch((err) => { _siteBanks.delete(scale); throw err; }));
+  }
+  return _siteBanks.get(scale);
+}
 async function attachCityCars(scene) {
   const cues = scene && scene.cityCues;
   if (cues) delete scene.cityCues;   // consumed here (walkers read it first) → keep the payload clean for emitThreeWorld
   let lanes = scene && scene.carLanes;
   if (!Array.isArray(lanes) || !lanes.length) return scene;
   const { carLaneToPath } = await import('@/lib/graph/city/fractal-city');
-  const bank = await carMeshBank(cues?.car ?? CITY_CAR_SCALE);
-  const names = Object.keys(bank);
+  const cars0 = await carMeshBank(cues?.car ?? CITY_CAR_SCALE);
+  // (the road's site machines among them, when the city asks: city/plan/traffic.js `cars.machines`; absent, none)
+  const bank = cues?.machines ? { ...cars0, ...(await siteMeshBank(cues?.car ?? CITY_CAR_SCALE)) } : cars0;
+  // (each car twice to each machine once: a machine one vehicle in five)
+  const names = cues?.machines ? [...Object.keys(cars0), ...Object.keys(cars0), ...Object.keys(bank).filter((n) => !cars0[n])] : Object.keys(bank);
   // SIGNALISED traffic: when the plan exported the crossings, the city's own traffic constants are
   // derived from the MEASURED car bank — the longest and widest model are the collision footprint,
   // the clearance is what that model needs to leave the widest box (deriveClearance) — the phase

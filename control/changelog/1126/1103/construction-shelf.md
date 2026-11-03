@@ -432,3 +432,14 @@ push, load, haul and lift on a site.
     and its machines (near the camera only); every repeat still drawn by the near rule; the skyline none.
   - **Seen** (machine gate only, the eyes gate is open): two sites from the street corner, each crane over its rising
     building, a tipper in the hoarding, a taller core site keeping its massing crane.
+- **The doors, step 5: the machines in a city's traffic** (`city/plan/traffic.js`, `worlds/world-kinds.js`):
+  - A planned city's `cars: { machines: true }` puts the road's site machines among its moving cars: a tipper, a
+    mixer and a mobile crane in transit.
+    - Each is folded to drive (its `transport` pose) and baked as the city's cars are (`conTrafficMesh`): facing along
+      its lane, at the bank's scale (a sedan baked at it against a midsize sedan's true length gives the units a
+      metre).
+    - They are one vehicle in five. The traffic's footprint is measured as before, so a crane's length is its own.
+  - **Opt-in:** absent, the bank and every lane are as before, not a byte added.
+  - **Held:** a city asked for them drives them (a machine longer than any car); one not asked for, none; the word
+    refused when it is not true or false.
+  - **Seen** (machine gate only, the eyes gate is open): a tipper in its lane down a street, beside a car.
