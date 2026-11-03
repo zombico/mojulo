@@ -542,6 +542,7 @@ export function buildRupa(E) {
     }
     return f < 1 ? u.map((x) => x * f) : u;
   }
+  E.windHere = (state, pos) => (state.rupa ? windHere(state, pos) : [0, 0, 0]);   // the wind a page draws, as the bodies feel it
   // what the wind's drag on a body at rest comes to (N), against what its weight holds on the ground
   const REST_MU = 0.5;
   function windWakes(state, p) {
