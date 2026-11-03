@@ -1,7 +1,7 @@
 // Once per test run, before any worker starts: the folder the realistic body's keeps share across test files
-// (lib/util/kept.js). It is named for a hash of every file under lib/ but the tests, and of the lockfile, so a change to any of
-// them starts an empty folder and nothing built from older code is ever read back. A CI job's folder lives and dies
-// with its runner; a laptop keeps the current folder between runs and prunes the stale ones after a day.
+// (lib/util/kept.js). It is named for a hash of every file under lib/ but the tests, and of the lockfile, so a change
+// to any of them starts an empty folder and nothing built from older code is ever read back. A CI job's folder lives
+// and dies with its runner; a laptop keeps the current folder between runs and prunes the stale ones after a day.
 // MOJULO_KEPT=off builds everything afresh; a MOJULO_KEPT_DIR already set is used as given.
 import fs from 'node:fs';
 import os from 'node:os';
