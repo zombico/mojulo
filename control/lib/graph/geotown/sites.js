@@ -27,7 +27,7 @@
 import { box } from './fronts.js';
 import { serviceOf } from './yards.js';
 
-export const SITE_TYPES = Object.freeze(['school', 'sports', 'park']);
+export const SITE_TYPES = Object.freeze(['school', 'sports', 'park', 'square']);
 
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
@@ -96,6 +96,20 @@ export function sitePlan(type, S, { L, D, R }) {
       if (c[3] < D) parts.push({ cls: 'grounds', rect: rect(L - cw, n ? c[3] : Sd, L, D) });
     }
     return { parts, what };
+  }
+  if (type === 'square') {
+    // a SQUARE: its church's lot across its far side, the church's front to the square; the rest paved, the piazza; a
+    // fountain in its middle where it is deep enough, cafe tables in rows along its two flanks
+    const Dc = r3(Math.min(cl(S.lot.deep * D, 22, 40), D * 0.55)), Lc = r3(Math.min(cl(S.lot.long * L, 18, 34), L * 0.62)), u0 = r3((L - Lc) / 2), v0 = r3(D - Dc);
+    const side = r3(cl(S.building.side * Lc, 1.5, 5)), plot = { w: Lc, d: Dc, setback: r3(cl(S.setback * Dc, 2, 6)), depth: r3(cl(S.building.deep * Dc, 14, 26)), sides: [side, side], path: 3, kind: 'church', at: [u0, v0] };
+    parts.push({ cls: 'piazza', rect: rect(0, 0, L, v0) });
+    if (u0 > 0) parts.push({ cls: 'piazza', rect: rect(0, v0, u0, D) }, { cls: 'piazza', rect: rect(u0 + Lc, v0, L, D) });
+    if (v0 >= 14) what.fountain = [r3(L / 2), r3(v0 / 2)];
+    // (the tables: a row along each flank of the square's front, clear of the fountain and the church's path)
+    const T = S.tables, tables = [];
+    for (const u of [T.edge, L - T.edge]) for (let v = T.edge; v < v0 - T.edge + 1e-6; v += T.stride) if (!what.fountain || Math.hypot(u - what.fountain[0], v - what.fountain[1]) > S.fountain.r + 3) tables.push([r3(u), r3(v)]);
+    what.tables = tables;
+    return { parts, plot, what };
   }
   // a park: two paths across it, the lawn between them; a playground in one quarter, a pavilion in another
   const pw = S.path, uc = L / 2, vc = D / 2;
@@ -338,4 +352,27 @@ export function benchOf(u, v, along, facing) {
 /** A picnic table and its two benches, at (u, v), on a floor `z0` high. */
 export function picnicOf(u, v, z0 = 0) {
   return [...box(u - 0.9, v - 0.4, u + 0.9, v + 0.4, z0 + 0.72, z0 + 0.78, 'timber'), ...box(u - 0.9, v - 0.85, u + 0.9, v - 0.6, z0 + 0.42, z0 + 0.47, 'timber'), ...box(u - 0.9, v + 0.6, u + 0.9, v + 0.85, z0 + 0.42, z0 + 0.47, 'timber'), ...post(u, v, z0, z0 + 0.72, 0.08, 'timber')];
+}
+
+/** A cafe table on the square: a round top on its stem, two chairs either side, a parasol over it. */
+export function cafeOf(u, v, hex = null) {
+  const out = [];
+  out.push(...post(u, v, 0, 0.72, 0.04, 'metal'), ...box(u - 0.38, v - 0.38, u + 0.38, v + 0.38, 0.72, 0.76, 'seat').slice(1));
+  for (const s of [-1, 1]) { const cu = u + s * 0.75; out.push(...box(cu - 0.22, v - 0.22, cu + 0.22, v + 0.22, 0.44, 0.48, 'seat').slice(1), ...box(s > 0 ? cu + 0.18 : cu - 0.22, v - 0.22, s > 0 ? cu + 0.22 : cu - 0.18, v + 0.22, 0.48, 0.9, 'seat').slice(1)); }
+  out.push(...post(u, v, 0.76, 2.25, 0.025, 'metal'));
+  const r = 1.25, z = 2.25, top = 2.55;
+  for (let k = 0; k < 8; k++) { const a = (k * Math.PI) / 4, b = ((k + 1) * Math.PI) / 4; out.push({ corners: [P(u, v, top), P(u + r * Math.cos(a), v + r * Math.sin(a), z), P(u + r * Math.cos(b), v + r * Math.sin(b), z)], out: [Math.cos((a + b) / 2) * 0.5, Math.sin((a + b) / 2) * 0.5, 0.85], role: 'canvas', ...(hex ? { hex } : {}) }); }
+  return out;
+}
+/** A fountain: a round basin of stone (its rim, its water), a column in its middle, a bowl on it. */
+export function fountainOf(u, v, r = 3) {
+  const out = [], n = 16, at = (rr, k, z) => P(u + rr * Math.cos((k * 2 * Math.PI) / n), v + rr * Math.sin((k * 2 * Math.PI) / n), z);
+  for (let k = 0; k < n; k++) {
+    const c = Math.cos(((k + 0.5) * 2 * Math.PI) / n), s = Math.sin(((k + 0.5) * 2 * Math.PI) / n);
+    out.push({ corners: [at(r, k, 0), at(r, k + 1, 0), at(r, k + 1, 0.55), at(r, k, 0.55)], out: [c, s, 0], role: 'paving' });
+    out.push({ corners: [at(r, k, 0.55), at(r, k + 1, 0.55), at(r - 0.35, k + 1, 0.55), at(r - 0.35, k, 0.55)], out: [0, 0, 1], role: 'paving' });
+    out.push({ corners: [P(u, v, 0.4), at(r - 0.35, k, 0.4), at(r - 0.35, k + 1, 0.4)], out: [0, 0, 1], role: 'water' });
+  }
+  out.push(...box(u - 0.3, v - 0.3, u + 0.3, v + 0.3, 0.4, 1.9, 'paving').slice(1), ...box(u - 0.9, v - 0.9, u + 0.9, v + 0.9, 1.9, 2.1, 'paving').slice(1));
+  return out;
 }

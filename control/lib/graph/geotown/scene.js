@@ -55,7 +55,7 @@ import { buildingKits } from './houses.js';
 import { frontOf, FRONT, box } from './fronts.js';
 import { yardOf, fenceOf, serviceOf, garageOf, balconyOf, stairOf, backDoorOf, carOf, CAR_PAINTS, ZONES, FENCES } from './yards.js';
 import { gatesOf } from './gates.js';
-import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bleachersOf, lightsOf, flagOf, playgroundOf, pavilionOf, benchOf } from './sites.js';
+import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bleachersOf, lightsOf, flagOf, playgroundOf, pavilionOf, benchOf, cafeOf, fountainOf } from './sites.js';
 import { backTouch } from './laws.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { WALK } from '../era/out-ikebana.js';
@@ -167,7 +167,7 @@ function coloursOf(cube) {
     court: '#3f6f5a', track: '#a5503a', infield: '#b08560', dirt: '#b08560', base: '#f4f2ec', play: '#8a6a4a', chips: '#8a6a4a', netting: '#3a3f44', fence: '#2f4a3a',
     goal: '#f2f0e8', net: '#2a2c2e', board: '#e8e6e0', lamp: '#d8d4c8', flag: '#c8322f', seat: '#7b8a96', block: mix('#c2b49a', C.stone, 0.25),
     // a main street's paving by its kerb, its trees' grates; a shop's yard and a walk-up's lot, its lines, its bins
-    furnish: mix('#b39f88', C.floor, 0.25), pit: '#3b3a38', service: mix('#55585c', C.floor, 0.15), line: '#e8e4d8', bin: '#3f5a46', cabin: '#2b3036',
+    furnish: mix('#b39f88', C.floor, 0.25), piazza: mix('#bdb2a0', C.stone, 0.35), pit: '#3b3a38', service: mix('#55585c', C.floor, 0.15), line: '#e8e4d8', bin: '#3f5a46', cabin: '#2b3036',
   };
 }
 
@@ -795,6 +795,9 @@ export function assembleGeotownScene(m, ctx = {}) {
       const [x0, y0, x1, y1] = s.rect;
       put([[x0, y0, B.z], [x1, y0, B.z], [x1, y1, B.z], [x0, y1, B.z]], `geotown:${s.cls}`, col[s.cls] ?? col.lawn);
     }
+    // (a square's: its fountain, its cafe tables under their parasols, each its own canvas)
+    if (w.fountain) building([w.fountain[0] - 3, w.fountain[1] - 3, w.fountain[0] + 3, w.fountain[1] + 3], fountainOf(w.fountain[0], w.fountain[1], P.sites.square.fountain.r), 'fountain');
+    for (const [u, v] of w.tables ?? []) thing(cafeOf(u, v, P.shopfronts.awningColours[Math.floor(Rs() * P.shopfronts.awningColours.length)]));
     if (w.pitch) thing(pitchOf(w.pitch, Rs));
     if (w.track) thing(trackOf(w.track, P.sites.school.track.band));
     if (w.diamond) thing(diamondOf(w.diamond, Rs));

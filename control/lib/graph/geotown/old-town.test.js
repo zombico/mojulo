@@ -26,4 +26,18 @@ describe('the old town', () => {
     expect(new Set(lights({ pattern: 'old-town', streetscape: 'old-centre', segment: 'main-street' }))).toEqual(new Set(['lantern']));
     expect(lights({ segment: 'main-street' })).not.toContain('lantern');
   });
+
+  it('stands a square: a paved piazza, its church across its far side facing it, a fountain and cafe tables; it is no playing field', () => {
+    for (const spec of [{ segment: 'square' }, { evoke: 'neighbourhood', neighbourhood: 'square' }]) {
+      const T = designGeotown({ pattern: 'old-town', streetscape: 'old-centre', ...spec }, { seed: 3 }), B = T.blocks.find((b) => b.site?.type === 'square');
+      expect(T.laws.filter((l) => !l.ok).map((l) => l.law), JSON.stringify(spec)).toEqual([]);
+      expect(T.plots.filter((p) => p.kind === 'church')).toHaveLength(1);
+      expect(T.surfaces.some((x) => x.cls === 'piazza' && x.block === B.id)).toBe(true);
+      expect(B.site.what.tables.length).toBeGreaterThan(0);
+      expect(T.ledger.town.piazza).toBeGreaterThan(0);
+    }
+    // a town with no square counts no piazza in its ledger (its bytes as they were)
+    expect('piazza' in designGeotown({ segment: 'main-street' }, { seed: 3 }).ledger.town).toBe(false);
+  });
 });
+
