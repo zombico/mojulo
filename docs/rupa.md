@@ -531,7 +531,26 @@ burn carries none of this.
 - **Dig, deposit, shovel:** a scoop out (to bedrock), a pile at the angle of repose, or both (`hand`, `bucket`,
   `excavator`, or cubic metres).
 
-This lands as a tested kernel. The page's deformable floor and its ground probe reading the field are next.
+### The land as ground, on the page
+
+A physical stage's land is that ground ([`ground-grid.js`](../control/lib/graph/rupa/ground-grid.js), dug by the runtime's
+GROUND pass in [`controllable/rupa.js`](../control/lib/graph/worlds/controllable/rupa.js)): the stage hands over its
+landform grid (the heights it drew its land from) and, facet by facet, what its ground is (`era/substrate.js`). Each
+ground is a soil over bedrock: soil is loam 1.5 m deep, sand 3 m, scree gravel 1 m, wet ground clay 1.5 m, a path packed
+gravel 1 m, bare rock none (`DEPTH`).
+
+- **A burst near the land** digs the crater its energy would in the soil where it went off, less the higher it went
+  off and none above its own radius; the bowl stops at bedrock, the bank thrown into a rim bulked by its swell, and the
+  faces slump by their soil (the weaker of two neighbouring grounds deciding). The same laws as `ground.js`, on the
+  grid's points. A charge on bare rock digs nothing.
+- **What stood on it comes down:** a footing (a building's, a tree's roots) whose land went drops to the new surface,
+  and what it carried settles onto it. The world's colliders keep only their boxes, so the physics finds its footings
+  by their place among the level's own colliders.
+- **The page** sinks and rises what the stage laid on its land (its ground, trail, scree, cliff, tufts and stones: every
+  isekai group but its sky, water and trees) with the grid: the dug depth at each point is a small texture, read in those
+  meshes' vertex shaders and added to each vertex's height (an instanced blade by its root). The ground probe adds the
+  same depth where it lands on the land, so a walker stands in the crater. A page whose world has no ground carries none
+  of it.
 
 ## Skin and matter
 
@@ -624,7 +643,9 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - Dust and smoke held by walls and ceilings (a puff passes through them; smoke doesn't yet pool under a vault or fill
   a room), shelter for puffs behind a barrier (the leaves have it), a fuel's own smoke yield and colour (every fire is a
   wood fire, flaming), smouldering, and a GPU path for puffs (the page places at most 480 sprites on the CPU).
-- Ground on the page (a deformable floor and the shovel as an action; scars paint craters but the floor stays flat).
+- The shovel as an action on the page's ground, the dirt a ground crater throws (scars throw theirs), ground in the
+  geocity and terrain worlds (stages only), the live grass channel riding the ground on a world that has one only
+  when its blades are instanced, and a crater's bowl drawn finer than the stage's land grid.
 - Scars on what is not a box (a minted solid, a tree), and marks that fade or are cleared.
 - City buildings, houses entered by a door and walked-in buildings as blocks (structures and shell houses are), and
   the base settle on the grid (it searches every block when something falls).

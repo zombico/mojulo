@@ -26,6 +26,7 @@ import { readMatterSpec, readTool, readScarsSpec, loadAudit } from '@/lib/graph/
 import { shellBlocks } from '@/lib/graph/rupa/shell-blocks.js';
 import { physicsWind } from '@/lib/graph/rupa/one-wind.js';
 import { treeBlocks } from '@/lib/graph/rupa/tree-blocks.js';
+import { groundGrid } from '@/lib/graph/rupa/ground-grid.js';
 import { groundOfShares } from '@/lib/graph/rupa/look-matter.js';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
@@ -894,8 +895,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // destructible physics (rupa/, `destruction: 'physical'`): the blocks carry their matter (breakablesOf), and the
     // level's `matter` says how hard the world's blows land ({ power?, swing?, shot?, blastZ? }); the page composes the
     // opt-in rupa builder. Any other degree ⇒ no key, byte-identical.
-    if (destruction === 'physical' && payload.breakables) {
+    if (destruction === 'physical' && (payload.breakables || payload.physicalGround)) {
       payload.rupa = readMatterSpec(sketch.manifest.matter, 'matter');
+      // (its land as a soil grid the page digs, rupa/ground-grid.js, from the stage's landform and substrate)
+      const ground = groundGrid(payload.physicalGround);
+      if (ground) payload.rupa.ground = ground;
       // one wind (rupa/one-wind.js): the level's own `wind`, the one its plants, grass and cloth sway in, is the air its
       // blocks, dust, smoke and leaves feel, matched at 2 m and 10 m; the level's `matter.wind` overrides it for the physics
       if (!payload.rupa.wind && sketch.manifest.wind) { const w = physicsWind(sketch.manifest.wind); if (w) payload.rupa.wind = w; }
@@ -1691,6 +1695,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
 
   // (a physical stage's tree records serve its blocks only: a world with no one in it, or no physics, never carries them)
   if (payload && payload.physicalTrees !== undefined) delete payload.physicalTrees;
+  if (payload && payload.physicalGround !== undefined) delete payload.physicalGround;
   return { payload, kind };
 }
 

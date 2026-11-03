@@ -110,6 +110,10 @@
  *            a wind shadow, calmer air for about six of its heights behind it; the wind moves a body lying on the ground
  *            again once its drag beats what the body's weight holds (leaves skitter; a brick stays).
  *
+ *   GROUND   the land as a soil grid (`rupa.ground`, rupa/ground-grid.js: the stage's landform heights and, facet by facet,
+ *            its ground's soil): a burst near it digs its crater, the bank thrown to a rim, the faces slumping by their
+ *            soil; a footing whose land went drops to it (state.rupa.ground, its `version` and `dirty` cells for the page)
+ *
  *   TREES    a level's trees as blocks (rupa/tree-blocks.js, `rupa.trees`: each its blocks, its foot, its crown and the
  *            wind that snaps it): a gust at its crown past that speed throws it downwind about its foot (a felling); its
  *            trunk breaks and burns as green wood, its crown as fine fuel
@@ -687,7 +691,79 @@ export function buildRupa(E) {
     return { kind, at, normal, radius: Math.max(r, Math.min(cap, reach)), bowl: r, depth, debris };
   }
 
-  const physics = { craterSize, settleSpeed, dirt, scarOf, flameOf, footD, CHI_R, settleOf, buoyancyOf, riseOf, puffAt, lifeOf, smokeOf, plumePuffs, SOOT_K, SOOT_YIELD, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
+  // ── GROUND: the land as a grid of soil (rupa/ground-grid.js lays it from the stage's landform and its substrate):
+  // heights at the grid's points, what each facet's ground is (a soil record: dig, swell, c, phi, density, depth over
+  // bedrock). A blow near it digs the crater its energy would in that soil (craterSize), never below bedrock; the bank
+  // dug, bulked by the soil's swell, falls in a rim out to three radii thinning as (r/R)⁻³, every cubic metre laid; then
+  // the faces it left slump (Mohr–Coulomb: a drop stands within the critical height 4c/γ·tan(45° + φ/2), past it the soil
+  // runs to its angle of repose), the weaker of the two grounds deciding. The same laws as rupa/ground.js, on the page ──
+  const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  function unb64(str) {
+    const s = String(str).replace(/=+$/, ''), out = new Uint8Array(Math.floor((s.length * 3) / 4));
+    let o = 0, acc = 0, bits = 0;
+    for (let i = 0; i < s.length; i++) { acc = (acc << 6) | B64.indexOf(s[i]); bits += 6; if (bits >= 8) { bits -= 8; out[o++] = (acc >> bits) & 255; } }
+    return out;
+  }
+  function groundOf(G) {
+    if (!G || typeof G.z !== 'string' || !Array.isArray(G.soils)) return null;
+    const zb = unb64(G.z), z = new Float32Array(zb.buffer, 0, G.nx * G.ny), cells = unb64(G.cells), rock = new Float32Array(z.length);
+    const out = { x0: G.x0, y0: G.y0, dx: G.dx, nx: G.nx, ny: G.ny, z, z0: Float32Array.from(z), rock, cells, soils: G.soils, version: 0, seen: 0, dirty: null };
+    for (let j = 0; j < G.ny; j++) for (let i = 0; i < G.nx; i++) { const sl = soilAt(out, i, j); rock[j * G.nx + i] = z[j * G.nx + i] - (sl ? sl.depth : 0); }
+    return out;
+  }
+  function soilAt(G, i, j) {
+    const c = G.cells[Math.min(Math.max(j, 0), G.ny - 2) * (G.nx - 1) + Math.min(Math.max(i, 0), G.nx - 2)];
+    return c === 255 || c === undefined ? null : G.soils[c] || null;
+  }
+  const gclamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  function groundZ(G, x, y, of = 'z') {
+    const A = G[of], u = gclamp((x - G.x0) / G.dx, 0, G.nx - 1), v = gclamp((y - G.y0) / G.dx, 0, G.ny - 1);
+    const i = Math.min(G.nx - 2, Math.floor(u)), j = Math.min(G.ny - 2, Math.floor(v)), a = u - i, b = v - j, k = j * G.nx + i;
+    return (A[k] * (1 - a) + A[k + 1] * a) * (1 - b) + (A[k + G.nx] * (1 - a) + A[k + G.nx + 1] * a) * b;
+  }
+  const hc = (sl) => (sl ? ((4 * sl.c) / (sl.density * G)) * Math.tan(((45 + sl.phi / 2) * Math.PI) / 180) : Infinity);
+  function slumpRegion(Gd, i0, i1, j0, j1, iterations = 60) {
+    const { nx, dx, z, rock } = Gd;
+    for (let n = 0; n < iterations; n++) {
+      let most = 0;
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) for (const [di, dj] of [[1, 0], [0, 1]]) {
+        if (i + di > i1 || j + dj > j1) continue;
+        const a = j * nx + i, b = (j + dj) * nx + i + di, sa = soilAt(Gd, i, j), sb = soilAt(Gd, i + di, j + dj);
+        if (!sa || !sb) continue;
+        const weak = hc(sa) <= hc(sb) ? sa : sb, repose = dx * Math.tan((weak.phi * Math.PI) / 180), drop = z[a] - z[b], dz = Math.abs(drop);
+        if (dz <= hc(weak) || dz <= repose) continue;
+        const hi = drop > 0 ? a : b, lo = drop > 0 ? b : a, q = Math.min((dz - repose) / 2, z[hi] - rock[hi]);
+        if (q <= 1e-6) continue;
+        z[hi] -= q; z[lo] += q; most = Math.max(most, q);
+      }
+      if (most < 1e-4) break;
+    }
+  }
+  function groundCrater(Gd, at, joules) {
+    const { nx, ny, dx, x0, y0, z, rock } = Gd, ic = Math.round((at[0] - x0) / dx), jc = Math.round((at[1] - y0) / dx), sl = soilAt(Gd, ic, jc);
+    if (!sl || !(sl.dig > 0) || !(joules > 0)) return null;
+    const C = craterSize(joules, sl.dig), R = C.radius, Dp = C.depth;
+    if (R < 0.5 * dx) return { radius: R, depth: Dp, removed: 0, small: true };
+    const reach = 3 * R, i0 = Math.max(0, Math.floor((at[0] - reach - x0) / dx)), i1 = Math.min(nx - 1, Math.ceil((at[0] + reach - x0) / dx));
+    const j0 = Math.max(0, Math.floor((at[1] - reach - y0) / dx)), j1 = Math.min(ny - 1, Math.ceil((at[1] + reach - y0) / dx)), A = dx * dx;
+    let taken = 0, wsum = 0;
+    const rim = [];
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const r = Math.hypot(x0 + i * dx - at[0], y0 + j * dx - at[1]), k = j * nx + i;
+      if (r < R) { const to = Math.max(rock[k], z[k] - Dp * (1 - (r / R) ** 2)); taken += (z[k] - to) * A; z[k] = to; }
+      else if (r < reach && soilAt(Gd, i, j)) { const w = (r / R) ** -3; rim.push([k, w]); wsum += w; }
+    }
+    const ejected = taken * sl.swell;
+    if (ejected > 0 && wsum > 0) for (const [k, w] of rim) z[k] += (ejected / A) * (w / wsum);
+    const pad = 2;
+    slumpRegion(Gd, Math.max(0, i0 - pad), Math.min(nx - 1, i1 + pad), Math.max(0, j0 - pad), Math.min(ny - 1, j1 + pad));
+    Gd.version++;
+    const d = Gd.dirty;
+    Gd.dirty = d ? [Math.min(d[0], i0 - pad), Math.max(d[1], i1 + pad), Math.min(d[2], j0 - pad), Math.max(d[3], j1 + pad)] : [i0 - pad, i1 + pad, j0 - pad, j1 + pad];
+    return { radius: R, depth: Dp, removed: taken, ejected };
+  }
+
+  const physics = { groundOf, groundZ, groundCrater, unb64, craterSize, settleSpeed, dirt, scarOf, flameOf, footD, CHI_R, settleOf, buoyancyOf, riseOf, puffAt, lifeOf, smokeOf, plumePuffs, SOOT_K, SOOT_YIELD, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -698,9 +774,9 @@ export function buildRupa(E) {
   E.registerStateInit((state, spec) => {
     const R = spec.rupa && typeof spec.rupa === 'object' ? spec.rupa : {};
     // a scarred world (cosmetic damage: rupa.scars) runs the physics with nothing breakable at all
-    if (R.scars) { if (!state.breakables) state.breakables = []; if (!state.breaks) { state.breaks = []; state.breakSeq = 0; } if (state.breakFloor === undefined) state.breakFloor = spec.breakFloor ?? 0; if (!state.colliders) state.colliders = []; }
-    if (!state.breakables || (!Array.isArray(spec.breakables) && !R.scars)) return;
-    let any = !!R.scars;
+    if (R.scars || R.ground) { if (!state.breakables) state.breakables = []; if (!state.breaks) { state.breaks = []; state.breakSeq = 0; } if (state.breakFloor === undefined) state.breakFloor = spec.breakFloor ?? 0; if (!state.colliders) state.colliders = []; }
+    if (!state.breakables || (!Array.isArray(spec.breakables) && !R.scars && !R.ground)) return;
+    let any = !!(R.scars || R.ground);
     state.breakables.forEach((b, i) => {
       if (!spec.breakables) return;
       const s = spec.breakables[i];
@@ -718,6 +794,10 @@ export function buildRupa(E) {
     if (!any) return;
     state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0,
       air: { ...AIR, density: R.airDensity ?? AIR.density }, wind: windOf(R.wind), windAt: -1, toppled: [], dents: [], dentSeq: 0, fells: [], fellSeq: 0, smoke: [], smokeSeq: 0,
+      ground: groundOf(R.ground), craters: [], craterSeq: 0,
+      // the footings (a building's, a tree's roots: rupa/shell-blocks.js, tree-blocks.js): the world's colliders keep only
+      // their boxes, so they are found by their place among the level's own (core.js normalizeColliders keeps the order)
+      footings: (() => { const out = []; let n = 0; for (const c of Array.isArray(spec.colliders) ? spec.colliders : []) { if (!(c && Array.isArray(c.min) && Array.isArray(c.max) && c.min.length === 3 && c.max.length === 3)) continue; if (String(c.of || '').endsWith(':footing') && state.colliders[n]) out.push(state.colliders[n]); n++; } return out; })(),
       trees: Array.isArray(R.trees) ? R.trees.map((t) => ({ id: t.id, blocks: t.blocks.slice(), foot: t.foot, crown: t.crown.slice(), breakSpeed: t.breakSpeed, snapped: null })) : [], treesAt: -1,
       treeOf: Array.isArray(R.trees) ? Object.fromEntries(R.trees.flatMap((t) => t.blocks.map((id) => [id, t.id]))) : {},
       scars: R.scars ? { ground: R.scars.ground, wall: R.scars.wall, marks: [], seq: 0 } : null };
@@ -1516,4 +1596,25 @@ export function buildRupa(E) {
       else if (S.ground && Math.abs(sh.to[2] - floor) < 0.1) { const C = craterSize(J, S.ground.dig); scar(state, { kind: 'pock', at: [sh.to[0], sh.to[1], floor], radius: Math.max(0.04, C.radius), depth: C.depth, debris: null }); }
     }
   }, 34.5);
+  // ── GROUND (order 34.6): a burst near the land digs its crater there (less the higher it went off, none above its own
+  // radius); and what stood on land that went comes down to it: a footing (a building's, a tree's roots) whose ground is
+  // lower now drops to it, and what it carried settles ──
+  E.registerWorldPass('rupa-ground', (state) => {
+    const R = state.rupa, Gd = R && R.ground;
+    if (!Gd) return;
+    for (const u of state.bursts || []) {
+      if (u.t !== state.time) continue;
+      const r = u.radius || 0, gz = groundZ(Gd, u.pos[0], u.pos[1]), h = u.pos[2] - gz;
+      if (!(h < r)) continue;
+      const c = groundCrater(Gd, [u.pos[0], u.pos[1]], blowJoules('burst', R, { radius: r }) * (1 - Math.max(0, h) / r));
+      if (c && !c.small && c.removed > 0) { R.craters.push({ seq: R.craterSeq++, t: state.time, at: [u.pos[0], u.pos[1], gz], radius: c.radius, depth: c.depth }); if (R.craters.length > 64) R.craters.shift(); }
+    }
+    if (Gd.version === Gd.seen) return;
+    Gd.seen = Gd.version;
+    for (const c of R.footings) {
+      const pts = [[c.min[0], c.min[1]], [c.max[0], c.min[1]], [c.min[0], c.max[1]], [c.max[0], c.max[1]], [(c.min[0] + c.max[0]) / 2, (c.min[1] + c.max[1]) / 2]];
+      const low = Math.min(...pts.map(([x, y]) => groundZ(Gd, x, y)));
+      if (low < c.max[2] - TOUCH) { const d = c.max[2] - low; c.min[2] -= d; c.max[2] -= d; state.settleDirty = true; R.seq = -1; }
+    }
+  }, 34.6);
 }

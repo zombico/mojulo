@@ -889,6 +889,12 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     pack: true,
     // (a physical level, destructible physics: each tree built whole near the trail, by where it stands and what it is, for
     // rupa/tree-blocks.js to make its trunk and crown breakable; the stamped and far trees stay scenery. Absent otherwise)
+    // (and its land as destructible ground: the landform grid's heights and, facet by facet, what its ground is, era/substrate.js,
+    // for rupa/ground-grid.js to dig. Absent otherwise)
+    ...(manifest.destruction === 'physical' && site.grid ? { physicalGround: (() => {
+      const g = site.grid, M = substrateMap(st, site, { formation: SH && typeof SH.skin === 'string' && FORMATION_TURNS[SH.skin] ? SH.skin : null, seed });
+      return { x0: r5(gridX(g, 0)), y0: r5(gridY(g, 0)), dx: r5(gridX(g, 1) - gridX(g, 0)), nx: g.nx, ny: g.ny, z: Buffer.from(Float32Array.from(g.z).buffer).toString('base64'), cells: Buffer.from(M.cells.buffer, M.cells.byteOffset, M.cells.byteLength).toString('base64'), ids: [...SUBSTRATE_IDS] };
+    })() } : {}),
     ...(manifest.destruction === 'physical' ? { physicalTrees: (TB ? TB.built : trees).filter((t) => t.trunks && t.crownAt).map((t, i) => ({ id: `tree-${i}`, foot: [r5(t.trunks[0].pts[0][0]), r5(t.trunks[0].pts[0][1]), r5(t.trunks[0].pts[0][2])], h: r5(t.h), trunk: r5(t.trunks[0].radii[0]), crownAt: t.crownAt, crownR: t.crownR, ...(st.trees.form ? { form: st.trees.form } : {}) })) } : {}),
     // (the live grass: asked for by the recipe, or the carpet a biocube's grass lays by default)
     // (under snow, the carpet the snow's depth leaves standing, as the tufts are, and no wildflowers in it: snow.js grassUnder)

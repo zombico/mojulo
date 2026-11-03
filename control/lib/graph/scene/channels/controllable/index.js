@@ -230,6 +230,66 @@ function __updateScars(dt) {
 `;
 }
 
+/**
+ * The page's side of GROUND (rupa, controllable/rupa.js: the land as a soil grid the physics digs). What the stage lays on
+ * its land (every isekai group but its sky, water and trees: ground, trail, scree, cliff, its tufts and stones), and the
+ * live grass on it (each blade by its root), sink and rise with the grid: the dug depth at each grid
+ * point is a texture (two bytes a point, ±8 m), read in the land's vertex shader at the vertex's place and added to its
+ * height, bilinear over the four points round it, so a crater opens in the very land drawn. The ground probe adds the
+ * same depth where it lands on the land, so a walker stands in the crater. Read from the state the runtime owns: a
+ * capture stays byte-identical. Emitted only when the world has ground.
+ */
+export function groundViewScript() {
+  return `// ground (rupa): the land sinks and rises with the soil grid the physics digs
+// (what the stage lays on its land rides it: every isekai group but its sky, its water and its trees' wood and leaves)
+const __GND_OFF = ['isekai:cloud', 'isekai:water', 'isekai:wood', 'isekai:crown', 'isekai:blossom', 'isekai:core', 'isekai:chips', 'isekai:culm', 'isekai:leaves', 'isekai:petals'];
+const __gndLand = (name) => name.indexOf('isekai:') === 0 && !__GND_OFF.some((g) => name === g || name.indexOf(g + '#') === 0 || name.indexOf(g + ':') === 0);
+const __gndU = { uGround: { value: null }, uGroundBox: { value: new THREE.Vector3() }, uGroundSize: { value: new THREE.Vector2() } };
+let __gndTex = null, __gndSeen = -1, __gndN = 0;
+window.__mojGround = { patched: () => __gndN };
+const __gndVS = 'uniform sampler2D uGround; uniform vec3 uGroundBox; uniform vec2 uGroundSize;\\n' +
+  'float rupaGroundAt(vec2 ij) { vec4 t = texture2D(uGround, (ij + 0.5) / uGroundSize); return (t.r * 65280.0 + t.g * 255.0) / 65535.0 * 16.0 - 8.0; }\\n';
+const __gndBody = '{\\n#ifdef USE_INSTANCING\\n vec2 gxy = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xy; float gs = max(length(instanceMatrix[2].xyz), 1e-4);\\n#else\\n vec2 gxy = (modelMatrix * vec4(transformed, 1.0)).xy; float gs = 1.0;\\n#endif\\n vec2 g = (gxy - uGroundBox.xy) / uGroundBox.z;\\n' +
+  ' if (g.x >= 0.0 && g.y >= 0.0 && g.x <= uGroundSize.x - 1.0 && g.y <= uGroundSize.y - 1.0) { vec2 i0 = min(floor(g), uGroundSize - 2.0), f = g - i0;\\n' +
+  ' transformed.z += mix(mix(rupaGroundAt(i0), rupaGroundAt(i0 + vec2(1.0, 0.0)), f.x), mix(rupaGroundAt(i0 + vec2(0.0, 1.0)), rupaGroundAt(i0 + vec2(1.0, 1.0)), f.x), f.y) / gs; } }';
+function __gndPatch(mat) {
+  if (!mat || mat.userData.__gnd) return;
+  mat.userData.__gnd = true; __gndN++;
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = function (sh, r) { if (prev) prev.call(this, sh, r); Object.assign(sh.uniforms, __gndU); sh.vertexShader = __gndVS + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n' + __gndBody); };
+  const key = mat.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : () => '';
+  mat.customProgramCacheKey = () => key() + '|rupa-ground';
+  mat.needsUpdate = true;
+}
+function __updateGround() {
+  const Gd = __world.rupa && __world.rupa.ground;
+  if (!Gd) return;
+  if (!__gndTex) {
+    __gndTex = new THREE.DataTexture(new Uint8Array(Gd.nx * Gd.ny * 4), Gd.nx, Gd.ny, THREE.RGBAFormat);
+    __gndTex.magFilter = __gndTex.minFilter = THREE.NearestFilter; __gndTex.needsUpdate = true;
+    __gndU.uGround.value = __gndTex; __gndU.uGroundBox.value.set(Gd.x0, Gd.y0, Gd.dx); __gndU.uGroundSize.value.set(Gd.nx, Gd.ny);
+    for (const name of Object.keys(meshes)) if (__gndLand(name)) { const m = meshes[name]; for (const mat of Array.isArray(m.material) ? m.material : [m.material]) __gndPatch(mat); }
+  }
+  if (Gd.version === __gndSeen) return;
+  __gndSeen = Gd.version;
+  // what grows on the land rides it: the live grass, its flowers and a carpet of petals (instanced: each blade by its root;
+  // a tile laid since is patched as it comes)
+  scene.traverse((o) => { if (o.isInstancedMesh && o.userData && /grass|flowers|carpet/.test(String(o.userData.g || ''))) for (const mat of Array.isArray(o.material) ? o.material : [o.material]) __gndPatch(mat); });
+  const D = __gndTex.image.data;
+  for (let k = 0; k < Gd.z.length; k++) { const u = Math.max(0, Math.min(65535, Math.round(((Gd.z[k] - Gd.z0[k] + 8) / 16) * 65535))); D[k * 4] = u >> 8; D[k * 4 + 1] = u & 255; D[k * 4 + 3] = 255; }
+  __gndTex.needsUpdate = true;
+}
+// the probe: where it lands on the land as drawn (the grid's first heights), the depth dug there
+const __ground0 = __ground;
+__ground = function (pos) {   // eslint-disable-line no-func-assign
+  const g = __ground0(pos), Gd = __world.rupa && __world.rupa.ground;
+  if (g === null || !Gd) return g;
+  const P = __CW.rupaPhysics, base = P.groundZ(Gd, pos[0], pos[1], 'z0');
+  return Math.abs(g - base) > 0.35 ? g : g + (P.groundZ(Gd, pos[0], pos[1]) - base);
+};
+`;
+}
+
 export function distortViewScript() {
   return `// distortion: blocks keep the shape their blows leave
 const __dentDraw = {}, __dentLight = [0.35, -0.55, 0.76];
@@ -391,6 +451,8 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && (b.yield > 0 || b.kerfWork > 0)));
   // scars (rupa, cosmetic damage): painted only when the world is scarred, so every other page keeps its bytes
   const scarsOn = !!(rupa && rupa.scars);
+  // ground (rupa, the land as a soil grid): drawn and probed only when the world has ground, so every other page keeps its bytes
+  const groundOn = !!(rupa && rupa.ground);
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -796,8 +858,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
 })();
 ` : '';
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(rupa && (breakables || rupa.scars) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${rupa && (breakables || rupa.scars) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
 ${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
@@ -3803,7 +3865,7 @@ function __updateBreaks(dt) {
     }
   }
 }
-${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${scarsOn ? scarsViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
+${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
@@ -3820,7 +3882,8 @@ ${hangarHook}  __msHookParams();
     __updateBreaks(dt);${distort ? `
     __updateDents();` : ''}${rupa ? `
     __updateSmoke();` : ''}` : ''}${scarsOn ? `
-    __updateScars(dt);` : ''}${runner ? `
+    __updateScars(dt);` : ''}${groundOn ? `
+    __updateGround();` : ''}${runner ? `
     __updateRunner(dt);` : ''}
   }
   if (__ctrlOwnsCamera) __driveCamera(dt);
