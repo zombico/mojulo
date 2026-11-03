@@ -99,6 +99,11 @@
  *            a wind shadow, calmer air for about six of its heights behind it; the wind moves a body lying on the ground
  *            again once its drag beats what the body's weight holds (leaves skitter; a brick stays).
  *
+ *   SCARS    cosmetic damage on a map that may not change (`rupa.scars: { ground, wall }`, a soil's and a matter's
+ *            numbers): a burst paints the crater it would dig and throws the dirt it would throw, scorches the fixed walls
+ *            in its reach and spalls them, a round chips what it stops on; nothing breaks, nothing moves, every mark and
+ *            its debris from the same laws as a breaking (state.rupa.scars.marks)
+ *
  *   rupaPhysics (E.rupaPhysics, also run in Node by lib/graph/rupa/index.js):
  *     blastKg(radius, blastZ?) · blastJoules(radius, blastZ?) · faceArea(box, from) · burstShare(box, at, joules, r0?)
  *     blowJoules(how, { swing, shot, blastZ, power }, extra) · heatFactor(T, soften, melt, T0?) · loadPass(blocks, { fixed, floor, g, touch })
@@ -461,7 +466,83 @@ export function buildRupa(E) {
     return { droplets, cavity: Rc, plop: false, stats: { E, Re, We, K, kg: Ms, kinetic: Es } };
   }
 
-  const physics = { resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
+  // ── SOIL THROWN: a crater's size and the dirt it throws (rupa/ground.js and rupa/debris.js call these; so does the page,
+  // to paint a crater it may not dig) ──
+  // a crater's size from the energy that reaches the ground: the volume thrown is the energy over the soil's `dig`; the
+  // bowl a paraboloid 0.4 as deep as its radius (V = 0.2πR³)
+  function craterSize(joules, dig) {
+    const V = Math.max(0, joules) / dig, R = Math.cbrt(V / (0.2 * Math.PI));
+    return { volume: V, radius: R, depth: 0.4 * R };
+  }
+  // a grain's settling speed in air: Stokes for the fine, Newton's drag (Cd 0.44) for the coarse, whichever is slower
+  const settleSpeed = (d, particle = 2650) => Math.min((particle * G * d * d) / (18 * AIR.viscosity), Math.sqrt((4 * particle * G * d) / (3 * 0.44 * AIR.density)));
+  const DIRT_AIRBORNE = 0.03;   // the share of a soil's fines that hangs as a cloud; the rest falls with the spray
+  // a crater's ejecta as clumps, spray and dust (rupa/debris.js dirtOf: the law), for a soil record { density, swell, c,
+  // mu, grain, fines, particle }
+  function dirt(crater, { at, joules, soil: m, z = 0, seed = 1, packets = 48 } = {}) {
+    const R = crater && crater.radius, Ve = crater && crater.ejected;
+    const empty = { clumps: [], spray: { parcels: [], drag: 0, settle: 0, grain: m.grain }, cloud: null, stats: { kg: 0, kinetic: 0, clumpKg: 0, sprayKg: 0, cloudKg: 0 } };
+    if (!(R > 0) || !(Ve > 0)) return empty;
+    const r = rng(seed);
+    const M = (Ve * m.density) / m.swell, each = M / packets, mu = m.mu ?? 0.45, c = m.c ?? 0;
+    const vt = settleSpeed(m.grain ?? 0.0003, m.particle ?? 2650), drag = G / vt, crumble = Math.sqrt((2 * c) / m.density);
+    const clumps = [], parcels = [];
+    let cloudKg = 0;
+    for (let i = 0; i < packets; i++) {
+      const rr = R * Math.sqrt(0.09 + 0.91 * r()), az = ((i + r()) / packets) * 2 * Math.PI, el = ((45 + (r() - 0.5) * 12) * Math.PI) / 180;
+      const v = 0.6 * Math.sqrt(G * R) * Math.pow(rr / R, -1 / mu), from = [at[0] + Math.cos(az) * rr, at[1] + Math.sin(az) * rr, z];
+      const dirOf = (daz, del) => [Math.cos(el + del) * Math.cos(az + daz), Math.cos(el + del) * Math.sin(az + daz), Math.sin(el + del)];
+      const hold = c > 0 ? c / (c + 0.5 * m.density * v * v) : 0, clumpKg = each * hold, torn = each - clumpKg;
+      if (clumpKg > 0) {
+        // the clump in one to three lumps, each its own shape (a seed for the page's lumpiness)
+        const n = 1 + Math.floor(r() * 3), shares = Array.from({ length: n }, () => 0.5 + r()), sum = shares.reduce((x, y) => x + y, 0);
+        shares.forEach((sh) => {
+          const kg = (clumpKg * sh) / sum, speed = v * (0.9 + 0.2 * r()), d = dirOf((r() - 0.5) * 0.12, (r() - 0.5) * 0.08);
+          clumps.push({ at: [...from], vel: d.map((x) => x * speed), kg, size: Math.cbrt(kg / m.density), lump: Math.floor(r() * 2 ** 31), crumbles: speed > crumble });
+        });
+      }
+      const fines = torn * (m.fines ?? 0), airborne = fines * DIRT_AIRBORNE;
+      cloudKg += airborne;
+      const sprayKg = torn - airborne;
+      if (sprayKg > 0) for (let k = 0; k < 3; k++) {
+        const speed = v * (0.75 + 0.5 * r()), d = dirOf((r() - 0.5) * 0.3, (r() - 0.5) * 0.25);
+        parcels.push({ at: [...from], vel: d.map((x) => x * speed), kg: sprayKg / 3 });
+      }
+    }
+    // the energy cap: a quarter of the charge's at most, the speeds scaled down together
+    const ke = (list) => list.reduce((s2, p) => s2 + 0.5 * p.kg * (p.vel[0] ** 2 + p.vel[1] ** 2 + p.vel[2] ** 2), 0);
+    let Ek = ke(clumps) + ke(parcels);
+    const cap = 0.25 * joules;
+    if (Ek > cap) { const k = Math.sqrt(cap / Ek); for (const p of [...clumps, ...parcels]) p.vel = p.vel.map((x) => x * k); Ek = cap; }
+    const clumpKg = clumps.reduce((s2, p) => s2 + p.kg, 0), sprayKg = parcels.reduce((s2, p) => s2 + p.kg, 0);
+    return {
+      clumps,
+      spray: { parcels, drag, settle: vt, grain: m.grain },
+      cloud: cloudKg > 1e-6 ? { kg: cloudKg, at: [at[0], at[1], z + 0.5], radius: cloud(cloudKg), life: 6 + cloud(cloudKg), settle: settleSpeed(2e-5, m.particle ?? 2650) } : null,
+      stats: { kg: clumpKg + sprayKg + cloudKg, bank: M, kinetic: Ek, clumpKg, sprayKg, cloudKg, crumbleSpeed: crumble },
+    };
+  }
+
+  // ── SCARS: what a blow would do to what may not change (cosmetic damage): the bowl it would take out of a face and
+  // what it knocks off it. The bowl is the joules over the matter's strength (crushing, or yield where it yields: a
+  // blow's work against the stress that holds the face, V = E/σ, as a crater is E/dig), a dish 0.4 as deep as wide; a
+  // matter that yields DENTS and throws nothing; a brittle face spalls the bowl as fragments, a twentieth of the blow
+  // breaking it (SPALL: the rest goes to heat, sound and the wave through the wall). A burst also blackens the disc its
+  // reach cuts on the face (`reach`: √(R² − d²)) ──
+  const SPALL = 0.05;
+  function scarOf(at, normal, joules, wall, { how = 'burst', from = null, dir = null, seed = 1, faceSize = 1, thick = Infinity, reach = 0 } = {}) {
+    const plastic = wall.yield > 0, strength = plastic ? wall.yield : (wall.compressive ?? 20e6), cap = 0.5 * faceSize;
+    const r = Math.max(0.005, Math.min(cap, Math.cbrt(joules / strength / (0.2 * Math.PI)))), depth = Math.min(0.4 * r, thick);
+    if (plastic) return { kind: 'dent', at, normal, radius: r, bowl: r, depth, debris: null };
+    const kind = how === 'burst' ? 'scorch' : 'chip', ax = Math.abs(normal[0]) > 0.5 ? 0 : Math.abs(normal[1]) > 0.5 ? 1 : 2;
+    const h = 0.627 * r, half = [h, h, h];   // a square slab of the bowl's volume at its depth (4h²·0.4r = 0.2πr³)
+    half[ax] = depth / 2;
+    const c = at.map((x, i) => x - (i === ax ? Math.sign(normal[ax]) * depth / 2 : 0)), slab = { min: c.map((x, i) => x - half[i]), max: c.map((x, i) => x + half[i]) };
+    const debris = fragments(slab, { density: wall.density ?? 1900, fill: 1, frac: wall.frac ?? 100, shape: wall.shape || 'chunk', spread: wall.spread ?? 1.2, joules: SPALL * joules, how: how === 'burst' ? 'burst' : 'shot', from, dir, seed, max: 12 });
+    return { kind, at, normal, radius: Math.max(r, Math.min(cap, reach)), bowl: r, depth, debris };
+  }
+
+  const physics = { craterSize, settleSpeed, dirt, scarOf, resistance, bleed, blockDrag, wakeFactor, dragArea, blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, dentOf, SHARP, SHOT_R, TOOLS, toolOf, dishOf, cutDepth, pressure, flowOf, submerged, inPool, immerse, stepIn, wet, windOf, windAt, AIR, loadPass, fragments, splash, seedOf, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -470,10 +551,13 @@ export function buildRupa(E) {
   const EPS = 0.05, TOUCH = 0.02, FLAME = 1000;
   const boxNear = (b, p) => [0, 1, 2].map((k) => clamp(p[k], b.min[k], b.max[k]));
   E.registerStateInit((state, spec) => {
-    if (!state.breakables || !Array.isArray(spec.breakables)) return;
     const R = spec.rupa && typeof spec.rupa === 'object' ? spec.rupa : {};
-    let any = false;
+    // a scarred world (cosmetic damage: rupa.scars) runs the physics with nothing breakable at all
+    if (R.scars) { if (!state.breakables) state.breakables = []; if (!state.breaks) { state.breaks = []; state.breakSeq = 0; } if (state.breakFloor === undefined) state.breakFloor = spec.breakFloor ?? 0; if (!state.colliders) state.colliders = []; }
+    if (!state.breakables || (!Array.isArray(spec.breakables) && !R.scars)) return;
+    let any = !!R.scars;
     state.breakables.forEach((b, i) => {
+      if (!spec.breakables) return;
       const s = spec.breakables[i];
       if (!s || !(s.joules > 0)) return;
       any = true;
@@ -488,7 +572,8 @@ export function buildRupa(E) {
     });
     if (!any) return;
     state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0,
-      air: { ...AIR, density: R.airDensity ?? AIR.density }, wind: windOf(R.wind), windAt: -1, toppled: [], dents: [], dentSeq: 0, fells: [], fellSeq: 0 };
+      air: { ...AIR, density: R.airDensity ?? AIR.density }, wind: windOf(R.wind), windAt: -1, toppled: [], dents: [], dentSeq: 0, fells: [], fellSeq: 0,
+      scars: R.scars ? { ground: R.scars.ground, wall: R.scars.wall, marks: [], seq: 0 } : null };
   });
   // src: { joules (what the breaking took: its joules, and any blow past them), from?, dir? } for the debris
   function breakIt(state, b, how, by, src = {}) {
@@ -1173,4 +1258,56 @@ export function buildRupa(E) {
       state.settleDirty = true;
     }
   }, 37);
+
+  // ── SCARS (order 34.5, after the projectiles and the blows): cosmetic damage, on a map that may not change. A burst
+  // near the floor PAINTS the crater it would dig (craterSize from its energy, coupled less the higher it went off, in the
+  // ground's soil) and the dirt it would throw (dirt); every fixed wall within its reach is SCORCHED by its share
+  // (scarOf: the bowl its share would crush, the disc its reach blackens), and what spalls off flies; a round that stops on a wall or the floor CHIPS it. The colliders, the floor and
+  // the footing are never touched: the marks are `state.rupa.scars.marks`, seq-keyed, for the page to paint ──
+  const SCAR_KEEP = 96;
+  function scar(state, mark) {
+    const S = state.rupa.scars;
+    S.marks.push({ seq: S.seq++, t: state.time, ...mark });
+    if (S.marks.length > SCAR_KEEP) S.marks.shift();
+  }
+  // the face of a box nearest a point: where on it, and which way it faces
+  function faceToward(c, p) {
+    const q = [0, 1, 2].map((k) => clamp(p[k], c.min[k], c.max[k])), d = [0, 1, 2].map((k) => p[k] - q[k]);
+    let ax = 0;
+    for (let k = 1; k < 3; k++) if (Math.abs(d[k]) > Math.abs(d[ax])) ax = k;
+    if (Math.hypot(...d) < 1e-9) ax = 2;
+    const n = [0, 0, 0]; n[ax] = d[ax] >= 0 ? 1 : -1;
+    const size = Math.min(...[0, 1, 2].filter((k) => k !== ax).map((k) => c.max[k] - c.min[k]));
+    return { at: q, normal: n, size, thick: c.max[ax] - c.min[ax] };
+  }
+  const fixedOf = (state) => state.colliders.filter((c) => c.blk == null && !String(c.of || '').startsWith('bound:'));
+  E.registerWorldPass('rupa-scars', (state) => {
+    const R = state.rupa;
+    if (!R || !R.scars) return;
+    const S = R.scars, floor = state.breakFloor ?? 0;
+    for (const u of state.bursts || []) {
+      if (u.t !== state.time) continue;
+      const J = blowJoules('burst', R, { radius: u.radius || 0 }), h = u.pos[2] - floor, r = u.radius || 0;
+      if (S.ground && h < r) {
+        const C = craterSize(J * (1 - Math.max(0, h) / r), S.ground.dig), at = [u.pos[0], u.pos[1], floor];
+        const D = S.ground.density ? dirt({ radius: C.radius, ejected: C.volume * (S.ground.swell ?? 1.2) }, { at, joules: J, soil: S.ground, z: floor + 0.05, seed: seedOf('crater', S.seq), packets: 24 }) : null;
+        scar(state, { kind: 'crater', at, radius: C.radius, depth: C.depth, rim: 3 * C.radius, debris: D });
+      }
+      if (!S.wall) continue;
+      for (const c of fixedOf(state)) {
+        if (boxDist(c, u.pos) > r + EPS) continue;
+        const f = faceToward(c, u.pos), q = burstShare(c, u.pos, J), d = boxDist(c, u.pos);
+        if (q < 1) continue;
+        scar(state, { on: c.of ?? null, ...scarOf(f.at, f.normal, q, S.wall, { how: 'burst', from: u.pos, seed: seedOf(String(c.of), S.seq), faceSize: f.size, thick: f.thick, reach: Math.sqrt(Math.max(0, r * r - d * d)) }) });
+      }
+    }
+    for (const e of state.entities) {
+      const sh = e.lastShot;
+      if (!sh || sh.t !== state.time || sh.mode !== 'miss' || !sh.to) continue;
+      const J = blowJoules('shot', R), dir = [sh.to[0] - e.transform.pos[0], sh.to[1] - e.transform.pos[1], sh.to[2] - e.transform.pos[2]];
+      const c = S.wall && fixedOf(state).find((x) => boxDist(x, sh.to) <= EPS);
+      if (c) { const f = faceToward(c, e.transform.pos); scar(state, { on: c.of ?? null, ...scarOf(sh.to, f.normal, J, S.wall, { how: 'shot', dir, seed: seedOf(String(c.of), S.seq), faceSize: f.size, thick: f.thick }) }); }
+      else if (S.ground && Math.abs(sh.to[2] - floor) < 0.1) { const C = craterSize(J, S.ground.dig); scar(state, { kind: 'pock', at: [sh.to[0], sh.to[1], floor], radius: Math.max(0.04, C.radius), depth: C.depth, debris: null }); }
+    }
+  }, 34.5);
 }

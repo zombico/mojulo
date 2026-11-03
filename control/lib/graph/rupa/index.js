@@ -21,7 +21,7 @@
  *                           force?, contact? } (what a blow is struck with: controllable/rupa.js TOOL)
  */
 import { buildRupa } from '../worlds/controllable/rupa.js';
-import { blockMatter, resolveMatter, isLiquid } from './matter.js';
+import { MATTER, blockMatter, resolveMatter, isLiquid, isSoil } from './matter.js';
 
 const P0 = {};
 buildRupa(P0);
@@ -98,4 +98,25 @@ export function readTool(v, where = 'strikeTool') {
 export function breaches(matter, box, joules) {
   const b = blockMatter(box, matter);
   return { joules, capacity: b.joules, breaks: joules >= b.joules, left: Math.max(0, b.joules - joules), mass: b.mass };
+}
+
+/**
+ * A level's `scars` (cosmetic damage: the map may not change, but blows still paint what they would do): `true`, or
+ * { ground?, wall? } (a matter each), → the runtime's spec: the ground's soil record (what a crater digs and throws) and
+ * the walls' matter record (its strength, how big a bowl a blow crushes or, where it yields, dents; what spalls off).
+ * Unnamed, the world's cube gives them (`cube`: era/geocube.js cubeMatter, its ground or floor, its walls), else loam
+ * and brick. A floor that is not a soil (flagstones) digs as its toughness allows and throws chunks.
+ */
+export function readScarsSpec(v, { cube = null, where = 'scars' } = {}) {
+  if (v === undefined || v === null || v === false) return null;
+  if (v !== true && !isObj(v)) throw new Error(`${where} is true or { ground?, wall? }: blows paint what they would do on a map that may not change`);
+  if (isObj(v)) for (const k of Object.keys(v)) if (!['ground', 'wall'].includes(k)) throw new Error(`${where}.${k} is not one of ground, wall`);
+  const pick = (k, roles, fallback) => (isObj(v) && v[k] !== undefined ? v[k] : roles.map((r) => cube && cube[r] && cube[r].matter).find(Boolean) ?? fallback);
+  const g = resolveMatter(pick('ground', ['ground', 'floor'], 'loam'), `${where}.ground`), w = resolveMatter(pick('wall', ['wall'], 'brick'), `${where}.wall`);
+  for (const [m, k] of [[g, 'ground'], [w, 'wall']]) if (m.family === 'liquid' || m.family === 'gas') throw new Error(`${where}.${k}: ${m.id} is a ${m.family}`);
+  const ground = isSoil(g)
+    ? { id: g.id, dig: g.dig, density: g.density, swell: g.swell, c: g.c, mu: g.mu, grain: g.grain, fines: g.fines, particle: g.particle }
+    : { id: g.id, dig: g.toughness * 200, density: g.density, swell: 1.2, c: g.bond ?? g.tensile ?? 0, mu: 0.45, grain: 0.002, fines: 0.1, particle: g.density };
+  const wall = { id: w.id, density: w.density, compressive: w.compressive, frac: w.frac, shape: w.shape, spread: w.spread, ...(w.yield > 0 ? { yield: w.yield } : {}) };
+  return { ground, wall };
 }

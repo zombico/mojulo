@@ -349,6 +349,31 @@ the same `fragments` on every break and puts it on the break record as `debris`)
   `tension` and viscosity against inertia). How much flies scales with inertia over viscosity, so water splashes, honey
   gloops and lava plops. A body entering a pool on the runtime records its splash (`state.rupa.splashes`).
 
+## Scars: cosmetic damage
+
+A game whose map may not change (walls that hold, a floor that never craters) can still show its blows. A level's
+`scars` (`true`, or `{ ground?, wall? }`, each a matter) keeps every collider, the floor and the footing exactly as
+they were, and paints what each blow would have done, by the same laws as a physical world:
+
+- **A burst near the floor** paints the crater it would dig: the energy that reaches the ground (less the higher it went
+  off, none above its own radius) over the ground's `dig`, the bowl and the ring of thrown soil out to three radii. Its
+  dirt flies as clumps, spray and a dust cloud (the Housen–Holsapple law above).
+- **A fixed wall in a burst's reach** is scorched on the face toward the blast by its share of the energy. The blow
+  crushes a bowl whose volume is its joules over the matter's crushing strength (V = E/σ, as a crater's is E over the
+  soil's `dig`), a dish 0.4 as deep as it is wide; the soot covers the disc where the burst's radius meets the face. The
+  bowl spalls off as fragments, a twentieth of the blow breaking it (the rest goes to heat, sound and the wave through
+  the wall). A matter that yields (steel) dents by its yield strength instead and throws nothing.
+- **A round** that stops on a wall chips it by the same law (a rifle round takes a few centimetres out of brick, less out
+  of stone) and throws chips; one that stops on the floor leaves a pock.
+
+Unnamed, the ground and the wall come from the world's geocube (its ground or floor, its walls), else loam and brick. A
+floor that is no soil (flagstones) digs as its toughness allows and throws chunks. Scars go with any degree: crates
+still smash under `objects` while the walls they stood by take scorch marks. A game's `mechanics.scars` is copied onto
+every level it makes; a stage's words ("cosmetic damage", "scorch marks", "bullet holes", `SCARS_WORDS`) set it where
+the recipe does not. The marks live on `state.rupa.scars.marks` (seq-keyed, the newest 96); the page paints each once
+as a decal and flies its debris on sim time, seeded by the mark. Without `scars`, nothing is kept and the page carries
+none of it.
+
 ## What holds it up
 
 The basic break pass ([`rules-basic.js`](../control/lib/graph/worlds/controllable/rules-basic.js)) still decides what
@@ -418,6 +443,7 @@ the substrate, the cube's water as the fluid layer, then the geocity's physical 
   A thing's own `matter` and `fill` win over its class's (`CLASS_MATTER`).
 - `terrain.js`: an ask's or a box's `matter` gives its blocks their numbers.
 - `world-scene.js`: under `physical`, `payload.rupa` is the level's `matter` read by `readMatterSpec`.
+- `world-scene.js`: with `scars`, `payload.rupa.scars` is the level's `scars` read by `readScarsSpec` (any degree).
 - `compose.js`: `EMISSION_OPT_IN.rupa`, composed onto a page only when its blocks carry matter.
 - `era/compose.js`: `DESTRUCTION_WORDS.physical`, the words that ask for it.
 - Engines: the `rupa` page key is marked as the web's (the engines hold breakables whole today).
@@ -434,7 +460,8 @@ the substrate, the cube's water as the fluid layer, then the geocity's physical 
 - Cuts on any plane (they snap to the block's axes, so the halves stay boxes), a groove weakening the load pass before
   it goes through, a round's own tool word (rounds are steel-cored), and a cut half's own pre-cut pieces when it later
   breaks (it vanishes in its flash).
-- Ground on the page (a deformable floor, craters from bursts, the shovel as an action).
+- Ground on the page (a deformable floor and the shovel as an action; scars paint craters but the floor stays flat).
+- Scars on what is not a box (a minted solid, a tree), and marks that fade or are cleared.
 - City and structure buildings emitting courses, slabs and columns, so whole buildings take part.
 - Per-entity power (a hero's tier apart from the world's), and heat from beams and fire sources by element.
 - Engine export of breakables and their matter.

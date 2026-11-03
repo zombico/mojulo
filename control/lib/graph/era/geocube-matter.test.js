@@ -63,4 +63,17 @@ describe('a physical level in a cube breaks by the cube\'s matter', () => {
     for (const b of inCube.breakables.filter((x) => was.get(x.id)?.matter === 'sheet-metal')) expect(b.fill).toBe(0.02);   // a steel shell stays a shell
     expect(plain.breakables.some((b) => b.matter === 'steel')).toBe(false);
   }, 120000);
+
+  it('a scarred level paints its blows by the cube\'s matter and breaks nothing; unscarred, no physics at all', async () => {
+    const { resolveWorldScene } = await import('../worlds/world-scene.js');
+    const id = byKit('gothic-stone');
+    const hero = { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5, strike: 'melee' }, transform: { pos: [0, 0, 0] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } };
+    const level = (extra) => ({ manifest: { ...starter('gothic-stone'), entities: [hero], geocube: id, ...extra }, title: 'crypt' });
+    const scarred = (await resolveWorldScene(level({ scars: true }))).payload;
+    expect(scarred.rupa.scars.wall.id).toBe('stone');                      // the cube's walls
+    expect(scarred.breakables).toBeUndefined();                             // the map is the map
+    expect((await resolveWorldScene(level({ scars: { wall: 'concrete' } }))).payload.rupa.scars.wall.id).toBe('concrete');
+    expect((await resolveWorldScene(level({}))).payload.rupa).toBeUndefined();
+    await expect(resolveWorldScene(level({ scars: { wall: 'oil' } }))).rejects.toThrow(/scars.wall: oil is a liquid/);
+  }, 120000);
 });

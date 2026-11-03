@@ -49,6 +49,15 @@ describe('the runner\'s plan', () => {
     expect(levels(MEADOWMARK_HERO).some((s) => s.order.manifest.game.mechanics.some((m) => m.kind === 'aftermath'))).toBe(false);
   });
 
+  it('the game\'s scars (cosmetic damage) ride onto every level it makes, with no aftermath: nothing breaks', () => {
+    const levels = (w) => runSteps(w, { ref: 'gw' }).filter((s) => s.key.startsWith('level-'));
+    expect(levels(MEADOWMARK_HERO).every((s) => s.order.manifest.scars === undefined)).toBe(true);
+    const L = levels({ ...MEADOWMARK_HERO, mechanics: { ...MEADOWMARK_HERO.mechanics, scars: { wall: 'stone' } } });
+    expect(L.length).toBeGreaterThan(0);
+    expect(L.every((s) => s.order.manifest.scars.wall === 'stone')).toBe(true);
+    expect(L.some((s) => s.order.manifest.game.mechanics.some((m) => m.kind === 'aftermath'))).toBe(false);
+  });
+
   it('the game order audits the reach and survive levels (auto_audit) and keeps the waiver for the goals the audit cannot prove', () => {
     const order = (w) => runSteps(w, { ref: 'gw' }).find((s) => s.key === 'game').order;
     // moving to the exit (a quick reach, a book's levels, a world composed from words) and lasting out a clock

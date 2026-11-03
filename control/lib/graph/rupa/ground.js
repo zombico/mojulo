@@ -31,6 +31,7 @@
  *   SCOOPS                                       the named scoops' bank volumes, m³
  */
 import { resolveMatter, isSoil } from './matter.js';
+import { rupaPhysics } from './index.js';
 
 const G = 9.81, DEG = Math.PI / 180;
 export const SCOOPS = Object.freeze({ hand: 0.01, bucket: 0.8, excavator: 2 });
@@ -123,7 +124,7 @@ export function crater(field, { at, joules, settle = true } = {}) {
   if (!isPt(at)) throw new Error('ground.crater: at is [x, y]');
   if (!(Number.isFinite(joules) && joules >= 0)) throw new Error('ground.crater: joules is the energy that reaches the ground, 0 or more');
   const f = copy(field), m = soilOf(f.soil);
-  const V = joules / m.dig, R = Math.cbrt(V / (0.2 * Math.PI)), D = 0.4 * R;
+  const { radius: R, depth: D } = rupaPhysics.craterSize(joules, m.dig);   // the runtime's law: the page paints the same
   const { taken, rock } = scoop(f, at, R, D);
   const ejected = taken * m.swell;
   if (ejected > 0) lay(f, at, ejected, (r) => (r >= R ? (r / R) ** -3 : 0), 3 * R);

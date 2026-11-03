@@ -158,6 +158,78 @@ window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color
  * tipping away from the wall; a felling turns what it fells about its hinge (`state.rupa.fells`) until it lies. Rebuilt only when a block's `form` count moves, from state the runtime owns, so a
  * capture stays byte-identical.
  */
+/**
+ * The page's side of SCARS (rupa, controllable/rupa.js): cosmetic damage on a map that may not change. Each of the
+ * runtime's marks (state.rupa.scars.marks) is painted once: a crater as a decal on the floor (a scorched bowl, the ring
+ * of thrown soil out to three radii), a scorch, a chip or a dent on a wall's face, a round's pock; and the debris it
+ * carries flies (a crater's clumps, spray and dust; a wall's spalled chips and dust), stepped on sim dt and seeded by
+ * the mark, so a capture stays byte-identical. Nothing a walker meets changes. Emitted only when the world is scarred.
+ */
+export function scarsViewScript() {
+  return `// scars (rupa): what blows would do, painted on a map that may not change
+const __scarTex = (() => {
+  const make = (draw) => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); draw(g); const t = new THREE.CanvasTexture(c); return t; };
+  const radial = (g, stops) => { const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); for (const [o, col] of stops) r.addColorStop(o, col); g.fillStyle = r; g.fillRect(0, 0, 128, 128); };
+  const rng = __clashRng(0x5ca7);
+  return {
+    crater: make((g) => radial(g, [[0, 'rgba(18,14,10,0.92)'], [0.22, 'rgba(40,30,20,0.85)'], [0.33, 'rgba(92,72,48,0.7)'], [0.6, 'rgba(120,96,66,0.35)'], [1, 'rgba(120,96,66,0)']])),
+    scorch: make((g) => radial(g, [[0, 'rgba(10,9,8,0.85)'], [0.5, 'rgba(25,22,20,0.5)'], [1, 'rgba(30,28,26,0)']])),
+    chip: make((g) => { radial(g, [[0, 'rgba(214,208,196,0.85)'], [0.35, 'rgba(160,154,144,0.5)'], [1, 'rgba(160,154,144,0)']]); g.fillStyle = 'rgba(60,56,50,0.6)'; for (let i = 0; i < 14; i++) { const a = rng() * 6.283, d = rng() * 46; g.fillRect(64 + Math.cos(a) * d, 64 + Math.sin(a) * d, 3, 3); } }),
+    dent: make((g) => radial(g, [[0, 'rgba(255,255,255,0.25)'], [0.55, 'rgba(0,0,0,0.05)'], [0.8, 'rgba(0,0,0,0.45)'], [1, 'rgba(0,0,0,0)']])),
+    pock: make((g) => radial(g, [[0, 'rgba(15,12,10,0.9)'], [0.4, 'rgba(60,52,44,0.5)'], [1, 'rgba(60,52,44,0)']])),
+    puff: make((g) => radial(g, [[0, 'rgba(255,255,255,1)'], [0.45, 'rgba(255,255,255,0.55)'], [1, 'rgba(255,255,255,0)']])),
+  };
+})();
+const __scarDecals = [], __scarBits = [];
+let __scarSeen = -1;
+function __scarDecal(kind, at, normal, radius) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: __scarTex[kind] || __scarTex.scorch, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+  const n = new THREE.Vector3(normal[0], normal[1], normal[2]);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+  m.position.set(at[0] + n.x * 0.015, at[1] + n.y * 0.015, at[2] + n.z * 0.015); m.scale.setScalar(radius); m.raycast = function () {}; scene.add(m);
+  __scarDecals.push(m);
+  if (__scarDecals.length > 96) { const old = __scarDecals.shift(); scene.remove(old); old.geometry.dispose(); old.material.dispose(); }
+}
+// a bit of debris: a small box that falls; a dust billow (opts.dust) a soft sprite that rises, swells and thins
+function __scarBit(at, vel, size, color, opts) {
+  const dust = !!(opts && opts.dust);
+  const m = dust ? new THREE.Sprite(new THREE.SpriteMaterial({ map: __scarTex.puff, color, transparent: true, opacity: 0.4, depthWrite: false }))
+    : new THREE.Mesh(new THREE.BoxGeometry(size, size, size * 0.7), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 }));
+  if (dust) m.scale.setScalar(size);
+  m.position.set(at[0], at[1], at[2]); m.raycast = function () {}; scene.add(m);
+  __scarBits.push({ m, v: [...vel], born: __world.time, drag: opts && opts.drag || 0, dust, size, half: dust ? 0 : size / 2 });
+}
+function __updateScars(dt) {
+  const S = __world.rupa && __world.rupa.scars;
+  if (!S) return;
+  const floor = __world.breakFloor || 0;
+  for (const k of S.marks) {
+    if (k.seq <= __scarSeen) continue;
+    __scarSeen = k.seq;
+    const ground = k.kind === 'crater' || k.kind === 'pock';
+    __scarDecal(k.kind, ground ? [k.at[0], k.at[1], floor] : k.at, ground ? [0, 0, 1] : k.normal, ground ? (k.rim || k.radius) : k.radius);
+    const d = k.debris;
+    if (!d) continue;
+    if (d.clumps) for (const c of d.clumps.slice(0, 30)) __scarBit(c.at, c.vel, Math.max(0.04, c.size * 0.6), 0x4a3a2a);
+    if (d.spray) for (const p of d.spray.parcels.slice(0, 40)) __scarBit(p.at, p.vel, 0.05, 0x8a7458, { drag: d.spray.drag });
+    if (d.pieces) for (const p of d.pieces) __scarBit(p.at, p.vel, Math.max(0.02, Math.min(...p.size)), 0x9a948a);
+    const dust = d.cloud || d.dust;
+    if (dust && dust.radius > 0.3) for (let i = 0; i < 5; i++) __scarBit([dust.at[0], dust.at[1], dust.at[2]], [(i - 2) * 0.3, ((i * 7) % 5 - 2) * 0.3, 0.4], Math.min(2.5, dust.radius) * 0.6, 0xb8b0a2, { dust: true, drag: 3 });
+  }
+  for (let i = __scarBits.length - 1; i >= 0; i--) {
+    const q = __scarBits[i], age = __world.time - q.born;
+    if (age > 5) { scene.remove(q.m); q.m.geometry.dispose(); q.m.material.dispose(); __scarBits.splice(i, 1); continue; }
+    const k = 1 / (1 + q.drag * dt);
+    q.v[0] *= k; q.v[1] *= k; q.v[2] = q.dust ? q.v[2] * k + 0.05 * dt : (q.v[2] - 9.8 * dt) * (q.drag ? k : 1);
+    q.m.position.x += q.v[0] * dt; q.m.position.y += q.v[1] * dt; q.m.position.z += q.v[2] * dt;
+    if (q.dust) { q.m.material.opacity = Math.max(0, 0.4 * (1 - age / 5)); q.m.scale.setScalar(q.size * (1 + age * 0.4)); continue; }
+    if (q.m.position.z < floor + q.half) { q.m.position.z = floor + q.half; q.v[2] *= -0.2; q.v[0] *= 0.5; q.v[1] *= 0.5; }
+    if (age > 3.5) q.m.material.opacity = Math.max(0, 1 - (age - 3.5) / 1.5);
+  }
+}
+`;
+}
+
 export function distortViewScript() {
   return `// distortion: blocks keep the shape their blows leave
 const __dentDraw = {}, __dentLight = [0.35, -0.55, 0.76];
@@ -267,6 +339,8 @@ function __updateDents() {
 export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null } = {}) {
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
   const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && (b.yield > 0 || b.kerfWork > 0)));
+  // scars (rupa, cosmetic damage): painted only when the world is scarred, so every other page keeps its bytes
+  const scarsOn = !!(rupa && rupa.scars);
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -672,8 +746,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
 })();
 ` : '';
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(rupa && breakables ? { rupa: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${rupa && breakables ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(rupa && (breakables || rupa.scars) ? { rupa: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${rupa && (breakables || rupa.scars) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
 ${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
@@ -3677,7 +3751,7 @@ function __updateBreaks(dt) {
     }
   }
 }
-${distort ? distortViewScript() : ''}` : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
+${distort ? distortViewScript() : ''}` : ''}${scarsOn ? scarsViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
@@ -3692,7 +3766,8 @@ ${hangarHook}  __msHookParams();
     __updateThrusters(dt);${figHasJuice ? `
     __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
     __updateBreaks(dt);${distort ? `
-    __updateDents();` : ''}` : ''}${runner ? `
+    __updateDents();` : ''}` : ''}${scarsOn ? `
+    __updateScars(dt);` : ''}${runner ? `
     __updateRunner(dt);` : ''}
   }
   if (__ctrlOwnsCamera) __driveCamera(dt);
