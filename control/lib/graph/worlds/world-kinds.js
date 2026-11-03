@@ -114,6 +114,7 @@ import { assembleSolidTurntableScene } from '@/lib/graph/worlds/solid-turntable'
 import { assembleManjiTreeWorld } from '@/lib/graph/worlds/polygomer-world';
 import { latestSkinInput } from '@/lib/graph/polygonizer/skin-store';
 import { assembleAssemblerScene, collectAssemblerWrapSources } from '@/lib/graph/worlds/workbench-assembler';
+import { assembleSeawayScene } from '@/lib/graph/worlds/seaway-scene';
 import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
 import { assembleTerrainWorld, resolveTerrainFrom } from '@/lib/graph/terrain/terrain-world';
@@ -1021,9 +1022,10 @@ export const WORLD_KINDS = {
   },
   assembler: {
     title: 'mojulo assembler',
-    resolve: async (m, ctx) => assembleAssemblerScene({
+    // (a boat underway on a course: its World page is the live water, worlds/seaway-scene.js)
+    resolve: async (m, ctx) => (m.seaway ? assembleSeawayScene(m, { title: ctx.title, light: ctx.light, toon: ctx.toon }) : assembleAssemblerScene({
       ...m, title: ctx.title, textures: await resolveAssemblerWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light, toon: ctx.toon,
-    }),
+    })),
   },
   // ── interchange.plan.md I2: sketch kinds widened into the World/export form ──
   // A lone figure / wordmark / solid is an OBJECT STUDY (orbit, export), not a

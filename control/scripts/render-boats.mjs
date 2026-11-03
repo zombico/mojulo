@@ -5,11 +5,13 @@
  *
  * From control/:
  *   node scripts/render-boats.mjs <output-directory> [archetype,…|all] [--pose '{"tilt":0,"yaw":0,"prop":0}'] [--fold 0…1] [--views side,quarter,top,stern,bow,motor,transom,wake] [--dry]
- *     [--look pleasure|naval] [--form [--livery <pattern|json>] [--wear pristine|used|battered]] [--deck] [--knots <n>]
+ *     [--look pleasure|naval] [--form [--livery <pattern|json>] [--wear pristine|used|battered]] [--deck] [--knots <n> [--live]]
  * `--form` draws the form render (craft-form.js: its livery's camo and marks, its wear), each face its albedo under a
  * plain key light; `--look` dresses it in a look card (boat-looks.js). `--deck` parks a carrier's aircraft on its flight
  * deck's spots, wings folded (vehicle-registry/carry.js `flightDeck`: what a level lays there), for review. `--knots`
- * sets it underway at that speed (craft-shelf/boat-wake.js: its wake on the water), framed on the boat, not its wake.
+ * sets it underway at that speed (craft-shelf/boat-wake.js: its wake on the water), framed on the boat, not its wake;
+ * `--live` runs it round a course on the World page's live water instead (worlds/seaway-scene.js), its views the
+ * page's own cameras (chase, wake, course).
  * `--fold` folds what folds (an outboard's tiller); `--dry` draws it out of the water. (The sheet of water runs through an
  * open hull's floor too: it is the review's water, not the boat's.) Writes <boat>-<view>.png, the pages, report.json and index.html.
  */
@@ -37,7 +39,7 @@ const pose = flag('--pose') ? JSON.parse(flag('--pose')) : {};
 const dry = args.includes('--dry');
 const fold = flag('--fold') !== null ? Number(flag('--fold')) : undefined;
 // (the form render: its marks and its wear, a look card; each face its albedo under a plain key light, for review)
-const knots = flag('--knots') !== null ? Number(flag('--knots')) : undefined, deckFlag = args.includes('--deck'), form = args.includes('--form'), look = flag('--look') ?? undefined, livery = flag('--livery') ? (flag('--livery').startsWith('{') ? JSON.parse(flag('--livery')) : flag('--livery')) : undefined, wear = flag('--wear') ?? undefined;
+const live = args.includes('--live'), knots = flag('--knots') !== null ? Number(flag('--knots')) : undefined, deckFlag = args.includes('--deck'), form = args.includes('--form'), look = flag('--look') ?? undefined, livery = flag('--livery') ? (flag('--livery').startsWith('{') ? JSON.parse(flag('--livery')) : flag('--livery')) : undefined, wear = flag('--wear') ?? undefined;
 const KEY = (() => { const v = [0.42, -0.5, 0.76], l = Math.hypot(...v); return v.map((x) => x / l); })();
 const shadeOf = (hex, n) => { const k = 0.42 + 0.58 * Math.abs(n[0] * KEY[0] + n[1] * KEY[1] + n[2] * KEY[2]), c = parseInt(hex.slice(1), 16); return `#${[16, 8, 0].map((b) => Math.min(255, Math.round(((c >> b) & 255) * k)).toString(16).padStart(2, '0')).join('')}`; };
 const avg = (hs) => { const t = [0, 0, 0]; for (const h of hs) { const c = parseInt(h.slice(1), 16); t[0] += (c >> 16) & 255; t[1] += (c >> 8) & 255; t[2] += c & 255; } return `#${t.map((v) => Math.round(v / hs.length).toString(16).padStart(2, '0')).join('')}`; };
@@ -49,6 +51,22 @@ const width = 960, height = 600;
 let gallery = '';
 const report = [];
 for (const id of pick) {
+  // (live water: the seaway page, rendered from its own cameras)
+  if (live && knots) {
+    const A = assembleCraft(id, { pose, underway: { knots, course: true } });
+    const { payload } = await resolveWorldScene({ ref: id, kind: 'assembler', manifest: A.manifest });
+    gallery += `<h2>${id} (live)</h2><p>${A.readout.underway.knots} kn, ${A.readout.underway.regime}, Fr ${A.readout.underway.froude} · loop ${A.manifest.seaway.course.loop} m · water ${payload.seaway.water.n}² over ${payload.seaway.water.size} m</p><section>`;
+    for (const cam of payload.cameras.filter((c) => views.includes(c.name) || views.join() === 'side,quarter,top,stern')) {
+      const html = emitThreeWorld({ ...payload, cameras: [cam], inline: true, hud: false, viewBox: { width, height } });
+      writeFileSync(path.join(outDir, `${id}-live-${cam.name}.png`), await renderWorldToPng(html, { width, height, deviceScaleFactor: 1 }));
+      writeFileSync(path.join(outDir, `${id}-live-${cam.name}.html`), html);
+      gallery += `<figure><a href="${id}-live-${cam.name}.html"><img alt="${id}, ${cam.name}" src="${id}-live-${cam.name}.png"></a><figcaption>${cam.name}</figcaption></figure>`;
+      console.log(`Rendered ${id}-live-${cam.name}`);
+    }
+    gallery += '</section>';
+    report.push({ id, live: true, underway: A.readout.underway, seaway: { course: A.manifest.seaway.course, water: { n: payload.seaway.water.n, size: payload.seaway.water.size }, boat: payload.seaway.boat.tris } });
+    continue;
+  }
   let faces, textures = {}, readout, frameOn = null;
   if (form) {
     const C = craftForm(id, { pose, ...(look ? { look } : {}), ...(livery ? { livery } : {}), ...(wear ? { wear } : {}) });

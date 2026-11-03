@@ -268,7 +268,9 @@ function toManifest(row, order, { pitch, lift, title }) {
  * frame, where a level lays its water; a submarine's (a round hull) also its `ballast`, the water it floods to dive.
  * `underway: { speed }` (m/s, or `{ knots }`) sets a boat moving: its readout's `underway` says what it does to the water
  * (its Froude numbers, its regime, its wake's angle and wavelength: boat-wake.js) and a `wake` item lies on the water
- * (its crests, its bow wave, its stern's foam, its wash, its spray). Absent, nothing of it is drawn or read.
+ * (its crests, its bow wave, its stern's foam, its wash, its spray). Absent, nothing of it is drawn or read. With a
+ * `course` (`true`, or `{ loop, water }`), the manifest carries a `seaway`: its World page runs the boat round the loop
+ * on live water (worlds/seaway-scene.js, scene/channels/seaway.js).
  */
 export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = {}, attitude = 'ground', fold, pose = {}, finish = true, title, made = false, look, water = 'fresh', underway } = {}) {
   const row = archetypeRow(archetype);
@@ -351,7 +353,16 @@ export function assembleCraft(archetype, { palette, colors = {}, swap: swapIn = 
       void halfAt;
       wake = numbers;
       const hi = manifest.items.findIndex((it) => it.id === hull.id);
-      manifest.items.push({ id: 'wake', source: wakeRecipe(w, { seed: hashSeed(archetype) }), at: [manifest.items[hi].at[0], manifest.items[hi].at[1], afloat.waterline] });
+      const origin = [manifest.items[hi].at[0], manifest.items[hi].at[1], afloat.waterline];
+      manifest.items.push({ id: 'wake', source: wakeRecipe(w, { seed: hashSeed(archetype) }), at: origin });
+      // (a course: the World page runs it on live water, scene/channels/seaway.js: a loop of `loop` metres' radius,
+      // by default wide enough for its wake to run half round it; a ship's on the sea, a small boat's on a lake)
+      if (underway.course) {
+        const c = underway.course === true ? {} : underway.course, L = w.waterline.length;
+        const loop = Number.isFinite(+c.loop) && +c.loop > 0 ? +c.loop : Math.max(5 * L, w.reach / Math.PI + 2 * L);
+        const water = c.water === 'ocean' || c.water === 'lake' ? c.water : L > 30 ? 'ocean' : 'lake';
+        manifest.seaway = { origin, course: { loop: round3(loop) }, water, wake: numbers };
+      }
     }
   }
   return { manifest, readout: { ...readout, fold: foldNow, pose: clone(pose), gear, joints, ...(look ? { look } : {}), ...(afloat ? { afloat } : {}), ...(wake ? { underway: wake } : {}) } };
