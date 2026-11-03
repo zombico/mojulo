@@ -26,6 +26,11 @@
  *   swell      loose volume ÷ bank volume once dug (bulking)
  *   dig        J/m³: the energy a crater spends per cubic metre it throws out, calibrated so a kilogram of TNT on loam
  *              leaves a crater about a metre in radius (the cratering charts' order), the coupling folded in
+ * LIQUIDS are the same principle at its end: c 0 and φ 0 (no shear strength at rest), so a heap of them goes flat, and
+ * their weight becomes pressure in every direction (rupa/fluid.js). Two numbers of their own:
+ *   viscosity  Pa·s: how fast it flows (water 0.001, honey 10, lava 1000): a rate, not a strength
+ *   yield      Pa: the stress below which a thick liquid holds a slope (a Bingham fluid: mud, lava); 0 for water
+ *
  * COLLISION adds one number:
  *   bounce     coefficient of restitution against a rigid wall (0 dead, 1 elastic). Two bodies meeting take the lower:
  *              the share of the closing energy that is NOT dissipated is bounce²
@@ -45,7 +50,7 @@
  *   MATTER_IDS, SOIL_IDS
  *   CLASS_MATTER           a class's matter when the thing names none (breakability.js classOf): { matter, fill }
  *   resolveMatter(spec, where?) → a matter record (an id, or { is?, ...overrides } over one), checked
- *   isBrittle(m), isSoil(m)
+ *   isBrittle(m), isSoil(m), isLiquid(m), LIQUID_IDS
  *   cutOfMatter(m)         → the cut a breaking of it plays (destruct/cuts.js presets): glass and ice shatter, brittle
  *                            masonry blasts apart, ductile stuff chips
  *   blockMatter(box, spec) → { matter, fill, mass, joules, compressive, cohesion, heatCap, soften, stiff, bounce, melt?,
@@ -101,6 +106,15 @@ const BASE = {
   clay: M('clay', { label: 'Stiff clay', family: 'soil', density: 1800, E: 0.05 * GPa, compressive: 0.3 * MPa, tensile: 12e3, bond: 12e3, strain: 0.1, toughness: 40e3, fill: 1, c: 12e3, phi: 20, swell: 1.3, dig: 10e6 }),
   gravel: M('gravel', { label: 'Gravel', family: 'soil', density: 1900, E: 0.1 * GPa, compressive: 0.4 * MPa, tensile: 0, bond: 0, strain: 0.05, toughness: 30e3, fill: 1, c: 0, phi: 38, swell: 1.12, dig: 8e6 }),
   snow: M('snow', { label: 'Packed snow', family: 'soil', density: 350, E: 0.001 * GPa, compressive: 0.05 * MPa, tensile: 1e3, bond: 1e3, strain: 0.1, toughness: 3e3, fill: 1, c: 1e3, phi: 30, swell: 1, dig: 1e6 }),
+  // ── liquids: cohesion tuned to nothing that holds a shape (c 0, φ 0: no shear strength at rest, so the surface goes
+  //    flat), the weight that remains is pressure in every direction; how FAST it flows is its own dial, viscosity, and
+  //    a thick one holds a low heap until the slope's stress passes its yield (a Bingham fluid: mud, lava) ──
+  water: M('water', { label: 'Fresh water', family: 'liquid', density: 1000, c: 0, phi: 0, viscosity: 1e-3, yield: 0 }),
+  seawater: M('seawater', { label: 'Seawater', family: 'liquid', density: 1025, c: 0, phi: 0, viscosity: 1.08e-3, yield: 0 }),
+  oil: M('oil', { label: 'Oil (olive)', family: 'liquid', density: 910, c: 0, phi: 0, viscosity: 0.08, yield: 0 }),
+  honey: M('honey', { label: 'Honey', family: 'liquid', density: 1420, c: 0, phi: 0, viscosity: 10, yield: 0 }),
+  mud: M('mud', { label: 'Mud (slurry)', family: 'liquid', density: 1600, c: 0, phi: 0, viscosity: 50, yield: 200 }),
+  lava: M('lava', { label: 'Basaltic lava', family: 'liquid', density: 2600, c: 0, phi: 0, viscosity: 1000, yield: 500 }),
 };
 
 // HEAT, its own numbers (handbook orders): melt and soften °C, heat J/(kg·K), fusion J/kg; ignite °C and burn J/kg for
@@ -122,12 +136,14 @@ const THERMAL = {
 const BOUNCE = {
   concrete: 0.2, 'reinforced-concrete': 0.2, brick: 0.2, stone: 0.3, sandstone: 0.2, adobe: 0.1, ceramic: 0.3, glass: 0.4, ice: 0.3,
   steel: 0.5, 'sheet-metal': 0.3, timber: 0.4, pine: 0.4, drywall: 0.1, bone: 0.4, sand: 0.05, loam: 0.05, clay: 0.03, gravel: 0.1, snow: 0.02,
+  water: 0, seawater: 0, oil: 0, honey: 0, mud: 0, lava: 0,
 };
 export const MATTER = Object.freeze(Object.fromEntries(Object.entries(BASE).map(([k, m]) => [k, Object.freeze({ ...m, ...THERMAL[k], bounce: BOUNCE[k] })])));
 export const CHAR_RATE = 0.65e-3 / 60;   // m/s, the char front's speed into a face of burning wood (Eurocode 5, softwood)
 export const AMBIENT = 20;              // °C
 export const MATTER_IDS = Object.freeze(Object.keys(MATTER));
 export const SOIL_IDS = Object.freeze(MATTER_IDS.filter((k) => MATTER[k].family === 'soil'));
+export const LIQUID_IDS = Object.freeze(MATTER_IDS.filter((k) => MATTER[k].family === 'liquid'));
 
 /** A thing's matter by its class (breakability.js classOf) when it names none; a class not here is `brick`. */
 export const CLASS_MATTER = Object.freeze({
@@ -142,6 +158,7 @@ export const CLASS_MATTER = Object.freeze({
 
 export const isBrittle = (m) => m.strain < 0.05;
 export const isSoil = (m) => m.family === 'soil';
+export const isLiquid = (m) => m.family === 'liquid';
 export const isCombustible = (m) => Number.isFinite(m.ignite) && m.burn > 0;
 
 const FIELDS = ['label', 'density', 'E', 'compressive', 'tensile', 'bond', 'strain', 'toughness', 'fill', 'c', 'phi', 'swell', 'dig', 'melt', 'soften', 'heat', 'fusion', 'ignite', 'burn', 'bounce'];
@@ -192,6 +209,7 @@ const sig = (x) => (x === 0 ? 0 : +x.toPrecision(4));
 export function blockMatter(box, spec, where = 'matter') {
   const s = spec && typeof spec === 'object' && !Array.isArray(spec) && spec.matter !== undefined ? spec : { matter: spec };
   const m = resolveMatter(s.matter, where);
+  if (isLiquid(m)) throw new Error(`${where}: ${m.id} is a liquid: it has no shape to be a block; pour it on the ground (rupa/fluid.js pour) or hold it in a tank`);
   const fill = s.fill ?? m.fill;
   if (!(fill > 0 && fill <= 1)) throw new Error(`${where}.fill is the solid share of the box, above 0 and at most 1`);
   const vol = [0, 1, 2].reduce((a, k) => a * Math.max(0, box.max[k] - box.min[k]), 1);

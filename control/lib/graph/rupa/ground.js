@@ -3,8 +3,9 @@
  * ejecta into a rim, slumps to what its soil can hold, and is dug and piled. Pure and deterministic (no dice: the same
  * field and the same acts give the same heights). rupa is the internal name: the person says craters, trenches, dig.
  *
- * The field: { origin: [x, y], cell, nx, ny, h: [z…], rock: [z…], soil } — `h` the top of each cell (row-major, x
- * fastest), `rock` the bedrock under it (nothing digs or slumps below it), `soil` a soil matter (matter.js SOIL_IDS).
+ * The field: { origin: [x, y], cell, nx, ny, h: [z…], rock: [z…], soil, fluid? } — `h` the top of each cell (row-major, x
+ * fastest), `rock` the bedrock under it (nothing digs or slumps below it), `soil` a soil matter (matter.js SOIL_IDS),
+ * `fluid` a liquid lying on it (rupa/fluid.js: its depth per cell, carried through every act here).
  *
  * The soil's principles (matter.js):
  *   CRATER   the volume thrown out is the energy over the soil's `dig` (J/m³): V = E / dig; the bowl a paraboloid whose
@@ -39,7 +40,7 @@ function soilOf(id, where = 'ground.soil') {
   if (!isSoil(m)) throw new Error(`${where}: '${m.id}' is not a soil (sand, loam, clay, gravel, snow)`);
   return m;
 }
-const copy = (f) => ({ ...f, h: f.h.slice(), rock: f.rock.slice() });
+const copy = (f) => ({ ...f, h: f.h.slice(), rock: f.rock.slice(), ...(f.fluid ? { fluid: { ...f.fluid, d: f.fluid.d.slice(), q: f.fluid.q.slice() } } : {}) });
 const idx = (f, i, j) => j * f.nx + i;
 const cx = (f, i) => f.origin[0] + (i + 0.5) * f.cell;
 const cy = (f, j) => f.origin[1] + (j + 0.5) * f.cell;

@@ -38,11 +38,23 @@
  *            cannonball, a hurled boulder, a falling girder), stepped finely enough not to pass through a block, each
  *            contact spent on both, broken when its own joules run out (`state.rupa.bodies`, `how: 'impact'`).
  *
+ *   POOLS    liquid standing in the world (`rupa.pools: [{ min, max, density, viscosity }]`, its surface at max[2]): a body
+ *            in one is pushed up by the weight of the liquid it puts aside and slowed by pushing it aside, so pine floats
+ *            a third under, ice nine tenths, solid steel sinks and a hollow steel hull floats (Archimedes falls out of the
+ *            pressure on its faces); a block standing in one weighs that much less on its supports.
+ *
+ *   SPRAY    a nozzle (`E.spray(state, { at, dir, speed, flow, seconds })`: a hose off a hydrant and a pump, the speed and
+ *            flow from rupa/fluid.js jetOf or stepVessels) throws water in parcels that fly under gravity and the air's
+ *            drag. A parcel that strikes a block pushes on it (an impact: water gives way, bounce 0) and cools it: each
+ *            kilogram takes 4.19 kJ a degree up to 100 °C, then 2.26 MJ to boil away, so a burning block drenched below
+ *            its ignition goes out (`how: 'douse'` on the hits). Where parcels land is counted (`state.rupa.wet`).
+ *
  *   rupaPhysics (E.rupaPhysics, also run in Node by lib/graph/rupa/index.js):
  *     blastKg(radius, blastZ?) · blastJoules(radius, blastZ?) · faceArea(box, from) · burstShare(box, at, joules, r0?)
  *     blowJoules(how, { swing, shot, blastZ, power }, extra) · heatFactor(T, soften, melt, T0?) · loadPass(blocks, { fixed, floor, g, touch })
  *     impact(mover { mass, stiff, bounce, joules? }, target { stiff, bounce, joules?, mass?, fixed? }, closing speed)
  *       → { e, dissipated, toA, toB, breaksB }
+ *     submerged(box, surface) · inPool(box, pool) · wet(box, mass, vel, pool) → { V, lift, k } | null
  *       → { weight: Map, stress: Map, crush: [block], span: [[block]], groups } (pure over plain boxes)
  *
  * BUILDER CONTRACT (compose.js): import-free inside the function. The physics is defined first and needs nothing from
@@ -102,6 +114,27 @@ export function buildRupa(E) {
     const capB = b.joules ?? Infinity;
     if (dE * sb >= capB) { const used = capB / sb; return { e, dissipated: used, toA: used * sa, toB: capB, breaksB: true }; }
     return { e, dissipated: dE, toA: dE * sa, toB: dE * sb, breaksB: false };
+  }
+  // WET: a box in a pool of liquid (pool { min, max: its surface at max[2], density, viscosity }). The push up is the
+  // weight of the liquid it puts aside (Archimedes, the pressure ρ·g·depth on its faces summed: the bottom's beats the
+  // top's by ρ·g·V under); moving through it, the drag of pushing liquid aside (½ρ·Cd·A·v², a cube's Cd 1.05) and of its
+  // viscosity (Stokes, 3πηDv), as a rate the step applies implicitly
+  function submerged(b, surface) {
+    const hz = b.max[2] - b.min[2], under = Math.max(0, Math.min(hz, surface - b.min[2]));
+    return hz > 0 ? vol(b) * (under / hz) : 0;
+  }
+  function inPool(b, pool) {
+    const c = centre(b);
+    return c[0] >= pool.min[0] && c[0] <= pool.max[0] && c[1] >= pool.min[1] && c[1] <= pool.max[1] && b.min[2] < pool.max[2] && b.max[2] > pool.min[2];
+  }
+  function wet(b, mass, v, pool) {
+    if (!inPool(b, pool)) return null;
+    const V = submerged(b, pool.max[2]);
+    if (!(V > 0)) return null;
+    const sx = b.max[0] - b.min[0], sy = b.max[1] - b.min[1], sz = b.max[2] - b.min[2], speed = Math.hypot(...v);
+    const A = speed > 1e-9 ? (Math.abs(v[0]) * sy * sz + Math.abs(v[1]) * sx * sz + Math.abs(v[2]) * sx * sy) / speed : sx * sy;
+    const frac = V / vol(b), rho = pool.density, eta = pool.viscosity ?? 1e-3;
+    return { V, lift: rho * G * V, k: (frac * (0.5 * rho * 1.05 * A * speed + 3 * Math.PI * eta * Math.cbrt(vol(b)))) / mass };
   }
   const touches = (a, s, touch) => restsOn(a, s, touch) || restsOn(s, a, touch) || !!sideFace(a, s, touch);
 
@@ -182,7 +215,7 @@ export function buildRupa(E) {
     return { weight, stress, crush, span, groups };
   }
 
-  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, loadPass, vol, G, TNT };
+  const physics = { blastKg, blastJoules, faceArea, burstShare, blowJoules, heatFactor, impact, submerged, inPool, wet, loadPass, vol, G, TNT };
   E.rupaPhysics = physics;
   if (!E.registerWorldPass) return;   // Node's physics-only build
 
@@ -206,7 +239,7 @@ export function buildRupa(E) {
       b.hp = Infinity;   // the count never breaks it: the energy does
     });
     if (!any) return;
-    state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0 };
+    state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] } };
   });
   function breakIt(state, b, how, by) {
     if (b.broken) return;
@@ -284,6 +317,61 @@ export function buildRupa(E) {
       stiff: spec.stiff || 1e10, bounce: spec.bounce ?? 0.2, matter: spec.matter || null, broken: null, rest: false, born: state.time, hits: [] });
     return id;
   };
+  // ── spray: water thrown from a nozzle ──
+  const WATER = { density: 1000, heat: 4186, boil: 100, vapor: 2.26e6, stiff: 2.2e9 };   // its bulk modulus stands for stiffness
+  const AIR_DRAG = 0.004;   // 1/m: a jet breaking into drops loses speed as c·v² (drops' terminal speed √(g/c) ≈ 50 m/s)
+  const hash = (n) => { let x = (n ^ 0x9e3779b9) >>> 0; x = Math.imul(x ^ (x >>> 16), 0x85ebca6b); x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35); return ((x ^ (x >>> 16)) >>> 0) / 4294967296; };
+  E.spray = (state, spec) => {
+    const R = state.rupa;
+    if (!R || !spec) return null;
+    const L = Math.hypot(...spec.dir) || 1;
+    R.sprays.push({ at: [...spec.at], dir: spec.dir.map((x) => x / L), speed: spec.speed, flow: spec.flow, until: state.time + (spec.seconds ?? Infinity), spread: spec.spread ?? 0.03 });
+    return R.sprays.length - 1;
+  };
+  function douse(state, b, kg, by) {
+    const r = b.rupa;
+    if (!r || !(r.heatCap > 0) || r.T <= r.T0) return;
+    const Q = kg * (WATER.heat * Math.max(0, Math.min(r.T, WATER.boil) - Math.min(r.T0, WATER.boil)) + (r.T > WATER.boil ? WATER.vapor : 0));
+    r.T = Math.max(r.T0, r.T - Q / r.heatCap);
+    if (r.burning && r.ignite != null && r.T < r.ignite) { r.burning = false; state.rupa.hits.push({ t: state.time, id: b.id, how: 'douse', joules: Math.round(Q), left: Math.round(r.joules) }); }
+  }
+  // order 31: the spray first, so a doused block is cooler before the fire's pass
+  E.registerWorldPass('rupa-spray', (state, input, dt) => {
+    const R = state.rupa;
+    if (!R || (!R.sprays.length && !R.drops.length)) return;
+    for (const s of R.sprays) {
+      if (state.time >= s.until || !(s.flow > 0)) continue;
+      for (let k = 0; k < 2; k++) {
+        const n = R.dropSeq++, jitter = [0, 1, 2].map((i) => (hash(n * 3 + i) - 0.5) * 2 * s.spread);
+        const d = s.dir.map((x, i) => x + jitter[i]), L = Math.hypot(...d);
+        R.drops.push({ pos: [...s.at], vel: d.map((x) => (x / L) * s.speed), kg: (s.flow * WATER.density * dt) / 2 });
+      }
+    }
+    const live = [];
+    for (const p of R.drops) {
+      const sp = Math.hypot(...p.vel), drag = 1 / (1 + dt * AIR_DRAG * sp);
+      p.vel = p.vel.map((x) => x * drag); p.vel[2] -= R.g * dt;
+      const next = p.pos.map((x, i) => x + p.vel[i] * dt);
+      let hit = null;
+      for (const b of state.breakables) if (!b.broken && next.every((x, i) => x >= b.min[i] && x <= b.max[i])) { hit = b; break; }
+      if (hit) {
+        if (hit.rupa) {
+          const r = impact({ mass: p.kg, stiff: WATER.stiff, bounce: 0 }, targetOf(hit), sp);
+          spend(state, hit, r.toB, 'shot', 'spray');
+          douse(state, hit, p.kg, 'spray');
+        }
+        continue;
+      }
+      if (next[2] <= state.breakFloor) {
+        R.wet.volume += p.kg / WATER.density;
+        if (R.wet.landed.length < 256) R.wet.landed.push([+next[0].toFixed(2), +next[1].toFixed(2)]);
+        continue;
+      }
+      p.pos = next;
+      live.push(p);
+    }
+    R.drops = live.length > 1200 ? live.slice(live.length - 1200) : live;
+  }, 31);
   function bodyHit(state, p, r, onId) {
     p.joules -= r.toA;
     if (p.joules <= 0 && !p.broken) p.broken = { t: state.time, how: 'impact', at: [...p.pos], on: onId };
@@ -297,6 +385,17 @@ export function buildRupa(E) {
       const fine = 0.8 * Math.min(...p.half), n = Math.min(256, Math.max(1, Math.ceil((Math.hypot(...p.vel) * dt) / fine))), h = dt / n;
       for (let k = 0; k < n && !p.broken && !p.rest; k++) {
         p.vel[2] -= R.g * h;
+        if (R.pools.length) {
+          const box0 = { min: p.pos.map((x, i) => x - p.half[i]), max: p.pos.map((x, i) => x + p.half[i]) };
+          for (const pool of R.pools) {
+            const w = wet(box0, p.mass, p.vel, pool);
+            if (!w) continue;
+            p.vel[2] += (w.lift / p.mass) * h;
+            const keep = 1 / (1 + h * w.k);
+            p.vel = p.vel.map((x) => x * keep);
+            p.wet = true;
+          }
+        }
         for (let i = 0; i < 3; i++) p.pos[i] += p.vel[i] * h;
         const box = { min: p.pos.map((x, i) => x - p.half[i]), max: p.pos.map((x, i) => x + p.half[i]) };
         for (const b of state.breakables) {
@@ -384,7 +483,8 @@ export function buildRupa(E) {
     }
     if (!changed) return;
     const live = state.breakables.filter((b) => !b.broken && !b.falling && b.rupa);
-    const boxes = live.map((b) => ({ min: b.min, max: b.max, mass: b.rupa.mass, compressive: b.rupa.compressive, lateral: b.bond === 'lateral', bond: b.rupa.cohesion, left: (b.rupa.cap > 0 ? Math.max(0, b.rupa.joules) / b.rupa.cap : 1) * heatFactor(b.rupa.ignite != null ? Math.min(b.rupa.T, b.rupa.ignite) : b.rupa.T, b.rupa.soften, b.rupa.melt, b.rupa.T0), ref: b }));
+    const afloat = (b) => R.pools.reduce((m, pool) => (inPool(b, pool) ? m - pool.density * submerged(b, pool.max[2]) : m), b.rupa.mass);
+    const boxes = live.map((b) => ({ min: b.min, max: b.max, mass: Math.max(0, afloat(b)), compressive: b.rupa.compressive, lateral: b.bond === 'lateral', bond: b.rupa.cohesion, left: (b.rupa.cap > 0 ? Math.max(0, b.rupa.joules) / b.rupa.cap : 1) * heatFactor(b.rupa.ignite != null ? Math.min(b.rupa.T, b.rupa.ignite) : b.rupa.T, b.rupa.soften, b.rupa.melt, b.rupa.T0), ref: b }));
     const fixed = state.colliders.filter((c) => c.blk == null);
     const L = loadPass(boxes, { fixed, floor: state.breakFloor, g: R.g, touch: TOUCH });
     for (const x of L.crush) breakIt(state, x.ref, 'crush', null);

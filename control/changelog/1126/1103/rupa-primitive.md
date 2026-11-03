@@ -30,6 +30,15 @@ Walls hold and objects break stays the default; a game that asks for destructibl
   on slower, paying only what each block cost, while a pine ball breaks on it. Landings use the same rule instead of
   charging the full ½mv² to both blocks, and `throwMatter` puts bodies of matter into the world (a cannonball, a
   hurled boulder), stepped finely enough not to pass through a block.
+- **Liquids are cohesion at its end**: water, seawater, oil, honey, mud and lava hold no shape at rest (cohesion and
+  friction angle 0), so their weight is pressure in every direction; `viscosity` says how fast they flow and `yield`
+  lets mud and lava hold a low heap. On the ground grid (`lib/graph/rupa/fluid.js`) a fluid layer flows downhill,
+  levels, fills a crater's bowl and keeps every drop; inside, tanks and tubs are joined by pipes whose flow viscosity or
+  the opening limits, joined tanks meet at one level, an overfilled masonry cistern bursts by the hoop stress at its
+  foot and floods the ground, and a hydrant, a pump and a hose make a nozzle's jet. Archimedes falls out of the pressure
+  on a body's faces: in a level's pools pine floats a third under, ice nine tenths, a hollow steel hull a sixth, and
+  solid steel sinks. A spray (`spray`) throws water that pushes on what it hits and cools it by its heat and its boiling,
+  so a hose puts out a burning block.
 - **Ground** (`lib/graph/rupa/ground.js`): a soil heightfield over bedrock: craters from energy, ejecta thrown into a rim
   with the volume kept, slopes that slump to their angle of repose while a cohesive soil holds a cut face up to its
   critical height, and dig, deposit and shovel. The kernel and its laws land here; the page's deformable floor is next.

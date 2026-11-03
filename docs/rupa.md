@@ -62,6 +62,37 @@ So do bodies: matter thrown into the world with `throwMatter(state, { size, at, 
 cannonball, a hurled boulder or a falling girder. They are stepped finely enough not to pass through a block, and break
 when their own joules run out.
 
+## Liquids
+
+In rupa a liquid is the end of the cohesion dial: its Mohr–Coulomb pair is `c` 0 and `φ` 0, so it has no shear
+strength at rest. A heap of it goes flat (the same slump rule soils use), and its weight becomes pressure in every
+direction, p = ρ·g·depth. Two numbers are its own:
+
+- `viscosity` (Pa·s) sets how fast it flows: water 0.001, oil 0.08, honey 10, mud 50, lava 1,000. It's a rate, not a
+  strength, so it's separate from cohesion.
+- `yield` (Pa) is the stress below which a thick liquid holds a slope (a Bingham fluid: mud, lava). Water's is 0.
+
+A liquid can't be a block (`blockMatter` refuses it). It lives in two places:
+
+- **Outside, on the ground grid** ([`fluid.js`](../control/lib/graph/rupa/fluid.js)): a depth over each cell that
+  flows by differences in surface height (the virtual-pipe shallow-water scheme). Viscosity drags a thin layer at
+  3η/(ρd²); a Bingham liquid stops where ρ·g·d·slope falls under its yield. Heaps level, lakes find one level, rain
+  pools in a crater's bowl and its rim dams a thin sheet. Volume is kept exactly. `pour`, `flow`, `drain`, `fluidAt`.
+- **Inside, simplified:** tanks and tubs joined by pipes. A pipe's flow is the smaller of what viscosity lets through
+  (Hagen–Poiseuille) and what its opening lets through (Torricelli), so water through a hose is opening-bound and honey
+  is pipe-bound. Joined tanks meet at one level. A tank's wall bursts by the hoop stress at its foot (p·r/t against the
+  wall matter's tension or bond), and what it held floods the ground grid. A pipe end can be a tank, a ground cell,
+  the mains (`source`: a hydrant) or a `nozzle`; a pump adds pressure on the way. `stepVessels`, `jetOf`.
+
+**Archimedes falls out** of the pressure on a body's faces: the bottom face's push beats the top face's by ρ·g·V under,
+and the sides cancel. In a pool (a level's `matter: { pools: [{ min, max, liquid }] }`) pine floats 35% under, ice
+91.7%, a steel shell with `fill` 0.02 floats 15.7% under (a ship), and solid steel sinks. A body moving through it also
+feels drag (½ρ·Cd·A·v² and Stokes' 3πηDv), and a block standing in one weighs less on its supports.
+
+**Spray:** a nozzle (`spray(state, { at, dir, speed, flow, seconds })`, the jet's speed and flow from `jetOf` or a
+hydrant-pump-hose network) throws water in parcels under gravity and air drag. A parcel pushes on what it hits and cools
+it: 4.19 kJ/kg a degree up to 100 °C, then 2.26 MJ/kg to boil off. A burning block drenched below its ignition goes out.
+
 ## What holds it up
 
 The basic break pass ([`rules-basic.js`](../control/lib/graph/worlds/controllable/rules-basic.js)) still decides what
