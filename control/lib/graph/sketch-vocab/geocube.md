@@ -11,7 +11,7 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 `light`, `colour` / `palette`, `register`, `contrast`, `grit`, `surfaces`, `era`, `target`, `materials`, `matter`, `wind`, `why`, `avoid`.
 
 **What its world is made of** (`matter`, for a physical level: `destruction: 'physical'`): by role, `wall`, `floor`,
-`accent`, `trim`, `roof`, `ground`, `wood`, `metal`, `glass`, each a matter (`concrete`, `brick`, `stone`, `steel`,
+`accent`, `trim`, `roof`, `ground`, `wood`, `metal`, `glass`, `structure` (its landmarks: stone, as it paints them), each a matter (`concrete`, `brick`, `stone`, `steel`,
 `timber`, `glass`, …) or `{ matter, fill?, porosity? }`. Name a role only to override: a role you leave out is read off
 the cube's own look, so what breaks agrees with what it looks like (a stone-brick wall is stone, a lab kit concrete and
 steel, a thatch roof pine). A physical level painted by the cube breaks its walls and set pieces by it; props keep

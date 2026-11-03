@@ -19,13 +19,15 @@
  *             raised ground stands at minute zero instead of falling to the level's floor
  *   HOUSES    a shell house (`<id>:house`) is its walls, panels no wider or taller than COURSE, from its footing to its
  *             eave (the lowest face that looks up, above its first storey), and its roof from the eave to the ridge
- *             resting on them; walls take the cube's wall matter, the roof its roof matter at a roof's fill (ROOF_FILL:
- *             rafters and tiles, mostly air)
+ *             resting on them; walls take its settlement's facade words (else the cube's wall), the roof its roof word
+ *             at a roof's fill (ROOF_FILL: rafters and tiles, mostly air); a structure takes the cube's `structure` role
+ *             (painted from the cube's stone: stone)
  *   FACES     every face of a group goes with the block that holds its middle (else the nearest): `node` and the
  *             `break:<id>` group, so the page hides what broke and pre-cuts it in its colour
  *
  *   shellBlocks(payload, { rings?, matterOf?, floor?, hp? }) → { breakables, faces, colliders, footings, groups } | null
- *     payload: { faces, colliders }; rings: the structures' annuli (an annulus without its outline keeps its edges' boxes); matterOf: era/geocube.js cubeMatter's roles (wall, roof); null when the
+ *     payload: { faces, colliders }; rings: the structures' annuli (an annulus without its outline keeps its edges' boxes);
+ *     matterOf: the cube's roles (cubeMatter), a house's own settlement's under `town` (settlementMatter) matterOf: era/geocube.js cubeMatter's roles (wall, roof); null when the
  *     world has no structure and no shell house
  */
 import { blockMatter, resolveMatter, cutOfMatter } from './matter.js';
@@ -169,11 +171,15 @@ function seat(blocks, footZ) {
   return seated;
 }
 
+// what a block is made of: a house's by its settlement's words (`town`: era/geocube.js settlementMatter), else the cube's
+// roles; a structure's by the cube's `structure` role (it is painted from the cube's stone)
 function matterFor(role, matterOf, kind) {
-  const pick = (r) => (matterOf && matterOf[r] ? matterOf[r] : null);
+  const town = kind === 'house' && matterOf && matterOf.town ? matterOf.town : null;
+  const pick = (r) => (town && town[r]) || (matterOf && matterOf[r]) || null;
+  const own = (m, fallback) => (m ? { matter: m.matter, ...(m.fill !== undefined ? { fill: m.fill } : {}) } : { matter: fallback });
   if (role === 'roof') { const m = pick('roof') || pick('wall'); return { matter: m ? m.matter : 'ceramic', fill: m?.fill ?? ROOF_FILL }; }
-  const m = pick('wall');
-  return m ? { matter: m.matter, ...(m.fill !== undefined ? { fill: m.fill } : {}) } : { matter: kind === 'house' ? 'brick' : 'stone' };
+  if (kind === 'structure') return own(pick('structure'), 'stone');
+  return own(pick('wall'), 'brick');
 }
 
 export function shellBlocks(payload, { rings = null, matterOf = null, floor = 0, hp = 6 } = {}) {

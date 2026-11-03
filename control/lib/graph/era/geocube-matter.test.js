@@ -77,3 +77,33 @@ describe('a physical level in a cube breaks by the cube\'s matter', () => {
     await expect(resolveWorldScene(level({ scars: { wall: 'oil' } }))).rejects.toThrow(/scars.wall: oil is a liquid/);
   }, 120000);
 });
+
+describe('the cube\'s assets as matter', () => {
+  it('a settlement breaks as the style it is built in: its facade word, its roof word, a named style resolved', async () => {
+    const { settlementMatter } = await import('./geocube.js');
+    const { STYLE_STARTERS, MATERIAL_WORDS } = await import('./arch-style.js');
+    const { matterOfWord } = await import('../rupa/look-matter.js');
+    // a named style whose facade word is a matter (chosen from the starters, not by hand)
+    const named = Object.keys(STYLE_STARTERS).find((k) => matterOfWord(STYLE_STARTERS[k].materials?.punched));
+    const id = Object.keys(GEOCUBE_PRESETS)[0], cube = readGeocube(id);
+    const T = settlementMatter(cube, { style: named });
+    expect(T.wall).toMatchObject({ matter: matterOfWord(STYLE_STARTERS[named].materials.punched).matter });
+    expect(T.wall.why).toMatch(/^its punched is /);
+    expect(Object.keys(MATERIAL_WORDS)).toContain(STYLE_STARTERS[named].materials.punched);
+    // a settlement with no style of its own (and no builders' style) gives none: its houses take the cube's own wall
+    expect(settlementMatter(cube, {}).wall).toBeNull();
+  });
+
+  it('a structure is the cube\'s stone (its paint), unless the cube says otherwise', () => {
+    const id = Object.keys(GEOCUBE_PRESETS)[0];
+    expect(cubeMatter(readGeocube(id)).structure).toMatchObject({ matter: 'stone' });
+    expect(cubeMatter(readGeocube({ from: id, matter: { structure: 'concrete' } })).structure).toMatchObject({ matter: 'concrete', why: 'the cube says so' });
+  });
+
+  it('outdoors a crater is dug in the land\'s commonest ground off the path', async () => {
+    const { groundOfShares, SUBSTRATE_MATTER } = await import('../rupa/look-matter.js');
+    expect(groundOfShares({ path: 0.6, sand: 0.3, soil: 0.1 })).toBe(SUBSTRATE_MATTER.sand);
+    expect(groundOfShares({ path: 1 })).toBeNull();
+    expect(groundOfShares(null)).toBeNull();
+  });
+});

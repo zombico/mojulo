@@ -25,6 +25,7 @@ import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { readMatterSpec, readTool, readScarsSpec, loadAudit } from '@/lib/graph/rupa/index.js';
 import { shellBlocks } from '@/lib/graph/rupa/shell-blocks.js';
 import { physicsWind } from '@/lib/graph/rupa/one-wind.js';
+import { groundOfShares } from '@/lib/graph/rupa/look-matter.js';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
 import { resolveSignage } from '@/lib/signage-chrome';
@@ -50,7 +51,7 @@ import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
-import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, geocubeMatterOf, readGeocube } from '@/lib/graph/era/geocube';
+import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, geocubeMatterOf, geocubeTownMatterOf, readGeocube } from '@/lib/graph/era/geocube';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, GRASS_CARDS } from '@/lib/graph/form/land-read';
@@ -869,11 +870,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const destruction = readDegree(sketch.manifest.destruction, 'destruction');
     // under `physical`, a world painted by a geocube breaks by the cube's matter (era/geocube.js cubeMatter: read off its skins)
     const cubeMatterOf = destruction === 'physical' ? geocubeMatterOf(sketch.manifest) : null;
+    // (a town's houses break as the settlement they were built from: its style's words, era/geocube.js settlementMatter)
+    const townMatterOf = destruction === 'physical' ? geocubeTownMatterOf(sketch.manifest, payload) : null;
     const broken = breakablesOf(payload, destruction, destruction === 'physical' ? { matterOf: cubeMatterOf } : {});
     // under `physical`, the big things too (rupa/shell-blocks.js): a structure's tiers in courses, its rings in wall-thick
     // cells, a town's shell houses as walls and a roof, each on a footing; and the load at minute zero (rupa loadAudit)
     const shells = destruction === 'physical'
-      ? shellBlocks({ faces: broken ? broken.faces : payload.faces, colliders: broken ? broken.colliders : payload.colliders }, { rings: structureRings, matterOf: cubeMatterOf })
+      ? shellBlocks({ faces: broken ? broken.faces : payload.faces, colliders: broken ? broken.colliders : payload.colliders }, { rings: structureRings, matterOf: cubeMatterOf || townMatterOf ? { ...(cubeMatterOf || {}), ...(townMatterOf ? { town: townMatterOf } : {}) } : null })
       : null;
     if ((broken && broken.breakables.length) || shells) {
       const faces = shells ? shells.faces : broken.faces, colliders = shells ? shells.colliders : broken.colliders;
@@ -902,7 +905,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     // scars (cosmetic damage): a map that may not change still shows what blows would do to it (rupa/index.js
     // readScarsSpec: its ground's soil and its walls' matter, from the world's cube unless named). Absent ⇒ no byte
-    const scars = sketch.manifest.scars ? readScarsSpec(sketch.manifest.scars, { cube: geocubeMatterOf(sketch.manifest) }) : null;
+    // (outdoors, the ground a crater is painted in is the land's own: its commonest ground off the path, the cube's readout,
+    // era/substrate.js; a cube that names its ground keeps it)
+    const scarCube = () => { const C = geocubeMatterOf(sketch.manifest), land = groundOfShares(payload.geocube?.substrate); return land && !(C?.ground?.why === 'the cube says so') ? { ...(C || {}), ground: land } : C; };
+    const scars = sketch.manifest.scars ? readScarsSpec(sketch.manifest.scars, { cube: scarCube() }) : null;
     if (scars) payload.rupa = { ...(payload.rupa || readMatterSpec(sketch.manifest.matter, 'matter')), scars };
     // tutorial (tutorial-mode.plan.md T1): the scripted teaching layer — ordered prompt+goal steps
     // the engine director advances by edge-detecting the sim; the director is the level terminal

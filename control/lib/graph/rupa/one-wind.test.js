@@ -82,3 +82,23 @@ describe('the cube\'s wind and the level\'s', () => {
     expect((await resolveWorldScene(level({}))).payload.rupa.wind).toBeUndefined();
   }, 120000);
 });
+
+describe('the geocube\'s own assets', () => {
+  it('a biocube\'s leaf forms are plants: an evergreen spire a conifer, every other crown a broadleaf', async () => {
+    const { plantOfLeaf } = await import('./wind-solver.js');
+    const { LEAF_FORMS } = await import('../era/leaf-forms.js');
+    const ever = Object.keys(LEAF_FORMS).find((k) => LEAF_FORMS[k].evergreen), leafy = Object.keys(LEAF_FORMS).find((k) => !LEAF_FORMS[k].evergreen);
+    expect(plantOfLeaf(ever)).toBe('conifer');
+    expect(plantOfLeaf(leafy)).toBe('tree');
+    expect(breakSpeed(plantKind(ever, 12))).toBeCloseTo(breakSpeed(plantKind('conifer', 12)), 9);
+  });
+
+  it('a cube\'s wind and its dunes share their way', async () => {
+    const { withGeocube, GEOCUBE_PRESETS } = await import('../era/geocube.js');
+    const from = Object.keys(GEOCUBE_PRESETS)[0];
+    const laid = withGeocube({ kind: 'stage', geocube: { from, wind: { speed: 7, dir: 60 } }, trail: { ground: { dunes: true } } });
+    expect(laid.trail.ground.dunes.wind).toBe(60);
+    const own = withGeocube({ kind: 'stage', geocube: { from, wind: { speed: 7, dir: 60 } }, trail: { ground: { dunes: { wind: 10 } } } });
+    expect(own.trail.ground.dunes.wind).toBe(10);
+  }, 120000);
+});

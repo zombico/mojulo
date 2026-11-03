@@ -1080,13 +1080,35 @@ export function cubeMatter(cube) {
   for (const [surface, role] of [['wall', 'wall'], ['floor', 'floor'], ['accent', 'accent'], ['pillar', 'trim'], ['plinth', 'trim']]) set(role, matterOfTile(S[surface]), `its ${surface}`);
   const kit = KIT_MATTER[cube.inside?.bones];
   if (kit) for (const [role, spec] of Object.entries(kit)) set(role, spec);
+  // its settlements' material words, each in the style it is built in (a named style resolved: era/arch-style.js)
   for (const st of Object.values(cube.settlements || {})) {
-    const words = st && typeof st.style === 'object' ? st.style.materials || {} : {};
-    const first = (w) => (Array.isArray(w) ? w[0] : w);
-    for (const [surface, role] of [['stone', 'wall'], ['plaster', 'wall'], ['roof', 'roof'], ['timber', 'wood'], ['road', 'ground'], ['walk', 'ground']]) set(role, matterOfWord(first(words[surface])));
+    const T = settlementMatter(cube, st);
+    for (const role of ['wall', 'roof', 'wood', 'ground']) set(role, T[role]);
   }
   for (const [role, spec] of Object.entries(DEFAULT_ROLE)) set(role, spec);
   return out;
+}
+/**
+ * What a settlement's houses are made of: the words of the style it is built in (its own, else the cube's builders'),
+ * its walls by their facade (`punched`, the wall its windows are cut in), else plaster, stone or banding; its roof, its
+ * timber, its road. Each with its reason; a word the style lacks gives nothing.
+ */
+export function settlementMatter(cube, t) {
+  let style = null;
+  try { style = settlementStyle(cube, t ?? {}).style; } catch { style = null; }
+  // (a style that does not resolve, a recipe's few words of its own: those words)
+  const W = style?.materials || (t && isObj(t.style) ? t.style.materials || {} : {}), first = (w) => (Array.isArray(w) ? w[0] : w);
+  const pick = (...ks) => { for (const k of ks) { const w = first(W[k]), m = matterOfWord(w); if (m) return { ...m, why: `its ${k} is ${w}: ${m.why}` }; } return null; };
+  return { wall: pick('punched', 'plaster', 'stone', 'banded'), roof: pick('roof'), wood: pick('timber'), ground: pick('road', 'walk') };
+}
+/** The settlement a minted world's town was built from (its readout's), as its houses' matter; null when it has none. */
+export function geocubeTownMatterOf(manifest, payload) {
+  const spec = cubeSpecOf(manifest ?? {});
+  if (spec === undefined || spec === null) return null;
+  const name = payload?.geocube?.town?.settlement ?? payload?.painted?.settlement;
+  if (name === undefined) return null;
+  const cube = readGeocube(spec), t = cube.settlements?.[name] ?? (name === 'micro' ? MICRO_TOWN : null);
+  return t ? settlementMatter(cube, t) : null;
 }
 /** The cube a world manifest is painted by, as its matter by role (cubeMatter); null when no cube paints it. */
 export function geocubeMatterOf(manifest) {
@@ -1167,7 +1189,12 @@ export function withGeocube(manifest) {
     if (C !== undefined && tr.ground?.cliff === undefined && !(C === false && keep)) m.trail = { ...tr, ground: { ...(tr.ground ?? {}), cliff: C } };
     if (Wt !== tr.ground?.water) m.trail = { ...(isObj(m.trail) ? m.trail : {}), ground: { ...(isObj(m.trail) ? m.trail.ground ?? {} : {}), water: Wt } };
     // (and its dunes the cube's under the trail's own, out-dunes.js)
-    const Dn = cubeDunes(O, tr.ground ?? {});
+    const Dn0 = cubeDunes(O, tr.ground ?? {});
+    // (one wind: the cube's wind lays its dunes across itself when they name no way of their own; dunes that name one give
+    // the cube's wind its way when it names none, out-dunes.js and vegetation/wind.js read the same degrees)
+    const CW = m.wind === undefined && cube.wind !== undefined && cube.wind !== false ? (isObj(cube.wind) ? cube.wind : {}) : null;
+    const Dn = CW && CW.dir !== undefined && Dn0 !== undefined && Dn0 !== false && !(isObj(Dn0) && Dn0.wind !== undefined) ? { ...(isObj(Dn0) ? Dn0 : {}), wind: CW.dir } : Dn0;
+    if (CW && CW.dir === undefined && isObj(Dn0) && Dn0.wind !== undefined) m.wind = { ...CW, dir: Dn0.wind };
     if (Dn !== undefined && Dn !== tr.ground?.dunes) m.trail = { ...(isObj(m.trail) ? m.trail : {}), ground: { ...(isObj(m.trail) ? m.trail.ground ?? {} : {}), dunes: Dn } };
     return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}),
       // (and its snow, era/snow.js: the cube's when the recipe names none)
@@ -1370,14 +1397,18 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // (and its water, out-water.js, the cube's under the trail's own: one rule for every trail the cube paints)
   const OT = onTerrain(cube, D?.terrain).outside, T0 = manifest.trail ?? {}, CW = cubeWater(OT, isObj(T0.ground) ? T0.ground : {});
   // (and its dunes, out-dunes.js: the cube's under the trail's own)
-  const DN = cubeDunes(OT, isObj(T0.ground) ? T0.ground : {});
+  const DN0 = cubeDunes(OT, isObj(T0.ground) ? T0.ground : {});
+  // (one wind, as withGeocube has it: the cube's wind and its dunes share their way)
+  const AW0 = cube.wind !== undefined && cube.wind !== false ? (isObj(cube.wind) ? cube.wind : {}) : null;
+  const DN = AW0 && AW0.dir !== undefined && DN0 !== undefined && DN0 !== false && !(isObj(DN0) && DN0.wind !== undefined) ? { ...(isObj(DN0) ? DN0 : {}), wind: AW0.dir } : DN0;
+  const AW = AW0 && AW0.dir === undefined && isObj(DN0) && DN0.wind !== undefined ? { ...AW0, dir: DN0.wind } : AW0 ? (cube.wind === true ? true : AW0) : null;
   const cliff = OT.cliff === false && CW.keep ? undefined : OT.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined || CW.water || DN ? { ground: { ...(cliff !== undefined ? { cliff } : {}), ...(CW.water ? { water: CW.water } : {}), ...(DN ? { dunes: DN } : {}) } } : {}) };
   // (the path's own trail recipe, a level's trail's: its dials, its ground and rocks; the cube's cliff where it names none)
   if (manifest.trail !== undefined && show !== 'path') no('trail is the path\'s own trail recipe (its dials, ground, rocks): show \'path\'');
   if (manifest.trail !== undefined && !isObj(manifest.trail)) no('trail is a trail recipe: { run?, heartbeat?, bumpiness?, ground?, rocks?, … }');
   const ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}), ...(CW.water !== undefined ? { water: CW.water } : {}), ...(DN !== undefined ? { dunes: DN } : {}) };
   const pathTrail = { ...T0, ...(manifest.path ?? {}), ...(Object.keys(ground).length ? { ground } : {}) };
-  const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(bio !== undefined ? { biocube: bio } : {}) };
+  const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(bio !== undefined ? { biocube: bio } : {}), ...(AW ? { wind: AW } : {}) };
   // the PATH: the way through the cube's land, no town and nobody on it (a place to walk, not a game), under its snow
   // the HALL: the cube's interior walked as rooms strung on a walk (era/in-hall.js), its kit dressed (the set piece in its
   // landmark's room), laid from the seed

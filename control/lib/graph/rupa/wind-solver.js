@@ -27,13 +27,15 @@
  *     a batch:    { script: 'drift' | 'bend' | 'hang', kind, ids, count, script numbers, instances?, shelter? }
  *                 shelter: each instance's share of the wind behind the scene's barriers (the runtime's blocking law)
  *   bendAt(batch, i, t) → { angle, sway } · hangAt(batch, i, t) → { angle } · instanceOf(batch, i) → [x, y, z]
- *   PLANT_FORMS, plantKind(kind | species, height), breakSpeed(kind) → the wind at its crown that snaps it
+ *   PLANT_FORMS, plantKind(kind | species | leaf form, height), plantOfLeaf(form), breakSpeed(kind) → the wind at its
+ *   crown that snaps it
  *   BEND_GLSL, HANG_GLSL: the same formulas for the GPU (drift's is wind-script.js GLSL)
  */
 import { rupaPhysics } from './index.js';
 import { MATTER } from './matter.js';
 import { scriptOf, fallSpeed } from './wind-script.js';
 import { SPECIES } from '../vegetation/species.js';
+import { LEAF_FORMS } from '../era/leaf-forms.js';
 
 const G = 9.81, MU = 0.5, TAU_MAX = 0.5, STILL_DEG = 0.5;
 const rad = (deg) => (deg * Math.PI) / 180;
@@ -77,9 +79,12 @@ export const PLANT_FORMS = Object.freeze({
   palm: { slender: 60, crown: 0.03, cd: 0.3, E: 6e9, mor: 40e6, density: 600, crownMass: 0.03 },
   culm: { slender: 90, hollow: 0.8, crown: 0.03, cd: 0.3, E: 15e9, mor: 120e6, density: 700, crownMass: 0.002 },
 });
-/** A plant of `kind` (a PLANT_FORMS row, or a species' name) `height` metres tall, as a bend kind. */
+/** The plant form of a geocube's tree (its biocube's leaf form, era/leaf-forms.js): an evergreen cone of tiers is a
+ *  conifer, every other crown a broadleaf's. */
+export const plantOfLeaf = (form) => (LEAF_FORMS[form] ? (LEAF_FORMS[form].evergreen ? 'conifer' : 'tree') : null);
+/** A plant of `kind` (a PLANT_FORMS row, a species' name, or a biocube leaf form) `height` metres tall, as a bend kind. */
 export function plantKind(kind, height) {
-  const f = PLANT_FORMS[kind] ?? PLANT_FORMS[SPECIES[kind]?.kind];
+  const f = PLANT_FORMS[kind] ?? PLANT_FORMS[SPECIES[kind]?.kind] ?? PLANT_FORMS[plantOfLeaf(kind)];
   if (!f) throw new Error(`windSolver: a plant is ${Object.keys(PLANT_FORMS).join(', ')} or a species (${Object.keys(SPECIES).filter((s) => PLANT_FORMS[SPECIES[s].kind]).join(', ')})`);
   if (!(height > 0)) throw new Error('windSolver: a plant\'s height is metres above 0');
   const area = f.crown * height * height;

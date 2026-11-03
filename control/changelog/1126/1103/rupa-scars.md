@@ -10,7 +10,8 @@ what each blow would have done, by the same laws as destructible physics.
   chips. A steel wall dents by its yield strength instead.
 - **A round** that stops on a wall chips it by the same law (centimetres out of brick, less out of stone); one that stops
   on the floor leaves a pock.
-- The ground and the wall come from the world's geocube unless named, else loam and brick; a stone floor digs by its
+- The ground and the wall come from the world's geocube unless named, else loam and brick. Outdoors a crater is dug
+  in the land's own ground (its commonest off the path: soil, sand, scree, bare rock); a stone floor digs by its
   toughness and throws chunks. Scars go with any degree (crates still smash under `objects`).
 - A game's `mechanics.scars` rides onto every level it makes; a stage's words ("cosmetic damage", "scorch marks",
   "bullet holes") ask for it. The systems card names it.

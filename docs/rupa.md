@@ -327,13 +327,16 @@ profile) is the air its physics feels ([`one-wind.js`](../control/lib/graph/rupa
 the level's `matter` names no wind, the blocks, dust, smoke and drifting leaves take it: its speed at 10 m is
 u2·ln(10/z0)/ln(2/z0), and its power-law exponent α = ln(u10/u2)/ln 5, so the two profiles agree exactly at 2 m and at
 10 m and within 2% between. The level's `matter.wind` still overrides it for the physics alone. A geocube's `wind` is its
-outside levels' wind when the recipe names none.
+outside levels' wind when the recipe names none, its specimen worlds' too (town, land, path). The cube's wind and its
+dunes share their way: a dune field that names no wind of its own is laid across the cube's, and dunes that name one give
+the cube's wind its direction when it names none (both read degrees from +x).
 
 The wind solver reads plants by species: a pole by geometric similarity, its trunk a fixed share of its height and its
 crown's frontal area a fixed share of its height squared (`PLANT_FORMS`: broadleaf, conifer, palm, culm, the culm
 hollow). Its foot's stress grows as u² and its section and lever both as H³, so the wind that snaps it (`breakSpeed`) is
 the same at every size: about 39 m/s at a broadleaf's crown, 31 for a conifer's denser crown on weaker wood. Storms break
-trees of every size near 42 m/s (Virot et al. 2016). A stand of a species stands still in a breeze, bends in a fresh
+trees of every size near 42 m/s (Virot et al. 2016). A geocube's trees are read by their biocube's leaf form
+(`plantOfLeaf`: an evergreen spire a conifer, every other crown a broadleaf). A stand of a species stands still in a breeze, bends in a fresh
 wind, and is handed to the physics when the strongest gust at its crown passes that speed.
 ### Why air and water share their code
 
@@ -417,7 +420,10 @@ they were, and paints what each blow would have done, by the same laws as a phys
 - **A round** that stops on a wall chips it by the same law (a rifle round takes a few centimetres out of brick, less out
   of stone) and throws chips; one that stops on the floor leaves a pock.
 
-Unnamed, the ground and the wall come from the world's geocube (its ground or floor, its walls), else loam and brick. A
+Unnamed, the ground and the wall come from the world's geocube, else loam and brick. Outdoors the ground is the land's
+own: its commonest ground off the path, from the cube's readout of what the land is (`era/substrate.js`: soil is loam,
+sand sand, scree gravel, bare rock stone, wet ground clay); indoors it is the floor's matter; a cube that names its
+`matter.ground` keeps it. The walls are the cube's wall role. A
 floor that is no soil (flagstones) digs as its toughness allows and throws chunks. Scars go with any degree: crates
 still smash under `objects` while the walls they stood by take scorch marks. A game's `mechanics.scars` is copied onto
 every level it makes; a stage's words ("cosmetic damage", "scorch marks", "bullet holes", `SCARS_WORDS`) set it where
@@ -542,14 +548,18 @@ own fill, so a steel locker stays a steel shell; other props keep their class's 
 Under `physical` the big things break too ([`shell-blocks.js`](../control/lib/graph/rupa/shell-blocks.js)), not only a
 level's walls and props:
 
-- **A fractal structure.** Its solid tiers, plinth steps and column shafts are cut into courses no wider or taller than
+- **A fractal structure.** It takes the cube's `structure` role: the cube paints its landmarks from its stone ramp, so
+  they are stone unless the cube's `matter.structure` says otherwise. Its solid tiers, plinth steps and column shafts are cut into courses no wider or taller than
   3 m (a sixth of a wider one), each flat on the course under it. Its hollow tiers and ring beam are filled from their
   outlines with cells as wide as the wall, so neighbours share faces and hold each other; where two cells meet only at a
   corner, the cell beside them bridges it. A ring beam is hung across its columns. A capital has faces but no collider,
   so the shaft under it is raised to meet the beam, never by more than a third of its own height.
 - **A town's shell houses.** Each is wall panels, no wider or taller than 3 m, from its footing to its eave (the lowest
-  face that looks up above its first storey), and a roof on them up to the ridge. The walls take the cube's wall matter;
-  the roof takes the roof's, at a roof's fill (0.15: rafters and tiles, mostly air) unless the cube says otherwise.
+  face that looks up above its first storey), and a roof on them up to the ridge. They break as the settlement they were
+  built from (the world's readout names it): the words of the style it is built in, a named style resolved
+  (`settlementMatter`), its walls by their facade (`punched`, else plaster, stone or banding), its roof by its roof word,
+  at a roof's fill (0.15: rafters and tiles, mostly air). A settlement with no style of its own is dressed from the cube's
+  ramps, so its houses take the cube's wall.
   Houses entered by a door, and walked-in buildings, keep their colliders for now.
 - **Footings.** A group on raised land stands on fixed footings under its lowest blocks, so it stands at minute zero
   instead of dropping to the level's floor. A block with nothing at all under it, within a storey of its foot, reaches

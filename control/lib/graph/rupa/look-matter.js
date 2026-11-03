@@ -4,7 +4,8 @@
  * role; where it names nothing this reads it off the cube's own look (era/geocube.js cubeMatter). rupa is the internal
  * name.
  *
- *   ROLES            the roles a cube's matter is given by: wall, floor, accent, trim, roof, ground, wood, metal, glass
+ *   ROLES            the roles a cube's matter is given by: wall, floor, accent, trim, roof, ground, wood, metal, glass,
+ *                    structure (its landmarks: painted from its stone, so stone unless the cube says otherwise)
  *   CLASS_ROLE       which role a breakable class takes its matter from (a wall and a pilaster the wall's, a set piece
  *                    and a boulder the accent's, a door the wood's, lockers and a rack the metal's, glass the glass's);
  *                    a class not here keeps its own (CLASS_MATTER: a crate's planks, a pot's clay)
@@ -14,13 +15,15 @@
  *   KIT_MATTER       an interior kit → its walls', floors' and metal's matter
  *   matterOfTile(tile) · matterOfWord(word) → { matter, fill?, why } | null
  *   readRoleMatter(spec, where) → { matter, fill?, porosity? } checked (an id, or the object)
+ *   SUBSTRATE_MATTER what each of the land's grounds is (era/substrate.js: soil, sand, scree, bedrock, wet, path)
+ *   groundOfShares(shares) → the matter of the land's commonest ground (its shares, the cube's readout), or null
  *
  * The words' matters are the nearest in the table, said so where it is a stand-in (asphalt has no row: concrete stands for
  * it; thatch is reed: pine at a third, which burns as it should).
  */
 import { MATTER, resolveMatter } from './matter.js';
 
-export const ROLES = Object.freeze(['wall', 'floor', 'accent', 'trim', 'roof', 'ground', 'wood', 'metal', 'glass']);
+export const ROLES = Object.freeze(['wall', 'floor', 'accent', 'trim', 'roof', 'ground', 'wood', 'metal', 'glass', 'structure']);
 
 export const CLASS_ROLE = Object.freeze({
   wall: 'wall', pilaster: 'wall', 'set-piece': 'accent', boulder: 'accent', lid: 'accent',
@@ -79,5 +82,19 @@ export function readRoleMatter(spec, where = 'matter') {
 
 export const DEFAULT_ROLE = Object.freeze({
   wood: T('timber', 'the default for what is wood'), metal: T('steel', 'the default for what is metal'), glass: T('glass', 'the default for what is glass'),
+  structure: T('stone', 'its structures are painted from its stone'),
 });
+
+// the land's grounds (era/substrate.js) as matter: earth deep enough to root in is loam, a beach or a dune sand, fallen
+// rock gravel, bare rock stone, a stream's bank clay (mud is a liquid here), a walked trail packed gravel
+export const SUBSTRATE_MATTER = Object.freeze({
+  soil: T('loam', 'its land is soil'), sand: T('sand', 'its land is sand'), scree: T('gravel', 'its land is scree'),
+  bedrock: T('stone', 'its land is bare rock'), wet: T('clay', 'its land is wet ground'), path: T('gravel', 'its land is a walked path'),
+});
+export function groundOfShares(shares) {
+  if (!shares || typeof shares !== 'object') return null;
+  // the commonest ground off the path (a crater is dug where the land is, not only on the trail)
+  const best = Object.entries(shares).filter(([k, v]) => k !== 'path' && SUBSTRATE_MATTER[k] && v > 0).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0];
+  return best ? SUBSTRATE_MATTER[best[0]] : null;
+}
 export const isMatter = (id) => typeof id === 'string' && !!MATTER[id];
