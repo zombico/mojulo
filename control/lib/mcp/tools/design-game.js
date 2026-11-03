@@ -42,6 +42,7 @@ import { railOfGame } from '@/lib/graph/gameworld/game-bodies.js';
 import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
 import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-registry/doors.js';
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
+import { complexAdvice } from '@/lib/graph/gameworld/levels.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
 import { firstFrameReadout } from '@/lib/graph/game/first-frame-check.js';
@@ -282,6 +283,9 @@ const wcdAdviceOf = (world) => {
   if (!world.wcd) return [];
   try { return (readGameworld(world).wcd?.laws ?? []).filter((l) => !l.holds).map((l) => `${l.law}: ${l.says}`); } catch { return []; }
 };
+// a complex level's network laws (network/complex.js), from its layout: in the dungeon's advice where the world has one
+// (its buildings are its spaces), else on their own
+const complexAdviceOf = (world) => (Object.values(world.levels ?? {}).some((L) => L?.building?.complex !== undefined) ? complexAdvice(world) : []);
 // the quest open world's principles that do not hold (qow/qow.js): advice, never refused
 const qowAdviceOf = (world) => {
   if (!world.qow) return [];
@@ -375,10 +379,10 @@ function readout(ref, world, context = {}) {
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   // the land its levels cannot draw (gameworld/nature.js landToLevel): each gap, and the levels it is one on
   const landGaps = landGapsOf(world);
-  const wcdGaps = wcdAdviceOf(world);
+  const cxGaps = complexAdviceOf(world), wcdGaps = [...wcdAdviceOf(world), ...(world.wcd ? cxGaps : [])];
   const qowGaps = qowAdviceOf(world);
   const errandGaps = errandAdviceOf(world);
-  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}), ...(errandGaps.length ? { errands: errandGaps } : {}) };
+  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(!world.wcd && cxGaps.length ? { complex: cxGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}), ...(errandGaps.length ? { errands: errandGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
   return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }

@@ -36,7 +36,8 @@ import { landLaws } from '../era/out-land.js';
 import { designLand, manyStep, LAND_FORM_IDS } from '../era/out-land.js';
 import { drawLand, manyStrip, landFit } from '../era/out-land-html.js';
 import { withProgram, programPlanSvg } from '../era/programs.js';
-import { buildingStage, levelBuildingStage } from './levels.js';
+import { buildingStage, levelBuildingStage, complexStage } from './levels.js';
+import { complexPlanSvg } from '../network/complex-plan.js';
 import { finishesOf, finishesCss, finishesHtml } from './finishes.js';
 import { skinHead } from './book-skin.js';
 import { wcdPage, WCD_CSS } from './wcd-page.js';
@@ -150,11 +151,11 @@ function buildLevel(G, id) {
   const R = resolveLevel(G, id), paint = structurePaint(R.style.kit);
   // a building level: its plan, laid from its program in its civilization's language (or the building made, by ref)
   if (R.building) {
-    const B = R.building, name = B.use ?? B.ref;
-    const svg = B.ref ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80"><text x="150" y="44" text-anchor="middle" fill="currentColor" font-size="13">the building ${esc(B.ref)}, as made</text></svg>`
+    const B = R.building, name = B.complex ? 'complex' : B.use ?? B.ref;
+    const svg = B.complex ? complexPlanSvg(complexStage(B), 300) : B.ref ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80"><text x="150" y="44" text-anchor="middle" fill="currentColor" font-size="13">the building ${esc(B.ref)}, as made</text></svg>`
       : (() => { const m = withProgram(buildingStage(B)); return programPlanSvg({ use: B.use, rooms: m.rooms, links: m.links, entry: m._program.entry, goal: m._program.goal }, 300); })();
     // (what it will wear: its finishes, read off the stage it is built as)
-    const stage = levelBuildingStage(G, R, id), finishes = stage ? finishesOf(stage, { palette: R.style?.palette ?? G.style?.palette ?? null }) : null;
+    const stage = B.complex ? null : levelBuildingStage(G, R, id), finishes = stage ? finishesOf(stage, { palette: R.style?.palette ?? G.style?.palette ?? null }) : null;
     return { R, laid: { stages: [{ node: name, section: 'building' }], order: [name] }, town: null, paint, walk: [{ node: name, section: 'building', svg }], finishes };
   }
   // a city level: its plan sheet (the city book's), its segments and portals drawn on it

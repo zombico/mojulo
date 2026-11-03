@@ -47,7 +47,8 @@ import { PEOPLE } from '../foes/people.js';
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
-import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
+import { VEHICLES, TUNINGS, CONDITIONS, wheelLayout } from '../roads/vehicles.js';
+import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { SPORT_PRESETS } from '../contest/sport-presets.js';
 import { MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS, INNINGS_SPORT_IDS } from '../contest/sports.js';
@@ -146,7 +147,7 @@ function worldCard() {
     '    the hero is \'hero\', the stage\'s places are spots (start, exit, pocket, pocket-2…, landmark…); scenes that read or set flags',
     '    (if, sets) ride a \'story\' flags slice from level to level.',
     `  or building: { use: ${PROGRAM_IDS.filter((u) => !BASE_USES.includes(u)).join(' | ')} | a base's (gameworld-wcd), seed?, goal?,`,
-    '  civilization? } | { ref } in place of the walk: played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
+    '  civilization? } | { ref } | { complex } for the walk: played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
     '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
@@ -402,7 +403,9 @@ const QUICK_LEVERS = {
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,
     `  ride: ${Object.keys(RIDES).join(' | ')} | a registry vehicle ('a jeep')   you drive it (WASD), followed from behind; no hero, climb or building`,
-    `    vehicle: ${Object.keys(VEHICLES).join(' | ')}; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
+    // (the road's classes by name; the field's, the airside's and the cycles' grow a class at a time, so a registry word
+    // names them: the card stays under its ceiling)
+    `    vehicle: ${Object.keys(VEHICLES).filter((k) => !MILITARY_CLASSES[k] && wheelLayout(VEHICLES[k]) === 'axles').join(' | ')}, others by a registry word; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
     '  rivals: n (1..7, with a ride)   finish on the podium',
     '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade?, light? }):',
     '    the whole field, yours first (no ride, hero or rivals beside it); shade: gloss (default) | smooth | cel (flat); light: form (default: lit by the page) | paint',
@@ -548,7 +551,7 @@ function wcdCard() {
     'SPACES',
     ...Object.entries(WCD_KINDS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
     '  depth         0 the outermost; the core the deepest',
-    "  level         the world level it is in; use: a building use (the program's rooms); look: the composer's words or",
+    "  level         the world level it is in (several: a complex); use: a building use (the program's rooms); look: the composer's words or",
     '                { words?, construction?, palette? }, built into its level (a base building is composed and stocked);',
     '                tone: the stage\'s colour (its ramps), kept on the dungeon; built: false, on the path and not made yet',
     'DOORS (the intermediaries)',
@@ -564,6 +567,8 @@ function wcdCard() {
     'PRINCIPLES (laws on the recipe: they advise in design_game\'s readout, `advice.wcd`, and never refuse)',
     ...Object.entries(WCD_PRINCIPLES).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
     '',
+    'COMPLEX: a level\'s building { complex: true | { campus: hospital | base } }: its spaces (or a campus) as buildings,',
+    '  joined below grade by their doors; played first door to last goal room; laws in advice.wcd; no gate held shut yet.',
     'A layer\'s construction and palette carry the change from the last. The book draws the dungeon as rings to the core,',
     'each gate on its join, each layer\'s finishes beside it: the approval sheet before a run. A level\'s style palette does',
     'not colour a bay building; its look or its tone does.',

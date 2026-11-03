@@ -244,6 +244,13 @@ Pointers only; each target carries its own design notes.
   `boat-ship.js`, a carrier's flight deck in `boat-carrier.js`, a submarine's round hull in `boat-sub.js`; a boat
   underway, its wake from its hull and speed, in `boat-wake.js`, run round a course on the World page's live water by
   `worlds/seaway-scene.js` and the `seaway` channel (its Kelvin field `kelvin.js`); review: `scripts/render-boats.mjs`.
+- Rail: [rail-shelf/](control/lib/graph/rail-shelf/) (primitives for locomotive transit on the vehicle ODM's pattern: a cab
+  car's grammar solves a brief into a frame, its section and its front as a field over it, held to laws; its surface
+  compiler names each quad; design cards by preset; the bogies under it the same way, `bogie-odm.js` and
+  `bogie-surface.js`, its pantographs `panto-odm.js` and `panto-surface.js`, the overhead line they reach
+  `catenary.js`; the cars behind it `car-odm.js` and `car-surface.js` over the shell they share, `body-shell.js`; their
+  insides `interior-odm.js` and `interior-surface.js`, the lining cut by the body's own openings; a train coupled from
+  them `consist.js`); review: `scripts/render-rail.mjs`.
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
   one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a
@@ -265,6 +272,12 @@ Pointers only; each target carries its own design notes.
 - Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
   core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
   stocked by `era/stocking.js`).
+- Networks of passages: [network/](control/lib/graph/network/) (buildings or rooms joined by passages: `sections.js`, what
+  a passage is, a new kind a row; `edges.js`, which nodes join and by what path, straight or a dog-leg; `passage.js`, one
+  built to its section along its path, at its cover, level through its turns; `laws.js`; `walk-gate.js`, a payload walked
+  as the page walks it). Its clients: the geocity's `under` (podiums and their concourses: `geocity/podium.js`) and a
+  stage's `complex` (buildings with basements on one yard, `complex.js`; a WCD level's spaces; a campus by its name,
+  `campuses.js`, a new campus a row).
 - Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
   joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
   laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,
