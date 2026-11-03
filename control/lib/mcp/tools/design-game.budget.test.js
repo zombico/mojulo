@@ -15,7 +15,7 @@ import { designGameHandler, runBudgetMs, RUN_BUDGET_MS } from './design-game.js'
 // the walk and the browser, stubbed: a level walk is tens of seconds in a real headless browser (test the gate itself
 // with a stub runTraversal, CLAUDE.md); the first frame is the first-frame suite's
 const walk = vi.fn(async () => ({ game: { ended: true, result: 'success' } }));
-vi.mock('@/lib/graph/game/auto-audit-runner', () => ({ runLevelTraversal: (...a) => walk(...a) }));
+vi.mock('@/lib/graph/game/auto-audit-runner', () => ({ runLevelTraversal: (...a) => walk(...a), runLevelWalk: async (...a) => ({ probe: await walk(...a), legs: [] }) }));
 vi.mock('@/lib/graph/game/first-frame-check.js', async (orig) => ({
   ...(await orig()),
   levelBrowser: async () => (process.env.STUB_BROWSER ? { path: '/stub/chrome', why: null } : { path: null, why: 'no browser (stubbed off)' }),
@@ -88,6 +88,10 @@ describe('design_game: the audit steps', () => {
     expect(out.ran.findIndex((r) => r.key.startsWith('audit-'))).toBeGreaterThan(out.ran.findIndex((r) => r.key === 'game'));
     expect(walk).toHaveBeenCalledTimes(levels.length);
     for (const a of audits) expect(a).toMatchObject({ action: 'make', audit: { completable: true, note: expect.stringMatching(/reach-exit.*success/) } });
+    // a climb's level is walked up its own way (its flights, then its ladder: levels.js climbRoute), a trail's straight
+    const plans = walk.mock.calls.map(([arg]) => arg.plan.waypoints);
+    expect(plans.some((w) => w.some((p) => p?.climb))).toBe(true);
+    expect(plans.some((w) => w.length === 1)).toBe(true);
     // the readout counts them (a machine gate), and its `made` names only what the run made
     expect(out.audits).toEqual({ gate: 'machine', proved: levels.length, of: levels.length });
     expect(Object.keys(out.made).some((k) => k.startsWith('audit-'))).toBe(false);

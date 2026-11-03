@@ -28,6 +28,7 @@ import { solvePalette, fingerprint as printOf } from '../color-theorist/solve.js
 import { artPalette, natureColours } from '../color-theorist/adapters.js';
 import { layLevel } from '../level/index.js';
 import { assembleStageScene, planStage, stageKit } from '../era/stage.js';
+import { ladderParams, climbSurface, LADDER, LADDER_VARIANTS } from '../playscape/objects/ladder.js';
 import { withGeocube } from '../era/geocube.js';
 import { playerWorld, traversalStates } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
@@ -261,6 +262,55 @@ export const RUNNER_CAMERA = Object.freeze({ dist: 6, height: 3, lead: 8, lookH:
  * stage is pure, so the same recipe always ends the same). The memo keeps the last ENDS_KEPT stages (about 8 MB each,
  * its land's corners): enough for a world's run to read each stage once, bounded for a server that makes many. */
 const ENDS = new Map(), ENDS_KEPT = 16;
+// a stage's climbs (local-meru's climb sites: a tower's ladder, drawn by the meru as a stand-in) as the climbable
+// surfaces playscape's ladder lowers: { anchor, p, S } each, the ladder's params and its surface (kept by manifest)
+const CLIMBS = new Map();
+function climbsOf(manifest) {
+  const key = JSON.stringify(manifest);
+  if (!CLIMBS.has(key)) {
+    if (CLIMBS.size >= ENDS_KEPT) CLIMBS.delete(CLIMBS.keys().next().value);
+    const sites = (assembleStageScene(manifest).anchors ?? []).filter((a) => a.kind === 'site' && a.site === 'climb' && Array.isArray(a.from) && Array.isArray(a.to));
+    CLIMBS.set(key, sites.map((a) => {
+      const p = ladderParams({ variant: LADDER_VARIANTS[a.link?.prefer] ? a.link.prefer : 'ladder', from: a.from, to: a.to, facing: a.N });
+      return { anchor: a, p, S: climbSurface(p) };
+    }));
+  }
+  return CLIMBS.get(key);
+}
+
+/**
+ * A stage's climbs as the hero climbs them: the climbable entity playscape's ladder lowers for each climb site, so the
+ * platform rule takes hold of the ladder the meru draws and mounts the tier above it (before this, the drawn ladder was
+ * no surface, and a climb's top was out of the hero's reach). [] for a stage with no climb: its level as it was.
+ */
+export function climbLadders(manifest) {
+  if (!manifest?.meru) return [];
+  return climbsOf(manifest).map(({ anchor, p, S }) => LADDER.lower(p, S, `ladder-${anchor.id}`).entities[0]);
+}
+
+/**
+ * The way up a climb as its builder laid it, for the audit's walk (create-game.js auditGameLevel): its rising sites by
+ * height (each flight from its foot to its head), each climbable surface as a CLIMB leg: stood off its foot on the
+ * climber's side, then walked into until the climb rule mounts its lip (motion/world-frames.js). The walker steers by
+ * x,y, so a walk straight to a climb's top stands under it on a lower tier; this is the route that reaches it.
+ * → waypoints ([x, y] | { climb: { face, top, seconds } }), [] when the stage lays no rising site.
+ */
+export function climbRoute(manifest) {
+  if (!manifest?.meru && !manifest?.trail) return [];
+  const anchors = assembleStageScene(manifest).anchors ?? [];
+  const surfaces = new Map(climbsOf(manifest).map((c) => [c.anchor.id, c]));
+  const rising = anchors.filter((a) => a.kind === 'site' && Array.isArray(a.from) && Array.isArray(a.to) && a.to[2] > a.from[2] + 0.2)
+    .sort((a, b) => a.from[2] - b.from[2] || (a.s0 ?? 0) - (b.s0 ?? 0));
+  const xy = (p) => [r3(p[0]), r3(p[1])];
+  return rising.flatMap((x) => {
+    const C = x.site === 'climb' ? surfaces.get(x.id) : null;
+    if (!C) return [xy(x.from), xy(x.to)];
+    // the climber's side is the surface's own (Nh): stand off its foot there, and face back through it
+    const { S, p } = C, at = (k) => [S.base[0] + p.Nh[0] * k, S.base[1] + p.Nh[1] * k];
+    return [xy(at(0.6)), { climb: { face: xy(at(-1)), top: r3(p.to[2]), seconds: r3(p.rise / (p.speed || 2) + 4) } }];
+  });
+}
+
 export function stageEnds(manifest) {
   const key = JSON.stringify(manifest);
   if (!ENDS.has(key)) { if (ENDS.size >= ENDS_KEPT) ENDS.delete(ENDS.keys().next().value); ENDS.set(key, readEnds(manifest)); }
@@ -380,8 +430,19 @@ export const SUPERCAR_CAMERA = Object.freeze({ dist: 8.5, height: 2.7, lead: 5, 
  * (`moves`: { <ref>: states } the figures a run made with their own reactions, by the made ref they stand for (the
  * world's `moves`): each figure of the level standing for one, the pilot's included, plays them over the library's.)
  */
+// a walked stage's climbs laid as the surfaces the hero climbs (climbLadders): after its other entities; a stage with no
+// climb, and a city, a building or its inside (which lay their own ways up), as they were
+const LAYS_OWN = new Set(['city', 'building', 'interior']);
+function withClimbs(stage, L) {
+  const m = L?.args?.manifest;
+  // (a climb site is a local meru's: a trail, a roadway, an airspace or a run lays none, and is not asked)
+  if (LAYS_OWN.has(stage.section) || !stage.manifest?.meru || !Array.isArray(m?.entities)) return L;
+  const ladders = climbLadders(stage.manifest);
+  return ladders.length ? { ...L, args: { ...L.args, manifest: { ...m, entities: [...m.entities, ...ladders] } } } : L;
+}
+
 export function stageLevelOrder(G, stage, opts = {}) {
-  const laid0 = levelOrder(G, stage, opts);
+  const laid0 = withClimbs(stage, levelOrder(G, stage, opts));
   // a stage the style's hour does not reach (gameStages `unlit`): advice, never a refusal
   const laid = stage.unlit === undefined ? laid0 : { ...laid0, laws: [...(laid0.laws ?? []), { concern: 'hour', law: 'lit', holds: false, says: `style.hour '${stage.unlit}' lights a stage the level's geocube paints; this ${stage.section} stage is not on one, so it is lit as before` }] };
   const L = opts.moves ? withOwnMoves(laid, opts.moves) : laid;

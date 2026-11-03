@@ -106,7 +106,8 @@ export function auditSteps(steps, stages) {
   const game = steps.find((s) => s.key === 'game');
   if (!game || !auditOrder(steps, stages).auto_audit) return [];
   return steps.filter((s) => s.key.startsWith('level-')).map((s) => {
-    const order = { level: s.key, game: game.ref };
+    // (`walk`: how the door walks it; a new walk takes every level's walk again, once: 'climbs' follows a climb's way up)
+    const order = { level: s.key, game: game.ref, walk: 'climbs' };
     return { key: `audit-${s.key}`, ref: s.ref, audit: true, ready: game.ready, ...(game.waiting ? { waiting: game.waiting } : {}), order, print: fingerprint(order) };
   });
 }

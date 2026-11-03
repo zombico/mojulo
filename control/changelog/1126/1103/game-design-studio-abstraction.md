@@ -72,3 +72,25 @@ become chapters each department works alone, so the compile is one loop that mak
   `estimate: { seconds, calls }`: an order of size, not a promise. It runs on a run and on a chapter's view, never on a
   plain read; it advises, and a run goes ahead whatever it says. The world door's full resolve and the gear's workbench
   are not run, since they need what the run makes.
+- **A climb's top is in reach** (`gameworld/levels.js` `climbLadders`). Two of the five meadowmark levels were never
+  proved, and the reason was in the level, not the audit: each is a climb (a local meru) whose exit is its tower's
+  deck, up a ladder. The meru draws a stand-in ladder ("until playscape's ladder stands there"), and the hero's platform
+  rule climbs only a `climbable` entity, which nothing laid. So the hero could reach the summit but not the deck, and the
+  level could not be finished. A climb's game level now lays, after its other entities, the climbable surface that
+  playscape's ladder lowers for each climb site. A level with no climb is as it was. The reference books' order pins
+  moved by the ladders alone, and each order without its ladders keeps the print it had (tested).
+- **The audit walks a climb its own way up** (`levels.js` `climbRoute`, `motion/world-frames.js`). The walker steers by
+  x,y, so a walk straight to a climb's top stood on a lower tier under it, and its leg "arrived". A level whose exit is
+  off the ground is now walked by its climb's flights in height order, then by a climb leg for each ladder: stand off
+  its foot on the climber's side, then walk into it until the climb rule mounts the lip. The climb leg is new in the
+  traversal compiler. It runs Node-side, so no page changes, and the greedy walk leg's stuck check, which reads x,y
+  progress, could not drive a climb. The audit steps take every level's walk again, once (their order names the walk).
+  Measured with a real browser on the meadowmark book: all five levels proved (machine gate), where three were, in three
+  calls of 186, 125 and 84 s.
+- **An unproved walk says where it stopped** (`create-game.js` `auditGameLevel`, `auto-audit-runner.js` `runLevelWalk`):
+  the leg that stopped and where, or, if every leg arrived, where the walker stood against the exit. A climb no walker can
+  take is said as such.
+- **A level that cannot be finished is said before the build** (the pre-compile check's `advises`, by chapter). A level
+  whose exit is up a ladder, piloted first person (a world with no hero is walked by a walker, whose rule does not
+  climb), is made but cannot be finished. The check says so on the levels chapter: give the world a hero, or end the
+  level on a tier its stairs reach. The walker's climbing is the runtime's to add, and is not in this change.

@@ -79,6 +79,7 @@ export function chapterView(full, world, id, { ran, pending, patched = [] } = {}
   const advice = Object.fromEntries(Object.entries(full.advice ?? {}).filter(([k]) => ADVICE[k] === id));
   // the pre-compile check: the build sees it whole, a chapter its own blockers
   const blockers = (full.compile?.blockers ?? []).filter((b) => b.chapter === id);
+  const unfinishable = (full.compile?.advises ?? []).filter((b) => b.chapter === id);
   const sections = Object.fromEntries(Object.entries(full).filter(([k, v]) => SECTION[k] === id && v !== undefined));
   const made = Object.fromEntries(Object.entries(full.made ?? {}).filter(([k]) => chapterOfStep(k) === c));
   const mineRan = (ran ?? []).filter((r) => chapterOfStep(r.key) === c);
@@ -95,6 +96,7 @@ export function chapterView(full, world, id, { ran, pending, patched = [] } = {}
     reads: c.reads.map((r) => ({ id: r, state: book.find((x) => x.id === r)?.state ?? 'empty', print: fingerprint(chapterPages(world, r)) })),
     ...(Object.keys(advice).length ? { advice } : {}),
     ...(id !== 'build' && blockers.length ? { blockers } : {}),
+    ...(id !== 'build' && unfinishable.length ? { advises: unfinishable } : {}),
     ...sections,
     ...(Object.keys(made).length ? { made } : {}),
     // (and what the run made for it in other chapters: the steps its orders name, a level's pilot, its foes)

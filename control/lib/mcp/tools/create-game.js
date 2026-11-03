@@ -108,15 +108,49 @@ export async function auditGameLevel({ gameRef, levelRef, runTraversal = null, f
   const { levels } = resolveGame(game, (r) => SketchRepository.getByRef(r), levelSrc);
   const lv = levels.find((l) => l.ref === levelRef);
   if (!lv) return { completable: null, note: `'${levelRef}' is not a level of '${gameRef}'` };
-  let traverse = runTraversal;
-  if (!traverse) {
+  let walk = null;
+  if (!runTraversal) {
     const found = await (findBrowser ?? (await import('@/lib/graph/game/first-frame-check')).levelBrowser)();
     if (!found.path) return { completable: null, note: `auto-audit skipped: ${found.why}` };
-    traverse = (await import('@/lib/graph/game/auto-audit-runner')).runLevelTraversal;
+    walk = (await import('@/lib/graph/game/auto-audit-runner')).runLevelWalk;
   }
-  const a = await auditLevel({ ref: levelRef, store: game.store, contract: lv.contract, allowUnaudited: true, autoRun: traverse });
+  // a climb's exit stands over a lower tier: its walk follows the climb's own way up (its flights, then its ladder), as
+  // its builder laid it (gameworld/levels.js climbRoute), unless its goal carries a route of its own (a building's)
+  const route = await climbWalk(SketchRepository.getByRef(levelRef)?.manifest);
+  const routed = (plan) => (route.length && plan.waypoints?.length === 1 ? { ...plan, waypoints: [...route, plan.waypoints[0]] } : plan);
+  let legs = null, target = null;
+  const autoRun = async ({ levelRef: at, plan }) => {
+    const P = routed(plan);
+    target = P.waypoints?.at(-1) ?? null;
+    if (runTraversal) return runTraversal({ levelRef: at, plan: P });
+    const out = await walk({ levelRef: at, plan: P });
+    legs = out.legs;
+    return out.probe;
+  };
+  const a = await auditLevel({ ref: levelRef, store: game.store, contract: lv.contract, allowUnaudited: true, autoRun });
   if (!a.dryRun.ok) return { completable: false, note: `its contract does not dry-run: ${a.dryRun.errors.join('; ')}` };
-  return { completable: a.completable, note: a.reason };
+  const pilot = pilotRule(SketchRepository.getByRef(levelRef)?.manifest);
+  return { completable: a.completable, note: a.completable === true || !legs ? a.reason : `${a.reason}; ${walkSays(legs, target, pilot)}` };
+}
+
+// the rule the level's pilot moves by (its pilotable entity, else its first): only a platform body climbs a ladder
+export const pilotRule = (manifest) => { const E = manifest?.entities ?? []; return (E.find((e) => e?.pilotable) ?? E[0])?.rule?.type ?? null; };
+
+// the route a level's walk takes up a climb: a goal at its exit that is not on the ground (a climb's top, `planar: false`)
+async function climbWalk(manifest) {
+  const exit = (manifest?.game?.mechanics ?? []).find((m) => m?.kind === 'reach-exit');
+  if (!exit || exit.planar !== false || Array.isArray(exit.via)) return [];
+  try { return (await import('@/lib/graph/gameworld/levels.js')).climbRoute(manifest); } catch { return []; }
+}
+// where a walk that did not prove its level ended: the leg that stopped, or, every leg arrived, where it stood
+const at3 = (p) => `[${(p ?? []).map((v) => Math.round(v * 10) / 10).join(', ')}]`;
+function walkSays(legs, target, pilot = null) {
+  const i = legs.findIndex((l) => !l.arrived);
+  // (a climb no walker can take: the climb rule holds a platform body only)
+  const why = legs[i]?.climb && pilot && pilot !== 'platform' ? ` (the pilot's rule is '${pilot}': only a platform hero climbs, so the climb's top is out of its reach)` : '';
+  if (i >= 0) return `leg ${i + 1} of ${legs.length}${legs[i].climb ? ' (a climb)' : ''} stopped at ${at3(legs[i].at)}${legs[i].reason ? `: ${legs[i].reason}` : ''}${why}`;
+  const end = legs.at(-1)?.at;
+  return `every leg arrived; it stood at ${at3(end)}${target ? ` under or beside ${at3(target)}, where the exit is not reached` : ''}`;
 }
 
 export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, final, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {

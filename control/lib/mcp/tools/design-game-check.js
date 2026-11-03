@@ -11,6 +11,8 @@
  *                  dry-run against the game's store, its links and menu (game-resolve.js resolveGame)
  *   refs           every sketch an order names is one a step makes or one that is stored (a hero adopted by a ref with
  *                  no row, a building played by a ref that is gone: the page would refuse it at the end)
+ *   play           what the build makes but play cannot finish (`advises`, never a blocker: no door refuses it): a
+ *                  level whose exit is on a climb's top, up a ladder, piloted by a body that cannot climb (a walker)
  *
  * The world door's full resolve (resolveWorldScene) and the gear's workbench are not run: they need what the run makes,
  * and they are the run. Its answer: { gate, ready, steps, make, waiting, estimate: { seconds, calls }, blockers? },
@@ -26,6 +28,9 @@ import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { bodyTypeErrors } from '@/lib/graph/worlds/controllable/body-types';
 import { chapterOfStep, chaptersOfPath } from '@/lib/graph/gameworld/chapters.js';
+
+// the rule a level's pilot moves by (its pilotable entity, else its first)
+const pilotOf = (m) => { const E = m?.entities ?? []; return (E.find((e) => e?.pilotable) ?? E[0])?.rule?.type ?? null; };
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -69,6 +74,9 @@ const gameManifest = (order) => ({ kind: 'game', ...Object.fromEntries(Object.en
 export function compileCheck(steps, { actions = {}, row = () => null, budgetMs = 0 } = {}) {
   const blockers = [];
   const block = (step, says) => blockers.push({ chapter: chapterOfStep(step.key)?.id ?? 'build', step: step.key, says });
+  // what the build makes but play cannot finish: said, never a blocker (no door refuses it)
+  const advises = [];
+  const advise = (step, says) => advises.push({ chapter: chapterOfStep(step.key)?.id ?? 'build', step: step.key, says });
   const makes = new Set(steps.map((s) => s.ref));
   const planned = new Map(steps.filter((s) => isObj(s.order?.manifest)).map((s) => [s.ref, { ref: s.ref, title: s.order.title, manifest: s.order.manifest }]));
   for (const s of steps) {
@@ -83,6 +91,13 @@ export function compileCheck(steps, { actions = {}, row = () => null, budgetMs =
     if (s.key.startsWith('level-') && isObj(O.manifest)) {
       for (const e of validateHouseConstruction(O.manifest)) block(s, `the world door would refuse: ${e}`);
       for (const e of bodyTypeErrors(O.manifest.entities)) block(s, `the world door would refuse: ${e}`);
+      // its exit on a climb's top (not on the ground: `planar: false`) with a ladder in the way, and a pilot that cannot
+      // climb (the climb rule holds a platform body): made, it cannot be finished. Advice: the door makes it
+      const exit = (O.manifest.game?.mechanics ?? []).find((m) => m?.kind === 'reach-exit');
+      const ladders = (O.manifest.entities ?? []).some((e) => e?.rule?.type === 'climbable'), pilot = pilotOf(O.manifest);
+      if (exit?.planar === false && !Array.isArray(exit.via) && ladders && pilot && pilot !== 'platform') {
+        advise(s, `its exit is on the climb's top, up a ladder, and its pilot's rule is '${pilot}': only a platform hero climbs, so the level cannot be finished (give the world a hero, or end the level on a tier its stairs reach)`);
+      }
     }
     // the game over the planned levels (a level made before is read as stored): create_game's own resolve
     if (s.key === 'game' && O.engine !== 'versus') {
@@ -97,5 +112,5 @@ export function compileCheck(steps, { actions = {}, row = () => null, budgetMs =
   const waiting = steps.filter((s) => actions[s.key] === 'waiting');
   const seconds = Math.round([...now, ...waiting].reduce((n, s) => n + stepSeconds(s.key), 0));
   const calls = !seconds ? 0 : budgetMs > 0 ? Math.max(1, Math.ceil((seconds * 1000) / budgetMs)) : 1;
-  return { gate: 'machine', ready: blockers.length === 0, steps: steps.length, make: now.length, waiting: waiting.length, estimate: { seconds, calls }, ...(blockers.length ? { blockers } : {}) };
+  return { gate: 'machine', ready: blockers.length === 0, steps: steps.length, make: now.length, waiting: waiting.length, estimate: { seconds, calls }, ...(blockers.length ? { blockers } : {}), ...(advises.length ? { advises } : {}) };
 }

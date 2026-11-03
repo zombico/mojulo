@@ -92,9 +92,18 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // (re-pinned 2026-10-27, 1026-gen7-island: the meru island is every cube's outside at a game's scale and geo only
     // (era/geocube.js MERU_ISLE: its tiers ×3, `walk: 'none'`, a sea and a high side), so the cube's outside each level's
     // order carries moved; the levels build as before, their trails, climbs and walk the same, b771729c -> 0e1c91bc)
-    expect(fingerprint(unaudited(orders))).toBe('0e1c91bc');
-    expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' })))).toBe('9ad2a5b7');
-    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' })))).toBe('0b5f8e90');
+    // (re-pinned 2026-11-03, 1103-game-design-studio-abstraction: a climb's level lays the ladder its climb names as the
+    // surface the hero climbs (levels.js climbLadders: playscape's ladder, lowered), where the meru drew a stand-in no
+    // body could take hold of, so a climb's top was out of reach. Each order without its ladders is the print it was:
+    // nothing else moved, 0e1c91bc, 9ad2a5b7, 0b5f8e90; with them, the pins below)
+    const unladdered = (os) => os.map((o) => (Array.isArray(o?.manifest?.entities) ? { ...o, manifest: { ...o.manifest, entities: o.manifest.entities.filter((e) => !String(e.id).startsWith('ladder-')) } } : o));
+    const ground = runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }), hero = runSteps(MEADOWMARK_HERO, { ref: 'gw' });
+    expect(fingerprint(unladdered(unaudited(orders)))).toBe('0e1c91bc');
+    expect(fingerprint(unladdered(unaudited(ground)))).toBe('9ad2a5b7');
+    expect(fingerprint(unladdered(unaudited(hero)))).toBe('0b5f8e90');
+    expect(fingerprint(unaudited(orders))).toBe('642958c3');
+    expect(fingerprint(unaudited(ground))).toBe('eadb7584');
+    expect(fingerprint(unaudited(hero))).toBe('3f0a32a1');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {
