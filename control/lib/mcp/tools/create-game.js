@@ -94,6 +94,31 @@ export function themeOf(theme, palette, ref) {
   return { theme: { ...gameTheme(K), ...(theme ?? {}) }, palette: { id: K.id, spec: K.spec, scheme: K.read.scheme, key: K.read.key } };
 }
 
+/**
+ * One level of a made game walked by its mechanic-derived audit, the step a design_game run checks a level with
+ * (gameworld/runner.js auditSteps): the level's contract as the game resolves it, dry-run against the game's store, then
+ * walked to its exit or stood still past its clock in an INSTALLED headless browser (never a download: the waiver's
+ * rule, as mintGame keeps it). A walk that does not prove the level is said, never refused.
+ * → { completable: true | false | null, note } (null: no browser walked it, or no audit plan compiles for it)
+ * `runTraversal` and `findBrowser` are injectable for tests.
+ */
+export async function auditGameLevel({ gameRef, levelRef, runTraversal = null, findBrowser = null } = {}) {
+  const game = SketchRepository.getByRef(gameRef)?.manifest;
+  if (!game) return { completable: null, note: `no game '${gameRef}' to audit its level in` };
+  const { levels } = resolveGame(game, (r) => SketchRepository.getByRef(r), levelSrc);
+  const lv = levels.find((l) => l.ref === levelRef);
+  if (!lv) return { completable: null, note: `'${levelRef}' is not a level of '${gameRef}'` };
+  let traverse = runTraversal;
+  if (!traverse) {
+    const found = await (findBrowser ?? (await import('@/lib/graph/game/first-frame-check')).levelBrowser)();
+    if (!found.path) return { completable: null, note: `auto-audit skipped: ${found.why}` };
+    traverse = (await import('@/lib/graph/game/auto-audit-runner')).runLevelTraversal;
+  }
+  const a = await auditLevel({ ref: levelRef, store: game.store, contract: lv.contract, allowUnaudited: true, autoRun: traverse });
+  if (!a.dryRun.ok) return { completable: false, note: `its contract does not dry-run: ${a.dryRun.errors.join('; ')}` };
+  return { completable: a.completable, note: a.reason };
+}
+
 export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, final, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {

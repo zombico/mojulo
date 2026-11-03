@@ -71,11 +71,15 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     expect(w.juice).toBe('auto');
     const { juice: _j, ...unjuiced } = w;
     expect(fingerprint(unjuiced)).toBe('31e98788');
-    // (the game order now asks for the audit, its levels being reach-exit (first-frame checks, runner.js): the orders
-    // without that one flag are the print taken before levels could carry a goal)
-    const orders = runSteps(unjuiced, { ref: 'gw' }).map((s) => s.order);
-    expect(orders.at(-1).auto_audit).toBe(true);
-    const unaudited = (os) => os.map((o) => (o && 'auto_audit' in o ? (({ auto_audit: _a, ...x }) => x)(o) : o));
+    // (its levels being reach-exit, the game is checked after it is made: one audit step a level, at the level's ref
+    // (runner.js auditSteps). The orders the levels and the game are made from, without the audits, are the print taken
+    // before levels could carry a goal: the game order asked create_game for the audit once, and the pins below were
+    // taken without that flag, so they hold as they were)
+    const steps = runSteps(unjuiced, { ref: 'gw' });
+    expect(steps.filter((s) => s.audit).map((s) => s.ref)).toEqual(steps.filter((s) => s.key.startsWith('level-')).map((s) => s.ref));
+    expect(steps.find((s) => s.key === 'game').order.auto_audit).toBeUndefined();
+    const unaudited = (ss) => ss.filter((s) => !s.audit).map((s) => s.order);
+    const orders = steps;
     // (re-pinned 2026-10-25 merging 1024-geocube-composition-update: geocube styles rewrote the gothic-night preset, so the
     // kit its variant is named by hashes anew, geocube-gothic-night-variant-9bedf4 -> -f88cc1; nothing else in the orders moved)
     // (re-pinned 2026-10-25, 1025-land-into-cube: the levels now carry their land. A composed world has always written
@@ -89,8 +93,8 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // (era/geocube.js MERU_ISLE: its tiers ×3, `walk: 'none'`, a sea and a high side), so the cube's outside each level's
     // order carries moved; the levels build as before, their trails, climbs and walk the same, b771729c -> 0e1c91bc)
     expect(fingerprint(unaudited(orders))).toBe('0e1c91bc');
-    expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('9ad2a5b7');
-    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('0b5f8e90');
+    expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' })))).toBe('9ad2a5b7');
+    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' })))).toBe('0b5f8e90');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {

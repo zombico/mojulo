@@ -94,6 +94,8 @@ export default registerRail({
       try { steps = runSteps(world, { ref }); } catch (err) { errors.push(err.message); }
     }
     for (const step of steps) {
+      // an audit step checks a level the run made; it is no part of its own (the level is)
+      if (step.audit) continue;
       const stored = row(step.ref);
       const action = decide(step, made[step.key], stored ? fingerprint(stored.manifest) : null);
       parts.push({ ref: step.ref, role: roleOf(step.key), state: PART_STATE[action] ?? 'missing' });

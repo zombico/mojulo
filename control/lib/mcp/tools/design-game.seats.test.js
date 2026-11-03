@@ -23,7 +23,7 @@ describe('a two-seat co-op game, made and audited', () => {
   it('lays seat 2\'s hero, the page seats it, and the audit walks the level with seat 1 as it would alone', async () => {
     const hero = { cast: 'female', head: 'anime', look: ['heroine', 'determined'], hair: ['frieda-pony'] };
     const out = await designGameHandler({ quick: { goal: 'reach', camera: 'side', hero, world: { id: 'duo', style: { kit: 'trail-valley' }, intent: { cube: { soul: { seats: 'two', join: 'drop-in' } } } } }, ref: 'd' });
-    expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game']);
+    expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game', 'audit-level-run-0']);
     const L = stored('d-level-run-0');
     expect(L.seats).toEqual({ bodies: ['hero-2'], max: 2, join: 'drop-in' });
     expect(L.entities.find((e) => e.id === 'hero-2')).toMatchObject({ pilotable: true, ambient: { mind: { motivation: 'escort' } } });

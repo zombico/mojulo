@@ -14,6 +14,8 @@
  *     stock-<id> when the equipment step is: one per starter item the world asks for (equipment.populate, world-gear.js)
  *     level-<level>-<n>   when the systems step is: each stage of each level, a world the hero pilots (levels.js)
  *     game       when the systems step is, after every level: create_game over them, the store from the book
+ *     audit-level-<level>-<n>   after the game, when its every level is one the audit proves (auditSteps): that level
+ *                walked in the headless browser by the door, its verdict kept in the record
  *   decide(step, record, storedNow, { force }) → what to do with one step:
  *     'waiting'  the step is not ready (its `waiting` says on what)
  *     'make'     nothing is at its ref
@@ -21,6 +23,8 @@
  *     'keep'     the book's order and what is stored are as the runner left them
  *     'edited'   the creator changed it by hand since: left as it is, even when the book moved (force: remade)
  *     'remake'   the book's order moved and the stored one is as the runner left it
+ *   (an audit step: 'waiting' until its level and game are made, 'make' with no verdict, 'remake' when what it walked
+ *   moved, else 'keep')
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
@@ -79,18 +83,32 @@ const paletteTheme = (G) => (G.style?.palette ? gameTheme(solvePalette(G.style.p
 
 /** The goals the completability audit proves today (game/game-audit.js compileMechanicAudit): a level won by moving to
  * its exit (reach-exit) or by lasting out its clock (survive), with no other mechanic in it. A game whose every level
- * is one asks create_game for `auto_audit`: each level is walked to its exit or stood still past its clock in the
- * headless browser, and the readout says which were proved. A game with any other goal (collect, sneak, rhythm, race,
- * fight, defend, battle, farm, puzzle, shoot …) or a building played by ref keeps `allow_unaudited` alone: the audit
- * only walks to an exit or stands still, and cannot pick up, hide, keep a beat, drive a course or win a fight yet.
- * `allow_unaudited` stays on beside `auto_audit`: with no browser installed the audit is skipped (never downloaded
- * for), and a walk that does not prove a level stamps it rather than refusing the game (create-game.js mintGame).
- * (The flag moves the game order's print, so a game made before it is remade once on the next run, as it was.) */
+ * is one is checked after it is made, a level at a time: one `audit-<level step>` step each (auditSteps), walked to its
+ * exit or stood still past its clock in the headless browser by the door (design-game.js), its verdict kept in the
+ * record beside the level's (made.js) and walked again only when the level or the game moved. A game with any other
+ * goal (collect, sneak, rhythm, race, fight, defend, battle, farm, puzzle, shoot …) or a building played by ref has no
+ * audit steps: the audit only walks to an exit or stands still, and cannot pick up, hide, keep a beat, drive a course
+ * or win a fight yet. The game order keeps `allow_unaudited` alone: create_game makes it at once, and the audit, the
+ * slow part of a run (a level's walk is tens of seconds), never rides one call whole.
+ * (The game order used to carry `auto_audit`; dropping it moves its print, so a game made before is remade once on the
+ * next run, in place and unaudited, and its audit steps follow.) */
 const PROVABLE = new Set(['reach-exit', 'survive']);
 const provable = (order) => { const k = (order?.manifest?.game?.mechanics ?? []).map((m) => m?.kind); return k.length > 0 && k.every((x) => PROVABLE.has(x)); };
 export function auditOrder(steps, stages) {
   const levels = steps.filter((s) => s.key.startsWith('level-'));
   return levels.length && stages.every((s) => !s.building?.ref) && levels.every((s) => provable(s.order)) ? { auto_audit: true } : {};
+}
+/** The audit steps after the game (one per level step, at the level's ref, ready when the game is): none when the
+ * audit cannot prove every level. The order names the level step and the game; what it audited is printed by the door
+ * from the rows it walked (the level's and the game's), so a level remade is audited again. */
+export const AUDIT_STEP = /^audit-level-/;
+export function auditSteps(steps, stages) {
+  const game = steps.find((s) => s.key === 'game');
+  if (!game || !auditOrder(steps, stages).auto_audit) return [];
+  return steps.filter((s) => s.key.startsWith('level-')).map((s) => {
+    const order = { level: s.key, game: game.ref };
+    return { key: `audit-${s.key}`, ref: s.ref, audit: true, ready: game.ready, ...(game.waiting ? { waiting: game.waiting } : {}), order, print: fingerprint(order) };
+  });
 }
 
 export function childRef(ref, part) {
@@ -317,8 +335,9 @@ export function runSteps(world, { ref, lookup } = {}) {
     const links = onBoard ? [] : gameLinks(stages, levelRefs);
     const theme = paletteTheme(G);
     const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : null;
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(stages, levelRefs, map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(stages, levelRefs, map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
+    steps.push(...auditSteps(steps, stages));
   }
   return steps;
 }
@@ -462,8 +481,9 @@ function worldSteps(world, G, ref) {
   });
   if (stages.length) {
     const links = gameLinks(stages, levelRefs), theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
+    steps.push(...auditSteps(steps, stages));
   }
   return steps;
 }
@@ -798,8 +818,9 @@ function quickSteps(world, G, ref, lookup) {
   const links = gameLinks(stages, levelRefs);
   // a run draws its levels: none waits on another
   const lvls = gameLevels(stages, levelRefs, map).map((l) => (Q.run ? (({ gate: _g, ...x }) => x)(l) : l));
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}) };
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}) };
   steps.push({ key: 'game', ref: gameRef, ready: true, order: game, print: fingerprint(game) });
+  steps.push(...auditSteps(steps, stages));
   return steps;
 }
 
@@ -812,6 +833,13 @@ function motionFields(patch) {
  * null when nothing is there. */
 export function decide(step, record, storedNow, { force = false } = {}) {
   if (!step.ready) return 'waiting';
+  // an audit step (auditSteps): `storedNow` is the print of what it would walk (the level's row and the game's), null
+  // until both are made; walked when it has no verdict, again when what it walked moved; never 'taken' or 'edited'
+  if (step.audit) {
+    if (storedNow === null) return 'waiting';
+    if (!record) return 'make';
+    return force || record.order !== step.print || record.stored !== storedNow ? 'remake' : 'keep';
+  }
   if (storedNow === null) return 'make';
   if (!record || record.ref !== step.ref) return force ? 'remake' : 'taken';
   const edited = storedNow !== record.stored, moved = record.order !== step.print;

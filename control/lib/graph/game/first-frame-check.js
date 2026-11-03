@@ -99,22 +99,28 @@ export async function firstFrameCheck(refs, { findBrowser = levelBrowser, page =
 export function _resetFirstFrameMemo() { MEMO.clear(); }
 
 /**
- * design_game's readout of a run: the opening frame of every level of the game it made, or nothing when the call did
+ * design_game's readout of a run: the opening frame of each level of the game it made or remade, or nothing when the call did
  * not run. A fight (versus) plays in its own arena page, not a level world, so it has none.
  * @param {object} world  the gameworld as the run left it (its `made`)
  * @param {Array<{ key, action }>|undefined} ran  what the run did (undefined: the call did not run)
  */
 export async function firstFrameReadout(world, ran, opts) {
   if (!ran || !world?.made) return {};
+  // what this run made or remade (a walk of a level, an audit step, changes no page; a step left pending made nothing)
+  const changed = ran.filter((r) => (r.action === 'make' || r.action === 'remake') && !String(r.key).startsWith('audit-'));
   // a run that kept everything changed no frame: nothing to render (a deterministic page renders as it did)
-  if (ran.every((r) => r.action === 'keep' || r.action === 'waiting')) return { first_frame: { gate: 'machine', status: 'skipped', skipped: 'skipped: nothing made or remade this run', note: NOTE } };
+  if (!changed.length) return { first_frame: { gate: 'machine', status: 'skipped', skipped: 'skipped: nothing made or remade this run', note: NOTE } };
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
   const game = world.made.game ? SketchRepository.getByRef(world.made.game.ref)?.manifest : null;
   if (game?.engine === 'versus') return {};
   const refs = Array.isArray(game?.levels) ? game.levels.map((l) => l?.ref)
     : Object.entries(world.made).filter(([k]) => k.startsWith('level-')).map(([, v]) => v.ref);
-  if (!refs.length) return {};
-  return { first_frame: await firstFrameCheck(refs, opts) };
+  // only the levels made or remade this run render again, unless something else moved (a figure, the systems, the game:
+  // what every page shows), so a run that a budget split renders each level once
+  const others = changed.some((r) => !String(r.key).startsWith('level-'));
+  const mine = others ? refs : refs.filter((r) => changed.some((c) => c.ref === r));
+  if (!mine.length) return {};
+  return { first_frame: await firstFrameCheck(mine, opts) };
 }
 
 /**
