@@ -23,10 +23,10 @@ const { renderWorldToPng } = await import('../lib/graph/scene/scene-png.js');
 
 const args = process.argv.slice(2);
 const output = args[0];
-if (!output) { console.error('Usage: node scripts/render-mecha.mjs <output-directory> [archetype,…|all] [--poses stand,board] [--views side,quarter,front,rear,top] [--palette id] [--rider]'); process.exit(2); }
+if (!output) { console.error('Usage: node scripts/render-mecha.mjs <output-directory> [archetype,…|all] [--poses stand,board] [--views side,quarter,front,rear,top] [--palette id] [--rider] [--task id] [--tools r:x,l:y] [--arms r:long] [--pack-task id] [--pack-tools r:x,l:y] [--pack-maker house]'); process.exit(2); }
 const flag = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const views = (flag('--views') || 'side,quarter,front').split(',');
-const palette = flag('--palette') ?? undefined, seated = args.includes('--rider'), task = flag('--task') ?? undefined, packTask = flag('--pack-task') ?? undefined;
+const palette = flag('--palette') ?? undefined, seated = args.includes('--rider'), task = flag('--task') ?? undefined, packTask = flag('--pack-task') ?? undefined, packMaker = flag('--pack-maker') ?? undefined;
 const pairs = (v) => (v ? Object.fromEntries(v.split(',').map((kv) => kv.split(':'))) : undefined), tools = pairs(flag('--tools')), arms = pairs(flag('--arms')), packTools = pairs(flag('--pack-tools'));
 const pick = args[1] && !args[1].startsWith('--') && args[1] !== 'all' ? args[1].split(',') : Object.keys(MECHA_ARCHETYPES);
 const outDir = path.resolve(output); mkdirSync(outDir, { recursive: true });
@@ -35,9 +35,9 @@ let gallery = '';
 for (const id of pick) {
   const poses = (flag('--poses') || Object.keys(MECHA_ARCHETYPES[id].stances).join(',')).split(',');
   for (const pose of poses) {
-    const { manifest, readout } = assembleFrame(id, { pose, palette, task, tools, arms, packTask, packTools });
+    const { manifest, readout } = assembleFrame(id, { pose, palette, task, tools, arms, packTask, packTools, packMaker });
     const { payload } = await resolveWorldScene({ ref: `${id}-${pose}`, kind: 'assembler', manifest });
-    const name = `${id}${palette ? `-${palette}` : ''}${task ? `-${task}` : ''}${tools ? `-${Object.values(tools).join('-')}` : ''}${packTask ? `-${packTask}` : ''}${packTools ? `-${Object.values(packTools).join('-')}` : ''}-${pose}${seated ? '-rider' : ''}`;
+    const name = `${id}${palette ? `-${palette}` : ''}${task ? `-${task}` : ''}${tools ? `-${Object.values(tools).join('-')}` : ''}${packTask ? `-${packTask}` : ''}${packTools ? `-${Object.values(packTools).join('-')}` : ''}${packMaker ? `-${packMaker}` : ''}-${pose}${seated ? '-rider' : ''}`;
     const faces = payload.faces.filter((f) => !f.studio);
     if (seated) {
       const { seatRider } = await import('../lib/graph/mecha-shelf/mecha-figure.js');

@@ -2,13 +2,14 @@
  * mecha-figure — a mecha shelf frame as the doors draw it: its faces on the studio grid (mint_solid's vehicle preview,
  * the family layer's `mecha` instance), its rider seated in it.
  *
- *   readMechaSpec(spec, at?)    → { archetype, pose?, palette?, rider?, task?, tools?, arms?, packTask?, packTools? }, or throws: `pose` a stance's
+ *   readMechaSpec(spec, at?)    → { archetype, pose?, palette?, rider?, task?, tools?, arms?, packTask?, packTools?, packMaker? }, or throws: `pose` a stance's
  *                                 name ('board', 'lift'), a stance ({ knee | height, track?, fore?, sway?, feet? }) or
  *                                 joint values ({ joints: { kneeR: 60 } }), `palette` one of the shelf's, `rider` true (the
  *                                 realistic hero) or the hero's spec, astride the saddle in the frame's posture, its hands
  *                                 on the grips, its feet on the pegs; a modular frame's `task` (a site's task: its loadout,
  *                                 mecha-tools.js), `tools` ({ r?, l? }: a tool per arm) and `arms` ({ r?, l? }: an arm kit);
- *                                 a frame with a giant arm pack's `packTask` and `packTools` ({ r?, l? }) for its giant arms
+ *                                 a frame with a giant arm pack's `packTask` and `packTools` ({ r?, l? }) for its giant arms,
+ *                                 its `packMaker` the design house whose pack it carries (mecha-gap-makers.js)
  *   mechaInstanceFaces(spec)    → (async) { faces, spec, stats }: the frame assembled at its stance, lowered to the grid's
  *                                 faces, its rider with it
  *
@@ -19,7 +20,7 @@ import { MECHA_ARCHETYPES, MECHA_PALETTES, assembleFrame, composeFrame, frameRow
 import { readRiderHero, riderOn } from '../cycle-shelf/cycle-rider.js';
 
 
-const KEYS = Object.freeze(['archetype', 'pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools']);
+const KEYS = Object.freeze(['archetype', 'pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools', 'packMaker']);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function readMechaSpec(spec, at = 'mecha') {
@@ -30,7 +31,7 @@ export function readMechaSpec(spec, at = 'mecha') {
   if (spec.pose !== undefined && typeof spec.pose !== 'string' && !isObj(spec.pose)) throw new Error(`${at}.pose is a stance's name, a stance { knee | height, … } or { joints }`);
   for (const k of ['tools', 'arms', 'packTools']) if (spec[k] !== undefined && !isObj(spec[k])) throw new Error(`${at}.${k} is { r?, l? }: one per arm`);
   // (its fitting and its pose read as the shelf reads them: a task, a tool, an arm or a stance it has not, refused)
-  const key = composeFrame(spec.archetype, { task: spec.task, tools: spec.tools, arms: spec.arms, packTask: spec.packTask, packTools: spec.packTools });
+  const key = composeFrame(spec.archetype, { task: spec.task, tools: spec.tools, arms: spec.arms, packTask: spec.packTask, packTools: spec.packTools, packMaker: spec.packMaker });
   if (spec.pose !== undefined) posedFrame(key, spec.pose);
   if (spec.rider !== undefined && spec.rider !== false) readRiderHero(spec.rider, `${at}.rider`);
   return spec;
@@ -50,7 +51,7 @@ export async function seatRider(archetype, readout, { hero, posture } = {}) {
 
 export async function mechaInstanceFaces(spec) {
   readMechaSpec(spec);
-  const { manifest, readout } = assembleFrame(spec.archetype, { pose: spec.pose, palette: spec.palette, task: spec.task, tools: spec.tools, arms: spec.arms, packTask: spec.packTask, packTools: spec.packTools });
+  const { manifest, readout } = assembleFrame(spec.archetype, { pose: spec.pose, palette: spec.palette, task: spec.task, tools: spec.tools, arms: spec.arms, packTask: spec.packTask, packTools: spec.packTools, packMaker: spec.packMaker });
   const faces = lowerAssemblerFaces(manifest);
   // (its rider seated, posed on the frame's own rider points at its stance, in its frame)
   const rider = spec.rider ? await seatRider(readout.composed ?? spec.archetype, readout, { hero: spec.rider }) : null;

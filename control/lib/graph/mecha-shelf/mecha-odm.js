@@ -16,6 +16,8 @@
  * no game's. Pure data.
  */
 
+import { MAKER_PARTS, MECHA_MAKER_IDS, makerRows } from './mecha-gap-makers.js';
+
 export const MECHA_KINDS = Object.freeze({
   'mecha-pelvis': 'the pelvis: the frame\'s root, its keel (the battery\'s case, low between the hips), its hip beams, the hip yaw bearings',
   'mecha-hip': 'a hip\'s yaw housing: its rotary drive turning the leg about the vertical, its roll clevis, its roll ram\'s arm',
@@ -33,7 +35,7 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-wrist': 'a wrist: its rotary drive turning the hand about the forearm\'s end',
   'mecha-claw': 'a hand: a two-fingered claw, its palm, its fingers and their pads',
   'mecha-tool': 'a tool on an arm\'s quick coupler in a claw\'s place: a bucket, a breaker, a crusher, forks, an auger, a vacuum lifter, a magnet, a hook; on a giant arm, a hand, a spreader, a prop, a shear, a vibratory driver, a clamshell',
-  'mecha-ram': 'a hydraulic ram across a joint: its barrel and its rod, each a body aimed at the other\'s pin',
+  'mecha-ram': 'a hydraulic ram across a joint: its barrel and its rod, each a body aimed at the other\'s pin; or an electric screw actuator in its place',
 });
 
 const R = (kind, label, classOf, dims, mass, build, aliases = []) => Object.freeze({ kind, label, classOf, aliases, dims: Object.freeze(dims), mass, build: Object.freeze(build) });
@@ -43,8 +45,8 @@ const HW = 'heavy walker';
 const GW = 'giant arm walker';
 
 // (what a part's size does not scale: its stops' angles, the battery's mass, the scale itself; a rotary drive's torque
-// is rated again for its size)
-export const UNSCALED = Object.freeze(['stop', 'torque', 'battery', 'scale']);
+// is rated again for its size, a screw actuator's force is its own rating)
+export const UNSCALED = Object.freeze(['stop', 'torque', 'force', 'battery', 'scale']);
 /** Every length in a part's numbers times k (its angles and its ratings as they are). */
 export function scaleDims(d, k) {
   if (Array.isArray(d)) return d.map((v) => scaleDims(v, k));
@@ -239,5 +241,12 @@ const GIANT = {
   'clamshell-gw': R('mecha-tool', 'giant clamshell', GW, { w: 0.7, r: 0.42, length: 0.95 }, 300, { family: 'clamshell' }, ['clamshell', 'clamshell grab', 'grab bucket', 'orange peel']),
   'hook-gw': S('hook-hw', G, 'giant hook', GW, ['giant hook', 'heavy lifting hook']),
 };
-export const MECHA_ODM = Object.freeze({ ...ROWS, ...HEAVY, ...GIANT });
+// ── the design houses' giant arm packs: each house's philosophy solved into its pack and its giant arms ──────────
+// (mecha-gap-makers.js: solved the first time one of its rows is read, then kept; a house's rows are its own, never
+// another frame's)
+let MAKERS = null;
+const makers = () => (MAKERS ??= makerRows(R, scaleDims));
+const ODM = { ...ROWS, ...HEAVY, ...GIANT };
+for (const house of MECHA_MAKER_IDS) for (const part of MAKER_PARTS) Object.defineProperty(ODM, `${part}-${house}`, { enumerable: true, get: () => makers()[`${part}-${house}`] });
+export const MECHA_ODM = Object.freeze(ODM);
 

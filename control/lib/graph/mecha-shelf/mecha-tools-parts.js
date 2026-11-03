@@ -114,7 +114,7 @@ function hook(row, C) {
   return { extrudes, lathes, sweeps, hardpoints: { tip: add([0, 0.06, 0], [0, 0, -d.length]) } };
 }
 
-// ── a giant three-fingered hand: its palm, two fingers and a thumb opposing them, each in two segments, its pads ───
+// ── a giant hand: its palm, its fingers (two, or three) and a thumb opposing them, each in two segments, its pads ──
 function hand(row, C) {
   const d = row.dims, [pw, pd, ph] = d.palm, extrudes = [...coupler(C, 0.34)], sweeps = [], pad = C.light, r = d.r;
   extrudes.push(box('palm', [0, 0, -0.06], [0, 0, -0.06 - ph], pw, pd, C.paint, [0, 1, 0]));
@@ -126,10 +126,25 @@ function hand(row, C) {
     sweeps.push(tube(`${id}_b`, [m, t], r * 0.85, tone(C.trim, 0.05), 10));
     extrudes.push(box(`${id}_pad`, add(t, [0, -dir * 0.02, 0.05]), add(t, [0, -dir * 0.02, -0.03]), r * 2.2, r * 1.6, pad, [0, 1, 0]));
   };
-  finger('index', pw / 4, pd / 2 - 0.04, -1, d.finger);
-  finger('middle', -pw / 4, pd / 2 - 0.04, -1, d.finger);
+  // (its fingers side by side across the palm, `fingers` counting the thumb: three by default, a fourth for a heavier grip)
+  const n = (d.fingers ?? 3) - 1;
+  for (let i = 0; i < n; i++) finger(['index', 'middle', 'ring'][i] ?? `finger${i}`, pw * (0.5 - (i + 0.5) / n), pd / 2 - 0.04, -1, d.finger);
   finger('thumb', 0, -pd / 2 + 0.04, 1, d.thumb);
   return { extrudes, sweeps, hardpoints: { tip: [0, 0, -0.06 - ph - d.finger * 0.8] } };
+}
+
+// ── a parallel gripper: a body, its guide rods, two flat jaws, their pads ────────────────────────────────────────
+function gripper(row, C) {
+  const d = row.dims, [pw, pd, ph] = d.palm, extrudes = [...coupler(C, 0.34)], lathes = [], g = d.gap / 2, F = d.finger;
+  extrudes.push(box('body', [0, 0, -0.06], [0, 0, -0.06 - ph], pw, pd, C.paint, [0, 1, 0]));
+  for (const y of [pd * 0.25, -pd * 0.25]) lathes.push(spin(`rod_${y > 0 ? 'f' : 'b'}`, [-g - 0.06, y, -0.06 - ph * 0.55], [g + 0.06, y, -0.06 - ph * 0.55], [[0, 0.022], [1, 0.022]], C.chrome, 10));
+  for (const s of [1, -1]) {
+    const side = s > 0 ? 'o' : 'i', x = s * g;
+    extrudes.push(box(`carriage_${side}`, [x, 0, -0.06 - ph * 0.2], [x, 0, -0.06 - ph * 0.9], 0.07, pd * 0.8, C.trim, [0, 1, 0]));
+    extrudes.push(box(`jaw_${side}`, [x, 0, -0.06 - ph * 0.8], [x, 0, -0.06 - ph - F], 0.05, pd * 0.7, C.paint, [0, 1, 0]));
+    extrudes.push(box(`pad_${side}`, [x - s * 0.03, 0, -0.06 - ph - 0.04], [x - s * 0.03, 0, -0.06 - ph - F + 0.02], 0.014, pd * 0.6, C.rubber, [0, 1, 0]));
+  }
+  return { extrudes, lathes, hardpoints: { tip: [0, 0, -0.06 - ph - F * 0.8] } };
 }
 
 // ── a rescue spreader: its body, its two arms opened about their pin, their tips' teeth ─────────────────────────
@@ -195,4 +210,4 @@ function clamshell(row, C) {
   return { extrudes, lathes, sweeps, hardpoints: { tip: [0, 0, -d.length] } };
 }
 
-export const TOOL_BUILDERS = Object.freeze({ bucket, breaker, crusher, forks, auger, vacuum, magnet, hook, hand, spreader, prop, shear, vibro, clamshell });
+export const TOOL_BUILDERS = Object.freeze({ bucket, breaker, crusher, forks, auger, vacuum, magnet, hook, hand, gripper, spreader, prop, shear, vibro, clamshell });

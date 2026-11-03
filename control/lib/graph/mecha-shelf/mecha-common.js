@@ -57,6 +57,8 @@ export function resolveMechaPalette(palette, colors = {}, fallback = 'proving') 
 
 /** The system pressure every ram is rated at: a mobile hydraulic circuit's working pressure (Pa). */
 export const SYSTEM_PRESSURE = 21e6;
-/** A ram's rated force at the system pressure: pushing on its whole bore, pulling on the annulus round its rod (N). */
-export const ramForce = (d) => ({ push: SYSTEM_PRESSURE * Math.PI * (d.bore / 2) ** 2, pull: SYSTEM_PRESSURE * Math.PI * ((d.bore / 2) ** 2 - (d.rod / 2) ** 2) });
+/** A ram's rated force at the system pressure: pushing on its whole bore, pulling on the annulus round its rod (N); an
+ *  electric screw actuator's its rating (`force`), the same both ways. */
+export const ramForce = (d) => (Number.isFinite(d.force) ? { push: d.force, pull: d.force }
+  : { push: SYSTEM_PRESSURE * Math.PI * (d.bore / 2) ** 2, pull: SYSTEM_PRESSURE * Math.PI * ((d.bore / 2) ** 2 - (d.rod / 2) ** 2) });
 export const G = 9.81;

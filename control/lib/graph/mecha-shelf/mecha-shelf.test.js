@@ -6,9 +6,10 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { apply } from './mecha-common.js';
+import { apply, ramForce } from './mecha-common.js';
+import { arcsFor, solveMount } from './mecha-gap-makers.js';
 import { framesOf, rangeOf, solveChain } from '../construction-shelf/con-chain.js';
-import { MECHA_ARCHETYPES, MECHA_ODM, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS, assembleFrame, composeFrame, frameRow, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, posedFrame, resolveMechaPart, riderPoints } from './index.js';
+import { MECHA_ARCHETYPES, MECHA_MAKERS, MECHA_MAKER_IDS, MECHA_ODM, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS, assembleFrame, composeFrame, frameRow, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, posedFrame, resolveMechaPart, riderPoints } from './index.js';
 import { readMechaSpec } from './mecha-figure.js';
 
 const id = Object.keys(MECHA_ARCHETYPES)[0], arch = MECHA_ARCHETYPES[id], ctx = mechaCtx(id);
@@ -221,6 +222,66 @@ describe('mecha shelf: a giant arm pack on a frame', () => {
     const flows = (k) => MECHA_TOOLS[MECHA_PACK_TASKS[k].r.tool].flow + MECHA_TOOLS[MECHA_PACK_TASKS[k].l.tool].flow;
     const hardest = Object.keys(MECHA_PACK_TASKS).sort((x, y) => flows(y) - flows(x))[0];
     expect(lawsOf(composeFrame(packed, { packTask: hardest })).laws.filter((l) => !l.ok).map((l) => `${hardest} ${l.id}: ${l.says}`)).toEqual([]);
+  });
+});
+
+describe('mecha shelf: giant arm packs by design house', () => {
+  // (a frame carrying a pack, and a house of each actuator, chosen in code)
+  const packed = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].packMount), Pk = MECHA_ARCHETYPES[packed];
+  const hydraulic = MECHA_MAKER_IDS.find((h) => MECHA_MAKERS[h].actuator === 'hydraulic'), screw = MECHA_MAKER_IDS.find((h) => MECHA_MAKERS[h].actuator === 'screw');
+  const law = (key, id) => lawsOf(key).laws.find((l) => l.id === id);
+  it('solves a ram\'s pins so its joint turns the whole arc its arm\'s poses ask, wider pins for a wider spread', () => {
+    const tight = solveMount('elbow', 0.55, 0.55, { spread: 0.1 }), wide = solveMount('elbow', 0.55, 0.55, { spread: 0.18 });
+    expect(wide.arm).toBeGreaterThan(tight.arm);
+    for (const h of [hydraulic, screw]) {
+      const key = composeFrame(packed, { packMaker: h }), m = MECHA_MAKERS[h], arcs = arcsFor(0.55, Math.round(0.55 * m.fore * 1000) / 1000, Pk.armPoses);
+      const J = Pk.packArms.r.joints;
+      for (const [joint, arc] of [[J.pitch, arcs.shoulder], [J.elbow, arcs.elbow]]) {
+        const [lo, hi] = jointRange(key, joint);
+        expect(lo).toBeLessThanOrEqual(arc[0]);
+        expect(hi).toBeGreaterThanOrEqual(arc[1]);
+      }
+    }
+  });
+  it('sizes its actuators by statics for its rated heave: its lift reaches it unless the frame tips first', () => {
+    for (const h of [hydraulic, screw]) {
+      const L = law(composeFrame(packed, { packMaker: h }), 'packLift');
+      if (L.value < MECHA_MAKERS[h].target) expect(L.says).toMatch(/tips it/);
+    }
+    const rams = MECHA_ODM[`ram-shoulder-${screw}`];
+    expect(rams.build.family).toBe('screw');
+    expect(ramForce(rams.dims)).toEqual({ push: rams.dims.force, pull: rams.dims.force });
+  });
+  it('trades lift for reach by its philosophy: the longest forearm reaches farthest, the shortest lifts most', () => {
+    const byFore = [...MECHA_MAKER_IDS].sort((a, b) => MECHA_MAKERS[a].fore - MECHA_MAKERS[b].fore), strong = byFore[0], far = byFore[byFore.length - 1];
+    const S = composeFrame(packed, { packMaker: strong }), F = composeFrame(packed, { packMaker: far });
+    expect(law(F, 'packReach').value).toBeGreaterThan(law(S, 'packReach').value);
+    expect(law(S, 'packLift').value).toBeGreaterThan(law(F, 'packLift').value);
+  });
+  it('dresses its own parts in its house\'s livery, the frame in its palette, the operator\'s colours over both', () => {
+    const key = composeFrame(packed, { packMaker: hydraulic }), m = MECHA_MAKERS[hydraulic];
+    const pack = frameRow(key).layout.find((e) => e.id === 'pack');
+    expect(pack.sku).toBe(`gap-${hydraulic}`);
+    expect(resolveMechaPart(pack.sku, { archetype: key }).garage.colors.paint).toBe(m.livery.paint);
+    expect(resolveMechaPart(frameRow(key).layout[0].sku, { archetype: key }).garage.colors.paint).not.toBe(m.livery.paint);
+    expect(resolveMechaPart(pack.sku, { archetype: key, colors: { paint: '#123456' } }).garage.colors.paint).toBe('#123456');
+  });
+  it('takes its house\'s hand for the giant hand, a pack task\'s other tools as they are, and refuses what it has not', () => {
+    const key = composeFrame(packed, { packMaker: screw }), a = frameRow(key), claw = (k, S) => frameRow(k).layout.find((e) => e.id === frameRow(k).packArms[S].claw).sku;
+    expect(a.packMaker).toBe(screw);
+    expect(claw(key, 'r')).toBe(`hand-${screw}`);
+    const other = Pk.packMount.tools.find((t) => t !== 'giantHand');
+    expect(claw(composeFrame(packed, { packMaker: screw, packTools: { r: other } }), 'r')).toBe(MECHA_TOOLS[other].sku);
+    expect(() => composeFrame(packed, { packMaker: 'nobody' })).toThrow(/packMaker 'nobody' is one of/);
+    expect(() => composeFrame(Object.keys(MECHA_ARCHETYPES).find((k) => !MECHA_ARCHETYPES[k].packMount), { packMaker: screw })).toThrow(/carries no giant arm pack/);
+    expect(readMechaSpec({ archetype: packed, packMaker: screw }).packMaker).toBe(screw);
+  });
+  it('holds a house\'s frame to every law, at its own loadout and at its hardest pack task', () => {
+    const flows = (k) => MECHA_TOOLS[MECHA_PACK_TASKS[k].r.tool].flow + MECHA_TOOLS[MECHA_PACK_TASKS[k].l.tool].flow;
+    const hardest = Object.keys(MECHA_PACK_TASKS).sort((x, y) => flows(y) - flows(x))[0];
+    for (const h of [hydraulic, screw]) for (const packTask of [undefined, hardest]) {
+      expect(lawsOf(composeFrame(packed, { packMaker: h, packTask })).laws.filter((l) => !l.ok).map((l) => `${h} ${packTask ?? ''} ${l.id}: ${l.says}`)).toEqual([]);
+    }
   });
 });
 

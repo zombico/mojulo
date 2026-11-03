@@ -14,6 +14,8 @@
  */
 import { CON_BUILDERS } from '../construction-shelf/con-parts.js';
 import { TOOL_BUILDERS } from './mecha-tools-parts.js';
+import { houseBuilders } from './mecha-house-parts.js';
+import { ramParts } from '../construction-shelf/con-chain.js';
 import { add, box, cross, extrudeWorld, loftWorld, mul, pod, roundRect, spin, sub, tone, tube, unit } from './mecha-common.js';
 
 const sgn = (side) => (side === 'l' ? -1 : 1);
@@ -542,6 +544,12 @@ function pack(row, C) {
   return { extrudes, lathes, sweeps, hardpoints: {} };
 }
 
+// (a design house's parts: the shelf's own redressed, mecha-house-parts.js)
+const HOUSE = houseBuilders({ boss, legBeam, plateBox, shoulder, upperarm, forearm });
+const SHOULDERS = { armoured: armouredShoulder, ...HOUSE.shoulder };
+const PACKS = { giant: giantPack, ...HOUSE.pack };
+const BEAMS = new Set(['plated', 'tube', 'truss', 'sealed']);
+
 export const MECHA_BUILDERS = Object.freeze({
   'mecha-pelvis': pelvis,
   'mecha-hip': hip,
@@ -552,13 +560,16 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-foot': foot,
   'mecha-seat': (row, C, ctx) => (row.build.family === 'seated' ? station : seat)(row, C, ctx),
   'mecha-cage': (row, C, ctx) => ({ torso, cab }[row.build.family] ?? cage)(row, C, ctx),
-  'mecha-shoulder': (row, C, ctx) => (row.build.family === 'armoured' ? armouredShoulder : shoulder)(row, C, ctx),
-  'mecha-upperarm': upperarm,
-  'mecha-forearm': forearm,
+  'mecha-shoulder': (row, C, ctx) => (SHOULDERS[row.build.family] ?? shoulder)(row, C, ctx),
+  'mecha-upperarm': (row, C, ctx) => (BEAMS.has(row.build.family) ? HOUSE.upper : upperarm)(row, C, ctx),
+  'mecha-forearm': (row, C, ctx) => (BEAMS.has(row.build.family) ? HOUSE.fore : forearm)(row, C, ctx),
   'mecha-wrist': wrist,
   'mecha-claw': claw,
   'mecha-tool': (row, C, ctx) => TOOL_BUILDERS[row.build.family](row, C, ctx),
-  'mecha-pack': (row, C, ctx) => (row.build.family === 'giant' ? giantPack : pack)(row, C, ctx),
-  // (a ram is the construction shelf's, its barrel a bare steel grey: the hydraulics read apart from the covers)
-  'mecha-ram': (row, C, ctx) => CON_BUILDERS['con-ram'](row, { ...C, paint: tone(C.chrome, -0.42) }, ctx),
+  'mecha-pack': (row, C, ctx) => (PACKS[row.build.family] ?? pack)(row, C, ctx),
+  // (a ram is the construction shelf's, its barrel a bare steel grey: the hydraulics read apart from the covers; an
+  // electric screw actuator a house's)
+  'mecha-ram': (row, C, ctx) => (row.build.family === 'screw'
+    ? HOUSE.screw(row, C, ctx, ramParts(row.dims))
+    : CON_BUILDERS['con-ram'](row, { ...C, paint: tone(C.chrome, -0.42) }, ctx)),
 });

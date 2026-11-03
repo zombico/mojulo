@@ -35,8 +35,8 @@
  * (mecha-shelf/), the registry's realistic build of an all-terrain walker; `pose` beside its word stands it (a stance's
  * name, a stance, or its joints' values), `palette` paints it, `rider` seats the realistic hero in it, and a modular
  * frame's `task` ('demolition', 'trenching'), `tools` ({ r, l }) and `arms` ({ r: 'long' }) fit its arms, and a giant
- * arm pack's `packTask` ('heavyLift', 'disasterResponse') and `packTools` ({ r, l }) its giant arms
- * (mecha-shelf/mecha-figure.js, mecha-tools.js).
+ * arm pack's `packTask` ('heavyLift', 'disasterResponse') and `packTools` ({ r, l }) its giant arms, and `packMaker`
+ * ('forge', 'aero') the design house whose pack it carries (mecha-shelf/mecha-figure.js, mecha-tools.js, mecha-gap-makers.js).
  *
  * Stored manifest: { kind:'vehicle-instance', vehicle?, type | racer | supercar | loft | cycle | construction | mecha, decoration?, pose?, viewBox?, title? }
  * (`vehicle`: the registry row it was asked as, when it was; the renderer reads the build's own keys).
@@ -153,7 +153,7 @@ export async function previewVehicleInstanceHandler(input) {
   } else if (read.instance.mecha) {
     // a legged frame's words beside its word (mecha-shelf/mecha-figure.js): its stance, its palette, its rider seated, a
     // modular frame's task, tools and arms
-    for (const key of ['pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools']) if (input[key] !== undefined) read.instance.mecha = { ...read.instance.mecha, [key]: input[key] };
+    for (const key of ['pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools', 'packMaker']) if (input[key] !== undefined) read.instance.mecha = { ...read.instance.mecha, [key]: input[key] };
     readMechaSpec(read.instance.mecha, 'mint_solid vehicle: mecha');
     pose = undefined;
     for (const key of ['tool', 'carrier', 'height']) if (input[key] !== undefined) throw new Error(`mint_solid vehicle: a ${key} is a site machine's (an excavator: { vehicle: 'excavator', tool: 'breaker' }); this build has none`);

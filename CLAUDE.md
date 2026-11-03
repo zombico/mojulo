@@ -242,7 +242,8 @@ Pointers only; each target carries its own design notes.
   legs' inverse kinematics, `mecha-ik.js`; its laws measured, `mecha-laws.js`; the all-terrain walker its locomotion's
   base, its rider astride; the utility walker on it, its operator seated, two arms; the heavy walker its parts
   drawn larger, a closed cab, its arms modular: the manipulators' ODM, tools, arm kits and tasks, `mecha-tools.js`; the giant arm walker
-  on a more robust frame, a giant arm pack's two giant arms over its cab, their own tools and tasks); review: `scripts/render-mecha.mjs`.
+  on a more robust frame, a giant arm pack's two giant arms over its cab, their own tools and tasks; packs by design house,
+  each a philosophy solved into its pack and arms, `mecha-gap-makers.js`); review: `scripts/render-mecha.mjs`.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
   Boats are on the same shelf (`boat-odm.js`, `boat-parts.js`, `boat-archetypes.js`): a hull drawn from its lines and

@@ -21,11 +21,15 @@
  *     forks, the auger, the vacuum lifter, the magnet, the hook); no other pin moved.
  *   - The giant arm pack (unreleased): the pack, the armoured shoulder, and the giant arms' tools (the hand, the
  *     spreader, the prop, the shear, the vibratory driver, the clamshell) pinned; no other pin moved.
+ *   - The design houses' giant arm packs (unreleased): each house's construction pinned as builder paths (the plated,
+ *     tube, truss and sealed arm beams, the faired, truss and sealed shoulders, the spine, gantry and sealed packs, the
+ *     screw actuator, the gripper), a four-fingered hand, and one house's frame whole (its solved pins and strokes in
+ *     it); the hand's fingers drawn by count left the three-fingered hand's pin where it was; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
-import { MECHA_ARCHETYPES, MECHA_ODM, assembleFrame, resolveMechaPart } from './index.js';
+import { MECHA_ARCHETYPES, MECHA_MAKERS, MECHA_MAKER_IDS, MECHA_ODM, assembleFrame, resolveMechaPart } from './index.js';
 
 const hash = (v) => createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 16);
 // (a builder path is a kind and its family: a seat astride and a platform stood on are two)
@@ -69,10 +73,31 @@ const PINS = {
   'vibro-gw': '98bb4966e6f55be8',
   'clamshell-gw': 'e5101baed53f40a7',
   'hook-hw': 'a1778d396709fe24',
+  'forearm-aero': 'e353e97bf6ce2dcf',
+  'forearm-forge': 'c170c4cb50054138',
+  'forearm-sealed': '5ef6a68bc614fcff',
+  'forearm-truss': '5d4b14b9119ac799',
+  'gap-aero': '82f9b93e47669de6',
+  'gap-sealed': '79f37a17bd90b2fe',
+  'gap-truss': '5f07f36dc4ac6927',
+  'hand-truss': '3cf19c722bff3a27',
+  'ram-shoulder-aero': '95fe768848d67100',
+  'shoulder-aero': '85a300266f3aae0f',
+  'shoulder-sealed': 'a3465f02fb3de0ac',
+  'shoulder-truss': '4b5947e80234ad54',
+  'upperarm-aero': '3f646d1fe874c385',
+  'upperarm-forge': '1a94065a4912ad0d',
+  'upperarm-sealed': '0410b69d31b3d1d2',
+  'upperarm-truss': '8e2f64b16e66ceec',
 };
 const LEFT = 'c9882af91b6cf973';
 const ROD = 'bcfdb3e1621e0b1a';
 const FRAME = '5d7f243552d47f90';
+// (a house's hand of four fingers, and a frame carrying a house's pack: the first house with screw actuators, solved)
+const FOUR = 'eed71d6238d7aa3c';
+const HOUSE = '22d1c303d8f1b5ad';
+const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
+const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');
 
 describe('mecha shelf: characterization', () => {
   it('pins every builder path', () => {
@@ -85,5 +110,10 @@ describe('mecha shelf: characterization', () => {
   });
   it('pins a whole frame at its rest stance', () => {
     expect(hash(assembleFrame(Object.keys(MECHA_ARCHETYPES)[0], { laws: false }).manifest)).toBe(FRAME);
+  });
+  it('pins a four-fingered hand, and a frame carrying a design house\'s pack', () => {
+    expect(hash(resolveMechaPart(fourFingered))).toBe(FOUR);
+    const carrier = Object.keys(MECHA_ARCHETYPES).find((id) => MECHA_ARCHETYPES[id].packMount);
+    expect(hash(assembleFrame(carrier, { packMaker: screwHouse, laws: false }).manifest)).toBe(HOUSE);
   });
 });

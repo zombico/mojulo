@@ -99,7 +99,7 @@ const arm = (S, P = UW_ARM, { prefix = '', on = 'cage.shoulder' } = {}) => {
 };
 const R = leg('R'), L = leg('L');
 // (an arm's poses, its wrist's place as shares of its length: the same pose on a short arm and a long one)
-const ARM_POSES = Object.freeze({
+export const ARM_POSES = Object.freeze({
   rest: Object.freeze({ wrist: Object.freeze([0.28, -0.7]), claw: 20 }),
   carry: Object.freeze({ wrist: Object.freeze([0.58, -0.393]), claw: 90 }),
   raise: Object.freeze({ wrist: Object.freeze([0.514, 0.42]), claw: 120 }),
@@ -372,7 +372,8 @@ export const MECHA_ARCHETYPES = Object.freeze({
       flow: [0, 1],
       reach: [1.6, 3.2],
       lift: [100, 1500],
-      packReach: [2.0, 4.0],
+      // (a reach-first house's long forearm with a shoring prop on it reaches past 4 m)
+      packReach: [2.0, 4.5],
       packLift: [500, 6000],
       mass: 0.1,
       distal: [0, 0.45],

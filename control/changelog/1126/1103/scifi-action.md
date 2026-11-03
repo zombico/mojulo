@@ -142,6 +142,26 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   - heavy rigging (a hook and a hand).
 
   `composeFrame` fits the frame's arms and the pack's together under one key.
+- **Giant arm packs by design house** (`mecha-shelf/mecha-gap-makers.js`, `mecha-house-parts.js`; `packMaker`): a
+  house is a philosophy card, solved into its own pack and giant arms. Four generic houses, none a real maker's:
+  - forge: strength first. Short, deep plated arms, armoured shoulders, hydraulics, a four-fingered hand.
+  - aero: reach first. Slender tube arms, a long forearm, electric screw actuators, faired shoulders on one mast.
+  - truss: service first, built like a crane. Open lattice towers and arms, a parallel gripper.
+  - sealed: protection first, for hazardous sites. Every joint under bellows, closed shells, electric actuators.
+
+  The solver, for each house:
+  - proportions the arm from the card's size, forearm share and section;
+  - places each ram's pins by a fixed search, so the joint turns the whole arc the arm's poses ask. The search keeps
+    within the house's spread off the beam and takes the largest least moment arm;
+  - sizes each actuator by statics at the heave for the house's rated load: a ram's bore at the system pressure, or a
+    screw actuator's rated force;
+  - dresses the parts in the house's construction and livery.
+
+  The house's rows are solved the first time one is read. `composeFrame` swaps the pack, the giant arms' parts and
+  rams, and puts the house's hand in the giant hand's place; a pack task's other tools stay as they are. The laws then
+  hold the frame as built. The houses trade reach for lift, and every house passes every law at every pack task. A
+  screw actuator is rated by its force both ways (`ramForce`). The pack's reach band is widened to 4.5 m for a long
+  forearm with a prop.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
     derived, never stated.
@@ -184,7 +204,8 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   draws it at a stance through the family layer's `mecha` instance (`mecha-figure.js`). `rider: true` seats the
   realistic hero astride it. The rider is solved in the pelvis's frame and carried with its sway
   (`seatRider`).
-- **Review:** `scripts/render-mecha.mjs` (stances × views, `--rider`, `--palette`).
+- **Review:** `scripts/render-mecha.mjs` (stances × views, `--rider`, `--palette`, `--task`, `--tools`, `--arms`,
+  `--pack-task`, `--pack-tools`, `--pack-maker`).
 - **Held:**
   - `mecha-shelf.test.js`: each foot where its stance asks, sole flat, at its heading; every ram within its stroke at
     every stance; a shorter stroke gives a shorter arc; the knees bend backward; the legs mirror; the sway puts the
@@ -201,4 +222,10 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   - `mecha-shelf.test.js`, the giant arm pack: its arms solved as the frame's are; a load weighed where it is held, the
     pack's lift rated apart; a pack task its loadout, a prop reading no lift, a frame with no pack refused; every arm's
     flow summed; the frame and its hardest pack task holding every law.
+  - `mecha-shelf.test.js`, the design houses: each ram's joint turning its arm's whole arc, wider pins for a wider
+    spread; the lift reaching the house's rating unless the frame tips first; a screw rated by its force; reach traded
+    for lift by the forearm's share; the livery on the house's parts only, the operator's colours over it; the house's
+    hand for the giant hand, unknown houses refused; a hydraulic and an electric house holding every law at their own
+    loadout and their hardest pack task. The char pins add each house's builder path, a four-fingered hand and a
+    house's frame whole.
   - The roster's, builds' and preview door's tests.

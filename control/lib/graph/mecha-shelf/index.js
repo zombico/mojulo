@@ -29,8 +29,10 @@ import { MECHA_ARCHETYPES, MECHA_ARCHETYPE_IDS } from './mecha-archetypes.js';
 import { solveStance } from './mecha-ik.js';
 import { MECHA_ARM_KITS, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS } from './mecha-tools.js';
 import { mechaLaws } from './mecha-laws.js';
+import { MECHA_MAKERS, MECHA_MAKER_IDS, makerHand } from './mecha-gap-makers.js';
 
 export { MECHA_ARCHETYPES, MECHA_ARCHETYPE_IDS, MECHA_COLOR_ROLES, MECHA_KINDS, MECHA_ODM, MECHA_PALETTES };
+export { MECHA_MAKERS, MECHA_MAKER_IDS, makerHand } from './mecha-gap-makers.js';
 export { MECHA_ARM_KITS, MECHA_PACK_TASKS, MECHA_PACK_TASK_IDS, MECHA_TASKS, MECHA_TASK_IDS, MECHA_TOOLS, MECHA_TOOL_IDS } from './mecha-tools.js';
 
 const MONOMERS = ['lathes', 'sweeps', 'extrudes', 'lofts'];
@@ -76,18 +78,21 @@ export const frameRow = (id) => archetypeRow(id);
 /**
  * A modular frame fitted for its work → its key: a `task` (mecha-tools.js MECHA_TASKS: a loadout per arm), and the
  * operator's own `tools` ({ r?, l? }: a tool per arm) and `arms` ({ r?, l? }: an arm kit per arm) over it; a frame with a
- * giant arm pack, its `packTask` (MECHA_PACK_TASKS) and `packTools` ({ r?, l? }) for its giant arms. Each arm's
+ * giant arm pack, its `packTask` (MECHA_PACK_TASKS) and `packTools` ({ r?, l? }) for its giant arms, and its `packMaker`
+ * (MECHA_MAKERS: the design house whose pack and giant arms it carries, solved for its house's philosophy; its house's
+ * hand in the giant hand's place). Each arm's
  * tool takes its claw's place on the wrist's coupler, its kit its forearm's; the laws re-read it as built (its mass, its
  * reach to the tool's working point, its lift capped by what its tools hold, its tools' flow). A tool or a kit its mount
  * does not take is refused, naming what it takes.
  */
-export function composeFrame(id, { task, tools, arms, packTask, packTools } = {}) {
-  if ([task, tools, arms, packTask, packTools].every((v) => v === undefined)) return id;
+export function composeFrame(id, { task, tools, arms, packTask, packTools, packMaker } = {}) {
+  if ([task, tools, arms, packTask, packTools, packMaker].every((v) => v === undefined)) return id;
   const base = MECHA_ARCHETYPES[id];
   if (!base) throw new Error(`Unknown mecha archetype '${id}'; expected one of: ${MECHA_ARCHETYPE_IDS.join(', ')}`);
   const M = base.mount, PM = base.packMount;
   if (!M && (task !== undefined || tools !== undefined || arms !== undefined)) throw new Error(`mecha ${base.label}: its arms are its own (only a modular frame takes a task, tools or arms)`);
-  if (!PM && (packTask !== undefined || packTools !== undefined)) throw new Error(`mecha ${base.label}: it carries no giant arm pack (only a frame with one takes a packTask or packTools)`);
+  if (!PM && (packTask !== undefined || packTools !== undefined || packMaker !== undefined)) throw new Error(`mecha ${base.label}: it carries no giant arm pack (only a frame with one takes a packTask, packTools or packMaker)`);
+  if (packMaker !== undefined && !MECHA_MAKERS[packMaker]) throw new Error(`mecha ${base.label}: packMaker '${packMaker}' is one of ${MECHA_MAKER_IDS.join(', ')}`);
   const T = task === undefined ? null : MECHA_TASKS[task], PT = packTask === undefined ? null : MECHA_PACK_TASKS[packTask];
   if (task !== undefined && !T) throw new Error(`mecha ${base.label}: task '${task}' is one of ${Object.keys(MECHA_TASKS).join(', ')}`);
   if (packTask !== undefined && !PT) throw new Error(`mecha ${base.label}: packTask '${packTask}' is one of ${Object.keys(MECHA_PACK_TASKS).join(', ')}`);
@@ -107,17 +112,25 @@ export function composeFrame(id, { task, tools, arms, packTask, packTools } = {}
   const loadout = M ? { r: side('r'), l: side('l') } : null, packLoadout = PM ? { r: packSide('r'), l: packSide('l') } : null;
   const own = (S) => !M || (loadout[S].tool === M.loadout[S].tool && loadout[S].arm === M.loadout[S].arm);
   const packOwn = (S) => !PM || packLoadout[S].tool === PM.loadout[S].tool;
-  if (['r', 'l'].every((S) => own(S) && packOwn(S))) return id;
+  if (packMaker === undefined && ['r', 'l'].every((S) => own(S) && packOwn(S))) return id;
   const keys = [];
   if (M && !(own('r') && own('l'))) keys.push(['r', 'l'].map((S) => `${S}:${loadout[S].tool}${loadout[S].arm !== 'standard' ? `/${loadout[S].arm}` : ''}`).join(','));
   if (PM && !(packOwn('r') && packOwn('l'))) keys.push(`pack:${['r', 'l'].map((S) => `${S}:${packLoadout[S].tool}`).join(',')}`);
+  if (packMaker !== undefined) keys.push(`house:${packMaker}`);
   const key = `${id}+${keys.join('+')}`;
   if (!COMPOSED.has(key)) {
+    // (a house's pack: its pack and its giant arms' parts and rams in the frame's, its hand for the giant hand)
+    const house = packMaker === undefined ? null : Object.fromEntries(['r', 'l'].map((S) => {
+      const g = base.packArms[S], J = g.joints, ram = (j) => base.joints[J[j]].ram;
+      return [S, { [g.shoulder]: `shoulder-${packMaker}`, [g.upper]: `upperarm-${packMaker}`, [g.fore]: `forearm-${packMaker}`, [g.wrist]: `wrist-${packMaker}`, [ram('pitch')]: `ram-shoulder-${packMaker}`, [ram('elbow')]: `ram-elbow-${packMaker}` }];
+    }));
     const swap = (e) => {
       const S = e.side, arm = base.arms?.[S], giant = base.packArms?.[S];
       if (arm && loadout && e.id === arm.claw) return Object.freeze({ ...e, sku: MECHA_TOOLS[loadout[S].tool].sku });
       if (arm && loadout && e.id === arm.fore) return Object.freeze({ ...e, sku: MECHA_ARM_KITS[loadout[S].arm].fore });
-      if (giant && packLoadout && e.id === giant.claw) return Object.freeze({ ...e, sku: MECHA_TOOLS[packLoadout[S].tool].sku });
+      if (giant && packLoadout && e.id === giant.claw) return Object.freeze({ ...e, sku: house && packLoadout[S].tool === 'giantHand' ? `hand-${packMaker}` : MECHA_TOOLS[packLoadout[S].tool].sku });
+      if (house && e.id === 'pack') return Object.freeze({ ...e, sku: `gap-${packMaker}` });
+      if (house && S && house[S][e.id]) return Object.freeze({ ...e, sku: house[S][e.id] });
       return e;
     };
     const layout = Object.freeze(base.layout.map(swap)), bom = {};
@@ -125,11 +138,12 @@ export function composeFrame(id, { task, tools, arms, packTask, packTools } = {}
     const words = [
       ...(M && !(own('r') && own('l')) ? [task !== undefined ? MECHA_TASKS[task].label.split(':')[0] : ['r', 'l'].map((S) => MECHA_TOOLS[loadout[S].tool].label).join(' and ')] : []),
       ...(PM && !(packOwn('r') && packOwn('l')) ? [packTask !== undefined ? MECHA_PACK_TASKS[packTask].label.split(':')[0] : `${['r', 'l'].map((S) => MECHA_TOOLS[packLoadout[S].tool].label).join(' and ')} on its giant arms`] : []),
+      ...(packMaker !== undefined ? [`its giant arm pack the ${MECHA_MAKERS[packMaker].label}'s`] : []),
     ];
     COMPOSED.set(key, Object.freeze({
       ...base, label: `${base.label}, ${words.join(', ')}`, layout, bom: Object.freeze(bom),
       ...(loadout ? { loadout: Object.freeze(loadout) } : {}), ...(packLoadout ? { packLoadout: Object.freeze(packLoadout) } : {}),
-      ...(task !== undefined ? { task } : {}), ...(packTask !== undefined ? { packTask } : {}),
+      ...(task !== undefined ? { task } : {}), ...(packTask !== undefined ? { packTask } : {}), ...(packMaker !== undefined ? { packMaker } : {}),
     }));
   }
   return key;
@@ -138,12 +152,16 @@ export function composeFrame(id, { task, tools, arms, packTask, packTools } = {}
  *  arms it is on ('arms', or a giant arm pack's 'packArms'). */
 export const toolOf = (archetype, S, set = 'arms') => {
   const a = archetypeRow(archetype), L = set === 'packArms' ? a.packLoadout ?? a.packMount?.loadout : a.loadout ?? a.mount?.loadout;
-  return L ? MECHA_TOOLS[L[S].tool] : null;
+  if (!L) return null;
+  // (a house's pack takes its house's own hand for the giant hand)
+  return set === 'packArms' && a.packMaker && L[S].tool === 'giantHand' ? makerHand(a.packMaker) : MECHA_TOOLS[L[S].tool];
 };
 /** The frame a lone part is previewed on: the first whose layout carries it, or whose mount takes it. */
 const homeOf = (sku) => MECHA_ARCHETYPE_IDS.find((id) => MECHA_ARCHETYPES[id].layout.some((e) => e.sku === sku))
   // (a tool or an arm kit in no frame's own layout: the first frame whose mount takes it)
   ?? MECHA_ARCHETYPE_IDS.find((id) => { const { mount: M, packMount: PM } = MECHA_ARCHETYPES[id]; return (M && (M.tools.some((t) => MECHA_TOOLS[t].sku === sku) || M.arms.some((a) => MECHA_ARM_KITS[a].fore === sku))) || (PM && PM.tools.some((t) => MECHA_TOOLS[t].sku === sku)); })
+  // (a design house's part: the first frame that carries a giant arm pack)
+  ?? (MECHA_ODM[sku]?.build.maker ? MECHA_ARCHETYPE_IDS.find((id) => MECHA_ARCHETYPES[id].packMount) : null)
   ?? null;
 
 // a part's geometry for its row, its side and its colours is pose-free: built once a process (its hardpoints, its outline)
@@ -179,7 +197,9 @@ export function resolveMechaPart(sku, { archetype, side, part, palette, colors =
   const row = partRow(sku), frame = archetype ?? homeOf(sku);
   if (!frame) throw new Error(`mecha part '${sku}' is on no frame yet: name an archetype to build it for`);
   if (side !== undefined && side !== 'r' && side !== 'l') throw new Error(`mecha part '${sku}': a side is 'r' or 'l'`);
-  const { id: paletteId, colors: C } = resolveMechaPalette(palette, colors, archetypeRow(frame).palette);
+  const { id: paletteId, colors: P } = resolveMechaPalette(palette, colors, archetypeRow(frame).palette);
+  // (a design house's part in its house's livery over the frame's palette; the operator's own colours over both)
+  const C = row.build.livery ? { ...P, ...row.build.livery, ...Object.fromEntries(Object.entries(colors || {}).map(([k, v]) => [k, v.toLowerCase()])) } : P;
   const geom = geomOf(sku, side, C, part);
   const monomers = Object.fromEntries(MONOMERS.filter((k) => geom[k] && geom[k].length).map((k) => [k, geom[k]]));
   return {
@@ -338,8 +358,8 @@ export function riderPoints(archetype, pose) {
  * at the archetype's own stances: mecha-laws.js; `laws: false` skips them, for a frame drawn as scenery), the measures
  * as it stands, the rider's points, the BOM.
  */
-export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish = true, title, laws: read = true, task, tools, arms, packTask, packTools } = {}) {
-  const archetype = composeFrame(archetypeIn, { task, tools, arms, packTask, packTools });
+export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish = true, title, laws: read = true, task, tools, arms, packTask, packTools, packMaker } = {}) {
+  const archetype = composeFrame(archetypeIn, { task, tools, arms, packTask, packTools, packMaker });
   const ctx = mechaCtx(archetype), arch = ctx.arch, P = posedFrame(archetype, pose);
   const chain = solveChain(arch, P.joints, ctx), root = P.root;
   const src = (e, part) => resolveMechaPart(e.sku, { archetype, side: e.side, part, palette, colors, finish });
@@ -362,6 +382,7 @@ export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish 
       ...(archetype !== archetypeIn ? { composed: archetype } : {}),
       ...(arch.loadout ?? arch.mount?.loadout ? { loadout: arch.loadout ?? arch.mount.loadout } : {}),
       ...(arch.packLoadout ?? arch.packMount?.loadout ? { packLoadout: arch.packLoadout ?? arch.packMount.loadout } : {}),
+      ...(arch.packMaker ? { packMaker: arch.packMaker } : {}),
       label: arch.label,
       classOf: arch.classOf,
       pose: typeof pose === 'string' ? pose : pose ? P.stance : arch.rest,
