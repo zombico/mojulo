@@ -153,9 +153,9 @@ describe('the registry names the cards and every door draws them', () => {
     expect(loftFigure({ car: BOOT, seed: 2, light: 'form' }).form.materials).toHaveProperty('chrome');
     expect(() => loftInstanceFaces({ car: BOOT, brief: 'rusty' })).toThrow(/its look is the car's own/);
   });
-  it('a parked car: a row the shelf builds alone stands as its card; a row that parked its loft keeps it unless it names a car', () => {
-    const only = Object.keys(VEHICLES).find((k) => handlesOf(k).car && !handlesOf(k).physics?.some((c) => PHYSICS[c] && ['compact', 'midsize', 'crossover'].includes(c)) && VEHICLES[k].uses.includes('parked'));
-    const old = rowOfHandle('physics', 'midsize');
+  it('a parked car: a car row stands as its card; a row the highway fleet lofts keeps its plain loft unless it names a car', () => {
+    const only = Object.keys(VEHICLES).find((k) => handlesOf(k).car && !handlesOf(k).fleet && VEHICLES[k].uses.includes('parked'));
+    const old = Object.keys(VEHICLES).find((k) => handlesOf(k).car && handlesOf(k).fleet && VEHICLES[k].uses.includes('parked'));
     const [a, b, c] = readParked([{ vehicle: only, at: [0, 0, 0] }, { vehicle: old, at: [4, 0, 0] }, { vehicle: old, car: handlesOf(old).car[0], at: [8, 0, 0] }]);
     expect(a.car).toBe(handlesOf(only).car[0]);
     expect(b.car).toBeUndefined();

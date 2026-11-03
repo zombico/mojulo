@@ -11,6 +11,9 @@ ODM's way (an archetype, a language, options, cards), for the cars people get ab
     roadster), `muscle` (a V8 muscle coupe);
   - the tall ones: `minivan` (a people carrier), `midSuv` (a midsize three-row SUV), `largeSuv` (a full-size
     body-on-frame SUV), `offroader` (a short boxy off-roader).
+
+  The vehicle sheet names them (`car-designer/channels.js`, their traits in `facets.js`), so a sheet's plain loft of
+  one is its nearest body family's. Their rows draw their cards first.
 - **The shelf** (`car-shelf/`). Each slot's words are in its own file; the language gives a slot's word, the trim
   overrides it, the card overrides that, and the composition's own parts override everything.
   - **Body styles** (`car-bodies.js`): sedan, hatchback, liftback, wagon, coupe, fastback, convertible, roadster,
@@ -76,9 +79,10 @@ ODM's way (an archetype, a language, options, cards), for the cars people get ab
   - **The studio grid** (`mint_solid` vehicle): a row's word draws its card, and `loft: { car }` beside the word
     composes another. A composition with no card is any car row's.
   - **A quick ride at the realistic tier** drives the row's card (`ride.js` `{ kind: 'loft', class, car }`).
-  - **A level's parked vehicles** take `car` (`parked.js`). A row the shelf alone builds stands as its card.
-  - **Kept as they were:** recipes minted before keep their bytes; a parked sedan, compact or crossover keeps its plain
-    loft unless it names a car. The e2e pin of the realistic sedan's ride now expects its card.
+  - **A level's parked vehicles** take `car` (`parked.js`). A car row stands as its card; a row the highway fleet lofts
+    (the sedan, the compact, the crossover) keeps its plain loft unless it names a car.
+  - **Kept as they were:** recipes minted before keep their bytes. The e2e pin of the realistic sedan's ride now expects
+    its card. `parked.test.js` picks its concept-only row without a card.
 - **Docs:** `docs/car-shelf.md`, the `vehicle` solid card, CLAUDE.md's pointer.
 - **Held:**
   - `car-shelf.test.js`, one case a procedure chosen in code from the library:

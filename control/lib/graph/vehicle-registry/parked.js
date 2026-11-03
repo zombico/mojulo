@@ -19,8 +19,8 @@
  *                                   collider is its body's box, not its rotor's disc. An airside body takes `reach` (its lift,
  *                                   belt, platform or cradle, metres: road-airside.js). A cycle takes its look; a site machine its
  *                                   pose, tool, height and palette (construction-shelf/con-figure.js); a personal or family car
- *                                   its `car` (the car shelf's card or composition, car-shelf/car-library.js: a row the shelf
- *                                   builds and no plain loft did stands as its own card)
+ *                                   its `car` (the car shelf's card or composition, car-shelf/car-library.js: a car row stands
+ *                                   as its own card, but one the highway fleet lofts keeps its class's plain loft)
  *   parkIn(room, words, { seed?, livery?, wear? }) → `parked` entries side by side across a room, noses to its +x
  *                                   (a hangar's doors), as many as it holds; a craft folded, in the air's nearest camo
  *   parkable(word, at?)          → { vehicle, class, cycle?, construction? } or { vehicle, craft }, or throws naming why
@@ -78,11 +78,12 @@ export function parkable(word, at = 'parked') {
   // (a craft off the shelf: a helicopter, an aircraft, a drone, standing on its gear)
   const craft = (h.craft ?? []).find((k) => CRAFT_ARCHETYPES[k]?.realm === 'earth');
   if (craft && hit.row.uses.includes('parked')) return { vehicle: hit.id, craft };
+  // (a personal or family car stands as its row's own card, car-shelf/; a row the highway fleet lofts (the sedan, the
+  // compact, the crossover) parked its class's plain loft before, and keeps it unless its entry names a `car`)
+  const card = (h.car ?? [])[0];
+  if (card && !h.fleet && hit.row.uses.includes('parked')) return { vehicle: hit.id, class: CAR_CARDS[card].class, car: card };
   const cls = (h.physics ?? []).find(loftable);
   if (cls && hit.row.uses.includes('parked')) return { vehicle: hit.id, class: cls };
-  // (a personal or family car the car shelf builds and no plain loft did: its row's own card, car-shelf/; a row that
-  // parked its class's loft before keeps it, unless its entry names a `car`)
-  const card = (h.car ?? [])[0];
   if (card && hit.row.uses.includes('parked')) return { vehicle: hit.id, class: CAR_CARDS[card].class, car: card };
   // (a machine ridden astride: its cycle shelf machine, standing on its stand; one with none is held up by hand)
   const cycle = (h.cycle ?? [])[0];
