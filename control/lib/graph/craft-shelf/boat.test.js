@@ -8,7 +8,8 @@
 // outboard. A motor well (the notch, the splashwell, the motor tilting into it) and a T-top over the helm. A cuddy
 // cabin: its cabin top, a windscreen that fits the hull with its walk-through, the cabin's door, a split dash and bucket
 // seats off the centreline. A military boat: twin outboards mirrored and counter-rotating, its guns on their points and
-// trained, never fired, its radar arch, its row in the field's roles. In the military surface: a look card any boat wears,
+// trained, never fired, its radar arch, its row in the field's roles. A riverine patrol boat: its waterjets paired, its
+// pilothouse and its roof's gun, its tubs open aft. In the military surface: a look card any boat wears,
 // its number or registration on its bows, its wear. The cases are chosen from the shelf in code.
 import { describe, it, expect } from 'vitest';
 import { assembleCraft, resolveCraftPart, CRAFT_ODM, CRAFT_ARCHETYPES, CRAFT_ROLES, craftRoleAnalogues } from './index.js';
@@ -396,6 +397,42 @@ describe('a military boat', () => {
     expect(hit[1].role).toBe('scout');
     expect(hit[1].uses).toEqual(expect.arrayContaining(['crewed', 'driven', 'parked']));
     expect(CRAFT_ROLES[A[MB].role].realms).toEqual(['water']);
+  });
+});
+
+describe('a riverine patrol boat', () => {
+  const RB = Object.keys(A).find((k) => A[k].realm === 'water' && A[k].layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'boat-jet'));
+  const { manifest, readout } = assembleCraft(RB), item = (id) => manifest.items.find((i) => i.id === id), hull = manifest.items[0], HR = CRAFT_ODM[hull.source.garage.sku];
+  const jet = A[RB].layout.find((e) => CRAFT_ODM[e.sku].kind === 'boat-jet');
+  const nozzleX = (m, id) => { const i = m.items.find((x) => x.id === id), p = i.source.garage.hardpoints.nozzle, fx = (i.flip || '').includes('x') ? -1 : 1; return i.at[0] + fx * p[0]; };
+  it('its waterjets a mirrored pair low on the transom, their nozzles under the waterline, steering together; its buckets drop', () => {
+    const r = `${jet.id}-r`, l = `${jet.id}-l`;
+    expect(item(r).at[0]).toBeCloseTo(HR.build.jets.spacing / 2, 3);
+    expect(item(l).at[0]).toBeCloseTo(-HR.build.jets.spacing / 2, 3);
+    for (const id of [r, l]) expect(item(id).at[2] + item(id).source.garage.hardpoints.nozzle[2]).toBeLessThan(readout.afloat.waterline);
+    const turned = assembleCraft(RB, { pose: { yaw: 1 } }).manifest;
+    const dr = nozzleX(turned, r) - nozzleX(manifest, r), dl = nozzleX(turned, l) - nozzleX(manifest, l);
+    expect(dr).toBeCloseTo(dl, 3);
+    expect(Math.abs(dr)).toBeGreaterThan(0.05);
+    const down = resolveCraftPart(jet.sku, { seat: 'mount', pose: { reverse: 1 } });
+    expect(down.garage.joints.find((j) => j.name === 'bucket').angle).toBe(70);
+    expect(down.extrudes.find((e) => e.id === 'bucket')).not.toEqual(resolveCraftPart(jet.sku, { seat: 'mount' }).extrudes.find((e) => e.id === 'bucket'));
+  });
+  it('its pilothouse on the sole inside the hull, a gun on its roof\'s ring', () => {
+    const ph = manifest.items.find((i) => i.source.garage.kind === 'boat-cabin'), H = hullLines(HR), s = (ph.at[1] - hull.at[1] + H.L / 2) / H.L;
+    expect(ph.at[2] - hull.at[2]).toBeCloseTo(HR.build.sole, 2);
+    expect(CRAFT_ODM[ph.source.garage.sku].dims.width / 2).toBeLessThan(H.at(s).sheerHalf - HR.build.skin - HR.build.liner);
+    const roof = A[RB].layout.find((e) => e.at === `${ph.id}.roofGun`), g = item(roof.id);
+    expect(g.at[2]).toBeCloseTo(ph.at[2] + ph.source.garage.hardpoints.roofGun[2], 2);
+  });
+  it('its tubs armour round their guns, open aft for the gunner', () => {
+    const e = A[RB].layout.find((x) => CRAFT_ODM[x.sku].build.family === 'tub'), src = resolveCraftPart(e.sku, { seat: 'mount' }), T = CRAFT_ODM[e.sku].build.tub;
+    const plates = src.extrudes.filter((x) => /^tub_\d/.test(x.id));
+    expect(plates.length).toBe(T.sides - 1);
+    const mids = lowerObjectFaces({ ...src, lathes: [], sweeps: [], extrudes: plates }).flatMap((f) => f.corners);
+    // (nothing of the ring straight aft of the post, where the gunner stands)
+    expect(mids.filter((c) => c[1] < -T.radius * 0.8 && Math.abs(c[0]) < T.radius * 0.25)).toEqual([]);
+    expect(Math.max(...mids.map((c) => Math.hypot(c[0], c[1])))).toBeLessThan(T.radius + 0.05);
   });
 });
 

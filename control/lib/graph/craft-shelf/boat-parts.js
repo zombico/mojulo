@@ -414,6 +414,8 @@ function buildHull(row, C, opts = {}) {
   }
   // (twin motors: the starboard one's point `spacing` apart from its mirror, for a layout entry paired across the boat)
   if (b.motors) hardpoints.motorPair = r3v([b.motors.spacing / 2, hardpoints.motor[1], hardpoints.motor[2]]);
+  // (twin waterjets: the starboard one's nozzle centre on the transom's face at its height `z`, a pair across the boat)
+  if (b.jets) hardpoints.jetPair = r3v([b.jets.spacing / 2, -L / 2 + (H.zT - b.jets.z) * H.tanR, b.jets.z]);
   // (a deck's top at s: the sheer less the deck's thickness)
   const deckAt = (s) => H.at(s).sheer - (b.deck?.thickness ?? 0);
   // a cuddy's cabin top on the foredeck: lofted bow-ward, its sides `inset` from the sheer and leaning in, its top

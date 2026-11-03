@@ -42,3 +42,21 @@ Every weapon is modelled, never fired.
   - Held: a card dresses any boat (the naval one haze grey and darkened, the pleasure one its own and lit); the naval
     number on both bows on the collar's tube, the pleasure registration against the paint; wear down the sides and
     chips at the bow; nothing laid when nothing is asked. The aircraft's and drones' marks and wear are unchanged.
+- **The riverine patrol boat** (`riverinePatrol`): a 10 m welded aluminium deep V in olive drab, twin waterjets, an
+  armoured pilothouse, three guns, in a new `patrol` boat role; the registry's `riverine-patrol-boat` row (patrol boat,
+  gunboat, river gunboat …) in the field's `patrol` role, crewed and fought from, parked.
+  - **`boat-jet`** (`boat-mil.js`): a waterjet through the transom: its flange, the pump's bowl, the nozzle steering
+    about the vertical (`pose.yaw`), its rams, the reverse bucket dropping over the nozzle (`pose.reverse`), joints
+    both. On the hull's `jets: { spacing, z }` point, low on the transom's face, a pair mirrored and steering together.
+    Its mass is its diesel's too, inside the hull.
+  - **`boat-cabin`'s `pilothouse`:** faceted armour in the field vehicles' language (upright to the shoulder, leaning
+    in above it, the seams along its facets), its front raked to three armoured panes, slits along its sides, a door
+    each side, a searchlight, a mast with its radar, light and whips, and a gun ring on its roof whose point
+    (`roofGun`) a layout stands a mount on.
+  - **`boat-mount`'s `tub`:** the gun inside a faceted armour tub, its plates lapped, open aft for its gunner; a mount
+    may carry a `shield` that trains with it (the roof's).
+  - It floats 10.7 t at a 72 cm draft with its sole above the waterline and 54 cm of freeboard; the military surface
+    (a look, marks, wear) dresses it as it does any boat.
+  - Held: the jets paired, under the waterline and steering together, their buckets dropping; the pilothouse on the
+    sole inside the hull and a gun on its ring; the tubs open aft. The new builder paths (the waterjet, the pilothouse,
+    the tub) are pinned, and no existing pin moved.

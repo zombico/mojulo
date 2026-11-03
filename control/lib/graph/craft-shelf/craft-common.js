@@ -43,6 +43,8 @@ export const CRAFT_PALETTES = {
   rhibMilitary: { paint: '#545b61', trim: '#2a2d30', glass: '#1c2329', rubber: '#17181a', chrome: '#80878d', light: '#e94b3c' },
   // a naval boat's haze grey, its fabric and trim a darker grey, smoked glass (the naval look's: boat-looks.js)
   navalHaze: { paint: '#8f969c', trim: '#5b6268', glass: '#28313a', rubber: '#1c1d1f', chrome: '#8a9197', light: '#ff8a3c' },
+  // a riverine patrol boat's olive drab, its stripe and fittings a darker olive, dull aluminium
+  riverineOlive: { paint: '#56604a', trim: '#363c2f', glass: '#26302c', rubber: '#18191a', chrome: '#80867a', light: '#ff8a3c' },
   // a racer's bare carbon, aluminium standoffs, bright props (its 'rubber': the shelf's role for the props)
   fpvCarbon: { paint: '#2a2c2f', trim: '#1b1c1e', glass: '#22303a', rubber: '#e8642a', chrome: '#a8adb2', light: '#7dff6a' },
   // an enterprise drone's dark grey, rugged

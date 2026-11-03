@@ -20,6 +20,7 @@ export const BOAT_ROLES = {
   tender: { label: 'tender', mission: 'crew and stores between a boat at anchor and the shore: light, stable, hard to sink', realms: ['water'] },
   runabout: { label: 'runabout', mission: 'a day on the water for a family or a fishing party: quick onto the plane, dry enough offshore', realms: ['water'] },
   raider: { label: 'raiding craft', mission: 'a small team in and out fast, armed and low on the water: a military RHIB', realms: ['water'] },
+  patrol: { label: 'patrol boat', mission: 'keep a river, a coast or a harbour: armoured, armed, on station for hours', realms: ['water'] },
 };
 
 export const BOAT_ARCHETYPES = {
@@ -113,6 +114,20 @@ export const BOAT_ARCHETYPES = {
       { id: 'arch', sku: 'arch-radar-rhib', at: 'hull.arch' },
       { id: 'gunAft', sku: 'mount-mg-pedestal', at: 'hull.gunAft', yaw: 180 },
       { id: 'gunBow', sku: 'mount-mg-deck', at: 'hull.gunBow' },
+    ],
+  },
+  riverinePatrol: {
+    realm: 'water', role: 'patrol', palette: 'riverineOlive', class: 'riverine patrol boat', label: '10 m riverine patrol boat', classOf: '10 m riverine patrol boat class (twin waterjets, its guns modelled, never fired)',
+    payload: 1100,
+    reference: { span: 3.2, length: 10.8, height: 5.1, mtow: 10710, draft: 0.72 },
+    bom: { 'boat-hull': 1, 'boat-jet': 2, 'boat-cabin': 1, 'boat-mount': 3 },
+    layout: [
+      { id: 'hull', sku: 'hull-riverine-10' },
+      { id: 'jet', sku: 'jet-waterjet-350', at: 'hull.jetPair', pair: true },
+      { id: 'pilothouse', sku: 'pilothouse-riverine', at: 'hull.pilothouse' },
+      { id: 'gunRoof', sku: 'mount-mg-ring', at: 'pilothouse.roofGun', yaw: 180 },
+      { id: 'gunBow', sku: 'mount-mg-tub', at: 'hull.gunBow' },
+      { id: 'gunAft', sku: 'mount-mg-tub', at: 'hull.gunAft', yaw: 180 },
     ],
   },
 };

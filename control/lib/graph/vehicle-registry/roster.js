@@ -231,6 +231,8 @@ export const VEHICLES = {
   // (the military boats: the field's roles on the water, crewed and fought from as the field's vehicles are)
   'combat-rhib': row('combat RHIB', ['military rhib', 'military rib', 'combat rib', 'assault boat', 'raiding craft', 'special forces boat', 'commando boat'], 'water', 'scout', M, FIGHT.concat('parked'),
     { craft: 'combatRhib', tech: 'boat' }),
+  'riverine-patrol-boat': row('riverine patrol boat', ['patrol boat', 'river patrol boat', 'riverine boat', 'gunboat', 'river gunboat', 'armoured patrol boat', 'armored patrol boat'], 'water', 'patrol', M, FIGHT.concat('parked'),
+    { craft: 'riverinePatrol', tech: 'boat' }),
   ship: row('ship', ['steamship', 'ferry', 'freighter', 'warship', 'galley', 'longship'], 'water', 'transport', ['myth', 'modern'], ['driven', 'watched', 'crewed'],
     { tech: 'ship' }),
   'sailing-ship': row('sailing ship', ['galleon', 'frigate', 'schooner', 'clipper', 'sloop', 'tall ship', 'junk', 'dhow'], 'water', 'transport', ['rustic', 'myth'], ['driven', 'watched', 'crewed'],

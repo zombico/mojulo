@@ -34,6 +34,12 @@
  *                  machine gun on its cradle, its ammunition can; it trains (`pose.train`) and elevates (`pose.elevate`),
  *                  modelled, never fired. A layout's `yaw` sets where it points at rest (an aft gun's 180). Points: `mount`,
  *                  `grip` (where its gunner's hands are)
+ *   boat-jet       a waterjet drive (boat-mil.js) on a hull's `jetPair` point (the hull's `jets: { spacing, z }`): its
+ *                  nozzle steers (`pose.yaw`), its reverse bucket drops (`pose.reverse`), a pair mirrored and steering
+ *                  together. Its mass its engine's too, inside the hull. Points: `mount`, `nozzle`
+ *   boat-cabin     a cabin on the sole (boat-mil.js): an armoured `pilothouse`, faceted, its front raked to its windows
+ *                  (`shoulder`, `lean`, `rake`, `front`), its gun `ring` and `mast` on its roof. Points: `mount`,
+ *                  `roofGun` (where a mount stands on its ring)
  *   boat-arch      a radar arch on the sole across the cockpit (boat-mil.js): A-framed legs, the crossbar, the radar's
  *                  dome, an all-round light, a light bar, whip antennas. Points: `mount`, `top`
  *   boat-top       a top over the helm standing on the console's point (boat-helm.js): its legs (`legs`: their feet's
@@ -69,6 +75,8 @@ export const BOAT_KINDS = Object.freeze({
   'boat-top': 'a top over a boat\'s helm: a T-top, its legs, hardtop, rod holders and lights',
   'boat-mount': 'a weapon on its mount on a boat\'s deck or sole: a pintle-mounted machine gun (modelled, never fired)',
   'boat-arch': 'a radar arch over a boat\'s cockpit: its legs, crossbar, radar dome, lights and antennas',
+  'boat-jet': 'a waterjet drive through a boat\'s transom: its pump, its steering nozzle, its reverse bucket',
+  'boat-cabin': 'a cabin on a boat\'s deck: an armoured pilothouse, its windows, doors, mast and gun ring',
 });
 
 export const BOAT_ODM = {
@@ -274,6 +282,35 @@ export const BOAT_ODM = {
       fittings: { bowEye: 0.5, drain: true, transomEyes: 0.6 },
     },
   },
+  // ===== a 10 m riverine patrol boat: an aluminium deep V, a full transom for its waterjets ======
+  'hull-riverine-10': {
+    kind: 'boat-hull', realm: 'water', label: '10 m riverine patrol hull', classOf: '10 m riverine patrol boat class (twin waterjets)',
+    aliases: ['riverine hull', 'patrol boat hull', 'river patrol hull'],
+    // (its depth amidships, keel to sheer)
+    dims: { length: 10.0, beam: 3.15, depth: 1.3 }, mass: 5200, mount: 'keel',
+    perf: { persons: 14, load: 1800, maxPower: 700 },
+    build: {
+      family: 'vee', bow: 'stem',
+      lines: {
+        keel: [[0, 0], [0.55, 0], [0.78, 0.12], [0.92, 0.42], [1, 0.95]],
+        sheer: [[0, 1.25], [0.5, 1.3], [0.8, 1.42], [1, 1.6]],
+        sheerHalf: [[0, 1.45], [0.4, 1.56], [0.72, 1.4], [0.9, 0.85], [1, 0]],
+        chine: [[0, 0.42], [0.5, 0.45], [0.8, 0.6], [0.93, 0.85], [1, 1.15]],
+        chineHalf: [[0, 1.3], [0.4, 1.38], [0.72, 1.18], [0.9, 0.6], [1, 0]],
+      },
+      // (welded aluminium, painted inside and out; a self-bailing sole over its waterline, a raised foredeck)
+      tint: { liner: 'paint' },
+      skin: 0.016, liner: 0.014, flare: 0.03, stations: { mid: 0.016, bow: 0.008 },
+      transom: { rake: 4, thickness: 0.08 },
+      sole: 0.82, deck: { from: 0.8, thickness: 0.22 },
+      gunwale: 0.05, keelStrip: 0,
+      strakes: { at: [0.33, 0.66], from: 0.15, to: 0.88, radius: 0.018 },
+      stripe: { at: 0.6, radius: 0.016, tint: 'trim' },
+      jets: { spacing: 1.1, z: 0.32 },
+      points: { pilothouse: 0.5, gunBow: [0.86, 0, 'deck'], gunAft: 0.12 },
+      fittings: { bowEye: 0.85, cleats: 0.05, transomEyes: 1.05, navLights: { pole: false } },
+    },
+  },
   // ===== a 20 hp tiller outboard, short shaft ==================================================
   'outboard-20-tiller': {
     kind: 'boat-outboard', realm: 'water', label: '20 hp tiller outboard, short shaft', classOf: '20 hp four-stroke tiller outboard class',
@@ -430,6 +467,37 @@ export const BOAT_ODM = {
     aliases: ['radar arch', 'a-frame arch', 'radar mast'],
     dims: { width: 1.62, length: 0.6, height: 2.3 }, mass: 62, mount: 'sole',
     build: { family: 'radar', height: 1.95, foot: 0.3, radius: 0.04 },
+  },
+  // ===== a waterjet drive =====================================================================
+  'jet-waterjet-350': {
+    kind: 'boat-jet', realm: 'water', label: 'waterjet drive, 350 mm', classOf: '350 mm waterjet class (its diesel inboard)',
+    aliases: ['waterjet', 'water jet', 'jet drive', 'pump jet'],
+    dims: { length: 0.8, width: 0.62, height: 0.62 }, mass: 1150, mount: 'transom',
+    perf: { power: 330 },
+    build: { family: 'jet', bowl: 0.24, length: 0.78, steer: 30 },
+  },
+  // ===== an armoured pilothouse ===============================================================
+  'pilothouse-riverine': {
+    kind: 'boat-cabin', realm: 'water', label: 'armoured pilothouse', classOf: '10 m riverine patrol boat class',
+    aliases: ['pilothouse', 'wheelhouse', 'armoured cabin', 'armored pilothouse'],
+    dims: { width: 2.2, length: 2.6, height: 2.2 }, mass: 1500, mount: 'sole',
+    build: {
+      family: 'pilothouse', height: 1.95, shoulder: 0.5, lean: 0.24, rake: 0.6, front: 0.7, mast: 1.1,
+      ring: { at: 0.25, radius: 0.42, height: 0.12 },
+    },
+  },
+  // ===== a machine gun in a tub, and one shielded on a roof's ring =============================
+  'mount-mg-tub': {
+    kind: 'boat-mount', realm: 'water', label: 'machine gun in an armoured tub', classOf: 'generic medium machine gun class (modelled, never fired)',
+    aliases: ['gun tub', 'tub gun', 'armoured gun tub'],
+    dims: { width: 1.14, length: 1.16, height: 1.2 }, mass: 260, mount: 'deck',
+    build: { family: 'tub', post: 0.95, elevation: 30, tub: { radius: 0.56, height: 0.82, sides: 8 } },
+  },
+  'mount-mg-ring': {
+    kind: 'boat-mount', realm: 'water', label: 'shielded machine gun on a ring', classOf: 'generic medium machine gun class (modelled, never fired)',
+    aliases: ['ring gun', 'roof gun', 'shielded gun'],
+    dims: { width: 0.6, length: 1.16, height: 0.85 }, mass: 90, mount: 'ring',
+    build: { family: 'pintle', post: 0.4, elevation: 30, shield: { width: 0.6, height: 0.4 } },
   },
   // ===== a cooler seat ========================================================================
   'seat-cooler-120': {
