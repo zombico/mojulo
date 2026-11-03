@@ -23,3 +23,27 @@ Its looks are cards of paint only, and every look lays the same map:
 - **night:** a star chart with glowing trails.
 
 The world bible links it, and the next-moves card names it. The atlas is deterministic, from the world's seed alone.
+
+**Depictions: the same map as different kinds of map.** The atlas page now draws a world's layout as a kind of map,
+each kind with its own looks (`atlas-html.js` is the page; each depiction is its own module):
+- **illustrated** (`atlas-illustrated.js`): the drawn map above, in painted, ink or night.
+- **tactical** (`atlas-tactical.js`): a modern operations map, in three looks:
+  - **ops:** a printed map, brown contours on white, blue water and grid, green woods, red roads, the control
+    measures in black;
+  - **nvg:** night-vision phosphor with a scan;
+  - **command:** a dark command display, its corner brackets, amber roads, cyan friendly, the objective in red.
+
+The tactical depiction draws:
+- **Relief:** read off the land as a height field (the coast, the hills, the peaks), contoured by marching squares,
+  every fifth line an index contour with its height.
+- **Grid:** numbered in the margin.
+- **Ground cover:** woods as a green tint, towns as built-up areas of blocks turned to their trail.
+- **Each level:** an area of operations (AO) with its boundary and its name, its trail a track, its stages
+  checkpoints numbered across the game in the order it reaches them.
+- **The links:** each road with a phase line where it crosses into the next level, a gate a passage point, a locked
+  way marked.
+- **Places:** the start point, the base at the hub, the castle a fortified area, the objective at the deepest level.
+- **The margin:** a title block, a north diagram and a scale in km.
+
+On the table, the buildings, the mast, the fort's tower and the flags stand up. `?look=` takes any look of either
+depiction, and every look lays the same map.

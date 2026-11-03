@@ -95,10 +95,10 @@ function outlineOf(c, r, rand) {
   const waves = [0, 1, 2].map(() => ({ k: 2 + Math.floor(rand() * 4), a: 0.05 + rand() * 0.1, p: rand() * TAU }));
   return Array.from({ length: 36 }, (_, i) => { const t = (i * TAU) / 36, f = 1 + waves.reduce((s, w) => s + w.a * Math.sin(w.k * t + w.p), 0); return [r1(c[0] + r * f * Math.cos(t)), r1(c[1] + r * f * 0.78 * Math.sin(t))]; });
 }
-const inside = (p, poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) c = !c; } return c; };
+export const inside = (p, poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > p[1]) !== (yj > p[1]) && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) c = !c; } return c; };
 
 // value noise on a seeded lattice, smoothed: woods and hill bands grow in masses, not a sprinkle
-function noise2(seed, key, x, y) {
+export function noise2(seed, key, x, y) {
   const h = (ix, iy) => streamOf(seed, `atlas-noise-${key}`, `${ix},${iy}`)(), fx = Math.floor(x), fy = Math.floor(y), tx = x - fx, ty = y - fy, s = (t) => t * t * (3 - 2 * t);
   const a = h(fx, fy), b = h(fx + 1, fy), c = h(fx, fy + 1), e = h(fx + 1, fy + 1);
   return a + (b - a) * s(tx) + (c - a) * s(ty) + (a - b - c + e) * s(tx) * s(ty);

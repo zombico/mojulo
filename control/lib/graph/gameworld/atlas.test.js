@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { designAtlas } from './atlas.js';
-import { gameworldAtlasHtml, ATLAS_LOOK_IDS } from './atlas-html.js';
+import { gameworldAtlasHtml, ATLAS_LOOK_IDS, ATLAS_LOOKS, ATLAS_DEPICTIONS } from './atlas-html.js';
 import { readGameworld } from './world.js';
 import { HOLLIN_VALE, MEADOWMARK } from './examples.js';
 
@@ -39,6 +39,22 @@ describe('the atlas', () => {
     expect(() => gameworldAtlasHtml(HOLLIN_VALE, { look: 'sepia' })).toThrow(/look is one of/);
     expect(MEADOWMARK.style.geocube).toBeUndefined();
     expect(designAtlas(MEADOWMARK).colours.grass).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it('depicts the same map as kinds of map: an illustrated atlas, and a tactical one read as ground and control measures', () => {
+    expect(Object.keys(ATLAS_DEPICTIONS)).toEqual(['illustrated', 'tactical']);
+    for (const id of ATLAS_LOOK_IDS) expect(Object.keys(ATLAS_DEPICTIONS)).toContain(ATLAS_LOOKS[id].depiction);
+    const T = gameworldAtlasHtml(HOLLIN_VALE, { look: 'ops' }), stops = A.regions.reduce((n, r) => n + r.trail.stops.length, 0);
+    // every level an AO, every stage a checkpoint numbered across the game, a phase line where each road crosses
+    for (const R of A.regions) expect(T).toContain(`AO ${R.name.replace(/^the\s+/i, '').toUpperCase()}`);
+    expect([...T.matchAll(/class="cp"[^>]*>(\d+)</g)].map((m) => +m[1])).toEqual(Array.from({ length: stops }, (_, i) => i + 1));
+    expect(T.match(/>PL [A-Z]+</g)).toHaveLength(A.roads.length);
+    // the hub is the base, the deepest level the objective; a gate a passage point; the relief contoured with heights
+    expect(T).toContain(`BASE ${A.regions.find((r) => r.hub).name.toUpperCase()}`);
+    const deepest = [...A.regions].sort((a, b) => a.depth - b.depth || (a.id < b.id ? -1 : 1)).at(-1);
+    expect(T).toContain(`OBJ ${deepest.name.replace(/^the\s+/i, '').toUpperCase()}`);
+    expect(T).toContain('>PP<');
+    expect(T).toMatch(/class="ht"[^>]*>\d+</);
   });
 
   it('a world with no links is walked in an arc, each level its own province', () => {
