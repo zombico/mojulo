@@ -8,6 +8,7 @@
  *   POSTURES                           how a rider sits a kind of machine: a card, never a body special-cased
  *     hinge     [lo, hi] degrees the trunk may lean over the hips; the solve takes the most upright that reaches
  *     spine     the upper back's curl (sagittal), gaze the head's lift against the lean (0 none … 1 level)
+ *     headUp    degrees the head is raised besides (the neck's extension, + up), within the neck's range
  *     forward   metres the rider sits ahead of the seat's middle (a motocross rider over the tank)
  *     stand     metres the pelvis rises off the seat (a rider standing on the pegs)
  *   solveRider(R, rider, posture?)    → (async) { pose, report: { posture, hinge, hands: { L, R } (metres off), legs } }:
@@ -37,6 +38,8 @@ export const POSTURES = Object.freeze({
   mxStand: Object.freeze({ label: 'standing on the pegs, the knees bent, over the bars', hinge: [20, 60], spine: 0.2, gaze: 0.9, forward: 0.15, stand: 0.16 }),
   scooter: Object.freeze({ label: 'sat upright, the feet on the floor', hinge: [0, 40], spine: 0.1, gaze: 0.5 }),
   cyclist: Object.freeze({ label: 'leaning to the bar, the feet on the pedals', hinge: [10, 65], spine: 0.25, gaze: 0.8 }),
+  // (a ridden walker's rider: leaning onto the bars as on a sport machine, the head raised past level to look up the trail)
+  walker: Object.freeze({ label: 'leaning onto the bars, the head tilted up to look ahead', hinge: [20, 60], spine: 0.25, gaze: 0, headUp: 42 }),
 });
 export const POSTURE_IDS = Object.freeze(Object.keys(POSTURES));
 
@@ -67,7 +70,7 @@ export async function solveRider(R, rider, posture = 'upright') {
   for (let hinge = lo; hinge <= hi + 1e-9; hinge += 2.5) {
     let pose = {
       support: 'none', shift: { x: 0, y: pel[1] }, ...(dz >= 0 ? { lift: dz } : { sink: -dz }),
-      hinge, spine: { sagittal: card.spine, lateral: 0, axial: 0 }, head: { pitch: -hinge * card.gaze },
+      hinge, spine: { sagittal: card.spine, lateral: 0, axial: 0 }, head: { pitch: -hinge * card.gaze + (card.headUp ?? 0) },
       feet: { L: rider['peg.l'], R: rider['peg.r'] }, fingersL: 'fist', fingersR: 'fist',
     };
     const hands = {};

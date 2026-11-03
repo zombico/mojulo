@@ -1,8 +1,8 @@
 /**
  * The mecha shelf's laws as concepts, on its first frame (the archetype a test reads is chosen in code): a stance is
  * solved by the legs' inverse kinematics (each foot where it was asked, its sole flat, at its heading), every ram lies
- * within its stroke at every stance, a joint's range is its actuator's (a shorter stroke, a shorter arc), the legs
- * mirror each other, a sway carries the centre of mass over the stance sole, and the laws read the frame as built.
+ * within its stroke at every stance, a joint's range is its actuator's (a shorter stroke, a shorter arc), the knees
+ * bend backward, the legs mirror each other, a sway carries the centre of mass over the stance sole, and the laws read the frame as built.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -41,6 +41,16 @@ describe('mecha shelf: a stance is solved by where the feet are', () => {
     expect(Math.max(P.joints[arch.legs.r.joints.knee], P.joints[arch.legs.l.joints.knee])).toBeCloseTo(knee, 1);
     const deeper = posedFrame(id, { knee: knee + 30 });
     expect(deeper.root.t[2]).toBeLessThan(P.root.t[2]);
+  });
+  it('bends its knees backward: each knee behind the line from its hip to its ankle', () => {
+    for (const name of [byKnee, bySwing]) {
+      const F = world(posedFrame(id, name));
+      for (const S of ['r', 'l']) {
+        const g = arch.legs[S], hip = F[g.pitch].t, knee = F[g.knee].t, ankle = F[g.ankle].t;
+        const t = (knee[2] - hip[2]) / (ankle[2] - hip[2]), lineY = hip[1] + t * (ankle[1] - hip[1]);
+        expect(knee[1], `${name} ${S}`).toBeLessThan(lineY - 0.05);
+      }
+    }
   });
   it('mirrors the left leg to the right in a symmetric stance', () => {
     const P = posedFrame(id, byKnee), L = arch.legs.l.joints, R = arch.legs.r.joints;

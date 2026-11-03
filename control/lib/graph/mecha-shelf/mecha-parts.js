@@ -89,7 +89,7 @@ function yoke(row, C, { side }) {
   for (const t of [1, -1]) extrudes.push(box(`cheek_${t > 0 ? 'o' : 'i'}`, [t * 0.086, 0, -0.012], [t * 0.086, 0, -d.drop - 0.04], 0.018, 0.1, C.trim));
   lathes.push(boss('axle', [0, 0, -d.drop], 'x', 0.098, 0.032, C.chrome, 12));
   const H = [...d.horn];
-  extrudes.push(box('horn', [0, 0.03, H[2] - 0.005], H, 0.05, 0.045, C.trim));
+  extrudes.push(box('horn', [0, Math.sign(H[1]) * 0.03, H[2] - 0.005], H, 0.05, 0.045, C.trim));
   lathes.push(boss('hornEye', H, 'x', 0.03, 0.026, dark, 12));
   const E = [s * d.rollEye[0], d.rollEye[1], d.rollEye[2]];
   extrudes.push(box('arm', [s * 0.09, 0, -0.03], E, 0.05, 0.045, C.trim));
@@ -108,9 +108,9 @@ function thigh(row, C, { side }) {
   for (const t of [1, -1]) extrudes.push(box(`clevis_${t > 0 ? 'o' : 'i'}`, [t * 0.07, 0, zc + 0.04], [t * 0.07, 0, -L - 0.05], 0.02, d.d1 + 0.03, C.trim));
   lathes.push(boss('kneePin', [0, 0, -L], 'x', 0.088, 0.028, C.chrome, 12));
   const H = [0, d.hipRam[1], d.hipRam[2]], K = [s * d.kneeRam[0], d.kneeRam[1], d.kneeRam[2]];
-  extrudes.push(box('hipBracket', [0, d.d1 / 2 - 0.01, H[2] + 0.01], H, 0.05, 0.05, C.trim));
+  extrudes.push(box('hipBracket', [0, Math.sign(H[1]) * (d.d1 / 2 - 0.01), H[2] + 0.01], H, 0.05, 0.05, C.trim));
   lathes.push(boss('hipEye', H, 'x', 0.032, 0.026, dark, 12));
-  extrudes.push(box('kneeBracket', [s * 0.03, -0.03, K[2]], K, 0.05, 0.05, C.trim));
+  extrudes.push(box('kneeBracket', [s * 0.03, Math.sign(K[1]) * 0.03, K[2]], K, 0.05, 0.05, C.trim));
   lathes.push(boss('kneeEye', K, 'x', 0.034, 0.028, dark, 12));
   return { lathes, extrudes, lofts, hardpoints: { knee: [0, 0, -L], hipRam: H, kneeRam: K } };
 }
@@ -125,9 +125,9 @@ function shank(row, C, { side }) {
   for (const t of [1, -1]) extrudes.push(box(`clevis_${t > 0 ? 'o' : 'i'}`, [t * 0.072, 0, zc + 0.04], [t * 0.072, 0, -L - 0.045], 0.02, d.d1 + 0.02, C.trim));
   lathes.push(boss('anklePin', [0, 0, -L], 'x', 0.09, 0.024, C.chrome, 12));
   const K = [s * d.kneeEye[0], d.kneeEye[1], d.kneeEye[2]], A = [0, d.ankleRam[1], d.ankleRam[2]];
-  extrudes.push(box('horn', [s * 0.02, -0.035, K[2] + 0.02], K, 0.05, 0.05, C.trim));
+  extrudes.push(box('horn', [s * 0.02, Math.sign(K[1]) * 0.035, K[2] + 0.02], K, 0.05, 0.05, C.trim));
   lathes.push(boss('hornEye', K, 'x', 0.03, 0.026, dark, 12));
-  extrudes.push(box('ankleBracket', [0, d.d0 / 2 - 0.01, A[2] - 0.01], A, 0.05, 0.05, C.trim));
+  extrudes.push(box('ankleBracket', [0, Math.sign(A[1]) * (d.d0 / 2 - 0.01), A[2] - 0.01], A, 0.05, 0.05, C.trim));
   lathes.push(boss('ankleEye', A, 'x', 0.03, 0.024, dark, 12));
   return { lathes, extrudes, lofts, hardpoints: { ankle: [0, 0, -L], kneeEye: K, ankleRam: A } };
 }
@@ -138,9 +138,10 @@ function ankle(row, C) {
   extrudes.push(box('spider', [0, -0.05, 0], [0, 0.05, 0], 0.11, 0.09, C.trim));
   lathes.push(boss('pitchPin', [0, 0, 0], 'x', 0.064, 0.026, C.chrome, 12));
   lathes.push(boss('rollPin', [0, 0, 0], 'y', 0.082, 0.026, C.chrome, 12));
-  lathes.push(spin('drive', [0, -0.085, 0.0], [0, -0.15, 0.0], [[0, d.r * 0.9], [0.8, d.r * 0.9], [1, d.r * 0.7]], dark, 14));
-  const H = [...d.horn];
-  extrudes.push(box('horn', [0, 0.05, 0.012], H, 0.045, 0.045, C.trim));
+  const H = [...d.horn], aft = Math.sign(H[1]);
+  // (its roll drive on the side away from the ram's horn)
+  lathes.push(spin('drive', [0, -aft * 0.085, 0.0], [0, -aft * 0.15, 0.0], [[0, d.r * 0.9], [0.8, d.r * 0.9], [1, d.r * 0.7]], dark, 14));
+  extrudes.push(box('horn', [0, aft * 0.05, 0.012], H, 0.045, 0.045, C.trim));
   lathes.push(boss('hornEye', H, 'x', 0.03, 0.024, dark, 12));
   return { lathes, extrudes, hardpoints: { roll: [0, 0, 0], horn: H } };
 }
@@ -155,14 +156,14 @@ function foot(row, C) {
   extrudes.push(box('arch', [0, y0 + 0.17, zs + d.pad * 0.65], [0, y1 - 0.2, zs + d.pad * 0.65], d.w - 0.02, d.pad * 0.7, tone(C.rubber, 0.12)));
   // (the toe guard: a plate raked up at the front, the cover colour)
   extrudes.push(slab('toeGuard', -d.w / 2, d.w / 2, [[y1 - 0.17, zt], [y1 - 0.01, zt], [y1 + 0.005, zt - 0.02], [y1 - 0.02, zt + 0.045], [y1 - 0.17, zt + 0.06]], C.paint));
-  extrudes.push(slab('heelGuard', -d.w / 2 + 0.01, d.w / 2 - 0.01, [[y0 + 0.005, zt], [y0 + 0.13, zt], [y0 + 0.13, zt + 0.04], [y0 + 0.02, zt + 0.03]], tone(C.trim, 0.1)));
+  extrudes.push(slab('heelGuard', -d.w / 2 + 0.01, d.w / 2 - 0.01, [[y0 + 0.005, zt], [y0 + 0.05, zt], [y0 + 0.05, zt + 0.035], [y0 + 0.02, zt + 0.03]], tone(C.trim, 0.1)));
   // (the ears round the cross's roll trunnions, fore and aft)
   for (const y of [0.096, -0.096]) extrudes.push(box(`ear_${y > 0 ? 'f' : 'b'}`, [0, y, zt - 0.005], [0, y, 0.035], 0.09, 0.022, C.trim));
   const corners = [[-d.w / 2, y0, zs], [d.w / 2, y0, zs], [d.w / 2, y1, zs], [-d.w / 2, y1, zs]];
   return { extrudes, hardpoints: { sole: [0, 0, zs], toe: [0, y1, zs], heel: [0, y0, zs] }, outline: corners };
 }
 
-// ── the rider's place astride: the spine, the saddle, the tank, the prow, the dash, the clip-ons, the pegs ───────
+// ── the rider's place astride: the spine, the saddle, the tank, the nose, the clip-ons, the pegs ─────────────────
 function seat(row, C) {
   const d = row.dims, extrudes = [], lathes = [], sweeps = [], lofts = [], cushion = tone(C.rubber, 0.16), frame = C.trim;
   // (the spine over the keel, the saddle's and the tank's frame, on two posts)
@@ -177,19 +178,20 @@ function seat(row, C) {
   extrudes.push(box('pan', [0, -0.34, 0.235], [0, 0.04, 0.235], 0.22, 0.03, frame));
   lofts.push(pod('tail', [{ y: -0.56, z: 0.37, w: 0.12, h: 0.08 }, { y: -0.44, z: 0.37, w: 0.24, h: 0.16 }, { y: -0.33, z: 0.35, w: 0.26, h: 0.12 }], C.paint));
   extrudes.push(box('taillight', [0, -0.575, 0.37], [0, -0.555, 0.37], 0.1, 0.04, C.light));
-  // (the prow: a keel ahead of the cabin, its flanks meeting at an upright leading edge, its lamps set in its flanks)
-  lofts.push(pod('prow', [{ y: 0.42, z: 0.25, w: 0.6, h: 0.24, r: 0.04 }, { y: 0.7, z: 0.25, w: 0.42, h: 0.24, r: 0.035 }, { y: 0.9, z: 0.25, w: 0.12, h: 0.22, r: 0.02 }, { y: 0.96, z: 0.25, w: 0.03, h: 0.19, r: 0.012 }], C.paint));
-  extrudes.push(box('prowEdge', [0, 0.955, 0.155], [0, 0.955, 0.345], 0.035, 0.03, frame, [0, 1, 0]));
-  extrudes.push(box('chin', [0, 0.42, 0.125], [0, 0.88, 0.135], 0.46, 0.025, tone(C.trim, 0.1)));
+  // (the nose: one shape from the cabin's front, as wide as its tub and as high as its windshield's foot, drawn down and
+  // in to a narrow rounded leading edge; its lamps strips flush along its flanks)
+  lofts.push(pod('nose', [
+    { y: 0.66, z: 0.3, w: 0.69, h: 0.38, r: 0.05 }, { y: 0.8, z: 0.285, w: 0.62, h: 0.34, r: 0.09 }, { y: 0.94, z: 0.265, w: 0.44, h: 0.27, r: 0.09 },
+    { y: 1.03, z: 0.245, w: 0.2, h: 0.18, r: 0.07 }, { y: 1.08, z: 0.24, w: 0.05, h: 0.1, r: 0.024 },
+  ], C.paint));
   for (const s of [1, -1]) {
-    const side = s > 0 ? 'r' : 'l', y = 0.76, x = s * 0.17;
-    extrudes.push(box(`lamp_${side}`, [x, y - 0.06, 0.29], [x + s * 0.035, y + 0.06, 0.29], 0.02, 0.05, C.glass));
-    extrudes.push(box(`marker_${side}`, [x, y - 0.06, 0.215], [x + s * 0.035, y + 0.06, 0.215], 0.015, 0.018, C.light));
+    const side = s > 0 ? 'r' : 'l';
+    extrudes.push(box(`lamp_${side}`, [s * 0.305, 0.83, 0.33], [s * 0.19, 1.0, 0.29], 0.012, 0.035, C.glass));
+    extrudes.push(box(`marker_${side}`, [s * 0.305, 0.83, 0.25], [s * 0.2, 0.98, 0.235], 0.01, 0.014, C.light));
   }
-  // (the dash under the windshield's foot, its display facing the rider)
-  extrudes.push(box('dash', [0, 0.5, 0.47], [0, 0.72, 0.49], 0.36, 0.05, frame));
-  extrudes.push(slab('display', -0.1, 0.1, [[0.5, 0.5], [0.54, 0.5], [0.58, 0.58], [0.55, 0.59]], tone(C.glass, -0.3)));
-  // (the clip-on bars, each from the head under the dash out to its grip; the rider walks it by the grips' sticks)
+  // (the display inside the cockpit, under the windshield's foot)
+  extrudes.push(slab('display', -0.1, 0.1, [[0.56, 0.46], [0.6, 0.46], [0.64, 0.5], [0.61, 0.52]], tone(C.glass, -0.3)));
+  // (the clip-on bars, each from the head under the windshield out to its grip; the rider walks it by the grips' sticks)
   for (const s of [1, -1]) {
     const side = s > 0 ? 'r' : 'l', g = [s * d.grip[0], d.grip[1], d.grip[2]], P = [s * d.peg[0], d.peg[1], d.peg[2]], S = [s * d.step[0], d.step[1], d.step[2]];
     sweeps.push(tube(`clip_${side}`, [[s * 0.1, g[1] - 0.04, g[2] - 0.05], [s * 0.19, g[1] - 0.01, g[2] - 0.01], [g[0] - s * 0.05, g[1], g[2]]], 0.016, frame, 8));

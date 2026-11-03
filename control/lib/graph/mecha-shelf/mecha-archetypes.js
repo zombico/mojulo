@@ -29,9 +29,9 @@ const leg = (S) => {
     joints: {
       [`hipYaw${S}`]: Object.freeze({ kind: 'slew', drive: `hip${S}` }),
       [`hipRoll${S}`]: Object.freeze({ kind: 'hinge', axis: Object.freeze([0, 1, 0]), ram: `rollRam${S}`, near: 0 }),
-      [`hipPitch${S}`]: Object.freeze({ kind: 'hinge', ram: `hipRam${S}`, near: 30 }),
-      [`knee${S}`]: Object.freeze({ kind: 'hinge', axis: Object.freeze([-1, 0, 0]), ram: `kneeRam${S}`, near: 60 }),
-      [`anklePitch${S}`]: Object.freeze({ kind: 'hinge', ram: `ankleRam${S}`, near: 10 }),
+      [`hipPitch${S}`]: Object.freeze({ kind: 'hinge', ram: `hipRam${S}`, near: -30 }),
+      [`knee${S}`]: Object.freeze({ kind: 'hinge', ram: `kneeRam${S}`, near: 60 }),
+      [`anklePitch${S}`]: Object.freeze({ kind: 'hinge', ram: `ankleRam${S}`, near: -10 }),
       [`ankleRoll${S}`]: Object.freeze({ kind: 'hinge', axis: Object.freeze([0, 1, 0]), drive: `ankle${S}` }),
     },
     layout: [
@@ -57,8 +57,8 @@ const R = leg('R'), L = leg('L');
 
 export const MECHA_ARCHETYPES = Object.freeze({
   // the all-terrain walker: one rider astride a saddle on a pelvis, leaning onto clip-on bars as on a sport motorcycle, its
-  // knees round the tank, its feet on pegs set back under the hips, a crash frame round it; two legs of six joints each
-  // (hip yaw, roll and pitch, the knee, the ankle's pitch and roll), the battery low in the keel between the hips, the
+  // knees round the tank, its feet on pegs set back under the hips, a convertible's cabin round it, one nose ahead; two
+  // legs of six joints each (hip yaw, roll and pitch, the knee bent backward, the ankle's pitch and roll), the battery low in the keel between the hips, the
   // hydraulic power unit under the tail; it stands with its knees bent and crouches to be boarded
   allTerrainWalker: Object.freeze({
     label: 'all-terrain walker',
@@ -66,8 +66,8 @@ export const MECHA_ARCHETYPES = Object.freeze({
     palette: 'proving',
     mass: 450,
     rider: Object.freeze({ mass: 95, com: Object.freeze([0, 0.12, 0.3]) }),
-    // (it is ridden astride, leaning onto the bars as on a sport machine: cycle-shelf/cycle-rider.js's posture card)
-    posture: 'sport',
+    // (it is ridden astride, leaning onto the bars as on a sport machine, the head up: cycle-shelf/cycle-rider.js's card)
+    posture: 'walker',
     // (its rider's space: the leaning trunk and the head over the saddle, the thighs and knees round the tank, the feet
     // on the pegs set back under the hips)
     envelope: Object.freeze([
@@ -90,8 +90,9 @@ export const MECHA_ARCHETYPES = Object.freeze({
     stances: Object.freeze({
       // (ready: the knees bent 45°, away from the straight leg's singularity, the feet under the hips)
       stand: Object.freeze({ knee: 45 }),
-      // (crouched for the rider to climb in: the feet set forward, the pelvis down until the knees are near their stop)
-      board: Object.freeze({ knee: 110, fore: 0.1, track: 0.5 }),
+      // (crouched for the rider to climb in: the feet set back under the folded knees, the pelvis down until the knees
+      // are near their stop)
+      board: Object.freeze({ knee: 110, fore: -0.1, track: 0.5 }),
       // (mid-stride on both feet: the right ahead, the left behind, the pelvis at its standing height)
       stride: Object.freeze({ height: 'stand', feet: Object.freeze({ r: Object.freeze({ y: 0.3 }), l: Object.freeze({ y: -0.3 }) }) }),
       // (a static step: the pelvis swayed over the left sole and lowered to keep its knee bent, the right foot lifted and
@@ -102,7 +103,8 @@ export const MECHA_ARCHETYPES = Object.freeze({
     }),
     rest: 'stand',
     laws: Object.freeze({
-      arcs: Object.freeze({ hipRoll: [40, 64], hipPitch: [110, 140], knee: [100, 125], anklePitch: [60, 85] }),
+      // (a backward-bent leg folds its ankle further than a human's: its arc the wider)
+      arcs: Object.freeze({ hipRoll: [40, 64], hipPitch: [110, 140], knee: [100, 125], anklePitch: [70, 100] }),
       knee: [25, 60],
       stability: [0.05, 1],
       sway: [0.02, 1],

@@ -7,6 +7,8 @@
  *
  * Log:
  *   - The shelf's first frame, the all-terrain walker (unreleased): every builder path pinned.
+ *   - Its knees bent backward (the leg's rams mirrored fore and aft, the ankle's re-solved), its nose one shape (the
+ *     prow, the chin and the dash folded into it): the leg's parts, the saddle, the cabin and the frame re-pinned.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -21,19 +23,19 @@ const ram = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-ram')[0]
 const PINS = {
   'pelvis-atw': '2bf43bb8301d2d01',
   'hip-atw': '7dfe96529b8d835d',
-  'yoke-atw': 'bbe569722a287a3b',
-  'thigh-atw': 'f22ecfb8c4fec316',
-  'shank-atw': '5ab22af8b2fb5587',
-  'ankle-atw': 'a2cb49ac2775b13e',
-  'foot-atw': 'e593f4b0087ebd90',
-  'seat-atw': 'ebbb8fb915b5b29a',
-  'cage-atw': 'efd3523494f6d367',
+  'yoke-atw': 'e980194856eb1827',
+  'thigh-atw': 'a44ce218cfb438dc',
+  'shank-atw': '9c982a643e837fda',
+  'ankle-atw': '8133ce847f2c2453',
+  'foot-atw': '3be20c16d08b2679',
+  'seat-atw': '21cccf930c2dc585',
+  'cage-atw': 'fd2c4a6f9121233c',
   'pack-atw': 'aae25a1a90f1ab36',
   'ram-roll-atw': 'e73d554306c2f29f',
 };
 const LEFT = 'c9882af91b6cf973';
 const ROD = 'bcfdb3e1621e0b1a';
-const FRAME = '3317768d1975586f';
+const FRAME = '5d7f243552d47f90';
 
 describe('mecha shelf: characterization', () => {
   it('pins every builder path', () => {

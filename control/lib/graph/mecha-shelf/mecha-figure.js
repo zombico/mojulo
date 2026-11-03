@@ -16,6 +16,7 @@ import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
 import { MECHA_ARCHETYPES, MECHA_PALETTES, assembleFrame, posedFrame } from './index.js';
 import { readRiderHero, riderOn } from '../cycle-shelf/cycle-rider.js';
 
+
 const KEYS = Object.freeze(['archetype', 'pose', 'palette', 'rider']);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -31,12 +32,24 @@ export function readMechaSpec(spec, at = 'mecha') {
   return spec;
 }
 
+/**
+ * The rider seated on a frame at its stance: solved in the pelvis's frame (the rider's solve seats a rider on the
+ * machine's centreline, and a frame sways off its own), then carried to where the pelvis stands. → { faces, report }
+ */
+export async function seatRider(archetype, readout, { hero, posture } = {}) {
+  const [dx, dy] = readout.root, shift = (p) => [p[0] - dx, p[1] - dy, p[2]];
+  const rider = Object.fromEntries(Object.entries(readout.rider).map(([k, p]) => [k, shift(p)]));
+  const out = await riderOn(archetype, { hero, posture: posture ?? MECHA_ARCHETYPES[archetype].posture, rider });
+  const back = (c) => [c[0] + dx, c[1] + dy, c[2]];
+  return { ...out, faces: out.faces.map((f) => ({ ...f, corners: f.corners.map(back) })) };
+}
+
 export async function mechaInstanceFaces(spec) {
   readMechaSpec(spec);
   const { manifest, readout } = assembleFrame(spec.archetype, { pose: spec.pose, palette: spec.palette });
   const faces = lowerAssemblerFaces(manifest);
   // (its rider seated, posed on the frame's own rider points at its stance, in its frame)
-  const rider = spec.rider ? await riderOn(spec.archetype, { hero: spec.rider, posture: MECHA_ARCHETYPES[spec.archetype].posture, rider: readout.rider }) : null;
+  const rider = spec.rider ? await seatRider(spec.archetype, readout, { hero: spec.rider }) : null;
   if (rider) faces.push(...rider.faces);
   return {
     faces,

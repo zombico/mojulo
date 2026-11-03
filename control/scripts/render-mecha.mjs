@@ -39,8 +39,8 @@ for (const id of pick) {
     const name = `${id}${palette ? `-${palette}` : ''}-${pose}${seated ? '-rider' : ''}`;
     const faces = payload.faces.filter((f) => !f.studio);
     if (seated) {
-      const { riderOn } = await import('../lib/graph/cycle-shelf/cycle-rider.js');
-      const R = await riderOn(id, { rider: readout.rider, posture: MECHA_ARCHETYPES[id].posture });
+      const { seatRider } = await import('../lib/graph/mecha-shelf/mecha-figure.js');
+      const R = await seatRider(id, readout);
       faces.push(...R.faces);
       console.log(`rider: ${JSON.stringify(R.report)}`);
     }

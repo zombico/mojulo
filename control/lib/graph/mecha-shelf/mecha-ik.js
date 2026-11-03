@@ -7,8 +7,9 @@
  * its sole flat. Closed form:
  *   yaw     the foot's heading (the hip's drive turns the whole leg)
  *   roll    the leg's plane turned about the roll axis until it holds the ankle
- *   pitch, knee   a two-link leg in that plane, the knee forward (the knee's bend from straight)
- *   ankle   pitch the hip's less the knee's, roll the hip's undone: the sole flat
+ *   pitch, knee   a two-link leg in that plane, the knee bent backward behind the line from hip to ankle (a
+ *           digitigrade leg: the knee's bend from straight)
+ *   ankle   pitch the hip's and the knee's undone, roll the hip's undone: the sole flat
  *
  * A stance (the archetype's `stances`, or the operator's own):
  *   knee     the knee's bend (degrees) the pelvis's height is set by (the more bent leg's; on one foot, the stance
@@ -56,9 +57,11 @@ export function solveLeg(G, A, yaw = 0) {
   const d = Math.min(dMax, Math.max(Math.abs(G.l1 - G.l2) + 1e-6, d0));
   const knee = Math.acos(Math.max(-1, Math.min(1, (d * d - G.l1 * G.l1 - G.l2 * G.l2) / (2 * G.l1 * G.l2))));
   const beta = Math.acos(Math.max(-1, Math.min(1, (G.l1 * G.l1 + d * d - G.l2 * G.l2) / (2 * G.l1 * d))));
-  const pitch = Math.atan2(vy, -vz) + beta;
+  // (the knee behind the line from hip to ankle: the thigh turned back from it, the shank forward, the sole turned back
+  // level)
+  const pitch = Math.atan2(vy, -vz) - beta;
   const D = (x) => x / DEG;
-  return { values: { yaw, roll: D(phi), pitch: D(pitch), knee: D(knee), anklePitch: D(knee - pitch), ankleRoll: -D(phi) }, reach, over: Math.max(0, d0 - dMax) };
+  return { values: { yaw, roll: D(phi), pitch: D(pitch), knee: D(knee), anklePitch: -D(pitch + knee), ankleRoll: -D(phi) }, reach, over: Math.max(0, d0 - dMax) };
 }
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
