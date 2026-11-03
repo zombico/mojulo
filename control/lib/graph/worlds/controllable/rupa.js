@@ -562,12 +562,16 @@ export function buildRupa(E) {
     for (const p of R.bodies) {
       if (p.broken) continue;
       if (p.rest) { if (state.time - (p.restAt ?? -1) < 0.25 || !windWakes(state, p)) continue; p.rest = false; }   // the wind lifts what it can
-      const fine = 0.8 * Math.min(...p.half), n = Math.min(256, Math.max(1, Math.ceil((Math.hypot(...p.vel) * dt) / fine))), h = dt / n;
+      // steps short enough not to pass through a block: the body's own size, but never finer than 5 cm (no block is that
+      // thin), so a 2 mm leaf is not stepped forty times a frame
+      const fine = 0.8 * Math.max(0.05, Math.min(...p.half)), n = Math.min(256, Math.max(1, Math.ceil((Math.hypot(...p.vel) * dt) / fine))), h = dt / n;
       for (let k = 0; k < n && !p.broken && !p.rest; k++) {
-        p.vel[2] -= R.g * h;
         const box0 = { min: p.pos.map((x, i) => x - p.half[i]), max: p.pos.map((x, i) => x + p.half[i]) };
-        // the air it stands in (lift and drag toward the wind), then any pool: one immersion law for both
-        p.vel = stepIn(p.vel, immerse(box0, p.mass, p.vel, R.air, windHere(state, p.pos)), p.mass, h);
+        // the air it stands in (lift and drag toward the wind), then any pool: one immersion law for both. The drag is
+        // read at the step's start and gravity joins the implicit step, so the falling speed holds at any step size
+        const inAir = immerse(box0, p.mass, p.vel, R.air, windHere(state, p.pos));
+        p.vel[2] -= R.g * h;
+        p.vel = stepIn(p.vel, inAir, p.mass, h);
         if (R.pools.length) {
           for (const pool of R.pools) {
             const w = immerse(box0, p.mass, p.vel, pool);
