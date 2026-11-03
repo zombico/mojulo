@@ -185,9 +185,14 @@ describe('builds by tier', () => {
   it('sends a site machine to the construction shelf, and a skid steer\'s driving to skid steer', () => {
     const site = IDS.filter((id) => VEHICLES[id].role === 'construction');
     expect(site.length).toBeGreaterThan(0);
-    // (until the shelf builds one: a machine with no build of its own names the shelf)
-    const unbuilt = site.find((id) => upscaleOf(id).realistic === 'none');
-    if (unbuilt) expect(upscaleOf(unbuilt).next).toMatch(/construction shelf/);
+    // (each drawn and parked by the shelf; what one that drives needs is driving: a skid steer's by skid steer, the rest
+    // by its ride; one that never drives, a tower crane, needs nothing)
+    for (const id of site) {
+      expect(buildOf(id, 'realistic', { use: 'parked' }).build).toMatchObject({ via: 'construction', status: 'live' });
+      if (VEHICLES[id].uses.includes('driven')) expect(upscaleOf(id).next, id).toMatch(/^driving it: /);
+      else expect(upscaleOf(id)).toMatchObject({ realistic: 'live', via: 'construction', next: null });
+    }
+    expect(site.map((id) => upscaleOf(id).next).some((n) => /construction shelf/.test(n))).toBe(true);
     // every site machine falls back to a concept the crafter draws, and its size is its class's or its own
     for (const id of site) expect(buildOf(id, 'realistic').build).toBeTruthy();
     expect(site.filter((id) => !handlesOf(id).physics)).toEqual(['tower-crane']);

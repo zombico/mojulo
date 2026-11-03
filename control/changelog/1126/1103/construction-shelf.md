@@ -383,3 +383,20 @@ push, load, haul and lift on a site.
     - The char test pins their parts and both machines; no existing pin moved.
   - **Seen** (machine gate only, the eyes gate is open): the roller at rest and turned; the grader at rest, grading
     and travelling, from the side and above.
+- **The doors, step 1: the studio grid and the level's figure** (`con-figure.js`):
+  - **`mint_solid({ kind: 'vehicle', vehicle: 'excavator' })`** draws a site machine as its construction shelf
+    machine, at true size on the studio grid. Beside its word:
+    - `pose` poses it: a named pose (`'dump'`, `'rigged'`) or its joints' values (`{ boom: 20, slew: 90 }`).
+    - `tool` puts a tool its mount takes on it (`'breaker'`).
+    - `carrier` puts it on a carrier it lists (`'tracks'`).
+    - `height` builds a tower crane to the height under its hook.
+    - `palette` paints it.
+
+    They are carried in its recipe (`{ construction: { archetype, pose?, tool?, carrier?, height?, palette? } }`) and
+    regenerate on every read. A site's words on any other build are refused, naming whose they are.
+  - **The family layer** builds a `construction` instance. **A level's figures map** takes a `construction` entry: the
+    machine's rig, centred on its spot, with its footprint.
+  - **The registry:** every site machine's realistic build is live for the studio grid and a level's parked vehicles.
+    It is parked and watched, never driven: what one that drives needs is its ride (a skid steer's, skid steer).
+  - **Held:** its words read and refused; its faces at a pose with a tool on; its figure centred, a tower crane at the
+    height it is built to; the preview door minting a site machine at a pose and drawing it on the world page.

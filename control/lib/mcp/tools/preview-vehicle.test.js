@@ -13,9 +13,11 @@ import { CYCLE_LOOKS } from '@/lib/graph/cycle-shelf/cycle-looks';
 const ids = Object.keys(VEHICLES);
 const scenery = ids.find((id) => handlesOf(id).scenery && !handlesOf(id).scenery.includes(id) && !handlesOf(id).racer);
 const racer = ids.find((id) => handlesOf(id).racer);
-const unseen = ids.find((id) => buildsOf(id).every((b) => !['scenery', 'racer', 'supercar', 'loft', 'cycle'].includes(b.via)));
+const unseen = ids.find((id) => buildsOf(id).every((b) => !['scenery', 'racer', 'supercar', 'loft', 'cycle', 'construction'].includes(b.via)));
 // a machine ridden astride, its only body the cycle shelf's
 const cycled = ids.find((id) => buildsOf(id).some((b) => b.via === 'cycle') && !buildsOf(id).some((b) => ['scenery', 'racer', 'supercar', 'loft'].includes(b.via)));
+// a site machine, its only body the construction shelf's, one with a named pose besides its rest
+const sited = ids.find((id) => buildsOf(id).some((b) => b.via === 'construction') && !buildsOf(id).some((b) => ['scenery', 'racer', 'supercar', 'loft', 'cycle'].includes(b.via)));
 // a road class with no net, its only body the realistic loft
 const lofted = ids.find((id) => buildsOf(id).some((b) => b.via === 'loft') && !buildsOf(id).some((b) => ['scenery', 'racer', 'supercar'].includes(b.via)));
 
@@ -68,6 +70,21 @@ describe('mint_solid vehicle: the registry is the way in', () => {
     expect(payload.title).toMatch(/a cycle/);
     await expect(previewVehicleInstanceHandler({ vehicle: VEHICLES[lofted].label, look })).rejects.toThrow(/a look dresses a machine ridden astride/);
     await expect(previewVehicleInstanceHandler({ vehicle: cycled, look: 'tartan' })).rejects.toThrow(/expected one of: stock/);
+  });
+  it('mints a site machine as its construction shelf machine at a pose, and refuses a site\'s words on any other build', async () => {
+    const archetype = handlesOf(sited).construction[0], { CON_ARCHETYPES } = await import('@/lib/graph/construction-shelf/index.js');
+    const pose = Object.keys(CON_ARCHETYPES[archetype].poses).find((k) => k !== 'rest');
+    expect(readVehicleWord({ vehicle: sited })).toMatchObject({ instance: { construction: { archetype } }, id: sited, tier: 'realistic' });
+    const out = await previewVehicleInstanceHandler({ vehicle: VEHICLES[sited].label, pose, title: 'a site machine' });
+    const row = SketchRepository.getByRef(out.ref);
+    expect(row.manifest).toMatchObject({ vehicle: sited, construction: { archetype, pose } });
+    expect(row.manifest.pose).toBeUndefined();
+    expect(out.stats).toMatchObject({ family: 'construction', archetype, pose, laws: true });
+    expect(out.registry).toMatchObject({ id: sited, tier: 'realistic', build: 'construction' });
+    const { payload } = await resolveWorldScene({ ref: row.ref, title: row.title, manifest: row.manifest });
+    expect(payload.title).toMatch(/a site machine/);
+    await expect(previewVehicleInstanceHandler({ vehicle: sited, pose: 'cartwheel' })).rejects.toThrow(/is one of/);
+    await expect(previewVehicleInstanceHandler({ vehicle: VEHICLES[lofted].label, tool: 'breaker' })).rejects.toThrow(/a tool is a site machine's/);
   });
   it('carries a field vehicle\'s livery and wear in its loft\'s recipe, and refuses them on a build their words do not paint', async () => {
     const field = ids.find((id) => (handlesOf(id).physics ?? []).some((k) => MILITARY_CLASSES[k]) && buildsOf(id).some((b) => b.via === 'loft'));

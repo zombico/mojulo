@@ -1058,6 +1058,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = rawSpec.cycle.ride ? await cycleRideFigure(rawSpec.cycle) : cycleFigure(rawSpec.cycle);
           continue;
         }
+        // CONSTRUCTION bodies (construction-shelf/: the vehicle registry's realistic build of a site machine): a figures-map
+        // entry may be a construction shelf machine (`construction`: { archetype, pose?, tool?, carrier?, height?,
+        // palette? }, what a parked site machine writes), at its class's true numbers in metres, at its pose (its rest
+        // unless it says), centred on its spot, delivered as its rig (the machine the root). Absent ⇒ none is resolved,
+        // byte-identical.
+        if (rawSpec.construction && typeof rawSpec.construction === 'object') {
+          const { conFigure } = await import('@/lib/graph/construction-shelf/con-figure.js');
+          payload.figures[name] = conFigure(rawSpec.construction);
+          continue;
+        }
         // TRANSFORMER bodies (transformation/: more-than-meets): a figures-map entry may be a body in two forms
         // (`transformer`: { robot?, vehicle?, scheme?, fold?, legs?, height? }): the robot a VARIABLE SUIT (`robot.variable`:
         // { palette?, build? }, a suit drawn to fold into its own waverider), an ALIEN BODY (`robot.alien`, pointed shells

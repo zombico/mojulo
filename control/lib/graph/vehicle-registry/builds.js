@@ -57,7 +57,7 @@ const SERVES = Object.freeze({
   net: ['traffic', 'parked'], supercar: ['driven', 'parked', 'watched'], craft: ['driven', 'parked', 'watched', 'crewed'],
   fleet: ['traffic'], loft: ['driven', 'parked', 'watched'], tech: ['driven', 'traffic', 'parked', 'watched', 'crewed'],
   cycle: ['driven', 'parked', 'watched'],
-  construction: ['driven', 'parked', 'watched'],
+  construction: ['parked', 'watched'],
 });
 const B = (tier, via, key, status, where, why, uses = SERVES[via]) => ({ tier, via, key, status, uses, where, why });
 // a tracked class (roads/vehicles.js `running: 'track'`), or a wheeled one that skid steers, is drawn, parked and
@@ -80,9 +80,9 @@ export function buildsOf(id) {
   for (const k of h.supercar ?? []) out.push(B('realistic', 'supercar', k, 'live', ['quick race (supercars)', 'mint_solid vehicle preview', 'transformer'], 'the supercar\'s surface compiler, streamlined in the form render'));
   for (const k of h.craft ?? []) out.push(B('realistic', 'craft', k, 'live', ['transformer'], 'the craft shelf\'s assembly at its class\'s true figures'));
   for (const k of h.cycle ?? []) out.push(B('realistic', 'cycle', k, 'live', ['quick ride', 'mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the cycle shelf\'s machine, its parts on its solved chassis at its class\'s numbers (cycle-shelf/): ridden, its rider astride, or parked on its stand'));
-  // (a site machine is the construction shelf's: built, posed and held to its laws, asleep until a door draws it; a
-  // crawler's is parked and watched, never driven, until skid steer is built; a tower crane, which has no class to drive)
-  for (const k of h.construction ?? []) out.push(B('realistic', 'construction', k, 'asleep', [], 'the construction shelf\'s machine, its carrier, its upper, its front on its chain and its tool at its class\'s numbers (construction-shelf/): built and posed, not yet wired into a door', !(h.physics ?? []).length || h.physics.some(tracked) ? UNDRIVEN : SERVES.construction));
+  // (a site machine is the construction shelf's: built, posed and held to its laws, drawn on the studio grid at a pose and
+  // parked in a level; watched and parked, never driven, until its ride is built)
+  for (const k of h.construction ?? []) out.push(B('realistic', 'construction', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the construction shelf\'s machine, its carrier, its upper, its front on its chain and its tool at its class\'s numbers (construction-shelf/): drawn at a pose (its rest, a named pose, its joints\' values), parked in a level', SERVES.construction));
   for (const k of h.fleet ?? []) out.push(B('realistic', 'fleet', k, 'live', ['roadway traffic'], 'the highway fleet\'s loft at true dimensions, at traffic distance'));
   for (const k of (h.physics ?? []).filter(loftable).slice(0, 1)) {
     if (tracked(k)) { out.push(B('realistic', 'loft', k, 'live', ['mint_solid vehicle preview', 'a level\'s parked vehicles'], 'the military hull kit\'s body of its class on its running gear (road-military.js, mil-track.js), drawn and parked: not driven until skid steer is built', UNDRIVEN)); continue; }
@@ -125,6 +125,8 @@ export function upscaleOf(id) {
   const cls = [has.physics ?? []].flat()[0];
   // (a tracked class's body is live for what it serves; driving it is what it needs)
   if (cls && tracked(cls) && atTier(builds, 'realistic')?.status === 'live') return { id, use, realistic: 'none', via: null, next: 'driving it: a tracked class steers by skid steer, not built yet (its realistic body is live, parked and watched)' };
+  // (a site machine's body is the construction shelf's, live for what it serves: driving it is what it needs)
+  if (ROWS[id].role === 'construction' && atTier(builds, 'realistic')?.via === 'construction') return { id, use, realistic: 'none', via: null, next: 'driving it: the construction shelf\'s machine is live, drawn and parked; its ride is not built yet' };
   const next = ROWS[id].role === 'construction' ? `its realistic body: the construction shelf's (construction-shelf/), its carrier, its upper, its front and its tool, not built yet`
     : cls && UNBUILT[cls] ? `its realistic body: ${UNBUILT[cls]}`
     : cls && cycleClass(cls) ? `its realistic body: the cycle shelf's (cycle-shelf/), a ${wheelLayout(PHYSICS[cls])} machine ridden astride, not built yet`
