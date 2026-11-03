@@ -218,6 +218,14 @@ a beam or a script.
 
 This lands as a tested kernel. The page's deformable floor and its ground probe reading the field are next.
 
+## Skin and matter
+
+A thing's skin is how it looks (its texture and fill, set by the stage); its matter is what it is made of. Nothing ties
+the two today: a thing's matter is its own word or its class's (`CLASS_MATTER`), and the skin comes from wherever it was
+drawn. They should agree, so the material reads accurately: a marble-skinned tomb is stone, and if it is to dent like
+steel it should wear steel. Distortion makes a mismatch visible, because dents are drawn in the thing's own skin. When
+you give a thing a matter, read its skin; when you change a skin, check its matter.
+
 ## Where it plugs in
 
 - `breakability.js`: the `physical` degree; under it, each breakable carries `blockMatter` numbers and its matter's cut.
@@ -230,6 +238,8 @@ This lands as a tested kernel. The page's deformable floor and its ground probe 
 
 ## Not yet
 
+- Reading a thing's matter from its skin (a marble surface is stone, a riveted plate steel), or flagging where they
+  disagree.
 - Distortion's wobble (jelly's elastic jiggle), dents on minted solids, holes the walk and the shot can pass through
   (the collider stays the block's box), work hardening and how fast a blow lands (strain rate).
 - Ground on the page (a deformable floor, craters from bursts, the shovel as an action).
