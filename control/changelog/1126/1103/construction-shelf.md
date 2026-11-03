@@ -412,3 +412,9 @@ push, load, haul and lift on a site.
   - A site's words on any other vehicle are refused, naming whose they are.
   - **Held:** a crane parked stowed and rigged; a tower crane at a height; the words refused; a parked site machine
     compiled in a world at its pose, solid where it stands.
+- **The doors, step 3: the cards.**
+  - The vehicle vocab card (`solid-vocab/vehicle.md`) names every site machine and its words beside its word (`pose`
+    by name or joint values, `tool`, `carrier`, `height`, `palette`). It also covers the `construction` family, the
+    parked machine's words, and two worked examples (a breaker at work, a crane rigged).
+  - The vehicle routing card says a site machine is a construction shelf machine, posed and fitted by its words.
+  - The routing eval has a row for one ("an excavator with a breaker on, its boom raised" → `mint_solid`).
