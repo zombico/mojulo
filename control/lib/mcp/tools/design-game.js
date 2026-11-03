@@ -482,14 +482,14 @@ export async function designGameHandler(input, context = {}) {
     if (patch !== undefined) await updateSketchHandler({ ref, patch, ...(title ? { title } : {}) });
   }
   try {
-    return await afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }, context);
+    return await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape }, context);
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
     throw new Error(`${err.message}\n— the gameworld is stored at '${ref}' as written; fix it with design_game({ ref: '${ref}', patch }) rather than starting a new one.`);
   }
 }
 
-async function afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }, context = {}) {
+async function afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape }, context = {}) {
   let W = gameworldOf(SketchRepository.getByRef(ref).manifest);
   // the verdicts
   if (approve !== undefined || revise !== undefined) {
