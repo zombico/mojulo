@@ -69,7 +69,17 @@
  *                   BLOCK ('D3.2.1') laid by one of the geotown's block segments (true: the block's own if it is one,
  *                   else its ring's; or `{ segment: 'main-street' }`), cropped to its block and centred in the metro's
  *
- *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, evoke, at, along, play, geotowns }
+ *     under         true | { at?: '<block id>' }: an evocation's (its blocks at a building's detail) core podiums walked
+ *                   into from their streets, each a lobby at its plaza and a concourse under it down a stair
+ *                   (geocity/podium.js), and the passages under the streets between their concourses (geocity/tunnels.js);
+ *                   `at` one tower or podium block's alone, no passage
+ *
+ *     subway        true | { along?, stations?, plan?, line?, depth?, gap?, tunnels?, elevation? }: an evocation's subway line
+ *                   under one of its arterials (the spine by default), its stations in a row under the street, joined by
+ *                   running tunnels, each station's way out a stair up to the sidewalk (geocity/subway.js,
+ *                   network/subway.js); `elevation` 'deep' | 'elevated', or one a station: an elevated station over the
+ *                   street on its piers, the line an el between two, diving to the subway where it meets a deep one
+ *   readGeocity(spec) → { metro: { id, …card }, grammar, pattern, hills, evoke, at, along, play, geotowns, under?, subway? }
  *
  * Metres throughout. Anything off the card is refused by name; nothing here rolls a die.
  */
@@ -153,9 +163,12 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
-const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns']);
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway']);
+// a subway line under an evocation's street (geocity/subway.js): its settings
+const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels', 'elevation']);
+const CITY_ELEVATIONS = Object.freeze(['deep', 'elevated']);
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geocity: ${msg}`); };
@@ -246,7 +259,12 @@ export function readGeocity(spec = {}) {
   if (!isObj(Rd.median) || !num(Rd.median.share, 0, 1) || !num(Rd.median.w, 1, 20)) no('roads.median is { share: 0–1, w: metres }');
   if (!isObj(Rd.oneway) || !(Number.isInteger(Rd.oneway.pairs) && Rd.oneway.pairs >= 0 && Rd.oneway.pairs <= 4) || !(Number.isInteger(Rd.oneway.lanes) && Rd.oneway.lanes >= 1 && Rd.oneway.lanes <= 5)) no('roads.oneway is { pairs: 0–4, lanes: 1–5 }');
   if (!isObj(Rd.streetcar) || typeof Rd.streetcar.spine !== 'boolean' || !num(Rd.streetcar.share, 0, 1) || !num(Rd.streetcar.gauge, 0.6, 2) || !num(Rd.streetcar.row, 4, 20)) no('roads.streetcar is { spine: boolean, share: 0–1, gauge: metres, row: metres }');
-  if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');
+  if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');  // what is under it (geocity/podium.js): a podium walked into, its concourse below the street; an evocation's, at a
+  // building's detail
+  const under = spec.under === undefined ? null : spec.under === true ? {} : spec.under;
+  if (under !== null && (!isObj(under) || Object.keys(under).some((k) => k !== 'at') || (under.at !== undefined && (typeof under.at !== 'string' || !/^[A-Z]+[0-9]+\.[0-9]+\.[0-9]+$/.test(under.at))))) no('under is true or { at?: \'<block id>\' }: the podiums walked into from their streets, their concourses under them and the passages between, or the one `at` names alone');
+  if (under !== null && !['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('under is an evocation\'s (a neighbourhood, a corridor or a segment): what is walked into is drawn at a building\'s detail');
+
   if (!PATTERNS[M.outskirts]) no(`outskirts is a geotown pattern (${PATTERN_IDS.join(', ')})`);
   let grammar = resolveGrammar(M.grammar, 'geocity.grammar'), pattern = { id: M.outskirts, ...PATTERNS[M.outskirts] };
   // at game scale what a walker covers is compressed (checked to scale above, so a card holds either way)
@@ -264,5 +282,17 @@ export function readGeocity(spec = {}) {
     grammar = grammarAtPlay(grammar, 'game');
     pattern = { ...pattern, block: { long: pattern.block.long.map(p), depth: pattern.block.depth.map(q) } };
   }
-  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}) };
+  // a subway line under one of its arterials (geocity/subway.js): an evocation's, as what is under it is
+  const subway = spec.subway === undefined ? null : spec.subway === true ? {} : spec.subway;
+  if (subway !== null) {
+    if (!isObj(subway)) no(`subway is true or { ${SUBWAY_KEYS.join(', ')} } (every one optional)`);
+    for (const k of Object.keys(subway)) if (!SUBWAY_KEYS.includes(k)) no(`subway.${k} is not a setting (${SUBWAY_KEYS.join(', ')})`);
+    if (subway.along !== undefined && (typeof subway.along !== 'string' || !/^(spine|(ns|ew)(-spine|-[0-9]+))$/.test(subway.along))) no("subway.along names an arterial ('ns-2', 'ew-0'), or 'spine', 'ns-spine', 'ew-spine'");
+    if (subway.stations !== undefined && !(Number.isInteger(subway.stations) && subway.stations >= 1 && subway.stations <= 4)) no('subway.stations is 1 to 4');
+    const els = subway.elevation === undefined ? [] : Array.isArray(subway.elevation) ? subway.elevation : [subway.elevation];
+    if (els.some((e) => !CITY_ELEVATIONS.includes(e)) || (Array.isArray(subway.elevation) && subway.elevation.length !== (subway.stations ?? 2))) no(`subway.elevation is ${CITY_ELEVATIONS.map((e) => `'${e}'`).join(' | ')}, or one a station (${subway.stations ?? 2}): a station in a cut is a stage's, not a city's`);
+    if (subway.tunnels !== undefined && !['real', 'teleport'].includes(subway.tunnels)) no("subway.tunnels is 'real' (walked from one platform to the next) or 'teleport' (a stub out of each station, a warp to the next's platform, its arrival shown)");
+    if (!['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('subway is an evocation\'s (a neighbourhood, a corridor or a segment): it is walked, drawn at a building\'s detail');
+  }
+  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}) };
 }

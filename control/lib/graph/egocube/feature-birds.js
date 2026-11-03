@@ -10,7 +10,8 @@
  *                          overhangs the lower: negative a hook) or null
  *   beakParts(m, hd)       → the beak as a muzzle module (feature-grammar.js MUZZLES): the upper mandible a tuft bent by
  *                          the droop and aimed down by the depth, the lower a shorter one under it (shorter still under a
- *                          hook), or a flat egg where the beak is wider than deep (a bill); its mouth along it
+ *                          hook), each broadened at its root by a pair of side mandibles converging on its tip; or a flat
+ *                          egg where the beak is wider than deep (a bill); its mouth along it
  *   headOf(m)              → the head that matches the beak: [long, across, up] scales on the cranium and the jaw, and a
  *                          brow ridge over the eyes on a hooked beak (a raptor's frown)
  *   plumageOf(id)          → the colours that are the bird's pattern: its head (a crown of its own colour; a hood when the
@@ -44,21 +45,35 @@ export function beakOf(id) {
 
 /** THE BEAK'S NUMBERS: its length in head units from its measures (a base, the share of the skull, the slenderness), its
  *  limits, its root's radius against its depth, the curl a unit of droop gives, the depth that aims it down, the width
- *  over depth that makes it a bill */
-export const FEATURE_BEAK = Object.freeze({ base: 0.3, perLen: 0.38, perSlender: 0.08, len: [0.42, 1.5], root: [0.06, 0.3], curl: 40, down: 0.45, bill: 1.2 });
+ *  over depth that makes it a bill; and its BREADTH: how far each side mandible's root stands out from the middle (a
+ *  share of the root's radius, never more than a share of the beak's length: a short deep beak, an owl's, stays a beak and
+ *  never a band across the face), the side's share of the radius and of the length, and a bill's breadth over its measure.
+ *  A beak is drawn broad at its root (the style's: a beak reads from the front as a wedge, never a spike) and narrows to
+ *  its own tip */
+export const FEATURE_BEAK = Object.freeze({ base: 0.3, perLen: 0.38, perSlender: 0.08, len: [0.42, 1.5], root: [0.06, 0.3], curl: 40, down: 0.45, bill: 1.2,
+  broad: 0.6, broadOfLen: 0.22, side: { r: 0.85, len: 0.72 }, billBroad: 1.18 });
 
 export function beakParts(m, hd = 1) {
   const B = FEATURE_BEAK, L = clamp(B.base + B.perLen * m.len + B.perSlender * m.slender, B.len[0], B.len[1]) * hd;
   const depth = L / Math.max(m.slender, 0.3), R = clamp(depth / 2, B.root[0] * hd, B.root[1] * hd), curl = clamp(-m.droop * B.curl, 0, 80);
   const root = [0, 0.42, 2.54], s = Math.min(L, 0.7 * hd);
   const mouth = { nose: [0, root[1] + 0.5 * s, 2.56], centre: [0, root[1] + 0.7 * s, 2.48], corner: [0.14, 0.5, 2.5], pivot: [0, 0.3, 2.56] };
-  if (m.wide >= B.bill) return { eggs: [{ name: 'bill', c: [0, root[1] + L / 2, 2.5], u: [0, 1, -0.1], r: [L / 2, (depth * m.wide) / 2, depth * 0.3], hint: [1, 0, 0], bone: 'head', group: 'Beak', join: 0.06 }], mouth, nose: 'bill', kind: 'bill' };
-  const down = -clamp(B.down / Math.max(m.slender, 0.3), 0.1, 1);
+  if (m.wide >= B.bill) return { eggs: [{ name: 'bill', c: [0, root[1] + L / 2, 2.5], u: [0, 1, -0.1], r: [L / 2, (depth * m.wide * B.billBroad) / 2, depth * 0.3], hint: [1, 0, 0], bone: 'head', group: 'Beak', join: 0.06 }], mouth, nose: 'bill', kind: 'bill' };
+  const down = -clamp(B.down / Math.max(m.slender, 0.3), 0.1, 1), lowLen = L * (curl > 18 ? 0.55 : 0.8);
+  // (the breadth: a side mandible each side of the upper and of the lower, its root out from the middle (in the head's
+  // frame: `hd` scales the places), aimed in so it meets the middle near the beak's own tip)
+  const side = (name, at, len, r, aimDown, crl) => {
+    const o = Math.min(B.broad * r, B.broadOfLen * len) / hd, l = len * B.side.len;
+    return { name, root: [o, at[1], at[2]], aim: unit([-(0.9 * o * hd) / l, 1, aimDown]), len: l, r: r * B.side.r, tip: 0.2, curl: crl * 0.8, bend: [0, 0, -1], bone: 'head', group: 'Beak', join: 0.05 };
+  };
+  const upAt = [0, root[1], root[2] + 0.02], lowAt = [0, root[1] - 0.02, root[2] - 0.07];
   return {
     eggs: [],
     tufts: [
-      { name: 'beak', root: [0, root[1], root[2] + 0.02], aim: unit([0, 1, down]), len: L, r: R, tip: 0.12, curl, bend: [0, 0, -1], bone: 'head', group: 'Beak', join: 0.06 },
-      { name: 'beakLow', root: [0, root[1] - 0.02, root[2] - 0.07], aim: unit([0, 1, down - 0.05]), len: L * (curl > 18 ? 0.55 : 0.8), r: R * 0.62, tip: 0.2, curl: curl * 0.3, bend: [0, 0, -1], bone: 'head', group: 'Beak', join: 0.05 },
+      { name: 'beak', root: upAt, aim: unit([0, 1, down]), len: L, r: R, tip: 0.12, curl, bend: [0, 0, -1], bone: 'head', group: 'Beak', join: 0.06 },
+      { name: 'beakLow', root: lowAt, aim: unit([0, 1, down - 0.05]), len: lowLen, r: R * 0.62, tip: 0.2, curl: curl * 0.3, bend: [0, 0, -1], bone: 'head', group: 'Beak', join: 0.05 },
+      side('beakSideR', upAt, L, R, down, curl),
+      side('beakLowSideR', lowAt, lowLen, R * 0.62, down - 0.05, curl * 0.3),
     ],
     mouth, nose: 'beak', kind: raptor(m) ? 'hook' : m.slender < 0.7 ? 'deep' : curl > 18 ? 'bent' : m.slender > 2.4 ? 'needle' : 'point',
   };
@@ -110,10 +125,12 @@ function frameOf(e) {
 export const shade = (h, k) => { const c = rgb(h); if (!c) return h; return `#${c.map((x) => Math.round(255 * Math.max(0, Math.min(1, k < 0 ? x * (1 + k) : x + (1 - x) * k))).toString(16).padStart(2, '0')).join('')}`; };
 
 /** a bird's wing tones: the wing a value step off the coat (darker; lighter on a coat already dark), its flight
- *  feathers a step further, or the primaries' own colour where the bird has one */
+ *  feathers a step further, or the primaries' own colour where the bird has one. The step is wide enough that the
+ *  folded wing reads as its own shape on the body's side in profile */
+export const WING_STEP = Object.freeze({ wing: [0.24, -0.3], flight: [0.16, -0.3] });
 export function wingTones(coat, plume = {}) {
-  const dark = lum(coat) < 0.18, wing = shade(coat, dark ? 0.16 : -0.2);
-  return { Wing: wing, Flight: plume.primaries ?? shade(wing, dark ? 0.14 : -0.25) };
+  const dark = lum(coat) < 0.18, W = WING_STEP, wing = shade(coat, dark ? W.wing[0] : W.wing[1]);
+  return { Wing: wing, Flight: plume.primaries ?? shade(wing, dark ? W.flight[0] : W.flight[1]) };
 }
 
 export function extentAlong(eggs, dir) {

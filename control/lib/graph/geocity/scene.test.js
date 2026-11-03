@@ -31,6 +31,19 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
     expect(pad.length).toBeGreaterThan(0);
   });
 
+  it('holds every mass it draws in a box, the walk clear of them', () => {
+    // (the metro to scale draws every block at block scale: a box for each mass, none more)
+    expect(P.colliders.length).toBe(P.geocity.counts.buildings);
+    expect(P.geocity.counts.colliders).toBe(P.colliders.length);
+    for (const c of P.colliders) for (let k = 0; k < 3; k++) expect(c.max[k]).toBeGreaterThan(c.min[k]);
+    // each tower in its own box, from its terrace to its roof
+    const office = D.grammar.floorH.office, b = D.regions.flatMap((r) => r.blocks).find((x) => x.towers), t = b.towers[0];
+    const T = P.colliders.find((c) => c.of === `${b.id}:tower` && c.min[0] === t.rect[0] && c.min[1] === t.rect[1]);
+    expect(T.max.slice(0, 2)).toEqual([t.rect[2], t.rect[3]]);
+    expect(T.max[2] - T.min[2]).toBeCloseTo(t.storeys * office, 3);
+    expect(law('walk-clear').ok).toBe(true);
+  });
+
   it('lights its windows past dusk, and draws none by day', () => {
     expect(group('geocity:night-window')).toHaveLength(0);
     const N = assembleGeocityScene({ ...M, hour: 'night' });
@@ -83,6 +96,18 @@ describe('an evocation built', () => {
     expect(K.faces.some((f) => f.group === 'geocity:tower')).toBe(true);
     expect(K.cameras.map((c) => c.name)).toEqual(['skyline', 'over']);
     expect(K.faces.length).toBeLessThan(P.faces.length);
+  });
+
+  it('holds its evoked lots and the neighbourhoods round them in boxes; the skyline, never walked, none', () => {
+    const DN = designGeocity({ ...geocity, evoke: 'neighbourhood' }, { seed: 2 }), massed = DN.regions.filter((r) => DN.evoked.regions.includes(r.id));
+    const inside = (c, q) => (c.min[0] + c.max[0]) / 2 >= q[0] && (c.min[0] + c.max[0]) / 2 <= q[2] && (c.min[1] + c.max[1]) / 2 >= q[1] && (c.min[1] + c.max[1]) / 2 <= q[3];
+    expect(N.colliders.length).toBeGreaterThan(0);
+    // (a crane's jib reaches out over the street, high over it: its mast stands in its block)
+    expect(N.colliders.filter((c) => !c.of.endsWith(':crane')).every((c) => massed.some((r) => inside(c, r.rect)))).toBe(true);
+    // an evoked tower's lot its own box
+    expect(N.colliders.some((c) => /^[^:]+:t0$/.test(c.of) && DN.evoked.blocks.includes(c.of.split(':')[0]))).toBe(true);
+    expect(N.geocity.laws.find((l) => l.law === 'walk-clear').ok).toBe(true);
+    expect(K.colliders).toBeUndefined();
   });
 });
 
@@ -167,6 +192,11 @@ describe('the geotown composed in, built', () => {
     const inR = (f) => f.corners.every(([x, y]) => x >= r.rect[0] - 0.5 && x <= r.rect[2] + 0.5 && y >= r.rect[1] - 0.5 && y <= r.rect[3] + 0.5);
     const inB = (f) => f.corners.every(([x, y]) => x >= b.rect[0] - 1 && x <= b.rect[2] + 1 && y >= b.rect[1] - 1 && y <= b.rect[3] + 1);
     expect(town.every((f) => inR(f) || inB(f))).toBe(true);
+    // its houses' boxes come with it, in the metro's frame, inside the neighbourhood or the block they stand in
+    const held = (id, q, e) => C.colliders.filter((c) => c.of.startsWith(`${id}:`) && c.of.endsWith(':house')).every((c) => c.min[0] >= q[0] - e && c.max[0] <= q[2] + e && c.min[1] >= q[1] - e && c.max[1] <= q[3] + e);
+    expect(C.colliders.filter((c) => c.of.startsWith(`${r.id}:`) && c.of.endsWith(':house')).length).toBeGreaterThan(0);
+    expect(C.colliders.filter((c) => c.of.startsWith(`${b.id}:`) && c.of.endsWith(':house')).length).toBeGreaterThan(0);
+    expect(held(r.id, r.rect, 0.5) && held(b.id, b.rect, 0)).toBe(true);
     const K = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'skyline', geotowns: { [r.id]: true } } });
     expect(K.faces.some((f) => String(f.group).startsWith('geotown:'))).toBe(false);
   });
