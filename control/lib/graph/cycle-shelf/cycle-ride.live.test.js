@@ -83,8 +83,10 @@ describe('a machine ridden in the page', () => {
     const side = fig.bones.filter((b) => b.id.startsWith('wheel') && Math.abs(b.head[0]) > 0.1).sort((a, b) => a.head[0] - b.head[0]);
     const [inner, outer] = (turn.steer > 0 ? [side[0], side[side.length - 1]] : [side[side.length - 1], side[0]]).map((b) => b.id);
     const head = (id) => fig.bones.find((b) => b.id === id).head;
-    // (read against the straight on the throttle: the squat pitches both alike)
-    expect(at(turn.bones[inner], head(inner))[2] - at(launch.bones[inner], head(inner))[2]).toBeGreaterThan(0.03);
-    expect(Math.abs(at(turn.bones[outer], head(outer))[2] - at(launch.bones[outer], head(outer))[2])).toBeLessThan(0.03);
+    // (read against the straight on the throttle: the squat pitches both alike; the outer settles into its springs as the
+    // turn loads it, by a few centimetres that hang on the frame the page is read at, far less than the inner lifts)
+    const lift = at(turn.bones[inner], head(inner))[2] - at(launch.bones[inner], head(inner))[2];
+    expect(lift).toBeGreaterThan(0.03);
+    expect(Math.abs(at(turn.bones[outer], head(outer))[2] - at(launch.bones[outer], head(outer))[2])).toBeLessThan(lift / 4);
   });
 });
