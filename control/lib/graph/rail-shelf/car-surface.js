@@ -12,8 +12,10 @@
  *   flat       a flat wagon's deck on its sills, its stanchions, a container on it
  *   freight    every wagon's buffer beams and buffers and hook at its ends, its three-piece trucks
  *
- *   compileCarSurface(brief, { quality, livery, pose: { spin } }) → { design, quality, livery, faces, materials,
- *                                                                    census, ends }
+ *   compileCarSurface(brief, { quality, livery, pose: { spin }, interior }) → { design, quality, livery, faces,
+ *                                                                    materials, census, ends, interior? }
+ *     interior  true, or { plan, pitch, trim }: its inside (interior-odm.js, interior-surface.js) as `faces.interior`
+ *               and its plan as `interior`; absent, nothing of it (a wagon has none)
  *     ends   what each end carries and how far it stands off the body ({ kind, depth }), for consist.js to couple by
  *
  * Coordinates: +y forward, x right, z up from the rail; the car's middle at y = 0.
@@ -22,8 +24,10 @@ import { solveCarDesign } from './car-odm.js';
 import { halfWidthAt } from './cab-odm.js';
 import { compileBogieSurface } from './bogie-surface.js';
 import { CAB_LIVERIES, RAIL_MATERIALS } from './cab-surface.js';
-import { samples, sectionRows, windowLights, sideParts, extrudeSides, endWall, articulationRing } from './body-shell.js';
-import { r4, face, box, cylinder, finishRailFaces } from './rail-geom.js';
+import { samples, sectionRows, openings, sideParts, extrudeSides, endWall, articulationRing } from './body-shell.js';
+import { r4, face, box, cylinder, finishRailFaces, RAIL_INTERIOR_MATERIALS } from './rail-geom.js';
+import { solveInterior } from './interior-odm.js';
+import { compileInteriorSurface } from './interior-surface.js';
 import { mulberry32, hashSeed } from '../vehicle-designer/veh-common.js';
 
 export const CAR_LODS = Object.freeze({
@@ -37,7 +41,7 @@ const WAGON_COLOURS = Object.freeze({ box: '#7a4a32', hopper: '#9aa0a3', tank: '
 const CONTAINERS = Object.freeze(['#2f5f8f', '#a8322b', '#3f7a47', '#c8792a', '#6b4f8a']);
 const DARK = '#1c1e20', GLASS = '#22313c', STEEL = '#7d8287', RUBBER = '#1a1b1c';
 
-export function compileCarSurface(brief = {}, { quality = 'studio', livery, pose = {} } = {}) {
+export function compileCarSurface(brief = {}, { quality = 'studio', livery, pose = {}, interior } = {}) {
   const LOD = CAR_LODS[quality];
   if (!LOD) throw new Error(`rail-car: quality is ${Object.keys(CAR_LODS).join(', ')}`);
   const d = brief.frame && brief.doors ? brief : solveCarDesign(brief);
@@ -56,10 +60,8 @@ export function compileCarSurface(brief = {}, { quality = 'studio', livery, pose
 
   if (!freight) {
     // ── a passenger car: the same shell as its cab car's, its doors and windows between its ends ──
-    const band = [r4(S.zw - 0.05), r4(S.zw + 0.12)], win = [r4(floor + 0.85), r4(floor + 1.92)], doorTop = floor + d.doors.height, gap = 0.02;
+    const { band, win, doorTop, doors, lights } = openings(d), gap = 0.02;
     const Z = sectionRows(d, LOD, [floor, S.zw, ...band, ...win, doorTop, floor - 0.05, zr]);
-    const doors = d.doors.at.map((y) => [r4(y - d.doors.width / 2), r4(y + d.doors.width / 2)]);
-    const lights = windowLights(d, { ends: [y0 + 1.0, y1 - 1.0], doors });
     const Yb = Array.from({ length: Math.ceil(L / LOD.step) + 1 }, (_, i) => Math.min(y1, y0 + i * LOD.step));
     const Y = samples(Yb, [...doors.flatMap(([a, b]) => [a, a + gap, b - gap, b]), ...lights.flat()], y0, y1, 0.008);
     const { common, part } = sideParts({ floor, doorTop, win, band, zr, doors, lights, gap });
@@ -97,9 +99,13 @@ export function compileCarSurface(brief = {}, { quality = 'studio', livery, pose
   }
   for (const f of [...body, ...fittings]) f.fill = f.fill ?? colour(f.part);
   const faces = { body: finishRailFaces(body), fittings: finishRailFaces(fittings), bogies };
+  // its inside, when asked for (a wagon has none): the plan solved from its design, drawn inside its shell
+  const I = interior && !freight ? solveInterior(d, interior === true ? {} : interior) : null;
+  if (I && !I.valid) throw new Error(`rail-car: the interior fails its laws (${I.laws.filter((l) => !l.pass).map((l) => l.id).join(', ')})`);
+  if (I) faces.interior = finishRailFaces(compileInteriorSurface(d, I, { quality, trim: interior.trim }).faces);
   const all = Object.values(faces).flat(), parts = {};
   for (const f of all) parts[f.part] = (parts[f.part] || 0) + 1;
-  return { design: d, quality, livery: C, faces, materials: RAIL_MATERIALS, ends: { front: { kind: d.ends, depth }, rear: { kind: d.ends, depth } },
+  return { design: d, quality, livery: C, faces, materials: I ? RAIL_INTERIOR_MATERIALS : RAIL_MATERIALS, ...(I ? { interior: I } : {}), ends: { front: { kind: d.ends, depth }, rear: { kind: d.ends, depth } },
     census: { faces: all.length, triangles: all.reduce((t, f) => t + f.corners.length - 2, 0), materialGroups: new Set(all.map((f) => f.material)).size, parts } };
 }
 

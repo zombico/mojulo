@@ -49,7 +49,7 @@ export const CAB_ARCHETYPES = frozen({
     profile: [[0, 0.72], [0.16, 0.98], [0.32, 1], [0.62, 0.7], [0.86, 0.3], [1, 0]], plan: 2.5,
     screen: { bottom: 0.72, top: 2.55, half: 0.9, mullion: false }, sign: 0.24, mask: true,
     lamps: { z: 0.55, u: 0.66, high: false }, coupler: 'covered', anticlimber: false, pilot: 'skirt',
-    pantographs: [{ kind: 'tramArm', at: 0.08, facing: 1 }], bogies: ['tram', 'tram'], doors: { count: 2, width: 1.3 }, windows: 'band', cabWindow: 1.2,
+    pantographs: [{ kind: 'tramArm', at: 0.08, facing: 1 }], bogies: ['tram', 'tram'], doors: { count: 1, width: 1.3 }, windows: 'band', cabWindow: 1.2,
   }),
   regional: frozen({
     length: 24, width: 2.85, height: 4.05, floor: 1.15, skirt: 0.55, nose: 2.6, overhang: 3.6,
@@ -173,9 +173,11 @@ export function solveCabDesign({ seed = 1, archetype = 'metro', dimensions = {} 
     coupler: { kind: A.coupler, z: A.coupler === 'buffers' ? 1.06 : r4(Math.min(floor - 0.18, 1.0)) },
     anticlimber: A.anticlimber, pilot: A.pilot, tip,
   });
-  // the doors: spaced along the body behind the cab, their leaves' width; the windows between them
-  const D = A.doors, cab = 2.2 + nose, body = L - cab - 1.2, doors = [];
-  for (let k = 0; k < D.count; k += 1) doors.push(r4(L / 2 - cab - (body * (k + (D.count === 1 ? 0.92 : 0.5))) / D.count));
+  // the doors: spaced along the body behind the cab, their leaves' width; the windows between them (on a floor lower than
+  // its bogies, a streetcar's, spaced over the clear span between them: a low floor cannot be stepped into over a bogie)
+  const D = A.doors, cab = 2.2 + nose, body = L - cab - 1.2, doors = [], low = floor < frame.pivot - 0.05;
+  const reach = (k) => B[k].base / 2 + B[k].wheel / 2 + 0.1, clear = low ? [frame.bogies[1] + reach(1), Math.min(frame.bogies[0] - reach(0), L / 2 - cab)] : null;
+  for (let k = 0; k < D.count; k += 1) doors.push(r4(low ? clear[0] + ((clear[1] - clear[0]) * (k + 0.5)) / D.count : L / 2 - cab - (body * (k + (D.count === 1 ? 0.92 : 0.5))) / D.count));
   const design = { version: CAB_GRAMMAR_VERSION, archetype, seed, frame, section, front, screen, anchors, pantographs,
     doors: frozen({ at: frozen(doors), width: D.width, height: 1.95 }), windows: A.windows, cabWindow: A.cabWindow };
   // the laws: inside the gauge, the driver's eye inside the screen, the coupler's height, the wheels under the body
@@ -184,6 +186,7 @@ export function solveCabDesign({ seed = 1, archetype = 'metro', dimensions = {} 
   const laws = [
     { id: 'within-gauge', pass: zs.every((z) => halfWidthAt(d, z) <= gaugeAt(z) + 1e-9) && H <= CAB_GAUGE.at(-1)[0] },
     { id: 'eye-in-screen', pass: eye > screen.z0 && eye < screen.z1 },
+    { id: 'doors-clear-of-bogies', pass: !low || doors.every((y) => frame.bogies.every((yb, k) => Math.abs(y - yb) >= D.width / 2 + reach(k) - 0.1 - 1e-9)) },
     { id: 'screen-under-roof', pass: screen.z1 < section.zc + section.radius && screen.z0 > floor },
     { id: 'coupler-height', pass: anchors.coupler.kind === 'covered' || (anchors.coupler.z > 0.5 && anchors.coupler.z < 1.15) },
     { id: 'section-ordered', pass: section.z0 < floor + 0.01 && floor < section.zw && section.zw < section.zc && section.zc + section.radius < H },

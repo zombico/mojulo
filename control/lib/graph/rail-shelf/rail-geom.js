@@ -6,6 +6,9 @@
 import { VEHICLE_MATERIALS } from '../car-designer/vehicle-surface-finish.js';
 
 export const RAIL_MATERIALS = Object.freeze({ ...VEHICLE_MATERIALS, sign: Object.freeze({ metalness: 0, roughness: 0.35, emissive: '#ffb23e', emissiveIntensity: 0.9 }) });
+// (an interior's own, carried only by a thing compiled with one: seat fabric, the lining's moulded trim, a desk's screens)
+export const RAIL_INTERIOR_MATERIALS = Object.freeze({ ...RAIL_MATERIALS, fabric: Object.freeze({ metalness: 0, roughness: 0.94 }), trim: Object.freeze({ metalness: 0.02, roughness: 0.55, clearcoat: 0.15 }),
+  screen: Object.freeze({ metalness: 0, roughness: 0.3, emissive: '#7fc4ff', emissiveIntensity: 0.8 }) });
 export const r4 = (x) => Math.round(x * 10000) / 10000 + 0;
 export const P3 = (p) => p.map(r4);
 export const sub = (a, b) => a.map((v, i) => v - b[i]), add = (a, b) => a.map((v, i) => v + b[i]), mul = (a, k) => a.map((v) => v * k);
@@ -80,7 +83,11 @@ const OWN = { sign: 'sign', coupler: 'alloy', buffer: 'alloy', anticlimber: 'all
   wheel: 'alloy', axle: 'alloy', gangway: 'rubber', underframe: 'seal', grille: 'carbon', seam: 'seal', 'lamp.bezel': 'carbon', headlamp: 'lamp', taillamp: 'tail',
   'wheel.tread': 'alloy', 'wheel.mark': 'paint', 'brake.disc': 'brake', 'bogie.air': 'rubber', 'bogie.chevron': 'rubber', damper: 'paint',
   'panto.arm': 'alloy', 'panto.rod': 'alloy', 'panto.frame': 'alloy', 'panto.head': 'alloy', 'panto.horn': 'alloy', 'panto.strip': 'carbon', 'panto.drive': 'seal', 'panto.wheel': 'alloy', 'panto.insulator': 'paint',
-  'catenary.wire': 'alloy', 'catenary.messenger': 'alloy', 'catenary.arm': 'alloy', 'catenary.mast': 'seal', 'catenary.insulator': 'paint' };
+  'catenary.wire': 'alloy', 'catenary.messenger': 'alloy', 'catenary.arm': 'alloy', 'catenary.mast': 'seal', 'catenary.insulator': 'paint',
+  'seat.cushion': 'fabric', 'seat.back': 'fabric', 'seat.headrest': 'fabric', 'seat.frame': 'alloy', 'seat.armrest': 'trim', 'rail.grab': 'alloy', rack: 'alloy', 'trim.lamp': 'lamp',
+  'sign.display': 'sign', 'cab.display': 'screen', 'trim.floor': 'rubber', 'trim.step': 'rubber', 'trim.floor.door': 'rubber', 'trim.threshold': 'rubber', 'trim.floor.zone': 'rubber', 'trim.lining': 'trim',
+  'trim.dado': 'trim', 'trim.ceiling': 'trim', partition: 'trim', 'partition.frame': 'alloy', 'partition.door': 'trim', table: 'trim', equipment: 'trim', 'equipment.panel': 'trim',
+  module: 'trim', 'cab.desk': 'trim', 'cab.floor': 'rubber', 'cab.controller': 'carbon' };
 export function railMaterial(part) {
   if (OWN[part]) return OWN[part];
   if (/^bogie\./.test(part)) return 'seal';

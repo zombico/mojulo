@@ -7,7 +7,7 @@
  *   TRAIN_PLANS   family → its default composition: { cab, cars: [archetype…], rear: true | false }
  *   planTrain({ family, cars? }) → { family, cab, cars, rear }: the composition, `cars` an explicit list (a freight
  *                 train's wagons behind its locomotive)
- *   composeTrain({ family, cars?, seed, quality, livery, pose }) → { plan, vehicles: [{ kind, archetype, y, facing,
+ *   composeTrain({ family, cars?, seed, quality, livery, pose, interior }) → { plan, vehicles: [{ kind, archetype, y, facing,
  *                 length }], length, faces: { [vehicle]: [faces] }, couplings: [{ between, kinds, gap, meets }], laws,
  *                 valid, census, materials }
  *     y        each vehicle's middle along the track (the leading cab's nose ahead of 0's), facing +1 or −1
@@ -40,11 +40,11 @@ export function planTrain({ family = 'metro', cars } = {}) {
   return { family, cab: P.cab, cars: [...list], rear: P.rear };
 }
 
-export function composeTrain({ family = 'metro', cars, seed = 1, quality = 'game', livery, pose = {} } = {}) {
+export function composeTrain({ family = 'metro', cars, seed = 1, quality = 'game', livery, pose = {}, interior } = {}) {
   const plan = planTrain({ family, cars });
-  const front = compileCabSurface({ seed, archetype: plan.cab }, { quality, livery, pose });
-  const bodies = plan.cars.map((k) => compileCarSurface({ seed, archetype: k }, { quality, livery: CAB_ARCHETYPES[plan.cab] && CAR_ARCHETYPES[k].kind === 'passenger' ? livery : undefined, pose }));
-  const rear = plan.rear ? compileCabSurface({ seed, archetype: plan.cab }, { quality, livery, pose }) : null;
+  const front = compileCabSurface({ seed, archetype: plan.cab }, { quality, livery, pose, ...(interior ? { interior } : {}) });
+  const bodies = plan.cars.map((k) => compileCarSurface({ seed, archetype: k }, { quality, livery: CAB_ARCHETYPES[plan.cab] && CAR_ARCHETYPES[k].kind === 'passenger' ? livery : undefined, pose, ...(interior ? { interior } : {}) }));
+  const rear = plan.rear ? compileCabSurface({ seed, archetype: plan.cab }, { quality, livery, pose, ...(interior ? { interior } : {}) }) : null;
   // lay them out from the leading cab's middle back: each next body a gap behind the last, the gap its two ends' depths
   const vehicles = [], couplings = [], faces = {};
   const L0 = front.design.frame.length;

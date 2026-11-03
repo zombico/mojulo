@@ -14,6 +14,11 @@
  *   endWall(push, d, Z, y, part, from)          a flat end across the section at y, in strips between the rows' pairs
  *   articulationRing(push, d, y, s, depth)      a streetcar's articulation bellows at a body's end
  *   samples(base, snaps, lo, hi, gap)            sorted, deduped samples: the base spacing and every boundary
+ *   openings(d)                      a passenger body's openings, read off its design: its livery band, its window
+ *                                    band, its doors' tops and places, its window lights, a cab car's side window
+ *                                    (the body's sides and its interior's lining are cut by the same openings)
+ *   endsOf(d)                        what a body's ends carry: a car's its kind at both; a cab car's at its rear (buffers
+ *                                    on a locomotive, a streetcar's articulation, a unit's gangway)
  *
  * Coordinates: +y forward, +x right, z up from the rail.
  */
@@ -44,6 +49,22 @@ export function windowLights(d, { ends: [e0, e1], doors, louvres = null }) {
     for (let k = 0; k < n; k += 1) lights.push([r4(a + k * step + (k ? 0.06 : 0)), r4(a + (k + 1) * step - (k < n - 1 ? 0.06 : 0))]);
   }
   return lights;
+}
+
+export function openings(d) {
+  const { length: L, floor } = d.frame, S = d.section, y0 = -L / 2;
+  const band = [r4(S.zw - 0.05), r4(S.zw + 0.12)], win = [r4(floor + 0.85), r4(floor + 1.92)], doorTop = floor + d.doors.height;
+  const doors = d.doors.at.map((y) => [r4(y - d.doors.width / 2), r4(y + d.doors.width / 2)]);
+  if (!d.front) return { band, win, doorTop, doors, cabW: null, lights: windowLights(d, { ends: [y0 + 1.0, L / 2 - 1.0], doors }) };
+  const root = d.front.root, cabW = d.cabWindow ? [r4(root - 0.6 - d.cabWindow), r4(root - 0.6)] : null;
+  const lights = windowLights(d, { ends: [y0 + 1.0, (cabW ? cabW[0] : root) - 0.5], doors,
+    louvres: d.windows === 'louvres' ? Array.from({ length: 5 }, (_, k) => root - 3.2 - k * 2.4).filter((y) => y > y0 + 1.5).map((y) => [y - 0.9, y]) : null });
+  return { band, win, doorTop, doors, cabW, lights };
+}
+
+export function endsOf(d) {
+  if (!d.front) return { front: d.ends, rear: d.ends };
+  return { front: null, rear: d.anchors.coupler.kind === 'buffers' ? 'buffers' : d.archetype === 'tram' ? 'articulated' : 'gangway' };
 }
 
 export function sideParts({ floor, doorTop, win, band, zr, doors, lights, gap = 0.02, cabW = null, screen = null, louvres = false }) {

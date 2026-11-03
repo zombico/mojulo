@@ -116,3 +116,36 @@
     ends; a wagon's end gear as far out as its kind's depth; a train's cars nose to tail with the gap their ends need,
     its rear cab turned with its nose at the tail; unlike ends refused, a unit's foreign car refused; the same brief and
     the same plan the same bytes.
+- **The cars' insides** (`solveInterior`, `compileInteriorSurface`, `cutAway`): a car's or a cab car's inside solved from
+  its design into a plan held to laws, drawn inside its shell when asked for (`interior: true`, or `{ plan, pitch, trim }`,
+  on `compileCarSurface`, `compileCabSurface` and `composeTrain`; absent, the shell's bytes are unchanged and nothing of
+  it is emitted).
+  - **The plans** (`interior-odm.js`, `INTERIOR_PLANS`, a family's by `INTERIOR_FAMILY_PLAN`): benches along the walls
+    with poles, rails, draft screens and a wheelchair bay (a metro's); seats across in facing pairs, two and one abreast
+    (a streetcar's); facing bays two and two with tables, racks, vestibules behind partitions and a washroom (a
+    regional's); airline rows facing the car's middle with headrests and a table bay where they meet (a high-speed
+    coach's); a side corridor and compartments off it, two facing benches and a door each (a hauled coach's); a
+    locomotive's machine room, its cabinets down the middle and a corridor down each side. Its capacity: seated,
+    standing on its free floor, wheelchair bays.
+  - **The lining** follows the body's own section in from its skin and is cut by the body's own openings (the windows,
+    the doors, a cab's side window: `openings` in `body-shell.js`, which the body's sides now read too), each opening's
+    reveals back to the skin; a dado, the floor and its door zones and thresholds, the ceiling and its lamps; the end
+    walls and partitions with their doorways framed.
+  - **A low floor** (a streetcar's, under its bogies' tops) is raised over each bogie on a podium, a step up to it, its
+    seats standing on it. The cab car's and the car's designs now keep a low floor's doors off its bogies (a law, and
+    the doors spaced over the clear span between them), so the streetcar's cab car has one door between its bogies and
+    its centre module, on its own bogie, none.
+  - **The cab**: the driver's raised floor (over a bogie, on a low floor), the desk as far forward as the nose lets it
+    stand, its displays and controller, the seat set back so the seated eye is the eye its screen was drawn for, the
+    partition behind (a locomotive's with a second seat, its door onto a corridor).
+  - Its laws: headroom, the aisle's width, no seat in a door's zone, everything inside the lining, knee room for the
+    pitch, a passage through every partition, the bogies covered, the podium's step; a cab's driver's eye in the
+    screen, the desk inside the nose, headroom over the eye. `cutAway` opens a compiled thing's near half (its shell, and
+    its lining, ceiling, lamps, displays and racks there) so its inside reads from outside. `scripts/render-rail.mjs`
+    draws a car's or a cab car's inside: cutaway, saloon, aisle and cab.
+  - Held (`interior.test.js`): each seating procedure within its laws; no seat in a door's zone and a passage through
+    every partition; on a car with long runs seats across seat more and stand fewer than benches, a plan too wide for
+    its body refused; a pitch too short for knees refused, a wagon without one; the lining at the section in from the
+    skin and everything inside the skin; no wall across a window or a door; absent, the shell the same bytes; a
+    cutaway's near half gone and its seats kept; a low floor's podiums under its seats, a step to each; a driver's eye in
+    the screen, the desk inside the nose, a low floor's cab over its bogie; the same brief the same bytes.

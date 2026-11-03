@@ -248,8 +248,9 @@ Pointers only; each target carries its own design notes.
   car's grammar solves a brief into a frame, its section and its front as a field over it, held to laws; its surface
   compiler names each quad; design cards by preset; the bogies under it the same way, `bogie-odm.js` and
   `bogie-surface.js`, its pantographs `panto-odm.js` and `panto-surface.js`, the overhead line they reach
-  `catenary.js`; the cars behind it `car-odm.js` and `car-surface.js` over the shell they share, `body-shell.js`; a
-  train coupled from them `consist.js`); review: `scripts/render-rail.mjs`.
+  `catenary.js`; the cars behind it `car-odm.js` and `car-surface.js` over the shell they share, `body-shell.js`; their
+  insides `interior-odm.js` and `interior-surface.js`, the lining cut by the body's own openings; a train coupled from
+  them `consist.js`); review: `scripts/render-rail.mjs`.
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
   one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a

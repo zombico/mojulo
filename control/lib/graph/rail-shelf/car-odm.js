@@ -8,7 +8,8 @@
  *   metroCar        metro       a metro car: four double doors a side, a window band, a gangway at each end
  *   tramModule      tram        a streetcar's short module hung between its neighbours: no bogie of its own, its ends
  *                               articulated (a bellows ring to the next)
- *   tramCentre      tram        a streetcar's centre module on its own bogie under its middle
+ *   tramCentre      tram        a streetcar's centre module on its own bogie under its middle (no door: its low floor
+ *                               is raised over the bogie, and the modules hung either side carry the doors)
  *   regionalCar     regional    a regional unit's car: a door near each end, window bays, a gangway at each end
  *   highSpeedCoach  highSpeed   a high-speed train's coach: one door a side near its end, window bays
  *   coach           coach       a locomotive-hauled passenger coach: a vestibule door at each end, bays, buffers and
@@ -37,7 +38,7 @@ const WAGON = frozen({ width: 2.9, height: 4.0, floor: 1.22, skirt: 0.95, sectio
 export const CAR_ARCHETYPES = frozen({
   metroCar: frozen({ family: 'metro', kind: 'passenger', length: 18.2, overhang: 2.6, doors: { count: 4, width: 1.4, at: 'spread' }, windows: 'band', bogies: ['metroMotor', 'metroTrailer'], ends: 'gangway', roofUnit: true }),
   tramModule: frozen({ family: 'tram', kind: 'passenger', length: 4.6, overhang: 0, doors: { count: 1, width: 1.3, at: 'middle' }, windows: 'band', bogies: [], ends: 'articulated', roofUnit: true }),
-  tramCentre: frozen({ family: 'tram', kind: 'passenger', length: 6.2, overhang: 3.1, doors: { count: 1, width: 1.3, at: 'middle' }, windows: 'band', bogies: ['tram'], ends: 'articulated', roofUnit: true }),
+  tramCentre: frozen({ family: 'tram', kind: 'passenger', length: 6.2, overhang: 3.1, doors: null, windows: 'band', bogies: ['tram'], ends: 'articulated', roofUnit: true }),
   regionalCar: frozen({ family: 'regional', kind: 'passenger', length: 24.5, overhang: 3.6, doors: { count: 2, width: 1.3, at: 'ends' }, windows: 'bays', bogies: ['regionalMotor', 'regionalMotor'], ends: 'gangway', roofUnit: true }),
   highSpeedCoach: frozen({ family: 'highSpeed', kind: 'passenger', length: 25, overhang: 3.2, doors: { count: 1, width: 0.9, at: 'end' }, windows: 'bays', bogies: ['highSpeed', 'highSpeed'], ends: 'gangway', roofUnit: false }),
   coach: frozen({ family: 'coach', kind: 'passenger', length: 24.2, overhang: 2.6, doors: { count: 2, width: 0.8, at: 'ends' }, windows: 'bays', bogies: ['highSpeed', 'highSpeed'], ends: 'buffers', roofUnit: false }),
@@ -91,6 +92,8 @@ export function solveCarDesign({ seed = 1, archetype = 'metroCar', dimensions = 
     { id: 'doors-on-body', pass: doors.every((y) => Math.abs(y) + dw / 2 < L / 2 - 0.3) },
     { id: 'bogies-under-body', pass: B.every((b, k) => Math.abs(at[k]) + b.base / 2 + b.wheel / 2 < L / 2) && B.every((b) => b.valid) },
     { id: 'bogies-under-floor', pass: !B.length || frame.pivot < frame0.floor - 0.05 || frame0.floor < Math.max(...B.map((b) => b.wheel)) },
+    // (a floor lower than its bogies, a streetcar's: no door over one)
+    { id: 'doors-clear-of-bogies', pass: !B.length || frame0.floor >= frame.pivot - 0.05 || doors.every((y) => at.every((yb, k) => Math.abs(y - yb) >= dw / 2 + B[k].base / 2 + B[k].wheel / 2)) },
   ];
   return frozen({ ...design, laws: frozen(laws.map(frozen)), valid: laws.every((l) => l.pass) });
 }

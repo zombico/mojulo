@@ -18,16 +18,21 @@
  *           turned end for end, the wheels turned by the pose's `spin`), and on the roof its pantographs (panto-surface.js:
  *           raised by the pose's `raise`, or to a contact wire at the pose's `wire` over the rail)
  *
- *   compileCabSurface(brief, { quality, livery }) → { design, quality, livery, faces: { body, front, fittings, bogies },
- *                                                     materials, census }
+ *   compileCabSurface(brief, { quality, livery, pose, interior }) → { design, quality, livery, faces: { body, front,
+ *                                                     fittings, bogies, roof?, interior? }, materials, census, ends,
+ *                                                     pantographs?, interior? }
+ *     interior  true, or { plan, pitch, trim }: its saloon and its cab (interior-odm.js, interior-surface.js) as
+ *               `faces.interior` and its plan as `interior`; absent, nothing of it
  *
  * Coordinates: +y forward (the nose's tip at y = L/2), +x right, z up from the rail. Pure and deterministic.
  */
 import { solveCabDesign, halfWidthAt, frontAt, frontNormal } from './cab-odm.js';
-import { RAIL_MATERIALS, r4, sub, add, mul, cross, unit, face, box, cylinder, disc, finishRailFaces } from './rail-geom.js';
+import { RAIL_MATERIALS, RAIL_INTERIOR_MATERIALS, r4, sub, add, mul, cross, unit, face, box, cylinder, disc, finishRailFaces } from './rail-geom.js';
+import { solveInterior } from './interior-odm.js';
+import { compileInteriorSurface } from './interior-surface.js';
 import { compileBogieSurface } from './bogie-surface.js';
 import { compilePantoSurface } from './panto-surface.js';
-import { samples, sectionRows, windowLights, sideParts, extrudeSides, endWall, articulationRing } from './body-shell.js';
+import { samples, sectionRows, openings, endsOf, sideParts, extrudeSides, endWall, articulationRing } from './body-shell.js';
 
 export { RAIL_MATERIALS, finishRailFaces, railMaterial } from './rail-geom.js';
 
@@ -45,7 +50,7 @@ export const CAB_LIVERIES = Object.freeze({
 });
 const DARK = '#1c1e20', GLASS = '#22313c', STEEL = '#7d8287', LAMP = '#f4f1e2', TAIL = '#b8242c', SIGN = '#ffb23e', RUBBER = '#1a1b1c';
 
-export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose = {} } = {}) {
+export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose = {}, interior } = {}) {
   const LOD = CAB_LODS[quality];
   if (!LOD) throw new Error(`rail-cab: quality is ${Object.keys(CAB_LODS).join(', ')}`);
   const d = brief.frame && brief.front ? brief : solveCabDesign(brief);
@@ -54,7 +59,7 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
   if (!C) throw new Error(`rail-cab: livery is one of ${Object.keys(CAB_LIVERIES).join(', ')} or an object of roles`);
   const { length: L, width: W, height: H, floor } = d.frame, S = d.section, F = d.front, SC = d.screen, A = d.anchors;
   const root = F.root, yTail = -L / 2, hw = (z) => halfWidthAt(d, z), zr = S.zc + S.radius;
-  const band = [r4(S.zw - 0.05), r4(S.zw + 0.12)], win = [r4(floor + 0.85), r4(floor + 1.92)], doorTop = floor + d.doors.height;
+  const { band, win, doorTop, doors, cabW, lights } = openings(d);
   const signZ = SC.sign ? [r4(SC.z1 + 0.08), r4(SC.z1 + 0.08 + SC.sign)] : null, maskZ = [r4(SC.z0 - 0.25), r4((signZ ? signZ[1] : SC.z1) + 0.1)];
   // the rows: up the side to the cant rail, round it by angle, over the roof by angle; snapped to every band
   const zSnap = [floor, S.zw, ...band, ...win, doorTop, SC.z0, SC.z1, SC.z0 - 0.05, SC.z1 + 0.05, ...maskZ, ...(signZ || []), floor - 0.05, zr];
@@ -64,10 +69,7 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
   const uSnap = [SC.half, SC.half + 0.05, SC.half + 0.14, 0.45, ...(SC.mullion ? [0.025] : []), 0];
   const U = samples(U0, uSnap.flatMap((u) => [u, -u]), -1, 1, 0.01);
   // the sides' stations: back from the nose's root, snapped to the doors, the windows, the cab window
-  const gapD = 0.02, cabW = d.cabWindow ? [r4(root - 0.6 - d.cabWindow), r4(root - 0.6)] : null;
-  const doors = d.doors.at.map((y) => [r4(y - d.doors.width / 2), r4(y + d.doors.width / 2)]);
-  const lights = windowLights(d, { ends: [yTail + 1.0, (cabW ? cabW[0] : root) - 0.5], doors,
-    louvres: d.windows === 'louvres' ? Array.from({ length: 5 }, (_, k) => root - 3.2 - k * 2.4).filter((y) => y > yTail + 1.5).map((y) => [y - 0.9, y]) : null });
+  const gapD = 0.02;
   const ySnap = [...doors.flatMap(([a, b]) => [a, a + gapD, b - gapD, b]), ...lights.flat(), ...(cabW || [])];
   const Ybase = Array.from({ length: Math.ceil((root - yTail) / LOD.step) + 1 }, (_, i) => Math.min(root, yTail + i * LOD.step));
   const Y = samples(Ybase, ySnap, yTail, root, 0.008);
@@ -147,7 +149,7 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
   if (d.archetype !== 'boxCab' && d.archetype !== 'highSpeed' && unitEnd - (yTail + 2.4) > 2) box(fittings, [-0.7, 0.7], [yTail + 2.4, unitEnd], [H - 0.04, H + 0.26], 'roof.unit');
   // the far end: a unit's gangway bellows (and the coupling bar under it), or a locomotive's buffer beam and buffers
   // (a streetcar's front module articulated to the next)
-  const rearKind = CP.kind === 'buffers' ? 'buffers' : d.archetype === 'tram' ? 'articulated' : 'gangway', rearDepth = rearKind === 'buffers' ? 0.62 : rearKind === 'articulated' ? 0.15 : 0.28;
+  const rearKind = endsOf(d).rear, rearDepth = rearKind === 'buffers' ? 0.62 : rearKind === 'articulated' ? 0.15 : 0.28;
   if (rearKind === 'articulated') articulationRing((f) => push(fittings, f), d, yTail, -1, rearDepth);
   else if (rearKind === 'gangway') {
     box(fittings, [-0.55, 0.55], [yTail - 0.28, yTail], [floor, floor + 2.05], 'gangway');
@@ -178,11 +180,15 @@ export function compileCabSurface(brief = {}, { quality = 'studio', livery, pose
     pantos.push({ kind: p.kind, y: p.y, raise: P.pose.raise, contact: r4(P.pose.contact + H), ...(P.pose.reached === undefined ? {} : { reached: P.pose.reached }) });
   }
   const faces = { body: finishRailFaces(body), front: finishRailFaces(front), fittings: finishRailFaces(fittings), bogies: bogieOut, ...(roof.length ? { roof } : {}) };
+  // its inside, when asked for: its saloon and its cab, the plan solved from its design, drawn inside its shell
+  const I = interior ? solveInterior(d, interior === true ? {} : interior) : null;
+  if (I && !I.valid) throw new Error(`rail-cab: the interior fails its laws (${I.laws.filter((l) => !l.pass).map((l) => l.id).join(', ')})`);
+  if (I) faces.interior = finishRailFaces(compileInteriorSurface(d, I, { quality, trim: interior.trim }).faces);
   const all = Object.values(faces).flat(), parts = {};
   for (const f of all) parts[f.part] = (parts[f.part] || 0) + 1;
   const census = { faces: all.length, triangles: all.reduce((t, f) => t + f.corners.length - 2, 0), rows: Z.length, columns: U.length, stations: Y.length,
     materialGroups: new Set(all.map((f) => f.material)).size, parts };
   const { P: _p, ...frontNumbers } = d.front;
   void _p;
-  return { design: { ...d, front: frontNumbers }, quality, livery: C, faces, materials: RAIL_MATERIALS, census, ends: { rear: { kind: rearKind, depth: rearDepth } }, ...(pantos.length ? { pantographs: pantos } : {}) };
+  return { design: { ...d, front: frontNumbers }, quality, livery: C, faces, materials: I ? RAIL_INTERIOR_MATERIALS : RAIL_MATERIALS, census, ...(I ? { interior: I } : {}), ends: { rear: { kind: rearKind, depth: rearDepth } }, ...(pantos.length ? { pantographs: pantos } : {}) };
 }
