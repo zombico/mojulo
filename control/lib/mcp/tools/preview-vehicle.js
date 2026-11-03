@@ -135,6 +135,12 @@ export async function previewVehicleInstanceHandler(input) {
     read.instance.cycle = { ...read.instance.cycle, [key]: input[key] };
   }
   if (read.instance.cycle) readCycleSpec(read.instance.cycle, 'mint_solid vehicle: cycle');
+  // a field vehicle's livery or wear beside its word asks for its loft: the row's own when the grid's build is another
+  // (the airfield's ground crew, whose old scenery net the grid shows first), unless a tier was asked
+  if ((input.livery !== undefined || input.wear !== undefined) && !read.instance.loft && tier === undefined && read.id) {
+    const field = buildsOf(read.id)?.find((b) => b.via === 'loft' && b.status === 'live' && MILITARY_CLASSES[b.key]);
+    if (field) { read.instance = PREVIEWS.loft(field); read.tier = field.tier; }
+  }
   // a field vehicle's livery beside its word (car-designer/livery-cut.js: a camo or mono, its stencils), carried in its
   // loft's recipe; any other build is painted by its own words
   if (input.livery !== undefined) {

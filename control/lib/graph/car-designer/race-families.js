@@ -36,7 +36,8 @@ export function supercarInstanceFaces(spec) {
   return { faces, spec, stats: { preset, cabinStyle: car.cabinStyle, headlightStyle: car.headlightStyle, livery: car.livery?.pattern ?? 'mono', faces: faces.length } };
 }
 
-const LOFT_KEYS = Object.freeze(['class', 'era', 'brief', 'seed', 'light', 'livery', 'wear']);
+// (`reach`: an airside vehicle's lift, belt or platform height, metres: road-airside.js)
+const LOFT_KEYS = Object.freeze(['class', 'era', 'brief', 'seed', 'light', 'livery', 'wear', 'reach']);
 // a loft's recipe compiled: the realistic sheet rolled for its class (its era and brief the sheet's words), then lofted;
 // in the form render (gen-7) when its `light` says form, or it says nothing and the read is gen-7
 function compileLoft(spec, { form: formRead = false, setting = null } = {}) {
@@ -46,7 +47,7 @@ function compileLoft(spec, { form: formRead = false, setting = null } = {}) {
   if (spec.light !== undefined && !['form', 'paint'].includes(spec.light)) throw new Error('meta-fabricator: a loft\'s light is form (its materials lit by the page) or paint (its light baked)');
   const sheet = rollVehicleSheet({ brief: spec.brief ?? '', facets: { pole: 'realistic', class: spec.class, ...(spec.era ? { era: spec.era } : {}) }, seed: spec.seed ?? 1 });
   const form = spec.light === 'form' || (spec.light === undefined && formRead);
-  return { sheet, c: compileRealistic(sheet, { form, ...(spec.livery !== undefined ? { livery: spec.livery } : {}), ...(spec.wear !== undefined ? { wear: spec.wear } : {}), ...(setting ? { setting } : {}) }) };
+  return { sheet, c: compileRealistic(sheet, { form, ...(spec.livery !== undefined ? { livery: spec.livery } : {}), ...(spec.wear !== undefined ? { wear: spec.wear } : {}), ...(spec.reach !== undefined ? { pose: { reach: spec.reach } } : {}), ...(setting ? { setting } : {}) }) };
 }
 
 /** A loft's vehicle rig, as a world's figures map delivers it (the realistic ride's body); `form` the read's (gen-7). */

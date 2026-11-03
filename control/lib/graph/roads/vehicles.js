@@ -61,6 +61,11 @@ export const VEHICLES = Object.freeze({
   // (the field's missile launcher: an eight-wheeled transporter-erector carrying a 14 m missile; its height the truck's
   // own, its cab's, the missile above it its load; its wheelbase its first axle to its last)
   launcher8x8:   Object.freeze({ words: 'an eight-wheeled missile launcher truck', mass: 38000, power: 390, drive: 'all', share: 1, wheelbase: 11.6, track: 2.4, wheelRadius: 0.68, CdA: 9.0, Crr: 0.022, cgH: 1.9, L: 15.6, W: 2.9, H: 2.8, eye: 2.5, grip: 0.68, brakeEff: 0.7, turn: 15, band: 0.85, governor: kmh(65) }),
+  // (the airfield's ground crew, classes and not replicas: a catering hi-loader, a belt loader, a passenger stair truck;
+  // smooth tyres on concrete, governed to the apron's walking pace and a little over)
+  cateringTruck: Object.freeze({ words: 'an airside catering hi-loader truck', mass: 13500, power: 160, drive: 'rear', share: 0.62, wheelbase: 4.5, track: 2.0, wheelRadius: 0.47, CdA: 7.5, Crr: 0.009, cgH: 1.7, L: 8.6, W: 2.5, H: 3.9, eye: 2.2, grip: 0.8, brakeEff: 0.7, turn: 8.5, band: 0.85, governor: kmh(30) }),
+  beltLoader:    Object.freeze({ words: 'an airside belt loader', mass: 3300, power: 45, drive: 'rear', share: 0.5, wheelbase: 2.6, track: 1.62, wheelRadius: 0.3, CdA: 2.2, Crr: 0.012, cgH: 0.7, L: 7.5, W: 1.96, H: 1.92, eye: 1.4, grip: 0.8, brakeEff: 0.8, turn: 5.5, band: 0.8, governor: kmh(25) }),
+  stairTruck:    Object.freeze({ words: 'an airside passenger stair truck', mass: 6800, power: 100, drive: 'rear', share: 0.6, wheelbase: 3.8, track: 1.9, wheelRadius: 0.42, CdA: 6.0, Crr: 0.009, cgH: 1.5, L: 8.2, W: 2.3, H: 3.72, eye: 2.0, grip: 0.8, brakeEff: 0.75, turn: 7.5, band: 0.85, governor: kmh(25) }),
   // (the field's tracked: a light tank and a tracked carrier. `running: 'track'` says what they run on: their wheelbase
   // the track's length on the ground, their track the tracks' centres apart, their wheel a road wheel; Crr a track's;
   // their length the hull's, a tank's gun reaching past it. Drawn and parked; driven when skid steer is built)

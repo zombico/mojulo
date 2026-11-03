@@ -201,12 +201,12 @@ export const VEHICLES = {
   locomotive: row('locomotive', ['steam engine', 'steam locomotive', 'loco', 'freight train'], 'rail', 'hauler', ['rustic', 'modern'], ['driven', 'traffic', 'watched'],
     { tech: 'locomotive' }),
   // ── the airfield's ground crew ───────────────────────────────────────────────
-  'catering-truck': row('catering truck', ['hi-loader', 'galley truck'], 'road', 'ground-crew', M, ['traffic', 'parked'],
-    { scenery: 'cateringTruck', tech: 'truck' }),
-  'belt-loader': row('belt loader', ['baggage belt', 'conveyor truck'], 'road', 'ground-crew', M, ['parked'],
-    { scenery: 'beltLoader', tech: 'truck' }),
-  'boarding-stairs': row('boarding stairs', ['air stairs', 'stair truck', 'passenger stairs'], 'road', 'ground-crew', M, ['parked'],
-    { scenery: 'boardingStairs', tech: 'truck' }),
+  'catering-truck': row('catering truck', ['hi-loader', 'galley truck'], 'road', 'ground-crew', M, ['driven', 'traffic', 'parked'],
+    { scenery: 'cateringTruck', physics: 'cateringTruck', tech: 'truck' }),
+  'belt-loader': row('belt loader', ['baggage belt', 'conveyor truck'], 'road', 'ground-crew', M, ['driven', 'parked'],
+    { scenery: 'beltLoader', physics: 'beltLoader', tech: 'truck' }),
+  'boarding-stairs': row('boarding stairs', ['air stairs', 'stair truck', 'passenger stairs'], 'road', 'ground-crew', M, ['driven', 'parked'],
+    { scenery: 'boardingStairs', physics: 'stairTruck', tech: 'truck' }),
   // ── work and war on the ground ──────────────────────────────────────────────
   tractor: row('tractor', ['farm tractor'], 'offroad', 'work', M, ['driven', 'parked'],
     { tech: 'car' }),

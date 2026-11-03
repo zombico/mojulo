@@ -74,7 +74,8 @@ describe('a field vehicle exports to a valid GLB', () => {
   // (each body the sheet builds: one still waiting for its parts is not yet a figure)
   for (const cls of Object.keys(MILITARY_CLASSES).filter((k) => !UNBUILT[k])) {
     it(`the ${MILITARY_CLASSES[cls]} body`, async () => {
-      const fig = loftFigure({ class: cls, seed: 3, light: 'form', livery: 'woodland' });
+      // (worn: an airside vehicle is kept clean unless asked)
+      const fig = loftFigure({ class: cls, seed: 3, light: 'form', livery: 'woodland', wear: 'used' });
       const { out, json } = exported(fig);
       const report = await validateBytes(new Uint8Array(out.bytes), { maxIssues: 50 });
       expect(report.issues.numErrors, JSON.stringify(report.issues.messages.filter((m) => m.severity === 0))).toBe(0);

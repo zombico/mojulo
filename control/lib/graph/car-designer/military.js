@@ -10,13 +10,15 @@
  *                  absent, plain olive drab and no stencils, as it always was
  *     wear         its history (mil-wear.js: pristine | used | battered, or { level, soil }): caked mud and chips cut
  *                  in, dust, sun fade and grounding per corner; absent, the sheet's when a brief asked it, else `used`
+ *     pose         an airside vehicle's ({ reach }: how high its lift, belt or platform stands, road-airside.js)
  *     setting      the world it stands in, when a world draws it ({ sky?, wet? }: world-scene.js): lit by that world's
  *                  sky (form-light.js skyMood), its ground bounce the soil's, its slots wet in the rain; absent, noon
  *     form: true   the figure in the form render (each face its material, albedo and normals, the page lighting it, under
  *                  the field's materials, MIL_MATERIALS); absent, its faces baked under the studio's light (road-form.js
  *                  bakeForm), the figure a world without the form render draws
  *
- * The wheels are the field's (mil-wheel.js: a lugged cross-country tyre on a split steel rim), each its own bone
+ * The wheels are the field's (mil-wheel.js: a lugged cross-country tyre on a split steel rim; an airside vehicle's
+ * smooth), each its own bone
  * turning in the `roll` clip; each arch its liner on the body; the kit's fittings on the body too (road-military.js
  * KITS), outside the census, which measures the hull against the class. Vehicle space (+y forward). Pure and
  * deterministic.
@@ -29,6 +31,7 @@ import { milWheel } from './mil-wheel.js';
 import { formLight, skyMood } from './form-light.js';
 import { militaryBody, militaryAxles, trackedGear, sizeOf, MILITARY_CLASSES, MIL_MATERIALS } from './road-military.js';
 import { liveryBase } from './livery-cut.js';
+import { AIRSIDE_CLASSES } from './road-airside.js';
 import { readWear, soilFor, weather, weatherWheel, wetMaterials, wetFaces, groundOf } from './mil-wear.js';
 import { realisticCensus, most } from './realistic.js';
 
@@ -36,12 +39,12 @@ const r4 = (n) => Math.round(n * 1e4) / 1e4 + 0;
 // a field tyre's width, by its radius (a light 4x4's, a truck's)
 const tyreWidth = (r) => (r > 0.5 ? 0.38 : 0.3);
 
-export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, setting = null } = {}) {
+export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, setting = null, pose } = {}) {
   const cls = sheet.facets.class, v = VEHICLES[cls];
   if (!MILITARY_CLASSES[cls]) throw new Error(`car-designer: compileMilitary reads a military class (${Object.keys(MILITARY_CLASSES).join(', ')}), not ${cls}`);
   const spec = { kind: MILITARY_CLASSES[cls], L: v.L, W: v.W, H: v.H, wb: v.wheelbase, track: v.track, r: v.wheelRadius, tyreW: tyreWidth(v.wheelRadius), lift: 0 };
   const tracked = v.running === 'track';
-  const { hull, fittings, zones, livery: L, spinners, bones: parts = {} } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW, livery, words: sheet.unread?.words ?? [] });
+  const { hull, fittings, zones, livery: L, spinners, bones: parts = {} } = militaryBody(cls, { seed: sheet.seed, r: spec.r, tyreW: spec.tyreW, livery, words: sheet.unread?.words ?? [], ...(pose ? { pose } : {}) });
   // the wheels: each axle's pair, the front pair first, left (−x) and right; or a tracked body's spinners (its road
   // wheels first, the sprocket, the idler and the rollers), each its own bone
   const axles = tracked ? trackedGear(cls).wheels.map((w) => w.y) : militaryAxles(cls);
@@ -53,12 +56,13 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
   const wells = tracked ? [] : smoothForm(wheels.flatMap((w) => wheelWell({ hub: w.hub, r: spec.r, width: spec.tyreW })));
   // its wear (mil-wear.js): the operator's word, else the sheet's when a brief asked one, else a working vehicle's; its
   // soil the setting's, read from the livery's camo
-  const W = readWear(wear ?? (sheet.given?.includes('wear') ? sheet.facets.wear : 'used')), soil = soilFor(L);
+  // (an airside vehicle works on concrete: kept clean unless a wear is asked)
+  const W = readWear(wear ?? (sheet.given?.includes('wear') ? sheet.facets.wear : AIRSIDE_CLASSES[cls] ? 'pristine' : 'used')), soil = soilFor(L);
   // (in the rain, its setting's: the porous slots soaked darker, every slot glossier: mil-wear.js)
   const wet = !!setting?.wet, soak = (fs) => (wet ? wetFaces(fs) : fs);
   const body = soak(weather([...hull, ...wells, ...fittings], W, { hubs: wheels.map((w) => w.hub), r: spec.r, zones, seed: sheet.seed, soil, scale: sizeOf(cls) }));
   // (the rims in the livery's base: a camo's first colour, a mono's own; a tracked body's spinners its own)
-  const wheelForm = wheels.map((w) => soak(weatherWheel(w.faces ?? milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}) }), W, { soil })));
+  const wheelForm = wheels.map((w) => soak(weatherWheel(w.faces ?? milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}), ...(AIRSIDE_CLASSES[cls] ? { lugs: 0 } : {}) }), W, { soil })));
   // centred on its footprint (the body is built centred; the census holds it); a part that turns on its own (a turret)
   // its own bone, its faces those its body tagged with it, held still by the roll
   const own = Object.keys(parts), onRoot = own.length ? body.filter((f) => !f.bone) : body;
