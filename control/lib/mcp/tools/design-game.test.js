@@ -275,7 +275,10 @@ describe('design_game: party battles on the book path (battles)', () => {
 
   it('a run lays packs on the trails, the store carries the party, and a pack walked up to is fought and falls', async () => {
     const out = await designGameHandler({ world: { ...AUTO, battles: { per: 1, rules: { defeat: 'retry' } } }, ref: 'gb', run: true });
-    expect(action(out, 'foe')).toBe('make');
+    // (a world writing no foe look of its own stands each foe kind its packs field as its own figure, `foe-<kind>`)
+    const kinds = out.ran.filter((r) => /^foe-[^-]+$/.test(r.key) || (/^foe-/.test(r.key) && !r.key.endsWith('-sheet')));
+    expect(kinds.length).toBeGreaterThan(0);
+    for (const r of kinds) expect(r.action, r.key).toBe('make');
     expect(stored('gb-game').store.slices).toContainEqual(expect.objectContaining({ name: 'party', kind: 'party' }));
     const L = stored('gb-level-meadow-ascent-0');
     expect(L.play.rpg.party.map((p) => p.id)).toEqual(['hero']);
@@ -294,7 +297,8 @@ describe('design_game: party battles on the book path (battles)', () => {
     for (let r = 0; r < 30 && R.b.phase === 'command'; r++) rpgRound(cfg, R, { hero: { act: 'attack', target: rpgTargets(cfg, R, { act: 'attack' })[0]?.id } }, v);
     expect(R.b.phase).toBe('won');
     sim.run(0.5, { 0: rpgClose(cfg, R, v) });
-    expect(W.byId[enc.who].downed).toBe(true);
+    // (a pack of several stands each foe as its own body, battles.js: `who` lists them; every one is downed)
+    for (const w of [].concat(enc.who)) expect(W.byId[w].downed, w).toBe(true);
     expect(v[`rpg-done-${enc.id}`]).toBe(1);
   }, 600_000);
 
