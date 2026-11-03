@@ -53,6 +53,9 @@ export const VEHICLES = Object.freeze({
   utility4x4:    Object.freeze({ words: 'a military light utility 4x4', mass: 2400, power: 110, drive: 'all', share: 1, wheelbase: 2.75, track: 1.62, wheelRadius: 0.41, CdA: 1.9, Crr: 0.018, cgH: 0.82, L: 4.4, W: 1.95, H: 1.9, eye: 1.65, grip: 0.78, brakeEff: 0.9, turn: 6.6, band: 0.8, governor: kmh(110) }),
   cargo6x6:      Object.freeze({ words: 'a six-wheeled military cargo truck', mass: 9500, power: 220, drive: 'all', share: 1, wheelbase: 4.6, track: 2.0, wheelRadius: 0.6, CdA: 6.0, Crr: 0.02, cgH: 1.3, L: 7.6, W: 2.45, H: 3.0, eye: 2.3, grip: 0.7, brakeEff: 0.7, turn: 11, band: 0.85, governor: kmh(90) }),
   apc8x8:        Object.freeze({ words: 'an eight-wheeled armoured personnel carrier', mass: 19000, power: 330, drive: 'all', share: 1, wheelbase: 5.0, track: 2.3, wheelRadius: 0.6, CdA: 7.5, Crr: 0.022, cgH: 1.35, L: 7.8, W: 2.9, H: 2.6, eye: 2.2, grip: 0.72, brakeEff: 0.75, turn: 10.5, band: 0.85, governor: kmh(100) }),
+  // (the field's missile launcher: an eight-wheeled transporter-erector carrying a 14 m missile; its height the truck's
+  // own, its cab's, the missile above it its load; its wheelbase its first axle to its last)
+  launcher8x8:   Object.freeze({ words: 'an eight-wheeled missile launcher truck', mass: 38000, power: 390, drive: 'all', share: 1, wheelbase: 11.6, track: 2.4, wheelRadius: 0.68, CdA: 9.0, Crr: 0.022, cgH: 1.9, L: 15.6, W: 2.9, H: 2.8, eye: 2.5, grip: 0.68, brakeEff: 0.7, turn: 15, band: 0.85, governor: kmh(65) }),
   // (the field's tracked: a light tank and a tracked carrier. `running: 'track'` says what they run on: their wheelbase
   // the track's length on the ground, their track the tracks' centres apart, their wheel a road wheel; Crr a track's;
   // their length the hull's, a tank's gun reaching past it. Drawn and parked; driven when skid steer is built)

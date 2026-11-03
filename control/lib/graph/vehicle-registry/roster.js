@@ -192,6 +192,10 @@ export const VEHICLES = {
     { physics: 'cargo6x6', tech: 'truck' }),
   apc: row('armoured personnel carrier', ['apc', 'armoured car', 'armored car', 'personnel carrier', 'armored personnel carrier', 'wheeled apc', 'eight by eight', 'infantry carrier'], 'offroad', 'armour', M, FIGHT.concat('parked'),
     { physics: 'apc8x8', tech: 'apc' }),
+  // (the field's missile launcher: an eight-wheeled transporter-erector and its ballistic missile, a class and not a
+  // replica, modelled and never fired; "v2" is said of any such missile's launcher, so it is a word here)
+  'missile-launcher': row('missile launcher truck', ['missile launcher', 'launcher truck', 'missile truck', 'rocket launcher truck', 'ballistic missile launcher', 'transporter erector launcher', 'mobile missile launcher', 'v2 launcher', 'v-2 launcher', 'mobile v2 launcher'], 'offroad', 'strike', M, FIGHT.concat('parked'),
+    { physics: 'launcher8x8', tech: 'truck' }),
   // (the field's tracked: a light tank and a tracked carrier on the running gear, car-designer/mil-track.js; drawn and
   // parked, driven when skid steer is built; the tank row stays the main battle tank, a concept)
   'light-tank': row('light tank', ['scout tank', 'recon tank', 'airborne tank', 'light battle tank'], 'offroad', 'armour', M, FIGHT.concat('parked'),

@@ -34,6 +34,17 @@
  *              guarded lamps. Its kit: cans by the ramp, the tools, two whips, grab bars, steps, mud flaps, shackles,
  *              the pintle, mirrors, a rolled tarp
  *
+ *   launcher   the eight-wheeled missile launcher truck, a class and not a replica: a ladder frame on four axles and
+ *              their springs; a forward-control cab over its two front axles (its raked face and two-pane screen, its doors,
+ *              a roof hatch, the grille under its screen), the engine's louvred box behind it and its exhaust; a deck on
+ *              risers over its rear axles; the erector, a box beam hinged at its tail with three saddles and their straps,
+ *              raised by two telescoping rams; the missile (14 m, its boat-tail, body, ogive nose, nozzle and bands, its
+ *              fins an X so it rides inside the truck's width), in its own grey-green that a camo leaves alone; the launch
+ *              table flat on the deck; the rear jacks up. Its word `erect` (launcherWords) swings the erector up about its
+ *              hinge: the missile stands on its table, lowered on its legs behind the truck with its blast deflector, and
+ *              the jacks are down on their pads. Modelled, never fired. Its kit: a saddle tank, a stowage box, cans and
+ *              tools on the engine box, the whip, grab bars and steps at the doors, mud flaps, shackles, mirrors
+ *
  *   MILITARY_CLASSES                  physics class → its body (the classes built here; the others wait, sheet.js
  *                                     UNBUILT)
  *   militaryAxles(cls)                → the axles' stations along the body (+y forward, the body centred)
@@ -43,6 +54,7 @@
  *                                     fittings its kit sets on its anchors (KITS, mil-fittings.js cards), rolled from the
  *                                     seed; its livery (livery-cut.js: mono or a camo, its stencils) cut into the paint
  *   KITS                              each body's kit: [anchor, card, { maybe?, …the card's words }]
+ *   launcherWords(words)              → { erect }: a launcher's brief standing its missile up (erect, raised, upright)
  *   MIL_MATERIALS                     the road car's slots and the field's own: its matte paint, canvas, bare steel,
  *                                     weld, the frame's dark steel, a vision block's glass
  *
@@ -57,7 +69,7 @@ import { runningGear, linkFaces, TRACK_DEPTH } from './mil-track.js';
 import { readLivery, paintLivery, stencilMarks, liveryBase } from './livery-cut.js';
 import { mulberry32 } from '../vegetation/grow.js';
 
-export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility', cargo6x6: 'cargo', apc8x8: 'carrier', lightTank: 'lightTank', trackedCarrier: 'trackedCarrier' });
+export const MILITARY_CLASSES = Object.freeze({ utility4x4: 'utility', cargo6x6: 'cargo', apc8x8: 'carrier', lightTank: 'lightTank', trackedCarrier: 'trackedCarrier', launcher8x8: 'launcher' });
 
 /** A field vehicle's size for its surface: its camo's blotches and its mud's heights by it (a wheel's radius over a
  *  4x4's; a tracked class by its wheeled peer's, its road wheels being small). */
@@ -82,7 +94,7 @@ export const MIL_MATERIALS = Object.freeze({
 const C = Object.freeze({
   olive: '#4b5320', frame: '#363b1a', canvas: '#5f5b43', black: '#1b1c19', rubber: '#1a1b1d', glass: '#24302f',
   lamp: '#e9edf0', tail: '#9a1a17', amber: '#c9902a', gauge: '#101112', steel: '#4a4c47', vision: '#1f3134',
-  soot: '#232220',
+  soot: '#232220', missile: '#5f6655',
 });
 const M = (part, material, albedo) => ({ part, material, albedo });
 const paint = (part) => M(part, 'milPaint', C.olive);
@@ -96,6 +108,9 @@ export function militaryAxles(cls) {
   // (a carrier's four axles, its wheelbase its first to its last as its sheet quotes it: two pairs, the gap between them
   // wider, its nose's overhang a little longer than its tail's)
   if (MILITARY_CLASSES[cls] === 'carrier') { const y1 = v.L / 2 - 1.45, p = 0.29 * v.wheelbase; return [y1, y1 - p, y1 - v.wheelbase + p, y1 - v.wheelbase]; }
+  // (a launcher's two steering axles under its cab, its two driven aft under the erector's tail, its wheelbase its first
+  // to its last)
+  if (MILITARY_CLASSES[cls] === 'launcher') { const y1 = v.L / 2 - 1.7, p = 1.55; return [y1, y1 - p, y1 - v.wheelbase + p, y1 - v.wheelbase]; }
   throw new Error(`car-designer: '${cls}' is not a military class built yet (${Object.keys(MILITARY_CLASSES).join(', ')})`);
 }
 
@@ -437,6 +452,191 @@ function cargo(cls) {
     { id: 'mark.rear', kind: 'mark', role: 'emblem', at: [0, yb0 - 0.04, zf + 0.3], out: neg(Y), up: Z, h: 0.12 },
   ];
   return { faces: out.filter(Boolean), anchors, zones: { floor: zr1, tub: { x: hw, y: [yb0, yb1], z: [zf, zs] } } };
+}
+
+// ── the missile launcher truck ──────────────────────────────────────────────────
+
+/** A launcher's words from its brief (the sheet's unread words): `erect` (erected, raised, upright, "in launch
+ *  position") stands its missile up on its table; `stowed` (travelling) lays it down. Not said: stowed. */
+export function launcherWords(words = []) {
+  const W = words.map((w) => String(w).toLowerCase());
+  const up = W.some((w) => ['erect', 'erected', 'raised', 'upright', 'launch', 'launching'].includes(w));
+  const down = W.some((w) => ['stowed', 'travelling', 'traveling', 'lowered'].includes(w));
+  return { erect: up && !down };
+}
+
+// a body of revolution along +y (its tail at y 0): its stations [y, r], each ring `sides` round, its tail capped
+function revolve(stations, { sides = 20, look, cap = true } = {}) {
+  const ring = (y, r) => Array.from({ length: sides }, (_, k) => { const a = (2 * Math.PI * k) / sides; return [r * Math.cos(a), y, r * Math.sin(a)]; });
+  const out = [];
+  for (let i = 0; i + 1 < stations.length; i++) {
+    const [y0, r0] = stations[i], [y1, r1] = stations[i + 1], A = ring(y0, r0), B = ring(y1, r1), slope = (r0 - r1) / Math.max(1e-6, y1 - y0);
+    for (let k = 0; k < sides; k++) {
+      const k2 = (k + 1) % sides, a = (2 * Math.PI * (k + 0.5)) / sides, n = [Math.cos(a), slope, Math.sin(a)];
+      const nrm = (kk) => { const b = (2 * Math.PI * kk) / sides; return [Math.cos(b), slope, Math.sin(b)]; };
+      const f = face([A[k], A[k2], B[k2], B[k]], look, n, [nrm(k), nrm(k2), nrm(k2), nrm(k)]);
+      if (f) out.push(f);
+    }
+  }
+  if (cap && stations[0][1] > 1e-3) { const f = face(ring(stations[0][0], stations[0][1]), look, [0, -1, 0]); if (f) out.push(f); }
+  return out;
+}
+
+// the missile, in its own frame: its tail at the origin, its nose along +y; its fins in an X (turned 45°: they stay
+// inside a truck's width lying down); its nozzle, its boat-tail, its body, its ogive nose, its bands
+const MISSILE = Object.freeze({ length: 14, radius: 0.825, finSpan: 1.78, finRoot: 2.6, finTip: 1.0, nose: 3.2 });
+function missile(look) {
+  const { length: Lm, radius: R, finSpan, finRoot, finTip, nose } = MISSILE, out = [];
+  const ogive = Array.from({ length: 7 }, (_, k) => { const d = nose * (1 - k / 6); return [Lm - d, Math.max(0.02, R * Math.sqrt(Math.max(0, 1 - (1 - d / nose) ** 2)))]; });
+  out.push(...revolve([[0, R * 0.74], [0.6, R * 0.88], [1.6, R], [Lm - nose, R], ...ogive.slice(1)], { sides: 24, look: look('missile.body') }));
+  out.push(...revolve([[-0.22, R * 0.5], [0, R * 0.58]], { sides: 18, look: M('missile.nozzle', 'carbon', C.soot) }));
+  // (its bands: a ring proud at the boat-tail's end and at the nose's root)
+  for (const [y, w] of [[1.6, 0.12], [Lm - nose - 0.05, 0.1]]) out.push(...revolve([[y, R + 0.012], [y + w, R + 0.012]], { sides: 24, cap: false, look: M('missile.band', 'carbon', C.black) }));
+  // (its fins, each a plate standing out of the boat-tail: its root along the body, its tip shorter, swept back)
+  const fin = [[0.05, R * 0.76], [finRoot, R], [finTip + 0.6, finSpan], [0.05, finSpan]];
+  out.push(...plate({ axis: 'x', profile: fin, from: -0.022, to: 0.022, r: 0.008, seg: 1, look: look('missile.fin') }));
+  out.push(...plate({ axis: 'x', profile: fin.map(([y, z]) => [y, -z]), from: -0.022, to: 0.022, r: 0.008, seg: 1, look: look('missile.fin') }));
+  out.push(...plate({ axis: 'z', profile: fin.map(([y, x]) => [x, y]), from: -0.022, to: 0.022, r: 0.008, seg: 1, look: look('missile.fin') }));
+  out.push(...plate({ axis: 'z', profile: fin.map(([y, x]) => [-x, y]), from: -0.022, to: 0.022, r: 0.008, seg: 1, look: look('missile.fin') }));
+  // (turned 45° about its own axis: its fins an X)
+  const c = Math.SQRT1_2;
+  return place(out.filter(Boolean), { origin: [0, 0, 0], ex: [c, 0, c], ey: [0, 1, 0], ez: [-c, 0, c] });
+}
+
+function launcher(cls, { words = [] } = {}) {
+  const v = VEHICLES[cls], hw = v.W / 2, axles = militaryAxles(cls), r = v.wheelRadius, { erect } = launcherWords(words);
+  const yN = v.L / 2, yT = -v.L / 2, out = [];
+  const P = (o) => out.push(...plate(o));
+  const fr = M('frame', 'milPaint', C.frame), steel = M('erector.steel', 'steel', C.steel);
+  // ── the frame, its four axles on their springs, the cross members
+  const zr0 = 1.0, zr1 = 1.3;
+  for (const s of [-1, 1]) { const [a, b] = xs(s, 0.5, 0.62); P({ axis: 'y', profile: rect(a, b, zr0, zr1), from: yT + 0.1, to: yN - 0.1, look: fr }); }
+  for (let y = yN - 0.3; y > yT; y -= 1.9) P({ axis: 'x', profile: rect(y - 0.06, y + 0.06, zr0 + 0.04, zr1 - 0.04), from: -0.62, to: 0.62, look: fr });
+  for (const y of axles) {
+    out.push(...tube([[-0.98, y, r], [0.98, y, r]], 0.075, { sides: 10, look: M('axle', 'steel', C.steel) }));
+    out.push(...tube([[0.12, y - 0.18, r], [0.12, y + 0.14, r]], 0.19, { sides: 12, look: M('axle', 'steel', C.steel) }));
+    for (const s of [-1, 1]) for (let k = 0; k < 4; k++) {
+      const h = 0.7 - k * 0.13, z = r + 0.08 + k * 0.04;
+      P({ axis: 'y', profile: rect(s * 0.56 - 0.05, s * 0.56 + 0.05, z, z + 0.034), from: y - h, to: y + h, r: 0.006, seg: 1, look: M('spring', 'steel', C.steel) });
+    }
+  }
+  // ── the cab: forward control, over the front axles; its face raked, its screen in two panes, its doors, a hatch
+  const yc0 = yN - 2.9, zc0 = 1.45, zc1 = 2.75, cw = hw - 0.06;
+  P({ axis: 'x', profile: [[yc0, zc0], [yN - 0.12, zc0], [yN, zc0 + 0.3], [yN, 1.95], [yN - 0.32, zc1 - 0.05], [yN - 0.42, zc1], [yc0 + 0.05, zc1], [yc0, zc1 - 0.05]], from: -cw, to: cw, r: 0.05, seg: 2, look: paint('cab') });
+  const screenAt = (z) => yN - 0.32 * ((z - 1.95) / (zc1 - 0.05 - 1.95)) + 0.004;
+  for (const s of [-1, 1]) {
+    const [a, b] = xs(s, 0.06, cw - 0.14);
+    out.push(face([[a, screenAt(2.02), 2.02], [b, screenAt(2.02), 2.02], [b, screenAt(2.6), 2.6], [a, screenAt(2.6), 2.6]], M('glass', 'glass', C.glass), [0, 1, 0.4]));
+    for (const [z0, z1, x0, x1] of [[1.99, 2.02, a - 0.03, b + 0.03], [2.6, 2.63, a - 0.03, b + 0.03], [1.99, 2.63, a - 0.03, a], [1.99, 2.63, b, b + 0.03]]) out.push(face([[x0, screenAt(z0) + 0.002, z0], [x1, screenAt(z0) + 0.002, z0], [x1, screenAt(z1) + 0.002, z1], [x0, screenAt(z1) + 0.002, z1]], M('glass.seal', 'rubber', C.rubber), [0, 1, 0.4]));
+    out.push(...tube([[s * 0.35, screenAt(2.05) + 0.02, 2.05], [s * 0.35 - s * 0.36, screenAt(2.12) + 0.02, 2.12]], 0.007, { sides: 6, look: M('wiper', 'carbon', C.black) }));
+    // the door: its shut line, its window, its handle
+    const x = s * (cw + 0.003), dy0 = yc0 + 0.5, dy1 = yN - 0.5, dz0 = zc0 + 0.1, dz1 = zc1 - 0.1, n = [s, 0, 0];
+    const strip = (y0, y1, z0, z1, look) => out.push(face([[x, y0, z0], [x, y1, z0], [x, y1, z1], [x, y0, z1]], look, n));
+    const seam = M('seam', 'seal', '#151614');
+    strip(dy0, dy1, dz0, dz0 + 0.012, seam); strip(dy0, dy1, dz1 - 0.012, dz1, seam); strip(dy0, dy0 + 0.012, dz0, dz1, seam); strip(dy1 - 0.012, dy1, dz0, dz1, seam);
+    strip(dy0 + 0.12, dy1 - 0.1, 2.05, 2.55, M('glass', 'glass', C.glass));
+    out.push(...tube(bend([[x, dy0 + 0.1, 1.85], [x + s * 0.035, dy0 + 0.1, 1.85], [x + s * 0.035, dy0 + 0.3, 1.85], [x, dy0 + 0.3, 1.85]], 0.015, 2), 0.011, { sides: 6, look: paint('door.handle') }));
+    // the front: a lamp each side in its guard, the bumper's end
+    const lx = s * (cw - 0.28), ly = yN - 0.13, lz = 1.62;
+    out.push(...tube([[lx, ly - 0.08, lz], [lx, ly + 0.04, lz]], 0.11, { sides: 18, look: (role) => (role === 'cap' ? M('headlamp', 'lamp', C.lamp) : paint('headlamp.bucket')) }));
+    for (const dz of [-0.07, 0, 0.07]) out.push(...tube([[lx - 0.12, ly + 0.08, lz + dz], [lx + 0.12, ly + 0.08, lz + dz]], 0.008, { sides: 6, look: paint('headlamp.guard') }));
+    // the fenders over the front axles, under the cab's floor
+    const [fa, fb] = xs(s, 0.7, hw - 0.04);
+    P({ axis: 'x', profile: rect(axles[1] - r - 0.15, axles[0] + r + 0.15, zc0 - 0.07, zc0 - 0.02), from: fa, to: fb, r: 0.006, seg: 1, look: paint('fender') });
+  }
+  // the grille under the screen; the bumper; the hatch in the roof
+  for (let i = 0; i < 8; i++) { const x = -0.6 + i * 0.17; P({ axis: 'y', profile: rect(x - 0.05, x + 0.05, 1.5, 1.85), from: yN - 0.004, to: yN + 0.006, r: 0.004, seg: 1, look: M('grille', 'carbon', C.black) }); }
+  P({ axis: 'x', profile: rect(yN - 0.24, yN - 0.012, 0.95, 1.25), from: -hw + 0.05, to: hw - 0.05, r: 0.015, seg: 1, look: paint('bumper') });
+  out.push(...bolts([-0.9, -0.6, 0.6, 0.9].flatMap((x) => [[x, yN - 0.012, 1.02], [x, yN - 0.012, 1.17]]), [0, 1, 0], { r: 0.015, h: 0.01, look: paint('bolt') }));
+  out.push(...tube(Array.from({ length: 21 }, (_, k) => { const a = (2 * Math.PI * k) / 20; return [-0.5 + 0.3 * Math.cos(a), yc0 + 1.1 + 0.3 * Math.sin(a), zc1 + 0.03]; }), 0.03, { sides: 8, caps: false, look: paint('hatch.ring') }));
+  P({ axis: 'z', profile: Array.from({ length: 14 }, (_, k) => { const a = (2 * Math.PI * k) / 14; return [-0.5 + 0.27 * Math.cos(a), yc0 + 1.1 + 0.27 * Math.sin(a)]; }), from: zc1, to: zc1 + 0.05, r: 0.012, seg: 1, look: paint('hatch') });
+  // ── the engine box behind the cab, louvred, its exhaust up its corner
+  const ye0 = yc0 - 1.5;
+  P({ axis: 'x', profile: [[ye0, zr1], [yc0, zr1], [yc0, 2.3], [ye0 + 0.1, 2.3], [ye0, 2.2]], from: -hw + 0.12, to: hw - 0.12, r: 0.04, seg: 2, look: paint('engine.box') });
+  for (const s of [-1, 1]) for (let k = 0; k < 6; k++) { const z = 1.6 + k * 0.1; P({ axis: 'x', profile: rect(ye0 + 0.25, yc0 - 0.25, z, z + 0.035), from: s * (hw - 0.12), to: s * (hw - 0.114), look: M('engine.louvre', 'carbon', C.black) }); }
+  out.push(...tube([[hw - 0.25, ye0 + 0.2, 2.3], [hw - 0.25, ye0 + 0.2, zc1 - 0.02]], 0.07, { sides: 10, look: M('exhaust', 'carbon', C.soot) }));
+  // ── the rear deck over the rear axles, its walkway; the rear beam and its lamps
+  // (the deck stands on risers over the rear tyres' tops)
+  const zd = 2 * r + 0.08;
+  P({ axis: 'z', profile: rect(-hw + 0.08, hw - 0.08, yT + 0.1, ye0 - 0.1), from: zd, to: zd + 0.04, look: paint('deck') });
+  for (let y = yT + 0.4; y < ye0 - 0.2; y += 1.3) for (const s of [-1, 1]) P({ axis: 'x', profile: rect(y - 0.05, y + 0.05, zr1, zd), from: s * 0.62, to: s * (hw - 0.1), look: fr });
+  for (const s of [-1, 1]) {
+    const [c, d] = xs(s, 0.7, hw - 0.04);
+    P({ axis: 'x', profile: rect(axles[3] - r - 0.15, axles[2] + r + 0.15, zd - 0.05, zd - 0.01), from: c, to: d, r: 0.006, seg: 1, look: paint('fender') });
+    P({ axis: 'y', profile: rect(s * 1.1 - 0.07, s * 1.1 + 0.07, 1.06, 1.18), from: yT - 0.016, to: yT, r: 0.006, seg: 1, look: (role) => (role === 'cap' ? M('taillamp', 'tail', C.tail) : M('taillamp.bezel', 'carbon', C.black)) });
+  }
+  P({ axis: 'x', profile: rect(yT, yT + 0.14, zr0 - 0.05, zr1), from: -hw + 0.1, to: hw - 0.1, r: 0.012, seg: 1, look: paint('bumper') });
+  // ── the rear jacks: stowed up on the frame's end, or down on their pads
+  for (const s of [-1, 1]) {
+    const x = s * (hw - 0.22), y = yT + 0.45, zFoot = erect ? 0.02 : zr0 - 0.25;
+    out.push(...tube([[x, y, zr1 + 0.1], [x, y, zr0 - 0.2]], 0.1, { sides: 10, look: paint('jack.barrel') }));
+    out.push(...tube([[x, y, zr0 - 0.2], [x, y, zFoot + 0.06]], 0.065, { sides: 10, look: M('jack.ram', 'steel', C.steel) }));
+    P({ axis: 'z', profile: rect(x - 0.22, x + 0.22, y - 0.22, y + 0.22), from: zFoot, to: zFoot + 0.06, r: 0.01, seg: 1, look: paint('jack.pad') });
+  }
+  // ── the erector: a box beam hinged at the rear, its saddles under the missile, its rams; turned up 90° when erect
+  const hinge = [0, yT + 0.5, 1.75], axisZ = 3.5, beamTop = 2.3;
+  const rig = [];
+  rig.push(...plate({ axis: 'y', profile: rect(-0.34, 0.34, 1.82, beamTop), from: hinge[1], to: ye0 - 0.2, r: 0.02, seg: 1, look: paint('erector.beam') }));
+  for (const y of [hinge[1] + 3.0, hinge[1] + 7.6, ye0 - 0.6]) {
+    // (a saddle: a plate up from the beam to the missile's round, a rubber strap over it)
+    rig.push(...plate({ axis: 'y', profile: [[-0.7, beamTop], [0.7, beamTop], [0.7, axisZ - 0.55], [0.4, axisZ - MISSILE.radius * 0.92], [-0.4, axisZ - MISSILE.radius * 0.92], [-0.7, axisZ - 0.55]], from: y - 0.06, to: y + 0.06, r: 0.01, seg: 1, look: paint('erector.saddle') }));
+    rig.push(...tube(Array.from({ length: 9 }, (_, k) => { const a = Math.PI * (1.15 + 0.7 * (k / 8)); return [Math.cos(a) * (MISSILE.radius + 0.03), y, axisZ + Math.sin(a) * (MISSILE.radius + 0.03)]; }), 0.03, { sides: 6, look: M('erector.strap', 'rubber', C.rubber) }));
+  }
+  // (its hinge: a pin across through the beam's tail and the frame's brackets)
+  for (const s of [-1, 1]) P({ axis: 'x', profile: [[hinge[1] - 0.3, zr1], [hinge[1] + 0.3, zr1], [hinge[1] + 0.12, hinge[2] + 0.2], [hinge[1] - 0.12, hinge[2] + 0.2]], from: s * 0.36, to: s * 0.5, r: 0.01, seg: 1, look: fr });
+  out.push(...tube([[-0.55, hinge[1], hinge[2]], [0.55, hinge[1], hinge[2]]], 0.08, { sides: 12, look: steel }));
+  // (the missile in the erector's frame: its tail by the hinge, its axis over the saddles)
+  // (its own finish, a grey-green the livery leaves alone: a missile is painted as it leaves its works, not as the
+  // truck that carries it)
+  const raised = [...rig, ...place(missile((part) => M(part, 'milPaint', C.missile)), { origin: [0, hinge[1] - 0.1, axisZ], ex: [1, 0, 0], ey: [0, 1, 0], ez: [0, 0, 1] })];
+  // (erect: the beam, its saddles and the missile turned 90° about the hinge, nose up)
+  const turned = erect ? place(raised.map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], c[1] - hinge[1], c[2] - hinge[2]]) })), { origin: hinge, ex: [1, 0, 0], ey: [0, 0, 1], ez: [0, -1, 0] }) : raised;
+  out.push(...turned);
+  // (the rams, each side: from the frame to the beam's underside, telescoped out as far as the beam stands)
+  const ramTop = (y) => (erect ? [hinge[1] - (1.84 - hinge[2]), hinge[2] + (y - hinge[1])] : [y, 1.84]);
+  for (const s of [-1, 1]) {
+    const x = s * 0.45, base = [x, ye0 - 2.6, zr1 + 0.05], [ty, tz] = ramTop(hinge[1] + 2.3), top = [x, ty, tz];
+    const at = (t) => base.map((b, i) => b + (top[i] - b) * t);
+    out.push(...tube([base, at(0.45)], 0.11, { sides: 12, look: paint('erector.ram') }));
+    out.push(...tube([at(0.4), at(0.75)], 0.08, { sides: 12, look: M('erector.ram.rod', 'steel', C.steel) }));
+    out.push(...tube([at(0.7), top], 0.06, { sides: 10, look: M('erector.ram.rod', 'steel', C.steel) }));
+  }
+  // ── the launch table: stowed flat on the rear deck, or lowered on its legs behind the truck under the missile's tail
+  const tableAt = erect ? [0, hinge[1] - (axisZ - hinge[2]), hinge[2] - 0.22] : [0, yT + 1.75, zd + 0.04];
+  const table = [];
+  table.push(...revolve([[0, 1.15], [0.12, 1.15]], { sides: 20, look: paint('table.ring') }));
+  table.push(...revolve([[0.12, 0.7], [0.14, 0.7]], { sides: 20, cap: false, look: M('table.blast', 'carbon', C.soot) }));
+  // (its blast deflector: a cone under its ring, its point down, swung out when the table is lowered)
+  if (erect) table.push(...revolve([[-0.55, 0.05], [0, 0.65]], { sides: 16, cap: false, look: M('table.deflector', 'steel', C.steel) }));
+  // (laid flat: its ring's axis up)
+  const flat = place(table, { origin: [0, 0, 0], ex: [1, 0, 0], ey: [0, 0, 1], ez: [0, -1, 0] });
+  out.push(...place(flat, { origin: tableAt, ex: [1, 0, 0], ey: [0, 1, 0], ez: [0, 0, 1] }));
+  if (erect) for (let k = 0; k < 4; k++) {
+    const a = Math.PI / 4 + (k * Math.PI) / 2, top = [tableAt[0] + 0.95 * Math.cos(a), tableAt[1] + 0.95 * Math.sin(a), tableAt[2]];
+    out.push(...tube([top, [top[0] * 1.25, tableAt[1] + (top[1] - tableAt[1]) * 1.25, 0.04]], 0.05, { sides: 8, look: paint('table.leg') }));
+  }
+  // ── the anchors
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1], neg = (a) => a.map((q) => -q);
+  const anchors = [
+    ...[-1, 1].flatMap((s) => {
+      const L = s < 0 ? 'L' : 'R', side = s < 0 ? neg(X) : X;
+      return [
+        { id: `rail.${L}`, kind: 'rail', at: [s * 0.62, (axles[1] + axles[2]) / 2 + (s < 0 ? 1.4 : -1.4), zr1 - 0.02], out: side, up: Z },
+        { id: `engine.${L}`, kind: 'flank', at: [s * (hw - 0.12), ye0 + 0.75, 2.0], out: side, up: Z },
+        { id: `cab.flank.${L}`, kind: 'flank', at: [s * cw, yc0 + 0.25, 2.45], out: side, up: Z },
+        { id: `grab.${L}`, kind: 'flank', at: [s * cw, yc0 + 0.35, 1.9], out: side, up: Z },
+        { id: `sill.${L}`, kind: 'sill', at: [s * cw, yc0 + 0.9, zc0 - 0.1], out: side, up: Z },
+        { id: `flap.F${L}`, kind: 'flap', at: [s * v.track / 2, axles[1] - r - 0.16, zc0 - 0.05], out: neg(Y), up: Z },
+        { id: `flap.R${L}`, kind: 'flap', at: [s * v.track / 2, axles[3] - r - 0.16, zd - 0.05], out: neg(Y), up: Z },
+        { id: `bumper.F${L}`, kind: 'bumper', at: [s * 1.0, yN - 0.012, 1.1], out: Y, up: Z },
+        { id: `post.${L}`, kind: 'post', at: [s * cw, yN - 0.35, 2.45], out: side, up: Z },
+        { id: `mark.${L}`, kind: 'mark', role: 'number', at: [s * (cw + 0.003), yc0 + 1.3, 1.62], out: side, up: Z, h: 0.13 },
+        { id: `mark.engine.${L}`, kind: 'mark', role: 'emblem', at: [s * (hw - 0.115), ye0 + 0.75, 1.48], out: side, up: Z, h: 0.1 },
+      ];
+    }),
+    { id: 'mark.bumper', kind: 'mark', role: 'number', at: [0.45, yN - 0.012, 1.02], out: Y, up: Z, h: 0.1 },
+  ];
+  return { faces: out.filter(Boolean), anchors, zones: { floor: zr1, tub: { x: hw, y: [yT, ye0], z: [zd, zd + 0.5] } } };
 }
 
 // ── the eight-wheeled armoured carrier ──────────────────────────────────────────
@@ -975,6 +1175,13 @@ export const KITS = Object.freeze({
     ['rear.L', 'jerryCans'], ['rear.R', 'jerryCans'], ['tools.L', 'pioneerTools'], ['antenna.L', 'antenna', { lean: 1 }], ['antenna.R', 'antenna', { lean: -1 }],
     ['bumper.FL', 'shackle'], ['bumper.FR', 'shackle'], ['bumper.RL', 'shackle'], ['bumper.RR', 'shackle'], ['top', 'tarpRoll', { maybe: 0.5 }],
   ]),
+  launcher: Object.freeze([
+    ['rail.L', 'fuelTank', { length: 1.2, radius: 0.28 }], ['rail.R', 'stowageBox'], ['engine.L', 'jerryCans', { count: 2 }], ['engine.R', 'pioneerTools'],
+    ['cab.flank.R', 'antenna', { lean: -1 }], ['grab.L', 'grabHandle', { width: 0.4 }], ['grab.R', 'grabHandle', { width: 0.4 }],
+    ['sill.L', 'step', { drop: 1.6 }], ['sill.R', 'step', { drop: 1.6 }],
+    ['flap.FL', 'mudFlap', { drop: 0.75 }], ['flap.FR', 'mudFlap', { drop: 0.75 }], ['flap.RL', 'mudFlap', { drop: 0.8 }], ['flap.RR', 'mudFlap', { drop: 0.8 }],
+    ['bumper.FL', 'shackle'], ['bumper.FR', 'shackle'], ['post.L', 'mirror'], ['post.R', 'mirror'],
+  ]),
   carrier: Object.freeze([
     ['rear.L', 'jerryCans'], ['rear.R', 'jerryCans'], ['slope.R', 'pioneerTools'],
     ['antenna.L', 'antenna', { lean: 1 }], ['antenna.R', 'antenna', { lean: -1 }], ['grab.L', 'grabHandle', { width: 0.4 }], ['grab.R', 'grabHandle', { width: 0.4 }],
@@ -985,7 +1192,7 @@ export const KITS = Object.freeze({
 });
 const CAN_TONES = Object.freeze(['#4f5726', '#4f5726', '#8a7a55']);
 // the bodies built here, by their kind
-const BODIES = Object.freeze({ utility, cargo, carrier, lightTank, trackedCarrier });
+const BODIES = Object.freeze({ utility, cargo, carrier, lightTank, trackedCarrier, launcher });
 
 /** A military class's body (its hull, every face with its corner normals: a plate's own, worked out; a fitting's flat)
  *  and its fittings, its kit's cards on its anchors, rolled from the seed; its livery (livery-cut.js) cut into the paint

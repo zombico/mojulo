@@ -83,7 +83,8 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
     faces: { root: baked.get('root'), wheels: wheels.map((w) => ({ bone: name(w), faces: baked.get(name(w)), hub: w.hub.map(r4) })) },
   };
   // (the census measures the hull and its wheels against the class: the fittings hang off it, as a mirror does a car)
-  // (and a turret's own, but not its gun, which reaches past the hull's length)
-  const measured = { ...compiled, faces: { ...compiled.faces, root: bakeForm([...hull, ...wells].filter((f) => !f.part.startsWith('gun'))) } };
+  // (and a turret's own, but not its gun, which reaches past the hull's length; nor a launcher's load, its missile and
+  // its erector, which stand above it, and its launch table set down behind it)
+  const measured = { ...compiled, faces: { ...compiled.faces, root: bakeForm([...hull, ...wells].filter((f) => !/^(gun|missile|erector|table)/.test(f.part))) } };
   return { ...compiled, census: realisticCensus(measured), ...(form ? { form: Object.fromEntries(formOf) } : {}) };
 }
