@@ -13,7 +13,8 @@
  *               wingtips a clearance from its neighbours'; the fleet's classes (the craft shelf's liners) sampled by
  *               weight, then the largest that fits, each stand tested against every building and every other stand
  *   bridges     each stand's jet bridge: from a rotunda off the pier's face to the aircraft's first door on its left
- *               (craftService's), at that door's sill
+ *               (craftService's), at that door's sill; none where the sill is under a bridge cab's lowest (a turboprop
+ *               or a bizjet boards by its own airstairs)
  *   the field   the apron behind the stands, its taxilane, the parallel taxiway and the runway at their separations,
  *               the connectors between them; the tower landside; the maintenance hangar at the apron's end
  *
@@ -40,6 +41,8 @@ export const AIRPORT_FIGURES = Object.freeze({
   processor: { w: 70, h: 22 }, rotunda: { R: 70, h: 20 }, tower: { h: 72 }, hangar: { w: 95, d: 85, h: 30 },
 });
 const W = AIRPORT_FIGURES;
+// (the lowest sill a jet bridge's cab meets)
+const BRIDGE_SILL = 2.6;
 const r2 = (v) => Math.round(v * 100) / 100 + 0;
 const P2 = (p) => p.map(r2);
 
@@ -189,13 +192,17 @@ function stand(s, f, C, box, k) {
   const door = f.door ? toWorld([f.door.x, f.door.y - 0]) : null;
   // (the rotunda off the pier's face, on the door's side of the stand's line; the bridge from it to the door)
   const face = [s.e[0] + s.nOut[0] * (W.pierW / 2), s.e[1] + s.nOut[1] * (W.pierW / 2)];
+  // (the rotunda off to the door's side along the pier, so the tunnel swings in to the door at an angle, as a bridge's
+  // does: 13 m along the pier past the door, 6 m off its face)
   const along = door ? (door[0] - face[0]) * s.u[0] + (door[1] - face[1]) * s.u[1] : 0;
-  const root = [face[0] + s.u[0] * along * 0.6, face[1] + s.u[1] * along * 0.6];
-  const rotunda = [root[0] + s.nOut[0] * 9, root[1] + s.nOut[1] * 9];
+  const leftU = Math.sign(-sn * s.u[0] + c * s.u[1]) || 1;
+  const root = [face[0] + s.u[0] * (along + leftU * 13), face[1] + s.u[1] * (along + leftU * 13)];
+  const rotunda = [root[0] + s.nOut[0] * 6, root[1] + s.nOut[1] * 6];
   return {
     id: `${s.concourse}-${k + 1}`, wing: s.wing, concourse: s.concourse, craft: f.craft, at: P2(C), heading: r2(heading),
     e: P2(s.e), u: P2(s.u), nOut: P2(s.nOut), stop: P2(face),
-    ...(door ? { bridge: { root: P2(root), rotunda: P2(rotunda), door: P2([...door, f.door.sill]) } } : {}),
+    // (a bridge's cab meets a door from 2.6 m up: a turboprop or a bizjet below that boards by its own airstairs)
+    ...(door && f.door.sill >= BRIDGE_SILL ? { bridge: { root: P2(root), rotunda: P2(rotunda), door: P2([...door, f.door.sill]) } } : {}),
     box,
   };
 }

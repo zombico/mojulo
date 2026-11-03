@@ -253,8 +253,9 @@ Pointers only; each target carries its own design notes.
   them `consist.js`); review: `scripts/render-rail.mjs`.
 - Airports: [airport/](control/lib/graph/airport/) (the transport hub's grammar laid at an airport's real figures, `plan.js`:
   piers, nose-in stands sized to the craft shelf's liners and their jet bridges, the taxiway and runway at their
-  separations, the tower and hangar, each concourse a wing; drawn whole as a miniature on a plinth, `miniature.js`, the
-  `/world` kind `airport`, minted by the transport hub's `mode: 'airport', show: 'miniature'`).
+  separations, the tower and hangar, each concourse a wing; drawn whole as a miniature on a plinth, `miniature.js`, or one
+  wing at full scale, `wing.js`: its piers, its apron's marks, its stands' aircraft, crews and jet bridges, `jet-bridge.js`;
+  the `/world` kind `airport`, minted by the transport hub's `mode: 'airport', show: 'miniature' | 'wing'`).
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
   one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a

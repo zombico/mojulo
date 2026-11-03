@@ -22,7 +22,8 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { planTransportationHub, HUB_MODES, AIRPORT_GLYPHS, AIRPORT_PRIMARIES } from '@/lib/graph/architecture/transportation-hub';
 import { planSubwayStation, SUBWAY_LINES } from '@/lib/graph/architecture/subway-station';
 import { planAirport, AIRPORT_GLYPHS as AIRPORT_PLAN_GLYPHS } from '@/lib/graph/airport/plan';
-import { MINIATURE_SCALES } from '@/lib/graph/airport/miniature';
+import { MINIATURE_SCALES, AIRPORT_SHOWS } from '@/lib/graph/airport/miniature';
+import { WING_SHOWS } from '@/lib/graph/airport/wing';
 import { stackSubway, planSubwayInterchange } from '@/lib/graph/architecture/subway-building';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
@@ -98,7 +99,7 @@ function mintSubwayBuilding({ title, seed, density, line, lineB, gates, atmosphe
 
 // Mint the AIRPORT at its real figures (airport/plan.js), drawn whole as a miniature on a plinth: a /world `airport`.
 // Persists only the recipe; the plan is laid once to validate it and read its stats.
-function mintAirport({ title, seed, glyph, chirality, asymmetry, stands, show, scale, viewBox, ref, folderRef } = {}) {
+function mintAirport({ title, seed, glyph, chirality, asymmetry, stands, show, scale, wing, crews, viewBox, ref, folderRef } = {}) {
   const manifest = {
     kind: 'airport',
     seed: Number.isFinite(+seed) ? Math.trunc(+seed) : 1,
@@ -108,17 +109,20 @@ function mintAirport({ title, seed, glyph, chirality, asymmetry, stands, show, s
     ...(Number.isFinite(+asymmetry) ? { asymmetry: Math.max(0, Math.min(1, +asymmetry)) } : {}),
     ...(Number.isFinite(+stands) ? { stands: Math.max(1, Math.min(40, Math.trunc(+stands))) } : {}),
     ...(Number.isFinite(+scale) ? { scale: Math.max(MINIATURE_SCALES[0], Math.min(MINIATURE_SCALES[1], +scale)) } : {}),
+    ...(typeof wing === 'string' ? { wing } : {}),
+    ...(WING_SHOWS.includes(crews) ? { crews } : {}),
     ...(viewBox && typeof viewBox === 'object' ? { viewBox } : {}),
     ...(title ? { title } : {}),
   };
-  if (manifest.show !== 'miniature') throw new Error("compose_world transport-hub: an airport's show is 'miniature' (the whole plan as a model); its wing at full scale is not built yet");
-  const { stats } = planAirport(manifest);
+  if (!AIRPORT_SHOWS.includes(manifest.show)) throw new Error(`compose_world transport-hub: an airport's show is ${AIRPORT_SHOWS.join(' | ')} (the whole plan as a model, or one wing at full scale)`);
+  const plan = planAirport(manifest), { stats } = plan;
+  if (manifest.wing && !plan.wings[manifest.wing]) throw new Error(`compose_world transport-hub: '${manifest.wing}' is no wing of this airport (${Object.keys(plan.wings).join(', ')})`);
   return { ...persistSubway(manifest, { title, ref, folderRef, fallbackTitle: `airport ${manifest.seed}` }), stats };
 }
 
-export function mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef, show, stands, scale } = {}) {
+export function mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef, show, stands, scale, wing, crews } = {}) {
   // (an airport asked to be shown as a model, at its real figures: the airport kind, not the CSS diorama)
-  if ((mode === undefined || mode === 'airport') && show !== undefined) return mintAirport({ title, seed, glyph, chirality, asymmetry, stands, show, scale, viewBox, ref, folderRef });
+  if ((mode === undefined || mode === 'airport') && show !== undefined) return mintAirport({ title, seed, glyph, chirality, asymmetry, stands, show, scale, wing, crews, viewBox, ref, folderRef });
   // The interior subway is a distinct render path — delegate early. `building` mints the
   // 2-level station+concourse (a /world `subway-building`); `layout:'interchange'` makes it a
   // perpendicular two-line interchange; otherwise the single hall.
@@ -169,6 +173,6 @@ export async function createTransportationHubHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('compose_world({ base: "transport-hub" }) requires a recipe object');
   }
-  const { title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, line_b: lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folder_ref: folderRef, show, stands, scale } = input;
-  return mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef, show, stands, scale });
+  const { title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, line_b: lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folder_ref: folderRef, show, stands, scale, wing, crews } = input;
+  return mintTransportationHub({ title, mode, seed, density, depth, glyph, primary, asymmetry, chirality, line, lineB, building, layout, atmosphere, fog, audio, gates, region, viewBox, time, ref, folderRef, show, stands, scale, wing, crews });
 }

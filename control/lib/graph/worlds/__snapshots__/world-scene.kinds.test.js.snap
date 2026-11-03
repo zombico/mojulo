@@ -3,7 +3,7 @@
 exports[`world-scene kinds — per-arm characterization > every dispatch arm resolves its fixture to a stable { title, hash } snapshot 1`] = `
 {
   "airport": {
-    "hash": "ef12d4c8",
+    "hash": "9f97bce1",
     "title": "mojulo airport",
   },
   "assembler": {

@@ -5,6 +5,8 @@ import { describe, it, expect } from 'vitest';
 import { planAirport, AIRPORT_GLYPHS, AIRPORT_FIGURES } from './plan.js';
 import { airportMiniature, assembleAirportScene, MINIATURE_SCALES } from './miniature.js';
 import { craftFootprint } from '../craft-shelf/index.js';
+import { airportWing } from './wing.js';
+import { jetBridge } from './jet-bridge.js';
 
 const W = AIRPORT_FIGURES;
 const box = (c, u, hu, hn) => ({ c, ux: u, nx: [-u[1], u[0]], halfU: hu, halfN: hn });
@@ -40,11 +42,17 @@ describe('the airport\'s plan, in true metres', () => {
         expect(Math.cos(s.heading) * -s.nOut[0] + Math.sin(s.heading) * -s.nOut[1]).toBeCloseTo(1, 2);
         const nose = [s.at[0] + Math.cos(s.heading) * figs(s.craft).length / 2, s.at[1] + Math.sin(s.heading) * figs(s.craft).length / 2];
         expect(Math.hypot(nose[0] - s.stop[0], nose[1] - s.stop[1])).toBeCloseTo(W.noseGap, 0);
-        expect(s.bridge).toBeTruthy();
+        // (a bridge where the door is high enough for its cab, at that door; none below it)
+        if (!s.bridge) continue;
         expect(Math.hypot(s.bridge.door[0] - s.at[0], s.bridge.door[1] - s.at[1])).toBeLessThan(figs(s.craft).length / 2);
-        expect(s.bridge.door[2]).toBeGreaterThan(0.5);
+        expect(s.bridge.door[2]).toBeGreaterThanOrEqual(2.6);
       }
     }
+  });
+  it('a jet bridge at every stand whose door its cab meets, none at a low one', () => {
+    const all = plans.flatMap((p) => p.stands);
+    expect(all.some((s) => s.bridge)).toBe(true);
+    for (const s of all.filter((q) => !q.bridge)) expect(['regional', 'bizjet']).toContain(s.craft);
   });
   it('its field at its separations; each concourse a wing that lists its stands', () => {
     for (const p of plans) {
@@ -79,6 +87,33 @@ describe('the airport in miniature', () => {
     expect(P.faces.length).toBeGreaterThan(1000);
     expect(P.cameras.map((c) => c.name)).toEqual(expect.arrayContaining(['model', 'terminal', 'apron']));
     expect(JSON.stringify(assembleAirportScene({ kind: 'airport', seed: 2, glyph: 'linear', stands: 8 }).faces)).toBe(JSON.stringify(P.faces));
-    expect(() => assembleAirportScene({ kind: 'airport', show: 'wing' })).toThrow(/not built yet/);
+    expect(() => assembleAirportScene({ kind: 'airport', show: 'tour' })).toThrow(/show is/);
   });
+});
+
+describe('the wing at full scale and its jet bridges', () => {
+  const plan = planAirport({ seed: 1, glyph: 'linear', stands: 6 });
+  const id = Object.keys(plan.wings).find((w) => plan.stands.some((s) => s.wing === w && s.bridge));
+  it('a jet bridge from its rotunda on its column to the door, its bellows at the door\'s sill', () => {
+    const s = plan.stands.find((q) => q.wing === id && q.bridge), left = [-Math.sin(s.heading), Math.cos(s.heading)];
+    const fs = jetBridge({ ...s.bridge, deck: 5.5, side: left });
+    const bel = fs.filter((f) => f.part === 'bridge.bellows').flatMap((f) => f.corners);
+    expect(bel.length).toBeGreaterThan(0);
+    const near = Math.min(...bel.map((c) => Math.hypot(c[0] - s.bridge.door[0], c[1] - s.bridge.door[1])));
+    expect(near).toBeLessThan(2.2);
+    expect(Math.min(...bel.map((c) => c[2]))).toBeCloseTo(s.bridge.door[2] - 0.15, 1);
+    // (its rotunda's column stands on the apron)
+    expect(Math.min(...fs.filter((f) => f.part === 'bridge.frame').flatMap((f) => f.corners.map((c) => c[2])))).toBeLessThan(0.01);
+  });
+  it('its stands\' aircraft its figures, each a static entity at its stand; its crews as asked; its piers and bridges its faces', () => {
+    const quiet = airportWing(plan, { wing: id, crews: 'none' }), busy = airportWing(plan, { wing: id, crews: 'all' });
+    const n = plan.stands.filter((s) => s.wing === id).length;
+    expect(Object.keys(quiet.figures)).toHaveLength(n);
+    expect(quiet.entities.every((e) => e.rule.type === 'static')).toBe(true);
+    expect(busy.entities.length).toBeGreaterThan(n * 4);
+    expect(quiet.faces.length).toBeGreaterThan(500);
+    expect(JSON.stringify(airportWing(plan, { wing: id, crews: 'none' }).faces)).toBe(JSON.stringify(quiet.faces));
+    expect(() => airportWing(plan, { wing: 'Z' })).toThrow(/no wing/);
+    expect(() => airportWing(plan, { crews: 'some' })).toThrow(/crews/);
+  }, 120000);
 });

@@ -19,6 +19,7 @@ import { vehicleFaces, aircraftFootprint } from '../vehicles/vehicles-css3d.js';
 import { pickAircraftLiveryScheme } from '../polygonizer/vehicle-fuselage-net.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { craftFootprint } from '../craft-shelf/index.js';
+import { airportWing } from './wing.js';
 
 export const MINIATURE_SCALES = Object.freeze([250, 4000]);
 const TOP = 0.86;
@@ -168,13 +169,24 @@ const LENGTHS = new Map();
 const lengthOf = (craft) => { if (!LENGTHS.has(craft)) { const F = craftFootprint(craft); LENGTHS.set(craft, F.max[1] - F.min[1]); } return LENGTHS.get(craft); };
 
 /** The words an airport recipe takes (kind 'airport'). */
-export const AIRPORT_KEYS = Object.freeze(['kind', 'seed', 'glyph', 'chirality', 'asymmetry', 'stands', 'show', 'scale', 'title', 'viewBox']);
+export const AIRPORT_KEYS = Object.freeze(['kind', 'seed', 'glyph', 'chirality', 'asymmetry', 'stands', 'show', 'scale', 'wing', 'crews', 'title', 'viewBox']);
+/** What an airport is shown as: the whole plan as a model, or one wing at full scale (wing.js). */
+export const AIRPORT_SHOWS = Object.freeze(['miniature', 'wing']);
 
 /** The World page's payload for an airport recipe. */
 export function assembleAirportScene(m = {}, { title } = {}) {
   const show = m.show ?? 'miniature';
-  if (show !== 'miniature') throw new Error(`airport: show is 'miniature' (the wing at full scale is not built yet)`);
+  if (!AIRPORT_SHOWS.includes(show)) throw new Error(`airport: show is ${AIRPORT_SHOWS.join(' | ')}`);
   const plan = planAirport({ seed: m.seed ?? 1, ...(m.glyph ? { glyph: m.glyph } : {}), ...(m.chirality ? { chirality: m.chirality } : {}), ...(m.asymmetry !== undefined ? { asymmetry: m.asymmetry } : {}), ...(m.stands ? { stands: m.stands } : {}) });
+  const sky = { preset: 'day', zenith: [104, 140, 186], horizon: [214, 218, 222], day: 1, stars: 0, seed: 7 };
+  // (one wing at full scale, its stands' aircraft and crews its figures, lit by the day)
+  if (show === 'wing') {
+    const W = airportWing(plan, { ...(m.wing ? { wing: m.wing } : {}), seed: m.seed ?? 1, ...(m.crews ? { crews: m.crews } : {}) });
+    return {
+      faces: W.faces, figures: W.figures, entities: W.entities, cameras: W.cameras, title: title ?? m.title ?? `mojulo airport, wing ${W.wing}`,
+      viewBox: m.viewBox ?? { width: 1120, height: 780 }, bg: '#b9c6d3', sky, shadows: { actors: true }, light: { toLight: [0.42, -0.38, 0.82] }, metersPerUnit: 1,
+    };
+  }
   const { faces, cameras } = airportMiniature(plan, { scale: m.scale ?? 1000, seed: m.seed ?? 1 });
   return {
     faces, cameras, title: title ?? m.title ?? 'mojulo airport', viewBox: m.viewBox ?? { width: 1120, height: 780 },
