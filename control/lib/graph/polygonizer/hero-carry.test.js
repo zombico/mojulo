@@ -14,7 +14,8 @@ const allTrue = (laws) => Object.fromEntries(Object.keys(laws).map((k) => [k, tr
 // the placement a hold's words select in hero-carry.js place(): hung, rested (on what), sighted (how), pointed, extended,
 // anchored (where)
 const placement = (H) => (H.hang ? 'hang' : H.rest ? `rest:${H.rest.on}` : H.sight ? `sight:${H.sight}` : H.point ? 'point' : H.extend ? 'extend' : `anchor:${H.anchor}`);
-const PROCEDURES = Object.values(Object.groupBy(HOLD_NAMES, (n) => `${placement(HOLDS[n])} ${CARRIED[HOLDS[n].item].class} ${HOLDS[n].hands}`)).map((g, i) => [g[0], i % 2 ? 'male' : 'female']);
+// (the arms kernel's holds are hero-arms-hold.test.js's: the same placements on the arms' own stations, their fists solved)
+const PROCEDURES = Object.values(Object.groupBy(HOLD_NAMES.filter((n) => !HOLDS[n].arm), (n) => `${placement(HOLDS[n])} ${CARRIED[HOLDS[n].item].class} ${HOLDS[n].hands}`)).map((g, i) => [g[0], i % 2 ? 'male' : 'female']);
 const held = new Map(), hold = (name, cast = 'female') => { const k = `${cast} ${name}`; if (!held.has(k)) held.set(k, heroHold(name, RIGS[cast])); return held.get(k); };
 
 describe('hero-carry', () => {
@@ -77,7 +78,8 @@ describe('hero-carry', () => {
   }, 30000);
   it('names every thing and hold; refuses an unknown one', () => {
     expect(CARRIED_NAMES).toEqual(['pistol', 'carbine', 'shotgun', 'lmg', 'box', 'suitcase', 'lantern', 'sack', 'sword', 'greatsword']);
-    for (const h of HOLD_NAMES) expect(CARRIED_NAMES).toContain(HOLDS[h].item);
+    // (a sample's hold holds a carried thing; an arms hold an arm of the arms kernel, by its build words)
+    for (const h of HOLD_NAMES) if (HOLDS[h].arm) expect(HOLDS[h].arm.item).toBe(HOLDS[h].item); else expect(CARRIED_NAMES).toContain(HOLDS[h].item);
     expect(() => heroHold('juggle', R)).toThrow(/no hold/);
     expect(() => heroCarry('anvil', 'relax', R)).toThrow(/nothing called/);
     expect(() => heroCarry('box', 'aim', R)).toThrow(/no aim hold/);

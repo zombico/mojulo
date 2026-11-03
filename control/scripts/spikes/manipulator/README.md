@@ -25,3 +25,7 @@ The pictures: `/body-study male --hero '{"form":"realistic"}' --crop hand --acts
   (`lib/graph/polygonizer/hero-digits.js`) solved, with each digit's error or clearance and what passes a stop, the
   poles against their hand words, the power grasp on hafts of several radii and a pinch; `--sheet` renders them all
   through `/body-study --crop hand`.
+- `throws.mjs --page out.html [--only overhand,toss]`: the throw library (`lib/graph/polygonizer/hero-throw.js`, baked by
+  `node scripts/throw-sticks.mjs` into `lib/graph/contest/throw-sticks.data.js`) as looping stick figures, side on and
+  from behind the thrower, the ball held to the release and then flown at the library's launch; each card names its
+  ball, its grip, its release and the laws it misses. The ball grips themselves: `lib/graph/polygonizer/hero-ball-grip.js`.

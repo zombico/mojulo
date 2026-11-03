@@ -24,6 +24,9 @@ import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
+import { ARMS_KIT_WORDS, ARMS_MAX } from './arms-kit.js';
+// the carried arms a shooter's player holds (arms-kit.js): aimed with the right mouse, switched on the wheel
+const ARMS_LINE = `  arms: [${ARMS_KIT_WORDS.join(' | ')} | { item, model }] (1..${ARMS_MAX})   the player's own kit: right click aims down the sights (a scope zooms, Shift steadies it), R reloads, wheel or 1-5 switches, a bow draws while held`;
 import { TRADITIONS as FIGHT_TRADITIONS } from '../versus/versus-traditions.js';
 import { CLASS_SLOTS } from './equipment.js';
 import { SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
@@ -436,12 +439,14 @@ const QUICK_LEVERS = {
   shoot: () => [
     `  foes: n (4), foe: ${HERO_WORDS}   first person by default (or third-person); walls to take cover behind`,
     `  craft: ${Object.keys(CRAFT).join(' | ')}   a dogfight instead: waves: n of fighters, assist, airspace (as fly's); followed from behind`,
+    ARMS_LINE,
   ],
   deathmatch: () => [
     `  bots: n (1..7, 3), frags: n (1..50, 10), seconds: n (10..600) a time limit, foe: ${HERO_WORDS}`,
     '  arena: \'<words>\' ("a tight three-lane arena with long sightlines"), pole: realistic..stylized (0..1),',
     '    weapons: true (the pole\'s guns on the arena\'s floor; needs a pole)',
     `  mode: ${DEATHMATCH_MODES.join(' | ')}   two sides: team deathmatch, or a point held for time`,
+    `${ARMS_LINE} (or weapons, not both)`,
     '  camera first-person or third-person (over the shoulder); no building, ride, climb or run',
   ],
   conquer: () => [
