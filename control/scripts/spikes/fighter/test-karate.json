@@ -1,0 +1,12 @@
+{
+  "cast": "male",
+  "animeBody": "toji",
+  "muscleShirt": { "definition": 0.9 },
+  "head": "relational",
+  "face": { "seed": 57, "ethnicity": "east-asian", "character": [0.6, 0.8], "age": 32, "scalp": "short" },
+  "detail": "clothed",
+  "outfit": ["gi", "martialPants"],
+  "palette": { "Top": "#f2efe6", "Bottom": "#f2efe6" },
+  "target": { "resolution": "1080p", "framing": "close" },
+  "gesture": "guard"
+}

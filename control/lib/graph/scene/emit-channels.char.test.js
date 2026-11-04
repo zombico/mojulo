@@ -394,7 +394,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // on its floor with its veil and its nearer camera; the fixture names no set and no lit body. And again (bodies drawn
 // apart): a played knockdown's root slide taken off (PINNED) and a body held in a throw drawn where the push boxes touch
 // (drawnAt); drawing only, the fight's state unchanged. Its versus-compile.js: a fighter in its own guard (`recipe.guard`)
-// pushes with its legs too; the fixture's fighters name no guard.
+// pushes with its legs too; the fixture's fighters name no guard. And again (every style on its own body): a played
+// body the fight poses where it has no clip (placeFromPose: the figure's segments onto its bones, its hands its guard's),
+// a character's recipe pushing with its legs (`bodyPush`), the watch's CPUs at the picks' level (`cpu`); the fixture's
+// fighters are no characters and name no level; its versus-react.js, a body out cold lying on its back (LIMP), which
+// the fixture's fight draws only at a knockout; and the arena's fight read off the page's clock in milliseconds (it had
+// read them as seconds, six fight frames a drawn frame).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

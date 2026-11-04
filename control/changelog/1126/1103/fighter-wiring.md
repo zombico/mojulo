@@ -74,7 +74,22 @@ Every hero naming none of the new words is the hero it was. The eyes gate is the
   blows and blocks taken in it, the knockdown and the rise), solved on its rig from the door's motion words laid onto
   its record for the bake (the row is not changed). Each frame the sim's state names the clip and its moment: a move
   its own clip at the share its compiled frame records (`u`, the retiming's), a blow or a block through the stun, a
-  knockdown, else the guard held. A fighter with the tradition's moves keeps the posed figure.
+  knockdown, else the guard held. What it has no clip of (a throw, a special) is the fight's own pose on its body.
+- **Every style on its own body** (`versus-character.js` TRADITION_CLIPS, `versus-arena.client.js` `placeFromPose`): a
+  character fighting with a tradition's keyed moves (karate, kung fu, …) is played in its own body too, not the posed
+  rigid figure: its skinned, painted, lit pack, each bone riding its segment of the figure the fight's pose makes
+  (`figureSegments`, as the rigid parts did), its hands (the wrist, the fingers) as its guard clip holds them on the
+  forearm, so a fist stays a fist through a punch and a kick. The watch's CPUs fight at a level the picks name (`cpu`:
+  novice | regular | veteran | ace; veteran as before). Two more test fighters: `test-karate.json` (Toji in a white
+  gi) and `test-kungfu.json` (Mizuki in a red top and black martial trousers); `arena-gameplay.mjs` takes each one's
+  tradition, name, the moves (`hero` | `tradition`) and the CPU's level. A character, drawn as it was made, pushes with
+  its stance's legs whatever its moves (`bodyPush: 'legs'` on its recipe: a karateka's long stance had crossed the kung
+  fu fighter's), and a body out cold lies on its back (`versus-react.js` LIMP: its rear arm had been turned into the
+  floor, which propped the trunk 70 cm up on its fist, on the flat page as in the arena). And the arena's fight runs at
+  its own speed: the page hands its frame step its clock in milliseconds (`__mojStep`, as the fx channel reads it), and
+  the fight had read them as seconds, a drawn frame's 16 ms capped at 0.1 s, six fight frames a drawn frame: every
+  arena fight had played at six times its speed (the court arena's stepper, `match-arena.client.js`, reads its clock
+  the same way, not changed here).
 - **The ring: an arena that shows its fighters as they were made** (`versus-arena.js` `set: 'ring'`, ARENA_SETS): a
   boxing ring the arena builds on its floor (a raised canvas, its apron, four corner posts and their pads, the ropes on
   three sides, the camera's side open as a ring is shot) in a nave fallen into the dark (a veil behind the far ropes:
@@ -105,5 +120,6 @@ Every hero naming none of the new words is the hero it was. The eyes gate is the
   the guarding arm up to 6 cm deeper into the trunk than the guard holds it; the pushbox and the knockback live in the
   bout page and the module, not yet in a game's runtime (the versus arena keeps its own); in the fight, a character's
   own strikes pay no reach tax yet (the tradition's keyed jab is a frame slower) and its crouch slots' strikes are
-  thrown standing (it is drawn standing in a crouch too); a move it has no clip of (a throw, a special) plays its
-  strength's punch.
+  thrown standing (it is drawn standing in a crouch too); a tradition's move on a real body is the fight's side-view
+  pose turned into each segment's turn (no forearm roll the plane does not see; the hand held as the guard holds it,
+  so an open-handed strike lands a fist).

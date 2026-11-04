@@ -4,7 +4,7 @@
 // holding back, the advantage measured there the one the move records; and the word is refused where it cannot be read.
 import { describe, it, expect } from 'vitest';
 import { heroRecord } from '@/lib/mcp/tools/layered.js';
-import { resolveCharacters, characterBody, fightClips, FIGHT_REACTS } from './versus-character.js';
+import { resolveCharacters, characterBody, fightClips, FIGHT_REACTS, TRADITION_CLIPS } from './versus-character.js';
 import { rosterEntry } from './versus-page.js';
 import { compileFighter } from './versus-compile.js';
 import { newVersus, stepVersus } from './versus-core.js';
@@ -81,9 +81,25 @@ describe('versus: a character\'s own strikes', async () => {
     const m = F.moves['stand.H'];
     expect(m.frames.slice(1).map((f) => f.u)).toEqual([...m.frames.slice(1).map((f) => f.u)].sort((a, b) => a - b));
     expect(m.frames[m.startup].u).toBeCloseTo(entry.heroNormals['stand.H'].hero.contact, 3);
-    // a character fighting with the tradition's moves keeps the figure posed from the plane
+    // (a body asked for no fight is the posed figure's, its rigid parts)
     expect((await characterBody(ROWS.him)).played).toBeUndefined();
+    // a character fighting with a tradition's moves is played too, its guard's clip alone (its hands; the fight poses it)
+    const T = await characterBody(ROWS.him, { fight: TRADITION_CLIPS });
+    expect(T.played).toBe(true);
+    expect(Object.keys(T.clips)).toEqual(['guard']);
   }, 300000);
+
+  it('a character with a tradition\'s moves pushes with its stance\'s legs, as one with its own strikes does', async () => {
+    const [kar] = await resolveCharacters([{ id: 'karateka', tradition: 'karate', hero: { ref: 'him' } }], lookup);
+    const R = rosterEntry(kar, 0).recipe, K = compileFighter(R);
+    expect(R.bodyPush).toBe('legs');
+    const J = rigJoints(K.body, K.poses.guard), [lo, , hi] = K.idle.stand.push;
+    expect(hi).toBeGreaterThanOrEqual(J.kneeF[0] + K.body.limbR);
+    expect(lo).toBeLessThanOrEqual(J.kneeB[0] - K.body.limbR);
+    // (a fighter that is no character pushes with its trunk as before)
+    const { bodyPush: _b, ...plain } = R;
+    expect(compileFighter(plain).idle.stand.push[2]).toBeLessThanOrEqual(hi);
+  });
 
   it('refuses the word where it cannot be read', async () => {
     expect(() => readHeroMoves({ 'air.L': 'jab' })).toThrow(/ground normal/);

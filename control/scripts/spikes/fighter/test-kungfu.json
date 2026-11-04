@@ -1,0 +1,12 @@
+{
+  "cast": "female",
+  "animeBody": "mizuki",
+  "muscleShirt": { "definition": 0.8 },
+  "head": "relational",
+  "face": { "seed": 88, "ethnicity": "north-asian", "character": [0.5, 0.7], "age": 27, "scalp": "bun" },
+  "detail": "clothed",
+  "outfit": ["fittedTee", "martialPants", "shoes"],
+  "palette": { "Top": "#a8201a", "Bottom": "#16161a", "Shoes": "#16161a" },
+  "target": { "resolution": "1080p", "framing": "close" },
+  "gesture": "guard"
+}

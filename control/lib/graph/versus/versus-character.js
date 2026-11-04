@@ -196,8 +196,8 @@ export async function characterBody(manifest, { fight = null } = {}) {
   const fig = scene?.figures?.body;
   if (!fig || !Array.isArray(fig.bones) || !fig.parts?.some((p) => p?.pos)) return null;
   const bones = fig.bones.map(({ id, head, tail }) => ({ id, head, tail }));
-  if (fight && fig.clips && fig.parts.some((p) => p?.jnt)) {
-    const clips = Object.fromEntries(Object.entries(fig.clips).filter(([k]) => fight.includes(k)).map(([k, c]) => [k, { k: c.k, b: c.b, ...(c.once ? { once: true } : {}), ...(c.s ? { s: c.s } : {}) }]));
+  if (fight && fig.parts.some((p) => p?.jnt)) {
+    const clips = Object.fromEntries(Object.entries(fig.clips ?? {}).filter(([k]) => fight.includes(k)).map(([k, c]) => [k, { k: c.k, b: c.b, ...(c.once ? { once: true } : {}), ...(c.s ? { s: c.s } : {}) }]));
     return { played: true, ...(fig.parts.some((p) => p?.nrm) ? { lit: true } : {}), bones, parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col, jnt: p.jnt, wgt: p.wgt, faces: p.faces, ...(p.uv ? { uv: p.uv } : {}), ...(p.nrm ? { nrm: p.nrm } : {}), ...(p.tan ? { tan: p.tan } : {}) } : null)), clips,
       ...(fig.paintTex ? { paintTex: fig.paintTex } : {}), ...(fig.normalTex ? { normalTex: fig.normalTex } : {}), ...(fig.ormTex ? { ormTex: fig.ormTex } : {}) };
   }
@@ -210,8 +210,13 @@ export const fightClips = (heroNormals) => [...new Set([...Object.values(heroNor
 /** the door's motion words that make those clips (the knockdown's two are one rest word) */
 const fightMotion = (clips) => [...new Set(clips.map((c) => (/^knockedOut(Down|Up)$/.test(c) ? 'knockedOut' : c)))];
 
-/** An arena's measured roster → { <ref>: body } for each character in it (one body per character), from the store; a
- * fighter with its own strikes (`heroNormals`) played in its own body with its fight's clips. */
+/** the clips a fighter with a tradition's moves plays: its guard alone, whose hands (the fists it makes) its body keeps
+ * as the fight's own poses drive it (versus-arena.client.js: the figure's segments onto its bones) */
+export const TRADITION_CLIPS = Object.freeze(['guard']);
+
+/** An arena's measured roster → { <ref>: body } for each character in it (one body per character), from the store,
+ * each played in its own body: a fighter with its own strikes (`heroNormals`) with its fight's clips, one with a
+ * tradition's moves with its guard's (the fight's poses drive the rest). */
 export async function characterBodies(roster) {
   const list = (Array.isArray(roster) ? roster : []).filter((e) => typeof e?.character === 'string');
   if (!list.length) return null;
@@ -219,7 +224,7 @@ export async function characterBodies(roster) {
   const out = {};
   for (const e of list) {
     if (out[e.character]) continue;
-    const fight = e.heroNormals ? fightClips(e.heroNormals) : null;
+    const fight = e.heroNormals ? fightClips(e.heroNormals) : TRADITION_CLIPS;
     const body = await characterBody(SketchRepository.getByRef(e.character)?.manifest, { fight }).catch(() => null);
     if (body) out[e.character] = body;
   }

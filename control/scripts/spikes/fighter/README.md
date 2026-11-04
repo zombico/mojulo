@@ -54,6 +54,8 @@ the body hook clean on his chest; the uppercut's bodies would pass 4 cm into eac
   door into a scratch store; the arena hosted by a small page that sends it the picks, CPU against CPU. The page runs
   on a virtual clock the script steps a sixtieth of a second at a time, each other frame read from its canvases, so
   the video plays at the game's own pace whatever the rendering costs. A character throwing its own strikes is drawn as
-  it was made: its skinned, painted, lit body, played from its own clips by the fight's state. `--set ring` puts the
+  it was made: its skinned, painted, lit body, played from its own clips by the fight's state; one fighting with a
+  tradition's moves (`--moves tradition --ta karate --tb kung-fu`, with `test-karate.json` and `test-kungfu.json`) is
+  its own body posed by the fight, segment by segment. `--cpu regular` sets the CPUs' level. `--set ring` puts the
   fight in the ring (the default arena of a fight made now); `--reemit` rebuilds the page from the run's baked scene
   after a change to the arena's own code, without minting or baking again.

@@ -158,8 +158,9 @@ const SKINS = {};
 function skinOf(ref) {
   const pack = ref && AV.bodies && AV.bodies[ref];
   if (!pack) return null;
-  // (a played body samples its clips directly; a posed one rides the figure's segments)
-  return SKINS[ref] || (SKINS[ref] = pack.played ? { pack } : { pack, base: characterBase(pack.bones), seg: pack.bones.map((b) => segmentOf(b.id)) });
+  // (a posed body rides the figure's segments; a played one samples its clips, and rides the segments where it has no
+  // clip for what the fight is doing: its hands, the fingers' and the wrist's, kept as its guard holds them)
+  return SKINS[ref] || (SKINS[ref] = { pack, base: characterBase(pack.bones), seg: pack.bones.map((b) => segmentOf(b.id)), ...(pack.played ? { hand: pack.bones.map((b) => /^foreArm[LR]$/.test(segmentOf(b.id)) && !/^(foreArm|elbowFold)[LR]?$/.test(b.id)) } : {}) });
 }
 const REST_KEY = new THREE.Vector3(0.35, -0.55, 0.75).normalize();     // the pack's baked light (station-loft-rig.js)
 const WORLD_KEY = new THREE.Vector3(-0.35, -0.6, 0.72).normalize();    // the arena's: from the camera's side, above
@@ -333,15 +334,15 @@ function makePlayed(skin) {
   return { group, shadow, skin, played: true, bones, mesh };
 }
 /** the clip and its phase (0 … 1) a fighter's state shows: its move's own clip at the frame's share of it; a blow taken
- * or blocked in its guard through the stun; its knockdown; otherwise its guard, held */
+ * or blocked in its guard through the stun; its knockdown; otherwise its guard, held. null: it has no clip of it (a
+ * tradition's move, a throw, a special; a tradition's fighter's every state), and the fight's own pose drives its body */
 function playedClip(p, F, clips) {
   const has = (k) => !!clips[k];
   if (p.mv) {
     const mv = F.moves[p.mv], fr = mv && mv.frames[Math.max(1, Math.min(p.mf, mv.total))];
     if (mv && mv.hero && has(mv.id)) return [mv.id, fr && fr.u !== undefined ? fr.u : p.mf / mv.total];
-    // (a move it has no clip of, a throw or a special: its strength's punch, through the move)
-    const by = { L: 'jab', M: 'cross', H: 'hook' }[mv && mv.strength] || 'cross';
-    if (has(by)) return [by, Math.min(1, p.mf / Math.max(1, mv ? mv.total : 20))];
+    // (a move it has no clip of, a tradition's, a throw or a special: the fight's own pose, on its body)
+    return null;
   }
   const r = p.rx || { k: 'hit', h: 1 }, stunT = p.sf / Math.max(1, p.sf + (p.stun || 0));
   switch (p.st) {
@@ -356,7 +357,9 @@ function playedClip(p, F, clips) {
     case 'rise': if (has('knockedOutUp')) return ['knockedOutUp', Math.min(1, p.sf / 20)]; break;
     default: break;
   }
-  return ['guard', 1];
+  // (its guard held where it was made with its own strikes; a tradition's fighter stands, walks and falls as the fight
+  // poses it)
+  return has('guard') && Object.values(F.moves).some((m) => m.hero) ? ['guard', 1] : null;
 }
 const PQ = new THREE.Quaternion(), PQ2 = new THREE.Quaternion(), PV = new THREE.Vector3(), PH = new THREE.Vector3(), PONE = new THREE.Vector3(1, 1, 1);
 /** one bone's rotation and head from a clip at a phase (its keys' frame pair, as the World page samples a hero's) */
@@ -376,10 +379,44 @@ function playedBone(pack, clip, phase, bi, outQ, outP) {
 // across the floor, which ends at its origin and so starts 0.8 m ahead, inside the opponent, is taken off)
 const PINNED = { knockedOutDown: 1, knockedOutUp: 1 };
 const PR = new THREE.Vector3();
-function placePlayed(B, p, F) {
-  const pack = B.skin.pack, [name, phase] = playedClip(p, F, pack.clips), clip = pack.clips[name] || pack.clips.guard;
+const GM = new THREE.Matrix4(), GF = new THREE.Matrix4(), GQ = new THREE.Quaternion(), GH = new THREE.Vector3(), GV = new THREE.Vector3();
+/** a bone's clip transform as a matrix (M·v = head' + q·(v − restHead)) */
+function clipMatrix(pack, clip, phase, bi, out) {
+  playedBone(pack, clip, phase, bi, GQ, GH);
+  const h = pack.bones[bi].head;
+  GV.set(h[0], h[1], h[2]).applyQuaternion(GQ);
+  return out.compose(GV.set(GH.x - GV.x, GH.y - GV.y, GH.z - GV.z), GQ, PONE);
+}
+/** a played body POSED BY THE FIGHT (a move or a state it has no clip of): each bone riding its segment of the figure
+ * (versus-figure.js), as the posed character's parts do, skinned; a hand's bones (the wrist's, the fingers') as its
+ * guard clip holds them on its forearm, so a fist stays a fist */
+function placeFromPose(B, p, F, drawn) {
+  const pack = B.skin.pack, S = figureSegments(B.skin.base, poseFigure(B.skin.base, p, F, drawn).N), guard = pack.clips.guard;
+  const fore = {};
+  if (guard) for (let bi = 0; bi < B.bones.length; bi++) if (/^foreArm[LR]$/.test(pack.bones[bi].id)) fore[pack.bones[bi].id] = clipMatrix(pack, guard, 1, bi, new THREE.Matrix4()).invert();
+  for (let bi = 0; bi < B.bones.length; bi++) {
+    const sg = B.skin.seg[bi], { R, from, at } = S[sg];
+    const tx = at[0] - (R[0][0] * from[0] + R[0][1] * from[1] + R[0][2] * from[2]);
+    const ty = at[1] - (R[1][0] * from[0] + R[1][1] * from[1] + R[1][2] * from[2]);
+    const tz = at[2] - (R[2][0] * from[0] + R[2][1] * from[1] + R[2][2] * from[2]);
+    const M = B.bones[bi].matrix.set(R[0][0], R[0][1], R[0][2], tx, R[1][0], R[1][1], R[1][2], ty, R[2][0], R[2][1], R[2][2], tz, 0, 0, 0, 1);
+    // (the hand on its forearm as the guard has it: posed forearm · guard forearm⁻¹ · guard hand)
+    const inv = B.skin.hand[bi] && fore[sg];
+    if (inv) M.multiply(GF.copy(inv).multiply(clipMatrix(pack, guard, 1, bi, GM)));
+  }
+}
+function placePlayed(B, p, F, drawn) {
+  const pack = B.skin.pack, pick = playedClip(p, F, pack.clips);
   B.group.position.set(p.x / 1000, PLANE, FLOOR + p.y / 1000);
   B.group.rotation.set(0, 0, p.face > 0 ? -Math.PI / 2 : Math.PI / 2);
+  if (!pick || !pack.clips[pick[0]]) {
+    placeFromPose(B, p, F, drawn);
+    B.group.updateMatrixWorld(true);
+    B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
+    B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
+    return;
+  }
+  const [name, phase] = pick, clip = pack.clips[name];
   let rx = 0, ry = 0;
   if (PINNED[name]) { playedBone(pack, clip, phase, 0, PQ, PR); rx = PR.x - pack.bones[0].head[0]; ry = PR.y - pack.bones[0].head[1]; }
   for (let bi = 0; bi < B.bones.length; bi++) {
@@ -394,7 +431,7 @@ function placePlayed(B, p, F) {
   B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
 }
-const placeFighter = (B, p, F, drawn) => (B.played ? placePlayed(B, p, F) : B.skin ? placeCharacter(B, p, F, drawn) : placeBody(B, p, F, drawn));
+const placeFighter = (B, p, F, drawn) => (B.played ? placePlayed(B, p, F, drawn) : B.skin ? placeCharacter(B, p, F, drawn) : placeBody(B, p, F, drawn));
 
 // ── the fight ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -413,7 +450,7 @@ function begin(params) {
   for (const B of bodies) scene.remove(B.group, B.shadow);
   const fighters = params.fighters.map((r) => compileFighter(r));
   const rules = hostedRules(AV.rules, params.rules, Math.round(AV.half * 1000));
-  match = newMatch({ fighters, names: params.names, colors: params.colors, schemes: params.schemes, mode: params.mode, level: params.level, rules, seed: params.seed ?? 1 });
+  match = newMatch({ fighters, names: params.names, colors: params.colors, schemes: params.schemes, mode: params.mode, level: params.level, cpu: params.cpu, rules, seed: params.seed ?? 1 });
   bodies = params.colors.map((c, i) => {
     const skin = skinOf(params.characters && params.characters[i]);
     return skin ? (skin.pack.played ? makePlayed(skin) : makeCharacter(skin)) : makeBody(c, fighters[i]);
@@ -524,9 +561,12 @@ function draw() {
   if (phase === 'over') vsOutlined(g2, 'PRESS START TO FIGHT AGAIN', OW / 2, OH * 0.62, 28, '#ffd23a');
 }
 
-// the page calls this from its frame step with its (pause-rebased) clock in seconds; the fight steps at 60 Hz
+// the page calls this from its frame step with its (pause-rebased) clock in MILLISECONDS (scene-three.js `__mojStep`, as
+// fx reads it); the fight steps at 60 Hz (read as seconds, a frame's 16 ms had been capped at 0.1 s: six fight frames a
+// drawn frame, the fight at six times its speed)
 let fightAcc = 0, fightLast = null;
-function stepArenaFight(t) {
+function stepArenaFight(ms) {
+  const t = ms / 1000;
   if (fightLast === null) fightLast = t;
   fightAcc += Math.min(0.1, Math.max(0, t - fightLast));
   fightLast = t;

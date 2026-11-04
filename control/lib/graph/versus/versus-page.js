@@ -67,7 +67,9 @@ export function rosterEntry(entry, k = 0) {
   if (entry.hero !== undefined) throw new Error(`versus: roster[${k}] is a character (hero.ref '${entry.hero?.ref}'): it is measured from the store where the game is served`);
   const solved = entry.recipe ?? solveFighter(entry).recipe;
   // (a character's own strikes in their slots and its own guard, versus-hero.js: laid over what the solver chose)
-  const recipe = entry.heroNormals ? { ...solved, normals: { ...solved.normals, ...entry.heroNormals }, guard: entry.guard } : solved;
+  const own = entry.heroNormals ? { ...solved, normals: { ...solved.normals, ...entry.heroNormals }, guard: entry.guard } : solved;
+  // (a character is drawn as it was made, its legs in its stance: it pushes with them, versus-compile.js pushOf)
+  const recipe = entry.character ? { ...own, bodyPush: 'legs' } : own;
   return {
     id: recipe.id, name: recipe.name, archetype: recipe.archetype ?? entry.archetype ?? null,
     color: entry.color ?? PALETTE[k % PALETTE.length], recipe,

@@ -5,8 +5,12 @@
 // versus game's front does (the level wire), CPU against CPU; recorded by headless Chromium, cut to an MP4 and a GIF.
 //
 //   node control/scripts/spikes/fighter/arena-gameplay.mjs [--a spec.json] [--b spec.json] [--kit island-plaza] [--set ring]
-//        [--seconds 24] [--out dir] [--reuse]
+//        [--seconds 24] [--out dir] [--reuse] [--ta boxing --tb boxing] [--na Toji --nb Satoru] [--moves hero|tradition]
+//        [--cpu novice|regular|veteran|ace]
 //
+// --ta/--tb are each fighter's tradition (versus-traditions.js: boxing, karate, kung-fu, …); --moves hero throws the
+// character's own boxing strikes, tradition the tradition's keyed moves on its own body; --cpu the level both CPUs fight
+// at (the watch's veteran by default).
 // --reuse keeps the minted characters and the baked arena page of a run before (re-record only); --reemit emits the page
 // again from the run's baked scene (a change to the arena's own page code, no bake). Needs Playwright's
 // Chromium and ffmpeg. A mint takes about two minutes a character (the realistic head). The capture steps the page on a
@@ -20,7 +24,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { a: { type: 'string', default: path.join(HERE, 'test-fighter.json') }, b: { type: 'string', default: path.join(HERE, 'test-opponent.json') }, kit: { type: 'string' }, set: { type: 'string' }, seconds: { type: 'string', default: '24' }, out: { type: 'string', default: path.join(os.tmpdir(), 'fighter-arena') }, reuse: { type: 'boolean', default: false }, reemit: { type: 'boolean', default: false } } });
+const { values: opt } = parseArgs({ options: { a: { type: 'string', default: path.join(HERE, 'test-fighter.json') }, b: { type: 'string', default: path.join(HERE, 'test-opponent.json') }, kit: { type: 'string' }, set: { type: 'string' }, seconds: { type: 'string', default: '24' }, out: { type: 'string', default: path.join(os.tmpdir(), 'fighter-arena') }, reuse: { type: 'boolean', default: false }, reemit: { type: 'boolean', default: false }, ta: { type: 'string', default: 'boxing' }, tb: { type: 'string', default: 'boxing' }, na: { type: 'string', default: 'Toji' }, nb: { type: 'string', default: 'Satoru' }, moves: { type: 'string', default: 'hero' }, cpu: { type: 'string', default: 'veteran' } } });
 const out = path.resolve(opt.out); mkdirSync(out, { recursive: true });
 const arenaFile = path.join(out, 'arena.html'), picksFile = path.join(out, 'picks.json');
 
@@ -47,9 +51,10 @@ if (opt.reemit && existsSync(path.join(out, 'payload.json'))) {
     if (!r.ok) throw new Error(`the door refused fighter ${i + 1}: ${JSON.stringify(r.error ?? r).slice(0, 600)}`);
     refs.push(r.ref);
   }
+  const own = opt.moves === 'hero' ? { moves: 'hero' } : {};
   const roster = [
-    { id: 'toji', name: 'Toji', tradition: 'boxing', hero: { ref: refs[0] }, moves: 'hero', color: '#c8302c' },
-    { id: 'satoru', name: 'Satoru', tradition: 'boxing', hero: { ref: refs[1] }, moves: 'hero', color: '#2f5fbf' },
+    { id: opt.na.toLowerCase(), name: opt.na, tradition: opt.ta, hero: { ref: refs[0] }, ...own, color: '#c8302c' },
+    { id: opt.nb.toLowerCase(), name: opt.nb, tradition: opt.tb, hero: { ref: refs[1] }, ...own, color: '#2f5fbf' },
   ];
   console.log('baking the arena …');
   const { payload } = await resolveWorldScene({ ref: 'arena', title: 'Fighter wiring', manifest: arenaManifest({ ...(opt.kit ? { kit: opt.kit } : {}), ...(opt.set ? { set: opt.set } : {}), roster, title: 'Fighter wiring' }) }, { live: true });
@@ -57,11 +62,12 @@ if (opt.reemit && existsSync(path.join(out, 'payload.json'))) {
   // (the baked scene kept, so a change to the page's own code is emitted again without a bake: --reemit)
   writeFileSync(path.join(out, 'payload.json'), JSON.stringify(payload));
   const R = payload.versus.roster;
-  writeFileSync(picksFile, JSON.stringify({ wire: payload.versus.wire, picks: { fighters: R.map((e) => e.recipe), names: R.map((e) => e.name), colors: R.map((e) => e.color), characters: R.map((e) => e.character ?? null), schemes: ['modern', 'modern'], mode: 'watch', level: 1, seed: 7 } }));
+  writeFileSync(picksFile, JSON.stringify({ wire: payload.versus.wire, picks: { fighters: R.map((e) => e.recipe), names: R.map((e) => e.name), colors: R.map((e) => e.color), characters: R.map((e) => e.character ?? null), schemes: ['modern', 'modern'], mode: 'watch', level: 1, cpu: opt.cpu, seed: 7 } }));
 }
 
 // the host: a versus game's front in miniature, answering the arena's READY with the picks (CPU against CPU)
 const { wire, picks } = JSON.parse(readFileSync(picksFile, 'utf8'));
+picks.cpu = opt.cpu;
 writeFileSync(path.join(out, 'host.html'), `<!doctype html><meta charset="utf-8"><title>Arena host</title>
 <style>html,body{margin:0;height:100%;background:#000}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}</style>
 <iframe id="f" src="arena.html"></iframe>

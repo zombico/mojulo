@@ -97,8 +97,8 @@ function pushOf(body, J, air, open, legs = false) {
   const t = Math.max(body.bodyR, body.bodyR * 1.2 * Math.sin(open * Math.PI / 180) + body.limbR * 1.5);
   const xs = [J.pelvis, J.shoulder, J.neck, J.head].map((q) => q[0]);
   let lo = Math.min(...xs) - t, hi = Math.max(...xs) + t;
-  // (a character in its own guard: its legs too, since a body drawn as it was made stands a boxer's bladed stance, the
-  // lead knee a third of a metre ahead of the pelvis, and two of them at the trunks' contact had their legs crossed)
+  // (a character drawn as it was made: its legs too, since its body stands its stance, a boxer's bladed guard the lead
+  // knee a third of a metre ahead of the pelvis, a karateka's longer, and two at the trunks' contact had legs crossed)
   if (legs) {
     lo = Math.min(lo, ...[J.kneeB, J.ankleB].map((q) => q[0] - body.limbR));
     hi = Math.max(hi, ...[J.kneeF, J.ankleF].map((q) => q[0] + body.limbR));
@@ -111,7 +111,7 @@ function idleOf(body, stance, rests = REST_POSES, legs = false) {
   const out = {};
   for (const [k, pose] of [['stand', rests.stand], ['crouch', rests.crouch], ['air', POSES.jump], ['fall', POSES.fall]]) {
     const J = rigJoints(body, pose);
-    out[k] = { hurt: hurtOf(body, J), push: pushOf(body, J, !!pose.air, stance.open, legs && k === 'stand') };
+    out[k] = { hurt: hurtOf(body, J), push: pushOf(body, J, !!pose.air, stance.open, legs && (k === 'stand' || k === 'crouch')) };
   }
   return out;
 }
@@ -954,7 +954,8 @@ export function compileFighter(recipe) {
   const strings = recipe.strings === undefined ? null : readStrings(recipe.strings, moves, recipe.id ?? 'fighter');
   const jump = { ...MOVEMENT.jump, ...(recipe.jump ?? {}) };
   const stance = { ...DEFAULT_STANCE, ...(recipe.stance ?? {}) };
-  const idle = idleOf(body, stance, rests, !!heroGuard);
+  // (a character drawn as it was made pushes with its legs: its own guard's, or a tradition's stance on its body)
+  const idle = idleOf(body, stance, rests, !!heroGuard || recipe.bodyPush === 'legs');
   // a grab reaches an arm's length past the chest: from the push box's front as the stance stands it
   const chest = idle.stand.push[2] - Math.round(body.bodyR * PUSH_HALF);
   for (const m of Object.values(moves)) if (m.throw) { m.throw.range += chest; m.reach = m.throw.range; }
