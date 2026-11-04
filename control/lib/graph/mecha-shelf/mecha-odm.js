@@ -341,29 +341,40 @@ BASE = { ...BASE, ...BACKPACK, ...ROVER };
 // (its legs and pelvis 3.375 times the walker's designs; three wheels a side, the middle on its long shank; its pelvis
 // carrying a keel out ahead, the cockpit on it, human-sized; its siege backpack's payloads a howitzer and a missile
 // launcher, a scorpion's tail each side to serve them; a rotary machine gun on the cockpit's side)
-const SW = 'siege walker', KS = 3.375, KB = 2.5;
+const SW = 'siege walker', KS = 3.375, KB = 2.5, SHANK_SW = 2.9;
 const SIEGE = {
-  'pelvis-sw': dressed(S('pelvis-atw', KS, 'siege walker pelvis', SW, ['siege pelvis', 'siege keel', 'prow', 'cockpit keel'], { seat: [0, 3.3, 0.42], cage: [0, 3.3, 0.42] }), 'keeled', { prow: { y0: 0.5, y1: 5.0, top: 0.42, chine: -0.45, bottom: -1.0, w0: 1.6, w1: 1.1 }, sidegun: [0.7, 3.05, 1.15] }),
+  // (its hull between the backpack and the cockpit: an armoured superstructure on the keel, so it reads as a vehicle's
+  // body and not a frame)
+  'pelvis-sw': dressed(S('pelvis-atw', KS, 'siege walker pelvis', SW, ['siege pelvis', 'siege keel', 'prow', 'cockpit keel', 'siege hull'], { seat: [0, 3.3, 0.42], cage: [0, 3.3, 0.42] }), 'keeled', { prow: { y0: 0.5, y1: 5.0, top: 0.42, chine: -0.45, bottom: -1.0, w0: 1.6, w1: 1.1 }, hull: { y0: -1.9, y1: 2.72, w: 2.3, top: 1.55, front: 1.05 }, sidegun: [0.7, 3.05, 1.15] }),
   'hip-sw': S('hip-atw', KS, 'siege walker hip yaw housing', SW, ['siege hip'], { torque: 260000 }),
   'yoke-sw': S('yoke-atw', KS, 'siege walker hip roll yoke', SW, ['siege yoke']),
-  'thigh-sw': dressed(S('thigh-atw', KS, 'siege walker thigh', SW, ['siege thigh']), 'guarded'),
-  'shank-sw': dressed(S('shank-atw', KS, 'siege walker shank', SW, ['siege shank', 'siege skirt'], { length: 3.6, stop: [5, 170], torque: 2.2e6 }), 'wheeled', { wheel: [0.86, 0, 0], wheelMid: 1.8, skirt: { h: 1.0, over: [1.1, 0.75], w: 0.7 } }),
-  'ankle-sw': dressed(S('ankle-atw', KS, 'siege walker ankle cross', SW, ['siege ankle'], { torque: 350000 }), 'wheeled', { wheel: [0.86, 0, 0] }),
-  'foot-sw': dressed(S('foot-atw', 5, 'siege walker foot', SW, ['siege foot'], { sole: 1.55 }), 'lugged'),
+  // (its thighs heavier and distinct, front armour plates over them; its shanks shorter, a T-rex's; its feet long and
+  // pushed forward of the ankle, three toes ahead for its balance, reaching ahead of its front wheels when it rolls)
+  'thigh-sw': dressed(S('thigh-atw', KS, 'siege walker thigh', SW, ['siege thigh', 'thigh armour', 'cuisse'], { w: 0.56, d0: 0.8, d1: 0.62 }), 'plated'),
+  // (its three wheels in line along the shank, the front one well above the ankle: collapsed, the ankle stands a
+  // wheel's height up and its shallow foot lies out ahead, crawling forward; walking, the front wheel rides up the shin)
+  'shank-sw': dressed(S('shank-atw', KS, 'siege walker shank', SW, ['siege shank', 'siege skirt'], { length: SHANK_SW, stop: [5, 170], torque: 2.2e6, ankleRam: [0, 0.42, -0.45] }), 'wheeled', { wheel: [0.9, 0, 0], wheelMid: 1.15, wheelFront: 2.3, skirt: { h: 0.76, over: [0.78, -0.05], w: 0.56 } }),
+  // (its ankle ram's horn raised behind the cross: its ankle low over its shallow foot, the ram's eye clear of the ground)
+  'ankle-sw': S('ankle-atw', KS, 'siege walker ankle cross', SW, ['siege ankle'], { torque: 350000, horn: [0, 0.45, 0.2] }),
+  'foot-sw': dressed(S('foot-atw', 5, 'siege walker foot', SW, ['siege foot', 'toes', 'forward toes'], { sole: 0.45, length: 2.9, heel: 0.5 }), 'toed', { toes: { n: 3, length: 0.95, spread: 0.5, w: 0.34 } }),
   'ram-roll-sw': S('ram-roll-atw', KS, 'siege walker hip roll ram', SW, ['siege roll ram'], { bore: 0.34, rod: 0.19 }),
   'ram-hip-sw': S('ram-hip-atw', KS, 'siege walker hip pitch ram', SW, ['siege hip ram'], { bore: 0.34, rod: 0.19 }),
-  'ram-ankle-sw': S('ram-ankle-atw', KS, 'siege walker ankle ram', SW, ['siege ankle ram'], { bore: 0.26, rod: 0.15, closed: Math.round((BASE['ram-ankle-atw'].dims.closed * KS + 3.6 - BASE['shank-atw'].dims.length * KS) * 1000) / 1000, stroke: Math.round((BASE['ram-ankle-atw'].dims.stroke * KS + 0.05) * 1000) / 1000 }),
-  'wheel-sw': R('mecha-wheel', 'siege walker wheel', SW, { r: 0.85, width: 0.65, rim: 0.5, lugs: 24 }, 650, { family: 'atv' }, ['siege wheel', 'armoured car wheel', 'big knobby tyre']),
+  // (its ankle ram down the shin's front to a horn ahead of and above the cross: its length rising the whole way over the
+  // ankle's working arc, the foot laid level collapsed and stood flat walking, sized from that curve)
+  'ram-ankle-sw': S('ram-ankle-atw', KS, 'siege walker ankle ram', SW, ['siege ankle ram'], { bore: 0.26, rod: 0.15, closed: 2.05, stroke: 0.9 }),
+  'wheel-sw': R('mecha-wheel', 'siege walker wheel', SW, { r: 0.55, width: 0.54, rim: 0.33, lugs: 20 }, 380, { family: 'atv' }, ['siege wheel', 'armoured car wheel', 'big knobby tyre']),
   // (its cockpit: the armoured cabin, a spherical radar dome on a mast behind its camera; its saddle's step a ladder's foot)
   'cabin-sw': R('mecha-cage', 'siege walker armoured cockpit', SW, { ...BASE['cabin-fw'].dims, radar: { y: -0.22, r: 0.3, mast: 0.32 } }, 190, { family: 'armoured' }, ['siege cockpit', 'radar dome', 'radome', 'radar']),
   'seat-sw': R('mecha-seat', 'siege walker saddle', SW, { ...BASE['seat-atw'].dims, step: [0.27, -0.21, -0.64] }, 31, { family: 'straddle' }, ['siege saddle']),
   // (its siege backpack: the weapons backpack's frame at 2.5 times, a tail seat each side; its mounts and tails with it)
-  'pack-sw': S('pack-wpn', KB, 'siege backpack', 'backpack', ['siege backpack', 'artillery backpack'], { tails: [0.62, -0.55, 2.6] }),
+  // (its weapons mounted low and wide, out on its pylons beside the hull: a lower profile)
+  'pack-sw': S('pack-wpn', KB, 'siege backpack', 'backpack', ['siege backpack', 'artillery backpack'], { tails: [0.62, -0.55, 2.6], mount: [2.3, 1.4, 0.9] }),
   'mount-sw': S('mount-wpn', KB, 'siege weapon traverse ring', 'backpack', ['siege traverse ring'], { torque: 400000 }),
   'cradle-sw': S('cradle-wpn', KB, 'siege weapon elevation cradle', 'backpack', ['siege cradle'], { torque: 600000 }),
   'tailbase-sw': S('tailbase-wpn', KB, 'siege service tail base', 'backpack', ['siege tail', 'twin tails']),
-  'tailseg1-sw': S('tailseg1-wpn', KB, 'siege service tail root segment', 'backpack', ['siege tail root'], { torque: 140000 }),
-  'tailseg2-sw': S('tailseg2-wpn', KB, 'siege service tail outer segment', 'backpack', ['siege tail outer'], { torque: 90000 }),
+  // (its tails longer than the weapons backpack's drawn larger: they reach its weapons, mounted low and wide)
+  'tailseg1-sw': S('tailseg1-wpn', KB, 'siege service tail root segment', 'backpack', ['siege tail root'], { torque: 160000, length: 1.8 }),
+  'tailseg2-sw': S('tailseg2-wpn', KB, 'siege service tail outer segment', 'backpack', ['siege tail outer'], { torque: 100000, length: 1.6 }),
   'tailhead-sw': S('tailhead-wpn', KB, 'siege service tail head', 'backpack', ['siege tail head']),
   'howitzer-sw': R('mecha-weapon', 'howitzer', 'backpack', { length: 5.2, r: 0.1, axis: 0.42, breech: [0.62, 1.3, 0.62], mag: [0.55, 0.9, 0.5] }, 5600, { family: 'howitzer' }, ['howitzer', 'artillery', 'artillery gun', 'big cannon', 'field gun']),
   'missiles-sw': R('mecha-weapon', 'eighteen-cell missile launcher', 'backpack', { pods: 3, pod: [0.62, 2.1, 0.66], cells: [3, 2], r: 0.085 }, 3300, { family: 'missiles' }, ['missile launcher', 'missile system', 'missile battery', 'missiles']),

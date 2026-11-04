@@ -177,7 +177,23 @@ function rollAt(arch, ctx, stance, range) {
     // (each foot pitched, across its ankle's range, to hold its sole highest off the ground: folded up ahead, a fender)
     const J = arch.legs[S].joints.anklePitch, [lo, hi] = range(J), foot = arch.legs[S].foot;
     const soleLow = (a) => { const Ff = framesOf(arch, { ...joints, [J]: a }, ctx)[foot]; return Math.min(...(ctx.outline(foot) ?? []).map((c) => H + Ff.R[2][0] * c[0] + Ff.R[2][1] * c[1] + Ff.R[2][2] * c[2] + Ff.t[2])); };
+    // (or, `foot: 'reach'`, pitched to reach farthest ahead, low over the ground, its sole's lowest `clear` above it: the
+    // foot crawling ahead of the front wheels)
     let best = lo;
+    // (`foot: 'level'`: laid level, out ahead of the ankle, its sole down: the foot crawling ahead of the front wheels)
+    if (stance.foot === 'level') {
+      const up = (a) => framesOf(arch, { ...joints, [J]: a }, ctx)[foot].R[2][2];
+      let found = lo;
+      for (let a = lo; a <= hi; a += 0.25) if (up(a) > up(found)) found = a;
+      joints[J] = found;
+      continue;
+    }
+    if (stance.foot === 'reach') {
+      const clear = stance.clear ?? 0.15, toeY = (a) => { const Ff = framesOf(arch, { ...joints, [J]: a }, ctx)[foot], t = ctx.hp(foot, 'toe'); return Ff.R[1][0] * t[0] + Ff.R[1][1] * t[1] + Ff.R[1][2] * t[2] + Ff.t[1]; };
+      let found = null;
+      for (let a = lo; a <= hi; a += 0.5) if (soleLow(a) >= clear && (found === null || toeY(a) > toeY(found))) found = a;
+      if (found !== null) { joints[J] = found; continue; }
+    }
     for (let a = lo; a <= hi; a += 1) if (soleLow(a) > soleLow(best)) best = a;
     joints[J] = best;
   }

@@ -555,7 +555,7 @@ const SR = driveKnee(leg('R', SW_LEG), 'R'), SL = driveKnee(leg('L', SW_LEG), 'L
 const siegeWheels = (S) => { const s = S.toLowerCase(); return [
   { id: `rearWheel${S}`, sku: 'wheel-sw', side: s, on: `shank${S}.wheel`, wheel: 'rear' },
   { id: `midWheel${S}`, sku: 'wheel-sw', side: s, on: `shank${S}.wheelMid`, wheel: 'mid' },
-  { id: `frontWheel${S}`, sku: 'wheel-sw', side: s, on: `ankle${S}.wheel`, wheel: 'front' },
+  { id: `frontWheel${S}`, sku: 'wheel-sw', side: s, on: `shank${S}.wheelFront`, wheel: 'front' },
 ]; };
 // (the rider's space where the cockpit rides on its keel: the walker's, carried out to it)
 const KEEL = Object.freeze([0, 3.3, 0.42 - 0.096]);
@@ -594,13 +594,17 @@ const siegeWalker = Object.freeze({
     brace: SIEGE_PACK.brace,
     ...Object.fromEntries(Object.keys(TAIL_POSES).filter((k) => k !== 'stow').map((k) => [k, Object.freeze({ knee: 45, tail: k })])),
     // (collapsed: the thighs raked back toward level, the knees folded until the shanks lie level, three wheels a side down)
-    roll: Object.freeze({ roll: true, pitch: -76 }),
-    board: Object.freeze({ roll: true, pitch: -76 }),
+    roll: Object.freeze({ roll: true, pitch: -76, foot: 'level' }),
+    board: Object.freeze({ roll: true, pitch: -76, foot: 'level' }),
+    // (it stands as a T-rex balances: its knees bent deep, its long toes ahead under its keel)
+    stand: Object.freeze({ knee: 62 }),
   }),
   dress: Object.freeze({ ...F0.dress, kit: Object.freeze(F0.dress.kit.filter((k) => k.body !== 'pack')) }),
   laws: Object.freeze({
     ...roverWalker.laws,
-    stability: Object.freeze([0.05, 5]), seat: Object.freeze([4, 9]), board: Object.freeze([1, 4]), stepIn: Object.freeze([0.3, 3]), belly: Object.freeze([2, 8]),
+    // (its ankle's arc wider, to lay its foot level collapsed)
+    arcs: Object.freeze({ ...roverWalker.laws.arcs, anklePitch: Object.freeze([70, 160]) }),
+    stability: Object.freeze([0.05, 5]), knee: Object.freeze([25, 70]), seat: Object.freeze([4, 9]), board: Object.freeze([1, 4]), stepIn: Object.freeze([0.3, 3]), belly: Object.freeze([2, 8]),
     step: Object.freeze([0.6, 3]), stride: Object.freeze([0.8, 3]), groundPressure: Object.freeze([20, 200]), clearance: Object.freeze([0.01, 20]),
   }),
   bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-ram': 6, 'mecha-wheel': 6, 'mecha-mount': 6, 'mecha-weapon': 5, 'mecha-tail': 8 }),

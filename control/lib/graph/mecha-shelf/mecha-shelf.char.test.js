@@ -39,6 +39,9 @@
  *   - The siege walker (unreleased): its keeled pelvis, its howitzer, its missile launcher and its spare missile pod
  *     pinned as builder paths, and the frame whole walking and collapsed; twin tails and a cockpit's radar left every
  *     earlier pin where it was.
+ *   - The siege walker reshaped: its hull between the backpack and the cockpit, its weapons lower and wider, its plated
+ *     thighs, its shorter shanks with three wheels in line, its long toed feet laid level ahead when it rolls: its keeled
+ *     pelvis and the frame re-pinned, its plated thigh and its toed foot pinned as builder paths; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -129,7 +132,9 @@ const PINS = {
   'howitzer-sw': '468e79bf36bb78e5',
   'missilepod-sw': 'cb2e44002b8fc721',
   'missiles-sw': 'debc71d2982832cf',
-  'pelvis-sw': 'bd68902bf0114bd8',
+  'pelvis-sw': '36c1d1492bd2e31b',
+  'foot-sw': '8cfca34552099f31',
+  'thigh-sw': '08b637f4320f16d1',
 };
 const LEFT = 'c9882af91b6cf973';
 const ROD = 'bcfdb3e1621e0b1a';
@@ -141,7 +146,7 @@ const HOUSE = '22d1c303d8f1b5ad';
 const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
-const SIEGE = ['a825400bdc13547b', '9d82396c685a6c94'];
+const SIEGE = ['b8f091322a170643', '39be8113c3a9e7ff'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');

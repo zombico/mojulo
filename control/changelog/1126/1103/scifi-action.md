@@ -282,6 +282,19 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     - A spare of each racked.
     - **Twin scorpion tails**, one each side (`twin`). Each serves its own side's payload, spare and the drop behind,
       while the other stays tucked (`mecha-ik.js tailAt`). The tail law reads both.
+  - **Its side profile, reshaped:**
+    - A hull fills the gap between the backpack and the cockpit: an armoured superstructure on the keel, its sides
+      sloped, its top stepping down to the cockpit, with hatches, vents and rails.
+    - Its weapons are mounted lower and wider on their pylons beside the hull, which lowers its profile and its
+      recoil's lever.
+    - Its thighs are heavier, with overlapping front armour plates and a knee cop (`platedThigh`).
+    - Its shanks are shorter, standing deeper bent as a T-rex balances, its three wheels in line along each shank, the
+      front one well above the ankle.
+    - Its feet are long, pushed forward of the ankle, with three forward toes on the ground, its sole's outline out to
+      their tips (`toedFoot`).
+  - **Collapsed**, each foot is laid level out ahead of its front wheels (`foot: 'level'`), crawling forward on its toes.
+    Its ankle ram runs down the shin's front to a horn ahead of and above the cross. The ram was sized from its length
+    curve over the ankle's working arc: a first horn put its dead centre right at the level foot.
   - Every law holds, its bands set for its class from what was measured.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
@@ -367,7 +380,9 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     frame whole walking and collapsed.
   - `mecha-shelf.test.js`, the siege walker: six wheels, its footprint more than 2.5 times the rover's, every law
     holding; its cockpit out ahead on its keel with the rider's space, its radar and its side gun; each payload served
-    by its own side's tail, the other stowed. The char pins add its keeled pelvis, its howitzer, its missile launcher,
+    by its own side's tail, the other stowed; its feet laid level ahead, its footprint more than 2.5 times the rover's;
+    standing as a T-rex balances, its toes ahead of its ankles, nothing but its feet near the ground walking. The char
+    pins add its plated thigh, its toed foot, its keeled pelvis, its howitzer, its missile launcher,
     its spare pod, and the frame whole walking and collapsed.
   - The roster's, builds' and preview door's tests (a dressed frame's livery and wear carried in its recipe, its
     cabin, its backpack, a frame on wheels collapsed by its stance).

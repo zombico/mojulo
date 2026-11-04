@@ -460,12 +460,31 @@ describe('mecha shelf: a frame twice and more the rover, its cockpit on a keel, 
   const rover = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].wheels && !MECHA_ARCHETYPES[k].tails);
   const roll = (k) => Object.keys(MECHA_ARCHETYPES[k].stances).find((n) => MECHA_ARCHETYPES[k].stances[n].roll);
   const law = (k, id) => lawsOf(k).laws.find((l) => l.id === id);
-  it('rolls on a third wheel a side, its footprint reaching far further than the rover\'s, every law holding', () => {
+  it('rolls on a third wheel a side, its feet laid level out ahead of its wheels, its footprint far beyond the rover\'s, every law holding', () => {
     expect(As.wheels.filter((w) => w.side === 'r').map((w) => w.axle).sort()).toEqual(['front', 'mid', 'rear']);
-    const base = (k) => { const P = posedFrame(k, roll(k)), ctx = mechaCtx(k), F = framesOf(ctx.arch, P.joints, ctx), ys = MECHA_ARCHETYPES[k].wheels.map((w) => F[w.id].t[1]); return Math.max(...ys) - Math.min(...ys); };
-    expect(base(siege)).toBeGreaterThan(base(rover) * 2.5);
+    // (rolling, its footprint from its rearmost wheel to its farthest toe, its feet crawling ahead of its front wheels)
+    const reach = (k) => {
+      const A = MECHA_ARCHETYPES[k], P = posedFrame(k, roll(k)), ctx = mechaCtx(k), F = framesOf(ctx.arch, P.joints, ctx);
+      const ys = A.wheels.map((w) => F[w.id].t[1]), toes = ['r', 'l'].map((S) => apply(F[A.legs[S].foot], ctx.hp(A.legs[S].foot, 'toe'))[1]);
+      return { span: Math.max(...toes, ...ys) - Math.min(...ys), ahead: Math.min(...toes) - Math.max(...ys), level: Math.abs(F[A.legs.r.foot].R[2][2]) };
+    };
+    const s = reach(siege), r = reach(rover);
+    expect(s.span).toBeGreaterThan(r.span * 2.5);
+    expect(s.ahead).toBeGreaterThan(1);
+    expect(s.level).toBeGreaterThan(0.99);
     expect(law(siege, 'rollContact').ok).toBe(true);
     expect(lawsOf(siege).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+  });
+  it('stands as a T-rex balances, its long toes ahead under it, nothing but its feet near the ground walking', () => {
+    const ctx = mechaCtx(siege), feet = ['r', 'l'].map((S) => As.legs[S].foot);
+    for (const pose of [As.rest, Object.keys(As.stances).find((k) => As.stances[k].sway)]) {
+      const P = posedFrame(siege, pose), F = framesOf(ctx.arch, P.joints, ctx);
+      const low = Math.min(...As.layout.filter((e) => !e.ram && !feet.includes(e.id)).map((e) => Math.min(...partShape(siege, e.sku, e.side).corners.map((c) => apply(F[e.id], c)[2] + P.root.t[2]))));
+      expect(low).toBeGreaterThan(0.05);
+    }
+    const P = posedFrame(siege, As.rest), F = framesOf(ctx.arch, P.joints, ctx), foot = As.legs.r.foot;
+    expect(apply(F[foot], ctx.hp(foot, 'toe'))[1] - F[As.legs.r.ankle].t[1]).toBeGreaterThan(2);
+    expect(law(siege, 'knee').value).toBeGreaterThan(law(rover, 'knee').value);
   });
   it('carries its cockpit out ahead on a keel, the rider\'s space with it', () => {
     const ctx = mechaCtx(siege), cage = ctx.hp('pelvis', 'cage'), hips = ctx.hp('pelvis', 'hip.r');
