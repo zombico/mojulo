@@ -1,5 +1,6 @@
 import { MECHA_BACKPACKS, MECHA_WEAPONS, TAIL_POSES, backpackLayout } from './mecha-backpacks.js';
 import { EGG_FOOT, EGG_PETALS } from './mecha-egg.js';
+import { TOE_SPLAY_SW } from './mecha-common.js';
 
 /**
  * mecha-archetypes — whole frames laid out on the chain (construction-shelf/con-chain.js), each joint driven by the
@@ -563,15 +564,16 @@ const siegeWheels = (S) => { const s = S.toLowerCase(); return [
   { id: `midWheel${S}`, sku: 'wheel-sw', side: s, on: `shank${S}.wheelMid`, wheel: 'mid' },
   { id: `frontWheel${S}`, sku: 'wheel-sw', side: s, on: `shank${S}.wheelFront`, wheel: 'front' },
 ]; };
-// (its clawed feet's toes: two a foot, a root segment on the palm's knuckle and a claw segment on its end, each on its
-// knuckle's drive; flat walking, `curl` their clench collapsed, down and under the palm's front)
+// (its clawed feet's toes: two a foot, splayed in a V, a root segment on the palm's knuckle and a claw segment on its
+// end, each on its knuckle's drive; flat walking, `curl` their clench collapsed, down and under the palm's front)
 const siegeToes = (S) => { const s = S.toLowerCase(), out = { joints: {}, layout: [], bodies: [], ids: [] };
   for (const T of ['A', 'B']) {
     const root = `toe${T}${S}`, claw = `claw${T}${S}`;
     out.joints[root] = Object.freeze({ kind: 'hinge', drive: `toeRoot${T}${S}`, toe: true, curl: -40 });
     out.joints[claw] = Object.freeze({ kind: 'hinge', drive: `toeClaw${T}${S}`, toe: true, curl: -110 });
     out.layout.push(
-      { id: `toeRoot${T}${S}`, sku: 'toe1-sw', side: s, on: `foot${S}.toe.${T.toLowerCase()}`, joint: root },
+      // (each toe turned out on its knuckle, the two a V)
+      { id: `toeRoot${T}${S}`, sku: 'toe1-sw', side: s, on: `foot${S}.toe.${T.toLowerCase()}`, joint: root, turn: T === 'A' ? -TOE_SPLAY_SW : TOE_SPLAY_SW },
       { id: `toeClaw${T}${S}`, sku: 'toe2-sw', side: s, on: `toeRoot${T}${S}.end`, joint: claw },
     );
     out.bodies.push(`toeRoot${T}${S}`, `toeClaw${T}${S}`); out.ids.push(root, claw);

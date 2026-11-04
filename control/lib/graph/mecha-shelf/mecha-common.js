@@ -64,3 +64,6 @@ export const SYSTEM_PRESSURE = 21e6;
 export const ramForce = (d) => (Number.isFinite(d.force) ? { push: d.force, pull: d.force }
   : { push: SYSTEM_PRESSURE * Math.PI * (d.bore / 2) ** 2, pull: SYSTEM_PRESSURE * Math.PI * ((d.bore / 2) ** 2 - (d.rod / 2) ** 2) });
 export const G = 9.81;
+/** The siege walker's toes' splay off its foot's knuckles (degrees, each outward): a V, for its footing. Its foot's row
+ *  draws its knuckles to it and its toes are mounted turned by it. */
+export const TOE_SPLAY_SW = 18;

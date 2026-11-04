@@ -18,6 +18,7 @@
 
 import { MAKER_PARTS, MECHA_MAKER_IDS, makerRows } from './mecha-gap-makers.js';
 import { EGG_BW } from './mecha-egg.js';
+import { TOE_SPLAY_SW } from './mecha-common.js';
 
 export const MECHA_KINDS = Object.freeze({
   'mecha-pelvis': 'the pelvis: the frame\'s root, its keel (the battery\'s case, low between the hips), its hip beams, the hip yaw bearings',
@@ -383,9 +384,10 @@ const SIEGE = {
   'shank-sw': dressed(S('shank-atw', KS, 'siege walker shank', SW, ['siege shank', 'siege skirt'], { length: SHANK_SW, stop: [5, 170], torque: 2.2e6, ankleRam: [0, 0.42, -0.45] }), 'wheeled', { wheel: [0.9, 0, 0], wheelMid: 1.08, wheelFront: 2.16, ankleFwd: 0.45, skirt: { h: 0.76, over: [0.78, -0.3], w: 0.56 } }),
   // (its ankle ram's horn raised behind the cross: its ankle low over its shallow foot, the ram's eye clear of the ground)
   'ankle-sw': S('ankle-atw', KS, 'siege walker ankle cross', SW, ['siege ankle'], { torque: 350000, horn: [0, 0.45, 0.2] }),
-  // (its feet clawed: a broad palm, a heel spur behind, two thick toes ahead, each of two segments on knuckle drives:
-  // flat on the ground walking, its toes' pads under them; collapsed, clenched under the palm's front)
-  'foot-sw': Object.freeze({ ...dressed(S('foot-atw', 5, 'siege walker foot', SW, ['siege foot', 'clawed foot', 'palm', 'heel spur'], { sole: 0.45, length: 2.15, heel: 0.25 }), 'clawed', { claws: { spread: 0.33, floor: TOE_FLOOR, gap: 0.03, w: TOE1.w, reach: TOE1.length + TOE2.length + TOE2.claw, spur: 0.3 } }), mass: 1250 }),
+  // (its feet clawed: a short low palm, its toes' knuckles close to its heel, a heel spur behind, two thick toes ahead
+  // splayed in a V for its footing, each of two segments on knuckle drives: flat on the ground walking, its toes' pads
+  // under them; collapsed, clenched under the palm's front)
+  'foot-sw': Object.freeze({ ...dressed(S('foot-atw', 5, 'siege walker foot', SW, ['siege foot', 'clawed foot', 'palm', 'heel spur'], { sole: 0.45, length: 1.4, heel: 0.25 }), 'clawed', { claws: { spread: 0.33, floor: TOE_FLOOR, gap: 0.03, w: TOE1.w, reach: TOE1.length + TOE2.length + TOE2.claw, spur: 0.3, splay: TOE_SPLAY_SW } }), mass: 950 }),
   'toe1-sw': R('mecha-toe', 'siege walker toe root segment', SW, TOE1, 150, { family: 'proximal' }, ['toe', 'toes', 'forward toes', 'siege toe', 'knuckle']),
   'toe2-sw': R('mecha-toe', 'siege walker toe claw segment', SW, TOE2, 110, { family: 'distal' }, ['toe claw', 'toe tip', 'clawed toe']),
   'ram-roll-sw': S('ram-roll-atw', KS, 'siege walker hip roll ram', SW, ['siege roll ram'], { bore: 0.34, rod: 0.19 }),
