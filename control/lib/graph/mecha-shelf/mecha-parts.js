@@ -558,7 +558,7 @@ const BACK = backpackBuilders({ boss, legBeam, plateBox, sgn, pack });
 const by = (family, own, base) => (row, C, ctx) => (row.build.family === family ? own : base)(row, C, ctx);
 
 export const MECHA_BUILDERS = Object.freeze({
-  'mecha-pelvis': by('armoured', FIELD.pelvis, pelvis),
+  'mecha-pelvis': (row, C, ctx) => ({ armoured: FIELD.pelvis, keeled: FIELD.keeledPelvis }[row.build.family] ?? pelvis)(row, C, ctx),
   'mecha-hip': hip,
   'mecha-yoke': yoke,
   'mecha-thigh': by('guarded', FIELD.thigh, thigh),

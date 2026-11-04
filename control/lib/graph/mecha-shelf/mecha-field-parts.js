@@ -17,7 +17,7 @@
  *
  * fieldBuilders(kit) → the builders by kind and family, `kit` the shelf's own. Pure: no clock, no dice.
  */
-import { add, box, cross, dot, mul, spin, sub, tone, tube, unit } from './mecha-common.js';
+import { add, box, cross, dot, loftWorld, mul, spin, sub, tone, tube, unit } from './mecha-common.js';
 
 export function fieldBuilders(kit) {
   const { slab, sgn, plate, lerp3 } = kit;
@@ -140,6 +140,15 @@ export function fieldBuilders(kit) {
       lathes.push(spin(`camBezel_${x > 0 ? 'r' : 'l'}`, [x, K.y + 0.068, cz + 0.05 + K.h * 0.45], [x, K.y + 0.078, cz + 0.05 + K.h * 0.45], [[0, 0.042], [1, 0.042]], dark, 14));
     }
     extrudes.push(box('camHood', [0, K.y + 0.06, cz + 0.05 + K.h + 0.008], [0, K.y + 0.13, cz + 0.05 + K.h + 0.004], 0.26, 0.012, frame));
+    // (a spherical radar dome on a mast behind the camera: the camera's eye augmented)
+    if (d.radar) {
+      const Q = d.radar, base = [0, Q.y, R.z + 0.015], c = add(base, [0, 0, Q.mast + Q.r]);
+      lathes.push(spin('radarMast', base, add(base, [0, 0, Q.mast + 0.04]), [[0, 0.06], [0.2, 0.045], [1, 0.045]], frame, 12));
+      lathes.push(spin('radarCollar', add(c, [0, 0, -Q.r - 0.03]), add(c, [0, 0, -Q.r * 0.6]), [[0, 0.07], [1, Q.r * 0.75]], frame, 16));
+      const n = 10, pairs = Array.from({ length: n + 1 }, (_, i) => [i / n, Math.max(0.004, Q.r * Math.sin((Math.PI * i) / n))]);
+      lathes.push(spin('radome', add(c, [0, 0, -Q.r]), add(c, [0, 0, Q.r]), pairs, tone(C.paint, 0.25), 20));
+      lathes.push(spin('radomeBand', add(c, [0, 0, -0.015]), add(c, [0, 0, 0.015]), [[0, Q.r + 0.006], [1, Q.r + 0.006]], frame, 20));
+    }
     extrudes.push(box('rearCam', [0, R.y0 - 0.02, R.z - 0.1], [0, R.y0 - 0.08, R.z - 0.1], 0.1, 0.07, frame));
     lathes.push(spin('rearLens', [0, R.y0 - 0.08, R.z - 0.1], [0, R.y0 - 0.095, R.z - 0.1], [[0, 0.022], [1, 0.018]], C.glass, 10));
     const M = d.monitor;
@@ -183,7 +192,9 @@ export function fieldBuilders(kit) {
     const g = guarded(kit.shank)(row, C, ctx), s = sgn(ctx.side), W = row.dims.wheel;
     // (the knee wheel's axle out through the knee's hub, coaxial with it: the wheel turns about the knee's axis; the
     // knee's rotary drive in a drum on the hub's other side)
-    const lathes = [...g.lathes, spin('kneeDrive', [-s * 0.07, 0, 0], [-s * 0.16, 0, 0], [[0, 0.075], [0.8, 0.075], [1, 0.06]], tone(C.trim, -0.15), 16), spin('wheelAxle', [s * 0.06, 0, 0], [s * (W[0] - 0.08), 0, 0], [[0, 0.032], [1, 0.03]], C.chrome, 12)];
+    // (a long shank's middle wheel, on its own axle along the shank: three wheels a side when it rolls)
+    const mid = row.dims.wheelMid ? [spin('midAxle', [s * 0.06, 0, -row.dims.wheelMid], [s * (W[0] - 0.08), 0, -row.dims.wheelMid], [[0, 0.032], [1, 0.03]], C.chrome, 12), spin('midHub', [s * 0.03, 0, -row.dims.wheelMid], [-s * 0.03, 0, -row.dims.wheelMid], [[0, 0.07], [1, 0.07]], C.trim, 14)] : [];
+    const lathes = [...g.lathes, ...mid, spin('kneeDrive', [-s * 0.07, 0, 0], [-s * 0.16, 0, 0], [[0, 0.075], [0.8, 0.075], [1, 0.06]], tone(C.trim, -0.15), 16), spin('wheelAxle', [s * 0.06, 0, 0], [s * (W[0] - 0.08), 0, 0], [[0, 0.032], [1, 0.03]], C.chrome, 12)];
     const extrudes = [...g.extrudes], K = row.dims.skirt, L = row.dims.length;
     if (K) {
       // (its skirt: an armour plate outboard of its wheels, over their upper halves and the gap between, its lip turned in
@@ -195,7 +206,7 @@ export function fieldBuilders(kit) {
       extrudes.push(box('lip', [s * (W[0] + 0.004), K.h + 0.004, z0 - 0.06], [s * (W[0] + 0.004), K.h + 0.004, z1 + 0.06], K.w + 0.036, 0.014, tone(C.paint, -0.05)));
       for (const z of [z0 * 0.4, -L / 2, z1 * 0.9 + 0.1]) extrudes.push(box(`skirtBracket_${Math.round(z * 100)}`, [s * 0.07, K.h * 0.55, z], [xo, K.h * 0.55, z], 0.04, 0.05, C.trim, [0, 1, 0]));
     }
-    return { ...g, lathes, extrudes, hardpoints: { ...g.hardpoints, wheel: [s * W[0], W[1], W[2]] } };
+    return { ...g, lathes, extrudes, hardpoints: { ...g.hardpoints, wheel: [s * W[0], W[1], W[2]], ...(row.dims.wheelMid ? { wheelMid: [s * W[0], 0, -row.dims.wheelMid] } : {}) } };
   }
   function wheeledAnkle(row, C, ctx) {
     const g = kit.ankle(row, C, ctx), s = sgn(ctx.side), W = row.dims.wheel;
@@ -219,5 +230,27 @@ export function fieldBuilders(kit) {
     return { lathes, extrudes, hardpoints: {} };
   }
 
-  return { pelvis: armouredPelvis, thigh: guarded(kit.thigh), shank: guarded(kit.shank), foot: luggedFoot, cage: fieldCage, cabin: armouredCabin, pack: rackPack, wheeledShank, wheeledAnkle, wheel: atvWheel };
+  // ── the siege walker's pelvis: the armoured keel and, out ahead of it on a keel, the cockpit's deck ─────────────
+  function keeledPelvis(row, C, ctx) {
+    const g = armouredPelvis(row, C, ctx), d = row.dims, K = d.prow, extrudes = [...g.extrudes], lofts = [...(g.lofts ?? [])], lathes = [...g.lathes], sweeps = [...(g.sweeps ?? [])];
+    // (the keel: a V-bottomed armoured prow from the pelvis's front out to the cockpit and past it, its deck flat, its
+    // chines hard, its keel line rising to the stem)
+    const station = (w, top, chine, bottom) => [[w / 2, 0, top], [-w / 2, 0, top], [-w * 0.46, 0, chine], [0, 0, bottom], [w * 0.46, 0, chine]];
+    lofts.push(loftWorld('keel', [0, K.y0, 0], [0, K.y1, 0], [
+      { t: 0, points: station(K.w0, K.top, K.chine, K.bottom) },
+      { t: 0.55, points: station(K.w1 * 1.1, K.top, K.chine * 0.9, K.bottom * 0.85) },
+      { t: 0.88, points: station(K.w1, K.top, K.chine * 0.6, K.bottom * 0.45) },
+      { t: 1, points: station(K.w1 * 0.55, K.top - 0.05, K.chine * 0.2, K.top - 0.35) },
+    ], C.paint));
+    // (its deck's armour plates and the rails along its edges, the cockpit's minigun bracket off its side)
+    extrudes.push(box('deck', [0, K.y0 + 0.2, K.top + 0.012], [0, K.y1 - 0.5, K.top + 0.012], K.w1 * 0.9, 0.024, tone(C.paint, -0.07)));
+    for (const s of [1, -1]) sweeps.push(tube(`rail_${s > 0 ? 'r' : 'l'}`, [[s * K.w1 * 0.47, K.y0 + 0.4, K.top + 0.1], [s * K.w1 * 0.47, K.y1 - 0.7, K.top + 0.1]], 0.025, C.trim, 8));
+    const G = d.sidegun;
+    extrudes.push(box('gunBracket', [G[0] * 0.55, G[1], K.top], [G[0], G[1], G[2] - 0.02], 0.12, 0.14, C.trim));
+    // (a ladder down the keel's left side to the ground the cockpit is boarded from)
+    for (let i = 0; i < 5; i++) { const z = K.top - ((K.top - K.bottom) * (i + 0.5)) / 5, x = -K.w1 * 0.5 - (K.top - z) * 0.05; extrudes.push(box(`rung_${i}`, [x, d.cage[1] - 0.18, z], [x, d.cage[1] - 0.06, z], 0.008, 0.008, C.light)); }
+    return { ...g, extrudes, lofts, lathes, sweeps, hardpoints: { ...g.hardpoints, sidegun: [...G], keelNose: [0, K.y1, K.top] } };
+  }
+
+  return { keeledPelvis, pelvis: armouredPelvis, thigh: guarded(kit.thigh), shank: guarded(kit.shank), foot: luggedFoot, cage: fieldCage, cabin: armouredCabin, pack: rackPack, wheeledShank, wheeledAnkle, wheel: atvWheel };
 }

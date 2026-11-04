@@ -117,9 +117,23 @@ export function armsAt(arch, ctx, pose, set = 'arms') {
  * → { values: { yaw, pitch, elbow, wrist joints }, reach }
  */
 export function tailAt(arch, ctx, pose, joints = {}) {
+  const P = typeof pose === 'string' ? TAIL_POSES[pose] : pose;
+  if ((arch.tail || arch.tails) && !P) throw new Error(`mecha stance: tail '${pose}' is one of ${Object.keys(TAIL_POSES).join(', ')}`);
+  // (twin tails: the pose's own side's tail at it, the other stowed)
+  if (arch.tails) {
+    const out = { values: {}, reach: true };
+    for (const [S, T] of Object.entries(arch.tails)) {
+      const one = solveTail(arch, ctx, P.carry === S ? P : TAIL_POSES.stow, T, joints);
+      Object.assign(out.values, one.values);
+      out.reach &&= one.reach;
+    }
+    return out;
+  }
   if (!arch.tail) return { values: {}, reach: true };
-  const P = typeof pose === 'string' ? TAIL_POSES[pose] : pose, T = arch.tail, J = T.joints;
-  if (!P) throw new Error(`mecha stance: tail '${pose}' is one of ${Object.keys(TAIL_POSES).join(', ')}`);
+  return solveTail(arch, ctx, P, arch.tail, joints);
+}
+function solveTail(arch, ctx, P, T, joints) {
+  const J = T.joints;
   if (P.joints) return { values: { [J.yaw]: P.joints.tailYaw, [J.pitch]: P.joints.tailPitch, [J.elbow]: P.joints.tailElbow, [J.wrist]: P.joints.tailWrist }, reach: true };
   const F = framesOf(arch, { ...joints, [J.yaw]: 0, [J.pitch]: 0, [J.elbow]: 0, [J.wrist]: 0 }, ctx);
   const dot = P.at.indexOf('.'), body = P.at.slice(0, dot), target = apply(F[body], ctx.hp(body, P.at.slice(dot + 1)));
@@ -167,7 +181,7 @@ function rollAt(arch, ctx, stance, range) {
     for (let a = lo; a <= hi; a += 1) if (soleLow(a) > soleLow(best)) best = a;
     joints[J] = best;
   }
-  return { joints, root: { R: I3, t: [0, 0, H] }, feet: null, legs: { r: { reach }, l: { reach } }, load: 0, loadOn: 'arms', ...(arch.tail ? { tailReach: true } : {}) };
+  return { joints, root: { R: I3, t: [0, 0, H] }, feet: null, legs: { r: { reach }, l: { reach } }, load: 0, loadOn: 'arms', ...(arch.tail || arch.tails ? { tailReach: true } : {}) };
 }
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -241,5 +255,5 @@ export function solveStance(arch, ctx, stance, { com, stand, range } = {}) {
   }
   // (a backpack's payloads aimed, its tail at its pose: what it reaches is where the payloads stand)
   const payloads = payloadsAt(arch, stance.aim), tail = tailAt(arch, ctx, stance.tail ?? 'stow', { ...solved.joints, ...arms, ...payloads });
-  return { joints: { ...solved.joints, ...arms, ...payloads, ...tail.values }, root: { R: I3, t: [xy[0], xy[1], z] }, feet, legs: solved.legs, load: stance.load ?? 0, loadOn: stance.loadOn ?? 'arms', ...(arch.tail ? { tailReach: tail.reach } : {}) };
+  return { joints: { ...solved.joints, ...arms, ...payloads, ...tail.values }, root: { R: I3, t: [xy[0], xy[1], z] }, feet, legs: solved.legs, load: stance.load ?? 0, loadOn: stance.loadOn ?? 'arms', ...(arch.tail || arch.tails ? { tailReach: tail.reach } : {}) };
 }

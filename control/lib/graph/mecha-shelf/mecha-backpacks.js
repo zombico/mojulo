@@ -8,7 +8,8 @@
  *     mounts          the sides it carries a payload on ('r', 'l'), each a mount's ring and cradle
  *     takes           the payloads its mounts take (MECHA_WEAPONS), its own loadout by default
  *     tail            its service tail (a scorpion's: a yaw base, two segments and a head on rotary drives) and the
- *                     service points it reaches: each payload's magazine, each spare in its rack, the drop behind
+ *                     service points it reaches: each payload's magazine, each spare in its rack, the drop behind;
+ *                     `twin`, a tail each side, each serving its own side's payload; mount, cradle, its mounts' skus
  *     mass            what it adds to the class's mass with its own loadout (kg); swap, the frame's parts it asks
  *                     heavier (a sku for a sku)
  *     brace           the stance it fires from (a `brace` stance on the frame: the recoil law reads it there)
@@ -23,6 +24,9 @@ export const MECHA_WEAPONS = Object.freeze({
   minigun: Object.freeze({ sku: 'minigun-wpn', spare: 'ammobox-wpn', label: 'rotary machine gun', mag: 'ammunition box', magMass: 30, recoil: 1200, backblast: 0 }),
   // (its recoil what its muzzle brake leaves)
   autocannon: Object.freeze({ sku: 'cannon-wpn', spare: 'cannonmag-wpn', label: 'autocannon', mag: 'box magazine', magMass: 40, recoil: 1600, backblast: 0 }),
+  // (its recoil what its long-recoil mechanism (a stroke of some 1.4 m) and its muzzle brake leave of a shell's kick)
+  howitzer: Object.freeze({ sku: 'howitzer-sw', spare: 'shellmag-sw', label: 'howitzer', mag: 'six-round shell cassette', magMass: 600, recoil: 65000, backblast: 0 }),
+  missiles: Object.freeze({ sku: 'missiles-sw', spare: 'missilepod-sw', label: 'eighteen-cell missile launcher', mag: 'six-cell missile pod', magMass: 700, recoil: 8000, backblast: 8 }),
   rocketPod: Object.freeze({ sku: 'rockets-wpn', spare: 'rocketpod-wpn', label: 'five-round rocket launcher', mag: 'five-round rocket pod', magMass: 50, recoil: 150, backblast: 2.5 }),
 });
 export const MECHA_WEAPON_IDS = Object.freeze(Object.keys(MECHA_WEAPONS));
@@ -47,6 +51,14 @@ MECHA_BACKPACKS_MUT.heavyWeapons = Object.freeze({
   ...MECHA_BACKPACKS_MUT.weapons, label: 'heavy weapons backpack',
   takes: Object.freeze(['autocannon', 'minigun', 'rocketPod']), loadout: Object.freeze({ r: 'autocannon', l: 'rocketPod' }),
   mass: 360, swap: Object.freeze({}),
+});
+// (the siege backpack: the weapons backpack's frame at 2.5 times, a howitzer right and a missile launcher left, a
+// scorpion's tail each side to serve them; the siege walker carries it as built)
+MECHA_BACKPACKS_MUT.siege = Object.freeze({
+  ...MECHA_BACKPACKS_MUT.weapons, label: 'siege backpack', sku: 'pack-sw', mount: 'mount-sw', cradle: 'cradle-sw', twin: true,
+  takes: Object.freeze(['howitzer', 'missiles']), loadout: Object.freeze({ r: 'howitzer', l: 'missiles' }),
+  tail: Object.freeze({ base: 'tailbase-sw', seg1: 'tailseg1-sw', seg2: 'tailseg2-sw', head: 'tailhead-sw' }),
+  mass: 0, swap: Object.freeze({}),
 });
 export const MECHA_BACKPACKS = Object.freeze(MECHA_BACKPACKS_MUT);
 export const MECHA_BACKPACK_IDS = Object.freeze(Object.keys(MECHA_BACKPACKS));
@@ -74,13 +86,32 @@ export function backpackLayout(card, loadout) {
     joints[`traverse${U}`] = F({ kind: 'slew', drive: `mount${U}` });
     joints[`elevate${U}`] = F({ kind: 'hinge', drive: `cradle${U}` });
     layout.push(
-      { id: `mount${U}`, sku: 'mount-wpn', side: S, on: `pack.mount.${S}`, joint: `traverse${U}` },
-      { id: `cradle${U}`, sku: 'cradle-wpn', side: S, on: `mount${U}.cradle`, joint: `elevate${U}` },
+      { id: `mount${U}`, sku: card.mount ?? 'mount-wpn', side: S, on: `pack.mount.${S}`, joint: `traverse${U}` },
+      { id: `cradle${U}`, sku: card.cradle ?? 'cradle-wpn', side: S, on: `mount${U}.cradle`, joint: `elevate${U}` },
       { id: `weapon${U}`, sku: W.sku, side: S, on: `cradle${U}.gun` },
       { id: `spare${U}`, sku: W.spare, side: S, on: `pack.spare.${S}` },
     );
   }
   const T = card.tail;
+  // (twin tails: one each side, each serving its side's payload, its spare and the drop behind)
+  if (card.twin) {
+    const tails = {};
+    for (const S of card.mounts) {
+      const U = S.toUpperCase(), n = (w) => `${w}${U}`;
+      Object.assign(joints, {
+        [n('tailYaw')]: F({ kind: 'slew', drive: n('tailBase') }), [n('tailPitch')]: F({ kind: 'hinge', drive: n('tailSeg1') }),
+        [n('tailElbow')]: F({ kind: 'hinge', drive: n('tailSeg2') }), [n('tailWrist')]: F({ kind: 'hinge', drive: n('tailHead') }),
+      });
+      layout.push(
+        { id: n('tailBase'), sku: T.base, side: S, on: `pack.tail.${S}`, joint: n('tailYaw'), tail: true },
+        { id: n('tailSeg1'), sku: T.seg1, side: S, on: `${n('tailBase')}.pivot`, joint: n('tailPitch'), tail: true },
+        { id: n('tailSeg2'), sku: T.seg2, side: S, on: `${n('tailSeg1')}.end`, joint: n('tailElbow'), tail: true },
+        { id: n('tailHead'), sku: T.head, side: S, on: `${n('tailSeg2')}.end`, joint: n('tailWrist'), tail: true },
+      );
+      tails[S] = F({ base: n('tailBase'), seg1: n('tailSeg1'), seg2: n('tailSeg2'), head: n('tailHead'), joints: F({ yaw: n('tailYaw'), pitch: n('tailPitch'), elbow: n('tailElbow'), wrist: n('tailWrist') }) });
+    }
+    return { layout: layout.map(F), joints: F(joints), tail: null, tails: F(tails), payloads: F(payloads) };
+  }
   Object.assign(joints, {
     tailYaw: F({ kind: 'slew', drive: 'tailBase' }),
     tailPitch: F({ kind: 'hinge', drive: 'tailSeg1' }),

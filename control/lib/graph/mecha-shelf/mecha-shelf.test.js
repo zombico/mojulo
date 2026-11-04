@@ -454,6 +454,40 @@ describe('mecha shelf: a frame that walks or collapses its legs onto wheels and 
   });
 });
 
+describe('mecha shelf: a frame twice and more the rover, its cockpit on a keel, twin tails', () => {
+  // (the frame with twin tails, and the frame on wheels it is drawn from: the one with a single tail)
+  const siege = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].tails), As = MECHA_ARCHETYPES[siege];
+  const rover = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].wheels && !MECHA_ARCHETYPES[k].tails);
+  const roll = (k) => Object.keys(MECHA_ARCHETYPES[k].stances).find((n) => MECHA_ARCHETYPES[k].stances[n].roll);
+  const law = (k, id) => lawsOf(k).laws.find((l) => l.id === id);
+  it('rolls on a third wheel a side, its footprint reaching far further than the rover\'s, every law holding', () => {
+    expect(As.wheels.filter((w) => w.side === 'r').map((w) => w.axle).sort()).toEqual(['front', 'mid', 'rear']);
+    const base = (k) => { const P = posedFrame(k, roll(k)), ctx = mechaCtx(k), F = framesOf(ctx.arch, P.joints, ctx), ys = MECHA_ARCHETYPES[k].wheels.map((w) => F[w.id].t[1]); return Math.max(...ys) - Math.min(...ys); };
+    expect(base(siege)).toBeGreaterThan(base(rover) * 2.5);
+    expect(law(siege, 'rollContact').ok).toBe(true);
+    expect(lawsOf(siege).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+  });
+  it('carries its cockpit out ahead on a keel, the rider\'s space with it', () => {
+    const ctx = mechaCtx(siege), cage = ctx.hp('pelvis', 'cage'), hips = ctx.hp('pelvis', 'hip.r');
+    expect(cage[1] - hips[1]).toBeGreaterThan(2);
+    for (const E of As.envelope) expect(E.y[0]).toBeGreaterThan(hips[1] + 2);
+    expect(law(siege, 'cab').ok).toBe(true);
+    expect(MECHA_ODM[As.layout.find((e) => e.id === 'cage').sku].dims.radar).toBeTruthy();
+    expect(As.payloads.c).toBeTruthy();
+  });
+  it('serves each payload with its own side\'s tail, the other stowed', () => {
+    const ctx = mechaCtx(siege);
+    for (const [st, T] of Object.entries(TAIL_POSES).filter(([, t]) => t.at)) {
+      const P = posedFrame(siege, st), F = framesOf(ctx.arch, P.joints, ctx), mine = As.tails[T.carry], other = As.tails[T.carry === 'r' ? 'l' : 'r'];
+      const dot = T.at.indexOf('.'), body = T.at.slice(0, dot), grip = apply(F[mine.head], ctx.hp(mine.head, 'grip')), want = apply(F[body], ctx.hp(body, T.at.slice(dot + 1)));
+      for (let k = 0; k < 3; k++) expect(grip[k]).toBeCloseTo(want[k], 2);
+      expect(P.joints[other.joints.yaw]).toBe(TAIL_POSES.stow.joints.tailYaw);
+      expect(P.clamped).toEqual([]);
+    }
+    expect(law(siege, 'tailTorque').ok).toBe(true);
+  });
+});
+
 describe('mecha shelf: the actuators', () => {
   it('lays every ram within its stroke at every stance', () => {
     for (const name of Object.keys(arch.stances)) {

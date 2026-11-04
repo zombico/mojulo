@@ -36,6 +36,9 @@
  *   - The rover walker drawn larger, its own legs at 1.35, its armoured cabin as built, its shanks' skirts, its wheels an
  *     armoured car's, its legs plumb collapsed: its wheeled shank and ankle, its wheel and the frame re-pinned; a cabin
  *     stays homed on the frame that offers it, so the cabin's pin did not move; no other pin moved.
+ *   - The siege walker (unreleased): its keeled pelvis, its howitzer, its missile launcher and its spare missile pod
+ *     pinned as builder paths, and the frame whole walking and collapsed; twin tails and a cockpit's radar left every
+ *     earlier pin where it was.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -123,6 +126,10 @@ const PINS = {
   'cannon-wpn': 'e14843f6b23224d6',
   'shank-rw': '1cd7c0dfc095c3c1',
   'wheel-rw': '4ae279b99a3cd708',
+  'howitzer-sw': '468e79bf36bb78e5',
+  'missilepod-sw': 'cb2e44002b8fc721',
+  'missiles-sw': 'debc71d2982832cf',
+  'pelvis-sw': 'bd68902bf0114bd8',
 };
 const LEFT = 'c9882af91b6cf973';
 const ROD = 'bcfdb3e1621e0b1a';
@@ -134,6 +141,7 @@ const HOUSE = '22d1c303d8f1b5ad';
 const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
+const SIEGE = ['a825400bdc13547b', '9d82396c685a6c94'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');
@@ -167,6 +175,10 @@ describe('mecha shelf: characterization', () => {
     const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].wheels);
     const roll = Object.keys(MECHA_ARCHETYPES[id].stances).find((k) => MECHA_ARCHETYPES[id].stances[k].roll);
     expect([hash(assembleFrame(id, { laws: false }).manifest), hash(assembleFrame(id, { pose: roll, laws: false }).manifest)]).toEqual(ROVER);
+  });
+  it('pins a frame with twin tails walking and collapsed', () => {
+    const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].tails);
+    expect([hash(assembleFrame(id, { laws: false }).manifest), hash(assembleFrame(id, { pose: 'roll', laws: false }).manifest)]).toEqual(SIEGE);
   });
   it('pins a dressed frame\'s faces in its dress', () => {
     const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].dress), { manifest, readout } = assembleFrame(id, { finish: false, laws: false });

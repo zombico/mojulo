@@ -247,7 +247,8 @@ Pointers only; each target carries its own design notes.
   transport, `mecha-field-parts.js` (its optional armoured cabin: slits and a camera, no glass), dressed by car-designer's
   military styling at its faces, `mecha-military.js`; backpacks, a frame's back fitted for a function, its payloads and a
   scorpion's service tail that swaps their magazines, `mecha-backpacks.js`; the rover walker on wheels at its knees and
-  ankles, its knees rotary drives, collapsing its legs to roll, its `roll` stance in `mecha-ik.js`); review:
+  ankles, its knees rotary drives, collapsing its legs to roll, its `roll` stance in `mecha-ik.js`; the siege walker at
+  2.5 times, six wheels, its cockpit out on a keel, a siege backpack with twin service tails); review:
   `scripts/render-mecha.mjs`.
 - Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).

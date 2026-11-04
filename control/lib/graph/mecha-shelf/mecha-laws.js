@@ -266,11 +266,12 @@ export function mechaLaws(key, kit) {
   }
   // ── a backpack: its tail's drives holding it and a magazine at each service point; its payloads' recoil against the
   // frame's footing, their backblast and their line of fire clear of the rider ──
-  if (arch.tail && band.tailTorque) {
-    const T = arch.tail, chainOf = { pitch: [T.seg1, T.seg2, T.head], elbow: [T.seg2, T.head], wrist: [T.head] };
+  const TAILS = arch.tails ? Object.entries(arch.tails) : arch.tail ? [[null, arch.tail]] : [];
+  if (TAILS.length && band.tailTorque) {
     let v = 0, why = '';
-    for (const [name, p] of Object.entries(P)) {
-      const st = arch.stances[name], pose = TAIL_POSES[st.tail ?? 'stow'], carry = pose?.carry ? arch.payloads[pose.carry].magMass : 0;
+    for (const [side, T] of TAILS) for (const [name, p] of Object.entries(P)) {
+      const chainOf = { pitch: [T.seg1, T.seg2, T.head], elbow: [T.seg2, T.head], wrist: [T.head] };
+      const st = arch.stances[name], pose = TAIL_POSES[st.tail ?? 'stow'], mine = pose?.carry && (side === null || pose.carry === side), carry = mine ? arch.payloads[pose.carry].magMass : 0;
       const F = frames(p.joints, p.root), grip = apply(F[T.head], ctx.hp(T.head, 'grip'));
       for (const [k, bodies] of Object.entries(chainOf)) {
         const J = arch.joints[T.joints[k]], B = bodies[0], pivot = F[B].t, axis = [F[B].R[0][0], F[B].R[1][0], F[B].R[2][0]];
@@ -278,7 +279,7 @@ export function mechaLaws(key, kit) {
         let tau = carry ? torque(carry, grip) : 0;
         for (const id of bodies) { const e = ctx.entry(id); tau += torque(ctx.row(e.sku).mass, apply(F[id], shape(e.sku, e.side).centroid)); }
         const share = tau / ctx.row(ctx.entry(J.drive).sku).dims.torque;
-        if (share > v) { v = share; why = `its tail's ${k} drive at its ${name}${carry ? `, a ${carry} kg magazine in its grip` : ''} (${Math.round(tau)} N·m)`; }
+        if (share > v) { v = share; why = `its ${side ? `${side === 'r' ? 'right' : 'left'} ` : ''}tail's ${k} drive at its ${name}${carry ? `, a ${carry} kg magazine in its grip` : ''} (${Math.round(tau)} N·m)`; }
       }
     }
     v = r2(v);

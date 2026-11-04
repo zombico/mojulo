@@ -301,6 +301,10 @@ export const VEHICLES = {
   // weapons backpack an autocannon, a rocket launcher and the service tail)
   'rover-walker': row('rover walker', ['wheeled walker', 'walker atv', 'atv walker', 'transforming walker', 'wheel walker', 'quad walker', 'roller walker', 'wheel leg walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
     { mecha: 'roverWalker', tech: 'walker' }),
+  // (the rover walker's principles at 2.5 times: six wheels collapsed, its cockpit out on a keel, a howitzer and a
+  // missile launcher on its back served by twin scorpion tails)
+  'siege-walker': row('siege walker', ['walking fortress', 'artillery walker', 'howitzer walker', 'siege mech', 'heavy rover walker', 'mobile fortress', 'six wheel walker', 'land cruiser walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
+    { mecha: 'siegeWalker', tech: 'walker' }),
   // (a general-purpose work frame on the same shelf: its operator seated in a torso frame, knee-forward legs, two arms
   // on rams for the lifting)
   'utility-walker': row('utility walker', ['work walker', 'walking work frame', 'power frame', 'work frame', 'lifting walker', 'cargo walker', 'loader walker', 'walking loader'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],

@@ -265,6 +265,24 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   - **The dress:** the field walker's (any camo livery, its wear). A cabin is previewed alone on the frame that offers
     it, a backpack's parts on the frame that offers backpacks.
   - Every law holds as built, with the armoured cabin, and rearmed with the rotary machine gun.
+- **The siege walker** (`siegeWalker`; registry row `siege-walker`, role `armour`): the rover walker's principles at
+  2.5 times its size, some 33 t and 10.8 m standing.
+  - **Its legs:** at 3.375 times the walker's designs; knees on rotary drives; shanks 3.6 m long, each carrying a
+    third wheel between the knee's and the ankle's. Collapsed, it rolls on six, its footprint reaching far ahead of and
+    behind its hips: a 3.6 m wheelbase and a 4.4 m track.
+  - **Its cockpit, human-sized, rides out ahead on a keel** (`mecha-field-parts.js` `keeledPelvis`): a V-bottomed
+    armoured prow off the pelvis, its deck railed, a ladder down its side. The rider's space is carried out to it, and
+    the cab law holds it there. The armoured cockpit's camera is augmented by a spherical radar dome on a mast. A rotary
+    machine gun sits on its own ring and cradle on the cockpit's side.
+  - **Its siege backpack** (`MECHA_BACKPACKS.siege`): the weapons backpack's frame at 2.5 times.
+    - A howitzer right: its long barrel, fume extractor, muzzle brake, recoil cylinders and breech, and its autoloader's
+      six-round shell cassette (the magazine). Its recoil is what a long-recoil mechanism leaves, read with the frame
+      collapsed on its wheels.
+    - An eighteen-cell missile launcher left: three six-cell pods side by side, the outermost the magazine.
+    - A spare of each racked.
+    - **Twin scorpion tails**, one each side (`twin`). Each serves its own side's payload, spare and the drop behind,
+      while the other stays tucked (`mecha-ik.js tailAt`). The tail law reads both.
+  - Every law holds, its bands set for its class from what was measured.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
     derived, never stated.
@@ -347,5 +365,9 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     ground; its backpack's payloads swapped, another backpack refused, and a
     frame without wheels refused a roll. The char pins add its wheeled parts, its wheel and the autocannon, and the
     frame whole walking and collapsed.
+  - `mecha-shelf.test.js`, the siege walker: six wheels, its footprint more than 2.5 times the rover's, every law
+    holding; its cockpit out ahead on its keel with the rider's space, its radar and its side gun; each payload served
+    by its own side's tail, the other stowed. The char pins add its keeled pelvis, its howitzer, its missile launcher,
+    its spare pod, and the frame whole walking and collapsed.
   - The roster's, builds' and preview door's tests (a dressed frame's livery and wear carried in its recipe, its
     cabin, its backpack, a frame on wheels collapsed by its stance).

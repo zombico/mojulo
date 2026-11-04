@@ -41,11 +41,14 @@ export function backpackBuilders(kit) {
     // (the tail's seat on the bay's top, braced)
     const T = d.tail;
     extrudes.push(box('tailSeat', [T[0], T[1], B.z1 - 0.01], [T[0], T[1], T[2]], 0.24, 0.24, frame));
+    // (twin tails: a seat each side of the bay's top, a tail serving each side)
+    const twin = d.tails ? { 'tail.r': [d.tails[0], d.tails[1], d.tails[2]], 'tail.l': [-d.tails[0], d.tails[1], d.tails[2]] } : {};
+    for (const [k, p] of Object.entries(twin)) extrudes.push(box(`tailSeat_${k.slice(-1)}`, [p[0], p[1], B.z1 - 0.01], p, 0.24, 0.24, frame));
     extrudes.push(box('dropChute', [0, B.y0 - 0.02, B.z0 + 0.05], [0, B.y0 - 0.1, B.z0 + 0.05], 0.3, 0.04, dark));
     const at = (p, s) => [s * p[0], p[1], p[2]];
     return {
       extrudes, lathes, sweeps,
-      hardpoints: { 'mount.r': at(d.mount, 1), 'mount.l': at(d.mount, -1), 'spare.r': at(d.spare, 1), 'spare.l': at(d.spare, -1), tail: [...T], drop: [...d.drop], top: [0, (B.y0 + B.y1) / 2, B.z1] },
+      hardpoints: { 'mount.r': at(d.mount, 1), 'mount.l': at(d.mount, -1), 'spare.r': at(d.spare, 1), 'spare.l': at(d.spare, -1), tail: [...T], ...twin, drop: [...d.drop], top: [0, (B.y0 + B.y1) / 2, B.z1] },
     };
   }
 
@@ -113,6 +116,52 @@ export function backpackBuilders(kit) {
     sweeps.push(tube('feed', [[s * 0.09, 0.0, zc + 0.02], [s * 0.07, 0.04, zc + 0.08]], 0.03, C.rubber, 8));
     return { extrudes, lathes, sweeps, hardpoints: { muzzle: [0, 0.32 + L, zc], breech: [0, -0.28, zc], mag: lug } };
   }
+  // ── a howitzer: its long barrel, its fume extractor and muzzle brake, its cradle's recoil cylinders, its breech, its
+  // autoloader's shell cassette over the breech (the cassette its magazine, swapped whole) ──────────────────────────
+  function howitzer(row, C) {
+    const d = row.dims, extrudes = [], lathes = [], sweeps = [], zc = d.axis, L = d.length, steel = tone(C.chrome, -0.35), [bw, bl, bh] = d.breech;
+    extrudes.push(box('breech', [0, -bl * 0.6, zc], [0, bl * 0.4, zc], bw, bh, C.trim));
+    extrudes.push(box('mantlet', [0, bl * 0.4, zc], [0, bl * 0.4 + 0.25, zc], bw * 1.15, bh * 1.1, C.paint));
+    for (const s of [1, -1]) lathes.push(spin(`recoil_${s > 0 ? 'r' : 'l'}`, [s * bw * 0.32, bl * 0.4 + 0.25, zc - bh * 0.34], [s * bw * 0.32, bl * 0.4 + 1.5, zc - bh * 0.34], [[0, 0.07], [0.9, 0.065], [1, 0.05]], tone(C.trim, 0.1), 14));
+    const y0 = bl * 0.4 + 0.25, y1 = y0 + L;
+    lathes.push(spin('barrel', [0, y0, zc], [0, y1, zc], [[0, d.r * 1.35], [0.2, d.r * 1.15], [1, d.r]], steel, 18));
+    lathes.push(spin('extractor', [0, y0 + L * 0.55, zc], [0, y0 + L * 0.68, zc], [[0, d.r * 1.15], [0.2, d.r * 1.6], [0.8, d.r * 1.6], [1, d.r * 1.1]], C.paint, 18));
+    extrudes.push(box('brake', [0, y1 - 0.02, zc], [0, y1 + 0.5, zc], d.r * 3.4, d.r * 2.4, C.trim));
+    for (const t of [0.16, 0.3]) extrudes.push(box(`brakePort_${Math.round(t * 100)}`, [-d.r * 1.75, y1 + t, zc], [d.r * 1.75, y1 + t, zc], 0.06, d.r * 1.6, tone(C.trim, -0.4)));
+    const [mw, ml, mh] = d.mag, mc = [0, -bl * 0.15, zc + bh / 2 + mh / 2 + 0.02];
+    const lug = ammoBox('cassette', mc, [mw, ml, mh], C, extrudes);
+    for (let i = 0; i < 3; i++) extrudes.push(box(`cassetteRib_${i}`, add(mc, [-mw / 2 - 0.01, -ml / 2 + (ml * (i + 1)) / 4, 0]), add(mc, [mw / 2 + 0.01, -ml / 2 + (ml * (i + 1)) / 4, 0]), 0.04, mh - 0.06, tone(C.paint, -0.1)));
+    return { extrudes, lathes, sweeps, hardpoints: { muzzle: [0, y1 + 0.5, zc], breech: [0, -bl * 0.6, zc], mag: lug } };
+  }
+  // ── a missile launcher: its frame and its pods side by side, each a magazine of cells, capped; the outer pod swapped ─
+  function missilePod(id, c, d, C, extrudes, lathes) {
+    const [w, l, h] = d.pod, [nx, nz] = d.cells, y1 = c[1] + l / 2;
+    extrudes.push(box(id, [c[0], c[1] - l / 2, c[2]], [c[0], y1, c[2]], w, h, C.paint));
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+      const p = [c[0] + (i - (nx - 1) / 2) * (w / nx), y1, c[2] + (j - (nz - 1) / 2) * (h / nz)];
+      lathes.push(spin(`${id}Cap_${i}${j}`, add(p, [0, -0.01, 0]), add(p, [0, 0.02, 0]), [[0, d.r], [1, d.r * 0.9]], C.light, 12));
+      lathes.push(spin(`${id}Vent_${i}${j}`, [p[0], c[1] - l / 2 + 0.01, p[2]], [p[0], c[1] - l / 2 - 0.02, p[2]], [[0, d.r * 0.8], [1, d.r * 0.8]], tone(C.trim, -0.4), 10));
+    }
+    extrudes.push(box(`${id}Lug`, add(c, [0, -0.08, h / 2]), add(c, [0, 0.08, h / 2 + 0.06]), 0.1, 0.06, C.chrome, [1, 0, 0]));
+    return add(c, [0, 0, h / 2 + 0.1]);
+  }
+  function missiles(row, C, { side }) {
+    const d = row.dims, s = sgn(side), extrudes = [], lathes = [], [w, l, h] = d.pod;
+    extrudes.push(box('frame', [0, -l / 2 - 0.1, 0.06], [0, l / 2 + 0.1, 0.06], d.pods * w + 0.1, 0.12, C.trim));
+    let lug = null;
+    for (let k = 0; k < d.pods; k++) {
+      // (the pods side by side, the outermost the one the tail swaps)
+      const x = s * (k - (d.pods - 1) / 2) * (w + 0.03), at = missilePod(`pod${k}`, [x, 0, 0.12 + h / 2], d, C, extrudes, lathes);
+      if (k === d.pods - 1) lug = at;
+    }
+    extrudes.push(box('tilt', [0, -l / 2, 0.02], [0, -l / 2 + 0.3, 0.02], d.pods * w, 0.06, tone(C.trim, -0.2)));
+    return { extrudes, lathes, hardpoints: { muzzle: [0, l / 2, 0.12 + h / 2], breech: [0, -l / 2, 0.12 + h / 2], mag: lug } };
+  }
+  function spareMissiles(row, C, { side }) {
+    const d = row.dims, s = sgn(side), extrudes = [], lathes = [];
+    const lug = missilePod('pod', [s * (d.pod[0] / 2 + 0.02), 0, 0], d, C, extrudes, lathes);
+    return { extrudes, lathes, hardpoints: { lug } };
+  }
   function launcher(row, C) {
     const d = row.dims, extrudes = [], lathes = [];
     extrudes.push(box('rail', [0, -d.pod[1] / 2 + d.at[1], 0.01], [0, d.pod[1] / 2 + d.at[1], 0.01], 0.08, 0.04, C.trim));
@@ -166,7 +215,7 @@ export function backpackBuilders(kit) {
   return {
     pack: weaponsPack,
     mount: { ring, cradle },
-    weapon: { rotary, cannon, launcher, ammo: spareAmmo, pod: sparePod },
+    weapon: { rotary, cannon, launcher, ammo: spareAmmo, pod: sparePod, howitzer, missiles, missilePod: spareMissiles },
     tail: { base: tailBase, segment: tailSegment, head: tailHead },
   };
 }
