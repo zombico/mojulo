@@ -50,10 +50,13 @@ export function dronesAt(arch, ctx, frames, { launch = false } = {}) {
     // (docked on its cradle, its belly on it; or hung from its bay's roof by its back, `hang`)
     let R = cols(x, y, z), at = o, seat = d.hang ? seatHung : seatOn;
     if (launch && d.hang) {
-      // (out of its bay's open underside: the way the underside faces, clear of the bay and a little up, level, its nose
-      // that way)
-      const r = unit([-z[0], -z[1], 0]), up = d.launch ?? [2.0, 1.6];
-      at = [o[0] + r[0] * up[0], o[1] + r[1] * up[0], o[2] + up[1]];
+      // (out of its bay: up out of its open end when the bay stands upright, else out of its open underside; level, its
+      // nose outward from the frame; a bay's drones each their own height and reach, so they clear each other)
+      const end = [-y[0], -y[1], -y[2]], upright = end[2] > 0.7, fore = /\.f$/.test(d.hp), side = Math.sign(o[0]) || 1;
+      const r = upright ? [side, 0, 0] : unit([-z[0], -z[1], 0]), reach = upright ? [fore ? 1.6 : 0.5, (fore ? 1.6 : 0) + 1.1] : d.launch ?? [2.0, 1.6];
+      // (upright: up past its open end (half its bay's length above the bay's middle) and out to the frame's side)
+      const top = upright ? ctx.row(ctx.entry(d.body).sku).dims.length / 2 : 0;
+      at = upright ? [o[0] + r[0] * reach[0], o[1], o[2] + reach[1] + top] : [o[0] + r[0] * reach[0], o[1] + r[1] * reach[0], o[2] + reach[1]];
       R = about([0, 0, 1], Math.atan2(-r[0], r[1]));
       seat = seatOn;
     } else if (launch) {

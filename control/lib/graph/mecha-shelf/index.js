@@ -389,7 +389,7 @@ export function massOf(archetype, joints, root = { R: I3, t: [0, 0, 0] }, { ride
 
 // ── poses ───────────────────────────────────────────────────────────────────
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const STANCE_KEYS = Object.freeze(['knee', 'height', 'track', 'fore', 'sway', 'feet', 'arms', 'packArms', 'load', 'loadOn', 'tail', 'aim', 'roll', 'pitch', 'spread', 'place', 'launch', 'deploy']);
+const STANCE_KEYS = Object.freeze(['knee', 'height', 'track', 'fore', 'sway', 'feet', 'arms', 'packArms', 'load', 'loadOn', 'tail', 'aim', 'roll', 'pitch', 'spread', 'place', 'launch', 'unfold', 'deploy']);
 const POSED = new Map();
 /**
  * A pose → { stance, joints (degrees), root (the pelvis's frame in the machine's), feet, legs }: a stance's name (the

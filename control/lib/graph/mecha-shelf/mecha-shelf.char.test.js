@@ -42,6 +42,13 @@
  *   - The siege walker reshaped: its hull between the backpack and the cockpit, its weapons lower and wider, its plated
  *     thighs, its shorter shanks with three wheels in line, its long toed feet laid level ahead when it rolls: its keeled
  *     pelvis and the frame re-pinned, its plated thigh and its toed foot pinned as builder paths; no other pin moved.
+ *   - The brood walker reshaped: its bays stood on their noses, shells to the front; its hips low on the hull's sides,
+ *     each leg lifted by a ram; its solar car folding origami-style (a deck, wings, leaves): its hull, hub, column,
+ *     shank, ankle, cradle, bay and car re-pinned, the deck and the wing pinned as builder paths (the flat panel gone),
+ *     and the frame whole re-pinned; no other pin moved.
+ *   - The brood walker's bays armoured (a rounded shell fore and aft of each hinge, the fore bays' nose cone, the aft
+ *     bays' taper: a side's two one torpedo driving): its bay and the frame whole re-pinned; the aft bay is the bay's
+ *     builder path, carried in the frame's pin; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -141,17 +148,18 @@ const PINS = {
   'aampod-wpn': 'b97979e1e07b05d4',
   'cargo-wpn': '0decc2991b339e78',
   'winch-wpn': '8632112e37ab33d1',
-  'cradle-bw': 'd0445e7d0c180856',
+  'cradle-bw': 'ada6455012bd2a7e',
   'car-bw': '9dfe27f77893b704',
-  'bay-bw': '08e77aa88874a4a5',
-  'ankle-bw': '29318c12867f81ec',
-  'column-bw': 'e87e81389f96e613',
+  'bay-bw': '5ce9a1b69b5cde94',
+  'ankle-bw': '72f7f2aa7295c94b',
+  'column-bw': '311fed077a95e243',
   'coxa-bw': 'b2d3cc982cfa5b21',
-  'hub-bw': 'a0569050ab9cdf08',
-  'panel-bw': '8b1addb845ea8d79',
-  'pelvis-bw': '615559aaff5aa787',
-  'solar-bw': '0e737ebc2b7bf773',
-  'tibia-bw': '6966289421007e6d',
+  'hub-bw': '2b59638db2765981',
+  'deck-bw': '37d3499ddd4a031c',
+  'wing-bw': '9571f4a4df707c7e',
+  'pelvis-bw': 'ed61f8202700f38c',
+  'solar-bw': '0d57bba65cf5b1ca',
+  'tibia-bw': '832112513a170dea',
   'thigh-sw': '08b637f4320f16d1',
 };
 const LEFT = 'c9882af91b6cf973';
@@ -165,7 +173,7 @@ const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
 const SIEGE = ['9a1b7f9ff8b5e291', '8f0a988a084d563e'];
-const BROOD = ['f9d73e626c5e62ff', '00ed5ab021eb4b73', '0d94200873f63508'];
+const BROOD = ['e71705e88d9ae7ba', '6efd1c7229a56d7a', '2e9e806a5339b828'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');

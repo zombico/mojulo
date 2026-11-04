@@ -8,8 +8,8 @@
  *                      repairs drones and prints their parts), a cradle on the deck; the visor slit at the front where
  *                      the cockpit inside looks out; a bracket out over each bay from the roof's shoulder to its hip
  *   hip 'coxa'         a leg's yaw bearing under its bracket, its drum, its fork down to the hub
- *   yoke 'hub'         the hip's roll trunnion and, below it, the pitch drive's drum
- *   thigh 'column'     the leg's tall segment, near upright: a hollow sleeve, four corner posts framed every pace and
+ *   yoke 'hub'         the hip's roll trunnion and, below it, the pitch axle's drum, the lift ram's horn over it
+ *   thigh 'column'     the leg's upper segment, its lift ram's eye on it: a hollow sleeve, four corner posts framed and
  *                      plated on its outer and inner faces, open through; the drive's lines down its hollow
  *   shank 'strut'      the knee's machinery low over the bay (a great drum, its gearbox, its motor) and the short
  *                      shank under it to the bay's mount: the frame heavy at its foot
@@ -17,11 +17,13 @@
  *   foot 'cradle'      the ankle's cradle, the bay's pivot under it
  *   bay 'bay'          a drone's bay and a wheel's housing: a long rounded pod, hollow, open underneath and at its back
  *                      (its fore end round), two drones hung from its roof inside; walking, it stands upright on two foot
- *                      pads at its open end; driving, it lies on its wheels, in pairs outside its walls
+ *                      pads at its open end; driving, it lies on its wheels, in pairs outside its walls; its armour a
+                      rounded shell fore and aft of its hinge, the fore bays' ending in a nose cone and the aft bays' in a
+                      taper, so driving a side's two bays read as one torpedo
  *   pack 'car', 'solar'   the rear car: the hull's front profile drawn boxier, coupled behind it as a train's car; the
- *                      solar car the same, its roof's edges hinged for its array's wings
- *   solar 'panel'      a panel of the array, its cells, its hinge to the next: z-folded flat on the car's roof stowed,
- *                      unfolded out to either side spread
+ *                      solar car its floor and frames, the rest of its skin its folded array
+ *   solar 'deck', 'panel'   the solar car's roof, hinged at its fore edge to tilt its back up, and its walls and the
+ *                      leaves folded inside them: they swing out flat and unfold, origami, then the deck tilts
  *
  * broodBuilders(kit) → the builders by kind and family, `kit` the shelf's own.
  */
@@ -89,7 +91,7 @@ export function broodBuilders(kit) {
         const hx = s * d.hips[0], B = d.hipBracket;
         extrudes.push(box(`hipArm_${n}${k}`, [s * (w - 0.05), y, d.hips[2] + 0.18], [hx + s * 0.35, y, d.hips[2] + 0.18], B * 1.2, 0.36, C.paint));
         extrudes.push(plateBox(`hipCap_${n}${k}`, [hx, y, d.hips[2] + 0.2], B * 1.3, B * 1.3, 0.3, 0.12, tone(C.paint, -0.05)));
-        sweeps.push(tube(`hipWeb_${n}${k}`, [[s * w, y, d.hips[2] - 0.9], [hx - s * 0.3, y, d.hips[2] + 0.05]], 0.09, frame, 8));
+        sweeps.push(tube(`hipWeb_${n}${k}`, [[s * w, y, d.hips[2] + 0.9], [hx - s * 0.3, y, d.hips[2] + 0.3]], 0.09, frame, 8));
       }
     }
     // (inside: a gantry under the roof along the hangar, its bridge and its print head; a drone's cradle on the deck,
@@ -134,7 +136,11 @@ export function broodBuilders(kit) {
     lathes.push(spin('drum', [-0.3, 0, -d.drop], [0.3, 0, -d.drop], [[0, d.r * 0.9], [0.1, d.r], [0.9, d.r], [1, d.r * 0.9]], C.paint, 26));
     lathes.push(spin('cap', [s * 0.3, 0, -d.drop], [s * 0.4, 0, -d.drop], [[0, d.r * 0.62], [1, d.r * 0.5]], dark, 20));
     lathes.push(spin('rim', [-0.315, 0, -d.drop], [0.315, 0, -d.drop], [[0, d.r * 1.01], [1, d.r * 1.01]], tone(C.trim, 0.05), 26));
-    return { lathes, extrudes, hardpoints: { pitch: [0, 0, -d.drop] } };
+    // (its lift ram's horn up over the drum, its eye's boss across it: the ram pushes the leg down, the hull up)
+    const H = [0, d.horn[1], -d.drop + d.horn[2]];
+    for (const t of [1, -1]) extrudes.push(box(`horn_${t > 0 ? 'o' : 'i'}`, [t * 0.16, 0, -d.drop + d.r * 0.5], [t * 0.16, H[1], H[2]], 0.08, 0.22, C.trim, [1, 0, 0]));
+    lathes.push(boss('hornEye', H, 'x', 0.2, 0.1, dark, 12));
+    return { lathes, extrudes, hardpoints: { pitch: [0, 0, -d.drop], horn: H } };
   }
   // ── the column: a tall hollow leg from the hub down to the knee, four corner posts in an open sleeve ────────────
   function column(row, C) {
@@ -154,7 +160,11 @@ export function broodBuilders(kit) {
     lathes.push(spin('collar', [0, 0, 0.05], [0, 0, -0.25], [[0, Math.max(w, dp) * 1.05], [1, Math.max(w, dp)]], C.paint, 16));
     for (const t of [1, -1]) extrudes.push(box(`clevis_${t > 0 ? 'o' : 'i'}`, [t * (w - 0.04), 0, -L + 0.4], [t * (w - 0.04), 0, -L - 0.1], 0.1, d.d * 0.6, C.trim));
     lathes.push(boss('kneePin', [0, 0, -L], 'x', w + 0.04, 0.16, C.chrome, 14));
-    return { lathes, extrudes, sweeps, hardpoints: { knee: [0, 0, -L] } };
+    // (the lift ram's eye on its top face, a lug either side)
+    const E = [0, d.eye[1], -d.eye[2]];
+    for (const t of [1, -1]) extrudes.push(box(`eyeLug_${t > 0 ? 'o' : 'i'}`, [t * 0.16, dp * 0.7, -d.eye[2]], [t * 0.16, E[1], E[2]], 0.08, 0.24, C.trim, [0, 0, 1]));
+    lathes.push(boss('ramEye', E, 'x', 0.2, 0.1, C.chrome, 12));
+    return { lathes, extrudes, sweeps, hardpoints: { knee: [0, 0, -L], hipRam: E } };
   }
   // ── the knee's machinery and the short shank under it: the heavy drum low over the bay ──────────────────────────
   function tibia(row, C, { side }) {
@@ -180,13 +190,15 @@ export function broodBuilders(kit) {
   // ── the foot: a cradle under the ankle, the bay's pivot below it ─────────────────────────────────────────────
   // (its sole the bay's: walking, the bay stands upright beside its pivot on the foot pads at its open end; driving, it
   // lies on its wheels; either way its sole the same height below the ankle)
-  function bayCradle(row, C) {
-    const d = row.dims, B = d.bay, lathes = [], extrudes = [], m = d.drop, zs = -m - B.length / 2;
-    for (const t of [1, -1]) extrudes.push(box(`cheek_${t > 0 ? 'f' : 'b'}`, [0, t * 0.2, 0.05], [0, t * 0.2, -m], 0.36, 0.08, C.trim));
-    lathes.push(boss('pivot', [0, 0, -m], 'y', 0.3, 0.12, C.chrome, 14));
-    // (its outline: the upright bay's foot pads, out from the pivot across its depth)
-    const x0 = 0.1, x1 = B.depth - 0.1, y = B.w / 2 - 0.05;
-    return { lathes, extrudes, hardpoints: { bay: [0, 0, -m], sole: [0, 0, zs] }, outline: [[x0, -y, zs], [x1, -y, zs], [x1, y, zs], [x0, y, zs]] };
+  function bayCradle(row, C, { side }) {
+    const d = row.dims, B = d.bay, s = sgn(side), lathes = [], extrudes = [], m = d.drop, zs = -m - B.length / 2, P = [s * d.back, 0, -m];
+    // (its arm back from the ankle to the pivot, its bay set behind its leg; the pivot's boss across it)
+    extrudes.push(box('arm', [0, 0, 0.02], [P[0], 0, -m + 0.1], 0.34, 0.3, C.trim, [0, 1, 0]));
+    for (const t of [1, -1]) extrudes.push(box(`cheek_${t > 0 ? 'f' : 'b'}`, [P[0], t * 0.2, -m + 0.15], [P[0], t * 0.2, -m], 0.36, 0.08, C.trim));
+    lathes.push(boss('pivot', P, 'y', 0.3, 0.12, C.chrome, 14));
+    // (its outline: the upright bay's foot pads, back from the pivot across its depth)
+    const x0 = s * (d.back + 0.1), x1 = s * (d.back + B.depth - 0.1), y = B.w / 2 - 0.05;
+    return { lathes, extrudes, hardpoints: { bay: P, sole: [0, 0, zs] }, outline: [[x0, -y, zs], [x1, -y, zs], [x1, y, zs], [x0, y, zs]] };
   }
   // ── a drone's bay and a wheel's housing: a long rounded pod, hollow, open underneath and at its back ───────────
   // (in its own frame, its pivot on its roof at the origin: its length along y, its depth down to its open underside;
@@ -202,8 +214,8 @@ export function broodBuilders(kit) {
     for (const t of [1, -1]) {
       extrudes.push(slab(`wall_${t > 0 ? 'o' : 'i'}`, t * (w / 2 - 0.06), t * w / 2, [[-L / 2, z0 + 0.1], [L / 2 - cap, z0 + 0.1], [L / 2 - cap, zs], [-L / 2, zs]], C.paint));
       extrudes.push(box(`sill_${t > 0 ? 'o' : 'i'}`, [t * (w / 2 - 0.05), -L / 2, z0 + 0.14], [t * (w / 2 - 0.05), L / 2 - cap, z0 + 0.14], 0.12, 0.1, C.trim));
-      // (a foot pad on its open end at each wall: what it stands on upright)
-      extrudes.push(box(`pad_${t > 0 ? 'o' : 'i'}`, [t * (w / 2 - 0.16), -L / 2 + 0.25, (zs + z0) / 2 - 0.05], [t * (w / 2 - 0.16), -L / 2, (zs + z0) / 2 - 0.05], 0.3, D - 0.25, tone(C.trim, -0.1)));
+      // (a foot pad on its round nose at each wall: what it stands on upright, its shell to the front, its open end up)
+      extrudes.push(box(`pad_${t > 0 ? 'o' : 'i'}`, [t * (w / 2 - 0.16), L / 2 - 0.3, (zs + z0) / 2 - 0.05], [t * (w / 2 - 0.16), L / 2, (zs + z0) / 2 - 0.05], 0.3, D - 0.25, tone(C.trim, -0.1)));
     }
     // (its open end's frame, its ribs inside under the roof)
     for (let i = 0; i <= 3; i++) {
@@ -224,7 +236,42 @@ export function broodBuilders(kit) {
     // underside, or out of its open end, and fly)
     for (const [k, y] of [['f', d.dock], ['a', -d.dock]]) Object.assign(hp, cradle(`dock.${k}`, [0, y, zs - 0.04], [0, 0, -1], [0, 1, 0], d.bay[1], d.bay[0], C, extrudes, lathes));
     for (const k of ['f', 'a']) { const o = hp[`dock.${k}`]; hp[`dock.${k}`] = [o[0], o[1], zs - 0.1]; hp[`dock.${k}N`] = [o[0], o[1], zs + 0.9]; hp[`dock.${k}Y`] = [o[0], o[1] + 1, zs - 0.1]; }
+    if (d.armour) armour(d, C, extrudes, lofts);
     return { extrudes, lathes, lofts, hardpoints: hp };
+  }
+  // ── a bay's armour: a rounded shell over its roof and its wheels' tops, fore and aft of its hinge ──────────────────
+  // (in plates round an arch, each a facet; a recess at the hinge where the cradle meets the roof; the fore end a
+  // nose cone (`fore: 'cone'`) or a straight sleeve (`'sleeve'`), the aft end flush (`aft: 'flush'`) or tapered round
+  // its open end (`'taper'`): driving, a side's two bays nose to tail, the fore bay's cone ahead and the aft bay's taper
+  // behind, read as one torpedo; walking, each stands in its own)
+  function armour(d, C, extrudes, lofts) {
+    const A = d.armour, L = d.length, cap = d.cap, k = 8, plate = tone(C.paint, -0.04), band = tone(C.trim, -0.15);
+    // (the arch: down each side as a skirt over its wheels, round over its roof; facets between its points)
+    const ring = (s = 1) => {
+      const pts = [[A.a, A.skirt]];
+      for (let i = 0; i <= k; i++) { const t = (Math.PI * i) / k; pts.push([A.a * Math.cos(t), A.zc + A.b * Math.sin(t)]); }
+      pts.push([-A.a, A.skirt]);
+      return pts.map(([x, z]) => [x * s, A.zc + (z - A.zc) * s]);
+    };
+    const R = ring(), facets = R.slice(0, -1).map((p, i) => { const q = R[i + 1], m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], c = Math.hypot(q[0] - p[0], q[1] - p[1]); return { m, c, n: [(q[1] - p[1]) / c, 0, -(q[0] - p[0]) / c], i, top: Math.abs(m[0]) < A.a * 0.5 }; });
+    const face = (id, f, y0, y1, s0 = 1, s1 = 1) => {
+      const at = (s, y) => [f.m[0] * s, y, A.zc + (f.m[1] - A.zc) * s];
+      extrudes.push(box(id, at(s0, y0), at(s1, y1), f.c * Math.max(s0, s1) + 0.02, A.t, plate, f.n));
+    };
+    const yF = L / 2 - (A.fore === 'cone' ? cap : 0), yA = -L / 2 + (A.aft === 'taper' ? A.taper : 0);
+    for (const f of facets) {
+      // (fore of the hinge, the top plates set back where the cradle reaches over the roof; aft the same)
+      face(`armourF_${f.i}`, f, f.top ? A.slot[1] : A.slot[0], yF);
+      face(`armourA_${f.i}`, f, yA, -(f.top ? A.slot[2] : A.slot[0]));
+      if (A.aft === 'taper') face(`armourT_${f.i}`, f, -L / 2, yA, A.tail, 1);
+    }
+    // (a band along each plate's hinge edge)
+    for (const [e, y] of [['F', A.slot[0]], ['A', -A.slot[0]]]) for (const t of [1, -1]) extrudes.push(box(`armourBand${e}_${t > 0 ? 'o' : 'i'}`, [t * A.a, y, A.skirt], [t * A.a, y, A.zc], 0.1, 0.08, band, [t, 0, 0]));
+    // (the nose cone: the arch closed over its chord and drawn down round the bay's round nose)
+    if (A.fore === 'cone') {
+      const D = (s) => ring(s).map(([x, z]) => [x, 0, z]);
+      lofts.push(loftWorld('armourNose', [0, yF, 0], [0, L / 2, 0], [{ t: 0, points: D(1) }, { t: 0.55, points: D(0.88) }, { t: 1, points: D(0.6) }], plate));
+    }
   }
   // ── the rear car: the hull's front profile drawn boxier, coupled behind it as a train's car ─────────────────────
   // (its coupling and gangway ahead; its sides panelled, a door, roof hatches, its lamps behind; the solar car the same,
@@ -234,37 +281,52 @@ export function broodBuilders(kit) {
     const d = row.dims, lofts = [], extrudes = [], lathes = [], dark = tone(C.trim, -0.25), y0 = -d.gap, y1 = -d.gap - d.length, w = d.w;
     extrudes.push(box('coupler', [0, 0.05, d.z0 + 0.6], [0, y0 - 0.05, d.z0 + 0.6], 0.3, 0.3, C.trim));
     extrudes.push(box('gangway', [0, 0.02, (d.z0 + d.z1) / 2], [0, y0, (d.z0 + d.z1) / 2], w * 0.6, (d.z1 - d.z0) * 0.7, dark));
+    for (const s of [1, -1]) lathes.push(spin(`lamp_${s > 0 ? 'r' : 'l'}`, [s * w * 0.35, y1 - 0.25, d.z0 + 0.6], [s * w * 0.35, y1 - 0.3, d.z0 + 0.6], [[0, 0.07], [1, 0.06]], C.light, 10));
+    if (row.build.family === 'solar') {
+      // (the solar car: its floor, its frames fore and aft and its tail, the rest of its skin its array folded up: its
+      // roof the deck its walls hang from, its walls the wings, a leaf folded inside each)
+      extrudes.push(box('floor', [0, y0, d.z0 + 0.08], [0, y1, d.z0 + 0.08], w, 0.16, C.trim));
+      for (const [k, y] of [['fore', y0 - 0.06], ['aft', y1 + 0.06]]) {
+        const ring = boxArch(w, d.z0, d.z1, d.r), inner = boxArch(w - 0.24, d.z0 + 0.16, d.z1 - 0.12, d.r * 0.7).reverse();
+        lofts.push(loftWorld(`frame_${k}`, [0, y + 0.06, 0], [0, y - 0.06, 0], [0, 1].map((t) => ({ t, points: [...ring, ...inner] })), C.paint));
+      }
+      lofts.push(loftWorld('tailCap', [0, y1, 0], [0, y1 - 0.25, 0], [{ t: 0, points: boxArch(w, d.z0, d.z1 - 0.3, d.r) }, { t: 1, points: boxArch(w * 0.92, d.z0 + 0.1, d.z1 - 0.4, d.r) }], tone(C.paint, -0.05)));
+      extrudes.push(box('innerFrame', [0, y0 - 0.2, d.z0 + 1.2], [0, y1 + 0.2, d.z0 + 1.2], 0.3, 0.3, C.trim));
+      return { lofts, extrudes, lathes, hardpoints: { deck: [0, y0 - 0.06, d.z1], top: [0, (y0 + y1) / 2, d.z1] } };
+    }
+    // (its coupling and gangway ahead; its sides panelled, a door, roof hatches, its lamps behind)
     lofts.push(loftWorld('body', [0, y0, 0], [0, y1, 0], [{ t: 0, points: boxArch(w, d.z0, d.z1, d.r) }, { t: 1, points: boxArch(w, d.z0, d.z1, d.r) }], C.paint));
     lofts.push(loftWorld('tailCap', [0, y1, 0], [0, y1 - 0.25, 0], [{ t: 0, points: boxArch(w, d.z0, d.z1, d.r) }, { t: 1, points: boxArch(w * 0.92, d.z0 + 0.1, d.z1 - 0.1, d.r) }], tone(C.paint, -0.05)));
     for (const s of [1, -1]) {
       const n = s > 0 ? 'r' : 'l';
       for (let i = 1; i < 4; i++) extrudes.push(box(`seam_${n}${i}`, [s * (w / 2 + 0.005), y0 - (d.length * i) / 4, d.z0 + 0.2], [s * (w / 2 + 0.005), y0 - (d.length * i) / 4, d.z1 - d.r], 0.02, 0.04, dark));
       extrudes.push(box(`door_${n}`, [s * (w / 2 + 0.01), y0 - d.length * 0.35, (d.z0 + d.z1) / 2 - 0.2], [s * (w / 2 + 0.01), y0 - d.length * 0.6, (d.z0 + d.z1) / 2 - 0.2], 0.02, (d.z1 - d.z0) * 0.55, tone(C.paint, -0.1), [0, 0, 1]));
-      lathes.push(spin(`lamp_${n}`, [s * w * 0.35, y1 - 0.25, d.z0 + 0.6], [s * w * 0.35, y1 - 0.3, d.z0 + 0.6], [[0, 0.07], [1, 0.06]], C.light, 10));
     }
-    const hinges = {};
-    if (row.build.family === 'solar') {
-      // (its roof's edges hinged for its wings, a rail along each)
-      for (const s of [1, -1]) {
-        extrudes.push(box(`hingeRail_${s > 0 ? 'r' : 'l'}`, [s * (w / 2 - d.r), y0 - 0.15, d.z1 + 0.02], [s * (w / 2 - d.r), y1 + 0.15, d.z1 + 0.02], 0.08, 0.06, C.trim));
-        hinges[`wing.${s > 0 ? 'r' : 'l'}`] = [s * (w / 2 - d.r), (y0 + y1) / 2, d.z1 + 0.06];
-      }
-    } else {
-      for (const y of [y0 - d.length * 0.3, y0 - d.length * 0.7]) lathes.push(spin(`hatch_${Math.round(-y * 10)}`, [0, y, d.z1 - 0.01], [0, y, d.z1 + 0.05], [[0, 0.32], [0.7, 0.32], [1, 0.28]], tone(C.paint, -0.08), 16));
-    }
-    return { lofts, extrudes, lathes, hardpoints: { ...hinges, top: [0, (y0 + y1) / 2, d.z1] } };
+    for (const y of [y0 - d.length * 0.3, y0 - d.length * 0.7]) lathes.push(spin(`hatch_${Math.round(-y * 10)}`, [0, y, d.z1 - 0.01], [0, y, d.z1 + 0.05], [[0, 0.32], [0.7, 0.32], [1, 0.28]], tone(C.paint, -0.08), 16));
+    return { lofts, extrudes, lathes, hardpoints: { top: [0, (y0 + y1) / 2, d.z1] } };
+  }
+  // ── the solar car's deck: its roof, hinged at its fore edge to tilt its back up, its walls hung from its edges ────
+  function solarDeck(row, C) {
+    const d = row.dims, extrudes = [], L = d.length, w = d.w, cell = '#22314f';
+    extrudes.push(box('deck', [0, 0, -0.05], [0, -L, -0.05], w, 0.1, C.paint));
+    for (const s of [1, -1]) extrudes.push(box(`rail_${s > 0 ? 'r' : 'l'}`, [s * (w / 2 - 0.04), -0.05, 0.02], [s * (w / 2 - 0.04), -L + 0.05, 0.02], 0.08, 0.08, C.trim));
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 4; j++) extrudes.push(box(`cell_${i}${j}`, [(i - 0.5) * (w / 2 - 0.1), -0.1 - ((L - 0.2) * j) / 4, 0.012], [(i - 0.5) * (w / 2 - 0.1), -0.1 - ((L - 0.2) * (j + 1)) / 4 + 0.02, 0.012], w / 2 - 0.2, 0.012, cell));
+    extrudes.push(box('hinge', [-w / 2, 0, -0.02], [w / 2, 0, -0.02], 0.1, 0.1, C.trim, [0, 0, 1]));
+    return { extrudes, hardpoints: { 'wall.r': [w / 2, -L / 2, 0], 'wall.l': [-w / 2, -L / 2, 0] } };
   }
   // (a panel of the array: its frame, its cells in a grid, its hinge to the next along its far edge)
   function solarPanel(row, C, { side }) {
     const d = row.dims, s = sgn(side), extrudes = [], W = d.w, L = d.length, cell = '#22314f';
+    // (a wing of the car: its skin's backing behind its cells)
+    if (d.backed) extrudes.push(box('backing', [s * 0.02, 0, -0.03], [s * (W - 0.02), 0, -0.03], L, 0.05, C.paint, [0, 0, 1]));
     for (const [k, y] of [['near', -L / 2], ['far', L / 2]]) extrudes.push(box(`frame_${k}`, [s * 0.01, y, 0], [s * W, y, 0], 0.03, 0.035, C.trim));
     for (const x of [0.02, W - 0.02]) extrudes.push(box(`edge_${x > 0.1 ? 'o' : 'i'}`, [s * x, -L / 2, 0], [s * x, L / 2, 0], 0.035, 0.035, C.trim));
-    const nx = 3, ny = 6;
+    const nx = d.cells?.[0] ?? 3, ny = d.cells?.[1] ?? 6;
     for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
       const x0 = 0.04 + ((W - 0.08) * i) / nx, x1 = 0.04 + ((W - 0.08) * (i + 1)) / nx - 0.015, y0 = -L / 2 + 0.03 + ((L - 0.06) * j) / ny, y1 = -L / 2 + 0.03 + ((L - 0.06) * (j + 1)) / ny - 0.015;
       extrudes.push(box(`cell_${i}${j}`, [s * (x0 + x1) / 2, y0, 0.012], [s * (x0 + x1) / 2, y1, 0.012], x1 - x0, 0.012, cell));
     }
     return { extrudes, hardpoints: { end: [s * W, 0, s * d.gap] } };
   }
-  return { pelvis: hangarPelvis, hip: coxa, yoke: hub, thigh: column, shank: tibia, ankle: bugAnkle, foot: bayCradle, bay: bayPod, pack: rearCar, solar: { panel: solarPanel } };
+  return { pelvis: hangarPelvis, hip: coxa, yoke: hub, thigh: column, shank: tibia, ankle: bugAnkle, foot: bayCradle, bay: bayPod, pack: rearCar, solar: { panel: solarPanel, deck: solarDeck } };
 }

@@ -232,41 +232,9 @@ Pointers only; each target carries its own design notes.
 - Room furniture: [furnishings/roster.js](control/lib/graph/furnishings/roster.js) names every piece (one row, the
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
 - Vehicles: [vehicle-registry/roster.js](control/lib/graph/vehicle-registry/roster.js) names every vehicle (one row, the
-  words people say, its handles into the tables that build it); the old tables (nets, physics, fleet, rides, race
-  machines, craft shelf) are frozen behind it, every door reads a vehicle word through it, and a new vehicle is a row
-  first. Its builds by tier (toy | stylised | realistic) and what each needs to be drawn realistic: `builds.js`. The
-  field's vehicles (a military class's realistic body) are the hull kit's: `car-designer/road-military.js` over `mil-hull.js`, a
-  tracked class's running gear `mil-track.js`; the airfield's ground crew (catering, belt loader, stairs) too, `road-airside.js`.
-- Legged frames: [mecha-shelf/](control/lib/graph/mecha-shelf/) (ridden walkers on real-robot principles: a frame's
-  bodies on the construction shelf's chain, each joint its actuator's, a ram's stroke its range; a stance solved by the
-  legs' inverse kinematics, `mecha-ik.js`; its laws measured, `mecha-laws.js`; the all-terrain walker its locomotion's
-  base, its rider astride; the utility walker on it, its operator seated, two arms; the heavy walker its parts
-  drawn larger, a closed cab, its arms modular: the manipulators' ODM, tools, arm kits and tasks, `mecha-tools.js`; the giant arm walker
-  on a more robust frame, a giant arm pack's two giant arms over its cab, their own tools and tasks; packs by design house,
-  each a philosophy solved into its pack and arms, `mecha-gap-makers.js`; the field walker the walker hardened as a military
-  transport, `mecha-field-parts.js` (its optional armoured cabin: slits and a camera, no glass), dressed by car-designer's
-  military styling at its faces, `mecha-military.js`; backpacks, a frame's back fitted for a function, its payloads and a
-  scorpion's service tail that swaps their magazines, and roles, a backpack's loadout as a task is the worker's,
-  `mecha-backpacks.js`; the rover walker on wheels at its knees and
-  ankles, its knees rotary drives, collapsing its legs to roll, its `roll` stance in `mecha-ik.js`; the siege walker at
-  2.5 times, six wheels, its cockpit out on a keel, sponsons, clawed feet whose toes clench to roll, a siege backpack
-  with twin service tails; the brood walker on four legs, its hull a hangar, its feet drones' bays standing upright to walk and
-  lying on their wheels to drive, its drones the craft shelf's, `mecha-brood-parts.js`, `mecha-drones.js`); review:
-  `scripts/render-mecha.mjs`.
-- Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
-  craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
-  Boats are on the same shelf (`boat-odm.js`, `boat-parts.js`, `boat-archetypes.js`): a hull drawn from its lines and
-  floated by its weight, its drive, its fittings; a warship's parts (superstructure, mast, turret, launch cells) in
-  `boat-ship.js`, a carrier's flight deck in `boat-carrier.js`, a submarine's round hull in `boat-sub.js`; a boat
-  underway, its wake from its hull and speed, in `boat-wake.js`, run round a course on the World page's live water by
-  `worlds/seaway-scene.js` and the `seaway` channel (its Kelvin field `kelvin.js`); review: `scripts/render-boats.mjs`.
-- Rail: [rail-shelf/](control/lib/graph/rail-shelf/) (primitives for locomotive transit on the vehicle ODM's pattern: a cab
-  car's grammar solves a brief into a frame, its section and its front as a field over it, held to laws; its surface
-  compiler names each quad; design cards by preset; the bogies under it the same way, `bogie-odm.js` and
-  `bogie-surface.js`, its pantographs `panto-odm.js` and `panto-surface.js`, the overhead line they reach
-  `catenary.js`; the cars behind it `car-odm.js` and `car-surface.js` over the shell they share, `body-shell.js`; their
-  insides `interior-odm.js` and `interior-surface.js`, the lining cut by the body's own openings; a train coupled from
-  them `consist.js`); review: `scripts/render-rail.mjs`.
+  words people say, its handles into the tables that build it); the old tables are frozen behind it, every door reads a
+  vehicle word through it, and a new vehicle is a row first. The shelves that build them (road, the mecha shelf's legged
+  frames, the craft shelf's aircraft and boats, the rail shelf), file by file: [docs/vehicles.md](docs/vehicles.md).
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
   one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a

@@ -521,7 +521,7 @@ export function mechaLaws(key, kit) {
   }
   // ── a solar array: its panels' area spread ──
   if (band.solarArea) {
-    const panels = arch.layout.filter((e) => { const r = ctx.row(e.sku); return r.kind === 'mecha-solar' && r.build.family === 'panel'; });
+    const panels = arch.layout.filter((e) => ctx.row(e.sku).kind === 'mecha-solar');
     const v = r2(panels.reduce((a, e) => { const d = ctx.row(e.sku).dims; return a + d.w * d.length; }, 0));
     law('solarArea', v, band.solarArea, within(v, band.solarArea), `spread, its array's ${panels.length} panels are ${v} m² of cells`);
   }

@@ -635,12 +635,15 @@ const siegeWalker = Object.freeze({
 // the brood walker: a big frame on four legs, a mother to drones. Its hull is tall and round-topped and short from
 // the side, a single hangar through it (its drones are repaired there and their parts printed), its cockpit inside its
 // nose behind a visor, a boxy rear car coupled behind it as a train's car. Its feet are its drones' bays and its
-// wheels: each leg from a hip on a bracket at the roof's shoulder, a hollow column down to the knee's machinery low
-// over a cradle, the bay on a pivot under it. Walking, the bays stand upright on the foot pads at their open ends, beside
-// the hull, and it steps on them as an insect does; driving (`roll`), they tip down onto their wheels, tucked in along
-// the hull's sides fore and aft. Each bay is hollow, open underneath and at its back, two drones hung inside from its
-// roof: they fly out of its open side. Every joint a rotary drive
-const BW_LEG = Object.freeze({ hip: 'coxa-bw', yoke: 'hub-bw', thigh: 'column-bw', shank: 'tibia-bw', ankle: 'ankle-bw', foot: 'cradle-bw', bay: 'bay-bw', wheel: 'wheel-bw' });
+// wheels: each leg from a hip low on the hull's side, lifted by its ram, a hollow column down to the knee's machinery
+// low over a cradle, the bay on a pivot under it. Walking, the bays stand upright on their noses, their armoured shells
+// to the front, beside the hull, and it steps on them as an insect does; driving (`roll`), they tip down onto their
+// wheels, tucked in along the hull's sides fore and aft, a side's two bays nose to tail one armoured torpedo. Each bay
+// is hollow, open underneath and at its back, two drones hung inside from its roof: standing, they fly out of its open
+// top. Its hip pitch on its ram, every other joint a rotary drive
+const BW_LEG = Object.freeze({ hip: 'coxa-bw', yoke: 'hub-bw', thigh: 'column-bw', shank: 'tibia-bw', ankle: 'ankle-bw', foot: 'cradle-bw', bay: 'bay-bw', wheel: 'wheel-bw', ram: 'ram-hip-bw' });
+// (its aft legs' bays armoured to a taper behind, the fore legs' to a nose cone: driving, a side's two one torpedo)
+const BW_AFT = Object.freeze({ ...BW_LEG, bay: 'bay-bw-aft' });
 /** An insect leg at a corner: `K` its key's suffix ('FR'), `side` its hand, `mount` the heading its plane is mounted at
  *  (degrees, + to the left), `sign` its yaw drive's sense (so every leg's drive turns the same way to tuck), `roll` the
  *  heading it tucks to (straight outboard), `turn` its bay's turn on its cradle (its nose ahead when it lies). */
@@ -650,12 +653,13 @@ const insectLeg = (K, side, mount, sign, roll, turn, P = BW_LEG) => {
     joints: {
       [n('hipYaw')]: Object.freeze({ kind: 'hinge', axis: Object.freeze([0, 0, sign]), drive: n('hip') }),
       [n('hipRoll')]: Object.freeze({ kind: 'hinge', axis: Object.freeze([0, 1, 0]), drive: n('yoke') }),
-      [n('hipPitch')]: Object.freeze({ kind: 'hinge', drive: n('thigh') }),
-      [n('knee')]: Object.freeze({ kind: 'hinge', drive: n('shank') }),
+      // (its hip's pitch on its lift ram: the leg pumped down, the hull up)
+      [n('hipPitch')]: Object.freeze({ kind: 'hinge', ram: n('hipRam'), near: 100 }),
+      [n('knee')]: Object.freeze({ kind: 'hinge', axis: Object.freeze([-1, 0, 0]), drive: n('shank') }),
       [n('anklePitch')]: Object.freeze({ kind: 'hinge', drive: n('ankle') }),
       [n('ankleRoll')]: Object.freeze({ kind: 'hinge', axis: Object.freeze([0, 1, 0]), drive: n('foot') }),
       // (its bay on its pivot: upright, standing on its open end, to walk; tipped down onto its wheels to drive)
-      [n('tilt')]: Object.freeze({ kind: 'hinge', axis: Object.freeze([1, 0, 0]), drive: n('bay'), at: 90, when: Object.freeze({ place: 0 }) }),
+      [n('tilt')]: Object.freeze({ kind: 'hinge', axis: Object.freeze([1, 0, 0]), drive: n('bay'), at: -90, when: Object.freeze({ place: 0 }) }),
     },
     layout: [
       { id: n('hip'), sku: P.hip, side, leg: legKey, on: `pelvis.hip.${legKey}`, joint: n('hipYaw'), turn: mount },
@@ -667,6 +671,7 @@ const insectLeg = (K, side, mount, sign, roll, turn, P = BW_LEG) => {
       { id: n('bay'), sku: P.bay, side, leg: legKey, on: `${n('foot')}.bay`, joint: n('tilt'), turn },
       // (its wheels in pairs outside its bay's walls, fore and aft: each built to the side it faces)
       ...['f', 'a'].flatMap((e) => [['o', 'r'], ['i', 'l']].map(([io, sd]) => ({ id: n(`wheel${e.toUpperCase()}${io}`), sku: P.wheel, side: sd, leg: legKey, on: `${n('bay')}.wheel.${e}${io}` }))),
+      { id: n('hipRam'), sku: P.ram, side, leg: legKey, ram: [`${n('yoke')}.horn`, `${n('thigh')}.hipRam`] },
     ],
     leg: {
       hip: n('hip'), roll: n('yoke'), pitch: n('thigh'), knee: n('shank'), ankle: n('ankle'), foot: n('foot'), side, mount, yawSign: sign, rollYaw: roll,
@@ -676,17 +681,19 @@ const insectLeg = (K, side, mount, sign, roll, turn, P = BW_LEG) => {
 };
 // (its hips on their brackets over the bays; walking, its feet out along each leg's heading; driving, its bays tucked in
 // along the hull's sides fore and aft under their hips, their lengths along it)
-const BW_HIP = [2.32, 1.75], BW_OUT = 1.0, BW_TUCK = 1.75;
+const BW_HIP = [1.6, 1.75], BW_OUT = 1.25, BW_TUCK = 0.75;
 const r3a = (v) => Math.round(v * 1000) / 1000;
 const BL = {
   // (each leg tucks straight out; each bay turned on its cradle so it lies nose ahead, its open end behind)
-  fr: insectLeg('FR', 'r', -45, 1, -90, 90), fl: insectLeg('FL', 'l', 45, -1, 90, -90),
-  rr: insectLeg('RR', 'r', -135, -1, -90, 90), rl: insectLeg('RL', 'l', 135, 1, 90, -90),
+  // (each leg straight out to its side, walking and driving; each bay turned on its cradle so it stands on its nose
+  // its shell to the front, and lies nose ahead)
+  fr: insectLeg('FR', 'r', -90, 1, -90, 90), fl: insectLeg('FL', 'l', 90, -1, 90, -90),
+  rr: insectLeg('RR', 'r', -90, 1, -90, 90, BW_AFT), rl: insectLeg('RL', 'l', 90, -1, 90, -90, BW_AFT),
 };
 for (const [k, sx, sy] of [['fr', 1, 1], ['fl', -1, 1], ['rr', 1, -1], ['rl', -1, -1]]) {
   const L = BL[k].leg, a = (L.mount * Math.PI) / 180;
   L.at = Object.freeze([r3a(sx * BW_HIP[0] - Math.sin(a) * BW_OUT), r3a(sy * BW_HIP[1] + Math.cos(a) * BW_OUT)]);
-  L.tuck = Object.freeze({ at: Object.freeze([sx * BW_HIP[0], sy * BW_TUCK]), yaw: L.rollYaw - L.mount });
+  L.tuck = Object.freeze({ at: Object.freeze([sx * (BW_HIP[0] + BW_TUCK), sy * BW_HIP[1]]), yaw: L.rollYaw - L.mount });
 }
 // (its drones' bays: each bay's fore cradle, then each bay's aft, so a part load stays balanced; each hung from its roof)
 const BW_DOCKS = Object.freeze(['f', 'a'].flatMap((e) => ['FR', 'FL', 'RR', 'RL'].map((K) => Object.freeze({ id: `bay${K}${e}`, body: `bay${K}`, hp: `dock.${e}`, hang: true }))));
@@ -699,8 +706,8 @@ const broodWalker = Object.freeze({
   rider: Object.freeze({ mass: 110, com: Object.freeze([0, HEAD[1] + 0.12, HEAD[2] + 0.096 + 0.3]) }),
   posture: 'walker',
   station: 'saddle',
-  // (its columns upright, its knees low and bent back over the bays, its shanks out to them)
-  bend: 'back',
+  // (its hips low on the hull's sides, its knees out over its bays, its hip rams pumping the hull up)
+  bend: 'forward',
   envelope: Object.freeze(F0.envelope.map((E) => Object.freeze({ x: E.x, y: Object.freeze(E.y.map((y) => y + HEAD[1])), z: Object.freeze(E.z.map((z) => z + HEAD[2])) }))),
   joints: Object.freeze(Object.assign({}, ...Object.values(BL).map((L) => L.joints))),
   layout: Object.freeze([
@@ -719,16 +726,16 @@ const broodWalker = Object.freeze({
   track: 2 * BW_HIP[0],
   rest: 'stand',
   stances: Object.freeze({
-    stand: Object.freeze({ height: 4.8 }),
+    stand: Object.freeze({ height: 6.2 }),
     // (on three feet, a bay lifted and set ahead: its centre of mass carried toward the other three, an insect's step)
-    lift: Object.freeze({ height: 'stand', sway: Object.freeze([-0.3, -0.4]), feet: Object.freeze({ fr: Object.freeze({ lift: 0.5, y: 0.4 }) }) }),
+    lift: Object.freeze({ height: 'stand', sway: Object.freeze([-0.1, -0.3]), feet: Object.freeze({ fr: Object.freeze({ lift: 0.4, y: 0.3 }) }) }),
     stride: Object.freeze({ height: 'stand', feet: Object.freeze({ fr: Object.freeze({ y: 0.5 }), rl: Object.freeze({ y: 0.5 }), fl: Object.freeze({ y: -0.4 }), rr: Object.freeze({ y: -0.4 }) }) }),
     turn: Object.freeze({ height: 'stand', feet: Object.freeze(Object.fromEntries(Object.keys(BL).map((k) => [k, Object.freeze({ yaw: 12 })]))) }),
-    board: Object.freeze({ height: 4.3, spread: 1.05 }),
-    // (its drones out of their bays, out of the open side each faces standing, hovering clear of it)
+    board: Object.freeze({ height: 5.0, spread: 1.0 }),
+    // (its drones out of their bays, up out of the open top each has standing, hovering clear of it)
     launch: Object.freeze({ height: 'stand', launch: true }),
     // (its bays tucked in along the hull, on their wheels, the hull between them: it drives)
-    roll: Object.freeze({ height: 4.4, place: 'tuck' }),
+    roll: Object.freeze({ height: 5.0, place: 'tuck' }),
   }),
   dress: Object.freeze({ ...F0.dress, kit: Object.freeze([]) }),
   laws: Object.freeze({
@@ -738,7 +745,7 @@ const broodWalker = Object.freeze({
     rollContact: Object.freeze([0, 0.01]), rollClearance: Object.freeze([0.1, 9]), rollStability: Object.freeze([0.3, 9]),
     droneGround: Object.freeze([0.1, 20]), droneClear: Object.freeze([0.02, 20]),
   }),
-  bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 4, 'mecha-yoke': 4, 'mecha-thigh': 4, 'mecha-shank': 4, 'mecha-ankle': 4, 'mecha-foot': 4, 'mecha-bay': 4, 'mecha-wheel': 16 }),
+  bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 4, 'mecha-yoke': 4, 'mecha-thigh': 4, 'mecha-shank': 4, 'mecha-ankle': 4, 'mecha-foot': 4, 'mecha-bay': 4, 'mecha-wheel': 16, 'mecha-ram': 4 }),
 });
 export const MECHA_ARCHETYPES = Object.freeze({ ...BASE_ARCHETYPES, roverWalker, siegeWalker, broodWalker });
 export const MECHA_ARCHETYPE_IDS = Object.freeze(Object.keys(MECHA_ARCHETYPES));

@@ -41,7 +41,7 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-tail': 'a backpack\'s service tail: its yaw drum, its armoured segments, its gripping head',
   'mecha-wheel': 'a wheel a legged frame rolls on with its legs collapsed: its knobbed tyre, its rim, its hub motor',
   'mecha-bay': 'a drone\'s bay that is also a foot and a wheel\'s housing: a hollow pod, open underneath and at its back, its drones hung inside',
-  'mecha-solar': 'a solar array\'s folding panel: its frame, its cells, its hinge to the next',
+  'mecha-solar': 'a solar array\'s folding part: a deck that tilts, a wing or a leaf, its cells, its hinges',
   'mecha-ram': 'a hydraulic ram across a joint: its barrel and its rod, each a body aimed at the other\'s pin; or an electric screw actuator in its place',
 });
 
@@ -420,21 +420,30 @@ const BW = 'brood walker';
 // (its bay: a hollow pod its pivot on its roof, its sole the same below the pivot upright (half its length) and lying
 // (its depth less its wheels' lift, and their radius))
 const BAY_BW = Object.freeze({ length: 3.4, w: 1.6, depth: 1.4, rise: 0.45, cap: 0.35, dock: 0.78, bay: Object.freeze([1.0, 1.1]), wheel: Object.freeze({ r: 0.4, lift: 0.1, at: 1.1, x: 0.99 }) });
+// (a bay's armour: its arch's half-width `a`, centre `zc` and rise `b`, its skirts down to `skirt`, its plates `t`
+// thick; its hinge's recess `slot` [at its sides, fore over the top, aft over the top]; its aft taper's length and scale)
+const ARMOUR_BW = Object.freeze({ a: 0.92, zc: -0.55, b: 0.6, skirt: -0.85, t: 0.06, slot: Object.freeze([0.08, 0.85, 0.45]), taper: 0.4, tail: 0.88 });
 const CAR_BW = Object.freeze({ w: 2.8, z0: -2.95, z1: 0.35, r: 0.45, length: 3.0, gap: 0.45 });
 const BROOD = {
-  'pelvis-bw': R('mecha-pelvis', 'brood walker hull', BW, { hull: { w: 2.8, y0: -2.4, y1: 2.0, nose: 2.95, z0: -3.1, zs: -0.2, z1: 0.6 }, door: { y0: -1.6, y1: 0.5, z0: -1.6, z1: -0.35 }, visor: { y: 2.97, z: -0.72, w: 1.3, h: 0.16 }, hips: [2.32, 1.75, -0.1], hipBracket: 0.6, seat: [0, 1.45, -1.75], cage: [0, 1.45, -1.75], pack: [0, -2.4, 0] }, 8000, { family: 'hangar' }, ['brood walker hull', 'hangar', 'drone hangar', 'hollow hull', 'repair bay', 'print bay', 'troop bay', 'visor']),
+  'pelvis-bw': R('mecha-pelvis', 'brood walker hull', BW, { hull: { w: 2.8, y0: -2.4, y1: 2.0, nose: 2.95, z0: -3.1, zs: -0.2, z1: 0.6 }, door: { y0: -1.6, y1: 0.5, z0: -1.6, z1: -0.35 }, visor: { y: 2.97, z: -0.72, w: 1.3, h: 0.16 }, hips: [1.6, 1.75, -2.3], hipBracket: 0.6, seat: [0, 1.45, -1.75], cage: [0, 1.45, -1.75], pack: [0, -2.4, 0] }, 8000, { family: 'hangar' }, ['brood walker hull', 'hangar', 'drone hangar', 'hollow hull', 'repair bay', 'print bay', 'troop bay', 'visor']),
   'coxa-bw': R('mecha-hip', 'brood walker coxa', BW, { r: 0.46, drop: 0.28, stop: [-150, 30], torque: 600000 }, 500, { family: 'coxa' }, ['coxa', 'hip drum', 'leg bearing']),
-  'hub-bw': R('mecha-yoke', 'brood walker hip hub', BW, { drop: 0.3, r: 0.36, stop: [-30, 30], torque: 600000 }, 650, { family: 'hub' }, ['hip hub', 'pitch hub', 'leg hub']),
-  'column-bw': R('mecha-thigh', 'brood walker leg column', BW, { length: 2.0, w: 0.62, d: 0.74, stop: [-40, 120], torque: 900000 }, 800, { family: 'column' }, ['leg column', 'hollow leg', 'brood femur']),
-  'tibia-bw': R('mecha-shank', 'brood walker knee and shank', BW, { length: 0.9, w: 0.5, d0: 0.6, d1: 0.5, clevis: 0.2, drum: { r: 0.55, w: 0.62 }, stop: [0, 150], torque: 900000 }, 1000, { family: 'strut' }, ['brood shank', 'knee drive', 'knee machinery']),
-  'ankle-bw': R('mecha-ankle', 'brood walker ankle', BW, { r: 0.16, stop: [-140, 140], torque: 150000 }, 120, { family: 'bug' }, ['brood ankle', 'tarsal joint']),
-  'cradle-bw': R('mecha-foot', 'brood walker bay cradle', BW, { drop: 0.25, bay: { length: BAY_BW.length, w: BAY_BW.w, depth: BAY_BW.depth }, stop: [-35, 35], torque: 150000 }, 200, { family: 'cradle' }, ['bay cradle', 'bay pivot']),
-  'bay-bw': R('mecha-bay', 'brood walker bay', BW, { ...BAY_BW, stop: [-5, 95], torque: 400000 }, 1300, { family: 'bay' }, ['bay pod', 'drone bay', 'leg bay', 'foot bay', 'bay foot', 'rounded bay']),
+  'hub-bw': R('mecha-yoke', 'brood walker hip hub', BW, { drop: 0.3, r: 0.36, horn: [0, -0.1, 0.6], stop: [-30, 30], torque: 600000 }, 650, { family: 'hub' }, ['hip hub', 'pitch hub', 'leg hub']),
+  'column-bw': R('mecha-thigh', 'brood walker leg column', BW, { length: 1.3, w: 0.62, d: 0.74, eye: [0, 0.3, 1.1] }, 800, { family: 'column' }, ['leg column', 'hollow leg', 'brood femur']),
+  'tibia-bw': R('mecha-shank', 'brood walker knee and shank', BW, { length: 1.0, w: 0.5, d0: 0.6, d1: 0.5, clevis: 0.2, drum: { r: 0.55, w: 0.62 }, stop: [0, 150], torque: 900000 }, 1000, { family: 'strut' }, ['brood shank', 'knee drive', 'knee machinery']),
+  // (its lift rams, one across each hip: extending, they push its legs down and pump its hull up)
+  'ram-hip-bw': R('mecha-ram', 'brood walker lift ram', BW, { bore: 0.2, rod: 0.11, closed: 0.8, stroke: 0.65 }, 160, { family: 'double' }, ['brood lift ram', 'leg lift ram', 'lift cylinder']),
+  'ankle-bw': R('mecha-ankle', 'brood walker ankle', BW, { r: 0.16, stop: [-175, 175], torque: 150000 }, 120, { family: 'bug' }, ['brood ankle', 'tarsal joint']),
+  'cradle-bw': R('mecha-foot', 'brood walker bay cradle', BW, { drop: 0.25, back: 0.5, bay: { length: BAY_BW.length, w: BAY_BW.w, depth: BAY_BW.depth }, stop: [-35, 35], torque: 150000 }, 200, { family: 'cradle' }, ['bay cradle', 'bay pivot']),
+  // (its fore bays armoured to a nose cone, its aft bays to a tapered tail: a side's two, nose to tail, one torpedo)
+  'bay-bw': R('mecha-bay', 'brood walker fore bay', BW, { ...BAY_BW, armour: { ...ARMOUR_BW, fore: 'cone', aft: 'flush' }, stop: [-95, 5], torque: 400000 }, 1400, { family: 'bay' }, ['bay pod', 'drone bay', 'leg bay', 'foot bay', 'bay foot', 'rounded bay', 'fore bay']),
+  'bay-bw-aft': R('mecha-bay', 'brood walker aft bay', BW, { ...BAY_BW, armour: { ...ARMOUR_BW, fore: 'sleeve', aft: 'taper' }, stop: [-95, 5], torque: 400000 }, 1400, { family: 'bay' }, ['aft bay', 'rear bay', 'tail bay']),
   'wheel-bw': R('mecha-wheel', 'brood walker wheel', BW, { r: BAY_BW.wheel.r, width: 0.34, rim: 0.24, lugs: 18 }, 140, { family: 'atv' }, ['bay wheel', 'pod wheel']),
   // (its rear car: the hull's profile drawn boxier, coupled behind it; the solar car the same, its array folded on its roof)
   'car-bw': R('mecha-pack', 'brood walker rear car', BW, { ...CAR_BW }, 1500, { family: 'car' }, ['rear car', 'trailer car', 'tail car', 'abdomen']),
   'solar-bw': R('mecha-pack', 'brood walker solar car', 'backpack', { ...CAR_BW }, 1500, { family: 'solar' }, ['solar backpack', 'solar car', 'solar array car']),
-  'panel-bw': R('mecha-solar', 'brood walker solar panel', 'backpack', { w: 0.8, length: 2.6, gap: 0.03, stop: [-185, 185], torque: 4000 }, 25, { family: 'panel' }, ['solar panel', 'solar array', 'solar wing']),
+  'deck-bw': R('mecha-solar', 'brood walker solar deck', 'backpack', { w: CAR_BW.w - 0.1, length: CAR_BW.length - 0.1, stop: [-45, 5], torque: 120000 }, 300, { family: 'deck' }, ['solar deck', 'tilting deck']),
+  'wing-bw': R('mecha-solar', 'brood walker solar wing', 'backpack', { w: CAR_BW.z1 - CAR_BW.z0 - 0.35, length: CAR_BW.length - 0.2, gap: 0.08, backed: true, cells: [4, 5], stop: [-100, 100], torque: 60000 }, 240, { family: 'panel' }, ['solar wing', 'solar wall', 'solar array']),
+  'leaf-bw': R('mecha-solar', 'brood walker solar leaf', 'backpack', { w: CAR_BW.z1 - CAR_BW.z0 - 0.45, length: CAR_BW.length - 0.3, gap: 0.05, cells: [4, 5], stop: [-185, 185], torque: 30000 }, 150, { family: 'panel' }, ['solar leaf', 'solar panel']),
 };
 const ODM = { ...ROWS, ...HEAVY, ...GIANT, ...FIELD, ...BACKPACK, ...ROVER, ...SIEGE, ...BROOD };
 for (const house of MECHA_MAKER_IDS) for (const part of MAKER_PARTS) Object.defineProperty(ODM, `${part}-${house}`, { enumerable: true, get: () => makers()[`${part}-${house}`] });

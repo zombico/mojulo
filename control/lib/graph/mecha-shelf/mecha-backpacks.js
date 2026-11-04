@@ -96,13 +96,14 @@ MECHA_BACKPACKS_MUT.airDefence = Object.freeze({
   ...MECHA_BACKPACKS_MUT.weapons, label: 'air defence backpack',
   takes: Object.freeze(['aaMissiles', 'sensorMast', 'minigun']), loadout: Object.freeze({ r: 'aaMissiles', l: 'sensorMast' }), mass: 320,
 });
-// (the brood walker's solar backpack in its rear car's place: the same boxy car, no mounts and no tail, its array folded
-// flat on its roof; deployed (its `deploy` stance), its wings unfold out to either side from its roof's edges)
+// (the brood walker's solar backpack in its rear car's place: the car itself folds out, origami. Its roof a deck, its
+// walls wings hung from the deck's edges, a leaf folded inside each; unfolded (`unfold`), the wings swing out level and
+// the leaves open beyond them; deployed (`deploy`), the deck tilts its back up to the sun besides)
 MECHA_BACKPACKS_MUT.solar = Object.freeze({
   label: 'solar backpack', sku: 'solar-bw', mounts: Object.freeze([]), takes: Object.freeze([]), loadout: Object.freeze({}), mass: 0,
-  array: Object.freeze({ panel: 'panel-bw', panels: 4 }),
-  stances: Object.freeze({ deploy: Object.freeze({ height: 'stand', deploy: true }) }),
-  laws: Object.freeze({ solarArea: Object.freeze([8, 40]) }),
+  array: Object.freeze({ deck: 'deck-bw', wing: 'wing-bw', leaf: 'leaf-bw', leaves: 1, tilt: 30 }),
+  stances: Object.freeze({ unfold: Object.freeze({ height: 'stand', unfold: true }), deploy: Object.freeze({ height: 'stand', deploy: true }) }),
+  laws: Object.freeze({ solarArea: Object.freeze([10, 80]) }),
 });
 export const MECHA_BACKPACKS = Object.freeze(MECHA_BACKPACKS_MUT);
 export const MECHA_BACKPACK_IDS = Object.freeze(Object.keys(MECHA_BACKPACKS));
@@ -142,17 +143,22 @@ export const TAIL_POSES = Object.freeze({
 });
 
 const F = Object.freeze;
-/** A solar backpack's array: two wings of panels z-folded flat on its car's roof (`at`), unfolded out to either side
- *  from its roof's edges to `deploy`. */
+/** A solar backpack's array, origami: its deck (the car's roof), its walls hung from the deck's edges, a leaf folded
+ *  inside each (`at`, stowed); at `unfold` the walls swing out level and the leaves open out beyond them; at `deploy` the
+ *  deck tilts its back up besides. */
 function arrayLayout(card) {
   const A = card.array, joints = {}, layout = [];
+  joints.deckTilt = F({ kind: 'hinge', axis: F([1, 0, 0]), drive: 'deck', at: 0, when: F({ deploy: -A.tilt }) });
+  layout.push({ id: 'deck', sku: A.deck, on: 'pack.deck', joint: 'deckTilt' });
   for (const [S, s] of [['r', 1], ['l', -1]]) {
     const U = S.toUpperCase();
-    for (let i = 1; i <= A.panels; i++) {
-      // (stowed: the first panel folded in over the roof from its edge, each next folded back on the one before, a z)
-      const rest = s * (i % 2 ? 180 : -180);
-      joints[`panel${U}${i}`] = F({ kind: 'hinge', axis: F([0, 1, 0]), drive: `panel${U}${i}`, at: rest, when: F({ deploy: 0 }) });
-      layout.push({ id: `panel${U}${i}`, sku: A.panel, side: S, on: i === 1 ? `pack.wing.${S}` : `panel${U}${i - 1}.end`, joint: `panel${U}${i}` });
+    // (its wall hung down from the deck's edge, a side of the car; swung out level)
+    joints[`wing${U}`] = F({ kind: 'hinge', axis: F([0, 1, 0]), drive: `wing${U}`, at: s * 90, when: F({ unfold: 0, deploy: 0 }) });
+    layout.push({ id: `wing${U}`, sku: A.wing, side: S, on: `deck.wall.${S}`, joint: `wing${U}` });
+    for (let i = 1; i <= A.leaves; i++) {
+      // (its leaves folded back inside it, a z; opened out beyond it)
+      joints[`leaf${U}${i}`] = F({ kind: 'hinge', axis: F([0, 1, 0]), drive: `leaf${U}${i}`, at: s * (i % 2 ? 180 : -180), when: F({ unfold: 0, deploy: 0 }) });
+      layout.push({ id: `leaf${U}${i}`, sku: A.leaf, side: S, on: i === 1 ? `wing${U}.end` : `leaf${U}${i - 1}.end`, joint: `leaf${U}${i}` });
     }
   }
   return { layout: layout.map(F), joints: F(joints), tail: null, payloads: F({}) };
