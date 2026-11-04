@@ -96,6 +96,14 @@ MECHA_BACKPACKS_MUT.airDefence = Object.freeze({
   ...MECHA_BACKPACKS_MUT.weapons, label: 'air defence backpack',
   takes: Object.freeze(['aaMissiles', 'sensorMast', 'minigun']), loadout: Object.freeze({ r: 'aaMissiles', l: 'sensorMast' }), mass: 320,
 });
+// (the brood walker's solar backpack in its abdomen's place: no mounts and no tail, its array folded inside under two
+// wing covers; deployed (its `deploy` stance), the covers open out and down, the mast rises and the wings spread flat)
+MECHA_BACKPACKS_MUT.solar = Object.freeze({
+  label: 'solar backpack', sku: 'solar-bw', mounts: Object.freeze([]), takes: Object.freeze([]), loadout: Object.freeze({}), mass: 0,
+  array: Object.freeze({ lid: 'elytron-bw', mast: 'mast-bw', panel: 'panel-bw', panels: 4, travel: 1.4, open: 150 }),
+  stances: Object.freeze({ deploy: Object.freeze({ height: 'stand', deploy: true }) }),
+  laws: Object.freeze({ solarArea: Object.freeze([8, 40]) }),
+});
 export const MECHA_BACKPACKS = Object.freeze(MECHA_BACKPACKS_MUT);
 export const MECHA_BACKPACK_IDS = Object.freeze(Object.keys(MECHA_BACKPACKS));
 
@@ -134,8 +142,31 @@ export const TAIL_POSES = Object.freeze({
 });
 
 const F = Object.freeze;
+/** A solar backpack's array: its wing covers, its mast, its wings of panels z-folded (`at`), spread to `deploy`. */
+function arrayLayout(card) {
+  const A = card.array, joints = {}, layout = [];
+  for (const [S, s] of [['r', 1], ['l', -1]]) {
+    const U = S.toUpperCase();
+    joints[`cover${U}`] = F({ kind: 'hinge', axis: F([0, 1, 0]), drive: `cover${U}`, when: F({ deploy: s * A.open }) });
+    layout.push({ id: `cover${U}`, sku: A.lid, side: S, on: `pack.cover.${S}`, joint: `cover${U}` });
+  }
+  joints.mast = F({ kind: 'slide', axis: F([0, 0, 1]), travel: A.travel, when: F({ deploy: A.travel }) });
+  layout.push({ id: 'mast', sku: A.mast, on: 'pack.mast', joint: 'mast' });
+  for (const [S, s] of [['r', 1], ['l', -1]]) {
+    const U = S.toUpperCase();
+    for (let i = 1; i <= A.panels; i++) {
+      // (stowed: the first panel hung down from the mast's head, each next folded back on the one before, a z)
+      const rest = s * (i === 1 ? 90 : i % 2 ? 180 : -180);
+      joints[`panel${U}${i}`] = F({ kind: 'hinge', axis: F([0, 1, 0]), drive: `panel${U}${i}`, at: rest, when: F({ deploy: 0 }) });
+      layout.push({ id: `panel${U}${i}`, sku: A.panel, side: S, on: i === 1 ? `mast.wing.${S}` : `panel${U}${i - 1}.end`, joint: `panel${U}${i}` });
+    }
+  }
+  return { layout: layout.map(F), joints: F(joints), tail: null, payloads: F({}) };
+}
+
 /** The bodies and joints a backpack adds to a frame, its payloads by side (their cards). */
 export function backpackLayout(card, loadout) {
+  if (card.array) return arrayLayout(card);
   const layout = [], joints = {}, payloads = {};
   for (const S of card.mounts) {
     const U = S.toUpperCase(), W = MECHA_WEAPONS[loadout[S]];

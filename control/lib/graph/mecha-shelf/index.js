@@ -27,6 +27,8 @@ import { MECHA_BUILDERS } from './mecha-parts.js';
 import { MECHA_KINDS, MECHA_ODM, scaleDims } from './mecha-odm.js';
 import { MECHA_ARCHETYPES, MECHA_ARCHETYPE_IDS } from './mecha-archetypes.js';
 import { solveStance } from './mecha-ik.js';
+import { droneItems, dronesAt } from './mecha-drones.js';
+import { DRONE_ARCHETYPES } from '../craft-shelf/drone-archetypes.js';
 import { MECHA_ARM_KITS, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS } from './mecha-tools.js';
 import { mechaLaws } from './mecha-laws.js';
 import { MECHA_MAKERS, MECHA_MAKER_IDS, makerHand } from './mecha-gap-makers.js';
@@ -85,14 +87,15 @@ export const frameRow = (id) => archetypeRow(id);
  * hand in the giant hand's place); a frame with cabins to choose, its `cabin` (its archetype's `cabins`: a closed one in
  * the open one's place) and a closed cabin's `slits` ('open' | 'shut'); a frame with a backpack, its `role`
  * (mecha-backpacks.js MECHA_ROLES: a backpack, its payloads and the cabin it asks), the operator's own `backpack`,
- * `weapons` and `cabin` over it. Each arm's
+ * `weapons` and `cabin` over it; a frame with drones' bays, how many drones it carries (`drones`) and which of the craft
+ * shelf's (`drone`). Each arm's
  * tool takes its claw's place on the wrist's coupler, its kit its forearm's; the laws re-read it as built (its mass, its
  * reach to the tool's working point, its lift capped by what its tools hold, its tools' flow). A tool or a kit its mount
  * does not take is refused, naming what it takes.
  */
 const an = (w) => `${/^[aeiou]/.test(w) ? 'an' : 'a'} ${w}`;
-export function composeFrame(id, { task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons, role } = {}) {
-  if ([task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons, role].every((v) => v === undefined)) return id;
+export function composeFrame(id, { task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons, role, drones, drone } = {}) {
+  if ([task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons, role, drones, drone].every((v) => v === undefined)) return id;
   const base = MECHA_ARCHETYPES[id];
   if (!base) throw new Error(`Unknown mecha archetype '${id}'; expected one of: ${MECHA_ARCHETYPE_IDS.join(', ')}`);
   // (a role: its backpack where the frame offers it, its payloads on the frame's own backpack where it carries one that
@@ -148,7 +151,13 @@ export function composeFrame(id, { task, tools, arms, packTask, packTools, packM
   const loadout = M ? { r: side('r'), l: side('l') } : null, packLoadout = PM ? { r: packSide('r'), l: packSide('l') } : null;
   const own = (S) => !M || (loadout[S].tool === M.loadout[S].tool && loadout[S].arm === M.loadout[S].arm);
   const packOwn = (S) => !PM || packLoadout[S].tool === PM.loadout[S].tool;
-  if (packMaker === undefined && !closed && !shut && !BP && !rearmed && !RL && ['r', 'l'].every((S) => own(S) && packOwn(S))) return id;
+  // (a frame that carries drones in its bays: how many (`drones`, up to its bays), and which of the craft shelf's (`drone`))
+  if ((drones !== undefined || drone !== undefined) && !base.drones) throw new Error(`mecha ${base.label}: it has no drones' bays (only a frame that carries drones takes drones or drone)`);
+  if (drones !== undefined && !(Number.isInteger(drones) && drones >= 0 && drones <= base.docks.length)) throw new Error(`mecha ${base.label}: drones is how many it carries, 0 to its ${base.docks.length} bays (not ${JSON.stringify(drones)})`);
+  if (drone !== undefined && !DRONE_ARCHETYPES[drone]) throw new Error(`mecha ${base.label}: drone '${drone}' is one of the craft shelf's drones: ${Object.keys(DRONE_ARCHETYPES).join(', ')}`);
+  const fleet = base.drones ? { ...base.drones, ...(drones !== undefined ? { count: drones } : {}), ...(drone !== undefined ? { kind: drone } : {}) } : null;
+  const refleet = !!fleet && (fleet.count !== base.drones.count || fleet.kind !== base.drones.kind);
+  if (packMaker === undefined && !closed && !shut && !BP && !rearmed && !RL && !refleet && ['r', 'l'].every((S) => own(S) && packOwn(S))) return id;
   const keys = [];
   if (M && !(own('r') && own('l'))) keys.push(['r', 'l'].map((S) => `${S}:${loadout[S].tool}${loadout[S].arm !== 'standard' ? `/${loadout[S].arm}` : ''}`).join(','));
   if (PM && !(packOwn('r') && packOwn('l'))) keys.push(`pack:${['r', 'l'].map((S) => `${S}:${packLoadout[S].tool}`).join(',')}`);
@@ -158,6 +167,7 @@ export function composeFrame(id, { task, tools, arms, packTask, packTools, packM
   if (BP) keys.push(`pack:${backpack}(${BP.mounts.map((S) => `${S}:${payload[S]}`).join(',')})`);
   if (rearmed) keys.push(`weapons(${builtIn.mounts.map((S) => `${S}:${payload[S]}`).join(',')})`);
   if (RL) keys.push(`role:${role}`);
+  if (refleet) keys.push(`drones:${fleet.count}/${fleet.kind}`);
   const key = `${id}+${keys.join('+')}`;
   if (!COMPOSED.has(key)) {
     // (a house's pack: its pack and its giant arms' parts and rams in the frame's, its hand for the giant hand)
@@ -188,13 +198,14 @@ export function composeFrame(id, { task, tools, arms, packTask, packTools, packM
       ...(PM && !(packOwn('r') && packOwn('l')) ? [packTask !== undefined ? MECHA_PACK_TASKS[packTask].label.split(':')[0] : `${['r', 'l'].map((S) => MECHA_TOOLS[packLoadout[S].tool].label).join(' and ')} on its giant arms`] : []),
       ...(packMaker !== undefined ? [`its giant arm pack the ${MECHA_MAKERS[packMaker].label}'s`] : []),
       ...(closed ? [`${cab.label}${shut ? ', its slits shut' : ''}`] : shut ? ['its slits shut'] : []),
-      ...(BP || rearmed ? [`${RL ? `fitted for ${RL.label.split(':')[0]}, ` : ''}its ${card.label}: ${card.mounts.map((S) => `${an(MECHA_WEAPONS[payload[S]].label)} ${S === 'r' ? 'right' : 'left'}`).join(', ')}`] : RL ? [`fitted for ${RL.label.split(':')[0]} as built`] : []),
+      ...(refleet ? [fleet.count ? `carrying ${fleet.count} drones (the craft shelf's ${DRONE_ARCHETYPES[fleet.kind].label})` : 'its bays empty'] : []),
+      ...(BP || rearmed ? [`${RL ? `fitted for ${RL.label.split(':')[0]}, ` : ''}its ${card.label}${card.mounts.length ? `: ${card.mounts.map((S) => `${an(MECHA_WEAPONS[payload[S]].label)} ${S === 'r' ? 'right' : 'left'}`).join(', ')}` : ''}`] : RL ? [`fitted for ${RL.label.split(':')[0]} as built`] : []),
     ];
     COMPOSED.set(key, Object.freeze({
       ...base, label: `${base.label}, ${words.join(', ')}`, layout, bom: Object.freeze(bom),
       ...(loadout ? { loadout: Object.freeze(loadout) } : {}), ...(packLoadout ? { packLoadout: Object.freeze(packLoadout) } : {}),
       ...(task !== undefined ? { task } : {}), ...(packTask !== undefined ? { packTask } : {}), ...(packMaker !== undefined ? { packMaker } : {}),
-      ...(closed ? { cabin } : {}), ...(slits ? { slits } : {}), ...(RL ? { role } : {}),
+      ...(closed ? { cabin } : {}), ...(slits ? { slits } : {}), ...(RL ? { role } : {}), ...(refleet ? { drones: Object.freeze(fleet) } : {}),
       // (what a closed cabin and a backpack add: their mass on the class's, their laws on the frame's; a backpack's
       // joints, its tail, its payloads, its tail's service stances; the dress's kit off the pack it replaced)
       mass: base.mass + (closed ? cab.mass ?? 0 : 0) + (BP ? BP.mass : 0),
@@ -204,7 +215,8 @@ export function composeFrame(id, { task, tools, arms, packTask, packTools, packM
         backpack, weapons: Object.freeze(payload), joints: Object.freeze({ ...base.joints, ...added.joints }), tail: added.tail, payloads: added.payloads,
         // (a backpack whose weight rides behind leans the frame: its hips carried ahead of its feet as it stands, its
         // centre of mass over them, as one leans under a heavy pack)
-        stances: Object.freeze({ ...base.stances, ...(BP.lean ? { [base.rest]: Object.freeze({ ...base.stances[base.rest], sway: Object.freeze([0, BP.lean]) }) } : {}), ...(BP.brace ? { brace: BP.brace } : {}), ...Object.fromEntries(Object.keys(TAIL_POSES).filter((k) => k !== 'stow').map((k) => [k, Object.freeze({ knee: base.stances[base.rest].knee ?? 45, tail: k })])) }),
+        // (its tail's service stances when it has a tail; its own stances, a solar array's deploy)
+        stances: Object.freeze({ ...base.stances, ...(BP.lean ? { [base.rest]: Object.freeze({ ...base.stances[base.rest], sway: Object.freeze([0, BP.lean]) }) } : {}), ...(BP.brace ? { brace: BP.brace } : {}), ...(added.tail || added.tails ? Object.fromEntries(Object.keys(TAIL_POSES).filter((k) => k !== 'stow').map((k) => [k, Object.freeze({ knee: base.stances[base.rest].knee ?? 45, tail: k })])) : {}), ...(BP.stances ?? {}) }),
         ...(base.dress ? { dress: Object.freeze({ ...base.dress, kit: Object.freeze(base.dress.kit.filter((k) => k.body !== 'pack')) }) } : {}),
       } : {}),
     }));
@@ -377,7 +389,7 @@ export function massOf(archetype, joints, root = { R: I3, t: [0, 0, 0] }, { ride
 
 // ── poses ───────────────────────────────────────────────────────────────────
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const STANCE_KEYS = Object.freeze(['knee', 'height', 'track', 'fore', 'sway', 'feet', 'arms', 'packArms', 'load', 'loadOn', 'tail', 'aim', 'roll', 'pitch']);
+const STANCE_KEYS = Object.freeze(['knee', 'height', 'track', 'fore', 'sway', 'feet', 'arms', 'packArms', 'load', 'loadOn', 'tail', 'aim', 'roll', 'pitch', 'spread', 'place', 'launch', 'deploy']);
 const POSED = new Map();
 /**
  * A pose → { stance, joints (degrees), root (the pelvis's frame in the machine's), feet, legs }: a stance's name (the
@@ -430,8 +442,8 @@ export function riderPoints(archetype, pose) {
  * at the archetype's own stances: mecha-laws.js; `laws: false` skips them, for a frame drawn as scenery), the measures
  * as it stands, the rider's points, the BOM.
  */
-export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish = true, title, laws: read = true, task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons, role } = {}) {
-  const archetype = composeFrame(archetypeIn, { task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons, role });
+export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish = true, title, laws: read = true, task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons, role, drones, drone } = {}) {
+  const archetype = composeFrame(archetypeIn, { task, tools, arms, packTask, packTools, packMaker, cabin, slits, backpack, weapons, role, drones, drone });
   const ctx = mechaCtx(archetype), arch = ctx.arch, P = posedFrame(archetype, pose);
   const chain = solveChain(arch, P.joints, ctx), root = P.root;
   const src = (e, part) => resolveMechaPart(e.sku, { archetype, side: e.side, part: part ?? e.part, palette, colors, finish });
@@ -442,10 +454,14 @@ export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish 
   const items = [];
   for (const e of arch.layout) if (!isStrut(e)) items.push(place(e.id, src(e), chain.frames[e.id]));
   for (const s of chain.struts) items.push(place(s.item, src(ctx.entry(s.id), s.kind), s.frame));
+  // (its drones in its legs' bays, carried with their segments; launched at a stance that launches them)
+  const launched = !!(typeof pose === 'string' ? arch.stances[pose]?.launch : isObj(pose) && pose.launch), carried = arch.drones ? dronesAt(arch, ctx, worldFrames(chain.frames, root), { launch: launched }) : [];
+  const craft = arch.drones ? droneItems(carried, arch.drones.kind, arch.drones.look) : [];
+  items.push(...craft);
   const manifest = { kind: 'assembler', title: title || `${arch.label} (${arch.classOf})`, units: 'm', items };
   const laws = read ? lawsOf(archetype) : null;
   // (a ram counts once: its rod is its barrel's)
-  const bom = planAssemblyBom(items.filter((it) => !/\.rod$/.test(it.id)).map((it) => ({ garage: { kind: it.source.garage.kind } })), arch.bom);
+  const bom = planAssemblyBom(items.filter((it) => !/\.rod$/.test(it.id) && !/^drone\d+\./.test(it.id)).map((it) => ({ garage: { kind: it.source.garage.kind } })), arch.bom);
   const M = massOf(archetype, P.joints, root, { load: P.load, loadOn: P.loadOn });
   return {
     manifest,
@@ -458,6 +474,7 @@ export function assembleFrame(archetypeIn, { pose, palette, colors = {}, finish 
       ...(arch.cabin ? { cabin: arch.cabin, ...(arch.slits ? { slits: arch.slits } : {}) } : {}),
       ...(arch.backpack ? { backpack: arch.backpack, weapons: arch.weapons } : {}), ...(arch.role ? { role: arch.role } : {}),
       ...(arch.wheels ? { mode: P.stance === 'roll' || pose?.roll ? 'rolling' : 'walking' } : {}),
+      ...(arch.drones ? { drones: { kind: arch.drones.kind, look: arch.drones.look, count: carried.length, bays: (arch.docks ?? []).length, ...(launched ? { launched: true } : {}) } } : {}),
       label: arch.label,
       classOf: arch.classOf,
       pose: typeof pose === 'string' ? pose : pose ? P.stance : arch.rest,
@@ -491,6 +508,7 @@ export function lawsOf(archetype) {
     shape: (sku, side, part) => partShape(archetype, sku, side, part),
     frames: (joints, root) => worldFrames(framesOf(ctx.arch, joints, ctx), root),
     tool: (S, set) => toolOf(archetype, S, set),
+    drones: (joints, root, launch) => dronesAt(ctx.arch, ctx, worldFrames(framesOf(ctx.arch, joints, ctx), root), { launch }),
   });
 }
 

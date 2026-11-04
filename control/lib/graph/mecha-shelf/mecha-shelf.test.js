@@ -13,6 +13,7 @@ import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
 import { MECHA_BACKPACKS, MECHA_ROLES, MECHA_WEAPONS, TAIL_POSES } from './mecha-backpacks.js';
 import { MECHA_ARCHETYPES, MECHA_MAKERS, MECHA_MAKER_IDS, MECHA_ODM, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS, assembleFrame, composeFrame, frameRow, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, partShape, posedFrame, resolveMechaPart, riderPoints } from './index.js';
 import { readMechaSpec } from './mecha-figure.js';
+import { DRONE_ARCHETYPES } from '../craft-shelf/drone-archetypes.js';
 import { dressFaces } from './mecha-military.js';
 import { MECHA_PALETTES } from './mecha-common.js';
 
@@ -565,6 +566,70 @@ describe('mecha shelf: a frame twice and more the rover, its cockpit on a keel, 
       expect(P.clamped).toEqual([]);
     }
     expect(law(siege, 'tailTorque').ok).toBe(true);
+  });
+});
+
+describe('mecha shelf: a four-legged frame standing on its drones\' bays', () => {
+  // (the frame with four legs and drones' bays, chosen in code)
+  const brood = Object.keys(MECHA_ARCHETYPES).find((k) => Object.keys(MECHA_ARCHETYPES[k].legs).length === 4 && MECHA_ARCHETYPES[k].docks), Ab = MECHA_ARCHETYPES[brood];
+  const law = (k, id) => lawsOf(k).laws.find((l) => l.id === id);
+  const drive = Object.keys(Ab.stances).find((k) => Ab.stances[k].place === 'tuck'), launch = Object.keys(Ab.stances).find((k) => Ab.stances[k].launch);
+  it('stands on four feet where its stance asks, soles flat, its columns upright, every law holding', () => {
+    const ctx = mechaCtx(brood), P = posedFrame(brood, Ab.rest), F = framesOf(ctx.arch, P.joints, ctx);
+    for (const [k, L] of Object.entries(Ab.legs)) {
+      const sole = apply(F[L.foot], ctx.hp(L.foot, 'sole'));
+      expect(sole[0] + P.root.t[0]).toBeCloseTo(L.at[0], 2);
+      expect(sole[1] + P.root.t[1]).toBeCloseTo(L.at[1], 2);
+      expect(sole[2] + P.root.t[2]).toBeCloseTo(0, 2);
+      expect(Math.abs(F[L.foot].R[2][2])).toBeGreaterThan(0.999);
+      // (its tall segment near upright: the hull carried high in the middle, its machinery low)
+      expect(Math.abs(F[L.pitch].R[2][2])).toBeGreaterThan(0.95);
+      expect(F[L.knee].t[2] + P.root.t[2]).toBeLessThan(P.root.t[2] / 2);
+      void k;
+    }
+    expect(P.clamped).toEqual([]);
+    expect(law(brood, 'sway').says).toMatch(/on 3 feet/);
+    expect(lawsOf(brood).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+  });
+  it('tucks its bays in along its hull and drives on their wheels, lower than it stands', () => {
+    const ctx = mechaCtx(brood), P = posedFrame(brood, drive), F = framesOf(ctx.arch, P.joints, ctx);
+    for (const L of Object.values(Ab.legs)) {
+      const c = apply(F[L.foot], [0, 0, 0]);
+      expect(c[0]).toBeCloseTo(L.tuck.at[0], 2);
+      expect(c[1]).toBeCloseTo(L.tuck.at[1], 2);
+      // (its bay's length along the hull)
+      expect(Math.abs(F[L.foot].R[1][1])).toBeGreaterThan(0.999);
+    }
+    expect(P.root.t[2]).toBeLessThan(posedFrame(brood, Ab.rest).root.t[2]);
+    for (const id of ['rollContact', 'rollClearance', 'rollStability']) expect(law(brood, id).ok).toBe(true);
+  });
+  it('carries the craft shelf\'s drones in its bays, launched out of them with their hatches open, clear of it', () => {
+    const { readout, manifest } = assembleFrame(brood, { pose: launch, laws: false });
+    expect(readout.drones).toMatchObject({ kind: Ab.drones.kind, count: Ab.docks.length, launched: true });
+    expect(manifest.items.filter((it) => /^drone0\./.test(it.id)).length).toBeGreaterThan(3);
+    const P = posedFrame(brood, launch), hatches = Object.entries(Ab.joints).filter(([, J]) => J.when?.launch);
+    for (const [k, J] of hatches) expect(P.joints[k]).toBe(J.when.launch);
+    expect(posedFrame(brood, Ab.rest).joints[hatches[0][0]]).toBe(0);
+    for (const id of ['droneGround', 'droneClear']) expect(law(brood, id).ok).toBe(true);
+    // (how many it carries, and which: the operator's; more than its bays, or a frame without bays, refused)
+    const other = Object.keys(DRONE_ARCHETYPES).find((k) => k !== Ab.drones.kind && DRONE_ARCHETYPES[k].bom?.['drone-rotor']);
+    const few = composeFrame(brood, { drones: 2, drone: other });
+    expect(frameRow(few).drones).toMatchObject({ count: 2, kind: other });
+    expect(assembleFrame(few, { laws: false }).readout.drones.count).toBe(2);
+    expect(() => composeFrame(brood, { drones: Ab.docks.length + 1 })).toThrow(/bays/);
+    expect(() => composeFrame(brood, { drone: 'kite' })).toThrow(/drone 'kite'/);
+    expect(() => composeFrame(Object.keys(MECHA_ARCHETYPES).find((k) => !MECHA_ARCHETYPES[k].docks), { drones: 1 })).toThrow(/no drones' bays/);
+  });
+  it('takes a backpack in its abdomen that hides a folding solar array, spread at its own stance', () => {
+    const name = Ab.backpacks.find((b) => MECHA_BACKPACKS[b].array), key = composeFrame(brood, { backpack: name });
+    const A = frameRow(key), deploy = Object.keys(A.stances).find((k) => A.stances[k].deploy);
+    const stowed = posedFrame(key, A.rest), spread = posedFrame(key, deploy);
+    const panels = Object.entries(A.joints).filter(([k]) => /^panel/.test(k));
+    expect(panels.some(([k]) => Math.abs(stowed.joints[k]) >= 90)).toBe(true);
+    for (const [k] of panels) expect(spread.joints[k]).toBe(0);
+    expect(spread.joints.mast).toBeGreaterThan(stowed.joints.mast);
+    expect(law(key, 'solarArea').ok).toBe(true);
+    expect(lawsOf(key).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
   });
 });
 

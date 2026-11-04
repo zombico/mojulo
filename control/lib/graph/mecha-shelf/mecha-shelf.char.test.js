@@ -141,6 +141,19 @@ const PINS = {
   'aampod-wpn': 'b97979e1e07b05d4',
   'cargo-wpn': '0decc2991b339e78',
   'winch-wpn': '8632112e37ab33d1',
+  'abdomen-bw': '2a0d7799051644b1',
+  'ankle-bw': '29318c12867f81ec',
+  'column-bw': '607c956d90ec5d54',
+  'coxa-bw': 'b2d3cc982cfa5b21',
+  'elytron-bw': '9788e8026f270b2d',
+  'hatch-bw': 'ffbbbf0370d9003b',
+  'hub-bw': 'a0569050ab9cdf08',
+  'mast-bw': '7b0b4e988272498b',
+  'panel-bw': '8850fdc9f1724189',
+  'pelvis-bw': '12e10cb0d63ee850',
+  'pod-bw': '0a0f7455e7e046df',
+  'solar-bw': '5b5600f711cc0ee1',
+  'tibia-bw': 'b1a41fb35f7b9a7d',
   'thigh-sw': '08b637f4320f16d1',
 };
 const LEFT = 'c9882af91b6cf973';
@@ -154,6 +167,7 @@ const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
 const SIEGE = ['9a1b7f9ff8b5e291', '8f0a988a084d563e'];
+const BROOD = ['75165c0530cb8e27', '9c43094d7286477a', '561ac09d62d009a7'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');
@@ -191,6 +205,11 @@ describe('mecha shelf: characterization', () => {
   it('pins a frame with twin tails walking and collapsed', () => {
     const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].tails);
     expect([hash(assembleFrame(id, { laws: false }).manifest), hash(assembleFrame(id, { pose: 'roll', laws: false }).manifest)]).toEqual(SIEGE);
+  });
+  it('pins a four-legged frame standing, launching its drones and driving', () => {
+    const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].docks), A = MECHA_ARCHETYPES[id];
+    const launch = Object.keys(A.stances).find((k) => A.stances[k].launch), drive = Object.keys(A.stances).find((k) => A.stances[k].place === 'tuck');
+    expect([A.rest, launch, drive].map((pose) => hash(assembleFrame(id, { pose, laws: false }).manifest))).toEqual(BROOD);
   });
   it('pins a dressed frame\'s faces in its dress', () => {
     const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].dress), { manifest, readout } = assembleFrame(id, { finish: false, laws: false });

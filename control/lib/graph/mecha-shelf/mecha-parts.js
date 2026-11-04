@@ -15,6 +15,7 @@
 import { CON_BUILDERS } from '../construction-shelf/con-parts.js';
 import { TOOL_BUILDERS } from './mecha-tools-parts.js';
 import { houseBuilders } from './mecha-house-parts.js';
+import { broodBuilders } from './mecha-brood-parts.js';
 import { fieldBuilders } from './mecha-field-parts.js';
 import { backpackBuilders } from './mecha-backpack-parts.js';
 import { ramParts } from '../construction-shelf/con-chain.js';
@@ -549,24 +550,28 @@ function pack(row, C) {
 // (a design house's parts: the shelf's own redressed, mecha-house-parts.js)
 const HOUSE = houseBuilders({ boss, legBeam, plateBox, shoulder, upperarm, forearm });
 const SHOULDERS = { armoured: armouredShoulder, ...HOUSE.shoulder };
-const PACKS = { giant: giantPack, ...HOUSE.pack, rack: (row, C, ctx) => FIELD.pack(row, C, ctx), weapons: (row, C, ctx) => BACK.pack(row, C, ctx) };
+const PACKS = { giant: giantPack, ...HOUSE.pack, rack: (row, C, ctx) => FIELD.pack(row, C, ctx), weapons: (row, C, ctx) => BACK.pack(row, C, ctx), abdomen: (row, C, ctx) => BROOD.pack(row, C, ctx), solar: (row, C, ctx) => BROOD.solarPack(row, C, ctx) };
 const BEAMS = new Set(['plated', 'tube', 'truss', 'sealed']);
 // (the field walker's parts: the walker's own hardened for rugged ground, mecha-field-parts.js)
 const FIELD = fieldBuilders({ slab, sgn, rounded, plate, lerp3, pelvis, thigh, shank, ankle, cage, pack });
 // (the backpacks' parts, mecha-backpack-parts.js)
 const BACK = backpackBuilders({ boss, legBeam, plateBox, sgn, pack });
+// (the brood walker's parts, mecha-brood-parts.js)
+const BROOD = broodBuilders({ slab, sgn, boss, legBeam, plateBox });
 const by = (family, own, base) => (row, C, ctx) => (row.build.family === family ? own : base)(row, C, ctx);
 
 export const MECHA_BUILDERS = Object.freeze({
-  'mecha-pelvis': (row, C, ctx) => ({ armoured: FIELD.pelvis, keeled: FIELD.keeledPelvis }[row.build.family] ?? pelvis)(row, C, ctx),
-  'mecha-hip': hip,
-  'mecha-yoke': yoke,
-  'mecha-thigh': (row, C, ctx) => ({ guarded: FIELD.thigh, plated: FIELD.platedThigh }[row.build.family] ?? thigh)(row, C, ctx),
-  'mecha-shank': (row, C, ctx) => ({ guarded: FIELD.shank, wheeled: FIELD.wheeledShank }[row.build.family] ?? shank)(row, C, ctx),
-  'mecha-ankle': by('wheeled', FIELD.wheeledAnkle, ankle),
-  'mecha-foot': (row, C, ctx) => ({ lugged: FIELD.foot, clawed: FIELD.clawedFoot }[row.build.family] ?? foot)(row, C, ctx),
+  'mecha-pelvis': (row, C, ctx) => ({ armoured: FIELD.pelvis, keeled: FIELD.keeledPelvis, hangar: BROOD.pelvis }[row.build.family] ?? pelvis)(row, C, ctx),
+  'mecha-hip': by('coxa', BROOD.hip, hip),
+  'mecha-yoke': by('hub', BROOD.yoke, yoke),
+  'mecha-thigh': (row, C, ctx) => ({ guarded: FIELD.thigh, plated: FIELD.platedThigh, column: BROOD.thigh }[row.build.family] ?? thigh)(row, C, ctx),
+  'mecha-shank': (row, C, ctx) => ({ guarded: FIELD.shank, wheeled: FIELD.wheeledShank, strut: BROOD.shank }[row.build.family] ?? shank)(row, C, ctx),
+  'mecha-ankle': (row, C, ctx) => ({ wheeled: FIELD.wheeledAnkle, bug: BROOD.ankle }[row.build.family] ?? ankle)(row, C, ctx),
+  'mecha-foot': (row, C, ctx) => ({ lugged: FIELD.foot, clawed: FIELD.clawedFoot, bay: BROOD.foot }[row.build.family] ?? foot)(row, C, ctx),
   'mecha-toe': (row, C, ctx) => FIELD.toe(row, C, ctx),
   'mecha-wheel': (row, C, ctx) => FIELD.wheel(row, C, ctx),
+  'mecha-door': (row, C, ctx) => BROOD.door(row, C, ctx),
+  'mecha-solar': (row, C, ctx) => BROOD.solar[row.build.family](row, C, ctx),
   'mecha-seat': (row, C, ctx) => (row.build.family === 'seated' ? station : seat)(row, C, ctx),
   'mecha-cage': (row, C, ctx) => ({ torso, cab, field: FIELD.cage, armoured: FIELD.cabin }[row.build.family] ?? cage)(row, C, ctx),
   'mecha-shoulder': (row, C, ctx) => (SHOULDERS[row.build.family] ?? shoulder)(row, C, ctx),

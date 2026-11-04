@@ -38,7 +38,8 @@
  * arm pack's `packTask` ('heavyLift', 'disasterResponse') and `packTools` ({ r, l }) its giant arms, and `packMaker`
  * ('forge', 'aero') the design house whose pack it carries, a frame's `cabin` ('armoured') and its `slits` ('shut'), its
  * `backpack` ('weapons', 'recon', 'support', 'airDefence') and that backpack's `weapons` ({ r: 'minigun', l: 'rocketPod' }),
- * or a `role` ('assault', 'recon', 'resupply', 'airDefence': a backpack, its payloads and its cabin), and
+ * or a `role` ('assault', 'recon', 'resupply', 'airDefence': a backpack, its payloads and its cabin), a frame with
+ * drones' bays its `drones` (how many, 0 to 8) and its `drone` (the craft shelf's: 'heavyHex', 'inspectionQuad'), and
  * a dressed frame's `livery` ('woodland', a camo) and `wear` ('battered') (mecha-shelf/mecha-figure.js, mecha-tools.js, mecha-gap-makers.js, mecha-military.js).
  *
  * Stored manifest: { kind:'vehicle-instance', vehicle?, type | racer | supercar | loft | cycle | construction | mecha, decoration?, pose?, viewBox?, title? }
@@ -156,7 +157,7 @@ export async function previewVehicleInstanceHandler(input) {
   } else if (read.instance.mecha) {
     // a legged frame's words beside its word (mecha-shelf/mecha-figure.js): its stance, its palette, its rider seated, a
     // modular frame's task, tools and arms
-    for (const key of ['pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools', 'packMaker', 'cabin', 'slits', 'backpack', 'weapons', 'role', 'livery', 'wear']) if (input[key] !== undefined) read.instance.mecha = { ...read.instance.mecha, [key]: input[key] };
+    for (const key of ['pose', 'palette', 'rider', 'task', 'tools', 'arms', 'packTask', 'packTools', 'packMaker', 'cabin', 'slits', 'backpack', 'weapons', 'role', 'drones', 'drone', 'livery', 'wear']) if (input[key] !== undefined) read.instance.mecha = { ...read.instance.mecha, [key]: input[key] };
     readMechaSpec(read.instance.mecha, 'mint_solid vehicle: mecha');
     pose = undefined;
     for (const key of ['tool', 'carrier', 'height']) if (input[key] !== undefined) throw new Error(`mint_solid vehicle: a ${key} is a site machine's (an excavator: { vehicle: 'excavator', tool: 'breaker' }); this build has none`);

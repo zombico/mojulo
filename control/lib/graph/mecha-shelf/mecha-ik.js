@@ -39,6 +39,10 @@ import { framesOf } from '../construction-shelf/con-chain.js';
 import { TAIL_POSES } from './mecha-backpacks.js';
 
 const SIDES = Object.freeze(['r', 'l']);
+/** A frame's legs by their keys: a biped's 'r' and 'l', a four-legged frame's its own ('fr', 'fl', 'rr', 'rl'). */
+export const legKeys = (arch) => Object.keys(arch.legs);
+/** A leg's hand: its side's, its key's for a biped. */
+const handOf = (arch, K) => arch.legs[K].side ?? K;
 
 /** A leg's numbers, read from its built parts: the hip's yaw axis on the pelvis, the roll pivot below it (a1), the pitch
  *  axle below that (a2), the thigh's and the shank's lengths, the ankle's height over the sole. */
@@ -54,6 +58,8 @@ export function legGeometry(arch, ctx, S) {
     l2: Math.hypot(hp(g.knee, 'ankle')[1], hp(g.knee, 'ankle')[2]),
     e2: Math.atan2(hp(g.knee, 'ankle')[1], -hp(g.knee, 'ankle')[2]),
     hS: -hp(g.foot, 'sole')[2],
+    // (the heading its leg's plane is mounted at, degrees: a splayed leg's; 0, a biped's, ahead)
+    mount: g.mount ?? 0,
   };
 }
 
@@ -220,13 +226,20 @@ function rollAt(arch, ctx, stance, range) {
 /** A clawed foot's toes: flat (0), or `curl`ed, each knuckle to its clench. */
 const toesAt = (arch, curl) => Object.fromEntries(Object.values(arch.toes ?? {}).flatMap((T) => T.joints.map((j) => [j, curl ? arch.joints[j].curl : 0])));
 
+/** The joints a stance's flags set (a bay's hatches open to `launch`, an array spread to `deploy`): each its value at
+ *  the flag the stance raises (`when`), else its rest (`at`, 0 unless it says). */
+const flagsAt = (arch, stance) => Object.fromEntries(Object.entries(arch.joints).filter(([, J]) => J.when || J.at !== undefined).map(([k, J]) => [k, Object.entries(J.when ?? {}).find(([f]) => stance[f])?.[1] ?? J.at ?? 0]));
+
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A stance's feet on the ground: each foot's sole centre, its lift and its heading. */
 function feetOf(arch, st) {
   const track = st.track ?? arch.track, fore = st.fore ?? 0, out = {};
-  for (const S of SIDES) {
-    const f = st.feet?.[S] ?? {}, s = S === 'r' ? 1 : -1;
-    out[S] = { x: f.x ?? s * track / 2, y: (f.y ?? 0) + fore, lift: f.lift ?? 0, yaw: f.yaw ?? 0 };
+  for (const S of legKeys(arch)) {
+    // (a leg's foot at its rest place (`at`, a splayed leg's, its stance's `spread` times it), or at the track's half
+    // to its side)
+    // (or, `place: 'tuck'`, at the place and the heading its leg tucks it to: a four-legged frame's driving stance)
+    const f = st.feet?.[S] ?? {}, s = handOf(arch, S) === 'r' ? 1 : -1, T = st.place === 'tuck' ? arch.legs[S].tuck : null, at = T ? T.at : arch.legs[S].at, k = T ? 1 : st.spread ?? 1;
+    out[S] = { x: f.x ?? (at ? at[0] * k : s * track / 2), y: (f.y ?? 0) + (at ? at[1] * k : 0) + fore, lift: f.lift ?? 0, yaw: (f.yaw ?? 0) + (T ? T.yaw : 0) };
   }
   return out;
 }
@@ -234,10 +247,11 @@ function feetOf(arch, st) {
 /** The joints of both legs with the pelvis at `t` (level) and the feet where `feet` sets them. */
 function legsAt(arch, Gs, feet, t) {
   const joints = {}, legs = {};
-  for (const S of SIDES) {
+  for (const S of legKeys(arch)) {
     const G = Gs[S], f = feet[S], A = [f.x - t[0], f.y - t[1], f.lift + G.hS - t[2]];
-    const leg = solveLeg(G, A, f.yaw, arch.bend), J = arch.legs[S].joints;
-    for (const [k, v] of Object.entries(leg.values)) joints[J[k]] = v;
+    const leg = solveLeg(G, A, G.mount + f.yaw, arch.bend), J = arch.legs[S].joints, sign = arch.legs[S].yawSign;
+    // (a leg mounted turned: its yaw drive's value from its mounting, in its drive's sense)
+    for (const [k, v] of Object.entries(leg.values)) joints[J[k]] = k === 'yaw' && sign ? (v - G.mount) * sign : v;
     legs[S] = { reach: leg.reach, over: leg.over, knee: leg.values.knee };
   }
   return { joints, legs };
@@ -246,8 +260,8 @@ function legsAt(arch, Gs, feet, t) {
 /** The pelvis's height at which the more bent leg's knee is `k` degrees (the knee straightens as the pelvis rises), or
  *  the stance leg's when one foot is lifted. */
 function heightForKnee(arch, Gs, feet, k, xy) {
-  const stance = SIDES.filter((S) => feet[S].lift < 1e-9), legsOf = stance.length === 1 ? stance : SIDES;
-  const G = Gs.r, lo0 = G.hS + G.a1 + G.a2 + Math.abs(G.l1 - G.l2) + 0.02, hi0 = G.hS + G.a1 + G.a2 + G.l1 + G.l2;
+  const all = legKeys(arch), stance = all.filter((S) => feet[S].lift < 1e-9), legsOf = stance.length < all.length && stance.length ? stance : all;
+  const G = Gs[all[0]], lo0 = G.hS + G.a1 + G.a2 + Math.abs(G.l1 - G.l2) + 0.02, hi0 = G.hS + G.a1 + G.a2 + G.l1 + G.l2;
   let lo = lo0, hi = hi0;
   const bend = (z) => { const { legs } = legsAt(arch, Gs, feet, [xy[0], xy[1], z]); return Math.max(...legsOf.map((S) => legs[S].knee)); };
   for (let i = 0; i < 48; i++) { const m = (lo + hi) / 2; if (bend(m) > k) lo = m; else hi = m; }
@@ -265,10 +279,13 @@ export function solveStance(arch, ctx, stance, { com, stand, range } = {}) {
     if (typeof range !== 'function') throw new Error('mecha stance: rolling needs its joints\' ranges');
     return rollAt(arch, ctx, stance, range);
   }
-  const Gs = Object.fromEntries(SIDES.map((S) => [S, legGeometry(arch, ctx, S)]));
+  const Gs = Object.fromEntries(legKeys(arch).map((S) => [S, legGeometry(arch, ctx, S)]));
   const feet = feetOf(arch, stance), arms = { ...armsAt(arch, ctx, stance.arms ?? 'rest'), ...armsAt(arch, ctx, stance.packArms ?? 'stow', 'packArms') };
   const withArms = (j) => ({ ...j, ...arms });
-  let xy = Array.isArray(stance.sway) ? [stance.sway[0], stance.sway[1]] : [0, 0];
+  // (a sway over feet: a leg's key, or a set of them (a four-legged frame on three), the centre of mass carried over
+  // their soles' centre; or [dx, dy] metres)
+  const over = typeof stance.sway === 'string' && arch.legs[stance.sway] ? [stance.sway] : Array.isArray(stance.sway) && stance.sway.every((k) => typeof k === 'string' && arch.legs[k]) ? stance.sway : null;
+  let xy = Array.isArray(stance.sway) && !over ? [stance.sway[0], stance.sway[1]] : [0, 0];
   const heightOf = () => {
     if (stance.height === 'stand') { if (!Number.isFinite(stand)) throw new Error('mecha stance: \'stand\' height needs the standing stance'); return stand; }
     if (Number.isFinite(stance.height)) return stance.height;
@@ -276,9 +293,9 @@ export function solveStance(arch, ctx, stance, { com, stand, range } = {}) {
     throw new Error('mecha stance: say the pelvis\'s height (metres, or \'stand\') or the knee\'s bend it is set by (degrees)');
   };
   let z = heightOf(), solved = legsAt(arch, Gs, feet, [xy[0], xy[1], z]);
-  if (stance.sway === 'r' || stance.sway === 'l') {
+  if (over) {
     if (typeof com !== 'function') throw new Error('mecha stance: a sway over a sole needs the frame\'s centre of mass');
-    const f = feet[stance.sway];
+    const f = { x: over.reduce((a, k) => a + feet[k].x, 0) / over.length, y: over.reduce((a, k) => a + feet[k].y, 0) / over.length };
     // (the pelvis carried until the centre of mass stands over the sole's centre: a few passes, the legs re-solved each)
     for (let i = 0; i < 8; i++) {
       const c = com(withArms(solved.joints), { R: I3, t: [xy[0], xy[1], z] }, stance.load ?? 0, stance.loadOn);
@@ -291,5 +308,5 @@ export function solveStance(arch, ctx, stance, { com, stand, range } = {}) {
   }
   // (a backpack's payloads aimed, its tail at its pose: what it reaches is where the payloads stand)
   const payloads = payloadsAt(arch, stance.aim), tail = tailAt(arch, ctx, stance.tail ?? 'stow', { ...solved.joints, ...arms, ...payloads });
-  return { joints: { ...solved.joints, ...arms, ...payloads, ...tail.values, ...toesAt(arch, false) }, root: { R: I3, t: [xy[0], xy[1], z] }, feet, legs: solved.legs, load: stance.load ?? 0, loadOn: stance.loadOn ?? 'arms', ...(arch.tail || arch.tails ? { tailReach: tail.reach } : {}) };
+  return { joints: { ...solved.joints, ...arms, ...payloads, ...tail.values, ...toesAt(arch, false), ...flagsAt(arch, stance) }, root: { R: I3, t: [xy[0], xy[1], z] }, feet, legs: solved.legs, load: stance.load ?? 0, loadOn: stance.loadOn ?? 'arms', ...(arch.tail || arch.tails ? { tailReach: tail.reach } : {}) };
 }

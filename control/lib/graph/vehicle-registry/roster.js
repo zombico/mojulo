@@ -305,6 +305,10 @@ export const VEHICLES = {
   // missile launcher on its back served by twin scorpion tails)
   'siege-walker': row('siege walker', ['walking fortress', 'artillery walker', 'howitzer walker', 'siege mech', 'heavy rover walker', 'mobile fortress', 'six wheel walker', 'land cruiser walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
     { mecha: 'siegeWalker', tech: 'walker' }),
+  // (a big four-legged drone carrier: its hull a single hangar, its feet rounded bays on wheels, two drones in each; it
+  // walks as an insect does, tall on its bays, or tucks them in along its hull and drives on them)
+  'brood-walker': row('brood walker', ['bug mom', 'drone mother', 'drone carrier walker', 'drone walker', 'mothership walker', 'hangar walker', 'quad walker carrier', 'four legged drone carrier'], 'offroad', 'transport', F, ['driven', 'parked', 'watched'],
+    { mecha: 'broodWalker', tech: 'walker' }),
   // (a general-purpose work frame on the same shelf: its operator seated in a torso frame, knee-forward legs, two arms
   // on rams for the lifting)
   'utility-walker': row('utility walker', ['work walker', 'walking work frame', 'power frame', 'work frame', 'lifting walker', 'cargo walker', 'loader walker', 'walking loader'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
