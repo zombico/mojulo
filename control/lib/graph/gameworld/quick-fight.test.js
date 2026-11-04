@@ -28,17 +28,19 @@ describe('quick: the fight goal', () => {
     expect(runSteps(world, { ref: 'gw_fight' })).toEqual(steps);
   });
 
-  it('a fight made now strikes with each character\'s own punches, in the game and its arenas; one minted before as it did', () => {
-    const world = quickWorld({ id: 'own', quick: { goal: 'fight', roster: ['hero', { id: 'mira', hero: { ref: 'mira-ref' }, moves: { 'stand.L': 'jab' } }] } });
+  it('a fight made now: a boxer strikes with its character\'s own punches, in the game and its arenas, every other style its own moves; one minted before as it did', () => {
+    const boxer = { id: 'joe', tradition: 'boxing' };
+    const world = quickWorld({ id: 'own', quick: { goal: 'fight', roster: [boxer, 'hero', { id: 'mira', hero: { ref: 'mira-ref' }, moves: { 'stand.L': 'jab' } }] } });
     expect(world.quick.strikes).toBe('own');
     const steps = runSteps(world, { ref: 'gw_own' }), game = steps.at(-1).order, arena = steps.find((x) => x.key.startsWith('level-arena-')).order.manifest;
-    expect(game.roster.map((e) => e.moves)).toEqual(['hero', { 'stand.L': 'jab' }]);
-    expect(arena.versus.roster.map((e) => e.moves)).toEqual(['hero', { 'stand.L': 'jab' }]);
+    // (the boxer its own; a fighter of another style keeps that style's moves, played on its own body all the same)
+    expect(game.roster.map((e) => e.moves)).toEqual(['hero', undefined, { 'stand.L': 'jab' }]);
+    expect(arena.versus.roster.map((e) => e.moves)).toEqual(['hero', undefined, { 'stand.L': 'jab' }]);
     // (the keyed moves when asked; and a fight stored before the word, which carries none)
-    const keyed = runSteps(quickWorld({ id: 'keyed', quick: { goal: 'fight', strikes: 'tradition', roster: ['hero'] } }), { ref: 'gw_keyed' }).at(-1).order;
+    const keyed = runSteps(quickWorld({ id: 'keyed', quick: { goal: 'fight', strikes: 'tradition', roster: [boxer] } }), { ref: 'gw_keyed' }).at(-1).order;
     expect(keyed.roster[0].moves).toBeUndefined();
     const { strikes: _s, ...before } = world.quick;
-    const old = runSteps({ ...world, quick: { ...before, roster: ['hero'] } }, { ref: 'gw_before' });
+    const old = runSteps({ ...world, quick: { ...before, roster: [boxer] } }, { ref: 'gw_before' });
     expect(old.at(-1).order.roster[0].moves).toBeUndefined();
     expect(old.filter((x) => x.key.startsWith('level-arena-')).map((x) => x.key)).toEqual(['level-arena-plaza', 'level-arena-nave']);
     expect(() => readQuick({ goal: 'fight', strikes: 'mine' })).toThrow(/strikes is 'own'/);

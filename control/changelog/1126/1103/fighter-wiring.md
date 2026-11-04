@@ -108,10 +108,11 @@ Every hero naming none of the new words is the hero it was. The eyes gate is the
   lights (a warm key, a cool fill, a rim, a sky; on the ring a spot over the canvas); the page's pack had baked a studio
   light into its colours and drawn it unlit, so the muscles read flat and the seams between its parts showed.
 - **A fighting game with your own characters, by default** (the quick `fight` goal's `strikes`): a fight made now is
-  stamped `strikes: 'own'`, so every fighter, a sheet the run makes into a character or one already made, throws its
-  own punches (`moves: 'hero'` on its entry in the game's roster and each arena's) and is played in its own body;
-  `strikes: 'tradition'` keeps the keyed moves, a fighter's own `moves` win, and a fight minted before carries none and
-  fights as it did. The fight goal's card says it.
+  stamped `strikes: 'own'`, so a boxer (`tradition: 'boxing'`), a sheet the run makes into a character or one already
+  made, throws its own punches (`moves: 'hero'` on its entry in the game's roster and each arena's); every other
+  fighter keeps its style's or its tradition's moves (a grappler's own punches had overwritten five of its slots), and
+  every character is played in its own body either way; `strikes: 'tradition'` keeps the keyed moves for all, a
+  fighter's own `moves` win, and a fight minted before carries none and fights as it did. The fight goal's card says it.
 - **The fighter's body rail**: `lowerBody` keeps the `muscular` rail's anime codename under a hero spec that names the
   realistic head (that pair was refused before), and leaves it off the landmark head as before.
 - **Seen, not fixed**: the realistic head's neck on the codename's frame is an ordinary man's (386 mm on Toji; the anime

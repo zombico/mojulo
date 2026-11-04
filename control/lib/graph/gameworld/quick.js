@@ -130,11 +130,12 @@
  *                                           // fighters shown as they were made (a plaza and a nave if absent; a fight
  *                                           // striking its own way opens in the ring first)
  *     rounds?: n, timer?: n,                // fight: rounds to win (1 to 3, 2) and seconds a round (30 to 99, 99)
- *     strikes?: 'own' | 'tradition',        // fight: 'own' (stamped at mint) every fighter throws the punches its character
- *                                           // was made with (versus-hero.js: the jab, the cross, the hook, the body hook, the
- *                                           // uppercut, solved on its own rig) and the arenas play it in its own skinned,
- *                                           // painted body, blocking and taking blows in its guard; 'tradition' the fight's
- *                                           // keyed moves. A fighter's own `moves` (its slots) wins
+ *     strikes?: 'own' | 'tradition',        // fight: 'own' (stamped at mint) a boxer (`tradition: 'boxing'`) throws the
+ *                                           // punches its character was made with (versus-hero.js: the jab, the cross, the
+ *                                           // hook, the body hook, the uppercut, solved on its own rig), blocking and taking
+ *                                           // blows in its guard; every other fighter its style's or tradition's keyed
+ *                                           // moves; 'tradition' the keyed moves for all. Every character is played in its
+ *                                           // own skinned, painted body either way. A fighter's own `moves` (its slots) wins
  *     rules?: { systems?, … },              // fight: the full rules block (versus/versus-core.js readRules): systems (parry,
  *                                           // burst, guard) and the sim's dials; rounds and timer win over it
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
@@ -759,9 +760,9 @@ export function tabletopArenas(Q, { title, seed = 1 } = {}) {
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)
 const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'strikes', 'theme', 'camera', 'screen'];
-/** how a fight's fighters strike (`strikes`): 'own', each character's own punches solved on its rig and played in its own
- * body (versus-hero.js; stamped at mint on a fight made now), or 'tradition', the fight's keyed moves (a fight minted
- * before carries none, and strikes so) */
+/** how a fight's fighters strike (`strikes`): 'own', a boxer's own punches solved on its rig (versus-hero.js; stamped at
+ * mint on a fight made now; every other fighter its style's or tradition's keyed moves), or 'tradition', the fight's
+ * keyed moves for all (a fight minted before carries none, and strikes so) */
 export const FIGHT_STRIKES = Object.freeze(['own', 'tradition']);
 function readFight(Q) {
   for (const k of Object.keys(Q)) {
@@ -769,7 +770,7 @@ function readFight(Q) {
     if (!FIGHT_KEYS.includes(k)) throw fail(`.${k}: a fight takes ${FIGHT_KEYS.join(', ')} (its fighters are its roster)`);
   }
   if (Q.camera !== undefined && Q.camera !== 'side') throw fail('.fight is seen from the side (camera side)');
-  if (Q.strikes !== undefined && !FIGHT_STRIKES.includes(Q.strikes)) throw fail(".strikes is 'own' (each character throws its own punches, played in its own body) or 'tradition' (the fight's keyed moves)");
+  if (Q.strikes !== undefined && !FIGHT_STRIKES.includes(Q.strikes)) throw fail(".strikes is 'own' (a boxer throws its own punches, solved on its rig) or 'tradition' (the fight's keyed moves for all)");
   if (Q.roster !== undefined) {
     if (!Array.isArray(Q.roster) || Q.roster.length < 1 || Q.roster.length > 12) throw fail('.roster is 1 to 12 fighters, each a character: an archetype word, a brief in words, { brief?, facets?, seed?, archetype?, role?, build?, age?, … }, or { hero: { ref } }');
     const ids = new Set();
@@ -848,8 +849,8 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   // a field vehicle is painted in its setting's camo (car-designer/livery-cut.js: a jungle's tiger stripe, a desert's
   // sand), stamped here at mint when the operator names none: a world minted before carries none and stays olive
   const camo = isObj(tiered) && tiered.ride !== undefined ? settingLivery(tiered, { style }) : null;
-  // a fight's fighters throw their own strikes and are played in their own bodies (versus-hero.js), stamped here at mint
-  // when the operator names none: a fight minted before carries none and strikes with the fight's keyed moves
+  // a fight's boxers throw their own strikes (versus-hero.js), stamped here at mint when the operator names none: a fight
+  // minted before carries none and strikes with the fight's keyed moves
   const struck = isObj(tiered) && tiered.goal === 'fight' && tiered.strikes === undefined ? { ...tiered, strikes: 'own' } : tiered;
   const given = camo ? { ...struck, livery: camo } : struck;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
