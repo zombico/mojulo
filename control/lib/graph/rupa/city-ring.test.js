@@ -43,16 +43,4 @@ describe('the geocity\'s physical ring', () => {
   });
 });
 
-describe('in a world', () => {
-  it('a physical geocity with someone in it breaks its near ring by blocks and stamps the load', async () => {
-    const { resolveWorldScene } = await import('../worlds/world-scene.js');
-    const eye = phys.walk.spawn;
-    const hero = { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5 }, transform: { pos: [eye[0], eye[1], eye[2] - 1.7] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } };
-    const P = (await resolveWorldScene({ manifest: { ...M, entities: [hero], destruction: 'physical' }, title: 'city' })).payload;
-    const ring = P.breakables.filter((b) => /^geocity-b\d+:/.test(b.id));
-    expect(ring.length).toBeGreaterThan(10);
-    expect(P.rupaAudit).toMatchObject({ loose: [], crush: [], span: [] });
-    expect(P.rupaAudit.shells.length).toBeGreaterThan(0);
-    expect(P.physicalRing).toBeUndefined();
-  }, 240000);
-});
+// (the ring in a whole world, resolved through world-scene, is city-ring.e2e.test.js: the e2e tier's, it takes minutes)
