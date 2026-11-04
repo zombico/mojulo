@@ -62,7 +62,9 @@
  *     its foot (its knuckles now their own bodies) and the frame re-pinned, the knuckle pinned as a builder path; no
  *     other pin moved.
  *   - The siege walker Mk 1 (the siege walker's first pattern, kept beside it in the library on its own rows, its
- *     cockpit's radar mast drawn again by the armoured cabin's `radar`): the frame pinned whole; no other pin moved.
+ *     cockpit's radar mast drawn again by the armoured cabin's `radar`): the frame pinned whole; no other pin moved. *   - The dressed frame's faces pinned to the micrometre: lowered lathes sweep sin and cos round a whole turn, whose
+ *     last bit differs between arm64 and x64 on one V8 (Apple silicon CI read another hash), so the pin holds the dress
+ *     and not a float's last place. Its emission did not change; its pin re-based to the rounded faces.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -186,7 +188,7 @@ const FRAME = '5d7f243552d47f90';
 const FOUR = 'eed71d6238d7aa3c';
 const HOUSE = '22d1c303d8f1b5ad';
 // (a dressed frame's faces at its rest stance, in its own dress)
-const DRESSED = '11e116ab05219a97';
+const DRESSED = '337e53baeb8a643c';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
 const SIEGE = ['529fd253a691c0fe', '5d3cb8ed7f08799a'];
@@ -241,6 +243,9 @@ describe('mecha shelf: characterization', () => {
   });
   it('pins a dressed frame\'s faces in its dress', () => {
     const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].dress), { manifest, readout } = assembleFrame(id, { finish: false, laws: false });
-    expect(hash(dressFaces({ manifest, anchors: readout.anchors, colors: MECHA_PALETTES[MECHA_ARCHETYPES[id].palette], archetype: id }))).toBe(DRESSED);
+    // (its faces to the micrometre: lowered lathes sweep sin and cos round a whole turn, whose last bit differs between
+    // CPUs on one V8, so the pin holds the dress, not a float's last place)
+    const um = (v) => JSON.parse(JSON.stringify(v, (k, x) => (typeof x === 'number' ? Math.round(x * 1e6) / 1e6 + 0 : x)));
+    expect(hash(um(dressFaces({ manifest, anchors: readout.anchors, colors: MECHA_PALETTES[MECHA_ARCHETYPES[id].palette], archetype: id })))).toBe(DRESSED);
   });
 });
