@@ -178,5 +178,35 @@ export function fieldBuilders(kit) {
     return { ...g, sweeps, hardpoints: { ...g.hardpoints, 'cans.r': [x + 0.012, 0, 0.012], 'cans.l': [-x - 0.012, 0, 0.012], top: [0, 0, top + r] } };
   }
 
-  return { pelvis: armouredPelvis, thigh: guarded(kit.thigh), shank: guarded(kit.shank), foot: luggedFoot, cage: fieldCage, cabin: armouredCabin, pack: rackPack };
+  // ── the rover walker's: a wheel on its knee's axis and ahead of its toe, and the wheels themselves ──────────────
+  function wheeledShank(row, C, ctx) {
+    const g = guarded(kit.shank)(row, C, ctx), s = sgn(ctx.side), W = row.dims.wheel;
+    // (the knee wheel's axle out through the knee's hub, coaxial with it: the wheel turns about the knee's axis; the
+    // knee's rotary drive in a drum on the hub's other side)
+    const lathes = [...g.lathes, spin('kneeDrive', [-s * 0.07, 0, 0], [-s * 0.16, 0, 0], [[0, 0.075], [0.8, 0.075], [1, 0.06]], tone(C.trim, -0.15), 16), spin('wheelAxle', [s * 0.06, 0, 0], [s * (W[0] - 0.08), 0, 0], [[0, 0.032], [1, 0.03]], C.chrome, 12)];
+    return { ...g, lathes, hardpoints: { ...g.hardpoints, wheel: [s * W[0], W[1], W[2]] } };
+  }
+  function wheeledAnkle(row, C, ctx) {
+    const g = kit.ankle(row, C, ctx), s = sgn(ctx.side), W = row.dims.wheel;
+    // (the front wheel's axle out along the ankle's pitch axis: the wheel turns about it whatever the foot does)
+    const lathes = [...g.lathes, spin('wheelAxle', [s * 0.06, 0, 0], [s * (W[0] - 0.08), 0, 0], [[0, 0.03], [1, 0.028]], C.chrome, 12)];
+    return { ...g, lathes, hardpoints: { ...g.hardpoints, wheel: [s * W[0], W[1], W[2]] } };
+  }
+  function atvWheel(row, C, { side }) {
+    const d = row.dims, s = sgn(side), r = d.r, w = d.width, lathes = [], extrudes = [], rubber = C.rubber, lug = tone(C.rubber, 0.1);
+    // (its tyre, round-shouldered; its knobs staggered across the tread; its rim and its hub motor inboard)
+    lathes.push(spin('tyre', [-w / 2, 0, 0], [w / 2, 0, 0], [[0, r * 0.78], [0.1, r * 0.92], [0.25, r - 0.024], [0.75, r - 0.024], [0.9, r * 0.92], [1, r * 0.78]], rubber, 24));
+    for (let i = 0; i < d.lugs; i++) {
+      // (a knob at the bottom, its face the rolling radius: the tyre meets the ground on its knobs)
+      const a = (2 * Math.PI * i) / d.lugs - Math.PI / 2, u = [0, Math.cos(a), Math.sin(a)], t = [0, -Math.sin(a), Math.cos(a)], x = (i % 2 ? 1 : -1) * w * 0.2;
+      const c = [x, u[1] * (r - 0.012), u[2] * (r - 0.012)];
+      extrudes.push(box(`knob_${i}`, add(c, [0, -t[1] * 0.025, -t[2] * 0.025]), add(c, [0, t[1] * 0.025, t[2] * 0.025]), w * 0.42, 0.024, lug, u));
+    }
+    lathes.push(spin('rim', [s * (w / 2 + 0.004), 0, 0], [s * (w / 2 - 0.03), 0, 0], [[0, d.rim * 0.4], [0.3, d.rim], [1, d.rim]], C.paint, 20));
+    lathes.push(spin('hubMotor', [-s * (w / 2 - 0.02), 0, 0], [-s * (w / 2 + 0.07), 0, 0], [[0, 0.11], [0.8, 0.105], [1, 0.08]], tone(C.trim, -0.1), 18));
+    for (let i = 0; i < 5; i++) { const a = (2 * Math.PI * i) / 5, p = [s * (w / 2 + 0.006), Math.cos(a) * 0.055, Math.sin(a) * 0.055]; lathes.push(spin(`nut_${i}`, p, add(p, [s * 0.012, 0, 0]), [[0, 0.011], [1, 0.011]], C.chrome, 6)); }
+    return { lathes, extrudes, hardpoints: {} };
+  }
+
+  return { pelvis: armouredPelvis, thigh: guarded(kit.thigh), shank: guarded(kit.shank), foot: luggedFoot, cage: fieldCage, cabin: armouredCabin, pack: rackPack, wheeledShank, wheeledAnkle, wheel: atvWheel };
 }

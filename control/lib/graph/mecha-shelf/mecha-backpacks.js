@@ -21,11 +21,13 @@
 
 export const MECHA_WEAPONS = Object.freeze({
   minigun: Object.freeze({ sku: 'minigun-wpn', spare: 'ammobox-wpn', label: 'rotary machine gun', mag: 'ammunition box', magMass: 30, recoil: 1200, backblast: 0 }),
+  // (its recoil what its muzzle brake leaves)
+  autocannon: Object.freeze({ sku: 'cannon-wpn', spare: 'cannonmag-wpn', label: 'autocannon', mag: 'box magazine', magMass: 40, recoil: 1600, backblast: 0 }),
   rocketPod: Object.freeze({ sku: 'rockets-wpn', spare: 'rocketpod-wpn', label: 'five-round rocket launcher', mag: 'five-round rocket pod', magMass: 50, recoil: 150, backblast: 2.5 }),
 });
 export const MECHA_WEAPON_IDS = Object.freeze(Object.keys(MECHA_WEAPONS));
 
-export const MECHA_BACKPACKS = Object.freeze({
+const MECHA_BACKPACKS_MUT = {
   weapons: Object.freeze({
     label: 'weapons backpack', sku: 'pack-wpn', mounts: Object.freeze(['r', 'l']),
     takes: Object.freeze(['minigun', 'rocketPod']), loadout: Object.freeze({ r: 'minigun', l: 'rocketPod' }),
@@ -39,7 +41,14 @@ export const MECHA_BACKPACKS = Object.freeze({
     // (laden, a foot is set down a little lower than the bare frame's: its step's band from there)
     laws: Object.freeze({ step: Object.freeze([0.3, 1]), tailTorque: Object.freeze([0, 0.8]), recoil: Object.freeze([0, 0.6]), backblast: Object.freeze([0.3, 9]), fireClear: Object.freeze([0.1, 9]) }),
   }),
+};
+// (its heavier sibling: the same frame and tail, a heavier gun on its right mount; the rover walker carries it as built)
+MECHA_BACKPACKS_MUT.heavyWeapons = Object.freeze({
+  ...MECHA_BACKPACKS_MUT.weapons, label: 'heavy weapons backpack',
+  takes: Object.freeze(['autocannon', 'minigun', 'rocketPod']), loadout: Object.freeze({ r: 'autocannon', l: 'rocketPod' }),
+  mass: 360, swap: Object.freeze({}),
 });
+export const MECHA_BACKPACKS = Object.freeze(MECHA_BACKPACKS_MUT);
 export const MECHA_BACKPACK_IDS = Object.freeze(Object.keys(MECHA_BACKPACKS));
 
 /** The tail's poses: `joints` held as they are, or a service point (`at`: body.hardpoint) reached from above, the head

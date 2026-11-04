@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { apply, ramForce } from './mecha-common.js';
+import { apply, cross, ramForce, sub } from './mecha-common.js';
 import { arcsFor, solveMount } from './mecha-gap-makers.js';
 import { framesOf, rangeOf, solveChain } from '../construction-shelf/con-chain.js';
 import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
@@ -405,6 +405,49 @@ describe('mecha shelf: a functional backpack, its payloads and its service tail'
     expect(() => composeFrame(carrier, { backpack: 'jetpack' })).toThrow(/backpack 'jetpack'/);
     expect(() => composeFrame(Object.keys(MECHA_ARCHETYPES).find((k) => !MECHA_ARCHETYPES[k].backpacks), { backpack: name })).toThrow(/it takes none/);
     expect(readMechaSpec({ archetype: carrier, backpack: name, weapons: { r: BPc.loadout.r } }).backpack).toBe(name);
+  });
+});
+
+describe('mecha shelf: a frame that walks or collapses its legs onto wheels and rolls', () => {
+  // (the frame on wheels, and the frame whose legs it shares the hardening of: the dressed one without wheels)
+  const rover = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].wheels), Ar = MECHA_ARCHETYPES[rover];
+  const walker = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].dress && !MECHA_ARCHETYPES[k].wheels);
+  const roll = Object.keys(Ar.stances).find((k) => Ar.stances[k].roll), law = (k, id) => lawsOf(k).laws.find((l) => l.id === id);
+  const lowest = (pose, ids) => { const P = posedFrame(rover, pose), ctx = mechaCtx(rover), F = framesOf(ctx.arch, P.joints, ctx); return Math.min(...ids.map((id) => { const e = ctx.entry(id); return Math.min(...partShape(rover, e.sku, e.side).corners.map((c) => apply(F[id], c)[2] + P.root.t[2])); })); };
+  it('folds its knees on rotary drives past what its walker\'s knee rams reach', () => {
+    const knee = Ar.legs.r.joints.knee;
+    expect(Ar.joints[knee].drive).toBeTruthy();
+    expect(jointRange(rover, knee)[1]).toBeGreaterThan(jointRange(walker, MECHA_ARCHETYPES[walker].legs.r.joints.knee)[1] + 30);
+  });
+  it('carries each wheel coaxial with a joint: the knee\'s, the ankle\'s', () => {
+    const ctx = mechaCtx(rover), P = posedFrame(rover, Ar.rest), F = framesOf(ctx.arch, P.joints, ctx);
+    for (const w of Ar.wheels) {
+      const on = Ar.layout.find((e) => e.id === w.id).on.split('.')[0], d = sub(F[w.id].t, F[on].t), axis = [F[on].R[0][0], F[on].R[1][0], F[on].R[2][0]];
+      expect(Math.hypot(...cross(d, axis))).toBeLessThan(1e-6);
+    }
+  });
+  it('walks with its wheels off the ground, and rolls on all four, what they carry clear above them, steady on them', () => {
+    const wheels = Ar.wheels.map((w) => w.id);
+    expect(lowest(Ar.rest, wheels)).toBeGreaterThan(0.05);
+    expect(posedFrame(rover, roll).clamped).toEqual([]);
+    expect(law(rover, 'rollContact').ok).toBe(true);
+    expect(law(rover, 'rollClearance').ok).toBe(true);
+    expect(law(rover, 'rollStability').ok).toBe(true);
+    expect(law(rover, 'rollActuators').ok).toBe(true);
+    expect(posedFrame(rover, roll).root.t[2]).toBeLessThan(posedFrame(rover, Ar.rest).root.t[2] * 0.6);
+    expect(law(rover, 'recoil').says).toMatch(/on its wheels/);
+    expect(lawsOf(rover).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+    expect(law(walker, 'rollContact')).toBeUndefined();
+  });
+  it('carries its backpack as built: its payloads swapped by its words, another backpack refused', () => {
+    const card = MECHA_BACKPACKS[Ar.backpack], other = card.takes.find((w) => !Object.values(Ar.weapons).includes(w));
+    const key = composeFrame(rover, { weapons: { r: other } });
+    expect(frameRow(key).layout.find((e) => e.id === 'weaponR').sku).toBe(MECHA_WEAPONS[other].sku);
+    expect(frameRow(key).layout.find((e) => e.id === 'spareR').sku).toBe(MECHA_WEAPONS[other].spare);
+    expect(lawsOf(key).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+    expect(composeFrame(rover, { weapons: { ...Ar.weapons } })).toBe(rover);
+    expect(() => composeFrame(rover, { backpack: 'weapons' })).toThrow(/carries its own/);
+    expect(() => posedFrame(walker, { roll: true })).toThrow(/only a frame on wheels rolls/);
   });
 });
 

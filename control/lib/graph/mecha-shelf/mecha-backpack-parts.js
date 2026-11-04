@@ -100,6 +100,19 @@ export function backpackBuilders(kit) {
     sweeps.push(tube('feed', [[s * 0.1, 0.02, zc + 0.03], [s * 0.08, 0.06, zc + 0.11], [s * 0.035, 0.1, zc + 0.07]], 0.026, C.rubber, 8));
     return { extrudes, lathes, sweeps, hardpoints: { muzzle: [0, 0.2 + L, zc], breech: [0, -0.2, zc], mag: lug } };
   }
+  function cannon(row, C, { side }) {
+    const d = row.dims, s = sgn(side), extrudes = [], lathes = [], sweeps = [], zc = d.axis, L = d.length, steel = tone(C.chrome, -0.35);
+    // (its receiver, its barrel in a recoil sleeve, a muzzle brake; its box magazine outboard, its feed)
+    extrudes.push(box('receiver', [0, -0.28, zc], [0, 0.22, zc], 0.16, 0.16, C.trim));
+    extrudes.push(box('cover', [0, -0.24, zc + 0.085], [0, 0.18, zc + 0.095], 0.13, 0.02, C.paint));
+    lathes.push(spin('sleeve', [0, 0.22, zc], [0, 0.55, zc], [[0, 0.05], [0.9, 0.048], [1, 0.042]], C.trim, 14));
+    lathes.push(spin('barrel', [0, 0.55, zc], [0, 0.22 + L, zc], [[0, d.r * 1.15], [1, d.r]], steel, 12));
+    extrudes.push(box('brake', [0, 0.22 + L - 0.02, zc], [0, 0.22 + L + 0.1, zc], 0.09, 0.07, C.trim));
+    for (const y of [0.04, 0.075]) extrudes.push(box(`port_${Math.round(y * 1000)}`, [-0.05, 0.22 + L + y, zc], [0.05, 0.22 + L + y, zc], 0.012, 0.03, tone(C.trim, -0.4)));
+    const lug = ammoBox('magazine', [s * (d.box[0] / 2 + 0.09), -0.06, zc - 0.08], d.box, C, extrudes);
+    sweeps.push(tube('feed', [[s * 0.09, 0.0, zc + 0.02], [s * 0.07, 0.04, zc + 0.08]], 0.03, C.rubber, 8));
+    return { extrudes, lathes, sweeps, hardpoints: { muzzle: [0, 0.32 + L, zc], breech: [0, -0.28, zc], mag: lug } };
+  }
   function launcher(row, C) {
     const d = row.dims, extrudes = [], lathes = [];
     extrudes.push(box('rail', [0, -d.pod[1] / 2 + d.at[1], 0.01], [0, d.pod[1] / 2 + d.at[1], 0.01], 0.08, 0.04, C.trim));
@@ -153,7 +166,7 @@ export function backpackBuilders(kit) {
   return {
     pack: weaponsPack,
     mount: { ring, cradle },
-    weapon: { rotary, launcher, ammo: spareAmmo, pod: sparePod },
+    weapon: { rotary, cannon, launcher, ammo: spareAmmo, pod: sparePod },
     tail: { base: tailBase, segment: tailSegment, head: tailHead },
   };
 }

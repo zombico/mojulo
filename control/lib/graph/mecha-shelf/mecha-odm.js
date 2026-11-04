@@ -38,6 +38,7 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-mount': 'a payload\'s mount on a backpack: its traverse ring and yoke, or its elevation cradle and tray',
   'mecha-weapon': 'a backpack\'s payload on its cradle (a rotary machine gun and its ammunition box, a launch rail and its five-round rocket pod), or a spare magazine in its rack',
   'mecha-tail': 'a backpack\'s service tail: its yaw drum, its armoured segments, its gripping head',
+  'mecha-wheel': 'a wheel a legged frame rolls on with its legs collapsed: its knobbed tyre, its rim, its hub motor',
   'mecha-ram': 'a hydraulic ram across a joint: its barrel and its rod, each a body aimed at the other\'s pin; or an electric screw actuator in its place',
 });
 
@@ -292,7 +293,9 @@ const BACKPACK = {
   'cradle-wpn': R('mecha-mount', 'weapon elevation cradle', BP, { gun: [0, 0, 0.05], stop: [-10, 55], torque: 900 }, 12, { family: 'cradle' }, ['weapon cradle', 'elevation cradle']),
   'minigun-wpn': R('mecha-weapon', 'rotary machine gun', BP, { barrels: 6, length: 0.72, r: 0.013, cluster: 0.038, axis: 0.08, box: [0.15, 0.3, 0.24] }, 68, { family: 'rotary' }, ['minigun', 'rotary machine gun', 'gatling gun', 'rotary gun', 'chain gun']),
   'rockets-wpn': R('mecha-weapon', 'five-round rocket launcher', BP, { pod: [0.34, 0.82, 0.26], at: [0, 0.1, 0], r: 0.045, tubes: [[-0.1, 0.055], [0, 0.055], [0.1, 0.055], [-0.05, -0.055], [0.05, -0.055]] }, 62, { family: 'launcher' }, ['rocket launcher', 'rocket pod', 'five round rocket launcher', 'missile pod', 'rocket rack']),
+  'cannon-wpn': R('mecha-weapon', 'autocannon', BP, { length: 1.1, r: 0.028, axis: 0.1, box: [0.17, 0.34, 0.26] }, 96, { family: 'cannon' }, ['autocannon', 'cannon', 'auto cannon', 'chain cannon']),
   'ammobox-wpn': R('mecha-weapon', 'spare ammunition box', BP, { box: [0.15, 0.3, 0.24] }, 30, { family: 'ammo' }, ['spare ammunition box', 'ammo box', 'spare ammo']),
+  'cannonmag-wpn': R('mecha-weapon', 'spare box magazine', BP, { box: [0.17, 0.34, 0.26] }, 40, { family: 'ammo' }, ['spare box magazine', 'cannon magazine', 'spare cannon magazine']),
   'rocketpod-wpn': R('mecha-weapon', 'spare rocket pod', BP, { pod: [0.34, 0.82, 0.26], r: 0.045, tubes: [[-0.1, 0.055], [0, 0.055], [0.1, 0.055], [-0.05, -0.055], [0.05, -0.055]] }, 50, { family: 'pod' }, ['spare rocket pod', 'spare rockets']),
   // (the service tail: a yaw drum, two armoured segments and a gripping head, each joint an electric rotary drive)
   // (a frame carrying a backpack stands on heavy-duty hip roll rams: on one foot they hold its sway with the pack on)
@@ -303,12 +306,27 @@ const BACKPACK = {
   'tailhead-wpn': R('mecha-tail', 'service tail head', BP, { length: 0.24, stop: [-130, 130], torque: 300 }, 6, { family: 'head' }, ['tail head', 'tail gripper', 'stinger']),
 };
 
+// ── the rover walker: the field walker's frame on wheels, its legs collapsed to roll as a four-wheeler does ─────────
+// (a wheel on each knee's axis and one on each ankle's, outboard, each coaxial with its joint: in its stride they ride
+// clear of the ground, the ankles' over taller feet; collapsed, the thighs rake back toward level and the knees fold
+// until the shanks lie level, both wheels on the ground, the feet folded up ahead as fenders. Its knees are rotary drives,
+// not rams: a ram's stroke cannot fold a knee that far. Its shanks are longer, a four-wheeler's wheelbase, their ankle
+// rams with them; each wheel on its hub motor, the pair each side skid-steered)
+const RW = 'rover walker';
+const ROVER = {
+  'shank-rw': dressed(S('shank-atw', KF, 'rover walker shank', RW, ['wheeled shank', 'rover shank', 'folding knee'], { length: 0.75, stop: [5, 165], torque: 6000 }), 'wheeled', { wheel: [0.26, 0, 0] }),
+  'ankle-rw': dressed(S('ankle-atw', KF, 'rover walker ankle cross', RW, ['wheeled ankle', 'rover ankle']), 'wheeled', { wheel: [0.26, 0, 0] }),
+  'foot-rw': dressed(S('foot-atw', 1.5, 'rover walker foot', RW, ['rover foot', 'fender foot'], { sole: 0.39 }), 'lugged'),
+  'ram-ankle-rw': S('ram-ankle-atw', KF, 'rover walker ankle ram', RW, ['rover ankle ram'], { closed: Math.round((BASE['ram-ankle-atw'].dims.closed * KF + 0.174) * 1000) / 1000, stroke: Math.round((BASE['ram-ankle-atw'].dims.stroke * KF + 0.035) * 1000) / 1000 }),
+  'wheel-rw': R('mecha-wheel', 'rover walker wheel', RW, { r: 0.25, width: 0.2, rim: 0.15, lugs: 18 }, 22, { family: 'atv' }, ['atv wheel', 'quad wheel', 'walker wheel', 'knobby tyre', 'knobby tire', 'hub motor']),
+};
+
 // ── the design houses' giant arm packs: each house's philosophy solved into its pack and its giant arms ──────────
 // (mecha-gap-makers.js: solved the first time one of its rows is read, then kept; a house's rows are its own, never
 // another frame's)
 let MAKERS = null;
 const makers = () => (MAKERS ??= makerRows(R, scaleDims));
-const ODM = { ...ROWS, ...HEAVY, ...GIANT, ...FIELD, ...BACKPACK };
+const ODM = { ...ROWS, ...HEAVY, ...GIANT, ...FIELD, ...BACKPACK, ...ROVER };
 for (const house of MECHA_MAKER_IDS) for (const part of MAKER_PARTS) Object.defineProperty(ODM, `${part}-${house}`, { enumerable: true, get: () => makers()[`${part}-${house}`] });
 export const MECHA_ODM = Object.freeze(ODM);
 

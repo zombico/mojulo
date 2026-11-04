@@ -552,7 +552,7 @@ const SHOULDERS = { armoured: armouredShoulder, ...HOUSE.shoulder };
 const PACKS = { giant: giantPack, ...HOUSE.pack, rack: (row, C, ctx) => FIELD.pack(row, C, ctx), weapons: (row, C, ctx) => BACK.pack(row, C, ctx) };
 const BEAMS = new Set(['plated', 'tube', 'truss', 'sealed']);
 // (the field walker's parts: the walker's own hardened for rugged ground, mecha-field-parts.js)
-const FIELD = fieldBuilders({ slab, sgn, rounded, plate, lerp3, pelvis, thigh, shank, cage, pack });
+const FIELD = fieldBuilders({ slab, sgn, rounded, plate, lerp3, pelvis, thigh, shank, ankle, cage, pack });
 // (the backpacks' parts, mecha-backpack-parts.js)
 const BACK = backpackBuilders({ boss, legBeam, plateBox, sgn, pack });
 const by = (family, own, base) => (row, C, ctx) => (row.build.family === family ? own : base)(row, C, ctx);
@@ -562,9 +562,10 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-hip': hip,
   'mecha-yoke': yoke,
   'mecha-thigh': by('guarded', FIELD.thigh, thigh),
-  'mecha-shank': by('guarded', FIELD.shank, shank),
-  'mecha-ankle': ankle,
+  'mecha-shank': (row, C, ctx) => ({ guarded: FIELD.shank, wheeled: FIELD.wheeledShank }[row.build.family] ?? shank)(row, C, ctx),
+  'mecha-ankle': by('wheeled', FIELD.wheeledAnkle, ankle),
   'mecha-foot': by('lugged', FIELD.foot, foot),
+  'mecha-wheel': (row, C, ctx) => FIELD.wheel(row, C, ctx),
   'mecha-seat': (row, C, ctx) => (row.build.family === 'seated' ? station : seat)(row, C, ctx),
   'mecha-cage': (row, C, ctx) => ({ torso, cab, field: FIELD.cage, armoured: FIELD.cabin }[row.build.family] ?? cage)(row, C, ctx),
   'mecha-shoulder': (row, C, ctx) => (SHOULDERS[row.build.family] ?? shoulder)(row, C, ctx),

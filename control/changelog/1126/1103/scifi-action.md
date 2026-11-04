@@ -232,6 +232,30 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
 
   Carrying it, the field walker stands on heavy-duty hip roll rams, and its laden step's band starts lower. Every law
   holds, with the open cabin or the armoured one.
+- **The rover walker** (`roverWalker`; registry row `rover-walker`, role `armour`): the field walker on four wheels,
+  more heavily armed. It walks, or collapses its legs and rolls as a four-wheeler.
+  - **Its legs:** a wheel on each knee's axis and one on each ankle's, outboard, each coaxial with its joint and on its
+    own hub motor, skid-steered each side. Its shanks are longer for a four-wheeler's wheelbase, its ankle rams
+    re-sized with them, and its feet taller so the ankle wheels ride clear when it walks.
+  - **Its knees are rotary drives, not rams.** The field walker's knee ram bottoms out near 130°, which no backward
+    knee can fold past into a collapse. A drive folds the rover's knee to 165°.
+  - **Collapsed** (its `roll` stance, solved in `mecha-ik.js`): the thighs rake back toward level, and the knees fold
+    until the shanks lie level, so both wheels stand on the ground. Each foot pitches, across its ankle's range, to hold
+    its sole highest: folded up ahead as a fender. It is boarded collapsed, as a four-wheeler is.
+  - **Armament:** it carries the heavy weapons backpack as built (`MECHA_BACKPACKS.heavyWeapons`): an autocannon right,
+    its box magazine on the side and a muzzle brake, and the five-round rocket launcher left, with the service tail.
+    `weapons` swaps its payloads; another backpack is refused. It fires collapsed on its wheels, its longest and lowest
+    footing (its `fireStance`).
+  - **New laws:**
+    - `rollContact`: all four wheels on the ground;
+    - `rollClearance`: what the wheels carry clear above the ground;
+    - `rollStability`: the centre of mass inside the wheels;
+    - `rollActuators`: the legs' rams holding it, its wheels' loads on them.
+
+    Stability, recoil and boarding read the wheels' contacts when a stance is collapsed, and the crouch's actuator
+    check skips a collapsed boarding.
+  - **The cabins and the dress:** the field walker's (the armoured cabin, any camo livery and wear).
+  - Every law holds as built, with the armoured cabin, and rearmed with the rotary machine gun.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
     derived, never stated.
@@ -308,5 +332,10 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     on the class's; the tail's grip on every service point within its drives' stops; its torque, recoil, backblast and
     line of fire holding; its payloads swapped side for side with every law holding; what it does not take refused.
     The char pins add its builder paths and a frame carrying it whole.
+  - `mecha-shelf.test.js`, the rover walker: its knees folding past a ram's reach on rotary drives; each wheel
+    coaxial with its joint; walking with its wheels off the ground, rolling on all four with what they carry clear and
+    steady, lower than it stands, every law holding; its backpack's payloads swapped, another backpack refused, and a
+    frame without wheels refused a roll. The char pins add its wheeled parts, its wheel and the autocannon, and the
+    frame whole walking and collapsed.
   - The roster's, builds' and preview door's tests (a dressed frame's livery and wear carried in its recipe, its
-    cabin and its backpack).
+    cabin, its backpack, a frame on wheels collapsed by its stance).

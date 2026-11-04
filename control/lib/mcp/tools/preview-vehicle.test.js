@@ -115,6 +115,13 @@ describe('mint_solid vehicle: the registry is the way in', () => {
       const shut = await previewVehicleInstanceHandler({ vehicle: VEHICLES[dressed].label, cabin, slits: 'shut', title: 'a closed legged frame' });
       expect(SketchRepository.getByRef(shut.ref).manifest.mecha).toMatchObject({ cabin, slits: 'shut' });
     }
+    // (a frame on wheels collapsed onto them by its stance's word)
+    const rolling = ids.find((id) => (handlesOf(id).mecha ?? []).some((k) => MECHA_ARCHETYPES[k].wheels));
+    if (rolling) {
+      const arch = MECHA_ARCHETYPES[handlesOf(rolling).mecha[0]], roll = Object.keys(arch.stances).find((k) => arch.stances[k].roll);
+      const rolled = await previewVehicleInstanceHandler({ vehicle: VEHICLES[rolling].label, pose: roll, title: 'a legged frame rolling' });
+      expect(rolled.stats).toMatchObject({ pose: roll, laws: true });
+    }
     const backpack = MECHA_ARCHETYPES[handlesOf(dressed).mecha[0]].backpacks?.[0];
     if (backpack) {
       const packed = await previewVehicleInstanceHandler({ vehicle: VEHICLES[dressed].label, backpack, title: 'a legged frame with a backpack' });

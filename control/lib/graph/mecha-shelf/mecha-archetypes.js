@@ -1,3 +1,5 @@
+import { MECHA_BACKPACKS, TAIL_POSES, backpackLayout } from './mecha-backpacks.js';
+
 /**
  * mecha-archetypes — whole frames laid out on the chain (construction-shelf/con-chain.js), each joint driven by the
  * actuator across it: a ram's stroke gives a pitch or a roll joint its range, a rotary drive's stops a yaw's.
@@ -25,6 +27,9 @@
  *                    solved to joint values
  *   cabins           a frame's cabins by name ({ sku, label, mass?, laws? }: the open one its own; another's mass on the
  *                    class's, its laws on the frame's): the door's `cabin`, an armoured one's vision slits its `slits`
+ *   wheels           a frame that rolls: its wheels' bodies ({ id, axle: 'rear' | 'front', side }), on the ground in
+ *                    its `roll` stance (mecha-ik.js)
+ *   backpack         a backpack it carries as built (its `weapons`, `tail`, `payloads`), its payloads swapped by `weapons`
  *   dress            a frame dressed in a styling library's look at its faces ({ style: 'military', livery, wear, kit }:
  *                    mecha-military.js), its kit each fitting's anchor on a body (its hardpoint, the surface's out and up)
  *   laws             the bands it is held to (mecha-laws.js)
@@ -116,7 +121,7 @@ const HR = leg('R', HW_LEG, 'forward'), HL = leg('L', HW_LEG, 'forward'), HAR = 
 const GR = leg('R', GW_LEG, 'forward'), GL = leg('L', GW_LEG, 'forward');
 const GPR = arm('R', GW_ARM, { prefix: 'giant', on: 'pack.shoulder' }), GPL = arm('L', GW_ARM, { prefix: 'giant', on: 'pack.shoulder' });
 
-export const MECHA_ARCHETYPES = Object.freeze({
+const BASE_ARCHETYPES = Object.freeze({
   // the all-terrain walker: one rider astride a saddle on a pelvis, leaning onto clip-on bars as on a sport motorcycle, its
   // knees round the tank, its feet on pegs set back under the hips, a convertible's cabin round it, one nose ahead; two
   // legs of six joints each (hip yaw, roll and pitch, the knee bent backward, the ankle's pitch and roll), the battery low in the keel between the hips, the
@@ -471,4 +476,64 @@ export const MECHA_ARCHETYPES = Object.freeze({
     bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-shoulder': 4, 'mecha-upperarm': 4, 'mecha-forearm': 4, 'mecha-wrist': 4, 'mecha-claw': 2, 'mecha-tool': 2, 'mecha-ram': 16 }),
   }),
 });
+
+// the rover walker: the field walker on four wheels, armed. Each knee carries a wheel on its own axis, outboard, and each
+// foot a wheel on a fork ahead of its toe; walking, they ride clear of the ground. Collapsed (its `roll` stance), the
+// thighs rake back and the knees fold until the rear wheels take the ground, the feet pitch toe-down onto the front
+// wheels, the cleated soles lifted clear: it rolls as a four-wheeler does, its hub motors skid-steering each side. It
+// carries the heavy weapons backpack as built (an autocannon right, the five-round rocket launcher left, the service
+// tail), on heavy-duty hip roll rams
+const RW_LEG = Object.freeze({ ...FW_LEG, shank: 'shank-rw', ankle: 'ankle-rw', foot: 'foot-rw', ankleRam: 'ram-ankle-rw', roll: 'ram-roll-fw-hd' });
+/** A leg whose knee is a rotary drive in its shank, not a ram (it folds past what a ram's stroke allows). */
+const driveKnee = (L, S) => ({
+  ...L,
+  joints: { ...L.joints, [`knee${S}`]: Object.freeze({ ...L.joints[`knee${S}`], ram: undefined, drive: `shank${S}` }) },
+  layout: L.layout.filter((e) => e.id !== `kneeRam${S}`),
+});
+const WR = driveKnee(leg('R', RW_LEG), 'R'), WL = driveKnee(leg('L', RW_LEG), 'L'), HEAVY_PACK = MECHA_BACKPACKS.heavyWeapons, ROVER_PACK = backpackLayout(HEAVY_PACK, HEAVY_PACK.loadout);
+const wheelsOf = (S) => { const s = S.toLowerCase(); return [
+  { id: `rearWheel${S}`, sku: 'wheel-rw', side: s, on: `shank${S}.wheel`, wheel: 'rear' },
+  { id: `frontWheel${S}`, sku: 'wheel-rw', side: s, on: `ankle${S}.wheel`, wheel: 'front' },
+]; };
+const F0 = BASE_ARCHETYPES.fieldWalker;
+const roverWalker = Object.freeze({
+  ...F0,
+  label: 'rover walker',
+  classOf: 'ridden biped walker on four wheels, armed: it walks, or collapses its legs and rolls',
+  mass: 1300,
+  joints: Object.freeze({ ...WR.joints, ...WL.joints, ...ROVER_PACK.joints }),
+  layout: Object.freeze([
+    ...F0.layout.filter((e) => ['pelvis', 'seat', 'cage'].includes(e.id)),
+    { id: 'pack', sku: HEAVY_PACK.sku, on: 'pelvis.pack' },
+    ...WR.layout, ...WL.layout, ...wheelsOf('R'), ...wheelsOf('L'), ...ROVER_PACK.layout,
+  ].map(Object.freeze)),
+  legs: Object.freeze({ r: Object.freeze(WR.legs), l: Object.freeze(WL.legs) }),
+  wheels: Object.freeze(['R', 'L'].flatMap((S) => wheelsOf(S).map((e) => Object.freeze({ id: e.id, axle: e.wheel, side: e.side })))),
+  backpacks: Object.freeze([]),
+  // (it fires collapsed on its wheels, its longest, lowest footing: the recoil law reads it there)
+  fireStance: 'roll',
+  backpack: 'heavyWeapons', weapons: HEAVY_PACK.loadout, tail: ROVER_PACK.tail, payloads: ROVER_PACK.payloads,
+  stances: Object.freeze({
+    ...F0.stances,
+    brace: HEAVY_PACK.brace,
+    ...Object.fromEntries(Object.keys(TAIL_POSES).filter((k) => k !== 'stow').map((k) => [k, Object.freeze({ knee: 45, tail: k })])),
+    // (collapsed to roll: the thighs raked back toward level, the knees folded until the shanks lie level)
+    roll: Object.freeze({ roll: true, pitch: -72 }),
+    // (it is boarded collapsed, as a four-wheeler is: its saddle low, its step a short one up)
+    board: Object.freeze({ roll: true, pitch: -72 }),
+  }),
+  dress: Object.freeze({ ...F0.dress, kit: Object.freeze(F0.dress.kit.filter((k) => k.body !== 'pack')) }),
+  laws: Object.freeze({
+    ...F0.laws, ...HEAVY_PACK.laws,
+    // (rolling: its four wheels on the ground, what it carries clear above it, steady on its wheels, its legs' rams
+    // holding it there)
+    // (taller than the field walker standing, on its longer shanks and taller feet; boarded collapsed, lower; its ankle
+    // rams' longer stroke folds its feet up as fenders)
+    seat: Object.freeze([1.8, 2.4]), board: Object.freeze([0.9, 1.4]), stepIn: Object.freeze([0.15, 0.6]),
+    arcs: Object.freeze({ ...F0.laws.arcs, anklePitch: Object.freeze([70, 125]) }),
+    rollContact: Object.freeze([0, 0.01]), rollClearance: Object.freeze([0.1, 9]), rollStability: Object.freeze([0.05, 9]), rollActuators: Object.freeze([0, 0.8]),
+  }),
+  bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-ram': 6, 'mecha-wheel': 4, 'mecha-mount': 4, 'mecha-weapon': 4, 'mecha-tail': 4 }),
+});
+export const MECHA_ARCHETYPES = Object.freeze({ ...BASE_ARCHETYPES, roverWalker });
 export const MECHA_ARCHETYPE_IDS = Object.freeze(Object.keys(MECHA_ARCHETYPES));

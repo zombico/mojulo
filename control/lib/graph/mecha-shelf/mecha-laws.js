@@ -25,6 +25,10 @@
  *                   its soles' edge behind (it is not pushed over firing)
  *   backblast       a rocket's backblast, along its tubes' axis behind its breech, clear of the rider's space (m)
  *   fireClear       each payload's line of fire, at either end of its traverse, clear of the rider's space (m)
+ *   rollContact     a frame on wheels collapsed onto them: its wheels' lowest points off the ground, the farthest (m)
+ *   rollClearance   rolling, the lowest of what its wheels carry off the ground (m)
+ *   rollStability   rolling, its centre of mass inside its wheels' contacts (m)
+ *   rollActuators   rolling, its legs' hardest-worked ram's share of its rating, its wheels' loads on it
  *   seat            the saddle's or the seat's height standing; board, its height crouched to be boarded; stepIn, the boarding step's
  *   tipover         fallen on its side, it lands on its crash frame and its legs, never on the rider: the rider's space
  *                   inside the frame's outline seen from the front, at its sides (m)
@@ -103,8 +107,10 @@ export function mechaLaws(key, kit) {
     law('knee', v, band.knee, within(v, band.knee), `it stands with its knees bent ${v}°`);
   }
   // ── stability on both feet ──
+  // (what a stance stands on: its soles, or, collapsed onto its wheels, each wheel's lowest point)
+  const wheelFeet = (Fw) => arch.wheels.map((w) => { const e = ctx.entry(w.id); return shape(e.sku, e.side).corners.map((c) => apply(Fw[w.id], c)).reduce((a, b) => (b[2] < a[2] ? b : a)); });
   const stab = (name) => {
-    const p = P[name], M = massOf(p.joints, p.root), poly = hull(SIDES.flatMap((S) => solePoly(M.frames, S)));
+    const p = P[name], M = massOf(p.joints, p.root), poly = hull(arch.stances[name]?.roll ? wheelFeet(M.frames).map((q) => [q[0], q[1]]) : SIDES.flatMap((S) => solePoly(M.frames, S)));
     return { M, m: margin(poly, M.com), poly };
   };
   if (band.stability) for (const name of ['stand', 'board'].filter((n) => P[n])) {
@@ -155,7 +161,8 @@ export function mechaLaws(key, kit) {
     const S = stanceSide(P.lift), M = massOf(P.lift.joints, P.lift.root);
     loads.push(...holding(P.lift, S, M.mass * G, [M.com[0], M.com[1], 0]).map((x) => ({ ...x, at: 'lift' })));
   }
-  if (P.board) {
+  // (crouched on its feet: a frame boarded collapsed onto its wheels is read rolling, by rollActuators)
+  if (P.board && !arch.stances.board?.roll) {
     const M = massOf(P.board.joints, P.board.root), xr = apply(M.frames[arch.legs.r.foot], ctx.hp(arch.legs.r.foot, 'sole')), xl = apply(M.frames[arch.legs.l.foot], ctx.hp(arch.legs.l.foot, 'sole'));
     const fr = (M.com[0] - xl[0]) / (xr[0] - xl[0]), W = M.mass * G;
     loads.push(...holding(P.board, 'r', W * fr, [xr[0], M.com[1], 0]).map((x) => ({ ...x, at: 'board' })));
@@ -287,8 +294,13 @@ export function mechaLaws(key, kit) {
     if (band.recoil) {
       // (its sustained recoil pushing it back at the muzzle's height, against its weight's lever to its soles' edge behind;
       // braced to fire when it has a brace, else standing)
-      const at = P.brace ? 'brace' : 'stand', Fb = frames(P[at].joints, P[at].root);
-      const { M, poly } = stab(at), W = M.mass * G, back = M.com[1] - Math.min(...poly.map((q) => q[1]));
+      const at = arch.fireStance && P[arch.fireStance] ? arch.fireStance : P.brace ? 'brace' : 'stand', Fb = frames(P[at].joints, P[at].root);
+      // (on its soles, or on its wheels when it fires rolling: what it stands on behind its centre of mass)
+      const onWheels = arch.wheels && P[at].stance === 'roll' || (arch.wheels && arch.stances[at]?.roll);
+      const Mx = massOf(P[at].joints, P[at].root), support = onWheels
+        ? arch.wheels.map((w) => { const e = ctx.entry(w.id); return shape(e.sku, e.side).corners.map((c) => apply(Fb[w.id], c)).reduce((a, b) => (b[2] < a[2] ? b : a)); })
+        : hull(SIDES.flatMap((S) => solePoly(Mx.frames, S)));
+      const M = Mx, poly = support, W = M.mass * G, back = M.com[1] - Math.min(...poly.map((q) => q[1]));
       let v = 0, why = '';
       for (const [S, card] of Object.entries(arch.payloads)) {
         if (!card.recoil) continue;
@@ -296,7 +308,7 @@ export function mechaLaws(key, kit) {
         if (share > v) { v = share; why = `its ${card.label}'s ${card.recoil} N at ${r2(h)} m`; }
       }
       v = r2(v);
-      law('recoil', v, band.recoil, within(v, band.recoil), `firing ${at === 'brace' ? 'braced' : 'standing'}, its recoil's lever is ${Math.round(v * 100)}% of its weight's to its heels (${why})`);
+      law('recoil', v, band.recoil, within(v, band.recoil), `firing ${onWheels ? 'collapsed on its wheels' : at === 'brace' ? 'braced' : 'standing'}, its recoil's lever is ${Math.round(v * 100)}% of its weight's to its heels (${why})`);
     }
     if (band.backblast) {
       let v = Infinity, why = '';
@@ -319,6 +331,54 @@ export function mechaLaws(key, kit) {
       }
       v = r2(v);
       law('fireClear', v, band.fireClear, within(v, band.fireClear), `${why} line of fire passes ${v} m clear of the rider, the nearest`);
+    }
+  }
+  // ── rolling: a frame on wheels collapsed onto them (its `roll` stance) ──
+  if (arch.wheels && P.roll) {
+    const p = P.roll, F = frames(p.joints, p.root), wheelIds = new Set(arch.wheels.map((w) => w.id));
+    const cornersOf = (e) => shape(e.sku, e.side).corners.map((c) => apply(F[e.id], c));
+    // (each wheel's lowest point: where it meets the ground)
+    const contact = arch.wheels.map((w) => { const e = ctx.entry(w.id); return { ...w, at: cornersOf(e).reduce((a, b) => (b[2] < a[2] ? b : a)) }; });
+    if (band.rollContact) {
+      const v = r3(Math.max(...contact.map((c) => Math.abs(c.at[2]))));
+      law('rollContact', v, band.rollContact, within(v, band.rollContact), `collapsed, its ${contact.length} wheels meet the ground within ${Math.round(v * 1000)} mm`);
+    }
+    if (band.rollClearance) {
+      let v = Infinity, who = '';
+      for (const e of arch.layout) { if (isStrut(e) || wheelIds.has(e.id)) continue; const z = Math.min(...cornersOf(e).map((c) => c[2])); if (z < v) { v = z; who = e.id; } }
+      v = r3(v);
+      law('rollClearance', v, band.rollClearance, within(v, band.rollClearance), `rolling, the lowest of what its wheels carry (its ${who}) is ${v} m off the ground`);
+    }
+    const M = massOf(p.joints, p.root), W = M.mass * G, poly = hull(contact.map((c) => [c.at[0], c.at[1]]));
+    if (band.rollStability) {
+      const v = r3(margin(poly, M.com));
+      const ys = (axle) => contact.filter((c) => c.axle === axle).map((c) => c.at[1]), xs = contact.map((c) => c.at[0]);
+      const base = r2(Math.abs(ys('front')[0] - ys('rear')[0])), track = r2(Math.max(...xs) - Math.min(...xs));
+      law('rollStability', v, band.rollStability, within(v, band.rollStability), `on its wheels (a ${base} m wheelbase, a ${track} m track), its centre of mass is ${v} m inside them`);
+    }
+    if (band.rollActuators) {
+      // (each wheel's share of the weight: its axle's by the centre of mass between the axles, its side's by it between
+      // the sides; each leg's pitch, knee and ankle rams holding it there against its wheels' loads)
+      const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+      const yR = avg(contact.filter((c) => c.axle === 'rear').map((c) => c.at[1])), yF = avg(contact.filter((c) => c.axle === 'front').map((c) => c.at[1]));
+      const xr = avg(contact.filter((c) => c.side === 'r').map((c) => c.at[0])), xl = avg(contact.filter((c) => c.side === 'l').map((c) => c.at[0]));
+      const fF = (M.com[1] - yR) / (yF - yR), fr = (M.com[0] - xl) / (xr - xl);
+      const load = (c) => W * (c.axle === 'front' ? fF : 1 - fF) * (c.side === 'r' ? fr : 1 - fr);
+      const lengthAt = (ram, joints) => { const Fj = frames(joints, p.root), [a, b] = ram.ram.map((ref) => point(Fj, ref)); return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); };
+      let v = 0, why = '';
+      for (const S of SIDES) {
+        const L = arch.legs[S], mine = contact.filter((c) => c.side === S);
+        for (const [k, body, carried] of [['pitch', L.pitch, mine], ['knee', L.knee, mine.filter((c) => c.axle === 'front')], ['anklePitch', L.ankle, mine.filter((c) => c.axle === 'front')]]) {
+          const name = L.joints[k], J = arch.joints[name], ram = J?.ram ? ctx.entry(J.ram) : null;
+          if (!ram) continue;
+          const tau = Math.abs(carried.reduce((t, c) => t + (c.at[1] - F[body].t[1]) * load(c), 0));
+          const arm = Math.abs(lengthAt(ram, { ...p.joints, [name]: p.joints[name] + 0.5 }) - lengthAt(ram, { ...p.joints, [name]: p.joints[name] - 0.5 })) / (Math.PI / 180);
+          const rate = ramForce(ctx.row(ram.sku).dims), share = tau / arm / Math.min(rate.push, rate.pull);
+          if (share > v) { v = share; why = `its ${J.ram} at ${Math.round(share * 100)}% (${Math.round(tau)} N·m on a ${r3(arm)} m arm)`; }
+        }
+      }
+      v = r2(v);
+      law('rollActuators', v, band.rollActuators, within(v, band.rollActuators), `rolling, its legs' hardest-worked ram is ${why}`);
     }
   }
   // ── the tools' hydraulics: both arms' tools working at once, on the power pack's pump ──

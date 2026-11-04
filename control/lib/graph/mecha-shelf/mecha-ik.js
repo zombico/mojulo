@@ -143,6 +143,32 @@ export function payloadsAt(arch, aim = {}) {
   return out;
 }
 
+/**
+ * A rolling frame collapsed onto its wheels (`roll: true`): its legs' yaw and roll as it stands, each thigh raked back
+ * to `pitch`, each knee folded to `knee`; the pelvis lowered until the rear wheels (on the knees) stand on the ground,
+ * each ankle pitched until its front wheel (ahead of the toe) stands there too. `range` a joint's range.
+ */
+function rollAt(arch, ctx, stance, range) {
+  const base = solveStance(arch, ctx, arch.stances[arch.rest]), joints = { ...base.joints };
+  // (the knee folded until the shank lies level: its bend the thigh's rake from straight down, and a quarter turn)
+  for (const S of SIDES) { const J = arch.legs[S].joints; joints[J.yaw] = 0; joints[J.pitch] = stance.pitch ?? -70; joints[J.knee] = stance.knee ?? 90 - joints[J.pitch]; }
+  const wheel = (axle, S) => arch.wheels.find((w) => w.axle === axle && w.side === S).id;
+  const radius = (id) => ctx.row(ctx.entry(id).sku).dims.r, centreZ = (j, id) => framesOf(arch, j, ctx)[id].t[2];
+  // (the pelvis's height: the rear wheels' centres a radius up)
+  const H = Math.max(...SIDES.map((S) => radius(wheel('rear', S)) - centreZ(joints, wheel('rear', S))));
+  // (the front wheels on the ankles' axes stand where the shanks lie: on the ground too, when the shanks are level)
+  const reach = SIDES.every((S) => Math.abs(H + centreZ(joints, wheel('front', S)) - radius(wheel('front', S))) < 0.01);
+  for (const S of SIDES) {
+    // (each foot pitched, across its ankle's range, to hold its sole highest off the ground: folded up ahead, a fender)
+    const J = arch.legs[S].joints.anklePitch, [lo, hi] = range(J), foot = arch.legs[S].foot;
+    const soleLow = (a) => { const Ff = framesOf(arch, { ...joints, [J]: a }, ctx)[foot]; return Math.min(...(ctx.outline(foot) ?? []).map((c) => H + Ff.R[2][0] * c[0] + Ff.R[2][1] * c[1] + Ff.R[2][2] * c[2] + Ff.t[2])); };
+    let best = lo;
+    for (let a = lo; a <= hi; a += 1) if (soleLow(a) > soleLow(best)) best = a;
+    joints[J] = best;
+  }
+  return { joints, root: { R: I3, t: [0, 0, H] }, feet: null, legs: { r: { reach }, l: { reach } }, load: 0, loadOn: 'arms', ...(arch.tail ? { tailReach: true } : {}) };
+}
+
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A stance's feet on the ground: each foot's sole centre, its lift and its heading. */
 function feetOf(arch, st) {
@@ -181,8 +207,13 @@ function heightForKnee(arch, Gs, feet, k, xy) {
  * A stance → joint values and the pelvis's frame (its root: level, facing +y). `com(joints, root)` (the frame's centre
  * of mass in the machine's frame, the rider aboard) sets a sway; `stand` the standing stance's height for 'stand'.
  */
-export function solveStance(arch, ctx, stance, { com, stand } = {}) {
+export function solveStance(arch, ctx, stance, { com, stand, range } = {}) {
   if (!isObj(stance)) throw new Error('mecha stance: a stance is { knee | height, track?, fore?, sway?, feet? }');
+  if (stance.roll) {
+    if (!arch.wheels) throw new Error('mecha stance: only a frame on wheels rolls');
+    if (typeof range !== 'function') throw new Error('mecha stance: rolling needs its joints\' ranges');
+    return rollAt(arch, ctx, stance, range);
+  }
   const Gs = Object.fromEntries(SIDES.map((S) => [S, legGeometry(arch, ctx, S)]));
   const feet = feetOf(arch, stance), arms = { ...armsAt(arch, ctx, stance.arms ?? 'rest'), ...armsAt(arch, ctx, stance.packArms ?? 'stow', 'packArms') };
   const withArms = (j) => ({ ...j, ...arms });

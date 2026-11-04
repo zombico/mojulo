@@ -297,6 +297,10 @@ export const VEHICLES = {
   // beams guarded, its feet cleated, dressed in the field's look, car-designer's military styling)
   'field-walker': row('field walker', ['military walker', 'army walker', 'military all terrain walker', 'military all-terrain walker', 'patrol walker', 'scout walker', 'recon walker', 'walker transport'], 'offroad', 'scout', F, ['driven', 'parked', 'watched'],
     { mecha: 'fieldWalker', tech: 'walker' }),
+  // (the field walker on four wheels, armed: it walks, or collapses its legs and rolls as a four-wheeler; its heavy
+  // weapons backpack an autocannon, a rocket launcher and the service tail)
+  'rover-walker': row('rover walker', ['wheeled walker', 'walker atv', 'atv walker', 'transforming walker', 'wheel walker', 'quad walker', 'roller walker', 'wheel leg walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
+    { mecha: 'roverWalker', tech: 'walker' }),
   // (a general-purpose work frame on the same shelf: its operator seated in a torso frame, knee-forward legs, two arms
   // on rams for the lifting)
   'utility-walker': row('utility walker', ['work walker', 'walking work frame', 'power frame', 'work frame', 'lifting walker', 'cargo walker', 'loader walker', 'walking loader'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
