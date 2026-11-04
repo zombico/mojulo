@@ -25,7 +25,8 @@ describe('a quick game\'s vehicle words, read through the registry', () => {
     expect(quickVehicleWords(plain)).toEqual({ quick: plain, redirects: [] });
   });
   it('reads the physics, the flight model and the transformer\'s craft each through its own table', () => {
-    const phys = rowFor('physics'), sky = rowFor('sky'), craft = rowFor('craft');
+    // (the transformer's craft fly: a row of a flying craft)
+    const phys = rowFor('physics'), sky = rowFor('sky'), craft = Object.keys(VEHICLES).find((id) => handlesOf(id).craft && VEHICLES[id].realm !== 'water' && !handlesOf(id).craft.includes(id));
     const { quick } = quickVehicleWords({ goal: 'reach', ride: Object.keys(RIDES)[0], vehicle: phys, craft: sky });
     expect(quick.vehicle).toBe(handlesOf(phys).physics[0]);
     expect(quick.craft).toBe(handlesOf(sky).sky[0]);

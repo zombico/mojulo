@@ -54,6 +54,7 @@ describe('design_game quick', () => {
   it('reach with a climb and a hero the door draws: the hero pilots both stages, the climb\'s exit is its top, in volume', async () => {
     const hero = { cast: 'female', head: 'anime', look: ['heroine', 'determined'], hair: ['frieda-pony'], palette: { Top: '#7a2f8e' }, gear: { right: { item: 'sword' } } };
     const out = await designGameHandler({ quick: { goal: 'reach', climb: true, hero, theme: { accent: '#7a2f8e', style: 'hud' }, world: { id: 'summit', style: { kit: 'isekai-meadow' } } }, ref: 's' });
+    // (a run compiles: each stage's walk is a step of its own, taken when the run asks to check, runner.js auditSteps)
     expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'level-run-1', 'game']);
     expect(stored('s-hero').hero.gear.right).toMatchObject({ item: 'sword' });
     expect(stored('s-level-run-1').figures.hero.heroRef).toBe('s-hero');
@@ -369,11 +370,12 @@ describe('design_game quick', () => {
 
   it('a realistic ride: the car\'s realistic loft, compiled in place on its class\'s physics, its rivals in it too', async () => {
     // the game reads realistic (its juice drawn in the form render): the tier is stamped at mint, and the sedan is its loft
+    // (the car shelf's family sedan, car-shelf/: the sedan row's card, at the midsize class's numbers)
     const out = await designGameHandler({ quick: { goal: 'race', ride: 'car', rivals: 1, world: { id: 'real', style: { kit: 'trail-valley' }, juice: { fidelity: 'form' } } }, ref: 'rr' });
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
     expect(stored('rr').quick).toMatchObject({ ride: 'car', tier: 'realistic' });
     const L = stored('rr-level-run-0');
-    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', seed: 1, light: 'form' } });
+    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', car: 'familySedan', seed: 1, light: 'form' } });
     expect(L.figures['rival-1']).toEqual(L.figures.ride);
     expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'midsize' } });
     expect(L.camera.dist).toBeGreaterThan(7);
@@ -401,6 +403,26 @@ describe('design_game quick', () => {
     const night = (await resolveWorldScene(SketchRepository.getByRef('jn-level-run-0'))).payload;
     expect(night.figures.ride.form.keyIntensity).toBeLessThan(jeep.form.keyIntensity);
     expect(night.figures.ride.form.sky.zenith).toEqual(night.sky.zenith);
+  }, 240_000);
+
+  it('a ride astride: the cycle shelf\'s machine, its rider seated on it, its rivals on theirs, leaning on the page', async () => {
+    // a motorcycle by the word people say: a dirt bike, ridden at any tier (it has only its realistic build)
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'a dirt bike', rivals: 1, world: { id: 'moto', style: { kit: 'trail-valley' } } }, ref: 'mx' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(stored('mx').quick.ride).toBe('dirt-bike');
+    const L = stored('mx-level-run-0');
+    expect(L.figures.ride).toEqual({ cycle: { archetype: 'dirtBike', ride: true, rider: true } });
+    expect(L.figures['rival-1']).toEqual(L.figures.ride);
+    expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'dirtBike', wheels: 2 } });
+    // chased over the rider's head
+    expect(L.camera.height).toBeGreaterThan(3);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('mx-level-run-0'));
+    const bike = payload.figures.ride;
+    expect(bike.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'front', 'wheelF', 'wheelR']));
+    expect(bike.live).toMatchObject({ ridden: true, lean: 'rule' });
+    // its rider astride: seated, the hands on the grips, the machine and the rider over a seated head's height
+    expect(bike.cycle.rider.posture).toBe('mx');
+    expect(bike.figH).toBeGreaterThan(1.5);
   }, 240_000);
 
   it('kart race: rivals in the same car round a loop on the trail\'s land, the place on the HUD, a podium to win', async () => {

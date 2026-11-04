@@ -1,0 +1,281 @@
+/**
+ * con-laws — what a construction machine is held to, MEASURED from what was built and how its chain moves, never
+ * stated: each joint's range is its ram's (con-chain.js), and the envelope is the tool's tip swept over those ranges.
+ *
+ *   arcs            each ram-driven joint's working arc (degrees): a ram too short or mounted wrong leaves a front
+ *                   that cannot fold or reach
+ *   reach           the tip's farthest along the ground from the slew axis (m)
+ *   depth           the tip's lowest below the ground
+ *   cutHeight       the tip's highest
+ *   dumpHeight      the tip's highest with the bucket opened to dump: its teeth plumb under its pin (into a truck)
+ *   tail            the counterweight's swing radius from the slew axis (as built)
+ *   groundPressure  the class's mass on its tracks' contact (kPa)
+ *   lift            the rated load over the side at 6 m, its pin 1.5 m up: 75% of the load that tips it about its
+ *                   track's centreline (ISO 10567's share), from every part's mass where it is built and posed (t)
+ *   mass            the parts' mass against the class's (a share off)
+ *   clearance       the tool never enters the cab over its joints' ranges
+ *   transport       its width and its height folded for shipping (its `transport` pose), against a road's limits
+ *                   (advisory)
+ *   volume, payload a hauler's body's struck volume (a drum's gross volume) and its material's mass in it (a drum's
+ *                   share) against its rated payload
+ *   wheelbase       its front axle to its rear axles' middle, as built, against its class's (a share off)
+ *   linearLoad      a roller's drums' shares of its mass, each over its width (kg/cm)
+ *   spread, chart   a crane's outriggers' floats across, and its rated load at each radius over the side: 75% of
+ *                   the load that tips it over its floats (ISO 4305's share), its shortest boom that reaches there
+ *   freestanding, radius, balance, stability
+ *                   a tower crane's height under its hook, its hook's farthest, its counter-jib against its jib and
+ *                   half its rated tip load, its base's stability against its tip load, its unbalance and the wind
+ *   measure.*       a point swept over the joints it names (`over`), the joints it holds at a share of their ranges
+ *                   (`at`), the rest at the machine's rest pose: its highest (`take: 'max'`) or how far below the
+ *                   ground it goes (`take: 'depth'`): a blade's lift and its drop, a ripper's depth, a loader's hinge
+ *                   pin, its dump clearance
+ * The excavator's envelope (reach, depth, the heights) and its lift are read where a machine has a boom, a stick and a
+ * tool; every other law where its band is given.
+ *
+ * Each law: { id, value, band, ok, says }. Read once a process per machine. Pure.
+ */
+import { apply } from './con-common.js';
+import { framesOf, isStrut, rangeOf, solveChain } from './con-chain.js';
+
+const G = 9.81;
+const r2 = (n) => Math.round(n * 100) / 100;
+const r1 = (n) => Math.round(n * 10) / 10;
+const span = (r, n) => Array.from({ length: n + 1 }, (_, i) => r[0] + ((r[1] - r[0]) * i) / n);
+
+const CACHE = new Map();
+/** A part the machine rolls on: a wheel, or a roller's drum. */
+const rolls = (row) => row.kind === 'con-wheel' || (row.kind === 'con-drum' && row.build.family === 'roller');
+export function conLaws(arch, ctx, { corners, physics, posed }) {
+  if (CACHE.has(arch.key)) return CACHE.get(arch.key);
+  const band = arch.laws, laws = [];
+  const law = (id, value, b, ok, says) => laws.push({ id, value, band: b, ok, says });
+  const R = Object.fromEntries(Object.keys(arch.joints).map((k) => [k, rangeOf(arch, k, ctx)]));
+  const [tipBody, tipHp] = arch.tip.split('.'), tipLocal = ctx.hp(tipBody, tipHp);
+  const tipAt = (j) => apply(framesOf(arch, { slew: 0, ...j }, ctx)[tipBody], tipLocal);
+  const digs = Boolean(R.boom && R.stick && R.tool);
+  // (the reach is read from the axis the front swings about: an excavator's slew, a backhoe's swing post)
+  const F0 = band.from ? (() => { const [fb, fh] = band.from.split('.'); return apply(framesOf(arch, { slew: 0 }, ctx)[fb], ctx.hp(fb, fh)); })() : [0, 0, 0];
+  const out2 = (p) => Math.hypot(p[0] - F0[0], p[1] - F0[1]);
+
+  // ── the arcs (a slide's, its travel in metres) ──
+  for (const [k, r] of Object.entries(R)) if (r && band.arcs?.[k]) {
+    const slide = arch.joints[k].kind === 'slide', a = slide ? r2(r[1] - r[0]) : r1(r[1] - r[0]), b = band.arcs[k];
+    law(`arc.${k}`, a, b, a >= b[0] && a <= b[1], `the ${k}'s working ${slide ? 'travel' : 'arc'}, ${arch.joints[k].ram ? `its ${arch.joints[k].ram}'s stroke` : 'its own'}`);
+  }
+
+  // ── the measures: a point over the joints it names ──
+  for (const [id, m] of Object.entries(band.measure ?? {})) {
+    const [b, h] = m.point.split('.'), p0 = ctx.hp(b, h), rest = posed('rest');
+    // (the joints it holds: a share of each one's range, a dump clearance's arms at full lift and its bucket dumped)
+    const base = { ...rest, ...Object.fromEntries(Object.entries(m.at ?? {}).map(([k, v]) => [k, R[k] ? R[k][0] + v * (R[k][1] - R[k][0]) : v])) };
+    let combos = [{}];
+    for (const j of m.over ?? []) combos = combos.flatMap((c) => span(R[j], m.over.length > 1 ? 24 : 60).map((v) => ({ ...c, [j]: v })));
+    const zs = combos.map((c) => apply(framesOf(arch, { ...base, ...c }, ctx)[b], p0)[2]);
+    const v = r2(m.take === 'depth' ? -Math.min(...zs) : Math.max(...zs));
+    law(id, v, m.band, v >= m.band[0] && v <= m.band[1], m.says);
+  }
+
+  // ── the envelope: the tip over the boom, the stick and the tool ──
+  let reach = 0, low = Infinity, high = -Infinity, dump = -Infinity;
+  if (digs) for (const b of span(R.boom, 60)) for (const t of span(R.tool, 8)) {
+    let prev = null;
+    for (const s of span(R.stick, 60)) {
+      const p = tipAt({ boom: b, stick: s, tool: t });
+      if (p[2] < low) low = p[2];
+      if (p[2] > high) high = p[2];
+      if (prev && (prev[2] > 0) !== (p[2] > 0)) { const f = prev[2] / (prev[2] - p[2]); reach = Math.max(reach, out2(prev) + (out2(p) - out2(prev)) * f); }
+      prev = p;
+    }
+  }
+  // (dumping: the bucket opened until its teeth hang plumb under its pin, wherever its tool's range lets them)
+  const toolPin = digs ? ctx.hp(tipBody, 'pin') : null, hang = digs ? Math.hypot(tipLocal[1] - toolPin[1], tipLocal[2] - toolPin[2]) : 0;
+  if (digs) for (const b of span(R.boom, 60)) for (const s of span(R.stick, 60)) {
+    const lean = Math.atan2(tipLocal[2] - toolPin[2], tipLocal[1] - toolPin[1]) * 180 / Math.PI, t = -90 - (b + s) - lean;
+    if (t < R.tool[0] || t > R.tool[1]) continue;
+    const p = tipAt({ boom: b, stick: s, tool: t });
+    if (p[2] > dump) dump = p[2];
+  }
+  void hang;
+  const envelope = digs ? { reach: r2(reach), depth: r2(-low), cutHeight: r2(high), dumpHeight: r2(dump) } : null;
+  for (const [id, says] of [['reach', 'its tip\'s farthest along the ground'], ['depth', 'its tip\'s lowest below the ground'], ['dumpHeight', 'its tip\'s highest with the bucket opened to dump, its teeth plumb under its pin'], ['cutHeight', 'its tip\'s highest']]) {
+    const b = band[id];
+    if (b && envelope) { const v = envelope[id]; law(id, v, b, v >= b[0] && v <= b[1], says); }
+  }
+
+  // ── the tail: the counterweight's swing, as built ──
+  const rest = framesOf(arch, { slew: 0 }, ctx), cw = arch.layout.find((e) => ctx.row(e.sku).kind === 'con-counterweight');
+  if (cw && band.tail) {
+    const tail = r2(Math.max(...corners(cw.sku).map((p) => { const q = apply(rest[cw.id], p); return Math.hypot(q[0], q[1]); })));
+    law('tail', tail, band.tail, tail >= band.tail[0] && tail <= band.tail[1], 'its counterweight\'s swing about the slew axis');
+  }
+
+  // ── the ground pressure: the class's mass on its tracks ──
+  const under = arch.layout.find((e) => ctx.row(e.sku).kind === 'con-undercarriage'), shoe = under && ctx.row(under.sku).dims.shoe;
+  if (shoe && band.groundPressure) {
+    const kPa = r1((physics.mass * G) / (2 * shoe * physics.wheelbase) / 1000);
+    law('groundPressure', kPa, band.groundPressure, kPa >= band.groundPressure[0] && kPa <= band.groundPressure[1], 'its mass on its tracks\' length on the ground');
+  }
+
+  // ── the payload: its body's (or its drum's) volume, its material's mass in it against what it is rated to carry ──
+  if (band.payload) {
+    const P = band.payload, carrier = arch.layout.find((e) => ['con-body', 'con-drum'].includes(ctx.row(e.sku).kind)), d = ctx.row(carrier.sku).dims;
+    // (a body's struck volume inside its sides; a drum's gross volume turned from its profile, of which it carries a share)
+    const volume = d.profile && d.axis ? d.profile.reduce((v, p, i, a) => (i ? v + Math.PI * d.length * (p[0] - a[i - 1][0]) * (p[1] ** 2 + p[1] * a[i - 1][1] + a[i - 1][1] ** 2) / 3 : v), 0) : d.length * (d.width - 0.1) * d.side;
+    law('volume', r1(volume), P.volume, volume >= P.volume[0] && volume <= P.volume[1], d.profile ? 'its drum\'s gross volume' : 'its body\'s struck volume');
+    const carried = volume * (P.share ?? 1) * P.density * 1000, ratio = r2(carried / P.kg);
+    law('payload', ratio, P.band, ratio >= P.band[0] && ratio <= P.band[1], `its ${P.material} filling what it carries (${Math.round(carried / 1000)} t) against its rated ${P.kg / 1000} t`);
+  }
+
+  // ── the wheelbase: its front axle to its rear axles' middle, as built, against its class's ──
+  if (band.wheelbase) {
+    // (a wheel, or a roller's drum: its wheel)
+    const ys = arch.layout.filter((e) => rolls(ctx.row(e.sku))).map((e) => apply(rest[e.id], [0, 0, 0])[1]);
+    const front = Math.max(...ys), rear = ys.filter((y) => y < 0), wb = r2(front - rear.reduce((a, b) => a + b, 0) / rear.length);
+    const lo = r2(physics.wheelbase * (1 - band.wheelbase)), hi = r2(physics.wheelbase * (1 + band.wheelbase));
+    law('wheelbase', wb, [lo, hi], wb >= lo && wb <= hi, 'its front axle to its rear axles\' middle, as built, against its class\'s');
+  }
+
+  // ── the mass: every part's ──
+  const count = (e) => (e.pair ? 2 : 1);
+  const mass = arch.layout.reduce((s, e) => s + ctx.row(e.sku).mass * count(e), 0);
+  // (a machine with another tool is its class's with that tool in its bucket's place; a machine that never drives, a
+  // tower crane, says its class's mass)
+  const expected = (physics?.mass ?? band.classMass) + (band.massShift ?? 0), off = Math.abs(mass - expected) / expected;
+  law('mass', Math.round(mass), [Math.round(expected * (1 - band.mass)), Math.round(expected * (1 + band.mass))], off <= band.mass, `its parts' mass against its class's${band.massShift ? ', its tool in its bucket\'s place' : ''}`);
+
+  // ── the rated lift over the side ──
+  if (band.lift && digs) {
+    // (the excavator's chart line: 6 m out, 1.5 m up; a smaller machine names its own)
+    const L = Array.isArray(band.lift) ? { band: band.lift, radius: 6, height: 1.5 } : band.lift;
+    const pin = ctx.hp('stick', 'tip'), at = (j) => apply(framesOf(arch, { slew: 0, ...j }, ctx).stick, pin);
+    const tool = (R.tool[0] + R.tool[1]) / 2, want = [L.radius, L.height];
+    let best = null;
+    const tryAt = (b, s) => { const p = at({ boom: b, stick: s, tool }), e = (p[1] - want[0]) ** 2 + (p[2] - want[1]) ** 2; if (!best || e < best.e) best = { b, s, e }; };
+    for (const b of span(R.boom, 120)) for (const s of span(R.stick, 140)) tryAt(b, s);
+    for (let k = 0; k < 3; k++) { const c = { ...best }, w = 2 / (k + 1) ** 2; for (let i = -10; i <= 10; i++) for (let j = -10; j <= 10; j++) tryAt(Math.max(R.boom[0], Math.min(R.boom[1], c.b + (w * i) / 10)), Math.max(R.stick[0], Math.min(R.stick[1], c.s + (w * j) / 10))); }
+    const chain = solveChain(arch, { slew: 90, boom: best.b, stick: best.s, tool }, ctx);
+    const gauge = physics.track, line = -gauge / 2, loadX = apply(chain.frames.stick, pin)[0];
+    let M = 0;
+    for (const e of arch.layout) {
+      if (isStrut(e)) continue;
+      const pts = corners(e.sku), c = pts.reduce((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0]).map((v) => v / pts.length);
+      M += ctx.row(e.sku).mass * count(e) * (apply(chain.frames[e.id], c)[0] - line);
+    }
+    for (const s of chain.struts) {
+      const e = ctx.entry(s.id), m = ctx.row(e.sku).mass / (e.ram ? 2 : 1), mid = apply(s.frame, [0, s.length / 2, 0]);
+      M += m * (mid[0] - line);
+    }
+    const tips = M / (line - loadX), rated = r1((0.75 * tips) / 1000);
+    law('lift', rated, L.band, rated >= L.band[0] && rated <= L.band[1], `its rated load over the side at ${L.radius} m (75% of tipping about its track)`);
+  }
+
+  // ── the clearance: the tool never in the cab ──
+  const cab = arch.layout.find((e) => ctx.row(e.sku).kind === 'con-cab'), tool = arch.layout.find((e) => e.joint === 'tool');
+  if (cab && tool) {
+    const box = corners(cab.sku).map((p) => apply(rest[cab.id], p)), lo = [0, 1, 2].map((k) => Math.min(...box.map((p) => p[k]))), hi = [0, 1, 2].map((k) => Math.max(...box.map((p) => p[k])));
+    const w = ctx.row(tool.sku).dims.width ?? 0, pts = (ctx.outline(tool.id) ?? [tipLocal]).flatMap((p) => [[p[0] - w / 2, p[1], p[2]], [p[0] + w / 2, p[1], p[2]]]);
+    // (over every joint that carries the tool; a slew and a hitch held where they rest, the cab turning with them)
+    const carried = new Set();
+    for (let e = tool; e; e = e.on ? arch.layout.find((x) => x.id === e.on.split('.')[0]) : null) if (e.joint) carried.add(e.joint);
+    const moving = Object.keys(R).filter((k) => R[k] && carried.has(k) && arch.joints[k].kind !== 'slew'), base = posed('rest');
+    let combos = [{}];
+    for (const k of moving) combos = combos.flatMap((c) => span(R[k], k === 'tool' ? 6 : moving.length > 3 ? 10 : 24).map((v) => ({ ...c, [k]: v })));
+    let hit = 0;
+    for (const c of combos) {
+      const F = framesOf(arch, { ...base, ...c }, ctx)[tool.id];
+      if (pts.some((p) => { const q = apply(F, p); return q.every((v, k) => v > lo[k] && v < hi[k]); })) { hit++; if (process.env.CON_DEBUG) console.log('cab hit', JSON.stringify(c)); }
+    }
+    law('clearance', hit, [0, 0], hit === 0, 'its tool never enters its cab over its joints\' ranges');
+  }
+
+  // ── the transport size: folded to travel ──
+  if (band.transport && arch.poses.transport) {
+    const F = framesOf(arch, posed('transport'), ctx), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (const e of arch.layout) {
+      if (isStrut(e)) continue;
+      for (const p of corners(e.sku)) { const q = apply(F[e.id], p); for (let k = 0; k < 3; k++) { if (q[k] < lo[k]) lo[k] = q[k]; if (q[k] > hi[k]) hi[k] = q[k]; } }
+    }
+    const W = r2(hi[0] - lo[0]), H = r2(hi[2] - Math.max(0, lo[2]));
+    law('transport', { W, H }, band.transport, W <= band.transport.W && H <= band.transport.H, 'its width and its height folded for shipping, within a road\'s (advisory)');
+  }
+
+  // ── the mass of each body where it is built and posed, and the centroid of each (a crane's lifts, a roller's load) ──
+  const centroid = (sku) => { const pts = corners(sku); return pts.reduce((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0]).map((v) => v / pts.length); };
+  const massAt = (F, struts) => {
+    const out = [];
+    for (const e of arch.layout) if (!isStrut(e)) out.push([ctx.row(e.sku).mass, apply(F[e.id], centroid(e.sku))]);
+    // (a ram's mass half at its barrel's middle and half at its rod's; a rope's along its run)
+    for (const s of struts ?? []) {
+      const e = ctx.entry(s.id), row = ctx.row(e.sku), n = s.kind === 'rope' ? (e.count ?? 1) : e.ram ? 2 + Math.max(0, (row.dims.stages ?? 2) - 2) : 1;
+      out.push([row.mass / n, apply(s.frame, [0, s.kind === 'rope' ? row.dims.length / 2 : s.length / 2, 0])]);
+    }
+    return out;
+  };
+
+  // ── a roller's linear load: each drum's share of the mass where its parts are built, over its width (kg/cm) ──
+  if (band.linearLoad) {
+    const C0 = solveChain(arch, posed('rest'), ctx), drums = arch.layout.filter((e) => rolls(ctx.row(e.sku))), y = drums.map((e) => apply(C0.frames[e.id], [0, 0, 0])[1]);
+    const [iF, iR] = y[0] > y[1] ? [0, 1] : [1, 0], all = massAt(C0.frames, C0.struts), M = all.reduce((m, [kg]) => m + kg, 0);
+    const front = all.reduce((m, [kg, p]) => m + (kg * (p[1] - y[iR])) / (y[iF] - y[iR]), 0), share = { front, rear: M - front };
+    const value = Object.fromEntries(Object.entries(share).map(([k, kg]) => [k, r1(kg / (ctx.row(drums[k === 'front' ? iF : iR].sku).dims.width * 100))]));
+    law('linearLoad', value, band.linearLoad, Object.values(value).every((v) => v >= band.linearLoad[0] && v <= band.linearLoad[1]), 'each drum\'s share of its mass over its width (kg/cm), its parts where they are built');
+  }
+
+  // ── the outriggers' spread and the load chart: 75% of the load that tips it over its outriggers (ISO 4305's share)
+  if (band.chart) {
+    const P = posed(band.chart.pose), pads = arch.layout.filter((e) => e.joint === 'jack');
+    const F0 = framesOf(arch, P, ctx), xs = pads.map((e) => apply(F0[e.id], ctx.hp(e.id, 'pad'))[0]), spread = r2(Math.max(...xs) - Math.min(...xs));
+    if (band.spread) law('spread', spread, band.spread, spread >= band.spread[0] && spread <= band.spread[1], 'its outriggers\' floats, centre to centre across');
+    // (over the side, its boom slewed square to the left: the shortest boom that reaches the radius, luffed to it)
+    const head = (j) => { const C = solveChain(arch, { ...P, slew: 90, ...j }, ctx); return { C, p: apply(C.frames[tipBody], tipLocal) }; };
+    const [sb, sh] = band.chart.head ?? ['tele4', 'sheave'];
+    const headAt = (j) => apply(framesOf(arch, { ...P, slew: 90, ...j }, ctx)[sb], ctx.hp(sb, sh));
+    const values = {}, ok = [];
+    for (const [rad, b] of Object.entries(band.chart.radii)) {
+      const r = Number(rad);
+      let found = null;
+      for (let x = R.extend[0]; x <= R.extend[1] + 1e-9 && !found; x += 0.5) {
+        // (the luff whose head stands at the radius: the radius falls as the boom luffs up)
+        const at = (l) => -headAt({ extend: x, luff: l })[0];
+        if (at(R.luff[0]) < r || at(R.luff[1]) > r) continue;
+        let lo = R.luff[0], hi = R.luff[1];
+        for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (at(m) > r) lo = m; else hi = m; }
+        found = { extend: x, luff: lo };
+      }
+      if (!found) { values[rad] = null; ok.push(false); continue; }
+      const { C } = head(found), line = Math.min(...xs), loadX = -r;
+      const M = massAt(C.frames, C.struts).reduce((m, [kg, p]) => m + kg * (p[0] - line), 0);
+      const rated = r1((0.75 * M) / (line - loadX) / 1000);
+      values[rad] = rated;
+      ok.push(rated >= b[0] && rated <= b[1]);
+    }
+    law('chart', values, band.chart.radii, ok.every(Boolean), 'its rated load (t) at each radius over the side, its shortest boom that reaches it: 75% of the load that tips it over its outriggers');
+  }
+
+  // ── a tower crane: its height under its hook, its radius, its counter-jib's balance, its base's stability ──
+  if (band.tower) {
+    const T = band.tower, F = framesOf(arch, { slew: 0, trolley: 0, hoist: 0 }, ctx), hook = apply(F[tipBody], tipLocal);
+    law('freestanding', r2(hook[2]), T.freestanding, hook[2] >= T.freestanding[0] && hook[2] <= T.freestanding[1], 'its height under its hook, its hook all the way up, within its mast\'s freestanding heights');
+    const far = framesOf(arch, { slew: 0, trolley: R.trolley[1], hoist: 0 }, ctx), radius = r2(apply(far[tipBody], tipLocal)[1]);
+    law('radius', radius, T.radius, radius >= T.radius[0] && radius <= T.radius[1], 'its hook\'s farthest from its mast, its trolley at its jib\'s tip');
+    // (the upper's moments about the mast's axis, its jib along +y: what the counter-jib carries against what the jib
+    // and its trolley carry, and half the rated load's moment at the tip)
+    const upper = (e) => { for (let x = e; x; x = x.on ? arch.layout.find((y) => y.id === x.on.split('.')[0]) : null) if (x.joint === 'slew') return true; return false; };
+    let front = 0, back = 0;
+    for (const e of arch.layout.filter((x) => !isStrut(x) && upper(x))) { const y = apply(F[e.id], centroid(e.sku))[1], m = ctx.row(e.sku).mass * y; if (m > 0) front += m; else back -= m; }
+    const tipM = T.tipLoad * radius, balance = r2(back / (front + tipM / 2));
+    law('balance', balance, T.balance, balance >= T.balance[0] && balance <= T.balance[1], `its counter-jib's moment against its jib's own and half its rated ${T.tipLoad / 1000} t at its tip`);
+    // (its base's stability: its whole weight about its base's edge against its rated load at the tip, the upper's
+    // unbalance and the wind at its working limit on its mast and its jib, each lattice a third solid)
+    const total = arch.layout.reduce((m, e) => m + ctx.row(e.sku).mass, 0), edge = ctx.row(arch.layout[0].sku).dims.arm;
+    const q = 0.5 * 1.25 * T.wind ** 2 * 1.6, mastA = ctx.row(arch.sections.sku).dims.a, jib = arch.layout.find((e) => ctx.row(e.sku).kind === 'con-jib' && ctx.row(e.sku).build.family === 'jib');
+    const jd = ctx.row(jib.sku).dims, jz = apply(F[jib.id], [0, 0, jd.height / 2])[2];
+    const wind = (q * (mastA * hook[2] / 3) * (hook[2] / 2) + q * (jd.length * jd.height / 3) * jz) / G;
+    const tipping = tipM + Math.max(0, front - back) + wind, stability = r2((total * edge) / tipping);
+    law('stability', stability, T.stability, stability >= T.stability[0] && stability <= T.stability[1], `its weight on its base's edge against its rated load at its tip, its upper's unbalance and a ${T.wind} m/s wind`);
+  }
+
+  const out = { ok: laws.every((l) => l.ok), laws, envelope, mass: Math.round(mass) };
+  CACHE.set(arch.key, out);
+  return out;
+}

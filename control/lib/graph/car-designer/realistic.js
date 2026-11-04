@@ -180,11 +180,12 @@ function fan(faces) {
 }
 
 /** Compile a realistic sheet. */
-export function compileRealistic(sheet, { keys = 12, form = false, livery, wear, setting } = {}) {
+export function compileRealistic(sheet, { keys = 12, form = false, livery, wear, setting, pose } = {}) {
   // (a military class's body is the hull kit's, not a loft: military.js, the same shape returned; its livery and its
   // wear the words)
   // (a road car keeps its noon: the world it stands in lights a field vehicle only)
-  if (MILITARY_CLASSES[sheet.facets.class]) return compileMilitary(sheet, { keys, form, livery, wear, setting });
+  // (an airside vehicle's pose, how high it reaches: road-airside.js)
+  if (MILITARY_CLASSES[sheet.facets.class]) return compileMilitary(sheet, { keys, form, livery, wear, setting, ...(pose ? { pose } : {}) });
   if (livery !== undefined) throw new Error('car-designer: a road car\'s livery is its sheet\'s (mono, two-tone, striped, numbered); a livery\'s words are a field vehicle\'s');
   if (wear !== undefined) throw new Error('car-designer: a road car\'s wear is its sheet\'s (its brief\'s word); a wear\'s words are a field vehicle\'s');
   const spec = realisticSpec(sheet), cls = sheet.facets.class;

@@ -13,7 +13,7 @@
  *                                                           cornerNormals }
  *     axis   the way the wheel's face looks: by default out along x from the side its hub is on (a wheel on its axle);
  *            [0, -1, 0] for a spare on a rear panel, [0, 0, 1] for one lying on a bonnet
- *     lugs   the pitches round the tread (by default about one each 13 cm of its circumference)
+ *     lugs   the pitches round the tread (by default about one each 13 cm of its circumference); 0, a smooth tyre
  *
  * Vehicle space (+y forward, x across, z up), metres. Pure and deterministic.
  */
@@ -40,7 +40,8 @@ const radial = (t) => [0, Math.cos(t), Math.sin(t)];
 
 /** The wheel built at the origin, its face along +x. */
 function wheelLocal({ r, width, paint, n, lugs }) {
-  const hw = width / 2, faces = [], depth = Math.max(0.018, r * 0.06), crown = r - depth, rim = 0.58;
+  // (no lugs: a smooth tyre, its crown the tyre's radius)
+  const hw = width / 2, faces = [], depth = Math.max(0.018, r * 0.06), crown = lugs ? r - depth : r - 0.001, rim = 0.58;
   const at = (j) => (2 * Math.PI * j) / n;
   // ── the carcass: bead to bead, [axial share of the half width, radius]
   const side = rim * r + 0.5 * (crown - rim * r);

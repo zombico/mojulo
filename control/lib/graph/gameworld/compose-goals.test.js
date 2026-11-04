@@ -75,11 +75,15 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // stands in): this haunted forest's gothic-night cube builds tiered, so its civilization is the tiered folk, not a
     // rolled shell folk; nothing else in the world moved, 31e98788 -> ed00debc)
     expect(fingerprint(unjuiced)).toBe('ed00debc');
-    // (the game order now asks for the audit, its levels being reach-exit (first-frame checks, runner.js): the orders
-    // without that one flag are the print taken before levels could carry a goal)
-    const orders = runSteps(unjuiced, { ref: 'gw' }).map((s) => s.order);
-    expect(orders.at(-1).auto_audit).toBe(true);
-    const unaudited = (os) => os.map((o) => (o && 'auto_audit' in o ? (({ auto_audit: _a, ...x }) => x)(o) : o));
+    // (its levels being reach-exit, the game is checked after it is made: one audit step a level, at the level's ref
+    // (runner.js auditSteps). The orders the levels and the game are made from, without the audits, are the print taken
+    // before levels could carry a goal: the game order asked create_game for the audit once, and the pins below were
+    // taken without that flag, so they hold as they were)
+    const steps = runSteps(unjuiced, { ref: 'gw' });
+    expect(steps.filter((s) => s.audit).map((s) => s.ref)).toEqual(steps.filter((s) => s.key.startsWith('level-')).map((s) => s.ref));
+    expect(steps.find((s) => s.key === 'game').order.auto_audit).toBeUndefined();
+    const unaudited = (ss) => ss.filter((s) => !s.audit).map((s) => s.order);
+    const orders = steps;
     // (re-pinned 2026-10-25 merging 1024-geocube-composition-update: geocube styles rewrote the gothic-night preset, so the
     // kit its variant is named by hashes anew, geocube-gothic-night-variant-9bedf4 -> -f88cc1; nothing else in the orders moved)
     // (re-pinned 2026-10-25, 1025-land-into-cube: the levels now carry their land. A composed world has always written
@@ -92,8 +96,10 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // (re-pinned 2026-10-27, 1026-gen7-island: the meru island is every cube's outside at a game's scale and geo only
     // (era/geocube.js MERU_ISLE: its tiers ×3, `walk: 'none'`, a sea and a high side), so the cube's outside each level's
     // order carries moved; the levels build as before, their trails, climbs and walk the same, b771729c -> 0e1c91bc)
-    expect(fingerprint(unaudited(orders))).toBe('0e1c91bc');
-    expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('9ad2a5b7');
+    // (re-pinned 2026-11-03, 1103-game-design-studio-abstraction: a climb's level lays the ladder its climb names as the
+    // surface the hero climbs (levels.js climbLadders: playscape's ladder, lowered), where the meru drew a stand-in no
+    // body could take hold of, so a climb's top was out of reach. Each order without its ladders is the print it was:
+    // nothing else moved, 0e1c91bc, 9ad2a5b7, and the hero world's 2c76a7f0 below; with them, the pins after)
     // (re-pinned 2026-11-02, 1102-book-powers: the hero's powers act. Its attack power's key fires its beam at the
     // nearest foe in front (0b5f8e90 -> f11ad354), and a later stage's power fires only once its node is gained, its
     // refusal said (f11ad354 -> bef8c054); its attack's hurt follows the power stat as it rises, the stats binding the
@@ -104,7 +110,14 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // moved, 0b5f8e90 -> 4246de56; the hero-less worlds above are unchanged)
     // (re-pinned 2026-11-03 at the merge of 1026-consolidated into 1102-book-powers: both of the above at once, the
     // powers' orders with the chase's camera, 8db45f48 | 4246de56 -> 2c76a7f0)
-    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('2c76a7f0');
+    const unladdered = (os) => os.map((o) => (Array.isArray(o?.manifest?.entities) ? { ...o, manifest: { ...o.manifest, entities: o.manifest.entities.filter((e) => !String(e.id).startsWith('ladder-')) } } : o));
+    const ground = runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }), hero = runSteps(MEADOWMARK_HERO, { ref: 'gw' });
+    expect(fingerprint(unladdered(unaudited(orders)))).toBe('0e1c91bc');
+    expect(fingerprint(unladdered(unaudited(ground)))).toBe('9ad2a5b7');
+    expect(fingerprint(unladdered(unaudited(hero)))).toBe('2c76a7f0');
+    expect(fingerprint(unaudited(orders))).toBe('642958c3');
+    expect(fingerprint(unaudited(ground))).toBe('eadb7584');
+    expect(fingerprint(unaudited(hero))).toBe('c954dd75');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {

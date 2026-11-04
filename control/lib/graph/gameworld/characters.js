@@ -104,6 +104,8 @@ const NOT_LOOKS = Object.freeze({
 export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment', 'mechanics:stats', 'mechanics:hud']);
 const HERO_KEYS = ['ref', 'name', 'looks', 'motion', 'actions', 'adornment'];
 const KEYS = ['direction', 'hero', 'cast', 'casting', 'folk'];
+/** The character book's keys and its hero's (the chapter registry, chapters.js, gives each its chapter). */
+export const CHARACTER_BOOK_KEYS = Object.freeze([...KEYS]), CHARACTER_HERO_KEYS = Object.freeze([...HERO_KEYS]);
 /** The casting page's part: present only in a book that has one (casting.js). */
 export const CAST_PART = 'characters:cast';
 

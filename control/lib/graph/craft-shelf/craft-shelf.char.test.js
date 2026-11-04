@@ -11,6 +11,28 @@
  *   - Detail pass (unreleased, folded in): material finishes by colour role, control surfaces cut out and
  *     hinged, gear and canopy joints, panel seams, cabin windows and doors, greebles, fan blades, nav
  *     lights, straight cabin barrels; every pin re-pinned.
+ *   - The drone parts joined the shelf (drone-odm.js): their builder paths pinned; no existing pin moved.
+ *   - The multirotor family (unreleased, folded in): new builder paths pinned; the camera gimbal's glass given a real
+ *     thickness (it rounded to nothing on a bigger gimbal), the probe's vent its cowl, and every straight drone lathe
+ *     two cross-sections (a straight profile needs no more; an X8 cost 56k triangles), so the drone pins re-pinned.
+ *   - The drone looks: the EO/IR ball's builder path pinned; no other pin moved.
+ *   - The helicopter parts joined the shelf (heli-odm.js): their builder paths pinned; no other pin moved.
+ *   - The cockpit as a part of its own (cockpit-parts.js): its builder path pinned; no other pin moved.
+ *   - The helicopter airframes: the twin cowling, the rotor pylon and the kit's builder paths pinned, and two whole
+ *     helicopters (the attack helicopter for a faceted hull opened over its cockpit, the tandem for its ramp and its
+ *     pylon's engines, neither a path of its own); no other pin moved. Then the attack helicopter re-pinned: its faceted
+ *     tub carries its corners only (points between them lay on straight edges, and its concave caps dropped the
+ *     slivers they made, leaving holes the deep sweep found).
+ *   - The helicopter looks: the looks' kit builder paths pinned; the attack and tandem helicopters re-pinned, their hulls
+ *     naming the stations a look's kit hangs at (`kitAt`, hardpoints only: no face moved); no other pin moved.
+ *   - The field's language on a helicopter: the attack and tandem helicopters re-pinned for their hulls' antennas and the
+ *     tandem's sliding doors on their rails (the armour, steps, handles and bolts are made, outside the pins); no other
+ *     pin moved.
+ *   - The boat parts joined the shelf (boat-odm.js): their builder paths pinned; no existing pin moved. The centre
+ *     console's (the remote outboard, the console, the seat) pinned when they joined, and the T-top's and the bucket seat's; the military boats' (the jockey seat, the pintle gun, the radar arch; the waterjet, the
+ *     pilothouse, the gun tub; the bow ramp, the shaft drive; the bridge, the naval gun, the davit; the destroyer's
+ *     superstructure, funnel, hangar, pyramid mast, turret, close-in weapon and launch cells; the carrier's flight deck; the submarine's round hull)
+ *     when they joined; no existing pin moved.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -57,8 +79,90 @@ const PINS = {
   'intake-chin': '4f4aaee982b5285d',
   'intake-side-d': '3459babb4c86b684',
   'eng-radial-18': '304899c7427b23ad',
+  // the drone parts (drone-parts.js): their builder paths pinned when they joined the shelf
+  'frame-shell-camera': '38afd6e99918dcc5',
+  'arm-fold-camera-front': '9aa99f9cd96cd86a',
+  'motor-1806': '9e29b764e6244eb6',
+  'rotor-2-9in-ccw': 'e6b7a71a1d7d5142',
+  'guard-ring-9in': '932f635320a34275',
+  'gimbal-3axis-camera': '9a132523b7a5b763',
+  'mast-gps-puck': 'c9596da31b70579d',
+  'frame-plate-fpv': 'ec3dc7444837a8d5',
+  'arm-plate-fpv': 'afb79a00457bdbb1',
+  'frame-box-enterprise': 'a4a86c41f2c051d6',
+  'arm-tube-enterprise': '4a99373dc741aa02',
+  'mast-paddle-enterprise': '86bb96701bc9aace',
+  'gear-skid-enterprise': '29817727afbb18a4',
+  'frame-hub-heavy': 'c4b9cc6b0b91b33b',
+  'box-cargo-heavy': '5ef4ac3f289cc5bb',
+  'lidar-puck': '6fe890cbfff115da',
+  'sprayer-10l': '50775e8131dbb96d',
+  'duct-15in': '00678fcf0fca31f7',
+  'winch-parcel': 'd5eacb29acc38c56',
+  'motor-vent-probe': 'e8d0ae806e057d3b',
+  'eye-probe': '6e299153a70e5b86',
+  'eoir-ball-small': 'a83be3ba6c538c86',
+  // the helicopter parts (heli-parts.js): their builder paths pinned when they joined the shelf
+  'cowl-heli-light': '7bafeb880b3e84c1',
+  'rotor-heli-light': '6bec5da09c4bc8ba',
+  'tail-rotor-light': 'fdb5f4979a12e93f',
+  'fan-heli-ducted': 'd2c588b7caf3d68e',
+  // the cockpit, a part of its own (cockpit-parts.js)
+  'cockpit-heli-light': '05a3c9a9af39f335',
+  // the helicopter airframes: a twin's cowling, a tandem's rotor pylon, the kit
+  'cowl-heli-twin': '82590683e8b33d01',
+  'pylon-heli-tandem-front': '3cd7828470712c67',
+  'rockets-heli-19': '4d85a3fa776b574e',
+  'rack-heli-missiles': 'bbe4f2cd4e926027',
+  'gun-heli-chin': 'e3325ac1fa00a443',
+  // the looks' kit (heli-looks.js hangs it at a hull's stations)
+  'gun-heli-door': 'd2b1955c83640d14',
+  'cutter-heli': '0e7a6b314d288d4f',
+  'flares-heli': 'cb1a65026a079a47',
+  'searchlight-heli': '18ff6fbca67706f6',
+  'hoist-heli': 'f241c3372dbf43dc',
+  'floats-heli-light': '42fc874354ac452c',
+  // the boat parts (boat-parts.js): their builder paths pinned when they joined the shelf
+  'hull-skiff-v14': '204500e874a8e297',
+  'outboard-20-tiller': '7102b33c3fef79a4',
+  'tank-portable-45l': '9567ccfb41323421',
+  // the centre console's new builder paths: the remote outboard, the console, the cooler seat
+  'outboard-90-remote': 'be1036d23afe511c',
+  'console-cc-17': 'd153014a55fb989b',
+  'seat-cooler-120': 'eb87cc30eb527062',
+  // the T-top's builder path, pinned when it joined
+  'top-t-cc-17': '7a337c0beca48ba5',
+  // the bucket seat's builder path, pinned when it joined (the cuddy cabin's)
+  'seat-bucket-pedestal': '201ef7ea2fff33f8',
+  // the military boats' builder paths, pinned when they joined: the jockey seat, the pintle gun, the radar arch
+  'seat-jockey': 'c0d209e0ab72804d',
+  'mount-mg-deck': '0e14f6397969f40e',
+  'arch-radar-rhib': '4f790a71278a39f6',
+  // the riverine patrol boat's: the waterjet, the pilothouse, the gun tub
+  'jet-waterjet-350': '8c602648f4b96350',
+  'pilothouse-riverine': 'ecbbed6f63ebb714',
+  'mount-mg-tub': '2854cf038ce8f6ef',
+  // the landing craft's: the bow ramp, the shaft drive
+  'ramp-landing-22': '70082edeb358c316',
+  'shaft-diesel-450': '12f96a36627fbd1c',
+  // the navy patrol boat's: the bridge, the naval gun, the davit
+  'bridge-patrol-25': 'a7fab46289510326',
+  'mount-cannon-30': '14f456da3a12d27f',
+  'davit-sea-boat': '161303e108d517e1',
+  'superstructure-destroyer': 'e1e9fd7399698b65',
+  'funnel-destroyer': '291861a97f05c017',
+  'hangar-destroyer': '2a441996af8596f0',
+  'mast-pyramid-destroyer': '1aafbdbedddce104',
+  'turret-gun-127': '27a72d1531bf963e',
+  'mount-ciws': '5f1bf3dd69bcfa2b',
+  'vls-cells-32': '892a7a8d1921f05b',
+  'deck-carrier-320': '8725f0cb7b7f13bb',
+  'hull-sub-attack-110': 'fdb7a6041b691b6d',
   'craft:lightSingle': 'cbbad5fe3c255c1d',
+  'craft:attackHeli': '8df85083c0bfc386',
+  'craft:tandemHeli': 'c60d052a6cc7f82c',
 };
+const CRAFTS = Object.keys(PINS).filter((k) => k.startsWith('craft:'));
 
 const PROCEDURES = (() => {
   const seen = new Map();
@@ -71,14 +175,14 @@ const PROCEDURES = (() => {
 
 describe('craft shelf emission pins', () => {
   it('pins exactly one part per builder path', () => {
-    expect(Object.keys(PINS).filter((k) => k !== 'craft:lightSingle').sort()).toEqual([...PROCEDURES].sort());
+    expect(Object.keys(PINS).filter((k) => !CRAFTS.includes(k)).sort()).toEqual([...PROCEDURES].sort());
   });
 
   it.each(PROCEDURES)('%s', (sku) => {
     expect(hash(resolveCraftPart(sku, { seat: 'mount' }))).toBe(PINS[sku]);
   });
 
-  it('craft:lightSingle', () => {
-    expect(hash(assembleCraft('lightSingle').manifest)).toBe(PINS['craft:lightSingle']);
+  it.each(CRAFTS)('%s', (k) => {
+    expect(hash(assembleCraft(k.slice('craft:'.length)).manifest)).toBe(PINS[k]);
   });
 });

@@ -14,7 +14,7 @@
  *   well      on the body, not the turning wheel: the arch's liner, a dark half-ring over the tyre, so the arch reads as
  *             a wheel well and not a gap to the sky; and the brake's caliper on the disc's trailing upper quarter
  *
- *   roadWheel({ hub, r, width, style?, n? })     → form faces { corners, part, material, albedo, outNormal }, the wheel's
+ *   roadWheel({ hub, r, width, style?, n?, rim? }) → form faces { corners, part, material, albedo, outNormal }, the wheel's
  *   wheelWell({ hub, r, width })                 → the arch liner's and the caliper's form faces (the body's)
  *
  * Vehicle space (+y forward, x across, z up): the wheel turns about x, its outer face toward the side its hub is on.
@@ -59,9 +59,11 @@ function frame(hub) {
 }
 
 /** A road car's wheel, lathed. `width` the tyre's, `r` its radius; the rim's share of the radius is a road tyre's. */
-export function roadWheel({ hub, r, width, style = null, n = 32 }) {
-  const S = WHEEL_STYLES[style] ?? WHEEL_STYLES.road, { P, radial, axial } = frame(hub), hw = width / 2;
-  const rim = r > 0.45 ? 0.6 : 0.64, faces = [], q = (a, b, c, d) => [a, b, c, d];
+export function roadWheel({ hub, r, width, style = null, n = 32, rim: rimShare = null }) {
+  // (a style is a name here, or a style's own record: the car shelf's wheels, car-shelf/car-wheels.js; `rim` the rim's
+  // share of the radius, a low-profile tyre's larger)
+  const S = style && typeof style === 'object' ? style : WHEEL_STYLES[style] ?? WHEEL_STYLES.road, { P, radial, axial } = frame(hub), hw = width / 2;
+  const rim = rimShare ?? (r > 0.45 ? 0.6 : 0.64), faces = [], q = (a, b, c, d) => [a, b, c, d];
   const at = (j) => (2 * Math.PI * j) / n;
   // the tyre: bead to bead over the tread, [axial share of the half width, radius share]
   const side = rim + 0.45 * (1 - rim);

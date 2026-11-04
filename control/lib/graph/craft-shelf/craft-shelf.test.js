@@ -28,7 +28,8 @@ describe('craft-odm: the inventory is data a builder can read', () => {
       expect(CRAFT_KINDS, sku).toHaveProperty(row.kind);
       expect(CRAFT_REALMS, sku).toContain(row.realm);
       expect(row.mass, sku).toBeGreaterThan(0);
-      expect(Object.values(row.dims).every((v) => v > 0 && v < 100), sku).toBe(true);
+      // (in metres, not millimetres: a part under 100 m, a ship's hull and a carrier's flight deck under 400)
+      expect(Object.values(row.dims).every((v) => v > 0 && v < (['boat-hull', 'boat-deck'].includes(row.kind) ? 400 : 100)), sku).toBe(true);
     }
   });
 
@@ -158,12 +159,11 @@ describe('planCraftBuild: the audit advises, it never refuses', () => {
 });
 
 describe('roles: every job has its earth machine and its starship', () => {
-  it('names a known role on every archetype, and fills every role in both realms', () => {
+  it('names a known role on every archetype, and fills every role in both realms (a boat\'s role in its own)', () => {
     for (const [id, a] of Object.entries(CRAFT_ARCHETYPES)) expect(CRAFT_ROLES, id).toHaveProperty(a.role);
     for (const role of Object.keys(CRAFT_ROLES)) {
       const r = craftRoleAnalogues(role);
-      expect(r.earth.length, role).toBeGreaterThan(0);
-      expect(r.space.length, role).toBeGreaterThan(0);
+      for (const realm of CRAFT_ROLES[role].realms ?? ['earth', 'space']) expect(r[realm].length, `${role} ${realm}`).toBeGreaterThan(0);
     }
     expect(() => craftRoleAnalogues('tanker')).toThrow(/Unknown craft role/);
   });

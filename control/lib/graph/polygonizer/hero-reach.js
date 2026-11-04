@@ -372,7 +372,9 @@ export function drivePath(frame, family, sh, Tf, { stroke = 0.15, n = 3 } = {}) 
  * cheapest approach and as little of the LADDER as lands it (strikeTarget), driven along its DRIVE (drivePath: a
  * straight line, or an arc for a hook or an uppercut; `samples` solves back from the contact along it, each seeded by
  * the next, the body moving through them on the rungs the contact needed, a stepped foot planted), then recovered to the
- * stance, and on to the next. The body moves into
+ * stance, and on to the next (`aimed`: the targets named, { az, el, share | at, surface?, families? } each, in place of the
+ * seeded draws; `follow` metres the hand carries on past each target along its approach, a punch's follow-through, where
+ * a drill holds on the target; `step` the least seconds a move between two keys takes, 0.04 a drill's). The body moves into
  * the contact's (its girdle, trunk, hips, weight, sink) as the hand leaves the guard; a STEP lifts the foot off the
  * floor between (and again on the way home). The time of each move is its largest joint turn over the servo's speed
  * (SERVO_SPEEDS: a strike at `pace` of the speed the hero's own attacks reach, a recovery at half that), an eased move
@@ -381,19 +383,30 @@ export function drivePath(frame, family, sh, Tf, { stroke = 0.15, n = 3 } = {}) 
  * stop at contact), path (m: the surface off its drive), balance (m: the centre of mass inside the feet at contact) }],
  * worst } }. The checks read the CLIP as played (keyedClip), not the solve.
  */
-export function targetDrill(R, { seed = 1, count = 6, side: S = 'R', stance = 'guard', surfaces = ['knuckles'], bands = [0.6, 0.95], az = [-45, 80], el = [-35, 45], stroke = 0.15, samples = 3, pace = 0.5, families, rungs, register = 'realistic' } = {}) {
+export function targetDrill(R, { seed = 1, count = 6, side: S = 'R', stance = 'guard', surfaces = ['knuckles'], bands = [0.6, 0.95], az = [-45, 80], el = [-35, 45], stroke = 0.15, samples = 3, pace = 0.5, families, rungs, register = 'realistic', aimed = null, follow = 0, step = 0.04 } = {}) {
   const sb = stanceBody(R, stance, S), n0 = sb.nodes, Tf = thoraxFrame(n0), sh = n0[`shoulder${S}`], F = handFeatures(R, S);
   const lat = S === 'R' ? Tf.right : mul(Tf.right, -1);
   const l12 = dist(R.joints[`shoulder${S}`], R.joints[`elbow${S}`]) + dist(R.joints[`elbow${S}`], R.joints[`wrist${S}`]);
   const rnd = mulberry32(seed), rad = (d) => d / DEG;
   const hits = [];
-  for (let i = 0; i < count; i++) {
-    const a = az[0] + (az[1] - az[0]) * rnd(), e = el[0] + (el[1] - el[0]) * rnd(), share = bands[0] + (bands[1] - bands[0]) * rnd();
-    const surface = surfaces[Math.floor(rnd() * surfaces.length) % surfaces.length];
-    const v = add(mul(add(mul(lat, Math.sin(rad(a))), mul(Tf.fwd, Math.cos(rad(a)))), Math.cos(rad(e))), mul(Tf.up, Math.sin(rad(e))));
-    const reachS = l12 + dist(F.surfaces[surface].p, F.wrist);
-    const at = add(sh, mul(v, share * reachS));
-    const hit = strikeTarget(R, sb.body, S, { at, surface }, { families, n0, ...(rungs !== undefined ? { rungs } : {}) });
+  // (AIMED targets, `aimed: [{ az, el, share, surface?, families? }]`, in place of the seeded draws: a move's own target,
+  // hero-box.js; the seeded drill draws as it always has)
+  for (let i = 0; i < (aimed ? aimed.length : count); i++) {
+    const A = aimed ? aimed[i] : null;
+    // (an aimed target is a point, `at` in the rig's frame, or a direction off the shoulder; its az, el and share read off
+    // it for the record. A seeded one draws its direction, its share and then its surface, in that order)
+    let a, e, share, at, surface, reachS;
+    if (A?.at) {
+      surface = A.surface ?? 'knuckles'; reachS = l12 + dist(F.surfaces[surface].p, F.wrist); at = A.at;
+      const d = sub(at, sh), r = len(d); share = r / reachS; e = Math.asin(dot(d, Tf.up) / r) * DEG; a = Math.atan2(dot(d, lat), dot(d, Tf.fwd)) * DEG;
+    } else {
+      a = A ? A.az : az[0] + (az[1] - az[0]) * rnd(); e = A ? A.el : el[0] + (el[1] - el[0]) * rnd(); share = A ? A.share : bands[0] + (bands[1] - bands[0]) * rnd();
+      surface = A ? A.surface ?? 'knuckles' : surfaces[Math.floor(rnd() * surfaces.length) % surfaces.length];
+      reachS = l12 + dist(F.surfaces[surface].p, F.wrist);
+      const v = add(mul(add(mul(lat, Math.sin(rad(a))), mul(Tf.fwd, Math.cos(rad(a)))), Math.cos(rad(e))), mul(Tf.up, Math.sin(rad(e))));
+      at = add(sh, mul(v, share * reachS));
+    }
+    const hit = strikeTarget(R, sb.body, S, { at, surface }, { families: A?.families ?? families, n0, ...(rungs !== undefined ? { rungs } : {}) });
     // THE DRIVE, back from the contact along its path: the body moves through it on the rungs the contact needed, and
     // the girdle and the trunk at least (the kinetic chain: the trunk and the weight still arriving as the hand does),
     // the stepped foot planted where it stepped; each sample seeded by the one after it
@@ -408,7 +421,7 @@ export function targetDrill(R, { seed = 1, count = 6, side: S = 'R', stance = 'g
     for (let k = samples - 1; k >= 0; k--) {
       const q = path[k], r = reachTarget(R, { ...sb.body, ...stepFeet }, S, { at: q.at, surface }, { seed: x, n0: nb, lock: { ...hit.frame, m: q.m, approach: q.approach }, rungs: dr }); x = r.x; drive.unshift(r);
     }
-    hits.push({ at, surface, share, az: a, el: e, hit, drive, bodyCh, path, chOf, stepFeet });
+    hits.push({ at, surface, share, az: a, el: e, hit, drive, bodyCh, path, chOf, stepFeet, nb });
   }
   // the keys, timed by the servos; the body's channels (the stance's, or a strike's) and its feet carried in the key
   const sp = SERVO_SPEEDS[register], dig = (w) => (typeof w === 'string' ? { ...HAND_POSES[w] } : w);
@@ -416,7 +429,7 @@ export function targetDrill(R, { seed = 1, count = 6, side: S = 'R', stance = 'g
   const armOf = (r) => ({ ...Object.fromEntries(ARM.filter((k) => r.pose[k] !== undefined).map((k) => [k, r.pose[k]])), [`fingers${S}`]: dig(r.pose[`fingers${S}`]) });
   const guardArm = { ...sb.arm, [`fingers${S}`]: dig(sb.arm[`fingers${S}`] ?? 'fist') };
   const xOf = (arm) => [arm[`sh${S}`]?.pitch ?? 0, arm[`sh${S}`]?.yaw ?? 0, arm[`elbow${S}`] ?? 0, arm[`sh${S}`]?.roll ?? 0];
-  const moveTime = (a, b, k) => { const xa = xOf(a), xb = xOf(b); const turn = Math.max(Math.abs(xa[0] - xb[0]), Math.abs(xa[1] - xb[1]), Math.abs(xa[3] - xb[3])) / sp.shoulderSwing, bend = Math.abs(xa[2] - xb[2]) / sp.elbow; return Math.max(0.04, (1.5 * Math.max(turn, bend)) / k); };
+  const moveTime = (a, b, k) => { const xa = xOf(a), xb = xOf(b); const turn = Math.max(Math.abs(xa[0] - xb[0]), Math.abs(xa[1] - xb[1]), Math.abs(xa[3] - xb[3])) / sp.shoulderSwing, bend = Math.abs(xa[2] - xb[2]) / sp.elbow; return Math.max(step, (1.5 * Math.max(turn, bend)) / k); };
   const { t: _t, pose: base, ...feet0 } = sb.key, legs = R.legs, rest = R.joints;
   // a stepped foot as the key's own channels (hero-stance's: its toe base out and ahead of its rest place)
   const footKeys = (to) => (to ? { [`out${S}`]: r4((to[0] - rest[legs[S].toeBase][0]) * Math.sign(rest[legs[S].hip][0])), [`foot${S}`]: r4(to[1] - rest[legs[S].toeBase][1]) } : {});
@@ -436,7 +449,15 @@ export function targetDrill(R, { seed = 1, count = 6, side: S = 'R', stance = 'g
       seq.push({ key: keyOf(arm, ch, stepped ? { [`ground${S}`]: 1 } : {}), arm, time });
     }
     marks.push({ contact: time, chamber: seq[seq.length - h.drive.length].time });
-    time += 0.06; seq.push({ key: keyOf(armOf(h.drive[h.drive.length - 1]), h.bodyCh, stepped ? { [`ground${S}`]: 1 } : {}), arm: armOf(h.drive[h.drive.length - 1]), time });
+    if (follow > 0) {
+      // THE FOLLOW-THROUGH (`follow` metres past the target along its approach, a punch's): the hand carried on through the
+      // contact at the drive's pace, so it meets the target at speed (held there, the curve through the keys braked it
+      // to a stop on the target, as a drill's touch)
+      const fr = h.hit.frame, past = add(fr.at, mul(fr.approach, follow));
+      const r = reachTarget(R, { ...sb.body, ...h.stepFeet }, S, { at: past, surface: h.surface }, { seed: h.hit.x, n0: h.nb, lock: { ...fr, at: past }, rungs: Math.max(2, Math.min(h.hit.rungs ?? 0, 3)) });
+      const arm = armOf(r), dt = moveTime(seq[seq.length - 1].arm, arm, pace);
+      time += dt; seq.push({ key: keyOf(arm, { ...h.chOf(r), ...h.stepFeet }, stepped ? { [`ground${S}`]: 1 } : {}), arm, time });
+    } else { time += 0.06; seq.push({ key: keyOf(armOf(h.drive[h.drive.length - 1]), h.bodyCh, stepped ? { [`ground${S}`]: 1 } : {}), arm: armOf(h.drive[h.drive.length - 1]), time }); }
     const back = Math.max(moveTime(seq[seq.length - 1].arm, guardArm, pace * 0.5), stepped ? 0.2 : 0);
     if (stepped) seq.push({ key: keyOf(guardArm, {}, { [`ground${S}`]: 0 }), arm: guardArm, time: time + back / 2, mid: true });
     time += back; seq.push({ key: keyOf(guardArm, {}, stepped ? { [`ground${S}`]: 1 } : {}), arm: guardArm, time });
@@ -458,6 +479,6 @@ export function targetDrill(R, { seed = 1, count = 6, side: S = 'R', stance = 'g
     return { contact: c.err, approach: c.approachErr, past, path: r4(off), balance: r4(margin(hull(fpts), comOf(n))) };
   });
   const worst = { contact: Math.max(...checks.map((c) => c.contact)), approach: Math.max(...checks.map((c) => c.approach)), path: Math.max(...checks.map((c) => c.path)), past: checks.reduce((a, c) => a + c.past.length, 0), balance: Math.min(...checks.map((c) => c.balance)) };
-  const targets = hits.map((h, i) => ({ at: h.at.map(r4), surface: h.surface, family: h.hit.family, rung: h.hit.rung, ladder: h.hit.ladder, step: h.hit.step ?? null, approach: h.hit.frame.approach.map(r4), aim: h.hit.frame.aim, share: r4(h.share), az: r1(h.az), el: r1(h.el), t: r4(marks[i].contact), path: h.path.map((q) => q.at.map(r4)), reached: h.hit.err <= 0.005 && !h.hit.hard.length, driveErr: r4(Math.max(...h.drive.map((r) => r.err))) }));
+  const targets = hits.map((h, i) => ({ at: h.at.map(r4), surface: h.surface, family: h.hit.family, rung: h.hit.rung, ladder: h.hit.ladder, step: h.hit.step ?? null, approach: h.hit.frame.approach.map(r4), aim: h.hit.frame.aim, share: r4(h.share), az: r1(h.az), el: r1(h.el), t: r4(marks[i].contact), chamber: r4(marks[i].chamber), path: h.path.map((q) => q.at.map(r4)), reached: h.hit.err <= 0.005 && !h.hit.hard.length, driveErr: r4(Math.max(...h.drive.map((r) => r.err))) }));
   return { seed, side: S, stance, targets, clip, keys, seconds: r4(seconds), checks: { targets: checks, worst } };
 }

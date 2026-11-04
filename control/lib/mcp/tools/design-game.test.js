@@ -185,7 +185,10 @@ describe('design_game, autonomous', () => {
   }, 240_000);
 
   it('autonomous: one run makes everything that settles on its own', () => {
+    // (a run compiles: the five stages' walks are steps of their own, taken when the run asks to check: runner.js
+    // auditSteps, design-game.budget.test.js)
     expect(out.ran.map((r) => r.action)).toEqual(Array(15).fill('make'));
+    expect(out.ran.some((r) => r.key.startsWith('audit-'))).toBe(false);
     // the levels and the game: each stage a level the equipped hero pilots, the game over them, unaudited and said so
     expect(out.ran.filter((r) => r.key.startsWith('level-')).map((r) => r.key)).toEqual(['level-meadow-ascent-0', 'level-meadow-ascent-1', 'level-meadow-ascent-2', 'level-shell-shore-0', 'level-shell-shore-1']);
     expect(stored('gw-level-meadow-ascent-0')).toMatchObject({ kind: 'stage', game: { levelRef: 'gw-level-meadow-ascent-0' }, figures: { hero: { heroRef: 'gw-hero-equipped' } } });

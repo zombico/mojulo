@@ -19,3 +19,6 @@ process.env.MOJULO_BUNDLED_BOOK ||= 'off';
 // when one is installed (lib/graph/game/first-frame-check.js levelBrowser). Off under test, so a suite that runs
 // design_game never launches Chrome by accident; a suite that means to render injects its own finder or sets this.
 process.env.MOJULO_GAME_BROWSER ||= 'off';
+// A design_game run stops at its budget and leaves the rest pending (design-game.js RUN_BUDGET_MS): unbounded under test,
+// so a suite's run makes every ready step in one call however slow the machine; a suite that tests the budget sets it.
+process.env.MOJULO_RUN_BUDGET_MS ||= '0';

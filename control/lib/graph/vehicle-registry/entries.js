@@ -4,6 +4,10 @@
 // ('vehicles'); the `vehicle` card says how a vehicle is minted.
 import { VEHICLES, REALMS, ROLES } from './roster.js';
 import { buildOf, upscaleLedger, TIER_IDS } from './builds.js';
+import { VEHICLES as PHYSICS, wheelLayout } from '../roads/vehicles.js';
+
+// (a row's wheels, when they are not two to an axle: two in line, a sidecar, a delta, a tadpole)
+const layoutOf = (id) => { const cls = [VEHICLES[id].handles.physics ?? []].flat()[0], v = cls && PHYSICS[cls], l = v ? wheelLayout(v) : null; return l && l !== 'axles' ? l : null; };
 
 const tierWord = (id, tier) => {
   const at = buildOf(id, tier);
@@ -14,7 +18,7 @@ const tierWord = (id, tier) => {
 export function vehiclesCard() {
   const ledger = upscaleLedger();
   const lines = ['# The vehicle registry', '',
-    "Every vehicle a game, a world or a preview names, one row under the words people say: `mint_solid { kind: 'vehicle', spec: { vehicle: '<word>', tier? } }` shows one; a quick game's `ride`, `vehicle` and `craft` take the same words (design_game). The old tables (the city's nets, the physics classes, the fleet, the rides, the race machines, the craft shelf) are each a row's build, frozen behind the registry: a new vehicle is a row first.", '',
+    "Every vehicle a game, a world or a preview names, one row under the words people say: `mint_solid { kind: 'vehicle', spec: { vehicle: '<word>', tier? } }` shows one; a quick game's `ride`, `vehicle` and `craft` take the same words (design_game). The old tables (the city's nets, the physics classes, the fleet, the rides, the race machines, the craft shelf) are each a row's build, frozen behind the registry: a new vehicle is a row first. A machine ridden astride is the cycle shelf's (its wheels in line, or a three-wheeler's layout, said beside it): `look` dresses it.", '',
     `A build is a row at a tier (${TIER_IDS.join(', ')}). Live: a door or game draws it today. Asleep: built and not yet wired (the upscale is wiring). Every row falls back to the technology crafter's concept, so a game can always draw it. Drawn realistic today, for the use that matters most: ${ledger.live.length} rows live, ${ledger.asleep.length} asleep, ${ledger.none.length} with no realistic body yet.`, ''];
   for (const realm of Object.keys(REALMS)) {
     const ids = Object.keys(VEHICLES).filter((id) => VEHICLES[id].realm === realm);
@@ -22,7 +26,8 @@ export function vehiclesCard() {
     lines.push(`## ${realm}: ${REALMS[realm]}`, '');
     for (const id of ids) {
       const r = VEHICLES[id], tiers = TIER_IDS.map((t) => tierWord(id, t)).filter(Boolean);
-      lines.push(`- \`${id}\` ${r.label}${r.aliases.length ? ` (${r.aliases.slice(0, 3).join(', ')})` : ''}: ${r.role}, ${r.eras.join('/')}; ${tiers.length ? tiers.join(', ') : 'a concept only'}`);
+      const lay = layoutOf(id);
+      lines.push(`- \`${id}\` ${r.label}${r.aliases.length ? ` (${r.aliases.slice(0, 3).join(', ')})` : ''}: ${r.role}, ${r.eras.join('/')}${lay ? `, ${lay}` : ''}; ${tiers.length ? tiers.join(', ') : 'a concept only'}`);
     }
     lines.push('');
   }

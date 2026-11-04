@@ -126,7 +126,8 @@ export async function firstFrameReadout(world, ran, opts = {}) {
   // each level's record in the run (made[key]): a level whose row still prints as it did when a run judged it is gated
   // (its verdict kept there); the rest are checked now, whatever this run did (a run resumed after the tool's budget
   // ran out made them in the run before, whose readout never came back)
-  const keyOf = Object.fromEntries(Object.entries(world.made).filter(([, v]) => v?.ref).map(([k, v]) => [v.ref, k]));
+  // (an audit's record shares its level's ref, runner.js auditSteps: the level's own record is the one that keeps a frame)
+  const keyOf = Object.fromEntries(Object.entries(world.made).filter(([k, v]) => v?.ref && !k.startsWith('audit-')).map(([k, v]) => [v.ref, k]));
   const gated = (ref) => { const m = world.made[keyOf[ref]]; return m?.frame && m.frame.stored === m.stored ? m.frame : null; };
   const todo = refs.filter((r) => !gated(r));
   const kept = refs.filter((r) => gated(r)).map((ref) => ({ ref, status: gated(ref).status, kept: true, ...(gated(ref).says?.length ? { says: gated(ref).says } : {}) }));
