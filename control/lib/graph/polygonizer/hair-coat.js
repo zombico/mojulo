@@ -58,7 +58,8 @@ export function hairCoatsIn(hair, at = 'hair') {
 // ─── the paint, on the compiled mesh ─────────────────────────────────────────
 /** texels a metre at a 1.8 m figure (finer than a body's coat: a lock is a few centimetres round), the atlas's bounds */
 export const HAIR_COAT_PPM = 900;
-const ATLAS_W = 1024, ATLAS_MAX_H = 2048, PAD = 2, WHITE = 8;
+// (PAD between rectangles, GUTTER of it each one's own edge drawn out: a smaller mip level reads the coat, not the white)
+const ATLAS_W = 1024, ATLAS_MAX_H = 2048, PAD = 8, GUTTER = 4, WHITE = 8;
 const hex3 = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
 const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4), srgb = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
 const toHex = (c) => `#${c.map((x) => Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16).padStart(2, '0')).join('')}`;
@@ -87,8 +88,8 @@ export function hairCoatPaint(mesh, recipe = {}) {
     return { name, i, P, length, radius, w: Math.max(4, Math.ceil(Math.PI * radius * HAIR_COAT_PPM / k)), h: Math.max(4, Math.ceil(length * HAIR_COAT_PPM / k)) }; });
   rects.sort((x, y) => y.h - x.h || (x.name < y.name ? -1 : 1));
   let scale = 1, H = 0;
-  const pack = (sc) => { let x = WHITE + PAD, y = 0, shelf = 0;
-    for (const r of rects) { r.W = Math.max(4, Math.min(ATLAS_W - PAD, Math.ceil(r.w * sc))); r.Hh = Math.max(4, Math.ceil(r.h * sc)); if (x + r.W + PAD > ATLAS_W) { x = 0; y += shelf + PAD; shelf = 0; } r.x = x; r.y = y; x += r.W + PAD; shelf = Math.max(shelf, r.Hh); }
+  const pack = (sc) => { let x = WHITE + PAD, y = GUTTER, shelf = 0;
+    for (const r of rects) { r.W = Math.max(4, Math.min(ATLAS_W - 2 * PAD, Math.ceil(r.w * sc))); r.Hh = Math.max(4, Math.ceil(r.h * sc)); if (x + r.W + PAD > ATLAS_W) { x = GUTTER; y += shelf + PAD; shelf = 0; } r.x = x; r.y = y; x += r.W + PAD; shelf = Math.max(shelf, r.Hh); }
     return y + shelf + PAD; };
   for (let it = 0; it < 14; it++) { H = pack(scale); if (H <= ATLAS_MAX_H) break; scale *= 0.85; }
   H = 1 << Math.ceil(Math.log2(Math.max(WHITE + PAD, H)));
@@ -103,6 +104,13 @@ export function hairCoatPaint(mesh, recipe = {}) {
       if (T) { const n = T.W, x = ((Math.floor((across / T.maps.size) * n) % n) + n) % n, y = ((Math.floor((s / T.maps.size) * n) % n) + n) % n, o = y * n + x;
         const shade = Math.max(0, Math.min(1.1, 1 - 0.35 * T.cavity[o] + 0.08 * T.convex[o])); rgb = rgb.map((v) => Math.min(1, v * shade)); }
       const o = ((r.y + py) * ATLAS_W + r.x + qx) * 4; px[o] = Math.round(rgb[0] * 255); px[o + 1] = Math.round(rgb[1] * 255); px[o + 2] = Math.round(rgb[2] * 255); px[o + 3] = 255;
+    }
+    // its gutter: each texel round it the nearest of its own
+    for (let py = -GUTTER; py < r.Hh + GUTTER; py++) for (let qx = -GUTTER; qx < r.W + GUTTER; qx++) {
+      if (py >= 0 && py < r.Hh && qx >= 0 && qx < r.W) continue;
+      const Y = r.y + py, X = r.x + qx; if (Y < 0 || Y >= H || X < 0 || X >= ATLAS_W || (X < WHITE && Y < WHITE)) continue;
+      const from = ((r.y + Math.min(r.Hh - 1, Math.max(0, py))) * ATLAS_W + r.x + Math.min(r.W - 1, Math.max(0, qx))) * 4, o = (Y * ATLAS_W + X) * 4;
+      px[o] = px[from]; px[o + 1] = px[from + 1]; px[o + 2] = px[from + 2]; px[o + 3] = 255;
     }
   }
   const url = `data:image/png;base64,${encodePngRgba(Buffer.from(px.buffer, px.byteOffset, px.byteLength), ATLAS_W, H).toString('base64')}`;

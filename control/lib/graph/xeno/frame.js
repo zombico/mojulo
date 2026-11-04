@@ -36,16 +36,18 @@ function withParents(parts, names) {
   return out;
 }
 
-/** The frame of the head a recipe carries, or null when it carries none the frame knows (a blank trunk, a beast's skull). */
-export function xenoFrame(recipe) {
+/** The frame of the head a recipe carries, or null when it carries none the frame knows (a blank trunk, a beast's skull).
+ * `skin`: more parts its skin is (a cranial prosthetic already worn, so what is glued after lands on it). */
+export function xenoFrame(recipe, { skin: more = [] } = {}) {
   const R = recipe?.parts || {};
   const H = HEADS.find((h) => R[h.carrier] && h.skin.every((n) => R[n]));
   if (!H) return null;
+  const skinParts = [...H.skin, ...more.filter((n) => R[n] && !H.skin.includes(n))];
   const brows = H.brows.filter((n) => R[n]);
   const body = ['neck', 'torso'].filter((n) => R[n]);
-  const comp = compileLayered({ parts: withParents(R, [H.carrier, ...H.skin, ...brows, ...body]), dials: {}, creases: {} }).parts;
+  const comp = compileLayered({ parts: withParents(R, [H.carrier, ...skinParts, ...brows, ...body]), dials: {}, creases: {} }).parts;
   const tris = [];
-  for (const n of H.skin) { const P = comp[n]; if (!P) continue; for (const f of Object.values(P.faces)) tris.push(f.map((id) => P.points[id])); }
+  for (const n of skinParts) { const P = comp[n]; if (!P) continue; for (const f of Object.values(P.faces)) tris.push(f.map((id) => P.points[id])); }
   if (!tris.length) return null;
   const pts = tris.flat(), lo = [0, 1, 2].map((k) => Math.min(...pts.map((p) => p[k]))), hi = [0, 1, 2].map((k) => Math.max(...pts.map((p) => p[k])));
   const centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], height = hi[2] - lo[2];

@@ -134,10 +134,87 @@ const grown = (...specs) => (F, s) => specs.flatMap((A, i) => appendage(F, s, { 
 const BANDED = Object.freeze({ color: '#e9e3d7', pattern: Object.freeze([{ kind: 'stripes', color: '#33507c', period: 0.05, width: 0.38, wobble: 0.25 }]) });
 
 /**
+ * THE SKULL: a cranial prosthetic, the oversized foam skull a make-up crew glues over the actor's own, so a head that is
+ * not a person's has a shape to start from. A shell over the cap: its edge feathered into the skin at the brow line,
+ * above the ears and at the nape (sunk under it, no step), its outside the skin's own surface swollen by the shape's
+ * `d(u)` (metres on a 23 cm head along `u`, the direction round the head: [x out to the hero's +x side, y forward,
+ * z up]). A skull is laid FIRST and the frame found again on it, so every other appliance lands on the new skull.
+ */
+const dirOf = (az, el) => { const a = (az * Math.PI) / 180, e = (el * Math.PI) / 180; return [Math.sin(a) * Math.cos(e), Math.cos(a) * Math.cos(e), Math.sin(e)]; };
+const along = (u, v) => Math.max(0, dot(u, unitv(v)));
+export const SKULL_SHAPES = Object.freeze({
+  // up and back, a long swollen cranium
+  'tall-cranium': (u) => 0.08 * along(u, [0, -0.55, 0.83]) ** 1.6 + 0.006,
+  // a cone to a point over the crown
+  cone: (u) => 0.12 * along(u, [0, -0.2, 0.98]) ** 6 + 0.005,
+  // two swollen lobes either side of a deep groove down the middle
+  'bilobed-brain': (u) => (0.05 * along(u, [0, 0.15, 0.99]) ** 0.8 + 0.012) * (1 - 0.85 * Math.exp(-((u[0] / 0.13) ** 2))) + 0.003,
+  // a high, bulging forehead
+  'domed-brow': (u) => 0.055 * along(u, [0, 0.6, 0.8]) ** 1.5 + 0.005,
+  // a keel from the brow over the crown to the nape
+  keeled: (u) => 0.038 * Math.exp(-((u[0] / 0.09) ** 2)) * Math.max(0, u[2] + 0.35) ** 0.8 + 0.004,
+  // the temples swollen out sideways, the skull wide and low
+  'wide-temples': (u) => 0.085 * Math.abs(u[0]) ** 1.8 * Math.max(0, 1 - 1.3 * Math.abs(u[2] - 0.2)) + 0.006,
+  // ringed with hard bands from the brow to the nape
+  segmented: (u) => { const phi = Math.atan2(u[2], u[1]); return 0.014 + 0.014 * Math.max(0, Math.cos(phi * 9)) ** 2 * Math.max(0, 1 - Math.abs(u[0]) * 0.9); },
+});
+
+/** The skull's shell on the frame F at the scale s for the shape `d`: a closed mesh, oriented, its coat line from the brow
+ * over the crown to the nape. */
+export function skullMesh(F, s, d) {
+  const C = 48, K = 16, sink = 0.0015 * s, vertices = [], faces = [], uv = [];
+  const el0 = (az) => { const c = Math.cos((az * Math.PI) / 180); return c >= 0 ? lerp(16, 5, c) : lerp(16, -30, -c); };
+  const ease = (k) => { const x = Math.min(1, k / (K * 0.35)); return x * x * (3 - 2 * x); };
+  const outer = [], inner = [];
+  // (the shell's least stand-off, 4 mm on a 23 cm head, reached two rows from the edge, so the head's own facets and its
+  // painted hairline stay under it; the shape's swelling eased in over the first third)
+  const at = (az, el, k, row) => { const h = F.toward(az, el); if (!h) return null; const u = dirOf(az, el), q = [0.02 + (0.96 * Math.abs(az)) / 180, 0.02 + (0.96 * row) / K];   // (inset: a texel's filter never reaches the atlas's white)
+    uv.push(q, q);
+    return [vertices.push(add(h.p, mul(u, (0.0005 + 0.0035 * Math.min(1, row / 2)) * s + d(u) * s * k))) - 1, vertices.push(sub(h.p, mul(u, sink))) - 1]; };
+  for (let k = 0; k < K; k++) {
+    const o = [], n = [];
+    for (let j = 0; j < C; j++) { const az = -180 + (360 * j) / C, q = at(az, lerp(el0(az), 86, k / K), ease(k), k); if (!q) return null; o.push(q[0]); n.push(q[1]); }
+    outer.push(o); inner.push(n);
+  }
+  const pole = at(0, 90, 1, K); if (!pole) return null;
+  const head = [F.centre[0], F.centre[1], F.browZ], V = (i) => vertices[i];
+  const face = (a, b, c, want) => { const n = cross(sub(V(b), V(a)), sub(V(c), V(a))), m = mul(add(add(V(a), V(b)), V(c)), 1 / 3); faces.push(dot(n, want(m)) >= 0 ? [a, b, c] : [a, c, b]); };
+  const out = (m) => sub(m, head), inw = (m) => sub(head, m);
+  for (const [G, want] of [[outer, out], [inner, inw]]) {
+    for (let k = 0; k < K - 1; k++) for (let j = 0; j < C; j++) { const a = G[k][j], b = G[k][(j + 1) % C], c = G[k + 1][(j + 1) % C], e = G[k + 1][j]; face(a, b, c, want); face(a, c, e, want); }
+    const top = G === outer ? pole[0] : pole[1];
+    for (let j = 0; j < C; j++) face(G[K - 1][j], G[K - 1][(j + 1) % C], top, want);
+  }
+  // (the feathered edge: the lip from the outside down under the skin, facing away from the shell)
+  for (let j = 0; j < C; j++) {
+    const a = outer[0][j], b = outer[0][(j + 1) % C], c = inner[0][(j + 1) % C], e = inner[0][j], away = () => sub(V(a), V(outer[1][j]));
+    face(a, b, c, away); face(a, c, e, away);
+  }
+  const mid = C / 2, line = [...outer.map((r) => V(r[mid])), V(pole[0]), ...outer.slice().reverse().map((r) => V(r[0]))];
+  // ITS COAT'S FRAME, its own (a lock's line would wrap a shell): round the head mirrored at the midline (0 the front,
+  // 1 the back) by up it from the edge (0) to the crown (1); its length the arc over it, its radius its mean reach
+  const head0 = [F.centre[0], F.centre[1], F.browZ], reach = vertices.reduce((a, v) => a + Math.hypot(...sub(v, head0)), 0) / vertices.length;
+  const length = line.slice(0, K + 1).reduce((a, p, i) => (i ? a + Math.hypot(...sub(p, line[i - 1])) : 0), 0);
+  const lo = [0, 1, 2].map((i) => Math.min(...vertices.map((v) => v[i]))), hi = [0, 1, 2].map((i) => Math.max(...vertices.map((v) => v[i])));
+  return { vertices, faces, line, oriented: true, coatFrame: { uv, length, radius: reach, span: Math.hypot(...sub(hi, lo)) } };
+}
+const skullCard = (shape, reads, like) => Object.freeze({ reads, like, family: 'skull', region: 'cranium', replaces: 'hair',
+  coat: Object.freeze({ color: 'Skin' }),
+  build: (F, s) => { const m = skullMesh(F, s, SKULL_SHAPES[shape]); return m ? [{ name: 'Skull', mesh: m }] : []; } });
+
+/**
  * THE CARDS. Each `build(F, s)` makes its pieces on the frame F at the scale s (the head's height over HEAD_M times the
  * entry's `size`): a list of { name, mesh } (mesh: vertices, faces, line).
  */
 export const XENO_CARDS = Object.freeze({
+  // the skulls: what a head that is not a person's starts from (one at most; laid first, every other piece on it)
+  'tall-cranium': skullCard('tall-cranium', 'a long swollen cranium rising up and back from the brow, over a bald cap', 'the tall swollen craniums of 50s–90s big-brained visitors and grey aliens'),
+  'cone-skull': skullCard('cone', 'a skull rising to a cone over the crown', 'the cone heads of 70s sketch-comedy aliens'),
+  'bilobed-brain': skullCard('bilobed-brain', 'a swollen cranium of two lobes either side of a deep groove down the middle', 'the bulging two-lobed brains of 50s B-movie invaders'),
+  'domed-brow': skullCard('domed-brow', 'a high bulging forehead, the brain swollen forward', 'the domed foreheads of 60s TV sci-fi telepaths'),
+  'keeled-skull': skullCard('keeled', 'a keel from the brow over the crown to the nape', 'the crested skulls of reptilian aliens'),
+  'wide-temples': skullCard('wide-temples', 'temples swollen out sideways, the skull wide and low', 'the broad-templed skulls of 90s TV sci-fi aliens'),
+  'segmented-skull': skullCard('segmented', 'a skull ringed with hard bands from the brow to the nape', 'the plated skulls of insectoid aliens of 90s sci-fi'),
   'forehead-ridges': Object.freeze({
     reads: 'a forehead piece of curving ridges: one up the middle from the brow to the hairline, and pairs beside it fanning up and back, blended into the brow',
     like: 'the ridged forehead of a warrior race of 90s TV sci-fi',
@@ -257,6 +334,8 @@ export function validateXenoHeaddress(list, at = 'xenoHeaddress') {
   if (list === undefined || list === null) return [];
   if (!Array.isArray(list) || list.length > XENO_MAX) return [`${at}: a list of at most ${XENO_MAX} appliances, each a card (${XENO_CARD_IDS.join(', ')}), { card, size?, coat?, replaces? }, or an appendage written whole ({ family: ${Object.keys(APPENDAGE_FAMILIES).join(' | ')}, at: { az, el }, … })`];
   const errs = [];
+  const skulls = list.filter((e) => XENO_CARDS[typeof e === 'string' ? e : e?.card]?.family === 'skull');
+  if (skulls.length > 1) errs.push(`${at}: one skull at most (${XENO_CARD_IDS.filter((c) => XENO_CARDS[c].family === 'skull').join(', ')}), the head the rest is glued on`);
   list.forEach((e, i) => {
     const here = `${at}[${i}]`;
     // an appendage WRITTEN WHOLE: a family, where on the cap, and its shape's words over the family's
@@ -318,7 +397,7 @@ export function xenoWorn(hero) {
 export function withXeno(recipe, hero) {
   const list = hero?.xenoHeaddress;
   if (!Array.isArray(list) || !list.length || !recipe?.parts) return recipe;
-  const F = xenoFrame(recipe); if (!F) return recipe;
+  let F = xenoFrame(recipe); if (!F) return recipe;
   const parts = { ...recipe.parts }, entries = list.map(readEntry), base = F.height / HEAD_M;
   // a bald cap: the hair's parts left off (the brows and the lashes kept), and their names out of the dials
   if (entries.some((e) => e.replaces === 'hair')) {
@@ -332,20 +411,25 @@ export function withXeno(recipe, hero) {
     }
   }
   const cap = (s) => s.replace(/(^|-)([a-z])/g, (_, __, c) => c.toUpperCase());
-  entries.forEach((E, i) => {
+  // the skull first, then the frame found again on it (its parts part of the skin), then the rest on it
+  const order = entries.map((E, i) => [E, i]).sort(([a], [b]) => (b.C.family === 'skull') - (a.C.family === 'skull'));
+  let skullParts = null;
+  for (const [E, i] of order) {
+    if (skullParts && E.C.family !== 'skull') { F = xenoFrame({ ...recipe, parts }, { skin: skullParts }) ?? F; skullParts = null; }
     const pieces = E.C.build(F, base * E.size), spec = resolveHairCoat(E.coat), shell = E.shell ? resolveHairCoat(E.shell) : spec;
     for (const { name, mesh: raw, role } of pieces) {
       if (!raw?.faces?.length) continue;
-      const mesh = orientOut(raw), root = mesh.line[0], pin = F.pinNear(root); if (!pin) continue;
-      const frame = F.frameOf(pin), Fr = lockCoatFrame(mesh.vertices, mesh.line, F.centre);
+      const mesh = raw.oriented ? raw : orientOut(raw), root = mesh.line[0], pin = F.pinNear(root); if (!pin) continue;
+      const frame = F.frameOf(pin), Fr = mesh.coatFrame ?? lockCoatFrame(mesh.vertices, mesh.line, F.centre);
       parts[`xeno${cap(E.card)}${i}${name}`] = {
         layer: 2, closure: 'closed', pin, group: 'Skin',
         offsets: Object.fromEntries(mesh.vertices.map((p, k) => [`v${k}`, surfaceLocalOffset(frame, p).map(r6)])),
         faces: Object.fromEntries(mesh.faces.map((f, k) => [`f${k}`, f.map((v) => `v${v}`)])),
         coat: { spec: role === 'shell' ? shell : spec, uv: Object.fromEntries(Fr.uv.map((q, k) => [`v${k}`, [r6(q[0]), r6(q[1])]])), length: r6(Fr.length), radius: r6(Fr.radius), span: r6(Fr.span) },
       };
+      if (E.C.family === 'skull') (skullParts ??= []).push(`xeno${cap(E.card)}${i}${name}`);
     }
-  });
+  }
   return { ...recipe, parts };
 }
 

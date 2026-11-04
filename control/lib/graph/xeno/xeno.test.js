@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { getDb } from '@/lib/db/index.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createCharacterHandler } from '@/lib/mcp/tools/create-character';
-import { APPENDAGE_FAMILIES, XENO_CARD_IDS, appendage, validateXenoHeaddress, withXeno, xenoWorn } from './index.js';
+import { APPENDAGE_FAMILIES, SKULL_SHAPES, XENO_CARDS, XENO_CARD_IDS, appendage, skullMesh, validateXenoHeaddress, withXeno, xenoWorn } from './index.js';
 import { bladeMesh, ridgeMesh, tubeMesh } from './appliances.js';
 import { xenoFrame } from './frame.js';
 
@@ -40,6 +40,8 @@ describe('the word', () => {
     expect(validateXenoHeaddress([{ family: 'horn', at: { az: 0, el: 0 }, plates: 4 }]).join(' ')).toMatch(/a lobe's words/);
     expect(validateXenoHeaddress([{ family: 'lobe', at: { az: 0, el: 0 }, over: { az: 0 } }]).join(' ')).toMatch(/\[0\]\.over:/);
     expect(validateXenoHeaddress([{ card: 'chitin-crest', shell: { cover: 'fins' } }]).join(' ')).toMatch(/\[0\]\.shell\.cover/);
+    expect(validateXenoHeaddress(['tall-cranium', 'cone-skull']).join(' ')).toMatch(/one skull at most/);
+    expect(xenoWorn({ hair: 'bob', xenoHeaddress: ['domed-brow'] }).hair).toBe('none');
     expect(xenoWorn({ hair: 'bob', xenoHeaddress: [{ family: 'tail', at: { az: 180, el: 0 }, replaces: 'hair' }] }).hair).toBe('none');
   });
 });
@@ -109,6 +111,31 @@ describe('the appendage', () => {
   });
 });
 
+describe('the skull', () => {
+  const F = { centre: [0, 0, 0], chinZ: -0.1, browZ: 0, height: 0.23,
+    toward: (az, el) => { const a = (az * Math.PI) / 180, e = (el * Math.PI) / 180, n = [Math.sin(a) * Math.cos(e), Math.cos(a) * Math.cos(e), Math.sin(e)]; return { p: n.map((v) => v * 0.1), n }; } };
+  const volume = (M) => M.faces.reduce((a, [i, j, k]) => { const [p, q, r] = [M.vertices[i], M.vertices[j], M.vertices[k]];
+    return a + (p[0] * (q[1] * r[2] - q[2] * r[1]) - p[1] * (q[0] * r[2] - q[2] * r[0]) + p[2] * (q[0] * r[1] - q[1] * r[0])) / 6; }, 0);
+
+  it('is a closed shell over the cap, turned outward, its edge feathered into the skin, swollen to its shape', () => {
+    // (one case per kind of swelling: a lobe of growth along an axis, a groove between two)
+    for (const shape of ['tall-cranium', 'bilobed-brain']) {
+      const M = skullMesh(F, 1, SKULL_SHAPES[shape]);
+      expect(closed(M), shape).toBe(true);
+      expect(volume(M), shape).toBeGreaterThan(0);                                   // outward: a positive volume
+      const r = M.vertices.map((v) => Math.hypot(...v));
+      expect(Math.min(...r)).toBeLessThan(0.1);                                     // its underside sunk under the skin
+      expect(Math.min(...r)).toBeGreaterThan(0.1 - 0.002);
+      expect(M.coatFrame.uv.length).toBe(M.vertices.length);
+    }
+    const tall = skullMesh(F, 1, SKULL_SHAPES['tall-cranium']), crown = Math.max(...tall.vertices.map((v) => v[2]));
+    expect(crown).toBeGreaterThan(0.1 + 0.04);                                       // swollen up past the crown
+    const back = Math.min(...tall.vertices.map((v) => v[1]));
+    expect(back).toBeLessThan(-0.1 - 0.02);                                          // and back
+    expect(Object.values(XENO_CARDS).filter((c) => c.family === 'skull').every((c) => c.replaces === 'hair')).toBe(true);
+  });
+});
+
 describe('on a hero', () => {
   it('adds nothing without the word: the recipe itself', () => {
     const R = { parts: { a: {} } };
@@ -117,11 +144,11 @@ describe('on a hero', () => {
   });
 
   it.each([['landmark', { cast: 'female' }], ['anime', { cast: 'female', head: 'anime' }]])('pins each appliance to the %s head\'s carrier, coated, on its skin', async (head, spec) => {
-    const out = await createCharacterHandler({ as: 'hero', title: head, spec: { ...spec, xenoHeaddress: ['forehead-ridges', 'nose-ridges', 'head-tails', 'swept-horns', { family: 'tail', at: { az: 180, el: 20 }, length: 0.3 }, 'chitin-crest', 'cheek-ridges'] } });
+    const out = await createCharacterHandler({ as: 'hero', title: head, spec: { ...spec, xenoHeaddress: ['forehead-ridges', 'nose-ridges', 'head-tails', 'swept-horns', { family: 'tail', at: { az: 180, el: 20 }, length: 0.3 }, 'chitin-crest', 'cheek-ridges', 'tall-cranium'] } });
     const R = SketchRepository.getByRef(out.ref).manifest.recipe, F = xenoFrame(R);
     expect(F.head).toBe(head);
     const xeno = Object.entries(R.parts).filter(([n]) => n.startsWith('xeno'));
-    expect(xeno.map(([n]) => n)).toEqual(expect.arrayContaining(['xenoForeheadRidges0Mid', 'xenoNoseRidges1Bar0', 'xenoHeadTails2R', 'xenoHeadTails2L', 'xenoSweptHorns3HornR', 'xenoSweptHorns3HornL', 'xenoTail4Tail', 'xenoChitinCrest5LobeR', 'xenoChitinCrest5LobeRPlate0', 'xenoCheekRidges6L']));
+    expect(xeno.map(([n]) => n)).toEqual(expect.arrayContaining(['xenoForeheadRidges0Mid', 'xenoNoseRidges1Bar0', 'xenoHeadTails2R', 'xenoHeadTails2L', 'xenoSweptHorns3HornR', 'xenoSweptHorns3HornL', 'xenoTail4Tail', 'xenoChitinCrest5LobeR', 'xenoChitinCrest5LobeRPlate0', 'xenoCheekRidges6L', 'xenoTallCranium7Skull']));
     for (const [n, P] of xeno) {
       expect(P.pin.parent, n).toBe(F.carrier);
       expect(Object.keys(P.coat.uv), n).toEqual(Object.keys(P.offsets));
@@ -130,7 +157,9 @@ describe('on a hero', () => {
     }
     // (the head-tails' bald cap: no hair part left, the brows kept)
     expect(Object.keys(R.parts).filter((n) => /^hair/.test(n) && !/^hair(Brows|Lashes)/.test(n))).toEqual([]);
-    expect(out.hero.xeno.map((x) => [x.card, x.pieces > 0])).toEqual([['forehead-ridges', true], ['nose-ridges', true], ['head-tails', true], ['swept-horns', true], ['tail', true], ['chitin-crest', true], ['cheek-ridges', true]]);
+    expect(out.hero.xeno.map((x) => [x.card, x.pieces > 0])).toEqual([['forehead-ridges', true], ['nose-ridges', true], ['head-tails', true], ['swept-horns', true], ['tail', true], ['chitin-crest', true], ['cheek-ridges', true], ['tall-cranium', true]]);
+    // (the skull laid first, and the frame found again on it: the rest is glued on the new skull)
+    expect(xenoFrame(R, { skin: ['xenoTallCranium7Skull'] }).crownZ).toBeGreaterThan(F.crownZ + 0.03);
     expect(out.hero.xeno[1].pieces).toBe(Object.keys(R.parts).filter((n) => n.startsWith('xenoNoseRidges1')).length);
     expect(out.hero.xeno[4].written).toBe(true);
   }, 120_000);

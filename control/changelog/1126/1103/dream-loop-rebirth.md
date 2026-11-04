@@ -55,7 +55,14 @@ person's own picture itself (a drawing, a photo, a figure, someone's OC): nothin
 - **Xeno make-up: practical-effects alien appliances on any head.** A new hero word, `xenoHeaddress`, puts a make-up
   crew's pieces on the hero: sculpted, glued on with edges blended into the skin, and painted. It works on the landmark,
   the anime and the realistic head alike. Each piece is found on that head's own skin and pinned to it, so it turns and
-  exports with the head. The first cards, named for what they are:
+  exports with the head.
+
+  A head that is not a person's shape starts from a SKULL: a cranial prosthetic glued over the actor's own, its edge
+  feathered into the skin, over a bald cap. The skulls are `tall-cranium`, `cone-skull`, `bilobed-brain`, `domed-brow`,
+  `keeled-skull`, `wide-temples` and `segmented-skull`. A hero wears one at most. It is laid first and every other card
+  lands on it, so a ridged brow sits on a domed brow and horns rise from a cone.
+
+  The other cards, named for what they are:
   - `forehead-ridges`: curving ridges up the forehead to the hairline;
   - `nose-ridges`: a stack of fine ridges across the nose's bridge;
   - `head-tails`: two thick tails from the back of the skull, over a bald cap;

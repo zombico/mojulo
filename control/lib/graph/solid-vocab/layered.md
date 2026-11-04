@@ -881,12 +881,23 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   it. A helmet by tradition (the steel pot, the K-pot …) is the outfit build's `language.head`, by word here too.
   Comic-book characters wearing them, by name: get_solid_vocab({ id: 'comic-hero' }).
 <!-- /section -->
-<!-- section: hero-xeno | Xeno make-up | xenoHeaddress: practical-effects alien appliances glued onto any head: ridges, horns, head-tails, appendages written whole -->
+<!-- section: hero-xeno | Xeno make-up | xenoHeaddress: practical-effects alien appliances glued onto any head: skulls, ridges, horns, head-tails, lobes, appendages written whole -->
   XENO MAKE-UP (`lib/graph/xeno`). `xenoHeaddress: ['<card>' | { card, size?, coat?, replaces? }, …]` puts a
   practical-effects make-up crew's APPLIANCES on the hero: pieces sculpted, cast in foam latex or silicone, glued on with
   their edges blended into the skin, and painted. They sit on whichever head the hero wears (the landmark head, the anime
   head, the realistic head), found on that head's own skin and pinned to it, so they turn and export with the head.
-  The cards, named for what they are, never a franchise:
+  THE SKULL first, for a head that is not a person's: a cranial prosthetic, the oversized foam skull a crew glues over
+  the actor's own, its edge feathered into the skin at the brow line, above the ears and at the nape, over a bald cap.
+  One at most; it is laid before everything else, and every other card lands on it (ridges on its brow, horns and lobes
+  on its cap). `size` scales its swelling. The skulls:
+  - `tall-cranium`: a long swollen cranium rising up and back;
+  - `cone-skull`: rising to a cone over the crown;
+  - `bilobed-brain`: two swollen lobes either side of a deep groove down the middle;
+  - `domed-brow`: a high, bulging forehead;
+  - `keeled-skull`: a keel from the brow over the crown to the nape;
+  - `wide-temples`: the temples swollen out sideways, the skull wide and low;
+  - `segmented-skull`: ringed with hard bands from the brow to the nape.
+  The other cards, named for what they are, never a franchise:
   - `forehead-ridges`: curving ridges up the forehead to the hairline;
   - `nose-ridges`: a stack of fine ridges across the bridge of the nose;
   - `head-tails`: two thick tails from the back of the skull, down the back, over a bald cap;
