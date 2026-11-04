@@ -389,7 +389,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-04 (fighter wiring: the real models in the arena): `versus` only. Its page inlines
 // versus-arena.client.js and versus-compile.js by their source: a character played in its own body (makePlayed,
 // playedClip, placePlayed, its body's pack `played`) and each own strike's frame naming its clip's moment (`u`).
-// Additions only: the fixture's fighters are stick figures, drawn as before.
+// Additions only: the fixture's fighters are stick figures, drawn as before. Re-pinned again the same day (the ring):
+// a played body lit (its normals, its relief, a lit material, the fighters' lights) and an arena's `set: 'ring'` built
+// on its floor with its veil and its nearer camera; the fixture names no set and no lit body.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

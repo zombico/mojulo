@@ -121,7 +121,7 @@ export function versusArenaData(v = {}) {
   const rules = rulesOf(v.rules);
   const roster = (v.roster ?? DEFAULT_ROSTER).map(rosterEntry).map((e) => ({ ...e, recipe: kindRecipe(e.recipe, rules) }));
   if (roster.length < 1) throw new Error('versus: an arena needs at least one fighter');
-  return { plane: v.plane ?? ARENA_PLANE, half: v.half ?? 8, floor: v.floor ?? 0, roster, rules, wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}) };
+  return { plane: v.plane ?? ARENA_PLANE, half: v.half ?? 8, floor: v.floor ?? 0, roster, rules, wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}), ...(v.set ? { set: v.set } : {}) };
 }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

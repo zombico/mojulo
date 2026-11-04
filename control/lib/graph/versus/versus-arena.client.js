@@ -242,17 +242,64 @@ function placeCharacter(B, p, F, drawn) {
 // One skinned mesh of its parts, bound at the rest, its painted skin over it, as the World page plays a hero; each
 // frame its bones are set from its own clips at the moment the sim's state names (playedClip), so what lands is the
 // clip the character was made with, timed by the fight's frame data.
+/** THE FIGHTERS' LIGHTS (a lit body's, once): a warm key from the camera's side above, a cool fill from the other, a rim
+ * from behind and a sky over the floor, as the hero's own viewer lights it. The room's surfaces are baked, so only the
+ * fighters (and a set's lit pieces) take them */
+let LIT = null;
+function fighterLights() {
+  if (LIT) return LIT;
+  LIT = new THREE.Group();
+  const key = new THREE.DirectionalLight(0xfff1e0, 1.7), fill = new THREE.DirectionalLight(0xc9dcff, 0.55), rim = new THREE.DirectionalLight(0xffffff, 1.1);
+  key.position.set(-1.6, PLANE - 3.4, FLOOR + 4.2); fill.position.set(2.6, PLANE - 2.2, FLOOR + 1.6); rim.position.set(0.4, PLANE + 3.2, FLOOR + 2.8);
+  for (const L of [key, fill, rim]) { L.target.position.set(0, PLANE, FLOOR + 1); LIT.add(L, L.target); }
+  LIT.add(new THREE.HemisphereLight(0xdfe6ee, 0x3a332e, 0.55));
+  scene.add(LIT);
+  return LIT;
+}
+/** THE RING (an arena's `set: 'ring'`, versus-arena.js ARENA_SETS): a raised canvas on the plane, its apron, four corner
+ * posts with their pads, the ropes on three sides (the camera's side open, as a ring is shot), the light on the ring
+ * (a spot over the canvas) and the hall round it fallen into the dark; built once, the arena's own */
+function buildRing() {
+  const h = AV.half + 0.45, H = FLOOR, g = new THREE.Group();
+  const mat = (color, rough = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 });
+  const box = (w, d, t, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, d, t), m); b.position.set(x, y, z); g.add(b); return b; };
+  box(2 * h + 0.5, 2 * h + 0.5, 0.08, 0, PLANE, H - 0.04, mat(0xd8d2c4, 0.95));                 // the canvas
+  box(2 * h + 0.5, 2 * h + 0.5, H - 0.08, 0, PLANE, (H - 0.08) / 2, mat(0x17264f, 0.7));        // the apron
+  const post = mat(0xbfc4cc, 0.35), pad = mat(0xb3262a, 0.6), ropeM = [mat(0xe8e8e8, 0.5), mat(0xb3262a, 0.5), mat(0x2047a6, 0.5)];
+  const corners = [[-h, -h], [h, -h], [h, h], [-h, h]];
+  for (const [x, y] of corners) {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.45, 12), post); c.rotation.x = Math.PI / 2; c.position.set(x, PLANE + y, H + 0.72); g.add(c);
+    box(0.2, 0.2, 0.95, x, PLANE + y, H + 0.78, pad);
+  }
+  // ropes: the far side and the two ends (the near side open to the camera)
+  const rope = (a, b, z, m) => { const L = Math.hypot(b[0] - a[0], b[1] - a[1]), r = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, L, 8), m); r.position.set((a[0] + b[0]) / 2, PLANE + (a[1] + b[1]) / 2, z); r.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]) - Math.PI / 2; g.add(r); };
+  [0.42, 0.8, 1.18].forEach((dz, k) => { for (const [a, b] of [[corners[2], corners[3]], [corners[1], corners[2]], [corners[3], corners[0]]]) rope(a, b, H + dz, ropeM[k]); });
+  // the light on the ring, and the hall fallen into the dark: its surfaces are baked and take no fog, so a dark veil
+  // hangs behind the ring's far ropes, the crowd and the walls seen through it as the shapes in the dark past the light
+  const spot = new THREE.SpotLight(0xfff4e6, 2.4, 16, 0.62, 0.55, 1); spot.position.set(0, PLANE - 0.6, H + 6.5); spot.target.position.set(0, PLANE, H); g.add(spot, spot.target);
+  const veil = new THREE.Mesh(new THREE.PlaneGeometry(80, 40), new THREE.MeshBasicMaterial({ color: 0x05060a, transparent: true, opacity: 0.68, depthWrite: false, side: THREE.DoubleSide }));
+  veil.rotation.x = Math.PI / 2; veil.position.set(0, PLANE + h + 0.9, 12); veil.renderOrder = 2; g.add(veil);
+  scene.add(g);
+  fighterLights();
+  return g;
+}
+const RING = AV.set === 'ring' ? buildRing() : null;
 function makePlayed(skin) {
   const pack = skin.pack, group = new THREE.Group();
   const bones = pack.bones.map(() => { const o = new THREE.Bone(); o.matrixAutoUpdate = false; group.add(o); return o; });
   let n = 0; for (const P of pack.parts) if (P) n += P.faces * 3;
   const painted = !!(pack.paintTex && pack.parts.some((P) => P && P.uv));
   const pos = new Float32Array(n * 3), col = new Uint8Array(n * 3), jnt = new Uint16Array(n * 4), wgt = new Float32Array(n * 4), uv = painted ? new Float32Array(n * 2) : null;
+  // (a LIT body, the export's: each corner's normal, and the relief's tangent where it has its normal map)
+  const lit = !!pack.lit, nrm = lit ? new Float32Array(n * 3) : null, relief = !!(lit && pack.normalTex && pack.parts.every((P) => !P || P.tan));
+  const tan = relief ? new Float32Array(n * 4) : null;
   let o = 0;
   for (const P of pack.parts) {
     if (!P) continue;
     const pp = decodeF32(P.pos), c = decodeU8(P.col), j = decodeU8(P.jnt), w = decodeF32(P.wgt), m = pp.length / 3;
     pos.set(pp, o * 3); col.set(c, o * 3); jnt.set(j, o * 4); wgt.set(w, o * 4);
+    if (nrm && P.nrm) nrm.set(decodeF32(P.nrm), o * 3);
+    if (tan) tan.set(decodeF32(P.tan), o * 4);
     if (uv) { if (P.uv) uv.set(decodeF32(P.uv), o * 2); else for (let k = 0; k < m; k++) { uv[(o + k) * 2] = pack.paintTex.white[0]; uv[(o + k) * 2 + 1] = pack.paintTex.white[1]; } }
     o += m;
   }
@@ -262,10 +309,21 @@ function makePlayed(skin) {
   geo.setAttribute('skinIndex', new THREE.BufferAttribute(jnt, 4));
   geo.setAttribute('skinWeight', new THREE.BufferAttribute(wgt, 4));
   if (uv) geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  if (nrm) geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  if (tan) geo.setAttribute('tangent', new THREE.BufferAttribute(tan, 4));
   geo.computeBoundingSphere();
   let map = null;
   if (painted) { map = new THREE.TextureLoader().load(pack.paintTex.url); map.colorSpace = THREE.SRGBColorSpace; }
-  const mesh = new THREE.SkinnedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, ...(map ? { map, ...(pack.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {}) }));
+  const alpha = map && pack.paintTex.alphaMask ? { alphaTest: 0.4 } : {};
+  // (lit, as an engine draws it: its albedo under the fighters' lights, its relief and its roughness from its maps; else
+  // its baked light as the page packs it)
+  const tex = (t) => { const x = new THREE.TextureLoader().load(t.url); x.colorSpace = THREE.NoColorSpace; return x; };
+  const material = lit
+    ? new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: pack.ormTex ? 1 : 0.62, metalness: 0, ...(map ? { map } : {}), ...alpha,
+      ...(relief ? { normalMap: tex(pack.normalTex) } : {}), ...(pack.ormTex ? { roughnessMap: tex(pack.ormTex) } : {}) })
+    : new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, ...(map ? { map } : {}), ...alpha });
+  if (lit) fighterLights();
+  const mesh = new THREE.SkinnedMesh(geo, material);
   mesh.frustumCulled = false;
   group.add(mesh); scene.add(group);
   group.updateMatrixWorld(true);
@@ -408,8 +466,9 @@ function frameCamera() {
   const aspect = (OW || 16) / (OH || 9);
   const tanH = Math.tan((VFOV * Math.PI) / 360) * aspect;
   const sep = Math.abs(s.p[0].x - s.p[1].x) / 1000;
-  // the genre's framing: a body near half the picture's height, both in frame with room to move
-  const want = Math.max(5.8, Math.min(9, (sep + 3.4) / (2 * tanH)));
+  // the genre's framing: a body near half the picture's height, both in frame with room to move (on a set, nearer: a
+  // fighter near two thirds of it, shown as it was made)
+  const want = RING ? Math.max(3.6, Math.min(6, (sep + 2.2) / (2 * tanH))) : Math.max(5.8, Math.min(9, (sep + 3.4) / (2 * tanH)));
   cam.dist += (want - cam.dist) * 0.12;
   const halfView = cam.dist * tanH;
   const lim = Math.max(0, AV.half + 0.8 - halfView);
@@ -417,8 +476,8 @@ function frameCamera() {
   cam.x += (Math.max(-lim, Math.min(lim, mid)) - cam.x) * 0.15;
   const shake = match.shake > 0 ? Math.sin(match.t * 2.3) * match.shake * 0.006 : 0;
   if (camera.fov !== VFOV) { camera.fov = VFOV; camera.updateProjectionMatrix(); }
-  camera.position.set(cam.x + shake, PLANE - cam.dist, FLOOR + 1.25 + cam.dist * 0.05);
-  camera.lookAt(cam.x + shake, PLANE, FLOOR + 1.05);
+  camera.position.set(cam.x + shake, PLANE - cam.dist, FLOOR + (RING ? 1.1 : 1.25) + cam.dist * 0.05);
+  camera.lookAt(cam.x + shake, PLANE, FLOOR + (RING ? 0.95 : 1.05));
 }
 
 const vP = new THREE.Vector3();

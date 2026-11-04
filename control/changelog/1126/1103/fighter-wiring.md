@@ -75,6 +75,15 @@ Every hero naming none of the new words is the hero it was. The eyes gate is the
   its record for the bake (the row is not changed). Each frame the sim's state names the clip and its moment: a move
   its own clip at the share its compiled frame records (`u`, the retiming's), a blow or a block through the stun, a
   knockdown, else the guard held. A fighter with the tradition's moves keeps the posed figure.
+- **The ring: an arena that shows its fighters as they were made** (`versus-arena.js` `set: 'ring'`, ARENA_SETS): a
+  boxing ring the arena builds on its floor (a raised canvas, its apron, four corner posts and their pads, the ropes on
+  three sides, the camera's side open as a ring is shot) in a nave fallen into the dark (a veil behind the far ropes:
+  the hall's surfaces are baked and take no fog), the fight's walls the ropes' and its floor the canvas, the camera in
+  close (a fighter near two thirds of the picture). A fight made now opens in it, before the plaza and the nave.
+- **Fighters lit as an engine lights them**: a played fighter's pack is the lit export's (its albedo unshaded, each
+  corner's normal, the skin's relief and its full-size atlas, `lit`), drawn in a lit material under the fighters' own
+  lights (a warm key, a cool fill, a rim, a sky; on the ring a spot over the canvas); the page's pack had baked a studio
+  light into its colours and drawn it unlit, so the muscles read flat and the seams between its parts showed.
 - **A fighting game with your own characters, by default** (the quick `fight` goal's `strikes`): a fight made now is
   stamped `strikes: 'own'`, so every fighter, a sheet the run makes into a character or one already made, throws its
   own punches (`moves: 'hero'` on its entry in the game's roster and each arena's) and is played in its own body;

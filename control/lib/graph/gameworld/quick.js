@@ -124,9 +124,11 @@
  *                                           // Mojulo Olympics preset, or a stadium's words over one); absent, the sport's
  *                                           // own (a meet the olympic, a net game centre-court, a team game football; a
  *                                           // course and a board game their stage); false, the stage set
- *     arenas?: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }],
+ *     arenas?: [{ id, name?, kit?, look?, width?, depth?, height?, crowd?, set? }],
  *                                           // fight: scapeshift arenas (versus/versus-arena.js), each a stage world the
- *                                           // fight runs on in 3D (a plaza and a nave if absent)
+ *                                           // fight runs on in 3D; `set: 'ring'` a boxing ring lit in a dark hall, the
+ *                                           // fighters shown as they were made (a plaza and a nave if absent; a fight
+ *                                           // striking its own way opens in the ring first)
  *     rounds?: n, timer?: n,                // fight: rounds to win (1 to 3, 2) and seconds a round (30 to 99, 99)
  *     strikes?: 'own' | 'tradition',        // fight: 'own' (stamped at mint) every fighter throws the punches its character
  *                                           // was made with (versus-hero.js: the jab, the cross, the hook, the body hook, the
@@ -782,7 +784,7 @@ function readFight(Q) {
   }
   if (Q.arenas === false) throw fail('.arenas: a fight is fought on its arenas (name them, or leave them out for a plaza and a nave)');
   if (Q.arenas !== undefined && Q.arenas !== false) {
-    if (!Array.isArray(Q.arenas) || Q.arenas.length < 1 || Q.arenas.length > 8) throw fail('.arenas is 1 to 8 arenas { id, name?, kit?, look?, width?, depth?, height?, crowd? }, or false for flat stages');
+    if (!Array.isArray(Q.arenas) || Q.arenas.length < 1 || Q.arenas.length > 8) throw fail('.arenas is 1 to 8 arenas { id, name?, kit?, look?, width?, depth?, height?, crowd?, set? }, or false for flat stages');
     const ids = new Set();
     Q.arenas.forEach((a, i) => {
       if (!isObj(a) || typeof a.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(a.id)) throw fail(`.arenas[${i}] needs an id (a short lower-case name)`);
@@ -799,13 +801,16 @@ function readFight(Q) {
   }
 }
 
-// a fight's arenas when it names none: an open-air plaza and a nave
+// a fight's arenas when it names none: an open-air plaza and a nave; a fight whose fighters strike as they were made (its
+// `strikes: 'own'`, stamped at mint) opens in the RING first, the set that shows them as they were made (versus-arena.js)
 export const FIGHT_ARENAS = Object.freeze([{ id: 'plaza', name: 'Plaza', kit: 'island-plaza' }, { id: 'nave', name: 'Nave', kit: 'gothic-nave' }]);
+export const RING_ARENA = Object.freeze({ id: 'ring', name: 'Ring', set: 'ring' });
+const defaultArenas = (Q) => (Q.strikes === 'own' ? [RING_ARENA, ...FIGHT_ARENAS] : FIGHT_ARENAS);
 
 /** A fight's arenas as stage recipes (each a level the fight runs on): → [{ id, name, manifest }]; none with arenas: false. */
 export function fightArenas(Q, { title, roster } = {}) {
   const rules = fightRules(Q);
-  return (Q.arenas ?? FIGHT_ARENAS).map(({ id, name, ...words }) => ({
+  return (Q.arenas ?? defaultArenas(Q)).map(({ id, name, ...words }) => ({
     id, name: name ?? id,
     manifest: arenaManifest({ ...words, title: `${title ?? 'versus'} · ${name ?? id}`, ...(roster ? { roster } : {}), ...(rules ? { rules } : {}) }),
   }));

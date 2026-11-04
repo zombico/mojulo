@@ -435,7 +435,7 @@ const QUICK_LEVERS = {
     '    person every time. Absent: four sheets, one per style. Revise a fighter with update_character; the fight follows',
     '  strikes: own (stamped) | tradition   own: each fighter\'s own punches, played in its own painted body (its moves',
     '    win); tradition: the keyed moves',
-    '  arenas: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }] (1..8)   the stage worlds it is fought on in 3D',
+    '  arenas: [{ id, name?, kit?, look?, width?, depth?, height?, crowd?, set? }] (1..8)   its 3D stages; set ring: a lit ring',
     '  rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round; rules: { systems?: [parry | burst | guard], … } the sim\'s dials',
     '  its own simulation, seen from the side: only theme and camera side beside these (no hero, trail, building, ride or run)',
   ],

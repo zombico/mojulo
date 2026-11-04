@@ -4,10 +4,11 @@
 // stage set, the fight's World page), each in its own body; the arena hosted by a small page that sends it the picks as a
 // versus game's front does (the level wire), CPU against CPU; recorded by headless Chromium, cut to an MP4 and a GIF.
 //
-//   node control/scripts/spikes/fighter/arena-gameplay.mjs [--a spec.json] [--b spec.json] [--kit island-plaza]
+//   node control/scripts/spikes/fighter/arena-gameplay.mjs [--a spec.json] [--b spec.json] [--kit island-plaza] [--set ring]
 //        [--seconds 24] [--out dir] [--reuse]
 //
-// --reuse keeps the minted characters and the baked arena page of a run before (re-record only). Needs Playwright's
+// --reuse keeps the minted characters and the baked arena page of a run before (re-record only); --reemit emits the page
+// again from the run's baked scene (a change to the arena's own page code, no bake). Needs Playwright's
 // Chromium and ffmpeg. A mint takes about two minutes a character (the realistic head). The capture steps the page on a
 // virtual clock and shoots every other frame (30 a second of game time), so it is slow to make and true to the game.
 import { register, createRequire } from 'node:module';
@@ -19,11 +20,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { a: { type: 'string', default: path.join(HERE, 'test-fighter.json') }, b: { type: 'string', default: path.join(HERE, 'test-opponent.json') }, kit: { type: 'string', default: 'island-plaza' }, seconds: { type: 'string', default: '24' }, out: { type: 'string', default: path.join(os.tmpdir(), 'fighter-arena') }, reuse: { type: 'boolean', default: false } } });
+const { values: opt } = parseArgs({ options: { a: { type: 'string', default: path.join(HERE, 'test-fighter.json') }, b: { type: 'string', default: path.join(HERE, 'test-opponent.json') }, kit: { type: 'string' }, set: { type: 'string' }, seconds: { type: 'string', default: '24' }, out: { type: 'string', default: path.join(os.tmpdir(), 'fighter-arena') }, reuse: { type: 'boolean', default: false }, reemit: { type: 'boolean', default: false } } });
 const out = path.resolve(opt.out); mkdirSync(out, { recursive: true });
 const arenaFile = path.join(out, 'arena.html'), picksFile = path.join(out, 'picks.json');
 
-if (!(opt.reuse && existsSync(arenaFile) && existsSync(picksFile))) {
+if (opt.reemit && existsSync(path.join(out, 'payload.json'))) {
+  process.chdir(CONTROL);
+  register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
+  const { emitThreeWorld } = await import('@/lib/graph/scene/scene-three.js');
+  writeFileSync(arenaFile, emitThreeWorld({ ...JSON.parse(readFileSync(path.join(out, 'payload.json'), 'utf8')), hud: false, inline: true }));
+  console.log('the arena page emitted again from its baked scene');
+} else if (!(opt.reuse && existsSync(arenaFile) && existsSync(picksFile))) {
   const specs = [opt.a, opt.b].map((f) => { const { motion: _m, ...s } = JSON.parse(readFileSync(path.resolve(f), 'utf8')); return s; });
   process.chdir(CONTROL);
   register(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
@@ -45,8 +52,10 @@ if (!(opt.reuse && existsSync(arenaFile) && existsSync(picksFile))) {
     { id: 'satoru', name: 'Satoru', tradition: 'boxing', hero: { ref: refs[1] }, moves: 'hero', color: '#2f5fbf' },
   ];
   console.log('baking the arena …');
-  const { payload } = await resolveWorldScene({ ref: 'arena', title: 'Fighter wiring', manifest: arenaManifest({ kit: opt.kit, roster, title: 'Fighter wiring' }) }, { live: true });
+  const { payload } = await resolveWorldScene({ ref: 'arena', title: 'Fighter wiring', manifest: arenaManifest({ ...(opt.kit ? { kit: opt.kit } : {}), ...(opt.set ? { set: opt.set } : {}), roster, title: 'Fighter wiring' }) }, { live: true });
   writeFileSync(arenaFile, emitThreeWorld({ ...payload, hud: false, inline: true }));
+  // (the baked scene kept, so a change to the page's own code is emitted again without a bake: --reemit)
+  writeFileSync(path.join(out, 'payload.json'), JSON.stringify(payload));
   const R = payload.versus.roster;
   writeFileSync(picksFile, JSON.stringify({ wire: payload.versus.wire, picks: { fighters: R.map((e) => e.recipe), names: R.map((e) => e.name), colors: R.map((e) => e.color), characters: R.map((e) => e.character ?? null), schemes: ['modern', 'modern'], mode: 'watch', level: 1, seed: 7 } }));
 }

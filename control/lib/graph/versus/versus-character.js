@@ -15,6 +15,7 @@
 import { BODY_DIALS } from './versus-compile.js';
 import { fighterSpec, fighterFromSheet, fighterName } from './versus-sheet.js';
 import { castOf, BODY_DEFAULTS } from '../polygonizer/hero-form.js';
+import { FLAT_LIGHT } from '../polygonizer/vexar.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -179,20 +180,26 @@ export async function versusGate(manifest) {
  * fight plays (FIGHT_CLIPS, its strikes', its guard's, its blows' and blocks', its knockdown's), solved on its own rig
  * from the door's motion words laid onto its record for the bake (the row is not changed), and the body is PLAYED:
  * one skinned mesh of its parts (their joints and weights), its painted skin (`paintTex`, each part's `uv`) and those
- * clips, as the World page plays a hero. → { played: true, bones, parts: [{ pos, col, jnt, wgt, faces, uv? }], clips,
- * paintTex? }.
+ * clips, as the World page plays a hero; resolved as the lit export resolves it (its albedo unshaded, each corner's normal
+ * `nrm` and the relief's tangent `tan`, the skin's atlas full size, its relief `normalTex` and `ormTex`), so the arena
+ * lights it as an engine does. → { played: true, lit?, bones, parts: [{ pos, col, jnt, wgt, faces, uv?, nrm?, tan? }],
+ * clips, paintTex?, normalTex?, ormTex? }.
  */
 export async function characterBody(manifest, { fight = null } = {}) {
   const { expandLayeredManifest } = await layered();
   const { WORLD_KINDS } = await import('../worlds/world-kinds.js');
   const m = fight && manifest?.hero ? { ...manifest, hero: { ...manifest.hero, motion: { ...(manifest.hero.motion ?? {}), ...Object.fromEntries(fightMotion(fight).map((w) => [w, true])) } } } : manifest;
-  const scene = await WORLD_KINDS.layered.resolve(expandLayeredManifest(m), { title: 'fighter' });
+  // (a played body as an engine gets it, the lit export's: its albedo unshaded, each corner's normal, the skin's relief
+  // and its full-size atlas, for the arena to light as it moves; the posed figure as before)
+  const ctx = fight ? { title: 'fighter', light: FLAT_LIGHT, unshaded: true, face: true } : { title: 'fighter' };
+  const scene = await WORLD_KINDS.layered.resolve(expandLayeredManifest(m), ctx);
   const fig = scene?.figures?.body;
   if (!fig || !Array.isArray(fig.bones) || !fig.parts?.some((p) => p?.pos)) return null;
   const bones = fig.bones.map(({ id, head, tail }) => ({ id, head, tail }));
   if (fight && fig.clips && fig.parts.some((p) => p?.jnt)) {
     const clips = Object.fromEntries(Object.entries(fig.clips).filter(([k]) => fight.includes(k)).map(([k, c]) => [k, { k: c.k, b: c.b, ...(c.once ? { once: true } : {}), ...(c.s ? { s: c.s } : {}) }]));
-    return { played: true, bones, parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col, jnt: p.jnt, wgt: p.wgt, faces: p.faces, ...(p.uv ? { uv: p.uv } : {}) } : null)), clips, ...(fig.paintTex ? { paintTex: fig.paintTex } : {}) };
+    return { played: true, ...(fig.parts.some((p) => p?.nrm) ? { lit: true } : {}), bones, parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col, jnt: p.jnt, wgt: p.wgt, faces: p.faces, ...(p.uv ? { uv: p.uv } : {}), ...(p.nrm ? { nrm: p.nrm } : {}), ...(p.tan ? { tan: p.tan } : {}) } : null)), clips,
+      ...(fig.paintTex ? { paintTex: fig.paintTex } : {}), ...(fig.normalTex ? { normalTex: fig.normalTex } : {}), ...(fig.ormTex ? { ormTex: fig.ormTex } : {}) };
   }
   return { bones, parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col } : null)) };
 }

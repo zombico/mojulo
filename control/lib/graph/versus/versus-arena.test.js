@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { assembleStageScene } from '../era/stage.js';
 import { standsRepeats } from '../era/stands.js';
-import { arenaManifest, ARENA_PLANE } from './versus-arena.js';
+import { arenaManifest, ARENA_PLANE, ARENA_SETS } from './versus-arena.js';
+import { versusArenaData } from './versus-page.js';
 
 describe('versus arena: a stage set open to the camera, the crowd behind the plane', () => {
   const m = arenaManifest({ width: 14, depth: 13, crowd: { rows: 2 } });
@@ -37,5 +38,18 @@ describe('versus arena: a stage set open to the camera, the crowd behind the pla
     expect(S.people).toBeGreaterThan(0);
     expect(Math.max(...xs.filter((x) => x !== 0))).toBeLessThan(8 - 4);
     expect(() => standsRepeats({}, [{ id: 'r', x: 0, y: 0, w: 8, d: 8, h: 6 }])).toThrow(/one open side/);
+  });
+
+  it('a set is built on its floor: the ring, its walls the ropes\', its canvas the fight\'s floor, its own hall', () => {
+    const R = arenaManifest({ set: 'ring' }), S = ARENA_SETS.ring;
+    expect(R.kit).toBe(S.kit);
+    expect(R.versus).toMatchObject({ set: 'ring', floor: S.height });
+    expect(R.versus.half).toBeLessThan(S.half);
+    expect(versusArenaData(R.versus)).toMatchObject({ set: 'ring', floor: S.height });
+    expect(arenaManifest({ set: 'ring', kit: 'catacomb' }).kit).toBe('catacomb');
+    // (an arena without a set fights on the room's floor, between its walls, as before)
+    expect(m.versus.set).toBeUndefined();
+    expect(versusArenaData(m.versus).set).toBeUndefined();
+    expect(() => arenaManifest({ set: 'cage' })).toThrow(/set is one of ring/);
   });
 });

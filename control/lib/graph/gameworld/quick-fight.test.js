@@ -12,16 +12,18 @@ describe('quick: the fight goal', () => {
     const world = quickWorld({ id: 'dojo-fight', quick });
     expect(world.camera).toBe('side');
     const steps = runSteps(world, { ref: 'gw_fight' });
-    expect(steps.map((s) => s.key)).toEqual(['fighter-fighter-1-sheet', 'fighter-fighter-1', 'fighter-bear-sheet', 'fighter-bear', 'level-arena-plaza', 'level-arena-nave', 'game']);
+    // (a fight made now strikes its own way, `strikes: 'own'`, and opens in the ring: the set that shows its fighters)
+    expect(steps.map((s) => s.key)).toEqual(['fighter-fighter-1-sheet', 'fighter-fighter-1', 'fighter-bear-sheet', 'fighter-bear', 'level-arena-ring', 'level-arena-plaza', 'level-arena-nave', 'game']);
     const [sheet, made] = steps;
     // each sheet rolled in the game's setting (cast-setting.js), as every other quick goal's people are
     expect(sheet.order.manifest).toEqual({ kind: 'egocube', roll: { facets: { archetype: 'hero' }, seed: expect.any(Number), setting: settingOfGame(readGameworld(world), world.quick) } });
     expect(made.order).toMatchObject({ egocube: sheet.ref, title: expect.stringMatching(/^dojo-fight · The (Hero|Bully)$/) });
     const roster = [{ id: 'fighter-1', hero: { ref: made.ref } }, { id: 'bear', hero: { ref: steps[3].ref }, style: 'grappler' }, { id: 'mira', hero: { ref: 'mira-ref' }, style: 'rushdown' }];
-    expect(steps[4].order.manifest).toMatchObject({ kind: 'stage', kit: 'island-plaza', versus: { roster, rules: { rounds: 1, timer: 60 } } });
-    const game = steps[6].order;
+    expect(steps[4].order.manifest).toMatchObject({ kind: 'stage', kit: 'gothic-nave', versus: { roster, rules: { rounds: 1, timer: 60 }, set: 'ring' } });
+    expect(steps[5].order.manifest).toMatchObject({ kind: 'stage', kit: 'island-plaza', versus: { roster, rules: { rounds: 1, timer: 60 } } });
+    const game = steps[7].order;
     expect(game).toMatchObject({ kind: 'game', engine: 'versus', title: 'dojo-fight', roster, rules: { rounds: 1, timer: 60 } });
-    expect(game.arenas).toEqual([{ ref: steps[4].ref, name: 'Plaza' }, { ref: steps[5].ref, name: 'Nave' }]);
+    expect(game.arenas).toEqual([{ ref: steps[4].ref, name: 'Ring' }, { ref: steps[5].ref, name: 'Plaza' }, { ref: steps[6].ref, name: 'Nave' }]);
     // the same world runs the same steps (the sheets' seeds are the world's)
     expect(runSteps(world, { ref: 'gw_fight' })).toEqual(steps);
   });
@@ -36,7 +38,9 @@ describe('quick: the fight goal', () => {
     const keyed = runSteps(quickWorld({ id: 'keyed', quick: { goal: 'fight', strikes: 'tradition', roster: ['hero'] } }), { ref: 'gw_keyed' }).at(-1).order;
     expect(keyed.roster[0].moves).toBeUndefined();
     const { strikes: _s, ...before } = world.quick;
-    expect(runSteps({ ...world, quick: { ...before, roster: ['hero'] } }, { ref: 'gw_before' }).at(-1).order.roster[0].moves).toBeUndefined();
+    const old = runSteps({ ...world, quick: { ...before, roster: ['hero'] } }, { ref: 'gw_before' });
+    expect(old.at(-1).order.roster[0].moves).toBeUndefined();
+    expect(old.filter((x) => x.key.startsWith('level-arena-')).map((x) => x.key)).toEqual(['level-arena-plaza', 'level-arena-nave']);
     expect(() => readQuick({ goal: 'fight', strikes: 'mine' })).toThrow(/strikes is 'own'/);
     expect(() => readQuick({ goal: 'reach', strikes: 'own' })).toThrow(/fight goal/);
   });
