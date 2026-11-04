@@ -85,7 +85,8 @@ import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
 import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
 import { ANIME_STYLE_NAMES, validateAnimeStyle, resolveAnimeStyle, animeStyleOf } from '@/lib/graph/polygonizer/anime-styles';
 import { muscleShirt, validateMuscleShirt } from '@/lib/graph/musculature';
-import { ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody, animePoleOf, animeBodyStamped } from '@/lib/graph/polygonizer/anime-bodies';
+import { densify, grainOf } from '@/lib/graph/musculature/passes';
+import { ANIME_BODY_NAMES, validateAnimeBody, resolveAnimeBody, animePoleOf, animeBodyStamped, animeBodyStyle } from '@/lib/graph/polygonizer/anime-bodies';
 import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective, animeFaceBase, animeSculptBase, animeBodySmooth, castHeadPole as castHeadPoleOf, heroFeatureAdvice, heroHairPole } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
@@ -292,7 +293,21 @@ function expandHeroAwarePlan(plan, hero, geocube = null) {
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
   // (an undead's heavy arm, its bared flesh and its loss on their sides, undead/tiered-layers.js; absent, the recipe as it was)
-  return withMuscleShirt(withBodySmooth(withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube)), hero), hero);
+  return withLoftedHead(withMuscleShirt(withBodySmooth(withLegGirths(withDressMaterials(hero?.undead ? undeadRecipe(expandAware(plan, hero), hero) : expandAware(plan, hero), hero, plan, geocube)), hero), hero), hero);
+}
+/** THE REALISTIC HEAD ON THE LOFTED BODY (fighter wiring): a lofted hero (the tiered body, a codename's, under its muscle
+ * shirt) wearing `head: 'relational'` has it swapped in on the body as it stands, after the shirt has carried the neck
+ * out, then its skin (the realistic hero's dermis, which an export paints) on it. Any other hero: as it was. */
+/** the grain (m) the lofted neck is densified at under the realistic head (the muscle shirt's) */
+const LOFTED_NECK_GRAIN = 0.011;
+function withLoftedHead(recipe, hero) {
+  if (!hero || hero.form === 'realistic' || hero.head !== 'relational') return recipe;
+  // (the head's skin is joined to the neck's column, read off its rings: the lofted neck's dozen slots stood as a
+  // faceted post under the head, so the neck is densified first on its smooth cage, at the muscle shirt's grain, as the
+  // realistic body's slice is dense)
+  const N = recipe.parts.neck, R = relationalHeadWorn(N?.stations ? { ...recipe, parts: { ...recipe.parts, neck: densify(N, { ...grainOf(N, LOFTED_NECK_GRAIN), grain: LOFTED_NECK_GRAIN }) } } : recipe, hero);
+  const { spec, base } = heroDermisSpec(faceSkin(hero));
+  return { ...R, dermis: spec, palette: { ...(R.palette || {}), Skin: base } };
 }
 /** A hero whose body is rounded (an anime cast's `smooth`, else the form body, hero-form.js FORM_BODY, under its head's
  * laws: anime-looks.js animeBodySmooth, formBodied): the recipe names the rounds and compileLayered splits its body's
@@ -352,12 +367,20 @@ function realisticRecipe(recipe, hero) {
   const K = structuredClone(kept), parts = Object.fromEntries(Object.entries(recipe.parts).filter(([k]) => !K.removed.includes(k)));
   const S = { ...recipe, parts: { ...parts, ...K.parts }, rig: K.rig, dials: K.dials, ...(K.correctives ? { correctives: K.correctives } : {}) };
   // (the relational head, `head: 'relational'`, swapped in on the sliced body: hero-relational-head.js)
-  if (hero.head !== 'relational') return S;
+  return hero.head === 'relational' ? relationalHeadWorn(S, hero) : S;
+}
+/** the realistic laws a hero reads: the realistic body's stamped on its physique, a lofted body wearing the realistic
+ * head its own stamp (`headLaws`, fighter wiring), else 1 */
+export const realisticLawsOf = (hero) => (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? hero.headLaws ?? 1;
+/** THE RELATIONAL HEAD WORN on a body that carries the landmark head's plan (the realistic body's slice, or the lofted
+ * body under its muscle shirt): the head swapped in, its piercings, its scalp, its face's hair, under the hero's
+ * realistic laws (realisticLawsOf) */
+function relationalHeadWorn(S, hero) {
   // (realistic laws 2: the head as ONE SKIN, hero-one-skin.js; laws 1 the pieces)
   // (and under laws 2 the head's whole BUDGET by its size on screen: the skin, the globes, the hair's coats, the beard
   // and the brows on the target's rung; a hero drawn for no target its skin whole: hero-one-skin.js ONE_SKIN_RUNGS,
   // hero-head-layers.js HEAD_BUDGET)
-  const laws = (hero.physique && typeof hero.physique === 'object' ? hero.physique.laws : undefined) ?? 1, one = laws >= 2;
+  const laws = realisticLawsOf(hero), one = laws >= 2;
   // (and under laws 5 its fit keeps the neck's column, so the normal bake can rebuild the skin's own field; under laws 10
   // the ear raised to the canon; under laws 11 the lids rest on the globes: head-relational-eye.js SEAT)
   const face = realisticFaceOf(hero), H = relationalHeadOn(S, femaleOf(hero) ? 'female' : 'male', face, { oneSkin: one, rung: one && hero.target ? heroHairLevel(hero) : null, column: one && laws >= 5, ear: laws >= 10, seat: one && laws >= 11 && (laws >= 14 ? 2 : true), teeth: one && laws >= 12, even: one && laws >= 14, squeeze: one && laws >= 15, periorbital: one && laws >= 16 });
@@ -807,6 +830,12 @@ function expandAware(plan, hero) {
  * changes a stored row until its list is edited); an emptied or removed look drops its stamp. Anything else as given. */
 /** a worn object's ref read from this machine's sketches (hero-attach.js attachRecord): its manifest, or null */
 const attachLookup = (ref) => SketchRepository.getByRef(ref)?.manifest ?? null;
+/** a body codename's stamp (anime-bodies.js): set again when its word, its pole or its style changes, dropped with the
+ * word; under a head of no anime style its fit is null (animeBodyStyle) */
+function stampCodename(hero) {
+  if (hero.animeBody === undefined || hero.animeBody === null) { if (hero.animeBody !== undefined || hero.animeBodyResolved !== undefined) { const { animeBody: _a, animeBodyResolved: _b, ...rest } = hero; return rest; } return hero; }
+  return animeBodyStamped(hero) ? hero : { ...hero, animeBodyResolved: resolveAnimeBody(hero.animeBody, animePoleOf(hero), animeBodyStyle(hero)) };
+}
 export function normalizeHero(hero) {
   // a worn object patched in by its ref is copied in as at mint (a stamp already standing for its ref is kept); an
   // emptied list drops the field
@@ -821,7 +850,9 @@ export function normalizeHero(hero) {
   // resolves it at mint, so an edit stores what a mint stores; read raw, a list stacked among composeAnime's layers is
   // taken for an object of controls and draws the base (the anime face, the anime tune)
   if (hero) hero = resolveHeroWords(hero);
-  if (!hero || hero.head !== 'anime') return hero;
+  // (a body codename under the landmark or the realistic head, fighter wiring: its stamp as under the anime head's)
+  if (hero && hero.head !== 'anime') return stampCodename(hero);
+  if (!hero) return hero;
   // the graphic face's layer is kept sparse after a patch under /hero/sculpt (a word set back to the base drops out; an
   // emptied or null sculpt drops the field); a record without one is as it was
   if (hero.sculpt !== undefined) { const sc = hero.sculpt === null ? null : sparseSculpt(resolveAnimeSculpt(hero.sculpt)); const { sculpt: _s, ...rest } = hero; hero = sc === null ? rest : { ...hero, sculpt: sc }; }
@@ -832,8 +863,7 @@ export function normalizeHero(hero) {
   if (hero.animeStyle === undefined || hero.animeStyle === null) { if (hero.animeStyle !== undefined || hero.animeStyleResolved !== undefined) { const { animeStyle: _a, animeStyleResolved: _b, ...rest } = hero; hero = rest; } }
   else if (hero.animeStyleResolved?.word !== hero.animeStyle) hero = { ...hero, animeStyleResolved: resolveAnimeStyle(hero.animeStyle) };
   // (the body codename's stamp as the style's: set again when its word changes, dropped when the word is)
-  if (hero.animeBody === undefined || hero.animeBody === null) { if (hero.animeBody !== undefined || hero.animeBodyResolved !== undefined) { const { animeBody: _a, animeBodyResolved: _b, ...rest } = hero; hero = rest; } }
-  else if (!animeBodyStamped(hero)) hero = { ...hero, animeBodyResolved: resolveAnimeBody(hero.animeBody, animePoleOf(hero), hero.animeStyle ?? undefined) };
+  hero = stampCodename(hero);
   const words = hero.look === undefined || hero.look === null ? [] : Array.isArray(hero.look) ? hero.look : [hero.look];
   if (!words.length) { if (hero.look === undefined && hero.lookResolved === undefined) return hero; const { look: _l, lookResolved: _r, ...rest } = hero; return rest; }
   if (hero.lookResolved && JSON.stringify(hero.lookResolved.words) === JSON.stringify(words)) return Array.isArray(hero.look) ? hero : { ...hero, look: words };
@@ -904,7 +934,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * the front's silhouette kept), where laws 1 to 15 let the skin fall back a centimetre behind the canthus and the
  * globe's side show bare from 3/4 and the side */
 export const REALISTIC_LAWS_VERSION = 16;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'headLaws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -1100,7 +1130,9 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   // THE ANIME FACE'S ACTING (anime-face-rig.js sevenG): `full` draws the 7G drawings at any target, `basic` the four
   // channels at any target; unset, a take on a target of T3 or higher draws the 7G (era/cast-spend.js DENSE_TIERS)
   if (spec.animeBody !== undefined && spec.animeBody !== null) {
-    if (spec.head !== 'anime') errs.push(`animeBody: the anime frame's body (head: 'anime'): ${ANIME_BODY_NAMES.join(', ')}`);
+    // (the lofted body's: the anime frame's under the anime head, the same body under the landmark or the realistic head)
+    if (spec.form === 'realistic') errs.push("animeBody: a body codename is the lofted body's (the anime head's, or the landmark or the realistic head on it); the realistic body's build is its physique");
+    else if (!['anime', 'landmark', 'relational', undefined].includes(spec.head)) errs.push(`animeBody: worn under the anime, the landmark or the realistic head (head: 'anime' | 'landmark' | 'relational'): ${ANIME_BODY_NAMES.join(', ')}`);
     else errs.push(...validateAnimeBody(spec.animeBody, typeof spec.cast === 'string' && ['male', 'female'].includes(spec.cast) ? spec.cast : null));
   }
   if (spec.muscleShirt !== undefined && spec.muscleShirt !== null) {
@@ -1132,6 +1164,11 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   // what the hero is drawn for (era/target.js) and the level's look (era/geocube.js): a cube is checked as a stage checks one
   if (spec.target !== undefined && spec.target !== null && targetError(spec.target)) errs.push(`${targetError(spec.target)} — what the hero is drawn for: its rings hold the outline within \`error\` pixels there`);
   if (spec.geocube !== undefined && spec.geocube !== null) { try { readGeocube(spec.geocube); } catch (e) { errs.push(`${e.message} — the cube whose light the hero is baked in (a preset id, a document or { from, … })`); } }
+  // (the realistic laws the realistic head is drawn under on the lofted body: stamped at mint, fighter wiring)
+  if (spec.headLaws !== undefined && spec.headLaws !== null) {
+    if (spec.head !== 'relational' || spec.form === 'realistic') errs.push("headLaws: the realistic laws of the realistic head on the lofted body (head: 'relational' without form: 'realistic'; the realistic body's are physique.laws)");
+    else if (!(Number.isInteger(spec.headLaws) && spec.headLaws >= 1 && spec.headLaws <= REALISTIC_LAWS_VERSION)) errs.push(`headLaws: ${spec.headLaws} is unknown — this kernel carries the realistic laws 1 … ${REALISTIC_LAWS_VERSION} (stamped at mint; leave it out)`);
+  }
   if (spec.laws !== undefined && !(Number.isInteger(spec.laws) && spec.laws >= 1 && spec.laws <= HERO_LAWS_VERSION)) errs.push(`laws: ${spec.laws} is unknown — this kernel carries hero laws 1 … ${HERO_LAWS_VERSION} (stamped at mint; leave it out)`);
   // the UNDEAD (lib/graph/undead/tiered.js): a form on the tiered body, its variation by the build, its layers
   if (spec.undead !== undefined && spec.undead !== null) {
@@ -1183,7 +1220,8 @@ const FACE_WORDS = ['seed', 'ethnicity', 'want', 'character', 'accent', 'nose', 
 const relationsPrint = (rel) => createHash('sha256').update(JSON.stringify(rel)).digest('hex').slice(0, 16);
 const FIT_KEYS = ['eu', 'zy', 'go', 'op', 'g', 'gn', 'n', 'sn', 'prn', 'al', 'mod'];
 /** does this spec wear the realistic face (the realistic body's own head) */
-const realisticFaced = (spec) => spec?.form === 'realistic' && (spec.head === undefined || spec.head === null || spec.head === 'relational');
+// (the realistic head: the realistic body's own, or worn by the lofted body: fighter wiring)
+const realisticFaced = (spec) => spec?.head === 'relational' || (spec?.form === 'realistic' && (spec.head === undefined || spec.head === null));
 function realisticFaceErrors(f) {
   if (typeof f !== 'object' || Array.isArray(f)) return [`face: the realistic face's words { ${FACE_WORDS.join(', ')} } (each as get_solid_vocab({ id: 'layered' }) names it)`];
   const errs = [];
@@ -1210,7 +1248,7 @@ function realisticFaceErrors(f) {
 const FACES = new Map();
 /** The realistic hero's composed face (composeFace's: relations, eyes, dermis, picks …), or null when it wears none. */
 export function realisticFaceOf(hero) {
-  if (hero?.form !== 'realistic' || hero.head !== 'relational' || !hero.face || typeof hero.face !== 'object') return null;
+  if (hero?.head !== 'relational' || !hero.face || typeof hero.face !== 'object') return null;
   const f = hero.face, sex = femaleOf(hero) ? 'female' : 'male', key = JSON.stringify([sex, f]);
   if (FACES.has(key)) return FACES.get(key);
   const e = f.ethnicity ?? 'western';
@@ -1265,17 +1303,17 @@ function faceReadout(hero) {
 function realisticErrors(spec) {
   const errs = [], R = spec.form === 'realistic';
   if (spec.physique !== undefined && spec.physique !== null && !R) errs.push("physique: dials the realistic body; add form: 'realistic' (or leave physique out)");
-  if (spec.head === 'relational' && !R) errs.push("head: the relational head is worn by the realistic body; add form: 'realistic'");
-  if (spec.skin !== undefined && spec.skin !== null && !R) errs.push("skin: the realistic body's skin (its tone and its look: undertone, age, freckles, lines, war paint …); add form: 'realistic' (another form's skin colour is palette: { Skin })");
-  if (!R) return errs;
+  // (the relational head on the lofted body, fighter wiring: its skin words its head's and its body's)
+  if (spec.skin !== undefined && spec.skin !== null && !R && spec.head !== 'relational') errs.push("skin: the realistic body's skin (its tone and its look: undertone, age, freckles, lines, war paint …); add form: 'realistic' (another form's skin colour is palette: { Skin })");
   if (realisticFaced(spec) && spec.face !== undefined && spec.face !== null) errs.push(...realisticFaceErrors(spec.face));
-  if (spec.skin !== undefined && spec.skin !== null) {
+  if (spec.skin !== undefined && spec.skin !== null && (R || spec.head === 'relational')) {
     const k = spec.skin;
     if (typeof k !== 'object' || Array.isArray(k)) errs.push(`skin: { ${Object.keys(DERMIS_DIALS).filter((d) => d !== 'sex').join(', ')} } (each as get_solid_vocab({ id: 'layered' }) names it)`);
     else if (k.sex !== undefined) errs.push("skin.sex: the skin's sex is the cast's; drop it");
     else if (k.tone !== undefined && spec.palette?.Skin && String(k.tone).toLowerCase() !== spec.palette.Skin.toLowerCase()) errs.push('skin.tone and palette.Skin both name the skin\'s colour; give one');
     else try { heroDermisSpec({ cast: spec.cast, palette: spec.palette, skin: k }); } catch (e) { errs.push(`skin: ${e.message.replace(/^dermis: /, '')}`); }
   }
+  if (!R) return errs;
   if (spec.physique !== undefined && spec.physique !== null) {
     const p = spec.physique, { laws, ...dials } = typeof p === 'object' && !Array.isArray(p) ? p : {};
     if (typeof p !== 'string' && (typeof p !== 'object' || Array.isArray(p))) errs.push(`physique: a word (${Object.keys(PHYSIQUES).join(' | ')}) or { from?, ${PHYSIQUE_DIALS.join(', ')} } (each −1 to 1, 0 the athletic base)`);
@@ -1348,6 +1386,14 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   // its expression as the face rig's rest (relational-face-rig.js); both were dropped here before
   if (hero.head === 'relational' && hero.face && typeof hero.face === 'object' && hero.face.scalp === undefined && spec.hair !== undefined && spec.hair !== null) hero.face = { ...hero.face, scalp: scalpOfHair(spec.hair) };
   if (hero.head === 'relational' && spec.expression !== undefined && spec.expression !== null) hero.expression = spec.expression;
+  // FIGHTER WIRING: a body codename under the landmark or the realistic head (its stamp's fit null: the head sized by its
+  // own proportions), and the realistic head on the lofted body stamped with the realistic laws it is drawn under, as the
+  // realistic body's physique is
+  // (the codename is worn on the frame it was drawn on, the anime frame: its ratios on the hero cast's thicker baseline
+  // had stood a tenth heavier, the forearm a club over a narrow wrist and a hand not sized to it; a spec that names its
+  // proportions keeps them)
+  if (spec.animeBody && hero.head !== 'anime') Object.assign(hero, { animeBody: spec.animeBody, animeBodyResolved: resolveAnimeBody(spec.animeBody, animePoleOf(hero), null), ...(spec.proportions === undefined ? { proportions: 'anime' } : {}) });
+  if (hero.head === 'relational' && spec.form !== 'realistic') hero.headLaws = spec.headLaws ?? REALISTIC_LAWS_VERSION;
   // the realistic body's physique, always stored on a realistic hero (athletic when none is given), with the laws
   if (spec.form === 'realistic') { const p = spec.physique ?? 'athletic', o = typeof p === 'string' ? { from: p } : { ...p }; hero.physique = o.laws === undefined ? { ...o, laws: REALISTIC_LAWS_VERSION } : o; }
   // genki (anime-genki.js): stored only when it adds something (absent and 0 store nothing)
@@ -1539,6 +1585,20 @@ function tieredFormPlan(hero) {
 }
 /** whether a hero wears the anime frame (hero-form.js ANIME_FRAME: hero laws 21, the anime proportions, the structured core) */
 const animeFrameOf = (hero) => isAnimeFrame({ laws: hero.laws ?? 1, proportions: hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'), core: hero.core ?? DEFAULT_CORE });
+/** a lofted hero's tune: its own, over its body codename's under a head of no anime style (fighter wiring: the
+ * codename's ratios laid under the hero's, as the anime head lays them under its style's in composeAnime) */
+const codenameTune = (hero) => {
+  const Bd = hero.head !== 'anime' && hero.animeBodyResolved?.word === hero.animeBody ? hero.animeBodyResolved : null;
+  if (!Bd) return hero.tune;
+  const { from: _f, ...tune } = resolveTune([Bd.tune, hero.tune].filter(Boolean));
+  return tune;
+};
+/** the head's size on a codename's anime frame under the landmark or the realistic head: the hero cast's (the realistic
+ * casts' share of the stature), not the anime cast's larger head; undefined for any other hero */
+const codenameHeadScale = (hero) => {
+  if (hero.head === 'anime' || hero.animeBodyResolved?.word !== hero.animeBody || !hero.animeBody || (hero.proportions ?? 'hero') !== 'anime') return undefined;
+  return castOf(hero.cast, 'hero')?.headScale ?? 1;
+};
 function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0
   // (a footwear library card on the game body keeps its foot bare under it, for the card to be worn over: the library's
@@ -1547,10 +1607,11 @@ function heroFormPlanOf(hero) {
   // (the cast as the hero's laws read it: hero-form.js lawCast, the chibi's head and arms under laws 6)
   const L = lawCast(hero.cast, hero.laws ?? 1, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero')), cast = L.cast;
   const body = { ...(L.body ?? {}), ...(hero.body ?? {}), ...(childCoding(hero) ? { bust: 0 } : {}) };
-  const common = { ...feet, register: hero.register, tune: hero.form === 'realistic' ? realisticTune(hero) : hero.tune, body, girth: hero.girth ?? 1, headScale: hero.headScale ?? L.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}), ...(hero.form === 'realistic' ? { seat: false } : {}) };
+  const common = { ...feet, register: hero.register, tune: hero.form === 'realistic' ? realisticTune(hero) : codenameTune(hero), body, girth: hero.girth ?? 1, headScale: hero.headScale ?? codenameHeadScale(hero) ?? L.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}), ...(hero.laws !== undefined ? { laws: hero.laws } : {}), ...(hero.form === 'realistic' ? { seat: false } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}), ...(hero.paint !== undefined ? { paint: hero.paint } : {}), ...(hero.outfit !== undefined ? { outfit: hero.outfit } : {}), ...(childCoding(hero) ? { childCoded: true } : {}) };
   // the relational head is laid out on the landmark head's plan, bald, and swapped in after the slice (realisticRecipe)
-  if (hero.head === 'relational') return humanoidPlan({ preset: cast, ...common, face: {}, hair: 'none', expression: 'neutral', palette: hero.palette ?? {}, ...dress });
+  // (on the lofted body, fighter wiring: the landmark head's chest and proportions too)
+  if (hero.head === 'relational') return humanoidPlan({ preset: cast, ...common, ...(hero.form !== 'realistic' && formBodied(hero) ? { chest: FORM_BODY.chest[formBodyPole(hero.cast)] } : {}), face: {}, hair: 'none', expression: 'neutral', palette: hero.palette ?? {}, ...(hero.form !== 'realistic' && hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   if ((hero.head ?? 'landmark') === 'landmark') {
     // (a COWL in the kit presses the ears to the head, as a cowl's cloth does: they stand off it at a small angle and
     // lift, so the cowl passes close over them; its `ears: false` leaves them as they are. No cowl: the ears as before)
