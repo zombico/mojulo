@@ -290,8 +290,22 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     - Its thighs are heavier, with overlapping front armour plates and a knee cop (`platedThigh`).
     - Its shanks are shorter, standing deeper bent as a T-rex balances, its three wheels in line along each shank, the
       front one well above the ankle.
-    - Its feet are long, pushed forward of the ankle, with three forward toes on the ground, its sole's outline out to
-      their tips (`toedFoot`).
+    - Its feet are long, pushed forward of the ankle, their toes ahead on the ground for its balance.
+  - **Its feet clawed, its sides a tank's:**
+    - Each foot is a broad palm on a cleated sole, a heel spur raked back behind it and two thick toes ahead
+      (`clawedFoot`). Each toe is two segments, a root and a claw, their own bodies (`mecha-toe`, `toe1-sw` and
+      `toe2-sw`) on knuckle drives, with a joint line between them. Walking, the toes lie flat, their pads on the
+      ground, and the sole's outline runs out to their claws. Collapsed, they clench down and under the palm's front.
+    - A clenched toe hangs below the sole. Each shank's ankle is therefore cranked forward of its axis (`ankleFwd`),
+      toward its front, which points straight up when it lies level: rolling, the ankle stands a crank's throw higher
+      over the ground, and its clenched toes clear it. The leg's inverse kinematics solve the line from knee to ankle
+      and turn the knee back by the crank's angle (`mecha-ik.js` `legGeometry`'s `e2`). If they still would not
+      clear, the foot is tilted up from level, the nearer way, until they do (`foot: 'level'`, `clear`).
+    - Walking, the crank brings the shin's lower end nearer the ground: its front wheel rides higher up the shin, its
+      skirt stops shorter of the ankle, and its ankle ram was sized again from its length curve.
+    - A sponson each side of the hull: a box of plates out from the hull's side over the hip and the top of the thigh,
+      open below for the leg to swing in, its ends raked, its deck the weapons' shelf, with a belt of armour along its
+      middle, a stowage bin, bolts and a lip along its foot. Collapsed, it rides over the wheels as a tank's side does.
   - **Collapsed**, each foot is laid level out ahead of its front wheels (`foot: 'level'`), crawling forward on its toes.
     Its ankle ram runs down the shin's front to a horn ahead of and above the cross. The ram was sized from its length
     curve over the ankle's working arc: a first horn put its dead centre right at the level foot.
@@ -381,8 +395,9 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   - `mecha-shelf.test.js`, the siege walker: six wheels, its footprint more than 2.5 times the rover's, every law
     holding; its cockpit out ahead on its keel with the rider's space, its radar and its side gun; each payload served
     by its own side's tail, the other stowed; its feet laid level ahead, its footprint more than 2.5 times the rover's;
-    standing as a T-rex balances, its toes ahead of its ankles, nothing but its feet near the ground walking. The char
-    pins add its plated thigh, its toed foot, its keeled pelvis, its howitzer, its missile launcher,
+    standing as a T-rex balances, its toes ahead of its ankles, nothing but its feet near the ground walking; its toes
+    flat on the ground standing and clenched clear of it rolling, its sponsons over the wheels. The char
+    pins add its plated thigh, its clawed foot and its toes, its keeled pelvis, its howitzer, its missile launcher,
     its spare pod, and the frame whole walking and collapsed.
   - The roster's, builds' and preview door's tests (a dressed frame's livery and wear carried in its recipe, its
     cabin, its backpack, a frame on wheels collapsed by its stance).

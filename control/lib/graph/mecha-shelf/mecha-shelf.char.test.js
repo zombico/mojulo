@@ -132,8 +132,10 @@ const PINS = {
   'howitzer-sw': '468e79bf36bb78e5',
   'missilepod-sw': 'cb2e44002b8fc721',
   'missiles-sw': 'debc71d2982832cf',
-  'pelvis-sw': '36c1d1492bd2e31b',
-  'foot-sw': '8cfca34552099f31',
+  'pelvis-sw': 'adca465c0d5be5f6',
+  'foot-sw': 'bfd5c1239080edb5',
+  'toe1-sw': 'ab54a14b87f3e936',
+  'toe2-sw': '598875ee9f9712b8',
   'thigh-sw': '08b637f4320f16d1',
 };
 const LEFT = 'c9882af91b6cf973';
@@ -146,7 +148,7 @@ const HOUSE = '22d1c303d8f1b5ad';
 const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
-const SIEGE = ['b8f091322a170643', '39be8113c3a9e7ff'];
+const SIEGE = ['fb11e20825f9d3d3', '924282ffc8cac3c4'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');

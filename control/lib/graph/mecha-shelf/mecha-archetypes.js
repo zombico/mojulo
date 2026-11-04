@@ -557,6 +557,22 @@ const siegeWheels = (S) => { const s = S.toLowerCase(); return [
   { id: `midWheel${S}`, sku: 'wheel-sw', side: s, on: `shank${S}.wheelMid`, wheel: 'mid' },
   { id: `frontWheel${S}`, sku: 'wheel-sw', side: s, on: `shank${S}.wheelFront`, wheel: 'front' },
 ]; };
+// (its clawed feet's toes: two a foot, a root segment on the palm's knuckle and a claw segment on its end, each on its
+// knuckle's drive; flat walking, `curl` their clench collapsed, down and under the palm's front)
+const siegeToes = (S) => { const s = S.toLowerCase(), out = { joints: {}, layout: [], bodies: [], ids: [] };
+  for (const T of ['A', 'B']) {
+    const root = `toe${T}${S}`, claw = `claw${T}${S}`;
+    out.joints[root] = Object.freeze({ kind: 'hinge', drive: `toeRoot${T}${S}`, toe: true, curl: -40 });
+    out.joints[claw] = Object.freeze({ kind: 'hinge', drive: `toeClaw${T}${S}`, toe: true, curl: -110 });
+    out.layout.push(
+      { id: `toeRoot${T}${S}`, sku: 'toe1-sw', side: s, on: `foot${S}.toe.${T.toLowerCase()}`, joint: root },
+      { id: `toeClaw${T}${S}`, sku: 'toe2-sw', side: s, on: `toeRoot${T}${S}.end`, joint: claw },
+    );
+    out.bodies.push(`toeRoot${T}${S}`, `toeClaw${T}${S}`); out.ids.push(root, claw);
+  }
+  return out;
+};
+const STR = siegeToes('R'), STL = siegeToes('L');
 // (the rider's space where the cockpit rides on its keel: the walker's, carried out to it)
 const KEEL = Object.freeze([0, 3.3, 0.42 - 0.096]);
 const siegeWalker = Object.freeze({
@@ -568,7 +584,7 @@ const siegeWalker = Object.freeze({
   rider: Object.freeze({ mass: 110, com: Object.freeze([0, 3.3 + 0.12, 0.42 + 0.3]) }),
   envelope: Object.freeze(F0.envelope.map((E) => Object.freeze({ x: E.x, y: Object.freeze(E.y.map((y) => y + KEEL[1])), z: Object.freeze(E.z.map((z) => z + KEEL[2])) }))),
   joints: Object.freeze({
-    ...SR.joints, ...SL.joints, ...SIEGE_LAYOUT.joints,
+    ...SR.joints, ...SL.joints, ...STR.joints, ...STL.joints, ...SIEGE_LAYOUT.joints,
     traverseC: Object.freeze({ kind: 'slew', drive: 'mountC' }), elevateC: Object.freeze({ kind: 'hinge', drive: 'cradleC' }),
   }),
   layout: Object.freeze([
@@ -576,13 +592,14 @@ const siegeWalker = Object.freeze({
     { id: 'seat', sku: 'seat-sw', on: 'pelvis.seat' },
     { id: 'cage', sku: 'cabin-sw', on: 'pelvis.cage' },
     { id: 'pack', sku: SIEGE_PACK.sku, on: 'pelvis.pack' },
-    ...SR.layout, ...SL.layout, ...siegeWheels('R'), ...siegeWheels('L'), ...SIEGE_LAYOUT.layout,
+    ...SR.layout, ...SL.layout, ...STR.layout, ...STL.layout, ...siegeWheels('R'), ...siegeWheels('L'), ...SIEGE_LAYOUT.layout,
     // (the cockpit's gun: a rotary machine gun on its own ring and cradle off the keel's side)
     { id: 'mountC', sku: 'mount-wpn', side: 'r', on: 'pelvis.sidegun', joint: 'traverseC' },
     { id: 'cradleC', sku: 'cradle-wpn', side: 'r', on: 'mountC.cradle', joint: 'elevateC' },
     { id: 'weaponC', sku: MECHA_WEAPONS.minigun.sku, side: 'r', on: 'cradleC.gun' },
   ].map(Object.freeze)),
   legs: Object.freeze({ r: Object.freeze(SR.legs), l: Object.freeze(SL.legs) }),
+  toes: Object.freeze({ r: Object.freeze({ bodies: Object.freeze(STR.bodies), joints: Object.freeze(STR.ids) }), l: Object.freeze({ bodies: Object.freeze(STL.bodies), joints: Object.freeze(STL.ids) }) }),
   wheels: Object.freeze(['R', 'L'].flatMap((S) => siegeWheels(S).map((e) => Object.freeze({ id: e.id, axle: e.wheel, side: e.side })))),
   backpacks: Object.freeze([]),
   fireStance: 'roll',
@@ -594,8 +611,9 @@ const siegeWalker = Object.freeze({
     brace: SIEGE_PACK.brace,
     ...Object.fromEntries(Object.keys(TAIL_POSES).filter((k) => k !== 'stow').map((k) => [k, Object.freeze({ knee: 45, tail: k })])),
     // (collapsed: the thighs raked back toward level, the knees folded until the shanks lie level, three wheels a side down)
-    roll: Object.freeze({ roll: true, pitch: -76, foot: 'level' }),
-    board: Object.freeze({ roll: true, pitch: -76, foot: 'level' }),
+    // (its toes clenched under its palms, each foot tilted up from level until they clear the ground)
+    roll: Object.freeze({ roll: true, pitch: -76, foot: 'level', clear: 0.15 }),
+    board: Object.freeze({ roll: true, pitch: -76, foot: 'level', clear: 0.15 }),
     // (it stands as a T-rex balances: its knees bent deep, its long toes ahead under its keel)
     stand: Object.freeze({ knee: 62 }),
   }),
@@ -607,7 +625,7 @@ const siegeWalker = Object.freeze({
     stability: Object.freeze([0.05, 5]), knee: Object.freeze([25, 70]), seat: Object.freeze([4, 9]), board: Object.freeze([1, 4]), stepIn: Object.freeze([0.3, 3]), belly: Object.freeze([2, 8]),
     step: Object.freeze([0.6, 3]), stride: Object.freeze([0.8, 3]), groundPressure: Object.freeze([20, 200]), clearance: Object.freeze([0.01, 20]),
   }),
-  bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-ram': 6, 'mecha-wheel': 6, 'mecha-mount': 6, 'mecha-weapon': 5, 'mecha-tail': 8 }),
+  bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-toe': 8, 'mecha-ram': 6, 'mecha-wheel': 6, 'mecha-mount': 6, 'mecha-weapon': 5, 'mecha-tail': 8 }),
 });
 export const MECHA_ARCHETYPES = Object.freeze({ ...BASE_ARCHETYPES, roverWalker, siegeWalker });
 export const MECHA_ARCHETYPE_IDS = Object.freeze(Object.keys(MECHA_ARCHETYPES));

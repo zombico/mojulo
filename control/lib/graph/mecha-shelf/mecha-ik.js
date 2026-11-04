@@ -26,7 +26,7 @@
  *   load     kilograms held in the claws (shared by the arms whose tools hold), weighed in its centre of mass;
  *            loadOn, the arms that hold it ('arms', the frame's own, or 'packArms')
  *
- *   legGeometry(arch, ctx, S)            → { hip, a1, a2, l1, l2, hS }: a leg's numbers read from its built parts
+ *   legGeometry(arch, ctx, S)            → { hip, a1, a2, l1, l2, e2, hS }: a leg's numbers read from its built parts
  *   solveLeg(G, ankle, yaw, bend)         → { values: { yaw, roll, pitch, knee, anklePitch, ankleRoll } degrees, reach }
  *                                          (`bend` the archetype's: its knee 'back' or 'forward')
  *   solveArm(G, wrist, claw, yaw)         → { values: { yaw, pitch, elbow, wrist } degrees, reach }
@@ -49,7 +49,10 @@ export function legGeometry(arch, ctx, S) {
     a1: -hp(g.hip, 'roll')[2],
     a2: -hp(g.roll, 'pitch')[2],
     l1: -hp(g.pitch, 'knee')[2],
-    l2: -hp(g.knee, 'ankle')[2],
+    // (the shank from the knee to the ankle: its length, and the angle its ankle stands off its axis toward its front, a
+    // cranked shank's)
+    l2: Math.hypot(hp(g.knee, 'ankle')[1], hp(g.knee, 'ankle')[2]),
+    e2: Math.atan2(hp(g.knee, 'ankle')[1], -hp(g.knee, 'ankle')[2]),
     hS: -hp(g.foot, 'sole')[2],
   };
 }
@@ -69,13 +72,15 @@ export function solveLeg(G, A, yaw = 0, bend = 'back') {
   const D = (x) => x / DEG;
   // (a knee bent forward, a person's: the thigh turned forward of the line from hip to ankle, the shank back, the sole
   // turned level)
+  // (a cranked shank's knee turned back by the angle its ankle stands off its axis: the line from knee to ankle is solved)
+  const e2 = G.e2 ?? 0;
   if (bend === 'forward') {
-    const pitch = Math.atan2(vy, -vz) + beta;
-    return { values: { yaw, roll: D(phi), pitch: D(pitch), knee: D(knee), anklePitch: D(knee - pitch), ankleRoll: -D(phi) }, reach, over: Math.max(0, d0 - dMax) };
+    const pitch = Math.atan2(vy, -vz) + beta, kj = knee + e2;
+    return { values: { yaw, roll: D(phi), pitch: D(pitch), knee: D(kj), anklePitch: D(kj - pitch), ankleRoll: -D(phi) }, reach, over: Math.max(0, d0 - dMax) };
   }
   // (a knee bent backward: the knee behind the line, the thigh turned back from it, the shank forward, the sole level)
-  const pitch = Math.atan2(vy, -vz) - beta;
-  return { values: { yaw, roll: D(phi), pitch: D(pitch), knee: D(knee), anklePitch: -D(pitch + knee), ankleRoll: -D(phi) }, reach, over: Math.max(0, d0 - dMax) };
+  const pitch = Math.atan2(vy, -vz) - beta, kj = knee - e2;
+  return { values: { yaw, roll: D(phi), pitch: D(pitch), knee: D(kj), anklePitch: -D(pitch + kj), ankleRoll: -D(phi) }, reach, over: Math.max(0, d0 - dMax) };
 }
 
 /** An arm's numbers, read from its built parts: the upper arm's and the forearm's lengths. */
@@ -163,7 +168,8 @@ export function payloadsAt(arch, aim = {}) {
  * each ankle pitched until its front wheel (ahead of the toe) stands there too. `range` a joint's range.
  */
 function rollAt(arch, ctx, stance, range) {
-  const base = solveStance(arch, ctx, arch.stances[arch.rest]), joints = { ...base.joints };
+  // (a clawed foot's toes clenched: rolling, they are off the ground)
+  const base = solveStance(arch, ctx, arch.stances[arch.rest]), joints = { ...base.joints, ...toesAt(arch, true) };
   // (the knee folded until the shank lies level: its bend the thigh's rake from straight down, and a quarter turn)
   // (the legs plumb, their roll undone, so the wheels stand upright on the ground)
   for (const S of SIDES) { const J = arch.legs[S].joints; joints[J.yaw] = 0; joints[J.roll] = 0; joints[J.ankleRoll] = 0; joints[J.pitch] = stance.pitch ?? -70; joints[J.knee] = stance.knee ?? 90 - joints[J.pitch]; }
@@ -185,6 +191,17 @@ function rollAt(arch, ctx, stance, range) {
       const up = (a) => framesOf(arch, { ...joints, [J]: a }, ctx)[foot].R[2][2];
       let found = lo;
       for (let a = lo; a <= hi; a += 0.25) if (up(a) > up(found)) found = a;
+      // (a clawed foot's clenched toes under it: the foot tilted from level, the nearer way, until they and its sole
+      // stand `clear` of the ground)
+      const toes = arch.toes?.[S]?.bodies ?? [];
+      if (toes.length) {
+        const low = (a) => { const Fs = framesOf(arch, { ...joints, [J]: a }, ctx); return Math.min(...[foot, ...toes].flatMap((b) => (ctx.outline(b) ?? []).map((c) => H + apply(Fs[b], c)[2]))); };
+        const clear = stance.clear ?? 0.15;
+        for (let k = 0; k <= 4 * (hi - lo); k++) {
+          const cands = [found + k * 0.25, found - k * 0.25].filter((a) => a >= lo && a <= hi && low(a) >= clear);
+          if (cands.length) { found = cands[0]; break; }
+        }
+      }
       joints[J] = found;
       continue;
     }
@@ -199,6 +216,9 @@ function rollAt(arch, ctx, stance, range) {
   }
   return { joints, root: { R: I3, t: [0, 0, H] }, feet: null, legs: { r: { reach }, l: { reach } }, load: 0, loadOn: 'arms', ...(arch.tail || arch.tails ? { tailReach: true } : {}) };
 }
+
+/** A clawed foot's toes: flat (0), or `curl`ed, each knuckle to its clench. */
+const toesAt = (arch, curl) => Object.fromEntries(Object.values(arch.toes ?? {}).flatMap((T) => T.joints.map((j) => [j, curl ? arch.joints[j].curl : 0])));
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A stance's feet on the ground: each foot's sole centre, its lift and its heading. */
@@ -271,5 +291,5 @@ export function solveStance(arch, ctx, stance, { com, stand, range } = {}) {
   }
   // (a backpack's payloads aimed, its tail at its pose: what it reaches is where the payloads stand)
   const payloads = payloadsAt(arch, stance.aim), tail = tailAt(arch, ctx, stance.tail ?? 'stow', { ...solved.joints, ...arms, ...payloads });
-  return { joints: { ...solved.joints, ...arms, ...payloads, ...tail.values }, root: { R: I3, t: [xy[0], xy[1], z] }, feet, legs: solved.legs, load: stance.load ?? 0, loadOn: stance.loadOn ?? 'arms', ...(arch.tail || arch.tails ? { tailReach: tail.reach } : {}) };
+  return { joints: { ...solved.joints, ...arms, ...payloads, ...tail.values, ...toesAt(arch, false) }, root: { R: I3, t: [xy[0], xy[1], z] }, feet, legs: solved.legs, load: stance.load ?? 0, loadOn: stance.loadOn ?? 'arms', ...(arch.tail || arch.tails ? { tailReach: tail.reach } : {}) };
 }

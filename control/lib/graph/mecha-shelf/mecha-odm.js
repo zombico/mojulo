@@ -26,6 +26,7 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-shank': 'a shank: its box beam from the knee to the ankle\'s clevis, its knee horn, its ankle ram\'s bracket behind',
   'mecha-ankle': 'an ankle\'s cross: a universal joint, its pitch and its roll axes meeting, its roll drive, the ankle ram\'s heel horn',
   'mecha-foot': 'a foot: its plate, its rubber sole pads at the heel and the toe, its toe guard',
+  'mecha-toe': 'a segment of a clawed foot\'s toe: its knuckle drive, its armour, its pad, at its tip its claw',
   'mecha-seat': 'the rider\'s place: astride, the spine, the saddle and its tail, the tank and its knee grips and chest pad, the nose and its lamps, the clip-on bars, the pegs and the boarding step; or seated at the controls, a platform, its work seat and belt, its consoles, its pedals, its rail and its steps',
   'mecha-cage': 'the rider\'s cabin, open above as a convertible\'s (its tub\'s sides, its framed windshield, its roll hoop behind the saddle, its lamps), or a torso frame round a seated operator (its posts, its shoulders, its hoop), or a closed cab (its falling-object roof on four pillars, its glass and its guard bars, its door)',
   'mecha-pack': 'the power pack under the tail: the hydraulic power unit (its motor, its pump, its tank) and its cooler; or a giant arm pack, its frame, its power unit and its towers up to its arms\' shoulders',
@@ -342,27 +343,38 @@ BASE = { ...BASE, ...BACKPACK, ...ROVER };
 // carrying a keel out ahead, the cockpit on it, human-sized; its siege backpack's payloads a howitzer and a missile
 // launcher, a scorpion's tail each side to serve them; a rotary machine gun on the cockpit's side)
 const SW = 'siege walker', KS = 3.375, KB = 2.5, SHANK_SW = 2.9;
+// (its toes' segments, true metres: each hinged at its knuckle, its pin `floor` above the ground its pad stands on; a
+// rotary drive in each knuckle, curling it down and under, its stop its clench)
+const TOE_FLOOR = 0.28;
+const TOE1 = Object.freeze({ length: 0.62, w: 0.5, h0: 0.6, h1: 0.56, floor: TOE_FLOOR, pad: 0.08, stop: Object.freeze([-105, 10]), torque: 60000 });
+const TOE2 = Object.freeze({ length: 0.56, w: 0.46, h0: 0.54, h1: 0.3, floor: TOE_FLOOR, pad: 0.08, claw: 0.22, stop: Object.freeze([-110, 10]), torque: 30000 });
 const SIEGE = {
   // (its hull between the backpack and the cockpit: an armoured superstructure on the keel, so it reads as a vehicle's
-  // body and not a frame)
-  'pelvis-sw': dressed(S('pelvis-atw', KS, 'siege walker pelvis', SW, ['siege pelvis', 'siege keel', 'prow', 'cockpit keel', 'siege hull'], { seat: [0, 3.3, 0.42], cage: [0, 3.3, 0.42] }), 'keeled', { prow: { y0: 0.5, y1: 5.0, top: 0.42, chine: -0.45, bottom: -1.0, w0: 1.6, w1: 1.1 }, hull: { y0: -1.9, y1: 2.72, w: 2.3, top: 1.55, front: 1.05 }, sidegun: [0.7, 3.05, 1.15] }),
+  // body and not a frame; a sponson each side, a box of plates out from the hull's side over the hip and the top of the
+  // thigh, open below: its side reads as a tank's, one armoured side above its wheels)
+  'pelvis-sw': dressed(S('pelvis-atw', KS, 'siege walker pelvis', SW, ['siege pelvis', 'siege keel', 'prow', 'cockpit keel', 'siege hull'], { seat: [0, 3.3, 0.42], cage: [0, 3.3, 0.42] }), 'keeled', { prow: { y0: 0.5, y1: 5.0, top: 0.42, chine: -0.45, bottom: -1.0, w0: 1.6, w1: 1.1 }, hull: { y0: -1.9, y1: 2.72, w: 2.3, top: 1.55, front: 1.05 }, sponson: { x0: 1.0, x1: 2.24, y0: -1.4, y1: 1.75, top: 1.05, bottom: -0.3, rake: 0.4, lean: 0.12 }, sidegun: [0.7, 3.05, 1.15] }),
   'hip-sw': S('hip-atw', KS, 'siege walker hip yaw housing', SW, ['siege hip'], { torque: 260000 }),
   'yoke-sw': S('yoke-atw', KS, 'siege walker hip roll yoke', SW, ['siege yoke']),
   // (its thighs heavier and distinct, front armour plates over them; its shanks shorter, a T-rex's; its feet long and
   // pushed forward of the ankle, three toes ahead for its balance, reaching ahead of its front wheels when it rolls)
   'thigh-sw': dressed(S('thigh-atw', KS, 'siege walker thigh', SW, ['siege thigh', 'thigh armour', 'cuisse'], { w: 0.56, d0: 0.8, d1: 0.62 }), 'plated'),
   // (its three wheels in line along the shank, the front one well above the ankle: collapsed, the ankle stands a
-  // wheel's height up and its shallow foot lies out ahead, crawling forward; walking, the front wheel rides up the shin)
-  'shank-sw': dressed(S('shank-atw', KS, 'siege walker shank', SW, ['siege shank', 'siege skirt'], { length: SHANK_SW, stop: [5, 170], torque: 2.2e6, ankleRam: [0, 0.42, -0.45] }), 'wheeled', { wheel: [0.9, 0, 0], wheelMid: 1.15, wheelFront: 2.3, skirt: { h: 0.76, over: [0.78, -0.05], w: 0.56 } }),
+  // wheel's height up and its foot lies out ahead, crawling forward; walking, the front wheel rides up the shin. Its
+  // ankle cranked forward of its axis: rolling, that is up, the ankle higher over the ground for its toes to clench)
+  'shank-sw': dressed(S('shank-atw', KS, 'siege walker shank', SW, ['siege shank', 'siege skirt'], { length: SHANK_SW, stop: [5, 170], torque: 2.2e6, ankleRam: [0, 0.42, -0.45] }), 'wheeled', { wheel: [0.9, 0, 0], wheelMid: 1.08, wheelFront: 2.16, ankleFwd: 0.45, skirt: { h: 0.76, over: [0.78, -0.3], w: 0.56 } }),
   // (its ankle ram's horn raised behind the cross: its ankle low over its shallow foot, the ram's eye clear of the ground)
   'ankle-sw': S('ankle-atw', KS, 'siege walker ankle cross', SW, ['siege ankle'], { torque: 350000, horn: [0, 0.45, 0.2] }),
-  'foot-sw': dressed(S('foot-atw', 5, 'siege walker foot', SW, ['siege foot', 'toes', 'forward toes'], { sole: 0.45, length: 2.9, heel: 0.5 }), 'toed', { toes: { n: 3, length: 0.95, spread: 0.5, w: 0.34 } }),
+  // (its feet clawed: a broad palm, a heel spur behind, two thick toes ahead, each of two segments on knuckle drives:
+  // flat on the ground walking, its toes' pads under them; collapsed, clenched under the palm's front)
+  'foot-sw': Object.freeze({ ...dressed(S('foot-atw', 5, 'siege walker foot', SW, ['siege foot', 'clawed foot', 'palm', 'heel spur'], { sole: 0.45, length: 2.15, heel: 0.25 }), 'clawed', { claws: { spread: 0.33, floor: TOE_FLOOR, gap: 0.03, w: TOE1.w, reach: TOE1.length + TOE2.length + TOE2.claw, spur: 0.3 } }), mass: 1250 }),
+  'toe1-sw': R('mecha-toe', 'siege walker toe root segment', SW, TOE1, 150, { family: 'proximal' }, ['toe', 'toes', 'forward toes', 'siege toe', 'knuckle']),
+  'toe2-sw': R('mecha-toe', 'siege walker toe claw segment', SW, TOE2, 110, { family: 'distal' }, ['toe claw', 'toe tip', 'clawed toe']),
   'ram-roll-sw': S('ram-roll-atw', KS, 'siege walker hip roll ram', SW, ['siege roll ram'], { bore: 0.34, rod: 0.19 }),
   'ram-hip-sw': S('ram-hip-atw', KS, 'siege walker hip pitch ram', SW, ['siege hip ram'], { bore: 0.34, rod: 0.19 }),
   // (its ankle ram down the shin's front to a horn ahead of and above the cross: its length rising the whole way over the
   // ankle's working arc, the foot laid level collapsed and stood flat walking, sized from that curve)
-  'ram-ankle-sw': S('ram-ankle-atw', KS, 'siege walker ankle ram', SW, ['siege ankle ram'], { bore: 0.26, rod: 0.15, closed: 2.05, stroke: 0.9 }),
-  'wheel-sw': R('mecha-wheel', 'siege walker wheel', SW, { r: 0.55, width: 0.54, rim: 0.33, lugs: 20 }, 380, { family: 'atv' }, ['siege wheel', 'armoured car wheel', 'big knobby tyre']),
+  'ram-ankle-sw': S('ram-ankle-atw', KS, 'siege walker ankle ram', SW, ['siege ankle ram'], { bore: 0.26, rod: 0.15, closed: 2.0, stroke: 0.93 }),
+  'wheel-sw': R('mecha-wheel', 'siege walker wheel', SW, { r: 0.5, width: 0.52, rim: 0.3, lugs: 20 }, 380, { family: 'atv' }, ['siege wheel', 'armoured car wheel', 'big knobby tyre']),
   // (its cockpit: the armoured cabin, a spherical radar dome on a mast behind its camera; its saddle's step a ladder's foot)
   'cabin-sw': R('mecha-cage', 'siege walker armoured cockpit', SW, { ...BASE['cabin-fw'].dims, radar: { y: -0.22, r: 0.3, mast: 0.32 } }, 190, { family: 'armoured' }, ['siege cockpit', 'radar dome', 'radome', 'radar']),
   'seat-sw': R('mecha-seat', 'siege walker saddle', SW, { ...BASE['seat-atw'].dims, step: [0.27, -0.21, -0.64] }, 31, { family: 'straddle' }, ['siege saddle']),

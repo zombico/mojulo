@@ -15,6 +15,11 @@
  *                      boarding side, a roof hatch; the brush guard round the nose as the open cabin's
  *   pack 'rack'        the power pack in a cargo rack: a can each side, a roll on top
  *
+ * and the rover's and the siege walker's, on wheels: shank and ankle 'wheeled' (their wheels' axles, the skirt), the
+ * wheel 'atv'; thigh 'plated' (front armour plates, a knee cop); pelvis 'keeled' (a keel out ahead to the cockpit, the
+ * hull on it, a sponson each side over the hip and the thigh's top, open below); foot 'clawed' (a palm, a heel spur,
+ * two toes' knuckles) and its toes' segments (`mecha-toe` 'proximal' and 'distal', each on its knuckle's drive).
+ *
  * fieldBuilders(kit) → the builders by kind and family, `kit` the shelf's own. Pure: no clock, no dice.
  */
 import { add, box, cross, dot, loftWorld, mul, pod, spin, sub, tone, tube, unit } from './mecha-common.js';
@@ -207,7 +212,18 @@ export function fieldBuilders(kit) {
       extrudes.push(box('lip', [s * (W[0] + 0.004), K.h + 0.004, z0 - 0.06], [s * (W[0] + 0.004), K.h + 0.004, z1 + 0.06], K.w + 0.036, 0.014, tone(C.paint, -0.05)));
       for (const z of [z0 * 0.4, -L / 2, z1 * 0.9 + 0.1]) extrudes.push(box(`skirtBracket_${Math.round(z * 100)}`, [s * 0.07, K.h * 0.55, z], [xo, K.h * 0.55, z], 0.04, 0.05, C.trim, [0, 1, 0]));
     }
-    return { ...g, lathes, extrudes, hardpoints: { ...g.hardpoints, wheel: [s * W[0], W[1], W[2]], ...(row.dims.wheelMid ? { wheelMid: [s * W[0], 0, -row.dims.wheelMid] } : {}), ...(row.dims.wheelFront ? { wheelFront: [s * W[0], 0, -row.dims.wheelFront] } : {}) } };
+    // (its ankle cranked forward of its axis, `ankleFwd`, toward its front: up when it lies level rolling, the ankle a
+    // crank's throw higher over the ground; the clevis's cheeks carried out to the pin)
+    const fwd = row.dims.ankleFwd ?? 0, ankleAt = [0, fwd, -L];
+    if (fwd) {
+      const i = lathes.findIndex((m) => m.id === 'anklePin'), d1 = row.dims.d1, zc = -(L - row.dims.clevis), r = d1 * 0.3;
+      if (i >= 0) lathes.splice(i, 1);
+      // (the crank's cheeks in the clevis's place)
+      for (let k = extrudes.length - 1; k >= 0; k--) if (/^clevis_/.test(extrudes[k].id)) extrudes.splice(k, 1);
+      for (const t of [1, -1]) extrudes.push(slab(`crank_${t > 0 ? 'o' : 'i'}`, t * 0.062, t * 0.082, [[-d1 / 2, zc + 0.02], [d1 / 2, zc + 0.02], [fwd + r * 0.7, -L + r * 0.7], [fwd + r, -L], [fwd + r * 0.7, -L - r * 0.7], [fwd - r * 0.4, -L - r], [-d1 / 2, -L + r * 0.2]], C.trim));
+      lathes.push(spin('anklePin', [-0.09, fwd, -L], [0.09, fwd, -L], [[0, 0.024], [1, 0.024]], C.chrome, 12));
+    }
+    return { ...g, lathes, extrudes, hardpoints: { ...g.hardpoints, ankle: ankleAt, wheel: [s * W[0], W[1], W[2]], ...(row.dims.wheelMid ? { wheelMid: [s * W[0], 0, -row.dims.wheelMid] } : {}), ...(row.dims.wheelFront ? { wheelFront: [s * W[0], 0, -row.dims.wheelFront] } : {}) } };
   }
   function wheeledAnkle(row, C, ctx) {
     const g = kit.ankle(row, C, ctx), s = sgn(ctx.side), W = row.dims.wheel;
@@ -243,20 +259,55 @@ export function fieldBuilders(kit) {
     extrudes.push(slab('kneeCop', -d.w / 2 - 0.016, d.w / 2 + 0.016, [[d.d1 / 2, zc + 0.02], [d.d1 / 2 + 0.03, zc - 0.01], [d.d1 / 2 + 0.01, -L - 0.04], [d.d1 / 2 - 0.03, -L - 0.07]], tone(C.paint, -0.1)));
     return { ...g, extrudes, lathes };
   }
-  // ── a toed foot: the lugged foot, three toes ahead of it on the ground, its sole's outline out to their tips ──────
-  function toedFoot(row, C, ctx) {
-    const g = luggedFoot(row, C, ctx), d = row.dims, T = d.toes, y1 = d.length - d.heel, zs = -d.sole, zt = zs + d.pad + d.plate, extrudes = [...g.extrudes], lofts = [...(g.lofts ?? [])];
-    const tips = [];
-    for (let i = 0; i < T.n; i++) {
-      const x = (i - (T.n - 1) / 2) * T.spread, splay = (i - (T.n - 1) / 2) * 0.12, tip = [x + splay, y1 + T.length, zs];
-      // (a toe: a knuckle at the foot's front, a tapering digit out and down onto the ground, a claw, a pad under it)
-      lofts.push(pod(`toe_${i}`, [{ y: y1 - 0.06, z: zs + (d.plate + d.pad) / 2 + 0.006, w: T.w, h: d.plate + d.pad }, { y: y1 + T.length * 0.55, z: zs + d.pad * 1.2, w: T.w * 0.8, h: d.pad * 1.8 }, { y: y1 + T.length, z: zs + d.pad * 0.6, w: T.w * 0.45, h: d.pad }], C.paint, { x: x + splay * 0.5 }));
-      extrudes.push(box(`toePad_${i}`, [x + splay * 0.6, y1 + 0.02, zs + d.pad * 0.3], [x + splay, y1 + T.length * 0.92, zs + d.pad * 0.3], T.w * 0.7, d.pad * 0.6, C.rubber));
-      extrudes.push(box(`claw_${i}`, [x + splay, y1 + T.length - 0.02, zs + d.pad * 0.7], [x + splay, y1 + T.length + 0.05, zs + d.pad * 0.35], T.w * 0.3, d.pad * 0.5, tone(C.trim, 0.2)));
-      tips.push(tip);
+  // ── a clawed foot: a broad palm on a cleated sole, a heel spur behind, a knuckle each for two toes ahead ──────────
+  // (its toes are their own bodies, two segments each on the knuckles' drives: flat, their pads on the ground and its
+  // sole's outline out to their claws; clenched, curled down and under the palm's front)
+  function clawedFoot(row, C, ctx) {
+    const g = luggedFoot(row, C, ctx), d = row.dims, K = d.claws, w = d.w / 2, y0 = -d.heel, y1 = d.length - d.heel, zs = -d.sole, zp = zs + d.pad;
+    const zt = zp + d.plate, zk = zs + K.floor, yk = y1 + K.floor + K.gap, top = zk + K.floor * 1.25, ramp = y1 * 0.32;
+    // (the sole and its cleats, the ears round the ankle cross's trunnions: the lugged foot's)
+    const extrudes = g.extrudes.filter((m) => /^(sole|lug_|ear_)/.test(m.id)), lathes = [];
+    // (the palm: low under the ankle, rising ahead of it to a block as tall as the toes, its front square to their knuckles)
+    const palm = [[y0, zp], [y1, zp], [y1, top - K.gap], [y1 - K.gap * 1.5, top], [ramp + K.floor, top], [ramp, zt], [y0 + K.gap, zt], [y0, zt - K.gap]];
+    extrudes.push(slab('palm', -w, w, palm, C.paint));
+    extrudes.push(slab('palmTop', -w * 0.92, w * 0.92, [[ramp + K.floor + K.gap, top], [y1 - K.gap * 2, top], [y1 - K.gap * 2.5, top + K.gap * 0.6], [ramp + K.floor + K.gap * 1.5, top + K.gap * 0.6]], tone(C.paint, -0.07)));
+    // (a seam across the palm's flank where its block's armour meets the sole's frame)
+    for (const s of [1, -1]) extrudes.push(box(`palmSeam_${s > 0 ? 'r' : 'l'}`, [s * (w + K.gap * 0.15), ramp + K.floor * 0.5, zp + K.gap], [s * (w + K.gap * 0.15), y1 - K.gap, zp + K.gap], K.gap * 0.3, K.gap * 0.4, tone(C.trim, -0.25)));
+    // (the heel spur: a claw raked back off the heel, its point above the sole)
+    extrudes.push(slab('heelSpur', -w * 0.34, w * 0.34, [[y0 + K.gap, zt], [y0 + K.gap, zp], [y0 - K.spur * 0.55, zp - K.gap * 0.5], [y0 - K.spur, zp + K.gap * 0.5], [y0 - K.spur * 0.7, zp + K.gap * 2], [y0 - K.gap, zt - K.gap * 0.5]], tone(C.trim, 0.15)));
+    // (each toe's knuckle: a cheek each side of it off the palm's front, a pin through them, the drive's motor outboard)
+    const hp = {}, tips = [];
+    for (const [n, s] of [['a', 1], ['b', -1]]) {
+      const x = s * K.spread, half = K.w / 2, r = K.floor * 0.82;
+      for (const t of [1, -1]) {
+        const cx = x + t * (half + K.gap * 0.6);
+        extrudes.push(slab(`cheek_${n}${t > 0 ? 'o' : 'i'}`, cx - K.gap * 0.5, cx + K.gap * 0.5, [[y1 - K.gap, zk - r], [yk, zk - r], [yk + r * 0.7, zk - r * 0.7], [yk + r, zk], [yk + r * 0.7, zk + r * 0.7], [yk, zk + r], [y1 - K.gap, zk + r]], tone(C.trim, 0.05)));
+      }
+      lathes.push(spin(`knucklePin_${n}`, [x - half - K.gap * 1.2, yk, zk], [x + half + K.gap * 1.2, yk, zk], [[0, r * 0.32], [1, r * 0.32]], C.chrome, 12));
+      lathes.push(spin(`knuckleMotor_${n}`, [x + s * (half + K.gap * 1.1), yk, zk], [x + s * (half + K.gap * 2.6), yk, zk], [[0, r * 0.6], [1, r * 0.55]], tone(C.trim, -0.2), 14));
+      hp[`toe.${n}`] = [x, yk, zk];
+      tips.push([x, yk + K.reach, zs]);
     }
-    const w = d.w / 2, y0 = -d.heel, outline = [[-w, y0, zs], [w, y0, zs], [w, y1, zs], ...tips.slice().reverse().map((t) => [t[0], t[1], zs]), [-w, y1, zs]];
-    return { ...g, extrudes, lofts, hardpoints: { ...g.hardpoints, toe: [0, y1 + T.length, zs] }, outline };
+    const outline = [[-w, y0, zs], [w, y0, zs], [w, y1, zs], [K.spread + K.w / 2, yk + K.reach, zs], [-K.spread - K.w / 2, yk + K.reach, zs], [-w, y1, zs]];
+    return { extrudes, lathes, hardpoints: { ...g.hardpoints, ...hp, toe: [0, yk + K.reach, zs] }, outline };
+  }
+  /** A toe's segment, true metres: its knuckle at the origin, its pad `floor` below, lying along +y flat; the root
+   *  segment's far knuckle its `end`, the claw segment's tip its `tip`. */
+  function toeSegment(row, C) {
+    const d = row.dims, L = d.length, lo = -d.floor + d.pad, extrudes = [], lathes = [], lofts = [];
+    const mid = (h) => lo + (h - d.pad) / 2, distal = row.build.family === 'distal';
+    // (the knuckle's drum, the joint line round it a dark seam)
+    lathes.push(spin('knuckle', [-d.w / 2, 0, 0], [d.w / 2, 0, 0], [[0, d.floor * 0.74], [0.08, d.floor * 0.8], [0.92, d.floor * 0.8], [1, d.floor * 0.74]], tone(C.trim, -0.05), 18));
+    // (its armour: thick, a little narrower and lower toward its end; the claw segment's top falling to its tip)
+    lofts.push(pod('armour', [{ y: 0, z: mid(d.h0), w: d.w * 0.96, h: d.h0 - d.pad }, { y: L * 0.5, z: mid((d.h0 + d.h1) / 2 + (distal ? 0 : 0.02)), w: d.w, h: (d.h0 + d.h1) / 2 - d.pad }, { y: L - 0.03, z: mid(d.h1), w: d.w * 0.92, h: d.h1 - d.pad }], C.paint));
+    extrudes.push(box('seam', [0, 0.04, mid(d.h0)], [0, 0.07, mid(d.h0)], d.w * 1.01, (d.h0 - d.pad) * 0.86, tone(C.trim, -0.3)));
+    extrudes.push(box('pad', [0, 0.06, -d.floor + d.pad / 2], [0, L - 0.04, -d.floor + d.pad / 2], d.w * 0.82, d.pad, C.rubber));
+    // (its outline its bounds, all eight corners: what of it nears the ground at whatever its knuckle's angle)
+    const bounds = (y1) => [-1, 1].flatMap((sx) => [0, y1].flatMap((y) => [-d.floor, lo + d.h0 - d.pad].map((z) => [sx * d.w / 2, y, z])));
+    if (!distal) return { extrudes, lathes, lofts, hardpoints: { end: [0, L, 0] }, outline: bounds(L) };
+    // (the claw: a hooked wedge off its tip, down to just clear of the ground)
+    extrudes.push(slab('claw', -d.w * 0.2, d.w * 0.2, [[L - 0.08, lo + d.h1 - d.pad], [L + d.claw * 0.6, lo + d.h1 * 0.4], [L + d.claw, -d.floor + 0.04], [L + d.claw * 0.82, -d.floor + 0.02], [L - 0.04, lo]], tone(C.trim, 0.2)));
+    return { extrudes, lathes, lofts, hardpoints: { tip: [0, L + d.claw, -d.floor] }, outline: bounds(L + d.claw) };
   }
 
   // ── the siege walker's pelvis: the armoured keel and, out ahead of it on a keel, the cockpit's deck ─────────────
@@ -290,6 +341,32 @@ export function fieldBuilders(kit) {
         sweeps.push(tube(`hullRail_${s > 0 ? 'r' : 'l'}`, [[s * H.w * 0.34, H.y0 + 0.3 * u, H.top + 0.12 * u], [s * H.w * 0.34, H.y1 - 1.0 * u, H.top + 0.12 * u]], 0.03 * u, C.trim, 8));
       }
     }
+    // (a sponson each side: a box of armour plates out from the hull's side over the hip and the top of the thigh, open
+    // below for the leg to swing in; its outer plate leaning in a little, its ends raked as a glacis and a back plate,
+    // its deck the weapons' shelf; bolted, a stowage bin on its flank, a lip along its foot)
+    if (d.sponson) {
+      const P = d.sponson, lean = P.lean, rk = P.rake, b = P.bottom, t = P.top, end = 0.06 * u;
+      for (const s of [1, -1]) {
+        const n = s > 0 ? 'r' : 'l', xo = s * P.x1, xi = s * (P.x1 - lean), deep = t - b;
+        // (its outer plate: a trapezoid seen from the side, the foot of each end raked in)
+        const side = [[P.y0 + rk, b], [P.y1 - rk, b], [P.y1, b + deep * 0.55], [P.y1 - end, t], [P.y0 + end, t], [P.y0, b + deep * 0.5]];
+        extrudes.push(slab(`sponsonSide_${n}`, xi, xi + s * 0.05 * u, side, C.paint));
+        // (a belt of armour along its middle, standing out from the plate: the side's crease)
+        extrudes.push(slab(`sponsonCrease_${n}`, xi + s * 0.05 * u, xo, [[P.y0 + rk * 0.5, b + deep * 0.28], [P.y1 - rk * 0.5, b + deep * 0.28], [P.y1 - end * 0.5, b + deep * 0.55], [P.y0 + end * 0.5, b + deep * 0.5]], tone(C.paint, -0.05)));
+        // (its deck from the hull's side out to the plate, and its end plates: the glacis ahead, the back plate behind)
+        extrudes.push(slab(`sponsonDeck_${n}`, s * P.x0, xi + s * 0.05 * u, [[P.y0 + end, t - 0.06 * u], [P.y1 - end, t - 0.06 * u], [P.y1 - end, t], [P.y0 + end, t]], tone(C.paint, -0.04)));
+        extrudes.push(slab(`sponsonFront_${n}`, s * P.x0, xi, [[P.y1 - end - 0.06 * u, t], [P.y1 - end, t], [P.y1, b + deep * 0.55], [P.y1 - rk, b + deep * 0.3], [P.y1 - rk - 0.06 * u, b + deep * 0.3], [P.y1 - 0.06 * u, b + deep * 0.55]], tone(C.paint, -0.02)));
+        extrudes.push(slab(`sponsonBack_${n}`, s * P.x0, xi, [[P.y0 + end, t], [P.y0 + end + 0.06 * u, t], [P.y0 + 0.06 * u, b + deep * 0.5], [P.y0 + rk * 0.6 + 0.06 * u, b + deep * 0.3], [P.y0 + rk * 0.6, b + deep * 0.3], [P.y0, b + deep * 0.5]], tone(C.paint, -0.02)));
+        // (a lip along its foot, its bolts in a row under the crease and along the deck's edge)
+        extrudes.push(box(`sponsonLip_${n}`, [xi + s * 0.03 * u, P.y0 + rk + 0.05 * u, b + 0.03 * u], [xi + s * 0.03 * u, P.y1 - rk - 0.05 * u, b + 0.03 * u], 0.1 * u, 0.06 * u, tone(C.trim, 0.1)));
+        const bx = xo + s * 0.006 * u;
+        for (let k = 0; k < 7; k++) { const y = P.y0 + rk * 0.6 + ((P.y1 - P.y0 - rk * 1.2) * k) / 6; lathes.push(spin(`sponsonBolt_${n}${k}`, [xo, y, b + deep * 0.3], [bx + s * 0.02 * u, y, b + deep * 0.3], [[0, 0.035 * u], [1, 0.035 * u]], tone(C.trim, 0.2), 6)); }
+        // (a stowage bin on its flank, aft of its middle)
+        const by0 = P.y0 + (P.y1 - P.y0) * 0.18, by1 = P.y0 + (P.y1 - P.y0) * 0.46, bz = b + deep * 0.62;
+        extrudes.push(box(`sponsonBin_${n}`, [xi + s * 0.2 * u, by0, bz], [xi + s * 0.2 * u, by1, bz], 0.3 * u, deep * 0.26, tone(C.paint, -0.1)));
+        extrudes.push(box(`sponsonBinLid_${n}`, [xi + s * 0.2 * u, by0 - 0.02 * u, bz + deep * 0.14], [xi + s * 0.2 * u, by1 + 0.02 * u, bz + deep * 0.14], 0.34 * u, 0.04 * u, tone(C.trim, -0.05)));
+      }
+    }
     const G = d.sidegun;
     extrudes.push(box('gunBracket', [G[0] * 0.55, G[1], K.top], [G[0], G[1], G[2] - 0.02 * u], 0.12 * u, 0.14 * u, C.trim));
     // (a ladder down the keel's left side to the ground the cockpit is boarded from)
@@ -297,5 +374,5 @@ export function fieldBuilders(kit) {
     return { ...g, extrudes, lofts, lathes, sweeps, hardpoints: { ...g.hardpoints, sidegun: [...G], keelNose: [0, K.y1, K.top] } };
   }
 
-  return { keeledPelvis, platedThigh, toedFoot, pelvis: armouredPelvis, thigh: guarded(kit.thigh), shank: guarded(kit.shank), foot: luggedFoot, cage: fieldCage, cabin: armouredCabin, pack: rackPack, wheeledShank, wheeledAnkle, wheel: atvWheel };
+  return { keeledPelvis, platedThigh, clawedFoot, toe: toeSegment, pelvis: armouredPelvis, thigh: guarded(kit.thigh), shank: guarded(kit.shank), foot: luggedFoot, cage: fieldCage, cabin: armouredCabin, pack: rackPack, wheeledShank, wheeledAnkle, wheel: atvWheel };
 }
