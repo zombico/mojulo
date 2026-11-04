@@ -36,7 +36,7 @@ import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/li
 import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
 import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { AUDIT_STEP } from '@/lib/graph/gameworld/runner.js';
-import { chapterBook, chapterById, chapterSteps, CHAPTERS } from '@/lib/graph/gameworld/chapters.js';
+import { chapterBook, chapterSteps, CHAPTERS, unitOf } from '@/lib/graph/gameworld/chapters.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
@@ -546,7 +546,7 @@ export async function designGameHandler(input, context = {}) {
   const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter } = input;
   if (shape !== undefined && shape !== 'full' && shape !== 'changed') throw new Error("design_game: readout is 'full' (the default) or 'changed'");
   // one chapter's readout (gameworld/chapter-view.js): checked before anything is written
-  if (chapter !== undefined && !chapterById(chapter)) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((c) => c.id).join(', ')} (the readout's \`chapters\`)`);
+  if (chapter !== undefined && !unitOf(chapter)) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((c) => c.id).join(', ')} (the readout's \`chapters\`), or one level as 'level:<id>'`);
   // the world as it stood before this call, for readout: 'changed'
   const prior = given ? SketchRepository.getByRef(given) : null;
   const before = prior && isGameworldKind(prior.manifest?.kind) ? gameworldOf(prior.manifest) : null;
@@ -618,6 +618,9 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
       W = { ...W, review };
     }
   }
+  // one level's unit names a level the world has, before a run makes anything for it
+  const lv = chapter !== undefined ? unitOf(chapter)?.level : null;
+  if (lv && !isObj(W.levels?.[lv])) throw new Error(`design_game: no level '${lv}' in this world (its levels: ${Object.keys(W.levels ?? {}).join(', ') || 'none'})`);
   // the run
   let ran, resonance, pending;
   if (run) {

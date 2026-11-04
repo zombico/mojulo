@@ -74,6 +74,22 @@ export function chapterWaves() {
   for (const c of CHAPTERS) (out[wave.get(c.id)] ??= []).push(c.id);
   return out;
 }
+/**
+ * A UNIT: what the studio works one at a time, a chapter by its id or ONE LEVEL of the levels chapter (`level:<id>`,
+ * the id its review part has). A level's unit is the levels chapter narrowed to that level: its part, its page, its
+ * links in and out, its steps (`level-<id>-<n>`, a skirmish's `level-<id>-skirmish`) and what their orders name.
+ *   unitOf(id) → { id, chapter, level } (level null for a whole chapter), or null
+ *   levelStep(level) → the pattern of that level's steps
+ */
+export function unitOf(id) {
+  if (typeof id !== 'string') return null;
+  if (id.startsWith('level:')) return id.length > 6 ? { id, chapter: BY_ID.get('levels'), level: id.slice(6) } : null;
+  const c = BY_ID.get(id);
+  return c ? { id, chapter: c, level: null } : null;
+}
+const escaped = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export const levelStep = (level) => new RegExp(`^level-${escaped(level)}-(\\d+|skirmish)$`);
+
 export const chapterById = (id) => BY_ID.get(id) ?? null;
 
 /** Does `pattern` (an id, `<prefix>:*` or `<prefix>-*`) name `id`? */
@@ -151,11 +167,11 @@ export function chapterBook(world, { stamps = [] } = {}) {
  * game, its walks) is never a need: the build chapter's run is the whole run.
  */
 export function chapterSteps(steps, id) {
-  const c = chapterById(id);
-  if (!c) throw new Error(`chapter is one of ${CHAPTERS.map((x) => x.id).join(', ')}`);
+  const unit = unitOf(id);
+  if (!unit) throw new Error(`chapter is one of ${CHAPTERS.map((x) => x.id).join(', ')}, or one level as 'level:<id>'`);
   if (id === 'build') return steps;
-  const build = chapterById('build');
-  const want = new Set(steps.filter((s) => chapterOfStep(s.key) === c).map((s) => s.key));
+  const c = unit.chapter, build = chapterById('build'), own = unit.level !== null ? levelStep(unit.level) : null;
+  const want = new Set(steps.filter((s) => (own ? own.test(s.key) : chapterOfStep(s.key) === c)).map((s) => s.key));
   const text = new Map(steps.map((s) => [s.key, JSON.stringify(s.order ?? {})]));
   for (let grew = true; grew;) {
     grew = false;

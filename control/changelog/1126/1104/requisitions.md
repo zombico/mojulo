@@ -15,3 +15,13 @@ apart from the recipe and adds nothing to any render or export. The design is in
   the run, or the creator's verdict, was quietly undone. Each write now lays only the run's own changes (its record, a
   pinned hero base and the approval kept with it) onto the world as it is stored at that moment
   (`gameworld/rebase.js`). A run with nothing written beside it writes what it always wrote.
+- **One level is a unit of its own** (`design_game({ ref, chapter: 'level:<id>' })`, `chapters.js` `unitOf`). It is the
+  levels chapter narrowed to one level: its review part, its page, the links in and out of it, and its next moves. Its
+  state is its part's stamp. On the meadowmark reference book that is 1.7 KB, where the levels chapter is 2.6 KB and the
+  whole readout 7.0 KB. Its run (`run: true`) makes that level's stages and what their orders name (the level's pilot),
+  never a sibling level's. A level the world does not have is refused before anything is made. A write past the level
+  is written and reported (`outside`), never refused. The id mirrors the level's review part, so `tools/list` is
+  unchanged.
+- **The studio card works one unit at a time.** The chapters are listed in the order they read each other, worked one
+  at a time to quality so a mistake stays in its unit, and each level is a unit. A subagent is handed the next unit once
+  the last one is settled. Before, the card said a wave's chapters could be worked side by side.
