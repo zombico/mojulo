@@ -10,6 +10,11 @@ is the flow and the sequence, and the levels and maps are laid from it.
   an epoch, or a story moment. A beat may be planned and not built yet (`built: false`). The quest also takes its
   length, the periods it spans and how loose its side quests are, and an ending if it has one; a quest still being built
   may have none.
+- **Acts or chapters: two progressions.** A quest is shaped as acts, the arc (a beginning, a middle and an end), or as
+  chapters, a long game told chapter on chapter that runs past an arc. Each chapter turns the world: its `turn` is what
+  a happening changes, carried on (the time facet's chapter overlay), or a new period. Every law holds both shapes to
+  the same progression. A chaptered quest is also held to its own two laws: more than three chapters (three or fewer
+  read as an arc, and acts tell it), and each chapter after the first turning something.
 - **Its laws map it into the book** (advice, never refusing): a beginning, a middle and an end; every power the hero's
   actions name gained on a beat, in the act its progression stage puts it (early, mid, late); foes that rise in rank act
   on act; acts that vary; a first beat that can be built now; a period past the first drawn as the time facet can draw

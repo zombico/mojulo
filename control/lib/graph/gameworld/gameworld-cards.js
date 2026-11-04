@@ -34,7 +34,7 @@ import { SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 import { WORLD_STYLE, CIVILIZATION, LINK_KINDS, TOPOLOGIES } from './world.js';
 import { MODES, STAMPS } from './review.js';
 import { chapterById, chapterWaves } from './chapters.js';
-import { LENGTHS, LOOSENESS, PASSAGES, BEAT_AS, LAWS as MAIN_QUEST_LAWS } from './main-quest.js';
+import { LENGTHS, LOOSENESS, PASSAGES, BEAT_AS, SHAPES, LAWS as MAIN_QUEST_LAWS } from './main-quest.js';
 import { LOOP_LAYERS, BODY_VERBS } from './core-loop.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
@@ -129,14 +129,16 @@ function mainQuestCard() {
     '  how loose are the side quests from the main thing?',
     '',
     `mainQuest: { length?: ${Object.keys(LENGTHS).join(' | ')} | { hours }, periods?: [{ id, name?, passage?: ${Object.keys(PASSAGES).join(' | ')} }],`,
-    '  acts: [{ id, name?, period?, goal: \'<words>\', beats: [{ id, goal, as?, gains?, foes?, who?, built?: false }] }],',
+    '  acts | chapters: [{ id, name?, period?, goal: \'<words>\', turn?, beats: [{ id, goal, as?, gains?, foes?, who?, built?: false }] }],',
+    `  the shape, one or the other: ${Object.entries(SHAPES).map(([k, v]) => `${k}, ${v}`).join('; ')}. A chapter\'s turn is what`,
+    '      a happening changes in the world, carried on (the time facet\'s chapter overlay).',
     `  ending?: { beat, stakes? }, sides?: { looseness: ${Object.keys(LOOSENESS).join(' | ')} } }`,
     `  as: ${BEAT_AS.map((k) => `{ ${k} }`).join(' ')}: what the beat is played as (a level, a WCD space, a QOW quest, a`,
     '      gauntlet level, an errand, an epoch by number, a story moment). gains: powers gained on it; foes: the bestiary',
     '      it fields; who: its cast. built: false is a beat planned, not made yet: priced, never run.',
     `  passage: ${Object.entries(PASSAGES).map(([k, v]) => `${k}, ${v}`).join('; ')}.`,
     '',
-    'AN ACT IS A STAGE of the hero\'s progression: the first act early, the last late, the middle mid between. So the',
+    'AN ACT (OR A CHAPTER) IS A STAGE of the hero\'s progression: the first early, the last late, the middle mid. So the',
     'actions page\'s progression and the quest say the same: a power gained on a beat is gained in that act\'s stage.',
     '',
     'LAWS (advice, never refused):',

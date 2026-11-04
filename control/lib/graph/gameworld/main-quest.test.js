@@ -33,10 +33,11 @@ const act = (Q, i, f) => ({ ...Q, acts: Q.acts.map((A, k) => (k === i ? f(struct
 describe('the main quest', () => {
   it('a sound quest holds every law: an arc, its powers on the path in their stages, foes rising, acts that vary', () => {
     const L = laws(QUEST);
-    expect(Object.keys(L).sort()).toEqual(LAWS.map((l) => l.law).sort());
+    // (every law but the chapters' own: this quest is shaped as acts)
+    expect(Object.keys(L).sort()).toEqual(LAWS.map((l) => l.law).filter((l) => l !== 'chaptered' && l !== 'turns').sort());
     for (const l of Object.values(L)) expect(l.holds, `${l.law}: ${l.says}`).toBe(true);
     // the report: its acts as stages of the hero's progression, its beats built and planned
-    expect(mainQuestReport(readMainQuest(QUEST, C), C)).toMatchObject({ beats: 4, built: 2, planned: 2, length: 'long', ending: 'eye', laws: [],
+    expect(mainQuestReport(readMainQuest(QUEST, C), C)).toMatchObject({ shape: 'acts', beats: 4, built: 2, planned: 2, length: 'long', ending: 'eye', laws: [],
       acts: [{ id: 'awakening', stage: 'early' }, { id: 'the-coast', stage: 'mid', planned: 1 }, { id: 'the-storm', stage: 'late' }] });
   });
 
@@ -87,6 +88,44 @@ describe('the main quest', () => {
     expect(readGameworld({ ...W, mainQuest: QUEST }).mainQuest.acts).toHaveLength(3);
     expect(() => readGameworld({ ...W, mainQuest: { acts: 'all of them' } })).toThrow(/^gameworld: mainQuest\.acts/);
     expect(readGameworld(W).mainQuest).toBeUndefined();
+  });
+});
+
+describe('the main quest in chapters', () => {
+  // the same quest told chapter on chapter: a long game past an arc, each chapter turning the world
+  const CHAPTERED = {
+    chapters: [
+      { id: 'meadow', goal: 'leave the meadow', beats: [{ id: 'first-climb', goal: 'climb out', as: { level: L1 }, gains: [P[0]], foes: ['grunt'] }] },
+      { id: 'shore', goal: 'the shore', turn: 'the tide has gone out', beats: [{ id: 'shore-cross', goal: 'cross it', as: { level: L2 }, foes: ['grunt'] }] },
+      { id: 'keep', goal: 'the keep', turn: 'the keep\'s gate stands open', beats: [{ id: 'the-keep', goal: 'into the keep', as: { wcd: 'keep' }, gains: [P[1]], built: false }] },
+      { id: 'storm', goal: 'the storm', period: 'after', beats: [{ id: 'eye', goal: 'hold the eye', as: { gauntlet: 'storm-arena' }, gains: [P[2]], foes: ['warden'], built: false }] },
+    ],
+    periods: [{ id: 'before' }, { id: 'after' }],
+  };
+
+  it('an alternate progression: read as chapters, held to the same laws and to a chapter\'s own', () => {
+    const Q = readMainQuest(CHAPTERED, C);
+    expect(Q.shape).toBe('chapters');
+    const L = laws(CHAPTERED);
+    expect(L.arc).toBeUndefined();
+    for (const l of Object.values(L)) expect(l.holds, `${l.law}: ${l.says}`).toBe(true);
+    expect(Object.keys(L)).toEqual(expect.arrayContaining(['chaptered', 'turns', 'stage-matches', 'escalates', 'buildable-first']));
+    // its chapters are stages of the hero's progression by place, as acts are: the first early, the last late
+    expect(mainQuestReport(Q, C)).toMatchObject({ shape: 'chapters', chapters: [{ id: 'meadow', stage: 'early' }, { id: 'shore', stage: 'mid', turn: 'the tide has gone out' }, { id: 'keep', stage: 'mid' }, { id: 'storm', stage: 'late' }] });
+  });
+
+  it('says a chaptered quest that is only an arc, and a chapter that turns nothing', () => {
+    expect(laws({ ...CHAPTERED, chapters: CHAPTERED.chapters.slice(0, 3) }).chaptered).toMatchObject({ holds: false, says: expect.stringMatching(/3 chapters$/) });
+    const still = { ...CHAPTERED, chapters: CHAPTERED.chapters.map((c) => (c.id === 'keep' ? (({ turn: _t, ...x }) => x)(c) : c)) };
+    expect(laws(still).turns).toMatchObject({ holds: false, says: expect.stringContaining("'keep' turns nothing in the world") });
+    // a new period is a turn
+    expect(laws(CHAPTERED).turns.holds).toBe(true);
+  });
+
+  it('is one shape or the other', () => {
+    expect(() => readMainQuest({ ...CHAPTERED, acts: QUEST.acts }, C)).toThrow(/acts or as chapters, not both/);
+    expect(() => readMainQuest({ chapters: [] }, C)).toThrow(/chapters is .*at least one chapter/);
+    expect(loopOf({ ...W, mainQuest: CHAPTERED })).toMatchObject({ reward: expect.stringContaining('power'), session: 'a beat of the main quest' });
   });
 });
 

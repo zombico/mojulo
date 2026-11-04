@@ -8,7 +8,11 @@
  *   { length?: 'short' | 'medium' | 'long' | { hours },   how long the main path plays
  *     periods?: [{ id, name?, passage?: 'overlay' | 'eras' }],   the times it spans (one, if none): a period past the
  *                                                       first is the world aged, a chapter overlay (built) or an era
- *     acts: [{ id, name?, period?, goal: '<words>', beats: [{ id, goal: '<words>', as?, gains?, foes?, who?, built? }] }],
+ *     acts: [{ id, name?, period?, goal: '<words>', turn?, beats: [{ id, goal: '<words>', as?, gains?, foes?, who?, built? }] }],
+ *       | chapters: [ …the same… ],                    the progression's shape: ACTS, the arc (a beginning, a middle and
+ *                                                       an end), or CHAPTERS, a long game told chapter on chapter, more
+ *                                                       than an arc (the time facet's chapters: each turns the world,
+ *                                                       its `turn` a world difference a happening makes, carried on)
  *     ending?: { beat, stakes? },                       the climax it builds toward; a quest being built may have none
  *     sides?: { looseness: 'tight' | 'loose' | 'free' } }   how far side quests stand from the path
  *   a beat's `as` is one of { level } { wcd: '<space>' } { qow: '<quest>' } { gauntlet: '<level>' } { errand } { epoch: n }
@@ -24,7 +28,8 @@
  *   readMainQuest(Q, ctx)        → the quest, read (ctx: what the world holds, mainQuestContext)
  *   mainQuestContext(W)          → { levels, powers, stages, foes, cast, errands, qow, wcd, story, gauntlets }
  *   mainQuestLaws(Q, ctx)        → [{ law, holds, says }]
- *   mainQuestReport(Q, ctx)      → { acts, beats, built, planned, length?, ending?, laws } (the readout's)
+ *   mainQuestReport(Q, ctx)      → { shape, acts | chapters, beats, built, planned, length?, ending?, laws } (the readout's)
+ *   partsOf(Q)                   → its acts, or its chapters (a read quest's `shape` says which)
  *   stageOfAct(i, n)             → 'early' | 'mid' | 'late' for the act at i of n
  *
  * Pure: the recipe in, the reading out.
@@ -39,8 +44,11 @@ export const LOOSENESS = Object.freeze({ tight: 'side quests branch from the pat
 export const PASSAGES = Object.freeze({ overlay: 'the world aged by a chapter overlay (built)', eras: 'the same map at another period (the time facet\'s eras: not built yet)' });
 export const BEAT_AS = Object.freeze(['level', 'wcd', 'qow', 'gauntlet', 'errand', 'epoch', 'scene']);
 const RANK_ORDER = ['minion', 'elite', 'miniboss', 'boss'];
-const QUEST_KEYS = ['length', 'periods', 'acts', 'ending', 'sides'];
-const ACT_KEYS = ['id', 'name', 'period', 'goal', 'beats'];
+const QUEST_KEYS = ['length', 'periods', 'acts', 'chapters', 'ending', 'sides'];
+const ACT_KEYS = ['id', 'name', 'period', 'goal', 'turn', 'beats'];
+/** The progression's shapes: the arc's acts, or a long game's chapters. */
+export const SHAPES = Object.freeze({ acts: 'the arc: a beginning, a middle and an end', chapters: 'a long game told chapter on chapter, each turning the world: more than an arc' });
+export const partsOf = (Q) => Q[Q.shape ?? 'acts'];
 const BEAT_KEYS = ['id', 'goal', 'as', 'gains', 'foes', 'who', 'built'];
 
 /** The act at i of n as a stage of the hero's progression, by its place between the first and the last: the first act is
@@ -89,7 +97,7 @@ function readAs(as, at, built, C) {
 }
 
 export function readMainQuest(Q, C = mainQuestContext()) {
-  if (!isObj(Q)) throw fail(' is { length?, periods?, acts, ending?, sides? }: the game\'s acts, a beat at a time');
+  if (!isObj(Q)) throw fail(' is { length?, periods?, acts | chapters, ending?, sides? }: the game\'s acts (or chapters), a beat at a time');
   unknown(Q, QUEST_KEYS, '');
   if (Q.length !== undefined && !LENGTHS[Q.length] && !(isObj(Q.length) && Number.isFinite(Q.length.hours) && Q.length.hours > 0 && Object.keys(Q.length).length === 1)) {
     throw fail(`.length is ${Object.entries(LENGTHS).map(([k, v]) => `${k} (${v})`).join(', ')}, or { hours }`);
@@ -104,22 +112,25 @@ export function readMainQuest(Q, C = mainQuestContext()) {
     if (periodIds.includes(p.id)) throw fail(`.periods: '${p.id}' twice`);
     periodIds.push(p.id);
   });
-  if (!Array.isArray(Q.acts) || !Q.acts.length) throw fail('.acts is [{ id, goal, beats }]: at least one act (a long game has three: a beginning, a middle and an end)');
+  if (Q.acts !== undefined && Q.chapters !== undefined) throw fail(' is shaped as acts or as chapters, not both: acts, the arc (a beginning, a middle and an end); chapters, a long game told chapter on chapter');
+  const shape = Q.chapters !== undefined ? 'chapters' : 'acts', unit = shape === 'chapters' ? 'chapter' : 'act';
+  if (!Array.isArray(Q[shape]) || !Q[shape].length) throw fail(shape === 'acts' ? '.acts is [{ id, goal, beats }]: at least one act (a long game has three: a beginning, a middle and an end), or chapters for a game told chapter on chapter' : '.chapters is [{ id, goal, turn?, beats }]: at least one chapter');
   const ids = new Set();
-  const acts = Q.acts.map((A, i) => {
-    const at = `.acts[${i}]`;
-    if (!isObj(A) || !ID.test(A.id ?? '')) throw fail(`${at} is { id, name?, period?, goal, beats }`);
+  const acts = Q[shape].map((A, i) => {
+    const at = `.${shape}[${i}]`;
+    if (!isObj(A) || !ID.test(A.id ?? '')) throw fail(`${at} is { id, name?, period?, goal, turn?, beats }`);
     unknown(A, ACT_KEYS, at);
-    if (ids.has(A.id)) throw fail(`${at}: '${A.id}' twice (acts and beats share their ids)`);
+    if (ids.has(A.id)) throw fail(`${at}: '${A.id}' twice (${shape} and beats share their ids)`);
     ids.add(A.id);
     words(A.goal, `${at}.goal`);
     if (A.period !== undefined && !periodIds.includes(A.period)) throw fail(`${at}.period '${A.period}' is none of the periods (${periodIds.join(', ') || 'none written'})`);
-    if (!Array.isArray(A.beats) || !A.beats.length) throw fail(`${at}.beats is [{ id, goal, as?, gains?, foes?, who?, built? }]: at least one`);
+    if (A.turn !== undefined) words(A.turn, `${at}.turn`);
+    if (!Array.isArray(A.beats) || !A.beats.length) throw fail(`${at}.beats is [{ id, goal, as?, gains?, foes?, who?, built? }]: at least one (a ${unit} is played a beat at a time)`);
     const beats = A.beats.map((B, j) => {
       const bt = `${at}.beats[${j}]`;
       if (!isObj(B) || !ID.test(B.id ?? '')) throw fail(`${bt} is { id, goal, as?, gains?, foes?, who?, built? }`);
       unknown(B, BEAT_KEYS, bt);
-      if (ids.has(B.id)) throw fail(`${bt}: '${B.id}' twice (acts and beats share their ids)`);
+      if (ids.has(B.id)) throw fail(`${bt}: '${B.id}' twice (${shape} and beats share their ids)`);
       ids.add(B.id);
       words(B.goal, `${bt}.goal`);
       if (B.built !== undefined && B.built !== false) throw fail(`${bt}.built is false (a beat planned, not made yet), or left out`);
@@ -135,7 +146,7 @@ export function readMainQuest(Q, C = mainQuestContext()) {
       };
       return { id: B.id, goal: B.goal, ...(as ? { as } : {}), gains: list('gains', C.powers, 'power'), foes: list('foes', Object.keys(C.foes), 'bestiary'), who: list('who', C.cast, 'cast member'), built };
     });
-    return { id: A.id, ...(A.name !== undefined ? { name: String(A.name) } : {}), goal: A.goal, ...(A.period ? { period: A.period } : {}), beats };
+    return { id: A.id, ...(A.name !== undefined ? { name: String(A.name) } : {}), goal: A.goal, ...(A.period ? { period: A.period } : {}), ...(A.turn ? { turn: A.turn } : {}), beats };
   });
   let ending = null;
   if (Q.ending !== undefined) {
@@ -149,21 +160,24 @@ export function readMainQuest(Q, C = mainQuestContext()) {
     unknown(Q.sides, ['looseness'], '.sides');
   }
   return {
+    shape,
     ...(Q.length !== undefined ? { length: Q.length } : {}),
     periods: periods.map((p) => ({ id: p.id, ...(p.name ? { name: p.name } : {}), passage: p.passage ?? 'overlay' })),
-    acts,
+    [shape]: acts,
     ...(ending ? { ending } : {}),
     ...(Q.sides ? { sides: { looseness: Q.sides.looseness } } : {}),
   };
 }
 
-const beatsOf = (Q) => Q.acts.flatMap((A, i) => A.beats.map((B) => ({ ...B, act: A.id, i })));
+const beatsOf = (Q) => partsOf(Q).flatMap((A, i) => A.beats.map((B) => ({ ...B, act: A.id, i })));
 const rankOf = (r) => RANK_ORDER.indexOf(r);
 
 /** The laws: what a long game's spine holds to, measured on the quest and the book, said, never refused. */
 export const LAWS = Object.freeze([
   { law: 'held', says: 'every power, foe and cast member the quest names is one the book holds' },
   { law: 'arc', says: 'a beginning, a middle and an end: three acts at least (one is a short game, or one still being planned)' },
+  { law: 'chaptered', says: 'a game told in chapters runs past an arc: more than three chapters (three or fewer, acts tell it)' },
+  { law: 'turns', says: 'each chapter after the first turns the world: a `turn` (what a happening changes, carried on) or a new period' },
   { law: 'ends-last', says: 'the ending, when there is one, is the last act\'s last beat' },
   { law: 'gained-on-path', says: 'every power the hero\'s actions name is gained on a beat of the quest' },
   { law: 'stage-matches', says: 'a power is gained in the act its progression stage puts it in (early, mid, late)' },
@@ -177,29 +191,35 @@ const SAYS = Object.fromEntries(LAWS.map((l) => [l.law, l.says]));
 export function mainQuestLaws(Q, C = mainQuestContext()) {
   const out = [];
   const law = (id, holds, why) => out.push({ law: id, holds, says: holds ? SAYS[id] : `${SAYS[id]}: ${why}` });
-  const n = Q.acts.length, beats = beatsOf(Q);
+  const parts = partsOf(Q), n = parts.length, beats = beatsOf(Q), chaptered = Q.shape === 'chapters';
   const unheld = [...new Set([...beats.flatMap((B) => B.gains.filter((g) => !C.powers.includes(g)).map((g) => `power ${g}`)), ...beats.flatMap((B) => B.foes.filter((f) => !(f in C.foes)).map((f) => `foe ${f}`)), ...beats.flatMap((B) => B.who.filter((w) => !C.cast.includes(w)).map((w) => `cast member ${w}`))])];
   if (beats.some((B) => B.gains.length || B.foes.length || B.who.length)) law('held', !unheld.length, `${unheld.join(', ')} still to write (the actions, the bestiary, the cast)`);
-  law('arc', n >= 3, `${n} act${n === 1 ? '' : 's'}`);
-  if (Q.ending) { const last = Q.acts[n - 1].beats.at(-1).id; law('ends-last', Q.ending.beat === last, `the ending is '${Q.ending.beat}', the last beat is '${last}'`); }
+  if (!chaptered) law('arc', n >= 3, `${n} act${n === 1 ? '' : 's'}`);
+  else {
+    law('chaptered', n > 3, `${n} chapter${n === 1 ? '' : 's'}`);
+    let period = parts[0].period;
+    const still = parts.slice(1).filter((A) => { const moved = A.turn || (A.period && A.period !== period); if (A.period) period = A.period; return !moved; }).map((A) => `'${A.id}'`);
+    if (n > 1) law('turns', !still.length, `${still.join(', ')} ${still.length === 1 ? 'turns' : 'turn'} nothing in the world`);
+  }
+  if (Q.ending) { const last = parts[n - 1].beats.at(-1).id; law('ends-last', Q.ending.beat === last, `the ending is '${Q.ending.beat}', the last beat is '${last}'`); }
   if (C.powers.length) {
     const gained = new Map(beats.flatMap((B) => B.gains.map((g) => [g, B])));
     const missing = C.powers.filter((p) => !gained.has(p));
     law('gained-on-path', !missing.length, `${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} gained on no beat`);
-    const off = [...gained].filter(([p, B]) => C.stages[p] && C.stages[p] !== stageOfAct(B.i, n)).map(([p, B]) => `${p} on '${B.id}' (act ${B.i + 1} of ${n}, ${stageOfAct(B.i, n)}) but its stage is ${C.stages[p]}`);
+    const off = [...gained].filter(([p, B]) => C.stages[p] && C.stages[p] !== stageOfAct(B.i, n)).map(([p, B]) => `${p} on '${B.id}' (${chaptered ? 'chapter' : 'act'} ${B.i + 1} of ${n}, ${stageOfAct(B.i, n)}) but its stage is ${C.stages[p]}`);
     if (Object.keys(C.stages).length) law('stage-matches', !off.length, off.join('; '));
   }
-  const ranks = Q.acts.map((A) => Math.max(-1, ...A.beats.flatMap((B) => B.foes.filter((f) => f in C.foes).map((f) => rankOf(C.foes[f])))));
+  const ranks = parts.map((A) => Math.max(-1, ...A.beats.flatMap((B) => B.foes.filter((f) => f in C.foes).map((f) => rankOf(C.foes[f])))));
   if (ranks.some((r) => r >= 0)) {
     const falls = [];
     let top = -1;
-    ranks.forEach((r, i) => { if (r >= 0 && r < top) falls.push(`act ${i + 1} fields ${RANK_ORDER[r]}s after an act of ${RANK_ORDER[top]}s`); if (r > top) top = r; });
+    ranks.forEach((r, i) => { if (r >= 0 && r < top) falls.push(`${chaptered ? 'chapter' : 'act'} ${i + 1} fields ${RANK_ORDER[r]}s after an act of ${RANK_ORDER[top]}s`); if (r > top) top = r; });
     law('escalates', !falls.length, falls.join('; '));
   }
   const sign = (A) => JSON.stringify([...new Set(A.beats.map((B) => (B.as ? `${B.as.kind}:${B.as.at}` : 'unset')))].sort());
-  const same = Q.acts.slice(1).map((A, i) => [Q.acts[i], A]).filter(([a, b]) => sign(a) === sign(b) && !sign(a).includes('unset')).map(([a, b]) => `'${a.id}' and '${b.id}'`);
+  const same = parts.slice(1).map((A, i) => [parts[i], A]).filter(([a, b]) => sign(a) === sign(b) && !sign(a).includes('unset')).map(([a, b]) => `'${a.id}' and '${b.id}'`);
   if (n > 1) law('varied', !same.length, `${same.join(', ')} are played the same`);
-  const first = Q.acts[0].beats[0];
+  const first = parts[0].beats[0];
   law('buildable-first', first.built && first.as?.kind === 'level' && C.levels.includes(first.as.at), `the first beat '${first.id}' is ${!first.built ? 'planned, not built' : first.as?.kind !== 'level' ? `played as ${first.as ? `a ${first.as.kind}` : 'nothing yet'}, not a level` : `a level the world does not hold ('${first.as.at}')`}`);
   if (Q.periods.length > 1) {
     const eras = Q.periods.slice(1).filter((p) => p.passage === 'eras').map((p) => p.id);
@@ -211,7 +231,8 @@ export function mainQuestLaws(Q, C = mainQuestContext()) {
 export function mainQuestReport(Q, C = mainQuestContext()) {
   const beats = beatsOf(Q), laws = mainQuestLaws(Q, C);
   return {
-    acts: Q.acts.map((A, i) => ({ id: A.id, stage: stageOfAct(i, Q.acts.length), beats: A.beats.length, planned: A.beats.filter((B) => !B.built).length })),
+    shape: Q.shape,
+    [Q.shape]: partsOf(Q).map((A, i, all) => ({ id: A.id, stage: stageOfAct(i, all.length), beats: A.beats.length, planned: A.beats.filter((B) => !B.built).length, ...(A.turn ? { turn: A.turn } : {}) })),
     beats: beats.length,
     built: beats.filter((B) => B.built).length,
     planned: beats.filter((B) => !B.built).length,

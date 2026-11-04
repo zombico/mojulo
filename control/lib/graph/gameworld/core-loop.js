@@ -57,8 +57,9 @@ export function loopOf(W = {}) {
   const quick = typeof W.quick?.goal === 'string' ? W.quick.goal : null;
   const encounter = L.encounter ?? (goals.length ? goals.map((g) => GOAL_SAYS[g] ?? g).join(', or ') : quick ? `a ${quick} level` : 'reach the level\'s exit');
   from.encounter = L.encounter ? 'written' : goals.length ? 'the levels\' goals' : quick ? 'the quick goal' : 'a level\'s exit';
-  const Q = isObj(W.mainQuest) && Array.isArray(W.mainQuest.acts) ? W.mainQuest : null;
-  const gains = Q ? Q.acts.flatMap((A) => (A.beats ?? []).flatMap((B) => B.gains ?? [])) : [];
+  const parts = isObj(W.mainQuest) ? W.mainQuest.chapters ?? W.mainQuest.acts : null;
+  const Q = Array.isArray(parts) ? W.mainQuest : null;
+  const gains = Q ? parts.flatMap((A) => (A.beats ?? []).flatMap((B) => B.gains ?? [])) : [];
   const reward = L.reward ?? (gains.length ? 'a power gained on the main quest\'s beats' : Array.isArray(W.errands) && W.errands.length ? 'the errand\'s reward, home' : 'the next level');
   from.reward = L.reward ? 'written' : gains.length ? 'the main quest\'s gains' : Array.isArray(W.errands) && W.errands.length ? 'the errands' : 'the game\'s levels';
   const session = L.session ?? (Q ? 'a beat of the main quest' : W.quick?.run ? 'a run' : 'a level');
