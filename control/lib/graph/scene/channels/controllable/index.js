@@ -627,7 +627,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false, tempo = null, xr = false, trigger = false } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false, tempo = null, xr = false, trigger = false, flow = false } = {}) {
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
   const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && (b.yield > 0 || b.kerfWork > 0)));
   // metal panels on objects (rupa/panels.js): drawn only when an object carries resolved panels, so every other page keeps its bytes
@@ -3353,7 +3353,19 @@ function __fxMat(c) { return new THREE.MeshBasicMaterial({ color: new THREE.Colo
 // hit reads visually, not just as a dropping number. Deferred to the bolt's arrival, and seeded
 // ONLY by geometry (no Math.random → capture stays byte-identical). Sized by the weapon's fxScale, so a
 // vulcan round sparks small and a rifle bolt hits big.
+${flow ? `// on the flow (rupa-vayo): a hit is a soft flash and a ring of air, sprites, no meshes and no spikes
+const __fxSoftTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const __fxRingTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 18, 32, 32, 31); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.7, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const __fxSprite = (tex, col) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(col), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })); s.geometry = s.geometry.clone(); s.raycast = function () {}; s.visible = false; scene.add(s); return s; };   // (its own quad: a dropped effect frees what it holds)
 function __spawnImpactFx(b, col, sz, dir, at) {
+  const flash = __fxSprite(__fxSoftTex, 0xffffff); flash.position.set(b[0], b[1], b[2]); flash.scale.setScalar(sz * 0.42);
+  __fx.push({ obj: flash, born: at, ttl: 0.13, kind: 'impact', base: sz * 0.85 });
+  const glow = __fxSprite(__fxSoftTex, col); glow.position.set(b[0], b[1], b[2]);
+  __fx.push({ obj: glow, born: at, ttl: 0.22, kind: 'burst', base: sz * 0.7, dim: 0.6 });
+  const ring = __fxSprite(__fxRingTex, col); ring.position.set(b[0], b[1], b[2]);
+  __fx.push({ obj: ring, born: at, ttl: 0.2, kind: 'burst', base: sz * 0.9, dim: 0.7 });
+}
+` : ''}function __spawnImpactFx${flow ? 'Mesh' : ''}(b, col, sz, dir, at) {
   const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
   flash.position.set(b[0], b[1], b[2]); flash.scale.setScalar(sz * 0.42); flash.raycast = function () {}; flash.visible = false; scene.add(flash);
   __fx.push({ obj: flash, born: at, ttl: 0.13, kind: 'impact', base: sz * 0.85 });
@@ -3586,7 +3598,8 @@ function __updateProjectiles() {
   const bs = __world.bursts || [];   // spawn an expanding shell for any burst not yet drawn
   for (const b of bs) {
     if (b.seq <= __burstSeen) continue;
-    __burstSeen = b.seq;
+    __burstSeen = b.seq;${flow ? `
+    if (window.__mojFlowBursts) continue;   // (on the flow, rupa-vayo: the moment channel sets it off as the flow's blast)` : ''}
     const col = b.fxColor != null ? b.fxColor : 0xffcc66;
     // the shell peaks at the TRUE splash reach (b.radius) — honest to the gameplay AoE — but stays
     // TRANSLUCENT (dim 0.5) so it reads as a fireball, not a screen-filling wash. A small, brighter

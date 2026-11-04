@@ -493,6 +493,51 @@ own id); a shell house is its id (or its anchor's, `house-<id>`). The builder is
 use these, so every other page keeps its bytes. The breaks run inside the world's own step, at frame grain, seeded, so
 the same triggers give the same world.
 
+## Effects on the flow (rupa-vayo)
+
+The game's juice (its blasts, its power-ups) can move the way the world's air moves them, opt-in on a composed effect
+style: `fxStyle: { flow: true, … }` (any look or flavor). A style without `flow` keeps every byte.
+
+Nothing is simulated on the page. When an effect goes off, [`rupa/vayo.js`](../control/lib/graph/rupa/vayo.js)
+presolves the air round its spot once (`vayoEnvelope`), and every tracer's path is then a formula of time
+(`vayoPoints`), the way the wind script and the smoke puffs already work:
+
+- **The envelope**: about thirty rays from the spot against the world's boxes and its floor give the open ways and the
+  face each way meets. A wall shuts half the sky, a corridor opens two ways, a ceiling flattens the dome. What a way's
+  face stops slides along it and never past any face it runs toward. The envelope also holds the floor, the world's one
+  wind (its physics' own when the level names one) and the medium: water when the spot is in a pool.
+- **The laws**, as shapes and scalings (the time stretched for the eye, as anime holds a frame):
+  - the front races out and slows (r ∝ t^⅖, Sedov–Taylor);
+  - the hot core lifts on its heat (√(g·R), less in thin air, a pulsing bubble in water) and rolls into a ring vortex, so a cap curls over into a mushroom without a stem;
+  - swirl is a real vortex, fast at its core (Lamb–Oseen);
+  - smoke climbs as a plume (Δz ∝ t^⅔) and leans with the wind of its height;
+  - a charge draws in on a log spiral.
+
+[`rupa/vayo-fx.js`](../control/lib/graph/rupa/vayo-fx.js) reads each part of an explosion for what it is and gives it
+its flow:
+
+- the fire's body is the core, fewer and larger puffs (a bold shape), with its glow as the white-hot heart;
+- the stem goes (the roll makes the cap);
+- the smoke is the plume;
+- the chips are debris thrown along the open ways;
+- the sparks become embers, a third as many, cooling white to red to dark;
+- the ground ring becomes the dust skirt the blast runs along the ground; a ring of air stays as a thin haze.
+
+A power-up's aura (its onions and rings of spikes) gives way to flame tongues rising and turning round the body, with a
+white-hot core, motes drawn in on a spiral, pebbles lifting off the ground, and a gust of dust pushed out along it. The
+combat page's bursts (a grenade's, a death's, a scripted blast's) go off as the flow's blast instead of additive
+spheres, and a hit is a soft flash and a ring of air (sprites) instead of a sphere, a torus and a star of lines.
+
+The look is the register's lens over the motion: the isekai look's glow, the cel look's bands (a cel fire is its core on
+the flow, not spirit onions), the material look's smoke. It follows what the anime games from Dragon Ball FighterZ on
+do:
+- limited animation: fewer frames, each a pose (Guilty Gear Xrd's pipeline, which FighterZ shares);
+- a white-hot core in a saturated shell;
+- a blast in stages that contrast in time: a flash, a fireball that grows fast and holds, smoke billowing out, then
+  dissipation;
+- bold, solid shapes rather than a cloud of dots;
+- a power-up as flame tongues round the silhouette, motes drawn in, pebbles lifting and dust pushed out along the ground.
+
 ## What holds it up
 
 The basic break pass ([`rules-basic.js`](../control/lib/graph/worlds/controllable/rules-basic.js)) still decides what
@@ -724,4 +769,7 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - City buildings, houses entered by a door and walked-in buildings as blocks (structures and shell houses are), and
   the base settle on the grid (it searches every block when something falls).
 - Per-entity power (a hero's tier apart from the world's), and heat from beams and fire sources by element.
+- On the flow: the beam's charge (its gather sprites), beam impacts that are preset puffs rather than explosions, a
+  muzzle's blast and a landing's dust; the envelope's ground is the floor under the spot (a slope is not traced), and
+  it is presolved once, so a wall broken mid-blast opens no new way.
 - Engine export of breakables and their matter (the handoff carries them whole).

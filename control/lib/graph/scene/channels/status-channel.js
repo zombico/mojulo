@@ -2,6 +2,8 @@ import { wreckScript } from './wreck-channel.js';
 import { safeJson } from '../emit-util.js';
 import { FIRE_COLORANTS } from '../../fire/fire.js';
 import { wavePoints, sprayPoints, kokusenBolts, BOLT_SHAPE } from '../../playscape/elements/elements.js';
+import { vayoEnvelope, vayoPoints } from '../../rupa/vayo.js';
+import { FLOW_GLYPHS_SRC } from './moment-channel.js';
 import { GLYPHS_SRC, SPRAY_SRC } from './moment-channel.js';
 import { AURA_SRC } from './aura-src.js';
 import { NOISE_GLSL } from '../../noise/noise-glsl.js';
@@ -432,10 +434,10 @@ export function transitKinds(events) {
   return out;
 }
 
-export function statusScript(looks, transits = [], { wreck = false, layer0 = false } = {}) {
+export function statusScript(looks, transits = [], { wreck = false, layer0 = false, flow = null } = {}) {
   const L = looks || {}, all = Object.values(L);
   const shield = all.some((x) => x.shield), aura = all.some((x) => x.aura), band = all.some((x) => x.coat && x.coat.band);
-  const has = (f) => all.some(f), drift = has((x) => x.drift && x.drift.length), surf = has((x) => (x.ice && x.ice.mode === 'spikes') || x.water || x.steam), encase = has((x) => x.ice && x.ice.mode === 'encase'), bolts = has((x) => x.bolts);
+  const has = (f) => all.some(f), drift = has((x) => x.drift && x.drift.length), flown = has((x) => Array.isArray(x.drift) && x.drift.some((S) => S && S.flow)), surf = has((x) => (x.ice && x.ice.mode === 'spikes') || x.water || x.steam), encase = has((x) => x.ice && x.ice.mode === 'encase'), bolts = has((x) => x.bolts);
   return `
 // STATUS: what the cast carries, drawn on their bodies in its look (coat, motes, bolts, ice, water, steam; fire is the fire channel's)
 const __LOOK = ${safeJson(L)};
@@ -446,7 +448,12 @@ const __wave = ${wavePoints.toString()};${aura ? `
 const __elAU = ${AURA_SRC};` : ''}${drift ? `
 const __elGlyph = ${GLYPHS_SRC};
 const __spray = ${sprayPoints.toString()};
-${SPRAY_SRC}` : ''}${bolts ? `
+${SPRAY_SRC}` : ''}${flown ? `
+// rupa-vayo (rupa/vayo.js): a power-up's flames, motes, pebbles and gust along the air round its body (its floor, the wind)
+const __elVayoEnv = ${vayoEnvelope.toString()};
+const __elVayo = ${vayoPoints.toString()};
+const __elWind = ${safeJson((flow && flow.wind) || [0, 0])};
+${FLOW_GLYPHS_SRC};` : ''}${bolts ? `
 const __BOLT = ${safeJson(BOLT_SHAPE)};
 const kokusenBolts = (() => { const TAU = 6.283185307179586, frac = (x) => x - Math.floor(x), h3 = (a, b, c) => frac(Math.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453); return ${kokusenBolts.toString()}; })();` : ''}
 const __elTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'); const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.5)'); g.addColorStop(0.6, 'rgba(255,255,255,0.13)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.arc(64, 64, 64, 0, 7); x.fill(); return new THREE.CanvasTexture(cv); })();
@@ -640,7 +647,7 @@ function __elDraw(D, e, K, age, fade, show, melt) {${shield ? `
       s.scale.set(sz, sz, 1); s.material.opacity = Math.min(1, 0.3 + 0.7 * b.w) * fade;
     }
   }${drift ? `
-  D.drifts.forEach((P) => __sprStep(P, __spray(P.S, cc, age, true), fade, show));
+  ${flown ? 'const E = D.drifts.some((P) => P.S.flow) ? __elVayoEnv(cc, { floor: cc[2], wind: __elWind, n: 12, size: 0.5 }) : null;\n  D.drifts.forEach((P) => __sprStep(P, P.S.flow && E ? __elVayo(P.S, E, age, true) : __spray(P.S, cc, age, true), fade, show));' : 'D.drifts.forEach((P) => __sprStep(P, __spray(P.S, cc, age, true), fade, show));'}
   for (const q of D.cloud) {
     // the cloud drifts a little about its place, its puffs breathing
     const a = q.i * 2.4, r = q.S.r * (0.25 + 0.6 * ((q.i * 0.37) % 1)), b = Math.sin(age * 0.8 + q.i);
