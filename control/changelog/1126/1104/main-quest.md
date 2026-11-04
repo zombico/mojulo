@@ -29,3 +29,15 @@ is the flow and the sequence, and the levels and maps are laid from it.
   game plays the beats' levels in the quest's order, then the world's others. A planned beat is laid and made nothing:
   the pre-compile check prices it apart (`estimate.planned`). The readout says what each beat is played on, and what
   the next run will lay.
+- **The main quest on the time facet** (`cosmos/facets/time.js`). Three settings say a long game's shape, so the sweep
+  prices what it still waits on:
+  - `arc`: none, acts (built), chapters (partial: a chapter's turn is said, not yet lowered to its world overlay);
+  - `periods`: one, new maps (built), the same maps at another period (absent: it waits on eras);
+  - `sides`: none, tight, loose, free (partial: the quest records how loose its side quests are; nothing yet places them
+    by it).
+
+  A world's main quest sets them in its cube (`gameworld/intent.js` `cubeOfWorld`), so its intent's verdict says what it
+  waits on. A long-RPG probe (a hero's main quest told in chapters, the world turned between them, side quests loose on
+  a big map) reads blocked on the same maps and gapped on the chapter turns and the side quests. Two new work packages
+  price those gaps, `quest-turns` and `side-quests`; on the regenerated hillclimb page, the side quests lift eleven
+  swept worlds.

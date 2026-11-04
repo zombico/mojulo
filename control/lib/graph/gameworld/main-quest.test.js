@@ -3,6 +3,9 @@ import { readMainQuest, mainQuestContext, mainQuestLaws, mainQuestReport, stageO
 import { readLoop, loopOf, loopLaws, BODY_VERBS } from './core-loop.js';
 import { readGameworld, MEADOWMARK_HERO } from './index.js';
 import { FOE_CLASSES } from '../foes/index.js';
+import { cubeOfWorld, intentReport } from './intent.js';
+import { fixture } from '../cosmos/fixtures.js';
+import { dryRun } from '../cosmos/cosmos.js';
 
 // The main quest: a game's acts of beats, each played as one of the book's structures, its laws mapping it into the book
 // (the hero's progression stages, the bestiary's ranks). One sound quest over the reference book with a hero, a beat
@@ -146,5 +149,25 @@ describe('the core loop', () => {
     expect(() => readLoop({ verbs: ['x'] })).toThrow(/loop\.verbs is not a layer/);
     expect(() => readGameworld({ ...W, loop: { moment: [] } })).toThrow(/^gameworld: loop\.moment/);
     expect(BODY_VERBS).toContain('jump');
+  });
+});
+
+describe('the main quest on the time facet', () => {
+  it('a world\'s quest sets its cube\'s arc, periods and sides, so its verdict says what a long game waits on', () => {
+    const acts = cubeOfWorld({ ...W, mainQuest: QUEST }).cube.time;
+    expect(acts).toMatchObject({ arc: 'acts', periods: 'new-maps', sides: 'loose' });
+    // the same quest over the same maps at another period: blocked on eras, said by name
+    const eras = { ...W, mainQuest: { ...QUEST, periods: [{ id: 'now' }, { id: 'after-the-storm', passage: 'eras' }] } };
+    expect(cubeOfWorld(eras).cube.time.periods).toBe('same-maps');
+    expect(intentReport(eras).verdict).toBe('blocked');
+    // a world without a quest has no arc in its cube
+    expect(cubeOfWorld(W).cube.time?.arc).toBeUndefined();
+  });
+
+  it('the long RPG probe names the time facet\'s gaps: eras, a chapter\'s turn, side quests by the quest', () => {
+    const r = dryRun(fixture('long-rpg').cube);
+    expect(r.verdict).toBe('blocked');
+    expect(r.blocked.map((b) => `${b.facet}.${b.setting}=${b.value}`)).toEqual(['time.periods=same-maps']);
+    expect(r.gaps.map((g) => `${g.facet}.${g.setting}=${g.value}`)).toEqual(expect.arrayContaining(['time.arc=chapters', 'time.sides=loose']));
   });
 });
