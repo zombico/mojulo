@@ -67,6 +67,8 @@ import { heroFaceRig, faceKnots } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
 import { heroSkinPaint, heroHidden } from '@/lib/graph/epidermis/dermal-hero';
+/** a hero wearing the realistic skin: the realistic body, or the realistic head on the lofted body (fighter wiring) */
+const realisticSkinned = (hero) => hero?.form === 'realistic' || (hero?.head === 'relational' && !!hero);
 import { heroRelief, reliefOnRecord } from '@/lib/graph/epidermis/dermal-relief';
 import { clothChart, clothOnRecord } from '@/lib/graph/epidermis/cloth-relief';
 import { outfitLanguage } from '@/lib/graph/outfit/expand';
@@ -816,7 +818,7 @@ export const WORLD_KINDS = {
       // (the REALISTIC HERO, its head parts: its layers let down under one another and its eyes' globes cast no occlusion,
       // epidermis/dermal-hero.js heroHidden; its surface's normals the field's, so a seam between two parts of its skin
       // reads as none; its globes in the `eye` finish unless the bake names them)
-      const realBake = m.bake && m.hero?.form === 'realistic' && m.recipe.headFit ? (m.bake === true ? {} : m.bake) : null;
+      const realBake = m.bake && realisticSkinned(m.hero) && m.recipe.headFit ? (m.bake === true ? {} : m.bake) : null;
       const bakeIn = realBake ? { ...realBake, finish: { ...Object.fromEntries(['Sclera', 'Iris', 'Pupil'].map((g) => [g, 'eye'])), ...(realBake.finish || {}) } } : m.bake;
       const bakeS = m.bake ? bakeSampler(mesh, bakeIn, { glows: m.recipe?.emissive, ...(realBake ? { hidden: heroHidden(mesh, m.recipe), normals: layeredShadingNormals(mesh, m.recipe, { crease, proxy: false }) } : {}) }) : levelBake ? bakeSampler(mesh, { finish: levelBake.finish }, { glows: m.recipe?.emissive, only: levelBake.only }) : null, baked = bakeS?.tint ?? null;
       const under = ellipsoid ? faceTint(mesh, TIERED_FACE_TINT[tieredPole(m.hero)]) : drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
@@ -850,7 +852,7 @@ export const WORLD_KINDS = {
       // (THE CLOTH PAGE, realistic laws 13: the clothes' chart for the lit skinned export alone, the one whose relief bakes:
       // epidermis/cloth-relief.js. Any other export, the page, a hero minted before: none, byte-identical)
       const clothLit = light.flat && ctx.face && !character && m.hero?.form === 'realistic' && reliefOnRecord(m.hero) && clothOnRecord(m.hero);
-      const heroSkin = !facePaint0 && !skinPaint && !character && m.hero?.form === 'realistic' && m.recipe?.headFit ? heroSkinPaint(mesh, m.recipe, { ...(m.recipe.dermis ? { dermis: m.recipe.dermis } : {}), ...(light.flat || ctx.face ? {} : PAGE_SKIN), ...(clothLit ? { cloth: clothChart(mesh, m.recipe, { language: outfitLanguage(m.hero.outfit) }) } : {}) }) : null;
+      const heroSkin = !facePaint0 && !skinPaint && !character && realisticSkinned(m.hero) && m.recipe?.headFit ? heroSkinPaint(mesh, m.recipe, { ...(m.recipe.dermis ? { dermis: m.recipe.dermis } : {}), ...(light.flat || ctx.face ? {} : PAGE_SKIN), ...(clothLit ? { cloth: clothChart(mesh, m.recipe, { language: outfitLanguage(m.hero.outfit) }) } : {}) }) : null;
       // THE COAT'S PATTERN (beast/coat-atlas.js): a beast-kin's markings solved in a biped's anatomy, painted in colour into
       // an atlas over its coat at texel density; carried as the realistic skin is. A beast with no pattern: none, as before
       const beastCoat = !facePaint0 && !skinPaint && !heroSkin && !character && m.hero?.beast?.pattern ? beastCoatPaint(mesh, m.recipe, m.hero) : null;
@@ -911,7 +913,7 @@ export const WORLD_KINDS = {
         // the face's blend shapes: the anime head's (drawn, or painted), the landmark head's (western-face-rig.js)
         // (the REALISTIC face plays on the page too, relational-face-rig.js: its morphs and tracks ride the page's pack, and
         // the rig preview drives them; the anime and the landmark faces ride an export alone, as before)
-        const pageFace = !ctx.face && rigged && m.hero?.form === 'realistic' && m.hero.head === 'relational';
+        const pageFace = !ctx.face && rigged && realisticSkinned(m.hero) && m.hero.head === 'relational';
         const face = (ctx.face || pageFace) && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : m.hero.head === 'relational' ? relationalFaceRig(m, mesh) : null) : null;
         // CLIP TIMING (hero-gesture.js heroClipSeconds): the anime hero's clips each carry a designed duration (`s` on the
         // packed clip), which the World page's clip preview and the GLB both play; every other row's clips
@@ -1002,7 +1004,7 @@ export const WORLD_KINDS = {
         // animeFormed: its face one smooth form, as a painted figure's, not its triangles; a row before keeps its export, byte
         // for byte; and the landmark hero on the form body, hero-form.js formBodied: one smooth figure whatever its head)
         const landmarkFormBody = (m.hero?.head ?? 'landmark') === 'landmark' && formBodied(m.hero);
-        const engineLit = light.flat && (m.hero?.form === 'realistic' || m.hero?.beast || m.smooth === true || (m.hero?.head === 'anime' && animeFormed(m.hero)) || landmarkFormBody) && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
+        const engineLit = light.flat && (realisticSkinned(m.hero) || m.hero?.beast || m.smooth === true || (m.hero?.head === 'anime' && animeFormed(m.hero)) || landmarkFormBody) && !character ? layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) : null;
         // THE RELIEF (epidermis/dermal-relief.js), on a realistic hero minted under realistic laws 5, lit by its engine and
         // exported skinned (ctx.face: the export that asks for the figure's blend shapes): the one skin's relief baked from
         // its own field into a normal map on the skin's atlas, each corner's tangent beside it (the GLB's normalTexture and

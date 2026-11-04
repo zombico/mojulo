@@ -109,7 +109,7 @@ function blip(kind) {
 
 /**
  * opts: { fighters: [compiled, compiled], names, colors, schemes, mode: versus | cpu | training | watch, level,
- *         rules, seed }
+ *         rules, seed, cpu } (`cpu`: the level both CPUs fight at in watch, CPU_LEVELS' name; absent, veteran)
  */
 function newMatch(opts) {
   const ctx = { fighters: opts.fighters };
@@ -118,7 +118,7 @@ function newMatch(opts) {
   if (opts.mode === 'watch') { schemes[0] = 'modern'; schemes[1] = 'modern'; }
   const s = newVersus(ctx, { schemes, rules: { ...(opts.rules || {}), ...(opts.mode === 'training' ? { intro: 30 } : {}) } });
   return {
-    ctx, s, mode: opts.mode, level: opts.level ?? 1, mem: [newCpuMemory(), newCpuMemory()], sparks: [], banner: null,
+    ctx, s, mode: opts.mode, level: opts.level ?? 1, watch: CPU_LEVELS[opts.cpu] ? opts.cpu : 'veteran', mem: [newCpuMemory(), newCpuMemory()], sparks: [], banner: null,
     slow: 0, shake: 0, cam: 0, end: 0, colors: opts.colors, names: opts.names, lastMove: null, lag: [s.p[0].hp, s.p[1].hp],
     combo: [0, 0], comboT: [0, 0], seed: opts.seed >>> 0, idle: 0, flash: null, superFlash: 0, t: 0,
     // the swing trail's look (a fight kind's: versus-kinds.js), absent ⇒ no trail
@@ -133,7 +133,7 @@ function padFor(m, i) {
     m.mem[i] = r.mem;
     return r.pad;
   };
-  if (m.mode === 'watch') return cpu('veteran');
+  if (m.mode === 'watch') return cpu(m.watch);
   if (m.mode === 'cpu' && i === 1) return cpu(VS_LEVELS[m.level]);
   if (m.mode === 'training' && i === 1) {
     const me = s.p[1], o = s.p[0];
