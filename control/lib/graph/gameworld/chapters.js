@@ -28,7 +28,7 @@ export const DEPARTMENTS = Object.freeze([
   { id: 'characters', name: 'Characters, props and vehicles' },
   { id: 'play', name: 'Play modes, animation and sound' },
   { id: 'foes', name: 'Foes and bosses' },
-  { id: 'scenes', name: 'Cameras and cutscenes' },
+  { id: 'cinematics', name: 'Cinematics' },
   { id: 'production', name: 'Game design and production' },
 ]);
 
@@ -54,12 +54,26 @@ export const CHAPTERS = Object.freeze([
   C('battles', 'play', 'The battles', { paths: ['/battles', '/minigames'], steps: ['keeper'], cards: ['gameworld-battles'], reads: ['systems', 'levels'] }),
   C('cast', 'characters', 'The cast', { paths: ['/characters/cast', '/characters/casting', '/characters/folk'], parts: ['cast', 'characters:cast'], steps: ['casting', 'cast-*', 'folk-*', 'farmhand', 'athlete', 'fighter-*'], cards: ['gameworld-folk'], reads: ['direction', 'levels'], outcome: 'characters' }),
   C('foes', 'foes', 'The foes', { paths: ['/foes'], parts: ['foes:*'], steps: ['foes-*', 'foe-*', 'foe', 'guard', 'tower'], cards: ['gameworld-foes'], reads: ['intent', 'levels'], outcome: 'foes' }),
-  C('story', 'scenes', 'The story', { paths: ['/story', '/quests', '/errands'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels'], outcome: 'story' }),
-  C('camera', 'scenes', 'The camera', { paths: ['/camera', '/xr'], reads: ['intent', 'levels'] }),
-  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/screen', '/front', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next'], reads: ['intent', 'world', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera'], outcome: 'play' }),
+  C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels'], outcome: 'story' }),
+  C('camera', 'cinematics', 'The camera', { paths: ['/camera', '/xr'], reads: ['intent', 'levels'] }),
+  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/screen', '/front', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio'], reads: ['intent', 'world', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera'], outcome: 'play' }),
 ]);
 
 const BY_ID = new Map(CHAPTERS.map((c) => [c.id, c]));
+
+/**
+ * The book's chapters in WAVES: each wave the chapters whose upstream (`reads`) is all in the waves before it, so the
+ * chapters of a wave can be worked side by side (a department each, or a subagent each) once the waves before it are
+ * settled, and the build is the last. Derived from the reads alone: a chapter that reads another is in a later wave.
+ * → [[chapter id, …], …]
+ */
+export function chapterWaves() {
+  const wave = new Map();
+  for (const c of CHAPTERS) wave.set(c.id, c.reads.length ? 1 + Math.max(...c.reads.map((r) => wave.get(r))) : 0);
+  const out = [];
+  for (const c of CHAPTERS) (out[wave.get(c.id)] ??= []).push(c.id);
+  return out;
+}
 export const chapterById = (id) => BY_ID.get(id) ?? null;
 
 /** Does `pattern` (an id, `<prefix>:*` or `<prefix>-*`) name `id`? */

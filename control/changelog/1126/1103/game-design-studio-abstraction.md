@@ -101,3 +101,14 @@ become chapters each department works alone, so the compile is one loop that mak
   each level as its own audit step, under the run's budget, its verdict kept. A run that does not check leaves the walks
   out, its earlier verdicts still read, and the pre-compile estimate does not price them. Each level's first frame is
   the book-powers theme's per-level record, judged again only when its row moves.
+- **The studio card** (`gameworld-studio`, read after the guide; the guide's book line points at it). It teaches the agent
+  how to work a game of several departments a chapter at a time, and it is generated from the chapter registry, so its
+  order is the chapters' own. The waves (`chapters.js` `chapterWaves`) group the chapters so each wave reads only the
+  waves before it: a wave's chapters can be worked side by side, a department or a subagent each, and the build is
+  last. A chapter's session reads its view, writes its own pages, shows its bible section to the creator (the verdicts
+  are the creator's: a subagent stops at the review and reports), proves its chapter with a chapter run, and is done
+  when its state is settled and its blockers are cleared or said. The build reads the pre-compile check, runs until
+  nothing is pending, and checks; the eyes gate is the creator playing it.
+- **The cinematics department.** The registry's fifth department is renamed from cameras and cutscenes to `cinematics`,
+  as the studio now names it. The story and camera chapters are its own, and a readout's `department` says
+  `cinematics`.

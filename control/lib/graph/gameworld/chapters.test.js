@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { CHAPTERS, DEPARTMENTS, chapterById, chaptersOfPath, chapterOfPart, chapterOfStep, chapterOfCard, chapterBook, chapterSteps } from './chapters.js';
+import { CHAPTERS, DEPARTMENTS, chapterById, chaptersOfPath, chapterOfPart, chapterOfStep, chapterOfCard, chapterBook, chapterSteps, chapterWaves } from './chapters.js';
+import { gameworldCards } from './gameworld-cards.js';
 import { runSteps, readMade, reviewParts, reviewState, characterState, foeParts, foeState, castable, MEADOWMARK, MEADOWMARK_HERO, CHARACTER_PART_IDS, CAST_PART, FOE_CAST_PART } from './index.js';
 import { GAMEWORLD_KEYS } from './world.js';
 import { CHARACTER_BOOK_KEYS, CHARACTER_HERO_KEYS } from './characters.js';
@@ -34,7 +35,7 @@ const stampsOf = (w) => [...reviewState(w), ...(w.characters ? characterState(w)
 
 describe('the chapters', () => {
   it('each in one of the six departments, each after the chapters it reads; the build reads every other', () => {
-    expect(DEPARTMENTS.map((d) => d.id)).toEqual(['worlds', 'characters', 'play', 'foes', 'scenes', 'production']);
+    expect(DEPARTMENTS.map((d) => d.id)).toEqual(['worlds', 'characters', 'play', 'foes', 'cinematics', 'production']);
     for (const d of DEPARTMENTS) expect(CHAPTERS.some((c) => c.department === d.id), d.id).toBe(true);
     expect(new Set(CHAPTERS.map((c) => c.id)).size).toBe(CHAPTERS.length);
     CHAPTERS.forEach((c, i) => {
@@ -165,5 +166,28 @@ describe('a chapter\'s run', () => {
     expect(() => chapterSteps(S, 'lighting')).toThrow(/chapter is one of/);
     // a chapter with no steps in this book runs nothing
     expect(chapterSteps(S, 'story')).toEqual([]);
+  });
+});
+
+describe('the studio\'s waves', () => {
+  it('every chapter in one wave, each after every chapter it reads; the first reads none, the build is alone and last', () => {
+    const W = chapterWaves(), at = new Map(W.flatMap((ids, i) => ids.map((id) => [id, i])));
+    expect([...at.keys()].sort()).toEqual(CHAPTERS.map((c) => c.id).sort());
+    expect(W.flat()).toHaveLength(CHAPTERS.length);
+    for (const c of CHAPTERS) for (const r of c.reads) expect(at.get(r), `${c.id} reads ${r}`).toBeLessThan(at.get(c.id));
+    // as early as it can be: a chapter's wave is one past the latest it reads
+    for (const c of CHAPTERS) expect(at.get(c.id), c.id).toBe(c.reads.length ? 1 + Math.max(...c.reads.map((r) => at.get(r))) : 0);
+    expect(W[0].every((id) => chapterById(id).reads.length === 0)).toBe(true);
+    expect(W.at(-1)).toEqual(['build']);
+  });
+
+  it('the studio card is the registry\'s: each wave a line, each chapter with its department, in the waves\' order', () => {
+    const body = gameworldCards().get('gameworld-studio').body;
+    const lines = body.split('\n').filter((l) => /^ +\d+  /.test(l));
+    expect(lines).toHaveLength(chapterWaves().length);
+    chapterWaves().forEach((ids, i) => expect(lines[i], `wave ${i + 1}`).toBe(`  ${String(i + 1).padStart(2)}  ${ids.map((id) => `${id} (${chapterById(id).department})`).join(' · ')}`));
+    // it says the doors a chapter's session uses, and that the eyes gate is the creator's
+    for (const word of ['{ ref, chapter }', 'run: true', 'check: true', 'pending', 'ahead', 'never say it passed']) expect(body, word).toContain(word);
+    expect(Buffer.byteLength(body)).toBeLessThan(4096);
   });
 });
