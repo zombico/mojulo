@@ -368,7 +368,7 @@ function equipmentCard() {
 
 function systemsCard() {
   return lines(
-    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, ui?, gear?, destruction? }.',
+    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, ui?, gear?, destruction?, scars? }.',
     '',
     `scale (the coarse dials): ${Object.entries(SCALE).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `stages → epochs reached by level: ${Object.entries(EPOCH_LEVEL).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
@@ -377,7 +377,13 @@ function systemsCard() {
     'powers: { <power id>: { spends } }: what one power spends of the resource over the derived (0: free, a guard that',
     '  costs nothing); ledgered. The readout\'s `numbers` says the stats, the resource and what each power spends.',
     'destruction: how much the game lets break, never a default: none, objects (crates, barrels, pots), cover (furniture,',
-    '  doors, boulders too) or world (walls as well); copied onto every level.',
+    '  doors, boulders too) or world (walls as well); copied onto every level. Walls that hold and objects that break suit',
+    '  most games. physical (destructible physics: only when asked) breaks what world does by its matter (a thing\'s',
+    '  `matter`: concrete, brick, steel, glass…) and drops what loses its support; the level\'s matter { power: human |',
+    '  heroic | super | titan | cosmic } scales every blow.',
+    'scars: true | { ground?, wall? } (cosmetic damage, any degree): a map that may not change still shows its blows, a',
+    '  burst\'s painted crater and thrown dirt, a wall\'s scorch and spalled chips, a round\'s chip or pock, by the',
+    '  same laws as physical; ground and wall are matters, else the geocube\'s, else loam and brick.',
     'LAWS: every number carries its reason; your own `stats` are laid over the derived (lists by id, objects by key) and',
     'ledgered. Each power is a key (1, 2, 3 …) that spends its cost and shows its look; I opens the status page. The HUD',
     'is derived (hp, the resource, the level, banners, a status page) or yours (play parts: get_play_vocab).',

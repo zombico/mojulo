@@ -8,7 +8,18 @@ it, in the cube's style. A different style is a different cube (`{ from: <preset
 
 ## The style (never a domain's)
 
-`light`, `colour` / `palette`, `register`, `contrast`, `grit`, `surfaces`, `era`, `target`, `materials`, `why`, `avoid`.
+`light`, `colour` / `palette`, `register`, `contrast`, `grit`, `surfaces`, `era`, `target`, `materials`, `matter`, `wind`, `why`, `avoid`.
+
+**What its world is made of** (`matter`, for a physical level: `destruction: 'physical'`): by role, `wall`, `floor`,
+`accent`, `trim`, `roof`, `ground`, `wood`, `metal`, `glass`, `structure` (its landmarks: stone, as it paints them), each a matter (`concrete`, `brick`, `stone`, `steel`,
+`timber`, `glass`, …) or `{ matter, fill?, porosity? }`. Name a role only to override: a role you leave out is read off
+the cube's own look, so what breaks agrees with what it looks like (a stone-brick wall is stone, a lab kit concrete and
+steel, a thatch roof pine). A physical level painted by the cube breaks its walls and set pieces by it; props keep
+their own. Not physical, it changes nothing.
+
+**The air over its land** (`wind`: `true` or `{ speed?, dir?, gust?, scale?, evolve?, veer?, seed? }`, speed in m/s at
+2 m: 3 a breeze, 8 a fresh wind, 15 a gale): its outside levels' wind when the recipe names none. Their trees, grass and
+hung cloth sway in it; a physical level's blocks, dust, smoke and leaves feel the same air.
 
 ## The ingredients
 
@@ -212,7 +223,9 @@ A cube that names no domains offers one per terrain and one per interior.
   punched stone, brick, a tower's shape, lit windows at night), the neighbourhoods round them massing, the rest the
   skyline; `play` `game` (an evocation's default: what a walker covers compressed, never a storey) or `real`. On the live page `cone` (true, or the reach in metres) draws its street on the view cone: its trees whole inside the reach and at their light level past it, its kit while it covers a few pixels, what the `air` has fully taken not at all. The
   answer's `geocity` carries the counts, the ledger, the neighbourhoods (ring, storeys, park, the beyond where a
-  geotown joins later), the region graph and the laws (an evocation's `evokes`: the metro to scale's measures);
+  geotown joins later), the region graph and the laws (an evocation's `evokes`: the metro to scale's measures). It
+  takes play (`entities`, `camera`, `pilot`, `play`); with `destruction: 'physical'` its buildings within a city block
+  of the walk's start (the nearest two dozen) break by blocks, as their finishes are made, the rest stay massing;
 - a `stage`: `{ geocube, domain }` alone is the whole level: an island, a street on a trail (a domain with a town), or
   a room. Your `meru`, `trail`, `rooms`, `hour` or `town` win over the domain's;
 - a level: `{ geocube, domain, nodes }` paints every section, and lays a domain's street on its first trail;

@@ -1,0 +1,79 @@
+### Destructible physics: matter that breaks by what it is made of (opt-in)
+
+Walls hold and objects break stays the default; a game that asks for destructible physics now gets it.
+
+- **`destruction: 'physical'`**, the top rung above `world`: everything `world` breaks, broken by its matter rather than
+  counted hits. The words that ask for it ("destructible physics", "realistic destruction", "structural collapse",
+  "craters", "destructible terrain") name it in a composed stage. Without it nothing changes: every page keeps its bytes.
+- **Matter** (`lib/graph/rupa/matter.js`): concrete, reinforced concrete, brick, stone, sandstone, adobe, glass, ice,
+  steel, sheet metal, timber, pine, drywall, and soils (sand, loam, clay, gravel, snow), each as density, stiffness,
+  compressive and tensile strength, the bond between blocks, failure strain and toughness, from the strength table where
+  the two overlap. A thing or a terrain ask takes `matter: '<id>'`; a class has a default (a wall is brick, a crate
+  timber, glass glass).
+- **A blow is joules, a block holds joules**: capacity is toughness × volume × fill. A swing, a round, a burst (its
+  energy from its splash radius by cube-root blast scaling, reaching a block by the solid angle it fills) and a landing
+  (½mv²) each spend it; a world's `power` tier (human, heroic, super, titan, cosmic) scales every blow by orders of
+  magnitude, so a foot of concrete takes a cannonball and a foot of steel does not.
+- **Brittleness picks the cut**: glass and ice shatter, masonry blasts apart, steel and timber chip.
+- **What holds it up**: weight is carried down to the supports, and a block crushes past its compressive strength (less
+  as it is damaged); a block hung sideways (a lintel, a slab's tiles) is checked in bending at its bonds, so an
+  unreinforced overhang past its span snaps and falls.
+- **Heat, its own numbers**: melting and softening points, specific and latent heat, and for what burns its ignition
+  point and heat of combustion. A block warms by the joules it takes; at its melt it takes its latent heat and melts;
+  past its ignition timber burns at the char rate (a world's `fireTime` compresses fire time), losing strength as its
+  fuel goes, heating what it touches so the fire spreads, and ending as ash. Heat weakens: a block keeps half its
+  strength at its softening point, so a steel frame in a fire comes down by the load. A burst's fireball heats what it
+  reaches; `heatBlock` heats from a fire, a beam or a script.
+- **Matter meets matter**: a collision dissipates the closing energy of the reduced mass, less what the lower of the two
+  bounces (a new number per matter) keeps, and each side takes it inversely to its stiffness, so the softer takes more.
+  Density is the mass behind the speed: at the same size and speed a steel ball punches through a brick wall and carries
+  on slower, paying only what each block cost, while a pine ball breaks on it. Landings use the same rule instead of
+  charging the full ½mv² to both blocks, and `throwMatter` puts bodies of matter into the world (a cannonball, a
+  hurled boulder), stepped finely enough not to pass through a block.
+- **Liquids are cohesion at its end**: water, seawater, oil, honey, mud and lava hold no shape at rest (cohesion and
+  friction angle 0), so their weight is pressure in every direction; `viscosity` says how fast they flow and `yield`
+  lets mud and lava hold a low heap. On the ground grid (`lib/graph/rupa/fluid.js`) a fluid layer flows downhill,
+  levels, fills a crater's bowl and keeps every drop; inside, tanks and tubs are joined by pipes whose flow viscosity or
+  the opening limits, joined tanks meet at one level, an overfilled masonry cistern bursts by the hoop stress at its
+  foot and floods the ground, and a hydrant, a pump and a hose make a nozzle's jet. Archimedes falls out of the pressure
+  on a body's faces: in a level's pools pine floats a third under, ice nine tenths, a hollow steel hull a sixth, and
+  solid steel sinks. A spray (`spray`) throws water that pushes on what it hits and cools it by its heat and its boiling,
+  so a hose puts out a burning block.
+- **Air and wind**: air joins the matter table as a gas, 800 times lighter than water. It holds things up a little and
+  slows what moves through it. Wind is air moving (a level's `matter.wind`: its speed at 10 m, its direction, the
+  terrain that slows it near the ground, seeded gusts): it carries light things, bends the hose's spray, and pushes on
+  walls with ½ × air density × speed². A stack its weight and mortar can't hold against that push tips or slides and
+  falls as loose pieces: a 70 m/s gale tips a dry pine pile while a mortared brick wall stands. A wall casts a wind
+  shadow; thin things tumble and catch a quarter of their surface (a leaf falls at about 2 m/s); and the wind moves what
+  lies on the ground once its drag beats friction, so leaves skitter while a brick stays.
+- **The wind script** (`lib/graph/rupa/wind-script.js`): leaves, litter and ash drawn without simulating them. A
+  leaf catches up with the air in a quarter of a second, so it moves at the wind while sinking at its falling speed,
+  and its whole path (the wind's rise with height, the gusts, a wall's calm lee, skittering on the ground once the wind
+  beats friction) has an exact formula of time. A GPU runs the same formula (`GLSL`), so thousands of leaves cost one
+  number a frame; its tests hold it to the full simulation.
+- **The wind solver** (`lib/graph/rupa/wind-solver.js`): a scene's wind-moved elements are read by their physics and
+  handed their depiction, each with its reason in numbers: drift for what catches up with the air in under half a second
+  (leaves, litter, ash), bend for what flexes from its foot (grass, reeds, saplings: a cantilever's curve and its first
+  mode), hang for what swings (flags, lanterns: drag against weight, a pendulum), still for what the strongest gust can't
+  move, and simulate for what it moves but can't carry, or snaps. Like kinds batch into one GPU draw; each kind is a row.
+- **Blocking, flow's opposite**: a barrier is its porosity, and how flow gets past it follows by law instead of a tuned
+  share: its resistance (the perforated-plate loss), what bleeds through, the drag it takes (so a slatted fence feels
+  less of the wind than a solid one), and the wake behind it recovering as a plane wake does (a solid wall stills the
+  air at its back; a hedge shelters less deeply). The runtime's wind, the wind script and the wind solver share it. On
+  the ground grid, water pools behind a barrier and pours over its top, seeps through its open share by Bernoulli, and
+  breaches it where its push beats the barrier's weight and joint: a thin adobe wall gives way, thick concrete holds.
+- **Water and air share one set of fluid functions**: pressure (from a fluid's weight and from its flow), turning a
+  pressure back into a speed, and the lift and drag on a body in any fluid. The tanks, pipes, nozzles, pools, spray,
+  grain settling and wind all call them.
+- **Debris, deterministic in the force** (`lib/graph/rupa/debris.js`; every break on the runtime carries it): a breaking
+  opens new crack surface against the matter's fracture energy, so a harder blow leaves more, finer and faster pieces
+  and more dust, the same joules shatter glass and split timber, and the pieces take the matter's shape (shards,
+  chunks, splinters, torn plates, clods) and fly away from the blow with an exact share of its energy. A crater's ejecta
+  flies by the cratering ejecta law as clumps where the soil's cohesion beats the stress of being thrown (none from dry
+  sand; lumps from the rim; a clump landing too fast crumbles), spray of grains whose size sets their drag, and a dust
+  cloud of its fines; a body meeting a liquid splashes by inertia against surface tension
+  and viscosity, so water splashes and lava plops. A burn leaves ash, a melt its liquid.
+- **Ground** (`lib/graph/rupa/ground.js`): a soil heightfield over bedrock: craters from energy, ejecta thrown into a rim
+  with the volume kept, slopes that slump to their angle of repose while a cohesive soil holds a cut face up to its
+  critical height, and dig, deposit and shovel. The kernel and its laws land here; the page's deformable floor is next.
+- Internal name: rupa. Map: `docs/rupa.md`.

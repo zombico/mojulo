@@ -300,6 +300,9 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Destructible physics (internal name rupa; `destruction: 'physical'`, opt-in, never a default):
+  [rupa/](control/lib/graph/rupa/) (matter, heat, ground) and the runtime builder
+  [controllable/rupa.js](control/lib/graph/worlds/controllable/rupa.js): [docs/rupa.md](docs/rupa.md).
 - Effects: [playscape/elements/](control/lib/graph/playscape/elements/) (attacks, blasts, puffs, looks), raised to the style
   floor [scene/effect-style.js](control/lib/graph/scene/effect-style.js), composed per game by
   [scene/juice-style.js](control/lib/graph/scene/juice-style.js) (register anime | western × the game type's flavor; a
