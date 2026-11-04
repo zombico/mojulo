@@ -116,6 +116,30 @@ carry no tool, and their energy alone decides.
   budget by volume. The held graph and the load pass decide what stands: the top of a post cut through rests on its
   foot, and the end of a beam chopped off past its post falls. Through a shell, it's a slit.
 
+### Panels: metal on objects
+
+An object that moves (a car, a mech, a locker on a cart, a drum) is not built of blocks, but its skin can be: an
+entity's `panels` are thin metal plates in its own frame, each struck by the same law as a plastic block
+(`rupa/panels.js`, the runtime's PANELS).
+
+- **A panel** is `{ id?, face, at, size, wall?, matter?, color? }`: `face` is front, back, left, right, top or bottom
+  (x along the entity's heading, y to its left, z up, from its transform's point); `at` is the middle of the plate's
+  outer face; `size` is its width and height across the face; `wall` is its thickness (a car's body panel is about a
+  millimetre, the default); `matter` is a metal that yields (steel unless said; glass, stone and wood are refused).
+  `panels: true` on a box body plates every face but the floor in the body's colour.
+- **The blows** are carried into the object's frame (its heading, and a flyer's roll and pitch). A round meets the
+  nearest plate on its line: it holes a car-thin panel, leaving at least its own bore, and dents a thick one; a plate
+  that stops it spares whatever stands behind. A blast is a load across the whole plate, so it dishes the plate in,
+  as wide as the plate is, and only ever on its outer face (what is behind a plate is the object it skins). A swing
+  strikes with the striker's tool: a bat dishes a millimetre sheet and rings off a centimetre plate. A plate is always
+  struck on its broad face, never on its edge.
+- **Worn out**, when its dents have spent its joules or a blow carries twice what it holds, a panel comes off as a body
+  of its own, thrown away from the blow with the object's own motion.
+- **On the page** each plate is the sheet it is, bent as one: a dish in where it was struck from outside and out where
+  from inside, a dent the law's bowl and its rim, an opening where a hole is wider than the sheet's grid, and a round's
+  smaller hole as its bore and petals. A box body plated on every face is drawn by its plates alone, so a dent goes
+  in; any other body is drawn as well, and a dent deeper than the 2 mm the plate stands proud of it goes behind it.
+
 ### Felling
 
 A level groove (a cut on a horizontal plane into a side) leaves what is above it resting on the uncut wood, the hinge.
@@ -664,6 +688,8 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - `world-scene.js`: with `scars`, `payload.rupa.scars` is the level's `scars` read by `readScarsSpec` (any degree).
 - `compose.js`: `EMISSION_OPT_IN.rupa`, composed onto a page only when its blocks carry matter.
 - `era/compose.js`: `DESTRUCTION_WORDS.physical`, the words that ask for it.
+- `rupa/panels.js` and `world-scene.js`: under `physical`, an entity's `panels` resolved to plates and their metal's
+  numbers; the page draws them only when an object carries them.
 - Engines: the `rupa` page key is marked as the web's (the engines hold breakables whole today).
 - Godot: `scene/godot-kernel/rupa.gd` is the energy slice in GDScript (a blow's joules, a burst's share by solid angle,
   the world's power, what loses its hold falls, a landing is an impact, the load: crushing and a hung span in bending),
@@ -698,6 +724,9 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
   geocity and terrain worlds (stages only), the geocity's evoked detail blocks (their facades are not yet shells), the live grass channel riding the ground on a world that has one only
   when its blades are instanced, and a crater's bowl drawn finer than the stage's land grid.
 - Scars on what is not a box (a minted solid, a tree), and marks that fade or are cleared.
+- Panels on a minted solid's or a figure-rig's own surface (a panel is a plate laid over the body), a crash's impact on
+  them, a round through a panel carried into the body behind it (it is reported, not carried), heat on a panel, and
+  panels in the Godot kernel.
 - City buildings, houses entered by a door and walked-in buildings as blocks (structures and shell houses are), and
   the base settle on the grid (it searches every block when something falls).
 - Per-entity power (a hero's tier apart from the world's), and heat from beams and fire sources by element.

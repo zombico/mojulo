@@ -23,6 +23,7 @@ import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { readMatterSpec, readTool, readScarsSpec, loadAudit } from '@/lib/graph/rupa/index.js';
+import { readPanels } from '@/lib/graph/rupa/panels.js';
 import { shellBlocks } from '@/lib/graph/rupa/shell-blocks.js';
 import { physicsWind } from '@/lib/graph/rupa/one-wind.js';
 import { treeBlocks } from '@/lib/graph/rupa/tree-blocks.js';
@@ -900,7 +901,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // destructible physics (rupa/, `destruction: 'physical'`): the blocks carry their matter (breakablesOf), and the
     // level's `matter` says how hard the world's blows land ({ power?, swing?, shot?, blastZ? }); the page composes the
     // opt-in rupa builder. Any other degree ⇒ no key, byte-identical.
-    if (destruction === 'physical' && (payload.breakables || payload.physicalGround)) {
+    // (an object's metal panels, rupa/panels.js: resolved to their plates and their metal's numbers; refused by name if not)
+    const panelled = destruction === 'physical' && Array.isArray(payload.entities) && payload.entities.some((e) => e && e.panels != null && e.panels !== false);
+    if (panelled) payload.entities = payload.entities.map((e) => (e && e.panels != null && e.panels !== false ? { ...e, panels: readPanels(e) } : e));
+    if (destruction === 'physical' && (payload.breakables || payload.physicalGround || panelled)) {
       payload.rupa = readMatterSpec(sketch.manifest.matter, 'matter');
       // (its land as a soil grid the page digs, rupa/ground-grid.js, from the stage's landform and substrate)
       const ground = groundGrid(payload.physicalGround);
@@ -921,7 +925,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // what each striker strikes with (a tool word on its rule): checked here, read by the page as given
       for (const e of payload.entities || []) if (e && e.rule && e.rule.strikeTool !== undefined) readTool(e.rule.strikeTool, `${e.id || 'entity'}.rule.strikeTool`);
       // what can burn carries its own flame (fire/fire.js blockFires), off until it catches; added to the level's fire
-      if (payload.breakables.some((b) => b.burnRate > 0)) {
+      if ((payload.breakables || []).some((b) => b.burnRate > 0)) {
         const { blockFires, firePageChannel } = await import('@/lib/graph/fire/fire.js');
         const had = payload.fire && Array.isArray(payload.fire.sources) ? payload.fire.sources : [], more = blockFires(payload.breakables, { from: had.length });
         if (more.length) payload.fire = payload.fire ? { ...payload.fire, sources: [...had, ...more] }

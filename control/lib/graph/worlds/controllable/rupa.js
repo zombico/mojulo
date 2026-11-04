@@ -909,10 +909,12 @@ export function buildRupa(E) {
   const boxNear = (b, p) => [0, 1, 2].map((k) => clamp(p[k], b.min[k], b.max[k]));
   E.registerStateInit((state, spec) => {
     const R = spec.rupa && typeof spec.rupa === 'object' ? spec.rupa : {};
-    // a scarred world (cosmetic damage: rupa.scars) runs the physics with nothing breakable at all
-    if (R.scars || R.ground) { if (!state.breakables) state.breakables = []; if (!state.breaks) { state.breaks = []; state.breakSeq = 0; } if (state.breakFloor === undefined) state.breakFloor = spec.breakFloor ?? 0; if (!state.colliders) state.colliders = []; }
-    if (!state.breakables || (!Array.isArray(spec.breakables) && !R.scars && !R.ground)) return;
-    let any = !!(R.scars || R.ground);
+    // a scarred world (cosmetic damage: rupa.scars) runs the physics with nothing breakable at all; so does one whose
+    // things carry metal panels (rupa/panels.js), resolved by the mint
+    const panelled = !!spec.rupa && Array.isArray(spec.entities) && spec.entities.some((e) => e && Array.isArray(e.panels) && e.panels.some((p) => p && p.yield > 0));
+    if (R.scars || R.ground || panelled) { if (!state.breakables) state.breakables = []; if (!state.breaks) { state.breaks = []; state.breakSeq = 0; } if (state.breakFloor === undefined) state.breakFloor = spec.breakFloor ?? 0; if (!state.colliders) state.colliders = []; }
+    if (!state.breakables || (!Array.isArray(spec.breakables) && !R.scars && !R.ground && !panelled)) return;
+    let any = !!(R.scars || R.ground || panelled);
     state.breakables.forEach((b, i) => {
       if (!spec.breakables) return;
       const s = spec.breakables[i];
@@ -936,7 +938,9 @@ export function buildRupa(E) {
       footings: (() => { const out = []; let n = 0; for (const c of Array.isArray(spec.colliders) ? spec.colliders : []) { if (!(c && Array.isArray(c.min) && Array.isArray(c.max) && c.min.length === 3 && c.max.length === 3)) continue; if (String(c.of || '').endsWith(':footing') && state.colliders[n]) out.push(state.colliders[n]); n++; } return out; })(),
       trees: Array.isArray(R.trees) ? R.trees.map((t) => ({ id: t.id, blocks: t.blocks.slice(), foot: t.foot, crown: t.crown.slice(), breakSpeed: t.breakSpeed, snapped: null })) : [], treesAt: -1,
       treeOf: Array.isArray(R.trees) ? Object.fromEntries(R.trees.flatMap((t) => t.blocks.map((id) => [id, t.id]))) : {},
-      scars: R.scars ? { ground: R.scars.ground, wall: R.scars.wall, marks: [], seq: 0 } : null };
+      scars: R.scars ? { ground: R.scars.ground, wall: R.scars.wall, marks: [], seq: 0 } : null,
+      // an object's metal panels: each a plastic plate in its entity's frame, keeping its dents as a block does
+      panels: panelled ? panelsOf(state, spec) : [] };
     if (state.rupa.ground && R.ground && ((Array.isArray(R.ground.water) && R.ground.water.length) || (Array.isArray(R.ground.rivers) && R.ground.rivers.length))) waterInit(state.rupa.ground, R.ground.water, R.ground.rivers);
   });
   // src: { joules (what the breaking took: its joules, and any blow past them), from?, dir? } for the debris
@@ -987,6 +991,80 @@ export function buildRupa(E) {
     if (through > 0 && (how === 'shot' || how === 'swing') && src.kind !== 'body') carry(state, b, through, how, by, src);
     return through;
   }
+  // ── PANELS: an object's metal plates (rupa/panels.js), each a plastic block in its entity's frame (x its heading, y its
+  // left, z up, from its transform's point; a flyer's roll and pitch turn it too). A blow is carried into that frame and
+  // lands by the distortion law below; a plate worn out (or a blow twice what it holds) comes off as a body of its own ──
+  function panelsOf(state, spec) {
+    const out = [];
+    for (const raw of spec.entities) {
+      const e = raw && state.byId[raw.id];
+      if (!e || !Array.isArray(raw.panels)) continue;
+      for (const p of raw.panels) {
+        if (!(p && p.yield > 0 && p.joules > 0)) continue;   // resolved by the mint (readPanels): a metal plate's numbers
+        const T0 = Number.isFinite(p.melt) ? Math.min(20, p.melt - 5) : 20;
+        out.push({ id: `${e.id}:${p.id}`, of: e.id, face: p.face, min: [...p.min], max: [...p.max], color: p.color ?? null, off: null,
+          rupa: { cap: p.joules, joules: p.joules, mass: p.mass || 0, T: T0, T0, soften: p.soften ?? 500, melt: Number.isFinite(p.melt) ? p.melt : null, stiff: p.stiff || 1e10, bounce: p.bounce ?? 0.2, fill: 1,
+            yield: p.yield, wall: p.wall > 0 ? p.wall : null, kerfWork: p.kerfWork || 0, kerfHard: p.kerfHard || 0, tensile: p.tensile || 0, dents: [], cuts: [], form: 0, squash: 0 } });
+      }
+    }
+    return out;
+  }
+  // the entity's frame: world = pos + Rz(heading)·Ry(−pitch)·Rx(roll)·local (the page's 'ZYX' attitude), and back
+  const turnTo = (e, v, inv) => {
+    const h = e.transform.heading || 0, roll = (e.tilt && e.tilt.roll) || 0, pitch = (e.tilt && e.tilt.pitch) || 0;
+    let [x, y, z] = v;
+    const rz = (a) => { const c = Math.cos(a), sn = Math.sin(a); [x, y] = [c * x - sn * y, sn * x + c * y]; };
+    const ry = (a) => { const c = Math.cos(a), sn = Math.sin(a); [x, z] = [c * x + sn * z, -sn * x + c * z]; };
+    const rx = (a) => { const c = Math.cos(a), sn = Math.sin(a); [y, z] = [c * y - sn * z, sn * y + c * z]; };
+    if (inv) { rz(-h); if (pitch) ry(pitch); if (roll) rx(-roll); } else { if (roll) rx(roll); if (pitch) ry(-pitch); rz(h); }
+    return [x, y, z];
+  };
+  const BORE = 0.004;   // m: a round's own radius, the least hole it leaves
+  const FACE_AX = { front: 0, back: 0, left: 1, right: 1, top: 2, bottom: 2 };
+  const toLocal = (e, p) => turnTo(e, [p[0] - e.transform.pos[0], p[1] - e.transform.pos[1], p[2] - e.transform.pos[2]], true);
+  const toWorld = (e, q) => { const v = turnTo(e, q, false); return [e.transform.pos[0] + v[0], e.transform.pos[1] + v[1], e.transform.pos[2] + v[2]]; };
+  // a blow of W joules on a panel, src in the entity's frame; returns what distortion made of it ({ spent, through })
+  function panelBlow(state, P, W, how, src, away) {
+    if (P.off || !(W > 0)) return { spent: 0, through: 0 };
+    const r = P.rupa, e = state.byId[P.of];
+    if (W >= OVERKILL * r.cap) { panelOff(state, P, e, away, how); return { spent: Math.max(0, r.joules), through: W - Math.max(0, r.joules) }; }
+    // a plate is struck on its broad face, from the side the blow comes from (never on its edge, a wall thick)
+    // (a blast only reaches its outer face: what is behind a plate is the object it skins; a round or a swing comes from
+    // where it comes from, so a round through the far side strikes this one from inside)
+    const ax = FACE_AX[P.face], out = P.face === 'front' || P.face === 'left' || P.face === 'top' ? 1 : -1;
+    const side = how === 'burst' ? out : src.dir ? (src.dir[ax] > 0 ? -1 : 1) : src.from ? (src.from[ax] > (P.min[ax] + P.max[ax]) / 2 ? 1 : -1) : out;
+    const at = boxNear(P, src.at || src.from || centre(P));
+    const n0 = r.dents.length, D = distort(state, P, W, how, { ...src, ax, side, at, panel: true });
+    // a round through a sheet leaves at least its own bore (it pushes the petals aside), however thin the sheet
+    if (how === 'shot' && D.through > 0) { const q = r.dents.length > n0 ? r.dents[r.dents.length - 1] : r.dents.find((x) => x.hole && Math.hypot(x.at[0] - src.at[0], x.at[1] - src.at[1], x.at[2] - src.at[2]) < 2 * BORE); if (q && q.hole) q.a = Math.max(q.a, BORE); }
+    r.joules -= D.spent;
+    state.rupa.hits.push({ t: state.time, id: P.id, how, joules: Math.round(D.spent), left: Math.max(0, Math.round(r.joules)), ...(D.through > 0 ? { through: Math.round(D.through) } : {}) });
+    if (state.rupa.hits.length > 64) state.rupa.hits.shift();
+    if (r.joules <= 0) panelOff(state, P, e, away, how);
+    return D;
+  }
+  // a plate off its object: a body of its own, thrown away from the blow with what it was moving at
+  function panelOff(state, P, e, away, how) {
+    const r = P.rupa, ext = [0, 1, 2].map((k) => P.max[k] - P.min[k]), h = e.transform.heading || 0, c = Math.abs(Math.cos(h)), sn = Math.abs(Math.sin(h));
+    const size = [c * ext[0] + sn * ext[1], sn * ext[0] + c * ext[1], ext[2]], at = toWorld(e, centre(P)), d = unit3([away[0], away[1], 0]), v = e.vel || [0, 0, 0];
+    r.joules = 0;
+    const body = E.throwMatter(state, { id: `panel:${P.id}`, size, at, vel: [v[0] + d[0] * 1.5, v[1] + d[1] * 1.5, (v[2] || 0) + 0.5], mass: r.mass, joules: Math.max(1, r.cap * 0.1), stiff: r.stiff, bounce: r.bounce, matter: null });
+    P.off = { t: state.time, how, body, heading: h, away: d };
+    state.rupa.hits.push({ t: state.time, id: P.id, how: 'off', joules: 0, left: 0 });
+  }
+  // the panels a ray from o along d (o + t·d) meets first: the nearest, and where; `upTo` the farthest t it reaches (a
+  // round that hit the thing itself reaches its plates however far in they sit)
+  function panelOnRay(state, o, d, skip, target) {
+    let best = null;
+    for (const P of state.rupa.panels) {
+      if (P.off || P.of === skip) continue;
+      const e = state.byId[P.of], lo = toLocal(e, o), ld = turnTo(e, d, true), t = rayHit(P, lo, ld);
+      if (t == null || (P.of !== target && t > 1 + EPS / (Math.hypot(d[0], d[1], d[2]) || 1))) continue;
+      if (!best || t < best.t) best = { P, t, at: [lo[0] + ld[0] * t, lo[1] + ld[1] * t, lo[2] + ld[2] * t], dir: ld };
+    }
+    return best;
+  }
+
   // ── DISTORTION on the runtime (the law is dentOf, above) ──
   const OVERKILL = 2, DENT_MIN = 0.001, DENTS = 24, KERF_W = 0.002;   // KERF_W: rupa/matter.js KERF, the width an edge opens
   const hardOf = (r) => 3 * r.yield * Math.max(0.02, heatFactor(r.T, r.soften, r.melt, r.T0));
@@ -1030,7 +1108,7 @@ export function buildRupa(E) {
     const k = SHARP[kind] ?? 0.25, capF = Number.isFinite(F) ? Math.sqrt(F / (Math.PI * H)) : null;
     let D = dentOf(W, H, { how: kind, thick, cap: src.cap ?? (tool && tool.edge === 'point' ? tool.contact : null) });
     if (D.through) { addDent(state, b, f, D, thick); return { spent: D.cost, through: W - D.cost }; }
-    if (D.a > half) { squash(state, b, f, D.V); return { spent: D.cost, through: 0 }; }
+    if (D.a > half) { if (src.panel) return panel(); squash(state, b, f, D.V); return { spent: D.cost, through: 0 }; }   // a panel is a plate: it dishes
     if (thick < D.a) return panel();
     if (capF != null && capF < D.a) {   // the force runs out first: a bowl only as wide as it can press, the rest rings off
       const a = capF, d = Math.min(k * a, 0.95 * thick), V = 0.5 * Math.PI * a * a * d;
@@ -1450,10 +1528,20 @@ export function buildRupa(E) {
   E.registerWorldPass('rupa-blows', (state) => {
     if (!state.rupa) return;
     const R = state.rupa, live = state.breakables.filter((b) => !b.broken && b.rupa);
-    if (!live.length) return;
+    if (!live.length && !R.panels.length) return;
+    // a round meets an object's panels first (the nearest on its line); one that stops it spares what stands behind
+    const stopped = new Set();
+    if (R.panels.length) for (const e of state.entities) {
+      const s = e.lastShot;
+      if (!s || s.t !== state.time || !Array.isArray(s.from) || !Array.isArray(s.to)) continue;
+      const d = [s.to[0] - s.from[0], s.to[1] - s.from[1], s.to[2] - s.from[2]], hit = panelOnRay(state, s.from, d, e.id, s.mode !== 'miss' ? s.targetId : null);
+      if (!hit) continue;
+      const D = panelBlow(state, hit.P, blowJoules('shot', R), 'shot', { dir: hit.dir, at: hit.at }, d);
+      if (!(D.through > 0)) stopped.add(e.id);
+    }
     for (const e of state.entities) {
       const s = e.lastShot;
-      if (!s || s.t !== state.time || s.mode !== 'miss') continue;
+      if (!s || s.t !== state.time || s.mode !== 'miss' || stopped.has(e.id)) continue;
       const b = live.find((q) => !q.broken && boxDist(q, s.to) <= EPS);
       if (b) spend(state, b, blowJoules('shot', R), 'shot', e.id, { dir: [s.to[0] - e.transform.pos[0], s.to[1] - e.transform.pos[1], s.to[2] - e.transform.pos[2]], at: boxNear(b, s.to) });
     }
@@ -1461,6 +1549,15 @@ export function buildRupa(E) {
       if (u.t !== state.time) continue;
       const J = blowJoules('burst', R, { radius: u.radius || 0 });
       for (const b of live) if (boxDist(b, u.pos) <= (u.radius || 0) + EPS) { const q = burstShare(b, u.pos, J); spend(state, b, q, 'burst', null, { from: u.pos }); warm(state, b, q * R.heatShare, null); }
+      // a blast on a panel is a load across the whole plate, not a point: it dishes the plate in, as wide as it is
+      for (const P of R.panels) {
+        if (P.off) continue;
+        const e = state.byId[P.of], o = toLocal(e, u.pos);
+        if (boxDist(P, o) > (u.radius || 0) + EPS) continue;
+        const ext = [0, 1, 2].map((k) => P.max[k] - P.min[k]), half = 0.5 * Math.min(...ext.filter((x, k) => k !== FACE_AX[P.face]));
+        const c = toWorld(e, centre(P));
+        panelBlow(state, P, burstShare(P, o, J), 'burst', { from: o, tool: { edge: 'blunt', strength: 1, contact: half } }, [c[0] - u.pos[0], c[1] - u.pos[1], c[2] - u.pos[2]]);
+      }
     }
     for (const e of state.entities) {
       const P = e.strikeParams;
@@ -1473,6 +1570,16 @@ export function buildRupa(E) {
         if (flat > 1e-3 && (v[0] * aim[0] + v[1] * aim[1]) / flat < P.cosCone) continue;
         struck['rupa:' + b.id] = true;
         spend(state, b, blowJoules('swing', R), 'swing', e.id, { dir: [q[0] - o[0], q[1] - o[1], q[2] - o[2]], from: o, tool: e.rule && e.rule.strikeTool, by: e.id });
+      }
+      for (const Q of R.panels) {
+        if (Q.off || Q.of === e.id || struck['panel:' + Q.id]) continue;
+        const pe = state.byId[Q.of], lo = toLocal(pe, o);
+        if (boxDist(Q, lo) > P.reach) continue;
+        const q = toWorld(pe, boxNear(Q, lo)), v = [q[0] - o[0], q[1] - o[1]], flat = Math.hypot(v[0], v[1]);
+        if (flat > 1e-3 && (v[0] * aim[0] + v[1] * aim[1]) / flat < P.cosCone) continue;
+        struck['panel:' + Q.id] = true;
+        const dw = [q[0] - o[0], q[1] - o[1], q[2] - o[2]];
+        panelBlow(state, Q, blowJoules('swing', R), 'swing', { dir: turnTo(pe, dw, true), from: lo, tool: e.rule && e.rule.strikeTool, by: e.id }, dw);
       }
     }
   }, 34);

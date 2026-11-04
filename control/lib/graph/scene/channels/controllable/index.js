@@ -461,6 +461,122 @@ function __updateDents() {
 }
 
 /**
+ * The page's metal panels (rupa, rupa/panels.js; controllable/rupa.js PANELS): each plate on an object drawn as the
+ * sheet the runtime keeps (`state.rupa.panels`), a hair proud of the body it skins, riding its entity (its heading, a
+ * flyer's roll and pitch). A sheet bends as one, so both its faces go with the blow: a dish (cos² across it) in where it
+ * was struck from outside and out where from inside; a dent the law's bowl, d·(1 − r²/a²), its rim d / 3 out to 2a; an
+ * opening where a hole is wider than the sheet's grid, a slit along a cut through. Lit as the dented blocks are: as
+ * the flat face, its slopes by how far they turn from it, darker toward the bottom of a bowl. A round's hole finer than
+ * the grid shows as its bore, dark, and the petals round it, on both faces. A plate off its object rides the body it
+ * became, tipping away from the blow. A box body plated on every face but its floor is drawn by its plates alone (any
+ * other body is drawn as well, and a dent deeper than the plate stands proud of it goes behind it). Read from state the
+ * runtime owns, at its time, so a capture stays byte-identical. Emitted only when an object carries panels.
+ */
+export function panelsViewScript() {
+  return `// panels: an object's metal plates, each a sheet riding its entity, bent by its blows
+const __panelDraw = {}, __PANEL_PROUD = 0.002, __panelLight = [0.35, -0.55, 0.76];
+const __PANEL_FACE = { front: [0, 1], back: [0, -1], left: [1, 1], right: [1, -1], top: [2, 1], bottom: [2, -1] };
+// the bend at a point of the sheet (m, inward positive) and whether it is open there
+function __panelAt(P, ax, out, p, hw) {
+  let z = 0, hole = false;
+  const u = (ax + 1) % 3, v = (ax + 2) % 3;
+  for (const q of P.rupa.dents) {
+    const r = Math.hypot(p[u] - q.at[u], p[v] - q.at[v]), s = q.side === out ? 1 : -1;
+    if (q.dish) { if (r < q.a) { const c = Math.cos((Math.PI * r) / (2 * q.a)); z += s * q.d * c * c; } continue; }
+    if (q.hole && r < 0.7 * q.a) hole = true;
+    if (r < q.a) z += s * q.d * (1 - (r * r) / (q.a * q.a));
+    else if (r < 2 * q.a) { const k = Math.sin((Math.PI * (r - q.a)) / q.a); z -= s * Math.min(q.d / 3, q.a / 2) * k * k; }
+  }
+  for (const c of P.rupa.cuts || []) if (c.through && Math.abs(p[c.n] - c.at) <= hw) hole = true;
+  return { z, hole };
+}
+function __panelMesh(P) {
+  const [ax, out] = __PANEL_FACE[P.face], u = (ax + 1) % 3, v = (ax + 2) % 3, skin = new THREE.Color(P.color || '#8a8f96');
+  const face = out > 0 ? P.max[ax] + __PANEL_PROUD : P.min[ax] - __PANEL_PROUD;
+  const ext = [0, 1, 2].map((k) => P.max[k] - P.min[k]), c = [0, 1, 2].map((k) => (P.min[k] + P.max[k]) / 2);
+  c[ax] = face;
+  const marks = P.rupa.dents, floor = Math.max(Math.min(ext[u], ext[v]) / 64, 0.004);
+  const fine = (P.rupa.cuts || []).length ? floor : marks.length ? Math.max(floor, Math.min(...marks.map((q) => q.a)) / 6) : Infinity;
+  const nu = Math.max(1, Math.min(64, Math.ceil(ext[u] / fine))), nv = Math.max(1, Math.min(64, Math.ceil(ext[v] / fine)));
+  const hw = Math.max(0.002, ext[u] / nu, ext[v] / nv) * 0.75, dmax = Math.max(1e-3, ...marks.map((q) => q.d)), grid = [];
+  for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
+    const p = [0, 0, 0];
+    p[u] = P.min[u] + (ext[u] * i) / nu; p[v] = P.min[v] + (ext[v] * j) / nv; p[ax] = face;
+    const D = marks.length || (P.rupa.cuts || []).length ? __panelAt(P, ax, out, p, hw) : { z: 0, hole: false };
+    p[ax] -= out * D.z;
+    grid.push({ p: [p[0] - c[0], p[1] - c[1], p[2] - c[2]], z: D.z, hole: D.hole });
+  }
+  const pos = [], col = [], at = (i, j) => grid[j * (nu + 1) + i], flat = out * __panelLight[ax];
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) for (const tri of [[at(i, j), at(i + 1, j), at(i + 1, j + 1)], [at(i, j), at(i + 1, j + 1), at(i, j + 1)]]) {
+    const [A, B, C] = tri;
+    if (A.hole && B.hole && C.hole) continue;   // open: the hole is wider than the grid
+    const e1 = [B.p[0] - A.p[0], B.p[1] - A.p[1], B.p[2] - A.p[2]], e2 = [C.p[0] - A.p[0], C.p[1] - A.p[1], C.p[2] - A.p[2]];
+    let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    const nl = Math.hypot(n[0], n[1], n[2]) || 1; n = n.map((x) => x / nl);
+    if (n[ax] * out < 0) n = n.map((x) => -x);
+    const turn = n[0] * __panelLight[0] + n[1] * __panelLight[1] + n[2] * __panelLight[2] - flat;
+    const lit = Math.max(0.2, 0.55 + 0.45 * Math.max(0, flat) + 1.4 * turn), deep = (A.z + B.z + C.z) / 3;
+    const k = (A.hole || B.hole || C.hole ? 0.18 : 1 - 0.45 * Math.min(1, Math.max(0, deep) / dmax)) * lit;
+    for (const q of tri) { pos.push(q.p[0], q.p[1], q.p[2]); col.push(skin.r * k, skin.g * k, skin.b * k); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  m.position.set(c[0], c[1], c[2]); m.raycast = function () {};
+  // a round's hole finer than the grid: its bore, dark, and the petals round it, on both faces
+  const bore = new THREE.MeshBasicMaterial({ color: 0x0b0b0c, side: THREE.DoubleSide }), petal = new THREE.MeshBasicMaterial({ color: skin.clone().multiplyScalar(0.55), side: THREE.DoubleSide });
+  for (const q of marks) {
+    if (!q.hole || q.a * 1.4 > hw * 2) continue;
+    const D = __panelAt(P, ax, out, q.at, hw);
+    for (const sd of [-1, 1]) for (const [geo, mat, lift] of [[new THREE.CircleGeometry(q.a, 14), bore, 0.0006], [new THREE.RingGeometry(q.a, 1.8 * q.a, 14), petal, 0.0004]]) {
+      const d = new THREE.Mesh(geo, mat), w = q.at.slice();
+      w[ax] = face - out * D.z + sd * lift;
+      d.position.set(w[0] - c[0], w[1] - c[1], w[2] - c[2]);
+      if (ax === 0) d.rotation.y = sd * Math.PI / 2; else if (ax === 1) d.rotation.x = -sd * Math.PI / 2; else if (sd < 0) d.rotation.x = Math.PI;
+      d.raycast = function () {};
+      m.add(d);
+    }
+  }
+  return m;
+}
+function __updatePanels() {
+  const R = __world.rupa;
+  if (!R || !R.panels) return;
+  for (const P of R.panels) {
+    let D = __panelDraw[P.id];
+    if (!D) {
+      const g = new THREE.Group(); scene.add(g); D = __panelDraw[P.id] = { g, form: -1, mesh: null };
+      // a box body plated on every face but its floor is drawn by its plates alone (they are its skin: a dent goes in)
+      const e = __world.byId[P.of], b = e && e.body, faces = new Set(R.panels.filter((q) => q.of === P.of).map((q) => q.face));
+      if (b && b.type === 'mesh' && b.shape === 'box' && ['front', 'back', 'left', 'right', 'top'].every((f) => faces.has(f)) && __bodies[P.of]) __bodies[P.of].traverse((x) => { if (x.material) x.material.visible = false; });
+    }
+    if (D.form !== P.rupa.form) {
+      if (D.mesh) { D.g.remove(D.mesh); D.mesh.traverse((x) => { if (x.geometry) x.geometry.dispose(); if (x.material) x.material.dispose(); }); }
+      D.mesh = __panelMesh(P); D.g.add(D.mesh); D.form = P.rupa.form;
+      if (D.loose) D.mesh.position.set(0, 0, 0);
+    }
+    if (!P.off) {
+      const e = __world.byId[P.of];
+      if (!e) continue;
+      D.g.visible = !e.gone;
+      D.g.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2]);
+      if (e.tilt) D.g.rotation.set(e.tilt.roll || 0, -(e.tilt.pitch || 0), e.transform.heading, 'ZYX'); else D.g.rotation.set(0, 0, e.transform.heading);
+      continue;
+    }
+    // off: the plate rides the body it became, turned as it was, tipping away from the blow
+    const body = (R.bodies || []).find((x) => x.id === P.off.body);
+    if (!body) continue;
+    if (!D.loose) { D.loose = true; D.mesh.position.set(0, 0, 0); }
+    const a = P.off.away, th = Math.hypot(a[0], a[1]) > 0 ? Math.min(Math.PI / 2, (__world.time - P.off.t) * 3) : 0;
+    D.g.position.set(body.pos[0], body.pos[1], body.pos[2]);
+    D.g.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), P.off.heading);
+    if (th > 0) D.g.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-a[1], a[0], 0).normalize(), th));
+  }
+}
+`;
+}
+
+/**
  * The page's dust and smoke (rupa, controllable/rupa.js SMOKE): each source on `state.rupa.smoke` is solved once by the
  * runtime's own smokeOf (a fire's plume, a break's dust in the sizes that hang, a douse's steam) and its puffs placed
  * every frame by the same formula of time (puffAt, plumePuffs), carried by the level's wind: soft sprites from one
@@ -513,6 +629,8 @@ function __updateSmoke() {
 export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, trigger = false } = {}) {
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
   const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && (b.yield > 0 || b.kerfWork > 0)));
+  // metal panels on objects (rupa/panels.js): drawn only when an object carries resolved panels, so every other page keeps its bytes
+  const panelsOn = !!(rupa && Array.isArray(entities) && entities.some((e) => e && Array.isArray(e.panels) && e.panels.some((p) => p && p.yield > 0)));
   // scars (rupa, cosmetic damage): painted only when the world is scarred, so every other page keeps its bytes
   const scarsOn = !!(rupa && rupa.scars);
   // ground (rupa, the land as a soil grid): drawn and probed only when the world has ground, so every other page keeps its bytes
@@ -922,8 +1040,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
 })();
 ` : '';
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
 ${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
@@ -3929,7 +4047,7 @@ function __updateBreaks(dt) {
     }
   }
 }
-${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
+${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
@@ -3945,7 +4063,8 @@ ${hangarHook}  __msHookParams();
     __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
     __updateBreaks(dt);${distort ? `
     __updateDents();` : ''}${rupa ? `
-    __updateSmoke();` : ''}` : ''}${scarsOn ? `
+    __updateSmoke();` : ''}` : ''}${panelsOn ? `
+    __updatePanels();` : ''}${scarsOn ? `
     __updateScars(dt);` : ''}${groundOn ? `
     __updateGround();` : ''}${runner ? `
     __updateRunner(dt);` : ''}
