@@ -68,7 +68,7 @@ export const CHARACTER_PROTOCOL = Object.freeze({
   multipass_hint:
     "A second picture (the back, a turnaround, a close-up of the face or a costume detail) refines the read by word, never the words the person has already changed by hand.",
   capture_call:
-    "create_character({ as: 'hero', spec: { ...the look's `sets`, register, ...your `words` }, title }) — the read's own capture (capture_reference target 'character') is not built yet, so mint through the hero door, then tell the person your thesis, the look and register and why, the likeness verdict, the unseen and the gaps.",
+    "capture_reference({ target: 'character', fidelity, insights: { look, register, chosen, thesis, likeness, view, unseen, gaps, words }, title?, stash_ref? }) — it mints the hero through the hero door (the look's words, your words, the register, the likeness stamp) and files the read; then tell the person your thesis, the look and register and why, the likeness verdict, the unseen and the gaps.",
   next:
     "Sculpt from there with update_character({ ref, spec: { <a word> } }): one word at a time, the person's words over the picture's.",
 });

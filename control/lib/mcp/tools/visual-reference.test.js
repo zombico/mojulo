@@ -84,11 +84,7 @@ describe('reference_protocol', () => {
     expect(ch.looks.map((l) => l.id)).toContain('anime');
     expect(ch.registers.map((r) => r.id)).toContain('lowpoly');
     expect(Array.isArray(ch.likeness)).toBe(true);
-    expect(ch.capture_call).toMatch(/create_character/);
-  });
-
-  it('does not file a character read as another target: it says where the read goes', async () => {
-    await expect(captureReferenceHandler({ target: 'character', insights: { look: 'anime', words: {} } })).rejects.toThrow(/create_character/);
+    expect(ch.capture_call).toMatch(/capture_reference\(\{ target: 'character'/);
   });
 
   it('rejects an unknown target', async () => {

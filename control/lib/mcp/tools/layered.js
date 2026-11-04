@@ -37,6 +37,7 @@
  */
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { validateHeroName, readHeroName, validateEmblem, heroFieldPaint } from '@/lib/graph/polygonizer/hero-emblem';
+import { validateHeroReference, heroReferenceRecord, heroReferenceReadout } from '@/lib/reference/hero-reference';
 import { performanceErrors } from '@/lib/graph/face-acting/perform';
 import { emoteClipErrors } from '@/lib/graph/face-acting/emotes';
 import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
@@ -904,7 +905,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * the front's silhouette kept), where laws 1 to 15 let the skin fall back a centimetre behind the canthus and the
  * globe's side show bare from 3/4 and the side */
 export const REALISTIC_LAWS_VERSION = 16;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -1018,6 +1019,8 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   const errs = [];
   // the named hero's identity (hero-emblem.js): its name and its emblem, a mark pasted as SVG paths
   errs.push(...validateHeroName(spec.name), ...validateEmblem(spec.emblem));
+  // a hero made from a picture carries its read's stamp (lib/reference/hero-reference.js): data, never a gate
+  errs.push(...validateHeroReference(spec.reference));
   const casts = [...Object.keys(HERO_CASTS), ...CAST_PRESET_NAMES];
   if (spec.cast !== undefined) {
     if (typeof spec.cast === 'string') { if (!HERO_CASTS[spec.cast]) errs.push(...validateCast(spec.cast, 'cast').map((e) => `${e} — or a hero cast (${Object.keys(HERO_CASTS).join(', ')}), or a pole with a build: { pole: 'female', build: '${spec.cast}' }`)); }
@@ -1342,6 +1345,8 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form', 'skin', 'kit', 'headgear', 'emblem', 'undead', 'beast']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
   // a named hero's name, stored tidied (its uniqueness on the machine is the door's: assertHeroNameFree)
   if (spec.name !== undefined && spec.name !== null) hero.name = readHeroName(spec.name);
+  // the picture's stamp (capture_reference target 'character'), stored as given; absent ⇒ no key
+  if (spec.reference !== undefined && spec.reference !== null) hero.reference = heroReferenceRecord(spec.reference);
   // the realistic face's words (realisticFaceOf), stored as given: composed on every read
   if (hero.head === 'relational' && spec.face !== undefined && spec.face !== null) hero.face = structuredClone(spec.face);
   // the door's landmark words on the realistic face: its hair as the face's cut (scalpOfHair) unless the face names one,
@@ -1794,6 +1799,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   return { cast: hero.cast, register: hero.register, tune, ...(hero.from ? { from: hero.from } : {}), moved: movedOf(tune), measures: heroMeasures(plan, stats),
     ...(anime && hero.look?.length ? { look: hero.look, lookFrom: hero.look.join('+'), own: { face: ownMoved(hero.face), hair: hero.hair === 'none' ? 'none' : { ...(hero.hair?.style ? { style: hero.hair.style } : {}), ...ownMoved(hero.hair), ...(Object.keys(hero.hair?.locks || {}).length ? { locks: Object.keys(hero.hair.locks) } : {}) }, ...(hero.expression ? { expression: hero.expression } : {}), ...(hero.sculpt !== undefined ? { sculpt: hero.sculpt } : {}), tune: movedOf(hero.tune) } } : {}),
     head: landmark ? 'landmark' : typeof hero.head === 'string' ? hero.head : 'include', ...(hero.genki ? { genki: hero.genki } : {}),
+    ...(hero.reference ? { reference: heroReferenceReadout(hero.reference) } : {}),
     ...((F) => (F ? { realisticFace: F } : {}))(faceReadout(hero)),
     ...(anime ? { base: headPoleOf(hero), ...(hero.animeStyle ? { animeStyle: hero.animeStyle } : {}), proportions: hero.proportions ?? 'anime', ...(inc?.faceMeasures ? (() => { const fm = faceMeasures(hero, plan); return { headsTall: Math.round((inc.shift[2] + fm.crown_z) / fm.head_m * 100) / 100 }; })() : {}), face: animeFace, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: ((B) => Object.fromEntries(Object.entries(animeFace).filter(([k, v]) => v !== B[k])))(animeFaceBase(hero)),
       sculpt: eff.sculpt === false ? false : sparseSculpt(eff.sculpt) ?? {},

@@ -56,9 +56,9 @@ export const CHARACTER_MENUS = Object.freeze({
 });
 
 /**
- * The looks. Each: `words` (the hero words the look IS; they win over the read on the keys they set, and the person
- * can change any of them after), `choose` (the choices inside the look, each a hero word, its menu and the door's own
- * default when the read names none), `suits` (what in a picture calls for it), `register` (the default register), and
+ * The looks. Each: `words` (the hero words the look IS; they win over the read on the keys they set, but for a key the
+ * look lets you choose, and the person can change any of them after), `choose` (the choices inside the look, each a
+ * hero word with its menu, or its range, and the door's own default when the read names none), `suits` (what in a picture calls for it), `register` (the default register), and
  * `refuses` (combinations the door refuses, said up front). One row per distinct procedure on the door: a head family
  * or a form, never a game or a franchise.
  */
@@ -91,6 +91,7 @@ export const CHARACTER_LOOKS = Object.freeze({
   shonen: Object.freeze({
     words: Object.freeze({ head: 'anime', genki: 0.6 }),
     choose: Object.freeze({
+      genki: Object.freeze({ range: Object.freeze([0, 1]), default: 0.6, note: 'how much of the shonen spirit: 0.6 a lead, 1 at full' }),
       animeStyle: Object.freeze({ from: 'animeStyles', default: ANIME_STYLE_DEFAULT, note: "the head's cast" }),
       animeBody: Object.freeze({ from: 'animeBodies', note: 'as the anime look' }),
       look: Object.freeze({ from: 'animeLooks', note: 'as the anime look' }),
@@ -132,7 +133,7 @@ export function characterLookTable() {
     return {
       id,
       sets: L.words,
-      ...(Object.keys(L.choose).length ? { choose: Object.fromEntries(Object.entries(L.choose).map(([word, c]) => [word, { menu: c.from, ...(c.default !== undefined ? { default: c.default } : {}), note: c.note }])) } : {}),
+      ...(Object.keys(L.choose).length ? { choose: Object.fromEntries(Object.entries(L.choose).map(([word, c]) => [word, { ...(c.from ? { menu: c.from } : { range: c.range }), ...(c.default !== undefined ? { default: c.default } : {}), note: c.note }])) } : {}),
       suits: L.suits,
       register: L.register,
       ...(L.refuses ? { refuses: L.refuses } : {}),

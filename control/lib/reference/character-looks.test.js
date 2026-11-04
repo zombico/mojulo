@@ -33,6 +33,11 @@ describe('the character looks', () => {
       for (const w of Object.keys(L.words)) expect(HERO_FIELDS, `${id} sets ${w}`).toContain(w);
       for (const [w, c] of Object.entries(L.choose)) {
         expect(HERO_FIELDS, `${id} chooses ${w}`).toContain(w);
+        if (c.range) {
+          expect(c.default, `${id}.${w} default`).toBeGreaterThanOrEqual(c.range[0]);
+          expect(c.default, `${id}.${w} default`).toBeLessThanOrEqual(c.range[1]);
+          continue;
+        }
         expect(CHARACTER_MENUS, `${id}.${w} menu`).toHaveProperty(c.from);
         if (c.default !== undefined) expect(menuIds(c.from), `${id}.${w} default`).toContain(c.default);
       }
@@ -60,12 +65,12 @@ describe('the character looks', () => {
 });
 
 describe('the character protocol', () => {
-  it('shows the looks and the registers as the tables say, and mints through the hero door until its capture lands', () => {
+  it('shows the looks and the registers as the tables say, and files the read through capture_reference', () => {
     expect(CHARACTER_PROTOCOL.target).toBe('character');
     expect(CHARACTER_PROTOCOL.looks).toEqual(characterLookTable());
     expect(CHARACTER_PROTOCOL.registers).toEqual(characterRegisterTable());
     expect(CHARACTER_PROTOCOL.fidelity_contract.likeness).toBeTruthy();
-    expect(CHARACTER_PROTOCOL.capture_call).toMatch(/create_character\(\{ as: 'hero'/);
+    expect(CHARACTER_PROTOCOL.capture_call).toMatch(/capture_reference\(\{ target: 'character'/);
     expect(CHARACTER_PROTOCOL.next).toMatch(/update_character/);
   });
 

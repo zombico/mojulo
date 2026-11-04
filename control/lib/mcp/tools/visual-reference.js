@@ -28,7 +28,7 @@ import { planWorkbench } from '@/lib/graph/worlds/workbench';
 import { planAssembler } from '@/lib/graph/worlds/workbench-assembler';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
-import { CHARACTER_PROTOCOL } from '@/lib/reference/character-protocol';
+import { captureCharacter } from '@/lib/mcp/tools/character-capture';
 import {
   REFERENCE_TARGETS,
   DEFAULT_FIDELITY,
@@ -112,15 +112,12 @@ export async function captureReferenceHandler(input, _ctx) {
   if (!target || !REFERENCE_TARGETS.includes(target)) {
     throw new Error(`target must be one of ${REFERENCE_TARGETS.join(' | ')} (got '${target}')`);
   }
-  // The character target's read is a hero's words, minted through the hero door; filing it here (the stash, the stamp,
-  // the refining pass) is not built yet, so it says where the read goes instead of filing it as a scene.
-  if (target === 'character') {
-    throw new Error(`capture_reference: the character target is not filed here yet. ${CHARACTER_PROTOCOL.capture_call}`);
-  }
   if (!insights || typeof insights !== 'object' || Array.isArray(insights)) {
     throw new Error('`insights` is required (the structured read the harness extracted from the image)');
   }
   const fid = fidelity || DEFAULT_FIDELITY[target];
+  // the character target's read is a hero's words, minted through the hero door (character-capture.js), not a cage
+  if (target === 'character') return captureCharacter({ insights, fidelity: fid, label, title, stash_ref, replace });
   const labelText = label || title || `${target} reference`;
 
   // 1. Resolve the stash — mint a new reference stash, or refine an existing one

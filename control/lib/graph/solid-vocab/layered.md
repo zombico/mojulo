@@ -700,6 +700,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   and drawn at every read as field paint (`fieldPaint`, under the row's own) on the torso and every layer worn over it,
   so it lands on the suit, the top or a catsuit's painted skin whatever the body; patch `/hero/emblem`. The mint's
   readout counts each layer's faces under `fieldPaint`. The anime head's character light does not draw it yet.
+  A hero made FROM A PICTURE (`capture_reference` target `character`) carries `reference: { likeness: 'original' |
+  'x-like', like?, changed?, stash? }`: the agent's verdict on the picture, what an x-like hero is like and what it
+  changed, and the stash its read is filed in. It is data: nothing reads it to refuse, the readout's `reference` captions
+  an x-like hero (`X-like: inspired by …`), and it is patched or taken off (`null`) like any word.
 <!-- /section -->
 <!-- section: hero-stand | The stand | gesture: the pose the figure holds -->
   THE STAND. `gesture` is the pose the figure holds, in the rig's own pose words: `relaxed` (weight on the left leg,
