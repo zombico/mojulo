@@ -45,3 +45,13 @@ knockback on contact, and the pushbox (`lib/graph/polygonizer/hero-pushbox.js`: 
 and the gloves left out) pushes him back as far again as keeps the two bodies apart, never letting him back in;
 `bout-shot.mjs --push off` shoots the knockback alone. What it reads today: every head punch blocked on his gloves,
 the body hook clean on his chest; the uppercut's bodies would pass 4 cm into each other, the body hook's 2 cm.
+
+## Gameplay recordings
+
+- `gameplay.mjs`: the versus game's own page (the fight drawn flat, stick figures), the two characters fighting with
+  their own strikes (`moves: 'hero'`), CPU against CPU, recorded to an MP4 and a GIF (`--boxes` shows the boxes).
+- `arena-gameplay.mjs`: the same fight on a 3D arena (a stage set's World page), the characters minted through the hero
+  door into a scratch store; the arena hosted by a small page that sends it the picks, CPU against CPU. The page runs
+  on a virtual clock the script steps a sixtieth of a second at a time, each other frame read from its canvases, so
+  the video plays at the game's own pace whatever the rendering costs. The arena draws a character as rigid parts
+  in vertex colours posed from the plane (no skinning, no painted skin, no hair cards), not yet as its skinned export.
