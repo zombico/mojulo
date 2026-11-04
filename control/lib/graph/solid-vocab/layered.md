@@ -881,6 +881,22 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   it. A helmet by tradition (the steel pot, the K-pot …) is the outfit build's `language.head`, by word here too.
   Comic-book characters wearing them, by name: get_solid_vocab({ id: 'comic-hero' }).
 <!-- /section -->
+<!-- section: hero-xeno | Xeno make-up | xenoHeaddress: practical-effects alien appliances glued onto any head -->
+  XENO MAKE-UP (`lib/graph/xeno`). `xenoHeaddress: ['<card>' | { card, size?, coat?, replaces? }, …]` puts a
+  practical-effects make-up crew's APPLIANCES on the hero: pieces sculpted, cast in foam latex or silicone, glued on with
+  their edges blended into the skin, and painted. They sit on whichever head the hero wears (the landmark head, the anime
+  head, the realistic head), found on that head's own skin and pinned to it, so they turn and export with the head.
+  The cards, named for what they are, never a franchise:
+  - `forehead-ridges`: curving ridges up the forehead to the hairline;
+  - `nose-ridges`: a stack of fine ridges across the bridge of the nose;
+  - `head-tails`: two thick tails from the back of the skull, down the back, over a bald cap.
+  Each card's `like` names the screen alien it recalls, for the character target's X-like stamp. `size` scales a card
+  (0.5 … 2). `coat` is its texture and colour, the hair coat's grammar (`coat: { color, cover, pattern }`); the card's
+  own colour is the skin's, so the piece reads blended, and a colour or a pattern takes it past the skin. `replaces:
+  'hair'` lays a bald cap under it: the hair is left off, the brows and lashes kept. The readout's `xeno` names each
+  appliance, its family and region, and the pieces it placed; a head with no frame (a blank trunk, a beast's own
+  skull) places none and says so. Patch `/hero/xenoHeaddress`; an empty list takes it off.
+<!-- /section -->
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.
   THE TARGET. `target` (`'720p'` … `'4k'`, or `{ resolution, framing: close | third-person | wide | top-down, error }`)

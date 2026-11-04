@@ -839,11 +839,12 @@ export const WORLD_KINDS = {
       // the face's paint on the page (each face drawn by the paint that owns it). None ⇒ the page's paint as before. (A
       // beast-kin's body pattern under the character light is not drawn yet: the smoothed anime body's vertices carry no
       // ring ids for coat-atlas.js to map)
-      const lockCoat = character && m.hero?.head === 'anime' ? hairCoatPaint(mesh, m.recipe) : null;
-      const pagePaint = lockCoat ? composePaints([facePaint, lockCoat]) : facePaint;
+      // (and a hero's XENO appliances, lib/graph/xeno, on any head: the same coated parts)
+      const lockCoat = m.hero ? hairCoatPaint(mesh, m.recipe) : null;
+      const pagePaint = lockCoat ? composePaints([lockCoat, facePaint]) : facePaint;
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces: litPieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(pagePaint ? { paint: pagePaint } : {}) })
-        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(baked ? { cornerTint: true } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
+        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(baked ? { cornerTint: true } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}), ...(pagePaint ? { paint: pagePaint } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
       // the pack carries it). Absent ⇒ nothing here, byte-identical.

@@ -39,6 +39,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { validateHeroName, readHeroName, validateEmblem, heroFieldPaint } from '@/lib/graph/polygonizer/hero-emblem';
 import { validateHeroReference, heroReferenceRecord, heroReferenceReadout } from '@/lib/reference/hero-reference';
 import { validateHairCoat, hairCoatsIn } from '@/lib/graph/polygonizer/hair-coat';
+import { validateXenoHeaddress, withXeno, xenoReadout, xenoWorn } from '@/lib/graph/xeno';
 import { performanceErrors } from '@/lib/graph/face-acting/perform';
 import { emoteClipErrors } from '@/lib/graph/face-acting/emotes';
 import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
@@ -283,11 +284,13 @@ export function kittedHero(hero) {
   };
 }
 /** The hero as worn: its sport's kit, then its headgear word, each lowered into the words the passes read (the record
- * keeps the words alone). Neither ⇒ the hero as it is. */
-export const wornHero = (hero) => wearHeadgear(kittedHero(hero));
+ * keeps the words alone), and the xeno make-up's bald cap. None ⇒ the hero as it is. */
+export const wornHero = (hero) => xenoWorn(wearHeadgear(kittedHero(hero)));
 /** expandPlan, except that an armour's head piece (a helm, a kabuto, a theme's helm) on the anime head refuses by
  * name: the piece is addressed on the landmark cranium, which the anime head does not carry. */
 function expandHeroAwarePlan(plan, hero, geocube = null) {
+  // (the xeno make-up's bald cap lowered first, as the plan was: lib/graph/xeno xenoWorn)
+  hero = hero ? xenoWorn(hero) : hero;
   // a creature's plan may name its own materials (worn where its level names `materials`): checked whenever it is expanded
   const own = !hero && plan?.materials !== undefined ? planMaterialsErrors(plan.materials) : [];
   if (own.length) throw new Error(`plan refused: ${own.join('; ')}`);
@@ -797,7 +800,8 @@ function expandAware(plan, hero) {
   // an OUTFIT designed for the whole body (outfit-plan.js) compiles first, in layer order; absent, the plan itself
   // (a hero's kit on the game body made as pieces on its cloth before the kernel bakes the rest: authored-kit.js; an
   // armour build's straps and ridges are its plates' own, stacked over them by the kernel)
-  try { const full = drawnPlan(compileOutfit(plan, { rounds: bodyRoundsOf(hero) })); return hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(creatureHeadOn(expandPlan(full, hero && !isArmorBuild(hero.adorn) ? { kit: authoredKit } : {}), plan?.creatureHead), hero); } catch (err) {
+  // (and the XENO MAKE-UP's appliances last, on the head the expansion made: lib/graph/xeno; none ⇒ the recipe as made)
+  try { const full = drawnPlan(compileOutfit(plan, { rounds: bodyRoundsOf(hero) })); return withXeno(hero?.form === 'realistic' ? withSkin(realisticExpand(full, hero), hero) : authoredWear(creatureHeadOn(expandPlan(full, hero && !isArmorBuild(hero.adorn) ? { kit: authoredKit } : {}), plan?.creatureHead), hero), hero); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }
@@ -817,6 +821,8 @@ export function normalizeHero(hero) {
   if (hero && hero.clips !== undefined && (hero.clips === null || !Object.keys(hero.clips).length)) { const { clips: _c, ...rest } = hero; hero = rest; }
   // the ambient blink is stored only when off: a patch setting it back on (true, null) drops the field
   if (hero && hero.blink !== undefined && hero.blink !== false) { const { blink: _b, ...rest } = hero; hero = rest; }
+  // an emptied xeno make-up (a patch setting the list to [] or null) drops the field
+  if (hero && hero.xenoHeaddress !== undefined && !(Array.isArray(hero.xenoHeaddress) && hero.xenoHeaddress.length)) { const { xenoHeaddress: _x, ...rest } = hero; hero = rest; }
   // genki set back to 0 (or null) by a patch drops the field
   if (hero && hero.genki !== undefined && !(Number.isFinite(hero.genki) && hero.genki > 0)) { const { genki: _g, ...rest } = hero; hero = rest; }
   // a face or a tune patched in as a word or a list (update_character's spec, a /hero/face set) is resolved as heroRecord
@@ -906,7 +912,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * the front's silhouette kept), where laws 1 to 15 let the skin fall back a centimetre behind the canthus and the
  * globe's side show bare from 3/4 and the side */
 export const REALISTIC_LAWS_VERSION = 16;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference', 'xenoHeaddress'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -1024,6 +1030,8 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   errs.push(...validateHeroReference(spec.reference));
   // the hair's locks' COATS (polygonizer/hair-coat.js): each checked whole, its cover and its pattern by the beast's own words
   if (spec.hair !== undefined && spec.hair !== null && typeof spec.hair === 'object') for (const [c, at] of hairCoatsIn(spec.hair)) errs.push(...validateHairCoat(c, at));
+  // XENO MAKE-UP (lib/graph/xeno): the practical-effects appliances, each a card and its words
+  errs.push(...validateXenoHeaddress(spec.xenoHeaddress));
   const casts = [...Object.keys(HERO_CASTS), ...CAST_PRESET_NAMES];
   if (spec.cast !== undefined) {
     if (typeof spec.cast === 'string') { if (!HERO_CASTS[spec.cast]) errs.push(...validateCast(spec.cast, 'cast').map((e) => `${e} — or a hero cast (${Object.keys(HERO_CASTS).join(', ')}), or a pole with a build: { pole: 'female', build: '${spec.cast}' }`)); }
@@ -1350,6 +1358,8 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   if (spec.name !== undefined && spec.name !== null) hero.name = readHeroName(spec.name);
   // the picture's stamp (capture_reference target 'character'), stored as given; absent ⇒ no key
   if (spec.reference !== undefined && spec.reference !== null) hero.reference = heroReferenceRecord(spec.reference);
+  // the xeno make-up's appliances, stored as given (an empty list stores nothing)
+  if (Array.isArray(spec.xenoHeaddress) && spec.xenoHeaddress.length) hero.xenoHeaddress = structuredClone(spec.xenoHeaddress);
   // the realistic face's words (realisticFaceOf), stored as given: composed on every read
   if (hero.head === 'relational' && spec.face !== undefined && spec.face !== null) hero.face = structuredClone(spec.face);
   // the door's landmark words on the realistic face: its hair as the face's cut (scalpOfHair) unless the face names one,
@@ -1802,7 +1812,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   return { cast: hero.cast, register: hero.register, tune, ...(hero.from ? { from: hero.from } : {}), moved: movedOf(tune), measures: heroMeasures(plan, stats),
     ...(anime && hero.look?.length ? { look: hero.look, lookFrom: hero.look.join('+'), own: { face: ownMoved(hero.face), hair: hero.hair === 'none' ? 'none' : { ...(hero.hair?.style ? { style: hero.hair.style } : {}), ...ownMoved(hero.hair), ...(Object.keys(hero.hair?.locks || {}).length ? { locks: Object.keys(hero.hair.locks) } : {}) }, ...(hero.expression ? { expression: hero.expression } : {}), ...(hero.sculpt !== undefined ? { sculpt: hero.sculpt } : {}), tune: movedOf(hero.tune) } } : {}),
     head: landmark ? 'landmark' : typeof hero.head === 'string' ? hero.head : 'include', ...(hero.genki ? { genki: hero.genki } : {}),
-    ...(hero.reference ? { reference: heroReferenceReadout(hero.reference) } : {}),
+    ...(hero.reference ? { reference: heroReferenceReadout(hero.reference) } : {}), ...(hero.xenoHeaddress ? { xeno: xenoReadout(hero, recipe) } : {}),
     ...((F) => (F ? { realisticFace: F } : {}))(faceReadout(hero)),
     ...(anime ? { base: headPoleOf(hero), ...(hero.animeStyle ? { animeStyle: hero.animeStyle } : {}), proportions: hero.proportions ?? 'anime', ...(inc?.faceMeasures ? (() => { const fm = faceMeasures(hero, plan); return { headsTall: Math.round((inc.shift[2] + fm.crown_z) / fm.head_m * 100) / 100 }; })() : {}), face: animeFace, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: ((B) => Object.fromEntries(Object.entries(animeFace).filter(([k, v]) => v !== B[k])))(animeFaceBase(hero)),
       sculpt: eff.sculpt === false ? false : sparseSculpt(eff.sculpt) ?? {},

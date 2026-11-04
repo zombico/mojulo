@@ -52,3 +52,16 @@ person's own picture itself (a drawing, a photo, a figure, someone's OC): nothin
   scales, fur, chitin or feathers, shading the lock on the page; patterns are stripes as rings, spots, a pale underside,
   dark tips, a line down the lock. The page draws the locks' coat beside the face's own paint. A hair with no coat
   draws exactly as before.
+- **Xeno make-up: practical-effects alien appliances on any head.** A new hero word, `xenoHeaddress`, puts a make-up
+  crew's pieces on the hero: sculpted, glued on with edges blended into the skin, and painted. It works on the landmark,
+  the anime and the realistic head alike. Each piece is found on that head's own skin and pinned to it, so it turns and
+  exports with the head. The first cards, named for what they are:
+  - `forehead-ridges`: curving ridges up the forehead to the hairline;
+  - `nose-ridges`: a stack of fine ridges across the nose's bridge;
+  - `head-tails`: two thick tails from the back of the skull, over a bald cap.
+
+  Each card says what screen alien it recalls, for the X-like stamp of a character read from a picture. `size` scales
+  a card. `coat` paints it in the hair coat's grammar, the skin's own colour by default. `replaces: 'hair'` lays a bald
+  cap that every head builds by its own rules; on the realistic skin, the scalp is painted bare (the dermis's
+  `bareScalp`). The readout's `xeno` says what was placed where; the hero card's `hero-xeno` section and the character
+  protocol name it.
