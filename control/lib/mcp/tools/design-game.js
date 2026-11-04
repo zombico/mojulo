@@ -47,6 +47,7 @@ import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
 import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-registry/doors.js';
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import { complexAdvice } from '@/lib/graph/gameworld/levels.js';
+import { rebase } from '@/lib/graph/gameworld/rebase.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
 import { withoutWarm } from '@/lib/graph/scene/scene-png-warm';
@@ -246,6 +247,12 @@ async function auditedPrint(step, browser) {
   return fingerprint({ level, game, walked: !!(await browser()) });
 }
 
+/** A stored gameworld manifest with a run's changes laid on it: its own head (kind, title) kept, its world rebased. */
+function storedRebased(manifest, base, mine) {
+  const head = Object.fromEntries(Object.entries(manifest).filter(([k]) => k === 'kind' || k === 'title'));
+  return { ...head, ...rebase(gameworldOf(manifest), base, mine) };
+}
+
 /** Run the world stored at `ref`: every ready step made, remade or kept, until the budget is spent;
  * → { world, ran, pending? } (world with its new record; pending the keys of the steps it left for the next run). */
 async function runWorld(ref, world, { force = false, check = false, budgetMs = runBudgetMs(), clock = Date.now, chapter = null } = {}) {
@@ -255,8 +262,10 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
   // keeps no revisions), so a run cut off partway (its process ended, a host's time limit) leaves its rows recorded as
   // its own, and the next run keeps them rather than reading them as edited by hand ('taken'). The run's own write at
   // the end is the world as the handler stores it
+  // (each write lays the run's changes onto the world as stored now, gameworld/rebase.js: a page another chapter wrote
+  // while the run ran is kept, never reverted to the run's copy)
   const checkpoint = () => {
-    try { const row = SketchRepository.getByRef(ref); if (row) SketchRepository.update({ ref, manifest: { ...row.manifest, ...W, made } }); } catch { /* the run goes on; its end writes the record */ }
+    try { const row = SketchRepository.getByRef(ref); if (row) SketchRepository.update({ ref, manifest: storedRebased(row.manifest, world, { ...W, made }) }); } catch { /* the run goes on; its end writes the record */ }
   };
   const t0 = clock();
   let moved = false;
@@ -330,7 +339,7 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
     // (else the next run reads them as edited by hand and leaves them); the error reaches the caller as it was
     const partial = Object.keys(made).length ? { ...W, made } : W;
     if (JSON.stringify(partial) !== JSON.stringify(world)) {
-      try { await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...partial }, note: 'design_game: the record of a run that failed partway' }); } catch { /* the step's error is the one to say */ }
+      try { await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...rebase(gameworldOf(SketchRepository.getByRef(ref)?.manifest), world, partial) }, note: 'design_game: the record of a run that failed partway' }); } catch { /* the step's error is the one to say */ }
     }
     throw err;
   }
@@ -620,8 +629,9 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     pending = out.pending;
     // a run that made and remade nothing writes nothing: no revision, no new head
     if (JSON.stringify(out.world) !== JSON.stringify(W)) {
-      await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...out.world } });
-      W = out.world;
+      const next = rebase(gameworldOf(SketchRepository.getByRef(ref).manifest), W, out.world);
+      await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...next } });
+      W = next;
     }
   }
   // the comparison, after creation only: a world that has made nothing has nothing of its own to compare
