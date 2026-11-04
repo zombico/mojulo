@@ -236,9 +236,30 @@ Pointers only; each target carries its own design notes.
   words people say, its handles into the tables that build it); the old tables (nets, physics, fleet, rides, race
   machines, craft shelf) are frozen behind it, every door reads a vehicle word through it, and a new vehicle is a row
   first. Its builds by tier (toy | stylised | realistic) and what each needs to be drawn realistic: `builds.js`. The
-  field's vehicles (a military class's realistic body) are the hull kit's: `car-designer/road-military.js` over `mil-hull.js`.
-- Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft and spacecraft parts → whole
+  field's vehicles (a military class's realistic body) are the hull kit's: `car-designer/road-military.js` over `mil-hull.js`, a
+  tracked class's running gear `mil-track.js`; the airfield's ground crew (catering, belt loader, stairs) too, `road-airside.js`.
+- Cars: [car-shelf/](control/lib/graph/car-shelf/) (the personal and family cars: a body style, a design language, a trim and
+  its parts and a paint over a class's true numbers; named configurations are cards in `car-library.js`, a registry row's
+  `car` handle; a loft's `{ car }`; a new car is a card, a new look a language or a part word): [docs/car-shelf.md](docs/car-shelf.md).
+- Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
   craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
+  Boats are on the same shelf (`boat-odm.js`, `boat-parts.js`, `boat-archetypes.js`): a hull drawn from its lines and
+  floated by its weight, its drive, its fittings; a warship's parts (superstructure, mast, turret, launch cells) in
+  `boat-ship.js`, a carrier's flight deck in `boat-carrier.js`, a submarine's round hull in `boat-sub.js`; a boat
+  underway, its wake from its hull and speed, in `boat-wake.js`, run round a course on the World page's live water by
+  `worlds/seaway-scene.js` and the `seaway` channel (its Kelvin field `kelvin.js`); review: `scripts/render-boats.mjs`.
+- Rail: [rail-shelf/](control/lib/graph/rail-shelf/) (primitives for locomotive transit on the vehicle ODM's pattern: a cab
+  car's grammar solves a brief into a frame, its section and its front as a field over it, held to laws; its surface
+  compiler names each quad; design cards by preset; the bogies under it the same way, `bogie-odm.js` and
+  `bogie-surface.js`, its pantographs `panto-odm.js` and `panto-surface.js`, the overhead line they reach
+  `catenary.js`; the cars behind it `car-odm.js` and `car-surface.js` over the shell they share, `body-shell.js`; their
+  insides `interior-odm.js` and `interior-surface.js`, the lining cut by the body's own openings; a train coupled from
+  them `consist.js`); review: `scripts/render-rail.mjs`.
+- Airports: [airport/](control/lib/graph/airport/) (the transport hub's grammar laid at an airport's real figures, `plan.js`:
+  piers, nose-in stands sized to the craft shelf's liners and their jet bridges, the taxiway and runway at their
+  separations, the tower and hangar, each concourse a wing; drawn whole as a miniature on a plinth, `miniature.js`, or one
+  wing at full scale, `wing.js`: its piers, its apron's marks, its stands' aircraft, crews and jet bridges, `jet-bridge.js`;
+  the `/world` kind `airport`, minted by the transport hub's `mode: 'airport', show: 'miniature' | 'wing'`).
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
   one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a
@@ -250,6 +271,11 @@ Pointers only; each target carries its own design notes.
   an echo, the `structures` world channel any kind takes; manual: the `structures` view-vocab card).
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
+- The game book's chapters: [gameworld/chapters.js](control/lib/graph/gameworld/chapters.js) (each page a chapter in one of
+  the six departments: the recipe paths, review parts, run steps and cards it owns, and the chapters it reads; a new one
+  that joins no chapter fails `chapters.test.js`). `design_game`'s readout says them (`chapters`); `{ ref, chapter }`
+  is one chapter's view ([gameworld/chapter-view.js](control/lib/graph/gameworld/chapter-view.js)), a department's; the
+  studio card (`gameworld-studio`, generated from the registry) teaches the agent to work them in waves.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).
@@ -274,6 +300,9 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Destructible physics (internal name rupa; `destruction: 'physical'`, opt-in, never a default):
+  [rupa/](control/lib/graph/rupa/) (matter, heat, ground) and the runtime builder
+  [controllable/rupa.js](control/lib/graph/worlds/controllable/rupa.js): [docs/rupa.md](docs/rupa.md).
 - Effects: [playscape/elements/](control/lib/graph/playscape/elements/) (attacks, blasts, puffs, looks), raised to the style
   floor [scene/effect-style.js](control/lib/graph/scene/effect-style.js), composed per game by
   [scene/juice-style.js](control/lib/graph/scene/juice-style.js) (register anime | western × the game type's flavor; a

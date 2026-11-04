@@ -2,10 +2,11 @@
 // and its ripple, a bolt's flats), and a military class compiled at its class's true numbers, every face a material, its
 // normals worked out, within its budget, the same twice; read through the registry by the word people say, driven as a
 // realistic ride, and the classes whose bodies wait refused with what they need; the slab (armour cut by its outlines,
-// its edges chamfered) and the carrier built of it. One class per concept, chosen in code.
+// its edges chamfered) and the carrier built of it; the missile launcher, its missile stowed for the road or standing on
+// its table; the heavy utility, a hard top or a canvas bed. One class per concept, chosen in code.
 import { describe, it, expect } from 'vitest';
 import { plate, tube, bend, bolts, weld, flatNormals, slab } from './mil-hull.js';
-import { MILITARY_CLASSES, MIL_MATERIALS, militaryAxles, militaryBody, KITS } from './road-military.js';
+import { MILITARY_CLASSES, MIL_MATERIALS, militaryAxles, militaryBody, KITS, launcherWords, heavyWords } from './road-military.js';
 import { milWheel } from './mil-wheel.js';
 import { FITTINGS, fit } from './mil-fittings.js';
 import { CAMO, CAMO_IDS } from './livery-cut.js';
@@ -23,7 +24,8 @@ const unitLen = (n) => Math.abs(Math.hypot(...n) - 1) < 1e-4;
 const polyArea = (c) => { const n = [0, 0, 0]; for (let i = 0; i < c.length; i++) { const a = c[i], b = c[(i + 1) % c.length]; n[0] += a[1] * b[2] - a[2] * b[1]; n[1] += a[2] * b[0] - a[0] * b[2]; n[2] += a[0] * b[1] - a[1] * b[0]; } return Math.hypot(...n) / 2; };
 const LOOK = { part: 'p', material: 'milPaint', albedo: '#4b5320' };
 const FIELD = Object.keys(MILITARY_CLASSES)[0];
-const WAITING = Object.keys(PHYSICS).filter((k) => UNBUILT[k] && rowOfHandle('physics', k) && VEHICLES[rowOfHandle('physics', k)].role !== 'racer');
+// (a class the car sheet does not build: a machine ridden astride, the cycle shelf's)
+const ASTRIDE = Object.keys(PHYSICS).filter((k) => !PHYSICS[k].track && rowOfHandle('physics', k));
 const field = (opts = {}) => compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: FIELD }, seed: 3 }), opts);
 
 describe('the hull kit', () => {
@@ -197,12 +199,12 @@ describe('through the registry', () => {
     expect(rideOf({ ride: id, tier: 'realistic' })).toMatchObject({ kind: 'loft', class: FIELD });
   });
   it('a class whose realistic body waits is named and searchable, refused as a ride, and says what it needs', () => {
-    expect(WAITING.length).toBeGreaterThan(0);
-    const wid = rowOfHandle('physics', WAITING[0]);
+    // (the car sheet's refusal: a class it does not build; the upscale's: a row with no realistic body at all, found in code)
+    expect(ASTRIDE.length).toBeGreaterThan(0);
+    expect(() => rollVehicleSheet({ facets: { pole: 'realistic', class: ASTRIDE[0] }, seed: 1 })).toThrow(/cycle shelf builds it/);
+    const wid = Object.keys(VEHICLES).find((id) => VEHICLES[id].handles.physics && upscaleOf(id).realistic === 'none' && /not built yet/.test(upscaleOf(id).next));
+    expect(wid).toBeTruthy();
     expect(rideableRows()).not.toContain(wid);
-    expect(upscaleOf(wid)).toMatchObject({ realistic: 'none' });
-    expect(upscaleOf(wid).next).toMatch(/not built yet/);
-    expect(() => rollVehicleSheet({ facets: { pole: 'realistic', class: WAITING[0] }, seed: 1 })).toThrow(/not built yet/);
   });
 });
 
@@ -334,3 +336,106 @@ describe('the armoured carrier: sloped plate on four axles', () => {
     expect(rideOf({ ride: id })).toMatchObject({ kind: 'loft', class: CARRIER });
   });
 });
+
+describe('the missile launcher: a missile on its erector, stowed for the road or standing on its table', () => {
+  const LAUNCHER = Object.keys(MILITARY_CLASSES).find((k) => MILITARY_CLASSES[k] === 'launcher'), v = PHYSICS[LAUNCHER];
+  const roll = (o = {}, brief) => compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: LAUNCHER }, seed: 3, ...(brief ? { brief } : {}) }), { form: true, wear: 'pristine', ...o });
+  const stowed = roll(), erect = roll({}, 'an erect launcher');
+  const faces = (c) => Object.values(c.form).flat(), of = (c, re) => faces(c).filter((f) => re.test(f.part));
+  const ext = (fs, i) => { let lo = Infinity, hi = -Infinity; for (const f of fs) for (const p of f.corners) { lo = Math.min(lo, p[i]); hi = Math.max(hi, p[i]); } return [lo, hi]; };
+  const tris = (fs) => fs.reduce((t, f) => t + f.corners.length - 2, 0);
+  it('rolls on four pairs at its class\'s size, measured without its load (its missile, its erector, its table)', () => {
+    expect(militaryAxles(LAUNCHER)).toHaveLength(4);
+    expect(stowed.figure.bones.filter((b) => b.id.startsWith('wheel'))).toHaveLength(8);
+    expect(stowed.figure.wheelbase).toBeCloseTo(v.wheelbase, 3);
+    for (const c of [stowed, erect]) for (const k of ['L', 'W', 'H', 'wheelRadius']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
+  });
+  it('stowed: its missile along the erector, inside the truck\'s width, its nose clear over the cab, its fins an X; the jacks up', () => {
+    const m = of(stowed, /^missile/), [x0, x1] = ext(m, 0), [y0, y1] = ext(m, 1), [z0, z1] = ext(m, 2);
+    expect(x1 - x0).toBeLessThan(v.W);
+    expect(y1 - y0).toBeGreaterThan(13.5);
+    expect(z1 - z0).toBeLessThan(3);
+    const cab = of(stowed, /^cab$/), [cy0] = ext(cab, 1), [, cz1] = ext(cab, 2);
+    expect(Math.min(...m.filter((f) => f.corners.every((p) => p[1] > cy0)).flatMap((f) => f.corners.map((p) => p[2])))).toBeGreaterThan(cz1);
+    expect(new Set(of(stowed, /^missile\.fin/).map((f) => Math.sign(Math.round(f.outNormal[0] * 10)) * Math.sign(Math.round(f.outNormal[2] * 10)))).size).toBeGreaterThan(1);
+    expect(ext(of(stowed, /^jack\.pad/), 2)[0]).toBeGreaterThan(0.4);
+    expect(of(stowed, /^table\.(leg|deflector)/)).toEqual([]);
+  });
+  it('erect: its missile upright on its table behind the truck, the rams out, the jacks on the ground', () => {
+    const m = of(erect, /^missile/), [x0, x1] = ext(m, 0), [y0, y1] = ext(m, 1), [z0, z1] = ext(m, 2);
+    expect(z1 - z0).toBeGreaterThan(13.5);
+    expect(Math.max(x1 - x0, y1 - y0)).toBeLessThan(3);
+    expect((y0 + y1) / 2).toBeLessThan(-v.L / 2);
+    const [, tz1] = ext(of(erect, /^table\.ring/), 2);
+    expect(Math.abs(ext(of(erect, /^missile\.body/), 2)[0] - tz1)).toBeLessThan(0.15);
+    expect(of(erect, /^table\.leg/).length).toBeGreaterThan(0);
+    expect(ext(of(erect, /^jack\.pad/), 2)[0]).toBeLessThan(0.05);
+    expect(ext(of(erect, /^erector\.ram/), 2)[1]).toBeGreaterThan(ext(of(stowed, /^erector\.ram/), 2)[1] + 1.5);
+  });
+  it('its words: erect, raised, upright stand it up; stowed or not said, it lies down', () => {
+    expect(launcherWords(['erect'])).toEqual({ erect: true });
+    expect(launcherWords(['an', 'upright', 'launcher'])).toEqual({ erect: true });
+    expect(launcherWords(['raised', 'then', 'stowed'])).toEqual({ erect: false });
+    expect(launcherWords([])).toEqual({ erect: false });
+  });
+  it('its missile in its own finish, which a camo leaves alone; within its budget (twice a truck\'s length)', () => {
+    const camo = roll({ wear: 'used', livery: CAMO_IDS.find((k) => !CAMO[k].cell) }), body = of(camo, /^missile\.body/), cab = of(camo, /^cab$/);
+    expect(new Set(body.map((f) => f.albedo)).size).toBe(1);
+    expect(new Set(cab.map((f) => f.albedo)).size).toBeGreaterThan(1);
+    expect(tris(faces(stowed))).toBeLessThan(35000);
+    expect(tris(faces(camo))).toBeLessThan(100000);
+    expect(JSON.stringify(faces(roll()))).toBe(JSON.stringify(faces(stowed)));
+  });
+  it('found by the words people say, the realistic body live, parked and driven', () => {
+    const id = rowOfHandle('physics', LAUNCHER);
+    expect(resolveVehicle('v2 launcher').id).toBe(id);
+    expect(resolveVehicle('missile launcher').id).toBe(id);
+    expect(VEHICLES[id].uses).toEqual(expect.arrayContaining(['parked', 'driven']));
+    expect(upscaleOf(id).realistic).toBe('live');
+  });
+});
+
+describe('the heavy utility: wide, low and heavy-tyred, a hard top or a canvas bed', () => {
+  const HEAVY = Object.keys(MILITARY_CLASSES).find((k) => MILITARY_CLASSES[k] === 'heavyUtility'), v = PHYSICS[HEAVY];
+  const roll = (o = {}, brief) => compileRealistic(rollVehicleSheet({ facets: { pole: 'realistic', class: HEAVY }, seed: 3, ...(brief ? { brief } : {}) }), { form: true, wear: 'pristine', ...o });
+  const top = roll(), bed = roll({}, 'a cargo heavy jeep');
+  const faces = (c) => Object.values(c.form).flat(), of = (c, re) => faces(c).filter((f) => re.test(f.part));
+  const tris = (fs) => fs.reduce((t, f) => t + f.corners.length - 2, 0);
+  it('at its class\'s size, both bodies, its two axles its wheelbase apart', () => {
+    for (const c of [top, bed]) for (const k of ['L', 'W', 'H', 'wheelbase', 'wheelRadius']) { expect(c.census.against[k], k).toBeGreaterThan(0.99); expect(c.census.against[k], k).toBeLessThan(1.01); }
+    const [yf, yr] = militaryAxles(HEAVY);
+    expect(yf - yr).toBeCloseTo(v.wheelbase, 6);
+  });
+  it('its wheels in arched openings lipped in rubber; its side skin inside the width, what stands proud of it too', () => {
+    expect(of(top, /^fender\.lip/).length).toBeGreaterThan(0);
+    const xs = of(top, /^(body\.side|fender\.lip|door\.)/).flatMap((f) => f.corners.map((p) => Math.abs(p[0])));
+    expect(Math.max(...xs)).toBeLessThanOrEqual(v.W / 2 + 1e-6);
+  });
+  it('a hard top: four doors and a short deck; `cargo`: two doors and a long bed under its bows and canvas', () => {
+    // (each side's handles counted by the gaps between them along the body)
+    const handles = (c) => [-1, 1].reduce((n, s) => {
+      const ys = of(c, /^door\.handle/).filter((f) => Math.sign(f.corners[0][0]) === s).map((f) => f.corners.reduce((t, p) => t + p[1], 0) / f.corners.length).sort((a, b) => a - b);
+      return n + (ys.length ? 1 + ys.slice(1).filter((y, i) => y - ys[i] > 0.4).length : 0);
+    }, 0);
+    expect(handles(top)).toBe(4);
+    expect(handles(bed)).toBe(2);
+    expect(of(top, /^tilt/)).toEqual([]);
+    expect(of(bed, /^tilt\.bow/).length).toBeGreaterThan(0);
+    expect(of(bed, /^tilt$/).length).toBeGreaterThan(0);
+    expect(heavyWords(['a', 'troop', 'carrier'])).toEqual({ cargo: true });
+    expect(heavyWords([])).toEqual({ cargo: false });
+  });
+  it('within its budget; the same twice', () => {
+    expect(tris(faces(top))).toBeLessThan(25000);
+    expect(tris(faces(roll({ wear: 'used', livery: CAMO_IDS.find((k) => !CAMO[k].cell) })))).toBeLessThan(60000);
+    expect(JSON.stringify(faces(roll()))).toBe(JSON.stringify(faces(top)));
+  });
+  it('found by the words people say, the realistic body live, parked and driven', () => {
+    const id = rowOfHandle('physics', HEAVY);
+    expect(resolveVehicle('humvee').id).toBe(id);
+    expect(resolveVehicle('heavy jeep').id).toBe(id);
+    expect(VEHICLES[id].uses).toEqual(expect.arrayContaining(['parked', 'driven']));
+    expect(upscaleOf(id).realistic).toBe('live');
+  });
+});
+

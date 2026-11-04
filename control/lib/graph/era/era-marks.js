@@ -28,7 +28,7 @@ const markRow = (era) => (mark, how) => Object.freeze({ [era]: mark, ...(how ? {
 export const SURFACE_INPUTS = Object.freeze([
   'faces', 'repeats', 'textures', 'resample', 'leaves', 'surfaces', 'terrain', 'figures', 'walkers', 'carMeshes', 'splats', 'liveGrass',
   'fabric', 'tone', 'toon', 'vertexContrast', 'strokeOverlay', 'ao', 'light', 'glow', 'soft', 'wetSand', 'wetRoad',
-  'shallows', 'softGround', 'snowPrints', 'shadows', 'occlusion', 'creases', 'lightTier',
+  'shallows', 'seaway', 'softGround', 'snowPrints', 'shadows', 'occlusion', 'creases', 'lightTier',
 ]);
 // the live light itself (scene/live-light.js): a form render's light, darkening paint until there is material to light
 const LIVE = new Set(['shadows', 'occlusion', 'creases', 'lightTier']);
@@ -38,7 +38,7 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'cameras', 'viewBox', 'title', 'bg', 'inline', 'cdn', 'sky', 'wireframe', 'walk', 'spin', 'hud', 'picks', 'tracers', 'planets',
   'movers', 'comets', 'fields', 'heatSpheres', 'starSurfaces', 'buildups', 'transports', 'deforms', 'raymarch', 'decollide',
   'capture', 'captureSize', 'signs', 'physics', 'actions', 'entities', 'camera', 'pilot', 'spectate', 'seats', 'ai', 'colliders', 'breakables',
-  'breakPieces', 'hangar', 'match', 'smoke', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'commander', 'events', 'fog',
+  'breakPieces', 'rupa', 'hangar', 'match', 'smoke', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'commander', 'events', 'fog',
   'audio', 'fx', 'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'game', 'backdrop', 'cars', 'signals',
   'trafficLanes', 'trafficConstants', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
   'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'board', 'screen', 'runner', 'tempo', 'grade',

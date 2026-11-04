@@ -8,9 +8,19 @@
  * read a seed: an inventory row is one part number and always makes the same part.
  */
 
+import { cockpit } from './air-kit-parts.js';
+import { DRONE_BUILDERS } from './drone-parts.js';
+import { HELI_BUILDERS } from './heli-parts.js';
+import { buildCockpit } from './cockpit-parts.js';
+import { armourPlates, doorKit } from './heli-made.js';
+import { BOAT_BUILDERS } from './boat-parts.js';
+import { asFitting, madeHull, madeCanopy, madeIntake, madeNozzle, madeWheel, madeLeg, madeWell, madeSurface, madeMissile } from './air-made.js';
+import { madeLiner, madeNacelle } from './liner-made.js';
 import { DEG, airfoil, airfoilAft, extrudeWorld, facetSection, foilAt, lathe, loftWorld, mulberry32, hashSeed, planeUV, round3, section, sweep, tone, turnAbout } from './craft-common.js';
 
 const r3v = (v) => v.map(round3);
+// the made finish (air-made.js) is an aircraft's: a spacecraft's language is its own
+const madeFor = (row, opts) => Boolean(opts?.made) && row.realm === 'earth';
 
 // ---- fuselage / hull ---------------------------------------------------------------------------
 
@@ -27,6 +37,69 @@ function stationAt(rows, s) {
   }
   const last = rows[rows.length - 1];
   return { w: last[1], h: last[2], z: last[3] };
+}
+
+/**
+ * A faceted section's U in its unit square: its polygon (counter-clockwise, x right, z up) cut at `sill`, from the right
+ * cut down round its belly to the left one: its cuts and corners, and up to `M` points in all, the rest shared out by the
+ * unit polygon's edge lengths (the same at every station, so a corner meets a corner down the loft and its panels stay
+ * flat).
+ */
+function facetU(shape, sill, M) {
+  const n = shape.length, cut = (i) => { const p = shape[i], q = shape[(i + 1) % n], t = (sill - p[1]) / (q[1] - p[1]); return [p[0] + t * (q[0] - p[0]), sill]; };
+  let r = -1;
+  for (let i = 0; i < n; i += 1) { const p = shape[i], q = shape[(i + 1) % n]; if (p[1] < sill && q[1] >= sill && cut(i)[0] > 0) r = i; }
+  if (r < 0) throw new Error(`An open faceted hull's sill ${sill} cuts no side of its polygon`);
+  const pts = [cut(r)];
+  let i = r;
+  for (let k = 0; k < n && shape[i][1] < sill; k += 1) { pts.push(shape[i]); i = (i - 1 + n) % n; }
+  pts.push(cut(i));
+  const len = pts.slice(1).map((q, j) => Math.hypot(q[0] - pts[j][0], q[1] - pts[j][1])), total = len.reduce((t, l) => t + l, 0);
+  const spare = Math.max(0, M - pts.length), raw = len.map((l) => (l / total) * spare), extra = raw.map(Math.floor);
+  let left = spare - extra.reduce((t, k) => t + k, 0);
+  raw.map((v, j) => [v - Math.floor(v), j]).sort((p, q) => q[0] - p[0] || p[1] - q[1]).forEach(([, j]) => { if (left > 0) { extra[j] += 1; left -= 1; } });
+  const out = [];
+  len.forEach((_, j) => { const p = pts[j], q = pts[j + 1]; for (let k = 0; k <= extra[j]; k += 1) { const t = k / (extra[j] + 1); out.push([p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])]); } });
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
+/**
+ * An open hull (`open: { from, to, sill, wall }`): ahead of `from` its nose closed; over `from`..`to` an open tub (its walls an outer skin and an inner
+ * one a `wall` in from it, joined at their rim at the sill, `sill` in its stations' half-heights above their centres),
+ * a cockpit seen into from above; the hull closed from `to` aft, its front the cabin's bulkhead. The same stations, the
+ * same skin outside.
+ */
+function openHull({ b, rows, shape, W, H, L, zMin, zp, smooth, C }) {
+  const { from: s0, to: s1, sill = 0.9, wall = 0.03 } = b.open, M = 13;
+  const opts = smooth ? { interp: 'smooth', segments: b.segments || 5 } : {};
+  // (a station's section as a U: the outer skin from its right sill down round its belly to its left, the inner back)
+  // (a faceted hull's U: its polygon cut at the sill, its corners only, the same at every station so its panels stay flat;
+  // a point between two corners would lie on a straight edge, and a concave cap drops the sliver it makes)
+  const fu = b.facets ? facetU(b.facets, sill, 0) : null;
+  const uOf = (st) => {
+    const a = Math.max((st.w * W) / 2, 0.005), hb = Math.max((st.h * H) / 2, 0.005), n = st.n || b.n || 2, belly = b.belly || 1, zc = st.z * H - zMin;
+    if (fu) return [...fu.map(([u, v]) => [u * a, v * hb]), ...fu.map(([u, v]) => [u * Math.max(0.002, a - wall), v * Math.max(0.002, hb - wall)]).reverse()].map(([x, z]) => [x, 0, zc + z - zp]);
+    const thS = Math.asin(Math.max(-0.999, Math.min(0.999, Math.sign(sill) * Math.abs(sill) ** (n / 2))));
+    const ring = (aa, bb) => Array.from({ length: M }, (_, i) => {
+      const th = thS - (i / (M - 1)) * (Math.PI + 2 * thS), c = Math.cos(th), sn = Math.sin(th);
+      const x = aa * Math.sign(c) * Math.abs(c) ** (2 / n), z = bb * Math.sign(sn) * Math.abs(sn) ** (2 / n);
+      return [x, z < 0 ? z * belly : z];
+    });
+    const outer = ring(a, hb), inner = ring(Math.max(0.002, a - wall), Math.max(0.002, hb - wall)).reverse();
+    return [...outer, ...inner].map(([x, z]) => [x, 0, zc + z - zp]);
+  };
+  const at = (s) => { const st = stationAt(rows, s), r = rows.find((q) => Math.abs(q[0] - s) < 1e-9); return { ...st, n: r?.[4] }; };
+  const tubS = [...new Set([s0, ...rows.map((r) => r[0]).filter((s) => s > s0 && s < s1), s1])];
+  const tub = loftWorld('tub', [0, -s0 * L, zp], [0, -s1 * L, zp], tubS.map((s) => ({ t: (s - s0) / (s1 - s0), points: uOf(at(s)) })), C.paint, opts);
+  // (the hull closed from the tub's end aft: its front the bulkhead, its stations the hull's own from there)
+  const restS = [s1, ...rows.map((r) => r[0]).filter((s) => s > s1 + 1e-6)];
+  const ring = (s) => { const st = at(s); return shape(Math.max((st.w * W) / 2, 0.005), Math.max((st.h * H) / 2, 0.005), st.n || b.n || 2).map(([x, zz]) => [x, 0, st.z * H - zMin + zz - zp]); };
+  const body = loftWorld('hull', [0, -s1 * L, zp], [0, -L, zp], restS.map((s) => ({ t: (s - s1) / (1 - s1), points: ring(s) })), C.paint, opts);
+  if (!(s0 > 0)) return [tub, body];
+  // (a nose closed ahead of the tub, its back the tub's front wall)
+  const noseS = [0, ...rows.map((r) => r[0]).filter((s) => s > 1e-6 && s < s0), s0];
+  return [loftWorld('hull_nose', [0, 0, zp], [0, -s0 * L, zp], noseS.map((s) => ({ t: s / s0, points: ring(s) })), C.paint, opts), tub, body];
 }
 
 /**
@@ -71,14 +144,29 @@ function buildFuselage(row, C, opts = {}) {
       .map(([x, zz]) => [x, 0, z * H - zMin + zz - zp]),
   }));
   const smooth = !b.facets;
-  const lofts = [loftWorld('hull', from, to, stations, C.paint, smooth ? { interp: 'smooth', segments: b.segments || 5 } : {})];
+  const lofts = b.open ? openHull({ b, rows, shape, W, H, L, zMin, zp, smooth, C }) : [loftWorld('hull', from, to, stations, C.paint, smooth ? { interp: 'smooth', segments: b.segments || 5 } : {})];
   const point = ([s, xf, zf]) => {
     const st = stationAt(rows, s);
     const halfH = (st.h * H) / 2;
     return r3v([xf * (st.w * W) / 2, -s * L, st.z * H - zMin + (zf < 0 ? zf * halfH * belly : zf * halfH)]);
   };
   const hardpoints = { mount: [0, 0, 0] };
-  for (const [name, spec] of Object.entries(b.points || {})) hardpoints[name] = point(spec);
+  // (its points, and `kitAt`: the stations where a look's kit hangs, heli-looks.js)
+  for (const [name, spec] of Object.entries({ ...b.points, ...b.kitAt })) hardpoints[name] = point(spec);
+  // made: a fighter's cockpit under its canopy (air-kit-parts.js), built up from the hull's top and fitted to the
+  // canopy's own section where each piece stands (its row, which the layout hands its hull)
+  const made = [];
+  const cr = opts.made?.canopy;
+  if (cr && b.points?.canopy && cr.build?.family !== 'roundWindow') {
+    const at = point(b.points.canopy), cl = cr.dims.length, s0 = b.points.canopy[0];
+    const rowsC = cr.build.stations || [[0, 0.3, 0.25], [0.3, 1, 0.92], [0.7, 0.95, 1], [1, 0.6, 0.55]];
+    const prof = (f) => { let i = 1; while (i < rowsC.length - 1 && f > rowsC[i][0]) i += 1; const [a, c] = [rowsC[i - 1], rowsC[i]], k = Math.max(0, Math.min(1, (f - a[0]) / (c[0] - a[0] || 1))); return { w: a[1] + k * (c[1] - a[1]), h: a[2] + k * (c[2] - a[2]) }; };
+    const topAt = (f) => point([s0 + (f * cl) / L, 0, 1])[2];
+    const deck = Math.max(...[0.22, 0.4, 0.6, 0.8, 0.9].map(topAt));
+    // (inside the canopy at a fraction of its length: its half-width at the deck's height, its roof over the deck)
+    const fit = (f) => { const p = prof(f), hw = (p.w * cr.dims.width) / 2, roof = p.h * cr.dims.height - (deck - at[2]); return { half: Math.max(0, hw * Math.sqrt(Math.max(0, 1 - ((deck - at[2]) / Math.max(roof + (deck - at[2]), 1e-3)) ** 2)) - 0.02), roof: Math.max(0, roof - 0.02) }; };
+    made.push(asFitting(cockpit('cockpit', { front: at, len: cl, deck, fit }, { dark: '#26292c', console: '#2f3336', glass: C.glass, metal: C.chrome, seat: '#3b4232', accent: '#d8b02a' })));
+  }
   // A glazed band (an airliner's flight deck, a shuttle's windscreen): a thin loft hugging the skin.
   if (b.windscreen) {
     const [s0, s1] = b.windscreen;
@@ -107,9 +195,53 @@ function buildFuselage(row, C, opts = {}) {
     }));
     lofts.push(loftWorld('nose', [0, 0.005, zp], [0, -s1 * L, zp], st, C.trim, smooth ? { interp: 'smooth', segments: 4 } : {}));
   }
-  const detail = hullDetail({ b, L, zp, stations, smooth, point, C, sku: opts.sku });
+  const detail = hullDetail({ b, L, zp, stations, smooth, point, C, sku: opts.sku, pose: opts.pose });
   lofts.push(...detail.lofts);
-  return { lofts, ...(detail.extrudes.length ? { extrudes: detail.extrudes } : {}), ...(detail.sweeps.length ? { sweeps: detail.sweeps } : {}), hardpoints };
+  if (madeFor(row, opts)) {
+    const ringAt = (s) => skinRing(stations, s, smooth, zp);
+    // (a civil hull, its flight deck glazed and its cabin windowed, is an airliner's: liner-made.js; any other the
+    // fighter's: air-made.js)
+    if (b.windscreen && b.windows) made.push(madeLiner({ b, L, ringAt, skinX, skinZ, C }));
+    else {
+      const mh = madeHull({ b, L, zp, ringAt, skinX, skinZ, C });
+      lofts.push(...mh.lofts);
+      made.push({ extrudes: mh.extrudes, sweeps: mh.sweeps });
+    }
+    // (a military hull's armour, unless its look is civilian; a step and a grab handle at each door: heli-made.js)
+    if (b.armour && opts.made?.armour !== false) { const ap = armourPlates({ plates: b.armour, L, zp, ringAt, skinX, C }); lofts.push(...ap.lofts); made.push({ lathes: ap.lathes }); }
+    if (b.grabs && b.doors) made.push(doorKit({ doors: b.doors, L, ringAt, skinX, C }));
+    // its gear's wells and doors on its own skin, or under a chin intake's duct where a leg stands in it (the duct's
+    // bottom as the intake lofts it: its mouth's ring, swelling a little, then narrowing aft)
+    const mounts = opts.made?.mounts ?? [];
+    const chin = mounts.find((m) => m.row?.kind === 'craft-intake' && m.row.build.family === 'chin' && b.points?.[m.point]);
+    const duct = chin && (() => {
+      const ip = point(b.points[chin.point]), { length: dl, width: dw, height: dh } = chin.row.dims;
+      const kOf = (t) => (t < 0.35 ? 1 + (0.02 * t) / 0.35 : 1.02 - (0.42 * (t - 0.35)) / 0.65);
+      return { y0: ip[1], y1: ip[1] - dl, half: dw / 2, bottom: (y) => ip[2] - dh / 2 - (dh / 2) * kOf((ip[1] - y) / dl) };
+    })();
+    const up = clamp01(opts.pose && opts.pose.gear) * 90;
+    for (const m of mounts) {
+      const g = m.row?.kind === 'craft-gear' ? m.row.build : null;
+      const how = g && (g.retract === undefined ? (g.family === 'spring' ? false : 'forward') : g.retract);
+      if (!how || !g.tyre || !b.points?.[m.point]) continue;
+      const p = point(b.points[m.point]);
+      for (const sx of m.pair ? [1, -1] : [1]) {
+        const x = p[0] * sx, inDuct = Boolean(duct) && p[1] <= duct.y0 && p[1] >= duct.y1 && Math.abs(x) < duct.half;
+        const belly = (y) => (inDuct ? duct.bottom(y) : (skinZ(ringAt(Math.max(0, Math.min(1, -y / L))), x, -1) ?? p[2]));
+        const z = belly(p[1]), D = g.tyre[0], len = g.strut + D * 0.75;
+        // (a well lies the way its leg folds where the belly (or the duct) stays flat over it; where it would run off the
+        // nose or the duct, or where the belly rises, it lies the other way)
+        const off = (dir) => { const y = p[1] + dir * (len - D * 0.35); return inDuct && (y > duct.y0 || y < duct.y1) ? Infinity : y > 0 || y < -L ? Infinity : Math.abs(belly(y) - z) + Math.abs(belly(p[1] + dir * (len - D * 0.35) * 0.5) - z); };
+        const turn = { forward: 'aft', aft: 'forward' }[how];
+        const lie = turn && off(how === 'forward' ? 1 : -1) > 0.08 && off(how === 'forward' ? -1 : 1) < off(how === 'forward' ? 1 : -1) ? turn : how;
+        made.push(madeWell({ id: `well_${m.point}${m.pair ? (sx > 0 ? '_r' : '_l') : ''}`, at: [x, p[1], z], inboard: x > 0 ? -1 : 1, b: g, S: g.strut, D, W: g.tyre[1], how: lie, angle: up, C }));
+      }
+    }
+  }
+  const dj = detail.joints ? { joints: detail.joints } : {};
+  if (!made.length) return { lofts, ...(detail.extrudes.length ? { extrudes: detail.extrudes } : {}), ...(detail.sweeps.length ? { sweeps: detail.sweeps } : {}), hardpoints, ...dj };
+  const extrudes = [...detail.extrudes, ...made.flatMap((m) => m.extrudes ?? [])], sweeps = [...detail.sweeps, ...made.flatMap((m) => m.sweeps ?? [])], lathes = made.flatMap((m) => m.lathes ?? []);
+  return { lofts, ...(extrudes.length ? { extrudes } : {}), ...(sweeps.length ? { sweeps } : {}), ...(lathes.length ? { lathes } : {}), hardpoints, ...dj };
 }
 
 // The hull's skin ring at s exactly as the loft draws it: the same Catmull-Rom over the stations for a
@@ -170,13 +302,14 @@ function skinZ(ring, x, side) {
  * The hull's surface detail, all on the real skin:
  *  - panel seams: a hair-proud band every `seams` metres (default a tenth of the length, 1–3 m),
  *    a shade darker than the paint; `seams: false` for none;
- *  - `windows: { from, to, pitch, zf, w, h }`: a cabin row each side; `doors: [[s, zf, w, h]]`:
+ *  - `windows: { from, to, pitch, zf, w, h }` (or a list of them: a deck's rows): a cabin row each side; `doors: [[s, zf, w, h]]`:
  *    framed doors each side;
+ *  - `ramp: { from, to, w }`: a rear ramp's hinge across the belly, its sides up the aft underside, its lip;
  *  - `antennas: [[s, xf, zf, length, kind]]`: 'blade' standing off the skin, 'pitot' ahead of the nose;
  *  - `greebles: { top, sides, span: [s0, s1] }`: seeded plant on a starship's plating (boxes of
  *    machinery), the same every time for the same part number.
  */
-function hullDetail({ b, L, zp, stations, smooth, point, C, sku }) {
+function hullDetail({ b, L, zp, stations, smooth, point, C, sku, pose }) {
   const lofts = [];
   const extrudes = [];
   const sweeps = [];
@@ -188,7 +321,7 @@ function hullDetail({ b, L, zp, stations, smooth, point, C, sku }) {
   };
   const seam = tone(C.paint, -0.28);
   const pitch = b.seams === false ? 0 : (b.seams || Math.max(1, Math.min(3, L / 10)));
-  const clear = [[0, (b.nose || 0) + 0.02], ...(b.windscreen ? [[b.windscreen[0] - 0.01, b.windscreen[1] + 0.01]] : [])];
+  const clear = [[0, (b.nose || 0) + 0.02], ...(b.windscreen ? [[b.windscreen[0] - 0.01, b.windscreen[1] + 0.01]] : []), ...(b.open ? [[b.open.from - 0.01, b.open.to + 0.01]] : [])];
   // what a window must not sit across: a door's frame, a seam
   const doorsAt = (b.doors || []).map(([sf, , w]) => [sf * L - w / 2 - 0.08, sf * L + w / 2 + 0.08]);
   const seamsAt = [];
@@ -223,16 +356,40 @@ function hullDetail({ b, L, zp, stations, smooth, point, C, sku }) {
       });
     }
   };
-  if (b.windows) {
-    const { from, to, pitch: wp, zf, w, h } = b.windows;
+  // (a row of windows, or several: a jumbo's main deck under its hump and behind it, its upper deck; the first row's
+  // ids as a single row's always were)
+  for (const [k, row] of (Array.isArray(b.windows) ? b.windows : b.windows ? [b.windows] : []).entries()) {
+    const { from, to, pitch: wp, zf, w, h } = row;
     for (let y = from * L, i = 0; y <= to * L + 1e-9; y += wp, i += 1) {
       if (doorsAt.some(([a, z]) => y + w / 2 >= a && y - w / 2 <= z) || seamsAt.some((q) => Math.abs(q - y) < w / 2 + 0.03)) continue;
-      sideStrip(`window_${i}`, y / L, zf, w, h, 0.01, C.glass, { material: 'glass' });
+      sideStrip(k ? `window_${k}_${i}` : `window_${i}`, y / L, zf, w, h, 0.01, C.glass, { material: 'glass' });
     }
   }
+  // (sliding doors, `slide: true`: each on its rails above and below, slid aft by `pose.door` (0 shut … 1 open), the
+  // opening dark where it was)
+  const slid = b.slide ? clamp01(pose && pose.door) : 0, joints = [];
   for (const [i, [sf, zf, w, h]] of (b.doors || []).entries()) {
     sideStrip(`door_frame_${i}`, sf, zf, w + 0.07, h + 0.07, 0.006, seam);
-    sideStrip(`door_${i}`, sf, zf, w, h, 0.012, C.paint);
+    if (!b.slide) { sideStrip(`door_${i}`, sf, zf, w, h, 0.012, C.paint); continue; }
+    const travel = w * 0.95, shut = sf, at = sf + (slid * travel) / L;
+    if (slid) sideStrip(`door_opening_${i}`, shut, zf, w, h, 0.008, '#16181a');
+    sideStrip(`door_${i}`, at, zf, w, h, 0.028, C.paint);
+    const ring0 = ringAt(shut), { c, hh } = frame(ring0), zc = c[1] + zf * hh;
+    for (const [e, z] of [['top', zc + h / 2 + 0.035], ['low', zc - h / 2 - 0.035]]) for (const side of [1, -1]) {
+      const path = Array.from({ length: 6 }, (_, k) => { const y = -shut * L + w / 2 - ((w + travel) * k) / 5, x = skinX(ringAt(Math.min(1, -y / L)), z, side); return x === null ? null : [x + side * 0.012, y, z]; }).filter(Boolean);
+      if (path.length > 1) sweeps.push(sweep(`door_rail_${e}_${i}_${side > 0 ? 'r' : 'l'}`, path, 0.014, C.trim, { sides: 6 }));
+    }
+    if (i === 0) joints.push({ name: 'door', control: 'door', kind: 'slide', at: [0, 0, 0], dir: [0, -1, 0], range: [0, round3(travel)], travel: round3(slid * travel) });
+  }
+  // a rear ramp (`ramp: { from, to, w }`): its hinge across the belly at `from`, its sides up the aft underside to `to`
+  // (`w` of the belly's half-width either side), its lip across there; the seams stand just proud of the skin
+  if (b.ramp) {
+    const { from: r0, to: r1, w: rw = 0.8 } = b.ramp, n = 8;
+    const under = (sf, xf) => { const ring = ringAt(sf), x = xf * rw * frame(ring).hw, z = skinZ(ring, x, -1); return [x, -sf * L, (z ?? frame(ring).c[1]) - 0.01]; };
+    const across = (sf) => Array.from({ length: n + 1 }, (_, k) => under(sf, -1 + (2 * k) / n));
+    sweeps.push(sweep('ramp_hinge', across(r0), 0.035, C.trim, { sides: 8 }));
+    sweeps.push(sweep('ramp_lip', across(r1), 0.02, seam, { sides: 6 }));
+    for (const xf of [1, -1]) sweeps.push(sweep(`ramp_side_${xf > 0 ? 'r' : 'l'}`, Array.from({ length: n + 1 }, (_, k) => under(r0 + ((r1 - r0) * k) / n, xf)), 0.02, seam, { sides: 6 }));
   }
   for (const [i, [sf, xf, zf, len, kind]] of (b.antennas || []).entries()) {
     const at = point([sf, xf, zf]);
@@ -274,7 +431,7 @@ function hullDetail({ b, L, zp, stations, smooth, point, C, sku }) {
       if (x !== null) box(`greeble_side_${i}`, [x - side * 0.03, -sf * L, z], [x + side * h, -sf * L, z], a, d, tints[Math.floor(rng() * tints.length)]);
     }
   }
-  return { lofts, extrudes, sweeps };
+  return { lofts, extrudes, sweeps, ...(joints.length ? { joints } : {}) };
 }
 
 /** A ball hull (a twin-panel interceptor's cockpit pod): a sphere lathed nose → tail, z ≥ 0. */
@@ -386,6 +543,8 @@ function buildLiftingSurface(row, C, opts = {}) {
   const foldA = fold ? fold.angle * DEG * (fold.fixed ? 1 : clamp01(opts.fold)) : 0;
   const pivot = fold ? [hingeF * span, at(hingeF).lift] : [0, 0];
   const cant = (b.cant || 0) * DEG;
+  // `pivot: { angle }`: the whole surface swings about the vertical at its root by the craft's fold (0 out … 1 folded)
+  const pivotA = b.pivot ? b.pivot.angle * DEG * clamp01(opts.fold) : 0;
   // local (s spanwise, y chordwise, h thickness-wise) → world, the outer panel turned about the hinge
   const toWorld = ([sl, y, h], outer) => {
     let ss = sl;
@@ -397,11 +556,13 @@ function buildLiftingSurface(row, C, opts = {}) {
       hh = pivot[1] + ds * Math.sin(foldA) + dh * Math.cos(foldA);
     }
     const w = vertical ? [hh, y, ss] : [ss, y, hh];
-    if (!cant) return w;
-    return [w[0] * Math.cos(cant) + w[2] * Math.sin(cant), w[1], -w[0] * Math.sin(cant) + w[2] * Math.cos(cant)];
+    const c = !cant ? w : [w[0] * Math.cos(cant) + w[2] * Math.sin(cant), w[1], -w[0] * Math.sin(cant) + w[2] * Math.cos(cant)];
+    // a pivoting surface (a loitering munition's wing swinging out of its tube) turned about the vertical at its root
+    return pivotA ? [c[0] * Math.cos(pivotA) - c[1] * Math.sin(pivotA), c[0] * Math.sin(pivotA) + c[1] * Math.cos(pivotA), c[2]] : c;
   };
   // a section point (chord fraction c, thickness t in chords) at span fraction f → local, with washout
-  const foilOpts = (f) => ({ thickness: Math.max(thickAt(f), 0.04 / at(f).chord), camber: b.camber || 0, kind: b.section || 'naca' });
+  // (its section no thinner than 4 cm, or a row's own floor: a small drone's wing is thinner than that)
+  const foilOpts = (f) => ({ thickness: Math.max(thickAt(f), (b.minThick ?? 0.04) / at(f).chord), camber: b.camber || 0, kind: b.section || 'naca' });
   const place = (f, c, t) => {
     const { chord, lead, lift } = at(f);
     const tw = (b.twist || 0) * DEG * f;   // washout: the tip's leading edge drops
@@ -519,10 +680,13 @@ function buildLiftingSurface(row, C, opts = {}) {
   }
   if (extra.lofts) lofts.push(...extra.lofts);
   const lathes = [];
-  if (row.realm === 'earth' && row.kind === 'craft-wing' && b.navLight !== false) {
+  const nav = row.realm === 'earth' && row.kind === 'craft-wing' && b.navLight !== false;
+  // (a nav light its aircraft's size: a small drone's a fraction of an aircraft's, every wing over 3 m the same)
+  const navK = Math.min(1, (span / 3) ** 1.5);
+  if (nav && !madeFor(row, opts)) {
     const tipLe = toWorld(place(1, 0.05, 0), true);
-    const out = toWorld(place(1, 0.05, 0).map((v, i) => (i === 0 ? v + 0.09 : v)), true);
-    lathes.push(lathe('nav_light', tipLe, out, [[0, 0.06], [0.6, 0.055], [1, 0.005]], NAV_LIGHT[opts.side || 'c'], { material: 'neon', samples: 12, crossSections: 4 }));
+    const out = toWorld(place(1, 0.05, 0).map((v, i) => (i === 0 ? v + 0.09 * navK : v)), true);
+    lathes.push(lathe('nav_light', tipLe, out, [[0, 0.06 * navK], [0.6, 0.055 * navK], [1, 0.005 * navK]], NAV_LIGHT[opts.side || 'c'], { material: 'neon', samples: 12, crossSections: 4 }));
   }
   const point = ([f, c, face = 'mid']) => {
     const { chord, lead, lift } = at(f);
@@ -532,6 +696,15 @@ function buildLiftingSurface(row, C, opts = {}) {
   };
   const hardpoints = { mount: [0, 0, 0] };
   for (const [name, spec] of Object.entries(b.points || {})) hardpoints[name] = point(spec);
+  if (b.pivot) joints.push({ name: 'pivot', control: 'fold', kind: 'hinge', at: [0, 0, 0], dir: [0, 0, 1], range: [0, b.pivot.angle], angle: round3(pivotA / DEG) || 0 });
+  if (madeFor(row, opts)) {
+    // made: its hinges' gaps, its actuators' fairings, its leading-edge flap's line; a fin's cap and beacon; the nav light
+    // in its cover (air-made.js)
+    const world = (f, p) => toWorld(p, Boolean(fold) && f > hingeF);
+    const ms = madeSurface({ place, world, foil: (f, c) => foilAt(c, foilOpts(f)), surfaces, kind: row.kind, nav, navR: 0.055 * navK, vertical, side: opts.side, span, at, C });
+    lathes.push(...ms.lathes);
+    return { lofts, ...(lathes.length ? { lathes } : {}), ...(ms.sweeps.length ? { sweeps: ms.sweeps } : {}), hardpoints, joints, ...(fold ? { fold: round3(foldA / DEG) } : {}) };
+  }
   return { lofts, ...(lathes.length ? { lathes } : {}), hardpoints, joints, ...(fold ? { fold: round3(foldA / DEG) } : {}) };
 }
 
@@ -598,7 +771,7 @@ function buildPanel(row, C) {
 
 // ---- propulsion -------------------------------------------------------------------------------
 
-function buildEngine(row, C) {
+function buildEngine(row, C, opts = {}) {
   const b = row.build;
   const L = row.dims.length;
   const R = row.dims.diameter / 2;
@@ -614,7 +787,7 @@ function buildEngine(row, C) {
       ? [[0, 0.86 * R], [0.05, 0.97 * R], [0.28, R], [0.72, 0.9 * R], [1, 0.6 * R]]
       : [[0, 0.55 * R], [0.12, 0.92 * R], [0.35, R], [0.7, 0.85 * R], [1, 0.25 * R]];
     lathes.push(lathe('nacelle', [xc, yf, zc], [xc, yf - L, zc], nacelle, C.paint, { crossSections: 18, samples: 28 }));
-    const sweeps = [];
+    const sweeps = [], extrudesMade = [];
     const hardpoints = { mount: [0, 0, 0] };
     if (fam === 'turbofan') {
       const fanR = (b.fanDiameter || 1.6 * R) / 2;
@@ -626,6 +799,18 @@ function buildEngine(row, C) {
       lathes.push(lathe('reverser_seam', [xc, yf - 0.5 * L, zc], [xc, yf - 0.52 * L, zc], [[0, 0.975 * R], [1, 0.97 * R]], C.trim, { samples: 28, crossSections: 2 }));
       // the fan: blades from the spinner to the case, raked by their twist
       const n = b.fanBlades || 18;
+      // made: the intake deep to a fan face behind the blades (the disc that stood before them gone), the spinner's
+      // swirl, the fan nozzle and the core cowl, the latches (liner-made.js)
+      if (madeFor(row, opts)) {
+        const k = lathes.findIndex((q) => q.id === 'fan');
+        if (k >= 0) lathes.splice(k, 1);
+        // (the nacelle and its lip open at their ends, so the intake and the exhaust read as holes)
+        for (const q of lathes) if (q.id === 'nacelle' || q.id === 'lip') q.caps = false;
+        const mn = madeNacelle({ xc, yf, zc, L, R, fanR, C });
+        lathes.push(...mn.lathes);
+        sweeps.push(...mn.sweeps);
+        extrudesMade.push(...mn.extrudes);
+      }
       sweeps.push(...Array.from({ length: n }, (_, i) => {
         const a = (i / n) * 2 * Math.PI;
         const c = Math.cos(a);
@@ -639,7 +824,7 @@ function buildEngine(row, C) {
       lathes.push(lathe('scoop', [xc, yf - 0.06 * L, zc - 0.62 * R], [xc, yf - 0.2 * L, zc - 0.62 * R], [[0, 0.2 * R], [1, 0.26 * R]], C.trim, { samples: 16, crossSections: 3 }));
       hardpoints.propHub = r3v([xc, yf, zc]);
     }
-    return { lathes, ...(sweeps.length ? { sweeps } : {}), hardpoints };
+    return { lathes, ...(sweeps.length ? { sweeps } : {}), ...(extrudesMade.length ? { extrudes: extrudesMade } : {}), hardpoints };
   }
   if (fam === 'cowl') {
     // a nose cowling over a flat engine: the mount is the firewall, the hub the cowl's nose
@@ -667,6 +852,11 @@ function buildEngine(row, C) {
       lathe('nozzle', [0, -L * 0.82, 0], [0, -L, 0], [[0, R * 0.9], [1, R * 0.78]], C.trim, { harmonics: [{ n: 15, amplitude: 0.03 }] }),
       lathe('burner', [0, -L * 0.97, 0], [0, -L * 0.995, 0], [[0, R * 0.7], [1, R * 0.7]], C.light, { material: 'neon' }),
     ];
+    if (madeFor(row, opts)) {
+      // made: the petal nozzle, its flameholder dark inside, in place of the turned one and its glow (air-made.js)
+      const nz = madeNozzle({ L, R, C });
+      return { lathes: [lathes[0], ...nz.lathes], extrudes: nz.extrudes, sweeps: nz.sweeps, hardpoints: { mount: [0, 0, 0], nozzle: [0, round3(-L), 0] } };
+    }
     return { lathes, hardpoints: { mount: [0, 0, 0], nozzle: [0, round3(-L), 0] } };
   }
   if (fam === 'pod') {
@@ -783,7 +973,7 @@ function buildThruster(row, C) {
 
 // ---- undercarriage ----------------------------------------------------------------------------
 
-function wheel(id, x, y, z, D, Wt, C) {
+function plainWheel(id, x, y, z, D, Wt, C) {
   const R = D / 2;
   return [
     lathe(`${id}_tyre`, [x - Wt / 2, y, z], [x + Wt / 2, y, z], [[0, R * 0.62], [0.12, R * 0.93], [0.5, R], [0.88, R * 0.93], [1, R * 0.62]], C.rubber, { crossSections: 8, samples: 22 }),
@@ -795,13 +985,15 @@ function wheel(id, x, y, z, D, Wt, C) {
  * Landing gear, mount at the top of the strut (the gear well). `contact` is where the tyre (or
  * the skid pad) meets the ground in the part's frame: the assembler lifts the craft by it.
  */
-function gearGeometry(row, C) {
+function gearGeometry(row, C, opts = {}) {
   const b = row.build;
   const S = b.strut;
   const D = b.tyre ? b.tyre[0] : 0;
   const Wt = b.tyre ? b.tyre[1] : 0;
   const sweeps = [];
   const lathes = [];
+  // made: a treaded tyre on its hub and brake disc (air-made.js)
+  const wheel = madeFor(row, opts) ? madeWheel : plainWheel;
   let axle;
   if (b.family === 'spring') {
     // a light aircraft's spring-steel leg splaying outboard to one wheel
@@ -822,6 +1014,12 @@ function gearGeometry(row, C) {
       const half = (Wt + b.oleo * 3) / 2;
       lathes.push(lathe('axle', [-half, axle[1], -S], [half, axle[1], -S], [[0, b.oleo * 0.7], [1, b.oleo * 0.7]], C.chrome));
       lathes.push(...wheel('wl', -half, axle[1], -S, D, Wt, C), ...wheel('wr', half, axle[1], -S, D, Wt, C));
+    }
+    if (madeFor(row, opts)) {
+      // made: its brake line, a nose leg's taxi light
+      const ml = madeLeg({ b, axle, S, nose: /nose/.test(opts.sku || ''), C });
+      sweeps.push(...ml.sweeps);
+      lathes.push(...ml.lathes);
     }
   } else if (b.family === 'bogie') {
     // a main-gear truck: one oleo onto a beam carrying `rows` axles of two wheels
@@ -871,7 +1069,7 @@ const turnPt = (p, k, a) => {
  * 90° into its well.
  */
 function buildGear(row, C, opts = {}) {
-  const g = gearGeometry(row, C);
+  const g = gearGeometry(row, C, opts);
   const how = row.build.retract === undefined ? (row.build.family === 'spring' ? false : 'forward') : row.build.retract;
   if (!how) return g;
   const [k, sign] = RETRACT[how];
@@ -895,7 +1093,7 @@ function buildGear(row, C, opts = {}) {
  * the rear sill 40°; `'slide'` runs it back half its length on its rails.
  */
 function buildCanopy(row, C, opts = {}) {
-  const g = canopyGeometry(row, C);
+  const g = canopyGeometry(row, C, madeFor(row, opts));
   const b = row.build;
   if (b.family === 'roundWindow' || b.opens === false) return g;
   const L = row.dims.length;
@@ -921,7 +1119,7 @@ function buildCanopy(row, C, opts = {}) {
   };
 }
 
-function canopyGeometry(row, C) {
+function canopyGeometry(row, C, made = false) {
   const { length: L, width: W, height: H } = row.dims;
   const b = row.build;
   if (b.family === 'roundWindow') {
@@ -954,6 +1152,8 @@ function canopyGeometry(row, C) {
     for (let i = 0; i <= 6; i += 1) { const th = (i / 6) * Math.PI; path.push([Math.cos(th) * a, -f * L, Math.sin(th) * h]); }
     sweeps.push(sweep(`bow_${Math.round(f * 100)}`, path, 0.025, C.trim));
   }
+  // made: its frame, its sill rails and arches (air-made.js)
+  if (made) sweeps.push(...madeCanopy({ rows, L, W, H, bows: b.bows, C }).sweeps);
   return { lofts, ...(sweeps.length ? { sweeps } : {}), hardpoints: { mount: [0, 0, 0] } };
 }
 
@@ -962,7 +1162,7 @@ function canopyGeometry(row, C) {
  * edge), a dark face inside the lip, and for `halfCone` the shock cone standing in it. `side` sits
  * outboard of the mount (a left one is its mirror); `chin` hangs below it.
  */
-function buildIntake(row, C) {
+function buildIntake(row, C, opts = {}) {
   const { length: L, width: w, height: h } = row.dims;
   const b = row.build;
   const n = b.n || 4;
@@ -974,6 +1174,11 @@ function buildIntake(row, C) {
   if (b.family === 'halfCone') {
     const r = Math.min(w, h) * 0.32;
     lathes.push(lathe('cone', [off[0] - w * 0.12, w * 0.55, off[1]], [off[0] - w * 0.12, -0.08, off[1]], [[0, 0.01], [0.75, r * 0.9], [1, r]], C.chrome));
+  }
+  if (madeFor(row, opts)) {
+    // made: its rolled lip, its duct lined dark back to a deep face, a side intake's splitter (air-made.js)
+    const mi = madeIntake({ ring, family: b.family, w, h, L, duct: lofts[0], C });
+    return { lofts: mi.lofts, extrudes: mi.extrudes, sweeps: mi.sweeps, ...(lathes.length ? { lathes } : {}), hardpoints: { mount: [0, 0, 0] } };
   }
   return { lofts, extrudes, ...(lathes.length ? { lathes } : {}), hardpoints: { mount: [0, 0, 0] } };
 }
@@ -1012,7 +1217,7 @@ function buildPylon(row, C) {
 }
 
 /** A weapon on a hardpoint: the mount is its breech; barrels point +y. */
-function buildWeapon(row, C) {
+function buildWeapon(row, C, opts = {}) {
   const b = row.build;
   const L = row.dims.length;
   const D = row.dims.diameter;
@@ -1046,6 +1251,11 @@ function buildWeapon(row, C) {
       const fin = [[0, R], [L * 0.1, R], [L * 0.04, R * 2.6], [0, R * 2.6]];
       return extrudeWorld(`fin_${i}`, [s * t, 0.02, -c * t], [-s * t, 0.02, c * t], fin.map(([y, r]) => [c * r, y, s * r]), C.trim);
     });
+    if (madeFor(row, opts)) {
+      // made: its bands, its seeker's dome, its canards (air-made.js)
+      const mm = madeMissile({ L, R, C });
+      return { lathes: [...lathes, ...mm.lathes], extrudes: [...extrudes, ...mm.extrudes], hardpoints: { mount: [0, 0, 0], muzzle: [0, round3(L), 0] } };
+    }
     return { lathes, extrudes, hardpoints: { mount: [0, 0, 0], muzzle: [0, round3(L), 0] } };
   }
   if (b.family === 'launcher') {
@@ -1085,4 +1295,13 @@ export const CRAFT_BUILDERS = {
   'craft-pylon': buildPylon,
   'craft-weapon': buildWeapon,
   'craft-intake': buildIntake,
+  'craft-cockpit': buildCockpit,
 };
+
+// the drone parts' builders (drone-parts.js)
+Object.assign(CRAFT_BUILDERS, DRONE_BUILDERS);
+// the helicopter parts' builders (heli-parts.js)
+Object.assign(CRAFT_BUILDERS, HELI_BUILDERS);
+
+// the boat parts' builders (boat-parts.js)
+Object.assign(CRAFT_BUILDERS, BOAT_BUILDERS);

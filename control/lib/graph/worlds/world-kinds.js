@@ -38,6 +38,7 @@ import { assembleCityScene, cityFogBoxes } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { historicAudio } from '@/lib/graph/historic/soundtrack';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
+import { assembleAirportScene } from '@/lib/graph/airport/miniature';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
 import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
 import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-building';
@@ -118,6 +119,7 @@ import { assembleSolidTurntableScene } from '@/lib/graph/worlds/solid-turntable'
 import { assembleManjiTreeWorld } from '@/lib/graph/worlds/polygomer-world';
 import { latestSkinInput } from '@/lib/graph/polygonizer/skin-store';
 import { assembleAssemblerScene, collectAssemblerWrapSources } from '@/lib/graph/worlds/workbench-assembler';
+import { assembleSeawayScene } from '@/lib/graph/worlds/seaway-scene';
 import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
 import { assembleTerrainWorld, resolveTerrainFrom } from '@/lib/graph/terrain/terrain-world';
@@ -331,14 +333,31 @@ function carMeshBank(scale = CITY_CAR_SCALE) {
   }
   return _carBanks.get(scale);
 }
+// the road's site machines as moving cars (construction-shelf/con-figure.js conTrafficMesh), each at the bank's scale:
+// a sedan baked at it against a midsize sedan's true length gives the world's units a metre
+const SITE_TRAFFIC = Object.freeze([{ vehicle: 'tipperTruck' }, { vehicle: 'mixerTruck' }, { vehicle: 'mobileCrane' }]);
+const _siteBanks = new Map();
+function siteMeshBank(scale = CITY_CAR_SCALE) {
+  if (!_siteBanks.has(scale)) {
+    _siteBanks.set(scale, (async () => {
+      const [{ bakeCarMesh }, { conTrafficMesh }, { VEHICLES: PHYS }] = await Promise.all([import('@/lib/graph/vehicles/car-bake'), import('@/lib/graph/construction-shelf/con-figure.js'), import('@/lib/graph/roads/vehicles.js')]);
+      const k = bakeCarMesh({ type: 'sedan', scale }).len / PHYS.midsize.L;
+      return Object.fromEntries(SITE_TRAFFIC.map((t, i) => [`site${i}`, conTrafficMesh({ archetype: t.vehicle }, k)]));
+    })().catch((err) => { _siteBanks.delete(scale); throw err; }));
+  }
+  return _siteBanks.get(scale);
+}
 async function attachCityCars(scene) {
   const cues = scene && scene.cityCues;
   if (cues) delete scene.cityCues;   // consumed here (walkers read it first) → keep the payload clean for emitThreeWorld
   let lanes = scene && scene.carLanes;
   if (!Array.isArray(lanes) || !lanes.length) return scene;
   const { carLaneToPath } = await import('@/lib/graph/city/fractal-city');
-  const bank = await carMeshBank(cues?.car ?? CITY_CAR_SCALE);
-  const names = Object.keys(bank);
+  const cars0 = await carMeshBank(cues?.car ?? CITY_CAR_SCALE);
+  // (the road's site machines among them, when the city asks: city/plan/traffic.js `cars.machines`; absent, none)
+  const bank = cues?.machines ? { ...cars0, ...(await siteMeshBank(cues?.car ?? CITY_CAR_SCALE)) } : cars0;
+  // (each car twice to each machine once: a machine one vehicle in five)
+  const names = cues?.machines ? [...Object.keys(cars0), ...Object.keys(cars0), ...Object.keys(bank).filter((n) => !cars0[n])] : Object.keys(bank);
   // SIGNALISED traffic: when the plan exported the crossings, the city's own traffic constants are
   // derived from the MEASURED car bank — the longest and widest model are the collision footprint,
   // the clearance is what that model needs to leave the widest box (deriveClearance) — the phase
@@ -613,6 +632,8 @@ export const WORLD_KINDS = {
   // floorplan 9ms · subway-station 195ms · subway-building 220ms · restaurant 353ms — acceptable
   // one-time emit cost. condo-complex is deliberately NOT defaulted: 692ms on 74k faces AND heavy
   // per-cell overflow at kPerCell=64 (reads lighter than truth) — opt in per manifest instead.
+  // the airport (airport/): its plan drawn whole as a miniature on a plinth (show: 'miniature'), turned and looked at
+  airport: view(assembleAirportScene, 'mojulo airport'),
   'subway-station': {
     walk: true,
     ao: true,
@@ -698,10 +719,10 @@ export const WORLD_KINDS = {
   'vehicle-instance': {
     // no default title — assembleInstanceStudio applies its own when the sketch carries none.
     title: undefined,
-    // (a race machine's instance, { racer } or { supercar }, its theme worn, or a realistic loft { loft }: the family
-    // layer builds it)
+    // (a race machine's instance, { racer } or { supercar }, its theme worn, a realistic loft { loft }, a cycle shelf
+    // machine { cycle }, or a construction shelf machine { construction }: the family layer builds it)
     resolve: (m, ctx) => assembleInstanceStudio(
-      { type: m.type, family: m.family, decoration: m.decoration, ...(m.racer ? { racer: m.racer } : {}), ...(m.supercar ? { supercar: m.supercar } : {}), ...(m.loft ? { loft: m.loft } : {}) },
+      { type: m.type, family: m.family, decoration: m.decoration, ...(m.racer ? { racer: m.racer } : {}), ...(m.supercar ? { supercar: m.supercar } : {}), ...(m.loft ? { loft: m.loft } : {}), ...(m.cycle ? { cycle: m.cycle } : {}), ...(m.construction ? { construction: m.construction } : {}) },
       { pose: m.pose, viewBox: m.viewBox, title: ctx.title },
     ),
   },
@@ -1044,9 +1065,10 @@ export const WORLD_KINDS = {
   },
   assembler: {
     title: 'mojulo assembler',
-    resolve: async (m, ctx) => assembleAssemblerScene({
+    // (a boat underway on a course: its World page is the live water, worlds/seaway-scene.js)
+    resolve: async (m, ctx) => (m.seaway ? assembleSeawayScene(m, { title: ctx.title, light: ctx.light, toon: ctx.toon }) : assembleAssemblerScene({
       ...m, title: ctx.title, textures: await resolveAssemblerWrapTextures(m), skin: await loadBoundSkin(ctx.ref), light: ctx.light, toon: ctx.toon,
-    }),
+    })),
   },
   // ── sketch kinds widened into the World/export form ──
   // A lone figure / wordmark / solid is an OBJECT STUDY (orbit, export), not a

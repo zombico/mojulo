@@ -1,5 +1,5 @@
 import { safeJson } from '../emit-util.js';
-import { fireKernel, fireLightRGB, firePropParts, FIRE_KIND_LIGHT, FIRE_PROP_COLORS } from '../../fire/fire.js';
+import { fireKernel, fireLightRGB, firePropParts, FIRE_KIND_LIGHT, FIRE_PROP_COLORS, NEVER } from '../../fire/fire.js';
 
 // In-page script: the FIRE channel (opt-in `fire` on any world; fire/fire.js). Only emitted with `fire`.
 //   · the kernel (fireKernel, inlined) gives every fire's flamelets, embers and smoke as functions of time; the air
@@ -25,6 +25,8 @@ export function fireChannelScript(cfg) {
   // (one that chars the body it burns on: its `char`, a foe's base state, foes/states.js. None ⇒ byte-identical)
   const charred = follow && cfg.sources.some((x) => x.follow && Number.isFinite(x.char));
   // (one that stands at its own height over the body's feet, `lift` in metres: a foe's flaming at its chest. None ⇒ byte-identical)
+  // a block's fire (destructible physics, fire.js blockFires): lit when its block catches. None ⇒ byte-identical
+  const blocks = cfg.sources.some((x) => x.rupa);
   const lifted = follow && cfg.sources.some((x) => x.follow && Number.isFinite(x.lift));
   const props = cfg.sources.map((x) => (x.follow ? [] : firePropParts(x))).map((parts) => (u ? parts.map((p) => ({ ...p, ...(p.a ? { a: p.a.map((v) => v * k), b: p.b.map((v) => v * k), r0: p.r0 * k, r1: p.r1 * k } : {}), ...(p.at ? { at: p.at.map((v) => v * k) } : {}), ...(p.r ? { r: p.r * k } : {}) })) : parts));
   return `
@@ -57,7 +59,9 @@ function __fireFollow(K) {
     embers: (i, t) => (off[i] === null ? [] : at(i, (m) => (m ? mv(K.embers(i, t), 7, 6) : K.embers(i, t)))),
     smoke: (i, t) => (off[i] === null ? [] : at(i, (m) => (m ? mv(K.smoke(i, t), 5, 3) : K.smoke(i, t)))) };
 }
-` : ''}const __fireK = ${follow ? '__fireFollow(' : ''}${u ? '__fireUnit(' : ''}(${fireKernel.toString()})(FIRE, __fireWind ? (x, y, z, t) => __fireWind.field.at(x, y, 1.2, t) : null, __fireWorld)${u ? `, ${k})` : ''}${follow ? ')' : ''};
+` : ''}${blocks ? `// a block's flame leans in destructible physics' own wind when the world has no terrain wind
+const __fireRupaAir = (x, y, z, t) => { const C = window.__mojCtrl, W = C && C.world; return W && W.rupa && W.rupa.wind && C.physics ? C.physics.windAt(W.rupa.wind, [x, y, z], W.time) : [0, 0, 0]; };
+` : ''}const __fireK = ${follow ? '__fireFollow(' : ''}${u ? '__fireUnit(' : ''}(${fireKernel.toString()})(FIRE, __fireWind ? (x, y, z, t) => __fireWind.field.at(x, y, 1.2, t) : ${blocks ? '__fireRupaAir' : 'null'}, __fireWorld)${u ? `, ${k})` : ''}${follow ? ')' : ''};
 // every fire the kernel draws: the standing ones (FIRE.sources, with their props) and the grass fires' fronts
 const __fireN = __fireK.N, __FNP = __fireK.NP, __fireAll = Array.from({ length: __fireN }, (_, i) => __fireK.src(i));
 // a fire's light: its kind's warm yellow, or as much of its colorant's lines as the flame is coloured (fire.js fireLightRGB)
@@ -222,7 +226,18 @@ function __fireChar(id, k) {
 ` : ''}const stepFire = (ms) => {
   // the page's step time: a capture frame pins it, so a fire is the same at the same t; live it runs with the wind's
   // own clock, so the flames lean in the gusts the grass bends in
-  const T = ms / 1000;${follow ? `
+  const T = ms / 1000;${blocks ? `
+  // BLOCK FIRES: a block's flame kindles when the runtime has it catch, rides its block, and dies back when it is
+  // doused or burnt out (its source's life, which the kernel reads as it draws)
+  { const W = window.__mojCtrl && window.__mojCtrl.world;
+    for (let i = 0; i < __fireN; i++) {
+      const s = __fireAll[i]; if (!s.rupa) continue;
+      const b = W && W.breakables && (s.__b || (s.__b = W.breakables.find((q) => q.id === s.rupa)));
+      const on = !!(b && !b.broken && b.rupa && b.rupa.burning), lit = s.life.start < ${NEVER} && !Number.isFinite(s.life.out);
+      if (on && !lit) s.life = { start: T, kindle: s.life.kindle || 2.5 };
+      else if (!on && lit) s.life = { ...s.life, out: T, die: 3 };
+      if (b && !b.broken) { s.at[0] = (b.min[0] + b.max[0]) / 2; s.at[1] = (b.min[1] + b.max[1]) / 2; s.at[2] = b.max[2]; }
+    } }` : ''}${follow ? `
   // carry each body's fire to its body's feet, or put it out
   { const W = window.__mojCtrl && window.__mojCtrl.world;
     for (let i = 0; i < __fireK.N; i++) {
@@ -243,7 +258,7 @@ function __fireChar(id, k) {
   // the eight fires nearest the eye light the world
   // where each fire is now (a fireball moves, and is nowhere between casts), how hard it burns
   const where = __fireAll.map((s, i) => __fireK.centre(i, T)), kk = __fireAll.map((s, i) => (where[i] ? __fireK.intensity(i, T) : 0));
-  const order = __fireAll.map((s, i) => [i, where[i] ? Math.hypot(where[i][0] - cam.x, where[i][1] - cam.y, where[i][2] - cam.z) - Math.sqrt(s.light) * 3 : 1e9]).sort((a, b) => a[1] - b[1]);
+  const order = __fireAll.map((s, i) => [i, where[i]${blocks ? ' && kk[i] > 0.001' : ''} ? Math.hypot(where[i][0] - cam.x, where[i][1] - cam.y, where[i][2] - cam.z) - Math.sqrt(s.light) * 3 : 1e9]).sort((a, b) => a[1] - b[1]);
   const flick = new Float64Array(__fireN), live = new Uint8Array(__fireN);
   for (let r = 0; r < order.length; r++) {
     const i = order[r][0], s = __fireAll[i], c = where[i]; if (!c) continue;
@@ -256,7 +271,7 @@ function __fireChar(id, k) {
   }
   for (let r = 0; r < 8; r++) {
     const P = __fireU.uFireP.value[r], C = __fireU.uFireC.value[r];
-    if (r >= order.length || !where[order[r][0]]) { P.w = 0; continue; }
+    if (r >= order.length || !where[order[r][0]]${blocks ? ' || !(kk[order[r][0]] > 0.001)' : ''}) { P.w = 0; continue; }${blocks ? '   // an unlit block\'s fire takes no light' : ''}
     const i = order[r][0], s = __fireAll[i], col = __fireCols[i], c = where[i];
     P.set(c[0], c[1], c[2] + (s.path ? 0 : 0.4 * s.L), (s.baked ? -1 : 1) * s.light * FIRE.light); C.set(col[0], col[1], col[2], flick[i] / FIRE.light || 0);
     __fireU.uFireR.value[r] = (0.7 * s.L + 0.3 * s.D) ** 2 + 0.01;

@@ -13,13 +13,19 @@ const here = dirname(fileURLToPath(import.meta.url));
 // A list, not a suffix: a rename would collide with every branch still editing these files.
 export const E2E = [
   'lib/graph/gameworld/door-probes.e2e.test.js',
+  // a whole physical geocity resolved through world-scene (its metro, its ring's blocks, pieces and load audit): minutes
+  'lib/graph/rupa/city-ring.e2e.test.js',
   'lib/mcp/tools/gameworld-city.test.js',
   'lib/mcp/tools/building-level.test.js',
   'lib/mcp/tools/design-game.test.js',
   'lib/mcp/tools/design-game.quick.test.js',
+  'lib/mcp/tools/design-game.budget.test.js',
+  'lib/mcp/tools/design-game.proof.test.js',
+  'lib/mcp/tools/design-game.climb.test.js',
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',
+  'lib/graph/cycle-shelf/cycle-ride.live.test.js',
   'lib/mcp/tools/export-model.realistic.test.js',
   'lib/mcp/tools/export-model.persona.test.js',
   'lib/mcp/tools/export-model.beast.test.js',

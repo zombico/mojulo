@@ -3,7 +3,7 @@
  * of this type needs at all (`bom`, the veh-* shelf's contract, audited by the same
  * `planAssemblyBom`), and the stock LAYOUT that fills it from the inventory.
  *
- * A layout entry: `{ id, sku, at?, pair?, flip?, roll?, offset? }`.
+ * A layout entry: `{ id, sku, at?, pair?, flip?, roll?, yaw?, offset? }`.
  *  - `at` names where the part's mount lands: `'<item>.<hardpoint>'` (the hull's stations, a
  *    wing's engine point, a pylon's carry end). The first entry is the hull, at the origin.
  *  - `pair: true` makes the part and its mirror: `<id>-r` where `at` says, `<id>-l` mirrored
@@ -11,6 +11,7 @@
  *  - `flip` mirrors the part in its own frame (`'z'`: a lower starfighter foil).
  *  - `roll` turns the part about the craft's long axis, degrees (+ turns +x down): three wings at
  *    120° around a hull. A part on a rolled parent rolls with it.
+ *  - `yaw` turns the part about the vertical, degrees (+ turns +x toward the nose): a multirotor's radial arms.
  *  - `offset` is a spacer at the mount, metres in the parent's frame: how a stock gear leg is set
  *    deeper in its well so the craft sits level.
  *
@@ -20,6 +21,10 @@
  * height in metres; maximum take-off mass in kg). Earth rows quote the named class; space rows
  * quote the register as this shelf sizes it.
  */
+
+import { DRONE_ROLES, DRONE_ARCHETYPES } from './drone-archetypes.js';
+import { HELI_ARCHETYPES } from './heli-archetypes.js';
+import { BOAT_ROLES, BOAT_ARCHETYPES } from './boat-archetypes.js';
 
 // The jobs a flying machine does, the same in air and in space: each role holds at least one craft
 // of each realm, so a game can swap the sky for the void and keep its cast.
@@ -145,6 +150,25 @@ export const CRAFT_ARCHETYPES = {
       { id: 'fin', sku: 'fin-widebody', at: 'hull.finRoot' },
       { id: 'main', sku: 'gear-bogie-widebody', at: 'wing.gear', pair: true },
       { id: 'nose', sku: 'gear-nose-widebody', at: 'hull.noseGear' },
+    ],
+  },
+
+  jumbo: {
+    realm: 'earth', role: 'liner', palette: 'airlinerWhite', class: 'airliner', label: 'four-engined twin-aisle jumbo, an upper deck over its nose', classOf: '747-400 class',
+    reference: { span: 64.4, length: 70.6, height: 19.4, mtow: 396900 },
+    bom: { 'craft-fuselage': 1, 'craft-wing': 2, 'craft-stabilizer': 2, 'craft-fin': 1, 'craft-pylon': 4, 'craft-engine': 4, 'craft-gear': 5 },
+    layout: [
+      { id: 'hull', sku: 'fus-jumbo' },
+      { id: 'wing', sku: 'wing-jumbo', at: 'hull.wingRoot', pair: true },
+      { id: 'pylonIn', sku: 'pylon-underwing-jumbo', at: 'wing.engineIn', pair: true },
+      { id: 'pylonOut', sku: 'pylon-underwing-jumbo', at: 'wing.engineOut', pair: true },
+      { id: 'engineIn', sku: 'eng-turbofan-jumbo', at: 'pylonIn.carry', pair: true },
+      { id: 'engineOut', sku: 'eng-turbofan-jumbo', at: 'pylonOut.carry', pair: true },
+      { id: 'stab', sku: 'stab-jumbo', at: 'hull.stabRoot', pair: true },
+      { id: 'fin', sku: 'fin-jumbo', at: 'hull.finRoot' },
+      { id: 'main', sku: 'gear-bogie-jumbo', at: 'wing.gear', pair: true },
+      { id: 'body', sku: 'gear-bogie-jumbo', at: 'hull.bodyGear', pair: true },
+      { id: 'nose', sku: 'gear-nose-jumbo', at: 'hull.noseGear' },
     ],
   },
 
@@ -483,3 +507,13 @@ export const CRAFT_ARCHETYPES = {
     ],
   },
 };
+
+// the drones (drone-archetypes.js): their roles and rows on the one shelf
+Object.assign(CRAFT_ROLES, DRONE_ROLES);
+Object.assign(CRAFT_ARCHETYPES, DRONE_ARCHETYPES);
+// the helicopters (heli-archetypes.js)
+Object.assign(CRAFT_ARCHETYPES, HELI_ARCHETYPES);
+
+// the boats (boat-archetypes.js): their roles and rows on the one shelf
+Object.assign(CRAFT_ROLES, BOAT_ROLES);
+Object.assign(CRAFT_ARCHETYPES, BOAT_ARCHETYPES);

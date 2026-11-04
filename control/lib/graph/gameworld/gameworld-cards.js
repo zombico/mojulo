@@ -33,6 +33,7 @@ import { CLASS_SLOTS } from './equipment.js';
 import { SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 import { WORLD_STYLE, CIVILIZATION, LINK_KINDS, TOPOLOGIES } from './world.js';
 import { MODES, STAMPS } from './review.js';
+import { chapterById, chapterWaves } from './chapters.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
@@ -51,7 +52,8 @@ import { PEOPLE } from '../foes/people.js';
 import { SCREENS, NEW_GAME_SCREEN } from '../game/screen.js';
 import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
-import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
+import { VEHICLES, TUNINGS, CONDITIONS, wheelLayout } from '../roads/vehicles.js';
+import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { SPORT_PRESETS } from '../contest/sport-presets.js';
 import { MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS, INNINGS_SPORT_IDS } from '../contest/sports.js';
@@ -82,13 +84,45 @@ const pair = (page, a, b) => [
 ];
 const samples = (page) => `Browse more: get_game_vocab({ samples: '${page}', n?, seed? }) draws up to ${SAMPLE_MAX} random fragments of this page, brief-blind, each with what it derives.`;
 
+// the studio: the book worked a chapter at a time, in the waves the chapters' reads make (chapters.js chapterWaves): the
+// card is generated from the registry, so its order is the chapters' own
+function studioCard() {
+  const waves = chapterWaves().map((ids, i) => `  ${String(i + 1).padStart(2)}  ${ids.map((id) => `${id} (${chapterById(id).department})`).join(' · ')}`);
+  return lines(
+    'THE STUDIO — a game of several departments, worked a chapter at a time. Each page of the book is a chapter in a',
+    'department; design_game\'s readout says them (`chapters`: each one\'s state, open parts, and what it `waits` on).',
+    '',
+    'THE WAVES (each chapter after what it reads; a wave\'s chapters side by side, a department or a subagent each):',
+    ...waves,
+    '',
+    'A CHAPTER\'S SESSION (a department\'s or a subagent\'s: it holds this card and its chapter\'s cards, not the book):',
+    '  read     design_game({ ref, chapter }): its parts, its pages, its upstream as a digest (`reads`: each one\'s state',
+    '           and print; a print that moved since you read it: read that chapter again), its next moves, `book`.',
+    '  write    { ref, chapter, patch } on its own pages; a write past them is written and said (`outside`).',
+    '  show     its bible section (`read`) to the creator. The verdicts (approve, revise) are the creator\'s: a subagent',
+    '           stops at the review and reports what the creator must decide.',
+    '  proof    { ref, chapter, run: true }: its steps and what they name, made ahead of their approvals (`ahead`: say so).',
+    '  done     its state settled (approved; auto in autonomous mode), its `blockers` and `advises` cleared or said.',
+    '',
+    'A SUBAGENT gets the ref, the chapter id and the cards its view names (`chapter.cards`), and returns its chapter\'s',
+    'state and the creator\'s questions. Hand a wave at a time, never a chapter that `waits` on an open one.',
+    '',
+    'THE BUILD (the last wave): { ref, chapter: \'build\' } reads the pre-compile check (`compile`: blockers by chapter,',
+    'advises, the estimate). Then run: true until nothing is `pending`, telling the creator how far each call got;',
+    'check: true walks each level and reads its first frame (`audits`, the machine gate). The eyes gate is the creator',
+    'playing it (`play`): never say it passed.',
+    '',
+    'One level and a simple goal is the quick path, not the studio (gameworld-quick).',
+  );
+}
+
 function guide() {
   return lines(
     'THE GAME BOOK — design a game top down, then let the rail make it. You DESIGN; design_game makes, keeps and remakes.',
     '',
-    'SIZE THE ASK first (you infer it). One level, a simple goal (reach, collect, survive, avoid), no powers, stats or',
+    'SIZE THE ASK first. One level, a simple goal (reach, collect, survive, avoid), no powers, stats or',
     'progression: the QUICK path, one call; read gameworld-quick only. Several levels, no hero: COMPOSE,',
-    '{ compose: { prompt } }, then run. A hero, powers, gear or a story: the book below.',
+    '{ compose: { prompt } }, then run. A hero, powers, gear or a story: the book below, by chapter (gameworld-studio).',
     '',
     'THE LOOP (each page answers ONE question, from the brief and the pages above it; never from a default):',
     '  intent      what game is it? its cube; the world is laid for it (gameworld-intent)',
@@ -334,7 +368,7 @@ function equipmentCard() {
 
 function systemsCard() {
   return lines(
-    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, ui?, gear?, destruction? }.',
+    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, ui?, gear?, destruction?, scars? }.',
     '',
     `scale (the coarse dials): ${Object.entries(SCALE).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `stages → epochs reached by level: ${Object.entries(EPOCH_LEVEL).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
@@ -343,7 +377,13 @@ function systemsCard() {
     'powers: { <power id>: { spends } }: what one power spends of the resource over the derived (0: free, a guard that',
     '  costs nothing); ledgered. The readout\'s `numbers` says the stats, the resource and what each power spends.',
     'destruction: how much the game lets break, never a default: none, objects (crates, barrels, pots), cover (furniture,',
-    '  doors, boulders too) or world (walls as well); copied onto every level.',
+    '  doors, boulders too) or world (walls as well); copied onto every level. Walls that hold and objects that break suit',
+    '  most games. physical (destructible physics: only when asked) breaks what world does by its matter (a thing\'s',
+    '  `matter`: concrete, brick, steel, glass…) and drops what loses its support; the level\'s matter { power: human |',
+    '  heroic | super | titan | cosmic } scales every blow.',
+    'scars: true | { ground?, wall? } (cosmetic damage, any degree): a map that may not change still shows its blows, a',
+    '  burst\'s painted crater and thrown dirt, a wall\'s scorch and spalled chips, a round\'s chip or pock, by the',
+    '  same laws as physical; ground and wall are matters, else the geocube\'s, else loam and brick.',
     'LAWS: every number carries its reason; your own `stats` are laid over the derived (lists by id, objects by key) and',
     'ledgered. Each power is a key (1, 2, 3 …) that spends its cost and shows its look; I opens the status page. The HUD',
     'is derived (hp, the resource, the level, banners, a status page) or yours (play parts: get_play_vocab).',
@@ -408,7 +448,9 @@ const QUICK_LEVERS = {
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,
     `  ride: ${Object.keys(RIDES).join(' | ')} | a registry vehicle ('a jeep')   you drive it (WASD), followed from behind; no hero, climb or building`,
-    `    vehicle: ${Object.keys(VEHICLES).join(' | ')}; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
+    // (a few of the road's classes by name, the rest by a registry word: every shelf grows a class at a time, so the card
+    // names none it would have to keep up with and stays under its ceiling)
+    `    vehicle: a physics class (${Object.keys(VEHICLES).filter((k) => !MILITARY_CLASSES[k] && wheelLayout(VEHICLES[k]) === 'axles').slice(0, 8).join(' | ')}, …) or any registry word; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
     '  rivals: n (1..7, with a ride)   finish on the podium',
     '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade?, light? }):',
     '    the whole field, yours first (no ride, hero or rivals beside it); shade: gloss (default) | smooth | cel (flat); light: form (default: lit by the page) | paint',
@@ -796,6 +838,8 @@ function nextCard() {
     '             what this host allows per option (here | carry | ask | no); the call that made the game carries the',
     '             whole offer (`share`: each option\'s call and why). Where nothing can leave the host, the recipe is the handoff.',
     '  run        run: true makes every step that is ready: the hero first; a world with no characters (a composed one), its levels and the game.',
+    '             A run stops at its budget (~2 min): with `pending`, run again (tell the creator). Each',
+    '             reach or survive level is walked after the game, a step each, on check: true: `audits` (machine gate).',
     '  rerun      after a change, run again: what moved is remade, a hand edit is left (force: true overwrites it).',
     '  adornment  the page is empty: the bible proposes what the hero carries from the power verbs, with reasons; write',
     '             your own at `path` (gameworld-adornment); its items seed the equipment table.',
@@ -803,6 +847,10 @@ function nextCard() {
     '             its brief\'s words point at. Until then its cube is read from what it says, and its concerns follow.',
     '             With `drift`: a quick goal now reads as another genre than the written one; keep it or change it.',
     '  wait       step `on` waits on those parts (their stamps in brackets).',
+    '  compile    `compile.blockers` (by chapter): what the build would hit; fix first. `estimate`: the build left.',
+    '  chapters   (not a step) each chapter: department, state, `open` parts, what it `waits` on. Work one at a time,',
+    '             upstream first: { ref, chapter } is its view (a department, or a subagent given only that and its card).',
+    '             With run: true it makes that chapter and what it names, ahead of approvals (`ahead`: say so).',
     '  form       what the game it is asks and the world lacks (`asks`: for, field, by, says): a field `by: creator` is',
     '             theirs (the hero: ask who it is, never pick one), a `by: composer` field compose fills; run lays it after.',
     '  feel       no feel written: `suggest` is the template its brief, shooter pole or genre points at (`why`, `from`):',
@@ -864,6 +912,7 @@ export function genreCardById(id) {
 
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
+  ['gameworld-studio', 'The studio', 'the book worked a chapter at a time: the departments in waves, a chapter\'s session, the build', 'a big game, many levels, several departments, who does what and in what order, subagents, a team of agents', studioCard],
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],

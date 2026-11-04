@@ -11,6 +11,7 @@ import { ARCHETYPES } from '../egocube/facets.js';
 import { loftFigure } from '../car-designer/race-families.js';
 import { FLEET } from '../roads/fleet.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
+import { UNBUILT } from '../car-designer/sheet.js';
 import { validateBytes } from 'gltf-validator';
 
 function gltfJson(buf) {
@@ -70,15 +71,21 @@ describe('a race machine in the form render exports to GLB', () => {
 // a field vehicle (road-military.js: each body the hull kit builds, in camo and worn) as the engines get it: the
 // Khronos validator finds no error and no warning, its camo and grime in its vertex colours, its slots its own
 describe('a field vehicle exports to a valid GLB', () => {
-  for (const cls of Object.keys(MILITARY_CLASSES)) {
+  // (each body the sheet builds: one still waiting for its parts is not yet a figure)
+  for (const cls of Object.keys(MILITARY_CLASSES).filter((k) => !UNBUILT[k])) {
     it(`the ${MILITARY_CLASSES[cls]} body`, async () => {
-      const { out, json } = exported(loftFigure({ class: cls, seed: 3, light: 'form', livery: 'woodland' }));
+      // (worn: an airside vehicle is kept clean unless asked)
+      const fig = loftFigure({ class: cls, seed: 3, light: 'form', livery: 'woodland', wear: 'used' });
+      const { out, json } = exported(fig);
       const report = await validateBytes(new Uint8Array(out.bytes), { maxIssues: 50 });
       expect(report.issues.numErrors, JSON.stringify(report.issues.messages.filter((m) => m.severity === 0))).toBe(0);
       expect(report.issues.numWarnings).toBe(0);
       const body = json.meshes.find((m) => m.name === 'car:root');
       expect(body.primitives.every((p) => p.attributes.COLOR_0 !== undefined)).toBe(true);
       for (const slot of ['milPaint', 'mud', 'worn', 'rubber']) expect(json.materials.some((m) => m.name === `form:${slot}`), slot).toBe(true);
+      // (a part that turns on its own, a tank's turret, is its own node, so an engine can traverse it)
+      const own = fig.bones.filter((b) => b.id === 'turret');
+      for (const b of own) expect(json.nodes.some((n) => n.name?.includes(b.id)), b.id).toBe(true);
     }, 60000);
   }
 });
