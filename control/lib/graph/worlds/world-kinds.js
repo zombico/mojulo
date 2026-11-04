@@ -27,7 +27,7 @@ import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer'
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
-import { assembleGeotownScene } from '@/lib/graph/geotown/scene';
+import { assembleGeotownScene, GEOTOWN_KEYS } from '@/lib/graph/geotown/scene';
 import { assembleGeocityScene } from '@/lib/graph/geocity/scene';
 import { styleReadout } from '@/lib/graph/era/arch-style';
 import { attachDummy } from '@/lib/graph/local-meru/dummy';
@@ -38,6 +38,7 @@ import { assembleCityScene, cityFogBoxes } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { historicAudio } from '@/lib/graph/historic/soundtrack';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
+import { assembleAirportScene } from '@/lib/graph/airport/miniature';
 import { assembleTransportationHubScene } from '@/lib/graph/architecture/transportation-hub';
 import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/architecture/subway-station';
 import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-building';
@@ -97,6 +98,7 @@ import { paintFaceRig, paintFaceBase } from '@/lib/graph/polygonizer/face-paint-
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { westernFaceRig } from '@/lib/graph/polygonizer/western-face-rig';
 import { gearMounts, gearFaces, gearPackParts, gearRestPoint } from '@/lib/graph/polygonizer/hero-gear';
+import { xrHands } from '@/lib/graph/polygonizer/hero-xr-hands';
 import { attachMounts } from '@/lib/graph/polygonizer/hero-attach';
 import { statueBaseOf } from '@/lib/graph/statue/expand';
 import { statueBaseFaces } from '@/lib/graph/statue/base';
@@ -563,7 +565,13 @@ export const WORLD_KINDS = {
       }
       // a neighbourhood on the cube's own land (geotown/scene.js): its map first, levelled on the land's hills, in metres
       // (a page read by the seventh generation: the town's lawns and trees handed to the form render)
-      if (m.show === 'geotown') return attachDummy(assembleGeotownScene(m, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) }));
+      // (a game's level stands on one: the town takes its own settings, the level's pilot and its game layered over it by
+      // the page, and no stand-in walks it)
+      if (m.show === 'geotown') {
+        const played = m.entities !== undefined || m.game !== undefined, own = played ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOTOWN_KEYS.includes(k))) : m;
+        const p = assembleGeotownScene(own, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) });
+        return played ? p : attachDummy(p);
+      }
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
       if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
@@ -622,6 +630,8 @@ export const WORLD_KINDS = {
   // floorplan 9ms · subway-station 195ms · subway-building 220ms · restaurant 353ms — acceptable
   // one-time emit cost. condo-complex is deliberately NOT defaulted: 692ms on 74k faces AND heavy
   // per-cell overflow at kPerCell=64 (reads lighter than truth) — opt in per manifest instead.
+  // the airport (airport/): its plan drawn whole as a miniature on a plinth (show: 'miniature'), turned and looked at
+  airport: view(assembleAirportScene, 'mojulo airport'),
   'subway-station': {
     walk: true,
     ao: true,
@@ -952,6 +962,11 @@ export const WORLD_KINDS = {
           clipsIn = { ...clipsIn, ...swings };
           held = { item: hg.item, class: cls, reach: Math.round((hg.length + 0.65) * 100) / 100, seconds: HELD_STRIKE[cls].seconds, damage: HELD_STRIKE[cls].damage };
         }
+        // RIDING (ctx.ride: a world with a mount, worlds/mount-units.js): the hero's riding clips, solved on this rig to the
+        // horse's saddle, irons and bit (mount/game.js), each its pose words by key, lowered by this pack's lift. Absent ⇒ as before
+        // (an iron a little past a short leg's reach is clamped to it, as the solve did: the rig's handle says so)
+        const packR = typeof ctx.ride === 'function' ? { ...R, reach: 'clamp' } : R;
+        if (packR !== R) clipsIn = { ...clipsIn, ...ctx.ride(R, dz) };
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
         // (the REALISTIC HERO'S SKIN above: the GLB's base colour, under the lit export's plain corners or the unlit's baked
         // light, and the page's clips' the same atlas)
@@ -999,12 +1014,15 @@ export const WORLD_KINDS = {
         // THE COVER (beast/cover.js): a beast-kin's fur, scales, chitin or feathers as a tiling material over its coat, on
         // the same lit, skinned export (its tile's UVs, each corner's tangent; the GLB's maps). Any other figure: none
         const coverKind = engineLit && ctx.face && !paintPack ? beastCoverStyleOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind, beastCoatOf(m.hero)) : null;
-        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, ...(acts ? { acts } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
+        const pack = packLayeredRig(mesh, skin, packR, { clips: clipsIn, ...(acts ? { acts } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         // (the page's face rows as 16-bit steps of each part's own scale, about a micron: an export keeps its floats)
         if (pageFace && face?.rows) pack.parts = pack.parts.map((P) => (P?.morph ? { ...P, morph: quantMorph(P.morph) } : P));
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));
         // (the realistic hero's pack written a corner a triangle: an export welds it, scene-gltf.js weldCorners)
-        scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), ...(m.hero?.form === 'realistic' ? { weld: true } : {}), ...(held ? { held } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
+        // THE HANDS IN A HEADSET (ctx.xrHands: a world a headset plays, channels/xr.js): the grip frame and the digits' curl
+        // tables the page plays its own hand bones by (hero-xr-hands.js). Asked for only then; absent ⇒ byte-identical
+        const xh = ctx.xrHands && R.hands ? xrHands(R, { dz, ...(gear?.length ? { gear } : {}) }) : null;
+        scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), ...(m.hero?.form === 'realistic' ? { weld: true } : {}), ...(held ? { held } : {}), ...(xh ? { xrHands: xh } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       } else if (motioned) {
         // the animal's gaits and behaviors: the mesh bound to the species' skeleton, each gait a clip from the gait solver
         // (in place, one stride, its own duration) and each behavior one loop from the behavior solver, packed like a

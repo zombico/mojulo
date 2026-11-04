@@ -30,6 +30,8 @@ export const weatherStates = (W, extra = []) => [...new Set([...Object.keys(W.cl
 /** The states a world's cues force (their lowered reactions set the weather var), in first-named order. */
 export const weatherForces = (events) => [...new Set(((events && events.reactions) || []).filter((r) => r && r.do === 'set' && typeof r.var === 'string' && r.var.startsWith('weather-force') && typeof r.to === 'string' && STATES[r.to]).map((r) => r.to))];
 
+// (`heading`, radians: the world's one wind's way, its rain and snow leaning with it, rupa/one-wind.js; absent, a seeded
+// heading as it always was, the page's bytes unchanged)
 export function weatherScript(input) {
   const cfg = { ...input, air: input.air || airFromHaze(input.fog, input.weather.air) };
   const names = [...new Set([...weatherStates(cfg.weather, cfg.forces), ...(cfg.seasons || []).flatMap((w) => weatherStates(w))])], states = Object.fromEntries(names.map((n) => [n, STATES[n]]));
@@ -117,7 +119,7 @@ let stepWeather = () => {};   // __mojStep(t) drives it
   document.body.appendChild(ov);
 
   // the fall: a pool for each state that has one
-  const camP = [0, 0, 0], heading = dice(SEED, 0, 99) * 6.283185307179586;
+  const camP = [0, 0, 0], heading = ${cfg.heading !== undefined ? 'CFG.heading' : 'dice(SEED, 0, 99) * 6.283185307179586'};
   const spot = (F) => { const c = new THREE.Color(baseColor); const v = F.value; return [c.r * 0.35 + v * 0.65, c.g * 0.35 + v * 0.65, c.b * 0.35 + v * 0.65]; };
   const pools = {};
   for (const n of Object.keys(STATES)) {

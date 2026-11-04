@@ -361,10 +361,28 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // instead of the 3 m stand-off, never farther out than the open line (with nothing in the way it frames as before); a
 // capture page's view() hands out the level's background colour and its controllable bodies (the first-frame gate reads
 // both). A live page with no follow camera is unchanged.
+// Re-pinned 2026-11-02 (the manual manipulator's controllers: poses are input): `xr` and `walk-xr` only. The headset's
+// driver (controls/xr-driver.js, inlined by its source on a page with `xr`) reads the poses OpenXR names beside the
+// sticks (`xrPoses`, `poseToWorld`, `turn`): additions only. No other page carries the driver; neither fixture has a
+// pilot, so neither carries the game-in-the-headset branch (channels/xr.js `ctrl`).
+// Re-pinned 2026-11-02 (the manual manipulator's controllers: a shot from the hand): every fixture that embeds the
+// controllable runtime (the 16: controllable, its lock, shadows, smoke, figure and hangar, cast-shadows, the two
+// live-shadows with actors, fx, shoot-live, the two toon-ink, capture-controllable and both kitchen sinks), for the
+// ranged weapon's opt-in `input.aim` (combat-ranged.js stepWeapon: a headset's held muzzle or controller ray, the round
+// leaving from it along it): additions only, and an input without `aim` fires as before.
 // Re-pinned 2026-11-02 (the world clock): `shoot-live` only. A live plan's camera gizmos take no raycast (shoot.js
 // `__shOver`): the controllable's ground probe raycast the whole scene and threw on the frustum's lines before its camera
 // was posed, stopping a live world with a shoot plan on its first frame. A plan that is not live emits as it did.
+// Re-pinned 2026-11-03 (the controllers merged over the world clock): `shoot-live` only, for the two above together (it
+// embeds the controllable runtime, so it carries the ranged weapon's opt-in aim and the gizmos' raycast skip at once).
 
+// Re-pinned 2026-11-02 (book powers): every fixture that embeds the controllable runtime, and those only. The cast's
+// beam (worlds/controllable/cast.js) takes `to: { nearest: { range?, cone? } }` (the nearest standing foe in front of
+// its caster) and `hurt` (the hp it takes as it lands, in castFacts beside the struck fact), so a power's attack lands;
+// a beam with neither plays as before.
+// Re-pinned 2026-11-02 again (book powers), the same fixtures: a beam's `hurt` may be `{ by: 'power', per, base }`, its
+// caster's power stat as it fires (the stats bound to its body) × per, or base where it has none, so an attack follows
+// the power stat as the levels raise it; a number plays as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

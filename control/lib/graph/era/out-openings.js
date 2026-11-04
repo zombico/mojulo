@@ -19,7 +19,9 @@
  *                          over), 'hood' (a canopy on two brackets)
  *               fanlight   'rect' (a glazed transom over the head), 'arch' (a half-round with radial bars)
  *               steps      risers up to the threshold (the floor; they stand below it, out from the wall)
- *   shutters    form       'boards' or 'louvred': leaves standing out of the wall, their boards or slats marked
+ *   shutters    form       'boards' or 'louvred': leaves standing out of the wall, their boards or slats marked; a
+ *                          form of the design library's leaves ('persiana', 'panelled', 'ledged': era/shutter-leaves.js)
+ *                          the box alone, its front face named (`leaf`) for the relief tile a scene lays on it
  *
  *   surround(out, W, pts, w, d, part, value, extra, { open })   a band round a polygon's edges, its face and returns
  *   wallBox(out, W, u0, u1, z0, z1, d0, d1, part, value, extra) a box on the wall: its face, its top and its ends
@@ -31,6 +33,7 @@
  */
 import { geometry as G } from './out-structures.js';
 import { screenKey, screenUv } from './screen-tiles.js';
+import { SHUTTER_LEAVES } from './shutter-leaves.js';
 
 const { face, r3 } = G;
 const tangentOf = (W) => { const a = W.at(0, 0, 0), b = W.at(1, 0, 0); return [b[0] - a[0], b[1] - a[1], b[2] - a[2]]; };
@@ -291,7 +294,10 @@ export const stepsLift = (steps) => r3(Math.round(steps ?? 0) * RISE);
 
 /** A shutter leaf u0–u1, z0–z1, standing out of the wall, its boards or its slats marked. */
 export function shutterDress(out, W, u0, u1, z0, z1, form, value, extra) {
+  const f0 = out.length;
   wallBox(out, W, u0, u1, z0, z1, 0.03, 0.07, 'shutter', value, extra, { bottom: true });
+  // (a form of the design library's leaves, era/shutter-leaves.js: the box alone, its front named for the relief it wears)
+  if (SHUTTER_LEAVES[form]) { out[f0].leaf = form; return; }
   if (form === 'louvred') for (let z = z0 + 0.1; z < z1 - 0.06; z += 0.075) bar(out, W, [u0 + 0.05, z], [u1 - 0.05, z], 0.022, 0.075, 'shutter', r3(value * 0.62), extra);
   else for (let u = u0 + 0.12; u < u1 - 0.05; u += 0.12) bar(out, W, [u, z0 + 0.03], [u, z1 - 0.03], 0.012, 0.075, 'shutter', r3(value * 0.62), extra);
 }

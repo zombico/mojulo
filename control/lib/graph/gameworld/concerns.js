@@ -130,7 +130,7 @@ export const CONCERNS = Object.freeze([
   {
     id: 'a-centre', name: 'A centre to return to',
     when: ['space.topology=hub', 'space.topology=interconnected'],
-    asks: 'a world that is returned to needs a centre every way leads back to, and landmarks seen from afar to steer by',
+    asks: 'a world that is returned to needs a centre every way leads back to, and landmarks seen from afar to steer by (laid by the composer: a town at the centre, every level joined to it both ways, world.js hub)',
   },
   {
     id: 'rooms', name: 'Rooms and a way back',

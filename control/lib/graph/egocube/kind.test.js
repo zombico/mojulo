@@ -52,6 +52,14 @@ describe('the egocube kind', () => {
     expect(2 * dist * Math.tan((front.horizontalFov * Math.PI) / 360)).toBeGreaterThanOrEqual(hi - lo);
   }, 300_000);
 
+  it('a beast-kin trickster\'s streamers ride the tail its body has (one part on the hero-door body, not a chain\'s link)', async () => {
+    // (the lupine frontline a party RPG's raiders rolled: a jester, so trickster streamers, worn on its seen tail; the
+    // body's tail is one part, `tail`, where the outfit once asked a chain's second link and the preview threw)
+    const cube = { kind: 'egocube', roll: { seed: 112198, facets: { role: 'frontline', ancestry: 'lupine' } } };
+    const scene = await assembleEgocubeScene(cube, { title: 'Raider' }, (m, c) => WORLD_KINDS.layered.resolve(m, c));
+    expect(scene.faces.length).toBeGreaterThan(0);
+  }, 300_000);
+
   it('previews a mascot output as its model sheet\'s turnaround: one character, four turns', async () => {
     const cube = { kind: 'egocube', roll: { brief: 'a weary paladin', seed: 3 }, output: 'mascot' };
     const scene = await assembleEgocubeScene(cube, { title: 'Paladin' }, (m, c) => WORLD_KINDS.layered.resolve(m, c));

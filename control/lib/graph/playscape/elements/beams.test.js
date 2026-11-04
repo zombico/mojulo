@@ -112,7 +112,7 @@ describe('beams in the cues', () => {
     expect(rs[1].spec.strands).toHaveLength(2);
     expect(ev.reactions.some((r) => r.on === 'struck' && r.match && r.match.entity === 'golem')).toBe(true);
     const bad = (then) => () => readCues({ cues: [{ id: 'x', when: { start: true }, then }] });
-    expect(bad({ beam: { who: 'hero' } })).toThrow(/beam.to is a character's id or a place/);
+    expect(bad({ beam: { who: 'hero' } })).toThrow(/beam.to is a character's id, a place, or \{ nearest/);
     expect(bad({ beam: { who: 'hero', to: 'golem', is: 'hadoken' } })).toThrow(/is not an attack/);
     const html = uiBoardHtml(resolvePlayUi({ entities: ENTS, play: { ...play, ui: 'propose' } }, () => 7));
     for (const w of ['hero fires a ray at golem', 'hero fires a twin at altar', 'hero fires an attack at [1, 2]']) expect(html).toContain(w);

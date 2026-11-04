@@ -67,6 +67,8 @@
  *     } },
  *     links?: [ { from, to, kind?: 'road' | 'gate' } ],
  *     start?: '<level id>',
+ *     hub?: '<level id>',                 // the centre (a map world's: topology 'interconnected'): the town every way
+ *                                         // leads back to; no battles there, the merchant and the inn stand in it
  *     characters?: { direction, hero? },  // the character book (characters.js)
  *     equipment?: { classes? },           // the gear classes, seeded by the hero's adornment (equipment.js)
  *     mechanics?: { stats?, scale?, hud?, ui?, gear? },   // the game's systems, numbered from the actions (mechanics.js)
@@ -78,8 +80,13 @@
  *                                         // (juice.js), laid on every level as `fxStyle`; absent, none is laid
  *     tempo?: 'auto' | false | words | { moments },   // its world clock (tempo.js): moments that slow or hold its live
  *                                         // levels on what happens, the camera on real time; laid on every level as `tempo`
+ *     grade?: 'auto' | false | a word | dials,   // its grade (grade.js): the look over every frame of its levels;
+ *                                         // laid on every level as `grade`
  *     battles?: { party?, packs?, per?, boss?, foe?, … },   // party battles on the trails, the party carried (battles.js)
  *     minigames?: true | false | [{ game, … }],   // the games inside the game, kept on the trails (minigames.js)
+ *     mounts?: 2 | [{ coat?, at?, heading? }],     // horses on each walking level, beside the spawn (or `at`): the hero gets on
+ *                                                  // with interact, rides them (W/S, A/D, Space jumps) and gets off
+ *                                                  // (worlds/mount-units.js; the runtime's worlds/controllable/mount.js)
  *     foes?: { '<id>': { class, rank?, skill?, skin? } },   // the bestiary: the foe classes it fields (foes.js); a
  *                                         // level stands them with its own `foes`
  *     moves?: true,                       // every person the run makes (the hero, its foes, guards, keepers) is made
@@ -92,6 +99,9 @@
  *     intent?: { from?, cube?, why? },    // what game it is, as a cosmos cube (intent.js): what the levels are laid for
  *     camera?, screen?,                   // the camera it plays through (cameras.js) and the screen it is made for
  *                                         // (game/screen.js): each level carries the screen, and the game
+ *     xr?: true | { move?, turn?, … },    // played in a headset (scene/channels/xr.js): each stage level carries it, so
+ *                                         // its page opens a session that plays the game, the hero's hands on the
+ *                                         // controllers
  *   }
  *
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
@@ -130,7 +140,8 @@ import { readMade } from './made.js';
 import { readQuick, LEVEL_GOAL_PARTS } from './quick.js';
 import { readEscapeGoal } from './escape.js';
 import { readErrands } from './errand.js';
-import { readBestiary, readLevelFoes } from './foes.js';
+import { readGauntletGoal } from './gauntlet.js';
+import { readBestiary, readLevelFoes, bestiaryOf } from './foes.js';
 import { readIntent, cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { LAID, groundLays, fieldSite, boardSite, loopSite, arenaSite } from './lay-concerns.js';
@@ -139,12 +150,14 @@ import { WEAPON_ROLES } from './weapon-roles.js';
 import { readFeel } from './feel/lower.js';
 import { readJuiceStyle } from '../scene/juice-style.js';
 import { readGameTempo } from './tempo.js';
+import { readGameGrade } from './grade.js';
 import { levelFrame, GROUND_CELL } from '../level/ground.js';
 import { sequentialOrder } from '../level/sequential.js';
 import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
 import { readHour } from '../era/geocube-hours.js';
+import { readGeocube, cubeStreetLook } from '../era/geocube.js';
 import { PROGRAM_IDS } from '../era/programs.js';
 import { STRUCTURE_RAILS, hasStructureRails } from '../era/out-structures.js';
 import { civilizationGrammar } from '../city/plan/civilization.js';
@@ -157,7 +170,11 @@ import { LANDS, SETTLEMENTS } from '../roads/surrounds.js';
 import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { readFront } from '../game/play-front.js';
 import { readMinigameBook, minigamesOfWords } from './minigames.js';
+import { readMounts } from '../worlds/mount-units.js';
 import { validateAirspace, isSpace } from '../skyscape/airspace.js';
+import { readGeotown } from '../geotown/read.js';
+/** The uses a town level opens at their doors when it names none: a shop, the hall (an old town's church), a dwelling. */
+export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 import { readBuildingParked } from '../vehicle-registry/parked.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
@@ -211,8 +228,10 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'juice', 'tempo', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'moves', 'foes', 'story', 'quests', 'front', 'wcd', 'qow', 'book', 'errands', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes'];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'juice', 'tempo', 'grade', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'moves', 'foes', 'story', 'quests', 'front', 'wcd', 'qow', 'book', 'errands', 'xr', ...RESERVED];
+/** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
+export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -479,6 +498,7 @@ export function readGameworld(W) {
   if (W.topology !== undefined && !TOPOLOGIES[W.topology]) throw new Error(`gameworld: topology is one of ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}`);
   if (W.camera !== undefined && !CAMERAS[W.camera]) throw new Error(`gameworld: camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
   const screen = readScreen(W.screen, 'gameworld: screen');   // the screen it is made for (game/screen.js); null: none
+  if (W.xr !== undefined && W.xr !== true && W.xr !== false && !isObj(W.xr)) throw new Error('gameworld: xr is true or { move?, turn?, snap?, … } (scene/channels/xr.js): every level played in a headset');
 
   // CIVILIZATIONS: as many as the world keeps; the kit's own when it keeps none
   if (W.civilizations !== undefined && (!isObj(W.civilizations) || !Object.keys(W.civilizations).length)) throw new Error('gameworld: civilizations is { <id>: { name?, anchor?, fort?, town?, castle?, builds?, technology? } }, at least one (or leave it out)');
@@ -511,7 +531,7 @@ export function readGameworld(W) {
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
     if (L.goal !== undefined) {
-      const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true, health?: true, guards?: true, escape?: true | 1…4 }, at least one`;
+      const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true, health?: true, guards?: true, escape?: true | 1…4, gauntlet?: { arenas } }, at least one`;
       if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
       if (L.walk === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.goal is laid on a walk's stages or a building's rooms`);
       if (!isObj(Gl) || !Object.keys(Gl).length) throw new Error(`gameworld: ${shape}`);
@@ -522,6 +542,13 @@ export function readGameworld(W) {
       if (Gl.escape !== undefined) {
         try { readEscapeGoal(Gl.escape, id); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
         if (Gl.boss) throw new Error(`gameworld: ${at}.goal: an escape room's way out ends the level, and so does a boss's fall: one or the other`);
+        if (Gl.gauntlet !== undefined) throw new Error(`gameworld: ${at}.goal: an escape room's way out ends the level, and so does a gauntlet's last wave: one or the other`);
+      }
+      // a wave gauntlet (gauntlet.js): its foes the bestiary's; it owns the hero's hp and ends the level itself
+      if (Gl.gauntlet !== undefined) {
+        try { readGauntletGoal(Gl.gauntlet, id, Object.keys(bestiaryOf({ foes }))); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
+        if (Gl.boss || Gl.health) throw new Error(`gameworld: ${at}.goal: a gauntlet owns the hero's hp and ends the level when its last wave is down: no boss or health beside it`);
+        if (L.walk === undefined) throw new Error(`gameworld: ${at}.goal.gauntlet stands on a walk's last stage (a building's arena is to come)`);
       }
     }
     // the level's foes (foes.js): which of the bestiary stand on its trails, or in a building's rooms
@@ -539,7 +566,17 @@ export function readGameworld(W) {
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
-    if (L.runner !== undefined) {
+    if (L.geotown !== undefined) {
+      // a geotown level: a neighbourhood (geotown/: its pattern, its streetscape, a segment or a neighbourhood), drawn on
+      // the level's geocube and walked from its streets; the town is its own ground
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a geotown level is the town alone: no walk, building, city, roadway, airspace, runner, places, ground or arena`);
+      if (!isObj(L.geotown)) throw new Error(`gameworld: ${at}.geotown is { pattern?, streetscape?, segment? | neighbourhood?, evoke?, … } (the geocube kind's geotown)`);
+      // (its `enter`: the uses whose doors open on a scene of their own, the nearest the walk of each; the town's own words
+      // without it)
+      const { enter: En, ...town } = L.geotown;
+      if (En !== undefined && !(Array.isArray(En) && En.length <= 6 && En.every((u) => typeof u === 'string'))) throw new Error(`gameworld: ${at}.geotown.enter is the uses entered at their door (['shop', 'hall', 'dwelling'], the default: the nearest the walk of each), [] for none`);
+      try { readGeotown(town); } catch (e) { throw new Error(`gameworld: ${at}.geotown: ${e.message.replace(/^geotown:\s*/, '')}`); }
+    } else if (L.runner !== undefined) {
       // a runner level: an endless run down lanes (worlds/controllable/runner.js), its rows laid as it is played
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a runner level is the run alone: no walk, building, city, roadway, airspace, places, ground or arena beside it`);
       try { readRunner(L.runner, 'runner'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); }
@@ -627,10 +664,12 @@ export function readGameworld(W) {
         if (k === 'street') {
           // the town's street on the walk (era/stage-buildings.js): its first houses standing beside the trail
           const St = L.places.street;
-          if (St !== true && !isObj(St)) throw new Error(`gameworld: ${at}.places.street is true or { houses?, enter?, goal? }`);
-          if (isObj(St)) for (const kk of Object.keys(St)) if (!['houses', 'enter', 'goal', 'doors'].includes(kk)) throw new Error(`gameworld: ${at}.places.street.${kk} is not a street setting (houses, enter, goal, doors)`);
+          if (St !== true && !isObj(St)) throw new Error(`gameworld: ${at}.places.street is true or { houses?, enter?, goal?, doors?, walk? }`);
+          if (isObj(St)) for (const kk of Object.keys(St)) if (!['houses', 'enter', 'goal', 'doors', 'walk', 'walls', 'inside'].includes(kk)) throw new Error(`gameworld: ${at}.places.street.${kk} is not a street setting (houses, enter, goal, doors, walk, walls, inside)`);
+          if (isObj(St) && St.walls !== undefined && !(typeof St.walls === 'boolean' || typeof St.walls === 'string')) throw new Error(`gameworld: ${at}.places.street.walls is true (the town's own fortification, from its builders' language) or a fortification's id (crenellated, battered)`);
+          if (isObj(St) && St.walk !== undefined && !(Array.isArray(St.walk) && St.walk.every((u) => typeof u === 'string'))) throw new Error(`gameworld: ${at}.places.street.walk is the uses walked into as part of the world ([\'shop\']), the rest of those entered at a door into a scene of their own`);
           if (isObj(St) && St.houses !== undefined && !(Number.isInteger(St.houses) && St.houses >= 1 && St.houses <= 12)) throw new Error(`gameworld: ${at}.places.street.houses is 1 to 12`);
-          if (isObj(St) && St.enter !== undefined && !(Number.isInteger(St.enter) && St.enter >= 0 && St.enter <= 4)) throw new Error(`gameworld: ${at}.places.street.enter is 0 to 4 (the houses walked into)`);
+          if (isObj(St) && St.enter !== undefined && !(Number.isInteger(St.enter) && St.enter >= 0 && St.enter <= 4) && !(Array.isArray(St.enter) && St.enter.length >= 1 && St.enter.length <= 4 && St.enter.every((u) => typeof u === 'string'))) throw new Error(`gameworld: ${at}.places.street.enter is 0 to 4 (the houses walked into), or the uses walked into (['shop', 'dwelling']: the first of each from the whole town)`);
           if (!L.places.town) throw new Error(`gameworld: ${at}.places.street is the town's street: give the level its town (places.town)`);
           continue;
         }
@@ -666,8 +705,8 @@ export function readGameworld(W) {
       try { readScenes({ scenes: bare }); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^play\./, '')}`); }
       sceneSets[id] = sc.map((s) => ({ ...s }));
     }
-    // (an escape goal read to its locks and its room, the level's id: what its keys and locks are named by)
-    levels[id] = { ...lv, ...(lv.goal?.escape !== undefined ? { goal: { ...lv.goal, escape: readEscapeGoal(lv.goal.escape, id) } } : {}), style: st };
+    // (an escape goal read to its locks and its room, a gauntlet to its arenas and its room: the level's id names their things)
+    levels[id] = { ...lv, ...(lv.goal?.escape !== undefined || lv.goal?.gauntlet !== undefined ? { goal: { ...lv.goal, ...(lv.goal.escape !== undefined ? { escape: readEscapeGoal(lv.goal.escape, id) } : {}), ...(lv.goal.gauntlet !== undefined ? { gauntlet: readGauntletGoal(lv.goal.gauntlet, id, Object.keys(bestiaryOf({ foes }))) } : {}) } } : {}), style: st };
   }
   const links = (W.links ?? []).map((e, i) => {
     if (!isObj(e)) throw new Error(`gameworld: links[${i}] is { from, to, kind? }`);
@@ -688,6 +727,11 @@ export function readGameworld(W) {
     return { from: e.from, to: e.to, kind, ...(e.key ? { key: e.key, keyAt: e.keyAt } : {}) };
   });
   const start = W.start ?? ids[0];
+  // the hub: a level of the world, in a map (where every way runs both ways, so each way out of it leads back)
+  if (W.hub !== undefined) {
+    if (typeof W.hub !== 'string' || !levels[W.hub]) throw new Error(`gameworld: hub names the level that is the world's centre (levels: ${ids.join(', ')})`);
+    if (W.topology !== 'interconnected') throw new Error('gameworld: hub is a map world\'s centre: set topology: \'interconnected\' (every way runs both ways), with links from the hub to the levels around it');
+  }
   if (!levels[start]) throw new Error(`gameworld: start '${start}' is not a level (levels: ${ids.join(', ')})`);
   // the errands (errand.js): sent out across the map with a list, home to a giver; malformed refused here, laws advise
   const errands = readErrands(W.errands, { levels, ids, links, start, topology: W.topology, foes });
@@ -708,6 +752,8 @@ export function readGameworld(W) {
   }
   // its world clock (tempo.js): moments that slow or hold its live levels on what happens in play
   readGameTempo(W.tempo);
+  // its grade (grade.js): the look laid over every frame of its levels, the base its moments' looks push from
+  readGameGrade(W.grade);
   // the games inside the game (minigames.js): as written, else what the prompt's words ask for
   const minigames = W.minigames !== undefined ? readMinigameBook(W.minigames) : typeof W.brief?.prompt === 'string' ? minigamesOfWords(W.brief.prompt)?.games ?? null : null;
   if (W.moves !== undefined && typeof W.moves !== 'boolean') throw new Error('gameworld: moves is true (every person the run makes takes a blow on its own rig: a hit, a stagger, a fall and a rise) or false');
@@ -719,7 +765,7 @@ export function readGameworld(W) {
   // the quest open world (qow/qow.js), the WCD's opposite pole: its regions a geocity's, joined sideways; its principles
   // advise (design_game's readout), a malformed one is refused here
   const qow = W.qow === undefined || W.qow === null ? null : (() => { try { return readQow(W.qow, { levels: ids }); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
 }
 
 /**
@@ -782,6 +828,13 @@ export function resolveLevel(world, id) {
     // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
     const { map = {}, ground = {}, course = true, space, assist } = L.airspace, inSpace = isSpace(L.airspace);
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}) } };
+  }
+  // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh
+  // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light
+  if (L.geotown) {
+    const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };
+    const { enter = GEOTOWN_ENTER, ...spec } = L.geotown;
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
   }
   // a runner level: the run's settings, its seed the level's unless it names one (levels.js lays it)
   if (L.runner) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, runner: { ...(L.runner === true ? {} : L.runner), seed: (L.runner === true ? undefined : L.runner.seed) ?? (seed >>> 0) } };
@@ -904,7 +957,19 @@ export function resolveLevel(world, id) {
     return { ...rest, ...(anchor !== undefined ? { civilization: anchor } : {}) };
   });
   // the town's street on the walk: the town's recipe (its castle aside: the street is its houses), in its language
-  const street = P.street && town ? (() => { const { castle: _k, anchor, ...recipe } = town, S = P.street === true ? {} : P.street; return { ...S, ...(anchor !== undefined ? { anchor } : {}), recipe }; })() : null;
+  // the street on the walk: the town's plan in its builders' language; where a geocube paints the level, in the cube's
+  // look too (era/geocube.js cubeStreetLook: its street paint, its builders' material words and colours as the walls'
+  // dress, the road and its lamps laid through it), so the street is drawn from the same art direction as the land it
+  // stands on. The civilization's language (the book's builders, its tunnelled words) wins over the cube's builders'
+  const street = P.street && town ? (() => {
+    const { castle: _k, anchor, ...recipe } = town, S0 = P.street === true ? {} : P.street;
+    // (its walls true: the town's own, derived from its builders' language as the street is drawn, era/out-fortress.js
+    // fortOfLanguage; a fortification's id chooses one)
+    const S = S0.walls === false ? (({ walls: _w, ...x }) => x)(S0) : S0;
+    const look = style.geocube !== undefined ? cubeStreetLook(readGeocube(cubeInPalette(style.geocube, style.palette))) : null;
+    const lang = anchor ?? look?.anchor;
+    return { ...S, ...(lang !== undefined ? { anchor: lang } : {}), recipe, ...(look ? { street: true, paint: look.paint, ...(look.dress ? { dress: look.dress } : {}) } : {}), ...(S.walls ? { street: true } : {}) };
+  })() : null;
   return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(lowered ? { land: lowered.forms } : {}), ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}), ...(arena ? { arena } : {}) } : {}) };
 }
 

@@ -302,7 +302,7 @@ function skinZ(ring, x, side) {
  * The hull's surface detail, all on the real skin:
  *  - panel seams: a hair-proud band every `seams` metres (default a tenth of the length, 1–3 m),
  *    a shade darker than the paint; `seams: false` for none;
- *  - `windows: { from, to, pitch, zf, w, h }`: a cabin row each side; `doors: [[s, zf, w, h]]`:
+ *  - `windows: { from, to, pitch, zf, w, h }` (or a list of them: a deck's rows): a cabin row each side; `doors: [[s, zf, w, h]]`:
  *    framed doors each side;
  *  - `ramp: { from, to, w }`: a rear ramp's hinge across the belly, its sides up the aft underside, its lip;
  *  - `antennas: [[s, xf, zf, length, kind]]`: 'blade' standing off the skin, 'pitot' ahead of the nose;
@@ -356,11 +356,13 @@ function hullDetail({ b, L, zp, stations, smooth, point, C, sku, pose }) {
       });
     }
   };
-  if (b.windows) {
-    const { from, to, pitch: wp, zf, w, h } = b.windows;
+  // (a row of windows, or several: a jumbo's main deck under its hump and behind it, its upper deck; the first row's
+  // ids as a single row's always were)
+  for (const [k, row] of (Array.isArray(b.windows) ? b.windows : b.windows ? [b.windows] : []).entries()) {
+    const { from, to, pitch: wp, zf, w, h } = row;
     for (let y = from * L, i = 0; y <= to * L + 1e-9; y += wp, i += 1) {
       if (doorsAt.some(([a, z]) => y + w / 2 >= a && y - w / 2 <= z) || seamsAt.some((q) => Math.abs(q - y) < w / 2 + 0.03)) continue;
-      sideStrip(`window_${i}`, y / L, zf, w, h, 0.01, C.glass, { material: 'glass' });
+      sideStrip(k ? `window_${k}_${i}` : `window_${i}`, y / L, zf, w, h, 0.01, C.glass, { material: 'glass' });
     }
   }
   // (sliding doors, `slide: true`: each on its rails above and below, slid aft by `pose.door` (0 shut … 1 open), the

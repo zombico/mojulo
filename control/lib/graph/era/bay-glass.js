@@ -87,10 +87,12 @@ export function glazeOpening(out, F, u0, u1, z0, z1, G, S) {
   for (let k = 0; k <= n; k++) { const u = u0 + ((u1 - u0) * k) / n, a = Math.max(u0, u - m / 2), b = Math.min(u1, u + m / 2); bbox(out, at(a, -L - m, z0 + m), at(b, -L + m, z1 - m), S.frame); }
   // the sill board inside, a hand's breadth into the room
   bbox(out, at(u0 - 0.05, -L + m, z0 - 0.03), at(u1 + 0.05, 0.06, z0), S.sill);
+  // (leaded lights, a construction's `cames`: lead bars across the lights every `cames` metres up, the panes small)
+  if (G.cames) for (let z = z0 + m + G.cames; z < z1 - m - 0.04; z += G.cames) bbox(out, at(u0, -L - m * 0.6, z - m * 0.35), at(u1, -L + m * 0.6, z + m * 0.35), S.frame);
   for (let k = 0; k < n; k++) {
     const pa = u0 + ((u1 - u0) * k) / n + m / 2, pb = u0 + ((u1 - u0) * (k + 1)) / n - m / 2, za = z0 + m, zb = z1 - m;
     out.push(pane([at(pa, -L, za), at(pb, -L, za), at(pb, -L, zb), at(pa, -L, zb)], N, S.look, S.group));
-    glints(out, F, pa, pb, za, zb, -L + 0.004, k);
+    if (!G.cames) glints(out, F, pa, pb, za, zb, -L + 0.004, k);
     panes.push([pa, pb, za, zb]);
   }
   // the daylight beyond: the sky at the wall's outer face, brighter and bluer up it (a self-lit face: the bake leaves it)

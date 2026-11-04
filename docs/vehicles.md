@@ -24,6 +24,14 @@ The car designer ([car-designer/](../control/lib/graph/car-designer/)) builds ro
   running gear is `mil-track.js`.
 - The airfield's ground crew (the catering truck, belt loader and stairs) is `road-airside.js`.
 
+## Cars: the car shelf
+
+[car-shelf/](../control/lib/graph/car-shelf/) builds personal and family cars: a body style, a design language, a trim
+and its parts, and a paint over a class's true numbers. The shelf's own guide is [car-shelf.md](car-shelf.md).
+
+- Named configurations are cards in `car-library.js`, reached by a registry row's `car` handle and by a loft's `{ car }`.
+- A new car is a card; a new look is a language or a part word.
+
 ## Legged frames: the mecha shelf
 
 [mecha-shelf/](../control/lib/graph/mecha-shelf/) builds ridden walkers on real-robot principles.

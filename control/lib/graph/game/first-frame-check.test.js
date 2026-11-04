@@ -61,6 +61,18 @@ describe('first-frame check', () => {
     expect(items.map((x) => x.frame ?? null)).toEqual([{ width: 180, height: 320 }, null]);
   });
 
+  it('the pages are handed over packed: each read from its item when the browser loads it, never all held as text', async () => {
+    let seen = null;
+    const capture = async (xs) => {
+      // (nothing read yet: each item's page is a getter over its deflated bytes)
+      seen = xs.map((x) => typeof Object.getOwnPropertyDescriptor(x, 'html').get);
+      return xs.map((x) => (x.html.includes(x.ref) ? { rgba: halves(), scene: {} } : { error: 'not its page' }));
+    };
+    const out = await firstFrameCheck(['lv-a', 'lv-b'], { findBrowser: found, page, capture });
+    expect(seen).toEqual(['function', 'function']);
+    expect(out.levels.map((l) => l.status)).toEqual(['pass', 'pass']);
+  });
+
   it('design_game\'s readout: nothing without a run; the levels no run has gated as they stand, whatever this run did', async () => {
     SketchRepository.create({ ref: 'g-game', title: 'g', manifest: { kind: 'game', title: 'g', store: { slices: [] }, levels: [{ ref: 'g-level-a-0' }, { ref: 'g-level-a-1' }] } });
     const world = { made: { game: { ref: 'g-game' }, 'level-a-0': { ref: 'g-level-a-0', stored: 's0' }, 'level-a-1': { ref: 'g-level-a-1', stored: 's1' } } };

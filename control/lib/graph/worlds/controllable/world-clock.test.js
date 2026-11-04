@@ -130,8 +130,9 @@ describe('a world\'s tempo, read', () => {
 
   it('a world manifest\'s tempo reaches the page; a world without one has none', async () => {
     const { resolveWorldScene } = await import('../world-scene.js');
+    const { TEMPO_PRESETS } = await import('./world-clock.js');
     const manifest = { kind: 'controllable', entities: [{ id: 'p', rule: { type: 'walk', speed: 4 }, pilotable: true, body: body() }], camera: { rule: 'follow', target: 'p' } };
-    expect((await resolveWorldScene({ ref: 't', manifest: { ...manifest, tempo: 'finisher' } })).payload.tempo).toEqual({ moments: [{ on: 'last-down', scale: 0.2, hold: 1.2, ramp: 0.25 }] });
+    expect((await resolveWorldScene({ ref: 't', manifest: { ...manifest, tempo: 'finisher' } })).payload.tempo).toEqual({ moments: TEMPO_PRESETS.finisher });
     expect((await resolveWorldScene({ ref: 't', manifest })).payload).not.toHaveProperty('tempo');
   }, 120_000);   // (world resolution's cold import is heavy)
 });
@@ -147,5 +148,90 @@ describe('the impact cam\'s bridge: a firing moment cues the live shoot plan', (
     expect(html).toContain("window.__mojShoot.cue('tempo:' + __tmLast.on)");
     expect(shootChannelScript(lowerShoot(plan, { live: true }))).toContain('c.raycast = () => {};');
     expect(shootChannelScript(lowerShoot(plan))).not.toContain('raycast');
+  });
+});
+
+describe('the impact cam: a moment takes the camera on the two it knows', () => {
+  const fight = (cam, extra = {}) => {
+    const w = world({ moments: [{ on: 'down:foe', scale: 0.3, hold: 0.3, ...(cam ? { cam } : {}) }, { on: 'big', scale: 0.1, hold: 0.2 }] });
+    Object.assign(w, extra);
+    w.byId.foe.lastHitBy = 'hero'; w.byId.foe.downed = true;
+    return w;
+  };
+  it('a moment\'s cam frames the downer and the downed with the shot rule, and hands the camera back as it ends', () => {
+    const w = fight('two'), C = w.camera, rule = C.rule;
+    run(w, 1);
+    expect(C.rule).toMatchObject({ type: 'shot', frame: 'two', on: ['hero', 'foe'], cut: false });
+    expect(C.heldRule).toBe(rule);
+    run(w, Math.round(0.4 / DT));
+    expect(w.tempo.playing).toBeNull();
+    expect(C.rule).toBe(rule);
+    expect(C.heldRule).toBeNull();
+  });
+  it('one subject left (the other gone): a close on it; `on` picks whom; no one to frame, no shot', () => {
+    const w = fight({ frame: 'low', on: ['b'], move: 'push' });
+    run(w, 1);
+    expect(w.camera.rule).toMatchObject({ type: 'shot', frame: 'low', on: ['foe'], move: 'push' });
+    const none = world({ moments: [{ on: 'go', scale: 0.5, hold: 0.2, cam: 'two' }] });
+    CW.tempoMoment(none, 'go');
+    expect(none.camera.rule.type).toBe('__probeCam');
+  });
+  it('never takes the camera from a scene\'s shot or the tackle cinematic, and leaves a scene\'s shot where it was', () => {
+    const scene = fight('two');
+    CW.castOps(scene, [{ op: 'shot', shot: { frame: 'wide', on: ['hero'] } }]);
+    run(scene, 1);
+    expect(scene.camera.rule).toMatchObject({ type: 'shot', frame: 'wide' });
+    run(scene, Math.round(0.4 / DT));
+    expect(scene.camera.rule).toMatchObject({ type: 'shot', frame: 'wide' });
+    const cine = fight('two', { cinematic: { a: 'hero', b: 'foe', side: 1 } });
+    run(cine, 1);
+    expect(cine.camera.rule.type).toBe('__probeCam');
+  });
+  it('a moment that takes over without a cam hands the camera back', () => {
+    const w = fight('two');
+    run(w, 1);
+    expect(w.camera.rule.type).toBe('shot');
+    CW.tempoMoment(w, 'big');
+    expect(w.camera.rule.type).toBe('__probeCam');
+  });
+  it('reads a cam: a frame word or { frame, on, side, move, lerp }; refuses one it cannot shoot', async () => {
+    const { readTempo } = await import('./world-clock.js');
+    expect(readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.1, cam: 'close' }] }).moments[0].cam).toBe('close');
+    expect(readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.1, cam: { frame: 'profile', on: ['a'], side: -1 } }] }).moments[0].cam).toEqual({ frame: 'profile', on: ['a'], side: -1 });
+    expect(() => readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.1, cam: 'dutch' }] })).toThrow(/frame is one of/);
+    expect(() => readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.1, cam: { move: 'zoom' } }] })).toThrow(/move is one of/);
+  });
+});
+
+describe('a moment\'s look: grade dials eased by the moment\'s weight', () => {
+  it('the weight eases in over the ramp, holds at 1, eases out, and is 0 when no moment plays', () => {
+    const w = world({ moments: [{ on: 'go', scale: 0.5, hold: 0.2, ramp: 0.2, look: { saturation: 0 } }] });
+    expect(CW.tempoWeight(w)).toBe(0);
+    CW.tempoMoment(w, 'go');
+    const ws = [];
+    for (let i = 0; i < 40; i++) { run(w, 1); ws.push(CW.tempoWeight(w)); }
+    expect(Math.max(...ws)).toBe(1);
+    for (let i = 1; i < ws.length; i++) expect(Math.abs(ws[i] - ws[i - 1])).toBeLessThan(0.15);
+    expect(ws.at(-1)).toBe(0);
+    expect(w.tempo.moments[0].look).toEqual({ saturation: 0 });
+  });
+
+  it('reads a look (grade dials and impact frames); every preset\'s look is a look', async () => {
+    const { readTempo, TEMPO_PRESETS } = await import('./world-clock.js');
+    expect(readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.05, look: { impact: 2, zoom: 0.4 } }] }).moments[0].look).toEqual({ zoom: 0.4, impact: 2 });
+    expect(() => readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.05, look: { impact: 9 } }] })).toThrow(/1 to 6 frames/);
+    expect(() => readTempo({ moments: [{ on: 'strike', scale: 0, hold: 0.05, look: { sepia: 1 } }] })).toThrow(/not a dial/);
+    for (const [word, ms] of Object.entries(TEMPO_PRESETS)) expect(readTempo(word).moments.map((m) => m.look)).toEqual(ms.map((m) => m.look));
+  });
+
+  it('the page lays a moment\'s look over the grade only when a moment carries one', async () => {
+    const { emitThreeWorld } = await import('@/lib/graph/scene/scene-three');
+    const floor = { corners: [[-20, -20, 0], [20, -20, 0], [20, 20, 0], [-20, 20, 0]], fill: '#556' };
+    const base = { faces: [floor], entities: [{ id: 'p', rule: { type: 'walk', speed: 4 }, pilotable: true, body: body() }], camera: { rule: 'follow', target: 'p' } };
+    const looked = emitThreeWorld({ ...base, tempo: { moments: [{ on: 'strike', scale: 0, hold: 0.05, look: { impact: 2 } }] } });
+    expect(looked).toContain('window.__mojGrade.moment(');
+    expect(looked).toContain('gradeFrame');
+    const bare = emitThreeWorld({ ...base, tempo: { moments: [{ on: 'strike', scale: 0, hold: 0.05 }] } });
+    expect(bare).not.toContain('__mojGrade');
   });
 });

@@ -201,6 +201,12 @@ treatment.
     fin.
   - The winglets carry the tail's colour.
   - A fixed wing's civil registration is aft, under the tail.
+- **The jumbo** (`jumbo`, the registry's `jumbo jet`): a four-engined twin-aisle with an upper deck over its forward
+  third, a class and not a replica.
+  - Its hull's stations raise a hump, and its windows run in a row per deck (`windows` may be a list).
+  - Its inner and outer engines hang on their own pylons.
+  - It stands on wing and body bogies.
+  - Its turnaround calls the whole crew, and the fuel truck waits clear of all four engines.
 
 ### The turnaround
 

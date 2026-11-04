@@ -18,12 +18,14 @@ describe('the runner\'s plan', () => {
     // no character book: each stage a level walked in first person, then the game; gated and unreviewed, all wait
     const W = runSteps(MEADOWMARK, { ref: 'gw' });
     expect(W.length).toBeGreaterThan(1);
-    expect(W.at(-1).key).toBe('game');
+    // (then one audit step a level: its levels are reach-exit, auditSteps)
+    expect(W.filter((s) => !s.audit).at(-1).key).toBe('game');
+    expect(W.filter((s) => s.audit).map((s) => s.key)).toEqual(W.filter((s) => s.key.startsWith('level-')).map((s) => `audit-${s.key}`));
     expect(W.every((s) => s.ready === false && s.waiting.length > 0)).toBe(true);
     // autonomous: settled by the machine gate, every level and the game ready at once
     expect(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).every((s) => s.ready)).toBe(true);
     const S = runSteps(MEADOWMARK_HERO, { ref: 'gw' });
-    expect(S.map((s) => s.key)).toEqual(['hero', 'hero-equipped', 'systems', 'gear-dagger', 'gear-sword', 'gear-greatsword', 'gear-staff', 'gear-bow', 'gear-shield', 'level-meadow-ascent-0', 'level-meadow-ascent-1', 'level-meadow-ascent-2', 'level-shell-shore-0', 'level-shell-shore-1', 'game']);
+    expect(S.filter((s) => !s.audit).map((s) => s.key)).toEqual(['hero', 'hero-equipped', 'systems', 'gear-dagger', 'gear-sword', 'gear-greatsword', 'gear-staff', 'gear-bow', 'gear-shield', 'level-meadow-ascent-0', 'level-meadow-ascent-1', 'level-meadow-ascent-2', 'level-shell-shore-0', 'level-shell-shore-1', 'game']);
     expect(S[0]).toMatchObject({ ref: 'gw-hero', ready: true });
     // the systems world names the hero at the ref the run makes it at
     expect(JSON.stringify(S[2].order)).toContain('gw-hero');
@@ -49,18 +51,51 @@ describe('the runner\'s plan', () => {
     expect(levels(MEADOWMARK_HERO).some((s) => s.order.manifest.game.mechanics.some((m) => m.kind === 'aftermath'))).toBe(false);
   });
 
-  it('the game order audits the reach and survive levels (auto_audit) and keeps the waiver for the goals the audit cannot prove', () => {
-    const order = (w) => runSteps(w, { ref: 'gw' }).find((s) => s.key === 'game').order;
+  it('the game\'s scars (cosmetic damage) ride onto every level it makes, with no aftermath: nothing breaks', () => {
+    const levels = (w) => runSteps(w, { ref: 'gw' }).filter((s) => s.key.startsWith('level-'));
+    expect(levels(MEADOWMARK_HERO).every((s) => s.order.manifest.scars === undefined)).toBe(true);
+    const L = levels({ ...MEADOWMARK_HERO, mechanics: { ...MEADOWMARK_HERO.mechanics, scars: { wall: 'stone' } } });
+    expect(L.length).toBeGreaterThan(0);
+    expect(L.every((s) => s.order.manifest.scars.wall === 'stone')).toBe(true);
+    expect(L.some((s) => s.order.manifest.game.mechanics.some((m) => m.kind === 'aftermath'))).toBe(false);
+  });
+
+  it('the reach and survive levels are audited after the game, one step a level; the goals the audit cannot prove have none', () => {
+    const steps = (w) => runSteps(w, { ref: 'gw' });
+    const audits = (w) => steps(w).filter((s) => s.audit);
+    const game = (w) => steps(w).find((s) => s.key === 'game');
     // moving to the exit (a quick reach, a book's levels, a world composed from words) and lasting out a clock
-    for (const goal of ['reach', 'survive']) expect(order(quickWorld({ id: 'q', quick: { goal } })), goal).toMatchObject({ auto_audit: true, allow_unaudited: true });
-    expect(order({ ...MEADOWMARK_HERO, mode: 'autonomous', review: undefined })).toMatchObject({ auto_audit: true, allow_unaudited: true });
-    expect(order(composeGameworld({ prompt: 'a sunny island coast', levels: 1, seed: 3 }))).toMatchObject({ auto_audit: true, allow_unaudited: true });
+    for (const w of [quickWorld({ id: 'q', quick: { goal: 'reach' } }), quickWorld({ id: 'q', quick: { goal: 'survive' } }), { ...MEADOWMARK_HERO, mode: 'autonomous', review: undefined }, composeGameworld({ prompt: 'a sunny island coast', levels: 1, seed: 3 })]) {
+      const S = steps(w), levels = S.filter((s) => s.key.startsWith('level-'));
+      // the game is made at once, unaudited (create_game's waiver), and never asks create_game for the walk
+      expect(game(w).order).toMatchObject({ allow_unaudited: true });
+      expect(game(w).order.auto_audit).toBeUndefined();
+      // each level its audit step, after the game, at the level's ref, ready when the game is, its order naming both
+      expect(audits(w).map((a) => a.ref)).toEqual(levels.map((l) => l.ref));
+      expect(S.findIndex((s) => s.audit)).toBeGreaterThan(S.findIndex((s) => s.key === 'game'));
+      for (const a of audits(w)) expect(a).toMatchObject({ key: `audit-${a.order.level}`, ready: game(w).ready, order: { game: game(w).ref } });
+    }
     // a goal the audit cannot prove yet: picking up, hiding, keeping a beat, a course, a fight with foes
     for (const goal of ['collect', 'sneak', 'rhythm', 'race', 'defend', 'battle']) {
-      const o = order(quickWorld({ id: 'q', quick: { goal } }));
-      expect(o.allow_unaudited, goal).toBe(true);
-      expect(o.auto_audit, goal).toBeUndefined();
+      const w = quickWorld({ id: 'q', quick: { goal } });
+      expect(game(w).order.allow_unaudited, goal).toBe(true);
+      expect(audits(w), goal).toEqual([]);
     }
+  });
+
+  it('an audit step is decided by what it walked: waiting until its level and game are made, walked again when they move', () => {
+    const [a] = runSteps(quickWorld({ id: 'q', quick: { goal: 'reach' } }), { ref: 'gw' }).filter((s) => s.audit);
+    expect(decide(a, undefined, null)).toBe('waiting');
+    expect(decide(a, undefined, 'aaaaaaaa')).toBe('make');
+    const record = { ref: a.ref, order: a.print, stored: 'aaaaaaaa', verdict: { completable: true, note: 'walked' } };
+    expect(decide(a, record, 'aaaaaaaa')).toBe('keep');
+    expect(decide(a, record, 'bbbbbbbb')).toBe('remake');
+    expect(decide(a, record, 'aaaaaaaa', { force: true })).toBe('remake');
+    // never 'taken' (the level's row is the runner's own) and never 'edited' (a walk is not a thing a creator edits)
+    expect(decide(a, undefined, 'aaaaaaaa')).not.toBe('taken');
+    expect(readMade({ [a.key]: record })).toBeTruthy();
+    expect(() => readMade({ [a.key]: { ...record, verdict: { completable: 'yes', note: '' } } })).toThrow(/verdict/);
+    expect(() => readMade({ 'level-x-0': { ...record } })).toThrow(/verdict is not part/);
   });
 
   it('pure: the same world, the same steps and prints', () => {

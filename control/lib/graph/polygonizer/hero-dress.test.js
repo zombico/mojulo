@@ -3,7 +3,7 @@
 // rules live with its examples (docs/examples/body-detail, docs/examples/adornment); these are the same rules here.
 import { describe, it, expect } from 'vitest';
 import { humanoidPlan } from './humanoid-plan.js';
-import { heroPlan, REGISTERS } from './hero-form.js';
+import { heroPlan, REGISTERS, HERO_LAWS_VERSION } from './hero-form.js';
 import { expandPlan } from './station-loft-plan.js';
 import { compileLayered, auditLayered } from './station-loft.js';
 import { validateRig, bindLayered, auditRig, layeredClip } from './station-loft-rig.js';
@@ -170,5 +170,18 @@ describe('the chibi\'s dress (hero laws 12, CHIBI_DRESS): few pieces, drawn for 
       expect(worn.some((w) => /helm|kabuto/.test(w)), style).toBe(false);
     }
     expect(expandArmor({ type: 'armor', style: 'knight', dials: { stylize: 0.2 } }, ctx(true)).trace.dials.stylize).toBe(0.2);
+  });
+});
+
+describe('the clothed detail on a body without the adult\'s mid-rings', () => {
+  it('a child\'s cuffs and wraps sit on its own rings, nearest the ones they name; an adult\'s are as they were', () => {
+    // (the child build's limbs, on the chibi form's rings, have no ring halfway between their first two)
+    const child = heroPlan({ cast: { pole: 'male', build: 'child' }, proportions: 'anime', laws: HERO_LAWS_VERSION }), adult = heroPlan({ cast: 'male', proportions: 'anime', laws: HERO_LAWS_VERSION });
+    dressPlan(child, { detail: 'clothed' });
+    dressPlan(adult, { detail: 'clothed' });
+    const at = (plan, id) => plan.body.collars.find((c) => c.id === id).at;
+    expect(at(adult, 'wrap.shankR')).toBe('st1_st2_50');
+    expect(at(child, 'wrap.shankR')).not.toBe('st1_st2_50');
+    expect(() => compileLayered(expandPlan(child))).not.toThrow();
   });
 });

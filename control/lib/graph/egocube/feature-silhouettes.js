@@ -6,8 +6,9 @@
  *
  *   speciesMetrics(id)   → { lenGirth, frontBack, leg, neck, bellyContrast, limbless } (null where the roster lacks one)
  *   silhouetteOf(id, family, plan) → a SILHOUETTES key
- *   bellyOf(id, silhouette, { plan, pattern, tune }) → { kind, regions }: the belly designed on this body (BELLIES), or
- *                        none: a pale belly is a species' feature where its roster says so, never a default
+ *   bellyOf(id, silhouette, { plan, pattern, tune, table }) → { kind, regions }: the belly designed on this body
+ *                        (BELLIES), or none: a pale belly is a species' feature where its roster says so, never a
+ *                        default; `table` the silhouette's belly shapes moved with a tuned body (feature-tune.js)
  *   SILHOUETTES          each: heads tall, the head's centre and forward offset, its neck (pinch | visible | merged | long),
  *                        the body's masses, the shoulder and the arm's direction and links, the legs (hidden under the
  *                        haunches, or cones), the hips, the tail's anchor, the back's line (where spines run), the belly's
@@ -38,7 +39,11 @@ export function speciesMetrics(id) {
 
 /** the silhouette a species' body reads as, in its plan: the order is the decision (a long low body before a heavy front,
  *  a heavy front before long legs, the rest round, rear-heavy or even) */
+/** a species whose roster body the rules misread (a wombat's long low body reads as a noodle; it is a barrel) */
+export const SILHOUETTE_OF = Object.freeze({ wombat: 'barrel' });
+
 export function silhouetteOf(id, family, plan) {
+  if (SILHOUETTE_OF[id]) return SILHOUETTE_OF[id];
   const m = speciesMetrics(id), lg = m.lenGirth ?? 3, fb = m.frontBack ?? 1, leg = m.leg, nk = m.neck ?? 0.6;
   if (plan === 'bird') return lg < 1 ? 'teardrop' : (leg ?? 0) >= 2.6 || nk >= 1.8 ? 'wader' : 'perch';
   if (family === 'anuran') return 'squat';
@@ -52,7 +57,9 @@ export function silhouetteOf(id, family, plan) {
   return 'barrel';
 }
 
-const ARM_OUT = unit([0.86, 0.12, -0.5]), ARM_FOLD = unit([0.45, -0.75, -0.5]);
+// (a bird's folded wing lies close along its flank, so in profile it is a broad shape on the body's side; it leans out
+// only as far as it needs to clear the body)
+const ARM_OUT = unit([0.86, 0.12, -0.5]), ARM_FOLD = unit([0.34, -0.78, -0.52]);
 
 /** the silhouettes. `body` the masses (eggs; bones torso, pelvis, thighR), `legs` 'hidden' (an egg under the haunch) or
  *  cones from the hip to the ankle, `arm` the shoulder, the arm's direction and its links' lengths and radii */
@@ -60,9 +67,11 @@ export const SILHOUETTES = Object.freeze({
   // THE PEAR (the raccoon's): the body the dominant mass, low, rear-heavy; the head a ball on it (a figure eight)
   pear: { heads: 3.3, hz: 2.82, hy: 0, neck: 'pinch', seam: 1, knee: [0.56, 0.08, 0.32],
     body: [
-      { name: 'chest', c: [0, 0.05, 1.86], u: [0, 0, 1], r: [0.46, 0.88, 0.78], e: 0.25, bone: 'torso', join: 0.35 },
-      { name: 'belly', c: [0, 0.12, 1.12], u: [0, 0, 1], r: [0.95, 1.2, 1.02], e: 0.25, bone: 'pelvis', join: 0.35 },
-      { name: 'front', c: [0, 0.5, 1.2], u: [0, 0, 1], r: [0.85, 0.85, 0.62], e: 0.15, bone: 'pelvis', group: 'Belly', join: 0.3 },
+      // (TWO BALLS, superposed: the rib ball over the waist on the torso, the pelvis ball under it on the pelvis, so on
+      // all fours the ribs bend down at the waist while the pelvis tips less: RIB_BALLS)
+      { name: 'chest', c: [0, 0.05, 1.7], u: [0, 0, 1], r: [0.62, 0.95, 0.85], e: 0.25, bone: 'torso', join: 0.35 },
+      { name: 'belly', c: [0, 0.12, 1.03], u: [0, 0, 1], r: [0.85, 1.18, 1.0], e: 0.25, bone: 'pelvis', join: 0.35 },
+      { name: 'front', c: [0, 0.5, 1.05], u: [0, 0, 1], r: [0.75, 0.85, 0.62], e: 0.15, bone: 'pelvis', group: 'Belly', join: 0.3 },
       { name: 'haunchR', c: [0.62, 0.0, 0.5], u: [0, 0, 1], r: [0.4, 0.42, 0.45], e: 0.2, bone: 'thighR', join: 0.28 }],
     legs: 'hidden', hip: [0.58, 0, 0.55], foot: [0.56, 0.28], arm: { sh: [0.84, 0.1, 1.95], dir: ARM_OUT, len: [0.42, 0.38], r: [0.2, 0.16, 0.13] },
     neckZ: 2.3, tail: [0, -0.88, 0.6], back: [[3.2, -0.3], [2.6, -0.72], [1.9, -1.0], [1.2, -1.12], [0.75, -1.25]],
@@ -70,17 +79,19 @@ export const SILHOUETTES = Object.freeze({
   // THE WEDGE (top-heavy: a gorilla, a boar): the chest and the shoulders the mass, the hips small, the head forward and low
   wedge: { heads: 3.2, hz: 2.66, hy: 0.16, neck: 'pinch', seam: 1,
     body: [
-      { name: 'chest', c: [0, 0.12, 1.92], u: [0, 0, -1], r: [0.66, 1.2, 0.92], e: 0.3, bone: 'torso', join: 0.35 },
+      // (two balls: the big rib ball kept over the waist, so it bends down under the pelvis ball as the pear's does)
+      { name: 'chest', c: [0, 0.12, 2.0], u: [0, 0, -1], r: [0.56, 1.2, 0.92], e: 0.3, bone: 'torso', join: 0.35 },
       { name: 'belly', c: [0, 0.14, 1.02], u: [0, 0, 1], r: [0.68, 0.8, 0.76], e: 0.15, bone: 'pelvis', join: 0.32 },
       { name: 'haunchR', c: [0.46, 0.0, 0.55], u: [0, 0, 1], r: [0.34, 0.36, 0.4], e: 0.2, bone: 'thighR', join: 0.24 }],
     legs: 'cones', legR: [0.22, 0.16], hip: [0.44, 0, 0.6], foot: [0.46, 0.28], arm: { sh: [1.06, 0.14, 2.08], dir: ARM_OUT, len: [0.5, 0.46], r: [0.26, 0.22, 0.17] },
     neckZ: 2.36, tail: [0, -0.7, 0.75], back: [[3.0, -0.3], [2.5, -0.85], [1.9, -0.95], [1.2, -0.8], [0.8, -0.75]],
     belly: { oval: { c: [0, 0.82, 1.3], u: [0, -0.1, 1], r: [0.75, 0.6, 0.42], e: 0.2 }, strip: { c: [0, 0.95, 1.5], u: [0, -0.1, 1], r: [0.95, 0.4, 0.42], e: 0.2 }, bib: { c: [0, 1.0, 2.1], u: [0, 0.1, -1], r: [0.5, 0.56, 0.4], e: 0.5 } } },
-  // THE BARREL (even and round: a bear, a hippo, a pig): one round mass, short thick legs showing, broad shoulders
+  // THE BARREL (even and round: a bear, a hippo, a pig): a round rib ball and pelvis ball, superposed, short thick legs showing, broad shoulders
   barrel: { heads: 3.1, hz: 2.62, hy: 0.04, neck: 'pinch', seam: 1,
     body: [
-      { name: 'chest', c: [0, 0.06, 1.92], u: [0, 0, 1], r: [0.5, 1.0, 0.9], e: 0.15, bone: 'torso', join: 0.38 },
-      { name: 'belly', c: [0, 0.08, 1.22], u: [0, 0, 1], r: [1.0, 1.16, 1.1], e: 0.1, bone: 'pelvis', join: 0.38 },
+      // (two balls superposed, as the pear's)
+      { name: 'chest', c: [0, 0.06, 1.74], u: [0, 0, 1], r: [0.66, 1.02, 0.95], e: 0.15, bone: 'torso', join: 0.38 },
+      { name: 'belly', c: [0, 0.08, 1.11], u: [0, 0, 1], r: [0.88, 1.14, 1.08], e: 0.1, bone: 'pelvis', join: 0.38 },
       { name: 'haunchR', c: [0.64, 0.0, 0.56], u: [0, 0, 1], r: [0.38, 0.4, 0.42], e: 0.15, bone: 'thighR', join: 0.26 }],
     legs: 'cones', legR: [0.28, 0.24], hip: [0.62, 0, 0.55], foot: [0.62, 0.24], arm: { sh: [0.98, 0.1, 1.98], dir: ARM_OUT, len: [0.4, 0.36], r: [0.25, 0.22, 0.19] },
     neckZ: 2.36, tail: [0, -1.0, 0.75], back: [[3.0, -0.3], [2.5, -0.8], [1.9, -1.0], [1.2, -1.15], [0.75, -1.1]],
@@ -143,16 +154,19 @@ export const SILHOUETTES = Object.freeze({
     legs: 'hidden', hip: [0.42, 0, 0.4], foot: [0.44, 0.26], arm: { sh: [1.0, 0.1, 1.5], dir: unit([0.7, 0.0, -0.7]), len: [0.32, 0.3], r: [0.16, 0.14, 0.12] },
     neckZ: 1.95, tail: [0, -1.05, 0.9], back: [[2.6, 0.0], [2.2, -0.7], [1.7, -1.05], [1.1, -1.15], [0.7, -1.0]],
     belly: { oval: { c: [0, 1.0, 1.0], u: [0, 0.3, 1], r: [1.0, 0.9, 0.55], e: 0.15 }, strip: { c: [0, 0.9, 0.85], u: [0, 0.4, 1], r: [1.2, 1.0, 0.6], e: 0.1 }, bib: { c: [0, 1.0, 1.4], u: [0, 0.1, -1], r: [0.5, 0.6, 0.4], e: 0.4 } } },
-  // THE SQUAT (a frog, a toad): wide and low, the head merged into the body's front, the hind legs folded big at the
-  // sides, the arms propped forward, the feet splayed out in front
-  squat: { heads: 2.5, hz: 1.95, hy: 0.18, neck: 'merged', seam: 0,
+  // THE SQUAT (a frog, a toad): a SITTER. A wide pear sitting on its folded hind legs, the head merged into the body's
+  // top; each thigh folded forward along the side, its shin folded back under it to the ankle, the long webbed foot
+  // forward from there; the arms long enough that the hands rest planted on the floor in front. Its sitting pose is its
+  // own all fours, so the function does not fit it to drop onto them (`sitter`)
+  squat: { heads: 2.5, hz: 1.86, hy: 0.24, neck: 'merged', seam: 0, sitter: true,
     body: [
-      { name: 'belly', c: [0, 0.05, 0.85], u: [0, 0, 1], r: [0.78, 1.32, 1.08], e: 0.3, bone: 'pelvis', join: 0.4 },
-      { name: 'chest', c: [0, 0.12, 1.4], u: unit([0, 0.2, 1]), r: [0.45, 1.05, 0.85], bone: 'torso', join: 0.42 },
-      { name: 'haunchR', c: [0.82, -0.18, 0.42], u: unit([0.3, 0.6, 0.2]), r: [0.5, 0.42, 0.4], hint: [0, 0, 1], bone: 'thighR', join: 0.22 }],
-    legs: 'hidden', hip: [0.7, -0.1, 0.45], foot: [0.85, 0.45], arm: { sh: [0.78, 0.35, 1.15], dir: unit([0.35, 0.45, -0.82]), len: [0.3, 0.28], r: [0.13, 0.11, 0.09] },
-    neckZ: 1.6, tail: [0, -0.9, 0.5], back: [[2.2, 0.0], [1.8, -0.6], [1.3, -0.95], [0.8, -1.0], [0.45, -0.9]],
-    belly: { oval: { c: [0, 0.85, 0.95], u: [0, 0.2, 1], r: [0.75, 0.95, 0.5], e: 0.2 }, strip: { c: [0, 0.7, 0.6], u: [0, 0.6, 1], r: [0.9, 1.0, 0.5], e: 0.1 }, bib: { c: [0, 0.9, 1.25], u: [0, 0.1, -1], r: [0.4, 0.6, 0.35], e: 0.4 } } },
+      { name: 'belly', c: [0, 0.16, 0.8], u: [0, 0, 1], r: [0.78, 1.18, 0.78], e: 0.4, bone: 'pelvis', join: 0.42 },
+      { name: 'chest', c: [0, 0.24, 1.38], u: unit([0, 0.3, 1]), r: [0.5, 0.98, 0.66], e: 0.1, bone: 'torso', join: 0.42 },
+      { name: 'haunchR', c: [0.92, 0.02, 0.44], u: unit([0.12, 0.95, 0.3]), r: [0.6, 0.34, 0.32], e: 0.35, hint: [0, 0, 1], bone: 'thighR', join: 0.22 }],
+    legs: 'cones', legR: [0.16, 0.11], hip: [0.8, -0.32, 0.46], knee: [1.02, 0.56, 0.42], foot: [0.94, 0.2],
+    arm: { sh: [0.66, 0.7, 1.2], dir: unit([0.34, 0.5, -0.8]), len: [0.56, 0.54], r: [0.12, 0.1, 0.085] },
+    neckZ: 1.55, tail: [0, -0.9, 0.5], back: [[2.2, 0.0], [1.8, -0.6], [1.3, -0.95], [0.8, -1.0], [0.45, -0.9]],
+    belly: { oval: { c: [0, 0.82, 0.85], u: [0, 0.2, 1], r: [0.74, 0.6, 0.42], e: 0.2 }, strip: { c: [0, 0.7, 0.6], u: [0, 0.6, 1], r: [0.9, 1.0, 0.5], e: 0.1 }, bib: { c: [0, 0.9, 1.25], u: [0, 0.1, -1], r: [0.4, 0.6, 0.35], e: 0.4 } } },
   // THE COIL (a snake: no legs, so it rises out of its own coils): a ring of loops on the ground, the body an S up out of
   // it, a slender neck reaching forward, the head held out front; the arms are vestiges inside the body
   coil: { heads: 3.6, hz: 3.1, hy: 0.42, neck: 'visible', seam: 1, limbless: true,
@@ -166,6 +180,75 @@ export const SILHOUETTES = Object.freeze({
     neckZ: 2.5, neckEgg: { c: [0, 0.24, 2.58], u: unit([0, 0.4, 1]), r: [0.46, 0.33, 0.33] }, tail: [0, -0.9, 0.36], back: [[3.3, 0.1], [2.6, -0.1], [1.9, -0.32], [1.2, -0.5], [0.5, -1.0]],
     belly: { oval: { c: [0, 0.3, 1.5], u: unit([0, 0.25, 1]), r: [1.0, 0.3, 0.3], e: 0.1 }, strip: { c: [0, 0.32, 1.6], u: unit([0, 0.3, 1]), r: [1.3, 0.3, 0.3], e: 0.1 }, bib: { c: [0, 0.4, 2.5], u: unit([0, 0.4, 1]), r: [0.5, 0.3, 0.3], e: 0.3 } } },
 });
+
+/** THE ROUNDING: the style's animals are bottom-heavy and round, whatever their silhouette. The lower masses (the belly,
+ *  a pear's front, the haunches, a snake's coils) are fuller across and deep (`low`, the height a little: `lowUp`), the
+ *  chest a little slimmer (`top`), a leg that shows full at the thigh (`thigh`), every mass rounder (its eggliness, its
+ *  pointed end, by `egg`) and blended softer (its join by `join`). The belly's shapes follow the body they are drawn on. Applied to the silhouette before the
+ *  function fits it (feature-function.js), so a rounded quadruped still drops onto all fours */
+export const FEATURE_ROUND = Object.freeze({ low: 1.22, lowUp: 1.06, top: 0.86, thigh: 1.25, egg: 0.6, join: 1.15 });
+const LOW_MASS = /^(belly|front|haunch|coil)/;
+
+export function rounded(S) {
+  const F = FEATURE_ROUND, yc = S.body.find((e) => e.name === 'belly').c[1], deep = (y) => yc + (y - yc) * F.low;
+  const body = S.body.map((e) => {
+    const low = LOW_MASS.test(e.name), side = /R$/.test(e.name);
+    const r = low ? (side ? e.r.map((x) => x * F.low) : [e.r[0] * F.lowUp, e.r[1] * F.low, e.r[2] * F.low]) : e.name === 'chest' ? [e.r[0], e.r[1] * F.top, e.r[2] * F.top] : e.r;
+    return { ...e, r, ...(e.e ? { e: e.e * F.egg } : {}), join: e.join * F.join };
+  });
+  const belly = Object.fromEntries(Object.entries(S.belly).map(([k, e]) => [k, { ...e, c: [e.c[0], deep(e.c[1]), e.c[2]], r: [e.r[0] * F.lowUp, e.r[1] * F.low, e.r[2] * F.low] }]));
+  return { ...S, body, belly, thighScale: F.thigh };
+}
+
+/** THE FRONT'S PROPORTION: from the front, at the hips, a standing animal reads THIGH : BODY : THIGH as 1 : 4 : 1
+ *  (`FRONT_RATIO`), within the width its body had: the body narrows to four sixths of that width (across only: its
+ *  depth, its side view, kept; never widened), the shoulders and the belly's shapes with it, and each thigh takes one
+ *  sixth (never thinner than a round leg, `least`; the leg itself as broad as its thigh, `thighR`), its middle at the
+ *  body's side (`overlap`, the share of a thigh's half over the body: 1, half the thigh over the belly, half beside it),
+ *  never hidden inside its outline: the legs fall tucked against the body, toed in (\\| |/: each tapers to `ankle` of its
+ *  thigh at the ankle with its inner edge straight down, so it leans in toward the other; the feet still point ahead). `bw` is the family's breadth (FAMILY_TUNE `body`), which the structure lays over the body's
+ *  width and the hips' places, so the ratio is the drawn one. The silhouettes it holds for (`FRONT_SILHOUETTES`): the
+ *  standing four-legged ones */
+export const FRONT_RATIO = Object.freeze({ thigh: 1, body: 4, overlap: 1, least: 0.2, ankle: 0.6 });
+export const FRONT_SILHOUETTES = Object.freeze(['pear', 'barrel', 'wedge', 'leggy', 'noodle']);
+export function fronted(S, bw = 1) {
+  const haunch = S.body.find((e) => e.name === 'haunchR'), belly = S.body.find((e) => e.name === 'belly');
+  if (!haunch || !belly) return S;
+  // (the width the body had, split thigh : body : thigh)
+  const F = FRONT_RATIO, W = 2 * belly.r[1] * bw, sum = 2 * F.thigh + F.body, rt = Math.max(F.least, (W * F.thigh) / sum / 2);
+  const k = Math.min(1, ((F.body / F.thigh) * rt) / (belly.r[1] * bw)), r1 = belly.r[1] * k * bw, xt = (r1 + rt * (1 - F.overlap)) / bw, dx = xt - S.hip[0], sH = rt / haunch.r[1];
+  const body = S.body.map((e) => (e.name === 'haunchR' ? { ...e, c: [e.c[0] + dx, e.c[1], e.c[2]], r: e.r.map((x) => x * sH) } : /R$/.test(e.name) ? e : { ...e, r: [e.r[0], e.r[1] * k, e.r[2]] }));
+  const belly2 = Object.fromEntries(Object.entries(S.belly).map(([n, e]) => [n, { ...e, r: [e.r[0], e.r[1] * k, e.r[2]] }]));
+  return { ...S, body, belly: belly2, hip: [S.hip[0] + dx, S.hip[1], S.hip[2]], ...(S.knee ? { knee: [S.knee[0] + dx, S.knee[1], S.knee[2]] } : {}),
+    foot: [S.foot[0] + dx, S.foot[1]], arm: { ...S.arm, sh: [S.arm.sh[0] * (0.5 + 0.5 * k), S.arm.sh[1], S.arm.sh[2]] }, thighX: xt, thighR: rt };
+}
+
+/** SIDE HIPS (the round silhouettes' own, `SIDE_HIPS`; `tune.hips: 'below'` for the legs from the bottom of the
+ *  ball): a round animal's legs set on the SIDES of its ball at its centre's height, standing STRAIGHT down to the feet
+ *  under them, in place of legs from the bottom of the ball. On all fours the ball then pitches about its own centre and
+ *  rolls in place, never swinging forward and down over hips at the floor, so the fit need hardly raise it (its rump
+ *  stays low to the ground), and the arms reach the floor from where the legs do: the biped and the quadruped are one
+ *  body. On all fours the legs keep their natural bend (feature-function.js FEATURE_FOURS `natural`) */
+export const SIDE_HIPS = Object.freeze(['pear', 'barrel']);
+/** how far forward a side hip's knee reaches (a share of the ball's depth): 0, the leg straight; far, and the animal
+ *  stands as if seated */
+export const SIDE_HIP_REACH = 0;
+/** a side hip's thigh from the side: a DRUMSTICK out under the ball (the knee low, a share of the hip's height, so the
+ *  thigh's round end shows below the ball and tapers to it; its depth a share of its breadth, its taper toward the
+ *  knee, its middle drawn up toward the hip a share of the thigh) */
+export const SIDE_HIP_DRUM = Object.freeze({ knee: 0.2, deep: 2.4, taper: 0.6, lift: 0.04 });
+export function sideHips(S) {
+  const belly = S.body.find((e) => e.name === 'belly'), c = belly.c, R = belly.r;
+  // (the knee on the straight line from the hip down to the ankle under it, as far forward as SIDE_HIP_REACH says)
+  const x = S.thighX ?? R[1] * 0.78, hip = [x, c[1], c[2] - R[0] * 0.15], knee = [x, (c[1] + 0.05) / 2 + R[2] * SIDE_HIP_REACH, 0.1 + (hip[2] - 0.1) * SIDE_HIP_DRUM.knee], foot = [x, Math.max(0.2, c[1] + 0.15)];
+  const th = [knee[0] - hip[0], knee[1] - hip[1], knee[2] - hip[2]], L = Math.hypot(...th), u = unit(th);
+  // (the thigh keeps its own breadth: the front's proportion is the haunch's)
+  // (from the side a DRUMSTICK: deep at the hip, front to back (`SIDE_HIP_DRUM.deep` of its breadth), tapering to the
+  // knee (`taper`, the egg's narrowing toward its far end), its middle drawn up toward the hip (`lift`))
+  const rt = S.body.find((e) => e.name === 'haunchR')?.r[1] ?? 0.4, D = SIDE_HIP_DRUM, m = 0.5 - D.lift;
+  const haunch = { name: 'haunchR', c: [hip[0] + th[0] * m, hip[1] + th[1] * m, hip[2] + th[2] * m], u, r: [L / 2 + 0.14, rt, rt * D.deep], e: D.taper, hint: [1, 0, 0], bone: 'thighR', join: 0.24 };
+  return { ...S, hip, knee, foot, legs: 'cones', body: [...S.body.filter((e) => e.name !== 'haunchR'), haunch], sideHips: true };
+}
 
 /** THE BELLIES: what a pale (or dark) underside is on each silhouette. A belly is a species' feature, read from the roster
  *  (its belly's lightness against its coat's): a species with none has none, and its family may name one the roster
@@ -186,8 +269,8 @@ const BELLY_OF = Object.freeze({ squat: 'oval', pear: 'oval', barrel: 'oval', te
 /** the least lightness between a belly and its coat that shows as a designed belly (less reads as one colour) */
 export const BELLY_CONTRAST = 0.12;
 
-export function bellyOf(id, silhouette, { plan, pattern, tune } = {}) {
-  const B = SILHOUETTES[silhouette].belly;
+export function bellyOf(id, silhouette, { plan, pattern, tune, table } = {}) {
+  const B = table ?? SILHOUETTES[silhouette].belly;
   if (pattern === 'tuxedo') { const o = B.oval; return { kind: 'tuxedo', regions: [{ ...o, c: [0, o.c[1] * 0.85, o.c[2] + 0.25], r: [o.r[0] * 1.32, o.r[1] * 1.22, o.r[2] * 1.27], e: 0.2 }] }; }
   const c = speciesMetrics(id).bellyContrast;
   let kind = tune ?? (c == null || Math.abs(c) < BELLY_CONTRAST ? 'none' : BELLY_OF[silhouette]);

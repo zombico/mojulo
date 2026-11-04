@@ -13,10 +13,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 // A list, not a suffix: a rename would collide with every branch still editing these files.
 export const E2E = [
   'lib/graph/gameworld/door-probes.e2e.test.js',
+  // a whole physical geocity resolved through world-scene (its metro, its ring's blocks, pieces and load audit): minutes
+  'lib/graph/rupa/city-ring.e2e.test.js',
   'lib/mcp/tools/gameworld-city.test.js',
   'lib/mcp/tools/building-level.test.js',
   'lib/mcp/tools/design-game.test.js',
   'lib/mcp/tools/design-game.quick.test.js',
+  'lib/mcp/tools/design-game.budget.test.js',
+  'lib/mcp/tools/design-game.proof.test.js',
+  'lib/mcp/tools/design-game.climb.test.js',
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',
@@ -41,6 +46,7 @@ export const E2E = [
   'lib/graph/game/play-shell-final.live.test.js',
   'lib/graph/game/pause-owner.live.test.js',
   'lib/graph/scene/channels/controllable/seats.live.test.js',
+  'lib/graph/worlds/mount-ride.live.test.js',
   'lib/mcp/tools/design-game.seats.test.js',
   'lib/graph/science-worlds/conformance.chrome.test.js',
   'lib/graph/science-worlds/relativistic/conformance.chrome.test.js',
@@ -89,6 +95,8 @@ export default defineConfig({
     // under full-suite load and cascades into "Unknown tool" failures.
     hookTimeout: 30000,
     setupFiles: ['./vitest.setup.js'],
+    // The realistic body's keeps shared across test files (lib/util/kept.js): a folder per hash of the sources.
+    globalSetup: ['./vitest.global-setup.js'],
     include: ['{lib,app,components,middleware,scripts}/**/*.test.js', 'middleware.test.js'],
     exclude: [...EXCLUDE, ...E2E],
   },

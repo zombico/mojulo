@@ -66,7 +66,15 @@ export function schemeCraft(stage, S, { waist, half, length = 30 }) {
   };
   const h = (p) => (p[2] - waist) / half;
   if (hull && S.belly) cut(hull, (p) => -h(p), [-S.belly.level], (band) => (band ? S.belly.colour : null));
-  if (hull) for (const c of S.cheat ?? []) cut(hull, h, [c.from, c.to], (band) => (band === 1 ? c.colour : null));
+  // (a cheatline is thin and straight: laid along each side as a band over the skin, its edges true at any length, not
+  // cut into it)
+  if (hull && S.cheat) {
+    const skin = hull.fs.filter(painted), [y0, y1] = extent(skin, 1), [x0, x1] = extent(skin, 0), Lh = y1 - y0, depth = (x1 - x0) / 2 + 1;
+    for (const c of S.cheat) for (const sx of [1, -1]) {
+      const band = [[-Lh / 2, c.from * half], [Lh / 2, c.from * half], [Lh / 2, c.to * half], [-Lh / 2, c.to * half]];
+      hull.fs.push(...decal(skin, { at: [0, (y0 + y1) / 2, waist], out: [sx, 0, 0], up: [0, 0, 1] }, [band], (f) => ({ material: f.material, albedo: c.colour }), { depth, fitting: 'scheme' }));
+    }
+  }
   for (const it of stage) {
     if (it.kind === 'craft-fin' && S.tail) recolour(it, S.tail);
     if (it.kind === 'craft-engine' && S.engines) recolour(it, S.engines);

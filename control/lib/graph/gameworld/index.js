@@ -15,6 +15,7 @@ export { gearStyle, mirrorEntry, contrastEntry, augmentTiers, populateGear, gear
 export { GAMEWORLD_KIND, isGameworldKind, gameworldOf, normalizeGameworldManifest } from './gameworld-kind.js';
 export { runSteps, heroRefOf, decide, childRef, storyReport } from './runner.js';
 export { readMade, MADE_KEY } from './made.js';
+export { CHAPTERS, DEPARTMENTS, chapterById, chaptersOfPath, chapterOfPart, chapterOfStep, chapterOfCard, chapterBook } from './chapters.js';
 export { readMechanics, resolveMechanics, mechanicsOrders, SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 export { ELEMENT_WORDS } from './element-words.js';
 export { readMotion, resolveMotion, motionOrders, AXES, VIBES, AXIS_SPANS, GAIT_BASE } from './hero-vibe.js';
@@ -23,7 +24,7 @@ export { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
 export { styleGuide, airOfKit, kitCard, languageCard, fortCard, groundCard, civilizationCard } from './style-guide.js';
 export { natureCard, colorKey, landOfKit, landFor, landToLevel, RAMP_KEY } from './nature.js';
 export { gameworldBibleHtml } from './bible-html.js';
-export { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH } from './examples.js';
+export { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, HOLLIN_VALE } from './examples.js';
 export { characterBibleHtml } from './character-bible-html.js';
 export { foeCastHtml } from './foe-cast-html.js';
 export { foeCastOf, foeState, foeParts, approveFoe, castable } from './foe-cast.js';

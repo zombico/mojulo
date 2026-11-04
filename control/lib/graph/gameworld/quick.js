@@ -70,6 +70,8 @@
  *     sfx?: 'auto' | '<palette>',           // action sounds wired to the goal's events, in the music's key ('auto': the
  *                                           // palette the score implies; arcade, foley, orchestral, synth; beats/sfx-palettes.js)
  *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
+ *     xr?: true | false | { move?, turn?, hud? },   // played in a headset (scene/channels/xr.js), written to the world's
+ *                                           // own `xr` (each level carries it)
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
  *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (rolled by default)
  *     board?: true | { cols?, rows?, gold? }   // conquer: the skirmish's board and its purse (board/board-rts.js)
@@ -141,6 +143,7 @@
  * Pure. `readQuick` reads the shape; `quickWorld` writes the gameworld; `goalMechanics` places the goal on a stage's own
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
+import { armsLoadout, validateArmsKit, ARMS_LEGEND } from './arms-kit.js';
 import { readBodyWord } from './game-bodies.js';
 import { TD_WAVES } from '../board/board-td.js';
 import { STAGE_KITS, isGroundKit, GROUND_KITS, roomKitDoor, resolveKitId } from '../era/stage.js';
@@ -182,6 +185,7 @@ import { TIER_IDS } from '../vehicle-registry/builds.js';
 import { flightLaps } from '../skyscape/course.js';
 import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
 import { escapeRoomOf } from './escape.js';
+import { gauntletMechanic } from './gauntlet.js';
 import { solveFighter } from '../versus/versus-solver.js';
 import { compileFighter } from '../versus/versus-compile.js';
 import { readRules } from '../versus/versus-core.js';
@@ -257,7 +261,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams'];
+const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -436,6 +440,13 @@ export function readQuick(Q) {
   if (Q.theme !== undefined && !isObj(Q.theme)) throw fail('.theme is the game shell\'s skin { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }');
   if (Q.camera !== undefined && !CAMERAS[Q.camera]) throw fail(`.camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
   if (Q.screen !== undefined) readScreen(Q.screen, 'quick.screen');
+  // a TOWN to walk (geotown/: its pattern, streetscape, a segment or a neighbourhood), its own ground: reached, its
+  // pickups collected along its walk, or survived
+  if (Q.geotown !== undefined) {
+    if (!isObj(Q.geotown)) throw fail('.geotown is a town to walk { pattern?, streetscape?, segment? | neighbourhood?, evoke? } (the geocube kind\'s geotown)');
+    if (Q.building !== undefined || Q.climb || Q.ride || Q.run !== undefined || Q.roadway !== undefined || Q.runner !== undefined || Q.racers || Q.supercars || Q.transformer || Q.craft || Q.airspace !== undefined) throw fail('.geotown is the town alone: no building, climb, ride, run, roadway, runner, racers, supercars, transformer or craft');
+    if (Q.goal !== undefined && !['reach', 'collect', 'survive'].includes(Q.goal)) throw fail('.geotown is walked to reach, collect or survive');
+  }
   if (Q.building !== undefined && !isObj(Q.building)) throw fail('.building is a building level { use, seed?, goal?, … } (card game-building)');
   if (Q.building !== undefined && Q.climb) throw fail('.climb and .building: a building is its own level, not a climb after a trail');
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
@@ -496,6 +507,7 @@ export function readQuick(Q) {
   if (Q.building !== undefined && (Q.goal === 'race' || Q.goal === 'sneak' || Q.goal === 'rhythm')) throw fail(`.building: ${Q.goal} runs a trail, not a building`);
   if (Q.goal !== 'rhythm' && Q.misses !== undefined) throw fail('.misses belongs to the rhythm goal');
   if (Q.goal === 'rhythm' && Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
+  if (Q.xr !== undefined && Q.xr !== true && Q.xr !== false && !isObj(Q.xr)) throw fail('.xr is true (played in a headset), false, or { move?: seated | standing, turn?: smooth | snap }');
   if (Q.sfx !== undefined && Q.sfx !== 'auto' && !SFX_PALETTE_NAMES.includes(Q.sfx)) throw fail(`.sfx is 'auto' (the palette the music implies) or a palette: ${SFX_PALETTE_NAMES.join(', ')}`);
   if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music) && !Object.prototype.hasOwnProperty.call(CLUB_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}; electronic: ${Object.keys(CLUB_MOODS).join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
@@ -542,6 +554,13 @@ export function readQuick(Q) {
   const most = Q.goal === 'shoot' ? 8 : BATTLE.foeHp.length;
   if (Q.foes !== undefined && !(Number.isInteger(Q.foes) && Q.foes >= 1 && Q.foes <= most)) throw fail(`.foes is 1 to ${most}`);
   if (Q.goal === 'shoot' && (Q.building !== undefined || Q.ride)) throw fail('.shoot fights along a trail on foot: no building, no ride');
+  // the player's carried arms (arms-kit.js): the shoot and deathmatch goals, on foot
+  if (Q.arms !== undefined) {
+    if (Q.goal !== 'shoot' && Q.goal !== 'deathmatch') throw fail('.arms belongs to the shoot and deathmatch goals');
+    if (Q.craft !== undefined) throw fail('.arms: a dogfight flies its craft\'s guns (leave .arms out)');
+    if (Q.weapons !== undefined) throw fail('.arms is the kit the player carries; .weapons lays the pole\'s guns on the floor to be picked up: one or the other');
+    const errs = validateArmsKit(Q.arms); if (errs.length) throw fail(`.${errs[0]}`);
+  }
   if (Q.goal === 'shoot' && !flies && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.shoot aims from the eye or over the shoulder: camera first-person or third-person');
   if (Q.goal === 'battle' && Q.building !== undefined) throw fail('.battle stands its foes on a trail: no building');
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
@@ -817,9 +836,11 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   const given = camo ? { ...tiered, livery: camo } : tiered;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)
-  const { camera: named, moves, screen, ...quick } = given;
+  const { camera: named, moves, screen, xr: xrNamed, ...quick } = given;
   // a shooter aims: without a camera named, from the eye
   const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
+  // played in a headset: the world's own setting (each level carries it)
+  const xr = xrNamed === false ? undefined : xrNamed;
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
   // what game it is (intent.js): the genre its cube is read from, written so the creator sees it and can change it; the
   // cube is the same either way. A goal with no genre, or an intent the caller wrote, writes none
@@ -853,14 +874,14 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
       ...intent,
     };
   }
-  const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
+  const levels = flight ?? (quick.geotown ? { run: { name: name ?? id, geotown: quick.geotown } } : worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true, ...mood } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
     : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) },
       // a deathmatch's arena: its words, a spawn for each in the match
       ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1, ...(quick.weapons ? { weapons: poleArmory(quick.pole).slice(1) } : {}), ...(deathmatchSides(quick) ? { teams: 2 } : {}) } } : {}) } });
   return {
-    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}), ...(moves ? { moves: true } : {}), ...(screen !== undefined ? { screen } : {}),
+    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}), ...(moves ? { moves: true } : {}), ...(screen !== undefined ? { screen } : {}), ...(xr ? { xr } : {}),
     style: { ...(style ?? {}), kit },
     levels,
     quick,
@@ -1218,11 +1239,13 @@ function standFoe(figures, entities, id, ref, at, back, look = null) {
  *             hero (unseen); their figure is the world's (`goalCast`'s caller stands them: levels.js GUARDS)
  *   escape    the level's last stage an escape room (escape.js): its way out sealed until its locks open, each by a key
  *             lying along the way; in place of the exit (`{ locks, room }`, world.js readEscapeGoal)
+ *   gauntlet  the level's last stage a wave gauntlet (gauntlet.js): an arena sealed until every wave of the bestiary's
+ *             foes is down, arena after arena; in place of the exit (its foes stood dormant by gauntlet-cast.js)
  * Numbers: the hero's hp a battle's, a hazard's bite a quarter of it, the boss the last foe's hp, a blow short of its
  * atk, so a fight fought by attacks alone is won with hp to spare.
  */
 export const LEVEL_GOAL = Object.freeze({ hp: BATTLE.hp, hit: BATTLE.atk, hazard: BATTLE.hp / 4, boss: { hp: BATTLE.foeHp.at(-1), atk: BATTLE.foeAtk.at(-1) - 1 } });
-export const LEVEL_GOAL_PARTS = Object.freeze(['collect', 'boss', 'health', 'guards', 'escape']);
+export const LEVEL_GOAL_PARTS = Object.freeze(['collect', 'boss', 'health', 'guards', 'escape', 'gauntlet']);
 
 /** A level goal's mechanics on one stage (`ends`: stageEnds'); `last`: the level's last stage, where its boss stands. */
 export function levelGoalMechanics(goal, ends, { last = false } = {}) {
@@ -1238,8 +1261,9 @@ export function levelGoalMechanics(goal, ends, { last = false } = {}) {
   // the boss's blows take the hp a battle's fail-on-death owns; health shows it on the HUD (a hit's cost named)
   if (goal.health || boss) out.push({ kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, ...(goal.health ? { hits: LEVEL_GOAL.hit } : {}) });
   if (goal.guards) out.push({ kind: 'unseen' });
-  // escape: the last stage a room held sealed until its locks open (escape.js), its way out the level's
-  out.push(boss ? { kind: 'win-when', when: { var: 'won', gte: 1 }, event: 'battles:won' } : goal.escape && last ? escapeRoomOf(goal.escape, ends) : exit);
+  // escape: the last stage a room held sealed until its locks open (escape.js), its way out the level's; gauntlet: an arena
+  // sealed until every wave is down (gauntlet.js), its exit the arena's way out
+  out.push(boss ? { kind: 'win-when', when: { var: 'won', gte: 1 }, event: 'battles:won' } : goal.gauntlet && last ? gauntletMechanic(goal.gauntlet, ends) : goal.escape && last ? escapeRoomOf(goal.escape, ends) : exit);
   return out;
 }
 
@@ -1287,9 +1311,11 @@ export function shootCast(quick, ends, ref, { hero = false, camera, G = null } =
   // the player, armed: hittable (a person's egg: over its feet, or under the eye it walks at), its eye's height known
   // (sight is eye to eye), the rifle at its eye; over the shoulder (shoulderOf) its rounds converge on the crosshair
   const over = shoulderOf(camera ?? quick.camera, hero);
+  // (a carried kit: its slots on the platform rule's loadout, the first in hand, the gunplay on: arms-kit.js)
+  const kit = quick.arms ? armsLoadout(quick.arms, SHOOT.rifle, { eye: hero ? 1.5 : 0, converge: !!over }) : null;
   const pilot = {
-    rule: { collideRadius: 0.3, collideHeight: 1.7 },
-    weapon: { ...SHOOT.rifle, eye: hero ? 1.5 : 0, ...(over ? { converge: true } : {}) },
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...(kit ? { loadout: kit, gunplay: true } : {}) },
+    weapon: kit ? kit[0].weapon : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, ...(over ? { converge: true } : {}) },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
   };
   return { figures, entities, posts, pilot, ...(over ? { camera: over } : {}) };
@@ -1304,6 +1330,7 @@ export const shoulderOf = (camera, hero) => (hero && camera === 'third-person' ?
 
 /** A deathmatch's legend: fire, and on the shooter pole its feet and its kit. */
 export function deathmatchLegend(quick) {
+  if (quick.arms) return [ARMS_LEGEND, ...(quick.pole === undefined ? [] : deathmatchLegend({ ...quick, arms: undefined }).split(' · ').slice(1))].join(' · ');
   if (quick.pole === undefined) return 'click  fire';
   const P = shooterPole(quick.pole);
   return ['click  fire', quick.weapons ? '1-4  a gun picked up · R  the next' : null, P.move.jump ? `Space  jump${P.move.airJumps ? ' (twice)' : ''}` : null, P.move.dash ? 'F F  dash' : null, P.abilities.heal ? 'Q  heal' : null, P.abilities.ultimate ? 'X  ultimate' : null].filter(Boolean).join(' · ');
@@ -1380,12 +1407,14 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
   // the player's feet: the pole's pace; past its jump threshold the platform rule (a jump, an air jump, a dash)
   // (with weapons it is the platform rule too: the rule that carries a loadout; short of the pole's jump, a hop a step high)
   const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash }
-    : quick.weapons ? { type: 'platform', speed: P.move.speed, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
+    : quick.weapons || quick.arms ? { type: 'platform', speed: P.move.speed, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
   const over = shoulderOf(camera ?? quick.camera, hero), conv = over ? { converge: true } : {};
+  // (a carried kit, arms-kit.js: its rounds scaled to the pole's own gun, else the shooter's rifle)
+  const kit = quick.arms ? armsLoadout(quick.arms, P ? P.weapon : SHOOT.rifle, { eye: hero ? 1.5 : 0, hand: 'right', converge: !!over }) : null;
   const pilot = {
     ...(S ? { team: 'red' } : {}),
-    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}) },
-    weapon: P ? { ...P.weapon, eye: hero ? 1.5 : 0, ...conv } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right', ...conv },
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}), ...(kit ? { loadout: kit, gunplay: true } : {}) },
+    weapon: kit ? kit[0].weapon : P ? { ...P.weapon, eye: hero ? 1.5 : 0, ...conv } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right', ...conv },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
     transform: { pos: [s0[0], s0[1], s0[2] + (hero ? 0 : 1.7)], heading: face(s0) },
   };

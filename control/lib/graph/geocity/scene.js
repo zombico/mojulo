@@ -73,7 +73,14 @@ import { subwayUnder, subwayPlan, withGeocitySubwayLevel } from './subway.js';
 import { registerLevelKind } from '../structure/level.js';
 import { streetcarFaces, STREETCAR } from './streetcar.js';
 
-export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air', 'level', 'game', 'entities', 'camera', 'play']);
+export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air', 'level', 'game',
+  // (what plays in it: the world reads these, worlds/world-scene.js; a city with nobody in it reads none)
+  'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind']);
+// destructible physics (`destruction: 'physical'`, rupa/): the buildings within RING metres of where the walk starts, the
+// nearest RING_MAX of them, are handed over as blocks (rupa/shell-blocks.js: walls and a roof); the rest stay massing
+export const RING = 100, RING_MAX = 24;
+// (a mass with no finish of its own: a glass tower and a skyline slab stand on concrete frames)
+const RING_WORD = Object.freeze({ 'geocity:tower': 'concrete', 'geocity:low': 'concrete' });
 export const GEOCITY_FACES = 200000;
 // the section its passages under the streets are built to (network/sections.js)
 const SECTION = readSection('passage');
@@ -207,7 +214,10 @@ export function assembleGeocityScene(m, ctx = {}) {
     const xs = cuts(r[0], r[2], cell), ys = cuts(r[1], r[3], cell);
     for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) put([[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, S(x, y) + lift]), group, hex);
   };
+  // (each building as it is laid: its footprint, foot, eave and top, its group, for the physical ring)
+  const shells = [], shell = (x0, y0, x1, y1, z0, ze, z1, group, flat = false) => shells.push({ id: `geocity-b${shells.length}`, min: [x0, y0, z0], max: [x1, y1, z1], eave: ze, group, ...(flat ? { flat: true } : {}) });
   const box = (x0, y0, x1, y1, z0, z1, wall, roof, group) => {
+    shell(Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1), z0, z1 - Math.min(0.3, (z1 - z0) / 4), z1, group, true);
     hold(x0, y0, x1, y1, z0, z1, `${holder}:${group.slice(8)}`);
     put([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], `${group}:roof`, roof);
     put([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], group, wall, [0, -1, 0]);
@@ -218,6 +228,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   };
   // a mass under a gable, its ridge along `axis` ('x' or 'y')
   const gable = (x0, y0, x1, y1, z0, ze, zr, axis, wall, roof, group) => {
+    shell(Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1), z0, ze, zr, group);
     hold(x0, y0, x1, y1, z0, zr, `${holder}:${group.slice(8)}`);
     if (axis === 'y') {
       const xm = (x0 + x1) / 2;
@@ -1093,6 +1104,11 @@ export function assembleGeocityScene(m, ctx = {}) {
       ...tunnels.map((t) => { const end = (id) => (podia.some((P) => P.block === id) ? `podium-${id}` : `station-${id}`); return { id: `tunnel-${t.id}`, kind: 'tunnel', from: end(t.a), to: end(t.b), length: t.length, line: t.line }; }),
     ] } : {}),
     walk: m.walk === false ? false : { speed: 6, spawn: P3(eye), minEye: 1.7, gravity: 22, radius: 0.4 },
+    // (a physical city: its nearest buildings to the walk's start, each as a shell for rupa/shell-blocks.js, with its
+    // finish's material word; absent otherwise)
+    ...(m.destruction === 'physical' ? { physicalRing: shells.map((b) => ({ ...b, d: Math.hypot(Math.max(b.min[0] - eye[0], 0, eye[0] - b.max[0]), Math.max(b.min[1] - eye[1], 0, eye[1] - b.max[1])) }))
+      .filter((b) => b.d <= RING && b.max[2] - b.min[2] > 1 && (FINISHES[b.group] || RING_WORD[b.group])).sort((a, b) => a.d - b.d || (a.id < b.id ? -1 : 1)).slice(0, RING_MAX)
+      .map(({ d: _d, ...b }) => ({ ...b, min: P3(b.min), max: P3(b.max), eave: r5(b.eave), word: FINISHES[b.group] ? FINISHES[b.group][0] : RING_WORD[b.group] })) } : {}),
     route,
     geocube: geocubeReadout(cube, 'geocity', null, m),
     geocity: {

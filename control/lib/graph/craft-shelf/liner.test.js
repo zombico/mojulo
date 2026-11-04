@@ -3,7 +3,7 @@
 // cheatline, emblem and plugged windows by the card, a registration aft; a turbofan's intake open to a fan face behind its blades, its
 // two nozzles and latches; a fighter's hull keeping its own; nothing of it without the word. Rows chosen in code.
 import { describe, it, expect } from 'vitest';
-import { CRAFT_ODM, CRAFT_ARCHETYPES, resolveCraftPart, assembleCraft } from './index.js';
+import { CRAFT_ODM, CRAFT_ARCHETYPES, resolveCraftPart, assembleCraft, measureCraft } from './index.js';
 import { craftForm } from './craft-form.js';
 import { LINER_LOOKS, LINER_LOOK_IDS } from './liner-looks.js';
 import { lookCard } from './drone-looks.js';
@@ -76,5 +76,27 @@ describe('the airline looks: one airframe read as any operator\'s, every scheme 
     expect(glass(form(plug))).toBeLessThan(glass(form(cheat)));
     const plain = hullOf(craftForm(ARCH, { made: true, pose: { gear: 0 }, attitude: 'ground' }));
     expect(plain.some((f) => f.albedo === LINER_LOOKS[cheat].scheme.cheat[0].colour)).toBe(false);
+  });
+});
+
+describe('the jumbo: four engines, an upper deck over its nose', () => {
+  // (the liner with an upper deck: the one whose hull carries more than one row of windows; chosen in code)
+  const JUMBO = Object.keys(CRAFT_ARCHETYPES).find((k) => CRAFT_ARCHETYPES[k].role === 'liner' && Array.isArray(CRAFT_ODM[CRAFT_ARCHETYPES[k].layout[0].sku].build.windows));
+  const hullSku = () => CRAFT_ARCHETYPES[JUMBO].layout[0].sku;
+  it('at its reference\'s figures, on four engines and five legs', () => {
+    expect(JUMBO).toBeTruthy();
+    const { manifest } = assembleCraft(JUMBO, { pose: { gear: 0 }, attitude: 'ground' }), m = measureCraft(JUMBO, manifest), R = CRAFT_ARCHETYPES[JUMBO].reference;
+    for (const k of ['span', 'length', 'height']) expect(Math.abs(m.measures[k] / R[k] - 1), k).toBeLessThan(0.06);
+    const kinds = manifest.items.map((it) => it.source.garage.kind);
+    expect(kinds.filter((k) => k === 'craft-engine')).toHaveLength(4);
+    expect(kinds.filter((k) => k === 'craft-gear')).toHaveLength(5);
+  });
+  it('its upper deck a hump over its forward third, its windows in a row a deck, the first row\'s ids a single row\'s', () => {
+    const st = CRAFT_ODM[hullSku()].build.stations, at = (s) => st.reduce((b, q) => (q[0] <= s ? q : b));
+    const top = (s) => at(s)[3] * 1 + at(s)[2] / 2;
+    expect(top(0.2)).toBeGreaterThan(top(0.6) + 0.05);
+    const ids = ['lathes', 'sweeps', 'extrudes', 'lofts'].flatMap((k) => (resolveCraftPart(hullSku())[k] ?? []).map((m) => m.id));
+    expect(ids.some((i) => /^window_\d+_[rl]$/.test(i))).toBe(true);
+    for (const k of [1, 2]) expect(ids.some((i) => new RegExp(`^window_${k}_\\d+_[rl]$`).test(i)), `row ${k}`).toBe(true);
   });
 });

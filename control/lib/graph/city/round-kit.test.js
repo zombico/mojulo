@@ -40,7 +40,9 @@ describe('round street kit: the element', () => {
   // The stock city is 2.1.0's generator on the engine's Math, whose bytes turn on the CPU and on Node's pow (22 → 24),
   // measured the same on Linux and macOS for each; a minted stock city keeps them, so its pins are per CPU and Node major
   // (a runtime nobody measured, Windows or another major, skips).
-  const RELEASE = { metro: ['26b0d6c6b877c6a9', 'd1de92f4c5babcad'], canal: ['914b85d5ddf4209d', '5e8a51ad0de1f693'] };
+  // (the metro scene re-pinned when its facade awnings and shopfront canopies were lifted to clear the base model by
+  // half a body, era/headroom.js: an emission change; its plan is as it was)
+  const RELEASE = { metro: ['26b0d6c6b877c6a9', 'e8d628d834cc38e2'], canal: ['914b85d5ddf4209d', '5e8a51ad0de1f693'] };
   const STOCK_RELEASE = {
     'x64-22': ['52bf3c17e291ede6', '293e04862bfa91b1'], 'arm64-22': ['b6a090d979ee8c58', 'b6de9f37038d57b1'],
     'x64-24': ['ef366fd05f29de7b', 'bec1fc975276bed8'], 'arm64-24': ['ef366fd05f29de7b', 'bec1fc975276bed8'],

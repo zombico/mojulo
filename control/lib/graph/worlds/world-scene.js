@@ -21,8 +21,16 @@
 import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen';
 import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
+import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { standBlocks } from '@/lib/graph/playscape/terrain';
+import { readMatterSpec, readTool, readScarsSpec, loadAudit } from '@/lib/graph/rupa/index.js';
+import { readPanels } from '@/lib/graph/rupa/panels.js';
+import { shellBlocks } from '@/lib/graph/rupa/shell-blocks.js';
+import { physicsWind } from '@/lib/graph/rupa/one-wind.js';
+import { treeBlocks } from '@/lib/graph/rupa/tree-blocks.js';
+import { groundGrid, waterBodies } from '@/lib/graph/rupa/ground-grid.js';
+import { groundOfShares } from '@/lib/graph/rupa/look-matter.js';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
 import { resolveSignage } from '@/lib/signage-chrome';
@@ -48,7 +56,7 @@ import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
-import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, readGeocube } from '@/lib/graph/era/geocube';
+import { geocubeContrastOf, geocubeRegisterOf, geocubeStructures, geocubeEraOf, geocubeMatterOf, geocubeTownMatterOf, geocubeWindOf, readGeocube } from '@/lib/graph/era/geocube';
 import { lowerWaterworks } from '@/lib/graph/era/water-live';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
@@ -150,7 +158,7 @@ export function readSeats(seats, entities, pilot = null) {
   return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}) };
 }
 
-export async function heroFigure(name, spec, { swing = null, swings = null } = {}) {
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -170,7 +178,8 @@ export async function heroFigure(name, spec, { swing = null, swings = null } = {
   // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js);
   // `swings`: the contact window of a body that strikes with what the hero holds (the held strike: its swing directions)
   if (!body) {
-    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}) });
+    // `hands`: a world a headset plays: the hero's hands as the headset draws them ride the pack (hero-xr-hands.js)
+    const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}) });
     body = scene.figures && scene.figures.body;
     if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
   }
@@ -264,6 +273,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: P.manifest };
     parkedColliders = P.colliders;
   }
+
+  // a controllable world's MOUNTS (worlds/mount-units.js readMounts): its horses, read here and laid once its figures are;
+  // the solve that teaches its hero to ride them (the hero's pack's hook) kept for them. Absent ⇒ null, byte-identical
+  const mountsSpec = sketch.manifest?.kind === 'controllable' && sketch.manifest.mounts != null ? (await import('@/lib/graph/worlds/mount-units.js')).readMounts(sketch.manifest.mounts) : null;
+  let mountRide = null;
 
   // declarative scene lighting — same normalization the /scene route uses.
   const scene = sketch.manifest.scene && typeof sketch.manifest.scene === 'object' ? sketch.manifest.scene : {};
@@ -542,14 +556,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // structures (fractal-structure/): towers grown from a plan, a rise, a crown and an echo, stood anywhere in any
   // world by a few words each. Their faces join here, before the material / AO / texture passes, so those passes see
   // them; their box colliders join an entity world's below. Opt-in; absent ⇒ byte-identical.
-  let structureColliders = [];
+  let structureColliders = [], structureRings = [];
   if (payload && sketch.manifest.structures !== undefined) {
     const { structureFaces, validateStructures } = await import('@/lib/graph/fractal-structure/index.js');
     const errs = validateStructures(sketch.manifest.structures);
     if (errs.length) throw new Error(`structures is invalid — see get_view_vocab({ id: 'structures' }):\n- ${errs.join('\n- ')}`);
     const S = structureFaces(sketch.manifest.structures, ctx.light ? { light: ctx.light } : {});
     payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
-    structureColliders = S.colliders;
+    structureColliders = S.colliders; structureRings = S.rings;
   }
   // a geocube domain's structures (era/geocube.js geocubeStructures): its landmarks, painted from the cube and lit by its
   // key (unshaded, the view's light), standing on the domain's land
@@ -558,7 +572,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { structureFaces } = await import('@/lib/graph/fractal-structure/index.js');
     const S = structureFaces(domainStructures.list, { light: unshaded ? ctx.light : domainStructures.light });
     payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...S.faces];
-    structureColliders = [...structureColliders, ...S.colliders];
+    structureColliders = [...structureColliders, ...S.colliders]; structureRings = [...structureRings, ...S.rings];
   }
 
   // science (science-worlds/setting.js): a science world stood in any world, a classical demo 1:1 or any other as a
@@ -952,8 +966,74 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // pre-cut into the pieces the page swaps in when it breaks. Absent or
     // 'none' ⇒ nothing breaks, byte-identical.
     const destruction = readDegree(sketch.manifest.destruction, 'destruction');
-    const broken = breakablesOf(payload, destruction);
-    if (broken && broken.breakables.length) { payload.faces = broken.faces; payload.colliders = broken.colliders; payload.breakables = broken.breakables; payload.breakPieces = piecesOf(broken.breakables, broken.faces); }
+    // under `physical`, a world painted by a geocube breaks by the cube's matter (era/geocube.js cubeMatter: read off its skins)
+    // (a physical geocity's near ring, geocity/scene.js: its nearest buildings as shell houses, each its eave, its own face
+    // groups and its finish's word, coarse panels for a city's masses; rupa/shell-blocks.js makes them walls and a roof)
+    if (destruction === 'physical' && Array.isArray(payload.physicalRing) && payload.physicalRing.length) {
+      payload.colliders = [...(payload.colliders || []), ...payload.physicalRing.map((b) => ({ min: b.min, max: b.max, of: `${b.id}:house`, eave: b.eave, group: b.group, coarse: true, ...(b.word ? { word: b.word } : {}), ...(b.flat ? { flat: true } : {}) }))];
+    }
+    const cubeMatterOf = destruction === 'physical' ? geocubeMatterOf(sketch.manifest) : null;
+    // (a town's houses break as the settlement they were built from: its style's words, era/geocube.js settlementMatter)
+    const townMatterOf = destruction === 'physical' ? geocubeTownMatterOf(sketch.manifest, payload) : null;
+    const broken = breakablesOf(payload, destruction, destruction === 'physical' ? { matterOf: cubeMatterOf } : {});
+    // under `physical`, the big things too (rupa/shell-blocks.js): a structure's tiers in courses, its rings in wall-thick
+    // cells, a town's shell houses as walls and a roof, each on a footing; and the load at minute zero (rupa loadAudit)
+    const shells = destruction === 'physical'
+      ? shellBlocks({ faces: broken ? broken.faces : payload.faces, colliders: broken ? broken.colliders : payload.colliders }, { rings: structureRings, matterOf: cubeMatterOf || townMatterOf ? { ...(cubeMatterOf || {}), ...(townMatterOf ? { town: townMatterOf } : {}) } : null })
+      : null;
+    // and its trees (rupa/tree-blocks.js): each built near the trail a trunk in courses and a crown, breaking, burning and
+    // thrown by a storm (the stage's `physicalTrees`, carried only under physical, then taken off the payload)
+    const facesSoFar = shells ? shells.faces : broken ? broken.faces : payload.faces;
+    const treeSet = destruction === 'physical' && Array.isArray(payload.physicalTrees) ? treeBlocks(payload.physicalTrees, facesSoFar, { matterOf: cubeMatterOf }) : null;
+    if (payload.physicalTrees !== undefined) delete payload.physicalTrees;
+    if ((broken && broken.breakables.length) || shells || treeSet) {
+      const faces = treeSet ? treeSet.faces : facesSoFar, colliders = [...(shells ? shells.colliders : broken ? broken.colliders : payload.colliders || []), ...(treeSet ? treeSet.footings : [])];
+      const breakables = [...(broken ? broken.breakables : []), ...(shells ? shells.breakables : []), ...(treeSet ? treeSet.breakables : [])];
+      payload.faces = faces; payload.colliders = colliders; payload.breakables = breakables; payload.breakPieces = piecesOf(breakables, faces, shells || treeSet ? { share: true } : {});
+      // (payload metadata, not drawn: what was built stands by itself, or what falls at once, is crushed, or sags)
+      if (destruction === 'physical') payload.rupaAudit = { ...loadAudit(breakables, { colliders }), ...(shells ? { shells: shells.groups } : {}), ...(treeSet ? { trees: treeSet.trees.length } : {}) };
+    }
+    // destructible physics (rupa/, `destruction: 'physical'`): the blocks carry their matter (breakablesOf), and the
+    // level's `matter` says how hard the world's blows land ({ power?, swing?, shot?, blastZ? }); the page composes the
+    // opt-in rupa builder. Any other degree ⇒ no key, byte-identical.
+    // (an object's metal panels, rupa/panels.js: resolved to their plates and their metal's numbers; refused by name if not)
+    const panelled = destruction === 'physical' && Array.isArray(payload.entities) && payload.entities.some((e) => e && e.panels != null && e.panels !== false);
+    if (panelled) payload.entities = payload.entities.map((e) => (e && e.panels != null && e.panels !== false ? { ...e, panels: readPanels(e) } : e));
+    if (destruction === 'physical' && (payload.breakables || payload.physicalGround || panelled)) {
+      payload.rupa = readMatterSpec(sketch.manifest.matter, 'matter');
+      // (its land as a soil grid the page digs, rupa/ground-grid.js, from the stage's landform and substrate)
+      const ground = groundGrid(payload.physicalGround);
+      if (ground) {
+        // (and its still water, the stage's lake and sea: on the grid, and as pools what falls in floats or sinks in)
+        const water = waterBodies(payload.anchors);
+        if (water.length) {
+          ground.water = water;
+          payload.rupa.pools = [...(payload.rupa.pools || []), ...readMatterSpec({ pools: water.map((w) => ({ min: w.min, max: [w.max[0], w.max[1], w.level], liquid: 'water' })) }, 'water').pools];
+        }
+        payload.rupa.ground = ground;
+      }
+      // one wind (rupa/one-wind.js): the level's own `wind`, the one its plants, grass and cloth sway in, is the air its
+      // blocks, dust, smoke and leaves feel, matched at 2 m and 10 m; the level's `matter.wind` overrides it for the physics
+      if (!payload.rupa.wind && sketch.manifest.wind) { const w = physicsWind(sketch.manifest.wind); if (w) payload.rupa.wind = w; }
+      // (its trees: each its blocks and the wind that snaps it, for the runtime's storm)
+      if (treeSet && treeSet.trees.length) payload.rupa.trees = treeSet.trees;
+      // what each striker strikes with (a tool word on its rule): checked here, read by the page as given
+      for (const e of payload.entities || []) if (e && e.rule && e.rule.strikeTool !== undefined) readTool(e.rule.strikeTool, `${e.id || 'entity'}.rule.strikeTool`);
+      // what can burn carries its own flame (fire/fire.js blockFires), off until it catches; added to the level's fire
+      if ((payload.breakables || []).some((b) => b.burnRate > 0)) {
+        const { blockFires, firePageChannel } = await import('@/lib/graph/fire/fire.js');
+        const had = payload.fire && Array.isArray(payload.fire.sources) ? payload.fire.sources : [], more = blockFires(payload.breakables, { from: had.length });
+        if (more.length) payload.fire = payload.fire ? { ...payload.fire, sources: [...had, ...more] }
+          : firePageChannel({ embers: true, smoke: true, light: 1, sources: more }, { terrainAir: !!payload.terrain, day: payload.sky && Number.isFinite(payload.sky.day) ? payload.sky.day : 0 });
+      }
+    }
+    // scars (cosmetic damage): a map that may not change still shows what blows would do to it (rupa/index.js
+    // readScarsSpec: its ground's soil and its walls' matter, from the world's cube unless named). Absent ⇒ no byte
+    // (outdoors, the ground a crater is painted in is the land's own: its commonest ground off the path, the cube's readout,
+    // era/substrate.js; a cube that names its ground keeps it)
+    const scarCube = () => { const C = geocubeMatterOf(sketch.manifest), land = groundOfShares(payload.geocube?.substrate); return land && !(C?.ground?.why === 'the cube says so') ? { ...(C || {}), ground: land } : C; };
+    const scars = sketch.manifest.scars ? readScarsSpec(sketch.manifest.scars, { cube: scarCube() }) : null;
+    if (scars) payload.rupa = { ...(payload.rupa || readMatterSpec(sketch.manifest.matter, 'matter')), scars };
     // tutorial: the scripted teaching layer — ordered prompt+goal steps
     // the engine director advances by edge-detecting the sim; the director is the level terminal
     // (tutorial levels run no match). Opt-in; absent ⇒ byte-identical.
@@ -1006,7 +1086,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // class's seconds and damage (any the rule names stand). Nothing held ⇒ the body as it was.
           const wields = (e) => e && e.body && e.body.figure === name && e.rule && e.rule.type === 'platform' && Array.isArray(e.rule.strikeContact) && e.rule.strike == null;
           const wielder = (payload.entities || []).find(wields);
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}) });
+          // THE RIDER (a world with `mounts`, worlds/mount-units.js): the pilot playing this hero learns to ride its horses, its
+          // riding clips solved on its own rig in the pack (world-kinds.js ctx.ride). No mounts ⇒ the hero as it was
+          const rider = mountsSpec && !mountRide ? (payload.entities || []).find((e) => e && e.pilotable && e.body && e.body.figure === name) : null;
+          let ride = null;
+          if (rider) {
+            const { mountRiderSync } = await import('@/lib/graph/worlds/mount-units.js'), { mountRide: solve } = await import('@/lib/graph/mount/game.js');
+            ride = (R, dz) => { mountRide = { sol: mountRiderSync(mountsSpec, { R, dz }, solve), riderId: rider.id }; return mountRide.sol.clips; };
+          }
+          // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}) });
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
           // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
@@ -1348,6 +1437,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // a stage's HERDS (era/biocube-fauna.js placeHerds, a biocube's `fauna.herds`): its animals laid after the world's own
   // entities, each species' rig built once (worlds/fauna-units.js). None ⇒ payload untouched.
   if (payload && 'faunaUnits' in payload) await lowerFaunaUnits(payload);
+  // a world's MOUNTS (worlds/mount-units.js: its `mounts`): the horses laid after its entities, their coats' figures, the
+  // hero who rides them marked (its riding clips packed above). None ⇒ payload untouched.
+  if (payload && mountsSpec) await (await import('@/lib/graph/worlds/mount-units.js')).lowerMounts(payload, mountsSpec, mountRide?.sol ?? null, { riderId: mountRide?.riderId ?? null });
 
   // generic, opt-in figure WEATHERING (materials/procedural-material.js `weatherRigParts`): the suit
   // analog of the face `material` channel. `weathering: true` (or `{ amt, seed }`) modulates every rig
@@ -1577,7 +1669,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const ref = resolveLookSpec(sketch.manifest.look).ref;
       air = airCard({ air: ref.air, light: ref.light }, W.air);
     }
-    payload.weather = { weather: W, seed, ...(air ? { air } : {}) };
+    // (one wind: a physical level's air, or the cube's wind, carries its rain and snow its way; any other world keeps the
+    // seeded heading it always had)
+    const wd = payload.rupa && payload.rupa.wind ? payload.rupa.wind.dir : (() => { const cw = geocubeWindOf(sketch.manifest); return cw ? (cw === true ? 0 : cw.dir ?? 0) : undefined; })();
+    const heading = wd === undefined ? undefined : Array.isArray(wd) ? Math.atan2(wd[1], wd[0]) : (wd * Math.PI) / 180;
+    payload.weather = { weather: W, seed, ...(air ? { air } : {}), ...(heading !== undefined ? { heading: Math.round(heading * 1e6) / 1e6 } : {}) };
     if (clockMech) {
       // the seasons' climates, in turn (spring, summer, autumn, winter unless the clock names its own)
       const climates = Number.isInteger(clockMech.seasons) && clockMech.seasons > 0 ? (Array.isArray(clockMech.climates) && clockMech.climates.length === 4 ? clockMech.climates : SEASON_CLIMATES) : null;
@@ -1596,6 +1692,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the ENDLESS RUNNER (worlds/controllable/runner.js): the pilot runs on its own down lanes, the rows laid ahead of it
   // as it plays; the page carries the runner's engine and view only then. Absent: every byte as it was.
   if (payload && sketch.manifest.runner != null && sketch.manifest.runner !== false) payload.runner = readRunner(sketch.manifest.runner);
+
+  // the GRADE (scene/channels/grade.js): the page's compositing stage, a word or dials; the frame pass carries it only then.
+  // Absent: every byte as it was.
+  if (payload && sketch.manifest.grade != null && sketch.manifest.grade !== false) { const G = readGrade(sketch.manifest.grade); if (G) payload.grade = G; }
 
   // the WORLD CLOCK (worlds/controllable/world-clock.js): moments that slow or hold a live world on what happens in it, the
   // camera keeping real time; the page composes the clock only then. Absent: every byte as it was.
@@ -1777,6 +1877,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (plan) payload.shoot = lowerShoot(plan, { subjects, live: worldIsLive(payload) });
   }
 
+  // (a physical stage's tree records serve its blocks only: a world with no one in it, or no physics, never carries them)
+  if (payload && payload.physicalTrees !== undefined) delete payload.physicalTrees;
+  if (payload && payload.physicalGround !== undefined) delete payload.physicalGround;
+  if (payload && payload.physicalRing !== undefined) delete payload.physicalRing;
   return { payload, kind };
 }
 

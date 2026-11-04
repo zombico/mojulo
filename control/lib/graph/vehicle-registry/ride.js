@@ -15,7 +15,8 @@
  * A row with no build at the tier falls to the nearest one (said in `fell`): a pickup has no stylised ride, so a
  * stylised game drives its loft; a sedan has no toy build, so a toy game drives its assembled ride.
  *
- *   rideOf(Q)          → { id, kind: 'assembly', ride } | { id, kind: 'loft', class, tier, fell? }
+ *   rideOf(Q)          → { id, kind: 'assembly', ride } | { id, kind: 'loft', class, car?, tier, fell? } (`car`: the car
+ *                        shelf's card the loft is, car-shelf/car-library.js)
  *                        | { id, kind: 'cycle', archetype, class, tier, fell? }   throws when the
  *                        word names no row or a row nothing can drive
  *   rideableRows()     → the rows a ride can name by id (those with a driven assembly or loft build)
@@ -64,7 +65,8 @@ export function rideOf(Q) {
   const fell = build === at.build ? at.fell : `its ${tier} build is a ${at.build.via}, which a ride is not: drawn as its ${build.via}`;
   if (build.via === 'ride') return { id, kind: 'assembly', ride: build.key, tier: build.tier, ...(fell ? { fell } : {}) };
   if (build.via === 'cycle') return { id, kind: 'cycle', archetype: build.key, class: CYCLE_ARCHETYPES[build.key].physics, tier: build.tier, ...(fell ? { fell } : {}) };
-  return { id, kind: 'loft', class: build.key, tier: build.tier, ...(fell ? { fell } : {}) };
+  // (a car shelf's card is a loft of its class with the card's own look: car-shelf/)
+  return { id, kind: 'loft', class: build.key, ...(build.car ? { car: build.car } : {}), tier: build.tier, ...(fell ? { fell } : {}) };
 }
 
 /** The class a ride's physics come from when the quick game asks for a tuning or conditions (its row's first). */

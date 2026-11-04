@@ -124,6 +124,8 @@ export function castingCall(world) {
   if (!walks.length) return null;
   const { cube, from: genre } = cubeOfWorld(world), mind = cube.mind ?? {}, combat = [].concat(cube.power?.combat ?? []);
   const named = [].concat(mind.foes ?? []);
+  // (a genre that fights only turn by turn meets its foes as the party battles' packs, battles.js: none stand beside them)
+  if (combat.includes('turn-based') && !combat.some((k) => FIGHTS.combat.includes(k))) return null;
   if (!named.length && !combat.some((k) => FIGHTS.combat.includes(k)) && !FIGHTS.motivation.includes(mind.motivation)) return null;
   const style = castStyleOf(G), era = settingOfGame(G).era ?? null;
   // the people the cast is drawn as: one for the world, rolled from its era's
