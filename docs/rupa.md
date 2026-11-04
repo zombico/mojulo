@@ -690,13 +690,8 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - `era/compose.js`: `DESTRUCTION_WORDS.physical`, the words that ask for it.
 - `rupa/panels.js` and `world-scene.js`: under `physical`, an entity's `panels` resolved to plates and their metal's
   numbers; the page draws them only when an object carries them.
-- Engines: the `rupa` page key is marked as the web's (the engines hold breakables whole today).
-- Godot: `scene/godot-kernel/rupa.gd` is the energy slice in GDScript (a blow's joules, a burst's share by solid angle,
-  the world's power, what loses its hold falls, a landing is an impact, the load: crushing and a hung span in bending),
-  held to the web frame by frame by the `rupa` corpus (`scene/rupa-conformance.js`; `node scripts/conformance.mjs
-  --engine godot --corpus rupa` with `MOJULO_GODOT`). The corpus is the brittle matters only (brick, concrete, stone,
-  glass); dents, cuts, heat, fire, wind, the ground and water are later slices, each with its own corpus. An exported
-  level's blocks do not run it yet.
+- Engines: the physics is the web build's. The engine handoff (`export_model { engine }`) carries a level's models and
+  its layout; its breakables travel whole, as solid colliders.
 
 ## Not yet
 
@@ -725,10 +720,8 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
   when its blades are instanced, and a crater's bowl drawn finer than the stage's land grid.
 - Scars on what is not a box (a minted solid, a tree), and marks that fade or are cleared.
 - Panels on a minted solid's or a figure-rig's own surface (a panel is a plate laid over the body), a crash's impact on
-  them, a round through a panel carried into the body behind it (it is reported, not carried), heat on a panel, and
-  panels in the Godot kernel.
+  them, a round through a panel carried into the body behind it (it is reported, not carried), and heat on a panel.
 - City buildings, houses entered by a door and walked-in buildings as blocks (structures and shell houses are), and
   the base settle on the grid (it searches every block when something falls).
 - Per-entity power (a hero's tier apart from the world's), and heat from beams and fire sources by element.
-- Engine export of breakables and their matter: Godot has the energy slice's kernel, not yet wired into an exported
-  level; the later slices, Unity and Roblox have none.
+- Engine export of breakables and their matter (the handoff carries them whole).

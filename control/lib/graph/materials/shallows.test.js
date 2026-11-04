@@ -19,6 +19,23 @@ describe('shallow bodies (pools and ponds)', () => {
     expect(bedDepth(pool, -12, 3.5)).toBeLessThanOrEqual(0);
   });
 
+  it('lays a pond in a world\'s own carved bed: its depths its grid\'s, its sim grid over the bed\'s reach', () => {
+    // (a 2 m × 2 m bed, 1 m deep in the middle and bank all round)
+    const depth = [-0.2, -0.2, -0.2, -0.2, 1, -0.2, -0.2, -0.2, -0.2];
+    const [pond] = normalizeShallows([{ kind: 'pond', bed: { x0: 4, y0: 6, dx: 1, dy: 1, nx: 3, ny: 3, depth }, ground: 2.25, freeboard: 0.25 }]);
+    expect(pond.center).toEqual([5, 7]);
+    expect(pond.level).toBe(2);
+    expect(bedDepth(pond, 5, 7)).toBeCloseTo(1, 4);
+    expect(bedDepth(pond, 4, 6)).toBeCloseTo(-0.2, 4);
+    expect(bedDepth(pond, 5.5, 7)).toBeCloseTo(0.4, 4);                                // bilinear between the cells
+    expect(bedDepth(pond, 20, 20)).toBeCloseTo(-0.2, 4);                               // past the grid: its edge, the bank
+    expect(waterAt([pond], 5, 7)).toMatchObject({ body: pond.id, level: 2 });
+    expect(pond.grid.x0).toBe(4);
+    // (the sim's own grid resamples the bed: wet in the middle, the bank at its edge)
+    expect(Math.max(...pond.grid.depth)).toBeGreaterThan(0.5);
+    expect(pond.grid.depth[0]).toBeCloseTo(-0.2, 4);
+  });
+
   it('gives a pond a bowl that meets its bank at the shore', () => {
     const [, pond] = two();
     expect(bedDepth(pond, 10, 2)).toBeCloseTo(pond.deep, 4);

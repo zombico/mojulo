@@ -7,6 +7,8 @@
 //   node scripts/spikes/feature-roster.mjs --out <dir> [--families canine,avian] [--extra rat,mouse] [--jobs 3] [--reuse]
 //   node scripts/spikes/feature-roster.mjs --out <dir> --cast raccoon,gorilla,pigeon   (a cast of species, in order)
 //   … --takes idle,fours   (a sheet per take: <take>-front.png, <take>-side.png; idle's are front.png, side.png)
+//   … --tune '{"detail":"gen7"}'   (every species minted with this tune: egocube/feature-tune.js)
+//   … --tunes '[{"label":"game"},{"label":"gen7","tune":{"detail":"gen7"}}]'   (each species once per tune, side by side)
 //
 // Writes <dir>/index.html (the live studio, every species a variant), <dir>/shots/front.png and side.png.
 import { spawnSync } from 'node:child_process';
@@ -27,14 +29,21 @@ const PICK = { procyonid: 'raccoon', rodent: 'squirrel', avian: 'pigeon', canine
 const byFamily = {}; for (const [id, s] of Object.entries(SPECIES)) (byFamily[s.family] ??= []).push(id);
 const families = opt.families ? opt.families.split(',') : Object.keys(FAMILY_MASCOT);
 const ids = opt.cast ? opt.cast.split(',') : [...families.map((f) => (byFamily[f]?.includes(PICK[f]) ? PICK[f] : byFamily[f]?.[0])).filter(Boolean), ...(opt.extra ? opt.extra.split(',') : [])];
-const variants = ids.slice(1).map((id) => ({ id, label: `${id} (${silhouetteOf(id, SPECIES[id].family, PLAN_OF[SPECIES[id].family])})`, as: 'mascot', spec: { facets: { style: 'feature', animal: id } } }));
+const sil = (id) => silhouetteOf(id, SPECIES[id].family, PLAN_OF[SPECIES[id].family]);
+// (the tunes each species is minted with: one (`--tune`, or none), or several side by side (`--tunes`))
+const tunes = opt.tunes ? JSON.parse(opt.tunes) : [{ label: '', ...(opt.tune ? { tune: JSON.parse(opt.tune) } : {}) }];
+const spec = (id, t) => ({ facets: { style: 'feature', animal: id }, ...(t.tune ? { tune: t.tune } : {}) });
+const cast = ids.flatMap((id) => tunes.map((t) => ({ id, t, key: tunes.length > 1 ? `${id}-${t.label}` : id, label: `${id}${t.label ? ` ${t.label}` : ''} · ${sil(id)}` })));
+const variants = cast.slice(1).map((c) => ({ id: c.key, label: c.label, as: 'mascot', spec: spec(c.id, c.t) }));
 mkdirSync(out, { recursive: true });
 const run = (args) => { const r = spawnSync(process.execPath, args, { stdio: 'inherit', cwd: ROOT, env: process.env }); if (r.status) process.exit(r.status); };
-run([path.join(LIVE, 'live.mjs'), '--as', 'mascot', '--hero', JSON.stringify({ facets: { style: 'feature', animal: ids[0] } }), '--variants', JSON.stringify(variants), '--clips', 'none', '--jobs', opt.jobs ?? '3', '--out', out, ...(opt.reuse ? ['--reuse'] : [])]);
+run([path.join(LIVE, 'live.mjs'), '--as', 'mascot', '--hero', JSON.stringify(spec(cast[0].id, cast[0].t)), '--variants', JSON.stringify(variants), '--clips', 'none', '--jobs', opt.jobs ?? '3', '--out', out, ...(opt.reuse ? ['--reuse'] : [])]);
 const vid = (id, i) => (i === 0 ? 'bare' : id.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
 for (const take of (opt.takes ?? 'idle').split(',')) for (const [name, az] of [['front', 18], ['side', 90]]) {
-  const shots = ids.map((id, i) => ({ variant: vid(id, i), label: `${id} · ${silhouetteOf(id, SPECIES[id].family, PLAN_OF[SPECIES[id].family])}`, take, phase: take === 'idle' ? 0 : 0.55, look: { az, el: 3, dist: 3.2, at: 0.5, fov: 30 } }));
-  run([path.join(LIVE, 'shot.mjs'), '--out', out, '--shots', JSON.stringify(shots)]);
+  const shots = cast.map((c, i) => ({ variant: vid(c.key, i), label: c.label, take, phase: take === 'idle' ? 0 : 0.55, look: { az, el: 3, dist: 3.2, at: 0.5, fov: 30 } }));
+  // (a species' tunes on one row, side by side)
+  const cols = opt.cols ?? String(tunes.length > 1 ? tunes.length * (tunes.length > 2 ? 1 : 2) : 4);
+  run([path.join(LIVE, 'shot.mjs'), '--out', out, '--cols', cols, '--shots', JSON.stringify(shots)]);
   copyFileSync(path.join(out, 'shots/sheet.png'), path.join(out, `shots/${take === 'idle' ? '' : `${take}-`}${name}.png`));
 }
-console.log(`${ids.length} species: ${path.join(out, 'shots/front.png')}, side.png`);
+console.log(`${ids.length} species × ${tunes.length} tune${tunes.length > 1 ? 's' : ''}: ${path.join(out, 'shots/front.png')}, side.png`);

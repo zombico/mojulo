@@ -19,6 +19,7 @@
  *
  * Pure: the same prompt and seed compose the same world.
  */
+import { DEFAULT_GAUNTLET, DEFAULT_HOLDOUT } from './gauntlet.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { LAND_FORMS } from '../era/out-land.js';
 import { readGameworld, resolveLevel } from './world.js';
@@ -34,13 +35,16 @@ import { motifOf } from './tech-direction.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
 import { suggestFeels, FEEL_WORDS } from './feel/suggest.js';
-import { GEOCUBE_PRESETS, readGeocube, geocubeDomains } from '../era/geocube.js';
-import { suggestGenres, cubeOfWorld } from './intent.js';
+import { GEOCUBE_PRESETS, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
+import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
+import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf } from './genre-forms.js';
+import { settingOfGame } from './cast-setting.js';
 import { readHour, referenceHour } from '../era/geocube-hours.js';
 import { glyphOf } from './glyph-words.js';
 import { PALETTE_PRESETS } from '../color-theorist/solve.js';
 import { SIXTH_GEN_REFERENCES, resolveLook } from '../era/sixth-gen.js';
 import { composerFills } from './resonance.js';
+import { readFoeWords, foePacks } from './foe-words.js';
 
 /**
  * What a word says about the ground. Each reading sets parts of a world's style or its civilizations: `kit`,
@@ -106,6 +110,11 @@ export const LEXICON = Object.freeze({
   // at the end, health to lose, guards who see to get past unseen
   relic: { 'goal.collect': 'relic' }, treasure: { 'goal.collect': 'treasure' }, coin: { 'goal.collect': 'coin' }, gem: { 'goal.collect': 'gem' }, jewel: { 'goal.collect': 'jewel' }, collect: { 'goal.collect': true },
   boss: { 'goal.boss': true }, bosses: { 'goal.boss': true },
+  escape: { 'goal.escape': true }, locked: { 'goal.escape': true },
+  // (a wave gauntlet's: never `gauntlet` or `waves`, which say a glove and a tower defence)
+  horde: { 'goal.gauntlet': true }, hordes: { 'goal.gauntlet': true }, onslaught: { 'goal.gauntlet': true },
+  // (and one to endure: its waves on a clock, a time to outlast)
+  holdout: { 'goal.gauntlet': 'holdout' }, holdouts: { 'goal.gauntlet': 'holdout' },
   health: { 'goal.health': true }, lives: { 'goal.health': true }, heart: { 'goal.health': true }, hp: { 'goal.health': true },
   guard: { 'goal.guards': true }, sentry: { 'goal.guards': true }, sentries: { 'goal.guards': true }, stealth: { 'goal.guards': true }, stealthy: { 'goal.guards': true }, sneak: { 'goal.guards': true }, sneaking: { 'goal.guards': true }, unseen: { 'goal.guards': true },
   // indoors: the levels are buildings (a crypt by default), laid room by room in a room kit
@@ -179,6 +188,8 @@ export function readingOf(word, { scene = false } = {}) {
 /** The words that fall from a cliff (a landmark's falls): a fall keeps the cliff an open word would take away. */
 export const fallsWords = (P) => P.read.filter((r) => { const v = readingOf(r.word)?.['land.landmark']; return v && v[0] === 'falls'; }).map((r) => r.word);
 // a kit's nearest cube when no word names one; an airless plain has none (every cube has air)
+// the cube a prompt's levels stand on: the one its words name, else the kit's nearest (null: none has its air)
+const cubeOfWords = (P, kit) => { const w = P.words.find((x) => CUBE_WORDS[x] ?? CUBE_WORDS[x.replace(/s$/, '')]); return w ? CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')] : KIT_CUBE[kit] ?? null; };
 export const KIT_CUBE = Object.freeze({ 'isekai-meadow': 'island-noon', 'isekai-sakura': 'island-noon', 'isekai-garden': 'island-noon', 'isekai-bamboo': 'jungle-haze', 'alien-night': 'gothic-night' });
 
 const STOP = new Set(['with', 'from', 'into', 'over', 'under', 'that', 'this', 'their', 'there', 'where', 'some', 'very']);
@@ -201,24 +212,40 @@ export function readPrompt(prompt, { scene = false } = {}) {
  * and what the crafted things share (a motif, the elements named) its direction. → { technology?, tunnels }, technology
  * absent when the words name nothing it makes.
  */
+// a clause names a thing when it is a noun phrase: the thing's word among its first few ("tracked haulers", "a great
+// lighthouse", "iron truss bridges"), never a sentence that mentions one ("a cursed knight guards the gate")
+const NOUN_LEAD = 3;
+// → the noun phrase ("great lighthouse"), or null when the clause is not one
+const named = (clause, word) => {
+  const ws = clause.replace(/^(an?|the)\s+/i, '').split(/[^A-Za-z0-9-]+/).filter(Boolean), w = String(word).toLowerCase();
+  const at = ws.findIndex((x) => x.toLowerCase() === w || x.toLowerCase().startsWith(w));
+  if (at < 0 || at > NOUN_LEAD) return null;
+  // a short clause is the phrase whole ("zeppelin airships", "solar arrays"); a long one is cut after the thing's word
+  return ws.length <= NOUN_LEAD + 3 ? clause.replace(/^(an?|the)\s+/i, '') : ws.slice(0, at + 1).join(' ');
+};
+
 export function technologyOfWords(prompt) {
   const things = {}, crafted = {}, tunnels = {};
   for (const clause of String(prompt).split(/[,;:]|\band\b/i).map((c) => c.trim()).filter(Boolean)) {
     // (a clause about buildings is the building tunnel's; its fittings, a mast or wings, do not make it one)
     if (readIntent(buildingDomain(), clause).traits.some((t) => !['solar', 'mast'].includes(t.id))) continue;
     const fn = readIntent(techDomain(), clause).traits.filter((t) => TECH_TRAITS[t.id].fn);
+    const thing = fn.length ? named(clause, fn.at(-1).word) : null;
+    if (fn.length && !thing) continue;
     if (fn.length) {
       const id = slug(fn.at(-1).word.replace(/s$/, ''));
-      if (!things[id]) things[id] = clause.replace(/^(an?|the)\s+/i, '');
+      if (!things[id]) things[id] = thing;
       continue;
     }
     // no machine: a clause that names a vehicle, a tech-structure or a weapon ("war galleys", "a stargate") is the crafter's
     const kind = craftKindOf(clause);
     if (!kind) continue;
     const list = Object.keys(CRAFTED).find((k) => CRAFTED[k] === kind), form = readIntent(craftDomain(kind), clause).traits.filter((t) => CRAFT_TRAITS[kind][t.id].form);
+    const phrase = form.length ? named(clause, form.at(-1).word) : null;
+    if (!phrase) continue;
     const id = slug(form.at(-1).word.replace(/s$/, ''));
     crafted[list] ??= {};
-    if (!crafted[list][id]) crafted[list][id] = clause.replace(/^(an?|the)\s+/i, '');
+    if (!crafted[list][id]) crafted[list][id] = phrase;
   }
   let technology = null;
   if (Object.keys(things).length) { technology = { things }; tunnels.things = Object.keys(things); }
@@ -270,7 +297,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   }
   // what no word decided, the seed does, inside the rails
   style.kit = kit ?? 'isekai-meadow';
-  if (!langs.length) langs.push(pick(rand, ['timber-hall', 'tiered', 'shell']));
+  // (who builds, where no word says: the builders of the cube the levels will stand on, so the town is drawn in the
+  // same art direction as its land (era/geocube.js cubeStreetLook); the seed's roll where the cube names none. The roll
+  // is made either way, so what the seed decides after it stays as it was)
+  if (!langs.length) { const rolled = pick(rand, ['timber-hall', 'tiered', 'shell']), cid = cubeOfWords(P, style.kit); langs.push((cid && cubeStreetLook(readGeocube(cid)).anchor) ?? rolled); }
   for (const f of ['rock', 'landmark']) if (!style.land[f]) style.land[f] = { variant: pick(rand, Object.keys(LAND_FORMS[f].variants).filter((v) => v !== 'falls')), many: pick(rand, [0, 0.25, 0.5]) };
   if (weather) style.weather = weather;
   style.meru = { preset: meru ?? pick(rand, ['mountain-lookout', 'stacked-lookout', 'terraced-mountain']) };
@@ -311,19 +341,39 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // world plays it; its words are read. A prompt that names none writes none
   const said = suggestFeels(prompt, 1)[0], feelWords = new Set((said?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
   if (said) tunnels.feel = said.matched;
-  // what game it is (intent.js): the genre the words name, written as the feel is, before the levels are laid so they
-  // are laid for it. Only a clear read: the first genre ahead of the second, on two of its words at least (one word,
-  // "towers" or "map", says too little). Otherwise none, and design_game asks, naming the genres the words point at
-  const [lead, next] = suggestGenres(prompt, 2), leadWords = new Set((lead?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
-  const genre = lead && leadWords.size >= 2 && !(next && next.matched.length === lead.matched.length) ? lead : null;
+  // what game it is (intent.js readGenre): the genre the words name, written as the feel is, before the levels are laid
+  // so they are laid for it. Only a clear read: a genre's own name, or the first genre ahead of the second on two of its
+  // words (one word, "towers" or "map", says too little). Otherwise none, and design_game asks, naming the genres the
+  // words point at
+  const genre = readGenre(prompt), leadWords = new Set((genre?.matched ?? []).flatMap((w) => w.split(/[^a-z0-9-]+/)));
+  // a genre that is another door's medium is said, not laid; one the registry cannot make yet is refused with what it
+  // waits on (genre-forms.js), nothing laid in its place
+  if (genre && HAND_OFFS[genre.id]) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is made by ${HAND_OFFS[genre.id].door}: ${HAND_OFFS[genre.id].why}. Nothing is laid here.`);
+  const refused = genre ? refusalOf(genre.id, suggestGenres(prompt, Infinity).map((g) => g.id)) : null;
+  if (refused) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is ${refused.verdict === 'blocked' ? 'not makeable yet' : 'not wholly makeable yet'}: it waits on ${refused.waits.join(', ')}. Nothing is laid in its place.${refused.others.length ? ` The words also point at ${refused.others.map((g) => GENRES[g].name.toLowerCase()).join(', ')}, which can be made.` : ''}`);
+  const pending = genre ? pendingOf(genre.id) : null;
+  if (pending) throw new Error(`gameworld: compose: ${GENRES[genre.id].name.toLowerCase()} is not laid from a sentence yet: it waits on ${pending.waits}. Nothing is laid in its place.${pending.one ? ` One level of it alone is design_game({ quick: { goal: '${pending.one}' } }).` : ''}`);
+  const form = genre ? GENRE_FORMS[genre.id] ?? null : null;
+  // the frame a genre on foot is laid in (genre-forms.js heroFrameOf): a hero by default, the camera its cube asks, a
+  // monitor's screen; written before the levels are laid (a side camera runs a trail's line: no climbs)
   // the form (resonance.js): what the genre's cube asks of the world that the composer can fill, written before the
   // levels are laid (a co-op platformer's side camera, its walks laid without climbs); the hero it asks is the creator's
   const fills = genre ? composerFills(cubeOfWorld({ intent: { from: genre.id } }).cube) : {};
-  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w) && !(genre && leadWords.has(w))), tunnels }, ...(genre ? { intent: { from: genre.id } } : {}), ...(fills.camera ? { camera: fills.camera } : {}), ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
+  const frame = genre && (!form || form.hero) ? heroFrameOf(genre.id, null) : null, camera = fills.camera ?? frame?.camera ?? null;
+  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w) && !feelWords.has(w) && !(genre && leadWords.has(w))), tunnels }, ...(genre ? { intent: { from: genre.id } } : {}), ...(camera ? { camera } : {}), ...(frame || form ? { screen: form?.screen ?? frame?.screen ?? 'screen' } : {}), ...(said ? { feel: said.pole } : {}), juice: 'auto', style, civilizations, levels: {}, links: [] };
   // the words that named the genre are read: they decide the intent
   for (const w of genre?.matched ?? []) {
     const says = `intent.from=${genre.id}`, r = world.brief.read.find((x) => x.word === w);
     if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
+  }
+  // the foes the words name (foe-words.js: skeletons, orcs, beast folk…), where the world fights turn by turn: its party
+  // battles' packs walk round them, each in the look its word asks for, made through its character door
+  const foeWords = genre && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).includes('turn-based') ? readFoeWords(prompt) : null;
+  if (foeWords) {
+    world.battles = { packs: foePacks(foeWords.kinds), ...(Object.keys(foeWords.looks).length ? { looks: foeWords.looks } : {}) };
+    const said = new Set(foeWords.read.flatMap((r) => r.word.split(' ')));
+    world.brief.unread = world.brief.unread.filter((w) => !said.has(w));
+    for (const r of foeWords.read) world.brief.read.push(r);
   }
   // indoors (a dungeon, a crypt…): the levels are buildings of one use in a room kit; where the prompt also names the
   // ground outside (a kit or a land form), the first level is that ground, the way in, and the later ones the building
@@ -332,18 +382,43 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const outside = P.read.some((r) => r.decides.some((d) => d === 'kit' || d.startsWith('land.')));
     return { use, kit: roomKit ?? ROOM_KIT_OF_USE[use] ?? 'gothic-stone', useWord, from: outside && n > 1 ? 1 : 0 };
   })() : null;
+  // (a genre that fights, its cube's combat melee or ranged, fights its guards: they are its foes, the casting call's, not
+  // watchers the level is lost to; the watchers' goal stays the sneak's)
+  if (goal.guards && genre && [].concat(cubeOfWorld({ intent: { from: genre.id } }).cube.power?.combat ?? []).some((c) => c === 'melee' || c === 'ranged')) {
+    delete goal.guards;
+    const r = P.read.find((x) => x.decides.includes('goal.guards'));
+    if (r) r.decides = r.decides.map((d) => (d === 'goal.guards' ? 'foes (a fighting genre\'s guards are fought)' : d));
+  }
   const goals = Object.keys(goal).length ? goal : null;
   const decided = [];
+  // a genre whose world is returned to (its cube's space.topology hub: a party RPG, a top-down adventure) is laid round a
+  // centre: the first level is the town (its street on the ground: its hall and its first shop walked into as part of
+  // the world, their keepers inside at their counters; each more one walked into takes a later house's ground; the street closed by
+  // its builders' walls, a gatehouse at each end), every other level joined to it both
+  // ways (a map
+  // world, world.js hub), each
+  // a stretch of the wilds; a building, a form or a single level is laid as before
+  const hubbed = !!genre && !form && !indoors && n >= 2 && cubeOfWorld({ intent: { from: genre.id } }).cube.space?.topology === 'hub';
+  const hubId = `${wid}-1`.slice(0, 48);
   for (let i = 0; i < n; i++) {
-    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0 && fills.climb !== false;
-    // the level's goal: what is collected and the health on every level, the boss at the end of the last
-    const lg = goals ? (({ boss, ...g }) => ({ ...g, ...(boss && last ? { boss } : {}) }))(goals) : null;
+    const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = !hubbed && i % 2 === 0 && fills.climb !== false && camera !== 'side' && !(goal.gauntlet && last && !goal.boss);
+    // the level's goal: what is collected and the health on every level, the boss at the end of the last; a horde's
+    // gauntlet at the end of the last level a boss does not end (it owns the hero's hp there, so no health); held in an
+    // escape room on every level neither ends
+    const held = goals?.gauntlet && last && !goals.boss && !(indoors && i >= indoors.from && camera !== 'side');
+    const lg = goals ? (({ boss, escape, gauntlet, health, ...g }) => ({ ...g, ...(health && !held ? { health } : {}), ...(boss && last ? { boss } : held ? { gauntlet: gauntlet === 'holdout' ? { ...DEFAULT_HOLDOUT, arenas: DEFAULT_HOLDOUT.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } : { arenas: DEFAULT_GAUNTLET.arenas.map((A) => ({ waves: A.waves.map((W) => ({ ...W })) })) } } : escape ? { escape } : {}) }))(goals) : null;
     const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
-    const inside = indoors && i >= indoors.from;
+    // (a side camera runs a trail's lane: a side-scroller's levels stay out of doors)
+    const inside = indoors && i >= indoors.from && camera !== 'side';
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
-    const L = inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
+    // (a genre's book form, genre-forms.js: its levels laid in it, a flight sim's courses; no town, no walk goal)
+    const L = hubbed && i === 0 ? { name: `${cap(landscape)} town`, walk: { nodes: { square: { trail: true } } }, places: { town: true, street: { houses: 6, enter: 2, walk: ['shop'], walls: true, inside: true } } }
+      : form ? { name: `${form.name} ${i + 1}`, ...form.level(i, n) }
+      : inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
       : { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes }, ...lgoal };
-    if (i > 0 && !inside) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
+    if (i > 0 && !inside && !form && !hubbed) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
+    // (round a hub, the wilds: no town of their own, the last raising its castle)
+    if (i > 0 && hubbed && last) L.places = { castle: civIds[1] ? { civilization: civIds[1] } : true };
     // the agent checks its own work: a level whose town's laws advise is laid again on the next seed
     let s = seed * 100 + i * 7 + 1, tries = 0, laws = [];
     for (; tries < 6; tries++, s++) {
@@ -353,14 +428,18 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       if (!laws.length) break;
     }
     decided.push({ level: lid, seed: s, tries: tries + 1, laws });
-    if (i > 0) world.links.push({ from: `${wid}-${i}`.slice(0, 48), to: lid, kind: last && n > 2 ? 'gate' : 'road' });
+    if (i > 0) world.links.push({ from: hubbed ? hubId : `${wid}-${i}`.slice(0, 48), to: lid, kind: last && n > 2 ? 'gate' : 'road' });
   }
+  if (hubbed) Object.assign(world, { topology: 'interconnected', hub: hubId, start: hubId });
+  if (hubbed) world.brief.hub = hubId;
   world.brief.levels = decided;
   // what the levels are played for, and which are buildings: said only when a word decided it
-  if (goals) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
+  // (a genre's form: what its levels were laid as, said in the brief)
+  if (form) world.brief.levelForm = { genre: genre.id, form: form.form };
+  if (goals && !form) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
   // what the composer filled of the genre's form: said only when it filled something
   if (Object.keys(fills).length) world.brief.form = fills;
-  if (indoors) {
+  if (indoors && !form) {
     world.brief.indoors = { use: indoors.use, kit: indoors.kit, levels: Object.keys(world.levels).slice(indoors.from) };
     // the word that named the use is read (as a cube's word is): it decides the building's use
     if (indoors.useWord) {
@@ -372,7 +451,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // the cube: the one the words name, else the kit's nearest, drawn on the kit's own card so its flora stay; the
   // color theorist decides its colours when it is stored (color-theorist/stamp.js)
   const cubeWord = P.words.find((w) => CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')]);
-  const cubeId = cubeWord ? CUBE_WORDS[cubeWord] ?? CUBE_WORDS[cubeWord.replace(/s$/, '')] : KIT_CUBE[style.kit] ?? null;
+  const cubeId = cubeOfWords(P, style.kit);
   if (cubeId) {
     style.geocube = GEOCUBE_PRESETS[cubeId].outside.base === style.kit ? cubeId : { from: cubeId, outside: { base: style.kit } };
     world.brief.cube = { id: cubeId, ...(cubeWord ? { word: cubeWord } : { from: `the kit, ${style.kit}` }) };
@@ -438,5 +517,15 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     world.brief.unread = world.brief.unread.filter((x) => x !== w);
   }
   readGameworld(world);
+  // the hero the frame makes by default, drawn in the world's own tradition (its kit's pole: cast-setting.js), said in
+  // the brief beside the words that asked for it
+  if (frame) {
+    const tradition = settingOfGame(readGameworld(world)).tradition ?? 'anime';
+    // (a hub's town is lived in: its folk (folk-cast.js), each to talk to, its shopkeeper the merchant and a keeper
+    // the inn where the world's battles have them)
+    world.characters = { ...frame.characters, direction: { ...frame.characters.direction, tradition }, ...(world.hub ? { folk: true } : {}) };
+    if (frame.moves) world.moves = true;
+    world.brief.hero = { genre: genre.id, vibe: frame.characters.hero.motion.vibe, powers: 'none', camera: camera ?? 'third-person', tradition };
+  }
   return world;
 }

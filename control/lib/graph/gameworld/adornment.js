@@ -1,7 +1,7 @@
 /**
  * THE HERO'S ADORNMENT — the third page of the hero, over the pinned base: equipment based on the main loop's final
  * design. The loop is the actions page (actions.js): the power set and its escalation. So an item exists because a power
- * needs it (`serves`), grows with the stage that unlocks it (`tiers`), and may serve a second power as an alternate use
+ * needs it, or the body's own blow or shot does (`serves`: BASIC_VERBS), grows with the stage that unlocks it (`tiers`), and may serve a second power as an alternate use
  * (`alt`). What the page conceives is the TEMPLATE of its class of gear: the world's equipment table (equipment.js) is
  * seeded from it, and equipped once the game's stats exist. The bare base is never overwritten.
  *
@@ -9,7 +9,8 @@
  *     items: [{
  *       id, slot: 'right' | 'left' | 'back' | 'hip',          // where the hero carries it (polygonizer/hero-gear.js)
  *       build: { item, style?, dials?, parts?, gem?, seed? },  // an equipment build, without its `type`
- *       serves: [power ids],                                   // what it exists for
+ *       serves: [power ids],                                   // what it exists for: a power, or the body's own blow
+ *                                                              // ('strike': it swings it) or shot ('shoot': it fires it)
  *       tiers?: { early?, mid?, late? },                       // build diffs, cumulative: each stage keeps the last's
  *       alt?: [{ id, use, serves?: [power ids], build? }],     // alternate uses: a build diff, tied to another power
  *     }],
@@ -22,11 +23,14 @@
  * design's powers that nothing carried serves. It advises; nothing refuses.
  */
 import { validateGear, GEAR_SLOTS } from '../polygonizer/hero-gear.js';
-import { EQUIPMENT_ITEMS } from '../equipment/expand.js';
+import { EQUIPMENT_ITEMS, GEAR_ITEMS } from '../equipment/expand.js';
 import { STAGES } from './actions.js';
 
 const BUILD_KEYS = ['item', 'style', 'dials', 'parts', 'gem', 'seed'];
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
+/** The body's own verbs an item may serve beside the powers: its blow (the item swung in melee: the runtime's held strike)
+ * and its shot (the item fired). A hero with no powers (actions `none`) still carries what it fights with. */
+export const BASIC_VERBS = Object.freeze({ strike: 'the body\'s own blow: the item is swung', shoot: 'the body\'s own shot: the item is fired' });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const err = (m) => new Error(`characters: hero.adornment${m}`);
 
@@ -62,9 +66,9 @@ function checkBuild(slot, build, at, fail = err) {
  * A held build and its tiers, read and judged by the equipment kernel at `slot` (each tier over the last's): what an
  * adornment item and an equipment class share. `fail(message)` makes the page's own error. → { build, tiers? }
  */
-export function readGearBuild({ build: b, tiers: t }, slot, at, fail = err) {
+export function readGearBuild({ build: b, tiers: t }, slot, at, fail = err, items = EQUIPMENT_ITEMS) {
   const build = readDiff(b, `${at}.build`, 'an equipment build', fail);
-  if (!EQUIPMENT_ITEMS.includes(build.item)) throw fail(`${at}.build.item is ${EQUIPMENT_ITEMS.join(', ')}`);
+  if (!items.includes(build.item)) throw fail(`${at}.build.item is ${items.join(', ')}`);
   checkBuild(slot, build, `${at}.build`, fail);
   if (t === undefined) return { build };
   if (!isObj(t)) throw fail(`${at}.tiers is { ${STAGES.join(', ')} }, each a build diff`);
@@ -80,7 +84,7 @@ export function readGearBuild({ build: b, tiers: t }, slot, at, fail = err) {
 }
 
 const powerIds = (v, at) => {
-  if (!Array.isArray(v) || !v.length || !v.every((x) => typeof x === 'string' && x)) throw err(`${at} is a list of power ids (the hero's actions: the powers it exists for)`);
+  if (!Array.isArray(v) || !v.length || !v.every((x) => typeof x === 'string' && x)) throw err(`${at} is a list of power ids (the hero's actions: the powers it exists for), or the body's own 'strike' or 'shoot'`);
   return [...v];
 };
 
@@ -100,7 +104,9 @@ export function readAdornment(A) {
     if (seen.has(it.id)) throw err(`${at}.id '${it.id}' appears twice`);
     seen.add(it.id);
     if (!GEAR_SLOTS.includes(it.slot)) throw err(`${at}.slot is ${GEAR_SLOTS.map((s) => `'${s}'`).join(', ')}`);
-    const { build, tiers } = readGearBuild(it, it.slot, at);
+    // (what the hero carries is any item the gear door takes: the myth's, the firearms, the arms library's; the world's
+    // equipment table holds the myth's classes, so a firearm is built from the item itself)
+    const { build, tiers } = readGearBuild(it, it.slot, at, err, GEAR_ITEMS);
     const out = { id: it.id, slot: it.slot, build, serves: powerIds(it.serves, `${at}.serves`), ...(tiers ? { tiers } : {}) };
     if (it.alt !== undefined) {
       if (!Array.isArray(it.alt)) throw err(`${at}.alt is a list of { id, use, serves?, build? }`);
@@ -131,8 +137,8 @@ export function readAdornment(A) {
  */
 export function resolveAdornment(A, actions) {
   const a = readAdornment(A), open = [];
-  const ids = new Set((actions?.powers ?? []).map((p) => p.id));
-  const none = () => [...ids].join(', ') || 'the hero has none yet';
+  const ids = new Set([...(actions?.powers ?? []).map((p) => p.id), ...Object.keys(BASIC_VERBS)]);
+  const none = () => [...ids].filter((x) => !BASIC_VERBS[x]).join(', ') || 'the hero has none yet';
   const served = new Set(a.bodily ?? []);
   for (const p of a.bodily ?? []) if (!ids.has(p)) open.push(`bodily '${p}' is not a power (${none()})`);
   for (const it of a.items) {

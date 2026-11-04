@@ -1,6 +1,6 @@
 /**
- * game mechanics — reusable level verbs that lower into world + contract at once
- * (game-mechanics.plan.md, M0). A mechanic is a pure function of (params, ctx) → fragments:
+ * game mechanics — reusable level verbs that lower into world + contract at once.
+ * A mechanic is a pure function of (params, ctx) → fragments:
  *   world    — an events-manifest fragment (idiom-shaped: sources/reactions/watches/timers/
  *              entities/hud/vars), reusing the zone fact source (deriveZoneEvents) and the
  *              existing bus verbs. This is the world side a level used to hand-author.
@@ -16,6 +16,9 @@
  * or it doesn't ship (no runtime mechanic code, ever).
  */
 import { heldVar, itemKey } from '../playscape/ui/items.js';
+import { lowerEscapeRoom } from './escape-room.js';
+import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver } from './errand-mechanics.js';
+import { lowerWaveGauntlet } from './wave-gauntlet.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -89,6 +92,27 @@ const MECHANICS = {
     },
   },
 
+  // a WARP within the level: walking into its zone moves the walker to `to` (its position, as its spawn is given: a fall
+  // caught moves it the same way), and says `then` (an event a scene starts on: the arrival shown). Not an end: a
+  // subway's tunnel left at one station and its next station's platform arrived on.
+  warp: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const at = p.at ?? [0, 0, 0], to = p.to ?? at;
+      if (!Array.isArray(at) || at.length !== 3 || !Array.isArray(to) || to.length !== 3) throw new Error(`warp[${ctx.i}]: at and to are [x, y, z] (its zone; where it sends the walker)`);
+      const zone = `warp_${ctx.i}`, shape = Array.isArray(p.half) ? { half: p.half } : { radius: p.radius != null ? p.radius : 1.2 };
+      return {
+        world: {
+          sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: ctx.player }],
+          reactions: [
+            { on: 'enter', match: { zone }, do: 'move', target: ctx.player, to },
+            ...(typeof p.then === 'string' ? [{ on: 'enter', match: { zone }, do: 'emit', type: p.then }] : []),
+          ],
+        },
+      };
+    },
+  },
+
   // survive a countdown → success (modeled on the countdownClock idiom, self-gated).
   survive: {
     role: 'terminal', ends: ['success'], requires: [],
@@ -148,11 +172,13 @@ const MECHANICS = {
     lower(p, ctx) {
       const hazards = Array.isArray(p.hazards) ? p.hazards : [];
       if (!hazards.length) throw new Error(`hazard-damage[${ctx.i}]: needs hazards: [{ at, radius?, damage? }]`);
-      const world = { sources: [], reactions: [], vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 }, hud: [{ var: 'hp', label: 'HP' }] };
+      // `of: 'body'`: the player's body's own hp takes it (the stats' hp, its bar), no level hp beside it
+      const body = ofBody(p, ctx, 'hazard-damage');
+      const world = { sources: [], reactions: [], ...(body ? {} : { vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 }, hud: [{ var: 'hp', label: 'HP' }] }) };
       hazards.forEach((hz, j) => {
-        const zone = `hz_${ctx.i}_${j}`;
+        const zone = `hz_${ctx.i}_${j}`, by = Number.isFinite(hz.damage) ? hz.damage : 20;
         world.sources.push({ type: 'zone', zone, at: hz.at || [0, 0, 0], radius: hz.radius != null ? hz.radius : 1.5, planar: true, watch: ctx.player });
-        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: 'hp', by: -(Number.isFinite(hz.damage) ? hz.damage : 20) });
+        world.reactions.push(body ? { on: 'enter', match: { zone }, do: 'ctrl', op: 'hurt', who: ctx.player, by } : { on: 'enter', match: { zone }, do: 'inc', var: 'hp', by: -by });
       });
       return { world };
     },
@@ -190,6 +216,12 @@ const MECHANICS = {
       // `hits`: what each hit the player takes (the cast's hit:<player>: a round, a blade, a splash) costs it, on the HUD
       const hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : null;
       if (p.hits !== undefined && !hits) throw new Error(`fail-on-death[${ctx.i}]: hits is the hp a hit on the player takes, above 0`);
+      // `of: 'body'`: the level is lost when the player's body is down (its own hp, the stats' hp and its bar, taken by
+      // whatever hurts it: a blow, a beam, a foe's touch, a hazard); no level hp, no readout of its own
+      if (ofBody(p, ctx, 'fail-on-death')) {
+        if (p.startHp !== undefined || p.hits !== undefined) throw new Error(`fail-on-death[${ctx.i}]: of: 'body' takes no startHp or hits: the body's hp is its own, and each hit takes what its source deals`);
+        return { world: { reactions: [{ on: 'down', match: { entity: ctx.player }, do: 'emit', type: 'dead' }] }, on: { dead: { end: 'fail' } } };
+      }
       return {
         world: {
           vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 },
@@ -627,6 +659,96 @@ const MECHANICS = {
     },
   },
 
+  // NOTES (a terminal: success, and fail with `misses`): a rhythm game's chart played by bodies the level mints asleep.
+  // Each lane is a straight path in the air toward the player, `from` its far end and `to` the cutting line, and owns a
+  // `pool` of note bodies (minted asleep, each floating at the lane's height: its rule's eye). A note of the chart
+  // ({ beat, lane, dir, hand }) wakes its lane's next body `lead` beats before its beat at `from` and walks it in at the
+  // pace that puts it on `to` on its beat, then on `beyond` metres past. A CUT of it (worlds/controllable/sweep.js: a
+  // headset's swing) in its direction (`up` | `down` | `left` | `right` | `any`) and with its hand (`left` | `right` |
+  // `any`) scores it (`note:hit`) and sends it away; one that walks past the line is a `note:miss`. Every note scored
+  // or missed: `notes:done`. The beat is the level's music's (audio.beat, as on-beat's); `bpm` its tempo.
+  notes: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower(p, ctx) {
+      const i = ctx.i, where = `notes[${i}]`;
+      const lanes = p.lanes && typeof p.lanes === 'object' ? p.lanes : null, chart = Array.isArray(p.chart) ? p.chart : null;
+      const xy = (q) => Array.isArray(q) && q.length >= 2 && Number.isFinite(q[0]) && Number.isFinite(q[1]);
+      if (!lanes || !Object.keys(lanes).length || !Object.values(lanes).every((L) => L && xy(L.from) && xy(L.to) && Array.isArray(L.pool) && L.pool.length && L.pool.every((id) => typeof id === 'string' && id))) {
+        throw new Error(`${where}: needs lanes: { <name>: { from: [x, y], to: [x, y], pool: [id, …] } } (the pool's bodies minted asleep, floating at the lane's height)`);
+      }
+      const every = Number.isFinite(p.every) && p.every > 0 ? p.every : Number.isFinite(p.bpm) && p.bpm > 0 ? 60 / p.bpm : null;
+      if (!every) throw new Error(`${where}: needs bpm (the music's tempo) or every (seconds a beat)`);
+      const lead = Number.isInteger(p.lead) && p.lead >= 1 ? p.lead : 4, beyond = Number.isFinite(p.beyond) && p.beyond > 0 ? p.beyond : 2;
+      // (the music's clock says each beat `early` seconds before it sounds, audio.beat's lead: a note walks that much longer)
+      const early = Number.isFinite(p.early) && p.early >= 0 ? p.early : 0.15;
+      const DIRS = ['up', 'down', 'left', 'right', 'any'], HANDS = { left: 'L', right: 'R', any: 'any' };
+      if (!chart || !chart.length) throw new Error(`${where}: needs chart: [{ beat, lane, dir?, hand? }, …]`);
+      const notes = chart.map((n, k) => {
+        if (!n || !Number.isInteger(n.beat) || n.beat < lead || !lanes[n.lane]) throw new Error(`${where}: chart[${k}] is { beat (a whole beat, ${lead} or later: it walks in for ${lead}), lane (one of ${Object.keys(lanes).join(', ')}), dir?, hand? }`);
+        const dir = n.dir ?? 'any', hand = n.hand ?? 'any';
+        if (!DIRS.includes(dir)) throw new Error(`${where}: chart[${k}].dir is one of ${DIRS.join(', ')}`);
+        if (!HANDS[hand]) throw new Error(`${where}: chart[${k}].hand is left, right or any`);
+        return { k, beat: n.beat, lane: n.lane, dir, hand: HANDS[hand] };
+      }).sort((a, b) => a.beat - b.beat || a.k - b.k);
+      // the lane's bodies in turn; a body comes back only once its last note has walked past the line
+      const r3 = (x) => Math.round(x * 1000) / 1000, used = {}, last = {}, bodies = new Set();
+      for (const n of notes) {
+        const L = lanes[n.lane], j = used[n.lane] = (used[n.lane] ?? -1) + 1, id = L.pool[j % L.pool.length];
+        const dist = Math.hypot(L.to[0] - L.from[0], L.to[1] - L.from[1]), past = dist > 0 ? Math.ceil((beyond / dist) * lead) + 1 : 1;
+        if (last[id] != null && n.beat - lead < last[id]) throw new Error(`${where}: lane '${n.lane}' needs more bodies in its pool: note ${n.k} (beat ${n.beat}) would wake '${id}' while its note before is still walking (a note walks ${lead + past} beats, from waking to past the line)`);
+        last[id] = n.beat + past; n.id = id; bodies.add(id);
+        const u = [(L.to[0] - L.from[0]) / (dist || 1), (L.to[1] - L.from[1]) / (dist || 1)];
+        n.points = [[L.to[0], L.to[1]], [r3(L.to[0] + u[0] * beyond), r3(L.to[1] + u[1] * beyond)]];
+        n.from = [L.from[0], L.from[1], Number.isFinite(L.from[2]) ? L.from[2] : 0];
+        n.speed = r3(dist / (lead * every + early));
+      }
+      const D = (id) => `__nd_${i}_${id}`, Hh = (id) => `__nh_${i}_${id}`, hits = `__nhits_${i}`, miss = `__nmiss_${i}`, done = `__ndone_${i}`;
+      const misses = Number.isInteger(p.misses) && p.misses > 0 ? p.misses : null;
+      const reactions = [];
+      // each note: on the beat `lead` before its own, its body wakes at the lane's far end, takes the note's cut and walks in
+      for (const n of notes) {
+        const on = { on: 'beat', match: { n: n.beat - lead } };
+        reactions.push(
+          { ...on, do: 'set', var: D(n.id), to: n.dir }, { ...on, do: 'set', var: Hh(n.id), to: n.hand },
+          { ...on, do: 'ctrl', op: 'spawn', who: n.id, at: n.from },
+          { ...on, do: 'ctrl', op: 'walk', who: n.id, points: n.points, names: ['line', 'past'], speed: n.speed, then: 'stay' },
+        );
+      }
+      // each body: a cut in its note's direction, then with its note's hand, is a hit; past the line, a miss
+      for (const id of bodies) {
+        reactions.push(
+          { on: 'cut', match: { entity: id }, if: { var: D(id), eq: 'any' }, do: 'emit', type: `__ncut_${i}`, entity: 'event.entity', hand: 'event.hand' },
+          ...['up', 'down', 'left', 'right'].map((d) => ({ on: 'cut', match: { entity: id, dir: d }, if: { var: D(id), eq: d }, do: 'emit', type: `__ncut_${i}`, entity: 'event.entity', hand: 'event.hand' })),
+          { on: `__ncut_${i}`, match: { entity: id }, if: { var: Hh(id), eq: 'any' }, do: 'emit', type: 'note:hit', entity: 'event.entity' },
+          ...['L', 'R'].map((h) => ({ on: `__ncut_${i}`, match: { entity: id, hand: h }, if: { var: Hh(id), eq: h }, do: 'emit', type: 'note:hit', entity: 'event.entity' })),
+          { on: 'arrive', match: { entity: id, last: 1 }, do: 'emit', type: 'note:miss', entity: 'event.entity' },
+          // (a note something stopped on its walk, a wall in its lane: a miss, so the chart always ends)
+          { on: 'stuck', match: { entity: id }, do: 'emit', type: 'note:miss', entity: 'event.entity' },
+        );
+      }
+      reactions.push(
+        // (a note scored once: its cut cleared, so a second blade in the same pass finds nothing)
+        ...[...bodies].map((id) => ({ on: 'note:hit', match: { entity: id }, do: 'set', var: D(id), to: '' })),
+        { on: 'note:hit', do: 'inc', var: hits, by: 1 }, { on: 'note:hit', do: 'inc', var: done, by: 1 }, { on: 'note:hit', do: 'ctrl', op: 'vanish', who: 'event.entity' },
+        { on: 'note:miss', do: 'inc', var: miss, by: 1 }, { on: 'note:miss', do: 'inc', var: done, by: 1 }, { on: 'note:miss', do: 'ctrl', op: 'vanish', who: 'event.entity' },
+      );
+      const world = {
+        vars: { [hits]: 0, [miss]: 0, [done]: 0, ...Object.fromEntries([...bodies].flatMap((id) => [[D(id), ''], [Hh(id), 'any']])) },
+        reactions,
+        watches: [{ type: 'notes:done', when: { var: done, gte: notes.length } }, ...(misses ? [{ type: 'notes:failed', when: { var: miss, gte: misses } }] : [])],
+        hud: [
+          { var: hits, label: 'Notes', as: 'counter', max: notes.length },
+          ...(misses ? [{ var: miss, label: 'Misses', as: 'counter', max: misses }] : []),
+          { on: 'note:miss', text: 'miss', as: 'toast', ttl: 0.5, color: 'harm' },
+        ],
+      };
+      return { world, on: { 'notes:done': { end: 'success' }, ...(misses ? { 'notes:failed': { end: 'fail' } } : {}) } };
+    },
+  },
+  // THE WAVE GAUNTLET (a terminal): sealed in until nothing is left alive, arenas × waves, each wave after the last is
+  // down, death beginning the arena (or its checkpoint) again (game/wave-gauntlet.js; "gauntlet" alone is the glove)
+  'wave-gauntlet': { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerWaveGauntlet },
+
   // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
   // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in
   // the grid, no wall, no boulder); else the walker is put back. Every plate under a boulder: success. All on the bus:
@@ -828,6 +950,13 @@ const MECHANICS = {
       };
     },
   },
+
+  // THE ERRAND'S verbs (game/errand-mechanics.js): a place an item is had (its price spent), a carried item's condition
+  // (fragile, perishable), a foe's fall dropping its proof, the giver's hand-in and its reward; each on the bag's guarded transfer, so what is carried rides the store
+  trade: { role: 'emitter', requires: ['inventory'], lower: lowerTrade },
+  cargo: { role: 'emitter', requires: ['inventory'], lower: lowerCargo },
+  bounty: { role: 'emitter', requires: ['inventory'], lower: lowerBounty },
+  deliver: { role: 'terminal', ends: ['success'], requires: ['inventory'], lower: lowerDeliver },
 
   // the PARTY carried (an emitter): the battle party of play.rpg (playscape/rpg) goes from level to level in a party
   // slice: each member's level, xp, hp, mp, class, class ranks and points, and the skills learned (the kernel's save:
@@ -1067,8 +1196,7 @@ const MECHANICS = {
   // CONTROL (a terminal): a point two sides fight over (`teams`, as frags' sides). Every second the side alone on it (a
   // ring `radius` round `at`, its standing bodies: a fallen one holds nothing) scores one; contested (both there) or
   // empty, nobody does. The first side to `hold` seconds wins it (the player's: `control:won`; the other's:
-  // `control:lost`). Lowers to a zone per contender, counts and flags, a timer and watches (the web's: a Godot export
-  // does not keep it yet). Kept: the player's side's seconds on the point.
+  // `control:lost`). Lowers to a zone per contender, counts and flags, a timer and watches. Kept: the player's side's seconds on the point.
   control: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
@@ -1180,7 +1308,18 @@ const MECHANICS = {
       return { world };
     },
   },
+
+  // THE ESCAPE ROOM (a terminal): held in until its locks open, each by a key found inside or a step on the bus; its way
+  // out sealed until then (game/escape-room.js, its names recipe-derived for the handoff)
+  'escape-room': { role: 'terminal', ends: ['success'], requires: [], lower: lowerEscapeRoom },
 };
+
+// (a mechanic whose hp is the player's body's own, `of: 'body'`: the only value it takes)
+function ofBody(p, ctx, kind) {
+  if (p.of === undefined) return false;
+  if (p.of !== 'body') throw new Error(`${kind}[${ctx.i}]: of is 'body' (the player's body's own hp, the stats' hp), or absent (the level's hp)`);
+  return true;
+}
 
 export const MECHANIC_KINDS = Object.keys(MECHANICS);
 // what a supply gives
@@ -1289,7 +1428,9 @@ export function composeMechanics(mechanics, ctx = {}) {
     const depth = 200;
     events.sources.push({ type: 'zone', zone: '__catch__', at: [spawn[0], spawn[1], fallZ - depth / 2], half: [half, half, depth / 2], watch: player });
     if (mode === 'lethal') {
-      events.reactions.push({ on: 'enter', match: { zone: '__catch__' }, do: 'set', var: 'hp', to: 0 });   // → fail-on-death if present
+      // → fail-on-death if present (on the body's own hp, its body downed)
+      const onBody = list.some((m) => m && m.kind === 'fail-on-death' && m.of === 'body');
+      events.reactions.push(onBody ? { on: 'enter', match: { zone: '__catch__' }, do: 'ctrl', op: 'kill', who: player } : { on: 'enter', match: { zone: '__catch__' }, do: 'set', var: 'hp', to: 0 });
     } else {   // respawn (default)
       const penalty = typeof fall === 'object' && Number.isFinite(fall.penalty) ? fall.penalty : 0;
       const to = (typeof fall === 'object' && Array.isArray(fall.to)) ? fall.to : spawn;

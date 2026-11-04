@@ -20,12 +20,14 @@
  *             telegraph), locks its line and charges down it; a wall stuns it, the end of its run only stops it
  *     LURK    `lurk`: { radius }: it lies still until a hero comes inside the radius, then wakes for good and hunts
  *   TOUCH and STOMP, after every step, for each pilot against each foe it overlaps (the two bodies' radii, their heights):
- *     falling onto its top (the feet above it before the step), the pilot STOMPS: `stomp` on the foe says what that
+ *     falling onto its top (the feet above it before the step, within half its height of its top, or 0.3 m on a foe
+ *     taller: a hero standing on a short foe's ground touches it, never stands on it), the pilot STOMPS: `stomp` on the foe says what that
  *     does (blow: one of the hero's blows, `rule.stomp.blow` hp, and the pilot bounces `low`, or `high` with the jump
  *     held; hurts: the pilot is hit and bounced off; bounce: the pilot bounces and the foe takes nothing). Any other
  *     overlap with a foe that hurts by `touch` (`during: 'charge'`: only while it charges) hits the pilot: its hits
  *     counted (the bus's hit:<pilot>, which a level's hp takes), knocked back off it, and spared further touches for
- *     `rule.stomp.mercy` s. The pilot's `rule.stomp` is laid only where foes stand; a pilot without it touches but
+ *     `rule.stomp.mercy` s; with `rule.stomp.hurt`, that much off a pilot body's own hp as well (a stats-bound body:
+ *     the level's hp is the body's), downed at none. The pilot's `rule.stomp` is laid only where foes stand; a pilot without it touches but
  *     never stomps.
  *
  * Opt-in (compose.js EMISSION_OPT_IN): emitted only into a page whose world stands a foe, so every other page keeps
@@ -203,6 +205,7 @@ export function buildFoe(E) {
     if ((p.foeMercyT || 0) > 0 || p.invincible) return;
     p.hits = (p.hits || 0) + 1; p.lastHitBy = e.id; p.hitFlash = state.time;
     p.foeMercyT = S.mercy ?? DEF.mercy;
+    if (S.hurt > 0 && p.body && Number.isFinite(p.body.hp)) { p.body.hp = Math.max(0, p.body.hp - S.hurt); if (p.body.hp <= 0) { p.downed = true; p.moving = false; return; } }
     const d = flat(e.transform.pos, p.transform.pos), ux = d > 1e-6 ? (p.transform.pos[0] - e.transform.pos[0]) / d : -Math.cos(p.transform.heading), uy = d > 1e-6 ? (p.transform.pos[1] - e.transform.pos[1]) / d : -Math.sin(p.transform.heading);
     p.transform.pos[0] += ux * DEF.knock; p.transform.pos[1] += uy * DEF.knock;
     if (p.vel) { p.vel[2] = Math.max(p.vel[2], DEF.hop); p.grounded = false; }
@@ -235,7 +238,7 @@ export function buildFoe(E) {
         if (flat(e.transform.pos, p.transform.pos) >= (p.rule.collideRadius ?? 0.3) + (e.rule.collideRadius ?? 0.3)) continue;
         const efoot = e.transform.pos[2] - eyeOf(e.rule), top = efoot + (e.rule.collideHeight ?? 1), foot = p.transform.pos[2] - eyeOf(p.rule);
         if (foot > top + 0.05 || foot + (p.rule.collideHeight ?? 1.7) < efoot) continue;
-        if (p.rule.stomp && p.vel && p.vel[2] <= 0 && foot0 >= top - 0.3) stomp(state, p, e, top, held);
+        if (p.rule.stomp && p.vel && p.vel[2] <= 0 && foot0 >= top - Math.min(0.3, (e.rule.collideHeight ?? 1) / 2)) stomp(state, p, e, top, held);
         else if (F.touch && (F.during !== 'charge' || e.foeCharging)) hurt(state, p, e);
       }
     }

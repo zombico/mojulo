@@ -47,6 +47,9 @@ import { roomRoles } from './compose-roles.js';
 import { plotLights, keyTuner } from './compose-plot.js';
 import { composeReport } from './compose-report.js';
 import { PIECES, layProps, propFaces, dressLaws } from './compose-dress.js';
+import { assembleComplexScene } from '../network/complex.js';
+import { assembleStationScene } from '../network/station.js';
+import { assembleSubwayScene } from '../network/subway.js';
 import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
@@ -449,16 +452,19 @@ export function planStage(m = {}) {
     a.openings[wall.ax].push(op); b.openings[wall.bx].push(op);
     return { from: a.id, to: b.id, wall: wall.ax, at: wall.at, ...op };
   });
-  // WAYS (`ways: [{ room, side, width? }]`): a doorway out of a room through an outside wall, the middle of that side (a
-  // building standing in open ground is walked into by it); the side must face out (no room against it there). A room on
-  // an upper storey has one too: a building set into its slope is walked into at the ground its storey stands on
+  // WAYS (`ways: [{ room, side, width?, along? }]`): a doorway out of a room through an outside wall, the middle of that
+  // side (a building standing in open ground is walked into by it); the side must face out (no room against it there). A
+  // room on an upper storey has one too: a building set into its slope is walked into at the ground its storey stands on.
+  // `along`: the doorway's middle along its side (plan metres, off the grid), where a passage outside meets it (a
+  // tunnel under a street, network/passage.js); absent, the side's middle on the grid
   const ways = (m.ways || []).map((w) => {
     const r = byId.get(w.room);
     if (!r) throw new Error(`stage: way out of '${w.room}', which is not a room`);
     if (!['-x', '+x', '-y', '+y'].includes(w.side)) throw new Error(`stage: way out of '${w.room}' needs side, one of -x +x -y +y`);
     const width = w.width ?? kit.door.width, height = Math.min(w.height ?? kit.door.height, r.h - 0.5), alongX = w.side.endsWith('y');
-    const lo0 = alongX ? r.x0 : r.y0, hi0 = alongX ? r.x1 : r.y1, mid = Math.round((lo0 + hi0) / 2 / g) * g;
+    const lo0 = alongX ? r.x0 : r.y0, hi0 = alongX ? r.x1 : r.y1, mid = w.along !== undefined ? w.along : Math.round((lo0 + hi0) / 2 / g) * g;
     if (hi0 - lo0 < width + 2 * kit.door.frame) throw new Error(`stage: the ${w.side} wall of '${r.id}' is too short for a ${width} m way out`);
+    if (w.along !== undefined && !(Number.isFinite(w.along) && w.along - width / 2 >= lo0 + kit.door.frame - 1e-6 && w.along + width / 2 <= hi0 - kit.door.frame + 1e-6)) throw new Error(`stage: way out of '${r.id}' along ${w.along} stands off its ${w.side} wall (its middle from ${lo0 + kit.door.frame + width / 2} to ${hi0 - kit.door.frame - width / 2})`);
     const at = w.side === '-y' ? r.box[1] : w.side === '+y' ? r.box[3] : w.side === '-x' ? r.box[0] : r.box[2];
     const op = { lo: mid - width / 2, hi: mid + width / 2, top: height };
     r.openings[w.side].push(op);
@@ -486,8 +492,10 @@ export function planStage(m = {}) {
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
   const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
-    // (a military base's building is stocked by its rooms' uses: stocking.js, compose-dress.js layProps)
-    ...(m._program?.base ? { use: m._program.use } : {}),
+    // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
+    // vernacular town's by its uses: stocking.js,
+    // compose-dress.js layProps)
+    ...(m._program?.base || (composed && composed.dressing === 'vernacular' && m._program?.use) ? { use: m._program.use } : m._program?.hospital ? { use: m._program.use, stock: 'hospital' } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
     ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
@@ -1044,6 +1052,10 @@ function assembleHall(manifest, ctx) {
 export function assembleStageScene(manifest = {}, ctx = {}) {
   // a recipe's `hall` (in-hall.js): rooms strung on a walk, laid from the hall's beats before its cube lowers
   if (manifest.hall !== undefined) return assembleHall(manifest, ctx);
+  // a recipe's `complex` (network/complex.js): several buildings on one site, each with a basement, joined below grade
+  if (manifest.complex !== undefined) return assembleComplexScene(manifest, ctx);
+  if (manifest.station !== undefined) return assembleStationScene(manifest, ctx);
+  if (manifest.subway !== undefined) return assembleSubwayScene(manifest, ctx);
   // a recipe's `program` (programs.js): a building's rooms and doorways laid from its use, before its cube lowers
   if (manifest.program !== undefined) return assembleStageScene(withProgram(manifest), ctx);
   // a recipe's `geocube` (geocube.js): the cube's inside or outside lowered under the recipe's own keys
@@ -1147,7 +1159,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // baked as a lightmap is, its colour and its light apart: every placed light, brazier and pool at the level its palette
   // asks for, each lamp's shadow tested whatever the recipe's `shadows.torch` (the page casts none: scene/channels/form.js),
   // its bounce in its own room. A toned room's palette is its ramps' (tone.js). A sunlit or night stage is drawn as paint
-  const form = !!ctx.formLit && !ctx.unshaded && !daylight && !plan.night;
+  const form = !!ctx.formLit && (!ctx.unshaded || ctx.handoff === true) && !daylight && !plan.night;
   const formLamps = form ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : null;
   const formTest = (ls) => {
     const occ = base.filter((f) => !GLASS.has(f.group) && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
@@ -1156,7 +1168,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const tuner = form && plan.compose ? keyTuner(plan) : null;
   const formLit = form ? formLightFaces(raw, formTest(formLamps), ambient, dirt(), { roomOf: (p) => roomAt(plan, p),
     ...(plan.tone ? { tone: plan.tone } : {}), ...(tuner ? { tune: tuner } : {}) }) : null;
-  const lit = ctx.unshaded
+  // (an engine handoff's room: its solved bases, the light apart, though the read is unshaded)
+  const lit = ctx.unshaded && !formLit
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
     : formLit ? formLit.faces
       : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights), ambient, dirt(), sun);

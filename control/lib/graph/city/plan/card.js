@@ -33,7 +33,7 @@ export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'pai
 export const FIDELITIES = Object.freeze(['facade', 'massing']);
 /** The channels every world kind wears (world-scene.js reads them; the plan never does). The live light's three
  *  (scene/live-light.js: `shadows`, `occlusion`, `light.tier`) among them: a city level opts out of its default there. */
-export const WORLD_CHANNELS = Object.freeze(['audio', 'weather', 'fire', 'fog', 'clouds', 'walk', 'look', 'shadows', 'occlusion', 'light']);
+export const WORLD_CHANNELS = Object.freeze(['audio', 'weather', 'fire', 'fog', 'clouds', 'walk', 'look', 'shadows', 'occlusion', 'light', 'screen']);
 export const BOARD = Object.freeze({ cell: [20, 200], cols: [2, 26], rows: [2, 99], defaults: { real: { cols: 8, rows: 5 }, game: { cols: 10, rows: 6 } } });
 export const RANKS = Object.freeze(['major', 'minor']);
 

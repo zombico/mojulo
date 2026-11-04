@@ -45,8 +45,11 @@ describe('every archetype', () => {
     expect(planAssembler(manifest).stats.warnings).toBeUndefined();
     if (readout.gear.length) for (const g of readout.gear) expect(Math.abs(g.contact[2])).toBeLessThan(0.03);
     if (readout.realm === 'earth') {
-      if (readout.clearance['craft-propeller'] !== undefined) expect(readout.clearance['craft-propeller']).toBeGreaterThan(0.2);
-      if (readout.class !== 'jet fighter' && readout.clearance['craft-engine'] !== undefined) expect(readout.clearance['craft-engine']).toBeGreaterThan(0.3);
+      // (a crewed craft's propeller and nacelle clear the ground with a margin; a drone (it names a look), belly-landed or
+      // launched from a tube, only clears it)
+      const drone = Boolean(CRAFT_ARCHETYPES[id].look);
+      if (readout.clearance['craft-propeller'] !== undefined) expect(readout.clearance['craft-propeller']).toBeGreaterThan(drone ? -0.001 : 0.2);
+      if (readout.class !== 'jet fighter' && readout.clearance['craft-engine'] !== undefined) expect(readout.clearance['craft-engine']).toBeGreaterThan(drone ? -0.001 : 0.3);
       if (readout.class !== 'piston fighter') expect(Math.abs(readout.pitch)).toBeLessThan(1);
     }
     const band = THRUST_TO_WEIGHT[readout.class];

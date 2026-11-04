@@ -52,7 +52,7 @@ describe('lowerMechanic — individual verbs', () => {
 
   it('every registered mechanic lowers without throwing on a minimal call', () => {
     for (const k of MECHANIC_KINDS) {
-      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }], waves: [{ foes: ['foe-1'] }], path: [[9, 0], [0, 0]], origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 1]], plots: [{ at: [0, 0, 0] }], drops: [{ at: [0, 0, 0], gives: 'ammo' }], rivals: ['foe-1'], heal: true, teams: { a: ['hero'], b: ['foe-1'] }, dots: ['gate'] };
+      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }], waves: [{ foes: ['foe-1'] }], path: [[9, 0], [0, 0]], origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 1]], plots: [{ at: [0, 0, 0] }], drops: [{ at: [0, 0, 0], gives: 'ammo' }], rivals: ['foe-1'], heal: true, teams: { a: ['hero'], b: ['foe-1'] }, dots: ['gate'], locks: [{ when: { var: 'kills', gte: 3 } }], item: 'eggs', fragile: true, wants: [{ item: 'eggs' }], who: 'foe-*', arenas: [{ waves: [{ foes: ['foe-1'] }] }], bpm: 120, lanes: { a: { from: [10, 0], to: [1, 0], pool: ['n-1'] } }, chart: [{ beat: 4, lane: 'a' }] };
       expect(() => lowerMechanic(k, params, { i: 0, player: 'hero', storeSchema: STORE }), k).not.toThrow();
     }
   });
@@ -642,5 +642,81 @@ describe('two sides', () => {
     expect(play(c, [[enter('bot-3'), 5.05]]).log).toContain('control:lost');
     expect(() => composeMechanics([{ kind: 'control', teams: { a: ['bot-1'], b: ['bot-2'] }, at: [0, 0, 0] }], ctx())).toThrow(/player in one/);
     expect(() => composeMechanics([{ kind: 'control', teams, at: [0, 0, 0], hold: 2 }], ctx())).toThrow(/hold the seconds/);
+  });
+});
+
+// ── the notes (the manual manipulator's controllers, P4): a rhythm chart played by bodies asleep, cut in a headset ──
+describe('notes on the bus', () => {
+  const B = buildBus();
+  const lanes = { left: { from: [12, 0.3], to: [1, 0.3], pool: ['nl-1', 'nl-2'] }, right: { from: [12, -0.3], to: [1, -0.3], pool: ['nr-1', 'nr-2'] } };
+  const chart = [{ beat: 4, lane: 'left', dir: 'down', hand: 'left' }, { beat: 5, lane: 'right', dir: 'up' }, { beat: 6, lane: 'left', dir: 'any' }];
+  const compose = (extra = {}) => composeMechanics([{ kind: 'notes', bpm: 120, lanes, chart, ...extra }], ctx());
+  const play = (c, evs) => {
+    const s = B.createBusState(c.events, c.events.entities), ops = [];
+    const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); } ops.push(...(s._ctrlOps || [])); s._ctrlOps = []; };
+    pump(c.events.initial || []);
+    for (const e of evs) pump([e]);
+    return { s, ops, log: s.log.map((r) => r.type) };
+  };
+  const beat = (n) => ({ type: 'beat', n });
+  const cut = (entity, dir, hand = 'R') => ({ type: 'cut', entity, dir, hand, kind: 'blade', by: 'hero' });
+  const arrive = (entity) => ({ type: 'arrive', entity, last: 1, at: 'past' });
+
+  it('a note wakes its lane’s body lead beats early and walks it to the line on its beat, then past it', () => {
+    const c = compose();
+    expect(c.on).toEqual({ 'notes:done': { end: 'success' } });
+    const { ops } = play(c, [beat(0)]);
+    expect(ops.map((o) => [o.op, o.who])).toEqual([['spawn', 'nl-1'], ['walk', 'nl-1']]);
+    const w = ops[1];
+    expect(ops[0].at).toEqual([12, 0.3, 0]);
+    expect(w.points).toEqual([[1, 0.3], [-1, 0.3]]);      // the line, then two metres past it
+    // 11 m in four beats at 120 (two seconds) and the clock's 0.15 s: on the line on its beat
+    expect(w.speed).toBeCloseTo(11 / 2.15, 3);
+    // the lane's next note takes its next body; the other lane its own
+    expect(play(c, [beat(1)]).ops.map((o) => o.who)).toEqual(['nr-1', 'nr-1']);
+    expect(play(c, [beat(2)]).ops.map((o) => o.who)).toEqual(['nl-2', 'nl-2']);
+  });
+
+  it('a cut in the note’s direction with its hand scores it and sends it away; the wrong direction or hand does nothing', () => {
+    const c = compose();
+    let r = play(c, [beat(0), cut('nl-1', 'up', 'L')]);
+    expect(r.log).not.toContain('note:hit');
+    r = play(c, [beat(0), cut('nl-1', 'down', 'R')]);
+    expect(r.log).not.toContain('note:hit');
+    r = play(c, [beat(0), cut('nl-1', 'down', 'L')]);
+    expect(r.log).toContain('note:hit');
+    expect(r.ops.at(-1)).toMatchObject({ op: 'vanish', who: 'nl-1' });
+    expect(r.s.vars.__nhits_0).toBe(1);
+    // scored once: a second cut in the same pass finds nothing
+    r = play(c, [beat(0), cut('nl-1', 'down', 'L'), cut('nl-1', 'down', 'L')]);
+    expect(r.s.vars.__nhits_0).toBe(1);
+    // `any` takes any direction and either hand
+    r = play(c, [beat(2), cut('nl-2', 'right', 'R')]);
+    expect(r.log).toContain('note:hit');
+  });
+
+  it('a note past the line is a miss; every note scored or missed ends the level, misses can fail it', () => {
+    const c = compose();
+    const r = play(c, [beat(0), beat(1), beat(2), cut('nl-1', 'down', 'L'), arrive('nr-1'), cut('nl-2', 'left', 'L')]);
+    expect(r.log.filter((t) => t === 'note:miss')).toHaveLength(1);
+    expect(r.log).toContain('notes:done');
+    const f = compose({ misses: 2 });
+    expect(f.on['notes:failed']).toEqual({ end: 'fail' });
+    expect(play(f, [beat(0), beat(1), arrive('nl-1'), arrive('nr-1')]).log).toContain('notes:failed');
+  });
+
+  it('a note stopped on its walk (something in its lane) is a miss, so the chart always ends', () => {
+    const r = play(compose(), [beat(0), { type: 'stuck', entity: 'nl-1' }]);
+    expect(r.log).toContain('note:miss');
+    expect(r.ops.at(-1)).toMatchObject({ op: 'vanish', who: 'nl-1' });
+  });
+
+  it('teaches what it needs: lanes with pools, a tempo, a chart on whole beats past the lead, a pool deep enough', () => {
+    expect(() => composeMechanics([{ kind: 'notes', bpm: 120, chart }], ctx())).toThrow(/needs lanes/);
+    expect(() => composeMechanics([{ kind: 'notes', lanes, chart }], ctx())).toThrow(/needs bpm/);
+    expect(() => composeMechanics([{ kind: 'notes', bpm: 120, lanes, chart: [{ beat: 2, lane: 'left' }] }], ctx())).toThrow(/4 or later/);
+    expect(() => composeMechanics([{ kind: 'notes', bpm: 120, lanes, chart: [{ beat: 4, lane: 'left', dir: 'sideways' }] }], ctx())).toThrow(/dir is one of/);
+    const crowded = [4, 5, 6, 7].map((b) => ({ beat: b, lane: 'left' }));
+    expect(() => composeMechanics([{ kind: 'notes', bpm: 120, lanes, chart: crowded }], ctx())).toThrow(/more bodies in its pool/);
   });
 });

@@ -530,12 +530,13 @@ function hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur = 'Body' }) {
 
 // ══════════ the rig, the clips, the dials (laws 9, 10) ══════════
 
-export function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper, reactions = false }) {
+export function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper, reactions = false, headBaseZ }) {
   const bodyTop = orb ? H.C[2] : neckZ;
   const rig = {
     joints: {
       pelvisHub: { at: [0, 0, hipZ] }, navel: { at: [0, 0, r4(orb ? H.C[2] - H.rz * 0.2 : (hipZ + bodyTop) / 2)] }, neckHub: { at: [0, 0, r4(bodyTop)] },
-      headBase: { at: [0, 0, r4(orb ? H.C[2] + H.rz * 0.2 : neckZ + H.rz * 0.15)] }, headTop: { at: [0, 0, top] },
+      // (the head's pivot: over the neck's pinch, or, given (a feature animal's long neck), at the top of the neck)
+      headBase: { at: [0, 0, r4(headBaseZ ?? (orb ? H.C[2] + H.rz * 0.2 : neckZ + H.rz * 0.15))] }, headTop: { at: [0, 0, top] },
       hip$S: { at: J.hip }, knee$S: { at: J.knee }, ankle$S: { at: J.ankle }, toeBase$S: { at: J.toeBase }, toeTip$S: { at: J.toeTip },
       shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist }, knuckles$S: { at: J.knuckles, rides: 'foreArm$S' },
       ...face.joints,   // the face's pivots and tips, riding the head (the orb's ride its body)
@@ -657,7 +658,7 @@ export function mascotPlanFromSheet(sheet, { title, reactions = false } = {}) {
   const f = sheet.facets;
   const name = title || `${f.hue} ${f.promise} mascot (mascot seed ${sheet.seed})`;
   const feature = f.style === 'feature';
-  const { plan, H, height } = (feature ? featurePlan : mascotPlan)(sheet, { title: name, ...(reactions ? { reactions } : {}) });
+  const { plan, H, height, bake } = (feature ? featurePlan : mascotPlan)(sheet, { title: name, ...(reactions ? { reactions } : {}) });
   const heads = Math.round((height / (2 * H.rz)) * 10) / 10;
   const thesis = `${f.form}, ${heads} heads · a round core, a ${f.accent} accent (${sheet.accord}) · ${f.eyes} eyes · ${f.hook === 'none' ? 'no hook' : f.hook} · ${f.extremities} · ${f.energy} · ${Math.round(height * 100) / 100} m`;
   const lean = (sheet.derives.motion || []).includes('motion.lean +') ? 4 : 0;
@@ -665,6 +666,7 @@ export function mascotPlanFromSheet(sheet, { title, reactions = false } = {}) {
   if (lean && !pose.lean) pose.lean = lean;
   const after = Object.entries(pose).filter(([d]) => plan.dials[d]).map(([d, value]) => ({ op: 'set', path: `/dials/${d}`, value }));
   const ledger = Object.entries(sheet.notes).flatMap(([ch, notes]) => notes.map((n) => ({ channel: ch, line: n.line, from: n.from, at: AT[ch] })));
-  // (the feature style is lit as feature animation is, softly, not by the cel step)
-  return { door: 'creature', thesis, create: { as: 'creature', title: name, spec: feature ? { plan, smooth: true } : { plan, hullShade: true, toon: { light: true } } }, after, ledger };
+  // (the feature style is lit as feature animation is, softly, not by the cel step; its gen7 tier bakes its light into
+  // its corners: feature-tune.js)
+  return { door: 'creature', thesis, create: { as: 'creature', title: name, spec: feature ? { plan, smooth: true, ...(bake ? { bake } : {}) } : { plan, hullShade: true, toon: { light: true } } }, after, ledger };
 }

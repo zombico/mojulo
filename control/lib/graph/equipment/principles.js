@@ -20,10 +20,27 @@
 //   7. ORGANIC FORMS GROW. A branching head obeys the pipe model (a parent's cross-section shared among its children,
 //      r² = Σ rᵢ², as vegetation/grow.js), so twigs taper by construction and never look glued on.
 //
+//   LAWS 2 (the hilt and the end, equipment/compose.js): an item is a HILT (what the hand holds: a sword's pommel,
+//   grip and guard, or a haft) carrying an END (what does the work: a blade or a head), and the two are sized by:
+//   8. THE GRIP IS COUNTED IN HANDS. A one-hand grip is a hand's width and a little (11.5 cm), a hand-and-half's two
+//      fingers more than a hand (19), a two-hand grip two hands apart (30); a pole is taken at two bands.
+//   9. THE GUARD IS SIZED BY THE BLADE IT STOPS. Its span is a multiple of the blade's base width (2.6 on a dagger, 4.2
+//      on a one-hand sword, 5.4 on a two-hand), never more than a share of the blade's length (0.42), wider as it
+//      stylizes; a guard's rise (a crescent's horns, a wing's sweep) is bounded by its span.
+//   10. THE POMMEL BALANCES THE BLADE. Its radius from the blade's mass (∝ the cube root of its volume), never under
+//      the grip's own, never past twice it (more as it stylizes): a ring pommel is a ring the hand can hold behind.
+//   11. A HEAD IS SIZED BY ITS HAFT. A polearm's head is a share of its haft (a spear's point 0.16, a halberd 0.26, an
+//      axe's blade 0.2 of an arm's haft), so a head reads at the haft's own camera; a blade on a haft (a glaive, a
+//      naginata) the same way. A grip band and a collar sit ON the shaft, wherever a grown shaft wanders.
+//
 // Pure arithmetic; no dice. LAWS_VERSION is stamped on every minted build: a change to any curve here that moves an
-// item's bytes is a new version, and the expander keeps the old one for rows minted under it.
+// item's bytes is a new version, and the expander keeps the old one for rows minted under it (laws 1: the item names'
+// own chains, equipment/sword.js and items.js, byte for byte).
 
-export const LAWS_VERSION = 1;
+import * as dmath from '../../util/dmath.js';
+
+export const LAWS_VERSION = 2;
+export const LAWS_VERSIONS = Object.freeze([1, 2]);
 
 export const DIALS = Object.freeze({
   stylize: 'realism 0 → stylized 1: one proportion curve for the whole item',
@@ -92,3 +109,24 @@ export function recede(hex, s, toward = '#9a9a9a') {
   const a = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)), b = [1, 3, 5].map((i) => parseInt(toward.slice(i, i + 2), 16));
   return '#' + a.map((v, i) => Math.round(lerp(v, b[i], t)).toString(16).padStart(2, '0')).join('');
 }
+
+// ---------------------------------------------------------------- laws 2 (the hilt and the end)
+
+/** Law 8: the grip's length by the hands it takes (cm, realistic). */
+export const GRIP_HANDS = Object.freeze({ dagger: 9.5, 'one-hand': 11.5, 'hand-and-half': 19, 'two-hand': 30 });
+
+/** Law 9: a guard's span (cm) from the blade's base width and length, its class's multiple, the stylize dial. */
+export function guardSpanOf({ W, L, k, stylize: s = 0 }) {
+  return Math.min(W * k * lerp(1, 1.35, s), L * lerp(0.42, 0.5, s));
+}
+/** Law 9: the share of its span a guard may rise (a crescent's horns, a wing's sweep). */
+export const GUARD_RISE = 0.34;
+
+/** Law 10: the pommel's radius (cm) from the blade's volume, bounded by the grip's radius. */
+export function pommelOf({ L, W, T, gripR, stylize: s = 0 }) {
+  const r = 0.5 * dmath.cbrt(Math.max(1, L * W * T * 0.6)) * lerp(1, 1.25, s);
+  return Math.min(gripR * lerp(1.9, 2.3, s), Math.max(gripR * 1.15, r));
+}
+
+/** Law 11: a head's share of its haft (the end's length over the haft's), by the head. */
+export const HEAD_SHARE = Object.freeze({ spear: 0.16, halberd: 0.26, axe: 0.2, blade: 0.24 });

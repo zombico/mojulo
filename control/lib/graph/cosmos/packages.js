@@ -20,5 +20,8 @@ export const PACKAGES = Object.freeze({
   cape: { name: 'The cape: a garment that trails the gait and lifts in a leap', effort: 'M' },
   'comic-panel': { name: 'The comic panel: a beat held as a still with a border, a caption and an onomatopoeia', effort: 'S' },
   // hostile encounters (10-27): the foe classes' moves and attacks that do not run yet, priced so the sweep ranks them
+  // the time map (11-02): the screen's clock built offline, the world clock in play (11-02); a replay in play and a grain to each layer
+  replay: { name: 'Replay in play: a recorded world clock, a moment shown again slowed and from another camera (the kill cam\'s replay)', effort: 'M' },
+  keying: { name: 'Keying: a body\'s clips stepped on twos or threes in play, each layer its own grain (characters on twos, the camera on ones)', effort: 'M' },
   'hostile-encounters': { name: 'Hostile encounters: foe classes on a level, the touch and the stomp, the pace, the hop, the dive and the charge', effort: 'L' },
 });

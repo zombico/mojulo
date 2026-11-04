@@ -17,7 +17,7 @@
       "description": "The character to reconstruct, in words (e.g. 'a stocky mature female harbor mechanic in a baggy jacket', 'a lanky teenage courier with an oversized hood', 'a round action-figure repair-bot'). Humanoid / figure targets only — a relic or object goes through reconstruct-from-dream; a creature or invented body goes to mint_solid kind 'layered' (routing card 'creature'). Omit to ask the operator."
     }
   ],
-  "mcpTools": { "mojulo": ["draft_figure_spec", "get_figure_spec", "resolve_figure_spec", "build_figure_spec", "create_figure", "create_sketch", "semantic_search", "get_sketch_vocab", "get_image_render_packet", "get_skin_packet", "skin_polygomer"] }
+  "mcpTools": { "mojulo": ["draft_figure_spec", "get_figure_spec", "resolve_figure_spec", "build_figure_spec", "mint_solid", "edit_solid", "create_sketch", "semantic_search", "get_sketch_vocab", "get_image_render_packet"] }
 }
 ---
 
@@ -27,7 +27,7 @@ You are the body-tuner. The LLM cannot draw a character, but it can *see* one.
 An image worker dreams the character you imagine (or you read a supplied photo),
 and you rebuild it out of the substrate's deterministic figure dials — a **tuned
 body** wearing a **wardrobe spec**. **The dreamed reference is a reasoning aid,
-never the artifact.** The sovereign output is a pure `create_figure` recipe (and,
+never the artifact.** The sovereign output is a pure figure recipe (`mint_solid` kind `figure`) (and,
 optionally, a bound skin); the reference is discarded once the render reads as
 the character.
 
@@ -62,7 +62,7 @@ Substrate: figure body `figure-proto.js` / `figure-rig.js`, wardrobe
 - **Humanoid targets only.** This loop tunes a FIGURE body (a person, a
   humanoid mascot, an action-figure robot). A vessel, relic, or prop is the
   OBJECT register — send it through `reconstruct-from-dream` /
-  `create_workbench` instead. A creature or invented body is the `layered`
+  `mint_solid` kind `workbench` instead. A creature or invented body is the `layered`
   kind (`mint_solid`, routing card `creature`, catalyst `creature-from-plan`); a human character as a
   rigged MESH in an art-style register (low-poly, boxy) is the `layered` kind too (card `hero`, catalyst
   `create-hero`). This loop is the SVG figure: turnarounds, pose work, garments. If the target isn't a
@@ -84,7 +84,7 @@ own imagination is the exact process failure this catalyst exists to prevent.
 3. NEITHER available? Then you cannot run *this* loop — stop and point the
    operator at `docs/local-image-worker.md`. Do NOT silently reconstruct from
    imagination and call it a dream. If the operator still wants a body, mint a
-   plainly-labeled **imagined** figure (`create_figure` with **no** `dream_audit`)
+   plainly-labeled **imagined** figure (`mint_solid` kind `figure` with **no** `dream_audit`)
    and say explicitly that it was NOT dreamed. That is a different artifact.
 
 You do not get to choose imagination when a capability is available. A figure
@@ -122,7 +122,7 @@ locked below without a valid `dream_audit` is not a character-from-dream artifac
             color{cloth,under}. Layer with an array [base, outer]. Mind the
             pairing facts (jacketCut+tank composes; vest+tank tears).
 
-4. RENDER   create_figure({ proto | fluffs, garment, view, pose }) — the tuned,
+4. RENDER   mint_solid({ kind:'figure', spec:{ proto | fluffs, garment, view, pose }}) — the tuned,
             dressed figure. For a turnaround / multi-outfit model sheet, mint
             create_sketch({ kind:'character-sheet', character:{ rig, outfits }})
             instead (four real cameras of ONE body). Open /api/sketches/<ref>/png
@@ -134,9 +134,9 @@ locked below without a valid `dream_audit` is not a character-from-dream artifac
             "jacket looser" = raise clearance). Fix ONE dial → back to step 4.
             Stop when it reads as the character from a normal distance.
 
-6. SKIN     (optional) Give it identity, not just colour. get_skin_packet({ ref })
-            → paint over the ?control=1 scaffold with your worker → skin_polygomer
-            ({ ref, image_path }) → /skin.png. Put eyes / face panels / seams /
+6. SKIN     (optional) Give it identity, not just colour. edit_solid({ op:'skin', ref,
+            spec:{ phase:'packet' } }) → paint over the ?control=1 scaffold with your
+            worker → edit_solid({ op:'skin', ref, spec:{ image_path } }) → /skin.png. Put eyes / face panels / seams /
             the material hierarchy in the SKIN; the body/wardrobe stays the form.
 
 7. DRAFT    Do NOT mint the figure directly. Write a reviewable SPEC FILE:
@@ -156,10 +156,10 @@ locked below without a valid `dream_audit` is not a character-from-dream artifac
             'approve' | 'reject', note }). (A worker cannot self-accept.)
 
 9. BUILD +  build_figure_spec({ ref }) — machine-refused unless approved. It
-   DISCARD  mints the real figure through create_figure with the spec's dials +
+   DISCARD  mints the real figure (kind `figure`) with the spec's dials +
             dream_audit provenance (stamped `dream-reconstruction`). Then DROP
             the dream reference — only the audit survives. Report the figure ref.
-            It poses, animates (emote_figure / motion), and can enter a world —
+            It poses, animates (edit_solid op `emote` / motion), and can enter a world —
             the character is done.
 ```
 

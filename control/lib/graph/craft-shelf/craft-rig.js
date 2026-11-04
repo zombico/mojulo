@@ -2,7 +2,8 @@
  * craft-rig.js — an archetype off the craft shelf as a rig figure: one bone per assembled item (the hull, each wing,
  * the stabilisers, the fin, the engine, the canopy, the gear, the stores), so a body that plays the craft can move
  * its parts apart (the transformation's jet form) and the World page draws it as it draws every rig: one rigid mesh
- * per bone. Flying attitude by default (level, gear up); `pose` and `attitude` are assembleCraft's own.
+ * per bone. Flying attitude by default (level, gear up); `pose` and `attitude` are assembleCraft's own. `light: 'form'`
+ * draws it in the form render instead (craft-form.js: its slots and its form, the page lighting it).
  *
  * Frame: the shelf's craft frame (+y the nose, +z up, metres), centred on x and y, its lowest point on z = 0, the
  * figure's yaw −π/2 turning the nose onto the world's heading like every vehicle rig. One clip, `idle`.
@@ -13,6 +14,7 @@ import { faceListToMesh } from '../figures/face-mesh.js';
 import { packRigMesh } from '../figures/rig-bake.js';
 import { lowerAssemblerBuild } from '../worlds/workbench-assembler.js';
 import { assembleCraft } from './index.js';
+import { craftFormFigure } from './craft-form.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 
@@ -42,8 +44,10 @@ export function craftPieces(archetype, { palette, colors, pose = { gear: 1 }, at
   return { pieces, length: r4(mx[1] - mn[1]), span: r4(mx[0] - mn[0]), height: r4(mx[2] - mn[2]), readout };
 }
 
-/** craftFigure(archetype, opts) → the packed rig figure (rig: true, one bone per item, the `idle` clip). */
+/** craftFigure(archetype, opts) → the packed rig figure (rig: true, one bone per item, the `idle` clip); `light: 'form'`
+ *  the same craft in the form render, lit by the page (craft-form.js); absent, its colours baked as they always were. */
 export function craftFigure(archetype, opts = {}) {
+  if (opts.light === 'form') { const { light: _l, ...rest } = opts; return craftFormFigure(archetype, rest); }
   const { pieces, length, span, height } = craftPieces(archetype, opts);
   const bones = pieces.map((p) => ({ id: p.id, head: p.head }));
   const parts = pieces.map((p) => packRigMesh({ positions: p.soup.pos, colors: p.soup.col, specs: p.soup.spec }, p.faces));

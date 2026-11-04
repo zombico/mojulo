@@ -9,13 +9,13 @@
  *     and TWO independent rooflines — a sill `ZBOT(u)` and a roof `ZTOP(u)` —
  *     so the hood → windshield → roof → backlight → trunk silhouette lofts for free.
  *
- * Merged here per vehicle-car-net.plan.md / vehicle-smooth-box-net.plan.md: both
+ * Merged here: both
  * families normalize into ONE cross-section form
  *   { length, seN, halfWAt(u), zBotAt(u), zTopAt(u) }
  * and flow through ONE builder (`buildSweptSceneShapes`). A box's
  * `{ halfW, halfH, zc, profile }` and a car's `{ W0, WID, ZBOT, ZTOP }` are just
- * two ways to author that form. `vehicle-smooth-box-net.js` re-exports the box
- * symbols from here for back-compat.
+ * two ways to author that form. (The `vehicle-smooth-box-net.js` re-export shim is retired; every vehicle is named by
+ * the vehicle registry, vehicle-registry/roster.js, and these nets are builds behind it.)
  *
  * Accessories (taxi roof sign, SUV roof rails) are REAL primitives: a `box`
  * accessory emits 6 vexar-lit, back-face-culled, depth-sorted faces in

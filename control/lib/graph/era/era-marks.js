@@ -1,6 +1,6 @@
 /**
- * THE ERA MARKS: what each era gives each World page input, in the engine marks' words (scene/engines/marks.js), since
- * an era is a render as an engine is (era/eras.js): the same recipe, read in another era, is another render of it.
+ * THE ERA MARKS: what each era gives each World page input (built, approximated or absent), since an era is a render
+ * (era/eras.js): the same recipe, read in another era, is another render of it.
  *
  *   { 'gen-6': 'built' }                                   paint is gen-6's own: it draws every input as it always has
  *   { 'gen-7': 'built', neutral: true }                    an input no era changes (a rule, a camera, a sound, a page option)
@@ -11,19 +11,24 @@
  * each; until it draws one, a gen-7 read draws it as paint under the live light and reads `approximated`, never built.
  * A gap is named, never approximated silently: eraReading lists every surface a payload carries that its era draws so.
  *
- * The lists below are closed over emitThreeWorld's parameters (engines/mark-sources.js pageInputs): a new page input
- * is classified here before the ratchet (era-marks.test.js) passes.
+ * The lists below are closed over emitThreeWorld's parameters (scene-three.js, read by era-marks.test.js): a new page
+ * input is classified here before that ratchet passes.
  *
  * Pure data and one read. No builder is imported.
  */
-import { markRow } from '../scene/engines/marks.js';
 import { ERAS, readEra } from './eras.js';
+
+/** The marks an era gives an input: built (drawn as the era draws), approximated (drawn simpler: the `how` says how),
+ * absent (not drawn). */
+export const MARKS = Object.freeze(['built', 'approximated', 'absent']);
+/** A row maker for one era: `markRow('gen-7')('approximated', 'why')` → { 'gen-7': 'approximated', how: 'why' }. */
+const markRow = (era) => (mark, how) => Object.freeze({ [era]: mark, ...(how ? { how } : {}) });
 
 /** The page inputs that hold light in their colour, or are the live light over it: the form render replaces each. */
 export const SURFACE_INPUTS = Object.freeze([
-  'faces', 'repeats', 'textures', 'resample', 'surfaces', 'terrain', 'figures', 'walkers', 'carMeshes', 'splats', 'liveGrass',
+  'faces', 'repeats', 'textures', 'resample', 'leaves', 'surfaces', 'terrain', 'figures', 'walkers', 'carMeshes', 'splats', 'liveGrass',
   'fabric', 'tone', 'toon', 'vertexContrast', 'strokeOverlay', 'ao', 'light', 'glow', 'soft', 'wetSand', 'wetRoad',
-  'shallows', 'softGround', 'snowPrints', 'shadows', 'occlusion', 'creases', 'lightTier',
+  'shallows', 'seaway', 'softGround', 'snowPrints', 'shadows', 'occlusion', 'creases', 'lightTier',
 ]);
 // the live light itself (scene/live-light.js): a form render's light, darkening paint until there is material to light
 const LIVE = new Set(['shadows', 'occlusion', 'creases', 'lightTier']);
@@ -32,12 +37,12 @@ const LIVE = new Set(['shadows', 'occlusion', 'creases', 'lightTier']);
 export const NEUTRAL_INPUTS = Object.freeze([
   'cameras', 'viewBox', 'title', 'bg', 'inline', 'cdn', 'sky', 'wireframe', 'walk', 'spin', 'hud', 'picks', 'tracers', 'planets',
   'movers', 'comets', 'fields', 'heatSpheres', 'starSurfaces', 'buildups', 'transports', 'deforms', 'raymarch', 'decollide',
-  'capture', 'signs', 'physics', 'actions', 'entities', 'camera', 'pilot', 'spectate', 'seats', 'ai', 'colliders', 'breakables',
+  'capture', 'captureSize', 'signs', 'physics', 'actions', 'entities', 'camera', 'pilot', 'spectate', 'seats', 'ai', 'colliders', 'breakables',
   'breakPieces', 'rupa', 'hangar', 'match', 'smoke', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'commander', 'events', 'fog',
   'audio', 'fx', 'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'game', 'backdrop', 'cars', 'signals',
   'trafficLanes', 'trafficConstants', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
-  'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'board', 'screen', 'runner',
-  'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings',
+  'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'board', 'screen', 'runner', 'tempo', 'grade',
+  'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'cone', 'formSky', 'air', 'soften',
 ]);
 
 /** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):

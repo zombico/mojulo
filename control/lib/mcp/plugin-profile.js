@@ -67,9 +67,6 @@ const VOICE_TOOLS = ['create_voice', 'get_voice', 'bind_voice_sample', 'get_voic
 const SPRITE_SHEET_TOOLS = ['create_sprite_sheet', 'bake_sprite_sheet'];
 // The Style Lock presets a renderBrief carries to the image worker; nothing else reads them.
 const STYLE_TOOLS = ['get_style_vocab'];
-// Retired aliases of the doors the profile closes: the skin op of edit_solid, and the prompt door
-// of mint_solid (lib/mcp/tools/mint-solid.js RETIRED_ALIASES).
-const CLOSED_DOOR_ALIASES = ['get_skin_packet', 'skin_polygomer', 'create_polygonized_sketch'];
 // The character-from-dream spec loop (lib/mcp/tools/figure-specs.js): a figure reconstructed from an
 // image generator's dreamed reference, drafted with its dream_audit, approved and built. Unlisted
 // everywhere; hidden here so a call by name is refused like the rest of that loop.
@@ -81,7 +78,6 @@ export const PLUGIN_PROFILE_HIDDEN_TOOLS = Object.freeze([
   ...VOICE_TOOLS,
   ...SPRITE_SHEET_TOOLS,
   ...STYLE_TOOLS,
-  ...CLOSED_DOOR_ALIASES,
   ...DREAM_FIGURE_SPEC_TOOLS,
 ]);
 

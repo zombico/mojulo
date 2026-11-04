@@ -232,7 +232,7 @@ function tick() {
   if (S.over) {
     const mine = S.placings.filter((p) => S.r.find((r) => r.id === p.who).lane < ctx.players);
     const won = ctx.players === 0 || mine.some((p) => p.place === 1);
-    if (hosted) { post({ moj: MA.wire.outcome, envelope: { result: won ? 'success' : 'fail', events: [], stats: { meet: { placings: S.placings }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
+    if (hosted) { post({ moj: MA.wire.outcome, envelope: { contractVersion: MA.wire.version, result: won ? 'success' : 'fail', events: [], stats: { meet: { placings: S.placings }, contest: statCompact(statsNow()) } } }); phase = 'done'; }
     else phase = 'over';
   }
 }

@@ -11,14 +11,14 @@
  *   floraRead(plants, { kinds, bushKinds, colours, bases, autumn? }) → { templates, barks, trees, n, lod, leafRef, autumn? } | null
  *   treeSizes(plants) → [{ h, r }] each tree's height and crown reach as the form grows it
  *     (leafRef: the leaf colour a geometry's tone factors are over, linear: a blossom's or a berry's own colour back)
- *     plants: plantItems' { form, trees, bushes, shrubs } (a bamboo or a blossom card: null, its own look stays)
+ *     plants: plantItems' { form, trees, bushes, shrubs, skirt? } (a bamboo or a blossom card: null, its own look stays)
  *     kinds: the card's `trees.leafKinds`; bushKinds: `thickets.kinds`; colours: the cube's (#rrggbb: foliage, grass,
  *     stone, floor, accent); bases: the cube light's linear bases (foliage, floor)
  *     templates: [{ kind: 'tree' | 'bush', name, height, radius, wood, woodFar?, clumps, sites, clumpGeo, sprayGeo, bark, litter?,
  *       pad, detail, adorn? }] (geometry packed: Float32, Int8, Uint8, Uint16/32 as base64)
  *     barks: { key: { metres, depth, base, normal, orm, height } } (PNG data URLs, BARK_SIZE a side)
  *     trees: Float32 base64, FLORA_STRIDE a plant: x y z, scale, yaw, leaf rgb (linear), bark rgb (a tint over the
- *       bark's own), template, soft (a bush walked through)
+ *       bark's own), template, soft (1 a bush walked through, SKIRT_FLAG a skirt's tree)
  * Deterministic; templates cached a process (the grower is the cost).
  */
 import { treeForm, crossClumps } from './tree-form.js';
@@ -26,7 +26,7 @@ import { bambooForm } from './bamboo-form.js';
 import { bushForm, bushBlossom, bushBerries, ADORN } from './bush-form.js';
 import { barkMaterial } from './bark-material.js';
 import { leafSpray, leafClump, needleHabit } from '../vegetation/sprays.js';
-import { leafCross, leafShape as leafOutlineOf, CROSS } from '../vegetation/twigs.js';
+import { leafCross, leafShape as leafOutlineOf } from '../vegetation/twigs.js';
 import { TONES } from '../vegetation/tree-mesh.js';
 import { SPECIES } from '../vegetation/species.js';
 import { readKind } from '../era/leaf-forms.js';
@@ -53,7 +53,7 @@ export const CULM_TO_LEAF = 0.7;
  */
 export function floraBox(plants, reach = 8) {
   if (!plants || plants.form === 'blossom') return null;
-  const all = [...plants.trees, ...plants.bushes, ...plants.shrubs];
+  const all = [...plants.trees, ...plants.bushes, ...plants.shrubs, ...(plants.form === 'bamboo' ? [] : plants.skirt ?? [])];
   if (!all.length) return null;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of all) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
@@ -63,6 +63,8 @@ export function floraBox(plants, reach = 8) {
 export const SHRUB_HABIT = 'spray';
 /** A plant's packed stride, the bark's texture size, the heights a template is grown at (m, to the nearest), the
  *  geometry variants a template carries (each clump and spray takes one by its index). */
+/** A plant's last slot: 1 soft (a walker brushes it), SKIRT_FLAG past the walk (no litter round it, never brushed). */
+export const SKIRT_FLAG = 2;
 export const FLORA_STRIDE = 13, BARK_SIZE = 128, HEIGHT_STEP = 3, VARIANTS = 2;
 /** Where a crown is drawn as what (m from the eye): its sprays in over [detail]; to `mid` whole; past it the clumps a
  *  share kept (`keep`, grown by `grow` to hold the cover) and the wood its thick axes; past `far` nothing but its copy's
@@ -71,7 +73,31 @@ export const FLORA_STRIDE = 13, BARK_SIZE = 128, HEIGHT_STEP = 3, VARIANTS = 2;
 /** A crossed broadleaf on a trail stands `FLORA_TALL` × its species' heights (vegetation/species.js), a grown tree over
  *  the walker: its first limbs past two people's heights at the level's middle tree. */
 export const FLORA_TALL = 1.25;
-export const FLORA_LOD = Object.freeze({ detail: Object.freeze([6, 16]), mid: 25, keep: 0.4, grow: 1.5, sprayed: 6, half: 0.5 });
+/** THE PLANTS' BUDGET: a plant placed on a form page spends at most `perM2` triangles a square metre of its side's
+ *  silhouette (its crown's width × its height), and never under `floor`: a half-metre bush is not drawn with a house's
+ *  triangles, a tall tree keeps its own. Over it, a plant gives up, in turn, its sprays (the crown holds the outline),
+ *  its leaves' outlines (a leaf one width, four triangles), and clumps by their rank (at least `least`), each kept
+ *  clump grown to hold the crown's cover, the kept ranked again. Every template carries what it spends (`budget`). */
+export const FLORA_BUDGET = Object.freeze({ perM2: 300, floor: 120, least: 3 });
+
+/** A plant's form within the budget: { clumps, sites, lean, budget: { area, cap, tris, kept } }; `tris` its triangles
+ *  as drawn near (wood, clumps, sprays). */
+export function budgeted(form, { clumpTris, leanTris, sprayTris, woodTris, canLean = true }) {
+  const R = Math.max(0.25, ...form.clumps.map((c) => Math.hypot(c.p[0], c.p[1]))), area = 2 * R * form.height;
+  const cap = Math.max(FLORA_BUDGET.floor, FLORA_BUDGET.perM2 * area), n = form.clumps.length;
+  const cost = (k, lean, sprays) => woodTris + k * (lean ? leanTris : clumpTris) + (sprays ? form.sites.length * sprayTris : 0);
+  if (cost(n, false, true) <= cap) return { clumps: form.clumps, sites: form.sites, lean: false, budget: { area: r4(area), cap: Math.round(cap), tris: cost(n, false, true), kept: n } };
+  if (cost(n, false, false) <= cap) return { clumps: form.clumps, sites: [], lean: false, budget: { area: r4(area), cap: Math.round(cap), tris: cost(n, false, false), kept: n } };
+  const lean = canLean, per = lean ? leanTris : clumpTris;
+  const k = Math.min(n, Math.max(FLORA_BUDGET.least, Math.floor((cap - woodTris) / Math.max(1, per))));
+  const kept = [...form.clumps].sort((a, b) => a.r - b.r).slice(0, k), grow = Math.sqrt(n / kept.length);
+  return { clumps: kept.map((c, i) => ({ ...c, s: r4(c.s * grow), r: r4(i / kept.length) })), sites: [], lean,
+    budget: { area: r4(area), cap: Math.round(cap), tris: cost(kept.length, lean, false), kept: kept.length } };
+}
+/** The plants' near ladder (channels/form-flora.js): a plant's sprays inside `detail` (m, in and out), on the `sprayed`
+ *  nearest; whole until `mid` (m) for a camera without the view cone (an aerial), its card past it (no grown far crown:
+ *  a far crown of fewer clumps grown read as a bubble). */
+export const FLORA_LOD = Object.freeze({ detail: Object.freeze([6, 16]), mid: 25, sprayed: 6 });
 
 const CACHE = new Map();
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
@@ -114,19 +140,20 @@ function treeTemplate(species, height) {
   const key = `tree:${species}:${height}`;
   if (!CACHE.has(key)) {
     // (a broadleaf's crown as CROSSES, vegetation/twigs.js: its wood drawn to the twig, a bundle of small crossed leaves
-    // of its own outline along each drawn shoot, no sprays; far off, every bundle where it stands and half its leaves,
-    // each larger, so the outline a switch shows is the same masses'. A needled crown keeps its clumps and sprays)
+    // of its own outline along each drawn shoot, no sprays; far off, its card, baked from these same leaves
+    // (channels/form-flora.js FLORA_FAR). A needled crown keeps its clumps and sprays)
     const crossed = !needleHabit(species);
     const F = treeForm(species, { seed: SPECIES[species].specimen ?? 1, far: true, twigs: crossed, mature: { toHeight: 0.95, range: [1, 2], cambium: 2.2, aim: height } });
     // (a needled crown: its needles in sleeves round its leafy shoots, channels/form-flora.js; no needle a polygon)
     if (!crossed) CACHE.set(key, { ...template('tree', species, F, species), ...(F.sleeve ? { sleeve: packSleeve(F.sleeve) } : {}) });
     else {
-      const B = { ...CROSS.bundle, ...(CROSS.byShape[leafOutlineOf(species)] || {}) }, far = { count: Math.max(3, Math.round(B.count * FLORA_LOD.half)), scale: r4(B.scale / Math.sqrt(FLORA_LOD.half)) };
-      const T = template('tree', species, { ...F, clumps: crossClumps(F), sites: [] }, species);
+      // (within the plants' budget, FLORA_BUDGET: its bundles by rank, each grown)
+      const C0 = crossClumps(F), xt = leafCross(species, { seed: 17 }).tris.length;
+      const Q = budgeted({ ...F, clumps: C0, sites: [] }, { clumpTris: xt, leanTris: xt, sprayTris: 0, woodTris: (F.wood.idx || []).length / 3, canLean: false });
+      const T = { ...template('tree', species, { ...F, clumps: Q.clumps, sites: [] }, species), budget: Q.budget };
       // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
       CACHE.set(key, { ...T, cross: true, woodFar: T.wood,
-        clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k }).tris)),
-        farGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k, bundle: far }).tris)) });
+        clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafCross(species, { seed: 17 + k }).tris)) });
     }
   }
   // (the leaves it drops: its own outline, needles for a needled crown; channels/form-flora.js lays them round its foot)
@@ -144,9 +171,13 @@ function bambooTemplate(species, height, v) {
 function bushTemplate(kind, height, adorn, name) {
   const key = `bush:${JSON.stringify(kind)}:${height}:${adorn}`;
   if (!CACHE.has(key)) {
-    const B = bushForm(kind, { seed: 1, height, adorn });
+    const B0 = bushForm(kind, { seed: 1, height, adorn });
+    // (within the plants' budget, FLORA_BUDGET)
+    const Q = budgeted(B0, { clumpTris: leafClump(B0.leaf, { seed: 17 }).tris.length, leanTris: leafClump(B0.leaf, { seed: 17, lean: true }).tris.length,
+      sprayTris: leafSpray(B0.leaf, { seed: 31 }).tris.length, woodTris: (B0.wood.idx || []).length / 3 });
+    const B = { ...B0, clumps: Q.clumps, sites: Q.sites };
     const extra = adorn ? { adorn: { kind: adorn, list: adorn === 'bloom' ? packBlooms(B.blooms) : packBerries(B.berries), geo: adorn === 'bloom' ? [packGeo(bushBlossom(B.look))] : Array.from({ length: ADORN.berries[1] - ADORN.berries[0] + 1 }, (_, k) => packGeo(bushBerries(B.look, ADORN.berries[0] + k, 1 + k))), lo: ADORN.berries[0] } } : {};
-    CACHE.set(key, template('bush', name, B, B.leaf, extra));
+    CACHE.set(key, { ...template('bush', name, B, B.leaf, extra), budget: Q.budget, ...(Q.lean ? { clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafClump(B.leaf, { seed: 17 + k, lean: true }).tris)) } : {}) });
   }
   return CACHE.get(key);
 }
@@ -250,7 +281,7 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   };
   const push = (T, p, h, K, soft = false, yaw0 = null) => {
     const ti = use(T), yaw = yaw0 ?? 2 * Math.PI * hashN(Math.round(p.x * 100) * 7 + Math.round(p.y * 100) * 13);
-    out.push(p.x, p.y, p.z, r4(h / T.height), r4(yaw), ...turned(T, p, leafOf(K)), ...tint(T, barkTarget(K)), ti, soft ? 1 : 0);
+    out.push(p.x, p.y, p.z, r4(h / T.height), r4(yaw), ...turned(T, p, leafOf(K)), ...tint(T, barkTarget(K)), ti, typeof soft === 'number' ? soft : soft ? 1 : 0);
   };
   // the trees: each kind's species at the kind's middle height (a level's heights to the nearest HEIGHT_STEP)
   const kindAt = (t) => (t.kind >= 0 && kinds ? readKind(kinds[t.kind]) : null);
@@ -264,7 +295,17 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
       push(bambooTemplate(FLORA_BAMBOO, aim, v), t, t.h, null, false, Math.hypot(dx, dy) > 0.05 ? r4(Math.atan2(dy, dx)) : null);
     }
   }
-  for (const { t, K, T, h } of treePlan(plants, kindAt)) if (!t.held) push(T, t, h, K);
+  const bySpecies = new Map();
+  for (const { t, K, T, h } of treePlan(plants, kindAt)) { bySpecies.set(T.name, T); if (!t.held) push(T, t, h, K); }
+  // the SKIRT's trees (era/isekai.js plantItems `skirt`), the stage's far clumps grown as the level's own: each its kind's
+  // species, the template its trees near the trail grow from (else the species' own middle height), as wide as the
+  // painted crown it stands for; past the walk, so no litter and never brushed (SKIRT_FLAG). No bubble of foliage left
+  if (plants.form !== 'bamboo') for (const s of plants.skirt ?? []) {
+    const K = kindAt(s), sp = speciesFor(s, K), S = SPECIES[sp];
+    const T = bySpecies.get(sp) ?? treeTemplate(sp, Math.max(HEIGHT_STEP, Math.round(((S?.heights ? (S.heights[0] + S.heights[1]) / 2 : 9) * FLORA_TALL) / HEIGHT_STEP) * HEIGHT_STEP));
+    bySpecies.set(sp, T);
+    push(T, s, r4((s.r * T.height) / T.radius), K, SKIRT_FLAG);
+  }
   // the bushes: each thicket kind its habit at its middle height; the shrubs the dome, in their season
   for (const b of plants.bushes) {
     const K = readBush(bushKinds[b.kind]), aim = Math.round(((K.height[0] + K.height[1]) / 2) * 10) / 10;

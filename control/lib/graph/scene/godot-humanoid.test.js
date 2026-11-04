@@ -1,5 +1,6 @@
 // The Godot sidecars of a T-pose humanoid GLB: the BoneMap Godot's retargeter reads, and the .import that names it.
-// (The live gate, a real Godot importing them and retargeting a clip, is docs/examples/humanoid/godot-retarget.mjs.)
+// (The live gate, a real Godot importing them: export-model.godot-humanoid.test.js under MOJULO_GODOT; a clip retargeted
+// onto another humanoid: docs/examples/humanoid/godot-retarget.mjs.)
 import { describe, expect, it } from 'vitest';
 
 import { godotBoneMapTres, godotBoneMapFile, godotHumanoidImport, GODOT_POST_IMPORT_GD } from './godot-humanoid.js';

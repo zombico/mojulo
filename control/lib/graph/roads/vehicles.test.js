@@ -3,7 +3,7 @@
 // grip caps launch, braking and cornering; the ground under the tyres and the weather scale it; a car flies off a lip
 // as far as ballistics says, and lands losing what its angle costs; arcade differs from sim only by its preset.
 import { describe, it, expect } from 'vitest';
-import { VEHICLES, vehicleRule, envelope, launchShare, CONDITIONS } from './vehicles.js';
+import { VEHICLES, vehicleRule, envelope, launchShare, CONDITIONS, WHEEL_LAYOUTS, wheelLayout, STEERS, steerOf } from './vehicles.js';
 import { ramp, rampReach, lipSpeedBand } from './ramps.js';
 import { buildAlignment } from './alignment.js';
 import { crestFlightSpeed } from './classes.js';
@@ -32,6 +32,27 @@ describe('every class, held to the reference sheet', () => {
     const bands = { compact: [8.5, 10.5], midsize: [7.5, 9.5], crossover: [7, 9], pickup: [6, 8], sports: [3.8, 5], rally: [4, 5.5], dirtBike: [3.5, 5.5], buggy: [4.5, 7], trophyTruck: [4, 6.5], tractorTrailerLoaded: [40, 70], straightTruck: [30, 55] };
     for (const [id, [lo, hi]] of Object.entries(bands)) { const t = to(id, 100); expect(t, id).toBeGreaterThan(lo); expect(t, id).toBeLessThan(hi); }
     expect(to('bus', 80)).toBeLessThan(30);
+  });
+  it('the cycles in their bands: a standard 3.5–4.5 s to 100, a sport bike 2.8–3.5, a grand prix bike 2.4–3.2, a scooter 2.5–5.5 to 50, a commuter 8–16 s to 20 on a bicycle', () => {
+    const bands = { streetBike: [100, 3.5, 4.5], sportBike: [100, 2.8, 3.5], raceBike: [100, 2.4, 3.2], cruiserBike: [100, 3.8, 5], motorTrike: [100, 6, 9], sidecarOutfit: [100, 12, 18], scooter: [50, 2.5, 5.5], moped: [50, 4, 8], eBike: [20, 4, 8], bicycle: [20, 8, 16] };
+    for (const [id, [kmh, lo, hi]] of Object.entries(bands)) { const t = to(id, kmh); expect(t, id).toBeGreaterThan(lo); expect(t, id).toBeLessThan(hi); }
+  });
+  it('the site\'s machines: a crawler at its walking travel speed inside 2 s, a wheeled site machine 2.5–8 s to 20 km/h, a loaded tipper and mixer 35–65 s to 80, a loaded dump truck 40–80 s to 50', () => {
+    for (const id of ['crawlerExcavator', 'crawlerDozer', 'compactTrackLoader']) expect(to(id, envelope(id).top * 3.6 * 0.95), id).toBeLessThan(2);
+    for (const id of ['wheelLoader', 'backhoeLoader', 'telehandler', 'wheeledExcavator', 'motorGrader']) { const t = to(id, 20); expect(t, id).toBeGreaterThan(2.5); expect(t, id).toBeLessThan(8); }
+    for (const id of ['tipperTruck', 'mixerTruck']) { const t = to(id, 80); expect(t, id).toBeGreaterThan(35); expect(t, id).toBeLessThan(65); }
+    const adt = to('articulatedDumpTruck', 50); expect(adt).toBeGreaterThan(40); expect(adt).toBeLessThan(80);
+    // (a forklift, a loaded truck and a crane on the road tip before they slide; a crawler stands too wide to)
+    for (const id of ['forklift', 'tipperTruck', 'mixerTruck', 'mobileCrane']) expect(envelope(id).rollsBeforeSliding, id).toBe(true);
+    for (const id of ['crawlerExcavator', 'crawlerDozer']) expect(envelope(id).rollsBeforeSliding, id).toBe(false);
+  });
+  it('says how each class turns: one class per way, chosen in code; a crawler skids', () => {
+    for (const way of STEERS) expect(Object.keys(VEHICLES).find((k) => steerOf(VEHICLES[k]) === way), way).toBeTruthy();
+    for (const k of Object.keys(VEHICLES).filter((k) => VEHICLES[k].running === 'track')) expect(steerOf(VEHICLES[k]), k).toBe('skid');
+    expect(Object.values(VEHICLES).every((v) => STEERS.includes(steerOf(v)))).toBe(true);
+    // (a word for the builders and the page: the drive rule reads none of it)
+    const id = Object.keys(VEHICLES).find((k) => VEHICLES[k].steer);
+    expect(vehicleRule(id)).not.toHaveProperty('steer');
   });
   it('stops from 100 km/h as v²/2μg says: a car 41–48 m dry, 60–100 wet, 130–200 in snow; a truck about half again', () => {
     for (const id of ['compact', 'midsize', 'crossover']) {
@@ -64,6 +85,12 @@ describe('every class, held to the reference sheet', () => {
     for (const id of ['atv', 'straightTruck', 'tractorTrailer', 'tractorTrailerLoaded']) expect(envelope(id).rollsBeforeSliding, id).toBe(true);
     for (const id of ['compact', 'midsize', 'sports', 'rally', 'kart']) expect(envelope(id).rollsBeforeSliding, id).toBe(false);
     expect(envelope('dirtBike')).toMatchObject({ leans: true });
+    // (every class two in line leans; a three-wheeler stands on its track: chosen in code, one case a layout)
+    for (const layout of WHEEL_LAYOUTS) {
+      const id = Object.keys(VEHICLES).find((k) => wheelLayout(VEHICLES[k]) === layout);
+      expect(id, layout).toBeTruthy();
+      expect('leans' in envelope(id), id).toBe(layout === 'inline');
+    }
   });
 });
 

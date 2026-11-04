@@ -110,8 +110,9 @@ describe('a staff\'s blade heads and its reach', () => {
     }
   });
 
-  it('a reach shortens the staff to a haft or a wand, the grip coming down it; long is the staff as it was', () => {
-    const len = (reach) => expandEquipment(build('staff', 'historical', { parts: { head: 'mace', ...(reach ? { reach } : {}) } })).trace.length;
+  it('a reach shortens the staff to a haft or a wand, the grip coming down it; long is the staff as it was (laws 1)', () => {
+    // laws 1's reach multipliers (laws 2 reads a reach as its haft: compose.js HILTS)
+    const len = (reach) => expandEquipment(build('staff', 'historical', { laws: 1, parts: { head: 'mace', ...(reach ? { reach } : {}) } })).trace.length;
     expect(len('long')).toBe(len());
     expect(len('arm') / len()).toBeCloseTo(0.46, 2);
     expect(len('wand') / len()).toBeCloseTo(0.2, 2);

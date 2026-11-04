@@ -207,6 +207,35 @@ export async function renderWorldTraversal(html, ticks, {
   }
 }
 
+// a climb leg, run in the page (compileWorldWaypoints): face `climb.face` and walk into the surface until the climb rule
+// has carried the body up and let it go on footing at `climb.top`. The turn's sign is learned from the first turn, as
+// the page's own walk leg learns it (capture compileWalkTo).
+function climbLeg(s, b) {
+  const cap = window[b.g], world = window.__mojCtrl && window.__mojCtrl.world;
+  if (!world) return { ticks: [], arrived: false, stuck: true, reason: 'no controllable world' };
+  const ent = s.id ? world.entities.find((x) => x.id === s.id) : world.entities.find((x) => x.rule && (x.rule.type === 'walk' || x.rule.type === 'platform'));
+  if (!ent) return { ticks: [], arrived: false, stuck: true, reason: 'no entity to climb' };
+  const wrapA = (a) => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.PI; return a - Math.PI; };
+  const C = s.climb, n = Math.ceil((Number.isFinite(C.seconds) ? C.seconds : 8) / s.dt), ticks = [];
+  let held = false, sign = 1, signLocked = false;
+  for (let k = 0; k < n; k++) {
+    const p = ent.transform.pos;
+    if (ent.climbing) held = true;
+    if (held && !ent.climbing && ent.grounded !== false && p[2] >= C.top - 0.5) return { ticks, arrived: true, at: p.slice() };
+    const diff = wrapA(Math.atan2(C.face[1] - p[1], C.face[0] - p[0]) - ent.transform.heading);
+    const turn = ent.climbing ? 0 : Math.max(-1, Math.min(1, diff * 2 * sign));
+    const input = { forward: ent.climbing || Math.abs(diff) < 0.6 ? 1 : 0.15, turn };
+    const h0 = ent.transform.heading;
+    cap[b.step]({ dt: s.dt, input });
+    ticks.push(input);
+    if (!signLocked && Math.abs(turn) > 0.05) {
+      const dh = wrapA(ent.transform.heading - h0);
+      if (Math.abs(dh) > 1e-7) { if (dh * (diff * sign) < 0) sign = -sign; signLocked = true; }
+    }
+  }
+  return { ticks, arrived: false, stuck: true, at: ent.transform.pos.slice(), atTick: n, reason: held ? 'took hold and never mounted the top' : 'never took hold of the surface' };
+}
+
 /**
  * Compile a waypoint route into a traversal tick script (renderer-convergence step 3).
  *
@@ -220,8 +249,15 @@ export async function renderWorldTraversal(html, ticks, {
  * reports `{ stuck: true, atTick }` and compilation stops there — recorded, never an
  * infinite loop.
  *
+ * A CLIMB leg (`{ climb: { face: [x,y], top, seconds } }`: a ladder, rungs, a rope) faces the
+ * surface (toward `face`, a point past it) and keeps walking into it: the climb rule takes hold
+ * and carries the body up, its x,y nearly still (so the greedy leg's stuck check, which reads
+ * x,y progress, cannot drive it), and mounts the lip. It has arrived once the body has let go
+ * on footing at `top` (within half a metre), and is stuck after `seconds` otherwise, saying
+ * whether it ever took hold. Steered in-page against the live rule, as a walk leg is.
+ *
  * @param {string} html  emitThreeWorld({ inline:true, capture:true }) document
- * @param {Array<[x,y] | {target:[x,y], id?, arrive?, maxTicks?}>} waypoints
+ * @param {Array<[x,y] | {target:[x,y], id?, arrive?, maxTicks?} | {climb:{face:[x,y], top, seconds}}>} waypoints
  * @returns {Promise<{ ticks: object[], legs: object[], arrived: boolean }>}
  */
 export async function compileWorldWaypoints(html, waypoints, {
@@ -248,8 +284,8 @@ export async function compileWorldWaypoints(html, waypoints, {
     for (const wp of waypoints) {
       const spec = Array.isArray(wp) ? { target: wp } : { ...wp };
       // eslint-disable-next-line no-await-in-loop -- legs are ordered and share the live world
-      const leg = await page.evaluate((s, b) => window[b.g][b.compile](s), { dt, id, ...spec }, BRIDGE);
-      legs.push({ target: spec.target, arrived: !!leg.arrived, at: leg.at || null, ticksUsed: (leg.ticks || []).length, ...(leg.stuck ? { stuck: true, atTick: leg.atTick } : {}) });
+      const leg = spec.climb ? await page.evaluate(climbLeg, { dt, id, ...spec }, BRIDGE) : await page.evaluate((s, b) => window[b.g][b.compile](s), { dt, id, ...spec }, BRIDGE);
+      legs.push({ target: spec.target ?? spec.climb?.face ?? null, ...(spec.climb ? { climb: true } : {}), arrived: !!leg.arrived, at: leg.at || null, ticksUsed: (leg.ticks || []).length, ...(leg.stuck ? { stuck: true, atTick: leg.atTick } : {}), ...(leg.reason ? { reason: leg.reason } : {}) });
       ticks.push(...(leg.ticks || []));
       if (!leg.arrived) break;                              // a blocked leg ends the route — recorded above
     }

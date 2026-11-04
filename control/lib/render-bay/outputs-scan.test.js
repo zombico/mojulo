@@ -118,7 +118,7 @@ describe('scanOutcomeTree — the whole folder, by its subfolders', () => {
   beforeAll(async () => {
     before = process.env.MOJULO_OUTCOMES_DIR;
     process.env.MOJULO_OUTCOMES_DIR = TREE;
-    // an export that writes into subfolders: a building's sheets and schedules, a game's page and Godot pack
+    // an export that writes into subfolders: a building's sheets and schedules, a game's page and its Godot handoff
     await write(at('sk_house'), 'model.ifc', 70);
     await write(at('sk_house'), '.DS_Store', 6);
     await write(at('sk_house', 'sheets'), 'A-101.svg', 30);
@@ -126,7 +126,7 @@ describe('scanOutcomeTree — the whole folder, by its subfolders', () => {
     await write(at('sk_house', 'schedules'), 'doors.csv', 9);
     await write(at('sk_house', 'schedules'), 'doors.json', 9);
     await write(at('sk_game'), 'game.html', 40);
-    await write(at('sk_game', 'godot', 'kernel'), 'arcade.gd', 12);
+    await write(at('sk_game', 'godot-handoff', 'mojulo'), 'handoff_probe.gd', 12);
   });
   afterAll(() => { process.env.MOJULO_OUTCOMES_DIR = before; });
 
@@ -144,7 +144,7 @@ describe('scanOutcomeTree — the whole folder, by its subfolders', () => {
   it('marks a page, reads nested folders, and is empty for a folder that is not there', async () => {
     const g = await scanOutcomeTree('sk_game');
     expect(g.groups[0].files[0]).toMatchObject({ path: 'game.html', page: true });
-    expect(g.groups.find((x) => x.dir === 'godot').files[0]).toMatchObject({ path: 'godot/kernel/arcade.gd', page: false });
+    expect(g.groups.find((x) => x.dir === 'godot-handoff').files[0]).toMatchObject({ path: 'godot-handoff/mojulo/handoff_probe.gd', page: false });
     expect(await scanOutcomeTree('sk_none')).toMatchObject({ total: 0, url: null, groups: [] });
   });
 });

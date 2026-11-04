@@ -102,9 +102,10 @@ function bakeOriented(item, baseLight = WORKBENCH_LIGHT, index = null) {
   // export (threaded from bakeUnitRig → lowerAssemblerBuild). The per-item relight preserves the
   // orientation-invariant read: rotating geometry by A rotates its normals by A, so baking with
   // Aᵀ·dir cancels it. With FLAT_LIGHT (diffuse 0) every relit copy is still flat albedo.
-  const light = isIdentity
-    ? baseLight
-    : makeLight({ direction: matVec(transpose(A), baseLight.dir), ambient: baseLight.ambient, diffuse: baseLight.diffuse, bands: baseLight.bands });
+  // (the unshaded light's `flat` marker kept on the relit copy: without it a material face's own ambient and diffuse
+  // come back, normal-dependent, and a mirrored or turned part bakes shaded where its twin is raw albedo)
+  const relit = isIdentity ? null : makeLight({ direction: matVec(transpose(A), baseLight.dir), ambient: baseLight.ambient, diffuse: baseLight.diffuse, bands: baseLight.bands });
+  const light = isIdentity ? baseLight : baseLight.flat ? { ...relit, flat: true } : relit;
   const s = Number.isFinite(item.scale) ? item.scale : 1;
   return lowerObjectFaces(source, light).map((f) => {
     const out = {

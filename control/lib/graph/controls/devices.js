@@ -65,13 +65,19 @@ export const DEVICES = {
 
   xr: {
     standard: 'WebXR Gamepads Module, "xr-standard" mapping per hand; buttons past the thumbstick follow the WebXR Input Profiles registry',
-    driver: null,
+    // controls-kernel.js xrRead: an XRSession's inputSources by handedness (Meta Quest Touch, Touch Plus and Touch Pro
+    // all speak it: trigger, grip, thumbstick click, A B on the right, X Y on the left; the menu buttons are the system's)
+    driver: 'webxr-gamepad',
     hands: ['left', 'right'],
     buttons: { trigger: 0, squeeze: 1, touchpad: 2, thumbstick: 3, primary: 4, secondary: 5 },
     axes: { touchpadX: 0, touchpadY: 1, thumbstickX: 2, thumbstickY: 3 },
     sticks: { thumbstick: ['thumbstickX', 'thumbstickY'], touchpad: ['touchpadX', 'touchpadY'] },
     // primary / secondary print per hand as the profile names them (Touch: A B on the right hand, X Y on the left)
     labels: { trigger: 'trigger', squeeze: 'grip', touchpad: 'touchpad', thumbstick: 'thumbstick click', primary: { left: 'X', right: 'A' }, secondary: { left: 'Y', right: 'B' }, thumbstick_stick: 'thumbstick', touchpad_stick: 'touchpad' },
+    // the POSES beside the controls, named as OpenXR names its pose actions (xr-driver.js xrPoses reads them; a pose is
+    // read, never bound): the viewer, and per hand the grip (the closed fist's centre, −Z along the hole it closes round:
+    // where a held thing sits) and the aim (the target ray: where a pointer or a muzzle points)
+    poses: { head: 'XRFrame.getViewerPose', grip: 'XRInputSource.gripSpace', aim: 'XRInputSource.targetRaySpace' },
   },
 
   sim: {

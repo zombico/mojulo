@@ -23,9 +23,13 @@
  */
 import { box, r5 } from './geom.js';
 import { STAIR_PROFILES } from '../construction/circulation.js';
-import { STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws } from './stocking.js';
+import { STOCK, HOSPITAL_STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws, TOWN_STOCK, TOWN_GREAT } from './stocking.js';
+import { resolveFurniture } from '../furnishings/forms.js';
+import { lockedFurnitureFaces } from '../construction/facades.js';
 
 const B = (u0, u1, v0, v1, z0, z1, s) => [u0, u1, v0, v1, z0, z1, s];
+// a furniture-door piece turned from facing +y to face its way: [xx, xy, yx, yy]
+const TURN = Object.freeze({ '+y': [1, 0, 0, 1], '-y': [-1, 0, 0, -1], '+x': [0, 1, -1, 0], '-x': [0, -1, 1, 0] });
 export const PIECES = Object.freeze({
   crate: { class: 'crate', w: 1, d: 1, h: 0.9, stack: 3, parts: [B(0.03, 0.97, 0.03, 0.97, 0.08, 0.82, 'cabinet'), B(0, 1, 0, 1, 0, 0.08, 'beam'), B(0, 1, 0, 1, 0.82, 0.9, 'beam')] },
   'ammo-can': { class: 'crate', w: 0.5, d: 0.3, h: 0.35, stack: 4, parts: [B(0, 0.5, 0, 0.3, 0, 0.3, 'paint'), B(0.02, 0.48, 0.02, 0.28, 0.3, 0.35, 'trim')] },
@@ -62,6 +66,14 @@ export const PIECES = Object.freeze({
   cot: { class: 'bench', w: 2.0, d: 0.85, h: 0.65, parts: [B(0, 2, 0, 0.85, 0.5, 0.55, 'trim'), B(0.05, 1.95, 0.05, 0.8, 0.55, 0.65, 'cabinet'), B(0, 0.05, 0, 0.05, 0, 0.5, 'trim'), B(1.95, 2, 0, 0.05, 0, 0.5, 'trim'), B(0, 0.05, 0.8, 0.85, 0, 0.5, 'trim'), B(1.95, 2, 0.8, 0.85, 0, 0.5, 'trim')] },
   switchgear: { class: 'lockers', w: 2.4, d: 0.6, h: 2.2, parts: [B(0, 2.4, 0, 0.6, 0, 0.1, 'beam'), B(0, 2.4, 0, 0.6, 0.1, 2.2, 'cabinet'), B(0.79, 0.81, 0.6, 0.62, 0.2, 2.1, 'trim'), B(1.59, 1.61, 0.6, 0.62, 0.2, 2.1, 'trim')] },
   pump: { class: 'barrel', w: 1.6, d: 0.9, h: 1.1, parts: [B(0, 1.6, 0, 0.9, 0, 0.15, 'beam'), ['prism', 0.45, 0.45, 0.35, 0.15, 0.95, 10, 'paint'], ['prism', 1.15, 0.45, 0.32, 0.15, 0.75, 10, 'services'], B(1.1, 1.2, 0.4, 0.5, 0.75, 1.1, 'trim')] },
+  // a hospital's (stocking.js HOSPITAL_STOCK): a bed head to the wall, its rails and its pillow; a row of waiting chairs
+  // on one beam; a scanner's gantry and its table
+  bed: { class: 'bench', w: 1.0, d: 2.1, h: 1.0, parts: [B(0.05, 0.95, 0.05, 2.05, 0.45, 0.55, 'trim'), B(0.08, 0.92, 0.1, 2.0, 0.55, 0.7, 'cabinet'), B(0, 1, 0, 0.06, 0.3, 1.0, 'paint'), B(0, 1, 2.04, 2.1, 0.3, 0.8, 'paint'),
+    B(0.05, 0.12, 0.1, 0.17, 0, 0.45, 'trim'), B(0.88, 0.95, 0.1, 0.17, 0, 0.45, 'trim'), B(0.05, 0.12, 1.93, 2.0, 0, 0.45, 'trim'), B(0.88, 0.95, 1.93, 2.0, 0, 0.45, 'trim'),
+    B(0, 0.04, 0.5, 1.5, 0.7, 0.85, 'trim'), B(0.96, 1, 0.5, 1.5, 0.7, 0.85, 'trim'), B(0.2, 0.8, 0.12, 0.45, 0.7, 0.8, 'cabinet')] },
+  'chair-row': { class: 'bench', w: 2.4, d: 0.6, h: 0.85, parts: [B(0.05, 2.35, 0.25, 0.35, 0.25, 0.32, 'trim'), B(0.1, 0.16, 0.25, 0.35, 0, 0.25, 'trim'), B(2.24, 2.3, 0.25, 0.35, 0, 0.25, 'trim'),
+    ...[0, 1, 2, 3].flatMap((i) => [B(0.05 + i * 0.6, 0.6 + i * 0.6, 0.1, 0.55, 0.32, 0.42, 'cabinet'), B(0.05 + i * 0.6, 0.6 + i * 0.6, 0.04, 0.1, 0.42, 0.85, 'cabinet')])] },
+  scanner: { class: 'set-piece', w: 3.0, d: 2.2, h: 2.0, parts: [B(0.8, 1.5, 0.1, 2.1, 0, 2.0, 'paint'), B(0.95, 1.35, 0.75, 1.45, 0.75, 1.45, 'services'), B(1.5, 3.0, 0.8, 1.4, 0.7, 0.85, 'cabinet'), B(2.0, 2.6, 0.9, 1.3, 0, 0.7, 'trim')] },
   'sink-row': { class: 'bench', w: 2.4, d: 0.55, h: 1.8, parts: [B(0, 2.4, 0, 0.55, 0.8, 0.9, 'cabinet'), B(0, 2.4, 0, 0.5, 0, 0.8, 'trim'), B(0, 2.4, 0, 0.02, 1.2, 1.8, 'services')] },
   washer: { class: 'lockers', w: 0.7, d: 0.7, h: 0.9, parts: [B(0, 0.7, 0, 0.7, 0, 0.9, 'services'), ['prism', 0.35, 0.7, 0.2, 0.3, 0.32, 12, 'trim']] },
   // (it blocks nothing: a can on a bracket by a door, at hand height)
@@ -74,15 +86,34 @@ export const PIECES = Object.freeze({
   find: { class: 'crate', w: 0.8, d: 0.5, h: 0.45, parts: [B(0, 0.8, 0, 0.5, 0, 0.4, 'paint'), B(0.02, 0.78, 0.02, 0.48, 0.4, 0.45, 'trim')] },
   prize: { class: 'set-piece', w: 0.9, d: 0.9, h: 1.45, parts: [B(0, 0.9, 0, 0.9, 0, 1.0, 'concrete'), B(0.2, 0.7, 0.25, 0.65, 1.0, 1.4, 'paint'), B(0.18, 0.72, 0.23, 0.67, 1.4, 1.45, 'trim')] },
   sign: { class: 'sign', w: 1.4, d: 0.06, h: 0.5, solid: false, parts: [B(0, 1.4, 0, 0.06, 0, 0.5, 'paint')] },
+  // A TOWN'S FURNITURE (the vernacular register: stocking.js TOWN_STOCK): boards and timber (`cabinet` the boards, `beam`
+  // the dark timber), stone (`concrete`), cloth and goods (`paint`)
+  // (drawn from the furniture door, furnishings/forms.js: its style's locked build, filled to the piece's size, its
+  // finish its own (the fantasy styles: trestle-table, tavern-table, settle, high-seat, shop-shelves, counter,
+  // iron-bound-chest); no parts of its own)
+  counter: { class: 'bench', w: 2.4, d: 0.7, h: 1.0, furniture: 'counter', parts: [] },
+  shelves: { class: 'rack', w: 1.8, d: 0.42, h: 2.0, furniture: 'shop-shelves', parts: [] },
+  table: { class: 'bench', w: 1.5, d: 0.9, h: 0.76, furniture: 'tavern-table', parts: [] },
+  'long-table': { class: 'bench', w: 2.2, d: 0.85, h: 0.76, furniture: 'trestle-table', parts: [] },
+  settle: { class: 'bench', w: 1.7, d: 0.52, h: 1.15, furniture: 'settle', parts: [] },
+  'high-seat': { class: 'set-piece', w: 0.72, d: 0.64, h: 1.5, furniture: 'high-seat', parts: [] },
+  chest: { class: 'crate', w: 1.0, d: 0.56, h: 0.62, furniture: 'iron-bound-chest', parts: [] },
+  barrel: { class: 'barrel', w: 0.62, d: 0.62, h: 0.86, stack: 1, parts: [['prism', 0.31, 0.31, 0.27, 0, 0.86, 10, 'cabinet'], ['prism', 0.31, 0.31, 0.31, 0.18, 0.24, 10, 'beam'], ['prism', 0.31, 0.31, 0.31, 0.62, 0.68, 10, 'beam']] },
+  sack: { class: 'crate', w: 0.55, d: 0.45, h: 0.6, stack: 2, parts: [B(0.02, 0.53, 0.02, 0.43, 0, 0.5, 'paint'), B(0.12, 0.43, 0.1, 0.35, 0.5, 0.6, 'paint')] },
+  bed: { class: 'bench', w: 2.1, d: 1.1, h: 0.95, parts: [B(0, 2.1, 0, 1.1, 0.25, 0.35, 'beam'), B(0.05, 2.05, 0.05, 1.05, 0.35, 0.55, 'paint'), B(0, 0.08, 0, 1.1, 0, 0.95, 'beam'), B(2.02, 2.1, 0, 1.1, 0, 0.6, 'beam'), B(0.1, 0.5, 0.15, 0.95, 0.55, 0.66, 'paint')] },
+  hearth: { class: 'set-piece', w: 2.2, d: 0.9, h: 2.6, parts: [B(0, 0.45, 0, 0.9, 0, 1.5, 'concrete'), B(1.75, 2.2, 0, 0.9, 0, 1.5, 'concrete'), B(0.45, 1.75, 0, 0.2, 0, 1.5, 'trim'), B(0, 2.2, 0, 0.9, 1.5, 1.7, 'beam'),
+    B(0.3, 1.9, 0, 0.7, 1.7, 2.6, 'concrete'), B(0.5, 1.7, 0.2, 0.75, 0, 0.12, 'concrete'), B(0.8, 1.4, 0.35, 0.6, 0.12, 0.35, 'paint')] },
+  workbench: { class: 'bench', w: 2.0, d: 0.8, h: 0.9, parts: [B(0, 2, 0, 0.8, 0.82, 0.9, 'beam'), B(0.05, 0.15, 0.05, 0.75, 0, 0.82, 'beam'), B(1.85, 1.95, 0.05, 0.75, 0, 0.82, 'beam'), B(0.15, 1.85, 0.1, 0.7, 0.25, 0.3, 'cabinet'), B(0.3, 0.8, 0.2, 0.6, 0.9, 1.05, 'trim'), B(1.2, 1.7, 0.3, 0.55, 0.9, 0.98, 'paint')] },
 });
 export const PIECE_SETS = Object.freeze({
   military: Object.freeze(['crate', 'ammo-can', 'drum', 'tool-chest']),
   utility: Object.freeze(['rack', 'drum', 'cart', 'crate']),
   science: Object.freeze(['bench', 'instrument-rack', 'fume-hood', 'cart']),
   everyday: Object.freeze(['desk', 'filing', 'locker', 'cart']),
+  vernacular: Object.freeze(['barrel', 'crate', 'sack', 'chest']),
 });
 export const SET_PIECES = Object.freeze({
-  'great-object': Object.freeze({ military: 'generator', utility: 'press', science: 'centrifuge', everyday: 'sculpture' }),
+  'great-object': Object.freeze({ military: 'generator', utility: 'press', science: 'centrifuge', everyday: 'sculpture', vernacular: 'hearth' }),
   find: 'find', prize: 'prize', sign: 'sign',
 });
 // how many clusters a room's role takes (a passage is left clear), and a dark mood's clutter in a dead end
@@ -146,7 +177,7 @@ export function footprintOf(it) {
 
 /** The default dressing of a composed plan: a set piece at each focus its role names, clusters along the walls. */
 export function layProps(plan) {
-  const C = plan.compose, reg = C.axes.dressing, set = PIECE_SETS[reg], keep = keepOuts(plan), items = [];
+  const C = plan.compose, reg = C.axes.dressing, set = PIECE_SETS[reg], keep = keepOuts(plan), items = [], town = reg === 'vernacular';
   const off = (plan.kit?.B?.pilaster?.out ?? 0.1) + 0.05;
   const free = (r, mn, mx) => mn[0] >= r.x0 + 0.05 && mx[0] <= r.x1 - 0.05 && mn[1] >= r.y0 + 0.05 && mx[1] <= r.y1 - 0.05
     && !keep.some((k) => k.room === r.id && hits(k, mn, mx))
@@ -216,8 +247,10 @@ export function layProps(plan) {
     const r = plan.rooms.find((x) => x.id === R.room), dice = mulberry32(hashOf(`props|${r.id}`));
     // the set piece its role names: at the focus a great object, a find, a prize; over the way on, a sign
     // (a base building's great object is its use's own, stocking.js GREAT, or none: an armoury's core is no generator hall)
-    const sp = R.setPiece && (R.setPiece === 'great-object' ? (plan.use ? GREAT[plan.use] : SET_PIECES['great-object'][reg]) : SET_PIECES[R.setPiece]);
-    if (sp && sp !== 'sign') {
+    const sp = R.setPiece && (R.setPiece === 'great-object' ? (plan.use ? (town ? TOWN_GREAT[plan.use] : GREAT[plan.use]) : SET_PIECES['great-object'][reg]) : SET_PIECES[R.setPiece]);
+    // (a town's building keeps none of a game's set pieces: no prize on its pedestal, no find, no sign; its great object
+    // its use's own)
+    if (town && sp && sp !== TOWN_GREAT[plan.use]) { /* none */ } else if (sp && sp !== 'sign') {
       // (a great object as great as its room: scaled from the room's short side, a quarter at a time, but never past half
       // its height nor a third of its short side, so it stands in the room and does not fill it)
       const P0 = PIECES[sp], short = Math.min(r.x1 - r.x0, r.y1 - r.y0), most = Math.min(3, (0.5 * r.h) / P0.h, (0.3 * short) / Math.max(P0.w, P0.d));
@@ -235,19 +268,20 @@ export function layProps(plan) {
       const at = tries.map(([ax, ay]) => [r5(it.at[0] + ax), r5(it.at[1] + ay)]).find(ok);
       if (at) items.push({ ...it, at });
     }
-    if (sp === 'sign') {
+    if (!town && sp === 'sign') {
       // (over the way on: on the wall nearest the focus, facing into the room)
       const f = R.focus, ds = { '-x': f[0] - r.x0, '+x': r.x1 - f[0], '-y': f[1] - r.y0, '+y': r.y1 - f[1] }, side = Object.keys(ds).reduce((a, b) => (ds[b] < ds[a] ? b : a));
       const X = side.endsWith('x'), facing = side.startsWith('-') ? `+${side[1]}` : `-${side[1]}`, v = side.startsWith('-') ? (X ? r.x0 : r.y0) + 0.05 : (X ? r.x1 : r.y1) - 0.05;
       items.push({ id: `${r.id}/focus/sign`, kind: 'sign', room: r.id, at: X ? [r5(v), r5(f[1])] : [r5(f[0]), r5(v)], facing, set: true, wall: true });
     }
-    // a military base's building (plan.use): each room its stock (stocking.js) in place of the register's clusters, and
+    // a military base's building or a hospital's (plan.use): each room its stock (stocking.js) in place of the register's clusters, and
     // an extinguisher by each of its doorways; a room the tables do not stock (a corridor, a core) holds none of it
+    // (a town's building, the vernacular register: its room's role's stock, stocking.js TOWN_STOCK; no extinguisher)
     if (plan.use) {
-      const lines = STOCK[roleOf(r.id)];
+      const lines = (plan.stock === 'hospital' ? HOSPITAL_STOCK : town ? TOWN_STOCK : STOCK)[roleOf(r.id)];
       if (lines) {
         // (the extinguishers first: the safety kit claims its place by the doors before the stock fills the walls)
-        layExtinguishers(r);
+        if (!town) layExtinguishers(r);
         const sd = mulberry32(hashOf(`stock|${r.id}`));
         for (const [kind, [lo, hi], where] of lines) layStock(r, kind, lo + Math.floor(sd() * (hi - lo + 1)), where, sd);
       }
@@ -316,7 +350,17 @@ export function propFaces(plan, items, surf) {
     if (!r || !P) continue;
     // (a wall piece over the doorway's head, under the ceiling)
     const k = it.scale ?? 1, z0 = (r.z0 ?? 0) + (it.level ?? 0) * P.h * k + (it.wall ? Math.min(r.h - P.h * k - 0.1, (plan.kit?.door?.height ?? 2.7) + 0.2) : 0), out = [];
-    for (const p of P.parts) {
+    // a piece from the furniture door: its locked build drawn, filled to the piece's size, turned to face the way it
+    // faces (the door draws it facing +y) and set on its footprint
+    if (P.furniture) {
+      const L = resolveFurniture({ like: P.furniture, size: [P.w, P.d, P.h].map((v) => Math.round(v * k * 1000)) }).locked, f = footprintOf(it);
+      const cx = (f.min[0] + f.max[0]) / 2, cy = (f.min[1] + f.max[1]) / 2, T = TURN[it.facing], turn = ([x, y, z]) => [r5(cx + T[0] * x + T[1] * y), r5(cy + T[2] * x + T[3] * y), r5(z0 + z)];
+      for (const fc of lockedFurnitureFaces(L, { unitMm: 1000, fit: true })) {
+        const n = fc.outNormal ? [r5(T[0] * fc.outNormal[0] + T[1] * fc.outNormal[1]), r5(T[2] * fc.outNormal[0] + T[3] * fc.outNormal[1]), fc.outNormal[2]] : null;
+        out.push({ corners: fc.corners.map(turn), fill: fc.fill, cornerFills: fc.corners.map(() => fc.fill), ...(n ? { normal: n, outNormal: n } : {}), ...(fc.doubleSided ? { doubleSided: true } : {}), group: 'stage:furniture' });
+      }
+    }
+    for (const p of P.furniture ? [] : P.parts) {
       if (p[0] === 'prism') {
         const [, cu, cv, rad, pz0, pz1, sides, s] = p, [mn] = partBox(it, [cu, cu, cv, cv, pz0, pz1], z0);
         prism(out, [mn[0], mn[1]], rad * k, z0 + pz0 * k, z0 + pz1 * k, sides, surf(s));

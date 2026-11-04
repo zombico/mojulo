@@ -43,7 +43,7 @@ export async function GET(request, { params }) {
     if (!file) {
       return NextResponse.json(
         {
-          error: `No skin bound to '${ref}' yet — paint over the scaffold and submit via skin_polygomer`,
+          error: `No skin bound to '${ref}' yet — paint over the scaffold and submit via edit_solid op 'skin'`,
           scaffold: `/api/sketches/${encodeURIComponent(ref)}/png?control=1`,
         },
         { status: 404 },

@@ -96,6 +96,19 @@ export const SEEDED_STYLES = Object.freeze({
     "roles": { "blade": { "metal": "bronze", "finish": "planished" }, "fittings": ["wood", "#6e5238"], "accent": { "metal": "bronze", "film": { "age": 40 } }, "wrap": ["leather", "#4a3524"], "leaf": ["matte", "#5d8a3c"] },
     "gem": { "gem": "tourmaline", "glow": 0.3, "cut": "natural" }
   },
+  // the grave's: arms that lay with the dead (equipment/armory.js arms the skeletons from it): mill-scaled iron gone to
+  // rust at the fittings, bronze gone green, the wood grey and the leather rotted, the edges chipped
+  grave: {
+    "id": "grave",
+    "dials": { "stylize": 0.15, "mass": 1.05, "focus": "none", "ornament": 0 },
+    "lean": { "W": 0.95 },
+    "language": { "blade": "broad", "guard": "bar", "pommel": "cap", "grip": "cord",
+      "staff": { "head": "plain", "focus": "none", "shaft": ["wood", "#5b5145"] },
+      "bow": { "limb": "longbow", "tips": "none", "focus": "curve", "shaft": ["wood", "#55493d"] },
+      "shield": { "outline": "round", "device": "bands", "focus": "boss", "board": ["wood", "#4f463b"] } },
+    "edge": { "fuller": 0.2, "bevel": 0.6, "barbs": 3 },
+    "roles": { "blade": { "metal": "steel", "finish": "mill" }, "fittings": ["matte", "#6b4a33"], "accent": { "metal": "bronze", "film": { "age": 60 } }, "wrap": ["matte", "#3a3129"] }
+  },
   celestial: {
     "id": "celestial",
     "dials": { "stylize": 0.6, "mass": 1, "focus": "guard", "ornament": 2 },
@@ -107,6 +120,19 @@ export const SEEDED_STYLES = Object.freeze({
     "edge": { "fuller": 0.3, "bevel": 0.5 },
     "roles": { "blade": { "metal": "stainless", "finish": "mirror" }, "fittings": { "metal": "gold", "finish": "polished" }, "accent": { "metal": "gold", "finish": "mirror" }, "wrap": ["matte", "#f4f1e8"] },
     "gem": { "gem": "diamond", "glow": 0.2, "cut": "brilliant" }
+  },
+  // a light blade: a long round edge of light (the shelf's neon, its own glow) out of a short machined hilt; a saber
+  // rhythm level's (mechanic-cards/notes.md) red in the left hand, this blue in the right
+  saber: {
+    "id": "saber",
+    "dials": { "stylize": 0.2, "mass": 0.7, "focus": "none", "ornament": 0 },
+    "lean": { "W": 0.55, "T": 1.6, "L": 1.05, "span": 0.35, "grip": 1.5, "pommel": 0.8 },
+    "language": { "blade": "straight", "guard": "disc", "pommel": "cap", "grip": "banded",
+      "staff": { "head": "plain", "focus": "none", "shaft": ["neon", "#3fa9ff"] },
+      "bow": { "limb": "recurve", "tips": "none", "focus": "none", "shaft": ["gunmetal", "#8b94a0"] },
+      "shield": { "outline": "round", "device": "rays", "focus": "none", "board": ["neon", "#3fa9ff"] } },
+    "edge": { "fuller": 0, "bevel": 0 },
+    "roles": { "blade": ["neon", "#3fa9ff"], "fittings": { "metal": "steel", "finish": "blasted" }, "accent": { "metal": "chrome", "finish": "mirror" }, "wrap": ["rubber", "#202226"] }
   },
 });
 

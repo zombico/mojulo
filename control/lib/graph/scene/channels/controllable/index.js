@@ -13,6 +13,7 @@ import { buildSeatsKernel } from '../../../controls/seats-kernel.js';
 import { touchLayout, touchScript } from './touch.js';
 import { runnerViewScript } from './runner-view.js';
 import { followPullIn } from './follow-pull-in.js';
+import { gunplayScript } from './gunplay-view.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -626,7 +627,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, trigger = false } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false, tempo = null, xr = false, trigger = false } = {}) {
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
   const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && (b.yield > 0 || b.kerfWork > 0)));
   // metal panels on objects (rupa/panels.js): drawn only when an object carries resolved panels, so every other page keeps its bytes
@@ -641,6 +642,8 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // matching how specularChannelScript itself is gated in scene-three.js.
   // the TOUCH layer (touch.js): a game made for a screen draws a virtual pad, laid out for its pilot and camera
   const touchLayer = touch ? touchLayout(entities, camera, { runner: !!runner }) : null;
+  // a shooter's carried arms (gunplay.js, gunplay-view.js): a body whose rule says gunplay; absent, nothing is emitted
+  const gunplay = entities.some((e) => e && e.rule && e.rule.gunplay);
   // a level whose only minds are its fauna (era/biocube-fauna.js: each `fauna: true`, passive) has nothing to attack:
   // no AI-attack button. Any other mind ⇒ the button, byte-identical.
   const ais = (entities || []).filter((e) => e && ((e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')));
@@ -701,6 +704,10 @@ function __updateGearLines() {
   // a vehicle rig that LIVES (car-designer/racer.js `live`: steer, lean, squat, dive, bounce, a mast's wobble) —
   // the overlay below is emitted only when some figure carries one, so every other page stays byte-identical.
   const figHasLive = Object.values(figures || {}).some((f) => f && f.rig && f.live);
+  // a machine RIDDEN astride (cycle-shelf/cycle-figure.js cycleRideFigure, its live.ridden): its front turned about the
+  // steering axis and orbiting the head, the whole machine leaning with its front by the drive rule's own lean (wheels in
+  // line), a three-wheeler's inner wheel lifting about the edge it would tip over. None ridden → byte-identical.
+  const figHasRide = figHasLive && Object.values(figures || {}).some((f) => f && f.rig && f.live && f.live.ridden);
   // a FACED body (the realistic hero, relational-face-rig.js: `face` and its parts' `morph`): morph targets on its bone
   // meshes, driven per frame by the state's facial track, the ambient blink over the states that hold the face. No
   // faced body → the emitted channel is byte-identical.
@@ -709,6 +716,9 @@ function __updateGearLines() {
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
   const figHasPaint = Object.values(figures || {}).some((f) => f && f.rig && f.paintTex && Array.isArray(f.parts) && f.parts.some((p) => p && p.uv));
+  // a SKINNED body (the mount, lib/graph/mount/game.js: one welded skin, `skin` and its parts' joints and weights): its bones
+  // drive ONE skinned mesh (a rigid part a bone would tear the skin at every joint). None ⇒ not a byte of it
+  const figHasSkin = Object.values(figures || {}).some((f) => f && f.rig && f.skin === true && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt));
   // a body with MODES (worlds/controllable/vanish.js): each mode's figure built up front as a loadout's are, the sync's
   // variant swap showing the one it is in. None ⇒ the body as it was, byte for byte
   const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
@@ -1039,10 +1049,14 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   requestAnimationFrame(tick);
 })();
 ` : '';
+  // (a tempo whose moments carry a look: the page lays it over the grade)
+  const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''} });
-${commanderBlock}${flyHudBlock}${(() => {
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''} });
+${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
+let __xrCtl = null;
+` : ''}${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
     return `const __FIGPOOL = ${safeJson(pooled.pool)};   // shared packed buffers (deduped across figures — livery variants)
@@ -1109,7 +1123,9 @@ function __formLights(F) {
   setTimeout(() => {
     const key = new THREE.Color(F.key[0], F.key[1], F.key[2]), casters = [];
     scene.traverse((o) => { if (o.isDirectionalLight && o.castShadow) casters.push(o); });
-    if (casters.length) for (const l of casters) { l.color.copy(key); l.intensity = F.keyIntensity / casters.length; }
+    // (and a normal bias on each for the physical body: a flat plate turned from the sun would wear its own shadow's
+    // stripes, the map's depth steps laid on it; a big body, a craft, asks for more by its own normalBias)
+    if (casters.length) for (const l of casters) { l.color.copy(key); l.intensity = F.keyIntensity / casters.length; l.shadow.normalBias = Math.max(l.shadow.normalBias, F.normalBias || 0.05); }
     else { const l = new THREE.DirectionalLight(key, F.keyIntensity); l.position.fromArray(F.toLight || __FORM_SUN).normalize().multiplyScalar(100); scene.add(l); scene.add(l.target); }
     const hemi = new THREE.HemisphereLight(__formSrgb(F.sky.zenith), __formSrgb(F.sky.ground), F.ambient * 1.6); hemi.position.set(0, 0, 1); scene.add(hemi);
   }, 0);
@@ -1164,8 +1180,35 @@ function __rigFace(rig, clipName, phase) {
 }
 ` : ''}${figHasPaint ? `// the painted body's atlas, once per figure (shared by every entity wearing it)
 function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; } return fig.__tex; }
+` : ''}${figHasSkin ? `// a SKINNED rig: its bones (posed by the sync as a rigid rig's bone meshes are) drive one skinned mesh bound at the rest,
+// every part's corners in it with their joints and weights; it never raycasts (no footing, no target)
+function __makeSkinGroup(fig, b, group) {
+  const bones = fig.bones.map(() => { const o = new THREE.Bone(); o.matrixAutoUpdate = false; group.add(o); return o; });
+  let n = 0; for (const P of fig.parts) if (P) n += P.faces * 3;
+  const pos = new Float32Array(n * 3), col = new Uint8Array(n * 3), jnt = new Uint16Array(n * 4), wgt = new Float32Array(n * 4);
+  let o = 0;
+  for (const P of fig.parts) {
+    if (!P) continue;
+    const p = decodeF32(P.pos), c = decodeU8(P.col), j = decodeU8(P.jnt), w = decodeF32(P.wgt), m = p.length / 3;
+    pos.set(p, o * 3); col.set(c, o * 3); jnt.set(j, o * 4); wgt.set(w, o * 4); o += m;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+  geo.setAttribute('skinIndex', new THREE.BufferAttribute(jnt, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(wgt, 4));
+  geo.computeBoundingSphere();
+  const mesh = new THREE.SkinnedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  mesh.frustumCulled = false; mesh.raycast = function () {};
+  group.add(mesh); scene.add(group);
+  group.updateMatrixWorld(true);
+  mesh.bind(new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4())));
+  group.userData.rigFig = { fig, boneMeshes: bones, mix: {}, blendTime: b.blendTime, lookA: 0, yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null, skin: mesh };
+  return group;
+}
 ` : ''}function __makeRigGroup(fig, b) {
-  const group = new THREE.Group();
+  const group = new THREE.Group();${figHasSkin ? `
+  if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;${figHasForm ? `
@@ -1830,24 +1873,34 @@ ${figHasHeroJuice ? `    if (rj.J.hero) __rjHero(rj, e, F, d);
 // whip and a propeller's spin. → per bone: 'steer' | 'body' | 'wheel' | 'mast' and the frame's quaternions.
 const __lvQ = new THREE.Quaternion(), __lvQB = new THREE.Quaternion(), __lvQP = new THREE.Quaternion(), __lvQS = new THREE.Quaternion(), __lvQW = new THREE.Quaternion(), __lvQM = new THREE.Quaternion(), __lvH = new THREE.Vector3();
 const __LV_X = new THREE.Vector3(1, 0, 0), __LV_Y = new THREE.Vector3(0, 1, 0), __LV_Z = new THREE.Vector3(0, 0, 1);
-function __rigLive(e, rig, dt) {
+${figHasRide ? `const __lvQR = new THREE.Quaternion(), __lvA = new THREE.Vector3();
+` : ''}function __rigLive(e, rig, dt) {
   const L = rig.fig.live, G = L.gains, d = Math.min(0.05, dt || 0);
   if (!rig.lv) { rig.lv = { lean: 0, pitch: 0, bz: 0, vz: 0, spin: 0, whip: 0, role: {} }; rig.fig.bones.forEach((b, i) => { if (L.steer.includes(b.id)) rig.lv.role[i] = 'steer'; else if (b.id === L.wheel) rig.lv.role[i] = 'wheel'; else if (b.id === L.mast) rig.lv.role[i] = 'mast'; else if (L.body.bones.includes(b.id)) rig.lv.role[i] = 'body'; }); }
-  const S = rig.lv, v = e.speed || 0, st = e.steerAngle || 0, k = (r) => Math.min(1, d * r);
+${figHasRide ? `  if (L.ridden && !rig.lv.at) { rig.lv.at = {}; rig.lv.pv = [0, 0, 0]; rig.lv.lift = 0; rig.fig.bones.forEach((b, i) => { if (L.steerAt && L.steerAt[b.id]) rig.lv.at[i] = L.steerAt[b.id]; }); }
+` : ''}  const S = rig.lv, v = e.speed || 0, st = e.steerAngle || 0, k = (r) => Math.min(1, d * r);
   const steer = Math.max(-G.steerMax, Math.min(G.steerMax, st * G.steer));
-  S.lean += (Math.max(-G.leanMax, Math.min(G.leanMax, st * Math.abs(v) * G.lean)) - S.lean) * k(6);
-  S.pitch += ((e.throttle || 0) * G.squat * (v >= 0 ? 1 : -1) - (e.braking ? G.dive : 0) - S.pitch) * k(5);
+  S.lean += (Math.max(-G.leanMax, Math.min(G.leanMax, ${figHasRide ? `L.lean === 'rule' ? -(e.lean || 0) : ` : ''}st * Math.abs(v) * G.lean)) - S.lean) * k(6);
+${figHasRide ? `  // (a three-wheeler: the turn's pull, v² tan(steer) / wheelbase, against what tips it toward the outside, ssf·g;
+  // the inner wheel lifts over its last 30%, about the outer edge where the centre of mass meets it)
+  if (L.lift) {
+    const lat = v * v * Math.tan(st) / L.lift.wb, E = lat >= 0 ? L.lift.r : L.lift.l, a = Math.abs(lat) / (E.ssf * 9.81);
+    S.lift += (Math.sign(lat) * G.liftMax * Math.max(0, Math.min(1, (a - 0.7) / 0.3)) - S.lift) * k(6);
+    S.pv[0] = S.lift >= 0 ? L.lift.r.x : L.lift.l.x; S.pv[1] = L.body.pivot[1]; S.pv[2] = L.body.pivot[2];
+  }
+` : ''}  S.pitch += ((e.throttle || 0) * G.squat * (v >= 0 ? 1 : -1) - (e.braking ? G.dive : 0) - S.pitch) * k(5);
   if (e.landed) S.vz -= G.bounce * 4;
   S.vz += (-140 * S.bz - 11 * S.vz) * d; S.bz += S.vz * d;
   S.spin += d * (5 + Math.abs(v) * 1.6);
   S.whip += (Math.min(G.wobbleMax, Math.abs(v) * G.wobble) + (e.braking ? -0.15 : 0) - S.whip) * k(4);
   const shiver = (e.throttle || 0) > 0.05 || Math.abs(v) < 0.5 ? 0.004 * Math.sin((__world.time || 0) * 52) : 0;
   __lvQS.setFromAxisAngle(__LV_Z, steer);
-  __lvQW.setFromAxisAngle(__LV_Y, -steer * 2.2);
-  __lvQB.setFromAxisAngle(__LV_Y, S.lean); __lvQP.setFromAxisAngle(__LV_X, S.pitch); __lvQB.multiply(__lvQP);
+${figHasRide ? `  if (L.steerAxis) __lvQR.setFromAxisAngle(__lvA.fromArray(L.steerAxis), steer);
+` : ''}  __lvQW.setFromAxisAngle(__LV_Y, -steer * 2.2);
+  __lvQB.setFromAxisAngle(__LV_Y, S.lean${figHasRide ? ` + (L.lift ? S.lift : 0)` : ''}); __lvQP.setFromAxisAngle(__LV_X, S.pitch); __lvQB.multiply(__lvQP);
   __lvQM.setFromAxisAngle(__LV_X, S.whip + 0.05 * Math.sin((__world.time || 0) * 9) * Math.min(1, Math.abs(v) / 8));
   if (L.spin) { __lvQ.setFromAxisAngle(__LV_Z, S.spin); __lvQM.multiply(__lvQ); }
-  return { role: S.role, steer: __lvQS, wheel: __lvQW, body: __lvQB, mast: __lvQM, pivot: L.body.pivot, dz: Math.max(-0.2, S.bz) + shiver };
+  return { role: S.role, steer: __lvQS, wheel: __lvQW, body: __lvQB, mast: __lvQM, pivot: ${figHasRide ? `L.lift ? S.pv : ` : ''}L.body.pivot, dz: Math.max(-0.2, S.bz) + shiver${figHasRide ? `, rides: !!L.ridden, at: S.at, axisQ: __lvQR` : ''} };
 }
 ` : ''}${figHasForms ? `// A BODY IN TWO FORMS (transformation/compose.js): the base form plays the plain clips; another form plays its own
 // (\`vehicle:drive\`), holding its rest (\`vehicle:idle\`) for any it has none of; the transformation's clips
@@ -1858,6 +1911,20 @@ function __formMode(fig, e, mode) {
   if (f === fig.forms.base) return mode;
   const k = f + ':' + mode;
   return fig.clips[k] ? k : f + ':idle';
+}
+` : ''}${acts ? `// a battle act's clip among the figure's own: the first it has of the act's names (its swing, its recoil, its fall)
+const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'] };
+function __actClip(fig, is) { const L = __ACT_CLIPS[is] || []; for (let i = 0; i < L.length; i++) if (fig.clips[L[i]]) return L[i]; return null; }
+// A BATTLE ACT (the party battles' juice, rpg-channel.js: e.act { is, t0, for, to? }): the figure plays its own clip for it
+// at the act's phase on the world's clock (a fight holds the world still, its clock running), a strike leaning toward its
+// target and back; a fall holds its last frame; a figure without the clip plays nothing new (A.clip says which it played)
+function __actMode(fig, e, m) {
+  const A = e.act, at = A ? ((__world.time || 0) - A.t0) / A.for : -1;
+  if (!(A && at >= 0 && (at <= 1 || A.is === 'fall'))) { if (A && at > 1) e.act = null; return null; }
+  const c = __actClip(fig, A.is); A.clip = c;
+  const T = A.to && A.is === 'strike' ? __world.byId[A.to] : null;
+  if (T && at <= 1) { const dx = T.transform.pos[0] - e.transform.pos[0], dy = T.transform.pos[1] - e.transform.pos[1], d = Math.hypot(dx, dy) || 1, k = Math.sin(Math.PI * at) * Math.min(1.2, d * 0.4) / d; m.position.x += dx * k; m.position.y += dy * k; }
+  return c ? { mode: c, phase: Math.min(at, 0.999) } : null;
 }
 ` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
@@ -1881,9 +1948,11 @@ function __formMode(fig, e, mode) {
     else ` : ''}m.rotation.set(0, 0, yawA);
   }
   const fig = rig.fig;
-  ${figHasForms ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
-  if (fig.forms) mode = __formMode(fig, e, mode);` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, e.gaitPhase, dt || 0, rig.blendTime);
+  ${figHasForms || acts ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
+  if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
+  const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
+  if (act) mode = act.mode;` : ''}
+  const mix = __CW.advanceGaitMix(rig.mix, mode, ${acts ? 'phase' : 'e.gaitPhase'}, dt || 0, rig.blendTime);
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no
@@ -1993,8 +2062,15 @@ ${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the s
     // then they, and the body, lean, pitch and bounce about the wheelbase's middle
     if (LV && LV.role[bi]) {
       const role = LV.role[bi];
-      if (role === 'steer') __rigQA.premultiply(LV.steer);
-      else {
+${figHasRide ? `      // (a ridden machine's front turns about the steering axis, orbiting the head; then it leans with the rest)
+      const A = LV.rides && role === 'steer' ? LV.at[bi] : null;
+      if (A) {
+        __lvH.set(__rigPA[0] - A[0], __rigPA[1] - A[1], __rigPA[2] - A[2]).applyQuaternion(LV.axisQ);
+        __rigPA[0] = A[0] + __lvH.x; __rigPA[1] = A[1] + __lvH.y; __rigPA[2] = A[2] + __lvH.z;
+        __rigQA.premultiply(LV.axisQ);
+      } else if (role === 'steer') __rigQA.premultiply(LV.steer);
+      if (role !== 'steer' || LV.rides) {` : `      if (role === 'steer') __rigQA.premultiply(LV.steer);
+      else {`}
         if (role === 'wheel') __rigQA.premultiply(LV.wheel);
         else if (role === 'mast') __rigQA.premultiply(LV.mast);
         const P = LV.pivot;
@@ -2100,7 +2176,8 @@ function __syncEntity(e, dt) {
   // menu holds this body hidden (userData.hangarHidden, __showActive): this unconditional
   // per-frame re-show is what superposed every suit at the origin after the respawn work.
   if (!m.visible && !m.userData.hangarHidden${hideId ? ` && e.id !== ${JSON.stringify(hideId)}` : ''}) m.visible = true;${hideId ? `
-  if (e.id === ${JSON.stringify(hideId)}) m.visible = false;   // first person: the eye rides inside this body` : ''}
+  if (e.id === ${JSON.stringify(hideId)}) m.visible = false;   // first person: the eye rides inside this body` : ''}${xr ? `
+  if (__xrCtl && __xrCtl.hides(e)) m.visible = false;   // in the headset: the player stands inside this body` : ''}
   m.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2]);
   // hit flash: a hittable target (invincible) whitens for a beat when a shot lands, then restores.
   if (e.body && e.body.hittable && m.material) {
@@ -2127,10 +2204,11 @@ function __syncEntity(e, dt) {
   const fig = m.userData && m.userData.fig;
   if (fig) {
     m.rotation.set(0, 0, e.transform.heading + fig.yaw);
-    if (!fig.lerpable) {   // mismatched clip topologies → legacy frame snapping
-      const clip = __figClipOf(fig, e, e.moving ? e.locomotion : 'idle');
-      const N = clip.length, ph = ((e.gaitPhase % 1) + 1) % 1;
-      const frame = e.moving ? (Math.floor(ph * N) % N) : 0;
+${acts ? `    const act = __actMode(fig, e, m);
+` : ''}    if (!fig.lerpable) {   // mismatched clip topologies → legacy frame snapping
+      const clip = __figClipOf(fig, e, ${acts ? "act ? act.mode : " : ''}e.moving ? e.locomotion : 'idle');
+      const N = clip.length, ph = ((${acts ? '(act ? act.phase : e.gaitPhase)' : 'e.gaitPhase'} % 1) + 1) % 1;
+      const frame = ${acts ? 'act || ' : ''}e.moving ? (Math.floor(ph * N) % N) : 0;
       const attr = fig.mesh.geometry.getAttribute('position');
       if (attr.array.length === clip[frame].pos.length) {
         attr.array.set(clip[frame].pos); attr.needsUpdate = true;
@@ -2142,8 +2220,8 @@ function __syncEntity(e, dt) {
       }
       return;
     }
-    const mode = e.moving ? e.locomotion : 'idle';
-    const mix = __CW.advanceGaitMix(fig.mix, mode, e.gaitPhase, dt || 0, fig.blendTime);
+    const mode = ${acts ? 'act ? act.mode : ' : ''}e.moving ? e.locomotion : 'idle';
+    const mix = __CW.advanceGaitMix(fig.mix, mode, ${acts ? 'act ? act.phase : ' : ''}e.gaitPhase, dt || 0, fig.blendTime);
     const attr = fig.mesh.geometry.getAttribute('position');
     const out = attr.array;
     out.fill(0);
@@ -2473,7 +2551,8 @@ function __readInput() {
   // a menu is up (events channel): the figure takes nothing — not a key held as it opened, not the pad, not the look.
   // The edges read as held, so the key that picked doesn't jump or interact again when the menu goes.
   if (window.__mojMenuOpen) { __lookDX = 0; __lookDY = 0; __fireDown = false; __prevJump = true; __prevInteract = true; return { ...__CW.ZERO_INPUT }; }
-  const __pad = __pollPad();   // null when no controller (or prefs turned it off)
+  const __pad = ${xr ? '__xrCtl ? __xrCtl.pad() : ' : ''}__pollPad();   // null when no controller (or prefs turned it off)${xr ? `
+  // (in the headset, channels/xr.js: the controllers are the pad, and the read is finished on the body below)` : ''}
   // INTERACT (use / talk) press edge: counted; the events channel sends use-<place> when the figure stands in reach
   const it = __k('interact') || !!(__pad && __pad.interact);
   if (it && !__prevInteract) __interactN++;
@@ -2564,7 +2643,7 @@ function __readInput() {
     lookDX: __lookDX, lookDY: __lookDY,
   };
   __lookDX = 0; __lookDY = 0;
-  return inp;
+  return ${xr ? '__xrCtl ? __xrCtl.input(inp) : ' : ''}inp;
 }
 ${seats ? seatsScript(seats) : ''}// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
 // (otherwise OrbitControls keeps the view — e.g. a clock-driven figure turntable orbited by hand).
@@ -4050,8 +4129,11 @@ function __updateBreaks(dt) {
 ${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
-    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
-    for (const e of __world.entities) __syncEntity(e, dt);${seats ? `
+    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });${tempo ? `
+    const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
+    // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam
+    if (__world.tempo && __world.tempo.playing !== __tmLast) { __tmLast = __world.tempo.playing; if (__tmLast && window.__mojShoot && window.__mojShoot.cue) window.__mojShoot.cue('tempo:' + __tmLast.on); }` : ''}
+    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${seats ? `
     __seatRings();
     __seatStrip();
     __seatsOver();` : ''}
@@ -4059,17 +4141,31 @@ ${hangarHook}  __msHookParams();
     __updateChargeRings();
     __updateProjectiles();
     __updateClashes();
-    __updateThrusters(dt);${figHasJuice ? `
-    __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
-    __updateBreaks(dt);${distort ? `
+    __updateThrusters(${tempo ? 'wdt' : 'dt'});${figHasJuice ? `
+    __updateRacerJuice(${tempo ? 'wdt' : 'dt'});` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
+    __updateBreaks(${tempo ? 'wdt' : 'dt'});${distort ? `
     __updateDents();` : ''}${rupa ? `
     __updateSmoke();` : ''}` : ''}${panelsOn ? `
     __updatePanels();` : ''}${scarsOn ? `
-    __updateScars(dt);` : ''}${groundOn ? `
+    __updateScars(${tempo ? 'wdt' : 'dt'});` : ''}${groundOn ? `
     __updateGround();` : ''}${runner ? `
-    __updateRunner(dt);` : ''}
-  }
-  if (__ctrlOwnsCamera) __driveCamera(dt);
+    __updateRunner(${tempo ? 'wdt' : 'dt'});` : ''}
+  }${acts ? `
+  // (a fight holds the world, but its bodies act and stand where it stages them: a figure with a battle act or a staged
+  // place is drawn on, the rest stand as they were)
+  else if (dt > 0) for (const e of __world.entities) if (e.act || e.staged) __syncEntity(e, dt);` : ''}
+  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}${tempoLook ? `
+  // a moment's look over the world's grade (channels/grade.js), by the moment's weight; its impact frame hard for its
+  // frames as it fires; its zoom aimed at whom it is about, on the screen as the camera now stands
+  if (window.__mojGrade) {
+    const P = __world.tempo && __world.tempo.playing, L = P && P.m.look;
+    if (L) {
+      const hit = L.impact && P.t < L.impact / 60, who = P.who && (__world.byId[P.who.b] || __world.byId[P.who.a]);
+      let at = null;
+      if (who) { camera.updateMatrixWorld(); __tmAt.set(who.transform.pos[0], who.transform.pos[1], who.transform.pos[2] + 1).project(camera); at = [(__tmAt.x + 1) / 2, (__tmAt.y + 1) / 2]; }
+      window.__mojGrade.moment(hit ? { ...L, invert: 1 } : L, hit ? 1 : __CW.tempoWeight(__world), at);
+    } else if (window.__mojGrade.look) window.__mojGrade.moment(null);
+  }` : ''}
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame
   __updateBoostHud();
   __updateRadar();${lock ? '\n  __updateLock();' : ''}
@@ -4078,5 +4174,7 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
+${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
+window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who) };
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}`;
 }

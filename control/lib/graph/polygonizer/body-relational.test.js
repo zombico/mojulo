@@ -9,8 +9,10 @@ import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } from '.
 import { BODY_BUILDS, PHYSIQUES, formSlice, ringSlots, physique, bodyField, limbField, bodyFrame, crossing } from './body-relational.js';
 
 const CASTS = { norrin: 'male', shalla: 'female' };
+// (the landmark plan the realistic form lays its slice on, pectorals and all: its relational head never wears the form
+// body, hero-form.js FORM_BODY, which the landmark adult has worn since laws 21, so the plan is laws 20's)
 const slice = (build) => {
-  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: CASTS[build], hair: 'none', ...(BODY_BUILDS[build].tune ? { tune: BODY_BUILDS[build].tune } : {}) }) });
+  const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: CASTS[build], hair: 'none', laws: 20, ...(BODY_BUILDS[build].tune ? { tune: BODY_BUILDS[build].tune } : {}) }) });
   const R = validateRig(m.recipe.rig);
   return { m, R, ...formSlice(m.recipe, R, build) };
 };

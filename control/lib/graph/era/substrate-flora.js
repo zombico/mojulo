@@ -9,7 +9,10 @@
  *                    `flower:poppy`, `species:reed`, `form:fingers/saguaro`, `shrub`, `patch:puddle`, `stone:strewn`,
  *                    `stone:edge`, `strand:shells`, `rock:stonecrop`, `cut:sand`) or wanted, not yet built (`want:marram`, its read in WANTS)
  *   floraLibrary()   → the library's refs, read off its own registries
- *   measuredShares() → { <substrate>: share } of a level, over the cube presets
+ *   measuredShares({ water }) → { <substrate>: share } of a level, over the cube presets: as they lay (no water), or
+ *                    each cut with `water` (a form, era/out-water.js)
+ *   levelShares()    → { dry, waterside, shares }: the presets dry, by the water a word lays (WATER_LEVELS, averaged),
+ *                    and a level's share, WATERSIDE of the levels by water and the rest dry
  *   floraGaps({ shares }) → { matrix: [{ substrate, role, have, want }], gaps: [{ want, read, substrates, climates, slots,
  *                    fills, score }] (ranked: the ground a kind would cover, by `shares`, its climates, and the empty
  *                    slots it fills), empty
@@ -126,23 +129,39 @@ export function floraLibrary() {
   return refs;
 }
 
+// the water a word lays on a cube (gameworld/compose.js: a lake, a beach, a river), each measured as a level of its own;
+// and the share of the levels a ruler counts as by the water (the rest as the presets lay them, dry)
+export const WATER_LEVELS = Object.freeze(['lake', 'coast', 'river']);
+export const WATERSIDE = 0.5;
+const r4 = (v) => Math.round(v * 1e4) / 1e4;
+
 /**
  * How much of a level each ground covers: its share of a cube's stage land (a trail's, era/substrate-of.js), averaged
  * over the cube presets that have an outside (era/geocube.js GEOCUBE_PRESETS), each read with its own base, grit and
- * formation. → { <substrate>: share }
+ * formation, and cut with `water` when one is named (a form of era/out-water.js). → { <substrate>: share }
  */
-export function measuredShares() {
-  const sums = Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, 0]));
+export function measuredShares({ water = null } = {}) {
+  const sums = Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, 0])), seen = new Map();
   let n = 0;
   for (const cube of Object.values(GEOCUBE_PRESETS)) {
     if (!cube.outside?.base) continue;
-    const skin = cube.outside.land?.skin, S = substrateOf({ kind: 'stage', kit: cube.outside.base, trail: {}, shading: { grit: cube.grit ?? 0.5, ...(skin ? { skin } : {}) } });
-    for (const k of SUBSTRATE_IDS) sums[k] += S.shares[k];
+    // (the ground is read off the base, the formation and the water alone: presets alike in those are read once)
+    const skin = cube.outside.land?.skin, key = `${cube.outside.base}|${skin ?? ''}`;
+    if (!seen.has(key)) seen.set(key, substrateOf({ kind: 'stage', kit: cube.outside.base, trail: water ? { ground: { water: { [water]: true } } } : {}, shading: { grit: cube.grit ?? 0.5, ...(skin ? { skin } : {}) } }).shares);
+    const S = seen.get(key);
+    for (const k of SUBSTRATE_IDS) sums[k] += S[k];
     n++;
   }
-  return Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, n ? Math.round((sums[k] / n) * 1e4) / 1e4 : 0]));
+  return Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, n ? r4(sums[k] / n) : 0]));
 }
-// a ground no preset lays yet still counts this much (a stream's wet bank, a desert's sand)
+/** A level's grounds: the presets dry, by the water (each of WATER_LEVELS, averaged), and WATERSIDE of the one with the
+ *  rest of the other. → { dry, waterside, shares } */
+export function levelShares() {
+  const dry = measuredShares(), each = WATER_LEVELS.map((w) => measuredShares({ water: w }));
+  const waterside = Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, r4(each.reduce((a, S) => a + S[k], 0) / each.length)]));
+  return { dry, waterside, shares: Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, r4(dry[k] * (1 - WATERSIDE) + waterside[k] * WATERSIDE)])) };
+}
+// a ground no level lays yet still counts this much (a desert's sand)
 export const SHARE_FLOOR = 0.02;
 
 /**

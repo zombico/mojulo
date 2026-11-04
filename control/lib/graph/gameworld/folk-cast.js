@@ -10,8 +10,10 @@
  *                                  (the same kit, recipe and seed) is minted once and is the same people; one met in
  *                                  every town (folk.js RECURRING), by their look, so towns that dress them alike share it
  *   placeSidequests(plans)         each of `folk.sidequests` to the first stage whose town holds it (→ the ids none holds)
- *   folkExtra(plan, refOf)         → (ends) → a stage extra (stage-figures.js): figures, entities, their talk and the
- *                                  stage's sidequests (folk/sidequests.js: the journal's quests, their menus, the cues)
+ *   folkExtra(plan, refOf, { shops? }) → (ends) → a stage extra (stage-figures.js): figures, entities, their talk and the
+ *                                  stage's sidequests (folk/sidequests.js: the journal's quests, their menus, the cues);
+ *                                  `shops`: { merchant?, inn?: { id, prompt } } the world's shops kept by the town's own
+ *                                  (its shopkeeper the merchant; the inn a second shopkeeper, else the first house's head)
  *
  * WHERE THEY STAND. By their house (`town-<use>-<n>`, the stage's `townDoors`): a service's first person inside at
  * its room when the house is walked into (the elder on the dais, the master at the work floor), else beside the door;
@@ -25,6 +27,7 @@
  * Pure.
  */
 import { streetLots } from '../era/stage-buildings.js';
+import { withGeocube } from '../era/geocube.js';
 import { folkOfTown, lotKey } from '../folk/folk.js';
 import { folkBodies } from '../folk/bodies.js';
 import { linesFor, speakerOf } from '../folk/lines.js';
@@ -37,6 +40,8 @@ import { fingerprint } from './review.js';
 const r3 = (v) => Math.round(v * 1000) / 1000;
 // beside the door (m): out from the wall, along the frontage, and the step between neighbours
 const OUT = 1.4, ASIDE = 1.6, STEP = 1.1;
+// how far past its room's middle a person kept inside stands (m): behind a counter at the middle
+const BEHIND = 1.1;
 // how near the player stands to talk (m)
 const REACH = 1.6;
 // a walker's pace (m/s): a stroll, the farmhands' own
@@ -45,7 +50,9 @@ const STROLL = 1.4;
 export function stageFolk(G, stage) {
   const ask = G?.characters?.folk, town = stage?.manifest?.town;
   if (!ask || !town) return null;
-  const kit = stage.manifest.kit;
+  // (the kit the street is drawn in: the stage's own, or on a stage a geocube paints the cube's look, as the stage's
+  // builder lowers it (era/stage.js assembleStageScene): the same lots, so the folk stand by the houses drawn)
+  const kit = stage.manifest.kit ?? (stage.manifest.geocube !== undefined ? withGeocube(stage.manifest).kit : undefined);
   const street = streetLots(town, kit, stage.manifest.seed);
   const lots = street.lots.map(({ l }) => l), houseOf = {};
   street.lots.forEach(({ l }, n) => { houseOf[lotKey(l)] = `town-${l.use}-${n + 1}`; });
@@ -76,12 +83,20 @@ export function placeSidequests(plans) {
   return left.map((q) => q.id);
 }
 
-export function folkExtra(plan, refOf) {
+export function folkExtra(plan, refOf, { shops = null } = {}) {
+  // (the town's keepers a world's shops are kept by, battles.js hubCast: its shopkeeper the merchant, the inn a second
+  // shop's keeper, else the head of the first house, letting a bed)
+  const heads = plan.folk.people.filter((p) => !p.parent), useOf = (p) => /^town-([a-z]+)-/.exec(plan.houseOf[p.lot] ?? '')?.[1];
+  const sellers = heads.filter((p) => p.service === 'merchant');
+  const keeps = !shops ? new Map() : new Map([
+    ...(shops.merchant && sellers[0] ? [[sellers[0].path, shops.merchant]] : []),
+    ...(shops.inn ? (() => { const w = sellers[1] ?? heads.find((p) => useOf(p) === 'dwelling'); return w ? [[w.path, shops.inn]] : []; })() : []),
+  ]);
   return (ends) => {
     const doors = new Map((ends.townDoors ?? []).map((d) => [d.id, d]));
     const part = { figures: {}, entities: [] }, menus = [], cues = [];
     const z = (x, y, z0) => { const g = ends.ground?.(x, y); return r3(Number.isFinite(g) ? g : z0); };
-    const bodyOf = new Map(plan.bodies.people.map((p) => [p.path, p.body]));
+    const bodyOf = new Map(plan.bodies.people.map((p) => [p.path, p.body])), idleOf = new Map(plan.bodies.people.map((p) => [p.path, p.idle]));
     // each house's people in turn along its frontage
     const placed = new Map(), stood = new Map();
     for (const p of plan.folk.people) {
@@ -91,8 +106,11 @@ export function folkExtra(plan, refOf) {
       const room = !p.parent && p.service ? roomOf(door, p.room) : null;
       let at, heading;
       if (room) {
-        // inside at its room: the middle of its floor, facing the way in
-        const cx = (room.box.min[0] + room.box.max[0]) / 2, cy = (room.box.min[1] + room.box.max[1]) / 2;
+        // inside at its room: past the middle of its floor away from the way in (behind its counter, where the room has
+        // one at its middle: the town's stock, era/stocking.js), facing the way in
+        const mx = (room.box.min[0] + room.box.max[0]) / 2, my = (room.box.min[1] + room.box.max[1]) / 2, dx = mx - door.at[0], dy = my - door.at[1], dl = Math.hypot(dx, dy) || 1;
+        const back = Math.min(BEHIND, Math.max(0, Math.min(room.box.max[0] - room.box.min[0], room.box.max[1] - room.box.min[1]) / 2 - 0.6));
+        const cx = mx + (dx / dl) * back, cy = my + (dy / dl) * back;
         at = [r3(cx), r3(cy), r3(room.box.min[2])];
         heading = r3(Math.atan2(door.at[1] - cy, door.at[0] - cx));
       } else {
@@ -104,7 +122,10 @@ export function folkExtra(plan, refOf) {
         at = [r3(x), r3(y), z(x, y, door.at[2])];
         heading = r3(Math.atan2(ny, nx));
       }
-      stand(part, id, libraryFigure(refOf(bodyOf.get(p.path))), at, heading);
+      // (as they stand: their own stand held, the shared idle, or crouched at their work; folk/garb.js)
+      const idle = idleOf.get(p.path), fig = libraryFigure(refOf(bodyOf.get(p.path)), { moves: idle === 'own' ? { idle: 'gesture' } : null });
+      if (idle === 'crouch') fig.clips = { ...fig.clips, idle: 'Crouch_Idle_Loop' };
+      stand(part, id, fig, at, heading);
       stood.set(p.path, { id, at, heading, house: door.id });
     }
     if (!part.entities.length) return null;
@@ -137,6 +158,9 @@ export function folkExtra(plan, refOf) {
         continue;
       }
       const own = SQ?.talks[id];
+      // (a keeper of the world's shops: using them opens the shop, or the inn)
+      const sh = keeps.get(p.path);
+      if (sh && !own) { cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: sh.prompt }, then: { emit: `rpg-shop:${sh.id}` } }); continue; }
       if (!own) { cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: 'Talk' }, then: { open: chat } }); continue; }
       // (its use cue opens nothing itself: its `cue:<id>` event is the press the dispatch reads)
       cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: 'Talk' }, then: { emit: `folk-talk:${id}` } }, ...dispatchCues(id, own, chat, `${id}-talk`).cues);

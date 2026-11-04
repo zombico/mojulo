@@ -800,7 +800,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     });
   }
   // (a cavern lays no far layers round it: its rock is all it sees)
-  const ridges = site.cavern ? [] : layerFaces(st, site, dir, SN ? { line: SN.line, base: zLow, seed } : null, WS?.coast ? SEAWARD : null);
+  // (the skirt's clumps' trees, as data, for the form render to grow them, plantItems `skirt`)
+  const skirtTrees = [];
+  const ridges = site.cavern ? [] : layerFaces(st, site, dir, SN ? { line: SN.line, base: zLow, seed } : null, WS?.coast ? SEAWARD : null, skirtTrees);
   if (st.cumulus && !site.cavern) for (const f of cumulusFaces(st, site, dir, !!broken)) cel.push(f);
   // (a gritty polygon land's ground in detail: the path, the turf, the verge across the trail's fringe lanes; the land is
   // the bare ground, then the ribbon's lanes in order, then the rock. A paved trail, era/trail-dress.js `surface`, leans
@@ -912,7 +914,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     // (the form render's read, ctx.form: where each plant stands, as data, for it to grow its own there: form/flora-read.js;
     // world-scene takes it off the payload once read. Any other read: none, every byte as it was)
-    ...(ctx.form ? { plants: plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)) }) } : {}),
+    ...(ctx.form ? { plants: plantItems(st, site, { trees, thickets: TH, shrubs: shr, rocks, avoid: near.filter((a) => !trees.includes(a)), skirt: skirtTrees }) } : {}),
     // (and its dunes as a map, for the form render's sand: era/out-dunes.js duneMap)
     ...(ctx.form && DS ? { dunes: duneMap(site) } : {}),
     // (and its snow as a map, for the form render to lay it over the ground: era/snow.js snowMap)
@@ -1014,7 +1016,7 @@ function glowFaces(faces, Gl, trees, st) {
 // a coast's sea side: the far layers sink into the sea toward it (1 inland, 0 seaward), so the sea runs on to the
 // horizon (out-water.js)
 const SEAWARD = (a) => 1 - smooth(0.02, 0.32, Math.cos(a));
-export function layerFaces(st, site, dir = [0, 0, 1], snow = null, seaward = null) {
+export function layerFaces(st, site, dir = [0, 0, 1], snow = null, seaward = null, skirt = null) {
   const out = [], c = [site.W / 2, site.D / 2], base = Math.hypot(site.W, site.D) / 2, far = st.palette.far;
   const hexOf = (stop) => rgbHex(stop.map((v) => v / 255));
   // where a ray from the centre leaves the site's ground (the landform grid's rectangle), a little inside it
@@ -1060,6 +1062,8 @@ export function layerFaces(st, site, dir = [0, 0, 1], snow = null, seaward = nul
         for (let ti = 0; ti < m; ti++) {
           const kk = k0 + (h(10 + ti) - 0.5) * Cl.spread, t = mix(Cl.band[0], Cl.band[1], h(30 + ti)), foot = pt(kk, t), r = mix(Cl.size[0], Cl.size[1], h(50 + ti));
           if (seaward && seaward((2 * Math.PI * kk) / n) < 0.5) continue;
+          // (each tree as data too: its foot and its crown's reach, the blobs' widest; `skirt`, when asked)
+          if (skirt) skirt.push({ x: r5(foot[0]), y: r5(foot[1]), z: r5(foot[2]), r: r5(r * 0.9), cluster: ci });
           for (const b of [[0, 0, 1.1], [0.45, 0.2, 0.75], [-0.4, -0.25, 0.8]]) for (const tri of blobTris([foot[0] + b[0] * r, foot[1] + b[1] * r, foot[2] + r * 0.45 * b[2]], [r * b[2] * 0.6, r * b[2] * 0.6, r * b[2] * 0.5], null)) {
             const cs = tri.p.map(P), nn = facetN(cs, [cs[0][0] - foot[0], cs[0][1] - foot[1], cs[0][2] - foot[2] - r * 0.6]);
             // (in a bare season the far woods are their wood, the bark's stops: a grey-brown haze of limbs)
@@ -1357,7 +1361,8 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
  * WHERE THE PLANTS STAND, as data (the form render's: it grows its own plants there, form/flora-read.js): the trees, each
  * at its foot with its height, its kind (the index into the card's `trees.leafKinds`, picked as treeKind picks it but on
  * any land; -1 none), the hero, its band by the trail and its cluster; the thicket bushes with their kind; the shrubs
- * with their season. `form` the card's tree form (a blob's or a leaf form's crowns, bamboo, blossom); `kinds` and
+ * with their season; the trees of the skirt's clumps past the level (`skirt`: each its foot, its crown's reach, its
+ * kind). `form` the card's tree form (a blob's or a leaf form's crowns, bamboo, blossom); `kinds` and
  * `bushKinds` the card's tree and bush kinds the indices name.
  */
 /** The ground each thing on a trail claims in the form render (gen-7), where no grass grows, no ground stone lies and no
@@ -1370,7 +1375,9 @@ export function allotClaims(st, { rocks = [], trees = [], avoid = [] }) {
   return [...rocks.filter((r) => r.role !== 'pebble').map((r) => [r.x, r.y, r.size * unit * ALLOT.rock]), ...trees.map((t) => [t.x, t.y, ALLOT.trunk]),
     ...avoid.map((a) => [a.x, a.y, a.clearR ?? ALLOT.stem])].map((c) => c.map(r5));
 }
-export function plantItems(st, site, { trees, thickets, shrubs, rocks = [], avoid = [] }) {
+/** The skirt's clumps' kinds are picked as a trail's clusters' are, numbered past them. */
+const SKIRT_CLUSTER = 1000;
+export function plantItems(st, site, { trees, thickets, shrubs, rocks = [], avoid = [], skirt = [] }) {
   const T = st.trees, z = (x, y) => r5(site.ground(x, y) - 0.15);
   const kindOf = (t) => (!T.leafKinds ? -1 : t.kindIx !== undefined ? t.kindIx : T.leafClump && t.role && T.leafClump[t.role] !== undefined ? T.leafClump[t.role] : pickByShare(T.leafKinds, hash3(t.cluster ?? 0, 13, 4127)));
   return {
@@ -1378,6 +1385,9 @@ export function plantItems(st, site, { trees, thickets, shrubs, rocks = [], avoi
     trees: trees.map((t) => ({ x: r5(t.x), y: r5(t.y), z: z(t.x, t.y), h: r5(t.h), kind: kindOf(t), cluster: t.cluster ?? 0, ...(t.v !== undefined ? { v: t.v } : {}), ...(t.hero ? { hero: true } : {}), ...(t.band ? { band: t.band } : {}) })),
     bushes: (thickets?.items ?? []).map((b) => ({ x: r5(b.x), y: r5(b.y), z: z(b.x, b.y), h: r5(b.h), kind: b.bushIx, ...(b.soft ? { soft: true } : {}) })),
     shrubs: (shrubs?.elements ?? []).map((e, i) => ({ x: r5(e.x), y: r5(e.y), z: r5(e.z), h: r5(shrubs.anchors[i].height), state: e.state, ...(e.soft ? { soft: true } : {}) })),
+    // (the trees of the skirt's clumps, the far layers' (layerFaces): each its foot, its crown's reach and its kind, grown
+    // as the level's trees are and never walked among; a bamboo or a blossom card keeps its painted clumps)
+    ...(skirt.length && T.form !== 'bamboo' && T.form !== 'blossom' ? { skirt: skirt.map((s) => ({ x: s.x, y: s.y, z: s.z, r: s.r, kind: kindOf({ cluster: SKIRT_CLUSTER + s.cluster }) })) } : {}),
     // (the ground they claim, ALLOT: the land read keeps its grass and its stones off it)
     clear: allotClaims(st, { rocks, trees, avoid }),
   };

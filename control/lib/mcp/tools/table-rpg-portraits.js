@@ -182,18 +182,21 @@ async function photograph(sketch, paper, body = 'person') {
   return out;
 }
 
-async function shoot(characterRef, paper, body) {
-  const row = SketchRepository.getByRef(characterRef);
-  if (!row) throw new Error(`no character '${characterRef}'`);
-  const key = `${row.ref}:${row.updatedAt}:${paper}`;
+async function shoot(characterRef, paper, body, pose = null) {
+  const row0 = SketchRepository.getByRef(characterRef);
+  if (!row0) throw new Error(`no character '${characterRef}'`);
+  // (a showcase pose for the photograph alone, hero-gesture.js asShowcase: the row as made is never changed)
+  const row = pose ? { ...row0, manifest: (await import('@/lib/graph/polygonizer/hero-gesture.js')).asShowcase(row0.manifest, pose) } : row0;
+  const key = `${row.ref}:${row.updatedAt}:${paper}${pose ? `:${pose}` : ''}`;
   if (!PHOTOS.has(key)) { const shot = photograph(row, paper, body); PHOTOS.set(key, shot); shot.catch(() => PHOTOS.delete(key)); }
   return PHOTOS.get(key);
 }
 
 /** One made character photographed as the book's are: { figure, bust } image data URIs, kept per its revision and the
- * paper. `body` 'beast' | 'mascot' | 'object' frames it so; absent, a figure standing. Throws when it cannot (no such
+ * paper. `body` 'beast' | 'mascot' | 'object' frames it so; absent, a figure standing. `pose` a showcase word it strikes
+ * for the photograph (hero-gesture.js asShowcase; a hero-door character only), the row as made. Throws when it cannot (no such
  * character, no body, no browser). The cast sheet's foes are photographed by it (foe-portraits.js). */
-export const photographCharacter = (ref, { paper = '#ffffff', body } = {}) => shoot(ref, paper, body);
+export const photographCharacter = (ref, { paper = '#ffffff', body, pose } = {}) => shoot(ref, paper, body, pose);
 
 export async function tableRpgPortraits(manifest, { paper = '#ffffff' } = {}) {
   const { module } = readTableRpg(manifest.tableRpg);

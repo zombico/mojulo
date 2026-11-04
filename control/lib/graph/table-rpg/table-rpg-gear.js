@@ -19,7 +19,7 @@
  *     foes' style
  *   WEAPON_GEAR, ROLE_ARMS
  */
-import { validateBuild, isFirearm } from '../equipment/expand.js';
+import { validateBuild, EQUIPMENT_ITEMS } from '../equipment/expand.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const BUILD_KEYS = ['item', 'style', 'dials', 'parts', 'gem', 'seed'];
@@ -41,8 +41,9 @@ export const ROLE_ARMS = Object.freeze({
   support: { right: { item: 'staff', parts: { head: 'mace' } }, left: { item: 'shield' } }, 'non-combatant': null,
 });
 
-// a build in the given style, unless it names its own; a firearm wears its own family's styles (service, future)
-const styled = (build, style) => (build.style !== undefined || isFirearm(build.item) || style === undefined ? build : { ...build, style });
+// a build in the given style, unless it names its own; a firearm or an arm wears its own family's looks (firearm.js,
+// arms/finishes.js), never a blade style
+const styled = (build, style) => (build.style !== undefined || !EQUIPMENT_ITEMS.includes(build.item) || style === undefined ? build : { ...build, style });
 
 export function readGear(module) {
   const G = module.gear;

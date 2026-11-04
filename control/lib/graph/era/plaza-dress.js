@@ -13,6 +13,7 @@
 import { hash3, vnoise, walkLine } from './dirt.js';
 import { P, r5, card as cardRaw, box, wallFrame, lathe } from './geom.js';
 import { sunDir } from './sun.js';
+import { AWNING_CLEAR } from './headroom.js';
 import { plazaNight } from './plaza-night.js';
 import { plazaPortico, plazaObelisks, plazaQuoins, plazaSkyline } from './piazza.js';
 import './leaf-cards.js';
@@ -105,7 +106,8 @@ export function plazaCutouts(plan, houses) {
       card(at(h.F, w.c, Fl.box[0] * 0.55, z + 0.06), h.F.U, [0, 0, 1], 2 * w.hw + 0.5, Fl.h, 'card:flowers', Fl.tint, 'stage:flowers', h.F);
     }
     if (dress.includes('awning')) {
-      const A = D.awning, zt = h.door.top + A.over, hem = at(h.F, h.door.mid, A.out, zt - A.drop), top = at(h.F, h.door.mid, 0.02, zt);
+      // (its hem clears the base model by half a body, era/headroom.js: lifted off the door's head where it would not)
+      const A = D.awning, zt = Math.max(h.door.top + A.over, AWNING_CLEAR + A.drop), hem = at(h.F, h.door.mid, A.out, zt - A.drop), top = at(h.F, h.door.mid, 0.02, zt);
       const up = unit([top[0] - hem[0], top[1] - hem[1], top[2] - hem[2]]), len = Math.hypot(A.out, A.drop);
       // the hem sits a fifth of the way up the painted card: start the card that far below the hem
       card([hem[0] - up[0] * len * 0.25, hem[1] - up[1] * len * 0.25, hem[2] - up[2] * len * 0.25], h.F.U, up, 2 * h.door.dw + 0.7, len * 1.25, 'card:awning', A.tint, 'stage:awning', h.F);
