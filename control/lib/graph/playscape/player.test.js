@@ -35,7 +35,7 @@ describe('the move set', () => {
     expect(() => playerStates(['idle'], 'mixamo')).toThrow(/no states for the library/);
   });
 
-  it('on a library she walks the library\'s walk under the stick and runs its jog with F; her own gaits play without one', () => {
+  it('on a library she runs the library\'s jog and walks its walk; her own gaits play without one', () => {
     const s = playerStates(['idle', 'walk', 'jog'], 'quaternius-ual', ['walk', 'jog']);
     expect(s).toMatchObject({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop', strafe: 'Jog_Fwd_Loop', turn: 'Walk_Loop', idle: 'Idle_Loop', leap: 'Jump_Loop' });
     // the pilot walks at the library walk's pace and runs at the game's speed, each over its own cycle's length
@@ -97,16 +97,25 @@ describe('the course, driven', () => {
   };
   const ground = (w) => (pos) => groundOf(w.colliders)(pos);
 
-  it('W walks her forward in the walk state, F held runs her in the run state; still, she idles', () => {
-    const { w, m } = world();
-    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1 }, 1 / 60, { ground: ground(w) });
-    expect(w.byId.p.locomotion).toBe('walk');
-    const walked = w.byId.p.transform.pos[1] + 4;
-    expect(walked).toBeCloseTo(m.entities[0].rule.walkSpeed, 1);
-    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1, boost: 1 }, 1 / 60, { ground: ground(w) });
+  it('W runs her in the run state; Z held walks her; a pad\'s stick walks tilted and runs pushed; F is no boost', () => {
+    // (each pace on a fresh course, a second from its start: the first block stands 8 m on)
+    let w;
+    const { m } = world(), R = m.entities[0].rule, y = () => w.byId.p.transform.pos[1];
+    const go = (input, n = 60) => { ({ w } = world()); const y0 = y(); for (let i = 0; i < n; i++) stepWorld(w, input, 1 / 60, { ground: ground(w) }); return y() - y0; };
+    // a key is the stick's full travel: the run, at the game's speed
+    expect(go({ forward: 1 })).toBeCloseTo(R.speed, 1);
     expect(w.byId.p.locomotion).toBe('forward');
-    // F is the run at the game's speed: never the boost's flight pose, its thrust or its three and a half times
-    expect(w.byId.p.transform.pos[1] + 4 - walked).toBeCloseTo(m.entities[0].rule.speed, 1);
+    // the walk key held: the walk, at its own pace
+    expect(go({ forward: 1, walk: 1 })).toBeCloseTo(R.walkSpeed, 1);
+    expect(w.byId.p.locomotion).toBe('walk');
+    // a pad's stick: tilted half way to the run's threshold, half the walk; past it, a run that meets the walk there
+    expect(go({ forward: 0.3 })).toBeCloseTo(R.walkSpeed * 0.5, 1);
+    expect(w.byId.p.locomotion).toBe('walk');
+    expect(go({ forward: 0.8 })).toBeCloseTo(R.walkSpeed + (R.speed - R.walkSpeed) * 0.5, 1);
+    expect(w.byId.p.locomotion).toBe('forward');
+    // F is nothing of a person's: the run as it was, never the boost's flight pose, its thrust or its three and a half times
+    expect(go({ forward: 1, boost: 1 })).toBeCloseTo(R.speed, 1);
+    expect(w.byId.p.locomotion).toBe('forward');
     expect(w.byId.p.boosting).toBe(false);
     expect(w.byId.p.thrust).toBe(0);
     for (let i = 0; i < 30; i++) stepWorld(w, {}, 1 / 60, { ground: ground(w) });
@@ -130,10 +139,10 @@ describe('the course, driven', () => {
   it('the first hop-up block is a jump onto, not a walk onto', () => {
     const { w } = world();
     // run into it: stopped at its face
-    for (let i = 0; i < 180; i++) stepWorld(w, { forward: 1, boost: 1 }, 1 / 60, { ground: ground(w) });
+    for (let i = 0; i < 180; i++) stepWorld(w, { forward: 1 }, 1 / 60, { ground: ground(w) });
     expect(w.byId.p.transform.pos[1]).toBeLessThan(4);
     // jump while running: she lands on it
-    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1, boost: 1, jump: i === 0 ? 1 : 0, jumpHeld: i < 20 ? 1 : 0 }, 1 / 60, { ground: ground(w) });
+    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1, jump: i === 0 ? 1 : 0, jumpHeld: i < 20 ? 1 : 0 }, 1 / 60, { ground: ground(w) });
     expect(w.byId.p.transform.pos[2]).toBeGreaterThanOrEqual(0.44);
   });
 

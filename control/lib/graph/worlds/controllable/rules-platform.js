@@ -37,13 +37,13 @@ export function buildRulesPlatform(E) {
 
   function platform(e, input, dt, world) {
     const r = e.rule;
-    // A PERSON WALKS AND RUNS (opt-in `walkSpeed`, a hero's: playscape/player.js): no thrusters. The stick walks at
-    // `walkSpeed`, playing the `walk` clip over `walkStride`; F held runs at `speed` (the game's run), building and
-    // shedding at `accel` like any move, playing `forward` over `stride`. F is the run, never a boost: no flight pose
-    // skating the ground, no thrust, no gauge. A rule whose F is its gear's (`gear`) or a space suit keeps the boost.
-    // Absent → the boost below, byte-identical.
-    const walker = r.walkSpeed > 0 && r.space !== true && !r.gear, running = walker && !!input.boost;
-    const speed = walker && !running ? r.walkSpeed : (r.speed ?? 6), turnRate = r.turn ?? 2.4, strafe = r.strafe ?? 1, eye = r.eye ?? 0;
+    // A PERSON WALKS AND RUNS (opt-in `walkSpeed`, a hero's: playscape/player.js): no thrusters, so F is nothing of its
+    // own. The stick's travel is the pace (below, once the stick is read): a key, full travel, runs at `speed`; a pad's
+    // stick walks under `runAt` of its travel and runs past it; the walk key held (`input.walk`) walks. A rule whose F is
+    // its gear's (`gear`) or a space suit keeps the boost. Absent → the boost below, byte-identical.
+    const walker = r.walkSpeed > 0 && r.space !== true && !r.gear;
+    let speed = r.speed ?? 6;
+    const turnRate = r.turn ?? 2.4, strafe = r.strafe ?? 1, eye = r.eye ?? 0;
     const boostSpeed = r.boostSpeed ?? speed * 3.5;
     const riseG = r.gravity ?? 20, fallG = r.fallGravity ?? riseG * 1.7;         // asymmetric: snappier fall
     const jumpV = r.jumpSpeed ?? 8.5, maxFall = r.maxFall ?? 26, snap = r.snap ?? 0.15, step = r.step ?? 0.35;
@@ -152,6 +152,17 @@ export function buildRulesPlatform(E) {
     const sideIn = worldMove ? 0 : clamp(input.strafe + (lookMode ? input.turn : 0), -1, 1);
     const wmH = worldMove && wmMag > 1e-3 ? Math.atan2(wmY, wmX) : null;
     const f = fwdXY(wmH ?? t.heading), rt = rightXY(wmH ?? t.heading), ctl = e.grounded ? 1 : air;
+    // A PERSON'S PACE (`walkSpeed`): the stick's travel, 0 to 1. Under `runAt` (0.6) a pad's stick WALKS, its pace rising
+    // with the push to `walkSpeed` (the `walk` clip over `walkStride`); past it the body RUNS, from `walkSpeed` up to the
+    // run's `speed` at full travel (`forward` over `stride`), the two meeting where the stick crosses. A key is full
+    // travel: W runs. The walk key held (`input.walk`) caps the pace at the walk's. `speed` becomes the scale that turns
+    // the stick's travel into that pace, so every reader below (the drive, the step, the air) moves at it.
+    const travel = walker ? Math.min(1, Math.hypot(fwdIn, sideIn)) : 0, runAt = r.runAt ?? 0.6;
+    const walking = walker && travel > 1e-6 && (!!input.walk || travel < runAt);
+    if (walker && travel > 1e-6) {
+      const pace = walking ? r.walkSpeed * Math.min(1, travel / runAt) : r.walkSpeed + (speed - r.walkSpeed) * (travel - runAt) / (1 - runAt);
+      speed = pace / travel;
+    }
 
     // jump — two opt-in shapes on top of the default snappy launch:
     // `jumpWindup` (seconds) inserts a brief SQUAT between press and launch;
@@ -490,7 +501,7 @@ export function buildRulesPlatform(E) {
       e.gaitPhase = (e.gaitPhase || 0) + turnAmt / (r.turnStride ?? 0.6);
       e.moving = true;
     }
-    else if (walker && !running) {
+    else if (walking) {
       // a person walking (`walkSpeed`): the walk plays whichever way the step goes, its phase by the step's length
       const lead = Math.abs(sideMove) > Math.abs(fwdMove) ? sideMove : fwdMove;
       e.locomotion = 'walk'; e.gaitPhase = (e.gaitPhase || 0) + lead / (r.walkStride ?? strideLen); e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6;

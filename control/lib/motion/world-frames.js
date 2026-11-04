@@ -224,8 +224,7 @@ function climbLeg(s, b) {
     if (held && !ent.climbing && ent.grounded !== false && p[2] >= C.top - 0.5) return { ticks, arrived: true, at: p.slice() };
     const diff = wrapA(Math.atan2(C.face[1] - p[1], C.face[0] - p[0]) - ent.transform.heading);
     const turn = ent.climbing ? 0 : Math.max(-1, Math.min(1, diff * 2 * sign));
-    // (a person that walks and runs, the platform rule's walkSpeed, runs at the surface, F held, as its walk legs do)
-    const input = { forward: ent.climbing || Math.abs(diff) < 0.6 ? 1 : 0.15, turn, ...(ent.rule && ent.rule.walkSpeed > 0 ? { boost: 1 } : {}) };
+    const input = { forward: ent.climbing || Math.abs(diff) < 0.6 ? 1 : 0.15, turn };
     const h0 = ent.transform.heading;
     cap[b.step]({ dt: s.dt, input });
     ticks.push(input);

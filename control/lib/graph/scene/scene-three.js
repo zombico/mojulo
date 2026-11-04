@@ -1757,8 +1757,7 @@ if (_capture) {
         const turn = Math.max(-1, Math.min(1, diff * 2 * sign));
         const forward = Math.abs(diff) > 1.2 ? 0.15 : 1;      // face the target before committing speed
         const h0 = ent.transform.heading;
-        // (a person that walks and runs, the platform rule's walkSpeed: the route is run, F held, at the game's speed)
-        const input = ent.rule && ent.rule.walkSpeed > 0 ? { forward, turn, boost: 1 } : { forward, turn };
+        const input = { forward, turn };
         this.${CAPTURE_STEP}({ dt, input });
         ticks.push(input);
         if (!signLocked && Math.abs(turn) > 0.05) {

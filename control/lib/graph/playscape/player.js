@@ -11,16 +11,16 @@
  *   LIBRARY_STATES          per library, runtime state → library clip (a jog, an idle, the jump's start and loop)
  *   PLAYER_CLIPS            the clips the move set adds, in the hero door's pose words (validated by the rig at mint)
  *   playerHero(spec)        the hero's spec with the move set's clips beside its own (its own win on a name clash)
- *   playerStates(clips, library?, gaits?)  runtime state → clip: the library's where it has one (its walk under the
- *                           stick, its jog the run under F, its idle and jump), else the hero's own clips (forward jogs,
+ *   playerStates(clips, library?, gaits?)  runtime state → clip: the library's where it has one (its walk, its jog the
+ *                           run, its idle and jump), else the hero's own clips (forward jogs,
  *                           runs or walks, idle idles relaxed, leap and boost the jump's flight, squat)
- *   HERO_WALK_RUN           the legend's words for a hero that walks and runs: W / S walk · F run
+ *   HERO_WALK_RUN           the legend's words for a hero that walks and runs: W / S run · Z walk
  *   playerWorld({ hero, heroRef, gaits?, id?, library?, level?, controls?, title?, pilot?, walk? })
  *                           a controllable world manifest: the hero as the pilot (the platform rule: WASD and Space),
  *                           a follow camera, a test course, and the controls as a `legend` idiom on the HUD; `pilot` a
  *                           mascot's measures (egocube/mascot-pilot.js): its own clips, its capsule, stride and camera;
- *                           a hero on a library walks under the stick and runs with F held (`walk: false`: it runs, as a
- *                           lane or a runner wants)
+ *                           a hero on a library runs, and walks with Z held or a pad's stick tilted (`walk: false`: it
+ *                           only runs, as a lane or a runner wants)
  *
  * The figures map takes the hero inline (`hero`) or stored (`heroRef`, world-scene.js), so the same manifest plays a
  * hero minted once at the door.
@@ -52,7 +52,7 @@ export function playerHero(spec) {
 export const LIBRARY_STATES = Object.freeze({
   'quaternius-ual': Object.freeze({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop', idle: 'Idle_Loop', leap: 'Jump_Loop', boost: 'Jump_Loop', squat: 'Jump_Start', turn: 'Walk_Loop', strafe: 'Jog_Fwd_Loop' }),
 });
-// per library, the run (F held: `forward`) and the walk (the stick: `walk`), each its speed and its cycle's length at
+// per library, the run (`forward`) and the walk (`walk`), each its speed and its cycle's length at
 // that speed, the stride that keeps the feet on the ground. The walk's: the library's Walk_Loop covers about 2 m a
 // cycle (its hip swing, scaled as the jog's measured 3.3 m), so at 1.6 m/s it plays a little over its own tempo.
 const LIBRARY_STRIDE = { 'quaternius-ual': { speed: 3.6, stride: 3.3 } };
@@ -61,16 +61,17 @@ const LIBRARY_WALK = { 'quaternius-ual': { speed: 1.6, stride: 2 } };
  *  canonical adult heroes (male and female, landmark and anime, within 2 cm; the child build's within 3): the stride the
  *  platform rule needs to keep their feet planted. A jog is 2.45 m/s by its own clock; at a game's run speed it plays
  *  faster, never sliding. */
-/** The legend's words for a hero on a library: the stick walks, F held runs (the platform rule's `walkSpeed`). */
-export const HERO_WALK_RUN = 'W / S  walk · F  run';
+/** The legend's words for a hero on a library: the keys run, Z held walks (the platform rule's `walkSpeed`; a pad's
+ *  stick walks tilted and runs pushed). */
+export const HERO_WALK_RUN = 'W / S  run · Z  walk';
 export const HERO_GAIT_STRIDE = Object.freeze({ jog: 1.72, walk: 1.14 });
 
 /**
  * Which clip plays each runtime state. Without a library, the hero's own by the clips it has (forward jogs, runs or
  * walks, idle idles relaxed, leap and boost hold the jump's flight, squat winds up; stagger, topple and getup its
  * reactions, a cast member's moves), its own door GAITS (`gaits`: its calibrated `jog` and `walk`, hero-motion.js) among
- * them. With one, the library's where it names one: its walk under the stick, its jog under F (the run), its idle and
- * its jump; the hero's own clips fill the states the library does not name (its reactions).
+ * them. With one, the library's where it names one: its walk (Z held, a pad's stick tilted), its jog (the run), its
+ * idle and its jump; the hero's own clips fill the states the library does not name (its reactions).
  */
 export function playerStates(clipNames, library = null, gaits = []) {
   const has = new Set(clipNames), pick = (...xs) => xs.find((x) => has.has(x));
@@ -148,8 +149,9 @@ export function playerWorld({ hero, heroRef, gaits, id = 'hero', library: lib = 
   // the game's run speed stands; the stride is the clip forward plays, so its feet keep pace with the ground
   const base = (library && LIBRARY_STRIDE[library]) || { speed: 4, stride: 3.2 };
   const pace = pilot ? { speed: base.speed, stride: pilot.rule.stride } : HERO_GAIT_STRIDE[states.forward] ? { speed: base.speed, stride: HERO_GAIT_STRIDE[states.forward] } : base;
-  // a hero on a library WALKS under the stick and RUNS with F held (the platform rule's `walkSpeed`): the library's walk
-  // at its own pace, the run at the game's speed (a mascot keeps its own clips and runs)
+  // a hero on a library RUNS on the keys and WALKS with Z held, and on a pad walks with the stick tilted and runs with it
+  // pushed (the platform rule's `walkSpeed`): the library's walk at its own pace, the run at the game's speed (a mascot
+  // keeps its own clips and runs)
   const walk = walks && !pilot && library && LIBRARY_WALK[library] && states.walk === LIBRARY_STATES[library].walk ? LIBRARY_WALK[library] : null;
   const L = level || testCourse();
   const ground = { size: 40, cell: 2, colorA: '#8a8c90', colorB: '#94969a' };
