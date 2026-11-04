@@ -29,6 +29,7 @@ import { planAssembler } from '@/lib/graph/worlds/workbench-assembler';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import { captureCharacter } from '@/lib/mcp/tools/character-capture';
+import { withCaptureViews } from '@/lib/mcp/tools/character-views';
 import {
   REFERENCE_TARGETS,
   DEFAULT_FIDELITY,
@@ -361,6 +362,7 @@ export function registerVisualReferenceTools() {
         replace: { type: 'boolean', description: 'object only — with `stash_ref`, skip FUSION and treat this read as a fresh full authoring.' },
       },
     },
-    handler: captureReferenceHandler,
+    // a character's capture answers with the hero drawn at the picture's view (character-views.js)
+    handler: withCaptureViews(captureReferenceHandler),
   });
 }

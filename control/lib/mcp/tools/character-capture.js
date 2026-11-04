@@ -72,7 +72,7 @@ export async function captureCharacter({ insights, fidelity, label, title, stash
     return {
       ...out,
       stash_ref: stash.stashRef, item_id: item.id, target: TARGET, fidelity, passes: 1, ...said(L),
-      next: `Set the hero beside the picture (${out.worldUrl ?? `/api/sketches/${out.ref}/world`}): judge the silhouette and the read at a normal distance, then move ONE word with update_character({ ref: '${out.ref}', spec: { <a word> } }). Tell the person the look, the register and why, the likeness verdict, what is unseen and the gaps. A second picture refines it: capture_reference({ target: 'character', stash_ref: '${stash.stashRef}', insights }) moves only the words they have not changed.`,
+      next: `Set the hero beside the picture (the views drawn after this answer, or its World page ${out.worldUrl ?? `/api/sketches/${out.ref}/world`}): judge the silhouette and the read at a normal distance, then move ONE word with update_character({ ref: '${out.ref}', spec: { <a word> } }). Tell the person the look, the register and why, the likeness verdict, what is unseen and the gaps. A second picture refines it: capture_reference({ target: 'character', stash_ref: '${stash.stashRef}', insights }) moves only the words they have not changed.`,
     };
   }
 

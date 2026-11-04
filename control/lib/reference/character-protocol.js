@@ -69,6 +69,11 @@ export const CHARACTER_PROTOCOL = Object.freeze({
     "A second picture (the back, a turnaround, a close-up of the face or a costume detail) refines the read by word, never the words the person has already changed by hand.",
   capture_call:
     "capture_reference({ target: 'character', fidelity, insights: { look, register, chosen, thesis, likeness, view, unseen, gaps, words }, title?, stash_ref? }) — it mints the hero through the hero door (the look's words, your words, the register, the likeness stamp) and files the read; then tell the person your thesis, the look and register and why, the likeness verdict, the unseen and the gaps.",
+  compare: [
+    "The capture answers with the hero DRAWN at your read's view (front, three-quarter, side or back; a turnaround as front, side and back), and from the back when `unseen` names it: one image per view after the answer. update_character on the hero answers the same way. Without a browser on this machine (none is fetched for this) it says so and gives the World page instead.",
+    "Set each drawing beside the picture and judge the silhouette and the read at a normal distance, not the paint: the outline, the proportions, the hair shape, the palette and the hook.",
+    "Move ONE word, then look again. Stop when it reads as the character, or after three moves unless the person asks for more (fidelity 'faithful' runs until nothing moves).",
+  ],
   next:
     "Sculpt from there with update_character({ ref, spec: { <a word> } }): one word at a time, the person's words over the picture's.",
 });
