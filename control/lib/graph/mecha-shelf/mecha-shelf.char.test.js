@@ -33,6 +33,9 @@
  *     payloads and their spares, its tail's base, segments and head), and a frame carrying it whole; no other pin moved.
  *   - The rover walker (unreleased): its wheeled shank and ankle, its wheel and the autocannon pinned as builder paths, and
  *     the frame whole walking and collapsed onto its wheels; no other pin moved.
+ *   - The rover walker drawn larger, its own legs at 1.35, its armoured cabin as built, its shanks' skirts, its wheels an
+ *     armoured car's, its legs plumb collapsed: its wheeled shank and ankle, its wheel and the frame re-pinned; a cabin
+ *     stays homed on the frame that offers it, so the cabin's pin did not move; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -116,10 +119,10 @@ const PINS = {
   'tailbase-wpn': '65d91d9041a4821f',
   'tailhead-wpn': 'ffcc4b825324ca65',
   'tailseg1-wpn': 'bf0642359af46d10',
-  'ankle-rw': '61f347db4e0b676d',
+  'ankle-rw': '125a36f10a4253cc',
   'cannon-wpn': 'e14843f6b23224d6',
-  'shank-rw': 'c597572aca08af63',
-  'wheel-rw': 'f12d4191ccd383ab',
+  'shank-rw': '1cd7c0dfc095c3c1',
+  'wheel-rw': '4ae279b99a3cd708',
 };
 const LEFT = 'c9882af91b6cf973';
 const ROD = 'bcfdb3e1621e0b1a';
@@ -131,7 +134,7 @@ const HOUSE = '22d1c303d8f1b5ad';
 const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
-const ROVER = ['82e21510cbc53119', '33f6c210ec063ccf'];
+const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');
 

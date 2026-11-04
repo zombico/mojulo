@@ -312,13 +312,22 @@ const BACKPACK = {
 // until the shanks lie level, both wheels on the ground, the feet folded up ahead as fenders. Its knees are rotary drives,
 // not rams: a ram's stroke cannot fold a knee that far. Its shanks are longer, a four-wheeler's wheelbase, their ankle
 // rams with them; each wheel on its hub motor, the pair each side skid-steered)
-const RW = 'rover walker';
+const RW = 'rover walker', KR = 1.35;
+// (drawn larger than the field walker, 1.35 times the walker's designs: collapsed, a small armoured car, not an armed
+// quad; its wheels a light armoured car's; its shanks a wheelbase long; each shank's skirt over the top of its wheels
+// and between them, the hull's lower side when it rolls; its rams bored up for its weight)
 const ROVER = {
-  'shank-rw': dressed(S('shank-atw', KF, 'rover walker shank', RW, ['wheeled shank', 'rover shank', 'folding knee'], { length: 0.75, stop: [5, 165], torque: 6000 }), 'wheeled', { wheel: [0.26, 0, 0] }),
-  'ankle-rw': dressed(S('ankle-atw', KF, 'rover walker ankle cross', RW, ['wheeled ankle', 'rover ankle']), 'wheeled', { wheel: [0.26, 0, 0] }),
-  'foot-rw': dressed(S('foot-atw', 1.5, 'rover walker foot', RW, ['rover foot', 'fender foot'], { sole: 0.39 }), 'lugged'),
-  'ram-ankle-rw': S('ram-ankle-atw', KF, 'rover walker ankle ram', RW, ['rover ankle ram'], { closed: Math.round((BASE['ram-ankle-atw'].dims.closed * KF + 0.174) * 1000) / 1000, stroke: Math.round((BASE['ram-ankle-atw'].dims.stroke * KF + 0.035) * 1000) / 1000 }),
-  'wheel-rw': R('mecha-wheel', 'rover walker wheel', RW, { r: 0.25, width: 0.2, rim: 0.15, lugs: 18 }, 22, { family: 'atv' }, ['atv wheel', 'quad wheel', 'walker wheel', 'knobby tyre', 'knobby tire', 'hub motor']),
+  'pelvis-rw': dressed(S('pelvis-atw', KR, 'rover walker pelvis', RW, ['rover pelvis', 'rover belly plate']), 'armoured'),
+  'hip-rw': S('hip-atw', KR, 'rover walker hip yaw housing', RW, ['rover hip'], { torque: 3000 }),
+  'yoke-rw': S('yoke-atw', KR, 'rover walker hip roll yoke', RW, ['rover yoke']),
+  'thigh-rw': dressed(S('thigh-atw', KR, 'rover walker thigh', RW, ['rover thigh']), 'guarded'),
+  'shank-rw': dressed(S('shank-atw', KR, 'rover walker shank', RW, ['wheeled shank', 'rover shank', 'folding knee', 'side skirt', 'wheel skirt'], { length: 0.95, stop: [5, 165], torque: 12000 }), 'wheeled', { wheel: [0.36, 0, 0], skirt: { h: 0.4, over: [0.46, 0.28], w: 0.3 } }),
+  'ankle-rw': dressed(S('ankle-atw', KR, 'rover walker ankle cross', RW, ['wheeled ankle', 'rover ankle'], { torque: 2500 }), 'wheeled', { wheel: [0.36, 0, 0] }),
+  'foot-rw': dressed(S('foot-atw', 1.7, 'rover walker foot', RW, ['rover foot', 'fender foot'], { sole: 0.62 }), 'lugged'),
+  'ram-roll-rw': S('ram-roll-atw', KR, 'rover walker hip roll ram', RW, ['rover roll ram'], { bore: 0.1, rod: 0.056 }),
+  'ram-hip-rw': S('ram-hip-atw', KR, 'rover walker hip pitch ram', RW, ['rover hip ram'], { bore: 0.1, rod: 0.056 }),
+  'ram-ankle-rw': S('ram-ankle-atw', KR, 'rover walker ankle ram', RW, ['rover ankle ram'], { bore: 0.08, rod: 0.045, closed: Math.round((BASE['ram-ankle-atw'].dims.closed * KR + 0.95 - BASE['shank-atw'].dims.length * KR) * 1000) / 1000, stroke: Math.round((BASE['ram-ankle-atw'].dims.stroke * KR + 0.04) * 1000) / 1000 }),
+  'wheel-rw': R('mecha-wheel', 'rover walker wheel', RW, { r: 0.34, width: 0.26, rim: 0.2, lugs: 20 }, 42, { family: 'atv' }, ['atv wheel', 'quad wheel', 'walker wheel', 'knobby tyre', 'knobby tire', 'hub motor']),
 };
 
 // ── the design houses' giant arm packs: each house's philosophy solved into its pack and its giant arms ──────────

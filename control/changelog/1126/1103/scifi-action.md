@@ -233,7 +233,15 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   Carrying it, the field walker stands on heavy-duty hip roll rams, and its laden step's band starts lower. Every law
   holds, with the open cabin or the armoured one.
 - **The rover walker** (`roverWalker`; registry row `rover-walker`, role `armour`): the field walker on four wheels,
-  more heavily armed. It walks, or collapses its legs and rolls as a four-wheeler.
+  more heavily armed. It walks, or collapses its legs and rolls as a small armoured car.
+  - **Its size:** its own legs and pelvis at 1.35 times the walker's designs (the field walker's are 1.2), with
+    shanks a wheelbase long, an armoured car's wheels, and rams and drives rated up for its weight.
+  - **Its hull:** its armoured cabin is its own, the open one the option (`cabin: 'open'`, lighter, its cab law off).
+    Each shank carries an armour skirt outboard of its wheels, over their upper halves and the gap between, its lip
+    turned in over their tread. Collapsed, the skirts are the hull's sides and fenders; walking, they are shin armour,
+    short at the ankle so they clear the ground.
+  - Collapsed, its legs stand plumb, their roll undone, so the wheels stand upright. Its feet are tall enough that,
+    walking, on one foot with its leg rolled under it, nothing but its feet comes near the ground.
   - **Its legs:** a wheel on each knee's axis and one on each ankle's, outboard, each coaxial with its joint and on its
     own hub motor, skid-steered each side. Its shanks are longer for a four-wheeler's wheelbase, its ankle rams
     re-sized with them, and its feet taller so the ankle wheels ride clear when it walks.
@@ -254,7 +262,8 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
 
     Stability, recoil and boarding read the wheels' contacts when a stance is collapsed, and the crouch's actuator
     check skips a collapsed boarding.
-  - **The cabins and the dress:** the field walker's (the armoured cabin, any camo livery and wear).
+  - **The dress:** the field walker's (any camo livery, its wear). A cabin is previewed alone on the frame that offers
+    it, a backpack's parts on the frame that offers backpacks.
   - Every law holds as built, with the armoured cabin, and rearmed with the rotary machine gun.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:
@@ -334,7 +343,8 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     The char pins add its builder paths and a frame carrying it whole.
   - `mecha-shelf.test.js`, the rover walker: its knees folding past a ram's reach on rotary drives; each wheel
     coaxial with its joint; walking with its wheels off the ground, rolling on all four with what they carry clear and
-    steady, lower than it stands, every law holding; its backpack's payloads swapped, another backpack refused, and a
+    steady, lower than it stands, every law holding; walking, standing or on one foot, nothing but its feet near the
+    ground; its backpack's payloads swapped, another backpack refused, and a
     frame without wheels refused a roll. The char pins add its wheeled parts, its wheel and the autocannon, and the
     frame whole walking and collapsed.
   - The roster's, builds' and preview door's tests (a dressed frame's livery and wear carried in its recipe, its

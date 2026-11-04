@@ -427,8 +427,11 @@ describe('mecha shelf: a frame that walks or collapses its legs onto wheels and 
     }
   });
   it('walks with its wheels off the ground, and rolls on all four, what they carry clear above them, steady on them', () => {
-    const wheels = Ar.wheels.map((w) => w.id);
-    expect(lowest(Ar.rest, wheels)).toBeGreaterThan(0.05);
+    const wheels = Ar.wheels.map((w) => w.id), feet = ['r', 'l'].map((S) => Ar.legs[S].foot);
+    // (walking, nothing but its feet comes near the ground, standing or on one foot, its leg rolled under it: its wheels,
+    // its skirts and its pack clear of it)
+    const oneFoot = Object.keys(Ar.stances).find((k) => Ar.stances[k].sway);
+    for (const pose of [Ar.rest, oneFoot]) expect(lowest(pose, Ar.layout.filter((e) => !e.ram && !feet.includes(e.id)).map((e) => e.id))).toBeGreaterThan(0.08);
     expect(posedFrame(rover, roll).clamped).toEqual([]);
     expect(law(rover, 'rollContact').ok).toBe(true);
     expect(law(rover, 'rollClearance').ok).toBe(true);

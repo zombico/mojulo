@@ -151,7 +151,8 @@ export function payloadsAt(arch, aim = {}) {
 function rollAt(arch, ctx, stance, range) {
   const base = solveStance(arch, ctx, arch.stances[arch.rest]), joints = { ...base.joints };
   // (the knee folded until the shank lies level: its bend the thigh's rake from straight down, and a quarter turn)
-  for (const S of SIDES) { const J = arch.legs[S].joints; joints[J.yaw] = 0; joints[J.pitch] = stance.pitch ?? -70; joints[J.knee] = stance.knee ?? 90 - joints[J.pitch]; }
+  // (the legs plumb, their roll undone, so the wheels stand upright on the ground)
+  for (const S of SIDES) { const J = arch.legs[S].joints; joints[J.yaw] = 0; joints[J.roll] = 0; joints[J.ankleRoll] = 0; joints[J.pitch] = stance.pitch ?? -70; joints[J.knee] = stance.knee ?? 90 - joints[J.pitch]; }
   const wheel = (axle, S) => arch.wheels.find((w) => w.axle === axle && w.side === S).id;
   const radius = (id) => ctx.row(ctx.entry(id).sku).dims.r, centreZ = (j, id) => framesOf(arch, j, ctx)[id].t[2];
   // (the pelvis's height: the rear wheels' centres a radius up)

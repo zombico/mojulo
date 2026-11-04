@@ -184,7 +184,18 @@ export function fieldBuilders(kit) {
     // (the knee wheel's axle out through the knee's hub, coaxial with it: the wheel turns about the knee's axis; the
     // knee's rotary drive in a drum on the hub's other side)
     const lathes = [...g.lathes, spin('kneeDrive', [-s * 0.07, 0, 0], [-s * 0.16, 0, 0], [[0, 0.075], [0.8, 0.075], [1, 0.06]], tone(C.trim, -0.15), 16), spin('wheelAxle', [s * 0.06, 0, 0], [s * (W[0] - 0.08), 0, 0], [[0, 0.032], [1, 0.03]], C.chrome, 12)];
-    return { ...g, lathes, hardpoints: { ...g.hardpoints, wheel: [s * W[0], W[1], W[2]] } };
+    const extrudes = [...g.extrudes], K = row.dims.skirt, L = row.dims.length;
+    if (K) {
+      // (its skirt: an armour plate outboard of its wheels, over their upper halves and the gap between, its lip turned in
+      // over their tread: the hull's lower side and its fenders when the shank lies level, a shin's armour when it walks)
+      // (over the knee wheel at one end and the ankle wheel at the other: short at the ankle's, clear of the ground walking)
+      const xo = s * (W[0] + K.w / 2 + 0.012), z0 = K.over[0], z1 = -L - K.over[1];
+      extrudes.push(slab('skirt', xo - s * 0.01, xo + s * 0.01, [[-0.02, z0 - 0.08], [K.h - 0.06, z0], [K.h, z0 - 0.06], [K.h, z1 + 0.06], [K.h - 0.06, z1], [-0.02, z1 + 0.08]], C.paint));
+      extrudes.push(box('skirtLip', [s * (W[0] - K.w / 2 + 0.01), K.h - 0.008, z0 - 0.05], [s * (W[0] - K.w / 2 + 0.01), K.h - 0.008, z1 + 0.05], 0.016, 0.016, C.paint));
+      extrudes.push(box('lip', [s * (W[0] + 0.004), K.h + 0.004, z0 - 0.06], [s * (W[0] + 0.004), K.h + 0.004, z1 + 0.06], K.w + 0.036, 0.014, tone(C.paint, -0.05)));
+      for (const z of [z0 * 0.4, -L / 2, z1 * 0.9 + 0.1]) extrudes.push(box(`skirtBracket_${Math.round(z * 100)}`, [s * 0.07, K.h * 0.55, z], [xo, K.h * 0.55, z], 0.04, 0.05, C.trim, [0, 1, 0]));
+    }
+    return { ...g, lathes, extrudes, hardpoints: { ...g.hardpoints, wheel: [s * W[0], W[1], W[2]] } };
   }
   function wheeledAnkle(row, C, ctx) {
     const g = kit.ankle(row, C, ctx), s = sgn(ctx.side), W = row.dims.wheel;

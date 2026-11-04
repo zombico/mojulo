@@ -483,7 +483,7 @@ const BASE_ARCHETYPES = Object.freeze({
 // wheels, the cleated soles lifted clear: it rolls as a four-wheeler does, its hub motors skid-steering each side. It
 // carries the heavy weapons backpack as built (an autocannon right, the five-round rocket launcher left, the service
 // tail), on heavy-duty hip roll rams
-const RW_LEG = Object.freeze({ ...FW_LEG, shank: 'shank-rw', ankle: 'ankle-rw', foot: 'foot-rw', ankleRam: 'ram-ankle-rw', roll: 'ram-roll-fw-hd' });
+const RW_LEG = Object.freeze({ hip: 'hip-rw', yoke: 'yoke-rw', thigh: 'thigh-rw', shank: 'shank-rw', ankle: 'ankle-rw', foot: 'foot-rw', roll: 'ram-roll-rw', hipRam: 'ram-hip-rw', kneeRam: null, ankleRam: 'ram-ankle-rw' });
 /** A leg whose knee is a rotary drive in its shank, not a ram (it folds past what a ram's stroke allows). */
 const driveKnee = (L, S) => ({
   ...L,
@@ -499,11 +499,19 @@ const F0 = BASE_ARCHETYPES.fieldWalker;
 const roverWalker = Object.freeze({
   ...F0,
   label: 'rover walker',
-  classOf: 'ridden biped walker on four wheels, armed: it walks, or collapses its legs and rolls',
-  mass: 1300,
+  classOf: 'ridden biped walker on four wheels, armed, its rider in an armoured cabin: it walks, or collapses its legs and rolls as an armoured car',
+  // (its armoured cabin its own; the field walker's open one in its place, lighter, as the option)
+  cabins: Object.freeze({
+    armoured: Object.freeze({ sku: 'cabin-fw', label: 'its armoured cabin' }),
+    open: Object.freeze({ sku: 'cage-fw', label: 'its open cabin', mass: -120, laws: Object.freeze({ cab: undefined }) }),
+  }),
+  mass: 1700,
   joints: Object.freeze({ ...WR.joints, ...WL.joints, ...ROVER_PACK.joints }),
   layout: Object.freeze([
-    ...F0.layout.filter((e) => ['pelvis', 'seat', 'cage'].includes(e.id)),
+    { id: 'pelvis', sku: 'pelvis-rw' },
+    ...F0.layout.filter((e) => e.id === 'seat'),
+    // (its armoured cabin as built: the hull it rolls as)
+    { id: 'cage', sku: 'cabin-fw', on: 'pelvis.cage' },
     { id: 'pack', sku: HEAVY_PACK.sku, on: 'pelvis.pack' },
     ...WR.layout, ...WL.layout, ...wheelsOf('R'), ...wheelsOf('L'), ...ROVER_PACK.layout,
   ].map(Object.freeze)),
@@ -529,8 +537,9 @@ const roverWalker = Object.freeze({
     // holding it there)
     // (taller than the field walker standing, on its longer shanks and taller feet; boarded collapsed, lower; its ankle
     // rams' longer stroke folds its feet up as fenders)
-    seat: Object.freeze([1.8, 2.4]), board: Object.freeze([0.9, 1.4]), stepIn: Object.freeze([0.15, 0.6]),
-    arcs: Object.freeze({ ...F0.laws.arcs, anklePitch: Object.freeze([70, 125]) }),
+    seat: Object.freeze([2.2, 2.9]), board: Object.freeze([0.9, 1.6]), stepIn: Object.freeze([0.15, 0.6]), belly: Object.freeze([1.2, 2.0]),
+    arcs: Object.freeze({ ...F0.laws.arcs, anklePitch: Object.freeze([70, 135]) }),
+    cab: Object.freeze([0.03, 1]),
     rollContact: Object.freeze([0, 0.01]), rollClearance: Object.freeze([0.1, 9]), rollStability: Object.freeze([0.05, 9]), rollActuators: Object.freeze([0, 0.8]),
   }),
   bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-ram': 6, 'mecha-wheel': 4, 'mecha-mount': 4, 'mecha-weapon': 4, 'mecha-tail': 4 }),
