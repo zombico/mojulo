@@ -328,7 +328,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the length of the locks that leave over the face), or `around: [from°, to°]` for a rosette about the whorl) that flow from the
   `whorl` along the head, bananas and peppers tiling it (`cover`)
   and every piece sprouting along the surface before it arcs out (`sprout`); `scale` grows the style; parts `hairCarrot0`,
-  `hairBanana0`, `hairPepper0` …), and `sideburns` (any style: `{ length, width, forward, shape?, at?, az? }`, two
+  `hairBanana0`, `hairPepper0` …), a COAT (`coat` on the shapes, a layer or a piece: a card `snake` | `tiger` | `barred` | `ember` |
+  `leaf` | `banded`, or `{ from?, color?, cover?, pattern? }` in the beast's own words: `color` a hex or a palette key,
+  `cover` scales | fur | chitin | feathers or `{ kind, size, shape, sheen, tipped }`, `pattern` the beast's layers read
+  down each lock as down a tail: polygonizer/hair-coat.js; drawn on the page as the lock's texture), and `sideburns` (any style: `{ length, width, forward, shape?, at?, az? }`, two
   pieces before the ears in the style's family; the principles and recipes are in docs/examples/humanoid/DESIGNING.md).
   A word is stored only when given; lists compose it last-wins (an object key by key);
   `false` is the studio's construction for it; patch `/hero/hair/<word>` (`null` back to the base's).
@@ -463,7 +466,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
   and the `shapes` characters `broku` (carrots only, classic shonen spikes), `jinto` (bananas only, comma hair over a soft two-block),
   `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs), `frieda` (split bangs, ribbon sidelocks, the rest GATHERED into twin tails), `frieda-pony` (one high ponytail), `hiraku` (a blunt BOWL BOB cut on LEVEL lines, `hem`, `fringeHem`, `blunt`) and `miwako` (a blunt neck-length bob), `jona` (layered banana
-  PEELS: leaf-shaped, thin, cupped; a side-swept swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, a short tomboy cut); shaped hair never
+  PEELS: leaf-shaped, thin, cupped; a side-swept swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, a short tomboy cut), and the NON-HUMAN hair, each coated (below): `gorgon` (thick bending tendrils, a snake's coat), `flame` (rising strands, an ember's), `feathered` (swept vanes and a crest, barred), `leafy` (cupped leaves), `tentacled` (heavy curling falls, a pale spotted underside) and `quilled` (raking cones, banded); shaped hair never
   cuts through the body it is worn on; every anime head with hair wears sideburn patches before the ears (`hairSideburnL`,
   `hairSideburnR`: no bare gap between the hair and the ear; a bald head shows its skin there), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
   `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by

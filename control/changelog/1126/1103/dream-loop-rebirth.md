@@ -37,3 +37,18 @@ person's own picture itself (a drawing, a photo, a figure, someone's OC): nothin
 - **Sculpting stays the person's.** After the capture, the hero is shaped prompt by prompt like any other. A second
   picture (`stash_ref`) refines it word by word, but never moves a word the person changed by hand since the last pass;
   `replace: true` takes the new read whole.
+- **Non-human hair, coated like an animal.** The anime head's shaped hair now builds what no hair word reached, each
+  style wearing a coat:
+  - `gorgon`: thick bending tendrils, scaled like a snake;
+  - `flame`: rising strands, hot at the root and pale at the tips;
+  - `feathered`: swept, barred vanes with a crest;
+  - `leafy`: cupped leaves;
+  - `tentacled`: heavy curling falls with a pale, spotted underside;
+  - `quilled`: raking, banded cones.
+
+  Each is a `look` word any anime hero can wear, and the character target's protocol names them for non-human pictures.
+  A coat is the beast-kin's own grammar read down each lock as down a tail: `coat: 'snake' | 'tiger' | 'barred' |
+  'ember' | 'leaf' | 'banded'` on the shapes, a layer or a piece, or `{ from?, color?, cover?, pattern? }`. Covers are
+  scales, fur, chitin or feathers, shading the lock on the page; patterns are stripes as rings, spots, a pale underside,
+  dark tips, a line down the lock. The page draws the locks' coat beside the face's own paint. A hair with no coat
+  draws exactly as before.

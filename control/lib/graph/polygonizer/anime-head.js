@@ -60,6 +60,7 @@ import { rasterDepth, viewCamera } from '../scene/depth-raster.js';
 import { GRAPHIC_BASE, resolveAnimeSculpt, validateAnimeSculpt, sculptBuild, sculptFeatures } from './anime-sculpt.js';
 import * as dmath from '../../util/dmath.js';
 import { paintLayers, texOf, FACE_PAINT_SIZE, paintedBrow } from './face-paint.js';
+import { hairCoatFormErrors, resolveHairCoat, lockCoatFrame } from './hair-coat-words.js';
 import { drawingWordErrors } from './anime-drawings.js';
 
 /** the hair FAMILIES: the studio's three and mojulo's `hime` (hair-passes) */
@@ -344,6 +345,55 @@ export const ANIME_HAIR_MOVES = Object.freeze({
         { shape: 'banana', az: [-55, 55], el: [56, 86], rows: 2, count: 8, length: 2.5, fringe: 2.5, hem: 0.34, width: 0.3, droop: 1.4, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
         { shape: 'banana', az: [86, 274], el: [8, 86], rows: 3, count: 16, length: 2.5, hem: 1.7, fringeHem: 0.34, width: 0.3, droop: 1.4, lift: 0, vary: 0, bend: 0.02, flat: 0.22, blunt: 1, cap: 1 },
       ] } } },
+  // THE NON-HUMAN HAIR (hair-coat.js): what no hair word reaches, built in one vegetable family and wearing a COAT, the
+  // beast's cover and pattern read along each lock (a card, or its words over one). Each keeps the face clear: nothing
+  // rooted in front of the whorl but the fringe and the rosette (Bidel's rule), and a fringe cut short of the eyes
+  gorgon: { note: 'Gorgon: bananas only — thick, round, bending tendrils grown from the crown and the back and falling past the shoulders, a short fringe parted at the middle, the face clear; coated as a snake (keeled scales, a pale underside, dark blotches, the tips darkened)',
+    hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.15, whorl: [180, 62], coat: 'snake',
+      layers: [
+        { shape: 'banana', az: [110, 250], around: [3, 20], rows: 1, count: 5, length: 2.2, width: 0.34, droop: 0.7, lift: 0.25, vary: 0.25, bend: 0.5, flat: 0.9, cap: 1 },
+        { shape: 'banana', az: [80, 280], el: [36, 58], rows: 2, count: 10, length: 2.4, width: 0.34, droop: 0.8, lift: 0.2, vary: 0.3, bend: 0.5, flat: 0.9, cap: 1 },
+        { shape: 'banana', az: [85, 275], el: [14, 36], rows: 2, count: 12, length: 2, width: 0.3, droop: 1, lift: 0.18, vary: 0.3, bend: 0.55, flat: 0.9 },
+        { shape: 'banana', az: [-55, -8], el: [60, 84], rows: 1, count: 3, length: 0.4, fringe: 0.12, width: 0.3, droop: 0.5, lift: 0.05, vary: 0.2, bend: 0.3, flat: 0.9, cap: 1, swirl: -40, coat: { from: 'snake', pattern: [{ kind: 'countershade', color: 'suit', reach: 0.26, soft: 0.12 }] } },
+        { shape: 'banana', az: [8, 55], el: [60, 84], rows: 1, count: 3, length: 0.4, fringe: 0.12, width: 0.3, droop: 0.5, lift: 0.05, vary: 0.2, bend: 0.3, flat: 0.9, cap: 1, swirl: 40, coat: { from: 'snake', pattern: [{ kind: 'countershade', color: 'suit', reach: 0.26, soft: 0.12 }] } },
+      ] } } },
+  flame: { note: 'Flame: chili peppers only — thin tapering strands rising off the whole head as a fire does, licking back from the whorl, a short upswept fringe; coated as an ember (hot at the root, burning out pale at the tip)',
+    hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.1, whorl: [180, 75], coat: 'ember',
+      layers: [
+        { shape: 'pepper', az: [100, 260], around: [3, 30], rows: 2, count: 14, length: 1.8, width: 0.11, droop: -1, lift: 0.35, vary: 0.5, bend: 0.4, sprout: 0.9 },
+        { shape: 'pepper', az: [60, 300], el: [24, 60], rows: 3, count: 30, length: 1.4, width: 0.1, droop: -1, lift: 0.3, vary: 0.45, bend: 0.35, sprout: 0.9 },
+        { shape: 'pepper', az: [-60, 60], el: [56, 84], rows: 1, count: 8, length: 0.9, width: 0.09, droop: -1, lift: 0.25, vary: 0.4, bend: 0.3, sprout: 0.9 },
+      ] } } },
+  feathered: { note: 'Feathered: banana peels only — broad cupped vanes swept back from the brow and the temples to a raised crest over the crown, a harpy\'s or a bird-kin\'s; coated as barred feathers',
+    hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.12, whorl: [180, 70], coat: 'barred',
+      layers: [
+        { shape: 'peel', az: [150, 210], el: [55, 86], rows: 2, count: 6, length: 1.5, width: 0.3, droop: -0.4, lift: 1.1, vary: 0.2, bend: 0.25, cup: 0.4, flat: 0.3 },
+        { shape: 'peel', az: [90, 270], el: [30, 58], rows: 2, count: 12, length: 1.2, width: 0.38, droop: 0.5, lift: 0.5, vary: 0.2, bend: 0.2, cup: 0.5, flat: 0.3, cap: 1 },
+        { shape: 'peel', az: [95, 265], el: [8, 30], rows: 2, count: 10, length: 1, width: 0.34, droop: 0.7, lift: 0.4, vary: 0.2, bend: 0.2, cup: 0.5, flat: 0.3 },
+        { shape: 'peel', az: [-45, 45], el: [62, 84], rows: 1, count: 5, length: 0.3, fringe: 0.08, width: 0.26, droop: 0.2, lift: 0.4, vary: 0.2, bend: 0.2, cup: 0.4, flat: 0.3, cap: 1 },
+      ] } } },
+  leafy: { note: 'Leafy: banana peels only — cupped leaves lying over the crown and falling at the sides and the back to the shoulders, a dryad\'s; coated as leaves (a pale vein, the tip lighter)',
+    hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.12, whorl: [180, 64], coat: 'leaf',
+      layers: [
+        { shape: 'peel', az: [100, 260], around: [3, 20], rows: 1, count: 5, length: 0.7, width: 0.6, droop: 0.6, lift: 0.4, vary: 0.2, bend: 0.25, cup: 0.9, cap: 1 },
+        { shape: 'peel', az: [85, 275], el: [34, 58], rows: 2, count: 8, length: 0.9, width: 0.6, droop: 0.8, lift: 0.4, vary: 0.25, bend: 0.3, cup: 0.9, cap: 1 },
+        { shape: 'peel', az: [90, 270], el: [10, 34], rows: 2, count: 8, length: 0.8, width: 0.58, droop: 1, lift: 0.35, vary: 0.25, bend: 0.3, cup: 0.85 },
+        { shape: 'peel', az: [-40, 40], el: [64, 84], rows: 1, count: 4, length: 0.3, fringe: 0.06, width: 0.36, droop: 0.4, lift: 0.3, vary: 0.2, bend: 0.2, cup: 0.8, cap: 1 },
+      ] } } },
+  tentacled: { note: 'Tentacled: bananas only — a few heavy, flat-sided falls from the back and the temples, curling hard at their ends, the face clear; coated as a cephalopod\'s (a pale underside, pale suckers)',
+    hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.15, whorl: [180, 62],
+      coat: { pattern: [{ kind: 'countershade', color: 'suit', reach: 0.34, soft: 0.1 }, { kind: 'spots', color: 'suit', size: 0.006, spacing: 0.02, reach: 0.5 }] },
+      layers: [
+        { shape: 'banana', az: [100, 260], el: [36, 58], rows: 1, count: 6, length: 2.6, width: 0.45, droop: 0.8, lift: 0.15, vary: 0.2, bend: 0.6, flat: 0.5, cap: 1 },
+        { shape: 'banana', az: [80, 280], el: [12, 36], rows: 1, count: 6, length: 2.3, width: 0.42, droop: 1, lift: 0.15, vary: 0.25, bend: 0.6, flat: 0.5 },
+        { shape: 'banana', az: [-55, 55], el: [60, 84], rows: 1, count: 4, length: 0.4, fringe: 0.12, width: 0.36, droop: 0.5, lift: 0.05, vary: 0.2, bend: 0.3, flat: 0.5, cap: 1 },
+      ] } } },
+  quilled: { note: 'Quilled: carrots only — stiff cones raking back over the crown and the nape, a porcupine-kin\'s, the brow clear; coated as quills (close bands, the points pale)',
+    hair: { style: 'short', crownAccents: 'none', shapes: { replace: ['fringe', 'temple', 'back', 'crown'], scale: 1.1, whorl: [180, 70], coat: 'banded',
+      layers: [
+        { shape: 'carrot', az: [60, 300], el: [10, 70], rows: 4, count: 40, length: 0.9, width: 0.12, droop: -0.1, lift: 0.5, vary: 0.3, bend: 0.05, curve: 0.1, sink: 0.4 },
+        { shape: 'carrot', az: [-50, 50], el: [58, 86], rows: 2, count: 8, length: 0.6, width: 0.1, droop: -0.2, lift: 0.6, vary: 0.3, bend: 0.05, curve: 0.1, sink: 0.4 },
+      ] } } },
 });
 /** The HAIR FORM words (see the header; anime-form `hairForm` in construction units, the head ≈ 2.2 tall): each word's
  * shape, its hard limits (a value past them refuses) and, for the numbers, the comfortable range the advice reads. */
@@ -410,6 +460,8 @@ function hairFormErrors(entry, at) {
       for (const [f, x] of Object.entries(v)) {
         if (f === 'replace') { if (!Array.isArray(x) || !x.every((g) => HAIR_SHAPE_GROUPS.includes(g))) errs.push(`${at}.shapes.replace: a list of the clump groups taken over (${HAIR_SHAPE_GROUPS.join(', ')})`); continue; }
         if (f === 'scale') { num('shapes.scale', x, 0.5, 2); continue; }
+        // (the locks' COAT, hair-coat.js: a card or the beast's cover and pattern; a layer's or a piece's own over it)
+        if (f === 'coat') { errs.push(...hairCoatFormErrors(x, `${at}.shapes.coat`)); continue; }
         if (f === 'whorl') { if (!Array.isArray(x) || x.length !== 2 || !x.every(finite) || x[1] < 0 || x[1] > 90) errs.push(`${at}.shapes.whorl: [azimuth°, elevation°] (the crown point the layers flow from)`); continue; }
         if (f === 'layers') {
           if (!Array.isArray(x) || x.length > 12) { errs.push(`${at}.shapes.layers: a list of at most 12 layers`); continue; }
@@ -417,7 +469,8 @@ function hairFormErrors(entry, at) {
             const here = `${at}.shapes.layers[${i}]`;
             if (!isObj(Ly) || !HAIR_SHAPE_FAMILIES.includes(Ly.shape)) { errs.push(`${here}: { shape: ${HAIR_SHAPE_FAMILIES.join(' | ')}, az?: [from°, to°], el?: [from°, to°] | around?: [from°, to°], ${Object.keys(HAIR_LAYER_FIELDS).join(', ')} }`); return; }
             for (const g of ['az', 'el', 'around', 'gather']) if (Ly[g] !== undefined && (!Array.isArray(Ly[g]) || Ly[g].length !== 2 || !Ly[g].every(finite) || (g === 'el' && Ly[g].some((e) => e < -30 || e > 90)) || (g === 'gather' && (Ly[g][1] < -30 || Ly[g][1] > 90)) || (g === 'around' && Ly[g].some((e) => e < 0 || e > 90)))) errs.push(`${here}.${g}: ${g === 'gather' ? '[az°, el°] (the tie; el −30 … 90)' : `[from°, to°]${g === 'el' ? ' (−30 … 90)' : g === 'around' ? ' (0 … 90°, the angle from the whorl)' : ''}`}`);
-            for (const [g, y] of Object.entries(Ly)) { if (['shape', 'az', 'el', 'around', 'gather'].includes(g)) continue; const lim = HAIR_LAYER_FIELDS[g]; if (!lim) errs.push(`${here}.${g}: not a layer field (have shape, az, el, ${Object.keys(HAIR_LAYER_FIELDS).join(', ')})`); else num(`shapes.layers[${i}].${g}`, y, lim[0], lim[1]); }
+            if (Ly.coat !== undefined) errs.push(...hairCoatFormErrors(Ly.coat, `${here}.coat`));
+            for (const [g, y] of Object.entries(Ly)) { if (['shape', 'az', 'el', 'around', 'gather', 'coat'].includes(g)) continue; const lim = HAIR_LAYER_FIELDS[g]; if (!lim) errs.push(`${here}.${g}: not a layer field (have shape, az, el, ${Object.keys(HAIR_LAYER_FIELDS).join(', ')})`); else num(`shapes.layers[${i}].${g}`, y, lim[0], lim[1]); }
           });
           continue;
         }
@@ -430,7 +483,8 @@ function hairFormErrors(entry, at) {
           if (!Array.isArray(P.at) || P.at.length !== 2 || !P.at.every(finite) || P.at[1] < -30 || P.at[1] > 90) errs.push(`${here}.at: [azimuth°, elevation°] (elevation −30 … 90, 0 the hairline, 90 the crown)`);
           if (P.dir !== undefined && (!Array.isArray(P.dir) || P.dir.length !== 3 || !P.dir.every(finite) || Math.hypot(...P.dir) < 1e-6)) errs.push(`${here}.dir: a direction [x, y, z] (x the hero's right, y up, z back), not zero`);
           if ((f === 'bananas' || f === 'peels') && P.dir === undefined) errs.push(`${here}.dir: a ${f.slice(0, -1)} needs its direction`);
-          for (const [g, y] of Object.entries(P)) { if (g === 'at' || g === 'dir') continue; const lim = fields[g]; if (!lim) errs.push(`${here}.${g}: not a ${f.slice(0, -1)} field (have at, dir, ${Object.keys(fields).join(', ')})`); else num(`shapes.${f}[${i}].${g}`, y, lim[0], lim[1]); }
+          if (P.coat !== undefined) errs.push(...hairCoatFormErrors(P.coat, `${here}.coat`));
+          for (const [g, y] of Object.entries(P)) { if (g === 'at' || g === 'dir' || g === 'coat') continue; const lim = fields[g]; if (!lim) errs.push(`${here}.${g}: not a ${f.slice(0, -1)} field (have at, dir, ${Object.keys(fields).join(', ')})`); else num(`shapes.${f}[${i}].${g}`, y, lim[0], lim[1]); }
         });
       }
     }
@@ -1020,7 +1074,11 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
     for (const b of model.burns ?? []) { if (!b.count) continue; const m = outward(orientConsistently(meshOf(trisOf(model.parts.burn, b.start, b.start + b.count), null))); m.groups = m.groups.map(() => 'Hair'); meshes[b.side > 0 ? 'hairSideburnR' : 'hairSideburnL'] = m; }
     const cap = orientConsistently(meshOf(trisOf(model.parts.hair, model.cap.start, model.cap.end), null)); cap.groups = cap.groups.map(() => 'Hair');
     outward(cap, [0, 0, 1]); meshes.hairCap = solidify(cap, 0.03 * S);
-    for (const lk of model.locks) { if (!lk.count) continue; const m = outward(orientConsistently(meshOf(trisOf(model.parts.hair, lk.start, lk.start + lk.count), null))); m.groups = m.groups.map(() => 'Hair'); meshes[LOCK_PART(lk.name)] = m; }
+    let capCentre = null;   // (the dome's centre, a coated lock's 'toward the head', taken once a lock asks for it)
+    for (const lk of model.locks) { if (!lk.count) continue; const m = outward(orientConsistently(meshOf(trisOf(model.parts.hair, lk.start, lk.start + lk.count), null))); m.groups = m.groups.map(() => 'Hair');
+      // a COATED lock (hair-coat.js) keeps each point's place along and round its centre line, its length and its radius
+      if (lk.coat && lk.line?.length > 1) { const Fr = lockCoatFrame(m.points, lk.line.map(toM), capCentre ??= centroid(cap)); m.coat = { spec: resolveHairCoat(lk.coat), ...Fr }; }
+      meshes[LOCK_PART(lk.name)] = m; }
   }
 
   // the core carrier: inside the skull (the face's box, shrunk well inside the cranium), bound to the head bone
@@ -1035,7 +1093,8 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
     const { group, groups } = groupsOf(m);
     parts[name] = { layer: 2, closure: 'closed', pin, group,
       offsets: Object.fromEntries(m.points.map((p, i) => [`v${i}`, surfaceLocalOffset(frame, p).map(r6)])),
-      faces: Object.fromEntries(m.faces.map((f, i) => [`f${i}`, f.map((v) => `v${v}`)])), ...(groups ? { groups } : {}), ...(SCULPT ? layerFlag(name) : {}), ...(name === 'face' && painted ? { paint: painted } : {}) };
+      faces: Object.fromEntries(m.faces.map((f, i) => [`f${i}`, f.map((v) => `v${v}`)])), ...(groups ? { groups } : {}), ...(SCULPT ? layerFlag(name) : {}), ...(name === 'face' && painted ? { paint: painted } : {}),
+      ...(m.coat ? { coat: { spec: m.coat.spec, uv: Object.fromEntries(m.coat.uv.map((q, i) => [`v${i}`, [r6(q[0]), r6(q[1])]])), length: r6(m.coat.length), radius: r6(m.coat.radius), span: r6(m.coat.span) } } : {}) };
   }
   // `only`: just those parts, at the head's scale, and nothing measured (no coverage, no landmarks, no neutral twin) — the
   // face rig's head builds (anime-face-rig.js), which need the parts an expression moves and nothing else

@@ -38,6 +38,7 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { validateHeroName, readHeroName, validateEmblem, heroFieldPaint } from '@/lib/graph/polygonizer/hero-emblem';
 import { validateHeroReference, heroReferenceRecord, heroReferenceReadout } from '@/lib/reference/hero-reference';
+import { validateHairCoat, hairCoatsIn } from '@/lib/graph/polygonizer/hair-coat';
 import { performanceErrors } from '@/lib/graph/face-acting/perform';
 import { emoteClipErrors } from '@/lib/graph/face-acting/emotes';
 import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
@@ -1021,6 +1022,8 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   errs.push(...validateHeroName(spec.name), ...validateEmblem(spec.emblem));
   // a hero made from a picture carries its read's stamp (lib/reference/hero-reference.js): data, never a gate
   errs.push(...validateHeroReference(spec.reference));
+  // the hair's locks' COATS (polygonizer/hair-coat.js): each checked whole, its cover and its pattern by the beast's own words
+  if (spec.hair !== undefined && spec.hair !== null && typeof spec.hair === 'object') for (const [c, at] of hairCoatsIn(spec.hair)) errs.push(...validateHairCoat(c, at));
   const casts = [...Object.keys(HERO_CASTS), ...CAST_PRESET_NAMES];
   if (spec.cast !== undefined) {
     if (typeof spec.cast === 'string') { if (!HERO_CASTS[spec.cast]) errs.push(...validateCast(spec.cast, 'cast').map((e) => `${e} — or a hero cast (${Object.keys(HERO_CASTS).join(', ')}), or a pole with a build: { pole: 'female', build: '${spec.cast}' }`)); }
