@@ -26,6 +26,9 @@ import { xenoFrame } from './frame.js';
 import { ridgeMesh, tubeMesh, bladeMesh } from './appliances.js';
 import { validateHairCoat, resolveHairCoat, lockCoatFrame } from '../polygonizer/hair-coat.js';
 import { surfaceLocalOffset } from '../polygonizer/surface-pin.js';
+import { speciesWorn, speciesHeaddress } from './species.js';
+
+export { XENO_SPECIES, XENO_SPECIES_IDS, validateXenoSpecies, speciesReadout } from './species.js';
 
 export const XENO_MAX = 12;
 const r6 = (v) => Math.round(v * 1e6) / 1e6;
@@ -324,6 +327,9 @@ export const XENO_CARDS = Object.freeze({
   }),
 });
 export const XENO_CARD_IDS = Object.freeze(Object.keys(XENO_CARDS));
+const isSkullEntry = (e) => XENO_CARDS[typeof e === 'string' ? e : e?.card]?.family === 'skull';
+/** The appliance list a hero wears, its starter species' with its own (./species.js) */
+export const wornHeaddress = (hero) => speciesHeaddress(hero, isSkullEntry);
 /** a piece written whole wears its family's card's coats, and its pieces are named for the family */
 const WRITTEN_DEFAULTS = Object.freeze({ horn: { label: 'Horn', card: XENO_CARDS['swept-horns'] }, tail: { label: 'Tail', card: XENO_CARDS['front-tails'] }, lobe: { label: 'Lobe', card: XENO_CARDS['chitin-crest'] } });
 const ENTRY_KEYS = ['card', 'size', 'coat', 'shell', 'replaces'];
@@ -387,6 +393,8 @@ function orientOut(mesh) {
  * rules: the realistic skin's scalp bare too (dermal-map.js `bareScalp`: no follicles painted). Nothing replaced: the hero
  * as given. */
 export function xenoWorn(hero) {
+  // (a starter species first: its appliances and its skin, under the hero's own words: ./species.js)
+  hero = speciesWorn(hero, isSkullEntry);
   const list = hero?.xenoHeaddress;
   const known = (e) => XENO_CARDS[typeof e === 'string' ? e : e?.card] || (isObj(e) && e.card === undefined && APPENDAGE_FAMILIES[e.family] && isObj(e.at));
   if (!Array.isArray(list) || !list.some((e) => known(e) && readEntry(e).replaces === 'hair')) return hero;
@@ -435,7 +443,7 @@ export function withXeno(recipe, hero) {
 
 /** What the appliances are and where they landed: per entry its card, its family and region, its pieces. */
 export function xenoReadout(hero, recipe) {
-  const list = hero?.xenoHeaddress; if (!Array.isArray(list) || !list.length) return null;
+  const list = wornHeaddress(hero); if (!Array.isArray(list) || !list.length) return null;
   return list.map((e, i) => { const E = readEntry(e), prefix = `xeno${E.card.replace(/(^|-)([a-z])/g, (_, __, c) => c.toUpperCase())}${i}`;
     const pieces = Object.keys(recipe?.parts || {}).filter((n) => n.startsWith(prefix) && !/^\d/.test(n.slice(prefix.length))).length;
     return { ...(E.written ? { written: true } : {}), card: E.card, family: E.C.family, region: E.C.region, reads: E.C.reads, ...(E.size !== 1 ? { size: E.size } : {}), ...(E.replaces ? { replaces: E.replaces } : {}), pieces, ...(pieces ? {} : { landed: 'not placed: the head this hero wears has no frame for it (a blank trunk, a beast\'s own skull)' }) }; });

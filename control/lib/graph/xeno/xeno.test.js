@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { getDb } from '@/lib/db/index.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createCharacterHandler } from '@/lib/mcp/tools/create-character';
+import { XENO_SPECIES, validateXenoSpecies, speciesReadout, wornHeaddress } from './index.js';
 import { APPENDAGE_FAMILIES, SKULL_SHAPES, XENO_CARDS, XENO_CARD_IDS, appendage, skullMesh, validateXenoHeaddress, withXeno, xenoWorn } from './index.js';
 import { bladeMesh, ridgeMesh, tubeMesh } from './appliances.js';
 import { xenoFrame } from './frame.js';
@@ -134,6 +135,35 @@ describe('the skull', () => {
     expect(back).toBeLessThan(-0.1 - 0.02);                                          // and back
     expect(Object.values(XENO_CARDS).filter((c) => c.family === 'skull').every((c) => c.replaces === 'hair')).toBe(true);
   });
+});
+
+describe('a starter species', () => {
+  it('lowers into the hero\'s own words, which win: its appliances first, a skull the hero names in its place, its skin where the hero names none', () => {
+    expect(validateXenoSpecies('grey-visitor')).toEqual([]);
+    expect(validateXenoSpecies('wookiee').join(' ')).toMatch(/a starter species \(/);
+    expect(wornHeaddress({ xenoSpecies: 'ridged-warrior', xenoHeaddress: ['nose-ridges'] })).toEqual(['keeled-skull', 'forehead-ridges', 'nose-ridges']);
+    expect(wornHeaddress({ xenoSpecies: 'ridged-warrior', xenoHeaddress: ['cone-skull'] })).toEqual(['forehead-ridges', 'cone-skull']);
+    const W = xenoWorn({ cast: 'female', hair: 'bob', xenoSpecies: 'grey-visitor' });
+    expect([W.palette.Skin, W.hair, W.xenoSpecies, W.xenoHeaddress]).toEqual([XENO_SPECIES['grey-visitor'].skin, 'none', undefined, ['tall-cranium']]);
+    expect(xenoWorn(W)).toEqual(W);                                                                    // worn twice: the same hero
+    expect(xenoWorn({ xenoSpecies: 'grey-visitor', palette: { Skin: '#123456' } }).palette.Skin).toBe('#123456');
+    const real = xenoWorn({ form: 'realistic', xenoSpecies: 'grey-visitor' });
+    expect([real.skin.tone, real.palette]).toEqual([XENO_SPECIES['grey-visitor'].skin, undefined]);
+    expect(xenoWorn({ hair: 'bob', xenoSpecies: 'ridge-nosed' }).hair).toBe('bob');                 // a species with no bald cap keeps the hair
+    expect(speciesReadout({ xenoSpecies: 'grey-visitor' })).toMatchObject({ species: 'grey-visitor', also: expect.any(String) });
+    // (every species' appliances are a list the hero door takes)
+    for (const id of Object.keys(XENO_SPECIES)) expect(validateXenoHeaddress(wornHeaddress({ xenoSpecies: id })), id).toEqual([]);
+  });
+
+  it('mints a hero wearing it, and says what it gave', async () => {
+    const out = await createCharacterHandler({ as: 'hero', title: 'species', spec: { cast: 'female', xenoSpecies: 'plated-insectoid' } });
+    expect(out.hero.xenoSpecies).toMatchObject({ species: 'plated-insectoid' });
+    expect(out.hero.xeno.map((x) => [x.card, x.pieces > 0])).toEqual([['segmented-skull', true], ['horn', true], ['cheek-ridges', true]]);
+    const R = SketchRepository.getByRef(out.ref).manifest;
+    expect(R.hero.xenoSpecies).toBe('plated-insectoid');                                               // the record keeps the word alone
+    expect(R.hero.xenoHeaddress).toBeUndefined();
+    expect(R.recipe.palette.Skin).toBe(XENO_SPECIES['plated-insectoid'].skin);
+  }, 120_000);
 });
 
 describe('on a hero', () => {

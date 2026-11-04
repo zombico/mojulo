@@ -881,11 +881,18 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   it. A helmet by tradition (the steel pot, the K-pot …) is the outfit build's `language.head`, by word here too.
   Comic-book characters wearing them, by name: get_solid_vocab({ id: 'comic-hero' }).
 <!-- /section -->
-<!-- section: hero-xeno | Xeno make-up | xenoHeaddress: practical-effects alien appliances glued onto any head: skulls, ridges, horns, head-tails, lobes, appendages written whole -->
+<!-- section: hero-xeno | Xeno make-up | xenoSpecies and xenoHeaddress: starter species, and practical-effects alien appliances glued onto any head: skulls, ridges, horns, head-tails, lobes, appendages written whole -->
   XENO MAKE-UP (`lib/graph/xeno`). `xenoHeaddress: ['<card>' | { card, size?, coat?, replaces? }, …]` puts a
   practical-effects make-up crew's APPLIANCES on the hero: pieces sculpted, cast in foam latex or silicone, glued on with
   their edges blended into the skin, and painted. They sit on whichever head the hero wears (the landmark head, the anime
   head, the realistic head), found on that head's own skin and pinned to it, so they turn and export with the head.
+  A STARTER SPECIES is the quickest start: `xenoSpecies: '<species>'` gives a skull, the appliances on it and the skin's
+  colour in one word, and the readout's `xenoSpecies` says what it gave and what else reads it (`also`: eyes, build,
+  markings, for the face's and the body's own words). The person's words win: a `xenoHeaddress` of their own is worn
+  after the species' (a skull they name takes the species' skull's place), and a palette Skin or `skin.tone` of their
+  own keeps their colour. Null takes it off. The species: `grey-visitor`, `ridged-warrior`, `ridge-nosed`,
+  `lekku-dancer`, `montral-hunter`, `crested-diplomat`, `plated-insectoid`, `cone-elder`, `brain-invader`,
+  `domed-telepath`, `horn-crowned`; each names the screen alien it recalls (`like`) for the X-like stamp.
   THE SKULL first, for a head that is not a person's: a cranial prosthetic, the oversized foam skull a crew glues over
   the actor's own, its edge feathered into the skin at the brow line, above the ears and at the nape, over a bald cap.
   One at most; it is laid before everything else, and every other card lands on it (ridges on its brow, horns and lobes

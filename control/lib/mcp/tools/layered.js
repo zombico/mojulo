@@ -39,7 +39,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { validateHeroName, readHeroName, validateEmblem, heroFieldPaint } from '@/lib/graph/polygonizer/hero-emblem';
 import { validateHeroReference, heroReferenceRecord, heroReferenceReadout } from '@/lib/reference/hero-reference';
 import { validateHairCoat, hairCoatsIn } from '@/lib/graph/polygonizer/hair-coat';
-import { validateXenoHeaddress, withXeno, xenoReadout, xenoWorn } from '@/lib/graph/xeno';
+import { validateXenoHeaddress, validateXenoSpecies, speciesReadout, wornHeaddress, withXeno, xenoReadout, xenoWorn } from '@/lib/graph/xeno';
 import { performanceErrors } from '@/lib/graph/face-acting/perform';
 import { emoteClipErrors } from '@/lib/graph/face-acting/emotes';
 import { resolveToon, toonLightErrors } from '@/lib/graph/polygonizer/vexar';
@@ -823,6 +823,8 @@ export function normalizeHero(hero) {
   if (hero && hero.blink !== undefined && hero.blink !== false) { const { blink: _b, ...rest } = hero; hero = rest; }
   // an emptied xeno make-up (a patch setting the list to [] or null) drops the field
   if (hero && hero.xenoHeaddress !== undefined && !(Array.isArray(hero.xenoHeaddress) && hero.xenoHeaddress.length)) { const { xenoHeaddress: _x, ...rest } = hero; hero = rest; }
+  // a species taken off (a patch setting it to null) drops the field
+  if (hero && hero.xenoSpecies !== undefined && typeof hero.xenoSpecies !== 'string') { const { xenoSpecies: _s, ...rest } = hero; hero = rest; }
   // genki set back to 0 (or null) by a patch drops the field
   if (hero && hero.genki !== undefined && !(Number.isFinite(hero.genki) && hero.genki > 0)) { const { genki: _g, ...rest } = hero; hero = rest; }
   // a face or a tune patched in as a word or a list (update_character's spec, a /hero/face set) is resolved as heroRecord
@@ -912,7 +914,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * the front's silhouette kept), where laws 1 to 15 let the skin fall back a centimetre behind the canthus and the
  * globe's side show bare from 3/4 and the side */
 export const REALISTIC_LAWS_VERSION = 16;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference', 'xenoHeaddress'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference', 'xenoHeaddress', 'xenoSpecies'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -1032,6 +1034,10 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   if (spec.hair !== undefined && spec.hair !== null && typeof spec.hair === 'object') for (const [c, at] of hairCoatsIn(spec.hair)) errs.push(...validateHairCoat(c, at));
   // XENO MAKE-UP (lib/graph/xeno): the practical-effects appliances, each a card and its words
   errs.push(...validateXenoHeaddress(spec.xenoHeaddress));
+  // a STARTER SPECIES (lib/graph/xeno/species.js): its name, and its appliances with the hero's own still a list it wears
+  const speciesErrs = validateXenoSpecies(spec.xenoSpecies);
+  errs.push(...speciesErrs);
+  if (!speciesErrs.length && spec.xenoSpecies && !validateXenoHeaddress(spec.xenoHeaddress).length) errs.push(...validateXenoHeaddress(wornHeaddress(spec), 'xenoSpecies with xenoHeaddress'));
   const casts = [...Object.keys(HERO_CASTS), ...CAST_PRESET_NAMES];
   if (spec.cast !== undefined) {
     if (typeof spec.cast === 'string') { if (!HERO_CASTS[spec.cast]) errs.push(...validateCast(spec.cast, 'cast').map((e) => `${e} — or a hero cast (${Object.keys(HERO_CASTS).join(', ')}), or a pole with a build: { pole: 'female', build: '${spec.cast}' }`)); }
@@ -1360,6 +1366,8 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   if (spec.reference !== undefined && spec.reference !== null) hero.reference = heroReferenceRecord(spec.reference);
   // the xeno make-up's appliances, stored as given (an empty list stores nothing)
   if (Array.isArray(spec.xenoHeaddress) && spec.xenoHeaddress.length) hero.xenoHeaddress = structuredClone(spec.xenoHeaddress);
+  // its starter species, by name (lowered on every read: xenoWorn)
+  if (typeof spec.xenoSpecies === 'string') hero.xenoSpecies = spec.xenoSpecies;
   // the realistic face's words (realisticFaceOf), stored as given: composed on every read
   if (hero.head === 'relational' && spec.face !== undefined && spec.face !== null) hero.face = structuredClone(spec.face);
   // the door's landmark words on the realistic face: its hair as the face's cut (scalpOfHair) unless the face names one,
@@ -1812,7 +1820,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   return { cast: hero.cast, register: hero.register, tune, ...(hero.from ? { from: hero.from } : {}), moved: movedOf(tune), measures: heroMeasures(plan, stats),
     ...(anime && hero.look?.length ? { look: hero.look, lookFrom: hero.look.join('+'), own: { face: ownMoved(hero.face), hair: hero.hair === 'none' ? 'none' : { ...(hero.hair?.style ? { style: hero.hair.style } : {}), ...ownMoved(hero.hair), ...(Object.keys(hero.hair?.locks || {}).length ? { locks: Object.keys(hero.hair.locks) } : {}) }, ...(hero.expression ? { expression: hero.expression } : {}), ...(hero.sculpt !== undefined ? { sculpt: hero.sculpt } : {}), tune: movedOf(hero.tune) } } : {}),
     head: landmark ? 'landmark' : typeof hero.head === 'string' ? hero.head : 'include', ...(hero.genki ? { genki: hero.genki } : {}),
-    ...(hero.reference ? { reference: heroReferenceReadout(hero.reference) } : {}), ...(hero.xenoHeaddress ? { xeno: xenoReadout(hero, recipe) } : {}),
+    ...(hero.reference ? { reference: heroReferenceReadout(hero.reference) } : {}), ...(hero.xenoHeaddress || hero.xenoSpecies ? { xeno: xenoReadout(hero, recipe) } : {}), ...(hero.xenoSpecies ? { xenoSpecies: speciesReadout(hero) } : {}),
     ...((F) => (F ? { realisticFace: F } : {}))(faceReadout(hero)),
     ...(anime ? { base: headPoleOf(hero), ...(hero.animeStyle ? { animeStyle: hero.animeStyle } : {}), proportions: hero.proportions ?? 'anime', ...(inc?.faceMeasures ? (() => { const fm = faceMeasures(hero, plan); return { headsTall: Math.round((inc.shift[2] + fm.crown_z) / fm.head_m * 100) / 100 }; })() : {}), face: animeFace, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: ((B) => Object.fromEntries(Object.entries(animeFace).filter(([k, v]) => v !== B[k])))(animeFaceBase(hero)),
       sculpt: eff.sculpt === false ? false : sparseSculpt(eff.sculpt) ?? {},

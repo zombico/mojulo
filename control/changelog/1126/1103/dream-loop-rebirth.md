@@ -57,6 +57,12 @@ person's own picture itself (a drawing, a photo, a figure, someone's OC): nothin
   the anime and the realistic head alike. Each piece is found on that head's own skin and pinned to it, so it turns and
   exports with the head.
 
+  The quickest start is a STARTER SPECIES: `xenoSpecies` gives a skull, the appliances on it and the skin's colour in
+  one word. The species are `grey-visitor`, `ridged-warrior`, `ridge-nosed`, `lekku-dancer`, `montral-hunter`,
+  `crested-diplomat`, `plated-insectoid`, `cone-elder`, `brain-invader`, `domed-telepath` and `horn-crowned`. Each says
+  what it recalls and what else reads it (eyes, build, markings). The person's own appliances and skin colour win over
+  the species', and the record keeps the species as one word.
+
   A head that is not a person's shape starts from a SKULL: a cranial prosthetic glued over the actor's own, its edge
   feathered into the skin, over a bald cap. The skulls are `tall-cranium`, `cone-skull`, `bilobed-brain`, `domed-brow`,
   `keeled-skull`, `wide-temples` and `segmented-skull`. A hero wears one at most. It is laid first and every other card
