@@ -11,7 +11,8 @@
  *   droneItems(placements, kind, look)    → the drones' assembler items, each part of each drone placed by its frame
  *
  * A dock is a body's three hardpoints: its `hp` (the drone's seat; 'dock' unless it says), that and 'N' (a point out
- * along its floor's normal), that and 'Y' (a point toward the drone's nose). Pure.
+ * along its floor's normal), that and 'Y' (a point toward the drone's nose); a dock that `hang`s holds the drone by its
+ * back from a roof, the normal toward the roof, and launches it out of the open side below it. Pure.
  */
 import { assembleCraft } from '../craft-shelf/index.js';
 import { resolveAssemblerPlacements } from '../worlds/workbench-assembler.js';
@@ -39,15 +40,23 @@ const cols = (x, y, z) => [[x[0], y[0], z[0]], [x[1], y[1], z[1]], [x[2], y[2], 
 export function dronesAt(arch, ctx, frames, { launch = false } = {}) {
   const D = arch.drones, docks = arch.docks ?? [];
   if (!D || !D.count) return [];
-  const { lo, hi } = craftOf(D.kind, D.look), seat = [-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, -lo[2]];
+  const { lo, hi } = craftOf(D.kind, D.look), seatOn = [-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, -lo[2]], seatHung = [seatOn[0], seatOn[1], -hi[2]];
   // (the frame's middle, where its drones fly out from)
   const mid = [0, 0];
   return docks.slice(0, D.count).map((d, i) => {
     const h = d.hp ?? 'dock', F = frames[d.body], o = apply(F, ctx.hp(d.body, h)), N = apply(F, ctx.hp(d.body, `${h}N`)), Y = apply(F, ctx.hp(d.body, `${h}Y`));
     const z = unit(N.map((v, k) => v - o[k])), y0 = Y.map((v, k) => v - o[k]), yz = y0[0] * z[0] + y0[1] * z[1] + y0[2] * z[2];
     const y = unit(y0.map((v, k) => v - yz * z[k])), x = crossV(y, z);
-    let R = cols(x, y, z), at = o;
-    if (launch) {
+    // (docked on its cradle, its belly on it; or hung from its bay's roof by its back, `hang`)
+    let R = cols(x, y, z), at = o, seat = d.hang ? seatHung : seatOn;
+    if (launch && d.hang) {
+      // (out of its bay's open underside: the way the underside faces, clear of the bay and a little up, level, its nose
+      // that way)
+      const r = unit([-z[0], -z[1], 0]), up = d.launch ?? [2.0, 1.6];
+      at = [o[0] + r[0] * up[0], o[1] + r[1] * up[0], o[2] + up[1]];
+      R = about([0, 0, 1], Math.atan2(-r[0], r[1]));
+      seat = seatOn;
+    } else if (launch) {
       // (out of its bay: up and away from the frame's middle, level, its nose outward; each bay's drone its own place)
       // (a bay that carries more than one: out along it from its middle, away from its leg)
       const from = d.hp ? F.t : mid, r = unit([o[0] - from[0], o[1] - from[1], 0]), up = d.launch ?? (d.hp ? [1.6, 3.0] : [2.2, 2.4]);

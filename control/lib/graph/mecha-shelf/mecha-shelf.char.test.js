@@ -141,19 +141,17 @@ const PINS = {
   'aampod-wpn': 'b97979e1e07b05d4',
   'cargo-wpn': '0decc2991b339e78',
   'winch-wpn': '8632112e37ab33d1',
-  'abdomen-bw': '2a0d7799051644b1',
+  'cradle-bw': 'd0445e7d0c180856',
+  'car-bw': '9dfe27f77893b704',
+  'bay-bw': '08e77aa88874a4a5',
   'ankle-bw': '29318c12867f81ec',
-  'column-bw': '607c956d90ec5d54',
+  'column-bw': 'e87e81389f96e613',
   'coxa-bw': 'b2d3cc982cfa5b21',
-  'elytron-bw': '9788e8026f270b2d',
-  'hatch-bw': 'ffbbbf0370d9003b',
   'hub-bw': 'a0569050ab9cdf08',
-  'mast-bw': '7b0b4e988272498b',
-  'panel-bw': '8850fdc9f1724189',
-  'pelvis-bw': '12e10cb0d63ee850',
-  'pod-bw': '0a0f7455e7e046df',
-  'solar-bw': '5b5600f711cc0ee1',
-  'tibia-bw': 'b1a41fb35f7b9a7d',
+  'panel-bw': '8b1addb845ea8d79',
+  'pelvis-bw': '615559aaff5aa787',
+  'solar-bw': '0e737ebc2b7bf773',
+  'tibia-bw': '6966289421007e6d',
   'thigh-sw': '08b637f4320f16d1',
 };
 const LEFT = 'c9882af91b6cf973';
@@ -167,7 +165,7 @@ const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
 const SIEGE = ['9a1b7f9ff8b5e291', '8f0a988a084d563e'];
-const BROOD = ['75165c0530cb8e27', '9c43094d7286477a', '561ac09d62d009a7'];
+const BROOD = ['f9d73e626c5e62ff', '00ed5ab021eb4b73', '0d94200873f63508'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');

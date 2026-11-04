@@ -336,30 +336,31 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     curve over the ankle's working arc: a first horn put its dead centre right at the level foot.
   - Every law holds, its bands set for its class from what was measured.
 - **The brood walker** (`broodWalker`; registry row `brood-walker`, 'bug mom', 'drone mother', role `transport`): a big
-  four-legged frame that carries drones, some 31 t.
-  - **Its hull** (`mecha-brood-parts.js` `hangarPelvis`): tall and round-topped, its nose round, a single hangar
-    through it with its door open each side; inside, its frames, a gantry and its print head under the roof (the hangar
-    repairs drones and prints their parts), a cradle on the deck. Its cockpit is inside the nose behind a visor slit;
-    the armoured cabin holds the rider's space there, and the cab law reads it.
-  - **Its legs:** four, from hips on brackets at the roof's shoulders. Each is a light hip bearing and drive at the top,
-    a tall hollow column (four corner posts framed and plated, open through), and the knee's machinery low over the
-    bay (a great drum, its gearbox, its motor), then a short shank down to the bay. The frame reads heavy at its foot
-    and rises in its middle. Every joint is a rotary drive.
-  - **Its feet are its drones' bays and its wheels:** each a long rounded pod on four wheels, two drones' cradles on its
-    floor under a hatch each. Walking, it stands tall on them, its columns upright, its bays splayed out, and it steps
-    as an insect does, on three feet. Driving (its `roll` stance, `place: 'tuck'`), its bays tuck in along the hull's
-    sides fore and aft, their lengths along it, the hull riding between them.
+  four-legged frame that carries drones, some 30 t.
+  - **Its hull** (`mecha-brood-parts.js` `hangarPelvis`): tall and round-topped, short from the side, its nose round, a
+    single hangar through it with its door open each side; inside, its frames, a gantry and its print head under the
+    roof (the hangar repairs drones and prints their parts), a cradle on the deck. Its cockpit is inside the nose behind
+    a visor slit; the armoured cabin holds the rider's space there, and the cab law reads it.
+  - **Its rear car** (`rearCar`): the hull's front profile drawn boxier, coupled behind it with a gangway as a train's
+    car, its sides panelled, a door, roof hatches, its lamps.
+  - **Its legs:** four, from hips on brackets at the roof's shoulders. Each is a light hip bearing and drive at the
+    top, a hollow upright column (four corner posts framed and plated, open through), the knee's machinery low (a great
+    drum, its gearbox, its motor), a short shank, and a cradle with the bay's pivot under it. The frame reads heavy at
+    its foot and rises in its middle. Every joint is a rotary drive.
+  - **Its feet are its drones' bays and its wheels** (`bayPod`): each a long rounded pod, hollow, open underneath and at
+    its back, its nose round, its wheels in pairs outside its walls. Walking, each bay stands upright on two foot pads
+    at its open end, beside the hull, and the frame steps on them as an insect does, on three feet; it walks, it does
+    not roll. Driving (its `roll` stance, `place: 'tuck'`), each bay tips down on its pivot onto its wheels, tucked in
+    along the hull's sides fore and aft, nose ahead. The pivot is set so a bay's sole stands as far below it upright as
+    lying, so the legs carry the hull the same way to both.
   - **Its drones** (`mecha-drones.js`): the craft shelf's own, assembled in its military look, eight by default (the
-    heavy-lift hexacopter). Each is docked on its cradle and carried with its bay. At the `launch` stance the hatches
-    open and each drone flies out along its bay, away from its leg, and hovers over it. The words `drones` (how many, up
-    to its bays) and `drone` (which of the craft shelf's) choose them. New laws: `droneGround` (the drones off the
-    ground, docked at every stance and launched) and `droneClear` (each clear of the frame's bodies but its own bay, and
-    of the other drones).
-  - **Its solar backpack** (`MECHA_BACKPACKS.solar`): the abdomen hump on the hull's back replaced by a tub that hides a
-    folding array. Two wing covers (elytra) are hinged along its waist, a telescoping mast is in its well, and two
-    wings of panels are z-folded inside. At its `deploy` stance the covers open out and down, the mast rises and the
-    wings spread flat. A backpack card may now carry no mounts and no tail (`array`), and its own stances.
-    New law: `solarArea`.
+    inspection quad), two hung from each bay's roof inside. At the `launch` stance each flies out of its bay's open side
+    and hovers clear of it; nothing opens. The words `drones` (how many, up to its bays) and `drone` (which of the craft
+    shelf's) choose them. New laws: `droneGround` (the drones off the ground, docked at every stance and launched) and
+    `droneClear` (each clear of the frame's bodies but its own bay, and of the other drones).
+  - **Its solar backpack** (`MECHA_BACKPACKS.solar`): the rear car with an array folded flat on its roof, two wings of
+    panels z-folded from its roof's edges; at its `deploy` stance they unfold out to either side, flat. A backpack card
+    may now carry no mounts and no tail (`array`), and its own stances. New law: `solarArea`.
   - **The shelf on four legs:** the inverse kinematics and the laws read a frame's own legs, a biped's `r` and `l`
     (every existing frame byte for byte as before), a four-legged frame's `fr`, `fl`, `rr`, `rl`.
     - A leg may be mounted turned (`turn`, `mount`, `yawSign`), its foot's rest place its `at`, its tucked place its
@@ -367,7 +368,8 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     - A sway may be a set of feet.
     - On three feet each stance leg carries its share of the weight by the statics, and in the crouch the least-norm
       shares.
-    - A joint a stance's flag sets is `when` (a hatch open to `launch`, an array spread to `deploy`), with its rest `at`.
+    - A joint a stance's flag sets is `when` (a bay tipped down to drive, an array spread to `deploy`), with its rest
+      `at`.
     - The leg's inverse kinematics solve a cranked shank (an ankle off its axis) too.
   - Every law holds at every stance, with the solar backpack and with any count of drones.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
@@ -454,9 +456,9 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     frame without wheels refused a roll. The char pins add its wheeled parts, its wheel and the autocannon, and the
     frame whole walking and collapsed.
   - `mecha-shelf.test.js`, the brood walker: four feet where its stance asks, soles flat, its columns upright and its
-    knees low, every law holding; tucked to drive, its bays along its hull, lower than it stands, on its wheels; its
-    drones launched with their hatches open, clear of it, their count and kind the operator's, too many refused; its
-    solar array folded stowed and spread deployed. The char pins add its parts and the frame standing, launching and
+    knees low, its bays upright, every law holding; tucked to drive, its bays tipped down along its hull, lower than it
+    stands, on its wheels; its drones launched out of their bays, clear of it, their count and kind the operator's, too
+    many refused; its solar array folded stowed and spread deployed. The char pins add its parts and the frame standing, launching and
     driving; every existing pin is unchanged.
   - `mecha-shelf.test.js`, roles: a role's backpack, payloads and cabin taken, every law holding; no line of fire for
     a payload that fires nothing; the lean under a pack whose weight rides behind; the operator's payloads over the

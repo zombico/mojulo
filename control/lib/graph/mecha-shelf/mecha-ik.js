@@ -226,7 +226,7 @@ function rollAt(arch, ctx, stance, range) {
 /** A clawed foot's toes: flat (0), or `curl`ed, each knuckle to its clench. */
 const toesAt = (arch, curl) => Object.fromEntries(Object.values(arch.toes ?? {}).flatMap((T) => T.joints.map((j) => [j, curl ? arch.joints[j].curl : 0])));
 
-/** The joints a stance's flags set (a bay's hatches open to `launch`, an array spread to `deploy`): each its value at
+/** The joints a stance's flags set (a bay tipped down to drive, `place`; an array spread, `deploy`): each its value at
  *  the flag the stance raises (`when`), else its rest (`at`, 0 unless it says). */
 const flagsAt = (arch, stance) => Object.fromEntries(Object.entries(arch.joints).filter(([, J]) => J.when || J.at !== undefined).map(([k, J]) => [k, Object.entries(J.when ?? {}).find(([f]) => stance[f])?.[1] ?? J.at ?? 0]));
 

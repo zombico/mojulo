@@ -550,7 +550,7 @@ function pack(row, C) {
 // (a design house's parts: the shelf's own redressed, mecha-house-parts.js)
 const HOUSE = houseBuilders({ boss, legBeam, plateBox, shoulder, upperarm, forearm });
 const SHOULDERS = { armoured: armouredShoulder, ...HOUSE.shoulder };
-const PACKS = { giant: giantPack, ...HOUSE.pack, rack: (row, C, ctx) => FIELD.pack(row, C, ctx), weapons: (row, C, ctx) => BACK.pack(row, C, ctx), abdomen: (row, C, ctx) => BROOD.pack(row, C, ctx), solar: (row, C, ctx) => BROOD.solarPack(row, C, ctx) };
+const PACKS = { giant: giantPack, ...HOUSE.pack, rack: (row, C, ctx) => FIELD.pack(row, C, ctx), weapons: (row, C, ctx) => BACK.pack(row, C, ctx), car: (row, C, ctx) => BROOD.pack(row, C, ctx), solar: (row, C, ctx) => BROOD.pack(row, C, ctx) };
 const BEAMS = new Set(['plated', 'tube', 'truss', 'sealed']);
 // (the field walker's parts: the walker's own hardened for rugged ground, mecha-field-parts.js)
 const FIELD = fieldBuilders({ slab, sgn, rounded, plate, lerp3, pelvis, thigh, shank, ankle, cage, pack });
@@ -567,10 +567,10 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-thigh': (row, C, ctx) => ({ guarded: FIELD.thigh, plated: FIELD.platedThigh, column: BROOD.thigh }[row.build.family] ?? thigh)(row, C, ctx),
   'mecha-shank': (row, C, ctx) => ({ guarded: FIELD.shank, wheeled: FIELD.wheeledShank, strut: BROOD.shank }[row.build.family] ?? shank)(row, C, ctx),
   'mecha-ankle': (row, C, ctx) => ({ wheeled: FIELD.wheeledAnkle, bug: BROOD.ankle }[row.build.family] ?? ankle)(row, C, ctx),
-  'mecha-foot': (row, C, ctx) => ({ lugged: FIELD.foot, clawed: FIELD.clawedFoot, bay: BROOD.foot }[row.build.family] ?? foot)(row, C, ctx),
+  'mecha-foot': (row, C, ctx) => ({ lugged: FIELD.foot, clawed: FIELD.clawedFoot, cradle: BROOD.foot }[row.build.family] ?? foot)(row, C, ctx),
   'mecha-toe': (row, C, ctx) => FIELD.toe(row, C, ctx),
   'mecha-wheel': (row, C, ctx) => FIELD.wheel(row, C, ctx),
-  'mecha-door': (row, C, ctx) => BROOD.door(row, C, ctx),
+  'mecha-bay': (row, C, ctx) => BROOD.bay(row, C, ctx),
   'mecha-solar': (row, C, ctx) => BROOD.solar[row.build.family](row, C, ctx),
   'mecha-seat': (row, C, ctx) => (row.build.family === 'seated' ? station : seat)(row, C, ctx),
   'mecha-cage': (row, C, ctx) => ({ torso, cab, field: FIELD.cage, armoured: FIELD.cabin }[row.build.family] ?? cage)(row, C, ctx),
