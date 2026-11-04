@@ -28,24 +28,10 @@ export const PROFILE_CARD_EDITS = Object.freeze({
     },
     'wardrobe-construction': {
       summary: [['on a figure (mint_solid kind figure) / character-sheet body', 'on a figure (mint_solid kind figure) body']],
-      when: [[' or character-sheet,', ','], [' reconstruct a dreamed outfit as a garment spec,', '']],
+      when: [[' or character-sheet,', ',']],
       body: [
-        ['each a closed vocabulary an LLM can\nemit *from looking at a dreamed character*. A garment', 'each a closed vocabulary an LLM can\nemit. A garment'],
         ["Feed it to a figure's `spec.garment` (`mint_solid` kind `figure`) or a\ncharacter-sheet `outfit.garment`.", "Feed it to a figure's `spec.garment` (`mint_solid` kind `figure`)."],
-        [
-          "The image model's native construction register is CUT-AND-SEW panels, not ring\nwireframes — so target this vocabulary directly when reading a dream. A garment",
-          'The construction register is CUT-AND-SEW panels, not ring\nwireframes. A garment',
-        ],
-        ['Prefer the cut/panel forms when a\n  dream shows clear seams.', 'Prefer the cut/panel forms when a\n  reference shows clear seams.'],
-        ['### The creatability gate (dreaming a NEW drape)', '### The creatability gate (a NEW drape)'],
-        ["When a dream shows a cape whose fold pattern isn't a preset", "When a reference shows a cape whose fold pattern isn't a preset"],
-        ['reproduces the dreamed folds:', 'reproduces the folds:'],
-        [
-          'no freehand\ngeometry from a dream. The garment spec is the sovereign recipe; a painted sheet\nor skin is a bound derived render. Slim-vs-baggy',
-          'no freehand\ngeometry. The garment spec is the sovereign recipe. Slim-vs-baggy',
-        ],
-        ['reaches the dreamed folds (and the waves are the recipe)', 'reaches the folds (and the waves are the recipe)'],
-        ['from a drawing, a\nbook, or a dream read as pieces', 'from a drawing or a\nbook'],
+        ['The garment spec is the sovereign recipe; a painted sheet\nor skin is a bound derived render. Slim-vs-baggy', 'The garment spec is the sovereign recipe. Slim-vs-baggy'],
       ],
     },
     // The mech method's last step is a painted skin bake through the skin op.
@@ -120,13 +106,10 @@ export const PROFILE_CARD_EDITS = Object.freeze({
     },
   },
   solid_vocab: {
-    // The painted skin seam and the character-from-dream attestation (both refused under the profile).
+    // The painted skin seam (refused under the profile).
     'figure': {
       body: [
-        ['  dream_audit?: { source, invoked_generator, prompt, <generation id> }\n', ''],
-        ["['tank', {…dreamPants}, 'jacketCut']", "['tank', {…pants}, 'jacketCut']"],
         ["Skin seam: the figure's filled control scaffold can be painted and bound so the figure then WEARS the paint deterministically at its `/skin.png`.\n\n", ''],
-        [/\n- `dream_audit` — character-from-dream PROVENANCE[^\n]*/, ''],
       ],
     },
     // No keyed prompt door, and no skin step between the scaffold and the .glb.
@@ -164,11 +147,10 @@ export const PROFILE_CARD_EDITS = Object.freeze({
     },
     'create-hero': {
       parameters: {
-        intent: [[' a creature or invented body is creature-from-plan,', ''], [' is the figure kind (character-from-dream).', ' is the figure kind.']],
+        intent: [[' a creature or invented body is creature-from-plan,', '']],
       },
       body: [
         ['A creature is `creature-from-plan`; a real species', 'A real species'],
-        [' is the figure kind (`character-from-dream`).', ' is the figure kind.'],
       ],
     },
   },

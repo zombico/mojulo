@@ -74,6 +74,7 @@ import { clothChart, clothOnRecord } from '@/lib/graph/epidermis/cloth-relief';
 import { outfitLanguage } from '@/lib/graph/outfit/expand';
 import { beastCoverStyleOf, beastCoatOf, coverMap } from '@/lib/graph/beast/cover';
 import { beastCoatPaint, coatRelief } from '@/lib/graph/beast/coat-atlas';
+import { hairCoatPaint, composePaints, stackPaints } from '@/lib/graph/polygonizer/hair-coat';
 import { relationalFaceRig, performanceTrack, mouthTargets } from '@/lib/graph/polygonizer/relational-face-rig';
 import { perform } from '@/lib/graph/face-acting/perform';
 import { animePerformanceTrack } from '@/lib/graph/face-acting/anime-read';
@@ -858,9 +859,16 @@ export const WORLD_KINDS = {
       // an atlas over its coat at texel density; carried as the realistic skin is. A beast with no pattern: none, as before
       const beastCoat = !facePaint0 && !skinPaint && !heroSkin && !character && m.hero?.beast?.pattern ? beastCoatPaint(mesh, m.recipe, m.hero) : null;
       const facePaint = facePaint0 ?? skinPaint ?? heroSkin ?? beastCoat;
+      // THE LOCKS' COAT (polygonizer/hair-coat.js): an anime head's shaped locks textured and marked as a coat, composed with
+      // the face's paint on the page (each face drawn by the paint that owns it). None ⇒ the page's paint as before. (A
+      // beast-kin's body pattern under the character light is not drawn yet: the smoothed anime body's vertices carry no
+      // ring ids for coat-atlas.js to map)
+      // (and a hero's XENO appliances, lib/graph/xeno, on any head: the same coated parts)
+      const lockCoat = m.hero ? hairCoatPaint(mesh, m.recipe) : null;
+      const pagePaint = lockCoat ? composePaints([lockCoat, facePaint]) : facePaint;
       const faces = character
-        ? characterLitFaces(shown, m.recipe, { pieces: litPieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
-        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(baked ? { cornerTint: true } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
+        ? characterLitFaces(shown, m.recipe, { pieces: litPieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(pagePaint ? { paint: pagePaint } : {}) })
+        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(baked ? { cornerTint: true } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}), ...(pagePaint ? { paint: pagePaint } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
       // the pack carries it). Absent ⇒ nothing here, byte-identical.
@@ -889,7 +897,7 @@ export const WORLD_KINDS = {
       const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });
       if (ink) { const { light: _light, ...dial } = toon || {}; scene.toon = { ...dial, ink }; }   // the light is baked in, never a page dial
       if (gearShown) { const textures = collectFaceTextures(gearShown, {}); if (Object.keys(textures).length) scene.textures = { ...(scene.textures || {}), ...textures }; }   // a barked staff's bark
-      if (facePaint) scene.textures = { ...(scene.textures || {}), [facePaint.key]: facePaint.url };
+      if (pagePaint) scene.textures = { ...(scene.textures || {}), ...(pagePaint.textures ?? { [pagePaint.key]: pagePaint.url }) };
       // A rigged recipe with clips also carries its packed rig figure (station-loft-rig.js): the skinned
       // glTF export (`export_model { clips, skinned }`) reads it, `embodies: 'body'` drops the static solid
       // from that export, and `preview` lets the World page play the clips over the hidden solid.
@@ -970,9 +978,13 @@ export const WORLD_KINDS = {
         const packR = typeof ctx.ride === 'function' ? { ...R, reach: 'clamp' } : R;
         if (packR !== R) clipsIn = { ...clipsIn, ...ctx.ride(R, dz) };
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
+        // (the coated locks' and the xeno appliances' coat rides it too: alone where nothing else does (the landmark head, an
+        // anime head unpainted), stacked under the painted face's or the realistic skin's atlas (hair-coat.js stackPaints); on the page
+        // alone: an export's pack is the one before the coat)
         // (the REALISTIC HERO'S SKIN above: the GLB's base colour, under the lit export's plain corners or the unlit's baked
         // light, and the page's clips' the same atlas)
-        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? beastCoat ?? null);
+        const paintPack0 = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? beastCoat ?? null);
+        const paintPack = ctx.face || !lockCoat ? paintPack0 : paintPack0 ? stackPaints(paintPack0, lockCoat) : lockCoat;
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)
         if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, clipsIn, seconds, face.authored, face.K) : heroFaceTracks(m.hero, clipsIn, seconds, face.authored));

@@ -586,7 +586,6 @@ async function registerAllTools() {
   const { registerMeasureSolidTool } = await import('@/lib/mcp/tools/measure-solid');
   const { registerFabricateTools } = await import('@/lib/mcp/tools/fabricate');
   const { registerCoverTools } = await import('@/lib/mcp/tools/cover');
-  const { registerFigureSpecTools } = await import('@/lib/mcp/tools/figure-specs');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
   const { registerCreateViewTools } = await import('@/lib/mcp/tools/create-view');
   const { registerSaveRecipeTools } = await import('@/lib/mcp/tools/save-recipe');
@@ -776,9 +775,6 @@ async function registerAllTools() {
   // composed under one art direction). Sits next to the other illustration mints;
   // persists with kind `cover`, SVG face via /svg, raster composite via /cover.png.
   registerCoverTools();
-  // draft_figure_spec / get_figure_spec / resolve_figure_spec / build_figure_spec — the
-  // character-from-dream propose→approve→build split (listed:false; the catalyst documents it).
-  registerFigureSpecTools();
   // compose_world / list_world_themes — the generic world-composer: a BASE (geometry generator)
   // × a THEME (flavor pack from theme-registry) × overrides, minted through the same recipe→
   // render path as create_fractal_city. One tool → many worlds; themes extensible across

@@ -1,4 +1,4 @@
-// The figure leg of the skin seam (character-from-dream.plan.md C3): a figure's
+// The figure leg of the skin seam: a figure's
 // control scaffold emits the manji-svg lit-face polygon contract (data-shade),
 // so skin-projection's reskin applies to figures unchanged — the figure WEARS
 // a painted skin deterministically, no UV unwrap (the shared camera IS the

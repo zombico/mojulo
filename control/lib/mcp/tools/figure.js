@@ -23,14 +23,14 @@ import { validateOutfit, resolveOutfitNames } from '@/lib/graph/polygonizer/figu
 import { bookWardrobe } from '@/lib/graph/views/recipe-book/registry';
 import { validateFluffs } from '@/lib/graph/polygonizer/figure-fluff';
 import { validateCast, resolveCast } from '@/lib/graph/polygonizer/figure-cast';
-import { normalizeDreamAudit } from '@/lib/graph/image-outcomes/dream-audit';
 import { articulate } from '@/lib/graph/polygonizer/figure-vajra';
 import { encodeGif } from '@/lib/motion';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { FIGURE_SETUPS, FIGURE_SETUP_NAMES } from '@/lib/visual-language/themes';
-import { pluginProfileActive, pluginProfileNotice } from '@/lib/mcp/plugin-profile';
 
 const GARMENT_KEYS = Object.keys(GARMENTS);
+/** the refusal for a figure's retired `dream_audit` (the figure-spec loop it attested for is gone) */
+export const DREAM_AUDIT_RETIRED = "dream_audit: not a figure word (the attestation is retired with its loop); mint the figure without it. A character from a picture you can see is reference_protocol({ target: 'character' }); from words, create_character({ as: 'hero' }).";
 
 export async function createFigureHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('mint_solid kind "figure" requires { title }');
@@ -43,21 +43,16 @@ export async function createFigureHandler(input) {
   // permissive/union type can arrive JSON-stringified from some MCP clients. Parse
   // an object/array that came across as a string so the validators below see the
   // real shape (a plain string like 'walk' is left untouched → still validated).
-  let { motion, animate, dream_audit: dreamAudit } = input;
+  let { motion, animate } = input;
   if (typeof motion === 'string' && /^\s*[{[]/.test(motion)) {
     try { motion = JSON.parse(motion); } catch { /* leave as string; validator will reject */ }
   }
   if (typeof animate === 'string' && /^\s*[{[]/.test(animate)) {
     try { animate = JSON.parse(animate); } catch { /* leave as string; handler falls back to defaults */ }
   }
-  if (typeof dreamAudit === 'string' && /^\s*[{[]/.test(dreamAudit)) {
-    try { dreamAudit = JSON.parse(dreamAudit); } catch { /* leave as string; validator will reject */ }
-  }
-  // The Claude plugin profile leaves out the character-from-dream loop (lib/mcp/plugin-profile.js):
-  // a figure there never claims to be reconstructed from an image generator's reference.
-  if (dreamAudit !== undefined && dreamAudit !== null && pluginProfileActive()) {
-    throw new Error(pluginProfileNotice("A figure's dream_audit"));
-  }
+  // The image-worker attestation left with its loop: a figure records no provenance of its own now, and a figure
+  // minted with one before keeps it as data its renderer never reads.
+  if (input.dream_audit !== undefined) throw new Error(DREAM_AUDIT_RETIRED);
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) {
     throw new Error('`ref` must be 1-64 chars of [A-Za-z0-9_-] if provided');
@@ -77,8 +72,8 @@ export async function createFigureHandler(input) {
   if (garment !== undefined && garment !== null) {
     // A single entry OR an array (layering: e.g. ['trousers','jacket'] worn
     // together). Each entry is a GARMENTS key or an INLINE wardrobe-piece spec
-    // (character-from-dream C0b: a dreamed piece authored as data — pieces +
-    // cuts/panels + its own mugen clearances — resolved against ANY body).
+    // (a piece authored as data — pieces + cuts/panels + its own mugen
+    // clearances — resolved against ANY body).
     const entries = Array.isArray(garment) ? garment : [garment];
     for (const [i, entry] of entries.entries()) {
       if (typeof entry === 'string') {
@@ -128,13 +123,6 @@ export async function createFigureHandler(input) {
   if (folderRef !== undefined && folderRef !== null) {
     if (!SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
   }
-  // The character-from-dream MACHINE GATE: a figure may claim dream-reconstruction
-  // provenance ONLY with a valid dream_audit attesting an image worker was
-  // actually invoked (source + invoked_generator:true + prompt + a generation id).
-  // Absent → a plain figure (no claim). Malformed / invoked_generator:false →
-  // REFUSED here. See lib/graph/image-outcomes/dream-audit.js.
-  const provenance = (dreamAudit !== undefined && dreamAudit !== null) ? normalizeDreamAudit(dreamAudit) : null;
-
   const manifest = {
     kind: 'figure',
     ...(pose !== undefined && pose !== null ? { pose } : {}),
@@ -147,7 +135,6 @@ export async function createFigureHandler(input) {
     ...(motion !== undefined && motion !== null ? { motion } : {}),
     ...(background !== undefined ? { background } : {}),
     ...(setup !== undefined && setup !== null ? { setup } : {}),
-    ...(provenance ? { provenance } : {}),
     title,
   };
 
@@ -187,7 +174,6 @@ export async function createFigureHandler(input) {
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
     svgUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/svg?inline=1`,
     ...(gifUrl ? { gifUrl } : {}),
-    ...(provenance ? { provenance: provenance.kind, dreamedBy: provenance.source } : {}),
     ...(pattern ? { patternSvgUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/pattern.svg?inline=1` } : {}),
     ...(pattern ? { pattern: pattern.map(({ id, stature_cm, girths, pieces, seams, hang, warnings }) => ({
       id, stature_cm, girths: girths.trunk ?? girths,

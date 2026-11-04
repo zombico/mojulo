@@ -77,6 +77,16 @@ describe('reference_protocol', () => {
     expect(pose.summary).toMatch(/X-manji/);
   });
 
+  it('returns the character protocol: the looks and registers to choose from, the likeness posture, the hero door', async () => {
+    const ch = await referenceProtocolHandler({ target: 'character' });
+    expect(ch.ok).toBe(true);
+    expect(ch.target).toBe('character');
+    expect(ch.looks.map((l) => l.id)).toContain('anime');
+    expect(ch.registers.map((r) => r.id)).toContain('lowpoly');
+    expect(Array.isArray(ch.likeness)).toBe(true);
+    expect(ch.capture_call).toMatch(/capture_reference\(\{ target: 'character'/);
+  });
+
   it('rejects an unknown target', async () => {
     await expect(referenceProtocolHandler({ target: 'nope' })).rejects.toThrow(/scene/);
   });
