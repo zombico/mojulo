@@ -36,6 +36,7 @@ import { MODES, STAMPS } from './review.js';
 import { chapterById, chapterWaves } from './chapters.js';
 import { LENGTHS, LOOSENESS, PASSAGES, BEAT_AS, SHAPES, LAWS as MAIN_QUEST_LAWS } from './main-quest.js';
 import { LOOP_LAYERS, BODY_VERBS } from './core-loop.js';
+import { GOALPOSTS } from './goalposts.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
@@ -113,6 +114,11 @@ function studioCard() {
     'advises, the estimate). Then run: true until nothing is `pending`, telling the creator how far each call got;',
     'check: true walks each level and reads its first frame (`audits`, the machine gate). The eyes gate is the creator',
     'playing it (`play`): never say it passed.',
+    '',
+    'THE FIRST SESSION: not the game done, the game started. The readout\'s `goalposts` say where it stands (met, partial,',
+    'open), each open one with the question only the creator answers, and `next`: where this session goes on, and the',
+    'next one picks up. A good first session leaves:',
+    ...GOALPOSTS.map((g, i) => `  ${i + 1}. ${g.id.padEnd(12)} ${g.says}`),
     '',
     'One level and a simple goal is the quick path, not the studio (gameworld-quick).',
   );

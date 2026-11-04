@@ -40,6 +40,7 @@ import { chapterBook, chapterById, chapterSteps, CHAPTERS } from '@/lib/graph/ga
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
 import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
+import { goalposts } from '@/lib/graph/gameworld/goalposts.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
@@ -657,6 +658,10 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     full.compile = await compileReadout(ref, W, { check: check === true });
     if (full.compile.blockers) full.next = [...full.next, { step: 'compile', blockers: full.compile.blockers.length, card: 'gameworld-next' }];
   }
+  // the first session's goalposts (gameworld/goalposts.js): where the game stands against what a good first session
+  // leaves, read from the book; said while any is open, with where the next session picks up
+  const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null }); } catch { return null; } })();
+  if (posts) full.goalposts = posts;
   // a run its budget stopped: the next move is the run again, before any other (runWorld's RUN_BUDGET_MS)
   if (pending) full.next = [{ step: 'run', pending: pending.length, card: 'gameworld-next' }, ...full.next.filter((n) => n.step !== 'run' && n.step !== 'rerun')];
   // a run's levels on their opening frame (machine gate, game/first-frame-check.js): { first_frame } or nothing

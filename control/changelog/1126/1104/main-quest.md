@@ -41,3 +41,17 @@ is the flow and the sequence, and the levels and maps are laid from it.
   a big map) reads blocked on the same maps and gapped on the chapter turns and the side quests. Two new work packages
   price those gaps, `quest-turns` and `side-quests`; on the regenerated hillclimb page, the side quests lift eleven
   swept worlds.
+- **The first session's goalposts** (`gameworld/goalposts.js`, the readout's `goalposts` while any is open). A game is
+  not done at the end of a session, but a good first session leaves seven things, each read from what the book already
+  says:
+  1. what game it is (its intent, and its core loop);
+  2. how long it is, where it is set and where its story goes (the main quest and the world);
+  3. the hero's look and the world's (the cast and the foes when there are any);
+  4. how it feels to play, and the hero's powers;
+  5. a plan of what to build (the quest's beats, its first buildable, nothing blocking the build);
+  6. a plan of the first level (the first beat's level, written or laid, and settled);
+  7. the first level made and proved by the machine gate (whether it plays as the game is the creator's, the eyes gate).
+
+  Each is met, partial or open; an open one says what is missing and asks the question only the creator answers. `next`
+  is the first not met, with its chapter and the move to make: where this session goes on, and where the next one
+  picks up, read from the recipe. The build chapter's view carries them, and the studio card lists them.

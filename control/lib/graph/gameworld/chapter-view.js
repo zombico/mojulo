@@ -47,7 +47,7 @@ export function chapterOfMove(move) {
 export const MOVE_STEPS = Object.freeze([...Object.keys(MOVE), 'wait', 'form', 'review', 'advised']);
 
 // the readout's sections and advice, each by its chapter
-const SECTION = { intent: 'intent', composed: 'intent', concept: 'intent', feel: 'feel', juice: 'feel', numbers: 'systems', story: 'story', audits: 'build', fight: 'cast', first_frame: 'build', resonance: 'build', comparison: 'intent', compile: 'build', errand_proof: 'story', gauntlet_proof: 'levels', mainQuest: 'main-quest', loop: 'intent' };
+const SECTION = { intent: 'intent', composed: 'intent', concept: 'intent', feel: 'feel', juice: 'feel', numbers: 'systems', story: 'story', audits: 'build', fight: 'cast', first_frame: 'build', resonance: 'build', comparison: 'intent', compile: 'build', errand_proof: 'story', gauntlet_proof: 'levels', mainQuest: 'main-quest', loop: 'intent', goalposts: 'build' };
 const ADVICE = { authorship: 'intent', sameness: 'intent', questions: 'intent', land: 'world', wcd: 'levels', qow: 'levels', mainQuest: 'main-quest', loop: 'intent' };
 // where a chapter's parts are drawn: its bible (the character book's chapters in the character bible, the foes in the cast sheet)
 const BOOK = { direction: 'characterBible', hero: 'characterBible', motion: 'characterBible', actions: 'characterBible', adornment: 'characterBible', systems: 'characterBible', equipment: 'characterBible', feel: 'feelBook', foes: 'foeBook' };

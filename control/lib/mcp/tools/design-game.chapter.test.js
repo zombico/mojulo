@@ -54,7 +54,8 @@ describe('design_game: one chapter', () => {
       seen.push(...v.parts.map((p) => p.id));
       // the view without its pages (the recipe the department edits, as large as it writes) stays small
       const { pages: _p, ...rest } = v;
-      expect(bytes(rest), c.id).toBeLessThan(2500);
+      // (the build's carries the first session's goalposts too: on a book just begun, every one open with its question)
+      expect(bytes(rest), c.id).toBeLessThan(c.id === 'build' ? 3000 : 2500);
       expect(bytes(v), c.id).toBeLessThan(bytes(full));
     }
     expect(seen.sort()).toEqual(full.parts.map((p) => p.id).sort());
@@ -118,6 +119,18 @@ describe('design_game: one chapter', () => {
     expect(mq.reads.map((r) => r.id)).toEqual(['intent', 'world']);
     const intent = await designGameHandler({ ref: 'gq', chapter: 'intent' });
     expect(intent.loop).toMatchObject({ session: 'a beat of the main quest', from: { moment: expect.any(String) } });
+  });
+
+  it('the readout says the first session\'s goalposts while any is open; the build\'s view carries them', async () => {
+    const out = await designGameHandler({ world: GATED, ref: 'gp' });
+    expect(out.goalposts).toMatchObject({ met: expect.any(Number), of: 7, next: { goalpost: 'game', chapter: 'intent' } });
+    // (no main quest, the world unreviewed: open, with the creator's question)
+    expect(out.goalposts.posts.find((p) => p.id === 'shape')).toMatchObject({ status: 'open', ask: expect.stringContaining('how long') });
+    const build = await designGameHandler({ ref: 'gp', chapter: 'build' });
+    expect(build.goalposts).toEqual(out.goalposts);
+    // writing the intent moves the next goalpost on
+    const intent = await designGameHandler({ ref: 'gp', patch: [{ op: 'set', path: '/intent', value: { from: 'long-rpg' } }] });
+    expect(intent.goalposts.next.goalpost).not.toBe('game');
   });
 
   it('every next move the door says belongs to a chapter, or is split among its parts', () => {
