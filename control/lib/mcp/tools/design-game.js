@@ -39,6 +39,7 @@ import { AUDIT_STEP } from '@/lib/graph/gameworld/runner.js';
 import { chapterBook, chapterById, chapterSteps, CHAPTERS } from '@/lib/graph/gameworld/chapters.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
+import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
 import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
@@ -251,7 +252,9 @@ async function auditedPrint(step, browser) {
 /** Run the world stored at `ref`: every ready step made, remade or kept, until the budget is spent;
  * → { world, ran, pending? } (world with its new record; pending the keys of the steps it left for the next run). */
 async function runWorld(ref, world, { force = false, check = false, budgetMs = runBudgetMs(), clock = Date.now, chapter = null } = {}) {
-  let W = world;
+  // the main quest's levels laid at the run (gameworld/main-quest-lay.js): a beat with only a goal its own level, once,
+  // into the recipe; the levels in the quest's order. The record the run writes carries them; from then on the creator's
+  let W = world.mainQuest ? withQuestLevels(world) : world;
   const made = { ...(W.made ?? {}) }, ran = [], pending = [];
   // the record kept as the run goes: each step made is written into the stored world at once (in place: a gameworld
   // keeps no revisions), so a run cut off partway (its process ended, a host's time limit) leaves its rows recorded as
@@ -345,9 +348,12 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
 
 /** The pre-compile check (design-game-check.js) on the world as it stands: its plan, each order as its door would read
  * it, the refs they name, and the build left, priced. Advice: a run goes ahead whatever it says. */
-async function compileReadout(ref, W, { check = false } = {}) {
+async function compileReadout(ref, world, { check = false } = {}) {
+  let W = world;
   let steps;
-  try { steps = runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }); }
+  // (with the levels a run would lay from the main quest, and its planned beats priced apart)
+  let plays = null;
+  try { plays = W.mainQuest ? questPlays(W) : null; W = W.mainQuest ? withQuestLevels(W) : W; steps = runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }); }
   catch (err) { return { gate: 'machine', ready: false, blockers: [planError(err.message)] }; }
   const made = W.made ?? {}, actions = {};
   const moves = (k) => actions[k] === 'make' || actions[k] === 'remake';
@@ -358,7 +364,7 @@ async function compileReadout(ref, W, { check = false } = {}) {
     else if (s.audit) actions[s.key] = !check ? 'unchecked' : !s.ready ? 'waiting' : !made[s.key] || moves(s.order.level) || moves('game') ? (made[s.key] ? 'remake' : 'make') : 'keep';
     else actions[s.key] = decide(s, made[s.key], storedPrint(s.ref));
   }
-  return compileCheck(steps, { actions, row: (r) => SketchRepository.getByRef(r), budgetMs: runBudgetMs() });
+  return compileCheck(steps, { actions, row: (r) => SketchRepository.getByRef(r), budgetMs: runBudgetMs(), plannedBeats: plays?.planned.length ?? 0 });
 }
 
 // the sport game's laws said when they hold too (gameworld/runner.js sportLaws, sportStyle)
@@ -488,7 +494,13 @@ function readout(ref, world, context = {}) {
   const qowGaps = qowAdviceOf(world);
   // the main quest (gameworld/main-quest.js): its acts and beats, and its laws that do not hold (advice, never refused);
   // the core loop (core-loop.js), written or read from the book, and its laws
-  const MQ = world.mainQuest ? (() => { try { const C = mainQuestContext(world); return mainQuestReport(readMainQuest(world.mainQuest, C), C); } catch { return null; } })() : null;
+  const MQ = world.mainQuest ? (() => {
+    try {
+      const C = mainQuestContext(world), P = questPlays(world);
+      // (each beat's level, what the next run lays from a beat's own words, the beats planned and not made)
+      return { ...mainQuestReport(readMainQuest(world.mainQuest, C), C), plays: P.plays, ...(P.lays.length ? { lays: P.lays.map((x) => x.beat) } : {}) };
+    } catch { return null; }
+  })() : null;
   const loop = (() => { try { return loopOf(world); } catch { return null; } })();
   const loopGaps = (() => { try { return loopLaws(world).filter((l) => !l.holds).map((l) => `${l.law}: ${l.says}`); } catch { return []; } })();
   const errandGaps = errandAdviceOf(world);

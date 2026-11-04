@@ -136,6 +136,8 @@ function mainQuestCard() {
     `  as: ${BEAT_AS.map((k) => `{ ${k} }`).join(' ')}: what the beat is played as (a level, a WCD space, a QOW quest, a`,
     '      gauntlet level, an errand, an epoch by number, a story moment). gains: powers gained on it; foes: the bestiary',
     '      it fields; who: its cast. built: false is a beat planned, not made yet: priced, never run.',
+    '  LAID AT A RUN: a built beat with no `as` is laid its own level from its words (named by its goal, standing its',
+    '      foes), once, into the recipe: yours from then on, edited in place. The game plays the beats\' levels in order.',
     `  passage: ${Object.entries(PASSAGES).map(([k, v]) => `${k}, ${v}`).join('; ')}.`,
     '',
     'AN ACT (OR A CHAPTER) IS A STAGE of the hero\'s progression: the first early, the last late, the middle mid. So the',

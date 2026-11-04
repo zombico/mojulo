@@ -183,7 +183,7 @@ export const LAWS = Object.freeze([
   { law: 'stage-matches', says: 'a power is gained in the act its progression stage puts it in (early, mid, late)' },
   { law: 'escalates', says: 'the foes an act fields rise in rank act on act, never fall back' },
   { law: 'varied', says: 'no two acts in a row are played as the same structure in the same place' },
-  { law: 'buildable-first', says: 'the first beat can be made now: built, and played as a level the world holds' },
+  { law: 'buildable-first', says: 'the first beat can be made now: built, and played as a level the world holds or laid from its own words' },
   { law: 'periods-drawn', says: 'a period past the first is one the time facet draws (a chapter overlay); an era is not built yet' },
 ]);
 const SAYS = Object.fromEntries(LAWS.map((l) => [l.law, l.says]));
@@ -220,7 +220,8 @@ export function mainQuestLaws(Q, C = mainQuestContext()) {
   const same = parts.slice(1).map((A, i) => [parts[i], A]).filter(([a, b]) => sign(a) === sign(b) && !sign(a).includes('unset')).map(([a, b]) => `'${a.id}' and '${b.id}'`);
   if (n > 1) law('varied', !same.length, `${same.join(', ')} are played the same`);
   const first = parts[0].beats[0];
-  law('buildable-first', first.built && first.as?.kind === 'level' && C.levels.includes(first.as.at), `the first beat '${first.id}' is ${!first.built ? 'planned, not built' : first.as?.kind !== 'level' ? `played as ${first.as ? `a ${first.as.kind}` : 'nothing yet'}, not a level` : `a level the world does not hold ('${first.as.at}')`}`);
+  // (a beat with no structure named is laid its own level at a run: main-quest-lay.js)
+  law('buildable-first', first.built && (!first.as || (first.as.kind === 'level' && C.levels.includes(first.as.at))), `the first beat '${first.id}' is ${!first.built ? 'planned, not built' : first.as.kind !== 'level' ? `played as a ${first.as.kind}, not a level` : `a level the world does not hold ('${first.as.at}')`}`);
   if (Q.periods.length > 1) {
     const eras = Q.periods.slice(1).filter((p) => p.passage === 'eras').map((p) => p.id);
     law('periods-drawn', !eras.length, `${eras.join(', ')} ${eras.length === 1 ? 'asks' : 'ask'} for eras (time.passage=eras), which the time facet does not draw yet`);

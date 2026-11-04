@@ -22,3 +22,10 @@ is the flow and the sequence, and the levels and maps are laid from it.
 - **The core loop** (a gameworld's `loop`, the intent chapter's): what the player does from moment to moment, what an
   encounter is made of, what it rewards, and what one sitting of play is. Written, or read from the book (the hero's
   verbs, the levels' goals, the beats' gains), and held to what the hero can do.
+- **Its levels are laid from its beats** (`gameworld/main-quest-lay.js`). A beat played as a structure is played on the
+  level that holds it: a dungeon space's level, the open world's level, an errand giver's, a story moment's. A beat with
+  only a goal is laid its own level at a run, composed from its words, named by its goal, and standing the foes it fields.
+  It is laid once, into the recipe, and is the creator's from then on (edited in place; the beat finds it by its id). The
+  game plays the beats' levels in the quest's order, then the world's others. A planned beat is laid and made nothing:
+  the pre-compile check prices it apart (`estimate.planned`). The readout says what each beat is played on, and what
+  the next run will lay.

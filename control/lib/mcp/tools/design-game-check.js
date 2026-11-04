@@ -20,7 +20,8 @@
  * prices the build left (both) at the times measured on the reference book (a hero ~8 s, a level ~6 s, a level's walk
  * ~45 s …) and divides it by the run's budget: an order of size, not a promise.
  *
- *   compileCheck(steps, { actions, row, budgetMs })   pure: `actions` each step's decide, `row(ref)` the stored row or null
+ *   compileCheck(steps, { actions, row, budgetMs, plannedBeats })   pure: `actions` each step's decide, `row(ref)` the
+ *                                                    stored row or null, `plannedBeats` a main quest's beats not built
  *   planError(message)                                   → the blocker a refused plan is
  */
 import { validateHeroSpec } from './layered.js';
@@ -71,7 +72,7 @@ function namedRefs(order, own) {
 const GAME_FLAGS = new Set(['allow_unaudited', 'auto_audit', 'audits', 'ref', 'folder_ref', 'project_ref']);
 const gameManifest = (order) => ({ kind: 'game', ...Object.fromEntries(Object.entries(order).filter(([k]) => !GAME_FLAGS.has(k))) });
 
-export function compileCheck(steps, { actions = {}, row = () => null, budgetMs = 0 } = {}) {
+export function compileCheck(steps, { actions = {}, row = () => null, budgetMs = 0, plannedBeats = 0 } = {}) {
   const blockers = [];
   const block = (step, says) => blockers.push({ chapter: chapterOfStep(step.key)?.id ?? 'build', step: step.key, says });
   // what the build makes but play cannot finish: said, never a blocker (no door refuses it)
@@ -112,5 +113,7 @@ export function compileCheck(steps, { actions = {}, row = () => null, budgetMs =
   const waiting = steps.filter((s) => actions[s.key] === 'waiting');
   const seconds = Math.round([...now, ...waiting].reduce((n, s) => n + stepSeconds(s.key), 0));
   const calls = !seconds ? 0 : budgetMs > 0 ? Math.max(1, Math.ceil((seconds * 1000) / budgetMs)) : 1;
-  return { gate: 'machine', ready: blockers.length === 0, steps: steps.length, make: now.length, waiting: waiting.length, estimate: { seconds, calls }, ...(blockers.length ? { blockers } : {}), ...(advises.length ? { advises } : {}) };
+  // a main quest's planned beats (built: false): priced as a level each, apart from the build at hand
+  const plannedPrice = plannedBeats > 0 ? { planned: { beats: plannedBeats, seconds: Math.round(plannedBeats * STEP_SECONDS.level) } } : {};
+  return { gate: 'machine', ready: blockers.length === 0, steps: steps.length, make: now.length, waiting: waiting.length, estimate: { seconds, calls, ...plannedPrice }, ...(blockers.length ? { blockers } : {}), ...(advises.length ? { advises } : {}) };
 }
