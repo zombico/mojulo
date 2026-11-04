@@ -36,6 +36,7 @@
  *     car       car-shelf CAR_CARDS: a personal or family car composed (its class, body, language, trim, paint); the
  *               row's first card its realistic build
  *     construction  construction-shelf CON_ARCHETYPES: a site's machine, its carrier, its upper, its front and its tool
+ *     mecha     mecha-shelf MECHA_ARCHETYPES: a legged frame a rider sits in, its legs posed by where its feet are
  *     tech      tech-crafter's vehicle trait: the concept it falls back to at every tier (many rows may share one)
  *
  * Pure data and pure functions: no clock, no dice.
@@ -318,6 +319,40 @@ export const VEHICLES = {
     { tech: 'tracked' }),
   mech: row('mech', ['walker', 'battle mech', 'mecha', 'strider'], 'offroad', 'armour', F, FIGHT,
     { tech: 'walker' }),
+  // (a ridden walker: the mecha shelf's first frame, mecha-shelf/, its rider astride as on a sport motorcycle, carried on
+  // two six-joint legs; drawn on the studio grid at a stance, ridden when its gait is built)
+  'all-terrain-walker': row('all-terrain walker', ['all terrain walker', 'riding walker', 'ridden walker', 'bipedal walker', 'legged walker', 'walking machine', 'walker frame', 'walking chair'], 'offroad', 'trail', F, ['driven', 'parked', 'watched'],
+    { mecha: 'allTerrainWalker', tech: 'walker' }),
+  // (the all-terrain walker hardened as a military all-terrain transport, unarmed: drawn larger for rough ground, its
+  // beams guarded, its feet cleated, dressed in the field's look, car-designer's military styling)
+  'field-walker': row('field walker', ['military walker', 'army walker', 'military all terrain walker', 'military all-terrain walker', 'patrol walker', 'scout walker', 'recon walker', 'walker transport'], 'offroad', 'scout', F, ['driven', 'parked', 'watched'],
+    { mecha: 'fieldWalker', tech: 'walker' }),
+  // (the field walker on four wheels, armed: it walks, or collapses its legs and rolls as a four-wheeler; its heavy
+  // weapons backpack an autocannon, a rocket launcher and the service tail)
+  'rover-walker': row('rover walker', ['wheeled walker', 'walker atv', 'atv walker', 'transforming walker', 'wheel walker', 'quad walker', 'roller walker', 'wheel leg walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
+    { mecha: 'roverWalker', tech: 'walker' }),
+  // (the rover walker's principles at 2.5 times: six wheels collapsed, its cockpit out on a keel, a howitzer and a
+  // missile launcher on its back served by twin scorpion tails)
+  'siege-walker': row('siege walker', ['walking fortress', 'artillery walker', 'howitzer walker', 'siege mech', 'heavy rover walker', 'mobile fortress', 'six wheel walker', 'land cruiser walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
+    { mecha: 'siegeWalker', tech: 'walker' }),
+  // (the siege walker's first pattern, kept beside it: its cockpit out on a keel under a radar mast, no hull between,
+  // its weapons high on its backpack's tower, tall foot plates)
+  'siege-walker-mk1': row('siege walker mk1', ['siege walker mk 1', 'first siege walker', 'original siege walker', 'tower siege walker', 'keel walker', 'radar mast walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
+    { mecha: 'siegeWalkerMk1', tech: 'walker' }),
+  // (a big four-legged drone carrier: its hull a single hangar, its feet rounded bays on wheels, two drones in each; it
+  // walks as an insect does, tall on its bays, or tucks them in along its hull and drives on them)
+  'brood-walker': row('brood walker', ['bug mom', 'drone mother', 'drone carrier walker', 'drone walker', 'mothership walker', 'hangar walker', 'quad walker carrier', 'four legged drone carrier'], 'offroad', 'transport', F, ['driven', 'parked', 'watched'],
+    { mecha: 'broodWalker', tech: 'walker' }),
+  // (a general-purpose work frame on the same shelf: its operator seated in a torso frame, knee-forward legs, two arms
+  // on rams for the lifting)
+  'utility-walker': row('utility walker', ['work walker', 'walking work frame', 'power frame', 'work frame', 'lifting walker', 'cargo walker', 'loader walker', 'walking loader'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
+    { mecha: 'utilityWalker', tech: 'walker' }),
+  // (the utility walker drawn larger for heavy construction: its operator in a closed, guarded cab)
+  'heavy-walker': row('heavy walker', ['heavy work walker', 'construction walker', 'site walker', 'heavy lifting walker', 'walking crane', 'demolition walker', 'heavy power frame'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
+    { mecha: 'heavyWalker', tech: 'walker' }),
+  // (the heavy walker's cab and arms on a more robust frame, a giant arm pack on its back: two giant arms over the cab)
+  'giant-arm-walker': row('giant arm walker', ['giant arm pack walker', 'gap walker', 'gau walker', 'four arm walker', 'big arm walker', 'heavy lift walker', 'rescue walker'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
+    { mecha: 'giantArmWalker', tech: 'walker' }),
   hovercraft: row('hovercraft', ['hoverbike', 'speeder', 'skimmer', 'grav car'], 'offroad', 'transport', M.concat(F), ['driven', 'traffic', 'watched'],
     { tech: 'hover' }),
   // ── drawn ───────────────────────────────────────────────────────────────────
@@ -501,6 +536,7 @@ export const HANDLE_TABLES = Object.freeze({
   cycle: { claim: 'one', table: 'cycle-shelf/cycle-archetypes.js CYCLE_ARCHETYPES' },
   car: { claim: 'one', table: 'car-shelf/car-library.js CAR_CARDS' },
   construction: { claim: 'one', table: 'construction-shelf/con-archetypes.js CON_ARCHETYPES' },
+  mecha: { claim: 'one', table: 'mecha-shelf/mecha-archetypes.js MECHA_ARCHETYPES' },
   tech: { claim: 'shared', table: 'gameworld/tech-crafter.js CRAFT_TRAITS.vehicle (a form\'s variant)' },
 });
 

@@ -160,8 +160,9 @@ const BACKEND_TO_FAMILY = Object.fromEntries(
 );
 // (and the realistic loft of a road class: the vehicle registry's realistic build, car-designer/realistic.js, loaded the same way)
 // (a cycle: the cycle shelf's machine, { archetype, look?, pose? }, cycle-shelf/cycle-figure.js; a site machine: the
-// construction shelf's, { archetype, pose?, tool?, carrier?, height?, palette? }, construction-shelf/con-figure.js)
-const RACE_KINDS = ['racer', 'supercar', 'loft', 'cycle', 'construction'];
+// construction shelf's, { archetype, pose?, tool?, carrier?, height?, palette? }, construction-shelf/con-figure.js; a
+// legged frame: the mecha shelf's, { archetype, pose?, palette?, rider? }, mecha-shelf/mecha-figure.js)
+const RACE_KINDS = ['racer', 'supercar', 'loft', 'cycle', 'construction', 'mecha'];
 const raceKindOf = (instance) => RACE_KINDS.find((k) => instance && instance[k] !== undefined) ?? null;
 
 // ===========================================================================
@@ -275,6 +276,7 @@ async function buildRaceInstance(instance) {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error(`meta-fabricator: a ${kind} instance is its recipe { … } (describeFamily('${kind}').tunables)`);
   if (kind === 'cycle') { const { cycleInstanceFaces } = await import('./cycle-shelf/cycle-figure.js'); return { kind, ...(await cycleInstanceFaces(spec)) }; }
   if (kind === 'construction') { const { conInstanceFaces } = await import('./construction-shelf/con-figure.js'); return { kind, ...conInstanceFaces(spec) }; }
+  if (kind === 'mecha') { const { mechaInstanceFaces } = await import('./mecha-shelf/mecha-figure.js'); return { kind, ...(await mechaInstanceFaces(spec)) }; }
   const { racerInstanceFaces, supercarInstanceFaces, loftInstanceFaces } = await import('./car-designer/race-families.js');
   return { kind, ...(kind === 'racer' ? racerInstanceFaces(spec) : kind === 'loft' ? loftInstanceFaces(spec) : supercarInstanceFaces(spec)) };
 }
