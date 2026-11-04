@@ -29,6 +29,7 @@
 import { coverErrors, coverTile, COVER_KINDS } from '../beast/cover.js';
 import { patternErrors, patternField } from '../beast/pattern.js';
 import { encodePngRgba } from '../landscape/surface-textures.js';
+import { decodePng } from '../era/tone.js';
 import { COAT_CARDS, COAT_CARD_NAMES, hairCoatFormErrors, resolveHairCoat, lockCoatFrame } from './hair-coat-words.js';
 
 export { COAT_CARDS, COAT_CARD_NAMES, hairCoatFormErrors, resolveHairCoat, lockCoatFrame };
@@ -131,7 +132,32 @@ export function hairCoatPaint(mesh, recipe = {}) {
   const light = (fill) => { const r = fis.get(face), base = bases.get(r?.name) ?? hex3(hairHex).map(lin), lk = `${r?.name}|${fill}`;
     let h = lights.get(lk); if (!h) lights.set(lk, h = toHex(hex3(fill).map((x, i) => srgb(Math.min(1, lin(x) / Math.max(1e-6, base[i])))))); return h; };
   return { key, url, painted: (fi) => { if (fis.has(fi)) { face = fi; return true; } return false; }, uvAt, light,
-    atlas: { url, w: ATLAS_W, h: H }, white, stats: { locks: rects.length, faces: fis.size, scale, height: H } };
+    atlas: { url, w: ATLAS_W, h: H }, white, stats: { locks: rects.length, faces: fis.size, scale, height: H },
+    // (the rig pack's paint, for a figure whose pack carries no other: its UVs on the atlas as they are, no drawn states)
+    baseUV: (t) => t, regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0, rgba: px };
+}
+
+/** The rig pack's paint with the coat's under it on one atlas (the pack carries one texture): the pack's page above, the
+ * coat's below, each paint's UVs (its cards' and its cloth's too) moved onto its own rows; a face the coat paints is the
+ * coat's. For the World page's clip preview; an export keeps the pack's atlas as its own laws lay it out. A pack whose
+ * atlas cannot be read, or one drawing states (`targets`, `regions`): the pack as it is. */
+export function stackPaints(a, b) {
+  if (!a || !b?.rgba || a.targets || a.regions?.length) return a ?? b;
+  const A = decodePng(a.atlas?.url); if (!A) return a;
+  const bw = b.atlas.w, bh = b.atlas.h, W = Math.max(A.W, bw), H = A.H + bh, px = new Uint8Array(W * H * 4).fill(255);
+  for (let y = 0; y < A.H; y++) px.set(A.px.subarray(y * A.W * 4, (y + 1) * A.W * 4), y * W * 4);
+  for (let y = 0; y < bh; y++) px.set(b.rgba.subarray(y * bw * 4, (y + 1) * bw * 4), (A.H + y) * W * 4);
+  const onA = ([s, t]) => [(s * A.W) / W, 1 - ((1 - t) * A.H) / H], onB = ([s, t]) => [(s * bw) / W, 1 - (A.H + (1 - t) * bh) / H];
+  const url = `data:image/png;base64,${encodePngRgba(Buffer.from(px.buffer, px.byteOffset, px.byteLength), W, H).toString('base64')}`;
+  let cur = null;
+  const moved = (f) => (f ? (fi) => { const c = f(fi); return c ? c.map(onA) : c; } : undefined);
+  return {
+    key: `${a.key}+${b.key}`, url, atlas: { url, w: W, h: H }, baseUV: (t) => t, white: onA(a.white),
+    painted: (fi) => { cur = b.painted(fi) ? b : a.painted(fi) ? a : null; return !!cur; },
+    uvAt: (r) => (cur === b ? onB(b.uvAt(r)) : onA(a.baseUV(a.uvAt(r)))), light: (fill) => cur.light(fill),
+    regionOf: new Map(), regions: [], hidden: a.hidden ?? [0, 0, 0], targets: 0,
+    ...(a.cardUV ? { cardUV: moved(a.cardUV) } : {}), ...(a.clothUV ? { clothUV: moved(a.clothUV) } : {}), ...(a.alphaMask ? { alphaMask: true } : {}),
+  };
 }
 
 /** One paint over several: each face is drawn by the first that paints it (its texture, its UVs, its light); the page

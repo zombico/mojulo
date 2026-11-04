@@ -71,7 +71,7 @@ import { clothChart, clothOnRecord } from '@/lib/graph/epidermis/cloth-relief';
 import { outfitLanguage } from '@/lib/graph/outfit/expand';
 import { beastCoverStyleOf, beastCoatOf, coverMap } from '@/lib/graph/beast/cover';
 import { beastCoatPaint, coatRelief } from '@/lib/graph/beast/coat-atlas';
-import { hairCoatPaint, composePaints } from '@/lib/graph/polygonizer/hair-coat';
+import { hairCoatPaint, composePaints, stackPaints } from '@/lib/graph/polygonizer/hair-coat';
 import { relationalFaceRig, performanceTrack, mouthTargets } from '@/lib/graph/polygonizer/relational-face-rig';
 import { perform } from '@/lib/graph/face-acting/perform';
 import { animePerformanceTrack } from '@/lib/graph/face-acting/anime-read';
@@ -954,9 +954,13 @@ export const WORLD_KINDS = {
         const packR = typeof ctx.ride === 'function' ? { ...R, reach: 'clamp' } : R;
         if (packR !== R) clipsIn = { ...clipsIn, ...ctx.ride(R, dz) };
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
+        // (the coated locks' and the xeno appliances' coat rides it too: alone where nothing else does (the landmark head, an
+        // anime head unpainted), stacked under the painted face's or the realistic skin's atlas (hair-coat.js stackPaints); on the page
+        // alone: an export's pack is the one before the coat)
         // (the REALISTIC HERO'S SKIN above: the GLB's base colour, under the lit export's plain corners or the unlit's baked
         // light, and the page's clips' the same atlas)
-        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? beastCoat ?? null);
+        const paintPack0 = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? beastCoat ?? null);
+        const paintPack = ctx.face || !lockCoat ? paintPack0 : paintPack0 ? stackPaints(paintPack0, lockCoat) : lockCoat;
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)
         if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, clipsIn, seconds, face.authored, face.K) : heroFaceTracks(m.hero, clipsIn, seconds, face.authored));

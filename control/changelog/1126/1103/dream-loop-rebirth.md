@@ -58,10 +58,27 @@ person's own picture itself (a drawing, a photo, a figure, someone's OC): nothin
   exports with the head. The first cards, named for what they are:
   - `forehead-ridges`: curving ridges up the forehead to the hairline;
   - `nose-ridges`: a stack of fine ridges across the nose's bridge;
-  - `head-tails`: two thick tails from the back of the skull, over a bald cap.
+  - `head-tails`: two thick tails from the back of the skull, over a bald cap;
+  - `swept-horns`: two hollow horns rising from the top of the head and sweeping back;
+  - `front-tails`: two head-tails from behind the temples, falling forward over the shoulders, over a bald cap;
+  - `horned-tails`: swept horns, two front tails and one down the back, banded pale over dark, over a bald cap;
+  - `chitin-crest`: two broad lobes off the brow that arch over the skull and fall beside the face to the shoulders
+    like a hood. Each lobe's front is a hard, ribbed shell of plates, its back soft flesh, over a bald cap;
+  - `cheek-ridges`: a fine ridge down each cheek.
+
+  A protrusion no card names is written whole: `{ family: 'horn' | 'tail' | 'lobe', at: { az, el }, … }` grows a
+  horn, a tail or a flat lobe from an address on the cap. It is shaped by its length, width and tip, a lift up or down off the skin, a sweep
+  back, a spread out, and a droop under its own weight. Below the chin a tail falls on its own side of the body, held off
+  it, and `pair` grows its mirror. `over` makes it hug the head first, carried over the cap a set distance off the skin.
+  A lobe's `plates` lay hard ridges across its front: they wear the `shell` coat (chitin, say) and the lobe wears the
+  soft `coat`. Every card is built in the same grammar.
 
   Each card says what screen alien it recalls, for the X-like stamp of a character read from a picture. `size` scales
   a card. `coat` paints it in the hair coat's grammar, the skin's own colour by default. `replaces: 'hair'` lays a bald
   cap that every head builds by its own rules; on the realistic skin, the scalp is painted bare (the dermis's
   `bareScalp`). The readout's `xeno` says what was placed where; the hero card's `hero-xeno` section and the character
   protocol name it.
+
+  The coats of locks and appliances also draw in the World page's clip preview, on every head: alone on the landmark
+  head, and stacked under the painted face's or the realistic skin's atlas on the others. An export's figure carries no
+  coat yet.

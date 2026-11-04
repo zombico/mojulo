@@ -8,6 +8,8 @@
  *                                                  of a glued appliance), its height and width by the place along it
  *   tubeMesh(line, { radius, R })                  a TAIL or a tendril: a tapered tube along a centre line, its root sunk
  *                                                  in the skull and closed, its tip a point
+ *   bladeMesh(line, { radius, flat, face, R })     a LOBE: the tube flattened, its section an ellipse `flat` as thick as it
+ *                                                  is wide, its broad face toward `face(i)` (a direction per point)
  *
  * `samples` are the frame's hits `{ p, n }` (a point on the skin, its outward normal) in order; `height(t)` and
  * `width(t)` metres at t 0 … 1 along them. → { vertices, faces, line } (line: the centre the coat reads). Pure.
@@ -59,4 +61,26 @@ export function tubeMesh(line, { radius, R = 10 }) {
   const root = vertices.push(line[0]) - 1, tip = vertices.push(line[N - 1]) - 1;
   for (let j = 0; j < R; j++) { faces.push([root, rings[0][(j + 1) % R], rings[0][j]]); faces.push([tip, rings.at(-1)[j], rings.at(-1)[(j + 1) % R]]); }
   return { vertices, faces, line };
+}
+
+/** A flattened tube along `line`: at each point an ellipse `2·radius(t)` across and `flat` of that thick, its thin axis
+ * the direction `face(i)` made square to the line (its broad FRONT that way), R round; root and tip closed as a tube's.
+ * → { vertices, faces, line, across, front } (across and front: each ring's axes, for what is laid on its face). */
+export function bladeMesh(line, { radius, flat = 0.35, face, R = 14 }) {
+  const N = line.length; if (N < 2) return null;
+  const vertices = [], faces = [], rings = [], across = [], front = [];
+  const T = line.map((_, i) => unit(sub(line[Math.min(N - 1, i + 1)], line[Math.max(0, i - 1)])));
+  let f0 = null;
+  for (let i = 0; i < N - 1; i++) {
+    let f = face(i); f = sub(f, mul(T[i], dot(f, T[i])));
+    if (Math.hypot(f[0], f[1], f[2]) < 1e-6) f = f0 ?? unit(cross(T[i], Math.abs(T[i][2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]));
+    f = unit(f); if (f0 && dot(f, f0) < 0) f = mul(f, -1); f0 = f;
+    const w = unit(cross(T[i], f)), r = radius(i / (N - 1)), ring = [];
+    for (let j = 0; j < R; j++) { const a = (2 * Math.PI * j) / R; ring.push(vertices.push(add(line[i], add(mul(w, r * Math.cos(a)), mul(f, r * flat * Math.sin(a))))) - 1); }
+    rings.push(ring); across.push(w); front.push(f);
+  }
+  for (let i = 0; i < rings.length - 1; i++) for (let j = 0; j < R; j++) { const a = rings[i][j], b = rings[i][(j + 1) % R], c = rings[i + 1][(j + 1) % R], d = rings[i + 1][j]; faces.push([a, b, c], [a, c, d]); }
+  const root = vertices.push(line[0]) - 1, tip = vertices.push(line[N - 1]) - 1;
+  for (let j = 0; j < R; j++) { faces.push([root, rings[0][(j + 1) % R], rings[0][j]]); faces.push([tip, rings.at(-1)[j], rings.at(-1)[(j + 1) % R]]); }
+  return { vertices, faces, line, across, front };
 }

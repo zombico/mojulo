@@ -10,7 +10,8 @@
  * head (polygonizer/hero-head-layers.js pins the realistic head's jewellery and hair the same way).
  *
  *   xenoFrame(recipe) → { head, carrier, centre, crownZ, chinZ, browZ, noseTip, halfWidth, height, frontY, backY,
- *                         front(x, z), back(x, z), sagittal(phi, x), backOfBodyAt(z), pinNear(p), frameOf(pin) } | null
+ *                         front(x, z), back(x, z), sagittal(phi, x), toward(az, el), backOfBodyAt(z), frontOfBodyAt(z),
+ *                         pinNear(p), frameOf(pin) } | null
  *
  * Front is +y, up is +z, metres (the hero's native frame). Pure, deterministic.
  */
@@ -74,10 +75,14 @@ export function xenoFrame(recipe) {
   const back = (x, z) => cast([centre[0] + x, lo[1] - reach, z], [0, 1, 0]);
   // in the head's middle plane (offset `x`), at `phi` from the front (0) over the crown (90°) to the back (180°)
   const sagittal = (phi, x = 0) => { const d = [0, Math.cos(phi), Math.sin(phi)], o = add(add(centre, [x, 0, 0]), mul(d, reach)); return cast(o, mul(d, -1)); };
+  // toward an address on the cap: `az` degrees round from the front (+90 the hero's +x side, 180 the back), `el` degrees up
+  // from the brow line's level (90 the crown), from the head's centre raised to the brow line
+  const toward = (az, el) => { const a = (az * Math.PI) / 180, e = (el * Math.PI) / 180, d = [Math.sin(a) * Math.cos(e), Math.cos(a) * Math.cos(e), Math.sin(e)], c = [centre[0], centre[1], browZ], o = add(c, mul(d, reach)); return cast(o, mul(d, -1)); };
 
   // the body under the head: the back's surface at a height (the least y of the neck's and the torso's points near it)
   const bodyPts = body.flatMap((n) => Object.values(comp[n]?.points || {}));
   const backOfBodyAt = (z, band = 0.03) => { let m = Infinity; for (const p of bodyPts) if (Math.abs(p[2] - z) < band && p[1] < m) m = p[1]; return Number.isFinite(m) ? m : null; };
+  const frontOfBodyAt = (z, band = 0.03) => { let m = -Infinity; for (const p of bodyPts) if (Math.abs(p[2] - z) < band && p[1] > m) m = p[1]; return Number.isFinite(m) ? m : null; };
 
   // the pin: the carrier's face nearest a point that the head bone alone carries (a blended face, the jaw's, is passed by)
   const carrier = comp[H.carrier], blend = R[H.carrier].bind?.blend || null;
@@ -92,6 +97,6 @@ export function xenoFrame(recipe) {
 
   return {
     head: H.head, carrier: H.carrier, centre, crownZ: hi[2], chinZ: lo[2], browZ, noseTip, halfWidth: (hi[0] - lo[0]) / 2, height, frontY: hi[1], backY: lo[1],
-    front, back, sagittal, backOfBodyAt, pinNear, frameOf,
+    front, back, sagittal, toward, backOfBodyAt, frontOfBodyAt, pinNear, frameOf,
   };
 }

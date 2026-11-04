@@ -3,7 +3,9 @@
 // paint mapping each coated lock onto its own rectangle, and paints composed face by face.
 import { describe, expect, it } from 'vitest';
 
-import { COAT_CARDS, COAT_CARD_NAMES, validateHairCoat, resolveHairCoat, lockCoatFrame, hairCoatPaint, composePaints, hairCoatsIn } from './hair-coat.js';
+import { COAT_CARDS, COAT_CARD_NAMES, validateHairCoat, resolveHairCoat, lockCoatFrame, hairCoatPaint, composePaints, stackPaints, hairCoatsIn } from './hair-coat.js';
+import { encodePngRgba } from '../landscape/surface-textures.js';
+import { decodePng } from '../era/tone.js';
 import { patternField } from '../beast/pattern.js';
 import { animeHead, ANIME_HAIR_MOVES } from './anime-head.js';
 import { validateHeroSpec } from '../../mcp/tools/layered.js';
@@ -110,5 +112,20 @@ describe('the paint', () => {
     const one = own('only', new Set());
     expect(composePaints([null, one])).toBe(one);
     expect(composePaints([null])).toBeNull();
+  });
+
+  it("stacks the coat under the rig pack's own atlas: each paint's texels and UVs on its own rows, the coat's faces its own", () => {
+    // the pack's paint: a 4×2 red page painting face 4, its UVs on its own page
+    const red = new Uint8Array(4 * 2 * 4).map((_, i) => [255, 0, 0, 255][i % 4]), url = `data:image/png;base64,${encodePngRgba(Buffer.from(red), 4, 2).toString('base64')}`;
+    const own = { key: 'heroSkin', url, atlas: { url, w: 4, h: 2 }, painted: (fi) => fi === 4, uvAt: () => [0.5, 0.5], baseUV: (t) => t, light: () => 'skin', white: [0, 1], regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0, cardUV: (fi) => (fi === 5 ? [[1, 1]] : null) };
+    const coat = hairCoatPaint(mesh, { palette: { Hair: '#4f6b3f' } }), S = stackPaints(own, coat);
+    const D = decodePng(S.atlas.url);
+    expect([D.W, D.H]).toEqual([coat.atlas.w, 2 + coat.atlas.h]);
+    expect([...D.px.subarray(0, 4)]).toEqual([255, 0, 0, 255]);                          // the pack's page on top
+    expect(S.painted(4)).toBe(true); expect(S.light('#808080')).toBe('skin');
+    const u = S.uvAt({ vi: 8 }); expect(u[1]).toBeGreaterThan(1 - 2 / D.H);               // its UVs on its rows
+    expect(S.painted(0)).toBe(true); expect(S.uvAt({ vi: 0 })[1]).toBeLessThanOrEqual(1 - 2 / D.H + 1e-9);   // the coat's below
+    expect(S.cardUV(5)[0][1]).toBe(1); expect(S.cardUV(6)).toBeNull();
+    expect(stackPaints({ ...own, targets: 3 }, coat).key).toBe('heroSkin');               // a pack drawing states: as it is
   });
 });

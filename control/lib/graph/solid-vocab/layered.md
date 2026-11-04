@@ -881,7 +881,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   it. A helmet by tradition (the steel pot, the K-pot …) is the outfit build's `language.head`, by word here too.
   Comic-book characters wearing them, by name: get_solid_vocab({ id: 'comic-hero' }).
 <!-- /section -->
-<!-- section: hero-xeno | Xeno make-up | xenoHeaddress: practical-effects alien appliances glued onto any head -->
+<!-- section: hero-xeno | Xeno make-up | xenoHeaddress: practical-effects alien appliances glued onto any head: ridges, horns, head-tails, appendages written whole -->
   XENO MAKE-UP (`lib/graph/xeno`). `xenoHeaddress: ['<card>' | { card, size?, coat?, replaces? }, …]` puts a
   practical-effects make-up crew's APPLIANCES on the hero: pieces sculpted, cast in foam latex or silicone, glued on with
   their edges blended into the skin, and painted. They sit on whichever head the hero wears (the landmark head, the anime
@@ -889,7 +889,27 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   The cards, named for what they are, never a franchise:
   - `forehead-ridges`: curving ridges up the forehead to the hairline;
   - `nose-ridges`: a stack of fine ridges across the bridge of the nose;
-  - `head-tails`: two thick tails from the back of the skull, down the back, over a bald cap.
+  - `head-tails`: two thick tails from the back of the skull, down the back, over a bald cap;
+  - `swept-horns`: two hollow horns rising from the top of the head and sweeping back;
+  - `front-tails`: two head-tails from behind the temples, falling forward over the shoulders, over a bald cap;
+  - `horned-tails`: swept horns, two front tails and one down the back, banded pale over dark, over a bald cap;
+  - `chitin-crest`: two broad lobes off the brow, arching out over the skull and down beside the face to the shoulders
+    like a hood, a hard ribbed shell of plates on each lobe's front, soft flesh behind, over a bald cap;
+  - `cheek-ridges`: a fine ridge down each cheek from under the eye.
+  APPENDAGES WRITTEN WHOLE, for a protrusion no card names: `{ family: 'horn' | 'tail' | 'lobe', at: { az, el },
+  over?, stand?, pair?, length?, width?, tip?, lift?, sweep?, spread?, droop?, fall?, flat?, plates?, coat?, shell?,
+  replaces?, size? }`. `at` is the address on the cap: `az`
+  degrees round from the front (90 the side, 180 the back), `el` degrees up from the brow line (−40 … 90, 90 the crown).
+  It grows from there in steps: `lift` starts it between the skin's normal and straight up (0 … 1) or down (−1 … 0),
+  `sweep` turns it back over its length (degrees), `spread` out from the midline, `droop` lets it fall under its own
+  weight, and below the chin a tail lies on the body's `fall` side ('back' | 'front' | 'shoulder'), held off it. `over: {
+  az, el }` makes it HUG the head first, carried over the cap from `at` to there `stand` metres off the skin, before it
+  hangs free. A LOBE is the same path flattened (`flat`, its thickness over its width), broad in the middle and pointed,
+  its broad front facing forward and out; `plates` lays that many hard ridged plates across its front, a cast shell over a
+  soft foam piece, the plates wearing `shell` (a coat) and the lobe its `coat`. `length`, `width` and
+  `tip` are metres on a 23 cm head, scaled with the head; `pair` grows its mirror. A horn's defaults rise and sweep; a
+  tail's hang. Its root is sunk into the cap and flared, as an appliance is glued, so one shape language builds horns,
+  crests, montral-like domes and lekku-like falls alike.
   Each card's `like` names the screen alien it recalls, for the character target's X-like stamp. `size` scales a card
   (0.5 … 2). `coat` is its texture and colour, the hair coat's grammar (`coat: { color, cover, pattern }`); the card's
   own colour is the skin's, so the piece reads blended, and a colour or a pattern takes it past the skin. `replaces:
