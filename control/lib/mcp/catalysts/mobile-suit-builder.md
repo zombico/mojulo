@@ -54,7 +54,7 @@ Substrate: `docs/POLYGONIZER-SYNTHESIS.md`; assembler
   armor over a dark frame*, not a tuned body. If you catch yourself reaching for
   the figure (`mint_solid` kind `figure`) / the protoform, stop — a four-minute rejection is a win, not a
   failure (this is the exact detour the reference build discarded). An
-  organic-bodied character is `create_character` (`as: 'hero'`)'s job; if the target is
+  organic-bodied character is `create_character` (`as: 'hero'`; from a picture, `reference_protocol` target `character`)'s job; if the target is
   really a person, say so and switch loops.
 - **Segment-first — the whole body last.** Do NOT dream or build one whole-body
   sheet; the first whole-body pass is ALWAYS mushy. Decompose along real seams —
@@ -163,7 +163,7 @@ which variants you tried and which you locked.
 
 - You don't bind, wrap, or persist the dream sheets — discarded on lock.
 - You don't reach for the figure protoform — a mech is hardware; kill that
-  detour fast and route true people to `create_character` (`as: 'hero'`).
+  detour fast and route true people to `create_character` (`as: 'hero'`; from a picture, `reference_protocol` target `character`).
 - You don't dream or build the whole body first — segment sheets, then compose.
 - You don't fake an unbuildable part — name the vocabulary gap instead.
 - You don't hand-compute coordinates or hand-duplicate the left side — declare

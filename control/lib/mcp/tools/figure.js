@@ -30,7 +30,7 @@ import { FIGURE_SETUPS, FIGURE_SETUP_NAMES } from '@/lib/visual-language/themes'
 
 const GARMENT_KEYS = Object.keys(GARMENTS);
 /** the refusal for a figure's retired `dream_audit` (the figure-spec loop it attested for is gone) */
-export const DREAM_AUDIT_RETIRED = "dream_audit: not a figure word (the attestation is retired with its loop); mint the figure without it. A person from words is create_character({ as: 'hero' }).";
+export const DREAM_AUDIT_RETIRED = "dream_audit: not a figure word (the attestation is retired with its loop); mint the figure without it. A character from a picture you can see is reference_protocol({ target: 'character' }); from words, create_character({ as: 'hero' }).";
 
 export async function createFigureHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('mint_solid kind "figure" requires { title }');

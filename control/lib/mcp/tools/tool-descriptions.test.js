@@ -43,7 +43,9 @@ const DESCRIPTION_ALLOWLIST = {
   // meta_context_declare_inventory 1405 -> 1387, pull_agent_task 762 -> 718,
   // recommend_catalysts 1042 -> 1027.
   bind_research_item: 1233,
-  capture_reference: 1523,
+  // capture_reference 1523 -> 1273 and reference_protocol 1708 -> 1426 (2026-11-04, 1103-dream-loop-death-rebirth): the
+  // character target joined both and the target lines were re-cut to routing grade; the protocol teaches the rest.
+  capture_reference: 1273,
   compile_plan: 841,
   // compose_world / create_sketch / get_game_vocab re-pinned 2026-07-10 to
   // bless the visualization-layer branch growth (school base + game vocab
@@ -143,7 +145,7 @@ const DESCRIPTION_ALLOWLIST = {
   recommend_catalysts: 1027,
   recommend_kind: 922,
   record_mcp_capabilities: 1301,
-  reference_protocol: 1708,
+  reference_protocol: 1426,
   semantic_search: 2049,
   sketch_plan: 774,
   sketch_research: 712,
@@ -433,6 +435,9 @@ const DESCRIPTION_ALLOWLIST = {
 // asset), two schema properties, the description held under its own pin. No new tool.
 // Held 2026-11-02 at 212_700 (measured 212,634) merging 1026-consolidated into 1031-gen7-export: both lines' additions
 // fit under the release candidate's pin (the handoff's later rounds shrank its own). No new tool.
+// Held 2026-11-04 on 1103-dream-loop-death-rebirth at 212_700 (measured 212,061): the character reference target (one
+// enum word and its clauses on reference_protocol and capture_reference) paid for itself by re-cutting both tools'
+// target lines; the four figure-spec tools it retired were never listed. No new tool.
 const PAYLOAD_CEILING = 212_700;
 
 async function listedTools() {

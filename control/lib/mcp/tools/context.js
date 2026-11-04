@@ -454,7 +454,7 @@ const FORM_DEFS = {
   },
   'reference': {
     title: 'Visual reference (from a photo)',
-    makes: 'read a photo YOU can see into mojulo dials — scene or pose',
+    makes: 'read a picture YOU can see into mojulo dials — a scene, a pose, an object, a landscape, a character',
     tools: ['reference_protocol', 'capture_reference'],
   },
   'image-render': {

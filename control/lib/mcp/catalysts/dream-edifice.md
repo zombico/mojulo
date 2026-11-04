@@ -44,7 +44,7 @@ Substrate: the assembler `architecture/edifice.js`, the primitives it composes
 - **This is for BESPOKE buildings.** A new, one-off building / campus / connected
   complex the frozen generators don't make. A generic seed-sampled city / school /
   transit hub is `compose_world` (a BASE × a THEME). A single object is
-  `mint_solid` kind `workbench` / `reconstruct-from-dream`. A person is `create_character` (`as: 'hero'`).
+  `mint_solid` kind `workbench` / `reconstruct-from-dream`. A person is `create_character` (`as: 'hero'`; from a picture, `reference_protocol` target `character`).
   If the target isn't a bespoke building, say so and route it.
 - **Compose from the grammar, never freehand.** A mass is a footprint + floors + a
   facade (`material` glass|brick|concrete × `rhythm` curtain|punched|banded|pier|grid)
