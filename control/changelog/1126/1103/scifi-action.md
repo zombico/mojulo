@@ -338,6 +338,15 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     Its ankle ram runs down the shin's front to a horn ahead of and above the cross. The ram was sized from its length
     curve over the ankle's working arc: a first horn put its dead centre right at the level foot.
   - Every law holds, its bands set for its class from what was measured.
+- **The siege walker Mk 1** (`siegeWalkerMk1`; registry row `siege-walker-mk1`, 'first siege walker', 'original
+  siege walker', 'tower siege walker', role `armour`): the siege walker's first pattern, kept beside it in the library.
+  - Its cockpit rides out ahead on a keel, a V-bottomed armoured prow off its pelvis, with no hull between. A
+    spherical radar dome on a mast augments the camera on the cockpit's roof (the armoured cabin's `radar`, drawn again).
+  - Its backpack (`MECHA_BACKPACKS.siegeMk1`) carries a howitzer right and an eighteen-cell missile launcher left, high
+    on its tower, with a scorpion's tail each side.
+  - Its legs are guarded thighs and long shanks, with a wheel at the knee, one between, and the third on the ankle's
+    cross. Its feet are tall lugged plates that pitch up off the ground when it collapses to roll on six wheels.
+  - Its parts are their own rows (`*-sw1`), drawn as they were first drawn, and the frame is pinned whole. Every law holds.
 - **The brood walker** (`broodWalker`; registry row `brood-walker`, 'bug mom', 'drone mother', role `transport`): a big
   four-legged frame that carries drones, some 30 t.
   - **Its hull** (`mecha-brood-parts.js` `hangarPelvis`): tall and round-topped, short from the side, its nose round, a

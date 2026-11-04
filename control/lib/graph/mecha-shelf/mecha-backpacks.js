@@ -80,6 +80,11 @@ MECHA_BACKPACKS_MUT.siege = Object.freeze({
   tail: Object.freeze({ base: 'tailbase-sw', seg1: 'tailseg1-sw', seg2: 'tailseg2-sw', head: 'tailhead-sw' }),
   mass: 0, swap: Object.freeze({}),
 });
+// (the siege walker Mk 1's backpack: the siege backpack as it was first drawn, its weapons high on its tower)
+MECHA_BACKPACKS_MUT.siegeMk1 = Object.freeze({
+  ...MECHA_BACKPACKS_MUT.siege, label: 'siege walker Mk 1 backpack', sku: 'pack-sw1',
+  tail: Object.freeze({ base: 'tailbase-sw', seg1: 'tailseg1-sw1', seg2: 'tailseg2-sw1', head: 'tailhead-sw' }),
+});
 // (the functional backpacks: the weapons backpack's frame, its pylons, its racks and its tail, fitted for a function)
 // (to watch and to look beyond: a sensor mast, drones, smoke to break contact)
 MECHA_BACKPACKS_MUT.recon = Object.freeze({

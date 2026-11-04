@@ -61,6 +61,8 @@
  *   - The siege walker's toes on knuckles that splay them walking and draw them in straight rolling, its stance wider:
  *     its foot (its knuckles now their own bodies) and the frame re-pinned, the knuckle pinned as a builder path; no
  *     other pin moved.
+ *   - The siege walker Mk 1 (the siege walker's first pattern, kept beside it in the library on its own rows, its
+ *     cockpit's radar mast drawn again by the armoured cabin's `radar`): the frame pinned whole; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -188,6 +190,8 @@ const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
 const SIEGE = ['529fd253a691c0fe', '5d3cb8ed7f08799a'];
+// (the siege walker's first pattern, kept beside it: whole, walking and collapsed)
+const MK1 = ['41bf2eb1a638c6ac', '4ac0de449b8bb01a'];
 const BROOD = ['193c98e6a47e6b30', 'fc6effb480f69126', '77ca4a2750d53e42'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
@@ -226,6 +230,9 @@ describe('mecha shelf: characterization', () => {
   it('pins a frame with twin tails walking and collapsed', () => {
     const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].tails);
     expect([hash(assembleFrame(id, { laws: false }).manifest), hash(assembleFrame(id, { pose: 'roll', laws: false }).manifest)]).toEqual(SIEGE);
+  });
+  it('pins the siege walker\'s first pattern, kept beside it, walking and collapsed', () => {
+    expect(['stand', 'roll'].map((pose) => hash(assembleFrame('siegeWalkerMk1', { pose, laws: false }).manifest))).toEqual(MK1);
   });
   it('pins a four-legged frame standing, launching its drones and driving', () => {
     const id = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].docks), A = MECHA_ARCHETYPES[id];

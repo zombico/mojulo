@@ -335,6 +335,10 @@ export const VEHICLES = {
   // missile launcher on its back served by twin scorpion tails)
   'siege-walker': row('siege walker', ['walking fortress', 'artillery walker', 'howitzer walker', 'siege mech', 'heavy rover walker', 'mobile fortress', 'six wheel walker', 'land cruiser walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
     { mecha: 'siegeWalker', tech: 'walker' }),
+  // (the siege walker's first pattern, kept beside it: its cockpit out on a keel under a radar mast, no hull between,
+  // its weapons high on its backpack's tower, tall foot plates)
+  'siege-walker-mk1': row('siege walker mk1', ['siege walker mk 1', 'first siege walker', 'original siege walker', 'tower siege walker', 'keel walker', 'radar mast walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
+    { mecha: 'siegeWalkerMk1', tech: 'walker' }),
   // (a big four-legged drone carrier: its hull a single hangar, its feet rounded bays on wheels, two drones in each; it
   // walks as an insect does, tall on its bays, or tucks them in along its hull and drives on them)
   'brood-walker': row('brood walker', ['bug mom', 'drone mother', 'drone carrier walker', 'drone walker', 'mothership walker', 'hangar walker', 'quad walker carrier', 'four legged drone carrier'], 'offroad', 'transport', F, ['driven', 'parked', 'watched'],

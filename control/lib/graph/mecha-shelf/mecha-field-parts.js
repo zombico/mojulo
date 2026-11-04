@@ -145,6 +145,15 @@ export function fieldBuilders(kit) {
       lathes.push(spin(`camBezel_${x > 0 ? 'r' : 'l'}`, [x, K.y + 0.068, cz + 0.05 + K.h * 0.45], [x, K.y + 0.078, cz + 0.05 + K.h * 0.45], [[0, 0.042], [1, 0.042]], dark, 14));
     }
     extrudes.push(box('camHood', [0, K.y + 0.06, cz + 0.05 + K.h + 0.008], [0, K.y + 0.13, cz + 0.05 + K.h + 0.004], 0.26, 0.012, frame));
+    // (a spherical radar dome on a mast behind the camera, `radar`: the camera's eye augmented, the siege walker Mk 1's)
+    if (d.radar) {
+      const Q = d.radar, base = [0, Q.y, R.z + 0.015], c = add(base, [0, 0, Q.mast + Q.r]);
+      lathes.push(spin('radarMast', base, add(base, [0, 0, Q.mast + 0.04]), [[0, 0.06], [0.2, 0.045], [1, 0.045]], frame, 12));
+      lathes.push(spin('radarCollar', add(c, [0, 0, -Q.r - 0.03]), add(c, [0, 0, -Q.r * 0.6]), [[0, 0.07], [1, Q.r * 0.75]], frame, 16));
+      const n = 10, pairs = Array.from({ length: n + 1 }, (_, i) => [i / n, Math.max(0.004, Q.r * Math.sin((Math.PI * i) / n))]);
+      lathes.push(spin('radome', add(c, [0, 0, -Q.r]), add(c, [0, 0, Q.r]), pairs, tone(C.paint, 0.25), 20));
+      lathes.push(spin('radomeBand', add(c, [0, 0, -0.015]), add(c, [0, 0, 0.015]), [[0, Q.r + 0.006], [1, Q.r + 0.006]], frame, 20));
+    }
     extrudes.push(box('rearCam', [0, R.y0 - 0.02, R.z - 0.1], [0, R.y0 - 0.08, R.z - 0.1], 0.1, 0.07, frame));
     lathes.push(spin('rearLens', [0, R.y0 - 0.08, R.z - 0.1], [0, R.y0 - 0.095, R.z - 0.1], [[0, 0.022], [1, 0.018]], C.glass, 10));
     const M = d.monitor;

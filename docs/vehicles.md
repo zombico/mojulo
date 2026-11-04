@@ -68,6 +68,10 @@ The frames:
   - Sponsons sit on its sides.
   - Its clawed feet clench their toes to roll.
   - Its siege backpack carries twin service tails.
+- **The siege walker Mk 1** is the siege walker's first pattern, kept beside it on its own rows (`*-sw1`).
+  - Its cockpit rides out on a keel under a radar mast, with no hull between.
+  - Its weapons sit high on its backpack's tower.
+  - Its feet are tall plates that pitch up when it rolls.
 - **The brood walker** stands on four legs, and its hull is a hangar. Its parts are in `mecha-brood-parts.js`.
   - Its hips are low on the hull's sides, and lift rams pump it up to stand.
   - Its feet are eggs, its drones' bays inside: `mecha-egg.js` holds the egg's numbers, so the shell drawn, its joints

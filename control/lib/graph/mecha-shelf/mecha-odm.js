@@ -452,7 +452,25 @@ const BROOD = {
   'wing-bw': R('mecha-solar', 'brood walker solar wing', 'backpack', { w: CAR_BW.z1 - CAR_BW.z0 - 0.35, length: CAR_BW.length - 0.2, gap: 0.08, backed: true, cells: [4, 5], stop: [-100, 100], torque: 60000 }, 240, { family: 'panel' }, ['solar wing', 'solar wall', 'solar array']),
   'leaf-bw': R('mecha-solar', 'brood walker solar leaf', 'backpack', { w: CAR_BW.z1 - CAR_BW.z0 - 0.45, length: CAR_BW.length - 0.3, gap: 0.05, cells: [4, 5], stop: [-185, 185], torque: 30000 }, 150, { family: 'panel' }, ['solar leaf', 'solar panel']),
 };
-const ODM = { ...ROWS, ...HEAVY, ...GIANT, ...FIELD, ...BACKPACK, ...ROVER, ...SIEGE, ...BROOD };
+// ── the siege walker Mk 1: the siege walker's first pattern, kept beside it ─────────────────────────────────────────
+// (its pelvis a keel and a prow, no hull, its weapons up on its backpack's tower; its thighs guarded; its long shanks a
+// wheel at the knee and one between, its third wheel on the ankle's cross; tall lugged feet, pitched up to roll; its
+// cockpit's camera augmented by a radar dome on a mast; its parts the rows they were drawn from)
+const SW1 = 'siege walker Mk 1';
+const SIEGE_MK1 = {
+  'pelvis-sw1': dressed(S('pelvis-atw', KS, 'siege walker Mk 1 pelvis', SW1, ['siege walker mk1 pelvis', 'mk1 keel', 'mk1 prow'], { seat: [0, 3.3, 0.42], cage: [0, 3.3, 0.42] }), 'keeled', { prow: { y0: 0.5, y1: 5.0, top: 0.42, chine: -0.45, bottom: -1.0, w0: 1.6, w1: 1.1 }, sidegun: [0.7, 3.05, 1.15] }),
+  'thigh-sw1': dressed(S('thigh-atw', KS, 'siege walker Mk 1 thigh', SW1, ['siege walker mk1 thigh']), 'guarded'),
+  'shank-sw1': dressed(S('shank-atw', KS, 'siege walker Mk 1 shank', SW1, ['siege walker mk1 shank', 'mk1 skirt'], { length: 3.6, stop: [5, 170], torque: 2.2e6 }), 'wheeled', { wheel: [0.86, 0, 0], wheelMid: 1.8, skirt: { h: 1.0, over: [1.1, 0.75], w: 0.7 } }),
+  'ankle-sw1': dressed(S('ankle-atw', KS, 'siege walker Mk 1 ankle cross', SW1, ['siege walker mk1 ankle'], { torque: 350000 }), 'wheeled', { wheel: [0.86, 0, 0] }),
+  'foot-sw1': dressed(S('foot-atw', 5, 'siege walker Mk 1 foot', SW1, ['siege walker mk1 foot', 'mk1 foot plate']), 'lugged'),
+  'ram-ankle-sw1': S('ram-ankle-atw', KS, 'siege walker Mk 1 ankle ram', SW1, ['siege walker mk1 ankle ram'], { bore: 0.26, rod: 0.15, closed: Math.round((BASE['ram-ankle-atw'].dims.closed * KS + 3.6 - BASE['shank-atw'].dims.length * KS) * 1000) / 1000, stroke: Math.round((BASE['ram-ankle-atw'].dims.stroke * KS + 0.05) * 1000) / 1000 }),
+  'wheel-sw1': R('mecha-wheel', 'siege walker Mk 1 wheel', SW1, { r: 0.85, width: 0.65, rim: 0.5, lugs: 24 }, 650, { family: 'atv' }, ['siege walker mk1 wheel', 'mk1 big wheel']),
+  'cabin-sw1': R('mecha-cage', 'siege walker Mk 1 armoured cockpit', SW1, { ...BASE['cabin-fw'].dims, radar: { y: -0.22, r: 0.3, mast: 0.32 } }, 190, { family: 'armoured' }, ['siege walker mk1 cockpit', 'radar mast', 'mast radar']),
+  'pack-sw1': S('pack-wpn', KB, 'siege walker Mk 1 backpack', 'backpack', ['siege walker mk1 backpack', 'weapons tower'], { tails: [0.62, -0.55, 2.6] }),
+  'tailseg1-sw1': S('tailseg1-wpn', KB, 'siege walker Mk 1 service tail root segment', 'backpack', ['siege walker mk1 tail root'], { torque: 140000 }),
+  'tailseg2-sw1': S('tailseg2-wpn', KB, 'siege walker Mk 1 service tail outer segment', 'backpack', ['siege walker mk1 tail outer'], { torque: 90000 }),
+};
+const ODM = { ...ROWS, ...HEAVY, ...GIANT, ...FIELD, ...BACKPACK, ...ROVER, ...SIEGE, ...BROOD, ...SIEGE_MK1 };
 for (const house of MECHA_MAKER_IDS) for (const part of MAKER_PARTS) Object.defineProperty(ODM, `${part}-${house}`, { enumerable: true, get: () => makers()[`${part}-${house}`] });
 export const MECHA_ODM = Object.freeze(ODM);
 

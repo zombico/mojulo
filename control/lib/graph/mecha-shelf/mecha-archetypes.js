@@ -769,5 +769,65 @@ const broodWalker = Object.freeze({
   }),
   bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 4, 'mecha-yoke': 4, 'mecha-thigh': 4, 'mecha-shank': 4, 'mecha-ankle': 4, 'mecha-foot': 4, 'mecha-fork': 4, 'mecha-bay': 4, 'mecha-petal': 16, 'mecha-wheel': 16, 'mecha-ram': 4 }),
 });
-export const MECHA_ARCHETYPES = Object.freeze({ ...BASE_ARCHETYPES, roverWalker, siegeWalker, broodWalker });
+// the siege walker Mk 1: the siege walker's first pattern, kept beside it in the library. Its legs collapse far out:
+// shanks long enough to carry a third wheel between the knee's and the ankle's, so it rolls on six, its footprint
+// reaching well ahead of and behind its hips. Its cockpit, human-sized, rides out ahead on a keel, a V-bottomed
+// armoured prow off its pelvis, with no hull between; the camera on the cockpit's roof augmented by a spherical radar
+// dome on a mast, a rotary machine gun on the cockpit's side. Its backpack carries a howitzer right and an
+// eighteen-cell missile launcher left high on its tower, a scorpion's tail each side to reload them from behind. Its
+// feet tall lugged plates, pitched up off the ground when it rolls
+const SW1_LEG = Object.freeze({ hip: 'hip-sw', yoke: 'yoke-sw', thigh: 'thigh-sw1', shank: 'shank-sw1', ankle: 'ankle-sw1', foot: 'foot-sw1', roll: 'ram-roll-sw', hipRam: 'ram-hip-sw', kneeRam: null, ankleRam: 'ram-ankle-sw1' });
+const S1R = driveKnee(leg('R', SW1_LEG), 'R'), S1L = driveKnee(leg('L', SW1_LEG), 'L'), MK1_PACK = MECHA_BACKPACKS.siegeMk1, MK1_LAYOUT = backpackLayout(MK1_PACK, MK1_PACK.loadout);
+const mk1Wheels = (S) => { const s = S.toLowerCase(); return [
+  { id: `rearWheel${S}`, sku: 'wheel-sw1', side: s, on: `shank${S}.wheel`, wheel: 'rear' },
+  { id: `midWheel${S}`, sku: 'wheel-sw1', side: s, on: `shank${S}.wheelMid`, wheel: 'mid' },
+  { id: `frontWheel${S}`, sku: 'wheel-sw1', side: s, on: `ankle${S}.wheel`, wheel: 'front' },
+]; };
+const siegeWalkerMk1 = Object.freeze({
+  ...F0,
+  label: 'siege walker Mk 1',
+  classOf: 'ridden biped walker on six wheels, its cockpit out on a keel under a radar mast, a howitzer and a missile launcher high on its back: it walks, or collapses its legs and rolls',
+  mass: 32000,
+  cabins: undefined,
+  rider: Object.freeze({ mass: 110, com: Object.freeze([0, 3.3 + 0.12, 0.42 + 0.3]) }),
+  envelope: Object.freeze(F0.envelope.map((E) => Object.freeze({ x: E.x, y: Object.freeze(E.y.map((y) => y + KEEL[1])), z: Object.freeze(E.z.map((z) => z + KEEL[2])) }))),
+  joints: Object.freeze({
+    ...S1R.joints, ...S1L.joints, ...MK1_LAYOUT.joints,
+    traverseC: Object.freeze({ kind: 'slew', drive: 'mountC' }), elevateC: Object.freeze({ kind: 'hinge', drive: 'cradleC' }),
+  }),
+  layout: Object.freeze([
+    { id: 'pelvis', sku: 'pelvis-sw1' },
+    { id: 'seat', sku: 'seat-sw', on: 'pelvis.seat' },
+    { id: 'cage', sku: 'cabin-sw1', on: 'pelvis.cage' },
+    { id: 'pack', sku: MK1_PACK.sku, on: 'pelvis.pack' },
+    ...S1R.layout, ...S1L.layout, ...mk1Wheels('R'), ...mk1Wheels('L'), ...MK1_LAYOUT.layout,
+    // (the cockpit's gun: a rotary machine gun on its own ring and cradle off the keel's side)
+    { id: 'mountC', sku: 'mount-wpn', side: 'r', on: 'pelvis.sidegun', joint: 'traverseC' },
+    { id: 'cradleC', sku: 'cradle-wpn', side: 'r', on: 'mountC.cradle', joint: 'elevateC' },
+    { id: 'weaponC', sku: MECHA_WEAPONS.minigun.sku, side: 'r', on: 'cradleC.gun' },
+  ].map(Object.freeze)),
+  legs: Object.freeze({ r: Object.freeze(S1R.legs), l: Object.freeze(S1L.legs) }),
+  wheels: Object.freeze(['R', 'L'].flatMap((S) => mk1Wheels(S).map((e) => Object.freeze({ id: e.id, axle: e.wheel, side: e.side })))),
+  backpacks: Object.freeze([]),
+  fireStance: 'roll',
+  backpack: 'siegeMk1', weapons: MK1_PACK.loadout, tail: undefined, tails: MK1_LAYOUT.tails,
+  payloads: Object.freeze({ ...MK1_LAYOUT.payloads, c: MECHA_WEAPONS.minigun }),
+  track: 0.56 * 2.8,
+  stances: Object.freeze({
+    ...Object.fromEntries(Object.entries(F0.stances).map(([k, st]) => [k, st.feet ? Object.freeze({ ...st, feet: Object.freeze(Object.fromEntries(Object.entries(st.feet).map(([S, f]) => [S, Object.freeze({ ...f, ...(f.y !== undefined ? { y: f.y * 2.8 } : {}), ...(f.lift !== undefined ? { lift: f.lift * 2.8 } : {}) })]))) }) : st])),
+    brace: MK1_PACK.brace,
+    ...Object.fromEntries(Object.keys(TAIL_POSES).filter((k) => k !== 'stow').map((k) => [k, Object.freeze({ knee: 45, tail: k })])),
+    // (collapsed: the thighs raked back toward level, the knees folded until the shanks lie level, three wheels a side down)
+    roll: Object.freeze({ roll: true, pitch: -76 }),
+    board: Object.freeze({ roll: true, pitch: -76 }),
+  }),
+  dress: Object.freeze({ ...F0.dress, kit: Object.freeze(F0.dress.kit.filter((k) => k.body !== 'pack')) }),
+  laws: Object.freeze({
+    ...roverWalker.laws,
+    stability: Object.freeze([0.05, 5]), seat: Object.freeze([4, 9]), board: Object.freeze([1, 4]), stepIn: Object.freeze([0.3, 3]), belly: Object.freeze([2, 8]),
+    step: Object.freeze([0.6, 3]), stride: Object.freeze([0.8, 3]), groundPressure: Object.freeze([20, 200]), clearance: Object.freeze([0.01, 20]),
+  }),
+  bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-ram': 6, 'mecha-wheel': 6, 'mecha-mount': 6, 'mecha-weapon': 5, 'mecha-tail': 8 }),
+});
+export const MECHA_ARCHETYPES = Object.freeze({ ...BASE_ARCHETYPES, roverWalker, siegeWalker, broodWalker, siegeWalkerMk1 });
 export const MECHA_ARCHETYPE_IDS = Object.freeze(Object.keys(MECHA_ARCHETYPES));
