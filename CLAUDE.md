@@ -271,6 +271,10 @@ Pointers only; each target carries its own design notes.
   an echo, the `structures` world channel any kind takes; manual: the `structures` view-vocab card).
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
+- The game book's chapters: [gameworld/chapters.js](control/lib/graph/gameworld/chapters.js) (each page a chapter in one of
+  the six departments: the recipe paths, review parts, run steps and cards it owns, and the chapters it reads; a new one
+  that joins no chapter fails `chapters.test.js`). `design_game`'s readout says them (`chapters`); `{ ref, chapter }`
+  is one chapter's view ([gameworld/chapter-view.js](control/lib/graph/gameworld/chapter-view.js)), a department's.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).

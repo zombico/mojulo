@@ -54,6 +54,7 @@ describe('design_game quick', () => {
   it('reach with a climb and a hero the door draws: the hero pilots both stages, the climb\'s exit is its top, in volume', async () => {
     const hero = { cast: 'female', head: 'anime', look: ['heroine', 'determined'], hair: ['frieda-pony'], palette: { Top: '#7a2f8e' }, gear: { right: { item: 'sword' } } };
     const out = await designGameHandler({ quick: { goal: 'reach', climb: true, hero, theme: { accent: '#7a2f8e', style: 'hud' }, world: { id: 'summit', style: { kit: 'isekai-meadow' } } }, ref: 's' });
+    // (a run compiles: each stage's walk is a step of its own, taken when the run asks to check, runner.js auditSteps)
     expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'level-run-1', 'game']);
     expect(stored('s-hero').hero.gear.right).toMatchObject({ item: 'sword' });
     expect(stored('s-level-run-1').figures.hero.heroRef).toBe('s-hero');

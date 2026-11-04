@@ -23,7 +23,7 @@ import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions
 import { createSketchHandler, updateSketchHandler } from './sketches.js';
 import { mintSolidHandler } from './mint-solid.js';
 import { createCharacterHandler } from './create-character.js';
-import { createGameHandler } from './create-game.js';
+import { createGameHandler, auditGameLevel } from './create-game.js';
 import { heroMintArgs, heroRemakeOps } from './hero-mint.js';
 import { HERO_FIELDS } from './layered.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
@@ -35,6 +35,10 @@ import {
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
 import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
+import { AUDIT_STEP } from '@/lib/graph/gameworld/runner.js';
+import { chapterBook, chapterById, chapterSteps, CHAPTERS } from '@/lib/graph/gameworld/chapters.js';
+import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
+import { compileCheck, planError } from './design-game-check.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
@@ -105,7 +109,7 @@ const HERO_STEP = /^(hero|hero-equipped|(guard|tower|farmhand|keeper|athlete)(-\
 const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped' };
 
 /** Make or remake one step; → the record to keep. */
-async function realize(step, action, { check = false } = {}) {
+async function realize(step, action) {
   const { key, ref, order } = step;
   if (key === 'casting') {
     // the casting page's cast (an egocube row, casting.js): rolled where it is written; a changed request rolls it anew in place
@@ -195,15 +199,12 @@ async function realize(step, action, { check = false } = {}) {
     return {};
   }
   if (key === 'game') {
-    // the game over the levels: create_game (each level audited where the runner asked, else unaudited, recorded), its
-    // manifest whole in place
+    // the game over the levels: create_game (its levels dry-run and recorded unaudited: the run's audit steps walk them
+    // after, one a step, runner.js auditSteps), its manifest whole in place
     const { title, store, levels, links, theme, shell, final } = order;
     if (action === 'make') {
-      // (a compile makes the game; walking each level to its exit and photographing it is a check, run when asked: the
-      // order keeps its audit, the run decides)
-      const audit = check && order.auto_audit;
-      const minted = await createGameHandler({ ...order, ...(order.auto_audit && !audit ? { auto_audit: false } : {}), ref });
-      return audit ? { audits: (minted.audits ?? []).map((a) => ({ ref: a.ref, audited: a.audited, note: a.note })) } : {};
+      await createGameHandler({ ...order, ref });
+      return {};
     } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
@@ -222,16 +223,49 @@ async function realize(step, action, { check = false } = {}) {
   return {};
 }
 
-/** Run the world stored at `ref`: every ready step made, remade or kept; → { world, ran } (world with its new record). */
-async function runWorld(ref, world, { force = false, check = false } = {}) {
+/**
+ * THE RUN'S BUDGET. A run makes its ready steps one after another, and a big book's steps (its people, its levels, a
+ * walk through each level) add up past what one tool call may hold: so a run starts no new step once it has spent its
+ * budget, says the steps it left as `pending`, and keeps the record of what it made, and the next run takes up where it
+ * stopped (the steps it made are kept, by their record). Every run makes at least one step, so a run always moves; a
+ * step is never cut partway. The world a run leaves is the same however many calls it took (the record decides, not the
+ * clock). MOJULO_RUN_BUDGET_MS sets it (0: no budget, every step in one call).
+ */
+export const RUN_BUDGET_MS = 120_000;
+export function runBudgetMs(env = process.env) {
+  const raw = env.MOJULO_RUN_BUDGET_MS;
+  const n = raw === undefined || raw === '' ? NaN : Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : RUN_BUDGET_MS;
+}
+
+/** What an audit step would walk, as a print (the level's row, the game's, and whether a browser can walk it, so a
+ * verdict no browser gave is walked once one can): null until the level and the game are made. */
+async function auditedPrint(step, browser) {
+  const level = storedPrint(step.ref), game = storedPrint(step.order.game);
+  if (!level || !game) return null;
+  return fingerprint({ level, game, walked: !!(await browser()) });
+}
+
+/** Run the world stored at `ref`: every ready step made, remade or kept, until the budget is spent;
+ * → { world, ran, pending? } (world with its new record; pending the keys of the steps it left for the next run). */
+async function runWorld(ref, world, { force = false, check = false, budgetMs = runBudgetMs(), clock = Date.now, chapter = null } = {}) {
   let W = world;
-  const made = { ...(W.made ?? {}) }, ran = [];
+  const made = { ...(W.made ?? {}) }, ran = [], pending = [];
   // the record kept as the run goes: each step made is written into the stored world at once (in place: a gameworld
   // keeps no revisions), so a run cut off partway (its process ended, a host's time limit) leaves its rows recorded as
   // its own, and the next run keeps them rather than reading them as edited by hand ('taken'). The run's own write at
   // the end is the world as the handler stores it
   const checkpoint = () => {
     try { const row = SketchRepository.getByRef(ref); if (row) SketchRepository.update({ ref, manifest: { ...row.manifest, ...W, made } }); } catch { /* the run goes on; its end writes the record */ }
+  };
+  const t0 = clock();
+  let moved = false;
+  const spent = () => moved && budgetMs > 0 && clock() - t0 >= budgetMs;
+  // the browser an audit walks in, found once a run (an installed one only: first-frame-check.js levelBrowser)
+  let found;
+  const browser = async () => {
+    if (found === undefined) found = (await (await import('@/lib/graph/game/first-frame-check')).levelBrowser()).path ?? null;
+    return found;
   };
   const act = async (step, lookup) => {
     // an adopted hero (characters.hero.ref, quick.hero.ref): pinned as it stands when the world first names it, never
@@ -246,28 +280,50 @@ async function runWorld(ref, world, { force = false, check = false } = {}) {
       checkpoint();
       return;
     }
-    const action = decide(step, made[step.key], storedPrint(step.ref), { force });
+    // a run compiles; walking each level is a check, asked for (`check: true`): an audit step is left out of a run that
+    // does not ask, its last verdict kept
+    if (step.audit && !check) return;
+    const now = step.audit ? await auditedPrint(step, browser) : storedPrint(step.ref);
+    const action = decide(step, made[step.key], now, { force });
+    // the budget spent: a step that would make or remake is left for the next run, said as pending
+    if ((action === 'make' || action === 'remake') && spent()) {
+      ran.push({ key: step.key, ref: step.ref, action: 'pending' });
+      pending.push(step.key);
+      return;
+    }
     // a level's intent laws that do not hold (lay-concerns.js): advice, never a refusal
     const advises = (step.laws ?? []).filter((l) => !l.holds).map((l) => `${l.concern}: ${l.says}`);
     // a sport's machine gate when it holds (who plays, the arena, the one style): the agent's to tell the player
     const checked = (step.laws ?? []).filter((l) => l.holds && SPORT_CHECKS.includes(l.law)).map((l) => `${l.concern}: ${l.says}`);
-    ran.push({ key: step.key, ref: step.ref, action, ...(step.waiting ? { waiting: step.waiting.map((w) => `${w.id} (${w.status})`) } : {}), ...(advises.length ? { advises } : {}), ...(checked.length ? { checked } : {}) });
+    // (a chapter's run makes a step ahead of the approvals it waits on: chapters.js chapterSteps; said with what it skipped)
+    ran.push({ key: step.key, ref: step.ref, action, ...(step.waiting ? { waiting: step.waiting.map((w) => `${w.id} (${w.status})`) } : {}), ...(step.ahead?.length && (action === 'make' || action === 'remake') ? { ahead: step.ahead } : {}), ...(advises.length ? { advises } : {}), ...(checked.length ? { checked } : {}) });
     if (action !== 'make' && action !== 'remake') return;
-    const { pin, audits } = await realize(step, action, { check });
-    if (audits) ran[ran.length - 1].audits = audits;   // the game's level audits, as create_game recorded them
+    moved = true;
+    if (step.audit) {
+      // a level walked (create-game.js auditGameLevel): its verdict kept beside the level's record, said once here
+      const verdict = await auditGameLevel({ gameRef: step.order.game, levelRef: step.ref, findBrowser: async () => ({ path: await browser(), why: 'no browser' }) });
+      made[step.key] = { ref: step.ref, order: step.print, stored: now, verdict };
+      ran[ran.length - 1].audit = verdict;
+      checkpoint();
+      return;
+    }
+    const { pin } = await realize(step, action);
     made[step.key] = { ref: step.ref, order: step.print, stored: storedPrint(step.ref) };
     if (pin && W.characters) W = withPin(W, pin);   // a quick game's hero has no book to pin it in
     checkpoint();
   };
+  // a chapter's run: its own steps and what they name, made ahead of their approvals (chapters.js chapterSteps); the
+  // build's is the whole run
+  const scoped = (steps) => (chapter ? chapterSteps(steps, chapter) : steps);
   // the hero first: the systems and the gear wait on its pinned base
   const heroRef = heroRefOf(W, ref);
-  const first = runSteps(W, { ref, lookup: heroLookup(heroRef) });
+  const first = scoped(runSteps(W, { ref, lookup: heroLookup(heroRef) }));
   if (!first.length) return { world: W, ran };
   let rest;
   try {
     await act(first[0]);
     // the rest read the record as this run left the hero (a hero just made or remade is not an edit by hand)
-    rest = runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) }).slice(1);
+    rest = scoped(runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) })).filter((s) => s.key !== first[0].key);
     for (const step of rest) await act(step);
   } catch (err) {
     // a step that throws partway: the steps made before it are rows now, so their record is kept with the world
@@ -279,9 +335,28 @@ async function runWorld(ref, world, { force = false, check = false } = {}) {
     throw err;
   }
   // the compiler's own check (gameworld/resonance.js): what the cube's combined values open that these steps did not
-  // lay, or laid and does not hold; reported with the run, never refused
-  const gaps = compilerGaps(cubeOfWorld(W).cube, [first[0], ...rest].map((s) => s.order), W);
-  return { world: Object.keys(made).length ? { ...W, made } : W, ran, ...(gaps.length ? { resonance: gaps } : {}) };
+  // lay, or laid and does not hold; reported with the run, never refused (the audits lay nothing: left out). A chapter's
+  // run lays part of the book, so it is the whole run's to say
+  const gaps = chapter && chapter !== 'build' ? [] : compilerGaps(cubeOfWorld(W).cube, [first[0], ...rest].filter((s) => !s.audit).map((s) => s.order), W);
+  return { world: Object.keys(made).length ? { ...W, made } : W, ran, ...(pending.length ? { pending } : {}), ...(gaps.length ? { resonance: gaps } : {}) };
+}
+
+/** The pre-compile check (design-game-check.js) on the world as it stands: its plan, each order as its door would read
+ * it, the refs they name, and the build left, priced. Advice: a run goes ahead whatever it says. */
+async function compileReadout(ref, W, { check = false } = {}) {
+  let steps;
+  try { steps = runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }); }
+  catch (err) { return { gate: 'machine', ready: false, blockers: [planError(err.message)] }; }
+  const made = W.made ?? {}, actions = {};
+  const moves = (k) => actions[k] === 'make' || actions[k] === 'remake';
+  for (const s of steps) {
+    if (s.adopt) actions[s.key] = made.hero?.ref === s.ref ? 'keep' : 'adopt';
+    // a walk is taken again when its level or its game is made or remade (the door prints it from the rows it walked)
+    // (a run that does not check walks none: its walks are not part of the build it prices)
+    else if (s.audit) actions[s.key] = !check ? 'unchecked' : !s.ready ? 'waiting' : !made[s.key] || moves(s.order.level) || moves('game') ? (made[s.key] ? 'remake' : 'make') : 'keep';
+    else actions[s.key] = decide(s, made[s.key], storedPrint(s.ref));
+  }
+  return compileCheck(steps, { actions, row: (r) => SketchRepository.getByRef(r), budgetMs: runBudgetMs() });
 }
 
 // the sport game's laws said when they hold too (gameworld/runner.js sportLaws, sportStyle)
@@ -334,8 +409,14 @@ function readout(ref, world, context = {}) {
   // the cast sheet's parts (foe-cast.js): reviewed beside the others, never holding a run back
   const foeStamps = castable(world) ? foeState(world) : [];
   const parts = [...stamps, ...foeStamps].map((s) => ({ id: s.id, status: s.status, ...(s.machine?.length ? { advises: s.machine } : {}), ...(s.note ? { note: s.note } : {}) }));
+  // the book as the studio works it (gameworld/chapters.js): each chapter the world holds, its department, its state, the
+  // parts it has open and the chapters upstream it waits on, so a department can take its chapter alone
+  const chapters = chapterBook(world, { stamps: [...stamps, ...foeStamps] });
   const steps = world.characters ? characterReady(world, { state: stamps.filter((s) => CHARACTER_PART_IDS.includes(s.id) || s.id === CAST_PART) }) : null;
-  const made = Object.fromEntries(Object.entries(world.made ?? {}).map(([k, v]) => [k, v.ref]));
+  const made = Object.fromEntries(Object.entries(world.made ?? {}).filter(([k]) => !AUDIT_STEP.test(k)).map(([k, v]) => [k, v.ref]));
+  // the levels the run walked (its audit steps' verdicts): how many it proved, and what it saw where it did not
+  const verdicts = Object.entries(world.made ?? {}).filter(([k]) => AUDIT_STEP.test(k)).map(([, v]) => ({ ref: v.ref, ...v.verdict }));
+  const audits = verdicts.length ? { gate: 'machine', proved: verdicts.filter((v) => v.completable === true).length, of: verdicts.length, ...(verdicts.some((v) => v.completable !== true) ? { unproved: verdicts.filter((v) => v.completable !== true).map((v) => ({ ref: v.ref, note: v.note })) } : {}) } : null;
   // the next moves as step ids: what each means is the gameworld-next card (get_game_vocab),
   // read once, not re-said on every call
   const mode = world.mode ?? 'gated', next = [];
@@ -407,7 +488,7 @@ function readout(ref, world, context = {}) {
   const gauntletGaps = gauntletAdviceOf(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(!world.wcd && cxGaps.length ? { complex: cxGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}), ...(errandGaps.length ? { errands: errandGaps } : {}), ...(gauntletGaps.length ? { gauntlet: gauntletGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -452,9 +533,11 @@ export function composedWorld(c) {
 const composedOf = (b) => ({ prompt: b.prompt, read: b.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(b.cube ? { cube: b.cube } : {}), ...(b.unread?.length ? { unread: b.unread } : {}) });
 
 export async function designGameHandler(input, context = {}) {
-  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare? }');
-  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape } = input;
+  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter? }');
+  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter } = input;
   if (shape !== undefined && shape !== 'full' && shape !== 'changed') throw new Error("design_game: readout is 'full' (the default) or 'changed'");
+  // one chapter's readout (gameworld/chapter-view.js): checked before anything is written
+  if (chapter !== undefined && !chapterById(chapter)) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((c) => c.id).join(', ')} (the readout's \`chapters\`)`);
   // the world as it stood before this call, for readout: 'changed'
   const prior = given ? SketchRepository.getByRef(given) : null;
   const before = prior && isGameworldKind(prior.manifest?.kind) ? gameworldOf(prior.manifest) : null;
@@ -506,7 +589,8 @@ export async function designGameHandler(input, context = {}) {
   // what the vehicle registry read: a word written as its table's key (absent when none was)
   const redirected = [...(quick !== undefined ? quickVehicleWords(quick).redirects : []), ...(patch !== undefined ? patchVehicleWords(patch).redirects : [])];
   try {
-    const out = await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape }, context);
+    const patched = list(patch).map((op) => op?.path).filter((p) => typeof p === 'string');
+    const out = await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched }, context);
     return redirected.length ? { ...out, vehicles: { registry: redirected } } : out;
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
@@ -514,7 +598,7 @@ export async function designGameHandler(input, context = {}) {
   }
 }
 
-async function afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape }, context = {}) {
+async function afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched = [] }, context = {}) {
   let W = gameworldOf(SketchRepository.getByRef(ref).manifest);
   // the verdicts
   if (approve !== undefined || revise !== undefined) {
@@ -526,13 +610,14 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     }
   }
   // the run
-  let ran, resonance;
+  let ran, resonance, pending;
   if (run) {
     readGameworld(W);
     // (a run compiles: no gallery bake of the rows it makes as they land, no check unless asked)
-    const out = await withoutWarm(() => runWorld(ref, W, { force: !!force, check: check === true }));
+    const out = await withoutWarm(() => runWorld(ref, W, { force: !!force, check: check === true, chapter: chapter ?? null }));
     ran = out.ran;
     resonance = out.resonance;
+    pending = out.pending;
     // a run that made and remade nothing writes nothing: no revision, no new head
     if (JSON.stringify(out.world) !== JSON.stringify(W)) {
       await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...out.world } });
@@ -547,6 +632,14 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     comparison = { reference: compare, ...compareWorlds(W, REFERENCES[compare]) };
   }
   const full = { ...readout(ref, W, context), ...(await fightReadout(W)) };
+  // the pre-compile check, on a run (what is left of the build) and on a chapter's view (each department its own
+  // blockers): what a run would hit, found before it is made; a next move while anything blocks
+  if (run || chapter) {
+    full.compile = await compileReadout(ref, W, { check: check === true });
+    if (full.compile.blockers) full.next = [...full.next, { step: 'compile', blockers: full.compile.blockers.length, card: 'gameworld-next' }];
+  }
+  // a run its budget stopped: the next move is the run again, before any other (runWorld's RUN_BUDGET_MS)
+  if (pending) full.next = [{ step: 'run', pending: pending.length, card: 'gameworld-next' }, ...full.next.filter((n) => n.step !== 'run' && n.step !== 'rerun')];
   // a run's levels on their opening frame (machine gate, game/first-frame-check.js): { first_frame } or nothing
   // (the levels walked and photographed only when the run asks, `check`: a run compiles; the pictures are the book's)
   const { record: framed, ...eyes } = check === true ? await firstFrameReadout(W, ran) : {};
@@ -568,6 +661,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
   const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};
+  // one chapter: the whole readout projected onto it (a department's view; the share offer rides it as it rides the whole)
+  if (chapter) return { ok: true, readout: 'chapter', ...chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched }), ...share };
   if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
   return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
 }
@@ -590,7 +685,7 @@ function changedOnly(full, prev) {
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const prevParts = new Map((prev?.parts ?? []).map((p) => [p.id, p]));
   const out = { ref: full.ref, url: full.url, parts: full.parts.filter((p) => !same(p, prevParts.get(p.id))) };
-  for (const k of ['intent', 'advice', 'numbers', 'steps', 'made', 'mode', 'fight']) if (full[k] !== undefined && !same(full[k], prev?.[k])) out[k] = full[k];
+  for (const k of ['intent', 'advice', 'numbers', 'steps', 'chapters', 'made', 'audits', 'mode', 'fight']) if (full[k] !== undefined && !same(full[k], prev?.[k])) out[k] = full[k];
   return { ...out, next: full.next };
 }
 
@@ -600,13 +695,13 @@ export function registerDesignGameTools() {
     // a run mints the hero, the systems world and the gear in one call
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
-      'The GAME rail: design a game top down and let mojulo make it. A gameworld (levels, a hero, its gear, the systems) is '
+      'The GAME rail: design a game top down and let mojulo make it. A gameworld (levels, hero, gear, systems) is '
       + 'a sketch; this writes it (`world`, `patch`), takes the creator\'s verdicts (`approve`, `revise` { part, note }) and, '
-      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move and leaving hand edits '
-      + '(`force` overwrites). Answers each part\'s stamp, the steps, what was made, the advice, the next moves as step ids '
+      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move, leaving hand edits '
+      + '(`force` overwrites). Answers the stamps, what was made, the advice and the next moves as step ids '
       + '(`readout: \'changed\'` for only what moved). Read '
       + 'get_game_vocab({ id: \'gameworld-guide\' }) first. `example` makes a reference only when the creator asks; '
-      + '`compare` reads one against a made world. `compose: { prompt }`: a world from words.',
+      + '`compare` reads one against a made world. `compose: { prompt }`: words to a world. `chapter`: a chapter\'s view.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -625,6 +720,7 @@ export function registerDesignGameTools() {
         readout: { type: 'string', enum: ['full', 'changed'] },
         quick: { type: 'object', description: 'One level, one goal (gameworld-quick).' },
         compose: { type: 'object', description: '{ prompt, levels?, seed?, name? }' },
+        chapter: { type: 'string' },
       },
       required: [],
     },

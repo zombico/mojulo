@@ -35,3 +35,17 @@ export async function runLevelTraversal({ levelRef, plan }) {
   const probes = res.probes || [];
   return probes[probes.length - 1] || null;
 }
+
+/**
+ * The walk with its legs: what runLevelTraversal walks, and where each leg of a waypoint route arrived or stopped
+ * (motion/world-frames.js compileWorldWaypoints), so an audit that does not prove a level can say where the walk ended
+ * (design_game's audit steps: create-game.js auditGameLevel).
+ * @returns {Promise<{ probe: object|null, legs: object[]|null }>}
+ */
+export async function runLevelWalk({ levelRef, plan }) {
+  const sketch = SketchRepository.getByRef(levelRef);
+  if (!sketch) throw new Error(`level '${levelRef}' not found`);
+  const res = await renderWorldTraversalMotion({ sketch, ticks: plan.ticks, waypoints: plan.waypoints, fps: plan.fps || 12, params: { frames: false } });
+  const probes = res.probes || [];
+  return { probe: probes[probes.length - 1] || null, legs: res.legs ?? null };
+}
