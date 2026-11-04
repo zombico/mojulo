@@ -10,8 +10,10 @@ const LUNE = process.env.MOJULO_LUNE;
 
 describe('the neutral half', () => {
   it('names each corpus\'s kernel modules by module id, and every engine with marks has a runner', () => {
-    expect(Object.keys(CORPORA)).toEqual(['bus', 'combat', 'mind', 'level', 'rules', 'scenes', 'levelcast']);
-    for (const c of Object.values(CORPORA)) expect(c.kernel).toContain('bus');
+    expect(Object.keys(CORPORA)).toEqual(['bus', 'combat', 'mind', 'level', 'rules', 'rupa', 'scenes', 'levelcast']);
+    // every corpus over a level's events reads the bus; the destructible physics' is its blocks alone
+    for (const [name, c] of Object.entries(CORPORA)) if (name !== 'rupa') expect(c.kernel).toContain('bus');
+    expect(CORPORA.rupa.kernel).toEqual(['rupa']);
     expect(Object.keys(RUNNERS).sort()).toEqual([...MARKED_ENGINES].sort());
   });
 

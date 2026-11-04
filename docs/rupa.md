@@ -665,6 +665,12 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - `compose.js`: `EMISSION_OPT_IN.rupa`, composed onto a page only when its blocks carry matter.
 - `era/compose.js`: `DESTRUCTION_WORDS.physical`, the words that ask for it.
 - Engines: the `rupa` page key is marked as the web's (the engines hold breakables whole today).
+- Godot: `scene/godot-kernel/rupa.gd` is the energy slice in GDScript (a blow's joules, a burst's share by solid angle,
+  the world's power, what loses its hold falls, a landing is an impact, the load: crushing and a hung span in bending),
+  held to the web frame by frame by the `rupa` corpus (`scene/rupa-conformance.js`; `node scripts/conformance.mjs
+  --engine godot --corpus rupa` with `MOJULO_GODOT`). The corpus is the brittle matters only (brick, concrete, stone,
+  glass); dents, cuts, heat, fire, wind, the ground and water are later slices, each with its own corpus. An exported
+  level's blocks do not run it yet.
 
 ## Not yet
 
@@ -695,4 +701,5 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - City buildings, houses entered by a door and walked-in buildings as blocks (structures and shell houses are), and
   the base settle on the grid (it searches every block when something falls).
 - Per-entity power (a hero's tier apart from the world's), and heat from beams and fire sources by element.
-- Engine export of breakables and their matter.
+- Engine export of breakables and their matter: Godot has the energy slice's kernel, not yet wired into an exported
+  level; the later slices, Unity and Roblox have none.

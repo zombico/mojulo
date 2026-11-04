@@ -21,6 +21,7 @@ import * as mindC from '../mind-conformance.js';
 import * as rulesC from '../rules-conformance.js';
 import * as scenesC from '../scenes-conformance.js';
 import * as levelC from '../level-conformance.js';
+import * as rupaC from '../rupa-conformance.js';
 
 const byId = (scenarios, run) => Object.fromEntries(scenarios.map((sc) => [sc.id, run(sc)]));
 
@@ -52,6 +53,14 @@ export const CORPORA = Object.freeze({
     module: 'lib/graph/scene/rules-conformance.js', kernel: ['bus', 'json', 'rules'],
     scenarios: (opts) => rulesC.corpus(opts),
     web: (scenarios, opts) => byId(scenarios, (sc) => rulesC.runRules(rulesC.scenarioById(sc.id, opts))),
+  },
+  // destructible physics (rupa, `destruction: 'physical'`), its energy slice: a level's breakables under blows, gravity,
+  // landings and the load; Godot only for now (the kernel an exported level's blocks run on)
+  rupa: {
+    engines: ['godot'],
+    module: 'lib/graph/scene/rupa-conformance.js', kernel: ['rupa'],
+    scenarios: () => rupaC.corpus(),
+    web: (scenarios) => byId(scenarios, (sc) => rupaC.runRupa(rupaC.scenarioById(sc.id))),
   },
   // the scenes corpus is one object (its scenes, the program they share, the journal's quests), the journals beside it
   scenes: {
