@@ -271,14 +271,15 @@ export function mechaLaws(key, kit) {
   if (band.groundPressure) {
     // (a biped on one foot bears its whole weight on that sole; a four-legged frame on all but one, shared)
     const o = ctx.outline(arch.legs[L0].foot), xs = o.map((p) => p[0]), ys = o.map((p) => p[1]);
-    const area = (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)), v = r2(grossW / (biped ? 1 : LEGS.length - 1) / area / 1000);
+    const area = ctx.contact?.(arch.legs[L0].foot) ?? (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)), v = r2(grossW / (biped ? 1 : LEGS.length - 1) / area / 1000);
     law('groundPressure', v, band.groundPressure, within(v, band.groundPressure), biped ? `on one foot it bears ${v} kPa on its sole` : `on ${LEGS.length - 1} feet a sole bears ${v} kPa`);
   }
   // ── the step and the stride, by the legs' reach within their ranges ──
   const Gr = legGeometry(arch, ctx, L0), J = arch.legs[L0].joints;
   // (a leg mounted turned: its yaw drive's value from its mounting, in its drive's sense)
   const L0leg = arch.legs[L0], own = (k, v) => (k === 'yaw' && L0leg.yawSign ? (v - Gr.mount) * L0leg.yawSign : v);
-  const fits = (ankle, yaw = Gr.mount) => {
+  // (a leg's plane at its foot's own heading: a splayed foot's)
+  const fits = (ankle, yaw = Gr.mount + (foot.yaw ?? 0)) => {
     const leg = solveLeg(Gr, ankle, yaw, arch.bend);
     if (!leg.reach) return false;
     return Object.entries(leg.values).every(([k, v]) => { const r = range(J[k]), w = own(k, v); return !r || (w >= r[0] - 1e-6 && w <= r[1] + 1e-6); });
@@ -489,7 +490,7 @@ export function mechaLaws(key, kit) {
       }
       return { d: best, who };
     };
-    const reachJoints = (ankle) => { const leg = solveLeg(Gr, ankle, Gr.mount, arch.bend); return { ...P.stand.joints, ...Object.fromEntries(Object.entries(leg.values).map(([k, v]) => [J[k], own(k, v)])) }; };
+    const reachJoints = (ankle) => { const leg = solveLeg(Gr, ankle, Gr.mount + (foot.yaw ?? 0), arch.bend); return { ...P.stand.joints, ...Object.fromEntries(Object.entries(leg.values).map(([k, v]) => [J[k], own(k, v)])) }; };
     const samples = [...Object.entries(P).map(([k, p]) => [k, p.joints]), ['step', reachJoints(stepAt(step))], ['stride', reachJoints(strideAt(stride))]];
     let worst = { d: Infinity };
     for (const [k, j] of samples) { const c = at(j); if (c.d < worst.d) worst = { ...c, k }; }

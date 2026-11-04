@@ -329,6 +329,8 @@ export function mechaCtx(archetype) {
       return v;
     },
     outline: (body) => geom(body).outline ?? null,
+    // (a sole's own area on the ground when it is not its outline's: an egg's petals' pads)
+    contact: (body) => geom(body).contact ?? null,
   };
   CTX.set(archetype, ctx);
   return ctx;

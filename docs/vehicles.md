@@ -62,9 +62,10 @@ The frames:
   - Its siege backpack carries twin service tails.
 - **The brood walker** stands on four legs, and its hull is a hangar. Its parts are in `mecha-brood-parts.js`.
   - Its hips are low on the hull's sides, and lift rams pump it up to stand.
-  - Its feet are its drones' bays. Walking, each bay stands on its nose, its armoured shell to the front. Driving,
-    the bays lie on their wheels, and a side's two lie nose to tail: the fore bay's shell ends in a nose cone and the
-    aft bay's in a taper, so the pair reads as one torpedo.
+  - Its feet are eggs, its drones' bays inside: `mecha-egg.js` holds the egg's numbers, so the shell drawn, its joints
+    and the soles the laws read agree. A fork holds each egg by a hub at its narrow end and swivels under the leg.
+    Walking, the egg hangs narrow end up, its body closed, and its blunt end opens into four petals down to the ground,
+    a lander's feet. Driving, it lies closed on its wheels, and a side's two eggs lie nose to tail along the hull.
   - Its drones come from the craft shelf: `mecha-drones.js` places them docked and launched.
   - Its solar car folds out origami-style.
 

@@ -6,20 +6,23 @@
  *   pelvis 'hangar'    the hull: tall, its top rounded, its nose round; a single hangar through it, its door open each
  *                      side above the bays' line, its deck, its frames, a gantry and its print head under the roof (it
  *                      repairs drones and prints their parts), a cradle on the deck; the visor slit at the front where
- *                      the cockpit inside looks out; a bracket out over each bay from the roof's shoulder to its hip
+ *                      the cockpit inside looks out; a bracket low on each side to a hip
  *   hip 'coxa'         a leg's yaw bearing under its bracket, its drum, its fork down to the hub
  *   yoke 'hub'         the hip's roll trunnion and, below it, the pitch axle's drum, the lift ram's horn over it
  *   thigh 'column'     the leg's upper segment, its lift ram's eye on it: a hollow sleeve, four corner posts framed and
  *                      plated on its outer and inner faces, open through; the drive's lines down its hollow
- *   shank 'strut'      the knee's machinery low over the bay (a great drum, its gearbox, its motor) and the short
- *                      shank under it to the bay's mount: the frame heavy at its foot
- *   ankle 'bug'        a cross on the bay's mount
- *   foot 'cradle'      the ankle's cradle, the bay's pivot under it
- *   bay 'bay'          a drone's bay and a wheel's housing: a long rounded pod, hollow, open underneath and at its back
- *                      (its fore end round), two drones hung from its roof inside; walking, it stands upright on two foot
- *                      pads at its open end; driving, it lies on its wheels, in pairs outside its walls; its armour a
-                      rounded shell fore and aft of its hinge, the fore bays' ending in a nose cone and the aft bays' in a
-                      taper, so driving a side's two bays read as one torpedo
+ *   shank 'strut'      the knee's machinery (a great drum, its gearbox, its motor) and the short shank under it to the
+ *                      foot's mount
+ *   ankle 'bug'        a cross on the foot's mount
+ *   foot 'cradle'      a slewing ring under the ankle, the fork's swivel; its sole the egg's petals' pads, hung
+ *   fork 'fork'        a bridge over the egg's narrow end and a cheek down each side of it to the hub's bosses
+ *   bay 'bay'          the egg: its drones' bay inside (a hollow core open underneath and at its blunt end, two drones
+ *                      hung from its roof), its body frame at its hub on its narrow end; its nose cap fixed, its body's
+ *                      shell closed (its lower quarters arched over the wheels, in pairs outside the core's walls), its
+ *                      blunt end cut into four petals. Walking, it hangs from its hub, narrow end up; driving, it lies
+ *                      closed on its wheels, narrow end ahead (the numbers: mecha-egg.js)
+ *   petal 'petal'      a quarter of the egg's blunt end, hinged on its cut: closed driving; opened hung to the ground,
+ *                      a lander's foot, a pad under it
  *   pack 'car', 'solar'   the rear car: the hull's front profile drawn boxier, coupled behind it as a train's car; the
  *                      solar car its floor and frames, the rest of its skin its folded array
  *   solar 'deck', 'panel'   the solar car's roof, hinged at its fore edge to tilt its back up, and its walls and the
@@ -27,7 +30,8 @@
  *
  * broodBuilders(kit) → the builders by kind and family, `kit` the shelf's own.
  */
-import { add, box, loftWorld, spin, tone, tube } from './mecha-common.js';
+import { add, box, loftWorld, round3, spin, tone, tube } from './mecha-common.js';
+import { EGG_FOOT, EGG_PETALS, bodyStations, eggPoint, eggScale, hubAt, petalSpan, petalStations, rotAbout } from './mecha-egg.js';
 
 export function broodBuilders(kit) {
   const { slab, sgn, boss, legBeam, plateBox } = kit;
@@ -47,6 +51,12 @@ export function broodBuilders(kit) {
     lathes.push(spin(`${id}Light`, add(at, m(y, -L / 2 - 0.05)), add(add(at, m(y, -L / 2 - 0.05)), m(n, 0.05)), [[0, 0.03], [1, 0.025]], C.light, 10));
     return { [id]: add(at, m(n, 0.06)), [`${id}N`]: add(at, m(n, 1.06)), [`${id}Y`]: add(at, add(m(n, 0.06), y)) };
   }
+  /** A quarter of the egg's shell at `y`, round its axis: its outer arc, then its inner arc back, `E.t` thick. */
+  const quarter = (E, q, y, k = 7) => {
+    const sc = eggScale(E, y), si = Math.max(sc - E.t, 0.005), [p0, p1] = petalSpan(E, q, y);
+    const arc = (sk) => Array.from({ length: k + 1 }, (_, i) => { const [x, z] = eggPoint(E, sk, p0 + ((p1 - p0) * i) / k); return [x, 0, z - E.zc]; });
+    return [...arc(sc), ...arc(si).reverse()];
+  };
   /** An arch's points across x (its feet at ±w/2, `z0`; its sides up to `zs`, its top rounded to `z1`). */
   const arch = (w, z0, zs, z1, k = 6) => {
     const pts = [[w / 2, 0, z0], [w / 2, 0, zs]];
@@ -188,17 +198,22 @@ export function broodBuilders(kit) {
     return { lathes, extrudes, hardpoints: { roll: [0, 0, 0] } };
   }
   // ── the foot: a cradle under the ankle, the bay's pivot below it ─────────────────────────────────────────────
-  // (its sole the bay's: walking, the bay stands upright beside its pivot on the foot pads at its open end; driving, it
-  // lies on its wheels; either way its sole the same height below the ankle)
-  function bayCradle(row, C, { side }) {
-    const d = row.dims, B = d.bay, s = sgn(side), lathes = [], extrudes = [], m = d.drop, zs = -m - B.length / 2, P = [s * d.back, 0, -m];
-    // (its arm back from the ankle to the pivot, its bay set behind its leg; the pivot's boss across it)
-    extrudes.push(box('arm', [0, 0, 0.02], [P[0], 0, -m + 0.1], 0.34, 0.3, C.trim, [0, 1, 0]));
-    for (const t of [1, -1]) extrudes.push(box(`cheek_${t > 0 ? 'f' : 'b'}`, [P[0], t * 0.2, -m + 0.15], [P[0], t * 0.2, -m], 0.36, 0.08, C.trim));
-    lathes.push(boss('pivot', P, 'y', 0.3, 0.12, C.chrome, 14));
-    // (its outline: the upright bay's foot pads, back from the pivot across its depth)
-    const x0 = s * (d.back + 0.1), x1 = s * (d.back + B.depth - 0.1), y = B.w / 2 - 0.05;
-    return { lathes, extrudes, hardpoints: { bay: P, sole: [0, 0, zs] }, outline: [[x0, -y, zs], [x1, -y, zs], [x1, y, zs], [x0, y, zs]] };
+  // (the foot: a slewing ring under the ankle, the fork's swivel; its sole the egg's petals' pads hung, square round it)
+  function bayCradle(row, C) {
+    const d = row.dims, zs = -d.drop - EGG_FOOT.stand, H = EGG_FOOT.half + EGG_FOOT.pad;
+    const lathes = [spin('ring', [0, 0, -0.02], [0, 0, -d.ring], [[0, 0.3], [0.5, 0.34], [1, 0.34]], C.trim, 22)];
+    return { lathes, hardpoints: { swivel: [0, 0, -d.ring], sole: [0, 0, zs] }, outline: [[-H, -H, zs], [H, -H, zs], [H, H, zs], [-H, H, zs]], contact: EGG_FOOT.contact };
+  }
+  // (the fork on its swivel: a bridge across the egg's narrow end, a cheek down each side of it to the hub's bosses)
+  function eggFork(row, C) {
+    const d = row.dims, m = d.drop - d.ring, w = d.cheek, lathes = [], extrudes = [];
+    lathes.push(spin('swivel', [0, 0, 0], [0, 0, -0.08], [[0, 0.26], [1, 0.26]], C.chrome, 18));
+    extrudes.push(plateBox('bridge', [0, 0, -0.2], 0.46, 2 * w + 0.16, 0.24, 0.05, C.trim));
+    for (const t of [1, -1]) {
+      extrudes.push(box(`cheek_${t > 0 ? 'a' : 'b'}`, [0, t * w, -0.2], [0, t * w, -m], 0.4, 0.1, C.trim, [0, 1, 0]));
+      lathes.push(boss(`hub_${t > 0 ? 'a' : 'b'}`, [0, t * (w + 0.04), -m], 'y', 0.06, 0.22, C.chrome, 16));
+    }
+    return { lathes, extrudes, hardpoints: { bay: [0, 0, -m] } };
   }
   // ── a drone's bay and a wheel's housing: a long rounded pod, hollow, open underneath and at its back ───────────
   // (in its own frame, its pivot on its roof at the origin: its length along y, its depth down to its open underside;
@@ -214,8 +229,6 @@ export function broodBuilders(kit) {
     for (const t of [1, -1]) {
       extrudes.push(slab(`wall_${t > 0 ? 'o' : 'i'}`, t * (w / 2 - 0.06), t * w / 2, [[-L / 2, z0 + 0.1], [L / 2 - cap, z0 + 0.1], [L / 2 - cap, zs], [-L / 2, zs]], C.paint));
       extrudes.push(box(`sill_${t > 0 ? 'o' : 'i'}`, [t * (w / 2 - 0.05), -L / 2, z0 + 0.14], [t * (w / 2 - 0.05), L / 2 - cap, z0 + 0.14], 0.12, 0.1, C.trim));
-      // (a foot pad on its round nose at each wall: what it stands on upright, its shell to the front, its open end up)
-      extrudes.push(box(`pad_${t > 0 ? 'o' : 'i'}`, [t * (w / 2 - 0.16), L / 2 - 0.3, (zs + z0) / 2 - 0.05], [t * (w / 2 - 0.16), L / 2, (zs + z0) / 2 - 0.05], 0.3, D - 0.25, tone(C.trim, -0.1)));
     }
     // (its open end's frame, its ribs inside under the roof)
     for (let i = 0; i <= 3; i++) {
@@ -236,42 +249,37 @@ export function broodBuilders(kit) {
     // underside, or out of its open end, and fly)
     for (const [k, y] of [['f', d.dock], ['a', -d.dock]]) Object.assign(hp, cradle(`dock.${k}`, [0, y, zs - 0.04], [0, 0, -1], [0, 1, 0], d.bay[1], d.bay[0], C, extrudes, lathes));
     for (const k of ['f', 'a']) { const o = hp[`dock.${k}`]; hp[`dock.${k}`] = [o[0], o[1], zs - 0.1]; hp[`dock.${k}N`] = [o[0], o[1], zs + 0.9]; hp[`dock.${k}Y`] = [o[0], o[1] + 1, zs - 0.1]; }
-    if (d.armour) armour(d, C, extrudes, lofts);
-    return { extrudes, lathes, lofts, hardpoints: hp };
+    // (its egg's narrow end, fixed: a cap over its nose from its petals' hinge ring, the hub's bosses each side, the
+    // petals' hinge knuckles on the ring)
+    const E = d.egg, sec = (sc) => Array.from({ length: 24 }, (_, i) => { const [x, z] = eggPoint(E, sc, (360 * i) / 24); return [x, 0, z - E.zc]; });
+    const capY = E.stations.map(([y]) => y).filter((y) => y > E.ring), y1 = capY[0];
+    lofts.push(loftWorld('cap', [0, E.ring, E.zc], [0, y1, E.zc], [E.ring, ...capY.slice().reverse()].map((y) => ({ t: (y - E.ring) / (y1 - E.ring), points: sec(eggScale(E, y)) })), C.paint));
+    const hw = E.a * eggScale(E, E.hub);
+    for (const t of [1, -1]) lathes.push(spin(`hub_${t > 0 ? 'o' : 'i'}`, [t * (hw - 0.05), E.hub, E.zc], [t * (hw + 0.06), E.hub, E.zc], [[0, 0.3], [1, 0.26]], tone(C.trim, 0.05), 18));
+    // (its body: closed, a quarter shell each side of its seams from the ring to the cut, its lower quarters arched over
+    // the wheels)
+    const bys = bodyStations(E), bN = bys[bys.length - 1];
+    for (const q of Object.keys(EGG_PETALS)) lofts.push(loftWorld(`body_${q}`, [0, E.ring, E.zc], [0, bN, E.zc], bys.map((y) => ({ t: (E.ring - y) / (E.ring - bN), points: quarter(E, q, y) })), C.paint));
+    // (its blunt end's petals' hinge knuckles on the cut, a band round it)
+    for (const [q, P] of Object.entries(EGG_PETALS)) {
+      lathes.push(spin(`knuckle_${q}`, add(P.hinge, P.axis.map((v) => -v * 0.18)), add(P.hinge, P.axis.map((v) => v * 0.18)), [[0, 0.07], [1, 0.07]], C.chrome, 10));
+      hp[`petal.${q}`] = P.hinge;
+    }
+    // (its body's frame at its hub: every part and point moved so)
+    const o = hubAt.map((v) => -v), at = (p) => ({ x: round3(p.x + o[0]) + 0, y: round3(p.y + o[1]) + 0, z: round3(p.z + o[2]) + 0 }), mv = (it) => ({ ...it, axisFrom: at(it.axisFrom), axisTo: at(it.axisTo) });
+    return { extrudes: extrudes.map(mv), lathes: lathes.map(mv), lofts: lofts.map(mv), hardpoints: Object.fromEntries(Object.entries(hp).map(([k, v]) => [k, v.map((c, i) => round3(c + o[i]) + 0)])) };
   }
-  // ── a bay's armour: a rounded shell over its roof and its wheels' tops, fore and aft of its hinge ──────────────────
-  // (in plates round an arch, each a facet; a recess at the hinge where the cradle meets the roof; the fore end a
-  // nose cone (`fore: 'cone'`) or a straight sleeve (`'sleeve'`), the aft end flush (`aft: 'flush'`) or tapered round
-  // its open end (`'taper'`): driving, a side's two bays nose to tail, the fore bay's cone ahead and the aft bay's taper
-  // behind, read as one torpedo; walking, each stands in its own)
-  function armour(d, C, extrudes, lofts) {
-    const A = d.armour, L = d.length, cap = d.cap, k = 8, plate = tone(C.paint, -0.04), band = tone(C.trim, -0.15);
-    // (the arch: down each side as a skirt over its wheels, round over its roof; facets between its points)
-    const ring = (s = 1) => {
-      const pts = [[A.a, A.skirt]];
-      for (let i = 0; i <= k; i++) { const t = (Math.PI * i) / k; pts.push([A.a * Math.cos(t), A.zc + A.b * Math.sin(t)]); }
-      pts.push([-A.a, A.skirt]);
-      return pts.map(([x, z]) => [x * s, A.zc + (z - A.zc) * s]);
-    };
-    const R = ring(), facets = R.slice(0, -1).map((p, i) => { const q = R[i + 1], m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], c = Math.hypot(q[0] - p[0], q[1] - p[1]); return { m, c, n: [(q[1] - p[1]) / c, 0, -(q[0] - p[0]) / c], i, top: Math.abs(m[0]) < A.a * 0.5 }; });
-    const face = (id, f, y0, y1, s0 = 1, s1 = 1) => {
-      const at = (s, y) => [f.m[0] * s, y, A.zc + (f.m[1] - A.zc) * s];
-      extrudes.push(box(id, at(s0, y0), at(s1, y1), f.c * Math.max(s0, s1) + 0.02, A.t, plate, f.n));
-    };
-    const yF = L / 2 - (A.fore === 'cone' ? cap : 0), yA = -L / 2 + (A.aft === 'taper' ? A.taper : 0);
-    for (const f of facets) {
-      // (fore of the hinge, the top plates set back where the cradle reaches over the roof; aft the same)
-      face(`armourF_${f.i}`, f, f.top ? A.slot[1] : A.slot[0], yF);
-      face(`armourA_${f.i}`, f, yA, -(f.top ? A.slot[2] : A.slot[0]));
-      if (A.aft === 'taper') face(`armourT_${f.i}`, f, -L / 2, yA, A.tail, 1);
-    }
-    // (a band along each plate's hinge edge)
-    for (const [e, y] of [['F', A.slot[0]], ['A', -A.slot[0]]]) for (const t of [1, -1]) extrudes.push(box(`armourBand${e}_${t > 0 ? 'o' : 'i'}`, [t * A.a, y, A.skirt], [t * A.a, y, A.zc], 0.1, 0.08, band, [t, 0, 0]));
-    // (the nose cone: the arch closed over its chord and drawn down round the bay's round nose)
-    if (A.fore === 'cone') {
-      const D = (s) => ring(s).map(([x, z]) => [x, 0, z]);
-      lofts.push(loftWorld('armourNose', [0, yF, 0], [0, L / 2, 0], [{ t: 0, points: D(1) }, { t: 0.55, points: D(0.88) }, { t: 1, points: D(0.6) }], plate));
-    }
+  // ── a petal of the egg: a quarter of its blunt end, from the cut to its tip ─────────────────────────────────────
+  // (in its own frame, its hinge on the cut the origin, the bay's axes; a pad where it meets the ground opened, and its
+  // hinge's knuckle)
+  function eggPetal(row, C) {
+    const q = row.dims.quad, E = row.dims.egg, P = EGG_PETALS[q], h = P.hinge, ys = petalStations(E), yN = ys[ys.length - 1];
+    const lofts = [loftWorld('shell', [-h[0], 0, E.zc - h[2]], [-h[0], yN - E.cut, E.zc - h[2]], ys.map((y) => ({ t: (E.cut - y) / (E.cut - yN), points: quarter(E, q, y) })), C.paint)];
+    const down = rotAbout([0, -1, 0], P.axis, -P.open), lathes = [
+      spin('pad', P.low, add(P.low, down.map((v) => v * E.padT)), [[0, E.pad], [1, E.pad * 0.9]], tone(C.trim, -0.2), 16),
+      spin('knuckle', P.axis.map((v) => -v * 0.15), P.axis.map((v) => v * 0.15), [[0, 0.09], [1, 0.09]], tone(C.trim, 0.05), 10),
+    ];
+    return { lofts, lathes, hardpoints: {} };
   }
   // ── the rear car: the hull's front profile drawn boxier, coupled behind it as a train's car ─────────────────────
   // (its coupling and gangway ahead; its sides panelled, a door, roof hatches, its lamps behind; the solar car the same,
@@ -328,5 +336,5 @@ export function broodBuilders(kit) {
     }
     return { extrudes, hardpoints: { end: [s * W, 0, s * d.gap] } };
   }
-  return { pelvis: hangarPelvis, hip: coxa, yoke: hub, thigh: column, shank: tibia, ankle: bugAnkle, foot: bayCradle, bay: bayPod, pack: rearCar, solar: { panel: solarPanel, deck: solarDeck } };
+  return { pelvis: hangarPelvis, hip: coxa, yoke: hub, thigh: column, shank: tibia, ankle: bugAnkle, foot: bayCradle, fork: eggFork, bay: bayPod, petal: eggPetal, pack: rearCar, solar: { panel: solarPanel, deck: solarDeck } };
 }

@@ -239,7 +239,8 @@ function feetOf(arch, st) {
     // to its side)
     // (or, `place: 'tuck'`, at the place and the heading its leg tucks it to: a four-legged frame's driving stance)
     const f = st.feet?.[S] ?? {}, s = handOf(arch, S) === 'r' ? 1 : -1, T = st.place === 'tuck' ? arch.legs[S].tuck : null, at = T ? T.at : arch.legs[S].at, k = T ? 1 : st.spread ?? 1;
-    out[S] = { x: f.x ?? (at ? at[0] * k : s * track / 2), y: (f.y ?? 0) + (at ? at[1] * k : 0) + fore, lift: f.lift ?? 0, yaw: (f.yaw ?? 0) + (T ? T.yaw : 0) };
+    // (a tucked foot's sole may sit nearer its ankle than its stance sole: an egg lying on its wheels, `tuck.lift`)
+    out[S] = { x: f.x ?? (at ? at[0] * k : s * track / 2), y: (f.y ?? 0) + (at ? at[1] * k : 0) + fore, lift: f.lift ?? T?.lift ?? 0, yaw: (f.yaw ?? 0) + (T ? T.yaw : arch.legs[S].atYaw ?? 0) };
   }
   return out;
 }

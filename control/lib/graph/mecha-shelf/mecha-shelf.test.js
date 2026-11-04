@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { apply, cross, ramForce, sub } from './mecha-common.js';
 import { arcsFor, solveMount } from './mecha-gap-makers.js';
+import { EGG_PETALS } from './mecha-egg.js';
 import { framesOf, rangeOf, solveChain } from '../construction-shelf/con-chain.js';
 import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
 import { MECHA_BACKPACKS, MECHA_ROLES, MECHA_WEAPONS, TAIL_POSES } from './mecha-backpacks.js';
@@ -574,17 +575,26 @@ describe('mecha shelf: a four-legged frame standing on its drones\' bays', () =>
   const brood = Object.keys(MECHA_ARCHETYPES).find((k) => Object.keys(MECHA_ARCHETYPES[k].legs).length === 4 && MECHA_ARCHETYPES[k].docks), Ab = MECHA_ARCHETYPES[brood];
   const law = (k, id) => lawsOf(k).laws.find((l) => l.id === id);
   const drive = Object.keys(Ab.stances).find((k) => Ab.stances[k].place === 'tuck'), launch = Object.keys(Ab.stances).find((k) => Ab.stances[k].launch);
-  const bayOf = (L) => Ab.layout.find((e) => e.on === `${L.foot}.bay`).id;
-  it('stands on its bays upright, their shells to the front, four feet where its stance asks, every law holding', () => {
-    const ctx = mechaCtx(brood), P = posedFrame(brood, Ab.rest), F = framesOf(ctx.arch, P.joints, ctx);
+  const forkOf = (L) => Ab.layout.find((e) => e.on === `${L.foot}.swivel`).id, bayOf = (L) => Ab.layout.find((e) => e.on === `${forkOf(L)}.bay`).id;
+  const petalsOf = (L) => Ab.layout.filter((e) => e.on?.startsWith(`${bayOf(L)}.petal.`));
+  it('stands on its eggs hung from their hubs, narrow end up, their four petals opened to the ground, every law holding', () => {
+    const ctx = mechaCtx(brood), P = posedFrame(brood, Ab.rest), { frames: F } = massOf(brood, P.joints, P.root);
     for (const L of Object.values(Ab.legs)) {
       const sole = apply(F[L.foot], ctx.hp(L.foot, 'sole'));
-      expect(sole[0] + P.root.t[0]).toBeCloseTo(L.at[0], 2);
-      expect(sole[1] + P.root.t[1]).toBeCloseTo(L.at[1], 2);
-      expect(sole[2] + P.root.t[2]).toBeCloseTo(0, 2);
-      // (its bay upright, standing on its nose (its length straight down), its shell (its roof) to the front)
-      expect(F[bayOf(L)].R[2][1]).toBeLessThan(-0.999);
-      expect(F[bayOf(L)].R[1][2]).toBeGreaterThan(0.999);
+      expect(sole[0]).toBeCloseTo(L.at[0], 2);
+      expect(sole[1]).toBeCloseTo(L.at[1], 2);
+      expect(sole[2]).toBeCloseTo(0, 2);
+      // (its egg hung, its narrow end straight up, its hub's axle across the frame whatever its leg's heading)
+      expect(F[bayOf(L)].R[2][1]).toBeGreaterThan(0.999);
+      expect(Math.abs(F[bayOf(L)].R[0][0])).toBeGreaterThan(0.999);
+      // (its four petals each down on the ground at its pad, spread round it)
+      // (its lowest point on its shell, its pad under it: its pad's thickness off the ground)
+      const petals = petalsOf(L), pads = petals.map((e) => apply(F[e.id], EGG_PETALS[MECHA_ODM[e.sku].dims.quad].low));
+      expect(pads.length).toBe(4);
+      for (const [i, p] of pads.entries()) expect(Math.abs(p[2] - MECHA_ODM[petals[i].sku].dims.egg.padT)).toBeLessThan(0.02);
+      // (spread round its hub, wider than its bay)
+      const hub = F[bayOf(L)].t, bayW = MECHA_ODM[Ab.layout.find((e) => e.id === bayOf(L)).sku].dims.w;
+      for (const p of pads) expect(Math.hypot(p[0] - hub[0], p[1] - hub[1])).toBeGreaterThan(bayW);
     }
     expect(P.clamped).toEqual([]);
     expect(law(brood, 'sway').says).toMatch(/on 3 feet/);
@@ -600,34 +610,32 @@ describe('mecha shelf: a four-legged frame standing on its drones\' bays', () =>
     for (const id of Object.keys(stood)) expect(stood[id]).toBeGreaterThan(driven[id]);
     expect(posedFrame(brood, Ab.rest).root.t[2]).toBeGreaterThan(posedFrame(brood, drive).root.t[2]);
   });
-  it('tucks its bays in along its hull, tipped down onto their wheels, and drives on them, lower than it stands', () => {
+  it('tucks its eggs in along its hull, closed and lying on their wheels, and drives on them, lower than it stands', () => {
     const ctx = mechaCtx(brood), P = posedFrame(brood, drive), F = framesOf(ctx.arch, P.joints, ctx);
     for (const L of Object.values(Ab.legs)) {
       const c = apply(F[L.foot], [0, 0, 0]);
       expect(c[0]).toBeCloseTo(L.tuck.at[0], 2);
       expect(c[1]).toBeCloseTo(L.tuck.at[1], 2);
-      // (its bay lying, its length along the hull, its nose ahead)
+      // (its egg lying, its length along the hull, its narrow end ahead, its leg turned however it is; its petals shut)
       expect(F[bayOf(L)].R[1][1]).toBeGreaterThan(0.999);
+      for (const e of petalsOf(L)) expect(P.joints[e.joint]).toBe(0);
     }
     expect(P.root.t[2]).toBeLessThan(posedFrame(brood, Ab.rest).root.t[2]);
     for (const id of ['rollContact', 'rollClearance', 'rollStability']) expect(law(brood, id).ok).toBe(true);
   });
-  it('drives with a side\'s two bays nose to tail, armoured into one torpedo: a nose cone ahead, a taper behind', () => {
+  it('drives with a side\'s two eggs nose to tail, clear of each other', () => {
     const ctx = mechaCtx(brood), P = posedFrame(brood, drive), F = framesOf(ctx.arch, P.joints, ctx);
+    const E = MECHA_ODM[Ab.layout.find((e) => e.id === bayOf(Ab.legs.fr)).sku].dims.egg, ys = E.stations.map(([y]) => y);
     for (const side of ['r', 'l']) {
-      const bays = Object.values(Ab.legs).filter((L) => L.side === side).map((L) => { const e = Ab.layout.find((b) => b.id === bayOf(L)); return { T: F[e.id], d: MECHA_ODM[e.sku].dims }; }).sort((a, b) => b.T.t[1] - a.T.t[1]);
-      expect(bays.length).toBe(2);
-      const [fore, aft] = bays;
-      expect(fore.T.t[0]).toBeCloseTo(aft.T.t[0], 3);
-      // (the fore bay's open end against the aft bay's nose)
-      const gap = (fore.T.t[1] - fore.d.length / 2) - (aft.T.t[1] + aft.d.length / 2);
+      const [fore, aft] = Object.values(Ab.legs).filter((L) => L.side === side).map((L) => F[bayOf(L)].t).sort((p, q) => q[1] - p[1]);
+      expect(fore[0]).toBeCloseTo(aft[0], 2);
+      // (the fore egg's blunt end ahead of the aft egg's narrow end)
+      const gap = (fore[1] - (E.hub - Math.min(...ys))) - (aft[1] + (Math.max(...ys) - E.hub));
       expect(gap).toBeGreaterThan(0);
-      expect(gap).toBeLessThan(0.2);
-      expect([fore.d.armour.fore, aft.d.armour.aft]).toEqual(['cone', 'taper']);
-      for (const b of bays) expect(b.d.armour.a).toBeGreaterThan(b.d.w / 2);
+      expect(gap).toBeLessThan(0.3);
     }
   });
-  it('carries the craft shelf\'s drones hung in its open bays, launched up out of their open tops, clear of it', () => {
+  it('carries the craft shelf\'s drones hung in its open bays, launched out of their open sides between the petals, clear of it', () => {
     const { readout, manifest } = assembleFrame(brood, { pose: launch, laws: false });
     expect(readout.drones).toMatchObject({ kind: Ab.drones.kind, count: Ab.docks.length, launched: true });
     expect(manifest.items.filter((it) => /^drone0\./.test(it.id)).length).toBeGreaterThan(3);

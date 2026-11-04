@@ -49,6 +49,10 @@
  *   - The brood walker's bays armoured (a rounded shell fore and aft of each hinge, the fore bays' nose cone, the aft
  *     bays' taper: a side's two one torpedo driving): its bay and the frame whole re-pinned; the aft bay is the bay's
  *     builder path, carried in the frame's pin; no other pin moved.
+ *   - The brood walker's feet eggs on lander feet (each egg held by its hub at its narrow end in a fork that swivels on
+ *     its foot's ring, its body's shell closed, hung to walk with its blunt end's four petals opened to the ground,
+ *     closed lying on its wheels to drive; the armour shells gone): its bay, its foot ring and its coxa (a wider yaw)
+ *     re-pinned, the fork and a petal pinned as builder paths, and the frame whole re-pinned; no other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -148,12 +152,14 @@ const PINS = {
   'aampod-wpn': 'b97979e1e07b05d4',
   'cargo-wpn': '0decc2991b339e78',
   'winch-wpn': '8632112e37ab33d1',
-  'cradle-bw': 'ada6455012bd2a7e',
+  'cradle-bw': '67b1a5e971ac30b0',
+  'fork-bw': 'c921b3bcf1cebd78',
+  'petal-bw-uo': 'd5897f98d7f057c7',
   'car-bw': '9dfe27f77893b704',
-  'bay-bw': '5ce9a1b69b5cde94',
+  'bay-bw': '41e1a78848324480',
   'ankle-bw': '72f7f2aa7295c94b',
   'column-bw': '311fed077a95e243',
-  'coxa-bw': 'b2d3cc982cfa5b21',
+  'coxa-bw': '91f14f76226fea83',
   'hub-bw': '2b59638db2765981',
   'deck-bw': '37d3499ddd4a031c',
   'wing-bw': '9571f4a4df707c7e',
@@ -173,7 +179,7 @@ const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
 const SIEGE = ['9a1b7f9ff8b5e291', '8f0a988a084d563e'];
-const BROOD = ['e71705e88d9ae7ba', '6efd1c7229a56d7a', '2e9e806a5339b828'];
+const BROOD = ['bf1434e1c067bcc3', 'b38324bd56d0bd96', '7f616b8ec1795d05'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');

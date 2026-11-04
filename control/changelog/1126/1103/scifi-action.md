@@ -350,19 +350,27 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     lift is a hydraulic ram (`ram-hip-bw`) from the hub's horn to the column's eye, beside the hull: extended, it swings
     the column down and pumps the hull up to stand; retracted, it lets the hull down to drive. The other joints are
     rotary drives. The frame reads heavy at its foot.
-  - **Its feet are its drones' bays and its wheels** (`bayPod`): each a long rounded pod, hollow, open underneath and at
-    its back, its nose round, its wheels in pairs outside its walls. Walking, each bay stands upright on its nose, its
-    rounded shell to the front and its open end up, beside the hull, and the frame steps on them as an insect does, on
-    three feet; it walks, it does not roll. Driving (its `roll` stance, `place: 'tuck'`), each bay tips down on its
-    pivot onto its wheels, tucked in along the hull's sides fore and aft, nose ahead.
-  - **Its bays armoured:** each bay carries a rounded armour shell fore and aft of its hinge, plates round an arch over
-    its roof and down as skirts over its wheels' tops, recessed where the cradle reaches its roof. The fore bays' shells
-    end in a nose cone (`bay-bw`), the aft bays' in a taper round the open end (`bay-bw-aft`). Driving, a side's two bays
-    lie nose to tail and read as one torpedo. Walking, it splits into the four legs, each bay standing in its own shell,
-    the shell to the front.
+  - **Its feet are eggs** (`bayPod`, `eggPetal`, `eggFork`; the numbers in `mecha-egg.js`): each egg holds a drones'
+    bay inside (a hollow core, open underneath and at its blunt end) with its wheels in pairs under it. Each egg's
+    shell is a superellipse section, squarer than a circle, drawn along its length from a narrow end ahead to a blunt
+    end behind. Its narrow end is a fixed cap, and its body's shell is closed in four quarters, its lower quarters
+    arched over the wheels. Only its blunt end is cut into four petals, each hinged on the cut.
+    - The leg holds the egg by a hub through its narrow end, in a fork whose bridge spans the narrow end and whose
+      cheeks reach down to the hub. The fork swivels on a slewing ring under the ankle (`swivel`). A leg turned toward
+      where its foot stands still sets its egg square to the frame, so its petals stand square walking and its egg lies
+      along the hull driving.
+    - Walking, each egg hangs from its hub, narrow end up, its body closed. Its four petals open out and down to the
+      ground like a lander's feet, a pad under each; each petal opens its own angle so all four reach one ground. The
+      foot's sole is the square their pads stand in, and its ground pressure is the pads' own area (a sole may now say
+      its `contact`). The legs reach out to their feet, spread fore and aft of the hips (`atYaw`).
+    - Driving (its `roll` stance, `place: 'tuck'`), each egg swings down onto its wheels, narrow end ahead, its petals
+      shut. A side's two eggs lie nose to tail along the hull, and the leg tucks its foot lower under its ankle than it
+      stands (a tuck's `lift`).
+    - Hung from its eggs it stands tall (its pelvis 8.8 m up, 5.15 m driving). Its crouch to be boarded brings its
+      saddle to a ladder's reach, its band set for its class.
   - **Its drones** (`mecha-drones.js`): the craft shelf's own, assembled in its military look, eight by default (the
-    inspection quad), two hung from each bay's roof inside. At the `launch` stance each flies up out of its bay's open
-    end and hovers clear of it, out to the frame's side; nothing opens. The words `drones` (how many, up to its bays) and `drone` (which of the craft
+    inspection quad), two hung from each bay's roof inside. At the `launch` stance each drops out of its egg's opened
+    blunt end and hovers clear of it, ahead of it. The words `drones` (how many, up to its bays) and `drone` (which of the craft
     shelf's) choose them. New laws: `droneGround` (the drones off the ground, docked at every stance and launched) and
     `droneClear` (each clear of the frame's bodies but its own bay, and of the other drones).
   - **Its solar backpack** (`MECHA_BACKPACKS.solar`): the rear car is itself the array, built to fold origami-style
@@ -378,8 +386,8 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     - A sway may be a set of feet.
     - On three feet each stance leg carries its share of the weight by the statics, and in the crouch the least-norm
       shares.
-    - A joint a stance's flag sets is `when` (a bay tipped down to drive, an array spread to `deploy`), with its rest
-      `at`.
+    - A joint a stance's flag sets is `when` (an egg swung down to drive, its petals shut, an array spread to
+      `deploy`), with its rest `at`.
     - The leg's inverse kinematics solve a cranked shank (an ankle off its axis) too.
   - Every law holds at every stance, with the solar backpack and with any count of drones.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
@@ -468,13 +476,14 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     ground; its backpack's payloads swapped, another backpack refused, and a
     frame without wheels refused a roll. The char pins add its wheeled parts, its wheel and the autocannon, and the
     frame whole walking and collapsed.
-  - `mecha-shelf.test.js`, the brood walker: four feet where its stance asks, soles flat, its columns upright and its
-    knees low, its bays upright on their noses with their shells to the front, its hips low on the hull's sides and its
-    lift rams longer standing than driving, every law holding; tucked to drive, its bays tipped down along its hull, lower than it
-    stands, on its wheels; its drones launched out of their bays, clear of it, their count and kind the operator's, too
-    many refused; its solar car folded stowed, its wings and leaves open unfolded, and its deck tilted deployed; driving, a side's two bays
-    nose to tail, a nose cone ahead and a taper behind, one torpedo. The char pins add its parts and the frame standing, launching and
-    driving; every earlier frame's pin is unchanged.
+  - `mecha-shelf.test.js`, the brood walker: four feet where its stance asks, each egg hung narrow end up, its hub's
+    axle across the frame whatever its leg's heading, its four petals' pads on the ground spread wider than its bay; its
+    hips low on the hull's sides and its lift rams longer standing than driving, every law holding; tucked to drive, its
+    eggs lying along its hull, narrow end ahead, petals shut, lower than it stands, on its wheels, a side's two nose to
+    tail and clear of each other; its drones launched out of their bays, clear of it, their count and kind the
+    operator's, too many refused; its solar car folded stowed, its wings and leaves open unfolded, and its deck tilted
+    deployed. The char pins add its parts and the frame standing, launching and driving; every earlier frame's pin is
+    unchanged.
   - `mecha-shelf.test.js`, roles: a role's backpack, payloads and cabin taken, every law holding; no line of fire for
     a payload that fires nothing; the lean under a pack whose weight rides behind; the operator's payloads over the
     role's; a role a frame cannot carry refused; a backpack carried as built rearmed for a role. The preview door's
