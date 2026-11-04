@@ -1,0 +1,43 @@
+{
+  "cast": "male",
+  "animeBody": "satoru",
+  "muscleShirt": {
+    "definition": 0.8
+  },
+  "head": "relational",
+  "face": {
+    "seed": 41,
+    "ethnicity": "north-asian",
+    "character": [
+      0.4,
+      0.6
+    ],
+    "age": 26,
+    "scalp": "short"
+  },
+  "detail": "swimsuit",
+  "outfit": [
+    "boxingGloves",
+    "highTops"
+  ],
+  "palette": {
+    "Swim": "#1d3f9a"
+  },
+  "target": {
+    "resolution": "1080p",
+    "framing": "close"
+  },
+  "gesture": "guard",
+  "motion": {
+    "guard": true,
+    "jab": true,
+    "cross": true,
+    "hook": true,
+    "guardHitHigh": true,
+    "guardHitBody": true,
+    "guardHitLow": true,
+    "guardStagger": true,
+    "block": true,
+    "blockBody": true
+  }
+}

@@ -15,6 +15,7 @@
 import { BODY_DIALS } from './versus-compile.js';
 import { fighterSpec, fighterFromSheet, fighterName } from './versus-sheet.js';
 import { castOf, BODY_DEFAULTS } from '../polygonizer/hero-form.js';
+import { FLAT_LIGHT } from '../polygonizer/vexar.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -71,6 +72,14 @@ export function bodyDials(m, girth, ref) {
   return { body, held };
 }
 
+/** A character's own strikes and guard in the plane (versus-hero.js heroFight), solved on its rig */
+async function heroFightOf(manifest, moves) {
+  const { expandLayeredManifest } = await layered();
+  const { validateRig } = await import('../polygonizer/station-loft-rig.js');
+  const { heroFight, readHeroMoves } = await import('./versus-hero.js');
+  readHeroMoves(moves);
+  return heroFight(validateRig(expandLayeredManifest(manifest).recipe.rig), moves);
+}
 /** A stored row's manifest → the character's body dials and colour; throws when the row is not a character. */
 export async function measureCharacter(manifest, where = 'fighter', ref = '?') {
   if (!manifest || manifest.kind !== 'layered' || !isObj(manifest.hero)) {
@@ -101,6 +110,11 @@ export async function resolveCharacters(roster, lookup, sheetOf = () => null) {
     try { spec = fighterSpec(e, i); } catch (err) { throw new Error(`versus: ${where}: ${err.message.replace(/^versus: /, '')}`); }
     const ref = spec.hero.ref, manifest = lookup(ref);
     const { body, color } = await measureCharacter(manifest, where, ref);
+    // (its own strikes, solved on its own rig: versus-hero.js; the guard it stands in with them)
+    let fight = null;
+    if (spec.moves !== undefined) {
+      try { fight = await heroFightOf(manifest, spec.moves); } catch (err) { throw new Error(`versus: ${where}.${err.message.replace(/^versus(-hero)?: /, '')}`); }
+    }
     const sheet = manifest.egocube ? sheetOf(manifest.egocube) : null;
     const read = sheet ? fighterFromSheet(sheet) : { intent: { archetype: 'all-rounder' }, reads: [] };
     const { style, ...over } = spec.over;
@@ -110,6 +124,7 @@ export async function resolveCharacters(roster, lookup, sheetOf = () => null) {
       ...(over.stance && read.intent.stance ? { stance: { ...read.intent.stance, ...over.stance } } : {}),
       body, ...(spec.color ?? color ? { color: spec.color ?? color } : {}), character: ref,
       ...(sheet ? { sheet: manifest.egocube.ref, reads: read.reads } : {}),
+      ...(fight ? { heroNormals: fight.normals, guard: fight.guard } : {}),
     });
   }
   return out;
@@ -160,25 +175,58 @@ export async function versusGate(manifest) {
  * A character's own body for an arena (versus-figure.js poses it): its layered rig's bones and rigid parts, the clips
  * left out (the fight is the motion). → { bones: [{ id, head, tail }], parts: [{ pos, col } | null] }, or null when
  * the rig has no parts to draw (the stick figure stands in).
+ *
+ * A fighter that throws its OWN strikes (`moves`, versus-hero.js) is drawn as it was made: `fight` names the clips its
+ * fight plays (FIGHT_CLIPS, its strikes', its guard's, its blows' and blocks', its knockdown's), solved on its own rig
+ * from the door's motion words laid onto its record for the bake (the row is not changed), and the body is PLAYED:
+ * one skinned mesh of its parts (their joints and weights), its painted skin (`paintTex`, each part's `uv`) and those
+ * clips, as the World page plays a hero; resolved as the lit export resolves it (its albedo unshaded, each corner's normal
+ * `nrm` and the relief's tangent `tan`, the skin's atlas full size, its relief `normalTex` and `ormTex`), so the arena
+ * lights it as an engine does. → { played: true, lit?, bones, parts: [{ pos, col, jnt, wgt, faces, uv?, nrm?, tan? }],
+ * clips, paintTex?, normalTex?, ormTex? }.
  */
-export async function characterBody(manifest) {
+export async function characterBody(manifest, { fight = null } = {}) {
   const { expandLayeredManifest } = await layered();
   const { WORLD_KINDS } = await import('../worlds/world-kinds.js');
-  const scene = await WORLD_KINDS.layered.resolve(expandLayeredManifest(manifest), { title: 'fighter' });
+  const m = fight && manifest?.hero ? { ...manifest, hero: { ...manifest.hero, motion: { ...(manifest.hero.motion ?? {}), ...Object.fromEntries(fightMotion(fight).map((w) => [w, true])) } } } : manifest;
+  // (a played body as an engine gets it, the lit export's: its albedo unshaded, each corner's normal, the skin's relief
+  // and its full-size atlas, for the arena to light as it moves; the posed figure as before)
+  const ctx = fight ? { title: 'fighter', light: FLAT_LIGHT, unshaded: true, face: true } : { title: 'fighter' };
+  const scene = await WORLD_KINDS.layered.resolve(expandLayeredManifest(m), ctx);
   const fig = scene?.figures?.body;
   if (!fig || !Array.isArray(fig.bones) || !fig.parts?.some((p) => p?.pos)) return null;
-  return { bones: fig.bones.map(({ id, head, tail }) => ({ id, head, tail })), parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col } : null)) };
+  const bones = fig.bones.map(({ id, head, tail }) => ({ id, head, tail }));
+  if (fight && fig.parts.some((p) => p?.jnt)) {
+    const clips = Object.fromEntries(Object.entries(fig.clips ?? {}).filter(([k]) => fight.includes(k)).map(([k, c]) => [k, { k: c.k, b: c.b, ...(c.once ? { once: true } : {}), ...(c.s ? { s: c.s } : {}) }]));
+    return { played: true, ...(fig.parts.some((p) => p?.nrm) ? { lit: true } : {}), bones, parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col, jnt: p.jnt, wgt: p.wgt, faces: p.faces, ...(p.uv ? { uv: p.uv } : {}), ...(p.nrm ? { nrm: p.nrm } : {}), ...(p.tan ? { tan: p.tan } : {}) } : null)), clips,
+      ...(fig.paintTex ? { paintTex: fig.paintTex } : {}), ...(fig.normalTex ? { normalTex: fig.normalTex } : {}), ...(fig.ormTex ? { ormTex: fig.ormTex } : {}) };
+  }
+  return { bones, parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col } : null)) };
 }
+/** the clips a fighter with its own strikes plays: its strikes (by slot), its guard, its blows and blocks taken in the
+ * guard, and its knockdown (a rest: getting down, and up) */
+export const FIGHT_REACTS = Object.freeze(['guard', 'block', 'blockBody', 'guardHitHigh', 'guardHitBody', 'guardHitLow', 'guardStagger', 'knockedOutDown', 'knockedOutUp']);
+export const fightClips = (heroNormals) => [...new Set([...Object.values(heroNormals).map((n) => n.hero.word), ...FIGHT_REACTS])];
+/** the door's motion words that make those clips (the knockdown's two are one rest word) */
+const fightMotion = (clips) => [...new Set(clips.map((c) => (/^knockedOut(Down|Up)$/.test(c) ? 'knockedOut' : c)))];
 
-/** An arena's measured roster → { <ref>: body } for each character in it (one body per character), from the store. */
+/** the clips a fighter with a tradition's moves plays: its guard alone, whose hands (the fists it makes) its body keeps
+ * as the fight's own poses drive it (versus-arena.client.js: the figure's segments onto its bones) */
+export const TRADITION_CLIPS = Object.freeze(['guard']);
+
+/** An arena's measured roster → { <ref>: body } for each character in it (one body per character), from the store,
+ * each played in its own body: a fighter with its own strikes (`heroNormals`) with its fight's clips, one with a
+ * tradition's moves with its guard's (the fight's poses drive the rest). */
 export async function characterBodies(roster) {
-  const refs = [...new Set((Array.isArray(roster) ? roster : []).map((e) => e?.character).filter((r) => typeof r === 'string'))];
-  if (!refs.length) return null;
+  const list = (Array.isArray(roster) ? roster : []).filter((e) => typeof e?.character === 'string');
+  if (!list.length) return null;
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
   const out = {};
-  for (const ref of refs) {
-    const body = await characterBody(SketchRepository.getByRef(ref)?.manifest).catch(() => null);
-    if (body) out[ref] = body;
+  for (const e of list) {
+    if (out[e.character]) continue;
+    const fight = e.heroNormals ? fightClips(e.heroNormals) : TRADITION_CLIPS;
+    const body = await characterBody(SketchRepository.getByRef(e.character)?.manifest, { fight }).catch(() => null);
+    if (body) out[e.character] = body;
   }
   return Object.keys(out).length ? out : null;
 }
