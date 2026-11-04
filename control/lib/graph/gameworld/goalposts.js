@@ -9,7 +9,8 @@
  *   play         how it feels to play, and the hero's powers
  *   plan         a plan of what to build: the main quest's beats, its first one buildable, nothing blocking the build
  *   first-plan   a plan of the first level: the first beat's level, written (or laid) and settled
- *   first-level  the first level made and proved by the machine gate; played, the creator's to say (the eyes gate)
+ *   first-level  the first level made and proved by the machine gate, each of its stages; played, the creator's to say
+ *                (the eyes gate)
  *
  * Each is met, partial or open, with what it says and, open, the question only the creator answers; `next` is the first
  * not met, with the chapter to work and the move to make. It is where the next session picks up, read from the recipe.
@@ -88,12 +89,15 @@ export function goalposts({ world = {}, chapters = [], parts: parts_ = [], mainQ
   const planOfFirst = firstLevel && !laid && !levelOpen;
   post('first-plan', planOfFirst ? 'met' : firstLevel ? 'partial' : 'open', planOfFirst ? null : !firstLevel ? 'no first level yet' : laid ? `the first level '${firstLevel}' is laid at the next run` : `the first level '${firstLevel}' is not settled`, firstLevel ? `show the creator the level's page (level:${firstLevel}) and take their verdict` : 'name the first beat\'s level');
 
-  // 7 the first level: made, proved (machine); played, the creator's
-  const key = firstLevel ? `level-${firstLevel}-0` : null, audit = key ? made[`audit-${key}`] : null;
-  const proved = audit?.verdict?.completable === true;
-  post('first-level', key && made[key] && proved ? 'met' : key && made[key] ? 'partial' : 'open',
-    key && made[key] && proved ? 'the first level is made and proved by the machine gate; whether it plays as the game is the creator\'s (the eyes gate)' : key && made[key] ? (audit ? `made; its walk did not prove it (${audit.verdict.note})` : 'made, not yet walked: run with check: true') : 'not made yet',
-    key && made[key] ? 'run with check: true, then hand the creator the play link' : 'prove its chapter (design_game { ref, chapter: \'levels\', run: true }), then run');
+  // 7 the first level: every stage of it made and proved (machine); played, the creator's. A level is its stages (a trail,
+  // then a climb: level-<id>-0, -1 …), so the first level is proved only when each of its stages is
+  const stages = firstLevel ? Object.keys(made).filter((k) => k.startsWith(`level-${firstLevel}-`)).sort() : [];
+  const walks = stages.map((k) => made[`audit-${k}`] ?? null);
+  const unwalked = stages.filter((k, i) => !walks[i]), failed = walks.filter((a) => a && a.verdict?.completable !== true);
+  const proved = stages.length > 0 && !unwalked.length && !failed.length;
+  post('first-level', proved ? 'met' : stages.length ? 'partial' : 'open',
+    proved ? null : !stages.length ? 'not made yet' : failed.length ? `made; ${failed.length} of its ${stages.length} stage${stages.length === 1 ? '' : 's'} not proved (${failed[0].verdict.note})` : `made, ${unwalked.length} of its ${stages.length} stage${stages.length === 1 ? '' : 's'} not yet walked: run with check: true`,
+    stages.length ? 'run with check: true, then hand the creator the play link' : 'prove its chapter (design_game { ref, chapter: \'levels\', run: true }), then run');
 
   const met = posts.filter((p) => p.status === 'met').length;
   if (met === posts.length) return null;

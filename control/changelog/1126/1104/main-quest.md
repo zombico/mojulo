@@ -55,3 +55,18 @@ is the flow and the sequence, and the levels and maps are laid from it.
   Each is met, partial or open; an open one says what is missing and asks the question only the creator answers. `next`
   is the first not met, with its chapter and the move to make: where this session goes on, and where the next one
   picks up, read from the recipe. The build chapter's view carries them, and the studio card lists them.
+- **A first session, measured** (machine gate, real headless Chrome, the default budget). The book was a long RPG: a
+  wind-walker, three wind powers, a main quest told in five chapters (the first chapter's beat built, a climb with its
+  ladder; the other four planned), intent `long-rpg`, a feel, and its loop written. It took seven `design_game` calls
+  and about six minutes:
+  - writing the book met five of the seven goalposts;
+  - the levels chapter's proof made the first level's three stages ahead of their approvals;
+  - the build kept those three stages and made the hero, the systems, the gear and the game;
+  - two checking runs walked all three stages, the climb up its ladder among them: three of three proved, and three
+    first frames passed;
+  - the last readout left nothing open.
+
+  The quest's laws caught a real slip in the book: its mid-stage power was gained in chapter 2 of 5, which is still
+  early. The session also found a bug. The first level's goalpost counted only its first stage, so it read met after
+  the first check, which had stopped at its budget before the climb was walked. It now counts each stage of the level.
+  Whether the level plays as the game is the eyes gate's, and the creator's to say.

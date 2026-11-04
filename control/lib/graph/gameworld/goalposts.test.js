@@ -30,7 +30,12 @@ describe('the first session\'s goalposts', () => {
     // one short of it: the first level made, its walk not taken: partial, with the move
     const G = goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made: { [`level-${L1}-0`]: MADE[`level-${L1}-0`] } });
     expect(G).toMatchObject({ met: GOALPOSTS.length - 1, next: { goalpost: 'first-level', chapter: 'build', move: expect.stringContaining('check: true') } });
-    expect(at(G, 'first-level')).toMatchObject({ status: 'partial', says: 'made, not yet walked: run with check: true' });
+    expect(at(G, 'first-level')).toMatchObject({ status: 'partial', says: 'made, 1 of its 1 stage not yet walked: run with check: true' });
+    // a level is its stages: its first walked and proved, its climb not walked yet, is not proved (a real session's
+    // first check stopped at its budget between them, and the goalposts read met)
+    const climb = { ...MADE, [`level-${L1}-1`]: MADE[`level-${L1}-0`] };
+    expect(at(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made: climb }), 'first-level')).toMatchObject({ status: 'partial', says: 'made, 1 of its 2 stages not yet walked: run with check: true' });
+    expect(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made: { ...climb, [`audit-level-${L1}-1`]: MADE[`audit-level-${L1}-0`] } })).toBeNull();
   });
 
   it('reads each partial from the book: no length, an open hero, a planned first beat, a level still to lay, a walk that failed', () => {
@@ -45,7 +50,7 @@ describe('the first session\'s goalposts', () => {
     const laid = { ...BOOK, mainQuest: { ...QUEST, acts: [{ ...QUEST.acts[0], beats: [{ id: 'windy', goal: 'cross the windy shore' }] }] } };
     expect(at(goalposts({ world: laid, chapters: ALL, mainQuest: { plays: { windy: 'windy' } }, made: {} }), 'first-plan')).toMatchObject({ status: 'partial', says: "the first level 'windy' is laid at the next run" });
     const failed = { ...MADE, [`audit-level-${L1}-0`]: { ...MADE[`audit-level-${L1}-0`], verdict: { completable: false, note: 'stuck on the ladder' } } };
-    expect(at(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made: failed }), 'first-level')).toMatchObject({ status: 'partial', says: expect.stringContaining('stuck on the ladder') });
+    expect(at(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made: failed }), 'first-level')).toMatchObject({ status: 'partial', says: 'made; 1 of its 1 stage not proved (stuck on the ladder)' });
     // a blocker in the pre-compile check holds the plan back
     expect(at(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made: MADE, compile: { blockers: [{}] } }), 'plan')).toMatchObject({ status: 'partial', says: '1 blocker in the pre-compile check' });
     // the first level's own review part, not settled
