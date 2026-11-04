@@ -22,7 +22,7 @@ describe('design_game: one chapter', () => {
   beforeEach(() => { closeDb(); });
 
   it('refuses a chapter the book does not have, before it writes anything', async () => {
-    await expect(designGameHandler({ world: GATED, ref: 'gw-nope', chapter: 'lighting' })).rejects.toThrow(/chapter is one of intent, world, levels/);
+    await expect(designGameHandler({ world: GATED, ref: 'gw-nope', chapter: 'lighting' })).rejects.toThrow(/chapter is one of intent, world, main-quest, levels/);
     expect(SketchRepository.getByRef('gw-nope')).toBeFalsy();
   });
 
@@ -100,6 +100,24 @@ describe('design_game: one chapter', () => {
     const levels = await designGameHandler({ ref: 'gb', chapter: 'levels' });
     expect(levels.blockers).toBeUndefined();
     expect(levels.next.some((n) => n.step === 'compile')).toBe(false);
+  });
+
+  it('the main quest\'s chapter: its report, its pages and its laws; the intent\'s: the core loop', async () => {
+    const [L1, L2] = Object.keys(GATED.levels), P = GATED.characters.hero.actions.powers.map((p) => p.id);
+    const mainQuest = { acts: [
+      { id: 'one', goal: 'set out', beats: [{ id: 'climb', goal: 'climb out', as: { level: L1 }, gains: [P[0]] }] },
+      { id: 'two', goal: 'the shore', beats: [{ id: 'shore', goal: 'cross it', as: { level: L2 }, gains: [P[1]] }] },
+    ] };
+    await designGameHandler({ world: { ...GATED, mainQuest }, ref: 'gq' });
+    const mq = await designGameHandler({ ref: 'gq', chapter: 'main-quest' });
+    expect(mq.chapter).toMatchObject({ id: 'main-quest', department: 'production', cards: ['gameworld-main-quest'] });
+    expect(mq.pages).toEqual({ '/mainQuest': mainQuest });
+    expect(mq.mainQuest).toMatchObject({ beats: 2, built: 2, planned: 0, acts: [{ id: 'one', stage: 'early' }, { id: 'two', stage: 'late' }] });
+    // two acts, and the last power gained on no beat: said on its chapter
+    expect(mq.advice.mainQuest).toEqual(expect.arrayContaining([expect.stringMatching(/^arc: .*2 acts/), expect.stringMatching(new RegExp(`^gained-on-path: .*${P[2]}`))]));
+    expect(mq.reads.map((r) => r.id)).toEqual(['intent', 'world']);
+    const intent = await designGameHandler({ ref: 'gq', chapter: 'intent' });
+    expect(intent.loop).toMatchObject({ session: 'a beat of the main quest', from: { moment: expect.any(String) } });
   });
 
   it('every next move the door says belongs to a chapter, or is split among its parts', () => {

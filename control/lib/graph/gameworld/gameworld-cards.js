@@ -34,6 +34,8 @@ import { SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 import { WORLD_STYLE, CIVILIZATION, LINK_KINDS, TOPOLOGIES } from './world.js';
 import { MODES, STAMPS } from './review.js';
 import { chapterById, chapterWaves } from './chapters.js';
+import { LENGTHS, LOOSENESS, PASSAGES, BEAT_AS, LAWS as MAIN_QUEST_LAWS } from './main-quest.js';
+import { LOOP_LAYERS, BODY_VERBS } from './core-loop.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
@@ -113,6 +115,37 @@ function studioCard() {
     'playing it (`play`): never say it passed.',
     '',
     'One level and a simple goal is the quick path, not the studio (gameworld-quick).',
+  );
+}
+
+function mainQuestCard() {
+  return lines(
+    'THE MAIN QUEST — the game\'s spine: its acts, a beat at a time. Not a game type: the flow and the sequence, and the',
+    'levels and maps laid from it. Any long game composes on it (an RPG, a metroidvania, a campaign of dungeons).',
+    '',
+    'ASK THE CREATOR, before writing it (their answers are the recipe; never pick for them):',
+    '  how long does the main path play? what periods does it span, on the same maps or new ones? how big is the world?',
+    '  where does the story take the hero, and does it end (an ending can wait: a game being built may have none)?',
+    '  how loose are the side quests from the main thing?',
+    '',
+    `mainQuest: { length?: ${Object.keys(LENGTHS).join(' | ')} | { hours }, periods?: [{ id, name?, passage?: ${Object.keys(PASSAGES).join(' | ')} }],`,
+    '  acts: [{ id, name?, period?, goal: \'<words>\', beats: [{ id, goal, as?, gains?, foes?, who?, built?: false }] }],',
+    `  ending?: { beat, stakes? }, sides?: { looseness: ${Object.keys(LOOSENESS).join(' | ')} } }`,
+    `  as: ${BEAT_AS.map((k) => `{ ${k} }`).join(' ')}: what the beat is played as (a level, a WCD space, a QOW quest, a`,
+    '      gauntlet level, an errand, an epoch by number, a story moment). gains: powers gained on it; foes: the bestiary',
+    '      it fields; who: its cast. built: false is a beat planned, not made yet: priced, never run.',
+    `  passage: ${Object.entries(PASSAGES).map(([k, v]) => `${k}, ${v}`).join('; ')}.`,
+    '',
+    'AN ACT IS A STAGE of the hero\'s progression: the first act early, the last late, the middle mid between. So the',
+    'actions page\'s progression and the quest say the same: a power gained on a beat is gained in that act\'s stage.',
+    '',
+    'LAWS (advice, never refused):',
+    ...MAIN_QUEST_LAWS.map((l) => `  ${l.law.padEnd(16)} ${l.says}`),
+    '',
+    'THE CORE LOOP (loop, the intent\'s page): what the player does, nested, each layer feeding the next.',
+    ...Object.entries(LOOP_LAYERS).map(([k, v]) => `  ${k.padEnd(10)} ${v}`),
+    `  loop: { moment?: [verbs], encounter?, reward?, session? }; a layer not written is read from the book. A moment verb is`,
+    `  a power\'s verb or the body\'s own (${BODY_VERBS.join(', ')}). The main quest is the loop\'s outermost turn.`,
   );
 }
 
@@ -906,6 +939,7 @@ export function genreCardById(id) {
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
   ['gameworld-studio', 'The studio', 'the book worked a chapter at a time: the departments in waves, a chapter\'s session, the build', 'a big game, many levels, several departments, who does what and in what order, subagents, a team of agents', studioCard],
+  ['gameworld-main-quest', 'The main quest', 'the game\'s spine: acts of beats, each played as a level, a dungeon, an open world, a gauntlet, an errand; the core loop', 'a long game, an RPG, a campaign, the story from start to end, acts, how long is the game, beginning middle and end, the core loop', mainQuestCard],
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],

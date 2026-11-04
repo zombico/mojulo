@@ -38,6 +38,8 @@ import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { AUDIT_STEP } from '@/lib/graph/gameworld/runner.js';
 import { chapterBook, chapterById, chapterSteps, CHAPTERS } from '@/lib/graph/gameworld/chapters.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
+import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
+import { loopOf, loopLaws } from '@/lib/graph/gameworld/core-loop.js';
 import { compileCheck, planError } from './design-game-check.js';
 import { feelReport } from '@/lib/graph/gameworld/feel/lower.js';
 import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
@@ -484,11 +486,16 @@ function readout(ref, world, context = {}) {
   const landGaps = landGapsOf(world);
   const cxGaps = complexAdviceOf(world), wcdGaps = [...wcdAdviceOf(world), ...(world.wcd ? cxGaps : [])];
   const qowGaps = qowAdviceOf(world);
+  // the main quest (gameworld/main-quest.js): its acts and beats, and its laws that do not hold (advice, never refused);
+  // the core loop (core-loop.js), written or read from the book, and its laws
+  const MQ = world.mainQuest ? (() => { try { const C = mainQuestContext(world); return mainQuestReport(readMainQuest(world.mainQuest, C), C); } catch { return null; } })() : null;
+  const loop = (() => { try { return loopOf(world); } catch { return null; } })();
+  const loopGaps = (() => { try { return loopLaws(world).filter((l) => !l.holds).map((l) => `${l.law}: ${l.says}`); } catch { return []; } })();
   const errandGaps = errandAdviceOf(world);
   const gauntletGaps = gauntletAdviceOf(world);
-  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(!world.wcd && cxGaps.length ? { complex: cxGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}), ...(errandGaps.length ? { errands: errandGaps } : {}), ...(gauntletGaps.length ? { gauntlet: gauntletGaps } : {}) };
+  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}), ...(landGaps.length ? { land: landGaps } : {}), ...(wcdGaps.length ? { wcd: wcdGaps } : {}), ...(!world.wcd && cxGaps.length ? { complex: cxGaps } : {}), ...(qowGaps.length ? { qow: qowGaps } : {}), ...(MQ?.laws.length ? { mainQuest: MQ.laws } : {}), ...(loopGaps.length ? { loop: loopGaps } : {}), ...(errandGaps.length ? { errands: errandGaps } : {}), ...(gauntletGaps.length ? { gauntlet: gauntletGaps } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), ...(world.quick?.concept !== undefined ? { concept: sportConceptOf(world.quick) } : {}), intent, ...(MQ ? { mainQuest: (({ laws: _l, ...r }) => r)(MQ) } : {}), ...(loop ? { loop } : {}), ...(feel ? { feel } : {}), ...(juice ? { juice: { ...juice.fxStyle, from: juice.from } } : {}), advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), ...(feel ? { feelBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=feel` } : {}), ...(foeStamps.length || call ? { foeBook: `/api/sketches/${encodeURIComponent(ref)}/bible?book=foes` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(chapters.length ? { chapters } : {}), ...(Object.keys(made).length ? { made } : {}), ...(audits ? { audits } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */

@@ -122,6 +122,8 @@ import { tunnelBuilding } from './tunnel-buildings.js';
 import { readWcd } from '../wcd/wcd.js';
 import { readComplex } from '../network/complex.js';
 import { readQow } from '../qow/qow.js';
+import { readMainQuest, mainQuestContext } from './main-quest.js';
+import { readLoop } from './core-loop.js';
 import { readBookSkin } from './book-skin.js';
 import { tunnelTech } from './tunnel-tech.js';
 import { craftTech } from './tech-crafter.js';
@@ -228,7 +230,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'juice', 'tempo', 'grade', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'moves', 'foes', 'story', 'quests', 'front', 'wcd', 'qow', 'book', 'errands', 'xr', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'juice', 'tempo', 'grade', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'moves', 'foes', 'story', 'quests', 'front', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown'];
@@ -765,7 +767,11 @@ export function readGameworld(W) {
   // the quest open world (qow/qow.js), the WCD's opposite pole: its regions a geocity's, joined sideways; its principles
   // advise (design_game's readout), a malformed one is refused here
   const qow = W.qow === undefined || W.qow === null ? null : (() => { try { return readQow(W.qow, { levels: ids }); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  // the main quest (main-quest.js): the game's acts, a beat at a time, each played as one of the book's structures; its
+  // laws advise (design_game's readout), a malformed one is refused here. Its core loop (core-loop.js) is read the same
+  const mainQuest = W.mainQuest === undefined || W.mainQuest === null ? null : (() => { try { return readMainQuest(W.mainQuest, mainQuestContext(W)); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
+  try { readLoop(W.loop); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
 }
 
 /**
