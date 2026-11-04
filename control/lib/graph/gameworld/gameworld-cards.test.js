@@ -30,9 +30,12 @@ describe('the rail\'s cards', () => {
 
   it('the guide first, then a card per page in the loop\'s order, each small', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
-    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-mounts', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
+    // (the studio second: the book worked a chapter at a time, read after the guide when the ask is a whole game)
+    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-studio', 'gameworld-quick', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-juice', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-mounts', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
     // 4480 since 2026-10-29 (1029-tac-com-simulator-interior: SHOWN FIRST, a draft's book as the approval sheet, 4407 bytes);
+    // 4512 since 2026-11-04 (1103-game-design-studio-abstraction: the book's line points at the studio card, the book
+    // worked by chapter, 4493 bytes);
     // the world card too (2026-10-25, merging 1024-geocube-composition-update: its line per ground kit took geocube's
     // kits beside the city's stalker words, 4157 bytes); 4288 since 2026-10-28 (1027-building-program: the building line
     // names the four building uses, office | lab-building | warehouse | clinic, 4265 bytes); 4320 since 2026-11-02
@@ -49,7 +52,7 @@ describe('the rail\'s cards', () => {
     // where it is played and advised, 4296 bytes); the walled-core dungeon card (2026-11-02, 1101-vehicle-registry: a
     // base building's parked vehicles, the field's trucks and carriers in its hangar, beside its buildings: 4290 bytes);
     // 4608 since the two met on 1026-consolidated (2026-11-03: the complex's lines and the parked vehicles', 4574 bytes)
-    const CEIL = { 'gameworld-guide': 4480, 'gameworld-world': 4352, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 4864 };
+    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 4352, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 4864 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 
