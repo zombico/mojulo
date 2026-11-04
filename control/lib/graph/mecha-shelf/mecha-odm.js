@@ -387,8 +387,10 @@ const SIEGE = {
   // (its feet clawed: a short low palm, its toes' knuckles close to its heel, a heel spur behind, two thick toes ahead
   // splayed in a V for its footing, each of two segments on knuckle drives: flat on the ground walking, its toes' pads
   // under them; collapsed, clenched under the palm's front)
-  'foot-sw': Object.freeze({ ...dressed(S('foot-atw', 5, 'siege walker foot', SW, ['siege foot', 'clawed foot', 'palm', 'heel spur'], { sole: 0.45, length: 1.4, heel: 0.25 }), 'clawed', { claws: { spread: 0.33, floor: TOE_FLOOR, gap: 0.03, w: TOE1.w, reach: TOE1.length + TOE2.length + TOE2.claw, spur: 0.3, splay: TOE_SPLAY_SW } }), mass: 950 }),
-  'toe1-sw': R('mecha-toe', 'siege walker toe root segment', SW, TOE1, 150, { family: 'proximal' }, ['toe', 'toes', 'forward toes', 'siege toe', 'knuckle']),
+  'foot-sw': Object.freeze({ ...dressed(S('foot-atw', 5, 'siege walker foot', SW, ['siege foot', 'clawed foot', 'palm', 'heel spur'], { sole: 0.45, length: 1.4, heel: 0.25 }), 'clawed', { claws: { spread: 0.33, floor: TOE_FLOOR, gap: 0.03, w: TOE1.w, reach: TOE1.length + TOE2.length + TOE2.claw, spur: 0.3, splay: TOE_SPLAY_SW } }), mass: 850 }),
+  // (each toe's knuckle on the palm's front: its yaw splays the toe out walking, draws it in rolling)
+  'knuckle-sw': R('mecha-toe', 'siege walker toe knuckle', SW, { w: TOE1.w, floor: TOE_FLOOR, gap: 0.03, back: TOE_FLOOR + 0.06, stop: [-25, 25], torque: 40000 }, 50, { family: 'knuckle' }, ['toe knuckle', 'knuckle swivel']),
+  'toe1-sw': R('mecha-toe', 'siege walker toe root segment', SW, TOE1, 150, { family: 'proximal' }, ['toe', 'toes', 'forward toes', 'siege toe']),
   'toe2-sw': R('mecha-toe', 'siege walker toe claw segment', SW, TOE2, 110, { family: 'distal' }, ['toe claw', 'toe tip', 'clawed toe']),
   'ram-roll-sw': S('ram-roll-atw', KS, 'siege walker hip roll ram', SW, ['siege roll ram'], { bore: 0.34, rod: 0.19 }),
   'ram-hip-sw': S('ram-hip-atw', KS, 'siege walker hip pitch ram', SW, ['siege hip ram'], { bore: 0.34, rod: 0.19 }),

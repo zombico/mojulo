@@ -318,8 +318,10 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     - Its feet are long, pushed forward of the ankle, their toes ahead on the ground for its balance.
   - **Its feet clawed, its sides a tank's:**
     - Each foot is a short, low palm on a cleated sole, a heel spur raked back behind it and two thick toes ahead
-      (`clawedFoot`), their knuckles close ahead of the heel. The toes splay out in a V (`TOE_SPLAY_SW`, each toe's
-      mount turned to it) for its footing. Each toe is two segments, a root and a claw, their own bodies (`mecha-toe`,
+      (`clawedFoot`), their knuckles close ahead of the heel. Each toe sits on its own knuckle (`knuckle-sw`), whose
+      yaw splays it out in a V walking (`TOE_SPLAY_SW`) for its footing and draws it in straight in tank mode (the
+      joint's `when: { roll: 0 }`; a rolling stance now sets its flagged joints too). Its stance is wide enough that
+      the two feet's toes stay clear of each other. Each toe is two segments, a root and a claw, their own bodies (`mecha-toe`,
       `toe1-sw` and `toe2-sw`) on knuckle drives, with a joint line between them. Walking, the toes lie flat, their pads on the
       ground, and the sole's outline runs out to their claws. Collapsed, they clench down and under the palm's front.
     - A clenched toe hangs below the sole. Each shank's ankle is therefore cranked forward of its axis (`ankleFwd`),

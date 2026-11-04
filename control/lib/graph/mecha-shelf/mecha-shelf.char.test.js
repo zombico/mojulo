@@ -58,6 +58,9 @@
  *     frame re-pinned; every other frame's pin held through the solver's change.
  *   - The siege walker's feet shortened (the palm's block gone, a low plate to the knuckles close to the heel) and its
  *     toes splayed in a V: its toed foot and the frame re-pinned; no other pin moved.
+ *   - The siege walker's toes on knuckles that splay them walking and draw them in straight rolling, its stance wider:
+ *     its foot (its knuckles now their own bodies) and the frame re-pinned, the knuckle pinned as a builder path; no
+ *     other pin moved.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -147,9 +150,10 @@ const PINS = {
   'wheel-rw': '4ae279b99a3cd708',
   'howitzer-sw': '468e79bf36bb78e5',
   'pelvis-sw': 'd8a8b3380366edaa',
-  'foot-sw': '73dff255615e8c23',
+  'foot-sw': '90184d81c27dbb79',
   'toe1-sw': 'ab54a14b87f3e936',
   'toe2-sw': '598875ee9f9712b8',
+  'knuckle-sw': '5980722868f92652',
   'sensor-wpn': 'f940979bb9e546b7',
   'drones-wpn': 'c9422fb634d459dd',
   'smoke-wpn': 'ff65787676348db8',
@@ -183,7 +187,7 @@ const HOUSE = '22d1c303d8f1b5ad';
 const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
-const SIEGE = ['b06b53dce20590dd', '42533d12a8a564c4'];
+const SIEGE = ['529fd253a691c0fe', '5d3cb8ed7f08799a'];
 const BROOD = ['193c98e6a47e6b30', 'fc6effb480f69126', '77ca4a2750d53e42'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];

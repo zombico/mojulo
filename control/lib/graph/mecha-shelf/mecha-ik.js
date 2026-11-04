@@ -176,7 +176,8 @@ export function payloadsAt(arch, aim = {}) {
  */
 function rollAt(arch, ctx, stance, range) {
   // (a clawed foot's toes clenched: rolling, they are off the ground)
-  const base = solveStance(arch, ctx, arch.stances[arch.rest]), joints = { ...base.joints, ...toesAt(arch, true) };
+  // (and a joint a rolling stance's flag sets, a toe's knuckle drawn in)
+  const base = solveStance(arch, ctx, arch.stances[arch.rest]), joints = { ...base.joints, ...toesAt(arch, true), ...flagsAt(arch, stance) };
   // (the knee folded until the shank lies level: its bend the thigh's rake from straight down, and a quarter turn)
   // (the legs plumb, their roll undone, so the wheels stand upright on the ground)
   for (const S of SIDES) { const J = arch.legs[S].joints; joints[J.yaw] = 0; joints[J.roll] = 0; joints[J.ankleRoll] = 0; joints[J.pitch] = stance.pitch ?? -70; joints[J.knee] = stance.knee ?? 90 - joints[J.pitch]; }

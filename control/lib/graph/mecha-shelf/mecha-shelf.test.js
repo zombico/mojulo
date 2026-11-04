@@ -521,7 +521,7 @@ describe('mecha shelf: a frame twice and more the rover, its cockpit on a keel, 
     expect(lawsOf(siege).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
   });
   it('stands as a T-rex balances, its long toes ahead under it, nothing but its feet near the ground walking', () => {
-    const ctx = mechaCtx(siege), feet = ['r', 'l'].flatMap((S) => [As.legs[S].foot, ...As.toes[S].bodies]);
+    const ctx = mechaCtx(siege), feet = ['r', 'l'].flatMap((S) => [As.legs[S].foot, ...As.toes[S].bodies, ...As.toes[S].knuckles]);
     for (const pose of [As.rest, Object.keys(As.stances).find((k) => As.stances[k].sway)]) {
       const P = posedFrame(siege, pose), F = framesOf(ctx.arch, P.joints, ctx);
       const low = Math.min(...As.layout.filter((e) => !e.ram && !feet.includes(e.id)).map((e) => Math.min(...partShape(siege, e.sku, e.side).corners.map((c) => apply(F[e.id], c)[2] + P.root.t[2]))));
@@ -530,6 +530,15 @@ describe('mecha shelf: a frame twice and more the rover, its cockpit on a keel, 
     const P = posedFrame(siege, As.rest), F = framesOf(ctx.arch, P.joints, ctx), foot = As.legs.r.foot;
     expect(apply(F[foot], ctx.hp(foot, 'toe'))[1] - F[As.legs.r.ankle].t[1]).toBeGreaterThan(2);
     expect(law(siege, 'knee').value).toBeGreaterThan(law(rover, 'knee').value);
+  });
+  it('splays its toes in a V standing, clear of the other foot\'s, and draws them in straight to roll', () => {
+    const ctx = mechaCtx(siege), stand = posedFrame(siege, As.rest), P = posedFrame(siege, roll(siege)), F = framesOf(ctx.arch, stand.joints, ctx);
+    const splays = Object.keys(As.joints).filter((k) => As.joints[k].when?.roll === 0);
+    expect(splays.length).toBe(4);
+    for (const k of splays) { expect(Math.abs(stand.joints[k])).toBeGreaterThan(5); expect(P.joints[k]).toBe(0); }
+    // (the two feet's toes apart: every corner of the right's right of every corner of the left's)
+    const xs = (S) => As.toes[S].bodies.flatMap((id) => partShape(siege, ctx.entry(id).sku, S).corners.map((c) => apply(F[id], c)[0]));
+    expect(Math.min(...xs('r'))).toBeGreaterThan(Math.max(...xs('l')));
   });
   it('stands on its clawed feet\'s toes flat, and clenches them clear of the ground to roll', () => {
     const ctx = mechaCtx(siege), low = (P, F, ids) => Math.min(...ids.map((id) => Math.min(...partShape(siege, ctx.entry(id).sku, 'r').corners.map((c) => apply(F[id], c)[2] + P.root.t[2]))));

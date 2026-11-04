@@ -564,19 +564,22 @@ const siegeWheels = (S) => { const s = S.toLowerCase(); return [
   { id: `midWheel${S}`, sku: 'wheel-sw', side: s, on: `shank${S}.wheelMid`, wheel: 'mid' },
   { id: `frontWheel${S}`, sku: 'wheel-sw', side: s, on: `shank${S}.wheelFront`, wheel: 'front' },
 ]; };
-// (its clawed feet's toes: two a foot, splayed in a V, a root segment on the palm's knuckle and a claw segment on its
-// end, each on its knuckle's drive; flat walking, `curl` their clench collapsed, down and under the palm's front)
-const siegeToes = (S) => { const s = S.toLowerCase(), out = { joints: {}, layout: [], bodies: [], ids: [] };
+// (its clawed feet's toes: two a foot, each on a knuckle that splays it out in a V walking and draws it in rolling, a
+// root segment on the knuckle and a claw segment on its end, each on its drive; flat walking, `curl` their clench
+// collapsed, down and under the palm's front)
+const siegeToes = (S) => { const s = S.toLowerCase(), out = { joints: {}, layout: [], bodies: [], ids: [], knuckles: [] };
   for (const T of ['A', 'B']) {
-    const root = `toe${T}${S}`, claw = `claw${T}${S}`;
+    const root = `toe${T}${S}`, claw = `claw${T}${S}`, splay = `splay${T}${S}`;
+    // (its knuckle turned out walking, the two toes a V; drawn in straight rolling)
+    out.joints[splay] = Object.freeze({ kind: 'hinge', axis: Object.freeze([0, 0, 1]), drive: `knuckle${T}${S}`, at: T === 'A' ? -TOE_SPLAY_SW : TOE_SPLAY_SW, when: Object.freeze({ roll: 0 }) });
     out.joints[root] = Object.freeze({ kind: 'hinge', drive: `toeRoot${T}${S}`, toe: true, curl: -40 });
     out.joints[claw] = Object.freeze({ kind: 'hinge', drive: `toeClaw${T}${S}`, toe: true, curl: -110 });
     out.layout.push(
-      // (each toe turned out on its knuckle, the two a V)
-      { id: `toeRoot${T}${S}`, sku: 'toe1-sw', side: s, on: `foot${S}.toe.${T.toLowerCase()}`, joint: root, turn: T === 'A' ? -TOE_SPLAY_SW : TOE_SPLAY_SW },
+      { id: `knuckle${T}${S}`, sku: 'knuckle-sw', side: s, on: `foot${S}.toe.${T.toLowerCase()}`, joint: splay },
+      { id: `toeRoot${T}${S}`, sku: 'toe1-sw', side: s, on: `knuckle${T}${S}.toe`, joint: root },
       { id: `toeClaw${T}${S}`, sku: 'toe2-sw', side: s, on: `toeRoot${T}${S}.end`, joint: claw },
     );
-    out.bodies.push(`toeRoot${T}${S}`, `toeClaw${T}${S}`); out.ids.push(root, claw);
+    out.bodies.push(`toeRoot${T}${S}`, `toeClaw${T}${S}`); out.ids.push(root, claw); out.knuckles.push(`knuckle${T}${S}`);
   }
   return out;
 };
@@ -607,13 +610,13 @@ const siegeWalker = Object.freeze({
     { id: 'weaponC', sku: MECHA_WEAPONS.minigun.sku, side: 'r', on: 'cradleC.gun' },
   ].map(Object.freeze)),
   legs: Object.freeze({ r: Object.freeze(SR.legs), l: Object.freeze(SL.legs) }),
-  toes: Object.freeze({ r: Object.freeze({ bodies: Object.freeze(STR.bodies), joints: Object.freeze(STR.ids) }), l: Object.freeze({ bodies: Object.freeze(STL.bodies), joints: Object.freeze(STL.ids) }) }),
+  toes: Object.freeze({ r: Object.freeze({ bodies: Object.freeze(STR.bodies), joints: Object.freeze(STR.ids), knuckles: Object.freeze(STR.knuckles) }), l: Object.freeze({ bodies: Object.freeze(STL.bodies), joints: Object.freeze(STL.ids), knuckles: Object.freeze(STL.knuckles) }) }),
   wheels: Object.freeze(['R', 'L'].flatMap((S) => siegeWheels(S).map((e) => Object.freeze({ id: e.id, axle: e.wheel, side: e.side })))),
   backpacks: Object.freeze([]),
   fireStance: 'roll',
   backpack: 'siege', weapons: SIEGE_PACK.loadout, tail: undefined, tails: SIEGE_LAYOUT.tails,
   payloads: Object.freeze({ ...SIEGE_LAYOUT.payloads, c: MECHA_WEAPONS.minigun }),
-  track: 0.56 * 2.8,
+  track: 2.3,
   stances: Object.freeze({
     ...Object.fromEntries(Object.entries(F0.stances).map(([k, st]) => [k, st.feet ? Object.freeze({ ...st, feet: Object.freeze(Object.fromEntries(Object.entries(st.feet).map(([S, f]) => [S, Object.freeze({ ...f, ...(f.y !== undefined ? { y: f.y * 2.8 } : {}), ...(f.lift !== undefined ? { lift: f.lift * 2.8 } : {}) })]))) }) : st])),
     brace: SIEGE_PACK.brace,
@@ -633,7 +636,7 @@ const siegeWalker = Object.freeze({
     stability: Object.freeze([0.05, 5]), knee: Object.freeze([25, 70]), seat: Object.freeze([4, 9]), board: Object.freeze([1, 4]), stepIn: Object.freeze([0.3, 3]), belly: Object.freeze([2, 8]),
     step: Object.freeze([0.6, 3]), stride: Object.freeze([0.8, 3]), groundPressure: Object.freeze([20, 200]), clearance: Object.freeze([0.01, 20]),
   }),
-  bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-toe': 8, 'mecha-ram': 6, 'mecha-wheel': 6, 'mecha-mount': 6, 'mecha-weapon': 5, 'mecha-tail': 8 }),
+  bom: Object.freeze({ 'mecha-pelvis': 1, 'mecha-seat': 1, 'mecha-cage': 1, 'mecha-pack': 1, 'mecha-hip': 2, 'mecha-yoke': 2, 'mecha-thigh': 2, 'mecha-shank': 2, 'mecha-ankle': 2, 'mecha-foot': 2, 'mecha-toe': 12, 'mecha-ram': 6, 'mecha-wheel': 6, 'mecha-mount': 6, 'mecha-weapon': 5, 'mecha-tail': 8 }),
 });
 // the brood walker: a big frame on four legs, a mother to drones. Its hull is tall and round-topped and short from
 // the side, a single hangar through it (its drones are repaired there and their parts printed), its cockpit inside its

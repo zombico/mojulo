@@ -568,7 +568,7 @@ export const MECHA_BUILDERS = Object.freeze({
   'mecha-shank': (row, C, ctx) => ({ guarded: FIELD.shank, wheeled: FIELD.wheeledShank, strut: BROOD.shank }[row.build.family] ?? shank)(row, C, ctx),
   'mecha-ankle': (row, C, ctx) => ({ wheeled: FIELD.wheeledAnkle, bug: BROOD.ankle }[row.build.family] ?? ankle)(row, C, ctx),
   'mecha-foot': (row, C, ctx) => ({ lugged: FIELD.foot, clawed: FIELD.clawedFoot, cradle: BROOD.foot }[row.build.family] ?? foot)(row, C, ctx),
-  'mecha-toe': (row, C, ctx) => FIELD.toe(row, C, ctx),
+  'mecha-toe': (row, C, ctx) => (row.build.family === 'knuckle' ? FIELD.knuckle : FIELD.toe)(row, C, ctx),
   'mecha-wheel': (row, C, ctx) => FIELD.wheel(row, C, ctx),
   'mecha-bay': (row, C, ctx) => BROOD.bay(row, C, ctx),
   'mecha-petal': (row, C, ctx) => BROOD.petal(row, C, ctx),
