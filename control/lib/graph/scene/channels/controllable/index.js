@@ -87,7 +87,7 @@ function __seatSnap(x) {
   if (kb) { mx = __CTL.axis(__BIND, 'turnRight', 'turnLeft', 'keyboard', rd); my = __CTL.axis(__BIND, 'moveForward', 'moveBack', 'keyboard', rd); }
   else { const st = __padStick(g.axes[0] || 0, g.axes[1] || 0); mx = st[0]; my = -st[1]; }
   const P = __seatPrev[x.n] || (__seatPrev[x.n] = {}), jh = h('jump'), tk = h('tackle');
-  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
+  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, walk: h('walk') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
   P.jump = jh; P.tackle = tk;
   return out;
 }
@@ -2521,6 +2521,7 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
   const W = __world, lo = (e) => (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length) || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length);
   return __CTL.legend(__SCHEME, __BIND, __DEV, {
     space: r.space === true, kneel: r.kneel === true, tackle: !!r.tackle, vehicle: r.type === 'drive' || r.type === 'fly',
+    walker: r.walkSpeed > 0 && r.space !== true && !r.gear,   // a person: the walk held, no thrusters
     mouselook: __MOUSELOOK, armed: W.entities.some((e) => e.weapon || lo(e)), lock: ${!!lock},
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
@@ -2630,6 +2631,7 @@ function __readInput() {
     lift: __kx('jump', 'descend') || (__pad ? (__pad.jump ? 1 : 0) - (__pad.kneel ? 1 : 0) : 0),
     jump, jumpHeld: sp ? 1 : 0,
     boost: __k('boost') || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
+    walk: __k('walk') ? 1 : 0,       // a person's walk, held (platform rule, walkSpeed); a pad walks by the stick's travel
     kneel: __k('kneel') || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
     fire: __fireDown || (__pad && __pad.fire && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
