@@ -799,7 +799,7 @@ function nextCard() {
     '             whole offer (`share`: each option\'s call and why). Where nothing can leave the host, the recipe is the handoff.',
     '  run        run: true makes every step that is ready: the hero first; a world with no characters (a composed one), its levels and the game.',
     '             A run stops at its budget (~2 min): with `pending`, run again (tell the creator). Each',
-    '             reach or survive level is walked after the game, a step each: `audits` (machine gate).',
+    '             reach or survive level is walked after the game, a step each, on check: true: `audits` (machine gate).',
     '  rerun      after a change, run again: what moved is remade, a hand edit is left (force: true overwrites it).',
     '  adornment  the page is empty: the bible proposes what the hero carries from the power verbs, with reasons; write',
     '             your own at `path` (gameworld-adornment); its items seed the equipment table.',

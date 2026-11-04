@@ -54,8 +54,8 @@ describe('design_game quick', () => {
   it('reach with a climb and a hero the door draws: the hero pilots both stages, the climb\'s exit is its top, in volume', async () => {
     const hero = { cast: 'female', head: 'anime', look: ['heroine', 'determined'], hair: ['frieda-pony'], palette: { Top: '#7a2f8e' }, gear: { right: { item: 'sword' } } };
     const out = await designGameHandler({ quick: { goal: 'reach', climb: true, hero, theme: { accent: '#7a2f8e', style: 'hud' }, world: { id: 'summit', style: { kit: 'isekai-meadow' } } }, ref: 's' });
-    // (each stage walked after the game, a step each: runner.js auditSteps)
-    expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'level-run-1', 'game', 'audit-level-run-0', 'audit-level-run-1']);
+    // (a run compiles: each stage's walk is a step of its own, taken when the run asks to check, runner.js auditSteps)
+    expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'level-run-1', 'game']);
     expect(stored('s-hero').hero.gear.right).toMatchObject({ item: 'sword' });
     expect(stored('s-level-run-1').figures.hero.heroRef).toBe('s-hero');
     expect(stored('s-level-run-1').game.mechanics[0]).toMatchObject({ kind: 'reach-exit', planar: false });
@@ -79,7 +79,7 @@ describe('design_game quick', () => {
 
   it('reach with a mascot on foot: minted through the creature door in the game\'s setting, piloted by its own body', async () => {
     const out = await designGameHandler({ quick: { goal: 'reach', hero: { mascot: { brief: 'a sonic-like mascot' } }, screen: 'screen', world: { id: 'zoom', style: { kit: 'isekai-meadow' } } }, ref: 'm' });
-    expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game', 'audit-level-run-0']);
+    expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game']);
     const H = stored('m-hero');
     expect(H.plan.mascot).toMatchObject({ form: expect.any(String), height: expect.any(Number) });
     expect(H.plan.mascot.height).toBeLessThan(1.2);
@@ -281,7 +281,7 @@ describe('design_game quick', () => {
 
   it('moves: the hero is made with its own hit, stagger, fall and rise, and the page plays them over the library\'s', async () => {
     const out = await designGameHandler({ quick: { goal: 'reach', hero: { cast: 'female' }, moves: true, world: { id: 'oof', style: { kit: 'trail-valley' } } }, ref: 'mv' });
-    expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game', 'audit-level-run-0']);
+    expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game']);
     const L = stored('mv-level-run-0');
     expect(L.figures.hero.moves).toEqual({ stagger: 'stagger', topple: 'knockedOutDown', getup: 'knockedOutUp' });
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('mv-level-run-0'));
@@ -308,7 +308,7 @@ describe('design_game quick', () => {
 
   it('a cast beside you: a wolf familiar made from the cast row, woken at the start and keeping up with you', async () => {
     const out = await designGameHandler({ quick: { goal: 'reach', cast: { scale: 'hero', cast: { pet: { relation: 'familiar', body: 'beast', species: 'wolf' } } }, world: { id: 'tag', style: { kit: 'trail-valley' } } }, ref: 'w' });
-    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['casting', 'make'], ['cast-pet', 'make'], ['level-run-0', 'make'], ['game', 'make'], ['audit-level-run-0', 'make']]);
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['casting', 'make'], ['cast-pet', 'make'], ['level-run-0', 'make'], ['game', 'make']]);
     expect(stored('w-cast-pet')).toMatchObject({ kind: 'layered', species: 'wolf' });
     const L = stored('w-level-run-0');
     expect(L.play.party).toEqual([{ who: 'pet' }]);

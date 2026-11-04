@@ -10,7 +10,9 @@ become chapters each department works alone, so the compile is one loop that mak
   none). Once it is spent, the run starts no new step. It says the steps it left as `pending`, keeps the record of what
   it made, and its next move is `{ step: 'run', pending }`. The next run takes up where it stopped. Each run makes at
   least one step, and no step is cut partway. The world a run leaves is the same however many calls it took.
-- **Each level is walked in its own step.** The game is made at once (unaudited, create_game's waiver). After it, a game
+- **Each level is walked in its own step, when a run checks.** The game is made at once (unaudited, create_game's
+  waiver), and a run walks levels only when it asks (`check: true`, from the book-powers theme: a run compiles). After the
+  game, a game
   whose levels the audit can prove (reach or survive) has one `audit-level-<level>-<n>` step per level
   (`gameworld/runner.js` `auditSteps`). Each walks that level (`create-game.js` `auditGameLevel`, in an installed browser,
   never a download) and keeps its verdict in the record (`made.<key>.verdict`). A level remade is walked again (a remade
@@ -94,3 +96,8 @@ become chapters each department works alone, so the compile is one loop that mak
   whose exit is up a ladder, piloted first person (a world with no hero is walked by a walker, whose rule does not
   climb), is made but cannot be finished. The check says so on the levels chapter: give the world a hero, or end the
   level on a tier its stairs reach. The walker's climbing is the runtime's to add, and is not in this change.
+- **A run that checks stays inside its budget.** The book-powers theme made checking opt-in (`check: true`), but a
+  checking run still walked every level inside create_game's one call. Merged with this theme, a checking run walks
+  each level as its own audit step, under the run's budget, its verdict kept. A run that does not check leaves the walks
+  out, its earlier verdicts still read, and the pre-compile estimate does not price them. Each level's first frame is
+  the book-powers theme's per-level record, judged again only when its row moves.
