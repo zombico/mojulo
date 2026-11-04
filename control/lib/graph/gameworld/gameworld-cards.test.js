@@ -52,7 +52,9 @@ describe('the rail\'s cards', () => {
     // where it is played and advised, 4296 bytes); the walled-core dungeon card (2026-11-02, 1101-vehicle-registry: a
     // base building's parked vehicles, the field's trucks and carriers in its hangar, beside its buildings: 4290 bytes);
     // 4608 since the two met on 1026-consolidated (2026-11-03: the complex's lines and the parked vehicles', 4574 bytes)
-    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 4352, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 4864 };
+    // the next card too (2026-11-04, 1104 requisitions: the `req` move, the unit being worked, one line; it stood at
+    // 4085 bytes, 4200 with it)
+    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 4352, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 4864, 'gameworld-next': 4352 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

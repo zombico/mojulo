@@ -728,6 +728,27 @@ function init(db) {
     CREATE INDEX IF NOT EXISTS idx_gp_members_by_project ON game_project_members(project_id);
     CREATE INDEX IF NOT EXISTS idx_gp_members_reverse ON game_project_members(member_kind, member_ref);
 
+    -- A gameworld's requisitions (gameworld/reqs.js): the production ledger of one game, a row per UNIT the
+    -- director asked for (a chapter of the book, or one level), worked one at a time in seq order. Never part of the
+    -- recipe: a world renders and exports the same with or without its reqs. Status is DERIVED at read time from the
+    -- book's review stamps; only what the book cannot say is stored: the remit, the staffing and its budget, a
+    -- verdict on a unit with no review part (its pages' print), a cancellation, and the creator's notes on what they
+    -- sent back (the precedent the next unit reads). world_ref is navigational: a deleted world leaves its rows unread.
+    CREATE TABLE IF NOT EXISTS gameworld_reqs (
+      world_ref TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      unit TEXT NOT NULL,
+      remit_json TEXT,
+      staffing TEXT NOT NULL DEFAULT 'soloist',
+      budget_json TEXT NOT NULL DEFAULT '{}',
+      verdict_json TEXT,
+      notes_json TEXT NOT NULL DEFAULT '[]',
+      raised_by TEXT NOT NULL DEFAULT 'director',
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (world_ref, seq)
+    );
+
     -- Render handoff (render-handoff.plan.md — the durable I3 seam, framed as a
     -- bicycle; see docs/bicycles.md). One DURABLE row per render target parked
     -- for an external image-capable worker: request to pull to submit to audit

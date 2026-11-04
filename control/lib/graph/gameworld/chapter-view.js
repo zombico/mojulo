@@ -36,12 +36,13 @@ export function chapterPages(world, id) {
 }
 
 // the readout's next moves, each by the chapter it is (gameworld-next's step ids); a move naming parts is each part's
-const MOVE = { play: 'build', share: 'build', run: 'build', rerun: 'build', compile: 'build', adornment: 'adornment', intent: 'intent', target: 'intent', feel: 'feel', juice: 'feel', foes: 'foes', story: 'story', advice: 'intent' };
+const MOVE = { req: 'build', play: 'build', share: 'build', run: 'build', rerun: 'build', compile: 'build', adornment: 'adornment', intent: 'intent', target: 'intent', feel: 'feel', juice: 'feel', foes: 'foes', story: 'story', advice: 'intent' };
 /** The chapter a next move is, or null (a review names parts: each its own; a wait names its chapter; a form ask its
  * field, which is a chapter's id). */
 export function chapterOfMove(move) {
   if (!isObj(move) || typeof move.step !== 'string') return null;
   if (move.step === 'wait') return chapterById(move.on);
+  if (move.step === 'req') return unitOf(move.unit)?.chapter ?? chapterById('build');   // the unit's, else the director's
   if (move.step === 'form') return null;   // its asks are each their own (chapterView splits them)
   if (move.step === 'review' || move.step === 'advised') return null;   // its parts are each their own
   return chapterById(MOVE[move.step]);
@@ -77,6 +78,9 @@ export function chapterView(full, world, id, { ran, pending, patched = [] } = {}
     } else if (m.step === 'form') {
       const own = (m.asks ?? []).filter((a) => a.for === c.id || a.field === c.id);
       if (own.length) next.push({ ...m, asks: own });
+    } else if (m.step === 'req') {
+      // the unit being worked: in its own view, and the build's (the director's)
+      if (m.unit === id || id === 'build') next.push(m);
     } else if (m.step === 'compile') {
       // what the build would hit: the build's to see whole, each other chapter its own
       const own = (full.compile?.blockers ?? []).filter((b) => b.chapter === c.id && (lv === null || !b.step || ownStep(b.step)));
