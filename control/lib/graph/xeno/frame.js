@@ -11,7 +11,11 @@
  *
  *   xenoFrame(recipe) → { head, carrier, centre, crownZ, chinZ, browZ, noseTip, halfWidth, height, frontY, backY,
  *                         front(x, z), back(x, z), sagittal(phi, x), toward(az, el), backOfBodyAt(z), frontOfBodyAt(z),
- *                         pinNear(p), frameOf(pin) } | null
+ *                         surfaceAt(x, z), ears, earParts, mouth, pinNear(p), frameOf(pin) } | null
+ *
+ * The face's features, read off the parts that carry them: `ears` ({ R, L }: each its top-back, its lobe, its centre and
+ * its outward side, from the head's own `earR` / `earL`), `mouth` ({ z, halfWidth }: the line the lips meet on, from the
+ * lip or mouth parts, or placed between the nose and the chin on a head that draws its mouth).
  *
  * Front is +y, up is +z, metres (the hero's native frame). Pure, deterministic.
  */
@@ -44,8 +48,9 @@ export function xenoFrame(recipe, { skin: more = [] } = {}) {
   if (!H) return null;
   const skinParts = [...H.skin, ...more.filter((n) => R[n] && !H.skin.includes(n))];
   const brows = H.brows.filter((n) => R[n]);
+  const earParts = ['earR', 'earL'].filter((n) => R[n]), mouthParts = ['upperLipR', 'upperLipL', 'lowerLipR', 'lowerLipL', 'mouth'].filter((n) => R[n]);
   const body = ['neck', 'torso'].filter((n) => R[n]);
-  const comp = compileLayered({ parts: withParents(R, [H.carrier, ...skinParts, ...brows, ...body]), dials: {}, creases: {} }).parts;
+  const comp = compileLayered({ parts: withParents(R, [H.carrier, ...skinParts, ...brows, ...body, ...earParts, ...mouthParts]), dials: {}, creases: {} }).parts;
   const tris = [];
   for (const n of skinParts) { const P = comp[n]; if (!P) continue; for (const f of Object.values(P.faces)) tris.push(f.map((id) => P.points[id])); }
   if (!tris.length) return null;
@@ -86,6 +91,30 @@ export function xenoFrame(recipe, { skin: more = [] } = {}) {
   const backOfBodyAt = (z, band = 0.03) => { let m = Infinity; for (const p of bodyPts) if (Math.abs(p[2] - z) < band && p[1] < m) m = p[1]; return Number.isFinite(m) ? m : null; };
   const frontOfBodyAt = (z, band = 0.03) => { let m = -Infinity; for (const p of bodyPts) if (Math.abs(p[2] - z) < band && p[1] > m) m = p[1]; return Number.isFinite(m) ? m : null; };
 
+  // a point's surface with its normal smoothed over its neighbours (one triangle's is noisy): four casts round it
+  const surfaceAt = (x, z, h = 0.004) => {
+    const c = front(x, z); if (!c) return null;
+    const a = front(x + h, z), b = front(x - h, z), u = front(x, z + h), d = front(x, z - h);
+    if (!a || !b || !u || !d) return c;
+    let n = unit(cross(sub(a.p, b.p), sub(u.p, d.p))); if (dot(n, c.n) < 0) n = mul(n, -1);
+    return { p: c.p, n };
+  };
+  // THE EARS: each one's top-back (the highest point, leaning back), its lobe (its lowest) and its centre, its side
+  const ears = {};
+  for (const n of earParts) {
+    const P = Object.values(comp[n]?.points || {}); if (!P.length) continue;
+    const c = [0, 1, 2].map((k) => P.reduce((a, p) => a + p[k], 0) / P.length), side = c[0] - centre[0] >= 0 ? 1 : -1;
+    ears[n === 'earR' ? 'R' : 'L'] = { centre: c, side, top: P.reduce((b, p) => (p[2] - 0.5 * p[1] > b[2] - 0.5 * b[1] ? p : b)), lobe: P.reduce((b, p) => (p[2] < b[2] ? p : b)), out: P.reduce((b, p) => (side * p[0] > side * b[0] ? p : b)) };
+  }
+  // THE MOUTH: where the lips meet, and how wide
+  const lipPts = (re) => mouthParts.filter((n) => re.test(n)).flatMap((n) => Object.values(comp[n]?.points || {}));
+  const upper = lipPts(/^upperLip/), lower = lipPts(/^lowerLip/), whole = lipPts(/^mouth$/);
+  const mouthOf = (pts) => ({ halfWidth: Math.max(...pts.map((p) => Math.abs(p[0] - centre[0]))) });
+  const mouth = upper.length && lower.length ? { z: (Math.min(...upper.map((p) => p[2])) + Math.max(...lower.map((p) => p[2]))) / 2, ...mouthOf([...upper, ...lower]) }
+    : whole.length ? { z: whole.reduce((a, p) => a + p[2], 0) / whole.length, ...mouthOf(whole) }
+      : { z: lo[2] + (noseTip[2] - lo[2]) * 0.58, halfWidth: 0.27 * ((hi[0] - lo[0]) / 2) };
+  mouth.halfWidth = Math.min(mouth.halfWidth, 0.4 * ((hi[0] - lo[0]) / 2));
+
   // the pin: the carrier's face nearest a point that the head bone alone carries (a blended face, the jaw's, is passed by)
   const carrier = comp[H.carrier], blend = R[H.carrier].bind?.blend || null;
   const onlyHead = (pid) => { if (!blend) return true; const b = blend[pid.slice(pid.indexOf('/') + 1)] ?? { head: 1 }; return (b.head ?? 0) >= 0.999; };
@@ -99,6 +128,6 @@ export function xenoFrame(recipe, { skin: more = [] } = {}) {
 
   return {
     head: H.head, carrier: H.carrier, centre, crownZ: hi[2], chinZ: lo[2], browZ, noseTip, halfWidth: (hi[0] - lo[0]) / 2, height, frontY: hi[1], backY: lo[1],
-    front, back, sagittal, toward, backOfBodyAt, frontOfBodyAt, pinNear, frameOf,
+    front, back, sagittal, toward, backOfBodyAt, frontOfBodyAt, surfaceAt, ears, earParts, mouth, pinNear, frameOf,
   };
 }

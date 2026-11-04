@@ -11,6 +11,7 @@
  *   bladeMesh(line, { radius, flat, face, R })     a LOBE: the tube flattened, its section an ellipse `flat` as thick as it
  *                                                  is wide, its broad face toward `face(i)` (a direction per point)
  *
+ * (`plateau` n: the section flat-topped, 1 − |x|ⁿ, for a painted transfer that lies flush across its width.)
  * `samples` are the frame's hits `{ p, n }` (a point on the skin, its outward normal) in order; `height(t)` and
  * `width(t)` metres at t 0 … 1 along them. → { vertices, faces, line } (line: the centre the coat reads). Pure.
  */
@@ -25,7 +26,7 @@ const smoothNormals = (S) => S.map((_, i) => unit(S.slice(Math.max(0, i - 1), i 
 
 /** A ridge on the skin along `samples`. Its section: K points over the bump (x −1 … 1, the bump (1 − x²)^1.5, its base
  * at the sink) and one under it, a closed ring; its ends drawn to points under the skin. */
-export function ridgeMesh(samples, { height, width, sink = 0.002, K = 9 }) {
+export function ridgeMesh(samples, { height, width, sink = 0.002, K = 9, plateau = 0 }) {
   const N = samples.length; if (N < 2) return null;
   const n = smoothNormals(samples), P = samples.map((s) => s.p), vertices = [], faces = [];
   const T = P.map((_, i) => unit(sub(P[Math.min(N - 1, i + 1)], P[Math.max(0, i - 1)])));
@@ -33,7 +34,7 @@ export function ridgeMesh(samples, { height, width, sink = 0.002, K = 9 }) {
   for (let i = 0; i < N; i++) {
     const t = N === 1 ? 0 : i / (N - 1), h = Math.max(0, height(t)), w = Math.max(1e-4, width(t)), b = unit(cross(T[i], n[i])), base = sub(P[i], mul(n[i], sink));
     const ring = [];
-    for (let j = 0; j < K; j++) { const x = -1 + (2 * j) / (K - 1), up = (h + sink) * (1 - x * x) ** 1.5; ring.push(vertices.push(add(add(base, mul(b, (x * w) / 2)), mul(n[i], up))) - 1); }
+    for (let j = 0; j < K; j++) { const x = -1 + (2 * j) / (K - 1), up = (h + sink) * (plateau ? 1 - Math.abs(x) ** plateau : (1 - x * x) ** 1.5); ring.push(vertices.push(add(add(base, mul(b, (x * w) / 2)), mul(n[i], up))) - 1); }
     ring.push(vertices.push(sub(base, mul(n[i], sink))) - 1);   // the underside, below the skin
     rings.push(ring);
   }

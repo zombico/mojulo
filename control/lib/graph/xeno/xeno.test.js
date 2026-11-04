@@ -144,7 +144,7 @@ describe('a starter species', () => {
     expect(wornHeaddress({ xenoSpecies: 'ridged-warrior', xenoHeaddress: ['nose-ridges'] })).toEqual(['keeled-skull', 'forehead-ridges', 'nose-ridges']);
     expect(wornHeaddress({ xenoSpecies: 'ridged-warrior', xenoHeaddress: ['cone-skull'] })).toEqual(['forehead-ridges', 'cone-skull']);
     const W = xenoWorn({ cast: 'female', hair: 'bob', xenoSpecies: 'grey-visitor' });
-    expect([W.palette.Skin, W.hair, W.xenoSpecies, W.xenoHeaddress]).toEqual([XENO_SPECIES['grey-visitor'].skin, 'none', undefined, ['tall-cranium']]);
+    expect([W.palette.Skin, W.hair, W.xenoSpecies, W.xenoHeaddress]).toEqual([XENO_SPECIES['grey-visitor'].skin, 'none', undefined, ['tall-cranium', 'no-ears']]);
     expect(xenoWorn(W)).toEqual(W);                                                                    // worn twice: the same hero
     expect(xenoWorn({ xenoSpecies: 'grey-visitor', palette: { Skin: '#123456' } }).palette.Skin).toBe('#123456');
     const real = xenoWorn({ form: 'realistic', xenoSpecies: 'grey-visitor' });
@@ -175,7 +175,7 @@ describe('a starter species', () => {
   it('mints a hero wearing it, and says what it gave', async () => {
     const out = await createCharacterHandler({ as: 'hero', title: 'species', spec: { cast: 'female', xenoSpecies: 'plated-insectoid' } });
     expect(out.hero.xenoSpecies).toMatchObject({ species: 'plated-insectoid' });
-    expect(out.hero.xeno.map((x) => [x.card, x.pieces > 0])).toEqual([['segmented-skull', true], ['horn', true], ['cheek-ridges', true]]);
+    expect(out.hero.xeno.map((x) => [x.card, x.pieces > 0])).toEqual([['segmented-skull', true], ['horn', true], ['cheek-ridges', true], ['no-ears', false], ['eye-cluster', true], ['slit-nostrils', true]]);
     const R = SketchRepository.getByRef(out.ref).manifest;
     expect(R.hero.xenoSpecies).toBe('plated-insectoid');                                               // the record keeps the word alone
     expect(R.hero.xenoHeaddress).toBeUndefined();

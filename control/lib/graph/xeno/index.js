@@ -27,6 +27,7 @@ import { ridgeMesh, tubeMesh, bladeMesh } from './appliances.js';
 import { validateHairCoat, resolveHairCoat, lockCoatFrame } from '../polygonizer/hair-coat.js';
 import { surfaceLocalOffset } from '../polygonizer/surface-pin.js';
 import { speciesWorn, speciesHeaddress } from './species.js';
+import { FACE_CARDS } from './face-pieces.js';
 
 export { XENO_SPECIES, XENO_SPECIES_IDS, validateXenoSpecies, speciesReadout } from './species.js';
 
@@ -325,6 +326,8 @@ export const XENO_CARDS = Object.freeze({
       return out;
     },
   }),
+  // the face's pieces: markings, ears, noses, a third eye, teeth (./face-pieces.js)
+  ...FACE_CARDS,
 });
 export const XENO_CARD_IDS = Object.freeze(Object.keys(XENO_CARDS));
 const isSkullEntry = (e) => XENO_CARDS[typeof e === 'string' ? e : e?.card]?.family === 'skull';
@@ -332,7 +335,7 @@ const isSkullEntry = (e) => XENO_CARDS[typeof e === 'string' ? e : e?.card]?.fam
 export const wornHeaddress = (hero) => speciesHeaddress(hero, isSkullEntry);
 /** a piece written whole wears its family's card's coats, and its pieces are named for the family */
 const WRITTEN_DEFAULTS = Object.freeze({ horn: { label: 'Horn', card: XENO_CARDS['swept-horns'] }, tail: { label: 'Tail', card: XENO_CARDS['front-tails'] }, lobe: { label: 'Lobe', card: XENO_CARDS['chitin-crest'] } });
-const ENTRY_KEYS = ['card', 'size', 'coat', 'shell', 'replaces'];
+const ENTRY_KEYS = ['card', 'size', 'coat', 'shell', 'replaces', 'nostrils'];
 const REPLACES = ['hair'];
 
 /** Error strings for a hero's `xenoHeaddress` (empty = valid) */
@@ -341,6 +344,8 @@ export function validateXenoHeaddress(list, at = 'xenoHeaddress') {
   if (!Array.isArray(list) || list.length > XENO_MAX) return [`${at}: a list of at most ${XENO_MAX} appliances, each a card (${XENO_CARD_IDS.join(', ')}), { card, size?, coat?, replaces? }, or an appendage written whole ({ family: ${Object.keys(APPENDAGE_FAMILIES).join(' | ')}, at: { az, el }, … })`];
   const errs = [];
   const skulls = list.filter((e) => XENO_CARDS[typeof e === 'string' ? e : e?.card]?.family === 'skull');
+  const earIds = list.map((e) => (typeof e === 'string' ? e : e?.card)).filter((c) => XENO_CARDS[c]?.family === 'ear');
+  if (earIds.includes('no-ears') && earIds.length > 1) errs.push(`${at}: no-ears takes the ears off, so nothing can be glued to them (${earIds.filter((c) => c !== 'no-ears').join(', ')})`);
   if (skulls.length > 1) errs.push(`${at}: one skull at most (${XENO_CARD_IDS.filter((c) => XENO_CARDS[c].family === 'skull').join(', ')}), the head the rest is glued on`);
   list.forEach((e, i) => {
     const here = `${at}[${i}]`;
@@ -367,6 +372,7 @@ export function validateXenoHeaddress(list, at = 'xenoHeaddress') {
     if (e.coat !== undefined) errs.push(...validateHairCoat(e.coat, `${here}.coat`));
     if (e.shell !== undefined) errs.push(...validateHairCoat(e.shell, `${here}.shell`));
     if (e.replaces !== undefined && e.replaces !== null && e.replaces !== false && !REPLACES.includes(e.replaces)) errs.push(`${here}.replaces: 'hair' (a bald cap under it), or false`);
+    if (e.nostrils !== undefined && (XENO_CARDS[card].family !== 'nose' || !(Number.isFinite(e.nostrils) && e.nostrils >= 0.5 && e.nostrils <= 2.5))) errs.push(`${here}.nostrils: a nose piece's nostrils, 0.5 … 2.5 (their size)`);
   });
   return errs;
 }
@@ -378,7 +384,7 @@ const readEntry = (e) => {
     return { card: e.family, C, size: e.size ?? 1, coat: e.coat ?? own.card.coat, shell: e.shell ?? own.card.shell ?? null, replaces: e.replaces || null, written: true };
   }
   const own = typeof e === 'string' ? { card: e } : e, C = XENO_CARDS[own.card];
-  return { card: own.card, C, size: own.size ?? 1, coat: own.coat ?? C.coat, shell: own.shell ?? C.shell ?? null, replaces: own.replaces === undefined ? C.replaces ?? null : own.replaces || null }; };
+  return { card: own.card, C, size: own.size ?? 1, coat: own.coat ?? C.coat, shell: own.shell ?? C.shell ?? null, ...(own.nostrils !== undefined ? { nostrils: own.nostrils } : {}), replaces: own.replaces === undefined ? C.replaces ?? null : own.replaces || null }; };
 
 /** each face turned outward from the line it was built along (a ridge's top and its buried underside, a tube's wall) */
 function orientOut(mesh) {
@@ -418,14 +424,20 @@ export function withXeno(recipe, hero) {
       recipe = { ...recipe, dials: Object.fromEntries(Object.entries(recipe.dials).map(([k, d]) => [k, Array.isArray(d?.parts) ? { ...d, parts: d.parts.filter((n) => !g.has(n)) } : d])) };
     }
   }
+  // no ears: the head's own left off (and their names out of the dials)
+  if (entries.some((e) => e.C.removes?.includes('ears'))) {
+    const gone = new Set(['earR', 'earL'].filter((n) => parts[n]));
+    for (const n of gone) delete parts[n];
+    if (gone.size && recipe.dials) recipe = { ...recipe, dials: Object.fromEntries(Object.entries(recipe.dials).map(([k, d]) => [k, Array.isArray(d?.parts) ? { ...d, parts: d.parts.filter((n) => !gone.has(n)) } : d])) };
+  }
   const cap = (s) => s.replace(/(^|-)([a-z])/g, (_, __, c) => c.toUpperCase());
   // the skull first, then the frame found again on it (its parts part of the skin), then the rest on it
   const order = entries.map((E, i) => [E, i]).sort(([a], [b]) => (b.C.family === 'skull') - (a.C.family === 'skull'));
   let skullParts = null;
   for (const [E, i] of order) {
     if (skullParts && E.C.family !== 'skull') { F = xenoFrame({ ...recipe, parts }, { skin: skullParts }) ?? F; skullParts = null; }
-    const pieces = E.C.build(F, base * E.size), spec = resolveHairCoat(E.coat), shell = E.shell ? resolveHairCoat(E.shell) : spec;
-    for (const { name, mesh: raw, role } of pieces) {
+    const pieces = E.C.build(F, base * E.size, E), spec = resolveHairCoat(E.coat), shell = E.shell ? resolveHairCoat(E.shell) : spec;
+    for (const { name, mesh: raw, role, coat: own } of pieces) {
       if (!raw?.faces?.length) continue;
       const mesh = raw.oriented ? raw : orientOut(raw), root = mesh.line[0], pin = F.pinNear(root); if (!pin) continue;
       const frame = F.frameOf(pin), Fr = mesh.coatFrame ?? lockCoatFrame(mesh.vertices, mesh.line, F.centre);
@@ -433,7 +445,7 @@ export function withXeno(recipe, hero) {
         layer: 2, closure: 'closed', pin, group: 'Skin',
         offsets: Object.fromEntries(mesh.vertices.map((p, k) => [`v${k}`, surfaceLocalOffset(frame, p).map(r6)])),
         faces: Object.fromEntries(mesh.faces.map((f, k) => [`f${k}`, f.map((v) => `v${v}`)])),
-        coat: { spec: role === 'shell' ? shell : spec, uv: Object.fromEntries(Fr.uv.map((q, k) => [`v${k}`, [r6(q[0]), r6(q[1])]])), length: r6(Fr.length), radius: r6(Fr.radius), span: r6(Fr.span) },
+        coat: { spec: own ? resolveHairCoat(own) : role === 'shell' ? shell : spec, uv: Object.fromEntries(Fr.uv.map((q, k) => [`v${k}`, [r6(q[0]), r6(q[1])]])), length: r6(Fr.length), radius: r6(Fr.radius), span: r6(Fr.span) },
       };
       if (E.C.family === 'skull') (skullParts ??= []).push(`xeno${cap(E.card)}${i}${name}`);
     }
@@ -446,5 +458,5 @@ export function xenoReadout(hero, recipe) {
   const list = wornHeaddress(hero); if (!Array.isArray(list) || !list.length) return null;
   return list.map((e, i) => { const E = readEntry(e), prefix = `xeno${E.card.replace(/(^|-)([a-z])/g, (_, __, c) => c.toUpperCase())}${i}`;
     const pieces = Object.keys(recipe?.parts || {}).filter((n) => n.startsWith(prefix) && !/^\d/.test(n.slice(prefix.length))).length;
-    return { ...(E.written ? { written: true } : {}), card: E.card, family: E.C.family, region: E.C.region, reads: E.C.reads, ...(E.size !== 1 ? { size: E.size } : {}), ...(E.replaces ? { replaces: E.replaces } : {}), pieces, ...(pieces ? {} : { landed: 'not placed: the head this hero wears has no frame for it (a blank trunk, a beast\'s own skull)' }) }; });
+    return { ...(E.written ? { written: true } : {}), card: E.card, family: E.C.family, region: E.C.region, reads: E.C.reads, ...(E.size !== 1 ? { size: E.size } : {}), ...(E.replaces ? { replaces: E.replaces } : {}), pieces, ...(pieces ? {} : E.C.removes ? { landed: `takes the ${E.C.removes.join(' and ')} off` } : { landed: 'not placed: the head this hero wears has no frame for it (a blank trunk, a beast\'s own skull), or not the part it is glued to' }) }; });
 }

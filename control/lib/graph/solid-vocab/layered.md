@@ -881,7 +881,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   it. A helmet by tradition (the steel pot, the K-pot …) is the outfit build's `language.head`, by word here too.
   Comic-book characters wearing them, by name: get_solid_vocab({ id: 'comic-hero' }).
 <!-- /section -->
-<!-- section: hero-xeno | Xeno make-up | xenoSpecies and xenoHeaddress: starter species, and practical-effects alien appliances glued onto any head: skulls, ridges, horns, head-tails, lobes, appendages written whole -->
+<!-- section: hero-xeno | Xeno make-up | xenoSpecies and xenoHeaddress: starter species, and practical-effects alien appliances glued onto any head: skulls, ridges, horns, head-tails, lobes, markings, ears, noses, a third eye, teeth -->
   XENO MAKE-UP (`lib/graph/xeno`). `xenoHeaddress: ['<card>' | { card, size?, coat?, replaces? }, …]` puts a
   practical-effects make-up crew's APPLIANCES on the hero: pieces sculpted, cast in foam latex or silicone, glued on with
   their edges blended into the skin, and painted. They sit on whichever head the hero wears (the landmark head, the anime
@@ -895,7 +895,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   species' skull's place); a `face` of their own is laid after the species' (its keys win; the realistic face's words
   merge over it); their own `tune`, `animeBody`, `physique`, `skin.tone` and palette colours (Skin, Sclera, Iris, Pupil) stand. Null takes it off. The species: `grey-visitor`, `ridged-warrior`, `ridge-nosed`,
   `lekku-dancer`, `montral-hunter`, `crested-diplomat`, `plated-insectoid`, `cone-elder`, `brain-invader`,
-  `domed-telepath`, `horn-crowned`; each names the screen alien it recalls (`like`) for the X-like stamp.
+  `domed-telepath`, `horn-crowned`, `pointed-eared`, `tusked-brute`, `three-eyed-seer`, `snouted-guard`, `beaked-avian`; each names the screen alien it recalls (`like`) for the X-like stamp.
   THE SKULL first, for a head that is not a person's: a cranial prosthetic, the oversized foam skull a crew glues over
   the actor's own, its edge feathered into the skin at the brow line, above the ears and at the nape, over a bald cap.
   One at most; it is laid before everything else, and every other card lands on it (ridges on its brow, horns and lobes
@@ -917,6 +917,16 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   - `chitin-crest`: two broad lobes off the brow, arching out over the skull and down beside the face to the shoulders
     like a hood, a hard ribbed shell of plates on each lobe's front, soft flesh behind, over a bald cap;
   - `cheek-ridges`: a fine ridge down each cheek from under the eye.
+  THE FACE'S PIECES, on any head, found at its features (the brow line, the nose, the mouth, the ears):
+  - MARKINGS, painted transfers flush with the skin, each its own colour (`coat` repaints it): `tear-lines`,
+    `brow-chevrons`, `cheek-stripes`, `forehead-mark`, `tribal-lines`, `pale-mask`, `spot-trails`, `chin-stripe`;
+  - EARS: `pointed-ears` and `long-ears` (tips glued to the ear's top-back), `lobe-drops` (long lobes), `no-ears` (the
+    ears left off; nothing else can then be glued to them);
+  - NOSES: `snout`, `flared-nostrils`, `slit-nostrils`, `beak`, `nose-horn`; `nostrils: 0.5 … 2.5` sizes a nose piece's
+    openings;
+  - A THIRD EYE on the forehead: `third-eye`, `slit-eye` (upright, a slit pupil), `gem-eye`, `eye-cluster`; coloured by
+    the palette's Sclera, Iris and Pupil, so a species' eyes or the hero's own colour it;
+  - TEETH: `fangs`, `sabre-fangs` (from under the upper lip), `tusks` (up from the jaw).
   APPENDAGES WRITTEN WHOLE, for a protrusion no card names: `{ family: 'horn' | 'tail' | 'lobe', at: { az, el },
   over?, stand?, pair?, length?, width?, tip?, lift?, sweep?, spread?, droop?, fall?, flat?, plates?, coat?, shell?,
   replaces?, size? }`. `at` is the address on the cap: `az`

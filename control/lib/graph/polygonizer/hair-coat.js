@@ -64,6 +64,8 @@ const hex3 = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
 const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4), srgb = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
 const toHex = (c) => `#${c.map((x) => Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16).padStart(2, '0')).join('')}`;
 function fnvBytes(b) { let h = 0x811c9dc5; for (let i = 0; i < b.length; i += 7) { h ^= b[i]; h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); }
+/** the eye's groups, for a piece coloured by them on a head whose palette names none (an appliance's eye on a realistic face) */
+const EYE_GROUPS = Object.freeze({ Sclera: '#f5eee2', Iris: '#426479', Pupil: '#152532' });
 const hexOf = (c, palette, fallback) => (HEX.test(c) ? c : HEX.test(palette?.[c] ?? '') ? palette[c] : fallback);
 
 /** The paint over a figure's coated locks (each part carrying `coat`: its spec, its points' [theta, t], its length and
@@ -76,7 +78,7 @@ export function hairCoatPaint(mesh, recipe = {}) {
   // each coat's field and its cover's tile, once
   const fields = new Map(), tiles = new Map();
   const fieldOf = (spec) => { const key = JSON.stringify(spec); let f = fields.get(key);
-    if (!f) { const base = hexOf(spec.color, palette, hairHex); fields.set(key, f = { base, field: spec.pattern?.length ? patternField(spec.pattern, { coat: base, k }) : () => null }); } return f; };
+    if (!f) { const base = hexOf(spec.color, { ...EYE_GROUPS, ...palette }, hairHex); fields.set(key, f = { base, field: spec.pattern?.length ? patternField(spec.pattern, { coat: base, k }) : () => null }); } return f; };
   const tileOf = (cover) => { if (!cover?.kind || !COVER_KINDS.includes(cover.kind) || cover.kind === 'none') return null; const key = JSON.stringify(cover); let T = tiles.get(key);
     if (T === undefined) { const { kind, ...style } = cover; try { T = coverTile(kind, style); } catch { T = null; } tiles.set(key, T); } return T; };
   // each lock's size in metres: its build-unit length and radius by the ratio of its span on the mesh to its span built
