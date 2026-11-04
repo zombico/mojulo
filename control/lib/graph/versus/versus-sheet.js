@@ -138,7 +138,9 @@ export function fighterSpec(entry, k = 0, seed = 1) {
   for (const key of Object.keys(entry)) {
     if (key === 'hero' || OWN_KEYS.includes(key) || SHEET_KEYS.includes(key) || FIGHT_KEYS.includes(key)) continue;
     // (a character's own strikes, versus-hero.js: read where the character is measured, its rig at hand)
-    if (key === 'moves') { if (entry.hero === undefined) throw fail("moves: a character's own strikes ('hero', or { <slot>: a strike }); give the fighter its hero ({ hero: { ref } })"); continue; }
+    // (a character's own strikes, versus-hero.js, read where it is measured; a sheet's fighter takes them too: the run
+    // makes it a character)
+    if (key === 'moves') { if (entry.moves !== 'hero' && (!isObj(entry.moves) || !Object.keys(entry.moves).length)) throw fail("moves: a character's own strikes: 'hero' (the boxer's slots) or { <slot>: a strike }"); continue; }
     if (key === 'cast' || key === 'body') throw fail(`${key}: a fighter's body is its character's (say it on the sheet: build, age, or the brief)`);
     throw fail(`'${key}' is not a fighter's word (${[...OWN_KEYS, ...SHEET_KEYS, ...FIGHT_KEYS, 'hero', 'moves'].join(', ')})`);
   }
@@ -167,7 +169,7 @@ export function fighterSpec(entry, k = 0, seed = 1) {
   if (entry.brief !== undefined && typeof entry.brief !== 'string') throw fail('a brief is words');
   if (entry.seed !== undefined && !Number.isInteger(entry.seed)) throw fail('a seed is a whole number');
   const facets = { ...(entry.facets ?? {}), ...Object.fromEntries(['archetype', 'build', 'age', 'role', 'ancestry', 'pole'].filter((x) => entry[x] !== undefined).map((x) => [x, entry[x]])) };
-  return { ...own, roll: { ...(entry.brief ? { brief: entry.brief } : {}), facets, seed: entry.seed ?? s0 }, over };
+  return { ...own, roll: { ...(entry.brief ? { brief: entry.brief } : {}), facets, seed: entry.seed ?? s0 }, over, ...(entry.moves !== undefined ? { moves: entry.moves } : {}) };
 }
 
 // the default roster's roles: one of each way of fighting the styles have

@@ -104,7 +104,7 @@
  *                                           // role?, build?, age?, name?, color? }) made into one by the run, or { hero:
  *                                           // { ref } } (one made with create_character); the fight read off the sheet,
  *                                           // the entry's style?, signature?, weapon?, library?, normals?, specials?,
- *                                           // super?, tune? over it; four sheets (one per style) if absent
+ *                                           // super?, tune?, moves? over it; four sheets (one per style) if absent
  *     game?, human?, lift?: 'holo',        // tabletop: the board game (chess, checkers, one written out), the player you
  *                                           // are, and its depiction: lifted into a hologram arena (tabletop/holo-arena.js),
  *                                           // players 0..2 and level as a contest's
@@ -128,6 +128,11 @@
  *                                           // fight: scapeshift arenas (versus/versus-arena.js), each a stage world the
  *                                           // fight runs on in 3D (a plaza and a nave if absent)
  *     rounds?: n, timer?: n,                // fight: rounds to win (1 to 3, 2) and seconds a round (30 to 99, 99)
+ *     strikes?: 'own' | 'tradition',        // fight: 'own' (stamped at mint) every fighter throws the punches its character
+ *                                           // was made with (versus-hero.js: the jab, the cross, the hook, the body hook, the
+ *                                           // uppercut, solved on its own rig) and the arenas play it in its own skinned,
+ *                                           // painted body, blocking and taking blows in its guard; 'tradition' the fight's
+ *                                           // keyed moves. A fighter's own `moves` (its slots) wins
  *     rules?: { systems?, … },              // fight: the full rules block (versus/versus-core.js readRules): systems (parry,
  *                                           // burst, guard) and the sim's dials; rounds and timer win over it
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
@@ -261,7 +266,7 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown'];
+const KEYS = ['xr', 'body', 'goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'tier', 'livery', 'wear', 'transformer', 'racers', 'supercars', 'series', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'screen', 'runner', 'distance', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'board', 'sides', 'doctrine', 'match', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'arms', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes', 'cast', 'moves', 'event', 'lanes', 'sport', 'players', 'register', 'level', 'seats', 'sets', 'periods', 'attempts', 'athletes', 'kits', 'broadcast', 'game', 'human', 'lift', 'venue', 'surface', 'preset', 'innings', 'overs', 'concept', 'teams', 'geotown'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -563,7 +568,7 @@ export function readQuick(Q) {
   if (Q.goal === 'shoot' && !flies && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.shoot aims from the eye or over the shoulder: camera first-person or third-person');
   if (Q.goal === 'battle' && Q.building !== undefined) throw fail('.battle stands its foes on a trail: no building');
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
-  for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules']) if (Q.goal !== 'fight' && !(Q.goal === 'contest' && k === 'rounds') && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
+  for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes']) if (Q.goal !== 'fight' && !(Q.goal === 'contest' && k === 'rounds') && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
   if (Q.goal === 'fight') readFight(Q);
   for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && !(Q.goal === 'tabletop' && TABLETOP_KEYS.includes(k)) && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
   for (const k of ['game', 'human', 'lift']) if (Q.goal !== 'tabletop' && Q[k] !== undefined) throw fail(`.${k} belongs to the tabletop goal`);
@@ -750,13 +755,18 @@ export function tabletopArenas(Q, { title, seed = 1 } = {}) {
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)
-const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'theme', 'camera', 'screen'];
+const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'strikes', 'theme', 'camera', 'screen'];
+/** how a fight's fighters strike (`strikes`): 'own', each character's own punches solved on its rig and played in its own
+ * body (versus-hero.js; stamped at mint on a fight made now), or 'tradition', the fight's keyed moves (a fight minted
+ * before carries none, and strikes so) */
+export const FIGHT_STRIKES = Object.freeze(['own', 'tradition']);
 function readFight(Q) {
   for (const k of Object.keys(Q)) {
     if (k === 'stages') throw fail('.stages: a fight is fought on its arenas (name them as arenas)');
     if (!FIGHT_KEYS.includes(k)) throw fail(`.${k}: a fight takes ${FIGHT_KEYS.join(', ')} (its fighters are its roster)`);
   }
   if (Q.camera !== undefined && Q.camera !== 'side') throw fail('.fight is seen from the side (camera side)');
+  if (Q.strikes !== undefined && !FIGHT_STRIKES.includes(Q.strikes)) throw fail(".strikes is 'own' (each character throws its own punches, played in its own body) or 'tradition' (the fight's keyed moves)");
   if (Q.roster !== undefined) {
     if (!Array.isArray(Q.roster) || Q.roster.length < 1 || Q.roster.length > 12) throw fail('.roster is 1 to 12 fighters, each a character: an archetype word, a brief in words, { brief?, facets?, seed?, archetype?, role?, build?, age?, … }, or { hero: { ref } }');
     const ids = new Set();
@@ -832,7 +842,10 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   // a field vehicle is painted in its setting's camo (car-designer/livery-cut.js: a jungle's tiger stripe, a desert's
   // sand), stamped here at mint when the operator names none: a world minted before carries none and stays olive
   const camo = isObj(tiered) && tiered.ride !== undefined ? settingLivery(tiered, { style }) : null;
-  const given = camo ? { ...tiered, livery: camo } : tiered;
+  // a fight's fighters throw their own strikes and are played in their own bodies (versus-hero.js), stamped here at mint
+  // when the operator names none: a fight minted before carries none and strikes with the fight's keyed moves
+  const struck = isObj(tiered) && tiered.goal === 'fight' && tiered.strikes === undefined ? { ...tiered, strikes: 'own' } : tiered;
+  const given = camo ? { ...struck, livery: camo } : struck;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)
   const { camera: named, moves, screen, xr: xrNamed, ...quick } = given;

@@ -158,7 +158,8 @@ const SKINS = {};
 function skinOf(ref) {
   const pack = ref && AV.bodies && AV.bodies[ref];
   if (!pack) return null;
-  return SKINS[ref] || (SKINS[ref] = { pack, base: characterBase(pack.bones), seg: pack.bones.map((b) => segmentOf(b.id)) });
+  // (a played body samples its clips directly; a posed one rides the figure's segments)
+  return SKINS[ref] || (SKINS[ref] = pack.played ? { pack } : { pack, base: characterBase(pack.bones), seg: pack.bones.map((b) => segmentOf(b.id)) });
 }
 const REST_KEY = new THREE.Vector3(0.35, -0.55, 0.75).normalize();     // the pack's baked light (station-loft-rig.js)
 const WORLD_KEY = new THREE.Vector3(-0.35, -0.6, 0.72).normalize();    // the arena's: from the camera's side, above
@@ -236,7 +237,99 @@ function placeCharacter(B, p, F, drawn) {
   B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
 }
-const placeFighter = (B, p, F, drawn) => (B.skin ? placeCharacter(B, p, F, drawn) : placeBody(B, p, F, drawn));
+
+// ── a character PLAYED in its own body (versus-character.js `played`: a fighter throwing its own strikes) ───────────
+// One skinned mesh of its parts, bound at the rest, its painted skin over it, as the World page plays a hero; each
+// frame its bones are set from its own clips at the moment the sim's state names (playedClip), so what lands is the
+// clip the character was made with, timed by the fight's frame data.
+function makePlayed(skin) {
+  const pack = skin.pack, group = new THREE.Group();
+  const bones = pack.bones.map(() => { const o = new THREE.Bone(); o.matrixAutoUpdate = false; group.add(o); return o; });
+  let n = 0; for (const P of pack.parts) if (P) n += P.faces * 3;
+  const painted = !!(pack.paintTex && pack.parts.some((P) => P && P.uv));
+  const pos = new Float32Array(n * 3), col = new Uint8Array(n * 3), jnt = new Uint16Array(n * 4), wgt = new Float32Array(n * 4), uv = painted ? new Float32Array(n * 2) : null;
+  let o = 0;
+  for (const P of pack.parts) {
+    if (!P) continue;
+    const pp = decodeF32(P.pos), c = decodeU8(P.col), j = decodeU8(P.jnt), w = decodeF32(P.wgt), m = pp.length / 3;
+    pos.set(pp, o * 3); col.set(c, o * 3); jnt.set(j, o * 4); wgt.set(w, o * 4);
+    if (uv) { if (P.uv) uv.set(decodeF32(P.uv), o * 2); else for (let k = 0; k < m; k++) { uv[(o + k) * 2] = pack.paintTex.white[0]; uv[(o + k) * 2 + 1] = pack.paintTex.white[1]; } }
+    o += m;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+  geo.setAttribute('skinIndex', new THREE.BufferAttribute(jnt, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(wgt, 4));
+  if (uv) geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geo.computeBoundingSphere();
+  let map = null;
+  if (painted) { map = new THREE.TextureLoader().load(pack.paintTex.url); map.colorSpace = THREE.SRGBColorSpace; }
+  const mesh = new THREE.SkinnedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, ...(map ? { map, ...(pack.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {}) }));
+  mesh.frustumCulled = false;
+  group.add(mesh); scene.add(group);
+  group.updateMatrixWorld(true);
+  mesh.bind(new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4())));
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
+  scene.add(shadow);
+  return { group, shadow, skin, played: true, bones, mesh };
+}
+/** the clip and its phase (0 … 1) a fighter's state shows: its move's own clip at the frame's share of it; a blow taken
+ * or blocked in its guard through the stun; its knockdown; otherwise its guard, held */
+function playedClip(p, F, clips) {
+  const has = (k) => !!clips[k];
+  if (p.mv) {
+    const mv = F.moves[p.mv], fr = mv && mv.frames[Math.max(1, Math.min(p.mf, mv.total))];
+    if (mv && mv.hero && has(mv.id)) return [mv.id, fr && fr.u !== undefined ? fr.u : p.mf / mv.total];
+    // (a move it has no clip of, a throw or a special: its strength's punch, through the move)
+    const by = { L: 'jab', M: 'cross', H: 'hook' }[mv && mv.strength] || 'cross';
+    if (has(by)) return [by, Math.min(1, p.mf / Math.max(1, mv ? mv.total : 20))];
+  }
+  const r = p.rx || { k: 'hit', h: 1 }, stunT = p.sf / Math.max(1, p.sf + (p.stun || 0));
+  switch (p.st) {
+    case 'hit': {
+      const k = r.k === 'crush' ? 'guardStagger' : p.low || r.h === 2 ? 'guardHitLow' : r.h === 0 ? 'guardHitHigh' : 'guardHitBody';
+      if (has(k)) return [k, stunT];
+      break;
+    }
+    case 'block': { const k = p.low && has('blockBody') ? 'blockBody' : 'block'; if (has(k)) return [k, stunT]; break; }
+    case 'fall': case 'ko': if (has('knockedOutDown')) return ['knockedOutDown', Math.min(1, p.sf / 40)]; break;
+    case 'down': if (has('knockedOutDown')) return ['knockedOutDown', 1]; break;
+    case 'rise': if (has('knockedOutUp')) return ['knockedOutUp', Math.min(1, p.sf / 20)]; break;
+    default: break;
+  }
+  return ['guard', 1];
+}
+const PQ = new THREE.Quaternion(), PQ2 = new THREE.Quaternion(), PV = new THREE.Vector3(), PH = new THREE.Vector3(), PONE = new THREE.Vector3(1, 1, 1);
+/** one bone's rotation and head from a clip at a phase (its keys' frame pair, as the World page samples a hero's) */
+function playedBone(pack, clip, phase, bi, outQ, outP) {
+  const bone = pack.bones[bi];
+  if (!clip) { outQ.set(0, 0, 0, 1); outP.set(bone.head[0], bone.head[1], bone.head[2]); return; }
+  const nb = pack.bones.length, K = clip.k, B = clip.b;
+  let i0, i1, t;
+  if (clip.once) { const kf = Math.min(1, Math.max(0, phase)) * (K - 1); i0 = Math.min(K - 1, Math.floor(kf)); i1 = Math.min(K - 1, i0 + 1); t = kf - i0; }
+  else { const kf = (((phase % 1) + 1) % 1) * K; i0 = Math.floor(kf) % K; i1 = (i0 + 1) % K; t = kf - Math.floor(kf); }
+  const o0 = (i0 * nb + bi) * 7, o1 = (i1 * nb + bi) * 7;
+  const sg = (B[o0] * B[o1] + B[o0 + 1] * B[o1 + 1] + B[o0 + 2] * B[o1 + 2] + B[o0 + 3] * B[o1 + 3]) < 0 ? -1 : 1;
+  outQ.set(B[o0] + (sg * B[o1] - B[o0]) * t, B[o0 + 1] + (sg * B[o1 + 1] - B[o0 + 1]) * t, B[o0 + 2] + (sg * B[o1 + 2] - B[o0 + 2]) * t, B[o0 + 3] + (sg * B[o1 + 3] - B[o0 + 3]) * t).normalize();
+  outP.set(B[o0 + 4] + (B[o1 + 4] - B[o0 + 4]) * t, B[o0 + 5] + (B[o1 + 5] - B[o0 + 5]) * t, B[o0 + 6] + (B[o1 + 6] - B[o0 + 6]) * t);
+}
+function placePlayed(B, p, F) {
+  const pack = B.skin.pack, [name, phase] = playedClip(p, F, pack.clips), clip = pack.clips[name] || pack.clips.guard;
+  B.group.position.set(p.x / 1000, PLANE, FLOOR + p.y / 1000);
+  B.group.rotation.set(0, 0, p.face > 0 ? -Math.PI / 2 : Math.PI / 2);
+  for (let bi = 0; bi < B.bones.length; bi++) {
+    playedBone(pack, clip, phase, bi, PQ, PH);
+    // M·v = head' + q·(v − restHead)
+    const h = pack.bones[bi].head;
+    PV.set(h[0], h[1], h[2]).applyQuaternion(PQ);
+    B.bones[bi].matrix.compose(PV.set(PH.x - PV.x, PH.y - PV.y, PH.z - PV.z), PQ, PONE);
+  }
+  B.group.updateMatrixWorld(true);
+  B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
+  B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
+}
+const placeFighter = (B, p, F, drawn) => (B.played ? placePlayed(B, p, F) : B.skin ? placeCharacter(B, p, F, drawn) : placeBody(B, p, F, drawn));
 
 // ── the fight ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -258,7 +351,7 @@ function begin(params) {
   match = newMatch({ fighters, names: params.names, colors: params.colors, schemes: params.schemes, mode: params.mode, level: params.level, rules, seed: params.seed ?? 1 });
   bodies = params.colors.map((c, i) => {
     const skin = skinOf(params.characters && params.characters[i]);
-    return skin ? makeCharacter(skin) : makeBody(c, fighters[i]);
+    return skin ? (skin.pack.played ? makePlayed(skin) : makeCharacter(skin)) : makeBody(c, fighters[i]);
   });
   phase = 'fight';
 }

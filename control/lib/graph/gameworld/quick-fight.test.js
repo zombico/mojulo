@@ -26,6 +26,21 @@ describe('quick: the fight goal', () => {
     expect(runSteps(world, { ref: 'gw_fight' })).toEqual(steps);
   });
 
+  it('a fight made now strikes with each character\'s own punches, in the game and its arenas; one minted before as it did', () => {
+    const world = quickWorld({ id: 'own', quick: { goal: 'fight', roster: ['hero', { id: 'mira', hero: { ref: 'mira-ref' }, moves: { 'stand.L': 'jab' } }] } });
+    expect(world.quick.strikes).toBe('own');
+    const steps = runSteps(world, { ref: 'gw_own' }), game = steps.at(-1).order, arena = steps.find((x) => x.key.startsWith('level-arena-')).order.manifest;
+    expect(game.roster.map((e) => e.moves)).toEqual(['hero', { 'stand.L': 'jab' }]);
+    expect(arena.versus.roster.map((e) => e.moves)).toEqual(['hero', { 'stand.L': 'jab' }]);
+    // (the keyed moves when asked; and a fight stored before the word, which carries none)
+    const keyed = runSteps(quickWorld({ id: 'keyed', quick: { goal: 'fight', strikes: 'tradition', roster: ['hero'] } }), { ref: 'gw_keyed' }).at(-1).order;
+    expect(keyed.roster[0].moves).toBeUndefined();
+    const { strikes: _s, ...before } = world.quick;
+    expect(runSteps({ ...world, quick: { ...before, roster: ['hero'] } }, { ref: 'gw_before' }).at(-1).order.roster[0].moves).toBeUndefined();
+    expect(() => readQuick({ goal: 'fight', strikes: 'mine' })).toThrow(/strikes is 'own'/);
+    expect(() => readQuick({ goal: 'reach', strikes: 'own' })).toThrow(/fight goal/);
+  });
+
   it('with no roster, four sheets: one per style', () => {
     const steps = runSteps(quickWorld({ id: 'four', quick: { goal: 'fight' } }), { ref: 'gw_four' });
     const sheets = steps.filter((s) => s.key.endsWith('-sheet'));

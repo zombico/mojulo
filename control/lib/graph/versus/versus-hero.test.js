@@ -4,7 +4,7 @@
 // holding back, the advantage measured there the one the move records; and the word is refused where it cannot be read.
 import { describe, it, expect } from 'vitest';
 import { heroRecord } from '@/lib/mcp/tools/layered.js';
-import { resolveCharacters } from './versus-character.js';
+import { resolveCharacters, characterBody, fightClips, FIGHT_REACTS } from './versus-character.js';
 import { rosterEntry } from './versus-page.js';
 import { compileFighter } from './versus-compile.js';
 import { newVersus, stepVersus } from './versus-core.js';
@@ -60,6 +60,23 @@ describe('versus: a character\'s own strikes', async () => {
     expect(measure(false)).toEqual({ ev: 'hit', adv: F.moves['stand.L'].adv.hit });
     expect(measure(true)).toEqual({ ev: 'block', adv: F.moves['stand.L'].adv.block });
   });
+
+  it('is played in its own body in an arena: one skinned pack carrying its fight\'s clips, every compiled frame naming its clip\'s moment', async () => {
+    const fight = fightClips(entry.heroNormals);
+    expect(fight).toEqual(expect.arrayContaining([...Object.values(HERO_MOVE_SLOTS), ...FIGHT_REACTS]));
+    const B = await characterBody(ROWS.him, { fight });
+    expect(B.played).toBe(true);
+    expect(Object.keys(B.clips).sort()).toEqual([...fight].sort());
+    expect(B.parts.filter(Boolean).every((p) => p.jnt && p.wgt && p.faces > 0)).toBe(true);
+    for (const c of Object.values(B.clips)) expect(c.b.length).toBe(c.k * B.bones.length * 7);
+    // (the row itself is untouched: its own motion words are its own)
+    expect(ROWS.him.hero.motion).toBeUndefined();
+    const m = F.moves['stand.H'];
+    expect(m.frames.slice(1).map((f) => f.u)).toEqual([...m.frames.slice(1).map((f) => f.u)].sort((a, b) => a - b));
+    expect(m.frames[m.startup].u).toBeCloseTo(entry.heroNormals['stand.H'].hero.contact, 3);
+    // a character fighting with the tradition's moves keeps the figure posed from the plane
+    expect((await characterBody(ROWS.him)).played).toBeUndefined();
+  }, 300000);
 
   it('refuses the word where it cannot be read', async () => {
     expect(() => readHeroMoves({ 'air.L': 'jab' })).toThrow(/ground normal/);

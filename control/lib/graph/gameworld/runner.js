@@ -700,8 +700,10 @@ function quickSteps(world, G, ref, lookup) {
     // leans the roll toward fighters and never to a mascot, and the roster's own facets win
     const setting = settingOfGame(G, Q);
     const roster = [];
-    for (const { over, roll: own0, hero, ...own } of fightFighters(Q, seed)) {
-      if (hero) { roster.push({ ...own, hero, ...over }); continue; }
+    // (each fighter's own strikes, played in its own body, when the fight strikes so: versus-hero.js; its own `moves` win)
+    const strikesOf = (m) => (m !== undefined ? { moves: m } : Q.strikes === 'own' ? { moves: 'hero' } : {});
+    for (const { over, roll: own0, hero, moves, ...own } of fightFighters(Q, seed)) {
+      if (hero) { roster.push({ ...own, hero, ...over, ...strikesOf(moves) }); continue; }
       const roll = { ...own0, setting };
       const sheet = rollEgocube(roll);
       // a person takes the hero door, and so does any people below it (the tiered body, egocube/plan.js beastOnTiered:
@@ -711,7 +713,7 @@ function quickSteps(world, G, ref, lookup) {
       const manifest = { kind: 'egocube', roll }, name = own.name ?? fighterName(sheet);
       steps.push({ key: sheetKey, ref: sheetRef, ready: true, order: { title: `${title} · ${name} (sheet)`, manifest }, print: fingerprint(manifest) });
       steps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}` }, print: fingerprint({ roll }) });
-      roster.push({ ...own, hero: { ref: charRef }, ...over });
+      roster.push({ ...own, hero: { ref: charRef }, ...over, ...strikesOf(moves) });
     }
     const arenas = fightArenas(Q, { title, roster }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));

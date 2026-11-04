@@ -386,6 +386,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-03 (fighter wiring): `versus` only. Its page inlines versus-compile.js by its source, which gains a
 // character's own strikes (`compileHeroNormal`, a normal `{ hero: track }`) and a fighter's own guard (`recipe.guard`):
 // additions only, and a fighter naming neither compiles as before.
+// Re-pinned 2026-11-04 (fighter wiring: the real models in the arena): `versus` only. Its page inlines
+// versus-arena.client.js and versus-compile.js by their source: a character played in its own body (makePlayed,
+// playedClip, placePlayed, its body's pack `played`) and each own strike's frame naming its clip's moment (`u`).
+// Additions only: the fixture's fighters are stick figures, drawn as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

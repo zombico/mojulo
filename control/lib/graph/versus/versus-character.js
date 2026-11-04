@@ -174,25 +174,47 @@ export async function versusGate(manifest) {
  * A character's own body for an arena (versus-figure.js poses it): its layered rig's bones and rigid parts, the clips
  * left out (the fight is the motion). → { bones: [{ id, head, tail }], parts: [{ pos, col } | null] }, or null when
  * the rig has no parts to draw (the stick figure stands in).
+ *
+ * A fighter that throws its OWN strikes (`moves`, versus-hero.js) is drawn as it was made: `fight` names the clips its
+ * fight plays (FIGHT_CLIPS, its strikes', its guard's, its blows' and blocks', its knockdown's), solved on its own rig
+ * from the door's motion words laid onto its record for the bake (the row is not changed), and the body is PLAYED:
+ * one skinned mesh of its parts (their joints and weights), its painted skin (`paintTex`, each part's `uv`) and those
+ * clips, as the World page plays a hero. → { played: true, bones, parts: [{ pos, col, jnt, wgt, faces, uv? }], clips,
+ * paintTex? }.
  */
-export async function characterBody(manifest) {
+export async function characterBody(manifest, { fight = null } = {}) {
   const { expandLayeredManifest } = await layered();
   const { WORLD_KINDS } = await import('../worlds/world-kinds.js');
-  const scene = await WORLD_KINDS.layered.resolve(expandLayeredManifest(manifest), { title: 'fighter' });
+  const m = fight && manifest?.hero ? { ...manifest, hero: { ...manifest.hero, motion: { ...(manifest.hero.motion ?? {}), ...Object.fromEntries(fightMotion(fight).map((w) => [w, true])) } } } : manifest;
+  const scene = await WORLD_KINDS.layered.resolve(expandLayeredManifest(m), { title: 'fighter' });
   const fig = scene?.figures?.body;
   if (!fig || !Array.isArray(fig.bones) || !fig.parts?.some((p) => p?.pos)) return null;
-  return { bones: fig.bones.map(({ id, head, tail }) => ({ id, head, tail })), parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col } : null)) };
+  const bones = fig.bones.map(({ id, head, tail }) => ({ id, head, tail }));
+  if (fight && fig.clips && fig.parts.some((p) => p?.jnt)) {
+    const clips = Object.fromEntries(Object.entries(fig.clips).filter(([k]) => fight.includes(k)).map(([k, c]) => [k, { k: c.k, b: c.b, ...(c.once ? { once: true } : {}), ...(c.s ? { s: c.s } : {}) }]));
+    return { played: true, bones, parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col, jnt: p.jnt, wgt: p.wgt, faces: p.faces, ...(p.uv ? { uv: p.uv } : {}) } : null)), clips, ...(fig.paintTex ? { paintTex: fig.paintTex } : {}) };
+  }
+  return { bones, parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col } : null)) };
 }
+/** the clips a fighter with its own strikes plays: its strikes (by slot), its guard, its blows and blocks taken in the
+ * guard, and its knockdown (a rest: getting down, and up) */
+export const FIGHT_REACTS = Object.freeze(['guard', 'block', 'blockBody', 'guardHitHigh', 'guardHitBody', 'guardHitLow', 'guardStagger', 'knockedOutDown', 'knockedOutUp']);
+export const fightClips = (heroNormals) => [...new Set([...Object.values(heroNormals).map((n) => n.hero.word), ...FIGHT_REACTS])];
+/** the door's motion words that make those clips (the knockdown's two are one rest word) */
+const fightMotion = (clips) => [...new Set(clips.map((c) => (/^knockedOut(Down|Up)$/.test(c) ? 'knockedOut' : c)))];
 
-/** An arena's measured roster → { <ref>: body } for each character in it (one body per character), from the store. */
+/** An arena's measured roster → { <ref>: body } for each character in it (one body per character), from the store; a
+ * fighter with its own strikes (`heroNormals`) played in its own body with its fight's clips. */
 export async function characterBodies(roster) {
-  const refs = [...new Set((Array.isArray(roster) ? roster : []).map((e) => e?.character).filter((r) => typeof r === 'string'))];
-  if (!refs.length) return null;
+  const list = (Array.isArray(roster) ? roster : []).filter((e) => typeof e?.character === 'string');
+  if (!list.length) return null;
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
   const out = {};
-  for (const ref of refs) {
-    const body = await characterBody(SketchRepository.getByRef(ref)?.manifest).catch(() => null);
-    if (body) out[ref] = body;
+  for (const e of list) {
+    if (out[e.character]) continue;
+    const fight = e.heroNormals ? fightClips(e.heroNormals) : null;
+    const body = await characterBody(SketchRepository.getByRef(e.character)?.manifest, { fight }).catch(() => null);
+    if (body) out[e.character] = body;
   }
   return Object.keys(out).length ? out : null;
 }

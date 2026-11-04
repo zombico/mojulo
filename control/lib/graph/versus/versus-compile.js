@@ -646,8 +646,9 @@ export function compileHeroNormal(body, slot, { hero, strength, tune } = {}, res
   const shareOf = (f) => (f < m.startup ? c * accel(f / m.startup) : f <= lastActive ? c + hold * ((f - m.startup) / Math.max(1, m.active - 1)) : c + hold + (1 - c - hold) * ease((f - lastActive) / Math.max(1, n - lastActive)));
   const frames = [null], loadAt = Math.max(1, Math.round((m.startup - 1) * 0.6)), limbOut = lastActive + Math.ceil(m.recovery / 3);
   for (let f = 1; f <= n; f++) {
-    const pose = at(shareOf(f)), J = rigJoints(body, pose);
-    const fr = { pose, hurt: hurtOf(body, J, f >= loadAt && f <= limbOut ? limb : null) };
+    const u = shareOf(f), pose = at(u), J = rigJoints(body, pose);
+    // (`u`: the share of the character's own clip this frame shows, so an arena drawing its own body plays the clip there)
+    const fr = { pose, u: Math.round(u * 1e4) / 1e4, hurt: hurtOf(body, J, f >= loadAt && f <= limbOut ? limb : null) };
     if (f >= m.startup && f <= lastActive) { const [a, b] = STRIKE_SEGMENTS[limb]; fr.hit = roundBox(segmentBox(J[a], J[b], body.limbR * 1.5)); }
     frames.push(fr);
   }
