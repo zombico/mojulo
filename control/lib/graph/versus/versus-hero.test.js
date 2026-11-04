@@ -11,6 +11,7 @@ import { newVersus, stepVersus } from './versus-core.js';
 import { STRENGTHS } from './versus-library.js';
 import { readHeroMoves, HERO_MOVE_SLOTS } from './versus-hero.js';
 import { BTN } from './versus-input.js';
+import { rigJoints } from './versus-rig.js';
 
 const ROWS = { him: { kind: 'layered', hero: heroRecord({ cast: 'male' }) } };
 const lookup = (ref) => ROWS[ref] ?? null;
@@ -35,6 +36,12 @@ describe('versus: a character\'s own strikes', async () => {
     expect(F.poses.guard).toEqual(entry.guard);
     // (a fist out at the jab's contact further from the body than in the guard)
     expect(F.moves['stand.L'].reach).toBeGreaterThan(F.idle.stand.push[2]);
+  });
+
+  it('pushes with its guard\'s legs: its lead knee and ankle, its rear ones, inside its push box', () => {
+    const J = rigJoints(F.body, F.poses.guard), [lo, , hi] = F.idle.stand.push;
+    for (const k of ['kneeF', 'ankleF']) expect(hi).toBeGreaterThanOrEqual(J[k][0] + F.body.limbR);
+    for (const k of ['kneeB', 'ankleB']) expect(lo).toBeLessThanOrEqual(J[k][0] - F.body.limbR);
   });
 
   it('lays a continuous track: no channel turns more than a quarter turn between two of its samples', () => {

@@ -25,7 +25,7 @@
  */
 
 /* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
-   figureBase, characterBase, figurePose, figureSegments, segmentOf, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawnPose, drawEffects, drawHud, vsText, vsOutlined */
+   figureBase, characterBase, figurePose, figureSegments, segmentOf, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawnPose, drawEffects, drawHud, vsText, vsOutlined, pushBox */
 
 const AV = VERSUS_ARENA;
 const hosted = window.parent !== window;
@@ -372,12 +372,19 @@ function playedBone(pack, clip, phase, bi, outQ, outP) {
   outQ.set(B[o0] + (sg * B[o1] - B[o0]) * t, B[o0 + 1] + (sg * B[o1 + 1] - B[o0 + 1]) * t, B[o0 + 2] + (sg * B[o1 + 2] - B[o0 + 2]) * t, B[o0 + 3] + (sg * B[o1 + 3] - B[o0 + 3]) * t).normalize();
   outP.set(B[o0 + 4] + (B[o1 + 4] - B[o0 + 4]) * t, B[o0 + 5] + (B[o1 + 5] - B[o0 + 5]) * t, B[o0 + 6] + (B[o1 + 6] - B[o0 + 6]) * t);
 }
+// (the clips whose root travel the fight carries itself: a knockdown is flown by the sim's fall, so its clip's slide
+// across the floor, which ends at its origin and so starts 0.8 m ahead, inside the opponent, is taken off)
+const PINNED = { knockedOutDown: 1, knockedOutUp: 1 };
+const PR = new THREE.Vector3();
 function placePlayed(B, p, F) {
   const pack = B.skin.pack, [name, phase] = playedClip(p, F, pack.clips), clip = pack.clips[name] || pack.clips.guard;
   B.group.position.set(p.x / 1000, PLANE, FLOOR + p.y / 1000);
   B.group.rotation.set(0, 0, p.face > 0 ? -Math.PI / 2 : Math.PI / 2);
+  let rx = 0, ry = 0;
+  if (PINNED[name]) { playedBone(pack, clip, phase, 0, PQ, PR); rx = PR.x - pack.bones[0].head[0]; ry = PR.y - pack.bones[0].head[1]; }
   for (let bi = 0; bi < B.bones.length; bi++) {
     playedBone(pack, clip, phase, bi, PQ, PH);
+    PH.x -= rx; PH.y -= ry;
     // M·v = head' + q·(v − restHead)
     const h = pack.bones[bi].head;
     PV.set(h[0], h[1], h[2]).applyQuaternion(PQ);
@@ -486,13 +493,26 @@ function toScreen(xmm, ymm) {
   return [((vP.x + 1) / 2) * OW, ((1 - vP.y) / 2) * OH];
 }
 
+/** where each body is drawn: where the fight has it, but a body held in a throw (boxing's clinch) drawn back to where
+ * the two push boxes touch, since the fight holds it a fixed 36 cm off the thrower's pelvis, inside a real body's chest */
+function drawnAt(s, ctx) {
+  const t = s.p.findIndex((p) => p.st === 'throwing');
+  if (t < 0 || s.p[1 - t].st !== 'thrown') return s.p;
+  const a = s.p[t], o = s.p[1 - t], pa = pushBox(a, ctx.fighters[t]), po = pushBox(o, ctx.fighters[1 - t]);
+  const over = a.face > 0 ? pa[2] - po[0] : po[2] - pa[0];
+  if (over <= 0) return s.p;
+  const out = s.p.slice(); out[1 - t] = { ...o, x: o.x + a.face * over };
+  return out;
+}
+
 function draw() {
   g2.setTransform(ODPR, 0, 0, ODPR, 0, 0);
   g2.clearRect(0, 0, OW, OH);
   if (!match) { vsOutlined(g2, 'GET READY', OW / 2, OH / 2, 40, '#fff'); return; }
   frameCamera();
   const s = match.s;
-  for (let i = 0; i < 2; i++) placeFighter(bodies[i], s.p[i], match.ctx.fighters[i], drawnPose(match, i));
+  const at = drawnAt(s, match.ctx);
+  for (let i = 0; i < 2; i++) placeFighter(bodies[i], at[i], match.ctx.fighters[i], drawnPose(match, i));
   const S = OH / (2 * cam.dist * Math.tan((VFOV * Math.PI) / 360)) / 1000;
   drawEffects(g2, match, toScreen, S);
   drawHud(g2, OW, OH, match);

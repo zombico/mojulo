@@ -79,7 +79,15 @@ Every hero naming none of the new words is the hero it was. The eyes gate is the
   boxing ring the arena builds on its floor (a raised canvas, its apron, four corner posts and their pads, the ropes on
   three sides, the camera's side open as a ring is shot) in a nave fallen into the dark (a veil behind the far ropes:
   the hall's surfaces are baked and take no fog), the fight's walls the ropes' and its floor the canvas, the camera in
-  close (a fighter near two thirds of the picture). A fight made now opens in it, before the plaza and the nave.
+  close (a fighter near two thirds of the picture). A fight made now opens in it, before the plaza and the nave. A
+  played body is drawn where the fight has it, but two are never drawn into each other: a knockdown's clip slides its
+  root back to its origin from 0.8 m ahead (inside the opponent), and the fight flies the fall itself, so its slide is
+  taken off; a body held in a throw (boxing's clinch, 36 cm off the thrower's pelvis in the fight) is drawn back to
+  where the push boxes touch (the fight itself unchanged). A character standing in its own guard pushes with its legs
+  too (`pushOf`, its lead knee and ankle ahead, its rear ones behind, a limb's radius beyond): a boxer's bladed stance
+  puts the lead knee a third of a metre ahead of the pelvis, and two at the trunks' contact (61 cm apart) had their legs
+  crossed; they stand 71 cm apart now, the lead legs passing on either side. A fighter in the tradition's stances
+  pushes as before.
 - **Fighters lit as an engine lights them**: a played fighter's pack is the lit export's (its albedo unshaded, each
   corner's normal, the skin's relief and its full-size atlas, `lit`), drawn in a lit material under the fighters' own
   lights (a warm key, a cool fill, a rim, a sky; on the ring a spot over the canvas); the page's pack had baked a studio

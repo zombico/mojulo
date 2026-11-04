@@ -88,7 +88,7 @@ function hurtOf(body, J, limb) {
  * is, not from its feet, so two trunks stop short of each other. In the air it is a column about the pelvis, so a jump
  * still crosses over.
  */
-function pushOf(body, J, air, open) {
+function pushOf(body, J, air, open, legs = false) {
   const top = Math.round(J.neck[1]);
   if (air) {
     const half = Math.round(body.bodyR * PUSH_HALF);
@@ -96,15 +96,22 @@ function pushOf(body, J, air, open) {
   }
   const t = Math.max(body.bodyR, body.bodyR * 1.2 * Math.sin(open * Math.PI / 180) + body.limbR * 1.5);
   const xs = [J.pelvis, J.shoulder, J.neck, J.head].map((q) => q[0]);
-  return [Math.round(Math.min(...xs) - t), 0, Math.round(Math.max(...xs) + t + PUSH_GAP / 2), top];
+  let lo = Math.min(...xs) - t, hi = Math.max(...xs) + t;
+  // (a character in its own guard: its legs too, since a body drawn as it was made stands a boxer's bladed stance, the
+  // lead knee a third of a metre ahead of the pelvis, and two of them at the trunks' contact had their legs crossed)
+  if (legs) {
+    lo = Math.min(lo, ...[J.kneeB, J.ankleB].map((q) => q[0] - body.limbR));
+    hi = Math.max(hi, ...[J.kneeF, J.ankleF].map((q) => q[0] + body.limbR));
+  }
+  return [Math.round(lo), 0, Math.round(hi + PUSH_GAP / 2), top];
 }
 
 /** A stance's idle boxes (stand, crouch, air, fall), the push boxes as its stance stands it, at the fighter's rests. */
-function idleOf(body, stance, rests = REST_POSES) {
+function idleOf(body, stance, rests = REST_POSES, legs = false) {
   const out = {};
   for (const [k, pose] of [['stand', rests.stand], ['crouch', rests.crouch], ['air', POSES.jump], ['fall', POSES.fall]]) {
     const J = rigJoints(body, pose);
-    out[k] = { hurt: hurtOf(body, J), push: pushOf(body, J, !!pose.air, stance.open) };
+    out[k] = { hurt: hurtOf(body, J), push: pushOf(body, J, !!pose.air, stance.open, legs && k === 'stand') };
   }
   return out;
 }
@@ -947,7 +954,7 @@ export function compileFighter(recipe) {
   const strings = recipe.strings === undefined ? null : readStrings(recipe.strings, moves, recipe.id ?? 'fighter');
   const jump = { ...MOVEMENT.jump, ...(recipe.jump ?? {}) };
   const stance = { ...DEFAULT_STANCE, ...(recipe.stance ?? {}) };
-  const idle = idleOf(body, stance, rests);
+  const idle = idleOf(body, stance, rests, !!heroGuard);
   // a grab reaches an arm's length past the chest: from the push box's front as the stance stands it
   const chest = idle.stand.push[2] - Math.round(body.bodyR * PUSH_HALF);
   for (const m of Object.values(moves)) if (m.throw) { m.throw.range += chest; m.reach = m.throw.range; }

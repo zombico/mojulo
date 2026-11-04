@@ -53,5 +53,7 @@ the body hook clean on his chest; the uppercut's bodies would pass 4 cm into eac
 - `arena-gameplay.mjs`: the same fight on a 3D arena (a stage set's World page), the characters minted through the hero
   door into a scratch store; the arena hosted by a small page that sends it the picks, CPU against CPU. The page runs
   on a virtual clock the script steps a sixtieth of a second at a time, each other frame read from its canvases, so
-  the video plays at the game's own pace whatever the rendering costs. The arena draws a character as rigid parts
-  in vertex colours posed from the plane (no skinning, no painted skin, no hair cards), not yet as its skinned export.
+  the video plays at the game's own pace whatever the rendering costs. A character throwing its own strikes is drawn as
+  it was made: its skinned, painted, lit body, played from its own clips by the fight's state. `--set ring` puts the
+  fight in the ring (the default arena of a fight made now); `--reemit` rebuilds the page from the run's baked scene
+  after a change to the arena's own code, without minting or baking again.

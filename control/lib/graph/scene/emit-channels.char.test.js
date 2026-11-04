@@ -391,7 +391,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // playedClip, placePlayed, its body's pack `played`) and each own strike's frame naming its clip's moment (`u`).
 // Additions only: the fixture's fighters are stick figures, drawn as before. Re-pinned again the same day (the ring):
 // a played body lit (its normals, its relief, a lit material, the fighters' lights) and an arena's `set: 'ring'` built
-// on its floor with its veil and its nearer camera; the fixture names no set and no lit body.
+// on its floor with its veil and its nearer camera; the fixture names no set and no lit body. And again (bodies drawn
+// apart): a played knockdown's root slide taken off (PINNED) and a body held in a throw drawn where the push boxes touch
+// (drawnAt); drawing only, the fight's state unchanged. Its versus-compile.js: a fighter in its own guard (`recipe.guard`)
+// pushes with its legs too; the fixture's fighters name no guard.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
