@@ -208,7 +208,8 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   - the parts it asks the frame to carry heavier (a sku for a sku);
   - its mass on the class's, and its laws.
 
-  A frame offers the backpacks it takes (`backpacks`), and the field walker takes the first.
+  A frame offers the backpacks it takes (`backpacks`); the field walker takes the weapons backpack and the functional
+  ones below.
   - **The weapons backpack:** the power pack sits under a magazine bay, with a pylon each side out to a weapon mount
     beside the rider. Its payloads (`MECHA_WEAPONS`, generic and invented) are a rotary machine gun with its
     ammunition box and feed chute, and a launch rail under a five-round rocket pod. The pod is the launcher's magazine
@@ -232,6 +233,30 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
 
   Carrying it, the field walker stands on heavy-duty hip roll rams, and its laden step's band starts lower. Every law
   holds, with the open cabin or the armoured one.
+- **Functional backpacks and roles** (`mecha-backpacks.js`, `mecha-backpack-parts.js`; `backpack`, `weapons`, `role`):
+  - **Functional payloads** on the same mounts, each with a magazine the tail hot-swaps and a spare racked:
+    - a sensor mast: three telescoping tubes, an electro-optical ball, a radar panel, and a battery cassette;
+    - a four-drone launcher: a cassette of cells raked up toward ahead, a folded rotor drone behind each door;
+    - a smoke discharger: two rows of cups, raked up and fanned out;
+    - a four-cell anti-air launcher, its pod the magazine;
+    - a cargo carrier: a tray, posts and a rail round a strapped supply crate, the crate the magazine, handed down to
+      the drop behind by the tail;
+    - a recovery winch: its drum of cable between cheeks, its motor, a fairlead ahead and a hook; the cable reel is
+      the magazine.
+
+    A payload that fires nothing (`fires: false`: the mast, the carrier, the winch) has no line of fire, and the
+    `fireClear` law skips it. The weapons backpacks also take the smoke discharger.
+  - **Backpacks on the weapons backpack's frame**, each offered by the field walker: reconnaissance (a sensor mast and
+    drones), logistics (cargo carriers, a winch) and air defence (anti-air missiles, a sensor mast, a rotary gun).
+    A backpack whose weight rides behind leans the frame (`lean`): it stands with its hips carried ahead of its feet,
+    its centre of mass over them, as one leans under a heavy pack.
+  - **Roles** (`MECHA_ROLES`; `role`), as the civilian worker's tasks are its site's: a loadout each, a backpack, its
+    payloads by mount and the cabin it asks. They are assault, escort, fire support, reconnaissance, screening, air
+    defence, resupply, recovery and bombardment. A frame takes a role whose backpack it offers, or whose payloads its
+    own backpack takes: the rover walker is fitted for assault or escort by rearming its heavy weapons backpack, and
+    the siege walker is fitted for bombardment as built. The operator's own `backpack`, `weapons` and `cabin` override
+    the role's. A role a frame cannot carry is refused, naming what it takes.
+  - Every role holds every law on every frame that takes it.
 - **The rover walker** (`roverWalker`; registry row `rover-walker`, role `armour`): the field walker on four wheels,
   more heavily armed. It walks, or collapses its legs and rolls as a small armoured car.
   - **Its size:** its own legs and pelvis at 1.35 times the walker's designs (the field walker's are 1.2), with
@@ -272,7 +297,7 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     behind its hips: a 3.6 m wheelbase and a 4.4 m track.
   - **Its cockpit, human-sized, rides out ahead on a keel** (`mecha-field-parts.js` `keeledPelvis`): a V-bottomed
     armoured prow off the pelvis, its deck railed, a ladder down its side. The rider's space is carried out to it, and
-    the cab law holds it there. The armoured cockpit's camera is augmented by a spherical radar dome on a mast. A rotary
+    the cab law holds it there. The armoured cockpit's camera is augmented by a radar dome, half a sphere on a collar, on the hull's top. A rotary
     machine gun sits on its own ring and cradle on the cockpit's side.
   - **Its siege backpack** (`MECHA_BACKPACKS.siege`): the weapons backpack's frame at 2.5 times.
     - A howitzer right: its long barrel, fume extractor, muzzle brake, recoil cylinders and breech, and its autoloader's
@@ -353,7 +378,8 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
   realistic hero astride it. The rider is solved in the pelvis's frame and carried with its sway
   (`seatRider`).
 - **Review:** `scripts/render-mecha.mjs` (stances × views, `--rider`, `--palette`, `--task`, `--tools`, `--arms`,
-  `--pack-task`, `--pack-tools`, `--pack-maker`, `--cabin`, `--slits`, `--backpack`, `--weapons`, `--livery`, `--wear`).
+  `--pack-task`, `--pack-tools`, `--pack-maker`, `--cabin`, `--slits`, `--backpack`, `--weapons`, `--role`, `--livery`,
+  `--wear`).
 - **Held:**
   - `mecha-shelf.test.js`: each foot where its stance asks, sole flat, at its heading; every ram within its stroke at
     every stance; a shorter stroke gives a shorter arc; the knees bend backward; the legs mirror; the sway puts the
@@ -392,8 +418,12 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
     ground; its backpack's payloads swapped, another backpack refused, and a
     frame without wheels refused a roll. The char pins add its wheeled parts, its wheel and the autocannon, and the
     frame whole walking and collapsed.
+  - `mecha-shelf.test.js`, roles: a role's backpack, payloads and cabin taken, every law holding; no line of fire for
+    a payload that fires nothing; the lean under a pack whose weight rides behind; the operator's payloads over the
+    role's; a role a frame cannot carry refused; a backpack carried as built rearmed for a role. The preview door's
+    test carries a role's word in the recipe. The char pins add the new payloads' builders.
   - `mecha-shelf.test.js`, the siege walker: six wheels, its footprint more than 2.5 times the rover's, every law
-    holding; its cockpit out ahead on its keel with the rider's space, its radar and its side gun; each payload served
+    holding; its cockpit out ahead on its keel with the rider's space, its radar dome on the hull and its side gun; each payload served
     by its own side's tail, the other stowed; its feet laid level ahead, its footprint more than 2.5 times the rover's;
     standing as a T-rex balances, its toes ahead of its ankles, nothing but its feet near the ground walking; its toes
     flat on the ground standing and clenched clear of it rolling, its sponsons over the wheels. The char

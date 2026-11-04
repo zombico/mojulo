@@ -130,12 +130,17 @@ const PINS = {
   'shank-rw': '1cd7c0dfc095c3c1',
   'wheel-rw': '4ae279b99a3cd708',
   'howitzer-sw': '468e79bf36bb78e5',
-  'missilepod-sw': 'cb2e44002b8fc721',
-  'missiles-sw': 'debc71d2982832cf',
-  'pelvis-sw': 'adca465c0d5be5f6',
+  'pelvis-sw': 'd8a8b3380366edaa',
   'foot-sw': 'bfd5c1239080edb5',
   'toe1-sw': 'ab54a14b87f3e936',
   'toe2-sw': '598875ee9f9712b8',
+  'sensor-wpn': 'f940979bb9e546b7',
+  'drones-wpn': 'c9422fb634d459dd',
+  'smoke-wpn': 'ff65787676348db8',
+  'aam-wpn': '3b8102c7e8b76dd5',
+  'aampod-wpn': 'b97979e1e07b05d4',
+  'cargo-wpn': '0decc2991b339e78',
+  'winch-wpn': '8632112e37ab33d1',
   'thigh-sw': '08b637f4320f16d1',
 };
 const LEFT = 'c9882af91b6cf973';
@@ -148,7 +153,7 @@ const HOUSE = '22d1c303d8f1b5ad';
 const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
-const SIEGE = ['fb11e20825f9d3d3', '924282ffc8cac3c4'];
+const SIEGE = ['9a1b7f9ff8b5e291', '8f0a988a084d563e'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');

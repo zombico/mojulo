@@ -324,14 +324,16 @@ export function mechaLaws(key, kit) {
       // (each payload's line of fire at either end of its traverse, out to 4 m ahead of its muzzle)
       let v = Infinity, why = '';
       for (const [S, card] of Object.entries(arch.payloads)) {
+        // (a payload that fires nothing has no line of fire: a sensor mast, a cargo carrier, a winch)
+        if (card.fires === false) continue;
         const U = S.toUpperCase(), id = `weapon${U}`, J = `traverse${U}`;
         for (const t of range(J)) {
           const Fa = frames({ ...P.stand.joints, [J]: t }, P.stand.root);
           for (const q of along(apply(Fa[id], ctx.hp(id, 'muzzle')), fwd(Fa[id].R), 4)) { const c = clear(q); if (c < v) { v = c; why = `its ${card.label}'s at ${t}° of traverse`; } }
         }
       }
-      v = r2(v);
-      law('fireClear', v, band.fireClear, within(v, band.fireClear), `${why} line of fire passes ${v} m clear of the rider, the nearest`);
+      if (Number.isFinite(v)) v = r2(v);
+      if (Number.isFinite(v)) law('fireClear', v, band.fireClear, within(v, band.fireClear), `${why} line of fire passes ${v} m clear of the rider, the nearest`);
     }
   }
   // ── rolling: a frame on wheels collapsed onto them (its `roll` stance) ──

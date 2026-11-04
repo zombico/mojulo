@@ -10,7 +10,7 @@ import { apply, cross, ramForce, sub } from './mecha-common.js';
 import { arcsFor, solveMount } from './mecha-gap-makers.js';
 import { framesOf, rangeOf, solveChain } from '../construction-shelf/con-chain.js';
 import { lowerAssemblerFaces } from '../worlds/workbench-assembler.js';
-import { MECHA_BACKPACKS, MECHA_WEAPONS, TAIL_POSES } from './mecha-backpacks.js';
+import { MECHA_BACKPACKS, MECHA_ROLES, MECHA_WEAPONS, TAIL_POSES } from './mecha-backpacks.js';
 import { MECHA_ARCHETYPES, MECHA_MAKERS, MECHA_MAKER_IDS, MECHA_ODM, MECHA_PACK_TASKS, MECHA_TASKS, MECHA_TOOLS, assembleFrame, composeFrame, frameRow, findMechaPart, jointRange, lawsOf, massOf, mechaCtx, mechaNameIndex, partShape, posedFrame, resolveMechaPart, riderPoints } from './index.js';
 import { readMechaSpec } from './mecha-figure.js';
 import { dressFaces } from './mecha-military.js';
@@ -408,6 +408,47 @@ describe('mecha shelf: a functional backpack, its payloads and its service tail'
   });
 });
 
+describe('mecha shelf: a frame fitted for its role, as the worker is for its task', () => {
+  // (a frame offering backpacks; a role on one it offers whose payloads fire nothing, one that asks a cabin; a frame
+  // carrying its backpack as built, and a role its backpack takes the payloads of: all chosen in code)
+  const carrier = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].backpacks?.length), Ab = MECHA_ARCHETYPES[carrier];
+  const offered = Object.entries(MECHA_ROLES).filter(([, R]) => Ab.backpacks.includes(R.backpack));
+  const quiet = offered.find(([, R]) => Object.values(R.weapons).every((w) => MECHA_WEAPONS[w].fires === false))[0];
+  const cabined = offered.find(([, R]) => R.cabin)[0];
+  const built = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].backpack && Object.values(MECHA_ROLES).some((R) => R.backpack !== MECHA_ARCHETYPES[k].backpack && Object.values(R.weapons).every((w) => MECHA_BACKPACKS[MECHA_ARCHETYPES[k].backpack].takes.includes(w))));
+  it('takes the role\'s backpack, its payloads and the cabin it asks, every law holding', () => {
+    for (const role of [quiet, cabined]) {
+      const R = MECHA_ROLES[role], A = frameRow(composeFrame(carrier, { role }));
+      expect(A.backpack).toBe(R.backpack);
+      expect(A.weapons).toEqual(R.weapons);
+      expect(A.role).toBe(role);
+      expect(A.label).toMatch(new RegExp(`fitted for ${R.label.split(':')[0]}`));
+      if (R.cabin) expect(A.cabin).toBe(R.cabin);
+      expect(lawsOf(composeFrame(carrier, { role })).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+    }
+  });
+  it('keeps no line of fire for a payload that fires nothing, and leans under a pack whose weight rides behind', () => {
+    const key = composeFrame(carrier, { role: quiet }), BPq = MECHA_BACKPACKS[MECHA_ROLES[quiet].backpack];
+    expect(lawsOf(key).laws.find((l) => l.id === 'fireClear')).toBeUndefined();
+    if (BPq.lean) expect(frameRow(key).stances[Ab.rest].sway).toEqual([0, BPq.lean]);
+  });
+  it('takes the operator\'s own payloads over its role\'s, and refuses a role its backpacks cannot carry', () => {
+    const R = MECHA_ROLES[cabined], BPc = MECHA_BACKPACKS[R.backpack], other = BPc.takes.find((w) => w !== R.weapons.r);
+    expect(frameRow(composeFrame(carrier, { role: cabined, weapons: { r: other } })).weapons).toEqual({ ...R.weapons, r: other });
+    const far = Object.keys(MECHA_ROLES).find((k) => !Ab.backpacks.includes(MECHA_ROLES[k].backpack));
+    expect(() => composeFrame(carrier, { role: far })).toThrow(/cannot take the/);
+    expect(() => composeFrame(carrier, { role: 'parade' })).toThrow(/role 'parade'/);
+    expect(readMechaSpec({ archetype: carrier, role: quiet }).role).toBe(quiet);
+  });
+  it('rearms a backpack carried as built for a role whose payloads it takes', () => {
+    const own = MECHA_BACKPACKS[MECHA_ARCHETYPES[built].backpack];
+    const [role, R] = Object.entries(MECHA_ROLES).find(([, x]) => x.backpack !== MECHA_ARCHETYPES[built].backpack && Object.values(x.weapons).every((w) => own.takes.includes(w)));
+    const A = frameRow(composeFrame(built, { role }));
+    expect(A.weapons).toEqual(R.weapons);
+    expect(lawsOf(composeFrame(built, { role })).laws.filter((l) => !l.ok).map((l) => `${l.id}: ${l.says}`)).toEqual([]);
+  });
+});
+
 describe('mecha shelf: a frame that walks or collapses its legs onto wheels and rolls', () => {
   // (the frame on wheels, and the frame whose legs it shares the hardening of: the dressed one without wheels)
   const rover = Object.keys(MECHA_ARCHETYPES).find((k) => MECHA_ARCHETYPES[k].wheels), Ar = MECHA_ARCHETYPES[rover];
@@ -511,7 +552,7 @@ describe('mecha shelf: a frame twice and more the rover, its cockpit on a keel, 
     expect(cage[1] - hips[1]).toBeGreaterThan(2);
     for (const E of As.envelope) expect(E.y[0]).toBeGreaterThan(hips[1] + 2);
     expect(law(siege, 'cab').ok).toBe(true);
-    expect(MECHA_ODM[As.layout.find((e) => e.id === 'cage').sku].dims.radar).toBeTruthy();
+    expect(MECHA_ODM[As.layout.find((e) => e.id === 'pelvis').sku].dims.radome).toBeTruthy();
     expect(As.payloads.c).toBeTruthy();
   });
   it('serves each payload with its own side\'s tail, the other stowed', () => {

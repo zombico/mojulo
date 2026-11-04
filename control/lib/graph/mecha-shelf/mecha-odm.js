@@ -37,7 +37,7 @@ export const MECHA_KINDS = Object.freeze({
   'mecha-claw': 'a hand: a two-fingered claw, its palm, its fingers and their pads',
   'mecha-tool': 'a tool on an arm\'s quick coupler in a claw\'s place: a bucket, a breaker, a crusher, forks, an auger, a vacuum lifter, a magnet, a hook; on a giant arm, a hand, a spreader, a prop, a shear, a vibratory driver, a clamshell',
   'mecha-mount': 'a payload\'s mount on a backpack: its traverse ring and yoke, or its elevation cradle and tray',
-  'mecha-weapon': 'a backpack\'s payload on its cradle (a rotary machine gun and its ammunition box, a launch rail and its five-round rocket pod), or a spare magazine in its rack',
+  'mecha-weapon': 'a backpack\'s payload on its cradle (a gun and its ammunition box, a launcher and its pod; a sensor mast, a drone launcher, a smoke discharger, a cargo carrier, a winch), or a spare magazine in its rack',
   'mecha-tail': 'a backpack\'s service tail: its yaw drum, its armoured segments, its gripping head',
   'mecha-wheel': 'a wheel a legged frame rolls on with its legs collapsed: its knobbed tyre, its rim, its hub motor',
   'mecha-ram': 'a hydraulic ram across a joint: its barrel and its rod, each a body aimed at the other\'s pin; or an electric screw actuator in its place',
@@ -301,6 +301,20 @@ const BACKPACK = {
   // (the service tail: a yaw drum, two armoured segments and a gripping head, each joint an electric rotary drive)
   // (a frame carrying a backpack stands on heavy-duty hip roll rams: on one foot they hold its sway with the pack on)
   'ram-roll-fw-hd': S('ram-roll-atw', KF, 'field walker heavy-duty hip roll ram', FW, ['heavy duty roll ram', 'backpack roll ram'], { bore: 0.08, rod: 0.045 }),
+  // (the functional payloads, on the same mounts: generic, invented; each its magazine the tail swaps, racked spare)
+  'sensor-wpn': R('mecha-weapon', 'sensor mast', BP, { base: [0.16, 0.22, 0.1], mast: [0.035, 0.85], head: 0.07, panel: [0.2, 0.12], battery: [0.12, 0.2, 0.16] }, 48, { family: 'mast' }, ['sensor mast', 'surveillance mast', 'periscope mast', 'sensor head', 'optics mast']),
+  'battery-wpn': R('mecha-weapon', 'spare battery cassette', BP, { box: [0.12, 0.2, 0.16] }, 25, { family: 'ammo' }, ['battery cassette', 'spare battery']),
+  'drones-wpn': R('mecha-weapon', 'four-drone launcher', BP, { box: [0.3, 0.42, 0.26], cells: [2, 2], tilt: 0.12 }, 52, { family: 'drones' }, ['drone launcher', 'drone rack', 'drone pod', 'drones', 'scout drones']),
+  'dronecase-wpn': R('mecha-weapon', 'spare four-drone cassette', BP, { box: [0.3, 0.42, 0.26] }, 40, { family: 'ammo' }, ['drone cassette', 'spare drones']),
+  'smoke-wpn': R('mecha-weapon', 'smoke discharger', BP, { plate: [0.22, 0.2, 0.05], cups: 4, r: 0.03, length: 0.16, fan: 40, rake: 35 }, 28, { family: 'smoke' }, ['smoke discharger', 'smoke launcher', 'smoke grenades', 'smoke screen']),
+  'smokecase-wpn': R('mecha-weapon', 'spare eight-cup cassette', BP, { box: [0.22, 0.2, 0.12] }, 20, { family: 'ammo' }, ['smoke cassette', 'spare smoke']),
+  'aam-wpn': R('mecha-weapon', 'four-cell anti-air launcher', BP, { pods: 1, pod: [0.26, 0.9, 0.26], cells: [2, 2], r: 0.045 }, 78, { family: 'missiles' }, ['anti-air launcher', 'anti air missiles', 'air defence missiles', 'aa missiles', 'sam pod']),
+  'aampod-wpn': R('mecha-weapon', 'spare four-cell missile pod', BP, { pod: [0.26, 0.9, 0.26], cells: [2, 2], r: 0.045 }, 60, { family: 'missilePod' }, ['spare anti-air pod', 'spare aa missiles']),
+  // (a payload's mass with its magazine aboard: the cargo carrier's with its crate, the winch's with its cable)
+  'cargo-wpn': R('mecha-weapon', 'cargo carrier', BP, { tray: [0.32, 0.44, 0.03], crate: [0.26, 0.36, 0.22], post: 0.26 }, 70, { family: 'cargo' }, ['cargo carrier', 'cargo basket', 'supply carrier', 'crate carrier', 'supply crate']),
+  'crate-wpn': R('mecha-weapon', 'spare supply crate', BP, { box: [0.26, 0.36, 0.22] }, 45, { family: 'ammo' }, ['spare crate', 'spare supply crate']),
+  'winch-wpn': R('mecha-weapon', 'recovery winch', BP, { drum: [0.09, 0.2], cheek: [0.04, 0.26, 0.24], fairlead: 0.32, hook: 0.5 }, 75, { family: 'winch' }, ['recovery winch', 'winch', 'tow winch', 'cable winch', 'recovery hook']),
+  'reel-wpn': R('mecha-weapon', 'spare cable reel', BP, { box: [0.22, 0.24, 0.2] }, 40, { family: 'ammo' }, ['cable reel', 'spare cable']),
   'tailbase-wpn': R('mecha-tail', 'service tail base', BP, { r: 0.1, pivot: [0, 0, 0.17], stop: [-200, 200], torque: 900 }, 14, { family: 'base' }, ['service tail', 'scorpion tail', 'reload arm', 'tail arm', 'loader arm']),
   'tailseg1-wpn': R('mecha-tail', 'service tail root segment', BP, { length: 0.56, w0: 0.12, w1: 0.1, stop: [0, 215], torque: 900 }, 12, { family: 'segment' }, ['tail segment', 'tail root']),
   'tailseg2-wpn': R('mecha-tail', 'service tail outer segment', BP, { length: 0.5, w0: 0.1, w1: 0.08, stop: [-165, 25], torque: 600 }, 9, { family: 'segment' }, ['outer tail segment']),
@@ -352,7 +366,7 @@ const SIEGE = {
   // (its hull between the backpack and the cockpit: an armoured superstructure on the keel, so it reads as a vehicle's
   // body and not a frame; a sponson each side, a box of plates out from the hull's side over the hip and the top of the
   // thigh, open below: its side reads as a tank's, one armoured side above its wheels)
-  'pelvis-sw': dressed(S('pelvis-atw', KS, 'siege walker pelvis', SW, ['siege pelvis', 'siege keel', 'prow', 'cockpit keel', 'siege hull'], { seat: [0, 3.3, 0.42], cage: [0, 3.3, 0.42] }), 'keeled', { prow: { y0: 0.5, y1: 5.0, top: 0.42, chine: -0.45, bottom: -1.0, w0: 1.6, w1: 1.1 }, hull: { y0: -1.9, y1: 2.72, w: 2.3, top: 1.55, front: 1.05 }, sponson: { x0: 1.0, x1: 2.24, y0: -1.4, y1: 1.75, top: 1.05, bottom: -0.3, rake: 0.4, lean: 0.12 }, sidegun: [0.7, 3.05, 1.15] }),
+  'pelvis-sw': dressed(S('pelvis-atw', KS, 'siege walker pelvis', SW, ['siege pelvis', 'siege keel', 'prow', 'cockpit keel', 'siege hull', 'sponson', 'radar dome', 'radome', 'radar'], { seat: [0, 3.3, 0.42], cage: [0, 3.3, 0.42] }), 'keeled', { prow: { y0: 0.5, y1: 5.0, top: 0.42, chine: -0.45, bottom: -1.0, w0: 1.6, w1: 1.1 }, hull: { y0: -1.9, y1: 2.72, w: 2.3, top: 1.55, front: 1.05 }, sponson: { x0: 1.0, x1: 2.24, y0: -1.4, y1: 1.75, top: 1.05, bottom: -0.3, rake: 0.4, lean: 0.12 }, radome: { y: 0.85, r: 0.58 }, sidegun: [0.7, 3.05, 1.15] }),
   'hip-sw': S('hip-atw', KS, 'siege walker hip yaw housing', SW, ['siege hip'], { torque: 260000 }),
   'yoke-sw': S('yoke-atw', KS, 'siege walker hip roll yoke', SW, ['siege yoke']),
   // (its thighs heavier and distinct, front armour plates over them; its shanks shorter, a T-rex's; its feet long and
@@ -375,8 +389,9 @@ const SIEGE = {
   // ankle's working arc, the foot laid level collapsed and stood flat walking, sized from that curve)
   'ram-ankle-sw': S('ram-ankle-atw', KS, 'siege walker ankle ram', SW, ['siege ankle ram'], { bore: 0.26, rod: 0.15, closed: 2.0, stroke: 0.93 }),
   'wheel-sw': R('mecha-wheel', 'siege walker wheel', SW, { r: 0.5, width: 0.52, rim: 0.3, lugs: 20 }, 380, { family: 'atv' }, ['siege wheel', 'armoured car wheel', 'big knobby tyre']),
-  // (its cockpit: the armoured cabin, a spherical radar dome on a mast behind its camera; its saddle's step a ladder's foot)
-  'cabin-sw': R('mecha-cage', 'siege walker armoured cockpit', SW, { ...BASE['cabin-fw'].dims, radar: { y: -0.22, r: 0.3, mast: 0.32 } }, 190, { family: 'armoured' }, ['siege cockpit', 'radar dome', 'radome', 'radar']),
+  // (its cockpit: the armoured cabin, its camera augmented by the radar dome on the hull behind it; its saddle's step a
+  // ladder's foot)
+  'cabin-sw': R('mecha-cage', 'siege walker armoured cockpit', SW, { ...BASE['cabin-fw'].dims }, 180, { family: 'armoured' }, ['siege cockpit']),
   'seat-sw': R('mecha-seat', 'siege walker saddle', SW, { ...BASE['seat-atw'].dims, step: [0.27, -0.21, -0.64] }, 31, { family: 'straddle' }, ['siege saddle']),
   // (its siege backpack: the weapons backpack's frame at 2.5 times, a tail seat each side; its mounts and tails with it)
   // (its weapons mounted low and wide, out on its pylons beside the hull: a lower profile)

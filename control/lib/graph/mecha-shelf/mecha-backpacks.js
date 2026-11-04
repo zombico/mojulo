@@ -12,10 +12,16 @@
  *                     `twin`, a tail each side, each serving its own side's payload; mount, cradle, its mounts' skus
  *     mass            what it adds to the class's mass with its own loadout (kg); swap, the frame's parts it asks
  *                     heavier (a sku for a sku)
+ *     lean            how far its frame stands its hips ahead of its feet (m): a backpack whose weight rides behind, its
+ *                     centre of mass carried back over the feet
  *     brace           the stance it fires from (a `brace` stance on the frame: the recoil law reads it there)
  *     laws            the bands it adds (mecha-laws.js: tailTorque, recoil, backblast, fireClear)
  *   MECHA_WEAPONS     a payload on a mount: its sku, its spare magazine's, its magazine's mass, its sustained recoil
  *                     (N), its backblast's reach behind its breech (m). Generic and invented, no real weapon's
+ *                     A payload that fires nothing (`fires: false`: a sensor mast, a cargo carrier, a winch) has no line
+ *                     of fire; its magazine is what its tail swaps all the same (a battery, a crate, a cable reel)
+ *   MECHA_ROLES       a frame's roles: a loadout each (its backpack, its payloads by mount, the cabin it asks), as the
+ *                     civilian worker's tasks are its site's (`role`, mecha-shelf/index.js composeFrame)
  *   TAIL_POSES        the tail's named poses: stow (tucked down the pack's back), or a service point it reaches down onto
  *   backpackLayout(card, loadout) → { layout, joints, tail, payloads }: what a frame adds carrying it
  */
@@ -28,13 +34,27 @@ export const MECHA_WEAPONS = Object.freeze({
   howitzer: Object.freeze({ sku: 'howitzer-sw', spare: 'shellmag-sw', label: 'howitzer', mag: 'six-round shell cassette', magMass: 600, recoil: 65000, backblast: 0 }),
   missiles: Object.freeze({ sku: 'missiles-sw', spare: 'missilepod-sw', label: 'eighteen-cell missile launcher', mag: 'six-cell missile pod', magMass: 700, recoil: 8000, backblast: 8 }),
   rocketPod: Object.freeze({ sku: 'rockets-wpn', spare: 'rocketpod-wpn', label: 'five-round rocket launcher', mag: 'five-round rocket pod', magMass: 50, recoil: 150, backblast: 2.5 }),
+  // (the functional payloads: what a frame carries to watch, to screen, to defend, to supply and to recover; a payload
+  // that fires nothing, `fires: false`, has no line of fire to keep clear; its magazine what its tail hot-swaps all the same)
+  // (a telescoping mast, an electro-optical ball and a radar panel at its head; its battery cassette swapped on a long watch)
+  sensorMast: Object.freeze({ sku: 'sensor-wpn', spare: 'battery-wpn', label: 'sensor mast', mag: 'battery cassette', magMass: 25, recoil: 0, backblast: 0, fires: false }),
+  // (four small rotor drones in a cassette of cells, launched ahead; a fresh cassette swapped in)
+  droneLauncher: Object.freeze({ sku: 'drones-wpn', spare: 'dronecase-wpn', label: 'four-drone launcher', mag: 'four-drone cassette', magMass: 40, recoil: 60, backblast: 0 }),
+  // (eight discharger cups fanned up and out: a screen of smoke ahead of it)
+  smoke: Object.freeze({ sku: 'smoke-wpn', spare: 'smokecase-wpn', label: 'smoke discharger', mag: 'eight-cup cassette', magMass: 20, recoil: 250, backblast: 0 }),
+  // (four light anti-air missiles in a pod, its tubes' backblast behind it)
+  aaMissiles: Object.freeze({ sku: 'aam-wpn', spare: 'aampod-wpn', label: 'four-cell anti-air launcher', mag: 'four-cell missile pod', magMass: 60, recoil: 500, backblast: 4 }),
+  // (a basket on the cradle, a supply crate strapped in it: the tail hands crates down to the drop behind)
+  cargo: Object.freeze({ sku: 'cargo-wpn', spare: 'crate-wpn', label: 'cargo carrier', mag: 'supply crate', magMass: 45, recoil: 0, backblast: 0, fires: false }),
+  // (a recovery winch: its drum a cable reel swapped whole, its fairlead ahead, its hook)
+  winch: Object.freeze({ sku: 'winch-wpn', spare: 'reel-wpn', label: 'recovery winch', mag: 'cable reel', magMass: 40, recoil: 0, backblast: 0, fires: false }),
 });
 export const MECHA_WEAPON_IDS = Object.freeze(Object.keys(MECHA_WEAPONS));
 
 const MECHA_BACKPACKS_MUT = {
   weapons: Object.freeze({
     label: 'weapons backpack', sku: 'pack-wpn', mounts: Object.freeze(['r', 'l']),
-    takes: Object.freeze(['minigun', 'rocketPod']), loadout: Object.freeze({ r: 'minigun', l: 'rocketPod' }),
+    takes: Object.freeze(['minigun', 'rocketPod', 'smoke']), loadout: Object.freeze({ r: 'minigun', l: 'rocketPod' }),
     tail: Object.freeze({ base: 'tailbase-wpn', seg1: 'tailseg1-wpn', seg2: 'tailseg2-wpn', head: 'tailhead-wpn' }),
     mass: 340,
     // (braced to fire: crouched, the left foot set back behind the hips, the recoil's lever shortened and its weight's
@@ -49,7 +69,7 @@ const MECHA_BACKPACKS_MUT = {
 // (its heavier sibling: the same frame and tail, a heavier gun on its right mount; the rover walker carries it as built)
 MECHA_BACKPACKS_MUT.heavyWeapons = Object.freeze({
   ...MECHA_BACKPACKS_MUT.weapons, label: 'heavy weapons backpack',
-  takes: Object.freeze(['autocannon', 'minigun', 'rocketPod']), loadout: Object.freeze({ r: 'autocannon', l: 'rocketPod' }),
+  takes: Object.freeze(['autocannon', 'minigun', 'rocketPod', 'smoke']), loadout: Object.freeze({ r: 'autocannon', l: 'rocketPod' }),
   mass: 360, swap: Object.freeze({}),
 });
 // (the siege backpack: the weapons backpack's frame at 2.5 times, a howitzer right and a missile launcher left, a
@@ -60,8 +80,45 @@ MECHA_BACKPACKS_MUT.siege = Object.freeze({
   tail: Object.freeze({ base: 'tailbase-sw', seg1: 'tailseg1-sw', seg2: 'tailseg2-sw', head: 'tailhead-sw' }),
   mass: 0, swap: Object.freeze({}),
 });
+// (the functional backpacks: the weapons backpack's frame, its pylons, its racks and its tail, fitted for a function)
+// (to watch and to look beyond: a sensor mast, drones, smoke to break contact)
+MECHA_BACKPACKS_MUT.recon = Object.freeze({
+  ...MECHA_BACKPACKS_MUT.weapons, label: 'reconnaissance backpack',
+  takes: Object.freeze(['sensorMast', 'droneLauncher', 'smoke']), loadout: Object.freeze({ r: 'sensorMast', l: 'droneLauncher' }), mass: 280, lean: 0.06,
+});
+// (to supply and to recover: cargo carriers whose crates its tail hands down, a recovery winch, smoke to cover it)
+MECHA_BACKPACKS_MUT.support = Object.freeze({
+  ...MECHA_BACKPACKS_MUT.weapons, label: 'logistics backpack',
+  takes: Object.freeze(['cargo', 'winch', 'smoke']), loadout: Object.freeze({ r: 'cargo', l: 'cargo' }), mass: 300, lean: 0.1,
+});
+// (to defend against what flies: anti-air missiles, a sensor mast to find their targets, a rotary gun close in)
+MECHA_BACKPACKS_MUT.airDefence = Object.freeze({
+  ...MECHA_BACKPACKS_MUT.weapons, label: 'air defence backpack',
+  takes: Object.freeze(['aaMissiles', 'sensorMast', 'minigun']), loadout: Object.freeze({ r: 'aaMissiles', l: 'sensorMast' }), mass: 320,
+});
 export const MECHA_BACKPACKS = Object.freeze(MECHA_BACKPACKS_MUT);
 export const MECHA_BACKPACK_IDS = Object.freeze(Object.keys(MECHA_BACKPACKS));
+
+/**
+ * The roles a frame is fitted for, as the civilian worker's tasks are for its site: a loadout each, a backpack and its
+ * payloads by mount, and the cabin it asks when the frame offers it. A frame takes a role whose backpack it offers, or
+ * whose payloads its own backpack takes (its backpack carried as built, rearmed); the operator's own `backpack`,
+ * `weapons` and `cabin` over it.
+ */
+const role = (label, backpack, r, l, cabin) => Object.freeze({ label, backpack, weapons: Object.freeze({ r, l }), ...(cabin ? { cabin } : {}) });
+export const MECHA_ROLES = Object.freeze({
+  assault: role('assault: a rotary machine gun to suppress, rockets to break cover', 'weapons', 'minigun', 'rocketPod', 'armoured'),
+  escort: role('escort: a rotary machine gun, smoke to screen what it escorts', 'weapons', 'minigun', 'smoke', 'armoured'),
+  fireSupport: role('fire support: an autocannon and rockets from behind the line', 'heavyWeapons', 'autocannon', 'rocketPod', 'armoured'),
+  recon: role('reconnaissance: a sensor mast to watch, drones to look beyond it', 'recon', 'sensorMast', 'droneLauncher'),
+  screening: role('screening: drones to spot, smoke to hide the advance', 'recon', 'smoke', 'droneLauncher'),
+  airDefence: role('air defence: anti-air missiles, a sensor mast to find their targets', 'airDefence', 'aaMissiles', 'sensorMast', 'armoured'),
+  resupply: role('resupply: two cargo carriers, their crates handed down by its tail', 'support', 'cargo', 'cargo'),
+  recovery: role('recovery: a winch to pull a stuck frame free, a crate of spares', 'support', 'winch', 'cargo'),
+  // (the siege walker's as it is built)
+  bombardment: role('bombardment: a howitzer and a missile launcher', 'siege', 'howitzer', 'missiles'),
+});
+export const MECHA_ROLE_IDS = Object.freeze(Object.keys(MECHA_ROLES));
 
 /** The tail's poses: `joints` held as they are, or a service point (`at`: body.hardpoint) reached from above, the head
  *  `approach` degrees from straight down toward ahead, `carry` a magazine held in its grip as it does. */

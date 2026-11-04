@@ -246,7 +246,8 @@ Pointers only; each target carries its own design notes.
   each a philosophy solved into its pack and arms, `mecha-gap-makers.js`; the field walker the walker hardened as a military
   transport, `mecha-field-parts.js` (its optional armoured cabin: slits and a camera, no glass), dressed by car-designer's
   military styling at its faces, `mecha-military.js`; backpacks, a frame's back fitted for a function, its payloads and a
-  scorpion's service tail that swaps their magazines, `mecha-backpacks.js`; the rover walker on wheels at its knees and
+  scorpion's service tail that swaps their magazines, and roles, a backpack's loadout as a task is the worker's,
+  `mecha-backpacks.js`; the rover walker on wheels at its knees and
   ankles, its knees rotary drives, collapsing its legs to roll, its `roll` stance in `mecha-ik.js`; the siege walker at
   2.5 times, six wheels, its cockpit out on a keel, sponsons, clawed feet whose toes clench to roll, a siege backpack
   with twin service tails); review:

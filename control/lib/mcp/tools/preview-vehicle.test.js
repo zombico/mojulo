@@ -104,7 +104,7 @@ describe('mint_solid vehicle: the registry is the way in', () => {
     await expect(previewVehicleInstanceHandler({ vehicle: walked, tool: 'breaker' })).rejects.toThrow(/a tool is a site machine's/);
   });
   it('carries a dressed legged frame\'s livery and wear in its recipe, and refuses them on a frame with no dress', async () => {
-    const { MECHA_ARCHETYPES } = await import('@/lib/graph/mecha-shelf/index.js');
+    const { MECHA_ARCHETYPES, MECHA_ROLES } = await import('@/lib/graph/mecha-shelf/index.js');
     const dressed = ids.find((id) => (handlesOf(id).mecha ?? []).some((k) => MECHA_ARCHETYPES[k].dress)), plain = ids.find((id) => (handlesOf(id).mecha ?? []).some((k) => !MECHA_ARCHETYPES[k].dress));
     const camo = CAMO_IDS[0];
     const out = await previewVehicleInstanceHandler({ vehicle: VEHICLES[dressed].label, livery: camo, wear: 'battered', title: 'a dressed legged frame' });
@@ -127,6 +127,11 @@ describe('mint_solid vehicle: the registry is the way in', () => {
       const packed = await previewVehicleInstanceHandler({ vehicle: VEHICLES[dressed].label, backpack, title: 'a legged frame with a backpack' });
       expect(SketchRepository.getByRef(packed.ref).manifest.mecha).toMatchObject({ backpack });
       expect(packed.stats.laws).toBe(true);
+      // (a role's word: its backpack, its payloads and its cabin, carried in the recipe as the word it was asked by)
+      const role = Object.keys(MECHA_ROLES).find((k) => MECHA_ARCHETYPES[handlesOf(dressed).mecha[0]].backpacks.includes(MECHA_ROLES[k].backpack));
+      const fitted = await previewVehicleInstanceHandler({ vehicle: VEHICLES[dressed].label, role, title: 'a legged frame fitted for a role' });
+      expect(SketchRepository.getByRef(fitted.ref).manifest.mecha).toMatchObject({ role });
+      expect(fitted.stats.laws).toBe(true);
     }
   });
   it('carries a field vehicle\'s livery and wear in its loft\'s recipe, and refuses them on a build their words do not paint', async () => {

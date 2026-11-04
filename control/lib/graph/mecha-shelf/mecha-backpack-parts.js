@@ -8,13 +8,19 @@
  *   mount 'cradle'       its elevation cradle (a hinge across), the tray a payload is latched to
  *   weapon 'rotary'      a rotary machine gun: its barrel cluster, its drive, its ammunition box outboard, its feed chute
  *   weapon 'launcher'    a launch rail under a five-round rocket pod (the pod its magazine, swapped whole)
- *   weapon 'ammo', 'pod' a spare magazine in its rack: an ammunition box, a rocket pod
+ *   weapon 'ammo', 'pod' a spare magazine in its rack: an ammunition box, a rocket pod (and a battery, a drone
+ *                        cassette, a smoke cassette, a supply crate, a cable reel)
+ *   weapon 'mast'        a sensor mast: three telescoping tubes, an electro-optical ball, a radar panel, its battery
+ *   weapon 'drones'      a cassette of cells raked up toward ahead, a folded rotor drone behind each door
+ *   weapon 'smoke'       a cassette of discharger cups in two rows, raked up and fanned out
+ *   weapon 'cargo'       a tray, posts and a rail round a strapped supply crate
+ *   weapon 'winch'       a recovery winch: its drum of cable between cheeks, its motor, a fairlead ahead, its hook
  *   tail 'base', 'segment', 'head'   the service tail: a yaw drum, armoured segments on rotary drives, a gripping head
  *                                     with its own camera
  *
  * backpackBuilders(kit) → the builders by kind, dispatched on family. Pure: no clock, no dice.
  */
-import { add, box, spin, tone, tube } from './mecha-common.js';
+import { DEG, add, box, spin, tone, tube } from './mecha-common.js';
 
 export function backpackBuilders(kit) {
   const { boss, legBeam, plateBox, sgn } = kit;
@@ -168,6 +174,85 @@ export function backpackBuilders(kit) {
     const c = [0, d.at[1], 0.03 + d.pod[2] / 2], lug = rocketPod('pod', c, d, C, extrudes, lathes);
     return { extrudes, lathes, hardpoints: { muzzle: [0, c[1] + d.pod[1] / 2, c[2]], breech: [0, c[1] - d.pod[1] / 2, c[2]], mag: lug } };
   }
+  // ── the functional payloads ──────────────────────────────────────────────────────────────────────────────────
+  // (a sensor mast: its base on the tray, its battery cassette outboard (the magazine), three telescoping tubes up to an
+  // electro-optical ball and a radar panel behind it, a whip antenna)
+  function mast(row, C, { side }) {
+    const d = row.dims, s = sgn(side), extrudes = [], lathes = [], sweeps = [], [bw, bl, bh] = d.base, [r0, H] = d.mast, z0 = bh, steel = tone(C.chrome, -0.2);
+    extrudes.push(plateBox('mastBase', [0, 0, bh / 2], bw, bl, bh, 0.015, C.trim));
+    const lug = ammoBox('battery', [s * (bw / 2 + d.battery[0] / 2 + 0.01), 0, d.battery[2] / 2], d.battery, C, extrudes);
+    for (const [i, [a, b, r]] of [[0, 0.42, r0], [0.4, 0.74, r0 * 0.8], [0.72, 1, r0 * 0.62]].entries()) {
+      lathes.push(spin(`mastTube_${i}`, [0, 0, z0 + H * a], [0, 0, z0 + H * b], [[0, r], [1, r]], i ? steel : C.paint, 12));
+      lathes.push(spin(`mastCollar_${i}`, [0, 0, z0 + H * b - 0.02], [0, 0, z0 + H * b], [[0, r * 1.35], [1, r * 1.35]], C.trim, 12));
+    }
+    const top = z0 + H + d.head, n = 8;
+    lathes.push(spin('sensorBall', [0, 0, top - d.head], [0, 0, top + d.head], Array.from({ length: n + 1 }, (_, i) => [i / n, Math.max(0.004, d.head * Math.sin((Math.PI * i) / n))]), C.paint, 16));
+    lathes.push(spin('sensorWindow', [0, d.head * 0.82, top], [0, d.head * 1.02, top], [[0, d.head * 0.5], [1, d.head * 0.42]], C.glass, 14));
+    const [pw, ph] = d.panel;
+    extrudes.push(box('radarPanel', [0, -d.head - 0.02, top + d.head * 0.4], [0, -d.head - 0.05, top + d.head * 0.4], pw, ph, tone(C.paint, 0.2), [0, 0, 1]));
+    sweeps.push(tube('whip', [[s * 0.04, -0.03, top + d.head * 0.6], [s * 0.05, -0.05, top + d.head + 0.35]], 0.004, C.rubber, 6));
+    return { extrudes, lathes, sweeps, hardpoints: { muzzle: [0, d.head, top], breech: [0, -d.head, top], mag: lug } };
+  }
+  // (a drone launcher: its cassette of cells raked up toward ahead, each cell's door open on a folded rotor drone; the
+  // cassette its magazine, swapped whole)
+  function drones(row, C) {
+    const d = row.dims, extrudes = [], lathes = [], [w, l, h] = d.box, [nx, nz] = d.cells, zc = h / 2 + 0.03, y1 = l / 2, dark = tone(C.trim, -0.4);
+    extrudes.push(box('wedge', [0, -l / 2, 0.015], [0, l / 2, 0.015], w * 0.9, 0.03, C.trim));
+    extrudes.push(box('cassette', [0, -l / 2, zc], [0, y1, zc + d.tilt], w, h, C.paint, [0, -d.tilt / l, 1]));
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+      const x = (i - (nx - 1) / 2) * (w / nx), z = zc + d.tilt + (j - (nz - 1) / 2) * (h / nz), cw = w / nx - 0.03, ch = h / nz - 0.03;
+      extrudes.push(box(`cell_${i}${j}`, [x, y1 - 0.01, z], [x, y1 + 0.003, z], cw, ch, dark));
+      extrudes.push(box(`drone_${i}${j}`, [x, y1 - 0.004, z], [x, y1 + 0.006, z], cw * 0.45, ch * 0.35, C.trim));
+      for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) lathes.push(spin(`rotor_${i}${j}${a > 0 ? 'r' : 'l'}${b > 0 ? 'u' : 'd'}`, [x + a * cw * 0.3, y1 + 0.004, z + b * ch * 0.3], [x + a * cw * 0.3, y1 + 0.008, z + b * ch * 0.3], [[0, ch * 0.18], [1, ch * 0.18]], tone(C.trim, 0.25), 10));
+      extrudes.push(box(`door_${i}${j}`, [x, y1 + 0.004, z + ch / 2], [x, y1 + 0.004 + ch * 0.6, z + ch / 2 + 0.01], cw, 0.01, tone(C.paint, -0.08)));
+    }
+    extrudes.push(box('lug', [0, -0.03, zc + h / 2 + d.tilt / 2], [0, 0.03, zc + h / 2 + d.tilt / 2 + 0.03], 0.05, 0.03, C.chrome, [1, 0, 0]));
+    return { extrudes, lathes, hardpoints: { muzzle: [0, y1, zc + d.tilt], breech: [0, -l / 2, zc], mag: [0, 0, zc + h / 2 + d.tilt / 2 + 0.06] } };
+  }
+  // (a smoke discharger: a cassette plate, two rows of discharger cups raked up and fanned out across its front)
+  function smoke(row, C, { side }) {
+    const d = row.dims, s = sgn(side), extrudes = [], lathes = [], [w, l, h] = d.plate, rake = d.rake * DEG, dark = tone(C.trim, -0.4);
+    extrudes.push(plateBox('cassette', [0, 0, h / 2 + 0.01], w, l, h, 0.01, C.trim));
+    for (let row2 = 0; row2 < 2; row2++) for (let k = 0; k < d.cups; k++) {
+      const yaw = ((k - (d.cups - 1) / 2) / Math.max(1, d.cups - 1)) * d.fan * DEG * s, z = h + 0.02 + row2 * d.r * 2.2, y = -l * 0.2 + row2 * 0.05;
+      const x = (k - (d.cups - 1) / 2) * (w / d.cups), u = [Math.sin(yaw) * Math.cos(rake), Math.cos(yaw) * Math.cos(rake), Math.sin(rake)], a = [x, y, z], b = add(a, [u[0] * d.length, u[1] * d.length, u[2] * d.length]);
+      lathes.push(spin(`cup_${row2}${k}`, a, b, [[0, d.r], [0.85, d.r], [1, d.r * 1.12]], C.paint, 10));
+      lathes.push(spin(`cupMouth_${row2}${k}`, add(b, [-u[0] * 0.006, -u[1] * 0.006, -u[2] * 0.006]), b, [[0, d.r * 0.82], [1, d.r * 0.82]], dark, 10));
+    }
+    extrudes.push(box('lug', [0, -l / 2 + 0.03, h + 0.01], [0, -l / 2 + 0.07, h + 0.04], 0.05, 0.03, C.chrome, [1, 0, 0]));
+    return { extrudes, lathes, hardpoints: { muzzle: [0, l * 0.3, h + 0.12], breech: [0, -l * 0.2, h + 0.02], mag: [0, -l / 2 + 0.05, h + 0.07] } };
+  }
+  // (a cargo carrier: a tray on the cradle, a post at each corner and a rail round their tops, a supply crate strapped
+  // in it: the crate its magazine, handed down by the tail)
+  function cargo(row, C) {
+    const d = row.dims, extrudes = [], sweeps = [], [tw, tl, th] = d.tray, [cw, cl, ch] = d.crate, frame = C.trim;
+    extrudes.push(box('tray', [0, -tl / 2, th / 2], [0, tl / 2, th / 2], tw, th, frame));
+    const corners = [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) => [a * (tw / 2 - 0.015), b * (tl / 2 - 0.015)]);
+    for (const [i, [x, y]] of corners.entries()) sweeps.push(tube(`post_${i}`, [[x, y, th], [x, y, th + d.post]], 0.012, frame, 6));
+    sweeps.push(tube('rail', [...corners, corners[0]].map(([x, y]) => [x, y, th + d.post]), 0.01, frame, 6));
+    const lug = ammoBox('crate', [0, 0, th + ch / 2 + 0.005], d.crate, C, extrudes);
+    for (const y of [-cl * 0.28, cl * 0.28]) extrudes.push(box(`strap_${y > 0 ? 'f' : 'b'}`, [-cw / 2 - 0.006, y, th + ch + 0.01], [cw / 2 + 0.006, y, th + ch + 0.01], 0.03, 0.008, C.rubber));
+    return { extrudes, sweeps, hardpoints: { muzzle: [0, tl / 2, th + ch / 2], breech: [0, -tl / 2, th + ch / 2], mag: lug } };
+  }
+  // (a recovery winch: its cheeks on the tray, its drum between them wound with cable (the reel its magazine, swapped
+  // whole), its motor outboard, a guard over it; the cable out through a fairlead ahead and down to its hook)
+  function winch(row, C, { side }) {
+    const d = row.dims, s = sgn(side), extrudes = [], lathes = [], sweeps = [], [r, dw] = d.drum, [ct, cl, ch] = d.cheek, zc = ch * 0.55, steel = tone(C.chrome, -0.3);
+    for (const t of [1, -1]) extrudes.push(box(`cheek_${t > 0 ? 'o' : 'i'}`, [t * (dw / 2 + ct / 2), -cl / 2, ch / 2], [t * (dw / 2 + ct / 2), cl / 2, ch / 2], ct, ch, C.trim));
+    lathes.push(spin('drum', [-dw / 2, 0, zc], [dw / 2, 0, zc], [[0, r * 1.25], [0.06, r * 1.25], [0.08, r], [0.92, r], [0.94, r * 1.25], [1, r * 1.25]], C.paint, 18));
+    lathes.push(spin('cable', [-dw / 2 + 0.02, 0, zc], [dw / 2 - 0.02, 0, zc], [[0, r * 1.12], [1, r * 1.12]], steel, 18));
+    lathes.push(spin('motor', [s * (dw / 2 + ct), 0, zc], [s * (dw / 2 + ct + 0.09), 0, zc], [[0, r * 0.8], [0.8, r * 0.8], [1, r * 0.6]], tone(C.trim, -0.2), 14));
+    extrudes.push(box('guard', [0, -r * 1.3, zc + r * 1.4], [0, r * 1.3, zc + r * 1.4], dw + ct * 2, 0.015, tone(C.paint, -0.06)));
+    const lug = [0, 0, zc + r * 1.4 + 0.04];
+    extrudes.push(box('lug', [0, -0.03, zc + r * 1.4 + 0.008], [0, 0.03, zc + r * 1.4 + 0.035], 0.05, 0.03, C.chrome, [1, 0, 0]));
+    const F = [0, d.fairlead, zc - r * 0.4];
+    extrudes.push(box('fairleadArm', [0, cl / 2 - 0.02, zc - r * 0.4], F, 0.05, 0.04, C.trim));
+    extrudes.push(box('fairlead', add(F, [0, -0.015, 0]), add(F, [0, 0.025, 0]), 0.09, 0.07, tone(C.trim, 0.1)));
+    const hook = add(F, [0, 0.06, -d.hook]);
+    sweeps.push(tube('line', [[0, r * 0.4, zc - r * 1.1], add(F, [0, 0.02, 0]), add(F, [0, 0.05, -0.05]), hook], 0.006, steel, 6));
+    sweeps.push(tube('hook', [hook, add(hook, [0, 0, -0.05]), add(hook, [0, 0.035, -0.07]), add(hook, [0, 0.05, -0.04])], 0.012, C.light, 8));
+    return { extrudes, lathes, sweeps, hardpoints: { muzzle: F, breech: [0, -cl / 2, zc], mag: lug } };
+  }
   function spareAmmo(row, C, { side }) {
     const d = row.dims, s = sgn(side), extrudes = [];
     const lug = ammoBox('ammoBox', [s * (d.box[0] / 2 + 0.01), 0, 0], d.box, C, extrudes);
@@ -215,7 +300,7 @@ export function backpackBuilders(kit) {
   return {
     pack: weaponsPack,
     mount: { ring, cradle },
-    weapon: { rotary, cannon, launcher, ammo: spareAmmo, pod: sparePod, howitzer, missiles, missilePod: spareMissiles },
+    weapon: { rotary, cannon, launcher, ammo: spareAmmo, pod: sparePod, howitzer, missiles, missilePod: spareMissiles, mast, drones, smoke, cargo, winch },
     tail: { base: tailBase, segment: tailSegment, head: tailHead },
   };
 }

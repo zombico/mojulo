@@ -234,8 +234,9 @@ const BASE_ARCHETYPES = Object.freeze({
       armoured: Object.freeze({ sku: 'cabin-fw', label: 'its armoured cabin', mass: 120, laws: Object.freeze({ cab: Object.freeze([0.03, 1]) }) }),
     }),
     // (its backpacks, each in its power pack's place (`backpack`: mecha-backpacks.js): the weapons backpack, a payload
-    // each side and a service tail)
-    backpacks: Object.freeze(['weapons']),
+    // each side and a service tail, and the functional backpacks on its frame: reconnaissance, logistics, air defence;
+    // or a role's (`role`: MECHA_ROLES))
+    backpacks: Object.freeze(['weapons', 'recon', 'support', 'airDefence']),
     // (its dress: the military styling library's, at the faces (mecha-military.js): a livery, olive drab unless asked, cut
     // into its paint; its field kit on its bodies' anchors; its wear)
     dress: Object.freeze({
@@ -547,7 +548,7 @@ const roverWalker = Object.freeze({
 // the siege walker: the rover walker's principles at 2.5 times its size. Its legs collapse far out: shanks long enough
 // to carry a third wheel between the knee's and the ankle's, so it rolls on six, its footprint reaching well ahead of
 // and behind its hips. Its cockpit, human-sized, rides out ahead on a keel, a V-bottomed armoured prow off its pelvis,
-// the camera on the cockpit's roof augmented by a spherical radar dome, a rotary machine gun on the cockpit's side. Its
+// the camera on the cockpit's roof augmented by a radar dome on the hull behind it, a rotary machine gun on the cockpit's side. Its
 // siege backpack carries a howitzer right and an eighteen-cell missile launcher left, a scorpion's tail each side to
 // reload them from behind
 const SW_LEG = Object.freeze({ hip: 'hip-sw', yoke: 'yoke-sw', thigh: 'thigh-sw', shank: 'shank-sw', ankle: 'ankle-sw', foot: 'foot-sw', roll: 'ram-roll-sw', hipRam: 'ram-hip-sw', kneeRam: null, ankleRam: 'ram-ankle-sw' });

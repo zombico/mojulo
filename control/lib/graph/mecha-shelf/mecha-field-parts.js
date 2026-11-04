@@ -145,15 +145,6 @@ export function fieldBuilders(kit) {
       lathes.push(spin(`camBezel_${x > 0 ? 'r' : 'l'}`, [x, K.y + 0.068, cz + 0.05 + K.h * 0.45], [x, K.y + 0.078, cz + 0.05 + K.h * 0.45], [[0, 0.042], [1, 0.042]], dark, 14));
     }
     extrudes.push(box('camHood', [0, K.y + 0.06, cz + 0.05 + K.h + 0.008], [0, K.y + 0.13, cz + 0.05 + K.h + 0.004], 0.26, 0.012, frame));
-    // (a spherical radar dome on a mast behind the camera: the camera's eye augmented)
-    if (d.radar) {
-      const Q = d.radar, base = [0, Q.y, R.z + 0.015], c = add(base, [0, 0, Q.mast + Q.r]);
-      lathes.push(spin('radarMast', base, add(base, [0, 0, Q.mast + 0.04]), [[0, 0.06], [0.2, 0.045], [1, 0.045]], frame, 12));
-      lathes.push(spin('radarCollar', add(c, [0, 0, -Q.r - 0.03]), add(c, [0, 0, -Q.r * 0.6]), [[0, 0.07], [1, Q.r * 0.75]], frame, 16));
-      const n = 10, pairs = Array.from({ length: n + 1 }, (_, i) => [i / n, Math.max(0.004, Q.r * Math.sin((Math.PI * i) / n))]);
-      lathes.push(spin('radome', add(c, [0, 0, -Q.r]), add(c, [0, 0, Q.r]), pairs, tone(C.paint, 0.25), 20));
-      lathes.push(spin('radomeBand', add(c, [0, 0, -0.015]), add(c, [0, 0, 0.015]), [[0, Q.r + 0.006], [1, Q.r + 0.006]], frame, 20));
-    }
     extrudes.push(box('rearCam', [0, R.y0 - 0.02, R.z - 0.1], [0, R.y0 - 0.08, R.z - 0.1], 0.1, 0.07, frame));
     lathes.push(spin('rearLens', [0, R.y0 - 0.08, R.z - 0.1], [0, R.y0 - 0.095, R.z - 0.1], [[0, 0.022], [1, 0.018]], C.glass, 10));
     const M = d.monitor;
@@ -366,6 +357,13 @@ export function fieldBuilders(kit) {
         extrudes.push(box(`sponsonBin_${n}`, [xi + s * 0.2 * u, by0, bz], [xi + s * 0.2 * u, by1, bz], 0.3 * u, deep * 0.26, tone(C.paint, -0.1)));
         extrudes.push(box(`sponsonBinLid_${n}`, [xi + s * 0.2 * u, by0 - 0.02 * u, bz + deep * 0.14], [xi + s * 0.2 * u, by1 + 0.02 * u, bz + deep * 0.14], 0.34 * u, 0.04 * u, tone(C.trim, -0.05)));
       }
+    }
+    // (a radar dome on the hull's top, half a sphere on a collar, ahead of the backpack: the cockpit's camera augmented)
+    if (d.radome && d.hull) {
+      const Q = d.radome, c = [0, Q.y, d.hull.top + 0.1 * u], n = 8;
+      lathes.push(spin('radomeCollar', [0, Q.y, d.hull.top], c, [[0, Q.r * 1.08], [1, Q.r * 1.04]], C.trim, 22));
+      lathes.push(spin('radome', c, add(c, [0, 0, Q.r]), Array.from({ length: n + 1 }, (_, i) => [i / n, Math.max(0.01 * u, Q.r * Math.cos((Math.PI / 2) * (i / n)))]), tone(C.paint, 0.25), 22));
+      lathes.push(spin('radomeBand', add(c, [0, 0, 0.02 * u]), add(c, [0, 0, 0.06 * u]), [[0, Q.r + 0.012 * u], [1, Q.r * 0.995 + 0.012 * u]], C.trim, 22));
     }
     const G = d.sidegun;
     extrudes.push(box('gunBracket', [G[0] * 0.55, G[1], K.top], [G[0], G[1], G[2] - 0.02 * u], 0.12 * u, 0.14 * u, C.trim));
