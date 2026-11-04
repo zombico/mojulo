@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-import { playerHero, playerStates, playerWorld, testCourse, PLAYER_CLIPS, LIBRARY_STATES, HERO_GAIT_STRIDE } from './player.js';
+import { playerHero, playerStates, playerWorld, testCourse, PLAYER_CLIPS, LIBRARY_STATES, HERO_GAIT_STRIDE, HERO_WALK_RUN } from './player.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -35,16 +35,20 @@ describe('the move set', () => {
     expect(() => playerStates(['idle'], 'mixamo')).toThrow(/no states for the library/);
   });
 
-  it('the hero\'s own door gaits play over the library\'s: its calibrated jog forward, its walk turning; the library the rest', () => {
+  it('on a library she walks the library\'s walk under the stick and runs its jog with F; her own gaits play without one', () => {
     const s = playerStates(['idle', 'walk', 'jog'], 'quaternius-ual', ['walk', 'jog']);
-    expect(s).toMatchObject({ forward: 'jog', strafe: 'jog', turn: 'walk', idle: 'Idle_Loop', leap: 'Jump_Loop' });
-    // without the gaits named, a library plays as it always did (a stock walk is not a calibrated one)
-    expect(playerStates(['idle', 'walk', 'jog'], 'quaternius-ual')).toMatchObject({ forward: 'Jog_Fwd_Loop', turn: 'Walk_Loop' });
-    // the pilot's stride is the jog's metres per cycle at the game's run speed, so its feet keep pace
+    expect(s).toMatchObject({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop', strafe: 'Jog_Fwd_Loop', turn: 'Walk_Loop', idle: 'Idle_Loop', leap: 'Jump_Loop' });
+    // the pilot walks at the library walk's pace and runs at the game's speed, each over its own cycle's length
     const W = playerWorld({ heroRef: 'sk_x', gaits: ['walk', 'jog'] });
-    expect(W.figures.hero.clips.forward).toBe('jog');
-    expect(W.entities[0].rule).toMatchObject({ speed: 3.6, stride: HERO_GAIT_STRIDE.jog });
-    expect(playerWorld({ heroRef: 'sk_x' }).entities[0].rule).toMatchObject({ speed: 3.6, stride: 3.3 });
+    expect(W.figures.hero.clips).toMatchObject({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop' });
+    expect(W.entities[0].rule).toMatchObject({ speed: 3.6, stride: 3.3, walkSpeed: 1.6, walkStride: 2 });
+    expect(JSON.stringify(W.events)).toContain(HERO_WALK_RUN);
+    // a lane or a runner keeps the run (no walk); without a library her own calibrated jog runs, and nothing walks
+    expect(playerWorld({ heroRef: 'sk_x', walk: false }).entities[0].rule.walkSpeed).toBeUndefined();
+    const own = playerWorld({ heroRef: 'sk_x', gaits: ['walk', 'jog'], library: false });
+    expect(own.figures.hero.clips.forward).toBe('jog');
+    expect(own.entities[0].rule).toMatchObject({ stride: HERO_GAIT_STRIDE.jog });
+    expect(own.entities[0].rule.walkSpeed).toBeUndefined();
   });
 });
 
@@ -93,11 +97,18 @@ describe('the course, driven', () => {
   };
   const ground = (w) => (pos) => groundOf(w.colliders)(pos);
 
-  it('W runs her forward in the run state; still, she idles', () => {
-    const { w } = world();
+  it('W walks her forward in the walk state, F held runs her in the run state; still, she idles', () => {
+    const { w, m } = world();
     for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1 }, 1 / 60, { ground: ground(w) });
+    expect(w.byId.p.locomotion).toBe('walk');
+    const walked = w.byId.p.transform.pos[1] + 4;
+    expect(walked).toBeCloseTo(m.entities[0].rule.walkSpeed, 1);
+    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1, boost: 1 }, 1 / 60, { ground: ground(w) });
     expect(w.byId.p.locomotion).toBe('forward');
-    expect(w.byId.p.transform.pos[1]).toBeGreaterThan(-1.5);
+    // F is the run at the game's speed: never the boost's flight pose, its thrust or its three and a half times
+    expect(w.byId.p.transform.pos[1] + 4 - walked).toBeCloseTo(m.entities[0].rule.speed, 1);
+    expect(w.byId.p.boosting).toBe(false);
+    expect(w.byId.p.thrust).toBe(0);
     for (let i = 0; i < 30; i++) stepWorld(w, {}, 1 / 60, { ground: ground(w) });
     expect(w.byId.p.moving).toBe(false);
   });
@@ -118,11 +129,11 @@ describe('the course, driven', () => {
 
   it('the first hop-up block is a jump onto, not a walk onto', () => {
     const { w } = world();
-    // walk into it: stopped at its face
-    for (let i = 0; i < 180; i++) stepWorld(w, { forward: 1 }, 1 / 60, { ground: ground(w) });
+    // run into it: stopped at its face
+    for (let i = 0; i < 180; i++) stepWorld(w, { forward: 1, boost: 1 }, 1 / 60, { ground: ground(w) });
     expect(w.byId.p.transform.pos[1]).toBeLessThan(4);
     // jump while running: she lands on it
-    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1, jump: i === 0 ? 1 : 0, jumpHeld: i < 20 ? 1 : 0 }, 1 / 60, { ground: ground(w) });
+    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1, boost: 1, jump: i === 0 ? 1 : 0, jumpHeld: i < 20 ? 1 : 0 }, 1 / 60, { ground: ground(w) });
     expect(w.byId.p.transform.pos[2]).toBeGreaterThanOrEqual(0.44);
   });
 

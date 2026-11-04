@@ -37,7 +37,13 @@ export function buildRulesPlatform(E) {
 
   function platform(e, input, dt, world) {
     const r = e.rule;
-    const speed = r.speed ?? 6, turnRate = r.turn ?? 2.4, strafe = r.strafe ?? 1, eye = r.eye ?? 0;
+    // A PERSON WALKS AND RUNS (opt-in `walkSpeed`, a hero's: playscape/player.js): no thrusters. The stick walks at
+    // `walkSpeed`, playing the `walk` clip over `walkStride`; F held runs at `speed` (the game's run), building and
+    // shedding at `accel` like any move, playing `forward` over `stride`. F is the run, never a boost: no flight pose
+    // skating the ground, no thrust, no gauge. A rule whose F is its gear's (`gear`) or a space suit keeps the boost.
+    // Absent → the boost below, byte-identical.
+    const walker = r.walkSpeed > 0 && r.space !== true && !r.gear, running = walker && !!input.boost;
+    const speed = walker && !running ? r.walkSpeed : (r.speed ?? 6), turnRate = r.turn ?? 2.4, strafe = r.strafe ?? 1, eye = r.eye ?? 0;
     const boostSpeed = r.boostSpeed ?? speed * 3.5;
     const riseG = r.gravity ?? 20, fallG = r.fallGravity ?? riseG * 1.7;         // asymmetric: snappier fall
     const jumpV = r.jumpSpeed ?? 8.5, maxFall = r.maxFall ?? 26, snap = r.snap ?? 0.15, step = r.step ?? 0.35;
@@ -246,7 +252,7 @@ export function buildRulesPlatform(E) {
     // RELEASED, then a fresh press dashes again.
     const boostAvailable = !hasGauge || (e.boost > 1e-6 && !e.boostLock);
     if (!input.boost) e.boostCut = false;
-    let boosting = !!input.boost && !dodging && !tackling && boostAvailable && !e.boostCut;
+    let boosting = !walker && !!input.boost && !dodging && !tackling && boostAvailable && !e.boostCut;
     // KNEEL (opt-in `kneel:true` on the rule; held X): a grounded one-knee
     // hold — roots the entity and plays the 'kneel' clip. Boost and the
     // charge jump both take precedence (either input stands the unit up).
@@ -483,6 +489,11 @@ export function buildRulesPlatform(E) {
       e.locomotion = 'turn';
       e.gaitPhase = (e.gaitPhase || 0) + turnAmt / (r.turnStride ?? 0.6);
       e.moving = true;
+    }
+    else if (walker && !running) {
+      // a person walking (`walkSpeed`): the walk plays whichever way the step goes, its phase by the step's length
+      const lead = Math.abs(sideMove) > Math.abs(fwdMove) ? sideMove : fwdMove;
+      e.locomotion = 'walk'; e.gaitPhase = (e.gaitPhase || 0) + lead / (r.walkStride ?? strideLen); e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6;
     }
     else if (Math.abs(sideMove) > Math.abs(fwdMove)) { e.locomotion = 'strafe'; e.gaitPhase = (e.gaitPhase || 0) + sideMove / strideLen; e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6; }
     else { e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + fwdMove / strideLen; e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6; }

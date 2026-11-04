@@ -235,12 +235,12 @@ describe('design_game: the hero a run plays (character stitch)', () => {
     expect(stock.every((r) => r.action === 'make')).toBe(true);
     expect(Object.keys(gameworldOf(stored('gp')).made)).toEqual(expect.arrayContaining(['hero', stock[0].key]));
     expect(stored('gp-hero').toon).toEqual({ light: true });
-    // the hero a game plays runs on its own calibrated jog, its feet at the jog's stride
+    // the hero a game plays walks the library's walk under the stick and runs its jog with F, each at its own stride
     expect(stored('gp-hero').hero.motion.jog).toBeTruthy();
     const level = stored(Object.entries(gameworldOf(stored('gp')).made).find(([k]) => k.startsWith('level-'))[1].ref);
     const pilot = level.entities.find((e) => e.pilotable);
-    expect(level.figures[pilot.body.figure].clips).toMatchObject({ forward: 'jog', turn: 'walk', idle: 'Idle_Loop' });
-    expect(pilot.rule.stride).toBe(1.72);
+    expect(level.figures[pilot.body.figure].clips).toMatchObject({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop', turn: 'Walk_Loop', idle: 'Idle_Loop' });
+    expect(pilot.rule).toMatchObject({ stride: 3.3, walkSpeed: 1.6, walkStride: 2 });
   }, 600_000);
 
   it('a hand edit to the hero is said on its base and plays: the equipped hero is built over it', async () => {

@@ -34,7 +34,7 @@ import { readStats, statVar } from '../playscape/stats/stats.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { readPart } from '../playscape/ui/parts.js';
 import { EQUIPMENT_ITEMS } from '../equipment/expand.js';
-import { playerWorld } from '../playscape/player.js';
+import { playerWorld, HERO_WALK_RUN } from '../playscape/player.js';
 import { STAGES } from './actions.js';
 import { readDegree } from '../playscape/destruct/breakability.js';
 import { readScarsSpec } from '../rupa/index.js';
@@ -297,7 +297,7 @@ function deriveHud(stats, res, epochs) {
  */
 export function mechanicsOrders(G, R, { heroRef = '<ref of the hero mint>' } = {}) {
   if (!R) return null;
-  const W = playerWorld({ heroRef, id: HOLDER, title: `${G.name} · systems`, controls: `W / S  run · A / D  turn · Space  jump · ${R.legend}` });
+  const W = playerWorld({ heroRef, id: HOLDER, title: `${G.name} · systems`, controls: `${/\bF\s/.test(R.legend ?? '') ? 'W / S  run' : HERO_WALK_RUN} · A / D  turn · Space  jump · ${R.legend}` });
   const events = { ...(W.events || {}), ...(R.inputs.length ? { inputs: [...(W.events?.inputs ?? []), ...R.inputs] } : {}) };
   return { tool: 'create_sketch', part: 'mechanics:stats', args: { title: `${G.name} · systems`, manifest: { ...W, events, play: R.play } } };
 }
