@@ -66,6 +66,7 @@ The frames:
     and the soles the laws read agree. A fork holds each egg by a hub at its narrow end and swivels under the leg.
     Walking, the egg hangs narrow end up, its body closed, and its blunt end opens into four petals down to the ground,
     a lander's feet. Driving, it lies closed on its wheels, and a side's two eggs lie nose to tail along the hull.
+  - Its legs aim at their feet from the hip, as an insect's do, so its hull rides low between raised knees.
   - Its drones come from the craft shelf: `mecha-drones.js` places them docked and launched.
   - Its solar car folds out origami-style.
 

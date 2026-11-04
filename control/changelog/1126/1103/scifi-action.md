@@ -360,14 +360,16 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
       where its foot stands still sets its egg square to the frame, so its petals stand square walking and its egg lies
       along the hull driving.
     - Walking, each egg hangs from its hub, narrow end up, its body closed. Its four petals open out and down to the
-      ground like a lander's feet, a pad under each; each petal opens its own angle so all four reach one ground. The
-      foot's sole is the square their pads stand in, and its ground pressure is the pads' own area (a sole may now say
-      its `contact`). The legs reach out to their feet, spread fore and aft of the hips (`atYaw`).
+      ground like a lander's feet, each a heavy plate with a rib down its spine and a pad under it; each petal opens its
+      own angle so all four reach one ground. The foot's sole is the square their pads stand in, and its ground
+      pressure is the pads' own area (a sole may now say its `contact`).
+    - Its legs reach well out to their feet, spread fore and aft of the hips. Each leg `aim`s, turned at its hip to
+      point at its foot wherever a stance sets it, an insect's coxa (`atYaw` at rest). Its turn carries its feet round
+      its centre. So its hull rides low between knees raised over its hips: an M from the front.
     - Driving (its `roll` stance, `place: 'tuck'`), each egg swings down onto its wheels, narrow end ahead, its petals
       shut. A side's two eggs lie nose to tail along the hull, and the leg tucks its foot lower under its ankle than it
       stands (a tuck's `lift`).
-    - Hung from its eggs it stands tall (its pelvis 8.8 m up, 5.15 m driving). Its crouch to be boarded brings its
-      saddle to a ladder's reach, its band set for its class.
+    - Its pelvis stands 7.8 m up and drives at 5.15 m, its crouch to be boarded at 7.3 m with its feet spread.
   - **Its drones** (`mecha-drones.js`): the craft shelf's own, assembled in its military look, eight by default (the
     inspection quad), two hung from each bay's roof inside. At the `launch` stance each drops out of its egg's opened
     blunt end and hovers clear of it, ahead of it. The words `drones` (how many, up to its bays) and `drone` (which of the craft
@@ -388,7 +390,9 @@ on it: the utility walker, the heavy walker drawn larger from it, and the giant 
       shares.
     - A joint a stance's flag sets is `when` (an egg swung down to drive, its petals shut, an array spread to
       `deploy`), with its rest `at`.
-    - The leg's inverse kinematics solve a cranked shank (an ankle off its axis) too.
+    - The leg's inverse kinematics solve a cranked shank (an ankle off its axis) too, and an ankle above the hip's
+      roll axis (a leg folded high), its plane turned the least way; a leg that `aim`s takes its heading from where its
+      foot is (`legYaw`).
   - Every law holds at every stance, with the solar backpack and with any count of drones.
 - **Every joint is an actuator's** (the construction shelf's chain, `construction-shelf/con-chain.js`).
   - A pitch or roll joint is driven by a hydraulic ram across it. Its range is where that ram lies within its stroke:

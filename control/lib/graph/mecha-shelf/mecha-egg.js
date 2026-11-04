@@ -41,6 +41,8 @@ export const EGG_BW = Object.freeze({
   arches: Object.freeze({ at: Object.freeze([0.85, -0.85]), half: 0.55, edge: 0.08, lo: 297, li: 243 }),
   // (how far its petals open, hung: a lander's feet, out and down, their pads on the ground)
   open: 125, pad: 0.24, padT: 0.06,
+  // (its petals built heavier than its shell: a foot's plates, `petalT` thick, a rib down each one's spine)
+  petalT: 0.2, rib: Object.freeze([0.2, 0.1]),
   // (the bay's wheels' bottoms under its roof: its depth less its wheels' lift, and their radius (the bay's row's))
   wheelLow: -1.7,
 });

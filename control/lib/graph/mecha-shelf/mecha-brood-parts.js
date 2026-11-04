@@ -51,9 +51,9 @@ export function broodBuilders(kit) {
     lathes.push(spin(`${id}Light`, add(at, m(y, -L / 2 - 0.05)), add(add(at, m(y, -L / 2 - 0.05)), m(n, 0.05)), [[0, 0.03], [1, 0.025]], C.light, 10));
     return { [id]: add(at, m(n, 0.06)), [`${id}N`]: add(at, m(n, 1.06)), [`${id}Y`]: add(at, add(m(n, 0.06), y)) };
   }
-  /** A quarter of the egg's shell at `y`, round its axis: its outer arc, then its inner arc back, `E.t` thick. */
-  const quarter = (E, q, y, k = 7) => {
-    const sc = eggScale(E, y), si = Math.max(sc - E.t, 0.005), [p0, p1] = petalSpan(E, q, y);
+  /** A quarter of the egg's shell at `y`, round its axis: its outer arc, then its inner arc back, `t` thick. */
+  const quarter = (E, q, y, k = 7, t = E.t) => {
+    const sc = eggScale(E, y), si = Math.max(sc - t, 0.005), [p0, p1] = petalSpan(E, q, y);
     const arc = (sk) => Array.from({ length: k + 1 }, (_, i) => { const [x, z] = eggPoint(E, sk, p0 + ((p1 - p0) * i) / k); return [x, 0, z - E.zc]; });
     return [...arc(sc), ...arc(si).reverse()];
   };
@@ -274,7 +274,14 @@ export function broodBuilders(kit) {
   // hinge's knuckle)
   function eggPetal(row, C) {
     const q = row.dims.quad, E = row.dims.egg, P = EGG_PETALS[q], h = P.hinge, ys = petalStations(E), yN = ys[ys.length - 1];
-    const lofts = [loftWorld('shell', [-h[0], 0, E.zc - h[2]], [-h[0], yN - E.cut, E.zc - h[2]], ys.map((y) => ({ t: (E.cut - y) / (E.cut - yN), points: quarter(E, q, y) })), C.paint)];
+    const from = [-h[0], 0, E.zc - h[2]], to = [-h[0], yN - E.cut, E.zc - h[2]], at = (y) => (E.cut - y) / (E.cut - yN);
+    // (its plate, heavier than the shell it closes; a rib down its spine, out of its face, to where it curls in at the tip)
+    const [rw, rh] = E.rib, ribYs = ys.filter((y) => eggScale(E, y) > 0.35), rN = ribYs[ribYs.length - 1], c = Math.cos((P.mid * Math.PI) / 180), sn = Math.sin((P.mid * Math.PI) / 180);
+    const rib = (y) => { const [x, z] = eggPoint(E, eggScale(E, y), P.mid), u = [-sn * rw / 2, c * rw / 2], o = [c * rh, sn * rh]; return [[x + u[0], 0, z - E.zc + u[1]], [x + u[0] + o[0], 0, z - E.zc + u[1] + o[1]], [x - u[0] + o[0], 0, z - E.zc - u[1] + o[1]], [x - u[0], 0, z - E.zc - u[1]]]; };
+    const lofts = [
+      loftWorld('shell', from, to, ys.map((y) => ({ t: at(y), points: quarter(E, q, y, 7, E.petalT) })), C.paint),
+      loftWorld('rib', from, [-h[0], rN - E.cut, E.zc - h[2]], ribYs.map((y) => ({ t: (E.cut - y) / (E.cut - rN), points: rib(y) })), tone(C.paint, -0.08)),
+    ];
     const down = rotAbout([0, -1, 0], P.axis, -P.open), lathes = [
       spin('pad', P.low, add(P.low, down.map((v) => v * E.padT)), [[0, E.pad], [1, E.pad * 0.9]], tone(C.trim, -0.2), 16),
       spin('knuckle', P.axis.map((v) => -v * 0.15), P.axis.map((v) => v * 0.15), [[0, 0.09], [1, 0.09]], tone(C.trim, 0.05), 10),

@@ -67,8 +67,9 @@ export function legGeometry(arch, ctx, S) {
 export function solveLeg(G, A, yaw = 0, bend = 'back') {
   const p = [A[0] - G.hip[0], A[1] - G.hip[1], A[2] - G.hip[2] + G.a1];
   const c = Math.cos(-yaw * DEG), s = Math.sin(-yaw * DEG), q = [c * p[0] - s * p[1], s * p[0] + c * p[1], p[2]];
-  // (the leg's plane holds the ankle: turned about the roll axis, +y)
-  const phi = Math.atan2(-q[0], -q[2]);
+  // (the leg's plane holds the ankle: turned about the roll axis, +y; an ankle above the axis, a leg folded high, the
+  // same plane, the least turn)
+  const phi = q[2] <= 0 ? Math.atan2(-q[0], -q[2]) : Math.atan2(q[0], q[2]);
   const cr = Math.cos(-phi), sr = Math.sin(-phi), r = [cr * q[0] + sr * q[2], q[1], -sr * q[0] + cr * q[2]];
   const vy = r[1], vz = r[2] + G.a2, d0 = Math.hypot(vy, vz), dMax = G.l1 + G.l2 - 1e-6;
   const reach = d0 <= dMax && d0 >= Math.abs(G.l1 - G.l2);
@@ -240,9 +241,17 @@ function feetOf(arch, st) {
     // (or, `place: 'tuck'`, at the place and the heading its leg tucks it to: a four-legged frame's driving stance)
     const f = st.feet?.[S] ?? {}, s = handOf(arch, S) === 'r' ? 1 : -1, T = st.place === 'tuck' ? arch.legs[S].tuck : null, at = T ? T.at : arch.legs[S].at, k = T ? 1 : st.spread ?? 1;
     // (a tucked foot's sole may sit nearer its ankle than its stance sole: an egg lying on its wheels, `tuck.lift`)
-    out[S] = { x: f.x ?? (at ? at[0] * k : s * track / 2), y: (f.y ?? 0) + (at ? at[1] * k : 0) + fore, lift: f.lift ?? T?.lift ?? 0, yaw: (f.yaw ?? 0) + (T ? T.yaw : arch.legs[S].atYaw ?? 0) };
+    const base = T ? T.yaw : arch.legs[S].atYaw ?? 0;
+    out[S] = { x: f.x ?? (at ? at[0] * k : s * track / 2), y: (f.y ?? 0) + (at ? at[1] * k : 0) + fore, lift: f.lift ?? T?.lift ?? 0, yaw: (f.yaw ?? 0) + base, base };
   }
   return out;
+}
+
+/** A leg's heading (degrees) to reach its ankle at `A` (in the pelvis's frame): its mounting and its foot's yaw; or, a
+ *  leg that `aim`s (an insect's coxa), turned at its hip to point at its ankle, its stance's own yaw over that. */
+export function legYaw(L, G, A, f) {
+  if (!L.aim) return G.mount + (f.yaw ?? 0);
+  return (Math.atan2(-(A[0] - G.hip[0]), A[1] - G.hip[1]) * 180) / Math.PI + (f.yaw ?? 0) - (f.base ?? 0);
 }
 
 /** The joints of both legs with the pelvis at `t` (level) and the feet where `feet` sets them. */
@@ -250,7 +259,7 @@ function legsAt(arch, Gs, feet, t) {
   const joints = {}, legs = {};
   for (const S of legKeys(arch)) {
     const G = Gs[S], f = feet[S], A = [f.x - t[0], f.y - t[1], f.lift + G.hS - t[2]];
-    const leg = solveLeg(G, A, G.mount + f.yaw, arch.bend), J = arch.legs[S].joints, sign = arch.legs[S].yawSign;
+    const leg = solveLeg(G, A, legYaw(arch.legs[S], G, A, f), arch.bend), J = arch.legs[S].joints, sign = arch.legs[S].yawSign;
     // (a leg mounted turned: its yaw drive's value from its mounting, in its drive's sense)
     for (const [k, v] of Object.entries(leg.values)) joints[J[k]] = k === 'yaw' && sign ? (v - G.mount) * sign : v;
     legs[S] = { reach: leg.reach, over: leg.over, knee: leg.values.knee };

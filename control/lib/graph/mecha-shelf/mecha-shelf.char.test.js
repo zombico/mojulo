@@ -53,6 +53,9 @@
  *     its foot's ring, its body's shell closed, hung to walk with its blunt end's four petals opened to the ground,
  *     closed lying on its wheels to drive; the armour shells gone): its bay, its foot ring and its coxa (a wider yaw)
  *     re-pinned, the fork and a petal pinned as builder paths, and the frame whole re-pinned; no other pin moved.
+ *   - The brood walker's M: its petals heavier and ribbed, its legs longer, its hull lower between knees raised over its
+ *     hips (its legs aimed at their feet, a high ankle's roll solved): its bay, its petal, its column, its shank and the
+ *     frame re-pinned; every other frame's pin held through the solver's change.
  */
 import { createHash } from 'node:crypto';
 import { dressFaces } from './mecha-military.js';
@@ -154,18 +157,18 @@ const PINS = {
   'winch-wpn': '8632112e37ab33d1',
   'cradle-bw': '67b1a5e971ac30b0',
   'fork-bw': 'c921b3bcf1cebd78',
-  'petal-bw-uo': 'd5897f98d7f057c7',
+  'petal-bw-uo': '5ec950ad16a80269',
   'car-bw': '9dfe27f77893b704',
-  'bay-bw': '41e1a78848324480',
+  'bay-bw': '31c436b4d6f48824',
   'ankle-bw': '72f7f2aa7295c94b',
-  'column-bw': '311fed077a95e243',
+  'column-bw': 'ace0894ed2830dd8',
   'coxa-bw': '91f14f76226fea83',
   'hub-bw': '2b59638db2765981',
   'deck-bw': '37d3499ddd4a031c',
   'wing-bw': '9571f4a4df707c7e',
   'pelvis-bw': 'ed61f8202700f38c',
   'solar-bw': '0d57bba65cf5b1ca',
-  'tibia-bw': '832112513a170dea',
+  'tibia-bw': 'e56f37599d8b7827',
   'thigh-sw': '08b637f4320f16d1',
 };
 const LEFT = 'c9882af91b6cf973';
@@ -179,7 +182,7 @@ const DRESSED = '11e116ab05219a97';
 const SHUT = '82ad4d81d813b60e';
 const BACKPACKED = '420fceac250411af';
 const SIEGE = ['9a1b7f9ff8b5e291', '8f0a988a084d563e'];
-const BROOD = ['bf1434e1c067bcc3', 'b38324bd56d0bd96', '7f616b8ec1795d05'];
+const BROOD = ['193c98e6a47e6b30', 'fc6effb480f69126', '77ca4a2750d53e42'];
 const ROVER = ['b9b45a6b998bab2e', 'b1a36b438ff216d1'];
 const fourFingered = Object.entries(MECHA_ODM).find(([, r]) => r.kind === 'mecha-tool' && r.dims.fingers === 4)[0];
 const screwHouse = MECHA_MAKER_IDS.find((id) => MECHA_MAKERS[id].actuator === 'screw');

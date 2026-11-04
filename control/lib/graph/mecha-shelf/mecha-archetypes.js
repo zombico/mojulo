@@ -690,7 +690,7 @@ const insectLeg = (K, side, mount, sign, roll, turn, P = BW_LEG) => {
 // along the hull's sides fore and aft under their hips, their lengths along it)
 // (walking, its feet spread fore and aft of its hips so its petals clear each other; driving, its eggs nose to tail
 // beside the hull, each lying behind its hub, lower under its ankle than hung by what its wheels hold it up)
-const BW_HIP = [1.6, 1.75], BW_OUT = 1.25, BW_SPLAY = 0.6, BW_TUCK = [2.65, 2.35, -2.56];
+const BW_HIP = [1.6, 1.75], BW_OUT = 2.0, BW_SPLAY = 0.6, BW_TUCK = [2.65, 2.35, -2.56];
 const r3a = (v) => Math.round(v * 1000) / 1000;
 const BL = {
   // (each leg tucks straight out; each bay turned on its cradle so it lies nose ahead, its open end behind)
@@ -705,6 +705,8 @@ for (const [k, sx, sy] of [['fr', 1, 1], ['fl', -1, 1], ['rr', 1, -1], ['rl', -1
   const toward = (p) => r3a((Math.atan2(-(p[0] - sx * BW_HIP[0]), p[1] - sy * BW_HIP[1]) * 180) / Math.PI - L.mount);
   L.at = Object.freeze([r3a(sx * BW_HIP[0] - Math.sin(a) * BW_OUT), r3a(sy * (BW_HIP[1] + BW_SPLAY) + Math.cos(a) * BW_OUT)]);
   L.atYaw = toward(L.at);
+  // (an insect's leg: turned at its hip to point at its foot wherever a stance sets it)
+  L.aim = true;
   const tuck = Object.freeze([sx * BW_TUCK[0], sy > 0 ? BW_TUCK[1] : BW_TUCK[2]]);
   L.tuck = Object.freeze({ at: tuck, yaw: toward(tuck), lift: r3a(EGG_FOOT.lie - EGG_FOOT.stand) });
   BL[k].joints[`swivel${k.toUpperCase()}`] = Object.freeze({ kind: 'hinge', axis: Object.freeze([0, 0, 1]), drive: `fork${k.toUpperCase()}`, at: -L.atYaw, when: Object.freeze({ place: -L.tuck.yaw }) });
@@ -740,12 +742,13 @@ const broodWalker = Object.freeze({
   track: 2 * BW_HIP[0],
   rest: 'stand',
   stances: Object.freeze({
-    stand: Object.freeze({ height: 8.8 }),
+    stand: Object.freeze({ height: 8.1 }),
     // (on three feet, a bay lifted and set ahead: its centre of mass carried toward the other three, an insect's step)
     lift: Object.freeze({ height: 'stand', sway: Object.freeze([-0.1, -0.3]), feet: Object.freeze({ fr: Object.freeze({ lift: 0.4, y: 0.3 }) }) }),
     stride: Object.freeze({ height: 'stand', feet: Object.freeze({ fr: Object.freeze({ y: 0.5 }), rl: Object.freeze({ y: 0.5 }), fl: Object.freeze({ y: -0.4 }), rr: Object.freeze({ y: -0.4 }) }) }),
-    turn: Object.freeze({ height: 'stand', feet: Object.freeze(Object.fromEntries(Object.keys(BL).map((k) => [k, Object.freeze({ yaw: 12 })]))) }),
-    board: Object.freeze({ height: 7.8, spread: 1.0 }),
+    // (turning: each foot carried round its centre, its leg aimed at it)
+    turn: Object.freeze({ height: 'stand', feet: Object.freeze(Object.fromEntries(Object.entries(BL).map(([k, { leg: L }]) => { const a = (12 * Math.PI) / 180, [x, y] = L.at; return [k, Object.freeze({ x: r3a(x * Math.cos(a) - y * Math.sin(a)), y: r3a(x * Math.sin(a) + y * Math.cos(a) - y) })]; }))) }),
+    board: Object.freeze({ height: 7.3, spread: 1.15 }),
     // (its drones out of their bays' opened blunt ends, hovering clear of it)
     launch: Object.freeze({ height: 'stand', launch: true }),
     // (its bays tucked in along the hull, on their wheels, the hull between them: it drives)
@@ -754,8 +757,7 @@ const broodWalker = Object.freeze({
   dress: Object.freeze({ ...F0.dress, kit: Object.freeze([]) }),
   laws: Object.freeze({
     stability: Object.freeze([0.3, 9]), sway: Object.freeze([0.2, 9]), actuators: Object.freeze([0, 0.8]), groundPressure: Object.freeze([10, 250]),
-    // (hung from its eggs it stands tall: its crouch brings its saddle to a ladder's reach, not a step's)
-    step: Object.freeze([0.4, 3]), stride: Object.freeze([0.4, 3]), belly: Object.freeze([0.8, 8]), seat: Object.freeze([2, 9]), board: Object.freeze([1, 7]),
+    step: Object.freeze([0.4, 3]), stride: Object.freeze([0.4, 3]), belly: Object.freeze([0.8, 8]), seat: Object.freeze([2, 9]), board: Object.freeze([1, 6]),
     cab: Object.freeze([0.03, 1]), clearance: Object.freeze([0.01, 20]), mass: 0.1, distal: Object.freeze([0, 0.7]),
     rollContact: Object.freeze([0, 0.01]), rollClearance: Object.freeze([0.1, 9]), rollStability: Object.freeze([0.3, 9]),
     droneGround: Object.freeze([0.1, 20]), droneClear: Object.freeze([0.02, 20]),

@@ -54,7 +54,7 @@
  */
 import { G, apply, cross, dot, ramForce, sub } from './mecha-common.js';
 import { isStrut } from '../construction-shelf/con-chain.js';
-import { armGeometry, solveArm, solveLeg, legGeometry, legKeys } from './mecha-ik.js';
+import { armGeometry, solveArm, solveLeg, legGeometry, legKeys, legYaw } from './mecha-ik.js';
 import { TAIL_POSES } from './mecha-backpacks.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -278,8 +278,8 @@ export function mechaLaws(key, kit) {
   const Gr = legGeometry(arch, ctx, L0), J = arch.legs[L0].joints;
   // (a leg mounted turned: its yaw drive's value from its mounting, in its drive's sense)
   const L0leg = arch.legs[L0], own = (k, v) => (k === 'yaw' && L0leg.yawSign ? (v - Gr.mount) * L0leg.yawSign : v);
-  // (a leg's plane at its foot's own heading: a splayed foot's)
-  const fits = (ankle, yaw = Gr.mount + (foot.yaw ?? 0)) => {
+  // (a leg's plane at its foot's own heading: a splayed foot's, or turned to its ankle, a leg that aims)
+  const fits = (ankle, yaw = legYaw(arch.legs[L0], Gr, ankle, foot)) => {
     const leg = solveLeg(Gr, ankle, yaw, arch.bend);
     if (!leg.reach) return false;
     return Object.entries(leg.values).every(([k, v]) => { const r = range(J[k]), w = own(k, v); return !r || (w >= r[0] - 1e-6 && w <= r[1] + 1e-6); });
@@ -490,7 +490,7 @@ export function mechaLaws(key, kit) {
       }
       return { d: best, who };
     };
-    const reachJoints = (ankle) => { const leg = solveLeg(Gr, ankle, Gr.mount + (foot.yaw ?? 0), arch.bend); return { ...P.stand.joints, ...Object.fromEntries(Object.entries(leg.values).map(([k, v]) => [J[k], own(k, v)])) }; };
+    const reachJoints = (ankle) => { const leg = solveLeg(Gr, ankle, legYaw(arch.legs[L0], Gr, ankle, foot), arch.bend); return { ...P.stand.joints, ...Object.fromEntries(Object.entries(leg.values).map(([k, v]) => [J[k], own(k, v)])) }; };
     const samples = [...Object.entries(P).map(([k, p]) => [k, p.joints]), ['step', reachJoints(stepAt(step))], ['stride', reachJoints(strideAt(stride))]];
     let worst = { d: Infinity };
     for (const [k, j] of samples) { const c = at(j); if (c.d < worst.d) worst = { ...c, k }; }
