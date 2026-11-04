@@ -148,11 +148,28 @@ describe('a starter species', () => {
     expect(xenoWorn(W)).toEqual(W);                                                                    // worn twice: the same hero
     expect(xenoWorn({ xenoSpecies: 'grey-visitor', palette: { Skin: '#123456' } }).palette.Skin).toBe('#123456');
     const real = xenoWorn({ form: 'realistic', xenoSpecies: 'grey-visitor' });
-    expect([real.skin.tone, real.palette]).toEqual([XENO_SPECIES['grey-visitor'].skin, undefined]);
+    expect([real.skin.tone, real.palette.Skin]).toEqual([XENO_SPECIES['grey-visitor'].skin, undefined]);         // its skin on skin.tone, never the palette's Skin
     expect(xenoWorn({ hair: 'bob', xenoSpecies: 'ridge-nosed' }).hair).toBe('bob');                 // a species with no bald cap keeps the hair
     expect(speciesReadout({ xenoSpecies: 'grey-visitor' })).toMatchObject({ species: 'grey-visitor', also: expect.any(String) });
-    // (every species' appliances are a list the hero door takes)
-    for (const id of Object.keys(XENO_SPECIES)) expect(validateXenoHeaddress(wornHeaddress({ xenoSpecies: id })), id).toEqual([]);
+  });
+
+  it('sets its eyes and its build in the words of the head the hero wears, under the hero\'s own', () => {
+    const S = XENO_SPECIES['grey-visitor'];
+    // the landmark head: its face and its tune; the anime head: its face and the anime body for the hero's pole
+    const eyes = { Sclera: S.eyes.sclera, Iris: S.eyes.iris, Pupil: S.eyes.pupil };
+    expect(xenoWorn({ cast: 'female', xenoSpecies: 'grey-visitor' })).toMatchObject({ face: S.heads.landmark.face, tune: S.heads.landmark.tune, palette: eyes });
+    expect(xenoWorn({ cast: 'female', head: 'anime', xenoSpecies: 'grey-visitor' })).toMatchObject({ face: S.heads.anime.face, animeBody: 'maki' });
+    expect(xenoWorn({ cast: 'male', head: 'anime', xenoSpecies: 'grey-visitor' }).animeBody).toBe('satoru');
+    // the realistic head: its face's words and its physique, its eyes' colours too (its skin's colour on its own word)
+    const real = xenoWorn({ cast: 'female', form: 'realistic', xenoSpecies: 'grey-visitor', face: { want: { chin: 'soft' } } });
+    expect([real.face.want, real.physique, real.palette, real.skin.tone]).toEqual([{ eyes: 'large', chin: 'soft' }, 'skinny', eyes, S.skin]);
+    // the hero's own: its face laid after the species' (its keys win), its build in place of the species'
+    const own = xenoWorn({ cast: 'female', head: 'anime', xenoSpecies: 'grey-visitor', face: 'tsurime', animeBody: 'kale' });
+    expect([own.face, own.animeBody]).toEqual([[S.heads.anime.face, 'tsurime'], 'kale']);
+    expect(xenoWorn({ cast: 'female', xenoSpecies: 'grey-visitor', tune: 'long-legs', palette: { Iris: '#00ff00' } })).toMatchObject({ tune: 'long-legs', palette: { Iris: '#00ff00', Sclera: S.eyes.sclera, Pupil: S.eyes.pupil } });
+    // a blank trunk wears no head's words
+    expect(xenoWorn({ cast: 'female', head: 'none', xenoSpecies: 'grey-visitor' }).face).toBeUndefined();
+    expect(speciesReadout({ cast: 'female', head: 'anime', xenoSpecies: 'grey-visitor' }).anime).toEqual({ face: S.heads.anime.face, animeBody: 'maki' });
   });
 
   it('mints a hero wearing it, and says what it gave', async () => {

@@ -886,11 +886,14 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   practical-effects make-up crew's APPLIANCES on the hero: pieces sculpted, cast in foam latex or silicone, glued on with
   their edges blended into the skin, and painted. They sit on whichever head the hero wears (the landmark head, the anime
   head, the realistic head), found on that head's own skin and pinned to it, so they turn and export with the head.
-  A STARTER SPECIES is the quickest start: `xenoSpecies: '<species>'` gives a skull, the appliances on it and the skin's
-  colour in one word, and the readout's `xenoSpecies` says what it gave and what else reads it (`also`: eyes, build,
-  markings, for the face's and the body's own words). The person's words win: a `xenoHeaddress` of their own is worn
-  after the species' (a skull they name takes the species' skull's place), and a palette Skin or `skin.tone` of their
-  own keeps their colour. Null takes it off. The species: `grey-visitor`, `ridged-warrior`, `ridge-nosed`,
+  A STARTER SPECIES is the quickest start: `xenoSpecies: '<species>'` gives a skull, the appliances on it, the skin's
+  colour, and its EYES and BUILD in the words of the head the hero wears: on the landmark head its `face` (eyeSize,
+  eyeSpacing …) and `tune`; on the anime head its `face` (eyeWidth, eyeHeight, iris, spacing, tilt …) and an `animeBody`
+  for the hero's pole; on the realistic head `face.want.eyes` and a `physique`; and on every head the eyes' colours (the
+  palette's Sclera, Iris and Pupil: a grey's all black, an insectoid's gold on dark). The readout's `xenoSpecies` says what it gave on this head and what else reads it (`also`: markings,
+  dress). The person's words win: a `xenoHeaddress` of their own is worn after the species' (a skull they name takes the
+  species' skull's place); a `face` of their own is laid after the species' (its keys win; the realistic face's words
+  merge over it); their own `tune`, `animeBody`, `physique`, `skin.tone` and palette colours (Skin, Sclera, Iris, Pupil) stand. Null takes it off. The species: `grey-visitor`, `ridged-warrior`, `ridge-nosed`,
   `lekku-dancer`, `montral-hunter`, `crested-diplomat`, `plated-insectoid`, `cone-elder`, `brain-invader`,
   `domed-telepath`, `horn-crowned`; each names the screen alien it recalls (`like`) for the X-like stamp.
   THE SKULL first, for a head that is not a person's: a cranial prosthetic, the oversized foam skull a crew glues over

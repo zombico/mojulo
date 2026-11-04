@@ -60,8 +60,16 @@ person's own picture itself (a drawing, a photo, a figure, someone's OC): nothin
   The quickest start is a STARTER SPECIES: `xenoSpecies` gives a skull, the appliances on it and the skin's colour in
   one word. The species are `grey-visitor`, `ridged-warrior`, `ridge-nosed`, `lekku-dancer`, `montral-hunter`,
   `crested-diplomat`, `plated-insectoid`, `cone-elder`, `brain-invader`, `domed-telepath` and `horn-crowned`. Each says
-  what it recalls and what else reads it (eyes, build, markings). The person's own appliances and skin colour win over
-  the species', and the record keeps the species as one word.
+  what it recalls. It also sets the eyes and the build in the words of the head the hero wears:
+  - on the landmark head, its face (eye size and spacing, jaw, mouth) and a tune;
+  - on the anime head, its face (eye width and height, iris, spacing, tilt) and an anime body for the hero's sex;
+  - on the realistic head, the face's eye shape and a physique;
+  - on every head, the eyes' colours: the sclera, the iris and the pupil (a grey's eyes all black, an insectoid's gold
+    on dark).
+
+  The person's own appliances, face, build and colours win over the species': their face is laid after the species'.
+  The record keeps the species as one word, and the readout says what it gave on that head and what else reads it
+  (markings, dress).
 
   A head that is not a person's shape starts from a SKULL: a cranial prosthetic glued over the actor's own, its edge
   feathered into the skin, over a bald cap. The skulls are `tall-cranium`, `cone-skull`, `bilobed-brain`, `domed-brow`,
