@@ -18,3 +18,5 @@
   part as unit rigs' are (shared corners, positions on a uint16 grid, `packRigMesh`), writes its clips' frames on 16 bits
   (decoded once to a Float32Array), and names a figure byte-identical to an earlier one again instead of writing it
   twice: 11 MB, pages of 33 to 37 MB. A bank with none of these is emitted byte for byte as before.
+- **A brief names the patch's ops.** An author's submit shape said `op` without its words; both authors of the slice's
+  first round sent `replace` and were refused. It says `set | add | remove`.

@@ -123,7 +123,7 @@ export function jobBrief(job, req, { ref, agents = false }) {
   }
   const submit = job.kind === 'critic'
     ? { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, findings: '[{ says, part?, severity? }]' } } }
-    : { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, patch: '[{ op, path, value }] on your pages', decisions: '[{ slot, value, because }]', asks: '[what the remit asks that no word of the recipe reaches]' } } };
+    : { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, patch: '[{ op: set | add | remove, path, value }] on your pages', decisions: '[{ slot, value, because }]', asks: '[what the remit asks that no word of the recipe reaches]' } } };
   return {
     job: job.id, kind: job.kind, tier: job.tier, status: job.status, ...agent, ...(job.role ? { role: job.role } : {}),
     ...(job.angle ? { angle: job.angle } : {}), ...(job.lens ? { lens: `${job.lens}: ${LENSES[job.lens]}` } : {}),
