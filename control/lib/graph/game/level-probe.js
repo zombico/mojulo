@@ -102,9 +102,16 @@ export async function playStages(items, { executablePath, T = PROBE, timeoutMs =
   const B = { g: C.CAPTURE_GLOBAL, ready: C.CAPTURE_READY, step: C.CAPTURE_STEP, probe: C.CAPTURE_PROBE };
   await loadPuppeteer();
   const browser = await launchChromium({ executablePath, headless: true, args: CHROMIUM_WEBGL_ARGS, timeout: timeoutMs });
+  // a page is loaded from a file, never pushed whole through one DevTools message (setContent): a party's level inlines
+  // its figure bank, past 100 MB, and a message that size closes the target
+  const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { pathToFileURL } = await import('node:url');
+  const dir = await mkdtemp(join(tmpdir(), 'mojulo-probe-'));
   const out = [];
   try {
-    for (const { html } of items) {
+    for (const [k, { html }] of items.entries()) {
       let pg = null;
       const errors = [];
       try {
@@ -114,7 +121,11 @@ export async function playStages(items, { executablePath, T = PROBE, timeoutMs =
         // eslint-disable-next-line no-await-in-loop
         await pg.setViewport({ width: T.width, height: T.height, deviceScaleFactor: 1 });
         // eslint-disable-next-line no-await-in-loop
-        await pg.setContent(html, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+        const file = join(dir, `stage-${k}.html`);
+        // eslint-disable-next-line no-await-in-loop
+        await writeFile(file, html);
+        // eslint-disable-next-line no-await-in-loop
+        await pg.goto(pathToFileURL(file).href, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
         // eslint-disable-next-line no-await-in-loop
         await pg.waitForFunction((b) => window[b.g] && window[b.g][b.ready] === true, { timeout: timeoutMs }, B);
         // a second standing still: over already?
@@ -164,6 +175,7 @@ export async function playStages(items, { executablePath, T = PROBE, timeoutMs =
     }
   } finally {
     await browser.close().catch(() => {});
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
   return out;
 }

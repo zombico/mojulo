@@ -9,3 +9,6 @@
 - **A critic reads the crew's work whole.** A critic's seat (`as`) on a crew's req was held to the req's own unit, so a
   critic of a level never saw the battles its crew wrote beside it. Its view may now be any unit of the req, as the
   assistant director's is; an author's stays its own.
+- **The play probe loads a page from a file.** It pushed each stage's whole page through one DevTools message, and a
+  party RPG's stage (its figure bank inlined: the hero and three party members, past 100 MB) closed the target before
+  it loaded: the stage was said not to load. It writes the page to a temporary file and opens it.
