@@ -84,3 +84,10 @@
   in order, in and out, the loop), the director's words winning. Its received gate waits on every level's stages, its
   probe plays each level (`mergeVerdicts`: a check holds where it holds on every level, said level by level), and once
   accepted every level it holds is in the game.
+- **A party's dungeon is laid larger, its exits unmarked, its arches laid in stones.** A world that fights in party
+  battles lays its building levels' rooms twice a walker's (`DUNGEON_SCALE`; a program's new `scale`: the template's
+  rooms that many times as long and wide, taller by its root, the recipe's own sizes its own; a core-plan building
+  keeps its plan), so the fight's camera stands back inside a room rather than cutting its way to it. Its exits carry
+  `marker: false`, and the decoration leaves them without the flag and beacon: the road or the door shows the way on.
+  An archivolt (`arches.js archRing`) is laid as voussoirs, an odd count of wedge stones about 45 cm round the ring,
+  mortar joints between them and the keystone at the crown standing prouder and higher, where it was one band.

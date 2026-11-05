@@ -1124,7 +1124,17 @@ function inPalette(manifest, P, at) {
 
 /** The stage a building level is built as (its program on its kit, in its palette): what a run makes and what the book
  *  shows its finishes from (finishes.js); null for a building by ref, played as it was made. */
-export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : R.building.complex ? complexStage(R.building) : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`));
+export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : R.building.complex ? complexStage(R.building) : inPalette(buildingStage(partyScaled(G, R.building)), R.style?.palette ?? G.style?.palette, `${level}/building`));
+
+/** THE PARTY'S DUNGEON IS LAID LARGER (a principle): a world that fights in party battles on its levels lays its
+ * building levels' rooms DUNGEON_SCALE times a walker's, so a party and its foes stand in a room with room to spare and
+ * the fight's camera stands back inside it (rpg-channel.js's arena) rather than being cut away to; a building on a
+ * core plan (an office, a base) keeps its own, as does a building that writes its rooms' sizes. */
+export const DUNGEON_SCALE = 2;
+function partyScaled(G, B) {
+  const fights = laidBattles(G).battles, shape = PROGRAMS[B.use]?.shape;
+  return fights && fights.on !== 'board' && shape && shape !== 'core' && B.look === undefined && !PROGRAMS[B.use]?.base ? { ...B, scale: DUNGEON_SCALE } : B;
+}
 
 /** What a world's complex levels advise (network/complex.js complexLaws): each law that does not hold, by level, and
  *  what it measured and wants. A level its world cannot resolve says so elsewhere; here it says nothing. */
@@ -1179,7 +1189,7 @@ export function buildingStage(B) {
   // walled-core dungeon's space it is, else by its kit's own register; its space's tone colours it)
   const composed = look || PROGRAMS[use]?.base ? { compose: look ? { construction: look.construction, palette: look.palette } : {} } : {};
   // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
-  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
+  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays', 'scale'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
     kind: 'stage',
     ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),

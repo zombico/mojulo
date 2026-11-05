@@ -7,7 +7,7 @@
  *   roundArch(a, b, zs, rise, seg)        → the curve over [a, b] springing at zs, as { u, z, n } points (n into the opening)
  *   archInfill(out, F, pts, top, surf)    → the wall between the curve and a flat line above it (the spandrels)
  *   archUnder(out, F, pts, zs, surf, off) → the face under the curve down to its springing line (a niche's back)
- *   archRing(out, F, a, b, zs, rise, …)   → an archivolt: a moulded ring round the head, standing proud
+ *   archRing(out, F, a, b, zs, rise, …)   → an archivolt: a ring of voussoirs round the head, standing proud, its keystone
  *   archSoffit(out, pt, pts, depth, …)    → the curved underside through a wall's thickness
  *
  * Every face is a textured quad lit and dirtied by the stage like the shell; low segment counts (the era's budget).
@@ -52,24 +52,64 @@ export function archUnder(out, F, pts, zs, surf, off = 0, n = F.N) {
   }
 }
 
-/** An archivolt over [a, b]: a ring `w` wide round the head, standing `proud` out of the wall, its inner edge and outer edge. */
+/** A point on the round (segmental) arch over [a, b] springing at zs, rising `rise`, at t ∈ [0, 1] from a to b. */
+function arcAt(a, b, zs, rise, t) {
+  const h = (b - a) / 2, mid = (a + b) / 2, k = Math.min(Math.max(rise, h * 0.05), h);
+  const R = (h * h + k * k) / (2 * k), cz = zs + k - R, half = Math.asin(Math.min(1, h / R)), th = Math.PI / 2 + half - 2 * half * t;
+  return { u: mid + R * Math.cos(th), z: cz + R * Math.sin(th), n: norm2(-Math.cos(th), -Math.sin(th)), len: 2 * half * R };
+}
+// a voussoir's length round the ring (metres, about), the mortar joint between two, the keystone's stand and rise
+const VOUSSOIR = 0.45, JOINT = 0.02, KEY = { proud: 0.03, rise: 0.06 };
+/** How many voussoirs an arch over [a, b] rising `rise` is laid in: odd, about one a VOUSSOIR round its curve, 5 at least
+ * (its ring and its soffit the same stones). */
+export const voussoirs = (a, b, zs, rise) => Math.max(5, 2 * Math.round((arcAt(a, b, zs, rise, 0).len / VOUSSOIR - 1) / 2) + 1);
+
+/**
+ * An archivolt over [a, b]: a ring `w` wide round the head, standing `proud` out of the wall, laid as VOUSSOIRS (no
+ * arch is carved whole from one stone): an odd count of wedge stones, about one a VOUSSOIR round the ring, a mortar
+ * joint between each (the wall behind shows in it), the keystone at the crown standing a little prouder and higher.
+ * `seg`: the faces round the whole ring (each stone takes its share, one at least). → { inner, outer } (the curves)
+ */
 export function archRing(out, F, a, b, zs, rise, seg, w, proud, surf) {
   const inner = roundArch(a, b, zs, rise, seg), outer = roundArch(a - w, b + w, zs, rise + w, seg);
-  for (let i = 0; i < seg; i++) {
-    const p = inner[i], q = inner[i + 1], po = outer[i], qo = outer[i + 1];
-    quad(out, [W(F, p.u, p.z, proud), W(F, q.u, q.z, proud), W(F, qo.u, qo.z, proud), W(F, po.u, po.z, proud)], F.N, surf, F.U, Z);
-    const ni = norm2((p.n[0] + q.n[0]) / 2, (p.n[1] + q.n[1]) / 2);
-    quad(out, [W(F, p.u, p.z), W(F, q.u, q.z), W(F, q.u, q.z, proud), W(F, p.u, p.z, proud)], wallN(F, ni[0], ni[1]), surf, F.U, Z);
-    quad(out, [W(F, qo.u, qo.z), W(F, po.u, po.z), W(F, po.u, po.z, proud), W(F, qo.u, qo.z, proud)], wallN(F, -ni[0], -ni[1]), surf, F.U, Z);
+  const L = (arcAt(a, b, zs, rise, 0).len + arcAt(a - w, b + w, zs, rise + w, 0).len) / 2;
+  const n = voussoirs(a, b, zs, rise), sub = Math.max(1, Math.round(seg / n)), gap = JOINT / L;
+  for (let s = 0; s < n; s++) {
+    const key = s === (n - 1) / 2, pr = proud + (key ? KEY.proud : 0), ow = w + (key ? KEY.rise : 0);
+    const t0 = s / n + (s ? gap : 0), t1 = (s + 1) / n - (s < n - 1 ? gap : 0);
+    const I = [], O = [];
+    for (let j = 0; j <= sub; j++) { const t = t0 + ((t1 - t0) * j) / sub; I.push(arcAt(a, b, zs, rise, t)); O.push(arcAt(a - ow, b + ow, zs, rise + ow, t)); }
+    for (let j = 0; j < sub; j++) {
+      const p = I[j], q = I[j + 1], po = O[j], qo = O[j + 1];
+      quad(out, [W(F, p.u, p.z, pr), W(F, q.u, q.z, pr), W(F, qo.u, qo.z, pr), W(F, po.u, po.z, pr)], F.N, surf, F.U, Z);
+      const ni = norm2((p.n[0] + q.n[0]) / 2, (p.n[1] + q.n[1]) / 2);
+      quad(out, [W(F, p.u, p.z), W(F, q.u, q.z), W(F, q.u, q.z, pr), W(F, p.u, p.z, pr)], wallN(F, ni[0], ni[1]), surf, F.U, Z);
+      quad(out, [W(F, qo.u, qo.z), W(F, po.u, po.z), W(F, po.u, po.z, pr), W(F, qo.u, qo.z, pr)], wallN(F, -ni[0], -ni[1]), surf, F.U, Z);
+    }
+    // its two joint faces (none at the springers, which sit on the jambs): radial, facing along the ring
+    for (const [e, sgn] of [[0, -1], [sub, 1]]) {
+      if ((e === 0 && s === 0) || (e === sub && s === n - 1)) continue;
+      const p = I[e], po = O[e], tn = norm2(-p.n[1] * sgn, p.n[0] * sgn);
+      quad(out, [W(F, p.u, p.z), W(F, po.u, po.z), W(F, po.u, po.z, pr), W(F, p.u, p.z, pr)], wallN(F, tn[0], tn[1]), surf, F.U, Z);
+    }
   }
   return { inner, outer };
 }
 
-/** The curved underside of an arch through a wall: `pt(u, d, z)` maps a point on the arch at depth d ∈ [0, depth]. */
-export function archSoffit(out, pt, pts, depth, surf, n3, A) {
-  for (let i = 0; i + 1 < pts.length; i++) {
-    const p = pts[i], q = pts[i + 1], n = n3(norm2((p.n[0] + q.n[0]) / 2, (p.n[1] + q.n[1]) / 2));
+/** The curved underside of an arch through a wall: `pt(u, d, z)` maps a point on the arch at depth d ∈ [0, depth].
+ * `arc` ({ a, b, zs, rise }, the arch `pts` was struck as): laid as its ring's voussoirs, each stone its own faces and
+ * its own cut of the stone's grain (its texture shifted a stone along), so no underside reads as one bent slab. */
+export function archSoffit(out, pt, pts, depth, surf, n3, A, arc = null) {
+  const seq = arc ? Array.from({ length: voussoirs(arc.a, arc.b, arc.zs, arc.rise) }, (_, s, ) => s) : null;
+  const face = (p, q, du) => {
+    const n = n3(norm2((p.n[0] + q.n[0]) / 2, (p.n[1] + q.n[1]) / 2));
     quad(out, [pt(p.u, 0, p.z), pt(q.u, 0, q.z), pt(q.u, depth, q.z), pt(p.u, depth, p.z)], n, surf, A, null,
-      [[p.u / surf.scale, 0], [q.u / surf.scale, 0], [q.u / surf.scale, depth / surf.scale], [p.u / surf.scale, depth / surf.scale]]);
+      [[p.u / surf.scale + du, 0], [q.u / surf.scale + du, 0], [q.u / surf.scale + du, depth / surf.scale], [p.u / surf.scale + du, depth / surf.scale]]);
+  };
+  if (!seq) { for (let i = 0; i + 1 < pts.length; i++) face(pts[i], pts[i + 1], 0); return; }
+  const n = seq.length, sub = Math.max(1, Math.round((pts.length - 1) / n));
+  for (const s of seq) {
+    const I = Array.from({ length: sub + 1 }, (_, j) => arcAt(arc.a, arc.b, arc.zs, arc.rise, (s + j / sub) / n));
+    for (let j = 0; j < sub; j++) face(I[j], I[j + 1], ((s * 37) % 11) * 0.137);
   }
 }

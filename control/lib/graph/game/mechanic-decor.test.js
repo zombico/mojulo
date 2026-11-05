@@ -42,6 +42,12 @@ describe('decorateMechanics (game-ui-language U5)', () => {
     expect(aura.color[1]).toBeGreaterThan(aura.color[0]);   // green-dominant
   });
 
+  it('an exit with marker: false (a party RPG\'s: the place shows the way) has no flag and no beacon', () => {
+    const d = decorateMechanics([{ kind: 'reach-exit', at: [6, 0, 0], marker: false }]);
+    expect(d.entities).toEqual([]);
+    expect(d.sfx).toEqual([]);
+  });
+
   it('decorates hazard-damage with a red aura per hazard, no entity', () => {
     const d = decorateMechanics([{ kind: 'hazard-damage', hazards: [{ at: [0, 4, 0] }, { at: [2, 2, 0] }] }]);
     expect(d.entities).toHaveLength(0);

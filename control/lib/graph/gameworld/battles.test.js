@@ -9,6 +9,7 @@ import { readRpg } from '../playscape/rpg/rpg.js';
 import { createBusState, processEvents, watchEvents } from '../worlds/event-bus.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { withBuildingLevel } from '../structure/level.js';
+import { DUNGEON_SCALE } from './levels.js';
 
 const levels = (w) => runSteps(w, { ref: 'gw' }).filter((s) => s.key.startsWith('level-'));
 const W = (battles, more = {}) => ({ ...MEADOWMARK_HERO, battles, ...more });
@@ -137,6 +138,11 @@ describe('battles in a building', () => {
     expect(Math.hypot(inside[0].at[0] - exit.at[0], inside[0].at[1] - exit.at[1])).toBeGreaterThan(boss.near);
     // the party's key in the building's legend, as on a trail
     expect(JSON.stringify(M.events)).toContain('P  party');
+    // a party's dungeon is laid DUNGEON_SCALE times a walker's (its camera stands back inside it); no flag over a way out
+    expect(M.program.scale).toBe(DUNGEON_SCALE);
+    expect(exit.marker).toBe(false);
+    const meadow = L.find((s) => s.key === 'level-meadow-0').order.manifest;
+    expect(meadow.game.mechanics.find((m) => m.kind === 'reach-exit').marker).toBe(false);
   });
 });
 

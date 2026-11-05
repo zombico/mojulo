@@ -429,6 +429,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights });
+    // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
+    if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // on an epoch's map, a level won goes back to the map
     if (onBoard) L.args = toMap(L.args);
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
@@ -444,6 +446,14 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     steps.push(...composedAudits(auditSteps(steps, stages), C, onBoard ? undefined : composite));
   }
   return steps;
+}
+
+// a level's exits unmarked (game/mechanic-decor.js): a trail's in its game, a building's on the level it lowers
+function unmarked(args) {
+  const m = args.manifest;
+  if (Array.isArray(m?.game?.mechanics)) return { ...args, manifest: { ...m, game: { ...m.game, mechanics: m.game.mechanics.map((x) => (x.kind === 'reach-exit' ? { ...x, marker: false } : x)) } } };
+  if (m?.level && typeof m.level === 'object') return { ...args, manifest: { ...m, level: { ...m.level, marker: false } } };
+  return args;
 }
 
 // a walked stage's slots, as the walk plays them: before as it starts, after as the hero comes to its exit
