@@ -10,6 +10,8 @@ const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role }
 const screen = (props, children, extra = {}) => ({ use: 'screen', props, children, ...extra });
 const thenList = (rows, more = {}) => ({ use: 'list', props: { rows, ...more }, on: { accept: I('then') } });
 const back = { use: 'button', props: { label: 'Back' }, on: { accept: { back: true } } };
+// what the buttons do here, printed in the glyphs of the controls in hand (the runtime's glyphs)
+const legend = (...rows) => ({ use: 'legend', props: { rows: rows.map(([action, label]) => (Array.isArray(action) ? { actions: action, label } : { action, label })) } });
 
 export const FRONT_IDIOMS = {
   'attract-screen': {
@@ -67,7 +69,7 @@ export const FRONT_IDIOMS = {
         { use: 'portrait', props: { name: { pick: { format: 'roster@{seat}.name' } }, size: 'l' } }, txt({ pick: { format: 'roster@{seat}.role' } }, 'label'),
         { use: 'each', props: { rows: { pick: { format: 'roster@{seat}.stats' } }, row: { use: 'bar', props: { label: I('label'), value: I('value'), max: I('max') } } } },
       ] }] } } },
-    ] }]),
+    ] }, legend(['accept', 'pick'], ['back', 'back'])]),
     example: { title: 'Choose your fighter', roster: { bind: 'roster' }, seats: 2, players: [{ seat: 1, label: 'Player 1' }, { seat: 2, label: 'Player 2' }] },
   },
   'arena-select': {
@@ -87,7 +89,7 @@ export const FRONT_IDIOMS = {
     kind: 'screen', about: 'the pause over the held game: resume, then what the game offers (party, options, quit)',
     reads: 'items: [{ label, then, disabled? }]', emits: 'each item\'s then (back resumes: the stack closes)',
     params: ['title', 'items'],
-    node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'list', id: 'pause', props: { rows: P('items') }, on: { accept: I('then') } }] }]),
+    node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'list', id: 'pause', props: { rows: P('items') }, on: { accept: I('then') } }] }, legend(['accept', 'pick'], ['back', 'resume'])]),
     example: { title: 'Paused', items: [{ label: 'Resume', then: { close: true } }, { label: 'Party', then: { open: 'party' } }, { label: 'Options', then: { open: 'options' } }, { label: 'Save', disabled: true }, { label: 'Quit to title', then: { emit: 'quit' } }] },
   },
   'options-screen': {
@@ -97,7 +99,7 @@ export const FRONT_IDIOMS = {
     node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'stack', children: [
       { use: 'tabs', props: { pages: P('sections'), page: { use: 'each', props: { rows: I('fields'), row: { use: 'field', props: { kind: I('kind'), label: I('label'), value: { bind: I('var') }, options: I('options'), min: I('min'), max: I('max'), step: I('step'), keys: I('keys') } } } } } },
       { use: 'stack', props: { dir: 'row' }, children: [{ use: 'button', props: { label: 'Reset to defaults' }, on: { accept: { emit: 'options:reset' } } }, back] },
-    ] }] }]),
+    ] }] }, legend([['left', 'right'], 'change'], [['tabPrev', 'tabNext'], 'tabs'], ['back', 'back'])]),
     example: { title: 'Options', sections: [
       { label: 'Audio', fields: [{ kind: 'toggle', label: 'Sound', var: 'settings.sound' }, { kind: 'toggle', label: 'Music', var: 'settings.music' }, { kind: 'slider', label: 'Volume', var: 'settings.volume', min: 0, max: 10, step: 1 }] },
       { label: 'Video', fields: [{ kind: 'slider', label: 'Field of view', var: 'settings.fov', min: 60, max: 110, step: 5 }, { kind: 'toggle', label: 'Screen shake', var: 'settings.shake' }] },
@@ -106,14 +108,14 @@ export const FRONT_IDIOMS = {
     ] },
   },
   'controls-screen': {
-    kind: 'screen', about: 'what each action is bound to, keys and pad; accept asks the host to capture a new binding',
-    reads: 'actions: [{ action, label, keys: [key, pad] }]', emits: '{ remap: <action> } on accept; controls:reset',
+    kind: 'screen', about: 'what each action is bound to, keys and pad, a clash marked; accept asks the host to capture a new binding',
+    reads: 'actions: [{ action, label, keys, conflict? }] (controls/mana-controls.js controlsRows: a scheme as the controls kernel labels it)', emits: '{ remap: <action> } on accept; controls:reset',
     params: ['title', 'actions'],
     node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'stack', children: [
       { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt('Action', 'heading'), txt('Keys · Pad', 'heading')] },
-      { use: 'each', props: { rows: P('actions'), row: { use: 'keybind', props: { label: I('label'), keys: I('keys') }, on: { accept: { remap: I('action') } } } } },
+      { use: 'each', props: { rows: P('actions'), row: { use: 'keybind', props: { label: I('label'), keys: I('keys'), conflict: I('conflict') }, on: { accept: { remap: I('action') } } } } },
       { use: 'stack', props: { dir: 'row' }, children: [{ use: 'button', props: { label: 'Reset to defaults' }, on: { accept: { emit: 'controls:reset' } } }, back] },
-    ] }] }]),
+    ] }] }, legend(['accept', 'rebind'], ['back', 'back'])]),
     example: { title: 'Controls', actions: { bind: 'controls' } },
   },
   'confirm-dialog': {

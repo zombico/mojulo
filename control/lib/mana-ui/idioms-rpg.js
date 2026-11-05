@@ -31,7 +31,7 @@ export const RPG_IDIOMS = {
         { use: 'tab', props: { label: 'Equip' }, children: [{ use: 'list', id: 'gear', props: { rows: K('members.gear'), empty: 'Nothing worn', row: row(txt(I('slot'), 'label'), txt(I('name'))) }, on: { accept: { emit: 'equip-slot', member: K('members.id'), slot: I('slot') } } }] },
         { use: 'tab', props: { label: 'Skills' }, children: [{ use: 'list', props: { rows: K('members.skills'), empty: 'No skills yet', row: row(txt(I('name')), txt({ format: '{mp} MP' }, 'numeral')) } }] },
       ] }] },
-    ] }]),
+    ] }, { use: 'legend', props: { rows: [{ action: 'tabNext', label: 'next tab' }, { action: 'right', label: 'detail' }, { action: 'back', label: 'back' }] } }]),
     example: { title: 'Party', party: { bind: 'party' } },
   },
   'skill-tree': {

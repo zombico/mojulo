@@ -81,6 +81,30 @@ pointer, and the root carries it as `data-input`).
 - **A bottom sheet** (`place: 'sheet'`) is a phone's menu, risen from the foot of the screen in reach of a thumb, with
   its grabber. The `action-sheet` idiom is one; `phone-buttons` puts the pause and the map on taps.
 
+## Controls: the schemes in, the glyphs out
+
+mana-ui reads its controls from the control schemes (`control/lib/graph/controls/`): intents, never keys. The device
+families follow their standards (keyboard codes, the W3C standard gamepad in three printed layouts, a touch screen's
+virtual pad, WebXR). It takes them as data, through `controls/mana-controls.js`:
+
+- **In.** `manaControls()` resolves the `menu` scheme (and the pilot's interact, which also accepts) onto the keyboard
+  and onto each pad layout, in the same shape the playscape menus read. `mount(el, rt, { controls, drivers })` reads
+  them:
+  - keys on the window, in the capture phase
+  - every connected pad once a frame, on its press edges, in its own printed layout; pad n drives seat n
+  - any other device through a driver (`() → { actions }`, a headset or a wheel)
+
+  A remap is the kernel's override, so the screens follow it.
+- **Out.**
+  - `manaGlyphs()` says what each action's control is called on each family and layout. `rt.glyphs(table)` hands it
+    to the runtime, so a `prompt` and a `legend` print the glyph of the device in hand ("Enter", "A", "✕", "B" on a
+    Nintendo pad's right), switching as the player picks up another. A touch screen draws no legend.
+  - `controlsRows(scheme)` gives the controls screen a scheme's bindings as the kernel labels them, a clash marked.
+    `remap()` sets a captured control and returns the conflicts it makes (advised, never refused).
+- **The drawn touch pad is a driver.** Its stick and buttons hold the gamepad family's own controls (`south`, `rt`,
+  `leftX` …: devices.js's `touch` family drives `gamepad`). `mount` returns `read(control)` for the page's controls
+  kernel, so a phone plays through the same schemes as a pad.
+
 ## The components, by group
 
 `COMPONENTS` is the list; this table only says what each group is for.

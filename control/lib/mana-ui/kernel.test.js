@@ -272,7 +272,7 @@ describe('mana-ui: selection by touch and by cursor', () => {
     rt.input('touch');
     expect(rt.view()).toContain('data-input="touch"');
     expect((rt.view().match(/class="mana-row"/g) || []).length).toBe(6);
-    expect(() => rt.input('voice')).toThrow(/keys, pad, touch, mouse/);
+    expect(() => rt.input('voice')).toThrow(/keys, pad, xr, touch, mouse/);
   });
   it('a tap does what it lands on at once; a row with a detail beside it is selected first, done on the second tap', () => {
     const log = [], rt = run(screen([
@@ -298,6 +298,15 @@ describe('mana-ui: selection by touch and by cursor', () => {
     rt.point(0, 0.81); rt.point(1, 0.05); rt.point(1, 0.5); rt.point(2, 0.5);
     expect(log.map((x) => x.e)).toEqual([{ set: 'vol', to: 8 }, { set: 'lvl', to: 'Easy' }, { set: 'lvl', to: 'Normal' }, { set: 'snd', to: 0 }]);
     expect(rt.view()).toContain('class="mana-switch"');
+  });
+  it('a legend and a prompt print the glyph of the control in hand; a finger needs no legend', () => {
+    const rt = run(screen([{ use: 'legend', props: { rows: [{ action: 'accept', label: 'pick' }, 'back'] } }, { use: 'prompt', props: { action: 'interact', label: 'Open' } }]));
+    rt.glyphs({ keys: { accept: 'Enter', back: 'Esc', interact: 'E' }, pad: { xbox: { accept: 'A', back: 'B', interact: 'X' }, playstation: { accept: '✕', back: '◯', interact: '□' } } });
+    expect(rt.view()).toMatch(/>Enter<.*>pick<.*>Esc<.*>back<.*>E<\/span><span>Open/);
+    rt.input('pad', 'playstation');
+    expect(rt.view()).toMatch(/>✕<.*>◯<.*>□</);
+    rt.input('touch');
+    expect(rt.view()).not.toContain('mana-legend');
   });
   it('a HUD\'s button or slot with an accept is a tap (pause, a skill), and takes no focus', () => {
     const log = [], spec = { hud: { use: 'hud', children: [{ use: 'region', props: { at: 'top-right' }, children: [{ use: 'button', props: { label: '❚❚' }, on: { accept: { open: 'pause' } } }, { use: 'slot', props: { name: 'Dash', key: 'Q' }, on: { accept: { emit: 'dash' } } }] }] }, screens: { pause: screen([{ use: 'button', props: { label: 'Resume' } }]) } };

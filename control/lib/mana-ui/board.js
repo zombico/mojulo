@@ -8,7 +8,10 @@
  * request leaves it.
  *
  *   BOARD_HUDS            the HUD frames: name → the HUD idioms it layers
- *   manaUiBoard({ state?, title?, theme?, themes? })  → the page (themes: name → theme, the presets by default)
+ *   manaUiBoard({ state?, title?, theme?, themes?, controls?, glyphs? })  → the page (themes: name → theme, the presets
+ *                         by default; controls: { keys, pad, padLayoutSource } and glyphs, the control schemes resolved by
+ *                         controls/mana-controls.js: then the live frame is driven by any pad too, and its legends and
+ *                         prompts print the glyphs of what is in hand)
  */
 import { manaUiSource, manaUi } from './kernel.js';
 import { manaCss, FRAME_CSS } from './css.js';
@@ -57,7 +60,7 @@ export function boardFrames() {
 }
 
 /** The board page. */
-export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · board', theme = 'greybox', themes = THEMES } = {}) {
+export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · board', theme = 'greybox', themes = THEMES, controls = null, glyphs = null } = {}) {
   const frames = boardFrames(), groups = [...new Set(frames.map((f) => f.group))], scope = '.mana-stage .mana-root';
   const looks = Object.entries(themes).map(([id, t]) => ({ id, name: readTheme(t).name, css: themeCss(t, scope), advice: themeAdvice(t).map((a) => `${a.law}: ${a.advice}`) }));
   if (!looks.some((l) => l.id === theme)) throw new Error(`board theme '${theme}' is one of: ${looks.map((l) => l.id).join(', ')}`);
@@ -84,6 +87,8 @@ const LOOKS = ${json(looks)};
 const look = (id) => { const L = LOOKS.find((x) => x.id === id) || LOOKS[0]; document.getElementById('mana-theme').textContent = L.css; document.getElementById('advice').textContent = L.advice.join('\\n'); };
 document.getElementById('look').addEventListener('change', (ev) => look(ev.target.value));
 look(${json(theme)});
+const CONTROLS = ${controls ? `{ keys: ${json(controls.keys)}, pad: ${json(controls.pad)}, padLayout: (${controls.padLayoutSource}) }` : 'null'};
+const GLYPHS = ${json(glyphs)};
 const runs = [];
 let live = null;
 FRAMES.forEach((F, i) => {
@@ -97,7 +102,8 @@ FRAMES.forEach((F, i) => {
   };
   const rt = manaUi.runtime({ ...F.spec, defs: DEFS }, host);
   if (F.input) rt.input(F.input);
-  const m = manaUi.mount(el, rt, { keyboard: false });
+  if (GLYPHS) rt.glyphs(GLYPHS);
+  const m = manaUi.mount(el, rt, { keyboard: false, poll: false, ...(CONTROLS ? { controls: CONTROLS } : {}) });
   runs.push({ rt, m, F });
   // the click that makes a frame live only does that: it never also presses what it lands on
   el.parentNode.addEventListener('pointerdown', (ev) => {
@@ -118,6 +124,9 @@ window.addEventListener('keydown', (ev) => {
 // each frame a 1280×720 screen, scaled to its box
 const fit = () => document.querySelectorAll('.mana-stage').forEach((st) => { st.style.transform = 'scale(' + st.parentNode.clientWidth / st.offsetWidth + ')'; });
 fit(); window.addEventListener('resize', fit);
+// the pads drive the live frame only
+if (CONTROLS) { const loop = () => { if (live !== null && runs[live].m.poll()) runs[live].m.paint(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
 window.__manaBoard = runs.map((r) => r.rt);
+window.__manaMounts = runs.map((r) => r.m);
 </script></body></html>`;
 }

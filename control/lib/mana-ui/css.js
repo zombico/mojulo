@@ -140,6 +140,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-allocator{display:flex;flex-direction:column;gap:3px;min-width:280px}`,
     `${s} .mana-alloc{display:grid;grid-template-columns:1fr 32px 14px 32px 34px}`,
     `${s} .mana-keys{display:flex;gap:4px}`,
+    `${s} .mana-keybind[data-conflict=yes]{border-style:dashed;border-color:${v('harm')}}`, `${s} .mana-clash{font-size:${f(10)};color:${v('harm')}}`,
     `${s} .mana-key{display:inline-block;min-width:20px;padding:1px 5px;border:1px solid ${v('line')};border-bottom-width:2px;border-radius:calc(${v('radius')}*.5);font:700 ${f(10)}/1.3 ${v('mono')};text-align:center;text-transform:uppercase;background:${v('paper')}}`,
     `${s} .mana-carousel{display:grid;grid-template-columns:24px 1fr 24px;align-items:center;gap:6px;padding:8px 8px 18px}`,
     `${s} .mana-carousel .mana-dots{position:absolute;left:0;right:0;bottom:3px;text-align:center;font-size:9px;letter-spacing:2px}`,
@@ -171,6 +172,9 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-image{display:flex;align-items:flex-end;justify-content:center;border:1px solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${X_BOX} ${v('paper')};aspect-ratio:16/9;width:100%;padding:4px}`,
     `${s} .mana-image[data-ratio=square]{aspect-ratio:1}`, `${s} .mana-image[data-ratio=tall]{aspect-ratio:3/4}`, `${s} .mana-image[data-ratio=banner]{aspect-ratio:4/1}`,
     `${s} .mana-badge{display:inline-block;padding:0 5px;border:1px solid ${v('line')};border-radius:8px;font:700 ${f(10)}/1.5 ${v('mono')}}`,
+    // a legend: what the buttons do here, each beside the glyph of the control in hand
+    `${s} .mana-legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:${f(11)};color:${v('mid')}}`,
+    `${s} .mana-hint{display:inline-flex;align-items:center;gap:5px}`,
     `${s} .mana-prompt{display:flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid ${v('line')};border-radius:${v('radius')};background:${v('plate')}}`,
     // in-game: regions, anchors, aim, maps, feed, moments
     `${s} .mana-hud{position:absolute;inset:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);pointer-events:none}`,
@@ -238,6 +242,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-letterbox i{position:absolute;left:0;right:0;height:11%;background:${v('shade')}}`,
     `${s} .mana-letterbox i:first-child{top:0}`, `${s} .mana-letterbox i:last-child{bottom:0}`,
     `${s} .mana-touchpad{display:flex;justify-content:space-between;align-items:flex-end;width:1180px;max-width:100%;padding:0 12px}`,
+    `${s} .mana-stick,${s} .mana-pad{pointer-events:auto;touch-action:none}`,
     `${s} .mana-stick{position:relative;width:120px;height:120px;border-radius:50%;border:2px solid ${v('line')};background:${v('plate')};opacity:.85}`,
     `${s} .mana-stick i{position:absolute;inset:38px;border-radius:50%;background:${v('ink')};opacity:.5}`,
     `${s} .mana-pads{display:grid;grid-template-columns:repeat(2,60px);gap:12px}`,

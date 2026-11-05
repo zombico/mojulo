@@ -39,8 +39,12 @@
  *   readSpec(spec)                → { screens, hud, start }
  *   runtime(spec, host)           → the running UI. host: { read(path) → value, act(effect, from) }
  *     .open(id) .close() .press(action, seat?) .focusAt(n, seat?) .tab(t, i) .tick() → re-rendered?
- *     .input(mode)        what the player is using: keys | pad (the focus shows as a cursor) | touch | mouse (it does
- *                         not: what is tapped is selected, and a touch screen's lists scroll and its targets grow)
+ *     .input(mode, layout?)  what the player is using: keys | pad | xr (the focus shows as a cursor) | touch | mouse (it
+ *                         does not: what is tapped is selected, and a touch screen's lists scroll and its targets grow);
+ *                         a pad's printed layout (xbox | playstation | nintendo) picks its glyphs
+ *     .glyphs(table)      what each action's control is called, per family: { keys: { <action>: 'Enter' }, pad: {
+ *                         <layout>: { <action>: 'A' } }, xr?: { … }, touch?: { … } } (controls/mana-controls.js builds
+ *                         it from the control schemes); a prompt and a legend print the one the player is holding
  *     .point(n, x, seat?) a tap or a click on focusable n at x across it (0..1): a slider takes the value under it, the
  *                         ends of a ◀ ▶ input turn it, anything else is done at once; a row with a detail beside it (in
  *                         a split) is selected first and done on a second tap
@@ -48,7 +52,15 @@
  *     .view() → html .tree() .state()
  *     actions (the controls kernel's `menu` scheme): up, down, left, right, accept, back, tabNext, tabPrev
  *   toHtml(tree) · readPath(obj, path)
- *   mount(el, rt, { keys?, keyboard?, auto? }) → the DOM backend: draws into el, keys and pointer in, a frame tick
+ *   mount(el, rt, { controls?, drivers?, keyboard?, auto? }) → the DOM backend: draws into el; in: the keys, the pads,
+ *     the pointer and any driver; out: the frame, the page's hold, and the touch pad's controls
+ *     controls  the control scheme resolved (controls/mana-controls.js manaControls): { keys: { <code>: <action> },
+ *               pad: { <layout>: { b: { <button>: <action> }, a: [[axis, sign, action]] } }, padLayout(id) → layout }:
+ *               each connected pad is read every frame on its press edges, pad n driving seat n (else the first)
+ *     drivers   [() → { <action>: 1 } | { seat?, input?, actions }]: any other device (a headset, a wheel) the same way
+ *     poll      false: the host reads the pads itself, calling poll() (a page of several runtimes reads one at a time)
+ *     returns   { paint, key, poll, read(control) }: read is the drawn touch pad as the `touch` family's driver (devices.js:
+ *               it speaks the gamepad's controls, south, east, leftX …), for the page's own controls kernel
  */
 export function buildManaUi() {
   const ROLES = ['display', 'title', 'heading', 'body', 'label', 'caption', 'numeral'];
@@ -60,7 +72,9 @@ export function buildManaUi() {
   const RETICLES = { cross: '+', dot: '·', circle: '◯', bracket: '[ ]' };
   const STYLE_KEYS = ['style', 'class', 'className', 'color', 'colour', 'font', 'css', 'border', 'theme', 'skin', 'tokens', 'register'];
   const ACTIONS = ['up', 'down', 'left', 'right', 'accept', 'back', 'tabNext', 'tabPrev'];
-  const INPUTS = ['keys', 'pad', 'touch', 'mouse'];
+  const INPUTS = ['keys', 'pad', 'xr', 'touch', 'mouse'];
+  // a drawn pad's buttons, where a gamepad has them (the face buttons by their Xbox print)
+  const PAD_FACES = { A: 'south', B: 'east', X: 'west', Y: 'north' };
   const ID = /^[a-z][a-z0-9-]*$/;
   const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
   const listOf = (v) => (v === undefined || v === null ? [] : Array.isArray(v) ? v : [v]);
@@ -85,7 +99,8 @@ export function buildManaUi() {
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
     threat: { group: 'hud', layer: true, about: 'where harm came from: a mark on a ring round the centre for each bearing (degrees from where you face)', props: { markers: [L, [], true] } },
     letterbox: { group: 'hud', layer: true, about: 'the cinema bars of a cutscene', props: {} },
-    touchpad: { group: 'hud', about: 'the controls a touch screen draws: a stick and round buttons', props: { stick: [B, true], buttons: [L, ['A', 'B']] } },
+    touchpad: { group: 'hud', about: 'the controls a touch screen draws, a driver of the gamepad\'s own controls: a stick (the left stick) and round buttons (a word, or { label, control: south | east | west | north | rb … })', props: { stick: [B, true], buttons: [L, ['A', 'B']] } },
+    legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
     // values
     text: { group: 'value', about: 'words in a type role', props: { value: [T, '', true], role: [ROLES, 'body'] } },
     stat: { group: 'value', about: 'a label and its number', props: { label: [T, '', true], value: [T, '', true], max: [T] } },
@@ -121,7 +136,7 @@ export function buildManaUi() {
     toggle: { group: 'input', about: 'on or off (a bound value is set on the host, never held here)', props: { label: [T, '', true], value: [B, false, true] }, verbs: ['change'] },
     cycler: { group: 'input', about: '◀ a value ▶ from its options', props: { label: [T, '', true], options: [L, [], true], value: [A, '', true] }, verbs: ['change'] },
     slider: { group: 'input', about: 'a number between min and max, by step', props: { label: [T, '', true], value: [N, 0, true], min: [N, 0], max: [N, 10], step: [N, 1] }, verbs: ['change'] },
-    keybind: { group: 'input', about: 'an action and what it is bound to; accept asks the host to capture a new one', props: { label: [T, '', true], keys: [L, []] }, verbs: ['accept'] },
+    keybind: { group: 'input', about: 'an action and what it is bound to; accept asks the host to capture a new one; `conflict` when another action in the same context shares a control', props: { label: [T, '', true], keys: [L, []], conflict: [B, false] }, verbs: ['accept'] },
     field: { group: 'input', about: 'an input chosen by data (an options row): kind toggle | cycler | slider | keybind', props: { kind: [['toggle', 'cycler', 'slider', 'keybind'], undefined, true], label: [T, '', true], value: [A], options: [L, []], min: [N, 0], max: [N, 10], step: [N, 1], keys: [L, []] }, verbs: ['change', 'accept'] },
     allocator: { group: 'input', about: 'points spent across rows (level up): a draft until confirm, never past the points or a row\'s max', props: { rows: [L, [], true], points: [N, 0, true] }, verbs: ['confirm', 'change'] },
     textentry: { group: 'input', about: 'a name typed from a grid of letters (a pad can type): a draft until done', props: { label: [T], value: [T, ''], max: [N, 12], charset: [['letters', 'alnum'], 'letters'] }, verbs: ['done'] },
@@ -249,7 +264,14 @@ export function buildManaUi() {
   function runtime(spec, host) {
     const { screens, hud, start } = readSpec(spec);
     const H = host || {};
-    const S = { stack: [], ui: {}, picks: {}, input: null };
+    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null };
+    // what an action's control is called on the device in hand (null: nothing to say)
+    const glyphOf = (action) => {
+      const G = S.glyphs;
+      if (!G || !action) return null;
+      const t = S.input === 'pad' ? G.pad && (G.pad[S.layout] || G.pad.xbox) : S.input === 'xr' ? G.xr : S.input === 'touch' ? G.touch : G.keys;
+      return t && t[action] ? String(t[action]) : null;
+    };
     let last = null;
     const uiOf = (id) => (S.ui[id] = S.ui[id] || { at: { 0: 0 }, tabs: {}, sel: {}, seatSel: {}, top: {}, vals: {} });
     const top = () => S.stack[S.stack.length - 1] || null;
@@ -311,7 +333,7 @@ export function buildManaUi() {
         for (let s = 0; s < seats; s++) if (U.at[s] === undefined) { U.at[s] = 0; again = true; } else if (ctx.focus.length && U.at[s] >= ctx.focus.length) { U.at[s] = ctx.focus.length - 1; again = true; }
         if (again) return render();
       }
-      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input }, ...parts];
+      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null }, ...parts];
       last = { tree, ...ctx };
       return last;
     }
@@ -419,8 +441,20 @@ export function buildManaUi() {
             return ['span', { class: 'mana-arc', style: `left:${pct(0.5 + 0.45 * Math.sin(t))};top:${pct(0.5 - 0.45 * Math.cos(t))};transform:translate(-50%,-50%) rotate(${Math.round(b)}deg)` }, '▲'];
           })];
           case 'letterbox': return ['div', { class: cls }, ['i', null], ['i', null]];
-          case 'touchpad': return ['div', { class: cls }, p.stick ? ['span', { class: 'mana-stick' }, ['i', null]] : ['span', null], ['span', { class: 'mana-pads' }, ...p.buttons.map((b) => ['span', { class: 'mana-pad' }, words(b)])]];
-          case 'prompt': return ['div', { class: cls }, ['span', { class: 'mana-key' }, p.glyph || p.action], ['span', null, p.label]];
+          case 'touchpad': return ['div', { class: cls }, p.stick ? ['span', { class: 'mana-stick', 'data-stick': 'left' }, ['i', null]] : ['span', null], ['span', { class: 'mana-pads' }, ...p.buttons.map((b) => {
+            const label = words(isObj(b) ? b.label : b), control = isObj(b) && b.control ? words(b.control) : PAD_FACES[label] || null;
+            return ['span', { class: 'mana-pad', 'data-control': control }, label];
+          })]];
+          case 'prompt': return ['div', { class: cls }, ['span', { class: 'mana-key' }, p.glyph || glyphOf(p.action) || p.action], ['span', null, p.label]];
+          case 'legend': {
+            if (S.input === 'touch') return null;
+            return ['div', { class: cls }, ...p.rows.map((r) => {
+              // a row names an action, or several that share a word (left and right: change)
+              const acts = isObj(r) && Array.isArray(r.actions) ? r.actions.map(words) : [isObj(r) ? words(r.action) : words(r)];
+              const label = isObj(r) && r.label !== undefined ? words(r.label) : acts.join(' / ');
+              return ['span', { class: 'mana-hint' }, ...acts.map((a) => ['span', { class: 'mana-key' }, glyphOf(a) || a]), ['span', null, label]];
+            })];
+          }
           case 'reticle': return ['div', { class: cls, 'data-shape': p.shape, 'data-hit': p.hit ? 'yes' : null }, ['span', null, RETICLES[p.shape] || '+'], p.hit ? ['span', { class: 'mana-hit' }, '✕'] : null];
           case 'minimap': return ['div', { class: cls, 'data-shape': p.shape }, ...p.markers.map((m) => {
             if (!isObj(m) || !isFinite(Number(m.x)) || !isFinite(Number(m.y))) return null;
@@ -522,7 +556,7 @@ export function buildManaUi() {
         const held = key in U.vals ? U.vals[key] : p.value, now = src.value ? p.value : held;
         if (kind === 'keybind') {
           const fi = focusable({ kind: 'keybind', n, key, scope });
-          return ['div', { class: 'mana-keybind', ...mark(fi, 'shown') }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-keys' }, ...listOf(p.keys).map((k) => ['span', { class: 'mana-key' }, words(k)])]];
+          return ['div', { class: 'mana-keybind', ...mark(fi, 'shown'), 'data-conflict': p.conflict ? 'yes' : null }, ['span', { class: 'mana-label' }, p.label, p.conflict ? ['span', { class: 'mana-clash' }, ' ⚠ shared'] : null], ['span', { class: 'mana-keys' }, ...listOf(p.keys).map((k) => ['span', { class: 'mana-key' }, words(k)])]];
         }
         const f = { kind, n, key, scope, src: src.value, value: now, options: p.options, min: p.min, max: p.max, step: p.step };
         const fi = focusable(f);
@@ -693,9 +727,15 @@ export function buildManaUi() {
       render();
       return true;
     }
-    function input(mode) {
+    function input(mode, layout) {
       if (!INPUTS.includes(mode)) throw new Error(`input: a mode is one of ${INPUTS.join(', ')}`);
-      if (S.input !== mode) { S.input = mode; render(); }
+      const L = typeof layout === 'string' && layout ? layout : S.layout;
+      if (S.input !== mode || S.layout !== L) { S.input = mode; S.layout = L; render(); }
+    }
+    function glyphs(table) {
+      if (table !== null && !isObj(table)) throw new Error('glyphs: { keys?, pad?: { <layout>: { <action>: label } }, xr?, touch? }');
+      S.glyphs = table;
+      render();
     }
     function focusAt(k, seat = 0) { if (!top()) return; if (!last) render(); if (k >= 0 && k < last.focus.length) setAt(seat, k); }
     function tab(t, i) { if (!last) return; const Tb = last.tabs[t]; if (Tb && i >= 0 && i < Tb.n) { uiOf(top()).tabs[Tb.key] = i; render(); } }
@@ -706,12 +746,12 @@ export function buildManaUi() {
     }
     if (start) open(start); else render();
     return {
-      open, close, press, focusAt, tab, tick, point, hudTap, input,
+      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs,
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
       state: () => {
         const id = top(), U = id ? uiOf(id) : null;
-        return { input: S.input, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
+        return { input: S.input, layout: S.layout, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
       },
     };
   }
@@ -719,7 +759,7 @@ export function buildManaUi() {
   // ── the DOM backend ───────────────────────────────────────────────────────────────────────────────────────────────
   const KEYS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Enter: 'accept', Space: 'accept', KeyE: 'accept', Escape: 'back', Backspace: 'back', BracketRight: 'tabNext', BracketLeft: 'tabPrev' };
   function mount(el, rt, opts) {
-    const o = opts || {}, keys = o.keys || KEYS;
+    const o = opts || {}, C = o.controls || {}, keys = C.keys || o.keys || KEYS;
     let html = '';
     const paint = () => { const h = rt.view(); if (h !== html) { html = h; el.innerHTML = h; } hold(); };
     // the pointer: a tap is done where it lands, a drag on a slider sets it as it moves, a swipe turns a carousel under it
@@ -729,7 +769,19 @@ export function buildManaUi() {
     // element under a drag)
     const across = (r, ev) => (r && r.width ? (ev.clientX - r.left) / r.width : 0.5);
     let down = null;
+    // the drawn touch pad: its buttons and its stick held as the gamepad's controls (read, below), never a menu's
+    const TP = {}, held = new Map();
+    const stickAt = (r, ev) => { const R = r.width / 2, x = (ev.clientX - r.left - R) / R, y = (ev.clientY - r.top - R) / R, m = Math.hypot(x, y) || 1, k = Math.min(1, m) / m; TP.leftX = Math.round(x * k * 1000) / 1000; TP.leftY = Math.round(y * k * 1000) / 1000; };
+    const padEnd = (ev) => { const h = held.get(ev.pointerId); if (!h) return false; held.delete(ev.pointerId); if (h.stick) { TP.leftX = 0; TP.leftY = 0; } else TP[h.control] = 0; return true; };
     el.addEventListener('pointerdown', (ev) => {
+      const tp = near(ev, '.mana-pad[data-control],.mana-stick');
+      if (tp) {
+        rt.input('touch');
+        if (tp.classList.contains('mana-stick')) { const r = tp.getBoundingClientRect(); held.set(ev.pointerId, { stick: true, r }); stickAt(r, ev); }
+        else { held.set(ev.pointerId, { control: tp.dataset.control }); TP[tp.dataset.control] = 1; }
+        if (tp.setPointerCapture) try { tp.setPointerCapture(ev.pointerId); } catch (e) { /* a synthetic pointer */ }
+        return;
+      }
       rt.input(ev.pointerType === 'mouse' ? 'mouse' : 'touch');
       const t = near(ev, '[data-k],[data-tab],[data-tap]');
       const ds = t ? { k: t.dataset.k, tab: t.dataset.tab, tap: t.dataset.tap } : null, cl = t && t.classList;
@@ -738,8 +790,9 @@ export function buildManaUi() {
       down = { x: ev.clientX, y: ev.clientY, t: ds, rect: (track || t) ? (track || t).getBoundingClientRect() : null, slide, car: !!(cl && cl.contains('mana-carousel')) };
       if (down.slide) { rt.point(Number(ds.k), across(down.rect, ev)); paint(); }
     });
-    el.addEventListener('pointermove', (ev) => { if (down && down.slide) { rt.point(Number(down.t.k), across(down.rect, ev)); paint(); } });
+    el.addEventListener('pointermove', (ev) => { const h = held.get(ev.pointerId); if (h && h.stick) { stickAt(h.r, ev); return; } if (down && down.slide) { rt.point(Number(down.t.k), across(down.rect, ev)); paint(); } });
     el.addEventListener('pointerup', (ev) => {
+      if (padEnd(ev)) return;
       const d = down; down = null;
       if (!d) return;
       const dx = ev.clientX - d.x, dy = ev.clientY - d.y;
@@ -753,7 +806,7 @@ export function buildManaUi() {
       }
       paint();
     });
-    el.addEventListener('pointercancel', () => { down = null; });
+    el.addEventListener('pointercancel', (ev) => { padEnd(ev); down = null; });
     // while a screen is up the menu holds the input: its keys are taken before the game's own listeners see them (the
     // capture phase), and the page's hold is set (window.__mojMenuOpen, the playscape menus' convention), so Enter on a
     // pause never also serves the ball
@@ -768,10 +821,42 @@ export function buildManaUi() {
       ev.preventDefault(); rt.press(a); paint(); return true;
     };
     if (o.keyboard !== false && typeof window !== 'undefined') window.addEventListener('keydown', key, true);
-    // a frame: a value the screen read has changed, or the game opened or closed a screen itself
-    if (o.auto && typeof requestAnimationFrame === 'function') { let up = rt.state().screen; const loop = () => { const now = rt.state().screen; if (rt.tick() || now !== up) { up = now; paint(); } requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+    // THE PADS AND THE DRIVERS, read once a frame on their press edges: what is held as a screen opens does not act in
+    // it; pad n drives seat n where the screen has one, else the first seat
+    const prev = new Map();
+    let shown = rt.state().screen;
+    const edges = (id, now, mode, layout, seat) => {
+      const was = prev.get(id) || {};
+      prev.set(id, now);
+      if (!rt.state().screen) return false;
+      let did = false;
+      for (const a in now) if (now[a] && !was[a]) { rt.input(mode, layout); if (!rt.press(a, seat)) rt.press(a, 0); did = true; }
+      return did;
+    };
+    function poll() {
+      const now = rt.state().screen, opened = now !== shown;
+      shown = now;
+      let did = false;
+      const pads = C.pad && typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+      for (let i = 0; i < pads.length; i++) {
+        const g = pads[i];
+        if (!g || !g.connected) continue;
+        const L = C.padLayout ? C.padLayout(g.id) : 'xbox', P = C.pad[L] || C.pad.xbox, act = {};
+        if (!P) continue;
+        for (const b in P.b) { const x = g.buttons[b]; if (x && (x.pressed || x.value > 0.5)) act[P.b[b]] = 1; }
+        for (const [ax, sg, a] of P.a) if ((g.axes[ax] || 0) * sg > 0.6) act[a] = 1;
+        if (opened) prev.set('pad' + i, act); else did = edges('pad' + i, act, 'pad', L, i) || did;
+      }
+      (o.drivers || []).forEach((fn, i) => {
+        const r = fn() || {}, act = isObj(r.actions) ? r.actions : r;
+        if (opened) prev.set('drv' + i, act); else did = edges('drv' + i, act, r.input || 'pad', null, r.seat || 0) || did;
+      });
+      return did || opened;
+    }
+    // a frame: the pads and drivers read, a value the screen read changed, or the game opened or closed a screen itself
+    if (o.poll !== false && (o.auto || C.pad || o.drivers) && typeof requestAnimationFrame === 'function') { const loop = () => { if (poll() | rt.tick()) paint(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
     paint();
-    return { paint, key };
+    return { paint, key, poll, read: (control) => TP[control] || 0 };
   }
 
   return { COMPONENTS, COMPONENT_IDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, KEYS, readNode, readSpec, runtime, toHtml, readPath, mount };

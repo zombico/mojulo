@@ -54,11 +54,12 @@ export const SAMPLE_STATE = Object.freeze({
   ],
   arena: 'bridge',
   controls: [
-    { action: 'jump', label: 'Jump', keys: ['Space', 'A'] },
+    { action: 'jump', label: 'Jump', keys: ['Space', 'A'], conflict: true },
     { action: 'attack', label: 'Attack', keys: ['J', 'X'] },
     { action: 'guard', label: 'Guard', keys: ['K', 'LB'] },
     { action: 'interact', label: 'Interact', keys: ['E', 'Y'] },
     { action: 'map', label: 'Map', keys: ['M', 'Back'] },
+    { action: 'dash', label: 'Dash', keys: ['Space', 'B'], conflict: true },
   ],
   saves: [
     { name: 'Slot 1', place: 'Lower Vale', time: '3h 12m', level: 7, then: { emit: 'load:1' } },
