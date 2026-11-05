@@ -58,7 +58,9 @@ describe('the rail\'s cards', () => {
     // 4608 since the two met on 1026-consolidated (2026-11-03: the complex's lines and the parked vehicles', 4574 bytes)
     // the next card too (2026-11-04, 1104 requisitions: the `req` move, the unit being worked, one line; it stood at
     // 4085 bytes, 4200 with it)
-    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 4480, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4352 };
+    // the actions card too (2026-11-05, 1104-vayo-effects: the vayo moves join the powers' line, the vayo jump, its air
+    // dash and its jetpack, each with the words that say it; 4031 bytes before, 4542 with them)
+    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 4480, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4352, 'gameworld-actions': 4608 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 
