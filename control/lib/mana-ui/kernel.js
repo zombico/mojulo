@@ -4,65 +4,114 @@
  *
  * SINGLE SOURCE OF TRUTH, the controls-kernel discipline: everything lives inside `buildManaUi()`, a closure that
  * references nothing outside itself, so a page runs the same code by emitting `buildManaUi.toString()`
- * (`manaUiSource()`). Node imports the live instance for tests and design-time checks. Pure and seeded by nothing: no
- * clock, no dice, no DOM until `mount`.
+ * (`manaUiSource()`). Node imports the live instance for tests and design-time checks. No clock, no dice, no DOM until
+ * `mount`: the same spec over the same state draws the same HTML.
  *
  * THE MODEL — state, form and function, props passed down (React's principles, none of its code):
- *   A NODE (data, what a recipe writes): { use: '<component | def>', id?, props?: { … }, on?: { <verb>: effect(s) },
- *     children?: [node] }
- *   PROPS flow down: a literal, or a BINDING read at render: { bind: '<path>' } (the game's state, through the host),
- *     { item: '<field>' } (the row a list draws), { pick: '<list id>.<field>' } (the row a list has selected, on any
- *     screen of the stack), { format: 'Lv {level}' } (the row's fields in words), { input: true } (the value an input
- *     now holds, in a change's effects). Props are typed closed words; a style prop throws: the theme dresses (context,
- *     never a prop), a closed `variant` is all a node may say about its look.
- *   STATE has three owners. The GAME's is read through bindings and never copied. The SCREEN's (focus, the open tab, a
- *     list's selected row, the stack) is this runtime's. The APPEARANCE (shown, focus, active, disabled) is derived from
- *     the two, as `data-st`.
- *   FORM is a tree as data: [tag, attrs, …children] (`toHtml` writes it), so one tree can be drawn by another backend.
- *   FUNCTION is effects, never callbacks (a recipe is JSON): the cue effects playscape speaks. This runtime does three
- *     itself, { open: '<screen>' }, { close: true } and { back: true }; every other effect goes to the host's `act`.
- *   DEFS are compositions as data: { <name>: { params: [name…], node } }, used like a component, `{ param: '<name>' }`
- *     inside replaced by what the use passes. Components are code (the closed set below); compositions are the agent's.
+ *   A NODE (data, what a recipe writes): { use: '<component | def>', id?, props?, on?: { <verb>: effect(s) },
+ *     children?, when?, unless? } (`when` / `unless`: drawn only while a value, or a binding, is truthy / falsy)
+ *   PROPS flow down: a literal, or a BINDING read at render:
+ *     { bind: '<path>' }            the game's state, through the host (the path may itself be a binding: a row's var)
+ *     { item: '<field>' }           the row a list, a grid, a tree, an anchor or a page is drawing ('' the row itself)
+ *     { pick: '<id>.<field>' }      the row a list, grid, tree or carousel with that id has selected, on any screen
+ *     { format: 'Lv {level}' }      the row's fields in words
+ *     { input: true }               the value an input now holds (in a change's or a confirm's effects)
+ *     { seat: true }                the seat that pressed (couch play: in an effect, who picked)
+ *     Props are typed closed words; a style prop throws: the theme dresses (context, never a prop), and a closed
+ *     `variant` is all a node may say about its look.
+ *   STATE has three owners. The GAME's is read through bindings and never copied: a bound input asks the host to `set`.
+ *     The SCREEN's (each seat's focus, the open tab, a list's selected row and scroll, a draft: an allocation, a name)
+ *     is this runtime's. The APPEARANCE (shown, focus, active, disabled) is derived from the two, as `data-st`.
+ *   FORM is a tree as data: [tag, attrs, …children] (`toHtml` writes it), so another backend can draw the same tree.
+ *   FUNCTION is effects, never callbacks (a recipe is JSON): the cue effects playscape speaks. This runtime does
+ *     { open: '<screen>' }, { close: true } and { back: true }; every other effect goes to the host's `act`.
+ *   DEFS are compositions as data: { <name>: { params: [name…], node } }, `{ param: '<name>' }` inside.
  *
- *   COMPONENTS                    name → { about, props: { <prop>: [type, default?, required?] }, children?, verbs? }
+ *   A SPEC: { screens: { <id>: node (a screen) }, hud?: node (a hud, drawn under the stack), defs?, start? }
+ *
+ *   COMPONENTS / COMPONENT_IDS    name → { about, group, props: { <prop>: [type, default?, required?] }, children?, verbs? }
+ *   REGIONS · AWARENESS · MARKERS · PIP_SHAPES   the closed words some components take
  *   readNode(node, defs?, where?) → the node with its defs expanded, or throws, teaching
- *   readSpec(spec)                → { screens, start } a spec read: { screens: { <id>: node }, defs?, start? }
+ *   readSpec(spec)                → { screens, hud, start }
  *   runtime(spec, host)           → the running UI. host: { read(path) → value, act(effect, from) }
- *     .open(id) .close() .press(action) .focusAt(n) .tab(n) .tick() → re-rendered? .view() → html .tree() .state()
+ *     .open(id) .close() .press(action, seat?) .focusAt(n, seat?) .tab(t, i) .tick() → re-rendered?
+ *     .view() → html .tree() .state()
  *     actions (the controls kernel's `menu` scheme): up, down, left, right, accept, back, tabNext, tabPrev
- *   toHtml(tree)                  → the tree as HTML (escaped, deterministic)
- *   readPath(obj, path)           → a dot path into a plain object (a host for tests and previews)
- *   mount(el, rt, { keys?, auto? }) → the DOM backend: draws the top screen into el, keys and pointer in, a frame tick
+ *   toHtml(tree) · readPath(obj, path)
+ *   mount(el, rt, { keys?, keyboard?, auto? }) → the DOM backend: draws into el, keys and pointer in, a frame tick
  */
 export function buildManaUi() {
-  const ROLES = ['title', 'heading', 'body', 'label', 'caption', 'numeral'];
-  // what only the theme decides: a node that tries to carry one is pointed at it
+  const ROLES = ['display', 'title', 'heading', 'body', 'label', 'caption', 'numeral'];
+  const REGIONS = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
+  // an enemy's awareness, each a SHAPE (never a colour alone): what it knows of you
+  const AWARENESS = { unaware: '–', suspicious: '?', searching: '??', alert: '!', combat: '!!', fleeing: '»', down: '✕' };
+  const MARKERS = { self: '▲', ally: '●', foe: '✕', goal: '★', item: '◆', poi: '○' };
+  const PIP_SHAPES = { pip: ['●', '○'], heart: ['♥', '♡'], square: ['■', '□'], diamond: ['◆', '◇'] };
+  const RETICLES = { cross: '+', dot: '·', circle: '◯', bracket: '[ ]' };
   const STYLE_KEYS = ['style', 'class', 'className', 'color', 'colour', 'font', 'css', 'border', 'theme', 'skin', 'tokens', 'register'];
   const ACTIONS = ['up', 'down', 'left', 'right', 'accept', 'back', 'tabNext', 'tabPrev'];
   const ID = /^[a-z][a-z0-9-]*$/;
   const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-  const listOf = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
+  const listOf = (v) => (v === undefined || v === null ? [] : Array.isArray(v) ? v : [v]);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-  // [type, default, required]; a type is 'text' | 'num' | 'bool' | 'list' | 'node' | an enum (an array of words)
+  // [type, default, required]; a type is 'text' | 'num' | 'bool' | 'list' | 'node' | 'any' | an enum (an array of words)
+  const T = 'text', N = 'num', B = 'bool', L = 'list', ND = 'node', A = 'any';
   const COMPONENTS = {
-    screen: { about: 'a screen on the stack: what one press of back leaves', props: { title: ['text'], layer: [['overlay', 'modal'], 'modal'], place: [['center', 'left', 'right', 'full'], 'center'] }, children: true, verbs: ['back'] },
-    window: { about: 'a framed panel', props: { title: ['text'], variant: [['plain', 'inset'], 'plain'] }, children: true },
-    stack: { about: 'children in a column or a row', props: { dir: [['column', 'row'], 'column'], gap: [['tight', 'normal', 'loose'], 'normal'], align: [['stretch', 'start', 'center', 'end', 'apart'], 'stretch'] }, children: true },
-    split: { about: 'a list beside its detail: the first child narrow', props: { ratio: [['narrow', 'even'], 'narrow'] }, children: true },
-    tabs: { about: 'tabs: one open, [ and ] turn them', props: {}, children: 'tab' },
-    tab: { about: 'one tab of tabs', props: { label: ['text', undefined, true] }, children: true },
-    text: { about: 'words in a type role', props: { value: ['text', '', true], role: [ROLES, 'body'] } },
-    stat: { about: 'a label and its number (tabular figures)', props: { label: ['text', '', true], value: ['text', '', true], max: ['text'] } },
-    bar: { about: 'a value against its max', props: { value: ['num', 0, true], max: ['num', 1, true], variant: [['plain', 'hp', 'mp', 'xp'], 'plain'], label: ['text'] } },
-    compare: { about: 'before → after, better or worse told by a shape (▲ ▼ =), never by colour alone', props: { label: ['text', '', true], from: ['num', 0, true], to: ['num', 0, true], better: [['up', 'down'], 'up'] } },
-    list: { about: 'rows to move through and pick: accept does the list\'s accept with the row as item', props: { rows: ['list', [], true], row: ['node'], empty: ['text', 'Nothing here'] }, verbs: ['accept'] },
-    button: { about: 'a thing to press', props: { label: ['text', '', true], disabled: ['bool', false] }, verbs: ['accept'] },
-    toggle: { about: 'on or off: accept flips it (a bound value is set on the host, never held here)', props: { label: ['text', '', true], value: ['bool', false, true] }, verbs: ['change'] },
-    cycler: { about: '◀ a value ▶ from its options: left and right turn it (a bound value is set on the host)', props: { label: ['text', '', true], options: ['list', [], true], value: ['text', '', true] }, verbs: ['change'] },
+    // layout
+    screen: { group: 'layout', about: 'a screen on the stack: what one back leaves; `seats` > 1 gives each couch seat its own cursor', props: { title: [T], layer: [['overlay', 'modal'], 'modal'], place: [['center', 'left', 'right', 'full', 'top', 'bottom'], 'center'], seats: [N, 1] }, children: true, verbs: ['back'] },
+    window: { group: 'layout', about: 'a framed panel', props: { title: [T], variant: [['plain', 'inset', 'ghost'], 'plain'] }, children: true },
+    stack: { group: 'layout', about: 'children in a column or a row', props: { dir: [['column', 'row'], 'column'], gap: [['tight', 'normal', 'loose'], 'normal'], align: [['stretch', 'start', 'center', 'end', 'apart'], 'stretch'] }, children: true },
+    split: { group: 'layout', about: 'two panes: the first a list, the second its detail', props: { ratio: [['narrow', 'even', 'wide'], 'narrow'] }, children: true },
+    tabs: { group: 'layout', about: 'tabs, one open, [ and ] turn them: tab children, or `pages` (a list) drawn by `page` and named by their `label` field', props: { pages: [L], page: [ND], label: [T, 'label'] }, children: 'tab' },
+    tab: { group: 'layout', about: 'one tab of tabs', props: { label: [T, undefined, true] }, children: true },
+    each: { group: 'layout', about: 'a `row` drawn for each item, not itself focusable (the stats in a detail, the fields of an options page)', props: { rows: [L, [], true], row: [ND, undefined, true], dir: [['column', 'row'], 'column'] } },
+    divider: { group: 'layout', about: 'a rule between groups, with an optional label', props: { label: [T] } },
+    // in-game: the HUD's places
+    hud: { group: 'hud', about: 'the in-game layer under the stack: its children are regions and anchors', props: {}, children: 'hud' },
+    region: { group: 'hud', about: 'one of the nine screen regions; parts stack inside it', props: { at: [REGIONS, 'top-left'] }, children: true },
+    anchors: { group: 'hud', about: 'one `row` drawn over each thing in the world at its screen place (x, y from 0 to 1): nameplates, damage numbers', props: { rows: [L, [], true], row: [ND, undefined, true], x: [T, 'x'], y: [T, 'y'] } },
+    // values
+    text: { group: 'value', about: 'words in a type role', props: { value: [T, '', true], role: [ROLES, 'body'] } },
+    stat: { group: 'value', about: 'a label and its number', props: { label: [T, '', true], value: [T, '', true], max: [T] } },
+    bar: { group: 'value', about: 'a value against its max; segments mark phases or chunks', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0] } },
+    pips: { group: 'value', about: 'a count as marks: hearts, pips', props: { value: [N, 0, true], max: [N, 3, true], shape: [Object.keys(PIP_SHAPES), 'pip'], label: [T] } },
+    counter: { group: 'value', about: 'an icon and a count (ammo, coins, keys)', props: { label: [T, '', true], value: [T, '', true], max: [T], icon: [T] } },
+    timer: { group: 'value', about: 'seconds as a clock', props: { seconds: [N, 0, true], format: [['mmss', 'ss', 'hmmss'], 'mmss'], label: [T] } },
+    compare: { group: 'value', about: 'before → after, better or worse told by a shape (▲ ▼ =)', props: { label: [T, '', true], from: [N, 0, true], to: [N, 0, true], better: [['up', 'down'], 'up'] } },
+    icon: { group: 'value', about: 'an icon\'s place, named', props: { name: [T, '', true], size: [['s', 'm', 'l'], 'm'] } },
+    portrait: { group: 'value', about: 'a face\'s place, named', props: { name: [T, ''], size: [['s', 'm', 'l'], 'm'] } },
+    image: { group: 'value', about: 'a picture\'s place (a logo, an arena\'s preview, key art)', props: { label: [T, ''], ratio: [['wide', 'square', 'tall', 'banner'], 'wide'] } },
+    badge: { group: 'value', about: 'a small mark: new, a count, a rank', props: { value: [T, '', true] } },
+    prompt: { group: 'value', about: 'what a button does here: [E] Talk (the glyph is the host\'s legend, else the action)', props: { action: [T, 'accept'], label: [T, '', true], glyph: [T] } },
+    // in-game: aim, maps, the feed, moments
+    reticle: { group: 'hud', about: 'the aim; a hit adds a hitmarker shape', props: { shape: [Object.keys(RETICLES), 'cross'], hit: [B, false] } },
+    minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape', props: { markers: [L, []], shape: [['square', 'round'], 'square'], label: [T] } },
+    compass: { group: 'hud', about: 'a heading strip with the bearings of markers', props: { heading: [N, 0, true], markers: [L, []] } },
+    feed: { group: 'hud', about: 'the last few lines of a log (kills, pickups, chat from the world)', props: { rows: [L, [], true], field: [T, 'text'], max: [N, 4] } },
+    toast: { group: 'hud', about: 'a passing word', props: { value: [T, '', true] } },
+    banner: { group: 'hud', about: 'the moment, centred: a title and its line', props: { value: [T, '', true], sub: [T] } },
+    // enemies
+    awareness: { group: 'enemy', about: `what an enemy knows of you, as a shape: ${Object.entries(AWARENESS).map(([k, v]) => `${k} ${v}`).join(', ')}`, props: { state: [Object.keys(AWARENESS), 'unaware', true], label: [B, true] } },
+    statuses: { group: 'enemy', about: 'the statuses on someone (a word, or { name, turns })', props: { rows: [L, [], true] } },
+    // inputs and collections
+    list: { group: 'input', about: 'rows to move through and pick; `visible` scrolls a long list', props: { rows: [L, [], true], row: [ND], empty: [T, 'Nothing here'], visible: [N, 0] }, verbs: ['accept'] },
+    grid: { group: 'input', about: 'cells in columns, moved through in two directions (an inventory, a roster)', props: { cells: [L, [], true], cell: [ND], columns: [N, 4], empty: [T, 'Nothing here'] }, verbs: ['accept'] },
+    tree: { group: 'input', about: 'nodes laid in tiers by what they require (a skill or tech tree): { id, requires?, state: learned | available | locked }', props: { nodes: [L, [], true], node: [ND], label: [T, 'name'] }, verbs: ['accept'] },
+    carousel: { group: 'input', about: 'one item at a time, left and right turn it (a bound value is set by the item\'s id)', props: { items: [L, [], true], item: [ND], value: [A] }, verbs: ['accept', 'change'] },
+    button: { group: 'input', about: 'a thing to press', props: { label: [T, '', true], disabled: [B, false] }, verbs: ['accept'] },
+    toggle: { group: 'input', about: 'on or off (a bound value is set on the host, never held here)', props: { label: [T, '', true], value: [B, false, true] }, verbs: ['change'] },
+    cycler: { group: 'input', about: '◀ a value ▶ from its options', props: { label: [T, '', true], options: [L, [], true], value: [A, '', true] }, verbs: ['change'] },
+    slider: { group: 'input', about: 'a number between min and max, by step', props: { label: [T, '', true], value: [N, 0, true], min: [N, 0], max: [N, 10], step: [N, 1] }, verbs: ['change'] },
+    keybind: { group: 'input', about: 'an action and what it is bound to; accept asks the host to capture a new one', props: { label: [T, '', true], keys: [L, []] }, verbs: ['accept'] },
+    field: { group: 'input', about: 'an input chosen by data (an options row): kind toggle | cycler | slider | keybind', props: { kind: [['toggle', 'cycler', 'slider', 'keybind'], undefined, true], label: [T, '', true], value: [A], options: [L, []], min: [N, 0], max: [N, 10], step: [N, 1], keys: [L, []] }, verbs: ['change', 'accept'] },
+    allocator: { group: 'input', about: 'points spent across rows (level up): a draft until confirm, never past the points or a row\'s max', props: { rows: [L, [], true], points: [N, 0, true] }, verbs: ['confirm', 'change'] },
+    textentry: { group: 'input', about: 'a name typed from a grid of letters (a pad can type): a draft until done', props: { label: [T], value: [T, ''], max: [N, 12], charset: [['letters', 'alnum'], 'letters'] }, verbs: ['done'] },
   };
-  const NAMES = Object.keys(COMPONENTS);
-  const BINDS = ['bind', 'item', 'pick', 'format', 'input', 'param'];
+  const COMPONENT_IDS = Object.keys(COMPONENTS);
+  const BINDS = ['bind', 'item', 'pick', 'format', 'input', 'seat', 'param'];
   const isBinding = (v) => isObj(v) && Object.keys(v).length === 1 && BINDS.includes(Object.keys(v)[0]);
+  const CHARSETS = { letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ ', alnum: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ' };
 
   // ── reading: shapes checked, defs expanded, errors that teach ─────────────────────────────────────────────────────
   const subst = (v, args) => {
@@ -72,17 +121,17 @@ export function buildManaUi() {
     return v;
   };
   function checkType(t, v, where) {
-    if (v === undefined || isBinding(v)) return;
-    const ok = Array.isArray(t) ? t.includes(v) : t === 'text' ? typeof v === 'string' || typeof v === 'number' : t === 'num' ? typeof v === 'number' && isFinite(v)
-      : t === 'bool' ? typeof v === 'boolean' : t === 'list' ? Array.isArray(v) : t === 'node' ? isObj(v) : true;
-    if (!ok) throw new Error(`${where} is ${Array.isArray(t) ? `one of: ${t.join(', ')}` : t === 'node' ? 'a node { use, props? }' : t}, or a binding ({ ${BINDS.filter((b) => b !== 'param').join(' | ')} })`);
+    if (v === undefined || isBinding(v) || t === A) return;
+    const ok = Array.isArray(t) ? t.includes(v) : t === T ? typeof v === 'string' || typeof v === 'number' : t === N ? typeof v === 'number' && isFinite(v)
+      : t === B ? typeof v === 'boolean' : t === L ? Array.isArray(v) : t === ND ? isObj(v) : true;
+    if (!ok) throw new Error(`${where} is ${Array.isArray(t) ? `one of: ${t.join(', ')}` : t === ND ? 'a node { use, props? }' : t}, or a binding ({ ${BINDS.filter((b) => b !== 'param').join(' | ')} })`);
   }
   function readNode(node, defs = {}, where = 'node', depth = 0) {
-    if (depth > 24) throw new Error(`${where}: defs nest past 24 deep (a def that uses itself?)`);
-    if (!isObj(node)) throw new Error(`${where} is a node { use, id?, props?, on?, children? }`);
+    if (depth > 32) throw new Error(`${where}: defs nest past 32 deep (a def that uses itself?)`);
+    if (!isObj(node)) throw new Error(`${where} is a node { use, id?, props?, on?, children?, when?, unless? }`);
     const styled = STYLE_KEYS.filter((k) => node[k] !== undefined || (isObj(node.props) && node.props[k] !== undefined));
     if (styled.length) throw new Error(`${where}.${styled[0]}: a node has no look of its own; the theme dresses it (a closed variant is all a node may say)`);
-    if (typeof node.use !== 'string') throw new Error(`${where}.use names a component (${NAMES.join(', ')}) or a def`);
+    if (typeof node.use !== 'string') throw new Error(`${where}.use names a component (${COMPONENT_IDS.join(', ')}) or a def`);
     if (node.id !== undefined && (typeof node.id !== 'string' || !ID.test(node.id))) throw new Error(`${where}.id '${node.id}' is a lower-case word`);
     if (node.props !== undefined && !isObj(node.props)) throw new Error(`${where}.props is { <prop>: value | binding }`);
     const def = defs[node.use];
@@ -90,18 +139,19 @@ export function buildManaUi() {
       const args = node.props || {}, params = def.params || [];
       for (const k in args) if (!params.includes(k)) throw new Error(`${where}.props.${k}: ${node.use} takes ${params.join(', ') || 'no props'}`);
       const out = subst(def.node, args);
-      if (node.id) out.id = node.id;
+      for (const k of ['id', 'when', 'unless']) if (node[k] !== undefined) out[k] = node[k];
       if (node.on) out.on = { ...(out.on || {}), ...node.on };
       return readNode(out, defs, `${where} (${node.use})`, depth + 1);
     }
     const C = COMPONENTS[node.use];
-    if (!C) throw new Error(`${where}.use '${node.use}' is a component (${NAMES.join(', ')}) or a def (${Object.keys(defs).join(', ') || 'none given'})`);
-    const props = node.props || {};
+    if (!C) throw new Error(`${where}.use '${node.use}' is a component (${COMPONENT_IDS.join(', ')}) or a def (${Object.keys(defs).join(', ') || 'none given'})`);
+    const props = { ...(node.props || {}) };
     for (const k in props) if (!C.props[k]) throw new Error(`${where}.props.${k}: ${node.use} takes ${Object.keys(C.props).join(', ') || 'no props'}`);
     for (const k in C.props) {
       const [t, , req] = C.props[k];
       if (req && props[k] === undefined) throw new Error(`${where}.props.${k} is needed (${node.use}: ${C.about})`);
       checkType(t, props[k], `${where}.props.${k}`);
+      if (t === ND && isObj(props[k]) && !isBinding(props[k])) props[k] = readNode(props[k], defs, `${where}.props.${k}`, depth);
     }
     const on = node.on || {};
     if (!isObj(on)) throw new Error(`${where}.on is { <verb>: effect | [effect] }`);
@@ -110,11 +160,13 @@ export function buildManaUi() {
     if (kids.length && !C.children) throw new Error(`${where}: ${node.use} holds no children`);
     const children = kids.map((k, i) => readNode(k, defs, `${where}.children[${i}]`, depth));
     if (C.children === 'tab') children.forEach((k, i) => { if (k.use !== 'tab') throw new Error(`${where}.children[${i}] is a tab { use: 'tab', props: { label } }`); });
-    const row = props.row && !isBinding(props.row) ? readNode(props.row, defs, `${where}.props.row`, depth) : props.row;
-    return { use: node.use, ...(node.id ? { id: node.id } : {}), props: row ? { ...props, row } : props, on, children };
+    if (C.children === 'hud') children.forEach((k, i) => { if (k.use !== 'region' && k.use !== 'anchors') throw new Error(`${where}.children[${i}] is a region { use: 'region', props: { at } } or anchors (it is ${k.use})`); });
+    const out = { use: node.use, props, on, children };
+    for (const k of ['id', 'when', 'unless']) if (node[k] !== undefined) out[k] = node[k];
+    return out;
   }
   function readSpec(spec) {
-    if (!isObj(spec) || !isObj(spec.screens)) throw new Error('a mana-ui spec is { screens: { <id>: node }, defs?, start? }');
+    if (!isObj(spec) || !isObj(spec.screens)) throw new Error('a mana-ui spec is { screens: { <id>: node }, hud?, defs?, start? }');
     const defs = spec.defs || {};
     for (const d in defs) {
       if (COMPONENTS[d]) throw new Error(`defs.${d}: a def may not take a component's name`);
@@ -127,9 +179,11 @@ export function buildManaUi() {
       if (n.use !== 'screen') throw new Error(`screens.${id} is a screen { use: 'screen', … } (it is ${n.use})`);
       screens[id] = n;
     }
+    const hud = spec.hud === undefined ? null : readNode(spec.hud, defs, 'hud');
+    if (hud && hud.use !== 'hud') throw new Error(`hud is a hud { use: 'hud', children: [regions, anchors] } (it is ${hud.use})`);
     const start = spec.start === undefined ? null : spec.start;
     if (start !== null && !screens[start]) throw new Error(`start '${start}' is one of the screens: ${Object.keys(screens).join(', ')}`);
-    return { screens, start };
+    return { screens, hud, start };
   }
 
   // ── form: the tree as HTML ────────────────────────────────────────────────────────────────────────────────────────
@@ -147,33 +201,59 @@ export function buildManaUi() {
     if (typeof path !== 'string' || !path) return undefined;
     return path.split('.').reduce((v, k) => (v === null || v === undefined ? undefined : v[k]), obj);
   }
+  const words = (v) => (v === undefined || v === null ? '' : String(v));
+  const pct = (r) => `${Math.round(clamp(Number(r) || 0, 0, 1) * 1000) / 10}%`;
+  const clock = (s, f) => {
+    s = Math.max(0, Math.floor(Number(s) || 0));
+    const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60, two = (n) => String(n).padStart(2, '0');
+    return f === 'ss' ? String(s) : f === 'hmmss' ? `${h}:${two(m)}:${two(x)}` : `${two(Math.floor(s / 60))}:${two(x)}`;
+  };
+  const initials = (s) => words(s).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
+  // a tree's tiers: a node one past the deepest it requires
+  function tiersOf(nodes) {
+    const by = new Map(nodes.map((n) => [isObj(n) ? n.id : n, n])), memo = new Map();
+    const tier = (id, seen) => {
+      if (memo.has(id)) return memo.get(id);
+      const n = by.get(id);
+      if (!n || seen.has(id)) return 0;
+      seen.add(id);
+      const t = listOf(n.requires).filter((r) => by.has(r)).reduce((m, r) => Math.max(m, tier(r, seen) + 1), 0);
+      memo.set(id, t);
+      return t;
+    };
+    return nodes.map((n) => tier(isObj(n) ? n.id : n, new Set()));
+  }
 
   // ── the runtime ───────────────────────────────────────────────────────────────────────────────────────────────────
   function runtime(spec, host) {
-    const { screens, start } = readSpec(spec);
+    const { screens, hud, start } = readSpec(spec);
     const H = host || {};
     const S = { stack: [], ui: {}, picks: {} };
     let last = null;
-    const uiOf = (id) => (S.ui[id] = S.ui[id] || { focus: 0, tabs: {}, vals: {} });
+    const uiOf = (id) => (S.ui[id] = S.ui[id] || { at: { 0: 0 }, tabs: {}, sel: {}, top: {}, vals: {} });
     const top = () => S.stack[S.stack.length - 1] || null;
+    const seatsOf = (id) => (id && screens[id] ? Math.max(1, Math.floor(Number(screens[id].props.seats) || 1)) : 1);
 
-    // a binding, read: the game's through the host, the rest from the scope or the screen's own state
     function resolve(v, scope, ctx) {
       if (!isBinding(v)) return v;
-      const [k] = Object.keys(v), a = v[k];
+      const [k] = Object.keys(v);
+      let a = v[k];
+      if (isBinding(a)) a = resolve(a, scope, ctx);
       if (k === 'bind') { const x = H.read ? H.read(a) : undefined; ctx.reads.set(a, JSON.stringify(x === undefined ? null : x)); return x; }
       if (k === 'item') return a === '' || a === '.' ? scope.item : readPath(scope.item, a);
       if (k === 'input') return scope.input;
-      if (k === 'format') return String(a).replace(/\{([a-zA-Z0-9_.]+)\}/g, (_, f) => { const x = readPath(scope.item, f); return x === undefined || x === null ? '' : String(x); });
+      if (k === 'seat') return scope.seat === undefined ? 0 : scope.seat;
+      if (k === 'format') return String(a).replace(/\{([a-zA-Z0-9_.]+)\}/g, (_, f) => words(readPath(scope.item, f)));
       if (k === 'pick') {
         const dot = String(a).indexOf('.'), list = dot < 0 ? a : a.slice(0, dot), field = dot < 0 ? '' : a.slice(dot + 1), P = S.picks[list];
         if (!P) return undefined;
-        const rows = listOf(resolve(P.rows, P.scope || {}, ctx)), row = rows[Math.min(P.i, rows.length - 1)];
+        const rows = listOf(resolve(P.rows, P.scope || {}, ctx));
+        if (!rows.length) return undefined;
+        const row = rows[clamp(uiOf(P.screen).sel[P.key] || 0, 0, rows.length - 1)];
         return field ? readPath(row, field) : row;
       }
       return undefined;
     }
-    // effects with their bindings read (an effect may itself be a binding: a row's `then`)
     function effectsOf(v, scope, ctx) {
       const r = (x) => (isBinding(x) ? resolve(x, scope, ctx) : Array.isArray(x) ? x.map(r) : isObj(x) ? Object.fromEntries(Object.entries(x).map(([k, y]) => [k, r(y)])) : x);
       return listOf(r(v)).flat().filter(isObj);
@@ -182,13 +262,13 @@ export function buildManaUi() {
       const C = COMPONENTS[n.use], p = {}, src = {};
       for (const k in C.props) {
         const raw = n.props[k], [t, d] = C.props[k];
-        if (isObj(raw) && typeof raw.bind === 'string' && Object.keys(raw).length === 1) src[k] = raw.bind;
-        let v = k === 'row' ? raw : resolve(raw, scope, ctx);
+        if (isObj(raw) && Object.keys(raw).length === 1 && raw.bind !== undefined) { const path = isBinding(raw.bind) ? resolve(raw.bind, scope, ctx) : raw.bind; if (typeof path === 'string') src[k] = path; }
+        let v = t === ND ? raw : resolve(raw, scope, ctx);
         if (v === undefined || v === null) v = d;
-        if (t === 'num') v = Number(v) || 0;
-        else if (t === 'text' && v !== undefined) v = String(v);
-        else if (t === 'list') v = listOf(v);
-        else if (t === 'bool') v = !!v;
+        if (t === N) v = Number(v) || 0;
+        else if (t === T && v !== undefined) v = String(v);
+        else if (t === L) v = listOf(v);
+        else if (t === B) v = !!v;
         p[k] = v;
       }
       return { p, src };
@@ -197,75 +277,209 @@ export function buildManaUi() {
     function render() {
       const id = top();
       const ctx = { reads: new Map(), focus: [], tabs: [], screen: id };
-      if (!id) { last = { tree: ['div', { class: 'mana-root', 'data-open': 'none' }], ...ctx }; return last; }
-      const U = uiOf(id);
-      const st = (fi, base = 'shown') => (fi === U.focus ? 'focus' : base);
+      const parts = [];
+      if (hud) parts.push(drawIn(hud, '$hud', {}, ctx, uiOf('$hud'), false, 1));
+      if (id) {
+        const U = uiOf(id), seats = seatsOf(id);
+        parts.push(drawIn(screens[id], id, {}, ctx, U, true, seats));
+        let again = false;
+        for (let s = 0; s < seats; s++) if (U.at[s] === undefined) { U.at[s] = 0; again = true; } else if (ctx.focus.length && U.at[s] >= ctx.focus.length) { U.at[s] = ctx.focus.length - 1; again = true; }
+        if (again) return render();
+      }
+      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null }, ...parts];
+      last = { tree, ...ctx };
+      return last;
+    }
+
+    // one tree drawn: U is its screen's state; `live` says whether it takes the focus (a HUD never does)
+    function drawIn(root, rootKey, rootScope, ctx, U, live, seats) {
+      const seatsAt = (fi) => { const s = []; for (let k = 0; k < seats; k++) if (U.at[k] === fi) s.push(k + 1); return s; };
+      const mark = (fi, base, off) => {
+        const s = live ? seatsAt(fi) : [];
+        return { 'data-k': live ? fi : null, 'data-st': s.length ? 'focus' : off ? 'disabled' : base, 'data-seats': seats > 1 && s.length ? s.join(' ') : null };
+      };
+      const focusable = (f) => { if (!live) return -1; ctx.focus.push(f); return ctx.focus.length - 1; };
+      const register = (n, key, rowsRaw, scope) => { if (n.id) S.picks[n.id] = { rows: rowsRaw, scope, screen: rootKey, key }; };
+      const touched = (key) => !!U.vals[`$touched:${key}`];
+
       const draw = (n, key, scope) => {
-        const { p, src } = propsOf(n, scope, ctx), kids = (k) => n.children.map((c, i) => draw(c, `${key}.${c.id || i}`, scope));
-        const cls = `mana-${n.use}`;
+        if (n.when !== undefined && !resolve(n.when, scope, ctx)) return null;
+        if (n.unless !== undefined && resolve(n.unless, scope, ctx)) return null;
+        const { p, src } = propsOf(n, scope, ctx), cls = `mana-${n.use}`;
+        const kids = () => n.children.map((c, i) => draw(c, `${key}.${c.id || i}`, scope));
         switch (n.use) {
           case 'screen': return ['section', { class: cls, 'data-layer': p.layer, 'data-place': p.place }, p.title ? ['h2', { class: 'mana-title' }, p.title] : null, ...kids()];
           case 'window': return ['div', { class: cls, 'data-variant': p.variant }, p.title ? ['h3', { class: 'mana-heading' }, p.title] : null, ...kids()];
           case 'stack': return ['div', { class: cls, 'data-dir': p.dir, 'data-gap': p.gap, 'data-align': p.align }, ...kids()];
           case 'split': return ['div', { class: cls, 'data-ratio': p.ratio }, ...kids()];
-          case 'tab': return ['div', { class: cls }, ...kids()];
+          case 'tab': case 'region': return ['div', { class: cls, 'data-at': n.use === 'region' ? p.at : null }, ...kids()];
+          case 'each': return ['div', { class: cls, 'data-dir': p.dir }, ...p.rows.map((item, i) => draw(n.props.row, `${key}.${i}`, { ...scope, item }))];
+          case 'divider': return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null];
           case 'tabs': {
-            const open = Math.min(U.tabs[key] || 0, Math.max(0, n.children.length - 1));
-            ctx.tabs.push({ key, n: n.children.length });
-            const strip = ['div', { class: 'mana-tabstrip' }, ...n.children.map((c, i) => ['span', { class: 'mana-tablabel', 'data-st': i === open ? 'active' : 'shown', 'data-tab': `${ctx.tabs.length - 1}:${i}` }, String(resolve(c.props.label, scope, ctx))])];
-            return ['div', { class: cls }, strip, n.children.length ? draw(n.children[open], `${key}.${open}`, scope) : null];
+            const dyn = !n.children.length, count = dyn ? p.pages.length : n.children.length, open = clamp(U.tabs[key] || 0, 0, Math.max(0, count - 1));
+            ctx.tabs.push({ key, n: count });
+            const labels = dyn ? p.pages.map((pg) => words(isObj(pg) ? pg[p.label] : pg)) : n.children.map((c) => words(resolve(c.props.label, scope, ctx)));
+            const strip = ['div', { class: 'mana-tabstrip' }, ...labels.map((l, i) => ['span', { class: 'mana-tablabel', 'data-st': i === open ? 'active' : 'shown', 'data-tab': `${ctx.tabs.length - 1}:${i}` }, l])];
+            const body = !count ? null : dyn ? (n.props.page ? draw(n.props.page, `${key}.${open}`, { ...scope, item: p.pages[open] }) : null) : draw(n.children[open], `${key}.${open}`, scope);
+            return ['div', { class: cls }, strip, body];
           }
+          case 'hud': {
+            const by = {}, loose = [];
+            n.children.forEach((c, i) => { const t = draw(c, `${key}.${c.id || i}`, scope); if (!t) return; if (c.use === 'region') { const at = REGIONS.includes(c.props.at) ? c.props.at : 'top-left'; (by[at] = by[at] || []).push(t); } else loose.push(t); });
+            // what sits over the world (plates, numbers) draws under the HUD's own places
+            return ['div', { class: cls }, ...loose, ...REGIONS.filter((r) => by[r]).map((r) => ['div', { class: 'mana-place', 'data-at': r }, ...by[r]])];
+          }
+          case 'anchors': return ['div', { class: cls }, ...p.rows.map((item, i) => {
+            const x = Number(readPath(item, p.x)), y = Number(readPath(item, p.y));
+            if (!isFinite(x) || !isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) return null; // off screen: not drawn
+            return ['div', { class: 'mana-anchor', style: `left:${pct(x)};top:${pct(y)}` }, draw(n.props.row, `${key}.${i}`, { ...scope, item })];
+          })];
           case 'text': return ['span', { class: cls, 'data-role': p.role }, p.value];
           case 'stat': return ['div', { class: cls }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num' }, p.value, p.max !== undefined ? ['span', { class: 'mana-max' }, ` / ${p.max}`] : null]];
           case 'bar': {
-            const r = p.max > 0 ? Math.max(0, Math.min(1, p.value / p.max)) : 0;
-            return ['div', { class: cls, 'data-variant': p.variant, 'data-low': r <= 0.25 ? 'yes' : null }, p.label ? ['span', { class: 'mana-label' }, p.label] : null,
-              ['span', { class: 'mana-track' }, ['i', { style: `--r:${Math.round(r * 1000) / 1000}` }]], ['span', { class: 'mana-num' }, `${p.value}/${p.max}`]];
+            const r = p.max > 0 ? clamp(p.value / p.max, 0, 1) : 0, seg = Math.max(0, Math.floor(p.segments));
+            // low is a warning on what can run out (health, a shield, mana, stamina), never on a stat
+            const warns = ['hp', 'boss', 'shield', 'mp', 'stamina'].includes(p.variant);
+            return ['div', { class: cls, 'data-variant': p.variant, 'data-low': warns && r <= 0.25 ? 'yes' : null }, ['span', { class: 'mana-label' }, p.label || ''],
+              ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(r)}` }], ...Array.from({ length: seg > 1 ? seg - 1 : 0 }, (_, k) => ['b', { style: `left:${pct((k + 1) / seg)}` }])],
+              ['span', { class: 'mana-num' }, `${p.value}/${p.max}`]];
           }
+          case 'pips': {
+            const [on, offc] = PIP_SHAPES[p.shape] || PIP_SHAPES.pip, max = clamp(Math.floor(p.max), 0, 40), v = clamp(Math.round(p.value), 0, max);
+            return ['div', { class: cls, 'data-shape': p.shape }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-glyphs' }, on.repeat(v) + offc.repeat(max - v)]];
+          }
+          case 'counter': return ['div', { class: cls }, p.icon ? ['span', { class: 'mana-icon', 'data-size': 's' }, initials(p.icon)] : null, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num' }, p.value, p.max !== undefined ? ['span', { class: 'mana-max' }, `/${p.max}`] : null]];
+          case 'timer': return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-num' }, clock(p.seconds, p.format)]];
           case 'compare': {
-            const d = p.to - p.from, good = p.better === 'up' ? d > 0 : d < 0, mark = d === 0 ? '=' : good ? '▲' : '▼';
-            return ['div', { class: cls, 'data-way': d === 0 ? 'same' : good ? 'better' : 'worse' }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num' }, String(p.from)], ['span', { class: 'mana-mark' }, mark], ['span', { class: 'mana-num' }, String(p.to)]];
+            const d = p.to - p.from, good = p.better === 'up' ? d > 0 : d < 0;
+            return ['div', { class: cls, 'data-way': d === 0 ? 'same' : good ? 'better' : 'worse' }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num' }, String(p.from)], ['span', { class: 'mana-mark' }, d === 0 ? '=' : good ? '▲' : '▼'], ['span', { class: 'mana-num' }, String(p.to)]];
           }
+          case 'icon': return ['span', { class: cls, 'data-size': p.size, title: p.name }, initials(p.name)];
+          case 'portrait': return ['div', { class: cls, 'data-size': p.size }, ['span', { class: 'mana-ph' }, initials(p.name)], p.name ? ['span', { class: 'mana-caption' }, p.name] : null];
+          case 'image': return ['div', { class: cls, 'data-ratio': p.ratio }, ['span', { class: 'mana-caption' }, p.label || 'image']];
+          case 'badge': return ['span', { class: cls }, p.value];
+          case 'prompt': return ['div', { class: cls }, ['span', { class: 'mana-key' }, p.glyph || p.action], ['span', null, p.label]];
+          case 'reticle': return ['div', { class: cls, 'data-shape': p.shape, 'data-hit': p.hit ? 'yes' : null }, ['span', null, RETICLES[p.shape] || '+'], p.hit ? ['span', { class: 'mana-hit' }, '✕'] : null];
+          case 'minimap': return ['div', { class: cls, 'data-shape': p.shape }, ...p.markers.map((m) => {
+            if (!isObj(m) || !isFinite(Number(m.x)) || !isFinite(Number(m.y))) return null;
+            return ['span', { class: 'mana-marker', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', style: `left:${pct(m.x)};top:${pct(m.y)}`, title: m.label || null }, MARKERS[m.kind] || MARKERS.poi];
+          }), p.label ? ['span', { class: 'mana-caption' }, p.label] : null];
+          case 'compass': {
+            const at = (b) => ((((Number(b) || 0) - p.heading) % 360) + 540) % 360 - 180;
+            const marks = [['N', 0], ['E', 90], ['S', 180], ['W', 270]].map(([w, b]) => ({ w, d: at(b), cardinal: true })).concat(p.markers.filter(isObj).map((m) => ({ w: MARKERS[m.kind] || MARKERS.poi, d: at(m.bearing) })));
+            return ['div', { class: cls }, ...marks.filter((m) => Math.abs(m.d) <= 90).map((m) => ['span', { class: m.cardinal ? 'mana-cardinal' : 'mana-marker', style: `left:${pct((m.d + 90) / 180)}` }, m.w]), ['span', { class: 'mana-needle' }, '▼']];
+          }
+          case 'feed': return ['div', { class: cls }, ...p.rows.slice(-Math.max(1, Math.floor(p.max))).map((r) => ['div', { class: 'mana-line' }, words(isObj(r) ? readPath(r, p.field) : r)])];
+          case 'toast': return ['div', { class: cls }, p.value];
+          case 'banner': return ['div', { class: cls }, ['span', { class: 'mana-text', 'data-role': 'display' }, p.value], p.sub ? ['span', { class: 'mana-text', 'data-role': 'label' }, p.sub] : null];
+          case 'awareness': return ['span', { class: cls, 'data-state': p.state }, ['b', null, AWARENESS[p.state]], p.label ? ` ${p.state}` : null];
+          case 'statuses': return ['span', { class: cls }, ...p.rows.map((r) => { const name = words(isObj(r) ? r.name : r), turns = isObj(r) && r.turns !== undefined ? r.turns : null; return ['span', { class: 'mana-status', title: name }, name.slice(0, 4).toUpperCase(), turns !== null ? ['sub', null, String(turns)] : null]; })];
+
           case 'list': {
-            if (n.id) { const P = S.picks[n.id]; S.picks[n.id] = { rows: n.props.rows, scope, i: P ? P.i : 0, touched: !!(P && P.touched) }; }
-            // the active row (a detail reads it) shows once the list has held the focus
-            const sel = n.id && S.picks[n.id].touched ? S.picks[n.id].i : -1;
+            register(n, key, n.props.rows, scope);
             if (!p.rows.length) return ['div', { class: cls, 'data-empty': 'yes' }, ['span', { class: 'mana-text', 'data-role': 'caption' }, p.empty]];
-            return ['div', { class: cls }, ...p.rows.map((item, i) => {
-              const fi = ctx.focus.length, sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
-              ctx.focus.push({ kind: 'row', n, key, i, scope: sc, off });
-              const body = n.props.row ? draw(n.props.row, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? String(item.label ?? item.name ?? item.id ?? '') : String(item)];
-              return ['div', { class: 'mana-row', 'data-k': fi, 'data-st': off && fi !== U.focus ? 'disabled' : st(fi, i === sel ? 'active' : 'shown') }, body];
+            const total = p.rows.length, sel = clamp(U.sel[key] || 0, 0, total - 1), v = Math.floor(p.visible);
+            let from = 0, to = total;
+            if (v > 0 && v < total) { let t = clamp(U.top[key] || 0, 0, total - v); if (sel < t) t = sel; if (sel >= t + v) t = sel - v + 1; U.top[key] = t; from = t; to = t + v; }
+            const rows = [];
+            if (from > 0) rows.push(['div', { class: 'mana-more' }, `▲ ${from} more`]);
+            for (let i = from; i < to; i++) {
+              const item = p.rows[i], sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
+              const fi = focusable({ kind: 'row', n, key, i, total, win: v > 0 && v < total, scope: sc, off });
+              const body = n.props.row ? draw(n.props.row, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)];
+              rows.push(['div', { class: 'mana-row', ...mark(fi, i === sel && touched(key) ? 'active' : 'shown', off) }, body]);
+            }
+            if (to < total) rows.push(['div', { class: 'mana-more' }, `▼ ${total - to} more`]);
+            return ['div', { class: cls }, ...rows];
+          }
+          case 'grid': {
+            register(n, key, n.props.cells, scope);
+            if (!p.cells.length) return ['div', { class: cls, 'data-empty': 'yes' }, ['span', { class: 'mana-text', 'data-role': 'caption' }, p.empty]];
+            const cols = clamp(Math.floor(p.columns) || 1, 1, 16), sel = clamp(U.sel[key] || 0, 0, p.cells.length - 1);
+            return ['div', { class: cls, style: `--cols:${cols}` }, ...p.cells.map((item, i) => {
+              const sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
+              const fi = focusable({ kind: 'cell', n, key, i, g: { key, r: Math.floor(i / cols), c: i % cols }, scope: sc, off });
+              const body = n.props.cell ? draw(n.props.cell, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)];
+              return ['div', { class: 'mana-cell', ...mark(fi, i === sel && touched(key) ? 'active' : 'shown', off) }, body];
             })];
           }
-          case 'button': {
-            const fi = ctx.focus.length;
-            ctx.focus.push({ kind: 'button', n, key, scope, off: p.disabled });
-            return ['div', { class: cls, 'data-k': fi, 'data-st': p.disabled && fi !== U.focus ? 'disabled' : st(fi) }, p.label];
+          case 'tree': {
+            register(n, key, n.props.nodes, scope);
+            const tiers = tiersOf(p.nodes), cols = tiers.length ? Math.max(...tiers) + 1 : 0, names = new Map(p.nodes.map((x) => [isObj(x) ? x.id : x, isObj(x) ? words(x[p.label] ?? x.id) : words(x)]));
+            const sel = clamp(U.sel[key] || 0, 0, Math.max(0, p.nodes.length - 1));
+            const columns = Array.from({ length: cols }, () => []);
+            p.nodes.forEach((item, i) => {
+              const c = tiers[i], r = columns[c].length, sc = { ...scope, item }, state = isObj(item) && item.state ? String(item.state) : 'available', off = state === 'locked';
+              const fi = focusable({ kind: 'node', n, key, i, g: { key, r, c }, scope: sc, off });
+              const req = listOf(isObj(item) ? item.requires : []).filter((x) => names.has(x)).map((x) => names.get(x));
+              const body = n.props.node ? draw(n.props.node, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, names.get(isObj(item) ? item.id : item)];
+              columns[c].push(['div', { class: 'mana-node', 'data-state': state, ...mark(fi, i === sel && touched(key) ? 'active' : 'shown', off) }, body, req.length ? ['span', { class: 'mana-req' }, `← ${req.join(', ')}`] : null]);
+            });
+            return ['div', { class: cls, style: `--cols:${cols}` }, ...columns.map((col, c) => ['div', { class: 'mana-tier', 'data-tier': c }, ...col])];
           }
-          case 'toggle': case 'cycler': {
-            const fi = ctx.focus.length, held = key in U.vals ? U.vals[key] : p.value, now = src.value ? p.value : held;
-            ctx.focus.push({ kind: n.use, n, key, scope, src: src.value, value: now, options: p.options });
-            const shown = n.use === 'toggle' ? (now ? 'On' : 'Off') : String(now);
-            return ['div', { class: cls, 'data-k': fi, 'data-st': st(fi), 'data-on': n.use === 'toggle' ? (now ? 'yes' : 'no') : null }, ['span', { class: 'mana-label' }, p.label],
-              ['span', { class: 'mana-value' }, n.use === 'cycler' ? ['span', { class: 'mana-mark' }, '◀ '] : null, shown, n.use === 'cycler' ? ['span', { class: 'mana-mark' }, ' ▶'] : null]];
+          case 'carousel': {
+            register(n, key, n.props.items, scope);
+            const items = p.items, idOf = (it, i) => (isObj(it) && it.id !== undefined ? it.id : i);
+            let i = src.value ? items.findIndex((it, k) => idOf(it, k) === p.value) : key in U.vals ? U.vals[key] : items.findIndex((it, k) => p.value !== undefined && idOf(it, k) === p.value);
+            i = clamp(i < 0 ? 0 : i, 0, Math.max(0, items.length - 1));
+            U.sel[key] = i;
+            const item = items[i], sc = { ...scope, item };
+            const fi = focusable({ kind: 'carousel', n, key, i, items, src: src.value, scope: sc });
+            return ['div', { class: cls, ...mark(fi, 'shown') }, ['span', { class: 'mana-mark' }, '◀'],
+              ['div', { class: 'mana-slide' }, item === undefined ? null : n.props.item ? draw(n.props.item, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)]],
+              ['span', { class: 'mana-mark' }, '▶'], ['span', { class: 'mana-dots' }, items.map((_, k) => (k === i ? '●' : '○')).join('')]];
+          }
+          case 'button': { const fi = focusable({ kind: 'button', n, key, scope, off: p.disabled }); return ['div', { class: cls, ...mark(fi, 'shown', p.disabled) }, p.label]; }
+          case 'toggle': case 'cycler': case 'slider': case 'keybind': return input(n.use, n, key, scope, p, src);
+          case 'field': return input(p.kind, n, key, scope, p, src);
+          case 'allocator': {
+            const draft = U.vals[key] || {}, spent = Object.values(draft).reduce((a, b) => a + b, 0), left = Math.max(0, Math.floor(p.points) - spent);
+            const rows = p.rows.filter(isObj).map((r) => {
+              const id = words(r.id), base = Number(r.value) || 0, add = draft[id] || 0;
+              const fi = focusable({ kind: 'alloc-row', n, key, id, base, max: r.max === undefined ? Infinity : Number(r.max), points: Math.floor(p.points), scope });
+              return ['div', { class: 'mana-alloc', ...mark(fi, add ? 'active' : 'shown') }, ['span', { class: 'mana-label' }, words(r.label ?? id)], ['span', { class: 'mana-num' }, String(base)], ['span', { class: 'mana-mark' }, add ? '→' : ''], ['span', { class: 'mana-num' }, add ? String(base + add) : ''], ['span', { class: 'mana-mark' }, '◀ ▶']];
+            });
+            const conf = focusable({ kind: 'alloc-confirm', n, key, scope, off: spent === 0 }), reset = focusable({ kind: 'alloc-reset', n, key, scope, off: spent === 0 });
+            return ['div', { class: cls }, ['div', { class: 'mana-stat' }, ['span', { class: 'mana-label' }, 'Points'], ['span', { class: 'mana-num' }, `${left} / ${Math.floor(p.points)}`]], ...rows,
+              ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, ['div', { class: 'mana-button', ...mark(conf, 'shown', spent === 0) }, 'Confirm'], ['div', { class: 'mana-button', ...mark(reset, 'shown', spent === 0) }, 'Reset']]];
+          }
+          case 'textentry': {
+            const draft = key in U.vals ? U.vals[key] : words(p.value).slice(0, p.max), chars = [...CHARSETS[p.charset]], cols = 10;
+            const cells = chars.map((ch, i) => { const fi = focusable({ kind: 'char', n, key, ch, max: Math.floor(p.max), draft, g: { key, r: Math.floor(i / cols), c: i % cols }, scope }); return ['span', { class: 'mana-cell', ...mark(fi, 'shown') }, ch === ' ' ? '␣' : ch]; });
+            const row = Math.ceil(chars.length / cols);
+            const del = focusable({ kind: 'char-del', n, key, draft, g: { key, r: row, c: 0 }, scope }), done = focusable({ kind: 'char-done', n, key, draft, src: src.value, g: { key, r: row, c: 1 }, scope });
+            return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['div', { class: 'mana-draft' }, draft, ['span', { class: 'mana-caret' }, draft.length < p.max ? '_' : '']],
+              ['div', { class: 'mana-grid', style: `--cols:${cols}` }, ...cells], ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, ['div', { class: 'mana-button', ...mark(del, 'shown') }, 'Delete'], ['div', { class: 'mana-button', ...mark(done, 'shown') }, 'Done']]];
           }
         }
         return null;
       };
-      const tree = ['div', { class: 'mana-root', 'data-open': id }, draw(screens[id], id, {})];
-      if (ctx.focus.length && U.focus >= ctx.focus.length) { U.focus = ctx.focus.length - 1; return render(); }
-      last = { tree, ...ctx };
-      return last;
+      // the inputs that hold a value: drawn the same alone or as a field
+      const input = (kind, n, key, scope, p, src) => {
+        const held = key in U.vals ? U.vals[key] : p.value, now = src.value ? p.value : held;
+        if (kind === 'keybind') {
+          const fi = focusable({ kind: 'keybind', n, key, scope });
+          return ['div', { class: 'mana-keybind', ...mark(fi, 'shown') }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-keys' }, ...listOf(p.keys).map((k) => ['span', { class: 'mana-key' }, words(k)])]];
+        }
+        const f = { kind, n, key, scope, src: src.value, value: now, options: p.options, min: p.min, max: p.max, step: p.step };
+        const fi = focusable(f);
+        let shown;
+        if (kind === 'toggle') shown = now ? 'On' : 'Off';
+        else if (kind === 'slider') { const lo = p.min, hi = p.max > p.min ? p.max : p.min + 1, v = clamp(Number(now) || 0, lo, hi); shown = [['span', { class: 'mana-track' }, ['i', { style: `width:${pct((v - lo) / (hi - lo))}` }]], ['span', { class: 'mana-num' }, String(v)]]; }
+        else shown = [['span', { class: 'mana-mark' }, '◀ '], words(now), ['span', { class: 'mana-mark' }, ' ▶']];
+        return ['div', { class: `mana-${kind}`, ...mark(fi, 'shown'), 'data-on': kind === 'toggle' ? (now ? 'yes' : 'no') : null }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-value' }, ...listOf(shown)]];
+      };
+      return draw(root, rootKey, rootScope);
     }
 
-    const from = (f, verb) => ({ screen: top(), key: f ? f.key : top(), verb });
-    function run(effects, f, verb) {
+    // ── what a press does ──────────────────────────────────────────────────────────────────────────────────────────
+    const from = (f, verb, seat) => ({ screen: top(), key: f ? f.key : top(), verb, seat });
+    function run(effects, f, verb, seat) {
       for (const e of effects) {
         if (typeof e.open === 'string' && screens[e.open]) open(e.open);
         else if (e.close === true) close();
         else if (e.back === true) back();
-        else if (H.act) H.act(e, from(f, verb));
+        else if (H.act) H.act(e, from(f, verb, seat));
       }
     }
     function open(id) {
@@ -276,55 +490,109 @@ export function buildManaUi() {
     }
     function close() {
       S.stack.length = 0;
-      if (H.act) H.act({ emit: 'mana:closed' }, { screen: null, key: null, verb: 'close' });
+      if (H.act) H.act({ emit: 'mana:closed' }, { screen: null, key: null, verb: 'close', seat: 0 });
       render();
     }
     function back() {
       const id = S.stack.pop();
-      if (!S.stack.length && H.act) H.act({ emit: 'mana:closed' }, { screen: id, key: id, verb: 'back' });
+      if (!S.stack.length && H.act) H.act({ emit: 'mana:closed' }, { screen: id, key: id, verb: 'back', seat: 0 });
       render();
     }
-    // the row or input in focus: a list remembers its row (the active row a detail reads)
-    function noteFocus() {
-      const f = last && last.focus[uiOf(top()).focus];
-      if (f && f.kind === 'row' && f.n.id) { S.picks[f.n.id].i = f.i; S.picks[f.n.id].touched = true; }
+    const scopeOf = (f, seat, extra) => ({ ...(f ? f.scope : {}), seat, ...extra });
+    // the focus set: a list, grid, tree remembers the row it is on (what a detail reads)
+    function setAt(seat, k) {
+      const U = uiOf(top());
+      U.at[seat] = k;
+      const f = last && last.focus[k];
+      if (f && (f.kind === 'row' || f.kind === 'cell' || f.kind === 'node')) { U.sel[f.key] = f.i; U.vals[`$touched:${f.key}`] = true; }
+      render();
     }
-    function change(f, dir) {
+    function nearest(cands, v, axis) {
+      let best = null, d = Infinity;
+      for (const [x, k] of cands) { const e = Math.abs(x.g[axis] - v); if (e < d) { d = e; best = k; } }
+      return best;
+    }
+    function move(seat, dir) {
+      const Lf = last.focus, U = uiOf(top()), cur = U.at[seat] || 0, f = Lf[cur], n = Lf.length;
+      if (!n || !f) return;
+      const vert = dir === 'up' || dir === 'down', d = dir === 'down' || dir === 'right' ? 1 : -1;
+      // a scrolled list: past its last drawn row, the list scrolls and the focus stays on the row
+      if (f.kind === 'row' && f.win && vert) {
+        const j = f.i + d;
+        if (j >= 0 && j < f.total && !Lf.some((x) => x.kind === 'row' && x.key === f.key && x.i === j)) {
+          U.sel[f.key] = j; U.vals[`$touched:${f.key}`] = true; render();
+          const k = last.focus.findIndex((x) => x.kind === 'row' && x.key === f.key && x.i === j);
+          if (k >= 0) setAt(seat, k);
+          return;
+        }
+      }
+      if (f.g) {
+        const same = Lf.map((x, k) => [x, k]).filter(([x]) => x.g && x.g.key === f.g.key);
+        const best = vert ? nearest(same.filter(([x]) => x.g.r === f.g.r + d), f.g.c, 'c') : nearest(same.filter(([x]) => x.g.c === f.g.c + d), f.g.r, 'r');
+        if (best !== null) return setAt(seat, best);
+        if (!vert) return;
+        const ks = same.map(([, k]) => k), out = d > 0 ? Math.max(...ks) + 1 : Math.min(...ks) - 1;
+        return setAt(seat, (out + n) % n);
+      }
+      if (!vert) { if (['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind)) change(f, d, seat); return; }
+      setAt(seat, (cur + d + n) % n);
+    }
+    function change(f, d, seat) {
+      const U = uiOf(top());
+      if (f.kind === 'alloc-row') {
+        const draft = { ...(U.vals[f.key] || {}) }, spent = Object.values(draft).reduce((a, b) => a + b, 0), now = draft[f.id] || 0, next = now + d;
+        if (next < 0 || (d > 0 && spent >= f.points) || f.base + next > f.max) return;
+        draft[f.id] = next;
+        if (!next) delete draft[f.id];
+        U.vals[f.key] = draft;
+        if (f.n.on.change) run(effectsOf(f.n.on.change, scopeOf(f, seat, { input: draft }), last), f, 'change', seat);
+        return;
+      }
       let v;
       if (f.kind === 'toggle') v = !f.value;
-      else { const o = f.options.map(String), i = o.indexOf(String(f.value)); v = o.length ? o[((i < 0 ? 0 : i + dir) % o.length + o.length) % o.length] : f.value; }
-      if (f.src) { if (H.act) H.act({ set: f.src, to: f.kind === 'toggle' ? (v ? 1 : 0) : v }, from(f, 'change')); }
-      else uiOf(top()).vals[f.key] = v;
-      if (f.n.on.change) run(effectsOf(f.n.on.change, { ...f.scope, input: v }, last), f, 'change');
+      else if (f.kind === 'slider') { const st = f.step > 0 ? f.step : 1, hi = f.max > f.min ? f.max : f.min + 1; v = clamp(Math.round(((Number(f.value) || 0) + d * st) / st) * st, f.min, hi); v = Math.round(v * 1e6) / 1e6; }
+      else if (f.kind === 'carousel') { const n = f.items.length; if (!n) return; const i = ((f.i + d) % n + n) % n, it = f.items[i]; v = isObj(it) && it.id !== undefined ? it.id : i; if (!f.src) { U.vals[f.key] = i; U.sel[f.key] = i; } }
+      else { const o = listOf(f.options), i = o.findIndex((x) => words(x) === words(f.value)); if (!o.length) return; v = o[((i < 0 ? 0 : i + d) % o.length + o.length) % o.length]; }
+      if (f.src) { if (H.act) H.act({ set: f.src, to: f.kind === 'toggle' ? (v ? 1 : 0) : v }, from(f, 'change', seat)); }
+      else if (f.kind !== 'carousel') U.vals[f.key] = v;
+      if (f.n.on.change) run(effectsOf(f.n.on.change, scopeOf(f, seat, { input: v }), last), f, 'change', seat);
     }
-    function press(action) {
-      if (!ACTIONS.includes(action)) throw new Error(`press: an action is one of ${ACTIONS.join(', ')}`);
-      if (!top()) return false;
-      if (!last || last.screen !== top()) render();
-      const U = uiOf(top()), n = last.focus.length, f = last.focus[U.focus];
-      if (action === 'up' || action === 'down') { if (n) U.focus = (U.focus + (action === 'down' ? 1 : -1) + n) % n; render(); noteFocus(); }
-      else if (action === 'left' || action === 'right') { if (f && f.kind === 'cycler') change(f, action === 'right' ? 1 : -1); }
-      else if (action === 'tabNext' || action === 'tabPrev') {
-        const T = last.tabs[0];
-        if (T) { U.tabs[T.key] = ((U.tabs[T.key] || 0) + (action === 'tabNext' ? 1 : -1) + T.n) % T.n; }
-      } else if (action === 'accept') {
-        if (f && !f.off) {
-          if (f.kind === 'toggle') change(f, 1);
-          else if (f.kind === 'cycler') change(f, 1);
-          else if (f.n.on.accept) run(effectsOf(f.n.on.accept, f.scope, last), f, 'accept');
+    function accept(f, seat) {
+      const U = uiOf(top()), on = f.n.on;
+      if (f.off) return;
+      switch (f.kind) {
+        case 'toggle': case 'cycler': return change(f, 1, seat);
+        case 'slider': return;
+        case 'alloc-confirm': { const draft = U.vals[f.key] || {}; delete U.vals[f.key]; if (on.confirm) run(effectsOf(on.confirm, scopeOf(f, seat, { input: draft }), last), f, 'confirm', seat); return; }
+        case 'alloc-reset': delete U.vals[f.key]; return;
+        case 'char': if (f.draft.length < f.max) U.vals[f.key] = f.draft + f.ch; return;
+        case 'char-del': U.vals[f.key] = f.draft.slice(0, -1); return;
+        case 'char-done': {
+          const v = f.draft.trim();
+          if (f.src && H.act) H.act({ set: f.src, to: v }, from(f, 'done', seat));
+          delete U.vals[f.key];
+          if (on.done) run(effectsOf(on.done, scopeOf(f, seat, { input: v }), last), f, 'done', seat);
+          return;
         }
-      } else if (action === 'back') {
-        const on = screens[top()].on.back;
-        if (on) run(effectsOf(on, {}, last), null, 'back'); else back();
+        default: if (on.accept) run(effectsOf(on.accept, scopeOf(f, seat), last), f, 'accept', seat);
       }
+    }
+    function press(action, seat = 0) {
+      if (!ACTIONS.includes(action)) throw new Error(`press: an action is one of ${ACTIONS.join(', ')}`);
+      if (!top() || seat < 0 || seat >= seatsOf(top())) return false;
+      if (!last || last.screen !== top()) render();
+      const U = uiOf(top()), f = last.focus[U.at[seat] || 0];
+      if (action === 'up' || action === 'down' || action === 'left' || action === 'right') move(seat, action);
+      else if (action === 'tabNext' || action === 'tabPrev') { const Tb = last.tabs[0]; if (Tb && Tb.n) { U.tabs[Tb.key] = ((U.tabs[Tb.key] || 0) + (action === 'tabNext' ? 1 : -1) + Tb.n) % Tb.n; } }
+      else if (action === 'accept') { if (f) accept(f, seat); }
+      else if (action === 'back') { const on = screens[top()].on.back; if (on) run(effectsOf(on, { seat }, last), null, 'back', seat); else back(); }
       render();
       return true;
     }
-    function focusAt(k) { if (!top()) return; if (!last) render(); if (k >= 0 && k < last.focus.length) { uiOf(top()).focus = k; render(); noteFocus(); } }
-    function tab(t, i) { if (!last) return; const T = last.tabs[t]; if (T && i >= 0 && i < T.n) { uiOf(top()).tabs[T.key] = i; render(); } }
-    // a frame: re-render when a value the screen read has changed (the game's state is read, never copied)
+    function focusAt(k, seat = 0) { if (!top()) return; if (!last) render(); if (k >= 0 && k < last.focus.length) setAt(seat, k); }
+    function tab(t, i) { if (!last) return; const Tb = last.tabs[t]; if (Tb && i >= 0 && i < Tb.n) { uiOf(top()).tabs[Tb.key] = i; render(); } }
     function tick() {
-      if (!last || !top()) return false;
+      if (!last) return false;
       for (const [path, was] of last.reads) { const x = H.read ? H.read(path) : undefined; if (JSON.stringify(x === undefined ? null : x) !== was) { render(); return true; } }
       return false;
     }
@@ -333,7 +601,10 @@ export function buildManaUi() {
       open, close, press, focusAt, tab, tick,
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
-      state: () => ({ stack: S.stack.slice(), screen: top(), focus: top() ? uiOf(top()).focus : -1, focusables: last ? last.focus.length : 0, picks: Object.fromEntries(Object.entries(S.picks).map(([k, v]) => [k, v.i])) }),
+      state: () => {
+        const id = top(), U = id ? uiOf(id) : null;
+        return { stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
+      },
     };
   }
 
@@ -350,19 +621,14 @@ export function buildManaUi() {
       else { const k = Number(t.dataset.k); const was = rt.state().focus; rt.focusAt(k); if (was === k) rt.press('accept'); }
       paint();
     });
-    if (o.keyboard !== false && typeof window !== 'undefined') window.addEventListener('keydown', (ev) => {
-      const a = keys[ev.code];
-      if (!a || !rt.state().screen) return;
-      ev.preventDefault();
-      rt.press(a);
-      paint();
-    });
+    const key = (ev) => { const a = keys[ev.code]; if (!a || !rt.state().screen) return false; ev.preventDefault(); rt.press(a); paint(); return true; };
+    if (o.keyboard !== false && typeof window !== 'undefined') window.addEventListener('keydown', key);
     if (o.auto && typeof requestAnimationFrame === 'function') { const loop = () => { if (rt.tick()) paint(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
     paint();
-    return { paint };
+    return { paint, key };
   }
 
-  return { COMPONENTS, ROLES, ACTIONS, KEYS, readNode, readSpec, runtime, toHtml, readPath, mount };
+  return { COMPONENTS, COMPONENT_IDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, KEYS, readNode, readSpec, runtime, toHtml, readPath, mount };
 }
 
 export const manaUi = buildManaUi();

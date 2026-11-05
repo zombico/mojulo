@@ -262,8 +262,9 @@ Pointers only; each target carries its own design notes.
   studio card (`gameworld-studio`, generated from the registry) teaches the agent to work them in waves.
 - Game UI runtime (internal name mana-ui): [control/lib/mana-ui/](control/lib/mana-ui/) (the one runtime playscape's UI
   words run on, so a screen is built once and not game by game: components with props passed down, the game's state
-  read through bindings and never copied, a form that is a tree of data, a function that is cue effects; the shared
-  screens as compositions in `idioms.js`; imports nothing outside its folder): [docs/mana-ui.md](docs/mana-ui.md).
+  read through bindings and never copied, a form that is a tree of data, a function that is cue effects; greybox first,
+  styles a later layer; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
+  wireframe board, `board.js`; imports nothing outside its folder): [docs/mana-ui.md](docs/mana-ui.md).
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).

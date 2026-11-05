@@ -1,96 +1,135 @@
-# mana-ui: the game UI runtime
+# mana-ui: the game UI library and runtime
 
-mana-ui is an internal name. The agent and the person read plain words (`use`, `props`, `on`, a screen's id), never
-"mana". The code lives in [control/lib/mana-ui/](../control/lib/mana-ui/), and it is the interface department's work
+mana-ui is an internal name. The agent and the person read plain words: `use`, `props`, `on`, an idiom's name.
+The code lives in [control/lib/mana-ui/](../control/lib/mana-ui/), and it is the interface department's work
 (`interface` in `gameworld/chapters.js`).
 
 ## Why it exists
 
 Playscape (`control/lib/graph/playscape/ui/`) says what a game's UI is: the guide and its register, the parts, the
-menus, the cues, and the laws they are held to. Until now, each surface drew that UI its own way. The HUD, the
+menus, the cues and the laws they are held to. Until now, each surface drew that UI its own way. The HUD, the
 playscape menus, the RPG's battle and party menu, both game shells, versus, the hangar and the board games each had
-their own sheet, colours, markup and keyboard and gamepad focus handling. mana-ui is the single runtime they move
-onto, so a screen is implemented once and not game by game.
+their own sheet, colours, markup and keyboard and gamepad focus handling. mana-ui is the library and the one runtime
+they move onto, so a screen is implemented once and not game by game.
+
+It is built in two layers, in this order:
+
+1. **The greybox:** every component and idiom working, in values only. The structure, the data each one reads and
+   the effects it emits are settled first.
+2. **The styles:** laid over the greybox later as a separate layer (the guide, its register and borders, the font
+   shelf). This layer is not built yet.
 
 ## The model: state, form and function, props passed down
 
 This follows React's principles but uses none of its code.
 
 - **A node** is data, the thing a recipe writes:
-  `{ use: '<component | def>', id?, props?, on?: { <verb>: effect(s) }, children? }`.
+  `{ use: '<component | def>', id?, props?, on?: { <verb>: effect(s) }, children?, when?, unless? }`.
+  `when` and `unless` draw a node only while a value or a binding is truthy or falsy.
 - **Props flow down.** A prop is a literal or a binding, resolved at render:
 
   | binding | reads |
   |---|---|
-  | `{ bind: '<path>' }` | the game's state, through the host |
-  | `{ item: '<field>' }` | the row a list is drawing |
-  | `{ pick: '<list id>.<field>' }` | the row a list has selected, on any screen of the stack (list → detail) |
+  | `{ bind: '<path>' }` | the game's state, through the host; the path may itself be a binding (a row's var) |
+  | `{ item: '<field>' }` | the row a list, grid, tree, anchor or page is drawing |
+  | `{ pick: '<id>.<field>' }` | the row the list, grid, tree or carousel with that id has selected, on any screen of the stack |
   | `{ format: 'Lv {level}' }` | the row's fields, as words |
-  | `{ input: true }` | the value an input now holds (in a change's effects) |
+  | `{ input: true }` | the value an input now holds (in a change's or a confirm's effects) |
+  | `{ seat: true }` | the seat that pressed (couch play) |
 
   Props are typed closed words, and a bad one throws an error that names what exists.
-- **Style is never a prop.** A node with `style`, `color`, `font`, `border`, `css` and the like throws (the menus' rule
-  in playscape). The theme is context: the guide's tokens (`--moj-*`) dress every node. A closed `variant` is all a
-  node may say about its look.
+- **Style is never a prop.** A node with `style`, `color`, `font`, `border`, `css` and the like throws (the menus'
+  rule in playscape). The theme is context. A closed `variant` is all a node may say about its look.
 - **State has three owners.**
-  - The game's state (the bus, the store, the kernels such as the RPG's) is read through bindings and never copied.
-    A bound toggle asks the host to `set` its var and then shows what the host holds.
-  - The screen's state (focus, the open tab, a list's selected row, the screen stack) belongs to the runtime.
+  - The game's state (the bus, the store, the kernels) is read through bindings and never copied. A bound input asks
+    the host to `set` its var and then shows what the host holds.
+  - The screen's state belongs to the runtime: each seat's focus, the open tab, a list's selected row and scroll, and
+    a draft (an allocation of points, a name being typed) until it is confirmed.
   - Appearance (`shown`, `focus`, `active`, `disabled`) is derived from those two and written as `data-st`.
 - **Form is a tree of data:** `[tag, attrs, ...children]`. The DOM backend writes it as HTML, and another backend (a
   canvas, an engine's UI) can draw the same tree.
 - **Function is effects, never callbacks**, because a recipe is JSON. These are the cue effects playscape already
   speaks. The runtime handles three itself: `{ open: '<screen>' }`, `{ close: true }` and `{ back: true }`. Every
-  other effect goes to the host's `act(effect, from)`, with `from` naming the screen, the node and the verb. When the
-  stack empties, the host hears `{ emit: 'mana:closed' }`.
+  other effect goes to the host's `act(effect, from)`, with `from` naming the screen, the node, the verb and the seat.
+  When the stack empties, the host hears `{ emit: 'mana:closed' }`.
 - **No virtual DOM and no hooks.** A screen records what it read. A frame `tick()` re-renders only when one of those
   values has changed.
-- **Components are code; compositions are data.** The components are a closed set: `COMPONENTS` in `kernel.js` lists
-  them, each with its props and verbs. A composition is a def, `{ params, node }`, with `{ param: '<name>' }` inside.
-  The agent composes; it never writes a component.
+- **Components are code; compositions are data.** The components are a closed set (`COMPONENTS` in `kernel.js`, each
+  with its group, props and verbs). A composition is a def, `{ params, node }`, with `{ param: '<name>' }` inside.
+
+## The components, by group
+
+`COMPONENTS` is the list; this table only says what each group is for.
+
+| group | for |
+|---|---|
+| layout | screens on the stack (`seats` > 1 gives each couch seat a cursor), windows, stacks, splits, tabs (fixed, or pages from data), `each` (a row per item that does not itself take focus), dividers |
+| value | text in a type role, stats, bars (with phase segments), pips, counters, timers, compares (better or worse as ▲ ▼), and placeholders for icons, portraits and images, badges, button prompts |
+| input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type) |
+| hud | the in-game layer: a `hud` of regions (the nine screen places) and anchors (a part over each thing in the world at the screen x and y the game projects); reticle, minimap, compass, feed, toast, banner |
+| enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
 
 ## Idioms
 
-`idioms.js` holds the screens games share, as defs. Each one says what it reads and what it emits: today the pause
-menu, the options menu and the RPG party screen. A new idiom is a def first. It becomes a component only when no
-composition of the existing components can draw it.
+The screens and HUD parts games share, as defs. Each one says what it reads, what it emits, and an `example` bound
+into the sample state (`samples.js`).
+
+- `idioms-front.js` — the front and the menus: attract, title, loading, mode select, character select (couch seats),
+  arena select, pause, options (sections of fields), controls (keybinds; accept asks the host to capture), confirm,
+  results, save slots.
+- `idioms-rpg.js` — the deep menus, each a list or grid beside the detail of what it has picked: party, skill tree,
+  level up, loadout (candidates compared with what they replace, under a weight budget), inventory, shop, quest log,
+  dialogue.
+- `idioms-hud.js` — in game: vitals, objective, compass, minimap, ammo, score and timer, an interact prompt, the event
+  feed, the crosshair, a moment banner, the party strip; and for enemies, plates over each one, a boss bar with its
+  phases, a target frame, damage numbers.
+
+A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used as a screen of the spec.
+
+## The wireframe board
+
+`manaUiBoard()` (`board.js`) draws every idiom live on the sample state. Each one is a 1280×720 screen scaled into a
+frame, and the effects each frame emits are logged under it. Click a frame to drive it:
+
+- arrows or WASD, Enter, Escape, and `[` `]` to turn tabs
+- a second seat on I J K L, with U to pick and O for back
+
+It is one self-contained page, and it is the eyes gate's view of the library.
 
 ## The host contract
 
 ```js
-const rt = manaUi.runtime({ screens: { pause: node, … }, defs?, start? }, {
+const rt = manaUi.runtime({ screens: { pause: node, … }, hud?, defs?, start? }, {
   read: (path) => value,        // the game's state: bus vars, store slices, a kernel's query
   act: (effect, from) => {},    // every effect but open / close / back
 });
-rt.press('down' | 'up' | 'left' | 'right' | 'accept' | 'back' | 'tabNext' | 'tabPrev');  // the controls kernel's menu scheme
+rt.press('down' | 'up' | 'left' | 'right' | 'accept' | 'back' | 'tabNext' | 'tabPrev', seat?);
 rt.open(id); rt.tick(); rt.view(); rt.state();
 manaUi.mount(el, rt, { auto: true });   // the DOM backend: keys, pointer, a frame loop
 ```
 
-`window.__manaUi` is the runtime on a page, for tests and the audit (the precedent is `__mojRpg`).
-`manaUiPage(spec, { state })` is a self-contained preview over a plain state object.
+The actions are the controls kernel's `menu` scheme. `window.__manaUi` is the runtime on a page, for tests and the
+audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state object.
 
 ## Disciplines
 
 - **Self-contained.** `buildManaUi()` references nothing outside itself, so a page runs `manaUiSource()`, as it does
   the controls and RPG kernels. A page that uses no mana-ui carries no byte of it.
-- **Bounded.** The folder imports nothing outside itself (`boundary.test.js`). What it needs from mojulo comes through
-  the host and the page's tokens. This lets an engine backend read the same spec, and lets the folder become a package
-  of its own unchanged once a second consumer exists.
+- **Bounded.** The folder imports nothing outside itself (`boundary.test.js`). This lets an engine backend read the
+  same spec, and lets the folder become a package of its own once a second consumer exists.
 - **Deterministic.** There is no clock, no dice and no DOM until `mount`. The same spec and state give the same HTML.
-- **Values first.** Focus is a shape (the ▶ marker and an inset rule), a better compare is ▲ and a worse one ▼, and a
-  low bar is striped. Colour adds to what already reads in black and white.
+- **Values first.** The greybox has no colour. Focus is a shape (▶ and a heavy rule) and the active row a bar at its
+  edge. Bar variants differ by pattern, and a low bar on what can run out is cross-hatched. Placeholders are crossed
+  boxes.
+- **Tests.** Each concept is tested once (`kernel.test.js`). The sweep over every idiom (`idioms.deep.test.js`) checks
+  that each draws on the sample state, a screen can be moved through and left (one that waits, a loading screen, has
+  nothing to press until it is ready), and a HUD part takes no focus.
 
-## The migration, in order
+## What is next
 
-Each step either draws the same bytes or names the change it makes to what a page emits.
-
-1. The RPG channel's party menu, skill tree and shop, through a bridge from the RPG kernel's `partyOf`, `statsOf`,
-   `gearOf` and `treeOf`.
-2. Playscape's menu kinds (read, talk, confirm, shop, chest, inventory, save, map, list) drawn by mana-ui components.
-3. The front of a game: title, pause and options (a settings store), controls (the controls kernel's legend and
-   capture), loading, mode select, character select (one cursor per seat), arena select, results. Both shells and the
-   versus pause move onto these screens.
-4. The theme made one: the guide, the register's dials, the borders and the inventory dress laid over mana-ui's sheet,
-   the font shelf's faces for the HUD, and the broadcast packages' contrast checks as a law.
-5. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.
+1. The styles: the guide, the register's dials, the borders and the inventory dress laid over the greybox; the font
+   shelf's faces; the broadcast packages' contrast checks as a law.
+2. The integration, one surface at a time, each step either drawing the same bytes or naming the change it makes to
+   what a page emits: the RPG channel's menus through a bridge from its kernel, playscape's menu kinds, both shells'
+   fronts, the versus pause.
+3. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.
