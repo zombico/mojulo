@@ -1,6 +1,6 @@
 /**
  * THE CHAPTERS — the game book as the studio works it: each page of the book a CHAPTER, each chapter in one of the
- * studio's six departments, each with its contract:
+ * studio's seven departments, each with its contract:
  *
  *   { id, department, name,
  *     paths     the recipe it owns, as JSON Pointers (the deepest that holds a path is its owner: /characters/hero is the
@@ -30,6 +30,7 @@ export const DEPARTMENTS = Object.freeze([
   { id: 'foes', name: 'Foes and bosses' },
   { id: 'cinematics', name: 'Cinematics' },
   { id: 'production', name: 'Game design and production' },
+  { id: 'interface', name: 'Interface and UX' },
 ]);
 
 // the figures a quick game rolls in pools (runner.js: `guard`, `guard-2` …)
@@ -57,7 +58,9 @@ export const CHAPTERS = Object.freeze([
   C('foes', 'foes', 'The foes', { paths: ['/foes'], parts: ['foes:*'], steps: ['foes-*', 'foe-*', 'foe', 'guard', 'tower'], cards: ['gameworld-foes'], reads: ['intent', 'levels'], outcome: 'foes' }),
   C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels', 'main-quest'], outcome: 'story' }),
   C('camera', 'cinematics', 'The camera', { paths: ['/camera', '/xr'], reads: ['intent', 'levels'] }),
-  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/screen', '/front', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera'], outcome: 'play' }),
+  // the menus, the front and the screen a game is worked through by hand (its runtime is control/lib/mana-ui/)
+  C('interface', 'interface', 'The interface', { paths: ['/front', '/screen'], reads: ['intent', 'world', 'systems', 'battles', 'cast'] }),
+  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface'], outcome: 'play' }),
 ]);
 
 const BY_ID = new Map(CHAPTERS.map((c) => [c.id, c]));

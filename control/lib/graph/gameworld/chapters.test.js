@@ -34,8 +34,8 @@ const steps = Object.fromEntries(Object.entries(CORPUS).map(([k, w]) => [k, runS
 const stampsOf = (w) => [...reviewState(w), ...(w.characters ? characterState(w) : []), ...(castable(w) ? foeState(w) : [])];
 
 describe('the chapters', () => {
-  it('each in one of the six departments, each after the chapters it reads; the build reads every other', () => {
-    expect(DEPARTMENTS.map((d) => d.id)).toEqual(['worlds', 'characters', 'play', 'foes', 'cinematics', 'production']);
+  it('each in one of the seven departments, each after the chapters it reads; the build reads every other', () => {
+    expect(DEPARTMENTS.map((d) => d.id)).toEqual(['worlds', 'characters', 'play', 'foes', 'cinematics', 'production', 'interface']);
     for (const d of DEPARTMENTS) expect(CHAPTERS.some((c) => c.department === d.id), d.id).toBe(true);
     expect(new Set(CHAPTERS.map((c) => c.id)).size).toBe(CHAPTERS.length);
     CHAPTERS.forEach((c, i) => {
