@@ -125,7 +125,7 @@ describe('the remit', () => {
   });
 });
 
-import { receiptOf, upstreamPrints, staleUpstream, reqParts } from './reqs.js';
+import { receiptOf, upstreamPrints, staleUpstream, reqParts, levelLawsOf } from './reqs.js';
 
 describe('the received gate', () => {
   const kept = (n, decisions = [{ slot: 'walk', because: 'the remit' }], extra = {}) => ({ id: `j${n}`, n, kind: 'author', status: 'kept', report: { patch: [], decisions, ...extra } });
@@ -149,6 +149,18 @@ describe('the received gate', () => {
     expect(c).toMatchObject({ holds: false, says: 'level:crypt: a dead end' });
   });
 
+  it('a level\'s intent laws are its part\'s: those that do not hold, by level, once each, stages merged', () => {
+    const steps = [
+      { key: 'hero' },
+      { key: 'level-crypt-0', laws: [{ law: 'cover-by-every-post', holds: false }, { law: 'within-a-jump', holds: true }] },
+      { key: 'level-crypt-1', laws: [{ law: 'cover-by-every-post', holds: false }, { law: 'loop-grade', holds: false }] },
+      { key: 'level-sea-cave-0', laws: [{ law: 'board-level', holds: false }] },
+      { key: 'level-vale-0', laws: [{ law: 'within-a-jump', holds: true }] },
+    ];
+    expect(levelLawsOf(steps)).toEqual({ 'level:crypt': ['cover-by-every-post', 'loop-grade'], 'level:sea-cave': ['board-level'] });
+    expect(levelLawsOf([])).toEqual({});
+  });
+
   it('a level: its stages made, and probed after its proposal was kept, as they stand', () => {
     const r = req(1, 'level:crypt');
     const at = (jobs, m = made) => receiptOf(r, { jobs, world, made: m }).checks.find((c) => c.check === 'probe');
@@ -161,6 +173,16 @@ describe('the received gate', () => {
     expect(at([kept(1), probe(2, { 'level-crypt-0': 'aaaa' })], { 'level-crypt-0': { stored: 'bbbb' } })).toMatchObject({ holds: false, says: expect.stringMatching(/probe again/) });
     expect(at([probe(1, { 'level-crypt-0': 'aaaa' }), kept(2)]).holds).toBe(false);
     expect(at([kept(1), probe(2, { 'level-crypt-0': 'aaaa' }, false)])).toMatchObject({ holds: false, says: 'opposed: s1: nothing stands in it' });
+  });
+
+  it('a level\'s laws: the composer\'s, measured on the build its current probe played, beside its parts\'', () => {
+    const r = req(1, 'level:crypt');
+    const lit = (n, prints) => { const p = probe(n, prints); p.report.composed = [{ ref: 's0', law: 'lit', says: 'side: under 0.2 of the rooms\' mean light' }]; return p; };
+    const laws = (jobs, m = made) => receiptOf(r, { jobs, world, made: m }).checks.find((c) => c.check === 'laws');
+    expect(laws([kept(1), lit(2, { 'level-crypt-0': 'aaaa' })])).toEqual({ check: 'laws', holds: false, says: 's0: lit: side: under 0.2 of the rooms\' mean light' });
+    // a probe its stages moved since is not read: probed again, measured again
+    expect(laws([kept(1), lit(2, { 'level-crypt-0': 'aaaa' })], { 'level-crypt-0': { stored: 'bbbb' } }).holds).toBe(true);
+    expect(laws([kept(1), probe(2, { 'level-crypt-0': 'aaaa' })]).holds).toBe(true);
   });
 
   it('received is a status of its own between open and accepted; a queued one stays queued', () => {

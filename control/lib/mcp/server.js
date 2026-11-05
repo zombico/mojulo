@@ -178,6 +178,13 @@ export function clientTakesModelTiers(clientInfo) {
   return hostCapabilities(resolveAdapterId({ clientName: clientInfo.name })).modelTiers === true;
 }
 
+/** True when the connecting host declares `capabilities.jobAgents` and runs the Claude plugin, which installs the job
+ * agents (mojulo-author, -critic, -assistant): a req's brief then names the agent to hand each job to. */
+export function clientTakesJobAgents(clientInfo) {
+  if (!clientInfo?.name || !pluginProfileActive()) return false;
+  return hostCapabilities(resolveAdapterId({ clientName: clientInfo.name })).jobAgents === true;
+}
+
 export function listTools({ clientInfo, context } = {}) {
   // The Claude plugin profile (plugin-profile.js) drops its hidden tools and packs and shows a
   // tool's profile face where it has one. Outside the profile both are no-ops.

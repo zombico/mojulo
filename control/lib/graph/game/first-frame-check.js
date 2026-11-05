@@ -58,7 +58,10 @@ export async function levelPage(ref) {
   if (!payload) return { skip: 'no World form to render' };
   // a game made for a screen (game/screen.js) is judged in its own frame, its long side the check's
   const { payloadFrame } = await import('@/lib/graph/game/screen');
-  return { html: emitThreeWorld({ ...payload, inline: true, capture: true, walk: false, decollide: true }), ...(payload.screen ? { frame: payloadFrame(payload.screen, Math.max(FIRST_FRAME.width, FIRST_FRAME.height)) } : {}) };
+  // (a composed stage's report, era/compose-report.js, measured in the build this page is: its laws that advise, kept by
+  // the play probe for the received gate)
+  const composed = (payload.compose?.report?.laws ?? []).filter((l) => !l.ok).map((l) => ({ law: l.id, says: l.says }));
+  return { html: emitThreeWorld({ ...payload, inline: true, capture: true, walk: false, decollide: true }), ...(payload.screen ? { frame: payloadFrame(payload.screen, Math.max(FIRST_FRAME.width, FIRST_FRAME.height)) } : {}), ...(composed.length ? { composed } : {}) };
 }
 
 /**

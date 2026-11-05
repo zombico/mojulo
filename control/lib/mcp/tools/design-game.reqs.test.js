@@ -154,6 +154,29 @@ describe('design_game: the jobs inside a req', () => {
     expect(named('gw')).toBe('The Long Climb');
   });
 
+  it('a job\'s seat (as): its own view, only its own brief, its own report, and nothing else', async () => {
+    await levelReq({ staffing: 'studio', budget: { diverge: 2, critics: 1 } });
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });
+    const all = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
+    // the brief's read names the seat
+    expect(all.req.jobs.map((j) => j.read.args.as)).toEqual(['r1.j1', 'r1.j2']);
+    // read as j1: its unit's view by default, only its own brief (never its sibling's angle)
+    const mine = await designGameHandler({ ref: 'gw', as: 'r1.j1' });
+    expect(mine).toMatchObject({ readout: 'chapter', as: 'r1.j1', req: { id: 'r1' } });
+    expect(mine.req.jobs.map((j) => j.job)).toEqual(['j1']);
+    // a seat does nothing but read and report its own job
+    await expect(designGameHandler({ ref: 'gw', as: 'r1.j1', chapter: 'foes' })).rejects.toThrow(/its view is that unit's \(not foes\)/);
+    await expect(designGameHandler({ ref: 'gw', as: 'r1.j1', patch: nameOp('x') })).rejects.toThrow(/nothing else \(not patch\)/);
+    await expect(designGameHandler({ ref: 'gw', as: 'r1.j1', req: { id: 'r1', job: 'j2', patch: nameOp('x'), decisions: [{ slot: 'name', because: 'y' }] } })).rejects.toThrow(/reports its own job: req: \{ id: 'r1', job: 'j1'/);
+    await expect(designGameHandler({ ref: 'gw', as: 'r1.j9' })).rejects.toThrow(/r1 has no job j9 \(its jobs: j1, j2\)/);
+    await expect(designGameHandler({ ref: 'gw', as: 'j1' })).rejects.toThrow(/'<req>\.<job>'/);
+    // its report, as its seat: held as a proposal, answered with its own view
+    const held = await designGameHandler({ ref: 'gw', as: 'r1.j1', req: { id: 'r1', job: 'j1', patch: nameOp('The Plain Climb'), decisions: [{ slot: 'name', because: 'plainest' }] } });
+    expect(held).toMatchObject({ readout: 'chapter', as: 'r1.j1' });
+    expect(held.req.jobs).toEqual([expect.objectContaining({ job: 'j1', status: 'submitted' })]);
+    expect(held.reqs).toBeUndefined();
+  });
+
   it('a studio: its diverge proposals held, one kept and applied, the rest declined, its critics issued and reporting', async () => {
     await levelReq({ staffing: 'studio', budget: { diverge: 2, critics: 1 } });
     const started = await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });

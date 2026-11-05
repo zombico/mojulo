@@ -152,11 +152,29 @@ export function receiptOf(req, { jobs = [], parts = [], world, made = {} } = {})
         : !current ? { says: probe ? 'its stages moved since the probe played them: probe again' : 'not played: { req: { id, probe: true } }' }
         : probe.report?.holds !== true ? { says: probe.report?.skipped ?? (probe.report?.checks ?? []).filter((c) => !c.holds).map((c) => `${c.check}: ${c.says}`).join('; ') } : {}),
     });
+    // the composer's laws (era/compose-report.js), measured on the build the probe played: the level's laws, beside its parts'
+    const composed = current ? probe.report?.composed ?? [] : [];
+    if (composed.length) {
+      const L = checks.find((c) => c.check === 'laws');
+      L.holds = false;
+      L.says = [L.says, ...composed.map((c) => `${c.ref}: ${c.law}: ${c.says}`)].filter(Boolean).join('; ');
+    }
   }
   const asks = keptAll.flatMap((j) => j.report?.asks ?? []);
   const findings = live.filter((j) => j.kind === 'critic' && j.status === 'submitted').flatMap((j) => (j.report?.findings ?? []).map((f) => `${j.id}: ${f.says}`));
   const said = { ...(asks.length ? { asks } : {}), ...(findings.length ? { findings } : {}) };
   return { holds: checks.every((c) => c.holds), checks, ...(Object.keys(said).length ? { said } : {}) };
+}
+
+/** Each level's laws that do not hold, by its part, from the run's planned steps (a level step's `laws`, lay-concerns.js):
+ * { 'level:<id>': [law] }. What the received gate's `laws` check holds a level's req to beside its parts' own. */
+export function levelLawsOf(steps = []) {
+  const out = {};
+  for (const s of steps) {
+    const id = /^level-(.+)-\d+$/.exec(s.key ?? '')?.[1], bad = (s.laws ?? []).filter((l) => !l.holds).map((l) => l.law);
+    if (id && bad.length) out[`level:${id}`] = [...new Set([...(out[`level:${id}`] ?? []), ...bad])];
+  }
+  return out;
 }
 
 /** The ledger read: each req with its status and place; → { reqs, current } (current: the req being worked, or null).

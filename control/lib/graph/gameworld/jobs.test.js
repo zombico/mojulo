@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ANGLES, LENSES, authorPlan, criticPlan, jobsLeft, reissuesLeft, unitPaths, outsideOf, citing, checkSubmit, jobBrief, jobReport, nextOf, jobLines } from './jobs.js';
+import { ANGLES, LENSES, authorPlan, criticPlan, jobsLeft, reissuesLeft, unitPaths, outsideOf, citing, checkSubmit, jobBrief, jobReport, nextOf, jobLines, seatOf } from './jobs.js';
 import { STAFFING } from './reqs.js';
 import { chapterById } from './chapters.js';
 
@@ -119,5 +119,33 @@ describe('crews and the assistant director', () => {
     expect(() => checkSubmit(ad, { recommend: 'elevate', reasons: ['it repeats the last level'], bolder: 'flood the crypt' })).not.toThrow();
     expect(() => checkSubmit(ad, { recommend: 'elevate', reasons: ['x'], patch: [{ op: 'set', path: '/x' }] })).toThrow(/recommends, never a patch/);
     expect(jobReport({ ...ad, status: 'submitted', report: { recommend: 'elevate', reasons: ['x'], bolder: 'y' } })).toMatchObject({ recommend: 'elevate', reasons: ['x'], bolder: 'y', posture: 'elevating', role: 'gw:assistant' });
+  });
+});
+
+describe('a job\'s seat', () => {
+  const req = { id: 'r2', unit: 'level:crypt', crew: ['foes'] };
+  const jobs = [
+    { id: 'j1', req: 'r2', kind: 'author', unit: 'level:crypt', status: 'reissued' },
+    { id: 'j2', req: 'r2', kind: 'author', unit: 'foes', status: 'issued' },
+    { id: 'j3', req: 'r2', kind: 'assistant', status: 'issued' },
+    { id: 'j4', req: 'r2', kind: 'probe', status: 'submitted' },
+  ];
+  it('names one job and the units its view may be: its own, or the crew\'s for the assistant', () => {
+    expect(seatOf('r2.j2', { req, jobs })).toMatchObject({ job: { id: 'j2' }, unit: 'foes', units: ['foes'] });
+    expect(seatOf('r2.j3', { req, jobs })).toMatchObject({ unit: 'level:crypt', units: ['level:crypt', 'foes'] });
+  });
+  it('refuses a seat that is no agent\'s: malformed, another req, gone, reissued, the probe', () => {
+    expect(() => seatOf('j2', { req, jobs })).toThrow(/'<req>\.<job>'/);
+    expect(() => seatOf('r1.j2', { req, jobs })).toThrow(/no req r1/);
+    expect(() => seatOf('r2.j9', { req, jobs })).toThrow(/no job j9/);
+    expect(() => seatOf('r2.j1', { req, jobs })).toThrow(/reissued/);
+    expect(() => seatOf('r2.j4', { req, jobs })).toThrow(/the probe is the server's/);
+  });
+  it('names the plugin\'s agent for a host that has them, and only then', () => {
+    const brief = (j, agents) => jobBrief(j, req, { ref: 'gw', agents });
+    expect(brief(jobs[1], true)).toMatchObject({ agent: 'mojulo-author', read: { args: { as: 'r2.j2' } } });
+    expect(brief(jobs[2], true)).toMatchObject({ agent: 'mojulo-assistant', read: { args: { as: 'r2.j3' } } });
+    expect(brief({ id: 'j5', kind: 'critic', lens: 'play', status: 'issued' }, true).agent).toBe('mojulo-critic');
+    expect(brief(jobs[1], false).agent).toBeUndefined();
   });
 });
