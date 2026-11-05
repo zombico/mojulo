@@ -538,6 +538,40 @@ do:
 - bold, solid shapes rather than a cloud of dots;
 - a power-up as flame tongues round the silhouette, motes drawn in, pebbles lifting and dust pushed out along the ground.
 
+### A blast's air on the world's fires
+
+On the flow, a blast's air is felt by what burns as well as drawn
+([`worlds/controllable/vayo-air.js`](../control/lib/graph/worlds/controllable/vayo-air.js), emitted only when the world is
+on the flow and has fires):
+
+- **The blast's wind.** A burst's charge (its kilograms of TNT, from its splash radius as above, × the world's power) gives
+  an overpressure that falls with the scaled distance Z = d / W^⅓ (Kinney–Graham). The air behind the front moves at
+  u = 5p·c₀ / (7·Mₛ) with Mₛ = √(1 + 6p/7) (Rankine–Hugoniot, γ 1.4). A kilogram's is about 300 m/s at 2 m, 60 at 5,
+  23 at 10 and 10 at 20. A wall between the burst and a fire shelters it, and a third of the wind gets round.
+- **A fire's limit.** The air that strips a flame from its fuel grows with the flame's size, since a bigger flame keeps
+  its gas longer: u_bo = 3 m/s × (D / 1.2 cm)^0.7 for a fuel bed D across. A candle's is 3 m/s, a torch's 10, a
+  campfire's 43, a metre-wide block's about 70.
+- **Three zones.**
+  - Under half the limit the fire is **fanned**: it burns faster by the bellows' own law (× (1 + 0.07·u)), its bed
+    stoked for a couple of seconds after a blast, and its flame leans away and flares.
+  - From half to the whole of it, the fire is **straining**: its flame lifts off its bed and gutters, the sign it is
+    about to go.
+  - Past it, the fire is **blown out**.
+- **Inside the fireball the heat wins.** What a burst's fireball reaches catches by the blows' heat, and no air is
+  reckoned there. So a grenade lights the crates it engulfs and puts out the torches a few metres off.
+- **A burning block blown out:**
+  - it stops burning (`blowout` on its hits, `by` the blast or the wind), and its plume ends;
+  - its face is cooled to just under its ignition, so a neighbour still burning relights it within a second or two,
+    and a lone one cools out;
+  - its hot bed smoulders a wisp of smoke for a couple of seconds (a smoulder's heat, a tenth of its flame's, at a
+    smoulder's soot yield), and its bed glows dull red on the page while it is hot.
+- **A fire the physics does not hold.** A torch, a candle or a brazier is blown out by the same law and stays out.
+- **The world's wind** fans and strains a block's fire the same way, a few times a second, and a gale past a fire's
+  limit blows it out.
+
+The page draws a fire's air as its wind plus each recent blast's: outward, held for the eye over half a second, at most
+20 m/s for the look. The physics reckons with the blast's true speed.
+
 ## What holds it up
 
 The basic break pass ([`rules-basic.js`](../control/lib/graph/worlds/controllable/rules-basic.js)) still decides what
@@ -772,4 +806,6 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - On the flow: the beam's charge (its gather sprites), beam impacts that are preset puffs rather than explosions, a
   muzzle's blast and a landing's dust; the envelope's ground is the floor under the spot (a slope is not traced), and
   it is presolved once, so a wall broken mid-blast opens no new way.
+- A blast's air on fires: the power-up's gust does not yet fan a fire a hero walks past, a blast's air does not push
+  the dust and smoke already drifting, and a fire's limit is a starting tune for the eyes gate to move.
 - Engine export of breakables and their matter (the handoff carries them whole).

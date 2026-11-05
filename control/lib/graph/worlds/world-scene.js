@@ -1043,6 +1043,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           : firePageChannel({ embers: true, smoke: true, light: 1, sources: more }, { terrainAir: !!payload.terrain, day: payload.sky && Number.isFinite(payload.sky.day) ? payload.sky.day : 0 });
       }
     }
+    // on the flow (rupa-vayo), a blast's air reaches the world's fires: it fans them or blows them out
+    // (worlds/controllable/vayo-air.js; the fire channel's `gusts`). A world not on the flow, or with no fires, keeps its bytes
+    { const fxs = sketch.manifest.fxStyle;
+      if (payload && payload.fire && Array.isArray(payload.fire.sources) && payload.fire.sources.length && fxs && typeof fxs === 'object' && fxs.flow) payload.fire = { ...payload.fire, gusts: true }; }
     // scars (cosmetic damage): a map that may not change still shows what blows would do to it (rupa/index.js
     // readScarsSpec: its ground's soil and its walls' matter, from the world's cube unless named). Absent ⇒ no byte
     // (outdoors, the ground a crater is painted in is the land's own: its commonest ground off the path, the cube's readout,
