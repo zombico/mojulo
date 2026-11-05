@@ -189,6 +189,45 @@ describe('mana-ui: in game', () => {
   });
 });
 
+describe('mana-ui: the live game', () => {
+  const hudOf = (children, S = {}) => manaUi.runtime({ hud: { use: 'hud', children }, screens: {} }, host(S));
+  const at = (c) => ({ use: 'region', props: { at: 'top' }, children: [c] });
+  it('a fighter\'s bar shows the chip of the last hit, and the second fighter\'s fills from the right', () => {
+    const v = hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 8, dir: 'rtl' } })]).view();
+    expect(v).toContain('data-dir="rtl"');
+    expect(v).toContain('<u style="left:60%;width:20%"></u>');
+    expect(hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 4 } })]).view()).not.toContain('<u ');   // healing leaves no chip
+  });
+  it('what is off screen is held at the edge with an arrow toward it; what is on screen is not', () => {
+    const v = hudOf([{ use: 'edges', props: { markers: [{ x: 1.4, y: 0.5, kind: 'goal' }, { x: 0.5, y: -0.2, kind: 'foe' }, { x: 0.4, y: 0.4, kind: 'ally' }] } }]).view();
+    expect(v).toContain('left:97%;top:50%');
+    expect(v).toMatch(/→★/);
+    expect(v).toMatch(/↑✕/);
+    expect(v).not.toContain('data-kind="ally"');
+  });
+  it('harm\'s bearing becomes a mark on the ring, turned toward it', () => {
+    const v = hudOf([{ use: 'threat', props: { markers: [{ bearing: 90 }, { bearing: 180 }] } }]).view();
+    expect(v).toContain('left:95%;top:50%;transform:translate(-50%,-50%) rotate(90deg)');
+    expect(v).toContain('left:50%;top:95%');
+  });
+  it('a table marks your row by a shape; a slot shows its key, cooldown and the one in hand; a dial turns with its value', () => {
+    const t = hudOf([at({ use: 'table', props: { columns: ['name', { key: 'score', align: 'right' }], rows: [{ name: 'A', score: 3 }, { name: 'B', score: 2, self: true }] } })]).view();
+    expect(t).toMatch(/<tr data-mark="yes"><td>B<\/td><td data-align="right">2<\/td>/);
+    const sl = hudOf([at({ use: 'slot', props: { name: 'Fire Bolt', key: 'E', cooldown: 0.25, active: true } })]).view();
+    expect(sl).toContain('data-active="yes"');
+    expect(sl).toContain('height:25%');
+    expect(sl).toContain('>E<');
+    expect(hudOf([at({ use: 'gauge', props: { value: 120, max: 240 } })]).view()).toContain('rotate(0deg)');
+  });
+  it('a hud holds regions and layers only; a screen lays its own parts out in regions over the held game', () => {
+    expect(() => manaUi.readNode({ use: 'hud', children: [{ use: 'gauge', props: { value: 1, max: 2 } }] })).toThrow(/a region .* or a layer \(anchors, edges, threat, letterbox\)/);
+    const rt = run(screen([{ use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'list', props: { rows: [{ label: 'Attack', active: true }, { label: 'Guard' }] } }] }]));
+    expect(rt.view()).toContain('class="mana-region" data-at="bottom-left"');
+    rt.press('down');
+    expect(rt.view()).toMatch(/data-st="active"[^>]*>.*Attack/);   // the data's own active row, beside the focus
+  });
+});
+
 describe('mana-ui: form and the kernel', () => {
   it('the form is data, drawn the same every time and escaped', () => {
     const s = screen([txt('<b>&')], { title: 'T' });

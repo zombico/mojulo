@@ -16,7 +16,7 @@ describe('mana-ui: every idiom', () => {
       if (I.kind === 'hud') {
         const rt = manaUi.runtime(withIdioms({ hud: { use: 'hud', children: [use] }, screens: {} }), { read });
         expect(rt.state().focusables).toBe(0);
-        expect(rt.view()).toMatch(/mana-place|mana-anchor/);
+        expect(rt.view(), `${id} draws something on its example`).not.toContain('<div class="mana-hud"></div>');
       } else {
         const S = JSON.parse(JSON.stringify(SAMPLE_STATE)), at = (p) => manaUi.readPath(S, p);
         const rt = manaUi.runtime(withIdioms({ start: 's', screens: { s: use } }), { read: at, act: () => {} });

@@ -19,8 +19,21 @@ export const BOARD_HUDS = Object.freeze({
   'action HUD': ['vitals', 'objective-tracker', 'minimap-corner', 'ammo-counter', 'interact-prompt', 'event-feed', 'crosshair', 'enemy-plates', 'damage-numbers'],
   'boss fight HUD': ['boss-bar', 'party-strip', 'target-frame', 'score-timer', 'moment-banner', 'enemy-plates'],
   'explore HUD': ['vitals', 'compass-strip', 'minimap-corner', 'objective-tracker', 'interact-prompt'],
+  'fighting HUD': ['versus-bars', 'super-meters', 'combo-counter'],
+  'racing HUD': ['race-standing', 'speedometer', 'minimap-corner', 'offscreen-markers'],
+  'shooter HUD': ['crosshair', 'damage-direction', 'offscreen-markers', 'lock-on', 'ammo-counter', 'event-feed', 'score-timer'],
+  'action RPG HUD': ['vitals', 'ability-bar', 'enemy-plates', 'damage-numbers', 'quest-toasts', 'world-labels'],
+  'survival HUD': ['vitals', 'hotbar', 'world-labels', 'interact-prompt'],
+  'strategy HUD': ['resource-bar', 'unit-card', 'combat-forecast', 'minimap-corner'],
+  'tower defence HUD': ['wave-status', 'world-labels', 'event-feed'],
+  'match broadcast': ['score-bug', 'lower-third', 'event-feed'],
+  'cutscene': ['cinema-bars', 'subtitles'],
+  'stealth HUD': ['stealth-meter', 'enemy-plates', 'minimap-corner', 'interact-prompt'],
+  'phone HUD': ['vitals', 'minimap-corner', 'touch-controls'],
 });
 
+// a screen idiom's board section, by its shelf (the HUD frames come first, as 'In game')
+const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play' };
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const use = (id) => ({ use: id, props: IDIOMS[id].example });
@@ -33,7 +46,7 @@ export function boardFrames() {
   }
   for (const id of SCREEN_IDIOMS) {
     const I = IDIOMS[id];
-    frames.push({ name: id, group: ['party-screen', 'skill-tree', 'level-up', 'loadout-screen', 'inventory-screen', 'shop-screen', 'quest-log', 'dialogue-box'].includes(id) ? 'RPG' : 'Front and menus', about: I.about, reads: I.reads, emits: I.emits, spec: withIdioms({ screens: { s: use(id) }, start: 's' }) });
+    frames.push({ name: id, group: GROUPS[I.shelf] || 'Front and menus', about: I.about, reads: I.reads, emits: I.emits, spec: withIdioms({ screens: { s: use(id) }, start: 's' }) });
   }
   for (const f of frames) manaUi.readSpec(f.spec);
   return frames;

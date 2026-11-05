@@ -65,9 +65,9 @@ This follows React's principles but uses none of its code.
 | group | for |
 |---|---|
 | layout | screens on the stack (`seats` > 1 gives each couch seat a cursor), windows, stacks, splits, tabs (fixed, or pages from data), `each` (a row per item that does not itself take focus), dividers |
-| value | text in a type role, stats, bars (with phase segments), pips, counters, timers, compares (better or worse as ▲ ▼), and placeholders for icons, portraits and images, badges, button prompts |
+| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts |
 | input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type) |
-| hud | the in-game layer: a `hud` of regions (the nine screen places) and anchors (a part over each thing in the world at the screen x and y the game projects); reticle, minimap, compass, feed, toast, banner |
+| hud | the in-game layer: a `hud` of regions (the nine screen places) and layers: anchors (a part over each thing in the world at the screen x and y the game projects), edges (what is off screen, held at the edge with an arrow), a threat ring (where harm came from), the cinema bars; reticle, minimap, compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
 | enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
 
 Left and right cross between the panes of a split (a list and its detail), landing on the row the list has active.
@@ -119,6 +119,37 @@ into the sample state (`samples.js`).
   phases, a target frame, damage numbers.
 
 A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used as a screen of the spec.
+
+### The live game
+
+`idioms-live.js` covers what shows during play in each kind of game:
+
+- a fight: mirrored bars with the chip of the last hit, rounds, the clock; super meters; a combo count
+- a race: place, lap and times; a speedometer
+- a firefight: where harm came from, what is off screen, lock-on brackets, the ability bar
+- survival: the hotbar, names over things in the world
+- strategy: resources, the unit in focus, an attack's forecast, a defence's wave
+- a match: the score bug, a lower third
+- a cutscene: the cinema bars, subtitles
+- stealth: a detection meter
+- quests: passing quest words
+- a phone: touch controls
+
+It also has the menus that come up mid-play: a turn-based battle's commands, targets, turn order and party; a
+unit's actions beside its forecast; the scoreboard held open; a strategy game's orders.
+
+### One style for a game
+
+The live game is drawn by the same components, the same sheet and the same theme as the menus. A HUD never gets a
+second look of its own. `style-rules.test.js` holds every component to that:
+
+- every component has its rule in the sheet
+- the sheet's rules carry no colour of their own (every colour is a variable)
+- every variable the sheet reads has its greybox value
+- a theme sets every colour the sheet reads (the cinema bars' black is the one fixed value)
+
+A part that is its own frame (the aim, a moment's banner, a phone's controls) sits bare over the world. The aim keeps
+a halo in the panel's colour so it reads over any scene.
 
 ## The wireframe board
 

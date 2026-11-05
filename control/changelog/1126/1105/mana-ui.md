@@ -39,4 +39,13 @@
 - **Couch players each get their own detail panel, and a list and its detail are one move apart.** On a select screen,
   each seat's panel shows the fighter that seat is on; left and right cross between a list and its detail; a list's id
   belongs to its screen, so two screens can use the same idiom.
+- **The live game in each kind of game, in the one style.** What shows during play is drawn by the same components, sheet
+  and theme as the menus: a fight's mirrored bars with the chip of the last hit, rounds and clock, super meters and the
+  combo; a race's place, laps, times and speedometer; a firefight's damage direction, off-screen markers, lock-on and
+  ability bar; survival's hotbar and names over the world; strategy's resources, unit card, attack forecast and wave;
+  a match's score bug and lower third; a cutscene's cinema bars and subtitles; a detection meter; quest words; a phone's
+  touch controls. The menus that come up mid-play are screens laid out over the held game: a turn-based battle's
+  commands, targets, turn order and party, a unit's actions beside its forecast, the scoreboard, a strategy game's
+  orders. A test holds every component to the one style: its rule in the sheet, no colour of its own, and every colour
+  it reads set by every theme, so a HUD can never drift into a second look.
 

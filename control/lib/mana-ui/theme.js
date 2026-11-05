@@ -150,7 +150,7 @@ const stack = (k) => FACE_STACKS[k] || `'${k}',system-ui,sans-serif`;
 
 /** The theme as CSS, laid after the sheet under the same scope. */
 export function themeCss(theme, scope = '.mana-root') {
-  const T = readTheme(theme), s = scope, k = T.tokens, win = `${s} .mana-window,${s} .mana-place>:not(.mana-reticle):not(.mana-banner)`;
+  const T = readTheme(theme), s = scope, k = T.tokens, win = `${s} .mana-window,${s} .mana-place>.mana-region:not(:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad)))`;
   const plate = { clear: 'transparent', flat: alpha(k.panel, 0.86), solid: k.panel, gradient: `linear-gradient(180deg,${mix(k.panel, '#ffffff', 0.1)} 0%,${k.panel} 55%,${mix(k.panel, '#000000', 0.25)} 100%)`, textured: `repeating-linear-gradient(0deg,${k.panel} 0 2px,${mix(k.panel, k.ink, 0.05)} 2px 3px)` }[T.plate];
   const vars = { ...Object.fromEntries(Object.entries(k)), plain: k.accent, scrim: alpha(k.panel, 0.66), 'focus-ink': T.focus === 'fill' ? k.panel : k.ink,
     font: stack(T.type.body), display: stack(T.type.display), mono: stack(T.type.mono), scale: SCALE[T.scale], case: T.case === 'upper' ? 'uppercase' : 'none',
