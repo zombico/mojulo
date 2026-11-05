@@ -29,3 +29,14 @@
     target frame and damage numbers.
   - A wireframe board draws every one of them live on one sample game, each a 1280×720 screen in its frame, driven by
     keys (a second seat beside the first) with the effects it emits written under it.
+- **Styles are a layer over the greybox: themes, fonts you own, and the world's guide.** A theme is closed words and
+  colours (a frame, a corner, a plate, how the focus shows, motion, ornaments such as brackets, scanlines or a stitch,
+  and the four colours it needs, the rest derived from them), written over the greybox without touching what a screen
+  holds. A game brings its own fonts as their bytes, inlined, so a page still loads nothing. A theme's colours are
+  measured for contrast and advised, never refused. A world's UI guide becomes a theme, its tint, dials, border and
+  font shelf faces carried over, so a game's menus wear the look its world was directed in. The board switches between
+  the themes over the same live screens.
+- **Couch players each get their own detail panel, and a list and its detail are one move apart.** On a select screen,
+  each seat's panel shows the fighter that seat is on; left and right cross between a list and its detail; a list's id
+  belongs to its screen, so two screens can use the same idiom.
+

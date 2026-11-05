@@ -16,8 +16,8 @@ It is built in two layers, in this order:
 
 1. **The greybox:** every component and idiom working, in values only. The structure, the data each one reads and
    the effects it emits are settled first.
-2. **The styles:** laid over the greybox later as a separate layer (the guide, its register and borders, the font
-   shelf). This layer is not built yet.
+2. **The styles:** a theme laid over the greybox as a separate layer (`theme.js`, below). It sets the sheet's
+   variables and adds a few rules of its own; it never reaches into the structure.
 
 ## The model: state, form and function, props passed down
 
@@ -32,7 +32,8 @@ This follows React's principles but uses none of its code.
   |---|---|
   | `{ bind: '<path>' }` | the game's state, through the host; the path may itself be a binding (a row's var) |
   | `{ item: '<field>' }` | the row a list, grid, tree, anchor or page is drawing |
-  | `{ pick: '<id>.<field>' }` | the row the list, grid, tree or carousel with that id has selected, on any screen of the stack |
+  | `{ pick: '<id>.<field>' }` | the row the list, grid, tree or carousel with that id has selected (its own screen's first, else the last screen that drew one) |
+  | `{ pick: '<id>@<n>.<field>' }` | the row seat n is on (a detail panel per couch player); a pick path may be built from data, `{ pick: { format: 'roster@{seat}.name' } }` |
   | `{ format: 'Lv {level}' }` | the row's fields, as words |
   | `{ input: true }` | the value an input now holds (in a change's or a confirm's effects) |
   | `{ seat: true }` | the seat that pressed (couch play) |
@@ -69,6 +70,39 @@ This follows React's principles but uses none of its code.
 | hud | the in-game layer: a `hud` of regions (the nine screen places) and anchors (a part over each thing in the world at the screen x and y the game projects); reticle, minimap, compass, feed, toast, banner |
 | enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
 
+Left and right cross between the panes of a split (a list and its detail), landing on the row the list has active.
+
+## Themes: the style layer
+
+A theme is closed words and colours, read and checked like a node, and written as CSS laid after the sheet. A node
+still carries no look; the theme is context, set once for a game.
+
+```js
+theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, ornaments? }
+```
+
+- **Tokens** are colours: `ink`, `panel`, `line` and `accent` are the ones a theme needs. The rest (mid, soft, paper,
+  wash, accent2, harm and the bar fills) are derived from them when left out.
+- **Fonts you own:** `faces` are `{ family, src }` with the font's bytes as a `data:` URL, inlined as `@font-face`, so
+  the page loads nothing. `type.body`, `type.display` and `type.mono` name a stack or one of those families.
+- **The look in words:** `frame`, `corner`, `plate`, `focus` (marker, fill, glow, bracket), `motion`, `fills` (pattern
+  or solid), `scale`, `case`, and `ornaments` drawn on the windows (brackets, ticks, scanlines, dotgrid, stitch,
+  hazard, glow). `THEME_WORDS` lists each set.
+- **Presets** (`THEMES`): the greybox (the default) and a few starting looks. `{ from: '<preset>', … }` changes one.
+- **Measured, never refused:** `themeAdvice` gives the WCAG contrast of text, labels, the focus, a window's edge and
+  harm against a window. Solid fills are advised to keep their labels (they tell bar kinds apart by colour alone).
+
+**The world's guide as a theme.** `playscape/ui/mana-theme.js` (outside the folder; it imports mana-ui, never the
+other way) maps a world's UI guide onto a theme:
+
+- the tokens and the face
+- the register's dials: frame, plate, motion, and the stop's corner and case
+- a border flavor's elements: ornaments, or the words they mean (a soft corner, a cut one, a double rule, a gradient
+  plate, a bracket or glowing focus)
+- the font shelf's faces, inlined as the theme's own
+
+So a game's menus wear the look its world was directed in.
+
 ## Idioms
 
 The screens and HUD parts games share, as defs. Each one says what it reads, what it emits, and an `example` bound
@@ -89,7 +123,8 @@ A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used a
 ## The wireframe board
 
 `manaUiBoard()` (`board.js`) draws every idiom live on the sample state. Each one is a 1280×720 screen scaled into a
-frame, and the effects each frame emits are logged under it. Click a frame to drive it:
+frame, and the effects each frame emits are logged under it. A switcher lays each theme over the same frames and shows
+its advice. Click a frame to drive it:
 
 - arrows or WASD, Enter, Escape, and `[` `]` to turn tabs
 - a second seat on I J K L, with U to pick and O for back
@@ -127,9 +162,7 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
 
 ## What is next
 
-1. The styles: the guide, the register's dials, the borders and the inventory dress laid over the greybox; the font
-   shelf's faces; the broadcast packages' contrast checks as a law.
-2. The integration, one surface at a time, each step either drawing the same bytes or naming the change it makes to
+1. The integration, one surface at a time, each step either drawing the same bytes or naming the change it makes to
    what a page emits: the RPG channel's menus through a bridge from its kernel, playscape's menu kinds, both shells'
    fronts, the versus pause.
-3. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.
+2. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.

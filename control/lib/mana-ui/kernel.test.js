@@ -128,6 +128,31 @@ describe('mana-ui: focus', () => {
     press(rt, 'right', 'accept', 'right', 'accept');
     expect(log.map((x) => x.e)).toEqual([{ emit: 'learn', skill: 'b' }]);
   });
+  it('a seat\'s own pick reads the row that seat is on, the path built from data', () => {
+    const rows = [{ name: 'Ayla' }, { name: 'Rook' }];
+    const rt = run(screen([
+      { use: 'grid', id: 'roster', props: { cells: rows, columns: 2 } },
+      { use: 'each', props: { rows: [{ seat: 1 }, { seat: 2 }], row: { use: 'text', props: { value: { pick: { format: 'roster@{seat}.name' } } } } } },
+    ], { seats: 2 }));
+    rt.press('right', 1);
+    expect(rt.view()).toMatch(/Ayla<\/span><span[^>]*>Rook/);
+  });
+  it('left and right cross the panes of a split, landing on the active row', () => {
+    const rt = run(screen([{ use: 'split', children: [
+      { use: 'list', id: 'l', props: { rows: ['a', 'b', 'c'] } },
+      { use: 'button', props: { label: 'Detail' } },
+    ] }]));
+    press(rt, 'down', 'right');
+    expect(rt.state().kind).toBe('button');
+    rt.press('left');
+    expect(rt.state()).toMatchObject({ kind: 'row', focus: 1 });
+  });
+  it('a list id is its screen\'s: two screens with one id each read their own', () => {
+    const scr = (rows) => screen([{ use: 'list', id: 'l', props: { rows } }, { use: 'text', props: { value: { pick: 'l' } } }]);
+    const rt = manaUi.runtime({ start: 'a', screens: { a: scr(['one']), b: scr(['two']) } }, host({}));
+    rt.open('b'); rt.press('back');
+    expect(rt.view()).toMatch(/one<\/span>(?![\s\S]*two)/);
+  });
   it('each seat has its own cursor, and its picks say whose', () => {
     const log = [], rt = run(screen([{ use: 'grid', props: { cells: [{ id: 'x' }, { id: 'y' }], columns: 2 }, on: { accept: { emit: 'pick', seat: { seat: true }, id: { item: 'id' } } } }], { seats: 2 }), {}, log);
     rt.press('right', 1);

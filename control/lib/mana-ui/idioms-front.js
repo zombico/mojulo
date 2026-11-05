@@ -58,17 +58,17 @@ export const FRONT_IDIOMS = {
     example: { title: 'Play', modes: { bind: 'modes' } },
   },
   'character-select': {
-    kind: 'screen', about: 'pick a fighter: the roster as a grid, each couch seat with its own cursor (P1, P2…), the one in focus in detail',
-    reads: 'roster: [{ id, name, role, stats: [{ label, value, max }] }], seats', emits: '{ emit: pick, seat, id } as a seat accepts',
-    params: ['title', 'roster', 'seats'],
-    node: screen({ title: P('title'), place: 'full', seats: P('seats') }, [{ use: 'split', props: { ratio: 'wide' }, children: [
+    kind: 'screen', about: 'pick a fighter: the roster as a grid, each couch seat with its own cursor (P1, P2…) and its own panel showing the fighter it is on',
+    reads: 'roster: [{ id, name, role, stats: [{ label, value, max }] }], seats, players: [{ seat, label }] (a panel each)', emits: '{ emit: pick, seat, id } as a seat accepts',
+    params: ['title', 'roster', 'seats', 'players'],
+    node: screen({ title: P('title'), place: 'full', seats: P('seats') }, [{ use: 'split', props: { ratio: 'even' }, children: [
       { use: 'window', props: { title: 'Roster' }, children: [{ use: 'grid', id: 'roster', props: { cells: P('roster'), columns: 3, cell: { use: 'stack', props: { align: 'center', gap: 'tight' }, children: [{ use: 'portrait', props: { name: I('name'), size: 'm' } }, txt(I('role'), 'caption')] } }, on: { accept: { emit: 'pick', seat: { seat: true }, id: I('id') } } }] },
-      { use: 'window', props: { title: 'Fighter' }, children: [{ use: 'stack', children: [
-        { use: 'portrait', props: { name: { pick: 'roster.name' }, size: 'l' } }, txt({ pick: 'roster.role' }, 'label'),
-        { use: 'each', props: { rows: { pick: 'roster.stats' }, row: { use: 'bar', props: { label: I('label'), value: I('value'), max: I('max') } } } },
-      ] }] },
+      { use: 'each', props: { dir: 'row', rows: P('players'), row: { use: 'window', props: { title: I('label') }, children: [{ use: 'stack', children: [
+        { use: 'portrait', props: { name: { pick: { format: 'roster@{seat}.name' } }, size: 'l' } }, txt({ pick: { format: 'roster@{seat}.role' } }, 'label'),
+        { use: 'each', props: { rows: { pick: { format: 'roster@{seat}.stats' } }, row: { use: 'bar', props: { label: I('label'), value: I('value'), max: I('max') } } } },
+      ] }] } } },
     ] }]),
-    example: { title: 'Choose your fighter', roster: { bind: 'roster' }, seats: 2 },
+    example: { title: 'Choose your fighter', roster: { bind: 'roster' }, seats: 2, players: [{ seat: 1, label: 'Player 1' }, { seat: 2, label: 'Player 2' }] },
   },
   'arena-select': {
     kind: 'screen', about: 'pick where to play: one arena at a time (left and right), its preview and figures, or a random one',

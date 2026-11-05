@@ -2,13 +2,16 @@
  * MANA-UI's WIREFRAME BOARD — every idiom drawn in greybox on the sample state, one 16:9 frame each, live: click a frame
  * to drive it (arrows or WASD, Enter, Escape, [ ] for tabs; a second seat on I J K L, U to pick, O for back), and the
  * effects it emits are logged under it. The HUD frames layer the in-game parts over a play field, with a pause menu
- * that opens on Enter. One self-contained page: the kernel inlined, no request leaves it.
+ * that opens on Enter. A switcher lays each theme (theme.js) over the same frames, with what its colours read like
+ * (themeAdvice): the greybox first, the styles a layer over it. One self-contained page: the kernel inlined, no
+ * request leaves it.
  *
  *   BOARD_HUDS            the HUD frames: name → the HUD idioms it layers
- *   manaUiBoard({ state?, title? })  → the page
+ *   manaUiBoard({ state?, title?, theme?, themes? })  → the page (themes: name → theme, the presets by default)
  */
 import { manaUiSource, manaUi } from './kernel.js';
 import { manaCss, FRAME_CSS } from './css.js';
+import { THEMES, themeCss, themeAdvice, readTheme } from './theme.js';
 import { IDIOMS, SCREEN_IDIOMS, withIdioms } from './idioms.js';
 import { SAMPLE_STATE } from './samples.js';
 
@@ -37,25 +40,33 @@ export function boardFrames() {
 }
 
 /** The board page. */
-export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · greybox board' } = {}) {
-  const frames = boardFrames(), groups = [...new Set(frames.map((f) => f.group))];
+export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · board', theme = 'greybox', themes = THEMES } = {}) {
+  const frames = boardFrames(), groups = [...new Set(frames.map((f) => f.group))], scope = '.mana-stage .mana-root';
+  const looks = Object.entries(themes).map(([id, t]) => ({ id, name: readTheme(t).name, css: themeCss(t, scope), advice: themeAdvice(t).map((a) => `${a.law}: ${a.advice}`) }));
+  if (!looks.some((l) => l.id === theme)) throw new Error(`board theme '${theme}' is one of: ${looks.map((l) => l.id).join(', ')}`);
   const body = groups.map((g) => `<h2 class="sec">${esc(g)}</h2><div class="grid">${frames.map((f, i) => (f.group !== g ? '' : `<figure><div class="mana-frame"><div class="mana-stage" id="f${i}"></div></div><figcaption><b>${esc(f.name)}</b> ${esc(f.about)}<br><span>reads</span> ${esc(f.reads)}<br><span>emits</span> ${esc(f.emits)}<pre id="log${i}"></pre></figcaption></figure>`)).join('')}</div>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title><style>
 html,body{margin:0;background:#fff;color:#111;font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
 header{padding:20px 24px 4px}h1{margin:0;font-size:20px}header p{margin:4px 0 0;color:#555;max-width:900px}
+header label{font-size:12px;margin-right:6px}header select{font:13px system-ui;padding:2px 6px}#advice{font-size:11px;color:#8a4b00;margin-top:4px;white-space:pre-wrap}
 h2.sec{margin:22px 24px 8px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;border-bottom:1px solid #111;padding-bottom:4px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr));gap:22px;padding:0 24px 12px}
 figure{margin:0}figcaption{margin-top:6px;font-size:12px;color:#333}figcaption span{display:inline-block;width:44px;color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
 pre{margin:4px 0 0;font:10px/1.3 ui-monospace,monospace;color:#555;white-space:pre-wrap;min-height:13px}
 ${manaCss('.mana-stage .mana-root')}
 ${FRAME_CSS}
-</style></head><body><header><h1>${esc(title)}</h1><p>Every idiom drawn in greybox over one sample state: the structure, the data it reads and the effects it emits, before any style. Click a frame to drive it: arrows or WASD, Enter, Escape, [ and ] for tabs; a second seat on I J K L, U, O.</p></header>${body}
+</style><style id="mana-theme"></style></head><body><header><h1>${esc(title)}</h1><p>Every idiom over one sample state: the structure, the data it reads and the effects it emits, in greybox; a theme is a layer over it. Click a frame to drive it: arrows or WASD, Enter, Escape, [ and ] for tabs; a second seat on I J K L, U, O.</p>
+<p><label for="look">Theme</label><select id="look">${looks.map((l) => `<option value="${esc(l.id)}"${l.id === theme ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></p><div id="advice"></div></header>${body}
 <script>
 const manaUi = ${manaUiSource()};
 const DEFS = ${json(frames[0].spec.defs)};
 const FRAMES = ${json(frames.map((f) => ({ spec: { ...f.spec, defs: undefined }, hud: !!f.hud })))};
 const STATE = ${json(state)};
+const LOOKS = ${json(looks)};
+const look = (id) => { const L = LOOKS.find((x) => x.id === id) || LOOKS[0]; document.getElementById('mana-theme').textContent = L.css; document.getElementById('advice').textContent = L.advice.join('\\n'); };
+document.getElementById('look').addEventListener('change', (ev) => look(ev.target.value));
+look(${json(theme)});
 const runs = [];
 let live = null;
 FRAMES.forEach((F, i) => {

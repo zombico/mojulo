@@ -5,20 +5,23 @@
  *
  *   kernel.js        the runtime (buildManaUi: components, props and bindings, the stack, focus, seats, effects, the
  *                    DOM backend)
- *   css.js           the greybox: every component in values only, before any style
+ *   css.js           the structure, its look in `--mana-*` variables whose defaults are the greybox (values only)
+ *   theme.js         the style layer: a theme of closed words and colours (and fonts you own) over the greybox
  *   idioms*.js       the shared screens and HUD parts as compositions; samples.js the sample state they bind into
  *   board.js         the wireframe board: every idiom live on the sample state
  *
- *   manaUiPage(spec, { state?, title?, open? })  → a self-contained page that runs a spec over a plain state object
+ *   manaUiPage(spec, { state?, title?, open?, theme? })  → a self-contained page that runs a spec over a plain state object
  *     (a `set` writes the state, every other effect is logged), for the eyes gate and the headless driver
  *     (`window.__manaUi`: the runtime; `window.__manaLog`: the effects it emitted)
  */
 import { manaUi, manaUiSource } from './kernel.js';
 import { manaCss } from './css.js';
+import { themeCss } from './theme.js';
 import { withIdioms } from './idioms.js';
 
 export { manaUi, manaUiSource, buildManaUi } from './kernel.js';
-export { manaCss, FRAME_CSS } from './css.js';
+export { manaCss, FRAME_CSS, GREYBOX_VARS } from './css.js';
+export { THEMES, THEME_IDS, THEME_WORDS, FACE_STACKS, readTheme, themeCss, themeAdvice, contrast } from './theme.js';
 export { IDIOMS, IDIOM_IDS, SCREEN_IDIOMS, HUD_IDIOM_IDS, withIdioms } from './idioms.js';
 export { SAMPLE_STATE } from './samples.js';
 export { manaUiBoard, boardFrames, BOARD_HUDS } from './board.js';
@@ -27,7 +30,7 @@ const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 /** A self-contained page: the spec (with the idioms) run over `state`. Throws, teaching, on a bad spec. */
-export function manaUiPage(spec, { state = {}, title = 'mana-ui', open = null } = {}) {
+export function manaUiPage(spec, { state = {}, title = 'mana-ui', open = null, theme = 'greybox' } = {}) {
   const full = withIdioms(spec);
   manaUi.readSpec(full);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -35,6 +38,7 @@ export function manaUiPage(spec, { state = {}, title = 'mana-ui', open = null } 
 html,body{margin:0;height:100%;background:#ececec}
 .log{position:fixed;left:8px;bottom:8px;font:11px/1.3 ui-monospace,monospace;color:#555;z-index:50;white-space:pre}
 ${manaCss()}
+${themeCss(theme)}
 </style></head><body><div id="mana"></div><div class="log" id="log"></div><script>
 const manaUi = ${manaUiSource()};
 const STATE = ${json(state)}, LOG = window.__manaLog = [];

@@ -13,7 +13,9 @@
  *   PROPS flow down: a literal, or a BINDING read at render:
  *     { bind: '<path>' }            the game's state, through the host (the path may itself be a binding: a row's var)
  *     { item: '<field>' }           the row a list, a grid, a tree, an anchor or a page is drawing ('' the row itself)
- *     { pick: '<id>.<field>' }      the row a list, grid, tree or carousel with that id has selected, on any screen
+ *     { pick: '<id>.<field>' }      the row a list, grid, tree or carousel with that id has selected (its own screen's
+ *                                   first, else the last screen that drew one); '<id>@<n>.<field>' the row seat n is on
+ *                                   (couch play: a detail per player); the path may itself be a binding ({ format })
  *     { format: 'Lv {level}' }      the row's fields in words
  *     { input: true }               the value an input now holds (in a change's or a confirm's effects)
  *     { seat: true }                the seat that pressed (couch play: in an effect, who picked)
@@ -230,7 +232,7 @@ export function buildManaUi() {
     const H = host || {};
     const S = { stack: [], ui: {}, picks: {} };
     let last = null;
-    const uiOf = (id) => (S.ui[id] = S.ui[id] || { at: { 0: 0 }, tabs: {}, sel: {}, top: {}, vals: {} });
+    const uiOf = (id) => (S.ui[id] = S.ui[id] || { at: { 0: 0 }, tabs: {}, sel: {}, seatSel: {}, top: {}, vals: {} });
     const top = () => S.stack[S.stack.length - 1] || null;
     const seatsOf = (id) => (id && screens[id] ? Math.max(1, Math.floor(Number(screens[id].props.seats) || 1)) : 1);
 
@@ -245,11 +247,15 @@ export function buildManaUi() {
       if (k === 'seat') return scope.seat === undefined ? 0 : scope.seat;
       if (k === 'format') return String(a).replace(/\{([a-zA-Z0-9_.]+)\}/g, (_, f) => words(readPath(scope.item, f)));
       if (k === 'pick') {
-        const dot = String(a).indexOf('.'), list = dot < 0 ? a : a.slice(0, dot), field = dot < 0 ? '' : a.slice(dot + 1), P = S.picks[list];
+        const dot = String(a).indexOf('.'), head = dot < 0 ? String(a) : String(a).slice(0, dot), field = dot < 0 ? '' : String(a).slice(dot + 1);
+        const at = head.indexOf('@'), list = at < 0 ? head : head.slice(0, at), seat = at < 0 ? -1 : Number(head.slice(at + 1)) - 1;
+        const P = S.picks[`${ctx.root}:${list}`] || S.picks[list];
         if (!P) return undefined;
         const rows = listOf(resolve(P.rows, P.scope || {}, ctx));
         if (!rows.length) return undefined;
-        const row = rows[clamp(uiOf(P.screen).sel[P.key] || 0, 0, rows.length - 1)];
+        const PU = uiOf(P.screen), mine = seat >= 0 && PU.seatSel[seat] ? PU.seatSel[seat][P.key] : undefined;
+        // a seat that has not moved is on the row its cursor starts on, never the row another seat moved to
+        const row = rows[clamp(mine !== undefined ? mine : seat >= 0 ? 0 : PU.sel[P.key] || 0, 0, rows.length - 1)];
         return field ? readPath(row, field) : row;
       }
       return undefined;
@@ -298,8 +304,10 @@ export function buildManaUi() {
         const s = live ? seatsAt(fi) : [];
         return { 'data-k': live ? fi : null, 'data-st': s.length ? 'focus' : off ? 'disabled' : base, 'data-seats': seats > 1 && s.length ? s.join(' ') : null };
       };
-      const focusable = (f) => { if (!live) return -1; ctx.focus.push(f); return ctx.focus.length - 1; };
-      const register = (n, key, rowsRaw, scope) => { if (n.id) S.picks[n.id] = { rows: rowsRaw, scope, screen: rootKey, key }; };
+      ctx.root = rootKey;
+      let pane = null;   // the pane of a split being drawn: left and right cross between them
+      const focusable = (f) => { if (!live) return -1; f.pane = pane; ctx.focus.push(f); return ctx.focus.length - 1; };
+      const register = (n, key, rowsRaw, scope) => { if (n.id) S.picks[`${rootKey}:${n.id}`] = S.picks[n.id] = { rows: rowsRaw, scope, screen: rootKey, key }; };
       const touched = (key) => !!U.vals[`$touched:${key}`];
 
       const draw = (n, key, scope) => {
@@ -311,7 +319,7 @@ export function buildManaUi() {
           case 'screen': return ['section', { class: cls, 'data-layer': p.layer, 'data-place': p.place }, p.title ? ['h2', { class: 'mana-title' }, p.title] : null, ...kids()];
           case 'window': return ['div', { class: cls, 'data-variant': p.variant }, p.title ? ['h3', { class: 'mana-heading' }, p.title] : null, ...kids()];
           case 'stack': return ['div', { class: cls, 'data-dir': p.dir, 'data-gap': p.gap, 'data-align': p.align }, ...kids()];
-          case 'split': return ['div', { class: cls, 'data-ratio': p.ratio }, ...kids()];
+          case 'split': return ['div', { class: cls, 'data-ratio': p.ratio }, ...n.children.map((c, i) => { const was = pane; pane = { split: key, i }; const t = draw(c, `${key}.${c.id || i}`, scope); pane = was; return t; })];
           case 'tab': case 'region': return ['div', { class: cls, 'data-at': n.use === 'region' ? p.at : null }, ...kids()];
           case 'each': return ['div', { class: cls, 'data-dir': p.dir }, ...p.rows.map((item, i) => draw(n.props.row, `${key}.${i}`, { ...scope, item }))];
           case 'divider': return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null];
@@ -504,7 +512,7 @@ export function buildManaUi() {
       const U = uiOf(top());
       U.at[seat] = k;
       const f = last && last.focus[k];
-      if (f && (f.kind === 'row' || f.kind === 'cell' || f.kind === 'node')) { U.sel[f.key] = f.i; U.vals[`$touched:${f.key}`] = true; }
+      if (f && (f.kind === 'row' || f.kind === 'cell' || f.kind === 'node')) { U.sel[f.key] = f.i; (U.seatSel[seat] = U.seatSel[seat] || {})[f.key] = f.i; U.vals[`$touched:${f.key}`] = true; }
       render();
     }
     function nearest(cands, v, axis) {
@@ -530,12 +538,20 @@ export function buildManaUi() {
         const same = Lf.map((x, k) => [x, k]).filter(([x]) => x.g && x.g.key === f.g.key);
         const best = vert ? nearest(same.filter(([x]) => x.g.r === f.g.r + d), f.g.c, 'c') : nearest(same.filter(([x]) => x.g.c === f.g.c + d), f.g.r, 'r');
         if (best !== null) return setAt(seat, best);
-        if (!vert) return;
+        if (!vert) return crossPane(seat, f, d);
         const ks = same.map(([, k]) => k), out = d > 0 ? Math.max(...ks) + 1 : Math.min(...ks) - 1;
         return setAt(seat, (out + n) % n);
       }
-      if (!vert) { if (['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind)) change(f, d, seat); return; }
+      if (!vert) { if (['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind)) change(f, d, seat); else crossPane(seat, f, d); return; }
       setAt(seat, (cur + d + n) % n);
+    }
+    // left and right from the edge of a split's pane: into the next pane, onto its active row (else its first)
+    function crossPane(seat, f, d) {
+      if (!f.pane) return;
+      const U = uiOf(top()), there = last.focus.map((x, k) => [x, k]).filter(([x]) => x.pane && x.pane.split === f.pane.split && x.pane.i === f.pane.i + d);
+      if (!there.length) return;
+      const active = there.find(([x]) => x.i !== undefined && (U.sel[x.key] || 0) === x.i && U.vals[`$touched:${x.key}`]);
+      setAt(seat, (active || there[0])[1]);
     }
     function change(f, d, seat) {
       const U = uiOf(top());
