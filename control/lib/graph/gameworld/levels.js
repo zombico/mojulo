@@ -102,7 +102,7 @@ function armedPilot(G, entity, cam) {
   };
 }
 const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
-import { feelCard, lowerFeel } from './feel/lower.js';
+import { feelRule, readFeel, TAKES } from './feel/lower.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
 import { gradeOfGame } from './grade.js';
@@ -692,12 +692,14 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const camRule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : undefined;
     // the world's feel (feel/lower.js): its template's card lowered over the hero's platform rule, the camera's way of
     // moving kept; no feel, the hero's own rule as it was
-    const feelRule = G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
-    const rule0 = feelRule ? { ...feelRule, ...(camRule ?? {}) } : camRule, struck = strikeWindow(G, rule0);
+    const written = G.feel ? feelRule(G.feel) : null;
+    const rule0 = written ? { ...written, ...(camRule ?? {}) } : camRule, struck = strikeWindow(G, rule0);
+    // (a feel that asks for its takes: the hero plays its own jumps on the rule's flight, feel/lower.js TAKES)
+    const takes = G.feel && readFeel(G.feel).takes ? TAKES : null;
     const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
-    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: `${controls}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves, startingGrants(G));
+    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: `${controls}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
@@ -747,7 +749,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   if (X) {
     const p0 = pilotPart.entities[0];
     // (a written feel wins over a goal's own feet: a deathmatch's shooter pole moves the pilot only where no feel is written)
-    const feelOver = X.pilot?.rule && G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
+    const feelOver = X.pilot?.rule && G.feel ? feelRule(G.feel) : null;
     const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}), ...(feelOver ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
     const figures = { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) };
     pilotPart = { ...pilotPart, ...(Object.keys(figures).length ? { figures } : {}), entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])], ...(X.camera && pilotPart.camera ? { camera: { ...pilotPart.camera, ...X.camera } } : {}) };
@@ -1243,7 +1245,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const X = mergeExtras(goalCast ? goalCast(ends) : null, extra ? extra(ends) : null);
   // (what it gives whoever walks the rooms, as a trail's extra does: the foes' hits and the hero's stomp, foes.js
   // hostileCast's `pilot`; a written feel's feet over a goal's own)
-  const feelOver = X?.pilot?.rule && G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
+  const feelOver = X?.pilot?.rule && G.feel ? feelRule(G.feel) : null;
   const piloted = (p) => (X?.pilot ? { ...p, ...X.pilot, rule: { ...p.rule, ...(X.pilot.rule ?? {}), ...(feelOver ?? {}) }, body: { ...p.body, ...(X.pilot.body ?? {}) } } : p);
   if (X?.play) base = { ...base, play: mergePlay(base.play, X.play) };
   if (extra && X?.mechanics?.length) base = { ...base, level: { ...base.level, mechanics: [...(base.level?.mechanics ?? []), ...X.mechanics.filter((m) => !(base.level?.mechanics ?? []).some((x) => x.kind === m.kind && x.slice === m.slice))] } };

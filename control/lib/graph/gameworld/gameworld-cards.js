@@ -349,12 +349,15 @@ function motionCard() {
 
 function feelCard() {
   return lines(
-    'THE FEEL — how the hero moves, as a game template: feel: \'<template>\' | { pole, variant?, toward?, t?, set? }.',
+    'THE FEEL — how the hero moves, as a game template: feel: \'<template>\' | { pole, variant?, toward?, t?, set?, takes? }.',
     'The template\'s card (the action lab\'s) is lowered over the hero\'s platform rule: the run and its acceleration, the',
     'jump\'s height and gravity up and down, coyote time and the buffer, the shortest hop, air control, the gather, air',
     'jumps, the 2D lane, the melee hitstop. design_game\'s readout says what the runtime carries of it, partly carries, and',
     'does not carry yet (the parry, the charge, offense armor, the roll\'s invincible frames, the runner): advice, never a refusal.',
     'The motion (gameworld-motion) is how the walk LOOKS; the feel is how the controls PLAY. Both may be set.',
+    'takes: true plays the hero\'s OWN jumps on the card\'s flight: its standing jump, its jump forward out of the run, its',
+    'double jump for an air jump, the landing held the card\'s frames, squashed and stretched by the card\'s look. Absent:',
+    'the animation library\'s held leap. A platformer starts here: the template\'s tuning is the game\'s, left to the player.',
     '',
     'templates (after · base feel · viewer):',
     ...POLE_IDS.map((id) => { const P = POLES[id], v = variantsOf(id); return `  ${id}  ${P.name} (after ${P.after}) · ${P.base} · ${P.view.camera}${v.length ? ` · variants ${v.join(', ')}` : ''}`; }),

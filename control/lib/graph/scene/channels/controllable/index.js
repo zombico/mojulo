@@ -794,6 +794,9 @@ function __updateGearLines() {
   // a body with FORMS (controllable/forms.js) and a figure baked to be both (transformation/compose.js): the transform
   // press, the clip each form plays, a flying form's attitude. Emitted only when some entity or figure carries forms.
   const hasForms = (entities || []).some((e) => e && e.forms);
+  // a hero's SQUASH AND STRETCH on its own jumps (rules-platform.js takes: `takes.squash`, a feel card's look): the rig
+  // scaled about its feet by the rule's `e.squash`. No rule carries one ⇒ not a byte of it
+  const figHasSquash = (entities || []).some((e) => e && e.rule && e.rule.takes && e.rule.takes.squash > 0);
   const figHasForms = Object.values(figures || {}).some((f) => f && f.rig && f.forms);
   // a car's own light in a dark mood (car-designer/supercar-figure.js: the headlamps' pool on the road, the tail lamps'
   // ribbons) — emitted only when some figure's juice carries them.
@@ -2014,7 +2017,13 @@ function __actMode(fig, e, m) {
     ${figHasForms ? `if (e.tilt && rig.fig.forms) m.rotation.set(e.tilt.pitch || 0, e.tilt.roll || 0, yawA, 'ZYX');   // a flying form's attitude
     else ` : ''}m.rotation.set(0, 0, yawA);
   }
-  const fig = rig.fig;
+  ${figHasSquash ? `// the rule's squash and stretch (e.squash: [across, up]) about the feet, over the body's own scale
+  if (e.squash || m.userData.s0 != null) {
+    if (m.userData.s0 == null) m.userData.s0 = m.scale.z;
+    const s0 = m.userData.s0, q = e.squash;
+    if (q) m.scale.set(s0 * q[0], s0 * q[0], s0 * q[1]); else { m.scale.setScalar(s0); m.userData.s0 = null; }
+  }
+  ` : ''}const fig = rig.fig;
   ${figHasForms || acts ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
   if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
   const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;

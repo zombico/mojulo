@@ -11,6 +11,7 @@ import { resolveWorldScene } from '../worlds/world-scene.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { groundOf } from './terrain.js';
+import { TAKES } from '../gameworld/feel/lower.js';
 
 const cast = JSON.parse(readFileSync(new URL('../../../../docs/examples/humanoid/cast/heroine.json', import.meta.url), 'utf8'));
 const HEROINE = { ...cast.hero, palette: { ...cast.hero.palette, ...cast.palette } };
@@ -81,6 +82,16 @@ describe('the heroine in a world', () => {
     expect(own.figures.h.library).toBeUndefined();
     expect(own.figures.h.clips).toMatchObject({ forward: 'run', idle: 'idleRelaxed', leap: 'leap' });
   });
+
+  it('with a feel\'s takes she plays her OWN jumps, compiled onto her rig, the library keeping her run', async () => {
+    const W = playerWorld({ hero: HEROINE, id: 'h', takes: TAKES });
+    expect(W.figures.h.clips).toMatchObject({ ...TAKES, forward: 'Jog_Fwd_Loop' });
+    expect(W.figures.h.jumps.sort()).toEqual([...new Set(Object.values(TAKES))].sort());
+    expect(playerWorld({ hero: HEROINE, id: 'h' }).figures.h.jumps).toBeUndefined();
+    const { payload } = await resolveWorldScene({ ref: 'sk_takes_test', manifest: W });
+    const fig = payload.figures.h;
+    for (const [state, clip] of Object.entries(TAKES)) { expect(fig.clips[state]).toBe(fig.clips[clip]); expect(fig.clips[clip].once).toBe(true); }
+  }, 60000);
 
   it('emits a World page that drives her', async () => {
     const { payload } = await scene();

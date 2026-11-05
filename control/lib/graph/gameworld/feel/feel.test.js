@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createWorld, stepWorld } from '@/lib/graph/worlds/controllable-world';
 import { POLES, POLE_IDS, variantsOf, poleCard, FPS } from './cards.js';
-import { readFeel, feelCard, lowerFeel, feelReport } from './lower.js';
+import { readFeel, feelCard, lowerFeel, feelReport, feelRule, TAKES } from './lower.js';
+import { jumpShares } from '@/lib/graph/polygonizer/hero-jump.js';
 import { playerWorld } from '@/lib/graph/playscape/player';
 
 // A GAMEWORLD'S FEEL: a template's card lowered into the platform rule the runtime plays. One template per procedure
@@ -25,6 +26,8 @@ describe('reading a feel', () => {
     expect(() => readFeel({ pole: plain, variant: 'x' })).toThrow(/has no variants/);
     expect(() => readFeel({ pole: plain, t: 0.3 })).toThrow(/name it first/);
     expect(() => readFeel({ pole: plain, hue: 1 })).toThrow(/not part of a feel/);
+    expect(readFeel({ pole: plain, takes: true })).toEqual({ pole: plain, takes: true });
+    expect(() => readFeel({ pole: plain, takes: 'yes' })).toThrow(/takes is true/);
   });
 
   it('makes the template\'s card: its variant, a blend between two, its own fields over it', () => {
@@ -86,6 +89,26 @@ describe('the lowered rule in the runtime', () => {
 
   it('carries the windows in seconds: coyote and the buffer are the card\'s frames', () => {
     expect([R.coyote * FPS, R.buffer * FPS].map(Math.round)).toEqual([card.jump.coyote, card.jump.buffer]);
+  });
+});
+
+describe('the takes: the hero\'s own jumps', () => {
+  it('absent, the rule is the card\'s alone (no takes); asked, each take\'s flight as its clip\'s shares and the card\'s landing', () => {
+    expect(feelRule(plain)).toEqual(lowerFeel(feelCard(plain)).rule);
+    expect(feelRule(plain).takes).toBeUndefined();
+    const K = feelRule({ pole: plain, takes: true }).takes, up = jumpShares(TAKES.jump_up), air = jumpShares(TAKES.jump_air);
+    expect(K.up).toEqual([up.off, up.on]);
+    expect(K.air).toEqual([air.kick, air.on]);
+    expect(K.land).toBeCloseTo(Math.max(1, poleCard(plain).jump.land) / FPS, 4);
+    // every take is a clip that leaves the ground and comes back to it, its air inside the clip
+    for (const [a, b] of [K.up, K.fwd, K.air]) expect(0 < a && a < b && b < 1).toBe(true);
+  });
+
+  it('the report says so, and carries the landing', () => {
+    const r = feelReport({ pole: plain, takes: true });
+    expect(r.takes).toBe(true);
+    expect(r.carried).toContain('jump.land');
+    expect(feelReport(plain).takes).toBeUndefined();
   });
 });
 

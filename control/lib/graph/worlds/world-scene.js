@@ -175,6 +175,14 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
     manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec.hero, { staleScale: true }) });
   }
+  // `jumps`: the hero's own jumps a game's takes play (gameworld/feel/lower.js TAKES: hero-jump.js words), compiled onto
+  // its rig beside its clips (its recipe's `locomotion`, as its door motion is); a jump it already moves by stays its own.
+  // Absent: the hero's clips as minted
+  if (manifest && Array.isArray(spec.jumps) && spec.jumps.length && manifest.recipe?.rig) {
+    const { motionPlan } = await import('@/lib/graph/polygonizer/hero-motion.js');
+    const add = motionPlan(Object.fromEntries(spec.jumps.map((w) => [w, true])));
+    manifest = { ...manifest, recipe: { ...manifest.recipe, locomotion: { ...add, ...(manifest.recipe.locomotion || {}) } } };
+  }
   // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js);
   // `swings`: the contact window of a body that strikes with what the hero holds (the held strike: its swing directions)
   if (!body) {

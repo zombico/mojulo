@@ -246,6 +246,24 @@ export function heroJump(name, R, opts = {}) {
   return keyedClip(J, R, opts);
 }
 
+/**
+ * A jump's FLIGHT as shares of its clip, read off its keys alone (no rig: the feet's `ground` is a key channel): `off`
+ * the take-off, `on` the last touch-down (where a foot's ground crosses ½ going down, then coming back up, as keyedClip
+ * finds them), and a double jump's `kick` (its second push). What a game's runtime needs to play the clip on its own
+ * flight (the platform rule's `takes`): the gather before `off`, the air between, the landing after `on`. → { off, on,
+ * kick? } or null (a roll, or a clip that never leaves the ground)
+ */
+export function jumpShares(name) {
+  const J = JUMPS[name]; if (!J) throw new Error(`hero-jump: no jump '${name}' (have ${JUMP_NAMES.join(', ')})`);
+  if (J.roll) return null;
+  const side = (S) => curve(J.keys.map((k) => ({ t: k.t, v: k[`ground${S}`] ?? k.ground ?? 0 })));
+  const L = side('L'), R = side('R'), M = 400, r4 = (x) => +x.toFixed(4);
+  const g = Array.from({ length: M + 1 }, (_, i) => Math.max(L(i / M), R(i / M)));
+  const off = g.findIndex((v, i) => i > 0 && v < 0.5 && g[i - 1] >= 0.5); let on = -1; for (let i = M; i > 0; i--) if (g[i] >= 0.5 && g[i - 1] < 0.5) { on = i; break; }
+  if (!(off > 0 && on > off)) return null;
+  return { off: r4(off / M), on: r4(on / M), ...(J.kick ? { kick: J.kick } : {}) };
+}
+
 /** any one-shot timeline in the JUMPS shape (`{ seconds, keys, run?, roll?, side?, kick?, firstAir? }`) on a rig, as heroJump */
 export function keyedClip(J, R, opts = {}) {
   const { seconds } = opts;

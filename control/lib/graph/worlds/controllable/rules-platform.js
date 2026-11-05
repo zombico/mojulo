@@ -176,7 +176,7 @@ export function buildRulesPlatform(E) {
     // byte-identical legacy timing (buffer/coyote/jump-cut intact).
     const windup = r.jumpWindup ?? 0;
     const chargeMax = r.chargeMax ?? 0;
-    let jumped = false;
+    let jumped = false, airJumped = false;
     let charging = false;
     let chargeFrac = 0;   // 0..1 while gathering — the renderer reads it for the charge-up sound
     if (space) {
@@ -229,7 +229,7 @@ export function buildRulesPlatform(E) {
       if (airJumps > 0) {
         if (e.grounded) e.airJumpsUsed = 0;
         else if (input.jump && !jumped && !(e.jumpWind > 0) && e.coyote >= coyoteT && (e.airJumpsUsed ?? 0) < airJumps) {
-          e.vel[2] = jumpV * (r.airJumpMult ?? 0.9); e.airJumpsUsed = (e.airJumpsUsed ?? 0) + 1; e.jumpBuf = 0; jumped = true;
+          e.vel[2] = jumpV * (r.airJumpMult ?? 0.9); e.airJumpsUsed = (e.airJumpsUsed ?? 0) + 1; e.jumpBuf = 0; jumped = true; airJumped = true;
         }
       }
       // variable height: releasing jump while still rising caps the climb (short hop vs full jump).
@@ -509,6 +509,63 @@ export function buildRulesPlatform(E) {
     else if (Math.abs(sideMove) > Math.abs(fwdMove)) { e.locomotion = 'strafe'; e.gaitPhase = (e.gaitPhase || 0) + sideMove / strideLen; e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6; }
     else { e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + fwdMove / strideLen; e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6; }
 
+    // THE TAKES (opt-in `takes`, a feel's: gameworld/feel/lower.js): the hero's own jumps played on THIS flight. A jump
+    // from standing (or a walk) plays `jump_up`, one out of the run `jump_fwd`, an air jump `jump_air` (the double jump
+    // from its kick). Each take's clip is shared out by `takes`: its gather [0, off) over the wind-up, its air [off, on)
+    // over the flight, the rise to the apex the first half and the fall the second, both read off the vertical speed (a
+    // jump cut short rescales the rise from where it stands, so the clip never skips; the fall's end is the speed a drop
+    // from this apex lands at), and its landing [on, 1) over `takes.land` seconds once down. Walking off an edge plays
+    // the standing take's fall. Absent `takes` → the ladder above, byte-identical.
+    if (r.takes && !space && !swinging && !boosting && !kneeling) {
+      const K = r.takes, span = (k) => (k === 'jump_air' ? K.air : k === 'jump_fwd' ? K.fwd : K.up);
+      const pick = () => ((e.drive ? Math.hypot(e.drive[0], e.drive[1]) / Math.max(1e-6, r.speed ?? 6) : Math.hypot(fwdIn, sideIn)) > 0.35 && !walking ? 'jump_fwd' : 'jump_up');
+      // the stride cycle's phase is kept from the take-off and given back when the take ends, so the run picks up its
+      // cycle where it left it (as the held leap left it)
+      const hold = () => { if (e.takeGait == null) e.takeGait = e.gaitPhase || 0; };
+      const end = () => { e.take = null; e.takeLand = 0; if (e.takeGait != null) e.gaitPhase = e.takeGait; e.takeGait = null; };
+      const fly = (k, p0) => { hold(); e.take = k; e.takeV0 = Math.max(1e-3, e.vel[2]); e.takeVz = e.vel[2]; e.takeZ = t.pos[2]; e.takeEnd = null; e.takeP = p0; e.takeLand = 0; e.takeGather = false; };
+      // (a launch this frame did not count: a jump buffered into the touch-down, a launcher's throw: the speed rose)
+      let landK = 0;   // the landing's share still to play this frame (1 on its first, toward 0)
+      const relaunch = !jumped && !e.grounded && !!e.take && !e.takeGather && e.vel[2] > (e.takeVz ?? 0) + 1e-3;
+      if (airJumped) fly('jump_air', 0);
+      else if (jumped || relaunch) fly(e.takeGather ? e.take : pick(), 0);
+      else if (e.jumpWind > 0 && !e.takeGather) { hold(); e.take = pick(); e.takeGather = true; e.takeLand = 0; }
+      else if (!e.grounded && !e.take) { fly('jump_up', 0.5); e.takeEnd = Math.sqrt(2 * fallG); }   // off an edge: the fall alone
+      if (landedEdge && e.take && !e.takeGather) e.takeLand = K.land;
+      const S = e.take ? span(e.take) : null;
+      if (S && e.takeGather && e.jumpWind > 0) {
+        e.locomotion = e.take; e.gaitPhase = S[0] * (1 - Math.max(0, e.jumpWind) / (windup || 1)); e.moving = true;
+      } else if (S && !e.grounded) {
+        const vz = e.vel[2];
+        if (vz > 0) {
+          // a cut (the release capped the rise): the rise rescaled so the clip carries on from where it is
+          if (vz < e.takeVz - riseG * dt - 1e-6) e.takeV0 = vz / Math.max(1e-3, 1 - 2 * e.takeP);
+          e.takeP = Math.max(e.takeP, 0.5 * (1 - vz / e.takeV0));
+        } else {
+          if (e.takeEnd == null) e.takeEnd = Math.sqrt(2 * fallG * Math.max(0.05, t.pos[2] - e.takeZ));
+          e.takeP = Math.max(e.takeP, 0.5 + 0.5 * Math.min(1, -vz / e.takeEnd));
+        }
+        e.takeVz = vz;
+        e.locomotion = e.take; e.gaitPhase = S[0] + (S[1] - S[0]) * Math.min(e.takeP, 0.999); e.moving = true;
+      } else if (S && e.takeLand > 0) {
+        landK = e.takeLand / K.land;
+        e.locomotion = e.take; e.gaitPhase = Math.min(0.999, S[1] + (1 - S[1]) * (1 - landK)); e.moving = true;
+        // (the card's seconds are rounded to 0.1 ms: a remainder under that was the last frame's; the take ends next frame)
+        e.takeLand -= dt;
+        if (e.takeLand < 1e-4) e.takeLand = 0;
+      } else if (e.take && e.grounded && !e.takeGather) end();
+      // THE LOOK (`takes.squash`, the card's): squash and stretch about the feet, the volume kept. The gather sinks
+      // into it, the flight stretches with the speed (none at the apex), the landing squashes and springs back over
+      // the landing's frames. `e.squash` is [across, up] for the renderer; null when the body is its own shape
+      const Q = K.squash > 0 ? K.squash : 0;
+      let up = 1;
+      if (Q && e.take) {
+        if (e.takeGather && e.jumpWind > 0) up = 1 - 0.5 * Q * (1 - Math.max(0, e.jumpWind) / (windup || 1));
+        else if (!e.grounded) up = 1 + 0.5 * Q * Math.min(1, Math.abs(e.vel[2]) / Math.max(1e-3, e.takeV0));
+        else if (landK > 0) up = 1 - Q * landK;
+      }
+      e.squash = Q && up !== 1 ? [1 / Math.sqrt(up), up] : null;
+    }
     }
 
     // thruster flame intensity (renderer lights the unit's backpack + foot jets,

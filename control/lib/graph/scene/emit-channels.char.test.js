@@ -407,6 +407,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // and `kitchen-sink-capture`, the fixtures that inline the event bus. Its saga key joined an id and a scope with a raw NUL
 // byte written into the source (event-bus.js), so every page carrying the bus held a NUL, and an artifact host refused
 // it; it is written `'\x00'`, the same string at run time.
+// Re-pinned 2026-11-05 (1105-platformer-lv0-spike: the hero's own jumps): every fixture that embeds the controllable
+// runtime. The platform rule gained its `takes` (a feel's: the hero's jumps played on its flight, their squash and
+// stretch); on the `controllable` fixture 2 lines are replaced (the air jump marks itself) and 57 added. Absent `takes`
+// the branch never runs, and the renderer's squash is emitted only for a rule that carries one (no fixture does).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
