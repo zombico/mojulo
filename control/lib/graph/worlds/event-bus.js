@@ -192,7 +192,7 @@ export function buildBus() {
   // ── sequences (sagas): ordered steps, one independent instance per resolved SCOPE key ──
   function instantiate(state, def, ev) {
     const scope = def.scope !== undefined ? resolveRef(def.scope, ev) : null;
-    const key = def.id + ' ' + ss(scope);
+    const key = def.id + '\x00' + ss(scope);
     if (state.sagaIndex[key]) return [];   // already live for this scope — ignore re-trigger
     // Freeze the trigger as context, stamped with the resolved scope, so every step verb and
     // emit-ted event inherits the saga's scope (its events belong to its scope, not to null).

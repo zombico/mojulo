@@ -37,3 +37,6 @@
   their colours sRGB bytes (`packGroupArrays`, packTex's colours), decoded by the page to the same Float32Arrays, the
   same triangles in the same order: 8.8 MB, a stage's page without its figures about 15 MB. A page laid without `pack`
   is as before.
+- **No NUL byte in a page.** The event bus joined a saga's id and scope with a raw NUL byte written into its source, so
+  every page carrying the bus held one, and an artifact host refused the page. It is written `'\x00'`, the same string
+  at run time.

@@ -400,6 +400,13 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // fighters are no characters and name no level; its versus-react.js, a body out cold lying on its back (LIMP), which
 // the fixture's fight draws only at a knockout; and the arena's fight read off the page's clock in milliseconds (it had
 // read them as seconds, six fight frames a drawn frame).
+// Re-pinned 2026-11-05 (1105-rpg-slice: a packed page packs its plain groups): `live-shadows-actors` only, the one
+// fixture laid with `pack: true`. Its plain groups ride their positions on a uint16 grid and their colours as sRGB bytes
+// (packGroupArrays), decoded by the page to the same Float32Arrays; every fixture without `pack` is unchanged.
+// Re-pinned 2026-11-05 (1105-rpg-slice: no NUL byte in a page): `events`, `events-hud`, `shoot-live`, `kitchen-sink`
+// and `kitchen-sink-capture`, the fixtures that inline the event bus. Its saga key joined an id and a scope with a raw NUL
+// byte written into the source (event-bus.js), so every page carrying the bus held a NUL, and an artifact host refused
+// it; it is written `'\\x00'`, the same string at run time.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
