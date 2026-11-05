@@ -154,6 +154,20 @@ describe('design_game: the jobs inside a req', () => {
     expect(named('gw')).toBe('The Long Climb');
   });
 
+  it('an author\'s patch the door refuses writes nothing and leaves the job issued, to report again', async () => {
+    await levelReq();
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });
+    const before = JSON.stringify(SketchRepository.getByRef('gw').manifest);
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j1', patch: [{ op: 'set', path: `/levels/${FIRST}/walk/nodes/x`, value: { hour: 'dawn' } }], decisions: [{ slot: 'hour', because: 'thin cold light' }] } }))
+      .rejects.toThrow(/j1's patch is refused, nothing written \(j1 stays issued/);
+    expect(JSON.stringify(SketchRepository.getByRef('gw').manifest)).toBe(before);
+    expect(GameworldReqJobRepository.get('gw', 'r1', 'j1').status).toBe('issued');
+    // reported again, sound: applied and kept
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j1', patch: nameOp('The Long Climb'), decisions: [{ slot: 'name', because: 'the remit' }] } });
+    expect(named('gw')).toBe('The Long Climb');
+    expect(GameworldReqJobRepository.get('gw', 'r1', 'j1').status).toBe('kept');
+  });
+
   it('a job\'s seat (as): its own view, only its own brief, its own report, and nothing else', async () => {
     await levelReq({ staffing: 'studio', budget: { diverge: 2, critics: 1 } });
     await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });

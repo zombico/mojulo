@@ -20,3 +20,7 @@
   twice: 11 MB, pages of 33 to 37 MB. A bank with none of these is emitted byte for byte as before.
 - **A brief names the patch's ops.** An author's submit shape said `op` without its words; both authors of the slice's
   first round sent `replace` and were refused. It says `set | add | remove`.
+- **A refused report writes nothing.** An author's patch was applied before the world was read, so one the door then
+  refused (a level node given an `hour`) was stored and its job marked kept: the job could not report again, and the
+  world read refused until the patch was undone by hand. The patch is now read first, every level's walk with it
+  (`gameworldGraph`), and a refused one leaves the recipe and the job as they were, the job issued to report again.

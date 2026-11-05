@@ -31,7 +31,7 @@ import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
   characterState, characterReady, approveCharacter, keepApproval, CHARACTER_PART_IDS, CAST_PART, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport, landAdvice,
-  castable, foeState, foeParts, approveFoe, castingCall,
+  castable, foeState, foeParts, approveFoe, castingCall, gameworldGraph,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
@@ -783,6 +783,13 @@ async function reqWrites(ref, req) {
     const job = named(req.job);
     if (!job) throw new Error(`design_game: no job '${req.job}' on ${r.id} (${jobs.map((j) => j.id).join(', ') || 'none issued: start it'})`);
     try { checkSubmit(job, req); } catch (e) { throw new Error(`design_game: ${e.message}`); }
+    // a patch the door would refuse is refused before anything is written and before the job moves: the recipe and the
+    // job stay as they were, so the job reports again (an author's patch is applied at once, a diverge one later)
+    if (Array.isArray(req.patch) && (job.kind === 'author' || job.kind === 'diverge')) {
+      const row = SketchRepository.getByRef(ref);
+      try { gameworldGraph(gameworldOf(applyManifestPatch(row.manifest, patchVehicleWords(req.patch).patch).manifest)); }   // (the world read, every level's walk read)
+      catch (e) { throw new Error(`design_game: ${job.id}'s patch is refused, nothing written (${job.id} stays issued: fix it and report again): ${e.message.replace(/^gameworld: /, '')}`); }
+    }
     const outside = job.kind === 'critic' || job.kind === 'assistant' ? [] : outsideOf(jobUnit(job, r), req.patch);
     const report = { ...(req.patch ? { patch: req.patch } : {}), ...(req.decisions ? { decisions: req.decisions } : {}), ...(req.findings ? { findings: req.findings } : {}), ...(req.recommend ? { recommend: req.recommend, reasons: req.reasons, ...(req.fixes ? { fixes: req.fixes } : {}), ...(req.bolder ? { bolder: req.bolder } : {}) } : {}), ...(Array.isArray(req.asks) ? { asks: req.asks } : {}), ...(Array.isArray(req.warnings) ? { warnings: req.warnings } : {}), ...(outside.length ? { outside } : {}) };
     if (job.kind === 'author') {
