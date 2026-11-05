@@ -133,3 +133,20 @@ apart from the recipe and adds nothing to any render or export. The design is in
   partial one says the req's failing checks, its move is the req's next step, and the goalposts' `next` names the req.
   With no such req the goalposts read as they did.
 - **While a req is open the ledger leads:** its move is first in `next`, after only a run its budget stopped.
+- **The production ledger: asks and traces** (`gameworld/asks.js`, the `gameworld_asks` and `gameworld_ask_links`
+  tables). A long session's decisions can now be read back without its turns.
+  - **An ask is a ticket for the intent the agent acts on,** in the agent's own words: its inference of what the person
+    wants, never the person's message. No column holds their words, and a call that tries to give them is refused.
+    Acting on an inferred intent is the consent the record stands on.
+  - **A ticket is cut only when intent becomes work.** `ask: { intent, units? }` goes with the req, the verdict
+    (`approve`, `revise`), the patch or the run it causes; an ask with no work is refused. `ask: 'a3'` adds to an
+    existing ticket. Intent is capped at 1 KB.
+  - **What an ask caused is linked to it,** one row per link: the reqs it raised, the verdicts it gave, the patch it
+    wrote and the run it made, each at the recipe's revision. A job keeps the revision its kept patch made.
+  - **A trace** (`design_game({ ref, trace: 'a3' | 'r2' | 'r2.j1' })`) reads the chain from any ticket: the intent, its
+    reqs and their jobs (each decision with its because, what no word reached, the critics' findings, the revision a
+    kept patch made), its verdicts, patches and runs. The correlation path (`gw·a3·r2·j1`) is derived, never stored, and
+    a trace never shows a patch's values.
+  - **The intent reaches the next unit.** A unit's view carries the intent it was asked for with, and its precedent
+    carries the intent behind the last accepted unit of its kind.
+  - The ledger never touches the recipe (tested). The ledger card teaches the ticket and the trace.

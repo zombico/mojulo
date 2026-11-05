@@ -753,6 +753,30 @@ function init(db) {
     -- with its angle, a critic with its lens), j<n> within its req. What it reported is kept whole (a held
     -- proposal's patch until it is kept or declined); never part of the recipe until a proposal is kept, and then only
     -- as the patch the door applies.
+    -- A gameworld's asks (gameworld/asks.js): the production ledger's top, one row per intent the agent acted on, in the
+    -- agent's own words (its INFERENCE of what the person wants, never the person's message: no column holds it), cut
+    -- only when intent becomes work. a<n> within its world. What an ask caused is linked below, never listed here.
+    CREATE TABLE IF NOT EXISTS gameworld_asks (
+      world_ref TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      intent TEXT NOT NULL,
+      units_json TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (world_ref, seq)
+    );
+    -- What an ask caused, one row a link (its parent pointer): a req raised (target r<n>), a verdict given (target the
+    -- part, at the recipe's revision), a patch written or a run made (target the revision). A trace walks these.
+    CREATE TABLE IF NOT EXISTS gameworld_ask_links (
+      world_ref TEXT NOT NULL,
+      ask_seq INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      target TEXT NOT NULL,
+      detail_json TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_gameworld_ask_links_ask ON gameworld_ask_links(world_ref, ask_seq);
+    CREATE INDEX IF NOT EXISTS idx_gameworld_ask_links_target ON gameworld_ask_links(world_ref, target);
+
     CREATE TABLE IF NOT EXISTS gameworld_req_jobs (
       world_ref TEXT NOT NULL,
       req_seq INTEGER NOT NULL,

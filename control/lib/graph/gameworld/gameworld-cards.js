@@ -110,6 +110,10 @@ function ledgerCard() {
     '({ req: { id, probe: true } }: it loads, it is not lost before input, it has something to play against, no debug',
     'text; its frames are for a look critic). Received is not accepted: show the creator, whose verdict it is.',
     '',
+    'THE TICKET: give `ask: { intent }` with the work it causes (a req, a verdict, a patch, a run): the intent you',
+    'inferred and are acting on, in your own words, never the person\'s message. `ask: \'a3\'` adds to it. { ref, trace:',
+    '\'a3\' | \'r2\' | \'r2.j1\' } reads the chain: the intent, its reqs and jobs (each decision\'s because), verdicts, revisions.',
+    '',
     'THE COMPOSITE: once a level is accepted and the game lacks it, `next` says composite: run: true makes the game of',
     'the accepted levels alone (no level made that no one has worked), playable to the last. A stale level stays out.',
   );

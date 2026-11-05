@@ -364,3 +364,63 @@ describe('design_game: the main quest as the queue', () => {
     expect(out.next[0]).toMatchObject({ step: 'req', id: out.reqs.current.id, card: 'gameworld-ledger' });
   });
 });
+
+describe('design_game: the production ledger (asks and traces)', () => {
+  beforeEach(() => { closeDb(); });
+
+  async function settledLevel() {
+    await designGameHandler({ world: GATED, ref: 'gw' });
+    const full = await designGameHandler({ ref: 'gw' });
+    const upstream = full.parts.filter((p) => ['intent', 'world', 'nature', 'civilizations', 'key'].includes(p.id) || p.id.startsWith('tech:')).map((p) => p.id);
+    await designGameHandler({ ref: 'gw', approve: upstream });
+  }
+
+  it('an ask is cut with the work it causes, and holds the inferred intent alone', async () => {
+    await settledLevel();
+    const out = await designGameHandler({ ref: 'gw', ask: { intent: 'the first level should feel like setting out: gentle, open, a long view', units: [`level:${FIRST}`] }, req: { unit: `level:${FIRST}`, remit: REMIT } });
+    expect(out.ask).toEqual({ id: 'a1', intent: 'the first level should feel like setting out: gentle, open, a long view', linked: ['r1'] });
+    // no work, no ticket; the person's words, refused
+    await expect(designGameHandler({ ref: 'gw', ask: { intent: 'just looking' } })).rejects.toThrow(/an ask is cut when intent becomes work/);
+    await expect(designGameHandler({ ref: 'gw', ask: { intent: 'x', says: 'make it gentle pls' }, req: { unit: 'feel' } })).rejects.toThrow(/never the person's/);
+    // the table has no place for them
+    const { getDb } = await import('@/lib/db/index');
+    expect(getDb().prepare('pragma table_info(gameworld_asks)').all().map((c) => c.name)).toEqual(['world_ref', 'seq', 'intent', 'units_json', 'created_at']);
+  });
+
+  it('a trace from a job reaches the intent above it and the reasons, revisions and verdicts below it', async () => {
+    await settledLevel();
+    await designGameHandler({ ref: 'gw', ask: { intent: 'a gentle first climb' }, req: { unit: `level:${FIRST}`, remit: REMIT } });
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j1', patch: [{ op: 'set', path: `/levels/${FIRST}/name`, value: 'The Long View' }], decisions: [{ slot: 'name', value: 'The Long View', because: 'the intent: a long view' }] } });
+    // the creator sends it back, on the same ticket
+    const back = await designGameHandler({ ref: 'gw', ask: 'a1', revise: { part: `level:${FIRST}`, note: 'gentler still' } });
+    expect(back.ask).toMatchObject({ id: 'a1', linked: [`sent back level:${FIRST}`] });
+    const T = (await designGameHandler({ ref: 'gw', trace: 'r1.j1' })).trace;
+    expect(T).toMatchObject({ path: 'gw·a1·r1·j1', ask: { id: 'a1', intent: 'a gentle first climb' }, verdicts: [{ part: `level:${FIRST}`, status: 'revise', note: 'gentler still', rev: expect.any(Number) }] });
+    expect(T.reqs[0]).toMatchObject({ id: 'r1', unit: `level:${FIRST}`, status: 'sent back', jobs: [{ id: 'j1', kind: 'author', status: 'kept', wrote: [`/levels/${FIRST}/name`], decisions: [{ slot: 'name', because: 'the intent: a long view' }], rev: expect.any(Number) }] });
+    // any ticket reaches the same chain
+    expect((await designGameHandler({ ref: 'gw', trace: 'a1' })).trace.ask).toEqual(T.ask);
+    expect((await designGameHandler({ ref: 'gw', trace: 'r1' })).trace.verdicts).toEqual(T.verdicts);
+    await expect(designGameHandler({ ref: 'gw', trace: 'r9' })).rejects.toThrow(/no req 'r9'/);
+    await expect(designGameHandler({ ref: 'gw', trace: 'a9' })).rejects.toThrow(/no ask 'a9'/);
+  });
+
+  it('a unit\'s view carries the intent it was asked for with; the next level\'s precedent, the last one\'s', async () => {
+    await settledLevel();
+    await designGameHandler({ ref: 'gw', ask: { intent: 'a gentle first climb' }, req: { unit: `level:${FIRST}`, remit: REMIT } });
+    expect((await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` })).req.intent).toEqual({ ask: 'a1', intent: 'a gentle first climb' });
+    await designGameHandler({ ref: 'gw', approve: [`level:${FIRST}`] });
+    await designGameHandler({ ref: 'gw', ask: { intent: 'the shore pushes back' }, req: { unit: `level:${SECOND}`, remit: REMIT } });
+    const next = await designGameHandler({ ref: 'gw', chapter: `level:${SECOND}` });
+    expect(next.req.intent).toEqual({ ask: 'a2', intent: 'the shore pushes back' });
+    expect(next.req.precedent.last).toMatchObject({ id: 'r1', intent: 'a gentle first climb' });
+  });
+
+  it('the production ledger never touches the recipe', async () => {
+    await settledLevel();
+    const before = JSON.stringify(SketchRepository.getByRef('gw').manifest);
+    await designGameHandler({ ref: 'gw', ask: { intent: 'the feel later' }, req: { unit: 'feel' } });
+    await designGameHandler({ ref: 'gw', trace: 'a1' });
+    expect(JSON.stringify(SketchRepository.getByRef('gw').manifest)).toBe(before);
+  });
+});

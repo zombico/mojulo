@@ -127,3 +127,56 @@ export const GameworldReqJobRepository = {
     return this.get(worldRef, reqId, jobId);
   },
 };
+
+/** `a3` → 3; anything else → null. */
+export const askSeq = (id) => (typeof id === 'string' && /^a[1-9]\d*$/.test(id) ? Number(id.slice(1)) : null);
+export const ASK_LINK_KINDS = Object.freeze(['req', 'verdict', 'patch', 'run']);
+
+function rowToAsk(row) {
+  if (!row) return null;
+  return { id: `a${row.seq}`, seq: row.seq, intent: row.intent, ...(row.units_json ? { units: parse(row.units_json, []) } : {}) };
+}
+
+export const GameworldAskRepository = {
+  get(worldRef, id) {
+    const seq = askSeq(id);
+    if (seq === null) return null;
+    return rowToAsk(getDb().prepare('SELECT * FROM gameworld_asks WHERE world_ref = ? AND seq = ?').get(worldRef, seq));
+  },
+
+  list(worldRef) {
+    return getDb().prepare('SELECT * FROM gameworld_asks WHERE world_ref = ? ORDER BY seq').all(worldRef).map(rowToAsk);
+  },
+
+  /** Cut a ticket: the intent the agent is acting on; → the ask. */
+  create({ worldRef, intent, units = null }) {
+    const db = getDb();
+    const seq = db.transaction(() => {
+      const next = (db.prepare('SELECT MAX(seq) AS m FROM gameworld_asks WHERE world_ref = ?').get(worldRef)?.m ?? 0) + 1;
+      db.prepare('INSERT INTO gameworld_asks (world_ref, seq, intent, units_json) VALUES (?, ?, ?, ?)').run(worldRef, next, intent, units ? JSON.stringify(units) : null);
+      return next;
+    })();
+    return this.get(worldRef, `a${seq}`);
+  },
+
+  /** Link what an ask caused (its parent pointer). */
+  link(worldRef, askId, kind, target, detail = null) {
+    const seq = askSeq(askId);
+    if (seq === null || !ASK_LINK_KINDS.includes(kind)) throw new Error(`ask link: ${askId} ${kind}`);
+    getDb().prepare('INSERT INTO gameworld_ask_links (world_ref, ask_seq, kind, target, detail_json) VALUES (?, ?, ?, ?, ?)').run(worldRef, seq, kind, String(target), detail === null ? null : JSON.stringify(detail));
+  },
+
+  /** What an ask caused, in the order it was linked. */
+  links(worldRef, askId) {
+    const seq = askSeq(askId);
+    if (seq === null) return [];
+    return getDb().prepare('SELECT kind, target, detail_json FROM gameworld_ask_links WHERE world_ref = ? AND ask_seq = ? ORDER BY rowid').all(worldRef, seq)
+      .map((r) => ({ kind: r.kind, target: r.target, ...(r.detail_json ? { detail: parse(r.detail_json, null) } : {}) }));
+  },
+
+  /** The ask behind a target (a req id): the latest that linked it, or null. */
+  askOf(worldRef, target) {
+    const row = getDb().prepare('SELECT ask_seq FROM gameworld_ask_links WHERE world_ref = ? AND target = ? ORDER BY rowid DESC LIMIT 1').get(worldRef, String(target));
+    return row ? this.get(worldRef, `a${row.ask_seq}`) : null;
+  },
+};
