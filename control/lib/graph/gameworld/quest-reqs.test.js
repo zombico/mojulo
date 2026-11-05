@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { beatUnit, beatRemit, questUnits } from './quest-reqs.js';
+import { beatUnit, beatRemit, questUnits, beatCrew } from './quest-reqs.js';
 import { questPlays, withQuestLevels } from './main-quest-lay.js';
 import { MEADOWMARK } from './index.js';
 
@@ -46,5 +46,15 @@ describe('the quest as the queue', () => {
 
   it('is deterministic', () => {
     expect(JSON.stringify(beatRemit(W, 'windy-shore'))).toBe(JSON.stringify(beatRemit(structuredClone(W), 'windy-shore')));
+  });
+});
+
+describe('a beat\'s crew', () => {
+  it('brings the foes it fields, the battles a world fights in, and the story of a scene or a cast', () => {
+    expect(beatCrew(W, 'windy-shore')).toEqual(['foes']);
+    expect(beatCrew(W, 'shore-first')).toEqual([]);
+    // a world fighting in battles (written, or a turn-based genre's laid at the run): every beat's crew brings them
+    expect(beatCrew({ ...W, battles: { packs: [['wolf']] } }, 'shore-first')).toEqual(['battles']);
+    expect(beatCrew({ ...W, intent: { from: 'jrpg' } }, 'windy-shore')).toEqual(['foes', 'battles']);
   });
 });

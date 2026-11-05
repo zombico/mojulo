@@ -141,6 +141,16 @@ describe('the core loop', () => {
     expect(loopOf({ id: 'w', levels: { a: { walk: { nodes: { a: { trail: {} } } } } } })).toMatchObject({ moment: ['move', 'jump'], encounter: 'reach the level\'s exit', session: 'a level' });
   });
 
+  it('a world that fights in battles: its encounter is the battle, its reward the spoils, whatever its levels\' goals', () => {
+    const lv = { levels: { a: { walk: { nodes: { a: { trail: {} } } } } } };
+    expect(loopOf({ id: 'w', ...lv, battles: { packs: [['wolf']] } })).toMatchObject({ moment: ['move', 'jump', 'fight'], encounter: expect.stringMatching(/^a turn-based battle/), reward: expect.stringMatching(/experience, gold and gear/), from: { encounter: 'the battles', reward: 'the battles' } });
+    // a jrpg's battles are laid at the run when none are written; a tactics world's are on boards
+    expect(loopOf({ id: 'w', ...lv, intent: { from: 'jrpg' } }).from.encounter).toBe('the battles');
+    expect(loopOf({ id: 'w', ...lv, battles: { on: 'board' } }).encounter).toMatch(/tactics battle on a board/);
+    // written wins
+    expect(loopOf({ id: 'w', ...lv, battles: {}, loop: { encounter: 'a duel at dawn' } })).toMatchObject({ encounter: 'a duel at dawn', from: { encounter: 'written' } });
+  });
+
   it('written, it is held to what the hero can do; a malformed one is refused', () => {
     const verb = H.characters.hero.actions.powers[0].verb.split(' ')[0];
     expect(loopLaws({ ...W, loop: { moment: [verb, 'jump'] } })).toEqual([expect.objectContaining({ law: 'grounded', holds: true })]);

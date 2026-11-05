@@ -45,23 +45,32 @@ const verbsOf = (m) => (Array.isArray(m) ? m : String(m).split(/[,;]|\band\b/)).
 const firstWord = (s) => String(s ?? '').trim().toLowerCase().split(/\s+/)[0] ?? '';
 const GOAL_SAYS = { gauntlet: 'clear the arena wave on wave', escape: 'find the way out of the room', boss: 'bring down the boss', guards: 'get past the guards', collect: 'gather what the level holds', survive: 'hold out on the clock' };
 
+// a world that fights in battles (battles.js: written, or a turn-based or tactics genre's, laid at the run): its encounter is
+// the battle and its reward the battle's spoils, whatever its levels' goals
+const BATTLE_GENRES = Object.freeze({ jrpg: 'turn', tactics: 'board' });
+const battlesIn = (W) => (isObj(W.battles) ? (W.battles.on === 'board' ? 'board' : 'turn') : BATTLE_GENRES[W.intent?.from] ?? null);
+const BATTLE_SAYS = Object.freeze({
+  turn: { encounter: 'a turn-based battle against a pack met on the trail, a boss at the end', reward: 'experience, gold and gear for the party' },
+  board: { encounter: 'a tactics battle on a board', reward: 'experience, gold and gear for the party' },
+});
+
 export function loopOf(W = {}) {
-  const L = readLoop(W.loop) ?? {}, from = {};
+  const L = readLoop(W.loop) ?? {}, from = {}, fights = battlesIn(W);
   const powers = Array.isArray(W.characters?.hero?.actions?.powers) ? W.characters.hero.actions.powers : [];
   let moment;
   if (L.moment !== undefined) { moment = verbsOf(L.moment); from.moment = 'written'; } else {
-    moment = [...new Set(['move', 'jump', ...powers.map((p) => firstWord(p?.verb)).filter(Boolean)])];
+    moment = [...new Set(['move', 'jump', ...powers.map((p) => firstWord(p?.verb)).filter(Boolean), ...(fights ? ['fight'] : [])])];
     from.moment = powers.length ? 'the hero\'s powers, and the body\'s moving and jumping' : 'the body\'s moving and jumping';
   }
   const goals = [...new Set(Object.values(isObj(W.levels) ? W.levels : {}).flatMap((l) => Object.keys(isObj(l?.goal) ? l.goal : {})))];
   const quick = typeof W.quick?.goal === 'string' ? W.quick.goal : null;
-  const encounter = L.encounter ?? (goals.length ? goals.map((g) => GOAL_SAYS[g] ?? g).join(', or ') : quick ? `a ${quick} level` : 'reach the level\'s exit');
-  from.encounter = L.encounter ? 'written' : goals.length ? 'the levels\' goals' : quick ? 'the quick goal' : 'a level\'s exit';
+  const encounter = L.encounter ?? (fights ? BATTLE_SAYS[fights].encounter : goals.length ? goals.map((g) => GOAL_SAYS[g] ?? g).join(', or ') : quick ? `a ${quick} level` : 'reach the level\'s exit');
+  from.encounter = L.encounter ? 'written' : fights ? 'the battles' : goals.length ? 'the levels\' goals' : quick ? 'the quick goal' : 'a level\'s exit';
   const parts = isObj(W.mainQuest) ? W.mainQuest.chapters ?? W.mainQuest.acts : null;
   const Q = Array.isArray(parts) ? W.mainQuest : null;
   const gains = Q ? parts.flatMap((A) => (A.beats ?? []).flatMap((B) => B.gains ?? [])) : [];
-  const reward = L.reward ?? (gains.length ? 'a power gained on the main quest\'s beats' : Array.isArray(W.errands) && W.errands.length ? 'the errand\'s reward, home' : 'the next level');
-  from.reward = L.reward ? 'written' : gains.length ? 'the main quest\'s gains' : Array.isArray(W.errands) && W.errands.length ? 'the errands' : 'the game\'s levels';
+  const reward = L.reward ?? (fights ? BATTLE_SAYS[fights].reward : gains.length ? 'a power gained on the main quest\'s beats' : Array.isArray(W.errands) && W.errands.length ? 'the errand\'s reward, home' : 'the next level');
+  from.reward = L.reward ? 'written' : fights ? 'the battles' : gains.length ? 'the main quest\'s gains' : Array.isArray(W.errands) && W.errands.length ? 'the errands' : 'the game\'s levels';
   const session = L.session ?? (Q ? 'a beat of the main quest' : W.quick?.run ? 'a run' : 'a level');
   from.session = L.session ? 'written' : Q ? 'the main quest' : W.quick?.run ? 'the run' : 'the levels';
   return { moment, encounter, reward, session, from };
