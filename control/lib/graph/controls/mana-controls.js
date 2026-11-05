@@ -1,9 +1,9 @@
 /**
  * THE CONTROLS AS MANA-UI READS THEM — the bridge from the control schemes (schemes.js: intents, never keys; devices.js:
  * the families and their standards; controls-kernel.js: resolve, label, conflicts, capture) to the game UI runtime
- * (control/lib/mana-ui/), which imports nothing and takes them as data. One truth for both directions:
+ * (control/lib/mana-ui/), a view that takes intents and reads no device. One truth for both directions:
  *
- *   IN    a scheme resolved onto the keyboard and onto each printed pad layout: what mount reads, a key code or a pad's
+ *   IN    a scheme resolved onto the keyboard and onto each printed pad layout: what the host (mana-host.js) reads, a key code or a pad's
  *         button or half axis → a menu action (the same shape interact-channel.js menuControls gives the playscape
  *         menus, so the two read a pad alike)
  *   OUT   what each action's control is called on each family (keys, each pad layout, a headset): the glyphs a prompt
@@ -18,12 +18,15 @@
  *   controlsRows(scheme, { over?, layout? }) → [{ action, label, group, keys: [keyboard…, pad], conflict? }] for the
  *                                    controls-screen idiom (its keybinds), each as the kernel labels it
  *   remap(scheme, over, { action, family, control, slot? }) → { over, conflicts }: a captured control set in its slot
- *   padLayoutSource()               the kernel's pad-layout reader as page source (mount's controls.padLayout)
- *   kernelSource()                  the whole controls kernel as page source (a page that reads the touch pad through it)
+ *   padLayoutSource()               the kernel's pad-layout reader as page source (the host's padLayout)
+ *   kernelSource()                  the whole controls kernel as page source
+ *   manaHostSource()                mana-host.js as page source: connect(rt, view, { ...manaControls(), seatOf? }) is
+ *                                   the page's input owner driving the UI (mana-ui itself reads no device)
  */
 import { buildControlsKernel } from './controls-kernel.js';
 import { SCHEMES } from './schemes.js';
 import { DEVICES } from './devices.js';
+import { buildManaHost } from './mana-host.js';
 
 const K = buildControlsKernel();
 const LAYOUTS = Object.keys(DEVICES.gamepad.layouts);
@@ -98,3 +101,4 @@ export function remap(scheme, over, { action, family, control, slot = 0 }) {
 
 export const padLayoutSource = () => K.padLayout.toString();
 export const kernelSource = () => `(${buildControlsKernel.toString()})()`;
+export const manaHostSource = () => `(${buildManaHost.toString()})()`;

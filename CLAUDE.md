@@ -264,7 +264,8 @@ Pointers only; each target carries its own design notes.
   words run on, so a screen is built once and not game by game: components with props passed down, the game's state
   read through bindings and never copied, a form that is a tree of data, a function that is cue effects; greybox first,
   styles a layer over it, `theme.js`, a world's guide reaching it through `playscape/ui/mana-theme.js`; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
-  wireframe board, `board.js`; imports nothing outside its folder): [docs/mana-ui.md](docs/mana-ui.md).
+  wireframe board, `board.js`; imports nothing outside its folder; a view that reads no device: the controls layer drives
+  it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md).
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).

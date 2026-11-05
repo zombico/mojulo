@@ -63,11 +63,10 @@
   carousel or the tabs, and the HUD's pause, map and skills are taps. A touch screen's targets grow to 48 px, its long
   lists scroll whole, screens keep out of the notch and the home bar, a phone-width screen stacks its panes, and a
   phone's menus rise from the foot of the screen in reach of a thumb. The board shows phone-sized frames driven by touch.
-- **The UI is driven by the game's control schemes, and says them back.** The screens read the same schemes as play
-  (intents, never keys): the keyboard, every connected pad in its own printed layout (a second pad moving the second
-  player's cursor), and any other device through a driver. A remap moves them too. Prompts and legends print the
-  control in the player's hands ("Enter", "A", "✕", the B on a Nintendo pad's right) and switch as the player picks up
-  another device; a touch screen shows none. The controls screen lists a scheme's real bindings with a clash marked,
-  and a remap reports the conflicts it makes. The phone's drawn stick and buttons now drive the game as a gamepad's
-  controls, so a phone plays through the same schemes as a pad.
-
+- **The UI is driven by the game's own controls, and says them back.** The screens are a view: they never read a key
+  or a pad themselves. The game's controls (its control schemes, their drivers and who is which player) drive them:
+  the keyboard, every connected pad in its own printed layout (each player's pad moving that player's cursor, by the
+  seats the game assigned), and any other device through a driver; a remap moves them too, and while a menu is up the
+  game never sees its keys. Prompts and legends print the control in the player's hands ("Enter", "A", "✕", the B on
+  a Nintendo pad's right) and switch as the player picks up another device; a touch screen shows none. The controls
+  screen lists a scheme's real bindings with a clash marked, and a remap reports the conflicts it makes.

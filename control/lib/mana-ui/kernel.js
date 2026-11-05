@@ -45,6 +45,8 @@
  *     .glyphs(table)      what each action's control is called, per family: { keys: { <action>: 'Enter' }, pad: {
  *                         <layout>: { <action>: 'A' } }, xr?: { … }, touch?: { … } } (controls/mana-controls.js builds
  *                         it from the control schemes); a prompt and a legend print the one the player is holding
+ *   THE RUNTIME TAKES INTENTS, NEVER DEVICES: press, input and glyphs are what the page's controls layer calls; mana-ui
+ *   names no key, polls no pad and seats no player.
  *     .point(n, x, seat?) a tap or a click on focusable n at x across it (0..1): a slider takes the value under it, the
  *                         ends of a ◀ ▶ input turn it, anything else is done at once; a row with a detail beside it (in
  *                         a split) is selected first and done on a second tap
@@ -52,15 +54,10 @@
  *     .view() → html .tree() .state()
  *     actions (the controls kernel's `menu` scheme): up, down, left, right, accept, back, tabNext, tabPrev
  *   toHtml(tree) · readPath(obj, path)
- *   mount(el, rt, { controls?, drivers?, keyboard?, auto? }) → the DOM backend: draws into el; in: the keys, the pads,
- *     the pointer and any driver; out: the frame, the page's hold, and the touch pad's controls
- *     controls  the control scheme resolved (controls/mana-controls.js manaControls): { keys: { <code>: <action> },
- *               pad: { <layout>: { b: { <button>: <action> }, a: [[axis, sign, action]] } }, padLayout(id) → layout }:
- *               each connected pad is read every frame on its press edges, pad n driving seat n (else the first)
- *     drivers   [() → { <action>: 1 } | { seat?, input?, actions }]: any other device (a headset, a wheel) the same way
- *     poll      false: the host reads the pads itself, calling poll() (a page of several runtimes reads one at a time)
- *     returns   { paint, key, poll, read(control) }: read is the drawn touch pad as the `touch` family's driver (devices.js:
- *               it speaks the gamepad's controls, south, east, leftX …), for the page's own controls kernel
+ *   mount(el, rt, { auto?, swipe? }) → { paint }: the DOM backend, a VIEW: it draws into el, holds the page while a screen
+ *     is up (window.__mojMenuOpen) and hit-tests its own widgets under a pointer. It reads no device: the controls layer
+ *     (controls/mana-host.js) hands the runtime its intents, the device in hand and the glyphs. swipe: the host's
+ *     classifier (controls/swipe.js swipeOf), a stand-in with its thresholds when none is given
  */
 export function buildManaUi() {
   const ROLES = ['display', 'title', 'heading', 'body', 'label', 'caption', 'numeral'];
@@ -99,7 +96,7 @@ export function buildManaUi() {
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
     threat: { group: 'hud', layer: true, about: 'where harm came from: a mark on a ring round the centre for each bearing (degrees from where you face)', props: { markers: [L, [], true] } },
     letterbox: { group: 'hud', layer: true, about: 'the cinema bars of a cutscene', props: {} },
-    touchpad: { group: 'hud', about: 'the controls a touch screen draws, a driver of the gamepad\'s own controls: a stick (the left stick) and round buttons (a word, or { label, control: south | east | west | north | rb … })', props: { stick: [B, true], buttons: [L, ['A', 'B']] } },
+    touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime', props: { stick: [B, true], buttons: [L, ['A', 'B']] } },
     legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
     // values
     text: { group: 'value', about: 'words in a type role', props: { value: [T, '', true], role: [ROLES, 'body'] } },
@@ -756,110 +753,55 @@ export function buildManaUi() {
     };
   }
 
-  // ── the DOM backend ───────────────────────────────────────────────────────────────────────────────────────────────
-  const KEYS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Enter: 'accept', Space: 'accept', KeyE: 'accept', Escape: 'back', Backspace: 'back', BracketRight: 'tabNext', BracketLeft: 'tabPrev' };
+  // ── the DOM backend: a view, never a controller ─────────────────────────────────────────────────────────────────────
+  // It draws, holds the page while a screen is up (window.__mojMenuOpen: the page's input owner sends the menu its
+  // intents instead of play), and hit-tests its own widgets under a pointer: a tap on a row, a drag along a slider, a
+  // swipe across a carousel or the tabs (only the view knows where they are). The keys, the pads, a headset, the virtual
+  // pad and who is which seat are the controls layer's (controls/: the schemes, their drivers, the seats kernel), which
+  // hands this runtime intents (rt.press(action, seat)), the device in hand (rt.input) and the glyphs (rt.glyphs):
+  // controls/mana-host.js connects the two.
+  // a swipe or a tap from a pointer's travel and time, when the host hands none (controls/swipe.js swipeOf is the truth)
+  const SWIPE_OF = (dx, dy, ms) => { const m = Math.hypot(dx, dy); if (m < 12) return ms <= 600 ? 'tap' : null; if (m < 24 || ms > 600) return null; return Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'); };
   function mount(el, rt, opts) {
-    const o = opts || {}, C = o.controls || {}, keys = C.keys || o.keys || KEYS;
+    const o = opts || {}, swipe = typeof o.swipe === 'function' ? o.swipe : SWIPE_OF, clock = () => (typeof performance !== 'undefined' ? performance.now() : 0);
     let html = '';
+    const hold = () => { if (typeof window !== 'undefined') window.__mojMenuOpen = !!rt.state().screen; };
     const paint = () => { const h = rt.view(); if (h !== html) { html = h; el.innerHTML = h; } hold(); };
-    // the pointer: a tap is done where it lands, a drag on a slider sets it as it moves, a swipe turns a carousel under it
-    // or the screen's tabs (left: the next); a pen is a finger
     const near = (ev, sel) => (ev.target && ev.target.closest ? ev.target.closest(sel) : null);
-    // where across its target a pointer is, measured on the rect taken when the press began (a repaint replaces the
-    // element under a drag)
+    // where across its target a pointer is, on the rect taken when the press began (a repaint replaces the element)
     const across = (r, ev) => (r && r.width ? (ev.clientX - r.left) / r.width : 0.5);
     let down = null;
-    // the drawn touch pad: its buttons and its stick held as the gamepad's controls (read, below), never a menu's
-    const TP = {}, held = new Map();
-    const stickAt = (r, ev) => { const R = r.width / 2, x = (ev.clientX - r.left - R) / R, y = (ev.clientY - r.top - R) / R, m = Math.hypot(x, y) || 1, k = Math.min(1, m) / m; TP.leftX = Math.round(x * k * 1000) / 1000; TP.leftY = Math.round(y * k * 1000) / 1000; };
-    const padEnd = (ev) => { const h = held.get(ev.pointerId); if (!h) return false; held.delete(ev.pointerId); if (h.stick) { TP.leftX = 0; TP.leftY = 0; } else TP[h.control] = 0; return true; };
     el.addEventListener('pointerdown', (ev) => {
-      const tp = near(ev, '.mana-pad[data-control],.mana-stick');
-      if (tp) {
-        rt.input('touch');
-        if (tp.classList.contains('mana-stick')) { const r = tp.getBoundingClientRect(); held.set(ev.pointerId, { stick: true, r }); stickAt(r, ev); }
-        else { held.set(ev.pointerId, { control: tp.dataset.control }); TP[tp.dataset.control] = 1; }
-        if (tp.setPointerCapture) try { tp.setPointerCapture(ev.pointerId); } catch (e) { /* a synthetic pointer */ }
-        return;
-      }
-      rt.input(ev.pointerType === 'mouse' ? 'mouse' : 'touch');
       const t = near(ev, '[data-k],[data-tab],[data-tap]');
-      const ds = t ? { k: t.dataset.k, tab: t.dataset.tab, tap: t.dataset.tap } : null, cl = t && t.classList;
+      if (!t) return;   // not a widget of this view (a drawn pad's buttons are the touch driver's)
+      rt.input(ev.pointerType === 'mouse' ? 'mouse' : 'touch');
+      const ds = { k: t.dataset.k, tab: t.dataset.tab, tap: t.dataset.tap }, cl = t.classList;
       const slide = !!(cl && cl.contains('mana-slider')), track = slide && t.querySelector ? t.querySelector('.mana-track') : null;
       // a slider is measured on its track (a finger on the bar means that point of the bar), anything else on itself
-      down = { x: ev.clientX, y: ev.clientY, t: ds, rect: (track || t) ? (track || t).getBoundingClientRect() : null, slide, car: !!(cl && cl.contains('mana-carousel')) };
+      down = { x: ev.clientX, y: ev.clientY, at: clock(), t: ds, rect: (track || t).getBoundingClientRect(), slide, car: !!(cl && cl.contains('mana-carousel')) };
       if (down.slide) { rt.point(Number(ds.k), across(down.rect, ev)); paint(); }
     });
-    el.addEventListener('pointermove', (ev) => { const h = held.get(ev.pointerId); if (h && h.stick) { stickAt(h.r, ev); return; } if (down && down.slide) { rt.point(Number(down.t.k), across(down.rect, ev)); paint(); } });
+    el.addEventListener('pointermove', (ev) => { if (down && down.slide) { rt.point(Number(down.t.k), across(down.rect, ev)); paint(); } });
     el.addEventListener('pointerup', (ev) => {
-      if (padEnd(ev)) return;
       const d = down; down = null;
-      if (!d) return;
-      const dx = ev.clientX - d.x, dy = ev.clientY - d.y;
-      if (d.slide) return;
-      if (Math.abs(dx) > 40 && Math.abs(dx) > 2 * Math.abs(dy)) {
-        if (d.car) rt.point(Number(d.t.k), dx < 0 ? 1 : 0); else if (rt.state().screen) rt.press(dx < 0 ? 'tabNext' : 'tabPrev');
-      } else if (d.t && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
+      if (!d || d.slide) return;
+      const g = swipe(ev.clientX - d.x, ev.clientY - d.y, clock() - d.at);
+      if (g === 'left' || g === 'right') { if (d.car) rt.point(Number(d.t.k), g === 'left' ? 1 : 0); else if (rt.state().screen) rt.press(g === 'left' ? 'tabNext' : 'tabPrev'); }
+      else if (g === 'tap') {
         if (d.t.tab) { const [a, b] = d.t.tab.split(':').map(Number); rt.tab(a, b); }
         else if (d.t.tap !== undefined) rt.hudTap(Number(d.t.tap));
         else rt.point(Number(d.t.k), across(d.rect, ev));
       }
       paint();
     });
-    el.addEventListener('pointercancel', (ev) => { padEnd(ev); down = null; });
-    // while a screen is up the menu holds the input: its keys are taken before the game's own listeners see them (the
-    // capture phase), and the page's hold is set (window.__mojMenuOpen, the playscape menus' convention), so Enter on a
-    // pause never also serves the ball
-    const hold = () => { if (typeof window !== 'undefined') window.__mojMenuOpen = !!rt.state().screen; };
-    const key = (ev) => {
-      if (rt.state().input !== 'keys' && keys[ev.code]) rt.input('keys');
-      hold();
-      if (!rt.state().screen) return false;
-      if (ev.stopPropagation) ev.stopPropagation();
-      const a = keys[ev.code];
-      if (!a) return false;
-      ev.preventDefault(); rt.press(a); paint(); return true;
-    };
-    if (o.keyboard !== false && typeof window !== 'undefined') window.addEventListener('keydown', key, true);
-    // THE PADS AND THE DRIVERS, read once a frame on their press edges: what is held as a screen opens does not act in
-    // it; pad n drives seat n where the screen has one, else the first seat
-    const prev = new Map();
-    let shown = rt.state().screen;
-    const edges = (id, now, mode, layout, seat) => {
-      const was = prev.get(id) || {};
-      prev.set(id, now);
-      if (!rt.state().screen) return false;
-      let did = false;
-      for (const a in now) if (now[a] && !was[a]) { rt.input(mode, layout); if (!rt.press(a, seat)) rt.press(a, 0); did = true; }
-      return did;
-    };
-    function poll() {
-      const now = rt.state().screen, opened = now !== shown;
-      shown = now;
-      let did = false;
-      const pads = C.pad && typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
-      for (let i = 0; i < pads.length; i++) {
-        const g = pads[i];
-        if (!g || !g.connected) continue;
-        const L = C.padLayout ? C.padLayout(g.id) : 'xbox', P = C.pad[L] || C.pad.xbox, act = {};
-        if (!P) continue;
-        for (const b in P.b) { const x = g.buttons[b]; if (x && (x.pressed || x.value > 0.5)) act[P.b[b]] = 1; }
-        for (const [ax, sg, a] of P.a) if ((g.axes[ax] || 0) * sg > 0.6) act[a] = 1;
-        if (opened) prev.set('pad' + i, act); else did = edges('pad' + i, act, 'pad', L, i) || did;
-      }
-      (o.drivers || []).forEach((fn, i) => {
-        const r = fn() || {}, act = isObj(r.actions) ? r.actions : r;
-        if (opened) prev.set('drv' + i, act); else did = edges('drv' + i, act, r.input || 'pad', null, r.seat || 0) || did;
-      });
-      return did || opened;
-    }
-    // a frame: the pads and drivers read, a value the screen read changed, or the game opened or closed a screen itself
-    if (o.poll !== false && (o.auto || C.pad || o.drivers) && typeof requestAnimationFrame === 'function') { const loop = () => { if (poll() | rt.tick()) paint(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+    el.addEventListener('pointercancel', () => { down = null; });
+    // a frame: a value the screen read changed, or the game opened or closed a screen itself
+    if (o.auto && typeof requestAnimationFrame === 'function') { let up = rt.state().screen; const loop = () => { const now = rt.state().screen; if (rt.tick() || now !== up) { up = now; paint(); } requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
     paint();
-    return { paint, key, poll, read: (control) => TP[control] || 0 };
+    return { paint };
   }
 
-  return { COMPONENTS, COMPONENT_IDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, KEYS, readNode, readSpec, runtime, toHtml, readPath, mount };
+  return { COMPONENTS, COMPONENT_IDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
 }
 
 export const manaUi = buildManaUi();

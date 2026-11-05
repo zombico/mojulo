@@ -244,22 +244,17 @@ describe('mana-ui: sides, leads and the menu\'s hold', () => {
     expect(coverageOverlap({ hud: { use: 'hud', children: [{ use: plain }, { use: covered }] } })).toEqual([covered]);
     expect(coverageOverlap({ screens: {} })).toEqual([]);
   });
-  it('while a screen is up, mount holds the input: the game\'s listeners never see a key, and the page\'s hold is set', () => {
+  it('mount is a view: it reads no device, and holds the page while a screen is up', () => {
     const listeners = [], was = globalThis.window;
-    globalThis.window = { addEventListener: (type, fn, capture) => listeners.push({ type, fn, capture }) };
+    globalThis.window = { addEventListener: (type) => listeners.push(type) };
     try {
-      const rt = manaUi.runtime({ screens: { p: screen([{ use: 'button', props: { label: 'Resume' }, on: { accept: { close: true } } }]) } }, host({}));
-      manaUi.mount({ innerHTML: '', addEventListener() {} }, rt);
-      const down = listeners.find((l) => l.type === 'keydown');
-      expect(down.capture).toBe(true);
-      const ev = (code) => ({ code, stopped: false, prevented: false, stopPropagation() { this.stopped = true; }, preventDefault() { this.prevented = true; } });
-      const idle = ev('Space'); down.fn(idle);
-      expect(idle.stopped).toBe(false);   // no screen: the game has its keys
-      rt.open('p'); down.fn(ev('KeyQ'));
+      const rt = manaUi.runtime({ screens: { p: screen([{ use: 'button', props: { label: 'Resume' } }]) } }, host({}));
+      const el = { innerHTML: '', on: [], addEventListener(t) { this.on.push(t); } }, m = manaUi.mount(el, rt);
+      expect(listeners).toEqual([]);   // no key, no pad: the controls layer's
+      expect(el.on.every((t) => t.startsWith('pointer'))).toBe(true);   // its own widgets under a pointer only
+      rt.open('p'); m.paint();
       expect(window.__mojMenuOpen).toBe(true);
-      const enter = ev('Enter'); down.fn(enter);
-      expect(enter.stopped && enter.prevented).toBe(true);
-      expect(rt.state().screen).toBe(null);
+      rt.close(); m.paint();
       expect(window.__mojMenuOpen).toBe(false);
     } finally { globalThis.window = was; }
   });

@@ -81,29 +81,45 @@ pointer, and the root carries it as `data-input`).
 - **A bottom sheet** (`place: 'sheet'`) is a phone's menu, risen from the foot of the screen in reach of a thumb, with
   its grabber. The `action-sheet` idiom is one; `phone-buttons` puts the pause and the map on taps.
 
-## Controls: the schemes in, the glyphs out
+## Controls: mana-ui is a view, the controls layer drives it
 
-mana-ui reads its controls from the control schemes (`control/lib/graph/controls/`): intents, never keys. The device
-families follow their standards (keyboard codes, the W3C standard gamepad in three printed layouts, a touch screen's
-virtual pad, WebXR). It takes them as data, through `controls/mana-controls.js`:
+A page has one input paradigm, and it is not mana-ui's. The controls layer (`control/lib/graph/controls/`) owns the
+devices:
 
-- **In.** `manaControls()` resolves the `menu` scheme (and the pilot's interact, which also accepts) onto the keyboard
-  and onto each pad layout, in the same shape the playscape menus read. `mount(el, rt, { controls, drivers })` reads
-  them:
-  - keys on the window, in the capture phase
-  - every connected pad once a frame, on its press edges, in its own printed layout; pad n drives seat n
-  - any other device through a driver (`() → { actions }`, a headset or a wheel)
+- the schemes (intents, never keys)
+- the device families and their drivers (keyboard codes, the W3C standard gamepad in three printed layouts, WebXR, the
+  virtual touch pad `controllable/touch.js`)
+- the seats kernel, which says which controller is which player
 
-  A remap is the kernel's override, so the screens follow it.
-- **Out.**
-  - `manaGlyphs()` says what each action's control is called on each family and layout. `rt.glyphs(table)` hands it
-    to the runtime, so a `prompt` and a `legend` print the glyph of the device in hand ("Enter", "A", "✕", "B" on a
-    Nintendo pad's right), switching as the player picks up another. A touch screen draws no legend.
-  - `controlsRows(scheme)` gives the controls screen a scheme's bindings as the kernel labels them, a clash marked.
-    `remap()` sets a captured control and returns the conflicts it makes (advised, never refused).
-- **The drawn touch pad is a driver.** Its stick and buttons hold the gamepad family's own controls (`south`, `rt`,
-  `leftX` …: devices.js's `touch` family drives `gamepad`). `mount` returns `read(control)` for the page's controls
-  kernel, so a phone plays through the same schemes as a pad.
+mana-ui names no key, polls no pad and seats no player; `boundary.test.js` holds the kernel to that. Its runtime takes
+intents:
+
+- `rt.press(action, seat)`: what to do, and for which seat
+- `rt.input(mode, layout)`: the device in hand, for the focus style and the glyphs
+- `rt.glyphs(table)`: what each control is called
+
+Its mount is a view: it draws, holds the page while a screen is up (`window.__mojMenuOpen`), and hit-tests its own
+widgets under a pointer (only the view knows where they are).
+
+- **The host.** `controls/mana-host.js connect(rt, view, { ...manaControls(), seatOf })` is the page's input owner
+  driving the UI:
+  - While a screen is up, it takes the keys the menu scheme knows in the capture phase (play never sees them).
+  - It reads every pad once a frame on its press edges, in its own printed layout, the seat from `seatOf` (the seats
+    kernel's answer on a couch page).
+  - It reads any other device through a driver.
+  - With no screen up, it takes nothing; it only tells the runtime which device is in hand, so the HUD's prompts follow.
+- **The schemes in.** `controls/mana-controls.js manaControls()` resolves the menu scheme (the pilot's interact
+  accepting too) onto the keyboard and each pad layout, in the shape the playscape menus read. A remap is the kernel's
+  override.
+- **The glyphs out.**
+  - `manaGlyphs()` gives each action's control per family and layout. A `prompt` and a `legend` print the one in hand
+    ("Enter", "A", "✕"), switching as the player picks up another device; a touch screen draws no legend.
+  - `controlsRows(scheme)` lists a scheme on the controls screen as the kernel labels it, a clash marked.
+  - `remap()` returns the conflicts it makes (advised, never refused).
+- **The drawn touch pad** is a look only: its buttons are named by the gamepad controls they are (`data-control`). The
+  virtual pad's driver is the controls layer's.
+- **Previews** (the board, `manaUiPage`) take the host as `host: { source: manaHostSource(), controls }`. Without one,
+  they drive their frames with `PREVIEW_KEYS`, a stand-in in the preview's own script, never in the kernel.
 
 ## The components, by group
 
