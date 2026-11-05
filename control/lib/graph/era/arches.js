@@ -100,14 +100,15 @@ export function archRing(out, F, a, b, zs, rise, seg, w, proud, surf) {
  * `arc` ({ a, b, zs, rise }, the arch `pts` was struck as): laid as its ring's voussoirs, each stone its own faces and
  * its own cut of the stone's grain (its texture shifted a stone along), so no underside reads as one bent slab. */
 export function archSoffit(out, pt, pts, depth, surf, n3, A, arc = null) {
-  const seq = arc ? Array.from({ length: voussoirs(arc.a, arc.b, arc.zs, arc.rise) }, (_, s, ) => s) : null;
+  const seq = arc ? Array.from({ length: voussoirs(arc.a, arc.b, arc.zs, arc.rise) }, (_, s) => s) : null;
   const face = (p, q, du) => {
     const n = n3(norm2((p.n[0] + q.n[0]) / 2, (p.n[1] + q.n[1]) / 2));
     quad(out, [pt(p.u, 0, p.z), pt(q.u, 0, q.z), pt(q.u, depth, q.z), pt(p.u, depth, p.z)], n, surf, A, null,
       [[p.u / surf.scale + du, 0], [q.u / surf.scale + du, 0], [q.u / surf.scale + du, depth / surf.scale], [p.u / surf.scale + du, depth / surf.scale]]);
   };
   if (!seq) { for (let i = 0; i + 1 < pts.length; i++) face(pts[i], pts[i + 1], 0); return; }
-  const n = seq.length, sub = Math.max(1, Math.round((pts.length - 1) / n));
+  // (an even count of faces a stone, so the keystone's middle is the crown)
+  const n = seq.length, sub = 2 * Math.max(1, Math.round((pts.length - 1) / (2 * n)));
   for (const s of seq) {
     const I = Array.from({ length: sub + 1 }, (_, j) => arcAt(arc.a, arc.b, arc.zs, arc.rise, (s + j / sub) / n));
     for (let j = 0; j < sub; j++) face(I[j], I[j + 1], ((s * 37) % 11) * 0.137);
