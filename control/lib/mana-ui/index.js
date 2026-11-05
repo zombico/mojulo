@@ -1,0 +1,49 @@
+/**
+ * MANA-UI — the game UI runtime (internal name). Playscape says what a game's UI is; this runs it, once for every game.
+ * The folder imports nothing outside itself (boundary.test.js), so a backend for an engine can read the same spec, and
+ * the folder can leave for a package of its own unchanged. Design: docs/mana-ui.md.
+ *
+ *   kernel.js   the runtime (buildManaUi: components, props and bindings, the stack, focus, effects, the DOM backend)
+ *   css.js      the DOM backend's sheet over the guide's tokens
+ *   idioms.js   the shared screens as compositions (pause, options, the RPG party)
+ *
+ *   manaUiPage(spec, { state?, tokens?, title?, open? })  → a self-contained page that runs a spec over a plain state
+ *     object (the preview host: a `set` writes the state, every other effect is logged under the screen), for the
+ *     eyes gate and the headless driver (`window.__manaUi`: the runtime; `window.__manaLog`: the effects it emitted)
+ */
+import { manaUi, manaUiSource } from './kernel.js';
+import { manaCss, tokenCss } from './css.js';
+import { withIdioms } from './idioms.js';
+
+export { manaUi, manaUiSource, buildManaUi } from './kernel.js';
+export { manaCss, tokenCss, DEFAULT_TOKENS } from './css.js';
+export { IDIOMS, IDIOM_IDS, withIdioms } from './idioms.js';
+
+const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+/** A self-contained preview page: the spec (with the idioms) run over `state`. Throws, teaching, on a bad spec. */
+export function manaUiPage(spec, { state = {}, tokens = {}, title = 'mana-ui', open = null } = {}) {
+  const full = withIdioms(spec);
+  manaUi.readSpec(full);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title><style>
+html,body{margin:0;height:100%;background:#05070c}body{${tokenCss(tokens)};--moj-font:system-ui,sans-serif;--moj-harm:#ff5a4d;--moj-value:#ffd700;--moj-goal:#3ff56f}
+.stage{position:fixed;inset:0;background:radial-gradient(circle at 30% 30%,#1d2a44,#05070c 70%)}
+.log{position:fixed;left:8px;bottom:8px;font:11px/1.3 ui-monospace,monospace;color:#9fb0cc;opacity:.8;z-index:50;white-space:pre}
+${manaCss()}
+</style></head><body><div class="stage"></div><div id="mana"></div><div class="log" id="log"></div><script>
+const manaUi = ${manaUiSource()};
+const STATE = ${json(state)}, LOG = window.__manaLog = [];
+const host = {
+  read: (p) => manaUi.readPath(STATE, p),
+  act: (e, from) => {
+    if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = STATE; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
+    LOG.push({ e, from }); document.getElementById('log').textContent = LOG.slice(-4).map((x) => (x.from.screen || '-') + ' ' + JSON.stringify(x.e)).join('\\n');
+  },
+};
+const rt = window.__manaUi = manaUi.runtime(${json(full)}, host);
+${open ? `rt.open(${json(open)});` : ''}
+manaUi.mount(document.getElementById('mana'), rt, { auto: true });
+</script></body></html>`;
+}

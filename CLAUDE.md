@@ -8,11 +8,13 @@ comments, docs, or the changelog: plans are working documents that move to
 ## What this is
 
 A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
-agent works through six departments: worlds and levels (art direction, light, set pieces, cities planned for play),
+agent works through seven departments: worlds and levels (art direction, light, set pieces, cities planned for play),
 characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
 juice, `create_beats`), foes and bosses, cinematics (the actor: a persona's `style` and `role`, scenes and their coverage,
 `forge_motion`, the scenes card; craft in [docs/cinematics.md](docs/cinematics.md)), and game design and
-production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game. The audit and the engine legs
+production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game, and interface and UX (menus, a
+game's front and screen; its runtime is mana-ui, below; newest, so not yet in the README or the `get_substrate` drawer,
+which join it once a game's UI runs on mana-ui). The audit and the engine legs
 are how everything holds up, not departments. Every department writes into one tiny deterministic recipe (a `sketches`
 row) that regenerates on every read and exports to the web, a team's engine (Godot, Unity, Unreal, Blender), GLB, STL,
 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe are what
@@ -254,10 +256,14 @@ Pointers only; each target carries its own design notes.
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
 - The game book's chapters: [gameworld/chapters.js](control/lib/graph/gameworld/chapters.js) (each page a chapter in one of
-  the six departments: the recipe paths, review parts, run steps and cards it owns, and the chapters it reads; a new one
+  the seven departments: the recipe paths, review parts, run steps and cards it owns, and the chapters it reads; a new one
   that joins no chapter fails `chapters.test.js`). `design_game`'s readout says them (`chapters`); `{ ref, chapter }`
   is one chapter's view ([gameworld/chapter-view.js](control/lib/graph/gameworld/chapter-view.js)), a department's; the
   studio card (`gameworld-studio`, generated from the registry) teaches the agent to work them in waves.
+- Game UI runtime (internal name mana-ui): [control/lib/mana-ui/](control/lib/mana-ui/) (the one runtime playscape's UI
+  words run on, so a screen is built once and not game by game: components with props passed down, the game's state
+  read through bindings and never copied, a form that is a tree of data, a function that is cue effects; the shared
+  screens as compositions in `idioms.js`; imports nothing outside its folder): [docs/mana-ui.md](docs/mana-ui.md).
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).
