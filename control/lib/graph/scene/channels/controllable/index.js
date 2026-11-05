@@ -70,8 +70,10 @@ function pagePart(p) {
   if (typeof rest.pos !== 'string' || typeof rest.col !== 'string' || PER_CORNER.some((k) => rest[k] !== undefined)) return rest;
   const buf = (s) => Buffer.from(s, 'base64');
   const P = buf(rest.pos), C = buf(rest.col);
-  const positions = new Float32Array(P.buffer, P.byteOffset, P.byteLength / 4), colors = new Uint8Array(C.buffer, C.byteOffset, C.byteLength);
-  if (colors.length !== positions.length) return rest;
+  // (the packer takes colours on [0, 1], as a bake hands them, and writes them back as bytes: k/255 returns k exactly)
+  const positions = new Float32Array(P.buffer, P.byteOffset, P.byteLength / 4), bytes = new Uint8Array(C.buffer, C.byteOffset, C.byteLength);
+  if (bytes.length !== positions.length) return rest;
+  const colors = Float32Array.from(bytes, (k) => k / 255);
   const { pos: _p, col: _c, ...keep } = rest;
   return { ...keep, ...packRigMesh({ positions, colors }, rest.faces) };
 }

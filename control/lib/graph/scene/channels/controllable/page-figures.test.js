@@ -13,7 +13,7 @@ const fromI16 = (s) => { const b = Buffer.from(s, 'base64'); return Array.from(n
 
 // two triangles sharing an edge, as a soup of six corners
 const SOUP = [0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0];
-const COL = Array.from({ length: 18 }, () => 200);
+const COL = [200, 120, 40, 7, 64, 255, 0, 33, 180, 7, 64, 255, 90, 90, 90, 0, 33, 180];
 const clip = { k: 2, b: [0, 0, 0, 1, 0.1, 0.2, 1.5, 0.7071, 0, 0, 0.7071, -0.3, 0.25, 1.4] };
 const layered = (extra = {}) => ({
   rig: true, layered: true, bones: [{ id: 'pelvis', head: [0, 0, 0], tail: [0, 0, 1] }],
@@ -39,6 +39,9 @@ describe('the figure bank a level\'s page reads', () => {
     const q = fromU16(part.q), idx = fromU16(part.idx);
     const back = idx.flatMap((i) => [0, 1, 2].map((a) => part.o[a] + q[3 * i + a] * part.s[a]));
     back.forEach((v, i) => expect(v).toBeCloseTo(SOUP[i], 4));
+    // its colours byte for byte, each corner's own
+    const col = [...Buffer.from(part.col, 'base64')];
+    expect(idx.flatMap((i) => col.slice(3 * i, 3 * i + 3))).toEqual(COL);
   });
 
   it('a skinned figure keeps its weights, and a part laid per corner is left as a soup', () => {
