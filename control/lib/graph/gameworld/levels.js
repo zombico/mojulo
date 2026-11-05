@@ -45,7 +45,7 @@ import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
-import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
+import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
 import { complexRoute, complexLaws } from '../network/complex.js';
@@ -877,7 +877,9 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   const arrivals = [];
   for (const p of party ?? []) {
     if (p.walks === false && p.joins) members.push({ who: p.id, joins: p.joins });
-    if (p.joinsAt === stage.level && (stage.index ?? 0) === 0 && p.joins) arrivals.push({ id: `party-${p.id}-arrives`, when: { start: true }, then: [{ emit: `flag:${p.joins}` }, { say: `${p.name ?? p.id} joins the party`, as: 'toast' }] });
+    // (once the carried flags are in, and only if the member has not joined already: one the story joins earlier, as
+    // its quest is given, is not said twice)
+    if (p.joinsAt === stage.level && (stage.index ?? 0) === 0 && p.joins) arrivals.push({ id: `party-${p.id}-arrives`, when: { on: FLAGS_READY }, if: [{ var: flagVar(p.joins), eq: 0 }], then: [{ emit: `flag:${p.joins}` }, { say: `${p.name ?? p.id} joins the party`, as: 'toast' }] });
   }
   if (joiners.length) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities], pilot = entities[0], h = ends.heading;

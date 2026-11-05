@@ -179,6 +179,8 @@ describe('the party joining', () => {
     expect(arrives(first(order[0]))).toEqual(['party-party-1-arrives']);
     expect(arrives(first(order[1]))).toEqual(['party-party-2-arrives']);
     expect(first(order[0]).play.cues.find((c) => c.id === 'party-party-1-arrives').then[0]).toEqual({ emit: 'flag:join-party-1' });
+    // (once the carried flags are in, and only if not joined already: one the story joined earlier is not said twice)
+    expect(first(order[0]).play.cues.find((c) => c.id === 'party-party-1-arrives')).toMatchObject({ when: { on: 'flags-ready' }, if: [{ var: 'flag-join-party-1', eq: 0 }] });
     // the fights know them by the same flags; the level carries them
     const party = lowerPlay(first(order[0]), { player: 'hero' }).rpg.party;
     expect(party.filter((p) => p.joins).map((p) => [p.id, p.joins])).toEqual([['party-1', 'join-party-1'], ['party-2', 'join-party-2']]);

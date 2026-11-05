@@ -99,3 +99,6 @@
   `won-<pack>` as it falls, and a page it is carried into clears that pack at once (`rpg.js wonFlag`). And a link may
   take `needs: '<flag>'`, a quest's flag: the way is shut until the story sets it, in the shell (the exit's flag gate)
   and on its page (the exit's reach waits on the flag's var), so a dungeon is not walked into before its quest is given.
+- **A member joined by the story is not joined twice.** The default arrival (the dungeon's quest's member, as its level
+  starts) waits for the carried flags and plays only if the member has not joined yet: one the story joins as the quest
+  is given in town is not toasted again at the dungeon's door.
