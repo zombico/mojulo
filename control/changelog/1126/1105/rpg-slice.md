@@ -31,3 +31,9 @@
 - **The battles card says what a foe's row does.** A row in `battles.foes` replaces its preset whole, its skills and
   drops with it unless named again: the slice's battles author wrote a shaman's stats alone and lost its `mend`, the
   skill its boss taught by. (The battles card's ceiling is 5120.)
+- **A packed page carries its plain groups packed too.** A page laid with `pack: true` (an isekai level, a stage) packed
+  only its textured groups; its plain ones (the ground chips, the rocks, the land's core) rode as float32 positions and
+  float32 colours, 18 MB of a party RPG's stage. Their positions now ride a uint16 grid over each group's own bounds and
+  their colours sRGB bytes (`packGroupArrays`, packTex's colours), decoded by the page to the same Float32Arrays, the
+  same triangles in the same order: 8.8 MB, a stage's page without its figures about 15 MB. A page laid without `pack`
+  is as before.
