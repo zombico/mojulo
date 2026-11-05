@@ -85,3 +85,13 @@ describe('the encounter\'s backdrop', () => {
     expect(not).not.toContain('__mojBackdrop');
   });
 });
+
+describe('the arena\'s clearing', () => {
+  it('is on a page whose fights are solved onto the map, and only there', async () => {
+    const { emitThreeWorld } = await import('../../scene-three.js');
+    const ENT = [{ id: 'hero', body: { type: 'box' }, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }];
+    const page = (stage) => emitThreeWorld({ faces: [], entities: ENT, events: { reactions: [{ on: 'rpg-won', do: 'emit', type: 'cheer' }], rpg: { party: [{ id: 'hero', class: 'fighter' }], rules: { stage } } } });
+    expect(page('arena')).toContain('window.__mojClip = {');
+    expect(page('live')).not.toContain('window.__mojClip = {');
+  });
+});

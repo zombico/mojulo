@@ -61,3 +61,10 @@
   page whose fights ask for it), and put back where they stood when it ends: a party RPG's battle background, the way
   the genre has drawn them. The encounter, its transition in and its scene out stay the same on either stage, so an
   action game keeps its fights live on the same map.
+- **A fight solved onto the map** (`battles.rules.stage: 'arena'`). A place near where the pack was met is solved for
+  the fight: candidates round the meeting along several fight lines, each scored by how level its fighters' ground is,
+  what stands on their places (the world's colliders), how far from the meeting, and whether a camera on the party's side
+  (the party on the left) sees every fighter past the ground. The party stands in an echelon and the pack in a wedge on
+  the map's own ground, facing across, under a fixed camera; what stands in the arena and in the corridor from the camera
+  to it (trees, rocks, grass: every group but the land) is cut away for the fight (`window.__mojClip`, emitted only for
+  such a page) and back after. The scene is the background: no arena is drawn for it.

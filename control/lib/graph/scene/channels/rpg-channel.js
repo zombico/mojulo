@@ -328,6 +328,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     const fid0 = figureOf(R.b.foes && R.b.foes[0] && R.b.foes[0].uid), fid = placed(fid0) ? fid0 : null, pid = placed(w.pilotId) ? w.pilotId : null, P = pid && w.byId[pid];
     const ids = [...new Set(R.b.ids.map((m) => figureOf(m)).filter(placed))], F = fid && w.byId[fid];
     if (!P || !ids.length) return;
+    if (cfg.rules && cfg.rules.stage === 'arena' && window.__mojCtrl && window.__mojCtrl.ground) { arenaStage(w, P, fid, ids, placed); return; }
     const fp = F ? F.transform.pos : [P.transform.pos[0] + Math.cos(P.transform.heading) * STAGE.gap, P.transform.pos[1] + Math.sin(P.transform.heading) * STAGE.gap, P.transform.pos[2]];
     let ux = P.transform.pos[0] - fp[0], uy = P.transform.pos[1] - fp[1];
     const n = Math.hypot(ux, uy);
@@ -401,6 +402,77 @@ export function rpgPage(cfg, K, ctl, jk) {
       }
     }
   }
+  // THE ARENA SOLVED (rules.stage 'arena'): a place near where the pack was met, on the map's own ground, for the fight.
+  // Candidates round the meeting (its point, and rings of ARENA_RINGS metres, ARENA_BEARINGS each), each tried along
+  // ARENA_AXES fight lines: its fighters' places (the party's echelon on one side, the pack's wedge on the other) scored
+  // by how level they stand (the spread of their ground), what stands on them (the world's colliders), how far from
+  // the meeting, and, for the most level, whether a camera on the party's side (the party left on the screen) sees every
+  // fighter's chest past the ground; the best is taken, its fighters stood on their ground facing across, the camera
+  // fixed, and what stands in the arena and between the camera and it cleared for the fight (window.__mojClip, the
+  // page's: the land kept)
+  const ARENA_RINGS = [0, 4, 8], ARENA_BEARINGS = 6, ARENA_AXES = 8, ARENA_GAP = 4.6;
+  const PARTY_AT = [[0, 0], [-1.3, 1.5], [-0.7, -1.6], [-2.2, 0.3]], PACK_AT = [[0, 0], [1.3, 1.4], [1.1, -1.5], [2.4, 0.2], [2.6, -2.8], [2.6, 2.9]];
+  function arenaStage(w, P, fid, ids, placed) {
+    const gnd = (x, y, z) => { const g = window.__mojCtrl.ground(x, y, z + 30); return g == null ? z : g; };
+    const E = fid ? w.byId[fid].transform.pos : P.transform.pos, z0 = E[2];
+    const met = (cfg.met || []).find((x) => x.id === R.b.enc), crew = met && Array.isArray(met.who) ? met.who.slice(1).filter(placed) : [];
+    const foes = [fid, ...crew].filter(Boolean), cols = Array.isArray(w.colliders) ? w.colliders : [];
+    // (a fight's places along its line u from the party to the pack, p across it: party left of the pack on the screen)
+    const slots = (c, u) => {
+      const p = [-u[1], u[0]], at = (a, b) => [c[0] + u[0] * a + p[0] * b, c[1] + u[1] * a + p[1] * b];
+      return { party: ids.map((id, i) => { const [a, b] = PARTY_AT[i] || [-2.2 - i * 0.6, (i % 2 ? 1 : -1) * 1.4]; return at(-ARENA_GAP / 2 + a, b); }),
+        pack: foes.map((id, i) => { const [a, b] = PACK_AT[i] || [2.4 + i * 0.5, (i % 2 ? 1 : -1) * 2]; return at(ARENA_GAP / 2 + a, b); }) };
+    };
+    const blocked = (q) => cols.some((k) => q[0] > k.min[0] - 0.5 && q[0] < k.max[0] + 0.5 && q[1] > k.min[1] - 0.5 && q[1] < k.max[1] + 0.5);
+    const cands = [];
+    for (const r of ARENA_RINGS) for (let k = 0; k < (r ? ARENA_BEARINGS : 1); k++) {
+      const t = (k / ARENA_BEARINGS) * 2 * Math.PI, c = [E[0] + r * Math.cos(t), E[1] + r * Math.sin(t)];
+      for (let j = 0; j < ARENA_AXES; j++) {
+        const a = (j / ARENA_AXES) * 2 * Math.PI, u = [Math.cos(a), Math.sin(a)], S = slots(c, u), all = [...S.party, ...S.pack];
+        const zs = all.map((q) => gnd(q[0], q[1], z0)), spread = Math.max(...zs) - Math.min(...zs);
+        cands.push({ c, u, S, zs, score: spread * 4 + all.filter(blocked).length * 3 + r * 0.05 });
+      }
+    }
+    cands.sort((x, y) => x.score - y.score);
+    // (the camera for the most level few: on the party's side, fitted to every fighter, lifted till each chest is seen)
+    const vf = ((w.camera && w.camera.fov) || STAGE.fov) * Math.PI / 360, asp = (window.innerWidth || 16) / (window.innerHeight || 9), hf = Math.atan(Math.tan(vf) * asp);
+    const shotOf = (K) => {
+      const u = K.u, d = [u[1], -u[0]], pts = [...K.S.party, ...K.S.pack].map((q, i) => [q[0], q[1], K.zs[i]]);
+      const mx = pts.reduce((s, q) => s + q[0], 0) / pts.length, my = pts.reduce((s, q) => s + q[1], 0) / pts.length, mz = pts.reduce((s, q) => s + q[2], 0) / pts.length;
+      let dist = STAGE.near;
+      for (const q of pts) { const along = (q[0] - mx) * u[0] + (q[1] - my) * u[1], dep = (q[0] - mx) * d[0] + (q[1] - my) * d[1]; dist = Math.max(dist, (Math.abs(along) + STAGE.margin) / Math.tan(hf) + Math.max(0, dep)); }
+      dist = Math.min(STAGE.far * 1.4, dist);
+      let best = null;
+      for (const lift of [0, 1.5, 3]) {
+        const el = (14 + lift * 3) * Math.PI / 180, H = dist * Math.cos(el), x = mx + d[0] * H, y = my + d[1] * H, z = Math.max(mz + 1 + dist * Math.sin(el), gnd(x, y, mz) + 1.4);
+        let hit = 0;
+        for (const q of pts) for (let s2 = 1; s2 < 7; s2++) { const t = s2 / 7, sx = x + (q[0] - x) * t, sy = y + (q[1] - y) * t, sz = z + (q[2] + 1.2 - z) * t; if (gnd(sx, sy, sz) + STAGE.clear > sz) hit++; }
+        if (!best || hit < best.hit) best = { pos: [x, y, z], look: [mx, my, mz + 0.9], hit, mid: [mx, my, mz], dist };
+        if (hit === 0) break;
+      }
+      return best;
+    };
+    let K = null, shot = null;
+    for (const cand of cands.slice(0, 8)) { const sh = shotOf(cand); if (!shot || sh.hit < shot.hit || (sh.hit === shot.hit && cand.score < K.score)) { K = cand; shot = sh; } if (sh.hit === 0) break; }
+    if (!K) return;
+    // (the fighters stood on their places, each facing across the line; the camera fixed)
+    const C = w.camera && w.camera.transform ? w.camera : null;
+    staged = { at: {}, cam: C ? { pos: C.transform.pos.slice(), heading: C.transform.heading, pitch: C.transform.pitch, lookAt: C.lookAt ? C.lookAt.slice() : null, rule: C.rule } : null };
+    const stand = (id, q, z, toward) => { const e = w.byId[id]; staged.at[id] = { pos: e.transform.pos.slice(), heading: e.transform.heading }; e.transform.pos = [q[0], q[1], z + ((e.rule && e.rule.eye) || 0)]; e.staged = true; e.transform.heading = Math.atan2(toward[1] - q[1], toward[0] - q[0]); };
+    const np = K.S.party.length, packMid = K.S.pack.length ? K.S.pack[0] : K.c, partyMid = K.S.party[0];
+    ids.forEach((id, i) => stand(id, K.S.party[i], K.zs[i], packMid));
+    foes.forEach((id, i) => stand(id, K.S.pack[i], K.zs[np + i], partyMid));
+    if (C) { C.transform.pos = shot.pos; C.lookAt = shot.look; C.rule = null; staged.view = { pos: shot.pos.slice(), look: shot.look.slice() }; }
+    // (cleared: the arena's footprint, and the corridor from the camera to the fight; the land kept)
+    if (window.__mojClip) {
+      const u = K.u, d = [u[1], -u[0]], m = shot.mid, half = shot.dist * Math.cos((14 * Math.PI) / 180) / 2;
+      window.__mojClip.set([
+        { c: [m[0], m[1]], u, half: [ARENA_GAP / 2 + 4.5, 4.2], z: [m[2] - 0.15, m[2] + 9] },
+        { c: [m[0] + d[0] * half, m[1] + d[1] * half], u: d, half: [half + 0.5, 2.6], z: [m[2] - 0.15, shot.pos[2] + 3] },
+      ]);
+      staged.cleared = true;
+    }
+  }
   // (the backdrop drawn once the fighters have left the place they met, so none stands in it)
   function backdrop1() {
     const B = staged && staged.backdrop;
@@ -414,6 +486,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     const C = w.camera, s = staged.cam;
     if (C && s) { C.transform.pos = s.pos; C.transform.heading = s.heading; C.transform.pitch = s.pitch; C.lookAt = s.lookAt; C.rule = s.rule; }
     if (staged.backdrop && staged.backdrop.h) staged.backdrop.h.dispose();
+    if (staged.cleared && window.__mojClip) window.__mojClip.clear();
     staged = null;
   }
   function pickNow(pick) {

@@ -61,7 +61,8 @@ describe('play.rpg: read and lowered', () => {
   it('where a fight is fought: on the map as it stands, or on its own arena before a backdrop of the map', () => {
     expect(readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'backdrop' } } }).rules.stage).toBe('backdrop');
     expect(readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'live' } } }).rules.stage).toBe('live');
-    expect(() => readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'arena' } } })).toThrow(/rules\.stage is live or backdrop/);
+    expect(readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'arena' } } }).rules.stage).toBe('arena');
+    expect(() => readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'ring' } } })).toThrow(/rules\.stage is live or backdrop or arena/);
   });
 
   it('on the bus: walking up starts it once; a win sends the foe off the map in smoke; a loss fails the level', () => {

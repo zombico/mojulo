@@ -41,8 +41,9 @@
  *                 defaults (juice.js); a skill's own `juice` too. Every beat says rpg-on:<happening> on the bus
  *     rules?:     { gold?: '<var>', defeat?: 'fail' | 'retry', switch?: 'anywhere' | 'never', carry?: 'class' | 'all',
  *                 foeHp?: 'bar' | 'hidden', turns?: 'rounds' | 'timeline', size?: 1-4, cap?: n, xp?: { base, growth },
- *                 stage?: 'live' | 'backdrop' (where it is fought: on the map as it stands; or on an arena of its own
- *                 before a background drawn once from the map where it was met, seen from the side, the party on the left),
+ *                 stage?: 'live' | 'arena' | 'backdrop' (where it is fought: on the map as it stands; on a place solved
+ *                 near where it was met, its ground the map's, what stands in it and before the camera cleared for the
+ *                 fight, the party on the left; or on an arena of its own before a background drawn once from the map),
  *                 view?: 'side' | 'front' | 'left' | 'right' | 'overhead' (where the fight is seen from: from the side, over
  *                 the party at the foes, a three-quarter view from either hand, from above),
  *                 cinema?: { on?: 'skills' | 'all', ui?: 'none' | 'numbers' | 'all', skip?: seconds }   a skill (or every
@@ -77,7 +78,7 @@ export const RPG_RULES = Object.freeze({
   gold: 'gold', defeat: 'fail', switch: 'anywhere', carry: 'class', foeHp: 'bar', turns: 'rounds', size: 4, cap: 50,
   xp: Object.freeze({ base: 10, growth: 1.5 }), cp: Object.freeze([0, 4, 10, 18, 30, 45, 65, 90]), sp: 1, seed: 1,
 });
-const RULE_WORDS = { defeat: ['fail', 'retry'], switch: ['anywhere', 'never'], carry: ['class', 'all'], foeHp: ['bar', 'hidden'], turns: ['rounds', 'timeline'], view: ['side', 'front', 'left', 'right', 'overhead'], stage: ['live', 'backdrop'] };
+const RULE_WORDS = { defeat: ['fail', 'retry'], switch: ['anywhere', 'never'], carry: ['class', 'all'], foeHp: ['bar', 'hidden'], turns: ['rounds', 'timeline'], view: ['side', 'front', 'left', 'right', 'overhead'], stage: ['live', 'backdrop', 'arena'] };
 const BUFF_STATS = ['atk', 'def', 'mag', 'spd'];
 const DEFAULT_BASE = Object.freeze({ hp: 30, mp: 0, atk: 8, def: 6, mag: 4, spd: 6 });
 const DEFAULT_GROWTH = Object.freeze({ hp: 6, mp: 0, atk: 2, def: 1.5, mag: 1, spd: 1 });
@@ -190,8 +191,9 @@ export function readRpg(play) {
   const Ru = P.rules ?? {};
   if (!isObj(Ru)) throw err('.rules is { gold?, defeat?, switch?, carry?, foeHp?, turns?, size?, cap?, xp?, cp?, sp?, seed?, view? }');
   // (view: where a fight is seen from, the side by default; written only where the book asks another)
-  // (stage: where a fight is fought: on the map as it stands, 'live', the default; or 'backdrop', the fighters on an arena
-  // of their own before a background drawn once from the map where they met, the party on the left: scene/channels)
+  // (stage: where a fight is fought: on the map as it stands, 'live', the default; 'arena', a place solved near where it
+  // was met on the map's own ground, cleared of what stands in it, the party on the left; or 'backdrop', the fighters on
+  // an arena of their own before a background drawn once from the map: scene/channels)
   keysOnly(Ru, [...Object.keys(RPG_RULES), 'view', 'cinema', 'stage'], '.rules');
   // (cinema: a skill (or every action) played as a short film: a close-up on the actor, behind it at its target, the
   // target as it lands, back to the view; ui what stays on the screen meanwhile; skip the seconds past which it may be
