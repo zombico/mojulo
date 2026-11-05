@@ -23,7 +23,11 @@
  *   THE CAP    the hero moves at most `cap` (default 40 m/s). Past it the tier shows in the look (`e.vayo.over`) and in
  *              the wake, which pushes air at the fiction's speed.
  *
- *   rule.vayo: { element?, power?, cap?, regen?,
+ *   THE JUMP   an air jump on its own air (`jump`: true | { height, rise?, count? }): the jump key in the air, after the
+ *              physical air jumps, catches the body and pushes it up to its peak in `rise`, then gravity's; the whole climb
+ *              is its `height` (the peak solved for it), from wherever it fires, and a release does not cut it. `count`
+ *              before the ground again.
+ *   rule.vayo: { element?, power?, cap?, regen?, jump?,
  *     dash?:   { speed, rise?, carry?, dir: 'input'|'facing', steer?, air?, iframes?: [s, s] | { frames }, cost?, cooldown? },
  *     flight?: { speed, rise?, carry?, climb?, boost?, drain? } }
  *   THE DASH   a push of `rise` seconds to its peak in a locked direction (`steer` 0–1 lets it turn), then the release, handed back to
@@ -54,13 +58,13 @@ export function buildVayoMove(E) {
   const POWER = { human: 1, heroic: 10, super: 1e3, titan: 1e5, cosmic: 1e8 };
   const CAP = 40, WAKE_R = 0.4, WAKE_EVERY = 0.1, WAKE_MIN = 8, FPS = 60, RISE_DEF = 0.12;
   const ELEMENTS = {
-    wind: { dash: { carry: 6, rise: 0.16 }, flight: { rise: 0.8 }, color: [0.72, 0.95, 0.85] },
-    earth: { dash: { carry: 1.2, rise: 0.08 }, flight: { rise: 0.25 }, color: [0.78, 0.6, 0.38] },
-    lightning: { dash: { carry: 2, rise: 0.04, speedK: 1.3 }, flight: { rise: 0.15 }, color: [0.75, 0.85, 1] },
-    fire: { dash: { carry: 3.5, rise: 0.12 }, flight: { rise: 0.4 }, color: [1, 0.55, 0.2] },
-    water: { dash: { carry: 4, rise: 0.2 }, flight: { rise: 0.6 }, color: [0.4, 0.7, 1] },
+    wind: { dash: { carry: 6, rise: 0.16 }, flight: { rise: 0.8 }, jump: { rise: 0.2 }, color: [0.72, 0.95, 0.85] },
+    earth: { dash: { carry: 1.2, rise: 0.08 }, flight: { rise: 0.25 }, jump: { rise: 0.06 }, color: [0.78, 0.6, 0.38] },
+    lightning: { dash: { carry: 2, rise: 0.04, speedK: 1.3 }, flight: { rise: 0.15 }, jump: { rise: 0.04 }, color: [0.75, 0.85, 1] },
+    fire: { dash: { carry: 3.5, rise: 0.12 }, flight: { rise: 0.4 }, jump: { rise: 0.1 }, color: [1, 0.55, 0.2] },
+    water: { dash: { carry: 4, rise: 0.2 }, flight: { rise: 0.6 }, jump: { rise: 0.16 }, color: [0.4, 0.7, 1] },
   };
-  const DEF = { dash: { speed: 12, carry: 3, rise: 0.1, dir: 'input', steer: 0, air: true, cost: 0, cooldown: 0 }, flight: { speed: 10, rise: 0.4, climb: 6, boost: 1.8, drain: 0 } };
+  const DEF = { dash: { speed: 12, carry: 3, rise: 0.1, dir: 'input', steer: 0, air: true, cost: 0, cooldown: 0 }, flight: { speed: 10, rise: 0.4, climb: 6, boost: 1.8, drain: 0 }, jump: { height: 2.2, rise: 0.12, count: 1 } };
   const num = (v) => typeof v === 'number' && Number.isFinite(v);
 
   // ── the law ──
@@ -141,7 +145,7 @@ export function buildVayoMove(E) {
     const mu = num(r && r.metre) && r.metre > 0 ? r.metre : 1;
     const el = ELEMENTS[V.element] || null, cap = (num(V.cap) && V.cap > 0 ? V.cap : CAP) * mu, power = powerOf(V.power ?? worldPower), root = Math.sqrt(power);
     const hand = Math.max(0.5, num(r && r.speed) ? r.speed : 6);
-    const out = { element: V.element || null, color: el ? el.color : [0.85, 0.92, 1], cap, power, regen: num(V.regen) ? V.regen : 0.25, dash: null, flight: null };
+    const out = { element: V.element || null, color: el ? el.color : [0.85, 0.92, 1], cap, power, regen: num(V.regen) ? V.regen : 0.25, dash: null, flight: null, jump: null };
     for (const kind of ['dash', 'flight']) {
       if (!V[kind]) continue;
       const own = V[kind] === true ? {} : V[kind], shape = el ? el[kind] : {}, o = { ...DEF[kind], ...shape, ...own };
@@ -158,6 +162,17 @@ export function buildVayoMove(E) {
       }
       out[kind] = m;
     }
+    // THE JUMP (an air jump on its own air): a push straight up of `rise` seconds to its peak speed, then gravity's; the
+    // peak solved by halving so the whole climb, the push's and the throw's (v²/2g at the rule's rising gravity), is its
+    // `height`. Its fiction's speed is that ×√power (its height ×power: the energy), its play's at most the cap.
+    if (V.jump) {
+      const own = V.jump === true ? {} : V.jump, o = { ...DEF.jump, ...(el ? el.jump : {}), ...own }, g = num(r && r.gravity) ? r.gravity : 20 * mu;
+      const H = o.height * mu, apex = (v) => { const q = solve({ speed: v, rise: o.rise }, hand, true); return push(0, q.p, q.k, o.rise)[1] + (v * v) / (2 * g); };
+      let lo = 0.01, hi = Math.sqrt(2 * g * H) * 2;
+      for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (apex(m) < H) lo = m; else hi = m; }
+      const fiction = hi * root, play = Math.min(fiction, cap), q = num(o.pressure) && num(o.density) ? { p: o.pressure * mu, k: o.density / mu } : solve({ speed: play, rise: o.rise }, hand, true);
+      out.jump = { ...o, height: H, fiction, play, over: fiction > cap ? 1 - cap / fiction : 0, count: Math.max(1, Math.round(o.count)), ...q };
+    }
     return out;
   }
   E.vayoMove = { law: { push, coast, brake, toward, step }, solve, resolve, ELEMENTS, POWER, CAP };
@@ -169,7 +184,7 @@ export function buildVayoMove(E) {
   // a hero's vayo, resolved when it changes (a power's grant patches the rule live)
   const vayoOf = (e, world) => {
     const V = e.rule && e.rule.vayo;
-    if (!V) { e.vayoR = null; e.vayoKey = null; return null; }
+    if (!V) { if (e.vayoR) { e.vayoR = null; e.vayoKey = null; } return null; }   // (a hero without one is not touched)
     if (e.vayoKey !== V) { e.vayoKey = V; e.vayoR = resolve(V, e.rule, e.vayoWorldPower); }
     return e.vayoR;
   };
@@ -226,6 +241,7 @@ export function buildVayoMove(E) {
     e.vayoWakeAt = t;
     (e.vayoWakes || (e.vayoWakes = [])).push({ at: [...e.transform.pos], v: (e.vayo && e.vayo.speed > 0 ? e.vayo.speed / M.play : 1) * M.fiction, R: WAKE_R, kind });
   };
+  const r0 = (ctx) => ctx.r;
   const end = (e, ctx, v, dir) => {
     e.vayoDash = null; e.vayoFly = null; e.vayo = null; e.invincible = false;
     if (ctx.r.accel > 0 && dir) e.drive = [dir[0] * v, dir[1] * v];   // the rule's own drive takes the speed it was left
@@ -234,7 +250,7 @@ export function buildVayoMove(E) {
   // the KEY, the meter, the start and the end (after the dodge and the tackle: order 30)
   registerPlatformManeuver('maneuver', 'vayo', (e, input, dt, world, ctx) => {
     const V = vayoOf(e, world);
-    if (!V) { if (e.vayoDash || e.vayoFly) end(e, ctx, 0, null); return; }
+    if (!V) { if (e.vayoDash || e.vayoFly || e.vayoJump) { e.vayoJump = null; end(e, ctx, 0, null); } return; }
     const press = !!input.vayo && !e.vayoPrev;
     e.vayoPrev = !!input.vayo;
     if (e.vayoMeter == null) e.vayoMeter = 1;
@@ -242,6 +258,7 @@ export function buildVayoMove(E) {
     if (e.vayoCd > 0) e.vayoCd = Math.max(0, e.vayoCd - dt);
     const busy = e.dodgeT != null || e.tackleT != null || e.staggerT != null;
     if (press && !busy) {
+      e.vayoJump = null;   // (a dash or a flight takes over a jump's push)
       if (e.vayoFly) { e.vayoFly = null; e.vayo = null; }   // let go: gravity takes it
       else if (!e.vayoDash) {
         const air = !e.grounded;
@@ -258,6 +275,14 @@ export function buildVayoMove(E) {
           e.vayoMeter -= D.cost; e.vayoCd = D.cooldown;
         }
       }
+    }
+    // THE JUMP: the jump key in the air, past the coyote's grace, after the physical air jumps (they fire first); the
+    // count again on the ground. Its throw is its air's, not the legs': a release does not cut it (`launchedBy`)
+    if (e.grounded) { e.vayoJumps = 0; if (e.launchedBy === 'vayo') e.launchedBy = null; }   // (landed: its jumps again, and the legs' cut)
+    if (e.vayoJumpV != null) { if (!e.grounded) e.vel[2] = e.vayoJumpV; e.vayoJumpV = null; }
+    if (V.jump && input.jump && !ctx.jumped && !e.grounded && (e.coyote ?? 0) >= (r0(ctx).coyote ?? 0.1) && (e.vayoJumps || 0) < V.jump.count && !e.vayoFly && !e.vayoDash && !e.vayoJump && !busy) {
+      // (its air catches the body: it climbs its height from where it fires)
+      e.vayoJump = { vz: 0, left: V.jump.rise, t: 0 }; e.vayoJumps = (e.vayoJumps || 0) + 1; e.jumpBuf = 0; e.launchedBy = 'vayo'; ctx.jumped = true;
     }
     if (e.vayoFly && e.grounded && e.vayoFly.t > 0.1 && e.vayoFly.vz <= 0) { const F = e.vayoFly; end(e, ctx, Math.hypot(F.vh[0], F.vh[1]), F.vh[0] || F.vh[1] ? [F.vh[0] / Math.hypot(F.vh[0], F.vh[1]), F.vh[1] / Math.hypot(F.vh[0], F.vh[1])] : null); }
     if (e.vayoFly && V.flight.drain > 0) { e.vayoMeter -= V.flight.drain * dt; if (e.vayoMeter <= 0) { e.vayoMeter = 0; e.vayoFly = null; e.vayo = null; } }
@@ -283,6 +308,16 @@ export function buildVayoMove(E) {
       wake(e, D, 'dash', world);
       if (done || S.t > D.rise + 4) end(e, ctx, S.v, S.dir);
       return;
+    }
+    if (e.vayoJump) {
+      // up on its own air, from rest (its air caught the body as it fired) toward its peak, for its rise; then gravity's
+      // (the step moves the push's own distance, exact, and the rest of a step its push ends in at the speed it left)
+      const J = e.vayoJump, M = V.jump, u = Math.min(dt, J.left), [v1, d1] = push(J.vz, M.p, M.k, u);
+      J.vz = v1; J.left -= dt; J.t += dt;
+      holdVz(e, r, (d1 + v1 * (dt - u)) / dt, dt);
+      e.vayo = { kind: 'jump', element: V.element, color: V.color, speed: Math.abs(J.vz), fiction: Math.abs(J.vz) * (M.fiction / M.play), over: M.over, t: J.t };
+      wake(e, M, 'jump', world);
+      if (J.left <= 0) { e.vayoJump = null; e.vayo = null; e.vayoJumpV = v1; }   // gravity takes it at the speed it left
     }
     if (e.vayoFly) {
       const F = e.vayoFly, M = V.flight, boost = !!input.boost;
@@ -315,7 +350,7 @@ export function buildVayoMove(E) {
 
   // it owns the body: the dash and the flight lean into their push (the boost pose), a hover idles
   registerPlatformManeuver('claim', 'vayo', (e, input, dt, world, ctx) => {
-    if (!e.vayo) return false;
+    if (!e.vayo || e.vayo.kind === 'jump') return false;   // (a jump keeps the airborne pose)
     e.locomotion = e.vayo.hover ? 'idle' : 'boost'; e.moving = !e.vayo.hover; e.tumble = null;
     e.gaitPhase = (e.gaitPhase || 0) + e.vayo.speed * dt / (ctx.strideLen || 2.4);
     if (e.vayo.kind === 'flight') e.invincible = false;

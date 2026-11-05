@@ -596,17 +596,22 @@ always a curve, never a line. A move is written by what it does and the law solv
 - **A flight:** its cruise `speed` and its `rise` (τ), and its `climb`. It is held while it flies, steered by the stick,
   up with the jump key and down with kneel. Let go, it hovers (its air brakes its rise or fall to rest). It never stalls,
   unlike the aircraft's `fly` rule, and it lands when it comes down onto the ground. `boost` raises its speed.
+- **A jump** (an air jump on its own air): the jump key in the air, after the physical air jumps have fired. Its air
+  catches the body and pushes it up to its peak in `rise`, then gravity takes it. The whole climb is its `height` (the
+  peak solved for it, the push's exact distance and the throw's), from wherever it fires, and a release does not cut it.
+  `count` before the ground again.
 
 ```
 rule.vayo: { element?, power?, cap?, regen?,
   dash?:   true | { speed, rise?, carry?, dir?, steer?, air?, iframes?, cost?, cooldown? },
+  jump?:   true | { height, rise?, count? },
   flight?: true | { speed, rise?, carry?, climb?, boost?, drain? } }
 ```
 
 - **Elements are presets of the shape** and of the trail's colour: wind (thin air, a long carry), earth (dense, a hard
   stop), lightning (a great push, a snap), fire, water (a smooth rise). The order a move is built in, each over the one
   before: the defaults, its element, the game's feel card (its dash and jetpack, `feel/lower.js feelVayo`, read only for
-  a hero with a vayo move), then the hero's own numbers.
+  a hero with a vayo move: its dash, its jetpack, its air jump), then the hero's own numbers.
 - **Power sets the fiction, the cap the play.** The move's energy scales with its tier (`power`, the hero's own, else the
   world's `matter.power`), so its fiction's speed is speed·√power. The hero moves at most `cap` (40 m/s). Past it, the
   tier shows in its trail (thicker, whiter), a boom where a move past sound starts, and its wake.

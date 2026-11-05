@@ -136,6 +136,46 @@ describe('the flight: rise, hover and fly at will', () => {
   });
 });
 
+// a jump, then the vayo jump near its top: [the climb from where the vayo jump fired, the world]
+const airJump = (vayo, fps = 60, extra = {}) => {
+  const w = world(vayo, extra), h = w.byId.h, dt = 1 / fps;
+  steps(w, {}, fps / 6, dt);
+  steps(w, { jump: 1, jumpHeld: 1 }, 1, dt); steps(w, { jumpHeld: 1 }, Math.round(fps * 0.3), dt);
+  const z0 = h.transform.pos[2]; let top = z0;
+  steps(w, { jump: 1, jumpHeld: 1 }, 1, dt);
+  for (let k = 0; k < fps * 2; k++) { steps(w, {}, 1, dt); top = Math.max(top, h.transform.pos[2]); }
+  return { gain: top - z0, w, h };
+};
+
+describe('the vayo jump: an air jump on the hero\'s own air', () => {
+  it('climbs its height from wherever it fires, at any frame rate, and a release does not cut it', () => {
+    for (const fps of [30, 60, 144]) { const g = airJump({ jump: { height: 3 } }, fps).gain; expect(g).toBeGreaterThan(3 * 0.97); expect(g).toBeLessThan(3 * 1.03); }
+    // (the jump key let go at once: still the whole height)
+    expect(airJump({ jump: true }).gain).toBeGreaterThan(2.2 * 0.97);
+  });
+
+  it('the physical air jump fires first; the vayo jump after it', () => {
+    const both = world({ jump: true }, { airJumps: 1 }), h = both.byId.h;
+    steps(both, {}, 10); steps(both, { jump: 1, jumpHeld: 1 }, 1); steps(both, { jumpHeld: 1 }, 15);
+    steps(both, { jump: 1, jumpHeld: 1 }, 1);
+    expect(h.airJumpsUsed).toBe(1); expect(h.vayoJumps || 0).toBe(0);
+    steps(both, { jumpHeld: 1 }, 15); steps(both, { jump: 1, jumpHeld: 1 }, 1);
+    expect(h.vayoJumps).toBe(1);
+  });
+
+  it('its count, again on the ground; its element its rise; its tier its height, held to the cap', () => {
+    const w = world({ jump: { count: 2 } }), h = w.byId.h;
+    steps(w, {}, 10); steps(w, { jump: 1, jumpHeld: 1 }, 1);
+    for (let i = 0; i < 3; i++) { steps(w, { jumpHeld: 1 }, 15); steps(w, { jump: 1, jumpHeld: 1 }, 1); }
+    expect(h.vayoJumps).toBe(2);
+    steps(w, {}, 400); expect(h.grounded).toBe(true); expect(h.vayoJumps).toBe(0);
+    expect(h.launchedBy).toBeFalsy();   // landed: the next ground jump is the legs' again, cut by a release
+    expect(resolveVayo({ element: 'earth', jump: true }).jump.rise).toBeLessThan(resolveVayo({ element: 'wind', jump: true }).jump.rise);
+    const sup = resolveVayo({ jump: true, power: 'super' }).jump;
+    expect(sup.play).toBe(40); expect(sup.fiction).toBeGreaterThan(40);
+  });
+});
+
 describe('a special ability beside the physical moves', () => {
   it('the physical moves keep their keys: a double tap of boost dodges, V does not', () => {
     const w = world({ dash: true }, { dodge: true, dodgeBoostCost: 0 }), h = w.byId.h;
@@ -148,8 +188,13 @@ describe('a special ability beside the physical moves', () => {
     expect(emissionSource({})).not.toContain('vayo-wake');
     expect(emissionSource({ vayoMove: true })).toContain('vayo-wake');
     expect(composeControllable(EMISSION).platformPhaseOrder().dash).not.toContain('vayo');
-    const w = world(null); steps(w, { vayo: 1 }, 5);
-    expect(w.byId.h.vayo).toBeUndefined();
+    // a hero without one steps byte for byte as the engine without the builder
+    const a = world(null);
+    for (let i = 0; i < 30; i++) CW.stepWorld(a, { forward: 1, vayo: 1 }, 1 / 60, G);
+    const plain = composeControllable(EMISSION);
+    const b2 = plain.createWorld({ entities: [hero(null)], pilot: 'h' });
+    for (let i = 0; i < 30; i++) plain.stepWorld(b2, { forward: 1, vayo: 1 }, 1 / 60, G);
+    expect(JSON.stringify(a.byId.h)).toBe(JSON.stringify(b2.byId.h));
   });
 
   it('its wake on the world\'s fires: a super\'s dash past a burning crate puts it out, a human\'s fans it', () => {
@@ -183,6 +228,7 @@ describe('read, granted and tuned', () => {
     const own = TRAVERSAL_MOVES['vayo-dash'].rule({ vayo: { element: 'earth', dash: { speed: 9 } } }, { element: 'fire', tune });
     expect(own.vayo.element).toBe('earth'); expect(own.vayo.dash).toEqual({ ...tune.dash, speed: 9 });
     expect(TRAVERSAL_MOVES['vayo-flight'].rule({}, { element: 'shadow' }).vayo).toEqual({ flight: true });
+    expect(TRAVERSAL_MOVES['vayo-jump'].rule({ vayo: { dash: true } }, {}).vayo).toEqual({ dash: true, jump: true });
     expect(readVayo(g.vayo)).toBeTruthy();
   });
 
@@ -192,6 +238,8 @@ describe('read, granted and tuned', () => {
     expect(t.dash.speed).toBe(withDash.dash.speed);
     expect(readVayo({ dash: t.dash })).toBeTruthy();
     expect(feelVayo({})).toBeNull();
+    const withAir = Object.keys(POLES).map((k) => feelCard({ pole: k })).find((c) => c.air && c.air.jumps >= 1);
+    if (withAir) { const j = feelVayo(withAir).jump; expect(j.count).toBe(Math.round(withAir.air.jumps)); expect(readVayo({ jump: j })).toBeTruthy(); }
     expect(lowerFeel(withDash).rule.vayo).toBeUndefined();
   });
 });
