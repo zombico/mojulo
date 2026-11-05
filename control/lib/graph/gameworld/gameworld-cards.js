@@ -101,6 +101,7 @@ function ledgerCard() {
     'THE MAIN QUEST AS THE QUEUE: { req: { unit: \'beat:<id>\' } } asks for the level a beat is played on (laid now if',
     'a run would lay it), its remit filled from the quest (the act and its stage, the beat\'s foes and gains, the beats',
     'around it, the core loop; your words win key by key). { req: { quest: true } } asks for every built beat, in order.',
+    'A chapter whole: { req: { unit: \'act:<id>\' } }, one req, its levels in play order and its departments one crew.',
     'ITS JOBS ({ ref, req: { id, start: true } }; the view\'s `req.does` says what is next: start, work, keep, critique,',
     'probe, fix, review). Hand each issued job to one agent with its brief (`req.jobs`: what it reads, writes and reports): an author',
     'sends its pages as `patch` and its `decisions`, each with `because`; diverge authors each take an `angle`, their',

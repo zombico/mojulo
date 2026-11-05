@@ -413,19 +413,34 @@ export function rpgPage(cfg, K, ctl, jk) {
   const ARENA_RINGS = [0, 4, 8], ARENA_BEARINGS = 6, ARENA_AXES = 8, ARENA_GAP = 4.6;
   const PARTY_AT = [[0, 0], [-1.3, 1.5], [-0.7, -1.6], [-2.2, 0.3]], PACK_AT = [[0, 0], [1.3, 1.4], [1.1, -1.5], [2.4, 0.2], [2.6, -2.8], [2.6, 2.9]];
   function arenaStage(w, P, fid, ids, placed) {
-    const gnd = (x, y, z) => { const g = window.__mojCtrl.ground(x, y, z + 30); return g == null ? z : g; };
-    const E = fid ? w.byId[fid].transform.pos : P.transform.pos, z0 = E[2];
     const met = (cfg.met || []).find((x) => x.id === R.b.enc), crew = met && Array.isArray(met.who) ? met.who.slice(1).filter(placed) : [];
+    // (met in a room: the fight held to its floor, read from just over it, never from the roof above)
+    const room = met && met.room;
+    const gnd = room ? (x, y, z) => { const g = window.__mojCtrl.ground(x, y, room[4] + 1.2); return g == null ? room[4] : g; } : (x, y, z) => { const g = window.__mojCtrl.ground(x, y, z + 30); return g == null ? z : g; };
+    const E = fid ? w.byId[fid].transform.pos : P.transform.pos, z0 = room ? room[4] : E[2];
     const foes = [fid, ...crew].filter(Boolean), cols = Array.isArray(w.colliders) ? w.colliders : [];
     // (a fight's places along its line u from the party to the pack, p across it: party left of the pack on the screen)
-    const slots = (c, u) => {
-      const p = [-u[1], u[0]], at = (a, b) => [c[0] + u[0] * a + p[0] * b, c[1] + u[1] * a + p[1] * b];
+    const slots = (c, u, k) => {
+      const p = [-u[1], u[0]], at = (a, b) => (k ? [c[0] + u[0] * a * k[0] + p[0] * b * k[1], c[1] + u[1] * a * k[0] + p[1] * b * k[1]] : [c[0] + u[0] * a + p[0] * b, c[1] + u[1] * a + p[1] * b]);
       return { party: ids.map((id, i) => { const [a, b] = PARTY_AT[i] || [-2.2 - i * 0.6, (i % 2 ? 1 : -1) * 1.4]; return at(-ARENA_GAP / 2 + a, b); }),
         pack: foes.map((id, i) => { const [a, b] = PACK_AT[i] || [2.4 + i * 0.5, (i % 2 ? 1 : -1) * 2]; return at(ARENA_GAP / 2 + a, b); }) };
     };
     const blocked = (q) => cols.some((k) => q[0] > k.min[0] - 0.5 && q[0] < k.max[0] + 0.5 && q[1] > k.min[1] - 0.5 && q[1] < k.max[1] + 0.5);
     const cands = [];
-    for (const r of ARENA_RINGS) for (let k = 0; k < (r ? ARENA_BEARINGS : 1); k++) {
+    // (in a room: its middle, the line along its length either way, the places drawn in to fit between its walls)
+    if (room) {
+      const c = [(room[0] + room[2]) / 2, (room[1] + room[3]) / 2], lx = room[2] - room[0], ly = room[3] - room[1], long = lx >= ly;
+      const N = slots([0, 0], [1, 0]), all0 = [...N.party, ...N.pack];
+      const k = [Math.min(1, (Math.max(lx, ly) / 2 - 0.8) / Math.max(0.1, ...all0.map((q) => Math.abs(q[0])))), Math.min(1, (Math.min(lx, ly) / 2 - 0.8) / Math.max(0.1, ...all0.map((q) => Math.abs(q[1]))))];
+      // (the camera's side, d, the one with fewer others standing behind it: a pack still to meet is not in the shot)
+      const fighting = new Set([...ids, ...foes]), others = (w.entities || []).filter((e) => e && e.id && e !== w.camera && e.id !== '__camera' && !e.gone && !fighting.has(e.id) && e.transform && e.transform.pos);
+      for (const u of long ? [[1, 0], [-1, 0]] : [[0, 1], [0, -1]]) {
+        const S = slots(c, u, k.map((v) => Math.max(0.3, v))), all = [...S.party, ...S.pack], d = [u[1], -u[0]];
+        const behind = others.filter((e) => { const dx = e.transform.pos[0] - c[0], dy = e.transform.pos[1] - c[1], a = dx * d[0] + dy * d[1]; return a > 0 && a < 16 && Math.abs(dx * u[0] + dy * u[1]) < Math.max(lx, ly) / 2 + 1; }).length;
+        cands.push({ c, u, S, zs: all.map((q) => gnd(q[0], q[1], z0)), score: behind });
+      }
+    }
+    if (!room) for (const r of ARENA_RINGS) for (let k = 0; k < (r ? ARENA_BEARINGS : 1); k++) {
       const t = (k / ARENA_BEARINGS) * 2 * Math.PI, c = [E[0] + r * Math.cos(t), E[1] + r * Math.sin(t)];
       for (let j = 0; j < ARENA_AXES; j++) {
         const a = (j / ARENA_AXES) * 2 * Math.PI, u = [Math.cos(a), Math.sin(a)], S = slots(c, u), all = [...S.party, ...S.pack];
@@ -464,13 +479,33 @@ export function rpgPage(cfg, K, ctl, jk) {
     foes.forEach((id, i) => stand(id, K.S.pack[i], K.zs[np + i], partyMid));
     if (C) { C.transform.pos = shot.pos; C.lookAt = shot.look; C.rule = null; staged.view = { pos: shot.pos.slice(), look: shot.look.slice() }; }
     // (cleared: the arena's footprint, and the corridor from the camera to the fight; the land kept)
-    if (window.__mojClip) {
+    let boxes = null;
+    if (window.__mojClip && room) {
+      // (in a room: what stands in it, and its near wall and roof toward the camera, a cutaway; its far walls kept behind
+      // the fight)
+      const c = [(room[0] + room[2]) / 2, (room[1] + room[3]) / 2], q = shot.pos, dx = q[0] - c[0], dy = q[1] - c[1], L = Math.hypot(dx, dy) || 1, d = [dx / L, dy / L];
+      const xd = Math.abs(d[0]) > Math.abs(d[1]), across = xd ? room[3] - room[1] : room[2] - room[0], ext = (xd ? room[2] - room[0] : room[3] - room[1]) / 2 - 0.6;
+      window.__mojClip.set(boxes = [
+        { c, u: [1, 0], half: [(room[2] - room[0]) / 2 - 0.35, (room[3] - room[1]) / 2 - 0.35], z: [z0 - 0.15, z0 + 14] },
+        { c: [c[0] + d[0] * (ext + L) / 2, c[1] + d[1] * (ext + L) / 2], u: d, half: [Math.max(0.5, (L - ext) / 2 + 0.5), across / 2 - 0.35], z: [z0 - 0.15, Math.max(z0 + 14, q[2] + 3)] },
+      ]);
+      staged.cleared = true;
+    } else if (window.__mojClip) {
       const u = K.u, d = [u[1], -u[0]], m = shot.mid, half = shot.dist * Math.cos((14 * Math.PI) / 180) / 2;
-      window.__mojClip.set([
+      window.__mojClip.set(boxes = [
         { c: [m[0], m[1]], u, half: [ARENA_GAP / 2 + 4.5, 4.2], z: [m[2] - 0.15, m[2] + 9] },
         { c: [m[0] + d[0] * half, m[1] + d[1] * half], u: d, half: [half + 0.5, 2.6], z: [m[2] - 0.15, shot.pos[2] + 3] },
       ]);
       staged.cleared = true;
+    }
+    // (whoever is not in the fight and stands in what is cleared, a pack still to meet, a marker, is out of the shot
+    // till it ends)
+    if (boxes) {
+      const inBox = (q) => boxes.some((B) => { const dx = q[0] - B.c[0], dy = q[1] - B.c[1], a = dx * B.u[0] + dy * B.u[1], b = -dx * B.u[1] + dy * B.u[0]; return Math.abs(a) < B.half[0] && Math.abs(b) < B.half[1] && q[2] > B.z[0] - 2 && q[2] < B.z[1]; });
+      const fighting = new Set([...ids, ...foes]);
+      staged.hid = {};
+      // (staged, so the held world still draws it: gone)
+      for (const e of w.entities || []) if (e && e.id && e !== w.camera && e.id !== '__camera' && !fighting.has(e.id) && e.transform && e.transform.pos && inBox(e.transform.pos)) { staged.hid[e.id] = [!!e.gone, !!e.staged]; e.gone = true; e.staged = true; }
     }
   }
   // (the backdrop drawn once the fighters have left the place they met, so none stands in it)
@@ -487,6 +522,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     if (C && s) { C.transform.pos = s.pos; C.transform.heading = s.heading; C.transform.pitch = s.pitch; C.lookAt = s.lookAt; C.rule = s.rule; }
     if (staged.backdrop && staged.backdrop.h) staged.backdrop.h.dispose();
     if (staged.cleared && window.__mojClip) window.__mojClip.clear();
+    for (const id in staged.hid || {}) { const e = w.byId[id]; if (e) { e.gone = staged.hid[id][0]; e.staged = staged.hid[id][1]; } }
     staged = null;
   }
   function pickNow(pick) {

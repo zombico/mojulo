@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { PROBE, DEBUG_TEXT, opposition, probeVerdict, scriptInput, probeLevel } from './level-probe.js';
+import { PROBE, DEBUG_TEXT, opposition, probeVerdict, scriptInput, probeLevel, mergeVerdicts } from './level-probe.js';
 
 // The play probe (level-probe.js): a level played for a few seconds and four things said of it. Each check is held to
 // the starters that failed it in play (a page that throws at load, a guard where the hero spawns, a survive level with
@@ -69,6 +69,22 @@ describe('the verdict', () => {
     expect(v.checks.map((c) => c.check)).not.toContain('lit');
     expect(probeVerdict([ok({ ref: 's1', composed, skipped: 'skipped: no browser' })]).composed).toHaveLength(1);
     expect(probeVerdict([ok()]).composed).toBeUndefined();
+  });
+});
+
+describe('a chapter\'s levels as one verdict', () => {
+  it('holds where every level holds, says which level does not, and keeps every level\'s frames and composed laws', () => {
+    const ok = probeVerdict([{ ref: 'a-0', opposition: { says: null }, frames: [{ at: 1, png: 'x' }] }]);
+    const lost = probeVerdict([{ ref: 'b-0', startedLost: 'fell', opposition: { says: null }, composed: [{ law: 'room', says: 'tight' }] }]);
+    const both = mergeVerdicts([['town', ok], ['shrine', lost]]);
+    expect(both.holds).toBe(false);
+    expect(both.checks.find((c) => c.check === 'not lost').says).toBe('shrine: b-0: it was over before any input: fell');
+    expect(both.checks.find((c) => c.check === 'loads').holds).toBe(true);
+    expect(both.frames).toHaveLength(1);
+    expect(both.composed).toEqual([{ ref: 'b-0', law: 'room', says: 'tight' }]);
+    expect(mergeVerdicts([['town', ok], ['shrine', ok]]).holds).toBe(true);
+    // a level no browser played does not hold the chapter
+    expect(mergeVerdicts([['town', ok], ['shrine', { holds: false, skipped: 'skipped: no browser', checks: [] }]])).toMatchObject({ holds: false, skippedLevels: ['shrine'] });
   });
 });
 

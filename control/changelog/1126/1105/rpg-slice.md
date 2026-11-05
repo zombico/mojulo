@@ -68,3 +68,19 @@
   the map's own ground, facing across, under a fixed camera; what stands in the arena and in the corridor from the camera
   to it (trees, rocks, grass: every group but the land) is cut away for the fight (`window.__mojClip`, emitted only for
   such a page) and back after. The scene is the background: no arena is drawn for it.
+- **Battles in a building: the dungeon fights.** A building level is fought (`FOUGHT`): its packs stand in the rooms its
+  way passes through to its goal room (one spot a room, two in a long one, none at the goal room's threshold, none in a
+  room off the way), and its boss in the goal room, met before the room's exit is reached (`levels.js buildingEnds`,
+  the building's ends as a trail's). The packs' ladder is walked in the order the main quest plays its levels (the plains
+  before the woods before the dungeon), not the order the world writes them. An encounter met in a room carries it
+  (`encounters[].room`), and an arena stage holds the fight to it: along the room's length, its places drawn in between
+  its walls, its ground read from the floor (never the roof), and the room's contents, its near wall and its roof toward
+  the camera cut away, its far walls the fight's background. The clearing reaches a group's textured faces (a room's
+  brick walls are those), the camera stands on the room's side with no one else behind it, and whoever is not in the
+  fight and stands in what is cleared (a pack still to meet, a marker) is out of the shot till it ends.
+- **A chapter asked for as one.** `req: { unit: 'act:<id>' }` raises ONE req for a main quest act: its first level the
+  unit, its other levels (in the order its quests play them: the town, the outskirts, the dungeon) and the departments
+  its beats bring (battles, story, foes) its crew, an author each; its remit from the quest (the act's place, its quests
+  in order, in and out, the loop), the director's words winning. Its received gate waits on every level's stages, its
+  probe plays each level (`mergeVerdicts`: a check holds where it holds on every level, said level by level), and once
+  accepted every level it holds is in the game.

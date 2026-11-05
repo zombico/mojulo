@@ -85,6 +85,26 @@ export function probeVerdict(stages) {
   };
 }
 
+/** Several levels' verdicts as one (a chapter's req: its town, its outskirts, its dungeon, each probed as its own level):
+ * each check holds where it holds on every level, said level by level; the frames and the composed laws of all.
+ * `verdicts`: [[level id, verdict]] */
+export function mergeVerdicts(verdicts) {
+  const live = verdicts.filter(([, v]) => !v.skipped), names = [...new Set(verdicts.flatMap(([, v]) => (v.checks ?? []).map((c) => c.check)))];
+  const composed = verdicts.flatMap(([, v]) => v.composed ?? []), frames = verdicts.flatMap(([, v]) => v.frames ?? []);
+  const skippedStages = verdicts.flatMap(([, v]) => v.skippedStages ?? []);
+  if (!live.length) return { gate: 'machine', holds: false, skipped: verdicts[0][1].skipped, checks: [], ...(composed.length ? { composed } : {}), note: NOTE };
+  const checks = names.map((check) => {
+    const bad = live.map(([lv, v]) => [lv, (v.checks ?? []).find((c) => c.check === check)]).filter(([, c]) => c && !c.holds);
+    return { check, holds: !bad.length, ...(bad.length ? { says: bad.map(([lv, c]) => `${lv}: ${c.says}`).join('; ') } : {}) };
+  });
+  const skippedLevels = verdicts.filter(([, v]) => v.skipped).map(([lv]) => lv);
+  return {
+    gate: 'machine', holds: checks.every((c) => c.holds) && !skippedLevels.length, checks,
+    ...(skippedLevels.length ? { skippedLevels } : {}), ...(skippedStages.length ? { skippedStages } : {}),
+    frames, ...(composed.length ? { composed } : {}), note: NOTE,
+  };
+}
+
 /** The input the script plays at tick `i`: forward always; fire each second, interact each two, jump each three. */
 export function scriptInput(i, fps = PROBE.fps) {
   const at = (every) => i > 0 && i % Math.round(every * fps) === 0;

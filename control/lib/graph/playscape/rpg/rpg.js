@@ -27,10 +27,11 @@
  *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes? } }
  *                 what a member may wear, one item a slot, its numbers added to theirs (default: every preset); worn
  *                 items come from the bag and go back to it (held:bag:<item>); a class switch takes off what it forbids
- *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>' | ['<entity>', …], near?, flee? }]
+ *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>' | ['<entity>', …], near?, flee?, room? }]
  *                 at: walking up to it starts the fight (a visible foe: `who` is the one standing there, or each foe's
  *                 own figure in the foes' order, the first standing at `at`; each falls
- *                 when the fight is won); without at, a cue starts it: `then: { emit: 'rpg-battle:<id>' }`
+ *                 when the fight is won); without at, a cue starts it: `then: { emit: 'rpg-battle:<id>' }`; room: the
+ *                 room it is met in, [x0, y0, x1, y1, floor] (an arena stage holds the fight to it)
  *     random?:    { sets: [[foe ids]], every?: metres, chance?, after?: metres, in?: [{ at: [x, y], r }] }
  *                 a roll every `every` metres walked (in those zones, or anywhere), none in the first `after`
  *     shops?:     { <id>: { name?, wares?: [item or gear ids], buys?: false, inn?: gold } }   a merchant's wares at their
@@ -330,8 +331,8 @@ export function readRpg(play) {
   const encSeen = new Set(), encounters = {}, met = [];
   E.forEach((e, i) => {
     const at = `.encounters[${i}]`;
-    if (!isObj(e)) throw err(`${at} is { id, foes, at?, who?, near?, flee? }`);
-    keysOnly(e, ['id', 'foes', 'at', 'who', 'near', 'flee'], at);
+    if (!isObj(e)) throw err(`${at} is { id, foes, at?, who?, near?, flee?, room? }`);
+    keysOnly(e, ['id', 'foes', 'at', 'who', 'near', 'flee', 'room'], at);
     id(e.id, `${at}.id`);
     if (e.id === 'random') throw err(`${at}.id 'random' is the random encounters' own`);
     if (encSeen.has(e.id)) throw err(`${at}.id '${e.id}' twice`);
@@ -343,9 +344,10 @@ export function readRpg(play) {
     if (e.who !== undefined && e.at === undefined) throw err(`${at}.who stands somewhere: give its at`);
     optNum(e.near, `${at}.near`);
     if (e.flee !== undefined && typeof e.flee !== 'boolean') throw err(`${at}.flee is false for a fight with no escape`);
+    if (e.room !== undefined && !(Array.isArray(e.room) && e.room.length === 5 && e.room.every(num) && e.room[2] > e.room[0] && e.room[3] > e.room[1])) throw err(`${at}.room is the room it is fought in, [x0, y0, x1, y1, floor]`);
     const boss = e.foes.some((f) => foes[f].boss);
     encounters[e.id] = { foes: [...e.foes], flee: e.flee ?? !boss };
-    if (e.at) met.push({ id: e.id, at: [e.at[0], e.at[1]], who: e.who ?? null, near: e.near ?? 2.2 });
+    if (e.at) met.push({ id: e.id, at: [e.at[0], e.at[1]], who: e.who ?? null, near: e.near ?? 2.2, ...(e.room ? { room: [...e.room] } : {}) });
   });
 
   // the random encounters

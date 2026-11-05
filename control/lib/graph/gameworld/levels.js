@@ -613,7 +613,7 @@ function withBookUi(G, play) {
 function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
-  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, story, carryFrom, party, castFigures });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
@@ -1203,10 +1203,13 @@ function parkedOf(G, word, rooms) {
   return parkIn(room, P.vehicles, { seed: Number.isInteger(G.seed) ? G.seed : 1, livery, wear: P.wear });
 }
 
-function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, goalCast = null, extra = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
-  const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
-  let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
-  const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
+/**
+ * A building level's ends, as a trail's are (stageEnds): its way in, the rooms between it and the goal room standing in
+ * for a trail's beats, its exit the goal room; `bossAt` (the goal room's floor), `rooms`, `use` and `via` beside them,
+ * not data. `lowered`: the stage's level as withBuildingLevel lowers it (else lowered here, for a plan to read its room).
+ */
+export function buildingEnds(stage, lowered = withBuildingLevel({ ...stage.manifest }, 'ends')) {
+  const walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
   const spawn = [walker.transform.pos[0], walker.transform.pos[1], r3(walker.transform.pos[2] - eye)], heading = walker.transform.heading;
   // the rooms between the way in and the goal stand in for a trail's beats: a quick goal's pickups lie in them
   // (on storeys, each at its room's floor; a complex's, every building's, its own name before each room's)
@@ -1225,6 +1228,16 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   Object.defineProperty(ends, 'use', { value: stage.building.use, enumerable: false });
   // (its route to the goal room, through the doorways and up the flights: an escape room's keys lie on it, escape.js)
   Object.defineProperty(ends, 'via', { value: lowered.game.mechanics.at(-1).via ?? null, enumerable: false });
+  return ends;
+}
+
+function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
+  const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
+  let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
+  const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0];
+  const ends = buildingEnds(stage, lowered), { spawn, heading } = ends;
+  const cx = stage.manifest.complex !== undefined ? complexRoute(stage.manifest) : null;
+  const plan = cx ? null : withProgram(stage.manifest);
   // its parked vehicles (building.parked, vehicle-registry/parked.js): in its hangar, else its largest room, painted as its
   // foes' faction dresses, else in its setting's camo, stamped into the level's manifest. Absent ⇒ byte-identical
   if (stage.building?.parked !== undefined) {
@@ -1260,7 +1273,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // (or third person), the hero's own chase, every arg as it was
   const cam = G.camera ?? null, top = cam === 'top-down';
   if (cam === 'side') throw new Error(`levels: a side camera runs a trail's lane, and '${stage.level}' is a building with none; play it top-down, fixed or third-person`);
-  const controls = `${top ? `W A S D  move${!pilot && !moves?.gear ? ' · Z  walk' : ''}` : `${walkRun(pilot, moves?.gear ? 'F ' : '')} · A / D  turn`} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const controls = `${top ? `W A S D  move${!pilot && !moves?.gear ? ' · Z  walk' : ''}` : `${walkRun(pilot, moves?.gear ? 'F ' : '')} · A / D  turn`} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : {}), ...(strikeWindow(G, null) ?? {}) };
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];

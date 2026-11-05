@@ -65,6 +65,13 @@ describe('play.rpg: read and lowered', () => {
     expect(() => readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'ring' } } })).toThrow(/rules\.stage is live or backdrop or arena/);
   });
 
+  it('an encounter met in a room carries the room, for an arena held to it; a room that is not a box is refused', () => {
+    const enc = (room) => ({ ...PLAY.rpg, encounters: [{ ...PLAY.rpg.encounters[0], room }] });
+    expect(readRpg({ rpg: enc([7, 0, 16, 13, 0]) }).met[0].room).toEqual([7, 0, 16, 13, 0]);
+    expect(readRpg({ rpg: PLAY.rpg }).met[0].room).toBeUndefined();
+    expect(() => readRpg({ rpg: enc([16, 0, 7, 13, 0]) })).toThrow(/room is the room it is fought in/);
+  });
+
   it('on the bus: walking up starts it once; a win sends the foe off the map in smoke; a loss fails the level', () => {
     const cues = rpgCues(PLAY);
     expect(cues.find((c) => c.id === 'rpg-meet-wolves')).toEqual({ id: 'rpg-meet-wolves', when: { enter: { at: [8, 0], r: 2.2 } }, if: [{ var: 'rpg.battle', eq: 0 }, { var: 'rpg-done-wolves', eq: 0 }], then: { emit: 'rpg-battle:wolves' } });

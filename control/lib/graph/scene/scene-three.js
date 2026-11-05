@@ -1263,7 +1263,7 @@ function __grpCol(g) { if (!g.c8) return decodeF32(g.col); const c8 = decodeU8(g
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow${resampled ? `
     if (__RESAMPLE[t.key]) __resample(tm.material, __RESAMPLE[t.key]);   // (read again so it does not repeat: channels/resample.js)` : ''}
-    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || cone ? 'tm.userData.g = grp.name; ' : ''}${formBlock || leafBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || cone || arenaClip ? 'tm.userData.g = grp.name; ' : ''}${formBlock || leafBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 
@@ -1277,8 +1277,11 @@ const __CLIP_LAND = /(ground|trail|cliff|core|ridge|cloud|terrain|land|water|sky
 let __clipOn = false;
 function __clipPatch() {
   if (__clipOn) return; __clipOn = true;
-  for (const name in meshes) {
-    const m = meshes[name], mat = m && m.material;
+  // (each group's fill, and its textured faces beside it: a room's brick walls are those)
+  const own = Object.keys(meshes).map((name) => [name, meshes[name]]);
+  scene.traverse((o) => { if (o.isMesh && o.userData && typeof o.userData.g === 'string' && meshes[o.userData.g] !== o) own.push([o.userData.g, o]); });
+  for (const [name, m] of own) {
+    const mat = m && m.material;
     if (__CLIP_LAND.test(name) || !mat || mat.__clip) continue;
     const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
     mat.onBeforeCompile = function (sh, r) {

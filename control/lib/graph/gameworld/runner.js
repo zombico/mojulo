@@ -46,7 +46,7 @@ import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gauntletCast } from './gauntlet-cast.js';
-import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
 import { SIDE_KITS } from '../contest/team-arena.js';
 import { sportTeams } from './sport-concept.js';
@@ -352,7 +352,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   if (CG && G.battles?.followers !== false) for (const M of CG.members) if ((M.bond === 'party' || M.bond === 'familiar') && !M.joins && M.field) party.push({ id: M.id, ref: castRefs[M.id], joins: null });
   const lastOf = lastStages(stages);
   // the packs each stage meets, numbered across the game (battles.js)
-  const plan = G.battles ? battlePlan(G, stages, (i) => roomOf(stageEnds(stages[i].manifest))) : null, packFrom = [];
+  // (a building's rooms on the way to its goal room, the goal room its lair: levels.js buildingEnds)
+  const ENDS = new Map(), endsOf = (i) => { if (!ENDS.has(i)) ENDS.set(i, stages[i].section === 'building' ? buildingEnds(stages[i]) : stageEnds(stages[i].manifest)); return ENDS.get(i); };
+  const plan = G.battles ? battlePlan(G, stages, (i) => roomOf(endsOf(i)), (i) => stages[i].section === 'building') : null, packFrom = [];
   // (each foe kind the packs stand its own figure, in its own look: a beast through the animal door, a person through the
   // hero door with its own reactions where the world's people take blows)
   const kindRefs = {};
