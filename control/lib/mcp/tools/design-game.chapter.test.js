@@ -7,7 +7,7 @@ import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { designGameHandler } from './design-game.js';
 import { MEADOWMARK_HERO } from '@/lib/graph/gameworld/index';
-import { CHAPTERS, chapterOfPart } from '@/lib/graph/gameworld/chapters.js';
+import { CHAPTERS, chapterOfPart, chapterById, LEVEL_PAGE_CARDS } from '@/lib/graph/gameworld/chapters.js';
 import { MOVE_STEPS, chapterOfMove, chapterPages } from '@/lib/graph/gameworld/chapter-view.js';
 import { gameworldCards } from '@/lib/graph/gameworld/gameworld-cards.js';
 
@@ -77,6 +77,10 @@ describe('design_game: one chapter', () => {
     for (const n of out.next.filter((m) => m.step === 'review')) expect(n.parts).toEqual([`level:${first}`]);
     expect(JSON.stringify(out.next)).not.toContain(`level:${second}`);
     expect(bytes(out)).toBeLessThan(bytes(chapter));
+    // its author is handed the manuals of a level's page: every key a level page writes is taught on one of its cards
+    expect(out.chapter.cards).toEqual([...LEVEL_PAGE_CARDS, ...chapterById('levels').cards.filter((x) => !x.endsWith('-*'))]);
+    const manual = out.chapter.cards.map((id) => gameworldCards().get(id)?.body ?? '').join('\n');
+    for (const key of ['walk', 'goal', 'foes', 'places']) expect(manual, key).toContain(key);
   });
 
   it('a level\'s unit names a level the world has, and a write past it is said', async () => {

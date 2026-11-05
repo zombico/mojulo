@@ -88,6 +88,9 @@ export function unitOf(id) {
   return c ? { id, chapter: c, level: null } : null;
 }
 const escaped = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** The cards that teach ONE LEVEL's page, besides its chapter's: the world card (a level's walk, goal, places and
+ * style) and the foes card (a level's own foes). A level's author is handed these, or it writes from the wrong manual. */
+export const LEVEL_PAGE_CARDS = Object.freeze(['gameworld-world', 'gameworld-foes']);
 export const levelStep = (level) => new RegExp(`^level-${escaped(level)}-(\\d+|skirmish)$`);
 
 export const chapterById = (id) => BY_ID.get(id) ?? null;

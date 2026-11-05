@@ -749,6 +749,25 @@ function init(db) {
       PRIMARY KEY (world_ref, seq)
     );
 
+    -- A req's jobs (gameworld/jobs.js): the work inside one unit, each one agent's turn (an author, a diverge author
+    -- with its angle, a critic with its lens), j<n> within its req. What it reported is kept whole (a held
+    -- proposal's patch until it is kept or declined); never part of the recipe until a proposal is kept, and then only
+    -- as the patch the door applies.
+    CREATE TABLE IF NOT EXISTS gameworld_req_jobs (
+      world_ref TEXT NOT NULL,
+      req_seq INTEGER NOT NULL,
+      n INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      tier TEXT NOT NULL,
+      angle TEXT,
+      lens TEXT,
+      status TEXT NOT NULL DEFAULT 'issued',
+      report_json TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (world_ref, req_seq, n)
+    );
+
     -- Render handoff (render-handoff.plan.md — the durable I3 seam, framed as a
     -- bicycle; see docs/bicycles.md). One DURABLE row per render target parked
     -- for an external image-capable worker: request to pull to submit to audit

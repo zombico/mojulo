@@ -15,7 +15,7 @@
  *
  * Pure: the readout and the world in, the view out.
  */
-import { CHAPTERS, chapterById, chapterOfPart, chapterOfStep, chaptersOfPath, unitOf, levelStep } from './chapters.js';
+import { CHAPTERS, chapterById, chapterOfPart, chapterOfStep, chaptersOfPath, unitOf, levelStep, LEVEL_PAGE_CARDS } from './chapters.js';
 import { fingerprint } from './review.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -104,7 +104,7 @@ export function chapterView(full, world, id, { ran, pending, patched = [] } = {}
     ref: full.ref,
     chapter: lv !== null
       // a level's state is its part's stamp; the chapter it belongs to is named
-      ? { id, of: c.id, name: world.levels[lv].name ?? lv, department: c.department, state: parts[0]?.status ?? 'empty', ...(mine?.waits ? { waits: mine.waits } : {}), cards: c.cards.filter((x) => !x.endsWith('-*')) }
+      ? { id, of: c.id, name: world.levels[lv].name ?? lv, department: c.department, state: parts[0]?.status ?? 'empty', ...(mine?.waits ? { waits: mine.waits } : {}), cards: [...LEVEL_PAGE_CARDS, ...c.cards.filter((x) => !x.endsWith('-*'))] }
       : { id, name: c.name, department: c.department, state: mine?.state ?? 'empty', ...(mine?.waits ? { waits: mine.waits } : {}), cards: c.cards.filter((x) => !x.endsWith('-*')) },
     parts,
     pages: lv !== null ? { [`/levels/${lv}`]: world.levels[lv] } : chapterPages(world, id),

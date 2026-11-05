@@ -49,3 +49,32 @@ apart from the recipe and adds nothing to any render or export. The design is in
     `gameworld-next` card's ceiling moves from 4096 to 4352 bytes for its one `req` line.
 - **Fixed: a run's first-frame record no longer reverts a page written while it rendered.** It was the last
   whole-world write after a run; it now uses the same rebase as the run's own writes.
+- **The jobs inside a req** (`gameworld/jobs.js`, the `gameworld_req_jobs` table). Each job is the size of one agent's
+  turn: the exact call it reads with, the pages it may write, the call it reports with, and the tier of judgment it
+  needs. Starting a req (`req: { id, start: true }`) issues its authors, by its staffing.
+  - **A soloist** gets one author. Its report applies its patch at once.
+  - **A studio** gets its diverge authors (`budget.diverge`), each given a different angle on the remit: the plainest
+    reading, the boldest, and the one furthest from the precedent. Their patches are held. The director (or the
+    creator) keeps one with `req: { id, keep: 'j2' }`: that patch is applied, and the others are declined and kept on
+    record.
+  - **Critics** are issued once a proposal is kept (`budget.critics`). Each reads with a lens (design against the
+    remit, play as a player, look as a viewer), never the maker's reasoning, and reports findings.
+  - **A report goes through `design_game` itself:** `req: { id, job, patch, decisions }` for an author,
+    `req: { id, job, findings }` for a critic. A decision with no `because` is counted as uncited: a choice the seed
+    made. A patch past the unit's pages is applied and reported, never refused. A job reports once.
+  - **The budget bounds what is issued.** Every job counts, a reissue among them (`req: { id, reissue: 'j1' }`). A job
+    past the budget is not issued, and the readout says so.
+  - **What the director does next** is in the unit's view and the ledger's current req (`does`): start, work, keep,
+    critique or review. The unit's view lists each job: an issued job's brief, or a reported job's report (what it
+    wrote, its cited and uncited decisions, its findings).
+  - **No new listed tool:** a job's whole allowlist is `design_game`. The studio card teaches the jobs.
+  - **An author's report can say what it could not make:** `asks` lists what the remit wants that no word of the recipe
+    reaches. It is kept on the job and reported to the director, so a gap is said, never faked.
+  - **A level's author is handed a level page's manuals.** A level unit's view names the world card (a level's walk,
+    goal, places and style) and the foes card (a level's own foes) before its chapter's own cards. A test holds that
+    each key a level page writes is taught on one of them.
+  - **Tried with a live agent.** A fresh agent given only one author job's brief read its view, authored a level of the
+    reference book and reported. It was refused once with a readable error and corrected itself. Its job was kept,
+    with every decision cited. It found the two gaps above: the view pointed it at neither of the cards that teach a
+    level page, so it missed a level's own `foes` key; and the remit's tide (a passage that opens and closes) is a
+    capability no word of the recipe has, which it could only say in prose.

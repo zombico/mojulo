@@ -109,3 +109,99 @@ describe('design_game: the requisitions', () => {
     await expect(designGameHandler({ ref: 'gw', req: { id: 'r9' } })).rejects.toThrow(/no req 'r9'/);
   });
 });
+
+describe('design_game: the jobs inside a req', () => {
+  beforeEach(() => { closeDb(); });
+
+  // a world whose upstream is settled, so a level asked for is the one being worked
+  async function levelReq(extra = {}) {
+    await designGameHandler({ world: GATED, ref: 'gw' });
+    const full = await designGameHandler({ ref: 'gw' });
+    const upstream = full.parts.filter((p) => ['intent', 'world', 'nature', 'civilizations', 'key'].includes(p.id) || p.id.startsWith('tech:')).map((p) => p.id);
+    await designGameHandler({ ref: 'gw', approve: upstream });
+    const out = await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT, ...extra } });
+    expect(out.reqs.raised).toEqual([`r1 level:${FIRST}`]);
+  }
+  const named = (ref) => SketchRepository.getByRef(ref).manifest.levels[FIRST].name;
+  const nameOp = (value) => [{ op: 'set', path: `/levels/${FIRST}/name`, value }];
+
+  it('a soloist: started, one author handed its brief, its patch applied when it reports, then the creator\'s', async () => {
+    await levelReq();
+    const before = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
+    expect(before.req.does).toBe('start');
+    const started = await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });
+    expect(started.reqs.raised).toEqual(['r1 j1 author issued']);
+    expect(started.reqs.current).toMatchObject({ does: 'work', jobs: ['j1 author issued'] });
+    // the brief: the exact call to read with, the pages it writes, the call to report with
+    const view = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
+    expect(view.req.jobs[0]).toMatchObject({ job: 'j1', kind: 'author', read: { tool: 'design_game', args: { ref: 'gw', chapter: `level:${FIRST}` } }, writes: [`/levels/${FIRST}`], submit: { tool: 'design_game' } });
+    // the report: the patch applied to the recipe, the decisions counted
+    const done = await designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j1', patch: nameOp('The Long Climb'), decisions: [{ slot: 'name', value: 'The Long Climb', because: 'the remit\'s idea: climb to see' }, { slot: 'palette' }] } });
+    expect(named('gw')).toBe('The Long Climb');
+    expect(done.reqs.done).toEqual(['j1 author kept: its patch applied']);
+    const after = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
+    expect(after.req.does).toBe('review');
+    expect(after.req.jobs[0]).toMatchObject({ job: 'j1', status: 'kept', writes: [`/levels/${FIRST}/name`], decisions: { cited: 1, uncited: ['palette'] } });
+    // started twice: once; reported twice: refused, nothing written
+    const again = await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });
+    expect(again.reqs.advises[0]).toBe('r1 is started: j1 author kept');
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j1', patch: nameOp('Other') } })).rejects.toThrow(/j1 is kept: only an issued job reports/);
+    expect(named('gw')).toBe('The Long Climb');
+  });
+
+  it('a studio: its diverge proposals held, one kept and applied, the rest declined, its critics issued and reporting', async () => {
+    await levelReq({ staffing: 'studio', budget: { diverge: 2, critics: 1 } });
+    const started = await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });
+    expect(started.reqs.current.jobs).toEqual(['j1 diverge issued', 'j2 diverge issued']);
+    const view = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
+    expect(view.req.jobs.map((j) => j.angle)).toHaveLength(2);
+    expect(view.req.jobs[0].angle).not.toBe(view.req.jobs[1].angle);
+    const original = named('gw');
+    // each proposal held: the recipe as it was
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j1', patch: nameOp('The Plain Climb'), decisions: [{ slot: 'name', because: 'plainest' }] } });
+    const held = await designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j2', patch: nameOp('The Sky Stair'), decisions: [{ slot: 'name', because: 'boldest' }] } });
+    expect(held.reqs.done[0]).toMatch(/^j2 diverge held: keep one of the proposals/);
+    expect(named('gw')).toBe(original);
+    expect(held.reqs.current.does).toBe('keep');
+    // kept: its patch applied, its sibling declined, a critic issued with its lens
+    const kept = await designGameHandler({ ref: 'gw', req: { id: 'r1', keep: 'j2' } });
+    expect(named('gw')).toBe('The Sky Stair');
+    expect(kept.reqs.done).toEqual(['j2 kept: its patch applied; the other proposals declined and kept on record', 'j3 critic issued (design)']);
+    expect(kept.reqs.current.jobs).toEqual(['j1 diverge declined', 'j2 diverge kept', 'j3 critic issued']);
+    expect(kept.reqs.current.does).toBe('critique');
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', keep: 'j1' } })).rejects.toThrow(/keep names a diverge proposal that has reported/);
+    // the critic: a lens, nothing to write, findings in
+    const crit = (await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` })).req.jobs.find((j) => j.job === 'j3');
+    expect(crit).toMatchObject({ kind: 'critic', lens: expect.stringMatching(/^design: /) });
+    expect(crit.writes).toBeUndefined();
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j3', patch: nameOp('x') } })).rejects.toThrow(/it reports findings/);
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j3', findings: [{ says: 'the stair names a height the level never reaches', part: `level:${FIRST}` }] } });
+    const last = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
+    expect(last.req.does).toBe('review');
+    expect(last.req.jobs.find((j) => j.job === 'j3').findings).toHaveLength(1);
+  });
+
+  it('a proposal past its unit is applied and said; a reissue spends the budget; a spent budget is said, never past', async () => {
+    await levelReq({ budget: { jobs: 2, reissues: 1 } });
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });
+    // reissued once: the old one passed, a new author issued; twice: the budget's reissues are spent
+    const re = await designGameHandler({ ref: 'gw', req: { id: 'r1', reissue: 'j1' } });
+    expect(re.reqs.raised).toEqual(['r1 j2 author issued (reissue of j1)']);
+    const spent = await designGameHandler({ ref: 'gw', req: { id: 'r1', reissue: 'j2' } });
+    expect(spent.reqs.advises[0]).toMatch(/^r1: j2 not reissued: the budget's (reissues|jobs) are spent/);
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j1', patch: nameOp('x') } })).rejects.toThrow(/j1 is reissued/);
+    const past = await designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j2', patch: [...nameOp('Mine'), { op: 'set', path: `/levels/${SECOND}/name`, value: 'Not mine' }], asks: ['a passage the tide opens and closes'] } });
+    expect(past.reqs.done).toContain('j2 asks for what no word reaches: a passage the tide opens and closes');
+    expect((await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` })).req.jobs.find((j) => j.job === 'j2').asks).toEqual(['a passage the tide opens and closes']);
+    expect(past.reqs.done).toContain(`j2 wrote past level:${FIRST}: /levels/${SECOND}/name`);
+    expect(SketchRepository.getByRef('gw').manifest.levels[SECOND].name).toBe('Not mine');
+  });
+
+  it('a job act names its req and does one thing', async () => {
+    await levelReq();
+    await expect(designGameHandler({ ref: 'gw', req: { unit: 'hero', start: true } })).rejects.toThrow(/act on a raised req/);
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', start: true, keep: 'j1' } })).rejects.toThrow(/does one of start, job, keep, reissue/);
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', patch: nameOp('x') } })).rejects.toThrow(/report a job: give its `job`/);
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j7', patch: nameOp('x') } })).rejects.toThrow(/no job 'j7' on r1 \(none issued: start it\)/);
+  });
+});

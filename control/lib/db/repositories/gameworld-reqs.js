@@ -70,3 +70,60 @@ export const GameworldReqRepository = {
     return this.get(worldRef, id);
   },
 };
+
+function rowToJob(row) {
+  if (!row) return null;
+  return {
+    id: `j${row.n}`, n: row.n, req: `r${row.req_seq}`, kind: row.kind, tier: row.tier,
+    ...(row.angle ? { angle: row.angle } : {}), ...(row.lens ? { lens: row.lens } : {}),
+    status: row.status, report: parse(row.report_json, null),
+  };
+}
+
+/** `j2` → 2; anything else → null. */
+export const jobN = (id) => (typeof id === 'string' && /^j[1-9]\d*$/.test(id) ? Number(id.slice(1)) : null);
+
+export const GameworldReqJobRepository = {
+  /** A req's jobs in the order they were issued. */
+  list(worldRef, reqId) {
+    const seq = reqSeq(reqId);
+    if (seq === null) return [];
+    return getDb().prepare('SELECT * FROM gameworld_req_jobs WHERE world_ref = ? AND req_seq = ? ORDER BY n').all(worldRef, seq).map(rowToJob);
+  },
+
+  get(worldRef, reqId, jobId) {
+    const seq = reqSeq(reqId), n = jobN(jobId);
+    if (seq === null || n === null) return null;
+    return rowToJob(getDb().prepare('SELECT * FROM gameworld_req_jobs WHERE world_ref = ? AND req_seq = ? AND n = ?').get(worldRef, seq, n));
+  },
+
+  /** Issue jobs on a req, in order; → the jobs. */
+  issue(worldRef, reqId, jobs) {
+    const seq = reqSeq(reqId), db = getDb();
+    const run = db.transaction(() => {
+      let n = db.prepare('SELECT MAX(n) AS m FROM gameworld_req_jobs WHERE world_ref = ? AND req_seq = ?').get(worldRef, seq)?.m ?? 0;
+      const made = [];
+      for (const j of jobs) {
+        n += 1;
+        db.prepare('INSERT INTO gameworld_req_jobs (world_ref, req_seq, n, kind, tier, angle, lens) VALUES (?, ?, ?, ?, ?, ?, ?)').run(worldRef, seq, n, j.kind, j.tier, j.angle ?? null, j.lens ?? null);
+        made.push(`j${n}`);
+      }
+      return made;
+    });
+    return run().map((id) => this.get(worldRef, reqId, id));
+  },
+
+  /** A job's status and, given, its report; → the job. */
+  update(worldRef, reqId, jobId, { status, report } = {}) {
+    const seq = reqSeq(reqId), n = jobN(jobId);
+    if (seq === null || n === null) return null;
+    const sets = [], args = [];
+    if (status !== undefined) { sets.push('status = ?'); args.push(status); }
+    if (report !== undefined) { sets.push('report_json = ?'); args.push(report === null ? null : JSON.stringify(report)); }
+    if (sets.length) {
+      sets.push('updated_at = unixepoch()');
+      getDb().prepare(`UPDATE gameworld_req_jobs SET ${sets.join(', ')} WHERE world_ref = ? AND req_seq = ? AND n = ?`).run(...args, worldRef, seq, n);
+    }
+    return this.get(worldRef, reqId, jobId);
+  },
+};
