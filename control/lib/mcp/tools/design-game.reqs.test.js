@@ -282,3 +282,34 @@ describe('design_game: the received gate', () => {
     expect(again.reqs.current).toBeUndefined();
   });
 });
+
+describe('design_game: the composite', () => {
+  beforeEach(() => { closeDb(); });
+
+  it('a level accepted asks for the game to be made of it; a world that asks for no level never does', async () => {
+    await designGameHandler({ world: GATED, ref: 'gw' });
+    const plain = await designGameHandler({ ref: 'gw' });
+    expect(plain.next.some((m) => m.step === 'composite')).toBe(false);
+    expect(plain.reqs).toBeUndefined();
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT } });
+    // asked for, not yet accepted: no game to make of it
+    const asked = await designGameHandler({ ref: 'gw' });
+    expect(asked.next.some((m) => m.step === 'composite')).toBe(false);
+    await designGameHandler({ ref: 'gw', approve: [`level:${FIRST}`] });
+    const accepted = await designGameHandler({ ref: 'gw' });
+    expect(accepted.next).toContainEqual(expect.objectContaining({ step: 'composite', levels: [FIRST], first: true }));
+    expect(accepted.reqs.composite).toEqual({ levels: [FIRST], made: false });
+    // the build's view says it too (the director's)
+    const build = await designGameHandler({ ref: 'gw', chapter: 'build' });
+    expect(build.next).toContainEqual(expect.objectContaining({ step: 'composite', levels: [FIRST] }));
+  });
+
+  it('the pre-compile check prices the game of the accepted levels, not the whole book', async () => {
+    await designGameHandler({ world: GATED, ref: 'gw' });
+    const whole = (await designGameHandler({ ref: 'gw', chapter: 'build' })).compile;
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT } });
+    await designGameHandler({ ref: 'gw', approve: [`level:${FIRST}`] });
+    const one = (await designGameHandler({ ref: 'gw', chapter: 'build' })).compile;
+    expect(one.estimate.seconds).toBeLessThan(whole.estimate.seconds);
+  });
+});

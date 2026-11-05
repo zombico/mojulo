@@ -863,6 +863,7 @@ function nextCard() {
     '  wait       step `on` waits on those parts (their stamps in brackets).',
     '  compile    `compile.blockers` (by chapter): what the build would hit; fix first. `estimate`: the build left.',
     '  req        the unit being worked (`unit`): its view { ref, chapter: unit } carries its `req` (gameworld-studio).',
+    '  composite  accepted `levels` the game lacks: run: true makes the game of them alone, playable to the last.',
     '  chapters   (not a step) each chapter: department, state, `open` parts, what it `waits` on. Work one at a time,',
     '             upstream first: { ref, chapter } is its view (a department, or a subagent given only that and its card).',
     '             With run: true it makes that chapter and what it names, ahead of approvals (`ahead`: say so).',

@@ -5,7 +5,8 @@
  * gameworld's own, and records what it made (made.js). This module says, for the world as it stands, which steps there
  * are and what to do with each; the door does it.
  *
- *   runSteps(world, { ref, lookup })   → [{ key, ref, ready, waiting?, order, print }]
+ *   runSteps(world, { ref, lookup, composite? })   → [{ key, ref, ready, waiting?, order, print }]
+ *     composite  the levels the game is made of (the ledger's accepted ones: composedStages); none given, every level
  *     hero       always ready once the world has a hero: the base must be made to be seen and pinned
  *     hero-equipped   when the adornment step is: the base holding what it carries at the last stage (a second
  *                sketch, a picture of the page; the base itself stays bare)
@@ -151,6 +152,23 @@ export function auditSteps(steps, stages) {
   });
 }
 
+/**
+ * THE COMPOSITE — the game made of some of its levels: the levels the creator has accepted, one unit at a time
+ * (design_game's ledger, gameworld/reqs.js), so the game is always playable up to its last accepted level. Their stages
+ * in the book's order; the gates chained over them alone (gameLevels chains what it is given); a map's exits and the
+ * links (a door into an inside) between kept stages only. `composite` undefined: every level, as before. An epoch's
+ * board keeps its levels whole (its map is its order).
+ */
+export function composedStages(stages, refs, map, composite) {
+  if (!Array.isArray(composite)) return { stages, refs, map };
+  const keep = stages.map((_, i) => i).filter((i) => composite.includes(stages[i].level));
+  const kept = new Set(keep.map((i) => refs[i]));
+  const exits = (ws) => (ws ?? []).filter((w) => kept.has(w.to));
+  return { stages: keep.map((i) => stages[i]), refs: keep.map((i) => refs[i]), map: map ? keep.map((i) => ({ ...map[i], on: exits(map[i].on), back: exits(map[i].back) })) : null };
+}
+/** A composite's audit steps: the kept levels' alone (the others are not in the game to be walked). */
+const composedAudits = (audits, C, composite) => (Array.isArray(composite) ? audits.filter((a) => C.refs.includes(a.ref)) : audits);
+
 export function childRef(ref, part) {
   const plain = `${ref}-${part}`;
   if (plain.length <= REF_MAX) return plain;
@@ -193,11 +211,11 @@ const rowSurfaces = (head) => (isObj(head) ? Object.fromEntries(ROW_SURFACES.fil
 export const heroRefOf = (world, ref) => world.characters?.hero?.ref ?? (typeof world.quick?.hero?.ref === 'string' ? world.quick.hero.ref : null) ?? childRef(ref, 'hero');
 
 /** The steps of a run, in the order they are made (the hero first: the others name it, or wait on its pinned base). */
-export function runSteps(world, { ref, lookup } = {}) {
+export function runSteps(world, { ref, lookup, composite } = {}) {
   if (typeof ref !== 'string' || !ref) throw new Error('runner: the steps are made at refs derived from the gameworld\'s own ref');
   if (world.quick) return quickSteps(world, readGameworld(world), ref, lookup);
   // a world before its people (no character book: a world composed from a prompt) makes its levels at once
-  if (world.characters === undefined) return worldSteps(world, readGameworld(world), ref);
+  if (world.characters === undefined) return worldSteps(world, readGameworld(world), ref, composite);
   // a turn-based world is laid with its battles, written or not (battles.js)
   const G = laidBattles(readGameworld(world));
   const O = heroOrders(G);
@@ -406,13 +424,15 @@ export function runSteps(world, { ref, lookup } = {}) {
     if (onBoard) L.args = toMap(L.args);
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
-  if (stages.length) {
-    const links = onBoard ? [] : gameLinks(stages, levelRefs);
+  // (the game made of the accepted levels only, when the ledger names them: composedStages; none accepted, no game yet)
+  const C = composedStages(stages, levelRefs, map, onBoard ? undefined : composite);
+  if (C.stages.length) {
+    const links = onBoard ? [] : gameLinks(C.stages, C.refs);
     const theme = paletteTheme(G);
     const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : null;
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(stages, levelRefs, map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
-    steps.push(...auditSteps(steps, stages));
+    steps.push(...composedAudits(auditSteps(steps, stages), C, onBoard ? undefined : composite));
   }
   return steps;
 }
@@ -544,7 +564,7 @@ function guardStep(G, ref, ready) {
  * person (the walker stageLevelOrder lays when no hero is named), then the game over them in the play shell. A level
  * waits on the world's own parts and its level's (review.js): settled at once in autonomous mode (a composed world),
  * by the creator's verdicts when gated. A world that gains a book is run by runSteps' own path, its levels remade. */
-function worldSteps(world, G, ref) {
+function worldSteps(world, G, ref, composite) {
   const stamps = reviewState(world), at = (id) => stamps.find((x) => x.id === id);
   const settled = (ids) => { const waiting = ids.filter(at).map((id) => ({ id, status: at(id).status })).filter((x) => !['approved', 'auto'].includes(x.status)); return waiting.length ? { ready: false, waiting } : { ready: true }; };
   const ground = ['world', 'nature', 'civilizations', 'key'];
@@ -566,11 +586,13 @@ function worldSteps(world, G, ref) {
     const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
-  if (stages.length) {
-    const links = gameLinks(stages, levelRefs), theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
-    steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
-    steps.push(...auditSteps(steps, stages));
+  const C = composedStages(stages, levelRefs, map, composite);
+  if (C.stages.length) {
+    const links = gameLinks(C.stages, C.refs), theme = paletteTheme(G);
+    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    // (a composite's game waits on the levels in it, not on parts the creator is still working one at a time)
+    steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(Array.isArray(composite) ? stamps.map((x) => x.id).filter((id) => !id.startsWith('level:') || composite.includes(id.slice(6))) : stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
+    steps.push(...composedAudits(auditSteps(steps, stages), C, composite));
   }
   return steps;
 }

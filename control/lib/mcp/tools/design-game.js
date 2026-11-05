@@ -326,16 +326,16 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
   };
   // a chapter's run: its own steps and what they name, made ahead of their approvals (chapters.js chapterSteps); the
   // build's is the whole run
-  const scoped = (steps) => (chapter ? chapterSteps(steps, chapter) : steps);
+  const scoped = (steps) => (chapter && chapter !== 'build' ? chapterSteps(steps, chapter) : composedBuild(steps, composite));
   // the hero first: the systems and the gear wait on its pinned base
-  const heroRef = heroRefOf(W, ref);
-  const first = scoped(runSteps(W, { ref, lookup: heroLookup(heroRef) }));
+  const heroRef = heroRefOf(W, ref), composite = compositeOf(ref, W);
+  const first = scoped(runSteps(W, { ref, lookup: heroLookup(heroRef), composite }));
   if (!first.length) return { world: W, ran };
   let rest;
   try {
     await act(first[0]);
     // the rest read the record as this run left the hero (a hero just made or remade is not an edit by hand)
-    rest = scoped(runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) })).filter((s) => s.key !== first[0].key);
+    rest = scoped(runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef), composite })).filter((s) => s.key !== first[0].key);
     for (const step of rest) await act(step);
   } catch (err) {
     // a step that throws partway: the steps made before it are rows now, so their record is kept with the world
@@ -357,7 +357,8 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
  * it, the refs they name, and the build left, priced. Advice: a run goes ahead whatever it says. */
 async function compileReadout(ref, W, { check = false } = {}) {
   let steps;
-  try { steps = runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }); }
+  const composite = compositeOf(ref, W);
+  try { steps = composedBuild(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite }), composite); }
   catch (err) { return { gate: 'machine', ready: false, blockers: [planError(err.message)] }; }
   const made = W.made ?? {}, actions = {};
   const moves = (k) => actions[k] === 'make' || actions[k] === 'remake';
@@ -715,6 +716,21 @@ async function probeReq(ref, req) {
     : verdict.skipped ? `${job.id} probe ${verdict.skipped}` : `${job.id} probe does not hold: ${failing.map((c) => `${c.check}: ${c.says}`).join('; ') || verdict.note}`];
 }
 
+/** A composite's build: the stages of its accepted levels and everything they share (the hero, the casts, the foes),
+ * never a level no one has worked yet (a level's stages are its own unit's to make, { chapter: 'level:<id>', run }). */
+const composedBuild = (steps, composite) => (Array.isArray(composite) ? steps.filter((s) => !/^level-/.test(s.key) || composite.some((id) => levelStep(id).test(s.key))) : steps);
+
+/** The levels the game is made of (runner.js composedStages): when the world's ledger asks for levels one at a time,
+ * the ones the creator has accepted as they stand, so the game is always playable to its last accepted level; a world
+ * that asks for none is made whole, as before (undefined). */
+function compositeOf(ref, W) {
+  const rows = GameworldReqRepository.list(ref).filter((r) => unitOf(r.unit)?.level != null);
+  if (!rows.length) return undefined;
+  const parts = reviewState(W);
+  const accepted = new Set(rows.filter((r) => reqStatus(r, { world: W, parts }) === 'accepted').map((r) => unitOf(r.unit).level));
+  return Object.keys(W.levels ?? {}).filter((id) => accepted.has(id));
+}
+
 /** A req's received gate, as the ledger reads it: its jobs, the unit's parts, the world's record. */
 const receiptFor = (ref, W, parts) => (r) => receiptOf(r, { jobs: GameworldReqJobRepository.list(ref, r.id), parts, world: W, made: W.made ?? {} });
 // the probe as the director's next move reads it: not played (or its stages moved), skipped (no browser: the loop
@@ -869,6 +885,15 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   const ledger = workLedger(ref, W, full, req, reqDone);
   if (ledger.summary) full.reqs = ledger.summary;
   if (ledger.L.current) full.next = [...full.next, { step: 'req', id: ledger.L.current.id, unit: ledger.L.current.unit, status: ledger.L.current.status, does: ledger.summary.current.does, card: 'gameworld-studio' }];
+  // the composite: the accepted levels the game is not yet made of (a level accepted since, or one gone stale); a run
+  // makes the game of them (runner.js composedStages)
+  const composite = compositeOf(ref, W);
+  if (composite?.length) {
+    let game = null;
+    try { game = runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite }).find((s) => s.key === 'game'); } catch { /* the readout says what the book lacks */ }
+    if (game && W.made?.game?.order !== game.print) full.next = [...full.next, { step: 'composite', levels: composite, ...(W.made?.game ? {} : { first: true }), card: 'gameworld-studio' }];
+    if (full.reqs) full.reqs.composite = { levels: composite, made: !!game && W.made?.game?.order === game.print };
+  }
   // a run its budget stopped: the next move is the run again, before any other (runWorld's RUN_BUDGET_MS)
   if (pending) full.next = [{ step: 'run', pending: pending.length, card: 'gameworld-next' }, ...full.next.filter((n) => n.step !== 'run' && n.step !== 'rerun')];
   // a run's levels on their opening frame (machine gate, game/first-frame-check.js): { first_frame } or nothing
@@ -876,11 +901,11 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   const { record: framed, ...eyes } = check === true ? await firstFrameReadout(W, ran) : {};
   // a run's errands walked on the bus across the levels it made, the bag carried (machine gate, gameworld/errand-proof.js)
   const errandProof = ran && W.errands ? (() => {
-    try { return { errand_proof: { gate: 'machine', errands: proveErrands(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }))), note: 'machine gate: each errand walked on the bus, the bag carried level to level; the walk between levels, the fights and the knocks on the way are not played (the eyes gate has not run)' } }; } catch (e) { return { errand_proof: { gate: 'machine', error: e.message } }; }
+    try { return { errand_proof: { gate: 'machine', errands: proveErrands(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) }))), note: 'machine gate: each errand walked on the bus, the bag carried level to level; the walk between levels, the fights and the knocks on the way are not played (the eyes gate has not run)' } }; } catch (e) { return { errand_proof: { gate: 'machine', error: e.message } }; }
   })() : {};
   // a run's wave gauntlets played on the bus on the levels it made, each fall given (machine gate, gameworld/gauntlet-proof.js)
   const gauntletProof = ran && Object.values(W.levels ?? {}).some((L) => L?.goal?.gauntlet) ? (() => {
-    try { return { gauntlet_proof: { gate: 'machine', levels: proveGauntlets(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }))), note: 'machine gate: each gauntlet played on the bus, every foe given its fall as it woke; whether a fight can be won is not played (the eyes gate has not run)' } }; } catch (e) { return { gauntlet_proof: { gate: 'machine', error: e.message } }; }
+    try { return { gauntlet_proof: { gate: 'machine', levels: proveGauntlets(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) }))), note: 'machine gate: each gauntlet played on the bus, every foe given its fall as it woke; whether a fight can be won is not played (the eyes gate has not run)' } }; } catch (e) { return { gauntlet_proof: { gate: 'machine', error: e.message } }; }
   })() : {};
   // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
   if (framed) {

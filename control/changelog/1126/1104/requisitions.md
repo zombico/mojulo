@@ -102,3 +102,16 @@ apart from the recipe and adds nothing to any render or export. The design is in
 - **An accepted unit goes stale when a chapter it reads moves.** The ledger keeps the prints of a unit's upstream
   chapters the first time it reads the unit accepted. If one moves, the unit is stale, and the creator can accept it
   again on their word (`req: { id, accept: true }`) once they have looked.
+- **The game is built up to its last accepted level** (`gameworld/runner.js` `composedStages`). When a world's ledger
+  asks for levels one at a time, its game is made of the levels the creator has accepted, as they stand: their stages in
+  the book's order, the gates chained over them alone, and the links and a map's exits between them only. So the game is
+  always playable to its last accepted level, and it ends when the last planned level is accepted. A stale level stays
+  out until it is accepted again.
+  - **A composite build** (`run: true`) makes the accepted levels' stages and everything they share (the hero, the
+    casts, the foes), never a level no one has worked yet: a level's stages are its own unit's to make. Only the
+    accepted levels are walked after the game. With none accepted there is no game yet.
+  - **The readout asks for it.** Once an accepted level is missing from the game as made, `next` gains `composite` (the
+    levels it would be made of; `first` when no game exists yet), and the ledger's `reqs.composite` says whether the
+    game holds them. The pre-compile check, the run and the proofs all read the same composite.
+  - **A world that asks for no level is unchanged.** With no composite the runner's steps are byte-identical (tested on
+    a book with its hero and on a world before its people).
