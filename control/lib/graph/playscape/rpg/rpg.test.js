@@ -58,7 +58,7 @@ describe('play.rpg: read and lowered', () => {
     expect(eventsChannelScript(ev)).not.toContain('__stepRpg');
   });
 
-  it('on the bus: walking up starts it once; a win fells the foe on the map; a loss fails the level', () => {
+  it('on the bus: walking up starts it once; a win sends the foe off the map in smoke; a loss fails the level', () => {
     const cues = rpgCues(PLAY);
     expect(cues.find((c) => c.id === 'rpg-meet-wolves')).toEqual({ id: 'rpg-meet-wolves', when: { enter: { at: [8, 0], r: 2.2 } }, if: [{ var: 'rpg.battle', eq: 0 }, { var: 'rpg-done-wolves', eq: 0 }], then: { emit: 'rpg-battle:wolves' } });
     const L = level(PLAY);
@@ -67,6 +67,8 @@ describe('play.rpg: read and lowered', () => {
     L.fire('rpg-won:wolves');
     expect(L.bus.vars['rpg-done-wolves']).toBe(1);
     expect(L.ev.reactions.some((r) => r.on === 'rpg-won:wolves' || (r.do === 'ctrl' && r.op === 'kill'))).toBe(true);
+    // the beaten pack leaves the map (vanish, in smoke), never left lying where it fell
+    expect(cues.find((c) => c.id === 'rpg-beaten-wolves').then.slice(1)).toEqual([].concat(PLAY.rpg.encounters.find((e) => e.id === 'wolves').who ?? []).map((w) => ({ vanish: { who: w, with: 'smoke' } })));
     L.bus.vars.hp = 50;
     L.fire('rpg-lost:drake');
     expect(L.bus.vars.hp).toBe(50);

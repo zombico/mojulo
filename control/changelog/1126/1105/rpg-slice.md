@@ -40,3 +40,6 @@
 - **No NUL byte in a page.** The event bus joined a saga's id and scope with a raw NUL byte written into its source, so
   every page carrying the bus held one, and an artifact host refused the page. It is written `'\x00'`, the same string
   at run time.
+- **A beaten pack leaves the map.** A won fight's foes were felled where they stood (`kill`: they lie down, held), so a
+  pack the party had beaten still stood on the trail, fallen, as one to fight. They leave in a puff of smoke (`vanish`,
+  `with: 'smoke'`).
