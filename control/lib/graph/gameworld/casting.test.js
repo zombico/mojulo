@@ -25,8 +25,8 @@ describe('the casting page: the people rolled for the game, as many as it asks f
     const C = castingOf(readGameworld(world));
     const party = levels(S)[0].order.manifest.play.rpg.party;
     expect(party.map((p) => [p.id, p.class])).toEqual([['hero', C.anchor.cls], ...C.members.map((M) => [M.id, M.cls])]);
-    // in from the start: no joins flag, so no field follower waits on one
-    expect(party.every((p) => p.joins === undefined)).toBe(true);
+    // one a level by default (casting.js laidJoins): each member its flag, set as its level starts
+    expect(party.filter((p) => p.id !== 'hero').map((p) => [p.id, p.joins])).toEqual(C.members.map((M) => [M.id, `join-${M.id}`]));
     expect(classOf(C.sheet.members['hero/party-1'])).toBe(C.members[0].cls);
   });
 
@@ -37,17 +37,18 @@ describe('the casting page: the people rolled for the game, as many as it asks f
     expect(party.at(-1).auto).toEqual({ keeper: 'hero' });
   });
 
-  it('on the level map each member plays its own moves and the first party follows from the start, a beast on its own gaits', () => {
+  it('on the level map each member plays its own moves and the party follows as it joins, a beast on its own gaits', () => {
     const world = W({ scale: 'party', n: 2, cast: { party: { relation: 'party', n: 2, body: 'person' }, red: { relation: 'party', body: 'beast', species: 'wolf' } } });
     const L = levels(runSteps(world, { ref: 'gw' }))[0].order.manifest, C = castingOf(readGameworld(world));
     const P1 = C.members.find((M) => M.id === 'party-1');
     expect(L.figures['party-1']).toMatchObject({ heroRef: 'gw-cast-party-1', clips: { forward: 'Walk_Loop' }, moves: P1.field.moves });
     expect(L.figures['party-1'].moves).toMatchObject({ stagger: 'stagger', topple: 'knockedOutDown', getup: 'knockedOutUp' });
-    expect(L.play.party).toEqual(expect.arrayContaining([{ who: 'party-1' }, { who: 'party-2' }]));
-    expect(L.play.carry).toBeUndefined();   // no joins flag to carry between levels
+    // joining one a level by default: each on its flag, carried between levels
+    expect(L.play.party).toEqual(expect.arrayContaining([{ who: 'party-1', joins: 'join-party-1' }, { who: 'party-2', joins: 'join-party-2' }]));
+    expect(L.play.carry).toBe('story');
     // the wolf walks beside them on its own trot and walk, no library (a walker: it follows, it never pilots)
     expect(L.figures.red).toEqual({ heroRef: 'gw-cast-red', walker: true, clips: { forward: 'trot', turn: 'walk', strafe: 'trot' }, moves: { stagger: 'flinch', topple: 'fall', getup: 'rise' } });
-    expect(L.play.party).toContainEqual({ who: 'red' });
+    expect(L.play.party).toContainEqual({ who: 'red', joins: 'join-red' });
     // the hero's own figure is as it was
     expect(levels(runSteps(W({ scale: 'hero' }), { ref: 'gw' }))[0].order.manifest.play.party).toBeUndefined();
   });

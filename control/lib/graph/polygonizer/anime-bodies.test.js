@@ -17,7 +17,10 @@ describe('the body codenames', () => {
     expect(validateAnimeBody('satoru', 'male')).toEqual([]);
     expect(validateAnimeBody('satoru', 'female')[0]).toMatch(/male body/);
     expect(validateAnimeBody('gojo')[0]).toMatch(/one of/);
-    expect(() => heroRecord({ animeBody: 'satoru' })).toThrow(/head: 'anime'/);
+    // (the anime, the landmark or the realistic head on the lofted body: fighter wiring; never the realistic body, nor a
+    // blank head)
+    expect(() => heroRecord({ animeBody: 'satoru', head: 'none' })).toThrow(/anime, the landmark or the realistic head/);
+    expect(() => heroRecord({ animeBody: 'satoru', form: 'realistic' })).toThrow(/its physique/);
   });
   it('draws the base as the Z-Fighter body was, the style\'s head kept: Toji and Mizuki', () => {
     for (const [cast, body] of [['male', 'toji'], ['female', 'mizuki']]) {

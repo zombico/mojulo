@@ -233,28 +233,10 @@ Pointers only; each target carries its own design notes.
 - Room furniture: [furnishings/roster.js](control/lib/graph/furnishings/roster.js) names every piece (one row, the
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
 - Vehicles: [vehicle-registry/roster.js](control/lib/graph/vehicle-registry/roster.js) names every vehicle (one row, the
-  words people say, its handles into the tables that build it); the old tables (nets, physics, fleet, rides, race
-  machines, craft shelf) are frozen behind it, every door reads a vehicle word through it, and a new vehicle is a row
-  first. Its builds by tier (toy | stylised | realistic) and what each needs to be drawn realistic: `builds.js`. The
-  field's vehicles (a military class's realistic body) are the hull kit's: `car-designer/road-military.js` over `mil-hull.js`, a
-  tracked class's running gear `mil-track.js`; the airfield's ground crew (catering, belt loader, stairs) too, `road-airside.js`.
-- Cars: [car-shelf/](control/lib/graph/car-shelf/) (the personal and family cars: a body style, a design language, a trim and
-  its parts and a paint over a class's true numbers; named configurations are cards in `car-library.js`, a registry row's
-  `car` handle; a loft's `{ car }`; a new car is a card, a new look a language or a part word): [docs/car-shelf.md](docs/car-shelf.md).
-- Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
-  craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
-  Boats are on the same shelf (`boat-odm.js`, `boat-parts.js`, `boat-archetypes.js`): a hull drawn from its lines and
-  floated by its weight, its drive, its fittings; a warship's parts (superstructure, mast, turret, launch cells) in
-  `boat-ship.js`, a carrier's flight deck in `boat-carrier.js`, a submarine's round hull in `boat-sub.js`; a boat
-  underway, its wake from its hull and speed, in `boat-wake.js`, run round a course on the World page's live water by
-  `worlds/seaway-scene.js` and the `seaway` channel (its Kelvin field `kelvin.js`); review: `scripts/render-boats.mjs`.
-- Rail: [rail-shelf/](control/lib/graph/rail-shelf/) (primitives for locomotive transit on the vehicle ODM's pattern: a cab
-  car's grammar solves a brief into a frame, its section and its front as a field over it, held to laws; its surface
-  compiler names each quad; design cards by preset; the bogies under it the same way, `bogie-odm.js` and
-  `bogie-surface.js`, its pantographs `panto-odm.js` and `panto-surface.js`, the overhead line they reach
-  `catenary.js`; the cars behind it `car-odm.js` and `car-surface.js` over the shell they share, `body-shell.js`; their
-  insides `interior-odm.js` and `interior-surface.js`, the lining cut by the body's own openings; a train coupled from
-  them `consist.js`); review: `scripts/render-rail.mjs`.
+  words people say, its handles into the tables that build it); the old tables are frozen behind it, every door reads a
+  vehicle word through it, and a new vehicle is a row first. The shelves that build them (road, the car shelf's
+  personal cars, the mecha shelf's legged frames, the craft shelf's aircraft and boats, the rail shelf), file by file:
+  [docs/vehicles.md](docs/vehicles.md).
 - Airports: [airport/](control/lib/graph/airport/) (the transport hub's grammar laid at an airport's real figures, `plan.js`:
   piers, nose-in stands sized to the craft shelf's liners and their jet bridges, the taxiway and runway at their
   separations, the tower and hangar, each concourse a wing; drawn whole as a miniature on a plinth, `miniature.js`, or one

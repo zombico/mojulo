@@ -166,7 +166,8 @@ const STYLIZED_ONLY = Object.freeze(['detail', 'body', 'girth', 'paint']);
 /**
  * A rail's body laid under a hero-door spec of its own (a quick game's hero, a figure it rolls): the spec's own words
  * win, but a cast WORD only names the pole the rail's build stands on; the anime frame's codename takes the anime head
- * where the spec names none (and is left off a spec that names another); the realistic body leaves off what it does not
+ * where the spec names none (kept under the realistic head, `head: 'relational'`, a fighter's; left off a spec that names
+ * another); the realistic body leaves off what it does not
  * take. `B` is gameBody's. → the spec, unchanged when `B` is null.
  */
 export function lowerBody(spec, B) {
@@ -175,7 +176,8 @@ export function lowerBody(spec, B) {
   if (W.cast && typeof own.cast === 'string') out.cast = W.cast;
   if (W.animeBody) {
     if (own.head === undefined) out.head = 'anime';
-    else if (own.head !== 'anime') { delete out.animeBody; delete out.muscleShirt; }
+    // (the realistic head wears the codename on its frame too, a fighter's: fighter wiring; the landmark head as before)
+    else if (own.head !== 'anime' && own.head !== 'relational') { delete out.animeBody; delete out.muscleShirt; }
   }
   if (W.form === 'realistic' && own.form === undefined) {
     for (const k of STYLIZED_ONLY) delete out[k];

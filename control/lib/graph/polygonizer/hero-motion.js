@@ -25,6 +25,7 @@ import { elbowsDown, elbowDownRoll } from './hero-elbow.js';
 import { AURAS, heroAura } from './hero-aura.js';
 import { STANCES, STANCE_NAMES, heroStance } from './hero-stance.js';
 import { STRIKES, heroStrike } from './hero-strike.js';
+import { BOX_STRIKES, heroBox } from './hero-box.js';
 import { RESTS } from './hero-rest.js';
 import { GAITS, HERO_WALK, HERO_WALK_POLE, HERO_RUN, HERO_RUN_POLE } from './hero-gaits.js';
 import { VAULTS } from './hero-vault-moves.js';
@@ -314,6 +315,9 @@ const MOVE_FAMILIES = Object.freeze({
   aura: { table: AURAS, seconds: 2, mirrors: () => true, solve: (name, R, seconds) => { const A = heroAura(name, R, { seconds }); return { fn: A.clip.fn, seconds: A.seconds, laws: A.checks?.laws, act: { family: 'aura', faces: A.faces } }; } },
   stance: { table: STANCES, seconds: 0.7, mirrors: (S, n) => STANCE_NAMES.includes(`${n}Left`), solve: (name, R, seconds) => { const S = heroStance(name, R, { seconds }); return { fn: S.clip.fn, seconds: S.clip.seconds ?? seconds, laws: S.checks?.laws }; } },
   strike: { table: STRIKES, seconds: 0.5, mirrors: () => true, solve: (name, R, seconds) => { const K = heroStrike(name, R, { seconds }); return { fn: K.clip.fn, seconds: K.seconds, laws: K.checks?.laws, contact: K.contact, hand: K.hand, act: { family: 'strike', action: K } }; } },
+  // a boxer's arced punches (hero-box.js): the hook and the uppercut, each space boxer's strike at its own target from the
+  // guard (the seconds asked stretch the solved timing; none, the servos' own)
+  box: { table: BOX_STRIKES, seconds: null, mirrors: () => true, solve: (name, R, seconds) => { const K = heroBox(name, R, { seconds }); return { fn: K.clip.fn, seconds: K.seconds, laws: K.checks.laws, contact: K.contact, hand: K.hand }; } },
   // the reactions (hero-react.js): a blow taken, lifted from the versus fighter's library; each starts and ends on the stand
   react: { table: REACTS, seconds: 0.5, mirrors: () => false, solve: (name, R, seconds) => heroReact(name, R, { seconds }) },
 });

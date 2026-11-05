@@ -57,6 +57,8 @@ const PILOT = {
     { id: 'descend', label: 'descend (glide)', group: 'move', in: ['glide'], bind: { keyboard: ['Shift'] } },
     { id: 'kneel', label: 'kneel / descend', group: 'move', hold: true, in: ARMED, bind: { keyboard: ['KeyX'], gamepad: ['east', 'lb'], xr: ['right.secondary'] } },
     { id: 'boost', label: 'boost thrusters', group: 'move', hold: true, in: ARMED, bind: { keyboard: ['KeyF'], gamepad: ['lt'], xr: ['left.trigger'] } },
+    // a person's walk (the platform rule's walkSpeed): a key runs, so the walk is held; a pad walks by the stick's travel
+    { id: 'walk', label: 'walk', group: 'move', hold: true, in: ['ground'], bind: { keyboard: ['KeyZ'] } },
     { id: 'tackle', label: 'tackle', group: 'combat', in: ['ground'], bind: { keyboard: ['Shift'], gamepad: ['north'], xr: ['left.primary'] } },
     { id: 'fire', label: 'fire', group: 'combat', hold: true, in: ARMED, bind: { mouse: ['left'], gamepad: ['rt'], xr: ['right.trigger'], sim: ['button1'] } },
     { id: 'cycleWeapon', label: 'next weapon', group: 'combat', in: ARMED, bind: { keyboard: ['KeyR'], gamepad: ['rb'], xr: ['right.squeeze'] } },
@@ -93,7 +95,8 @@ const PILOT = {
       { ids: ['strafeRight', 'strafeLeft'], label: 'strafe' },
       { ids: ['jump', 'kneel'], label: 'ascend / descend', when: 'space' },
       { ids: ['jump'], label: 'jump', unless: 'space' },
-      { ids: ['boost'], label: 'boost thrusters' },
+      { ids: ['boost'], label: 'boost thrusters', unless: 'walker' },
+      { ids: ['walk'], label: 'walk (hold)', when: 'walker', unless: 'space' },
       { ids: ['kneel'], label: 'kneel', when: 'kneel', unless: 'space' },
       { ids: ['tackle'], label: 'tackle', when: 'tackle', unless: 'space' },
       { ids: ['fire'], dev: 'mouse', label: 'fire', when: 'armed' },
@@ -106,7 +109,7 @@ const PILOT = {
       { ids: ['interact'], label: 'use / talk', when: 'interact' },
     ],
     gamepad: [
-      { quad: MOVE4, prefix: '🎮 ', label: { _: 'move', space: 'thrust & strafe', vehicle: 'steer' } },
+      { quad: MOVE4, prefix: '🎮 ', label: { _: 'move', space: 'thrust & strafe', vehicle: 'steer', walker: 'move: tilt to walk, push to run' } },
       { quad: LOOK4, label: 'look / aim' },
       { ids: ['fire', 'boost'], label: { _: 'fire / boost (tap-tap: dodge)', vehicle: 'throttle / brake' } },
       { ids: ['cycleWeapon'], label: 'tap: next weapon · hold: selector', when: 'armed' },

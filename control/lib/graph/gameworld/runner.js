@@ -5,7 +5,8 @@
  * gameworld's own, and records what it made (made.js). This module says, for the world as it stands, which steps there
  * are and what to do with each; the door does it.
  *
- *   runSteps(world, { ref, lookup })   → [{ key, ref, ready, waiting?, order, print }]
+ *   runSteps(world, { ref, lookup, composite? })   → [{ key, ref, ready, waiting?, order, print }]
+ *     composite  the levels the game is made of (the ledger's accepted ones: composedStages); none given, every level
  *     hero       always ready once the world has a hero: the base must be made to be seen and pinned
  *     hero-equipped   when the adornment step is: the base holding what it carries at the last stage (a second
  *                sketch, a picture of the page; the base itself stays bare)
@@ -55,7 +56,7 @@ import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
 import { LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
-import { castingOf, laidCasting } from './casting.js';
+import { castingOf, laidCasting, laidJoins } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
@@ -151,6 +152,23 @@ export function auditSteps(steps, stages) {
   });
 }
 
+/**
+ * THE COMPOSITE — the game made of some of its levels: the levels the creator has accepted, one unit at a time
+ * (design_game's ledger, gameworld/reqs.js), so the game is always playable up to its last accepted level. Their stages
+ * in the book's order; the gates chained over them alone (gameLevels chains what it is given); a map's exits and the
+ * links (a door into an inside) between kept stages only. `composite` undefined: every level, as before. An epoch's
+ * board keeps its levels whole (its map is its order).
+ */
+export function composedStages(stages, refs, map, composite) {
+  if (!Array.isArray(composite)) return { stages, refs, map };
+  const keep = stages.map((_, i) => i).filter((i) => composite.includes(stages[i].level));
+  const kept = new Set(keep.map((i) => refs[i]));
+  const exits = (ws) => (ws ?? []).filter((w) => kept.has(w.to));
+  return { stages: keep.map((i) => stages[i]), refs: keep.map((i) => refs[i]), map: map ? keep.map((i) => ({ ...map[i], on: exits(map[i].on), back: exits(map[i].back) })) : null };
+}
+/** A composite's audit steps: the kept levels' alone (the others are not in the game to be walked). */
+const composedAudits = (audits, C, composite) => (Array.isArray(composite) ? audits.filter((a) => C.refs.includes(a.ref)) : audits);
+
 export function childRef(ref, part) {
   const plain = `${ref}-${part}`;
   if (plain.length <= REF_MAX) return plain;
@@ -193,13 +211,16 @@ const rowSurfaces = (head) => (isObj(head) ? Object.fromEntries(ROW_SURFACES.fil
 export const heroRefOf = (world, ref) => world.characters?.hero?.ref ?? (typeof world.quick?.hero?.ref === 'string' ? world.quick.hero.ref : null) ?? childRef(ref, 'hero');
 
 /** The steps of a run, in the order they are made (the hero first: the others name it, or wait on its pinned base). */
-export function runSteps(world, { ref, lookup } = {}) {
+export function runSteps(world, { ref, lookup, composite } = {}) {
   if (typeof ref !== 'string' || !ref) throw new Error('runner: the steps are made at refs derived from the gameworld\'s own ref');
   if (world.quick) return quickSteps(world, readGameworld(world), ref, lookup);
   // a world before its people (no character book: a world composed from a prompt) makes its levels at once
-  if (world.characters === undefined) return worldSteps(world, readGameworld(world), ref);
+  if (world.characters === undefined) return worldSteps(world, readGameworld(world), ref, composite);
   // a turn-based world is laid with its battles, written or not (battles.js)
-  const G = laidBattles(readGameworld(world));
+  // (and its party joining one a level, when its book says nothing of when: casting.js laidJoins)
+  // (one a CHAPTER where the world has a main quest: for each act's last quest, its dungeon; else one a level)
+  const G0 = laidBattles(readGameworld(world)), levelsPlayed = [...new Set(gameStages(world).map((s) => s.level))];
+  const { G, at: joinsAt } = laidJoins(G0, chapterLevels(world, levelsPlayed));
   const O = heroOrders(G);
   if (!O) return [];
   // an adopted hero (characters.hero.ref) is pinned, never made: the step says so (`adopt`), and it plays as it is
@@ -319,12 +340,16 @@ export function runSteps(world, { ref, lookup } = {}) {
   stages.forEach((s, i) => { last[s.level] = levelRefs[i]; });
   const carryFrom = { items: store.slices.filter((x) => x.kind === 'inventory').map((x) => x.name), campaign: 'campaign', levels: last };
   // the cast who join the hero (characters.cast.<id>.joins): every stage carries them, asleep until they join
-  const party = Object.entries(GL.characters?.cast ?? {}).filter(([, m]) => m.joins).map(([id, m]) => ({ id, ref: castRefs[id], joins: m.joins }));
+  // (a rolled member joining by the default walks the map only where the party does, battles.followers; its level
+  // says so as it starts: joinsAt)
+  const rolled = new Set(GL.characters?.rolled ?? []);
+  const party = Object.entries(GL.characters?.cast ?? {}).filter(([, m]) => m.joins).map(([id, m]) => ({ id, ref: castRefs[id], joins: m.joins, name: m.name ?? id, ...(joinsAt[id] ? { joinsAt: joinsAt[id] } : {}), ...(rolled.has(id) && G.battles?.followers === false ? { walks: false } : {}) }));
   // a casting page's people on the field (casting.js): each plays its own moves; its first party and the familiars walk
   // beside the hero from the start (one the page gives a joins flag joins on it, above); a body that does not walk the
   // field yet is left off it
   const castFigures = CG ? Object.fromEntries(CG.members.map((M) => [M.id, M.field])) : null;
-  if (CG) for (const M of CG.members) if ((M.bond === 'party' || M.bond === 'familiar') && !M.joins && M.field) party.push({ id: M.id, ref: castRefs[M.id], joins: null });
+  // (battles.followers false: the party fights beside the hero but does not walk the map: none of it stood as a follower)
+  if (CG && G.battles?.followers !== false) for (const M of CG.members) if ((M.bond === 'party' || M.bond === 'familiar') && !M.joins && M.field) party.push({ id: M.id, ref: castRefs[M.id], joins: null });
   const lastOf = lastStages(stages);
   // the packs each stage meets, numbered across the game (battles.js)
   const plan = G.battles ? battlePlan(G, stages, (i) => roomOf(stageEnds(stages[i].manifest))) : null, packFrom = [];
@@ -406,13 +431,15 @@ export function runSteps(world, { ref, lookup } = {}) {
     if (onBoard) L.args = toMap(L.args);
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
-  if (stages.length) {
-    const links = onBoard ? [] : gameLinks(stages, levelRefs);
+  // (the game made of the accepted levels only, when the ledger names them: composedStages; none accepted, no game yet)
+  const C = composedStages(stages, levelRefs, map, onBoard ? undefined : composite);
+  if (C.stages.length) {
+    const links = onBoard ? [] : gameLinks(C.stages, C.refs);
     const theme = paletteTheme(G);
     const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : null;
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(stages, levelRefs, map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
-    steps.push(...auditSteps(steps, stages));
+    steps.push(...composedAudits(auditSteps(steps, stages), C, onBoard ? undefined : composite));
   }
   return steps;
 }
@@ -459,6 +486,16 @@ export function storyReport(world, { ref = 'gw' } = {}) {
  * levelGoalCast), the boss at the end of its level's last stage (`lastOf`: each level's last stage that takes a goal),
  * a sneak's guards on every stage's beats (quick.js guardPosts, one figure for them all at `<ref>-guard`); a level with
  * none passes nothing, so it lays as it always did (reach its exit). */
+/** The level of each chapter's last quest, in the acts' (or chapters') order: its last built beat's level (`as: { level }`,
+ * or the level a run laid from its words, named for the beat), where it is one played: a chapter's dungeon, the quest a
+ * party member joins for (a town's quests to its plains and its woods walked solo first); a world with no main quest has
+ * a chapter a level. */
+function chapterLevels(world, played) {
+  const Q = world.mainQuest, parts = Q && (Q.acts ?? Q.chapters);
+  if (!Array.isArray(parts) || !parts.length) return played;
+  const playedSet = new Set(played);
+  return parts.map((A) => (A.beats ?? []).filter((B) => B && B.built !== false).map((B) => B.as?.level ?? B.id).filter((lv) => playedSet.has(lv)).at(-1)).filter(Boolean);
+}
 const bossed = (G) => G.ids.some((id) => G.levels[id].goal?.boss);
 // the cameras that watch a hero (levels.js levelOrder refuses them without one)
 const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed']);
@@ -544,7 +581,7 @@ function guardStep(G, ref, ready) {
  * person (the walker stageLevelOrder lays when no hero is named), then the game over them in the play shell. A level
  * waits on the world's own parts and its level's (review.js): settled at once in autonomous mode (a composed world),
  * by the creator's verdicts when gated. A world that gains a book is run by runSteps' own path, its levels remade. */
-function worldSteps(world, G, ref) {
+function worldSteps(world, G, ref, composite) {
   const stamps = reviewState(world), at = (id) => stamps.find((x) => x.id === id);
   const settled = (ids) => { const waiting = ids.filter(at).map((id) => ({ id, status: at(id).status })).filter((x) => !['approved', 'auto'].includes(x.status)); return waiting.length ? { ready: false, waiting } : { ready: true }; };
   const ground = ['world', 'nature', 'civilizations', 'key'];
@@ -566,11 +603,13 @@ function worldSteps(world, G, ref) {
     const L = stageLevelOrder(W, s, { ref: levelRefs[i], heroRef: null, ...GA, ...(hostile ? { extra: composeExtras(GA.goalCast, hostile) } : {}), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });
   });
-  if (stages.length) {
-    const links = gameLinks(stages, levelRefs), theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
-    steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
-    steps.push(...auditSteps(steps, stages));
+  const C = composedStages(stages, levelRefs, map, composite);
+  if (C.stages.length) {
+    const links = gameLinks(C.stages, C.refs), theme = paletteTheme(G);
+    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    // (a composite's game waits on the levels in it, not on parts the creator is still working one at a time)
+    steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(Array.isArray(composite) ? stamps.map((x) => x.id).filter((id) => !id.startsWith('level:') || composite.includes(id.slice(6))) : stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
+    steps.push(...composedAudits(auditSteps(steps, stages), C, composite));
   }
   return steps;
 }
@@ -731,8 +770,12 @@ function quickSteps(world, G, ref, lookup) {
     // leans the roll toward fighters and never to a mascot, and the roster's own facets win
     const setting = settingOfGame(G, Q);
     const roster = [];
-    for (const { over, roll: own0, hero, ...own } of fightFighters(Q, seed)) {
-      if (hero) { roster.push({ ...own, hero, ...over }); continue; }
+    // (a boxer's own strikes, solved on its rig, when the fight strikes so: versus-hero.js, the one tradition a character
+    // throws its own way; every other fighter keeps its style's or its tradition's moves, played on its own body as
+    // well; its own `moves` win)
+    const strikesOf = (m, over) => (m !== undefined ? { moves: m } : Q.strikes === 'own' && over?.tradition === 'boxing' ? { moves: 'hero' } : {});
+    for (const { over, roll: own0, hero, moves, ...own } of fightFighters(Q, seed)) {
+      if (hero) { roster.push({ ...own, hero, ...over, ...strikesOf(moves, over) }); continue; }
       const roll = { ...own0, setting };
       const sheet = rollEgocube(roll);
       // a person takes the hero door, and so does any people below it (the tiered body, egocube/plan.js beastOnTiered:
@@ -742,7 +785,7 @@ function quickSteps(world, G, ref, lookup) {
       const manifest = { kind: 'egocube', roll }, name = own.name ?? fighterName(sheet);
       steps.push({ key: sheetKey, ref: sheetRef, ready: true, order: { title: `${title} · ${name} (sheet)`, manifest }, print: fingerprint(manifest) });
       steps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}` }, print: fingerprint({ roll }) });
-      roster.push({ ...own, hero: { ref: charRef }, ...over });
+      roster.push({ ...own, hero: { ref: charRef }, ...over, ...strikesOf(moves, over) });
     }
     const arenas = fightArenas(Q, { title, roster }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
     const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));

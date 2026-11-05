@@ -110,6 +110,53 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
   });
 });
 
+describe('the party on the map', () => {
+  it('followers: false: the party fights beside the hero, but the hero walks the map alone', () => {
+    const cast = { ...MEADOWMARK_HERO.characters, casting: { scale: 'party', n: 2 } };
+    const at = (battles) => {
+      const M = levels(W(battles, { characters: cast }))[0].order.manifest;
+      return { escorts: M.entities.filter((e) => e.rule?.mind?.motivation === 'escort').map((e) => e.id), party: lowerPlay(M, { player: 'hero' }).rpg.party.map((p) => p.id) };
+    };
+    const walked = at({}), alone = at({ followers: false });
+    expect(walked.escorts.length).toBeGreaterThan(0);
+    expect(alone.escorts).toEqual([]);
+    // the same party in the fights either way
+    expect(alone.party).toEqual(walked.party);
+    expect(alone.party.length).toBeGreaterThan(1);
+    expect(() => readBattles({ followers: 'no' })).toThrow(/followers is true .* or false/);
+  });
+});
+
+describe('the party joining', () => {
+  it('by default one a level, in the order played: its flag set and said as its level starts, carried on', () => {
+    const cast = { ...MEADOWMARK_HERO.characters, casting: { scale: 'party', n: 2 } };
+    const S = levels(W({}, { characters: cast }));
+    const order = [...new Set(S.map((s) => s.key.replace(/^level-(.+)-\d+$/, '$1')))];
+    const first = (lv) => S.find((s) => s.key === `level-${lv}-0`).order.manifest;
+    const arrives = (M) => (M.play?.cues ?? []).filter((c) => /^party-.+-arrives$/.test(c.id)).map((c) => c.id);
+    expect(arrives(first(order[0]))).toEqual(['party-party-1-arrives']);
+    expect(arrives(first(order[1]))).toEqual(['party-party-2-arrives']);
+    expect(first(order[0]).play.cues.find((c) => c.id === 'party-party-1-arrives').then[0]).toEqual({ emit: 'flag:join-party-1' });
+    // the fights know them by the same flags; the level carries them
+    const party = lowerPlay(first(order[0]), { player: 'hero' }).rpg.party;
+    expect(party.filter((p) => p.joins).map((p) => [p.id, p.joins])).toEqual([['party-1', 'join-party-1'], ['party-2', 'join-party-2']]);
+    expect(first(order[1]).play.party.map((m) => m.joins).filter(Boolean)).toEqual(expect.arrayContaining(['join-party-1', 'join-party-2']));
+    // with followers false: none stands on the map, every one still in the level's party, its flag carried
+    const alone = levels(W({ followers: false }, { characters: cast })).find((s) => s.key === `level-${order[1]}-0`).order.manifest;
+    expect(alone.entities.filter((e) => e.rule?.mind?.motivation === 'escort')).toEqual([]);
+    expect(alone.play.party).toEqual(expect.arrayContaining([{ who: 'party-1', joins: 'join-party-1' }, { who: 'party-2', joins: 'join-party-2' }]));
+    // with a main quest, one a CHAPTER, for its last quest (its dungeon): an act of both levels brings one member on the
+    // second, the first walked solo; the next waits for its act
+    const quest = { acts: [{ id: 'one', goal: 'set out', beats: order.map((lv, k) => ({ id: `b${k}`, goal: `beat ${k}`, as: { level: lv } })) }, { id: 'two', goal: 'on', beats: [{ id: 'later', goal: 'later', built: false }] }] };
+    const QS = levels(W({}, { characters: cast, mainQuest: quest }));
+    expect(order.map((lv) => arrives(QS.find((s) => s.key === `level-${lv}-0`).order.manifest))).toEqual([[], ['party-party-1-arrives']]);
+    expect(lowerPlay(QS.find((s) => s.key === `level-${order[0]}-0`).order.manifest, { player: 'hero' }).rpg.party.find((p) => p.id === 'party-2').joins).toBe('join-party-2');
+    // a book that writes its own joins keeps them: no default
+    const own = { ...cast, casting: { ...cast.casting, cast: { 'party-1': { joins: 'met-at-the-well' } } } };
+    expect(arrives(levels(W({}, { characters: own })).find((s) => s.key === `level-${order[0]}-0`).order.manifest)).toEqual([]);
+  });
+});
+
 describe('the shops on the way', () => {
   it('each fighting stage opens with a merchant and an inn, the wares and the night dearer further on; none where the book says', () => {
     const L = levels(W({}));

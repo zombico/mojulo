@@ -33,7 +33,7 @@ import { layLevel } from '../level/index.js';
 import { assembleStageScene, planStage, stageKit } from '../era/stage.js';
 import { ladderParams, climbSurface, LADDER, LADDER_VARIANTS } from '../playscape/objects/ladder.js';
 import { withGeocube } from '../era/geocube.js';
-import { playerWorld, traversalStates } from '../playscape/player.js';
+import { playerWorld, traversalStates, HERO_WALK_RUN } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
@@ -251,6 +251,9 @@ function withMoves(P, moves, grants = []) {
   const grant = (rule) => grants.reduce((r, m) => { const g = TRAVERSAL_MOVES[m].rule(r); return { ...r, ...g, ...(g.airJumps ? { airJumps: Math.max(r.airJumps ?? 0, g.airJumps) } : {}) }; }, rule);
   return { ...P, figures, entities: P.entities.map((e, i) => (i === 0 ? { ...e, rule: grant({ ...e.rule, ...(moves ?? {}) }) } : e)) };
 }
+// a hero runs and walks with Z held (player.js HERO_WALK_RUN); a mascot pilot runs on its own clips, and a hero with the
+// gear (the swing and zip) runs as it did
+const walkRun = (pilot, extra = '') => (pilot || /\bF\s/.test(extra ?? '') ? 'W / S  run' : HERO_WALK_RUN);
 const movesLegend = (moves) => (moves && moves.gear ? ' · F  swing (in the air), zip (on the ground)' : '');
 
 /** A city segment's create_sketch call: its manifest with the levels of its neighbours by ref, and in a map the world's
@@ -632,7 +635,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   if (cam === 'third-person' && !heroRef) throw new Error('levels: a third-person camera follows a hero; give the world a hero, or play it first-person');
   if (cam === 'fixed' && !heroRef) throw new Error('levels: fixed cameras watch a hero walk past them; give the world a hero, or play it first-person');
   const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
-  const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : top ? 'W A S D  move' : look ? `W / S  ${heroRef ? 'run' : 'walk'} · A / D  step aside · mouse  look` : `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn`;
+  const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
   const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
@@ -694,7 +697,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
-    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls: `${controls}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves, startingGrants(G));
+    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: `${controls}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves, startingGrants(G));
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
@@ -868,7 +871,14 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   // THE PARTY (playscape/ui/party.js): each cast member who joins on a flag, in every stage, on the escort motive. One
   // the story stands here waits at its stand until it joins; elsewhere it is minted asleep behind the start and wakes
   // when the flag is set or carried in.
-  const joiners = (party ?? []).filter((p) => p.ref && castFigures?.[p.id] !== null), members = [], stands = [];
+  const joiners = (party ?? []).filter((p) => p.ref && castFigures?.[p.id] !== null && p.walks !== false), members = [], stands = [];
+  // (one who joins but does not walk the map, battles.followers false: in the party for its flag, no figure; and one who
+  // joins by the default, on its level, as the level starts: its flag set, said)
+  const arrivals = [];
+  for (const p of party ?? []) {
+    if (p.walks === false && p.joins) members.push({ who: p.id, joins: p.joins });
+    if (p.joinsAt === stage.level && (stage.index ?? 0) === 0 && p.joins) arrivals.push({ id: `party-${p.id}-arrives`, when: { start: true }, then: [{ emit: `flag:${p.joins}` }, { say: `${p.name ?? p.id} joins the party`, as: 'toast' }] });
+  }
   if (joiners.length) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities], pilot = entities[0], h = ends.heading;
     // (on the pilot's own side when it has one: a team game's; else a side of their own)
@@ -894,6 +904,7 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
     pilotPart = { ...pilotPart, figures, entities };
   }
   let play = basePlay;
+  if (arrivals.length) play = { ...(play ?? {}), cues: [...(play?.cues ?? []), ...arrivals] };
   // (a party all with the pilot from the start carries no flag between levels)
   if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), ...(members.some((m) => m.joins) ? { carry: STORY_SLICE } : {}) };
   // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
@@ -1249,7 +1260,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // (or third person), the hero's own chase, every arg as it was
   const cam = G.camera ?? null, top = cam === 'top-down';
   if (cam === 'side') throw new Error(`levels: a side camera runs a trail's lane, and '${stage.level}' is a building with none; play it top-down, fixed or third-person`);
-  const controls = `${top ? 'W A S D  move' : 'W / S  run · A / D  turn'} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const controls = `${top ? `W A S D  move${!pilot && !moves?.gear ? ' · Z  walk' : ''}` : `${walkRun(pilot, moves?.gear ? 'F ' : '')} · A / D  turn`} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : {}), ...(strikeWindow(G, null) ?? {}) };
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];

@@ -218,6 +218,21 @@ export function decollideExceptBound(faces) {
 // index (a quad sends 4 vertices, not 6) — and its baked colour sent as 8-bit sRGB, decoded in-page back to linear
 // (the display is 8-bit sRGB, so the picture is the same). Absent ⇒ every page is byte-identical.
 const toSrgb8 = (c) => { const v = Math.min(1, Math.max(0, c)); return Math.round((v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055) * 255); };
+// a plain group's corners as a packed page carries them (pack: true): its positions on a uint16 grid over its own bounds
+// (a step of a few millimetres on a level), its colours as sRGB bytes (packTex's): the page decodes both to the same
+// Float32Arrays, the same triangles in the same order, so nothing that reads a group's mesh sees a difference but the
+// grain. A colour in [0, 1] comes back within one sRGB step; a position within half a step of the grid.
+function packGroupArrays(gm) {
+  const P = gm.positions, n = P.length / 3, mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < P.length; i++) { const a = i % 3; if (P[i] < mn[a]) mn[a] = P[i]; if (P[i] > mx[a]) mx[a] = P[i]; }
+  if (!n) return { pos: b64(P), col: b64(gm.colors) };
+  const o = mn.map((v) => Number(v.toPrecision(9))), s = mx.map((v, a) => Number((((v - o[a]) / 65535) || 0).toPrecision(9)));
+  const q = new Uint16Array(P.length);
+  for (let i = 0; i < P.length; i++) { const a = i % 3; const v = s[a] ? Math.round((P[i] - o[a]) / s[a]) : 0; q[i] = v < 0 ? 0 : v > 65535 ? 65535 : v; }
+  const c = new Uint8Array(gm.colors.length);
+  for (let i = 0; i < c.length; i++) c[i] = toSrgb8(gm.colors[i]);
+  return { q: b64(q), o, s, c8: b64(c) };
+}
 function packTex(g, suns = null, lits = null) {
   const n = g.positions.length / 3, seen = new Map(), pos = [], uv = [], col = [], idx = [], sun = suns ? [] : null, lit = lits ? [] : null;
   for (let i = 0; i < n; i++) {
@@ -530,7 +545,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     const crystal = cryFace ? { gems: gm.cryGems, a: b64(gm.crys), cmu: Number.isFinite(cryFace.crystal.cmu) ? cryFace.crystal.cmu : 1 } : null;
     // per-vertex metal data (metal-surfaces S2) — the key is only present when the group carries a metal face
     const metal = gm.mets ? { surfaces: gm.metSurfaces, a: b64(gm.mets), ...(gm.metP ? { p: b64(gm.metP) } : {}) } : null;
-    return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}), ...(creasesCfg && creaseOf(fs) ? { crease: creaseOf(fs) } : {}), ...(liveShadows && gm.suns ? { sun: b64(gm.suns) } : {}), ...(litPack && gm.lits ? { lt: b64(gm.lits) } : {}) };
+    return { name, ...(pack ? packGroupArrays(gm) : { pos: b64(gm.positions), col: b64(gm.colors) }), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}), ...(creasesCfg && creaseOf(fs) ? { crease: creaseOf(fs) } : {}), ...(liveShadows && gm.suns ? { sun: b64(gm.suns) } : {}), ...(litPack && gm.lits ? { lt: b64(gm.lits) } : {}) };
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
@@ -1041,7 +1056,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // a body in the form render (gen-7: a figure's `form`) is lit along the world's sun, the live light's own travel
   const formSun = Object.values(packedFigures || {}).some((f) => f && f.rig && f.form)
     ? (Array.isArray(shadows && shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight : light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]) : null;
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!capture || !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(formSun ? { formSun } : {}), ...(tempo ? { tempo } : {}), ...(xrCfg ? { xr: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' ? { acts: true } : {}), ...(hasEvents && triggersIn(events) ? { trigger: true } : {}), ...(hasEvents && events.fxStyle && typeof events.fxStyle === 'object' && events.fxStyle.flow ? { flow: true } : {})  }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!capture || !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(formSun ? { formSun } : {}), ...(tempo ? { tempo } : {}), ...(xrCfg ? { xr: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' ? { acts: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'backdrop' ? { backdrop: true } : {}), ...(hasEvents && triggersIn(events) ? { trigger: true } : {}), ...(hasEvents && events.fxStyle && typeof events.fxStyle === 'object' && events.fxStyle.flow ? { flow: true } : {})  }) : '';
   // the headset: on a page with a controllable channel it drives the pilot (channels/xr.js `ctrl`), else it walks
   // (and on a pilot whose figure carries its hands, hero-xr-hands.js, the hands on the controllers)
   const xrBlock = xrCfg ? xrModeScript(controllableBlock ? xrConfig(xr, walkCfg, { ctrl: true }) : xrCfg, { ctrl: !!controllableBlock, hands: !!controllableBlock && Object.values(figures || {}).some((f) => f && f.xrHands) }) : '';
@@ -1200,10 +1215,13 @@ ${backdropUrl ? `scene.background = null; renderer.setClearColor(0x000000, 0);  
 // One mesh per render group. Hideable groups (walls/ceiling) get a transparent material so
 // they can fade; static groups (furniture, floor, whole cities) stay opaque.
 const meshes = {}, hideable = [], solids = [], xrayGroups = [];   // solids: every opaque fill mesh, for the wireframe toggle
-for (const grp of GROUPS) {
+${pack ? `// a packed group (packGroupArrays): its positions off a uint16 grid, its colours off sRGB bytes, to the same arrays
+function __grpPos(g) { if (!g.q) return decodeF32(g.pos); const b = atob(g.q), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); const q = new Uint16Array(u.buffer), p = new Float32Array(q.length); for (let i = 0; i < q.length; i += 3) { p[i] = g.o[0] + q[i] * g.s[0]; p[i + 1] = g.o[1] + q[i + 1] * g.s[1]; p[i + 2] = g.o[2] + q[i + 2] * g.s[2]; } return p; }
+function __grpCol(g) { if (!g.c8) return decodeF32(g.col); const c8 = decodeU8(g.c8), lin = new Float32Array(c8.length); for (let i = 0; i < c8.length; i++) lin[i] = __SRGB_LIN[c8[i]]; return lin; }
+` : ''}for (const grp of GROUPS) {
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(grp.pos), 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(grp.col), 3));${liveShadows ? `
+  geo.setAttribute('position', new THREE.BufferAttribute(${pack ? '__grpPos(grp)' : 'decodeF32(grp.pos)'}, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(${pack ? '__grpCol(grp)' : 'decodeF32(grp.col)'}, 3));${liveShadows ? `
   if (grp.sun) geo.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(grp.sun), 1));   // the baked sun's share (live light)` : ''}${litPack ? `
   if (grp.lt) geo.setAttribute('aLit', new THREE.BufferAttribute(decodeF32(grp.lt), 3));   // the baked light (the form render indoors)` : ''}
   geo.computeBoundingSphere();

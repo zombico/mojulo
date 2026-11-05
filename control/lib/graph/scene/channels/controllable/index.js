@@ -1,4 +1,5 @@
 import { b64, safeJson } from '../../emit-util.js';
+import { packRigMesh } from '../../../figures/rig-bake.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
 import { surfaceAt } from '../../../roads/surface.js';
 import { commanderSource } from '../../../worlds/controllable/commander.js';
@@ -53,6 +54,61 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
+// the page's figure bank, as the page reads it. A LAYERED figure (station-loft-rig packLayeredRig) is drawn part by
+// part, each part carried by its bone: its skin's joints and weights (`jnt`, `wgt`, a quarter or more of a party's
+// bank) are the engine exports' (scene-gltf.js reads them from the figure's own row), never read by the page, so they
+// are left out of it; and its parts, packed as a triangle soup of float32 corners (a hero's body past 100,000 triangles),
+// go to the page as unit rigs' do (rig-bake.js packRigMesh: the corners shared, the positions on a uint16 grid, read by
+// __makeRigGroup's q branch), each part that carries nothing laid per corner the page reads (paint, a face's morphs,
+// correctives, normals, metal). A skinned figure (`skin: true`, one mesh skinned in the page: __makeSkinGroup) keeps it
+// all. And a figure byte-identical to one before it (a battle's foe slots, one sheet each) is emitted once and named
+// again (`same`). A bank with none of these is returned as it came, so its page is byte for byte as before.
+const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8'];
+function pagePart(p) {
+  if (!p || (p.jnt === undefined && p.wgt === undefined)) return p;
+  const { jnt: _j, wgt: _w, ...rest } = p;
+  if (typeof rest.pos !== 'string' || typeof rest.col !== 'string' || PER_CORNER.some((k) => rest[k] !== undefined)) return rest;
+  const buf = (s) => Buffer.from(s, 'base64');
+  const P = buf(rest.pos), C = buf(rest.col);
+  // (the packer takes colours on [0, 1], as a bake hands them, and writes them back as bytes: k/255 returns k exactly)
+  const positions = new Float32Array(P.buffer, P.byteOffset, P.byteLength / 4), bytes = new Uint8Array(C.buffer, C.byteOffset, C.byteLength);
+  if (bytes.length !== positions.length) return rest;
+  const colors = Float32Array.from(bytes, (k) => k / 255);
+  const { pos: _p, col: _c, ...keep } = rest;
+  return { ...keep, ...packRigMesh({ positions, colors }, rest.faces) };
+}
+// a layered figure's clip as the page reads it: its frames (`b`: per key, per bone, a quaternion and a head) on 16 bits,
+// the quaternions over ±1 and the heads over the clip's own reach (its step about a tenth of a millimetre on a figure's
+// clips, the decimals' own grain), the page decoding them to a Float32Array once (__unclip16) and indexing it as before.
+// Identical clips (a figure's `leap` and `boost`) are then identical strings, and the bank's pool keeps one of each.
+function pageClip(c) {
+  if (!c || !Array.isArray(c.b) || !c.b.length || !c.b.every((v) => typeof v === 'number' && Number.isFinite(v))) return c;
+  let reach = 0;
+  for (let i = 0; i < c.b.length; i++) if (i % 7 >= 4) reach = Math.max(reach, Math.abs(c.b[i]));
+  const step = Number(((reach || 1) / 32767).toPrecision(8));
+  const q = new Int16Array(c.b.length);
+  for (let i = 0; i < c.b.length; i++) {
+    const v = i % 7 < 4 ? Math.round(c.b[i] * 32767) : Math.round(c.b[i] / step);
+    q[i] = v > 32767 ? 32767 : v < -32767 ? -32767 : v;
+  }
+  return { ...c, b: { q16: Buffer.from(q.buffer).toString('base64'), s: step } };
+}
+const pageClips = (C) => (C && typeof C === 'object' ? Object.fromEntries(Object.entries(C).map(([n, c]) => [n, pageClip(c)])) : C);
+export function pageFigures(figures) {
+  const drop = (f) => !!f && f.rig === true && f.skin !== true && Array.isArray(f.parts) && f.parts.some((p) => p && (p.jnt !== undefined || p.wgt !== undefined));
+  const out = {}, same = {}, seen = new Map();
+  let changed = false;
+  for (const [name, f] of Object.entries(figures)) {
+    const g = drop(f) ? { ...f, parts: f.parts.map(pagePart), ...(f.clips ? { clips: pageClips(f.clips) } : {}), ...(f.acts ? { acts: pageClips(f.acts) } : {}) } : f;
+    if (g !== f) changed = true;
+    const key = g && typeof g === 'object' ? JSON.stringify(g) : null;
+    if (key && key.length >= 4096 && seen.has(key)) { same[name] = seen.get(key); changed = true; continue; }
+    if (key) seen.set(key, name);
+    out[name] = g;
+  }
+  return changed ? { figs: out, same } : { figs: figures, same };
+}
+
 /** The page's seats (a world's `seats: { bodies, max?, join?, drop? }`): seat 1 is the player the world
  * already has, read through its own controller once it has one; seats 2 to N each a compact read of their own controller
  * through the pilot scheme, riding the frame's input as `input.seats` (worlds/controllable/core.js). A controller sits down
@@ -87,7 +143,7 @@ function __seatSnap(x) {
   if (kb) { mx = __CTL.axis(__BIND, 'turnRight', 'turnLeft', 'keyboard', rd); my = __CTL.axis(__BIND, 'moveForward', 'moveBack', 'keyboard', rd); }
   else { const st = __padStick(g.axes[0] || 0, g.axes[1] || 0); mx = st[0]; my = -st[1]; }
   const P = __seatPrev[x.n] || (__seatPrev[x.n] = {}), jh = h('jump'), tk = h('tackle');
-  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
+  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, walk: h('walk') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
   P.jump = jh; P.tackle = tk;
   return out;
 }
@@ -627,7 +683,9 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false, tempo = null, xr = false, trigger = false, flow = false } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false } = {}) {
+  // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
+  const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
   const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && (b.yield > 0 || b.kerfWork > 0)));
   // metal panels on objects (rupa/panels.js): drawn only when an object carries resolved panels, so every other page keeps its bytes
@@ -1057,11 +1115,20 @@ const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${sa
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
 ` : ''}${commanderBlock}${flyHudBlock}${(() => {
-    const pooled = poolFigureBuffers(figures || {});
-    if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
+    const { figs, same } = PAGE;
+    // (clips on 16 bits: decoded once, after the bank and its pool, before any consumer reads a frame)
+    const q16 = Object.values(figs).some((f) => f && ['clips', 'acts'].some((k) => f[k] && Object.values(f[k]).some((c) => c && c.b && c.b.q16 !== undefined)));
+    const unclip = q16 ? `
+(function __unclip16(F) { for (const n in F) { const f = F[n]; if (!f) continue; for (const k of ['clips', 'acts']) { const C = f[k]; if (!C) continue; for (const c in C) { const b = C[c] && C[c].b; if (!b || b.q16 === undefined) continue; const bin = atob(b.q16), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); const q = new Int16Array(u.buffer), out = new Float32Array(q.length); for (let i = 0; i < q.length; i++) out[i] = i % 7 < 4 ? q[i] / 32767 : q[i] * b.s; C[c] = { ...C[c], b: out }; } } } })(__FIG);` : '';
+    // (a figure named again: the one it is byte for byte, after the bank, so the export's hoist of the bank keeps it)
+    const again = Object.keys(same).length ? `
+const __FIGSAME = ${safeJson(same)};   // name → the figure it is byte for byte (emitted once)
+for (const k in __FIGSAME) __FIG[k] = __FIG[__FIGSAME[k]];` : '';
+    const pooled = poolFigureBuffers(figs);
+    if (!pooled.pool.length) return `const __FIG = ${safeJson(figs)};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)${unclip}${again}`;
     return `const __FIGPOOL = ${safeJson(pooled.pool)};   // shared packed buffers (deduped across figures — livery variants)
 const __FIG = ${safeJson(pooled.fig)};   // name → packed baked figure frames (pos/col b64 or {__p:i} into __FIGPOOL)
-(function __unpool(o) { for (const k in o) { const v = o[k]; if (v && typeof v === 'object') { if (v.__p != null) o[k] = __FIGPOOL[v.__p]; else __unpool(v); } } })(__FIG);`;
+(function __unpool(o) { for (const k in o) { const v = o[k]; if (v && typeof v === 'object') { if (v.__p != null) o[k] = __FIGPOOL[v.__p]; else __unpool(v); } } })(__FIG);${unclip}${again}`;
   })()}
 const __bodies = {};
 // figure-frames body: re-expand baked frames (Uint16 corners + Uint8 colour) into raw Float32
@@ -2521,6 +2588,7 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
   const W = __world, lo = (e) => (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length) || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length);
   return __CTL.legend(__SCHEME, __BIND, __DEV, {
     space: r.space === true, kneel: r.kneel === true, tackle: !!r.tackle, vehicle: r.type === 'drive' || r.type === 'fly',
+    walker: r.walkSpeed > 0 && r.space !== true && !r.gear,   // a person: the walk held, no thrusters
     mouselook: __MOUSELOOK, armed: W.entities.some((e) => e.weapon || lo(e)), lock: ${!!lock},
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
@@ -2630,6 +2698,7 @@ function __readInput() {
     lift: __kx('jump', 'descend') || (__pad ? (__pad.jump ? 1 : 0) - (__pad.kneel ? 1 : 0) : 0),
     jump, jumpHeld: sp ? 1 : 0,
     boost: __k('boost') || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
+    walk: __k('walk') ? 1 : 0,       // a person's walk, held (platform rule, walkSpeed); a pad walks by the stick's travel
     kneel: __k('kneel') || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
     fire: __fireDown || (__pad && __pad.fire && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
@@ -4189,5 +4258,20 @@ ${hangarHook}  __msHookParams();
 };
 ${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
 window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who) };
-` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}`;
+` : ''}${backdrop ? `// THE ENCOUNTER'S BACKDROP (a fight staged on its own arena, rpg rules.stage 'backdrop'): the map drawn once from a pose
+// into a texture, stood as a full-frame quad behind the arena's camera (the same pose shifted by \`shift\`), so the arena
+// reads as the place the fight was met; the world itself stays where it is, out of the arena camera's sight
+function __mojBackdrop(from, look, shift) {
+  const el = renderer.domElement, rt = new THREE.WebGLRenderTarget(Math.max(2, el.width), Math.max(2, el.height));
+  const cam = camera.clone(); cam.up.copy(camera.up); cam.position.set(from[0], from[1], from[2]); cam.lookAt(look[0], look[1], look[2]); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+  const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(prev);
+  const dir = new THREE.Vector3(look[0] - from[0], look[1] - from[1], look[2] - from[2]), reach = dir.length(); dir.normalize();
+  const d = Math.max(60, 4 * reach), H = 2 * d * Math.tan((cam.fov * Math.PI) / 360) * 1.04, Wd = H * cam.aspect;
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(Wd, H), new THREE.MeshBasicMaterial({ map: rt.texture, fog: false, depthWrite: false }));
+  const eye = new THREE.Vector3(from[0] + shift[0], from[1] + shift[1], from[2] + shift[2]);
+  quad.position.copy(eye).addScaledVector(dir, d); quad.up.copy(camera.up); quad.lookAt(eye); quad.renderOrder = -1; quad.frustumCulled = false;
+  scene.add(quad);
+  return { dispose: () => { scene.remove(quad); quad.geometry.dispose(); quad.material.dispose(); rt.dispose(); } };
+}
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}`;
 }

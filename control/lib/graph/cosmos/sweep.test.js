@@ -143,9 +143,15 @@ describe('sweep', () => {
     // eras require chapters, which are built: a built prerequisite is neither needed nor priced
     expect(reg.time.passage.values.eras.requires).toEqual(['time.chapters=overlays']);
     expect(reg.time.chapters.values.overlays.status).toBe('built');
-    const r2 = sweep({ n: 300, seed: 1, around: 'story-adventure' });
+    // (the draw that prices eras alone: since 11-04 the time facet's main-quest settings move the rolls, and seed 1's draw
+    // prices eras inside the main quest's same maps instead, below)
+    const r2 = sweep({ n: 300, seed: 2, around: 'story-adventure' });
     const eras = r2.unlock.packages.find((p) => p.id === 'time.passage=eras');
     expect(eras).toMatchObject({ needs: [], cost: 8 });
+    // and an absent prerequisite is needed and priced in: the main quest's same maps at another period wait on eras
+    expect(reg.time.periods.values['same-maps'].requires).toEqual(['time.passage=eras']);
+    const sameMaps = r2.unlock.packages.find((p) => p.id === 'time.periods=same-maps');
+    expect(sameMaps).toMatchObject({ needs: ['time.passage=eras'], cost: 16 });
   });
 
   it('sweeps near the probes, deterministically, and names its draw', () => {

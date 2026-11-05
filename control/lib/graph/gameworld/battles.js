@@ -123,7 +123,7 @@ export const BAG_SLICE = 'bag';
 export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats); a building, a city and a roadway have none
 export const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
-const KEYS = ['on', 'board', 'party', 'packs', 'per', 'boss', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -152,7 +152,7 @@ function readEpochs(E, ids) {
 
 export function readBattles(v, characters = null, ids = null) {
   if (v === undefined) return null;
-  if (!isObj(v)) throw err(' is { on?, board?, party?, packs?, per?, boss?, foe?, rest?, random?, classes?, skills?, foes?, items?, rules? }');
+  if (!isObj(v)) throw err(' is { on?, board?, party?, followers?, packs?, per?, boss?, foe?, rest?, random?, classes?, skills?, foes?, items?, rules? }');
   for (const k of Object.keys(v)) if (!KEYS.includes(k)) throw err(`.${k} is not part of the battles (${KEYS.join(', ')})`);
   const cast = characters?.cast ?? {};
   // (a casting page's first party may be named too: its ids are read from its words, without rolling, at the largest
@@ -168,6 +168,9 @@ export function readBattles(v, characters = null, ids = null) {
   }
   const packs = v.packs === undefined ? null : (Array.isArray(v.packs) && v.packs.length ? v.packs.map((p, i) => packOf(p, `.packs[${i}]`)) : (() => { throw err('.packs is a list of packs, each 1 to 6 foe ids'); })());
   if (v.per !== undefined && !(Number.isInteger(v.per) && v.per >= 0 && v.per <= 6)) throw err('.per is the packs on each trail stage, 0 to 6');
+  // (followers: false, the party fights beside the hero but does not walk the map with it: the leader alone walks, as a
+  // classic party RPG's; a member who joins on a story flag still stands where the story puts it)
+  if (v.followers !== undefined && typeof v.followers !== 'boolean') throw err('.followers is true (the party walks the map behind the hero, the default) or false (the hero walks alone; the party still fights)');
   const boss = v.boss === undefined ? null : packOf(v.boss, '.boss');
   if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), { species, ooze?, stylism? } for a beast, or { people, facets?, dress? } for a people');
   if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);

@@ -22,6 +22,9 @@ export const FIXTURE = [
   ['an illustration of an old lighthouse for the cover of my story, moody and atmospheric', 'sketch_what_possible'],
   ['I want a picture of a woman mid-stride', 'mint_solid'],
   ['recreate the camera angle from this photo I am showing you', 'reference_protocol'],
+  // a character from a picture the person gave: the reference door's character target, never a hero from words alone
+  ['here is a drawing of my OC, can you make her into a 3D character I can animate', 'reference_protocol'],
+  ['turn this selfie into a low-poly game character of me', 'reference_protocol'],
   ['our company logo in shiny 3D chrome', 'mint_solid'],
   ['model a wine glass true to size', 'mint_solid'],
   ['write me a bracket with four bolt holes in openscad', 'mint_solid'],

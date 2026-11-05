@@ -5,7 +5,7 @@
  * `quantizeRgba(raw, opts)` is a PURE function (same bytes + same
  * params → same cells, forever), which is what keeps machine-baked
  * cells sovereign: the recipe stays re-derivable from the archived
- * source, carried with dream-audit-style provenance by the caller.
+ * source, carried with its provenance by the caller.
  *
  * Three primitives:
  *  - buildPalette      — deterministic median-cut to the register

@@ -25,6 +25,10 @@
  * twos), one map every channel of a rendered film reads: the shoot plan's cameras and world, a scene's actors, the
  * Blender pack. `tempo`, `replay` and `grain` say it.
  *
+ * Built 11-04 (the main quest, gameworld/main-quest.js): the game's ARC, its acts (a beginning, a middle and an end) or
+ * its chapters past an arc, a beat a time; the PERIODS it spans; how loose its SIDES are. A world's main quest sets them
+ * in its cube (gameworld/intent.js cubeOfWorld), so its verdict says what a long game still waits on.
+ *
  * Built 11-02 (the world clock): in play, a world's `tempo` moments fire on what happens (a blow, a foe down, the last foe
  * down, a dodge) and scale the world's step while the camera keeps real time (worlds/controllable/world-clock.js); a
  * game's tempo is laid on every level (gameworld/tempo.js), and a firing moment cues the live shoot plan's shot waiting on
@@ -42,6 +46,10 @@ const WORLD_CLOCK = 'lib/graph/worlds/controllable/world-clock.js';
 const CLOCK = { status: 'built', lowers: WORLD_CLOCK };
 const REPLAY = { status: 'partial', effort: 'M', pkg: 'replay', lowers: TIME_MAP };
 const KEYED = { status: 'partial', effort: 'M', pkg: 'keying', lowers: TIME_MAP };
+// the main quest (11-04): a chapter's turn waits on its overlay; side quests placed by the quest wait on their package
+const MAIN_QUEST = 'lib/graph/gameworld/main-quest-lay.js';
+const QUEST_TURNS = { status: 'partial', effort: 'M', pkg: 'quest-turns' };
+const SIDES = { status: 'partial', effort: 'M', pkg: 'side-quests', lowers: 'lib/graph/gameworld/main-quest.js' };
 // a passage ages the world between chapters, so it is built on them (built: playscape/ui/chapters.js)
 const AGED = { requires: ['time.chapters=overlays'] };
 
@@ -91,6 +99,32 @@ export const TIME = Object.freeze({
         cues: { status: 'built', lowers: CUES, note: 'a happening moves play on: use, take, arrive, down, a var crossing a line' },
         steps: { ...QUESTS, status: 'built', lowers: QUEST_LOG, note: 'a quest\'s steps in order, each done by a flag; the story\'s moments wait step by step (gameworld quests)' },
         quests: { ...QUESTS, status: 'built', requires: ['mind.social=talk'], lowers: QUEST_LOG, note: 'a giver (a moment\'s cast member; the player\'s answer begins it), a journal (J) and a word as it moves on; a reward is a cue on its flag' },
+      },
+    },
+    // built 11-04 (the main quest): the game's spine, its beginning, middle and end, or its chapters past an arc; a beat
+    // a time, each played on a level, a goal-only beat laid its own (gameworld/main-quest.js, main-quest-lay.js)
+    arc: {
+      values: {
+        none: { status: 'built', note: 'no spine: a game of levels in play order' },
+        acts: { status: 'built', lowers: MAIN_QUEST, note: 'a main quest\'s acts, a beginning, a middle and an end, a beat at a time: each beat played on its level, a goal-only beat laid its own, the game in the quest\'s order; an act a stage of the hero\'s progression' },
+        chapters: { ...QUEST_TURNS, requires: ['time.chapters=overlays'], lowers: MAIN_QUEST, note: 'a main quest told chapter on chapter, past an arc: read and laid as acts are; a chapter\'s turn (what a happening changes) is said, not yet lowered to its world overlay' },
+      },
+    },
+    // the times a main quest spans: one, a period on maps of its own, or the same maps at another period (eras)
+    periods: {
+      values: {
+        one: { status: 'built', note: 'the quest in one time' },
+        'new-maps': { status: 'built', lowers: MAIN_QUEST, note: 'a period a part of the quest on levels of its own: each beat its own level' },
+        'same-maps': { status: 'absent', effort: 'L', requires: ['time.passage=eras'], note: 'the same maps at another period: a world aged between periods waits on eras' },
+      },
+    },
+    // how far a main quest's side quests stand from its path
+    sides: {
+      values: {
+        none: { status: 'built', note: 'the main path alone' },
+        tight: { ...SIDES, requires: ['time.advance=quests'], note: 'side quests that branch from the path\'s beats: the main quest records it; nothing yet hangs a side quest on a beat' },
+        loose: { ...SIDES, requires: ['time.advance=quests'], note: 'side quests near the path: the quest open world\'s quests (after) and the errands lay them; nothing yet places one by the quest' },
+        free: { ...SIDES, requires: ['time.advance=quests', 'space.topology=open'], note: 'side quests anywhere on the map: an open world\'s own' },
       },
     },
     // built 10-11 (the scene layer): playscape/ui/scenes.js plays a level's scenes, the camera's `shot` rule directs, the

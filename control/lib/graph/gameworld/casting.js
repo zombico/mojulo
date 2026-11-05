@@ -197,6 +197,24 @@ export function castingOf(G) {
 }
 
 /** The world with its rolled members in the book's cast, as the story, the field party and the bible read a written one. */
+/**
+ * A party RPG's party joins one a chapter (the default): in a world that fights in battles, whose casting page rolls a
+ * party and whose book gives none of it a `joins` flag, the first party member joins for the first chapter's last quest
+ * (its dungeon: `levels`, one a chapter, the runner's; the quests before it walked solo), the second for the second's,
+ * and so on: each its flag `join-<id>`, set as that level starts, carried on. A member past the game's chapters waits for its flag. A book that
+ * writes any `joins` keeps its own. → { G (its casting's cast given the flags), at: { <member id>: <level id> } }.
+ */
+export function laidJoins(G, levels = []) {
+  const C = G.battles && G.characters?.casting ? castingOf(G) : null;
+  const party = (C?.members ?? []).filter((M) => M.bond === 'party');
+  if (!party.length || party.some((M) => M.joins) || Object.values(G.characters.cast ?? {}).some((m) => m?.joins)) return { G, at: {} };
+  const book = { ...(G.characters.casting.cast ?? {}) }, at = {};
+  // (every member its flag; one past the game's levels has no level to set it yet, so it waits: no flag would mean with
+  // the hero from the start)
+  party.forEach((M, k) => { book[M.id] = { ...(book[M.id] ?? {}), joins: `join-${M.id}` }; if (levels[k] !== undefined) at[M.id] = levels[k]; });
+  return { G: { ...G, characters: { ...G.characters, casting: { ...G.characters.casting, cast: book } } }, at };
+}
+
 export function laidCasting(G) {
   const C = castingOf(G);
   if (!C) return G;

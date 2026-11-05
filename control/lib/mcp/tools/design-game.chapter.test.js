@@ -7,7 +7,7 @@ import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { designGameHandler } from './design-game.js';
 import { MEADOWMARK_HERO } from '@/lib/graph/gameworld/index';
-import { CHAPTERS, chapterOfPart } from '@/lib/graph/gameworld/chapters.js';
+import { CHAPTERS, chapterOfPart, chapterById, LEVEL_PAGE_CARDS } from '@/lib/graph/gameworld/chapters.js';
 import { MOVE_STEPS, chapterOfMove, chapterPages } from '@/lib/graph/gameworld/chapter-view.js';
 import { gameworldCards } from '@/lib/graph/gameworld/gameworld-cards.js';
 
@@ -22,7 +22,7 @@ describe('design_game: one chapter', () => {
   beforeEach(() => { closeDb(); });
 
   it('refuses a chapter the book does not have, before it writes anything', async () => {
-    await expect(designGameHandler({ world: GATED, ref: 'gw-nope', chapter: 'lighting' })).rejects.toThrow(/chapter is one of intent, world, levels/);
+    await expect(designGameHandler({ world: GATED, ref: 'gw-nope', chapter: 'lighting' })).rejects.toThrow(/chapter is one of intent, world, main-quest, levels/);
     expect(SketchRepository.getByRef('gw-nope')).toBeFalsy();
   });
 
@@ -54,10 +54,46 @@ describe('design_game: one chapter', () => {
       seen.push(...v.parts.map((p) => p.id));
       // the view without its pages (the recipe the department edits, as large as it writes) stays small
       const { pages: _p, ...rest } = v;
-      expect(bytes(rest), c.id).toBeLessThan(2500);
+      // (the build's carries the first session's goalposts too: on a book just begun, every one open with its question)
+      expect(bytes(rest), c.id).toBeLessThan(c.id === 'build' ? 3000 : 2500);
       expect(bytes(v), c.id).toBeLessThan(bytes(full));
     }
     expect(seen.sort()).toEqual(full.parts.map((p) => p.id).sort());
+  });
+
+  it('one level is a unit: its own part, page, links and next moves, a fraction of its chapter', async () => {
+    const full = await designGameHandler({ world: GATED, ref: 'gw' });
+    const [first, second] = Object.keys(GATED.levels);
+    const chapter = await designGameHandler({ ref: 'gw', chapter: 'levels' });
+    const out = await designGameHandler({ ref: 'gw', chapter: `level:${first}` });
+    expect(out).toMatchObject({ ok: true, readout: 'chapter', chapter: { id: `level:${first}`, of: 'levels', department: 'worlds' } });
+    // its part only, stamped as the whole readout stamps it; its state is that stamp
+    expect(out.parts).toEqual(full.parts.filter((p) => p.id === `level:${first}`));
+    expect(out.chapter.state).toBe(out.parts[0].status);
+    // its page alone, and the links that name it: its way in and out
+    expect(Object.keys(out.pages)).toEqual([`/levels/${first}`]);
+    expect(out.pages[`/levels/${first}`]).toEqual(GATED.levels[first]);
+    expect(out.links).toEqual(GATED.links.filter((e) => e.from === first || e.to === first));
+    // a review of its own part only, never its sibling's
+    for (const n of out.next.filter((m) => m.step === 'review')) expect(n.parts).toEqual([`level:${first}`]);
+    expect(JSON.stringify(out.next)).not.toContain(`level:${second}`);
+    expect(bytes(out)).toBeLessThan(bytes(chapter));
+    // its author is handed the manuals of a level's page: every key a level page writes is taught on one of its cards
+    expect(out.chapter.cards).toEqual([...LEVEL_PAGE_CARDS, ...chapterById('levels').cards.filter((x) => !x.endsWith('-*'))]);
+    const manual = out.chapter.cards.map((id) => gameworldCards().get(id)?.body ?? '').join('\n');
+    for (const key of ['walk', 'goal', 'foes', 'places']) expect(manual, key).toContain(key);
+  });
+
+  it('a level\'s unit names a level the world has, and a write past it is said', async () => {
+    await designGameHandler({ world: GATED, ref: 'gw' });
+    const [first, second] = Object.keys(GATED.levels);
+    await expect(designGameHandler({ ref: 'gw', chapter: 'level:nowhere' })).rejects.toThrow(/no level 'nowhere' in this world \(its levels: /);
+    await expect(designGameHandler({ ref: 'gw', chapter: 'level:' })).rejects.toThrow(/or one level as 'level:<id>'/);
+    const own = await designGameHandler({ ref: 'gw', chapter: `level:${first}`, patch: [{ op: 'set', path: `/levels/${first}/name`, value: 'The First' }] });
+    expect(own.outside).toBeUndefined();
+    const past = await designGameHandler({ ref: 'gw', chapter: `level:${first}`, patch: [{ op: 'set', path: `/levels/${second}/name`, value: 'The Second' }] });
+    expect(past.outside).toEqual([`/levels/${second}/name: levels's, not level:${first}'s`]);
+    expect(SketchRepository.getByRef('gw').manifest.levels[second].name).toBe('The Second');
   });
 
   it('a write past the chapter is said, never refused; an upstream write moves its print', async () => {
@@ -100,6 +136,36 @@ describe('design_game: one chapter', () => {
     const levels = await designGameHandler({ ref: 'gb', chapter: 'levels' });
     expect(levels.blockers).toBeUndefined();
     expect(levels.next.some((n) => n.step === 'compile')).toBe(false);
+  });
+
+  it('the main quest\'s chapter: its report, its pages and its laws; the intent\'s: the core loop', async () => {
+    const [L1, L2] = Object.keys(GATED.levels), P = GATED.characters.hero.actions.powers.map((p) => p.id);
+    const mainQuest = { acts: [
+      { id: 'one', goal: 'set out', beats: [{ id: 'climb', goal: 'climb out', as: { level: L1 }, gains: [P[0]] }] },
+      { id: 'two', goal: 'the shore', beats: [{ id: 'shore', goal: 'cross it', as: { level: L2 }, gains: [P[1]] }] },
+    ] };
+    await designGameHandler({ world: { ...GATED, mainQuest }, ref: 'gq' });
+    const mq = await designGameHandler({ ref: 'gq', chapter: 'main-quest' });
+    expect(mq.chapter).toMatchObject({ id: 'main-quest', department: 'production', cards: ['gameworld-main-quest'] });
+    expect(mq.pages).toEqual({ '/mainQuest': mainQuest });
+    expect(mq.mainQuest).toMatchObject({ beats: 2, built: 2, planned: 0, acts: [{ id: 'one', stage: 'early' }, { id: 'two', stage: 'late' }] });
+    // two acts, and the last power gained on no beat: said on its chapter
+    expect(mq.advice.mainQuest).toEqual(expect.arrayContaining([expect.stringMatching(/^arc: .*2 acts/), expect.stringMatching(new RegExp(`^gained-on-path: .*${P[2]}`))]));
+    expect(mq.reads.map((r) => r.id)).toEqual(['intent', 'world']);
+    const intent = await designGameHandler({ ref: 'gq', chapter: 'intent' });
+    expect(intent.loop).toMatchObject({ session: 'a beat of the main quest', from: { moment: expect.any(String) } });
+  });
+
+  it('the readout says the first session\'s goalposts while any is open; the build\'s view carries them', async () => {
+    const out = await designGameHandler({ world: GATED, ref: 'gp' });
+    expect(out.goalposts).toMatchObject({ met: expect.any(Number), of: 7, next: { goalpost: 'game', chapter: 'intent' } });
+    // (no main quest, the world unreviewed: open, with the creator's question)
+    expect(out.goalposts.posts.find((p) => p.id === 'shape')).toMatchObject({ status: 'open', ask: expect.stringContaining('how long') });
+    const build = await designGameHandler({ ref: 'gp', chapter: 'build' });
+    expect(build.goalposts).toEqual(out.goalposts);
+    // writing the intent moves the next goalpost on
+    const intent = await designGameHandler({ ref: 'gp', patch: [{ op: 'set', path: '/intent', value: { from: 'long-rpg' } }] });
+    expect(intent.goalposts.next.goalpost).not.toBe('game');
   });
 
   it('every next move the door says belongs to a chapter, or is split among its parts', () => {

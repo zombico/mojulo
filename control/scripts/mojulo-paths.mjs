@@ -15,14 +15,13 @@
  *   MOJULO_EXPORTS_DIR  → $MOJULO_DATA_DIR/exports    (export_beats .wav)
  *   MOJULO_SCENE_PNG_DIR    → $MOJULO_DATA_DIR/scene-png     (baked gallery stills)
  *   MOJULO_TURNTABLE_DIR    → $MOJULO_DATA_DIR/turntable     (baked turntable strips)
- *   MOJULO_FIGURE_SPECS_DIR → $MOJULO_DATA_DIR/figure-specs  (draft figure specs, user state)
  *   MOJULO_CHROMIUM_DIR     → $MOJULO_HOME/chromium  (the lazily fetched Chrome for Testing)
  *   MOJULO_FFMPEG_DIR       → $MOJULO_HOME/ffmpeg    (the lazily fetched ffmpeg)
  *   MOJULO_FACE_RIG_DIR     → $MOJULO_HOME/cache/face-rig  (the realistic face's solved shapes, relational-face-store.js)
  *
  * All of these matter because their lib fallbacks are cwd-relative
  * (lib/outcomes-paths.js, lib/mcp/tools/exports-dir.js, chromium.js, ffmpeg.js,
- * sketch-png.js, turntable-bake.js, figure-spec-store.js) and every bin chdirs:
+ * sketch-png.js, turntable-bake.js) and every bin chdirs:
  * the stdio bin to the package root, the dashboard to .next/standalone. Left
  * unset, `export_model` wrote into node_modules/mojulo/data/outcomes/<ref>/
  * and the dashboard's /outcomes route read a different folder (the 2026-09-21
@@ -54,7 +53,6 @@ export function resolveMojuloPaths() {
   process.env.MOJULO_EXPORTS_DIR ??= path.join(dataDir, 'exports');
   process.env.MOJULO_SCENE_PNG_DIR ??= path.join(dataDir, 'scene-png');
   process.env.MOJULO_TURNTABLE_DIR ??= path.join(dataDir, 'turntable');
-  process.env.MOJULO_FIGURE_SPECS_DIR ??= path.join(dataDir, 'figure-specs');
   process.env.MOJULO_CHROMIUM_DIR ??= path.join(home, 'chromium');
   process.env.MOJULO_FFMPEG_DIR ??= path.join(home, 'ffmpeg');
   process.env.MOJULO_FACE_RIG_DIR ??= path.join(home, 'cache', 'face-rig');
@@ -73,7 +71,6 @@ export function resolveMojuloPaths() {
     exportsDir: process.env.MOJULO_EXPORTS_DIR,
     scenePngDir: process.env.MOJULO_SCENE_PNG_DIR,
     turntableDir: process.env.MOJULO_TURNTABLE_DIR,
-    figureSpecsDir: process.env.MOJULO_FIGURE_SPECS_DIR,
     chromiumDir: process.env.MOJULO_CHROMIUM_DIR,
     ffmpegDir: process.env.MOJULO_FFMPEG_DIR,
     faceRigDir: process.env.MOJULO_FACE_RIG_DIR,

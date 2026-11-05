@@ -46,6 +46,7 @@ const WORDS = Object.freeze({
   shooter: ['shooter', 'shoot', 'gun', 'guns', 'rifle', 'fps', 'first-person shooter', 'firefight', 'cover', 'ammo'],
   'arena-shooter': ['deathmatch', 'death match', 'arena shooter', 'frags', 'frag', 'free for all', 'free-for-all', 'bots', 'respawn', 'quake', 'unreal tournament'],
   jrpg: ['rpg', 'jrpg', 'party', 'turn-based', 'turn based', 'battle', 'battles', 'role-playing'],
+  'long-rpg': ['long rpg', 'open world rpg', 'open-world rpg', 'epic', 'saga', 'main quest', 'side quests', 'chapters', 'campaign'],
   metroidvania: ['metroidvania', 'abilities unlock', 'backtrack', 'map', 'interconnected'],
   'survival-horror': ['horror', 'survival horror', 'scary', 'dread', 'fixed camera', 'mansion'],
   'story-adventure': ['story', 'narrative', 'cutscene', 'cutscenes', 'dialogue', 'characters talk'],
@@ -116,7 +117,7 @@ export function suggestGenres(text, n = 3) {
 // are needed ("towers" or "map" says too little; "tower defence" or "metroidvania" says it)
 const NAMES = Object.freeze({
   'dungeon-crawler': ['crawler'], collectathon: ['collectathon'], shooter: ['fps', 'first-person shooter'],
-  'arena-shooter': ['deathmatch', 'death match', 'arena shooter'], jrpg: ['rpg', 'jrpg', 'role-playing'], metroidvania: ['metroidvania'],
+  'arena-shooter': ['deathmatch', 'death match', 'arena shooter'], jrpg: ['rpg', 'jrpg', 'role-playing'], 'long-rpg': ['long rpg', 'open world rpg', 'open-world rpg'], metroidvania: ['metroidvania'],
   'survival-horror': ['survival horror'], 'arena-brawler': ['brawler', 'beat-em-up'], stealth: ['stealth'], racing: ['racing', 'time trial'],
   'kart-racer': ['kart', 'karts', 'kart racer', 'go-kart'], 'flight-sim': ['flight sim'], 'space-shooter': ['space shooter', 'starfighter'],
   'air-combat': ['dogfight', 'dogfights', 'dogfighting', 'air combat'], rhythm: ['rhythm'], 'endless-runner': ['endless'], 'match-3-saga': ['match-3'],
@@ -183,6 +184,13 @@ export function cubeOfWorld(world) {
   if (Q?.track) put(cube, 'space', 'levelForm', Q.track === 'loop' ? 'circuit' : 'trail');
   if (Q?.run) put(cube, 'time', 'progression', 'runs');
   if (world?.style?.pixel) put(cube, 'reality', 'medium', 'pixel');
+  // its main quest (main-quest.js): the arc its shape is, the periods it spans, how loose its sides are
+  const MQ = world?.mainQuest && typeof world.mainQuest === 'object' ? world.mainQuest : null;
+  if (MQ) {
+    put(cube, 'time', 'arc', MQ.chapters !== undefined ? 'chapters' : 'acts');
+    if (Array.isArray(MQ.periods) && MQ.periods.length > 1) put(cube, 'time', 'periods', MQ.periods.slice(1).some((p) => p?.passage === 'eras') ? 'same-maps' : 'new-maps');
+    if (MQ.sides?.looseness) put(cube, 'time', 'sides', MQ.sides.looseness);
+  }
   // the intent's own values, last
   const said = [];
   for (const [f, s] of Object.entries(I?.cube ?? {})) for (const [k, v] of Object.entries(s)) { put(cube, f, k, v); said.push(`${f}.${k}`); }

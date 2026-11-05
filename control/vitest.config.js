@@ -22,6 +22,7 @@ export const E2E = [
   'lib/mcp/tools/design-game.budget.test.js',
   'lib/mcp/tools/design-game.proof.test.js',
   'lib/mcp/tools/design-game.climb.test.js',
+  'lib/mcp/tools/design-game.quest.test.js',
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/car-designer/form-render.live.test.js',

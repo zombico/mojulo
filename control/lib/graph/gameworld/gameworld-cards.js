@@ -34,6 +34,9 @@ import { SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 import { WORLD_STYLE, CIVILIZATION, LINK_KINDS, TOPOLOGIES } from './world.js';
 import { MODES, STAMPS } from './review.js';
 import { chapterById, chapterWaves } from './chapters.js';
+import { LENGTHS, LOOSENESS, PASSAGES, BEAT_AS, SHAPES, LAWS as MAIN_QUEST_LAWS } from './main-quest.js';
+import { LOOP_LAYERS, BODY_VERBS } from './core-loop.js';
+import { GOALPOSTS } from './goalposts.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
@@ -84,6 +87,47 @@ const pair = (page, a, b) => [
 ];
 const samples = (page) => `Browse more: get_game_vocab({ samples: '${page}', n?, seed? }) draws up to ${SAMPLE_MAX} random fragments of this page, brief-blind, each with what it derives.`;
 
+// the ledger: the units asked for one at a time (gameworld/reqs.js), their jobs (jobs.js), their received gate and the
+// game built up to its last accepted level (runner.js composedStages); the studio card points here
+function ledgerCard() {
+  return lines(
+    'THE LEDGER — a game made one unit at a time: a chapter of the book, or one level (level:<id>), worked to quality',
+    'before the next, so a mistake stays in its unit and an accepted unit is ground the next stands on.',
+    '',
+    'ASK FOR A UNIT: { ref, req: { unit, remit?, staffing? } } (a chapter, or level:<id>); what it reads and',
+    'has not settled is asked for first. `reqs.current` is the unit being worked; its view carries its `req` (the remit,',
+    'the precedent: the last accepted unit of its kind and the creator\'s notes on what they sent back). It is accepted',
+    'when the creator approves its parts (a unit with none: { ref, req: { id, accept: true } } on their word).',
+    'THE MAIN QUEST AS THE QUEUE: { req: { unit: \'beat:<id>\' } } asks for the level a beat is played on (laid now if',
+    'a run would lay it), its remit filled from the quest (the act and its stage, the beat\'s foes and gains, the beats',
+    'around it, the core loop; your words win key by key). { req: { quest: true } } asks for every built beat, in order.',
+    'ITS JOBS ({ ref, req: { id, start: true } }; the view\'s `req.does` says what is next: start, work, keep, critique,',
+    'probe, fix, review). Hand each issued job to one agent with its brief (`req.jobs`: what it reads, writes and reports): an author',
+    'sends its pages as `patch` and its `decisions`, each with `because`; diverge authors each take an `angle`, their',
+    'patches held until you keep one ({ req: { id, keep } }); a critic reads with a `lens` and sends `findings`.',
+    'A brief\'s read carries its seat (`as: \'r2.j1\'`): the agent\'s view is its own unit and its own job, its call its',
+    'report alone. Its `agent` names the plugin\'s agent to hand it to, where the host has them.',
+    'RECEIVED is its machine gate (`req.receipt`: a proposal kept, its decisions cited, its critics in, its laws holding):',
+    'a level\'s stages are made by its run ({ chapter: \'level:<id>\', run: true }), then played by the probe',
+    '({ req: { id, probe: true } }: it loads, it is not lost before input, it has something to play against, no debug',
+    'text; its frames are for a look critic). Received is not accepted: show the creator, whose verdict it is.',
+    '',
+    'THE PRODUCTION ({ ref, production: { style, checkpoints? } }): yeoman, auteur (unset) or avant-garde sets the',
+    'assistant director\'s posture: assistive, strict, elevating. A beat as one crew: { req: { unit: \'beat:<id>\', crew:',
+    'true } }, an author per unit in a stable `role` (keep one agent per role: its precedent stays in its context), all',
+    'posting to a notebook ({ req: { id, job, post } }). Then { req: { id, assist: true } }: the assistant recommends',
+    'pass-up, rework or elevate. You decide: { req: { id, direct: settle | rework | creator } }. Settle (directed, not',
+    'accepted) only after the creator accepts the vertical slice, never a pillar or a checkpoint.',
+    '',
+    'THE TICKET: give `ask: { intent }` with the work it causes (a req, a verdict, a patch, a run): the intent you',
+    'inferred and are acting on, in your own words, never the person\'s message. `ask: \'a3\'` adds to it. { ref, trace:',
+    '\'a3\' | \'r2\' | \'r2.j1\' } reads the chain: the intent, its reqs and jobs (each decision\'s because), verdicts, revisions.',
+    '',
+    'THE COMPOSITE: once a level is accepted and the game lacks it, `next` says composite: run: true makes the game of',
+    'the accepted levels alone (no level made that no one has worked), playable to the last. A stale level stays out.',
+  );
+}
+
 // the studio: the book worked a chapter at a time, in the waves the chapters' reads make (chapters.js chapterWaves): the
 // card is generated from the registry, so its order is the chapters' own
 function studioCard() {
@@ -92,27 +136,73 @@ function studioCard() {
     'THE STUDIO — a game of several departments, worked a chapter at a time. Each page of the book is a chapter in a',
     'department; design_game\'s readout says them (`chapters`: each one\'s state, open parts, and what it `waits` on).',
     '',
-    'THE WAVES (each chapter after what it reads; a wave\'s chapters side by side, a department or a subagent each):',
+    'THE ORDER (each chapter after what it reads). Work ONE unit at a time to quality, so a mistake stays in it:',
     ...waves,
     '',
     'A CHAPTER\'S SESSION (a department\'s or a subagent\'s: it holds this card and its chapter\'s cards, not the book):',
     '  read     design_game({ ref, chapter }): its parts, its pages, its upstream as a digest (`reads`: each one\'s state',
     '           and print; a print that moved since you read it: read that chapter again), its next moves, `book`.',
     '  write    { ref, chapter, patch } on its own pages; a write past them is written and said (`outside`).',
+    '  preview  { ref, patch, preview: true } first, for a change that may reach far: the parts back for review, the',
+    '           accepted units gone stale, what a run would remake. Nothing is written.',
     '  show     its bible section (`read`) to the creator. The verdicts (approve, revise) are the creator\'s: a subagent',
     '           stops at the review and reports what the creator must decide.',
     '  proof    { ref, chapter, run: true }: its steps and what they name, made ahead of their approvals (`ahead`: say so).',
+    '  a level  chapter: \'level:<id>\' is one level alone (its part, page, links in and out, stages): the levels a unit each.',
     '  done     its state settled (approved; auto in autonomous mode), its `blockers` and `advises` cleared or said.',
     '',
     'A SUBAGENT gets the ref, the chapter id and the cards its view names (`chapter.cards`), and returns its chapter\'s',
-    'state and the creator\'s questions. Hand a wave at a time, never a chapter that `waits` on an open one.',
+    'state and the creator\'s questions. Hand the next unit once the last is settled, never one that `waits`.',
+    '',
+    'ONE UNIT AT A TIME: the ledger asks for each unit, hands its jobs to agents and receives it before the creator',
+    'is shown it; the game is built up to its last accepted level (gameworld-ledger).',
     '',
     'THE BUILD (the last wave): { ref, chapter: \'build\' } reads the pre-compile check (`compile`: blockers by chapter,',
     'advises, the estimate). Then run: true until nothing is `pending`, telling the creator how far each call got;',
     'check: true walks each level and reads its first frame (`audits`, the machine gate). The eyes gate is the creator',
     'playing it (`play`): never say it passed.',
     '',
+    'THE FIRST SESSION: not the game done, the game started. The readout\'s `goalposts` say where it stands (met, partial,',
+    'open), each open one with the question only the creator answers, and `next`: where this session goes on, and the',
+    'next one picks up. A good first session leaves:',
+    ...GOALPOSTS.map((g, i) => `  ${i + 1}. ${g.id.padEnd(12)} ${g.says}`),
+    '',
     'One level and a simple goal is the quick path, not the studio (gameworld-quick).',
+  );
+}
+
+function mainQuestCard() {
+  return lines(
+    'THE MAIN QUEST — the game\'s spine: its acts, a beat at a time. Not a game type: the flow and the sequence, and the',
+    'levels and maps laid from it. Any long game composes on it (an RPG, a metroidvania, a campaign of dungeons).',
+    '',
+    'ASK THE CREATOR, before writing it (their answers are the recipe; never pick for them):',
+    '  how long does the main path play? what periods does it span, on the same maps or new ones? how big is the world?',
+    '  where does the story take the hero, and does it end (an ending can wait: a game being built may have none)?',
+    '  how loose are the side quests from the main thing?',
+    '',
+    `mainQuest: { length?: ${Object.keys(LENGTHS).join(' | ')} | { hours }, periods?: [{ id, name?, passage?: ${Object.keys(PASSAGES).join(' | ')} }],`,
+    '  acts | chapters: [{ id, name?, period?, goal: \'<words>\', turn?, beats: [{ id, goal, as?, gains?, foes?, who?, built?: false }] }],',
+    `  the shape, one or the other: ${Object.entries(SHAPES).map(([k, v]) => `${k}, ${v}`).join('; ')}. A chapter\'s turn is what`,
+    '      a happening changes in the world, carried on (the time facet\'s chapter overlay).',
+    `  ending?: { beat, stakes? }, sides?: { looseness: ${Object.keys(LOOSENESS).join(' | ')} } }`,
+    `  as: ${BEAT_AS.map((k) => `{ ${k} }`).join(' ')}: what the beat is played as (a level, a WCD space, a QOW quest, a`,
+    '      gauntlet level, an errand, an epoch by number, a story moment). gains: powers gained on it; foes: the bestiary',
+    '      it fields; who: its cast. built: false is a beat planned, not made yet: priced, never run.',
+    '  LAID AT A RUN: a built beat with no `as` is laid its own level from its words (named by its goal, standing its',
+    '      foes), once, into the recipe: yours from then on, edited in place. The game plays the beats\' levels in order.',
+    `  passage: ${Object.entries(PASSAGES).map(([k, v]) => `${k}, ${v}`).join('; ')}.`,
+    '',
+    'AN ACT (OR A CHAPTER) IS A STAGE of the hero\'s progression: the first early, the last late, the middle mid. So the',
+    'actions page\'s progression and the quest say the same: a power gained on a beat is gained in that act\'s stage.',
+    '',
+    'LAWS (advice, never refused):',
+    ...MAIN_QUEST_LAWS.map((l) => `  ${l.law.padEnd(16)} ${l.says}`),
+    '',
+    'THE CORE LOOP (loop, the intent\'s page): what the player does, nested, each layer feeding the next.',
+    ...Object.entries(LOOP_LAYERS).map(([k, v]) => `  ${k.padEnd(10)} ${v}`),
+    `  loop: { moment?: [verbs], encounter?, reward?, session? }; a layer not written is read from the book. A moment verb is`,
+    `  a power\'s verb or the body\'s own (${BODY_VERBS.join(', ')}). The main quest is the loop\'s outermost turn.`,
   );
 }
 
@@ -467,16 +557,17 @@ const QUICK_LEVERS = {
   farm: () => [`  plots: n (1..12, 6), target: gold (10..500, 40), days: n (2..30, 6), folk: n (0..6, 2), farmhand: ${HERO_WORDS}   a clock: night falls`],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
   fight: () => [
-    '  roster (1..12): every fighter a CHARACTER, designed by the character loop. A sheet (an Egocube: egocube card) the run',
+    '  roster (1..12): every fighter a CHARACTER. A sheet (an Egocube: egocube card) the run',
     '    makes into one: an archetype word, a brief in words, or { brief?, facets?, seed?, archetype?, role?, build?, age?,',
     '    name?, color? }; or { hero: { ref } }, one made with create_character. The fight is read off the sheet (role the',
     '    style, archetype and its shadow the signature, build heavy or light), the entry\'s own words over it: style',
-    '    (grappler | rushdown | zoner | all-rounder), signature, weapon, library, normals, specials, super, tune, and',
-    `    tradition (${Object.keys(FIGHT_TRADITIONS).join(' | ')}): how it stands and strikes, its punches and kicks in every`,
-    '    slot (a tradition word alone is a fighter: a sheet rolled to fight that way). Not the drawing tradition (anime |',
-    '    western): every sheet is rolled in the game\'s setting, its world\'s look, era and colours, a person every time.',
-    '    Absent: four sheets, one per style. Revise a fighter with update_character; the fight follows on read',
-    '  arenas: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }] (1..8)   the stage worlds it is fought on in 3D',
+    '    (grappler | rushdown | zoner | all-rounder), signature, weapon, library, normals, specials, super, tune, moves, and',
+    `    tradition (${Object.keys(FIGHT_TRADITIONS).join(' | ')}): how it stands and strikes in every slot (a tradition word`,
+    '    alone is a fighter). Not the drawing tradition (anime | western): every sheet is rolled in the game\'s setting, a',
+    '    person every time. Absent: four sheets, one per style. Revise a fighter with update_character; the fight follows',
+    '  strikes: own (stamped) | tradition   own: a boxer\'s own punches, solved on its rig (its moves win); tradition:',
+    '    keyed moves for all. Each played in its own body',
+    '  arenas: [{ id, name?, kit?, look?, width?, depth?, height?, crowd?, set? }] (1..8)   its 3D stages; set ring: a lit ring',
     '  rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round; rules: { systems?: [parry | burst | guard], … } the sim\'s dials',
     '  its own simulation, seen from the side: only theme and camera side beside these (no hero, trail, building, ride or run)',
   ],
@@ -552,7 +643,8 @@ function battlesCard() {
     `        <cast id>: { class } }. Unnamed: the hero a fighter, those who join in turn ${JOINER_CLASSES.join(', ')};`,
     '        with characters.casting, the hero and its first party each the class their sheet reads as.',
     `        Classes: ${BATTLE_CLASSES.join(', ')}, or the world's own (classes). A member switches class on P, outside a`,
-    '        fight; each class keeps its own rank, points and skill tree; learned skills stay.',
+    '        fight; each class keeps its own rank, points and skill tree; learned skills stay. followers: false, it',
+    '        fights but does not walk the map.',
     `packs   the packs met along the way, walked in order across the game's trail stages (default: ${PACKS.slice(0, 3).map((p) => `[${p.join(', ')}]`).join(', ')} …);`,
     '        per: n on each trail stage (2), on its beats, as many as it has room for. boss: a pack, the last stage\'s',
     '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map, or { species, ooze?, stylism? }:',
@@ -567,6 +659,8 @@ function battlesCard() {
     '        random fights on the trails, drawn from the stage\'s packs.',
     'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
     '        Equip tab (P) wears what the bag holds. gear: the world\'s own, { <item>: { slot, atk?, def?, …, classes? } }.',
+    'foes    { <id>: { hp, mp?, atk, def, mag, spd, xp, gold, skills?, drops?: [{ item, chance }], weak?, boss? } }: a row',
+    '        REPLACES its preset whole, its skills and drops too: name them again.',
     'rules   { turns: rounds (every member picks, then all act by speed) | timeline (each acts when its gauge fills: the',
     '        quick more often), defeat: fail (the level) | retry, switch: anywhere | never, carry: class | all, cap, xp, cp, sp }.',
     'juice   what the moments feel like: { on: { <happening>: juice }, also?, <name>: [steps] } over the defaults (false:',
@@ -847,6 +941,8 @@ function nextCard() {
     '             With `drift`: a quick goal now reads as another genre than the written one; keep it or change it.',
     '  wait       step `on` waits on those parts (their stamps in brackets).',
     '  compile    `compile.blockers` (by chapter): what the build would hit; fix first. `estimate`: the build left.',
+    '  req        the unit being worked (`unit`): its view { ref, chapter: unit } carries its `req` (gameworld-ledger).',
+    '  composite  accepted `levels` the game lacks: run: true makes the game of them alone, playable to the last.',
     '  chapters   (not a step) each chapter: department, state, `open` parts, what it `waits` on. Work one at a time,',
     '             upstream first: { ref, chapter } is its view (a department, or a subagent given only that and its card).',
     '             With run: true it makes that chapter and what it names, ahead of approvals (`ahead`: say so).',
@@ -912,6 +1008,8 @@ export function genreCardById(id) {
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
   ['gameworld-studio', 'The studio', 'the book worked a chapter at a time: the departments in waves, a chapter\'s session, the build', 'a big game, many levels, several departments, who does what and in what order, subagents, a team of agents', studioCard],
+  ['gameworld-ledger', 'The ledger', 'a game made one unit at a time: a req per chapter or level, its jobs for agents, its received gate, the game built up to the last accepted level', 'one level at a time, requisition, req, remit, precedent, subagents, jobs, author, diverge, critic, probe, received, accepted, composite', ledgerCard],
+  ['gameworld-main-quest', 'The main quest', 'the game\'s spine: acts of beats, each played as a level, a dungeon, an open world, a gauntlet, an errand; the core loop', 'a long game, an RPG, a campaign, the story from start to end, acts, how long is the game, beginning middle and end, the core loop', mainQuestCard],
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],

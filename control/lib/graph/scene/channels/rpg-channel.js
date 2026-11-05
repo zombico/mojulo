@@ -315,6 +315,11 @@ export function rpgPage(cfg, K, ctl, jk) {
   };
   let viewOver = null;
   let staged = null;
+  // THE ENCOUNTER'S STAGE (rules.stage): 'live', the fight on the map where it was met (the default); 'backdrop', its
+  // fighters moved by ARENA to an arena of their own, seen from the side with the party on the left, before the map drawn
+  // once from that view where they met (__mojCtrl.backdrop, after the move has reached the figures: the second frame)
+  const ARENA = [6000, 0, 0];
+  const onArena = () => !!(cfg.rules && cfg.rules.stage === 'backdrop' && window.__mojCtrl && window.__mojCtrl.backdrop);
   function stage() {
     const w = W();
     if (!w || !R.b) return;
@@ -357,7 +362,7 @@ export function rpgPage(cfg, K, ctl, jk) {
       // THE VIEW the fight is seen from (the battles' rules.view, the book's): a direction round the fight, its azimuth
       // from behind the party (0: over the party's shoulders at the foes; ±90: from the side) and its elevation; the
       // distance fitted to every fighter across the frame and down it, the aim set low by the band's share
-      const V = VIEWS[viewOver || (cfg.rules && cfg.rules.view)] || VIEWS.side;
+      const V = onArena() ? { ...VIEWS.side, mirror: false } : VIEWS[viewOver || (cfg.rules && cfg.rules.view)] || VIEWS.side;
       const gz = (x, y) => { const g = window.__mojCtrl && window.__mojCtrl.ground ? window.__mojCtrl.ground(x, y, fp[2] + 30) : null; return g == null ? fp[2] : g; };
       // (the frame's middle the midpoint of the fight's extent, its height the middle of both lines' ground)
       const pts = [fp, ...crew.map((id) => w.byId[id].transform.pos), ...ids.map((id) => w.byId[id].transform.pos)], zs = pts.map((q) => q[2]), zm = (Math.min(...zs) + Math.max(...zs)) / 2;
@@ -386,7 +391,21 @@ export function rpgPage(cfg, K, ctl, jk) {
       for (const lift of [0, 2, 4]) { for (const az of V.mirror ? [V.az, -V.az] : [V.az]) { const v = shot(az, lift); if (!best || v.hit < best.hit) best = v; } if (best.hit === 0) break; }
       C.transform.pos = best.pos; C.lookAt = best.look; C.rule = null;
       staged.view = { pos: best.pos.slice(), look: best.look.slice() };
+      // (on its arena: every fighter and the view moved by ARENA, the map's view kept for the backdrop, drawn two frames on)
+      if (onArena()) {
+        const sh = (q) => [q[0] + ARENA[0], q[1] + ARENA[1], q[2] + ARENA[2]];
+        for (const id in staged.at) { const e = w.byId[id]; if (e) e.transform.pos = sh(e.transform.pos); }
+        staged.backdrop = { from: best.pos.slice(), look: best.look.slice(), due: 2, h: null };
+        staged.view = { pos: sh(best.pos), look: sh(best.look) };
+        C.transform.pos = staged.view.pos.slice(); C.lookAt = staged.view.look.slice();
+      }
     }
+  }
+  // (the backdrop drawn once the fighters have left the place they met, so none stands in it)
+  function backdrop1() {
+    const B = staged && staged.backdrop;
+    if (!B || B.h || --B.due > 0) return;
+    try { B.h = window.__mojCtrl.backdrop(B.from, B.look, ARENA); } catch (e) { B.h = { dispose() {} }; }
   }
   function unstage() {
     const w = W();
@@ -394,6 +413,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     for (const id in staged.at) { const e = w.byId[id], s = staged.at[id]; if (e) { e.transform.pos = s.pos; e.transform.heading = s.heading; e.staged = false; } }
     const C = w.camera, s = staged.cam;
     if (C && s) { C.transform.pos = s.pos; C.transform.heading = s.heading; C.transform.pitch = s.pitch; C.lookAt = s.lookAt; C.rule = s.rule; }
+    if (staged.backdrop && staged.backdrop.h) staged.backdrop.h.dispose();
     staged = null;
   }
   function pickNow(pick) {
@@ -817,6 +837,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     if (mode) { hold(); root.classList.add('on'); }
     if (mode && (dirty || pops.length)) { if (mode === 'battle') drawBattle(); else if (mode === 'shop') drawShop(); else drawField(); dirty = false; }
     if (mode === 'battle') {
+      backdrop1();
       if (phase === 'play') film1(); else if (film) endFilm();
       for (const lv of ['none', 'numbers', 'all']) { root.classList[filmUi === lv ? 'add' : 'remove']('cine-' + lv); heads.classList[filmUi === lv ? 'add' : 'remove']('cine-' + lv); }
       heads.classList.add('on'); placeHeads();
