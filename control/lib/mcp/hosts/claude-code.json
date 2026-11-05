@@ -22,7 +22,8 @@
     "scheduler": "/schedule",
     "skillsDir": "~/.claude/skills",
     "headlessRuntime": "claude-code-headless",
-    "modelTiers": true
+    "modelTiers": true,
+    "jobAgents": true
   },
   "handoff": {
     "verified": "field",

@@ -186,3 +186,11 @@ apart from the recipe and adds nothing to any render or export. The design is in
 - **Fixed: the ledger reads the parts' real stamps.** It had read the readout's projection of them, which carries no
   prints and names the laws `advises`, so the received gate's laws check never saw a law, and a directed unit was
   recorded with no prints. The ledger, the receipt, the views and the impact preview now read the same stamps.
+- **A job's agent works from its seat.** A brief's read carries `as: '<req>.<job>'`, and `design_game({ ref, as })`
+  is that job's view: its own unit (the crew's, for the assistant director), its own brief and nothing of its siblings',
+  and a call that may only report its own job. Anything else beside `as` (a patch, a run, a verdict, another unit, another
+  job's report) is refused with what the seat may do; a reissued job and the probe are no agent's seat.
+- **The plugin ships the job agents.** `mojulo-author`, `mojulo-critic` and `mojulo-assistant` are generated from the
+  jobs' own words (the lenses, the postures) beside the runner and the maker, each given `design_game` alone, with a
+  test that fails when they go stale; the skill hands a req's jobs to them and keeps one agent per `role`. A host that
+  declares `capabilities.jobAgents` (Claude Code) and runs the plugin sees each brief name its agent (`agent`).

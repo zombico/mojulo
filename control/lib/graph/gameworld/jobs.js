@@ -30,18 +30,15 @@
 import { TIERS } from '../../agent-tasks/tiers.js';
 import { unitOf } from './chapters.js';
 import { budgetOf, unitsOf } from './reqs.js';
-import { POSTURES, checkRecommendation } from './production.js';
+import { POSTURES, LENSES, JOB_AGENTS } from './job-words.js';
+import { checkRecommendation } from './production.js';
 
 export const ANGLES = Object.freeze([
   'the remit read most plainly: what it asks, made well',
   'the boldest reading of the remit: the version a player remembers',
   'the reading furthest from the precedent: what this unit can do that the last one did not',
 ]);
-export const LENSES = Object.freeze({
-  design: 'against the remit and the precedent: does it do what it was asked, and is its one new idea there?',
-  play: 'as a player: the way in, what stands in the way, the way out; where it is a default and plays like one',
-  look: 'as a viewer: the first sight of it, its palette against the world, what reads as a default',
-});
+export { LENSES };
 export const JOB_KINDS = Object.freeze(['author', 'diverge', 'critic', 'probe', 'assistant']);
 export const JOB_STATUSES = Object.freeze(['issued', 'submitted', 'kept', 'declined', 'reissued']);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -112,13 +109,15 @@ export function checkSubmit(job, input) {
 }
 
 /** What a job is handed: the call it reads with, what it writes, how it reports. Everything else is in its view. */
-export function jobBrief(job, req, { ref }) {
+export function jobBrief(job, req, { ref, agents = false }) {
   const unit = jobUnit(job, req);
+  // the agent to hand it to, for a host that has the plugin's job agents (capabilities.jobAgents)
+  const agent = agents && JOB_AGENTS[job.kind] ? { agent: JOB_AGENTS[job.kind] } : {};
   if (job.kind === 'assistant') {
     return {
-      job: job.id, kind: 'assistant', tier: job.tier, status: job.status, ...(job.role ? { role: job.role } : {}),
+      job: job.id, kind: 'assistant', tier: job.tier, status: job.status, ...agent, ...(job.role ? { role: job.role } : {}),
       posture: `${job.posture}: ${POSTURES[job.posture]}`,
-      read: { tool: 'design_game', args: { ref, chapter: req.unit } },
+      read: { tool: 'design_game', args: { ref, chapter: req.unit, as: `${req.id}.${job.id}` } },
       submit: { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, recommend: 'pass-up | rework | elevate', reasons: '["…"]', fixes: '["…"]?', bolder: '"…"?' } } },
     };
   }
@@ -126,13 +125,27 @@ export function jobBrief(job, req, { ref }) {
     ? { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, findings: '[{ says, part?, severity? }]' } } }
     : { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, patch: '[{ op, path, value }] on your pages', decisions: '[{ slot, value, because }]', asks: '[what the remit asks that no word of the recipe reaches]' } } };
   return {
-    job: job.id, kind: job.kind, tier: job.tier, status: job.status, ...(job.role ? { role: job.role } : {}),
+    job: job.id, kind: job.kind, tier: job.tier, status: job.status, ...agent, ...(job.role ? { role: job.role } : {}),
     ...(job.angle ? { angle: job.angle } : {}), ...(job.lens ? { lens: `${job.lens}: ${LENSES[job.lens]}` } : {}),
-    read: { tool: 'design_game', args: { ref, chapter: unit } },
+    read: { tool: 'design_game', args: { ref, chapter: unit, as: `${req.id}.${job.id}` } },
     ...(job.kind === 'critic' ? {} : { writes: unitPaths(unit) }),
     ...(Array.isArray(req.crew) && req.crew.length ? { crew: { units: unitsOf(req), notebook: { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, post: '"what the others need to know"' } } } } } : {}),
     submit,
   };
+}
+
+/** A job's seat: `as: '<req>.<job>'` read against its req and jobs → { job, unit, units } (the units its view may name:
+ * its own, or the crew's for the assistant director, who reads it all). Throws, teaching. */
+export function seatOf(as, { req = null, jobs = [] } = {}) {
+  const m = typeof as === 'string' ? /^(r\d+)\.(j\d+)$/.exec(as) : null;
+  if (!m) throw new Error("design_game: as is a job's seat, '<req>.<job>' (its brief's read says it: 'r2.j1')");
+  if (!req || req.id !== m[1]) throw new Error(`design_game: as '${as}': no req ${m[1]} in this world's ledger`);
+  const job = jobs.find((j) => j.id === m[2]);
+  if (!job) throw new Error(`design_game: as '${as}': ${m[1]} has no job ${m[2]} (its jobs: ${jobs.map((j) => j.id).join(', ') || 'none'})`);
+  if (job.status === 'reissued') throw new Error(`design_game: as '${as}': ${m[2]} was reissued; read the job that replaced it (the req's jobs say it)`);
+  if (job.kind === 'probe') throw new Error(`design_game: as '${as}': the probe is the server's, never an agent's seat`);
+  const unit = job.kind === 'assistant' ? req.unit : jobUnit(job, req);
+  return { job, unit, units: job.kind === 'assistant' ? unitsOf(req) : [unit] };
 }
 
 /** A job as the ledger reports it once it has reported: what it did, without the patch itself. */

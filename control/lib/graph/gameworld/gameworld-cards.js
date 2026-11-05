@@ -105,6 +105,8 @@ function ledgerCard() {
     'probe, fix, review). Hand each issued job to one agent with its brief (`req.jobs`: what it reads, writes and reports): an author',
     'sends its pages as `patch` and its `decisions`, each with `because`; diverge authors each take an `angle`, their',
     'patches held until you keep one ({ req: { id, keep } }); a critic reads with a `lens` and sends `findings`.',
+    'A brief\'s read carries its seat (`as: \'r2.j1\'`): the agent\'s view is its own unit and its own job, its call its',
+    'report alone. Its `agent` names the plugin\'s agent to hand it to, where the host has them.',
     'RECEIVED is its machine gate (`req.receipt`: a proposal kept, its decisions cited, its critics in, its laws holding):',
     'a level\'s stages are made by its run ({ chapter: \'level:<id>\', run: true }), then played by the probe',
     '({ req: { id, probe: true } }: it loads, it is not lost before input, it has something to play against, no debug',

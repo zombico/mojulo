@@ -117,6 +117,9 @@ const CAPABILITY_DEFAULTS = {
   // Each listed tool carries its tier as `_meta["mojulo/tier"]` (tool-tiers.js) for a host that can route
   // light work to a lighter model.
   modelTiers: false,
+  // A req's brief names the plugin's agent for its job (mojulo-author, -critic, -assistant) for a host that can spawn
+  // one by name; it is named only where the plugin installed them (the claude-plugin distribution).
+  jobAgents: false,
 };
 
 let _catalog = null;

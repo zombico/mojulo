@@ -22,19 +22,10 @@
  * Pure: the production's settings, the unit and the ledger in; the posture, the role and what the director may do out.
  */
 import { unitOf, chapterById } from './chapters.js';
+import { STYLES, DEFAULT_STYLE, POSTURE_OF, POSTURES } from './job-words.js';
 
-export const STYLES = Object.freeze({
-  yeoman: 'deliver it well and on time: the work is sound, the remit met',
-  auteur: 'a signature held: every choice consistent with the vision',
-  'avant-garde': 'novelty is the point: beyond the default, within the world\'s laws',
-});
-export const DEFAULT_STYLE = 'auteur';
-export const POSTURE_OF = Object.freeze({ yeoman: 'assistive', auteur: 'strict', 'avant-garde': 'elevating' });
-export const POSTURES = Object.freeze({
-  assistive: 'Is it done, and done well? Pass it up when it is sound and its remit met; rework it only for what blocks (a gate that fails, a remit unmet, a gap in its asks). Note sameness and uncited choices, never block on them.',
-  strict: 'Is it ours? Pass it up when every decision traces to the intent, the book and the precedent; rework what drifts from the established voice (a palette off key, a foe outside the world\'s language, a choice the seed made). With little established yet, hold it as assistive would, and say so.',
-  elevating: 'What would make it memorable? Pass it up when it does something the precedent does not; elevate what reads as the default, repeats the last unit or plays it safe, with a bolder angle. Stay within the world\'s laws: bolder, never incoherent.',
-});
+export { STYLES, DEFAULT_STYLE, POSTURE_OF, POSTURES };
+
 export const RECOMMENDS = Object.freeze(['pass-up', 'rework', 'elevate']);
 export const CHECKPOINTS = Object.freeze({ act: 'the level of each act\'s last built beat', every: 'every unit: the director settles nothing' });
 /** The units the creator always sees: what game it is, its main quest, the hero's direction and look. */
