@@ -23,6 +23,7 @@ function rowToReq(row) {
     verdict: parse(row.verdict_json, null),
     notes: parse(row.notes_json, []),
     raisedBy: row.raised_by,
+    ...(row.crew_json ? { crew: parse(row.crew_json, []) } : {}), ...(row.style ? { style: row.style } : {}),
   };
 }
 
@@ -42,19 +43,19 @@ export const GameworldReqRepository = {
   },
 
   /** Raise one; → the req. Its seq is the next in its world. */
-  create({ worldRef, unit, remit = null, staffing = 'soloist', budget = {}, raisedBy = 'director' }) {
+  create({ worldRef, unit, remit = null, staffing = 'soloist', budget = {}, raisedBy = 'director', crew = null, style = null }) {
     const db = getDb();
     const make = db.transaction(() => {
       const seq = (db.prepare('SELECT MAX(seq) AS m FROM gameworld_reqs WHERE world_ref = ?').get(worldRef)?.m ?? 0) + 1;
-      db.prepare(`INSERT INTO gameworld_reqs (world_ref, seq, unit, remit_json, staffing, budget_json, raised_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`).run(worldRef, seq, unit, remit === null ? null : JSON.stringify(remit), staffing, JSON.stringify(budget), raisedBy);
+      db.prepare(`INSERT INTO gameworld_reqs (world_ref, seq, unit, remit_json, staffing, budget_json, raised_by, crew_json, style)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(worldRef, seq, unit, remit === null ? null : JSON.stringify(remit), staffing, JSON.stringify(budget), raisedBy, crew?.length ? JSON.stringify(crew) : null, style);
       return seq;
     });
     return this.get(worldRef, `r${make()}`);
   },
 
   /** Change what is given of one req: remit, staffing, budget, verdict, notes. → the req. */
-  update(worldRef, id, { remit, staffing, budget, verdict, notes } = {}) {
+  update(worldRef, id, { remit, staffing, budget, verdict, notes, style } = {}) {
     const seq = reqSeq(id);
     if (seq === null) return null;
     const sets = [], args = [];
@@ -63,6 +64,7 @@ export const GameworldReqRepository = {
     if (budget !== undefined) { sets.push('budget_json = ?'); args.push(JSON.stringify(budget)); }
     if (verdict !== undefined) { sets.push('verdict_json = ?'); args.push(verdict === null ? null : JSON.stringify(verdict)); }
     if (notes !== undefined) { sets.push('notes_json = ?'); args.push(JSON.stringify(notes)); }
+    if (style !== undefined) { sets.push('style = ?'); args.push(style); }
     if (sets.length) {
       sets.push('updated_at = unixepoch()');
       getDb().prepare(`UPDATE gameworld_reqs SET ${sets.join(', ')} WHERE world_ref = ? AND seq = ?`).run(...args, worldRef, seq);
@@ -76,6 +78,7 @@ function rowToJob(row) {
   return {
     id: `j${row.n}`, n: row.n, req: `r${row.req_seq}`, kind: row.kind, tier: row.tier,
     ...(row.angle ? { angle: row.angle } : {}), ...(row.lens ? { lens: row.lens } : {}),
+    ...(row.unit ? { unit: row.unit } : {}), ...(row.role ? { role: row.role } : {}), ...(row.posture ? { posture: row.posture } : {}),
     status: row.status, report: parse(row.report_json, null),
   };
 }
@@ -105,7 +108,7 @@ export const GameworldReqJobRepository = {
       const made = [];
       for (const j of jobs) {
         n += 1;
-        db.prepare('INSERT INTO gameworld_req_jobs (world_ref, req_seq, n, kind, tier, angle, lens) VALUES (?, ?, ?, ?, ?, ?, ?)').run(worldRef, seq, n, j.kind, j.tier, j.angle ?? null, j.lens ?? null);
+        db.prepare('INSERT INTO gameworld_req_jobs (world_ref, req_seq, n, kind, tier, angle, lens, unit, role, posture) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(worldRef, seq, n, j.kind, j.tier, j.angle ?? null, j.lens ?? null, j.unit ?? null, j.role ?? null, j.posture ?? null);
         made.push(`j${n}`);
       }
       return made;
@@ -178,5 +181,33 @@ export const GameworldAskRepository = {
   askOf(worldRef, target) {
     const row = getDb().prepare('SELECT ask_seq FROM gameworld_ask_links WHERE world_ref = ? AND target = ? ORDER BY rowid DESC LIMIT 1').get(worldRef, String(target));
     return row ? this.get(worldRef, `a${row.ask_seq}`) : null;
+  },
+};
+
+export const GameworldProductionRepository = {
+  /** A world's production, or null when it has set none. */
+  get(worldRef) {
+    const row = getDb().prepare('SELECT * FROM gameworld_production WHERE world_ref = ?').get(worldRef);
+    return row ? { style: row.style ?? null, checkpoints: parse(row.checkpoints_json, []) } : null;
+  },
+  /** Set what is given of it; → the production. */
+  set(worldRef, { style, checkpoints } = {}) {
+    const now = this.get(worldRef) ?? { style: null, checkpoints: [] };
+    const next = { style: style !== undefined ? style : now.style, checkpoints: checkpoints !== undefined ? checkpoints : now.checkpoints };
+    getDb().prepare(`INSERT INTO gameworld_production (world_ref, style, checkpoints_json) VALUES (?, ?, ?)
+      ON CONFLICT(world_ref) DO UPDATE SET style = excluded.style, checkpoints_json = excluded.checkpoints_json, updated_at = unixepoch()`).run(worldRef, next.style, JSON.stringify(next.checkpoints));
+    return this.get(worldRef);
+  },
+};
+
+export const GameworldReqNoteRepository = {
+  /** Post a note to a req's notebook. */
+  post(worldRef, reqId, job, note) {
+    getDb().prepare('INSERT INTO gameworld_req_notes (world_ref, req_seq, job, note) VALUES (?, ?, ?, ?)').run(worldRef, reqSeq(reqId), job, note);
+  },
+  /** A req's notebook, oldest first, the last `limit`. */
+  list(worldRef, reqId, limit = 20) {
+    const rows = getDb().prepare('SELECT job, note FROM gameworld_req_notes WHERE world_ref = ? AND req_seq = ? ORDER BY rowid DESC LIMIT ?').all(worldRef, reqSeq(reqId), limit);
+    return rows.reverse();
   },
 };

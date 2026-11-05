@@ -8,6 +8,8 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { GameworldReqRepository, GameworldReqJobRepository } from '@/lib/db/repositories/gameworld-reqs.js';
 import { jobsLeft } from '@/lib/graph/gameworld/jobs.js';
 import { chapterById } from '@/lib/graph/gameworld/chapters.js';
+import { FOE_CLASSES } from '@/lib/graph/foes/index.js';
+import { MOVES } from '@/lib/graph/foes/vocab.js';
 import { designGameHandler } from './design-game.js';
 import { MEADOWMARK, MEADOWMARK_HERO } from '@/lib/graph/gameworld/index';
 import { pullThrough } from '@/lib/graph/gameworld/reqs.js';
@@ -231,7 +233,8 @@ describe('design_game: the received gate', () => {
     expect(open.req.receipt).toMatchObject({ holds: false, checks: expect.arrayContaining([{ check: 'proposal', holds: false, says: expect.any(String) }]) });
     await designGameHandler({ ref: 'gw', req: { id, job: 'j1', patch: [{ op: 'set', path: '/feel', value: { ...FEEL, t: 0.4 } }], decisions: [{ slot: 'feel.t', value: 0.4, because: 'a touch lighter than the pole' }] } });
     const view = await designGameHandler({ ref: 'gw', chapter: 'feel' });
-    expect(view.req).toMatchObject({ status: 'received', does: 'review', receipt: { holds: true } });
+    // received: the assistant director prepares the director's call next
+    expect(view.req).toMatchObject({ status: 'received', does: 'assist', receipt: { holds: true } });
     expect((await designGameHandler({ ref: 'gw' })).reqs.current).toMatchObject({ id, status: 'received' });
   });
 
@@ -252,8 +255,8 @@ describe('design_game: the received gate', () => {
     const view = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
     expect(view.req.jobs.find((j) => j.job === 'j2')).toMatchObject({ kind: 'probe', holds: false, skipped: expect.stringMatching(/^skipped/) });
     expect(view.req.receipt.checks.find((c) => c.check === 'probe')).toMatchObject({ holds: false, says: expect.stringMatching(/^skipped/) });
-    // no browser: the loop degrades, never breaks; it goes on to the creator
-    expect(view.req.does).toBe('review');
+    // no browser: the loop degrades, never breaks; it goes on (to the assistant director, then the director's call)
+    expect(view.req.does).toBe('assist');
     // the probe is the server's: it spends none of the budget's jobs (four, one author spent)
     expect(jobsLeft(GameworldReqRepository.get('gw', id), GameworldReqJobRepository.list('gw', id))).toBe(3);
   });
@@ -467,5 +470,122 @@ describe('design_game: the impact preview', () => {
     await expect(designGameHandler({ ref: 'gw', preview: true })).rejects.toThrow(/goes with a ref and a patch/);
     await expect(designGameHandler({ ref: 'gw', preview: true, patch: [{ op: 'set', path: '/name', value: 'x' }], ask: { intent: 'rename' } })).rejects.toThrow(/a preview writes nothing/);
     await expect(designGameHandler({ ref: 'gw', preview: true, patch: [{ op: 'set', path: '/levels', value: 'nope' }] })).rejects.toThrow();
+  });
+});
+
+describe('design_game: the production (crews, the assistant director, the director\'s call)', () => {
+  beforeEach(() => { closeDb(); });
+
+  async function settledWorld(world = GATED) {
+    await designGameHandler({ world, ref: 'gw' });
+    const full = await designGameHandler({ ref: 'gw' });
+    const upstream = full.parts.filter((p) => ['intent', 'world', 'nature', 'civilizations', 'key'].includes(p.id) || p.id.startsWith('tech:')).map((p) => p.id);
+    await designGameHandler({ ref: 'gw', approve: upstream });
+  }
+  const author = async (id, job, path, value, because = 'the remit') => designGameHandler({ ref: 'gw', req: { id, job, patch: [{ op: 'set', path, value }], decisions: [{ slot: path, because }] } });
+
+  it('the style is said, auteur when none is set, and sets the assistant director\'s posture', async () => {
+    await settledWorld();
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT } });
+    expect((await designGameHandler({ ref: 'gw' })).production).toMatchObject({ style: 'auteur', defaulted: true, posture: 'strict', slice: expect.stringMatching(/^not yet/) });
+    const set = await designGameHandler({ ref: 'gw', production: { style: 'avant-garde', checkpoints: ['act'] } });
+    expect(set.production).toMatchObject({ style: 'avant-garde', posture: 'elevating', checkpoints: ['act'] });
+    await expect(designGameHandler({ ref: 'gw', production: { style: 'maverick' } })).rejects.toThrow(/a style is/);
+  });
+
+  it('the assistant prepares the call in its posture, and the director makes it: show the creator', async () => {
+    await settledWorld();
+    await designGameHandler({ ref: 'gw', production: { style: 'yeoman' } });
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT } });
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });
+    await author('r1', 'j1', `/levels/${FIRST}/name`, 'The Long View');
+    // a level is probed first: with no browser it is skipped and goes on, to the assistant
+    const row = SketchRepository.getByRef('gw');
+    SketchRepository.update({ ref: 'gw', manifest: { ...row.manifest, made: { [`level-${FIRST}-0`]: { ref: 'gw', order: '0000aaaa', stored: '0000bbbb' } } } });
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', probe: true } });
+    expect((await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` })).req.does).toBe('assist');
+    const ad = await designGameHandler({ ref: 'gw', req: { id: 'r1', assist: true } });
+    expect(ad.reqs.raised).toEqual(['r1 j3 assistant issued (assistive)']);
+    const brief = (await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` })).req.jobs.find((j) => j.job === 'j3');
+    expect(brief).toMatchObject({ kind: 'assistant', role: 'gw:assistant', posture: expect.stringMatching(/^assistive: Is it done, and done well\?/) });
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j3', recommend: 'accept', reasons: ['x'] } })).rejects.toThrow(/recommends pass-up, rework, elevate/);
+    const rec = await designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j3', recommend: 'pass-up', reasons: ['sound, its remit met'] } });
+    expect(rec.reqs.done[0]).toMatch(/^j3 the assistant director recommends pass-up: sound, its remit met \(the director decides/);
+    expect((await designGameHandler({ ref: 'gw' })).reqs.current.does).toBe('decide');
+    // before the vertical slice, the director cannot settle it: it goes to the creator
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', direct: 'settle' } })).rejects.toThrow(/before the vertical slice is accepted/);
+    const shown = await designGameHandler({ ref: 'gw', req: { id: 'r1', direct: 'creator' } });
+    expect(shown.reqs.raised).toEqual(['r1 shown to the creator: their verdict (approve, revise) is next']);
+    expect(shown.reqs.current.does).toBe('review');
+  });
+
+  it('after the slice, the director settles a level: directed, in the game, never the creator\'s accepted, which still wins', async () => {
+    await settledWorld();
+    // the vertical slice: the first level, accepted by the creator
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT } });
+    await designGameHandler({ ref: 'gw', approve: [`level:${FIRST}`] });
+    expect((await designGameHandler({ ref: 'gw' })).production.slice).toMatch(/^accepted/);
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${SECOND}`, remit: REMIT } });
+    const out = await designGameHandler({ ref: 'gw', req: { id: 'r2', direct: 'settle', note: 'the shore holds' } });
+    expect(out.reqs.raised).toEqual(['r2 directed: the director\'s call; never the creator\'s accepted']);
+    const after = await designGameHandler({ ref: 'gw' });
+    expect(after.production.seen).toEqual({ accepted: 1, directed: 1 });
+    expect(after.reqs).toMatchObject({ accepted: 1, directed: 1 });
+    expect(after.reqs.composite.levels).toEqual(expect.arrayContaining([FIRST, SECOND]));
+    // the creator approves it after all: accepted wins
+    await designGameHandler({ ref: 'gw', approve: [`level:${SECOND}`] });
+    expect((await designGameHandler({ ref: 'gw' })).reqs).toMatchObject({ accepted: 2 });
+    expect((await designGameHandler({ ref: 'gw' })).reqs.directed).toBeUndefined();
+  });
+
+  it('a pillar, or a checkpoint, stays the creator\'s after the slice', async () => {
+    await settledWorld();
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT } });
+    await designGameHandler({ ref: 'gw', approve: [`level:${FIRST}`] });
+    const hero = await designGameHandler({ ref: 'gw', req: { unit: 'hero' } });
+    const hid = hero.reqs.raised.at(-1).split(' ')[0];
+    await expect(designGameHandler({ ref: 'gw', req: { id: hid, direct: 'settle' } })).rejects.toThrow(/hero is a pillar: the creator accepts it/);
+    await designGameHandler({ ref: 'gw', production: { checkpoints: ['every'] } });
+    const lvl = await designGameHandler({ ref: 'gw', req: { unit: `level:${SECOND}` } });
+    const lid = lvl.reqs.raised.at(-1).split(' ')[0];
+    await expect(designGameHandler({ ref: 'gw', req: { id: lid, direct: 'settle' } })).rejects.toThrow(/checkpoints are every unit/);
+  });
+
+  it('a crew works a beat across departments: an author per unit in its seat, a shared notebook, critics once all are kept', async () => {
+    const SOLO = Object.values(FOE_CLASSES).find((c) => !MOVES[c.move].group);
+    const [M1, M2] = Object.keys(MEADOWMARK.levels);
+    const quest = { acts: [{ id: 'one', goal: 'set out', beats: [{ id: 'shore-first', goal: 'the shore first', as: { level: M2 }, foes: ['a'] }] }] };
+    await designGameHandler({ world: { ...MEADOWMARK, mode: 'gated', review: undefined, mainQuest: quest, foes: { a: { class: SOLO.id } } }, ref: 'gq' });
+    const out = await designGameHandler({ ref: 'gq', req: { unit: 'beat:shore-first', crew: true, budget: { critics: 1 } } });
+    expect(out.reqs.raised.at(-1)).toMatch(new RegExp(`^r\\d+ level:${M2} \\+ foes \\(beat shore-first\\)$`));
+    const id = out.reqs.raised.at(-1).split(' ')[0];
+    const started = await designGameHandler({ ref: 'gq', req: { id, start: true } });
+    expect(started.reqs.raised).toEqual([`${id} j1 author level:${M2} issued`, `${id} j2 author foes issued`]);
+    // each author reads its own unit, writes its own pages, in its own seat
+    const lv = await designGameHandler({ ref: 'gq', chapter: `level:${M2}` });
+    expect(lv.req.crew).toEqual([`level:${M2}`, 'foes']);
+    expect(lv.req.jobs.find((j) => j.job === 'j2')).toMatchObject({ role: 'gq:author:foes', read: { args: { chapter: 'foes' } }, writes: ['/foes'] });
+    expect(lv.req.jobs.find((j) => j.job === 'j1')).toMatchObject({ role: 'gq:author:worlds', writes: [`/levels/${M2}`] });
+    // the notebook: what one found, the other reads, in either unit's view
+    await designGameHandler({ ref: 'gq', req: { id, job: 'j1', post: 'the strand is 40 m wide: a foe that charges has room' } });
+    expect((await designGameHandler({ ref: 'gq', chapter: 'foes' })).req.notebook).toEqual([{ job: 'j1', note: 'the strand is 40 m wide: a foe that charges has room' }]);
+    // critics wait for the whole crew
+    const one = await designGameHandler({ ref: 'gq', req: { id, job: 'j1', patch: [{ op: 'set', path: `/levels/${M2}/name`, value: 'The Strand' }], decisions: [{ slot: 'name', because: 'the remit' }] } });
+    expect(one.reqs.done).toEqual(['j1 author kept: its patch applied', '1 of the crew still to report']);
+    const two = await designGameHandler({ ref: 'gq', req: { id, job: 'j2', patch: [{ op: 'set', path: '/foes/a', value: { class: SOLO.id, rank: 'elite' } }], decisions: [{ slot: 'foes.a.rank', value: 'elite', because: 'the strand is open: one strong foe, not a swarm' }] } });
+    expect(two.reqs.done).toEqual(['j2 author kept: its patch applied', expect.stringMatching(/^j3 critic issued/)]);
+    void M1;
+  });
+
+  it('the director sends work back: its authors reissued, the note in the notebook and the precedent', async () => {
+    await settledWorld();
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT } });
+    await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });
+    await author('r1', 'j1', `/levels/${FIRST}/name`, 'Plain');
+    const back = await designGameHandler({ ref: 'gw', req: { id: 'r1', direct: 'rework', note: 'bolder: the climb should feel like a dare' } });
+    expect(back.reqs.raised).toEqual(['r1 j2 author issued (rework of j1)']);
+    const v = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
+    expect(v.req.notebook).toEqual([{ job: 'director', note: 'bolder: the climb should feel like a dare' }]);
+    expect(v.req.precedent.notes).toContainEqual({ unit: `level:${FIRST}`, part: 'director', note: 'bolder: the climb should feel like a dare' });
   });
 });

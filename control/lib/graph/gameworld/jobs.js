@@ -10,6 +10,12 @@
  *             keeps one (`req: { id, keep: 'j2' }`): that patch is applied, the others declined and kept on record
  *   critic    studio, issued when a proposal is kept (budget.critics): a fresh reading with a LENS (design against the
  *             remit, play as a player, look as a viewer), never the maker's reasoning; it sends findings
+ *   crew      a beat worked across departments as one (crews: a req's `crew`): an author per unit, each writing its own
+ *             unit's pages, the crew sharing a notebook (`req: { id, job, post }`); critics once every author is kept
+ *   assistant the assistant director (production.js): reads what was made, in the posture its director's style sets
+ *             (assistive, strict, elevating), and recommends to the director: pass-up, rework or elevate, with reasons.
+ *             It never decides: the director does (`req: { id, direct }`)
+ *   a role    every job's stable seat (production.js roleOf): the same seat does the same work beat after beat
  *   probe     a level's, the server's own (a ride job, `req: { id, probe: true }`): the play probe (game/level-probe.js)
  *             played over the level's stages as they stand; its verdict is the received gate's last check
  *
@@ -23,7 +29,8 @@
  */
 import { TIERS } from '../../agent-tasks/tiers.js';
 import { unitOf } from './chapters.js';
-import { budgetOf } from './reqs.js';
+import { budgetOf, unitsOf } from './reqs.js';
+import { POSTURES, checkRecommendation } from './production.js';
 
 export const ANGLES = Object.freeze([
   'the remit read most plainly: what it asks, made well',
@@ -35,7 +42,7 @@ export const LENSES = Object.freeze({
   play: 'as a player: the way in, what stands in the way, the way out; where it is a default and plays like one',
   look: 'as a viewer: the first sight of it, its palette against the world, what reads as a default',
 });
-export const JOB_KINDS = Object.freeze(['author', 'diverge', 'critic', 'probe']);
+export const JOB_KINDS = Object.freeze(['author', 'diverge', 'critic', 'probe', 'assistant']);
 export const JOB_STATUSES = Object.freeze(['issued', 'submitted', 'kept', 'declined', 'reissued']);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -45,6 +52,8 @@ const capped = (tier, ceiling) => TIERS[Math.min(TIERS.indexOf(tier), TIERS.inde
 /** The authors a req is started with. → [{ kind, tier, angle? }] */
 export function authorPlan(req) {
   const B = budgetOf(req);
+  // a crew: an author per unit, each its own unit's
+  if (Array.isArray(req.crew) && req.crew.length) return unitsOf(req).map((unit) => ({ kind: 'author', tier: B.tier, unit }));
   if (!(B.diverge > 0)) return [{ kind: 'author', tier: B.tier }];
   return Array.from({ length: B.diverge }, (_, i) => ({ kind: 'diverge', tier: B.tier, angle: ANGLES[i % ANGLES.length] }));
 }
@@ -68,6 +77,9 @@ export function unitPaths(unit) {
 }
 
 /** A patch's ops that land past the unit's pages. */
+/** The unit a job writes: its own (a crew's author), else its req's. */
+export const jobUnit = (job, req) => job.unit ?? req.unit;
+
 export function outsideOf(unit, patch = []) {
   const own = unitPaths(unit);
   return patch.map((op) => op?.path).filter((p) => typeof p === 'string' && !own.some((q) => p === q || p.startsWith(`${q}/`)));
@@ -86,6 +98,11 @@ export function checkSubmit(job, input) {
   const { patch, decisions, findings } = input;
   if (decisions !== undefined && (!Array.isArray(decisions) || decisions.some((d) => !isObj(d) || typeof d.slot !== 'string'))) throw new Error('decisions are [{ slot, value?, because? }]');
   if (input.asks !== undefined && (!Array.isArray(input.asks) || input.asks.some((a) => typeof a !== 'string'))) throw new Error('asks are ["what the remit asks that no word reaches", …]');
+  if (job.kind === 'assistant') {
+    if (patch !== undefined) throw new Error(`${job.id} is the assistant director: it recommends, never a patch`);
+    checkRecommendation(input);
+    return;
+  }
   if (job.kind === 'critic') {
     if (!Array.isArray(findings) || findings.some((f) => !isObj(f) || typeof f.says !== 'string')) throw new Error(`${job.id} is a critic: it reports findings: [{ says, part?, severity? }]`);
     if (patch !== undefined) throw new Error(`${job.id} is a critic: it reports findings, never a patch`);
@@ -96,14 +113,24 @@ export function checkSubmit(job, input) {
 
 /** What a job is handed: the call it reads with, what it writes, how it reports. Everything else is in its view. */
 export function jobBrief(job, req, { ref }) {
+  const unit = jobUnit(job, req);
+  if (job.kind === 'assistant') {
+    return {
+      job: job.id, kind: 'assistant', tier: job.tier, status: job.status, ...(job.role ? { role: job.role } : {}),
+      posture: `${job.posture}: ${POSTURES[job.posture]}`,
+      read: { tool: 'design_game', args: { ref, chapter: req.unit } },
+      submit: { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, recommend: 'pass-up | rework | elevate', reasons: '["…"]', fixes: '["…"]?', bolder: '"…"?' } } },
+    };
+  }
   const submit = job.kind === 'critic'
     ? { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, findings: '[{ says, part?, severity? }]' } } }
     : { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, patch: '[{ op, path, value }] on your pages', decisions: '[{ slot, value, because }]', asks: '[what the remit asks that no word of the recipe reaches]' } } };
   return {
-    job: job.id, kind: job.kind, tier: job.tier, status: job.status,
+    job: job.id, kind: job.kind, tier: job.tier, status: job.status, ...(job.role ? { role: job.role } : {}),
     ...(job.angle ? { angle: job.angle } : {}), ...(job.lens ? { lens: `${job.lens}: ${LENSES[job.lens]}` } : {}),
-    read: { tool: 'design_game', args: { ref, chapter: req.unit } },
-    ...(job.kind === 'critic' ? {} : { writes: unitPaths(req.unit) }),
+    read: { tool: 'design_game', args: { ref, chapter: unit } },
+    ...(job.kind === 'critic' ? {} : { writes: unitPaths(unit) }),
+    ...(Array.isArray(req.crew) && req.crew.length ? { crew: { units: unitsOf(req), notebook: { tool: 'design_game', args: { ref, req: { id: req.id, job: job.id, post: '"what the others need to know"' } } } } } : {}),
     submit,
   };
 }
@@ -117,6 +144,8 @@ export function jobReport(job) {
     ...(Array.isArray(r.patch) ? { writes: [...new Set(r.patch.map((op) => op.path))] } : {}),
     ...(Array.isArray(r.decisions) ? { decisions: citing(r.decisions) } : {}),
     ...(Array.isArray(r.findings) ? { findings: r.findings } : {}),
+    ...(job.unit ? { unit: job.unit } : {}), ...(job.role ? { role: job.role } : {}),
+    ...(r.recommend ? { recommend: r.recommend, reasons: r.reasons, ...(r.fixes ? { fixes: r.fixes } : {}), ...(r.bolder ? { bolder: r.bolder } : {}), ...(job.posture ? { posture: job.posture } : {}) } : {}),
     ...(r.outside?.length ? { outside: r.outside } : {}),
     ...(Array.isArray(r.asks) && r.asks.length ? { asks: r.asks } : {}),
   };
@@ -125,18 +154,21 @@ export function jobReport(job) {
 /** What the director does next with a req, from its jobs: start it, hand the issued jobs out, keep one proposal, hand
  * the critics out, probe a level (`probe`: 'none' | 'failed' | 'holds', the received gate's probe as it stands; 'skipped' when
  * no browser could play it, which goes on to the creator), fix what the probe found (reissue its author), or show the creator. */
-export function nextOf(jobs = [], { level = false, probe = 'none' } = {}) {
+export function nextOf(jobs = [], { level = false, probe = 'none', presented = false } = {}) {
   const live = jobs.filter((j) => j.status !== 'reissued' && j.kind !== 'probe');
   if (!live.length) return 'start';
-  const authors = live.filter((j) => j.kind !== 'critic');
+  const authors = live.filter((j) => j.kind === 'author' || j.kind === 'diverge');
   if (authors.some((j) => j.status === 'issued')) return 'work';
   if (!authors.some((j) => j.status === 'kept')) return 'keep';
   if (live.some((j) => j.kind === 'critic' && j.status === 'issued')) return 'critique';
   // a level is played by the probe before the creator is shown it; a probe that does not hold sends it back to its author
   if (level && probe === 'none') return 'probe';
   if (level && probe === 'failed') return 'fix';
-  return 'review';
+  // the assistant director prepares the call; the director makes it (settle, rework, or show the creator)
+  const ad = live.filter((j) => j.kind === 'assistant').at(-1);
+  if (!ad || ad.status === 'issued') return 'assist';
+  return presented ? 'review' : 'decide';
 }
 
 /** A req's jobs in a line each: `j1 diverge submitted`. */
-export const jobLines = (jobs = []) => jobs.map((j) => `${j.id} ${j.kind} ${j.status}`);
+export const jobLines = (jobs = []) => jobs.map((j) => `${j.id} ${j.kind}${j.unit ? ` ${j.unit}` : ''} ${j.status}`);

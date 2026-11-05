@@ -28,7 +28,7 @@
  * Pure.
  */
 export const GOALPOSTS = Object.freeze([
-  { id: 'game', says: 'what game it is: its intent and its core loop', ask: 'what game is it? a genre to start from, and what the player does again and again', chapter: 'intent' },
+  { id: 'game', says: 'what game it is: its intent and its core loop', ask: 'what game is it? a genre to start from, what the player does again and again, and how it is run: yeoman, auteur or avant-garde', chapter: 'intent' },
   { id: 'shape', says: 'how long it is, where it is set, where the story takes it', ask: 'how long does it play, where is it set, and where does the story take the hero (an ending can wait)?', chapter: 'main-quest' },
   { id: 'look', says: 'the hero\'s look and the world\'s (the cast and the foes when there are any)', ask: 'who is the hero, and how is the world drawn?', chapter: 'hero' },
   { id: 'play', says: 'how it feels to play, and the hero\'s powers', ask: 'how should moving feel, and what can the hero do beyond moving?', chapter: 'actions' },

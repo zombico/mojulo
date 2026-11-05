@@ -753,6 +753,25 @@ function init(db) {
     -- with its angle, a critic with its lens), j<n> within its req. What it reported is kept whole (a held
     -- proposal's patch until it is kept or declined); never part of the recipe until a proposal is kept, and then only
     -- as the patch the door applies.
+    -- A gameworld's production (gameworld/production.js): how its director works, one row a world. Its style (yeoman,
+    -- auteur, avant-garde: the assistant director's posture follows it) and the checkpoints the creator sees besides the
+    -- pillars and the vertical slice. Never part of the recipe.
+    CREATE TABLE IF NOT EXISTS gameworld_production (
+      world_ref TEXT PRIMARY KEY,
+      style TEXT,
+      checkpoints_json TEXT NOT NULL DEFAULT '[]',
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    -- A crew's notebook (gameworld/crews.js): what one job found that the others in its req need, posted as it works.
+    CREATE TABLE IF NOT EXISTS gameworld_req_notes (
+      world_ref TEXT NOT NULL,
+      req_seq INTEGER NOT NULL,
+      job TEXT NOT NULL,
+      note TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE INDEX IF NOT EXISTS idx_gameworld_req_notes ON gameworld_req_notes(world_ref, req_seq);
+
     -- A gameworld's asks (gameworld/asks.js): the production ledger's top, one row per intent the agent acted on, in the
     -- agent's own words (its INFERENCE of what the person wants, never the person's message: no column holds it), cut
     -- only when intent becomes work. a<n> within its world. What an ask caused is linked below, never listed here.
@@ -888,6 +907,7 @@ function init(db) {
   migrateEmbeddingsGameIdiomKind(db);
   ensureEmbeddingsFts(db);
   migrateMcpToolCallColumns(db);
+  migrateGameworldReqColumns(db);
   migrateUserColumns(db);
   migrateRenderRequestMedium(db);
   pruneMcpToolCalls(db);
@@ -1119,6 +1139,19 @@ function migrateRenderRequestMedium(db) {
     db.exec("ALTER TABLE image_render_requests ADD COLUMN medium TEXT NOT NULL DEFAULT 'image'");
   }
   db.exec('CREATE INDEX IF NOT EXISTS idx_irq_medium ON image_render_requests(medium, status, created_at)');
+}
+
+// A crew's units beside its req's own (crew_json), and a job's unit, its stable role and an assistant director's posture
+// (gameworld/crews.js): added to the requisition tables as they were first made. Existing rows read null: a req of one
+// unit, a job of its req's unit, no role.
+function migrateGameworldReqColumns(db) {
+  const reqs = new Set(db.prepare('PRAGMA table_info(gameworld_reqs)').all().map((c) => c.name));
+  if (!reqs.has('crew_json')) db.exec('ALTER TABLE gameworld_reqs ADD COLUMN crew_json TEXT');
+  if (!reqs.has('style')) db.exec('ALTER TABLE gameworld_reqs ADD COLUMN style TEXT');
+  const jobs = new Set(db.prepare('PRAGMA table_info(gameworld_req_jobs)').all().map((c) => c.name));
+  if (!jobs.has('unit')) db.exec('ALTER TABLE gameworld_req_jobs ADD COLUMN unit TEXT');
+  if (!jobs.has('role')) db.exec('ALTER TABLE gameworld_req_jobs ADD COLUMN role TEXT');
+  if (!jobs.has('posture')) db.exec('ALTER TABLE gameworld_req_jobs ADD COLUMN posture TEXT');
 }
 
 function migrateMcpToolCallColumns(db) {

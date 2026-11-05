@@ -75,3 +75,11 @@ export function questUnits(W) {
   }
   return { units, planned, unhosted };
 }
+
+/** The departments a beat's crew brings beside its level: the foes chapter when it fields foes, the story's when it
+ * names its cast or is played as a moment of the story. */
+export function beatCrew(W, id) {
+  const { beats } = questBeats(W), at = beats.find((x) => x.B.id === id);
+  if (!at) return [];
+  return [...(at.B.foes?.length ? ['foes'] : []), ...(at.B.who?.length || at.B.as?.kind === 'scene' ? ['story'] : [])];
+}

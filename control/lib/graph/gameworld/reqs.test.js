@@ -125,7 +125,7 @@ describe('the remit', () => {
   });
 });
 
-import { receiptOf, upstreamPrints, staleUpstream } from './reqs.js';
+import { receiptOf, upstreamPrints, staleUpstream, reqParts } from './reqs.js';
 
 describe('the received gate', () => {
   const kept = (n, decisions = [{ slot: 'walk', because: 'the remit' }], extra = {}) => ({ id: `j${n}`, n, kind: 'author', status: 'kept', report: { patch: [], decisions, ...extra } });
@@ -180,5 +180,31 @@ describe('the received gate', () => {
     expect(staleUpstream(r, W2)).toEqual(['world']);
     // accepted with nothing kept upstream (read before the prints were kept): accepted
     expect(reqStatus(req(1, 'level:crypt'), { world: W2, parts })).toBe('accepted');
+  });
+});
+
+describe('the director\'s call, and crews', () => {
+  const lp = (status, print = 'p1') => ({ id: 'level:crypt', status, print });
+
+  it('directed: held on the prints it was settled on; stale when they move; the creator\'s approval wins', () => {
+    const r = req(1, 'level:crypt', { verdict: { status: 'directed', prints: { 'level:crypt': 'p1' } } });
+    expect(reqStatus(r, { world, parts: [lp('proposed')] })).toBe('directed');
+    expect(reqStatus(r, { world, parts: [lp('proposed', 'p2')] })).toBe('stale');
+    expect(reqStatus(r, { world, parts: [lp('revise')] })).toBe('stale');
+    expect(reqStatus(r, { world, parts: [lp('approved')] })).toBe('accepted');
+    // a directed unit is settled: passed in the queue, counted apart from the creator's
+    const L = readLedger([r, req(2, 'level:vale')], { world, parts: [lp('proposed'), { id: 'level:vale', status: 'proposed', print: 'v' }] });
+    expect(L.reqs.map((x) => x.status)).toEqual(['directed', 'open']);
+    expect(ledgerSummary(L)).toMatchObject({ accepted: 0, directed: 1 });
+  });
+
+  it('a crew\'s parts are every unit\'s; its receipt wants a kept proposal for each', () => {
+    const r = req(1, 'level:crypt', { crew: ['foes'] });
+    const parts = [lp('approved'), { id: 'foes:a', status: 'approved', print: 'f' }, { id: 'level:vale', status: 'proposed', print: 'v' }];
+    expect(reqParts(r, parts).map((p) => p.id)).toEqual(['level:crypt', 'foes:a']);
+    expect(reqStatus(r, { world, parts })).toBe('accepted');
+    expect(reqStatus(r, { world, parts: [lp('approved'), { id: 'foes:a', status: 'proposed', print: 'f' }] })).toBe('live');
+    const jobs = [{ id: 'j1', n: 1, kind: 'author', unit: 'level:crypt', status: 'kept', report: { decisions: [] } }, { id: 'j2', n: 2, kind: 'author', unit: 'foes', status: 'issued' }];
+    expect(receiptOf({ ...r, unit: 'feel', crew: ['foes'] }, { jobs: jobs.map((j) => ({ ...j, unit: j.unit === 'level:crypt' ? 'feel' : j.unit })), world }).checks[0]).toEqual({ check: 'proposal', holds: false, says: 'no proposal kept yet for foes' });
   });
 });

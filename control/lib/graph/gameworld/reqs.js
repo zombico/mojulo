@@ -9,6 +9,9 @@
  *                 creator's verdict on the print of its pages). The eyes gate: only the creator's verdict makes it
  *     stale       accepted, then the unit changed (an approval gone `changed`, or its pages' print moved), or a
  *                 chapter it reads moved since it was accepted (the prints kept when the ledger first read it accepted)
+ *     directed    the director's own call (production.js): settled by the director after the vertical slice, outside the
+ *                 pillars and the checkpoints, on the prints of its parts as they stood; never the creator's ACCEPTED,
+ *                 which still wins when they approve it, and stale when what it was settled on moves
  *     received    not yet accepted, and its machine gate holds (receiptOf): a proposal kept, its decisions cited, its
  *                 critics reported, its laws holding, and a level's stages played by the probe as they stand
  *     sent back   a part of it sent back (`revise`); the creator's note is kept in the ledger as precedent
@@ -43,7 +46,9 @@ export const LEVEL_REMIT = Object.freeze({
   foes: 'who stands in it, and their ranks',
   beat: 'its place in the story',
 });
-const TERMINAL = new Set(['accepted', 'cancelled', 'gone']);
+const TERMINAL = new Set(['accepted', 'directed', 'cancelled', 'gone']);
+/** A req's units: its own, and its crew's (crews.js: a beat worked across departments as one). */
+export const unitsOf = (req) => [req.unit, ...(Array.isArray(req.crew) ? req.crew : [])];
 const NOTES_KEPT = 12;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -60,6 +65,12 @@ export function unitPrint(world, unit) {
   return fingerprint(u.level != null ? world?.levels?.[u.level] ?? null : chapterPages(world, u.chapter.id));
 }
 
+/** The part stamps of every unit a req holds, once each. */
+export function reqParts(req, parts = []) {
+  const seen = new Set();
+  return unitsOf(req).flatMap((u) => unitParts(u, parts)).filter((p) => !seen.has(p.id) && seen.add(p.id));
+}
+
 /** The readout's part stamps that are the unit's. */
 export function unitParts(unit, parts = []) {
   const u = unitOf(unit);
@@ -69,15 +80,14 @@ export function unitParts(unit, parts = []) {
 
 /** The prints of the chapters a unit reads, as they stand: kept when a unit is first read accepted, so a move upstream
  * after it stales it. */
-export function upstreamPrints(unit, world) {
-  const u = unitOf(unit);
-  if (!u) return {};
-  return Object.fromEntries(u.chapter.reads.map((r) => [r, fingerprint(chapterPages(world, r))]));
+export function upstreamPrints(unit, world, crew = []) {
+  const reads = [...new Set([unit, ...crew].flatMap((x) => unitOf(x)?.chapter.reads ?? []))];
+  return Object.fromEntries(reads.map((r) => [r, fingerprint(chapterPages(world, r))]));
 }
 const upstreamMoved = (req, world) => {
   const kept = req.verdict?.upstream;
   if (!isObj(kept)) return [];
-  const now = upstreamPrints(req.unit, world);
+  const now = upstreamPrints(req.unit, world, req.crew ?? []);
   return Object.keys(kept).filter((k) => kept[k] !== now[k]);
 };
 
@@ -86,7 +96,12 @@ export function reqStatus(req, { world, parts = [] } = {}) {
   const u = unitOf(req.unit);
   if (req.verdict?.status === 'cancelled') return 'cancelled';
   if (!u || (u.level != null && !isObj(world?.levels?.[u.level]))) return 'gone';
-  const own = unitParts(req.unit, parts);
+  const own = reqParts(req, parts);
+  // the director's own call: on the prints of its parts as they stood (a part since approved by the creator: accepted)
+  if (req.verdict?.status === 'directed' && !(own.length && own.every((p) => p.status === 'approved'))) {
+    const held = own.length ? own.every((p) => req.verdict.prints?.[p.id] === p.print && p.status !== 'revise') : req.verdict.print === unitPrint(world, req.unit);
+    return held && !upstreamMoved(req, world).length ? 'directed' : 'stale';
+  }
   if (own.length) {
     if (own.every((p) => p.status === 'approved')) return upstreamMoved(req, world).length ? 'stale' : 'accepted';
     if (own.some((p) => p.status === 'changed')) return 'stale';
@@ -111,12 +126,16 @@ export const staleUpstream = (req, world) => upstreamMoved(req, world);
  */
 export function receiptOf(req, { jobs = [], parts = [], world, made = {} } = {}) {
   const u = unitOf(req.unit), live = jobs.filter((j) => j.status !== 'reissued');
-  const kept = live.filter((j) => j.kind !== 'critic' && j.kind !== 'probe' && j.status === 'kept').at(-1) ?? null;
-  const uncited = (kept?.report?.decisions ?? []).filter((d) => !(typeof d?.because === 'string' && d.because.trim())).map((d) => d.slot);
+  // (a crew keeps a proposal per unit: every author's, each decision cited)
+  const authors = live.filter((j) => j.kind === 'author' || j.kind === 'diverge');
+  const keptAll = authors.filter((j) => j.status === 'kept');
+  const kept = keptAll.at(-1) ?? null;
+  const missing = unitsOf(req).filter((u) => authors.some((j) => (j.unit ?? req.unit) === u) && !keptAll.some((j) => (j.unit ?? req.unit) === u));
+  const uncited = keptAll.flatMap((j) => (j.report?.decisions ?? []).filter((d) => !(typeof d?.because === 'string' && d.because.trim())).map((d) => d.slot));
   const waiting = live.filter((j) => j.kind === 'critic' && j.status === 'issued').map((j) => j.id);
-  const advising = unitParts(req.unit, parts).filter((p) => p.machine?.length).map((p) => `${p.id}: ${p.machine.join(', ')}`);
+  const advising = reqParts(req, parts).filter((p) => p.machine?.length).map((p) => `${p.id}: ${p.machine.join(', ')}`);
   const checks = [
-    { check: 'proposal', holds: !!kept, ...(kept ? {} : { says: 'no proposal kept: start it and work its jobs' }) },
+    { check: 'proposal', holds: !!kept && !missing.length, ...(!kept ? { says: 'no proposal kept: start it and work its jobs' } : missing.length ? { says: `no proposal kept yet for ${missing.join(', ')}` } : {}) },
     { check: 'cited', holds: !!kept && !uncited.length, ...(kept && uncited.length ? { says: `decisions with no because: ${uncited.join(', ')}` } : {}) },
     { check: 'critics', holds: !waiting.length, ...(waiting.length ? { says: `still to report: ${waiting.join(', ')}` } : {}) },
     { check: 'laws', holds: !advising.length, ...(advising.length ? { says: advising.join('; ') } : {}) },
@@ -134,7 +153,7 @@ export function receiptOf(req, { jobs = [], parts = [], world, made = {} } = {})
         : probe.report?.holds !== true ? { says: probe.report?.skipped ?? (probe.report?.checks ?? []).filter((c) => !c.holds).map((c) => `${c.check}: ${c.says}`).join('; ') } : {}),
     });
   }
-  const asks = kept?.report?.asks ?? [];
+  const asks = keptAll.flatMap((j) => j.report?.asks ?? []);
   const findings = live.filter((j) => j.kind === 'critic' && j.status === 'submitted').flatMap((j) => (j.report?.findings ?? []).map((f) => `${j.id}: ${f.says}`));
   const said = { ...(asks.length ? { asks } : {}), ...(findings.length ? { findings } : {}) };
   return { holds: checks.every((c) => c.holds), checks, ...(Object.keys(said).length ? { said } : {}) };
@@ -157,7 +176,7 @@ export function readLedger(rows, { world, parts = [], received = null } = {}) {
 /** The creator's notes on a req's parts sent back, merged into what the ledger keeps; → the notes, or null if none new. */
 export function notesWith(req, parts = []) {
   const kept = Array.isArray(req.notes) ? req.notes : [];
-  const fresh = unitParts(req.unit, parts)
+  const fresh = reqParts(req, parts)
     .filter((p) => p.status === 'revise' && typeof p.note === 'string' && p.note.trim())
     .map((p) => ({ unit: req.unit, part: p.id, note: p.note }))
     .filter((n) => !kept.some((k) => k.part === n.part && k.note === n.note));
@@ -167,10 +186,10 @@ export function notesWith(req, parts = []) {
 /** What a req reads besides its chapter: the last accepted unit of its kind before it, and the creator's notes so far. */
 export function precedentOf(req, reqs) {
   const kind = kindOf(req.unit);
-  const last = reqs.filter((r) => r.seq < req.seq && r.status === 'accepted' && kindOf(r.unit) === kind).at(-1);
+  const last = reqs.filter((r) => r.seq < req.seq && (r.status === 'accepted' || r.status === 'directed') && kindOf(r.unit) === kind).at(-1);
   const notes = reqs.flatMap((r) => r.notes ?? []).slice(-NOTES_KEPT);
   if (!last && !notes.length) return null;
-  return { ...(last ? { last: { id: last.id, unit: last.unit, ...(last.remit ? { remit: last.remit } : {}) } } : {}), ...(notes.length ? { notes } : {}) };
+  return { ...(last ? { last: { id: last.id, unit: last.unit, ...(last.status === 'directed' ? { by: 'the director' } : {}), ...(last.remit ? { remit: last.remit } : {}) } } : {}), ...(notes.length ? { notes } : {}) };
 }
 
 /** The chapters a unit pulls through: upstream it reads, held by the book and not settled, none already asked for;
@@ -201,6 +220,7 @@ export function ledgerSummary({ reqs, current }) {
     ...(current ? { current: { id: current.id, unit: current.unit, status: current.status, staffing: current.staffing, ...(current.remit ? { remit: current.remit } : {}) } } : {}),
     queue: reqs.filter((r) => r.status === 'queued' || ((r.status === 'stale' || r.status === 'sent back') && r.id !== current?.id)).map((r) => `${r.id} ${r.unit} (${r.status})`),
     accepted: count('accepted'),
+    ...(count('directed') ? { directed: count('directed') } : {}),
     ...(count('cancelled') ? { cancelled: count('cancelled') } : {}),
     ...(count('gone') ? { gone: count('gone') } : {}),
   };

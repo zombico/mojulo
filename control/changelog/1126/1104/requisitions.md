@@ -159,3 +159,30 @@ apart from the recipe and adds nothing to any render or export. The design is in
   touches, the approved parts that would come back for review, the accepted units that would go stale (their own parts,
   or a chapter they read), what a run would make, remake or drop, and the accepted levels the game would lose. A patch
   the door would refuse is refused with the same words. The studio card says to preview a change that may reach far.
+- **The production: crews, the assistant director and the director's call** (`gameworld/production.js`, the
+  `gameworld_production` and `gameworld_req_notes` tables, new columns on the req and job tables). It follows how a game
+  studio runs: the creator is its creative director and publisher; the director (the person's agent) is its game
+  director.
+  - **The director's style** (`production: { style, checkpoints? }`): yeoman, auteur or avant-garde, auteur when unset,
+    overridable per req. It sets the assistant director's posture: assistive ("is it done, and done well?"), strict
+    ("is it ours?") or elevating ("what would make it memorable?", within the world's laws). The first goalpost's
+    question now asks for it.
+  - **A crew per beat** (`req: { unit: 'beat:<id>', crew: true }`): the beat's level and the departments it brings (its
+    foes when it fields any, the story when it names its cast or is a story moment), worked as one req. Starting it
+    issues an author per unit, each writing only its own unit's pages. The crew shares a notebook
+    (`req: { id, job, post }`), shown in every unit's view, and its critics come once every author is kept.
+  - **Every job has a stable role** (`<world>:<kind>:<department>`, the assistant `<world>:assistant`), so a host can
+    keep one agent in a seat beat after beat, its precedent in its own context and its stable prompt cached.
+  - **The assistant director** (`req: { id, assist: true }`, a judge-tier job) reads what was made in its posture and
+    recommends pass-up, rework or elevate, with reasons (and fixes, or a bolder angle). It never decides.
+  - **The director decides** (`req: { id, direct }`): `settle` makes the unit **directed**, the director's own call and
+    never the creator's accepted, which still wins when they approve it; `rework` reissues its authors with the note in
+    the notebook and the precedent; `creator` shows it to the creator. The director may settle only after the creator
+    accepts the vertical slice (a level), and never a pillar (what game it is, the main quest, the hero's direction and
+    look) or a checkpoint (`act`: each act's last level; `every`: every unit). A directed unit goes stale when what it
+    was settled on moves, and is played in the game like an accepted one.
+  - The readout's `production` says the style and posture, whether the slice is accepted, and how many units the
+    creator accepted against how many the director settled. What the director does next gains `assist` and `decide`.
+- **Fixed: the ledger reads the parts' real stamps.** It had read the readout's projection of them, which carries no
+  prints and names the laws `advises`, so the received gate's laws check never saw a law, and a directed unit was
+  recorded with no prints. The ledger, the receipt, the views and the impact preview now read the same stamps.

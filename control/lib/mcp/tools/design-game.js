@@ -53,11 +53,12 @@ import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-regist
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import { complexAdvice } from '@/lib/graph/gameworld/levels.js';
 import { rebase } from '@/lib/graph/gameworld/rebase.js';
-import { STAFFING, readLedger, notesWith, pullThrough, remitAdvice, ledgerSummary, reqForView, unitParts, unitPrint, receiptOf, upstreamPrints, reqStatus } from '@/lib/graph/gameworld/reqs.js';
-import { GameworldReqRepository, GameworldReqJobRepository, GameworldAskRepository } from '@/lib/db/repositories/gameworld-reqs.js';
+import { STAFFING, readLedger, notesWith, pullThrough, remitAdvice, ledgerSummary, reqForView, unitParts, unitPrint, receiptOf, upstreamPrints, reqStatus, unitsOf, reqParts } from '@/lib/graph/gameworld/reqs.js';
+import { GameworldReqRepository, GameworldReqJobRepository, GameworldAskRepository, GameworldProductionRepository, GameworldReqNoteRepository } from '@/lib/db/repositories/gameworld-reqs.js';
+import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpointLevels, productionSummary } from '@/lib/graph/gameworld/production.js';
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
-import { beatUnit, beatRemit, questUnits } from '@/lib/graph/gameworld/quest-reqs.js';
-import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines } from '@/lib/graph/gameworld/jobs.js';
+import { beatUnit, beatRemit, questUnits, beatCrew } from '@/lib/graph/gameworld/quest-reqs.js';
+import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines, jobUnit } from '@/lib/graph/gameworld/jobs.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
 import { withoutWarm } from '@/lib/graph/scene/scene-png-warm';
@@ -570,8 +571,8 @@ export function composedWorld(c) {
 const composedOf = (b) => ({ prompt: b.prompt, read: b.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(b.cube ? { cube: b.cube } : {}), ...(b.unread?.length ? { unread: b.unread } : {}) });
 
 export async function designGameHandler(input, context = {}) {
-  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req?, ask?, trace?, preview? }');
-  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter, req, ask, trace, preview } = input;
+  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req?, ask?, trace?, preview?, production? }');
+  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter, req, ask, trace, preview, production } = input;
   if (shape !== undefined && shape !== 'full' && shape !== 'changed') throw new Error("design_game: readout is 'full' (the default) or 'changed'");
   // one chapter's readout (gameworld/chapter-view.js): checked before anything is written
   if (req !== undefined) checkReq(req);
@@ -582,6 +583,7 @@ export async function designGameHandler(input, context = {}) {
     if (!works) throw new Error('design_game: an ask is cut when intent becomes work: give it with the req, the verdict (approve, revise), the patch or the run it causes');
   }
   if (trace !== undefined) traceStart(trace);
+  if (production !== undefined) checkProduction(production);
   if (preview !== undefined && (preview !== true || patch === undefined || written !== undefined || given === undefined)) throw new Error('design_game: preview: true goes with a ref and a patch: it says what the patch would do and writes nothing');
   if (preview === true && (ask !== undefined || req !== undefined || approve !== undefined || revise !== undefined || asked !== undefined)) throw new Error('design_game: a preview writes nothing: give it alone with its patch, then the ask, verdicts or run with the patch itself');
   if (chapter !== undefined && !unitOf(chapter)) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((c) => c.id).join(', ')} (the readout's \`chapters\`), or one level as 'level:<id>'`);
@@ -644,11 +646,42 @@ export async function designGameHandler(input, context = {}) {
     // or a kept proposal, written before the readout reads the world
     const reqIn = req !== undefined ? await questReq(ref, req) : undefined;
     const reqDone = reqIn !== undefined ? await reqWrites(ref, reqIn) : null;
-    const out = await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched, req: reqIn, reqDone, ask, trace }, context);
+    const out = await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched, req: reqIn, reqDone, ask, trace, production }, context);
     return redirected.length ? { ...out, vehicles: { registry: redirected } } : out;
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
     throw new Error(`${err.message}\n— the gameworld is stored at '${ref}' as written; fix it with design_game({ ref: '${ref}', patch }) rather than starting a new one.`);
+  }
+}
+
+/** The director's call on a req (production.js): settle it (DIRECTED, after the vertical slice, outside the pillars and
+ * the checkpoints), send it back to its crew with a note (its authors reissued within the budget), or show the creator. */
+function directReq(ref, W, { r, L, parts, note, direct, raised, advises }) {
+  const jobs = GameworldReqJobRepository.list(ref, r.id);
+  const rec = jobs.filter((j) => j.kind === 'assistant' && j.status === 'submitted').at(-1)?.report?.recommend ?? null;
+  if (direct === 'settle') {
+    const P = GameworldProductionRepository.get(ref);
+    const slice = L.reqs.some((x) => unitOf(x.unit)?.level != null && x.status === 'accepted');
+    const plays = W.mainQuest ? questPlays(W)?.plays ?? {} : {};
+    const may = maySettle({ units: unitsOf(r), slice, checkpoints: P?.checkpoints ?? [], checkpointed: checkpointLevels(P?.checkpoints ?? [], { quest: W.mainQuest, plays }) });
+    if (!may.may) throw new Error(`design_game: ${r.id} is not the director's to settle: ${may.why}`);
+    const own = reqParts(r, parts);
+    GameworldReqRepository.update(ref, r.id, { verdict: { status: 'directed', prints: Object.fromEntries(own.map((p) => [p.id, p.print])), print: unitPrint(W, r.unit), upstream: upstreamPrints(r.unit, W, r.crew ?? []), ...(note ? { note } : {}), ...(rec ? { recommended: rec } : {}) } });
+    raised.push(`${r.id} directed: the director's call${rec ? ` (the assistant recommended ${rec})` : ''}; never the creator's accepted`);
+  } else if (direct === 'rework') {
+    const authors = jobs.filter((j) => (j.kind === 'author' || j.kind === 'diverge') && j.status !== 'reissued');
+    const R = GameworldReqRepository.get(ref, r.id);
+    if (note) { GameworldReqNoteRepository.post(ref, r.id, 'director', note); GameworldReqRepository.update(ref, r.id, { notes: [...(R.notes ?? []), { unit: r.unit, part: 'director', note }] }); }
+    for (const old of authors) {
+      if (!reissuesLeft(GameworldReqRepository.get(ref, r.id), GameworldReqJobRepository.list(ref, r.id)) || !jobsLeft(R, GameworldReqJobRepository.list(ref, r.id))) { advises.push(`${r.id}: ${old.id} not reissued: the budget is spent`); continue; }
+      GameworldReqJobRepository.update(ref, r.id, old.id, { status: 'reissued' });
+      const [j] = GameworldReqJobRepository.issue(ref, r.id, [{ kind: old.kind, tier: old.tier, angle: old.angle, unit: old.unit, role: old.role }]);
+      raised.push(`${r.id} ${j.id} ${j.kind}${j.unit ? ` ${j.unit}` : ''} issued (rework of ${old.id})`);
+    }
+    for (const c of jobs.filter((j) => (j.kind === 'critic' || j.kind === 'assistant') && j.status !== 'reissued')) GameworldReqJobRepository.update(ref, r.id, c.id, { status: 'reissued' });
+  } else {
+    GameworldReqRepository.update(ref, r.id, { verdict: { ...(r.verdict ?? {}), presented: true } });
+    raised.push(`${r.id} shown to the creator: their verdict (approve, revise) is next`);
   }
 }
 
@@ -665,9 +698,13 @@ function checkReq(req) {
   if (req.remit !== undefined && req.remit !== null && !isObj(req.remit)) throw new Error('design_game: a req\'s remit is an object (a level\'s: in, out, band, idea, foes, beat)');
   if (req.budget !== undefined && !isObj(req.budget)) throw new Error('design_game: a req\'s budget is an object (jobs, tier, diverge, critics, reissues)');
   if (req.cancel && req.accept) throw new Error('design_game: a req is cancelled or accepted, not both');
-  const acts = ['start', 'job', 'keep', 'reissue', 'probe'].filter((k) => req[k] !== undefined);
-  if (acts.length && req.id === undefined) throw new Error('design_game: start, job, keep, reissue and probe act on a raised req: give its `id`');
-  if (acts.length > 1) throw new Error(`design_game: a req call does one of start, job, keep, reissue, probe (given ${acts.join(', ')})`);
+  const acts = ['start', 'job', 'keep', 'reissue', 'probe', 'assist', 'direct'].filter((k) => req[k] !== undefined);
+  if (acts.length && req.id === undefined) throw new Error('design_game: start, job, keep, reissue, probe, assist and direct act on a raised req: give its `id`');
+  if (acts.length > 1) throw new Error(`design_game: a req call does one of start, job, keep, reissue, probe, assist, direct (given ${acts.join(', ')})`);
+  if (req.direct !== undefined && !DIRECTS[req.direct]) throw new Error(`design_game: direct is ${Object.entries(DIRECTS).map(([k, v]) => `${k} (${v})`).join(', ')}`);
+  if (req.style !== undefined && !STYLES[req.style]) throw new Error(`design_game: a style is ${Object.keys(STYLES).join(', ')}`);
+  if (req.crew !== undefined && (req.crew !== true || !(typeof req.unit === 'string' && req.unit.startsWith('beat:')))) throw new Error('design_game: crew: true goes with a beat (unit: \'beat:<id>\'): its level and the departments the beat brings, worked as one');
+  if (req.post !== undefined && (req.job === undefined || typeof req.post !== 'string' || !req.post.trim())) throw new Error('design_game: a job posts to its crew\'s notebook as { id, job, post: \'…\' }');
   if (req.job === undefined && ['patch', 'decisions', 'findings'].some((k) => req[k] !== undefined)) throw new Error('design_game: a patch, decisions or findings report a job: give its `job` (j1, j2 …)');
 }
 
@@ -687,8 +724,8 @@ async function questReq(ref, req) {
     await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/levels', value: laid.levels }], note: 'design_game: the main quest\'s levels laid for its reqs' });
     W = gameworldOf(SketchRepository.getByRef(ref).manifest);
   }
-  const { unit: _u, quest: _q, remit, ...rest } = req;
-  const raise = wanted.map((x) => ({ unit: `level:${x.level}`, beat: x.beat, remit: { ...beatRemit(W, x.beat), ...(beat && isObj(remit) ? remit : {}) } }));
+  const { unit: _u, quest: _q, remit, crew: _c, ...rest } = req;
+  const raise = wanted.map((x) => ({ unit: `level:${x.level}`, beat: x.beat, remit: { ...beatRemit(W, x.beat), ...(beat && isObj(remit) ? remit : {}) }, ...(req.crew ? { crew: beatCrew(W, x.beat) } : {}) }));
   const questSaid = listed ? [...(listed.planned.length ? [`planned, not asked for yet: ${listed.planned.join(', ')}`] : []), ...listed.unhosted.map((x) => `${x.beat} is played on no level${x.as ? ` (as ${x.as})` : ''}: not a level's req`)] : [];
   return { ...rest, raise, ...(questSaid.length ? { questSaid } : {}) };
 }
@@ -711,6 +748,13 @@ function issueCritics(ref, r) {
 async function reqWrites(ref, req) {
   if (req.probe) return probeReq(ref, req);
   if (req.job === undefined && req.keep === undefined) return null;
+  // a crew's notebook: what one job found that the others need (crews: posted as it works, read in every view)
+  if (req.post !== undefined) {
+    const r0 = GameworldReqRepository.get(ref, req.id);
+    if (!r0 || !GameworldReqJobRepository.get(ref, r0.id, req.job)) throw new Error(`design_game: no job '${req.job}' on '${req.id}'`);
+    GameworldReqNoteRepository.post(ref, r0.id, req.job, req.post.trim().slice(0, 1024));
+    return [`${req.job} posted to ${r0.id}'s notebook`];
+  }
   const r = GameworldReqRepository.get(ref, req.id);
   if (!r) throw new Error(`design_game: no req '${req.id}' in this world (${GameworldReqRepository.list(ref).map((x) => x.id).join(', ') || 'none raised'})`);
   const jobs = GameworldReqJobRepository.list(ref, r.id), said = [];
@@ -719,16 +763,21 @@ async function reqWrites(ref, req) {
     const job = named(req.job);
     if (!job) throw new Error(`design_game: no job '${req.job}' on ${r.id} (${jobs.map((j) => j.id).join(', ') || 'none issued: start it'})`);
     try { checkSubmit(job, req); } catch (e) { throw new Error(`design_game: ${e.message}`); }
-    const outside = job.kind === 'critic' ? [] : outsideOf(r.unit, req.patch);
-    const report = { ...(req.patch ? { patch: req.patch } : {}), ...(req.decisions ? { decisions: req.decisions } : {}), ...(req.findings ? { findings: req.findings } : {}), ...(Array.isArray(req.asks) ? { asks: req.asks } : {}), ...(Array.isArray(req.warnings) ? { warnings: req.warnings } : {}), ...(outside.length ? { outside } : {}) };
+    const outside = job.kind === 'critic' || job.kind === 'assistant' ? [] : outsideOf(jobUnit(job, r), req.patch);
+    const report = { ...(req.patch ? { patch: req.patch } : {}), ...(req.decisions ? { decisions: req.decisions } : {}), ...(req.findings ? { findings: req.findings } : {}), ...(req.recommend ? { recommend: req.recommend, reasons: req.reasons, ...(req.fixes ? { fixes: req.fixes } : {}), ...(req.bolder ? { bolder: req.bolder } : {}) } : {}), ...(Array.isArray(req.asks) ? { asks: req.asks } : {}), ...(Array.isArray(req.warnings) ? { warnings: req.warnings } : {}), ...(outside.length ? { outside } : {}) };
     if (job.kind === 'author') {
       // the only author: its proposal is the unit's, applied at once
       await applyProposal(ref, r, { ...job, report });
       GameworldReqJobRepository.update(ref, r.id, job.id, { status: 'kept', report: { ...report, rev: headRev(ref) } });
-      said.push(`${job.id} author kept: its patch applied`, ...issueCritics(ref, r));
+      // (a crew's critics come once every author is kept)
+      const authors = GameworldReqJobRepository.list(ref, r.id).filter((j) => j.kind === 'author' && j.status !== 'reissued');
+      const allKept = authors.every((j) => j.status === 'kept');
+      said.push(`${job.id} author kept: its patch applied`, ...(allKept ? issueCritics(ref, r) : [`${authors.filter((j) => j.status !== 'kept').length} of the crew still to report`]));
     } else {
       GameworldReqJobRepository.update(ref, r.id, job.id, { status: 'submitted', report });
-      said.push(job.kind === 'diverge' ? `${job.id} diverge held: keep one of the proposals ({ req: { id: '${r.id}', keep } })` : `${job.id} critic reported ${req.findings.length} finding(s)`);
+      said.push(job.kind === 'diverge' ? `${job.id} diverge held: keep one of the proposals ({ req: { id: '${r.id}', keep } })`
+        : job.kind === 'assistant' ? `${job.id} the assistant director recommends ${req.recommend}: ${req.reasons.join('; ')} (the director decides: { req: { id: '${r.id}', direct } })`
+        : `${job.id} critic reported ${req.findings.length} finding(s)`);
     }
     if (outside.length) said.push(`${job.id} wrote past ${r.unit}: ${outside.join(', ')}`);
     // what the remit asked that no word of the recipe reaches: a gap said to the director, never faked
@@ -790,7 +839,7 @@ function compositeOf(ref, W) {
   const rows = GameworldReqRepository.list(ref).filter((r) => unitOf(r.unit)?.level != null);
   if (!rows.length) return undefined;
   const parts = reviewState(W);
-  const accepted = new Set(rows.filter((r) => reqStatus(r, { world: W, parts }) === 'accepted').map((r) => unitOf(r.unit).level));
+  const accepted = new Set(rows.filter((r) => ['accepted', 'directed'].includes(reqStatus(r, { world: W, parts }))).map((r) => unitOf(r.unit).level));
   return Object.keys(W.levels ?? {}).filter((id) => accepted.has(id));
 }
 
@@ -816,18 +865,27 @@ function reqView(ref, r, reqs, { W, parts }) {
   // the intent each was made for (the production ledger): this unit's, and the last accepted unit's in its precedent
   const lastAsk = V.precedent?.last ? GameworldAskRepository.askOf(ref, V.precedent.last.id) : null;
   if (lastAsk) V.precedent.last = { ...V.precedent.last, intent: lastAsk.intent };
+  const notebook = GameworldReqNoteRepository.list(ref, r.id);
   return {
-    ...V, ...(mine ? { intent: { ask: mine.id, intent: mine.intent } } : {}), does: nextOf(jobs, { level, probe: probeState(receipt) }), receipt,
+    ...V, ...(r.crew?.length ? { crew: unitsOf(r) } : {}), ...(r.style ? { style: r.style } : {}),
+    ...(mine ? { intent: { ask: mine.id, intent: mine.intent } } : {}), does: nextOf(jobs, { level, probe: probeState(receipt), presented: !!r.verdict?.presented }), receipt,
+    ...(notebook.length ? { notebook } : {}),
     ...(jobs.length ? { jobs: jobs.map((j) => (j.status === 'issued' ? jobBrief(j, r, { ref }) : j.kind === 'probe' ? { job: j.id, kind: 'probe', holds: j.report?.holds ?? false, ...(j.report?.skipped ? { skipped: j.report.skipped } : {}), checks: j.report?.checks ?? [], frames: (j.report?.frames ?? []).map((f) => f.file ?? `${f.ref} at ${f.at}s`) } : jobReport(j))) } : {}),
   };
 }
 
-const TERMINAL_REQ = new Set(['accepted', 'cancelled', 'gone']);
+const TERMINAL_REQ = new Set(['accepted', 'directed', 'cancelled', 'gone']);
 
 /** The ledger worked and read: the creator's notes kept, the `req` acted on (raise with its pull-through, edit, cancel,
  * accept a unit with no review part), the ledger read again. → { L, summary } */
+/** The stamps the ledger reads (reqs.js): every part's, as the readout's own are made, with their prints and the laws that
+ * advise (`machine`); never the readout's projection of them, which carries neither. */
+function ledgerStamps(ref, W) {
+  return [...reviewState(W), ...(W.characters ? characterState(W, { lookup: heroLookup(heroRefOf(W, ref)) }) : []), ...(castable(W) ? foeState(W) : [])];
+}
+
 function workLedger(ref, W, full, req, done = null) {
-  const parts = full.parts ?? [], book = full.chapters ?? [];
+  const parts = ledgerStamps(ref, W), book = full.chapters ?? [];
   // the creator's notes on what they sent back: kept as the precedent the next unit reads; and a unit first read
   // accepted keeps the prints of the chapters it reads, so a move upstream after it stales it
   for (const r of GameworldReqRepository.list(ref)) {
@@ -839,7 +897,7 @@ function workLedger(ref, W, full, req, done = null) {
   const raised = [], advises = [];
   if (req !== undefined) {
     const L = readLedger(GameworldReqRepository.list(ref), { world: W, parts, received: (r) => received(r).holds });
-    const edit = { ...(req.remit !== undefined ? { remit: req.remit } : {}), ...(req.staffing !== undefined ? { staffing: req.staffing } : {}), ...(req.budget !== undefined ? { budget: req.budget } : {}) };
+    const edit = { ...(req.remit !== undefined ? { remit: req.remit } : {}), ...(req.staffing !== undefined ? { staffing: req.staffing } : {}), ...(req.budget !== undefined ? { budget: req.budget } : {}), ...(req.id !== undefined && req.style !== undefined ? { style: req.style } : {}) };
     const asks = req.raise ?? (req.unit !== undefined ? [{ unit: req.unit, remit: req.remit }] : null);
     if (asks) {
       // (one unit, or the main quest's beats in its order: each its own req, the first open and the rest queued)
@@ -860,8 +918,8 @@ function workLedger(ref, W, full, req, done = null) {
             const r = GameworldReqRepository.create({ worldRef: ref, unit: up, raisedBy: 'pull-through' });
             raised.push(`${r.id} ${up} (pulled through: ${ask.unit} reads it)`);
           }
-          const r = GameworldReqRepository.create({ worldRef: ref, unit: ask.unit, remit, staffing: req.staffing ?? 'soloist', budget: req.budget ?? {}, raisedBy: ask.beat ? 'quest' : 'director' });
-          raised.push(`${r.id} ${ask.unit}${ask.beat ? ` (beat ${ask.beat})` : ''}`);
+          const r = GameworldReqRepository.create({ worldRef: ref, unit: ask.unit, remit, staffing: req.staffing ?? 'soloist', budget: req.budget ?? {}, raisedBy: ask.beat ? 'quest' : 'director', crew: ask.crew ?? null, style: req.style ?? null });
+          raised.push(`${r.id} ${ask.unit}${ask.crew?.length ? ` + ${ask.crew.join(', ')}` : ''}${ask.beat ? ` (beat ${ask.beat})` : ''}`);
         }
         advises.push(...remitAdvice(ask.unit, remit ?? live?.remit));
         first = false;
@@ -886,11 +944,24 @@ function workLedger(ref, W, full, req, done = null) {
           const R = GameworldReqRepository.get(ref, r.id), plan = authorPlan(R), left = jobsLeft(R, jobs);
           const L0 = L.reqs.find((x) => x.id === r.id);
           if (L.current && L.current.id !== r.id) advises.push(`${r.id} started out of order: ${L.current.id} (${L.current.unit}) is the one being worked`);
-          for (const j of GameworldReqJobRepository.issue(ref, r.id, plan.slice(0, left))) raised.push(`${r.id} ${j.id} ${j.kind} issued${j.angle ? ` (${j.angle.split(':')[0]})` : ''}`);
+          for (const j of GameworldReqJobRepository.issue(ref, r.id, plan.slice(0, left).map((x) => ({ ...x, role: roleOf(ref, x.kind, x.unit ?? r.unit) })))) raised.push(`${r.id} ${j.id} ${j.kind}${j.unit ? ` ${j.unit}` : ''} issued${j.angle ? ` (${j.angle.split(':')[0]})` : ''}`);
           if (plan.length > left) advises.push(`${r.id}: ${plan.length - left} author(s) not issued: the budget's jobs are spent`);
           if (L0 && TERMINAL_REQ.has(L0.status)) advises.push(`${r.id} is ${L0.status}`);
         }
       }
+      if (req.assist) {
+        // the assistant director: prepares the director's call, in the posture its style sets (production.js)
+        const live = jobs.find((j) => j.kind === 'assistant' && j.status !== 'reissued');
+        if (live) advises.push(`${r.id} has its assistant director: ${live.id} (${live.status})`);
+        else {
+          const P = GameworldProductionRepository.get(ref), R = GameworldReqRepository.get(ref, r.id);
+          const [j] = GameworldReqJobRepository.issue(ref, r.id, [{ kind: 'assistant', tier: 'judge', posture: postureOf(R, P), role: roleOf(ref, 'assistant') }]);
+          raised.push(`${r.id} ${j.id} assistant issued (${j.posture})`);
+          const L0 = L.reqs.find((x) => x.id === r.id);
+          if (L0 && L0.status !== 'received') advises.push(`${r.id} is ${L0.status}, not yet received: the assistant reads what its gate says`);
+        }
+      }
+      if (req.direct !== undefined) directReq(ref, W, { r, L, parts, note: req.note, direct: req.direct, raised, advises });
       if (req.reissue !== undefined) {
         const old = jobs.find((j) => j.id === req.reissue);
         if (!old) throw new Error(`design_game: no job '${req.reissue}' on ${r.id} (${jobs.map((j) => j.id).join(', ') || 'none issued'})`);
@@ -899,7 +970,7 @@ function workLedger(ref, W, full, req, done = null) {
         if (!reissuesLeft(R, jobs) || !jobsLeft(R, jobs)) advises.push(`${r.id}: ${old.id} not reissued: the budget's ${!reissuesLeft(R, jobs) ? 'reissues' : 'jobs'} are spent; raise the budget ({ req: { id: '${r.id}', budget } }) or work with what was made`);
         else {
           GameworldReqJobRepository.update(ref, r.id, old.id, { status: 'reissued' });
-          const [j] = GameworldReqJobRepository.issue(ref, r.id, [{ kind: old.kind, tier: old.tier, angle: old.angle, lens: old.lens }]);
+          const [j] = GameworldReqJobRepository.issue(ref, r.id, [{ kind: old.kind, tier: old.tier, angle: old.angle, lens: old.lens, unit: old.unit, role: old.role, posture: old.posture }]);
           raised.push(`${r.id} ${j.id} ${j.kind} issued (reissue of ${old.id})`);
         }
       }
@@ -909,7 +980,7 @@ function workLedger(ref, W, full, req, done = null) {
   const summary = ledgerSummary(L);
   if (summary?.current) {
     const jobs = GameworldReqJobRepository.list(ref, L.current.id), receipt = received(L.current);
-    summary.current = { ...summary.current, does: nextOf(jobs, { level: unitOf(L.current.unit)?.level != null, probe: probeState(receipt) }), ...(jobs.length ? { jobs: jobLines(jobs) } : {}), ...(receipt.holds ? {} : { gate: receipt.checks.filter((c) => !c.holds).map((c) => c.check) }) };
+    summary.current = { ...summary.current, ...(L.current.crew?.length ? { crew: L.current.crew } : {}), does: nextOf(jobs, { level: unitOf(L.current.unit)?.level != null, probe: probeState(receipt), presented: !!L.current.verdict?.presented }), ...(jobs.length ? { jobs: jobLines(jobs) } : {}), ...(receipt.holds ? {} : { gate: receipt.checks.filter((c) => !c.holds).map((c) => c.check) }) };
   }
   return { L, received, summary: summary ? { ...summary, ...(done?.length ? { done } : {}), ...(raised.length ? { raised } : {}), ...(advises.length ? { advises } : {}) } : null };
 }
@@ -926,8 +997,7 @@ function previewPatch(ref, ops) {
   const W0 = gameworldOf(row.manifest);
   const W1 = gameworldOf(applyManifestPatch(row.manifest, ops).manifest);
   readGameworld(W1);   // a patch the door would refuse is refused here too, with the same words
-  const stamps = (W) => [...reviewState(W), ...(W.characters ? characterState(W, { lookup: heroLookup(heroRefOf(W, ref)) }) : [])];
-  const s0 = stamps(W0), s1 = stamps(W1);
+  const s0 = ledgerStamps(ref, W0), s1 = ledgerStamps(ref, W1);
   const touches = [...new Set(ops.map((o) => o?.path).filter((x) => typeof x === 'string').flatMap((x) => chaptersOfPath(x).map((c) => c.id)))];
   const review = s1.filter((p) => p.status === 'changed' && s0.find((q) => q.id === p.id)?.status === 'approved').map((p) => p.id);
   const stale = GameworldReqRepository.list(ref).filter((r) => reqStatus(r, { world: W0, parts: s0 }) === 'accepted' && reqStatus(r, { world: W1, parts: s1 }) === 'stale').map((r) => `${r.id} ${r.unit}`);
@@ -985,8 +1055,10 @@ function traceFrom(ref, id, ledgerReqs) {
   return traceOf({ world: ref, ask: A, links, reqs: rids.filter((r) => ledgerReqs.some((x) => x.id === r)).map(reqOf), focus: { req: start.req, job: start.job } });
 }
 
-async function afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched = [], req, reqDone = null, ask, trace }, context = {}) {
+async function afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched = [], req, reqDone = null, ask, trace, production }, context = {}) {
   let W = gameworldOf(SketchRepository.getByRef(ref).manifest);
+  // how this game is run (gameworld/production.js): the director's style and the creator's checkpoints
+  if (production !== undefined) GameworldProductionRepository.set(ref, production);
   // the verdicts
   if (approve !== undefined || revise !== undefined) {
     const review = reviewWith(W, { approve, revise, note });
@@ -1032,6 +1104,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // the requisitions (gameworld/reqs.js): the unit being worked, the queue, and what a unit reads besides its chapter
   const ledger = workLedger(ref, W, full, req, reqDone);
   if (ledger.summary) full.reqs = ledger.summary;
+  // how the game is run, said wherever the ledger is (production.js): the style, the posture, the slice, who saw what
+  const P = GameworldProductionRepository.get(ref);
+  if (ledger.summary || P) {
+    const slice = ledger.L.reqs.some((x) => unitOf(x.unit)?.level != null && x.status === 'accepted');
+    full.production = productionSummary(P, { slice, accepted: ledger.L.reqs.filter((x) => x.status === 'accepted').length, directed: ledger.L.reqs.filter((x) => x.status === 'directed').length });
+  }
   // (while a req is open the ledger leads: its move first; a run its budget stopped still goes before it)
   if (ledger.L.current) full.next = [{ step: 'req', id: ledger.L.current.id, unit: ledger.L.current.unit, status: ledger.L.current.status, does: ledger.summary.current.does, card: 'gameworld-ledger' }, ...full.next];
   // the composite: the accepted levels the game is not yet made of (a level accepted since, or one gone stale); a run
@@ -1048,7 +1126,7 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // (with the ledger's level reqs: goalposts 6 and 7 read the first level's req when the director asked for it)
   const levelReqs = ledger.L.reqs.filter((r) => unitOf(r.unit)?.level != null && !['cancelled', 'gone'].includes(r.status)).map((r) => {
     const receipt = ledger.received(r), jobs = GameworldReqJobRepository.list(ref, r.id);
-    return { id: r.id, unit: r.unit, status: r.status, receipt, does: nextOf(jobs, { level: true, probe: probeState(receipt) }) };
+    return { id: r.id, unit: r.unit, status: r.status, receipt, does: nextOf(jobs, { level: true, probe: probeState(receipt), presented: !!r.verdict?.presented }) };
   });
   const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null, reqs: levelReqs }); } catch { return null; } })();
   if (posts) full.goalposts = posts;
@@ -1084,9 +1162,9 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // one chapter: the whole readout projected onto it (a department's view; the share offer rides it as it rides the whole)
   if (chapter) {
     // a unit's own req (the live one asked for it): its remit, its precedent, its budget
-    const own = ledger.L.reqs.find((r) => r.unit === chapter && !TERMINAL_REQ.has(r.status));
+    const own = ledger.L.reqs.find((r) => (r.unit === chapter || r.crew?.includes(chapter)) && !TERMINAL_REQ.has(r.status));
     const view = chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched });
-    return { ok: true, readout: 'chapter', ...view, ...(own ? { req: reqView(ref, own, ledger.L.reqs, { W, parts: full.parts ?? [] }) } : {}), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ticket ? { ask: ticket } : {}), ...share };
+    return { ok: true, readout: 'chapter', ...view, ...(own ? { req: reqView(ref, own, ledger.L.reqs, { W, parts: ledgerStamps(ref, W) }) } : {}), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ticket ? { ask: ticket } : {}), ...share };
   }
   if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
   return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
@@ -1150,6 +1228,7 @@ export function registerDesignGameTools() {
         ask: { anyOf: [{ type: 'object' }, { type: 'string' }] },
         trace: { type: 'string' },
         preview: { type: 'boolean' },
+        production: { type: 'object' },
       },
       required: [],
     },

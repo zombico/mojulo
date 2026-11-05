@@ -79,12 +79,16 @@ describe('a job\'s report', () => {
 });
 
 describe('what the director does next', () => {
-  it('start, work, keep, critique, review, in that order', () => {
+  it('start, work, keep, critique, assist, decide, review, in that order', () => {
     expect(nextOf([])).toBe('start');
     expect(nextOf([job(1, 'author')])).toBe('work');
     expect(nextOf([job(1, 'diverge', 'submitted'), job(2, 'diverge', 'submitted')])).toBe('keep');
     expect(nextOf([job(1, 'diverge', 'kept'), job(2, 'diverge', 'declined'), job(3, 'critic')])).toBe('critique');
-    expect(nextOf([job(1, 'author', 'kept')])).toBe('review');
+    // the assistant director prepares the call, the director makes it, and the creator reviews what is shown to them
+    expect(nextOf([job(1, 'author', 'kept')])).toBe('assist');
+    expect(nextOf([job(1, 'author', 'kept'), job(2, 'assistant')])).toBe('assist');
+    expect(nextOf([job(1, 'author', 'kept'), job(2, 'assistant', 'submitted')])).toBe('decide');
+    expect(nextOf([job(1, 'author', 'kept'), job(2, 'assistant', 'submitted')], { presented: true })).toBe('review');
     // a reissued job is passed: its replacement is the one being worked
     expect(nextOf([job(1, 'author', 'reissued'), job(2, 'author')])).toBe('work');
     expect(jobLines([job(1, 'author', 'kept')])).toEqual(['j1 author kept']);
@@ -93,8 +97,27 @@ describe('what the director does next', () => {
     const done = [job(1, 'author', 'kept')];
     expect(nextOf(done, { level: true })).toBe('probe');
     expect(nextOf(done, { level: true, probe: 'failed' })).toBe('fix');
-    expect(nextOf(done, { level: true, probe: 'skipped' })).toBe('review');
-    expect(nextOf(done, { level: true, probe: 'holds' })).toBe('review');
+    expect(nextOf(done, { level: true, probe: 'skipped' })).toBe('assist');
+    expect(nextOf(done, { level: true, probe: 'holds' })).toBe('assist');
     expect(nextOf([job(1, 'probe', 'submitted')])).toBe('start');
+  });
+});
+
+describe('crews and the assistant director', () => {
+  it('a crew starts with an author per unit, each its own unit\'s, its brief naming the crew\'s notebook', () => {
+    const crew = req({ crew: ['foes'] });
+    expect(authorPlan(crew)).toEqual([{ kind: 'author', tier: STAFFING.soloist.tier, unit: 'level:crypt' }, { kind: 'author', tier: STAFFING.soloist.tier, unit: 'foes' }]);
+    const b = jobBrief(job(2, 'author', 'issued', { unit: 'foes', role: 'gw:author:foes' }), crew, { ref: 'gw' });
+    expect(b).toMatchObject({ role: 'gw:author:foes', read: { args: { chapter: 'foes' } }, writes: [...chapterById('foes').paths], crew: { units: ['level:crypt', 'foes'], notebook: { args: { req: { id: 'r2', job: 'j2' } } } } });
+  });
+
+  it('the assistant director recommends with reasons, in its posture, and never patches', () => {
+    const ad = job(3, 'assistant', 'issued', { posture: 'elevating', role: 'gw:assistant' });
+    const b = jobBrief(ad, req(), { ref: 'gw' });
+    expect(b).toMatchObject({ kind: 'assistant', role: 'gw:assistant', posture: expect.stringMatching(/^elevating: What would make it memorable\?/), read: { args: { chapter: 'level:crypt' } } });
+    expect(b.writes).toBeUndefined();
+    expect(() => checkSubmit(ad, { recommend: 'elevate', reasons: ['it repeats the last level'], bolder: 'flood the crypt' })).not.toThrow();
+    expect(() => checkSubmit(ad, { recommend: 'elevate', reasons: ['x'], patch: [{ op: 'set', path: '/x' }] })).toThrow(/recommends, never a patch/);
+    expect(jobReport({ ...ad, status: 'submitted', report: { recommend: 'elevate', reasons: ['x'], bolder: 'y' } })).toMatchObject({ recommend: 'elevate', reasons: ['x'], bolder: 'y', posture: 'elevating', role: 'gw:assistant' });
   });
 });
