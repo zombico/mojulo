@@ -254,11 +254,7 @@ export const TOOL_ANNOTATIONS = {
   // It rewrites the files of the game's outcome folder in place.
   export_game: ['Export a game', DESTRUCTIVE_IDEMPOTENT],
 
-  // ── unlisted, callable by name (figure-specs.js, roles.js) ─────────────────
-  draft_figure_spec: ['Draft a figure spec', ADDITIVE],
-  get_figure_spec: ['Get figure spec', READ],
-  resolve_figure_spec: ['Approve or reject a figure spec', ADDITIVE_IDEMPOTENT],
-  build_figure_spec: ['Build an approved figure spec', ADDITIVE],
+  // ── unlisted, callable by name (roles.js) ─────────────────
   mint_role_key: ['Mint a delegate key', ADDITIVE_IDEMPOTENT], // one key per name
   list_role_keys: ['List delegate keys', READ],
   revoke_role_key: ['Revoke a delegate key', DESTRUCTIVE_IDEMPOTENT],

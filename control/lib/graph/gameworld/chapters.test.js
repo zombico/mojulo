@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CHAPTERS, DEPARTMENTS, chapterById, chaptersOfPath, chapterOfPart, chapterOfStep, chapterOfCard, chapterBook, chapterSteps, chapterWaves } from './chapters.js';
+import { CHAPTERS, DEPARTMENTS, chapterById, chaptersOfPath, chapterOfPart, chapterOfStep, chapterOfCard, chapterBook, chapterSteps, chapterWaves, unitOf, levelStep } from './chapters.js';
 import { gameworldCards } from './gameworld-cards.js';
 import { runSteps, readMade, reviewParts, reviewState, characterState, foeParts, foeState, castable, MEADOWMARK, MEADOWMARK_HERO, CHARACTER_PART_IDS, CAST_PART, FOE_CAST_PART } from './index.js';
 import { GAMEWORLD_KEYS } from './world.js';
@@ -159,6 +159,36 @@ describe('a chapter\'s run', () => {
     }
     // the levels are piloted by the equipped hero: it is made with them
     expect(keys(chapterSteps(S, 'levels'))).toContain('hero-equipped');
+  });
+
+  it('one level is a unit: its own stages and what their orders name, never a sibling level\'s', () => {
+    const levelKeys = keys(S.filter((x) => x.key.startsWith('level-')));
+    const ids = Object.keys(MEADOWMARK_HERO.levels);
+    const seen = [];
+    for (const lv of ids) {
+      const X = chapterSteps(S, `level:${lv}`);
+      const own = keys(X.filter((x) => levelStep(lv).test(x.key)));
+      expect(own.length, lv).toBeGreaterThan(0);
+      expect(own, lv).toEqual(keys(S.filter((x) => levelStep(lv).test(x.key))));
+      seen.push(...own);
+      // nothing of another level's, every step ready, and the rest named by its orders (the level's pilot)
+      for (const other of ids.filter((o) => o !== lv)) expect(X.some((x) => levelStep(other).test(x.key)), `${lv} takes ${other}`).toBe(false);
+      for (const x of X) expect(x.ready, x.key).toBe(true);
+      expect(keys(X)).toContain('hero-equipped');
+    }
+    // the levels' units cover the chapter's stages, once each
+    expect(seen.sort()).toEqual(levelKeys.sort());
+  });
+
+  it('a unit is a chapter by its id or one level as level:<id>', () => {
+    expect(unitOf('hero')).toMatchObject({ id: 'hero', level: null, chapter: chapterById('hero') });
+    expect(unitOf('level:crypt-2')).toMatchObject({ id: 'level:crypt-2', level: 'crypt-2', chapter: chapterById('levels') });
+    for (const no of ['level:', 'lighting', '', null, 3]) expect(unitOf(no), String(no)).toBeNull();
+    // a level's id is matched whole: crypt is not crypt-2, a dot is a dot
+    expect(levelStep('crypt').test('level-crypt-0')).toBe(true);
+    expect(levelStep('crypt').test('level-crypt-2-0')).toBe(false);
+    expect(levelStep('crypt').test('level-crypt-skirmish')).toBe(true);
+    expect(levelStep('a.b').test('level-axb-0')).toBe(false);
   });
 
   it('the build\'s run is the whole run; a chapter the book does not have is refused', () => {

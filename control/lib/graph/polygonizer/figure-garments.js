@@ -1513,8 +1513,8 @@ export function cutBoundary(rings, cuts) {
 //
 // A garment has always been pure data resolved against any body (buildGarment),
 // but the MCP surface only admitted GARMENTS keys. This validator opens the
-// authoring door to INLINE specs (the character-from-dream loop: a
-// dreamed wardrobe piece minted as data, superposed with its own mugen score)
+// authoring door to INLINE specs (a wardrobe piece minted as data,
+// superposed with its own mugen score)
 // while keeping the closed-vocabulary discipline: unknown fit/cut kinds are
 // refused at mint, not discovered as silent no-ops at render.
 

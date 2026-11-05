@@ -162,7 +162,7 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     if (mm !== null && mm < CLIPPER.shell) { const sh = Math.max(sbShare, Math.min(1, clipCover(mm) * mottle(31) + (1 - clipCover(mm)) * smooth(CLIPPER.shell - CLIPPER.meet, CLIPPER.shell, mm)) * scalpW); col = mixc(col, hairLin, sh); sbApplied = sh; }
     // (where the scalp's own paint is the fainter, the hairline's soft edge or a cell the clip has no length for, the band's)
     else if (sbShare > 0 && sbShare > (scalp ? scalpPaint * scalpW : 0)) { col = mixc(col, hairLin, sbShare); sbApplied = sbShare; }
-    else if (scalpW > 0.01) {
+    else if (scalpW > 0.01 && !D.bareScalp) {
       if (scalp) col = mixc(col, hairLin.map((x) => x * 0.8), scalpPaint * scalpW);
       else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
     }

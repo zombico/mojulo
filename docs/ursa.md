@@ -231,7 +231,7 @@ there is nothing to drift. The semantics match Nix and Bazel instead:
 | derivation: a pure build recipe | the recipe |
 | purity: no network, no clock in the build | seeded dice only; no `Math.random`, `Date`, `Intl` |
 | store path hashed from inputs | the recipe content hash (§7, not yet built) |
-| binary cache keyed by that hash | the bake caches (`data/scene-png/`, `data/turntable/`, `data/figure-specs/`) |
+| binary cache keyed by that hash | the bake caches (`data/scene-png/`, `data/turntable/`) |
 | a lock pinning inputs | a kernel-version and render-hash pin (§7, not yet built) |
 | hermetic, reproducible builds | the byte-identical re-render baseline |
 

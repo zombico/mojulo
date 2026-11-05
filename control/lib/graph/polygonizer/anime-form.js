@@ -755,11 +755,14 @@ export function buildAnime(r, options = {}) {
       for (let j = 0; j < rings.length - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
       const base = mul(rings[0].reduce((acc, q) => add(acc, q), [0, 0, 0]), 1 / S);
       for (let i = 0; i < S; i++) { tri('hair', base, rings[0][(i + 1) % S], rings[0][i]); tri('hair', rings.at(-1)[i], tip, rings.at(-1)[(i + 1) % S]); }
-      guides.push(...root, ...control, ...control, ...tip); locks.push({ name, root, control, tip, width, start, count: parts.hair.length - start });
+      guides.push(...root, ...control, ...control, ...tip); locks.push({ name, root, control, tip, width, start, count: parts.hair.length - start, ...(COAT_NOW ? { line: centers, coat: COAT_NOW } : {}) });
     };
     // a C-curve: the control off the chord's middle toward `toward`, by `bend` of the length
     const bent = (root, tip, bend, toward) => { const mid = mul(add(root, tip), 0.5), chord = sub(tip, root), L = dmath.hypot(...chord), k = unit(chord), off = sub(toward, mul(k, dot(toward, k))); return add(mid, mul(dmath.hypot(...off) > 1e-9 ? unit(off) : [0, 0, 0], bend * L)); };
     const counts = { carrot: 0, banana: 0, pepper: 0, peel: 0 };
+    // the COAT the pieces being built wear (hair-coat.js: a layer's or a piece's `coat`, else the shapes' own): read by
+    // `piece`, which keeps its centre line beside it so the head can map the lock's coat; none ⇒ nothing kept
+    let COAT_NOW = null;
     // SPROUT: a piece leaves its root ALONG the head, flowing away from the whorl, and only then arcs out to its tip — the
     // control drawn toward a point half the length down the surface flow (by `sprout`, 0 … 1), so a lock grows out of the
     // mass like a sprout instead of being pushed straight out of the skull (which reads as a spike through the face)
@@ -867,13 +870,15 @@ export function buildAnime(r, options = {}) {
         flow = unit(flow); if (Ly.swirl) { const sw = Ly.swirl * Math.PI / 180; flow = sub(mul(flow, dmath.cos(sw)), mul(cross(n, flow), dmath.sin(sw))); }
         const dir = add(add(flow, mul(n, Ly.lift ?? 0.25)), [0, -(Ly.droop ?? 0.6), 0]);
         const capped = Ly.cap && Ly.shape !== 'carrot' ? capPath(P, flow, at[1], (Ly.length ?? 0.6) * vary * G, Ly, vary) : null;
+        COAT_NOW = Ly.coat ?? SH.coat ?? null;
         BUILD[Ly.shape]({ at, dir, length: (Ly.length ?? 0.6) * vary, [SIZE[Ly.shape]]: width, bend: Ly.bend, curve: Ly.curve, sink: Ly.sink, flat: Ly.flat, cup: Ly.cup, blunt: Ly.blunt, sprout: Ly.sprout ?? 0.8, ...(capped ? { path: capped } : {}) });
       }
     }
-    for (const K of SH?.carrots ?? []) BUILD.carrot(K);
-    for (const B of SH?.bananas ?? []) BUILD.banana(B);
-    for (const P of SH?.peppers ?? []) BUILD.pepper(P);
-    for (const Q of SH?.peels ?? []) BUILD.peel(Q);
+    for (const K of SH?.carrots ?? []) { COAT_NOW = K.coat ?? SH.coat ?? null; BUILD.carrot(K); }
+    for (const B of SH?.bananas ?? []) { COAT_NOW = B.coat ?? SH.coat ?? null; BUILD.banana(B); }
+    for (const P of SH?.peppers ?? []) { COAT_NOW = P.coat ?? SH.coat ?? null; BUILD.pepper(P); }
+    for (const Q of SH?.peels ?? []) { COAT_NOW = Q.coat ?? SH.coat ?? null; BUILD.peel(Q); }
+    COAT_NOW = SH?.coat ?? null;
     // the sideburns: two pieces before the ears, in the style's own family; `length`, `width`, `forward` (the tip toward the
     // cheek), `at` (the elevation, below the hairline by default), `az` (degrees in front of the ear's azimuth)
     if (BURNS) {
@@ -931,6 +936,7 @@ export function buildAnime(r, options = {}) {
   for (const array of [cage, guides]) for (let i = 0; i < array.length; i += 3) array.splice(i, 3, ...pitched(array.slice(i, i + 3)));
   for (let i = 0; i < headPolygons.length; i++) headPolygons[i] = headPolygons[i].map((p) => pitched(p));
   for (const lk of locks) for (const key of ['root', 'control', 'tip']) lk[key] = pitched(lk[key]);
+  for (const lk of locks) if (lk.line) lk.line = lk.line.map((p) => pitched(p));   // (a coated lock's centre line, pitched with it)
   return { headPolygons, parts, cage, guides, locks, ...(options.sideburnPatch ? { burns } : {}), recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot, ...(ND ? { nose: { box: ND.box, width: ND.width, keep: ND.keep, floorY: STUDIO.reduce((m, Y, i) => (i % 2 ? m : Math.min(m, pitched([0, Y, STUDIO[i + 1]])[1])), Infinity) } } : {}) };
 }
 

@@ -87,3 +87,18 @@ export function grownColliders(S, grown) {
   });
   return out;
 }
+
+/**
+ * The outlines of the annuli among those colliders (a hollow tier, a ring beam): `{ of, role, outer, inner, z0, z1 }`,
+ * `of` the prefix of its edges' boxes, `outer` and `inner` its rings' points [x, y]. For what needs the ring itself, not
+ * its edges' boxes (rupa/shell-blocks.js fills it with wall-thick cells for destructible physics).
+ */
+export function grownRings(S, grown) {
+  const out = [];
+  grown.colliders.forEach((k, i) => {
+    if (k.inner === undefined) return;
+    const at = placer(k);
+    out.push({ of: `structure:${S.id}:${k.role}-${i}`, role: k.role, outer: k.ring.map((p) => at(p, k.s, 0).slice(0, 2)), inner: k.ring.map((p) => at(p, k.inner, 0).slice(0, 2)), z0: r4(k.z0), z1: r4(k.z1) });
+  });
+  return out;
+}

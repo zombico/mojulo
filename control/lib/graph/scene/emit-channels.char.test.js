@@ -383,6 +383,23 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-02 again (book powers), the same fixtures: a beam's `hurt` may be `{ by: 'power', per, base }`, its
 // caster's power stat as it fires (the stats bound to its body) × per, or base where it has none, so an attack follows
 // the power stat as the levels raise it; a number plays as before.
+// Re-pinned 2026-11-03 (fighter wiring): `versus` only. Its page inlines versus-compile.js by its source, which gains a
+// character's own strikes (`compileHeroNormal`, a normal `{ hero: track }`) and a fighter's own guard (`recipe.guard`):
+// additions only, and a fighter naming neither compiles as before.
+// Re-pinned 2026-11-04 (fighter wiring: the real models in the arena): `versus` only. Its page inlines
+// versus-arena.client.js and versus-compile.js by their source: a character played in its own body (makePlayed,
+// playedClip, placePlayed, its body's pack `played`) and each own strike's frame naming its clip's moment (`u`).
+// Additions only: the fixture's fighters are stick figures, drawn as before. Re-pinned again the same day (the ring):
+// a played body lit (its normals, its relief, a lit material, the fighters' lights) and an arena's `set: 'ring'` built
+// on its floor with its veil and its nearer camera; the fixture names no set and no lit body. And again (bodies drawn
+// apart): a played knockdown's root slide taken off (PINNED) and a body held in a throw drawn where the push boxes touch
+// (drawnAt); drawing only, the fight's state unchanged. Its versus-compile.js: a fighter in its own guard (`recipe.guard`)
+// pushes with its legs too; the fixture's fighters name no guard. And again (every style on its own body): a played
+// body the fight poses where it has no clip (placeFromPose: the figure's segments onto its bones, its hands its guard's),
+// a character's recipe pushing with its legs (`bodyPush`), the watch's CPUs at the picks' level (`cpu`); the fixture's
+// fighters are no characters and name no level; its versus-react.js, a body out cold lying on its back (LIMP), which
+// the fixture's fight draws only at a knockout; and the arena's fight read off the page's clock in milliseconds (it had
+// read them as seconds, six fight frames a drawn frame).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

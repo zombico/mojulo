@@ -57,7 +57,7 @@ export const CHAPTERS = Object.freeze([
   C('foes', 'foes', 'The foes', { paths: ['/foes'], parts: ['foes:*'], steps: ['foes-*', 'foe-*', 'foe', 'guard', 'tower'], cards: ['gameworld-foes'], reads: ['intent', 'levels'], outcome: 'foes' }),
   C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels', 'main-quest'], outcome: 'story' }),
   C('camera', 'cinematics', 'The camera', { paths: ['/camera', '/xr'], reads: ['intent', 'levels'] }),
-  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/screen', '/front', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera'], outcome: 'play' }),
+  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/screen', '/front', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera'], outcome: 'play' }),
 ]);
 
 const BY_ID = new Map(CHAPTERS.map((c) => [c.id, c]));
@@ -75,6 +75,25 @@ export function chapterWaves() {
   for (const c of CHAPTERS) (out[wave.get(c.id)] ??= []).push(c.id);
   return out;
 }
+/**
+ * A UNIT: what the studio works one at a time, a chapter by its id or ONE LEVEL of the levels chapter (`level:<id>`,
+ * the id its review part has). A level's unit is the levels chapter narrowed to that level: its part, its page, its
+ * links in and out, its steps (`level-<id>-<n>`, a skirmish's `level-<id>-skirmish`) and what their orders name.
+ *   unitOf(id) → { id, chapter, level } (level null for a whole chapter), or null
+ *   levelStep(level) → the pattern of that level's steps
+ */
+export function unitOf(id) {
+  if (typeof id !== 'string') return null;
+  if (id.startsWith('level:')) return id.length > 6 ? { id, chapter: BY_ID.get('levels'), level: id.slice(6) } : null;
+  const c = BY_ID.get(id);
+  return c ? { id, chapter: c, level: null } : null;
+}
+const escaped = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** The cards that teach ONE LEVEL's page, besides its chapter's: the world card (a level's walk, goal, places and
+ * style) and the foes card (a level's own foes). A level's author is handed these, or it writes from the wrong manual. */
+export const LEVEL_PAGE_CARDS = Object.freeze(['gameworld-world', 'gameworld-foes']);
+export const levelStep = (level) => new RegExp(`^level-${escaped(level)}-(\\d+|skirmish)$`);
+
 export const chapterById = (id) => BY_ID.get(id) ?? null;
 
 /** Does `pattern` (an id, `<prefix>:*` or `<prefix>-*`) name `id`? */
@@ -152,11 +171,11 @@ export function chapterBook(world, { stamps = [] } = {}) {
  * game, its walks) is never a need: the build chapter's run is the whole run.
  */
 export function chapterSteps(steps, id) {
-  const c = chapterById(id);
-  if (!c) throw new Error(`chapter is one of ${CHAPTERS.map((x) => x.id).join(', ')}`);
+  const unit = unitOf(id);
+  if (!unit) throw new Error(`chapter is one of ${CHAPTERS.map((x) => x.id).join(', ')}, or one level as 'level:<id>'`);
   if (id === 'build') return steps;
-  const build = chapterById('build');
-  const want = new Set(steps.filter((s) => chapterOfStep(s.key) === c).map((s) => s.key));
+  const c = unit.chapter, build = chapterById('build'), own = unit.level !== null ? levelStep(unit.level) : null;
+  const want = new Set(steps.filter((s) => (own ? own.test(s.key) : chapterOfStep(s.key) === c)).map((s) => s.key));
   const text = new Map(steps.map((s) => [s.key, JSON.stringify(s.order ?? {})]));
   for (let grew = true; grew;) {
     grew = false;

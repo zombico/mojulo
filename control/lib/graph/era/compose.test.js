@@ -1,7 +1,7 @@
 // The scene composer's reader (compose.js): words name each axis they speak of, the rest lean to the register the words
 // lean to, nothing said falls to the base; a pinned axis is kept; the reading is stored once and built from.
 import { describe, expect, it } from 'vitest';
-import { COMPOSE_AXES, COMPOSE_WORDS, REGISTER_WORDS, readCompose, resolveCompose, composeForBuild } from './compose.js';
+import { COMPOSE_AXES, COMPOSE_WORDS, REGISTER_WORDS, SCARS_WORDS, readCompose, resolveCompose, composeForBuild } from './compose.js';
 import { bayKitOf } from './style/bay-kits.js';
 import { planStage, assembleStageScene } from './stage.js';
 
@@ -57,5 +57,19 @@ describe('the reading is stored once and built from', () => {
 
   it('composes only a bay room', () => {
     expect(() => planStage({ ...m, kit: 'gothic-stone' })).toThrow(/compose composes a bay room/);
+  });
+});
+
+describe('cosmetic damage in the words', () => {
+  it('heard, a stage is scarred beside its degree; unsaid, the reading carries none; pinned wins', () => {
+    const r = readCompose(`a ${place} with ${SCARS_WORDS[0]}`);
+    expect(r.resolved.scars).toBe(true);
+    expect(r.said.scars).toContain(SCARS_WORDS[0]);
+    expect(readCompose(place).resolved).not.toHaveProperty('scars');
+    expect(readCompose({ words: SCARS_WORDS[0], scars: false }).resolved.scars).toBe(false);
+    expect(() => readCompose({ scars: 'yes' })).toThrow(/compose.scars is true or false/);
+    const m = resolveCompose({ kind: 'stage', compose: `${place}, ${SCARS_WORDS[0]}` });
+    expect(m.scars).toBe(true);
+    expect(resolveCompose({ kind: 'stage', compose: `${place}, ${SCARS_WORDS[0]}`, scars: false }).scars).toBe(false);
   });
 });

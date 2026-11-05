@@ -110,14 +110,18 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // moved, 0b5f8e90 -> 4246de56; the hero-less worlds above are unchanged)
     // (re-pinned 2026-11-03 at the merge of 1026-consolidated into 1102-book-powers: both of the above at once, the
     // powers' orders with the chase's camera, 8db45f48 | 4246de56 -> 2c76a7f0)
+    // (re-pinned 2026-11-04, 1104-hero-walk-run: a hero runs on the library's jog and walks on its walk, Z held or a pad's
+    // stick tilted, so the hero world's pilots carry the platform rule's walkSpeed and walkStride, the library's walk and
+    // jog in place of the hero's own door gaits (stride 1.72 -> 3.3) and the legend's "Z  walk". A diff of the orders is
+    // those lines and nothing else; the hero-less worlds are unchanged. 2c76a7f0 -> 3498540d, c954dd75 -> 4e44b89a)
     const unladdered = (os) => os.map((o) => (Array.isArray(o?.manifest?.entities) ? { ...o, manifest: { ...o.manifest, entities: o.manifest.entities.filter((e) => !String(e.id).startsWith('ladder-')) } } : o));
     const ground = runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }), hero = runSteps(MEADOWMARK_HERO, { ref: 'gw' });
     expect(fingerprint(unladdered(unaudited(orders)))).toBe('0e1c91bc');
     expect(fingerprint(unladdered(unaudited(ground)))).toBe('9ad2a5b7');
-    expect(fingerprint(unladdered(unaudited(hero)))).toBe('2c76a7f0');
+    expect(fingerprint(unladdered(unaudited(hero)))).toBe('3498540d');
     expect(fingerprint(unaudited(orders))).toBe('642958c3');
     expect(fingerprint(unaudited(ground))).toBe('eadb7584');
-    expect(fingerprint(unaudited(hero))).toBe('c954dd75');
+    expect(fingerprint(unaudited(hero))).toBe('4e44b89a');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {

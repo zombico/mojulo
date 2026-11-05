@@ -137,3 +137,25 @@ describe('design_game: the audit steps', () => {
     expect(walked.audits).toEqual({ gate: 'machine', proved: n, of: n });
   }, 300000);
 });
+
+describe('design_game: a run keeps what was written while it ran', () => {
+  it('a verdict written mid-run (another agent, the creator) survives the run\'s checkpoints and its last write', async () => {
+    const W = await recipe();
+    process.env.MOJULO_RUN_BUDGET_MS = '0';
+    process.env.STUB_BROWSER = '1';
+    const level = Object.keys(W.levels)[0];
+    const verdict = { status: 'revise', note: 'written while the run ran' };
+    // the walk is a step inside the run: while it runs, another writer sets a verdict on the stored world
+    walk.mockImplementationOnce(async () => {
+      const row = SketchRepository.getByRef('gm');
+      SketchRepository.update({ ref: 'gm', manifest: { ...row.manifest, review: { ...(row.manifest.review ?? {}), [`level:${level}`]: verdict } } });
+      return { game: { ended: true, result: 'success' } };
+    });
+    const out = await designGameHandler({ world: W, ref: 'gm', run: true, check: true });
+    expect(walk).toHaveBeenCalled();
+    const stored = SketchRepository.getByRef('gm').manifest;
+    expect(stored.review?.[`level:${level}`]).toEqual(verdict);
+    expect(Object.keys(stored.made)).toEqual(expect.arrayContaining(['game']));
+    expect(out.ran.some((r) => r.key.startsWith('audit-'))).toBe(true);
+  }, 300000);
+});

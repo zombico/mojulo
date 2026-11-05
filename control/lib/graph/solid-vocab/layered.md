@@ -328,7 +328,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the length of the locks that leave over the face), or `around: [from°, to°]` for a rosette about the whorl) that flow from the
   `whorl` along the head, bananas and peppers tiling it (`cover`)
   and every piece sprouting along the surface before it arcs out (`sprout`); `scale` grows the style; parts `hairCarrot0`,
-  `hairBanana0`, `hairPepper0` …), and `sideburns` (any style: `{ length, width, forward, shape?, at?, az? }`, two
+  `hairBanana0`, `hairPepper0` …), a COAT (`coat` on the shapes, a layer or a piece: a card `snake` | `tiger` | `barred` | `ember` |
+  `leaf` | `banded`, or `{ from?, color?, cover?, pattern? }` in the beast's own words: `color` a hex or a palette key,
+  `cover` scales | fur | chitin | feathers or `{ kind, size, shape, sheen, tipped }`, `pattern` the beast's layers read
+  down each lock as down a tail: polygonizer/hair-coat.js; drawn on the page as the lock's texture), and `sideburns` (any style: `{ length, width, forward, shape?, at?, az? }`, two
   pieces before the ears in the style's family; the principles and recipes are in docs/examples/humanoid/DESIGNING.md).
   A word is stored only when given; lists compose it last-wins (an object key by key);
   `false` is the studio's construction for it; patch `/hero/hair/<word>` (`null` back to the base's).
@@ -463,7 +466,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
   and the `shapes` characters `broku` (carrots only, classic shonen spikes), `jinto` (bananas only, comma hair over a soft two-block),
   `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs), `frieda` (split bangs, ribbon sidelocks, the rest GATHERED into twin tails), `frieda-pony` (one high ponytail), `hiraku` (a blunt BOWL BOB cut on LEVEL lines, `hem`, `fringeHem`, `blunt`) and `miwako` (a blunt neck-length bob), `jona` (layered banana
-  PEELS: leaf-shaped, thin, cupped; a side-swept swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, a short tomboy cut); shaped hair never
+  PEELS: leaf-shaped, thin, cupped; a side-swept swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, a short tomboy cut), and the NON-HUMAN hair, each coated (below): `gorgon` (thick bending tendrils, a snake's coat), `flame` (rising strands, an ember's), `feathered` (swept vanes and a crest, barred), `leafy` (cupped leaves), `tentacled` (heavy curling falls, a pale spotted underside) and `quilled` (raking cones, banded); shaped hair never
   cuts through the body it is worn on; every anime head with hair wears sideburn patches before the ears (`hairSideburnL`,
   `hairSideburnR`: no bare gap between the hair and the ear; a bald head shows its skin there), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
   `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by
@@ -700,6 +703,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   and drawn at every read as field paint (`fieldPaint`, under the row's own) on the torso and every layer worn over it,
   so it lands on the suit, the top or a catsuit's painted skin whatever the body; patch `/hero/emblem`. The mint's
   readout counts each layer's faces under `fieldPaint`. The anime head's character light does not draw it yet.
+  A hero made FROM A PICTURE (`capture_reference` target `character`) carries `reference: { likeness: 'original' |
+  'x-like', like?, changed?, stash? }`: the agent's verdict on the picture, what an x-like hero is like and what it
+  changed, and the stash its read is filed in. It is data: nothing reads it to refuse, the readout's `reference` captions
+  an x-like hero (`X-like: inspired by …`), and it is patched or taken off (`null`) like any word.
 <!-- /section -->
 <!-- section: hero-stand | The stand | gesture: the pose the figure holds -->
   THE STAND. `gesture` is the pose the figure holds, in the rig's own pose words: `relaxed` (weight on the left leg,
@@ -809,8 +816,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the engine score's `locomotion.jumps`. In every gait and jump a raised, bent arm folds with its ELBOW DOWN (the
   shoulder rolls with the raise; never the forearm across the chest). MOVES ride it too, each a one-shot ending on its
   pose: the stances (`athletic`, `low`, `centre`, `guard`, `fencing`, `hitting`), the strikes (`jab`, `cross`, `thrust`,
-  each `…Left`), the showcase poses (`fistToSky`, `crossedArms`, …) and the REACTIONS, the versus fighter's own on any
-  hero (`hitHigh`, `hitBody`, `hitLow`, `stagger`: struck fast, given back slowly, the feet planted, home on the stand);
+  each `…Left`), a boxer's arced punches from the guard (`hook`, `uppercut`, `bodyHook`, each `…Left`: the knuckles
+  solved onto an opponent's chin or ribs on the line between the fighters at the body's own reach, landing near their
+  fastest and carried through, the guarding arm kept out of the trunk), the showcase poses (`fistToSky`, `crossedArms`, …) and the REACTIONS, the versus fighter's own on any
+  hero (`hitHigh`, `hitBody`, `hitLow`, `stagger`: struck fast, given back slowly, the feet planted, home on the stand;
+  `guardHitHigh`, `guardHitBody`, `guardHitLow`, `guardStagger` the same blows taken out of the `guard` and back to it,
+  the arms kept out of the trunk; `block` and `blockBody` a punch taken on the guard, the gloves driven back toward the
+  face or the elbows dropped onto the ribs);
   the rest `knockedOut` is the topple (`knockedOutDown`) and the rise (`knockedOutUp`). A cast's member is made with its
   move set (moveSetOf). Absent, the hero and every export are as before.
   Patch `/hero/motion` (set it to an object first), then `/hero/motion/<gait or jump>`.
@@ -873,6 +885,73 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   sit beneath `palette`: name a group (Helmet, HelmetVisor, HelmetTrim, Mask, MaskLens, EyeLens, EyeGlow …) to recolour
   it. A helmet by tradition (the steel pot, the K-pot …) is the outfit build's `language.head`, by word here too.
   Comic-book characters wearing them, by name: get_solid_vocab({ id: 'comic-hero' }).
+<!-- /section -->
+<!-- section: hero-xeno | Xeno make-up | xenoSpecies and xenoHeaddress: starter species, and practical-effects alien appliances glued onto any head: skulls, ridges, horns, head-tails, lobes, markings, ears, noses, a third eye, teeth -->
+  XENO MAKE-UP (`lib/graph/xeno`). `xenoHeaddress: ['<card>' | { card, size?, coat?, replaces? }, …]` puts a
+  practical-effects make-up crew's APPLIANCES on the hero: pieces sculpted, cast in foam latex or silicone, glued on with
+  their edges blended into the skin, and painted. They sit on whichever head the hero wears (the landmark head, the anime
+  head, the realistic head), found on that head's own skin and pinned to it, so they turn and export with the head.
+  A STARTER SPECIES is the quickest start: `xenoSpecies: '<species>'` gives a skull, the appliances on it, the skin's
+  colour, and its EYES and BUILD in the words of the head the hero wears: on the landmark head its `face` (eyeSize,
+  eyeSpacing …) and `tune`; on the anime head its `face` (eyeWidth, eyeHeight, iris, spacing, tilt …) and an `animeBody`
+  for the hero's pole; on the realistic head `face.want.eyes` and a `physique`; and on every head the eyes' colours (the
+  palette's Sclera, Iris and Pupil: a grey's all black, an insectoid's gold on dark). The readout's `xenoSpecies` says what it gave on this head and what else reads it (`also`: markings,
+  dress). The person's words win: a `xenoHeaddress` of their own is worn after the species' (a skull they name takes the
+  species' skull's place); a `face` of their own is laid after the species' (its keys win; the realistic face's words
+  merge over it); their own `tune`, `animeBody`, `physique`, `skin.tone` and palette colours (Skin, Sclera, Iris, Pupil) stand. Null takes it off. The species: `grey-visitor`, `ridged-warrior`, `ridge-nosed`,
+  `lekku-dancer`, `montral-hunter`, `crested-diplomat`, `plated-insectoid`, `cone-elder`, `brain-invader`,
+  `domed-telepath`, `horn-crowned`, `pointed-eared`, `tusked-brute`, `three-eyed-seer`, `snouted-guard`, `beaked-avian`; each names the screen alien it recalls (`like`) for the X-like stamp.
+  THE SKULL first, for a head that is not a person's: a cranial prosthetic, the oversized foam skull a crew glues over
+  the actor's own, its edge feathered into the skin at the brow line, above the ears and at the nape, over a bald cap.
+  One at most; it is laid before everything else, and every other card lands on it (ridges on its brow, horns and lobes
+  on its cap). `size` scales its swelling. The skulls:
+  - `tall-cranium`: a long swollen cranium rising up and back;
+  - `cone-skull`: rising to a cone over the crown;
+  - `bilobed-brain`: two swollen lobes either side of a deep groove down the middle;
+  - `domed-brow`: a high, bulging forehead;
+  - `keeled-skull`: a keel from the brow over the crown to the nape;
+  - `wide-temples`: the temples swollen out sideways, the skull wide and low;
+  - `segmented-skull`: ringed with hard bands from the brow to the nape.
+  The other cards, named for what they are, never a franchise:
+  - `forehead-ridges`: curving ridges up the forehead to the hairline;
+  - `nose-ridges`: a stack of fine ridges across the bridge of the nose;
+  - `head-tails`: two thick tails from the back of the skull, down the back, over a bald cap;
+  - `swept-horns`: two hollow horns rising from the top of the head and sweeping back;
+  - `front-tails`: two head-tails from behind the temples, falling forward over the shoulders, over a bald cap;
+  - `horned-tails`: swept horns, two front tails and one down the back, banded pale over dark, over a bald cap;
+  - `chitin-crest`: two broad lobes off the brow, arching out over the skull and down beside the face to the shoulders
+    like a hood, a hard ribbed shell of plates on each lobe's front, soft flesh behind, over a bald cap;
+  - `cheek-ridges`: a fine ridge down each cheek from under the eye.
+  THE FACE'S PIECES, on any head, found at its features (the brow line, the nose, the mouth, the ears):
+  - MARKINGS, painted transfers flush with the skin, each its own colour (`coat` repaints it): `tear-lines`,
+    `brow-chevrons`, `cheek-stripes`, `forehead-mark`, `tribal-lines`, `pale-mask`, `spot-trails`, `chin-stripe`;
+  - EARS: `pointed-ears` and `long-ears` (tips glued to the ear's top-back), `lobe-drops` (long lobes), `no-ears` (the
+    ears left off; nothing else can then be glued to them);
+  - NOSES: `snout`, `flared-nostrils`, `slit-nostrils`, `beak`, `nose-horn`; `nostrils: 0.5 … 2.5` sizes a nose piece's
+    openings;
+  - A THIRD EYE on the forehead: `third-eye`, `slit-eye` (upright, a slit pupil), `gem-eye`, `eye-cluster`; coloured by
+    the palette's Sclera, Iris and Pupil, so a species' eyes or the hero's own colour it;
+  - TEETH: `fangs`, `sabre-fangs` (from under the upper lip), `tusks` (up from the jaw).
+  APPENDAGES WRITTEN WHOLE, for a protrusion no card names: `{ family: 'horn' | 'tail' | 'lobe', at: { az, el },
+  over?, stand?, pair?, length?, width?, tip?, lift?, sweep?, spread?, droop?, fall?, flat?, plates?, coat?, shell?,
+  replaces?, size? }`. `at` is the address on the cap: `az`
+  degrees round from the front (90 the side, 180 the back), `el` degrees up from the brow line (−40 … 90, 90 the crown).
+  It grows from there in steps: `lift` starts it between the skin's normal and straight up (0 … 1) or down (−1 … 0),
+  `sweep` turns it back over its length (degrees), `spread` out from the midline, `droop` lets it fall under its own
+  weight, and below the chin a tail lies on the body's `fall` side ('back' | 'front' | 'shoulder'), held off it. `over: {
+  az, el }` makes it HUG the head first, carried over the cap from `at` to there `stand` metres off the skin, before it
+  hangs free. A LOBE is the same path flattened (`flat`, its thickness over its width), broad in the middle and pointed,
+  its broad front facing forward and out; `plates` lays that many hard ridged plates across its front, a cast shell over a
+  soft foam piece, the plates wearing `shell` (a coat) and the lobe its `coat`. `length`, `width` and
+  `tip` are metres on a 23 cm head, scaled with the head; `pair` grows its mirror. A horn's defaults rise and sweep; a
+  tail's hang. Its root is sunk into the cap and flared, as an appliance is glued, so one shape language builds horns,
+  crests, montral-like domes and lekku-like falls alike.
+  Each card's `like` names the screen alien it recalls, for the character target's X-like stamp. `size` scales a card
+  (0.5 … 2). `coat` is its texture and colour, the hair coat's grammar (`coat: { color, cover, pattern }`); the card's
+  own colour is the skin's, so the piece reads blended, and a colour or a pattern takes it past the skin. `replaces:
+  'hair'` lays a bald cap under it: the hair is left off, the brows and lashes kept. The readout's `xeno` names each
+  appliance, its family and region, and the pieces it placed; a head with no frame (a blank trunk, a beast's own
+  skull) places none and says so. Patch `/hero/xenoHeaddress`; an empty list takes it off.
 <!-- /section -->
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.
@@ -955,6 +1034,14 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   a skirt, the belt; worn with `martialPants` it takes their sash); the authored body wears them as wide segment pieces.
   It carves as a `statue` (in one material, no skin; a bust without the arms' stumps). Refused by name: `detail` (an
   outfit dresses it), `body`, `girth` (the physique dials those).
+- **The realistic head on the lofted body (a fighter's).** `head: 'relational'` without `form: 'realistic'` wears the
+  realistic head, its `face` words, its `skin` and its face rig on the lofted body (the tiered body, a muscle shirt's),
+  swapped in after the shirt, the neck densified under it so the head's skin runs into one column; its laws stamped as
+  `headLaws`. A BODY CODENAME (`animeBody`: `toji`, `mizuki`, `satoru`, `maki`, `armstrong`, `kale`, `shonen-high`) is worn
+  under it or the landmark head as under the anime head: its tune laid under the hero's own, `muscleShirt` its card (the
+  muscular form), the head sized by its own proportions. A fighter: `{ cast: 'male', animeBody: 'toji', muscleShirt: {
+  definition: 1 }, head: 'relational', face: { seed }, motion: { guard: true, jab: true, cross: true, hook: true,
+  uppercut: true } }`. The realistic body (`form: 'realistic'`) refuses a codename: its build is its physique.
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or

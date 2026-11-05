@@ -42,6 +42,7 @@ import { bindPerformance } from '@/lib/graph/face-acting/recordings';
 import { personaManifest, personaReads, readSummary, isPersonaKind } from '@/lib/graph/persona/persona.js';
 import { speakerFidelity, FACE_ERA } from '@/lib/graph/persona/fidelity.js';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
+import { withReferenceViews } from '@/lib/mcp/tools/character-views';
 
 // as → the mint_solid call it makes, and the card that is its manual.
 export const CHARACTER_DOORS = {
@@ -322,6 +323,7 @@ export function registerCreateCharacterTools() {
       },
       required: ['ref'],
     },
-    handler: updateCharacterHandler,
+    // a hero made from a picture answers with itself drawn at the picture's view (character-views.js)
+    handler: withReferenceViews(updateCharacterHandler),
   });
 }

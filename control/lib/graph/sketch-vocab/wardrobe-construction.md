@@ -1,9 +1,9 @@
 ---
-{ "id": "wardrobe-construction", "name": "wardrobe construction — dressing a figure body (instrument × mugen score × tailoring)", "summary": "author an outfit on a figure (mint_solid kind figure) / character-sheet body from a CLOSED vocabulary. THREE garment families: (1) TAILORED SHELLS — an offset shell over the body's own flesh: pick an INSTRUMENT (tee/tank/dress/jacket/trousers/…), set its MUGEN SCORE (clearance = slim↔baggy, the ONLY looseness dial), then TAILOR with svgile-row cuts (wedge/band/neck/armhole) + recolour panels + color{cloth,under}. (2) HANGING SHEETS — a cape/cloak/tabard/cowl as a wave-field (fit:'wave-drape'): an open sheet pinned to a body anchor (shoulders/waist/neck) that sags + folds. (3) CUT-AND-SEWN PATTERNS (fit:'pattern'): flat pieces in cm with named edges, placed on a body CHART by anchor and sewn by SEAMS — the tailor's construction, with girths, seam ease and a printable sheet. All auto-track any proto/dimorph/fluff tuning — the same spec re-fits every body. Keys OR an inline { id, pieces, cuts, panels } spec; arrays LAYER (a cloak over a tee).", "when": "dress a character / figure body, design an outfit or wardrobe row, put clothes on a figure (mint_solid kind figure) or character-sheet, make something 'oversized'/'cropped'/'open-front'/'baggy'/'fitted', add a cape / cloak / tabard / mantle / cowl / hanging drape, reconstruct a dreamed outfit as a garment spec, or layer garments (jacket over tank, cloak over tee), draft a garment from pattern pieces / a sewing pattern / measurements (bust, waist, hip), sew seams between pieces, read a body's girths. NOT textile prints (that is garment-pattern) and NOT the body itself (that is proto / figure-fluff).", "tier": "recipe", "marks": [], "phase": "p1" }
+{ "id": "wardrobe-construction", "name": "wardrobe construction — dressing a figure body (instrument × mugen score × tailoring)", "summary": "author an outfit on a figure (mint_solid kind figure) / character-sheet body from a CLOSED vocabulary. THREE garment families: (1) TAILORED SHELLS — an offset shell over the body's own flesh: pick an INSTRUMENT (tee/tank/dress/jacket/trousers/…), set its MUGEN SCORE (clearance = slim↔baggy, the ONLY looseness dial), then TAILOR with svgile-row cuts (wedge/band/neck/armhole) + recolour panels + color{cloth,under}. (2) HANGING SHEETS — a cape/cloak/tabard/cowl as a wave-field (fit:'wave-drape'): an open sheet pinned to a body anchor (shoulders/waist/neck) that sags + folds. (3) CUT-AND-SEWN PATTERNS (fit:'pattern'): flat pieces in cm with named edges, placed on a body CHART by anchor and sewn by SEAMS — the tailor's construction, with girths, seam ease and a printable sheet. All auto-track any proto/dimorph/fluff tuning — the same spec re-fits every body. Keys OR an inline { id, pieces, cuts, panels } spec; arrays LAYER (a cloak over a tee).", "when": "dress a character / figure body, design an outfit or wardrobe row, put clothes on a figure (mint_solid kind figure) or character-sheet, make something 'oversized'/'cropped'/'open-front'/'baggy'/'fitted', add a cape / cloak / tabard / mantle / cowl / hanging drape, or layer garments (jacket over tank, cloak over tee), draft a garment from pattern pieces / a sewing pattern / measurements (bust, waist, hip), sew seams between pieces, read a body's girths. NOT textile prints (that is garment-pattern) and NOT the body itself (that is proto / figure-fluff).", "tier": "recipe", "marks": [], "phase": "p1" }
 ---
 
 A wardrobe is authored in three layers, each a closed vocabulary an LLM can
-emit *from looking at a dreamed character*. A garment is never sculpted — it is
+emit. A garment is never sculpted — it is
 an **offset shell over the figure's own flesh**, so it auto-tracks every
 proto / dimorph / fluff tuning with zero garment-specific math (a tee on the
 female pole follows the bust; on the male pole the pec plates). The same spec
@@ -66,8 +66,8 @@ drape past the equator).
 
 ## 3. Tailoring — the svgile-row cuts & panels (how it's cut & sewn)
 
-The image model's native construction register is CUT-AND-SEW panels, not ring
-wireframes — so target this vocabulary directly when reading a dream. A garment
+The construction register is CUT-AND-SEW panels, not ring
+wireframes. A garment
 is **base cloth − cuts + panels**.
 
 - **`fit`** (a piece's silhouette method, closed): `hug` (skintight offset) ·
@@ -117,7 +117,7 @@ across bodies:
   (openings via basin superposition) → `jacketCut` (front opened by ONE `wedge`
   cut) → `jacketAllCut` (front + neck + armholes ALL as cuts, one cutter) →
   `jacketPaneled` (adds recolour panels). Prefer the cut/panel forms when a
-  dream shows clear seams.
+  reference shows clear seams.
 
 ## 5. Hanging sheets — `fit: 'wave-drape'` (capes, cloaks, tabards)
 
@@ -143,10 +143,10 @@ Sheets render TWO-SIDED and still take svgile-row `cuts` (a neck yoke) + `panels
 Compose several in one spec (a back cape + a front tabard + a collar) and LAYER
 over a tailored base: `garment: ["tee", "trousers", "cloak"]`.
 
-### The creatability gate (dreaming a NEW drape)
+### The creatability gate (a NEW drape)
 
-When a dream shows a cape whose fold pattern isn't a preset, DON'T sculpt it.
-Ask whether a bounded superposition of plane waves reproduces the dreamed folds:
+When a reference shows a cape whose fold pattern isn't a preset, DON'T sculpt it.
+Ask whether a bounded superposition of plane waves reproduces the folds:
 
 - **creatable** → those `waves` ARE the recipe — drop them into a
   `wave-drape` piece. Proof and author are the same step.
@@ -156,11 +156,11 @@ Ask whether a bounded superposition of plane waves reproduces the dreamed folds:
 ## Doctrine
 
 Closed vocabularies only — every dial already exists and is clamped; no freehand
-geometry from a dream. The garment spec is the sovereign recipe; a painted sheet
+geometry. The garment spec is the sovereign recipe; a painted sheet
 or skin is a bound derived render. Slim-vs-baggy is the score, not a new
 instrument — grow the instrument table only when a character proves a piece the
 cuts+panels can't already tailor. For a DRAPE, that proof is the wave fit: it
-either reaches the dreamed folds (and the waves are the recipe) or names the gap.
+either reaches the folds (and the waves are the recipe) or names the gap.
 
 ## 6. Cut and sewn — `fit: 'pattern'` (pieces in cm, seams, girths)
 
@@ -299,8 +299,8 @@ The printable sheet is `GET /api/sketches/<ref>/pattern.svg` (the figure mint re
 `patternSvgUrl`): the pieces flat at true scale with seam allowance, grain, notches and cut counts,
 drafted on the STAND whatever pose the figure holds — the designer's rule: a pattern is drafted on
 the dress form and worn on the pose, so the sheet never changes because the figure moved, while the
-readout's strain and seam gaps are the posed body's. An outline authored in cm — from a drawing, a
-book, or a dream read as pieces — is the door that stays open beside the blocks.
+readout's strain and seam gaps are the posed body's. An outline authored in cm — from a drawing or a
+book — is the door that stays open beside the blocks.
 
 ## 7. Outfits — the tiers, and the book's wardrobe
 

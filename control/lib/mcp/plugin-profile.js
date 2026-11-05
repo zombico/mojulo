@@ -11,8 +11,7 @@
  *     TTS model), the sprite sheets painted through the image handoff and the Style Lock presets
  *     only an image worker reads, the `skin` op of edit_solid (a PNG painted by an image
  *     generator), the painted create_sketch kinds, create_cover's painted layers, the scene /
- *     cel families of forge_motion (both composite accepted image renders), and the
- *     character-from-dream loop (the figure-spec tools and a figure's dream_audit), plus the
+ *     cel families of forge_motion (both composite accepted image renders), plus the
  *     catalysts, routing cards and vocab cards that exist to drive those loops, and the lines of
  *     kept cards that point at them (lib/mcp/plugin-profile-cards.js);
  *   - the keyed LLM door, mint_solid via:'prompt' (the user's text to a third-party provider);
@@ -67,10 +66,6 @@ const VOICE_TOOLS = ['create_voice', 'get_voice', 'bind_voice_sample', 'get_voic
 const SPRITE_SHEET_TOOLS = ['create_sprite_sheet', 'bake_sprite_sheet'];
 // The Style Lock presets a renderBrief carries to the image worker; nothing else reads them.
 const STYLE_TOOLS = ['get_style_vocab'];
-// The character-from-dream spec loop (lib/mcp/tools/figure-specs.js): a figure reconstructed from an
-// image generator's dreamed reference, drafted with its dream_audit, approved and built. Unlisted
-// everywhere; hidden here so a call by name is refused like the rest of that loop.
-const DREAM_FIGURE_SPEC_TOOLS = ['draft_figure_spec', 'get_figure_spec', 'resolve_figure_spec', 'build_figure_spec'];
 
 export const PLUGIN_PROFILE_HIDDEN_TOOLS = Object.freeze([
   ...IMAGE_RENDER_TOOLS,
@@ -78,7 +73,6 @@ export const PLUGIN_PROFILE_HIDDEN_TOOLS = Object.freeze([
   ...VOICE_TOOLS,
   ...SPRITE_SHEET_TOOLS,
   ...STYLE_TOOLS,
-  ...DREAM_FIGURE_SPEC_TOOLS,
 ]);
 
 /** Pack dispatchers whose every member is hidden: the pack itself leaves the surface. */
@@ -103,7 +97,6 @@ export const PLUGIN_PROFILE_HIDDEN_SKETCH_KINDS = Object.freeze([
  */
 export const PLUGIN_PROFILE_HIDDEN_ROWS = Object.freeze({
   catalyst: Object.freeze([
-    'character-from-dream',
     'creature-from-plan',
     'dream-edifice',
     'mobile-suit-builder',

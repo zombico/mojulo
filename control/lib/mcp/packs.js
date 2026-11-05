@@ -217,7 +217,7 @@ export const PACKS = [
     form: 'reference',
     title: 'Visual reference (from a photo)',
     description:
-      "VISUAL REFERENCE — read a photo YOU can see into mojulo dials: reference_protocol hands the extraction protocol (scene perspective or human pose — you are the vision adapter, no image sent), capture_reference files the read as a reusable cage + insights in a stash. Open for 'recreate the camera angle from this photo', 'match this pose'.",
+      "VISUAL REFERENCE — read a picture YOU can see into mojulo dials: reference_protocol hands the extraction protocol (a scene, a pose, an object, a landscape or a character — you are the vision adapter, no image sent), capture_reference files the read in a stash (a character's makes the hero). Open for 'recreate the camera angle from this photo', 'match this pose', 'make my OC from this drawing'.",
     members: ['reference_protocol', 'capture_reference'],
   },
   {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createFigureHandler } from '@/lib/mcp/tools/figure';
+import { createFigureHandler, DREAM_AUDIT_RETIRED } from '@/lib/mcp/tools/figure';
 import { renderFigureToSvg, buildPosedFigure, renderFigureFrames } from '@/lib/graph/polygonizer/figure-render';
 import { resolvePose } from '@/lib/graph/polygonizer/figure-posing';
 import { FIGURE_SETUPS } from '@/lib/visual-language/themes';
@@ -28,6 +28,16 @@ describe('create_figure', () => {
     // piece as a predicate the mesher applies — svgile-row's cutter in the production path
     const jTorso = layered.find((s) => s.id === 'jacketAllCut:torso');
     expect(typeof jTorso.cut).toBe('function');
+  });
+
+  // The dream loop's attestation is retired: the key refuses before anything is minted, and a figure minted with one
+  // before keeps its provenance as data the renderer never reads (it draws as the same figure without it).
+  it('refuses the retired dream_audit, and draws a stored figure carrying its provenance as the same figure', async () => {
+    await expect(createFigureHandler({ title: 'x', dream_audit: { source: 'native', invoked_generator: true, prompt: 'a knight', seed: '1' } }))
+      .rejects.toThrow(DREAM_AUDIT_RETIRED);
+    const figure = { kind: 'figure', proto: { sex: 'male' }, garment: 'tee', view: 'frontal', title: 'k' };
+    const stamped = { ...figure, provenance: { kind: 'dream-reconstruction', source: 'native', invoked_generator: true, prompt: 'a knight', seed: '1' } };
+    expect(renderFigureToSvg(stamped)).toBe(renderFigureToSvg(figure));
   });
 
   it('rejects an unknown garment inside a layering array', async () => {

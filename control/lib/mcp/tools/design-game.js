@@ -36,7 +36,7 @@ import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/li
 import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
 import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { AUDIT_STEP } from '@/lib/graph/gameworld/runner.js';
-import { chapterBook, chapterById, chapterSteps, CHAPTERS } from '@/lib/graph/gameworld/chapters.js';
+import { chapterBook, chapterSteps, CHAPTERS, unitOf, levelStep } from '@/lib/graph/gameworld/chapters.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
 import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
@@ -51,6 +51,10 @@ import { quickWorld, sportConceptOf } from '@/lib/graph/gameworld/quick.js';
 import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-registry/doors.js';
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import { complexAdvice } from '@/lib/graph/gameworld/levels.js';
+import { rebase } from '@/lib/graph/gameworld/rebase.js';
+import { STAFFING, readLedger, notesWith, pullThrough, remitAdvice, ledgerSummary, reqForView, unitParts, unitPrint, receiptOf, upstreamPrints, reqStatus } from '@/lib/graph/gameworld/reqs.js';
+import { GameworldReqRepository, GameworldReqJobRepository } from '@/lib/db/repositories/gameworld-reqs.js';
+import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines } from '@/lib/graph/gameworld/jobs.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
 import { withoutWarm } from '@/lib/graph/scene/scene-png-warm';
@@ -250,6 +254,12 @@ async function auditedPrint(step, browser) {
   return fingerprint({ level, game, walked: !!(await browser()) });
 }
 
+/** A stored gameworld manifest with a run's changes laid on it: its own head (kind, title) kept, its world rebased. */
+function storedRebased(manifest, base, mine) {
+  const head = Object.fromEntries(Object.entries(manifest).filter(([k]) => k === 'kind' || k === 'title'));
+  return { ...head, ...rebase(gameworldOf(manifest), base, mine) };
+}
+
 /** Run the world stored at `ref`: every ready step made, remade or kept, until the budget is spent;
  * → { world, ran, pending? } (world with its new record; pending the keys of the steps it left for the next run). */
 async function runWorld(ref, world, { force = false, check = false, budgetMs = runBudgetMs(), clock = Date.now, chapter = null } = {}) {
@@ -261,8 +271,10 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
   // keeps no revisions), so a run cut off partway (its process ended, a host's time limit) leaves its rows recorded as
   // its own, and the next run keeps them rather than reading them as edited by hand ('taken'). The run's own write at
   // the end is the world as the handler stores it
+  // (each write lays the run's changes onto the world as stored now, gameworld/rebase.js: a page another chapter wrote
+  // while the run ran is kept, never reverted to the run's copy)
   const checkpoint = () => {
-    try { const row = SketchRepository.getByRef(ref); if (row) SketchRepository.update({ ref, manifest: { ...row.manifest, ...W, made } }); } catch { /* the run goes on; its end writes the record */ }
+    try { const row = SketchRepository.getByRef(ref); if (row) SketchRepository.update({ ref, manifest: storedRebased(row.manifest, world, { ...W, made }) }); } catch { /* the run goes on; its end writes the record */ }
   };
   const t0 = clock();
   let moved = false;
@@ -320,23 +332,23 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
   };
   // a chapter's run: its own steps and what they name, made ahead of their approvals (chapters.js chapterSteps); the
   // build's is the whole run
-  const scoped = (steps) => (chapter ? chapterSteps(steps, chapter) : steps);
+  const scoped = (steps) => (chapter && chapter !== 'build' ? chapterSteps(steps, chapter) : composedBuild(steps, composite));
   // the hero first: the systems and the gear wait on its pinned base
-  const heroRef = heroRefOf(W, ref);
-  const first = scoped(runSteps(W, { ref, lookup: heroLookup(heroRef) }));
+  const heroRef = heroRefOf(W, ref), composite = compositeOf(ref, W);
+  const first = scoped(runSteps(W, { ref, lookup: heroLookup(heroRef), composite }));
   if (!first.length) return { world: W, ran };
   let rest;
   try {
     await act(first[0]);
     // the rest read the record as this run left the hero (a hero just made or remade is not an edit by hand)
-    rest = scoped(runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) })).filter((s) => s.key !== first[0].key);
+    rest = scoped(runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef), composite })).filter((s) => s.key !== first[0].key);
     for (const step of rest) await act(step);
   } catch (err) {
     // a step that throws partway: the steps made before it are rows now, so their record is kept with the world
     // (else the next run reads them as edited by hand and leaves them); the error reaches the caller as it was
     const partial = Object.keys(made).length ? { ...W, made } : W;
     if (JSON.stringify(partial) !== JSON.stringify(world)) {
-      try { await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...partial }, note: 'design_game: the record of a run that failed partway' }); } catch { /* the step's error is the one to say */ }
+      try { await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...rebase(gameworldOf(SketchRepository.getByRef(ref)?.manifest), world, partial) }, note: 'design_game: the record of a run that failed partway' }); } catch { /* the step's error is the one to say */ }
     }
     throw err;
   }
@@ -352,9 +364,11 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
 async function compileReadout(ref, world, { check = false } = {}) {
   let W = world;
   let steps;
-  // (with the levels a run would lay from the main quest, and its planned beats priced apart)
+  // (with the levels a run would lay from the main quest, and its planned beats priced apart; a composite's build its
+  // accepted levels alone)
   let plays = null;
-  try { plays = W.mainQuest ? questPlays(W) : null; W = W.mainQuest ? withQuestLevels(W) : W; steps = runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }); }
+  const composite = compositeOf(ref, W);
+  try { plays = W.mainQuest ? questPlays(W) : null; W = W.mainQuest ? withQuestLevels(W) : W; steps = composedBuild(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite }), composite); }
   catch (err) { return { gate: 'machine', ready: false, blockers: [planError(err.message)] }; }
   const made = W.made ?? {}, actions = {};
   const moves = (k) => actions[k] === 'make' || actions[k] === 'remake';
@@ -553,11 +567,12 @@ export function composedWorld(c) {
 const composedOf = (b) => ({ prompt: b.prompt, read: b.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(b.cube ? { cube: b.cube } : {}), ...(b.unread?.length ? { unread: b.unread } : {}) });
 
 export async function designGameHandler(input, context = {}) {
-  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter? }');
-  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter } = input;
+  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req? }');
+  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter, req } = input;
   if (shape !== undefined && shape !== 'full' && shape !== 'changed') throw new Error("design_game: readout is 'full' (the default) or 'changed'");
   // one chapter's readout (gameworld/chapter-view.js): checked before anything is written
-  if (chapter !== undefined && !chapterById(chapter)) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((c) => c.id).join(', ')} (the readout's \`chapters\`)`);
+  if (req !== undefined) checkReq(req);
+  if (chapter !== undefined && !unitOf(chapter)) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((c) => c.id).join(', ')} (the readout's \`chapters\`), or one level as 'level:<id>'`);
   // the world as it stood before this call, for readout: 'changed'
   const prior = given ? SketchRepository.getByRef(given) : null;
   const before = prior && isGameworldKind(prior.manifest?.kind) ? gameworldOf(prior.manifest) : null;
@@ -610,7 +625,9 @@ export async function designGameHandler(input, context = {}) {
   const redirected = [...(quick !== undefined ? quickVehicleWords(quick).redirects : []), ...(patch !== undefined ? patchVehicleWords(patch).redirects : [])];
   try {
     const patched = list(patch).map((op) => op?.path).filter((p) => typeof p === 'string');
-    const out = await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched }, context);
+    // a job's report or a kept proposal: written before the readout reads the world
+    const reqDone = req !== undefined ? await reqWrites(ref, req) : null;
+    const out = await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched, req, reqDone }, context);
     return redirected.length ? { ...out, vehicles: { registry: redirected } } : out;
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
@@ -618,7 +635,230 @@ export async function designGameHandler(input, context = {}) {
   }
 }
 
-async function afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched = [] }, context = {}) {
+/** A `req` as the door takes it: raise a unit ({ unit, remit?, staffing? }), or act on one ({ id, remit?, staffing?,
+ * budget?, cancel?, accept?, note? }). Checked before anything is written. */
+function checkReq(req) {
+  if (!isObj(req)) throw new Error('design_game: req is { unit, remit?, staffing? } to raise a unit, or { id, remit?, staffing?, budget?, cancel?, accept?, note? } for one raised');
+  if ((req.unit === undefined) === (req.id === undefined)) throw new Error('design_game: a req names its `unit` (to raise one) or its `id` (r1, r2 …), one or the other');
+  if (req.unit !== undefined && !unitOf(req.unit)) throw new Error(`design_game: a req's unit is a chapter (${CHAPTERS.map((c) => c.id).join(', ')}) or one level as 'level:<id>'`);
+  if (req.staffing !== undefined && !STAFFING[req.staffing]) throw new Error(`design_game: a req's staffing is ${Object.keys(STAFFING).join(' or ')}`);
+  if (req.remit !== undefined && req.remit !== null && !isObj(req.remit)) throw new Error('design_game: a req\'s remit is an object (a level\'s: in, out, band, idea, foes, beat)');
+  if (req.budget !== undefined && !isObj(req.budget)) throw new Error('design_game: a req\'s budget is an object (jobs, tier, diverge, critics, reissues)');
+  if (req.cancel && req.accept) throw new Error('design_game: a req is cancelled or accepted, not both');
+  const acts = ['start', 'job', 'keep', 'reissue', 'probe'].filter((k) => req[k] !== undefined);
+  if (acts.length && req.id === undefined) throw new Error('design_game: start, job, keep, reissue and probe act on a raised req: give its `id`');
+  if (acts.length > 1) throw new Error(`design_game: a req call does one of start, job, keep, reissue, probe (given ${acts.join(', ')})`);
+  if (req.job === undefined && ['patch', 'decisions', 'findings'].some((k) => req[k] !== undefined)) throw new Error('design_game: a patch, decisions or findings report a job: give its `job` (j1, j2 …)');
+}
+
+/** A job's proposal applied to the recipe, as the door applies any patch. */
+async function applyProposal(ref, r, job) {
+  await updateSketchHandler({ ref, patch: patchVehicleWords(job.report.patch).patch, note: `design_game: ${r.id} ${job.id} (${job.kind}) kept` });
+}
+
+/** The critics a kept proposal is given, as many as the budget leaves. → lines said */
+function issueCritics(ref, r) {
+  const plan = criticPlan(r), left = jobsLeft(r, GameworldReqJobRepository.list(ref, r.id));
+  const issued = GameworldReqJobRepository.issue(ref, r.id, plan.slice(0, left));
+  return [...issued.map((j) => `${j.id} critic issued (${j.lens})`), ...(plan.length > left ? [`${plan.length - left} critic(s) not issued: the budget's jobs are spent`] : [])];
+}
+
+/** A req's writes, before the readout is read: a job's report (an author's patch applied when it is the only author,
+ * a diverge author's held, a critic's findings kept) and a kept proposal (its patch applied, its siblings declined,
+ * its critics issued). → lines said, or null */
+async function reqWrites(ref, req) {
+  if (req.probe) return probeReq(ref, req);
+  if (req.job === undefined && req.keep === undefined) return null;
+  const r = GameworldReqRepository.get(ref, req.id);
+  if (!r) throw new Error(`design_game: no req '${req.id}' in this world (${GameworldReqRepository.list(ref).map((x) => x.id).join(', ') || 'none raised'})`);
+  const jobs = GameworldReqJobRepository.list(ref, r.id), said = [];
+  const named = (id) => jobs.find((j) => j.id === id) ?? null;
+  if (req.job !== undefined) {
+    const job = named(req.job);
+    if (!job) throw new Error(`design_game: no job '${req.job}' on ${r.id} (${jobs.map((j) => j.id).join(', ') || 'none issued: start it'})`);
+    try { checkSubmit(job, req); } catch (e) { throw new Error(`design_game: ${e.message}`); }
+    const outside = job.kind === 'critic' ? [] : outsideOf(r.unit, req.patch);
+    const report = { ...(req.patch ? { patch: req.patch } : {}), ...(req.decisions ? { decisions: req.decisions } : {}), ...(req.findings ? { findings: req.findings } : {}), ...(Array.isArray(req.asks) ? { asks: req.asks } : {}), ...(Array.isArray(req.warnings) ? { warnings: req.warnings } : {}), ...(outside.length ? { outside } : {}) };
+    if (job.kind === 'author') {
+      // the only author: its proposal is the unit's, applied at once
+      await applyProposal(ref, r, { ...job, report });
+      GameworldReqJobRepository.update(ref, r.id, job.id, { status: 'kept', report });
+      said.push(`${job.id} author kept: its patch applied`, ...issueCritics(ref, r));
+    } else {
+      GameworldReqJobRepository.update(ref, r.id, job.id, { status: 'submitted', report });
+      said.push(job.kind === 'diverge' ? `${job.id} diverge held: keep one of the proposals ({ req: { id: '${r.id}', keep } })` : `${job.id} critic reported ${req.findings.length} finding(s)`);
+    }
+    if (outside.length) said.push(`${job.id} wrote past ${r.unit}: ${outside.join(', ')}`);
+    // what the remit asked that no word of the recipe reaches: a gap said to the director, never faked
+    if (req.asks?.length) said.push(`${job.id} asks for what no word reaches: ${req.asks.join('; ')}`);
+  } else {
+    const job = named(req.keep);
+    if (!job || job.kind !== 'diverge' || job.status !== 'submitted') throw new Error(`design_game: keep names a diverge proposal that has reported (${jobs.filter((j) => j.kind === 'diverge' && j.status === 'submitted').map((j) => j.id).join(', ') || 'none yet'})`);
+    if (jobs.some((j) => j.status === 'kept' && j.kind !== 'critic')) throw new Error(`design_game: ${r.id} has a kept proposal already; reissue to try again`);
+    await applyProposal(ref, r, job);
+    GameworldReqJobRepository.update(ref, r.id, job.id, { status: 'kept' });
+    for (const j of jobs.filter((x) => x.kind === 'diverge' && x.id !== job.id && (x.status === 'submitted' || x.status === 'issued'))) GameworldReqJobRepository.update(ref, r.id, j.id, { status: 'declined' });
+    said.push(`${job.id} kept: its patch applied; the other proposals declined and kept on record`, ...issueCritics(ref, r));
+  }
+  return said;
+}
+
+/** The play probe on a level req's stages as they stand (game/level-probe.js, a machine gate), kept as the req's ride
+ * job: its verdict, the prints of the stages it played, and its frames on disk for the look critic. → lines said */
+async function probeReq(ref, req) {
+  const r = GameworldReqRepository.get(ref, req.id);
+  if (!r) throw new Error(`design_game: no req '${req.id}' in this world (${GameworldReqRepository.list(ref).map((x) => x.id).join(', ') || 'none raised'})`);
+  const lv = unitOf(r.unit)?.level;
+  if (lv == null) throw new Error(`design_game: the probe plays a level; ${r.id} is ${r.unit}`);
+  const W = gameworldOf(SketchRepository.getByRef(ref).manifest), made = W.made ?? {};
+  const keys = Object.keys(made).filter((k) => levelStep(lv).test(k)).sort();
+  if (!keys.length) return [`${r.id}: no stage of ${r.unit} made yet: { ref, chapter: '${r.unit}', run: true } first`];
+  const { levelBrowser, levelPage } = await import('@/lib/graph/game/first-frame-check');
+  const { probeLevel } = await import('@/lib/graph/game/level-probe.js');
+  const stages = [];
+  for (const k of keys) {
+    const at = made[k].ref;
+    // eslint-disable-next-line no-await-in-loop -- one stage page at a time
+    stages.push({ ref: at, manifest: SketchRepository.getByRef(at)?.manifest ?? null, ...(await levelPage(at)) });
+  }
+  const n = GameworldReqJobRepository.list(ref, r.id).length + 1;
+  const { mkdir, writeFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const framesDir = path.join(process.env.MOJULO_OUTCOMES_DIR || path.join(process.cwd(), 'data', 'outcomes'), 'probes', ref.replace(/[^A-Za-z0-9_-]/g, '_'), `${r.id}-j${n}`);
+  const verdict = await withoutWarm(() => probeLevel(stages, {
+    goal: W.levels?.[lv]?.goal, findBrowser: levelBrowser, framesDir,
+    writeFile: async (file, png) => { await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, png); },
+  }));
+  const prints = Object.fromEntries(keys.map((k) => [k, made[k]?.stored ?? null]));
+  const [job] = GameworldReqJobRepository.issue(ref, r.id, [{ kind: 'probe', tier: 'ride' }]);
+  GameworldReqJobRepository.update(ref, r.id, job.id, { status: 'submitted', report: { ...verdict, prints } });
+  const failing = (verdict.checks ?? []).filter((c) => !c.holds);
+  return [verdict.holds ? `${job.id} probe holds on ${keys.length} stage(s) (machine gate; the eyes gate has not run)`
+    : verdict.skipped ? `${job.id} probe ${verdict.skipped}` : `${job.id} probe does not hold: ${failing.map((c) => `${c.check}: ${c.says}`).join('; ') || verdict.note}`];
+}
+
+/** A composite's build: the stages of its accepted levels and everything they share (the hero, the casts, the foes),
+ * never a level no one has worked yet (a level's stages are its own unit's to make, { chapter: 'level:<id>', run }). */
+const composedBuild = (steps, composite) => (Array.isArray(composite) ? steps.filter((s) => !/^level-/.test(s.key) || composite.some((id) => levelStep(id).test(s.key))) : steps);
+
+/** The levels the game is made of (runner.js composedStages): when the world's ledger asks for levels one at a time,
+ * the ones the creator has accepted as they stand, so the game is always playable to its last accepted level; a world
+ * that asks for none is made whole, as before (undefined). */
+function compositeOf(ref, W) {
+  const rows = GameworldReqRepository.list(ref).filter((r) => unitOf(r.unit)?.level != null);
+  if (!rows.length) return undefined;
+  const parts = reviewState(W);
+  const accepted = new Set(rows.filter((r) => reqStatus(r, { world: W, parts }) === 'accepted').map((r) => unitOf(r.unit).level));
+  return Object.keys(W.levels ?? {}).filter((id) => accepted.has(id));
+}
+
+/** A req's received gate, as the ledger reads it: its jobs, the unit's parts, the world's record. */
+const receiptFor = (ref, W, parts) => (r) => receiptOf(r, { jobs: GameworldReqJobRepository.list(ref, r.id), parts, world: W, made: W.made ?? {} });
+// the probe as the director's next move reads it: not played (or its stages moved), skipped (no browser: the loop
+// degrades, it never breaks), failed (back to its author), or holding
+const probeState = (receipt) => {
+  const c = receipt.checks.find((x) => x.check === 'probe');
+  if (!c) return 'none';
+  if (c.holds) return 'holds';
+  if (/^skipped/.test(c.says ?? '')) return 'skipped';
+  return /probe again|not played|no stage/.test(c.says ?? '') ? 'none' : 'failed';
+};
+
+/** A req as its unit's view carries it: its remit, precedent, budget, what the director does next, and its jobs (an
+ * issued job's brief, a reported one's report). */
+function reqView(ref, r, reqs, { W, parts }) {
+  const jobs = GameworldReqJobRepository.list(ref, r.id);
+  const receipt = receiptOf(r, { jobs, parts, world: W, made: W.made ?? {} });
+  const level = unitOf(r.unit)?.level != null;
+  return {
+    ...reqForView(r, reqs), does: nextOf(jobs, { level, probe: probeState(receipt) }), receipt,
+    ...(jobs.length ? { jobs: jobs.map((j) => (j.status === 'issued' ? jobBrief(j, r, { ref }) : j.kind === 'probe' ? { job: j.id, kind: 'probe', holds: j.report?.holds ?? false, ...(j.report?.skipped ? { skipped: j.report.skipped } : {}), checks: j.report?.checks ?? [], frames: (j.report?.frames ?? []).map((f) => f.file ?? `${f.ref} at ${f.at}s`) } : jobReport(j))) } : {}),
+  };
+}
+
+const TERMINAL_REQ = new Set(['accepted', 'cancelled', 'gone']);
+
+/** The ledger worked and read: the creator's notes kept, the `req` acted on (raise with its pull-through, edit, cancel,
+ * accept a unit with no review part), the ledger read again. → { L, summary } */
+function workLedger(ref, W, full, req, done = null) {
+  const parts = full.parts ?? [], book = full.chapters ?? [];
+  // the creator's notes on what they sent back: kept as the precedent the next unit reads; and a unit first read
+  // accepted keeps the prints of the chapters it reads, so a move upstream after it stales it
+  for (const r of GameworldReqRepository.list(ref)) {
+    const notes = notesWith(r, parts);
+    if (notes) GameworldReqRepository.update(ref, r.id, { notes });
+    if (!r.verdict?.upstream && r.verdict?.status !== 'cancelled' && reqStatus(r, { world: W, parts }) === 'accepted') GameworldReqRepository.update(ref, r.id, { verdict: { ...(r.verdict ?? {}), upstream: upstreamPrints(r.unit, W) } });
+  }
+  const received = receiptFor(ref, W, parts);
+  const raised = [], advises = [];
+  if (req !== undefined) {
+    const L = readLedger(GameworldReqRepository.list(ref), { world: W, parts, received: (r) => received(r).holds });
+    const edit = { ...(req.remit !== undefined ? { remit: req.remit } : {}), ...(req.staffing !== undefined ? { staffing: req.staffing } : {}), ...(req.budget !== undefined ? { budget: req.budget } : {}) };
+    if (req.unit !== undefined) {
+      const lv = unitOf(req.unit).level;
+      if (lv != null && !isObj(W.levels?.[lv])) throw new Error(`design_game: no level '${lv}' in this world (its levels: ${Object.keys(W.levels ?? {}).join(', ') || 'none'})`);
+      const live = L.reqs.find((r) => r.unit === req.unit && !TERMINAL_REQ.has(r.status));
+      if (live) {
+        if (Object.keys(edit).length) GameworldReqRepository.update(ref, live.id, edit);
+        advises.push(`${req.unit} is already asked for: ${live.id} (${live.status})`);
+      } else {
+        if (L.current) advises.push(`${L.current.id} (${L.current.unit}) is open: accept it or send it back first; ${req.unit} is queued after it`);
+        for (const up of pullThrough(req.unit, { book, reqs: L.reqs })) {
+          const r = GameworldReqRepository.create({ worldRef: ref, unit: up, raisedBy: 'pull-through' });
+          raised.push(`${r.id} ${up} (pulled through: ${req.unit} reads it)`);
+        }
+        const r = GameworldReqRepository.create({ worldRef: ref, unit: req.unit, remit: req.remit ?? null, staffing: req.staffing ?? 'soloist', budget: req.budget ?? {} });
+        raised.push(`${r.id} ${req.unit}`);
+      }
+      advises.push(...remitAdvice(req.unit, req.remit ?? live?.remit));
+    } else {
+      const r = GameworldReqRepository.get(ref, req.id);
+      if (!r) throw new Error(`design_game: no req '${req.id}' in this world (${L.reqs.map((x) => x.id).join(', ') || 'none raised'})`);
+      const own = unitParts(r.unit, parts);
+      // a unit with parts is accepted by approving them; accepted again after a move upstream on the creator's word
+      const upstreamStale = own.length && own.every((p) => p.status === 'approved') && reqStatus(r, { world: W, parts }) === 'stale';
+      if (req.accept && own.length && !upstreamStale) throw new Error(`design_game: ${r.unit} is accepted by approving its parts (${own.map((p) => p.id).join(', ')}): { ref, approve: [...] }`);
+      const verdict = req.cancel ? { status: 'cancelled', ...(req.note ? { note: req.note } : {}) }
+        : req.accept && upstreamStale ? { ...(r.verdict ?? {}), upstream: upstreamPrints(r.unit, W), ...(req.note ? { note: req.note } : {}) }
+        : req.accept ? { status: 'accepted', print: unitPrint(W, r.unit), upstream: upstreamPrints(r.unit, W), ...(req.note ? { note: req.note } : {}) } : undefined;
+      GameworldReqRepository.update(ref, r.id, { ...edit, ...(verdict ? { verdict } : {}) });
+      const jobs = GameworldReqJobRepository.list(ref, r.id);
+      if (req.start) {
+        // its authors, by its staffing (the budget's jobs bound them); started twice, once
+        if (jobs.length) advises.push(`${r.id} is started: ${jobLines(jobs).join(' · ')}`);
+        else {
+          const R = GameworldReqRepository.get(ref, r.id), plan = authorPlan(R), left = jobsLeft(R, jobs);
+          const L0 = L.reqs.find((x) => x.id === r.id);
+          if (L.current && L.current.id !== r.id) advises.push(`${r.id} started out of order: ${L.current.id} (${L.current.unit}) is the one being worked`);
+          for (const j of GameworldReqJobRepository.issue(ref, r.id, plan.slice(0, left))) raised.push(`${r.id} ${j.id} ${j.kind} issued${j.angle ? ` (${j.angle.split(':')[0]})` : ''}`);
+          if (plan.length > left) advises.push(`${r.id}: ${plan.length - left} author(s) not issued: the budget's jobs are spent`);
+          if (L0 && TERMINAL_REQ.has(L0.status)) advises.push(`${r.id} is ${L0.status}`);
+        }
+      }
+      if (req.reissue !== undefined) {
+        const old = jobs.find((j) => j.id === req.reissue);
+        if (!old) throw new Error(`design_game: no job '${req.reissue}' on ${r.id} (${jobs.map((j) => j.id).join(', ') || 'none issued'})`);
+        if (old.status === 'kept' || old.status === 'reissued') throw new Error(`design_game: ${old.id} is ${old.status}: a kept or reissued job is not reissued`);
+        const R = GameworldReqRepository.get(ref, r.id);
+        if (!reissuesLeft(R, jobs) || !jobsLeft(R, jobs)) advises.push(`${r.id}: ${old.id} not reissued: the budget's ${!reissuesLeft(R, jobs) ? 'reissues' : 'jobs'} are spent; raise the budget ({ req: { id: '${r.id}', budget } }) or work with what was made`);
+        else {
+          GameworldReqJobRepository.update(ref, r.id, old.id, { status: 'reissued' });
+          const [j] = GameworldReqJobRepository.issue(ref, r.id, [{ kind: old.kind, tier: old.tier, angle: old.angle, lens: old.lens }]);
+          raised.push(`${r.id} ${j.id} ${j.kind} issued (reissue of ${old.id})`);
+        }
+      }
+    }
+  }
+  const L = readLedger(GameworldReqRepository.list(ref), { world: W, parts, received: (r) => received(r).holds });
+  const summary = ledgerSummary(L);
+  if (summary?.current) {
+    const jobs = GameworldReqJobRepository.list(ref, L.current.id), receipt = received(L.current);
+    summary.current = { ...summary.current, does: nextOf(jobs, { level: unitOf(L.current.unit)?.level != null, probe: probeState(receipt) }), ...(jobs.length ? { jobs: jobLines(jobs) } : {}), ...(receipt.holds ? {} : { gate: receipt.checks.filter((c) => !c.holds).map((c) => c.check) }) };
+  }
+  return { L, summary: summary ? { ...summary, ...(done?.length ? { done } : {}), ...(raised.length ? { raised } : {}), ...(advises.length ? { advises } : {}) } : null };
+}
+
+async function afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched = [], req, reqDone = null }, context = {}) {
   let W = gameworldOf(SketchRepository.getByRef(ref).manifest);
   // the verdicts
   if (approve !== undefined || revise !== undefined) {
@@ -629,6 +869,9 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
       W = { ...W, review };
     }
   }
+  // one level's unit names a level the world has, before a run makes anything for it
+  const lv = chapter !== undefined ? unitOf(chapter)?.level : null;
+  if (lv && !isObj(W.levels?.[lv])) throw new Error(`design_game: no level '${lv}' in this world (its levels: ${Object.keys(W.levels ?? {}).join(', ') || 'none'})`);
   // the run
   let ran, resonance, pending;
   if (run) {
@@ -640,8 +883,9 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     pending = out.pending;
     // a run that made and remade nothing writes nothing: no revision, no new head
     if (JSON.stringify(out.world) !== JSON.stringify(W)) {
-      await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...out.world } });
-      W = out.world;
+      const next = rebase(gameworldOf(SketchRepository.getByRef(ref).manifest), W, out.world);
+      await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...next } });
+      W = next;
     }
   }
   // the comparison, after creation only: a world that has made nothing has nothing of its own to compare
@@ -658,6 +902,19 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     full.compile = await compileReadout(ref, W, { check: check === true });
     if (full.compile.blockers) full.next = [...full.next, { step: 'compile', blockers: full.compile.blockers.length, card: 'gameworld-next' }];
   }
+  // the requisitions (gameworld/reqs.js): the unit being worked, the queue, and what a unit reads besides its chapter
+  const ledger = workLedger(ref, W, full, req, reqDone);
+  if (ledger.summary) full.reqs = ledger.summary;
+  if (ledger.L.current) full.next = [...full.next, { step: 'req', id: ledger.L.current.id, unit: ledger.L.current.unit, status: ledger.L.current.status, does: ledger.summary.current.does, card: 'gameworld-ledger' }];
+  // the composite: the accepted levels the game is not yet made of (a level accepted since, or one gone stale); a run
+  // makes the game of them (runner.js composedStages)
+  const composite = compositeOf(ref, W);
+  if (composite?.length) {
+    let game = null;
+    try { game = runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite }).find((s) => s.key === 'game'); } catch { /* the readout says what the book lacks */ }
+    if (game && W.made?.game?.order !== game.print) full.next = [...full.next, { step: 'composite', levels: composite, ...(W.made?.game ? {} : { first: true }), card: 'gameworld-ledger' }];
+    if (full.reqs) full.reqs.composite = { levels: composite, made: !!game && W.made?.game?.order === game.print };
+  }
   // the first session's goalposts (gameworld/goalposts.js): where the game stands against what a good first session
   // leaves, read from the book; said while any is open, with where the next session picks up
   const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null }); } catch { return null; } })();
@@ -669,26 +926,32 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   const { record: framed, ...eyes } = check === true ? await firstFrameReadout(W, ran) : {};
   // a run's errands walked on the bus across the levels it made, the bag carried (machine gate, gameworld/errand-proof.js)
   const errandProof = ran && W.errands ? (() => {
-    try { return { errand_proof: { gate: 'machine', errands: proveErrands(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }))), note: 'machine gate: each errand walked on the bus, the bag carried level to level; the walk between levels, the fights and the knocks on the way are not played (the eyes gate has not run)' } }; } catch (e) { return { errand_proof: { gate: 'machine', error: e.message } }; }
+    try { return { errand_proof: { gate: 'machine', errands: proveErrands(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) }))), note: 'machine gate: each errand walked on the bus, the bag carried level to level; the walk between levels, the fights and the knocks on the way are not played (the eyes gate has not run)' } }; } catch (e) { return { errand_proof: { gate: 'machine', error: e.message } }; }
   })() : {};
   // a run's wave gauntlets played on the bus on the levels it made, each fall given (machine gate, gameworld/gauntlet-proof.js)
   const gauntletProof = ran && Object.values(W.levels ?? {}).some((L) => L?.goal?.gauntlet) ? (() => {
-    try { return { gauntlet_proof: { gate: 'machine', levels: proveGauntlets(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }))), note: 'machine gate: each gauntlet played on the bus, every foe given its fall as it woke; whether a fight can be won is not played (the eyes gate has not run)' } }; } catch (e) { return { gauntlet_proof: { gate: 'machine', error: e.message } }; }
+    try { return { gauntlet_proof: { gate: 'machine', levels: proveGauntlets(W, lastStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) }))), note: 'machine gate: each gauntlet played on the bus, every foe given its fall as it woke; whether a fight can be won is not played (the eyes gate has not run)' } }; } catch (e) { return { gauntlet_proof: { gate: 'machine', error: e.message } }; }
   })() : {};
   // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
   if (framed) {
-    const made = { ...W.made };
+    const made = { ...W.made }, base = W;
     for (const [k, frame] of Object.entries(framed)) if (made[k]) made[k] = { ...made[k], frame };
-    W = { ...W, made };
+    // (laid onto the world as stored now, as a run's own writes are: gameworld/rebase.js)
+    W = rebase(gameworldOf(SketchRepository.getByRef(ref).manifest), base, { ...W, made });
     await updateSketchHandler({ ref, manifest: { kind: GAMEWORLD_KIND, ...W } });
   }
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
   const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};
   // one chapter: the whole readout projected onto it (a department's view; the share offer rides it as it rides the whole)
-  if (chapter) return { ok: true, readout: 'chapter', ...chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched }), ...share };
+  if (chapter) {
+    // a unit's own req (the live one asked for it): its remit, its precedent, its budget
+    const own = ledger.L.reqs.find((r) => r.unit === chapter && !TERMINAL_REQ.has(r.status));
+    const view = chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched });
+    return { ok: true, readout: 'chapter', ...view, ...(own ? { req: reqView(ref, own, ledger.L.reqs, { W, parts: full.parts ?? [] }) } : {}), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...share };
+  }
   if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
-  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
+  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...(comparison ? { comparison } : {}), ...share };
 }
 
 /** A fight's readout (quick goal fight, once made): each fighter's character, the sheet it came from and what the sheet
@@ -745,6 +1008,7 @@ export function registerDesignGameTools() {
         quick: { type: 'object', description: 'One level, one goal (gameworld-quick).' },
         compose: { type: 'object', description: '{ prompt, levels?, seed?, name? }' },
         chapter: { type: 'string' },
+        req: { type: 'object' },
       },
       required: [],
     },

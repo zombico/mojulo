@@ -23,7 +23,9 @@
  *
  *   readWater(w, at)                → the forms as written, checked (false: no water, a cube's refused) | null
  *   layWater(W, ctx)                → the bodies laid on the site's grid (it is cut in place): { forms, wet, sand,
- *                                     level, clear, faces, cameras, anchors, hazards, sea, coast, plan }
+ *                                     level, clear, faces, cameras, anchors, hazards, sea, coast, plan, rivers? (each
+ *                                     river's course: { y0, dy, hw, xr, wl }, its line and its water's level down it,
+ *                                     for destructible physics' moving water) }
  *
  *   THE PLAN (`plan`): each body that moves as data, for a render to draw it live (era/water-live.js): a river's line
  *   downstream, its levels and its width; the falls' lip, its drop and width, the brook to it and its pool's carved bed;
@@ -117,6 +119,7 @@ export function layWater(Wr, ctx) {
   const farFoot = (y) => (open ? x0 + 2 : cliffX(y) + talus + 1);
   const bodies = [], wetFns = [], sandFns = [], levelFns = [], clearFns = [], faces = [], cameras = [], anchors = [], hazards = [];
   const fill = waterFill(st), under = ctx.cavern ?? null, plan = [], basins = new Map();
+  const rivers = [];   // (each river's course, for destructible physics' moving water: rupa/ground-grid.js)
   // (the body the sheets laid now belong to: its painted faces carry it, `waterBody`)
   let body = null;
   // (underground the still water is deepened and its bed lost; a fall's white water, named by its own fill, stays white)
@@ -223,6 +226,8 @@ export function layWater(Wr, ctx) {
     // (its plan: its line every metre from its higher end down, the water's level on it; how far it falls in all)
     const line = []; for (let t = 0; t < n; t += 2) { const k = down ? t : n - 1 - t; line.push([r5(xr[k]), r5(ys[k]), r5(wl[k])]); }
     plan.push({ id: 'river-1', form: 'river', fill, line, half: r5(hw), depth: Rv.depth, bank: Rv.bank, fall: r5(Math.abs(wl[0] - wl[n - 1])), length: r5(Math.abs(ys[n - 1] - ys[0])) });
+    // (its course for destructible physics' moving water: its line, half-width and level every half metre down it)
+    rivers.push({ y0: r5(ys[0]), dy, hw: r5(hw), xr: xr.map(r5), wl: Array.from(wl, r5) });
     wetFns.push((x, y) => inReach(y) && dist(x, y) < hw && gridSample(g, x, y) < at(wl, y));
     sandFns.push((x, y) => (inReach(y) ? hw + Rv.shingle - dist(x, y) : -1));
     clearFns.push((x, y) => inReach(y) && dist(x, y) < hw + 1.8);
@@ -336,6 +341,7 @@ export function layWater(Wr, ctx) {
   }
   return {
     forms: bodies, faces, cameras, anchors, hazards, plan, ...(sea !== null ? { sea, coast: coastLine } : {}),
+    ...(rivers.length ? { rivers } : {}),
     wet,
     // where the ground is sand (a shore, a beach, a river's shingle): + inside, − outside, at a point on the ground
     sand: (x, y, z = gridSample(g, x, y)) => sandFns.reduce((m, f) => Math.max(m, f(x, y, z)), -1),

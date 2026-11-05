@@ -26,6 +26,8 @@
  * pieces (`blockPieces`, the destruct primitives' cleave) in its place.
  *
  *   breakableTerrain(ask, { hp?, value?, seed? })   → { blocks: [{ id, min, max, hp, of, bond }], faces, world: { breakables } }
+ *                                                     an ask's (or a box's) `matter` and `fill` give each block its
+ *                                                     matter's numbers (rupa/matter.js blockMatter): destructible physics
  *   fromColliders(colliders, pick, { course?, hp?, bond? }) → { terrain, colliders }   the picked boxes made breakable,
  *                                                     the rest untouched; a box off the floor (a lintel) bonds laterally
  *   standBlocks(asks, { seed? })                      → { faces, colliders } forms that stand solid and never break (a
@@ -37,6 +39,7 @@
 import { obox, blockSink } from '../era/props.js';
 import { r5, P } from '../era/geom.js';
 import { cleave } from './destruct/cleave.js';
+import { blockMatter } from '../rupa/matter.js';
 
 export const TERRAIN_FORMS = Object.freeze(['wall', 'pillar', 'crate', 'slab']);
 export const BLOCK = Object.freeze({ length: 1, course: 0.5 });   // a wall's block: 1 m long, a 0.5 m course
@@ -126,7 +129,8 @@ export function breakableTerrain(ask, { hp = 1, value = 0.62, seed = 1 } = {}) {
     cut = ask.blocks.flatMap((b, i) => {
       if (!Array.isArray(b.min) || !Array.isArray(b.max)) throw new Error(`terrain: box ${i} needs min and max`);
       const of = b.of ?? b.id ?? `${name}.${i}`, bd = b.bond;
-      return (ask.course === false ? [{ min: b.min, max: b.max, row: 0, col: 0 }] : course(b, ask.course || {})).map((q) => ({ ...q, of, ...(bd ? { bond: bd } : {}) }));
+      const own = { ...(bd ? { bond: bd } : {}), ...(b.matter !== undefined ? { matter: b.matter } : {}), ...(b.fill !== undefined ? { fill: b.fill } : {}) };
+      return (ask.course === false ? [{ min: b.min, max: b.max, row: 0, col: 0 }] : course(b, ask.course || {})).map((q) => ({ ...q, of, ...own }));
     });
   } else {
     if (!FORMS[ask.form]) throw new Error(`terrain: no form '${ask.form}' (forms: ${TERRAIN_FORMS.join(', ')}), or give scapeshift's own boxes as { blocks }`);
@@ -141,7 +145,10 @@ export function breakableTerrain(ask, { hp = 1, value = 0.62, seed = 1 } = {}) {
   const blocks = cut.filter((q) => [0, 1, 2].every((k) => q.max[k] - q.min[k] >= BLOCK_MIN - 1e-9 || ask.course === false)).map((q) => {
     const base = `${q.of}:r${q.row}c${q.col}`, n = seen.get(base) || 0;
     seen.set(base, n + 1);
-    return { id: n ? `${base}.${n}` : base, min: P(q.min), max: P(q.max), hp, of: q.of, bond: q.bond ?? bond };
+    const blk = { id: n ? `${base}.${n}` : base, min: P(q.min), max: P(q.max), hp, of: q.of, bond: q.bond ?? bond };
+    // destructible physics (rupa/matter.js): an ask's `matter` (and `fill`) gives every block its numbers
+    const mat = q.matter ?? ask.matter;
+    return mat === undefined ? blk : { ...blk, ...blockMatter(blk, { matter: mat, ...((q.fill ?? ask.fill) !== undefined ? { fill: q.fill ?? ask.fill } : {}) }, `terrain ${name}.matter`) };
   });
   for (const b of blocks) {
     // each block its own value, a little off its neighbours', so the bond reads under any tone
@@ -150,7 +157,7 @@ export function breakableTerrain(ask, { hp = 1, value = 0.62, seed = 1 } = {}) {
     for (let i = from; i < faces.length; i++) faces[i].node = `break:${b.id}`;
     faces.boxes[faces.boxes.length - 1].part = 'block';
   }
-  return { form: ask.form || 'blocks', id: name, blocks, faces, world: { breakables: blocks.map(({ id, min, max, hp: h, bond: bd }) => ({ id, min, max, hp: h, ...(bd === 'lateral' ? { bond: bd } : {}) })) } };
+  return { form: ask.form || 'blocks', id: name, blocks, faces, world: { breakables: blocks.map(({ id, min, max, hp: h, bond: bd, of, ...m }) => ({ id, min, max, hp: h, ...(bd === 'lateral' ? { bond: bd } : {}), ...(m.matter !== undefined ? m : {}) })) } };   // every number the runtime reads (rupa/matter.js blockMatter)
 }
 
 /**

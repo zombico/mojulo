@@ -62,11 +62,6 @@ const KNOWN_DEAD = [
   'lib/graph/scene/blender-project.js::accept_mesh_render',
   'lib/graph/scene/blender-project.js::request_mesh_render',
   'lib/graph/scene/blender-project.js::submit_mesh_render',
-  // the figure-spec gate: four unlisted tools the catalyst runs on, to fold into mint_solid's figure
-  'lib/mcp/catalysts/character-from-dream.md::build_figure_spec',
-  'lib/mcp/catalysts/character-from-dream.md::draft_figure_spec',
-  'lib/mcp/catalysts/character-from-dream.md::get_figure_spec',
-  'lib/mcp/catalysts/character-from-dream.md::resolve_figure_spec',
   // forward_context's drawers: the deliberation overview and the dashboard map still name the office wing
   'lib/mcp/tools/context.js::accept_image_render',
   'lib/mcp/tools/context.js::bind_primitives',

@@ -15,7 +15,10 @@ const lowers = (play) => lowerPlay({ kind: 'controllable', play: { ...play, ui: 
 
 describe('the game\'s systems', () => {
   it('says what is wrong', () => {
-    bad([], /mechanics is \{ stats\?, scale\?, powers\?, hud\?, ui\?, gear\?, destruction\? \}/);
+    bad([], /mechanics is \{ stats\?, scale\?, powers\?, hud\?, ui\?, gear\?, destruction\?, scars\? \}/);
+    bad({ scars: { wall: 'water' } }, /mechanics.scars.wall: water is a liquid/);
+    expect(readMechanics({ destruction: 'objects', scars: true })).toMatchObject({ destruction: 'objects', scars: true });
+    expect(readMechanics({ scars: false })).not.toHaveProperty('scars');
     bad({ destruction: 'lots' }, /mechanics.destruction is how much a game lets break: none, objects, cover, world/);
     bad({ numbers: {} }, /numbers is not part of the mechanics/);
     bad({ scale: { hp: -1 } }, /scale.hp is a number above 0/);

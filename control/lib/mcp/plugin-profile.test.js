@@ -184,11 +184,9 @@ describe('the profile module', () => {
   });
 });
 
-// Hidden tools called by name, listed or not (the figure-spec tools never were).
+// Hidden tools called by name.
 const DIRECT = ['bind_image_render', 'request_image_render', 'get_image_render_packet', 'bind_character_sheet', 'request_mesh_render',
-  'accept_mesh_render', 'bind_mesh_render', 'create_voice', 'get_voice_vocab', 'create_sprite_sheet', 'get_style_vocab',
-  'draft_figure_spec', 'get_figure_spec', 'resolve_figure_spec', 'build_figure_spec'];
-const DREAM_AUDIT = { source: 'native', invoked_generator: true, prompt: 'a knight', seed: '1' };
+  'accept_mesh_render', 'bind_mesh_render', 'create_voice', 'get_voice_vocab', 'create_sprite_sheet', 'get_style_vocab'];
 
 describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
   let flat;
@@ -200,7 +198,7 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
         client: 'claude-code',
         calls: [
           // direct calls to hidden tools
-          ...DIRECT.map((name) => [name, name === 'draft_figure_spec' ? { title: 'hero', dream_audit: DREAM_AUDIT } : {}]),
+          ...DIRECT.map((name) => [name, {}]),
           // through the pack dispatchers, including a hidden pack itself
           ['pack_image_render', {}],
           ['pack_voice', { tool: 'create_voice', args: {} }],
@@ -216,7 +214,6 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
           ['get_catalyst', { id: 'render-image-outcome-locally' }],
           ['get_sketch_vocab', { id: 'sequential-art' }],
           ['get_solid_vocab', { id: 'skin' }],
-          ['mint_solid', { kind: 'figure', title: 'k', spec: { dream_audit: DREAM_AUDIT } }],
           // errors on kept tools list only the doors this build has
           ['edit_solid', { op: 'nope', ref: 'sk_x' }],
           ['mint_solid', { kind: 'manji-tree', via: 'x' }],
@@ -287,8 +284,8 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
   });
 
   it('refuses the closed doors of kept tools, and says which door to use for the prompt', () => {
-    const doors = flat.results.slice(DIRECT.length + 5, DIRECT.length + 14);
-    expect(doors).toHaveLength(9);
+    const doors = flat.results.slice(DIRECT.length + 5, DIRECT.length + 13);
+    expect(doors).toHaveLength(8);
     for (const r of doors) {
       expect(r.isError).toBe(true);
       expect(r.text).toMatch(/not part of the Claude plugin build of mojulo/);
@@ -300,12 +297,10 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
     expect(doors[3].text).toMatch(/forge_motion subject\.scene_ref/);
     expect(doors[4].text).toMatch(/'voice' form/);
     expect(doors[5].text).toMatch(/'render-image-outcome-locally' catalyst/);
-    // character-from-dream: a figure never carries a dream attestation here
-    expect(doors[8].text).toMatch(/^A figure's dream_audit is not part of the Claude plugin build of mojulo\./);
   });
 
   it('names only this build\'s doors in the errors and next moves of kept tools', () => {
-    const [unknownOp, unknownVia, parts] = flat.results.slice(DIRECT.length + 14);
+    const [unknownOp, unknownVia, parts] = flat.results.slice(DIRECT.length + 13);
     expect(unknownOp.isError).toBe(true);
     expect(unknownOp.text).toMatch(/Known ops: emote\./);
     expect(unknownVia.isError).toBe(true);

@@ -1,4 +1,4 @@
-// character-from-dream C1 — the character-sheet body channel. A sheet's
+// The character-sheet body channel. A sheet's
 // turnaround rows derive from ONE tuned body (character.rig) wearing per-outfit
 // wardrobe, over four REAL cameras. Prose-only sheets (no rig) are unchanged.
 import { describe, expect, it } from 'vitest';
