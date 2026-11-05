@@ -92,6 +92,11 @@ describe('the arena\'s clearing', () => {
     const ENT = [{ id: 'hero', body: { type: 'box' }, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }];
     const page = (stage) => emitThreeWorld({ faces: [], entities: ENT, events: { reactions: [{ on: 'rpg-won', do: 'emit', type: 'cheer' }], rpg: { party: [{ id: 'hero', class: 'fighter' }], rules: { stage } } } });
     expect(page('arena')).toContain('window.__mojClip = {');
+    // (and the page's module still parses: its shader strings escaped in the emitted script)
+    const { spawnSync } = await import('node:child_process');
+    const html = page('arena'), mod = html.slice(html.indexOf('<script type="module">') + 22, html.lastIndexOf('</script>'));
+    const check = spawnSync(process.execPath, ['--input-type=module', '--check'], { input: mod, encoding: 'utf8' });
+    expect(check.stderr).toBe('');
     expect(page('live')).not.toContain('window.__mojClip = {');
   });
 });

@@ -1284,8 +1284,8 @@ function __clipPatch() {
     mat.onBeforeCompile = function (sh, r) {
       if (prev) prev.call(this, sh, r);
       Object.assign(sh.uniforms, __clipU);
-      sh.vertexShader = 'varying vec3 vClipW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vClipW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-      sh.fragmentShader = 'varying vec3 vClipW;\nuniform int uClipN;\nuniform vec4 uClipA[2];\nuniform vec4 uClipB[2];\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n  for (int k = 0; k < 2; k++) { if (k >= uClipN) break; vec2 d = vClipW.xy - uClipA[k].xy; float a = dot(d, uClipA[k].zw), b = dot(d, vec2(-uClipA[k].w, uClipA[k].z)); if (abs(a) < uClipB[k].x && abs(b) < uClipB[k].y && vClipW.z > uClipB[k].z && vClipW.z < uClipB[k].w) discard; }');
+      sh.vertexShader = 'varying vec3 vClipW;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vClipW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = 'varying vec3 vClipW;\\nuniform int uClipN;\\nuniform vec4 uClipA[2];\\nuniform vec4 uClipB[2];\\n' + sh.fragmentShader.replace('void main() {', 'void main() {\\n  for (int k = 0; k < 2; k++) { if (k >= uClipN) break; vec2 d = vClipW.xy - uClipA[k].xy; float a = dot(d, uClipA[k].zw), b = dot(d, vec2(-uClipA[k].w, uClipA[k].z)); if (abs(a) < uClipB[k].x && abs(b) < uClipB[k].y && vClipW.z > uClipB[k].z && vClipW.z < uClipB[k].w) discard; }');
     };
     mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|clip'; };
     mat.__clip = true; mat.needsUpdate = true;
