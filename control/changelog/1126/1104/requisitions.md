@@ -78,3 +78,27 @@ apart from the recipe and adds nothing to any render or export. The design is in
     with every decision cited. It found the two gaps above: the view pointed it at neither of the cards that teach a
     level page, so it missed a level's own `foes` key; and the remit's tide (a passage that opens and closes) is a
     capability no word of the recipe has, which it could only say in prose.
+- **The received gate** (`gameworld/reqs.js` `receiptOf`): a unit's machine gate, before the creator's verdict. It
+  holds when a proposal is kept, every decision in it is cited, every critic has reported, and no law of the machine
+  gate advises on the unit's parts. A level also needs its stages made and played by the probe as they stand, after
+  the proposal was kept. What it does not hold on it reports: the kept proposal's asks and the critics' findings. A unit
+  whose gate holds is **received**, a status between open and accepted. Received is not accepted: the creator's
+  verdict still decides. A unit's view carries its `receipt`.
+- **The play probe** (`game/level-probe.js`, `req: { id, probe: true }`, a machine gate). Each of a level's stages is
+  played on its World page, in an installed browser (never a download), for 17 seconds of simulated time under a simple
+  script: forward the whole time, fire, jump and interact now and then. It says four things:
+  - **loads:** no uncaught error while the page loads and plays;
+  - **not lost:** the level is not over after a second standing still;
+  - **opposed:** a level whose goal is to survive, fight, sneak or race has a foe, a hazard or a rival in it, read from
+    the stage's own manifest;
+  - **clean:** no debugging text on the page (`0 events → store`, `NaN`, `undefined`, `[object Object]`).
+
+  It keeps a frame at 5, 11 and 17 seconds for a look critic, under the outcomes folder. It cannot aim, so it says
+  nothing of balance. Its verdict is kept as the req's ride job: the server's own work, which spends none of the
+  budget. With no browser it is skipped, and the loop goes on to the creator. Each check is tested against the starter
+  that failed it in play.
+- **What the director does next** gains `probe` (a level whose stages have not been played as they stand) and `fix`
+  (the probe does not hold: back to its author), before `review`.
+- **An accepted unit goes stale when a chapter it reads moves.** The ledger keeps the prints of a unit's upstream
+  chapters the first time it reads the unit accepted. If one moves, the unit is stale, and the creator can accept it
+  again on their word (`req: { id, accept: true }`) once they have looked.

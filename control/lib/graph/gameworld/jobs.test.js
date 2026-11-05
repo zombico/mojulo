@@ -88,5 +88,13 @@ describe('what the director does next', () => {
     // a reissued job is passed: its replacement is the one being worked
     expect(nextOf([job(1, 'author', 'reissued'), job(2, 'author')])).toBe('work');
     expect(jobLines([job(1, 'author', 'kept')])).toEqual(['j1 author kept']);
+    // a level is probed before review: not played, played and failed (back to its author), skipped (no browser: on to the
+    // creator), holding; a probe job is the server's and never the next author
+    const done = [job(1, 'author', 'kept')];
+    expect(nextOf(done, { level: true })).toBe('probe');
+    expect(nextOf(done, { level: true, probe: 'failed' })).toBe('fix');
+    expect(nextOf(done, { level: true, probe: 'skipped' })).toBe('review');
+    expect(nextOf(done, { level: true, probe: 'holds' })).toBe('review');
+    expect(nextOf([job(1, 'probe', 'submitted')])).toBe('start');
   });
 });

@@ -124,3 +124,61 @@ describe('the remit', () => {
     expect(unitPrint(world, 'lighting')).toBeNull();
   });
 });
+
+import { receiptOf, upstreamPrints, staleUpstream } from './reqs.js';
+
+describe('the received gate', () => {
+  const kept = (n, decisions = [{ slot: 'walk', because: 'the remit' }], extra = {}) => ({ id: `j${n}`, n, kind: 'author', status: 'kept', report: { patch: [], decisions, ...extra } });
+  const probe = (n, prints, holds = true) => ({ id: `j${n}`, n, kind: 'probe', status: 'submitted', report: { holds, prints, checks: holds ? [] : [{ check: 'opposed', holds: false, says: 's1: nothing stands in it' }] } });
+  const made = { 'level-crypt-0': { ref: 's0', stored: 'aaaa' }, 'level-vale-0': { ref: 'v0', stored: 'cccc' } };
+
+  it('a chapter: a proposal kept, its decisions cited, its critics reported, its laws holding', () => {
+    const r = req(1, 'feel');
+    expect(receiptOf(r, { jobs: [kept(1)], world }).holds).toBe(true);
+    expect(receiptOf(r, { jobs: [], world }).checks[0]).toEqual({ check: 'proposal', holds: false, says: 'no proposal kept: start it and work its jobs' });
+    expect(receiptOf(r, { jobs: [kept(1, [{ slot: 'pole' }])], world }).checks.find((c) => c.check === 'cited')).toMatchObject({ holds: false, says: 'decisions with no because: pole' });
+    expect(receiptOf(r, { jobs: [kept(1), { id: 'j2', n: 2, kind: 'critic', status: 'issued' }], world }).checks.find((c) => c.check === 'critics')).toMatchObject({ holds: false, says: 'still to report: j2' });
+    // what it does not hold on, it says: what no word reached, and the critics' findings
+    const said = receiptOf(r, { jobs: [kept(1, undefined, { asks: ['a tide'] }), { id: 'j2', n: 2, kind: 'critic', status: 'submitted', report: { findings: [{ says: 'too floaty' }] } }], world });
+    expect(said).toMatchObject({ holds: true, said: { asks: ['a tide'], findings: ['j2: too floaty'] } });
+  });
+
+  it('its laws: a part the machine gate advises on does not hold', () => {
+    const r = req(1, 'level:crypt');
+    const c = receiptOf(r, { jobs: [kept(1)], world, made, parts: [{ id: 'level:crypt', status: 'proposed', machine: ['a dead end'] }] }).checks.find((x) => x.check === 'laws');
+    expect(c).toMatchObject({ holds: false, says: 'level:crypt: a dead end' });
+  });
+
+  it('a level: its stages made, and probed after its proposal was kept, as they stand', () => {
+    const r = req(1, 'level:crypt');
+    const at = (jobs, m = made) => receiptOf(r, { jobs, world, made: m }).checks.find((c) => c.check === 'probe');
+    expect(at([kept(1)], {})).toMatchObject({ holds: false, says: expect.stringMatching(/no stage made/) });
+    expect(at([kept(1)])).toMatchObject({ holds: false, says: expect.stringMatching(/not played/) });
+    expect(at([kept(1), probe(2, { 'level-crypt-0': 'aaaa' })])).toEqual({ check: 'probe', holds: true });
+    // a sibling level's stages are not its own
+    expect(at([kept(1), probe(2, { 'level-crypt-0': 'aaaa', 'level-vale-0': 'cccc' })]).holds).toBe(false);
+    // its stage remade since, or probed before the proposal kept: played again
+    expect(at([kept(1), probe(2, { 'level-crypt-0': 'aaaa' })], { 'level-crypt-0': { stored: 'bbbb' } })).toMatchObject({ holds: false, says: expect.stringMatching(/probe again/) });
+    expect(at([probe(1, { 'level-crypt-0': 'aaaa' }), kept(2)]).holds).toBe(false);
+    expect(at([kept(1), probe(2, { 'level-crypt-0': 'aaaa' }, false)])).toMatchObject({ holds: false, says: 'opposed: s1: nothing stands in it' });
+  });
+
+  it('received is a status of its own between open and accepted; a queued one stays queued', () => {
+    const rows = [req(1, 'feel'), req(2, 'level:crypt')];
+    const L = readLedger(rows, { world, received: (r) => r.unit === 'feel' || r.unit === 'level:crypt' });
+    expect(L.reqs.map((r) => r.status)).toEqual(['received', 'queued']);
+    expect(L.current.id).toBe('r1');
+  });
+
+  it('an accepted unit goes stale when a chapter it reads moves after it was accepted', () => {
+    const W1 = { ...world, style: { kit: 'meadow' } };
+    const r = req(1, 'level:crypt', { verdict: { upstream: upstreamPrints('level:crypt', W1) } });
+    const parts = [part('level:crypt', 'approved')];
+    expect(reqStatus(r, { world: W1, parts })).toBe('accepted');
+    const W2 = { ...W1, style: { kit: 'tundra' } };
+    expect(reqStatus(r, { world: W2, parts })).toBe('stale');
+    expect(staleUpstream(r, W2)).toEqual(['world']);
+    // accepted with nothing kept upstream (read before the prints were kept): accepted
+    expect(reqStatus(req(1, 'level:crypt'), { world: W2, parts })).toBe('accepted');
+  });
+});

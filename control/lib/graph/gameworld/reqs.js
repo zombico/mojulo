@@ -7,7 +7,10 @@
  *   status, DERIVED each read from the book's review stamps (review.js), never stored:
  *     accepted    every part of the unit approved by the creator, unchanged since (a unit with no review part: the
  *                 creator's verdict on the print of its pages). The eyes gate: only the creator's verdict makes it
- *     stale       accepted, then the unit changed (an approval gone `changed`, or its pages' print moved)
+ *     stale       accepted, then the unit changed (an approval gone `changed`, or its pages' print moved), or a
+ *                 chapter it reads moved since it was accepted (the prints kept when the ledger first read it accepted)
+ *     received    not yet accepted, and its machine gate holds (receiptOf): a proposal kept, its decisions cited, its
+ *                 critics reported, its laws holding, and a level's stages played by the probe as they stand
  *     sent back   a part of it sent back (`revise`); the creator's note is kept in the ledger as precedent
  *     open        the current unit: the first in order that is neither accepted nor cancelled
  *     queued      after the current one
@@ -24,7 +27,7 @@
  *
  * Pure: the ledger's rows, the world and the readout's part stamps in; the statuses, the queue and the advice out.
  */
-import { CHAPTERS, chapterById, chapterOfPart, unitOf } from './chapters.js';
+import { CHAPTERS, chapterById, chapterOfPart, unitOf, levelStep } from './chapters.js';
 import { chapterPages } from './chapter-view.js';
 import { fingerprint } from './review.js';
 
@@ -64,6 +67,20 @@ export function unitParts(unit, parts = []) {
   return parts.filter((p) => (u.level != null ? p.id === `level:${u.level}` : chapterOfPart(p.id) === u.chapter));
 }
 
+/** The prints of the chapters a unit reads, as they stand: kept when a unit is first read accepted, so a move upstream
+ * after it stales it. */
+export function upstreamPrints(unit, world) {
+  const u = unitOf(unit);
+  if (!u) return {};
+  return Object.fromEntries(u.chapter.reads.map((r) => [r, fingerprint(chapterPages(world, r))]));
+}
+const upstreamMoved = (req, world) => {
+  const kept = req.verdict?.upstream;
+  if (!isObj(kept)) return [];
+  const now = upstreamPrints(req.unit, world);
+  return Object.keys(kept).filter((k) => kept[k] !== now[k]);
+};
+
 /** One req's own status, before its place in the queue. */
 export function reqStatus(req, { world, parts = [] } = {}) {
   const u = unitOf(req.unit);
@@ -71,23 +88,68 @@ export function reqStatus(req, { world, parts = [] } = {}) {
   if (!u || (u.level != null && !isObj(world?.levels?.[u.level]))) return 'gone';
   const own = unitParts(req.unit, parts);
   if (own.length) {
-    if (own.every((p) => p.status === 'approved')) return 'accepted';
+    if (own.every((p) => p.status === 'approved')) return upstreamMoved(req, world).length ? 'stale' : 'accepted';
     if (own.some((p) => p.status === 'changed')) return 'stale';
     if (own.some((p) => p.status === 'revise')) return 'sent back';
     return 'live';
   }
-  if (req.verdict?.status === 'accepted') return req.verdict.print === unitPrint(world, req.unit) ? 'accepted' : 'stale';
+  if (req.verdict?.status === 'accepted') return req.verdict.print === unitPrint(world, req.unit) && !upstreamMoved(req, world).length ? 'accepted' : 'stale';
   return 'live';
 }
 
-/** The ledger read: each req with its status and place; → { reqs, current } (current: the req being worked, or null). */
-export function readLedger(rows, { world, parts = [] } = {}) {
+/** Why an accepted unit went stale upstream: the chapters it reads that moved since it was accepted. */
+export const staleUpstream = (req, world) => upstreamMoved(req, world);
+
+/**
+ * THE RECEIVED GATE — a unit's machine gate, before the creator's verdict. → { holds, checks, said? }
+ *   proposal   a proposal kept (an author's, or a diverge author's the director kept)
+ *   cited      every decision of the kept proposal says why
+ *   critics    every critic issued has reported
+ *   laws       the unit's parts: no law of the machine gate advising
+ *   probe      a level: its stages made, and the play probe (a ride job) played them as they stand and holds
+ * What it does not hold on, it says: the kept proposal's asks (what no word reaches) and the critics' findings.
+ */
+export function receiptOf(req, { jobs = [], parts = [], world, made = {} } = {}) {
+  const u = unitOf(req.unit), live = jobs.filter((j) => j.status !== 'reissued');
+  const kept = live.filter((j) => j.kind !== 'critic' && j.kind !== 'probe' && j.status === 'kept').at(-1) ?? null;
+  const uncited = (kept?.report?.decisions ?? []).filter((d) => !(typeof d?.because === 'string' && d.because.trim())).map((d) => d.slot);
+  const waiting = live.filter((j) => j.kind === 'critic' && j.status === 'issued').map((j) => j.id);
+  const advising = unitParts(req.unit, parts).filter((p) => p.machine?.length).map((p) => `${p.id}: ${p.machine.join(', ')}`);
+  const checks = [
+    { check: 'proposal', holds: !!kept, ...(kept ? {} : { says: 'no proposal kept: start it and work its jobs' }) },
+    { check: 'cited', holds: !!kept && !uncited.length, ...(kept && uncited.length ? { says: `decisions with no because: ${uncited.join(', ')}` } : {}) },
+    { check: 'critics', holds: !waiting.length, ...(waiting.length ? { says: `still to report: ${waiting.join(', ')}` } : {}) },
+    { check: 'laws', holds: !advising.length, ...(advising.length ? { says: advising.join('; ') } : {}) },
+  ];
+  if (u?.level != null) {
+    const stages = Object.keys(made).filter((k) => levelStep(u.level).test(k)).sort();
+    const prints = Object.fromEntries(stages.map((k) => [k, made[k]?.stored ?? null]));
+    const probe = live.filter((j) => j.kind === 'probe' && j.status === 'submitted').at(-1) ?? null;
+    const current = probe && (!kept || probe.n > kept.n) && JSON.stringify(probe.report?.prints ?? {}) === JSON.stringify(prints);
+    checks.push({
+      check: 'probe',
+      holds: !!stages.length && !!current && probe.report?.holds === true,
+      ...(!stages.length ? { says: `no stage made: { chapter: '${req.unit}', run: true }` }
+        : !current ? { says: probe ? 'its stages moved since the probe played them: probe again' : 'not played: { req: { id, probe: true } }' }
+        : probe.report?.holds !== true ? { says: probe.report?.skipped ?? (probe.report?.checks ?? []).filter((c) => !c.holds).map((c) => `${c.check}: ${c.says}`).join('; ') } : {}),
+    });
+  }
+  const asks = kept?.report?.asks ?? [];
+  const findings = live.filter((j) => j.kind === 'critic' && j.status === 'submitted').flatMap((j) => (j.report?.findings ?? []).map((f) => `${j.id}: ${f.says}`));
+  const said = { ...(asks.length ? { asks } : {}), ...(findings.length ? { findings } : {}) };
+  return { holds: checks.every((c) => c.holds), checks, ...(Object.keys(said).length ? { said } : {}) };
+}
+
+/** The ledger read: each req with its status and place; → { reqs, current } (current: the req being worked, or null).
+ * `received(req)` → does its machine gate hold (receiptOf), for a req not accepted. */
+export function readLedger(rows, { world, parts = [], received = null } = {}) {
   let current = null;
   const reqs = rows.map((r) => {
-    const own = reqStatus(r, { world, parts });
+    const own0 = reqStatus(r, { world, parts });
+    const own = own0 === 'live' && received?.(r) ? 'received' : own0;
     if (TERMINAL.has(own)) return { ...r, status: own };
     if (!current) { current = r.id; return { ...r, status: own === 'live' ? 'open' : own }; }
-    return { ...r, status: own === 'live' ? 'queued' : own };
+    return { ...r, status: own === 'live' || own === 'received' ? 'queued' : own };
   });
   return { reqs, current: reqs.find((r) => r.id === current) ?? null };
 }

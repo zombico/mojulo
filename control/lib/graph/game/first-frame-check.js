@@ -47,7 +47,8 @@ export async function levelBrowser({ env = process.env, resolve } = {}) {
 }
 
 /** A level's capture page and opening fov, or { skip } when it has no World form. */
-async function levelPage(ref) {
+/** (exported for the play probe, game/level-probe.js: the same page, the same frame) */
+export async function levelPage(ref) {
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
   const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');
   const { emitThreeWorld } = await import('@/lib/graph/scene/scene-three');

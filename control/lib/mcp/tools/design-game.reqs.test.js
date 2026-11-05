@@ -5,7 +5,8 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { GameworldReqRepository } from '@/lib/db/repositories/gameworld-reqs.js';
+import { GameworldReqRepository, GameworldReqJobRepository } from '@/lib/db/repositories/gameworld-reqs.js';
+import { jobsLeft } from '@/lib/graph/gameworld/jobs.js';
 import { designGameHandler } from './design-game.js';
 import { MEADOWMARK_HERO } from '@/lib/graph/gameworld/index';
 import { pullThrough } from '@/lib/graph/gameworld/reqs.js';
@@ -140,7 +141,8 @@ describe('design_game: the jobs inside a req', () => {
     expect(named('gw')).toBe('The Long Climb');
     expect(done.reqs.done).toEqual(['j1 author kept: its patch applied']);
     const after = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
-    expect(after.req.does).toBe('review');
+    // a level is played by the probe before the creator is shown it
+    expect(after.req.does).toBe('probe');
     expect(after.req.jobs[0]).toMatchObject({ job: 'j1', status: 'kept', writes: [`/levels/${FIRST}/name`], decisions: { cited: 1, uncited: ['palette'] } });
     // started twice: once; reported twice: refused, nothing written
     const again = await designGameHandler({ ref: 'gw', req: { id: 'r1', start: true } });
@@ -177,7 +179,7 @@ describe('design_game: the jobs inside a req', () => {
     await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j3', patch: nameOp('x') } })).rejects.toThrow(/it reports findings/);
     await designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j3', findings: [{ says: 'the stair names a height the level never reaches', part: `level:${FIRST}` }] } });
     const last = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
-    expect(last.req.does).toBe('review');
+    expect(last.req.does).toBe('probe');
     expect(last.req.jobs.find((j) => j.job === 'j3').findings).toHaveLength(1);
   });
 
@@ -203,5 +205,80 @@ describe('design_game: the jobs inside a req', () => {
     await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', start: true, keep: 'j1' } })).rejects.toThrow(/does one of start, job, keep, reissue/);
     await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', patch: nameOp('x') } })).rejects.toThrow(/report a job: give its `job`/);
     await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', job: 'j7', patch: nameOp('x') } })).rejects.toThrow(/no job 'j7' on r1 \(none issued: start it\)/);
+  });
+});
+
+describe('design_game: the received gate', () => {
+  beforeEach(() => { closeDb(); });
+  const FEEL = { pole: 'conscription', toward: 'infinity-crisis', t: 0.5 };
+
+  async function settled() {
+    await designGameHandler({ world: { ...GATED, feel: FEEL }, ref: 'gw' });
+    const full = await designGameHandler({ ref: 'gw' });
+    const upstream = full.parts.filter((p) => ['intent', 'world', 'nature', 'civilizations', 'key'].includes(p.id) || p.id.startsWith('tech:')).map((p) => p.id);
+    await designGameHandler({ ref: 'gw', approve: upstream });
+  }
+
+  it('a chapter is received when its kept proposal\'s decisions are cited and its laws hold, then shown to the creator', async () => {
+    await settled();
+    const raised = await designGameHandler({ ref: 'gw', req: { unit: 'feel' } });
+    const ids = raised.reqs.raised.map((x) => x.split(' ')[0]), id = ids.at(-1);
+    // what it pulled through, withdrawn, so the feel is the unit being worked
+    for (const up of ids.slice(0, -1)) await designGameHandler({ ref: 'gw', req: { id: up, cancel: true } });
+    await designGameHandler({ ref: 'gw', req: { id, start: true } });
+    const open = await designGameHandler({ ref: 'gw', chapter: 'feel' });
+    expect(open.req.receipt).toMatchObject({ holds: false, checks: expect.arrayContaining([{ check: 'proposal', holds: false, says: expect.any(String) }]) });
+    await designGameHandler({ ref: 'gw', req: { id, job: 'j1', patch: [{ op: 'set', path: '/feel', value: { ...FEEL, t: 0.4 } }], decisions: [{ slot: 'feel.t', value: 0.4, because: 'a touch lighter than the pole' }] } });
+    const view = await designGameHandler({ ref: 'gw', chapter: 'feel' });
+    expect(view.req).toMatchObject({ status: 'received', does: 'review', receipt: { holds: true } });
+    expect((await designGameHandler({ ref: 'gw' })).reqs.current).toMatchObject({ id, status: 'received' });
+  });
+
+  it('the probe plays a level\'s stages: none made, said; no browser, skipped, and the loop goes on to the creator', async () => {
+    await settled();
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT } });
+    const id = (await designGameHandler({ ref: 'gw' })).reqs.current.id;
+    await expect(designGameHandler({ ref: 'gw', req: { id: 'r1', probe: true, start: true } })).rejects.toThrow(/does one of/);
+    const none = await designGameHandler({ ref: 'gw', req: { id, probe: true } });
+    expect(none.reqs.done).toEqual([`${id}: no stage of level:${FIRST} made yet: { ref, chapter: 'level:${FIRST}', run: true } first`]);
+    await designGameHandler({ ref: 'gw', req: { id, start: true } });
+    await designGameHandler({ ref: 'gw', req: { id, job: 'j1', patch: [{ op: 'set', path: `/levels/${FIRST}/name`, value: 'The Climb' }], decisions: [{ slot: 'name', because: 'the remit' }] } });
+    // a stage on record (as a run leaves it), played with no browser (the test environment keeps it off)
+    const row = SketchRepository.getByRef('gw');
+    SketchRepository.update({ ref: 'gw', manifest: { ...row.manifest, made: { [`level-${FIRST}-0`]: { ref: 'gw', order: '0000aaaa', stored: '0000bbbb' } } } });
+    const played = await designGameHandler({ ref: 'gw', req: { id, probe: true } });
+    expect(played.reqs.done[0]).toMatch(/^j2 probe skipped: /);
+    const view = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
+    expect(view.req.jobs.find((j) => j.job === 'j2')).toMatchObject({ kind: 'probe', holds: false, skipped: expect.stringMatching(/^skipped/) });
+    expect(view.req.receipt.checks.find((c) => c.check === 'probe')).toMatchObject({ holds: false, says: expect.stringMatching(/^skipped/) });
+    // no browser: the loop degrades, never breaks; it goes on to the creator
+    expect(view.req.does).toBe('review');
+    // the probe is the server's: it spends none of the budget's jobs (four, one author spent)
+    expect(jobsLeft(GameworldReqRepository.get('gw', id), GameworldReqJobRepository.list('gw', id))).toBe(3);
+  });
+
+  it('the probe is a level\'s: a chapter\'s req is refused', async () => {
+    await settled();
+    const raised = await designGameHandler({ ref: 'gw', req: { unit: 'feel' } });
+    const id = raised.reqs.raised.at(-1).split(' ')[0];
+    await expect(designGameHandler({ ref: 'gw', req: { id, probe: true } })).rejects.toThrow(/the probe plays a level/);
+  });
+
+  it('an accepted level goes stale when the world it reads moves, and is accepted again on the creator\'s word', async () => {
+    await settled();
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT } });
+    const id = (await designGameHandler({ ref: 'gw' })).reqs.current.id;
+    await designGameHandler({ ref: 'gw', approve: [`level:${FIRST}`] });
+    expect(GameworldReqRepository.get('gw', id).verdict.upstream).toEqual({ world: expect.stringMatching(/^[0-9a-f]{8}$/) });
+    // the world's page moves (a civilization renamed): the level it was accepted against is stale
+    const civ = Object.keys(SketchRepository.getByRef('gw').manifest.civilizations)[0];
+    await designGameHandler({ ref: 'gw', patch: [{ op: 'set', path: `/civilizations/${civ}/name`, value: 'The Renamed' }] });
+    const stale = await designGameHandler({ ref: 'gw', chapter: `level:${FIRST}` });
+    expect(stale.req).toMatchObject({ id, status: 'stale' });
+    // accepted again on the creator's word: the new prints kept
+    await designGameHandler({ ref: 'gw', req: { id, accept: true, note: 'still right on the new ground' } });
+    const again = await designGameHandler({ ref: 'gw' });
+    expect(again.reqs.accepted).toBe(1);
+    expect(again.reqs.current).toBeUndefined();
   });
 });

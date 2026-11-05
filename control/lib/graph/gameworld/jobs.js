@@ -10,7 +10,8 @@
  *             keeps one (`req: { id, keep: 'j2' }`): that patch is applied, the others declined and kept on record
  *   critic    studio, issued when a proposal is kept (budget.critics): a fresh reading with a LENS (design against the
  *             remit, play as a player, look as a viewer), never the maker's reasoning; it sends findings
- *   (ride and fill are the server's own: the chapter's run, the audit; the received gate runs them, not a job)
+ *   probe     a level's, the server's own (a ride job, `req: { id, probe: true }`): the play probe (game/level-probe.js)
+ *             played over the level's stages as they stand; its verdict is the received gate's last check
  *
  *   A decision is { slot, value?, because? }: one without `because` is a choice the seed made, counted as uncited.
  *   An ask is what the remit wants that no word of the recipe reaches: kept on the job, a gap said, never faked.
@@ -34,7 +35,7 @@ export const LENSES = Object.freeze({
   play: 'as a player: the way in, what stands in the way, the way out; where it is a default and plays like one',
   look: 'as a viewer: the first sight of it, its palette against the world, what reads as a default',
 });
-export const JOB_KINDS = Object.freeze(['author', 'diverge', 'critic']);
+export const JOB_KINDS = Object.freeze(['author', 'diverge', 'critic', 'probe']);
 export const JOB_STATUSES = Object.freeze(['issued', 'submitted', 'kept', 'declined', 'reissued']);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -55,7 +56,8 @@ export function criticPlan(req) {
 }
 
 /** How many more jobs the budget allows, counting every job issued (a reissue is a job). */
-export const jobsLeft = (req, jobs) => Math.max(0, (budgetOf(req).jobs | 0) - jobs.length);
+// (the server's own ride jobs, the probe among them, are not an agent's and spend nothing)
+export const jobsLeft = (req, jobs) => Math.max(0, (budgetOf(req).jobs | 0) - jobs.filter((j) => j.kind !== 'probe').length);
 export const reissuesLeft = (req, jobs) => Math.max(0, (budgetOf(req).reissues | 0) - jobs.filter((j) => j.status === 'reissued').length);
 
 /** The pages a unit's job writes: a level's page, or its chapter's paths. */
@@ -121,14 +123,18 @@ export function jobReport(job) {
 }
 
 /** What the director does next with a req, from its jobs: start it, hand the issued jobs out, keep one proposal, hand
- * the critics out, or show the creator. */
-export function nextOf(jobs = []) {
-  const live = jobs.filter((j) => j.status !== 'reissued');
+ * the critics out, probe a level (`probe`: 'none' | 'failed' | 'holds', the received gate's probe as it stands; 'skipped' when
+ * no browser could play it, which goes on to the creator), fix what the probe found (reissue its author), or show the creator. */
+export function nextOf(jobs = [], { level = false, probe = 'none' } = {}) {
+  const live = jobs.filter((j) => j.status !== 'reissued' && j.kind !== 'probe');
   if (!live.length) return 'start';
   const authors = live.filter((j) => j.kind !== 'critic');
   if (authors.some((j) => j.status === 'issued')) return 'work';
   if (!authors.some((j) => j.status === 'kept')) return 'keep';
   if (live.some((j) => j.kind === 'critic' && j.status === 'issued')) return 'critique';
+  // a level is played by the probe before the creator is shown it; a probe that does not hold sends it back to its author
+  if (level && probe === 'none') return 'probe';
+  if (level && probe === 'failed') return 'fix';
   return 'review';
 }
 
