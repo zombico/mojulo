@@ -36,6 +36,7 @@
 import { beamLanding } from '../playscape/elements/beams.js';
 import { MOMENTS, MOMENT_KEYS } from '../playscape/elements/moments.js';
 import { AURAS, scaleAura } from '../playscape/elements/aura.js';
+import { flowExplosion, flowLook } from '../rupa/vayo-fx.js';
 
 export const FX_STYLE = Object.freeze({
   thin: 0.03,                     // metres: a strand this narrow is a line
@@ -119,7 +120,8 @@ export function styleExplosion(X, seed = '', F = FX_STYLE) {
   const ground = Array.isArray(X.rings) ? X.rings.filter((g) => !g.air) : [];
   const rings = ground.length === 1 ? [...X.rings, { ...ground[0], r: +(ground[0].r * 0.7).toFixed(3), delay: +((ground[0].delay || 0) + 0.09).toFixed(3) }] : X.rings;
   const out = { ...X, parts, ...(rings ? { rings } : {}) };
-  return F.composed ? composeExplosion(out, F) : out;
+  // (on the flow, rupa-vayo: each part given the flow it has in the world, rupa/vayo-fx.js)
+  return F.composed ? composeExplosion(F.flow ? flowExplosion(out, F) : out, F) : out;
 }
 
 // ── a composed floor (juice-style.js): the register's look and the game type's time over the floor's rules ─────────
@@ -189,6 +191,8 @@ function composeExplosion(X, F) {
   const hot = (p) => Array.isArray(p.ramp) && Array.isArray(p.ramp[0]) && Math.min(...p.ramp[0]) > 0.4 && Math.max(...p.ramp[0]) > 0.95;
   const soft = (p0) => {
     if (p0.glyph !== 'soft') return p0;
+    // (on the flow a fire's body is its shell, a coloured shape round the glow that is its core: it keeps its blend)
+    if (p0.flow === 'core') return { ...p0, ...(F.cel ? { count: Math.max(1, Math.round(p0.count * 0.6)), size: sc(p0.size, 1.2) } : {}) };
     // (its fire burns from its own colour, fewer puffs, so the added light does not blow out to white)
     const p = { ...p0, life: sc(p0.life, F.smokeK), ...(F.glow && hot(p0) ? { glyph: 'dot', ramp: p0.ramp.slice(1), count: Math.max(1, Math.round(p0.count * 0.6)) } : {}),
       // (a cel look draws a cloud as a few bold flat shapes: fewer, larger puffs)
@@ -197,7 +201,7 @@ function composeExplosion(X, F) {
   };
   // a look that draws fire as spirit onions (aura.js): the fire's body (a soft puff whose ramp starts hot) becomes overlapping
   // onion shells spinning their own ways with rings of spikes round them, sized to the fire, for as long as it burns
-  const fire = F.onions ? X.parts.find(hot) : null;
+  const fire = F.onions && !F.flow ? X.parts.find(hot) : null;   // (on the flow, the fire is its core: no onions)
   const parts = X.parts.filter((p) => p !== fire).map((p) => fastSpray(reshape(soft(p), F), r));
   const out = { ...X, parts };
   if (X.star) out.star = t({ ...X.star, size: sc(X.star.size, F.starK) });
@@ -264,6 +268,8 @@ export function styleEvents(events, F = FX_STYLE) {
   // a weapon's swing trail (scene/channels/trail-channel.js): the look's kind, the game type's life and threshold, its
   // colour, held on the floor's drawings a second
   const trail = F.composed && F.trail && F.trail.life > 0 ? { trail: { ...F.trail, ...(F.fps ? { fps: F.fps } : {}) } } : {};
-  const looks = F.composed && F.rim && events.looks ? { looks: Object.fromEntries(Object.entries(events.looks).map(([n, L]) => [n, L && L.coat ? { ...L, coat: { ...L.coat, p: F.rim.p, k: +Math.min(1.5, L.coat.k * F.rim.coat).toFixed(3), ...(F.rim.band ? { band: F.rim.band } : {}) } } : L])) } : {};
+  const rimmed = (L) => (L && L.coat && F.rim ? { ...L, coat: { ...L.coat, p: F.rim.p, k: +Math.min(1.5, L.coat.k * F.rim.coat).toFixed(3), ...(F.rim.band ? { band: F.rim.band } : {}) } } : L);
+  // (on the flow, a look's aura is the flame column, the motes drawn in, the pebbles and the gust: rupa/vayo-fx.js)
+  const looks = F.composed && (F.rim || F.flow) && events.looks ? { looks: Object.fromEntries(Object.entries(events.looks).map(([n, L]) => [n, F.flow ? flowLook(rimmed(L), F) : rimmed(L)])) } : {};
   return { ...events, reactions, ...rpg, ...rim, ...trail, ...looks };
 }

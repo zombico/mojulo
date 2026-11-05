@@ -45,6 +45,8 @@ import { buildVanish } from './vanish.js';
 import { buildSummon } from './summon.js';
 import { buildPair } from './pair.js';
 import { buildRupa } from './rupa.js';
+import { buildVayoAir } from './vayo-air.js';
+import { buildVayoMove } from './vayo-move.js';
 import { buildTrigger } from './trigger.js';
 import { buildMount } from './mount.js';
 import { buildSweep } from './sweep.js';
@@ -71,7 +73,7 @@ export const EMISSION = [...EMISSION_ENGINE];
 // blocks that break by their matter and fall by what holds them: rupa.js; a world's triggered breaks: trigger.js), so a page
 // without one keeps every byte; the live Node instance carries them all (each is a no-op on a world without its spec).
 // The world clock (a world's `tempo`: world-clock.js) comes last, so it wraps every other step, a hitstop's among them.
-export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, hitstop: buildHitstop, foe: buildFoe, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, mount: buildMount, rupa: buildRupa, trigger: buildTrigger, clock: buildWorldClock });
+export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, hitstop: buildHitstop, foe: buildFoe, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, mount: buildMount, rupa: buildRupa, vayoAir: buildVayoAir, vayoMove: buildVayoMove, trigger: buildTrigger, clock: buildWorldClock });
 
 // The live Node instance factory (the façade composes one; tests may compose their own).
 export function composeLive() {

@@ -24,6 +24,7 @@
  */
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
+import { VAYO_ELEMENTS } from '../rupa/vayo-move.js';
 
 /** What powers run on. */
 export const SYSTEM_KINDS = Object.freeze({
@@ -43,7 +44,20 @@ export const TRAVERSAL_MOVES = Object.freeze({
   // the city stalker's, found rather than started with (HERO_MOVES): the roofs a wall opens, the gaps a line crosses
   wall: { read: 'any wall climbed', rule: () => ({ wall: true }) },
   swinger: { read: 'a line swung across a gap', rule: () => ({ gear: 'swinger' }) },
+  // the special abilities that move the hero on its own air (rupa/vayo-move.js): the power's element shapes it (wind,
+  // earth, lightning, fire, water), the game's feel card tunes it (`tune`: feel/lower.js feelVayo), the hero's own numbers last
+  'vayo-dash': { read: 'a dash on the hero\'s own air: a burst to its peak, then a carry (V)', rule: (base, p) => vayoGrant(base, p, 'dash') },
+  'vayo-jump': { read: 'a jump again in the air on the hero\'s own air: the same height from wherever it fires', rule: (base, p) => vayoGrant(base, p, 'jump') },
+  'vayo-air-dash': { read: 'a dash in the air on the hero\'s own air, again after the ground; held, it carries on as flight (V)', rule: (base, p) => vayoGrant(base, p, 'airDash') },
+  'vayo-jetpack': { read: 'a jetpack on the hero\'s own air: a startup leans it into the launch, and it goes where it leans (V in the air)', rule: (base, p) => vayoGrant(base, p, 'jetpack') },
+  'vayo-flight': { read: 'flight on the hero\'s own air: rise, hover and fly at will (V in the air)', rule: (base, p) => vayoGrant(base, p, 'flight') },
 });
+function vayoGrant(base, p, kind) {
+  const V = (base && base.vayo) || {}, own = V[kind] && V[kind] !== true ? V[kind] : {}, tune = p && p.tune && p.tune[kind] ? p.tune[kind] : {};
+  const element = V.element ?? (p && VAYO_ELEMENTS.includes(p.element) ? p.element : undefined);
+  const move = { ...tune, ...own };
+  return { vayo: { ...V, ...(element ? { element } : {}), [kind]: Object.keys(move).length ? move : true } };
+}
 
 /** The moves a hero STARTS with (`actions.moves`, the city stalker's): each a patch to the platform rule, held from the
  *  first level, in every level it plays (a trail, a building, an inside), outdoors and in: the wall (any wall held and

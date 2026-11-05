@@ -102,7 +102,7 @@ function armedPilot(G, entity, cam) {
   };
 }
 const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
-import { feelRule, readFeel, TAKES } from './feel/lower.js';
+import { feelRule, readFeel, TAKES, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
 import { reachOf } from './feel/reach.js';
 import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse } from './course.js';
 import { juiceOfGame } from './juice.js';
@@ -235,8 +235,10 @@ function startingGrants(G) {
   if (!A?.powers?.length) return [];
   const keyed = new Set(powerKeys(G).map((p) => p.id)), staged = (A.progression ?? []).length > 0;
   const early = new Set(staged ? (A.progression.find((s) => s.stage === 'early')?.gains ?? []) : A.powers.map((p) => p.id));
-  return A.powers.filter((p) => p.move && early.has(p.id) && !keyed.has(p.id)).map((p) => p.move);
+  return A.powers.filter((p) => p.move && early.has(p.id) && !keyed.has(p.id)).map((p) => ({ move: p.move, ...(p.element ? { element: p.element } : {}), ...vayoTune(G, p.move) }));
 }
+// a vayo move's tuning by the game's feel card (feel/lower.js feelVayo): only a power that grants one reads it
+const vayoTune = (G, move) => { if (!G.feel || !String(move).startsWith('vayo-')) return {}; const t = feelVayo(feelCard(G.feel)); return t ? { tune: t } : {}; };
 // THE LATER POWERS' MOVES: a power with a `move` gained after the starting stage (not one that keys a map's door) is the
 // hero's the moment its node is gained (the stats' `bought`), and from the start of a level where it already is
 // (game.powers `bought`, scene/channels/game.js). → [{ id, move }]
@@ -244,13 +246,13 @@ function laterGrants(G) {
   const A = G.characters?.hero?.actions, prog = A?.progression ?? [];
   if (!A?.powers?.length || !prog.length) return [];
   const keyed = new Set(powerKeys(G).map((p) => p.id)), early = new Set(prog.find((s) => s.stage === 'early')?.gains ?? []);
-  return A.powers.filter((p) => p.move && !early.has(p.id) && !keyed.has(p.id) && prog.some((s) => s.gains.includes(p.id))).map((p) => ({ id: p.id, move: p.move }));
+  return A.powers.filter((p) => p.move && !early.has(p.id) && !keyed.has(p.id) && prog.some((s) => s.gains.includes(p.id))).map((p) => ({ id: p.id, move: p.move, ...(p.element ? { element: p.element } : {}), ...vayoTune(G, p.move) }));
 }
 function withMoves(P, moves, grants = []) {
   if (!moves && !grants.length) return P;
   const figures = moves ? Object.fromEntries(Object.entries(P.figures || {}).map(([k, f]) => [k, { ...f, ...(f.clips ? { clips: traversalStates(f.clips) } : {}) }])) : P.figures;
   // (each grant over the rule as it stands: a high jump the hero's own half as high again, a second jump at least one)
-  const grant = (rule) => grants.reduce((r, m) => { const g = TRAVERSAL_MOVES[m].rule(r); return { ...r, ...g, ...(g.airJumps ? { airJumps: Math.max(r.airJumps ?? 0, g.airJumps) } : {}) }; }, rule);
+  const grant = (rule) => grants.reduce((r, m) => { const g = TRAVERSAL_MOVES[m.move ?? m].rule(r, m); return { ...r, ...g, ...(g.airJumps ? { airJumps: Math.max(r.airJumps ?? 0, g.airJumps) } : {}) }; }, rule);
   return { ...P, figures, entities: P.entities.map((e, i) => (i === 0 ? { ...e, rule: grant({ ...e.rule, ...(moves ?? {}) }) } : e)) };
 }
 // a hero runs and walks with Z held (player.js HERO_WALK_RUN); a mascot pilot runs on its own clips, and a hero with the
@@ -269,7 +271,7 @@ function cityLevelOrder(G, stage, { title, map = null, cityRefs = {}, heroRef = 
   // power keys' moves ride as grants in metres, turned into the city's units where it is lowered
   const found = map ? [...(map.keys ?? []).map((item) => ({ item, into: 'bag' })), ...(map.powers ?? []).map((item) => ({ item, into: 'powers' }))] : [];
   const pk = map ? powerKeys(G) : [];
-  const powers = pk.length ? Object.fromEntries(pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule({ jumpSpeed: CITY_HERO.rule.jumpSpeed })])) : null;
+  const powers = pk.length ? Object.fromEntries(pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule({ jumpSpeed: CITY_HERO.rule.jumpSpeed }, { ...p, ...vayoTune(G, p.move) })])) : null;
   const ways = map ? [...map.on.map((w) => ({ id: w.id, to: w.to, at: 'end', ...(w.gate ? { gate: w.gate } : {}) })), ...map.back.map((w) => ({ id: w.id, to: w.to, at: 'start' }))] : [];
   const refs = Object.fromEntries(Object.entries(cityRefs).filter(([id]) => id !== stage.node));
   const hero = stage.city.stalker ? { hero: { ...(heroRef ? { ref: heroRef } : {}), ...(heroRef && heroGaits ? { gaits: heroGaits } : {}) } } : {};
@@ -818,7 +820,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   if (pk.length || later.length) {
     if (pk.length) game.consumes = [{ slice: 'powers' }];
     const base = heroRef ? pilotPart.entities[0].rule : null;
-    const grants = Object.fromEntries(base ? [...pk, ...later].filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base)]) : []);
+    const grants = Object.fromEntries(base ? [...pk, ...later].filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base, { ...p, ...vayoTune(G, p.move) })]) : []);
     if (Object.keys(grants).length) game.powers = { ...(pk.length ? { slice: 'powers' } : {}), target: pilotPart.entities[0].id, grants, ...(later.length ? { bought: HOLDER } : {}) };
     // a power that gives the wall or the line: the pilot's figure plays their states' fallbacks from the start
     if (Object.values(grants).some((g) => g.wall || g.gear) && pilotPart.figures) pilotPart = { ...pilotPart, figures: Object.fromEntries(Object.entries(pilotPart.figures).map(([k, f]) => [k, f && f.clips ? { ...f, clips: traversalStates(f.clips) } : f])) };
@@ -1001,7 +1003,7 @@ export function powerKeys(G) {
   if (G.topology !== 'interconnected') return [];
   const powers = G.characters?.hero?.actions?.powers ?? [];
   const keyed = new Set(G.links.filter((l) => l.key).map((l) => l.key));
-  return powers.filter((p) => keyed.has(p.id)).map((p) => ({ id: p.id, move: p.move ?? null }));
+  return powers.filter((p) => keyed.has(p.id)).map((p) => ({ id: p.id, move: p.move ?? null, ...(p.element ? { element: p.element } : {}) }));
 }
 
 export function mapPlan(G, stages, refs) {
