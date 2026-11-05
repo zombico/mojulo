@@ -57,8 +57,12 @@ export function opposition(manifest, { goal } = {}) {
 /** The evidence judged. `stages`: [{ ref, errors?, startedLost?, debug?, frames?, opposition, skipped?, error? }] */
 export function probeVerdict(stages) {
   if (!stages.length) return { gate: 'machine', holds: false, checks: [], note: 'no stage to play: make the level first (its chapter run)' };
+  // a composed stage's laws that advise, measured on the build the page is (kept whether or not a browser played it):
+  // the received gate's laws check reads them, never the probe's own checks, which are play
+  const composed = stages.flatMap((s) => (s.composed ?? []).map((c) => ({ ref: s.ref, ...c })));
+  const C = composed.length ? { composed } : {};
   const skipped = stages.filter((s) => s.skipped);
-  if (skipped.length === stages.length) return { gate: 'machine', holds: false, skipped: skipped[0].skipped, checks: [], note: NOTE };
+  if (skipped.length === stages.length) return { gate: 'machine', holds: false, skipped: skipped[0].skipped, checks: [], ...C, note: NOTE };
   const each = (check, bad) => {
     const failing = stages.filter((s) => !s.skipped && bad(s));
     return { check, holds: !failing.length, ...(failing.length ? { says: failing.map((s) => `${s.ref}: ${bad(s)}`).join('; ') } : {}) };
@@ -77,7 +81,7 @@ export function probeVerdict(stages) {
     gate: 'machine', holds: checks.every((c) => c.holds), checks,
     ...(skipped.length ? { skippedStages: skipped.map((s) => s.ref) } : {}),
     frames: stages.flatMap((s) => (s.frames ?? []).map(({ colour: _c, ...f }) => ({ ref: s.ref, ...f }))),
-    note: NOTE,
+    ...C, note: NOTE,
   };
 }
 
@@ -171,7 +175,7 @@ export async function playStages(items, { executablePath, T = PROBE, timeoutMs =
  */
 export async function probeLevel(stages, { goal, findBrowser, play = playStages, framesDir = null, writeFile = null } = {}) {
   const found = await findBrowser();
-  const evidence = stages.map((s) => ({ ref: s.ref, opposition: opposition(s.manifest, { goal }) }));
+  const evidence = stages.map((s) => ({ ref: s.ref, opposition: opposition(s.manifest, { goal }), ...(s.composed?.length ? { composed: s.composed } : {}) }));
   if (!found.path) return probeVerdict(evidence.map((e) => ({ ...e, skipped: `skipped: ${found.why}` })));
   const playable = stages.map((s, i) => [s, i]).filter(([s]) => s.html && !s.skip);
   const played = playable.length ? await play(playable.map(([s]) => ({ html: s.html })), { executablePath: found.path }) : [];

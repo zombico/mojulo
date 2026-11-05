@@ -61,6 +61,15 @@ describe('the verdict', () => {
     expect(probeVerdict([ok({ skipped: 'skipped: no browser' })])).toMatchObject({ holds: false, skipped: 'skipped: no browser' });
     expect(probeVerdict([])).toMatchObject({ holds: false, note: expect.stringMatching(/no stage to play/) });
   });
+
+  it('a composed stage\'s laws that advise are kept, by stage, played or not; they are not the probe\'s own checks', () => {
+    const composed = [{ law: 'lit', says: 'side: under 0.2 of the rooms\' mean light' }];
+    const v = probeVerdict([ok({ ref: 's1', composed })]);
+    expect(v).toMatchObject({ holds: true, composed: [{ ref: 's1', law: 'lit', says: expect.stringMatching(/^side/) }] });
+    expect(v.checks.map((c) => c.check)).not.toContain('lit');
+    expect(probeVerdict([ok({ ref: 's1', composed, skipped: 'skipped: no browser' })]).composed).toHaveLength(1);
+    expect(probeVerdict([ok()]).composed).toBeUndefined();
+  });
 });
 
 describe('the script and the run', () => {

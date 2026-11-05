@@ -194,3 +194,8 @@ apart from the recipe and adds nothing to any render or export. The design is in
   jobs' own words (the lenses, the postures) beside the runner and the maker, each given `design_game` alone, with a
   test that fails when they go stale; the skill hands a req's jobs to them and keeps one agent per `role`. A host that
   declares `capabilities.jobAgents` (Claude Code) and runs the plugin sees each brief name its agent (`agent`).
+- **A level's laws reach its received gate.** The receipt's `laws` check had read only the parts' own stamps, which
+  carry no level law, so a level's req was received over laws that advised. It now holds a level to its intent laws
+  (`lay-concerns.js`, as the run plans them) and to the scene composer's (`focus`, `way-on`, `lit`, `palette`), which the
+  play probe keeps from the build it plays (`composed`, by stage, played by a browser or not) and the receipt reads while
+  the probe is current. The first of the expertise the composer holds to be read by the req layer.

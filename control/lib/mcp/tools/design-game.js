@@ -54,7 +54,7 @@ import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-regist
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import { complexAdvice } from '@/lib/graph/gameworld/levels.js';
 import { rebase } from '@/lib/graph/gameworld/rebase.js';
-import { STAFFING, readLedger, notesWith, pullThrough, remitAdvice, ledgerSummary, reqForView, unitParts, unitPrint, receiptOf, upstreamPrints, reqStatus, unitsOf, reqParts } from '@/lib/graph/gameworld/reqs.js';
+import { levelLawsOf, STAFFING, readLedger, notesWith, pullThrough, remitAdvice, ledgerSummary, reqForView, unitParts, unitPrint, receiptOf, upstreamPrints, reqStatus, unitsOf, reqParts } from '@/lib/graph/gameworld/reqs.js';
 import { GameworldReqRepository, GameworldReqJobRepository, GameworldAskRepository, GameworldProductionRepository, GameworldReqNoteRepository } from '@/lib/db/repositories/gameworld-reqs.js';
 import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpointLevels, productionSummary } from '@/lib/graph/gameworld/production.js';
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
@@ -898,10 +898,18 @@ const TERMINAL_REQ = new Set(['accepted', 'directed', 'cancelled', 'gone']);
 
 /** The ledger worked and read: the creator's notes kept, the `req` acted on (raise with its pull-through, edit, cancel,
  * accept a unit with no review part), the ledger read again. → { L, summary } */
+/** Each level's intent laws that do not hold (lay-concerns.js: each level step's `laws`, as the run plans them), by its
+ * part: { 'level:<id>': [law] }. The run says them as advice; the received gate holds a level's req to them. */
+function levelLaws(ref, W) {
+  let steps;
+  try { steps = runSteps(W.mainQuest ? withQuestLevels(W) : W, { ref, lookup: heroLookup(heroRefOf(W, ref)) }); } catch { return {}; }
+  return levelLawsOf(steps);
+}
+
 /** The stamps the ledger reads (reqs.js): every part's, as the readout's own are made, with their prints and the laws that
  * advise (`machine`); never the readout's projection of them, which carries neither. */
 function ledgerStamps(ref, W) {
-  return [...reviewState(W), ...(W.characters ? characterState(W, { lookup: heroLookup(heroRefOf(W, ref)) }) : []), ...(castable(W) ? foeState(W) : [])];
+  return [...reviewState(W, { machine: levelLaws(ref, W) }), ...(W.characters ? characterState(W, { lookup: heroLookup(heroRefOf(W, ref)) }) : []), ...(castable(W) ? foeState(W) : [])];
 }
 
 function workLedger(ref, W, full, req, done = null) {
