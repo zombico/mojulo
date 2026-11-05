@@ -42,9 +42,11 @@ ${manaCss()}
 ${themeCss(theme)}
 </style></head><body><div id="mana"></div><div class="log" id="log"></div><script>
 const manaUi = ${manaUiSource()};
-const STATE = ${json(state)}, LOG = window.__manaLog = [];
+const STATE = window.__manaState = ${json(state)}, LOG = window.__manaLog = [];
 const host = {
   read: (p) => manaUi.readPath(STATE, p),
+  // the game's clock (a preview's is the page's; a game hands its own, held while it is)
+  now: () => performance.now() / 1000,
   act: (e, from) => {
     if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = STATE; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
     LOG.push({ e, from }); document.getElementById('log').textContent = LOG.slice(-4).map((x) => (x.from.screen || '-') + ' ' + JSON.stringify(x.e)).join('\\n');

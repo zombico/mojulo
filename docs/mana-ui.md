@@ -166,6 +166,34 @@ other way) maps a world's UI guide onto a theme:
 
 So a game's menus wear the look its world was directed in.
 
+## Motion that means something
+
+Motion here says what changed, once. It is taken from the broadcast, where a score that rises pops and a results
+board enters row by row.
+
+- **A value that changed** (a stat, a counter, a bar's number, a badge, a table's cell, a numeral) is marked `data-ch`
+  up, down or new, with a new `data-key` each time. It flashes in the second accent (up) or the harm (down) and pops;
+  a stat, a counter and a badge float their gain off ("+3"). Nothing is marked on the first draw: what was there when
+  a screen opened is not news.
+- **A row** of a list, a grid or a table whose `id` was not there before is `data-fresh`, and a ring opens on it once.
+  A row the game marks `last: true` (the last move, the tile just laid) rings once and keeps a dotted edge. A row or a
+  badge marked `turn: true` is the side whose turn it is: a thick bar at its edge in its side's colour, breathing.
+- **Entrances:** a screen fades in, its windows and rows rise staggered, a moment's banner slams with a sheen, a toast
+  slides in.
+- **One moment at a time** (`moments`, the broadcast's rule): rows `{ id, text, sub?, weight }` the game appends; a
+  weightier one takes the screen at once, an equal one once the one up has been read (`read` seconds), a lighter one
+  waits its turn, and each stays `hold` seconds. It runs on the game's clock (`host.now`), so a pause holds it. With
+  no clock it shows the weightiest the game still lists. `moment-banner` and `quest-toasts` are built on it.
+- **How it moves is the theme's** `motion` word (`MOTIONS` in `theme.js`): none fades and travels nowhere (the
+  greybox), ease glides, snap overshoots, stepped moves in frames. Every distance, scale and delay is a variable.
+- **Less motion:** `prefers-reduced-motion`, or `rt.reduceMotion(true)` from the game's options, zeroes the travel and
+  keeps the fades; the turn's bar stays and stops breathing. `rt.hold(true)` (a hit-stop, the game's clock held) holds
+  the HUD's motion while a menu keeps its own.
+- **The view patches, never replaces.** `mount` patches the DOM by position: an element lives on while its tag and its
+  `data-key` hold, so a bar's width glides and an entrance plays once. A new `data-key` is a new element.
+- **Keylines:** a side whose kit would sink into the panel (under 3:1, WCAG's bar for a part of the UI) is keylined
+  in the ink, so a black team's chip still shows on dark glass.
+
 ## Idioms
 
 The screens and HUD parts games share, as defs. Each one says what it reads, what it emits, and an `example` bound
@@ -252,10 +280,12 @@ It is one self-contained page, and it is the eyes gate's view of the library.
 const rt = manaUi.runtime({ screens: { pause: node, … }, hud?, defs?, start? }, {
   read: (path) => value,        // the game's state: bus vars, store slices, a kernel's query
   act: (effect, from) => {},    // every effect but open / close / back
+  now: () => seconds,           // optional: the game's clock (moments are timed on it; held when the game is)
 });
+rt.hold(on); rt.reduceMotion(on);       // the game's clock held (the HUD's motion holds); the player's less-motion option
 rt.press('down' | 'up' | 'left' | 'right' | 'accept' | 'back' | 'tabNext' | 'tabPrev', seat?);
 rt.open(id); rt.tick(); rt.view(); rt.state();
-manaUi.mount(el, rt, { auto: true });   // the DOM backend: keys, pointer, a frame loop
+manaUi.mount(el, rt, { auto: true });   // the DOM backend, a view: it patches what it drew, hit-tests a pointer, a frame loop
 ```
 
 The actions are the controls kernel's `menu` scheme. `window.__manaUi` is the runtime on a page, for tests and the
@@ -267,7 +297,8 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
   the controls and RPG kernels. A page that uses no mana-ui carries no byte of it.
 - **Bounded.** The folder imports nothing outside itself (`boundary.test.js`). This lets an engine backend read the
   same spec, and lets the folder become a package of its own once a second consumer exists.
-- **Deterministic.** There is no clock, no dice and no DOM until `mount`. The same spec and state give the same HTML.
+- **Deterministic.** There is no clock of its own, no dice and no DOM until `mount`. The same spec over the same states,
+  in the same order, gives the same HTML (what changed is marked against what was drawn before; time is the host's).
 - **Values first.** The greybox has no colour. Focus is a shape (a ring, or the theme's lift, brackets or ▶) and the
   active row a tint with a bar at its edge. Bar variants differ by pattern, and a low bar on what can run out is cross-hatched. Placeholders are crossed
   boxes.

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readTheme, themeCss, themeAdvice, contrast, THEMES, THEME_IDS } from './theme.js';
-import { GREYBOX_VARS } from './css.js';
+import { readTheme, themeCss, themeAdvice, contrast, THEMES, THEME_IDS, MOTIONS } from './theme.js';
+import { GREYBOX_VARS, manaCss } from './css.js';
 import { manaUiBoard } from './board.js';
 
 // The style layer: a theme is closed words and colours read and checked, written as variables and a few rules over
@@ -64,5 +64,29 @@ describe('mana-ui themes: writing and measuring', () => {
     for (const id of THEME_IDS) expect(page).toContain(`<option value="${id}"`);
     const script = page.slice(page.lastIndexOf('<script>') + 8, page.lastIndexOf('</script>'));
     expect(() => new Function(script)).not.toThrow();
+  });
+});
+
+describe('mana-ui themes: motion and keylines', () => {
+  it('every motion word sets every distance the sheet moves by; the greybox travels nowhere', () => {
+    const vars = Object.keys(MOTIONS.none);
+    for (const w of Object.keys(MOTIONS)) expect(Object.keys(MOTIONS[w])).toEqual(vars);
+    for (const k of vars) expect(GREYBOX_VARS[k]).toBe(MOTIONS.none[k]);
+    const moving = THEME_IDS.find((id) => THEMES[id].motion !== 'none');
+    expect(themeCss(moving)).toContain(`--mana-travel:${MOTIONS[THEMES[moving].motion].travel}`);
+  });
+  it('less motion, asked by the system or by the game, zeroes the travel and keeps the fades, over any theme', () => {
+    const sheet = manaCss('.r');
+    expect(sheet).toMatch(/@media \(prefers-reduced-motion:reduce\)\{\.r\{--mana-travel:0px!important/);
+    expect(sheet).toMatch(/\.r\[data-motion=reduced\]\{--mana-travel:0px!important/);
+    expect(sheet).toMatch(/@keyframes mana-fade\{from\{opacity:0\}\}/);
+    expect(sheet).toContain('.r[data-clock=held] .mana-hud');
+  });
+  it('a side whose kit sinks into the panel is keylined in the ink; one that stands apart is not', () => {
+    const T = readTheme({ tokens: { ink: '#ffffff', panel: '#101010', line: '#888888', accent: '#ffcc00' }, sides: ['#000000', '#ff8800'] });
+    const css = themeCss(T);
+    expect(contrast('#000000', '#101010')).toBeLessThan(3);
+    expect(css).toContain('--mana-side-0-key:#ffffff');
+    expect(css).toContain('--mana-side-1-key:transparent');
   });
 });

@@ -70,3 +70,13 @@
   game never sees its keys. Prompts and legends print the control in the player's hands ("Enter", "A", "✕", the B on
   a Nintendo pad's right) and switch as the player picks up another device; a touch screen shows none. The controls
   screen lists a scheme's real bindings with a clash marked, and a remap reports the conflicts it makes.
+- Motion that means something, taken from the broadcast. A number that changes in a menu or on the HUD flashes and pops
+  once, a score or a gold count floating its gain off; a row just added rings once, the last move stays marked, and
+  the side whose turn it is is lit in its colour. Screens fade in and their rows rise staggered, a moment's banner
+  slams. Each theme moves its own way (none, ease, snap, stepped), the greybox only fades, and a player who asks for
+  less motion (the system's setting or the game's option) keeps the fades and loses the travel. A hit-stop holds the
+  HUD with the game.
+- One moment on screen at a time: a goal outweighs a corner, a quest finished outweighs a step done. A weightier one
+  takes the screen at once, an equal one waits until the first has been read, a lighter one waits its turn, all on the
+  game's clock so a pause holds them.
+- A team colour that would vanish into a dark panel (a black kit on dark glass) is outlined so its chip still shows.

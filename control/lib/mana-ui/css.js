@@ -327,7 +327,7 @@ function MOTION_RULES(s) {
     `${s} [data-turn]{box-shadow:inset 6px 0 0 ${v('turn')},inset 0 0 0 1px ${v('turn')};animation:mana-turn 1.6s ease-in-out infinite;animation-play-state:${v('loop')}}`,
     ...Array.from({ length: 8 }, (_, k) => `${s} [data-turn="${k}"]{--mana-turn:${v(`side-${k}`)}}`),
     `${s} .mana-table tr[data-turn]{box-shadow:none;animation:none}`, `${s} .mana-table tr[data-turn]>td:first-child{box-shadow:inset 6px 0 0 ${v('turn')}}`,
-    `${s} .mana-badge[data-turn]{padding-left:9px}`,
+    `${s} .mana-badge[data-turn]{padding-left:9px}`, `${s} .mana-badge[data-turn]::before{content:"\\25B8 "}`,
     // the game's clock held (a hit-stop): the HUD's motion holds with it; less motion: the fades are all that is left
     `${s}[data-clock=held] .mana-hud,${s}[data-clock=held] .mana-hud *,${s}[data-clock=held] .mana-hud *::after{animation-play-state:paused!important}`,
     `${s}[data-motion=reduced]{${CALM}}`,
