@@ -56,7 +56,7 @@ import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
 import { LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
-import { castingOf, laidCasting } from './casting.js';
+import { castingOf, laidCasting, laidJoins } from './casting.js';
 import { REACT_MOTION, reactStatesOf, beastMovesOf } from '../egocube/moves.js';
 import { beastLook } from './stage-figures.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
@@ -217,7 +217,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   // a world before its people (no character book: a world composed from a prompt) makes its levels at once
   if (world.characters === undefined) return worldSteps(world, readGameworld(world), ref, composite);
   // a turn-based world is laid with its battles, written or not (battles.js)
-  const G = laidBattles(readGameworld(world));
+  // (and its party joining one a level, when its book says nothing of when: casting.js laidJoins)
+  const G0 = laidBattles(readGameworld(world)), levelsPlayed = [...new Set(gameStages(world).map((s) => s.level))];
+  const { G, at: joinsAt } = laidJoins(G0, levelsPlayed);
   const O = heroOrders(G);
   if (!O) return [];
   // an adopted hero (characters.hero.ref) is pinned, never made: the step says so (`adopt`), and it plays as it is
@@ -337,7 +339,10 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   stages.forEach((s, i) => { last[s.level] = levelRefs[i]; });
   const carryFrom = { items: store.slices.filter((x) => x.kind === 'inventory').map((x) => x.name), campaign: 'campaign', levels: last };
   // the cast who join the hero (characters.cast.<id>.joins): every stage carries them, asleep until they join
-  const party = Object.entries(GL.characters?.cast ?? {}).filter(([, m]) => m.joins).map(([id, m]) => ({ id, ref: castRefs[id], joins: m.joins }));
+  // (a rolled member joining by the default walks the map only where the party does, battles.followers; its level
+  // says so as it starts: joinsAt)
+  const rolled = new Set(GL.characters?.rolled ?? []);
+  const party = Object.entries(GL.characters?.cast ?? {}).filter(([, m]) => m.joins).map(([id, m]) => ({ id, ref: castRefs[id], joins: m.joins, name: m.name ?? id, ...(joinsAt[id] ? { joinsAt: joinsAt[id] } : {}), ...(rolled.has(id) && G.battles?.followers === false ? { walks: false } : {}) }));
   // a casting page's people on the field (casting.js): each plays its own moves; its first party and the familiars walk
   // beside the hero from the start (one the page gives a joins flag joins on it, above); a body that does not walk the
   // field yet is left off it

@@ -871,7 +871,14 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   // THE PARTY (playscape/ui/party.js): each cast member who joins on a flag, in every stage, on the escort motive. One
   // the story stands here waits at its stand until it joins; elsewhere it is minted asleep behind the start and wakes
   // when the flag is set or carried in.
-  const joiners = (party ?? []).filter((p) => p.ref && castFigures?.[p.id] !== null), members = [], stands = [];
+  const joiners = (party ?? []).filter((p) => p.ref && castFigures?.[p.id] !== null && p.walks !== false), members = [], stands = [];
+  // (one who joins but does not walk the map, battles.followers false: in the party for its flag, no figure; and one who
+  // joins by the default, on its level, as the level starts: its flag set, said)
+  const arrivals = [];
+  for (const p of party ?? []) {
+    if (p.walks === false && p.joins) members.push({ who: p.id, joins: p.joins });
+    if (p.joinsAt === stage.level && (stage.index ?? 0) === 0 && p.joins) arrivals.push({ id: `party-${p.id}-arrives`, when: { start: true }, then: [{ emit: `flag:${p.joins}` }, { say: `${p.name ?? p.id} joins the party`, as: 'toast' }] });
+  }
   if (joiners.length) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities], pilot = entities[0], h = ends.heading;
     // (on the pilot's own side when it has one: a team game's; else a side of their own)
@@ -897,6 +904,7 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
     pilotPart = { ...pilotPart, figures, entities };
   }
   let play = basePlay;
+  if (arrivals.length) play = { ...(play ?? {}), cues: [...(play?.cues ?? []), ...arrivals] };
   // (a party all with the pilot from the start carries no flag between levels)
   if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), ...(members.some((m) => m.joins) ? { carry: STORY_SLICE } : {}) };
   // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice

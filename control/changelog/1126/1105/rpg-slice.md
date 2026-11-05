@@ -48,3 +48,8 @@
   hero walks alone, as a classic party RPG's leader does, and the party still fights beside it (the battles' party is the
   cast who join, as before). A member who joins on a story flag still stands where the story puts it. The default is
   unchanged.
+- **A party joins one a level.** A party RPG's rolled party (its casting page) stood with the hero from the first level;
+  by default now, when its book gives none of it a `joins` flag, the first member joins as the first level played starts,
+  the second as the second does, and so on (`casting.js` laidJoins: each its flag `join-<id>`, carried on; said as a
+  toast). A member past the game's levels joins nowhere yet; a book that writes its own `joins` keeps them. With
+  `battles.followers: false` a member who has joined fights and does not walk the map.

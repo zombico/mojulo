@@ -197,6 +197,23 @@ export function castingOf(G) {
 }
 
 /** The world with its rolled members in the book's cast, as the story, the field party and the bible read a written one. */
+/**
+ * A party RPG's party joins one a level (the default): in a world that fights in battles, whose casting page rolls a
+ * party and whose book gives none of it a `joins` flag, the first party member joins on the first level as played, the
+ * second on the second, and so on: each its flag `join-<id>`, set as its level starts, carried on. A member past the
+ * game's levels joins nowhere yet. A book that writes any `joins` keeps its own. → { G (its casting's cast given the
+ * flags), at: { <member id>: <level id> } }.
+ */
+export function laidJoins(G, levels = []) {
+  const C = G.battles && G.characters?.casting ? castingOf(G) : null;
+  const party = (C?.members ?? []).filter((M) => M.bond === 'party');
+  if (!party.length || party.some((M) => M.joins) || Object.values(G.characters.cast ?? {}).some((m) => m?.joins)) return { G, at: {} };
+  const book = { ...(G.characters.casting.cast ?? {}) }, at = {};
+  party.forEach((M, k) => { if (levels[k] === undefined) return; book[M.id] = { ...(book[M.id] ?? {}), joins: `join-${M.id}` }; at[M.id] = levels[k]; });
+  if (!Object.keys(at).length) return { G, at };
+  return { G: { ...G, characters: { ...G.characters, casting: { ...G.characters.casting, cast: book } } }, at };
+}
+
 export function laidCasting(G) {
   const C = castingOf(G);
   if (!C) return G;

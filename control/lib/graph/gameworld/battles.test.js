@@ -127,6 +127,30 @@ describe('the party on the map', () => {
   });
 });
 
+describe('the party joining', () => {
+  it('by default one a level, in the order played: its flag set and said as its level starts, carried on', () => {
+    const cast = { ...MEADOWMARK_HERO.characters, casting: { scale: 'party', n: 2 } };
+    const S = levels(W({}, { characters: cast }));
+    const order = [...new Set(S.map((s) => s.key.replace(/^level-(.+)-\d+$/, '$1')))];
+    const first = (lv) => S.find((s) => s.key === `level-${lv}-0`).order.manifest;
+    const arrives = (M) => (M.play?.cues ?? []).filter((c) => /^party-.+-arrives$/.test(c.id)).map((c) => c.id);
+    expect(arrives(first(order[0]))).toEqual(['party-party-1-arrives']);
+    expect(arrives(first(order[1]))).toEqual(['party-party-2-arrives']);
+    expect(first(order[0]).play.cues.find((c) => c.id === 'party-party-1-arrives').then[0]).toEqual({ emit: 'flag:join-party-1' });
+    // the fights know them by the same flags; the level carries them
+    const party = lowerPlay(first(order[0]), { player: 'hero' }).rpg.party;
+    expect(party.filter((p) => p.joins).map((p) => [p.id, p.joins])).toEqual([['party-1', 'join-party-1'], ['party-2', 'join-party-2']]);
+    expect(first(order[1]).play.party.map((m) => m.joins).filter(Boolean)).toEqual(expect.arrayContaining(['join-party-1', 'join-party-2']));
+    // with followers false: none stands on the map, every one still in the level's party, its flag carried
+    const alone = levels(W({ followers: false }, { characters: cast })).find((s) => s.key === `level-${order[1]}-0`).order.manifest;
+    expect(alone.entities.filter((e) => e.rule?.mind?.motivation === 'escort')).toEqual([]);
+    expect(alone.play.party).toEqual(expect.arrayContaining([{ who: 'party-1', joins: 'join-party-1' }, { who: 'party-2', joins: 'join-party-2' }]));
+    // a book that writes its own joins keeps them: no default
+    const own = { ...cast, casting: { ...cast.casting, cast: { 'party-1': { joins: 'met-at-the-well' } } } };
+    expect(arrives(levels(W({}, { characters: own })).find((s) => s.key === `level-${order[0]}-0`).order.manifest)).toEqual([]);
+  });
+});
+
 describe('the shops on the way', () => {
   it('each fighting stage opens with a merchant and an inn, the wares and the night dearer further on; none where the book says', () => {
     const L = levels(W({}));
