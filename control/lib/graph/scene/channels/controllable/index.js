@@ -1,4 +1,5 @@
 import { b64, safeJson } from '../../emit-util.js';
+import { packRigMesh } from '../../../figures/rig-bake.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
 import { surfaceAt } from '../../../roads/surface.js';
 import { commanderSource } from '../../../worlds/controllable/commander.js';
@@ -51,6 +52,59 @@ function poolFigureBuffers(figures) {
     return v;
   };
   return { fig: rewrite(figures), pool: [...idx.keys()] };
+}
+
+// the page's figure bank, as the page reads it. A LAYERED figure (station-loft-rig packLayeredRig) is drawn part by
+// part, each part carried by its bone: its skin's joints and weights (`jnt`, `wgt`, a quarter or more of a party's
+// bank) are the engine exports' (scene-gltf.js reads them from the figure's own row), never read by the page, so they
+// are left out of it; and its parts, packed as a triangle soup of float32 corners (a hero's body past 100,000 triangles),
+// go to the page as unit rigs' do (rig-bake.js packRigMesh: the corners shared, the positions on a uint16 grid, read by
+// __makeRigGroup's q branch), each part that carries nothing laid per corner the page reads (paint, a face's morphs,
+// correctives, normals, metal). A skinned figure (`skin: true`, one mesh skinned in the page: __makeSkinGroup) keeps it
+// all. And a figure byte-identical to one before it (a battle's foe slots, one sheet each) is emitted once and named
+// again (`same`). A bank with none of these is returned as it came, so its page is byte for byte as before.
+const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8'];
+function pagePart(p) {
+  if (!p || (p.jnt === undefined && p.wgt === undefined)) return p;
+  const { jnt: _j, wgt: _w, ...rest } = p;
+  if (typeof rest.pos !== 'string' || typeof rest.col !== 'string' || PER_CORNER.some((k) => rest[k] !== undefined)) return rest;
+  const buf = (s) => Buffer.from(s, 'base64');
+  const P = buf(rest.pos), C = buf(rest.col);
+  const positions = new Float32Array(P.buffer, P.byteOffset, P.byteLength / 4), colors = new Uint8Array(C.buffer, C.byteOffset, C.byteLength);
+  if (colors.length !== positions.length) return rest;
+  const { pos: _p, col: _c, ...keep } = rest;
+  return { ...keep, ...packRigMesh({ positions, colors }, rest.faces) };
+}
+// a layered figure's clip as the page reads it: its frames (`b`: per key, per bone, a quaternion and a head) on 16 bits,
+// the quaternions over ±1 and the heads over the clip's own reach (its step about a tenth of a millimetre on a figure's
+// clips, the decimals' own grain), the page decoding them to a Float32Array once (__unclip16) and indexing it as before.
+// Identical clips (a figure's `leap` and `boost`) are then identical strings, and the bank's pool keeps one of each.
+function pageClip(c) {
+  if (!c || !Array.isArray(c.b) || !c.b.length || !c.b.every((v) => typeof v === 'number' && Number.isFinite(v))) return c;
+  let reach = 0;
+  for (let i = 0; i < c.b.length; i++) if (i % 7 >= 4) reach = Math.max(reach, Math.abs(c.b[i]));
+  const step = Number(((reach || 1) / 32767).toPrecision(8));
+  const q = new Int16Array(c.b.length);
+  for (let i = 0; i < c.b.length; i++) {
+    const v = i % 7 < 4 ? Math.round(c.b[i] * 32767) : Math.round(c.b[i] / step);
+    q[i] = v > 32767 ? 32767 : v < -32767 ? -32767 : v;
+  }
+  return { ...c, b: { q16: Buffer.from(q.buffer).toString('base64'), s: step } };
+}
+const pageClips = (C) => (C && typeof C === 'object' ? Object.fromEntries(Object.entries(C).map(([n, c]) => [n, pageClip(c)])) : C);
+export function pageFigures(figures) {
+  const drop = (f) => !!f && f.rig === true && f.skin !== true && Array.isArray(f.parts) && f.parts.some((p) => p && (p.jnt !== undefined || p.wgt !== undefined));
+  const out = {}, same = {}, seen = new Map();
+  let changed = false;
+  for (const [name, f] of Object.entries(figures)) {
+    const g = drop(f) ? { ...f, parts: f.parts.map(pagePart), ...(f.clips ? { clips: pageClips(f.clips) } : {}), ...(f.acts ? { acts: pageClips(f.acts) } : {}) } : f;
+    if (g !== f) changed = true;
+    const key = g && typeof g === 'object' ? JSON.stringify(g) : null;
+    if (key && key.length >= 4096 && seen.has(key)) { same[name] = seen.get(key); changed = true; continue; }
+    if (key) seen.set(key, name);
+    out[name] = g;
+  }
+  return changed ? { figs: out, same } : { figs: figures, same };
 }
 
 /** The page's seats (a world's `seats: { bodies, max?, join?, drop? }`): seat 1 is the player the world
@@ -627,7 +681,9 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false, tempo = null, xr = false, trigger = false } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false, tempo = null, xr = false, trigger = false } = {}) {
+  // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
+  const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
   const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && (b.yield > 0 || b.kerfWork > 0)));
   // metal panels on objects (rupa/panels.js): drawn only when an object carries resolved panels, so every other page keeps its bytes
@@ -1057,11 +1113,20 @@ const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${sa
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
 ` : ''}${commanderBlock}${flyHudBlock}${(() => {
-    const pooled = poolFigureBuffers(figures || {});
-    if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
+    const { figs, same } = PAGE;
+    // (clips on 16 bits: decoded once, after the bank and its pool, before any consumer reads a frame)
+    const q16 = Object.values(figs).some((f) => f && ['clips', 'acts'].some((k) => f[k] && Object.values(f[k]).some((c) => c && c.b && c.b.q16 !== undefined)));
+    const unclip = q16 ? `
+(function __unclip16(F) { for (const n in F) { const f = F[n]; if (!f) continue; for (const k of ['clips', 'acts']) { const C = f[k]; if (!C) continue; for (const c in C) { const b = C[c] && C[c].b; if (!b || b.q16 === undefined) continue; const bin = atob(b.q16), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); const q = new Int16Array(u.buffer), out = new Float32Array(q.length); for (let i = 0; i < q.length; i++) out[i] = i % 7 < 4 ? q[i] / 32767 : q[i] * b.s; C[c] = { ...C[c], b: out }; } } } })(__FIG);` : '';
+    // (a figure named again: the one it is byte for byte, after the bank, so the export's hoist of the bank keeps it)
+    const again = Object.keys(same).length ? `
+const __FIGSAME = ${safeJson(same)};   // name → the figure it is byte for byte (emitted once)
+for (const k in __FIGSAME) __FIG[k] = __FIG[__FIGSAME[k]];` : '';
+    const pooled = poolFigureBuffers(figs);
+    if (!pooled.pool.length) return `const __FIG = ${safeJson(figs)};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)${unclip}${again}`;
     return `const __FIGPOOL = ${safeJson(pooled.pool)};   // shared packed buffers (deduped across figures — livery variants)
 const __FIG = ${safeJson(pooled.fig)};   // name → packed baked figure frames (pos/col b64 or {__p:i} into __FIGPOOL)
-(function __unpool(o) { for (const k in o) { const v = o[k]; if (v && typeof v === 'object') { if (v.__p != null) o[k] = __FIGPOOL[v.__p]; else __unpool(v); } } })(__FIG);`;
+(function __unpool(o) { for (const k in o) { const v = o[k]; if (v && typeof v === 'object') { if (v.__p != null) o[k] = __FIGPOOL[v.__p]; else __unpool(v); } } })(__FIG);${unclip}${again}`;
   })()}
 const __bodies = {};
 // figure-frames body: re-expand baked frames (Uint16 corners + Uint8 colour) into raw Float32

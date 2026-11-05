@@ -12,3 +12,9 @@
 - **The play probe loads a page from a file.** It pushed each stage's whole page through one DevTools message, and a
   party RPG's stage (its figure bank inlined: the hero and three party members, past 100 MB) closed the target before
   it loaded: the stage was said not to load. It writes the page to a temporary file and opens it.
+- **A party's figures weigh a sixth of what they did on a level's page.** A party RPG's stage inlined four layered
+  figures and its foes at 73 MB (90 to 124 MB a page). The page's bank now leaves out what the page never reads (a
+  layered figure's skin joints and weights, kept for the engine exports, which read the figure's own row), packs a layered
+  part as unit rigs' are (shared corners, positions on a uint16 grid, `packRigMesh`), writes its clips' frames on 16 bits
+  (decoded once to a Float32Array), and names a figure byte-identical to an earlier one again instead of writing it
+  twice: 11 MB, pages of 33 to 37 MB. A bank with none of these is emitted byte for byte as before.
