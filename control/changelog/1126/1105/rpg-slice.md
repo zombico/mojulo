@@ -24,3 +24,10 @@
   refused (a level node given an `hour`) was stored and its job marked kept: the job could not report again, and the
   world read refused until the patch was undone by hand. The patch is now read first, every level's walk with it
   (`gameworldGraph`), and a refused one leaves the recipe and the job as they were, the job issued to report again.
+- **A rework names the authors it sends back.** `req: { id, direct: 'rework', jobs: ['j2'] }` sends back only those
+  authors, the rest of the crew's work kept as it stands (every author without it); the critics and the assistant read
+  again only once an author has gone back. A req's `reissues` budget counts its authors sent back: a critic or the
+  assistant reissued to read the work again had spent it, so one rework round left none.
+- **The battles card says what a foe's row does.** A row in `battles.foes` replaces its preset whole, its skills and
+  drops with it unless named again: the slice's battles author wrote a shaman's stats alone and lost its `mend`, the
+  skill its boss taught by. (The battles card's ceiling is 5120.)

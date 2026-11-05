@@ -658,6 +658,8 @@ function battlesCard() {
     '        random fights on the trails, drawn from the stage\'s packs.',
     'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
     '        Equip tab (P) wears what the bag holds. gear: the world\'s own, { <item>: { slot, atk?, def?, …, classes? } }.',
+    'foes    { <id>: { hp, mp?, atk, def, mag, spd, xp, gold, skills?, drops?: [{ item, chance }], weak?, boss? } }: a row',
+    '        REPLACES its preset whole: the preset\'s skills and drops go with it unless named again (a shaman\'s mend).',
     'rules   { turns: rounds (every member picks, then all act by speed) | timeline (each acts when its gauge fills: the',
     '        quick more often), defeat: fail (the level) | retry, switch: anywhere | never, carry: class | all, cap, xp, cp, sp }.',
     'juice   what the moments feel like: { on: { <happening>: juice }, also?, <name>: [steps] } over the defaults (false:',

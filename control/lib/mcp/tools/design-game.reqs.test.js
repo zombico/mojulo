@@ -611,6 +611,14 @@ describe('design_game: the production (crews, the assistant director, the direct
     expect(one.reqs.done).toEqual(['j1 author kept: its patch applied', '1 of the crew still to report']);
     const two = await designGameHandler({ ref: 'gq', req: { id, job: 'j2', patch: [{ op: 'set', path: '/foes/a', value: { class: SOLO.id, rank: 'elite' } }], decisions: [{ slot: 'foes.a.rank', value: 'elite', because: 'the strand is open: one strong foe, not a swarm' }] } });
     expect(two.reqs.done).toEqual(['j2 author kept: its patch applied', expect.stringMatching(/^j3 critic issued/)]);
+    // a rework that names its authors sends back only them: the level's author stays kept, its page as it stands
+    await expect(designGameHandler({ ref: 'gq', req: { id, direct: 'rework', jobs: ['j9'] } })).rejects.toThrow(/j9 is no author of r\d+ to send back \(its authors: j1, j2\)/);
+    const back = await designGameHandler({ ref: 'gq', req: { id, direct: 'rework', jobs: ['j2'], note: 'one strong foe, but say why it stands where it does' } });
+    expect(back.reqs.raised).toEqual([`${id} j4 author foes issued (rework of j2)`]);
+    const jobs = (await designGameHandler({ ref: 'gq', chapter: 'foes' })).req.jobs;
+    expect(jobs.find((j) => j.job === 'j1')).toMatchObject({ status: 'kept' });
+    expect(jobs.find((j) => j.job === 'j4')).toMatchObject({ status: 'issued', writes: ['/foes'] });
+    await expect(designGameHandler({ ref: 'gq', req: { id, direct: 'creator', jobs: ['j2'] } })).rejects.toThrow(/jobs names the authors a rework sends back/);
     void M1;
   });
 

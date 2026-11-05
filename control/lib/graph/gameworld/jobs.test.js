@@ -32,6 +32,8 @@ describe('what a req is started with', () => {
     const R = req({ budget: { jobs: 3, reissues: 1 } });
     expect(jobsLeft(R, [job(1, 'author', 'reissued'), job(2, 'author')])).toBe(1);
     expect(reissuesLeft(R, [job(1, 'author', 'reissued')])).toBe(0);
+    // a critic or the assistant read again after a rework spends no reissue: an author sent back does
+    expect(reissuesLeft(R, [job(1, 'critic', 'reissued'), job(2, 'assistant', 'reissued')])).toBe(1);
   });
 });
 

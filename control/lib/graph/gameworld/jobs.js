@@ -64,7 +64,8 @@ export function criticPlan(req) {
 /** How many more jobs the budget allows, counting every job issued (a reissue is a job). */
 // (the server's own ride jobs, the probe among them, are not an agent's and spend nothing)
 export const jobsLeft = (req, jobs) => Math.max(0, (budgetOf(req).jobs | 0) - jobs.filter((j) => j.kind !== 'probe').length);
-export const reissuesLeft = (req, jobs) => Math.max(0, (budgetOf(req).reissues | 0) - jobs.filter((j) => j.status === 'reissued').length);
+// (the reissues an author is sent back by: a critic or the assistant reissued to read the work again spends none)
+export const reissuesLeft = (req, jobs) => Math.max(0, (budgetOf(req).reissues | 0) - jobs.filter((j) => j.status === 'reissued' && (j.kind === 'author' || j.kind === 'diverge')).length);
 
 /** The pages a unit's job writes: a level's page, or its chapter's paths. */
 export function unitPaths(unit) {

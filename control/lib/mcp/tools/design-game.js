@@ -676,7 +676,7 @@ function jobSeat(input) {
 
 /** The director's call on a req (production.js): settle it (DIRECTED, after the vertical slice, outside the pillars and
  * the checkpoints), send it back to its crew with a note (its authors reissued within the budget), or show the creator. */
-function directReq(ref, W, { r, L, parts, note, direct, raised, advises }) {
+function directReq(ref, W, { r, L, parts, note, direct, only = null, raised, advises }) {
   const jobs = GameworldReqJobRepository.list(ref, r.id);
   const rec = jobs.filter((j) => j.kind === 'assistant' && j.status === 'submitted').at(-1)?.report?.recommend ?? null;
   if (direct === 'settle') {
@@ -689,7 +689,11 @@ function directReq(ref, W, { r, L, parts, note, direct, raised, advises }) {
     GameworldReqRepository.update(ref, r.id, { verdict: { status: 'directed', prints: Object.fromEntries(own.map((p) => [p.id, p.print])), print: unitPrint(W, r.unit), upstream: upstreamPrints(r.unit, W, r.crew ?? []), ...(note ? { note } : {}), ...(rec ? { recommended: rec } : {}) } });
     raised.push(`${r.id} directed: the director's call${rec ? ` (the assistant recommended ${rec})` : ''}; never the creator's accepted`);
   } else if (direct === 'rework') {
-    const authors = jobs.filter((j) => (j.kind === 'author' || j.kind === 'diverge') && j.status !== 'reissued');
+    // (`jobs`: the authors sent back, the rest of the crew's work kept as it stands; every author without it)
+    const live = jobs.filter((j) => (j.kind === 'author' || j.kind === 'diverge') && j.status !== 'reissued');
+    const unknown = (only ?? []).filter((id) => !live.some((j) => j.id === id));
+    if (unknown.length) throw new Error(`design_game: ${unknown.join(', ')} is no author of ${r.id} to send back (its authors: ${live.map((j) => j.id).join(', ')})`);
+    const authors = only ? live.filter((j) => only.includes(j.id)) : live;
     const R = GameworldReqRepository.get(ref, r.id);
     if (note) { GameworldReqNoteRepository.post(ref, r.id, 'director', note); GameworldReqRepository.update(ref, r.id, { notes: [...(R.notes ?? []), { unit: r.unit, part: 'director', note }] }); }
     for (const old of authors) {
@@ -698,7 +702,8 @@ function directReq(ref, W, { r, L, parts, note, direct, raised, advises }) {
       const [j] = GameworldReqJobRepository.issue(ref, r.id, [{ kind: old.kind, tier: old.tier, angle: old.angle, unit: old.unit, role: old.role }]);
       raised.push(`${r.id} ${j.id} ${j.kind}${j.unit ? ` ${j.unit}` : ''} issued (rework of ${old.id})`);
     }
-    for (const c of jobs.filter((j) => (j.kind === 'critic' || j.kind === 'assistant') && j.status !== 'reissued')) GameworldReqJobRepository.update(ref, r.id, c.id, { status: 'reissued' });
+    // (the critics and the assistant read the work again once an author has gone back; none went, they stand)
+    if (raised.some((line) => line.startsWith(`${r.id} j`) && line.includes('(rework of '))) for (const c of jobs.filter((j) => (j.kind === 'critic' || j.kind === 'assistant') && j.status !== 'reissued')) GameworldReqJobRepository.update(ref, r.id, c.id, { status: 'reissued' });
   } else {
     GameworldReqRepository.update(ref, r.id, { verdict: { ...(r.verdict ?? {}), presented: true } });
     raised.push(`${r.id} shown to the creator: their verdict (approve, revise) is next`);
@@ -722,6 +727,7 @@ function checkReq(req) {
   if (acts.length && req.id === undefined) throw new Error('design_game: start, job, keep, reissue, probe, assist and direct act on a raised req: give its `id`');
   if (acts.length > 1) throw new Error(`design_game: a req call does one of start, job, keep, reissue, probe, assist, direct (given ${acts.join(', ')})`);
   if (req.direct !== undefined && !DIRECTS[req.direct]) throw new Error(`design_game: direct is ${Object.entries(DIRECTS).map(([k, v]) => `${k} (${v})`).join(', ')}`);
+  if (req.jobs !== undefined && (req.direct !== 'rework' || !Array.isArray(req.jobs) || !req.jobs.length || req.jobs.some((j) => typeof j !== 'string'))) throw new Error('design_game: jobs names the authors a rework sends back (direct: \'rework\', jobs: [\'j2\']); without it every author goes back');
   if (req.style !== undefined && !STYLES[req.style]) throw new Error(`design_game: a style is ${Object.keys(STYLES).join(', ')}`);
   if (req.crew !== undefined && (req.crew !== true || !(typeof req.unit === 'string' && req.unit.startsWith('beat:')))) throw new Error('design_game: crew: true goes with a beat (unit: \'beat:<id>\'): its level and the departments the beat brings, worked as one');
   if (req.post !== undefined && (req.job === undefined || typeof req.post !== 'string' || !req.post.trim())) throw new Error('design_game: a job posts to its crew\'s notebook as { id, job, post: \'…\' }');
@@ -996,7 +1002,7 @@ function workLedger(ref, W, full, req, done = null) {
           if (L0 && L0.status !== 'received') advises.push(`${r.id} is ${L0.status}, not yet received: the assistant reads what its gate says`);
         }
       }
-      if (req.direct !== undefined) directReq(ref, W, { r, L, parts, note: req.note, direct: req.direct, raised, advises });
+      if (req.direct !== undefined) directReq(ref, W, { r, L, parts, note: req.note, direct: req.direct, only: req.jobs ?? null, raised, advises });
       if (req.reissue !== undefined) {
         const old = jobs.find((j) => j.id === req.reissue);
         if (!old) throw new Error(`design_game: no job '${req.reissue}' on ${r.id} (${jobs.map((j) => j.id).join(', ') || 'none issued'})`);
