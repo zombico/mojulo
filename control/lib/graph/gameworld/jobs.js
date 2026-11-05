@@ -135,7 +135,7 @@ export function jobBrief(job, req, { ref, agents = false }) {
 }
 
 /** A job's seat: `as: '<req>.<job>'` read against its req and jobs → { job, unit, units } (the units its view may name:
- * its own, or the crew's for the assistant director, who reads it all). Throws, teaching. */
+ * its own for an author, the crew's for a critic and the assistant director, who read its work whole). Throws, teaching. */
 export function seatOf(as, { req = null, jobs = [] } = {}) {
   const m = typeof as === 'string' ? /^(r\d+)\.(j\d+)$/.exec(as) : null;
   if (!m) throw new Error("design_game: as is a job's seat, '<req>.<job>' (its brief's read says it: 'r2.j1')");
@@ -144,8 +144,10 @@ export function seatOf(as, { req = null, jobs = [] } = {}) {
   if (!job) throw new Error(`design_game: as '${as}': ${m[1]} has no job ${m[2]} (its jobs: ${jobs.map((j) => j.id).join(', ') || 'none'})`);
   if (job.status === 'reissued') throw new Error(`design_game: as '${as}': ${m[2]} was reissued; read the job that replaced it (the req's jobs say it)`);
   if (job.kind === 'probe') throw new Error(`design_game: as '${as}': the probe is the server's, never an agent's seat`);
-  const unit = job.kind === 'assistant' ? req.unit : jobUnit(job, req);
-  return { job, unit, units: job.kind === 'assistant' ? unitsOf(req) : [unit] };
+  // (the assistant director and a critic read the crew's work whole: every unit of the req; an author its own)
+  const whole = job.kind === 'assistant' || job.kind === 'critic';
+  const unit = whole ? req.unit : jobUnit(job, req);
+  return { job, unit, units: whole ? unitsOf(req) : [unit] };
 }
 
 /** A job as the ledger reports it once it has reported: what it did, without the patch itself. */

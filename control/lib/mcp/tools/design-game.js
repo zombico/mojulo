@@ -669,7 +669,7 @@ function jobSeat(input) {
   if (!input.ref) throw new Error('design_game: as names a job in a world: give its ref');
   const id = /^(r\d+)\./.exec(String(input.as))?.[1];
   const seat = seatOf(input.as, { req: id ? GameworldReqRepository.get(input.ref, id) : null, jobs: id ? GameworldReqJobRepository.list(input.ref, id) : [] });
-  if (input.chapter !== undefined && !seat.units.includes(input.chapter)) throw new Error(`design_game: as '${input.as}' is ${seat.job.kind === 'assistant' ? `the assistant's, whose view is ${seat.units.join(' or ')}` : `${seat.job.kind} on ${seat.unit}: its view is that unit's`} (not ${input.chapter})`);
+  if (input.chapter !== undefined && !seat.units.includes(input.chapter)) throw new Error(`design_game: as '${input.as}' is ${seat.units.length > 1 ? `the ${seat.job.kind}'s, whose view is ${seat.units.join(' or ')}` : `${seat.job.kind} on ${seat.unit}: its view is that unit's`} (not ${input.chapter})`);
   if (input.req !== undefined && (input.req?.id !== seat.job.req || input.req?.job !== seat.job.id)) throw new Error(`design_game: as '${input.as}' reports its own job: req: { id: '${seat.job.req}', job: '${seat.job.id}', … }`);
   return seat;
 }

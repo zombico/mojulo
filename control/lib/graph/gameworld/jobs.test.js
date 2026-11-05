@@ -133,6 +133,8 @@ describe('a job\'s seat', () => {
   it('names one job and the units its view may be: its own, or the crew\'s for the assistant', () => {
     expect(seatOf('r2.j2', { req, jobs })).toMatchObject({ job: { id: 'j2' }, unit: 'foes', units: ['foes'] });
     expect(seatOf('r2.j3', { req, jobs })).toMatchObject({ unit: 'level:crypt', units: ['level:crypt', 'foes'] });
+    // a critic reads the crew's work whole, as the assistant does
+    expect(seatOf('r2.j5', { req, jobs: [...jobs, { id: 'j5', req: 'r2', kind: 'critic', lens: 'design', status: 'issued' }] })).toMatchObject({ unit: 'level:crypt', units: ['level:crypt', 'foes'] });
   });
   it('refuses a seat that is no agent\'s: malformed, another req, gone, reissued, the probe', () => {
     expect(() => seatOf('j2', { req, jobs })).toThrow(/'<req>\.<job>'/);

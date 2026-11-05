@@ -6,3 +6,6 @@
   battle's spoils (experience, gold and gear for the party), and its moment gains `fight`. Every remit carries the loop.
 - **A beat's crew brings the battles.** A beat asked for with `crew: true` in a world that fights in battles brings the
   battles chapter beside its level, as it brings the foes a beat fields: a jrpg's level is fought with its packs and boss.
+- **A critic reads the crew's work whole.** A critic's seat (`as`) on a crew's req was held to the req's own unit, so a
+  critic of a level never saw the battles its crew wrote beside it. Its view may now be any unit of the req, as the
+  assistant director's is; an author's stays its own.
