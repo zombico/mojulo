@@ -2,7 +2,8 @@
  * MANA-UI's WIREFRAME BOARD — every idiom drawn in greybox on the sample state, one 16:9 frame each, live: click a frame
  * to drive it (arrows or WASD, Enter, Escape, [ ] for tabs; a second seat on I J K L, U to pick, O for back), and the
  * effects it emits are logged under it. The HUD frames layer the in-game parts over a play field, with a pause menu
- * that opens on Enter. A switcher lays each theme (theme.js) over the same frames, with what its colours read like
+ * that opens on Enter. The phone's frames (390 × 844) are driven by a finger: tap, drag a slider, swipe a carousel or
+ * the tabs; their HUD's buttons are taps. A switcher lays each theme (theme.js) over the same frames, with what its colours read like
  * (themeAdvice): the greybox first, the styles a layer over it. One self-contained page: the kernel inlined, no
  * request leaves it.
  *
@@ -15,6 +16,8 @@ import { THEMES, themeCss, themeAdvice, readTheme } from './theme.js';
 import { IDIOMS, SCREEN_IDIOMS, withIdioms } from './idioms.js';
 import { SAMPLE_STATE } from './samples.js';
 
+// a phone's frames (390 × 844, driven by a finger): its HUD and the screens a phone game needs most
+export const BOARD_PHONE = Object.freeze({ hud: ['vitals', 'minimap-corner', 'phone-buttons', 'ability-bar', 'touch-controls'], screens: ['action-sheet', 'options-screen', 'inventory-screen', 'party-screen', 'character-select', 'match-results'] });
 export const BOARD_HUDS = Object.freeze({
   'action HUD': ['vitals', 'objective-tracker', 'minimap-corner', 'ammo-counter', 'interact-prompt', 'event-feed', 'crosshair', 'enemy-plates', 'damage-numbers'],
   'boss fight HUD': ['boss-bar', 'party-strip', 'target-frame', 'score-timer', 'moment-banner', 'enemy-plates'],
@@ -29,7 +32,6 @@ export const BOARD_HUDS = Object.freeze({
   'match broadcast': ['score-bug', 'lower-third', 'event-feed'],
   'cutscene': ['cinema-bars', 'subtitles'],
   'stealth HUD': ['stealth-meter', 'enemy-plates', 'minimap-corner', 'interact-prompt'],
-  'phone HUD': ['vitals', 'minimap-corner', 'touch-controls'],
 });
 
 // a screen idiom's board section, by its shelf (the HUD frames come first, as 'In game')
@@ -48,6 +50,8 @@ export function boardFrames() {
     const I = IDIOMS[id];
     frames.push({ name: id, group: GROUPS[I.shelf] || 'Front and menus', about: I.about, reads: I.reads, emits: I.emits, spec: withIdioms({ screens: { s: use(id) }, start: 's' }) });
   }
+  frames.push({ name: 'HUD · phone', group: 'Phone', device: 'phone', input: 'touch', about: BOARD_PHONE.hud.join(' · '), reads: 'the sample state', emits: 'tap ❚❚ for the pause (an action sheet)', spec: withIdioms({ hud: { use: 'hud', children: BOARD_PHONE.hud.map(use) }, screens: { pause: use('action-sheet') } }), hud: true });
+  for (const id of BOARD_PHONE.screens) frames.push({ name: `${id} · phone`, group: 'Phone', device: 'phone', input: 'touch', about: IDIOMS[id].about, reads: IDIOMS[id].reads, emits: IDIOMS[id].emits, spec: withIdioms({ screens: { s: use(id) }, start: 's' }) });
   for (const f of frames) manaUi.readSpec(f.spec);
   return frames;
 }
@@ -57,7 +61,7 @@ export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · board', 
   const frames = boardFrames(), groups = [...new Set(frames.map((f) => f.group))], scope = '.mana-stage .mana-root';
   const looks = Object.entries(themes).map(([id, t]) => ({ id, name: readTheme(t).name, css: themeCss(t, scope), advice: themeAdvice(t).map((a) => `${a.law}: ${a.advice}`) }));
   if (!looks.some((l) => l.id === theme)) throw new Error(`board theme '${theme}' is one of: ${looks.map((l) => l.id).join(', ')}`);
-  const body = groups.map((g) => `<h2 class="sec">${esc(g)}</h2><div class="grid">${frames.map((f, i) => (f.group !== g ? '' : `<figure><div class="mana-frame"><div class="mana-stage" id="f${i}"></div></div><figcaption><b>${esc(f.name)}</b> ${esc(f.about)}<br><span>reads</span> ${esc(f.reads)}<br><span>emits</span> ${esc(f.emits)}<pre id="log${i}"></pre></figcaption></figure>`)).join('')}</div>`).join('');
+  const body = groups.map((g) => `<h2 class="sec">${esc(g)}</h2><div class="grid">${frames.map((f, i) => (f.group !== g ? '' : `<figure><div class="mana-frame"${f.device ? ` data-device="${f.device}"` : ''}><div class="mana-stage"${f.device ? ` data-device="${f.device}"` : ''} id="f${i}"></div></div><figcaption><b>${esc(f.name)}</b> ${esc(f.about)}<br><span>reads</span> ${esc(f.reads)}<br><span>emits</span> ${esc(f.emits)}<pre id="log${i}"></pre></figcaption></figure>`)).join('')}</div>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title><style>
 html,body{margin:0;background:#fff;color:#111;font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -74,7 +78,7 @@ ${FRAME_CSS}
 <script>
 const manaUi = ${manaUiSource()};
 const DEFS = ${json(frames[0].spec.defs)};
-const FRAMES = ${json(frames.map((f) => ({ spec: { ...f.spec, defs: undefined }, hud: !!f.hud })))};
+const FRAMES = ${json(frames.map((f) => ({ spec: { ...f.spec, defs: undefined }, hud: !!f.hud, input: f.input || null })))};
 const STATE = ${json(state)};
 const LOOKS = ${json(looks)};
 const look = (id) => { const L = LOOKS.find((x) => x.id === id) || LOOKS[0]; document.getElementById('mana-theme').textContent = L.css; document.getElementById('advice').textContent = L.advice.join('\\n'); };
@@ -91,10 +95,12 @@ FRAMES.forEach((F, i) => {
       log.push((from.seat ? 'P' + (from.seat + 1) + ' ' : '') + JSON.stringify(e)); out.textContent = log.slice(-3).join('\\n');
     },
   };
-  const rt = manaUi.runtime({ ...F.spec, defs: DEFS }, host), m = manaUi.mount(el, rt, { keyboard: false });
+  const rt = manaUi.runtime({ ...F.spec, defs: DEFS }, host);
+  if (F.input) rt.input(F.input);
+  const m = manaUi.mount(el, rt, { keyboard: false });
   runs.push({ rt, m, F });
   // the click that makes a frame live only does that: it never also presses what it lands on
-  el.parentNode.addEventListener('click', (ev) => {
+  el.parentNode.addEventListener('pointerdown', (ev) => {
     if (live === i) return;
     ev.stopPropagation();
     if (live !== null) document.getElementById('f' + live).parentNode.dataset.live = 'no';
@@ -110,7 +116,7 @@ window.addEventListener('keydown', (ev) => {
   R.m.key(ev);
 });
 // each frame a 1280×720 screen, scaled to its box
-const fit = () => document.querySelectorAll('.mana-stage').forEach((st) => { st.style.transform = 'scale(' + st.parentNode.clientWidth / 1280 + ')'; });
+const fit = () => document.querySelectorAll('.mana-stage').forEach((st) => { st.style.transform = 'scale(' + st.parentNode.clientWidth / st.offsetWidth + ')'; });
 fit(); window.addEventListener('resize', fit);
 window.__manaBoard = runs.map((r) => r.rt);
 </script></body></html>`;

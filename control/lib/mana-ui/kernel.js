@@ -39,6 +39,12 @@
  *   readSpec(spec)                → { screens, hud, start }
  *   runtime(spec, host)           → the running UI. host: { read(path) → value, act(effect, from) }
  *     .open(id) .close() .press(action, seat?) .focusAt(n, seat?) .tab(t, i) .tick() → re-rendered?
+ *     .input(mode)        what the player is using: keys | pad (the focus shows as a cursor) | touch | mouse (it does
+ *                         not: what is tapped is selected, and a touch screen's lists scroll and its targets grow)
+ *     .point(n, x, seat?) a tap or a click on focusable n at x across it (0..1): a slider takes the value under it, the
+ *                         ends of a ◀ ▶ input turn it, anything else is done at once; a row with a detail beside it (in
+ *                         a split) is selected first and done on a second tap
+ *     .hudTap(n)          a tap on the HUD's tappable part n (a button or a slot with `on.accept`: pause, a skill)
  *     .view() → html .tree() .state()
  *     actions (the controls kernel's `menu` scheme): up, down, left, right, accept, back, tabNext, tabPrev
  *   toHtml(tree) · readPath(obj, path)
@@ -54,6 +60,7 @@ export function buildManaUi() {
   const RETICLES = { cross: '+', dot: '·', circle: '◯', bracket: '[ ]' };
   const STYLE_KEYS = ['style', 'class', 'className', 'color', 'colour', 'font', 'css', 'border', 'theme', 'skin', 'tokens', 'register'];
   const ACTIONS = ['up', 'down', 'left', 'right', 'accept', 'back', 'tabNext', 'tabPrev'];
+  const INPUTS = ['keys', 'pad', 'touch', 'mouse'];
   const ID = /^[a-z][a-z0-9-]*$/;
   const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
   const listOf = (v) => (v === undefined || v === null ? [] : Array.isArray(v) ? v : [v]);
@@ -63,7 +70,7 @@ export function buildManaUi() {
   const T = 'text', N = 'num', B = 'bool', L = 'list', ND = 'node', A = 'any';
   const COMPONENTS = {
     // layout
-    screen: { group: 'layout', about: 'a screen on the stack: what one back leaves; `seats` > 1 gives each couch seat its own cursor', props: { title: [T], layer: [['overlay', 'modal'], 'modal'], place: [['center', 'left', 'right', 'full', 'top', 'bottom'], 'center'], seats: [N, 1] }, children: true, verbs: ['back'] },
+    screen: { group: 'layout', about: 'a screen on the stack: what one back leaves; `seats` > 1 gives each couch seat its own cursor', props: { title: [T], layer: [['overlay', 'modal'], 'modal'], place: [['center', 'left', 'right', 'full', 'top', 'bottom', 'sheet'], 'center'], seats: [N, 1] }, children: true, verbs: ['back'] },
     window: { group: 'layout', about: 'a framed panel', props: { title: [T], variant: [['plain', 'inset', 'ghost'], 'plain'] }, children: true },
     stack: { group: 'layout', about: 'children in a column or a row; `fill` a row that takes its place\'s width, its children sharing it (two fighters\' bars)', props: { dir: [['column', 'row'], 'column'], gap: [['tight', 'normal', 'loose'], 'normal'], align: [['stretch', 'start', 'center', 'end', 'apart'], 'stretch'], fill: [B, false] }, children: true },
     split: { group: 'layout', about: 'two panes: the first a list, the second its detail', props: { ratio: [['narrow', 'even', 'wide'], 'narrow'] }, children: true },
@@ -93,7 +100,7 @@ export function buildManaUi() {
     badge: { group: 'value', about: 'a small mark: new, a count, a rank, a score; `side` its side\'s chip', props: { value: [T, '', true], variant: [['plain', 'strong', 'muted'], 'plain'], side: [A] } },
     table: { group: 'value', about: 'rows under columns (a scoreboard, a forecast, a stat panel): the row whose `mark` field is true is yours, a row\'s `lead` names the column that leads it (marked ▲), a row\'s `side` its chip', props: { columns: [L, [], true], rows: [L, [], true], mark: [T, 'self'] } },
     gauge: { group: 'value', about: 'a value on a dial (a speedometer, a pressure, a charge)', props: { value: [N, 0, true], max: [N, 1, true], label: [T], unit: [T] } },
-    slot: { group: 'value', about: 'an action or a hotbar slot: what is in it, its key, a cooldown left (0..1), a count; active when it is the one in hand', props: { name: [T, ''], key: [T], cooldown: [N, 0], count: [T], active: [B, false] } },
+    slot: { group: 'value', about: 'an action or a hotbar slot: what is in it, its key, a cooldown left (0..1), a count; active when it is the one in hand; with `on.accept` a touch screen taps it', props: { name: [T, ''], key: [T], cooldown: [N, 0], count: [T], active: [B, false] }, verbs: ['accept'] },
     prompt: { group: 'value', about: 'what a button does here: [E] Talk (the glyph is the host\'s legend, else the action)', props: { action: [T, 'accept'], label: [T, '', true], glyph: [T] } },
     // in-game: aim, maps, the feed, moments
     reticle: { group: 'hud', about: 'the aim; a hit adds a hitmarker shape', props: { shape: [Object.keys(RETICLES), 'cross'], hit: [B, false] } },
@@ -242,7 +249,7 @@ export function buildManaUi() {
   function runtime(spec, host) {
     const { screens, hud, start } = readSpec(spec);
     const H = host || {};
-    const S = { stack: [], ui: {}, picks: {} };
+    const S = { stack: [], ui: {}, picks: {}, input: null };
     let last = null;
     const uiOf = (id) => (S.ui[id] = S.ui[id] || { at: { 0: 0 }, tabs: {}, sel: {}, seatSel: {}, top: {}, vals: {} });
     const top = () => S.stack[S.stack.length - 1] || null;
@@ -294,7 +301,7 @@ export function buildManaUi() {
 
     function render() {
       const id = top();
-      const ctx = { reads: new Map(), focus: [], tabs: [], screen: id };
+      const ctx = { reads: new Map(), focus: [], tabs: [], taps: [], screen: id };
       const parts = [];
       if (hud) parts.push(drawIn(hud, '$hud', {}, ctx, uiOf('$hud'), false, 1));
       if (id) {
@@ -304,7 +311,7 @@ export function buildManaUi() {
         for (let s = 0; s < seats; s++) if (U.at[s] === undefined) { U.at[s] = 0; again = true; } else if (ctx.focus.length && U.at[s] >= ctx.focus.length) { U.at[s] = ctx.focus.length - 1; again = true; }
         if (again) return render();
       }
-      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null }, ...parts];
+      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input }, ...parts];
       last = { tree, ...ctx };
       return last;
     }
@@ -312,13 +319,17 @@ export function buildManaUi() {
     // one tree drawn: U is its screen's state; `live` says whether it takes the focus (a HUD never does)
     function drawIn(root, rootKey, rootScope, ctx, U, live, seats) {
       const seatsAt = (fi) => { const s = []; for (let k = 0; k < seats; k++) if (U.at[k] === fi) s.push(k + 1); return s; };
+      // a finger or a mouse moves no cursor: nothing shows selected on a screen until it has been tapped
+      const cursorless = (S.input === 'touch' || S.input === 'mouse') && !U.pointed;
       const mark = (fi, base, off) => {
-        const s = live ? seatsAt(fi) : [];
+        const s = live && !cursorless ? seatsAt(fi) : [];
         return { 'data-k': live ? fi : null, 'data-st': s.length ? 'focus' : off ? 'disabled' : base, 'data-seats': seats > 1 && s.length ? s.join(' ') : null };
       };
       ctx.root = rootKey;
       let pane = null;   // the pane of a split being drawn: left and right cross between them
       const focusable = (f) => { if (!live) return -1; f.pane = pane; ctx.focus.push(f); return ctx.focus.length - 1; };
+      // a HUD part a touch screen taps (it takes no focus): its index on data-tap
+      const tappable = (n, key, scope) => (!live && n.on && n.on.accept ? ctx.taps.push({ n, key, scope }) - 1 : null);
       const register = (n, key, rowsRaw, scope) => { if (n.id) S.picks[`${rootKey}:${n.id}`] = S.picks[n.id] = { rows: rowsRaw, scope, screen: rootKey, key }; };
       const touched = (key) => !!U.vals[`$touched:${key}`];
 
@@ -390,7 +401,7 @@ export function buildManaUi() {
           }
           case 'slot': {
             const cd = clamp(p.cooldown, 0, 1);
-            return ['div', { class: cls, 'data-active': p.active ? 'yes' : null, 'data-empty': p.name ? null : 'yes', 'data-cool': cd > 0 ? 'yes' : null, title: p.name || null },
+            return ['div', { class: cls, 'data-active': p.active ? 'yes' : null, 'data-empty': p.name ? null : 'yes', 'data-cool': cd > 0 ? 'yes' : null, title: p.name || null, 'data-tap': tappable(n, key, scope) },
               p.name ? ['span', { class: 'mana-icon', 'data-size': 'l' }, initials(p.name)] : null, cd > 0 ? ['span', { class: 'mana-cool', style: `height:${pct(cd)}` }] : null,
               p.key !== undefined ? ['span', { class: 'mana-key' }, p.key] : null, p.count !== undefined && p.count !== '' ? ['span', { class: 'mana-count' }, p.count] : null];
           }
@@ -429,7 +440,8 @@ export function buildManaUi() {
           case 'list': {
             register(n, key, n.props.rows, scope);
             if (!p.rows.length) return ['div', { class: cls, 'data-empty': 'yes' }, ['span', { class: 'mana-text', 'data-role': 'caption' }, p.empty]];
-            const total = p.rows.length, sel = clamp(U.sel[key] || 0, 0, total - 1), v = Math.floor(p.visible);
+            // on a touch screen a long list scrolls under the finger: every row is drawn
+            const total = p.rows.length, sel = clamp(U.sel[key] || 0, 0, total - 1), v = S.input === 'touch' ? 0 : Math.floor(p.visible);
             let from = 0, to = total;
             if (v > 0 && v < total) { let t = clamp(U.top[key] || 0, 0, total - v); if (sel < t) t = sel; if (sel >= t + v) t = sel - v + 1; U.top[key] = t; from = t; to = t + v; }
             const rows = [];
@@ -480,7 +492,7 @@ export function buildManaUi() {
               ['div', { class: 'mana-slide' }, item === undefined ? null : n.props.item ? draw(n.props.item, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)]],
               ['span', { class: 'mana-mark' }, '▶'], ['span', { class: 'mana-dots' }, items.map((_, k) => (k === i ? '●' : '○')).join('')]];
           }
-          case 'button': { const fi = focusable({ kind: 'button', n, key, scope, off: p.disabled }); return ['div', { class: cls, ...mark(fi, 'shown', p.disabled) }, p.label]; }
+          case 'button': { const fi = focusable({ kind: 'button', n, key, scope, off: p.disabled }); return ['div', { class: cls, ...mark(fi, 'shown', p.disabled), 'data-tap': tappable(n, key, scope) }, p.label]; }
           case 'toggle': case 'cycler': case 'slider': case 'keybind': return input(n.use, n, key, scope, p, src);
           case 'field': return input(p.kind, n, key, scope, p, src);
           case 'allocator': {
@@ -515,9 +527,10 @@ export function buildManaUi() {
         const f = { kind, n, key, scope, src: src.value, value: now, options: p.options, min: p.min, max: p.max, step: p.step };
         const fi = focusable(f);
         let shown;
-        if (kind === 'toggle') shown = now ? 'On' : 'Off';
+        // a switch: the knob's side says it, the word beside it again (values first)
+        if (kind === 'toggle') shown = [['span', { class: 'mana-switch' }, ['i', null]], ['span', { class: 'mana-caption' }, now ? 'On' : 'Off']];
         else if (kind === 'slider') { const lo = p.min, hi = p.max > p.min ? p.max : p.min + 1, v = clamp(Number(now) || 0, lo, hi); shown = [['span', { class: 'mana-track' }, ['i', { style: `width:${pct((v - lo) / (hi - lo))}` }]], ['span', { class: 'mana-num' }, String(v)]]; }
-        else shown = [['span', { class: 'mana-mark' }, '◀ '], words(now), ['span', { class: 'mana-mark' }, ' ▶']];
+        else shown = [['span', { class: 'mana-step', 'data-way': 'back' }, '◀'], ['span', { class: 'mana-now' }, words(now)], ['span', { class: 'mana-step', 'data-way': 'on' }, '▶']];
         return ['div', { class: `mana-${kind}`, ...mark(fi, 'shown'), 'data-on': kind === 'toggle' ? (now ? 'yes' : 'no') : null }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-value' }, ...listOf(shown)]];
       };
       return draw(root, rootKey, rootScope);
@@ -612,6 +625,11 @@ export function buildManaUi() {
       else if (f.kind === 'slider') { const st = f.step > 0 ? f.step : 1, hi = f.max > f.min ? f.max : f.min + 1; v = clamp(Math.round(((Number(f.value) || 0) + d * st) / st) * st, f.min, hi); v = Math.round(v * 1e6) / 1e6; }
       else if (f.kind === 'carousel') { const n = f.items.length; if (!n) return; const i = ((f.i + d) % n + n) % n, it = f.items[i]; v = isObj(it) && it.id !== undefined ? it.id : i; if (!f.src) { U.vals[f.key] = i; U.sel[f.key] = i; } }
       else { const o = listOf(f.options), i = o.findIndex((x) => words(x) === words(f.value)); if (!o.length) return; v = o[((i < 0 ? 0 : i + d) % o.length + o.length) % o.length]; }
+      commit(f, v, seat);
+    }
+    // a value an input now holds: set on the host when bound (the game's), else the screen's own
+    function commit(f, v, seat) {
+      const U = uiOf(top());
       if (f.src) { if (H.act) H.act({ set: f.src, to: f.kind === 'toggle' ? (v ? 1 : 0) : v }, from(f, 'change', seat)); }
       else if (f.kind !== 'carousel') U.vals[f.key] = v;
       if (f.n.on.change) run(effectsOf(f.n.on.change, scopeOf(f, seat, { input: v }), last), f, 'change', seat);
@@ -648,6 +666,37 @@ export function buildManaUi() {
       render();
       return true;
     }
+    // a tap or a click: what is under it is selected and done (a row with a detail beside it: selected first)
+    function point(k, x, seat = 0) {
+      if (!top()) return false;
+      if (!last || last.screen !== top()) render();
+      const f0 = last.focus[k];
+      if (!f0) return false;
+      const U = uiOf(top()), again = U.pointed && (U.at[seat] || 0) === k;
+      U.pointed = true;
+      setAt(seat, k);
+      const f = last.focus[k] || f0, rx = clamp(Number(x), 0, 1);
+      if (f.kind === 'slider') {
+        const lo = f.min, hi = f.max > f.min ? f.max : f.min + 1, st = f.step > 0 ? f.step : 1;
+        commit(f, Math.round(clamp(Math.round((lo + rx * (hi - lo)) / st) * st, lo, hi) * 1e6) / 1e6, seat);
+      } else if (['cycler', 'carousel', 'alloc-row'].includes(f.kind) && (rx < 0.34 || rx > 0.66)) change(f, rx < 0.34 ? -1 : 1, seat);
+      else if (f.pane && (f.kind === 'row' || f.kind === 'cell' || f.kind === 'node') && !again) { /* selected: its detail shows */ }
+      else accept(f, seat);
+      render();
+      return true;
+    }
+    function hudTap(i) {
+      if (!last) render();
+      const t = last.taps[i];
+      if (!t) return false;
+      run(effectsOf(t.n.on.accept, { ...t.scope, seat: 0 }, last), t, 'accept', 0);
+      render();
+      return true;
+    }
+    function input(mode) {
+      if (!INPUTS.includes(mode)) throw new Error(`input: a mode is one of ${INPUTS.join(', ')}`);
+      if (S.input !== mode) { S.input = mode; render(); }
+    }
     function focusAt(k, seat = 0) { if (!top()) return; if (!last) render(); if (k >= 0 && k < last.focus.length) setAt(seat, k); }
     function tab(t, i) { if (!last) return; const Tb = last.tabs[t]; if (Tb && i >= 0 && i < Tb.n) { uiOf(top()).tabs[Tb.key] = i; render(); } }
     function tick() {
@@ -657,12 +706,12 @@ export function buildManaUi() {
     }
     if (start) open(start); else render();
     return {
-      open, close, press, focusAt, tab, tick,
+      open, close, press, focusAt, tab, tick, point, hudTap, input,
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
       state: () => {
         const id = top(), U = id ? uiOf(id) : null;
-        return { stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
+        return { input: S.input, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
       },
     };
   }
@@ -673,18 +722,44 @@ export function buildManaUi() {
     const o = opts || {}, keys = o.keys || KEYS;
     let html = '';
     const paint = () => { const h = rt.view(); if (h !== html) { html = h; el.innerHTML = h; } hold(); };
-    el.addEventListener('click', (ev) => {
-      const t = ev.target && ev.target.closest ? ev.target.closest('[data-k],[data-tab]') : null;
-      if (!t) return;
-      if (t.dataset.tab) { const [a, b] = t.dataset.tab.split(':').map(Number); rt.tab(a, b); }
-      else { const k = Number(t.dataset.k); const was = rt.state().focus; rt.focusAt(k); if (was === k) rt.press('accept'); }
+    // the pointer: a tap is done where it lands, a drag on a slider sets it as it moves, a swipe turns a carousel under it
+    // or the screen's tabs (left: the next); a pen is a finger
+    const near = (ev, sel) => (ev.target && ev.target.closest ? ev.target.closest(sel) : null);
+    // where across its target a pointer is, measured on the rect taken when the press began (a repaint replaces the
+    // element under a drag)
+    const across = (r, ev) => (r && r.width ? (ev.clientX - r.left) / r.width : 0.5);
+    let down = null;
+    el.addEventListener('pointerdown', (ev) => {
+      rt.input(ev.pointerType === 'mouse' ? 'mouse' : 'touch');
+      const t = near(ev, '[data-k],[data-tab],[data-tap]');
+      const ds = t ? { k: t.dataset.k, tab: t.dataset.tab, tap: t.dataset.tap } : null, cl = t && t.classList;
+      const slide = !!(cl && cl.contains('mana-slider')), track = slide && t.querySelector ? t.querySelector('.mana-track') : null;
+      // a slider is measured on its track (a finger on the bar means that point of the bar), anything else on itself
+      down = { x: ev.clientX, y: ev.clientY, t: ds, rect: (track || t) ? (track || t).getBoundingClientRect() : null, slide, car: !!(cl && cl.contains('mana-carousel')) };
+      if (down.slide) { rt.point(Number(ds.k), across(down.rect, ev)); paint(); }
+    });
+    el.addEventListener('pointermove', (ev) => { if (down && down.slide) { rt.point(Number(down.t.k), across(down.rect, ev)); paint(); } });
+    el.addEventListener('pointerup', (ev) => {
+      const d = down; down = null;
+      if (!d) return;
+      const dx = ev.clientX - d.x, dy = ev.clientY - d.y;
+      if (d.slide) return;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > 2 * Math.abs(dy)) {
+        if (d.car) rt.point(Number(d.t.k), dx < 0 ? 1 : 0); else if (rt.state().screen) rt.press(dx < 0 ? 'tabNext' : 'tabPrev');
+      } else if (d.t && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
+        if (d.t.tab) { const [a, b] = d.t.tab.split(':').map(Number); rt.tab(a, b); }
+        else if (d.t.tap !== undefined) rt.hudTap(Number(d.t.tap));
+        else rt.point(Number(d.t.k), across(d.rect, ev));
+      }
       paint();
     });
+    el.addEventListener('pointercancel', () => { down = null; });
     // while a screen is up the menu holds the input: its keys are taken before the game's own listeners see them (the
     // capture phase), and the page's hold is set (window.__mojMenuOpen, the playscape menus' convention), so Enter on a
     // pause never also serves the ball
     const hold = () => { if (typeof window !== 'undefined') window.__mojMenuOpen = !!rt.state().screen; };
     const key = (ev) => {
+      if (rt.state().input !== 'keys' && keys[ev.code]) rt.input('keys');
       hold();
       if (!rt.state().screen) return false;
       if (ev.stopPropagation) ev.stopPropagation();
@@ -699,7 +774,7 @@ export function buildManaUi() {
     return { paint, key };
   }
 
-  return { COMPONENTS, COMPONENT_IDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, KEYS, readNode, readSpec, runtime, toHtml, readPath, mount };
+  return { COMPONENTS, COMPONENT_IDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, KEYS, readNode, readSpec, runtime, toHtml, readPath, mount };
 }
 
 export const manaUi = buildManaUi();

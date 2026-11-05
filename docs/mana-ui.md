@@ -58,6 +58,29 @@ This follows React's principles but uses none of its code.
 - **Components are code; compositions are data.** The components are a closed set (`COMPONENTS` in `kernel.js`, each
   with its group, props and verbs). A composition is a def, `{ params, node }`, with `{ param: '<name>' }` inside.
 
+## Selection: keys, pads and touch
+
+How the focus shows depends on what the player is using (`rt.input(mode)`; `mount` sets it from the last key or
+pointer, and the root carries it as `data-input`).
+
+- **Keys or a pad** move a cursor. The focus is a ring just inside the item's edge by default. A theme's `focus` word
+  can make it a lift off the page, a fill, a glow, corner brackets, or the classic ▶ of a console RPG (the `console`
+  preset keeps that).
+- **A finger or a mouse** moves no cursor:
+  - Nothing shows selected until the screen has been tapped; then what was tapped is selected (tinted).
+  - A tap does what it lands on at once. A row with a detail beside it (a list or grid in a split) is selected on
+    the first tap and done on the second.
+  - A slider takes the value under the finger and follows a drag. A stepper's ◀ and ▶ ends are their own targets,
+    and its middle does it. A toggle is a switch.
+  - A swipe turns a carousel under it, or the screen's tabs.
+  - A press sinks; a mouse hover lights.
+  - A HUD's button or slot with `on.accept` is a tap that takes no focus (`rt.hudTap`): the pause, the map, a skill.
+- **A touch screen** grows its targets to 48 px and draws a long list whole (it scrolls under the finger). Screens keep
+  out of the notch and the home bar (the safe areas).
+- **A narrow screen** (a phone: measured on the root, not the window) stacks its splits and lets its grids reflow.
+- **A bottom sheet** (`place: 'sheet'`) is a phone's menu, risen from the foot of the screen in reach of a thumb, with
+  its grabber. The `action-sheet` idiom is one; `phone-buttons` puts the pause and the map on taps.
+
 ## The components, by group
 
 `COMPONENTS` is the list; this table only says what each group is for.
@@ -205,8 +228,8 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
 - **Bounded.** The folder imports nothing outside itself (`boundary.test.js`). This lets an engine backend read the
   same spec, and lets the folder become a package of its own once a second consumer exists.
 - **Deterministic.** There is no clock, no dice and no DOM until `mount`. The same spec and state give the same HTML.
-- **Values first.** The greybox has no colour. Focus is a shape (▶ and a heavy rule) and the active row a bar at its
-  edge. Bar variants differ by pattern, and a low bar on what can run out is cross-hatched. Placeholders are crossed
+- **Values first.** The greybox has no colour. Focus is a shape (a ring, or the theme's lift, brackets or ▶) and the
+  active row a tint with a bar at its edge. Bar variants differ by pattern, and a low bar on what can run out is cross-hatched. Placeholders are crossed
   boxes.
 - **Tests.** Each concept is tested once (`kernel.test.js`). The sweep over every idiom (`idioms.deep.test.js`) checks
   that each draws on the sample state, a screen can be moved through and left (one that waits, a loading screen, has

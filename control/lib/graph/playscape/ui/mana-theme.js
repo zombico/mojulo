@@ -11,7 +11,8 @@
  *                       capitalised)
  *   guide.border        a flavor's elements → ornaments (brackets, ticks, scanlines, dotgrid, stitch, hazard, glow), and
  *                       the rest to the words they mean: soft → a soft corner, notch → a cut one, double → a double rule,
- *                       gradient → a gradient plate; brackets focus as brackets, a glow glows
+ *                       gradient → a gradient plate; brackets focus as brackets, a glow glows, a console's stop keeps
+ *                       the classic ▶ and the rest ring their focus
  *   faces               the font shelf's keys (image-outcomes/fonts): its vendored faces inlined as the theme's own
  *                       (`{ body?: '<key>', display?: '<key>' }`), a key not vendored adding nothing
  *
@@ -49,7 +50,8 @@ export function manaThemeOfGuide(guide, { faces = {} } = {}) {
     frame: els.includes('double') ? 'double' : FRAME[d.frame] || 'hairline',
     corner: els.includes('notch') ? 'cut' : els.includes('soft') ? 'soft' : STOP_CORNER[guide.stop] || 'soft',
     plate: els.includes('gradient') ? 'gradient' : PLATE[d.plate] || 'solid',
-    focus: els.includes('brackets') ? 'bracket' : els.includes('glow') ? 'glow' : 'marker',
+    // the console stops keep the classic ▶ cursor; the modern ones a ring
+    focus: els.includes('brackets') ? 'bracket' : els.includes('glow') ? 'glow' : guide.stop === 'console' || guide.stop === 'immersive' ? 'marker' : 'ring',
     motion: MOTION[d.motion] || 'ease',
     fills: 'solid',
     case: guide.stop === 'console' || guide.stop === 'immersive' ? 'upper' : 'none',

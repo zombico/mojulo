@@ -13,7 +13,7 @@
  *   a cutscene   cinema-bars, subtitles
  *   stealth      stealth-meter
  *   quests       quest-toasts
- *   a phone      touch-controls
+ *   a phone      touch-controls, phone-buttons (pause and map as taps); action-sheet (a phone's menu from the foot)
  *   after play   match-results (a sport's end, after the broadcast's board: the score by side, the head to head the
  *                coverage counted, what next; its data from contest/contest-results.js contestResults)
  *   mid-play     battle-menu (a turn-based fight's commands, targets, turn order and party), tactics-menu (a unit's
@@ -95,7 +95,7 @@ export const LIVE_IDIOMS = {
     kind: 'hud', about: 'the abilities on their keys, each with its cooldown left and its charges (bottom)',
     reads: 'abilities: [{ name, key, cooldown (0..1), count? }]', emits: '—',
     params: ['abilities'],
-    node: region('bottom', [{ use: 'each', props: { dir: 'row', rows: P('abilities'), row: { use: 'slot', props: { name: I('name'), key: I('key'), cooldown: I('cooldown'), count: I('count') } } } }]),
+    node: region('bottom', [{ use: 'each', props: { dir: 'row', rows: P('abilities'), row: { use: 'slot', props: { name: I('name'), key: I('key'), cooldown: I('cooldown'), count: I('count') }, on: { accept: { emit: 'ability', name: I('name') } } } } }]),
     example: { abilities: { bind: 'abilities' } },
   },
   // survival
@@ -186,6 +186,23 @@ export const LIVE_IDIOMS = {
     params: ['toasts'],
     node: region('top-right', [{ use: 'each', props: { rows: P('toasts'), row: { use: 'toast', props: { value: I('text') } } } }]),
     example: { toasts: { bind: 'questToasts' } },
+  },
+  'phone-buttons': {
+    kind: 'hud', about: 'the buttons a touch screen needs where a pad has keys: pause and the map, tapped (top right)',
+    reads: '—', emits: '{ open: pause } on pause; { emit: map } on the map',
+    params: ['pause'],
+    node: region('top-right', [row([{ use: 'button', props: { label: 'Map' }, on: { accept: { emit: 'map' } } }, { use: 'button', props: { label: '❚❚' }, on: { accept: { open: P('pause') } } }])]),
+    example: { pause: 'pause' },
+  },
+  'action-sheet': {
+    kind: 'screen', about: 'a phone\'s menu, risen from the foot of the screen in reach of a thumb: big choices, a cancel at the end',
+    reads: 'title, items: [{ label, then, disabled? }]', emits: 'each item\'s then; cancel closes it',
+    params: ['title', 'items'],
+    node: screen({ layer: 'modal', place: 'sheet' }, [{ use: 'window', props: { title: P('title') }, children: [col([
+      { use: 'list', props: { rows: P('items') }, on: { accept: I('then') } },
+      { use: 'button', props: { label: 'Cancel' }, on: { accept: { back: true } } },
+    ])] }]),
+    example: { title: 'Paused', items: [{ label: 'Resume', then: { close: true } }, { label: 'Party', then: { emit: 'open:party' } }, { label: 'Options', then: { emit: 'open:options' } }, { label: 'Quit to title', then: { emit: 'quit' } }] },
   },
   'touch-controls': {
     kind: 'hud', about: 'a phone\'s controls: the stick on the left, the buttons on the right (bottom)',

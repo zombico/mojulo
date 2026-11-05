@@ -8,7 +8,7 @@
  *   accent metal's lit stop → accent (no metal: the ink), the referee's amber → accent2, the sides' bases → sides;
  *   rim 0 → no frame, cel or a heavy rim → heavy, else a rule; a slant → a cut corner, a large radius → round, a small
  *   one → soft; the table's grain → a textured plate, a two-stop glass → a gradient, a thin glass → flat; a slam (back)
- *   → snap, the other eases → ease; a slant's focus fills, cel glows, the rest a marker; the face → the nearest stack
+ *   → snap, the other eases → ease; a slant's focus fills, cel glows, the rest a ring; the face → the nearest stack
  *   (condensed sans → system, a slab's Impact → display, rounded → rounded, a book face → serif); caps → upper case
  *
  *   manaThemeOfBroadcast(data) → a theme mana-ui reads (readTheme)
@@ -32,7 +32,7 @@ export function manaThemeOfBroadcast(data) {
     frame: !C.rim ? 'none' : C.cel || C.rim >= 3 ? 'heavy' : 'rule',
     corner: C.slant > 0 ? 'cut' : C.radius >= 10 ? 'round' : C.radius >= 3 ? 'soft' : 'square',
     plate: C.grain ? 'textured' : C.glass[0] !== C.glass[1] ? 'gradient' : C.glassAlpha < 0.9 ? 'flat' : 'solid',
-    focus: C.slant > 0 ? 'fill' : C.cel ? 'glow' : 'marker',
+    focus: C.slant > 0 ? 'fill' : C.cel ? 'glow' : 'ring',
     motion: C.ease === 'back' ? 'snap' : 'ease',
     fills: 'solid',
     case: C.caps === false ? 'none' : 'upper',

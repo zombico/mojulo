@@ -5,13 +5,19 @@
  * A theme (theme.js) is a separate layer: it sets the variables and adds a few rules of its own, from closed words; it
  * never reaches into the structure.
  *
- * Values first, so the black-and-white law holds by construction under any theme: focus is a shape (the ▶ marker and a
- * heavy rule), the active row a bar at its edge, disabled a dashed outline; bar variants differ by PATTERN (hp solid, mp
+ * Values first, so the black-and-white law holds by construction under any theme: focus is a shape (a ring round what
+ * is in focus; a theme may make it a lift, a fill, a glow, brackets or the classic ▶), the active row a bar at its edge,
+ * disabled a dashed outline; bar variants differ by PATTERN (hp solid, mp
  * hatched, xp dotted, stamina striped, shield checked, boss solid with phase ticks), a low bar cross-hatched; a better
  * compare is ▲; an enemy's awareness is a glyph; placeholders (an image, a portrait, a minimap) are crossed boxes.
  *
  *   GREYBOX_VARS        the variables and their greybox values (what a theme sets)
  *   manaCss(scope?)     the sheet, every rule under `scope` (default `.mana-root`), the greybox's values as defaults
+ *
+ * THE INPUT IN USE (the root's data-input, the runtime's input()): with keys or a pad the focus is a cursor you move;
+ * with a mouse or a finger there is none: what is tapped is selected (tinted), a press sinks, a hover (a mouse) lights.
+ * A touch screen's targets grow to 48 px, a screen keeps out of the notch and the home bar (the safe areas), and a
+ * narrow screen (a phone, measured on the root, not the window) stacks its splits and lets its grids reflow.
  *   FRAME_CSS           the board's frames: a 1280×720 stage scaled into a 16:9 box, so a frame keeps a screen's proportions
  */
 export const GREYBOX_VARS = Object.freeze({
@@ -21,7 +27,7 @@ export const GREYBOX_VARS = Object.freeze({
   'side-0': '#111111', 'side-1': '#8a8a8a', 'side-2': '#4a4a4a', 'side-3': '#b5b5b5', 'side-4': '#2a2a2a', 'side-5': '#6b6b6b', 'side-6': '#9e9e9e', 'side-7': '#3c3c3c', accent: '#111111', accent2: '#111111', 'focus-ink': '#111111',
   hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111', plain: '#111111', harm: '#111111',
   font: 'system-ui,-apple-system,"Segoe UI",sans-serif', display: 'system-ui,-apple-system,"Segoe UI",sans-serif', mono: 'ui-monospace,Menlo,Consolas,monospace',
-  scale: '1', case: 'uppercase', radius: '0px', 'frame-w': '1px', 'frame-s': 'solid', plate: '#fafafa', motion: 'none',
+  scale: '1', case: 'uppercase', target: '30px', radius: '0px', 'frame-w': '1px', 'frame-s': 'solid', plate: '#fafafa', motion: 'none',
 });
 const v = (k) => `var(--mana-${k})`;
 const f = (px) => `calc(${px}px*var(--mana-scale))`;
@@ -40,10 +46,11 @@ export function manaCss(scope = '.mana-root') {
   const s = scope, all = (sel) => FOCUSABLE.map((c) => `${s} .mana-${c}${sel}`).join(',');
   return [
     `${s}{${Object.entries(GREYBOX_VARS).map(([k, x]) => `--mana-${k}:${x}`).join(';')}}`,
-    `${s}{position:fixed;inset:0;pointer-events:none;font-family:${v('font')};font-size:${f(14)};line-height:1.35;color:${v('ink')};z-index:40}`,
+    `${s}{position:fixed;inset:0;pointer-events:none;font-family:${v('font')};font-size:${f(14)};line-height:1.35;color:${v('ink')};z-index:40;container-type:size;-webkit-tap-highlight-color:transparent}`,
+    `${s}[data-input=touch]{--mana-target:48px}`,
     `${s} *{box-sizing:border-box}`,
     // the stack: a screen dims what it covers (a modal), and sits where it says
-    `${s} .mana-screen{position:absolute;inset:0;display:flex;flex-direction:column;gap:12px;padding:24px;pointer-events:auto;overflow:hidden}`,
+    `${s} .mana-screen{position:absolute;inset:0;display:flex;flex-direction:column;gap:12px;padding:max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));pointer-events:auto;overflow:hidden}`,
     `${s} .mana-screen[data-layer=modal]{background:${v('scrim')}}`,
     `${s} .mana-screen[data-place=center]{align-items:center;justify-content:center}`,
     `${s} .mana-screen[data-place=left]{align-items:flex-start;justify-content:center}`,
@@ -51,6 +58,10 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-screen[data-place=top]{align-items:center;justify-content:flex-start}`,
     `${s} .mana-screen[data-place=bottom]{align-items:stretch;justify-content:flex-end}`,
     `${s} .mana-screen[data-place=full]{align-items:stretch;justify-content:flex-start}`,
+    // the bottom sheet: a phone's menu, risen from the foot of the screen, its grabber a shape
+    `${s} .mana-screen[data-place=sheet]{align-items:center;justify-content:flex-end;padding-bottom:0}`,
+    `${s} .mana-screen[data-place=sheet]>.mana-window{width:min(560px,100%);border-bottom:0;border-radius:calc(${v('radius')} + 14px) calc(${v('radius')} + 14px) 0 0;padding-top:24px;padding-bottom:max(16px,env(safe-area-inset-bottom))}`,
+    `${s} .mana-screen[data-place=sheet]>.mana-window::before{content:"";position:absolute;top:9px;left:50%;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:${v('soft')}}`,
     `${s} .mana-screen[data-place=full]>:is(.mana-split,.mana-window,.mana-tabs){flex:1;min-height:0}`,
     // type roles
     `${s} .mana-title{margin:0;font-family:${v('display')};font-size:${f(22)};font-weight:800;letter-spacing:.06em;text-transform:${v('case')}}`,
@@ -73,7 +84,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-split{display:grid;grid-template-columns:minmax(180px,1fr) 2fr;gap:12px;width:100%;align-items:stretch;min-height:0}`,
     `${s} .mana-screen>.mana-bar,${s} .mana-screen>.mana-counter{max-width:520px}`,
     `${s} .mana-split[data-ratio=even]{grid-template-columns:1fr 1fr}`, `${s} .mana-split[data-ratio=wide]{grid-template-columns:2fr 1fr}`,
-    `@media (max-width:640px){${s} .mana-split{grid-template-columns:1fr}}`,
+    `@container (max-width:640px){${s} :is(.mana-split,.mana-split[data-ratio]){grid-template-columns:1fr}${s} .mana-screen{gap:8px}${s} .mana-grid{grid-template-columns:repeat(auto-fill,minmax(76px,1fr))}${s} .mana-window{min-width:0}${s} .mana-bar[data-variant=boss]{min-width:0}${s} .mana-tabstrip{overflow-x:auto}${s} .mana-tree{grid-template-columns:repeat(var(--cols,1),minmax(96px,1fr));overflow-x:auto}}`,
     `${s} .mana-each{display:flex;flex-direction:column;gap:3px;min-width:0}`, `${s} .mana-each[data-dir=row]{flex-direction:row;flex-wrap:wrap;gap:12px}`,
     `${s} .mana-each[data-dir=row]>.mana-window{flex:1;min-width:180px}`,
     `${s} .mana-stack[data-fill=yes]{width:1100px;max-width:100%}`, `${s} .mana-stack[data-fill=yes]>.mana-stack{flex:1;min-width:0}`,
@@ -82,13 +93,21 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-tablabel{padding:4px 10px;cursor:pointer;font-size:${f(11)};letter-spacing:.1em;text-transform:${v('case')};color:${v('mid')};border:1px solid transparent;border-bottom:0;margin-bottom:-1px;border-radius:${v('radius')} ${v('radius')} 0 0}`,
     `${s} .mana-tablabel[data-st=active]{color:${v('ink')};background:${v('panel')};border-color:${v('line')};font-weight:700}`,
     // what can be focused: ▶ and a heavy rule are the focus; a bar at the edge the active row; a dashed line disabled
-    `${all('')}{position:relative;padding:5px 8px 5px 20px;border:1px solid transparent;border-radius:calc(${v('radius')}*.6);cursor:pointer;transition:${v('motion')}}`,
-    `${s} [data-st=focus]{border:2px solid ${v('accent')};padding:4px 7px 4px 19px;background:${v('wash')};color:${v('focus-ink')}}`,
-    `${s} [data-st=focus]::before{content:"\\25B6";position:absolute;left:5px;top:7px;font-size:9px;color:${v('accent')}}`,
-    `${s} [data-st=active]{box-shadow:inset 3px 0 0 ${v('accent2')}}`,
+    `${all('')}{position:relative;min-height:${v('target')};padding:6px 10px;border:1px solid transparent;border-radius:calc(${v('radius')}*.6 + 3px);cursor:pointer;transition:${v('motion')};touch-action:manipulation;user-select:none}`,
+    `${s} :is(.mana-row,.mana-cell):has(>.mana-chip){padding-left:20px}`,
+    // the focus, a cursor (keys, a pad): a ring just inside its edge (a scrolling list never clips it), never moving
+    // what it rings
+    `${s} [data-st=focus]{outline:2px solid ${v('accent')};outline-offset:-2px;background:${v('wash')};color:${v('focus-ink')}}`,
+    `${s} [data-st=active]{background:${v('wash')};box-shadow:inset 3px 0 0 ${v('accent2')}}`,
+    // a finger or a mouse moves no cursor: what is tapped is selected (the tint stays), a press sinks, a mouse lights
+    `${s}:is([data-input=touch],[data-input=mouse]) [data-st=focus]{outline:none}`,
+    `${s}:is([data-input=touch],[data-input=mouse]) [data-st=focus]::before{content:none}`,
+    `${s}:is([data-input=touch],[data-input=mouse]) [data-k]:active,${s} [data-tap]:active{transform:scale(.97)}`,
+    `@media (hover:hover){${s}[data-input=mouse] [data-k]:hover:not([data-st=focus]):not([data-st=disabled]){background:${v('wash')}}}`,
+    `${s} [data-tap]{cursor:pointer;pointer-events:auto;touch-action:manipulation}`,
     `${s} [data-st=disabled]{color:${v('mid')};border:1px dashed ${v('soft')};cursor:default}`,
     `${s} [data-seats]::after{content:"P" attr(data-seats);position:absolute;right:3px;top:2px;font:700 9px/1 ${v('mono')};padding:2px 3px;background:${v('accent')};color:${v('panel')}}`,
-    `${s} .mana-button{border:1px solid ${v('line')};text-align:center;padding-left:20px;padding-right:12px}`,
+    `${s} .mana-button{display:flex;align-items:center;justify-content:center;border:1px solid ${v('line')};text-align:center;padding:6px 14px}`,
     `${s} .mana-list{display:flex;flex-direction:column;gap:2px;min-height:0;overflow:hidden}`,
     `${s} .mana-list[data-empty=yes],${s} .mana-grid[data-empty=yes]{padding:6px 8px;border:1px dashed ${v('soft')}}`,
     `${s} .mana-more{font-size:${f(10)};color:${v('mid')};text-align:center}`,
@@ -105,14 +124,24 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-req{display:block;font-size:${f(9)};color:${v('mid')}}`,
     `${s} .mana-node[data-state=learned] .mana-req{color:${v('soft')}}`,
     `${s} .mana-toggle,${s} .mana-cycler,${s} .mana-slider,${s} .mana-keybind,${s} .mana-alloc{display:flex;justify-content:space-between;align-items:center;gap:14px}`,
-    `${s} .mana-toggle[data-on=no] .mana-value{color:${v('mid')}}`,
+    `${s} .mana-toggle .mana-value{display:flex;align-items:center;gap:6px}`,
+    // a switch: the knob's side is the state, the word beside it again
+    `${s} .mana-switch{position:relative;display:inline-block;width:38px;height:22px;border-radius:11px;border:1px solid ${v('line')};background:${v('paper')};transition:${v('motion')}}`,
+    `${s} .mana-switch i{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:${v('mid')};transition:${v('motion')}}`,
+    `${s} .mana-toggle[data-on=yes] .mana-switch{background:${v('accent')};border-color:${v('accent')}}`,
+    `${s} .mana-toggle[data-on=yes] .mana-switch i{left:19px;background:${v('panel')}}`,
+    // a stepper's ends are its own targets (a tap on either turns it)
+    `${s} .mana-cycler .mana-value{display:flex;align-items:center;gap:2px}`,
+    `${s} .mana-step{display:inline-flex;align-items:center;justify-content:center;min-width:26px;min-height:calc(${v('target')} - 8px);border-radius:calc(${v('radius')}*.5 + 2px);color:${v('mid')};font-size:11px}`,
+    `${s}[data-input=touch] .mana-step{min-width:40px;border:1px solid ${v('soft')}}`,
+    `${s} .mana-now{min-width:5.5em;text-align:center}`,
     `${s} .mana-slider .mana-value{display:flex;align-items:center;gap:6px;min-width:120px}`,
     `${s} .mana-slider .mana-track{flex:1}`,
     `${s} .mana-allocator{display:flex;flex-direction:column;gap:3px;min-width:280px}`,
     `${s} .mana-alloc{display:grid;grid-template-columns:1fr 32px 14px 32px 34px}`,
     `${s} .mana-keys{display:flex;gap:4px}`,
     `${s} .mana-key{display:inline-block;min-width:20px;padding:1px 5px;border:1px solid ${v('line')};border-bottom-width:2px;border-radius:calc(${v('radius')}*.5);font:700 ${f(10)}/1.3 ${v('mono')};text-align:center;text-transform:uppercase;background:${v('paper')}}`,
-    `${s} .mana-carousel{display:grid;grid-template-columns:20px 1fr 20px;align-items:center;gap:6px;padding:8px 8px 18px}`,
+    `${s} .mana-carousel{display:grid;grid-template-columns:24px 1fr 24px;align-items:center;gap:6px;padding:8px 8px 18px}`,
     `${s} .mana-carousel .mana-dots{position:absolute;left:0;right:0;bottom:3px;text-align:center;font-size:9px;letter-spacing:2px}`,
     `${s} .mana-slide{min-width:0}`,
     `${s} .mana-mark{color:${v('mid')}}`,
@@ -144,7 +173,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-badge{display:inline-block;padding:0 5px;border:1px solid ${v('line')};border-radius:8px;font:700 ${f(10)}/1.5 ${v('mono')}}`,
     `${s} .mana-prompt{display:flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid ${v('line')};border-radius:${v('radius')};background:${v('plate')}}`,
     // in-game: regions, anchors, aim, maps, feed, moments
-    `${s} .mana-hud{position:absolute;inset:0;pointer-events:none}`,
+    `${s} .mana-hud{position:absolute;inset:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);pointer-events:none}`,
     `${s} .mana-place,${s} .mana-screen>.mana-region{position:absolute;display:flex;flex-direction:column;gap:6px;padding:12px;max-width:40%}`,
     `${s} :is(.mana-place,.mana-screen>.mana-region):is([data-at=top],[data-at=bottom]){max-width:92%}`,
     `${s} .mana-region,${s} .mana-tab{min-width:0}`,
@@ -176,7 +205,7 @@ export function manaCss(scope = '.mana-root') {
     // a side's chip, and the cell that leads a row (a shape beside the number, the colour the theme's)
     `${s} .mana-chip{display:inline-block;width:6px;height:.9em;margin-right:6px;vertical-align:-1px;border-radius:1px;background:${v('ink')}}`,
     ...Array.from({ length: 8 }, (_, k) => `${s} .mana-chip[data-side="${k}"]{background:${v(`side-${k}`)}}`),
-    `${s} :is(.mana-row,.mana-cell)>.mana-chip{position:absolute;left:12px;top:7px;bottom:7px;width:4px;height:auto;margin:0}`,
+    `${s} :is(.mana-row,.mana-cell)>.mana-chip{position:absolute;left:8px;top:7px;bottom:7px;width:4px;height:auto;margin:0}`,
     `${s} .mana-table td[data-lead=yes]{font-weight:800}`, `${s} .mana-table td[data-lead=yes]::after{content:" \\25B2";font-size:.7em;color:${v('accent2')}}`,
     // the live game's own: a bar's chip and its mirror, tables, dials, slots, what is off screen, where harm came from
     `${s} .mana-track u{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(-45deg,${v('ink')} 0 1px,transparent 1px 3px);opacity:.55}`,
@@ -230,4 +259,6 @@ export const FRAME_CSS = [
   '.mana-stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0}',
   '.mana-stage .mana-root{position:absolute}',
   '.mana-frame[data-live=yes]{outline:3px solid #111;outline-offset:2px}',
+  '.mana-frame[data-device=phone]{aspect-ratio:390/844;max-width:300px;margin:0 auto;border:6px solid #111;border-radius:30px}',
+  '.mana-stage[data-device=phone]{width:390px;height:844px}',
 ].join('\n');

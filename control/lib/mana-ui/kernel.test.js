@@ -265,6 +265,52 @@ describe('mana-ui: sides, leads and the menu\'s hold', () => {
   });
 });
 
+describe('mana-ui: selection by touch and by cursor', () => {
+  it('the input in use is on the root: keys and a pad move a cursor, a finger or a mouse select; a phone\'s long list scrolls whole', () => {
+    const rt = run(screen([{ use: 'list', props: { rows: ['a', 'b', 'c', 'd', 'e', 'f'], visible: 3 } }]));
+    expect(rt.view()).toContain('▼ 3 more');
+    rt.input('touch');
+    expect(rt.view()).toContain('data-input="touch"');
+    expect((rt.view().match(/class="mana-row"/g) || []).length).toBe(6);
+    expect(() => rt.input('voice')).toThrow(/keys, pad, touch, mouse/);
+  });
+  it('a tap does what it lands on at once; a row with a detail beside it is selected first, done on the second tap', () => {
+    const log = [], rt = run(screen([
+      { use: 'split', children: [{ use: 'list', props: { rows: [{ label: 'Tonic', then: { emit: 'use' } }, { label: 'Ether', then: { emit: 'use2' } }] }, on: { accept: { item: 'then' } } }, { use: 'text', props: { value: 'detail' } }] },
+      { use: 'button', props: { label: 'Close' }, on: { accept: { emit: 'close-it' } } },
+    ]), {}, log);
+    rt.input('touch');
+    expect(rt.view()).not.toContain('data-st="focus"');   // nothing shows selected before a tap
+    rt.point(1, 0.5);
+    expect(rt.state().focus).toBe(1);
+    expect(rt.view()).toContain('data-st="focus"');
+    expect(log).toEqual([]);
+    rt.point(1, 0.5);
+    rt.point(2, 0.5);
+    expect(log.map((x) => x.e)).toEqual([{ emit: 'use2' }, { emit: 'close-it' }]);
+  });
+  it('a slider takes the value under the finger; a stepper\'s ends turn it and its middle does it; a switch flips', () => {
+    const S = { vol: 5, lvl: 'Normal', snd: 1 }, log = [], rt = run(screen([
+      { use: 'slider', props: { label: 'Volume', value: { bind: 'vol' }, min: 0, max: 10 } },
+      { use: 'cycler', props: { label: 'Level', options: ['Easy', 'Normal', 'Hard'], value: { bind: 'lvl' } } },
+      { use: 'toggle', props: { label: 'Sound', value: { bind: 'snd' } } },
+    ]), S, log);
+    rt.point(0, 0.81); rt.point(1, 0.05); rt.point(1, 0.5); rt.point(2, 0.5);
+    expect(log.map((x) => x.e)).toEqual([{ set: 'vol', to: 8 }, { set: 'lvl', to: 'Easy' }, { set: 'lvl', to: 'Normal' }, { set: 'snd', to: 0 }]);
+    expect(rt.view()).toContain('class="mana-switch"');
+  });
+  it('a HUD\'s button or slot with an accept is a tap (pause, a skill), and takes no focus', () => {
+    const log = [], spec = { hud: { use: 'hud', children: [{ use: 'region', props: { at: 'top-right' }, children: [{ use: 'button', props: { label: '❚❚' }, on: { accept: { open: 'pause' } } }, { use: 'slot', props: { name: 'Dash', key: 'Q' }, on: { accept: { emit: 'dash' } } }] }] }, screens: { pause: screen([{ use: 'button', props: { label: 'Resume' } }]) } };
+    const rt = manaUi.runtime(spec, host({}, log));
+    expect(rt.state().focusables).toBe(0);
+    expect(rt.view()).toContain('data-tap="1"');
+    rt.hudTap(1);
+    expect(log.map((x) => x.e)).toEqual([{ emit: 'dash' }]);
+    rt.hudTap(0);
+    expect(rt.state().screen).toBe('pause');
+  });
+});
+
 describe('mana-ui: form and the kernel', () => {
   it('the form is data, drawn the same every time and escaped', () => {
     const s = screen([txt('<b>&')], { title: 'T' });

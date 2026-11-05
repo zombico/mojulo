@@ -56,4 +56,11 @@
   with each lead marked), instead of a generic "cleared". The parts the coverage already draws are flagged so a covered
   page never shows two score bugs, and a menu now holds the keyboard while it is up, so Enter on a pause never also
   serves the ball.
+- **Selection that follows the player's hands, and screens made for a phone.** With keys or a pad the focus is a modern
+  ring (a theme may lift it, fill it, make it glow or keep a console RPG's ▶). With a finger or a mouse there is no
+  cursor: nothing shows selected until a tap, a tap does what it lands on (a row with a detail beside it is selected
+  first), a slider follows the finger, a stepper's ends are their own targets, a toggle is a switch, a swipe turns a
+  carousel or the tabs, and the HUD's pause, map and skills are taps. A touch screen's targets grow to 48 px, its long
+  lists scroll whole, screens keep out of the notch and the home bar, a phone-width screen stacks its panes, and a
+  phone's menus rise from the foot of the screen in reach of a thumb. The board shows phone-sized frames driven by touch.
 

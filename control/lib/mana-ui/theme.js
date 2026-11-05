@@ -15,7 +15,11 @@
  *     frame     none | hairline | rule | double | bevel | heavy        the edge a window sits in
  *     corner    square | soft | round | cut
  *     plate     clear | flat | solid | gradient | textured            what a window sits on
- *     focus     marker | fill | glow | bracket                         how the focus shows (the ▶ stays, a shape)
+ *     focus     ring | lift | fill | glow | bracket | marker           how the focus shows with keys or a pad: a ring
+ *                                                                    round it (the default), a lift off the page, a
+ *                                                                    fill, a glow, corner brackets, or the classic ▶ of
+ *                                                                    a console RPG; with a finger or a mouse there is no
+ *                                                                    cursor, what is tapped is selected
  *     motion    none | ease | snap | stepped                           how a state change moves
  *     fills     pattern | solid                                        bar kinds by pattern (values first) or by colour
  *     scale     compact | normal | large                               the type scale
@@ -43,7 +47,7 @@ export const THEME_WORDS = Object.freeze({
   frame: ['none', 'hairline', 'rule', 'double', 'bevel', 'heavy'],
   corner: ['square', 'soft', 'round', 'cut'],
   plate: ['clear', 'flat', 'solid', 'gradient', 'textured'],
-  focus: ['marker', 'fill', 'glow', 'bracket'],
+  focus: ['ring', 'lift', 'fill', 'glow', 'bracket', 'marker'],
   motion: ['none', 'ease', 'snap', 'stepped'],
   fills: ['pattern', 'solid'],
   scale: ['compact', 'normal', 'large'],
@@ -57,11 +61,11 @@ const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'pla
 const OKABE_ITO = ['#e69f00', '#56b4e9', '#009e73', '#f0e442', '#0072b2', '#d55e00', '#cc79a7', '#999999'];
 
 export const THEMES = Object.freeze({
-  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'marker', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'] },
+  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'ring', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'] },
   modern: { name: 'Modern', tokens: { ink: '#eef1f6', panel: '#151a23', line: '#3a4558', accent: '#5fb0ff', accent2: '#e8b96a', harm: '#ff5a4d' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'round', plate: 'flat', focus: 'fill', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', ornaments: [] },
   console: { name: 'Console RPG', tokens: { ink: '#ffffff', panel: '#1b2a7c', line: '#eef1ff', accent: '#ffe07a', accent2: '#8fb0ff', harm: '#ff6b6b' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'double', corner: 'soft', plate: 'gradient', focus: 'marker', motion: 'snap', fills: 'solid', scale: 'normal', case: 'none', ornaments: [] },
   terminal: { name: 'Terminal', tokens: { ink: '#c8f5d0', panel: '#06140c', line: '#3c8a52', accent: '#7dff9a', accent2: '#e8d36a', harm: '#ff7a5a' }, type: { body: 'mono', display: 'mono', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'bracket', motion: 'snap', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: ['brackets', 'scanlines'] },
-  storybook: { name: 'Storybook', tokens: { ink: '#3a2a20', panel: '#fff4e2', line: '#b98a5a', accent: '#a8471f', accent2: '#5f7f2e', harm: '#b3261e', hp: '#5f7f2e', mp: '#2f5d8a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'soft', plate: 'textured', focus: 'marker', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', ornaments: ['stitch'] },
+  storybook: { name: 'Storybook', tokens: { ink: '#3a2a20', panel: '#fff4e2', line: '#b98a5a', accent: '#a8471f', accent2: '#5f7f2e', harm: '#b3261e', hp: '#5f7f2e', mp: '#2f5d8a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'soft', plate: 'textured', focus: 'lift', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', ornaments: ['stitch'] },
   arcade: { name: 'Arcade', tokens: { ink: '#ffffff', panel: '#0b0b10', line: '#ffffff', accent: '#ff2e88', accent2: '#00e5ff', harm: '#ff3b30', xp: '#ffe600' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'glow', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', ornaments: ['hazard'] },
 });
 export const THEME_IDS = Object.keys(THEMES);
@@ -175,9 +179,12 @@ export function themeCss(theme, scope = '.mana-root') {
     `${s} .mana-awareness[data-state=suspicious] b,${s} .mana-awareness[data-state=searching] b{border-color:${k.accent2};color:${k.accent2}}`,
   ];
   if (T.corner === 'cut') out.push(`${win},${s} .mana-button{clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}`);
-  if (T.focus === 'fill') out.push(`${s} [data-st=focus]{background:${k.accent};border-color:${k.accent};color:${k.panel}}`, `${s} [data-st=focus]::before{color:${k.panel}}`, `${s} [data-st=focus] .mana-label,${s} [data-st=focus] .mana-mark,${s} [data-st=focus] .mana-text,${s} [data-st=focus] .mana-num{color:${k.panel}}`);
-  if (T.focus === 'glow') out.push(`${s} [data-st=focus]{box-shadow:0 0 0 1px ${k.accent},0 0 14px ${alpha(k.accent, 0.75)}}`);
-  if (T.focus === 'bracket') out.push(`${s} [data-st=focus]{border-color:transparent;background:${corners(k.accent, 8, 2)},${k.wash}}`);
+  const items = ['row', 'cell', 'node', 'button', 'toggle', 'cycler', 'slider', 'keybind', 'carousel', 'alloc'].map((c) => `${s} .mana-${c}`).join(',');
+  if (T.focus === 'marker') out.push(`${items}{padding-left:24px}`, `${s} [data-st=focus]{outline:none;box-shadow:inset 0 0 0 2px ${k.accent}}`, `${s} [data-st=focus]::before{content:"\\25B6";position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:9px;color:${k.accent}}`);
+  if (T.focus === 'lift') out.push(`${s} [data-st=focus]{outline:none;background:${k.panel};border-color:${k.line};box-shadow:0 6px 16px ${alpha(k.ink, 0.22)},0 0 0 1px ${k.accent};transform:translateY(-1px)}`);
+  if (T.focus === 'fill') out.push(`${s} [data-st=focus]{outline:none;background:${k.accent};border-color:${k.accent};color:${k.panel}}`, `${s} [data-st=focus]::before{color:${k.panel}}`, `${s} [data-st=focus] .mana-label,${s} [data-st=focus] .mana-mark,${s} [data-st=focus] .mana-text,${s} [data-st=focus] .mana-num{color:${k.panel}}`);
+  if (T.focus === 'glow') out.push(`${s} [data-st=focus]{outline:none;box-shadow:0 0 0 1px ${k.accent},0 0 14px ${alpha(k.accent, 0.75)}}`);
+  if (T.focus === 'bracket') out.push(`${s} [data-st=focus]{outline:none;border-color:transparent;background:${corners(k.accent, 8, 2)},${k.wash}}`);
   if (T.fills === 'solid') out.push(...['mp', 'xp', 'stamina', 'shield'].map((x) => `${s} .mana-bar[data-variant=${x}] .mana-track i{background:${k[x]}}`));
   // ornaments: brackets before, the rest layered after
   if (T.ornaments.includes('brackets')) out.push(`${s} .mana-window::before{content:"";position:absolute;inset:3px;pointer-events:none;background:${corners(k.accent, 12, 2)}}`);
