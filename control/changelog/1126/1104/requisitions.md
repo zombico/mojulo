@@ -190,10 +190,10 @@ apart from the recipe and adds nothing to any render or export. The design is in
   is that job's view: its own unit (the crew's, for the assistant director), its own brief and nothing of its siblings',
   and a call that may only report its own job. Anything else beside `as` (a patch, a run, a verdict, another unit, another
   job's report) is refused with what the seat may do; a reissued job and the probe are no agent's seat.
-- **The plugin ships the job agents.** `mojulo-author`, `mojulo-critic` and `mojulo-assistant` are generated from the
-  jobs' own words (the lenses, the postures) beside the runner and the maker, each given `design_game` alone, with a
-  test that fails when they go stale; the skill hands a req's jobs to them and keeps one agent per `role`. A host that
-  declares `capabilities.jobAgents` (Claude Code) and runs the plugin sees each brief name its agent (`agent`).
+- **A brief names its agent.** A host that declares `capabilities.jobAgents` (Claude Code) and runs the Claude plugin
+  sees each brief name the plugin's agent for its job (`agent`: `mojulo-author`, `-critic`, `-assistant`, from
+  `job-words.js`). The agent definitions themselves ship in the plugin with the next release, whose version bump they
+  need (an installed plugin updates only when its version moves).
 - **A level's laws reach its received gate.** The receipt's `laws` check had read only the parts' own stamps, which
   carry no level law, so a level's req was received over laws that advised. It now holds a level to its intent laws
   (`lay-concerns.js`, as the run plans them) and to the scene composer's (`focus`, `way-on`, `lit`, `palette`), which the

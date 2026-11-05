@@ -23,8 +23,6 @@ so the user's usage limits build more:
   `fill` to `mojulo-runner`. A skill you materialize from a catalyst runs where its tier says.
 - Read a manual yourself when you are about to author with it: what a subagent reads stays in its context.
 - Make a single quick call yourself: starting a subagent costs more than one light call.
-- A req's jobs go to their own agents, each with its brief: an author to `mojulo-author`, a critic to `mojulo-critic`
-  (fresh), the assistant director to `mojulo-assistant`. Keep one agent per `role` and continue it for the next beat.
 <!-- tiers:end -->
 
 **When the mojulo tools are not available** (for example in a claude.ai chat, which does not start local MCP servers): tell the user that mojulo runs as a local MCP server in Claude Code, or in a Cowork session on their own computer, where this plugin starts it. Do not install anything or run commands to get it.
