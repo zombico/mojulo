@@ -48,6 +48,7 @@ export const TRAVERSAL_MOVES = Object.freeze({
   // earth, lightning, fire, water), the game's feel card tunes it (`tune`: feel/lower.js feelVayo), the hero's own numbers last
   'vayo-dash': { read: 'a dash on the hero\'s own air: a burst to its peak, then a carry (V)', rule: (base, p) => vayoGrant(base, p, 'dash') },
   'vayo-jump': { read: 'a jump again in the air on the hero\'s own air: the same height from wherever it fires', rule: (base, p) => vayoGrant(base, p, 'jump') },
+  'vayo-air-dash': { read: 'a dash in the air on the hero\'s own air, again after the ground; held, it carries on as flight (V)', rule: (base, p) => vayoGrant(base, p, 'airDash') },
   'vayo-flight': { read: 'flight on the hero\'s own air: rise, hover and fly at will (V in the air)', rule: (base, p) => vayoGrant(base, p, 'flight') },
 });
 function vayoGrant(base, p, kind) {

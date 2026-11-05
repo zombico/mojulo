@@ -27,7 +27,10 @@
  *              physical air jumps, catches the body and pushes it up to its peak in `rise`, then gravity's; the whole climb
  *              is its `height` (the peak solved for it), from wherever it fires, and a release does not cut it. `count`
  *              before the ground again.
- *   rule.vayo: { element?, power?, cap?, regen?, jump?,
+ *   THE AIR DASH  a dash only in the air (`airDash`: true | the dash's words and `count`, its element's dash shape):
+ *              V in the air dashes first while its count lasts (again on the ground), then flies; its key held a quarter
+ *              second on, by a hero that flies, carries the dash on as flight at its speed.
+ *   rule.vayo: { element?, power?, cap?, regen?, jump?, airDash?,
  *     dash?:   { speed, rise?, carry?, dir: 'input'|'facing', steer?, air?, iframes?: [s, s] | { frames }, cost?, cooldown? },
  *     flight?: { speed, rise?, carry?, climb?, boost?, drain? } }
  *   THE DASH   a push of `rise` seconds to its peak in a locked direction (`steer` 0–1 lets it turn), then the release, handed back to
@@ -56,7 +59,7 @@
 
 export function buildVayoMove(E) {
   const POWER = { human: 1, heroic: 10, super: 1e3, titan: 1e5, cosmic: 1e8 };
-  const CAP = 40, WAKE_R = 0.4, WAKE_EVERY = 0.1, WAKE_MIN = 8, FPS = 60, RISE_DEF = 0.12;
+  const HOLD_FLY = 0.25, CAP = 40, WAKE_R = 0.4, WAKE_EVERY = 0.1, WAKE_MIN = 8, FPS = 60, RISE_DEF = 0.12;
   const ELEMENTS = {
     wind: { dash: { carry: 6, rise: 0.16 }, flight: { rise: 0.8 }, jump: { rise: 0.2 }, color: [0.72, 0.95, 0.85] },
     earth: { dash: { carry: 1.2, rise: 0.08 }, flight: { rise: 0.25 }, jump: { rise: 0.06 }, color: [0.78, 0.6, 0.38] },
@@ -64,7 +67,7 @@ export function buildVayoMove(E) {
     fire: { dash: { carry: 3.5, rise: 0.12 }, flight: { rise: 0.4 }, jump: { rise: 0.1 }, color: [1, 0.55, 0.2] },
     water: { dash: { carry: 4, rise: 0.2 }, flight: { rise: 0.6 }, jump: { rise: 0.16 }, color: [0.4, 0.7, 1] },
   };
-  const DEF = { dash: { speed: 12, carry: 3, rise: 0.1, dir: 'input', steer: 0, air: true, cost: 0, cooldown: 0 }, flight: { speed: 10, rise: 0.4, climb: 6, boost: 1.8, drain: 0 }, jump: { height: 2.2, rise: 0.12, count: 1 } };
+  const DEF = { dash: { speed: 12, carry: 3, rise: 0.1, dir: 'input', steer: 0, air: true, cost: 0, cooldown: 0 }, airDash: { speed: 12, carry: 2.5, rise: 0.08, count: 1, dir: 'input', steer: 0, cost: 0, cooldown: 0 }, flight: { speed: 10, rise: 0.4, climb: 6, boost: 1.8, drain: 0 }, jump: { height: 2.2, rise: 0.12, count: 1 } };
   const num = (v) => typeof v === 'number' && Number.isFinite(v);
 
   // ── the law ──
@@ -145,16 +148,18 @@ export function buildVayoMove(E) {
     const mu = num(r && r.metre) && r.metre > 0 ? r.metre : 1;
     const el = ELEMENTS[V.element] || null, cap = (num(V.cap) && V.cap > 0 ? V.cap : CAP) * mu, power = powerOf(V.power ?? worldPower), root = Math.sqrt(power);
     const hand = Math.max(0.5, num(r && r.speed) ? r.speed : 6);
-    const out = { element: V.element || null, color: el ? el.color : [0.85, 0.92, 1], cap, power, regen: num(V.regen) ? V.regen : 0.25, dash: null, flight: null, jump: null };
-    for (const kind of ['dash', 'flight']) {
+    const out = { element: V.element || null, color: el ? el.color : [0.85, 0.92, 1], cap, power, regen: num(V.regen) ? V.regen : 0.25, dash: null, airDash: null, flight: null, jump: null };
+    for (const kind of ['dash', 'airDash', 'flight']) {
       if (!V[kind]) continue;
-      const own = V[kind] === true ? {} : V[kind], shape = el ? el[kind] : {}, o = { ...DEF[kind], ...shape, ...own };
+      // (an air dash takes its element's dash shape)
+      const own = V[kind] === true ? {} : V[kind], shape = el ? el[kind] || (kind === 'airDash' ? el.dash : {}) : {}, o = { ...DEF[kind], ...shape, ...own };
       if (!num(own.speed)) o.speed = DEF[kind].speed * (shape.speedK || 1);
       delete o.speedK;
       if (mu !== 1) { for (const q of ['speed', 'carry', 'climb', 'pressure']) if (num(o[q])) o[q] *= mu; if (num(o.density)) o.density /= mu; }
       const fiction = o.speed * root, play = Math.min(fiction, cap);
-      const m = { ...o, fiction, play, over: fiction > cap ? 1 - cap / fiction : 0, ...solve({ ...o, speed: play }, hand, kind === 'dash') };
-      if (kind === 'dash') m.iframes = framesOf(o.iframes);
+      const m = { ...o, fiction, play, over: fiction > cap ? 1 - cap / fiction : 0, ...solve({ ...o, speed: play }, hand, kind !== 'flight') };
+      if (kind !== 'flight') m.iframes = framesOf(o.iframes);
+      if (kind === 'airDash') m.count = Math.max(1, Math.round(o.count));
       if (kind === 'flight') {
         const climb = Math.min(num(o.climb) ? o.climb * root : 6 * mu, cap), tau = 1 / (m.k * play);
         m.climb = climb; m.kz = 1 / (climb * tau); m.pz = m.kz * climb * climb;
@@ -261,24 +266,32 @@ export function buildVayoMove(E) {
       e.vayoJump = null;   // (a dash or a flight takes over a jump's push)
       if (e.vayoFly) { e.vayoFly = null; e.vayo = null; }   // let go: gravity takes it
       else if (!e.vayoDash) {
-        const air = !e.grounded;
-        const flyNow = V.flight && (air || !V.dash);
-        const D = V.dash;
+        // in the air an AIR DASH first (while its count lasts), then the flight, then a dash that may go in the air
+        const air = !e.grounded, AD = V.airDash;
+        const airDashNow = air && AD && (e.vayoAirDashes || 0) < AD.count && !(e.vayoCd > 0) && e.vayoMeter >= AD.cost;
+        const flyNow = !airDashNow && V.flight && (air || !V.dash);
+        const D = airDashNow ? AD : V.dash;
         if (flyNow && e.vayoMeter > 0) {
           const d = e.drive || [0, 0];
           e.vayoFly = { vh: [d[0], d[1]], vz: air ? Math.max(0, e.vel[2]) : V.flight.climb, t: 0 };
           e.grounded = false;
-        } else if (D && (!air || D.air) && !(e.vayoCd > 0) && e.vayoMeter >= D.cost) {
+        } else if (D && (airDashNow || !air || D.air) && !(e.vayoCd > 0) && e.vayoMeter >= D.cost) {
           const dir = (D.dir === 'facing' ? null : inputDir(ctx, input)) || [ctx.f[0], ctx.f[1]];
           const d = e.drive || [0, 0];
-          e.vayoDash = { dir, v: Math.max(0, d[0] * dir[0] + d[1] * dir[1]), left: D.rise, t: 0, air };
+          e.vayoDash = { dir, v: Math.max(0, d[0] * dir[0] + d[1] * dir[1]), left: D.rise, t: 0, air, move: airDashNow ? 'airDash' : 'dash', held: true };
           e.vayoMeter -= D.cost; e.vayoCd = D.cooldown;
+          if (airDashNow) e.vayoAirDashes = (e.vayoAirDashes || 0) + 1;
         }
       }
     }
     // THE JUMP: the jump key in the air, past the coyote's grace, after the physical air jumps (they fire first); the
     // count again on the ground. Its throw is its air's, not the legs': a release does not cut it (`launchedBy`)
-    if (e.grounded) { e.vayoJumps = 0; if (e.launchedBy === 'vayo') e.launchedBy = null; }   // (landed: its jumps again, and the legs' cut)
+    // an air dash's key still held a quarter second on, by a hero that flies: the dash carries on as flight, its speed kept
+    if (e.vayoDash && !input.vayo) e.vayoDash.held = false;
+    if (e.vayoDash && e.vayoDash.move === 'airDash' && e.vayoDash.held && e.vayoDash.t >= HOLD_FLY && V.flight && e.vayoMeter > 0) {
+      const S = e.vayoDash; e.vayoFly = { vh: [S.dir[0] * S.v, S.dir[1] * S.v], vz: 0, t: 0 }; e.vayoDash = null;
+    }
+    if (e.grounded) { e.vayoAirDashes = 0; e.vayoJumps = 0; if (e.launchedBy === 'vayo') e.launchedBy = null; }   // (landed: its jumps again, and the legs' cut)
     if (e.vayoJumpV != null) { if (!e.grounded) e.vel[2] = e.vayoJumpV; e.vayoJumpV = null; }
     if (V.jump && input.jump && !ctx.jumped && !e.grounded && (e.coyote ?? 0) >= (r0(ctx).coyote ?? 0.1) && (e.vayoJumps || 0) < V.jump.count && !e.vayoFly && !e.vayoDash && !e.vayoJump && !busy) {
       // (its air catches the body: it climbs its height from where it fires)
@@ -294,7 +307,7 @@ export function buildVayoMove(E) {
     const V = e.vayoR, r = ctx.r;
     if (!V) return;
     if (e.vayoDash) {
-      const S = e.vayoDash, D = V.dash;
+      const S = e.vayoDash, D = V[S.move || 'dash'];
       if (D.steer > 0) { const w = inputDir(ctx, input); if (w) { const k = Math.min(1, D.steer * dt * 8), x = S.dir[0] + (w[0] - S.dir[0]) * k, y = S.dir[1] + (w[1] - S.dir[1]) * k, L = Math.hypot(x, y) || 1; S.dir = [x / L, y / L]; } }
       const pushing = S.left > 0, hand = Math.max(0.5, r.speed ?? 6);
       const [v, ds, done] = step(S.v, D.p, D.k, dt, S.left, hand);
@@ -302,10 +315,10 @@ export function buildVayoMove(E) {
       const hit = move(e, world, ctx, S.dir[0] * ds, S.dir[1] * ds);
       if (hit) { const tx = -hit[1], ty = hit[0], along = S.dir[0] * tx + S.dir[1] * ty; S.v *= Math.abs(along); S.dir = Math.abs(along) > 1e-6 ? [tx * Math.sign(along), ty * Math.sign(along)] : S.dir; }
       if (pushing && !e.grounded) holdVz(e, r, 0, dt);   // its own air bears it while it pushes
-      e.vayo = { kind: 'dash', element: V.element, color: V.color, speed: S.v, fiction: S.v * (D.fiction / D.play), over: D.over, t: S.t };
+      e.vayo = { kind: S.move || 'dash', element: V.element, color: V.color, speed: S.v, fiction: S.v * (D.fiction / D.play), over: D.over, t: S.t };
       const I = D.iframes;
       e.invincible = !!(I && S.t >= I[0] && S.t < I[1]);
-      wake(e, D, 'dash', world);
+      wake(e, D, S.move || 'dash', world);
       if (done || S.t > D.rise + 4) end(e, ctx, S.v, S.dir);
       return;
     }

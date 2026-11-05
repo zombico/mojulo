@@ -149,7 +149,7 @@ export function lowerFeel(card, { gear = null } = {}) {
  * peak its speed, its push a third of its frames (at most a tenth of a second) and its carry the rest of the ground it
  * covered at that speed, its invincible frames kept as frames; the jetpack's rise the flight's climb, the time its thrust
  * takes to reach it the flight's rise, its fuel the meter a second it drains; its air jump the vayo jump's height and
- * count. A card with none of them: null. A hero without
+ * count; its dash's `air` the air dash. A card with none of them: null. A hero without
  * vayo moves never reads this, so it lowers as it did.
  */
 export function feelVayo(card) {
@@ -158,6 +158,11 @@ export function feelVayo(card) {
     const T = D.frames / FPS, rise = r4(Math.min(0.1, T / 3));
     out.dash = { speed: D.speed, rise, carry: r4(Math.max(0.5, D.speed * T - 0.55 * D.speed * rise)), ...(Array.isArray(D.iframes) && D.iframes[1] > D.iframes[0] ? { iframes: { frames: [D.iframes[0], D.iframes[1]] } } : {}), air: !!D.air };
   }
+  // the card's air dash (its dash's `air`), as a vayo air dash: its speed, push and carry as the dash's, and its count
+  if (D && D.air && (D.air.speed > 0 || D.speed > 0)) {
+    const sp = D.air.speed > 0 ? D.air.speed : D.speed, T = (D.air.frames > 0 ? D.air.frames : D.frames > 0 ? D.frames : 12) / FPS, rise = r4(Math.min(0.1, T / 3));
+    out.airDash = { speed: sp, rise, carry: r4(Math.max(0.5, sp * T - 0.55 * sp * rise)), count: Math.max(1, Math.round(D.air.count ?? 1)) };
+  }
   // the card's air jump, as a vayo jump's height and count (its multiple of the ground jump's height)
   const A = card && card.air, Jg = card && card.jump;
   if (A && A.jumps >= 1 && Jg && Jg.height > 0) out.jump = { height: r4(Jg.height * (A.mult ?? 1)), count: Math.round(A.jumps) };
@@ -165,7 +170,7 @@ export function feelVayo(card) {
     const a = J.thrust > 9.81 ? J.thrust - 9.81 : 0;
     out.flight = { climb: J.rise, ...(a > 0 ? { rise: r4(J.rise / a) } : {}), ...(J.fuel > 0 ? { drain: r4(FPS / J.fuel) } : {}) };
   }
-  return out.dash || out.flight || out.jump ? out : null;
+  return out.dash || out.airDash || out.flight || out.jump ? out : null;
 }
 
 /** What a gameworld's feel makes of its hero, for the readout: the template, its viewer (advice), and what is carried. */

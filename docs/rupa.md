@@ -596,6 +596,9 @@ always a curve, never a line. A move is written by what it does and the law solv
 - **A flight:** its cruise `speed` and its `rise` (τ), and its `climb`. It is held while it flies, steered by the stick,
   up with the jump key and down with kneel. Let go, it hovers (its air brakes its rise or fall to rest). It never stalls,
   unlike the aircraft's `fly` rule, and it lands when it comes down onto the ground. `boost` raises its speed.
+- **An air dash:** a dash only in the air, with the dash's words and its `count` before the ground again, and its
+  element's dash shape. In the air V dashes first while its count lasts, then flies. Held a quarter second on, by a hero
+  that flies, the dash carries on as flight at its speed.
 - **A jump** (an air jump on its own air): the jump key in the air, after the physical air jumps have fired. Its air
   catches the body and pushes it up to its peak in `rise`, then gravity takes it. The whole climb is its `height` (the
   peak solved for it, the push's exact distance and the throw's), from wherever it fires, and a release does not cut it.
@@ -604,6 +607,7 @@ always a curve, never a line. A move is written by what it does and the law solv
 ```
 rule.vayo: { element?, power?, cap?, regen?,
   dash?:   true | { speed, rise?, carry?, dir?, steer?, air?, iframes?, cost?, cooldown? },
+  airDash?: true | { speed, rise?, carry?, dir?, steer?, iframes?, cost?, cooldown?, count? },
   jump?:   true | { height, rise?, count? },
   flight?: true | { speed, rise?, carry?, climb?, boost?, drain? } }
 ```
@@ -611,12 +615,13 @@ rule.vayo: { element?, power?, cap?, regen?,
 - **Elements are presets of the shape** and of the trail's colour: wind (thin air, a long carry), earth (dense, a hard
   stop), lightning (a great push, a snap), fire, water (a smooth rise). The order a move is built in, each over the one
   before: the defaults, its element, the game's feel card (its dash and jetpack, `feel/lower.js feelVayo`, read only for
-  a hero with a vayo move: its dash, its jetpack, its air jump), then the hero's own numbers.
+  a hero with a vayo move: its dash and its air dash, its jetpack, its air jump), then the hero's own numbers.
 - **Power sets the fiction, the cap the play.** The move's energy scales with its tier (`power`, the hero's own, else the
   world's `matter.power`), so its fiction's speed is speed·√power. The hero moves at most `cap` (40 m/s). Past it, the
   tier shows in its trail (thicker, whiter), a boom where a move past sound starts, and its wake.
-- **The key is its own:** V, or the pad's D-pad down. On the ground it dashes, in the air it takes flight (or air-dashes,
-  for a hero with no flight), and in flight it lets go. No physical move's key is taken.
+- **The key is its own:** V, or the pad's D-pad down. On the ground it dashes. In the air it air-dashes while the air
+  dash's count lasts, then takes flight (or dashes, for a hero whose dash goes in the air). In flight it lets go. The
+  vayo jump is on the jump key in the air. No physical move's key is taken.
 - **Invincible frames** are a window the move names (seconds, or `{ frames }` at 60 fps), never implied. A dash spends
   `cost` of the vayo meter (`e.vayoMeter`), a flight `drain` a second, refilled at `regen`.
 - **The sweep:** a vayo move sweeps its footprint along its step against the colliders, so no speed passes through a wall.

@@ -176,6 +176,49 @@ describe('the vayo jump: an air jump on the hero\'s own air', () => {
   });
 });
 
+describe('the vayo air dash: a dash only in the air', () => {
+  // in the air (a jump, a moment on), V pressed for n steps
+  const up = (vayo, extra = {}) => { const w = world(vayo, extra), h = w.byId.h; steps(w, {}, 10); steps(w, { jump: 1, jumpHeld: 1 }, 1); steps(w, { jumpHeld: 1 }, 12); return { w, h }; };
+
+  it('V in the air dashes its count, again only after the ground; on the ground it does nothing', () => {
+    const { w, h } = up({ airDash: true });
+    const x0 = h.transform.pos[0];
+    steps(w, { vayo: 1 }, 1);
+    expect(h.vayoDash && h.vayoDash.move).toBe('airDash'); expect(h.vayo.kind).toBe('airDash');
+    steps(w, {}, 3);
+    const z = h.transform.pos[2]; steps(w, {}, 1);
+    expect(h.vayoDash.left > 0 || Math.abs(h.transform.pos[2] - z) < 1e-9).toBe(true);   // its air bears it while it pushes
+    while (h.vayoDash) steps(w, {}, 1);
+    expect(h.transform.pos[0] - x0).toBeGreaterThan(2);
+    steps(w, { vayo: 1 }, 1);
+    expect(h.vayoDash).toBeFalsy();   // its count spent until the ground
+    steps(w, {}, 200); expect(h.grounded).toBe(true);
+    steps(w, { vayo: 1 }, 1); expect(h.vayoDash).toBeFalsy();   // not on the ground
+    steps(w, {}, 2); steps(w, { jump: 1, jumpHeld: 1 }, 1); steps(w, { jumpHeld: 1 }, 10); steps(w, { vayo: 1 }, 1);
+    expect(h.vayoDash && h.vayoDash.move).toBe('airDash');
+  });
+
+  it('a hero with an air dash and a flight: a tap dashes, held it carries on as flight at its speed', () => {
+    const tap = up({ airDash: true, flight: true });
+    steps(tap.w, { vayo: 1 }, 1); steps(tap.w, {}, 30);
+    expect(tap.h.vayoFly).toBeFalsy();
+    const held = up({ airDash: true, flight: true });
+    steps(held.w, { vayo: 1 }, 20);
+    expect(held.h.vayoFly).toBeTruthy(); expect(Math.hypot(...held.h.vayoFly.vh)).toBeGreaterThan(5);
+    steps(held.w, {}, 1); steps(held.w, { vayo: 1 }, 1);   // its count spent: V in flight lets go
+    expect(held.h.vayoFly).toBeFalsy();
+  });
+
+  it('it takes its element\'s dash shape, and is granted and tuned as the others are', () => {
+    expect(resolveVayo({ element: 'wind', airDash: true }).airDash.carry).toBeGreaterThan(resolveVayo({ element: 'earth', airDash: true }).airDash.carry);
+    expect(TRAVERSAL_MOVES['vayo-air-dash'].rule({}, { element: 'wind' }).vayo).toEqual({ element: 'wind', airDash: true });
+    expect(readVayo({ airDash: { count: 2, speed: 14 } })).toBeTruthy();
+    expect(() => readVayo({ airDash: { count: 0 } })).toThrow(/count/);
+    const card = Object.keys(POLES).map((k) => feelCard({ pole: k })).find((c) => c.dash && c.dash.air);
+    if (card) { const t = feelVayo(card).airDash; expect(t.count).toBeGreaterThanOrEqual(1); expect(readVayo({ airDash: t })).toBeTruthy(); }
+  });
+});
+
 describe('a special ability beside the physical moves', () => {
   it('the physical moves keep their keys: a double tap of boost dodges, V does not', () => {
     const w = world({ dash: true }, { dodge: true, dodgeBoostCost: 0 }), h = w.byId.h;

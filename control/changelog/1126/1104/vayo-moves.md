@@ -8,11 +8,15 @@
     In the air its own air bears the hero while it pushes. Invincible frames only where it names them.
   - **The flight** rises, hovers when let go, cruises and dives at will, steered by the stick and the jump and kneel
     keys, a boost on the boost key. It never stalls, and it lands when it comes down.
+  - **The air dash** (a power's `vayo-air-dash`): a dash only in the air, its `count` before the ground again, in its
+    element's dash shape. V in the air dashes first; held a quarter second on, by a hero that flies, the dash carries on
+    as flight at its speed.
   - **The jump** (an air jump, a power's `vayo-jump`): the jump key in the air, after the physical air jumps. Its air
     catches the hero and pushes it up, then gravity takes it: the same height from wherever it fires, and letting go of
     the key does not cut it. `count` of them before the ground again.
-  - **Its own key:** V, or the pad's D-pad down. On the ground it dashes, in the air it takes flight, in flight it lets
-    go. No physical move's key is taken.
+  - **Its own key:** V, or the pad's D-pad down. On the ground it dashes, in the air it air-dashes (while its count
+    lasts) or takes flight, in flight it lets go; the vayo jump is the jump key in the air. No physical move's key is
+    taken.
 - **Elements tune the shape:** wind carries far, earth stops hard, lightning snaps, fire pushes hard, water rises
   smoothly. The game's feel card tunes it (its dash and jetpack), and the hero's own numbers come last.
 - **Power sets the fiction, the cap the play:** a move's speed scales as the square root of its tier (a super's dash's
