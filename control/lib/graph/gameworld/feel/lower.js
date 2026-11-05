@@ -144,6 +144,26 @@ export function lowerFeel(card, { gear = null } = {}) {
   return { rule, lane, carried, partly, lost };
 }
 
+/**
+ * A card's dash and jetpack as the tuning of a hero's vayo moves (rupa/vayo-move.js), for a hero that has one: the dash's
+ * peak its speed, its push a third of its frames (at most a tenth of a second) and its carry the rest of the ground it
+ * covered at that speed, its invincible frames kept as frames; the jetpack's rise the flight's climb, the time its thrust
+ * takes to reach it the flight's rise, its fuel the meter a second it drains. A card with neither: null. A hero without
+ * vayo moves never reads this, so it lowers as it did.
+ */
+export function feelVayo(card) {
+  const D = card && card.dash, J = card && card.jet, out = {};
+  if (D && D.speed > 0 && D.frames > 0) {
+    const T = D.frames / FPS, rise = r4(Math.min(0.1, T / 3));
+    out.dash = { speed: D.speed, rise, carry: r4(Math.max(0.5, D.speed * T - 0.55 * D.speed * rise)), ...(Array.isArray(D.iframes) && D.iframes[1] > D.iframes[0] ? { iframes: { frames: [D.iframes[0], D.iframes[1]] } } : {}), air: !!D.air };
+  }
+  if (J && J.rise > 0) {
+    const a = J.thrust > 9.81 ? J.thrust - 9.81 : 0;
+    out.flight = { climb: J.rise, ...(a > 0 ? { rise: r4(J.rise / a) } : {}), ...(J.fuel > 0 ? { drain: r4(FPS / J.fuel) } : {}) };
+  }
+  return out.dash || out.flight ? out : null;
+}
+
 /** What a gameworld's feel makes of its hero, for the readout: the template, its viewer (advice), and what is carried. */
 export function feelReport(feel) {
   const F = readFeel(feel), P = POLES[F.pole], L = lowerFeel(feelCard(F), { gear: P.gear ?? null });

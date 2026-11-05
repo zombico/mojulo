@@ -17,6 +17,10 @@
  *               BLOWN OUT past it. Inside a burst's own fireball (its splash radius) the heat wins: rupa's blows light
  *               what it reaches, and no air is reckoned there.
  *
+ * A VAYO MOVER's wake (vayo-move.js) is a source too: behind a body of radius R moving at v (its fiction's speed) the
+ * air's deficit falls as v·(R/d)^⅔ (a three-dimensional wake, Tennekes & Lumley), so a dash past a torch fans it or puts
+ * it out by the same zones.
+ *
  * With destructible physics (rupa.js) a burning block blown out stops burning (`how: 'blowout'` on the hits), its plume
  * ends, and the blast's air cools its face to just under its ignition (`RELIGHT` below): a neighbour still burning
  * relights it within a second or two, and a lone one cools out. Its hot bed smoulders a wisp (a short fire smoke source at
@@ -37,7 +41,7 @@
 
 export function buildVayoAir(E) {
   const C0 = 343, U_BO = 3, D_BO = 0.012, P_BO = 0.7, FAN = 0.07, STOKE = 2, SHADOW = 1 / 3, RELIGHT = 10, SMOULDER = 0.1, SMOULDER_YIELD = 0.1, WISP = 2.5;
-  const HOLD = 0.5, LOOK = 20, GUST_LIFE = 3, GUSTS = 16, EPS = 0.05;
+  const HOLD = 0.5, LOOK = 20, GUST_LIFE = 3, GUSTS = 32, EPS = 0.05;
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   // Kinney–Graham: a blast's overpressure over the air's at a scaled distance Z (m/kg^⅓)
   const overpressure = (Z) => { const z = Math.max(Z, 0.05); return (808 * (1 + (z / 4.5) ** 2)) / Math.sqrt((1 + (z / 0.048) ** 2) * (1 + (z / 0.32) ** 2) * (1 + (z / 1.35) ** 2)); };
@@ -66,6 +70,8 @@ export function buildVayoAir(E) {
   const boxDist = (b, p) => Math.hypot(...[0, 1, 2].map((k) => Math.max(b.min[k] - p[k], 0, p[k] - b.max[k])));
   function peakAt(state, g, p, skip = null) {
     const d = Math.hypot(p[0] - g.at[0], p[1] - g.at[1], p[2] - g.at[2]);
+    // a mover's wake (vayo-move.js): the deficit behind a body of radius R at speed v falls as (R/d)^⅔ (a 3D wake)
+    if (g.wake) return g.v * Math.min(1, Math.pow(g.R / Math.max(d, 1e-6), 2 / 3)) * (blocked(state, g.at, p, skip) ? SHADOW : 1);
     if ((skip && skip.min ? boxDist(skip, g.at) : d) <= g.r + EPS) return 0;
     return blastWind(g.kg, d) * (blocked(state, g.at, p, skip) ? SHADOW : 1);
   }
@@ -88,7 +94,7 @@ export function buildVayoAir(E) {
   E.vayoAir = { blastWind, blowout, fanOf, strainOf, peakAt, gustAt, HOLD, SHADOW };
   if (!E.registerWorldPass) return;
 
-  E.registerStateInit((state, spec) => { if (spec.vayoAir) state.vayoAir = { gusts: [], seen: -1, windAt: -1 }; });
+  E.registerStateInit((state, spec) => { if (spec.vayoAir) state.vayoAir = { gusts: [], seen: -1, windAt: -1, pending: [] }; });
   const footD = (b) => Math.sqrt((4 * (b.max[0] - b.min[0]) * (b.max[1] - b.min[1])) / Math.PI);
   const flameAt = (b) => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, b.max[2] + 0.2];
   // a block's air state (its burn rate as it was minted is its base)
@@ -123,6 +129,8 @@ export function buildVayoAir(E) {
       const g = { t: u.t ?? t, at: [...u.pos], kg, r: u.radius || 0, seen: {} };
       A.gusts.push(g); fresh.push(g);
     }
+    // a mover's wakes (vayo-move.js) this step
+    if (A.pending && A.pending.length) { for (const w of A.pending) { const g = { ...w, seen: {} }; A.gusts.push(g); fresh.push(g); } A.pending.length = 0; }
     while (A.gusts.length && (A.gusts.length > GUSTS || t - A.gusts[0].t > GUST_LIFE)) A.gusts.shift();
     if (!R || !state.breakables) return;
     const steady = R.wind && P && t - A.windAt >= 0.25;

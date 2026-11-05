@@ -1047,6 +1047,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (worlds/controllable/vayo-air.js; the fire channel's `gusts`). A world not on the flow, or with no fires, keeps its bytes
     { const fxs = sketch.manifest.fxStyle;
       if (payload && payload.fire && Array.isArray(payload.fire.sources) && payload.fire.sources.length && fxs && typeof fxs === 'object' && fxs.flow) payload.fire = { ...payload.fire, gusts: true }; }
+    // a hero's vayo moves (special abilities on its own air, rupa/vayo-move.js): checked here, moved by the page
+    if ((payload?.entities || []).some((e) => e && e.rule && e.rule.vayo !== undefined)) {
+      const { readVayo } = await import('@/lib/graph/rupa/vayo-move.js');
+      for (const e of payload.entities) if (e && e.rule && e.rule.vayo !== undefined) readVayo(e.rule.vayo, `${e.id || 'entity'}.rule.vayo`);
+    }
     // scars (cosmetic damage): a map that may not change still shows what blows would do to it (rupa/index.js
     // readScarsSpec: its ground's soil and its walls' matter, from the world's cube unless named). Absent ⇒ no byte
     // (outdoors, the ground a crater is painted in is the land's own: its commonest ground off the path, the cube's readout,

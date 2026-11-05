@@ -572,6 +572,53 @@ on the flow and has fires):
 The page draws a fire's air as its wind plus each recent blast's: outward, held for the eye over half a second, at most
 20 m/s for the look. The physics reckons with the blast's true speed.
 
+### Vayo moves: special abilities on the hero's own air
+
+A **vayo move** is a special ability that moves a hero on its own air: a push of tuned pressure in a direction, against
+air of tuned density. The physical moves (the dodge, the tackle, the boost and its inertia, the charged-leap carry, the
+cleave step, the zip) keep their laws: a vayo move is another kind of move, which a hero has only when its game gives it
+(`rule.vayo` on the platform rule, or a power's `vayo-dash` / `vayo-flight`). It has a path, so it collides, keeps its
+hitbox and leaves a wake. A move with no path (a shadow step, a blink) is a teleport and is not vayo.
+
+The law ([`worlds/controllable/vayo-move.js`](../control/lib/graph/worlds/controllable/vayo-move.js); read and resolved
+off the page by [`rupa/vayo-move.js`](../control/lib/graph/rupa/vayo-move.js)) is a body of push p (m/s², the pressure)
+against quadratic drag k (1/m, the density): a = p − k·v².
+
+- **Pushing,** it closes on its top speed √(p/k) as v_top·tanh(t/τ + …), τ = 1/√(p·k).
+- **Released,** it bleeds as v₁ / (1 + k·v₁·t).
+- **Braked** (the push turned against the motion), it stops as v_top·tan(… − t/τ).
+
+Each and the distance it covers is in closed form, so a straight move covers the same ground at any frame rate, and it is
+always a curve, never a line. A move is written by what it does and the law solves its air:
+
+- **A dash:** its peak `speed`, its `rise` (the push to reach it) and its `carry` (the metres it slides after, down to
+  the hero's run speed, where the rule's own drive takes over). The carry sets the density and the rise the pressure.
+- **A flight:** its cruise `speed` and its `rise` (τ), and its `climb`. It is held while it flies, steered by the stick,
+  up with the jump key and down with kneel. Let go, it hovers (its air brakes its rise or fall to rest). It never stalls,
+  unlike the aircraft's `fly` rule, and it lands when it comes down onto the ground. `boost` raises its speed.
+
+```
+rule.vayo: { element?, power?, cap?, regen?,
+  dash?:   true | { speed, rise?, carry?, dir?, steer?, air?, iframes?, cost?, cooldown? },
+  flight?: true | { speed, rise?, carry?, climb?, boost?, drain? } }
+```
+
+- **Elements are presets of the shape** and of the trail's colour: wind (thin air, a long carry), earth (dense, a hard
+  stop), lightning (a great push, a snap), fire, water (a smooth rise). The order a move is built in, each over the one
+  before: the defaults, its element, the game's feel card (its dash and jetpack, `feel/lower.js feelVayo`, read only for
+  a hero with a vayo move), then the hero's own numbers.
+- **Power sets the fiction, the cap the play.** The move's energy scales with its tier (`power`, the hero's own, else the
+  world's `matter.power`), so its fiction's speed is speed·√power. The hero moves at most `cap` (40 m/s). Past it, the
+  tier shows in its trail (thicker, whiter), a boom where a move past sound starts, and its wake.
+- **The key is its own:** V, or the pad's D-pad down. On the ground it dashes, in the air it takes flight (or air-dashes,
+  for a hero with no flight), and in flight it lets go. No physical move's key is taken.
+- **Invincible frames** are a window the move names (seconds, or `{ frames }` at 60 fps), never implied. A dash spends
+  `cost` of the vayo meter (`e.vayoMeter`), a flight `drain` a second, refilled at `regen`.
+- **The sweep:** a vayo move sweeps its footprint along its step against the colliders, so no speed passes through a wall.
+- **Units:** a world built in its own units (a city's `metre` on the rule) moves in them.
+- **The wake:** a vayo mover pushes the air behind it into the world's air (above): a 3D wake's deficit, v·(R/d)^⅔ at its
+  fiction's speed. A super's dash past a burning crate puts it out; a human's fans it.
+
 ## What holds it up
 
 The basic break pass ([`rules-basic.js`](../control/lib/graph/worlds/controllable/rules-basic.js)) still decides what
@@ -808,4 +855,6 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
   it is presolved once, so a wall broken mid-blast opens no new way.
 - A blast's air on fires: the power-up's gust does not yet fan a fire a hero walks past, a blast's air does not push
   the dust and smoke already drifting, and a fire's limit is a starting tune for the eyes gate to move.
+- Vayo moves: foes and the AI do not use them yet, the pause legend does not list their key, the meter has no bar on the
+  page, a second seat's pad does not reach them, and the engines' importers carry them as data without playing them.
 - Engine export of breakables and their matter (the handoff carries them whole).
