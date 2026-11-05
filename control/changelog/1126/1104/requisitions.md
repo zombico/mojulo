@@ -116,3 +116,20 @@ apart from the recipe and adds nothing to any render or export. The design is in
     game holds them. The pre-compile check, the run and the proofs all read the same composite.
   - **A world that asks for no level is unchanged.** With no composite the runner's steps are byte-identical (tested on
     a book with its hero and on a world before its people).
+- **The main quest is the queue** (`gameworld/quest-reqs.js`).
+  - **A req can name a beat:** `req: { unit: 'beat:<id>' }` asks for the level the beat is played on, found as a run
+    finds it. A beat with only a goal has its level laid now, the same lay a run makes, so the req has a level to name.
+    Everything after that (the level's view, its jobs, the probe, the composite) is a level's as before.
+  - **Its remit is filled from the quest,** and the director's own words win, key by key: the act (its name, its place
+    among the acts, its stage of the hero's progression) and the beat's goal; the band from that stage; the beat's foes;
+    the powers the hero gains on it as its one idea; the beats before and after it as its way in and out; and the core
+    loop's moment and encounter.
+  - **`req: { quest: true }`** asks for every built beat's level in the quest's order, each its own req, the first open
+    and the rest queued. It says the planned beats, and asked again it raises nothing twice.
+  - A planned beat (`built: false`), a beat the quest does not have, or a beat played on no level is refused, with what
+    the quest holds.
+- **The goalposts read the ledger.** With a req for the first level, the first level's plan (goalpost 6) is met once its
+  proposal is kept with every decision cited, and the first level (goalpost 7) once it is received or accepted. Each
+  partial one says the req's failing checks, its move is the req's next step, and the goalposts' `next` names the req.
+  With no such req the goalposts read as they did.
+- **While a req is open the ledger leads:** its move is first in `next`, after only a run its budget stopped.

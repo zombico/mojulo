@@ -9,7 +9,7 @@ import { GameworldReqRepository, GameworldReqJobRepository } from '@/lib/db/repo
 import { jobsLeft } from '@/lib/graph/gameworld/jobs.js';
 import { chapterById } from '@/lib/graph/gameworld/chapters.js';
 import { designGameHandler } from './design-game.js';
-import { MEADOWMARK_HERO } from '@/lib/graph/gameworld/index';
+import { MEADOWMARK, MEADOWMARK_HERO } from '@/lib/graph/gameworld/index';
 import { pullThrough } from '@/lib/graph/gameworld/reqs.js';
 
 // The requisitions through the door (design_game { ref, req }): a unit asked for, what it pulls through, one worked
@@ -315,5 +315,52 @@ describe('design_game: the composite', () => {
     await designGameHandler({ ref: 'gw', approve: [`level:${FIRST}`] });
     const one = (await designGameHandler({ ref: 'gw', chapter: 'build' })).compile;
     expect(one.estimate.seconds).toBeLessThan(whole.estimate.seconds);
+  });
+});
+
+describe('design_game: the main quest as the queue', () => {
+  beforeEach(() => { closeDb(); });
+  const [M1, M2] = Object.keys(MEADOWMARK.levels);
+  const mainQuest = { acts: [
+    { id: 'one', name: 'Setting out', goal: 'set out', beats: [{ id: 'shore-first', goal: 'the shore first', as: { level: M2 } }] },
+    { id: 'two', goal: 'the coast', beats: [{ id: 'windy-shore', goal: 'cross the windy shore' }] },
+    { id: 'three', goal: 'the end', beats: [{ id: 'the-keep', goal: 'into the keep', built: false }] },
+  ] };
+  const QW = { ...MEADOWMARK, mode: 'gated', review: undefined, mainQuest };
+  const levelsOf = (ref) => Object.keys(SketchRepository.getByRef(ref).manifest.levels);
+
+  it('a beat asked for is its level, laid now if a run would lay it, its remit from the quest and the director\'s words winning', async () => {
+    await designGameHandler({ world: QW, ref: 'gq' });
+    expect(levelsOf('gq')).not.toContain('windy-shore');
+    const out = await designGameHandler({ ref: 'gq', req: { unit: 'beat:windy-shore', remit: { foes: 'gulls, minions only' } } });
+    expect(levelsOf('gq')).toContain('windy-shore');
+    expect(out.reqs.raised.at(-1)).toMatch(/^r\d+ level:windy-shore \(beat windy-shore\)$/);
+    const id = out.reqs.raised.at(-1).split(' ')[0];
+    expect(GameworldReqRepository.get('gq', id).remit).toMatchObject({ beat: 'act 2 of 3 (mid): cross the windy shore', band: 'mid: act 2 of 3', foes: 'gulls, minions only', in: `from 'the shore first' (level:${M2})`, loop: expect.any(String) });
+    // laid once: asked again, the level stands as laid and the req is the same
+    const again = await designGameHandler({ ref: 'gq', req: { unit: 'beat:windy-shore' } });
+    expect(again.reqs.advises.some((a) => a.startsWith(`level:windy-shore is already asked for: ${id} (`))).toBe(true);
+    expect(again.reqs.raised).toBeUndefined();
+    await expect(designGameHandler({ ref: 'gq', req: { unit: 'beat:the-keep' } })).rejects.toThrow(/planned \(built: false\)/);
+  });
+
+  it('the quest asked for whole: each built beat\'s level in its order, the planned beat said, asked once each', async () => {
+    await designGameHandler({ world: QW, ref: 'gq' });
+    const out = await designGameHandler({ ref: 'gq', req: { quest: true } });
+    const own = out.reqs.raised.filter((x) => /\(beat /.test(x));
+    expect(own.map((x) => x.split(' ').slice(1).join(' '))).toEqual([`level:${M2} (beat shore-first)`, 'level:windy-shore (beat windy-shore)']);
+    expect(out.reqs.advises).toContain('planned, not asked for yet: the-keep');
+    const again = await designGameHandler({ ref: 'gq', req: { quest: true } });
+    expect(again.reqs.raised).toBeUndefined();
+    expect(again.reqs.advises.filter((a) => /is already asked for/.test(a))).toHaveLength(2);
+    await expect(designGameHandler({ ref: 'gq', req: { quest: true, unit: 'hero' } })).rejects.toThrow(/give no unit or id with it/);
+    await expect(designGameHandler({ ref: 'gq', req: { unit: 'beat:nowhere' } })).rejects.toThrow(/no beat 'nowhere'/);
+  });
+
+  it('while a req is open the ledger leads: its move first in next', async () => {
+    await designGameHandler({ world: QW, ref: 'gq' });
+    await designGameHandler({ ref: 'gq', req: { quest: true } });
+    const out = await designGameHandler({ ref: 'gq' });
+    expect(out.next[0]).toMatchObject({ step: 'req', id: out.reqs.current.id, card: 'gameworld-ledger' });
   });
 });

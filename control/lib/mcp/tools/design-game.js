@@ -54,6 +54,7 @@ import { complexAdvice } from '@/lib/graph/gameworld/levels.js';
 import { rebase } from '@/lib/graph/gameworld/rebase.js';
 import { STAFFING, readLedger, notesWith, pullThrough, remitAdvice, ledgerSummary, reqForView, unitParts, unitPrint, receiptOf, upstreamPrints, reqStatus } from '@/lib/graph/gameworld/reqs.js';
 import { GameworldReqRepository, GameworldReqJobRepository } from '@/lib/db/repositories/gameworld-reqs.js';
+import { beatUnit, beatRemit, questUnits } from '@/lib/graph/gameworld/quest-reqs.js';
 import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines } from '@/lib/graph/gameworld/jobs.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
@@ -626,8 +627,11 @@ export async function designGameHandler(input, context = {}) {
   try {
     const patched = list(patch).map((op) => op?.path).filter((p) => typeof p === 'string');
     // a job's report or a kept proposal: written before the readout reads the world
-    const reqDone = req !== undefined ? await reqWrites(ref, req) : null;
-    const out = await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched, req, reqDone }, context);
+    // a req naming the main quest read as the levels it plays on (and those a run would lay, laid); then a job's report
+    // or a kept proposal, written before the readout reads the world
+    const asked = req !== undefined ? await questReq(ref, req) : undefined;
+    const reqDone = asked !== undefined ? await reqWrites(ref, asked) : null;
+    const out = await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched, req: asked, reqDone }, context);
     return redirected.length ? { ...out, vehicles: { registry: redirected } } : out;
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
@@ -638,9 +642,12 @@ export async function designGameHandler(input, context = {}) {
 /** A `req` as the door takes it: raise a unit ({ unit, remit?, staffing? }), or act on one ({ id, remit?, staffing?,
  * budget?, cancel?, accept?, note? }). Checked before anything is written. */
 function checkReq(req) {
-  if (!isObj(req)) throw new Error('design_game: req is { unit, remit?, staffing? } to raise a unit, or { id, remit?, staffing?, budget?, cancel?, accept?, note? } for one raised');
-  if ((req.unit === undefined) === (req.id === undefined)) throw new Error('design_game: a req names its `unit` (to raise one) or its `id` (r1, r2 …), one or the other');
-  if (req.unit !== undefined && !unitOf(req.unit)) throw new Error(`design_game: a req's unit is a chapter (${CHAPTERS.map((c) => c.id).join(', ')}) or one level as 'level:<id>'`);
+  if (!isObj(req)) throw new Error('design_game: req is { unit, remit?, staffing? } to raise a unit, { quest: true } for the main quest\'s beats, or { id, remit?, staffing?, budget?, cancel?, accept?, note? } for one raised');
+  if (req.quest !== undefined) {
+    if (req.quest !== true || req.unit !== undefined || req.id !== undefined) throw new Error('design_game: { req: { quest: true, staffing?, budget? } } asks for every built beat of the main quest, in its order; give no unit or id with it');
+  } else if ((req.unit === undefined) === (req.id === undefined)) throw new Error('design_game: a req names its `unit` (to raise one) or its `id` (r1, r2 …), one or the other');
+  const beat = typeof req.unit === 'string' && /^beat:[a-z][a-z0-9-]*$/.test(req.unit);
+  if (req.unit !== undefined && !beat && !unitOf(req.unit)) throw new Error(`design_game: a req's unit is a chapter (${CHAPTERS.map((c) => c.id).join(', ')}), one level as 'level:<id>', or a main quest beat as 'beat:<id>'`);
   if (req.staffing !== undefined && !STAFFING[req.staffing]) throw new Error(`design_game: a req's staffing is ${Object.keys(STAFFING).join(' or ')}`);
   if (req.remit !== undefined && req.remit !== null && !isObj(req.remit)) throw new Error('design_game: a req\'s remit is an object (a level\'s: in, out, band, idea, foes, beat)');
   if (req.budget !== undefined && !isObj(req.budget)) throw new Error('design_game: a req\'s budget is an object (jobs, tier, diverge, critics, reissues)');
@@ -649,6 +656,28 @@ function checkReq(req) {
   if (acts.length && req.id === undefined) throw new Error('design_game: start, job, keep, reissue and probe act on a raised req: give its `id`');
   if (acts.length > 1) throw new Error(`design_game: a req call does one of start, job, keep, reissue, probe (given ${acts.join(', ')})`);
   if (req.job === undefined && ['patch', 'decisions', 'findings'].some((k) => req[k] !== undefined)) throw new Error('design_game: a patch, decisions or findings report a job: give its `job` (j1, j2 …)');
+}
+
+/** A req that names the main quest (gameworld/quest-reqs.js): a beat (`beat:<id>`) or every built beat (`quest: true`),
+ * read as the levels they are played on, each with its remit filled from the quest (the director's own words winning,
+ * key by key). A beat whose level a run would lay is laid now, as the run lays it, so its req has a level to name.
+ * → the req as the ledger takes it ({ …, raise: [{ unit, remit, beat }], questSaid? }), or the req as it was. */
+async function questReq(ref, req) {
+  const beat = typeof req.unit === 'string' && req.unit.startsWith('beat:') ? req.unit.slice(5) : null;
+  if (!beat && req.quest !== true) return req;
+  let W = gameworldOf(SketchRepository.getByRef(ref).manifest);
+  const wanted = beat ? [{ beat, level: beatUnit(W, beat).level }] : questUnits(W).units;
+  const listed = beat ? null : questUnits(W);
+  // the levels a run would lay from the quest's beats, laid now (main-quest-lay.js: deterministic, the run's own lay)
+  const laid = withQuestLevels(W);
+  if (laid !== W) {
+    await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/levels', value: laid.levels }], note: 'design_game: the main quest\'s levels laid for its reqs' });
+    W = gameworldOf(SketchRepository.getByRef(ref).manifest);
+  }
+  const { unit: _u, quest: _q, remit, ...rest } = req;
+  const raise = wanted.map((x) => ({ unit: `level:${x.level}`, beat: x.beat, remit: { ...beatRemit(W, x.beat), ...(beat && isObj(remit) ? remit : {}) } }));
+  const questSaid = listed ? [...(listed.planned.length ? [`planned, not asked for yet: ${listed.planned.join(', ')}`] : []), ...listed.unhosted.map((x) => `${x.beat} is played on no level${x.as ? ` (as ${x.as})` : ''}: not a level's req`)] : [];
+  return { ...rest, raise, ...(questSaid.length ? { questSaid } : {}) };
 }
 
 /** A job's proposal applied to the recipe, as the door applies any patch. */
@@ -794,23 +823,33 @@ function workLedger(ref, W, full, req, done = null) {
   if (req !== undefined) {
     const L = readLedger(GameworldReqRepository.list(ref), { world: W, parts, received: (r) => received(r).holds });
     const edit = { ...(req.remit !== undefined ? { remit: req.remit } : {}), ...(req.staffing !== undefined ? { staffing: req.staffing } : {}), ...(req.budget !== undefined ? { budget: req.budget } : {}) };
-    if (req.unit !== undefined) {
-      const lv = unitOf(req.unit).level;
-      if (lv != null && !isObj(W.levels?.[lv])) throw new Error(`design_game: no level '${lv}' in this world (its levels: ${Object.keys(W.levels ?? {}).join(', ') || 'none'})`);
-      const live = L.reqs.find((r) => r.unit === req.unit && !TERMINAL_REQ.has(r.status));
-      if (live) {
-        if (Object.keys(edit).length) GameworldReqRepository.update(ref, live.id, edit);
-        advises.push(`${req.unit} is already asked for: ${live.id} (${live.status})`);
-      } else {
-        if (L.current) advises.push(`${L.current.id} (${L.current.unit}) is open: accept it or send it back first; ${req.unit} is queued after it`);
-        for (const up of pullThrough(req.unit, { book, reqs: L.reqs })) {
-          const r = GameworldReqRepository.create({ worldRef: ref, unit: up, raisedBy: 'pull-through' });
-          raised.push(`${r.id} ${up} (pulled through: ${req.unit} reads it)`);
+    const asks = req.raise ?? (req.unit !== undefined ? [{ unit: req.unit, remit: req.remit }] : null);
+    if (asks) {
+      // (one unit, or the main quest's beats in its order: each its own req, the first open and the rest queued)
+      let first = true;
+      for (const ask of asks) {
+        const LL = readLedger(GameworldReqRepository.list(ref), { world: W, parts });
+        const lv = unitOf(ask.unit).level;
+        if (lv != null && !isObj(W.levels?.[lv])) throw new Error(`design_game: no level '${lv}' in this world (its levels: ${Object.keys(W.levels ?? {}).join(', ') || 'none'})`);
+        const live = LL.reqs.find((r) => r.unit === ask.unit && !TERMINAL_REQ.has(r.status));
+        const remit = ask.remit ?? null;
+        if (live) {
+          const own = { ...(req.raise ? {} : edit) };
+          if (Object.keys(own).length) GameworldReqRepository.update(ref, live.id, own);
+          advises.push(`${ask.unit} is already asked for: ${live.id} (${live.status})`);
+        } else {
+          if (first && LL.current) advises.push(`${LL.current.id} (${LL.current.unit}) is open: accept it or send it back first; ${asks.length > 1 ? 'these are' : `${ask.unit} is`} queued after it`);
+          for (const up of pullThrough(ask.unit, { book, reqs: LL.reqs })) {
+            const r = GameworldReqRepository.create({ worldRef: ref, unit: up, raisedBy: 'pull-through' });
+            raised.push(`${r.id} ${up} (pulled through: ${ask.unit} reads it)`);
+          }
+          const r = GameworldReqRepository.create({ worldRef: ref, unit: ask.unit, remit, staffing: req.staffing ?? 'soloist', budget: req.budget ?? {}, raisedBy: ask.beat ? 'quest' : 'director' });
+          raised.push(`${r.id} ${ask.unit}${ask.beat ? ` (beat ${ask.beat})` : ''}`);
         }
-        const r = GameworldReqRepository.create({ worldRef: ref, unit: req.unit, remit: req.remit ?? null, staffing: req.staffing ?? 'soloist', budget: req.budget ?? {} });
-        raised.push(`${r.id} ${req.unit}`);
+        advises.push(...remitAdvice(ask.unit, remit ?? live?.remit));
+        first = false;
       }
-      advises.push(...remitAdvice(req.unit, req.remit ?? live?.remit));
+      advises.push(...(req.questSaid ?? []));
     } else {
       const r = GameworldReqRepository.get(ref, req.id);
       if (!r) throw new Error(`design_game: no req '${req.id}' in this world (${L.reqs.map((x) => x.id).join(', ') || 'none raised'})`);
@@ -855,7 +894,7 @@ function workLedger(ref, W, full, req, done = null) {
     const jobs = GameworldReqJobRepository.list(ref, L.current.id), receipt = received(L.current);
     summary.current = { ...summary.current, does: nextOf(jobs, { level: unitOf(L.current.unit)?.level != null, probe: probeState(receipt) }), ...(jobs.length ? { jobs: jobLines(jobs) } : {}), ...(receipt.holds ? {} : { gate: receipt.checks.filter((c) => !c.holds).map((c) => c.check) }) };
   }
-  return { L, summary: summary ? { ...summary, ...(done?.length ? { done } : {}), ...(raised.length ? { raised } : {}), ...(advises.length ? { advises } : {}) } : null };
+  return { L, received, summary: summary ? { ...summary, ...(done?.length ? { done } : {}), ...(raised.length ? { raised } : {}), ...(advises.length ? { advises } : {}) } : null };
 }
 
 async function afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched = [], req, reqDone = null }, context = {}) {
@@ -905,7 +944,8 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // the requisitions (gameworld/reqs.js): the unit being worked, the queue, and what a unit reads besides its chapter
   const ledger = workLedger(ref, W, full, req, reqDone);
   if (ledger.summary) full.reqs = ledger.summary;
-  if (ledger.L.current) full.next = [...full.next, { step: 'req', id: ledger.L.current.id, unit: ledger.L.current.unit, status: ledger.L.current.status, does: ledger.summary.current.does, card: 'gameworld-ledger' }];
+  // (while a req is open the ledger leads: its move first; a run its budget stopped still goes before it)
+  if (ledger.L.current) full.next = [{ step: 'req', id: ledger.L.current.id, unit: ledger.L.current.unit, status: ledger.L.current.status, does: ledger.summary.current.does, card: 'gameworld-ledger' }, ...full.next];
   // the composite: the accepted levels the game is not yet made of (a level accepted since, or one gone stale); a run
   // makes the game of them (runner.js composedStages)
   const composite = compositeOf(ref, W);
@@ -917,7 +957,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   }
   // the first session's goalposts (gameworld/goalposts.js): where the game stands against what a good first session
   // leaves, read from the book; said while any is open, with where the next session picks up
-  const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null }); } catch { return null; } })();
+  // (with the ledger's level reqs: goalposts 6 and 7 read the first level's req when the director asked for it)
+  const levelReqs = ledger.L.reqs.filter((r) => unitOf(r.unit)?.level != null && !['cancelled', 'gone'].includes(r.status)).map((r) => {
+    const receipt = ledger.received(r), jobs = GameworldReqJobRepository.list(ref, r.id);
+    return { id: r.id, unit: r.unit, status: r.status, receipt, does: nextOf(jobs, { level: true, probe: probeState(receipt) }) };
+  });
+  const posts = (() => { try { return goalposts({ world: W, chapters: full.chapters ?? [], parts: full.parts ?? [], mainQuest: full.mainQuest ?? null, made: W.made ?? {}, compile: full.compile ?? null, reqs: levelReqs }); } catch { return null; } })();
   if (posts) full.goalposts = posts;
   // a run its budget stopped: the next move is the run again, before any other (runWorld's RUN_BUDGET_MS)
   if (pending) full.next = [{ step: 'run', pending: pending.length, card: 'gameworld-next' }, ...full.next.filter((n) => n.step !== 'run' && n.step !== 'rerun')];

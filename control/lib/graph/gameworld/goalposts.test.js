@@ -57,3 +57,27 @@ describe('the first session\'s goalposts', () => {
     expect(at(goalposts({ world: BOOK, chapters: ALL, parts: [{ id: `level:${L1}`, status: 'proposed' }], mainQuest: PLAYS, made: MADE }), 'first-plan')).toMatchObject({ status: 'partial', says: `the first level '${L1}' is not settled` });
   });
 });
+
+describe('the goalposts read the ledger', () => {
+  const R = (status, checks, does) => ({ id: 'r2', unit: `level:${L1}`, status, does, receipt: { holds: checks.every((c) => c.holds), checks } });
+  const ok = (check) => ({ check, holds: true }), no = (check, says) => ({ check, holds: false, says });
+
+  it('the first level\'s req: its plan met once its proposal is kept and cited, the level once it is received', () => {
+    const open = goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, reqs: [R('open', [no('proposal', 'no proposal kept: start it and work its jobs'), no('cited', 'x'), ok('critics'), ok('laws'), no('probe', 'not played')], 'start')] });
+    expect(at(open, 'first-plan')).toMatchObject({ status: 'partial', says: 'r2 (open): proposal: no proposal kept: start it and work its jobs; cited: x' });
+    // the next goalpost is the req's: its move is the req's
+    expect(open.next).toEqual({ goalpost: 'first-plan', chapter: 'levels', move: 'r2: start', req: 'r2' });
+    const authored = goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, reqs: [R('open', [ok('proposal'), ok('cited'), ok('critics'), ok('laws'), no('probe', 'not played: { req: { id, probe: true } }')], 'probe')] });
+    expect(at(authored, 'first-plan')).toEqual({ id: 'first-plan', status: 'met' });
+    expect(at(authored, 'first-level')).toMatchObject({ status: 'partial', says: 'r2 (open): probe: not played: { req: { id, probe: true } }' });
+    expect(authored.next).toMatchObject({ goalpost: 'first-level', move: 'r2: probe', req: 'r2' });
+    // received is the machine's word: every goalpost met
+    expect(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, reqs: [R('received', [ok('proposal'), ok('cited'), ok('critics'), ok('laws'), ok('probe')], 'review')] })).toBeNull();
+  });
+
+  it('a req for another level, or none, leaves the goalposts as they read the book', () => {
+    const other = { ...R('open', [], 'start'), unit: 'level:elsewhere' };
+    expect(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made: MADE, reqs: [other] })).toBeNull();
+    expect(JSON.stringify(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, reqs: [other] }))).toBe(JSON.stringify(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS })));
+  });
+});
