@@ -407,6 +407,13 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // and `kitchen-sink-capture`, the fixtures that inline the event bus. Its saga key joined an id and a scope with a raw NUL
 // byte written into the source (event-bus.js), so every page carrying the bus held a NUL, and an artifact host refused
 // it; it is written `'\x00'`, the same string at run time.
+// Re-pinned 2026-11-05 (1104-vayo-effects: natural knockback): every fixture with a controllable world (`controllable`,
+// `controllable-lock`, `-shadows`, `-smoke`, `-figure`, `-hangar`, `cast-shadows`, `live-shadows-actors`, `-both`, `fx`,
+// `shoot-live`, `toon-ink-controllable`, `toon-ink-fx`, `capture-controllable`, `kitchen-sink`, `kitchen-sink-capture`).
+// The combat builders the page inlines by their source gain the knockback seams (combat-ranged.js, combat-melee.js,
+// cast.js: a burst's splash share and its knock on the record, a shot's, a swing's and a beam's push), each a no-op
+// without the knock builder (worlds/controllable/knock.js), which none of these fixtures emits: their worlds step as before
+// (knock.test.js steps one byte for byte against the engine without it).
 // Re-pinned 2026-11-05 (1105-platformer-lv0-spike: the hero's own jumps): every fixture that embeds the controllable
 // runtime. The platform rule gained its `takes` (a feel's: the hero's jumps played on its flight, their squash and
 // stretch); on the `controllable` fixture 2 lines are replaced (the air jump marks itself) and 57 added. Absent `takes`
@@ -418,6 +425,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-05 (1105-platformer-lv0-spike: a 3D platformer's chase): the same fixtures. The follow camera gained
 // its `steer` (its own yaw, trail or orbit, and a vertical deadzone), the world its `cameraYaw` getter, and the platform
 // rule `move: 'camera'`. Absent `steer` the chase reads the heading and the target's height as before.
+// Re-pinned 2026-11-05 (1105-platformer-lv0-spike merging 1104-vayo-effects' knockback): the same fixtures, their
+// emission the two re-pins above together (the platform rule's takes, wall, dash and camera move; the combat builders'
+// knockback seams), each a no-op without its own opt-in.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
