@@ -1056,6 +1056,8 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // a body in the form render (gen-7: a figure's `form`) is lit along the world's sun, the live light's own travel
   const formSun = Object.values(packedFigures || {}).some((f) => f && f.rig && f.form)
     ? (Array.isArray(shadows && shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight : light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]) : null;
+  // a fight solved onto the map (rpg rules.stage 'arena'): the props' clearing (__mojClip), emitted only for it
+  const arenaClip = !!(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'arena');
   const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!capture || !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.vayo) ? { vayoGranted: true } : {}), ...(formSun ? { formSun } : {}), ...(tempo ? { tempo } : {}), ...(xrCfg ? { xr: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' ? { acts: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'backdrop' ? { backdrop: true } : {}), ...(hasEvents && triggersIn(events) ? { trigger: true } : {}), ...(hasEvents && events.fxStyle && typeof events.fxStyle === 'object' && events.fxStyle.flow ? { flow: true } : {}), ...(fire && fire.gusts && Array.isArray(fire.sources) && fire.sources.length ? { gusts: true } : {})  }) : '';
   // the headset: on a page with a controllable channel it drives the pilot (channels/xr.js `ctrl`), else it walks
   // (and on a pilot whose figure carries its hands, hero-xr-hands.js, the hands on the controllers)
@@ -1261,11 +1263,42 @@ function __grpCol(g) { if (!g.c8) return decodeF32(g.col); const c8 = decodeU8(g
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow${resampled ? `
     if (__RESAMPLE[t.key]) __resample(tm.material, __RESAMPLE[t.key]);   // (read again so it does not repeat: channels/resample.js)` : ''}
-    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || cone ? 'tm.userData.g = grp.name; ' : ''}${formBlock || leafBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || cone || arenaClip ? 'tm.userData.g = grp.name; ' : ''}${formBlock || leafBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 
-// ---- instanced repeats (renderer-ladder P4): one geometry upload, N transforms ----
+${arenaClip ? `// THE ARENA'S CLEARING (a fight solved onto the map, rpg rules.stage 'arena'): every group that is not the land (its
+// trees, rocks, grass, scree) discards what stands inside the fight's cleared boxes (its footprint, and the corridor from
+// the camera to it), set by the fight and emptied after. Patched at the first fight, over whatever patch a material
+// already carries (a one-time recompile under the fight's opening flash): a box k is A (its centre x, y and its axis) and
+// B (its half length along the axis, half width across it, and its floor and ceiling)
+const __clipU = { uClipN: { value: 0 }, uClipA: { value: [new THREE.Vector4(), new THREE.Vector4()] }, uClipB: { value: [new THREE.Vector4(), new THREE.Vector4()] } };
+const __CLIP_LAND = /(ground|trail|cliff|core|ridge|cloud|terrain|land|water|sky|road|floor|path)$/;
+let __clipOn = false;
+function __clipPatch() {
+  if (__clipOn) return; __clipOn = true;
+  // (each group's fill, and its textured faces beside it: a room's brick walls are those)
+  const own = Object.keys(meshes).map((name) => [name, meshes[name]]);
+  scene.traverse((o) => { if (o.isMesh && o.userData && typeof o.userData.g === 'string' && meshes[o.userData.g] !== o) own.push([o.userData.g, o]); });
+  for (const [name, m] of own) {
+    const mat = m && m.material;
+    if (__CLIP_LAND.test(name) || !mat || mat.__clip) continue;
+    const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
+    mat.onBeforeCompile = function (sh, r) {
+      if (prev) prev.call(this, sh, r);
+      Object.assign(sh.uniforms, __clipU);
+      sh.vertexShader = 'varying vec3 vClipW;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vClipW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = 'varying vec3 vClipW;\\nuniform int uClipN;\\nuniform vec4 uClipA[2];\\nuniform vec4 uClipB[2];\\n' + sh.fragmentShader.replace('void main() {', 'void main() {\\n  for (int k = 0; k < 2; k++) { if (k >= uClipN) break; vec2 d = vClipW.xy - uClipA[k].xy; float a = dot(d, uClipA[k].zw), b = dot(d, vec2(-uClipA[k].w, uClipA[k].z)); if (abs(a) < uClipB[k].x && abs(b) < uClipB[k].y && vClipW.z > uClipB[k].z && vClipW.z < uClipB[k].w) discard; }');
+    };
+    mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|clip'; };
+    mat.__clip = true; mat.needsUpdate = true;
+  }
+}
+window.__mojClip = {
+  set(boxes) { __clipPatch(); const B = (boxes || []).slice(0, 2); B.forEach((b, k) => { __clipU.uClipA.value[k].set(b.c[0], b.c[1], b.u[0], b.u[1]); __clipU.uClipB.value[k].set(b.half[0], b.half[1], b.z[0], b.z[1]); }); __clipU.uClipN.value = B.length; },
+  clear() { __clipU.uClipN.value = 0; },
+};
+` : ''}// ---- instanced repeats (renderer-ladder P4): one geometry upload, N transforms ----
 // Each entry is one InstancedMesh: baked template colours per vertex, per-instance matrix
 // (translate + yaw about +Z + uniform scale), optional per-instance tint multiplier.
 // Pushed into solids: walk collision + pick occlusion + the wireframe toggle see instances

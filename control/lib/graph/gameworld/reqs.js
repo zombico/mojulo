@@ -55,6 +55,10 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** The budget a req works to: its staffing's, with what it overrides. */
 export const budgetOf = (req) => ({ ...(STAFFING[req.staffing] ?? STAFFING.soloist), ...(isObj(req.budget) ? req.budget : {}) });
 
+/** The levels a req holds, its own first: a level's req one, a chapter's (an act: its first level the unit, the rest its
+ * crew's) each of them. → [level id] */
+export const reqLevels = (req) => unitsOf(req).map((u) => unitOf(u)?.level).filter((lv) => lv != null);
+
 /** A unit's kind, for precedent: every level is one kind; a chapter is its own. */
 export const kindOf = (unit) => (unitOf(unit)?.level != null ? 'level' : unit);
 
@@ -125,7 +129,7 @@ export const staleUpstream = (req, world) => upstreamMoved(req, world);
  * What it does not hold on, it says: the kept proposal's asks (what no word reaches) and the critics' findings.
  */
 export function receiptOf(req, { jobs = [], parts = [], world, made = {} } = {}) {
-  const u = unitOf(req.unit), live = jobs.filter((j) => j.status !== 'reissued');
+  const live = jobs.filter((j) => j.status !== 'reissued');
   // (a crew keeps a proposal per unit: every author's, each decision cited)
   const authors = live.filter((j) => j.kind === 'author' || j.kind === 'diverge');
   const keptAll = authors.filter((j) => j.status === 'kept');
@@ -140,15 +144,17 @@ export function receiptOf(req, { jobs = [], parts = [], world, made = {} } = {})
     { check: 'critics', holds: !waiting.length, ...(waiting.length ? { says: `still to report: ${waiting.join(', ')}` } : {}) },
     { check: 'laws', holds: !advising.length, ...(advising.length ? { says: advising.join('; ') } : {}) },
   ];
-  if (u?.level != null) {
-    const stages = Object.keys(made).filter((k) => levelStep(u.level).test(k)).sort();
+  const lvs = reqLevels(req);
+  if (lvs.length) {
+    const stages = Object.keys(made).filter((k) => lvs.some((lv) => levelStep(lv).test(k))).sort();
+    const unmade = lvs.filter((lv) => !stages.some((k) => levelStep(lv).test(k)));
     const prints = Object.fromEntries(stages.map((k) => [k, made[k]?.stored ?? null]));
     const probe = live.filter((j) => j.kind === 'probe' && j.status === 'submitted').at(-1) ?? null;
     const current = probe && (!kept || probe.n > kept.n) && JSON.stringify(probe.report?.prints ?? {}) === JSON.stringify(prints);
     checks.push({
       check: 'probe',
-      holds: !!stages.length && !!current && probe.report?.holds === true,
-      ...(!stages.length ? { says: `no stage made: { chapter: '${req.unit}', run: true }` }
+      holds: !unmade.length && !!current && probe.report?.holds === true,
+      ...(unmade.length ? { says: `no stage made: ${unmade.map((lv) => `{ chapter: 'level:${lv}', run: true }`).join(', ')}` }
         : !current ? { says: probe ? 'its stages moved since the probe played them: probe again' : 'not played: { req: { id, probe: true } }' }
         : probe.report?.holds !== true ? { says: probe.report?.skipped ?? (probe.report?.checks ?? []).filter((c) => !c.holds).map((c) => `${c.check}: ${c.says}`).join('; ') } : {}),
     });

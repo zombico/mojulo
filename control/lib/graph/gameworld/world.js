@@ -718,7 +718,7 @@ export function readGameworld(W) {
   }
   const links = (W.links ?? []).map((e, i) => {
     if (!isObj(e)) throw new Error(`gameworld: links[${i}] is { from, to, kind? }`);
-    for (const k of Object.keys(e)) if (!['from', 'to', 'kind', 'key', 'keyAt'].includes(k)) throw new Error(`gameworld: links[${i}].${k} is not a link setting (from, to, kind, key, keyAt)`);
+    for (const k of Object.keys(e)) if (!['from', 'to', 'kind', 'key', 'keyAt', 'needs'].includes(k)) throw new Error(`gameworld: links[${i}].${k} is not a link setting (from, to, kind, key, keyAt, needs)`);
     for (const k of ['from', 'to']) if (!levels[e[k]]) throw new Error(`gameworld: links[${i}].${k} '${e[k]}' is not a level (levels: ${ids.join(', ')})`);
     if (e.from === e.to) throw new Error(`gameworld: links[${i}] leads '${e.from}' to itself`);
     const kind = e.kind ?? 'road';
@@ -732,7 +732,14 @@ export function readGameworld(W) {
       if (!levels[e.keyAt]) throw new Error(`gameworld: links[${i}].keyAt names the level the ${e.key} is found in (levels: ${ids.join(', ')})`);
       if (e.keyAt === e.to) throw new Error(`gameworld: links[${i}].keyAt is behind its own door: lay the ${e.key} in a level reached without it`);
     }
-    return { from: e.from, to: e.to, kind, ...(e.key ? { key: e.key, keyAt: e.keyAt } : {}) };
+    // NEEDS: the way from `from` to `to` stays shut until a quest's flag is set (the story opens it: a dungeon not entered
+    // before its quest is given); the flag one a quest starts or completes on, so every level's journal carries it
+    if (e.needs !== undefined) {
+      if (W.topology !== 'interconnected') throw new Error(`gameworld: links[${i}].needs shuts a way in a map world: set topology: 'interconnected', or leave it out`);
+      const QF = new Set((Array.isArray(W.quests) ? W.quests : []).flatMap((q) => [q?.starts, ...(Array.isArray(q?.steps) ? q.steps.map((st) => st?.done) : [])]).filter((f) => typeof f === 'string'));
+      if (typeof e.needs !== 'string' || !QF.has(e.needs)) throw new Error(`gameworld: links[${i}].needs is a quest's flag, one a quest starts or a step is done on (${[...QF].join(', ') || 'the world has no quests'}): the way opens with the story`);
+    }
+    return { from: e.from, to: e.to, kind, ...(e.key ? { key: e.key, keyAt: e.keyAt } : {}), ...(e.needs ? { needs: e.needs } : {}) };
   });
   const start = W.start ?? ids[0];
   // the hub: a level of the world, in a map (where every way runs both ways, so each way out of it leads back)

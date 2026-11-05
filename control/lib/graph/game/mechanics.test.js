@@ -26,6 +26,12 @@ describe('lowerMechanic — individual verbs', () => {
     expect(m.audit).toEqual({ kind: 'walkto', target: [10, 0, 0] });
   });
 
+  it('reach-exit with needs: the way is shut until the story flag\'s var is set', () => {
+    const m = lowerMechanic('reach-exit', { at: [10, 0, 0], exit: 'to-shrine', needs: 'took-the-shrine' }, { i: 0, player: 'hero' });
+    expect(m.world.reactions[0]).toMatchObject({ type: 'goal:reached:to-shrine', if: { var: 'flag-took-the-shrine', eq: 1 } });
+    expect(lowerMechanic('reach-exit', { at: [10, 0, 0] }, { i: 0, player: 'hero' }).world.reactions[0].if).toBeUndefined();
+  });
+
   it('collect resolves the inventory slice, groups on-map by item, and declares grant produces', () => {
     const m = lowerMechanic('collect', { pickups: [{ item: 'coin', at: [1, 0, 0] }, { item: 'coin', at: [2, 0, 0] }, { item: 'key', at: [3, 0, 0] }] }, { i: 1, player: 'hero', storeSchema: STORE });
     expect(m.errors).toEqual([]);

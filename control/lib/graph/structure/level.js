@@ -313,7 +313,7 @@ function withStageLevel(m, ref) {
   if (L.error) throw new Error(`level: ${L.error}`);
   const radius = m.level.radius ?? 1.5;
   // `mechanics`: the level's own beside the goal (pickups in its rooms, a clock); `exit: false` leaves the goal out
-  const exit = { kind: 'reach-exit', at: [L.goal.at[0], L.goal.at[1], r2(L.goal.at[2] + STAGE_EYE)], radius, planar: false, ...(L.route.length ? { via: L.route } : {}) };
+  const exit = { kind: 'reach-exit', at: [L.goal.at[0], L.goal.at[1], r2(L.goal.at[2] + STAGE_EYE)], radius, planar: false, ...(L.route.length ? { via: L.route } : {}), ...(m.level.marker === false ? { marker: false } : {}) };
   // `door`: the way out is a DOOR to another level (an inside entered from outside, the scene changing at it): a door
   // in the way-in room's front wall, its zone just inside, and a walker entering by it standing a few steps in
   const D = typeof m.level.door === 'string' ? stageDoor(m, m.level.from) : null;
@@ -342,7 +342,7 @@ function withStageLevel(m, ref) {
 function withComplexLevel(m, ref) {
   const R = complexRoute(m);
   if (R.error) throw new Error(`level: ${R.error}`);
-  const exit = { kind: 'reach-exit', at: [R.goal.at[0], R.goal.at[1], r2(R.goal.at[2] + STAGE_EYE)], radius: m.level.radius ?? 1.5, planar: false, via: R.route };
+  const exit = { kind: 'reach-exit', at: [R.goal.at[0], R.goal.at[1], r2(R.goal.at[2] + STAGE_EYE)], radius: m.level.radius ?? 1.5, planar: false, via: R.route, ...(m.level.marker === false ? { marker: false } : {}) };
   const game = { levelRef: ref, mechanics: [...(m.level.mechanics ?? []), ...(m.level.exit === false ? [] : [exit])], fall: { mode: 'respawn' } };
   if (Array.isArray(m.entities) && m.entities.some((e) => e && e.pilotable)) return { ...m, game };
   return {
@@ -359,7 +359,7 @@ function withComplexLevel(m, ref) {
  */
 function withSubwayLevel(m, ref) {
   const pilot = Array.isArray(m.entities) ? m.entities.find((e) => e && e.pilotable) : null, R = subwayLevel(m, { player: pilot?.id ?? 'player' }), warps = R.warps.map((w) => ({ ...w, to: [w.to[0], w.to[1], r2(w.to[2] + STAGE_EYE)] }));
-  const exit = { kind: 'reach-exit', at: [R.goal[0], R.goal[1], r2(R.goal[2] + STAGE_EYE)], radius: m.level.radius ?? 1.5, planar: false, via: R.route };
+  const exit = { kind: 'reach-exit', at: [R.goal[0], R.goal[1], r2(R.goal[2] + STAGE_EYE)], radius: m.level.radius ?? 1.5, planar: false, via: R.route, ...(m.level.marker === false ? { marker: false } : {}) };
   const game = { levelRef: ref, mechanics: [...(m.level.mechanics ?? []), ...warps, ...(m.level.exit === false ? [] : [exit])], fall: { mode: 'respawn' } };
   const play = R.scenes.length ? { play: { ...(m.play ?? {}), spots: [...(m.play?.spots ?? []), ...R.spots], scenes: [...(m.play?.scenes ?? []), ...R.scenes] } } : {};
   if (Array.isArray(m.entities) && m.entities.some((e) => e && e.pilotable)) return { ...m, ...play, game };

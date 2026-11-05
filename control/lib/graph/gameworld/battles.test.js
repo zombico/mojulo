@@ -8,6 +8,8 @@ import { lowerPlay } from '../playscape/ui/direction.js';
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { createBusState, processEvents, watchEvents } from '../worlds/event-bus.js';
 import { composeMechanics } from '../game/mechanics.js';
+import { withBuildingLevel } from '../structure/level.js';
+import { DUNGEON_SCALE } from './levels.js';
 
 const levels = (w) => runSteps(w, { ref: 'gw' }).filter((s) => s.key.startsWith('level-'));
 const W = (battles, more = {}) => ({ ...MEADOWMARK_HERO, battles, ...more });
@@ -110,6 +112,46 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
   });
 });
 
+describe('battles in a building', () => {
+  it('a dungeon: its packs in the rooms on the way to its goal room, its boss in the goal room; the ladder in the quest\'s order', () => {
+    // (the dungeon written before the plains: the main quest walks the plains first, so the ladder does)
+    const levels0 = { shrine: { name: 'The shrine', building: { use: 'temple', seed: 2 } }, meadow: { name: 'The meadow', walk: { nodes: { trailhead: { trail: true } } } } };
+    const quest = { acts: [{ id: 'one', goal: 'set out', beats: [{ id: 'plains', goal: 'the plains', as: { level: 'meadow' } }, { id: 'dungeon', goal: 'the dungeon', as: { level: 'shrine' } }] }] };
+    const L = levels(W({ per: 1, packs: [['slime'], ['wolf']], boss: ['drake'], rules: { defeat: 'retry' } }, { review: undefined, links: [], levels: levels0, mainQuest: quest }));
+    const at = (lv) => L.filter((s) => s.key.startsWith(`level-${lv}-`)).flatMap((s) => s.order.manifest.play?.rpg?.encounters ?? []);
+    expect(at('meadow').map((e) => e.foes)).toEqual([['slime']]);
+    const inside = at('shrine'), M = L.find((s) => s.key === 'level-shrine-0').order.manifest;
+    expect(inside.map((e) => e.foes)).toEqual([['wolf'], ['drake']]);
+    // (the boss met in the goal room before its exit is reached: its fight's ring wider than the exit's zone)
+    const boss = inside.at(-1), exit = withBuildingLevel(M, 'lv').game.mechanics.find((m) => m.kind === 'reach-exit');
+    expect(boss).toMatchObject({ flee: false, near: 3 });
+    expect(boss.at).toEqual([exit.at[0], exit.at[1]]);
+    expect(boss.near).toBeGreaterThan(exit.radius ?? 2);
+    // (each met in its room, which an arena stage holds the fight to: the goal room the boss's)
+    const [x0, y0, x1, y1] = boss.room;
+    expect(boss.at[0] > x0 && boss.at[0] < x1 && boss.at[1] > y0 && boss.at[1] < y1).toBe(true);
+    expect(inside[0].room).toHaveLength(5);
+    expect(inside[0].room).not.toEqual(boss.room);
+    // its pack before it stands on the way, in a room between the way in and the goal room, on its floor
+    const pack = M.entities.find((e) => e.id === [].concat(inside[0].who)[0]);
+    expect(pack.transform.pos.slice(0, 2)).toEqual(inside[0].at);
+    expect(Math.hypot(inside[0].at[0] - exit.at[0], inside[0].at[1] - exit.at[1])).toBeGreaterThan(boss.near);
+    // the party's key in the building's legend, as on a trail
+    expect(JSON.stringify(M.events)).toContain('P  party');
+    // a party's dungeon is laid DUNGEON_SCALE times a walker's (its camera stands back inside it); no flag over a way out
+    expect(M.program.scale).toBe(DUNGEON_SCALE);
+    expect(exit.marker).toBe(false);
+    // the boss's fall sets the story's flag where the battles name one (battles.sets); none where they do not
+    const S2 = levels(W({ per: 1, packs: [['slime'], ['wolf']], boss: ['drake'], sets: 'shrine-freed', rules: { defeat: 'retry' } }, { review: undefined, links: [], levels: levels0, mainQuest: quest }));
+    const M2 = S2.find((s) => s.key === 'level-shrine-0').order.manifest;
+    expect(M2.play.cues.find((c) => c.id === 'rpg-boss-sets')).toEqual({ id: 'rpg-boss-sets', when: { on: `rpg-won:${boss.id}` }, then: { emit: 'flag:shrine-freed' } });
+    expect((M.play.cues ?? []).some((c) => c.id === 'rpg-boss-sets')).toBe(false);
+    expect(() => readBattles({ sets: 'shrine-freed' })).toThrow(/name the boss pack/);
+    const meadow = L.find((s) => s.key === 'level-meadow-0').order.manifest;
+    expect(meadow.game.mechanics.find((m) => m.kind === 'reach-exit').marker).toBe(false);
+  });
+});
+
 describe('the party on the map', () => {
   it('followers: false: the party fights beside the hero, but the hero walks the map alone', () => {
     const cast = { ...MEADOWMARK_HERO.characters, casting: { scale: 'party', n: 2 } };
@@ -137,6 +179,8 @@ describe('the party joining', () => {
     expect(arrives(first(order[0]))).toEqual(['party-party-1-arrives']);
     expect(arrives(first(order[1]))).toEqual(['party-party-2-arrives']);
     expect(first(order[0]).play.cues.find((c) => c.id === 'party-party-1-arrives').then[0]).toEqual({ emit: 'flag:join-party-1' });
+    // (once the carried flags are in, and only if not joined already: one the story joined earlier is not said twice)
+    expect(first(order[0]).play.cues.find((c) => c.id === 'party-party-1-arrives')).toMatchObject({ when: { on: 'flags-ready' }, if: [{ var: 'flag-join-party-1', eq: 0 }] });
     // the fights know them by the same flags; the level carries them
     const party = lowerPlay(first(order[0]), { player: 'hero' }).rpg.party;
     expect(party.filter((p) => p.joins).map((p) => [p.id, p.joins])).toEqual([['party-1', 'join-party-1'], ['party-2', 'join-party-2']]);

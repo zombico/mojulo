@@ -27,10 +27,11 @@
  *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes? } }
  *                 what a member may wear, one item a slot, its numbers added to theirs (default: every preset); worn
  *                 items come from the bag and go back to it (held:bag:<item>); a class switch takes off what it forbids
- *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>' | ['<entity>', …], near?, flee? }]
+ *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>' | ['<entity>', …], near?, flee?, room? }]
  *                 at: walking up to it starts the fight (a visible foe: `who` is the one standing there, or each foe's
  *                 own figure in the foes' order, the first standing at `at`; each falls
- *                 when the fight is won); without at, a cue starts it: `then: { emit: 'rpg-battle:<id>' }`
+ *                 when the fight is won); without at, a cue starts it: `then: { emit: 'rpg-battle:<id>' }`; room: the
+ *                 room it is met in, [x0, y0, x1, y1, floor] (an arena stage holds the fight to it)
  *     random?:    { sets: [[foe ids]], every?: metres, chance?, after?: metres, in?: [{ at: [x, y], r }] }
  *                 a roll every `every` metres walked (in those zones, or anywhere), none in the first `after`
  *     shops?:     { <id>: { name?, wares?: [item or gear ids], buys?: false, inn?: gold } }   a merchant's wares at their
@@ -41,8 +42,9 @@
  *                 defaults (juice.js); a skill's own `juice` too. Every beat says rpg-on:<happening> on the bus
  *     rules?:     { gold?: '<var>', defeat?: 'fail' | 'retry', switch?: 'anywhere' | 'never', carry?: 'class' | 'all',
  *                 foeHp?: 'bar' | 'hidden', turns?: 'rounds' | 'timeline', size?: 1-4, cap?: n, xp?: { base, growth },
- *                 stage?: 'live' | 'backdrop' (where it is fought: on the map as it stands; or on an arena of its own
- *                 before a background drawn once from the map where it was met, seen from the side, the party on the left),
+ *                 stage?: 'live' | 'arena' | 'backdrop' (where it is fought: on the map as it stands; on a place solved
+ *                 near where it was met, its ground the map's, what stands in it and before the camera cleared for the
+ *                 fight, the party on the left; or on an arena of its own before a background drawn once from the map),
  *                 view?: 'side' | 'front' | 'left' | 'right' | 'overhead' (where the fight is seen from: from the side, over
  *                 the party at the foes, a three-quarter view from either hand, from above),
  *                 cinema?: { on?: 'skills' | 'all', ui?: 'none' | 'numbers' | 'all', skip?: seconds }   a skill (or every
@@ -77,7 +79,7 @@ export const RPG_RULES = Object.freeze({
   gold: 'gold', defeat: 'fail', switch: 'anywhere', carry: 'class', foeHp: 'bar', turns: 'rounds', size: 4, cap: 50,
   xp: Object.freeze({ base: 10, growth: 1.5 }), cp: Object.freeze([0, 4, 10, 18, 30, 45, 65, 90]), sp: 1, seed: 1,
 });
-const RULE_WORDS = { defeat: ['fail', 'retry'], switch: ['anywhere', 'never'], carry: ['class', 'all'], foeHp: ['bar', 'hidden'], turns: ['rounds', 'timeline'], view: ['side', 'front', 'left', 'right', 'overhead'], stage: ['live', 'backdrop'] };
+const RULE_WORDS = { defeat: ['fail', 'retry'], switch: ['anywhere', 'never'], carry: ['class', 'all'], foeHp: ['bar', 'hidden'], turns: ['rounds', 'timeline'], view: ['side', 'front', 'left', 'right', 'overhead'], stage: ['live', 'backdrop', 'arena'] };
 const BUFF_STATS = ['atk', 'def', 'mag', 'spd'];
 const DEFAULT_BASE = Object.freeze({ hp: 30, mp: 0, atk: 8, def: 6, mag: 4, spd: 6 });
 const DEFAULT_GROWTH = Object.freeze({ hp: 6, mp: 0, atk: 2, def: 1.5, mag: 1, spd: 1 });
@@ -190,8 +192,9 @@ export function readRpg(play) {
   const Ru = P.rules ?? {};
   if (!isObj(Ru)) throw err('.rules is { gold?, defeat?, switch?, carry?, foeHp?, turns?, size?, cap?, xp?, cp?, sp?, seed?, view? }');
   // (view: where a fight is seen from, the side by default; written only where the book asks another)
-  // (stage: where a fight is fought: on the map as it stands, 'live', the default; or 'backdrop', the fighters on an arena
-  // of their own before a background drawn once from the map where they met, the party on the left: scene/channels)
+  // (stage: where a fight is fought: on the map as it stands, 'live', the default; 'arena', a place solved near where it
+  // was met on the map's own ground, cleared of what stands in it, the party on the left; or 'backdrop', the fighters on
+  // an arena of their own before a background drawn once from the map: scene/channels)
   keysOnly(Ru, [...Object.keys(RPG_RULES), 'view', 'cinema', 'stage'], '.rules');
   // (cinema: a skill (or every action) played as a short film: a close-up on the actor, behind it at its target, the
   // target as it lands, back to the view; ui what stays on the screen meanwhile; skip the seconds past which it may be
@@ -328,8 +331,8 @@ export function readRpg(play) {
   const encSeen = new Set(), encounters = {}, met = [];
   E.forEach((e, i) => {
     const at = `.encounters[${i}]`;
-    if (!isObj(e)) throw err(`${at} is { id, foes, at?, who?, near?, flee? }`);
-    keysOnly(e, ['id', 'foes', 'at', 'who', 'near', 'flee'], at);
+    if (!isObj(e)) throw err(`${at} is { id, foes, at?, who?, near?, flee?, room? }`);
+    keysOnly(e, ['id', 'foes', 'at', 'who', 'near', 'flee', 'room'], at);
     id(e.id, `${at}.id`);
     if (e.id === 'random') throw err(`${at}.id 'random' is the random encounters' own`);
     if (encSeen.has(e.id)) throw err(`${at}.id '${e.id}' twice`);
@@ -341,9 +344,10 @@ export function readRpg(play) {
     if (e.who !== undefined && e.at === undefined) throw err(`${at}.who stands somewhere: give its at`);
     optNum(e.near, `${at}.near`);
     if (e.flee !== undefined && typeof e.flee !== 'boolean') throw err(`${at}.flee is false for a fight with no escape`);
+    if (e.room !== undefined && !(Array.isArray(e.room) && e.room.length === 5 && e.room.every(num) && e.room[2] > e.room[0] && e.room[3] > e.room[1])) throw err(`${at}.room is the room it is fought in, [x0, y0, x1, y1, floor]`);
     const boss = e.foes.some((f) => foes[f].boss);
     encounters[e.id] = { foes: [...e.foes], flee: e.flee ?? !boss };
-    if (e.at) met.push({ id: e.id, at: [e.at[0], e.at[1]], who: e.who ?? null, near: e.near ?? 2.2 });
+    if (e.at) met.push({ id: e.id, at: [e.at[0], e.at[1]], who: e.who ?? null, near: e.near ?? 2.2, ...(e.room ? { room: [...e.room] } : {}) });
   });
 
   // the random encounters
@@ -396,6 +400,8 @@ export function readRpg(play) {
 }
 
 const doneVar = (enc) => `rpg-done-${enc}`;
+/** A pack won on a page that carries flags stays won: the flag it sets as it falls, carried (playscape/ui/scenes.js). */
+export const wonFlag = (id) => `won-${id}`;
 
 /** The cues: walking up to a standing encounter starts it (once won, never again); a won one's foes leave in smoke; a lost
  * fight fails the level under `defeat: 'fail'` (the hp var a level's fail-on-death owns goes to 0). */
@@ -407,7 +413,11 @@ export function rpgCues(play) {
     cues.push({ id: `rpg-meet-${e.id}`, when: { enter: { at: e.at, r: e.near } }, if: [{ var: 'rpg.battle', eq: 0 }, { var: doneVar(e.id), eq: 0 }], then: { emit: `rpg-battle:${e.id}` } });
     // (a beaten pack leaves the map in a puff of smoke, as a won fight's foes do: a fallen body left lying read as a pack
     // still to fight)
-    cues.push({ id: `rpg-beaten-${e.id}`, when: { on: `rpg-won:${e.id}` }, then: [{ set: doneVar(e.id), to: 1 }, ...[].concat(e.who ?? []).map((w) => ({ vanish: { who: w, with: 'smoke' } }))] });
+    // (on a page that carries flags, a won pack stays won: its flag set as it falls, and carried in it is gone at once,
+    // never fought again on a way walked back)
+    const kept = typeof play?.carry === 'string';
+    cues.push({ id: `rpg-beaten-${e.id}`, when: { on: `rpg-won:${e.id}` }, then: [{ set: doneVar(e.id), to: 1 }, ...[].concat(e.who ?? []).map((w) => ({ vanish: { who: w, with: 'smoke' } })), ...(kept ? [{ emit: `flag:${wonFlag(e.id)}` }] : [])] });
+    if (kept) cues.push({ id: `rpg-won-before-${e.id}`, when: { on: `flag-carried:${wonFlag(e.id)}` }, then: [{ set: doneVar(e.id), to: 1 }, ...[].concat(e.who ?? []).map((w) => ({ vanish: w }))] });
   }
   // a member who joins on a flag: in the fights once the flag is set here or carried in (scenes.js flag events)
   for (const p of cfg.party) if (p.joins) {

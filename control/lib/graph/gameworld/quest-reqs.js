@@ -15,6 +15,10 @@
  *   beatUnit(W, id)    → { beat, level, laid }   laid: the level a run would lay, not in the recipe yet
  *   beatRemit(W, id)   → the remit above
  *   questUnits(W)      → { units: [{ beat, level }], planned: [beat id], unhosted: [{ beat, as }] }, in the quest's order
+ *   actUnit(W, id)     → { act, levels, beats, crew }   a CHAPTER as one unit: every level its built beats are played on,
+ *                        in the order played (its town, its outskirts, its dungeon), the departments they bring, and
+ *                        the story's (its quests are told)
+ *   actRemit(W, id)    → the act's remit: its place among the acts, its goal, its quests in order, its loop
  *
  * Refused (throws, saying what the quest holds): no main quest, a beat it does not have, a planned beat (built: false:
  * nothing to make yet), a beat played on no level (an epoch's map, or a structure the world does not hold).
@@ -84,4 +88,33 @@ export function beatCrew(W, id) {
   if (!at) return [];
   const battles = isObj(W.battles) || ['jrpg', 'tactics'].includes(W.intent?.from);
   return [...(at.B.foes?.length ? ['foes'] : []), ...(battles ? ['battles'] : []), ...(at.B.who?.length || at.B.as?.kind === 'scene' ? ['story'] : [])];
+}
+
+/** A chapter (an act, or a chapter of a long game) as one unit: the levels its built beats are played on, in the order
+ * played, each once; its beats in order; and the departments any of them brings (beatCrew). Refused: an act the quest
+ * does not have, an act whose beats are all planned or played on no level. */
+export function actUnit(W, id) {
+  const { Q } = questBeats(W), acts = partsOf(Q), k = acts.findIndex((A) => A.id === id);
+  if (k < 0) throw new Error(`design_game: the main quest has no ${Q.shape === 'chapters' ? 'chapter' : 'act'} '${id}' (its ${Q.shape ?? 'acts'}: ${acts.map((A) => A.id).join(', ')})`);
+  const plays = questPlays(W).plays, beats = acts[k].beats.filter((B) => B.built && plays[B.id]);
+  if (!beats.length) throw new Error(`design_game: act '${id}' has no built beat played on a level: there is nothing to make yet`);
+  const levels = [...new Set(beats.map((B) => plays[B.id]))];
+  // (and the story's, always: a chapter's quests are given and come back to its town, told)
+  const crew = [...new Set([...beats.flatMap((B) => beatCrew(W, B.id)), 'story'])];
+  return { act: id, levels, beats: beats.map((B) => ({ beat: B.id, level: plays[B.id] })), crew };
+}
+
+/** The remit a chapter is asked for with, from the quest. */
+export function actRemit(W, id) {
+  const { Q } = questBeats(W), acts = partsOf(Q), k = acts.findIndex((A) => A.id === id), A = acts[k];
+  const { beats } = actUnit(W, id), shape = Q.shape === 'chapters' ? 'chapter' : 'act', stage = stageOfAct(k, acts.length);
+  const L = loopOf(W), goal = (b) => A.beats.find((B) => B.id === b.beat).goal;
+  return {
+    beat: `${shape} ${k + 1} of ${acts.length}${A.name ? `, ${A.name}` : ''} (${stage}): ${A.goal}`,
+    band: `${stage}: ${shape} ${k + 1} of ${acts.length}`,
+    quests: beats.map((b, i) => `${i + 1}. ${goal(b)} (level:${b.level})`).join('; '),
+    in: k > 0 ? `from ${shape} ${k}: ${acts[k - 1].goal}` : 'the game\'s start',
+    out: k < acts.length - 1 ? `on to ${shape} ${k + 2}: ${acts[k + 1].goal}` : Q.ending ? `the quest's ending (${Q.ending.beat})` : 'the quest\'s last act',
+    loop: `${L.moment.join(', ')}; ${L.encounter}`,
+  };
 }

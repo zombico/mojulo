@@ -110,6 +110,20 @@ describe('an interconnected world, played (the kernel)', () => {
   });
 });
 
+describe('a way the story opens (a link\'s needs)', () => {
+  it('is shut in the shell and on its page until the quest\'s flag is set; it names a quest\'s flag or is refused', () => {
+    const quests = [{ id: 'keep', name: 'The keep', starts: 'took-the-keep', steps: [{ log: 'Take the keep', done: 'keep-taken' }] }];
+    const W = { ...MAP, quests, links: [{ from: 'hub', to: 'cave' }, { from: 'hub', to: 'keep', kind: 'gate', needs: 'took-the-keep' }] };
+    const QG = readGameworld(W), qs = gameStages(W), qr = qs.map((s) => `q-${s.level}-${s.node}`), qp = mapPlan(QG, qs, qr);
+    const yard = qs.findIndex((s) => s.level === 'hub' && s.node === 'yard');
+    const way = qp[yard].on.find((w) => w.to === qr[qs.findIndex((s) => s.level === 'keep')]);
+    expect(way.gate).toEqual({ flag: 'took-the-keep', slice: 'story' });
+    const exit = stageLevelOrder(QG, qs[yard], { ref: qr[yard], heroRef: 'h', map: qp[yard] }).args.manifest.game.mechanics.find((m) => m.kind === 'reach-exit' && m.needs);
+    expect(exit.needs).toBe('took-the-keep');
+    expect(() => readGameworld({ ...W, links: [{ from: 'hub', to: 'keep', needs: 'never-said' }] })).toThrow(/needs is a quest's flag/);
+  }, 120_000);
+});
+
 describe('teaching', () => {
   it('a key outside a map, a key behind its own door, and a climb in a map say what is wrong', () => {
     expect(() => readGameworld({ ...MAP, topology: undefined })).toThrow(/key locks a door in a map world/);

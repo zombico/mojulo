@@ -121,9 +121,11 @@ export const PARTY_SLICE = 'party';
 // the bag the party's items, gear and gold are carried in (the bag mechanic), and what it holds as the game starts
 export const BAG_SLICE = 'bag';
 export const BAG_START = Object.freeze({ potion: 2 });
-// where battles are fought: a stage walked along a trail (its beats); a building, a city and a roadway have none
-export const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
+// where battles are fought: a stage walked along a trail (its beats), or a building level's rooms on the way to its goal
+// room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
+// entered by its door (a town's house), a city and a roadway have none
+export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -172,6 +174,9 @@ export function readBattles(v, characters = null, ids = null) {
   // classic party RPG's; a member who joins on a story flag still stands where the story puts it)
   if (v.followers !== undefined && typeof v.followers !== 'boolean') throw err('.followers is true (the party walks the map behind the hero, the default) or false (the hero walks alone; the party still fights)');
   const boss = v.boss === undefined ? null : packOf(v.boss, '.boss');
+  // (sets: the story flag the boss's fall sets, carried on as every flag is: a quest's last step done by it, a moment after)
+  if (v.sets !== undefined && !(typeof v.sets === 'string' && /^[a-z][a-z0-9-]*$/.test(v.sets))) throw err('.sets is the flag the boss\'s fall sets (a story flag: lowercase words joined by hyphens)');
+  if (v.sets !== undefined && v.boss === undefined) throw err('.sets is set by the boss\'s fall: name the boss pack (boss)');
   if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), { species, ooze?, stylism? } for a beast, or { people, facets?, dress? } for a people');
   if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);
   else if (isPeopleLook(v.foe)) { try { readPeopleSkin(v.foe, 'battles.foe'); } catch (e) { throw err(`.foe: ${e.message.replace(/^[^:]*: /, '')}`); } }
@@ -255,22 +260,52 @@ export function battleBase(G) {
   return B.on === 'board' ? withBoardBook(base) : base;
 }
 
-// the beats a pack may stand on: along the way, the exit and the trailhead left free
-const freeBeats = (ends) => (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
+// the beats a pack may stand on: along the way, the exit and the trailhead left free; in a building (its `rooms` and the
+// route to its goal room, `via`: levels.js buildingEnds), the rooms the way passes through, one spot in each on the
+// way, two in a long one, none in the room it starts in or the goal room (a room off the way, past the goal room, has none)
+const freeBeats = (ends) => (ends?.rooms && ends.via ? wayBeats(ends) : (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead'));
+const LONG_ROOM = 8, WAY_STEP = 0.25, CLEAR_OF_GOAL = 5.5;
+function wayBeats(ends) {
+  const line = [ends.spawn, ...ends.via, ends.exit], pts = [];
+  for (let k = 1; k < line.length; k++) {
+    const a = line[k - 1], b = line[k], L = Math.hypot(b[0] - a[0], b[1] - a[1]), m = Math.max(1, Math.ceil(L / WAY_STEP));
+    for (let j = k === 1 ? 0 : 1; j <= m; j++) pts.push([a[0] + ((b[0] - a[0]) * j) / m, a[1] + ((b[1] - a[1]) * j) / m]);
+  }
+  const inRoom = (r, p) => p[0] >= r.x && p[0] <= r.x + r.w && p[1] >= r.y && p[1] <= r.y + r.d;
+  const ends0 = ends.rooms.filter((r) => inRoom(r, ends.spawn) || inRoom(r, ends.exit));
+  const out = [];
+  for (const r of ends.rooms) {
+    if (ends0.includes(r)) continue;
+    // (none at the goal room's threshold: a pack there would be met with what waits in it)
+    const own = pts.filter((p) => inRoom(r, p) && !ends0.some((q) => inRoom(q, p)) && Math.hypot(p[0] - ends.exit[0], p[1] - ends.exit[1]) >= CLEAR_OF_GOAL);
+    if (!own.length) continue;
+    const n = own.length * WAY_STEP >= LONG_ROOM ? 2 : 1;
+    for (let j = 0; j < n; j++) { const p = own[Math.floor(((j + 0.5) * own.length) / n)]; out.push({ beat: n > 1 ? `${r.id}-${j + 1}` : r.id, at: [r3(p[0]), r3(p[1]), r.z], first: own[0] }); }
+  }
+  // (in the order the way meets them)
+  const along = (p) => pts.findIndex((q) => q[0] === p[0] && q[1] === p[1]);
+  return out.sort((a, b) => along(a.first) - along(b.first) || a.at[0] - b.at[0]).map(({ first: _f, ...b }) => b);
+}
 /** How many packs a stage has room for (its free beats). */
 export const roomOf = (ends) => freeBeats(ends).length;
 
 /** The packs each stage meets (by its index in `stages`): `per` on each trail stage (as many as it has room for:
  * `room(i)`, its free beats), the ladder walked in order across the game, the boss as the last pack of the last stage
- * with room. → { [stage index]: [pack] } */
-export function battlePlan(G, stages, room = () => Infinity) {
+ * with room; a stage with a lair (`lair(i)`: a building's goal room) keeps its boss there, its packs in its rooms before.
+ * → { [stage index]: [pack] } */
+export function battlePlan(G, stages, room = () => Infinity, lair = () => false) {
   const B = G.battles ?? {}, packs = B.packs ?? PACKS, per = B.per ?? 2, plan = {};
   let k = 0;
   // (none in the hub: the town is where the party comes back to)
-  const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s) && !(G.hub && s.level === G.hub)).map(([, i]) => i);
-  const last = B.boss ? [...fought].reverse().find((i) => Math.min(per || 1, room(i)) > 0) : undefined;
+  // (walked in the order the main quest plays its levels, act by act, beat by beat: the plains before the woods before
+  // the dungeon, whatever order the world writes its levels in; a level no beat plays after them, in the stages' order)
+  const parts = G.mainQuest ? G.mainQuest[G.mainQuest.shape ?? 'acts'] : null;
+  const order = Array.isArray(parts) ? [...new Set(parts.flatMap((A) => (A.beats ?? []).map((b) => (b?.as?.kind === 'level' ? b.as.at : b?.as?.level))).filter(Boolean))] : [];
+  const rank = (i) => { const r = order.indexOf(stages[i].level); return r < 0 ? order.length : r; };
+  const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s) && !(G.hub && s.level === G.hub)).map(([, i]) => i).sort((a, b) => rank(a) - rank(b) || a - b);
+  const last = B.boss ? [...fought].reverse().find((i) => lair(i) || Math.min(per || 1, room(i)) > 0) : undefined;
   for (const i of fought) {
-    const n = Math.min(i === last ? Math.max(per, 1) : per, room(i)), own = i === last ? n - 1 : n;
+    const den = i === last && lair(i), n = den ? Math.min(per, room(i)) + 1 : Math.min(i === last ? Math.max(per, 1) : per, room(i)), own = i === last ? n - 1 : n;
     plan[i] = [];
     for (let j = 0; j < own; j++) plan[i].push(packs[Math.min(k++, packs.length - 1)]);
     if (i === last) plan[i].push(B.boss);
@@ -289,15 +324,20 @@ export function battlePlan(G, stages, room = () => Infinity) {
 export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, packs = [], from = 0, seed = 1 } = {}) {
   const B = G.battles ?? {}, base = battleBase(G);
   const along = freeBeats(ends);
-  const n = Math.min(packs.length, along.length);
+  // (a building's boss stands in its goal room, `bossAt`, the packs before it in the rooms on the way; on a trail it is
+  // the last pack along the way)
+  const lair = !!(B.boss && ends.bossAt && packs.at(-1) === B.boss);
+  const n = Math.min(packs.length - (lair ? 1 : 0), along.length);
   const picks = Array.from({ length: n }, (_, k) => along[Math.min(along.length - 1, Math.floor(((k + 0.5) * along.length) / n))]);
+  if (lair) picks.push({ beat: 'goal', at: ends.bossAt });
+  const met = lair ? [...packs.slice(0, n), packs.at(-1)] : packs;
   const figures = {}, entities = [], encounters = [];
   picks.forEach((b, k) => {
     const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn, h = facing(b.at, back);
     // (each foe of the pack its own figure: the first on the beat, the rest a step aside on either side and a step back,
     // the step as wide as the pack's largest needs: a golem's is not a bat's)
-    const span = Math.max(1.4, ...packs[k].map((kind) => 2 * reachOf(G, kind) + 0.6));
-    const who = packs[k].map((kind, j) => {
+    const span = Math.max(1.4, ...met[k].map((kind) => 2 * reachOf(G, kind) + 0.6));
+    const who = met[k].map((kind, j) => {
       const fid = j ? `${id}-${j + 1}` : id, side = (j % 2 ? 1 : -1) * Math.ceil(j / 2) * span, back1 = Math.ceil(j / 2) * span * 0.5;
       const at = [r3(b.at[0] - Math.sin(h) * side - Math.cos(h) * back1), r3(b.at[1] + Math.cos(h) * side - Math.sin(h) * back1), b.at[2]];
       const look = foeLookOf(G, kind), fref = refs?.[kind] ?? ref;
@@ -318,8 +358,11 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
       }
       return fid;
     });
-    const boss = B.boss && k === n - 1 && packs[k] === B.boss;
-    encounters.push({ id: `pack-${from + k + 1}`, foes: [...packs[k]], at: [b.at[0], b.at[1]], who: who.length > 1 ? who : id, ...(boss ? { flee: false } : {}) });
+    const boss = B.boss && k === picks.length - 1 && met[k] === B.boss;
+    // (met before the goal room's exit is reached: its zone is smaller than the fight's)
+    // (in a building, the room it is met in: an arena stage holds the fight to it)
+    const room = ends.rooms?.find((r) => b.at[0] >= r.x && b.at[0] <= r.x + r.w && b.at[1] >= r.y && b.at[1] <= r.y + r.d);
+    encounters.push({ id: `pack-${from + k + 1}`, foes: [...met[k]], at: [b.at[0], b.at[1]], who: who.length > 1 ? who : id, ...(boss ? { flee: false } : {}), ...(boss && lair ? { near: 3 } : {}), ...(room ? { room: [room.x, room.y, r3(room.x + room.w), r3(room.y + room.d), room.z] } : {}) });
   });
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   // the merchant and the innkeeper, beside where the party comes in (none where the book says no shops, or none stands)
@@ -329,6 +372,9 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
   // (a hub world's rest is its inn: none on the way unless the book asks for one)
   const rest = (B.rest ?? !G.hub) === false || shop?.inn ? [] : [{ id: 'rpg-rest-spot', when: { use: { at: [ends.spawn[0], ends.spawn[1]], r: 2.5 }, prompt: 'rest' }, then: [{ emit: 'rpg-rest' }, { say: 'Rested', as: 'toast' }] }];
   if (shop) rest.push(...shop.cues);
+  // the boss's fall sets its flag (battles.sets): the story hears it as any flag (a quest's step, a moment after it)
+  const bossEnc = B.sets ? encounters.find((e) => e.flee === false && B.boss && e.foes.join('|') === B.boss.join('|')) : null;
+  if (bossEnc) rest.push({ id: 'rpg-boss-sets', when: { on: `rpg-won:${bossEnc.id}` }, then: { emit: `flag:${B.sets}` } });
   // the party and the bag carried (the party and bag mechanics); a wiped party fails the level under defeat: 'fail'
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
   return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}) }, mechanics };
