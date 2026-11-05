@@ -30,7 +30,7 @@ describe('the verdict', () => {
   it('a sound level holds on every check', () => {
     const v = probeVerdict([ok()]);
     expect(v).toMatchObject({ gate: 'machine', holds: true });
-    expect(v.checks.map((c) => c.check)).toEqual(['loads', 'not lost', 'opposed', 'clean']);
+    expect(v.checks.map((c) => c.check)).toEqual(['loads', 'not lost', 'opposed', 'clean', 'sees']);
     expect(v.note).toMatch(/eyes gate .* has not run/);
   });
 
@@ -41,6 +41,12 @@ describe('the verdict', () => {
     expect(failing({ opposition: opposition(stage(['survive'])) })[0].check).toBe('opposed');
     expect(failing({ debug: ['0 events → store'] })[0]).toMatchObject({ check: 'clean', says: 's1: it shows "0 events → store"' });
     expect(failing({ error: 'Navigation timeout' })[0]).toMatchObject({ check: 'loads', says: 's1: Navigation timeout' });
+    // a camera that turns to an empty sky partway (the real run's stage 2 at 11 s): one colour over the first-frame
+    // check's threshold, read off the world's canvas
+    const sky = { at: 11, colour: { share: 0.97, color: '#3a7aa8' } };
+    expect(failing({ frames: [{ at: 5, colour: { share: 0.4, color: '#556644' } }, sky] })).toEqual([{ check: 'sees', holds: false, says: 's1: at 11 s one colour (#3a7aa8) covers 97% of the frame: the camera looks at nothing' }]);
+    // a frame read without its canvas is said by nothing: the other checks still hold
+    expect(failing({ frames: [{ at: 5 }] })).toEqual([]);
   });
 
   it('the debugging text it looks for is the kind a player must never see', () => {
@@ -72,6 +78,11 @@ describe('the script and the run', () => {
     expect(play).toHaveBeenCalledTimes(1);
     expect(play.mock.calls[0][0]).toEqual([{ html: '<html>' }]);
     expect(v.frames).toEqual(PROBE.frames.map((at) => ({ ref: 'gw~level-a-0', at, file: `/out/gw_level-a-0-${at}s.png` })));
+    // the frames' colour reads judged, not carried into the verdict's frame list
+    const coloured = vi.fn(async (items) => items.map(() => ({ errors: [], frames: [{ at: 11, png: Buffer.from('p'), colour: { share: 0.99, color: '#000000' } }] })));
+    const blind = await probeLevel(stages.slice(0, 1), { findBrowser: async () => ({ path: '/chrome' }), play: coloured });
+    expect(blind.checks.find((c) => c.check === 'sees')).toMatchObject({ holds: false });
+    expect(blind.frames).toEqual([{ ref: 'gw~level-a-0', at: 11 }]);
     expect(writeFile).toHaveBeenCalledTimes(PROBE.frames.length);
     expect(v.skippedStages).toEqual(['gw~level-a-1']);
     const none = await probeLevel(stages, { findBrowser: async () => ({ path: null, why: 'no browser' }), play });

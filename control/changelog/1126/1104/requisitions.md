@@ -150,3 +150,12 @@ apart from the recipe and adds nothing to any render or export. The design is in
   - **The intent reaches the next unit.** A unit's view carries the intent it was asked for with, and its precedent
     carries the intent behind the last accepted unit of its kind.
   - The ledger never touches the recipe (tested). The ledger card teaches the ticket and the trace.
+- **The play probe also checks that the camera sees something** (`sees`). At each kept frame it reads the world's own
+  canvas (never the HUD or the legend) and fails a frame that is one colour over the first-frame check's threshold, by
+  the first-frame check's own measure (`first-frame.js` `dominantColour`). A camera inside something, or turned to an
+  empty sky partway through a level, now fails here; the first real probe had passed one.
+- **The impact preview** (`design_game({ ref, patch, preview: true })`). The patch is applied in memory, as
+  `update_sketch` applies it, and nothing is written. The answer says what the patch would reach: the chapters it
+  touches, the approved parts that would come back for review, the accepted units that would go stale (their own parts,
+  or a chapter they read), what a run would make, remake or drop, and the accepted levels the game would lose. A patch
+  the door would refuse is refused with the same words. The studio card says to preview a change that may reach far.

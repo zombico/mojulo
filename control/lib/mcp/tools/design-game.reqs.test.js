@@ -424,3 +424,48 @@ describe('design_game: the production ledger (asks and traces)', () => {
     expect(JSON.stringify(SketchRepository.getByRef('gw').manifest)).toBe(before);
   });
 });
+
+describe('design_game: the impact preview', () => {
+  beforeEach(() => { closeDb(); });
+
+  async function acceptedLevel() {
+    await designGameHandler({ world: GATED, ref: 'gw' });
+    const full = await designGameHandler({ ref: 'gw' });
+    const upstream = full.parts.filter((p) => ['intent', 'world', 'nature', 'civilizations', 'key'].includes(p.id) || p.id.startsWith('tech:')).map((p) => p.id);
+    await designGameHandler({ ref: 'gw', approve: upstream });
+    await designGameHandler({ ref: 'gw', req: { unit: `level:${FIRST}`, remit: REMIT } });
+    await designGameHandler({ ref: 'gw', approve: [`level:${FIRST}`] });
+    await designGameHandler({ ref: 'gw' });   // the ledger reads it accepted, and keeps the prints of what it reads
+  }
+
+  it('a change upstream says before it is made: the parts back for review, the accepted level gone stale, nothing written', async () => {
+    await acceptedLevel();
+    const before = JSON.stringify(SketchRepository.getByRef('gw').manifest);
+    const civ = Object.keys(SketchRepository.getByRef('gw').manifest.civilizations)[0];
+    const out = await designGameHandler({ ref: 'gw', preview: true, patch: [{ op: 'set', path: `/civilizations/${civ}/name`, value: 'The Renamed' }] });
+    expect(out).toMatchObject({ ok: true, readout: 'preview', written: false, touches: ['world'], review: ['civilizations'], stale: [`r1 level:${FIRST}`], composite: { drops: [FIRST] } });
+    expect(out.run).toEqual(expect.objectContaining({ remake: expect.any(Array), make: expect.any(Array), gone: expect.any(Array) }));
+    expect(JSON.stringify(SketchRepository.getByRef('gw').manifest)).toBe(before);
+  });
+
+  it('a change to the level itself: its own part back for review, the level stale; a rename is not', async () => {
+    await acceptedLevel();
+    // a new seed lays it again: what it plays as moves
+    const out = await designGameHandler({ ref: 'gw', preview: true, patch: [{ op: 'set', path: `/levels/${FIRST}/seed`, value: 991 }] });
+    expect(out).toMatchObject({ touches: ['levels'], review: [`level:${FIRST}`], stale: [`r1 level:${FIRST}`] });
+    // a new name alone is not what it plays as: nothing comes back for review
+    const named = await designGameHandler({ ref: 'gw', preview: true, patch: [{ op: 'set', path: `/levels/${FIRST}/name`, value: 'Renamed' }] });
+    expect(named.review).toBeUndefined();
+    // a change no accepted unit reads: nothing back for review, nothing stale
+    const quiet = await designGameHandler({ ref: 'gw', preview: true, patch: [{ op: 'set', path: `/levels/${SECOND}/name`, value: 'Elsewhere' }] });
+    expect(quiet.stale).toBeUndefined();
+    expect(quiet.review).toBeUndefined();
+  });
+
+  it('a preview goes alone with a ref and a patch, and refuses what the door would refuse', async () => {
+    await designGameHandler({ world: GATED, ref: 'gw' });
+    await expect(designGameHandler({ ref: 'gw', preview: true })).rejects.toThrow(/goes with a ref and a patch/);
+    await expect(designGameHandler({ ref: 'gw', preview: true, patch: [{ op: 'set', path: '/name', value: 'x' }], ask: { intent: 'rename' } })).rejects.toThrow(/a preview writes nothing/);
+    await expect(designGameHandler({ ref: 'gw', preview: true, patch: [{ op: 'set', path: '/levels', value: 'nope' }] })).rejects.toThrow();
+  });
+});

@@ -9,6 +9,9 @@
  *   opposed         a level whose goal is to survive, fight, sneak or race has something to play against: a foe, a
  *                   hazard, a rival (an empty meadow to survive fails here). Read from the stage's own manifest
  *   clean           no debugging text on the page as it plays or ends (`0 events → store` fails here)
+ *   sees            at each kept frame, the world it draws is not one colour (first-frame.js dominantColour, the
+ *                   first-frame check's own measure and threshold): a camera inside something or looking at an empty
+ *                   sky fails here. Read off the WebGL canvas, never the page's overlays (the HUD, the legend)
  *
  * It plays each stage's World page (the capture page the first-frame check opens, in the same installed browser,
  * never a download) for PROBE.seconds of simulated time at PROBE.fps, under a simple script: forward the whole time,
@@ -20,7 +23,9 @@
  *   probeLevel(items, opts)           → the evidence, one per stage (a browser; injectable `play` for tests)
  */
 
-export const PROBE = Object.freeze({ seconds: 17, fps: 24, settle: 24, frames: Object.freeze([5, 11, 17]), width: 640, height: 400 });
+import { dominantColour, FIRST_FRAME } from './first-frame.js';
+
+export const PROBE = Object.freeze({ seconds: 17, fps: 24, settle: 24, frames: Object.freeze([5, 11, 17]), width: 640, height: 400, sample: Object.freeze([160, 100]) });
 // what a page must never show a player: debugging text left in a card or a HUD
 export const DEBUG_TEXT = Object.freeze([/\b\d+ events? → store\b/, /\bundefined\b/, /\bNaN\b/, /\[object Object\]/]);
 // the mechanics a player can lose to, or must fight or slip past: a level with one of these needs something against it
@@ -32,6 +37,7 @@ const GOAL_NEEDS = ['boss', 'guards', 'health'];
 const NOTE = 'machine gate: each stage played for a few seconds under a simple script; it cannot aim, so it says nothing of balance, and the eyes gate (a person playing it) has not run';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const pct = (x) => `${Math.round(x * 100)}%`;
 const kindsOf = (m) => (m?.game?.mechanics ?? []).map((x) => x?.kind).filter(Boolean);
 
 /** What a stage has to play against, and whether its goal needs it. */
@@ -62,11 +68,15 @@ export function probeVerdict(stages) {
     each('not lost', (s) => (s.startedLost ? `it was over before any input: ${s.startedLost}` : null)),
     each('opposed', (s) => s.opposition?.says ?? null),
     each('clean', (s) => (s.debug?.length ? `it shows ${s.debug.map((d) => `"${d}"`).join(', ')}` : null)),
+    each('sees', (s) => {
+      const blind = (s.frames ?? []).filter((f) => f.colour && f.colour.share > FIRST_FRAME.oneColour);
+      return blind.length ? blind.map((f) => `at ${f.at} s one colour (${f.colour.color}) covers ${pct(f.colour.share)} of the frame: the camera looks at nothing`).join('; ') : null;
+    }),
   ];
   return {
     gate: 'machine', holds: checks.every((c) => c.holds), checks,
     ...(skipped.length ? { skippedStages: skipped.map((s) => s.ref) } : {}),
-    frames: stages.flatMap((s) => (s.frames ?? []).map((f) => ({ ref: s.ref, ...f }))),
+    frames: stages.flatMap((s) => (s.frames ?? []).map(({ colour: _c, ...f }) => ({ ref: s.ref, ...f }))),
     note: NOTE,
   };
 }
@@ -118,13 +128,27 @@ export async function playStages(items, { executablePath, T = PROBE, timeoutMs =
           const script = [];
           for (; tick < until; tick++) script.push(scriptInput(tick, T.fps));
           // eslint-disable-next-line no-await-in-loop
-          const text = await pg.evaluate((b, s, dt) => {
+          const got = await pg.evaluate((b, s, dt, w, h) => {
             for (const input of s) window[b.g][b.step]({ dt, input });
-            return document.body ? document.body.innerText : '';
-          }, B, script, 1 / T.fps);
-          for (const re of DEBUG_TEXT) { const m = text.match(re); if (m) debug.add(m[0]); }
+            // the world's own canvas (#c), read in the task that rendered it, small: the overlays never count
+            let px = null, cv = document.getElementById('c');
+            if (!cv) for (const c of document.querySelectorAll('canvas')) if (!cv || c.width * c.height > cv.width * cv.height) cv = c;
+            if (cv) {
+              const out = document.createElement('canvas');
+              out.width = w; out.height = h;
+              const cx = out.getContext('2d');
+              cx.drawImage(cv, 0, 0, w, h);
+              const d = cx.getImageData(0, 0, w, h).data;
+              let bin = '';
+              for (let i = 0; i < d.length; i += 0x8000) bin += String.fromCharCode.apply(null, d.subarray(i, i + 0x8000));
+              px = btoa(bin);
+            }
+            return { text: document.body ? document.body.innerText : '', px };
+          }, B, script, 1 / T.fps, T.sample[0], T.sample[1]);
+          for (const re of DEBUG_TEXT) { const m = got.text.match(re); if (m) debug.add(m[0]); }
+          const colour = got.px ? dominantColour(Buffer.from(got.px, 'base64')) : null;
           // eslint-disable-next-line no-await-in-loop
-          frames.push({ at, png: await pg.screenshot({ type: 'png' }) });
+          frames.push({ at, png: await pg.screenshot({ type: 'png' }), ...(colour ? { colour } : {}) });
         }
         out.push({ errors: [...new Set(errors)], startedLost, debug: [...debug], frames });
       } catch (e) {
@@ -157,10 +181,11 @@ export async function probeLevel(stages, { goal, findBrowser, play = playStages,
   for (const e of evidence) {
     if (!e.frames) continue;
     e.frames = await Promise.all(e.frames.map(async (f) => {
-      if (!framesDir || !writeFile) return { at: f.at };
+      const keep = f.colour ? { colour: f.colour } : {};
+      if (!framesDir || !writeFile) return { at: f.at, ...keep };
       const file = `${framesDir}/${e.ref.replace(/[^A-Za-z0-9_-]/g, '_')}-${f.at}s.png`;
       await writeFile(file, f.png);
-      return { at: f.at, file };
+      return { at: f.at, file, ...keep };
     }));
   }
   return probeVerdict(evidence);

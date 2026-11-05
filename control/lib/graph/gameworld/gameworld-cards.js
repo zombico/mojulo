@@ -134,6 +134,8 @@ function studioCard() {
     '  read     design_game({ ref, chapter }): its parts, its pages, its upstream as a digest (`reads`: each one\'s state',
     '           and print; a print that moved since you read it: read that chapter again), its next moves, `book`.',
     '  write    { ref, chapter, patch } on its own pages; a write past them is written and said (`outside`).',
+    '  preview  { ref, patch, preview: true } first, for a change that may reach far: the parts back for review, the',
+    '           accepted units gone stale, what a run would remake. Nothing is written.',
     '  show     its bible section (`read`) to the creator. The verdicts (approve, revise) are the creator\'s: a subagent',
     '           stops at the review and reports what the creator must decide.',
     '  proof    { ref, chapter, run: true }: its steps and what they name, made ahead of their approvals (`ahead`: say so).',

@@ -36,7 +36,8 @@ import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/li
 import { intentReport, cubeOfWorld } from '@/lib/graph/gameworld/intent.js';
 import { compilerGaps, formGaps } from '@/lib/graph/gameworld/resonance.js';
 import { AUDIT_STEP } from '@/lib/graph/gameworld/runner.js';
-import { chapterBook, chapterSteps, CHAPTERS, unitOf, levelStep } from '@/lib/graph/gameworld/chapters.js';
+import { chapterBook, chapterSteps, CHAPTERS, unitOf, levelStep, chaptersOfPath } from '@/lib/graph/gameworld/chapters.js';
+import { applyManifestPatch } from './manifest-patch.js';
 import { chapterView } from '@/lib/graph/gameworld/chapter-view.js';
 import { readMainQuest, mainQuestContext, mainQuestReport } from '@/lib/graph/gameworld/main-quest.js';
 import { questPlays, withQuestLevels } from '@/lib/graph/gameworld/main-quest-lay.js';
@@ -569,8 +570,8 @@ export function composedWorld(c) {
 const composedOf = (b) => ({ prompt: b.prompt, read: b.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(b.cube ? { cube: b.cube } : {}), ...(b.unread?.length ? { unread: b.unread } : {}) });
 
 export async function designGameHandler(input, context = {}) {
-  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req?, ask?, trace? }');
-  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter, req, ask, trace } = input;
+  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req?, ask?, trace?, preview? }');
+  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter, req, ask, trace, preview } = input;
   if (shape !== undefined && shape !== 'full' && shape !== 'changed') throw new Error("design_game: readout is 'full' (the default) or 'changed'");
   // one chapter's readout (gameworld/chapter-view.js): checked before anything is written
   if (req !== undefined) checkReq(req);
@@ -581,6 +582,8 @@ export async function designGameHandler(input, context = {}) {
     if (!works) throw new Error('design_game: an ask is cut when intent becomes work: give it with the req, the verdict (approve, revise), the patch or the run it causes');
   }
   if (trace !== undefined) traceStart(trace);
+  if (preview !== undefined && (preview !== true || patch === undefined || written !== undefined || given === undefined)) throw new Error('design_game: preview: true goes with a ref and a patch: it says what the patch would do and writes nothing');
+  if (preview === true && (ask !== undefined || req !== undefined || approve !== undefined || revise !== undefined || asked !== undefined)) throw new Error('design_game: a preview writes nothing: give it alone with its patch, then the ask, verdicts or run with the patch itself');
   if (chapter !== undefined && !unitOf(chapter)) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((c) => c.id).join(', ')} (the readout's \`chapters\`), or one level as 'level:<id>'`);
   // the world as it stood before this call, for readout: 'changed'
   const prior = given ? SketchRepository.getByRef(given) : null;
@@ -627,6 +630,8 @@ export async function designGameHandler(input, context = {}) {
     const row = SketchRepository.getByRef(ref);
     if (!row) throw new Error(`design_game: no sketch at '${ref}'`);
     if (!isGameworldKind(row.manifest?.kind)) throw new Error(`design_game: '${ref}' is a '${row.manifest?.kind}', not a gameworld`);
+    // a preview: what the patch would do, and nothing written
+    if (preview === true) return previewPatch(ref, patchVehicleWords(patch).patch);
     // a quick game's vehicle word is read through the vehicle registry first, as the quick path reads it (doors.js)
     if (patch !== undefined) await updateSketchHandler({ ref, patch: patchVehicleWords(patch).patch, ...(title ? { title } : {}) });
   }
@@ -909,6 +914,45 @@ function workLedger(ref, W, full, req, done = null) {
   return { L, received, summary: summary ? { ...summary, ...(done?.length ? { done } : {}), ...(raised.length ? { raised } : {}), ...(advises.length ? { advises } : {}) } : null };
 }
 
+/**
+ * THE IMPACT PREVIEW — design_game({ ref, patch, preview: true }): the patch applied in memory, as update_sketch applies
+ * it (manifest-patch.js), and nothing written. It says what the patch would reach before it is made: the chapters it
+ * touches, the approved parts that would come back for review, the accepted units that would go stale (their own parts
+ * or a chapter they read), what a run would make, remake or drop, and the accepted levels the game would lose. So a
+ * change that reaches far ("make the world moodier" restales every accepted level) is said before, not after.
+ */
+function previewPatch(ref, ops) {
+  const row = SketchRepository.getByRef(ref);
+  const W0 = gameworldOf(row.manifest);
+  const W1 = gameworldOf(applyManifestPatch(row.manifest, ops).manifest);
+  readGameworld(W1);   // a patch the door would refuse is refused here too, with the same words
+  const stamps = (W) => [...reviewState(W), ...(W.characters ? characterState(W, { lookup: heroLookup(heroRefOf(W, ref)) }) : [])];
+  const s0 = stamps(W0), s1 = stamps(W1);
+  const touches = [...new Set(ops.map((o) => o?.path).filter((x) => typeof x === 'string').flatMap((x) => chaptersOfPath(x).map((c) => c.id)))];
+  const review = s1.filter((p) => p.status === 'changed' && s0.find((q) => q.id === p.id)?.status === 'approved').map((p) => p.id);
+  const stale = GameworldReqRepository.list(ref).filter((r) => reqStatus(r, { world: W0, parts: s0 }) === 'accepted' && reqStatus(r, { world: W1, parts: s1 }) === 'stale').map((r) => `${r.id} ${r.unit}`);
+  // what a run would do: the steps as each world would lay them (its main quest's levels laid, its composite), by print
+  const c0 = compositeOf(ref, W0), c1 = compositeOf(ref, W1);
+  let run = null;
+  try {
+    const lay = (W) => (W.mainQuest ? withQuestLevels(W) : W);
+    const st0 = runSteps(lay(W0), { ref, lookup: heroLookup(heroRefOf(W0, ref)), composite: c0 });
+    const st1 = runSteps(lay(W1), { ref, lookup: heroLookup(heroRefOf(W1, ref)), composite: c1 });
+    const p0 = new Map(st0.map((x) => [x.key, x.print])), k1 = new Set(st1.map((x) => x.key));
+    run = {
+      remake: st1.filter((x) => p0.has(x.key) && p0.get(x.key) !== x.print).map((x) => x.key),
+      make: st1.filter((x) => !p0.has(x.key)).map((x) => x.key),
+      gone: st0.filter((x) => !k1.has(x.key)).map((x) => x.key),
+    };
+  } catch (err) { run = { unread: err.message.split('\n')[0] }; }
+  const drops = (c0 ?? []).filter((id) => !(c1 ?? []).includes(id));
+  return {
+    ok: true, readout: 'preview', ref, written: false,
+    touches, ...(review.length ? { review } : {}), ...(stale.length ? { stale } : {}), run, ...(drops.length ? { composite: { drops } } : {}),
+    note: 'nothing written: the same patch without preview makes it',
+  };
+}
+
 /** The ticket for a call: a new ask cut ({ intent, units? }) or an existing one named (a3), and what the call did linked
  * to it: the reqs it raised, the verdicts it gave, the patch it wrote, the run it made, each at the revision it left. */
 function linkAsk(ref, ask, { raised = [], approve, revise, patched = [], ran }) {
@@ -1105,6 +1149,7 @@ export function registerDesignGameTools() {
         req: { type: 'object' },
         ask: { anyOf: [{ type: 'object' }, { type: 'string' }] },
         trace: { type: 'string' },
+        preview: { type: 'boolean' },
       },
       required: [],
     },
