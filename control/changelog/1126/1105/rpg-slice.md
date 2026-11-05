@@ -49,8 +49,9 @@
   cast who join, as before). A member who joins on a story flag still stands where the story puts it. The default is
   unchanged.
 - **A party joins one a chapter.** A party RPG's rolled party (its casting page) stood with the hero from the first
-  level; by default now, when its book gives none of it a `joins` flag, the first member joins as the first chapter (an
-  act of the main quest, at its first level played) starts, the second as the second does, and so on: one a level where
+  level; by default now, when its book gives none of it a `joins` flag, the first member joins for the first chapter's
+  last quest (an act of the main quest: its dungeon, the quests before it to the plains and the woods walked solo), the
+  second for the second's, and so on: one a level where
   the world has no main quest (`casting.js` laidJoins: each its flag `join-<id>`, carried on; said as a toast). A member
   past the game's chapters waits for its flag; a book that writes its own `joins` keeps them. With
   `battles.followers: false` a member who has joined fights and does not walk the map.- **A fight on its own stage** (`battles.rules.stage: 'backdrop'`; `'live'`, the default, as before). A party battle was
