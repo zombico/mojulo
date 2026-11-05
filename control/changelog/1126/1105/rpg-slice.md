@@ -112,3 +112,11 @@
   screen's density at 1.5 and holds it to the frame's time (`__mojBudget`: a second over 24 ms takes it down a quarter,
   to 0.75; quick frames give it back). Tried and not kept: far levels welded by vertex clustering (a clothed body's
   layers tear at any grid that saves much); a figure's own density is the next lever, at its mint.
+- **A run is smooth; a town's people are never statues.** A hero on a clip library ran the library's jog, whose hips
+  drop a quarter of their height every stride (Quaternius's crouched jog: 23 cm on a person, a bounce on screen). A run
+  is now held to `RUN_BOB` (12% of the hip height): a library run past it gives way to the hero's own calibrated jog (9
+  cm, its stride measured so the feet stay planted), the library playing the rest (its walk, its idle, its jump);
+  `LIBRARY_BOB` holds each library clip's measure, checked against its hub. And a town's folk potter by default: each one
+  nobody comes looking for (not a shop's keeper, a service's first, one met in every town, anyone in a sidequest, one
+  crouched at its work) steps out to a spot before its door and back at a stroll, lingering at each on its own heartbeat,
+  talked to wherever it stands (`folk.life: false` keeps them still; `folk.day` still gives the households a day).
