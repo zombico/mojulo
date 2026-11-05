@@ -125,7 +125,7 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
 // entered by its door (a town's house), a city and a roadway have none
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -174,6 +174,9 @@ export function readBattles(v, characters = null, ids = null) {
   // classic party RPG's; a member who joins on a story flag still stands where the story puts it)
   if (v.followers !== undefined && typeof v.followers !== 'boolean') throw err('.followers is true (the party walks the map behind the hero, the default) or false (the hero walks alone; the party still fights)');
   const boss = v.boss === undefined ? null : packOf(v.boss, '.boss');
+  // (sets: the story flag the boss's fall sets, carried on as every flag is: a quest's last step done by it, a moment after)
+  if (v.sets !== undefined && !(typeof v.sets === 'string' && /^[a-z][a-z0-9-]*$/.test(v.sets))) throw err('.sets is the flag the boss\'s fall sets (a story flag: lowercase words joined by hyphens)');
+  if (v.sets !== undefined && v.boss === undefined) throw err('.sets is set by the boss\'s fall: name the boss pack (boss)');
   if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), { species, ooze?, stylism? } for a beast, or { people, facets?, dress? } for a people');
   if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);
   else if (isPeopleLook(v.foe)) { try { readPeopleSkin(v.foe, 'battles.foe'); } catch (e) { throw err(`.foe: ${e.message.replace(/^[^:]*: /, '')}`); } }
@@ -369,6 +372,9 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
   // (a hub world's rest is its inn: none on the way unless the book asks for one)
   const rest = (B.rest ?? !G.hub) === false || shop?.inn ? [] : [{ id: 'rpg-rest-spot', when: { use: { at: [ends.spawn[0], ends.spawn[1]], r: 2.5 }, prompt: 'rest' }, then: [{ emit: 'rpg-rest' }, { say: 'Rested', as: 'toast' }] }];
   if (shop) rest.push(...shop.cues);
+  // the boss's fall sets its flag (battles.sets): the story hears it as any flag (a quest's step, a moment after it)
+  const bossEnc = B.sets ? encounters.find((e) => e.flee === false && B.boss && e.foes.join('|') === B.boss.join('|')) : null;
+  if (bossEnc) rest.push({ id: 'rpg-boss-sets', when: { on: `rpg-won:${bossEnc.id}` }, then: { emit: `flag:${B.sets}` } });
   // the party and the bag carried (the party and bag mechanics); a wiped party fails the level under defeat: 'fail'
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
   return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}) }, mechanics };

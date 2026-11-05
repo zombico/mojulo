@@ -91,3 +91,6 @@
   `marker: false`, and the decoration leaves them without the flag and beacon: the road or the door shows the way on.
   An archivolt (`arches.js archRing`) is laid as voussoirs, an odd count of wedge stones about 45 cm round the ring,
   mortar joints between them and the keystone at the crown standing prouder and higher, where it was one band.
+- **The boss's fall sets a flag.** `battles.sets: '<flag>'` names the story flag the boss's pack's win sets (a cue on its
+  `rpg-won`), carried on as every flag is: a quest's last step done by it, a moment after it. The story's `unset` counts
+  it. Three of chapter 1's authors asked for it (the shrine quest's last step had nothing to complete it).

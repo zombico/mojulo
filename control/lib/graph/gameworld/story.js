@@ -200,7 +200,8 @@ export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = 
     bound.push({ id: m.id, level: stage.level, node: stage.node, ...(place ? { place: place.id } : {}), ...(m.when?.slot ? { slot: m.when.slot } : {}) });
   }
   // a step's flag that nothing in the story sets (a moment's sets, an answer's): a cue may set it; said, not refused
-  const sets = new Set(readScenes({ scenes: moments.map((m) => storyScene(m)) }).flatMap((sc) => [...sc.sets, ...answers(sc.beats)]));
+  // (and the battles' boss's fall, battles.sets: the flag its pack's win sets)
+  const sets = new Set([...readScenes({ scenes: moments.map((m) => storyScene(m)) }).flatMap((sc) => [...sc.sets, ...answers(sc.beats)]), ...(typeof G.battles?.sets === 'string' ? [G.battles.sets] : [])]);
   const unset = [];
   for (const q of G.quests ?? []) q.steps.forEach((s, j) => { if (!sets.has(s.done)) unset.push({ quest: q.id, step: j + 1, flag: s.done }); });
   return { byStage, byEpoch, bound, unplaced, ...(G.quests ? { unset } : {}) };

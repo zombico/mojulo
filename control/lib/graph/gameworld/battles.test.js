@@ -141,6 +141,12 @@ describe('battles in a building', () => {
     // a party's dungeon is laid DUNGEON_SCALE times a walker's (its camera stands back inside it); no flag over a way out
     expect(M.program.scale).toBe(DUNGEON_SCALE);
     expect(exit.marker).toBe(false);
+    // the boss's fall sets the story's flag where the battles name one (battles.sets); none where they do not
+    const S2 = levels(W({ per: 1, packs: [['slime'], ['wolf']], boss: ['drake'], sets: 'shrine-freed', rules: { defeat: 'retry' } }, { review: undefined, links: [], levels: levels0, mainQuest: quest }));
+    const M2 = S2.find((s) => s.key === 'level-shrine-0').order.manifest;
+    expect(M2.play.cues.find((c) => c.id === 'rpg-boss-sets')).toEqual({ id: 'rpg-boss-sets', when: { on: `rpg-won:${boss.id}` }, then: { emit: 'flag:shrine-freed' } });
+    expect((M.play.cues ?? []).some((c) => c.id === 'rpg-boss-sets')).toBe(false);
+    expect(() => readBattles({ sets: 'shrine-freed' })).toThrow(/name the boss pack/);
     const meadow = L.find((s) => s.key === 'level-meadow-0').order.manifest;
     expect(meadow.game.mechanics.find((m) => m.kind === 'reach-exit').marker).toBe(false);
   });

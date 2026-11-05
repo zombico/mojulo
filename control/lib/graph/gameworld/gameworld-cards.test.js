@@ -47,7 +47,8 @@ describe('the rail\'s cards', () => {
     // the battles card too (2026-11-03, 1102-book-powers: it was 4092 bytes; its foes' looks, the shops and the inn, and
     // the hub joined its keys, and it names the book's battles page that reads them back: 4864); 5120 since 2026-11-05
     // (1105-rpg-slice: the foes' row, which replaces its preset whole: an author who wrote stats alone lost a shaman's
-    // mend, the very skill the slice's boss taught by, 5074 bytes)
+    // mend, the very skill the slice's boss taught by, 5074 bytes); 5248 the same day (the boss in a building's goal
+    // room and `sets`, the flag its fall sets: three chapter authors asked for the shrine quest's last step, 5197 bytes)
     // 4352 since 2026-11-02 (1102-urban-tunnelling: the building line names a hospital's uses, emergency | ward-block |
     // theatres, and a complex, 4323 bytes);
     // the dungeon card too (2026-11-02, 1102-urban-tunnelling: its spaces on one level stand as a complex, two lines on
@@ -56,7 +57,7 @@ describe('the rail\'s cards', () => {
     // 4608 since the two met on 1026-consolidated (2026-11-03: the complex's lines and the parked vehicles', 4574 bytes)
     // the next card too (2026-11-04, 1104 requisitions: the `req` move, the unit being worked, one line; it stood at
     // 4085 bytes, 4200 with it)
-    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 4352, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 5120, 'gameworld-next': 4352 };
+    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 4352, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4352 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 
