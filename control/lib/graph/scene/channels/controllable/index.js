@@ -15,6 +15,7 @@ import { touchLayout, touchScript } from './touch.js';
 import { runnerViewScript } from './runner-view.js';
 import { followPullIn } from './follow-pull-in.js';
 import { gunplayScript } from './gunplay-view.js';
+import { mergeableFigure, mergedFigureScript } from './merged-figure.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -782,6 +783,9 @@ function __updateGearLines() {
   const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
   // (and one whose atlas has edges, the hero's hair cards: its material alpha tested; none ⇒ not a byte of it)
   const figHasMask = figHasPaint && Object.values(figures || {}).some((f) => f?.paintTex?.alphaMask);
+  // ONE DRAW A FIGURE (merged-figure.js): a plain rigid rig drawn as one skinned mesh, a draw a pass instead of one a part;
+  // off where a part's own mesh is read (the toon ink's hulls, a headset's hands). None mergeable ⇒ byte-identical
+  const figMerge = !xr && !toonInk && Object.values(figures || {}).some(mergeableFigure);
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
@@ -1273,9 +1277,10 @@ function __makeSkinGroup(fig, b, group) {
   group.userData.rigFig = { fig, boneMeshes: bones, mix: {}, blendTime: b.blendTime, lookA: 0, yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null, skin: mesh };
   return group;
 }
-` : ''}function __makeRigGroup(fig, b) {
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled }) : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();${figHasSkin ? `
-  if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}
+  if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
+  if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;${figHasForm ? `

@@ -102,3 +102,13 @@
 - **A member joined by the story is not joined twice.** The default arrival (the dungeon's quest's member, as its level
   starts) waits for the carried flags and plays only if the member has not joined yet: one the story joins as the quest
   is given in town is not toasted again at the dungeon's door.
+- **One draw a figure, culled as a whole; a pixel budget.** Chapter 1's town drew 8,680 calls a frame: each person a
+  rigid rig of 59 bone meshes, each its own material, drawn in the frame, the shadow map and the occlusion prepass, and
+  never culled. A plain rigid rig (`merged-figure.js mergeableFigure`: indexed parts, nothing that reads a bone's own
+  mesh) is now drawn as one skinned mesh, each part's corners bound wholly to its bone, posed as the bone meshes were,
+  and culled by a sphere round its height (a figure outside a render's view, the shadow's box included, is not drawn
+  there): the town's frame 676 calls, its shadow pass a third of its triangles. Off where a part's own mesh is read (the
+  toon ink's hulls, a headset's hands); a wreck of a merged figure goes as it falls. A page played live caps the
+  screen's density at 1.5 and holds it to the frame's time (`__mojBudget`: a second over 24 ms takes it down a quarter,
+  to 0.75; quick frames give it back). Tried and not kept: far levels welded by vertex clustering (a clothed body's
+  layers tear at any grid that saves much); a figure's own density is the next lever, at its mint.
