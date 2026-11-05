@@ -40,9 +40,9 @@ export const MOVES = Object.freeze(['hop', 'stand', 'run', 'air', 'dash', 'airDa
 const RUN_UP = 90, MAX_AIR = 400;
 
 /** The rule a game ships for this feel: the hero's own, the feel's card over it (no level's camera: the reach is along
- * the facing, which is the lane's along a side camera's line). */
+ * the facing, which is the lane's along a side camera's line); no feel, the hero's own alone. */
 export function shippedRule(feel) {
-  return playerWorld({ heroRef: 'reach', rule: feelRule(feel) }).entities[0].rule;
+  return playerWorld({ heroRef: 'reach', ...(feel ? { rule: feelRule(feel) } : {}) }).entities[0].rule;
 }
 
 /** Play one move: `script(f, e)` → the input on frame f of the move (f 0 the press), `e` the body. */

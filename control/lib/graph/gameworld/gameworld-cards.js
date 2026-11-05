@@ -47,6 +47,7 @@ import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
 import { CAMERAS } from './cameras.js';
+import { TEACH, VERTICALITY } from './course.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
 import { SWARM, MAX_FOES, PAIR_DOWNS, ROOM_FOES } from './foes.js';
@@ -733,6 +734,30 @@ function wcdCard() {
     'not colour a bay building; its look or its tone does.',
   );
 }
+function courseCard() {
+  return lines(
+    'THE COURSE — a platformer\'s level: trails linked one after another, each teaching what the next tests, its floors and',
+    'gaps laid over a trail\'s own line and SIZED BY THE HERO\'S REACH (its feel: the running jump, the air jump, the dash jump,',
+    'the wall kick), each gap tagged with the move it teaches. levels.<id>.course: { teach, verticality? } over every trail of',
+    'its walk, or { <trail node>: { teach, verticality? } } each its own.',
+    '',
+    `  teach        ${TEACH.join(' | ')}`,
+    '    basic      gaps and steps the running jump clears, widening as it goes',
+    '    meet       one long flat floor: the first encounter, room to learn the stomp or the blow',
+    '    advanced   the card\'s advanced moves, each just past the running jump, then tested (a template with takes: true',
+    '               carries its dash and its wall; its air jump without)',
+    '    gauntlet   basic gaps between floors long enough to fight on',
+    '    boss       one long floor, the arena',
+    `  verticality  ${Object.entries(VERTICALITY).map(([k, v]) => `${k} (${v.says})`).join(', ')}`,
+    '',
+    'THE FIRST LEVEL, the slice: five trail nodes, course { basic, meet, advanced, gauntlet, boss? } a node each, and the',
+    'foes\' density a node each (levels.<id>.foes.density: { meet: \'sparse\', gauntlet: \'dense\' }, gameworld-foes). A boss',
+    'only when the creator asks. Side (camera: side) runs the trail\'s line; 3D runs it free: camera follow | orbit.',
+    'The readout\'s laws (course:gap-n) say each gap\'s width, its rise and what the move it teaches reaches; a fall into',
+    'a gap puts the hero back on the floor it left. Its floors are the stage\'s beats: what stands on it stands on them.',
+  );
+}
+
 function qowCard() {
   return lines(
     'THE QUEST OPEN WORLD (QOW) — the walled-core dungeon\'s opposite pole. A WCD forces the player in, layer by gated layer,',
@@ -1015,6 +1040,7 @@ const CARDS = [
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
+  ['gameworld-course', 'The course', 'a platformer\'s level: floors and gaps over a trail sized by the hero\'s reach, each teaching a move', 'a platformer level, a side-scroller, a 3D platformer, jumps over gaps, a tutorial level, teach the double jump, a wall jump section, platforming, level 1', courseCard],
   ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path, an errand, a fetch quest, a delivery run, a bounty board', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],

@@ -144,6 +144,7 @@ import { readEscapeGoal } from './escape.js';
 import { readErrands } from './errand.js';
 import { readGauntletGoal } from './gauntlet.js';
 import { readBestiary, readLevelFoes, bestiaryOf } from './foes.js';
+import { readCourse } from './course.js';
 import { readIntent, cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { LAID, groundLays, fieldSite, boardSite, loopSite, arenaSite } from './lay-concerns.js';
@@ -233,7 +234,7 @@ const ID = /^[a-z][a-z0-9-]{0,47}$/;
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'juice', 'tempo', 'grade', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'moves', 'foes', 'story', 'quests', 'front', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'course'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -552,6 +553,11 @@ export function readGameworld(W) {
         if (Gl.boss || Gl.health) throw new Error(`gameworld: ${at}.goal: a gauntlet owns the hero's hp and ends the level when its last wave is down: no boss or health beside it`);
         if (L.walk === undefined) throw new Error(`gameworld: ${at}.goal.gauntlet stands on a walk's last stage (a building's arena is to come)`);
       }
+    }
+    // the level's platforming COURSE (course.js): floors and gaps over its trails, sized by the hero's reach
+    if (L.course !== undefined) {
+      if (L.walk === undefined) throw new Error(`gameworld: ${at}.course is laid over a walk's trails`);
+      readCourse(L.course, `${at}.course`);
     }
     // the level's foes (foes.js): which of the bestiary stand on its trails, or in a building's rooms
     if (L.foes !== undefined) {

@@ -40,10 +40,17 @@
   third-person chase is the one it was.
 - **Absent `takes`, nothing moves.** A feel without it lowers to the rule it did, and the page's renderer carries the
   squash only when a rule asks for it; the platform rule's source in the page gained the takes' branch (re-pinned).
-- **Planned.** A platformer world's first level is trail segments joined at seams: the basic movement, the first
-  encounter, the advanced movement, and a gauntlet of foes on platforming ground. Each is sized by what its feel's card
-  can cross. It plays from the side (the camera and the movement locked to the trail's line) or in full 3D, on the same
-  level lit and dressed as every game's.
+- **The course: a platformer's level over a trail.** A level takes `course: { teach, verticality? }` over every trail of
+  its walk, or one a trail node: its floors and the gaps between them laid along the trail's own line, each gap sized
+  by the hero's reach and tagged with the move it teaches. `basic` widens gaps and steps the running jump clears;
+  `meet` is one long flat floor for the first encounter; `advanced` teaches the card's moves in turn, each just past the
+  running jump and then tested (the air jump's higher step, the dash jump's wider gap, a face kicked up the wall);
+  `gauntlet` lays basic gaps between floors long enough to fight on; `boss` one long floor. Verticality is flat,
+  rolling, climbing or towering. The floors are walkway tiles that follow the trail's turns, stairs lead up onto the
+  course and down to the exit, and a fall into a gap puts the hero back on the floor it left. The course's floors are
+  the stage's beats, so its foes (at their density) stand on them. Its laws join the level's readout (each gap's width,
+  rise and what its move reaches), and a card teaches it (`gameworld-course`). It plays from the side or in 3D, on the
+  same level, lit and dressed as every game's.
 - **A boss when the creator asks** (planned). The level's requisition adds the boss and its fight, and the win is written
   as one of three kinds: a jobber (thrown away), a rival or a boss (each a story hook). The kind changes nothing in the
   fight; the next level's build reads it, and the log keeps how the story accrues.

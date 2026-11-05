@@ -103,6 +103,8 @@ function armedPilot(G, entity, cam) {
 }
 const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
 import { feelRule, readFeel, TAKES } from './feel/lower.js';
+import { reachOf } from './feel/reach.js';
+import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse } from './course.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
 import { gradeOfGame } from './grade.js';
@@ -620,6 +622,16 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const concerns = concernIds(cubeOfWorld(G).cube);
   // (set on every call, null when absent: a stage's anchors may be a cached object another stage read before)
   Object.defineProperty(ends, 'field', { value: stage.field ?? null, enumerable: false, configurable: true });
+  // the level's platforming COURSE on this trail (course.js): floors and gaps sized by the hero's reach; its floors are the
+  // stage's beats from here on, so what stands on the stage (foes, packs, pickups) stands on them, not under them
+  const courseSpec = stage.manifest.trail !== undefined ? courseAt(G.levels[stage.level]?.course ? readCourse(G.levels[stage.level].course, 'course') : null, stage.node) : null;
+  const course = courseSpec ? (() => {
+    const lane = stageLane(stage), reach = reachOf(G.feel ? readFeel(G.feel) : null), length = lane.line.length - 1;
+    const plan = coursePlan(reach, { teach: courseSpec.teach, verticality: courseSpec.verticality ?? 'flat', length });
+    const L = lowerCourse(plan, lane), at = (s, z) => { const i = Math.min(lane.line.length - 1, Math.max(0, Math.round(s))); return [lane.line[i][0], lane.line[i][1], r3(L.base + z)]; };
+    return { plan, lowered: L, laws: courseLaws(plan, reach), beats: plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z) })) };
+  })() : null;
+  if (course) ends.beats = [...(ends.beats ?? []).filter((b) => b.beat === 'trailhead'), ...course.beats, ...(ends.beats ?? []).filter((b) => b.beat === 'exit')];
   Object.defineProperty(ends, 'board', { value: stage.board ?? null, enumerable: false, configurable: true });
   Object.defineProperty(ends, 'spacing', { value: concerns.includes('circuit') ? SPACING : null, enumerable: false, configurable: true });
   Object.defineProperty(ends, 'loop', { value: stage.loop ? loopOn(stage.loop, ends) : null, enumerable: false, configurable: true });
@@ -790,6 +802,12 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // WATCHERS (the intent's `watchers` concern): a wall on each watcher's approach, a place behind it out of its sight
   const watched = concerns.includes('watchers') && stage.section === 'trail' && !ends.arena ? (watchers ?? posts ?? beatPosts(ends)) : null;
   if (watched?.length) blocks = [...(blocks ?? []), ...blindBlocks(watched, ends)];
+  // the course's floors and stairs, and its catch zones (a fall into a gap: back on the floor it left)
+  if (course) {
+    blocks = [...(blocks ?? []), ...course.lowered.blocks];
+    const ev = pilotPart.events ?? {}, C = course.lowered.events;
+    pilotPart = { ...pilotPart, events: { ...ev, sources: [...(ev.sources ?? []), ...C.sources], reactions: [...(ev.reactions ?? []), ...C.reactions] } };
+  }
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
     const moves = ways.arrive.map((a) => ({ on: `arrive:${a.from}`, do: 'move', target: pilot, to: lane ? onLane({ at: a.at }, lane).at : a.at }));
@@ -812,7 +830,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
-  return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
+  const allLaws = course ? [...laws, ...course.laws.map((x) => ({ ...x, id: `course:${x.id}` }))] : laws;
+  return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(allLaws.length ? { laws: allLaws } : {}), ...(course ? { course: course.plan } : {}) };
 }
 
 /** SEATS (docs/local-multiplayer-principles.md): a world whose cube says soul.seats two or four lays,
