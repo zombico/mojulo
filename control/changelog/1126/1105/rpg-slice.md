@@ -53,4 +53,10 @@
   act of the main quest, at its first level played) starts, the second as the second does, and so on: one a level where
   the world has no main quest (`casting.js` laidJoins: each its flag `join-<id>`, carried on; said as a toast). A member
   past the game's chapters waits for its flag; a book that writes its own `joins` keeps them. With
-  `battles.followers: false` a member who has joined fights and does not walk the map.
+  `battles.followers: false` a member who has joined fights and does not walk the map.- **A fight on its own stage** (`battles.rules.stage: 'backdrop'`; `'live'`, the default, as before). A party battle was
+  staged on the map where it was met, a camera fitted round the fighters wherever the ground let it stand. On the
+  backdrop stage the fighters are moved to an arena of their own, seen from the side with the party on the left, before
+  the map drawn once from that view where they met (`__mojCtrl.backdrop`, the controllable channel's, emitted only for a
+  page whose fights ask for it), and put back where they stood when it ends: a party RPG's battle background, the way
+  the genre has drawn them. The encounter, its transition in and its scene out stay the same on either stage, so an
+  action game keeps its fights live on the same map.

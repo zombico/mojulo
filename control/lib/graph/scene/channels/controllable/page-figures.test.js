@@ -74,3 +74,14 @@ describe('the figure bank a level\'s page reads', () => {
     expect(JSON.stringify(pageFigures({ hero: layered() }))).toBe(JSON.stringify(pageFigures({ hero: layered() })));
   });
 });
+
+describe('the encounter\'s backdrop', () => {
+  it('is drawn only on a page whose fights ask for it, and not one byte of it otherwise', async () => {
+    const { controllableChannelScript } = await import('./index.js');
+    const ENT = [{ id: 'hero', body: { type: 'box' }, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }];
+    const asked = controllableChannelScript(ENT, null, {}, { backdrop: true }), not = controllableChannelScript(ENT, null, {}, {});
+    expect(asked).toContain('function __mojBackdrop(from, look, shift)');
+    expect(asked).toContain('backdrop: __mojBackdrop,');
+    expect(not).not.toContain('__mojBackdrop');
+  });
+});
