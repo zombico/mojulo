@@ -1,6 +1,6 @@
 /**
  * rupa/vayo-move.js — the vayo moves read and resolved off the page: a hero's `rule.vayo` (a special ability that moves it
- * on its own air: a dash, an air dash, a flight, an air jump) checked with teaching messages, resolved to the numbers its runtime moves by, and
+ * on its own air: a dash, an air dash, a flight, a jetpack, an air jump) checked with teaching messages, resolved to the numbers its runtime moves by, and
  * read in words for the power book. The law itself lives in the runtime's builder (worlds/controllable/vayo-move.js,
  * import-free so the page runs it), and is taken from there, so Node and the page move by one law.
  *
@@ -24,24 +24,32 @@ const MOVE_KEYS = {
   dash: ['speed', 'rise', 'carry', 'dir', 'steer', 'air', 'iframes', 'cost', 'cooldown', 'pressure', 'density'],
   flight: ['speed', 'rise', 'carry', 'climb', 'boost', 'drain', 'pressure', 'density'],
   jump: ['height', 'rise', 'count', 'pressure', 'density'],
+  jetpack: ['speed', 'thrust', 'idle', 'tilt', 'turn', 'startup', 'fuel'],
   airDash: ['speed', 'rise', 'carry', 'dir', 'steer', 'iframes', 'cost', 'cooldown', 'count', 'pressure', 'density'],
 };
 
 /** A hero's `rule.vayo`, checked. */
 export function readVayo(v, where = 'rule.vayo') {
-  if (!isObj(v)) throw new Error(`${where} is { element?, power?, cap?, regen?, dash?, flight?, jump?, airDash? }: a special ability that moves the hero on its own air`);
-  const known = ['element', 'power', 'cap', 'regen', 'dash', 'airDash', 'flight', 'jump'];
+  if (!isObj(v)) throw new Error(`${where} is { element?, power?, cap?, regen?, dash?, flight?, jump?, airDash?, jetpack? }: a special ability that moves the hero on its own air`);
+  const known = ['element', 'power', 'cap', 'regen', 'dash', 'airDash', 'flight', 'jump', 'jetpack'];
   for (const k of Object.keys(v)) if (!known.includes(k)) throw new Error(`${where}.${k} is not a vayo word (${known.join(', ')})`);
   if (v.element !== undefined && !VAYO_ELEMENTS.includes(v.element)) throw new Error(`${where}.element is one of ${VAYO_ELEMENTS.join(', ')}`);
   if (v.power !== undefined && !(pos(v.power) || VAYO_POWER[v.power])) throw new Error(`${where}.power is a tier (${Object.keys(VAYO_POWER).join(', ')}) or a multiplier above 0`);
   for (const k of ['cap', 'regen']) if (v[k] !== undefined && !pos(v[k])) throw new Error(`${where}.${k} is a number above 0 (${k === 'cap' ? 'm/s, the play cap' : 'the meter a second'})`);
-  if (!v.dash && !v.airDash && !v.flight && !v.jump) throw new Error(`${where} names no move: a dash, an air dash, a flight, a jump, or more than one`);
-  for (const kind of ['dash', 'airDash', 'flight', 'jump']) {
+  if (!v.dash && !v.airDash && !v.flight && !v.jump && !v.jetpack) throw new Error(`${where} names no move: a dash, an air dash, a flight, a jetpack, a jump, or more than one`);
+  for (const kind of ['dash', 'airDash', 'flight', 'jump', 'jetpack']) {
     const m = v[kind];
     if (m === undefined || m === true) continue;
     if (!isObj(m)) throw new Error(`${where}.${kind} is true or { ${MOVE_KEYS[kind].join(', ')} }`);
     for (const k of Object.keys(m)) if (!MOVE_KEYS[kind].includes(k)) throw new Error(`${where}.${kind}.${k} is not a ${kind} word (${MOVE_KEYS[kind].join(', ')})`);
     if (m.count !== undefined && !(Number.isInteger(m.count) && m.count >= 1)) throw new Error(`${where}.${kind}.count is a whole number of 1 or more (how many before the ground again)`);
+    if (kind === 'jetpack') {
+      if (m.thrust !== undefined && !(typeof m.thrust === 'number' && m.thrust > 1)) throw new Error(`${where}.jetpack.thrust is a multiple of gravity above 1 (it must lift the hero)`);
+      if (m.idle !== undefined && !(typeof m.idle === 'number' && m.idle >= 0)) throw new Error(`${where}.jetpack.idle is a multiple of gravity of 0 or more (under 1 it sinks, 1 it hovers)`);
+      if (m.tilt !== undefined && !(typeof m.tilt === 'number' && m.tilt >= 5 && m.tilt <= 80)) throw new Error(`${where}.jetpack.tilt is the most the body leans, 5 to 80 degrees`);
+      for (const k of ['turn', 'fuel']) if (m[k] !== undefined && !pos(m[k])) throw new Error(`${where}.jetpack.${k} is a number above 0 (seconds)`);
+      if (m.startup !== undefined && !((typeof m.startup === 'number' && m.startup >= 0) || (isObj(m.startup) && Number.isInteger(m.startup.frames) && m.startup.frames >= 0))) throw new Error(`${where}.jetpack.startup is seconds, or { frames } at 60 fps`);
+    }
     for (const k of ['speed', 'rise', 'carry', 'climb', 'boost', 'height', 'pressure', 'density']) if (m[k] !== undefined && !pos(m[k])) throw new Error(`${where}.${kind}.${k} is a number above 0`);
     for (const k of ['cost', 'drain', 'cooldown', 'steer']) if (m[k] !== undefined && !(typeof m[k] === 'number' && m[k] >= 0)) throw new Error(`${where}.${kind}.${k} is a number of 0 or more`);
     if ((m.pressure === undefined) !== (m.density === undefined)) throw new Error(`${where}.${kind}: pressure and density go together (or neither: speed, rise and carry say it)`);
@@ -66,6 +74,7 @@ export function vayoWords(v, rule = {}, power = undefined) {
   if (R.dash) out.push(`dashes${on}: ${r1(R.dash.play)} m/s in ${Math.round(R.dash.rise * 1000)} ms, a ${r1(R.dash.carry)} m carry${tier(R.dash)}${R.dash.iframes ? ', untouchable for part of it' : ''}`);
   if (R.airDash) out.push(`dashes in the air${on}: ${r1(R.airDash.play)} m/s, a ${r1(R.airDash.carry)} m carry${R.airDash.count > 1 ? `, ${R.airDash.count} times before the ground` : ''}${tier(R.airDash)}`);
   if (R.jump) out.push(`jumps again in the air${on}: ${r1(R.jump.height)} m up on its own air${R.jump.count > 1 ? `, ${R.jump.count} times before the ground` : ''}${tier(R.jump)}`);
+  if (R.jetpack) out.push(`wears a jetpack${on}: it lifts at ${r1(R.jetpack.thrust)}× its weight after a ${Math.round(R.jetpack.startup * 1000)} ms startup, goes where it leans (at most ${Math.round(R.jetpack.tilt)}°), ${r1(R.jetpack.play)} m/s at full tilt, ${r1(R.jetpack.fuel)} s of fuel${tier(R.jetpack)}`);
   if (R.flight) out.push(`flies${on}: ${r1(R.flight.play)} m/s, climbs at ${r1(R.flight.climb)}, hovers when let go${tier(R.flight)}`);
   return out.join('; ');
 }

@@ -8,6 +8,11 @@
     In the air its own air bears the hero while it pushes. Invincible frames only where it names them.
   - **The flight** rises, hovers when let go, cruises and dives at will, steered by the stick and the jump and kneel
     keys, a boost on the boost key. It never stalls, and it lands when it comes down.
+  - **The jetpack** (a power's `vayo-jetpack`): less controlled than the flight. It thrusts along the body's axis and
+    goes where the hero leans: the stick tilts the body toward its way and turns it to face it, late, and its momentum
+    carries. Its startup spools the thrust and leans the body into the launch before it lifts. The jump key is full
+    thrust, nothing held a slow sink, kneel cuts it; its fuel is the meter, and empty it sputters out. Its exhaust blows on
+    a fire under it.
   - **The air dash** (a power's `vayo-air-dash`): a dash only in the air, its `count` before the ground again, in its
     element's dash shape. V in the air dashes first; held a quarter second on, by a hero that flies, the dash carries on
     as flight at its speed.

@@ -50,4 +50,26 @@ describe('vayo moves on the World page', () => {
     expect(errors).toEqual([]);
     await p.close();
   }, 60000);
+
+  it('V lights a jetpack: a startup leans the body, then it lifts where it leans', async () => {
+    if (!browser) return;
+    const p = await browser.newPage();
+    const errors = [];
+    p.on('pageerror', (e) => errors.push(String(e)));
+    await p.setContent(page({ element: 'fire', jetpack: true }), { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojVayo, { timeout: 20000 });
+    const frames = (n) => p.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+    await frames(20);
+    await p.keyboard.down('KeyV'); await frames(2); await p.keyboard.up('KeyV');
+    await p.keyboard.down('KeyW'); await p.keyboard.down('Space');
+    await frames(8);
+    const early = await p.evaluate(() => { const h = window.__mojCtrl.world.byId.p1; return { kind: h.vayo && h.vayo.kind, startup: h.vayo && h.vayo.startup, lean: h.tumble ? h.tumble.angle : 0 }; });
+    await frames(60);
+    const later = await p.evaluate(() => { const h = window.__mojCtrl.world.byId.p1; return { z: h.transform.pos[2], lean: h.tumble ? h.tumble.angle : 0 }; });
+    await p.keyboard.up('Space'); await p.keyboard.up('KeyW');
+    expect(early.kind).toBe('jetpack'); expect(early.startup).toBe(true); expect(early.lean).toBeGreaterThan(0.05);
+    expect(later.z).toBeGreaterThan(1.5); expect(later.lean).toBeGreaterThan(0.3);
+    expect(errors).toEqual([]);
+    await p.close();
+  }, 60000);
 });

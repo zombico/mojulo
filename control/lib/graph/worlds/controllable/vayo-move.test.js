@@ -219,6 +219,63 @@ describe('the vayo air dash: a dash only in the air', () => {
   });
 });
 
+describe('the vayo jetpack: it goes where it leans', () => {
+  const pack = (vayo = { jetpack: true }, heading = 0) => { const w = CW.createWorld({ entities: [{ ...hero(vayo), transform: { pos: [0, 0, 1], heading } }], pilot: 'h' }); steps(w, {}, 10); return { w, h: w.byId.h }; };
+
+  it('its startup holds it planted and leans the body into the launch, then it lifts', () => {
+    const { w, h } = pack();
+    steps(w, { vayo: 1 }, 1);
+    steps(w, { jumpHeld: 1, forward: 1 }, 12);   // 0.2 s of a 0.3 s startup
+    expect(h.vayo.startup).toBe(true); expect(h.transform.pos[2]).toBeCloseTo(1, 3);
+    expect(h.tumble && h.tumble.angle).toBeGreaterThan(0.1);
+    // leaning forward (heading 0, +x): the body's axis turns toward +x (the rig's tumble about +y)
+    expect(h.tumble.axis[1]).toBeGreaterThan(0.99);
+    steps(w, { jumpHeld: 1, forward: 1 }, 60);
+    expect(h.vayo.startup).toBe(false); expect(h.transform.pos[2]).toBeGreaterThan(2); expect(h.transform.pos[0]).toBeGreaterThan(2);
+  });
+
+  it('it leans late and carries its momentum: let go of the stick and it still goes a while', () => {
+    const { w, h } = pack();
+    steps(w, { vayo: 1 }, 1); steps(w, { jumpHeld: 1, forward: 1 }, 90);
+    const vx = h.vayoJet.v[0];
+    expect(vx).toBeGreaterThan(5);
+    steps(w, { jumpHeld: 1 }, 15);
+    expect(h.vayoJet.v[0]).toBeGreaterThan(0.5 * vx);   // a quarter second on, upright again, it still drifts on
+  });
+
+  it('full thrust climbs, idle sinks, kneel cuts it, and it lands', () => {
+    const { w, h } = pack();
+    steps(w, { vayo: 1 }, 1); steps(w, { jumpHeld: 1 }, 60);
+    expect(h.vayoJet.v[2]).toBeGreaterThan(0);
+    steps(w, {}, 180); expect(h.vayoJet.v[2]).toBeLessThan(0);   // (idle: nine tenths of its weight, a slow sink)
+    steps(w, { kneel: 1 }, 240);
+    expect(h.vayoJet).toBeNull(); expect(h.grounded).toBe(true); expect(h.tumble).toBeNull();
+  });
+
+  it('its fuel is the meter: empty, it sputters out and falls', () => {
+    const { w, h } = pack({ jetpack: { fuel: 1.2 } });
+    steps(w, { vayo: 1 }, 1); steps(w, { jumpHeld: 1 }, 90);
+    expect(h.vayoMeter).toBe(0);
+    const z = h.transform.pos[2];
+    expect(z).toBeGreaterThan(1.5);
+    steps(w, { jumpHeld: 1 }, 30);
+    expect(h.transform.pos[2]).toBeLessThan(z);
+    steps(w, { jumpHeld: 1 }, 240);
+    expect(h.vayoJet).toBeNull(); expect(h.grounded).toBe(true);
+  });
+
+  it('read, granted and tuned as the others are', () => {
+    expect(() => readVayo({ jetpack: { thrust: 0.8 } })).toThrow(/above 1/);
+    expect(() => readVayo({ jetpack: { tilt: 120 } })).toThrow(/tilt/);
+    expect(readVayo({ jetpack: { startup: { frames: 18 }, fuel: 3 } })).toBeTruthy();
+    expect(resolveVayo({ jetpack: { startup: { frames: 18 } } }).jetpack.startup).toBeCloseTo(0.3, 6);
+    expect(TRAVERSAL_MOVES['vayo-jetpack'].rule({}, { element: 'fire' }).vayo).toEqual({ element: 'fire', jetpack: true });
+    expect(vayoWords({ jetpack: true })).toMatch(/goes where it leans/);
+    const card = Object.keys(POLES).map((k) => feelCard({ pole: k })).find((c) => c.jet && c.jet.thrust > 0);
+    if (card) expect(readVayo({ jetpack: feelVayo(card).jetpack })).toBeTruthy();
+  });
+});
+
 describe('a special ability beside the physical moves', () => {
   it('the physical moves keep their keys: a double tap of boost dodges, V does not', () => {
     const w = world({ dash: true }, { dodge: true, dodgeBoostCost: 0 }), h = w.byId.h;

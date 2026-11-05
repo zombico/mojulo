@@ -149,7 +149,8 @@ export function lowerFeel(card, { gear = null } = {}) {
  * peak its speed, its push a third of its frames (at most a tenth of a second) and its carry the rest of the ground it
  * covered at that speed, its invincible frames kept as frames; the jetpack's rise the flight's climb, the time its thrust
  * takes to reach it the flight's rise, its fuel the meter a second it drains; its air jump the vayo jump's height and
- * count; its dash's `air` the air dash. A card with none of them: null. A hero without
+ * count; its dash's `air` the air dash; its jetpack the vayo jetpack too (its thrust over the card's gravity, its delay the
+ * startup). A card with none of them: null. A hero without
  * vayo moves never reads this, so it lowers as it did.
  */
 export function feelVayo(card) {
@@ -170,7 +171,10 @@ export function feelVayo(card) {
     const a = J.thrust > 9.81 ? J.thrust - 9.81 : 0;
     out.flight = { climb: J.rise, ...(a > 0 ? { rise: r4(J.rise / a) } : {}), ...(J.fuel > 0 ? { drain: r4(FPS / J.fuel) } : {}) };
   }
-  return out.dash || out.airDash || out.flight || out.jump ? out : null;
+  // the card's jetpack, as a vayo jetpack: its thrust over the card's gravity, its delay the startup, its fuel's seconds
+  const gJ = Jg && Jg.gRise > 0 ? Jg.gRise : 9.81;
+  if (J && J.thrust > 0) out.jetpack = { thrust: r4(Math.max(1.05, J.thrust / gJ)), ...(J.delay > 0 ? { startup: { frames: Math.round(J.delay) } } : {}), ...(J.fuel > 0 ? { fuel: r4(J.fuel / FPS) } : {}) };
+  return out.dash || out.airDash || out.flight || out.jump || out.jetpack ? out : null;
 }
 
 /** What a gameworld's feel makes of its hero, for the readout: the template, its viewer (advice), and what is carried. */

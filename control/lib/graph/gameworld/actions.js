@@ -49,6 +49,7 @@ export const TRAVERSAL_MOVES = Object.freeze({
   'vayo-dash': { read: 'a dash on the hero\'s own air: a burst to its peak, then a carry (V)', rule: (base, p) => vayoGrant(base, p, 'dash') },
   'vayo-jump': { read: 'a jump again in the air on the hero\'s own air: the same height from wherever it fires', rule: (base, p) => vayoGrant(base, p, 'jump') },
   'vayo-air-dash': { read: 'a dash in the air on the hero\'s own air, again after the ground; held, it carries on as flight (V)', rule: (base, p) => vayoGrant(base, p, 'airDash') },
+  'vayo-jetpack': { read: 'a jetpack on the hero\'s own air: a startup leans it into the launch, and it goes where it leans (V in the air)', rule: (base, p) => vayoGrant(base, p, 'jetpack') },
   'vayo-flight': { read: 'flight on the hero\'s own air: rise, hover and fly at will (V in the air)', rule: (base, p) => vayoGrant(base, p, 'flight') },
 });
 function vayoGrant(base, p, kind) {
