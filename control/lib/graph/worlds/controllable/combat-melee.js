@@ -47,6 +47,8 @@ export function buildCombatMelee(E) {
         // spark tint/size for the renderer's clash channel — the melee analog of a ranged
         // weapon's fxColor/fxScale ({ color, scale }); null → the renderer's default clash read.
         fx: sv.strikeFx ?? sc.strikeFx ?? r.strikeFx ?? null,
+        // its kinetic and impact energy (knock.js: knockback apart from damage); absent, no field
+        ...((sv.strikeKnock ?? sc.strikeKnock ?? r.strikeKnock) ? { knock: sv.strikeKnock ?? sc.strikeKnock ?? r.strikeKnock } : {}),
       },
     };
   }
@@ -219,6 +221,7 @@ export function buildCombatMelee(E) {
       // (armReaction's kill override).
       const topples = (P.topple != null ? !!P.topple : e.swingClip === 'swing_back') && (P.combo ? !!e.swingCombo : true);
       armReaction(tg, topples ? 'topple' : 'stagger', topples, { launch: P.launch });
+      if (P.knock && E.knockHit) E.knockHit(state, tg, e, P.knock, [tg.transform.pos[0] - e.transform.pos[0], tg.transform.pos[1] - e.transform.pos[1]]);
     }
   }
 

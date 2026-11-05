@@ -639,6 +639,42 @@ rule.vayo: { element?, power?, cap?, regen?,
 - **The wake:** a vayo mover pushes the air behind it into the world's air (above): a 3D wake's deficit, v·(R/d)^⅔ at its
   fiction's speed. A super's dash past a burning crate puts it out; a human's fans it.
 
+### Natural knockback: an impact split between the ground and what stands near it
+
+Knockback is its own channel, apart from damage ([`worlds/controllable/knock.js`](../control/lib/graph/worlds/controllable/knock.js),
+read off the page by [`rupa/knock.js`](../control/lib/graph/rupa/knock.js)). A blow carries energy, joules, as well as hp:
+
+- **Kinetic:** a direct hit's energy (a shot, a swing, a beam) pushes what it strikes along the blow.
+- **Impact:** energy released where a source meets the ground (a burst, a beam's end, a slam).
+  - The ground takes seven tenths of it: the dust, and the crater rupa digs.
+  - The rest spreads as a shock. Each body near takes the share of it that its frontal area fills of the hemisphere at its
+    distance, A / 2π(d + r₀)², the law `burstShare` gives a block. So it falls off with distance, and a big body takes
+    more than a small one.
+- **Hold:** a standing body holds by its footing, μ·m·g over a 15 cm slip (μ 0.6). Nothing holds a body in the air. A
+  body's mass is its `body.mass`, or its hitbox's volume at 160 kg/m³ (a person's hitbox is 75 kg). A `heavy` body is
+  never moved.
+- **The throw:** what passes its hold is thrown at v = √(2·(E − hold)/m), held to the play cap (40 m/s), and lifted by
+  the blow's `lift` (a shock lifts most what is nearest).
+  - Light things fly; heavy things only stagger. Past 7 m/s it is a knockdown.
+  - A body owner carries the thrown body whatever its rule: an arc under gravity, then a slide that friction (μₖ·g)
+    stops. A wall stops it with a stagger.
+- **Splash by proximity:** in a level with knockback, a burst's damage and poise fall off with distance. A body touching
+  it takes the whole. Farther out it takes (R/2 / (R/2 + d))² of it, and never under `min` (a fifth) inside its reach.
+  `splash: 'flat'` keeps them whole.
+- **Natural:** a level's `knockback` gives every burst an impact from its size (its charge by cube-root blast scaling, a
+  twentieth of it mechanical, × the world's power), and makes a hard landing (a fall past 12 m/s) a slam at the feet.
+
+```
+level knockback: true | { scale?, hero?, cap?, splash?: 'proximity' | 'flat', min?, slam?, natural? }
+an attack's knock: { kinetic?, impact?, lift? }   (joules, or tap 50 | light 300 | heavy 3000 | massive 30000)
+  a weapon's knock · a strike's strikeKnock · a beam cue's knock · a power's kinetic and impact (its beam's)
+```
+
+Attacks that carry their own energy work without the level's word: their kinetic and impact, no natural impact and no
+proximity splash. The hero is thrown too, unless `hero: false`. The juice is vayo's: an impact's air goes into the
+world's air (fires near it are fanned or put out), and on the page a dust ring runs out from an impact (as wide as the
+cube root of the ground's share), a slam or a wall puffs, and what slides kicks dust up under it.
+
 ## What holds it up
 
 The basic break pass ([`rules-basic.js`](../control/lib/graph/worlds/controllable/rules-basic.js)) still decides what

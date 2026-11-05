@@ -70,7 +70,7 @@ export const CAST_THEN = Object.freeze({
   puff: `{ puff: who | { who? | at: place, is?, color?, shake?: 0..1 } } a moment at a character's feet or a place: is ${PUFFS.join(', ')} (smoke by default); shake shakes the camera too`,
   shake: '{ shake: k | { k, for? } } the camera shakes, k 0..1 (0.5 a thump, 1 a quake), over for seconds (0.4), dying away',
   explode: `{ explode: who | { who? | at: place, is?, color?, scale? } } an explosion at a character's feet or a place: is a preset (${EXPLOSION_NAMES.join(', ')}), a name in play.explosions, or its parts (blast by default); scale sizes it`,
-  beam: `{ beam: { who, to: who | place | { nearest: { range?, cone? } }, is?, color?, hurt? } } who fires an attack from its hand at a character, a place, or the nearest foe in front of it (within range m, 30, and cone radians, 0.7; none, straight ahead): is a preset (${BEAM_NAMES.join(', ')}), a name in play.beams, or its strands (orb by default); struck fires when it lands on a character, and hurt is the hp it takes then (a number, or { by: 'power', per, base }: the caster's power stat as it fires × per)`,
+  beam: `{ beam: { who, to: who | place | { nearest: { range?, cone? } }, is?, color?, hurt? } } who fires an attack from its hand at a character, a place, or the nearest foe in front of it (within range m, 30, and cone radians, 0.7; none, straight ahead): is a preset (${BEAM_NAMES.join(', ')}), a name in play.beams, or its strands (orb by default); struck fires when it lands on a character, and hurt is the hp it takes then (a number, or { by: 'power', per, base }: the caster's power stat as it fires × per); knock { kinetic?, impact?, lift? } its knockback apart from its hurt (joules or tap | light | heavy | massive)`,
   blast: '{ blast: { at: place, radius?, hurt? } } a charge goes off at a place: it breaks what the world lets break in its radius (2.5 m), as a grenade would; hurt takes that much hp from each body in it',
   collapse: "{ collapse: group | { group, how?: 'base' | 'whole', storey?, stagger? } } a building comes down: base breaks what stands within storey metres (3) of its foot and the rest falls on it; whole breaks every block; stagger seconds between blocks, bottom up",
   break: '{ break: id } one block breaks (or each block of a group)',
@@ -248,6 +248,12 @@ export function readCastEffect(k, t, where, ctx = {}) {
       if (byPower ? !(H.by === 'power' && Object.keys(H).every((k) => ['by', 'per', 'base'].includes(k)) && Number.isFinite(H.per) && H.per > 0 && Number.isFinite(H.base) && H.base > 0) : !(Number.isFinite(H) && H > 0)) throw new Error(`${w}.hurt is the hp it takes when it lands, above 0, or { by: 'power', per, base } (its caster's power stat × per; base where it has none)`);
       out.hurt = byPower ? { by: 'power', per: H.per, base: H.base } : H;
     }
+    // (its knockback, apart from its hurt: { kinetic?, impact?, lift? }, joules or a word; worlds/controllable/knock.js)
+    if (o.knock !== undefined) {
+      const K = o.knock, W = ['tap', 'light', 'heavy', 'massive'], en = (v) => (Number.isFinite(v) && v > 0) || W.includes(v);
+      if (!K || typeof K !== 'object' || Array.isArray(K) || Object.keys(K).some((k) => !['kinetic', 'impact', 'lift'].includes(k)) || (K.kinetic !== undefined && !en(K.kinetic)) || (K.impact !== undefined && !en(K.impact)) || (K.lift !== undefined && !(Number.isFinite(K.lift) && K.lift >= 0 && K.lift <= 1))) throw new Error(`${w}.knock is { kinetic?, impact?, lift? }: the energy it pushes its target with and the energy it releases where it lands (joules, or ${W.join(', ')}), lift 0–1`);
+      out.knock = { ...K };
+    }
     out.spec = readBeam(o.is ?? 'orb', `${w}.is`, ctx.beams, ctx.explosions);
     if (isStr(o.is)) out.name = o.is;
     if (o.color !== undefined) out.color = readColor(o.color, `${w}.color`);
@@ -298,6 +304,7 @@ export function lowerCastEffect(t, on, frag, places = []) {
     r.spec = t.spec; r.land = beamLanding(t.spec);
     if (t.name) r.name = t.name;
     if (t.hurt !== undefined) r.hurt = t.hurt;
+    if (t.knock !== undefined) r.knock = t.knock;
   }
   if (t.op === 'puff') { if (!t.who) delete r.who; if (t.at !== undefined) { const p = placeAt(t.at, places); if (!p) return frag; r.at = p.at.slice(); } }
   if (t.op === 'spawn') {

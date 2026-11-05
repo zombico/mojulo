@@ -196,7 +196,7 @@ export function buildCast(E) {
         const hit = t + Math.min(...(o.land || [[0, 0]]).map(([a, b]) => a + b * D));
         // (a hurt by the caster's power, `{ by: 'power', per, base }`: its power stat as it fires, × per; base without one)
         const hu = o.hurt && typeof o.hurt === 'object' ? Math.round((Number.isFinite(e.power) ? e.power * o.hurt.per : o.hurt.base) * 100) / 100 : o.hurt;
-        moment(state, { is: 'beam', at: from, from, to, ...(T ? { target: T.id } : {}), by: e.id, name: o.name || null, spec: o.spec, ...(o.color !== undefined ? { color: o.color } : {}), ...(T && Number.isFinite(hu) && hu > 0 ? { hurt: hu } : {}), hit, until: hit + 8 });
+        moment(state, { is: 'beam', at: from, from, to, ...(T ? { target: T.id } : {}), by: e.id, name: o.name || null, spec: o.spec, ...(o.color !== undefined ? { color: o.color } : {}), ...(T && Number.isFinite(hu) && hu > 0 ? { hurt: hu } : {}), ...(o.knock ? { knock: o.knock } : {}), hit, until: hit + 8 });
         const land = T ? feet(T) : to;
         if (o.spec.impact) puff(state, { is: o.spec.impact, ...(o.spec.impactSpec ? { spec: o.spec.impactSpec } : {}), ...(o.color !== undefined ? { color: o.color } : {}) }, land, hit);
         if (o.spec.shake) moment(state, { is: 'shake', at: land, k: o.spec.shake, for: 0.4, t0: hit });
@@ -331,6 +331,14 @@ export function buildCast(E) {
         X.body.hp = Math.max(0, X.body.hp - M.hurt); X.hitFlash = state.time; X.hits = (X.hits || 0) + 1; X.lastHitBy = M.by;
         if (X.body.hp <= 0) { X.downed = true; X.castDown = true; X.route = null; X.held = false; X.moving = false; }
       }
+    }
+    // a beam with kinetic or impact energy (knock.js): it pushes its target along the beam and releases its impact where
+    // it lands, or on the ground where it ends when it struck nobody
+    if (E.knockHit) for (const M of state.moments || []) if (M.is === 'beam' && M.knock && !M.knocked && (state.time || 0) >= M.hit) {
+      M.knocked = true;
+      const X = M.target ? state.byId[M.target] : null;
+      if (X && !X.gone) E.knockHit(state, X, state.byId[M.by], M.knock, [X.transform.pos[0] - M.from[0], X.transform.pos[1] - M.from[1]]);
+      else if (!M.target && M.knock.impact) E.knockShock(state, M.to, E.knockLaw.joulesOf(M.knock.impact));
     }
     return { events, prev: next };
   }

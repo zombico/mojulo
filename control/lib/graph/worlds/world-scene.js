@@ -1047,6 +1047,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (worlds/controllable/vayo-air.js; the fire channel's `gusts`). A world not on the flow, or with no fires, keeps its bytes
     { const fxs = sketch.manifest.fxStyle;
       if (payload && payload.fire && Array.isArray(payload.fire.sources) && payload.fire.sources.length && fxs && typeof fxs === 'object' && fxs.flow) payload.fire = { ...payload.fire, gusts: true }; }
+    // knockback apart from damage (worlds/controllable/knock.js): the level's own (`knockback`); the attacks that carry
+    // their own kinetic or impact are found where the page is emitted (scene-three.js). Neither ⇒ no byte of it
+    if (payload && sketch.manifest.knockback !== undefined && sketch.manifest.knockback !== false) {
+      const { readKnockback } = await import('@/lib/graph/rupa/knock.js');
+      payload.knock = readKnockback(sketch.manifest.knockback);
+    }
     // a hero's vayo moves (special abilities on its own air, rupa/vayo-move.js): checked here, moved by the page
     if ((payload?.entities || []).some((e) => e && e.rule && e.rule.vayo !== undefined)) {
       const { readVayo } = await import('@/lib/graph/rupa/vayo-move.js');
