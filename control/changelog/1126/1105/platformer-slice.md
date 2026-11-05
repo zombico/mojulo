@@ -12,6 +12,12 @@
   hero about its feet with its volume kept: sunk into the gather, stretched by the flight's speed (none at the apex),
   squashed on landing and sprung back over the landing's frames. The readout says the look is partly carried (the
   smears are not).
+- **The reach of a feel.** `feel/reach.js` measures what a feel's hero can cross by playing the rule its game ships
+  (the card over the hero's own) in the runtime on scripted presses: the tapped hop, the jump from a stand, the running
+  jump, and the air jump at the apex where the card has one. Each move's arc, its height, the widest gap of level ground
+  it clears and its air time; `reachAt(move, up)` is the farthest ledge it lands on at a height above or below the
+  take-off. Jumping Giuseppe's running jump clears 4.4 m and rises 1.8 m, his air jump 7.7 m and 3.4 m; Galaxy Boy's
+  running jump 3.8 m and 1.6 m, with no air jump. The level's segments are sized by it.
 - **Absent `takes`, nothing moves.** A feel without it lowers to the rule it did, and the page's renderer carries the
   squash only when a rule asks for it; the platform rule's source in the page gained the takes' branch (re-pinned).
 - **Planned.** A platformer world's first level is trail segments joined at seams: the basic movement, the first
