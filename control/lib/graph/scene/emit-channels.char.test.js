@@ -407,6 +407,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // and `kitchen-sink-capture`, the fixtures that inline the event bus. Its saga key joined an id and a scope with a raw NUL
 // byte written into the source (event-bus.js), so every page carrying the bus held a NUL, and an artifact host refused
 // it; it is written `'\x00'`, the same string at run time.
+// Re-pinned 2026-11-05 (1105-rpg-slice: the pixel budget): the 14 fixtures that embed the controllable runtime, every
+// page played live. Their density line becomes the budget's (capped at 1.5, the frame's time stepping it a quarter, the
+// `__budget(t)` call after each render); nothing else in them moved. No fixture's figure is a plain rigid rig, so none
+// carries the merged builder (merged-figure.js, its own tests).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
