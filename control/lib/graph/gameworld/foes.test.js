@@ -2,7 +2,7 @@
 // they stand, and nothing laid where none is named. Placement is tested on a stage's own ends (its beats), the runner on
 // the hero sample: a bestiary alone mints nothing, a level that stands foes mints one beast per entry it fields.
 import { describe, it, expect } from 'vitest';
-import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, withFoeWin, fieldedIds, stompOf, SWARM, ROOM_FOES } from './foes.js';
+import { readBestiary, readLevelFoes, foePlacements, hostileCast, withFoeHits, withFoeWin, fieldedIds, stompOf, SWARM, ROOM_FOES, DENSITY_WORDS, MAX_DENSITY } from './foes.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
 import { FEELS } from './feel/cards.js';
 import { MADE_KEY } from './made.js';
@@ -69,6 +69,29 @@ describe('a stage\'s foes', () => {
     expect(foePlacements(world({ a: { class: SOLO.id } }, { count: 2 }), 'one', IN).length).toBe(2);
     // (a trail's beats, as before: one on each)
     expect(foePlacements(G, 'one', { ...IN, use: undefined }).length).toBe(rooms.length);
+  });
+  it('a density is foes per free beat: below one the beats skipped evenly, above it the rest round them; per trail node', () => {
+    const many = Array.from({ length: 8 }, (_, k) => ({ beat: `b${k}`, at: [(k + 1) * 10, 0, 0] }));
+    const E = { spawn: [0, 0, 0], exit: [100, 0, 0], beats: [BEATS[0], ...many, BEATS[3]] };
+    const at = (density, node) => foePlacements(world({ a: { class: SOLO.id } }, { density }), 'one', { ...E, node });
+    expect(at('even').length).toBe(8);
+    expect(at('none')).toEqual([]);
+    const half = at(DENSITY_WORDS.sparse);
+    expect(half.length).toBe(4);
+    expect(new Set(half.map((p) => p.at[0])).size).toBe(4);                        // four beats, one each
+    expect(half.map((p) => p.at[0])).toEqual([20, 40, 60, 80]);   // spread evenly, not bunched at an end
+    const dense = at('dense');
+    expect(dense.length).toBe(16);
+    expect(new Set(dense.map((p) => p.at.join())).size).toBe(16);                   // the rest stand round the beats
+    // per trail node: the node's own rate; a node it does not name stands the even one
+    expect(at({ gauntlet: 'dense', meet: 0.25 }, 'meet').length).toBe(2);
+    expect(at({ gauntlet: 'dense', meet: 0.25 }, 'gauntlet').length).toBe(16);
+    expect(at({ gauntlet: 'dense' }, 'basic').length).toBe(8);
+    expect(() => readLevelFoes({ density: MAX_DENSITY + 1 }, null, 'levels.one')).toThrow(/foes per free beat/);
+    expect(() => readLevelFoes({ density: 'heaps' }, null, 'levels.one')).toThrow(/sparse 0.5/);
+    expect(() => readLevelFoes({ density: 1, count: 3 }, null, 'levels.one')).toThrow(/name one/);
+    // a level that says none keeps its foes as before
+    expect(foePlacements(world({ a: { class: SOLO.id } }, true), 'one', { ...E, node: 'x' }).length).toBe(8);
   });
   it('a count past the beats stands the rest round them; a pack stands its members as one group', () => {
     const G = world({ s: { class: PACK.id } }, { count: 3 });

@@ -415,6 +415,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // the wall kick (before the air jump), the dash on a person's F, the kick and the dash owning the horizontal step, the
 // wall slide off the blocking pass's push-out, and gravity held on the wall and in an air dash. Absent `cling` and `dash`
 // every branch is skipped: the replaced line is the vertical integrate, its gravity now the last of three arms.
+// Re-pinned 2026-11-05 (1105-platformer-lv0-spike: a 3D platformer's chase): the same fixtures. The follow camera gained
+// its `steer` (its own yaw, trail or orbit, and a vertical deadzone), the world its `cameraYaw` getter, and the platform
+// rule `move: 'camera'`. Absent `steer` the chase reads the heading and the target's height as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

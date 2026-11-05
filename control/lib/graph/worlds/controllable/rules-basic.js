@@ -127,24 +127,59 @@ export function buildRulesBasic(E) {
     const wantFlip = r.reverse ? 1 : 0;
     if (e.flipMix == null) e.flipMix = wantFlip;   // start settled (no swing on load)
     e.flipMix += (wantFlip - e.flipMix) * smooth(r.flipRate ?? 3, dt);
-    const h = tgt.transform.heading + Math.PI * e.flipMix, f = fwdXY(h), rt = rightXY(h);
+    // A STEERED CHASE (opt-in `steer`, a 3D platformer's: the hero moves by it, rules-platform.js `move: 'camera'`): the
+    // camera keeps its OWN yaw (`e.camYaw`, published to the world as `cameraYaw`) instead of the hero's heading.
+    //   trail  it follows by itself: the yaw eases toward the way the hero runs while it runs (`trailRate`), and holds
+    //          while it stands, while it turns fast (past `trailSteady` rad/s) or runs back at the camera (past `trailHold`
+    //          radians off), so the view never spins
+    //   orbit  the player turns it: the look (a drag, the right stick) turns the yaw and tilts the pitch
+    // Both hold a VERTICAL DEADZONE: the height followed is the ground's under a hero that jumps, eased on landing or once
+    // the hero leaves the band (`band`: [below, above] metres), so a jump does not bob the view. Absent → the chase
+    // behind the heading, as before.
+    const steer = r.steer === 'trail' || r.steer === 'orbit' ? r.steer : null;
+    let h, pSteer = 0;
+    if (steer) {
+      if (e.camYaw == null) e.camYaw = tgt.transform.heading;
+      const wrapA = (a) => ((a + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+      if (steer === 'orbit') {
+        const sens = r.lookSens ?? 0.0035;
+        e.camYaw = wrapA(e.camYaw + (input.lookDX || 0) * sens);
+        e.camPitch = Math.max(-0.45, Math.min(0.7, (e.camPitch || 0) + (input.lookDY || 0) * sens));
+        pSteer = e.camPitch;
+      } else {
+        // (only a heading that has settled: while the hero turns round fast, the view waits for where it ends up)
+        const d = wrapA(tgt.transform.heading - e.camYaw), turning = e.trailD != null && Math.abs(wrapA(d - e.trailD)) > (r.trailSteady ?? 3) * dt;
+        e.trailD = d;
+        if (tgt.moving && !turning && Math.abs(d) < (r.trailHold ?? 2.4)) e.camYaw = wrapA(e.camYaw + d * smooth(r.trailRate ?? 1.6, dt));
+      }
+      h = e.camYaw;
+    } else h = tgt.transform.heading + Math.PI * e.flipMix;
+    const f = fwdXY(h), rt = rightXY(h);
+    // the height followed: the target's, or under a steered chase its ground's through a jump (the deadzone)
+    let tz = tgt.transform.pos[2];
+    if (steer) {
+      const band = r.band ?? [1, 2.5];
+      if (e.camZ == null) e.camZ = tz;
+      if (tgt.grounded !== false || tz < e.camZ - band[0] || tz > e.camZ + band[1]) e.camZ += (tz - e.camZ) * smooth(r.zLerp ?? 5, dt);
+      tz = e.camZ;
+    }
     // pitch: flip negates it so the reverse (face-on) cam tilts to keep the unit framed the same way.
     const pf = r.pitchFollow == null ? 1 : r.pitchFollow;
-    const p = (tgt.transform.pitch || 0) * pf * (e.flipMix > 0.5 ? -1 : 1);
+    const p = steer ? pSteer : (tgt.transform.pitch || 0) * pf * (e.flipMix > 0.5 ? -1 : 1);
     const cp = Math.cos(p), sp = Math.sin(p);
     // chase offset behind the target, rotated by pitch: pull in by cos(p) horizontally, drop the camera
     // by dist·sin(p) and raise the look point by lead·sin(p) — the view tilts up when you look up.
     const want = [
       tgt.transform.pos[0] - f[0] * dist * cp + rt[0] * shoulder,
       tgt.transform.pos[1] - f[1] * dist * cp + rt[1] * shoulder,
-      tgt.transform.pos[2] + height - dist * sp,
+      tz + height - dist * sp,
     ];
     const k = smooth(lerp, dt);
     e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), k));
     e.lookAt = [
       tgt.transform.pos[0] + f[0] * lead * cp,
       tgt.transform.pos[1] + f[1] * lead * cp,
-      tgt.transform.pos[2] + lookH + lead * sp,
+      tz + lookH + lead * sp,
     ];
     // ROLL (skyscape, opt-in `rollFollow` 0..1): the chase banks with a target that rolls (the fly rule's tilt.roll),
     // eased on the same lerp, so a turn reads as a bank and the horizon tilts. Absent, `e.roll` is never set.

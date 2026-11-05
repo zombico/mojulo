@@ -498,7 +498,7 @@ function chapterLevels(world, played) {
 }
 const bossed = (G) => G.ids.some((id) => G.levels[id].goal?.boss);
 // the cameras that watch a hero (levels.js levelOrder refuses them without one)
-const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed']);
+const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed', 'follow', 'orbit']);
 const guarded = (G) => G.ids.some((id) => G.levels[id].goal?.guards);
 const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.section !== 'interior' && !s.building?.ref) out[s.level] = s.index; return out; };
 function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
@@ -516,7 +516,7 @@ function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
   // one); a stage they do not reach plays its goal as before. On a stage the party battles are fought on, the battle's
   // own fail-on-death is the level's end: the foes stand and are cleared, their hits taking no second hp
   const mech = (ends) => levelGoalMechanics(goal ?? {}, ends, { last });
-  return { ...own, goal: (ends) => (foePlacements(G, s.level, ends).length ? withFoeWin(G, s.level, ends, fought ? mech(ends) : withFoeHits(mech(ends))) : mech(ends)) };
+  return { ...own, goal: (ends) => (foePlacements(G, s.level, { ...ends, node: s.node }).length ? withFoeWin(G, s.level, { ...ends, node: s.node }, fought ? mech(ends) : withFoeHits(mech(ends))) : mech(ends)) };
 }
 /** The bestiary's figures (foes.js): a beast for each entry some level stands, at `<ref>-foes-<id>`, made through the
  * animal door with its skin's oozes (a person dressed as a crew's through the hero door), in the WORLD'S LOOK (cast-setting.js settingOfGame: its tradition's light, and what
@@ -557,7 +557,7 @@ const foeRefsOf = (G, ref) => Object.fromEntries(fieldedIds(G).map((id) => [id, 
 // (and on a level's last stage, its wave gauntlet's foes stood asleep: gauntlet-cast.js; `hurt` a touch's cost on the
 // hero's body where the systems bind its hp, foes.js onBody)
 const hostileOf = (G, s, refs, hero, last = false, hurt = null) => {
-  const own = G.levels[s.level]?.foes !== undefined ? (ends) => hostileCast(G, s.level, ends, { refs, hero, ...(hurt ? { hurt } : {}) }) : null;
+  const own = G.levels[s.level]?.foes !== undefined ? (ends) => hostileCast(G, s.level, { ...ends, node: s.node }, { refs, hero, ...(hurt ? { hurt } : {}) }) : null;
   const gauntlet = last && G.levels[s.level]?.goal?.gauntlet ? (ends) => gauntletCast(G, s.level, ends, { refs, hero }) : null;
   return composeExtras(own, gauntlet);
 };

@@ -96,8 +96,12 @@ export function buildRulesPlatform(E) {
     // LANE MOVEMENT (opt-in `move: 'lane'` with `lane`, a polyline [[x, y], …] on the ground plane): the side-scroller's
     // rule. D runs along the lane the way it was drawn, A back, W/S do nothing; the body faces its run and is held on the
     // line after every step (below), however the line bends. The `side` camera's partner.
+    // CAMERA MOVEMENT (opt-in `move: 'camera'`, a 3D platformer's): world movement whose frame is the camera's live yaw
+    // (a steered chase publishes it, rules-basic.js follow `steer`), so the stick's up runs away from the camera however
+    // it has turned; with no steered camera, the hero's own heading
     const laneMove = !space && r.move === 'lane' && Array.isArray(r.lane) && r.lane.length >= 2;
-    const worldMove = !space && (r.move === 'world' || laneMove);
+    const camMove = !space && r.move === 'camera';
+    const worldMove = !space && (r.move === 'world' || laneMove || camMove);
     let wmX = 0, wmY = 0, wmMag = 0;
     if (worldMove) {
       const side = clamp(input.strafe + input.turn, -1, 1);
@@ -105,7 +109,7 @@ export function buildRulesPlatform(E) {
         const L = laneNear(r.lane, t.pos[0], t.pos[1], side);
         wmX = L.tx * side; wmY = L.ty * side;
       } else {
-        const my = r.moveYaw ?? HALF_PI, wf = fwdXY(my), wr = rightXY(my);
+        const my = camMove ? (world && world.cameraYaw != null ? world.cameraYaw : t.heading) : (r.moveYaw ?? HALF_PI), wf = fwdXY(my), wr = rightXY(my);
         wmX = wf[0] * input.forward + wr[0] * side; wmY = wf[1] * input.forward + wr[1] * side;
       }
       wmMag = Math.min(1, Math.hypot(wmX, wmY));

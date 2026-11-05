@@ -28,6 +28,16 @@
   running jump 3.8 m and 1.6 m, with no air jump. With the takes, the dash jump and the air dash join (Galaxy Boy's dash
   jump clears 6.9 m), and the wall's kick and climb (about 1.6 m a kick for Galaxy Boy). The level's segments are sized
   by it.
+- **Enemy density, a trail's.** A level's foes take `density`: foes per free beat of a stage (0 to 4, or none, sparse,
+  even, dense, swarm), or one per trail node (`{ meet: 'sparse', gauntlet: 'dense' }`), a node it does not name standing
+  the even rate. Below one the beats are skipped evenly along the trail; above it the rest stand round the beats, as a
+  count's do. A count is a total and a density a rate: a level names one. A level that names neither stands one foe a
+  beat, as before.
+- **A 3D platformer's cameras.** The world's `camera` takes `follow` and `orbit`, both a chase the hero runs by: W A S D
+  move the way the camera looks. `follow` turns by itself, easing behind the hero's run and holding while the hero
+  stands, turns fast or runs back at it; `orbit` is the player's to turn (a drag, the right stick, its yaw and its
+  pitch), the legend saying the look. Both hold their height through a jump and follow a drop past their band. The
+  third-person chase is the one it was.
 - **Absent `takes`, nothing moves.** A feel without it lowers to the rule it did, and the page's renderer carries the
   squash only when a rule asks for it; the platform rule's source in the page gained the takes' branch (re-pinned).
 - **Planned.** A platformer world's first level is trail segments joined at seams: the basic movement, the first

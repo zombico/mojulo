@@ -38,7 +38,7 @@ import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
-import { fixedStations, uprightCamera } from './cameras.js';
+import { fixedStations, uprightCamera, STEERED } from './cameras.js';
 import { SHOOT, PERSON, shoulderOf } from './quick.js';
 import { HOLDER } from './mechanics.js';
 import { readScreen } from '../game/screen.js';
@@ -634,8 +634,11 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   if (cam === 'side' && !heroRef) throw new Error('levels: a side camera watches a hero run its lane; give the world a hero, or play it first-person');
   if (cam === 'third-person' && !heroRef) throw new Error('levels: a third-person camera follows a hero; give the world a hero, or play it first-person');
   if (cam === 'fixed' && !heroRef) throw new Error('levels: fixed cameras watch a hero walk past them; give the world a hero, or play it first-person');
+  if (STEERED[cam] && !heroRef) throw new Error(`levels: a ${cam} camera chases a hero; give the world a hero, or play it first-person`);
   const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
-  const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
+  // (a 3D platformer's chase, cameras.js STEERED: the hero moves the way the camera looks; orbit's look is the player's)
+  const steered = STEERED[cam] ?? null;
+  const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : steered ? `W A S D  move${steered === 'orbit' ? ' · drag / right stick  look' : ''}` : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
   const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
@@ -689,7 +692,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     };
   } else if (heroRef) {
     // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
-    const camRule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : undefined;
+    const camRule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : steered ? { move: 'camera' } : undefined;
     // the world's feel (feel/lower.js): its template's card lowered over the hero's platform rule, the camera's way of
     // moving kept; no feel, the hero's own rule as it was
     const written = G.feel ? feelRule(G.feel) : null;
@@ -705,6 +708,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
         : lane ? { rule: 'side', target: 'hero' }
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
+        : steered ? { ...P.camera, steer: steered }
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
         : P.camera;
     const A = armedPilot(G, { ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }, cam);
