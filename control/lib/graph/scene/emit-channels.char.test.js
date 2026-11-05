@@ -406,7 +406,7 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-05 (1105-rpg-slice: no NUL byte in a page): `events`, `events-hud`, `shoot-live`, `kitchen-sink`
 // and `kitchen-sink-capture`, the fixtures that inline the event bus. Its saga key joined an id and a scope with a raw NUL
 // byte written into the source (event-bus.js), so every page carrying the bus held a NUL, and an artifact host refused
-// it; it is written `'\\x00'`, the same string at run time.
+// it; it is written `'\x00'`, the same string at run time.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
