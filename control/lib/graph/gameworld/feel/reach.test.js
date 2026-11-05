@@ -16,7 +16,8 @@ describe('the reach of a feel', () => {
     expect(A.rule).toEqual(shippedRule(airy));
     expect(A.moves.run.height).toBeCloseTo(poleCard(airy).jump.height, 2);
     expect(A.moves.run.long).toBeCloseTo(A.speed * A.moves.run.air, 0);
-    expect(Object.keys(A.moves)).toEqual(MOVES);
+    expect(Object.keys(A.moves)).toEqual(['hop', 'stand', 'run', 'air']);   // a feel without its takes: the jumps alone
+    expect(MOVES).toEqual(expect.arrayContaining(Object.keys(A.moves)));
   });
 
   it('orders the moves: the hop shortest, the run longest of the single jumps, the air jump higher and farther still', () => {
@@ -53,5 +54,17 @@ describe('the reach of a feel', () => {
 
   it('is deterministic', () => {
     expect(reachOf(grounded)).toEqual(G);
+  });
+
+  it('with its takes, the card\'s moves reach farther: the dash jump and the air dash past the run, the wall climbed kick by kick', () => {
+    const dasher = POLE_IDS.find((id) => { const C = poleCard(id); return C.cling && C.dash?.kind === 'dash' && C.dash.jump && C.dash.air?.count > 0; });
+    const T = reachOf({ pole: dasher, takes: true }), M = T.moves;
+    expect(M.dash.long).toBeGreaterThan(M.run.long);
+    expect(M.airDash.long).toBeGreaterThan(M.run.long);
+    expect(T.wall.kick).toBeCloseTo(poleCard(dasher).jump.height * (poleCard(dasher).cling.up ?? 1), 1);
+    expect(T.wall.climb).toBeGreaterThan(0.5);
+    expect(T.wall.climb).toBeLessThanOrEqual(T.wall.kick + 1e-9);
+    const plain = reachOf(dasher);
+    expect(plain.moves.dash).toBeUndefined(); expect(plain.wall).toBeUndefined();
   });
 });

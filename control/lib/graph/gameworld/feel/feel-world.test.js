@@ -40,7 +40,10 @@ describe('a gameworld\'s feel', () => {
     const fig = taken.entities[0].body.figure, F = taken.figures[fig];
     expect(F.clips).toMatchObject(TAKES);
     expect(F.jumps.sort()).toEqual([...new Set(Object.values(TAKES))].sort());
-    const strip = (m) => JSON.stringify({ ...m, entities: m.entities.map((e, i) => (i === 0 ? { ...e, rule: { ...e.rule, takes: null } } : e)), figures: Object.fromEntries(Object.entries(m.figures ?? {}).map(([k, f]) => [k, { ...f, clips: Object.fromEntries(Object.entries(f.clips ?? {}).filter(([st]) => !(st in TAKES))), jumps: null }])) });
+    if (taken.entities[0].rule.dash) expect(JSON.stringify(taken.events)).toContain('F  dash');
+    expect(JSON.stringify(plain.events)).not.toContain('F  dash');
+    // (the card's moves ride the takes: its wall and its dash, F named on the legend)
+    const strip = (m) => JSON.stringify({ ...m, events: null, entities: m.entities.map((e, i) => { if (i) return e; const { takes, cling, dash, ...rule } = e.rule; return { ...e, rule }; }), figures: Object.fromEntries(Object.entries(m.figures ?? {}).map(([k, f]) => [k, { ...f, clips: Object.fromEntries(Object.entries(f.clips ?? {}).filter(([st]) => !(st in TAKES))), jumps: null }])) });
     expect(strip(taken)).toBe(strip({ ...plain, figures: Object.fromEntries(Object.entries(plain.figures ?? {}).map(([k, f]) => [k, { ...f, jumps: null }])) }));
   });
 });

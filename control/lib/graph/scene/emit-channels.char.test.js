@@ -411,6 +411,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // runtime. The platform rule gained its `takes` (a feel's: the hero's jumps played on its flight, their squash and
 // stretch); on the `controllable` fixture 2 lines are replaced (the air jump marks itself) and 57 added. Absent `takes`
 // the branch never runs, and the renderer's squash is emitted only for a rule that carries one (no fixture does).
+// Re-pinned 2026-11-05 (1105-platformer-lv0-spike: the card's wall and dash): the same fixtures. The platform rule gained
+// the wall kick (before the air jump), the dash on a person's F, the kick and the dash owning the horizontal step, the
+// wall slide off the blocking pass's push-out, and gravity held on the wall and in an air dash. Absent `cling` and `dash`
+// every branch is skipped: the replaced line is the vertical integrate, its gravity now the last of three arms.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

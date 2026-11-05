@@ -155,7 +155,23 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
   if (lane) half('lane', 'the hero held to the level\'s own lane (a side camera lays one)' + (C.lane.face ? '; facing the foe is the fighter\'s, not carried' : ''));
   // the rest, said
   const has = (path) => { const v = path.split('.').reduce((o, k) => (o == null ? o : o[k]), C); return v != null && v !== false && !(isObj(v) && path === 'land.stomp'); };
+  // the card's moves the takes carry (the runtime's: rules-platform.js): the wall slide and kick, and the dash (its
+  // ground dash, air dash, dash jump and dash wall kick; a boost on a gauge is not this dash)
+  const moves = new Set();
+  if (takes && C.cling) {
+    const K = C.cling;
+    rule.cling = { slide: K.slide, toward: K.toward, kick: steppedSpeed(J.height * (K.up ?? 1), J.gRise), away: K.away, lock: r4(K.lock / FPS), coyote: r4(K.coyote / FPS) };
+    carried.push('cling'); moves.add('cling');
+  }
+  if (takes && C.dash && C.dash.kind === 'dash') {
+    const D = C.dash, A = D.air;
+    rule.dash = { speed: D.speed, time: r4(D.frames / FPS), ...(D.hold ? { hold: true, min: r4((D.hold.min ?? 0) / FPS) } : {}), ...(D.jump ? { jump: true } : {}), ...(D.wall ? { wall: true } : {}),
+      ...(A && A.count > 0 ? { air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } } : {}) };
+    half('dash', `the dash on F (a person's): the ground dash, ${A?.count ? 'the air dash, ' : ''}${D.jump ? 'the dash jump' : ''}${D.wall ? ', the dash wall kick' : ''}${D.iframes ? '; its invincible frames are not carried' : ''}${D.cancel ? '; its cancel out of a move is not carried' : ''}`);
+    moves.add('dash');
+  }
   for (const [field, why] of Object.entries(LOST)) {
+    if (moves.has(field)) continue;
     // (the takes carry the look's squash and stretch on the hero's own jumps; its smears stay the renderer's)
     if (field === 'look' && takes && C.look?.squash > 0) { half('look', 'the squash and stretch on the take-off, the flight and the landing, with the hero\'s own jumps; the smears are not carried'); continue; }
     if (field === 'land.stomp') { if (C.land?.model === 'stomp') lost.push({ field, why }); continue; }

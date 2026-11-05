@@ -223,6 +223,16 @@ export function buildRulesPlatform(E) {
         e.gaitPhase = (1 - Math.max(0, e.jumpWind) / windup) * 0.9;   // quick dip down the same squat ramp
         if (e.jumpWind <= 0) { e.jumpWind = 0; e.vel[2] = jumpV; e.grounded = false; e.coyote = coyoteT; jumped = true; }
       }
+      // THE WALL KICK (opt-in `cling`, a feel card's: gameworld/feel/lower.js): a jump pressed against a wall (or within
+      // `cling.coyote` seconds of leaving it) kicks off it, before any air jump: up at `cling.kick`, away along the wall's
+      // normal at `cling.away` (with the dash held, a `dash.wall` card kicks at the dash's speed and keeps it), the stick
+      // locked out for `cling.lock` seconds. Absent `cling` → nothing here runs.
+      if (r.cling && input.jump && !jumped && !e.grounded && e.wallN && (e.cling || (e.wallCoyote ?? 0) > 0)) {
+        const dashKick = !!(r.dash && r.dash.wall && input.boost), away = dashKick ? r.dash.speed : r.cling.away;
+        e.vel[2] = r.cling.kick; e.kick = [e.wallN[0] * away, e.wallN[1] * away]; e.kickT = r.cling.lock; e.carry = dashKick ? away : 0;
+        e.cling = null; e.wallCoyote = 0; e.jumpBuf = 0; jumped = true;
+        if (e.drive) { e.drive[0] = e.kick[0]; e.drive[1] = e.kick[1]; }
+      }
       // AIR JUMPS (opt-in `airJumps`, a power's double jump): a press in the air, past the coyote grace, launches again at
       // once (no wind-up) at `airJumpMult` of the jump speed; the count resets on the ground. Absent → nothing here runs.
       const airJumps = r.airJumps ?? 0;
@@ -242,6 +252,36 @@ export function buildRulesPlatform(E) {
     e.charging = charging;
     e.chargeFrac = charging ? chargeFrac : 0;
     if (jumped && chargeMax <= 0) e.jumpPower = 0.2;
+
+    // THE DASH (opt-in `dash`, a feel card's, a person's F: gameworld/feel/lower.js): pressed on the ground it runs the
+    // body along the stick (its facing with the stick at rest) at `dash.speed` for `dash.time` seconds, or while held
+    // (`dash.hold`, at least `dash.min`); pressed in the air, an AIR DASH (`dash.air`: so many an airtime, given back by
+    // the ground and a wall) holds its height on its own line. A jump in a ground dash is a DASH JUMP (`dash.jump`): it
+    // leaves at once and the air keeps the dash's speed (`e.carry`) to the touch-down. Absent `dash` → nothing here runs.
+    const DS = r.dash && walker && !space ? r.dash : null;
+    if (DS) {
+      const press = !!input.boost && !e.dashHeld; e.dashHeld = !!input.boost;
+      if (e.grounded && !jumped) { e.airDashes = DS.air ? DS.air.count : 0; e.carry = 0; }
+      if (e.dashT > 0 && jumped && !e.dashAir) { if (DS.jump) e.carry = e.dashSpeed; e.dashT = 0; }
+      else if (e.dashT > 0 && DS.hold && !input.boost && e.dashRun >= DS.min) e.dashT = 0;
+      if (press && !(e.dashT > 0) && !e.cling && !(e.kickT > 0)) {
+        const air = !e.grounded;
+        if (!air || (DS.air && e.airDashes > 0)) {
+          const wx = f[0] * fwdIn + rt[0] * sideIn, wy = f[1] * fwdIn + rt[1] * sideIn, wm = Math.hypot(wx, wy), F0 = fwdXY(t.heading);
+          e.dashDir = wm > 1e-3 ? [wx / wm, wy / wm] : [F0[0], F0[1]];
+          e.dashAir = air; e.dashSpeed = air ? DS.air.speed : DS.speed; e.dashT = air ? DS.air.time : DS.time; e.dashRun = 0;
+          if (air) { e.airDashes--; e.vel[2] = 0; }
+        }
+      }
+      // the dash jump's speed held through the air, the stick still steering it; the ground ends an air dash
+      if (e.carry > speed && !e.grounded) speed = e.carry;
+      if (e.grounded && e.dashAir && e.dashT > 0 && !jumped) e.dashT = 0;
+    }
+    // the ground lets go of the wall; off it, the kick's grace counts down
+    if (r.cling && !space) {
+      if (e.grounded && !jumped) { e.cling = null; e.wallCoyote = 0; e.kickT = 0; }
+      else if (!e.cling && e.wallCoyote > 0) e.wallCoyote = Math.max(0, e.wallCoyote - dt);
+    }
 
 
     // ── S4 maneuver seams: the shared per-frame ctx the phase hooks read/write ──
@@ -308,6 +348,15 @@ export function buildRulesPlatform(E) {
       if (sp > sMax) v = scl(v, sMax / sp);
       e.vel = v;
       t.pos = add(t.pos, scl(v, dt));
+    } else if (halt && (e.kickT > 0 || e.dashT > 0)) {
+      // the wall kick's fixed flight (the stick locked out) and the dash's line: each its own speed, read into the drive
+      // so the body leaves them with that momentum (cling and dash, above)
+      const v = e.kickT > 0 ? e.kick : [e.dashDir[0] * e.dashSpeed, e.dashDir[1] * e.dashSpeed];
+      t.pos[0] += v[0] * dt; t.pos[1] += v[1] * dt;
+      fwdMove = Math.hypot(v[0], v[1]) * dt;
+      if (accel > 0) { const d = e.drive || (e.drive = [0, 0]); d[0] = v[0]; d[1] = v[1]; }
+      if (e.kickT > 0) e.kickT = Math.max(0, e.kickT - dt);
+      else { e.dashT -= dt; e.dashRun = (e.dashRun || 0) + dt; if (e.dashT < 1e-4) e.dashT = 0; }
     } else if (accel > 0) {
       // GROUND ACCELERATION (opt-in `accel`, units/s², a feel card's ground.accel): the body carries its own planar
       // velocity, the DRIVE (`e.drive`, world-space), which builds toward the stick's velocity at `accel` and sheds
@@ -354,6 +403,18 @@ export function buildRulesPlatform(E) {
       else {
         const px = t.pos[0], py = t.pos[1];
         resolveBlocking(t.pos, footZ, r.collideHeight ?? (eye || 24), r.collideRadius ?? 0, world.colliders, step);
+        // THE WALL SLIDE (opt-in `cling`): falling against a wall with the stick into it (more than `cling.toward` of the
+        // push) holds the body to it, sliding down at `cling.slide` (below) and facing out; its air jumps and air dashes
+        // come back. Let go of it and the kick's grace (`cling.coyote`) counts down
+        if (r.cling && !e.grounded && e.vel[2] <= 0 && !(e.kickT > 0)) {
+          const ex = t.pos[0] - px, ey = t.pos[1] - py, el = Math.hypot(ex, ey);
+          const wx = f[0] * fwdIn + rt[0] * sideIn, wy = f[1] * fwdIn + rt[1] * sideIn, wm = Math.hypot(wx, wy);
+          if (el > 1e-9 && wm > 1e-3 && -(wx * ex + wy * ey) / el > r.cling.toward * wm) {
+            e.cling = [ex / el, ey / el]; e.wallN = e.cling; e.wallCoyote = r.cling.coyote; e.airJumpsUsed = 0;
+            if (r.dash && r.dash.air) e.airDashes = r.dash.air.count;
+            e.dashT = 0; e.carry = 0;
+          } else if (e.cling) e.cling = null;
+        }
         // a wall takes the part of the drive that went into it (the push-out's direction is the wall's normal); the
         // part along it stays, so the body slides on
         if (accel > 0 && e.drive) {
@@ -393,7 +454,9 @@ export function buildRulesPlatform(E) {
         const footZ0 = t.pos[2] - eye;   // pre-fall foot height (the swept-probe origin)
         // GLIDE (opt-in `glideFall`, a power's glide): jump held while falling caps the fall at that speed. Absent → maxFall.
         const fallCap = r.glideFall > 0 && input.jumpHeld && e.vel[2] <= 0 ? Math.min(maxFall, r.glideFall) : maxFall;
-        e.vel[2] = Math.max(-fallCap, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * dt);
+        if (e.cling && r.cling) e.vel[2] = -r.cling.slide;   // down the wall at a constant speed
+        else if (e.dashT > 0 && e.dashAir) e.vel[2] = 0;    // the air dash holds its height
+        else e.vel[2] = Math.max(-fallCap, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * dt);
         t.pos[2] += e.vel[2] * dt;
         // SWEEP the touchdown probe from the HIGHER of the pre/post foot, not the post-fall foot. A fast
         // fall (low framerate / big dt, a knockback launch, the drop-in settle over the wavy drape) moves

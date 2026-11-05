@@ -12,12 +12,22 @@
   hero about its feet with its volume kept: sunk into the gather, stretched by the flight's speed (none at the apex),
   squashed on landing and sprung back over the landing's frames. The readout says the look is partly carried (the
   smears are not).
+- **The card's moves, with its takes.** A feel with `takes: true` also plays its card's wall and dash, as the action lab
+  tuned them. Falling against a wall with the stick into it slides down at the card's speed; a jump on it (or a few
+  frames after leaving it) kicks off it, up and away, the stick locked out for the kick, so a single wall is climbed kick
+  after kick with the stick held back to it. A person's F dashes: along the stick at the card's speed for as long as it is
+  held (at least its least, at most its time); in the air an air dash holds its height, once an airtime, given back by
+  the ground and the wall; a jump in a ground dash is a dash jump that keeps the dash's speed to the touch-down, and a
+  kick with the dash held kicks at the dash's speed. The level's legend names F as the dash. The readout says the dash is
+  partly carried (its invincible frames and its cancel are not).
 - **The reach of a feel.** `feel/reach.js` measures what a feel's hero can cross by playing the rule its game ships
   (the card over the hero's own) in the runtime on scripted presses: the tapped hop, the jump from a stand, the running
   jump, and the air jump at the apex where the card has one. Each move's arc, its height, the widest gap of level ground
   it clears and its air time; `reachAt(move, up)` is the farthest ledge it lands on at a height above or below the
   take-off. Jumping Giuseppe's running jump clears 4.4 m and rises 1.8 m, his air jump 7.7 m and 3.4 m; Galaxy Boy's
-  running jump 3.8 m and 1.6 m, with no air jump. The level's segments are sized by it.
+  running jump 3.8 m and 1.6 m, with no air jump. With the takes, the dash jump and the air dash join (Galaxy Boy's dash
+  jump clears 6.9 m), and the wall's kick and climb (about 1.6 m a kick for Galaxy Boy). The level's segments are sized
+  by it.
 - **Absent `takes`, nothing moves.** A feel without it lowers to the rule it did, and the page's renderer carries the
   squash only when a rule asks for it; the platform rule's source in the page gained the takes' branch (re-pinned).
 - **Planned.** A platformer world's first level is trail segments joined at seams: the basic movement, the first
