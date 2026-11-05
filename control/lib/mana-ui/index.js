@@ -22,7 +22,7 @@ import { withIdioms } from './idioms.js';
 export { manaUi, manaUiSource, buildManaUi } from './kernel.js';
 export { manaCss, FRAME_CSS, GREYBOX_VARS } from './css.js';
 export { THEMES, THEME_IDS, THEME_WORDS, FACE_STACKS, readTheme, themeCss, themeAdvice, contrast } from './theme.js';
-export { IDIOMS, IDIOM_IDS, SCREEN_IDIOMS, HUD_IDIOM_IDS, withIdioms } from './idioms.js';
+export { IDIOMS, IDIOM_IDS, SCREEN_IDIOMS, HUD_IDIOM_IDS, withIdioms, coverageOverlap } from './idioms.js';
 export { SAMPLE_STATE } from './samples.js';
 export { manaUiBoard, boardFrames, BOARD_HUDS } from './board.js';
 

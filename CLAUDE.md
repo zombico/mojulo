@@ -299,7 +299,8 @@ Pointers only; each target carries its own design notes.
 - Broadcast: [broadcast/](control/lib/graph/broadcast/) (the graphics over every contest and tabletop page: the packages,
   the colour theory, metal from measured reflectance, a cue per kernel call, the director's closeup; the board games in
   their own `table` furniture by `broadcast-dom.js`; a contest's or a tabletop's `broadcast` key):
-  [docs/broadcast.md](docs/broadcast.md). A new contest page feeds it or its guard test fails.
+  [docs/broadcast.md](docs/broadcast.md). A new contest page feeds it or its guard test fails. It owns a sport's coverage;
+  the menus around it are mana-ui's, in its look (`broadcast-mana.js`), the results read by `contest/contest-results.js`.
 - Science worlds: [science-worlds/](control/lib/graph/science-worlds/) (`classical`, `microscopic`, `quantum`, `relativistic`: a demo composed from a
   law table, model examined and dress declared; a law the scale lacks is a gap from `scales.js`, never approximated; a
   picture drawn by a shader is generated from the model's numbers and held to them by `conformance.js`).

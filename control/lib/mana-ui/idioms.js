@@ -15,7 +15,10 @@
  *   IDIOMS        name → { kind: 'screen' | 'hud', shelf: 'front' | 'rpg' | 'hud' | 'live', about, reads, emits, params, node,
  *                 example, waits? } (waits: the param
  *                 that must be true before a screen has anything to press, a loading screen's ready)
+ *                 coverage: a HUD part a TV coverage draws on a covered page (a sport's broadcast: the bug, the strap,
+ *                 the call plate), so a covered page asks for it from the coverage, not from here
  *   IDIOM_IDS · SCREEN_IDIOMS · HUD_IDIOM_IDS
+ *   coverageOverlap(spec) → the coverage idioms a spec's HUD uses (a host whose page a broadcast covers advises on them)
  *   withIdioms(spec)   → the spec with the idioms among its defs (its own defs win on a shared name)
  */
 import { FRONT_IDIOMS } from './idioms-front.js';
@@ -34,4 +37,10 @@ export function withIdioms(spec) {
   const defs = {};
   for (const [k, v] of Object.entries(IDIOMS)) defs[k] = { params: v.params, node: v.node };
   return { ...spec, defs: { ...defs, ...(spec && spec.defs) } };
+}
+
+/** The coverage idioms a spec's HUD uses: on a page a broadcast covers, the broadcast draws them (one bug, one strap). */
+export function coverageOverlap(spec) {
+  const hud = spec && spec.hud && Array.isArray(spec.hud.children) ? spec.hud.children : [];
+  return hud.map((c) => c && c.use).filter((u) => IDIOMS[u] && IDIOMS[u].coverage);
 }

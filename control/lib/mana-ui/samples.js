@@ -124,13 +124,19 @@ export const SAMPLE_STATE = Object.freeze({
   ],
   selection: { name: 'Barracks', hp: 800, hpMax: 1000, queue: [{ name: 'Spear', progress: 0.6 }, { name: 'Spear', progress: 0 }] },
   td: { wave: '7/20', lives: 14, livesMax: 20, money: 260 },
-  match: { home: 'North', away: 'South', homeScore: '2', awayScore: '1', clock: 1325, period: 'Q3' },
   lowerThird: { show: true, name: 'Isa', role: 'Ranger · 12 points' },
   cutscene: { show: true, who: 'Keeper', line: 'The gate has not opened in a hundred years.', skip: 'Hold to skip' },
   questToasts: [{ text: 'Quest begun: The East Gate' }, { text: 'Step done: Find the crest key' }],
   labels: [{ x: 0.3, y: 0.58, text: 'Crest Key' }, { x: 0.72, y: 0.5, text: 'Keeper' }, { x: 0.5, y: 0.34, text: 'East Gate' }],
   stealth: { state: 'searching', level: 62, max: 100 },
   touch: ['A', 'B', 'X', 'Y'],
+  // a match's end as contest-results.js contestResults hands it on (a tennis match: the points won first)
+  match: { home: 'North', away: 'South', homeScore: '2', awayScore: '1', clock: 1325, period: 'Q3', result: {
+    outcome: 'Won',
+    scores: [{ name: 'Ayla', value: '52', side: 0, self: true }, { name: 'Bram', value: '41', side: 1, self: false }],
+    columns: [{ key: 'words', label: '' }, { key: 'c0', label: 'Ayla', align: 'right' }, { key: 'c1', label: 'Bram', align: 'right' }],
+    rows: [{ words: 'points won', c0: '52', c1: '41', lead: 'c0' }, { words: 'aces', c0: '6', c1: '6', lead: null }, { words: 'double faults', c0: '1', c1: '4', lead: 'c0' }, { words: '1st serve in', c0: '64%', c1: '58%', lead: 'c0' }, { words: 'fastest serve', c0: '178 km/h', c1: '191 km/h', lead: 'c1' }],
+  } },
   battle: {
     message: 'The Warden draws its blade.',
     commands: [{ label: 'Attack', then: { emit: 'cmd:attack' } }, { label: 'Skill', then: { emit: 'cmd:skill' } }, { label: 'Item', then: { emit: 'cmd:item' } }, { label: 'Guard', then: { emit: 'cmd:guard' } }, { label: 'Flee', then: { emit: 'cmd:flee' } }],

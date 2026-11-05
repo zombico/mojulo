@@ -30,6 +30,8 @@
  *   DEFS are compositions as data: { <name>: { params: [name…], node } }, `{ param: '<name>' }` inside.
  *
  *   A SPEC: { screens: { <id>: node (a screen) }, hud?: node (a hud, drawn under the stack), defs?, start? }
+ *   SIDES: a row, a cell, a table's row or a badge whose data carries `side` (0..7: a team, a seat, a lane) draws a chip
+ *   in that side's colour (the theme's sides, a kit); its name still says whose it is (values first).
  *
  *   COMPONENTS / COMPONENT_IDS    name → { about, group, props: { <prop>: [type, default?, required?] }, children?, verbs? }
  *   REGIONS · AWARENESS · MARKERS · PIP_SHAPES   the closed words some components take
@@ -88,8 +90,8 @@ export function buildManaUi() {
     icon: { group: 'value', about: 'an icon\'s place, named', props: { name: [T, '', true], size: [['s', 'm', 'l'], 'm'] } },
     portrait: { group: 'value', about: 'a face\'s place, named', props: { name: [T, ''], size: [['s', 'm', 'l'], 'm'] } },
     image: { group: 'value', about: 'a picture\'s place (a logo, an arena\'s preview, key art)', props: { label: [T, ''], ratio: [['wide', 'square', 'tall', 'banner'], 'wide'] } },
-    badge: { group: 'value', about: 'a small mark: new, a count, a rank, a score', props: { value: [T, '', true], variant: [['plain', 'strong', 'muted'], 'plain'] } },
-    table: { group: 'value', about: 'rows under columns (a scoreboard, a forecast, a stat panel): the row whose `mark` field is true is yours', props: { columns: [L, [], true], rows: [L, [], true], mark: [T, 'self'] } },
+    badge: { group: 'value', about: 'a small mark: new, a count, a rank, a score; `side` its side\'s chip', props: { value: [T, '', true], variant: [['plain', 'strong', 'muted'], 'plain'], side: [A] } },
+    table: { group: 'value', about: 'rows under columns (a scoreboard, a forecast, a stat panel): the row whose `mark` field is true is yours, a row\'s `lead` names the column that leads it (marked ▲), a row\'s `side` its chip', props: { columns: [L, [], true], rows: [L, [], true], mark: [T, 'self'] } },
     gauge: { group: 'value', about: 'a value on a dial (a speedometer, a pressure, a charge)', props: { value: [N, 0, true], max: [N, 1, true], label: [T], unit: [T] } },
     slot: { group: 'value', about: 'an action or a hotbar slot: what is in it, its key, a cooldown left (0..1), a count; active when it is the one in hand', props: { name: [T, ''], key: [T], cooldown: [N, 0], count: [T], active: [B, false] } },
     prompt: { group: 'value', about: 'what a button does here: [E] Talk (the glyph is the host\'s legend, else the action)', props: { action: [T, 'accept'], label: [T, '', true], glyph: [T] } },
@@ -217,6 +219,9 @@ export function buildManaUi() {
     const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60, two = (n) => String(n).padStart(2, '0');
     return f === 'ss' ? String(s) : f === 'hmmss' ? `${h}:${two(m)}:${two(x)}` : `${two(Math.floor(s / 60))}:${two(x)}`;
   };
+  // a side's chip: 0..7 (a team, a seat, a lane), or nothing
+  const sideOf = (v) => { const n = Number(v); return v === undefined || v === null || v === '' || !isFinite(n) ? null : clamp(Math.floor(n), 0, 7); };
+  const chip = (v) => { const k = sideOf(v); return k === null ? null : ['i', { class: 'mana-chip', 'data-side': k }]; };
   const initials = (s) => words(s).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
   // a tree's tiers: a node one past the deepest it requires
   function tiersOf(nodes) {
@@ -373,11 +378,11 @@ export function buildManaUi() {
           case 'icon': return ['span', { class: cls, 'data-size': p.size, title: p.name }, initials(p.name)];
           case 'portrait': return ['div', { class: cls, 'data-size': p.size }, ['span', { class: 'mana-ph' }, initials(p.name)], p.name ? ['span', { class: 'mana-caption' }, p.name] : null];
           case 'image': return ['div', { class: cls, 'data-ratio': p.ratio }, ['span', { class: 'mana-caption' }, p.label || 'image']];
-          case 'badge': return ['span', { class: cls, 'data-variant': p.variant === 'plain' ? null : p.variant }, p.value];
+          case 'badge': return ['span', { class: cls, 'data-variant': p.variant === 'plain' ? null : p.variant }, chip(p.side), p.value];
           case 'table': {
             const cols = p.columns.map((c) => (isObj(c) ? { key: words(c.key), label: words(c.label ?? c.key), align: ['left', 'right', 'center'].includes(c.align) ? c.align : null } : { key: words(c), label: words(c), align: null }));
             return ['table', { class: cls }, ['thead', null, ['tr', null, ...cols.map((c) => ['th', { 'data-align': c.align }, c.label])]],
-              ['tbody', null, ...p.rows.map((r) => ['tr', { 'data-mark': isObj(r) && r[p.mark] ? 'yes' : null }, ...cols.map((c) => ['td', { 'data-align': c.align }, words(isObj(r) ? readPath(r, c.key) : r)])])]];
+              ['tbody', null, ...p.rows.map((r) => ['tr', { 'data-mark': isObj(r) && r[p.mark] ? 'yes' : null }, ...cols.map((c, ci) => ['td', { 'data-align': c.align, 'data-lead': isObj(r) && r.lead !== undefined && r.lead !== null && words(r.lead) === c.key ? 'yes' : null }, ci === 0 && isObj(r) ? chip(r.side) : null, words(isObj(r) ? readPath(r, c.key) : r)])])]];
           }
           case 'gauge': {
             const r = p.max > 0 ? clamp(p.value / p.max, 0, 1) : 0;
@@ -433,7 +438,7 @@ export function buildManaUi() {
               const item = p.rows[i], sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
               const fi = focusable({ kind: 'row', n, key, i, total, win: v > 0 && v < total, scope: sc, off });
               const body = n.props.row ? draw(n.props.row, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)];
-              rows.push(['div', { class: 'mana-row', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off) }, body]);
+              rows.push(['div', { class: 'mana-row', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off) }, isObj(item) ? chip(item.side) : null, body]);
             }
             if (to < total) rows.push(['div', { class: 'mana-more' }, `▼ ${total - to} more`]);
             return ['div', { class: cls }, ...rows];
@@ -446,7 +451,7 @@ export function buildManaUi() {
               const sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
               const fi = focusable({ kind: 'cell', n, key, i, g: { key, r: Math.floor(i / cols), c: i % cols }, scope: sc, off });
               const body = n.props.cell ? draw(n.props.cell, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)];
-              return ['div', { class: 'mana-cell', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off) }, body];
+              return ['div', { class: 'mana-cell', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off) }, isObj(item) ? chip(item.side) : null, body];
             })];
           }
           case 'tree': {
@@ -667,7 +672,7 @@ export function buildManaUi() {
   function mount(el, rt, opts) {
     const o = opts || {}, keys = o.keys || KEYS;
     let html = '';
-    const paint = () => { const h = rt.view(); if (h !== html) { html = h; el.innerHTML = h; } };
+    const paint = () => { const h = rt.view(); if (h !== html) { html = h; el.innerHTML = h; } hold(); };
     el.addEventListener('click', (ev) => {
       const t = ev.target && ev.target.closest ? ev.target.closest('[data-k],[data-tab]') : null;
       if (!t) return;
@@ -675,9 +680,21 @@ export function buildManaUi() {
       else { const k = Number(t.dataset.k); const was = rt.state().focus; rt.focusAt(k); if (was === k) rt.press('accept'); }
       paint();
     });
-    const key = (ev) => { const a = keys[ev.code]; if (!a || !rt.state().screen) return false; ev.preventDefault(); rt.press(a); paint(); return true; };
-    if (o.keyboard !== false && typeof window !== 'undefined') window.addEventListener('keydown', key);
-    if (o.auto && typeof requestAnimationFrame === 'function') { const loop = () => { if (rt.tick()) paint(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+    // while a screen is up the menu holds the input: its keys are taken before the game's own listeners see them (the
+    // capture phase), and the page's hold is set (window.__mojMenuOpen, the playscape menus' convention), so Enter on a
+    // pause never also serves the ball
+    const hold = () => { if (typeof window !== 'undefined') window.__mojMenuOpen = !!rt.state().screen; };
+    const key = (ev) => {
+      hold();
+      if (!rt.state().screen) return false;
+      if (ev.stopPropagation) ev.stopPropagation();
+      const a = keys[ev.code];
+      if (!a) return false;
+      ev.preventDefault(); rt.press(a); paint(); return true;
+    };
+    if (o.keyboard !== false && typeof window !== 'undefined') window.addEventListener('keydown', key, true);
+    // a frame: a value the screen read has changed, or the game opened or closed a screen itself
+    if (o.auto && typeof requestAnimationFrame === 'function') { let up = rt.state().screen; const loop = () => { const now = rt.state().screen; if (rt.tick() || now !== up) { up = now; paint(); } requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
     paint();
     return { paint, key };
   }

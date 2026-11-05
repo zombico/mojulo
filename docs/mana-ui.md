@@ -151,6 +151,27 @@ second look of its own. `style-rules.test.js` holds every component to that:
 A part that is its own frame (the aim, a moment's banner, a phone's controls) sits bare over the world. The aim keeps
 a halo in the panel's colour so it reads over any scene.
 
+## Sports and the broadcast
+
+A sport's page is covered by the broadcast (`docs/broadcast.md`): its title card, score bug, call plates, lower
+thirds, closeups, stats panels and results board, drawn over the arena. The broadcast owns the coverage; mana-ui owns
+the menus around the play (the title, the team select, the pause, the results after the board).
+
+- **No double coverage.** The idioms the broadcast already draws on a covered page (the score bug, the lower third, the
+  moment banner) are flagged `coverage`. `coverageOverlap(spec)` names any a spec's HUD asks for, so a host whose page
+  the broadcast covers can advise against them.
+- **One production.** `broadcast/broadcast-mana.js manaThemeOfBroadcast(data)` makes the package a theme:
+  - the glass, the ink, the rim and the accent metal become the tokens
+  - the face, caps, radius, slant, ease and grain become the words
+  - the coverage's kits, already kept apart by the package's colour science, become the theme's sides
+- **Sides.** `theme.sides` are the kits of the sides (`--mana-side-0..7`). A row, a table row or a badge whose data
+  carries `side` draws a chip in that kit; its name still says whose it is.
+- **The results, handed on by data.** The arena's OUTCOME carries its stats compact. `contest/contest-results.js
+  contestResults(envelope, { names })` says them again with the contest's own words, formats and leads, and the
+  `match-results` idiom shows them: won or lost, the score by side, the head to head with each row's lead marked ▲.
+- **The menu holds the input.** `mount` takes keys in the capture phase while a screen is up and sets
+  `window.__mojMenuOpen`, so a game listening on the window (every arena does) never acts on a menu's key.
+
 ## The wireframe board
 
 `manaUiBoard()` (`board.js`) draws every idiom live on the sample state. Each one is a 1280×720 screen scaled into a

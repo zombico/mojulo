@@ -86,7 +86,7 @@ export const HUD_IDIOMS = {
     example: { shape: 'cross', hit: true },
   },
   'moment-banner': {
-    kind: 'hud', about: 'a moment, centred and passing: a phase, a level\'s name, a victory',
+    kind: 'hud', coverage: true, about: 'a moment, centred and passing: a phase, a level\'s name, a victory',
     reads: 'show, title, sub', emits: '—',
     params: ['show', 'title', 'sub'],
     node: region('center', [{ use: 'banner', props: { value: P('title'), sub: P('sub') } }], { when: P('show') }),

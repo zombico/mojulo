@@ -48,4 +48,12 @@
   commands, targets, turn order and party, a unit's actions beside its forecast, the scoreboard, a strategy game's
   orders. A test holds every component to the one style: its rule in the sheet, no colour of its own, and every colour
   it reads set by every theme, so a HUD can never drift into a second look.
+- **A sport's menus and its broadcast are one production.** The broadcast covers the play (the bug, the calls, the
+  closeups, the board); the menus around it (the title, the pause, the results) now take its look and its kits: a
+  package becomes a menu theme, and a row, a table row or a badge with a side wears that side's kit, kept apart by the
+  broadcast's own colour science. The screen after the results board reads the match's stats in the contest's own
+  words, formats and leads, so it continues what the coverage showed (won or lost, the score by side, the head to head
+  with each lead marked), instead of a generic "cleared". The parts the coverage already draws are flagged so a covered
+  page never shows two score bugs, and a menu now holds the keyboard while it is up, so Enter on a pause never also
+  serves the ball.
 

@@ -14,6 +14,8 @@
  *   stealth      stealth-meter
  *   quests       quest-toasts
  *   a phone      touch-controls
+ *   after play   match-results (a sport's end, after the broadcast's board: the score by side, the head to head the
+ *                coverage counted, what next; its data from contest/contest-results.js contestResults)
  *   mid-play     battle-menu (a turn-based fight's commands, targets, turn order and party), tactics-menu (a unit's
  *                actions beside its forecast), scoreboard (held open), command-card (a strategy game's orders)
  */
@@ -142,14 +144,14 @@ export const LIVE_IDIOMS = {
   },
   // a match
   'score-bug': {
-    kind: 'hud', about: 'the match in a corner: the sides, the score, the clock and the period (top left)',
+    kind: 'hud', coverage: true, about: 'the match in a corner: the sides, the score, the clock and the period (top left)',
     reads: 'home, away, homeScore, awayScore, clock, period', emits: '—',
     params: ['home', 'away', 'homeScore', 'awayScore', 'clock', 'period'],
     node: region('top-left', [row([txt(P('home'), 'heading'), { use: 'badge', props: { value: P('homeScore'), variant: 'strong' } }, { use: 'badge', props: { value: P('awayScore'), variant: 'strong' } }, txt(P('away'), 'heading'), { use: 'timer', props: { seconds: P('clock') } }, { use: 'badge', props: { value: P('period') } }])]),
     example: { home: { bind: 'match.home' }, away: { bind: 'match.away' }, homeScore: { bind: 'match.homeScore' }, awayScore: { bind: 'match.awayScore' }, clock: { bind: 'match.clock' }, period: { bind: 'match.period' } },
   },
   'lower-third': {
-    kind: 'hud', about: 'who is on screen and what they are, while it shows (bottom left)',
+    kind: 'hud', coverage: true, about: 'who is on screen and what they are, while it shows (bottom left)',
     reads: 'show, name, role', emits: '—',
     params: ['show', 'name', 'role'],
     node: region('bottom-left', [col([txt(P('name'), 'title'), txt(P('role'), 'label')])], { when: P('show') }),
@@ -191,6 +193,19 @@ export const LIVE_IDIOMS = {
     params: ['buttons'],
     node: region('bottom', [{ use: 'touchpad', props: { buttons: P('buttons') } }]),
     example: { buttons: { bind: 'touch' } },
+  },
+  // after play
+  'match-results': {
+    kind: 'screen', about: 'a match\'s end, after the broadcast\'s board: won or lost, the score by side (each in its kit), the head to head the coverage counted with each row\'s lead marked, then what next',
+    reads: 'outcome, scores: [{ name, value, side, self }], columns, rows: [{ words, c0, c1 …, lead }] (contest-results.js contestResults), items: [{ label, then }]', emits: 'each item\'s then',
+    params: ['outcome', 'title', 'scores', 'columns', 'rows', 'items'],
+    node: screen({ layer: 'modal', place: 'center' }, [col([
+      txt(P('outcome'), 'display'), txt(P('title'), 'label'),
+      { use: 'window', children: [{ use: 'table', props: { columns: [{ key: 'name', label: '' }, { key: 'value', label: 'Score', align: 'right' }], rows: P('scores') } }] },
+      { use: 'window', props: { title: 'Head to head' }, children: [{ use: 'table', props: { columns: P('columns'), rows: P('rows') } }] },
+      { use: 'window', props: { variant: 'ghost' }, children: [{ use: 'list', props: { rows: P('items') }, on: { accept: I('then') } }] },
+    ], 'center')]),
+    example: { outcome: { bind: 'match.result.outcome' }, title: 'Tennis · final', scores: { bind: 'match.result.scores' }, columns: { bind: 'match.result.columns' }, rows: { bind: 'match.result.rows' }, items: [{ label: 'Continue', then: { emit: 'continue' } }, { label: 'Rematch', then: { emit: 'rematch' } }, { label: 'Home', then: { emit: 'home' } }] },
   },
   // mid-play menus
   'battle-menu': {

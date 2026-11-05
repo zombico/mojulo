@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { manaUi, manaUiSource, withIdioms, IDIOMS, manaUiPage, manaUiBoard, SAMPLE_STATE } from './index.js';
+import { manaUi, manaUiSource, withIdioms, IDIOMS, manaUiPage, manaUiBoard, SAMPLE_STATE, coverageOverlap } from './index.js';
 
 // The runtime's concepts, each on the smallest spec that exercises it: reading that teaches, props down (literals and
 // bindings), three owners of state, function as effects, focus in one and two directions, seats, the in-game layer,
@@ -225,6 +225,43 @@ describe('mana-ui: the live game', () => {
     expect(rt.view()).toContain('class="mana-region" data-at="bottom-left"');
     rt.press('down');
     expect(rt.view()).toMatch(/data-st="active"[^>]*>.*Attack/);   // the data's own active row, beside the focus
+  });
+});
+
+describe('mana-ui: sides, leads and the menu\'s hold', () => {
+  it('a row, a table row or a badge with a side draws its chip; a row\'s lead marks its leading cell', () => {
+    const v = run(screen([
+      { use: 'list', props: { rows: [{ label: 'North', side: 0 }, { label: 'South', side: 1 }] } },
+      { use: 'table', props: { columns: ['words', 'c0', 'c1'], rows: [{ words: 'goals', c0: '2', c1: '1', lead: 'c0', side: 1 }] } },
+      { use: 'badge', props: { value: '2', side: 9 } },
+    ])).view();
+    expect(v).toContain('<i class="mana-chip" data-side="0"></i>');
+    expect(v).toMatch(/<td><i class="mana-chip" data-side="1"><\/i>goals<\/td><td data-lead="yes">2<\/td><td>1<\/td>/);
+    expect(v).toContain('data-side="7"');   // a side past the eighth is the eighth's chip
+  });
+  it('a covered page knows which HUD parts its coverage draws instead', () => {
+    const covered = Object.keys(IDIOMS).find((k) => IDIOMS[k].coverage), plain = Object.keys(IDIOMS).find((k) => IDIOMS[k].kind === 'hud' && !IDIOMS[k].coverage);
+    expect(coverageOverlap({ hud: { use: 'hud', children: [{ use: plain }, { use: covered }] } })).toEqual([covered]);
+    expect(coverageOverlap({ screens: {} })).toEqual([]);
+  });
+  it('while a screen is up, mount holds the input: the game\'s listeners never see a key, and the page\'s hold is set', () => {
+    const listeners = [], was = globalThis.window;
+    globalThis.window = { addEventListener: (type, fn, capture) => listeners.push({ type, fn, capture }) };
+    try {
+      const rt = manaUi.runtime({ screens: { p: screen([{ use: 'button', props: { label: 'Resume' }, on: { accept: { close: true } } }]) } }, host({}));
+      manaUi.mount({ innerHTML: '', addEventListener() {} }, rt);
+      const down = listeners.find((l) => l.type === 'keydown');
+      expect(down.capture).toBe(true);
+      const ev = (code) => ({ code, stopped: false, prevented: false, stopPropagation() { this.stopped = true; }, preventDefault() { this.prevented = true; } });
+      const idle = ev('Space'); down.fn(idle);
+      expect(idle.stopped).toBe(false);   // no screen: the game has its keys
+      rt.open('p'); down.fn(ev('KeyQ'));
+      expect(window.__mojMenuOpen).toBe(true);
+      const enter = ev('Enter'); down.fn(enter);
+      expect(enter.stopped && enter.prevented).toBe(true);
+      expect(rt.state().screen).toBe(null);
+      expect(window.__mojMenuOpen).toBe(false);
+    } finally { globalThis.window = was; }
   });
 });
 

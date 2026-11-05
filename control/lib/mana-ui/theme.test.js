@@ -32,6 +32,18 @@ describe('mana-ui themes: reading teaches', () => {
   });
 });
 
+describe('mana-ui themes: sides', () => {
+  it('the sides are a theme\'s kits, cycled to eight; left out, the accents then the colour-blind-safe set', () => {
+    expect(() => readTheme({ sides: ['red'] })).toThrow(/1 to 8 hex colours/);
+    const T = readTheme({ sides: ['#d7263d', '#1f6fe0'] });
+    expect(T.sides).toHaveLength(8);
+    expect(T.sides[2]).toBe('#d7263d');
+    expect(themeCss({ sides: ['#d7263d', '#1f6fe0'] })).toContain('--mana-side-1:#1f6fe0');
+    const D = readTheme({ tokens: { ink: '#ffffff', panel: '#000000', line: '#888888', accent: '#ff0000' } });
+    expect(D.sides.slice(0, 2)).toEqual([D.tokens.accent, D.tokens.accent2]);
+  });
+});
+
 describe('mana-ui themes: writing and measuring', () => {
   it('the greybox theme is the sheet\'s own defaults; a preset sets the variables and adds only its own rules', () => {
     const grey = themeCss('greybox');

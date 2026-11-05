@@ -16,7 +16,9 @@
  */
 export const GREYBOX_VARS = Object.freeze({
   ink: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', line: '#111111', panel: '#fafafa', paper: '#fafafa', wash: '#ececec',
-  scrim: 'rgba(255,255,255,.72)', shade: '#000000', accent: '#111111', accent2: '#111111', 'focus-ink': '#111111',
+  scrim: 'rgba(255,255,255,.72)', shade: '#000000',
+  // the sides' kits (a team, a seat, a lane): greys in the greybox, told apart by their names and by shade
+  'side-0': '#111111', 'side-1': '#8a8a8a', 'side-2': '#4a4a4a', 'side-3': '#b5b5b5', 'side-4': '#2a2a2a', 'side-5': '#6b6b6b', 'side-6': '#9e9e9e', 'side-7': '#3c3c3c', accent: '#111111', accent2: '#111111', 'focus-ink': '#111111',
   hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111', plain: '#111111', harm: '#111111',
   font: 'system-ui,-apple-system,"Segoe UI",sans-serif', display: 'system-ui,-apple-system,"Segoe UI",sans-serif', mono: 'ui-monospace,Menlo,Consolas,monospace',
   scale: '1', case: 'uppercase', radius: '0px', 'frame-w': '1px', 'frame-s': 'solid', plate: '#fafafa', motion: 'none',
@@ -171,6 +173,11 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-feed{display:flex;flex-direction:column;gap:2px;font-size:${f(11)};min-width:160px}`,
     `${s} .mana-toast{padding:4px 10px;border:1px solid ${v('line')};background:${v('plate')};font-size:${f(12)}}`,
     `${s} .mana-banner{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 24px;border-top:2px solid ${v('line')};border-bottom:2px solid ${v('line')};background:${v('plate')}}`,
+    // a side's chip, and the cell that leads a row (a shape beside the number, the colour the theme's)
+    `${s} .mana-chip{display:inline-block;width:6px;height:.9em;margin-right:6px;vertical-align:-1px;border-radius:1px;background:${v('ink')}}`,
+    ...Array.from({ length: 8 }, (_, k) => `${s} .mana-chip[data-side="${k}"]{background:${v(`side-${k}`)}}`),
+    `${s} :is(.mana-row,.mana-cell)>.mana-chip{position:absolute;left:12px;top:7px;bottom:7px;width:4px;height:auto;margin:0}`,
+    `${s} .mana-table td[data-lead=yes]{font-weight:800}`, `${s} .mana-table td[data-lead=yes]::after{content:" \\25B2";font-size:.7em;color:${v('accent2')}}`,
     // the live game's own: a bar's chip and its mirror, tables, dials, slots, what is off screen, where harm came from
     `${s} .mana-track u{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(-45deg,${v('ink')} 0 1px,transparent 1px 3px);opacity:.55}`,
     `${s} .mana-bar[data-dir=rtl] .mana-track{transform:scaleX(-1)}`,

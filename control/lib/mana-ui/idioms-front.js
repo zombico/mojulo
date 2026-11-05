@@ -127,7 +127,7 @@ export const FRONT_IDIOMS = {
     kind: 'screen', about: 'the end of a run (victory, defeat, a level cleared): the outcome, its figures, a rank, what next',
     reads: 'outcome, stats: [{ label, value }], rank, items: [{ label, then }]', emits: 'each item\'s then',
     params: ['outcome', 'stats', 'rank', 'items'],
-    node: screen({ layer: 'overlay', place: 'center' }, [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
+    node: screen({ layer: 'modal', place: 'center' }, [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
       txt(P('outcome'), 'display'),
       { use: 'window', children: [{ use: 'stack', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value') } } } }, { use: 'divider' }, { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt('Rank', 'heading'), { use: 'badge', props: { value: P('rank') } }] }] }] },
       { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'))] },

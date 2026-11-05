@@ -21,6 +21,9 @@
  *     scale     compact | normal | large                               the type scale
  *     case      upper | none                                           titles and headings
  *     ornaments [brackets | ticks | scanlines | dotgrid | stitch | hazard | glow]   drawn on and around the windows
+ *     sides     the kits of the sides (a team, a seat, a lane) as hex, 1 to 8, cycled: the chip a row with `side` draws
+ *               (a host with its own colour science hands its kits here: the broadcast's, already kept apart); left
+ *               out, the accent, the second accent, then the Okabe–Ito set
  *
  *   THEMES · THEME_IDS     the presets: greybox (the default), modern, console, terminal, storybook, arcade
  *   THEME_WORDS            each closed word set
@@ -49,10 +52,12 @@ export const THEME_WORDS = Object.freeze({
 });
 const NEEDED = ['ink', 'panel', 'line', 'accent'];
 const TOKENS = [...NEEDED, 'mid', 'soft', 'paper', 'wash', 'accent2', 'harm', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'];
-const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'ornaments'];
+const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'ornaments', 'sides'];
+// the colour-blind-safe categorical set, for the sides a theme does not name
+const OKABE_ITO = ['#e69f00', '#56b4e9', '#009e73', '#f0e442', '#0072b2', '#d55e00', '#cc79a7', '#999999'];
 
 export const THEMES = Object.freeze({
-  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'marker', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: [] },
+  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'marker', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'] },
   modern: { name: 'Modern', tokens: { ink: '#eef1f6', panel: '#151a23', line: '#3a4558', accent: '#5fb0ff', accent2: '#e8b96a', harm: '#ff5a4d' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'round', plate: 'flat', focus: 'fill', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', ornaments: [] },
   console: { name: 'Console RPG', tokens: { ink: '#ffffff', panel: '#1b2a7c', line: '#eef1ff', accent: '#ffe07a', accent2: '#8fb0ff', harm: '#ff6b6b' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'double', corner: 'soft', plate: 'gradient', focus: 'marker', motion: 'snap', fills: 'solid', scale: 'normal', case: 'none', ornaments: [] },
   terminal: { name: 'Terminal', tokens: { ink: '#c8f5d0', panel: '#06140c', line: '#3c8a52', accent: '#7dff9a', accent2: '#e8d36a', harm: '#ff7a5a' }, type: { body: 'mono', display: 'mono', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'bracket', motion: 'snap', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: ['brackets', 'scanlines'] },
@@ -105,6 +110,11 @@ export function readTheme(t) {
   }
   for (const k of NEEDED) if (!tok[k]) throw new Error(`theme.tokens.${k} is needed`);
   out.tokens = derive(tok);
+  // new core colours re-derive the sides too (a theme over the greybox keeps none of its grey kits)
+  const sides = t.sides !== undefined ? t.sides : core ? undefined : base.sides;
+  if (sides !== undefined && (!Array.isArray(sides) || !sides.length || sides.length > 8 || sides.some((x) => typeof x !== 'string' || !HEX.test(x)))) throw new Error('theme.sides is 1 to 8 hex colours, the kits of the sides in order');
+  const kits = sides || [out.tokens.accent, out.tokens.accent2, ...OKABE_ITO];
+  out.sides = Array.from({ length: 8 }, (_, i) => kits[i % kits.length]);
   // faces you own, then the type that names them
   const faces = t.faces === undefined ? [] : t.faces;
   if (!Array.isArray(faces)) throw new Error('theme.faces is [{ family, src: data:font/…;base64,…, weight?, style? }]');
@@ -153,6 +163,7 @@ export function themeCss(theme, scope = '.mana-root') {
   const T = readTheme(theme), s = scope, k = T.tokens, win = `${s} .mana-window,${s} .mana-place>.mana-region:not(:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad)))`;
   const plate = { clear: 'transparent', flat: alpha(k.panel, 0.86), solid: k.panel, gradient: `linear-gradient(180deg,${mix(k.panel, '#ffffff', 0.1)} 0%,${k.panel} 55%,${mix(k.panel, '#000000', 0.25)} 100%)`, textured: `repeating-linear-gradient(0deg,${k.panel} 0 2px,${mix(k.panel, k.ink, 0.05)} 2px 3px)` }[T.plate];
   const vars = { ...Object.fromEntries(Object.entries(k)), plain: k.accent, scrim: alpha(k.panel, 0.66), 'focus-ink': T.focus === 'fill' ? k.panel : k.ink,
+    ...Object.fromEntries(T.sides.map((c, i) => [`side-${i}`, c])),
     font: stack(T.type.body), display: stack(T.type.display), mono: stack(T.type.mono), scale: SCALE[T.scale], case: T.case === 'upper' ? 'uppercase' : 'none',
     radius: RADII[T.corner], 'frame-w': FRAMES[T.frame][0], 'frame-s': FRAMES[T.frame][1], plate, motion: MOTION[T.motion] };
   const out = [
@@ -191,6 +202,7 @@ export function themeAdvice(theme) {
   else need('focus-shows', k.accent, k.panel, 3, 'tokens.accent / panel', 'the focus against a window');
   if (T.frame !== 'none') need('frame-shows', k.line, k.panel, 1.5, 'tokens.line / panel', 'a window\'s edge');
   need('harm-shows', k.harm, k.panel, 3, 'tokens.harm / panel', 'a low bar and an alerted enemy');
+  T.sides.slice(0, 2).forEach((c, i) => need('side-shows', c, k.panel, 1.5, `sides[${i}] / panel`, `side ${i + 1}'s chip against a window`));
   if (T.fills === 'solid') out.push({ law: 'values-apart', at: 'fills', advice: 'solid fills tell hp, mp, xp and stamina apart by colour alone; keep their labels, or fills: pattern' });
   return out;
 }
