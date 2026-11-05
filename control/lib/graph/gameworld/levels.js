@@ -995,7 +995,8 @@ export function mapPlan(G, stages, refs) {
     if (!a.length || !b.length) continue;
     const last = a[a.length - 1], first = b[0];
     const slice = isPower.has(l.key) ? 'powers' : 'bag';
-    plan[last].on.push({ to: refs[first], ...(l.key ? { gate: { has: l.key, slice } } : {}) });
+    // (a way the story opens, needs: shut on its page and in the shell until the quest's flag is set)
+    plan[last].on.push({ to: refs[first], ...(l.key ? { gate: { has: l.key, slice } } : l.needs ? { gate: { flag: l.needs, slice: STORY_SLICE }, needs: l.needs } : {}) });
     plan[first].back.push({ to: refs[last] });
     if (l.key) { const at = of(l.keyAt); plan[at[at.length - 1]][slice === 'powers' ? 'powers' : 'keys'].push(l.key); }
   }
@@ -1025,7 +1026,7 @@ function stageWays(stage, ends, plan) {
   const mechanics = [], arrive = [];
   for (const w of [...plan.on, ...plan.back]) {
     const s = spot.get(w);
-    mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }) });
+    mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }), ...(w.needs ? { needs: w.needs } : {}) });
     if (s.arrive) arrive.push({ from: w.to, at: s.arrive });
   }
   // the keys found here, on a beat of their own: items into the bag, powers into `powers` (one row of pickups)

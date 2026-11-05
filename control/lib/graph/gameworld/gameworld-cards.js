@@ -285,6 +285,7 @@ function worldCard() {
     `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     '  in a map, a link may take key: \'<item>\', keyAt: \'<level>\': the item there opens it (a trail, or a city roof in reach);',
     '  a hero\'s power as the key also gives the hero its move.',
+    '  needs: \'<flag>\' (a quest\'s): the way shut till the story sets it (no dungeon before its quest).',
     `screen: ${Object.keys(SCREENS).join(' | ')} | { aspect } (a new game: ${NEW_GAME_SCREEN}).`,
     '',
     'ANSWER FROM: the brief\'s places and moods. One level that promises the rest beats many; the world bible draws each.',

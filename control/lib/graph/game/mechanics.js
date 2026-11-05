@@ -60,10 +60,13 @@ const MECHANICS = {
       const zone = `exit_${ctx.i}`;
       const at = p.at || [0, 0, 0];
       const shape = Array.isArray(p.half) ? { half: p.half } : { radius: p.radius != null ? p.radius : 2 };
+      // `needs`: a story flag the way waits on (the flag's var, set where it is set or carried in: playscape/ui/scenes.js);
+      // shut, walking into it does nothing
+      const gate = typeof p.needs === 'string' && p.needs ? { if: { var: `flag-${p.needs}`, eq: 1 } } : {};
       return {
         world: {
           sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: ctx.player }],
-          reactions: [{ on: 'enter', match: { zone }, do: 'emit', type: p.exit ? `goal:reached:${p.exit}` : 'goal:reached' }],
+          reactions: [{ on: 'enter', match: { zone }, do: 'emit', type: p.exit ? `goal:reached:${p.exit}` : 'goal:reached', ...gate }],
         },
         // `exit`: one of a level's several ways out, named on the envelope (a map game travels by it)
         on: p.exit ? { [`goal:reached:${p.exit}`]: { end: 'success', exit: p.exit } } : { 'goal:reached': { end: 'success' } },

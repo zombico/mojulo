@@ -50,14 +50,15 @@ describe('the rail\'s cards', () => {
     // mend, the very skill the slice's boss taught by, 5074 bytes); 5248 the same day (the boss in a building's goal
     // room and `sets`, the flag its fall sets: three chapter authors asked for the shrine quest's last step, 5197 bytes)
     // 4352 since 2026-11-02 (1102-urban-tunnelling: the building line names a hospital's uses, emergency | ward-block |
-    // theatres, and a complex, 4323 bytes);
+    // theatres, and a complex, 4323 bytes); 4480 since 2026-11-05 (1105-rpg-slice: a link's needs, the way the story
+    // opens, which chapter 1's critics found missing: a dungeon walked into before its quest was given);
     // the dungeon card too (2026-11-02, 1102-urban-tunnelling: its spaces on one level stand as a complex, two lines on
     // where it is played and advised, 4296 bytes); the walled-core dungeon card (2026-11-02, 1101-vehicle-registry: a
     // base building's parked vehicles, the field's trucks and carriers in its hangar, beside its buildings: 4290 bytes);
     // 4608 since the two met on 1026-consolidated (2026-11-03: the complex's lines and the parked vehicles', 4574 bytes)
     // the next card too (2026-11-04, 1104 requisitions: the `req` move, the unit being worked, one line; it stood at
     // 4085 bytes, 4200 with it)
-    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 4352, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4352 };
+    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 4480, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4352 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

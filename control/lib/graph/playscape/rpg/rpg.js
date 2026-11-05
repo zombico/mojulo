@@ -400,6 +400,8 @@ export function readRpg(play) {
 }
 
 const doneVar = (enc) => `rpg-done-${enc}`;
+/** A pack won on a page that carries flags stays won: the flag it sets as it falls, carried (playscape/ui/scenes.js). */
+export const wonFlag = (id) => `won-${id}`;
 
 /** The cues: walking up to a standing encounter starts it (once won, never again); a won one's foes leave in smoke; a lost
  * fight fails the level under `defeat: 'fail'` (the hp var a level's fail-on-death owns goes to 0). */
@@ -411,7 +413,11 @@ export function rpgCues(play) {
     cues.push({ id: `rpg-meet-${e.id}`, when: { enter: { at: e.at, r: e.near } }, if: [{ var: 'rpg.battle', eq: 0 }, { var: doneVar(e.id), eq: 0 }], then: { emit: `rpg-battle:${e.id}` } });
     // (a beaten pack leaves the map in a puff of smoke, as a won fight's foes do: a fallen body left lying read as a pack
     // still to fight)
-    cues.push({ id: `rpg-beaten-${e.id}`, when: { on: `rpg-won:${e.id}` }, then: [{ set: doneVar(e.id), to: 1 }, ...[].concat(e.who ?? []).map((w) => ({ vanish: { who: w, with: 'smoke' } }))] });
+    // (on a page that carries flags, a won pack stays won: its flag set as it falls, and carried in it is gone at once,
+    // never fought again on a way walked back)
+    const kept = typeof play?.carry === 'string';
+    cues.push({ id: `rpg-beaten-${e.id}`, when: { on: `rpg-won:${e.id}` }, then: [{ set: doneVar(e.id), to: 1 }, ...[].concat(e.who ?? []).map((w) => ({ vanish: { who: w, with: 'smoke' } })), ...(kept ? [{ emit: `flag:${wonFlag(e.id)}` }] : [])] });
+    if (kept) cues.push({ id: `rpg-won-before-${e.id}`, when: { on: `flag-carried:${wonFlag(e.id)}` }, then: [{ set: doneVar(e.id), to: 1 }, ...[].concat(e.who ?? []).map((w) => ({ vanish: w }))] });
   }
   // a member who joins on a flag: in the fights once the flag is set here or carried in (scenes.js flag events)
   for (const p of cfg.party) if (p.joins) {

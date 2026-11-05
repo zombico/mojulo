@@ -94,3 +94,8 @@
 - **The boss's fall sets a flag.** `battles.sets: '<flag>'` names the story flag the boss's pack's win sets (a cue on its
   `rpg-won`), carried on as every flag is: a quest's last step done by it, a moment after it. The story's `unset` counts
   it. Three of chapter 1's authors asked for it (the shrine quest's last step had nothing to complete it).
+- **A won pack stays won; a way the story opens.** Chapter 1's critics found the map forgot its fights: a pack's win was
+  the page's alone, so a way walked back stood every pack again. On a page that carries flags, a won pack sets
+  `won-<pack>` as it falls, and a page it is carried into clears that pack at once (`rpg.js wonFlag`). And a link may
+  take `needs: '<flag>'`, a quest's flag: the way is shut until the story sets it, in the shell (the exit's flag gate)
+  and on its page (the exit's reach waits on the flag's var), so a dungeon is not walked into before its quest is given.
