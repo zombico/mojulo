@@ -218,8 +218,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   if (world.characters === undefined) return worldSteps(world, readGameworld(world), ref, composite);
   // a turn-based world is laid with its battles, written or not (battles.js)
   // (and its party joining one a level, when its book says nothing of when: casting.js laidJoins)
+  // (one a CHAPTER where the world has a main quest: each act's first level played, by its beats; else one a level)
   const G0 = laidBattles(readGameworld(world)), levelsPlayed = [...new Set(gameStages(world).map((s) => s.level))];
-  const { G, at: joinsAt } = laidJoins(G0, levelsPlayed);
+  const { G, at: joinsAt } = laidJoins(G0, chapterLevels(world, levelsPlayed));
   const O = heroOrders(G);
   if (!O) return [];
   // an adopted hero (characters.hero.ref) is pinned, never made: the step says so (`adopt`), and it plays as it is
@@ -485,6 +486,15 @@ export function storyReport(world, { ref = 'gw' } = {}) {
  * levelGoalCast), the boss at the end of its level's last stage (`lastOf`: each level's last stage that takes a goal),
  * a sneak's guards on every stage's beats (quick.js guardPosts, one figure for them all at `<ref>-guard`); a level with
  * none passes nothing, so it lays as it always did (reach its exit). */
+/** The level each chapter of the main quest starts on, in the acts' (or chapters') order: its first built beat's level
+ * (`as: { level }`, or the level a run laid from its words, named for the beat), where it is one played; a world with no
+ * main quest has a chapter a level. */
+function chapterLevels(world, played) {
+  const Q = world.mainQuest, parts = Q && (Q.acts ?? Q.chapters);
+  if (!Array.isArray(parts) || !parts.length) return played;
+  const playedSet = new Set(played);
+  return parts.map((A) => (A.beats ?? []).filter((B) => B && B.built !== false).map((B) => B.as?.level ?? B.id).find((lv) => playedSet.has(lv))).filter(Boolean);
+}
 const bossed = (G) => G.ids.some((id) => G.levels[id].goal?.boss);
 // the cameras that watch a hero (levels.js levelOrder refuses them without one)
 const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed']);

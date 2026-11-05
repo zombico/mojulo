@@ -145,6 +145,11 @@ describe('the party joining', () => {
     const alone = levels(W({ followers: false }, { characters: cast })).find((s) => s.key === `level-${order[1]}-0`).order.manifest;
     expect(alone.entities.filter((e) => e.rule?.mind?.motivation === 'escort')).toEqual([]);
     expect(alone.play.party).toEqual(expect.arrayContaining([{ who: 'party-1', joins: 'join-party-1' }, { who: 'party-2', joins: 'join-party-2' }]));
+    // with a main quest, one a CHAPTER: an act of both levels brings one member, the next waits for its act
+    const quest = { acts: [{ id: 'one', goal: 'set out', beats: order.map((lv, k) => ({ id: `b${k}`, goal: `beat ${k}`, as: { level: lv } })) }, { id: 'two', goal: 'on', beats: [{ id: 'later', goal: 'later', built: false }] }] };
+    const QS = levels(W({}, { characters: cast, mainQuest: quest }));
+    expect(order.map((lv) => arrives(QS.find((s) => s.key === `level-${lv}-0`).order.manifest))).toEqual([['party-party-1-arrives'], []]);
+    expect(lowerPlay(QS.find((s) => s.key === `level-${order[0]}-0`).order.manifest, { player: 'hero' }).rpg.party.find((p) => p.id === 'party-2').joins).toBe('join-party-2');
     // a book that writes its own joins keeps them: no default
     const own = { ...cast, casting: { ...cast.casting, cast: { 'party-1': { joins: 'met-at-the-well' } } } };
     expect(arrives(levels(W({}, { characters: own })).find((s) => s.key === `level-${order[0]}-0`).order.manifest)).toEqual([]);
