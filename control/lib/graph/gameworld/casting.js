@@ -209,8 +209,9 @@ export function laidJoins(G, levels = []) {
   const party = (C?.members ?? []).filter((M) => M.bond === 'party');
   if (!party.length || party.some((M) => M.joins) || Object.values(G.characters.cast ?? {}).some((m) => m?.joins)) return { G, at: {} };
   const book = { ...(G.characters.casting.cast ?? {}) }, at = {};
-  party.forEach((M, k) => { if (levels[k] === undefined) return; book[M.id] = { ...(book[M.id] ?? {}), joins: `join-${M.id}` }; at[M.id] = levels[k]; });
-  if (!Object.keys(at).length) return { G, at };
+  // (every member its flag; one past the game's levels has no level to set it yet, so it waits: no flag would mean with
+  // the hero from the start)
+  party.forEach((M, k) => { book[M.id] = { ...(book[M.id] ?? {}), joins: `join-${M.id}` }; if (levels[k] !== undefined) at[M.id] = levels[k]; });
   return { G: { ...G, characters: { ...G.characters, casting: { ...G.characters.casting, cast: book } } }, at };
 }
 
