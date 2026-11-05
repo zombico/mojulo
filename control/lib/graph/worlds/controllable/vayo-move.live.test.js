@@ -60,9 +60,10 @@ describe('vayo moves on the World page', () => {
     await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojVayo, { timeout: 20000 });
     const frames = (n) => p.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
     await frames(20);
-    await p.keyboard.down('KeyV'); await frames(2); await p.keyboard.up('KeyV');
     await p.keyboard.down('KeyW'); await p.keyboard.down('Space');
-    await frames(8);
+    await p.keyboard.down('KeyV'); await frames(2); await p.keyboard.up('KeyV');
+    // (read by the jetpack's own clock, not the frames: a slow runner steps more of a second a frame)
+    await p.waitForFunction(() => { const J = window.__mojCtrl.world.byId.p1.vayoJet; return J && J.t > 0.1; }, { polling: 'raf', timeout: 20000 });
     const early = await p.evaluate(() => { const h = window.__mojCtrl.world.byId.p1; return { kind: h.vayo && h.vayo.kind, startup: h.vayo && h.vayo.startup, lean: h.tumble ? h.tumble.angle : 0 }; });
     await frames(60);
     const later = await p.evaluate(() => { const h = window.__mojCtrl.world.byId.p1; return { z: h.transform.pos[2], lean: h.tumble ? h.tumble.angle : 0 }; });
