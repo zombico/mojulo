@@ -43,3 +43,8 @@
 - **A beaten pack leaves the map.** A won fight's foes were felled where they stood (`kill`: they lie down, held), so a
   pack the party had beaten still stood on the trail, fallen, as one to fight. They leave in a puff of smoke (`vanish`,
   `with: 'smoke'`).
+- **A party that fights but does not walk the map** (`battles.followers: false`). A party RPG stood every member of its
+  casting's party on the map behind the hero, each a rigged figure as heavy as the hero's; with `followers: false` the
+  hero walks alone, as a classic party RPG's leader does, and the party still fights beside it (the battles' party is the
+  cast who join, as before). A member who joins on a story flag still stands where the story puts it. The default is
+  unchanged.

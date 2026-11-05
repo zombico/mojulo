@@ -110,6 +110,23 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
   });
 });
 
+describe('the party on the map', () => {
+  it('followers: false: the party fights beside the hero, but the hero walks the map alone', () => {
+    const cast = { ...MEADOWMARK_HERO.characters, casting: { scale: 'party', n: 2 } };
+    const at = (battles) => {
+      const M = levels(W(battles, { characters: cast }))[0].order.manifest;
+      return { escorts: M.entities.filter((e) => e.rule?.mind?.motivation === 'escort').map((e) => e.id), party: lowerPlay(M, { player: 'hero' }).rpg.party.map((p) => p.id) };
+    };
+    const walked = at({}), alone = at({ followers: false });
+    expect(walked.escorts.length).toBeGreaterThan(0);
+    expect(alone.escorts).toEqual([]);
+    // the same party in the fights either way
+    expect(alone.party).toEqual(walked.party);
+    expect(alone.party.length).toBeGreaterThan(1);
+    expect(() => readBattles({ followers: 'no' })).toThrow(/followers is true .* or false/);
+  });
+});
+
 describe('the shops on the way', () => {
   it('each fighting stage opens with a merchant and an inn, the wares and the night dearer further on; none where the book says', () => {
     const L = levels(W({}));

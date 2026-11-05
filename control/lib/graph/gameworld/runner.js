@@ -342,7 +342,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   // beside the hero from the start (one the page gives a joins flag joins on it, above); a body that does not walk the
   // field yet is left off it
   const castFigures = CG ? Object.fromEntries(CG.members.map((M) => [M.id, M.field])) : null;
-  if (CG) for (const M of CG.members) if ((M.bond === 'party' || M.bond === 'familiar') && !M.joins && M.field) party.push({ id: M.id, ref: castRefs[M.id], joins: null });
+  // (battles.followers false: the party fights beside the hero but does not walk the map: none of it stood as a follower)
+  if (CG && G.battles?.followers !== false) for (const M of CG.members) if ((M.bond === 'party' || M.bond === 'familiar') && !M.joins && M.field) party.push({ id: M.id, ref: castRefs[M.id], joins: null });
   const lastOf = lastStages(stages);
   // the packs each stage meets, numbered across the game (battles.js)
   const plan = G.battles ? battlePlan(G, stages, (i) => roomOf(stageEnds(stages[i].manifest))) : null, packFrom = [];
