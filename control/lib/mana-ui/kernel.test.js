@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { JSDOM } from 'jsdom';
 import { manaUi, manaUiSource, withIdioms, IDIOMS, manaUiPage, manaUiBoard, SAMPLE_STATE, coverageOverlap } from './index.js';
 
 // The runtime's concepts, each on the smallest spec that exercises it: reading that teaches, props down (literals and
@@ -249,7 +250,9 @@ describe('mana-ui: sides, leads and the menu\'s hold', () => {
     globalThis.window = { addEventListener: (type) => listeners.push(type) };
     try {
       const rt = manaUi.runtime({ screens: { p: screen([{ use: 'button', props: { label: 'Resume' } }]) } }, host({}));
-      const el = { innerHTML: '', on: [], addEventListener(t) { this.on.push(t); } }, m = manaUi.mount(el, rt);
+      const el = new JSDOM('<div></div>').window.document.querySelector('div'), add = el.addEventListener.bind(el);
+      el.on = []; el.addEventListener = (t, f) => { el.on.push(t); add(t, f); };
+      const m = manaUi.mount(el, rt);
       expect(listeners).toEqual([]);   // no key, no pad: the controls layer's
       expect(el.on.every((t) => t.startsWith('pointer'))).toBe(true);   // its own widgets under a pointer only
       rt.open('p'); m.paint();
@@ -312,6 +315,93 @@ describe('mana-ui: selection by touch and by cursor', () => {
     expect(log.map((x) => x.e)).toEqual([{ emit: 'dash' }]);
     rt.hudTap(0);
     expect(rt.state().screen).toBe('pause');
+  });
+});
+
+describe('mana-ui: motion that means something', () => {
+  const hudOf = (...parts) => ({ use: 'hud', children: [{ use: 'region', props: { at: 'top-left' }, children: parts }] });
+  const live = (hud, state, extra = {}) => manaUi.runtime({ hud, screens: {} }, { ...host(state), ...extra });
+  it('a value that changed says so once, its direction and its gain; never on the first draw', () => {
+    const st = { gold: 10 }, rt = live(hudOf({ use: 'counter', props: { label: 'Gold', value: { bind: 'gold' } } }), st);
+    expect(rt.view()).not.toContain('data-ch');                      // what was there is not news
+    st.gold = 13; rt.tick();
+    expect(rt.view()).toMatch(/data-ch="up" data-key="ch1">13<s class="mana-gain">\+3</);
+    st.gold = 5; rt.tick();
+    expect(rt.view()).toMatch(/data-ch="down" data-key="ch2">5<s class="mana-gain">−8</);   // a new key replays it
+    rt.tick();
+    expect(rt.view()).toContain('data-key="ch2"');                   // nothing changed: the same mark, nothing replays
+  });
+  it('a word that changed is new; a screen opened again shows what is there without news', () => {
+    const st = { s: 'Idle', n: 1 }, rt = manaUi.runtime({ screens: { a: screen([{ use: 'badge', props: { value: { bind: 's' } } }, { use: 'stat', props: { label: 'N', value: { bind: 'n' } } }]) } }, host(st));
+    rt.open('a'); st.s = 'Ready'; rt.tick();
+    expect(rt.view()).toMatch(/data-ch="new"/);
+    rt.close(); st.n = 2; rt.open('a');
+    expect(rt.view()).not.toContain('data-ch');
+  });
+  it('a row whose id is new rings once; the last move and whose turn the game says, in that side\'s colour', () => {
+    const st = { rows: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B', turn: true, side: 2 }] };
+    const rt = run(screen([{ use: 'list', props: { rows: { bind: 'rows' } } }]), st);
+    expect(rt.view()).not.toContain('data-fresh');
+    expect(rt.view()).toContain('data-turn="2"');
+    st.rows = [...st.rows, { id: 'c', label: 'C', last: true }]; rt.tick();
+    expect((rt.view().match(/data-fresh="yes"/g) || []).length).toBe(1);
+    expect(rt.view()).toMatch(/data-fresh="yes" data-k="2" data-last="yes"/);
+    rt.press('down'); // a move draws again: the fresh row stays fresh until the rows change
+    expect(rt.view()).toContain('data-fresh="yes"');
+    expect(run(screen([{ use: 'badge', props: { value: 'Ayla', turn: true } }])).view()).toContain('data-turn="yes"');
+  });
+  it('the game\'s clock held holds the HUD; less motion asked is on the root, the sheet keeps the fades', () => {
+    const rt = live(hudOf(txt('x')), {});
+    rt.hold(true); rt.reduceMotion(true);
+    expect(rt.view()).toMatch(/data-clock="held".*data-motion="reduced"/);
+    expect(rt.state()).toMatchObject({ held: true, reducedMotion: true });
+    rt.hold(false);
+    expect(rt.view()).not.toContain('data-clock');
+  });
+});
+
+describe('mana-ui: one moment at a time, by weight', () => {
+  const at = { t: 0 };
+  const moments = (rows, extra = {}) => manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'region', props: { at: 'center' }, children: [{ use: 'moments', props: { rows: { bind: 'm' }, hold: 3, read: 1, ...extra } }] }] }, screens: {} }, { read: (p) => manaUi.readPath(rows, p), now: () => at.t });
+  const up = (rt) => (rt.view().match(/data-role="display">([^<]*)</) || [])[1] || null;
+  it('a weightier moment takes the screen at once; an equal one once read; a lighter one waits its turn', () => {
+    at.t = 0;
+    const st = { m: [{ id: 1, text: 'Goal' }] }, rt = moments(st);
+    expect(up(rt)).toBe('Goal');
+    at.t = 0.5; st.m = [...st.m, { id: 2, text: 'Corner', weight: 'minor' }, { id: 3, text: 'Save' }]; rt.tick();
+    expect(up(rt)).toBe('Goal');                         // an equal one waits until the one up has been read
+    at.t = 1.1; expect(rt.tick()).toBe(true);
+    expect(up(rt)).toBe('Save');
+    at.t = 1.2; st.m = [...st.m, { id: 4, text: 'Red card', weight: 'decisive' }]; rt.tick();
+    expect(up(rt)).toBe('Red card');                     // a weightier one takes it at once
+    at.t = 4.3; rt.tick();
+    expect(up(rt)).toBe('Corner');                       // the lighter one, its turn come
+    at.t = 7.4; rt.tick();
+    expect(up(rt)).toBeNull();
+  });
+  it('a new moment is a new element (its entrance plays); with no clock, the weightiest the game still lists', () => {
+    at.t = 0;
+    const st = { m: [{ id: 'a', text: 'One' }] }, rt = moments(st);
+    expect(rt.view()).toContain('data-key="m1"');
+    const still = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'moments', props: { rows: [{ text: 'Big', weight: 3 }, { text: 'Small', weight: 0 }], as: 'toast' } }].map((c) => ({ use: 'region', props: { at: 'top-right' }, children: [c] })) }, screens: {} }, {});
+    expect(still.view()).toMatch(/class="mana-toast" data-key="#?0:Big"|class="mana-toast" data-key="0:Big"/);
+  });
+});
+
+describe('mana-ui: the view patches, never replaces', () => {
+  it('an element lives on while its tag and key hold; a new key is a new element', () => {
+    const st = { gold: 1, show: true }, el = new JSDOM('<div></div>').window.document.querySelector('div');
+    const rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'region', props: { at: 'top-left' }, children: [{ use: 'counter', props: { label: 'Gold', value: { bind: 'gold' } } }, { use: 'bar', props: { value: { bind: 'gold' }, max: 10 } }] }] }, screens: {} }, host(st));
+    const m = manaUi.mount(el, rt), counter = el.querySelector('.mana-counter'), fill = el.querySelector('.mana-track i');
+    st.gold = 4; rt.tick(); m.paint();
+    expect(el.querySelector('.mana-counter')).toBe(counter);        // the same element: its transition can run
+    expect(el.querySelector('.mana-track i')).toBe(fill);
+    expect(fill.getAttribute('style')).toBe('width:40%');
+    const num = el.querySelector('.mana-counter .mana-num');
+    st.gold = 6; rt.tick(); m.paint();
+    expect(el.querySelector('.mana-counter .mana-num')).not.toBe(num);   // a new change: a new element, it plays again
+    const said = el.ownerDocument.createElement('div'); said.innerHTML = rt.view();
+    expect(el.firstChild.isEqualNode(said.firstChild)).toBe(true);    // what is drawn is what the runtime says
   });
 });
 

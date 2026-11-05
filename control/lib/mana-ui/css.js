@@ -19,7 +19,16 @@
  * A touch screen's targets grow to 48 px, a screen keeps out of the notch and the home bar (the safe areas), and a
  * narrow screen (a phone, measured on the root, not the window) stacks its splits and lets its grids reflow.
  *   FRAME_CSS           the board's frames: a 1280×720 stage scaled into a 16:9 box, so a frame keeps a screen's proportions
+ *
+ * MOTION THAT MEANS SOMETHING: a value that changed flashes and pops once (up the second accent, down the harm, its gain
+ * floating off), a fresh row or the last move opens a ring once, the side whose turn it is is alight (a thick bar at
+ * its edge, breathing), a screen fades in and its windows and rows rise staggered, a moment's banner slams and a toast
+ * slides. Every distance, scale and delay is a variable the theme's `motion` sets (the greybox: fades only, nothing
+ * travels); prefers-reduced-motion and the root's data-motion=reduced zero them (the fades stay), and data-clock=held
+ * holds the HUD's (a hit-stop). A side's chip is keylined where its colour would sink into the panel (WCAG's 3:1 for
+ * a part of the UI).
  */
+import { contrast } from './theme.js';
 export const GREYBOX_VARS = Object.freeze({
   ink: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', line: '#111111', panel: '#fafafa', paper: '#fafafa', wash: '#ececec',
   scrim: 'rgba(255,255,255,.72)', shade: '#000000',
@@ -28,7 +37,15 @@ export const GREYBOX_VARS = Object.freeze({
   hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111', plain: '#111111', harm: '#111111',
   font: 'system-ui,-apple-system,"Segoe UI",sans-serif', display: 'system-ui,-apple-system,"Segoe UI",sans-serif', mono: 'ui-monospace,Menlo,Consolas,monospace',
   scale: '1', case: 'uppercase', target: '30px', radius: '0px', 'frame-w': '1px', 'frame-s': 'solid', plate: '#fafafa', motion: 'none',
+  // how things move (theme.js MOTIONS): the greybox fades and travels nowhere
+  dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0', i: '0',
+  // what a change flashes and whose turn is alight: the accent unless a rule says otherwise
+  flash: 'var(--mana-accent)', turn: 'var(--mana-accent)',
+  // a side's keyline: the ink round a chip that would sink into the panel
+  ...keylines(['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'], '#fafafa', '#111111'),
 });
+/** Each side's keyline: the ink where its kit would sink into the panel (under 3:1), else none. */
+export function keylines(sides, panel, ink) { return Object.fromEntries(sides.map((c, k) => [`side-${k}-key`, contrast(c, panel) < 3 ? ink : 'transparent'])); }
 const v = (k) => `var(--mana-${k})`;
 const f = (px) => `calc(${px}px*var(--mana-scale))`;
 const X_BOX = `linear-gradient(to top right,transparent calc(50% - .5px),${v('soft')} calc(50% - .5px),${v('soft')} calc(50% + .5px),transparent calc(50% + .5px)),linear-gradient(to bottom right,transparent calc(50% - .5px),${v('soft')} calc(50% - .5px),${v('soft')} calc(50% + .5px),transparent calc(50% + .5px))`;
@@ -188,7 +205,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} :is(.mana-place,.mana-screen>.mana-region)[data-at=bottom-right]{bottom:0;right:0;align-items:flex-end}`,
     `${s} .mana-place>*,${s} .mana-screen>.mana-region>:not(.mana-window){background:${v('plate')};border:${v('frame-w')} ${v('frame-s')} ${v('line')};border-radius:${v('radius')};padding:5px 7px;opacity:.94}`,
     // the parts that are their own frame sit bare: the aim, a moment's banner, a phone's controls
-    `${s} .mana-place>.mana-region:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad)){background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0}`,
+    `${s} .mana-place>.mana-region:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad,.mana-moments)){background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0}`,
     `${s} .mana-anchors{position:absolute;inset:0}`,
     `${s} .mana-anchor{position:absolute;transform:translate(-50%,-100%)}`,
     // what floats over the world carries its own plate: the world behind it can be any colour
@@ -206,9 +223,13 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-feed{display:flex;flex-direction:column;gap:2px;font-size:${f(11)};min-width:160px}`,
     `${s} .mana-toast{padding:4px 10px;border:1px solid ${v('line')};background:${v('plate')};font-size:${f(12)}}`,
     `${s} .mana-banner{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 24px;border-top:2px solid ${v('line')};border-bottom:2px solid ${v('line')};background:${v('plate')}}`,
+    // the moments: one up at a time, the weightiest the boldest (a decisive one's rules doubled)
+    `${s} .mana-moments{display:flex;flex-direction:column;align-items:center}`, `${s} .mana-moments[data-as=toast]{align-items:flex-end}`,
+    `${s} .mana-moments .mana-banner[data-weight="3"]{border-top-width:4px;border-bottom-width:4px}`,
+    `${s} .mana-moments .mana-banner[data-weight="0"]{border-width:1px 0}`,
     // a side's chip, and the cell that leads a row (a shape beside the number, the colour the theme's)
     `${s} .mana-chip{display:inline-block;width:6px;height:.9em;margin-right:6px;vertical-align:-1px;border-radius:1px;background:${v('ink')}}`,
-    ...Array.from({ length: 8 }, (_, k) => `${s} .mana-chip[data-side="${k}"]{background:${v(`side-${k}`)}}`),
+    ...Array.from({ length: 8 }, (_, k) => `${s} .mana-chip[data-side="${k}"]{background:${v(`side-${k}`)};box-shadow:0 0 0 1px ${v(`side-${k}-key`)}}`),
     `${s} :is(.mana-row,.mana-cell)>.mana-chip{position:absolute;left:8px;top:7px;bottom:7px;width:4px;height:auto;margin:0}`,
     `${s} .mana-table td[data-lead=yes]{font-weight:800}`, `${s} .mana-table td[data-lead=yes]::after{content:" \\25B2";font-size:.7em;color:${v('accent2')}}`,
     // the live game's own: a bar's chip and its mirror, tables, dials, slots, what is off screen, where harm came from
@@ -255,7 +276,63 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-statuses{display:inline-flex;gap:2px}`,
     `${s} .mana-status{display:inline-block;padding:0 3px;border:1px solid ${v('line')};font:700 8px/1.4 ${v('mono')};background:${v('paper')}}`,
     `${s} .mana-status sub{font-size:7px;margin-left:1px}`,
+    ...MOTION_RULES(s),
   ].join('\n');
+}
+
+// ── motion ────────────────────────────────────────────────────────────────────────────────────────────────────────
+// every travel, scale and delay a variable: under reduced motion they are zero and the fades are all that is left
+const pop = (k) => `calc(1 + (${v('pop')} - 1) * ${k})`;
+const KEYFRAMES = [
+  `@keyframes mana-fade{from{opacity:0}}`,
+  `@keyframes mana-rise{from{opacity:0;transform:translateY(${v('travel')})}}`,
+  `@keyframes mana-slide{from{opacity:0;transform:translateX(calc(${v('travel')} * 2))}}`,
+  `@keyframes mana-slam{0%{opacity:0;transform:scale(${pop(3)})}60%{opacity:1}100%{transform:none}}`,
+  `@keyframes mana-pop{from{transform:scale(${pop(1)})}}`,
+  `@keyframes mana-flash{from{background-color:${v('flash')};color:${v('panel')}}}`,
+  `@keyframes mana-gain{0%{opacity:0}15%{opacity:1}100%{opacity:0;transform:translateY(calc(${v('travel')} * -2.4))}}`,
+  `@keyframes mana-ring{from{opacity:1}to{opacity:0;transform:scale(${pop(2.5)})}}`,
+  `@keyframes mana-turn{50%{box-shadow:inset 9px 0 0 ${v('turn')},inset 0 0 0 2px ${v('turn')}}}`,
+  `@keyframes mana-sheen{from{transform:translateX(-120%) skewX(-20deg)}to{transform:translateX(320%) skewX(-20deg)}}`,
+];
+const CALM = `--mana-travel:0px!important;--mana-pop:1!important;--mana-stagger:0ms!important;--mana-glide:0ms!important;--mana-loop:paused!important;--mana-sheen:0!important`;
+function MOTION_RULES(s) {
+  const rows = `:is(.mana-list>.mana-row,.mana-grid>.mana-cell,.mana-each>*,.mana-table tbody tr,.mana-tier>.mana-node)`;
+  return [
+    ...KEYFRAMES,
+    // entrances: a screen fades in, its windows and rows rise, staggered by their place
+    `${s} .mana-screen{animation:mana-fade ${v('dur')} ease-out both}`,
+    // (at the least weight a selector can have: a change's flash or a turn's breath on the same element wins)
+    `${s} :where(.mana-screen .mana-window){animation:mana-rise calc(${v('dur')} * 1.3) ${v('ease')} both}`,
+    `${s} :where(.mana-screen) :where(${rows.slice(4, -1)}){animation:mana-rise ${v('dur')} ${v('ease')} both;animation-delay:calc(var(--mana-i,0) * ${v('stagger')})}`,
+    ...Array.from({ length: 10 }, (_, i) => `${s} ${rows}:nth-child(${i + 2}){--mana-i:${i + 1}}`),
+    `${s} ${rows}:nth-child(n+12){--mana-i:11}`,
+    // the moments: a banner slams, its sheen sweeps once; a toast slides in from its edge
+    `${s} .mana-banner{position:relative;overflow:hidden;animation:mana-slam calc(${v('dur')} * 2) ${v('ease')} both}`,
+    `${s} .mana-banner::after{content:"";position:absolute;top:0;bottom:0;left:0;width:30%;background:linear-gradient(90deg,transparent,${v('panel')},transparent);opacity:${v('sheen')};pointer-events:none;animation:mana-sheen calc(${v('dur')} * 5) ease-in-out calc(${v('dur')} * 2) both}`,
+    `${s} .mana-toast{animation:mana-slide calc(${v('dur')} * 1.5) ${v('ease')} both}`,
+    // a bar and a dial glide to their new value
+    `${s} .mana-track i{transition:width ${v('glide')} ${v('ease')}}`, `${s} .mana-dial i{transition:transform ${v('glide')} ${v('ease')}}`,
+    // what changed says so once: a flash and a pop, its gain floating off (a new data-key replays it)
+    `${s} [data-ch]{animation:mana-flash calc(${v('dur')} * 4) ease-out,mana-pop calc(${v('dur')} * 1.5) ${v('ease')}}`,
+    `${s} .mana-num[data-ch],${s} .mana-glyphs[data-ch]{display:inline-block;position:relative}`,
+    `${s} [data-ch=up]{--mana-flash:${v('accent2')}}`, `${s} [data-ch=down]{--mana-flash:${v('harm')}}`,
+    `${s} .mana-gain{position:absolute;right:0;bottom:100%;text-decoration:none;font:700 ${f(10)}/1 ${v('mono')};white-space:nowrap;pointer-events:none;animation:mana-gain calc(${v('dur')} * 8) ease-out both}`,
+    `${s} .mana-badge[data-ch]{position:relative}`,
+    // a fresh row and the last move: a ring that opens once (the last move keeps a dotted edge while it is the last)
+    `${s} :is([data-fresh=yes],[data-last=yes]){position:relative}`,
+    `${s} :is([data-fresh=yes],[data-last=yes])::after{content:"";position:absolute;inset:-2px;border:2px solid ${v('accent')};border-radius:inherit;pointer-events:none;animation:mana-ring calc(${v('dur')} * 4) ease-out both}`,
+    `${s} [data-last=yes]:not([data-st=focus]){outline:2px dotted ${v('accent2')};outline-offset:-3px}`,
+    // whose turn: a thick bar at the edge in that side's colour, breathing (still under reduced motion: the bar stays)
+    `${s} [data-turn]{box-shadow:inset 6px 0 0 ${v('turn')},inset 0 0 0 1px ${v('turn')};animation:mana-turn 1.6s ease-in-out infinite;animation-play-state:${v('loop')}}`,
+    ...Array.from({ length: 8 }, (_, k) => `${s} [data-turn="${k}"]{--mana-turn:${v(`side-${k}`)}}`),
+    `${s} .mana-table tr[data-turn]{box-shadow:none;animation:none}`, `${s} .mana-table tr[data-turn]>td:first-child{box-shadow:inset 6px 0 0 ${v('turn')}}`,
+    `${s} .mana-badge[data-turn]{padding-left:9px}`,
+    // the game's clock held (a hit-stop): the HUD's motion holds with it; less motion: the fades are all that is left
+    `${s}[data-clock=held] .mana-hud,${s}[data-clock=held] .mana-hud *,${s}[data-clock=held] .mana-hud *::after{animation-play-state:paused!important}`,
+    `${s}[data-motion=reduced]{${CALM}}`,
+    `@media (prefers-reduced-motion:reduce){${s}{${CALM}}}`,
+  ];
 }
 
 /** The board's frames: a 1280×720 stage scaled into a 16:9 box, over a crossed "world" wash. */

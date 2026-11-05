@@ -181,10 +181,10 @@ export const LIVE_IDIOMS = {
     example: { state: { bind: 'stealth.state' }, level: { bind: 'stealth.level' }, max: { bind: 'stealth.max' } },
   },
   'quest-toasts': {
-    kind: 'hud', about: 'a quest begun, a step done, a quest ended: passing words (top right)',
-    reads: 'toasts: [{ text }]', emits: '—',
+    kind: 'hud', about: 'a quest begun, a step done, a quest ended: passing words, one at a time by weight (a quest ended outweighs a step), sliding in (top right)',
+    reads: 'toasts: [{ id, text, sub?, weight? }] (the game appends; host.now its clock)', emits: '—',
     params: ['toasts'],
-    node: region('top-right', [{ use: 'each', props: { rows: P('toasts'), row: { use: 'toast', props: { value: I('text') } } } }]),
+    node: region('top-right', [{ use: 'moments', props: { rows: P('toasts'), as: 'toast', hold: 2.5, read: 1 } }]),
     example: { toasts: { bind: 'questToasts' } },
   },
   'phone-buttons': {
@@ -227,11 +227,11 @@ export const LIVE_IDIOMS = {
   // mid-play menus
   'battle-menu': {
     kind: 'screen', about: 'a turn-based fight: the message above, whose turn in order, the foes to aim at, the commands, and the party with the one acting marked',
-    reads: 'message, turns: [{ name, variant: strong (now) | plain (party) | muted (foe) }], foes: [{ id, name, hp, hpMax, state }], commands: [{ label, then }], party: [{ name, hp, hpMax, mp, mpMax, active? }]', emits: 'a command\'s then; { emit: target, id } on a foe',
+    reads: 'message, turns: [{ name, variant: strong (now) | plain (party) | muted (foe), turn? (the one acting, alight) }], foes: [{ id, name, hp, hpMax, state }], commands: [{ label, then }], party: [{ name, hp, hpMax, mp, mpMax, active? }]', emits: 'a command\'s then; { emit: target, id } on a foe',
     params: ['message', 'turns', 'foes', 'commands', 'party'],
     node: screen({ layer: 'overlay', place: 'full' }, [
       region('top', [txt(P('message'))]),
-      region('top-right', [col([txt('Turn order', 'heading'), { use: 'each', props: { dir: 'row', rows: P('turns'), row: { use: 'badge', props: { value: I('name'), variant: I('variant') } } } }])]),
+      region('top-right', [col([txt('Turn order', 'heading'), { use: 'each', props: { dir: 'row', rows: P('turns'), row: { use: 'badge', props: { value: I('name'), variant: I('variant'), turn: I('turn') } } } }])]),
       region('left', [{ use: 'window', props: { title: 'Foes' }, children: [{ use: 'list', props: { rows: P('foes'), row: col([row([{ use: 'awareness', props: { state: I('state'), label: false } }, txt(I('name'))]), { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp' } }]) }, on: { accept: { emit: 'target', id: I('id') } } }] }]),
       region('bottom-left', [{ use: 'window', props: { title: 'Command' }, children: [{ use: 'list', props: { rows: P('commands') }, on: { accept: I('then') } }] }]),
       region('bottom-right', [{ use: 'window', props: { title: 'Party' }, children: [{ use: 'list', props: { rows: P('party'), row: row([txt(I('name'), 'heading'), { use: 'bar', props: { label: 'HP', value: I('hp'), max: I('hpMax'), variant: 'hp' } }, { use: 'bar', props: { label: 'MP', value: I('mp'), max: I('mpMax'), variant: 'mp' } }], 'center', 'normal') } }] }]),
@@ -251,7 +251,7 @@ export const LIVE_IDIOMS = {
   },
   scoreboard: {
     kind: 'screen', about: 'the match\'s table while it is held open: every player\'s score, kills and deaths, yours marked',
-    reads: 'players: [{ name, team, score, kills, deaths, self? }]', emits: '— (back closes it)',
+    reads: 'players: [{ id, name, team, score, kills, deaths, self?, side? }] (a score that changed flashes; a player who joined rings once)', emits: '— (back closes it)',
     params: ['title', 'players'],
     node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [col([
       { use: 'table', props: { columns: [{ key: 'name', label: 'Player' }, { key: 'team', label: 'Team' }, { key: 'score', label: 'Score', align: 'right' }, { key: 'kills', label: 'K', align: 'right' }, { key: 'deaths', label: 'D', align: 'right' }], rows: P('players') } },

@@ -20,12 +20,16 @@
  *                                                                    fill, a glow, corner brackets, or the classic ▶ of
  *                                                                    a console RPG; with a finger or a mouse there is no
  *                                                                    cursor, what is tapped is selected
- *     motion    none | ease | snap | stepped                           how a state change moves
+ *     motion    none | ease | snap | stepped                           how a state change moves, and how a value that
+ *                                                                    changed, a screen's entrance and a moment move
+ *                                                                    (MOTIONS): none fades only, ease glides, snap
+ *                                                                    overshoots, stepped moves in frames
  *     fills     pattern | solid                                        bar kinds by pattern (values first) or by colour
  *     scale     compact | normal | large                               the type scale
  *     case      upper | none                                           titles and headings
  *     ornaments [brackets | ticks | scanlines | dotgrid | stitch | hazard | glow]   drawn on and around the windows
- *     sides     the kits of the sides (a team, a seat, a lane) as hex, 1 to 8, cycled: the chip a row with `side` draws
+ *     sides     the kits of the sides (a team, a seat, a lane) as hex, 1 to 8, cycled: the chip a row with `side` draws,
+ *               keylined in the ink where the kit would sink into the panel (under 3:1)
  *               (a host with its own colour science hands its kits here: the broadcast's, already kept apart); left
  *               out, the accent, the second accent, then the Okabe–Ito set
  *
@@ -158,6 +162,14 @@ function derive(t) {
 const FRAMES = { none: ['0px', 'solid'], hairline: ['1px', 'solid'], rule: ['2px', 'solid'], double: ['4px', 'double'], bevel: ['3px', 'outset'], heavy: ['3px', 'solid'] };
 const RADII = { square: '0px', soft: '5px', round: '12px', cut: '0px' };
 const MOTION = { none: 'none', snap: 'none', ease: 'background-color .18s cubic-bezier(.2,.7,.2,1),border-color .18s,box-shadow .18s,color .18s', stepped: 'background-color .15s steps(3),border-color .15s steps(3),box-shadow .15s steps(3)' };
+// how a change, an entrance and a moment move (the broadcast's motion cards, as words): none fades and travels nowhere;
+// ease glides; snap overshoots and slams (a back curve); stepped moves in frames
+export const MOTIONS = Object.freeze({
+  none: { dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0' },
+  ease: { dur: '220ms', ease: 'cubic-bezier(.2,.7,.2,1)', travel: '10px', pop: '1.12', stagger: '40ms', glide: '320ms', loop: 'running', sheen: '.35' },
+  snap: { dur: '200ms', ease: 'cubic-bezier(.34,1.56,.64,1)', travel: '14px', pop: '1.25', stagger: '30ms', glide: '180ms', loop: 'running', sheen: '.5' },
+  stepped: { dur: '240ms', ease: 'steps(4,end)', travel: '12px', pop: '1.2', stagger: '60ms', glide: '300ms', loop: 'running', sheen: '.5' },
+});
 const SCALE = { compact: '0.9', normal: '1', large: '1.12' };
 const corners = (c, len, w) => ['top left', 'top right', 'bottom left', 'bottom right'].flatMap((at) => [`linear-gradient(${c},${c}) ${at}/${len}px ${w}px no-repeat`, `linear-gradient(${c},${c}) ${at}/${w}px ${len}px no-repeat`]).join(',');
 const stack = (k) => FACE_STACKS[k] || `'${k}',system-ui,sans-serif`;
@@ -169,7 +181,9 @@ export function themeCss(theme, scope = '.mana-root') {
   const vars = { ...Object.fromEntries(Object.entries(k)), plain: k.accent, scrim: alpha(k.panel, 0.66), 'focus-ink': T.focus === 'fill' ? k.panel : k.ink,
     ...Object.fromEntries(T.sides.map((c, i) => [`side-${i}`, c])),
     font: stack(T.type.body), display: stack(T.type.display), mono: stack(T.type.mono), scale: SCALE[T.scale], case: T.case === 'upper' ? 'uppercase' : 'none',
-    radius: RADII[T.corner], 'frame-w': FRAMES[T.frame][0], 'frame-s': FRAMES[T.frame][1], plate, motion: MOTION[T.motion] };
+    radius: RADII[T.corner], 'frame-w': FRAMES[T.frame][0], 'frame-s': FRAMES[T.frame][1], plate, motion: MOTION[T.motion], ...MOTIONS[T.motion],
+    // a side whose kit would sink into the panel is keylined in the ink
+    ...Object.fromEntries(T.sides.map((c, i) => [`side-${i}-key`, contrast(c, k.panel) < 3 ? k.ink : 'transparent'])) };
   const out = [
     ...T.faces.map((x) => `@font-face{font-family:'${x.family}';font-style:${x.style};font-weight:${x.weight};font-display:block;src:url(${x.src})}`),
     `${s}{${Object.entries(vars).map(([n, x]) => `--mana-${n}:${x}`).join(';')}}`,

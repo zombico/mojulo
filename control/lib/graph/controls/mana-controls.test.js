@@ -1,3 +1,4 @@
+import { JSDOM } from 'jsdom';
 import { describe, it, expect, afterEach } from 'vitest';
 import { manaControls, manaGlyphs, controlsRows, remap } from './mana-controls.js';
 import { buildManaHost } from './mana-host.js';
@@ -76,7 +77,7 @@ describe('the controls layer drives the view', () => {
     const rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'region', props: { at: 'bottom' }, children: [{ use: 'touchpad', props: { buttons: ['A', { label: 'Fire', control: 'rt' }] } }] }] }, screens: {} }, { read: () => undefined });
     expect(rt.view()).toContain('data-control="south"');
     expect(rt.view()).toContain('data-control="rt"');
-    expect(manaUi.mount({ innerHTML: '', addEventListener() {} }, rt).read).toBeUndefined();
+    expect(manaUi.mount(new JSDOM('<div></div>').window.document.querySelector('div'), rt).read).toBeUndefined();
   });
 });
 

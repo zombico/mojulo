@@ -32,7 +32,7 @@ export const SAMPLE_STATE = Object.freeze({
   objective: { title: 'Reach the gatehouse', steps: [{ text: 'Find the crest key', done: true }, { text: 'Open the east gate', done: false }] },
   feed: [{ text: 'Picked up 3 arrows' }, { text: 'Ayla reached level 7' }, { text: 'Warden spotted you' }],
   prompt: { show: true, action: 'E', label: 'Open the gate' },
-  banner: { show: true, title: 'Phase 2', sub: 'The Hollow King rises' },
+  moments: [{ id: 'm1', text: 'Phase 2', sub: 'The Hollow King rises', weight: 'major' }],
   modes: [
     { id: 'story', name: 'Story', about: 'The campaign, chapter by chapter.', players: '1', then: { emit: 'mode:story' } },
     { id: 'versus', name: 'Versus', about: 'Two to four on one screen.', players: '2–4', then: { emit: 'mode:versus' } },
@@ -109,8 +109,8 @@ export const SAMPLE_STATE = Object.freeze({
     locks: [{ x: 0.64, y: 0.38, name: 'Drone', range: '40 m' }],
   },
   scoreboard: [
-    { name: 'Ayla', team: 'Red', score: 1450, kills: 12, deaths: 3, self: true }, { name: 'Bram', team: 'Red', score: 1210, kills: 9, deaths: 5 },
-    { name: 'Isa', team: 'Blue', score: 1380, kills: 11, deaths: 4 }, { name: 'Rook', team: 'Blue', score: 990, kills: 6, deaths: 7 },
+    { id: 'ayla', name: 'Ayla', team: 'Red', score: 1450, kills: 12, deaths: 3, self: true, side: 0 }, { id: 'bram', name: 'Bram', team: 'Red', score: 1210, kills: 9, deaths: 5, side: 0 },
+    { id: 'isa', name: 'Isa', team: 'Blue', score: 1380, kills: 11, deaths: 4, side: 1 }, { id: 'rook', name: 'Rook', team: 'Blue', score: 990, kills: 6, deaths: 7, side: 1 },
   ],
   abilities: [{ name: 'Dash', key: 'Q', cooldown: 0 }, { name: 'Fire Bolt', key: 'E', cooldown: 0.6 }, { name: 'Ward', key: 'R', cooldown: 0, count: '2' }, { name: 'Ultimate', key: 'F', cooldown: 1 }],
   hotbar: [{ name: 'Pickaxe', key: '1', active: true }, { name: 'Torch', key: '2', count: '12' }, { name: 'Bread', key: '3', count: '4' }, { name: 'Rope', key: '4' }, { name: '', key: '5' }, { name: '', key: '6' }],
@@ -127,7 +127,7 @@ export const SAMPLE_STATE = Object.freeze({
   td: { wave: '7/20', lives: 14, livesMax: 20, money: 260 },
   lowerThird: { show: true, name: 'Isa', role: 'Ranger · 12 points' },
   cutscene: { show: true, who: 'Keeper', line: 'The gate has not opened in a hundred years.', skip: 'Hold to skip' },
-  questToasts: [{ text: 'Quest begun: The East Gate' }, { text: 'Step done: Find the crest key' }],
+  questToasts: [{ id: 'q1', text: 'Quest begun: The East Gate', weight: 'major' }, { id: 'q2', text: 'Step done: Find the crest key' }],
   labels: [{ x: 0.3, y: 0.58, text: 'Crest Key' }, { x: 0.72, y: 0.5, text: 'Keeper' }, { x: 0.5, y: 0.34, text: 'East Gate' }],
   stealth: { state: 'searching', level: 62, max: 100 },
   touch: ['A', 'B', 'X', 'Y'],
@@ -141,7 +141,7 @@ export const SAMPLE_STATE = Object.freeze({
   battle: {
     message: 'The Warden draws its blade.',
     commands: [{ label: 'Attack', then: { emit: 'cmd:attack' } }, { label: 'Skill', then: { emit: 'cmd:skill' } }, { label: 'Item', then: { emit: 'cmd:item' } }, { label: 'Guard', then: { emit: 'cmd:guard' } }, { label: 'Flee', then: { emit: 'cmd:flee' } }],
-    turns: [{ name: 'Ayla', variant: 'strong' }, { name: 'Warden', variant: 'muted' }, { name: 'Rook', variant: 'plain' }, { name: 'Hound', variant: 'muted' }, { name: 'Wren', variant: 'plain' }],
+    turns: [{ name: 'Ayla', variant: 'strong', turn: true }, { name: 'Warden', variant: 'muted' }, { name: 'Rook', variant: 'plain' }, { name: 'Hound', variant: 'muted' }, { name: 'Wren', variant: 'plain' }],
     party: [{ name: 'Ayla', hp: 64, hpMax: 80, mp: 10, mpMax: 20, active: true }, { name: 'Rook', hp: 12, hpMax: 52, mp: 40, mpMax: 44 }, { name: 'Wren', hp: 47, hpMax: 58, mp: 8, mpMax: 16 }],
     foes: [{ id: 'g1', name: 'Warden', hp: 30, hpMax: 40, state: 'combat' }, { id: 'g3', name: 'Hound', hp: 8, hpMax: 22, state: 'combat' }],
   },

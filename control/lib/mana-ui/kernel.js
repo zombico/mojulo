@@ -4,8 +4,9 @@
  *
  * SINGLE SOURCE OF TRUTH, the controls-kernel discipline: everything lives inside `buildManaUi()`, a closure that
  * references nothing outside itself, so a page runs the same code by emitting `buildManaUi.toString()`
- * (`manaUiSource()`). Node imports the live instance for tests and design-time checks. No clock, no dice, no DOM until
- * `mount`: the same spec over the same state draws the same HTML.
+ * (`manaUiSource()`). Node imports the live instance for tests and design-time checks. No clock of its own, no dice, no
+ * DOM until `mount`: the same spec over the same states, in the same order, draws the same HTML (time is the game's,
+ * read through the host's `now`).
  *
  * THE MODEL — state, form and function, props passed down (React's principles, none of its code):
  *   A NODE (data, what a recipe writes): { use: '<component | def>', id?, props?, on?: { <verb>: effect(s) },
@@ -32,13 +33,24 @@
  *   A SPEC: { screens: { <id>: node (a screen) }, hud?: node (a hud, drawn under the stack), defs?, start? }
  *   SIDES: a row, a cell, a table's row or a badge whose data carries `side` (0..7: a team, a seat, a lane) draws a chip
  *   in that side's colour (the theme's sides, a kit); its name still says whose it is (values first).
+ *   MOTION THAT MEANS SOMETHING (the broadcast's, taken): what changed says so, once. A number that rose or fell (a stat,
+ *   a counter, a bar's, a badge's, a table's cell, a numeral) is marked `data-ch` up | down | new with a new `data-key`,
+ *   its gain (+3) floating off a stat, a counter and a badge; a row of a list, grid or table whose `id` was not there
+ *   before is `data-fresh`, a row the game marks `last: true` (the last move, the tile just laid) a ring that opens once,
+ *   a row or a badge marked `turn: true` (whose turn it is) alight in its side's colour. A screen, its windows and its
+ *   rows enter staggered. How it moves is the theme's (`motion`); prefers-reduced-motion, or rt.reduceMotion(true) from
+ *   the game's options, keeps the fades and drops the travel; rt.hold(true) (a hit-stop, the game's clock held) holds
+ *   the HUD's motion. Never on the first draw: what was there when a screen opened is not news.
  *
  *   COMPONENTS / COMPONENT_IDS    name → { about, group, props: { <prop>: [type, default?, required?] }, children?, verbs? }
  *   REGIONS · AWARENESS · MARKERS · PIP_SHAPES   the closed words some components take
  *   readNode(node, defs?, where?) → the node with its defs expanded, or throws, teaching
  *   readSpec(spec)                → { screens, hud, start }
- *   runtime(spec, host)           → the running UI. host: { read(path) → value, act(effect, from) }
+ *   runtime(spec, host)           → the running UI. host: { read(path) → value, act(effect, from), now?() → the game's
+ *                                   clock in seconds (held when the game is: a pause, a hit-stop) }
  *     .open(id) .close() .press(action, seat?) .focusAt(n, seat?) .tab(t, i) .tick() → re-rendered?
+ *     .hold(on)           the game's clock is held (a hit-stop, a freeze): the HUD's motion holds with it
+ *     .reduceMotion(on)   the player asked for less motion (the game's option; the system's is read by the sheet)
  *     .input(mode, layout?)  what the player is using: keys | pad | xr (the focus shows as a cursor) | touch | mouse (it
  *                         does not: what is tapped is selected, and a touch screen's lists scroll and its targets grow);
  *                         a pad's printed layout (xbox | playstation | nintendo) picks its glyphs
@@ -54,7 +66,9 @@
  *     .view() → html .tree() .state()
  *     actions (the controls kernel's `menu` scheme): up, down, left, right, accept, back, tabNext, tabPrev
  *   toHtml(tree) · readPath(obj, path)
- *   mount(el, rt, { auto?, swipe? }) → { paint }: the DOM backend, a VIEW: it draws into el, holds the page while a screen
+ *   mount(el, rt, { auto?, swipe? }) → { paint }: the DOM backend, a VIEW: it draws into el (patching what is there, by
+ *     position: an element lives on while its tag and its data-key hold, so a transition runs and an entrance plays
+ *     once; a new data-key is a new element), holds the page while a screen
  *     is up (window.__mojMenuOpen) and hit-tests its own widgets under a pointer. It reads no device: the controls layer
  *     (controls/mana-host.js) hands the runtime its intents, the device in hand and the glyphs. swipe: the host's
  *     classifier (controls/swipe.js swipeOf), a stand-in with its thresholds when none is given
@@ -66,6 +80,8 @@ export function buildManaUi() {
   const AWARENESS = { unaware: '–', suspicious: '?', searching: '??', alert: '!', combat: '!!', fleeing: '»', down: '✕' };
   const MARKERS = { self: '▲', ally: '●', foe: '✕', goal: '★', item: '◆', poi: '○' };
   const PIP_SHAPES = { pip: ['●', '○'], heart: ['♥', '♡'], square: ['■', '□'], diamond: ['◆', '◇'] };
+  // a moment's weight: a number, or the words (the broadcast's tones, weightiest last)
+  const WEIGHTS = { minor: 0, normal: 1, major: 2, decisive: 3 };
   const RETICLES = { cross: '+', dot: '·', circle: '◯', bracket: '[ ]' };
   const STYLE_KEYS = ['style', 'class', 'className', 'color', 'colour', 'font', 'css', 'border', 'theme', 'skin', 'tokens', 'register'];
   const ACTIONS = ['up', 'down', 'left', 'right', 'accept', 'back', 'tabNext', 'tabPrev'];
@@ -109,7 +125,7 @@ export function buildManaUi() {
     icon: { group: 'value', about: 'an icon\'s place, named', props: { name: [T, '', true], size: [['s', 'm', 'l'], 'm'] } },
     portrait: { group: 'value', about: 'a face\'s place, named', props: { name: [T, ''], size: [['s', 'm', 'l'], 'm'] } },
     image: { group: 'value', about: 'a picture\'s place (a logo, an arena\'s preview, key art)', props: { label: [T, ''], ratio: [['wide', 'square', 'tall', 'banner'], 'wide'] } },
-    badge: { group: 'value', about: 'a small mark: new, a count, a rank, a score; `side` its side\'s chip', props: { value: [T, '', true], variant: [['plain', 'strong', 'muted'], 'plain'], side: [A] } },
+    badge: { group: 'value', about: 'a small mark: new, a count, a rank, a score; `side` its side\'s chip; `turn` alight while it is that side\'s turn', props: { value: [T, '', true], variant: [['plain', 'strong', 'muted'], 'plain'], side: [A], turn: [B, false] } },
     table: { group: 'value', about: 'rows under columns (a scoreboard, a forecast, a stat panel): the row whose `mark` field is true is yours, a row\'s `lead` names the column that leads it (marked ▲), a row\'s `side` its chip', props: { columns: [L, [], true], rows: [L, [], true], mark: [T, 'self'] } },
     gauge: { group: 'value', about: 'a value on a dial (a speedometer, a pressure, a charge)', props: { value: [N, 0, true], max: [N, 1, true], label: [T], unit: [T] } },
     slot: { group: 'value', about: 'an action or a hotbar slot: what is in it, its key, a cooldown left (0..1), a count; active when it is the one in hand; with `on.accept` a touch screen taps it', props: { name: [T, ''], key: [T], cooldown: [N, 0], count: [T], active: [B, false] }, verbs: ['accept'] },
@@ -121,6 +137,7 @@ export function buildManaUi() {
     feed: { group: 'hud', about: 'the last few lines of a log (kills, pickups, chat from the world)', props: { rows: [L, [], true], field: [T, 'text'], max: [N, 4] } },
     toast: { group: 'hud', about: 'a passing word', props: { value: [T, '', true] } },
     banner: { group: 'hud', about: 'the moment, centred: a title and its line', props: { value: [T, '', true], sub: [T] } },
+    moments: { group: 'hud', about: 'the moments a game calls (a phase, a goal, a quest step), one on screen at a time by weight (the broadcast\'s rule): a weightier one takes the screen at once, an equal one once the one up has been read, a lighter one waits its turn; rows { id, text, sub?, weight?: 0..3 | minor | normal | major | decisive, side? }, timed on the game\'s clock (host.now), else the weightiest the game still lists', props: { rows: [L, [], true], as: [['banner', 'toast'], 'banner'], hold: [N, 3], read: [N, 1.2] } },
     // enemies
     awareness: { group: 'enemy', about: `what an enemy knows of you, as a shape: ${Object.entries(AWARENESS).map(([k, v]) => `${k} ${v}`).join(', ')}`, props: { state: [Object.keys(AWARENESS), 'unaware', true], label: [B, true] } },
     statuses: { group: 'enemy', about: 'the statuses on someone (a word, or { name, turns })', props: { rows: [L, [], true] } },
@@ -241,6 +258,9 @@ export function buildManaUi() {
   // a side's chip: 0..7 (a team, a seat, a lane), or nothing
   const sideOf = (v) => { const n = Number(v); return v === undefined || v === null || v === '' || !isFinite(n) ? null : clamp(Math.floor(n), 0, 7); };
   const chip = (v) => { const k = sideOf(v); return k === null ? null : ['i', { class: 'mana-chip', 'data-side': k }]; };
+  // whose turn it is: a row's or a badge's `turn`, alight in its side's colour when it has one
+  const turnOf = (on, side) => { if (!on) return null; const k = sideOf(side); return k === null ? 'yes' : k; };
+  const numOf = (x) => (typeof x === 'number' && isFinite(x) ? x : typeof x === 'string' && x.trim() !== '' && isFinite(Number(x)) ? Number(x) : null);
   const initials = (s) => words(s).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
   // a tree's tiers: a node one past the deepest it requires
   function tiersOf(nodes) {
@@ -261,7 +281,46 @@ export function buildManaUi() {
   function runtime(spec, host) {
     const { screens, hud, start } = readSpec(spec);
     const H = host || {};
-    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null };
+    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), held: false, calm: false, renders: 0 };
+    // what changed since it was last drawn: { d: up | down | new, n: how many times, g: the gain } (null: nothing yet)
+    const changeOf = (key, value) => {
+      const now = JSON.stringify(value === undefined ? null : value), was = S.seen.get(key);
+      if (!was) { S.seen.set(key, { v: now, raw: value, n: 0, d: null, g: null }); return null; }
+      if (was.v !== now) {
+        const a = numOf(was.raw), b = numOf(value);
+        was.n += 1; was.d = a !== null && b !== null && a !== b ? (b > a ? 'up' : 'down') : 'new'; was.g = a !== null && b !== null && a !== b ? Math.round((b - a) * 100) / 100 : null;
+        was.v = now; was.raw = value;
+      }
+      return was.n ? was : null;
+    };
+    const chOf = (c) => (c ? { 'data-ch': c.d, 'data-key': `ch${c.n}` } : {});
+    const gainOf = (c) => (c && c.g !== null ? ['s', { class: 'mana-gain' }, `${c.g > 0 ? '+' : '−'}${Math.abs(c.g)}`] : null);
+    // a list's rows that are new since its ids last changed (none on its first draw)
+    const freshOf = (key, rows) => {
+      const ids = rows.map((r) => (isObj(r) && r.id !== undefined && r.id !== null ? String(r.id) : null)).filter((x) => x !== null), sig = ids.join('\u0001'), L = S.lists.get(key);
+      if (!L) { S.lists.set(key, { sig, ids: new Set(ids), fresh: new Set() }); return S.lists.get(key).fresh; }
+      if (L.sig !== sig) { const now = new Set(ids); L.fresh = new Set(ids.filter((x) => !L.ids.has(x))); L.ids = now; L.sig = sig; }
+      return L.fresh;
+    };
+    const rowMarks = (fresh, item) => (isObj(item) ? { 'data-fresh': item.id !== undefined && item.id !== null && fresh.has(String(item.id)) ? 'yes' : null, 'data-last': item.last ? 'yes' : null, 'data-turn': turnOf(item.turn, item.side) } : {});
+    // the moment up: the broadcast's rule on the game's clock
+    function momentOf(key, p) {
+      const rows = p.rows.map((r, i) => { const o = isObj(r) ? r : { text: r }, text = words(o.text ?? o.value), w = typeof o.weight === 'number' && isFinite(o.weight) ? o.weight : WEIGHTS[o.weight] ?? 1; return { id: o.id !== undefined && o.id !== null ? `#${o.id}` : `${i}:${text}`, text, sub: o.sub === undefined || o.sub === null ? null : words(o.sub), w, side: o.side }; }).filter((r) => r.text);
+      const t = H.now ? Number(H.now()) : NaN;
+      if (!isFinite(t)) { let best = null; for (const r of rows) if (!best || r.w >= best.w) best = r; return best ? { ...best, key: best.id } : null; }
+      const hold = Math.max(0.2, p.hold), read = clamp(p.read, 0, hold);
+      let M = S.moments.get(key);
+      // first sight: only the latest is news
+      if (!M) { M = { seen: new Set(rows.map((r) => r.id)), queue: rows.length ? [{ ...rows[rows.length - 1], q: t }] : [], up: null, n: 0, due: Infinity, drawn: 0 }; S.moments.set(key, M); }
+      else { for (const r of rows) if (!M.seen.has(r.id)) M.queue.push({ ...r, q: t }); M.seen = new Set(rows.map((r) => r.id)); }
+      M.drawn = S.renders;
+      M.queue = M.queue.filter((x) => t - x.q <= hold * 3);   // a moment that waited three holds is stale
+      if (M.up && t - M.up.at >= hold) M.up = null;
+      const next = M.queue.reduce((b, x) => (!b || x.w > b.w ? x : b), null);   // the weightiest, the first among equals
+      if (next && (!M.up || next.w > M.up.w || (next.w === M.up.w && t - M.up.at >= read))) { M.queue.splice(M.queue.indexOf(next), 1); M.up = { ...next, at: t, key: `m${++M.n}` }; }
+      M.due = M.up ? Math.min(M.up.at + hold, M.queue.some((x) => x.w === M.up.w) ? M.up.at + read : Infinity) : M.queue.length ? t : Infinity;
+      return M.up;
+    }
     // what an action's control is called on the device in hand (null: nothing to say)
     const glyphOf = (action) => {
       const G = S.glyphs;
@@ -320,6 +379,7 @@ export function buildManaUi() {
 
     function render() {
       const id = top();
+      S.renders += 1;
       const ctx = { reads: new Map(), focus: [], tabs: [], taps: [], screen: id };
       const parts = [];
       if (hud) parts.push(drawIn(hud, '$hud', {}, ctx, uiOf('$hud'), false, 1));
@@ -330,7 +390,7 @@ export function buildManaUi() {
         for (let s = 0; s < seats; s++) if (U.at[s] === undefined) { U.at[s] = 0; again = true; } else if (ctx.focus.length && U.at[s] >= ctx.focus.length) { U.at[s] = ctx.focus.length - 1; again = true; }
         if (again) return render();
       }
-      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null }, ...parts];
+      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null, 'data-clock': S.held ? 'held' : null, 'data-motion': S.calm ? 'reduced' : null }, ...parts];
       last = { tree, ...ctx };
       return last;
     }
@@ -358,7 +418,7 @@ export function buildManaUi() {
         const { p, src } = propsOf(n, scope, ctx), cls = `mana-${n.use}`;
         const kids = () => n.children.map((c, i) => draw(c, `${key}.${c.id || i}`, scope));
         switch (n.use) {
-          case 'screen': return ['section', { class: cls, 'data-layer': p.layer, 'data-place': p.place }, p.title ? ['h2', { class: 'mana-title' }, p.title] : null, ...kids()];
+          case 'screen': return ['section', { class: cls, 'data-layer': p.layer, 'data-place': p.place, 'data-key': rootKey }, p.title ? ['h2', { class: 'mana-title' }, p.title] : null, ...kids()];
           case 'window': return ['div', { class: cls, 'data-variant': p.variant }, p.title ? ['h3', { class: 'mana-heading' }, p.title] : null, ...kids()];
           case 'stack': return ['div', { class: cls, 'data-dir': p.dir, 'data-gap': p.gap, 'data-align': p.align, 'data-fill': p.fill ? 'yes' : null }, ...kids()];
           case 'split': return ['div', { class: cls, 'data-ratio': p.ratio }, ...n.children.map((c, i) => { const was = pane; pane = { split: key, i }; const t = draw(c, `${key}.${c.id || i}`, scope); pane = was; return t; })];
@@ -384,8 +444,8 @@ export function buildManaUi() {
             if (!isFinite(x) || !isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) return null; // off screen: not drawn
             return ['div', { class: 'mana-anchor', style: `left:${pct(x)};top:${pct(y)}` }, draw(n.props.row, `${key}.${i}`, { ...scope, item })];
           })];
-          case 'text': return ['span', { class: cls, 'data-role': p.role }, p.value];
-          case 'stat': return ['div', { class: cls }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num' }, p.value, p.max !== undefined ? ['span', { class: 'mana-max' }, ` / ${p.max}`] : null]];
+          case 'text': return ['span', { class: cls, 'data-role': p.role, ...(p.role === 'numeral' ? chOf(changeOf(key, p.value)) : {}) }, p.value];
+          case 'stat': { const c = changeOf(key, p.value); return ['div', { class: cls }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num', ...chOf(c) }, p.value, p.max !== undefined ? ['span', { class: 'mana-max' }, ` / ${p.max}`] : null, gainOf(c)]]; }
           case 'bar': {
             const r = p.max > 0 ? clamp(p.value / p.max, 0, 1) : 0, seg = Math.max(0, Math.floor(p.segments));
             // low is a warning on what can run out (health, a shield, mana, stamina), never on a stat
@@ -393,13 +453,13 @@ export function buildManaUi() {
             const g = p.max > 0 ? clamp(p.ghost / p.max, 0, 1) : 0;
             return ['div', { class: cls, 'data-variant': p.variant, 'data-dir': p.dir === 'rtl' ? 'rtl' : null, 'data-low': warns && r <= 0.25 ? 'yes' : null }, ['span', { class: 'mana-label' }, p.label || ''],
               ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(r)}` }], g > r ? ['u', { style: `left:${pct(r)};width:${pct(g - r)}` }] : null, ...Array.from({ length: seg > 1 ? seg - 1 : 0 }, (_, k) => ['b', { style: `left:${pct((k + 1) / seg)}` }])],
-              ['span', { class: 'mana-num' }, `${p.value}/${p.max}`]];
+              ['span', { class: 'mana-num', ...chOf(changeOf(key, p.value)) }, `${p.value}/${p.max}`]];
           }
           case 'pips': {
             const [on, offc] = PIP_SHAPES[p.shape] || PIP_SHAPES.pip, max = clamp(Math.floor(p.max), 0, 40), v = clamp(Math.round(p.value), 0, max);
-            return ['div', { class: cls, 'data-shape': p.shape }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-glyphs' }, on.repeat(v) + offc.repeat(max - v)]];
+            return ['div', { class: cls, 'data-shape': p.shape }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-glyphs', ...chOf(changeOf(key, v)) }, on.repeat(v) + offc.repeat(max - v)]];
           }
-          case 'counter': return ['div', { class: cls }, p.icon ? ['span', { class: 'mana-icon', 'data-size': 's' }, initials(p.icon)] : null, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num' }, p.value, p.max !== undefined ? ['span', { class: 'mana-max' }, `/${p.max}`] : null]];
+          case 'counter': { const c = changeOf(key, p.value); return ['div', { class: cls }, p.icon ? ['span', { class: 'mana-icon', 'data-size': 's' }, initials(p.icon)] : null, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num', ...chOf(c) }, p.value, p.max !== undefined ? ['span', { class: 'mana-max' }, `/${p.max}`] : null, gainOf(c)]]; }
           case 'timer': return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['span', { class: 'mana-num' }, clock(p.seconds, p.format)]];
           case 'compare': {
             const d = p.to - p.from, good = p.better === 'up' ? d > 0 : d < 0;
@@ -408,11 +468,15 @@ export function buildManaUi() {
           case 'icon': return ['span', { class: cls, 'data-size': p.size, title: p.name }, initials(p.name)];
           case 'portrait': return ['div', { class: cls, 'data-size': p.size }, ['span', { class: 'mana-ph' }, initials(p.name)], p.name ? ['span', { class: 'mana-caption' }, p.name] : null];
           case 'image': return ['div', { class: cls, 'data-ratio': p.ratio }, ['span', { class: 'mana-caption' }, p.label || 'image']];
-          case 'badge': return ['span', { class: cls, 'data-variant': p.variant === 'plain' ? null : p.variant }, chip(p.side), p.value];
+          case 'badge': { const c = changeOf(key, p.value); return ['span', { class: cls, 'data-variant': p.variant === 'plain' ? null : p.variant, 'data-turn': turnOf(p.turn, p.side), ...chOf(c) }, chip(p.side), p.value, gainOf(c)]; }
           case 'table': {
             const cols = p.columns.map((c) => (isObj(c) ? { key: words(c.key), label: words(c.label ?? c.key), align: ['left', 'right', 'center'].includes(c.align) ? c.align : null } : { key: words(c), label: words(c), align: null }));
+            const fresh = freshOf(key, p.rows), rk = (r, i) => (isObj(r) && r.id !== undefined && r.id !== null ? `#${r.id}` : i);
             return ['table', { class: cls }, ['thead', null, ['tr', null, ...cols.map((c) => ['th', { 'data-align': c.align }, c.label])]],
-              ['tbody', null, ...p.rows.map((r) => ['tr', { 'data-mark': isObj(r) && r[p.mark] ? 'yes' : null }, ...cols.map((c, ci) => ['td', { 'data-align': c.align, 'data-lead': isObj(r) && r.lead !== undefined && r.lead !== null && words(r.lead) === c.key ? 'yes' : null }, ci === 0 && isObj(r) ? chip(r.side) : null, words(isObj(r) ? readPath(r, c.key) : r)])])]];
+              ['tbody', null, ...p.rows.map((r, i) => ['tr', { 'data-mark': isObj(r) && r[p.mark] ? 'yes' : null, ...rowMarks(fresh, r) }, ...cols.map((c, ci) => {
+                const x = isObj(r) ? readPath(r, c.key) : r;
+                return ['td', { 'data-align': c.align, 'data-lead': isObj(r) && r.lead !== undefined && r.lead !== null && words(r.lead) === c.key ? 'yes' : null, ...(numOf(x) !== null ? chOf(changeOf(`${key}.${rk(r, i)}.${c.key}`, x)) : {}) }, ci === 0 && isObj(r) ? chip(r.side) : null, words(x)];
+              })])]];
           }
           case 'gauge': {
             const r = p.max > 0 ? clamp(p.value / p.max, 0, 1) : 0;
@@ -465,6 +529,12 @@ export function buildManaUi() {
           case 'feed': return ['div', { class: cls }, ...p.rows.slice(-Math.max(1, Math.floor(p.max))).map((r) => ['div', { class: 'mana-line' }, words(isObj(r) ? readPath(r, p.field) : r)])];
           case 'toast': return ['div', { class: cls }, p.value];
           case 'banner': return ['div', { class: cls }, ['span', { class: 'mana-text', 'data-role': 'display' }, p.value], p.sub ? ['span', { class: 'mana-text', 'data-role': 'label' }, p.sub] : null];
+          case 'moments': {
+            const m = momentOf(key, p);
+            const body = !m ? null : p.as === 'toast' ? ['div', { class: 'mana-toast', 'data-key': m.key, 'data-weight': m.w }, chip(m.side), m.text, m.sub ? ['span', { class: 'mana-caption' }, ` ${m.sub}`] : null]
+              : ['div', { class: 'mana-banner', 'data-key': m.key, 'data-weight': m.w }, ['span', { class: 'mana-text', 'data-role': 'display' }, chip(m.side), m.text], m.sub ? ['span', { class: 'mana-text', 'data-role': 'label' }, m.sub] : null];
+            return ['div', { class: cls, 'data-as': p.as }, body];
+          }
           case 'awareness': return ['span', { class: cls, 'data-state': p.state }, ['b', null, AWARENESS[p.state]], p.label ? ` ${p.state}` : null];
           case 'statuses': return ['span', { class: cls }, ...p.rows.map((r) => { const name = words(isObj(r) ? r.name : r), turns = isObj(r) && r.turns !== undefined ? r.turns : null; return ['span', { class: 'mana-status', title: name }, name.slice(0, 4).toUpperCase(), turns !== null ? ['sub', null, String(turns)] : null]; })];
 
@@ -472,7 +542,7 @@ export function buildManaUi() {
             register(n, key, n.props.rows, scope);
             if (!p.rows.length) return ['div', { class: cls, 'data-empty': 'yes' }, ['span', { class: 'mana-text', 'data-role': 'caption' }, p.empty]];
             // on a touch screen a long list scrolls under the finger: every row is drawn
-            const total = p.rows.length, sel = clamp(U.sel[key] || 0, 0, total - 1), v = S.input === 'touch' ? 0 : Math.floor(p.visible);
+            const total = p.rows.length, sel = clamp(U.sel[key] || 0, 0, total - 1), v = S.input === 'touch' ? 0 : Math.floor(p.visible), fresh = freshOf(key, p.rows);
             let from = 0, to = total;
             if (v > 0 && v < total) { let t = clamp(U.top[key] || 0, 0, total - v); if (sel < t) t = sel; if (sel >= t + v) t = sel - v + 1; U.top[key] = t; from = t; to = t + v; }
             const rows = [];
@@ -481,7 +551,7 @@ export function buildManaUi() {
               const item = p.rows[i], sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
               const fi = focusable({ kind: 'row', n, key, i, total, win: v > 0 && v < total, scope: sc, off });
               const body = n.props.row ? draw(n.props.row, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)];
-              rows.push(['div', { class: 'mana-row', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off) }, isObj(item) ? chip(item.side) : null, body]);
+              rows.push(['div', { class: 'mana-row', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off), ...rowMarks(fresh, item) }, isObj(item) ? chip(item.side) : null, body]);
             }
             if (to < total) rows.push(['div', { class: 'mana-more' }, `▼ ${total - to} more`]);
             return ['div', { class: cls }, ...rows];
@@ -489,12 +559,12 @@ export function buildManaUi() {
           case 'grid': {
             register(n, key, n.props.cells, scope);
             if (!p.cells.length) return ['div', { class: cls, 'data-empty': 'yes' }, ['span', { class: 'mana-text', 'data-role': 'caption' }, p.empty]];
-            const cols = clamp(Math.floor(p.columns) || 1, 1, 16), sel = clamp(U.sel[key] || 0, 0, p.cells.length - 1);
+            const cols = clamp(Math.floor(p.columns) || 1, 1, 16), sel = clamp(U.sel[key] || 0, 0, p.cells.length - 1), fresh = freshOf(key, p.cells);
             return ['div', { class: cls, style: `--cols:${cols}` }, ...p.cells.map((item, i) => {
               const sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
               const fi = focusable({ kind: 'cell', n, key, i, g: { key, r: Math.floor(i / cols), c: i % cols }, scope: sc, off });
               const body = n.props.cell ? draw(n.props.cell, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)];
-              return ['div', { class: 'mana-cell', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off) }, isObj(item) ? chip(item.side) : null, body];
+              return ['div', { class: 'mana-cell', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off), ...rowMarks(fresh, item) }, isObj(item) ? chip(item.side) : null, body];
             })];
           }
           case 'tree': {
@@ -507,7 +577,8 @@ export function buildManaUi() {
               const fi = focusable({ kind: 'node', n, key, i, g: { key, r, c }, scope: sc, off });
               const req = listOf(isObj(item) ? item.requires : []).filter((x) => names.has(x)).map((x) => names.get(x));
               const body = n.props.node ? draw(n.props.node, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, names.get(isObj(item) ? item.id : item)];
-              columns[c].push(['div', { class: 'mana-node', 'data-state': state, ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off) }, body, req.length ? ['span', { class: 'mana-req' }, `← ${req.join(', ')}`] : null]);
+              const nk = `${key}.${isObj(item) && item.id !== undefined ? `#${item.id}` : i}:state`;
+              columns[c].push(['div', { class: 'mana-node', 'data-state': state, ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off), ...chOf(changeOf(nk, state)) }, body, req.length ? ['span', { class: 'mana-req' }, `← ${req.join(', ')}`] : null]);
             });
             return ['div', { class: cls, style: `--cols:${cols}` }, ...columns.map((col, c) => ['div', { class: 'mana-tier', 'data-tier': c }, ...col])];
           }
@@ -579,7 +650,13 @@ export function buildManaUi() {
     }
     function open(id) {
       if (!screens[id]) throw new Error(`no screen '${id}' (screens: ${Object.keys(screens).join(', ')})`);
-      if (top() !== id) S.stack.push(id);
+      if (top() !== id) {
+        S.stack.push(id);
+        // a screen opened shows what is there now; only what changes while it is up is news
+        const mine = (k) => k === id || k.startsWith(`${id}.`);
+        for (const k of [...S.seen.keys()]) if (mine(k) || mine(k.split(':')[0])) S.seen.delete(k);
+        for (const k of [...S.lists.keys()]) if (mine(k)) S.lists.delete(k);
+      }
       uiOf(id);
       render();
     }
@@ -739,16 +816,20 @@ export function buildManaUi() {
     function tick() {
       if (!last) return false;
       for (const [path, was] of last.reads) { const x = H.read ? H.read(path) : undefined; if (JSON.stringify(x === undefined ? null : x) !== was) { render(); return true; } }
+      // a moment's time is up, or one waiting may now take the screen (on the game's clock)
+      if (H.now && S.moments.size) { const t = Number(H.now()); for (const M of S.moments.values()) if (M.drawn === S.renders && t >= M.due) { render(); return true; } }
       return false;
     }
+    function hold(on) { const x = !!on; if (S.held !== x) { S.held = x; render(); } }
+    function reduceMotion(on) { const x = !!on; if (S.calm !== x) { S.calm = x; render(); } }
     if (start) open(start); else render();
     return {
-      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs,
+      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, hold, reduceMotion,
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
       state: () => {
         const id = top(), U = id ? uiOf(id) : null;
-        return { input: S.input, layout: S.layout, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
+        return { input: S.input, layout: S.layout, held: S.held, reducedMotion: S.calm, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
       },
     };
   }
@@ -766,7 +847,36 @@ export function buildManaUi() {
     const o = opts || {}, swipe = typeof o.swipe === 'function' ? o.swipe : SWIPE_OF, clock = () => (typeof performance !== 'undefined' ? performance.now() : 0);
     let html = '';
     const hold = () => { if (typeof window !== 'undefined') window.__mojMenuOpen = !!rt.state().screen; };
-    const paint = () => { const h = rt.view(); if (h !== html) { html = h; el.innerHTML = h; } hold(); };
+    // the tree patched onto what is drawn, by position: an element lives on while its tag and its data-key hold (a
+    // transition runs, an entrance plays once, a mark added starts its animation); a new data-key is a new element
+    const doc = el.ownerDocument || document;
+    const has = (x) => x !== null && x !== undefined && x !== false, live = (x) => has(x) && x !== '';   // as toHtml: an empty word draws no text
+    const keyOf = (t) => (t[1] && has(t[1]['data-key']) ? String(t[1]['data-key']) : null);
+    const make = (t) => {
+      if (!Array.isArray(t)) return doc.createTextNode(words(t));
+      const e = doc.createElement(t[0]), a = t[1] || {};
+      for (const k in a) if (has(a[k])) e.setAttribute(k, String(a[k]));
+      for (const c of t.slice(2)) if (live(c)) e.appendChild(make(c));
+      return e;
+    };
+    const patch = (parent, kids) => {
+      const want = kids.filter(live);
+      want.forEach((t, i) => {
+        const node = parent.childNodes[i];
+        if (!Array.isArray(t)) {
+          const txt = words(t);
+          if (node && node.nodeType === 3) { if (node.nodeValue !== txt) node.nodeValue = txt; } else if (node) parent.replaceChild(doc.createTextNode(txt), node); else parent.appendChild(doc.createTextNode(txt));
+          return;
+        }
+        if (!node || node.nodeType !== 1 || node.tagName.toLowerCase() !== t[0] || node.getAttribute('data-key') !== keyOf(t)) { const e = make(t); if (node) parent.replaceChild(e, node); else parent.appendChild(e); return; }
+        const a = t[1] || {};
+        for (const at of [...node.attributes]) if (!has(a[at.name])) node.removeAttribute(at.name);
+        for (const k in a) if (has(a[k]) && node.getAttribute(k) !== String(a[k])) node.setAttribute(k, String(a[k]));
+        patch(node, t.slice(2));
+      });
+      while (parent.childNodes.length > want.length) parent.removeChild(parent.lastChild);
+    };
+    const paint = () => { const h = rt.view(); if (h !== html) { html = h; patch(el, [rt.tree()]); } hold(); };
     const near = (ev, sel) => (ev.target && ev.target.closest ? ev.target.closest(sel) : null);
     // where across its target a pointer is, on the rect taken when the press began (a repaint replaces the element)
     const across = (r, ev) => (r && r.width ? (ev.clientX - r.left) / r.width : 0.5);
@@ -777,7 +887,8 @@ export function buildManaUi() {
       rt.input(ev.pointerType === 'mouse' ? 'mouse' : 'touch');
       const ds = { k: t.dataset.k, tab: t.dataset.tab, tap: t.dataset.tap }, cl = t.classList;
       const slide = !!(cl && cl.contains('mana-slider')), track = slide && t.querySelector ? t.querySelector('.mana-track') : null;
-      // a slider is measured on its track (a finger on the bar means that point of the bar), anything else on itself
+      // a slider is measured on its track (a finger on the bar means that point of the bar), anything else on itself; the
+      // rect is taken now (what is under the finger may be redrawn)
       down = { x: ev.clientX, y: ev.clientY, at: clock(), t: ds, rect: (track || t).getBoundingClientRect(), slide, car: !!(cl && cl.contains('mana-carousel')) };
       if (down.slide) { rt.point(Number(ds.k), across(down.rect, ev)); paint(); }
     });
