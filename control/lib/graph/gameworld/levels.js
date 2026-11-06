@@ -37,7 +37,9 @@ import { ladderParams, climbSurface, LADDER, LADDER_VARIANTS } from '../playscap
 import { withGeocube } from '../era/geocube.js';
 import { playerWorld, traversalStates, HERO_WALK_RUN } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
-import { outTrailOf } from '../era/out-trail-board.js';
+import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
+import { outTrailSpan } from '../era/out-trail.js';
+import { SIDE_CUBE, sidePads } from '../era/geocube-side.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, STEERED } from './cameras.js';
@@ -168,21 +170,21 @@ export function gameStages(world) {
       const street = R.street && s.node === laid.stages.find((x) => x.section === 'trail')?.node ? { ...R.street, seed: R.seed } : null;
       // the field its intent laid (lay-concerns.js), on the first trail it was flattened on
       const first = s.node === laid.stages.find((x) => x.section === 'trail')?.node;
+      // a platformer's course seen from the side is a SIDE STRIP (era/geocube-side.js): the course skinned in the level's
+      // geocube, its land behind it in layers, no valley round it; its lane the trail's length, straight
+      if (sideCourse(G, level, s)) {
+        const { st, seed } = outTrailStyle(s.manifest), span = outTrailSpan(st, s.manifest.trail === true ? {} : s.manifest.trail, seed);
+        out.push({ level, node: s.node, section: s.section, index: i, manifest: { kind: 'geocube', show: 'side', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed, side: { length: r3(span.D) } } });
+        return;
+      }
       // a loop's track: nothing grows on it (era/reserve.js)
-      // a platformer's course seen from the side: nothing grows between the camera and the lane (sideView)
-      const view = G.camera === 'side' && s.manifest.trail !== undefined && courseAt(G.levels?.[level]?.course ? readCourse(G.levels[level].course, 'course') : null, s.node) ? sideView(s.manifest) : [];
-      const keep = ((R.loop || R.arena) && first) || view.length ? { _keepOut: [...(first ? [...(R.loop?.keep ?? []), ...(R.arena?.keep ?? [])] : []), ...view], ...(view.length ? { _viewOut: view } : {}) } : {};
-      // (and its ends, seen past by the side camera in perspective, MIRROR the trail's near band: the land goes on past
-      // the level's edge, never the backdrop's hills close up. A trail after another opens its start to it, but each of
-      // a level's stages plays on its own page, so nothing stands past it there either; a side the trail names keeps its own)
-      const T0 = s.manifest.trail === true ? {} : s.manifest.trail, sides = view.length ? Object.fromEntries(SIDE_EDGES.filter((k) => T0?.bounds?.[k] === undefined).map((k) => [k, 'mirror'])) : {};
-      const edged = Object.keys(sides).length ? { trail: { ...T0, bounds: { ...(T0.bounds ?? {}), ...sides } } } : {};
+      const keep = (R.loop || R.arena) && first ? { _keepOut: [...(R.loop?.keep ?? []), ...(R.arena?.keep ?? [])] } : {};
       // a stage drawn in a composed look carries the recipes that compose its kit (the look registry is the process's own)
       const looks = s.manifest?.kit ? looksOfKit(s.manifest.kit) : null;
       // a stage on a nature or jungle kit in a palette world carries the palette as its builder reads it
       const painted = paintedPalette(s.manifest, R.style?.palette ?? G.style?.palette);
       // (a level that builds is solid, era/solid.js: no flat building polygons)
-      const manifest = here.length || street || keep._keepOut || looks || painted ? { ...s.manifest, ...edged, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...(here.length || street ? { solid: true } : {}), ...keep, ...(looks ? { looks } : {}), ...(painted ? { palette: painted } : {}) } : s.manifest;
+      const manifest = here.length || street || keep._keepOut || looks || painted ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...(here.length || street ? { solid: true } : {}), ...keep, ...(looks ? { looks } : {}), ...(painted ? { palette: painted } : {}) } : s.manifest;
       const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}), ...(R.arena && first ? { arena: R.arena } : {}) };
       out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
     });
@@ -407,7 +409,7 @@ export function climbRoute(manifest) {
 
 export function stageEnds(manifest) {
   const key = JSON.stringify(manifest);
-  if (!ENDS.has(key)) { if (ENDS.size >= ENDS_KEPT) ENDS.delete(ENDS.keys().next().value); ENDS.set(key, manifest.kind === 'geocube' && manifest.show === 'geotown' ? geotownEnds(manifest) : readEnds(manifest)); }
+  if (!ENDS.has(key)) { if (ENDS.size >= ENDS_KEPT) ENDS.delete(ENDS.keys().next().value); ENDS.set(key, manifest.kind === 'geocube' && manifest.show === 'geotown' ? geotownEnds(manifest) : isStrip(manifest) ? sideEnds(manifest) : readEnds(manifest)); }
   return ENDS.get(key);
 }
 function readEnds(manifest) {
@@ -638,7 +640,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   Object.defineProperty(ends, 'field', { value: stage.field ?? null, enumerable: false, configurable: true });
   // the level's platforming COURSE on this trail (course.js): floors and gaps sized by the hero's reach; its floors are the
   // stage's beats from here on, so what stands on the stage (foes, packs, pickups) stands on them, not under them
-  const courseSpec = stage.manifest.trail !== undefined ? courseAt(G.levels[stage.level]?.course ? readCourse(G.levels[stage.level].course, 'course') : null, stage.node) : null;
+  const courseSpec = stage.manifest.trail !== undefined || isStrip(stage.manifest) ? courseAt(G.levels[stage.level]?.course ? readCourse(G.levels[stage.level].course, 'course') : null, stage.node) : null;
   const course = courseSpec ? (() => {
     const lane = stageLane(stage), reach = reachOf(G.feel ? readFeel(G.feel) : null), length = lane.line.length - 1;
     const plan = coursePlan(reach, { teach: courseSpec.teach, verticality: courseSpec.verticality ?? 'flat', length });
@@ -817,8 +819,17 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const watched = concerns.includes('watchers') && stage.section === 'trail' && !ends.arena ? (watchers ?? posts ?? beatPosts(ends)) : null;
   if (watched?.length) blocks = [...(blocks ?? []), ...blindBlocks(watched, ends)];
   // the course's floors and stairs, and its catch zones (a fall into a gap: back on the floor it left)
+  // (on a side strip the course is the level: its boxes, and the ground before and after it, drawn by the strip in the
+  // cube's layers, each run terrain or built, and standing as colliders; a floor after a wall and the stairs are built)
+  let strip = null;
+  if (course && isStrip(stage.manifest)) {
+    const B = course.lowered.blocks[0].blocks, P = course.lowered.parts, gaps = course.plan.gaps;
+    const role = (p) => (p.stair || (p.floor > 0 && gaps[p.floor - 1]?.kind === 'wall') ? 'built' : 'terrain');
+    const boxes = [...B.map((b, k) => ({ ...b, role: role(P[k]) })), ...sidePads(B, stage.manifest.side.length)];
+    strip = { side: { ...stage.manifest.side, boxes }, colliders: boxes.map(({ min, max }) => ({ min, max, of: 'side:course' })) };
+  }
   if (course) {
-    blocks = [...(blocks ?? []), ...course.lowered.blocks];
+    if (!strip) blocks = [...(blocks ?? []), ...course.lowered.blocks];
     const ev = pilotPart.events ?? {}, C = course.lowered.events;
     pilotPart = { ...pilotPart, events: { ...ev, sources: [...(ev.sources ?? []), ...C.sources], reactions: [...(ev.reactions ?? []), ...C.reactions] } };
   }
@@ -840,7 +851,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
   play = withBookUi(G, play);
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game };
+  const manifest = { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
@@ -984,34 +995,36 @@ export const storyCarried = (G) => Object.values(G.scenes ?? {}).some((list) => 
  * runs (spawn to exit), and the ground under it. A climb has no spine to run, so a side camera refuses it by name.
  */
 export function stageLane(stage) {
+  // a side strip's lane is straight, along +y at x 0, over no ground of its own (the course is its ground)
+  if (isStrip(stage.manifest)) { const line = []; for (let y = 0; y <= stage.manifest.side.length + 1e-9; y += 1) line.push([0, r3(y)]); return { line, ground: () => 0 }; }
   if (stage.manifest.trail === undefined) throw new Error(`levels: a side camera runs a trail's lane, and the stage '${stage.level}/${stage.node}' is a climb with no trail to run; play this world top-down or third-person, or leave the climb out`);
   const { site } = outTrailOf(stage.manifest), line = [];
   for (let y = 0; y <= site.D + 1e-9; y += 1) line.push([r3(site.trailX(y)), r3(y)]);
   return { line, ground: (x, y) => site.ground(x, y) };
 }
 
-/**
- * The ground a side camera looks across: the lane's camera side (the right of the way it runs, where `side` stands the
- * camera) from the walk's edge out past the camera, rects a few metres long laid as `_keepOut` and `_viewOut`
- * (era/reserve.js), so no tree, rock, bush or blade of grass stands between the camera and the hero. The far side keeps
- * its cover: the backdrop.
- */
-export const SIDE_VIEW = Object.freeze({ near: 1, far: 14, step: 3 });
-/** The edges a side course's trail mirrors (out-bounds.js): its start and its end, which the side camera sees past. */
-export const SIDE_EDGES = Object.freeze(['-y', '+y']);
+/** A side strip's stage (era/geocube-side.js). */
+export const isStrip = (m) => m?.kind === 'geocube' && m.show === 'side';
+/** A stage a side camera plays a course on: built as a side strip. */
+function sideCourse(G, level, s) {
+  return G.camera === 'side' && s.manifest?.trail !== undefined && !!courseAt(G.levels?.[level]?.course ? readCourse(G.levels[level].course, 'course') : null, s.node);
+}
+/** A side strip's ends, read off its recipe (nothing is built for them): the hero set down on the ground before the
+ * first step, facing along the lane, the exit on the ground after the last; the course's floors become its beats. */
+function sideEnds(manifest) {
+  const D = manifest.side.length, spawn = [0, 1.75, 0], exit = [0, r3(D - 2), 0];
+  const out = { spawn, heading: r3(Math.PI / 2), exit, exitFrom: 'the strip\'s far end', planar: true, beats: [{ beat: 'trailhead', at: spawn }, { beat: 'exit', at: exit }], hazards: [] };
+  const flat = () => 0;
+  Object.defineProperty(out, 'ground', { value: flat, enumerable: false });
+  Object.defineProperty(out, 'surface', { value: flat, enumerable: false });
+  Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
+  return out;
+}
 /** The side camera's height on a course: eased while the hero stands (a stair's risers), held through a jump inside it. */
 export const SIDE_BAND = Object.freeze([1, 2]);
 /** …and held this far in from the lane's ends, about half the frame's width at its distance (a 16:9 frame's 55° across
- *  at 10.8 m), so it does not look past the trail's ends at the boundary and the spawn stays in the frame. */
+ *  at 10.8 m), so it does not look past the strip's ends and the spawn stays in the frame. */
 export const SIDE_ENDS = 5.5;
-export function sideView(manifest) {
-  const { site } = outTrailOf(manifest), out = [], { near, far, step } = SIDE_VIEW;
-  for (let y = -step; y < site.D + step; y += step) {
-    const xs = Array.from({ length: step + 1 }, (_, k) => site.trailX(Math.max(0, Math.min(site.D, y + k))));   // (a metre apart)
-    out.push([r3(Math.min(...xs) + near), r3(y), r3(Math.max(...xs) + far), r3(y + step)]);
-  }
-  return out;
-}
 
 /** A goal's placed points moved onto the lane (pockets and landmarks sit off the trail, where a lane cannot reach), each
  * at the height it stood above its own ground. */

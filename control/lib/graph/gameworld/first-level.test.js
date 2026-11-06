@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { firstLevel, readBossWin, storyWins, WINS, FIRST_LEVEL_SEGMENTS } from './first-level.js';
 import { readGameworld, MEADOWMARK_HERO } from './index.js';
-import { gameStages, stageLevelOrder, stageLane, SIDE_VIEW, SIDE_BAND, SIDE_ENDS, SIDE_EDGES } from './levels.js';
-import { foePlacements } from './foes.js';
+import { gameStages, stageLevelOrder, stageLane, isStrip, SIDE_BAND, SIDE_ENDS } from './levels.js';
+import { foePlacements, hostileCast, RAIL } from './foes.js';
 import { POLE_IDS, poleCard } from './feel/cards.js';
 
 // A PLATFORMER'S FIRST LEVEL: its trails in teaching order, each its course and its foes' density; a boss only when the
@@ -70,41 +70,59 @@ describe('the first level, laid in a world', () => {
   });
 });
 
-describe('the first level from the side: nothing between the camera and the hero', () => {
+describe('the first level from the side: a side strip, the course in the cube\'s layers', () => {
   const lv = 'first';
   const W = { ...MEADOWMARK_HERO, camera: 'side', feel: { pole, takes: true }, levels: { [lv]: firstLevel() } };
   delete W.links; delete W.start; delete W.hub;
-  const stages = gameStages(W).filter((s) => s.level === lv);
+  const stages = gameStages(W).filter((s) => s.level === lv), G = readGameworld(W);
+  const order = (s, W2 = W) => stageLevelOrder(W2 === W ? G : readGameworld(W2), s, { ref: `lv-${s.node}`, heroRef: 'gw-hero' });
 
-  it('each trail keeps its camera side clear, from the walk out past the camera, the whole lane long', () => {
+  it('each trail is a strip its trail\'s length, on a straight lane, in a geocube', () => {
     for (const s of stages) {
-      const K = s.manifest._viewOut, { line } = stageLane(s);
-      expect(K?.length, s.node).toBeGreaterThan(0);
-      expect(s.manifest._keepOut, s.node).toEqual(K);          // trees, rocks, bushes; and the grass (_viewOut)
-      for (const k of SIDE_EDGES) expect(s.manifest.trail.bounds?.[k], `${s.node} ${k}`).toBe('mirror');   // the land goes on past its ends
-      // every metre of the lane has its strip on the camera's side (the right of the run, `side` in rules-basic.js)
-      for (const [x, y] of line) {
-        const r = K.find((b) => y >= b[1] && y <= b[3]);
-        expect(r, `${s.node} @${y}`).toBeTruthy();
-        expect(r[0]).toBeLessThanOrEqual(x + SIDE_VIEW.near + 1e-6);
-        expect(r[2]).toBeGreaterThanOrEqual(x + SIDE_VIEW.far - 1e-6);
-      }
+      expect(isStrip(s.manifest), s.node).toBe(true);
+      expect(s.manifest.trail, s.node).toBeUndefined();
+      expect(s.manifest.side.length, s.node).toBeGreaterThan(40);
+      expect(typeof s.manifest.cube).toBe('string');
+      expect(new Set(stageLane(s).line.map(([x]) => x))).toEqual(new Set([0]));
+    }
+  });
+
+  it('its course is the level: each run terrain or a structure (the floor up a wall and the stairs built), its boxes the colliders', () => {
+    const O = order(stages.find((s) => s.node === 'advanced')), M = O.args.manifest, B = M.side.boxes;
+    expect(M.blocks).toBeUndefined();
+    expect(M.colliders.map(({ min, max }) => [min, max])).toEqual(B.map(({ min, max }) => [min, max]));
+    expect(new Set(B.map((b) => b.role))).toEqual(new Set(['terrain', 'built']));
+    // (the floor after each wall gap stands built: its face is the one kicked up)
+    const walls = O.course.gaps.filter((g) => g.kind === 'wall');
+    expect(walls.length).toBeGreaterThan(0);
+    for (const g of walls) expect(B.some((b) => b.role === 'built' && Math.abs(b.min[1] - (g.s1 - 1.5)) < 1.6), `wall @${g.s1}`).toBe(true);
+    // (and the course's laws hold on the strip as on a trail)
+    expect(O.laws.filter((l) => l.id.startsWith('course:') && !l.holds)).toEqual([]);
+  });
+
+  it('its foes wait off the rail and come in to it', () => {
+    // (the run stands them: runner.js hands a strip's stage its rail, the length of its lane)
+    const s = stages.find((x) => x.node === 'meet'), O = order(s);
+    const foes = hostileCast(G, lv, { ...O.ends, node: s.node }, { refs: {}, rail: { length: s.manifest.side.length } }).entities;
+    expect(foes.length).toBeGreaterThan(0);
+    for (const e of foes) {
+      expect(e.rule.rail).toMatchObject({ wait: true, a: [0, -RAIL.wake] });
+      expect(e.transform.pos[0]).toBe(RAIL.back);                        // behind the lane
+      expect(e.rule.rail.join[0]).toBe(0);                               // its place on the rail
     }
   });
 
   it('its camera settles on the stairs and holds in from the lane\'s ends', () => {
-    const G = readGameworld(W), O = stageLevelOrder(G, stages[0], { ref: 'lv-side', heroRef: 'gw-hero' });
-    expect(O.args.manifest.camera).toMatchObject({ rule: 'side', band: [...SIDE_BAND], ends: SIDE_ENDS });
+    expect(order(stages[0]).args.manifest.camera).toMatchObject({ rule: 'side', band: [...SIDE_BAND], ends: SIDE_ENDS });
   });
 
   it('legend menu: no controls on the play screen (the pause menu teaches them); absent, the level\'s first seconds do', () => {
-    const order = (W2) => JSON.stringify(stageLevelOrder(readGameworld(W2), gameStages(W2).filter((s) => s.level === lv)[0], { ref: 'lv-side', heroRef: 'gw-hero' }).args.manifest);
-    expect(order(W)).toContain('A / D  run');
-    expect(order({ ...W, mechanics: { legend: 'menu' } })).not.toContain('A / D  run');
+    const W2 = { ...W, mechanics: { legend: 'menu' } };
+    expect(JSON.stringify(order(stages[0]).args.manifest)).toContain('A / D  run');
+    expect(JSON.stringify(order(gameStages(W2).filter((s) => s.level === lv)[0], W2).args.manifest)).not.toContain('A / D  run');
   });
 
   it('a side world with no course lays its trails as it did', () => {
-    const plain = gameStages({ ...MEADOWMARK_HERO, camera: 'side' });
-    for (const s of plain) { expect(s.manifest._viewOut, s.node).toBeUndefined(); expect(s.manifest.trail?.bounds, s.node).toBeUndefined(); }
+    for (const s of gameStages({ ...MEADOWMARK_HERO, camera: 'side' })) expect(isStrip(s.manifest), s.node).toBe(false);
   });
 });

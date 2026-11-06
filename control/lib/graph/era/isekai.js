@@ -31,7 +31,7 @@
  * lowers to bodies (worlds/fauna-units.js).
  * Deterministic: integer-hash dice, pooled plants from fixed seeds.
  */
-import { reserveSite, viewSite, kept, CROWN } from './reserve.js';
+import { reserveSite, kept, CROWN } from './reserve.js';
 import { lookOf } from './style/looks.js';
 import { poleOf } from './style/pole.js';
 import { ISEKAI_STYLES, isekaiMask } from './isekai-tiles.js';
@@ -431,7 +431,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the trail's dress (era/trail-dress.js): its surface, its rubble, its patches
   // (`dirt`: the dirt trail; `inDirt`: it, or an outdoor surface laid in the dirt, its edge the dirt trail's)
   const TD = readTrailDress(manifest.trail), dirt = TD.surface === 'earth', inDirt = dirt || TD.surface in IN_DIRT;
-  const site = viewSite(reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), keep), manifest._viewOut), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
+  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), keep), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // ── the geometry ──
   // (a polygon land's rock drawn toward planes, `shading.facet`: on the faces' own heights, as the island's; the land the
   // rest is placed on keeps its own)
@@ -689,7 +689,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     for (let y = 0.2; y < site.D; y += F.every) for (let x = 0; x < site.W; x += F.every, i++) {
       const px = x + (hash3(i, 71, S + 181) - 0.5) * F.every, py = y + (hash3(i, 73, S + 191) - 0.5) * F.every, d = site.trailDist(px, py), edge = site.halfWAt(py) + site.fringeAt(py);
       if (d < edge || d > edge + F.reach * (0.75 + 0.5 * vnoise(px * 0.2, py * 0.2, S + 193))) continue;
-      if (site.apronAt(px, py) > st.landform.apronMin || px < site.cliffX(py) + 1 || onSand?.([px, py]) || (site.viewOut && !kept(site.viewOut, px, py, 0.3))) continue;
+      if (site.apronAt(px, py) > st.landform.apronMin || px < site.cliffX(py) + 1 || onSand?.([px, py])) continue;
       if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - px, r.y - py) < r.size * st.rubble.unit * 0.55) || near.some((t) => Math.hypot(t.x - px, t.y - py) < 0.5)) continue;
       const z = site.ground(px, py), lt = shadow([px, py, z + 0.3], [0, 0, 1]) > 0 || (Gl ? glowAt([px, py, z + 0.3]) >= st.cel : false), h = mix(F.height[0], F.height[1], hash3(i, 75, S + 197)) * G.height;
       const raw = [];

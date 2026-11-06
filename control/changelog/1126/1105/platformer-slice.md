@@ -54,13 +54,24 @@
   the stage's beats, so its foes (at their density) stand on them. Its laws join the level's readout (each gap's width,
   rise and what its move reaches), and a card teaches it (`gameworld-course`). It plays from the side or in 3D, on the
   same level, lit and dressed as every game's.
-- **A course seen from the side.** On a side camera's course nothing stands between the camera and the hero: the lane's
-  camera side, from the walk out past the camera, is kept clear of trees, rocks, bushes and grass (`_keepOut` and
-  `_viewOut` rects, `sideView`), the far side keeping its cover as the backdrop. The side camera's height is eased while
-  the hero stands and held through a jump (`band`), so a stair's risers no longer jolt the frame, and the frame holds in
-  from the lane's ends (`ends`, along the lane's chord), turning square to the chord near them. What a perspective camera
-  still sees past a trail's start and end is more land: a side course's trail mirrors its near band past both edges
-  (out-bounds.js `mirror`), never the backdrop's hills close up. Absent a course, a side world lays and frames as it did.
+- **A course seen from the side is a side strip.** A side camera's course is no longer laid on a whole trail: the
+  geocube's `show: 'side'` (`era/geocube-side.js`) builds what a side-scroller shows. The course is the level, on a
+  straight lane the trail's length: its runs drawn as columns down out of the frame in the cube's layers, a terrain run
+  a turf cap over a dirt band over the rock's beds and joints (the beds level across the level, so a gap shows the same
+  strata on both sides), a built run (the floor up a wall, the stairs) the cube's structure, a trim cornice over ashlar
+  in running bond; only the faces the camera sees. Behind it a strip of land a little below the floors, the hills with
+  their trees and a far range at their own depths, so the parallax is the perspective's; before it a few low hummocks
+  held under the hero's feet line (a law). Front-lit as a side-scroller is, in the cube's key colour, ambient and air;
+  the level's `style.geocube`, else the meadow's valley. A trail of Jumping Giuseppe's first level ships about 0.3–0.4 MB
+  of geometry where its trail shipped 4.3–6.7 MB, and the level designs in half the time. The ground before the first
+  step and after the last is the strip's own (`sidePads`); the course's catch zones and laws hold on it as on a trail.
+- **The side camera on a course.** Its height is eased while the hero stands and held through a jump (`band`), so a
+  stair's risers no longer jolt the frame, and the frame holds in from the lane's ends (`ends`, along the lane's chord),
+  turning square to the chord near them. Absent a course, a side world lays and frames as it did.
+- **Foes on the rail.** A side strip's foes fight in the hero's plane: each waits off the rail, on the land behind the
+  lane, and leaps in on an arc to its place on the floor when the hero comes within its wake; on the rail everything it
+  does (its own move, the mind's chase, a blow's knockback) is held to the lane (`rule.rail`, worlds/controllable/foe.js;
+  laid by gameworld/foes.js hostileCast). A foe without one moves as it did.
 - **The run button.** A feel with its takes whose card runs faster than it runs (`ground.sprint`) and has no dash gets a
   run button: F held while running builds the run up to the sprint over a second (Jumping Giuseppe's 6 to 8 m/s), as
   a mascot platformer's run is earned, and eases back over half a second let go; the air keeps it. Momentum, not a

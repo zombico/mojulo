@@ -348,7 +348,11 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   return e;
 }
 
-export function hostileCast(G, level, ends, { refs, hero = true, hurt = null } = {}) {
+/** THE RAIL a side strip's foes fight on (worlds/controllable/foe.js RAIL): each waits on the land behind the lane
+ * (`back` m behind it, a little under its floor) and comes in on an arc when the hero is within `wake` m of its place. */
+export const RAIL = Object.freeze({ back: -5.5, drop: 0.85, wake: 9, time: 0.7, arc: 1.4 });
+
+export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, rail = null } = {}) {
   const P = foePlacements(G, level, ends);
   if (!P.length) return null;
   const figures = {}, entities = [], part = { figures, entities };
@@ -372,6 +376,13 @@ export function hostileCast(G, level, ends, { refs, hero = true, hurt = null } =
     const n = S.count ?? SUMMON.count, bound = S.bound ?? true, ids = Array.from({ length: n }, (_, k) => `${p.id}-s${k + 1}`);
     standOne(p, { rule: { summon: { ids, at: Math.min(SUMMON.at, n), every: SUMMON.every, wind: r3(resolveFoe(specOf(p.entry)).attack.timing.startup / 60), radius: SUMMON.radius, ring: SUMMON.ring, with: SUMMON.with } } });
     ids.forEach((id) => standOne({ id, eid: S.foe, entry: B[S.foe], at: p.at, heading: p.heading }, { dormant: true, rule: { summoned: { by: p.id, bound } } }));
+  }
+  // on a side strip's rail: each body that stands (a summons sleeps on its summoner) waits behind the lane and comes in
+  if (rail) for (const e of entities) {
+    if (e.dormant) continue;
+    const at = e.transform.pos;
+    e.rule = { ...e.rule, rail: { a: [0, -RAIL.wake], b: [0, r3(rail.length + RAIL.wake)], join: at, heading: e.transform.heading, wait: true, wake: RAIL.wake, time: RAIL.time, arc: RAIL.arc } };
+    e.transform = { ...e.transform, pos: [RAIL.back, at[1], r3(at[2] - RAIL.drop)], heading: 0 };
   }
   // the hero takes their hits: hittable (a person's egg over its feet, or under the eye a first-person walker walks at);
   // a hero with legs stomps them (worlds/controllable/foe.js)

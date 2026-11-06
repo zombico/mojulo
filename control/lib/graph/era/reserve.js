@@ -8,10 +8,7 @@
  *                             the reserved ground, a crown's reach round it; `site.reserved` the rects
  *   kept(keep, x, y, m)       true when (x, y) stands at least `m` off every reserved rect
  *
- *   viewSite(site, view)      ground a camera looks across (`_viewOut`, gameworld/levels.js sideView; reserved in
- *                             `_keepOut` too): `site.viewOut`, the rects the grass's tufts and field keep off as well
- *
- * Absent `_keepOut` and `_viewOut`, nothing here is called and a stage lays as it did.
+ * Absent `_keepOut`, nothing here is called and a stage lays as it did.
  */
 export const CROWN = 2.5;   // m: a tree's reach past its trunk, kept off a wall
 
@@ -26,10 +23,5 @@ export function reserveSite(site, keep) {
   const own = site.clear;
   site.reserved = keep;
   site.clear = (x, y) => !kept(keep, x, y, CROWN) || !!(own && own(x, y));
-  return site;
-}
-
-export function viewSite(site, view) {
-  if (view && view.length) site.viewOut = view;
   return site;
 }

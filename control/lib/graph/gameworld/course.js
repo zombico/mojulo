@@ -169,27 +169,27 @@ const edge = (a, h) => a / Math.max(Math.abs(Math.cos(h)), Math.abs(Math.sin(h))
 export function lowerCourse(plan, lane, { player = 'hero', value = 0.58 } = {}) {
   const { line, ground } = lane, a = WIDTH / 2;
   const base = ground(...(({ x, y }) => [x, y])(along(line, plan.start))) + plan.lift;
-  const blocks = [], sources = [], reactions = [];
-  const tile = (s, top, lo) => {
+  const blocks = [], parts = [], sources = [], reactions = [];
+  const tile = (s, top, lo, floor) => {
     const P = along(line, s);
-    blocks.push({ min: [r3(P.x - a), r3(P.y - a), r3(lo)], max: [r3(P.x + a), r3(P.y + a), r3(top)] });
+    blocks.push({ min: [r3(P.x - a), r3(P.y - a), r3(lo)], max: [r3(P.x + a), r3(P.y + a), r3(top)] }); parts.push({ floor });
   };
   const lowUnder = (s0, s1) => { let lo = Infinity; for (let s = s0; s <= s1 + 1e-9; s += 1) { const P = along(line, s); for (const [dx, dy] of [[-a, -a], [a, -a], [-a, a], [a, a]]) lo = Math.min(lo, ground(P.x + dx, P.y + dy)); } return lo - 0.3; };
   // the floors: tiles every TILE metres, the first and the last set back so their edges sit on the floor's ends
-  for (const f of plan.floors) {
+  plan.floors.forEach((f, k) => {
     const top = base + f.z, lo = lowUnder(f.s0, f.s1);
     const e0 = edge(a, along(line, f.s0).h), e1 = edge(a, along(line, f.s1).h);
     const first = f.s0 + e0, last = f.s1 - e1;
-    for (let s = first; s < last; s += TILE) tile(s, top, lo);
-    tile(last, top, lo);
-  }
+    for (let s = first; s < last; s += TILE) tile(s, top, lo, k);
+    tile(last, top, lo, k);
+  });
   // the stairs: up from the trailhead's ground onto the first floor, down from the last floor to the exit's ground
   const steps = Math.ceil(plan.lift / RISER), f0 = plan.floors[0], fN = plan.floors.at(-1), topN = base + fN.z;
   for (let k = 0; k < steps; k++) {
     const sU = f0.s0 - (steps - k) * TREAD + TREAD / 2, PU = along(line, sU), zU = base - plan.lift + (k + 1) * (plan.lift / steps);
-    blocks.push({ min: [r3(PU.x - a), r3(PU.y - a), r3(lowUnder(sU, sU))], max: [r3(PU.x + a), r3(PU.y + a), r3(zU)] });
+    blocks.push({ min: [r3(PU.x - a), r3(PU.y - a), r3(lowUnder(sU, sU))], max: [r3(PU.x + a), r3(PU.y + a), r3(zU)] }); parts.push({ stair: 'up' });
     const sD = fN.s1 + k * TREAD + TREAD / 2, PD = along(line, sD), gD = ground(PD.x, PD.y), zD = topN - (k + 1) * ((topN - gD) / steps);
-    if (zD > gD + 0.05) blocks.push({ min: [r3(PD.x - a), r3(PD.y - a), r3(lowUnder(sD, sD))], max: [r3(PD.x + a), r3(PD.y + a), r3(zD)] });
+    if (zD > gD + 0.05) { blocks.push({ min: [r3(PD.x - a), r3(PD.y - a), r3(lowUnder(sD, sD))], max: [r3(PD.x + a), r3(PD.y + a), r3(zD)] }); parts.push({ stair: 'down' }); }
   }
   // the catch zones: each gap's void below its floors' tops, a fallen hero put back on the floor it left
   plan.gaps.forEach((g, k) => {
@@ -201,5 +201,6 @@ export function lowerCourse(plan, lane, { player = 'hero', value = 0.58 } = {}) 
     sources.push({ type: 'zone', zone, at: [r3(cx), r3(cy), r3((top + lo) / 2)], half: [r3(Math.abs(P1.x - P0.x) / 2 + a), r3(Math.abs(P1.y - P0.y) / 2 + a), r3((top - lo) / 2)], watch: player });
     reactions.push({ on: 'enter', match: { zone }, do: 'move', target: player, to: [r3(back.x), r3(back.y), r3(fromTop + 0.1)] });
   });
-  return { blocks: [{ blocks, course: false, value }], events: { sources, reactions }, base: r3(base) };
+  // (`parts`: what each block is, in order: a floor by its index, or a stair up or down; a side strip skins by it)
+  return { blocks: [{ blocks, course: false, value }], events: { sources, reactions }, base: r3(base), parts };
 }

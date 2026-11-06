@@ -569,7 +569,9 @@ const foeRefsOf = (G, ref) => Object.fromEntries(fieldedIds(G).map((id) => [id, 
 // (and on a level's last stage, its wave gauntlet's foes stood asleep: gauntlet-cast.js; `hurt` a touch's cost on the
 // hero's body where the systems bind its hp, foes.js onBody)
 const hostileOf = (G, s, refs, hero, last = false, hurt = null) => {
-  const own = G.levels[s.level]?.foes !== undefined ? (ends) => hostileCast(G, s.level, { ...ends, node: s.node }, { refs, hero, ...(hurt ? { hurt } : {}) }) : null;
+  // (on a side strip the foes fight on its rail, coming in to it from the land behind: foes.js RAIL)
+  const rail = s.manifest?.kind === 'geocube' && s.manifest.show === 'side' ? { length: s.manifest.side.length } : null;
+  const own = G.levels[s.level]?.foes !== undefined ? (ends) => hostileCast(G, s.level, { ...ends, node: s.node }, { refs, hero, ...(hurt ? { hurt } : {}), ...(rail ? { rail } : {}) }) : null;
   const gauntlet = last && G.levels[s.level]?.goal?.gauntlet ? (ends) => gauntletCast(G, s.level, ends, { refs, hero }) : null;
   return composeExtras(own, gauntlet);
 };
