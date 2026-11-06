@@ -20,6 +20,11 @@ import { LEG_SHAPES } from '../construction/furniture-builds.js';
 import { FABRIC_NAMES } from '../construction/fabric.js';
 import { TIMBER_KEYS, FINISHES as TIMBER_FINISHES } from '../construction/timber.js';
 import { SHEET_KEYS } from '../construction/sheets.js';
+import { CHIMERA_WORDS } from '../mutagen/chimera.js';
+import { HEADGEAR } from '../headgear/cards.js';
+import { WEAR_LEVELS } from '../car-designer/mil-wear.js';
+import { LIVERIES } from '../car-designer/facets.js';
+import { PAINTS, LIVERY_PATTERNS } from '../car-designer/vehicle-livery.js';
 import { SKINS as PLATING_SKINS } from '../plating/styles.js';
 import { SKINS as FOOTWEAR_SKINS } from '../footwear/styles.js';
 import { SKINS as HANDWEAR_SKINS } from '../handwear/styles.js';
@@ -59,6 +64,15 @@ export const VOCABULARY = Object.freeze([
   V('timber', 'surface', /^timber$/i, TIMBER_KEYS),
   V('wood', 'surface', /^wood$/i, Object.keys(TIMBER_FINISHES)),
   V('board', 'surface', /^board$/i, SHEET_KEYS),
+  // a creature's grafts (horns, plates, wings), pure to chimera: a scale
+  V('chimera', 'silhouette', /^chimera$/i, byRank(CHIMERA_WORDS), true),
+  // what a hero wears on the head, by its card: a mask for a helmet is a new outline
+  V('headgear', 'silhouette', /^headgear$/i, Object.keys(HEADGEAR)),
+  // a vehicle's coat: its wear (pristine to battered, a scale), its livery's pattern, its paint by name
+  V('wear', 'surface', /^wear$/i, WEAR_LEVELS, true),
+  V('livery', 'colour', /^livery$/i, Object.keys(LIVERIES)),
+  V('livery-pattern', 'colour', /^pattern$/i, LIVERY_PATTERNS),
+  V('paint', 'colour', /^paint$/i, Object.keys(PAINTS)),
 ]);
 
 const DEPT = Object.fromEntries(DEPARTMENTS.map((d) => [d.id, d.name]));

@@ -3,6 +3,7 @@ import { turnMangekyou, readConcept, routeOrder, readPrinciples, rollOrder, AXES
 import { readLeaves, valueAt } from './leaves.js';
 import { VOCABULARY } from './teams.js';
 import { hexToRgb, lchOf } from '../color-theorist/oklab.js';
+import { meshOfFaces, outlinesApart } from './outline.js';
 
 // the smallest design that holds every axis, plus the things a mangekyou must never touch
 const PROP = Object.freeze({
@@ -194,5 +195,26 @@ describe('passes', () => {
     expect(next.order.pass.id).toBe('p0.1');
     for (const v of next.variants) expect(v.manifest).not.toEqual(first[0].manifest);
     expect(valueAt(PROP, '/build/finish')).toBe('black');
+  });
+});
+
+describe('the outline gate: different shapes, or one shape in other coats', () => {
+  // a box as World faces (six quads)
+  const box = ([x, y, z]) => {
+    const c = (i, j, k) => [i * x, j * y, k * z];
+    const q = (...p) => ({ corners: p });
+    return [q(c(0, 0, 0), c(1, 0, 0), c(1, 1, 0), c(0, 1, 0)), q(c(0, 0, 1), c(1, 0, 1), c(1, 1, 1), c(0, 1, 1)),
+      q(c(0, 0, 0), c(1, 0, 0), c(1, 0, 1), c(0, 0, 1)), q(c(0, 1, 0), c(1, 1, 0), c(1, 1, 1), c(0, 1, 1)),
+      q(c(0, 0, 0), c(0, 1, 0), c(0, 1, 1), c(0, 0, 1)), q(c(1, 0, 0), c(1, 1, 0), c(1, 1, 1), c(1, 0, 1)), { corners: [[0, 0, -1], [9, 0, -1], [9, 9, -1]], studio: true }];
+  };
+  it('reads shape, not size or the studio, and says each variant against the design', () => {
+    const cube = meshOfFaces(box([1, 1, 1]));
+    expect(cube.faces).toHaveLength(12);
+    const out = outlinesApart({ design: cube, v1: meshOfFaces(box([3, 3, 3])), v2: meshOfFaces(box([4, 1, 1])) });
+    expect(out.from.v1).toBe(1);
+    expect(out.from.v2).toBeLessThan(0.75);
+    expect(out.pairs).toEqual([{ a: 'v1', b: 'v2', iou: out.from.v2 }]);
+    expect(out.ok).toBe(true);
+    expect(outlinesApart({ v1: cube, v2: meshOfFaces(box([2, 2, 2])) })).toMatchObject({ ok: false, mostAlike: { iou: 1 } });
   });
 });

@@ -222,6 +222,17 @@ describe('run_experiment_sweep — variations in words (a mangekyou order)', () 
     expect(next.order.keep).toEqual([first.variants[0].ref]);
   });
 
+  it('reads the outlines of a made thing: each variant against the design and the pair most alike', async () => {
+    const { mintSolidHandler } = await import('./mint-solid.js');
+    const sofa = await mintSolidHandler({ kind: 'furniture', spec: { like: 'chesterfield' } });
+    const out = await runExperimentSweepHandler({ ref: sofa.ref, concept: 'different shapes', n: 3, roll: 31 });
+    expect(out.variants.length).toBeGreaterThan(1);
+    expect(out.outlines).toMatchObject({ ceiling: 0.75 });
+    expect(Object.keys(out.outlines.from).sort()).toEqual(out.variants.map((v) => v.id).sort());
+    for (const iou of Object.values(out.outlines.from)) expect(iou).toBeGreaterThan(0);
+    expect(typeof out.outlines.says).toBe('string');
+  }, 120_000);
+
   it('refuses a mixed form and refs that do not exist', async () => {
     const ref = await stored();
     await expect(runExperimentSweepHandler({ ref, path: '/marks/0/w', values: [1, 2], concept: 'x' })).rejects.toThrow(/Pass one form/);

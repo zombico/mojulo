@@ -33,3 +33,9 @@
   wood, board) are the house's words; its millimetres are whole quantities moved by a ratio and kept whole, where a
   small whole number (an ornament, a count of drawers) is a step on a scale. A measure named by its last letter (a
   seat's `seatH`) is a size; a box's bare `w` and `h` are not.
+- **More of the house's words.** A creature's grafts (`chimera`, pure to chimera, a scale), what a hero wears on the
+  head (`headgear`, by its card), a vehicle's wear (pristine to battered), its livery and its pattern, its paint by name.
+- **Did the shape change, or only the coat?** For a made thing (a prop, a layered body, a scad part) the variations door
+  reads each minted variant's outline flat from three sides, each in its own frame so a shape is compared and not a
+  size, and answers `outlines`: each variant against the design, the pair most alike, and what it says (two variants
+  above the silhouette gate's ceiling read as one outline). Advisory: it stamps, it never refuses.

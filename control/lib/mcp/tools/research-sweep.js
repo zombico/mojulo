@@ -185,9 +185,32 @@ async function mangekyouSweep(input) {
       if (reserve.length) queue.push(reserve.shift());
     }
   }
+  const outlines = await outlinesOf(base, variants);
   return { ok: variants.length > 0, from: ref, order, folder_ref: folder.ref, variants, ...(refused.length ? { refused } : {}), spread: turned.spread,
+    ...(outlines ? { outlines } : {}),
     note: `${variants.length} variants of '${ref}' in folder ${folder.ref}, routed to ${order.team.name.toLowerCase()} (${order.team.why}); '${ref}' is unchanged. The eyes gate is the gallery's: look before you keep.`,
     next };
+}
+
+// the kinds whose outline the gate reads: a made thing the World draws whole and quickly (a prop, a layered body, a
+// scad part), never a place, whose outline is its ground
+const OUTLINED_KINDS = new Set(['workbench', 'layered', 'scad']);
+
+/** The outline gate over the variants minted (lib/graph/mangekyou/outline.js): each drawn as the World draws it and
+ * compared flat from three sides; advisory, and absent for a kind it does not read or a scene that does not resolve. */
+async function outlinesOf(base, variants) {
+  if (!OUTLINED_KINDS.has(base.manifest.kind) || variants.length < 1) return null;
+  try {
+    const [{ resolveWorldScene }, { meshOfFaces, outlinesApart }] = await Promise.all([import('@/lib/graph/worlds/world-scene.js'), import('@/lib/graph/mangekyou/outline.js')]);
+    const meshOf = async (ref, manifest) => meshOfFaces((await resolveWorldScene({ ref, kind: manifest.kind, manifest })).payload?.faces);
+    const meshes = { design: await meshOf(base.ref, base.manifest) };
+    for (const v of variants) meshes[v.id] = await meshOf(v.ref, SketchRepository.getByRef(v.ref).manifest);
+    const gate = outlinesApart(meshes);
+    const shared = Object.entries(gate.from ?? {}).filter(([, iou]) => iou > gate.ceiling).map(([id]) => id);
+    return { ...gate, pairs: gate.pairs.slice(0, 3),
+      says: gate.ok ? (shared.length ? `the variants' outlines differ from each other; ${shared.join(', ')} keep the design's outline (another coat, not another shape)` : 'every variant a shape of its own')
+        : `${gate.mostAlike.a} and ${gate.mostAlike.b} read as one outline (${gate.mostAlike.iou}): a silhouette pass may want \`spread: 'wild'\` or a concept that names shape` };
+  } catch { return null; }
 }
 
 const MANGEKYOU_KEYS = ['concept', 'n', 'at', 'principles', 'keep', 'reject', 'spread', 'roll', 'mint', 'by'];
