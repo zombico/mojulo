@@ -9,6 +9,11 @@
 - **Sane defaults in the host** (`controls/mana-host.js`). A held key repeats a move (a long list scrolls, a slider
   runs) and never a pick or a back, so a held Enter buys once and a held Esc leaves one screen. A chord (Ctrl, Alt or
   Meta held) stays the browser's and the system's: a reload, a tab switch and a copy still work over a menu.
+- **A held stick or d-pad repeats its move** (`controls/mana-host.js`), as a held key does: a press steps once, then
+  after 0.4 s the move repeats every 0.1 s until it is let go, so a long list scrolls and a slider runs from a pad. A
+  pick or a back never repeats, and what was held as a screen opened neither acts nor repeats in it. A headset's sticks
+  repeat the same way (they are a driver of the same host). `connect`'s `repeat: { delay, every }` (ms) tunes it,
+  `repeat: false` turns it off.
 - **A name is typed straight in from a keyboard.** With a text entry in focus, the keys type into it (W types a W and
   does not move the cursor), Backspace and Delete erase, Enter is done, and the arrows, Esc and Tab still move and back
   out. A pad still types from the letter grid. The runtime takes text, never keys: `rt.typing(seat)`,

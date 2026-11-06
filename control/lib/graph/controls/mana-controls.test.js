@@ -108,6 +108,28 @@ describe('the controls layer drives the view', () => {
     now = { down: 1 }; h.poll(); h.poll();
     expect(rt.state()).toMatchObject({ input: 'xr', focus: 1 });
   });
+  it('a held stick or d-pad repeats its move after a delay, then steadily; a held pick never does, nor what was held as a screen opened', () => {
+    let t = 0, held = [], axes = [0, 0, 0, 0];
+    const log = [];
+    stubPads(() => [{ ...pad('xbox', 0, held), axes }]);
+    const rt = manaUi.runtime({ screens: { a: scr([{ use: 'list', props: { rows: Array.from({ length: 20 }, (_, i) => 'r' + i) }, on: { accept: { emit: 'pick' } } }]) } }, { read: () => undefined, act: (e) => log.push(e) });
+    const h = H.connect(rt, view(), { ...manaControls(), now: () => t, listen: false, loop: false });
+    const at = (ms) => { t = ms; h.poll(); return rt.state().focus; };
+    held = [DEVICES.gamepad.buttons.down];   // held as the screen opens: it does not act, nor repeat
+    rt.open('a'); at(0);
+    expect([at(500), at(1000)]).toEqual([0, 0]);
+    held = []; at(1100);
+    held = [DEVICES.gamepad.buttons.down];   // the d-pad: a press, then the delay, then a step every interval
+    expect([at(2000), at(2300), at(2400), at(2450), at(2500), at(2600)]).toEqual([1, 1, 2, 2, 3, 4]);
+    held = []; axes = [0, 1, 0, 0];          // the stick the same way
+    expect([at(3000), at(3400), at(3500)]).toEqual([5, 6, 7]);
+    axes = [0, 0, 0, 0]; held = [DEVICES.gamepad.buttons[confirmOn('xbox')]];
+    at(4000); at(5000); at(6000);
+    expect(log).toEqual([{ emit: 'pick' }]);
+    const once = H.connect(rt, view(), { ...manaControls(), now: () => t, repeat: false, listen: false, loop: false });
+    held = []; once.poll(); held = [DEVICES.gamepad.buttons.up]; t = 7000; once.poll(); t = 9000; once.poll();
+    expect(rt.state().focus).toBe(6);
+  });
   it('a device that comes later (a headset\'s session) drives once it joins, and stops once it leaves', () => {
     let now = {};
     stubPads(() => []);

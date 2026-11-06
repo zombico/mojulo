@@ -116,6 +116,9 @@ widgets under a pointer (only the view knows where they are).
   move, 5 and its Enter accept, 0 backs out, + and − turn the tabs), Tab and Shift+Tab to move down and up, and Page
   Down and Page Up to turn the tabs. They are never remapped or listed, and a slot's binding on the same key wins. The
   host repeats a held key only for a move (never a pick or a back) and leaves a chord (Ctrl, Alt, Meta) to the browser.
+- **A held stick or d-pad repeats too.** A pad's move (and a driver's: a headset's sticks) repeats while held, after
+  0.4 s and then every 0.1 s (`connect`'s `repeat: { delay, every }` in ms, or `false`), a pick or a back never. What
+  was held as a screen opened neither acts nor repeats in it.
 - **Typing.** With a text entry in the keyboard's focus, the host types into it: a letter types (W does not move),
   Backspace and Delete erase, Enter is done, and the arrows, Esc and Tab still move and back out. A pad still types
   from the grid. The runtime takes text, never keys: `rt.typing(seat)`, `rt.type(text, seat)` (the entry's charset and
