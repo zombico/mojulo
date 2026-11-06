@@ -13,8 +13,8 @@ agent's word.
 - **The one-breath answer** (`get_substrate`): "it turns your agent into a **3D creative studio**", with the order to
   open broad, ladder up from an object to a game, and say what the person gets; the departments are named as how the
   agent works, not what it sells.
-- **The manifests** (`package.json`, `server.json`, `glama.json`, the marketplace entry) and the dashboard's page
-  description say the same. The Claude plugin's own README and `plugin.json` wait for the next release, since a
-  change under `plugins/mojulo/` needs the plugin's version raised.
+- **The manifests** (`package.json`, `server.json`, `glama.json`, the marketplace entry, the Claude plugin's
+  `plugin.json`), the plugin's README and the dashboard's page description say the same. The plugin's change ships
+  with the release that raises its version; its install, fetch and privacy sections are unchanged.
 - **`CLAUDE.md`**: "What this is" opens on the 3D creative studio; the copy rule says the person-facing pages open
   broad, ladder up and never say how.

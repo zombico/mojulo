@@ -1,7 +1,7 @@
 {
   "name": "mojulo",
   "displayName": "Mojulo",
-  "description": "Turn Claude into a game studio: you direct, Claude builds the levels, the cast, the feel, the look and the sound as small recipes on your machine, played in the browser and exported to Godot, glTF or STL/3MF. No account, no external telemetry.",
+  "description": "Turn Claude into a 3D creative studio: 3D objects, characters, environments, interactive worlds and even playable games, made by asking and kept on your machine. Play them in the browser or on your desktop, print them as STL/3MF, or open them in Godot, Unity, Unreal or Blender. No account, no external telemetry.",
   "version": "3.1.1",
   "author": {
     "name": "Franz Ombico",
