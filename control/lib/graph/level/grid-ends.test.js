@@ -38,4 +38,11 @@ describe('a glyph map\'s ends', () => {
     expect(() => gameStages({ ...W, levels: { vale: { glyphs: { rows: ['# q'] } } } })).toThrow(/'q' is a place the key does not name/);
     expect(() => gameStages({ ...W, levels: { vale: { glyphs: { rows: ['# #'] }, walk: { nodes: {} } } } })).toThrow(/the map alone/);
   });
+
+  it('walks a bend on its arc, never across the tile\'s corner', () => {
+    const E = gridEnds({ seed: 1, grid: { tile: 32, rows: ['. T .', '. # .', '. # #', '. . #'], key: { T: { use: 'temple', goal: true } } } });
+    // (the L at row 2, column 2 opens west and south: its arc round its south-west corner, radius half the tile)
+    const bend = E.beats.find((b) => b.tile[0] === 2 && b.tile[1] === 2).at, corner = [64, -96];
+    expect(Math.hypot(bend[0] - corner[0], bend[1] - corner[1])).toBeCloseTo(16, 0);
+  });
 });

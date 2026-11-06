@@ -6,7 +6,7 @@
  *   gridEnds(level) → { spawn, heading, exit, exitFrom, planar, beats, hazards, via, regions, doors: [], places }
  *     spawn     where a walk of the map starts (grid.js mapStart, the page's own spawn), at its path's middle, on the land
  *     exit      a place whose key says `goal` (its door), else the path end the most tiles away along the paths
- *     via       the tiles' middles along the paths from the spawn to the exit (the fewest tiles), the door last
+ *     via       the tiles' middles (on their paths: an L's on its arc) along the paths from the spawn to the exit (the fewest tiles), the door last
  *     beats     `along` each tile of that way between its ends; `pocket` each path END off it (a side way's end: what
  *               a quest hides or a pack waits in); `landmark` each place standing on it; each its tile and region
  *     places    each place's door ({ id, glyph, use?, at, N, region? }: the building's id on the page, its door on the
@@ -14,7 +14,7 @@
  * Pure; the land's heights are the level's own, as every tile lays them.
  */
 import { readGrid, placeDoors, walkFrom, mapGoal, mapStart } from './grid.js';
-import { levelHeight } from '../era/out-tile.js';
+import { levelHeight, tilePath } from '../era/out-tile.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const FACING = { '+y': [0, 1], '-y': [0, -1], '+x': [1, 0], '-x': [-1, 0] };
@@ -22,7 +22,12 @@ const FACING = { '+y': [0, 1], '-y': [0, -1], '+x': [1, 0], '-x': [-1, 0] };
 export function gridEnds(level) {
   const G = readGrid(level.grid, 'level.grid'), T = G.tile, L = { seed: level.seed ?? 1, ...(G.rise ? { rise: G.rise } : {}) };
   const on = (x, y) => [r3(x), r3(y), r3(levelHeight(x, y, L))];
-  const mid = (x) => on((x.c + 0.5) * T, -(x.r + 0.5) * T);
+  // (a tile's middle on its path: the path's point nearest its centre; an L's path is an arc, its centre off it)
+  const mid = (x) => {
+    const P = x.kind === 'path' ? tilePath(T, x.open).flat() : [], o = [x.c * T, -(x.r + 1) * T];
+    const q = P.reduce((m, p) => (!m || Math.hypot(p[0] - T / 2, p[1] - T / 2) < Math.hypot(m[0] - T / 2, m[1] - T / 2) ? p : m), null) ?? [T / 2, T / 2];
+    return on(o[0] + q[0], o[1] + q[1]);
+  };
   const id = (x) => `${x.r},${x.c}`, regionOf = (x) => (x.region ? (G.regions[x.region].name ?? x.region) : null);
   // (a place's door on the land: its tile's door point, the way out of it the way it faces)
   const doorOf = (x) => { const s = x.open[0], D = placeDoors(T)[s]; return { at: on(x.c * T + D.x, -(x.r + 1) * T + D.y), N: FACING[D.facing] }; };
