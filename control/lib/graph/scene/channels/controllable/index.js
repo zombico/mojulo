@@ -2181,10 +2181,10 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
   // Restore full opacity when it ends.
   if (e.invincible) {
     const o = 0.45 + 0.35 * Math.sin(__world.time * 40);
-    for (const bm of rig.boneMeshes) { if (bm) { bm.material.transparent = true; bm.material.opacity = o; } }
+    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.transparent = true; bm.material.opacity = o; } }   // (a merged figure: its one skin)
     rig.__shimmered = true;
   } else if (rig.__shimmered) {
-    for (const bm of rig.boneMeshes) { if (bm) { bm.material.opacity = 1; bm.material.transparent = false; } }
+    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.opacity = 1; bm.material.transparent = false; } }
     rig.__shimmered = false;
   }
 }
@@ -3323,9 +3323,10 @@ function __foeTopOf(e) {
   return Number.isFinite(top) && top > 0 ? (__foeTop[e.id] = Math.min(top, 12)) : 1;
 }${foeRim ? `
 // the TARGET RIM: a shell of light at the targeted foe's edges (fresnel: brightest where its surface turns from the eye),
-// pulsing, on each bone mesh of the body it is drawn as now; moved off when the target changes or its body does
+// pulsing, on each bone mesh of the body it is drawn as now, or on its one skinned mesh (a merged figure: its
+// boneMeshes are bones), bound to its skeleton; moved off when the target changes or its body does
 const __rimMat = new THREE.ShaderMaterial({ uniforms: { uCol: { value: new THREE.Color(1, 1, 1) }, uK: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  vertexShader: '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() { vec4 wp = modelMatrix * vec4(position + normal * 0.006, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
+  vertexShader: '#include <common>\\n#include <skinning_pars_vertex>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() {\\n#include <beginnormal_vertex>\\n#include <skinbase_vertex>\\n#include <skinnormal_vertex>\\n#include <begin_vertex>\\n#include <skinning_vertex>\\n vec4 wp = modelMatrix * vec4(transformed + objectNormal * 0.006, 1.0); vN = normalize(mat3(modelMatrix) * objectNormal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
   fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uCol; uniform float uK; varying vec3 vN; varying vec3 vV; void main() {\\n#include <logdepthbuf_fragment>\\n float f = pow(1.0 - abs(dot(normalize(vN), vV)), 1.8); gl_FragColor = vec4(uCol * (1.0 + f), min(1.0, (0.18 + 1.3 * f) * uK)); }' });
 const __rim = { id: null, g: null, kids: [] };
 // smooth normals for a bone mesh's triangle list, once (its corners averaged where they meet), for the rim's fresnel
@@ -3346,7 +3347,14 @@ function __foeRim(id) {
     for (const k of __rim.kids) if (k.parent) k.parent.remove(k);
     __rim.kids = []; __rim.id = id; __rim.g = g;
     const rf = g && g.userData.rigFig;
-    if (rf) for (const m of rf.boneMeshes) { if (!m) continue; __rimNormals(m.geometry); const k = new THREE.Mesh(m.geometry, __rimMat); k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true; m.add(k); __rim.kids.push(k); }
+    if (rf) for (const m of rf.skin ? [rf.skin] : rf.boneMeshes) {
+      if (!m || !m.geometry || !m.geometry.attributes.position) continue;
+      __rimNormals(m.geometry);
+      const k = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, __rimMat) : new THREE.Mesh(m.geometry, __rimMat);
+      k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true;
+      if (m.isSkinnedMesh) { k.frustumCulled = false; m.parent.add(k); k.bind(m.skeleton, m.bindMatrix); } else m.add(k);
+      __rim.kids.push(k);
+    }
     if (e && Array.isArray(e.body.targetRim)) __rimMat.uniforms.uCol.value.setRGB(e.body.targetRim[0], e.body.targetRim[1], e.body.targetRim[2]);
   }
   __rimMat.uniforms.uK.value = __rim.kids.length ? 0.75 + 0.25 * Math.sin(__world.time * 6) : 0;

@@ -51,6 +51,14 @@
   the stage's beats, so its foes (at their density) stand on them. Its laws join the level's readout (each gap's width,
   rise and what its move reaches), and a card teaches it (`gameworld-course`). It plays from the side or in 3D, on the
   same level, lit and dressed as every game's.
+- **A course seen from the side.** On a side camera's course nothing stands between the camera and the hero: the lane's
+  camera side, from the walk out past the camera, is kept clear of trees, rocks, bushes and grass (`_keepOut` and
+  `_viewOut` rects, `sideView`), the far side keeping its cover as the backdrop. The side camera's height is eased while
+  the hero stands and held through a jump (`band`), so a stair's risers no longer jolt the frame, and the frame holds in
+  from the lane's ends (`ends`), so it does not look past the trail at its boundary. Absent a course, a side world lays
+  and frames as it did.
+- **A merged foe can be targeted.** The target rim and the i-frame shimmer read a merged figure's one skinned mesh (its
+  bone list holds bones, not meshes); the rim was throwing on it and stopping the page the moment a foe was in reach.
 - **A platformer's first level.** `gameworld/first-level.js` lays it as the team's output unit and the production's
   slice: four trails in teaching order, basic (rolling, no foes), meet (one flat floor, foes sparse), advanced
   (climbing, no foes) and gauntlet (foes dense), each its course and its foes' density, every gap sized by the hero's

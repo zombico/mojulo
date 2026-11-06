@@ -438,6 +438,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-06 (1105-rpg-slice: grass out of the prepass): `creases`, `creases-outline`, `occlusion` and
 // `occlusion-creases`, the fixtures that carry the creases' prepass. Its solid test skips a mesh marked `blades`
 // (stage-grass.js marks its fields, tufts and cards), so a meadow is not drawn a second time; nothing else moved.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: a side camera on a course): the 16 fixtures that embed the controllable
+// runtime. The side camera gained `band` (its height eased while the hero stands, held through a jump) and `ends` (the
+// frame held in from the lane's ends), each a no-op absent; the i-frame shimmer dims a merged figure's one skin, not its
+// bones, and the target rim (where a page carries it) draws a merged foe's on its skin, bound to its skeleton.
 // Re-pinned 2026-11-06 (1105-platformer-lv0-spike merging 1105-rpg-slice's pixel budget): the same fixtures, their
 // emission the re-pins above together (the platform rule's takes, wall, dash and camera move; the knockback seams; the
 // pixel budget of a page played live, one draw a figure).

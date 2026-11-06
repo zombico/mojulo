@@ -21,7 +21,7 @@
  * Lit by the stage bake with a sun (cast shadows per vertex, trees included; a card casts only where it is painted) and
  * a sky fill. Deterministic.
  */
-import { reserveSite, kept } from './reserve.js';
+import { reserveSite, viewSite, kept } from './reserve.js';
 import { NATURE_TRAIL } from './style/nature-trail.js';
 import { hash3, vnoise } from './dirt.js';
 import { P, hexRgb, rgbHex, r5, quad, box, card, crossed } from './geom.js';
@@ -585,6 +585,7 @@ export function grassTufts(st, site, trees, rocks, sun, seed) {
   const placed = new Map(), cellOf = (x, y) => `${Math.floor(x / G.spacing)},${Math.floor(y / G.spacing)}`;
   const free = (x, y) => {
     if (placed.has(cellOf(x, y))) return false;
+    if (site.viewOut && !kept(site.viewOut, x, y, 0.3)) return false;   // (ground a camera looks across: era/reserve.js)
     if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < (t.clearR ?? 0.6)) || rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - x, r.y - y) < r.size * st.rubble.unit * 0.35)) return false;
     placed.set(cellOf(x, y), 1); return true;
   };
@@ -750,7 +751,7 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
   // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
   // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
   const keep = manifest._keepOut ?? null;
-  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), keep), trees = treeItems(st, site, seed);
+  const site = viewSite(reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), keep), manifest._viewOut), trees = treeItems(st, site, seed);
   const rocks = keep ? rockItems(st, site, seed).filter((r) => kept(keep, r.x, r.y, 1.5)) : rockItems(st, site, seed);
   const puddles = puddleSpots(st, site);
   let ground = groundFaces(st, site), ribbon = trailFaces(st, site);

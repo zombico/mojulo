@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { firstLevel, readBossWin, storyWins, WINS, FIRST_LEVEL_SEGMENTS } from './first-level.js';
 import { readGameworld, MEADOWMARK_HERO } from './index.js';
-import { gameStages, stageLevelOrder } from './levels.js';
+import { gameStages, stageLevelOrder, stageLane, SIDE_VIEW, SIDE_BAND, SIDE_ENDS } from './levels.js';
 import { foePlacements } from './foes.js';
 import { POLE_IDS, poleCard } from './feel/cards.js';
 
@@ -67,5 +67,37 @@ describe('the first level, laid in a world', () => {
     // up on the course, not under it
     const lift = (node) => Math.min(...orders[node].ends.beats.filter((b) => b.beat.startsWith('floor-')).map((b) => b.at[2]));
     for (const f of foes('gauntlet')) expect(f.at[2]).toBeGreaterThanOrEqual(lift('gauntlet') - 0.01);
+  });
+});
+
+describe('the first level from the side: nothing between the camera and the hero', () => {
+  const lv = 'first';
+  const W = { ...MEADOWMARK_HERO, camera: 'side', feel: { pole, takes: true }, levels: { [lv]: firstLevel() } };
+  delete W.links; delete W.start; delete W.hub;
+  const stages = gameStages(W).filter((s) => s.level === lv);
+
+  it('each trail keeps its camera side clear, from the walk out past the camera, the whole lane long', () => {
+    for (const s of stages) {
+      const K = s.manifest._viewOut, { line } = stageLane(s);
+      expect(K?.length, s.node).toBeGreaterThan(0);
+      expect(s.manifest._keepOut, s.node).toEqual(K);          // trees, rocks, bushes; and the grass (_viewOut)
+      // every metre of the lane has its strip on the camera's side (the right of the run, `side` in rules-basic.js)
+      for (const [x, y] of line) {
+        const r = K.find((b) => y >= b[1] && y <= b[3]);
+        expect(r, `${s.node} @${y}`).toBeTruthy();
+        expect(r[0]).toBeLessThanOrEqual(x + SIDE_VIEW.near + 1e-6);
+        expect(r[2]).toBeGreaterThanOrEqual(x + SIDE_VIEW.far - 1e-6);
+      }
+    }
+  });
+
+  it('its camera settles on the stairs and holds in from the lane\'s ends', () => {
+    const G = readGameworld(W), O = stageLevelOrder(G, stages[0], { ref: 'lv-side', heroRef: 'gw-hero' });
+    expect(O.args.manifest.camera).toMatchObject({ rule: 'side', band: [...SIDE_BAND], ends: SIDE_ENDS });
+  });
+
+  it('a side world with no course lays its trails as it did', () => {
+    const plain = gameStages({ ...MEADOWMARK_HERO, camera: 'side' });
+    for (const s of plain) expect(s.manifest._viewOut, s.node).toBeUndefined();
   });
 });

@@ -169,7 +169,9 @@ export function gameStages(world) {
       // the field its intent laid (lay-concerns.js), on the first trail it was flattened on
       const first = s.node === laid.stages.find((x) => x.section === 'trail')?.node;
       // a loop's track: nothing grows on it (era/reserve.js)
-      const keep = (R.loop || R.arena) && first ? { _keepOut: [...(R.loop?.keep ?? []), ...(R.arena?.keep ?? [])] } : {};
+      // a platformer's course seen from the side: nothing grows between the camera and the lane (sideView)
+      const view = G.camera === 'side' && s.manifest.trail !== undefined && courseAt(G.levels?.[level]?.course ? readCourse(G.levels[level].course, 'course') : null, s.node) ? sideView(s.manifest) : [];
+      const keep = ((R.loop || R.arena) && first) || view.length ? { _keepOut: [...(first ? [...(R.loop?.keep ?? []), ...(R.arena?.keep ?? [])] : []), ...view], ...(view.length ? { _viewOut: view } : {}) } : {};
       // a stage drawn in a composed look carries the recipes that compose its kit (the look registry is the process's own)
       const looks = s.manifest?.kit ? looksOfKit(s.manifest.kit) : null;
       // a stage on a nature or jungle kit in a palette world carries the palette as its builder reads it
@@ -725,7 +727,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
-        : lane ? { rule: 'side', target: 'hero' }
+        : lane ? { rule: 'side', target: 'hero', ...(course ? { band: SIDE_BAND, ends: SIDE_ENDS } : {}) }
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
         : steered ? { ...P.camera, steer: steered }
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
@@ -981,6 +983,27 @@ export function stageLane(stage) {
   const { site } = outTrailOf(stage.manifest), line = [];
   for (let y = 0; y <= site.D + 1e-9; y += 1) line.push([r3(site.trailX(y)), r3(y)]);
   return { line, ground: (x, y) => site.ground(x, y) };
+}
+
+/**
+ * The ground a side camera looks across: the lane's camera side (the right of the way it runs, where `side` stands the
+ * camera) from the walk's edge out past the camera, rects a few metres long laid as `_keepOut` and `_viewOut`
+ * (era/reserve.js), so no tree, rock, bush or blade of grass stands between the camera and the hero. The far side keeps
+ * its cover: the backdrop.
+ */
+export const SIDE_VIEW = Object.freeze({ near: 1, far: 14, step: 3 });
+/** The side camera's height on a course: eased while the hero stands (a stair's risers), held through a jump inside it. */
+export const SIDE_BAND = Object.freeze([1, 2]);
+/** …and held this far in from the lane's ends, about half the frame's width at its distance (a 16:9 frame's 55° across
+ *  at 10.8 m), so it does not look past the trail's ends at the boundary and the spawn stays in the frame. */
+export const SIDE_ENDS = 5.5;
+export function sideView(manifest) {
+  const { site } = outTrailOf(manifest), out = [], { near, far, step } = SIDE_VIEW;
+  for (let y = -step; y < site.D + step; y += step) {
+    const xs = Array.from({ length: step + 1 }, (_, k) => site.trailX(Math.max(0, Math.min(site.D, y + k))));   // (a metre apart)
+    out.push([r3(Math.min(...xs) + near), r3(y), r3(Math.max(...xs) + far), r3(y + step)]);
+  }
+  return out;
 }
 
 /** A goal's placed points moved onto the lane (pockets and landmarks sit off the trail, where a lane cannot reach), each
