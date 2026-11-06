@@ -120,3 +120,10 @@
   nobody comes looking for (not a shop's keeper, a service's first, one met in every town, anyone in a sidequest, one
   crouched at its work) steps out to a spot before its door and back at a stroll, lingering at each on its own heartbeat,
   talked to wherever it stands (`folk.life: false` keeps them still; `folk.day` still gives the households a day).
+- **Rays by grid: no frame spent near a building.** Every walker found its feet by a ray straight down, and the camera
+  kept off the walls by a ray from the hero's head, each through three's raycast, which tests every triangle of a mesh
+  its box meets: the town's stone, its chips and its ground are one mesh each of tens of thousands, so near the houses
+  the frame went on rays (16 ms a ray on a slow machine). A big static mesh (`ground-grid.js`: a thousand triangles or
+  more, standing where it was built) now answers by a 2D grid of its triangles built at the first probe, its cells halved
+  where it is crowded (`gridFit`): a ray straight down tests the triangles over its point, any other ray those of the
+  cells its line crosses, each face as its material shows it, the same hits three's raycast finds.

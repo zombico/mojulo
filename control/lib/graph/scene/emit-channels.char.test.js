@@ -411,6 +411,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // page played live. Their density line becomes the budget's (capped at 1.5, the frame's time stepping it a quarter, the
 // `__budget(t)` call after each render); nothing else in them moved. No fixture's figure is a plain rigid rig, so none
 // carries the merged builder (merged-figure.js, its own tests).
+// Re-pinned 2026-11-06 (1105-rpg-slice: rays by grid): the 16 fixtures that embed the controllable runtime (the 14 played
+// live and the two captures). Their ground hook gains the grid raycast (ground-grid.js, by its source, its own tests) and
+// hands every big static mesh to it at the first probe; nothing else in them moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

@@ -16,6 +16,7 @@ import { runnerViewScript } from './runner-view.js';
 import { followPullIn } from './follow-pull-in.js';
 import { gunplayScript } from './gunplay-view.js';
 import { mergeableFigure, mergedFigureScript } from './merged-figure.js';
+import { groundGridScript } from './ground-grid.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -2366,10 +2367,13 @@ ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on,
 const __surfaceT = ${safeJson(driveSurface)};
 const __surfaceAt = ${surfaceAt.toString()};
 const __surface = (p) => __surfaceAt(__surfaceT, p);
-` : ''}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
+` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __groundRay = new THREE.Raycaster();
 const __bodySet = () => Object.values(__bodies);
+let __gridOn = false;
 function __ground(pos) {
+  // (the big static meshes take straight-down rays by grid, indexed at the first probe: every mesh is built by then)
+  if (!__gridOn) { __gridOn = true; __gridMeshes(); }
   // Probe straight down FROM the passed origin — the CALLER chooses the height. The walk rule passes
   // its eye position (finds the floor below it); the platform rule passes feet+step (so it lands on the
   // surface under the FEET and ignores platforms whose tops sit above them — you jump onto a ledge, you
