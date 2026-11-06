@@ -1,161 +1,86 @@
 # Mojulo
 
-![One real chat with an agent that has mojulo connected. A game maker asks for a multi-level military base for a stealth game, from the hangar through the barracks and a fortified armoury down to the reactor plant at its core, each section unlike the last, and to see the plan and the looks first. The agent drafts the world without building it and points to its book: the way in drawn as rings to the core, each layer's look with its wall, base, floor and paint, and a level's finishes board, its materials as the build will paint them and its light. On "Looks good, approved. Build it." it builds the four levels, shown one after another. The last slide shows the session's time, tokens and API cost](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/wcd-demo.gif)
+**A 3D creative studio for your agent.** Make 3D objects, characters, environments, interactive worlds and even playable games, just by asking, and take them to your desktop: play them, print them, or open them in Godot, Unity, Unreal or Blender.
 
-<sub>One real Claude Code session on Sonnet 5.5: a stealth game's base asked for, its plan and looks approved from the world's book, four levels built; under four minutes of agent time, 63 cents at API list price. How it was made: [docs/images/src/wcd-demo](https://github.com/zombico/mojulo/tree/main/docs/images/src/wcd-demo).</sub>
+![An aerial view of a generated New York-style metro: brick walk-ups with wooden water tanks on their roofs, glass and Art Deco towers, and avenues with traffic](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/metro-new-york-aerial.jpg)
 
-**Mojulo turns your agent into a game studio.** You direct; it builds. It is an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself. Tell the agent the game you want, and it works through the studio's departments (worlds and levels; characters, props and vehicles; play modes, animation and sound; foes and bosses; cinematics; and game design and production, which ties them into the game's bible), every one of them writing into the same small recipe, so the bible, the level you play and the export agree. The same studio designs rooms, furniture and printable parts. Underneath, it is a 3D compiler: the recipe is the source, compiled back to the same geometry on every read and emitted to Godot, Blender, STL and more, and a recipe minted in a box re-mints as the same geometry at home.
+<sub>"Build a New York-style city at real scale."</sub>
+
+You talk to the agent you already use: Claude Code, Codex, the Claude app, ChatGPT, or any MCP host. You bring the taste; it brings the craft. Change anything by asking, and everything that uses it changes too. No API key, no account, no telemetry.
+
+## Get started
 
 ```bash
 npx mojulo init
 ```
 
-That wires mojulo into the coding agents on this machine (Claude Code, Codex, Claude Desktop — one yes/no each) and opens the dashboard. Node 22.14+. No API key; your agent is the reasoning loop.
+You need **Node.js 22.14+** ([nodejs.org](https://nodejs.org), or ask your agent to install it) and an agent that speaks MCP. `init` finds the agents on your machine (Claude Code, Codex, Claude Desktop and others), asks once for each, and opens the dashboard. Then start a fresh agent session and ask:
 
-You talk to the agent you already run; it does the reasoning, and mojulo is the machine it works in. Build **games, worlds and objects by conversation.** An object blocks out at literal scale, a world is a place you can walk, a level is a world under a game contract, a game composes the levels — and music folds in as an asset, synthesized from seeded math with no samples. Each rung is a small deterministic **recipe**: readable, seeded to regenerate identically, never a render.
-
-**Two pipelines out.** DIGITAL: worlds, levels and scenes render dependency-free in the browser, and a game plays there or as a desktop app. A team's engine gets a handoff, not the game: a level's assets, materials, light and markers as a **Godot**, **Unity**, **Unreal** or **Blender** project its importer builds, re-handed without losing the developer's own wiring; Unreal also takes one character or solid as an asset, and Blender an art-pass pack — with `.glb` and OpenUSD for everything else. PHYSICAL: objects, vehicles and wordmarks export as **print-ready STL or 3MF at true scale** — mm units, z-up, slicer-ready, with a slicer gate that stamps what it measured.
-
-Mojulo is the **upstream** that feeds the tools you already use. It does not try to out-render a game engine, and it is not just an exporter: the recipe is where the thing is born and re-renders; the engine or the printer is where it is optionally finished. Every handoff carries a ledger of what did not travel.
-
-**Not a second brain — a body.** Your agent is the only intelligence in the loop. Mojulo holds state, runtime, and the audit trail, and needs no LLM credentials of its own. Optional local workers — Blender, a slicer, a mesh sculptor — are yours to host and never dependencies.
-
-The bins:
-
-- `mojulo` — stdio MCP server (`npx -y mojulo`, wired into Claude Code, Codex, or any other MCP host); also the installer and a CLI front door (below).
-- `mojulo-ui` — local dashboard (`npx -y mojulo-ui`). Its own npm package since 3.0.0, at the same version as `mojulo`; the `mojulo-ui` command inside `mojulo` starts it, and fetches it from npm first when it is not installed.
-- `mojulo-config` — provider key CLI, only needed for directed images or `mint_solid`'s prompt door.
-
-`mojulo` and `mojulo-ui` share the same `~/.mojulo/` state, so anything you mint from your agent shows up in the dashboard immediately.
-
-## Quickstart
-
-Prerequisite: **Node.js 22.14+** (`node --version`). Everything below runs through
-`npx`, which ships with Node — if you don't have it, install it from
-[nodejs.org](https://nodejs.org), or ask your coding agent to install it for you.
-No provider key: your agent is the reasoning loop. Verified on macOS (Apple Silicon),
-on native Windows (`init` and a first render, under Claude Code), and on Linux x64 in
-the agent boxes of the Claude app and web, ChatGPT work mode with Codex, Grok chat, Meta Muse and
-Google AI Studio, each run to a mint and an export; a cold install is also checked on Linux arm64.
-In ChatGPT, mojulo is also available as a plugin:
-[Mojulo for ChatGPT](https://github.com/zombico/mojulo/tree/main/plugins/mojulo-chatgpt).
-
-```bash
-# 1. Wire mojulo into your MCP-capable agent. The one-shot installer detects
-#    the MCP hosts on this machine by declared profile (Claude Code, Codex,
-#    Claude Desktop, and others), asks y/n per host, and opens the dashboard:
-npx mojulo init
-#    Or wire manually —
-#    Claude Code:
-#      claude mcp add --scope user mojulo -- npx -y mojulo
-#    Codex CLI: add to ~/.codex/config.toml
-#      [mcp_servers.mojulo]
-#      command = "npx"
-#      args = ["-y", "mojulo"]
-#    Claude Desktop: add under "mcpServers" in claude_desktop_config.json, then restart it
-#      "mojulo": { "command": "npx", "args": ["-y", "mojulo"] }
-#    Other MCP hosts: register the same `npx -y mojulo` stdio command.
-
-# 2. In an agent session, just ask:
-#      make me a kart racer               → a game: levels, a cast, a score
-#      what is this?                      → mojulo orients itself, out loud
-#      here's my floor plan, ideas?       → the house built from it, rooms designed
-#      build an oak table, exploded       → a jointed frame; see how it goes together
-#      build a New York-style city        → a world; walk it at /world
-#      turn that into a game              → a game; play it, or hand its levels to Godot
-
-# 3. In your agent's own box with an MCP client (Claude Code on the web, a
-#    Codex cloud task), nobody is at a keyboard, so init needs --yes (without
-#    it, init only prints its plan) and --no-ui skips the dashboard:
-#      npx -y mojulo init --yes --no-ui
-#    A box with no MCP client (Grok chat, ChatGPT work mode, the Claude app,
-#    Meta Muse, Google AI Studio) skips init and drives the same registry from
-#    the shell:
-#      npx mojulo orient                    # read first: the connect preamble, as shell
-#      npx mojulo call forward_context      # the routing index
-#      npx mojulo call <tool> --json '{…}'
-#    Ask for format 'bundle' on the way out: one zip, recipe included, that
-#    re-mints as the same geometry on your own machine.
-
-# 4. Optional add-ons, same choice on your machine or in a box:
-#      npx -y -p mojulo mojulo install recall     # the embedding model behind
-#                                                # semantic_search (lexical without it)
-#      npx -y -p mojulo mojulo-config set anthropic sk-ant-...
+```
+build an oak dining table, and show me how it goes together
+make me a hero in an anime style
+here's our floor plan, some ideas for living in it?
+build a New York-style city at real scale
+make me a kart racer
+what is this?
 ```
 
-First install is the big one: npx pulls a ~12 MB package plus its dependencies (about 251 MB on
-disk and about 152 MB of npm cache, measured for 3.1.1 on Linux x64; the dashboard is its own
-`mojulo-ui` package, fetched the first time you open it). Measured sizes, lazy downloads, and what each engine leg
-needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
+In ChatGPT, mojulo is also available as a plugin: [Mojulo for ChatGPT](https://github.com/zombico/mojulo/tree/main/plugins/mojulo-chatgpt).
 
-**Why these dependencies.** All of them run on your machine. `node-web-audio-api` renders audio, `manifold-3d` and `openscad-wasm-prebuilt` do exact
-geometry, and `puppeteer-core` drives a *local* headless Chrome for stills; the browser itself is
-fetched only for an explicit render, or skipped if you already have Chrome. `better-sqlite3` is the
-one database file under `~/.mojulo/`. The *local* search model behind `semantic_search`
-(`@huggingface/transformers` on `onnxruntime-node`, which ships binaries for every platform in one
-package) is the opt-in `mojulo install recall`; without it `semantic_search` ranks lexically over the
-same index. Nothing in that list reaches the network on its own. The per-dependency sheet, with
-sizes, is in the same tech-requirements page.
+Nothing on your machine at all? In the Claude app, Grok chat, Google AI Studio or Meta Muse, tell the agent: *Open a Linux box and install the mojulo npm package in it.* In ChatGPT, say the same in work mode. Ask for the bundle on the way out (one zip with the playable page, the 3D model, a print file and the recipe) and keep it: the recipe rebuilds the same thing on your own machine. A box with no MCP client: tell the agent to run `npx mojulo orient` first.
 
-### CLI
-
-The same `mojulo` bin doubles as a command-line front door over the same
-engine and data — no agent, no dashboard, no API key required. Useful for
-spot checks, cron jobs, and CI:
+<details>
+<summary>Wire it by hand</summary>
 
 ```bash
-npx mojulo orient                     # what an MCP client gets at initialize, plus the shell grammar
-npx mojulo tools                      # the connect surface: spine + packs
-npx mojulo tools pack_object          # one pack's members
-npx mojulo packs                      # pack ids with their recognizers
-npx mojulo help export_model          # full description + input schema
-npx mojulo call version               # invoke any tool
-npx mojulo call export_model --json '{"ref":"sk_…","format":"3mf"}'
-npx mojulo pack_object                # open a pack: orientation + member menu
-npx mojulo pack_object --manual mint_solid   # one member's manual
+# Claude Code:
+claude mcp add --scope user mojulo -- npx -y mojulo
+
+# Codex CLI: add to ~/.codex/config.toml
+[mcp_servers.mojulo]
+command = "npx"
+args = ["-y", "mojulo"]
+
+# Claude Desktop: add under "mcpServers" in claude_desktop_config.json, then restart it
+"mojulo": { "command": "npx", "args": ["-y", "mojulo"] }
+
+# Claude Code on the web, a Codex cloud task: no one at the keyboard
+npx -y mojulo init --yes --no-ui
 ```
 
-Arguments can be inline JSON (`--json '{…}'`, `@file.json`, or `-` for
-stdin) or per-property flags derived from the tool's schema
-(`--theme dungeon --seed 7`; flags win over `--json`). `--timeout <ms>`
-bounds long-poll tools (exit code 124), `--quiet` keeps only the exit code
-(0 success, 1 tool error, 2 usage). Results print to stdout as-is, so
-`npx mojulo call version | jq .` works; diagnostics go to stderr. Bare
-`npx mojulo` remains the stdio MCP server.
+Other MCP hosts: register the same `npx -y mojulo` stdio command.
+
+</details>
+
+## What you can make
+
+Start small and go as far as you like.
+
+- **3D objects.** A mug, a lamp, a bracket for your shelf, a Raspberry Pi case with standoffs on its mounting holes, at their real size. Furniture you can build, pulled apart to show how it goes together, with its cut list, hardware list and assembly order. Print it at true size as STL or 3MF.
+- **Characters.** Heroes in a realistic, cartoon or anime look, with faces that act; hair, clothes, armour, shoes and gear fitted to the body; animals mid-stride. Rigged and animated, ready for a game or for your 3D tools.
+- **Vehicles and props.** Karts, supercars, aircraft, boats, trains, walking mecha, and the props that fill a room.
+- **Rooms and buildings.** Your house from a picture of its floor plan, built to the inch, each room designed with furniture at true size; or a six-storey building, a townhouse, an office from a sentence.
+- **Environments and levels.** A base to sneak through, caverns, a dungeon, an island at any hour, a historic city in its period, cities at real scale in the style of New York, Paris, London or Tokyo.
+- **Interactive worlds.** Worlds you walk in the browser, with traffic and people on the streets, music and sound made from scratch, and flythroughs and cutscenes with actors who play a role from a script.
+- **Playable games.** Stealth, racing, shooters, flight, fighting, rhythm, sports, board and strategy games, a pen-and-paper RPG; enemies from grunts to a boss; two to four players on one screen. You approve the plan first, and every level is played through to its win before you get it.
+
+## Take it with you
+
+- **Play it** in the browser, as a game folder for any web host, or as a desktop app that runs offline.
+- **Open it in your engine:** a Godot 4, Unity 6, Unreal 5 or Blender project with each level's materials, light, markers and cameras. Hand it over again after a change and your team's own work in the scene is kept.
+- **Use it in 3D tools:** `.glb` with rigs and animation, and OpenUSD, at true scale.
+- **Print it:** STL or 3MF at true size in millimetres, ready for your slicer.
+- **Watch and hear it:** flythroughs, turntables and films as video; music and sound effects as audio.
+
+Every export says plainly what did not make the trip. Whether it looks good is your call: nothing in mojulo claims a person has looked.
 
 ## Where it runs
 
-Mojulo runs wherever your agent runs, and a recipe minted in one place re-mints as the same geometry
-in the other. Two shapes, one install.
+On your machine (macOS, Windows, Linux) you get everything: the dashboard, your work kept under `~/.mojulo/`, and any Blender, slicer, OpenSCAD or game engine you have, picked up automatically. In a chat app's Linux box nothing touches your machine; keep the bundle.
 
-**In your agent's box, nothing on your machine.** One sentence to the agent installs mojulo in the
-Linux box it gives itself:
+Where it has been run. <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> keeps your work · <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> a throwaway box (keep the bundle). Blank means not verified yet, not "does not work".
 
-- The Claude app (macOS, Windows, web, iOS); Grok chat; Meta Muse (iOS, web, macOS app, one session
-  across all three): *Open a Linux box and install the mojulo npm package in it.*
-- ChatGPT (Codex included): *In work mode, open a Linux box and install the mojulo npm package in
-  it.* Or add the [Mojulo plugin for ChatGPT](https://github.com/zombico/mojulo/tree/main/plugins/mojulo-chatgpt).
-
-Each of those has been run this way, from the sentence to a mint and an export handed back. You get
-the same recipes and the same exports, as files: the export result names this host's door, an
-artifact page, a PR, a file card or Muse's Library. The box has no dashboard you can reach, a scene-to-PNG bake needs a
-browser it may not be allowed to fetch, and on most hosts it is gone when the session ends, so ask for
-the bundle (one zip: `world.html`, mesh, print STL for literal-scale objects, `recipe.json`, README)
-and keep the recipe. Meta Muse is the exception: one VM behind all its clients, where `~/.mojulo`
-stays across conversations. A box with no MCP client never sends `initialize`, so tell the agent to run
-`npx mojulo orient` first: it prints what an MCP client is handed at connect, translated to the
-shell, and points at the routing index. Claude's box built a 47-part phone at true scale this way and handed back the glTF;
-Grok chat's sandbox minted a city from the shell. Blender installs in those boxes too.
-
-**On your machine: macOS, Windows, Linux.** `npx mojulo init` wires mojulo into the agents it finds,
-opens the dashboard at `localhost:3001`, keeps everything under `~/.mojulo/`, and probes your PATH for
-the optional local workers (Blender, a slicer, OpenSCAD, the game engines). This is the whole loop, and
-where a recipe from a box comes home to.
-
-Who has run it where. <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> persistent (your machine, or a box that keeps `~/.mojulo/`) · <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> ephemeral (the web
-agent's throwaway Linux box; keep the recipe). Blank means not verified yet, not "does not work".
-
-| agent | macOS | Windows | Web Agent Linux Box (Headless) |
+| agent | macOS | Windows | Web agent's Linux box |
 |---|:-:|:-:|:-:|
 | Claude Code | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> | |
 | Claude app (macOS, Windows, web, iOS) | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> | <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> |
@@ -163,69 +88,41 @@ agent's throwaway Linux box; keep the recipe). Blank means not verified yet, not
 | Hermes Agent | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> | | |
 | Grok (Build; chat) | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> Build | | <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> |
 | Meta Muse (iOS, web, macOS app; one session across them) | | | <img alt="persistent" title="persistent" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-green.svg" width="14"> |
+| Google AI Studio | | | <img alt="ephemeral" title="ephemeral" src="https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/tick-blue.svg" width="14"> |
 
-Two add-ons, the same choice in both places:
-
-| add | with | what you get |
-|---|---|---|
-| **creative** (on by default) | plain `npm install` | worlds, audio, wordmark fonts, exact booleans, OpenSCAD in-process, sharp for skins and sprite sheets. `npm install --omit=optional` sheds those helpers (about 115 MB); the studio tools still list and run, and a call that needs a missing helper says so. |
-| **recall** | `mojulo install recall` | the embedding model behind `semantic_search`. Without it, search still answers by the words in your ask, and most sessions never need more: the agent reads the tool index and the vocab cards directly. About 480 MB plus a 130 MB model, kept under `~/.mojulo/` across upgrades. |
-
-`mojulo install` with no argument prints which are present.
-
-The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues ([SECURITY.md](https://github.com/zombico/mojulo/blob/main/SECURITY.md#known-issues-in-2x)). `mojulo install chatbot` now installs nothing and prints this notice.
-
-**Upgrading from 2.x?** Read [Upgrading from 2.x](https://github.com/zombico/mojulo/blob/main/control/CHANGELOG.md#upgrading-from-2x) first: an unpinned `npx mojulo` moves to 3.0 on its next start, and 3.0 re-encrypts saved provider keys so 2.x can no longer read them.
-
-## What you can make
-
-- **"Here's our floor plan, some ideas for living in it?"** → the agent reads the rooms off the picture and builds the house at its drawn sizes, then designs the rooms you name: a style, a palette, finishes and furniture at true size, walkways kept, what would not fit said. "Paint the walls sage and turn the sofa to the windows" revises the same room, and "a walkthrough video" is the agent filming each room and stitching one MP4. The GIF at the top is that session, as it ran.
-- **"Model me a bracket that fits this shelf"** → a solid at literal scale on the workbench: lathes, sweeps, extrudes, fields; a hole is a line in the recipe; parts seat by declared relation. Measured without exporting, then out as print-ready STL or 3MF with process-aware print advisories — the conversation ends at the printer.
-- **"A posed archer" / "a wolf, mid-stride"** → figures and animals on one armature, with gaits and emotes; rigs export as glTF clips, skinned meshes, or VRM humanoids.
-- **"A six-storey building with a set-back penthouse" / "a walkable city at dusk"** → furnished floorplans that stack, bespoke buildings, caves and dungeons, cities, transit hubs, campuses, landscapes — every one a place you can walk, and every one exportable.
-- **"Make me a game"** → composition: levels, music, and figures bound to a typed store with rules — playable standalone or as a desktop app, its levels handed to a team's **Godot**, **Unity**, **Unreal** or **Blender**. 2D reducer games land in the built-in Arcade.
-- **"An ambient loop for it"** → music and SFX from seeded math, never samples; worlds opt in to soundtracks and footsteps; a score exports as WAV or MIDI.
-- **"Here's a photo of the room"** → your agent is the vision adapter: it recovers a room's perspective, a figure's pose, or an object's part-graph as a scaffold. No vision key; the image never reaches mojulo.
-
-Iterate in place — `update_sketch` changes a field on the stored recipe; nothing is re-minted — and keep what you tuned: `save_recipe` writes it to a cookbook of plain files in a local git repo with no remote, recallable by intent in a later session. The [recipe book](book/) ships bundled, so its chapters and whole new kinds are there from the first run.
-
-Also in the box, present by default and never in the way: diagrams and charts, directed images an external model paints, publications, research, plans, local apps whose inference parks back on your agent, and connected services over the MCPs you already run.
-
-## Why it's different
-
-- **Keyless.** Installed from npm, runs on your machine, nothing to sign up for. The stdio MCP has no network surface; the HTTP route is bearer-gated and 404s without a key.
-- **Recipes, not renders.** Every artifact is a seeded deterministic recipe — diffable, replayable, re-mintable on any mojulo host. Exports and painted renders are derived files with provenance, never the sovereign artifact.
-- **Two gates, never conflated.** A machine gate imports the pack headless when the engine or slicer is installed and stamps what it measured; a human looking at the result is the eyes gate. Gates advise; none refuse, and none claim the other one passed.
-- **It remembers why — where that matters.** Connected services and apps are sealed beside an append-only record of intent (the contextmap), so a fresh session improves the existing wiring instead of minting a stranger next to it. Studio artifacts are recalled by ref, by semantic search, and by their cookbook card.
-- **Pay for what you install.** The kernel plus the creative studio is the default; the embedding model behind vector search (`mojulo install recall`) is opt-in. Uninstalled packs neither list nor run, so your agent's context isn't spent on tools this host doesn't have.
+**Upgrading from 2.x?** Read [Upgrading from 2.x](https://github.com/zombico/mojulo/blob/main/control/CHANGELOG.md#upgrading-from-2x) first: an unpinned `npx mojulo` moves to 3.x on its next start, and 3.x re-encrypts saved provider keys so 2.x can no longer read them. The 2.x versions are unmaintained and have known security issues ([SECURITY.md](https://github.com/zombico/mojulo/blob/main/SECURITY.md#known-issues-in-2x)).
 
 ## Dashboard
 
 ```bash
-npx -y mojulo-ui                # auto-port, opens browser
+npx -y mojulo-ui                # opens in your browser
 npx -y mojulo-ui --port 3999    # pin the port
-npx -y mojulo-ui --no-open      # skip browser launch
+npx -y mojulo-ui --no-open      # don't open the browser
 ```
 
-The dashboard is its own npm package, `mojulo-ui`, published at the same version as `mojulo` and depending on exactly that version (it runs a compiled copy of mojulo's code against the same database), so the stdio server your agent starts never downloads the Next.js build. `npx -y -p mojulo mojulo-ui` still works: it runs the `mojulo-ui` package installed beside it, or first downloads the matching version with `npm exec` and says so on stderr. `MOJULO_UI_NO_FETCH=1` refuses that download.
+Browse everything you have made, walk your worlds, play your games in the Arcade, and review films, music and voices. You make things by asking your agent; the dashboard shows them. It ships in every language under `messages/`, right-to-left scripts included (**Settings → Language**).
 
-Same primitives as the MCP, different face: **Studio** leads and opens by default — browse the Library, walk your worlds, play your games in the Arcade, review motion, beats, and voice at a glance — with **Ideate** (research, plans, stashes) beside it and **Operate** tiles appearing only once something actually runs there. It renders state and hands authoring back to your agent — the workshop is driven from the conversation.
+## Command line
 
-The dashboard starts in English but ships fully translated in every locale under `messages/`, including right-to-left scripts — switch anytime under **Settings → Language**; the choice is remembered per browser.
+The same `mojulo` command also works without an agent, for spot checks and scripts:
 
-## Stability
+```bash
+npx mojulo tools                      # what it can do
+npx mojulo help export_model          # one tool's description and inputs
+npx mojulo call version               # run any tool
+```
 
-The paradigm loops (media · game · connected service · app) and the recipe format are the stable surface: additive-only DB migrations, deterministic re-render of stored recipes, loopback-only transport. A kernel's output for given params is a compatibility promise over already-minted rows. The creative vocabularies keep growing in minor releases. 3.0.0 is a major version because it removed a loop that surface named: the bot loop left with the chatbot factory. See the [changelog](https://github.com/zombico/mojulo/blob/main/control/CHANGELOG.md).
+## Your work stays yours
+
+Everything lives on your machine in `~/.mojulo/`, and exports are plain files you open in anything. Ask to save something and it goes into your own cookbook, a local folder you can search later by describing what you made. Nothing is sent to the maintainer or to an analytics service ([what touches the network](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md#network-posture)). It is for one person on their own machine, reachable only from localhost. Shared recipes can carry code: treat one from someone else like code.
+
+What you make today rebuilds the same tomorrow: new releases add to what mojulo can make and never change what you already made. See the [changelog](https://github.com/zombico/mojulo/blob/main/control/CHANGELOG.md).
 
 ## More
 
 - Full repo and docs: <https://github.com/zombico/mojulo>
-- What it needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md) (footprint, engine legs, slicers, workers, platform notes)
-- The handoff doctrine: [docs/bicycles.md](https://github.com/zombico/mojulo/blob/main/docs/bicycles.md) (machine gate, eyes gate)
-- Optional workers: [Blender](https://github.com/zombico/mojulo/blob/main/docs/local-blender-worker.md), [slicers](https://github.com/zombico/mojulo/blob/main/docs/local-slicer-worker.md), [mesh sculptors](https://github.com/zombico/mojulo/blob/main/docs/local-mesh-worker.md), [image](https://github.com/zombico/mojulo/blob/main/docs/local-image-worker.md), [voice](https://github.com/zombico/mojulo/blob/main/docs/local-voice-worker.md)
-- Architecture: [docs/MCP-ARCHITECTURE.md](https://github.com/zombico/mojulo/blob/main/docs/MCP-ARCHITECTURE.md) (the headless control surface), [docs/AGENT-REFERENCE.md](https://github.com/zombico/mojulo/blob/main/docs/AGENT-REFERENCE.md) (the creative substrate, data layout), [docs/POLYGONIZER-SYNTHESIS.md](https://github.com/zombico/mojulo/blob/main/docs/POLYGONIZER-SYNTHESIS.md) (the geometry substrate)
-- MCP integration: [docs/mcp-integration.md](https://github.com/zombico/mojulo/blob/main/docs/mcp-integration.md); catalysts: [docs/catalysts.md](https://github.com/zombico/mojulo/blob/main/docs/catalysts.md)
-- Terms & responsibility model: [TERMS.md](https://github.com/zombico/mojulo/blob/main/TERMS.md), [docs/responsibility-model.md](https://github.com/zombico/mojulo/blob/main/docs/responsibility-model.md)
+- What it needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md)
+- Terms: [TERMS.md](https://github.com/zombico/mojulo/blob/main/TERMS.md), [docs/responsibility-model.md](https://github.com/zombico/mojulo/blob/main/docs/responsibility-model.md)
 
 ## License
 

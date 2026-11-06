@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A522.14-brightgreen)](control/package.json)
 
-**A 3D creative studio for your agent.** Ask for levels, characters, vehicles, gameplay, enemies, cutscenes or music, and your agent builds them on your machine. Play them in the browser, print them, or take them into Godot, Unity, Unreal or Blender.
+**A 3D creative studio for your agent.** Make 3D objects, characters, environments, interactive worlds and even playable games, just by asking, and take them to your desktop: play them, print them, or open them in Godot, Unity, Unreal or Blender.
 
 ![An aerial view of a generated New York-style metro: brick walk-ups with wooden water tanks on their roofs, glass and Art Deco towers, and avenues with traffic](docs/images/metro-new-york-aerial.jpg)
 
@@ -18,7 +18,7 @@ You talk to the agent you already use: Claude Code, Codex, the Claude app, ChatG
 npx mojulo init
 ```
 
-You need **Node 22.14+** and an agent that speaks MCP. `init` finds the agents on your machine, asks once for each, and opens the dashboard at `http://localhost:3001`. Then start a fresh agent session and ask for something: **"make me a hero in an anime style"**, **"build a snowy island at dusk"**, **"make me a kart racer"**. Or ask **"what is this?"** for a tour.
+You need **Node 22.14+** and an agent that speaks MCP. `init` finds the agents on your machine, asks once for each, and opens the dashboard at `http://localhost:3001`. Then start a fresh agent session and ask for something: **"build an oak dining table"**, **"make me a hero in an anime style"**, **"build a snowy island at dusk"**, **"make me a kart racer"**. Or ask **"what is this?"** for a tour.
 
 In Claude Code you can install the plugin instead: `/plugin marketplace add zombico/mojulo`, then `/plugin install mojulo@mojulo` ([plugins/mojulo](plugins/mojulo/README.md)). Use the plugin or `init`, not both. In ChatGPT: [Mojulo for ChatGPT](plugins/mojulo-chatgpt/README.md).
 
@@ -53,7 +53,35 @@ Open the dashboard on its own with `npx -y mojulo-ui`.
 
 ## What you can make
 
-### Levels and worlds
+Start small and go as far as you like: an object, then a character to hold it, a place to put them in, a world that moves, a game to play in it.
+
+### 3D objects
+
+| | |
+|---|---|
+| ![An oak dining table in an exploded view: the top lifted clear, the four aprons pulled out of the legs with their tenons showing, and the angle brackets and screws floating where they fasten](docs/images/oak-table-exploded.jpg) | !["Build a plywood chest of drawers, 900 wide, four drawers": the piece exploded into its parts, the panels nested on full sheets with the saw kerf, the hardware list, a tip-over warning, and the build order](docs/images/dresser-shop-sheet.png) |
+
+<sub>"Build an oak dining table and show me how it goes together." · "Build a plywood chest of drawers, 900 wide, four drawers."</sub>
+
+Anything you can describe, at its real size: a mug, a lamp, a bracket for your shelf, a Raspberry Pi case with standoffs on its mounting holes and cutouts for its ports. Furniture you can actually build, pulled apart to show how it goes together, with its cut list, hardware list and assembly order. Print it at true size, or keep it as an OpenSCAD program you go on editing.
+
+### Characters
+
+Heroes in a realistic, cartoon or anime look, with faces that act. Hair, clothes, armour, shoes and the gear they carry, all fitted to the body. Named heroes with their emblems, enemy crews, and animals mid-stride. Every character comes rigged and animated, ready for a game or for your 3D tools. More: [the realistic body](docs/realistic-body.md), [garments](docs/garment-principles.md), [armour](docs/plating.md).
+
+### Vehicles and props
+
+Karts, supercars and race machines, aircraft and boats, trains, walking mecha; the props that fill a room, and the weapons and gear a hero carries. More: [flight](docs/flight-games.md).
+
+### Rooms and buildings
+
+![A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it. The house is built from the picture, and the living room, the dining room and the big bedroom are designed; asked for sage green walls and the sofa facing the windows, the living room is repainted and rearranged, shown from eye level before and after; then a walkthrough of the three rooms is filmed](docs/images/decor-demo.gif)
+
+<sub>"We just moved in, here's our floor plan! Some ideas for how we could live in it?"</sub>
+
+Send a picture of your floor plan and you get your house, built to the inch, each room designed in a style, a palette and furniture at true size, with the walkways kept clear. Ask for sage green walls and you see the room before and after. Or start from a sentence: a six-storey building with a penthouse, a townhouse, an office, a lab or a warehouse.
+
+### Environments and levels
 
 | | |
 |---|---|
@@ -62,55 +90,23 @@ Open the dashboard on its own with `npx -y mojulo-ui`.
 
 <sub>Four levels of one military base, each with its own look: a hangar, barracks, a bunker armoury and a reactor plant.</sub>
 
-Places to play and explore, lit and dressed: a base to sneak through, an open world across a city's districts, caverns, a torch-lit dungeon, an island at any hour of the day, a planet. Rock, sand or snow underfoot, with forests and grass growing on it. Buildings stocked for what they are: bunks and footlockers in a barracks, weapon racks in an armoury, an extinguisher by every door. Cities at real scale in the style of New York, Paris, London or Tokyo, with traffic and people on the streets. Ask for the same place again and you get the same place, on any machine. More: [walled-core dungeons](docs/walled-core-dungeon.md), [quest open worlds](docs/quest-open-world.md).
+Places lit and dressed: a base to sneak through, caverns, a torch-lit dungeon, an island at any hour of the day, a planet, a historic city in its period ([docs/historic/README.md](docs/historic/README.md)). Rock, sand or snow underfoot, with forests and grass growing on it. Buildings stocked for what they are: bunks and footlockers in a barracks, weapon racks in an armoury, an extinguisher by every door. Cities at real scale in the style of New York, Paris, London or Tokyo. Ask for the same place again and you get the same place, on any machine.
+
+### Interactive worlds
 
 ![A city block with traffic: cars and a delivery truck at a crossing, traffic lights, power poles and palm trees, a playground beside a low building](docs/images/city-walkers-traffic.gif)
 
-### Characters
+Worlds you walk through in the browser, with traffic and people on the streets, day or night. Give them music and sound: a score and sound effects made from scratch, with no samples. Film them: flythroughs, a walkthrough of your rooms, and cutscenes with actors who play a role from a script, talk to each other and hit their marks, shot the way a director would cover them. More: [cinematics](docs/cinematics.md).
 
-Heroes in a realistic, cartoon or anime look, with faces that act: expressions, and a facial-capture take saved with its voice. Hair, clothes, armour, shoes and the gear they carry, all fitted to the body. Named heroes with their emblems, enemy crews, and animals mid-stride. Every character comes rigged and animated, ready for a game or for 3D tools. More: [the realistic body](docs/realistic-body.md), [garments](docs/garment-principles.md), [armour](docs/plating.md).
+### Playable games
 
-### Vehicles and props
+Ask for a game and you get one you can play: its levels, its hero, its enemies, how it plays and sounds, its cutscenes. You see the plan first and approve it. Stealth, racing, shooters, flight, fighting, rhythm, sports, board and strategy games, and a pen-and-paper RPG with its printed game book. Controls that feel right, enemies from grunts to a boss at the end, and two to four players on one screen. Every level is played through to its win before you get it.
 
-Karts, supercars and race machines, aircraft and boats, trains, walking mecha; the props that fill a level, and the weapons and gear a hero carries. More: [flight](docs/flight-games.md).
+It plays in the browser as it is, or as a desktop app that runs offline. For a team, its levels and assets open in Godot, Unity, Unreal or Blender, and handing it over again after a change keeps the team's own work in the scene. More: [foes](docs/foes.md), [local multiplayer](docs/local-multiplayer-principles.md), [the table RPG](docs/table-rpg.md), [sports broadcasts](docs/broadcast.md).
 
-### Gameplay
-
-How a game plays: stealth, racing, shooters, flight, fighting, rhythm, sports, board and strategy games, and a pen-and-paper RPG with its printed game book. Controls that feel right, moves and hit effects, and two to four players on one screen. Every level is played through to its win before you get it, so you never receive a race that cannot be finished. More: [local multiplayer](docs/local-multiplayer-principles.md), [the table RPG](docs/table-rpg.md), [sports broadcasts](docs/broadcast.md).
-
-### Enemies and bosses
-
-Who stands in each level and how hard they fight: grunts, harriers, elites and a boss at the end, each with its own attack, from wind-up to recovery. Enemy crews, beasts and oozes in your game's look. More: [foes](docs/foes.md).
-
-### Cutscenes and film
-
-Actors who play a role from a script, talk to each other, listen, and hit their marks. A boss's entrance, an arrival, two characters talking, shot the way a director would cover them. Flythroughs and recorded runs joined into a video. A picture of anything you are making, from any angle. More: [cinematics](docs/cinematics.md).
-
-### Music and sound
-
-A score and sound effects, made from scratch with no samples: an ambient loop for a level, a full track, the hits and pickups of a game.
-
-### Rooms, furniture and things to print
-
-![A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it. The house is built from the picture, and the living room, the dining room and the big bedroom are designed; asked for sage green walls and the sofa facing the windows, the living room is repainted and rearranged, shown from eye level before and after; then a walkthrough of the three rooms is filmed](docs/images/decor-demo.gif)
-
-<sub>"We just moved in, here's our floor plan! Some ideas for how we could live in it?"</sub>
-
-Send a picture of your floor plan and you get your house, built to the inch, with each room designed in a style, a palette and furniture at true size, walkways kept clear. Ask for sage green walls and you see the room before and after.
-
-| | |
-|---|---|
-| ![An oak dining table in an exploded view: the top lifted clear, the four aprons pulled out of the legs with their tenons showing, and the angle brackets and screws floating where they fasten](docs/images/oak-table-exploded.jpg) | !["Build a plywood chest of drawers, 900 wide, four drawers": the piece exploded into its parts, the panels nested on full sheets with the saw kerf, the hardware list, a tip-over warning, and the build order](docs/images/dresser-shop-sheet.png) |
-
-Furniture you can build, pulled apart to show how it goes together, with its cut list, hardware list and assembly order. Parts you can print at true size, like a Raspberry Pi case with standoffs on its mounting holes and cutouts for its ports, or written as an OpenSCAD program you keep editing.
-
-**Also:** a six-storey building with a penthouse, an office or a warehouse from a brief, a historic city in its period ([docs/historic/README.md](docs/historic/README.md)), a science world, a room's layout from a photo. More in [docs/tour.md](docs/tour.md).
+**Also:** a science world, a room's layout from a photo, a picture of anything you are making from any angle. More in [docs/tour.md](docs/tour.md).
 
 ---
-
-## Make it a game
-
-Ask for a game and the pieces come together as one: its levels, its hero, its enemies, how it plays and sounds, and its cutscenes. You see the plan first and approve it. You get a game that plays in the browser as it is, or as a desktop app that runs offline. For a team, the same levels and assets go to Godot, Unity, Unreal or Blender as a project the engine opens, and handing it over again after a change keeps the team's own work in the scene.
 
 ## Take it with you
 
