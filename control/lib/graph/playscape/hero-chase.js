@@ -24,8 +24,9 @@ export function chaseFor(F) {
 /** The follow rule's settings for a person's chase: { dist, height, lookH, lead }. */
 export const HERO_CHASE = chaseFor(FRAME);
 
-/** A PARTY RPG's chase (figure-grades.js: its people at the play grade): pulled back and up, the hero about a tenth of
- * the frame across instead of a fifth, the road ahead and the town round it read; the eye about twice as far, looking
- * down a little more, at the same chest. */
-export const PARTY_FRAME = Object.freeze({ behind: 9.5, eyeH: 5.4, lookH: 1.1, lead: 2 });
+/** A PARTY RPG's chase (figure-grades.js: its people at the play grade): pulled back and up, the hero about an eighth of
+ * the frame across instead of a fifth, the party behind it and the road ahead read; the eye half as far again and higher,
+ * looking down a little more, at the same chest. (2026-11-06: first laid at 9.5 m behind and 5.4 m up, a tenth of the
+ * frame; pulled in once the frame held its time.) */
+export const PARTY_FRAME = Object.freeze({ behind: 7.5, eyeH: 4.4, lookH: 1.1, lead: 2 });
 export const PARTY_CHASE = chaseFor(PARTY_FRAME);

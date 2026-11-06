@@ -888,10 +888,15 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   if (joiners.length) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities], pilot = entities[0], h = ends.heading;
     // (on the pilot's own side when it has one: a team game's; else a side of their own)
-    const side = pilot.team ?? 'party';
+    const side = pilot.team ?? 'party', fights = laidBattles(G).battles, partyBattles = !!(fights && fights.on !== 'board');
     joiners.forEach((p, i) => {
       figures[p.id] ??= fieldFigure(p.ref, castFigures?.[p.id]);
-      const rule = { type: 'ai', mind: { motivation: 'escort' }, escort: pilot.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) };
+      // (a PARTY RPG's party, its fights the arena's: each member walks the map behind the hero and never fights on it,
+      // finds its way round walls by the navmesh, and stops at its own distance so the party trails in a file; the bodies
+      // pass through each other, none holding another up. Any other escort keeps its fight and its one distance)
+      const rule = partyBattles
+        ? { type: 'ai', mind: { motivation: 'escort', aggressiveness: 'passive', pathing: 'navmesh' }, escort: pilot.id, followDist: r3(2 + i * 1.1), eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) }
+        : { type: 'ai', mind: { motivation: 'escort' }, escort: pilot.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) };
       const k = entities.findIndex((e) => e.id === p.id);
       if (k >= 0) {
         // one the story stands here: waits at its stand until it joins, or (with the pilot from the start) follows at once

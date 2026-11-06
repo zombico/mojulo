@@ -20,3 +20,13 @@
 - **A party RPG's chase pulled back.** A world that fights in party battles plays its hero from `PARTY_CHASE`
   (hero-chase.js `chaseFor`, the hero's own chase built the same way): the eye about twice as far and higher, the hero a
   tenth of the frame across instead of a fifth, the road and the town round it read; every other world's chase as it was.
+- **The party walks again, and the chase comes in a little.** A party RPG's party walks the map behind the hero (the
+  world's `battles.followers`, the default): each member finds its way round walls by the navmesh, never fights on the
+  map (the arena holds the fights), and stops at its own distance, so the party trails in a file; the bodies pass through
+  each other. The party's chase is pulled in to 7.5 m behind and 4.4 m up, the hero an eighth of the frame across.
+- **The grass is laid round what the camera frames.** A follow camera's eye stands back from its subject, and the live
+  field measured every distance from the eye: on a chase 12 m back the hero's own ground was already past the field's
+  near and thinned, and the field ended a few metres ahead of it. The field, the far grass and the static cards now
+  measure past the chase's stand-off (its eye to its look point), the contact bed lies round the subject, and the field
+  is laid again every 40 cm, not 75, so a tuft at a share's edge grows a step at a time. A walker's eye stands off
+  nothing: first person reads as it did.
