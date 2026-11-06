@@ -7,7 +7,7 @@
  *                `sparkle`, and an fx `burst` on collect (the pickup pops out of existence). The
  *                mechanic's own box marker is SUPPRESSED (the glyph replaces it).
  *   - supplies → a `heart` (health) or `orb` (rounds) glyph at each, floating, burst when taken.
- *   - reach-exit → a `flag` glyph at the goal + a green `aura` beacon.
+ *   - reach-exit → a `flag` glyph at the goal + a green `aura` beacon (none for one with `marker: false`).
  *   - hazard-damage → a red danger `aura` at each hazard (a pulsing "stay away").
  * survive / fail-on-death are stateful, not spatial → no world decoration (their HUD is enough).
  *
@@ -81,7 +81,8 @@ export function decorateMechanics(mechanics, ctx = {}) {
         on[zone] = { gesture: 'burst', target: gid };
         suppress.push(zone);
       });
-    } else if (m.kind === 'reach-exit') {
+    } else if (m.kind === 'reach-exit' && m.marker !== false) {
+      // (marker: false, an exit the place itself shows the way to: a party RPG's road or door, no flag over it)
       const at = Array.isArray(m.at) ? m.at : [0, 0, 0];
       entities.push({ id: `dec_exit_${i}`, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'flag' } });
       sfx.push({ verb: 'aura', at, color: [0.25, 1.0, 0.45], params: { base: 0.3, pulse: 0.35, r: 1.0, cz: 1.0 } });

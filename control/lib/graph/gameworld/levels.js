@@ -45,7 +45,7 @@ import { readScreen } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
-import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
+import { sceneFlags, sceneNeeds, FLAGS_READY, flagVar } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
 import { complexRoute, complexLaws } from '../network/complex.js';
@@ -102,8 +102,9 @@ function armedPilot(G, entity, cam) {
   };
 }
 const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
-import { feelRule, readFeel, TAKES } from './feel/lower.js';
+import { feelRule, readFeel, TAKES, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
 import { reachOf } from './feel/reach.js';
+import { laidCasting, laidJoins } from './casting.js';
 import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse } from './course.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
@@ -235,8 +236,10 @@ function startingGrants(G) {
   if (!A?.powers?.length) return [];
   const keyed = new Set(powerKeys(G).map((p) => p.id)), staged = (A.progression ?? []).length > 0;
   const early = new Set(staged ? (A.progression.find((s) => s.stage === 'early')?.gains ?? []) : A.powers.map((p) => p.id));
-  return A.powers.filter((p) => p.move && early.has(p.id) && !keyed.has(p.id)).map((p) => p.move);
+  return A.powers.filter((p) => p.move && early.has(p.id) && !keyed.has(p.id)).map((p) => ({ move: p.move, ...(p.element ? { element: p.element } : {}), ...vayoTune(G, p.move) }));
 }
+// a vayo move's tuning by the game's feel card (feel/lower.js feelVayo): only a power that grants one reads it
+const vayoTune = (G, move) => { if (!G.feel || !String(move).startsWith('vayo-')) return {}; const t = feelVayo(feelCard(G.feel)); return t ? { tune: t } : {}; };
 // THE LATER POWERS' MOVES: a power with a `move` gained after the starting stage (not one that keys a map's door) is the
 // hero's the moment its node is gained (the stats' `bought`), and from the start of a level where it already is
 // (game.powers `bought`, scene/channels/game.js). → [{ id, move }]
@@ -244,13 +247,13 @@ function laterGrants(G) {
   const A = G.characters?.hero?.actions, prog = A?.progression ?? [];
   if (!A?.powers?.length || !prog.length) return [];
   const keyed = new Set(powerKeys(G).map((p) => p.id)), early = new Set(prog.find((s) => s.stage === 'early')?.gains ?? []);
-  return A.powers.filter((p) => p.move && !early.has(p.id) && !keyed.has(p.id) && prog.some((s) => s.gains.includes(p.id))).map((p) => ({ id: p.id, move: p.move }));
+  return A.powers.filter((p) => p.move && !early.has(p.id) && !keyed.has(p.id) && prog.some((s) => s.gains.includes(p.id))).map((p) => ({ id: p.id, move: p.move, ...(p.element ? { element: p.element } : {}), ...vayoTune(G, p.move) }));
 }
 function withMoves(P, moves, grants = []) {
   if (!moves && !grants.length) return P;
   const figures = moves ? Object.fromEntries(Object.entries(P.figures || {}).map(([k, f]) => [k, { ...f, ...(f.clips ? { clips: traversalStates(f.clips) } : {}) }])) : P.figures;
   // (each grant over the rule as it stands: a high jump the hero's own half as high again, a second jump at least one)
-  const grant = (rule) => grants.reduce((r, m) => { const g = TRAVERSAL_MOVES[m].rule(r); return { ...r, ...g, ...(g.airJumps ? { airJumps: Math.max(r.airJumps ?? 0, g.airJumps) } : {}) }; }, rule);
+  const grant = (rule) => grants.reduce((r, m) => { const g = TRAVERSAL_MOVES[m.move ?? m].rule(r, m); return { ...r, ...g, ...(g.airJumps ? { airJumps: Math.max(r.airJumps ?? 0, g.airJumps) } : {}) }; }, rule);
   return { ...P, figures, entities: P.entities.map((e, i) => (i === 0 ? { ...e, rule: grant({ ...e.rule, ...(moves ?? {}) }) } : e)) };
 }
 // a hero runs and walks with Z held (player.js HERO_WALK_RUN); a mascot pilot runs on its own clips, and a hero with the
@@ -269,7 +272,7 @@ function cityLevelOrder(G, stage, { title, map = null, cityRefs = {}, heroRef = 
   // power keys' moves ride as grants in metres, turned into the city's units where it is lowered
   const found = map ? [...(map.keys ?? []).map((item) => ({ item, into: 'bag' })), ...(map.powers ?? []).map((item) => ({ item, into: 'powers' }))] : [];
   const pk = map ? powerKeys(G) : [];
-  const powers = pk.length ? Object.fromEntries(pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule({ jumpSpeed: CITY_HERO.rule.jumpSpeed })])) : null;
+  const powers = pk.length ? Object.fromEntries(pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule({ jumpSpeed: CITY_HERO.rule.jumpSpeed }, { ...p, ...vayoTune(G, p.move) })])) : null;
   const ways = map ? [...map.on.map((w) => ({ id: w.id, to: w.to, at: 'end', ...(w.gate ? { gate: w.gate } : {}) })), ...map.back.map((w) => ({ id: w.id, to: w.to, at: 'start' }))] : [];
   const refs = Object.fromEntries(Object.entries(cityRefs).filter(([id]) => id !== stage.node));
   const hero = stage.city.stalker ? { hero: { ...(heroRef ? { ref: heroRef } : {}), ...(heroRef && heroGaits ? { gaits: heroGaits } : {}) } } : {};
@@ -615,7 +618,7 @@ function withBookUi(G, play) {
 function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
-  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, story, carryFrom, party, castFigures });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
@@ -818,7 +821,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   if (pk.length || later.length) {
     if (pk.length) game.consumes = [{ slice: 'powers' }];
     const base = heroRef ? pilotPart.entities[0].rule : null;
-    const grants = Object.fromEntries(base ? [...pk, ...later].filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base)]) : []);
+    const grants = Object.fromEntries(base ? [...pk, ...later].filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base, { ...p, ...vayoTune(G, p.move) })]) : []);
     if (Object.keys(grants).length) game.powers = { ...(pk.length ? { slice: 'powers' } : {}), target: pilotPart.entities[0].id, grants, ...(later.length ? { bought: HOLDER } : {}) };
     // a power that gives the wall or the line: the pilot's figure plays their states' fallbacks from the start
     if (Object.values(grants).some((g) => g.wall || g.gear) && pilotPart.figures) pilotPart = { ...pilotPart, figures: Object.fromEntries(Object.entries(pilotPart.figures).map(([k, f]) => [k, f && f.clips ? { ...f, clips: traversalStates(f.clips) } : f])) };
@@ -902,7 +905,9 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   const arrivals = [];
   for (const p of party ?? []) {
     if (p.walks === false && p.joins) members.push({ who: p.id, joins: p.joins });
-    if (p.joinsAt === stage.level && (stage.index ?? 0) === 0 && p.joins) arrivals.push({ id: `party-${p.id}-arrives`, when: { start: true }, then: [{ emit: `flag:${p.joins}` }, { say: `${p.name ?? p.id} joins the party`, as: 'toast' }] });
+    // (once the carried flags are in, and only if the member has not joined already: one the story joins earlier, as
+    // its quest is given, is not said twice)
+    if (p.joinsAt === stage.level && (stage.index ?? 0) === 0 && p.joins) arrivals.push({ id: `party-${p.id}-arrives`, when: { on: FLAGS_READY }, if: [{ var: flagVar(p.joins), eq: 0 }], then: [{ emit: `flag:${p.joins}` }, { say: `${p.name ?? p.id} joins the party`, as: 'toast' }] });
   }
   if (joiners.length) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities], pilot = entities[0], h = ends.heading;
@@ -1001,7 +1006,7 @@ export function powerKeys(G) {
   if (G.topology !== 'interconnected') return [];
   const powers = G.characters?.hero?.actions?.powers ?? [];
   const keyed = new Set(G.links.filter((l) => l.key).map((l) => l.key));
-  return powers.filter((p) => keyed.has(p.id)).map((p) => ({ id: p.id, move: p.move ?? null }));
+  return powers.filter((p) => keyed.has(p.id)).map((p) => ({ id: p.id, move: p.move ?? null, ...(p.element ? { element: p.element } : {}) }));
 }
 
 export function mapPlan(G, stages, refs) {
@@ -1020,7 +1025,8 @@ export function mapPlan(G, stages, refs) {
     if (!a.length || !b.length) continue;
     const last = a[a.length - 1], first = b[0];
     const slice = isPower.has(l.key) ? 'powers' : 'bag';
-    plan[last].on.push({ to: refs[first], ...(l.key ? { gate: { has: l.key, slice } } : {}) });
+    // (a way the story opens, needs: shut on its page and in the shell until the quest's flag is set)
+    plan[last].on.push({ to: refs[first], ...(l.key ? { gate: { has: l.key, slice } } : l.needs ? { gate: { flag: l.needs, slice: STORY_SLICE }, needs: l.needs } : {}) });
     plan[first].back.push({ to: refs[last] });
     if (l.key) { const at = of(l.keyAt); plan[at[at.length - 1]][slice === 'powers' ? 'powers' : 'keys'].push(l.key); }
   }
@@ -1050,7 +1056,7 @@ function stageWays(stage, ends, plan) {
   const mechanics = [], arrive = [];
   for (const w of [...plan.on, ...plan.back]) {
     const s = spot.get(w);
-    mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }) });
+    mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }), ...(w.needs ? { needs: w.needs } : {}) });
     if (s.arrive) arrive.push({ from: w.to, at: s.arrive });
   }
   // the keys found here, on a beat of their own: items into the bag, powers into `powers` (one row of pickups)
@@ -1094,7 +1100,9 @@ export function gameStore(world, book) {
   else if (G.ids.some((id) => G.levels[id].goal?.collect)) slices.push({ name: 'bag', kind: 'inventory' });
   if (pk.size) slices.push({ name: 'powers', kind: 'inventory' });
   // the world's scenes read and set flags: a story slice carries them from level to level
-  if (storyCarried(G)) slices.push({ name: STORY_SLICE, kind: 'flags' });
+  // (and the party's flags the run lays when the book gives none, casting.js laidJoins: a member joining on its level
+  // carries the story slice, so the store declares it)
+  if (storyCarried(G) || storyCarried(laidCasting(laidJoins(G).G))) slices.push({ name: STORY_SLICE, kind: 'flags' });
   // the world remembers what broke (a game that lets things break): each level keeps its breaks here
   if (book?.mechanics?.destruction && book.mechanics.destruction !== 'none') slices.push({ name: AFTERMATH_SLICE, kind: 'flags' });
   // party battles (battles.js): the party, its levels, classes and skills, carried from level to level
@@ -1149,7 +1157,17 @@ function inPalette(manifest, P, at) {
 
 /** The stage a building level is built as (its program on its kit, in its palette): what a run makes and what the book
  *  shows its finishes from (finishes.js); null for a building by ref, played as it was made. */
-export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : R.building.complex ? complexStage(R.building) : inPalette(buildingStage(R.building), R.style?.palette ?? G.style?.palette, `${level}/building`));
+export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : R.building.complex ? complexStage(R.building) : inPalette(buildingStage(partyScaled(G, R.building)), R.style?.palette ?? G.style?.palette, `${level}/building`));
+
+/** THE PARTY'S DUNGEON IS LAID LARGER (a principle): a world that fights in party battles on its levels lays its
+ * building levels' rooms DUNGEON_SCALE times a walker's, so a party and its foes stand in a room with room to spare and
+ * the fight's camera stands back inside it (rpg-channel.js's arena) rather than being cut away to; a building on a
+ * core plan (an office, a base) keeps its own, as does a building that writes its rooms' sizes. */
+export const DUNGEON_SCALE = 2;
+function partyScaled(G, B) {
+  const fights = laidBattles(G).battles, shape = PROGRAMS[B.use]?.shape;
+  return fights && fights.on !== 'board' && shape && shape !== 'core' && B.look === undefined && !PROGRAMS[B.use]?.base ? { ...B, scale: DUNGEON_SCALE } : B;
+}
 
 /** What a world's complex levels advise (network/complex.js complexLaws): each law that does not hold, by level, and
  *  what it measured and wants. A level its world cannot resolve says so elsewhere; here it says nothing. */
@@ -1204,7 +1222,7 @@ export function buildingStage(B) {
   // walled-core dungeon's space it is, else by its kit's own register; its space's tone colours it)
   const composed = look || PROGRAMS[use]?.base ? { compose: look ? { construction: look.construction, palette: look.palette } : {} } : {};
   // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
-  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
+  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays', 'scale'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
     kind: 'stage',
     ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),
@@ -1228,10 +1246,13 @@ function parkedOf(G, word, rooms) {
   return parkIn(room, P.vehicles, { seed: Number.isInteger(G.seed) ? G.seed : 1, livery, wear: P.wear });
 }
 
-function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, goalCast = null, extra = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
-  const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
-  let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
-  const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
+/**
+ * A building level's ends, as a trail's are (stageEnds): its way in, the rooms between it and the goal room standing in
+ * for a trail's beats, its exit the goal room; `bossAt` (the goal room's floor), `rooms`, `use` and `via` beside them,
+ * not data. `lowered`: the stage's level as withBuildingLevel lowers it (else lowered here, for a plan to read its room).
+ */
+export function buildingEnds(stage, lowered = withBuildingLevel({ ...stage.manifest }, 'ends')) {
+  const walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
   const spawn = [walker.transform.pos[0], walker.transform.pos[1], r3(walker.transform.pos[2] - eye)], heading = walker.transform.heading;
   // the rooms between the way in and the goal stand in for a trail's beats: a quick goal's pickups lie in them
   // (on storeys, each at its room's floor; a complex's, every building's, its own name before each room's)
@@ -1250,6 +1271,16 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   Object.defineProperty(ends, 'use', { value: stage.building.use, enumerable: false });
   // (its route to the goal room, through the doorways and up the flights: an escape room's keys lie on it, escape.js)
   Object.defineProperty(ends, 'via', { value: lowered.game.mechanics.at(-1).via ?? null, enumerable: false });
+  return ends;
+}
+
+function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
+  const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
+  let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
+  const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0];
+  const ends = buildingEnds(stage, lowered), { spawn, heading } = ends;
+  const cx = stage.manifest.complex !== undefined ? complexRoute(stage.manifest) : null;
+  const plan = cx ? null : withProgram(stage.manifest);
   // its parked vehicles (building.parked, vehicle-registry/parked.js): in its hangar, else its largest room, painted as its
   // foes' faction dresses, else in its setting's camo, stamped into the level's manifest. Absent ⇒ byte-identical
   if (stage.building?.parked !== undefined) {
@@ -1285,7 +1316,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // (or third person), the hero's own chase, every arg as it was
   const cam = G.camera ?? null, top = cam === 'top-down';
   if (cam === 'side') throw new Error(`levels: a side camera runs a trail's lane, and '${stage.level}' is a building with none; play it top-down, fixed or third-person`);
-  const controls = `${top ? `W A S D  move${!pilot && !moves?.gear ? ' · Z  walk' : ''}` : `${walkRun(pilot, moves?.gear ? 'F ' : '')} · A / D  turn`} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const controls = `${top ? `W A S D  move${!pilot && !moves?.gear ? ' · Z  walk' : ''}` : `${walkRun(pilot, moves?.gear ? 'F ' : '')} · A / D  turn`} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : {}), ...(strikeWindow(G, null) ?? {}) };
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];

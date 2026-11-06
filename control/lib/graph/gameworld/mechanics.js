@@ -233,7 +233,7 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
   const powers = seed.verbs.map((v, i) => {
     const ix = stageIx(stageOf.get(v.id)), p = actions.powers.find((x) => x.id === v.id) ?? {};
     const look = LOOKS[p.look] ? p.look : LOOKS[p.element?.toLowerCase()] ? p.element.toLowerCase() : null;
-    return { id: v.id, ...(KEYS.powers[i] ? { key: KEYS.powers[i] } : {}), ...(res ? { spends: { [res]: 10 * S.cost * (ix + 1) } } : {}), ...(look ? { look } : {}), ...(p.attack ? { attack: p.attack, hurt: { stat: 'power', per: r2(1 + 0.2 * ix) } } : {}) };
+    return { id: v.id, ...(KEYS.powers[i] ? { key: KEYS.powers[i] } : {}), ...(res ? { spends: { [res]: 10 * S.cost * (ix + 1) } } : {}), ...(look ? { look } : {}), ...(p.attack ? { attack: p.attack, hurt: { stat: 'power', per: r2(1 + 0.2 * ix) } } : {}), ...(p.attack && (p.kinetic || p.impact) ? { knock: { ...(p.kinetic ? { kinetic: p.kinetic } : {}), ...(p.impact ? { impact: p.impact } : {}) } } : {}) };
   });
   for (const p of powers) if (!p.key) open.push(`power '${p.id}' has no key: only ${KEYS.powers.length} powers are on the keys`);
   // the creator's own spend over the derived, ledgered; a power the actions do not have is open, never thrown
@@ -265,7 +265,7 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
     then: [...(p.spends ? [{ grant: { res, by: -p.spends[res] } }] : []), ...(p.look ? [{ status: { who: HOLDER, is: p.id, look: p.look, for: 1.5 } }] : []),
       // (an attack lands: its beam from the hero's hand at the nearest foe in front, taking the hero's power × its per)
       // (its hurt the hero's power stat as it fires, raised by every level, × its per; the stat's base where no body holds it)
-      ...(p.hurt && p.attack ? [{ beam: { who: HOLDER, to: { nearest: POWER_REACH }, is: p.attack, hurt: { by: 'power', per: p.hurt.per, base: r2(statsOut.stats.find((x) => x.id === p.hurt.stat)?.base * p.hurt.per || p.hurt.per) } } }] : []),
+      ...(p.hurt && p.attack ? [{ beam: { who: HOLDER, to: { nearest: POWER_REACH }, is: p.attack, hurt: { by: 'power', per: p.hurt.per, base: r2(statsOut.stats.find((x) => x.id === p.hurt.stat)?.base * p.hurt.per || p.hurt.per) }, ...(p.knock ? { knock: p.knock } : {}) } }] : []),
       { say: p.id, as: 'toast' }],
   })), ...(play.menus ? [{ id: 'open-status', when: { on: 'status' }, then: { open: 'status' } }] : [])];
   const legend = [...powers.filter((p) => p.key).map((p) => `${p.key} ${p.id}`), ...(play.menus ? [`${KEYS.status.toUpperCase()} status`] : [])].join(' · ');

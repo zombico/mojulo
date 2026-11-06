@@ -61,3 +61,44 @@
   page whose fights ask for it), and put back where they stood when it ends: a party RPG's battle background, the way
   the genre has drawn them. The encounter, its transition in and its scene out stay the same on either stage, so an
   action game keeps its fights live on the same map.
+- **A fight solved onto the map** (`battles.rules.stage: 'arena'`). A place near where the pack was met is solved for
+  the fight: candidates round the meeting along several fight lines, each scored by how level its fighters' ground is,
+  what stands on their places (the world's colliders), how far from the meeting, and whether a camera on the party's side
+  (the party on the left) sees every fighter past the ground. The party stands in an echelon and the pack in a wedge on
+  the map's own ground, facing across, under a fixed camera; what stands in the arena and in the corridor from the camera
+  to it (trees, rocks, grass: every group but the land) is cut away for the fight (`window.__mojClip`, emitted only for
+  such a page) and back after. The scene is the background: no arena is drawn for it.
+- **Battles in a building: the dungeon fights.** A building level is fought (`FOUGHT`): its packs stand in the rooms its
+  way passes through to its goal room (one spot a room, two in a long one, none at the goal room's threshold, none in a
+  room off the way), and its boss in the goal room, met before the room's exit is reached (`levels.js buildingEnds`,
+  the building's ends as a trail's). The packs' ladder is walked in the order the main quest plays its levels (the plains
+  before the woods before the dungeon), not the order the world writes them. An encounter met in a room carries it
+  (`encounters[].room`), and an arena stage holds the fight to it: along the room's length, its places drawn in between
+  its walls, its ground read from the floor (never the roof), and the room's contents, its near wall and its roof toward
+  the camera cut away, its far walls the fight's background. The clearing reaches a group's textured faces (a room's
+  brick walls are those), the camera stands on the room's side with no one else behind it, and whoever is not in the
+  fight and stands in what is cleared (a pack still to meet, a marker) is out of the shot till it ends.
+- **A chapter asked for as one.** `req: { unit: 'act:<id>' }` raises ONE req for a main quest act: its first level the
+  unit, its other levels (in the order its quests play them: the town, the outskirts, the dungeon) and the departments
+  its beats bring (battles, story, foes) its crew, an author each; its remit from the quest (the act's place, its quests
+  in order, in and out, the loop), the director's words winning. Its received gate waits on every level's stages, its
+  probe plays each level (`mergeVerdicts`: a check holds where it holds on every level, said level by level), and once
+  accepted every level it holds is in the game.
+- **A party's dungeon is laid larger, its exits unmarked, its arches laid in stones.** A world that fights in party
+  battles lays its building levels' rooms twice a walker's (`DUNGEON_SCALE`; a program's new `scale`: the template's
+  rooms that many times as long and wide, taller by its root, the recipe's own sizes its own; a core-plan building
+  keeps its plan), so the fight's camera stands back inside a room rather than cutting its way to it. Its exits carry
+  `marker: false`, and the decoration leaves them without the flag and beacon: the road or the door shows the way on.
+  An archivolt (`arches.js archRing`) is laid as voussoirs, an odd count of wedge stones about 45 cm round the ring,
+  mortar joints between them and the keystone at the crown standing prouder and higher, where it was one band.
+- **The boss's fall sets a flag.** `battles.sets: '<flag>'` names the story flag the boss's pack's win sets (a cue on its
+  `rpg-won`), carried on as every flag is: a quest's last step done by it, a moment after it. The story's `unset` counts
+  it. Three of chapter 1's authors asked for it (the shrine quest's last step had nothing to complete it).
+- **A won pack stays won; a way the story opens.** Chapter 1's critics found the map forgot its fights: a pack's win was
+  the page's alone, so a way walked back stood every pack again. On a page that carries flags, a won pack sets
+  `won-<pack>` as it falls, and a page it is carried into clears that pack at once (`rpg.js wonFlag`). And a link may
+  take `needs: '<flag>'`, a quest's flag: the way is shut until the story sets it, in the shell (the exit's flag gate)
+  and on its page (the exit's reach waits on the flag's var), so a dungeon is not walked into before its quest is given.
+- **A member joined by the story is not joined twice.** The default arrival (the dungeon's quest's member, as its level
+  starts) waits for the carried flags and plays only if the member has not joined yet: one the story joins as the quest
+  is given in town is not toasted again at the dungeon's door.

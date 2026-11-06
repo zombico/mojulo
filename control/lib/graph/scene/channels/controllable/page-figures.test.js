@@ -85,3 +85,18 @@ describe('the encounter\'s backdrop', () => {
     expect(not).not.toContain('__mojBackdrop');
   });
 });
+
+describe('the arena\'s clearing', () => {
+  it('is on a page whose fights are solved onto the map, and only there', async () => {
+    const { emitThreeWorld } = await import('../../scene-three.js');
+    const ENT = [{ id: 'hero', body: { type: 'box' }, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }];
+    const page = (stage) => emitThreeWorld({ faces: [], entities: ENT, events: { reactions: [{ on: 'rpg-won', do: 'emit', type: 'cheer' }], rpg: { party: [{ id: 'hero', class: 'fighter' }], rules: { stage } } } });
+    expect(page('arena')).toContain('window.__mojClip = {');
+    // (and the page's module still parses: its shader strings escaped in the emitted script)
+    const { spawnSync } = await import('node:child_process');
+    const html = page('arena'), mod = html.slice(html.indexOf('<script type="module">') + 22, html.lastIndexOf('</script>'));
+    const check = spawnSync(process.execPath, ['--input-type=module', '--check'], { input: mod, encoding: 'utf8' });
+    expect(check.stderr).toBe('');
+    expect(page('live')).not.toContain('window.__mojClip = {');
+  });
+});

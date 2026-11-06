@@ -18,7 +18,8 @@ import { beamSpecs, beamScript } from './beam-channel.js';
 import { fxLightScript } from '../effect-light.js';
 import { rimScript } from '../effect-rim.js';
 import { swingTrailScript } from './trail-channel.js';
-import { styleEvents } from '../effect-style.js';
+import { styleEvents, styleExplosion } from '../effect-style.js';
+import { EXPLOSIONS } from '../../playscape/elements/explosions.js';
 import { juiceFloor } from '../juice-style.js';
 import { listensForHits } from '../../playscape/ui/cast.js';
 import { buildStats } from '../../playscape/stats/kernel.js';
@@ -212,7 +213,10 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   // the style floor (`fxStyle`, scene/effect-style.js): every beam and explosion raised to it before the page reads them;
   // a composed one (juice-style.js: the game's register and its game type's time) at its own numbers
   const fxs = events0 && events0.fxStyle;
-  const events = fxs === true ? styleEvents(events0) : fxs && typeof fxs === 'object' ? styleEvents(events0, juiceFloor(fxs)) : events0;
+  const floor = fxs && typeof fxs === 'object' ? juiceFloor(fxs) : null;
+  const events = fxs === true ? styleEvents(events0) : floor ? styleEvents(events0, floor) : events0;
+  // on the flow (rupa-vayo, a composed floor's `flow`): the world's bursts go off as the flow's blast, its air the world's wind
+  const flowBlast = floor && floor.flow ? styleExplosion(EXPLOSIONS.blast, 'blast', floor) : null;
   const { widgets } = normalizeHud(events.hud, { register: events.register });   // the title rows dressed by the play direction's register
   const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
   const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
@@ -227,7 +231,8 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const trs1 = Array.isArray(events.vanish) ? [...trs0, ...events.vanish.filter((k) => FADE_KINDS.includes(k) && !trs0.includes(k))] : trs0;
   // and how a summoner's summons arrive (`arrive`, the transits its call lays: worlds/controllable/summon.js)
   const trs = Array.isArray(events.arrive) ? [...trs1, ...events.arrive.filter((k) => !trs1.includes(k))] : trs1;
-  const mos = cast ? momentKinds(events) : [];   // the moments its cues put down (a puff's kinds, the camera's shake)
+  const mos0 = cast ? momentKinds(events) : [];   // the moments its cues put down (a puff's kinds, the camera's shake)
+  const mos = flowBlast && !mos0.includes('explosion') ? [...mos0, 'explosion'] : mos0;
   const bms = cast ? beamSpecs(events) : [];   // the attacks its cast fires
   // the effect light (`fxLight`, scene/effect-light.js): what its beams and moments throw on the world. Absent ⇒ none
   // the effect rim (a composed floor's `rim`, scene/effect-rim.js): the characters lit at their edges by the same lights, so
@@ -238,22 +243,22 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   const trailOn = !!(cast && events.trail && events.trail.life > 0);
   // a composed style floor's drawings a second on the moments it styled (a puff's spec, a beam's impact, a battle's)
   const fpsOf = (X) => !!(X && X.fps), rpgBeams = Object.values((events.rpg && events.rpg.juice && events.rpg.juice.fx && events.rpg.juice.fx.beams) || {});
-  const mfps = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? fpsOf(r.spec) : r.op === 'beam' && r.spec ? fpsOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => fpsOf(B.impactSpec)));
+  const mfps = (flowBlast && !!flowBlast.fps) || mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? fpsOf(r.spec) : r.op === 'beam' && r.spec ? fpsOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => fpsOf(B.impactSpec)));
   // and its cel glyphs (a cel look's flat puffs and bands)
   const celOf = (X) => !!(X && Array.isArray(X.parts) && X.parts.some((p) => CEL_GLYPHS.includes(p.glyph)));
-  const mcel = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? celOf(r.spec) : r.op === 'beam' && r.spec ? celOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => celOf(B.impactSpec)));
+  const mcel = (flowBlast && celOf(flowBlast)) || mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? celOf(r.spec) : r.op === 'beam' && r.spec ? celOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => celOf(B.impactSpec)));
   // and its auras (a cel look's blast drawn as spirit onions)
   const auraOf = (X) => !!(X && X.aura);
   const maura = mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? auraOf(r.spec) : r.op === 'beam' && r.spec ? auraOf(r.spec.impactSpec) : false)) || rpgBeams.some((B) => auraOf(B.impactSpec)));
   // and a fidelity's: its voxel glyph, its light's pool, its bloom (scene/juice-style.js JUICE_FIDELITIES)
   const usesX = (test) => mos.length > 0 && ((events.reactions || []).some((r) => r && (r.op === 'puff' ? test(r.spec) : r.op === 'beam' && r.spec ? test(r.spec.impactSpec) || test(r.spec) : false)) || rpgBeams.some((B) => test(B.impactSpec)));
   const mvox = usesX((X) => !!(X && ((Array.isArray(X.parts) && X.parts.some((p) => VOXEL_GLYPHS.includes(p.glyph))) || (X.sparks && VOXEL_GLYPHS.includes(X.sparks.glyph)))));
-  const mpool = usesX((X) => !!(X && X.pool)), mbloom = usesX((X) => !!(X && X.bloom));
-  const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}), ...(mcel ? { cel: true } : {}), ...(maura ? { aura: true } : {}), ...(mvox ? { voxel: true } : {}), ...(mpool ? { pool: true } : {}), ...(mbloom ? { bloom: true } : {}) }) : '';
+  const mpool = !!(flowBlast && flowBlast.pool) || usesX((X) => !!(X && X.pool)), mbloom = !!(flowBlast && flowBlast.bloom) || usesX((X) => !!(X && X.bloom));
+  const moments = mos.length ? momentScript(mos, { fx: fxl, ...(mfps ? { fps: true } : {}), ...(mcel ? { cel: true } : {}), ...(maura ? { aura: true } : {}), ...(mvox ? { voxel: true } : {}), ...(mpool ? { pool: true } : {}), ...(mbloom ? { bloom: true } : {}), ...(floor && floor.flow ? { flow: { wind: events.flowWind || [0, 0], blast: flowBlast } } : {}) }) : '';
   const beams = bms.length ? beamScript(bms, { fx: fxl }) : '';
   // and its destroyed bodies (`wreck`, a downed body's destruction the world-scene lays: wreck-channel.js), cast or not
   const wreck = events.wreck === true, layer0 = events.layer0 === true;   // (and its layer-0 foes: their looks on the body they wear now, docs/foes.md)
-  const status = els.length || trs.length || wreck ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs, { ...(wreck ? { wreck } : {}), ...(layer0 ? { layer0 } : {}) }) : '';
+  const status = els.length || trs.length || wreck ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs, { ...(wreck ? { wreck } : {}), ...(layer0 ? { layer0 } : {}), ...(floor && floor.flow ? { flow: { wind: events.flowWind || [0, 0] } } : {}) }) : '';
   const scenes = Array.isArray(events.scenes) && events.scenes.length > 0;   // play.scenes: the runner, the bars, the box
   const quests = Array.isArray(events.quests) && events.quests.length > 0;   // play.quests: the journal
   const rpg = !!(events.rpg && typeof events.rpg === 'object');   // play.rpg: party battles and the party menu

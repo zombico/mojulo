@@ -493,6 +493,188 @@ own id); a shell house is its id (or its anchor's, `house-<id>`). The builder is
 use these, so every other page keeps its bytes. The breaks run inside the world's own step, at frame grain, seeded, so
 the same triggers give the same world.
 
+## Effects on the flow (rupa-vayo)
+
+The game's juice (its blasts, its power-ups) can move the way the world's air moves them, opt-in on a composed effect
+style: `fxStyle: { flow: true, … }` (any look or flavor). A style without `flow` keeps every byte.
+
+Nothing is simulated on the page. When an effect goes off, [`rupa/vayo.js`](../control/lib/graph/rupa/vayo.js)
+presolves the air round its spot once (`vayoEnvelope`), and every tracer's path is then a formula of time
+(`vayoPoints`), the way the wind script and the smoke puffs already work:
+
+- **The envelope**: about thirty rays from the spot against the world's boxes and its floor give the open ways and the
+  face each way meets. A wall shuts half the sky, a corridor opens two ways, a ceiling flattens the dome. What a way's
+  face stops slides along it and never past any face it runs toward. The envelope also holds the floor, the world's one
+  wind (its physics' own when the level names one) and the medium: water when the spot is in a pool.
+- **The laws**, as shapes and scalings (the time stretched for the eye, as anime holds a frame):
+  - the front races out and slows (r ∝ t^⅖, Sedov–Taylor);
+  - the hot core lifts on its heat (√(g·R), less in thin air, a pulsing bubble in water) and rolls into a ring vortex, so a cap curls over into a mushroom without a stem;
+  - swirl is a real vortex, fast at its core (Lamb–Oseen);
+  - smoke climbs as a plume (Δz ∝ t^⅔) and leans with the wind of its height;
+  - a charge draws in on a log spiral.
+
+[`rupa/vayo-fx.js`](../control/lib/graph/rupa/vayo-fx.js) reads each part of an explosion for what it is and gives it
+its flow:
+
+- the fire's body is the core, fewer and larger puffs (a bold shape), with its glow as the white-hot heart;
+- the stem goes (the roll makes the cap);
+- the smoke is the plume;
+- the chips are debris thrown along the open ways;
+- the sparks become embers, a third as many, cooling white to red to dark;
+- the ground ring becomes the dust skirt the blast runs along the ground; a ring of air stays as a thin haze.
+
+A power-up's aura (its onions and rings of spikes) gives way to flame tongues rising and turning round the body, with a
+white-hot core, motes drawn in on a spiral, pebbles lifting off the ground, and a gust of dust pushed out along it. The
+combat page's bursts (a grenade's, a death's, a scripted blast's) go off as the flow's blast instead of additive
+spheres, and a hit is a soft flash and a ring of air (sprites) instead of a sphere, a torus and a star of lines.
+
+The look is the register's lens over the motion: the isekai look's glow, the cel look's bands (a cel fire is its core on
+the flow, not spirit onions), the material look's smoke. It follows what the anime games from Dragon Ball FighterZ on
+do:
+- limited animation: fewer frames, each a pose (Guilty Gear Xrd's pipeline, which FighterZ shares);
+- a white-hot core in a saturated shell;
+- a blast in stages that contrast in time: a flash, a fireball that grows fast and holds, smoke billowing out, then
+  dissipation;
+- bold, solid shapes rather than a cloud of dots;
+- a power-up as flame tongues round the silhouette, motes drawn in, pebbles lifting and dust pushed out along the ground.
+
+### A blast's air on the world's fires
+
+On the flow, a blast's air is felt by what burns as well as drawn
+([`worlds/controllable/vayo-air.js`](../control/lib/graph/worlds/controllable/vayo-air.js), emitted only when the world is
+on the flow and has fires):
+
+- **The blast's wind.** A burst's charge (its kilograms of TNT, from its splash radius as above, × the world's power) gives
+  an overpressure that falls with the scaled distance Z = d / W^⅓ (Kinney–Graham). The air behind the front moves at
+  u = 5p·c₀ / (7·Mₛ) with Mₛ = √(1 + 6p/7) (Rankine–Hugoniot, γ 1.4). A kilogram's is about 300 m/s at 2 m, 60 at 5,
+  23 at 10 and 10 at 20. A wall between the burst and a fire shelters it, and a third of the wind gets round.
+- **A fire's limit.** The air that strips a flame from its fuel grows with the flame's size, since a bigger flame keeps
+  its gas longer: u_bo = 3 m/s × (D / 1.2 cm)^0.7 for a fuel bed D across. A candle's is 3 m/s, a torch's 10, a
+  campfire's 43, a metre-wide block's about 70.
+- **Three zones.**
+  - Under half the limit the fire is **fanned**: it burns faster by the bellows' own law (× (1 + 0.07·u)), its bed
+    stoked for a couple of seconds after a blast, and its flame leans away and flares.
+  - From half to the whole of it, the fire is **straining**: its flame lifts off its bed and gutters, the sign it is
+    about to go.
+  - Past it, the fire is **blown out**.
+- **Inside the fireball the heat wins.** What a burst's fireball reaches catches by the blows' heat, and no air is
+  reckoned there. So a grenade lights the crates it engulfs and puts out the torches a few metres off.
+- **A burning block blown out:**
+  - it stops burning (`blowout` on its hits, `by` the blast or the wind), and its plume ends;
+  - its face is cooled to just under its ignition, so a neighbour still burning relights it within a second or two,
+    and a lone one cools out;
+  - its hot bed smoulders a wisp of smoke for a couple of seconds (a smoulder's heat, a tenth of its flame's, at a
+    smoulder's soot yield), and its bed glows dull red on the page while it is hot.
+- **A fire the physics does not hold.** A torch, a candle or a brazier is blown out by the same law and stays out.
+- **The world's wind** fans and strains a block's fire the same way, a few times a second, and a gale past a fire's
+  limit blows it out.
+
+The page draws a fire's air as its wind plus each recent blast's: outward, held for the eye over half a second, at most
+20 m/s for the look. The physics reckons with the blast's true speed.
+
+### Vayo moves: special abilities on the hero's own air
+
+A **vayo move** is a special ability that moves a hero on its own air: a push of tuned pressure in a direction, against
+air of tuned density. The physical moves (the dodge, the tackle, the boost and its inertia, the charged-leap carry, the
+cleave step, the zip) keep their laws: a vayo move is another kind of move, which a hero has only when its game gives it
+(`rule.vayo` on the platform rule, or a power's `vayo-dash` / `vayo-flight`). It has a path, so it collides, keeps its
+hitbox and leaves a wake. A move with no path (a shadow step, a blink) is a teleport and is not vayo.
+
+The law ([`worlds/controllable/vayo-move.js`](../control/lib/graph/worlds/controllable/vayo-move.js); read and resolved
+off the page by [`rupa/vayo-move.js`](../control/lib/graph/rupa/vayo-move.js)) is a body of push p (m/s², the pressure)
+against quadratic drag k (1/m, the density): a = p − k·v².
+
+- **Pushing,** it closes on its top speed √(p/k) as v_top·tanh(t/τ + …), τ = 1/√(p·k).
+- **Released,** it bleeds as v₁ / (1 + k·v₁·t).
+- **Braked** (the push turned against the motion), it stops as v_top·tan(… − t/τ).
+
+Each and the distance it covers is in closed form, so a straight move covers the same ground at any frame rate, and it is
+always a curve, never a line. A move is written by what it does and the law solves its air:
+
+- **A dash:** its peak `speed`, its `rise` (the push to reach it) and its `carry` (the metres it slides after, down to
+  the hero's run speed, where the rule's own drive takes over). The carry sets the density and the rise the pressure.
+- **A flight:** its cruise `speed` and its `rise` (τ), and its `climb`. It is held while it flies, steered by the stick,
+  up with the jump key and down with kneel. Let go, it hovers (its air brakes its rise or fall to rest). It never stalls,
+  unlike the aircraft's `fly` rule, and it lands when it comes down onto the ground. `boost` raises its speed.
+- **A jetpack:** less controlled than the flight. Its thrust is along the body's own axis, and the stick tilts the body
+  toward its way (at most `tilt` degrees, easing over `turn` seconds) and turns it to face it, so it goes where it leans,
+  late, and carries its momentum. Gravity and the air's drag act on the whole motion; at full tilt and full thrust its
+  way's terminal speed is `speed`. The jump key held is full thrust (`thrust` × its weight), nothing held is `idle` (a
+  slow sink), and kneel cuts it. Its **startup** (`startup` seconds, or `{ frames }`) spools the thrust in and leans the
+  body into the launch before it lifts, planted on the ground. Its fuel is the meter (`fuel` seconds of full thrust), and
+  empty it sputters out. V again cuts it, and it lands when it comes down. Its exhaust blows on what is under it (a fire
+  below is fanned or put out). It runs on a fixed 240 Hz clock under the frame.
+- **An air dash:** a dash only in the air, with the dash's words and its `count` before the ground again, and its
+  element's dash shape. In the air V dashes first while its count lasts, then flies. Held a quarter second on, by a hero
+  that flies, the dash carries on as flight at its speed.
+- **A jump** (an air jump on its own air): the jump key in the air, after the physical air jumps have fired. Its air
+  catches the body and pushes it up to its peak in `rise`, then gravity takes it. The whole climb is its `height` (the
+  peak solved for it, the push's exact distance and the throw's), from wherever it fires, and a release does not cut it.
+  `count` before the ground again.
+
+```
+rule.vayo: { element?, power?, cap?, regen?,
+  dash?:   true | { speed, rise?, carry?, dir?, steer?, air?, iframes?, cost?, cooldown? },
+  airDash?: true | { speed, rise?, carry?, dir?, steer?, iframes?, cost?, cooldown?, count? },
+  jump?:   true | { height, rise?, count? },
+  jetpack?: true | { speed, thrust, idle, tilt, turn, startup, fuel },
+  flight?: true | { speed, rise?, carry?, climb?, boost?, drain? } }
+```
+
+- **Elements are presets of the shape** and of the trail's colour: wind (thin air, a long carry), earth (dense, a hard
+  stop), lightning (a great push, a snap), fire, water (a smooth rise). The order a move is built in, each over the one
+  before: the defaults, its element, the game's feel card (its dash and jetpack, `feel/lower.js feelVayo`, read only for
+  a hero with a vayo move: its dash and its air dash, its jetpack (the flight's climb, and the vayo jetpack), its air jump), then the hero's own numbers.
+- **Power sets the fiction, the cap the play.** The move's energy scales with its tier (`power`, the hero's own, else the
+  world's `matter.power`), so its fiction's speed is speed·√power. The hero moves at most `cap` (40 m/s). Past it, the
+  tier shows in its trail (thicker, whiter), a boom where a move past sound starts, and its wake.
+- **The key is its own:** V, or the pad's D-pad down. On the ground it dashes. In the air it air-dashes while the air
+  dash's count lasts, then takes flight, then lights the jetpack (or dashes, for a hero whose dash goes in the air). A
+  hero with a jetpack and no dash or flight lights it from the ground. In flight it lets go. The
+  vayo jump is on the jump key in the air. No physical move's key is taken.
+- **Invincible frames** are a window the move names (seconds, or `{ frames }` at 60 fps), never implied. A dash spends
+  `cost` of the vayo meter (`e.vayoMeter`), a flight `drain` a second, refilled at `regen`.
+- **The sweep:** a vayo move sweeps its footprint along its step against the colliders, so no speed passes through a wall.
+- **Units:** a world built in its own units (a city's `metre` on the rule) moves in them.
+- **The wake:** a vayo mover pushes the air behind it into the world's air (above): a 3D wake's deficit, v·(R/d)^⅔ at its
+  fiction's speed. A super's dash past a burning crate puts it out; a human's fans it.
+
+### Natural knockback: an impact split between the ground and what stands near it
+
+Knockback is its own channel, apart from damage ([`worlds/controllable/knock.js`](../control/lib/graph/worlds/controllable/knock.js),
+read off the page by [`rupa/knock.js`](../control/lib/graph/rupa/knock.js)). A blow carries energy, joules, as well as hp:
+
+- **Kinetic:** a direct hit's energy (a shot, a swing, a beam) pushes what it strikes along the blow.
+- **Impact:** energy released where a source meets the ground (a burst, a beam's end, a slam).
+  - The ground takes seven tenths of it: the dust, and the crater rupa digs.
+  - The rest spreads as a shock. Each body near takes the share of it that its frontal area fills of the hemisphere at its
+    distance, A / 2π(d + r₀)², the law `burstShare` gives a block. So it falls off with distance, and a big body takes
+    more than a small one.
+- **Hold:** a standing body holds by its footing, μ·m·g over a 15 cm slip (μ 0.6). Nothing holds a body in the air. A
+  body's mass is its `body.mass`, or its hitbox's volume at 160 kg/m³ (a person's hitbox is 75 kg). A `heavy` body is
+  never moved.
+- **The throw:** what passes its hold is thrown at v = √(2·(E − hold)/m), held to the play cap (40 m/s), and lifted by
+  the blow's `lift` (a shock lifts most what is nearest).
+  - Light things fly; heavy things only stagger. Past 7 m/s it is a knockdown.
+  - A body owner carries the thrown body whatever its rule: an arc under gravity, then a slide that friction (μₖ·g)
+    stops. A wall stops it with a stagger.
+- **Splash by proximity:** in a level with knockback, a burst's damage and poise fall off with distance. A body touching
+  it takes the whole. Farther out it takes (R/2 / (R/2 + d))² of it, and never under `min` (a fifth) inside its reach.
+  `splash: 'flat'` keeps them whole.
+- **Natural:** a level's `knockback` gives every burst an impact from its size (its charge by cube-root blast scaling, a
+  twentieth of it mechanical, × the world's power), and makes a hard landing (a fall past 12 m/s) a slam at the feet.
+
+```
+level knockback: true | { scale?, hero?, cap?, splash?: 'proximity' | 'flat', min?, slam?, natural? }
+an attack's knock: { kinetic?, impact?, lift? }   (joules, or tap 50 | light 300 | heavy 3000 | massive 30000)
+  a weapon's knock · a strike's strikeKnock · a beam cue's knock · a power's kinetic and impact (its beam's)
+```
+
+Attacks that carry their own energy work without the level's word: their kinetic and impact, no natural impact and no
+proximity splash. The hero is thrown too, unless `hero: false`. The juice is vayo's: an impact's air goes into the
+world's air (fires near it are fanned or put out), and on the page a dust ring runs out from an impact (as wide as the
+cube root of the ground's share), a slam or a wall puffs, and what slides kicks dust up under it.
+
 ## What holds it up
 
 The basic break pass ([`rules-basic.js`](../control/lib/graph/worlds/controllable/rules-basic.js)) still decides what
@@ -724,4 +906,11 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - City buildings, houses entered by a door and walked-in buildings as blocks (structures and shell houses are), and
   the base settle on the grid (it searches every block when something falls).
 - Per-entity power (a hero's tier apart from the world's), and heat from beams and fire sources by element.
+- On the flow: the beam's charge (its gather sprites), beam impacts that are preset puffs rather than explosions, a
+  muzzle's blast and a landing's dust; the envelope's ground is the floor under the spot (a slope is not traced), and
+  it is presolved once, so a wall broken mid-blast opens no new way.
+- A blast's air on fires: the power-up's gust does not yet fan a fire a hero walks past, a blast's air does not push
+  the dust and smoke already drifting, and a fire's limit is a starting tune for the eyes gate to move.
+- Vayo moves: foes and the AI do not use them yet, the pause legend does not list their key, the meter has no bar on the
+  page, a second seat's pad does not reach them, and the engines' importers carry them as data without playing them.
 - Engine export of breakables and their matter (the handoff carries them whole).

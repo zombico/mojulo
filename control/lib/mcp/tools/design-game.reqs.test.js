@@ -12,7 +12,7 @@ import { FOE_CLASSES } from '@/lib/graph/foes/index.js';
 import { MOVES } from '@/lib/graph/foes/vocab.js';
 import { designGameHandler } from './design-game.js';
 import { MEADOWMARK, MEADOWMARK_HERO } from '@/lib/graph/gameworld/index';
-import { pullThrough } from '@/lib/graph/gameworld/reqs.js';
+import { pullThrough, receiptOf } from '@/lib/graph/gameworld/reqs.js';
 
 // The requisitions through the door (design_game { ref, req }): a unit asked for, what it pulls through, one worked
 // at a time, its view carrying its remit and precedent, accepted on the creator's verdict. These write recipes and
@@ -620,6 +620,24 @@ describe('design_game: the production (crews, the assistant director, the direct
     expect(jobs.find((j) => j.job === 'j4')).toMatchObject({ status: 'issued', writes: ['/foes'] });
     await expect(designGameHandler({ ref: 'gq', req: { id, direct: 'creator', jobs: ['j2'] } })).rejects.toThrow(/jobs names the authors a rework sends back/);
     void M1;
+  });
+
+  it('a chapter asked for whole: one req, its first level the unit, its other levels and its departments the crew, its gate over every level', async () => {
+    const [M1, M2] = Object.keys(MEADOWMARK.levels);
+    const quest = { acts: [{ id: 'one', name: 'Setting out', goal: 'set out', beats: [{ id: 'first', goal: 'the meadow', as: { level: M1 } }, { id: 'second', goal: 'the shore', as: { level: M2 } }, { id: 'later', goal: 'later', built: false }] }, { id: 'two', goal: 'on', beats: [{ id: 'on', goal: 'on', built: false }] }] };
+    await designGameHandler({ world: { ...MEADOWMARK, mode: 'gated', review: undefined, mainQuest: quest, battles: {} }, ref: 'gq' });
+    const out = await designGameHandler({ ref: 'gq', req: { unit: 'act:one', remit: { idea: 'the party is formed on the way' } } });
+    expect(out.reqs.raised.at(-1)).toMatch(new RegExp(`^r\\d+ level:${M1} \\+ level:${M2}, battles, story \\(act one\\)$`));
+    const id = out.reqs.raised.at(-1).split(' ')[0], r = GameworldReqRepository.get('gq', id);
+    expect(r.crew).toEqual([`level:${M2}`, 'battles', 'story']);
+    expect(r.remit).toMatchObject({ beat: 'act 1 of 2, Setting out (early): set out', quests: `1. the meadow (level:${M1}); 2. the shore (level:${M2})`, idea: 'the party is formed on the way', in: 'the game\'s start' });
+    // an author for every level and department
+    const started = await designGameHandler({ ref: 'gq', req: { id, start: true } });
+    expect(started.reqs.raised).toEqual([`${id} j1 author level:${M1} issued`, `${id} j2 author level:${M2} issued`, `${id} j3 author battles issued`, `${id} j4 author story issued`]);
+    // its gate's probe waits on every level's stages
+    expect(receiptOf(GameworldReqRepository.get('gq', id), { made: {} }).checks.find((c) => c.check === 'probe').says).toBe(`no stage made: { chapter: 'level:${M1}', run: true }, { chapter: 'level:${M2}', run: true }`);
+    await expect(designGameHandler({ ref: 'gq', req: { unit: 'act:two' } })).rejects.toThrow(/no built beat played on a level/);
+    await expect(designGameHandler({ ref: 'gq', req: { unit: 'act:three' } })).rejects.toThrow(/no act 'three'/);
   });
 
   it('the director sends work back: its authors reissued, the note in the notebook and the precedent', async () => {

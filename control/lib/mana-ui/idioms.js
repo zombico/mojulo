@@ -1,0 +1,46 @@
+/**
+ * MANA-UI's IDIOMS — the screens and HUD parts games share, as compositions of the components (defs: data, never code).
+ * A game uses one by name and passes what it reads; the idiom says what it emits through the effects its rows and
+ * inputs carry. A new idiom is a def first, a component only when no composition can draw it.
+ *
+ *   idioms-front.js   the front and the menus: attract, title, loading, mode / character / arena select, pause,
+ *                     options, controls, confirm, results, save
+ *   idioms-rpg.js     the deep menus: party, skill tree, level up, loadout, inventory, shop, quest log, dialogue
+ *   idioms-hud.js     in-game: vitals, objective, compass, minimap, ammo, score, prompt, feed, crosshair, a moment, the
+ *                     party strip; the enemies: plates, a boss bar, a target frame, damage numbers
+ *   idioms-live.js    the live game by kind of game: a fight, a race, a firefight, survival, strategy, a match, a
+ *                     cutscene, stealth, quests, a phone; and the menus that come up mid-play (a battle's commands, a
+ *                     unit's actions, the scoreboard, a strategy game's orders)
+ *
+ *   IDIOMS        name → { kind: 'screen' | 'hud', shelf: 'front' | 'rpg' | 'hud' | 'live', about, reads, emits, params, node,
+ *                 example, waits? } (waits: the param
+ *                 that must be true before a screen has anything to press, a loading screen's ready)
+ *                 coverage: a HUD part a TV coverage draws on a covered page (a sport's broadcast: the bug, the strap,
+ *                 the call plate), so a covered page asks for it from the coverage, not from here
+ *   IDIOM_IDS · SCREEN_IDIOMS · HUD_IDIOM_IDS
+ *   coverageOverlap(spec) → the coverage idioms a spec's HUD uses (a host whose page a broadcast covers advises on them)
+ *   withIdioms(spec)   → the spec with the idioms among its defs (its own defs win on a shared name)
+ */
+import { FRONT_IDIOMS } from './idioms-front.js';
+import { RPG_IDIOMS } from './idioms-rpg.js';
+import { HUD_IDIOMS } from './idioms-hud.js';
+import { LIVE_IDIOMS } from './idioms-live.js';
+
+const shelf = (name, set) => Object.fromEntries(Object.entries(set).map(([k, v]) => [k, Object.freeze({ ...v, shelf: name })]));
+export const IDIOMS = Object.freeze({ ...shelf('front', FRONT_IDIOMS), ...shelf('rpg', RPG_IDIOMS), ...shelf('hud', HUD_IDIOMS), ...shelf('live', LIVE_IDIOMS) });
+export const IDIOM_IDS = Object.keys(IDIOMS);
+export const SCREEN_IDIOMS = IDIOM_IDS.filter((k) => IDIOMS[k].kind === 'screen');
+export const HUD_IDIOM_IDS = IDIOM_IDS.filter((k) => IDIOMS[k].kind === 'hud');
+
+/** The spec with the idioms among its defs; the spec's own defs win on a shared name. */
+export function withIdioms(spec) {
+  const defs = {};
+  for (const [k, v] of Object.entries(IDIOMS)) defs[k] = { params: v.params, node: v.node };
+  return { ...spec, defs: { ...defs, ...(spec && spec.defs) } };
+}
+
+/** The coverage idioms a spec's HUD uses: on a page a broadcast covers, the broadcast draws them (one bug, one strap). */
+export function coverageOverlap(spec) {
+  const hud = spec && spec.hud && Array.isArray(spec.hud.children) ? spec.hud.children : [];
+  return hud.map((c) => c && c.use).filter((u) => IDIOMS[u] && IDIOMS[u].coverage);
+}

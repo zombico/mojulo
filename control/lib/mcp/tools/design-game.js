@@ -54,11 +54,11 @@ import { quickVehicleWords, patchVehicleWords } from '@/lib/graph/vehicle-regist
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import { complexAdvice } from '@/lib/graph/gameworld/levels.js';
 import { rebase } from '@/lib/graph/gameworld/rebase.js';
-import { levelLawsOf, STAFFING, readLedger, notesWith, pullThrough, remitAdvice, ledgerSummary, reqForView, unitParts, unitPrint, receiptOf, upstreamPrints, reqStatus, unitsOf, reqParts } from '@/lib/graph/gameworld/reqs.js';
+import { levelLawsOf, STAFFING, readLedger, notesWith, pullThrough, remitAdvice, ledgerSummary, reqForView, unitParts, unitPrint, receiptOf, upstreamPrints, reqStatus, unitsOf, reqParts, reqLevels } from '@/lib/graph/gameworld/reqs.js';
 import { GameworldReqRepository, GameworldReqJobRepository, GameworldAskRepository, GameworldProductionRepository, GameworldReqNoteRepository } from '@/lib/db/repositories/gameworld-reqs.js';
 import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpointLevels, productionSummary } from '@/lib/graph/gameworld/production.js';
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
-import { beatUnit, beatRemit, questUnits, beatCrew } from '@/lib/graph/gameworld/quest-reqs.js';
+import { beatUnit, beatRemit, questUnits, beatCrew, actUnit, actRemit } from '@/lib/graph/gameworld/quest-reqs.js';
 import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines, jobUnit, seatOf } from '@/lib/graph/gameworld/jobs.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
@@ -717,8 +717,8 @@ function checkReq(req) {
   if (req.quest !== undefined) {
     if (req.quest !== true || req.unit !== undefined || req.id !== undefined) throw new Error('design_game: { req: { quest: true, staffing?, budget? } } asks for every built beat of the main quest, in its order; give no unit or id with it');
   } else if ((req.unit === undefined) === (req.id === undefined)) throw new Error('design_game: a req names its `unit` (to raise one) or its `id` (r1, r2 …), one or the other');
-  const beat = typeof req.unit === 'string' && /^beat:[a-z][a-z0-9-]*$/.test(req.unit);
-  if (req.unit !== undefined && !beat && !unitOf(req.unit)) throw new Error(`design_game: a req's unit is a chapter (${CHAPTERS.map((c) => c.id).join(', ')}), one level as 'level:<id>', or a main quest beat as 'beat:<id>'`);
+  const beat = typeof req.unit === 'string' && /^(beat|act):[a-z][a-z0-9-]*$/.test(req.unit);
+  if (req.unit !== undefined && !beat && !unitOf(req.unit)) throw new Error(`design_game: a req's unit is a chapter (${CHAPTERS.map((c) => c.id).join(', ')}), one level as 'level:<id>', a main quest beat as 'beat:<id>', or a whole act of it as 'act:<id>' (its town, its outskirts and its dungeon, worked as one)`);
   if (req.staffing !== undefined && !STAFFING[req.staffing]) throw new Error(`design_game: a req's staffing is ${Object.keys(STAFFING).join(' or ')}`);
   if (req.remit !== undefined && req.remit !== null && !isObj(req.remit)) throw new Error('design_game: a req\'s remit is an object (a level\'s: in, out, band, idea, foes, beat)');
   if (req.budget !== undefined && !isObj(req.budget)) throw new Error('design_game: a req\'s budget is an object (jobs, tier, diverge, critics, reissues)');
@@ -729,7 +729,7 @@ function checkReq(req) {
   if (req.direct !== undefined && !DIRECTS[req.direct]) throw new Error(`design_game: direct is ${Object.entries(DIRECTS).map(([k, v]) => `${k} (${v})`).join(', ')}`);
   if (req.jobs !== undefined && (req.direct !== 'rework' || !Array.isArray(req.jobs) || !req.jobs.length || req.jobs.some((j) => typeof j !== 'string'))) throw new Error('design_game: jobs names the authors a rework sends back (direct: \'rework\', jobs: [\'j2\']); without it every author goes back');
   if (req.style !== undefined && !STYLES[req.style]) throw new Error(`design_game: a style is ${Object.keys(STYLES).join(', ')}`);
-  if (req.crew !== undefined && (req.crew !== true || !(typeof req.unit === 'string' && req.unit.startsWith('beat:')))) throw new Error('design_game: crew: true goes with a beat (unit: \'beat:<id>\'): its level and the departments the beat brings, worked as one');
+  if (req.crew !== undefined && (req.crew !== true || !(typeof req.unit === 'string' && /^(beat|act):/.test(req.unit)))) throw new Error('design_game: crew: true goes with a beat (unit: \'beat:<id>\'): its level and the departments the beat brings, worked as one (an act, \'act:<id>\', is always a crew)');
   if (req.post !== undefined && (req.job === undefined || typeof req.post !== 'string' || !req.post.trim())) throw new Error('design_game: a job posts to its crew\'s notebook as { id, job, post: \'…\' }');
   if (req.job === undefined && ['patch', 'decisions', 'findings'].some((k) => req[k] !== undefined)) throw new Error('design_game: a patch, decisions or findings report a job: give its `job` (j1, j2 …)');
 }
@@ -740,8 +740,20 @@ function checkReq(req) {
  * → the req as the ledger takes it ({ …, raise: [{ unit, remit, beat }], questSaid? }), or the req as it was. */
 async function questReq(ref, req) {
   const beat = typeof req.unit === 'string' && req.unit.startsWith('beat:') ? req.unit.slice(5) : null;
-  if (!beat && req.quest !== true) return req;
+  const act = typeof req.unit === 'string' && req.unit.startsWith('act:') ? req.unit.slice(4) : null;
+  if (!beat && !act && req.quest !== true) return req;
   let W = gameworldOf(SketchRepository.getByRef(ref).manifest);
+  // an act: ONE req, its first level the unit, the rest of its levels and the departments its beats bring the crew
+  if (act) {
+    actUnit(W, act);
+    const laid0 = withQuestLevels(W);
+    if (laid0 !== W) {
+      await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/levels', value: laid0.levels }], note: 'design_game: the main quest\'s levels laid for its reqs' });
+      W = gameworldOf(SketchRepository.getByRef(ref).manifest);
+    }
+    const A = actUnit(W, act), { unit: _u, remit: remit0, crew: _c, ...rest0 } = req;
+    return { ...rest0, raise: [{ unit: `level:${A.levels[0]}`, beat: `act ${act}`, remit: { ...actRemit(W, act), ...(isObj(remit0) ? remit0 : {}) }, crew: [...A.levels.slice(1).map((lv) => `level:${lv}`), ...A.crew] }] };
+  }
   const wanted = beat ? [{ beat, level: beatUnit(W, beat).level }] : questUnits(W).units;
   const listed = beat ? null : questUnits(W);
   // the levels a run would lay from the quest's beats, laid now (main-quest-lay.js: deterministic, the run's own lay)
@@ -832,27 +844,34 @@ async function reqWrites(ref, req) {
 async function probeReq(ref, req) {
   const r = GameworldReqRepository.get(ref, req.id);
   if (!r) throw new Error(`design_game: no req '${req.id}' in this world (${GameworldReqRepository.list(ref).map((x) => x.id).join(', ') || 'none raised'})`);
-  const lv = unitOf(r.unit)?.level;
-  if (lv == null) throw new Error(`design_game: the probe plays a level; ${r.id} is ${r.unit}`);
+  // (every level the req holds: its own, and a chapter's crew's, each played as its own level)
+  const lvs = reqLevels(r);
+  if (!lvs.length) throw new Error(`design_game: the probe plays a level; ${r.id} is ${r.unit}`);
   const W = gameworldOf(SketchRepository.getByRef(ref).manifest), made = W.made ?? {};
-  const keys = Object.keys(made).filter((k) => levelStep(lv).test(k)).sort();
-  if (!keys.length) return [`${r.id}: no stage of ${r.unit} made yet: { ref, chapter: '${r.unit}', run: true } first`];
+  const keysOf = (lv) => Object.keys(made).filter((k) => levelStep(lv).test(k)).sort(), keys = lvs.flatMap(keysOf);
+  const unmade = lvs.filter((lv) => !keysOf(lv).length);
+  if (unmade.length) return [`${r.id}: no stage of ${unmade.map((lv) => `level:${lv}`).join(', ')} made yet: ${unmade.map((lv) => `{ ref, chapter: 'level:${lv}', run: true }`).join(', ')} first`];
   const { levelBrowser, levelPage } = await import('@/lib/graph/game/first-frame-check');
-  const { probeLevel } = await import('@/lib/graph/game/level-probe.js');
-  const stages = [];
-  for (const k of keys) {
-    const at = made[k].ref;
-    // eslint-disable-next-line no-await-in-loop -- one stage page at a time
-    stages.push({ ref: at, manifest: SketchRepository.getByRef(at)?.manifest ?? null, ...(await levelPage(at)) });
-  }
+  const { probeLevel, mergeVerdicts } = await import('@/lib/graph/game/level-probe.js');
   const n = GameworldReqJobRepository.list(ref, r.id).length + 1;
   const { mkdir, writeFile } = await import('node:fs/promises');
   const path = await import('node:path');
-  const framesDir = path.join(process.env.MOJULO_OUTCOMES_DIR || path.join(process.cwd(), 'data', 'outcomes'), 'probes', ref.replace(/[^A-Za-z0-9_-]/g, '_'), `${r.id}-j${n}`);
-  const verdict = await withoutWarm(() => probeLevel(stages, {
-    goal: W.levels?.[lv]?.goal, findBrowser: levelBrowser, framesDir,
-    writeFile: async (file, png) => { await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, png); },
-  }));
+  const framesDir0 = path.join(process.env.MOJULO_OUTCOMES_DIR || path.join(process.cwd(), 'data', 'outcomes'), 'probes', ref.replace(/[^A-Za-z0-9_-]/g, '_'), `${r.id}-j${n}`);
+  const verdicts = [];
+  for (const lv of lvs) {
+    const stages = [];
+    for (const k of keysOf(lv)) {
+      const at = made[k].ref;
+      // eslint-disable-next-line no-await-in-loop -- one stage page at a time
+      stages.push({ ref: at, manifest: SketchRepository.getByRef(at)?.manifest ?? null, ...(await levelPage(at)) });
+    }
+    // eslint-disable-next-line no-await-in-loop -- one level at a time
+    verdicts.push([lv, await withoutWarm(() => probeLevel(stages, {
+      goal: W.levels?.[lv]?.goal, findBrowser: levelBrowser, framesDir: lvs.length > 1 ? path.join(framesDir0, lv) : framesDir0,
+      writeFile: async (file, png) => { await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, png); },
+    }))]);
+  }
+  const verdict = verdicts.length > 1 ? mergeVerdicts(verdicts) : verdicts[0][1];
   const prints = Object.fromEntries(keys.map((k) => [k, made[k]?.stored ?? null]));
   const [job] = GameworldReqJobRepository.issue(ref, r.id, [{ kind: 'probe', tier: 'ride' }]);
   GameworldReqJobRepository.update(ref, r.id, job.id, { status: 'submitted', report: { ...verdict, prints } });
@@ -872,7 +891,8 @@ function compositeOf(ref, W) {
   const rows = GameworldReqRepository.list(ref).filter((r) => unitOf(r.unit)?.level != null);
   if (!rows.length) return undefined;
   const parts = reviewState(W);
-  const accepted = new Set(rows.filter((r) => ['accepted', 'directed'].includes(reqStatus(r, { world: W, parts }))).map((r) => unitOf(r.unit).level));
+  // (a chapter's req brings every level it holds: its crew's too)
+  const accepted = new Set(rows.filter((r) => ['accepted', 'directed'].includes(reqStatus(r, { world: W, parts }))).flatMap((r) => reqLevels(r)));
   return Object.keys(W.levels ?? {}).filter((id) => accepted.has(id));
 }
 
@@ -946,6 +966,7 @@ function workLedger(ref, W, full, req, done = null) {
       for (const ask of asks) {
         const LL = readLedger(GameworldReqRepository.list(ref), { world: W, parts });
         const lv = unitOf(ask.unit).level;
+        for (const c of ask.crew ?? []) { const cl = unitOf(c)?.level; if (cl != null && !isObj(W.levels?.[cl])) throw new Error(`design_game: no level '${cl}' in this world (its levels: ${Object.keys(W.levels ?? {}).join(', ') || 'none'})`); }
         if (lv != null && !isObj(W.levels?.[lv])) throw new Error(`design_game: no level '${lv}' in this world (its levels: ${Object.keys(W.levels ?? {}).join(', ') || 'none'})`);
         const live = LL.reqs.find((r) => r.unit === ask.unit && !TERMINAL_REQ.has(r.status));
         const remit = ask.remit ?? null;
@@ -960,7 +981,7 @@ function workLedger(ref, W, full, req, done = null) {
             raised.push(`${r.id} ${up} (pulled through: ${ask.unit} reads it)`);
           }
           const r = GameworldReqRepository.create({ worldRef: ref, unit: ask.unit, remit, staffing: req.staffing ?? 'soloist', budget: req.budget ?? {}, raisedBy: ask.beat ? 'quest' : 'director', crew: ask.crew ?? null, style: req.style ?? null });
-          raised.push(`${r.id} ${ask.unit}${ask.crew?.length ? ` + ${ask.crew.join(', ')}` : ''}${ask.beat ? ` (beat ${ask.beat})` : ''}`);
+          raised.push(`${r.id} ${ask.unit}${ask.crew?.length ? ` + ${ask.crew.join(', ')}` : ''}${ask.beat ? ` (${ask.beat.startsWith('act ') ? ask.beat : `beat ${ask.beat}`})` : ''}`);
         }
         advises.push(...remitAdvice(ask.unit, remit ?? live?.remit));
         first = false;

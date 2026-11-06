@@ -61,7 +61,24 @@ describe('play.rpg: read and lowered', () => {
   it('where a fight is fought: on the map as it stands, or on its own arena before a backdrop of the map', () => {
     expect(readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'backdrop' } } }).rules.stage).toBe('backdrop');
     expect(readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'live' } } }).rules.stage).toBe('live');
-    expect(() => readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'arena' } } })).toThrow(/rules\.stage is live or backdrop/);
+    expect(readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'arena' } } }).rules.stage).toBe('arena');
+    expect(() => readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'ring' } } })).toThrow(/rules\.stage is live or backdrop or arena/);
+  });
+
+  it('on a page that carries flags a won pack stays won: its flag set as it falls; carried in, the pack is gone at once', () => {
+    const kept = rpgCues({ ...PLAY, carry: 'story' });
+    expect(kept.find((c) => c.id === 'rpg-beaten-wolves').then).toContainEqual({ emit: 'flag:won-wolves' });
+    expect(kept.find((c) => c.id === 'rpg-won-before-wolves')).toEqual({ id: 'rpg-won-before-wolves', when: { on: 'flag-carried:won-wolves' }, then: [{ set: 'rpg-done-wolves', to: 1 }, { vanish: 'wolf-1' }] });
+    // (a page that carries nothing: as before)
+    expect(rpgCues(PLAY).some((c) => c.id.startsWith('rpg-won-before-'))).toBe(false);
+    expect(rpgCues(PLAY).find((c) => c.id === 'rpg-beaten-wolves').then.some((t) => t.emit)).toBe(false);
+  });
+
+  it('an encounter met in a room carries the room, for an arena held to it; a room that is not a box is refused', () => {
+    const enc = (room) => ({ ...PLAY.rpg, encounters: [{ ...PLAY.rpg.encounters[0], room }] });
+    expect(readRpg({ rpg: enc([7, 0, 16, 13, 0]) }).met[0].room).toEqual([7, 0, 16, 13, 0]);
+    expect(readRpg({ rpg: PLAY.rpg }).met[0].room).toBeUndefined();
+    expect(() => readRpg({ rpg: enc([16, 0, 7, 13, 0]) })).toThrow(/room is the room it is fought in/);
   });
 
   it('on the bus: walking up starts it once; a win sends the foe off the map in smoke; a loss fails the level', () => {
