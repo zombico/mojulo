@@ -121,6 +121,22 @@ describe("the house's words", () => {
   });
 });
 
+describe("an outfit's and a car's words", () => {
+  it('swaps a garment word or a car part only for another written under the same key', () => {
+    const outfit = { kind: 'layered', recipe: { outfit: { type: 'outfit', style: 'casual', language: { top: { family: 'knit', sleeve: 'short', hem: 'hip', cloth: 'cotton' }, bottom: { leg: 'long', cut: 'straight' }, feet: 'boots' } } } };
+    const car = { kind: 'car', body: 'sedan', language: 'current', trim: 'base', paint: 'graphite', parts: { wheel: 'sport', grille: 'mesh', spoiler: 'none' } };
+    const keyOf = (path) => path.split('/').pop();
+    for (const [design, prefix] of [[outfit, 'outfit'], [car, 'car']]) {
+      const leaves = readLeaves(design, { vocab: VOCABULARY }).filter((l) => l.form === 'word');
+      expect(leaves.length).toBeGreaterThan(3);
+      for (const l of leaves) expect(l.vocab).toBe(`${prefix}:${keyOf(l.path)}`);
+      for (const v of turnMangekyou({ manifest: design, concept: 'different shapes and finishes', n: 4, roll: 8 }).variants) {
+        for (const op of v.patch) if (typeof op.value === 'string') expect(VOCABULARY.find((x) => x.id === `${prefix}:${keyOf(op.path)}`).words).toContain(op.value);
+      }
+    }
+  });
+});
+
 describe('a scale is kept a scale', () => {
   it('a whole-number scale moves in whole steps, its 1 too, and a ladder of them keeps its order', () => {
     const tiers = { kind: 'equipment', tiers: { early: { ornament: 1 }, mid: { ornament: 2 }, late: { ornament: 3 } } };

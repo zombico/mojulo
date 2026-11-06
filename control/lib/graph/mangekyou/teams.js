@@ -25,6 +25,11 @@ import { HEADGEAR } from '../headgear/cards.js';
 import { WEAR_LEVELS } from '../car-designer/mil-wear.js';
 import { LIVERIES } from '../car-designer/facets.js';
 import { PAINTS, LIVERY_PATTERNS } from '../car-designer/vehicle-livery.js';
+import { OUTFIT_WORDS } from '../outfit/styles.js';
+import { BODY_STYLE_IDS } from '../car-shelf/car-bodies.js';
+import { CAR_LANGUAGE_IDS } from '../car-shelf/car-languages.js';
+import { CAR_TRIM_IDS, PART_WORDS } from '../car-shelf/car-trims.js';
+import { PAINT_NAMES } from '../car-shelf/car-paints.js';
 import { SKINS as PLATING_SKINS } from '../plating/styles.js';
 import { SKINS as FOOTWEAR_SKINS } from '../footwear/styles.js';
 import { SKINS as HANDWEAR_SKINS } from '../handwear/styles.js';
@@ -73,6 +78,16 @@ export const VOCABULARY = Object.freeze([
   V('livery', 'colour', /^livery$/i, Object.keys(LIVERIES)),
   V('livery-pattern', 'colour', /^pattern$/i, LIVERY_PATTERNS),
   V('paint', 'colour', /^paint$/i, Object.keys(PAINTS)),
+  // a car (the car shelf): its body, its decade's language, its trim, its paint by name, its parts slot by slot
+  V('car:body', 'silhouette', /^body$/i, BODY_STYLE_IDS),
+  V('car:language', 'detail', /^language$/i, CAR_LANGUAGE_IDS),
+  V('car:trim', 'detail', /^trim$/i, CAR_TRIM_IDS),
+  V('car:paint', 'colour', /^paint$/i, PAINT_NAMES),
+  ...Object.entries(PART_WORDS).filter(([, w]) => Array.isArray(w) && w.every((x) => typeof x === 'string'))
+    .map(([slot, words]) => V(`car:${slot}`, slot === 'stripes' ? 'colour' : 'silhouette', new RegExp(`^${slot}$`, 'i'), words)),
+  // an outfit's language (outfit/styles.js OUTFIT_WORDS): a cut, a length or a collar is an outline, a cloth or a
+  // pattern a surface
+  ...Object.entries(OUTFIT_WORDS).map(([key, words]) => V(`outfit:${key}`, ['cloth', 'pattern'].includes(key) ? 'surface' : 'silhouette', new RegExp(`^${key}$`, 'i'), words)),
 ]);
 
 const DEPT = Object.fromEntries(DEPARTMENTS.map((d) => [d.id, d.name]));

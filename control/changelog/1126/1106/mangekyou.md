@@ -50,3 +50,7 @@
   from 0.99 to 0.68. A variant is said to keep the design's outline only when it all but does (0.95).
 - **Takes, not everything at once.** Farthest-point picking favours the candidate that moved every axis; a candidate
   turning a mix of axes no pick has turned yet now stands a quarter farther, so a set is a kaleidoscope of takes.
+- **An outfit and a car vary by their own words.** An outfit's language (family, sleeve, hem, leg, cut, fit, cloth,
+  pattern, collar, lapel, front, shoulder, waist, pockets, feet: `outfit/styles.js` OUTFIT_WORDS) and a car's body,
+  decade language, trim, paint by name and parts slot by slot (lamps, grille, wheel, roof, spoiler …) are the house's
+  words, each swapped only for another written under the same key.
