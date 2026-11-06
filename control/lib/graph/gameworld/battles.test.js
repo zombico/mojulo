@@ -174,8 +174,10 @@ describe('the party on the map', () => {
     const party = M.entities.filter((e) => e.rule?.mind?.motivation === 'escort');
     expect(party.length).toBeGreaterThan(1);
     for (const e of party) expect(e.rule).toMatchObject({ escort: 'hero', trail: true, mind: { aggressiveness: 'passive' } });
-    // (a file, not a knot: no two stop at the same distance; and no body of theirs holds another up)
-    expect(new Set(party.map((e) => e.rule.followDist)).size).toBe(party.length);
+    // (a slanted group, not a file nor a box: each its own slot of the formation, some to either side of the steps; and no
+    // body of theirs holds another up)
+    expect(new Set(party.map((e) => `${e.rule.followDist},${e.rule.flank}`)).size).toBe(party.length);
+    expect(party.some((e) => e.rule.flank > 0) && party.some((e) => e.rule.flank < 0)).toBe(true);
     expect(party.every((e) => !e.body?.collide)).toBe(true);
   });
 });

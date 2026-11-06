@@ -53,4 +53,16 @@ describe('a party member in its ward\'s footsteps', () => {
     const h = at(st, 'hero');
     expect(Math.hypot(at(st, 'm2')[0] - h[0], at(st, 'm2')[1] - h[1])).toBeLessThan(3.5);
   });
+
+  it('one with a flank walks beside the steps, its side of the way, as the way turns', () => {
+    const st = world();
+    Object.assign(st.byId.m1.rule, { followDist: 1.8, flank: 1.2 });
+    Object.assign(st.byId.m2.rule, { followDist: 1.2, flank: -1.4 });
+    walk(st, [[4, 10]], 3, null);
+    for (let i = 0; i < 60; i++) E.stepWorld(st, {}, DT, { ground: () => 0 });
+    // (walking north: right is east, +x; left is west)
+    expect(at(st, 'm1')[0]).toBeCloseTo(4 + 1.2, 0);
+    expect(at(st, 'm2')[0]).toBeCloseTo(4 - 1.4, 0);
+    expect(at(st, 'm1')[1]).toBeCloseTo(10 - 1.8, 0);
+  });
 });

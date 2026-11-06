@@ -892,10 +892,11 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
     joiners.forEach((p, i) => {
       figures[p.id] ??= fieldFigure(p.ref, castFigures?.[p.id]);
       // (a PARTY RPG's party, its fights the arena's: each member walks the map in the hero's footsteps and never fights
-      // on it, at its own distance back along them so the party trails in a file; the bodies pass through each other, none
-      // holding another up. Any other escort keeps its fight and its one distance)
+      // on it, at its slot of the party's formation, PARTY_FORMATION; the bodies pass through each other, none holding
+      // another up. Any other escort keeps its fight and its one distance)
+      const slot = PARTY_FORMATION[i % PARTY_FORMATION.length], deeper = Math.floor(i / PARTY_FORMATION.length) * 2.4;
       const rule = partyBattles
-        ? { type: 'ai', mind: { motivation: 'escort', aggressiveness: 'passive' }, trail: true, escort: pilot.id, followDist: r3(1.6 + i * 1.1), eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) }
+        ? { type: 'ai', mind: { motivation: 'escort', aggressiveness: 'passive' }, trail: true, escort: pilot.id, followDist: r3(slot[0] + deeper), flank: slot[1], eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) }
         : { type: 'ai', mind: { motivation: 'escort' }, escort: pilot.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) };
       const k = entities.findIndex((e) => e.id === p.id);
       if (k >= 0) {
@@ -1143,6 +1144,11 @@ export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : R.bu
  * the fight's camera stands back inside it (rpg-channel.js's arena) rather than being cut away to; a building on a
  * core plan (an office, a base) keeps its own, as does a building that writes its rooms' sizes. */
 export const DUNGEON_SCALE = 2;
+/** A PARTY RPG's FORMATION on the map: each member's slot, [back along the hero's steps, aside (+ right)] in metres, the
+ * hero a corner of a parallelogram the next three stand at the other corners of (u = 1.8 back 1.2 right, v = 1.2 back
+ * 1.4 left, and u + v): a group walking together, slanted, never a file and never a box; a fifth and more stand in the
+ * same slots a parallelogram deeper. */
+export const PARTY_FORMATION = Object.freeze([[1.8, 1.2], [1.2, -1.4], [3, -0.2]].map((q) => Object.freeze(q)));
 /** A party RPG's chase (hero-chase.js PARTY_CHASE): a world that fights in party battles plays its people at the play
  * grade, small on screen, from a chase pulled back and up; any other world's chase as it was. */
 function partyChase(G, camera) {
