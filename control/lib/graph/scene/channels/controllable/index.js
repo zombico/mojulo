@@ -787,6 +787,8 @@ function __updateGearLines() {
   // ONE DRAW A FIGURE (merged-figure.js): a plain rigid rig drawn as one skinned mesh, a draw a pass instead of one a part;
   // off where a part's own mesh is read (the toon ink's hulls, a headset's hands). None mergeable ⇒ byte-identical
   const figMerge = !xr && !toonInk && Object.values(figures || {}).some(mergeableFigure);
+  // (a figure with a pose twin, figure-grades.js: cut in while a close shot is on it; none, not a byte)
+  const figPose = figMerge && Object.values(figures || {}).some((f) => f && typeof f.pose === 'string' && mergeableFigure(f));
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
@@ -1278,7 +1280,7 @@ function __makeSkinGroup(fig, b, group) {
   group.userData.rigFig = { fig, boneMeshes: bones, mix: {}, blendTime: b.blendTime, lookA: 0, yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null, skin: mesh };
   return group;
 }
-` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled }) : ''}function __makeRigGroup(fig, b) {
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose }) : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
   if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
@@ -4232,7 +4234,8 @@ ${hangarHook}  __msHookParams();
   // (a fight holds the world, but its bodies act and stand where it stages them: a figure with a battle act or a staged
   // place is drawn on, the rest stand as they were)
   else if (dt > 0) for (const e of __world.entities) if (e.act || e.staged) __syncEntity(e, dt);` : ''}
-  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}${tempoLook ? `
+  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}${figPose ? `
+  __poseFrame();   // (the pose grade cut in on the figures a close shot is on)` : ''}${tempoLook ? `
   // a moment's look over the world's grade (channels/grade.js), by the moment's weight; its impact frame hard for its
   // frames as it fires; its zoom aimed at whom it is about, on the screen as the camera now stands
   if (window.__mojGrade) {

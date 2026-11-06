@@ -9,7 +9,10 @@
  *                             nothing that needs a bone's own mesh (a paint, a face's morphs, a form's materials, spec or
  *                             metal patches, a weapon or shield bone shown and hidden by itself, a muzzle, thrusters, a
  *                             racer's juice or life, forms, a skin of its own)
- *   mergedFigureScript(o)   → the page's builder, `__makeMergedGroup(fig, b, group)`, and `__mergeable` (this predicate)
+ *   mergedFigureScript(o)   → the page's builder, `__makeMergedGroup(fig, b, group)`, and `__mergeable` (this predicate);
+ *                             `pose`: a figure with a pose twin (figure-grades.js, `fig.pose` its name in the bank) has it
+ *                             cut in while a close shot is on it (`__poseFrame()`, each frame), a second skinned mesh on
+ *                             the same bones, built the first time it is wanted
  *
  * Off where a per-bone mesh is read: the toon ink (a hull on each part), a headset (its hands drawn from the bone meshes).
  * A wreck (wreck-channel.js) reads the bone meshes too: a merged figure is not broken into pieces, it goes as it falls.
@@ -29,12 +32,22 @@ export function mergeableFigure(fig) {
 
 /** The page's merged builder (needs the page's `__decodeU16`, `__decodeU32`, `decodeU8`, `scene`). `cast`: the figure
  * casts into the live shadows; `scaled`: a body may carry its own scale. */
-export function mergedFigureScript({ cast = false, scaled = false } = {}) {
+export function mergedFigureScript({ cast = false, scaled = false, pose = false } = {}) {
   return `
 // ONE DRAW A FIGURE (merged-figure.js): a rigid rig's parts in one skinned mesh, each part's corners bound to its bone
 const __mergeable = ${mergeableFigure.toString()};
 function __makeMergedGroup(fig, b, group) {
   const bones = fig.bones.map(() => { const o = new THREE.Bone(); o.matrixAutoUpdate = false; group.add(o); return o; });
+  const mesh = __mergedMesh(fig, group);
+  scene.add(group);${scaled ? `
+  if (b.scale > 0) group.scale.setScalar(b.scale);` : ''}
+  group.updateMatrixWorld(true);
+  mesh.bind(new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4())));
+  group.userData.rigFig = { fig, boneMeshes: bones, mix: {}, blendTime: b.blendTime, lookA: 0, yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null, skin: mesh, merged: true };
+  return group;
+}
+// a figure's parts as one skinned mesh in its group (bound by the caller)
+function __mergedMesh(fig, group) {
   const D = fig.parts.map((P) => (P ? { P, q: __decodeU16(P.q), c: decodeU8(P.col), I: P.n > 65535 ? __decodeU32(P.idx) : __decodeU16(P.idx) } : null));
   let nv = 0, ni = 0;
   for (const d of D) if (d) { nv += d.P.n; ni += d.I.length; }
@@ -59,13 +72,31 @@ function __makeMergedGroup(fig, b, group) {
   // render's view, behind the camera or outside the shadow's box, is not drawn there)
   const H = fig.figH || 1.7;
   mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, H * 0.5), H * 0.85); mesh.raycast = function () {};${cast ? '\n  mesh.castShadow = true;' : ''}
-  group.add(mesh); scene.add(group);${scaled ? `
-  if (b.scale > 0) group.scale.setScalar(b.scale);` : ''}
-  group.updateMatrixWorld(true);
-  mesh.bind(new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4())));
-  group.userData.rigFig = { fig, boneMeshes: bones, mix: {}, blendTime: b.blendTime, lookA: 0, yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null, skin: mesh, merged: true };
-  return group;
+  group.add(mesh);
+  return mesh;
+}${pose ? `
+// THE POSE GRADE CUT IN (figure-grades.js): the figures a close shot is on (a scene's close, over-the-shoulder or
+// two-shot, the battle's film: window.__mojFilmPose) show their pose twin, a second mesh on the same bones; the rest
+// their play grade. The twin is built the first time it is wanted and kept
+const __CLOSE_FRAMES = ${JSON.stringify(['close', 'over', 'two'])};
+const __posed = new Set();
+function __poseGrade(id, on) {
+  const g = __bodies[id], rf = g && g.userData.rigFig;
+  if (!rf || !rf.merged || !rf.fig.pose) return;
+  const P = __FIG[rf.fig.pose];
+  if (on && !rf.poseSkin && P && __mergeable(P) && P.bones.length === rf.fig.bones.length) {
+    rf.poseSkin = __mergedMesh(P, g); g.updateMatrixWorld(true);
+    rf.poseSkin.bind(new THREE.Skeleton(rf.boneMeshes, rf.boneMeshes.map(() => new THREE.Matrix4())));
+  }
+  if (!rf.poseSkin) return;
+  rf.poseSkin.visible = !!on; rf.skin.visible = !on;
 }
+function __poseFrame() {
+  const C = __world.camera, R = C && C.rule, want = new Set(window.__mojFilmPose || []);
+  if (R && R.type === 'shot' && __CLOSE_FRAMES.indexOf(R.frame) >= 0) for (const id of R.on || []) want.add(id);
+  for (const id of __posed) if (!want.has(id)) { __poseGrade(id, false); __posed.delete(id); }
+  for (const id of want) if (!__posed.has(id)) { __poseGrade(id, true); __posed.add(id); }
+}` : ''}
 function __mergedGeo(pos, col, jnt, idx) {
   const geo = new THREE.BufferGeometry(), n = pos.length / 3, wgt = new Float32Array(n * 4);
   for (let i = 0; i < n; i++) wgt[i * 4] = 1;

@@ -69,3 +69,36 @@ describe('the merged mesh', () => {
     expect(mesh.boundingSphere.radius).toBeGreaterThan(P.figH / 2);
   });
 });
+
+describe('the pose grade cut in', () => {
+  it('a close shot on a figure shows its pose twin on the same bones; off the shot, its play grade', async () => {
+    const THREE = await import(pathToFileURL(path.join(process.cwd(), 'public/vendor/three/three.module.min.js')).href);
+    const dec = (T) => (s) => { const b = Buffer.from(s, 'base64'); return new T(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
+    const P = person(), twin = person();
+    const __FIG = { p: { ...P, pose: 'p@pose' }, 'p@pose': twin }, __bodies = {}, __world = { camera: { rule: { type: 'follow' } } }, window = {};
+    const src = `${mergedFigureScript({ pose: true })}\nreturn { make: __makeMergedGroup, frame: __poseFrame };`;
+    const api = new Function('THREE', 'scene', '__decodeU16', '__decodeU32', 'decodeU8', '__FIG', '__bodies', '__world', 'window', src)(THREE, new THREE.Scene(), dec(Uint16Array), dec(Uint32Array), dec(Uint8Array), __FIG, __bodies, __world, window);
+    const g = __bodies.hero = api.make(__FIG.p, {}, new THREE.Group()), rf = g.userData.rigFig;
+    api.frame();
+    expect(rf.poseSkin).toBeUndefined();   // (built only when wanted)
+    __world.camera.rule = { type: 'shot', frame: 'close', on: ['hero'] };
+    api.frame();
+    expect([rf.poseSkin.visible, rf.skin.visible]).toEqual([true, false]);
+    expect(rf.poseSkin.skeleton.bones).toEqual(rf.skin.skeleton.bones);   // (the same bones: the clips never change hands)
+    __world.camera.rule = { type: 'shot', frame: 'wide', on: ['hero'] };
+    api.frame();
+    expect([rf.poseSkin.visible, rf.skin.visible]).toEqual([false, true]);
+    // (the battle's film cuts it in the same way)
+    window.__mojFilmPose = ['hero'];
+    api.frame();
+    expect(rf.poseSkin.visible).toBe(true);
+  });
+
+  it('the page carries the cut-in only where a figure has a pose twin', () => {
+    const ent = [{ id: 'hero', body: { type: 'figure-rig', figure: 'p' }, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }];
+    const figs = (pose) => ({ p: { rig: true, layered: true, bones: [{ id: 'pelvis', head: [0, 0, 0], tail: [0, 0, 1] }], parts: [part(0)], clips: { idle: clip }, figH: 1.7, ...(pose ? { pose: 'q' } : {}) }, ...(pose ? { q: { rig: true, layered: true, bones: [{ id: 'pelvis', head: [0, 0, 0], tail: [0, 0, 1] }], parts: [part(0)], clips: { idle: clip }, figH: 1.7 } } : {}) });
+    expect(controllableChannelScript(ent, null, figs(true))).toContain('__poseFrame();');
+    expect(controllableChannelScript(ent, null, figs(false))).not.toContain('__poseFrame');
+  });
+});
+

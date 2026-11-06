@@ -22,6 +22,8 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { PLAY_GRADE } from '../figures/figure-grades.js';
+import { PARTY_CHASE } from '../playscape/hero-chase.js';
 import { errandLegs, layErrand } from './errand.js';
 import { readGameworld, resolveLevel, looksOfKit } from './world.js';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '../geotown/scene.js';
@@ -117,6 +119,8 @@ const juiceOf = (G) => { const J = juiceOfGame(G); return J ? { fxStyle: J.fxSty
 const tempoOf = (G) => { const T = tempoOfGame(G); return T ? { tempo: T.tempo } : {}; };
 // the world's grade (grade.js): the look over every frame of its levels; none written, nothing laid
 const gradeOf = (G) => { const R = gradeOfGame(G); return R ? { grade: R.grade } : {}; };
+// the grade its people are played at (figure-grades.js): a game's levels play the PLAY grade, the cinematics pose theirs
+const figuresOf = () => ({ figureGrade: PLAY_GRADE });
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -704,7 +708,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
         : lane ? { rule: 'side', target: 'hero' }
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
-        : P.camera;
+        : partyChase(G, P.camera);
     const A = armedPilot(G, { ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }, cam);
     pilotPart = { figures: P.figures, entities: [A.entity], camera: cam && cam !== 'third-person' ? camera : A.camera ?? camera, events };
     seatable = !look;
@@ -802,7 +806,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
   play = withBookUi(G, play);
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game };
+  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
@@ -1134,6 +1138,12 @@ export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : R.bu
  * the fight's camera stands back inside it (rpg-channel.js's arena) rather than being cut away to; a building on a
  * core plan (an office, a base) keeps its own, as does a building that writes its rooms' sizes. */
 export const DUNGEON_SCALE = 2;
+/** A party RPG's chase (hero-chase.js PARTY_CHASE): a world that fights in party battles plays its people at the play
+ * grade, small on screen, from a chase pulled back and up; any other world's chase as it was. */
+function partyChase(G, camera) {
+  const fights = laidBattles(G).battles;
+  return fights && fights.on !== 'board' && camera?.rule === 'follow' && camera.target === 'hero' ? { ...camera, ...PARTY_CHASE } : camera;
+}
 function partyScaled(G, B) {
   const fights = laidBattles(G).battles, shape = PROGRAMS[B.use]?.shape;
   return fights && fights.on !== 'board' && shape && shape !== 'core' && B.look === undefined && !PROGRAMS[B.use]?.base ? { ...B, scale: DUNGEON_SCALE } : B;
@@ -1276,7 +1286,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   if (!heroRef) {
     if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [piloted(walker), ...X.entities], camera: lowered.camera };
     if (X?.inputs?.length) base = { ...base, events: { ...(base.events ?? {}), inputs: [...(base.events?.inputs ?? []), ...X.inputs] } };
-    return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G), ...tempoOf(G), ...gradeOf(G) } }, ends };
+    return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf() } }, ends };
   }
   // a hero with the wall or the line (actions.moves) plays it under its rooms' ceilings, laid as colliders (era/anchors.js)
   const moves = heroMoves(G);
@@ -1292,10 +1302,10 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const A = armedPilot(G, { ...P.entities[0], transform: { pos: cx ? spawn : steppedIn(plan, spawn, heading), heading } }, cam);
-  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : A.camera ?? P.camera;
+  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : A.camera ?? partyChase(G, P.camera);
   const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted(A.entity), ...(X?.entities ?? [])], camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
-  const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G) };
+  const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf() };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }
