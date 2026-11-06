@@ -113,9 +113,9 @@ Or start from a sentence: a six-storey building with a penthouse, an office, a w
 
 ### Interactive worlds
 
-![A city block with traffic: cars and a delivery truck at a crossing, traffic lights, power poles and palm trees, a playground beside a low building](docs/images/city-walkers-traffic.gif)
+Worlds you walk through in the browser, and worlds that react. Turn on destructible environments and things break by what they are made of: glass shatters, brick and concrete blast apart, timber chips and steel dents, and what loses its support comes down under its own weight, crushing what it lands on. Explosions crater the ground, and you can dig it. Buildings, walls, trees and terrain all take part, and the same blast gives the same collapse every time.
 
-Worlds you walk through in the browser, with traffic and people on the streets, day or night. Give them music and sound: a score and sound effects made from scratch, with no samples. Film them: flythroughs, a walkthrough of your rooms, and cutscenes with actors who play a role from a script, talk to each other and hit their marks, shot the way a director would cover them. More: [cinematics](docs/cinematics.md).
+Give your worlds music and sound: a score and sound effects made from scratch, with no samples. Film them: flythroughs, a walkthrough of your rooms, and cutscenes with actors who play a role from a script, talk to each other and hit their marks, shot the way a director would cover them. More: [destructible environments](docs/rupa.md), [cinematics](docs/cinematics.md).
 
 ### Playable games
 

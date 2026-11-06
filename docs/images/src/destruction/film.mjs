@@ -18,7 +18,7 @@ const fps = Number(fpsArg), seconds = Number(secondsArg), radius = Number(radius
 mkdirSync(outDir, { recursive: true });
 
 const file = await captureCopy(world);
-const browser = await launch(true);
+const browser = await launch(true, { protocolTimeout: 0 });   // a big world's step can outlast puppeteer's 180 s
 try {
   const page = await browser.newPage();
   page.setDefaultTimeout(0);
@@ -70,7 +70,9 @@ try {
       }, at, radius);
       console.log(`blast: ${hit} blocks in reach`);
     }
+    const t0 = Date.now();
     await page.evaluate((s) => window.__mojCapture.step(s), { dt, input: {}, pos: camera.pos, target: camera.target });
+    if (k < 3 || k === blastAt) console.log(`step ${k}: ${Date.now() - t0} ms`);
     await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r())));
     const shot = await (await page.$('#wrap')).screenshot({ type: 'png' });
     writeFileSync(path.join(outDir, `frame-${String(k).padStart(3, '0')}.png`), shot);
