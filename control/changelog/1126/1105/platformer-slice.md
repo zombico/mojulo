@@ -60,6 +60,16 @@
   the hero stands and held through a jump (`band`), so a stair's risers no longer jolt the frame, and the frame holds in
   from the lane's ends (`ends`), so it does not look past the trail at its boundary. Absent a course, a side world lays
   and frames as it did.
+- **The run button.** A feel with its takes whose card runs faster than it runs (`ground.sprint`) and has no dash gets a
+  run button: F held while running builds the run up to the sprint over a second (Jumping Giuseppe's 6 to 8 m/s), as
+  a mascot platformer's run is earned, and eases back over half a second let go; the air keeps it. Momentum, not a
+  move: the dash is the burst. The legend and the pause menu say F as the run.
+- **F is the feel's.** A hero with a feel's dash or run button owns F whatever its walk pace: a side lane's hero, laid
+  with none, fell through to the mobile suit's boost thrusters, so its dash was a held boost at three and a half
+  times the run. The pause menu's rows say the dash and the run where the hero has them.
+- **Controls in the menu.** `mechanics.legend: 'menu'` keeps the controls off the play screen (taught only in the pause
+  menu, as a game ships); absent, a level shows them for its first seconds as before. A side camera's level has no
+  radar: its screen is the lane.
 - **A merged foe can be targeted.** The target rim and the i-frame shimmer read a merged figure's one skinned mesh (its
   bone list holds bones, not meshes); the rim was throwing on it and stopping the page the moment a foe was in reach.
 - **A platformer's first level.** `gameworld/first-level.js` lays it as the team's output unit and the production's

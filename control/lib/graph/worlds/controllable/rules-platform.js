@@ -54,6 +54,9 @@ export function buildRulesPlatform(E) {
     // stick walks under `runAt` of its travel and runs past it; the walk key held (`input.walk`) walks. A rule whose F is
     // its gear's (`gear`) or a space suit keeps the boost. Absent → the boost below, byte-identical.
     const walker = r.walkSpeed > 0 && r.space !== true && !r.gear;
+    // (F is the feel's when its card gives it one, a dash or a run button: never the thrusters, walk pace or none, as on
+    // a side-scroller's lane, whose hero only runs)
+    const ownF = !!(r.dash || r.sprint) && r.space !== true && !r.gear;
     let speed = r.speed ?? 6;
     const turnRate = r.turn ?? 2.4, strafe = r.strafe ?? 1, eye = r.eye ?? 0;
     const boostSpeed = r.boostSpeed ?? speed * 3.5;
@@ -175,6 +178,15 @@ export function buildRulesPlatform(E) {
     // the stick's travel into that pace, so every reader below (the drive, the step, the air) moves at it.
     const travel = walker ? Math.min(1, Math.hypot(fwdIn, sideIn)) : 0, runAt = r.runAt ?? 0.6;
     const walking = walker && travel > 1e-6 && (!!input.walk || travel < runAt);
+    // THE RUN BUTTON (opt-in `sprint`, a feel card's `ground.sprint` with its takes, a dash-less hero's F): held while
+    // running on the ground, the run's top speed builds toward `sprint.speed` over `sprint.build` seconds, and eases back
+    // over `sprint.fall` once let go (or the body stops or walks); the air keeps what it had. Momentum, not a move: the
+    // drive (`accel`) carries the body up to the speed as it builds. Absent → the run as it was.
+    if (ownF && r.sprint && !r.dash) {
+      const S = r.sprint, push = !!input.boost && Math.hypot(fwdIn, sideIn) > 1e-3 && !walking;
+      if (e.grounded) e.sprintK = push ? Math.min(1, (e.sprintK || 0) + dt / S.build) : Math.max(0, (e.sprintK || 0) - dt / S.fall);
+      if (e.sprintK > 0) speed += (S.speed - speed) * e.sprintK;
+    }
     if (walker && travel > 1e-6) {
       const pace = walking ? r.walkSpeed * Math.min(1, travel / runAt) : r.walkSpeed + (speed - r.walkSpeed) * (travel - runAt) / (1 - runAt);
       speed = pace / travel;
@@ -276,7 +288,7 @@ export function buildRulesPlatform(E) {
     // so many an airtime, given back by the ground and a wall): the same burst on its own line, the fall stopped while it
     // is at speed and given back as it eases. A jump in a ground dash is a DASH JUMP (`dash.jump`): it leaves at once and
     // the air keeps the speed the burst had (`e.carry`) to the touch-down. Absent `dash` → nothing here runs.
-    const DS = r.dash && walker && !space ? r.dash : null;
+    const DS = r.dash && ownF && !space ? r.dash : null;
     if (DS) {
       const press = !!input.boost && !e.dashHeld; e.dashHeld = !!input.boost;
       if (e.grounded && !jumped) { e.airDashes = DS.air ? DS.air.count : 0; e.carry = 0; }
@@ -323,7 +335,7 @@ export function buildRulesPlatform(E) {
     // RELEASED, then a fresh press dashes again.
     const boostAvailable = !hasGauge || (e.boost > 1e-6 && !e.boostLock);
     if (!input.boost) e.boostCut = false;
-    let boosting = !walker && !!input.boost && !dodging && !tackling && boostAvailable && !e.boostCut;
+    let boosting = !walker && !ownF && !!input.boost && !dodging && !tackling && boostAvailable && !e.boostCut;
     // KNEEL (opt-in `kneel:true` on the rule; held X): a grounded one-knee
     // hold — roots the entity and plays the 'kneel' clip. Boost and the
     // charge jump both take precedence (either input stands the unit up).

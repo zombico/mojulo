@@ -446,6 +446,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // the card's frames long whatever the button does, up to its speed and eased back to the run's, a lunge for its pose
 // (no strides), the air dash's fall stopped only while it is at speed; the held dash's branch is gone. Absent `dash`,
 // nothing in it runs.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: F is the feel's): the 16 controllable fixtures, and `versus`, `xr`
+// and `walk-xr`, which embed the controls kernel. A rule with a feel's dash or run button (`sprint`, its build) owns F
+// whatever its walk pace (a side lane's hero has none), never the thrusters; the pause legend's rows say the dash and
+// the run, its `unless` taking a list; no radar under a side camera. Absent `dash` and `sprint`, F boosts as it did.
 // Re-pinned 2026-11-06 (1105-platformer-lv0-spike merging 1105-rpg-slice's pixel budget): the same fixtures, their
 // emission the re-pins above together (the platform rule's takes, wall, dash and camera move; the knockback seams; the
 // pixel budget of a page played live, one draw a figure).

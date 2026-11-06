@@ -462,8 +462,10 @@ function equipmentCard() {
 
 function systemsCard() {
   return lines(
-    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, ui?, gear?, destruction?, scars? }.',
+    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, legend?, ui?, gear?, destruction?, scars? }.',
     '',
+    'legend: screen (the default: the controls on the play screen for a level\'s first seconds) | menu (only in the pause',
+    '  menu, nothing over the play: a demo or a release).',
     `scale (the coarse dials): ${Object.entries(SCALE).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `stages → epochs reached by level: ${Object.entries(EPOCH_LEVEL).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `how a power is gained, by system kind: ${Object.entries(GAINED).map(([k, v]) => `${k}: ${v.why}`).join('; ')}.`,

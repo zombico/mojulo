@@ -102,6 +102,10 @@ export function steppedSpeed(h, g, dt = 1 / FPS) {
  */
 export const TAKES = Object.freeze({ jump_up: 'jump', jump_fwd: 'jumpForward', jump_air: 'doubleJump' });
 
+/** The run button's build (`rule.sprint`): a held run gets to the card's sprint over a second of running, as a mascot
+ * platformer's does (momentum earned, not a burst: the dash is that), and gives it back over half a second let go. */
+export const SPRINT = Object.freeze({ build: 1, fall: 0.5 });
+
 /** The platform rule's `takes`: each take's flight as shares of its clip, and the landing's seconds (the card's). */
 function takesOf(J, look) {
   const S = Object.fromEntries(Object.entries(TAKES).map(([state, clip]) => [state, jumpShares(clip)]));
@@ -121,7 +125,11 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
   if (Gd.accel > 0) put('ground.accel', 'accel', Gd.accel);
   if (Gd.decel > 0) put('ground.decel', 'decel', Gd.decel);
   if (Gd.turn != null) { rule.faceRate = Gd.turn === Infinity ? 60 : r4((Gd.turn * Math.PI) / 180); half('ground.turn', 'the facing\'s turn where the hero moves in the screen\'s frame or on a lane (faceRate); a tank-turned hero keeps its own'); }
-  if (Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
+  // the sprint: with the takes and no dash, the run button (F held), its speed built as a mascot platformer's run is, over
+  // SPRINT.build seconds of running; else one speed, the run
+  const sprints = takes && Gd.sprint > Gd.run && !(C.dash && C.dash.kind === 'dash');
+  if (sprints) { rule.sprint = { speed: Gd.sprint, ...SPRINT }; half('ground.sprint', `the run button (F held while running): the run built up to ${Gd.sprint} m/s over ${SPRINT.build} s, eased back over ${SPRINT.fall} s let go`); }
+  else if (Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
   // the jump: its speed from the height and the rise's gravity (as the runtime steps them), the fall's own, the windows in
   // seconds; the gather a half frame long so the take-off lands on the card's frame (the runtime counts the press's)
   const v0 = steppedSpeed(J.height, J.gRise);

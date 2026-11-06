@@ -2615,6 +2615,7 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
   return __CTL.legend(__SCHEME, __BIND, __DEV, {
     space: r.space === true, kneel: r.kneel === true, tackle: !!r.tackle, vehicle: r.type === 'drive' || r.type === 'fly',
     walker: r.walkSpeed > 0 && r.space !== true && !r.gear,   // a person: the walk held, no thrusters
+    dash: !!r.dash, sprint: !!r.sprint && !r.dash,             // a feel's F: the dash, or the run button (rules-platform.js)
     mouselook: __MOUSELOOK, armed: W.entities.some((e) => e.weapon || lo(e)), lock: ${!!lock},
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
@@ -3200,7 +3201,8 @@ function __updateLock() {
 ` : ''}// the PILOTED suit each frame (T swaps it). Absent otherwise (byte-identical).
 let __radar = null;
 const __radarSelf = () => __world.spectate ? __specWatchEnt() : ((__world.pilotId && __world.byId[__world.pilotId]) || __armed || null);
-if (__radarSelf() && __world.entities.some((e) => e.body && e.body.hittable && e !== __radarSelf())) {
+// (none under a side camera: the screen is the lane, a side-scroller's foes in it)
+if (__radarSelf() && !(__world.camera && __world.camera.rule && __world.camera.rule.type === 'side') && __world.entities.some((e) => e.body && e.body.hittable && e !== __radarSelf())) {
   const RSZ = 132;
   const __rWrap = document.createElement('div');
   __rWrap.style.cssText = 'position:absolute;right:16px;top:16px;width:' + RSZ + 'px;height:' + RSZ + 'px;border-radius:50%;background:rgba(8,14,22,0.42);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.28),0 2px 10px rgba(0,0,0,0.42);pointer-events:none;z-index:9;overflow:hidden';

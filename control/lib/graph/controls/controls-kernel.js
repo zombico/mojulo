@@ -176,7 +176,7 @@ export function buildControlsKernel() {
     for (const k of Object.keys(v)) if (k !== '_' && ctx[k]) return v[k];
     return v._ || '';
   };
-  const live = (row, ctx) => (!row.when || !!ctx[row.when]) && (!row.unless || !ctx[row.unless]);
+  const live = (row, ctx) => (!row.when || !!ctx[row.when]) && (!row.unless || [].concat(row.unless).every((k) => !ctx[k]));   // (unless: a flag or several)
   const join = (xs, sep) => xs.filter(Boolean).join(sep);
 
   // four directions: one stick ("left stick"), the arrow keys ("arrows"), or the four keys ("W A S D"), per slot

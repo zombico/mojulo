@@ -117,3 +117,27 @@ describe('the dash: a burst, not a run', () => {
     expect(Math.min(...air.map((x) => x.drive))).toBeGreaterThan(R.speed + 1e-6);
   });
 });
+
+// THE RUN BUTTON (rules-platform.js `sprint`, a dash-less card's sprint with its takes): momentum earned, not a burst
+describe('the run button: a held run builds to the sprint', () => {
+  const sp = POLE_IDS.find((id) => { const C = poleCard(id); return C.lane && !C.dash && C.ground.sprint > C.ground.run; });
+  const RS = shippedRule({ pole: sp, takes: true });
+  const spd = (w) => { const d = w.byId.p.drive; return Math.hypot(d[0], d[1]); };
+  it('the card\'s sprint, over its build, F held while running; let go, back to the run over its fall', () => {
+    expect(RS.sprint.speed).toBeGreaterThan(RS.speed);
+    expect(RS.dash).toBeUndefined();
+    const w = mk(RS, []); run(w, () => ({}), 6, OPEN);
+    run(w, () => ({ forward: 1 }), 30, OPEN);
+    expect(spd(w)).toBeCloseTo(RS.speed, 6);                               // the run, without the button
+    const fr = run(w, () => ({ forward: 1, boost: true }), Math.round(RS.sprint.build / DT) + 10, OPEN);
+    const half = fr[Math.round(0.5 * RS.sprint.build / DT)].drive;
+    expect(half).toBeGreaterThan(RS.speed + 0.3);                           // building, not there at once
+    expect(half).toBeLessThan(RS.sprint.speed - 0.3);
+    expect(spd(w)).toBeCloseTo(RS.sprint.speed, 6);                         // there by its build
+    run(w, () => ({ forward: 1 }), Math.round(RS.sprint.fall / DT) + 10, OPEN);
+    expect(spd(w)).toBeCloseTo(RS.speed, 6);                                // let go: the run again
+  });
+  it('a card with the dash keeps F for it: no run button', () => {
+    expect(R.sprint).toBeUndefined();
+  });
+});

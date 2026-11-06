@@ -96,6 +96,12 @@ describe('the first level from the side: nothing between the camera and the hero
     expect(O.args.manifest.camera).toMatchObject({ rule: 'side', band: [...SIDE_BAND], ends: SIDE_ENDS });
   });
 
+  it('legend menu: no controls on the play screen (the pause menu teaches them); absent, the level\'s first seconds do', () => {
+    const order = (W2) => JSON.stringify(stageLevelOrder(readGameworld(W2), gameStages(W2).filter((s) => s.level === lv)[0], { ref: 'lv-side', heroRef: 'gw-hero' }).args.manifest);
+    expect(order(W)).toContain('A / D  run');
+    expect(order({ ...W, mechanics: { legend: 'menu' } })).not.toContain('A / D  run');
+  });
+
   it('a side world with no course lays its trails as it did', () => {
     const plain = gameStages({ ...MEADOWMARK_HERO, camera: 'side' });
     for (const s of plain) expect(s.manifest._viewOut, s.node).toBeUndefined();
