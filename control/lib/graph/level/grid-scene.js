@@ -15,11 +15,18 @@
  * dwelling, a shop, a tavern, a temple…) stands on its tile, its door at the middle of the side its path reaches, inset
  * DOOR_IN, facing the path; kept whole however far it reaches (a tile clips only its outdoor dress to its square).
  *
+ * THE LAWS (`map.laws`, measured on the page as built: the proof it is one level): `one-page` every tile in this one
+ * payload; `seams` along every edge two tiles share their ground stands at one height from both sides (each tile's own corners on
+ * the edge line, within SEAM_TOL);
+ * `paths-clear` no collider stands on any path (its line sampled every half metre, at a walker's height); `doors-clear`
+ * every place's door stands clear; `one-network` the paths are one network (readGrid refuses any other).
+ *
  * THE EDGES: the map is closed. Walls stand along its border (as a trail's bounds do), and beyond it the land rises
  * into a rim of hills RIM metres deep, from the land's own height at the border, so the world's edge reads as the
  * valley's sides, never as a drop into the sky.
  */
-import { readGrid } from './grid.js';
+import { readGrid, tileCentre } from './grid.js';
+import { tilePath } from '../era/out-tile.js';
 import { frameOf, placed, ringTheMap } from './map-scene.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
@@ -27,6 +34,69 @@ const DOOR_IN = 5;
 // a building's door on its tile: at the middle of the side its path reaches, inset, facing out toward the path
 const DOOR = (T) => ({ n: { x: T / 2, y: T - DOOR_IN, facing: '+y' }, s: { x: T / 2, y: DOOR_IN, facing: '-y' }, e: { x: T - DOOR_IN, y: T / 2, facing: '+x' }, w: { x: DOOR_IN, y: T / 2, facing: '-x' } });
 export const RIM = Object.freeze({ deep: 70, rise: 18, step: 6, wall: 6 });
+export const SEAM_TOL = 0.3;
+
+// the ground's height near (x, y) from one tile's own ground faces (its node), or null
+function tileGround(faces) {
+  const by = new Map();
+  for (const f of faces) {
+    if (!f.group || !/:ground$/.test(f.group)) continue;
+    const k = f._node; if (!k) continue;
+    (by.get(k) ?? by.set(k, []).get(k)).push(f);
+  }
+  // (`onEdge`: only the tile's corners lying on that edge line, x = const or y = const: both sides read the same line)
+  return (node, x, y, onEdge = null) => {
+    let w = 0, z = 0;
+    for (const f of by.get(node) ?? []) for (const c of f.corners) {
+      if (onEdge && Math.abs(c[onEdge.axis] - onEdge.at) > 0.01) continue;
+      const d = Math.hypot(c[0] - x, c[1] - y); if (d > 2.5) continue; const k = 1 / (0.05 + d * d); w += k; z += k * c[2];
+    }
+    return w ? z / w : null;
+  };
+}
+// the laws of the map as built (see the header)
+function mapLaws(G, cells, faces, colliders) {
+  const T = G.tile, id = (r, c) => `${r},${c}`, laws = [];
+  laws.push({ law: 'one-page', ok: cells.length === G.rows * G.cols, value: `${cells.length} tiles on one page` });
+  // SEAMS: along each shared edge, a metre inside either tile, the heights agree
+  const at = tileGround(faces);
+  let worst = 0, edges = 0, where = '';
+  for (const C of cells) for (const [dr, dc] of [[0, 1], [1, 0]]) {
+    const r2 = C.r + dr, c2 = C.c + dc; if (r2 >= G.rows || c2 >= G.cols) continue;
+    edges++;
+    for (let t = 2; t < T - 1; t += 4) {
+      // (the shared edge: east of C for dc, south of C for dr; each tile's own corners ON that line read at one point)
+      const [x, y] = dc ? [(C.c + 1) * T, -(C.r) * T - t] : [C.c * T + t, -(C.r + 1) * T];
+      const line = dc ? { axis: 0, at: x } : { axis: 1, at: y };
+      const a = at(id(C.r, C.c), x, y, line), b = at(id(r2, c2), x, y, line);
+      if (a !== null && b !== null && Math.abs(a - b) > worst) { worst = Math.abs(a - b); where = ` (between row ${C.r + 1} column ${C.c + 1} and row ${r2 + 1} column ${c2 + 1})`; }
+    }
+  }
+  laws.push({ law: 'seams', ok: worst <= SEAM_TOL, value: `${edges} shared edges, the ground apart by ${worst.toFixed(3)} m at most${where} (tolerance ${SEAM_TOL})` });
+  // PATHS CLEAR: each path's line every metre, at a walker's height over the ground, inside no collider
+  const inside = (p) => colliders.some((b) => Array.isArray(b.min) && p[0] >= b.min[0] && p[0] <= b.max[0] && p[1] >= b.min[1] && p[1] <= b.max[1] && p[2] >= b.min[2] && p[2] <= b.max[2]);
+  const blocked = [];
+  for (const C of cells) {
+    if (C.kind !== 'path') continue;
+    const o = [C.c * T, -(C.r + 1) * T];
+    for (const P of tilePath(T, C.open)) for (let i = 0; i < P.length; i++) {
+      const x = o[0] + P[i][0], y = o[1] + P[i][1], z = at(id(C.r, C.c), x, y);
+      if (z !== null && inside([x, y, z + 1])) { blocked.push(`row ${C.r + 1} column ${C.c + 1}`); break; }
+    }
+  }
+  laws.push({ law: 'paths-clear', ok: !blocked.length, value: blocked.length ? `a collider stands on the path at ${[...new Set(blocked)].join(', ')}` : 'no collider on any path' });
+  // DOORS CLEAR: a place's door middle (its side's middle, a metre in) at a walker's height
+  const doorsBlocked = [];
+  for (const C of cells) {
+    if (C.kind !== 'place' || !C.open?.length) continue;
+    const [cx, cy] = tileCentre(G, C.r, C.c), s = C.open[0], d = { n: [0, 1], s: [0, -1], e: [1, 0], w: [-1, 0] }[s], x = cx + d[0] * (T / 2 - 1), y = cy + d[1] * (T / 2 - 1);
+    const z = at(id(C.r, C.c), x, y);
+    if (z !== null && inside([x, y, z + 1])) doorsBlocked.push(`${C.glyph} at row ${C.r + 1} column ${C.c + 1}`);
+  }
+  laws.push({ law: 'doors-clear', ok: !doorsBlocked.length, value: doorsBlocked.length ? `blocked: ${doorsBlocked.join(', ')}` : 'every door clear' });
+  laws.push({ law: 'one-network', ok: true, value: 'the paths are one network (the grid refuses any other)' });
+  return laws;
+}
 const hashTile = (seed, r, c) => ((Math.imul((seed | 0) + 17, 2654435761) ^ Math.imul(r + 31, 40503) ^ Math.imul(c + 7, 22541)) >>> 0) % 100000;
 
 // the base64 typed arrays the grass channel reads (era/isekai.js b64)
@@ -102,6 +172,10 @@ export async function assembleGridScene(m, ctx = {}, { buildStage } = {}) {
     const manifest = { kind: 'stage', kit: lv.kit ?? 'isekai-meadow', seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, level: { seed } }, ...(building ? { buildings: [building] } : {}), ...(lv.wind !== undefined ? { wind: lv.wind } : {}), ...(lv.grass !== undefined ? { grass: lv.grass } : {}) };
     const payload = await build(manifest), F = frameOf({ at, heading: Math.PI / 2 }, 0);
     const P = placed(payload, F, `${cell.r},${cell.c}`, { band: [0, T, T], backdrop: !first, outdoorOnly: true });
+    // (each ground face remembers its tile, for the seams' law; dropped before the page is emitted)
+    // (only the ground wholly in its own square: a kit's far skirt reaching in is not the tile's ground)
+    const inSquare = (c) => c[0] >= at[0] - 0.01 && c[0] <= at[0] + T + 0.01 && c[1] >= at[1] - 0.01 && c[1] <= at[1] + T + 0.01;
+    for (const f of P.faces) if (f.group && /^(isekai|nature):ground$/.test(f.group) && f.corners.every(inSquare)) Object.defineProperty(f, '_node', { value: `${cell.r},${cell.c}`, enumerable: false });
     for (const k of ['faces', 'repeats', 'lights', 'anchors', 'colliders']) out[k].push(...P[k]);
     for (const c of payload.cutouts || []) if (!out.cutouts.includes(c)) out.cutouts.push(c);
     Object.assign(out.textures, payload.textures || {}); Object.assign(out.resample, payload.resample || {});
@@ -133,6 +207,6 @@ export async function assembleGridScene(m, ctx = {}, { buildStage } = {}) {
     cameras: [],
     ...(LG ? { liveGrass: LG } : {}),
     walk: { ...(R.walk || {}), spawn: [r5(sx), r5(sy), r5(gz + (R.walk?.minEye ?? 1.7))] },
-    map: { tile: T, rows: G.rows, cols: G.cols, cells },
+    map: { tile: T, rows: G.rows, cols: G.cols, cells, laws: mapLaws(G, cells, out.faces, out.colliders) },
   };
 }

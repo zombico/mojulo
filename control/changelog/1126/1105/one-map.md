@@ -39,3 +39,8 @@
   faces it, so no road runs into a building's back. A tile clips only its outdoor dress to its square; a building is
   kept whole. The map is closed: walls along its border, and beyond it a rim of land rising 18 m over 70, from the
   land's own height there, so the world's edge reads as the valley's sides; its horizon rings past it all.
+- **A glyph map's laws.** A map built from a glyph grid measures itself (`map.laws`): `one-page` every tile in one
+  payload; `seams` each shared edge's ground at one height from both tiles (each tile's own corners on the edge line);
+  `paths-clear` no collider on any path (sampled every half metre at a walker's height); `doors-clear` every place's
+  door clear; `one-network` the paths one network. A whole map built through the kit's builder is held to them in the
+  e2e tier (level/grid-scene.e2e.test.js).
