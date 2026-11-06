@@ -24,6 +24,7 @@ const SURFACE = /^(rough|metal|gloss|sheen|wear|grit|grime|dirt|rust|patina|grai
 const DETAIL = /^(detail|ornament|stylize|stylise|ornate|density|complex|register|focal|motif|adorn|trim|accent|decor)/i;
 const COLOUR = /^(hue|chroma|saturation|lightness|tint|tone|warm|heat|colour|color|paint|palette)/i;
 const SEEDED = /^(seed|seeds|dice)$/i;
+const STEP_MAX = 12; // a whole number at most this is a step on a scale; above it, a quantity
 // never descended into: the frame a thing is drawn in (its canvas, its camera, its page, its layout), not the thing
 const FRAMES = /^(viewBox|viewport|canvas|camera|cameras|cam|shot|shots|shotContract|spatialPlan|screen|page|grid|cell|cells|bounds|bbox|margin|margins|padding|layout|export|exports|meta|provenance|history|review|made|book|audit)$/i;
 const words = (key) => String(key).split(/(?=[A-Z])|[_\-\s.]+/).filter(Boolean).map((w) => w.toLowerCase());
@@ -46,8 +47,10 @@ export function valueAt(doc, pointer) {
 }
 
 /** Which axis a key reads as, for a number under it (null: not a visual number). */
+// a measure named by its last letter (a seat's seatH, an arm's armW): a size; a bare `w` or `h` is a box's, not a thing's
+const MEASURE = (key) => { const w = words(key); return w.length > 1 && ['h', 'w', 'd'].includes(w[w.length - 1]); };
 function numericAxis(key) {
-  if (reads(SIZE, key)) return 'size';
+  if (reads(SIZE, key) || MEASURE(key)) return 'size';
   if (reads(SILHOUETTE, key)) return 'silhouette';
   if (reads(DETAIL, key)) return 'detail';
   if (reads(SURFACE, key)) return 'surface';
@@ -91,14 +94,21 @@ export function readLeaves(manifest, { within = [''], lock = [], vocab = [] } = 
       const axis = numericAxis(key);
       if (!axis) return;
       const form = readNumber(node, key, axis);
-      if (form) out.push({ path, axis, form, value: node, key, int: Number.isInteger(node) && form === 'pos' });
+      if (form) out.push({ path, axis, form, value: node, key, int: false });
     }
   };
   walk(manifest, '', null);
-  // an INTEGER SCALE: a key that holds a whole number above 1 anywhere in the design (an ornament 0..3) holds steps
-  // everywhere, so its 1 is a step on that scale and never a 0..1 amount
-  const steps = new Set(out.filter((l) => typeof l.value === 'number' && Number.isInteger(l.value) && l.value > 1 && l.form === 'pos').map((l) => l.key));
-  for (const l of out) if (l.form === 'unit' && Number.isInteger(l.value) && steps.has(l.key)) { l.form = 'pos'; l.int = true; }
+  // an INTEGER SCALE: a key whose whole numbers are small (an ornament 0..3, a count of drawers) and include one above 1
+  // holds steps everywhere, so its 1 is a step on that scale and never a 0..1 amount; a key holding a large whole
+  // number (a size in millimetres) holds a quantity, moved by a ratio and kept whole
+  const ints = new Map();
+  for (const l of out) if (typeof l.value === 'number' && Number.isInteger(l.value) && l.form !== 'roll') ints.set(l.key, Math.max(ints.get(l.key) ?? 0, l.value));
+  for (const l of out) {
+    if (typeof l.value !== 'number' || !Number.isInteger(l.value) || l.form === 'roll' || l.form === 'deg') continue;
+    const top = ints.get(l.key);
+    if (top > 1 && top <= STEP_MAX) { if (l.form === 'unit' || l.form === 'pos') { l.form = 'pos'; l.int = 'step'; } }
+    else if (l.form === 'pos') l.int = top > STEP_MAX ? 'whole' : false;
+  }
   return out;
 }
 

@@ -99,6 +99,24 @@ describe("the house's words", () => {
     }
     expect(parts).toBeGreaterThan(0);
     expect(slot('part:barrel')).toEqual(['short', 'standard', 'long']);
+    // each swap said as what it was and what it became, in its own vocabulary
+    for (const v of out.variants) for (const w of v.moves.words ?? []) {
+      expect(w.from).not.toBe(w.to);
+      expect(VOCABULARY.find((x) => x.id === w.vocab).words).toEqual(expect.arrayContaining([w.from, w.to]));
+    }
+  });
+  it('a piece of furniture as stored: its forms and fabric are words, its millimetres whole quantities moved by a ratio', () => {
+    const sofa = { kind: 'workbench', build: { type: 'furniture', piece: 'sofa', dials: { arms: 'rolled', back: 'tufted', cushions: 'bench', seatH: 440, armH: 760 }, legs: 'turned', size: [2190, 945, 760], fabric: 'tartan' } };
+    const out = turnMangekyou({ manifest: sofa, concept: 'different shapes, fabrics and sizes', n: 5, roll: 31 });
+    const sized = out.variants.filter((v) => v.moves.size);
+    expect(sized.length).toBeGreaterThan(0);
+    for (const v of sized) {
+      for (const x of [...v.manifest.build.size, v.manifest.build.dials.seatH]) expect(Number.isInteger(x)).toBe(true);
+      expect(Math.abs(v.manifest.build.size[0] - 2190)).toBeGreaterThan(1);
+    }
+    expect(out.variants.some((v) => v.manifest.build.fabric !== 'tartan' || v.manifest.build.legs !== 'turned')).toBe(true);
+    // a box's bare w and h are not a thing's size
+    expect(readLeaves({ marks: [{ w: 80, h: 40 }] }).length).toBe(0);
   });
 });
 

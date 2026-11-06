@@ -15,6 +15,11 @@ import { REGISTER_WORDS, DETAIL_WORDS } from '../mutagen/stylism.js';
 import { MOTIF_NAMES } from '../mutagen/motif.js';
 import { ARM_FINISHES } from '../equipment/arms/finishes.js';
 import { ARM_MODELS } from '../equipment/arms/models.js';
+import { ARM_FORMS, BACK_FORMS, SEAT_FORMS } from '../furnishings/forms.js';
+import { LEG_SHAPES } from '../construction/furniture-builds.js';
+import { FABRIC_NAMES } from '../construction/fabric.js';
+import { TIMBER_KEYS, FINISHES as TIMBER_FINISHES } from '../construction/timber.js';
+import { SHEET_KEYS } from '../construction/sheets.js';
 import { SKINS as PLATING_SKINS } from '../plating/styles.js';
 import { SKINS as FOOTWEAR_SKINS } from '../footwear/styles.js';
 import { SKINS as HANDWEAR_SKINS } from '../handwear/styles.js';
@@ -45,6 +50,15 @@ export const VOCABULARY = Object.freeze([
   V('register', 'detail', /^register$/i, byRank(REGISTER_WORDS), true),
   V('detail', 'detail', /^detail$/i, byRank(DETAIL_WORDS), true),
   ...slotRows,
+  // furniture as it is stored (a workbench build's dials): its forms and its finish, the words its builds take
+  V('furniture:arms', 'silhouette', /^arms$/i, Object.values(ARM_FORMS).map((f) => f.arms)),
+  V('furniture:back', 'silhouette', /^back$/i, Object.values(BACK_FORMS).map((f) => f.back)),
+  V('furniture:cushions', 'silhouette', /^cushions$/i, Object.values(SEAT_FORMS).map((f) => f.cushions)),
+  V('furniture:legs', 'silhouette', /^legs$/i, LEG_SHAPES),
+  V('fabric', 'surface', /^fabric$/i, FABRIC_NAMES),
+  V('timber', 'surface', /^timber$/i, TIMBER_KEYS),
+  V('wood', 'surface', /^wood$/i, Object.keys(TIMBER_FINISHES)),
+  V('board', 'surface', /^board$/i, SHEET_KEYS),
 ]);
 
 const DEPT = Object.fromEntries(DEPARTMENTS.map((d) => [d.id, d.name]));

@@ -29,3 +29,7 @@
   magazine, a knife's blade and guard) are the house's silhouette words, each swapped only for another its slot takes
   (a barrel's short, standard, long a scale), and a finish card is read where an arm names it, its `style`. A step
   swaps about half of an axis's words and a leap nearly all, so a variant reads as a take, not a reshuffle.
+- **Furniture varies as it is stored.** A piece's forms (arms, back, cushions, legs) and its finish (fabric, timber,
+  wood, board) are the house's words; its millimetres are whole quantities moved by a ratio and kept whole, where a
+  small whole number (an ornament, a count of drawers) is a step on a scale. A measure named by its last letter (a
+  seat's `seatH`) is a size; a box's bare `w` and `h` are not.

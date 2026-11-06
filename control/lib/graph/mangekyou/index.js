@@ -110,8 +110,9 @@ function recolour(hex, m, rng, palette) {
 /** A number moved: a unit amount in logit space, a quantity by a ratio. */
 function moveNumber(leaf, amount) {
   if (leaf.form === 'unit') return r3(sigmoid(logit(leaf.value) + amount * 1.4));
-  // a whole number is a step on a scale: it moves by whole steps, and never to nothing
-  if (leaf.int) return Math.max(1, leaf.value + Math.round(amount * 1.2));
+  // a step on a scale moves by whole steps, never to nothing; a whole quantity (millimetres) by a ratio, kept whole
+  if (leaf.int === 'step') return Math.max(1, leaf.value + Math.round(amount * 1.2));
+  if (leaf.int === 'whole') return Math.max(1, Math.round(leaf.value * Math.exp(amount * 0.4)));
   return sig(leaf.value * Math.exp(amount * 0.4));
 }
 
@@ -157,7 +158,7 @@ function candidate(leaves, k, ctx) {
     if (leaf.form === 'hex') v = recolour(leaf.value, col, rng, principles.palette);
     else if (leaf.form === 'roll') v = 1 + Math.floor(rng() * (2 ** 31 - 2));
     else if (leaf.form === 'word') {
-      const key = `${leaf.vocab}:${leaf.value}`;
+      const key = JSON.stringify([leaf.vocab, leaf.value]);
       // a step swaps about half the words on its axis, a leap nearly all: a take, not a reshuffle
       if (!swaps.has(key)) swaps.set(key, rng() < clamp(0.2 + 0.35 * s, 0.15, 0.95) ? moveWord(leaf, rng, s, lean, principles.words[leaf.vocab]) : leaf.value);
       v = swaps.get(key);
@@ -171,14 +172,14 @@ function candidate(leaves, k, ctx) {
       const k = `${leaf.axis}:${leaf.key}`;
       if (!together.has(k)) together.set(k, (gauss(rng) * 0.9 + leanOf * 0.7) * s);
       // a ladder of steps shifts whole, never below its first rung's 1 (so its order holds)
-      v = leaf.int ? leaf.value + Math.max(Math.round(together.get(k) * 1.2), 1 - (ctx.floor.get(leaf.key) ?? 1))
-        : moveNumber(leaf, together.get(k) + gauss(rng) * 0.3 * s);
+      v = leaf.int === 'step' ? leaf.value + Math.max(Math.round(together.get(k) * 1.2), 1 - (ctx.floor.get(leaf.key) ?? 1))
+        : moveNumber(leaf, together.get(k) + (leaf.int ? 0.3 : 1) * gauss(rng) * 0.3 * s);
     }
     const b = principles.bounds[leaf.path];
     if (b && typeof v === 'number') v = clamp(v, b[0], b[1]);
     if (v !== leaf.value) values.set(leaf.path, v);
   }
-  for (const [key, to] of swaps) { const [vocab, from] = key.split(':'); if (to !== from) (moves.words ??= []).push({ vocab, from, to }); }
+  for (const [key, to] of swaps) { const [vocab, from] = JSON.parse(key); if (to !== from) (moves.words ??= []).push({ vocab, from, to }); }
   for (const a of Object.keys(committed)) moves[a] ??= {};
   for (const a of Object.keys(moves)) if (a !== 'words' && moves[a]) moves[a].strength = r3(committed[a] ?? 0);
   return { k, committed, values, moves };
@@ -307,7 +308,7 @@ export function turnMangekyou(order) {
   const perAxis = reach;
 
   const floor = new Map();
-  for (const l of leaves) if (l.int) floor.set(l.key, Math.min(floor.get(l.key) ?? Infinity, l.value));
+  for (const l of leaves) if (l.int === 'step') floor.set(l.key, Math.min(floor.get(l.key) ?? Infinity, l.value));
   const ctx = { roll: order.roll, pass, weights, lean: read.lean, spread, principles, floor };
   const size = clamp(n * 6, 12, 96);
   const pool = [];
