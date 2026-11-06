@@ -8,11 +8,13 @@ comments, docs, or the changelog: plans are working documents that move to
 ## What this is
 
 A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
-agent works through six departments: worlds and levels (art direction, light, set pieces, cities planned for play),
+agent works through seven departments: worlds and levels (art direction, light, set pieces, cities planned for play),
 characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
 juice, `create_beats`), foes and bosses, cinematics (the actor: a persona's `style` and `role`, scenes and their coverage,
 `forge_motion`, the scenes card; craft in [docs/cinematics.md](docs/cinematics.md)), and game design and
-production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game. The audit and the engine legs
+production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game, and interface and UX (menus, a
+game's front and screen; its runtime is mana-ui, below; newest, so not yet in the README or the `get_substrate` drawer,
+which join it once a game's UI runs on mana-ui). The audit and the engine legs
 are how everything holds up, not departments. Every department writes into one tiny deterministic recipe (a `sketches`
 row) that regenerates on every read and exports to the web, a team's engine (Godot, Unity, Unreal, Blender), GLB, STL,
 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe are what
@@ -254,10 +256,17 @@ Pointers only; each target carries its own design notes.
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
 - The game book's chapters: [gameworld/chapters.js](control/lib/graph/gameworld/chapters.js) (each page a chapter in one of
-  the six departments: the recipe paths, review parts, run steps and cards it owns, and the chapters it reads; a new one
+  the seven departments: the recipe paths, review parts, run steps and cards it owns, and the chapters it reads; a new one
   that joins no chapter fails `chapters.test.js`). `design_game`'s readout says them (`chapters`); `{ ref, chapter }`
   is one chapter's view ([gameworld/chapter-view.js](control/lib/graph/gameworld/chapter-view.js)), a department's; the
   studio card (`gameworld-studio`, generated from the registry) teaches the agent to work them in waves.
+- Game UI runtime (internal name mana-ui): [control/lib/mana-ui/](control/lib/mana-ui/) (the one runtime playscape's UI
+  words run on, so a screen is built once and not game by game: components with props passed down, the game's state
+  read through bindings and never copied, a form that is a tree of data, a function that is cue effects; greybox first,
+  styles a layer over it, `theme.js`, a world's guide reaching it through `playscape/ui/mana-theme.js`; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
+  wireframe board, `board.js`; imports nothing outside its folder; a view that reads no device: the controls layer drives
+  it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md). Its first surface: the RPG's battles, party menu and
+  shops, a spec in `playscape/rpg/rpg-ui.js` hosted by the page's RPG channel.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).
@@ -292,7 +301,8 @@ Pointers only; each target carries its own design notes.
 - Broadcast: [broadcast/](control/lib/graph/broadcast/) (the graphics over every contest and tabletop page: the packages,
   the colour theory, metal from measured reflectance, a cue per kernel call, the director's closeup; the board games in
   their own `table` furniture by `broadcast-dom.js`; a contest's or a tabletop's `broadcast` key):
-  [docs/broadcast.md](docs/broadcast.md). A new contest page feeds it or its guard test fails.
+  [docs/broadcast.md](docs/broadcast.md). A new contest page feeds it or its guard test fails. It owns a sport's coverage;
+  the menus around it are mana-ui's, in its look (`broadcast-mana.js`), the results read by `contest/contest-results.js`.
 - Science worlds: [science-worlds/](control/lib/graph/science-worlds/) (`classical`, `microscopic`, `quantum`, `relativistic`: a demo composed from a
   law table, model examined and dress declared; a law the scale lacks is a gap from `scales.js`, never approximated; a
   picture drawn by a shader is generated from the model's numbers and held to them by `conformance.js`).

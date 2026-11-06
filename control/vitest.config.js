@@ -57,6 +57,7 @@ export const E2E = [
   'lib/graph/science-worlds/classical/conformance.chrome.test.js',
   'lib/mcp/tools/science-setting.test.js',
   'lib/graph/scene/live-light.chrome.test.js',
+  'lib/mana-ui/snapshot.chrome.test.js',
   'lib/graph/scene/visual-gate.chrome.test.js',
 ];
 

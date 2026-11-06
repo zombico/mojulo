@@ -420,15 +420,6 @@ ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojC
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
-window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript() : ''}${quests ? questScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgGuide(events, !!(widgets.length || menus)) + rpgScript() : ''}`;
+window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript() : ''}${quests ? questScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
 }
 
-// the battle window dressed by the world's UI guide (play.ui, lowered to events.style and events.register): its tokens
-// on the root (already there where the HUD draws), its register's frame and plate and its border on the window's panels
-// (.moj-rpg .moj-w), as the HUD's are; a world with no guide keeps the window's own defaults
-function rpgGuide(events, hud) {
-  const style = events.style, register = events.register;
-  if (!style && !register) return '';
-  const css = `${style && !hud ? `:root{${styleVars(style)}}` : ''}${register ? registerCss(cleanDials(register), '.moj-rpg') + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }, '.moj-rpg') : ''}`;
-  return css ? `\n{ const st = document.createElement('style'); st.textContent = ${JSON.stringify(css)}; document.head.appendChild(st); }` : '';
-}

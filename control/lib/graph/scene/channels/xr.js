@@ -3,6 +3,7 @@ import { buildControlsKernel } from '../../controls/controls-kernel.js';
 import { buildXrDriver } from '../../controls/xr-driver.js';
 import { DEVICES } from '../../controls/devices.js';
 import { SCHEMES } from '../../controls/schemes.js';
+import { manaSnapshotSource } from '../../../mana-ui/snapshot.js';
 
 // WebXR immersive-vr (opt-in via emitThreeWorld({ xr }) — interchange-seams.plan.md seam 7).
 // A Quest browser or Vision Pro Safari walks the SAME scene with no engine: the page already
@@ -55,7 +56,8 @@ import { SCHEMES } from '../../controls/schemes.js';
 //     at them. The kernel steps, the camera entity stands down (three poses the camera from the headset), and the
 //     pilot's body is hidden (first person).
 // A page without a pilot walks as above. Absent `ctrl`, none of this is emitted.
-// Honest limits: no wall collision in the free walk (v1); the page's HUD is DOM and the headset does not show it;
+// Honest limits: no wall collision in the free walk (v1); the page's DOM is not drawn by a session (the HUD reaches it
+// as the HUD panel's lines, a mana-ui view as its snapshot on the menu panel, MENU below; Safari draws no snapshot);
 // overlays (fog/effects) are camera-fed per eye by three but were tuned for the mono view.
 
 const MOVES = ['seated', 'standing', 'latch', 'head', 'hand'];
@@ -218,7 +220,7 @@ function __xrHandsStep(dt){
 // line of its own text in its own colour (a CSS variable read off the page) and fade. It is the HUD the game already
 // has: readouts, bars, clocks, banners, toasts, whatever a game's mechanics put there; not its legend (the keyboard's). Read ten times a second; drawn
 // again only when what it says has changed. Made on entering, gone on leaving.
-const PANEL = `// --- the HUD in the headset: the page's own HUD mirrored onto a panel low in front of the body ---
+const PANEL = (mana) => `// --- the HUD in the headset: the page's own HUD mirrored onto a panel low in front of the body ---
 let __xrPanel = null, __xrPanelSig = '', __xrPanelT = 0;
 const __XRP = { w: 1024, h: 512, size: [1.4, 0.7], at: [0, 0.3, -2.4], tilt: 0.95, every: 0.1 };
 function __xrPanelMake(){
@@ -248,7 +250,9 @@ function __xrPanelColor(c){
 // the HUD's visible widgets, by side: { left, center, right } of { text, color, a }; null without a HUD
 function __xrPanelRows(){
   const layer = document.querySelector ? document.querySelector('.moj-hud') : null;
-  if (!layer) return null;
+  if (!layer) return null;${mana ? `
+  // (a HUD the page has set aside, a fight standing in for it, is not mirrored)
+  if (window.getComputedStyle && window.getComputedStyle(layer).display === 'none') return null;` : ''}
   const out = { left: [], center: [], right: [] };
   for (const col of Array.from(layer.children || [])) {
     const slot = (/\\bmoj-hud-(?!col\\b)([a-z-]+)/.exec(col.className || '') || [0, 'center'])[1];   // (not its moj-hud-col)
@@ -288,9 +292,169 @@ function __xrPanelStep(dt){
 }
 `;
 
+// MANA-UI IN THE HEADSET (`mana`: the page carries a mana-ui surface, control/lib/mana-ui/: a game's menus, a fight's
+// screens). A session shows no DOM, so while a view registered on the page (window.__manaViews: { root, rt, css, host })
+// has a screen up, its snapshot (mana-ui/snapshot.js: the view's own elements under its own sheet, drawn by the browser,
+// what moves baked at its instant) is drawn on a MENU PANEL at eye height ahead of the player, placed square to where
+// they look as the screen opens and left there (never riding the head). It is redrawn when the view changes, and at
+// most thirty times a second while anything on it moves, so its motion plays as the screen's does.
+// The controllers are the view's game controllers: the menu scheme's xr rows (either stick moves, A or the trigger
+// accepts, B backs out, the grips turn the tabs), read each frame as a driver of the view's own input owner (mana-host
+// drive(): its press edges, the 'xr' input the legends print the controller's buttons for). While a screen is up the
+// world, the walk and the turn hold; the body stays on the pilot (a fight that stages its party moves the player with it).
+// What the view places over the world with its world point (THE MARKS, below) is drawn there, not on the panel.
+const MENU = (menuBind) => `// --- mana-ui in the headset: a view's screen on a panel at eye height, the controllers its game controllers ---
+const __xrSnap = ${manaSnapshotSource()};
+const __XRM = ${safeJson({ bind: { xr: menuBind } })};
+const __XRMA = ${safeJson(Object.keys(menuBind))};
+const __XRMP = { width: 1.6, dist: 1.4, drop: 0.12, every: 1 / 30, px: 2, max: 2048 };
+let __xrMenu = null;
+const __xrMenuJoined = new Map();
+const __xrViews = () => (window.__manaViews || []);
+// the view with a screen up (the first registered)
+function __xrMenuView(){ for (const v of __xrViews()) if (v && v.rt && v.rt.state().screen) return v; return null; }
+// the controllers as the menu's, held this frame (the view's input owner presses on their edges)
+function __xrMenuHeld(){
+  const s = renderer.xr.getSession(), rd = __XRV.xrRead(s ? s.inputSources : [], __XRD), out = {};
+  for (const a of __XRMA) if (__XRK.held(__XRM, a, 'xr', rd)) out[a] = 1;
+  return { name: 'xr', input: 'xr', actions: out };
+}
+// every view's input owner takes the controllers while the session lasts (one registered later joins when seen)
+function __xrMenuJoin(){ for (const v of __xrViews()) if (v && v.host && v.host.drive && !__xrMenuJoined.has(v)) __xrMenuJoined.set(v, v.host.drive(__xrMenuHeld)); }
+function __xrMenuHide(){
+  const M = __xrMenu; __xrMenu = null;
+  if (!M) return;
+  if (M.obs) M.obs.disconnect();
+  if (M.marks) { for (const c of M.marks.cards.values()) { scene.remove(c.m); c.m.geometry.dispose(); c.m.material.dispose(); } if (M.marks.tex) M.marks.tex.dispose(); }
+  if (M.m.parent) M.m.parent.remove(M.m);
+  M.tex.dispose(); M.m.geometry.dispose(); M.m.material.dispose();
+}
+function __xrMenuDrop(){ __xrMenuHide(); for (const leave of __xrMenuJoined.values()) leave(); __xrMenuJoined.clear(); }
+function __xrMenuMake(v){
+  const root = (v.root.querySelector && v.root.querySelector('.mana-root')) || v.root, r = root.getBoundingClientRect();
+  const w = Math.max(1, r.width), h = Math.max(1, r.height), k = Math.min(__XRMP.px, __XRMP.max / w);
+  const cv = document.createElement('canvas'), ctx = cv && cv.getContext ? cv.getContext('2d') : null;
+  if (!ctx) return null;
+  cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+  const tex = new THREE.CanvasTexture(cv);
+  if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(__XRMP.width, __XRMP.width * h / w), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
+  m.renderOrder = 995; m.raycast = function () {}; m.visible = false;
+  // ahead of the head as it is now (rig-local, y-up, -Z forward), a little under the eye, square to it
+  const p = __xrViewer(), o = p ? p.transform.orientation : null, yaw = o ? (__xrLocalYaw(o) || 0) : 0;
+  const hx = p ? p.transform.position.x : 0, hy = p ? p.transform.position.y : XR.eye, hz = p ? p.transform.position.z : 0;
+  m.position.set(hx - Math.sin(yaw) * __XRMP.dist, hy - __XRMP.drop, hz - Math.cos(yaw) * __XRMP.dist);
+  m.rotation.set(0, yaw, 0);
+  __xrRig.add(m);
+  const M = { v, root, m, cv, ctx, tex, dirty: true, t: 0, busy: false, obs: null };
+  // a change of the view (a row, a tab, a number) marks it to be drawn again
+  if (typeof MutationObserver === 'function') { M.obs = new MutationObserver(() => { M.dirty = true; }); M.obs.observe(root, { subtree: true, childList: true, attributes: true, characterData: true }); }
+  return M;
+}
+// each frame: the panel shown while a view has a screen up, drawn again when it changed or while it moves → whether one is up
+function __xrMenuStep(dt){
+  __xrMenuJoin();
+  const v = __xrMenuView();
+  if (!v) { __xrMenuHide(); return false; }
+  if (!__xrMenu || __xrMenu.v !== v) { __xrMenuHide(); __xrMenu = __xrMenuMake(v); if (!__xrMenu) return true; }
+  const M = __xrMenu;
+  M.t -= dt || 0;
+  const moving = !!(M.root.getAnimations && M.root.getAnimations({ subtree: true }).some((a) => a.playState === 'running'));
+  if ((M.dirty || moving) && !M.busy && M.t <= 0) {
+    M.t = __XRMP.every; M.dirty = false; M.busy = true;
+    // (the panel without what stands in the world; the marks laid out on their own, below)
+    const shot = (extra) => Promise.resolve(v.shot ? v.shot(extra) : __xrSnap.imageOf(__xrSnap.svgOf(M.root, (v.css || '') + extra)));
+    const L = __xrMarksLay(M);
+    Promise.all([shot(__XRW.hide), L.boxes.length ? shot(L.css) : null])
+      .then(([img, atlas]) => {
+        if (__xrMenu !== M || !img) return;
+        M.ctx.clearRect(0, 0, M.cv.width, M.cv.height); M.ctx.drawImage(img, 0, 0, M.cv.width, M.cv.height); M.tex.needsUpdate = true; M.m.visible = true;
+        __xrMarksDraw(M, L, atlas);
+      })
+      .catch(() => { M.dirty = true; })
+      .then(() => { M.busy = false; });
+  }
+  __xrMarksPlace(M);
+  return true;
+}
+// THE MARKS IN THE WORLD: an anchor of the view that says its world point (mana-ui's anchors: a row's \`world\`; a fight's
+// bar over a fighter's head, a number where a blow lands) is drawn where it stands, not where the screen's camera would
+// put it: the view's anchors laid out apart on one snapshot (an atlas, the same sheet and motion), each a small card
+// over its point, square to the eye, as large to the eye as on the screen (its size grows with its distance).
+const __XRW = { k: 0.0011, near: 1, gap: 6, hide: '\\n.mana-anchor[data-world]{visibility:hidden!important}' };
+const __xrRect = (r) => ({ x: r.x !== undefined ? r.x : r.left, y: r.y !== undefined ? r.y : r.top, w: r.width, h: r.height });
+// the anchors that say their world point, each with its box (its own, and what of it has risen past it), laid out apart
+function __xrMarksLay(M){
+  const out = { boxes: [], css: '' };
+  if (!M.root.querySelectorAll) return out;
+  const R = __xrRect(M.root.getBoundingClientRect()), rules = ['[data-snap-root] *{visibility:hidden!important}', '[data-snap-root] .mana-anchor[data-world],[data-snap-root] .mana-anchor[data-world] *{visibility:visible!important}'];
+  let x = __XRW.gap, y = __XRW.gap, row = 0;
+  for (const el of Array.from(M.root.querySelectorAll('.mana-anchor[data-world][data-key]'))) {
+    const A = __xrRect(el.getBoundingClientRect()), U = { ...A };
+    for (const c of Array.from(el.querySelectorAll('*'))) { const r = __xrRect(c.getBoundingClientRect()); if (!r.w || !r.h) continue; const x1 = Math.max(U.x + U.w, r.x + r.w), y1 = Math.max(U.y + U.h, r.y + r.h); U.x = Math.min(U.x, r.x); U.y = Math.min(U.y, r.y); U.w = x1 - U.x; U.h = y1 - U.y; }
+    if (!(U.w > 0 && U.h > 0)) continue;
+    if (x + U.w > R.w) { x = __XRW.gap; y += row + __XRW.gap; row = 0; }
+    if (y + U.h > R.h) break;
+    const w = String(el.getAttribute('data-world')).split(',').map(Number), key = el.getAttribute('data-key');
+    // (moved to its slot: its point moves by what moves its box there)
+    const dx = x - (U.x - R.x), dy = y - (U.y - R.y), cs = window.getComputedStyle ? window.getComputedStyle(el) : null;
+    const left = cs ? parseFloat(cs.left) : A.x - R.x + A.w / 2, top = cs ? parseFloat(cs.top) : A.y - R.y + A.h;
+    rules.push(\`[data-snap-root] .mana-anchor[data-key="\${key}"]{left:\${left + dx}px!important;top:\${top + dy}px!important}\`);
+    // its point in the slot: the bottom of its own box's middle
+    out.boxes.push({ key, world: w, slot: { x, y, w: U.w, h: U.h }, at: { x: A.x + A.w / 2 - U.x, y: A.y + A.h - U.y } });
+    x += U.w + __XRW.gap; row = Math.max(row, U.h);
+  }
+  out.css = '\\n' + rules.join('\\n');
+  out.R = R;
+  return out;
+}
+// the atlas drawn, and a card for each mark (made, kept, or let go)
+function __xrMarksDraw(M, L, atlas){
+  M.marks = M.marks || { cv: null, ctx: null, tex: null, cards: new Map() };
+  const K = M.marks;
+  if (atlas && !K.cv) {
+    K.cv = document.createElement('canvas'); K.ctx = K.cv.getContext('2d'); K.cv.width = M.cv.width; K.cv.height = M.cv.height;
+    K.tex = new THREE.CanvasTexture(K.cv); if (THREE.SRGBColorSpace) K.tex.colorSpace = THREE.SRGBColorSpace;
+  }
+  if (atlas) { K.ctx.clearRect(0, 0, K.cv.width, K.cv.height); K.ctx.drawImage(atlas, 0, 0, K.cv.width, K.cv.height); K.tex.needsUpdate = true; }
+  const seen = new Set();
+  for (const b of atlas ? L.boxes : []) {
+    seen.add(b.key);
+    let c = K.cards.get(b.key);
+    if (!c) {
+      const g = new THREE.PlaneGeometry(1, 1);
+      c = { m: new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: K.tex, transparent: true, depthWrite: false, side: THREE.DoubleSide })) };
+      c.m.renderOrder = 994; c.m.raycast = function () {};
+      scene.add(c.m); K.cards.set(b.key, c);
+    }
+    // (its slot of the atlas, v up)
+    const uv = c.m.geometry.attributes.uv, u0 = b.slot.x / L.R.w, u1 = (b.slot.x + b.slot.w) / L.R.w, v1 = 1 - b.slot.y / L.R.h, v0 = 1 - (b.slot.y + b.slot.h) / L.R.h;
+    uv.setXY(0, u0, v1); uv.setXY(1, u1, v1); uv.setXY(2, u0, v0); uv.setXY(3, u1, v0); uv.needsUpdate = true;
+    c.b = b;
+  }
+  for (const [k, c] of K.cards) if (!seen.has(k)) { scene.remove(c.m); c.m.geometry.dispose(); c.m.material.dispose(); K.cards.delete(k); }
+}
+// each frame: each card over its point, square to the eye, as large to the eye as on the screen
+const __xrMkH = new THREE.Vector3(), __xrMkQ = new THREE.Quaternion(), __xrMkR = new THREE.Vector3(), __xrMkU = new THREE.Vector3();
+function __xrMarksPlace(M){
+  const K = M.marks;
+  if (!K || !K.cards.size) return;
+  __xrHead(__xrMkH); camera.getWorldQuaternion(__xrMkQ);
+  __xrMkR.set(1, 0, 0).applyQuaternion(__xrMkQ); __xrMkU.set(0, 1, 0).applyQuaternion(__xrMkQ);
+  for (const c of K.cards.values()) {
+    const b = c.b, d = Math.max(__XRW.near, Math.hypot(b.world[0] - __xrMkH.x, b.world[1] - __xrMkH.y, b.world[2] - __xrMkH.z)), s = __XRW.k * d;
+    // (its point is its slot's own: the card moved so the point sits on the world's)
+    const ox = (b.slot.w / 2 - b.at.x) * s, oy = (b.at.y - b.slot.h / 2) * s;
+    c.m.position.set(b.world[0] + __xrMkR.x * ox + __xrMkU.x * oy, b.world[1] + __xrMkR.y * ox + __xrMkU.y * oy, b.world[2] + __xrMkR.z * ox + __xrMkU.z * oy);
+    c.m.quaternion.copy(__xrMkQ);
+    c.m.scale.set(b.slot.w * s, b.slot.h * s, 1);
+  }
+}
+`;
+
 // the game in the headset (`ctrl`): the controllable channel declares `__xrCtl` (null: the page reads its own pad and
 // drives its own camera) and reads it in its input read, its camera drive and its body sync (controllable/index.js `xr`)
-const ctrlScript = ({ hands = false } = {}) => `// --- the game in the headset: the session drives the pilot, the rig stands under it ---
+const ctrlScript = ({ hands = false, mana = null } = {}) => `// --- the game in the headset: the session drives the pilot, the rig stands under it ---
 let __xrHead0 = null, __xrPad0 = null;
 // the body the headset plays: the world's pilot, else the camera's target
 function __xrPilot(){
@@ -377,8 +541,8 @@ function __xrPlay(dt){
   __xrPlace(e, L);
   __xrPanelStep(dt);
 }
-${PANEL}
-// what each hand strikes with, in the world (the kernel's input.sweeps, worlds/controllable/sweep.js): ${hands ? `a held blade
+${PANEL(!!mana)}
+${mana ? MENU(mana) : ''}// what each hand strikes with, in the world (the kernel's input.sweeps, worlds/controllable/sweep.js): ${hands ? `a held blade
 // from its guard to its tip, an empty hand its fist's knuckles (a gun's hand none), where the hands draw them; else` : 'without the hands drawn,'}
 // the grip pose's centre, a fist
 const __xrSwA = new THREE.Vector3(), __xrSwB = new THREE.Vector3();
@@ -423,7 +587,9 @@ function __xrAim(e){
 }
 ${hands ? HANDS : ''}`;
 
-export function xrModeScript(cfg, { ctrl = false, hands = false } = {}) {
+export function xrModeScript(cfg, { ctrl = false, hands = false, mana = false } = {}) {
+  // (a page with a mana-ui surface: the menu scheme's xr rows, the controllers its game controllers in a headset)
+  const menu = ctrl && mana ? buildControlsKernel().resolve(SCHEMES.menu, { xr: DEVICES.xr }).bind.xr : null;
   return `
 // --- WebXR immersive-vr (opt-in): the z-up rig carries the y-up XR space through the same scene ---
 const XR = ${safeJson(cfg)};
@@ -517,7 +683,7 @@ function __xrExit(){
   camera.position.copy(__xrSaved.pos); camera.quaternion.copy(__xrSaved.quat);
   controls.enabled = __xrSaved.controls; walkOn = __xrSaved.walkOn; __xrSaved = null;
   __xrBtn.classList.remove('on');${ctrl ? `
-  __xrCtl = null; __xrHead0 = null; __xrPad0 = null;${hands ? ' __xrHandsDrop();' : ''} __xrPanelDrop();` : ''}
+  __xrCtl = null; __xrHead0 = null; __xrPad0 = null;${hands ? ' __xrHandsDrop();' : ''} __xrPanelDrop();${menu ? ' __xrMenuDrop();' : ''}` : ''}
 }
 async function __xrEnter(){
   if (__xrOn) { const s = renderer.xr.getSession(); if (s) s.end(); return; }
@@ -540,14 +706,16 @@ async function __xrEnter(){
   if (document.pointerLockElement) document.exitPointerLock();
   __xrOn = true; __xrBtn.classList.add('on');${ctrl ? `
   // a page with a pilot: the session plays the game (the body faces the pilot's way, the rig stands under it)
-  { const e = __xrPilot(); if (e) { __xrYaw = e.transform.heading || 0; __xrSetYaw(__xrRig, __xrYaw); __xrHead0 = null; __xrPlace(e, null); __xrCtl = { pad: __xrPadRead, input: __xrInput, hides: (b) => b === __xrPilot() }; if (XR.hud !== false) __xrPanelMake(); } }` : ''}
+  { const e = __xrPilot(); if (e) { __xrYaw = e.transform.heading || 0; __xrSetYaw(__xrRig, __xrYaw); __xrHead0 = null; __xrPlace(e, null); __xrCtl = { pad: __xrPadRead, input: __xrInput, hides: (b) => b === __xrPilot() }; if (XR.hud !== false) __xrPanelMake();${menu ? ' __xrMenuJoin();' : ''} } }` : ''}
   session.addEventListener('end', __xrExit);
   await renderer.xr.setSession(session);
 }
 // per-frame: standing estimates the torso, the right stick turns (smooth or snap, about the head), the left stick walks
 // and strafes on the body (seated: the rig; standing: the rig and the torso in it) / latched / gaze / hand heading, then the rig's feet snap to the floor beneath (walk channel's probe).
 function __xrStep(dt){
-  const session = renderer.xr.getSession(); if (!session || !__xrRig) return;
+  const session = renderer.xr.getSession(); if (!session || !__xrRig) return;${menu ? `
+  // a mana-ui screen up: the controllers are its own; the world, the walk and the turn hold, the body stays on the pilot
+  if (__xrCtl && __xrMenuStep(dt)) { const e = __xrPilot(); if (e) __xrPlace(e, __xrHeadLocal()); __xrPanelStep(dt); return; }` : ''}
   const rd = __XRV.xrRead(session.inputSources, __XRD);
   if (XR.move === 'standing') __xrStance(dt);
   const m = __XRV.stick(__XRK.axis(XR, 'strafeRight', 'strafeLeft', 'xr', rd), __XRK.axis(XR, 'moveForward', 'moveBack', 'xr', rd), XR.dead, XR.axial);
@@ -576,7 +744,7 @@ ${ctrl ? `  if (__xrCtl) { __xrPlay(dt); return; }   // the game steps the pilot
     if (g != null) __xrRig.position.z = g;
   }
 }
-${ctrl ? ctrlScript({ hands }) : ''}renderer.xr.enabled = true;
+${ctrl ? ctrlScript({ hands, mana: menu }) : ''}renderer.xr.enabled = true;
 const __xrBtn = document.createElement('button'); __xrBtn.textContent = 'vr'; __xrBtn.hidden = true;
 __xrBtn.onclick = () => { __xrEnter(); };
 hud.appendChild(__xrBtn);

@@ -281,19 +281,21 @@ const POINT = {
 
 // Menus everywhere: arrows (or W A S D) or Tab to move, Enter / Space to accept, Esc to go back. On a pad accept and back
 // are roles, not positions: the bottom button accepts on Xbox and PlayStation, A on the right does on Nintendo.
+// In a headset the controllers are a game's controllers still: either stick moves, A (or the trigger) accepts, B goes
+// back, the grips turn the tabs (the right one on, the left one back).
 const MENU = {
   id: 'menu',
   label: 'menus and overlays',
   contexts: ['menu'],
   actions: [
-    { id: 'up', label: 'up', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'], xr: ['right.thumbstickY-'] } },
-    { id: 'down', label: 'down', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'], xr: ['right.thumbstickY+'] } },
-    { id: 'left', label: 'left', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'], xr: ['right.thumbstickX-'] } },
-    { id: 'right', label: 'right', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'], xr: ['right.thumbstickX+'] } },
-    { id: 'accept', label: 'accept', group: 'navigate', in: ['menu'], bind: { keyboard: ['Enter', 'Space'], gamepad: ['confirm'], xr: ['right.trigger'] } },
+    { id: 'up', label: 'up', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'], xr: ['right.thumbstickY-', 'left.thumbstickY-'] } },
+    { id: 'down', label: 'down', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'], xr: ['right.thumbstickY+', 'left.thumbstickY+'] } },
+    { id: 'left', label: 'left', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'], xr: ['right.thumbstickX-', 'left.thumbstickX-'] } },
+    { id: 'right', label: 'right', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'], xr: ['right.thumbstickX+', 'left.thumbstickX+'] } },
+    { id: 'accept', label: 'accept', group: 'navigate', in: ['menu'], bind: { keyboard: ['Enter', 'Space'], gamepad: ['confirm'], xr: ['right.primary', 'right.trigger'] } },
     { id: 'back', label: 'back', group: 'navigate', in: ['menu'], bind: { keyboard: ['Escape', 'Backspace'], gamepad: ['cancel'], xr: ['right.secondary'] } },
-    { id: 'tabNext', label: 'next tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketRight'], gamepad: ['rb'] } },
-    { id: 'tabPrev', label: 'previous tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketLeft'], gamepad: ['lb'] } },
+    { id: 'tabNext', label: 'next tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketRight'], gamepad: ['rb'], xr: ['right.squeeze'] } },
+    { id: 'tabPrev', label: 'previous tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketLeft'], gamepad: ['lb'], xr: ['left.squeeze'] } },
   ],
   legend: {
     keyboard: [

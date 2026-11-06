@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { readRpg, rpgCues, withRpg, lowerRpg } from './rpg.js';
 import { buildRpg } from './kernel.js';
 import { CLASS_PRESETS } from './presets.js';
-import { lowerPlay } from '../ui/direction.js';
+import { lowerPlay, resolvePlayUi, UI_ITEMS } from '../ui/direction.js';
 import { createBusState, processEvents, watchEvents } from '../../worlds/event-bus.js';
 import { eventsChannelScript } from '../../scene/channels/events.js';
-import { rpgScript, rpgPage, RPG_CSS } from '../../scene/channels/rpg-channel.js';
+import { JSDOM } from 'jsdom';
+import { rpgScript, rpgPage, rpgMana } from '../../scene/channels/rpg-channel.js';
 import { juiceKeys } from './juice.js';
-import { menuControls } from '../../scene/channels/interact-channel.js';
+import { manaControls, manaHostSource } from '../../controls/mana-controls.js';
+import { manaUiSource } from '../../../mana-ui/kernel.js';
 import { buildGameStoreKernel } from '../../game/store-kernel.js';
 import { composeMechanics } from '../../game/mechanics.js';
 import { rpgInit, rpgSave, rpgLoad, rpgSwitchClass, rpgBuy } from './kernel.js';
@@ -101,25 +103,26 @@ describe('play.rpg: read and lowered', () => {
   });
 });
 
-// the page function, run headless: a DOM just big enough (elements with class lists and innerHTML, key listeners)
+// the page function, run headless in a DOM (jsdom: mana-ui's view patches a real one), the events channel's globals
+// stood in for, mana-ui and mana-host evaluated in the page's own scope as the page's script evaluates them
 function page(play, vars = {}, game = null, more = {}) {
   const ev = lowerPlay({ entities: ENTITIES, play }, { player: 'hero' });
   const bus = createBusState(ev, []);
   Object.assign(bus.vars, vars);
-  // (an element just big enough: its class list edits its className, as the page's own does)
-  const el = () => { const o = { className: '', innerHTML: '', textContent: '', style: { setProperty() {} }, offsetWidth: 0, appendChild() {}, addEventListener() {} }; o.classList = { add: (c) => { if (!o.className.split(' ').includes(c)) o.className = (o.className + ' ' + c).trim(); }, remove: (c) => { o.className = o.className.split(' ').filter((x) => x !== c).join(' '); } }; return o; };
-  const keys = [], appended = [];
-  const document = { createElement: el, head: el(), body: { ...el(), appendChild: (x) => appended.push(x) } };
-  const window = { addEventListener: (_, f) => keys.push(f), ...(game ? { __mojGame: game } : {}), ...more };
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost/' }), window = dom.window, document = window.document;
+  Object.assign(window, game ? { __mojGame: game } : {}, more);
   const queue = [];
-  const ctl = { ...menuControls(), layout: () => 'xbox', select: 8 };
-  const api = new Function('document', 'window', '__busState', '__inputQueue', 'RPG_CSS_TEXT', 'cfg', 'K', 'ctl', `return (${rpgPage.toString()})(cfg, K, ctl, ${juiceKeys.toString()});`)(document, window, bus, queue, RPG_CSS, ev.rpg, new Function(`return (${buildRpg.toString()})();`)(), ctl);
+  const { keys, pad, padLayout } = manaControls(), ctl = { keys, pad, padLayout, select: 8 };
+  const inScope = (src) => new Function('window', 'document', `return ${src};`)(window, document);
+  const M = { ui: inScope(manaUiSource()), host: inScope(manaHostSource()), ...rpgMana(ev.rpg) };
+  const api = new Function('document', 'window', '__busState', '__inputQueue', 'cfg', 'K', 'ctl', 'M', `return (${rpgPage.toString()})(cfg, K, ctl, ${juiceKeys.toString()}, M);`)(document, window, bus, queue, ev.rpg, new Function(`return (${buildRpg.toString()})();`)(), ctl, M);
   let t = 0;
   const frames = (n = 1) => { for (let i = 0; i < n; i++) { t += 100; api.step(t); } };
-  const press = (code) => { for (const f of keys) f({ code, repeat: false, preventDefault() {}, stopImmediatePropagation() {} }); };
+  const press = (code) => window.dispatchEvent(new window.KeyboardEvent('keydown', { code, bubbles: true, cancelable: true }));
   // what the page said on the bus, less the juice's happenings (rpg-on:<key>)
   const said = () => queue.filter((e) => !e.type.startsWith('rpg-on:'));
-  return { api, bus, queue, said, frames, press, window, appended };
+  const root = document.querySelector('.moj-rpg');
+  return { api, bus, queue, said, frames, press, window, document, root };
 }
 
 describe('the page: the battle window and the party menu', () => {
@@ -182,21 +185,30 @@ describe('the page: the battle window and the party menu', () => {
     const P = page(PLAY);
     P.press('KeyP');
     P.frames();
-    expect(P.api.state().mode).toBe('field');
-    P.press('ArrowRight');   // the Class tab
-    P.press('Enter');        // into its list: fighter (current) first
+    expect(P.api.state()).toMatchObject({ mode: 'field', screen: 'rpg-party' });
+    expect(P.window.__mojFreeze).toBe(true);
+    P.press('BracketRight'); // the Class tab
+    P.press('ArrowRight');   // into its list, beside the members: fighter (current) first
     P.press('ArrowDown');    // knight
     P.press('Enter');
     expect(P.api.R.m.ayla.cls).toBe('knight');
     expect(P.bus.vars['rpg.ayla.class']).toBe('knight');
     expect(P.said()).toEqual([{ type: 'rpg-class:ayla:knight' }]);
-    P.press('Escape'); P.press('Escape');
+    P.frames();
+    expect(P.root.textContent).toContain('Ayla is now a Knight.');
+    P.press('Escape');
     expect(P.api.state().mode).toBeNull();
+    expect(P.window.__mojFreeze).toBe(false);
+    // (in a fight, P opens nothing)
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames();
+    P.press('KeyP');
+    expect(P.api.state().mode).toBe('battle');
   });
 
   it('a pad: its select opens the party menu, its confirm (wherever its layout prints it) acts in it', () => {
     const P = page(PLAY), pads = [], buttons = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }));
-    const accept = Number(Object.entries(menuControls().pad.xbox.b).find(([, a]) => a === 'accept')[0]);
+    const accept = Number(Object.entries(manaControls().pad.xbox.b).find(([, a]) => a === 'accept')[0]);
     const was = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
     Object.defineProperty(globalThis, 'navigator', { value: { getGamepads: () => pads }, configurable: true });
     try {
@@ -204,8 +216,12 @@ describe('the page: the battle window and the party menu', () => {
       const press = (i) => { buttons[i].pressed = true; P.frames(); buttons[i].pressed = false; P.frames(); };
       press(8);   // select
       expect(P.api.state().mode).toBe('field');
-      press(15);  // the d-pad's right: the Class tab
+      press(5);   // the right bumper: the Class tab
+      expect(P.api.ui.state().tabs).toEqual([1]);
+      press(15);  // the d-pad's right: into its list
+      press(13);  // down: knight
       press(accept);
+      expect(P.api.R.m.ayla.cls).toBe('knight');
       expect(P.api.state().mode).toBe('field');
       press(8);
       expect(P.api.state().mode).toBeNull();
@@ -223,12 +239,13 @@ describe('the page: the battle window and the party menu', () => {
     expect(P.bus.vars.gold).toBe(12);
     expect(P.bus.vars['held:bag:potion']).toBe(1);
     expect(P.said()).toContainEqual({ type: 'rpg-bought:merchant:potion' });
-    // (the sword is dearer than the purse: nothing changes hands)
+    // (the sword is dearer than the purse: its row is not taken, and nothing changes hands)
     P.press('ArrowDown'); P.press('Enter');
     expect(P.bus.vars.gold).toBe(12);
-    expect(P.api.state().shop.said).toBe('Not enough gold.');
+    expect(P.api.state().shop.rows[1]).toMatchObject({ label: 'Bronze Sword', ok: false });
+    expect(P.api.state().shop.said).toBe('Bought Potion.');
     // Sell: the potion back at half
-    P.press('ArrowRight');
+    P.press('BracketRight');
     expect(P.api.state().shop).toMatchObject({ tab: 'Sell', rows: [{ label: 'Potion', right: '4 G' }] });
     P.press('Enter');
     expect([P.bus.vars.gold, P.bus.vars['held:bag:potion']]).toEqual([16, 0]);
@@ -302,11 +319,13 @@ describe('the party menu: Equip', () => {
     const out = [], g = { contract: { party: { slice: 'party' } }, onStart: (cb) => cb({}, 1), emit: (e) => out.push(e) };
     const P = page(PLAY, { 'held:bag:iron-sword': 1 }, g);
     P.frames();
-    P.press('KeyP'); P.press('ArrowRight'); P.press('ArrowRight');   // Equip
-    P.press('Enter');   // into its slots: Weapon first
-    P.press('Enter');   // its choices: — (take off), Iron Sword
+    P.press('KeyP'); P.press('BracketRight'); P.press('BracketRight');   // Equip
+    P.press('ArrowRight');   // into its slots: Weapon first
+    P.press('Enter');        // its choices: — (take off), Iron Sword
+    expect(P.api.state().screen).toBe('rpg-equip');
     P.press('ArrowDown'); P.press('Enter');
     expect(P.api.R.m.ayla.gear.weapon).toBe('iron-sword');
+    expect(P.api.state().screen).toBe('rpg-party');   // worn: back to the slots
     expect(P.said()).toEqual([{ type: 'out:bag:iron-sword:1' }, { type: 'in:bag:bronze-sword:1' }]);
     expect(out.map((e) => [e.stat, e.value])).toEqual([['gear.weapon.iron-sword', 1], ['gear.weapon.bronze-sword', 0]]);
   });
@@ -348,7 +367,7 @@ describe('the party carried between levels (the party mechanic)', () => {
     const g1 = game({ party: store.party });
     const P1 = page(PLAY, {}, g1);
     P1.frames();
-    P1.press('KeyP'); P1.press('ArrowRight'); P1.press('Enter'); P1.press('ArrowDown'); P1.press('Enter');
+    P1.press('KeyP'); P1.press('BracketRight'); P1.press('ArrowRight'); P1.press('ArrowDown'); P1.press('Enter');
     expect(P1.api.R.m.ayla.cls).toBe('knight');
     expect(g1.out.map((e) => e.stat).sort()).toEqual(['cls.fighter', 'cls.knight', 'cp.knight', 'sp.knight', 'skill.guard-up'].sort());
     expect(g1.out.every((e) => e.type === 'setStat' && e.slice === 'party' && e.id === 'ayla')).toBe(true);
@@ -401,13 +420,21 @@ describe('the staging: a fight lines its sides up and frames them, and puts them
 });
 
 describe('the battle window is dressed by the world\'s UI guide', () => {
-  it('its register and border on the window\'s panels where the world has a guide; its own defaults where none', () => {
-    const L = level(PLAY), plain = eventsChannelScript(L.ev);
-    const dressed = eventsChannelScript({ ...L.ev, style: { panel: '#203040', accent: '#e0a040', ink: '#f0f0e0' }, register: 0.75 });
-    expect(plain).not.toMatch(/\.moj-rpg \.moj-w\{/);
-    expect(dressed).toMatch(/\.moj-rpg \.moj-w\{/);
-    expect(dressed).toContain('--moj-panel:#203040');
-    expect(() => new Function(dressed)).not.toThrow();
+  it('a settled guide lowers to the battles\' theme (mana-ui\'s); the greybox until it is; the console RPG\'s where there is none', () => {
+    const settle = (u) => ({ ...u, status: Object.fromEntries(UI_ITEMS.map((k) => [k, 'approved'])) });
+    const world = (ui) => resolvePlayUi({ kind: 'controllable', title: 'T', play: { ...PLAY, ui } }, () => 4242).play;
+    const settled = world('propose'), guide = settled.ui.guide;
+    const dressed = lowerPlay({ entities: ENTITIES, play: { ...settled, ui: settle(settled.ui) } }, { player: 'hero' }).rpg;
+    expect(dressed.theme.tokens).toMatchObject({ panel: guide.tokens.panel, accent: guide.tokens.accent });
+    expect(lowerPlay({ entities: ENTITIES, play: settled }, { player: 'hero' }).rpg.theme).toBe('greybox');
+    const plain = level(PLAY).ev;
+    expect(plain.rpg.theme).toBeUndefined();
+    // on the page: the theme's colours under the channel's scope, mana-ui's sheet beneath
+    const css = (ev) => eventsChannelScript(ev);
+    expect(css(plain)).toContain('.moj-rpg .mana-root{--mana-');
+    expect(css(plain)).toContain('--mana-panel:#1b2a7c');   // the console RPG's
+    expect(css({ ...plain, rpg: dressed })).toContain(`--mana-panel:${guide.tokens.panel}`);
+    expect(() => new Function(css({ ...plain, rpg: dressed }))).not.toThrow();
   });
 });
 
@@ -416,21 +443,45 @@ describe('the bars over the fighters\' heads', () => {
     const E = [{ id: 'hero', transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'platform' } }, { id: 'ayla', transform: { pos: [-1, 1, 0], heading: 0 }, rule: { type: 'ai' } }, { id: 'wolf-1', transform: { pos: [8, 0, 0], heading: Math.PI }, rule: { type: 'static' } }];
     return { pilotId: 'hero', time: 0, entities: E, byId: Object.fromEntries(E.map((e) => [e.id, e])), camera: { transform: { pos: [-5, 0, 2], heading: 0, pitch: 0 }, lookAt: null, rule: { type: 'follow' } } };
   };
-  it('each member a bar over its head, no name; the one picking marked; a status said; the window steps aside as a round plays', () => {
-    const P = page(PLAY, {}, null, { __mojCtrl: { world: world(), cast() {}, ground: () => 0 } });
+  // (the scene's projection: a plain one, the field seen from the side)
+  const project = (x, y, z) => [400 + 30 * x, 500 - 30 * z, 0.5];
+  it('each member a bar over its head, no name; the one picking marked; the target in focus marked; a status said; the window steps aside as a round plays', () => {
+    const P = page(PLAY, {}, null, { __mojCtrl: { world: world(), cast() {}, ground: () => 0, project } });
     processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
     P.frames(); P.api.advance(); P.frames();
-    const heads = P.appended.find((x) => x.className.split(' ').includes('moj-rpg-heads')), root = P.appended.find((x) => x.className.split(' ').includes('moj-rpg'));
-    expect(heads.innerHTML).toMatch(/class="moj-rpg-head turn"[^>]*data-aim="ayla"/);
-    expect(heads.innerHTML).not.toMatch(/class="n">Ayla/);
+    const head = (id) => P.root.querySelector(`.mana-anchors:not([data-pass]) .mana-anchor[data-key="a${id}"]`);
+    expect(head('ayla').querySelector('.mana-badge[data-turn]')).not.toBeNull();
+    expect(head('ayla').querySelector('.mana-bar[data-variant=hp]')).not.toBeNull();
+    expect(head('ayla').textContent).not.toContain('Ayla');
+    // (the one picking is Ayla; aiming an attack, the pack's figure is marked where it stands)
+    P.press('Enter');
+    expect(P.api.state().level).toBe('target');
+    expect(head('fig-wolf-1').querySelector('.mana-badge[data-variant=strong]')).not.toBeNull();
+    P.press('Escape');
+    expect(head('fig-wolf-1')).toBeNull();
     // (a member poisoned: its head says so)
-    P.api.R.m.ayla.poison = true; P.api.act('down'); P.frames();
-    expect(heads.innerHTML).toMatch(/class="st">poison/);
+    P.api.R.m.ayla.poison = true; P.frames();
+    expect(head('ayla').querySelector('.mana-status[title=poison]')).not.toBeNull();
     // (the picks made, the round plays out: the window and the bars step aside)
     const H = P.api;
     expect(H.state().mode).toBe('battle');
-    for (let k = 0; k < 400 && H.state().mode === 'battle'; k++) { H.act('accept'); P.frames(); if (/acting/.test(root.className)) break; }
-    expect(String(root.className)).toMatch(/acting/);
+    for (let k = 0; k < 400 && H.state().mode === 'battle'; k++) { H.act('accept'); P.frames(); if (H.state().acting) break; }
+    expect(H.state().acting).toBe(true);
+    expect(P.root.querySelector('.mana-anchors:not([data-pass])')).toBeNull();
+  });
+  it('a blow\'s number rises over whoever it lands on, each its own; the foes\' box keeps the foes\' health a bar', () => {
+    const P = page(PLAY, {}, null, { __mojCtrl: { world: world(), cast() {}, ground: () => 0, project } });
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames(); P.api.advance(); P.frames();
+    expect(P.root.querySelector('.mana-place[data-at=bottom-right] .mana-bar .mana-num')).toBeNull();
+    const keys = new Set();
+    for (let k = 0; k < 200 && P.api.state().mode === 'battle'; k++) {
+      if (P.api.state().phase === 'command') P.press('Enter');
+      P.frames();
+      for (const el of P.root.querySelectorAll('.mana-anchors[data-pass] .mana-anchor')) keys.add(el.getAttribute('data-key'));
+      if (keys.size >= 2) break;
+    }
+    expect(keys.size).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -444,14 +495,14 @@ describe('the cinema: a blow played as a short film, skippable, the view given b
     const P = page(play, {}, null, { __mojCtrl: { world: w, cast() {}, ground: () => 0 } });
     processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
     P.frames(); P.api.advance(); P.frames();
-    const viewAt = w.camera.transform.pos.slice(), root = P.appended.find((x) => x.className.split(' ').includes('moj-rpg'));
+    const viewAt = w.camera.transform.pos.slice();
     // (the picks made: the round plays, the first blow filmed)
     let filmed = false, cut = false;
     for (let k = 0; k < 60 && P.api.state().mode === 'battle'; k++) {
       if (P.api.state().phase === 'play') {
         P.frames();
         if (JSON.stringify(w.camera.transform.pos) !== JSON.stringify(viewAt)) filmed = true;
-        if (filmed && /cine-none/.test(root.className) && /Skip/.test(root.innerHTML)) { cut = true; P.api.act('accept'); P.frames(); break; }
+        if (filmed && P.api.state().ui === 'none' && /Skip/.test(P.root.textContent)) { cut = true; P.api.act('accept'); P.frames(); break; }
       } else { P.api.act('accept'); P.frames(); }
     }
     expect(filmed).toBe(true);

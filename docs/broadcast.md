@@ -125,6 +125,14 @@ A new contest page (a new shape) does three things:
 `broadcast.client.test.js` fails for any `*-arena.client.js` that does not do this. `broadcast-package.test.js` fails
 for any kernel call without a cue: a new call kind gets a row in `CALL_CUES`, or `null` to stay silent by name.
 
+## The menus around it
+
+The broadcast covers the play; the menus around it (the title, the pause, the results after the board) are mana-ui's
+([mana-ui.md](mana-ui.md#sports-and-the-broadcast)). They wear the package's look through
+[broadcast-mana.js](../control/lib/graph/broadcast/broadcast-mana.js), its kits among them. The screen after the
+results board reads the outcome's stats through
+[contest-results.js](../control/lib/graph/contest/contest-results.js), in the contest's own words.
+
 ## Gates
 
 - **Machine:** the package and client suites (headless, on a stub canvas), the stats folds on written-out call logs and
