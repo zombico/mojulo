@@ -15,7 +15,7 @@
  *                                                       its `turn` a world difference a happening makes, carried on)
  *     ending?: { beat, stakes? },                       the climax it builds toward; a quest being built may have none
  *     sides?: { looseness: 'tight' | 'loose' | 'free' } }   how far side quests stand from the path
- *   a beat's `as` is one of { level } { wcd: '<space>' } { qow: '<quest>' } { gauntlet: '<level>' } { errand } { epoch: n }
+ *   a beat's `as` is one of { level } (or { level, region }: a region of a glyph-map level) { wcd: '<space>' } { qow: '<quest>' } { gauntlet: '<level>' } { errand } { epoch: n }
  *   { scene: '<moment>' }; `gains` the hero's powers gained on it, `foes` the bestiary's it fields, `who` the cast in it;
  *   `built: false` a beat planned and not made yet: what it names may not exist yet, and a run never makes it.
  *
@@ -26,7 +26,7 @@
  * say the same thing (the first act early, the last late).
  *
  *   readMainQuest(Q, ctx)        → the quest, read (ctx: what the world holds, mainQuestContext)
- *   mainQuestContext(W)          → { levels, powers, stages, foes, cast, errands, qow, wcd, story, gauntlets }
+ *   mainQuestContext(W)          → { levels, powers, stages, foes, cast, errands, qow, wcd, story, gauntlets, regions }
  *   mainQuestLaws(Q, ctx)        → [{ law, holds, says }]
  *   mainQuestReport(Q, ctx)      → { shape, acts | chapters, beats, built, planned, length?, ending?, laws } (the readout's)
  *   partsOf(Q)                   → its acts, or its chapters (a read quest's `shape` says which)
@@ -78,6 +78,8 @@ export function mainQuestContext(W = {}) {
     wcd: Object.keys(isObj(W.wcd?.spaces) ? W.wcd.spaces : {}),
     story: (Array.isArray(W.story) ? W.story : []).map((m) => m?.id).filter(Boolean),
     gauntlets: levels.filter((id) => W.levels[id]?.goal?.gauntlet !== undefined),
+    // (each glyph-map level's regions: glyph → name)
+    regions: Object.fromEntries(levels.filter((id) => isObj(W.levels[id]?.glyphs?.regions?.key)).map((id) => [id, Object.fromEntries(Object.entries(W.levels[id].glyphs.regions.key).map(([k, v]) => [k, v?.name ?? k]))])),
   };
 }
 
@@ -86,7 +88,16 @@ const words = (v, at) => { if (typeof v !== 'string' || !v.trim()) throw fail(`$
 
 /** The beat's `as`, read: → { kind, at } (at undefined for an epoch given by number). */
 function readAs(as, at, built, C) {
-  if (!isObj(as) || Object.keys(as).length !== 1 || !BEAT_AS.includes(Object.keys(as)[0])) throw fail(`${at}.as is one of ${BEAT_AS.map((k) => `{ ${k} }`).join(' ')}`);
+  // (a level written as a glyph map is the whole chapter: a beat plays one of its REGIONS, `{ level, region }`, by the
+  // region's name or its glyph)
+  if (isObj(as) && Object.keys(as).length === 2 && as.level !== undefined && as.region !== undefined) {
+    const L = readAs({ level: as.level }, at, built, C), R = C.regions?.[as.level] ?? {};
+    if (typeof as.region !== 'string' || !as.region) throw fail(`${at}.as.region is the name (or the glyph) of a region of the level's map`);
+    const names = Object.entries(R).flatMap(([k, n]) => [k, n]);
+    if (built && !names.includes(as.region)) throw fail(`${at}.as.region '${as.region}' is not a region of '${as.level}' (${Object.values(R).join(', ') || 'its map names none'})`);
+    return { ...L, region: R[as.region] ?? as.region };
+  }
+  if (!isObj(as) || Object.keys(as).length !== 1 || !BEAT_AS.includes(Object.keys(as)[0])) throw fail(`${at}.as is one of ${BEAT_AS.map((k) => `{ ${k} }`).join(' ')} (or { level, region } on a glyph map)`);
   const [kind, v] = Object.entries(as)[0];
   if (kind === 'epoch') { if (!(Number.isInteger(v) && v >= 1)) throw fail(`${at}.as.epoch is the epoch's number, from 1`); return { kind, at: v }; }
   if (typeof v !== 'string' || !v) throw fail(`${at}.as.${kind} is the id of what it is played as`);

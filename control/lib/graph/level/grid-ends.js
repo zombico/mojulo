@@ -9,6 +9,7 @@
  *     via       the tiles' middles (on their paths: a bend's along its arc, its quarter points) along the paths from the spawn to the exit (the fewest tiles), the door last
  *     beats     `along` each tile of that way between its ends; `pocket` each path END off it (a side way's end: what
  *               a quest hides or a pack waits in); `landmark` each place standing on it; each its tile and region
+ *     map, home a glyph map's ends (true), and the region the walk sets out from (the town the party comes back to)
  *     places    each place's door ({ id, glyph, use?, at, N, region? }: the building's id on the page, its door on the
  *               land, the way out of it), what folk stand by
  * Pure; the land's heights are the level's own, as every tile lays them.
@@ -60,7 +61,7 @@ export function gridEnds(level) {
   const out = {
     spawn, heading: r3(Math.atan2(toward[1] - spawn[1], toward[0] - spawn[0])), exit: exitAt,
     exitFrom: last.kind === 'place' ? `the ${last.place?.use ?? 'place'}'s door (${last.glyph})` : 'the path\'s far end',
-    planar: true, beats, hazards: [], via: via.map((p) => [p[0], p[1]]), doors: [], places,
+    planar: true, beats, hazards: [], via: via.map((p) => [p[0], p[1]]), doors: [], places, map: true, ...(regionOf(start) ? { home: regionOf(start) } : {}),
     ...(G.regions ? { regions: Object.fromEntries(Object.entries(G.regions).map(([k, v]) => [k, v.name ?? k])) } : {}),
   };
   // the land's height at a point, as every tile lays it (not data)

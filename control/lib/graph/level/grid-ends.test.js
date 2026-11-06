@@ -3,6 +3,9 @@ import { gridEnds } from './grid-ends.js';
 import { readGrid, mapStart } from './grid.js';
 import { levelHeight } from '../era/out-tile.js';
 import { gameStages, stageEnds } from '../gameworld/levels.js';
+import { battlePlan, roomOf } from '../gameworld/battles.js';
+import { readGameworld } from '../gameworld/world.js';
+import { readMainQuest, mainQuestContext } from '../gameworld/main-quest.js';
 
 // A GLYPH MAP'S ENDS, read from its grid and its land (the page not built): the hero set down at the far end from the
 // goal, the exit at the goal's door, the way between as beats, the side ways' ends as pockets, the places' doors.
@@ -44,5 +47,19 @@ describe('a glyph map\'s ends', () => {
     // (the L at row 2, column 2 opens west and south: its arc round its south-west corner, radius half the tile)
     const bend = E.beats.find((b) => b.tile[0] === 2 && b.tile[1] === 2).at, corner = [64, -96];
     expect(Math.hypot(bend[0] - corner[0], bend[1] - corner[1])).toBeCloseTo(16, 0);
+  });
+
+  it('is the whole chapter: its packs a stage\'s worth in each region past the town, laid along the way, none in the town', () => {
+    const rows = ['. T .', '. # .', '. # .', '. # .', '. # .', '. # .', '. # .'];
+    const regions = { rows: ['p p p', 'p p p', 'w w w', 'w w w', 'm m m', 't t t', 't t t'], key: { t: { name: 'the town' }, m: { name: 'the meadows' }, w: { name: 'the woods', rise: 4 }, p: { name: 'the pass', rise: 8 } } };
+    const W = { id: 'w', start: 'vale', levels: { vale: { glyphs: { tile: 32, rows, key: { T: { use: 'temple', goal: true } }, regions } } }, battles: { per: 1 } };
+    const S = gameStages(W), E = stageEnds(S[0].manifest);
+    expect(E.home).toBe('the town');
+    const plan = battlePlan(readGameworld(W), S, () => roomOf(E));
+    expect(plan[0]).toHaveLength(3);
+    // (a quest's beat plays a region of the map, by its name or its glyph; a region the map does not name is refused)
+    const C = mainQuestContext(W), Q = (as) => ({ acts: [{ id: 'one', goal: 'go up', beats: [{ id: 'up', goal: 'climb', as }] }] });
+    expect(readMainQuest(Q({ level: 'vale', region: 'w' }), C).acts[0].beats[0].as).toMatchObject({ kind: 'level', at: 'vale', region: 'the woods' });
+    expect(() => readMainQuest(Q({ level: 'vale', region: 'the sea' }), C)).toThrow(/not a region of 'vale'/);
   });
 });

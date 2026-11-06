@@ -68,3 +68,8 @@
   (`draw: false`), keeping the scene's transforms as a draw would; the audit's walk compiler asks it for every leg, and
   a replay that keeps no frame asks it too. A walk's ticks are the rules', not pictures, so a big level is walked at the
   rules' speed on a machine with no GPU (an export's audit, CI, a laptop's software renderer).
+- **A chapter on one map: its quest and its battles by region.** A main quest's beat may play a REGION of a glyph-map
+  level (`as: { level, region }`, the region by its name or its glyph; one the map does not name is refused), so a
+  chapter's beats (the town, the meadows, the switchbacks, the shrine) are parts of one level, not levels. A glyph map's
+  stage takes `per` packs in each of its regions past the first (the town the party sets out from), laid along its way
+  in the order it is walked, none in its home region and none at a door, the boss last, before the goal.
