@@ -17,3 +17,9 @@
   dropped); the junction is a flat disc of paving; THE LAND BETWEEN is filled on a 4 m grid over the whole map, its
   heights from the bands' own edges (the nearest ruling), lying under each band where it reaches into it so a seam has
   no gap and no flicker; and the root's horizon rings the whole map. The sky, light and walk are the root's.
+- **The glyph grid.** A map level may be written as a small grid of glyphs, one square tile each (level/grid.js
+  `readGrid`: `grid: { tile, rows, key }`, north row first; `#` a path, `.` open land, a letter a place the key names: a
+  town block, a building). Every tile is the same square, so tiles sit side by side, never over each other, and a path
+  crosses a tile's edge at its middle, so two tiles' paths always meet. A path tile's SHAPE is solved from its path
+  neighbours, never written: one edge open an end, two opposite an I, two adjacent an L, three a T, four an X; a place a
+  path reaches opens toward it. The paths must be one network, walked end to end.
