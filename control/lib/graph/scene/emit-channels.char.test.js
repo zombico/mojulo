@@ -420,6 +420,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-06 (1105-rpg-slice: a party's footsteps): the 16 fixtures that embed the controllable runtime. Its
 // minds (worlds/controllable/mind.js, inlined by its source) gained an escort that walks its ward's footsteps
 // (`rule.trail`, `rule.flank`); no fixture's escort takes it, so nothing they play moved.
+// Re-pinned 2026-11-06 (1105-rpg-slice: a walk compiled draws nothing): every fixture. The capture bridge every page
+// carries steps without drawing when asked (`draw: false`: the walk compiler's legs, and a replay that keeps no
+// frame), keeping the scene's transforms as a draw would; the bridge asks it, nothing a page plays moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

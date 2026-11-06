@@ -1737,7 +1737,10 @@ if (_capture) {
       }
       __mojStep(__capT);   // clocked channels + physics + events ride the same tick clock
       updateCutaway();
-      ${prePass}renderer.render(scene, camera);
+      // (a walk being compiled draws nothing: its ticks are the rules', not pictures; the scene's transforms kept as a
+      // draw would keep them, for what casts rays at them)
+      if (spec.draw === false) scene.updateMatrixWorld();
+      else { ${prePass}renderer.render(scene, camera); }
     },
     ${CAPTURE_PROBE}() {
       const out = { t: __capT, entities: null, hud: null, bodies: null };
@@ -1824,7 +1827,7 @@ if (_capture) {
         const forward = Math.abs(diff) > 1.2 ? 0.15 : 1;      // face the target before committing speed
         const h0 = ent.transform.heading;
         const input = { forward, turn };
-        this.${CAPTURE_STEP}({ dt, input });
+        this.${CAPTURE_STEP}({ dt, input, draw: false });
         ticks.push(input);
         if (!signLocked && Math.abs(turn) > 0.05) {
           const dh = wrapA(ent.transform.heading - h0);

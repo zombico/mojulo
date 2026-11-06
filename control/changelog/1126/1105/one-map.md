@@ -64,3 +64,7 @@
   path end farthest from the goal (a place whose key says `goal`), the exit at the goal's door, the tiles between as
   beats, each side way's end a pocket, each place by the way a landmark, each beat in its region; the places' doors are
   the town's, where the folk stand. The page and its ends set the walk down at the same end (grid.js `mapStart`).
+- **A walk is compiled without drawing.** The capture bridge every page carries steps without drawing when asked
+  (`draw: false`), keeping the scene's transforms as a draw would; the audit's walk compiler asks it for every leg, and
+  a replay that keeps no frame asks it too. A walk's ticks are the rules', not pictures, so a big level is walked at the
+  rules' speed on a machine with no GPU (an export's audit, CI, a laptop's software renderer).
