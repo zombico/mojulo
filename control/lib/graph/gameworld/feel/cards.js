@@ -373,7 +373,8 @@ export const POLES = Object.freeze({
     set: {}, needs: ['the kneel', 'the tackle'] },
   'jumping-giuseppe': { demo: ['move', 'sprint', 'jump', 'air', 'wall', 'pound', 'stomp'], name: 'Jumping Giuseppe', after: 'the mascot platformer', base: 'platformer', view: { camera: 'side' }, stage: 'platforms',
     says: 'the mascot platformer: movement first, a springy squash and stretch, the stomp, the ground pound, the wall jump',
-    set: { look: { squash: 0.28, smear: null }, lane: { x: 0, face: false } }, needs: ['context jumps (the long jump, the backflip, the triple jump)', 'power-ups'] },
+    // (no dash: a mascot platformer runs faster on a held button, `ground.sprint`; a dash is a burst, Galaxy Boy's)
+    set: { look: { squash: 0.28, smear: null }, lane: { x: 0, face: false }, dash: null }, needs: ['context jumps (the long jump, the backflip, the triple jump)', 'power-ups'] },
   'isekai-party': { demo: ['move', 'sprint', 'attack', 'lock'], name: 'Isekai Party', after: 'the RPG', base: 'realistic', view: { camera: 'iso' }, stage: 'field',
     says: 'controlled, not collision: an even walk, no freeze, no knockback, no stun; what lands is resolved, not shoved',
     set: { ground: { walk: 1.6, run: 4.5, sprint: 6, accel: 20, decel: 30, turn: 900 }, jump: { commit: 4, height: 0.5 }, hit: { hitstop: null, stun: { model: 'none' }, force: { model: 'momentum', gain: 0, lift: 0 } }, hurt: { stun: 0, knock: 0, slow: null, mercy: 0, charge: 'keep' } },

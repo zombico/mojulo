@@ -165,9 +165,10 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
   }
   if (takes && C.dash && C.dash.kind === 'dash') {
     const D = C.dash, A = D.air;
-    rule.dash = { speed: D.speed, time: r4(D.frames / FPS), ...(D.hold ? { hold: true, min: r4((D.hold.min ?? 0) / FPS) } : {}), ...(D.jump ? { jump: true } : {}), ...(D.wall ? { wall: true } : {}),
+    // (a burst the card's frames long: a dash held longer is not carried, a dash is not a run)
+    rule.dash = { speed: D.speed, time: r4(D.frames / FPS), ...(D.jump ? { jump: true } : {}), ...(D.wall ? { wall: true } : {}),
       ...(A && A.count > 0 ? { air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } } : {}) };
-    half('dash', `the dash on F (a person's): the ground dash, ${A?.count ? 'the air dash, ' : ''}${D.jump ? 'the dash jump' : ''}${D.wall ? ', the dash wall kick' : ''}${D.iframes ? '; its invincible frames are not carried' : ''}${D.cancel ? '; its cancel out of a move is not carried' : ''}`);
+    half('dash', `the dash on F (a person's): the ground dash, ${A?.count ? 'the air dash, ' : ''}${D.jump ? 'the dash jump' : ''}${D.wall ? ', the dash wall kick' : ''}; a burst, the card's ${D.frames} frames whatever the button does${D.hold ? ' (its held dash is not carried)' : ''}${D.iframes ? '; its invincible frames are not carried' : ''}${D.cancel ? '; its cancel out of a move is not carried' : ''}`);
     moves.add('dash');
   }
   for (const [field, why] of Object.entries(LOST)) {

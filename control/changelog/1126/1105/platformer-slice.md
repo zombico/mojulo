@@ -15,18 +15,21 @@
 - **The card's moves, with its takes.** A feel with `takes: true` also plays its card's wall and dash, as the action lab
   tuned them. Falling against a wall with the stick into it slides down at the card's speed; a jump on it (or a few
   frames after leaving it) kicks off it, up and away, the stick locked out for the kick, so a single wall is climbed kick
-  after kick with the stick held back to it. A person's F dashes: along the stick at the card's speed for as long as it is
-  held (at least its least, at most its time); in the air an air dash holds its height, once an airtime, given back by
-  the ground and the wall; a jump in a ground dash is a dash jump that keeps the dash's speed to the touch-down, and a
-  kick with the dash held kicks at the dash's speed. The level's legend names F as the dash. The readout says the dash is
-  partly carried (its invincible frames and its cancel are not).
+  after kick with the stick held back to it. A person's F dashes, and a dash is a burst, not a run: the card's frames
+  long whatever the button does, it gets up to the card's speed over its first quarter, holds it, and eases back to the
+  run's by its end, the hero holding a lunge (the running jump's gather) rather than taking strides. In the air an air
+  dash is the same burst, the fall stopped while it is at speed and given back as it eases, once an airtime, given back
+  by the ground and the wall; a jump in a ground dash is a dash jump that keeps the burst's speed to the touch-down, and
+  a kick with the dash held kicks at the dash's speed. A card's held dash is not carried. Jumping Giuseppe has no dash
+  (a mascot platformer runs faster on a held button). The level's legend names F as the dash. The readout says the
+  dash is partly carried (its invincible frames and its cancel are not).
 - **The reach of a feel.** `feel/reach.js` measures what a feel's hero can cross by playing the rule its game ships
   (the card over the hero's own) in the runtime on scripted presses: the tapped hop, the jump from a stand, the running
   jump, and the air jump at the apex where the card has one. Each move's arc, its height, the widest gap of level ground
   it clears and its air time; `reachAt(move, up)` is the farthest ledge it lands on at a height above or below the
   take-off. Jumping Giuseppe's running jump clears 4.4 m and rises 1.8 m, his air jump 7.7 m and 3.4 m; Galaxy Boy's
   running jump 3.8 m and 1.6 m, with no air jump. With the takes, the dash jump and the air dash join (Galaxy Boy's dash
-  jump clears 6.9 m), and the wall's kick and climb (about 1.6 m a kick for Galaxy Boy). The level's segments are sized
+  jump clears 5.7 m), and the wall's kick and climb (about 1.6 m a kick for Galaxy Boy). The level's segments are sized
   by it.
 - **Enemy density, a trail's.** A level's foes take `density`: foes per free beat of a stage (0 to 4, or none, sparse,
   even, dense, swarm), or one per trail node (`{ meet: 'sparse', gauntlet: 'dense' }`), a node it does not name standing

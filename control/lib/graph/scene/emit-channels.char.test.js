@@ -442,6 +442,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // runtime. The side camera gained `band` (its height eased while the hero stands, held through a jump) and `ends` (the
 // frame held in from the lane's ends), each a no-op absent; the i-frame shimmer dims a merged figure's one skin, not its
 // bones, and the target rim (where a page carries it) draws a merged foe's on its skin, bound to its skeleton.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: the dash a burst): the same 16 fixtures. The platform rule's dash is
+// the card's frames long whatever the button does, up to its speed and eased back to the run's, a lunge for its pose
+// (no strides), the air dash's fall stopped only while it is at speed; the held dash's branch is gone. Absent `dash`,
+// nothing in it runs.
 // Re-pinned 2026-11-06 (1105-platformer-lv0-spike merging 1105-rpg-slice's pixel budget): the same fixtures, their
 // emission the re-pins above together (the platform rule's takes, wall, dash and camera move; the knockback seams; the
 // pixel budget of a page played live, one draw a figure).
