@@ -73,3 +73,6 @@
   chapter's beats (the town, the meadows, the switchbacks, the shrine) are parts of one level, not levels. A glyph map's
   stage takes `per` packs in each of its regions past the first (the town the party sets out from), laid along its way
   in the order it is walked, none in its home region and none at a door, the boss last, before the goal.
+- **A desktop export's smoke runs on a box with no GPU, as root.** The gate launches the app with Chromium's flags before
+  its folder: no sandbox as root (a container, a CI box), and a software WebGL allowed where no GPU answers (one that
+  does is still used); the smoke checks the pages load, and neither flag reaches the app a player runs.
