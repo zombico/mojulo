@@ -409,6 +409,28 @@ function drape(out, a, b, a2, b2, len, off, n, key, scale, group) {
 }
 
 /** manifest → World payload, for a stage whose kit is an isekai kit. */
+/**
+ * A glyph map tile's CASTERS, placed as its build places them (the card's trees with the recipe's biocube over them,
+ * the hero; its boulders), without building anything: what its neighbours' shadows need (level/grid-scene.js). The
+ * kit's round-mass crowns only (bamboo and blossom are not cast across a seam); no pebble.
+ * → { trees: [{ x, y, h, v, z0, … }], rocks: [{ x, y, size, v, z0, … }], seed } in the tile's own frame.
+ */
+export function isekaiTileCasters(manifest = {}) {
+  const st0 = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
+  const B = st0 && manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null, st = B ? withFlora(st0, B) : st0;
+  const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
+  if (!st || !manifest.tile || st.glow) return { trees: [], rocks: [], seed };
+  const site = reserveSite(outTileSite(st, manifest.tile, seed), manifest._keepOut ?? null);
+  const rocks = rockItems(st, site, seed).filter((r) => r.role !== 'pebble');
+  if ((st.trees.form || 'blob') !== 'blob') return { trees: [], rocks, seed };
+  const trees = treeItems(st, site, seed), Hr = st.trees.hero;
+  if (Hr) trees.push({ x: r5(site.trailX(Hr.y) + Hr.side * (site.halfWAt(Hr.y) + Hr.off)), y: Hr.y, h: Hr.h, v: 0, cluster: -1, hero: true });
+  // (banded as its build bands them, treeBands: a stamped tree casts as its shell there, so it casts so here)
+  const TB = st.trees.bands ? treeBands(st, site, trees.map((t) => ({ ...t }))) : null;
+  const cast = TB ? [...TB.built, ...TB.stock.map((t) => ({ ...t, band: 'far' }))] : trees;
+  return { trees: cast.map((t) => ({ ...t, z0: r5(site.ground(t.x, t.y) - 0.15) })), rocks, seed };
+}
+
 export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const st0 = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
   // a `biocube` (era/biocube.js): the level's flora laid over the card's own trees and grass
@@ -584,7 +606,17 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (a gritty crown's core, treeFaces: it casts as the crown, and is drawn in its own stops, below, not baked)
   const coreG = broken ? wood.filter((f) => f.group === CORE_GROUP) : [], woodDrawn = broken ? wood.filter((f) => f.group !== CORE_GROUP) : wood;
   const woodCast = TB ? [...wood.filter((f) => !TB.isPhantom(f)), ...treeFaces(st, site, TB.stock.map((t) => ({ ...t, band: 'far' })), broken)] : wood;
-  const solid = [...ground.faces, ...ribbon, ...casters, ...woodCast, ...ikeRaw, ...shrRaw, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
+  // (a glyph map's tile, era/out-tile.js: its NEIGHBOURS' trees within reach cast on it too, so a shadow runs on across a
+  // seam; isekaiTileTrees placed them, in this tile's frame, standing at their own feet)
+  // (and their boulders, each built in its own tile's frame and seed, then set across: `dx`, `dy` that tile's offset)
+  const castIn = [...(manifest.tile?.cast?.length && !bamboo && !sak ? treeFaces(st, site, manifest.tile.cast, broken) : []),
+    ...(manifest.tile?.castRocks ?? []).flatMap(({ dx, dy, seed: s0, ...it }) => { const b = boulderFaces(st, it, s0, broken); return [...b.sides, ...b.cap].map((f) => ({ ...f, corners: f.corners.map((c) => [c[0] + dx, c[1] + dy, c[2]]) })); }),
+    // (and a place's tile, built first, hands in its own casting faces as built: its building and what grows round it)
+    ...(manifest.tile?.castFaces ?? [])];
+  // (a tile's own casters are those standing in its square: what the kit lays past it is clipped from the map, and the
+  // neighbour that owns that ground hands in its own)
+  const inTile = site.tile ? (fs) => fs.filter((f) => { const c = mean(f.corners); return c[0] >= 0 && c[0] <= site.tile.size && c[1] >= 0 && c[1] <= site.tile.size; }) : (fs) => fs;
+  const solid = [...ground.faces, ...ribbon, ...inTile(casters), ...inTile(woodCast), ...castIn, ...inTile(ikeRaw), ...inTile(shrRaw), ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
   boulders.push(...strewn);
   // a spray (or a sprig) stops the sun only where its leaves (its flowers) are painted: the floor under it is dappled
   const cardMask = grove ? 'spray' : sak ? 'sprig' : null;
@@ -1852,9 +1884,11 @@ const facetN = (cs, toward) => { const n = unit(cross(sub(cs[1], cs[0]), sub(cs[
 
 /** Nature by cause, kept broad (the lock quantizes it): grass in patches, the trail packed bright at its centre. */
 function isekaiMarks(st, site, S) {
+  // (a glyph map's tile: its patches the LEVEL's, read on the level's frame, so they run on across its seams)
+  const [fx, fy] = site.tile ? site.tile.origin : [0, 0], FS = site.tile ? site.tile.seed | 0 : S;
   return (f, c) => {
     if (f.group === 'isekai:trail') { const t = site.trailDist(c[0], c[1]) / site.halfWAt(c[1]), v = 1.08 - 0.2 * t * t; return [v, v, v]; }
-    if (f.group === 'isekai:ground') { const v = 0.86 + 0.28 * smooth(0.3, 0.7, vnoise(c[0] * 0.12, c[1] * 0.12, S + 71)); return [v, v, v]; }
+    if (f.group === 'isekai:ground') { const v = 0.86 + 0.28 * smooth(0.3, 0.7, vnoise((c[0] + fx) * 0.12, (c[1] + fy) * 0.12, FS + 71)); return [v, v, v]; }
     return [1, 1, 1];
   };
 }

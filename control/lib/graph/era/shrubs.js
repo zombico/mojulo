@@ -14,6 +14,7 @@ import { designFlora, subSeed, floraMeasures } from './out-flora.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { kept } from './reserve.js';
 import { WALK } from './out-ikebana.js';
+import { pathAlong } from './out-tile.js';
 
 const r5 = (x) => Math.round(x * 1e5) / 1e5 + 0;
 export const SHRUB_GROUP = 'flora:bush';   // (stage-buildings.js clears a bush where a building stands)
@@ -37,12 +38,16 @@ export function placeShrubs(card, ask, site, { rocks = [], trees = [], unit = 1,
   if (!ask || !card) return { elements: [], colliders: [], avoid: [], anchors: [] };   // opt-in: a recipe asks, the card's dials
   const C = { ...card, ...(ask && ask !== true ? { ...(ask.count !== undefined ? { n: ask.count } : {}), ...(ask.bloom !== undefined ? { bloom: ask.bloom } : {}), ...(ask.fruit !== undefined ? { fruit: ask.fruit } : {}) } : {}) };
   const { W, D, trailX, halfWAt, fringeAt, cliffX, apronAt, ground } = site, rand = mulberry32(subSeed(seed, 'shrubs'));
+  const along = site.tile ? (site.tile.paths.length ? pathAlong(site) : null) : null;
+  if (site.tile && !along) return { elements: [], colliders: [], avoid: [], anchors: [] };   // (a tile with no path: no bush by it)
   const ok = (x, y) => x > cliffX(y) + 2.5 && x < W - 2 && y > 2 && y < D - 2 && apronAt(x, y) < 0.02 && !(site.clear && site.clear(x, y)) && (!reserved || kept(reserved, x, y, 1));
   const at = [];
   for (let tries = 0; at.length < C.n && tries < C.n * 40; tries++) {
-    const y = 3 + rand() * (D - 6), side = rand() < 0.5 ? -1 : 1, off = C.band[0] + (C.band[1] - C.band[0]) * rand();
-    const x = trailX(y) + side * (halfWAt(y) + fringeAt(y) + off);
-    if (!ok(x, y)) continue;
+    const v = 3 + rand() * (D - 6), side = rand() < 0.5 ? -1 : 1, off = C.band[0] + (C.band[1] - C.band[0]) * rand();
+    // (a trail's: across its line at a depth; a tile's: off its own path's right hand, its point as far along it)
+    const S = along ? along.at((v - 3) / (D - 6)) : null, w = halfWAt(v) + fringeAt(v) + off;
+    const x = S ? S.c[0] + side * S.n[0] * w : trailX(v) + side * w, y = S ? S.c[1] + side * S.n[1] * w : v;
+    if (!ok(x, y) || (S && site.trailDist(x, y) < halfWAt(y) + fringeAt(y))) continue;
     if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - x, r.y - y) < r.size * unit * 0.6 + 1)) continue;
     if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < 1.8)) continue;
     if (at.some((q) => Math.hypot(q[0] - x, q[1] - y) < C.gap)) continue;

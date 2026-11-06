@@ -13,9 +13,9 @@
  *             does: so where two tiles' paths meet at an edge's middle, they meet at one height.
  *
  *   outTileSite(st, tile, seed) → a site; tile: { size, open: ['n' | 'e' | 's' | 'w'], origin: [x, y], level?: { seed,
- *                                 hills, roll } }
+ *                                 hills, roll, rise } }
  *   tilePath(size, open)        → the path's polylines in the tile's frame
- *   levelHeight(x, y, L)        → the level's land at (x, y) of the level's frame
+ *   levelHeight(x, y, L)        → the level's land at (x, y) of the level's frame (L.rise: the regions' rise, riseAt)
  * Pure.
  */
 import { vnoise } from './dirt.js';
@@ -28,7 +28,22 @@ const mix = (a, b, t) => a + (b - a) * t;
 export const LEVEL_LAND = Object.freeze({ hills: 5, stride: 90, roll: 0.8, rollStride: 18 });
 export function levelHeight(x, y, L = {}) {
   const s = (L.seed ?? 1) | 0, H = L.hills ?? LEVEL_LAND.hills, R = L.roll ?? LEVEL_LAND.roll;
-  return H * (vnoise(x / LEVEL_LAND.stride, y / LEVEL_LAND.stride, s + 501) - 0.5) * 2 + R * (vnoise(x / LEVEL_LAND.rollStride, y / LEVEL_LAND.rollStride, s + 503) - 0.5) * 2;
+  return H * (vnoise(x / LEVEL_LAND.stride, y / LEVEL_LAND.stride, s + 501) - 0.5) * 2 + R * (vnoise(x / LEVEL_LAND.rollStride, y / LEVEL_LAND.rollStride, s + 503) - 0.5) * 2 + (L.rise ? riseAt(x, y, L.rise) : 0);
+}
+
+/**
+ * A region's RISE (level/grid.js regions): each tile's rise stands at its centre and eases to its neighbours' between
+ * them (smoothstep across each pair of centres, so the land is level round a tile's middle and climbs between): one
+ * continuous height over the whole map, whatever the regions. rise: { tile, cols, rows, z: [per tile, north row first] }.
+ */
+export function riseAt(x, y, R) {
+  const T = R.tile, u = Math.max(0, Math.min(R.cols - 1, x / T - 0.5)), v = Math.max(0, Math.min(R.rows - 1, -y / T - 0.5));
+  const i = Math.min(R.cols - 2, Math.floor(u)), j = Math.min(R.rows - 2, Math.floor(v));
+  const at = (r, c) => R.z[Math.max(0, Math.min(R.rows - 1, r)) * R.cols + Math.max(0, Math.min(R.cols - 1, c))];
+  const ease = (t) => t * t * (3 - 2 * t), fu = R.cols > 1 ? ease(u - Math.max(0, i)) : 0, fv = R.rows > 1 ? ease(v - Math.max(0, j)) : 0;
+  const c0 = Math.max(0, i), r0 = Math.max(0, j);
+  const top = mix(at(r0, c0), at(r0, c0 + 1), fu), bot = mix(at(r0 + 1, c0), at(r0 + 1, c0 + 1), fu);
+  return mix(top, bot, fv);
 }
 
 // an edge's middle in the tile's frame
@@ -83,5 +98,23 @@ export function outTileSite(st, tile, seed = 1) {
   // the composition's foci: the path's middle, where a tile has one
   const foci = paths.length ? [{ name: 'tile', x: T / 2, y: T / 2, r: Math.min(10, T / 4) }] : [];
   const inRadius = (x, y) => foci.some((f) => Math.hypot(x - f.x, y - f.y) < f.r);
-  return { W: T, D: T, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree: [], foci, inRadius, open: true, tile: { size: T, open, origin: [ox, oy], paths } };
+  return { W: T, D: T, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree: [], foci, inRadius, open: true, tile: { size: T, open, origin: [ox, oy], paths, seed: L.seed } };
+}
+
+/** A point `u` (0…1) of the way along a site's path, and its right hand ({ c: [x, y], n }): a trail's line by depth; a
+ *  tile's polylines (era/out-tile.js) by their length, one after another. `length` its metres (0: no path). */
+export function pathAlong(site) {
+  // (a trail's: its line at a depth, its right hand straight across x, as its stones were always laid)
+  if (!site.tile) return { length: site.D, at: (u) => { const y = site.D * u; return { c: [site.trailX(y), y], n: [1, 0] }; } };
+  const segs = [];
+  let total = 0;
+  for (const P of site.tile.paths) for (let i = 0; i + 1 < P.length; i++) { const l = Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]); if (l > 0) { segs.push({ a: P[i], b: P[i + 1], l, s: total }); total += l; } }
+  return {
+    length: total,
+    at: (u) => {
+      const s = Math.max(0, Math.min(1, u)) * total, k = segs.findIndex((g) => s <= g.s + g.l), g = segs[k < 0 ? segs.length - 1 : k], t = (s - g.s) / g.l;
+      const dx = (g.b[0] - g.a[0]) / g.l, dy = (g.b[1] - g.a[1]) / g.l;
+      return { c: [g.a[0] + (g.b[0] - g.a[0]) * t, g.a[1] + (g.b[1] - g.a[1]) * t], n: [dy, -dx] };
+    },
+  };
 }

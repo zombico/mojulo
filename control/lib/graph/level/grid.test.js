@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readGrid, shapeOf, tileCentre, sideMiddle } from './grid.js';
+import { riseAt, levelHeight } from '../era/out-tile.js';
 
 // THE GLYPH GRID: a map written as rows of glyphs, one square tile each. A path tile's shape is solved from its path
 // neighbours (an end, an I, an L, a T, an X), never written; the paths are one network; tiles meet edge to edge.
@@ -66,5 +67,21 @@ describe('the glyph grid', () => {
     expect(D.at(2, 0).open).toEqual(['n', 'e']);
     expect(() => readGrid({ rows: ['h #'], key: { h: { door: 'n' } } })).toThrow(/opens its door n, where no path lies/);
   });
-});
 
+  it('lays a second layer of regions over the tiles: each tile its region, the rise one height across every seam', () => {
+    const R = readGrid({ rows: ['# # #', '. . #'], regions: { rows: ['t t m', '. . m'], key: { t: { name: 'the town' }, m: { name: 'the meadows', rise: 12, biocube: { flora: {} } } } } });
+    expect([R.at(0, 0).region, R.at(0, 2).region, R.at(1, 0).region]).toEqual(['t', 'm', undefined]);
+    expect(R.rise.z).toEqual([0, 0, 12, 0, 0, 12]);
+    // (level round a tile's middle, climbing between centres, and continuous: no step anywhere along a row)
+    const T = R.tile, y = -T / 2;
+    expect(riseAt(T * 2.5, y, R.rise)).toBeCloseTo(12, 6);
+    expect(riseAt(T * 0.5, y, R.rise)).toBeCloseTo(0, 6);
+    let worst = 0; for (let x = 0; x < T * 3; x += 0.25) worst = Math.max(worst, Math.abs(riseAt(x + 0.25, y, R.rise) - riseAt(x, y, R.rise)));
+    expect(worst).toBeLessThan(0.15);
+    expect(levelHeight(T * 2.5, y, { seed: 3, rise: R.rise }) - levelHeight(T * 2.5, y, { seed: 3 })).toBeCloseTo(12, 6);
+    expect(() => readGrid({ rows: ['# #'], regions: { rows: ['t'], key: { t: {} } } })).toThrow(/the map's own shape/);
+    expect(() => readGrid({ rows: ['# #'], regions: { rows: ['t q'], key: { t: {} } } })).toThrow(/'q' is a region the key does not name/);
+    expect(() => readGrid({ rows: ['# #'], regions: { rows: ['t t'], key: { t: { trees: 3 } } } })).toThrow(/not a region's word/);
+    expect(() => readGrid({ rows: ['# #'], regions: { rows: ['t t'], key: { t: { rise: 400 } } } })).toThrow(/rise is metres/);
+  });
+});

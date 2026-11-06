@@ -12,7 +12,13 @@
  *       '. . # . S',
  *     ],
  *     key?: { <glyph>: <what stands on it> },   // the PLACES the geocube lays round the paths (a town block, a
- *   }                                           // building, a wood…); '#' a path and '.' open land are always known
+ *                                               // building, a wood…); '#' a path and '.' open land are always known
+ *     regions?: { rows, key },                  // a second layer of glyphs, the map's own shape: each tile's REGION
+ *   }                                           // ('.' the level's own)
+ *
+ * A REGION (`regions.key.<letter>`: REGION_WORDS) names a part of the map (the town, the meadows, the larch woods, the
+ * pass) and dresses its tiles: the stage's own words each is built with (its look, what grows there, its grass), and
+ * its RISE, metres over the level's land, eased between tile centres so the land stays one height across every seam.
  *
  * A PLACE has one DOOR: the side of it its key names (`door: 'n' | 'e' | 's' | 'w'`), else the side whose path tile is
  * the main road (the one with the most paths of its own round it; the first clockwise from north on a tie). A path
@@ -24,7 +30,7 @@
  * corner, the T's stem). A path crosses an edge at its middle, so two tiles' paths always meet.
  *
  *   readGrid(g)  → { tile, rows, cols, cells: [{ r, c, glyph, kind: 'path' | 'land' | 'place', place?, shape?, open?,
- *                   turn? }], at(r, c) }
+ *                   region? }], at(r, c), regions?, rise? (the tiles' rises, for era/out-tile.js riseAt) }
  *   SHAPES       the shapes by their open edges
  *
  * Coordinates: column c runs east (+x), row r runs south (−y): the tile (r, c) has its centre at
@@ -60,7 +66,7 @@ export function shapeOf(open) {
 
 export function readGrid(g, at = 'grid') {
   if (!isObj(g)) throw new Error(`level: ${at} is { tile?, rows, key? }`);
-  for (const k of Object.keys(g)) if (!['tile', 'rows', 'key'].includes(k)) throw new Error(`level: ${at}.${k} is not a grid setting (settings: tile, rows, key)`);
+  for (const k of Object.keys(g)) if (!['tile', 'rows', 'key', 'regions'].includes(k)) throw new Error(`level: ${at}.${k} is not a grid setting (settings: tile, rows, key, regions)`);
   const tile = g.tile ?? GRID_TILE.d;
   if (!(Number.isFinite(tile) && tile >= GRID_TILE.lo && tile <= GRID_TILE.hi)) throw new Error(`level: ${at}.tile is a tile's side in metres, ${GRID_TILE.lo} to ${GRID_TILE.hi}`);
   if (!Array.isArray(g.rows) || !g.rows.length || !g.rows.every((r) => typeof r === 'string')) throw new Error(`level: ${at}.rows is the map written as rows of glyphs, north first ('#' a path, '.' open land)`);
@@ -122,8 +128,34 @@ export function readGrid(g, at = 'grid') {
     const lost = walk.filter((x) => !seen.has(id(x)));
     if (lost.length) throw new Error(`level: ${at}: the paths are not one network (row ${lost[0].r + 1}, column ${lost[0].c + 1} is not reached from row ${walk[0].r + 1}, column ${walk[0].c + 1}); a map is one level, walked end to end`);
   }
+  // THE REGIONS: each tile's region (its dress and its rise)
+  const R = readRegions(g.regions, rows.length, cols, `${at}.regions`);
+  if (R) for (const x of cells) { const k = R.rows[x.r][x.c]; if (k !== GRID_GLYPHS.land) { x.region = k; } }
   const at2 = (r, c) => cells[r * cols + c] ?? null;
-  return { tile, rows: rows.length, cols, cells, at: at2 };
+  return { tile, rows: rows.length, cols, cells, at: at2, ...(R ? { regions: R.key, rise: { tile, cols, rows: rows.length, z: cells.map((x) => (x.region ? R.key[x.region].rise ?? 0 : 0)) } } : {}) };
+}
+
+/** What a region may say: its name, its rise (metres, the land's height there over the level's own), and the stage's
+ *  own words every tile in it is built with (its look, what grows there, its grass, wind and snow). */
+export const REGION_WORDS = Object.freeze(['name', 'rise', 'style', 'biocube', 'shrubs', 'grass', 'wind', 'snow', 'palette']);
+export const REGION_RISE = Object.freeze({ lo: -24, hi: 60 });
+
+function readRegions(g, nr, nc, at) {
+  if (g === undefined) return null;
+  if (!isObj(g) || !Array.isArray(g.rows) || !isObj(g.key)) throw new Error(`level: ${at} is { rows, key }: the map's regions written as a second layer of glyphs over its tiles ('.' the level's own)`);
+  const rows = g.rows.map((r) => (typeof r === 'string' ? r.replace(/\s+/g, '') : ''));
+  if (rows.length !== nr || rows.some((r) => r.length !== nc)) throw new Error(`level: ${at}.rows are the map's own shape (${nr} rows of ${nc} glyphs)`);
+  for (const [k, v] of Object.entries(g.key)) {
+    if (!/^[A-Za-z]$/.test(k)) throw new Error(`level: ${at}.key.${k}: a region's glyph is one letter ('.' the level's own)`);
+    if (!isObj(v)) throw new Error(`level: ${at}.key.${k} is { ${REGION_WORDS.join(', ')} }`);
+    for (const w of Object.keys(v)) if (!REGION_WORDS.includes(w)) throw new Error(`level: ${at}.key.${k}.${w} is not a region's word (words: ${REGION_WORDS.join(', ')})`);
+    if (v.rise !== undefined && !(Number.isFinite(v.rise) && v.rise >= REGION_RISE.lo && v.rise <= REGION_RISE.hi)) throw new Error(`level: ${at}.key.${k}.rise is metres over the level's land, ${REGION_RISE.lo} to ${REGION_RISE.hi}`);
+  }
+  for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) {
+    const k = rows[r][c];
+    if (k !== GRID_GLYPHS.land && !Object.hasOwn(g.key, k)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${k}' is a region the key does not name (key: ${Object.keys(g.key).join(', ') || 'none'})`);
+  }
+  return { rows, key: g.key };
 }
 
 /** A tile's centre on the level's frame (north up: columns east, rows south). */

@@ -44,3 +44,14 @@
   `paths-clear` no collider on any path (sampled every half metre at a walker's height); `doors-clear` every place's
   door clear; `one-network` the paths one network. A whole map built through the kit's builder is held to them in the
   e2e tier (level/grid-scene.e2e.test.js).
+- **Regions on a glyph map.** A grid may carry a second layer of glyphs the map's own shape, `regions: { rows, key }`
+  ('.' the level's own): each region names a part of the map (the town, the meadows, the larch woods, the pass) and
+  dresses its tiles with the stage's own words (`style`, `biocube`, `shrubs`, `grass`, `wind`, `snow`, `palette`) over
+  the level's, and RISES over the level's land (`rise`, metres, −24 to 60), each tile's rise at its centre eased to its
+  neighbours' between (era/out-tile.js `riseAt`), so the land stays one height across every seam however the regions
+  climb. The page reads them back (`map.regions`: each its name, rise and tiles; each cell its `region`).
+- **A glyph map's ground runs on across its seams.** A tile's ground patches are the level's, read on the level's
+  frame, never its own; a tile's shadows include its neighbours' trees and boulders within reach (placed first, as
+  their own builds place them, `isekaiTileCasters`; a place's tile built first and its grown things handed on as
+  built), and its own casters are only those standing in its square. Bushes on a tile stand beside its own path,
+  whichever way it runs. A law holds it: `seam-shade`, the share of points along the seams whose baked shade steps.

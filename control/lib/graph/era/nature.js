@@ -42,6 +42,8 @@ import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './ou
 import { boundFaces } from './out-bounds.js';
 import { recolourCard, recolourFaces } from '../color-theorist/recolour.js';
 import { readGrade } from './grade.js';
+import { pathAlong } from './out-tile.js';
+export { pathAlong };
 
 export const NATURE_STYLES = Object.freeze({ 'nature-trail': NATURE_TRAIL });
 
@@ -222,24 +224,6 @@ function tileTrailFaces(st, site) {
     }
   }
   return out;
-}
-
-/** A point `u` (0…1) of the way along a site's path, and its right hand ({ c: [x, y], n }): a trail's line by depth; a
- *  tile's polylines (era/out-tile.js) by their length, one after another. `length` its metres (0: no path). */
-export function pathAlong(site) {
-  // (a trail's: its line at a depth, its right hand straight across x, as its stones were always laid)
-  if (!site.tile) return { length: site.D, at: (u) => { const y = site.D * u; return { c: [site.trailX(y), y], n: [1, 0] }; } };
-  const segs = [];
-  let total = 0;
-  for (const P of site.tile.paths) for (let i = 0; i + 1 < P.length; i++) { const l = Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]); if (l > 0) { segs.push({ a: P[i], b: P[i + 1], l, s: total }); total += l; } }
-  return {
-    length: total,
-    at: (u) => {
-      const s = Math.max(0, Math.min(1, u)) * total, k = segs.findIndex((g) => s <= g.s + g.l), g = segs[k < 0 ? segs.length - 1 : k], t = (s - g.s) / g.l;
-      const dx = (g.b[0] - g.a[0]) / g.l, dy = (g.b[1] - g.a[1]) / g.l;
-      return { c: [g.a[0] + (g.b[0] - g.a[0]) * t, g.a[1] + (g.b[1] - g.a[1]) * t], n: [dy, -dx] };
-    },
-  };
 }
 
 function ribbonFrame(site) {
