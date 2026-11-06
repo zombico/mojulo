@@ -60,6 +60,10 @@
  * may emit `rpg-battle:<encounter>`, `rpg-rest` (full HP and MP), `rpg-join:<member>`, `rpg-open:<class>`,
  * `rpg-shop:<shop>`; a purchase says `rpg-bought:<shop>:<item>`, a sale `rpg-sold:<shop>:<item>`, a stay `rpg-stayed:<shop>`.
  *
+ * What the battles, the party menu and a shop show is mana-ui's (rpg-ui.js, the spec; the page's RPG channel its host):
+ * lowered with a world's UI guide, the cfg carries `theme` (the guide as a mana-ui theme, playscape/ui/mana-theme.js;
+ * 'greybox' until the guide is settled); without one, the console RPG's.
+ *
  *   readRpg(play)       → the kernel's cfg, or null; throws, teaching
  *   rpgCues(play)       → the cues: walking up to an encounter, a won fight's foe falling, a lost one failing the level
  *   withRpg(play)       → play with those cues appended (the same object without play.rpg)

@@ -63,7 +63,7 @@
  *                         ends of a ◀ ▶ input turn it, anything else is done at once; a row with a detail beside it (in
  *                         a split) is selected first and done on a second tap
  *     .hudTap(n)          a tap on the HUD's tappable part n (a button or a slot with `on.accept`: pause, a skill)
- *     .view() → html .tree() .state()
+ *     .view() → html .tree() .state() (the stack, the screen up, each seat's focus, what it is, the open screen's tabs)
  *     actions (the controls kernel's `menu` scheme): up, down, left, right, accept, back, tabNext, tabPrev
  *   toHtml(tree) · readPath(obj, path)
  *   mount(el, rt, { auto?, swipe? }) → { paint }: the DOM backend, a VIEW: it draws into el (patching what is there, by
@@ -108,7 +108,7 @@ export function buildManaUi() {
     // in-game: the HUD's places
     hud: { group: 'hud', about: 'the in-game layer under the stack: its children are regions and the layers (anchors, edges, threat, letterbox)', props: {}, children: 'hud' },
     region: { group: 'hud', about: 'one of the nine screen places; parts stack inside it (in a hud, or laid out over a screen)', props: { at: [REGIONS, 'top-left'] }, children: true },
-    anchors: { group: 'hud', layer: true, about: 'one `row` drawn over each thing in the world at its screen place (x, y from 0 to 1): nameplates, damage numbers', props: { rows: [L, [], true], row: [ND, undefined, true], x: [T, 'x'], y: [T, 'y'] } },
+    anchors: { group: 'hud', layer: true, about: 'one `row` drawn over each thing in the world at its screen place (x, y from 0 to 1): nameplates, damage numbers; a row with an `id` is its own element (a new id, a new one: its entrance plays); `pass` rows rise and fade once from where they land (damage numbers)', props: { rows: [L, [], true], row: [ND, undefined, true], x: [T, 'x'], y: [T, 'y'], pass: [B, false] } },
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
     threat: { group: 'hud', layer: true, about: 'where harm came from: a mark on a ring round the centre for each bearing (degrees from where you face)', props: { markers: [L, [], true] } },
     letterbox: { group: 'hud', layer: true, about: 'the cinema bars of a cutscene', props: {} },
@@ -117,7 +117,7 @@ export function buildManaUi() {
     // values
     text: { group: 'value', about: 'words in a type role', props: { value: [T, '', true], role: [ROLES, 'body'] } },
     stat: { group: 'value', about: 'a label and its number', props: { label: [T, '', true], value: [T, '', true], max: [T] } },
-    bar: { group: 'value', about: 'a value against its max; segments mark phases or chunks; `ghost` the value before the last hit (drawn hatched, the chip a fighting game shows); rtl fills from the right (the second fighter)', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0], ghost: [N, 0], dir: [['ltr', 'rtl'], 'ltr'] } },
+    bar: { group: 'value', about: 'a value against its max (`numbers` false: the bar alone, a foe\'s health read by its length); segments mark phases or chunks; `ghost` the value before the last hit (drawn hatched, the chip a fighting game shows); rtl fills from the right (the second fighter)', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0], ghost: [N, 0], dir: [['ltr', 'rtl'], 'ltr'], numbers: [B, true] } },
     pips: { group: 'value', about: 'a count as marks: hearts, pips', props: { value: [N, 0, true], max: [N, 3, true], shape: [Object.keys(PIP_SHAPES), 'pip'], label: [T] } },
     counter: { group: 'value', about: 'an icon and a count (ammo, coins, keys)', props: { label: [T, '', true], value: [T, '', true], max: [T], icon: [T] } },
     timer: { group: 'value', about: 'seconds as a clock', props: { seconds: [N, 0, true], format: [['mmss', 'ss', 'hmmss'], 'mmss'], label: [T] } },
@@ -381,8 +381,9 @@ export function buildManaUi() {
       const id = top();
       S.renders += 1;
       const ctx = { reads: new Map(), focus: [], tabs: [], taps: [], screen: id };
+      // the screen is drawn first (its lists say what they have picked) and the HUD under it, so a HUD that reads a
+      // screen's pick (the target in focus, marked over its head) reads this frame's
       const parts = [];
-      if (hud) parts.push(drawIn(hud, '$hud', {}, ctx, uiOf('$hud'), false, 1));
       if (id) {
         const U = uiOf(id), seats = seatsOf(id);
         parts.push(drawIn(screens[id], id, {}, ctx, U, true, seats));
@@ -390,6 +391,7 @@ export function buildManaUi() {
         for (let s = 0; s < seats; s++) if (U.at[s] === undefined) { U.at[s] = 0; again = true; } else if (ctx.focus.length && U.at[s] >= ctx.focus.length) { U.at[s] = ctx.focus.length - 1; again = true; }
         if (again) return render();
       }
+      if (hud) parts.unshift(drawIn(hud, '$hud', {}, ctx, uiOf('$hud'), false, 1));
       const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null, 'data-clock': S.held ? 'held' : null, 'data-motion': S.calm ? 'reduced' : null }, ...parts];
       last = { tree, ...ctx };
       return last;
@@ -435,14 +437,17 @@ export function buildManaUi() {
           }
           case 'hud': {
             const by = {}, loose = [];
-            n.children.forEach((c, i) => { const t = draw(c, `${key}.${c.id || i}`, scope); if (!t) return; if (c.use === 'region') { const at = REGIONS.includes(c.props.at) ? c.props.at : 'top-left'; (by[at] = by[at] || []).push(t); } else loose.push(t); });
+            // (a region's place may be bound: a game moves a part to the corner its scene leaves clear)
+            n.children.forEach((c, i) => { const t = draw(c, `${key}.${c.id || i}`, scope); if (!t) return; if (c.use === 'region') { const w = resolve(c.props.at, scope, ctx), at = REGIONS.includes(w) ? w : 'top-left'; (by[at] = by[at] || []).push(t); } else loose.push(t); });
             // what sits over the world (plates, numbers) draws under the HUD's own places
             return ['div', { class: cls }, ...loose, ...REGIONS.filter((r) => by[r]).map((r) => ['div', { class: 'mana-place', 'data-at': r }, ...by[r]])];
           }
-          case 'anchors': return ['div', { class: cls }, ...p.rows.map((item, i) => {
+          case 'anchors': return ['div', { class: cls, 'data-pass': p.pass ? 'yes' : null }, ...p.rows.map((item, i) => {
             const x = Number(readPath(item, p.x)), y = Number(readPath(item, p.y));
             if (!isFinite(x) || !isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) return null; // off screen: not drawn
-            return ['div', { class: 'mana-anchor', style: `left:${pct(x)};top:${pct(y)}` }, draw(n.props.row, `${key}.${i}`, { ...scope, item })];
+            // (a row with an id is its own element: a number that lands again is a new one, its rise played again)
+            const id = isObj(item) && item.id !== undefined && item.id !== null ? String(item.id) : null;
+            return ['div', { class: 'mana-anchor', 'data-key': id === null ? null : `a${id}`, style: `left:${pct(x)};top:${pct(y)}` }, draw(n.props.row, `${key}.${id === null ? i : `#${id}`}`, { ...scope, item })];
           })];
           case 'text': return ['span', { class: cls, 'data-role': p.role, ...(p.role === 'numeral' ? chOf(changeOf(key, p.value)) : {}) }, p.value];
           case 'stat': { const c = changeOf(key, p.value); return ['div', { class: cls }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num', ...chOf(c) }, p.value, p.max !== undefined ? ['span', { class: 'mana-max' }, ` / ${p.max}`] : null, gainOf(c)]]; }
@@ -453,7 +458,7 @@ export function buildManaUi() {
             const g = p.max > 0 ? clamp(p.ghost / p.max, 0, 1) : 0;
             return ['div', { class: cls, 'data-variant': p.variant, 'data-dir': p.dir === 'rtl' ? 'rtl' : null, 'data-low': warns && r <= 0.25 ? 'yes' : null }, ['span', { class: 'mana-label' }, p.label || ''],
               ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(r)}` }], g > r ? ['u', { style: `left:${pct(r)};width:${pct(g - r)}` }] : null, ...Array.from({ length: seg > 1 ? seg - 1 : 0 }, (_, k) => ['b', { style: `left:${pct((k + 1) / seg)}` }])],
-              ['span', { class: 'mana-num', ...chOf(changeOf(key, p.value)) }, `${p.value}/${p.max}`]];
+              p.numbers ? ['span', { class: 'mana-num', ...chOf(changeOf(key, p.value)) }, `${p.value}/${p.max}`] : null];
           }
           case 'pips': {
             const [on, offc] = PIP_SHAPES[p.shape] || PIP_SHAPES.pip, max = clamp(Math.floor(p.max), 0, 40), v = clamp(Math.round(p.value), 0, max);
@@ -829,7 +834,9 @@ export function buildManaUi() {
       tree: () => (last || render()).tree,
       state: () => {
         const id = top(), U = id ? uiOf(id) : null;
-        return { input: S.input, layout: S.layout, held: S.held, reducedMotion: S.calm, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
+        // (tabs: each of the open screen's tabs, the one open)
+        const tabs = U && last && last.screen === id ? last.tabs.filter((T) => !T.key.startsWith('$hud')).map((T) => clamp(U.tabs[T.key] || 0, 0, Math.max(0, T.n - 1))) : [];
+        return { input: S.input, layout: S.layout, held: S.held, reducedMotion: S.calm, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null, tabs };
       },
     };
   }

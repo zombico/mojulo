@@ -128,9 +128,9 @@ widgets under a pointer (only the view knows where they are).
 | group | for |
 |---|---|
 | layout | screens on the stack (`seats` > 1 gives each couch seat a cursor), windows, stacks, splits, tabs (fixed, or pages from data), `each` (a row per item that does not itself take focus), dividers |
-| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts |
+| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts |
 | input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type) |
-| hud | the in-game layer: a `hud` of regions (the nine screen places) and layers: anchors (a part over each thing in the world at the screen x and y the game projects), edges (what is off screen, held at the edge with an arrow), a threat ring (where harm came from), the cinema bars; reticle, minimap, compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
+| hud | the in-game layer: a `hud` of regions (the nine screen places, a place that may be bound) and layers: anchors (a part over each thing in the world at the screen x and y the game projects; a row with an id is its own element, and `pass` rows rise and fade once: damage numbers), edges (what is off screen, held at the edge with an arrow), a threat ring (where harm came from), the cinema bars; reticle, minimap, compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
 | enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
 
 Left and right cross between the panes of a split (a list and its detail), landing on the row the list has active.
@@ -284,7 +284,7 @@ const rt = manaUi.runtime({ screens: { pause: node, … }, hud?, defs?, start? }
 });
 rt.hold(on); rt.reduceMotion(on);       // the game's clock held (the HUD's motion holds); the player's less-motion option
 rt.press('down' | 'up' | 'left' | 'right' | 'accept' | 'back' | 'tabNext' | 'tabPrev', seat?);
-rt.open(id); rt.tick(); rt.view(); rt.state();
+rt.open(id); rt.tick(); rt.view(); rt.state();   // state: the stack, the screen up, each seat's focus, the open tabs
 manaUi.mount(el, rt, { auto: true });   // the DOM backend, a view: it patches what it drew, hit-tests a pointer, a frame loop
 ```
 
@@ -306,9 +306,33 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
   that each draws on the sample state, a screen can be moved through and left (one that waits, a loading screen, has
   nothing to press until it is ready), and a HUD part takes no focus.
 
+## The surfaces on it
+
+### The RPG's battles, party menu and shops
+
+The first surface moved onto mana-ui. Its spec is `playscape/rpg/rpg-ui.js` (screens and a HUD of components, data
+only), and the page's RPG channel (`scene/channels/rpg-channel.js`) is its host:
+
+- **`read`** is a view model of the battle kernel's state, built once a frame (and again after a change the host made,
+  or a screen mana-ui opened or left): `battle.*` (the heads, the numbers, the foes, the turn order, the message, the
+  member's lists, the corners its boxes take), `party.*` and `shop.*`. Nothing in it is copied back: a row's id is all
+  an effect carries.
+- **`act`** answers the spec's effects (`{ emit: command | skill | item | target | undo | next | class | slot | equip |
+  learn | deal }`) with the kernel's own calls, and says on the bus what came of them. The kernel still says yes or no.
+- **The stack is the menu's depth:** `rpg-cmd`, then `rpg-skill` or `rpg-item`, then `rpg-target`, each one back from
+  the last; `rpg-watch` while a round plays (accept skips ahead); `rpg-party` and `rpg-equip`; `rpg-shop`. The host
+  opens the one the fight's phase calls for over nothing, so a new member starts at the top of its commands.
+- **The target in focus is derived, never told:** each target row names the rows it marks (`aim: { <id>: true }`: its
+  own, and the figure it stands on), and a head or a foe's row draws its marker
+  `when: { pick: { format: 'targets.aim.{id}' } }`.
+- **The look** is `rpgUiTheme(cfg)`: the world's UI guide lowered with the battles (`cfg.theme`, by `mana-theme.js`),
+  the greybox until the guide is settled, the `console` preset without one. The channel's own CSS is the screen's
+  flash, the window's jolt and the level's HUD stepping aside during a fight.
+- **Input** is mana-host's (`connect(rt, view, manaControls())`, polled on the page's frame). The channel keeps P and a
+  pad's select, which are play's bindings, not the menu's.
+
 ## What is next
 
 1. The integration, one surface at a time, each step either drawing the same bytes or naming the change it makes to
-   what a page emits: the RPG channel's menus through a bridge from its kernel, playscape's menu kinds, both shells'
-   fronts, the versus pause.
+   what a page emits: playscape's menu kinds, both shells' fronts, the versus pause.
 2. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.

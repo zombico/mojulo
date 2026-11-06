@@ -26,7 +26,7 @@ export const SAMPLE_STATE = Object.freeze({
   ],
   boss: { name: 'The Hollow King', hp: 2100, hpMax: 3600, phases: 3, statuses: ['enraged'] },
   target: { name: 'Hound', level: 3, hp: 8, hpMax: 22, state: 'combat', distance: '12 m' },
-  pops: [{ x: 0.5, y: 0.52, value: 14, kind: 'hit' }, { x: 0.37, y: 0.38, value: 38, kind: 'crit' }, { x: 0.22, y: 0.7, value: 9, kind: 'heal' }],
+  pops: [{ id: 1, x: 0.5, y: 0.52, value: 14, kind: 'hit' }, { id: 2, x: 0.37, y: 0.38, value: 38, kind: 'crit' }, { id: 3, x: 0.22, y: 0.7, value: 9, kind: 'heal' }],
   map: [{ x: 0.5, y: 0.5, kind: 'self' }, { x: 0.3, y: 0.4, kind: 'foe' }, { x: 0.7, y: 0.6, kind: 'foe' }, { x: 0.8, y: 0.2, kind: 'goal', label: 'Gate' }, { x: 0.2, y: 0.8, kind: 'item' }],
   bearings: [{ bearing: 60, kind: 'goal' }, { bearing: 350, kind: 'foe' }],
   objective: { title: 'Reach the gatehouse', steps: [{ text: 'Find the crest key', done: true }, { text: 'Open the east gate', done: false }] },

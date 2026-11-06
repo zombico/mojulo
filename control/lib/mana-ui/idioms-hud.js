@@ -127,9 +127,9 @@ export const HUD_IDIOMS = {
   },
   'damage-numbers': {
     kind: 'hud', about: 'numbers rising where blows land: hit, crit, heal, miss, block told by their word',
-    reads: 'pops: [{ x, y, value, kind }]', emits: '—',
+    reads: 'pops: [{ id, x, y, value, kind }] (each id its own number: a new one rises again)', emits: '—',
     params: ['pops'],
-    node: { use: 'anchors', props: { rows: P('pops'), row: row([txt(I('value'), 'numeral'), txt(I('kind'), 'caption')], 'center') } },
+    node: { use: 'anchors', props: { rows: P('pops'), pass: true, row: row([txt(I('value'), 'numeral'), txt(I('kind'), 'caption')], 'center') } },
     example: { pops: { bind: 'pops' } },
   },
 };

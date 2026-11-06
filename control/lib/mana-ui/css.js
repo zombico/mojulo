@@ -210,6 +210,8 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-anchor{position:absolute;transform:translate(-50%,-100%)}`,
     // what floats over the world carries its own plate: the world behind it can be any colour
     `${s} .mana-anchor>*{background:${v('plate')};border-radius:calc(${v('radius')}*.5);padding:2px 5px;opacity:.94}`,
+    // a passing row (a damage number): bare over the world, its words haloed in the panel's colour as the aim is
+    `${s} .mana-anchors[data-pass=yes] .mana-anchor>*{background:transparent;padding:0;opacity:1;font-weight:700;text-shadow:0 0 2px ${v('panel')},0 0 3px ${v('panel')},0 0 1px ${v('panel')};white-space:nowrap}`,
     // bare over the world, the aim keeps a halo in the panel's colour so it reads over any scene
     `${s} .mana-reticle{position:relative;font:300 26px/1 ${v('mono')};text-align:center;text-shadow:0 0 2px ${v('panel')},0 0 3px ${v('panel')},0 0 1px ${v('panel')}}`,
     `${s} .mana-hit{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:34px;font-weight:200}`,
@@ -311,6 +313,8 @@ function MOTION_RULES(s) {
     `${s} .mana-banner{position:relative;overflow:hidden;animation:mana-slam calc(${v('dur')} * 2) ${v('ease')} both}`,
     `${s} .mana-banner::after{content:"";position:absolute;top:0;bottom:0;left:0;width:30%;background:linear-gradient(90deg,transparent,${v('panel')},transparent);opacity:${v('sheen')};pointer-events:none;animation:mana-sheen calc(${v('dur')} * 5) ease-in-out calc(${v('dur')} * 2) both}`,
     `${s} .mana-toast{animation:mana-slide calc(${v('dur')} * 1.5) ${v('ease')} both}`,
+    // a passing anchor (a damage number) rises and fades once from where it lands; its id is its element, so it replays
+    `${s} .mana-anchors[data-pass=yes] .mana-anchor>*{animation:mana-gain calc(${v('dur')} * 6) ease-out both}`,
     // a bar and a dial glide to their new value
     `${s} .mana-track i{transition:width ${v('glide')} ${v('ease')}}`, `${s} .mana-dial i{transition:transform ${v('glide')} ${v('ease')}}`,
     // what changed says so once: a flash and a pop, its gain floating off (a new data-key replays it)

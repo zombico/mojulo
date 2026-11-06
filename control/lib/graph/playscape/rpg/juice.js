@@ -22,8 +22,11 @@
  *                                                  (a member's; a pack's figure recoils, and falls when the fight is won)
  *     in the window:
  *       { flash: '#rrggbb'?, for? }                the screen flashes
- *       { jolt: 'target' | 'actor' | 'window', k? } its row (or the window) jolts
- *       { pop: 'normal' | 'big' | 'crit' | 'small', color? }   how the number rises
+ *       { jolt: 'target' | 'actor' | 'window', k? } the window jolts; a row's jolt is its number's change, which
+ *                                                  flashes and pops as the UI (mana-ui) marks every change
+ *       { pop: 'normal' | 'big' | 'crit' | 'small', color? }   how big the number rises (its type role: crit the
+ *                                                  display's, big the title's, small a caption's); its colour is the
+ *                                                  theme's, what it did told by its word (crit, weak, heal)
  *     in time:   { hold: seconds }                 the beat lingers (a hit-stop, a pause before the boss)
  *     the bus:   { emit: '<event>' }               any cue may answer it
  *
@@ -46,8 +49,8 @@ export const JUICE_STEPS = Object.freeze({
   beam: '{ beam: <attack>, color? } an attack flies from the actor\'s figure to the target\'s',
   shake: '{ shake: k (0..1), for?: s } the camera shakes',
   flash: '{ flash: colour?, for?: s } the screen flashes',
-  jolt: '{ jolt: target | actor | window, k? } the row (or the window) jolts',
-  pop: '{ pop: normal | big | crit | small, color? } how the number rises',
+  jolt: '{ jolt: target | actor | window, k? } the window jolts (a row\'s number flashes as it changes)',
+  pop: '{ pop: normal | big | crit | small, color? } how big the number rises (its colour the theme\'s)',
   hold: '{ hold: s } the beat lingers',
   emit: '{ emit: <event> } a bus event, for any cue to answer',
   act: '{ act: strike | cast | hurt | fall, at?: target | actor, for?: s } the figure acts it out with its own clip',

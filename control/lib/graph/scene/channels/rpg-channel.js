@@ -4,124 +4,63 @@
  * keeps every byte. The kernel is the node module's own code (buildRpg.toString()), the page below is one function
  * (rpgPage.toString()), so neither has a second copy.
  *
- *   THE BATTLE, in place over the field (the world holds still while it is up): the foes above, the message line, the
- *   command window and the party strip below. Each standing member picks (Attack, Skill, Item, Guard, Flee; a target
- *   with the arrows), then the round plays back beat by beat, a number rising off whoever it lands on. Accept skips
- *   ahead; back steps to the member before.
- *   THE PARTY MENU (P): the members on the left; Status, Class (switch), Skills (the class's tree: buy) on the right.
+ * THE UI IS MANA-UI's (control/lib/mana-ui/; the spec is playscape/rpg/rpg-ui.js): this page is its host. It reads the
+ * battle kernel's state to the spec through bindings (`read`), answers the effects the spec emits (`act`: a command
+ * picked, a target, a class, a ware), and says on the bus what came of them; mana-ui owns the screen's state (each
+ * list's row, the open tab, the stack of a command, a skill, a target) and the look (the theme: the world's guide, else
+ * the console RPG's); the controls layer's mana-host (controls/mana-host.js) drives it from the menu scheme, the
+ * keyboard and every pad in its printed layout. The page keeps two bindings of its own, play's and not a menu's: P (a
+ * pad's select) opens and closes the party menu.
+ *
+ *   THE BATTLE, in place over the field (the world holds still while it is up): a bar over each fighter's head, the
+ *   foes' box, the message line, the command window. Each standing member picks (Attack, Skill, Item, Guard, Flee; then
+ *   whom), then the round plays back beat by beat, a number rising off whoever it lands on. Accept skips ahead; back
+ *   steps to the member before.
+ *   THE PARTY MENU (P): the members on the left; Status, Class (switch), Equip (a slot, then what to wear), Skills (the
+ *   class's tree: buy) in tabs on the right.
  *   RANDOM ENCOUNTERS: a roll every `every` metres the pilot walks, in the random zones (or anywhere).
  *   A SHOP (rpg-shop:<id>): the party and the gold on the left; Buy (its wares at their price, into the bag), Sell
- *   (the bag's priced things at half) and Stay (an inn: a night's rest for its price) on the right.
+ *   (the bag's priced things at half) and Stay (an inn: a night's rest for its price) in tabs on the right.
  *
  * It reads the bus's log for `rpg-battle:<encounter>`, `rpg-rest`, `rpg-join:<member>`, `rpg-open:<class>`,
  * `rpg-shop:<shop>`, and pushes
  * `rpg-won` / `rpg-fled` / `rpg-lost` (alone and `:<encounter>`) as a battle closes. With the party mechanic (the level
  * contract's game.party) the party is loaded from the store's slice as the level starts, and kept there as it changes.
- * Keys: the menu control scheme (arrows / WASD, Enter / Space / E accept, Escape / Backspace back, [ ] tabs; a pad in
- * its printed layout); P or the pad's select opens the party menu. window.__mojRpg drives it headless (a test, the audit).
+ * window.__mojRpg drives it headless (a test, the audit): its state, act(<menu action>), the runtime (`ui`).
  */
 import { buildRpg } from '../../playscape/rpg/kernel.js';
 import { juiceKeys } from '../../playscape/rpg/juice.js';
-import { menuControls, padLayoutSource } from './interact-channel.js';
+import { rpgUiSpec, rpgUiTheme, rpgUiCss } from '../../playscape/rpg/rpg-ui.js';
+import { manaUiSource } from '../../../mana-ui/kernel.js';
+import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../../controls/mana-controls.js';
 import { DEVICES } from '../../controls/devices.js';
 
-export const RPG_CSS = `
-.moj-rpg{position:fixed;inset:0;pointer-events:none;z-index:31;font:14px/1.35 var(--moj-font,system-ui,sans-serif);color:var(--moj-ink,#eef2ff);display:none}
-.moj-rpg.on{display:block}
-:where(.moj-rpg) .moj-w{background:var(--moj-panel,rgba(14,22,58,.94));border:1px solid var(--moj-line,#c9d3ff);border-radius:8px;padding:8px 12px;pointer-events:auto;box-sizing:border-box}
-.moj-rpg-foes{width:230px;flex:none;display:flex;flex-direction:column;gap:3px}
-.moj-rpg-foe{position:relative;padding:1px 4px 1px 16px;cursor:pointer}
-.moj-rpg-msg{position:absolute;left:50%;top:14px;transform:translateX(-50%);max-width:min(560px,calc(100vw - 32px));padding:5px 16px;text-align:center}
-.moj-rpg-foe.down{opacity:.3;text-decoration:line-through}
-.moj-rpg-foe .bar,.moj-rpg-row .bar{height:4px;margin-top:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}
-.moj-rpg-foe .bar i,.moj-rpg-row .bar i{display:block;height:100%;background:var(--moj-accent,#ffd76a)}
-.moj-rpg-turns{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;font-size:11px}.moj-rpg-turns span{padding:1px 6px;border-radius:3px;background:rgba(0,0,0,.35)}.moj-rpg-turns span:first-child{outline:1px solid var(--moj-accent,#ffd76a)}.moj-rpg-turns .f{opacity:.7}
-.moj-rpg-bottom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;justify-content:space-between;gap:10px;width:min(960px,calc(100vw - 24px));align-items:flex-end}
-.moj-rpg-cmd{width:230px;flex:none}
-.moj-rpg-bottom .moj-rpg-foes{margin-left:auto}
-.moj-rpg.placed .moj-rpg-bottom{position:static;transform:none;width:auto;display:block}.moj-rpg.placed .moj-rpg-cmd,.moj-rpg.placed .moj-rpg-foes{position:absolute;margin:0}
-.moj-rpg.cmd-tl .moj-rpg-cmd,.moj-rpg.foes-tl .moj-rpg-foes{top:12px;left:12px}.moj-rpg.cmd-tr .moj-rpg-cmd,.moj-rpg.foes-tr .moj-rpg-foes{top:12px;right:12px}
-.moj-rpg.cmd-bl .moj-rpg-cmd,.moj-rpg.foes-bl .moj-rpg-foes{bottom:12px;left:12px}.moj-rpg.cmd-br .moj-rpg-cmd,.moj-rpg.foes-br .moj-rpg-foes{bottom:12px;right:12px}
-.moj-rpg-heads{position:fixed;inset:0;pointer-events:none;z-index:31;display:none;font:12px/1.25 var(--moj-font,system-ui,sans-serif);color:var(--moj-ink,#eef2ff)}
-.moj-rpg-heads.on{display:block}
-.moj-rpg-head{position:absolute;transform:translate(-50%,-100%);width:64px;padding:3px 4px;transition:opacity .25s ease,background .25s ease;border-radius:5px;background:var(--moj-panel-a,rgba(14,22,58,.72));pointer-events:auto;cursor:pointer;text-align:center}
-.moj-rpg-head .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.moj-rpg-head .bar{height:4px;margin-top:2px;background:rgba(255,255,255,.18);border-radius:2px;overflow:hidden}.moj-rpg-head .bar i{display:block;height:100%;background:var(--moj-hp,#5ccf7e)}
-.moj-rpg-head .bar i.lo{background:var(--moj-harm,#ff6b6b)}.moj-rpg-head .bar.mp{height:3px}.moj-rpg-head .bar.mp i{background:var(--moj-mp,#5aa8ff)}
-.moj-rpg-head .st{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#ffd76a}
-.moj-rpg-head.turn{outline:2px solid var(--moj-accent,#ffd76a)}.moj-rpg-head.turn::before{content:"\\25BC";position:absolute;left:50%;top:-15px;transform:translateX(-50%);color:var(--moj-accent,#ffd76a);font-size:12px}
-.moj-rpg-head.aim{outline:2px solid #ff8a5a;box-shadow:0 0 10px rgba(255,138,90,.7)}.moj-rpg-head.aim::after{content:"\\25BC";position:absolute;left:50%;top:-15px;transform:translateX(-50%);color:#ff8a5a}
-.moj-rpg-head.down{opacity:.45}.moj-rpg-head.foe{width:24px;min-height:4px;padding:0;background:transparent}.moj-rpg-head.foe.aim{outline:none;box-shadow:none}
-.moj-rpg-head.foe.aim::after{top:-6px;font-size:18px;text-shadow:0 0 6px rgba(0,0,0,.8)}
-.moj-rpg .opt.set{opacity:1;font-weight:700}
-.moj-rpg-head .moj-rpg-pop{top:-18px}
-.moj-rpg-bottom{transition:opacity .25s ease}.moj-rpg.acting .moj-rpg-bottom{opacity:0;pointer-events:none}
-.moj-rpg-heads.acting .moj-rpg-head{background:transparent;outline:none;box-shadow:none}.moj-rpg-heads.acting .moj-rpg-head::before,.moj-rpg-heads.acting .moj-rpg-head::after{display:none}
-.moj-rpg-heads.acting .moj-rpg-head>:not(.moj-rpg-pop){opacity:0;transition:opacity .25s ease}
-.moj-rpg-row .bar i.lo{background:var(--moj-harm,#ff6b6b)}
-.moj-rpg-party{width:250px;flex:none;display:flex;flex-direction:column;gap:3px}
-.moj-rpg-cmd .t,.moj-rpg-field .t{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.75;margin-bottom:4px}
-.moj-rpg .opt{display:flex;justify-content:space-between;gap:10px;padding:1px 0 1px 16px;position:relative;cursor:pointer}
-.moj-rpg .opt.off{opacity:.42}
-.moj-rpg .on-f::before{content:"\\25B6";position:absolute;left:0;font-size:11px;top:3px;color:var(--moj-accent,#ffd76a)}
-.moj-rpg-row{padding:2px 4px 2px 16px;position:relative}
-.moj-rpg-row .n{display:flex;justify-content:space-between;gap:8px}.moj-rpg-row .n small{opacity:.8;font-size:11px;font-variant-numeric:tabular-nums}
-.moj-rpg-row .bar i{background:var(--moj-hp,#5ccf7e)}.moj-rpg-row .mp{height:3px;margin-top:2px}.moj-rpg-row .mp i{background:var(--moj-mp,#5aa8ff)}
-body.moj-in-battle .moj-hud:not(.moj-rpg){display:none}
-.moj-rpg.cine-none .moj-rpg-msg,.moj-rpg-heads.cine-none{display:none}
-.moj-rpg.cine-all.acting .moj-rpg-bottom{opacity:1}.moj-rpg-heads.cine-all.acting .moj-rpg-head>*{opacity:1}
-.moj-rpg-skip{position:absolute;right:16px;top:14px;padding:4px 10px;font-size:12px;opacity:.85;cursor:pointer}
-.moj-rpg-row.act{background:rgba(255,255,255,.08);border-radius:4px}
-.moj-rpg-row.down{color:#ff8a8a}
-.moj-rpg-row .n small,.moj-rpg-field small{opacity:.7;font-size:11px;margin-left:5px}
-.moj-rpg-row .v{font-variant-numeric:tabular-nums;text-align:right}
-.moj-rpg-pop{position:absolute;left:50%;top:-4px;transform:translateX(-50%);font-weight:800;font-size:18px;text-shadow:0 1px 2px #000,0 0 6px #000;pointer-events:none;animation:moj-rpg-pop .9s ease-out forwards}
-.moj-rpg-pop.heal{color:#7dffa5}.moj-rpg-pop.miss{color:#c9c9c9;font-size:14px}
-.moj-rpg-pop.small{font-size:13px;opacity:.85}.moj-rpg-pop.big{font-size:24px}.moj-rpg-pop.crit{font-size:28px;color:#ffe07a}
-.moj-rpg-flash{position:fixed;inset:0;pointer-events:none;z-index:32;opacity:0}
-.moj-rpg .jolt,.moj-rpg.jolt{animation:moj-rpg-jolt .28s linear}
-@keyframes moj-rpg-jolt{0%,100%{transform:translateX(0)}20%{transform:translateX(calc(var(--k,1) * -6px))}40%{transform:translateX(calc(var(--k,1) * 5px))}60%{transform:translateX(calc(var(--k,1) * -3px))}80%{transform:translateX(calc(var(--k,1) * 2px))}}
-@keyframes moj-rpg-pop{0%{opacity:0;margin-top:6px}15%{opacity:1}100%{opacity:0;margin-top:-26px}}
-.moj-rpg-field{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;display:flex;gap:12px}
-.moj-rpg-field .mem{width:200px;flex:none}
-.moj-rpg-field .pane{flex:1;min-width:0}
-.moj-rpg-field .tabs{display:flex;gap:4px;margin-bottom:8px}
-.moj-rpg-field .tab{padding:2px 10px;border:1px solid var(--moj-line,#c9d3ff);border-radius:999px;font-size:12px;opacity:.65;cursor:pointer}
-.moj-rpg-field .tab.sel{opacity:1;background:var(--moj-accent,#ffd76a);color:var(--moj-panel,#0e163a);border-color:var(--moj-accent,#ffd76a)}
-.moj-rpg-field table{border-collapse:collapse;font-size:13px}.moj-rpg-field td{padding:1px 10px 1px 0}
-.moj-rpg-field .note{font-size:12px;opacity:.75;margin-top:6px}
-@media (max-width:560px){.moj-rpg-bottom{flex-direction:column;align-items:stretch}.moj-rpg-foes,.moj-rpg-party{width:auto}.moj-rpg-cmd{width:auto;right:0}.moj-rpg-field{flex-direction:column}.moj-rpg-field .mem{width:auto}}
-`;
-
-// (:where keeps the defaults below the world's UI guide: its register and border rules, .moj-hud .moj-w, win)
-
 /**
- * The page: run in the events channel's scope (it reads __busState, __inputQueue). cfg: EVENTS.rpg; K: the kernel.
+ * The page: run in the events channel's scope (it reads __busState, __inputQueue). cfg: EVENTS.rpg; K: the kernel; ctl:
+ * the menu scheme resolved (keys, pad, padLayout) and the pad's select; jk: the juice's keys; M: mana-ui on the page
+ * ({ ui: the kernel, host: mana-host, spec, glyphs, css }).
  * → { step(t), … } the frame's step, and the handles window.__mojRpg exposes.
  */
-export function rpgPage(cfg, K, ctl, jk) {
+export function rpgPage(cfg, K, ctl, jk, M) {
   const R = K.init(cfg), V = () => __busState.vars;
   K.mirror(cfg, R, V());
-  const st = document.createElement('style'); st.textContent = RPG_CSS_TEXT; document.head.appendChild(st);
-  const root = document.createElement('div'); root.className = 'moj-hud moj-rpg'; document.body.appendChild(root);
-  // (the bars over the fighters' heads: each member's name, HP, MP, statuses and turn; the pack's aimed foe and the numbers
-  // that land on it; pinned to their figures every frame by the scene's projection)
-  const heads = document.createElement('div'); heads.className = 'moj-rpg-heads'; document.body.appendChild(heads);
+  const st = document.createElement('style'); st.textContent = M.css; document.head.appendChild(st);
+  // (mana-ui draws into root; the flash over the field is the juice's, not the UI's)
+  const root = document.createElement('div'); root.className = 'moj-rpg'; document.body.appendChild(root);
   const flashEl = document.createElement('div'); flashEl.className = 'moj-rpg-flash'; document.body.appendChild(flashEl);
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const CMD = { attack: 'Attack', skill: 'Skill', item: 'Item', guard: 'Guard', flee: 'Flee' };
   const WHY = { battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
-  const BEAT = 650;
+  const BEAT = 650, POP_FOR = 1200;
   // how long each act plays (seconds), within a beat
   const ACT_FOR = { strike: 0.55, cast: 0.55, hurt: 0.4, fall: 0.6 };
-  // mode: null | 'battle' | 'field'; the battle's own phase: intro | command | play | end
-  let mode = null, phase = null, beats = [], bi = 0, bt = 0, shown = {}, msg = '', picks = {}, mi = 0, level = 'cmd', f = 0, pend = null, pops = [], dirty = true;
-  let fm = 0, ftab = 0, flevel = 'members', ff = 0, fmsg = '', seen = 0, walked = 0, lastPos = null, rolls = 0, lastT = 0;
-  const TABS = ['Status', 'Class', 'Equip', 'Skills'], SLOT = { weapon: 'Weapon', armor: 'Armor', accessory: 'Accessory' };
-  // (a shop's window: its id, its tab (Buy, Sell, Stay: what it does), the row, what was last said)
-  let shopId = null, shopAsk = null, stab = 0, sf = 0, smsg = '';
+  // mode: null | 'battle' | 'field' | 'shop'; the battle's own phase: intro | command | play | end. (Which list a member
+  // is on, its row, the open tab: the screen's state, mana-ui's; `pend` is the pick waiting for its target)
+  let mode = null, phase = null, beats = [], bi = 0, bt = 0, shown = {}, msg = '', picks = {}, mi = 0, pend = null, pops = [], popN = 0;
+  let fmsg = '', seen = 0, walked = 0, lastPos = null, rolls = 0, lastT = 0;
+  const SLOT = { weapon: 'Weapon', armor: 'Armor', accessory: 'Accessory' };
+  // (a shop's id, what was last said; the party menu's slot being chosen for, and whose)
+  let shopId = null, shopAsk = null, smsg = '', fslot = null, fwho = null;
   const SHOP_WHY = { gold: 'Not enough gold.', ware: '', none: 'None left to sell.', shop: '' };
-  let fslot = null;   // the Equip tab's slot being chosen for
   // CARRIED (the party mechanic: the level contract's game.party): the roster loaded as the level starts, and each
   // number that changed since put back as a setStat after a fight, a class switch, a skill bought, a rest
   const carry = { hooked: false, slice: null, sent: null };
@@ -135,7 +74,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     G.onStart(function (params) {
       const sl = params && params[P.slice];
       if (sl && sl.roster) K.load(cfg, R, sl.roster, V());
-      carry.sent = K.save(cfg, R); dirty = true;
+      carry.sent = K.save(cfg, R);
     });
   }
   function keep() {
@@ -169,7 +108,7 @@ export function rpgPage(cfg, K, ctl, jk) {
   // ── the juice (playscape/rpg/juice.js): each beat says its happenings on the bus, and plays the most specific
   // binding's steps: moments and attacks at the figures on the map, the window's flash, jolt and number, a hold ──
   const J = (cfg.juice && cfg.juice.on) || {};
-  let linger = 0, popStyle = null, jolts = {};
+  let linger = 0, popStyle = null;
   const W = () => window.__mojCtrl && window.__mojCtrl.world;
   // the figure on the map a combatant stands for: a member's own (the pilot when they have none); a foe's own where its
   // encounter stands one for each of its foes (in the foes' order), else the pack's one figure
@@ -197,8 +136,9 @@ export function rpgPage(cfg, K, ctl, jk) {
     else if (s.flash !== undefined) flash(s.flash, s.for);
     else if (s.jolt) {
       const who = s.jolt === 'actor' ? b.by || b.who : b.target;
+      // (the window jolts; a row's jolt is its number's change, which flashes and pops as mana-ui marks every change)
       if (s.jolt === 'window') { root.style.setProperty('--k', s.k || 1); root.classList.remove('jolt'); void root.offsetWidth; root.classList.add('jolt'); }
-      else if (who != null) jolts[who] = s.k || 1;
+      else if (who != null) { /* the change's own mark */ }
     }
     else if (s.pop) popStyle = s;
     else if (s.hold) linger += s.hold * 1000;
@@ -286,9 +226,10 @@ export function rpgPage(cfg, K, ctl, jk) {
     bagFrom();
     const out = K.start(cfg, R, enc, V());
     if (!out.length) return false;
-    mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; picks = {}; mi = 0; level = 'cmd'; f = 0; pend = null;
-    msg = out[0].text; show(out[0]); dirty = true;
+    mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; picks = {}; mi = 0; pend = null; boxes = { cmd: 'bottom-left', foes: 'bottom-right' };
+    msg = out[0].text; show(out[0]);
     stage(); placeDue = 3;
+    screen('rpg-watch');
     return true;
   }
 
@@ -416,13 +357,14 @@ export function rpgPage(cfg, K, ctl, jk) {
     if (staged.backdrop && staged.backdrop.h) staged.backdrop.h.dispose();
     staged = null;
   }
+  // ── a member's pick: a command, then what it uses, then whom (each a screen of mana-ui's, one back apart) ──
   function pickNow(pick) {
     const ids = commanders(), m = ids[mi];
     picks[m] = pick;
     if (pick.act === 'flee') return resolve();
-    mi++; level = 'cmd'; f = 0; pend = null;
+    mi++; pend = null;
     if (mi >= ids.length) return resolve();
-    dirty = true;
+    screen('rpg-cmd');
   }
   function resolve() {
     // the round is played back from where it began: each beat moves the numbers it names, nothing else jumps ahead
@@ -430,128 +372,128 @@ export function rpgPage(cfg, K, ctl, jk) {
     for (const x of R.b.foes) before[x.uid] = x.hp;
     for (const m of R.b.ids) { before[m] = R.m[m].hp; before[m + ':mp'] = R.m[m].mp; }
     const out = K.round(cfg, R, picks, V());
-    picks = {}; mi = 0; level = 'cmd'; f = 0; pend = null;
+    picks = {}; mi = 0; pend = null;
     beats = out; bi = 0; bt = 0; phase = 'play'; shown = before;
     if (out.length) { msg = out[0].text; show(out[0]); }
-    dirty = true;
+    screen('rpg-watch');
   }
   function note(b) { if (b && b.target != null && b.hp != null) shown[b.target] = b.hp; if (b && b.who != null && b.mp != null) shown[b.who + ':mp'] = b.mp; }
+  // a number where a blow lands: what it did told by its word (values first), how big by the juice's pop
+  const POP_ROLE = { normal: 'numeral', small: 'caption', big: 'title', crit: 'display' };
   function pop(b) {
     if (!b || b.target == null) return;
-    const txt = b.kind === 'miss' ? 'miss' : b.kind === 'hurt' ? String(b.amount) : b.kind === 'heal' && b.amount ? '+' + b.amount : '';
-    if (txt) pops.push({ at: b.target, txt, cls: (b.kind === 'heal' ? 'heal' : b.kind === 'miss' ? 'miss' : '') + (popStyle && popStyle.pop !== 'normal' ? ' ' + popStyle.pop : ''), color: popStyle && popStyle.color });
+    const value = b.kind === 'miss' ? 'miss' : b.kind === 'hurt' ? String(b.amount) : b.kind === 'heal' && b.amount ? '+' + b.amount : '';
+    if (!value) return;
+    const kind = b.kind === 'heal' ? (b.absorb ? 'absorb' : 'heal') : b.kind === 'hurt' ? (b.crit ? 'crit' : b.mul === 2 ? 'weak' : b.mul === 0 ? 'immune' : b.mul === 0.5 ? 'resist' : '') : '';
+    pops.push({ id: ++popN, at: b.target, value, kind, role: POP_ROLE[(popStyle && popStyle.pop) || 'normal'] || 'numeral', t: lastT });
   }
   function advance() {
-    if (phase === 'intro') { phase = 'command'; msg = ''; dirty = true; if (!commanders().length) resolve(); return; }
+    if (phase === 'intro') { phase = 'command'; msg = ''; if (!commanders().length) return resolve(); return screen('rpg-cmd'); }
     if (phase === 'play') {
       bi++; bt = 0;
-      if (bi < beats.length) { msg = beats[bi].text; show(beats[bi]); dirty = true; return; }
+      if (bi < beats.length) { msg = beats[bi].text; show(beats[bi]); return; }
       shown = {};
-      if (R.b.phase === 'command') { phase = 'command'; msg = ''; if (!commanders().length) return resolve(); }
-      else phase = 'end';
-      dirty = true; return;
+      if (R.b.phase === 'command') { phase = 'command'; msg = ''; if (!commanders().length) return resolve(); return screen('rpg-cmd'); }
+      phase = 'end';
+      return;
     }
     if (phase === 'end') {
       const ev = K.close(cfg, R, V());
       keep(); bagSay();
       for (const e of ev) __inputQueue.push(e);
-      mode = null; phase = null; root.classList.remove('on'); root.innerHTML = '';
+      mode = null; phase = null; pops = [];
       { const w = W(); if (w) for (const e of w.entities) if (e.act) e.act = null; }   // the fight's acts end with it
       unstage();
-      unplace();
-      release(); dirty = true;
+      screen(null);
+      release();
     }
   }
-  function cmdList() {
-    const ids = commanders(), m = ids[mi], o = K.options(cfg, R, m, V());
-    if (level === 'cmd') return o.commands.map((c) => ({ label: CMD[c.id], ok: c.ok, go: () => {
-      if (c.id === 'guard' || c.id === 'flee') return pickNow({ act: c.id });
-      if (c.id === 'attack') return toTarget({ act: 'attack' });
-      level = c.id; f = 0; dirty = true;
-    } }));
-    if (level === 'skill') return o.skills.map((s) => ({ label: s.name, right: s.mp ? s.mp + ' MP' : '', ok: s.ok, go: () => toTarget({ act: 'skill', skill: s.id }) }));
-    if (level === 'item') return o.items.map((it) => ({ label: it.name, right: '×' + it.count, ok: true, go: () => toTarget({ act: 'item', item: it.id }) }));
-    return K.targets(cfg, R, pend).map((t) => ({ label: t.name, ok: true, target: t.id, go: () => pickNow(Object.assign({}, pend, { target: t.id })) }));
+  function command(id) {
+    if (id === 'guard' || id === 'flee') return pickNow({ act: id });
+    if (id === 'attack') return toTarget({ act: 'attack' });
+    if (id === 'skill' || id === 'item') { rt.open('rpg-' + id); rt.focusAt(0); }
   }
   function toTarget(pick) {
     const ts = K.targets(cfg, R, pick);
     if (!ts.length) { const aim = K.aimOf(cfg, pick); return pickNow(Object.assign({}, pick, { target: aim === 'self' ? commanders()[mi] : null })); }
-    pend = pick; level = 'target'; f = 0; dirty = true;
+    pend = pick; rt.open('rpg-target'); rt.focusAt(0);
   }
-  function back() {
-    if (level === 'target') { level = pend.act === 'attack' ? 'cmd' : pend.act; f = 0; pend = null; }
-    else if (level !== 'cmd') { level = 'cmd'; f = 0; }
-    else if (mi > 0) { mi--; delete picks[commanders()[mi]]; f = 0; }
-    dirty = true;
-  }
+  // back from the commands: the member before picks again
+  function undo() { if (mi > 0) { mi--; delete picks[commanders()[mi]]; screen('rpg-cmd'); } }
 
+  // ── what the screens read (the host's state, never copied into the UI: a binding reads it here each frame) ──
   // (the banner across the top tells an action's name or a status, never a number: a blow's lands over whoever takes it)
   const TOLD = ['start', 'cast', 'status', 'ko', 'level', 'learn', 'spoils', 'end'];
-  function drawBattle() {
-    const b = R.b, L = phase === 'command' ? cmdList() : [];
-    if (phase === 'command') f = Math.max(0, Math.min(f, L.length - 1));
-    const aimAt = phase === 'command' && level === 'target' && L[f] ? L[f].target : null, active = phase === 'command' ? commanders()[mi] : null;
-    // (the command menu in the lower-left corner while a member picks; the foes' box at the lower right)
-    let h = '<div class="moj-rpg-bottom">';
-    if (phase === 'command') {
-      // (choosing a target, the menu stays on the list the action came from, the action set; the target is chosen where
-      // it stands: in the foes' box, or over an ally's head)
-      const aiming = level === 'target' && pend, from = aiming ? (pend.act === 'attack' ? 'cmd' : pend.act) : level;
-      let M = L, at = f;
-      if (aiming) {
-        const was = level; level = from; M = cmdList(); level = was;
-        const named = pend.act === 'attack' ? CMD.attack : pend.act === 'skill' ? (cfg.skills[pend.skill] || {}).name : pend.act === 'item' ? (cfg.items[pend.item] || {}).name : null;
-        at = M.findIndex((o) => o.label === named);
-      }
-      h += '<div class="moj-w moj-rpg-cmd"><div class="t">' + esc(memberName(active)) + (from !== 'cmd' ? ' · ' + CMD[from] : '') + '</div>';
-      M.forEach((o, i) => { h += '<div class="opt' + (o.ok ? '' : ' off') + (i === at ? ' on-f' + (aiming ? ' set' : '') : '') + '"' + (aiming ? '' : ' data-i="' + i + '"') + '><span>' + esc(o.label) + '</span><span>' + esc(o.right || '') + '</span></div>'; });
-      if (!M.length) h += '<div class="opt off">—</div>';
-      h += '</div>';
-    }
-    h += '<div class="moj-w moj-rpg-foes">';
-    if (b) b.foes.forEach((x) => {
-      const hp = shown[x.uid] != null ? shown[x.uid] : x.hp;
-      h += '<div class="moj-rpg-foe' + (hp <= 0 ? ' down' : '') + (aimAt === x.uid ? ' on-f' : '') + joltOf(x.uid) + '" data-aim="' + x.uid + '">' + esc(x.name) + (cfg.rules.foeHp === 'bar' ? '<div class="bar"><i style="width:' + Math.round(100 * Math.max(0, hp) / x.max) + '%"></i></div>' : '') + '</div>';
-    });
-    const next = K.preview(cfg, R, 6);
-    if (next.length) h += '<div class="moj-rpg-turns">' + next.map((x) => '<span class="' + (x.party ? 'p' : 'f') + '">' + esc(x.name) + '</span>').join('') + '</div>';
-    const beat = phase === 'intro' || phase === 'play' ? beats[bi] : null, told = beat && msg && TOLD.includes(beat.kind);
-    root.innerHTML = h + '</div></div>' + (told ? '<div class="moj-w moj-rpg-msg">' + esc(msg) + '</div>' : '') + (film && film.long ? '<div class="moj-w moj-rpg-skip" data-skip="1">Skip ▸ Enter</div>' : '');
-    drawHeads(aimAt, active);
-    pops = []; jolts = {};
+  const LIST = { 'rpg-cmd': 'commands', 'rpg-skill': 'skills', 'rpg-item': 'items', 'rpg-target': 'targets' };
+  const LEVEL = { 'rpg-cmd': 'cmd', 'rpg-skill': 'skill', 'rpg-item': 'item', 'rpg-target': 'target' };
+  // (the screen up: none while the runtime draws its first frame)
+  const up = () => (rt ? rt.state().screen : null);
+  // (the model is built once a frame, and again on a change the host made or a screen mana-ui opened or left)
+  let VM = null, VMat = null;
+  const vm = () => { const top = up(); if (!VM || VMat !== top) { VMat = top; VM = model(); } return VM; };
+  const changed = () => { VM = null; };
+  function model() {
+    return { battle: mode === 'battle' && R.b ? battleModel() : { on: false }, party: mode === 'field' ? partyModel() : {}, shop: mode === 'shop' ? shopModel() : {} };
   }
-  // the heads: one over each member's figure (members who share one, the pilot's, stacked), and one over the pack's
-  // figure while a foe is aimed at or a number lands on it
-  function drawHeads(aimAt, active) {
-    const b = R.b, w = W(), pct = (v, of) => Math.round(100 * Math.max(0, v) / Math.max(1, of));
-    if (!b || !w) { heads.innerHTML = ''; return; }
-    let h = '';
-    const stack = {};
+  // where a figure's head is on the screen (px), by the scene's projection; null behind the eye or without one
+  function headAt(fig) {
+    const w = W(), proj = window.__mojCtrl && window.__mojCtrl.project, e = fig && w && w.byId[fig];
+    if (!e || !e.transform || !proj) return null;
+    const top = (e.rule && e.rule.collideHeight) || 1.8, p = proj(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] - ((e.rule && e.rule.eye) || 0) + top + 0.12);
+    return p[2] < 1 ? [p[0], p[1]] : null;
+  }
+  function battleModel() {
+    const b = R.b, cmd = phase === 'command', active = cmd ? commanders()[mi] : null, top = up(), lv = LEVEL[top] || 'cmd', aiming = cmd && top === 'rpg-target' && !!pend;
+    const o = cmd && active ? K.options(cfg, R, active, V()) : { commands: [], skills: [], items: [] };
+    const acting = phase === 'play', beat = phase === 'intro' || phase === 'play' ? beats[bi] : null;
+    const Wd = window.innerWidth || 960, Ht = window.innerHeight || 540, frac = (p) => [p[0] / Wd, p[1] / Ht];
+    const hp = (id, now) => (shown[id] != null ? shown[id] : now);
+    const named = !pend ? '' : pend.act === 'attack' ? CMD.attack : pend.act === 'skill' ? (cfg.skills[pend.skill] || {}).name : pend.act === 'item' ? (cfg.items[pend.item] || {}).name : '';
+    // the heads: one over each member's figure (members who share one, the pilot's, stacked; two that meet, the later
+    // lifted clear), and one over a foe's figure while a target is being chosen
+    const heads = [], stack = {};
     for (const m of b.ids) {
-      const fig = figureOf(m); if (!fig) continue;
-      const M = R.m[m], S = K.statsOf(cfg, R, m), hp = shown[m] != null ? shown[m] : M.hp, mp = shown[m + ':mp'] != null ? shown[m + ':mp'] : M.mp, st = b.side[m].st;
-      const tags = [M.poison ? 'poison' : '', st.sleep ? 'asleep' : '', st.silence ? 'silenced' : ''].filter(Boolean).join(' · ');
-      const k = stack[fig] = (stack[fig] || 0) + 1;
-      h += '<div class="moj-rpg-head' + (m === active ? ' turn' : '') + (aimAt === m ? ' aim' : '') + (hp <= 0 ? ' down' : '') + joltOf(m) + '" data-fig="' + fig + '" data-k="' + (k - 1) + '" data-aim="' + m + '" title="' + esc(memberName(m)) + '">'
-        + (tags ? '<div class="st">' + tags + '</div>' : '') + '<div class="bar"><i' + (hp * 4 <= S.hp ? ' class="lo"' : '') + ' style="width:' + pct(hp, S.hp) + '%"></i></div>'
-        + (S.mp > 0 ? '<div class="bar mp"><i style="width:' + pct(mp, S.mp) + '%"></i></div>' : '') + popsFor(m) + '</div>';
+      const fig = figureOf(m), at = headAt(fig);
+      if (!at) continue;
+      const Mm = R.m[m], S = K.statsOf(cfg, R, m), s1 = b.side[m].st, k = stack[fig] = (stack[fig] || 0) + 1;
+      const tags = [Mm.poison ? 'poison' : '', s1.sleep ? 'asleep' : '', s1.silence ? 'silenced' : ''].filter(Boolean);
+      heads.push({ id: m, px: [at[0], at[1] - 44 * (k - 1)], hp: hp(m, Mm.hp), hpMax: S.hp, mp: shown[m + ':mp'] != null ? shown[m + ':mp'] : Mm.mp, mpMax: S.mp > 0 ? S.mp : 0, statuses: tags.length ? tags : null, turn: m === active, foe: false });
     }
-    // (over each foe's figure, or the pack's one: the marker where it is aimed at, the numbers that land on it)
-    const byFig = {};
-    for (const x of b.foes) { const ff = figureOf(x.uid); if (!ff) continue; const g = byFig[ff] || (byFig[ff] = { aim: null, pops: '' }); if (aimAt === x.uid) g.aim = x.uid; g.pops += popsFor(x.uid); }
-    for (const ff in byFig) { const g = byFig[ff]; if (g.aim || g.pops) h += '<div class="moj-rpg-head foe' + (g.aim ? ' aim' : '') + '" data-fig="' + ff + '" data-k="0"' + (g.aim ? ' data-aim="' + g.aim + '"' : '') + '>' + g.pops + '</div>'; }
-    heads.innerHTML = h;
+    const placed = heads.slice().sort((x, y) => y.px[1] - x.px[1]);
+    for (let i = 0; i < placed.length; i++) for (let j = 0; j < i; j++) { const a = placed[i], c = placed[j]; if (Math.abs(a.px[0] - c.px[0]) < 86 && Math.abs(a.px[1] - c.px[1]) < 36) a.px[1] = c.px[1] - 37; }
+    const figs = {};
+    if (aiming) for (const x of b.foes) { const ff = figureOf(x.uid), at = !figs[ff] && headAt(ff); if (at) { figs[ff] = 1; heads.push({ id: 'fig-' + ff, px: at, foe: true }); } }
+    for (const h of heads) { const [x, y] = frac(h.px); delete h.px; h.x = x; h.y = y; }
+    // the numbers where blows land, over whoever took them (a foe over its own figure, or its pack's)
+    const numbers = [];
+    for (const p of pops) { const at = headAt(figureOf(p.at)); if (at) { const [x, y] = frac(at); numbers.push({ id: p.id, x, y, value: p.value, kind: p.kind, role: p.role }); } }
+    const next = K.preview(cfg, R, 6);
+    return {
+      on: true, phase, aiming, acting, message: msg, foeHp: cfg.rules.foeHp === 'bar',
+      // what stays up while a round plays (the book's cinema: none, the numbers, everything)
+      panels: !acting || filmUi === 'all', numbers: filmUi !== 'none', told: !!(beat && msg && TOLD.includes(beat.kind)) && filmUi !== 'none',
+      next: film && film.long ? 'Skip ▸' : phase === 'end' ? 'Continue ▸' : 'Next ▸',
+      cmdAt: boxes.cmd, foesAt: boxes.foes,
+      title: !active ? '' : memberName(active) + (aiming ? ' · ' + named : lv !== 'cmd' ? ' · ' + CMD[lv] : ''),
+      commands: o.commands.map((c) => ({ id: c.id, label: CMD[c.id], disabled: !c.ok })),
+      skills: o.skills.map((x) => ({ id: x.id, label: x.name, right: x.mp ? x.mp + ' MP' : '', disabled: !x.ok })),
+      items: o.items.map((it) => ({ id: it.id, label: it.name, right: '×' + it.count })),
+      // (each target names the rows it marks while in focus: its own, and the figure it stands on)
+      targets: aiming ? K.targets(cfg, R, pend).map((t) => { const ff = R.b.side[t.id] ? null : figureOf(t.id); return { id: t.id, label: t.name, aim: Object.assign({ [t.id]: true }, ff ? { ['fig-' + ff]: true } : {}) }; }) : [],
+      foes: b.foes.map((x) => { const h = hp(x.uid, x.hp); return { id: x.uid, name: x.name, hp: Math.max(0, h), hpMax: x.max, down: h <= 0 }; }),
+      turns: next.length ? next.map((x, i) => ({ name: x.name, variant: x.party ? 'plain' : 'muted', turn: i === 0 })) : null,
+      heads, pops: numbers,
+    };
   }
   // THE BOXES PLACED BY THE VIEW: once a fight is staged (and when its view changes), where its fighters stand on the
-  // screen is measured by the scene's projection, and the command menu and the foes' box take the two corners that cover
-  // the party least (the foes' figures next); the banner keeps the top's middle
-  let placeDue = 0;
-  function unplace() { root.classList.remove('placed'); for (const c of CORNERS) { root.classList.remove('cmd-' + c); root.classList.remove('foes-' + c); } }
-  const CORNERS = ['bl', 'br', 'tl', 'tr'], BOX = { cmd: [230, 160], foes: [230, 96] };
+  // screen is measured by the scene's projection, and the command window and the foes' box take the two corners that
+  // cover the party least (the foes' figures next); the banner keeps the top's middle
+  let placeDue = 0, boxes = { cmd: 'bottom-left', foes: 'bottom-right' };
+  const CORNERS = ['bl', 'br', 'tl', 'tr'], BOX = { cmd: [230, 160], foes: [230, 96] }, REGION = { bl: 'bottom-left', br: 'bottom-right', tl: 'top-left', tr: 'top-right' };
   function placeBoxes() {
     const w = W(), proj = window.__mojCtrl && window.__mojCtrl.project, b = R.b;
     // (the side view keeps the window's own layout: the menu at the lower left, the foes' box at the lower right)
-    if ((viewOver || (cfg.rules && cfg.rules.view) || 'side') === 'side') { unplace(); return true; }
+    if ((viewOver || (cfg.rules && cfg.rules.view) || 'side') === 'side') { boxes = { cmd: 'bottom-left', foes: 'bottom-right' }; return true; }
     if (!w || !proj || !b) return false;
     const W0 = window.innerWidth || 960, H0 = window.innerHeight || 540;
     const rectOf = (ids) => {
@@ -574,212 +516,121 @@ export function rpgPage(cfg, K, ctl, jk) {
       const cost = 3 * (over(bc, party) + over(bf, party)) + over(bc, foes) + over(bf, foes) + (c[0] === 't' ? 400 : 0) + (f[0] === 't' ? 200 : 0);
       if (!best || cost < best.cost) best = { cost, c, f };
     }
-    for (const c of CORNERS) { root.classList.remove('cmd-' + c); root.classList.remove('foes-' + c); }
-    root.classList.add('placed'); root.classList.add('cmd-' + best.c); root.classList.add('foes-' + best.f);
+    boxes = { cmd: REGION[best.c], foes: REGION[best.f] };
     return true;
   }
-  // every frame: each head over its figure's head, by the scene's projection (hidden behind the eye)
-  function placeHeads() {
-    const w = W(), proj = window.__mojCtrl && window.__mojCtrl.project;
-    if (!w || !proj) return;
-    for (const el of heads.children) {
-      const e = w.byId[el.getAttribute('data-fig')];
-      if (!e || !e.transform) { el.style.display = 'none'; continue; }
-      const top = (e.rule && e.rule.collideHeight) || 1.8, p = proj(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] - ((e.rule && e.rule.eye) || 0) + top + 0.12);
-      if (!(p[2] < 1)) { el.style.display = 'none'; continue; }
-      el.style.display = ''; el.style.left = Math.round(p[0]) + 'px'; el.style.top = Math.round(p[1] - 44 * Number(el.getAttribute('data-k') || 0)) + 'px';
-    }
-    // (two heads that meet on the screen: the later lifted clear of the earlier, so no name sits under another's)
-    const shown = [...heads.children].filter((el) => el.style.display !== 'none').map((el) => ({ el, x: parseFloat(el.style.left), y: parseFloat(el.style.top), w: el.offsetWidth || 84, h: el.offsetHeight || 34 })).sort((a, b) => b.y - a.y);
-    for (let i = 0; i < shown.length; i++) for (let j = 0; j < i; j++) {
-      const a = shown[i], c = shown[j];
-      if (Math.abs(a.x - c.x) < (a.w + c.w) / 2 + 2 && Math.abs(a.y - c.y) < Math.max(a.h, c.h) + 2) { a.y = c.y - Math.max(a.h, c.h) - 3; a.el.style.top = Math.round(a.y) + 'px'; }
-    }
-  }
-  function popsFor(id) { return pops.filter((p) => p.at === id).map((p) => '<span class="moj-rpg-pop ' + p.cls + '"' + (p.color ? ' style="color:' + esc(p.color) + '"' : '') + '>' + esc(p.txt) + '</span>').join(''); }
-  // a row's jolt, drawn once with the beat that asked for it
-  const joltOf = (id) => (jolts[id] ? ' jolt" style="--k:' + jolts[id] : '');
 
   // ── the party menu ──
   function openField() {
     if (mode || busy()) return;
-    mode = 'field'; flevel = 'members'; ff = 0; fmsg = ''; dirty = true;
+    mode = 'field'; fmsg = ''; fslot = null;
+    screen('rpg-party', true);
   }
-  function closeField() { mode = null; root.classList.remove('on'); root.innerHTML = ''; release(); }
+  function closeField() { if (!mode || mode === 'battle') return; mode = null; fslot = null; screen(null); release(); }
+  const members = () => K.partyOf(cfg, R, V());
+  function partyModel() {
+    const gold = V()[cfg.rules.gold] || 0;
+    const rows = members().map((id) => {
+      const M0 = R.m[id], S = K.statsOf(cfg, R, id), C = cfg.classes[M0.cls], cl = M0.cl[M0.cls], next = M0.level < cfg.rules.cap ? K.xpFor(cfg, M0.level + 1) - M0.xp : 0;
+      return {
+        id, name: memberName(id), level: M0.level, hp: M0.hp, hpMax: S.hp,
+        title: memberName(id) + ' · ' + C.name + ' rank ' + cl.lv,
+        stats: [{ label: 'Next', value: next + ' XP' }, { label: 'HP', value: M0.hp, max: S.hp }, { label: 'MP', value: M0.mp, max: S.mp }, { label: 'Attack', value: S.atk }, { label: 'Defence', value: S.def }, { label: 'Magic', value: S.mag }, { label: 'Speed', value: S.spd }, { label: 'Class pts', value: cl.sp }, ...(M0.poison ? [{ label: 'Status', value: 'Poisoned' }] : [])],
+        skills: K.usable(cfg, R, id).map((x) => cfg.skills[x].name).join(', ') || '—',
+        worn: Object.values(M0.gear).map((g) => cfg.gear[g].name).join(', ') || '—',
+        classes: K.classesOf(cfg, R, id, V()).map((c) => ({ id: c.id, label: c.name, right: c.current ? 'current' : !c.open ? 'locked' : c.rank ? 'rank ' + c.rank : 'new', disabled: !c.open })),
+        slots: K.gearOf(cfg, R, id, V()).map((g) => ({ id: g.slot, label: SLOT[g.slot], right: g.name || '—' })),
+        points: C.name + ' · ' + cl.sp + ' CP',
+        tree: K.treeOf(cfg, R, id).map((e) => ({
+          id: e.skill, label: e.name, disabled: e.state === 'locked' || e.state === 'later',
+          right: e.state === 'learned' ? '✓' : e.state === 'buy' ? e.cost + ' CP' : e.state === 'later' ? 'rank ' + e.at : e.why === 'requires' ? 'needs ' + e.need.map((n) => cfg.skills[n].name).join(', ') : e.cost + ' CP',
+        })),
+      };
+    });
+    // (a slot being chosen for: take it off, or what the bag holds for it)
+    const g = fslot && fwho ? K.gearOf(cfg, R, fwho, V()).find((x) => x.slot === fslot) : null;
+    return { members: rows, gold, said: fmsg, slot: g ? memberName(fwho) + ' · ' + SLOT[fslot] : '', choices: g ? [{ id: '-', label: '—', right: '', disabled: !g.item }, ...g.can.map((c) => ({ id: c.item, label: c.name, right: '×' + c.count }))] : [] };
+  }
+  function party(e) {
+    const said = (why, ok) => { fmsg = why ? WHY[why] || why : ok; };
+    if (e.emit === 'class') { bagFrom(); const why = K.switchClass(cfg, R, e.member, e.cls, V()); bagSay(); said(why, memberName(e.member) + ' is now a ' + cfg.classes[e.cls].name + '.'); if (!why) { keep(); __inputQueue.push({ type: 'rpg-class:' + e.member + ':' + e.cls }); } }
+    else if (e.emit === 'slot') { fwho = e.member; fslot = e.slot; fmsg = ''; }
+    else if (e.emit === 'equip' && fslot && fwho) {
+      bagFrom(); const why = e.item === '-' ? K.unequip(cfg, R, fwho, fslot, V()) : K.equip(cfg, R, fwho, e.item, V()); bagSay();
+      if (!why) keep(); said(why, '');
+      fslot = null;   // (the spec steps back to the slots)
+    }
+    else if (e.emit === 'learn') { const why = K.buy(cfg, R, e.member, e.skill); said(why, memberName(e.member) + ' learned ' + cfg.skills[e.skill].name + '.'); if (!why) keep(); }
+  }
   // ── a shop and an inn (rpg.js shops): opened by a cue's rpg-shop:<id>, its wares bought with the gold into the bag ──
   function openShop(sid) {
     if (mode || busy() || !K.shopOf(cfg, sid)) return;
-    mode = 'shop'; shopId = sid; stab = 0; sf = 0; smsg = ''; dirty = true;
+    mode = 'shop'; shopId = sid; smsg = '';
+    screen('rpg-shop');
   }
-  const shopTabs = () => { const S = K.shopOf(cfg, shopId); return !S ? [] : [...(S.wares.length ? ['Buy'] : []), ...(S.buys ? ['Sell'] : []), ...(S.inn != null ? ['Stay'] : [])]; };
-  function shopRows() {
-    const S = K.shopOf(cfg, shopId), tab = shopTabs()[stab];
-    if (!S) return [];
-    const deal = (fn, said, ev) => () => { bagFrom(); const why = fn(); bagSay(); smsg = why ? SHOP_WHY[why] || why : said; if (!why) { keep(); __inputQueue.push({ type: ev }); } };
-    if (tab === 'Buy') return K.waresOf(cfg, shopId, V()).map((w) => ({ label: w.name, right: w.price + ' G', small: w.have ? '×' + w.have : '', ok: (V()[cfg.rules.gold] || 0) >= w.price, go: deal(() => K.purchase(cfg, shopId, w.item, V()), 'Bought ' + w.name + '.', 'rpg-bought:' + shopId + ':' + w.item) }));
-    if (tab === 'Sell') return K.sellsOf(cfg, shopId, V()).map((w) => ({ label: w.name, right: w.price + ' G', small: '×' + w.have, ok: true, go: deal(() => K.sell(cfg, shopId, w.item, V()), 'Sold ' + w.name + '.', 'rpg-sold:' + shopId + ':' + w.item) }));
-    if (tab === 'Stay') return [{ label: 'A night\'s rest', right: S.inn + ' G', small: '', ok: (V()[cfg.rules.gold] || 0) >= S.inn, go: deal(() => K.stay(cfg, R, shopId, V()), 'Rested. The party is well.', 'rpg-stayed:' + shopId) }];
-    return [];
+  function shopModel() {
+    const S = K.shopOf(cfg, shopId), gold = V()[cfg.rules.gold] || 0;
+    if (!S) return {};
+    const tabs = [];
+    if (S.wares.length) tabs.push({ label: 'Buy', empty: '—', rows: K.waresOf(cfg, shopId, V()).map((w) => ({ id: w.item, kind: 'buy', label: w.name, right: w.price + ' G', small: w.have ? '×' + w.have : '', disabled: gold < w.price })) });
+    if (S.buys) tabs.push({ label: 'Sell', empty: 'Nothing to sell.', rows: K.sellsOf(cfg, shopId, V()).map((w) => ({ id: w.item, kind: 'sell', label: w.name, right: w.price + ' G', small: '×' + w.have })) });
+    if (S.inn != null) tabs.push({ label: 'Stay', empty: '—', rows: [{ id: 'inn', kind: 'stay', label: 'A night\'s rest', right: S.inn + ' G', disabled: gold < S.inn }] });
+    return { name: S.name, gold, said: smsg, tabs, party: members().map((m) => ({ name: memberName(m), level: R.m[m].level, hp: R.m[m].hp, hpMax: K.statsOf(cfg, R, m).hp })) };
   }
-  function drawShop() {
-    const S = K.shopOf(cfg, shopId), tabs = shopTabs(), rows = shopRows();
-    if (!S) return closeField();
-    let h = '<div class="moj-w moj-rpg-field moj-rpg-shop"><div class="mem"><div class="t">' + esc(S.name) + '</div>';
-    members().forEach((m) => { const St = K.statsOf(cfg, R, m); h += '<div class="opt"><span>' + esc(memberName(m)) + '<small>Lv ' + R.m[m].level + '</small></span><span>' + R.m[m].hp + '/' + St.hp + '</span></div>'; });
-    h += '<div class="note gold">Gold ' + (V()[cfg.rules.gold] || 0) + '</div></div><div class="pane"><div class="tabs">';
-    tabs.forEach((t, i) => { h += '<span class="tab' + (i === stab ? ' sel' : '') + '" data-tab="' + i + '">' + t + '</span>'; });
-    h += '</div>';
-    sf = Math.max(0, Math.min(sf, rows.length - 1));
-    if (!rows.length) h += '<div class="note">' + (tabs[stab] === 'Sell' ? 'Nothing to sell.' : '—') + '</div>';
-    rows.forEach((o, i) => { h += '<div class="opt' + (o.ok ? '' : ' off') + (i === sf ? ' on-f' : '') + '" data-i="' + i + '"><span>' + esc(o.label) + (o.small ? '<small>' + esc(o.small) + '</small>' : '') + '</span><span>' + esc(o.right) + '</span></div>'; });
-    h += (smsg ? '<div class="note">' + esc(smsg) + '</div>' : '') + '</div></div>';
-    root.innerHTML = h;
-  }
-  const members = () => K.partyOf(cfg, R, V());
-  function fieldRows() {
-    const id = members()[fm];
-    if (!id) return [];
-    if (TABS[ftab] === 'Class') return K.classesOf(cfg, R, id, V()).map((c) => ({ label: c.name, right: c.current ? 'current' : !c.open ? 'locked' : c.rank ? 'rank ' + c.rank : 'new', ok: c.open && !c.current, go: () => { bagFrom(); const why = K.switchClass(cfg, R, id, c.id, V()); bagSay(); fmsg = why ? WHY[why] || why : memberName(id) + ' is now a ' + c.name + '.'; if (!why) { keep(); __inputQueue.push({ type: 'rpg-class:' + id + ':' + c.id }); } } }));
-    if (TABS[ftab] === 'Equip') {
-      const G = K.gearOf(cfg, R, id, V());
-      if (!fslot) return G.map((g) => ({ label: SLOT[g.slot], right: g.name || '—', ok: true, go: () => { fslot = g.slot; ff = 0; } }));
-      const g = G.find((x) => x.slot === fslot);
-      const wear = (fn) => () => { bagFrom(); const why = fn(); bagSay(); if (!why) keep(); fmsg = why ? WHY[why] || why : ''; fslot = null; ff = 0; };
-      return [{ label: '—', right: '', ok: !!g.item, go: wear(() => K.unequip(cfg, R, id, fslot, V())) }, ...g.can.map((c) => ({ label: c.name, right: '×' + c.count, ok: true, go: wear(() => K.equip(cfg, R, id, c.item, V())) }))];
-    }
-    if (TABS[ftab] === 'Skills') return K.treeOf(cfg, R, id).map((e) => ({
-      label: e.name, ok: e.state === 'buy', dim: e.state === 'locked' || e.state === 'later',
-      right: e.state === 'learned' ? '✓' : e.state === 'buy' ? e.cost + ' CP' : e.state === 'later' ? 'rank ' + e.at : e.why === 'requires' ? 'needs ' + e.need.map((n) => cfg.skills[n].name).join(', ') : e.cost + ' CP',
-      go: () => { const why = K.buy(cfg, R, id, e.skill); fmsg = why ? WHY[why] || why : memberName(id) + ' learned ' + e.name + '.'; if (!why) keep(); },
-    }));
-    return [];
-  }
-  function drawField() {
-    const ids = members(), id = ids[fm], M = R.m[id];
-    let h = '<div class="moj-w moj-rpg-field"><div class="mem"><div class="t">Party</div>';
-    ids.forEach((m, i) => { const S = K.statsOf(cfg, R, m); h += '<div class="opt' + (i === fm && flevel === 'members' ? ' on-f' : '') + '" data-m="' + i + '"><span>' + esc(memberName(m)) + '<small>Lv ' + R.m[m].level + '</small></span><span>' + R.m[m].hp + '/' + S.hp + '</span></div>'; });
-    h += '<div class="note">Gold ' + (V()[cfg.rules.gold] || 0) + '</div></div><div class="pane"><div class="tabs">';
-    TABS.forEach((t, i) => { h += '<span class="tab' + (i === ftab ? ' sel' : '') + '" data-tab="' + i + '">' + t + '</span>'; });
-    h += '</div>';
-    if (M) {
-      const S = K.statsOf(cfg, R, id), C = cfg.classes[M.cls], cl = M.cl[M.cls], next = M.level < cfg.rules.cap ? K.xpFor(cfg, M.level + 1) - M.xp : 0;
-      if (TABS[ftab] === 'Status') {
-        h += '<div class="t">' + esc(memberName(id)) + ' · ' + esc(C.name) + ' rank ' + cl.lv + '</div><table>';
-        h += '<tr><td>Level</td><td>' + M.level + '</td><td>Next</td><td>' + next + ' XP</td></tr><tr><td>HP</td><td>' + M.hp + '/' + S.hp + '</td><td>MP</td><td>' + M.mp + '/' + S.mp + '</td></tr>';
-        h += '<tr><td>Attack</td><td>' + S.atk + '</td><td>Defence</td><td>' + S.def + '</td></tr><tr><td>Magic</td><td>' + S.mag + '</td><td>Speed</td><td>' + S.spd + '</td></tr><tr><td>Class pts</td><td>' + cl.sp + '</td><td>' + (M.poison ? 'Poisoned' : '') + '</td><td></td></tr></table>';
-        h += '<div class="note">' + (K.usable(cfg, R, id).map((s) => esc(cfg.skills[s].name)).join(', ') || '—') + '</div>';
-        h += '<div class="note">' + (Object.values(M.gear).map((g) => esc(cfg.gear[g].name)).join(', ') || '—') + '</div>';
-      } else {
-        const rows = fieldRows();
-        ff = Math.max(0, Math.min(ff, rows.length - 1));
-        if (TABS[ftab] === 'Skills') h += '<div class="t">' + esc(C.name) + ' · ' + cl.sp + ' CP</div>';
-        if (TABS[ftab] === 'Equip' && fslot) h += '<div class="t">' + SLOT[fslot] + '</div>';
-        rows.forEach((o, i) => { h += '<div class="opt' + ((o.dim != null ? o.dim : !o.ok) ? ' off' : '') + (flevel === 'list' && i === ff ? ' on-f' : '') + '" data-i="' + i + '"><span>' + esc(o.label) + '</span><span>' + esc(o.right) + '</span></div>'; });
-      }
-    }
-    h += (fmsg ? '<div class="note">' + esc(fmsg) + '</div>' : '') + '</div></div>';
-    root.innerHTML = h;
+  function deal(e) {
+    const ware = (id) => (cfg.items[id] || cfg.gear[id] || {}).name || id;
+    const go = (fn, said, ev) => { bagFrom(); const why = fn(); bagSay(); smsg = why ? SHOP_WHY[why] || why : said; if (!why) { keep(); __inputQueue.push({ type: ev }); } };
+    if (e.kind === 'buy') go(() => K.purchase(cfg, shopId, e.item, V()), 'Bought ' + ware(e.item) + '.', 'rpg-bought:' + shopId + ':' + e.item);
+    else if (e.kind === 'sell') go(() => K.sell(cfg, shopId, e.item, V()), 'Sold ' + ware(e.item) + '.', 'rpg-sold:' + shopId + ':' + e.item);
+    else if (e.kind === 'stay') go(() => K.stay(cfg, R, shopId, V()), 'Rested. The party is well.', 'rpg-stayed:' + shopId);
   }
 
-  // ── input ──
-  // the menu control scheme (controls/schemes.js menu), the same keys and pad roles every menu answers to
-  const KEYS = (ctl && ctl.keys) || {};
-  function act(a) {
-    if (a === 'tabNext' || a === 'tabPrev') { if (mode !== 'field' && mode !== 'shop') return; a = a === 'tabNext' ? 'right' : 'left'; }
-    if (mode === 'shop') {
-      const rows = shopRows(), n = shopTabs().length;
-      if (a === 'up' && rows.length) sf = (sf + rows.length - 1) % rows.length;
-      else if (a === 'down' && rows.length) sf = (sf + 1) % rows.length;
-      else if ((a === 'left' || a === 'right') && n) { stab = (stab + (a === 'right' ? 1 : n - 1)) % n; sf = 0; smsg = ''; }
-      else if (a === 'accept' && rows[sf]) { if (rows[sf].ok) rows[sf].go(); else smsg = rows[sf].right ? SHOP_WHY.gold : ''; }
-      else if (a === 'back') return closeField();
-      dirty = true; return;
-    }
+  // ── the host: what mana-ui's screens emit, answered; the screen up kept to the fight's phase and the menus ──
+  function answer(e) {
+    if (quiet || !e || typeof e.emit !== 'string') return;
+    changed();
+    if (e.emit === 'mana:closed') { closeField(); return; }
     if (mode === 'battle') {
-      if (phase !== 'command') { if (a === 'accept') { if (film && film.long) skipFilm(); else advance(); } return; }
-      const L = cmdList(), n = L.length;
-      if (a === 'up' && n) f = (f + n - 1) % n;
-      else if (a === 'down' && n) f = (f + 1) % n;
-      else if (a === 'accept' && L[f] && L[f].ok) L[f].go();
-      else if (a === 'back') back();
-      dirty = true; return;
-    }
-    if (mode === 'field') {
-      const n = members().length, rows = fieldRows();
-      if (flevel === 'members') {
-        if (a === 'up' && n) fm = (fm + n - 1) % n;
-        else if (a === 'down' && n) fm = (fm + 1) % n;
-        else if (a === 'left') ftab = (ftab + TABS.length - 1) % TABS.length;
-        else if (a === 'right') ftab = (ftab + 1) % TABS.length;
-        else if (a === 'accept' && ftab > 0 && rows.length) { flevel = 'list'; ff = 0; fslot = null; }
-        else if (a === 'back') return closeField();
-      } else {
-        if (a === 'up' && rows.length) ff = (ff + rows.length - 1) % rows.length;
-        else if (a === 'down' && rows.length) ff = (ff + 1) % rows.length;
-        else if (a === 'accept' && rows[ff]) { if (rows[ff].ok) rows[ff].go(); else fmsg = ''; }
-        else if (fslot && (a === 'back' || a === 'left' || a === 'right')) { if (a === 'back') { fslot = null; ff = 0; } }
-        else if (a === 'back' || a === 'left' || a === 'right') { flevel = 'members'; if (a !== 'back') ftab = (ftab + (a === 'right' ? 1 : TABS.length - 1)) % TABS.length; }
-      }
-      fmsg = a === 'accept' ? fmsg : '';
-      dirty = true;
-    }
+      if (e.emit === 'next') { if (film && film.long) skipFilm(); else if (phase !== 'command') advance(); }
+      else if (phase !== 'command') return;
+      else if (e.emit === 'command') command(e.id);
+      else if (e.emit === 'skill') toTarget({ act: 'skill', skill: e.id });
+      else if (e.emit === 'item') toTarget({ act: 'item', item: e.id });
+      else if (e.emit === 'target' && pend) pickNow(Object.assign({}, pend, { target: e.id }));
+      else if (e.emit === 'undo') undo();
+    } else if (mode === 'field') party(e);
+    else if (mode === 'shop' && e.emit === 'deal') deal(e);
+    changed();
   }
+  // the one screen the state calls for, opened over nothing (its cursor at the top, unless it keeps its place)
+  let quiet = false;
+  function screen(id, keepPlace) {
+    quiet = true;
+    try { if (up()) rt.close(); if (id) { rt.open(id); if (!keepPlace) rt.focusAt(0); } } finally { quiet = false; }
+    changed();
+    face.paint();
+  }
+  let rt = null;
+  rt = M.ui.runtime(M.spec, { read: (p) => M.ui.readPath(vm(), p), act: answer });
+  if (M.glyphs) rt.glyphs(M.glyphs);
+  const mounted = M.ui.mount(root, rt, {});
+  // (the view, held: a fight or a menu holds the world as mana-ui's own hold says the menu has the input)
+  const face = { paint: () => { mounted.paint(); if (mode) hold(); } };
+
+  // ── input: the menus are mana-host's (the menu scheme on the keys and every pad); P and a pad's select are play's ──
   window.addEventListener('keydown', (ev) => {
-    if (ev.code === 'KeyP' && !ev.repeat) {
-      if (mode === 'field') { ev.preventDefault(); ev.stopImmediatePropagation(); return closeField(); }
-      if (!mode) { openField(); if (mode) { ev.preventDefault(); ev.stopImmediatePropagation(); } return; }
-    }
-    if (!mode) return;
-    const a = KEYS[ev.code];
-    ev.preventDefault(); ev.stopImmediatePropagation();
-    if (a && !ev.repeat) act(a);
+    if (ev.code !== 'KeyP' || ev.repeat) return;
+    if (mode === 'field') { ev.preventDefault(); ev.stopImmediatePropagation(); return closeField(); }
+    if (!mode) { openField(); if (mode) { ev.preventDefault(); ev.stopImmediatePropagation(); } }
   }, true);
-  heads.addEventListener('click', (ev) => {
-    const aim = ev.target.closest('[data-aim]');
-    if (mode === 'battle' && phase === 'command' && level === 'target' && aim) { const L = cmdList(), i = L.findIndex((x) => x.target === aim.getAttribute('data-aim')); if (i >= 0) { f = i; act('accept'); } }
-  });
-  root.addEventListener('click', (ev) => {
-    if (!mode) return;
-    const o = ev.target.closest('[data-i]'), t = ev.target.closest('[data-tab]'), m = ev.target.closest('[data-m]'), aim = ev.target.closest('[data-aim]');
-    if (mode === 'battle') {
-      if (ev.target.closest('[data-skip]')) return skipFilm();
-      if (phase !== 'command') return advance();
-      if (o) { f = Number(o.getAttribute('data-i')); act('accept'); return; }
-      if (aim && level === 'target') { const L = cmdList(), i = L.findIndex((x) => x.target === aim.getAttribute('data-aim')); if (i >= 0) { f = i; act('accept'); } }
-      return;
-    }
-    if (mode === 'shop') {
-      if (t) { stab = Number(t.getAttribute('data-tab')); sf = 0; smsg = ''; dirty = true; return; }
-      if (o) { sf = Number(o.getAttribute('data-i')); act('accept'); }
-      return;
-    }
-    if (t) { ftab = Number(t.getAttribute('data-tab')); flevel = 'members'; fslot = null; dirty = true; return; }
-    if (m) { fm = Number(m.getAttribute('data-m')); flevel = 'members'; fslot = null; dirty = true; return; }
-    if (o) { ff = Number(o.getAttribute('data-i')); flevel = 'list'; act('accept'); }
-  });
-
-  // the pad: the first connected one, read in its own printed layout; an action fires on the press edge, and its
-  // select button opens and closes the party menu
-  let padPrev = {};
-  function padNow() {
-    const ps = navigator.getGamepads ? navigator.getGamepads() : [], now = {};
-    let g = null;
-    for (let i = 0; i < ps.length; i++) if (ps[i] && ps[i].connected) { g = ps[i]; break; }
-    if (!g || !ctl) return now;
-    const P = ctl.pad[ctl.layout(g.id)] || ctl.pad.xbox || {};
-    for (const i in P.b || {}) { const b = g.buttons[i]; if (b && (b.pressed || b.value > 0.5)) now[P.b[i]] = 1; }
-    for (const [ax, sg, a] of P.a || []) if ((g.axes[ax] || 0) * sg > 0.6) now[a] = 1;
-    const sb = g.buttons[ctl.select];
-    if (sb && sb.pressed) now.party = 1;
-    return now;
-  }
-  function pad() {
-    const now = padNow();
-    for (const a in now) if (!padPrev[a]) {
-      if (a === 'party') { if (mode === 'field') closeField(); else if (!mode) openField(); }
-      else if (mode) act(a);
-    }
-    padPrev = now;
+  const input = M.host.connect(rt, face, { keys: ctl.keys, pad: ctl.pad, padLayout: ctl.padLayout, loop: false });
+  let selectWas = false;
+  function padSelect() {
+    const ps = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
+    let now = false;
+    for (let i = 0; i < ps.length; i++) { const g = ps[i]; if (g && g.connected && g.buttons[ctl.select] && g.buttons[ctl.select].pressed) now = true; }
+    if (now && !selectWas) { if (mode === 'field') closeField(); else if (!mode) openField(); }
+    selectWas = now;
   }
 
   // (a fight or the party menu holds the world; a fight's own window stands in for the level's HUD while it is up)
@@ -827,42 +678,60 @@ export function rpgPage(cfg, K, ctl, jk) {
   function step(t) {
     const now = typeof t === 'number' ? t : 0, dt = lastT ? Math.max(0, Math.min(now - lastT, 1000)) : 0;   // real time: a slow frame still moves the playback on
     lastT = now;
+    changed();
     hookCarry();
     listen();
-    if (typeof navigator !== 'undefined') pad();
+    padSelect();
     walk();
     if (mode === 'battle' && (phase === 'intro' || phase === 'play')) { bt += dt; if (bt >= BEAT + linger) advance(); }
     // the world holds still in a fight, but its moments (a juice's puffs, beams and shakes) play on: their clock runs
     if (mode === 'battle' && W()) W().time = (W().time || 0) + dt / 1000;
-    if (mode) { hold(); root.classList.add('on'); }
-    if (mode && (dirty || pops.length)) { if (mode === 'battle') drawBattle(); else if (mode === 'shop') drawShop(); else drawField(); dirty = false; }
     if (mode === 'battle') {
       backdrop1();
       if (phase === 'play') film1(); else if (film) endFilm();
-      for (const lv of ['none', 'numbers', 'all']) { root.classList[filmUi === lv ? 'add' : 'remove']('cine-' + lv); heads.classList[filmUi === lv ? 'add' : 'remove']('cine-' + lv); }
-      heads.classList.add('on'); placeHeads();
       if (placeDue > 0 && --placeDue === 0 && !placeBoxes()) placeDue = 1;
-      // (a round playing out: the window and the bars step aside for the bodies' acts, back for the next pick)
-      const acting = phase === 'play'; root.classList[acting ? 'add' : 'remove']('acting'); heads.classList[acting ? 'add' : 'remove']('acting');
-    } else if (heads.innerHTML) { heads.classList.remove('on'); heads.innerHTML = ''; }
+    }
+    // (a number stays up while it rises)
+    if (pops.length) pops = pops.filter((p) => now - p.t < POP_FOR);
+    input.poll();
+    changed();
+    if (rt.tick()) mounted.paint();
+    if (mode) hold();
   }
   const api = {
-    step, R,
-    state: () => ({ mode, phase, msg, level, member: mode === 'battle' && phase === 'command' ? commanders()[mi] : null, options: mode === 'battle' && phase === 'command' ? cmdList().map((o) => ({ label: o.label, ok: o.ok })) : [], ...(mode === 'shop' ? { shop: { id: shopId, tab: shopTabs()[stab], rows: shopRows().map((o) => ({ label: o.label, right: o.right, ok: o.ok })), said: smsg } } : {}) }),
-    start: startBattle, act, advance, open: openField, close: () => (mode === 'field' || mode === 'shop' ? closeField() : null), shop: openShop,
+    step, R, ui: rt,
+    state: () => {
+      const top = up(), cmd = mode === 'battle' && phase === 'command', B0 = vm().battle;
+      const S0 = mode === 'shop' ? vm().shop : null, T0 = S0 && S0.tabs ? S0.tabs[rt.state().tabs[0] || 0] : null;
+      return {
+        mode, phase, msg, screen: top, level: cmd ? LEVEL[top] || 'cmd' : null, member: cmd ? commanders()[mi] : null, acting: !!B0.acting, ui: filmUi,
+        options: cmd ? (B0[LIST[top]] || []).map((o) => ({ label: o.label, ok: !o.disabled })) : [],
+        ...(S0 ? { shop: { id: shopId, tab: T0 ? T0.label : null, rows: (T0 ? T0.rows : []).map((o) => ({ label: o.label, right: o.right, ok: !o.disabled })), said: smsg } } : {}),
+      };
+    },
+    // (a menu action, as the menu scheme names it: up, down, left, right, accept, back, tabNext, tabPrev)
+    act: (a) => { if (up()) { rt.press(a); face.paint(); } },
+    start: startBattle, advance, open: openField, close: closeField, shop: openShop,
     // (the view a fight is seen from, over the book's: for a preview of the views, the next fight staged in it)
-    view: (name) => { viewOver = VIEWS[name] ? name : null; if (mode === 'battle' && staged) { unstage(); stage(); placeDue = 3; dirty = true; } return viewOver; },
+    view: (name) => { viewOver = VIEWS[name] ? name : null; if (mode === 'battle' && staged) { unstage(); stage(); placeDue = 3; } return viewOver; },
   };
   window.__mojRpg = api;
   return api;
 }
 
+/**
+ * mana-ui on the page for a world's battles: the kernel and mana-host as source, the spec, the glyphs of the menu
+ * scheme, and the sheet in the world's theme (cfg.theme, its UI guide lowered; else the console RPG's).
+ */
+export function rpgMana(cfg) {
+  return { spec: rpgUiSpec(), glyphs: manaGlyphs(), css: rpgUiCss(rpgUiTheme(cfg)) };
+}
+
 /** The channel's script, inside the events channel: the kernel, the page, its step called each frame (`__stepRpg`). */
-export function rpgScript() {
-  const { keys, pad } = menuControls();
+export function rpgScript(cfg) {
+  const { keys, pad } = manaControls(), M = rpgMana(cfg), json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
   return `
-// RPG: party battles over the field, the party menu on P (playscape/rpg)
-const RPG_CSS_TEXT = ${JSON.stringify(RPG_CSS)};
-const __rpg = (${rpgPage.toString()})(EVENTS.rpg, (${buildRpg.toString()})(), { keys: ${JSON.stringify(keys)}, pad: ${JSON.stringify(pad)}, layout: ${padLayoutSource()}, select: ${DEVICES.gamepad.buttons.select} }, ${juiceKeys.toString()});
+// RPG: party battles over the field, the party menu on P (playscape/rpg); its UI mana-ui's (playscape/rpg/rpg-ui.js)
+const __rpg = (${rpgPage.toString()})(EVENTS.rpg, (${buildRpg.toString()})(), { keys: ${json(keys)}, pad: ${json(pad)}, padLayout: (${padLayoutSource()}), select: ${DEVICES.gamepad.buttons.select} }, ${juiceKeys.toString()}, { ui: ${manaUiSource()}, host: ${manaHostSource()}, spec: ${json(M.spec)}, glyphs: ${json(M.glyphs)}, css: ${json(M.css)} });
 function __stepRpg(t) { __rpg.step(t); }`;
 }
