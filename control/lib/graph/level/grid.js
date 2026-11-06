@@ -14,6 +14,10 @@
  *     key?: { <glyph>: <what stands on it> },   // the PLACES the geocube lays round the paths (a town block, a
  *   }                                           // building, a wood…); '#' a path and '.' open land are always known
  *
+ * A PLACE has one DOOR: the side of it its key names (`door: 'n' | 'e' | 's' | 'w'`), else the side whose path tile is
+ * the main road (the one with the most paths of its own round it; the first clockwise from north on a tie). A path
+ * opens toward a place only where that place's door faces it, so no road runs into a building's back.
+ *
  * A PATH tile's shape is SOLVED from its path neighbours, never written: its open edges are the sides a path tile
  * (or a place a path reaches: a building's door) lies on. One edge open is an END, two opposite an I, two adjacent an
  * L, three a T, four an X; the shape's turn says which edges (the I running north–south or east–west, the L's
@@ -73,6 +77,22 @@ export function readGrid(g, at = 'grid') {
     if (!GLYPH.test(glyph)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' is not a glyph (a letter, '#' a path, '.' open land)`);
     if (glyph !== GRID_GLYPHS.land && glyph !== GRID_GLYPHS.path && !Object.hasOwn(key, glyph)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' is a place the key does not name (key: ${Object.keys(key).join(', ') || 'none'})`);
   }
+  // every PLACE's door: its key's, else toward its main road
+  const isPath = (r, c) => glyphAt(r, c) === GRID_GLYPHS.path;
+  const roads = (r, c) => ORDER.filter((s) => isPath(r + SIDES[s][0], c + SIDES[s][1])).length;
+  const doors = new Map();
+  for (let r = 0; r < rows.length; r++) for (let c = 0; c < cols; c++) {
+    const glyph = rows[r][c];
+    if (glyph === GRID_GLYPHS.path || glyph === GRID_GLYPHS.land) continue;
+    const sides = ORDER.filter((s) => isPath(r + SIDES[s][0], c + SIDES[s][1])), want = key[glyph]?.door;
+    if (want !== undefined && !ORDER.includes(want)) throw new Error(`level: ${at}.key.${glyph}.door is a side: ${ORDER.join(', ')}`);
+    if (want !== undefined && !sides.includes(want)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' opens its door ${want}, where no path lies`);
+    const door = want ?? sides.reduce((best, s) => (best === null || roads(r + SIDES[s][0], c + SIDES[s][1]) > roads(r + SIDES[best][0], c + SIDES[best][1]) ? s : best), null);
+    if (door) doors.set(`${r},${c}`, door);
+  }
+  // (a place's door faces this path tile: the place lies on that side, its door the opposite way)
+  const OPP = { n: 's', s: 'n', e: 'w', w: 'e' };
+  const doorFaces = (r, c, s) => doors.get(`${r + SIDES[s][0]},${c + SIDES[s][1]}`) === OPP[s];
   const cells = [];
   for (let r = 0; r < rows.length; r++) for (let c = 0; c < cols; c++) {
     const glyph = rows[r][c];
@@ -80,13 +100,13 @@ export function readGrid(g, at = 'grid') {
     if (glyph === GRID_GLYPHS.land) { cells.push({ r, c, glyph, kind: 'land' }); continue; }
     if (glyph !== GRID_GLYPHS.path) {
       if (!Object.hasOwn(key, glyph)) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: '${glyph}' is a place the key does not name (key: ${Object.keys(key).join(', ') || 'none'})`);
-      // (a place a path reaches opens toward it: the sides its path neighbours lie on)
-      const open = ORDER.filter((s) => glyphAt(r + SIDES[s][0], c + SIDES[s][1]) === GRID_GLYPHS.path);
-      cells.push({ r, c, glyph, kind: 'place', place: key[glyph], open });
+      // (a place opens on its door only)
+      const door = doors.get(`${r},${c}`);
+      cells.push({ r, c, glyph, kind: 'place', place: key[glyph], open: door ? [door] : [] });
       continue;
     }
     // a PATH: open toward every side a path or a place lies on
-    const open = ORDER.filter((s) => { const n = glyphAt(r + SIDES[s][0], c + SIDES[s][1]); return n === GRID_GLYPHS.path || (n !== null && n !== GRID_GLYPHS.land && Object.hasOwn(key, n)); });
+    const open = ORDER.filter((s) => isPath(r + SIDES[s][0], c + SIDES[s][1]) || doorFaces(r, c, s));
     if (!open.length) throw new Error(`level: ${at}.rows[${r}] column ${c + 1}: a path tile that meets no other path nor place (a path runs somewhere)`);
     cells.push({ r, c, glyph, kind: 'path', shape: shapeOf(open), open });
   }

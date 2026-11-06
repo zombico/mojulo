@@ -55,10 +55,14 @@ const BACKDROP = /:(ridge|cloud)$/;
 // a section's payload moved onto the level: its faces, repeats, cutouts, lights, anchors and colliders. `band` (a trail's
 // own [x0, x1, D]): what lies past it (the apron a page lays so its edge never shows) is the map's to fill, so a face or
 // an instance whose centre stands outside the band is dropped; `backdrop`: the far ridges and clouds kept or dropped
-export function placed(payload, F, node, { band = null, backdrop = true } = {}) {
+// the outdoor kit's own groups: the land and what grows and lies on it (a tile clips these to its square)
+const OUTDOOR = /^(isekai|nature|trail|map):/;
+export function placed(payload, F, node, { band = null, backdrop = true, outdoorOnly = false } = {}) {
   const inBand = (x, y) => !band || (x >= band[0] && x <= band[1] && y >= 0 && y <= band[2]);
   const keepFace = (f) => {
     if (f.group && BACKDROP.test(f.group)) return backdrop;
+    // (only the outdoor dress is the band's: a building, its structure and its town are kept whole wherever they reach)
+    if (outdoorOnly && !(f.group && OUTDOOR.test(f.group))) return true;
     let x = 0, y = 0; for (const c of f.corners) { x += c[0]; y += c[1]; }
     return inBand(x / f.corners.length, y / f.corners.length);
   };
@@ -181,11 +185,12 @@ export function ringTheMap(faces, bands) {
   // (the ring's own radius: its ridges' median distance from its centre)
   const rr = []; for (const f of back) if (/ridge$/.test(f.group)) for (const c of f.corners) rr.push(Math.hypot(c[0] - cx, c[1] - cy));
   rr.sort((a, b) => a - b);
-  const r0 = rr.length ? rr[rr.length >> 1] : Infinity;
+  // (scaled by its INNER edge, its nearest tenth, so the whole ring stands past the map and its margin)
+  const r0 = rr.length ? rr[Math.floor(rr.length / 10)] : Infinity;
   let mx = 0, my = 0, m = 0; for (const P of Object.values(bands)) for (const [x, y] of P) { mx += x; my += y; m++; }
   mx /= m; my /= m;
   let reach = 0; for (const P of Object.values(bands)) for (const [x, y] of P) reach = Math.max(reach, Math.hypot(x - mx, y - my));
-  const k = Number.isFinite(r0) && r0 < reach + LAND.margin + 40 ? (reach + LAND.margin + 40) / r0 : 1;
+  const k = Number.isFinite(r0) && r0 < reach + LAND.margin + 60 ? (reach + LAND.margin + 60) / r0 : 1;
   for (const f of back) f.corners = f.corners.map((c) => [r5(mx + (c[0] - cx) * k), r5(my + (c[1] - cy) * k), c[2]]);
 }
 

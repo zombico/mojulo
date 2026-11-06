@@ -9,13 +9,24 @@
  *     horizon of the first tile; the walk from the map's spawn (its first path end, else its first path tile);
  *     `map`: { tile, rows, cols, cells } for what reads the map (its laws, the game).
  *
- * A level: { kit?, seed?, grid: { tile?, rows, key? }, wind?, grass? } (the stage's own words every tile takes). A
- * place's tile (the key's) is laid as open land for now; the geocube's places stand on it next.
+ * A level: { kit?, seed?, grid: { tile?, rows, key? }, wind?, grass? } (the stage's own words every tile takes).
+ *
+ * A PLACE (a key letter): `{ use: <a building program> , …the building's own words }` (era/stage-buildings.js: a
+ * dwelling, a shop, a tavern, a temple…) stands on its tile, its door at the middle of the side its path reaches, inset
+ * DOOR_IN, facing the path; kept whole however far it reaches (a tile clips only its outdoor dress to its square).
+ *
+ * THE EDGES: the map is closed. Walls stand along its border (as a trail's bounds do), and beyond it the land rises
+ * into a rim of hills RIM metres deep, from the land's own height at the border, so the world's edge reads as the
+ * valley's sides, never as a drop into the sky.
  */
 import { readGrid } from './grid.js';
 import { frameOf, placed, ringTheMap } from './map-scene.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
+const DOOR_IN = 5;
+// a building's door on its tile: at the middle of the side its path reaches, inset, facing out toward the path
+const DOOR = (T) => ({ n: { x: T / 2, y: T - DOOR_IN, facing: '+y' }, s: { x: T / 2, y: DOOR_IN, facing: '-y' }, e: { x: T - DOOR_IN, y: T / 2, facing: '+x' }, w: { x: DOOR_IN, y: T / 2, facing: '-x' } });
+export const RIM = Object.freeze({ deep: 70, rise: 18, step: 6, wall: 6 });
 const hashTile = (seed, r, c) => ((Math.imul((seed | 0) + 17, 2654435761) ^ Math.imul(r + 31, 40503) ^ Math.imul(c + 7, 22541)) >>> 0) % 100000;
 
 // the base64 typed arrays the grass channel reads (era/isekai.js b64)
@@ -41,6 +52,41 @@ function oneGrass(list) {
   return { ...first, grid: { ...first.grid, x0: r5(x0), y0: r5(y0), nx, ny, zlo: r5(lo), zsc, z: enc(zq), m: enc(M) } };
 }
 
+// the land's height at the map's border: the nearest ground corner's (the outdoor dress's ground)
+function borderHeight(faces) {
+  const pts = [];
+  for (const f of faces) if (f.group && /:ground$/.test(f.group)) for (const c of f.corners) pts.push(c);
+  return (x, y) => { let best = 0, bd = Infinity; for (const c of pts) { const d = Math.abs(c[0] - x) + Math.abs(c[1] - y); if (d < bd) { bd = d; best = c[2]; } } return best; };
+}
+function edgeWalls(W, H, faces) {
+  let lo = Infinity, hi = -Infinity; for (const f of faces) for (const c of f.corners) { if (c[2] < lo) lo = c[2]; if (c[2] > hi) hi = c[2]; }
+  const z0 = r5(lo - 2), z1 = r5(hi + RIM.wall), t = 0.5;
+  return [
+    { min: [-t, -H, z0], max: [0, 0, z1], of: 'map:edge:w' }, { min: [W, -H, z0], max: [W + t, 0, z1], of: 'map:edge:e' },
+    { min: [0, 0, z0], max: [W, t, z1], of: 'map:edge:n' }, { min: [0, -H - t, z0], max: [W, -H, z1], of: 'map:edge:s' },
+  ];
+}
+// the rim: rings of land out from the border, each `step` metres, rising RIM.rise over RIM.deep (eased), from the land's
+// own height at the border, in the land's colour
+function rimFaces(W, H, faces, firstPayload) {
+  const at = borderHeight(faces), fill = (firstPayload.faces || []).find((f) => f.group && /:ground$/.test(f.group))?.fill ?? '#7aa04a';
+  // the border's points, every `step` metres round it (clockwise from the north-west corner)
+  const ring = [];
+  const side = (a, b) => { const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / RIM.step)); for (let k = 0; k < n; k++) ring.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]); };
+  side([0, 0], [W, 0]); side([W, 0], [W, -H]); side([W, -H], [0, -H]); side([0, -H], [0, 0]);
+  const cx = W / 2, cy = -H / 2, n = ring.length, rings = Math.ceil(RIM.deep / RIM.step), base = ring.map(([x, y]) => at(x, y));
+  // (out from the border along the way from the map's centre, a corner's outward way its diagonal)
+  const outAt = (k, d) => { const [x, y] = ring[k], ux = x - cx, uy = y - cy, l = Math.hypot(ux, uy) || 1; return [x + (ux / l) * d, y + (uy / l) * d]; };
+  const z = (k, i) => { const t = i / rings; return base[k] - 0.15 + RIM.rise * t * t * (3 - 2 * t); };
+  const out = [];
+  for (let i = 0; i < rings; i++) for (let k = 0; k < n; k++) {
+    const k1 = (k + 1) % n, p = [outAt(k, i * RIM.step), outAt(k1, i * RIM.step), outAt(k1, (i + 1) * RIM.step), outAt(k, (i + 1) * RIM.step)];
+    const c = [[...p[0], z(k, i)], [...p[1], z(k1, i)], [...p[2], z(k1, i + 1)], [...p[3], z(k, i + 1)]].map((q) => q.map(r5));
+    out.push({ corners: c, normal: [0, 0, 1], group: 'map:rim', fill, doubleSided: true });
+  }
+  return out;
+}
+
 export async function assembleGridScene(m, ctx = {}, { buildStage } = {}) {
   const lv = m.level, G = readGrid(lv.grid, 'level.grid'), T = G.tile, seed = lv.seed ?? 1;
   const build = buildStage ?? (async (manifest) => (await import('../worlds/world-kinds.js')).WORLD_KINDS.stage.resolve(manifest, ctx));
@@ -50,9 +96,12 @@ export async function assembleGridScene(m, ctx = {}, { buildStage } = {}) {
   for (const cell of G.cells) {
     // a tile's square on the level's frame: its south-west corner (north up: columns east, rows south)
     const at = [cell.c * T, -(cell.r + 1) * T], open = cell.kind === 'path' ? cell.open : [];
-    const manifest = { kind: 'stage', kit: lv.kit ?? 'isekai-meadow', seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, level: { seed } }, ...(lv.wind !== undefined ? { wind: lv.wind } : {}), ...(lv.grass !== undefined ? { grass: lv.grass } : {}) };
+    // (a place's building, its door toward the path that reaches it)
+    const place = cell.kind === 'place' && cell.place && typeof cell.place === 'object' && cell.place.use ? cell.place : null;
+    const building = place ? { id: `${cell.glyph}-${cell.r}-${cell.c}`, ...place, at: DOOR(T)[cell.open[0] ?? 's'] } : null;
+    const manifest = { kind: 'stage', kit: lv.kit ?? 'isekai-meadow', seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, level: { seed } }, ...(building ? { buildings: [building] } : {}), ...(lv.wind !== undefined ? { wind: lv.wind } : {}), ...(lv.grass !== undefined ? { grass: lv.grass } : {}) };
     const payload = await build(manifest), F = frameOf({ at, heading: Math.PI / 2 }, 0);
-    const P = placed(payload, F, `${cell.r},${cell.c}`, { band: [0, T, T], backdrop: !first });
+    const P = placed(payload, F, `${cell.r},${cell.c}`, { band: [0, T, T], backdrop: !first, outdoorOnly: true });
     for (const k of ['faces', 'repeats', 'lights', 'anchors', 'colliders']) out[k].push(...P[k]);
     for (const c of payload.cutouts || []) if (!out.cutouts.includes(c)) out.cutouts.push(c);
     Object.assign(out.textures, payload.textures || {}); Object.assign(out.resample, payload.resample || {});
@@ -70,6 +119,9 @@ export async function assembleGridScene(m, ctx = {}, { buildStage } = {}) {
   for (const f of out.faces) if (f.group && /ground|trail/.test(f.group)) for (const c of f.corners) { const d = Math.hypot(c[0] - sx, c[1] - sy); if (d < gd) { gd = d; gz = c[2]; } }
   // (the first tile's horizon moved to ring the whole map)
   const W = G.cols * T, H = G.rows * T;
+  // THE EDGES: walls along the border, and a rim of hills rising beyond it from the land's height there
+  out.colliders.push(...edgeWalls(W, H, out.faces));
+  out.faces.push(...rimFaces(W, H, out.faces, first.payload));
   ringTheMap(out.faces, { map: [[0, 0], [W, 0], [W, -H], [0, -H]] });
   const LG = oneGrass(grass);
   return {

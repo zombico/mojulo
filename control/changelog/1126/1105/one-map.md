@@ -33,3 +33,9 @@
   tile with no path gets no path. The map's page (level/grid-scene.js, the `map` kind with a `level.grid`) sets every
   tile at its square, clips it there, writes every tile's grass into ONE field over the map, rings the map with the
   first tile's horizon, and spawns at the first path end.
+- **Places and edges on a glyph map.** A place's key may name a building (`{ use: <program>, door? }`: a dwelling, a
+  shop, a tavern, a temple…, era/stage-buildings.js): it stands on its tile with ONE door, the side its key names, else
+  toward its main road (the path with the most paths round it), and a path opens toward a place only where its door
+  faces it, so no road runs into a building's back. A tile clips only its outdoor dress to its square; a building is
+  kept whole. The map is closed: walls along its border, and beyond it a rim of land rising 18 m over 70, from the
+  land's own height there, so the world's edge reads as the valley's sides; its horizon rings past it all.

@@ -20,10 +20,12 @@ const cell = (r, c) => G.at(r, c);
 describe('the glyph grid', () => {
   it('solves each path tile\'s shape from its neighbours', () => {
     expect([cell(0, 2).shape, cell(0, 2).open]).toEqual(['end', ['s']]);          // the path's north end
-    expect([cell(1, 2).shape, cell(1, 2).open]).toEqual(['X', ['n', 'e', 's', 'w']]);   // (the town blocks open onto it)
+    // (the west block's door faces this street; the east block's two roads tie, and the first clockwise, south, wins)
+    expect([cell(1, 2).shape, cell(1, 2).open]).toEqual(['T', ['n', 's', 'w']]);
+    expect(cell(2, 3).open).toEqual(['n', 'e', 'w']);
     expect([cell(2, 2).shape, cell(2, 2).open]).toEqual(['X', ['n', 'e', 's', 'w']]);   // the crossing
     expect([cell(2, 0).shape, cell(2, 0).open]).toEqual(['end', ['e']]);
-    expect([cell(2, 1).shape, cell(2, 1).open]).toEqual(['T', ['n', 'e', 'w']]);   // (the town block north of it)
+    expect([cell(2, 1).shape, cell(2, 1).open]).toEqual(['I', ['e', 'w']]);   // (the town block north of it faces the main road, not it)
     expect([cell(3, 2).shape, cell(3, 2).open]).toEqual(['I', ['n', 's']]);       // down to the shrine
     // the places: what the key says stands there, open toward the paths that reach them
     expect(cell(4, 2)).toMatchObject({ kind: 'place', place: { building: 'shrine' }, open: ['n'] });
@@ -53,4 +55,16 @@ describe('the glyph grid', () => {
     expect(() => readGrid({ rows: ['# #', '#'] })).toThrow(/all one width/);
     expect(() => readGrid({ rows: ['#  #'], tile: 8 })).toThrow(/tile is a tile's side/);
   });
+
+  it('gives a place one door, toward its main road or where its key says, and no road runs into its back', () => {
+    const H = readGrid({ rows: ['. # .', 'h # .', '# # .'], key: { h: { use: 'dwelling' } } });
+    // (the house has paths east and south; the east one is the main road: its door faces it)
+    expect(H.at(1, 0).open).toEqual(['e']);
+    expect(H.at(2, 0).open).toEqual(['e']);   // (so the path below it does not turn up into its back)
+    const D = readGrid({ rows: ['. # .', 'h # .', '# # .'], key: { h: { use: 'dwelling', door: 's' } } });
+    expect(D.at(1, 0).open).toEqual(['s']);
+    expect(D.at(2, 0).open).toEqual(['n', 'e']);
+    expect(() => readGrid({ rows: ['h #'], key: { h: { door: 'n' } } })).toThrow(/opens its door n, where no path lies/);
+  });
 });
+
