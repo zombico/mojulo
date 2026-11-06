@@ -179,3 +179,52 @@ describe('run_experiment_sweep — variations of a stored recipe', () => {
     expect(out.refused.value).toBe('not-a-station-kind');
   });
 });
+
+describe('run_experiment_sweep — variations in words (a mangekyou order)', () => {
+  const coloured = () => ({ title: 'swatch', viewBox: { width: 200, height: 100 }, marks: [
+    { kind: 'rect', x: 10, y: 10, w: 80, h: 40, fill: '#3366aa', stroke: '#112233' }, { kind: 'circle', cx: 150, cy: 50, r: 20, fill: '#cc8844' }] });
+  async function stored() {
+    const { createSketchHandler: create } = await import('./sketch-mint.js');
+    return (await create({ title: 'swatch', manifest: coloured() })).ref;
+  }
+
+  it('mints n variants into one folder, routed and rolled, the design unchanged', async () => {
+    const ref = await stored();
+    const before = SketchRepository.getByRef(ref).manifest;
+    const out = await runExperimentSweepHandler({ ref, concept: 'faction liveries', n: 3 });
+    expect(out.ok).toBe(true);
+    expect(out.variants).toHaveLength(3);
+    expect(out.order).toMatchObject({ by: 'user', n: 3, from: { ref, title: 'swatch' }, team: { keep: 'update_sketch' } });
+    expect(Number.isInteger(out.order.roll)).toBe(true);
+    for (const v of out.variants) {
+      const row = SketchRepository.getByRef(v.ref);
+      expect(row.folderRef ?? row.folder_ref).toBe(out.folder_ref);
+      expect(v.patch.map((op) => op.path).filter((p) => !/fill|stroke/.test(p))).toEqual([]);
+    }
+    expect(SketchRepository.getByRef(ref).manifest).toEqual(before);
+    expect(out.next).toMatch(/keep/);
+  });
+
+  it('answers patches alone with mint: false, and its roll replays the order', async () => {
+    const ref = await stored();
+    const a = await runExperimentSweepHandler({ ref, concept: 'darker', n: 2, mint: false, by: 'foes' });
+    expect(a.folder_ref).toBeUndefined();
+    expect(a.order.by).toBe('foes');
+    const b = await runExperimentSweepHandler({ ref, concept: 'darker', n: 2, mint: false, roll: a.order.roll });
+    expect(b.variants.map((v) => v.patch)).toEqual(a.variants.map((v) => v.patch));
+  });
+
+  it('takes a pass from kept and rejected variants', async () => {
+    const ref = await stored();
+    const first = await runExperimentSweepHandler({ ref, n: 3 });
+    const next = await runExperimentSweepHandler({ ref, keep: [first.variants[0].ref], reject: [first.variants[1].ref], n: 2, mint: false });
+    expect(next.order.pass).toMatchObject({ kept: 1, rejected: 1 });
+    expect(next.order.keep).toEqual([first.variants[0].ref]);
+  });
+
+  it('refuses a mixed form and refs that do not exist', async () => {
+    const ref = await stored();
+    await expect(runExperimentSweepHandler({ ref, path: '/marks/0/w', values: [1, 2], concept: 'x' })).rejects.toThrow(/Pass one form/);
+    await expect(runExperimentSweepHandler({ ref, keep: ['nope'] })).rejects.toThrow(/No sketch exists at ref 'nope'/);
+  });
+});

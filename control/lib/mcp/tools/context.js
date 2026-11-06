@@ -611,7 +611,7 @@ mint dispatch — match the ask to a FORM:
   AUDIO    soundtrack / tune / beat / sfx → \`create_beats\` · revise → \`update_beats\` · notes → \`annotate_beats\` · what changed → \`diff_beats\`
   VOICE    how a voice SOUNDS (deeper, more confident, a Japanese narrator) → \`create_voice\` (an external worker speaks it)
   PUBLICATION  essay / picture book / deck / brief from gathered material → \`mint_stash\` → \`gather\` → \`cook\` · multi-kind preview → \`forge_publications\`
-  WORKFLOW many at once: a chain written once, each step taking the last's ref (mint → export → measure) → \`enter_plan_mode\` → \`forge_plan\` → \`compile_plan\` → \`execute_plan\` · variations of one recipe over a value → \`run_experiment_sweep\` · a flow through another MCP or worker on this host (Blender, ComfyUI) → \`recommend_catalysts\` → \`get_catalyst\`
+  WORKFLOW many at once: a chain written once, each step taking the last's ref (mint → export → measure) → \`enter_plan_mode\` → \`forge_plan\` → \`compile_plan\` → \`execute_plan\` · variations of a recipe, in words or a value → \`run_experiment_sweep\` · a flow through another MCP or worker on this host (Blender, ComfyUI) → \`recommend_catalysts\` → \`get_catalyst\`
 
 export dispatch: object/figure → \`export_model\` (print-ready 3MF | STL, mm, z-up | glTF | USD | \`engine\`) · game/world → \`export_game\` (web folder or desktop app) · audio → \`export_beats\` (WAV/MIDI) · sprites → \`bake_sprite_sheet\` · a file's creator receipt, asked for → \`sign_asset\` / \`verify_asset\`
 
