@@ -104,6 +104,7 @@ function armedPilot(G, entity, cam) {
 const SNEAK_TUNE = Object.freeze({ team: 'guards', rule: { guardRadius: 10, speed: 3, turnRate: 2.2 }, body: { hittable: false } });
 import { feelRule, readFeel, TAKES, feelCard, lowerFeel, feelVayo } from './feel/lower.js';
 import { reachOf } from './feel/reach.js';
+import { laidCasting, laidJoins } from './casting.js';
 import { readCourse, courseAt, coursePlan, courseLaws, lowerCourse } from './course.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
@@ -1099,7 +1100,9 @@ export function gameStore(world, book) {
   else if (G.ids.some((id) => G.levels[id].goal?.collect)) slices.push({ name: 'bag', kind: 'inventory' });
   if (pk.size) slices.push({ name: 'powers', kind: 'inventory' });
   // the world's scenes read and set flags: a story slice carries them from level to level
-  if (storyCarried(G)) slices.push({ name: STORY_SLICE, kind: 'flags' });
+  // (and the party's flags the run lays when the book gives none, casting.js laidJoins: a member joining on its level
+  // carries the story slice, so the store declares it)
+  if (storyCarried(G) || storyCarried(laidCasting(laidJoins(G).G))) slices.push({ name: STORY_SLICE, kind: 'flags' });
   // the world remembers what broke (a game that lets things break): each level keeps its breaks here
   if (book?.mechanics?.destruction && book.mechanics.destruction !== 'none') slices.push({ name: AFTERMATH_SLICE, kind: 'flags' });
   // party battles (battles.js): the party, its levels, classes and skills, carried from level to level
