@@ -6,7 +6,7 @@
  *   gridEnds(level) → { spawn, heading, exit, exitFrom, planar, beats, hazards, via, regions, doors: [], places }
  *     spawn     where a walk of the map starts (grid.js mapStart, the page's own spawn), at its path's middle, on the land
  *     exit      a place whose key says `goal` (its door), else the path end the most tiles away along the paths
- *     via       the tiles' middles (on their paths: an L's on its arc) along the paths from the spawn to the exit (the fewest tiles), the door last
+ *     via       the tiles' middles (on their paths: a bend's along its arc, its quarter points) along the paths from the spawn to the exit (the fewest tiles), the door last
  *     beats     `along` each tile of that way between its ends; `pocket` each path END off it (a side way's end: what
  *               a quest hides or a pack waits in); `landmark` each place standing on it; each its tile and region
  *     places    each place's door ({ id, glyph, use?, at, N, region? }: the building's id on the page, its door on the
@@ -41,7 +41,14 @@ export function gridEnds(level) {
   const way = []; for (let x = last; x; x = prev.get(id(x))) way.unshift(x);
   const onWay = new Set(way.map(id));
   const spawn = mid(start), exitAt = last.kind === 'place' ? doorOf(last).at : mid(last);
-  const via = [...way.filter((x) => x.kind === 'path').map((x) => mid(x)), ...(last.kind === 'place' ? [exitAt] : [])];
+  // (a bend is walked along its arc: its quarter points too, in the order the way enters it)
+  const along = (x, i) => {
+    if (x.kind !== 'path' || x.shape !== 'L') return [mid(x)];
+    const A = tilePath(T, x.open)[0], o = [x.c * T, -(x.r + 1) * T], from = way[i - 1];
+    const P = from && (Math.hypot(A[0][0] + o[0] - (from.c + 0.5) * T, A[0][1] + o[1] + (from.r + 0.5) * T) > Math.hypot(A.at(-1)[0] + o[0] - (from.c + 0.5) * T, A.at(-1)[1] + o[1] + (from.r + 0.5) * T)) ? [...A].reverse() : A;
+    return [0.25, 0.5, 0.75].map((t) => { const q = P[Math.round(t * (P.length - 1))]; return on(o[0] + q[0], o[1] + q[1]); });
+  };
+  const via = [...way.flatMap((x, i) => (x.kind === 'path' ? along(x, i) : [])), ...(last.kind === 'place' ? [exitAt] : [])];
   const toward = via[1] ?? exitAt;
   const tag = (x) => ({ tile: [x.r, x.c], ...(regionOf(x) ? { region: regionOf(x) } : {}) });
   const beats = [
