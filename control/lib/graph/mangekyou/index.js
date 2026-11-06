@@ -6,7 +6,8 @@
  *
  *   turnMangekyou(order) → { order, variants: [{ id, says, moves, patch, manifest, distance }], reserve, spread }
  *     order: { manifest, concept?, n?, at?, principles?, kept?: [manifest], rejected?: [manifest], spread?, roll, by?,
- *              gate?: (manifest) → a refusal or null (its kind's: a refused candidate is passed over for the next) }
+ *              gate?: (manifest) → a refusal or null (its kind's: a refused candidate is passed over for the next),
+ *              seen?: [manifest] (variants shown before: the pick looks away from them) }
  *
  * GENERAL: the design is read by its leaves (leaves.js), not by its kind; a team (teams.js) adds context only.
  * AUTHORED, NOT SEEDED BY THE AUTHOR: `roll` is drawn from the system's dice when the order is authored (rollOrder,
@@ -139,6 +140,9 @@ function candidate(leaves, k, ctx) {
   // the temperament: each present axis committed by its weight; at least one, drawn by weight
   const committed = {};
   for (const a of present) if (rng() < 0.3 + 0.55 * weights[a]) committed[a] = weights[a] * spread * heavy(rng);
+  // a concept that names axes is heard by every candidate: at least one of its strongest is turned
+  const named = present.filter((a) => weights[a] >= 1);
+  if (named.length && !named.some((a) => committed[a])) { const a = pick(rng, named); committed[a] = weights[a] * spread * heavy(rng); }
   if (!Object.keys(committed).length && present.length) {
     let t = rng() * present.reduce((s, a) => s + weights[a], 0), a = present[0];
     for (const x of present) { t -= weights[x]; if (t <= 0) { a = x; break; } }
@@ -213,17 +217,21 @@ function distance(a, b) {
 
 /** The n most dispersed of the pool: the first drawn among the boldest, then each the farthest from the design, the
  * picked and the rejected (a rejected place repels twice as hard). */
-function disperse(pool, n, rejected, rng, passes = () => true) {
+function disperse(pool, n, rejected, rng, passes = () => true, seen = []) {
   const origin = new Map();
   const live = pool.filter((c) => c.values.size);
   if (!live.length) return { picked: [], reserve: [] };
   const byNorm = [...live].sort((a, b) => distance(b.place, origin) - distance(a.place, origin));
   // the first among the boldest third that its kind would take (else the boldest that it would)
   const start = Math.floor(rng() * Math.max(1, Math.ceil(byNorm.length / 3)));
-  const first = [...byNorm.slice(start), ...byNorm.slice(0, start)].find(passes);
+  // (with variants shown before, the first is the one farthest from them and from the design)
+  const away = (c) => Math.min(distance(c.place, origin), ...seen.map((r) => distance(c.place, r)));
+  const order = seen.length ? [...byNorm].sort((a, b) => away(b) - away(a)) : [...byNorm.slice(start), ...byNorm.slice(0, start)];
+  const first = order.find(passes);
   if (!first) return { picked: [], reserve: [] };
   const picked = [first];
-  const score = (c) => Math.min(distance(c.place, origin), ...picked.map((p) => distance(c.place, p.place)), ...rejected.map((r) => distance(c.place, r) / 2));
+  // apart from the design, from the picked, from what was rejected (twice as hard) and from what was shown before
+  const score = (c) => Math.min(distance(c.place, origin), ...picked.map((p) => distance(c.place, p.place)), ...rejected.map((r) => distance(c.place, r) / 2), ...seen.map((r) => distance(c.place, r)));
   while (picked.length < n) {
     let best = null;
     const ranked = live.filter((c) => !picked.includes(c) && !c.refused).map((c) => [score(c), c]).sort((a, b) => b[0] - a[0]);
@@ -317,11 +325,15 @@ export function turnMangekyou(order) {
     c.place = placeOf(leaves, c.values, perAxis);
     pool.push(c);
   }
-  const rejectedPlaces = rejected.map((m) => {
+  const placeOfManifest = (m) => {
     const values = new Map();
     for (const leaf of leaves) { const v = valueAt(m, leaf.path); if (v !== undefined && v !== leaf.value) values.set(leaf.path, v); }
     return placeOf(leaves, values, perAxis);
-  });
+  };
+  const rejectedPlaces = rejected.map(placeOfManifest);
+  // what this design's earlier orders showed (the door finds them): a new order looks away from it, so the same ask
+  // twice is two kaleidoscopes; what was kept is the base, never repelled
+  const seen = (order.seen ?? []).map(placeOfManifest).filter((p) => p.size);
   // a candidate made whole (once), and the gate its kind keeps, when the order brings one (a refusal is kept, not thrown)
   const made = (c) => {
     if (!c.manifest) { c.manifest = structuredClone(base); for (const [path, value] of c.values) setAt(c.manifest, path, value); }
@@ -335,7 +347,7 @@ export function turnMangekyou(order) {
     if (why) refusals.push(String(why));
     return !why;
   };
-  const { picked, reserve } = disperse(pool, n, rejectedPlaces, diceOf(order.roll, pass, 'disperse'), passes);
+  const { picked, reserve } = disperse(pool, n, rejectedPlaces, diceOf(order.roll, pass, 'disperse'), passes, seen);
 
   const variantOf = (c, i) => {
     const manifest = structuredClone(made(c));
@@ -360,7 +372,7 @@ export function turnMangekyou(order) {
       version: MANGEKYOU_VERSION, by: order.by ?? 'user', roll: order.roll, n, at: at || null,
       concept: { text: order.concept ?? null, heard: read.heard, moods: read.moods, weights, lean: read.lean },
       team: { id: team.team, department: team.department, name: team.name, keep: team.keep, why: team.why },
-      pass: { id: pass, kept: kept.length, rejected: rejected.length, crossed, spread },
+      pass: { id: pass, kept: kept.length, rejected: rejected.length, crossed, spread, seen: seen.length },
       principles, reach,
       ...(refusals.length ? { refused: { count: refusals.length, first: refusals[0].slice(0, 300) } } : {}),
       ...(unreached.length ? { unreached, note: `the concept asks for ${unreached.join(', ')}, which this design holds nothing of` } : {}),

@@ -178,6 +178,17 @@ describe('routed to the team that owns the design', () => {
   });
 });
 
+describe('a new order looks away from what was shown', () => {
+  it('the variants shown before are not offered again, and every candidate hears the axis its concept names', () => {
+    const first = turn({ n: 4, concept: 'different shapes' });
+    for (const v of first.variants) expect(v.moves.silhouette).toBeDefined();
+    const again = turn({ n: 4, concept: 'different shapes', seen: first.variants.map((v) => v.manifest) });
+    expect(again.order.pass.seen).toBe(4);
+    const shown = new Set(first.variants.map((v) => JSON.stringify(v.patch)));
+    for (const v of again.variants) expect(shown.has(JSON.stringify(v.patch))).toBe(false);
+  });
+});
+
 describe('passes', () => {
   it('a kept variant is the next base, several kept are crossed, and a pass patch still applies to the design', () => {
     const first = turn({ n: 4 }).variants;

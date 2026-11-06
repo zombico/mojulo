@@ -39,3 +39,7 @@
   reads each minted variant's outline flat from three sides, each in its own frame so a shape is compared and not a
   size, and answers `outlines`: each variant against the design, the pair most alike, and what it says (two variants
   above the silhouette gate's ceiling read as one outline). Advisory: it stamps, it never refuses.
+- **The same ask twice is two kaleidoscopes.** Each order's variants are filed in a folder named for the design, and
+  the next order on it looks away from everything shown before (what is kept or rejected now aside); a replay (`roll`
+  given) is the order it replays. A concept that names an axis is heard by every variant: "different shapes" never
+  answers with a new fabric alone. "Different" asks for difference, not for a reroll.

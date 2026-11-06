@@ -214,6 +214,17 @@ describe('run_experiment_sweep — variations in words (a mangekyou order)', () 
     expect(b.variants.map((v) => v.patch)).toEqual(a.variants.map((v) => v.patch));
   });
 
+  it("files each order's variants under the design, and the next order looks away from them (a replay does not)", async () => {
+    const ref = await stored();
+    const first = await runExperimentSweepHandler({ ref, concept: 'colours', n: 2 });
+    expect(first.folder_ref.startsWith(`mk-${ref}-`)).toBe(true);
+    const second = await runExperimentSweepHandler({ ref, concept: 'colours', n: 2, mint: false });
+    expect(second.order.pass.seen).toBe(2);
+    const replay = await runExperimentSweepHandler({ ref, concept: 'colours', n: 2, mint: false, roll: first.order.roll });
+    expect(replay.order.pass.seen).toBe(0);
+    expect(replay.variants.map((v) => v.patch)).toEqual(first.variants.map((v) => v.patch));
+  });
+
   it('takes a pass from kept and rejected variants', async () => {
     const ref = await stored();
     const first = await runExperimentSweepHandler({ ref, n: 3 });

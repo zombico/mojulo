@@ -131,6 +131,9 @@ async function variationSweep({ ref, path, values, title }) {
     note: `${variants.length} variants of '${ref}' in folder ${folder.ref}; '${ref}' is unchanged. Keep one with update_sketch on its ref.` };
 }
 
+/** The folders a design's variations are filed in start with this, so a later order finds what was shown. */
+const folderPrefix = (ref) => `mk-${ref}-`;
+
 /** The stored manifest at a ref, or a refusal that names the role it was given for. */
 function storedManifest(ref, role) {
   if (typeof ref !== 'string' || !ref) throw new Error(`\`${role}\` holds sketch refs`);
@@ -162,7 +165,11 @@ async function mangekyouSweep(input) {
   if (typeof by !== 'string' || !by) throw new Error("`by` is who asks: 'user', or the department working its chapter");
   const kept = keep.map((r) => storedManifest(r, 'keep').manifest);
   const rejected = reject.map((r) => storedManifest(r, 'reject').manifest);
-  const turned = turnMangekyou({ manifest: base.manifest, concept, n, at, principles, kept, rejected, spread, roll: roll ?? rollOrder(), by });
+  // what this design's earlier orders showed (their folders are named for it), but what is kept or rejected now; a
+  // replay (`roll` given) is the order it replays, so it looks away from nothing new
+  const named = new Set([...keep, ...reject]);
+  const seen = roll !== undefined ? [] : SketchRepository.inFoldersStartingWith(folderPrefix(ref)).filter((row) => !named.has(row.ref)).map((row) => row.manifest).filter(Boolean);
+  const turned = turnMangekyou({ manifest: base.manifest, concept, n, at, principles, kept, rejected, seen, spread, roll: roll ?? rollOrder(), by });
   const order = { ...turned.order, from: { ref, title: base.title, kind: base.manifest.kind ?? null }, keep, reject };
   const keepVia = order.team.keep === 'design_game' ? `design_game({ ref: '${ref}', patch })` : `update_sketch({ ref: '${ref}', patch })`;
   const next = `Next pass: run_experiment_sweep({ ref: '${ref}', concept, keep: [refs you like], reject: [refs you do not] }). `
@@ -172,7 +179,7 @@ async function mangekyouSweep(input) {
 
   const { createSketchHandler } = await import('@/lib/mcp/tools/sketch-mint');
   const name = (title ?? `${base.title} · ${concept ?? 'variations'}`).slice(0, 120);
-  const folder = SketchFolderRepository.create({ name });
+  const folder = SketchFolderRepository.create({ name, ref: `${folderPrefix(ref)}${rollOrder().toString(36)}` });
   const variants = [], refused = [];
   const queue = [...turned.variants], reserve = [...turned.reserve];
   while (queue.length && variants.length < turned.variants.length) {

@@ -21,7 +21,9 @@ const LEXICON = [
   { re: /\b(textures?|surfaces?|finish\w*|materials?|treatments?|skins?|coats?|worn|weather\w*|rust\w*|polish\w*|glossy|matte|corrupt\w*|rott\w*|crystal\w*|frost\w*|fire|flam\w*|venom\w*|elemental|ooz\w*|mutat\w*)\b/i, axes: { surface: 1 } },
   { re: /\b(details?|ornate|ornament\w*|decorat\w*|elaborate|fancy|regal|royal|elite|boss|champion)\b/i, axes: { detail: 1 }, lean: { detail: 1 } },
   { re: /\b(plain|simple|stripped|minimal\w*|bare|grunt|basic|cheap)\b/i, axes: { detail: 1 }, lean: { detail: -1 } },
-  { re: /\b(re-?rolls?|random\w*|wild\w*|different|anything|surprise|chaos|kaleidoscope|mangekyou)\b/i, axes: { roll: 1, colour: 0.5, silhouette: 0.5, surface: 0.5 } },
+  { re: /\b(re-?rolls?|random\w*|surprise|chaos|kaleidoscope|mangekyou)\b/i, axes: { roll: 1, colour: 0.5, silhouette: 0.5, surface: 0.5 } },
+  // "different" asks for difference, not for an axis: it opens the common ones a little and names none
+  { re: /\b(different|anything|wild\w*|alternatives?)\b/i, axes: { colour: 0.5, silhouette: 0.5, surface: 0.5 } },
   { re: /\b(tiers?|ranks?|factions?|teams?|famil(y|ies)|variants?|versions?|takes?|options?)\b/i, axes: { colour: 0.6, surface: 0.5, detail: 0.4, size: 0.3 } },
 ];
 
