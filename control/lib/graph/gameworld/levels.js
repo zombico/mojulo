@@ -111,6 +111,7 @@ import { gradeOfGame } from './grade.js';
 import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
 import { roleOf } from '../era/stocking.js';
 import { camoForSetting } from '../car-designer/livery-cut.js';
+import { gridEnds } from '../level/grid-ends.js';
 
 // the world's juice (juice.js): its effects' floor, composed from its register and its game type, on every level; none
 // written, nothing laid
@@ -139,6 +140,8 @@ export function gameStages(world) {
     if (R.style?.hour !== undefined) hours[level] = R.style.hour;
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
     if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: levelBuildingStage(G, R, level) }); continue; }
+    // a glyph-map level is one stage: the whole level one world on one page (level/grid-scene.js), walked end to end
+    if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
     if (R.geotown) {
       out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...(R.geotown.hour !== undefined ? { hour: R.geotown.hour } : {}), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });
@@ -395,7 +398,7 @@ export function climbRoute(manifest) {
 
 export function stageEnds(manifest) {
   const key = JSON.stringify(manifest);
-  if (!ENDS.has(key)) { if (ENDS.size >= ENDS_KEPT) ENDS.delete(ENDS.keys().next().value); ENDS.set(key, manifest.kind === 'geocube' && manifest.show === 'geotown' ? geotownEnds(manifest) : readEnds(manifest)); }
+  if (!ENDS.has(key)) { if (ENDS.size >= ENDS_KEPT) ENDS.delete(ENDS.keys().next().value); ENDS.set(key, manifest.kind === 'map' && manifest.level?.grid ? mapEnds(manifest) : manifest.kind === 'geocube' && manifest.show === 'geotown' ? geotownEnds(manifest) : readEnds(manifest)); }
   return ENDS.get(key);
 }
 function readEnds(manifest) {
@@ -464,6 +467,19 @@ function readEnds(manifest) {
   const townDoors = anchors.filter((a) => (a.kind === 'house' || a.kind === 'building') && /^(house|building)-town-/.test(a.id) && Array.isArray(a.at) && Array.isArray(a.N))
     .map((a) => ({ id: a.id.replace(/^(house|building)-/, ''), use: a.use, at: a.at, N: a.N, enter: a.enter ?? null, ...(Array.isArray(a.rooms) ? { rooms: a.rooms } : {}) }));
   Object.defineProperty(out, 'townDoors', { value: townDoors, enumerable: false });
+  return out;
+}
+
+// A GLYPH MAP'S ENDS (a glyph-map level, level/grid-ends.js): read from its grid and its land, the page not built; its
+// places' doors the town's (what the folk stand by)
+function mapEnds(manifest) {
+  const E = gridEnds(manifest.level), ground = E.ground;
+  const out = { ...E };
+  Object.defineProperty(out, 'ground', { value: ground, enumerable: false });
+  Object.defineProperty(out, 'surface', { value: ground, enumerable: false });
+  Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
+  Object.defineProperty(out, 'colliders', { value: [], enumerable: false });
+  Object.defineProperty(out, 'townDoors', { value: E.places.filter((p) => p.use).map((p) => ({ id: p.id, use: p.use, at: p.at, N: p.N, enter: null })), enumerable: false });
   return out;
 }
 

@@ -58,3 +58,9 @@
 - **A glyph map's open land is lighter.** A tile with no path and nothing standing on it lays its ground at a 1 m cell
   (LAND_CELL), twice the kit's, where nobody walks; the one grass field takes it on the finest spacing (a coarser tile's
   heights and cells written into it). On a 48-tile map: about a fifth fewer faces, the page about a quarter lighter.
+- **A level as one glyph map.** A gameworld level may be written as a glyph map (`levels.<id>.glyphs: { rows, key?,
+  regions?, tile?, kit? }`, beside nothing else: the map is the level): it is ONE stage, the map kind's page, and its
+  ends are read from the grid and the level's land without building it (level/grid-ends.js): the hero set down at the
+  path end farthest from the goal (a place whose key says `goal`), the exit at the goal's door, the tiles between as
+  beats, each side way's end a pocket, each place by the way a landmark, each beat in its region; the places' doors are
+  the town's, where the folk stand. The page and its ends set the walk down at the same end (grid.js `mapStart`).

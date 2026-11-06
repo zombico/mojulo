@@ -279,6 +279,8 @@ function worldCard() {
     '  civilization? } | { ref } | { complex } for the walk: played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
     '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
+    '  or glyphs: { rows, key?, regions?, tile? }: one world on one page as a glyph grid (# path, . land, a letter a place { use, goal? };',
+    '    regions: a second grid, each { name, rise?, biocube? }), walked from its far end to the goal\'s door.',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'front: the game\'s title, start menu and credits (card front).',

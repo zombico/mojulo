@@ -158,6 +158,32 @@ function readRegions(g, nr, nc, at) {
   return { rows, key: g.key };
 }
 
+/** The tiles a walk from `from` reaches along the paths (through places a path reaches), each its distance in tiles and
+ *  the tile it came from: { dist: Map(id → n), prev: Map(id → cell | null) }, ids `r,c`. */
+export function walkFrom(G, from) {
+  const id = (x) => `${x.r},${x.c}`, net = new Map(G.cells.filter((x) => x.kind === 'path' || (x.kind === 'place' && x.open?.length)).map((x) => [id(x), x]));
+  const dist = new Map([[id(from), 0]]), prev = new Map([[id(from), null]]), queue = [from];
+  while (queue.length) {
+    const x = queue.shift();
+    for (const s of x.open ?? []) { const y = net.get(`${x.r + SIDES[s][0]},${x.c + SIDES[s][1]}`); if (y && !dist.has(id(y))) { dist.set(id(y), dist.get(id(x)) + 1); prev.set(id(y), x); queue.push(y); } }
+  }
+  return { dist, prev };
+}
+/** The map's GOAL: the place whose key says `goal` (and a path reaches), or null. */
+export const mapGoal = (G) => G.cells.find((x) => x.kind === 'place' && x.open?.length && x.place && typeof x.place === 'object' && x.place.goal) ?? null;
+/** Where a walk of the map STARTS: the path end farthest along the paths from its goal (the far side of the map from
+ *  where it is going), else its first path end, else its first path tile. */
+export function mapStart(G) {
+  const ends = G.cells.filter((x) => x.kind === 'path' && x.shape === 'end'), goal = mapGoal(G);
+  if (goal && ends.length) { const { dist } = walkFrom(G, goal), d = (x) => dist.get(`${x.r},${x.c}`) ?? -1; return ends.reduce((m, x) => (d(x) > d(m) ? x : m)); }
+  return ends[0] ?? G.cells.find((x) => x.kind === 'path') ?? null;
+}
+
+/** Where a place's building stands its door on its tile (the tile's own frame, x east, y north): the middle of the
+ *  side its path reaches, PLACE_DOOR_IN metres in, facing out toward the path. */
+export const PLACE_DOOR_IN = 5;
+export const placeDoors = (T) => ({ n: { x: T / 2, y: T - PLACE_DOOR_IN, facing: '+y' }, s: { x: T / 2, y: PLACE_DOOR_IN, facing: '-y' }, e: { x: T - PLACE_DOOR_IN, y: T / 2, facing: '+x' }, w: { x: PLACE_DOOR_IN, y: T / 2, facing: '-x' } });
+
 /** A tile's centre on the level's frame (north up: columns east, rows south). */
 export const tileCentre = (G, r, c) => [(c + 0.5) * G.tile, -(r + 0.5) * G.tile];
 /** The middle of a tile's side on the level's frame: where its path crosses it. */

@@ -178,6 +178,7 @@ import { readGeotown } from '../geotown/read.js';
 /** The uses a town level opens at their doors when it names none: a shop, the hall (an old town's church), a dwelling. */
 export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 import { readBuildingParked } from '../vehicle-registry/parked.js';
+import { readGrid } from '../level/grid.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -233,7 +234,9 @@ const ID = /^[a-z][a-z0-9-]{0,47}$/;
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'juice', 'tempo', 'grade', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'moves', 'foes', 'story', 'quests', 'front', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs'];
+// a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
+const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'kit', 'biocube', 'grass', 'wind', 'shrubs'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -568,7 +571,15 @@ export function readGameworld(W) {
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
-    if (L.geotown !== undefined) {
+    if (L.glyphs !== undefined) {
+      // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
+      // end to end on one page; the map is its own ground
+      if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a glyph-map level is the map alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena beside it`);
+      if (!isObj(L.glyphs)) throw new Error(`gameworld: ${at}.glyphs is { rows, key?, regions?, tile?, kit?, … } (a level written as a glyph grid: level/grid.js)`);
+      for (const k of Object.keys(L.glyphs)) if (!GLYPHS_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.glyphs.${k} is not a glyph map's setting (settings: ${GLYPHS_LEVEL_KEYS.join(', ')})`);
+      const { tile, rows, key, regions } = L.glyphs;
+      try { readGrid({ ...(tile !== undefined ? { tile } : {}), rows, ...(key !== undefined ? { key } : {}), ...(regions !== undefined ? { regions } : {}) }, 'glyphs'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
+    } else if (L.geotown !== undefined) {
       // a geotown level: a neighbourhood (geotown/: its pattern, its streetscape, a segment or a neighbourhood), drawn on
       // the level's geocube and walked from its streets; the town is its own ground
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a geotown level is the town alone: no walk, building, city, roadway, airspace, runner, places, ground or arena`);
@@ -841,6 +852,12 @@ export function resolveLevel(world, id) {
     // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
     const { map = {}, ground = {}, course = true, space, assist } = L.airspace, inSpace = isSpace(L.airspace);
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}) } };
+  }
+  // a glyph-map level: the map's level as the map kind takes it (level/grid-scene.js), its seed the level's
+  if (L.glyphs) {
+    const { tile, rows, key, regions, kit = 'isekai-meadow', ...words } = L.glyphs;
+    const grid = { ...(tile !== undefined ? { tile } : {}), rows, ...(key !== undefined ? { key } : {}), ...(regions !== undefined ? { regions } : {}) };
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, glyphs: { kit, seed: seed >>> 0, grid, ...words } };
   }
   // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh
   // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light

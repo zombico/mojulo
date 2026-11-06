@@ -14,7 +14,7 @@
  *
  * A PLACE (a key letter): `{ use: <a building program> , …the building's own words }` (era/stage-buildings.js: a
  * dwelling, a shop, a tavern, a temple…) stands on its tile, its door at the middle of the side its path reaches, inset
- * DOOR_IN, facing the path; kept whole however far it reaches (a tile clips only its outdoor dress to its square).
+ * PLACE_DOOR_IN (grid.js), facing the path; kept whole however far it reaches (a tile clips only its outdoor dress to its square).
  *
  * THE LAWS (`map.laws`, measured on the page as built: the proof it is one level): `one-page` every tile in this one
  * payload; `seams` along every edge two tiles share their ground stands at one height from both sides (each tile's own corners on
@@ -28,14 +28,12 @@
  * into a rim of hills RIM metres deep, from the land's own height at the border, so the world's edge reads as the
  * valley's sides, never as a drop into the sky.
  */
-import { readGrid, tileCentre, REGION_WORDS } from './grid.js';
+import { readGrid, tileCentre, REGION_WORDS, placeDoors, mapStart } from './grid.js';
 import { tilePath } from '../era/out-tile.js';
 import { frameOf, placed, ringTheMap } from './map-scene.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
-const DOOR_IN = 5;
-// a building's door on its tile: at the middle of the side its path reaches, inset, facing out toward the path
-const DOOR = (T) => ({ n: { x: T / 2, y: T - DOOR_IN, facing: '+y' }, s: { x: T / 2, y: DOOR_IN, facing: '-y' }, e: { x: T - DOOR_IN, y: T / 2, facing: '+x' }, w: { x: DOOR_IN, y: T / 2, facing: '-x' } });
+const DOOR = placeDoors;
 export const RIM = Object.freeze({ deep: 70, rise: 18, step: 6, wall: 6 });
 export const SEAM_TOL = 0.3;
 export const SEAM_SHADE = 0.04, SEAM_SHADE_SHARE = 0.08;   // (a dense wood on small tiles: ~6% left where a shadow's edge crosses; ~24% when a tile shades only itself)
@@ -192,8 +190,24 @@ function regionsOf(G) {
 }
 
 export async function assembleGridScene(m, ctx = {}, { buildStage, tileCasters } = {}) {
+  if (!buildStage) {
+    const [{ WORLD_KINDS }, { isekaiTileCasters }] = await Promise.all([import('../worlds/world-kinds.js'), import('../era/isekai.js')]);
+    return gridScene(m, ctx, { buildStage: (manifest) => WORLD_KINDS.stage.resolve(manifest, ctx), tileCasters: tileCasters ?? isekaiTileCasters });
+  }
+  // (a builder that answers later, a test's: every tile built first, then laid as the sync core lays them; with no
+  // casters handed between tiles, each tile's manifest does not hang on another's build)
+  if (tileCasters) throw new Error('grid-scene: a test\'s own builder takes no casters');
+  const built = new Map();
+  gridScene(m, ctx, { buildStage: (manifest) => { built.set(JSON.stringify(manifest.tile.origin), manifest); return { faces: [], walk: {} }; }, dry: true });
+  for (const [k, manifest] of built) built.set(k, await buildStage(manifest));
+  return gridScene(m, ctx, { buildStage: (manifest) => built.get(JSON.stringify(manifest.tile.origin)) });
+}
+
+/** The glyph map's page, built synchronously: `buildStage` the stage kind's own (sync) builder, `tileCasters` the kit's
+ *  isekaiTileCasters (or none). What reads a level's ends at once (gameworld/levels.js) builds it so. */
+export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = false } = {}) {
   const lv = m.level, G = readGrid(lv.grid, 'level.grid'), T = G.tile, seed = lv.seed ?? 1;
-  const build = buildStage ?? (async (manifest) => (await import('../worlds/world-kinds.js')).WORLD_KINDS.stage.resolve(manifest, ctx));
+  const build = buildStage;
   const out = { faces: [], repeats: [], cutouts: [], lights: [], anchors: [], colliders: [], textures: {}, resample: {} };
   const grass = [], cells = [];
   let first = null;
@@ -214,7 +228,7 @@ export async function assembleGridScene(m, ctx = {}, { buildStage, tileCasters }
   // THE SHADOWS ACROSS THE SEAMS: every tile's trees and boulders placed first (as its build will place them; a place's
   // tile none: its building clears its ground), so each tile is built with its neighbours' within reach casting on it
   // (trees within CAST_REACH of its square, boulders a third of that)
-  const castersOf = tileCasters ?? (buildStage ? null : (await import('../era/isekai.js')).isekaiTileCasters);
+  const castersOf = tileCasters;
   const standing = [], stones = [];
   if (castersOf && /^isekai/.test(lv.kit ?? 'isekai-meadow')) for (const cell of G.cells) {
     if (cell.kind === 'place') continue;
@@ -237,7 +251,7 @@ export async function assembleGridScene(m, ctx = {}, { buildStage, tileCasters }
       if (castRocks.length) manifest.tile.castRocks = castRocks;
       if (castFaces.length) manifest.tile.castFaces = castFaces;
     }
-    const payload = await build(manifest);
+    const payload = build(manifest);
     payloads.set(own, payload);
     if (castersOf && cell.kind === 'place') for (const f of payload.faces || []) {
       if (!Array.isArray(f.corners) || f.corners.length < 3 || !CASTS.test(f.group || '')) continue;
@@ -246,6 +260,7 @@ export async function assembleGridScene(m, ctx = {}, { buildStage, tileCasters }
       if (mid[0] >= at[0] && mid[0] <= at[0] + T && mid[1] >= at[1] && mid[1] <= at[1] + T) handed.push({ corners, mid, _cell: own });
     }
   }
+  if (dry) return null;
   for (const cell of G.cells) {
     const at = squareOf(cell), payload = payloads.get(`${cell.r},${cell.c}`), F = frameOf({ at, heading: Math.PI / 2 }, 0);
     const P = placed(payload, F, `${cell.r},${cell.c}`, { band: [0, T, T], backdrop: !first, outdoorOnly: true });
@@ -260,8 +275,9 @@ export async function assembleGridScene(m, ctx = {}, { buildStage, tileCasters }
     if (!first) first = { payload, F };
     cells.push({ r: cell.r, c: cell.c, glyph: cell.glyph, kind: cell.kind, ...(cell.shape ? { shape: cell.shape } : {}), ...(cell.open?.length ? { open: cell.open } : {}), ...(cell.region ? { region: cell.region } : {}), at });
   }
-  // the map's spawn: its first path END (where a walk starts), else its first path tile, at its path's middle
-  const start = G.cells.find((c) => c.kind === 'path' && c.shape === 'end') ?? G.cells.find((c) => c.kind === 'path');
+  // the map's spawn: where a walk of it starts (grid.js mapStart: the path end farthest from its goal, else its first),
+  // at its path's middle
+  const start = mapStart(G);
   const sx = (start.c + 0.5) * T, sy = -(start.r + 0.5) * T;
   const R = first.payload, keep = ['viewBox', 'bg', 'haze', 'sky', 'glow', 'pack', 'ao', 'fabric', 'vertexContrast', 'creases', 'occlusion', 'painted', 'shadows', 'lightTier', 'nonBakeable', 'weather'];
   const page = Object.fromEntries(keep.filter((k) => R[k] !== undefined).map((k) => [k, R[k]]));
