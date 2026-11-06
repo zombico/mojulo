@@ -23,3 +23,13 @@
   crosses a tile's edge at its middle, so two tiles' paths always meet. A path tile's SHAPE is solved from its path
   neighbours, never written: one edge open an end, two opposite an I, two adjacent an L, three a T, four an X; a place a
   path reaches opens toward it. The paths must be one network, walked end to end.
+- **A glyph map built as one page.** Each tile of a glyph grid is built by the kit's own builder from a TILE SITE
+  (era/out-tile.js `outTileSite`, a stage's `tile` in place of its `trail`): its square of the level's ONE land (the
+  level's height read in the tile's own place, so tiles agree along every shared edge), its path's solved shape from
+  each open edge's middle (an I straight through, an L a quarter arc round its corner, a T or an X meeting at the
+  middle, an end stopping there), the path's bed eased level as a trail's. The kit's builder lays it as it lays a trail:
+  the ribbon along each of the path's polylines (nature.js `trailFaces`), the boulders, gate stones and pebbles along
+  the path wherever it runs (`pathAlong`; a trail's stones exactly where they were), grass, rocks and trees round it; a
+  tile with no path gets no path. The map's page (level/grid-scene.js, the `map` kind with a `level.grid`) sets every
+  tile at its square, clips it there, writes every tile's grass into ONE field over the map, rings the map with the
+  first tile's horizon, and spawns at the first path end.

@@ -51,6 +51,7 @@ import { grassLadder } from '../vegetation/grass.js';
 import { resolveGrassContact, validateGrassContact } from '../vegetation/grass-contact.js';
 import { wildflowerLadder, flowerRamp, WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
+import { outTileSite } from './out-tile.js';
 import { waterCameras, beachOf } from './out-water.js';
 import { boundFaces } from './out-bounds.js';
 import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP, SOLID_GROUP } from './ikebana-place.js';
@@ -431,7 +432,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the trail's dress (era/trail-dress.js): its surface, its rubble, its patches
   // (`dirt`: the dirt trail; `inDirt`: it, or an outdoor surface laid in the dirt, its edge the dirt trail's)
   const TD = readTrailDress(manifest.trail), dirt = TD.surface === 'earth', inDirt = dirt || TD.surface in IN_DIRT;
-  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), keep), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
+  // (a TILE of a glyph map, era/out-tile.js: its square of the level's one land, its path's shape through it)
+  const site = reserveSite(manifest.tile !== undefined ? outTileSite(st, manifest.tile, seed) : manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), keep), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // ── the geometry ──
   // (a polygon land's rock drawn toward planes, `shading.facet`: on the faces' own heights, as the island's; the land the
   // rest is placed on keeps its own)
@@ -786,7 +788,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the TRAIL BLEND: the soil's rim out over the grass and the grass's creep in over the trail, each in the stop nearest
   // the baked colour of the lane it carries on — the trail's along the edge for the rim, the fringe's for the creep —
   // so the blend is the two materials meeting, not a third laid between them
-  if (st.trailBlend && !SH) {
+  if (st.trailBlend && !SH && !site.tile) {   // (a glyph map's tile, out-tile.js: its ribbon unrimmed for now)
     const rb = baked.slice(st.ground ? 0 : bare.length).slice(0, ribbon.length), strips = trailRims(st, site, seed);
     if (strips.length !== ribbon.length) throw new Error('isekai: the trail blend steps with the ribbon (trailBlend.step 0.75)');
     // per station the ribbon is [fringe −, trail −, trail +, fringe +] and the strips [bleed −, over −, bleed +, over +];

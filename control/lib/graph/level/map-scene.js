@@ -28,7 +28,7 @@ import { mapLevel, placeOf } from './map.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 // a section's frame on the level: its turn (φ = heading − 90°: its +y onto its heading) and its lift
-function frameOf(place, lift) {
+export function frameOf(place, lift) {
   const phi = place.heading - Math.PI / 2, c = Math.cos(phi), s = Math.sin(phi);
   const P = (p) => { const q = placeOf(place, p); return [r5(q[0]), r5(q[1]), r5((p[2] ?? 0) + lift)]; };
   const V = (v) => [r5(v[0] * c - v[1] * s), r5(v[0] * s + v[1] * c), v[2]];
@@ -55,7 +55,7 @@ const BACKDROP = /:(ridge|cloud)$/;
 // a section's payload moved onto the level: its faces, repeats, cutouts, lights, anchors and colliders. `band` (a trail's
 // own [x0, x1, D]): what lies past it (the apron a page lays so its edge never shows) is the map's to fill, so a face or
 // an instance whose centre stands outside the band is dropped; `backdrop`: the far ridges and clouds kept or dropped
-function placed(payload, F, node, { band = null, backdrop = true } = {}) {
+export function placed(payload, F, node, { band = null, backdrop = true } = {}) {
   const inBand = (x, y) => !band || (x >= band[0] && x <= band[1] && y >= 0 && y <= band[2]);
   const keepFace = (f) => {
     if (f.group && BACKDROP.test(f.group)) return backdrop;
@@ -172,7 +172,7 @@ function landBetween(faces, bands, fill) {
   return out;
 }
 // the root's horizon moved to ring the whole map: its centre on the map's, pushed out past the farthest band
-function ringTheMap(faces, bands) {
+export function ringTheMap(faces, bands) {
   const back = faces.filter((f) => f.group && BACKDROP.test(f.group));
   if (!back.length) return;
   let cx = 0, cy = 0, n = 0;
@@ -191,6 +191,8 @@ function ringTheMap(faces, bands) {
 
 export async function assembleMapScene(m, ctx = {}, { buildStage } = {}) {
   if (!m || !m.level) throw new Error('map: a map is { level: <a level laid as a map> }');
+  // (a level written as a glyph grid: its square tiles, level/grid-scene.js)
+  if (m.level.grid) return (await import('./grid-scene.js')).assembleGridScene(m, ctx, { buildStage });
   const L = mapLevel(readLevel({ ...m.level, layout: 'map' }));
   const build = buildStage ?? (async (manifest) => (await import('../worlds/world-kinds.js')).WORLD_KINDS.stage.resolve(manifest, ctx));
   const byNode = {}, lifts = {}, sections = [];
