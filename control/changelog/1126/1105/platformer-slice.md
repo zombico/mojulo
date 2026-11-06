@@ -51,6 +51,11 @@
   the stage's beats, so its foes (at their density) stand on them. Its laws join the level's readout (each gap's width,
   rise and what its move reaches), and a card teaches it (`gameworld-course`). It plays from the side or in 3D, on the
   same level, lit and dressed as every game's.
-- **A boss when the creator asks** (planned). The level's requisition adds the boss and its fight, and the win is written
-  as one of three kinds: a jobber (thrown away), a rival or a boss (each a story hook). The kind changes nothing in the
-  fight; the next level's build reads it, and the log keeps how the story accrues.
+- **A platformer's first level.** `gameworld/first-level.js` lays it as the team's output unit and the production's
+  slice: four trails in teaching order, basic (rolling, no foes), meet (one flat floor, foes sparse), advanced
+  (climbing, no foes) and gauntlet (foes dense), each its course and its foes' density, every gap sized by the hero's
+  reach. Laid in a world, every trail's course holds its laws as built, and the foes stand on the floors.
+- **A boss when the creator asks.** A fifth trail, its course one long floor, and the level's `goal: { boss: { win } }`:
+  the boss's fall is a win of one of three kinds, a jobber (thrown away), a rival or a boss (each a story hook). The kind
+  changes nothing in the fight, its reward or its exit; `storyWins` reads the story so far in the book's order, for the
+  next level's build. A level's boss goal is still `true` where no kind is said.

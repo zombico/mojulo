@@ -755,7 +755,9 @@ function courseCard() {
     '',
     'THE FIRST LEVEL, the slice: five trail nodes, course { basic, meet, advanced, gauntlet, boss? } a node each, and the',
     'foes\' density a node each (levels.<id>.foes.density: { meet: \'sparse\', gauntlet: \'dense\' }, gameworld-foes). A boss',
-    'only when the creator asks. Side (camera: side) runs the trail\'s line; 3D runs it free: camera follow | orbit.',
+    'only when the creator asks: a fifth node, course { teach: boss }, and goal: { boss: { win: jobber | rival | boss } }: a jobber',
+    'thrown away, a rival or a boss a story hook. The win changes no fight; the next level reads it, the story keeps it.',
+    'Side (camera: side) runs the trail\'s line; 3D runs it free: camera follow | orbit.',
     'The readout\'s laws (course:gap-n) say each gap\'s width, its rise and what the move it teaches reaches; a fall into',
     'a gap puts the hero back on the floor it left. Its floors are the stage\'s beats: what stands on it stands on them.',
   );
