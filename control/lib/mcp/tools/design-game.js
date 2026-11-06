@@ -16,7 +16,7 @@
 import { NEW_GAME_SCREEN } from '@/lib/graph/game/screen';
 import { registerTool, clientTakesJobAgents } from '@/lib/mcp/server';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
-import { shareForContext } from '@/lib/mcp/hosts/handoff';
+import { shareForContext, workshopForContext } from '@/lib/mcp/hosts/handoff';
 import { shareBrief } from '@/lib/graph/game/share-offer.js';
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -448,6 +448,10 @@ function readout(ref, world, context = {}) {
   // the next moves as step ids: what each means is the gameworld-next card (get_game_vocab),
   // read once, not re-said on every call
   const mode = world.mode ?? 'gated', next = [];
+  // WHERE IT IS SEEN (game/workshop.js): a game whose level outgrows this host's page limit is played on the operator's
+  // machine; said first, on every readout while it holds, so the operator chooses before the chapter is built
+  const ws = workshopForContext(context, world);
+  if (ws) next.push({ step: 'workshop', ...ws });
   const open = parts.filter((p) => p.status === 'proposed' || p.status === 'changed' || p.status === 'revise');
   if (mode === 'gated' && open.length) next.push({ step: 'review', parts: open.map((p) => p.id), card: 'gameworld-next' });
   if (mode === 'autonomous' && parts.some((p) => p.status === 'revise')) next.push({ step: 'advised', parts: parts.filter((p) => p.status === 'revise').map((p) => p.id), card: 'gameworld-next' });

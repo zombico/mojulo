@@ -127,7 +127,7 @@ console.info = console.error;
 // where scripts/ sits inside the npx cache (house-compose-language). Allowlisted to the
 // ones that ship in `files`; the child inherits stdio and the paths env resolved above.
 // `script` is one more reserved word on the bin.
-const SCRIPT_COMMANDS = ['bake-world-gi', 'blender-bake', 'export-blender', 'visual-gate'];
+const SCRIPT_COMMANDS = ['bake-world-gi', 'blender-bake', 'export-blender', 'visual-gate', 'pack-data'];
 if (process.argv[2] === 'script') {
   const name = process.argv[3];
   if (!SCRIPT_COMMANDS.includes(name)) {

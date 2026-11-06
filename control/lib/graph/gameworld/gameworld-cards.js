@@ -1004,6 +1004,39 @@ function genreCard(id) {
   );
 }
 
+// THE WORKSHOP (game/workshop.js): where a big game is made and where it is seen, said before the work commits. Served by
+// id from the readout's `workshop` step, not listed with the rail.
+function workshopCard() {
+  return lines(
+    'THE WORKSHOP — where this game is made, and where it is seen. Say it BEFORE the chapter is built, not after.',
+    '',
+    'When: design_game\'s readout carries `next: workshop` (a level estimated over this host\'s page limit: a glyph map of',
+    'many tiles, a long chapter on one map), or you plan one yourself on a cloud box (Claude Code on the web, a cloud task).',
+    'Tell the creator plainly, before the run: this box BUILDS the game and runs its machine checks (the laws, the walk,',
+    'the desktop smoke), but it cannot SHOW a level that size here: a page reaches them only under the limit (`says` names',
+    'it), it draws in software (no GPU: it checks, it does not play), and it forgets the work when the session ends.',
+    'Then ask which path, and hold to the answer for the rest of the work:',
+    '',
+    '  local     (recommended) install mojulo on their laptop and carry the work over. Here: `npx mojulo script pack-data`',
+    '            (the repo: node scripts/pack-data.mjs) writes the database as ONE gzipped file; send it. There: gunzip it as',
+    '            the data folder\'s mojulo-lite.db (an install: ~/.mojulo/data; the repo: control/data). Seen at speed on their',
+    '            GPU; each change on the next reload or export, nothing zipped again. Code: commit and push here; they pull.',
+    '  desktop   keep building here; each look is export_game { ref, target: \'desktop\' } zipped and downloaded, then',
+    '            npm install && npm start. Every look is a new download: say so, and say the checks still run here.',
+    '  small     keep each level under the limit (fewer tiles, open land instead of dressed tiles, a lighter biocube) and',
+    '            play it here as a page.',
+    '',
+    'Whatever the path: before a long session ends, pack the data (the box is ephemeral); `surface` unknown (MOJULO_SURFACE',
+    'unset) means the advice names the box as a possibility: ask where they are working if it is not plain. On their own',
+    'machine nothing here applies and the readout says nothing.',
+  );
+}
+
+/** The workshop card by id (`gameworld-workshop`), or null. Served by id from the readout's step, not listed. */
+export function workshopCardById(id) {
+  return id === 'gameworld-workshop' ? { id, name: 'The workshop', summary: 'where a big game is made and where it is seen: the laptop, a desktop download, or kept small', when: 'a game too big to see in a cloud box, a level over the page limit, where do I play it', scope: 'rail', body: workshopCard() } : null;
+}
+
 /** One genre's card by id (`gameworld-intent-<genre>`), or null. Served by id, not listed with the rail. */
 export function genreCardById(id) {
   const genre = typeof id === 'string' && id.startsWith('gameworld-intent-') ? id.slice('gameworld-intent-'.length) : null;

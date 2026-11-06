@@ -40,8 +40,9 @@
  *                            local     { page, file } — the operator's own machine
  *                            box       { name, page, file, pageMaxBytes?,
  *                                        fileMaxBytes?, downloadExtensions?,
- *                                        cdns?, egress, ephemeral } — the host's
- *                                        remote box, when it has one
+ *                                        cdns?, egress, ephemeral, gpu? } — the host's
+ *                                        remote box, when it has one (`gpu`: false where
+ *                                        WebGL there is drawn in software; absent: not known)
  *                          `page` ∈ HANDOFF_PAGE_DOORS, `file` ∈ HANDOFF_FILE_DOORS.
  *                          local.label optionally names the connected-server surface.
  *                          session-file/server-file describe a transfer still required,
@@ -100,6 +101,7 @@ function validateHandoff(file, handoff) {
     if (key === 'box') {
       if (!row.name) throw new Error(`Host profile ${file}: handoff.box.name is required (the note names the box).`);
       if (typeof row.ephemeral !== 'boolean') throw new Error(`Host profile ${file}: handoff.box.ephemeral must be a boolean.`);
+      if (row.gpu != null && typeof row.gpu !== 'boolean') throw new Error(`Host profile ${file}: handoff.box.gpu must be a boolean (absent: not known).`);
     }
   }
   return handoff;

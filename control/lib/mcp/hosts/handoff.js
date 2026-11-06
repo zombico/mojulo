@@ -26,6 +26,7 @@ import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { hostProfileForAdapter, getHostProfile, hostHandoff } from './registry.js';
 import { pluginProfileActive } from '../plugin-profile.js';
 import { shareOffer } from '../../graph/game/share-offer.js';
+import { gameWeight, workshopAdvice } from '../../graph/game/workshop.js';
 
 export const SURFACES = new Set(['local', 'box']);
 
@@ -284,4 +285,11 @@ export function handoffForContext(context, artifact, env = process.env) {
 export function shareForContext(context, game, env = process.env) {
   const host = resolveHandoffHost(context, env);
   return shareOffer({ ...game, table: hostHandoff(host), surface: resolveHandoffSurface(context, env) });
+}
+
+/** Where a world's game can be made and seen on this host (../../graph/game/workshop.js), before it is built: the same
+ * host and surface resolution as the share offer. null where nothing needs saying. */
+export function workshopForContext(context, world, env = process.env) {
+  const host = resolveHandoffHost(context, env);
+  return workshopAdvice({ box: hostHandoff(host)?.box ?? null, surface: resolveHandoffSurface(context, env), weight: gameWeight(world) });
 }
