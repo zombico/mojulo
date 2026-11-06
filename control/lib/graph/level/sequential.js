@@ -39,6 +39,7 @@ export function sequentialLevel(recipe) {
   let street = G.paint?.domain ? geocubeTown(G.paint.cube, G.paint.domain.domain) : null;
   for (const id of order) {
     const n = G.nodes[id];
+    if (n.section === 'junction') throw new Error(`level: sequential: '${id}' is a junction; a junction is laid by the map layout`);
     if (prev && prev.section !== 'trail') throw new Error(`level: sequential: '${id}' follows the ${prev.section} '${prev.node}'; a section follows a trail (nothing follows a ${prev.section} yet)`);
     let manifest;
     if (n.section === 'trail') {
