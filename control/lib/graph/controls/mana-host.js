@@ -21,6 +21,9 @@
  *   While a screen is up the menu holds the input: a key it knows is taken in the capture phase (the game's own
  *   listeners never see it), and every pad and driver acts on its press edges, what was held as the screen opened not
  *   acting in it. With no screen up, nothing is taken: play has the devices.
+ *   The keyboard's sane defaults: the scheme's slots and its `also` (the keypad, Tab and Shift+Tab, the Page keys); a
+ *   held key repeats a move and never a pick or a back; a chord (Ctrl, Alt, Meta) stays the browser's; and with a text
+ *   entry in focus the keys type into it (rt.type), Backspace and Delete erase, Enter is done.
  */
 export function buildManaHost() {
   const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -37,13 +40,31 @@ export function buildManaHost() {
       return true;
     };
 
+    // a held key repeats a move (a long list scrolls, a slider runs), never a pick or a back: a held Enter buys once, a
+    // held Esc leaves one screen
+    const REPEATS = { up: 1, down: 1, left: 1, right: 1 };
+    const take = (ev) => { if (ev.preventDefault) ev.preventDefault(); return true; };
+    // a text entry in the keyboard's focus: what is typed goes into it (a pad types from its grid), Backspace and Delete
+    // erase, Enter is done; the arrows, Esc and Tab still move and back out
+    function typed(ev, n) {
+      const k = ev.key;
+      if (k === 'Backspace' || k === 'Delete') { rt.erase(n); return take(ev); }
+      if (k === 'Enter') { if (!ev.repeat) rt.submit(n); return take(ev); }
+      if (typeof k === 'string' && [...k].length === 1) { rt.type(k, n); return take(ev); }
+      return false;
+    }
     function key(ev) {
       // no screen up: the key is play's; the HUD's prompts still learn the player is on the keys
       if (!rt.state().screen) { if (rt.state().input !== 'keys') { rt.input('keys'); paint(); } return false; }
       if (ev.stopPropagation) ev.stopPropagation();
-      const a = keys[ev.code];
+      // a chord (Ctrl, Alt or Meta held) is the browser's and the system's: a reload, a tab switch, a copy
+      if (ev.ctrlKey || ev.altKey || ev.metaKey) return false;
+      const n = seat('keyboard', 0);
+      if (n !== null && rt.typing(n) && typed(ev, n)) { rt.input('keys'); paint(); return true; }
+      const a = (ev.shiftKey && keys['Shift+' + ev.code]) || keys[ev.code];
       if (!a) return false;
-      if (ev.preventDefault) ev.preventDefault();
+      take(ev);
+      if (ev.repeat && !REPEATS[a]) return true;
       act(a, 'keys', null, 'keyboard', 0);
       paint();
       return true;

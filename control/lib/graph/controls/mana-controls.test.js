@@ -5,7 +5,7 @@ import { buildManaHost } from './mana-host.js';
 import { buildSeatsKernel } from './seats-kernel.js';
 import { SCHEMES } from './schemes.js';
 import { DEVICES } from './devices.js';
-import { manaUi } from '../../mana-ui/index.js';
+import { manaUi, PREVIEW_KEYS } from '../../mana-ui/index.js';
 
 // One input paradigm on a page: the controls layer (the schemes, their drivers, the seats) reads the devices and hands
 // mana-ui, a view, its intents, the device in hand and the seat that spoke; and says back what each control is called.
@@ -40,6 +40,41 @@ describe('the controls layer drives the view', () => {
     h.key(taken);
     expect(taken.stopped).toBe(true);
     expect(log).toEqual([{ emit: 'resume' }]);
+  });
+  it('past the two slots, the keys a player reaches for anyway: the keypad, Tab and Shift+Tab, the Page keys; a slot wins', () => {
+    const C = manaControls();
+    for (const a of SCHEMES.menu.actions) for (const c of a.also.keyboard) expect(C.keys[c], c).toBe(a.id);
+    expect([C.keys.Numpad8, C.keys.NumpadEnter, C.keys.Numpad0, C.keys.Tab, C.keys['Shift+Tab'], C.keys.PageDown]).toEqual(['up', 'accept', 'back', 'down', 'up', 'tabNext']);
+    const { over } = remap(SCHEMES.menu, null, { action: 'accept', family: 'keyboard', control: 'Numpad8' });
+    expect(manaControls({ over }).keys.Numpad8).toBe('accept');
+    // a preview's stand-in says the same as the scheme it stands in for
+    for (const [c, a] of Object.entries(PREVIEW_KEYS)) expect(C.keys[c], c).toBe(a);
+  });
+  it('a held key repeats a move and never a pick or a back; a chord stays the browser\'s; Shift+Tab moves up', () => {
+    const log = [], rt = manaUi.runtime({ start: 'a', screens: { a: scr([{ use: 'list', props: { rows: ['a', 'b', 'c'] }, on: { accept: { emit: 'pick' } } }]) } }, { read: () => undefined, act: (e) => log.push(e) });
+    const h = H.connect(rt, view(), { ...manaControls(), listen: false, loop: false });
+    const ev = (code, more = {}) => ({ code, key: '', prevented: false, stopPropagation() {}, preventDefault() { this.prevented = true; }, ...more });
+    h.key(ev('Numpad2')); h.key(ev('ArrowDown', { repeat: true }));
+    expect(rt.state().focus).toBe(2);
+    h.key(ev('Tab', { shiftKey: true }));
+    expect(rt.state().focus).toBe(1);
+    h.key(ev('NumpadEnter')); h.key(ev('NumpadEnter', { repeat: true }));
+    h.key(ev('Escape', { repeat: true }));
+    expect([log, rt.state().screen]).toEqual([[{ emit: 'pick' }], 'a']);
+    const chord = ev('KeyW', { ctrlKey: true });
+    expect(h.key(chord)).toBe(false);
+    expect([chord.prevented, rt.state().focus]).toEqual([false, 1]);
+  });
+  it('a text entry in focus is typed into from the keys: W types, Backspace erases, Enter is done; Esc still backs out', () => {
+    const S = { name: '' }, rt = manaUi.runtime({ start: 'a', screens: { a: scr([{ use: 'textentry', props: { value: { bind: 'name' } } }]) } }, { read: (p) => S[p], act: (e) => { if (e.set) S[e.set] = e.to; } });
+    const h = H.connect(rt, view(), { ...manaControls(), listen: false, loop: false });
+    const ev = (code, key) => ({ code, key, stopPropagation() {}, preventDefault() {} });
+    for (const [c, k] of [['KeyW', 'w'], ['KeyA', 'a'], ['KeyD', 'd'], ['KeyX', 'x'], ['Backspace', 'Backspace'], ['KeyE', 'e'], ['Enter', 'Enter']]) h.key(ev(c, k));
+    expect([S.name, rt.state().focus, rt.state().screen]).toEqual(['WADE', 0, 'a']);
+    h.key(ev('ArrowRight', 'ArrowRight'));
+    expect(rt.state().focus).toBe(1);
+    h.key(ev('Escape', 'Escape'));
+    expect(rt.state().screen).toBe(null);
   });
   it('each pad in its own printed layout, the seat it plays told by the seats kernel, never by its index', () => {
     const SK = buildSeatsKernel();
