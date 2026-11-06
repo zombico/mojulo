@@ -81,15 +81,35 @@ Heroes in a realistic, cartoon or anime look, with faces that act. Hair, clothes
 
 <sub>"We just moved in, here's our floor plan! Some ideas for how we could live in it?"</sub>
 
-Indoors: send a picture of your floor plan and you get your house, built to the inch, each room designed in a style, a palette and furniture at true size, with the walkways kept clear. Ask for sage green walls and you see the room before and after. Or start from a sentence: a six-storey building with a penthouse, an office, a warehouse, a base to sneak through, a torch-lit dungeon.
+**Rooms.** Send a picture of your floor plan and you get your house, built to the inch, each room designed in a style, a palette and furniture at true size, with the walkways kept clear. Ask for sage green walls and you see the room before and after.
+
+**Interiors, planned before they are built.** Ask for a facility, say a military base with a hangar, barracks, an armoury and a reactor plant at its heart, each unlike the last, and you see the plan first: the way in from level to level, and each level's walls, floors, paint and light as the build will lay them. Nothing is built until you say yes.
 
 | | |
 |---|---|
-| ![A lake in the hills at sunset, in the look of a sixth-generation console game: low-poly trees with faceted crowns, smooth painted grass, a flat-shaded boulder, the lake a soft blue pool](docs/images/landscape-gen6.jpg) | ![The same lake in the hills at sunset, in the look of a seventh-generation console game: tall grass, branching trees with leaves, boulders with cracked and textured rock, the lake glinting behind them](docs/images/landscape-gen7.jpg) |
+| ![The plan's "To the core" page: the four levels drawn as rings around the reactor at the centre, each stair or door on its join, beside a table of each level's look as colour swatches and the design rules the plan holds](docs/images/wcd-demo-book.png) | ![One level's finishes, before it is built: the armoury's wall, base, floor, column, crown, ceiling, paint and band, each a tile of its material with its size, and the colours of its lights](docs/images/wcd-demo-finishes.png) |
+
+<sub>The plan you approve: the way in, level by level, and one level's materials and light.</sub>
+
+Then it is built to that plan, each level in its own materials, and stocked for what it is: bunks and footlockers in the barracks, weapon racks in the armoury, sandbags at the guard posts, an extinguisher by every door.
+
+| | |
+|---|---|
+| ![The hangar: a vaulted steel shed with an orange gantry crane, a yellow-hatched parking box and jersey barriers on the floor](docs/images/wcd-demo-hangar-room.jpg) | ![The hangar's corridor: riveted steel columns banded orange, braced plate walls, hazard stripes at the door frames](docs/images/wcd-demo-hangar-corridor.jpg) |
+| ![A barracks bunk room: wood-veneer walls, bunks along both sides, footlockers between them, carpet tile underfoot](docs/images/wcd-demo-barracks-room.jpg) | ![The armoury's corridor: board-formed concrete, yellow and green steel on its columns, a cable along the wall under its tray, hazard stripes at a doorway](docs/images/wcd-demo-armoury-corridor.jpg) |
+| ![The reactor plant's generator hall: white panels, a catwalk and two stairs, the generator on its plinth between jersey barriers](docs/images/wcd-demo-reactor-room.jpg) | ![The reactor plant's corridor: white panels over a teal tiled dado, a terrazzo floor, deep blue on the frames](docs/images/wcd-demo-reactor-corridor.jpg) |
+
+<sub>"I'm making a stealth game. Build me a multi-level military base to infiltrate": the hangar, the barracks, the armoury and the reactor plant, as built.</sub>
+
+Or start from a sentence: a six-storey building with a penthouse, an office, a warehouse, a torch-lit dungeon.
+
+**Terrain.** Grown from a sentence, with its hills, rock, water, grass and trees, at any hour of the day. Choose how real it looks, from the painted look of a sixth-generation console game to the grass, leaves and textured rock of a seventh. Rock, sand or snow underfoot; caverns, islands, planets, a historic city in its period ([docs/historic/README.md](docs/historic/README.md)), cities at real scale in the style of New York, Paris, London or Tokyo. Ask for the same place again and you get the same place, on any machine.
+
+| | |
+|---|---|
+| ![A lake in the hills at sunset, in the look of a sixth-generation console game: low-poly trees with faceted crowns, smooth painted grass, a flat-shaded boulder, the lake a soft blue pool](docs/images/landscape-gen6.jpg) | ![The same lake in the hills at sunset, in the look of a seventh-generation console game: tall grass, branching trees with leaves, a rippling lake with lily pads, and fine wisps of cloud in the sky](docs/images/landscape-gen7.jpg) |
 
 <sub>"A lake in the hills at sunset," in a sixth-generation look and a seventh.</sub>
-
-Outdoors: terrain grown from a sentence, with its hills, rock, water, grass and trees, at any hour of the day. Choose how real it looks, from the painted look of a sixth-generation console game to the grass, leaves and textured rock of a seventh. Rock, sand or snow underfoot; caverns, islands, planets, a historic city in its period ([docs/historic/README.md](docs/historic/README.md)), cities at real scale in the style of New York, Paris, London or Tokyo. Ask for the same place again and you get the same place, on any machine.
 
 ### Interactive worlds
 
