@@ -69,7 +69,7 @@ export function sequentialLevel(recipe) {
 }
 // a node's paint: its kit, or (painted by the level's geocube) the cube itself and the terrain (or the domain) the level
 // picked, and the hour the level lights it at (and the clouds it draws it under), so the stage carries what it is drawn by and lowers it on every read
-function paintOf(G, n) {
+export function paintOf(G, n) {
   if (!n.painted) return { kit: n.kit };
   const lit = { ...(G.paint.hour !== undefined ? { hour: G.paint.hour } : {}), ...(G.paint.clouds !== undefined ? { clouds: G.paint.clouds } : {}) };
   if (G.paint.domain) return { geocube: G.paint.cube, domain: G.paint.ask, ...lit };

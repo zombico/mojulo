@@ -16,7 +16,9 @@
  * close together for the junction's radius, or an arm folded back over another), naming both.
  *
  *   mapLevel(G) → { layout: 'map', root, spawn, order, edges, places: { <id>: { at: [x, y], heading } },
- *                   bands: { <id>: [[x, y], …] }, stages: [{ node, section, manifest, place }] }
+ *                   bands: { <id>: [[x, y], …] }, gates: { <trail>: [x, y] } (its path's first point), ends: { <trail>:
+ *                   { D, x0, x1, band: [bx0, bx1] } } (its depth, its path's ends across it, its band's own x), junctions, stages: [{ node, section,
+ *                   manifest, place }] }
  *   placeOf(place, [x, y]) → the point of a section's own frame on the level's (its heading turns +y)
  *
  * A meru (a climb) is not laid on a map yet. Pure.
@@ -24,8 +26,9 @@
 import { outTrailSpan } from '../era/out-trail.js';
 import { outTrailStyle } from '../era/out-trail-board.js';
 import { readJunction } from './graph.js';
+import { paintOf } from './sequential.js';
 
-const r3 = (v) => Math.round(v * 1000) / 1000;
+const r3 = (v) => Math.round(v * 1000) / 1000, r6 = (v) => Math.round(v * 1e6) / 1e6;
 const DEG = Math.PI / 180;
 // a bearing (degrees, 0 is +y, clockwise) as a direction on the frame, turned by a heading (radians, the section's +y)
 const bearingDir = (deg, heading) => { const a = heading - deg * DEG; return [Math.cos(a), Math.sin(a)]; };
@@ -71,7 +74,7 @@ export function mapLevel(G) {
   if (off.length) throw new Error(`level: map: ${off.map((id) => `'${id}'`).join(', ')} ${off.length > 1 ? 'are' : 'is'} not reached from the root '${G.root}'`);
 
   // PLACES: each section from its parent, in the order reached
-  const places = {}, spans = {}, bands = {}, stages = [], junctions = {};
+  const places = {}, spans = {}, bands = {}, rects = {}, stages = [], junctions = {};
   for (const id of order) {
     const n = G.nodes[id], e = inn[id], parent = e ? G.nodes[e.from] : null;
     if (n.section === 'meru') throw new Error(`level: map: '${id}' is a climb (meru); a climb is not laid on a map yet`);
@@ -87,10 +90,10 @@ export function mapLevel(G) {
         const heading = P.heading + Math.PI + J.gates[e.gate] * DEG;
         place = { at: [end[0] + f[0] * J.radius, end[1] + f[1] * J.radius], heading };
       }
-      places[id] = { at: place.at.map(r3), heading: r3(place.heading) };
+      places[id] = { at: place.at.map(r3), heading: r6(place.heading) };
       junctions[id] = J;
       bands[id] = disc(places[id].at, J.radius).map((p) => p.map(r3));
-      stages.push({ node: id, section: 'junction', manifest: { kind: 'stage', kit: n.kit, seed: n.seed, junction: { radius: J.radius, gates: J.gates, ...(n.recipe.surface ? { surface: n.recipe.surface } : {}) } }, place: places[id] });
+      stages.push({ node: id, section: 'junction', manifest: { kind: 'stage', ...paintOf(G, n), seed: n.seed, junction: { radius: J.radius, gates: J.gates, ...(n.recipe.surface ? { surface: n.recipe.surface } : {}) } }, place: places[id] });
       continue;
     }
     // a TRAIL: its span (depth and line) found without building it
@@ -111,10 +114,12 @@ export function mapLevel(G) {
       const P = places[e.from], D = spans[e.from].D, f = [Math.cos(P.heading), Math.sin(P.heading)];
       place = { at: [P.at[0] + f[0] * D, P.at[1] + f[1] * D], heading: P.heading };
     }
-    places[id] = { at: place.at.map(r3), heading: r3(place.heading) };
+    places[id] = { at: place.at.map(r3), heading: r6(place.heading) };
     spans[id] = S;
-    bands[id] = trailBand(st, S.D).map((p) => placeOf(places[id], p).map(r3));
-    stages.push({ node: id, section: 'trail', manifest: { kind: 'stage', kit: n.kit, seed: n.seed, trail: recipe, ...(n.weather ? { weather: n.weather } : {}) }, place: places[id] });
+    const own = trailBand(st, S.D);
+    rects[id] = [r3(own[0][0]), r3(own[1][0])];
+    bands[id] = own.map((p) => placeOf(places[id], p).map(r3));
+    stages.push({ node: id, section: 'trail', manifest: { kind: 'stage', ...paintOf(G, n), seed: n.seed, trail: recipe, ...(n.weather ? { weather: n.weather } : {}) }, place: places[id] });
   }
 
   // the BANDS apart: two sections that do not join own no ground in common
@@ -125,5 +130,9 @@ export function mapLevel(G) {
     // (two arms off the same junction meet at it: their first stretch inside its reach is the junction's, not theirs)
     if (overlaps(bands[a], bands[b])) throw new Error(`level: map: '${a}' and '${b}' lie over each other (their grounds overlap): turn one, or widen the junction between them`);
   }
-  return { layout: 'map', root: G.root, spawn: G.spawn, order, edges: G.edges, places, bands, stages };
+  // (where each trail meets what it leaves: its path's first point, for the heights to be met there)
+  const gates = Object.fromEntries(order.filter((id) => G.nodes[id].section === 'trail').map((id) => [id, placeOf(places[id], [spans[id].trailX(0), 0]).map(r3)]));
+  // (each trail's depth and its path's two ends across it, in its own frame)
+  const ends = Object.fromEntries(Object.entries(spans).map(([id, S]) => [id, { D: r3(S.D), x0: r3(S.trailX(0)), x1: r3(S.x), band: rects[id] }]));
+  return { layout: 'map', root: G.root, spawn: G.spawn, order, edges: G.edges, places, bands, gates, ends, junctions, stages };
 }
