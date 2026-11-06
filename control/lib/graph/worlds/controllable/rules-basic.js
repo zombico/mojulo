@@ -241,18 +241,18 @@ export function buildRulesBasic(E) {
     e.lookAt = [p[0], p[1], p[2] + lookH];
   }
 
-  // the point held `m` metres in from each end of a lane, measured along the lane's own heading there
-  function laneEnds(lane, p, m) {
-    const hold = (a, k, dir) => {
-      let b = lane[k];
-      for (let i = k; i >= 0 && i < lane.length; i += dir) { b = lane[i]; if (Math.hypot(b[0] - a[0], b[1] - a[1]) >= m) break; }
-      const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L, u = (p[0] - a[0]) * ux + (p[1] - a[1]) * uy;
-      if (u < m) p = [p[0] + (m - u) * ux, p[1] + (m - u) * uy, p[2]];
-    };
-    hold(lane[0], 1, 1);
-    hold(lane[lane.length - 1], lane.length - 2, -1);
-    return p;
+  // a lane's ENDS (side `ends`): its chord, the line from its first point to its last, which a level's start and end edges
+  // stand square to. `along` the point's place on it; `hold` the point held `m` metres in from either end on it; `square`
+  // how near an end the point is, 1 at an end down to 0 at twice `m` in (the camera turns square to the chord there)
+  function laneChord(lane) {
+    const a = lane[0], b = lane[lane.length - 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return { a, L, ux: (b[0] - a[0]) / L, uy: (b[1] - a[1]) / L };
   }
+  function laneEnds(C, p, m) {
+    const u = (p[0] - C.a[0]) * C.ux + (p[1] - C.a[1]) * C.uy, k = u < m ? m - u : u > C.L - m ? C.L - m - u : 0;
+    return k ? [p[0] + k * C.ux, p[1] + k * C.uy, p[2]] : p;
+  }
+  const laneSquare = (C, p, m) => { const u = (p[0] - C.a[0]) * C.ux + (p[1] - C.a[1]) * C.uy; return clamp(1 - (Math.min(u, C.L - u) - m) / m, 0, 1); };
 
   // side — the side-scroller's camera: it stands `dist` off the target's lane, square to it on the right of the way the
   // lane was drawn, so running forward along the lane (D) runs right across the screen. Raised by `tilt` (radians,
@@ -264,11 +264,18 @@ export function buildRulesBasic(E) {
     if (!tgt) return;
     const G = groupFrame(r, world, r.dist ?? 11), lane = tgt.rule && tgt.rule.lane;
     let p = G ? G.p : tgt.transform.pos;
-    // (`ends`: metres — the frame stops that far in from either end of the lane, the target walking on to the screen's
-    // edge, so the camera never looks past the lane's ends; absent, it centres the target everywhere)
-    if (r.ends > 0 && Array.isArray(lane) && lane.length >= 2) p = laneEnds(lane, p, r.ends);
+    // (`ends`: metres — the frame stops that far in from either end of the lane (along its chord), the target walking on
+    // to the screen's edge, and turns square to the chord near them, so the camera never looks past the lane's ends;
+    // absent, it centres the target everywhere)
+    const ends = r.ends > 0 && Array.isArray(lane) && lane.length >= 2 ? laneChord(lane) : null;
+    if (ends) p = laneEnds(ends, p, r.ends);
     let want = r.yaw ?? HALF_PI;
-    if (Array.isArray(lane) && lane.length >= 2) { const L = laneNear(lane, p[0], p[1]); want = Math.atan2(L.ty, L.tx) + HALF_PI; }
+    if (Array.isArray(lane) && lane.length >= 2) {
+      const L = laneNear(lane, p[0], p[1]);
+      want = Math.atan2(L.ty, L.tx) + HALF_PI;
+      // (near an end, square to the chord: the level's edge seen edge-on at the frame's border, not across)
+      if (ends) { const w = laneSquare(ends, p, r.ends), c = Math.atan2(ends.uy, ends.ux) + HALF_PI, d = ((c - want + Math.PI) % TAU + TAU) % TAU - Math.PI; want += d * w; }
+    }
     if (e._sideYaw == null) e._sideYaw = want;   // start square on: no swing on load
     const d = ((want - e._sideYaw + Math.PI) % TAU + TAU) % TAU - Math.PI;
     e._sideYaw += d * smooth(r.turnLerp ?? 2.5, dt);

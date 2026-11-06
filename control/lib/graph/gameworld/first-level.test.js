@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { firstLevel, readBossWin, storyWins, WINS, FIRST_LEVEL_SEGMENTS } from './first-level.js';
 import { readGameworld, MEADOWMARK_HERO } from './index.js';
-import { gameStages, stageLevelOrder, stageLane, SIDE_VIEW, SIDE_BAND, SIDE_ENDS } from './levels.js';
+import { gameStages, stageLevelOrder, stageLane, SIDE_VIEW, SIDE_BAND, SIDE_ENDS, SIDE_EDGES } from './levels.js';
 import { foePlacements } from './foes.js';
 import { POLE_IDS, poleCard } from './feel/cards.js';
 
@@ -81,6 +81,7 @@ describe('the first level from the side: nothing between the camera and the hero
       const K = s.manifest._viewOut, { line } = stageLane(s);
       expect(K?.length, s.node).toBeGreaterThan(0);
       expect(s.manifest._keepOut, s.node).toEqual(K);          // trees, rocks, bushes; and the grass (_viewOut)
+      for (const k of SIDE_EDGES) expect(s.manifest.trail.bounds?.[k], `${s.node} ${k}`).toBe('mirror');   // the land goes on past its ends
       // every metre of the lane has its strip on the camera's side (the right of the run, `side` in rules-basic.js)
       for (const [x, y] of line) {
         const r = K.find((b) => y >= b[1] && y <= b[3]);
@@ -104,6 +105,6 @@ describe('the first level from the side: nothing between the camera and the hero
 
   it('a side world with no course lays its trails as it did', () => {
     const plain = gameStages({ ...MEADOWMARK_HERO, camera: 'side' });
-    for (const s of plain) expect(s.manifest._viewOut, s.node).toBeUndefined();
+    for (const s of plain) { expect(s.manifest._viewOut, s.node).toBeUndefined(); expect(s.manifest.trail?.bounds, s.node).toBeUndefined(); }
   });
 });

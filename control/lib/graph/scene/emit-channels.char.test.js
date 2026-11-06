@@ -450,6 +450,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // and `walk-xr`, which embed the controls kernel. A rule with a feel's dash or run button (`sprint`, its build) owns F
 // whatever its walk pace (a side lane's hero has none), never the thrusters; the pause legend's rows say the dash and
 // the run, its `unless` taking a list; no radar under a side camera. Absent `dash` and `sprint`, F boosts as it did.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: the side camera's ends on the chord): the 16 controllable fixtures.
+// `ends` holds the frame along the lane's chord and turns the camera square to it near an end; absent `ends`, as it was.
 // Re-pinned 2026-11-06 (1105-platformer-lv0-spike merging 1105-rpg-slice's pixel budget): the same fixtures, their
 // emission the re-pins above together (the platform rule's takes, wall, dash and camera move; the knockback seams; the
 // pixel budget of a page played live, one draw a figure).

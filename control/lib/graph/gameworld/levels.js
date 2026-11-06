@@ -172,12 +172,17 @@ export function gameStages(world) {
       // a platformer's course seen from the side: nothing grows between the camera and the lane (sideView)
       const view = G.camera === 'side' && s.manifest.trail !== undefined && courseAt(G.levels?.[level]?.course ? readCourse(G.levels[level].course, 'course') : null, s.node) ? sideView(s.manifest) : [];
       const keep = ((R.loop || R.arena) && first) || view.length ? { _keepOut: [...(first ? [...(R.loop?.keep ?? []), ...(R.arena?.keep ?? [])] : []), ...view], ...(view.length ? { _viewOut: view } : {}) } : {};
+      // (and its ends, seen past by the side camera in perspective, MIRROR the trail's near band: the land goes on past
+      // the level's edge, never the backdrop's hills close up. A trail after another opens its start to it, but each of
+      // a level's stages plays on its own page, so nothing stands past it there either; a side the trail names keeps its own)
+      const T0 = s.manifest.trail === true ? {} : s.manifest.trail, sides = view.length ? Object.fromEntries(SIDE_EDGES.filter((k) => T0?.bounds?.[k] === undefined).map((k) => [k, 'mirror'])) : {};
+      const edged = Object.keys(sides).length ? { trail: { ...T0, bounds: { ...(T0.bounds ?? {}), ...sides } } } : {};
       // a stage drawn in a composed look carries the recipes that compose its kit (the look registry is the process's own)
       const looks = s.manifest?.kit ? looksOfKit(s.manifest.kit) : null;
       // a stage on a nature or jungle kit in a palette world carries the palette as its builder reads it
       const painted = paintedPalette(s.manifest, R.style?.palette ?? G.style?.palette);
       // (a level that builds is solid, era/solid.js: no flat building polygons)
-      const manifest = here.length || street || keep._keepOut || looks || painted ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...(here.length || street ? { solid: true } : {}), ...keep, ...(looks ? { looks } : {}), ...(painted ? { palette: painted } : {}) } : s.manifest;
+      const manifest = here.length || street || keep._keepOut || looks || painted ? { ...s.manifest, ...edged, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...(here.length || street ? { solid: true } : {}), ...keep, ...(looks ? { looks } : {}), ...(painted ? { palette: painted } : {}) } : s.manifest;
       const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}), ...(R.arena && first ? { arena: R.arena } : {}) };
       out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
     });
@@ -992,6 +997,8 @@ export function stageLane(stage) {
  * its cover: the backdrop.
  */
 export const SIDE_VIEW = Object.freeze({ near: 1, far: 14, step: 3 });
+/** The edges a side course's trail mirrors (out-bounds.js): its start and its end, which the side camera sees past. */
+export const SIDE_EDGES = Object.freeze(['-y', '+y']);
 /** The side camera's height on a course: eased while the hero stands (a stair's risers), held through a jump inside it. */
 export const SIDE_BAND = Object.freeze([1, 2]);
 /** …and held this far in from the lane's ends, about half the frame's width at its distance (a 16:9 frame's 55° across

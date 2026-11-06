@@ -58,8 +58,9 @@
   camera side, from the walk out past the camera, is kept clear of trees, rocks, bushes and grass (`_keepOut` and
   `_viewOut` rects, `sideView`), the far side keeping its cover as the backdrop. The side camera's height is eased while
   the hero stands and held through a jump (`band`), so a stair's risers no longer jolt the frame, and the frame holds in
-  from the lane's ends (`ends`), so it does not look past the trail at its boundary. Absent a course, a side world lays
-  and frames as it did.
+  from the lane's ends (`ends`, along the lane's chord), turning square to the chord near them. What a perspective camera
+  still sees past a trail's start and end is more land: a side course's trail mirrors its near band past both edges
+  (out-bounds.js `mirror`), never the backdrop's hills close up. Absent a course, a side world lays and frames as it did.
 - **The run button.** A feel with its takes whose card runs faster than it runs (`ground.sprint`) and has no dash gets a
   run button: F held while running builds the run up to the sprint over a second (Jumping Giuseppe's 6 to 8 m/s), as
   a mascot platformer's run is earned, and eases back over half a second let go; the air keeps it. Momentum, not a
