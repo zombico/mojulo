@@ -41,6 +41,8 @@ export const SEAM_TOL = 0.3;
 export const SEAM_SHADE = 0.04, SEAM_SHADE_SHARE = 0.08;   // (a dense wood on small tiles: ~6% left where a shadow's edge crosses; ~24% when a tile shades only itself)
 // (how far past its square a neighbour's tree still casts on a tile, m: a tall crown's shadow in a low sun)
 export const CAST_REACH = 24;
+// (an open-land tile's ground cell, m: twice the kit's where nobody walks)
+export const LAND_CELL = 1;
 // (what a place's tile hands its neighbours to cast: what grows and lies on its land, as built; never its building,
 // which the stage seats after the land is lit, so it shades no ground, its own tile's neither)
 const CASTS = /^(isekai|nature):(crown|wood|rock|hat|core|chips)$|^flora:bush$/;
@@ -128,15 +130,21 @@ const enc = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).t
 // grid on the same spacing; the rest of the field's words the first tile's
 function oneGrass(list) {
   if (!list.length) return null;
-  const first = list[0].lg, cell = first.grid.cell;
+  // (on the finest spacing among them: a coarser tile's heights and cells written into it, each of its cells k × k)
+  const first = list.reduce((a, b) => (b.lg.grid.cell < a.lg.grid.cell ? b : a)).lg, cell = first.grid.cell;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const { lg, at } of list) { const g = lg.grid; x0 = Math.min(x0, at[0] + g.x0); y0 = Math.min(y0, at[1] + g.y0); x1 = Math.max(x1, at[0] + g.x0 + (g.nx - 1) * g.cell); y1 = Math.max(y1, at[1] + g.y0 + (g.ny - 1) * g.cell); }
   const nx = Math.round((x1 - x0) / cell) + 1, ny = Math.round((y1 - y0) / cell) + 1;
   const Z = new Float64Array(nx * ny).fill(NaN), M = new Uint8Array((nx - 1) * (ny - 1));
   for (const { lg, at } of list) {
-    const g = lg.grid, zq = dec(g.z), m = dec(g.m), oi = Math.round((at[0] + g.x0 - x0) / cell), oj = Math.round((at[1] + g.y0 - y0) / cell);
-    for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) Z[(oj + j) * nx + oi + i] = g.zlo + (zq[j * g.nx + i] + 32768) * g.zsc;
-    for (let j = 0; j + 1 < g.ny; j++) for (let i = 0; i + 1 < g.nx; i++) if (m[j * (g.nx - 1) + i]) M[(oj + j) * (nx - 1) + oi + i] = m[j * (g.nx - 1) + i];
+    const g = lg.grid, zq = dec(g.z), m = dec(g.m), oi = Math.round((at[0] + g.x0 - x0) / cell), oj = Math.round((at[1] + g.y0 - y0) / cell), k = Math.round(g.cell / cell);
+    const zAt = (i, j) => g.zlo + (zq[j * g.nx + i] + 32768) * g.zsc;
+    for (let j = 0; j < (g.ny - 1) * k + 1; j++) for (let i = 0; i < (g.nx - 1) * k + 1; i++) {
+      // (a coarser grid's height between its nodes: bilinear, as its ground's faces lie)
+      const ci = Math.min(g.nx - 2, Math.floor(i / k)), cj = Math.min(g.ny - 2, Math.floor(j / k)), u = i / k - ci, v = j / k - cj;
+      Z[(oj + j) * nx + oi + i] = k === 1 ? zAt(i, j) : (zAt(ci, cj) * (1 - u) + zAt(ci + 1, cj) * u) * (1 - v) + (zAt(ci, cj + 1) * (1 - u) + zAt(ci + 1, cj + 1) * u) * v;
+    }
+    for (let j = 0; j + 1 < g.ny; j++) for (let i = 0; i + 1 < g.nx; i++) if (m[j * (g.nx - 1) + i]) for (let b = 0; b < k; b++) for (let a = 0; a < k; a++) M[(oj + j * k + b) * (nx - 1) + oi + i * k + a] = m[j * (g.nx - 1) + i];
   }
   let lo = Infinity, hi = -Infinity; for (const z of Z) if (!Number.isNaN(z)) { lo = Math.min(lo, z); hi = Math.max(hi, z); }
   const zsc = Math.max(1e-6, (hi - lo) / 65535), zq = Int16Array.from(Z, (z) => (Number.isNaN(z) ? -32768 : Math.round((z - lo) / zsc) - 32768));
@@ -199,7 +207,9 @@ export async function assembleGridScene(m, ctx = {}, { buildStage, tileCasters }
     // (the stage's own words: the level's, then its region's over them)
     const Rg = cell.region ? G.regions[cell.region] : null, words = {};
     for (const w of STAGE_WORDS) { const v = Rg && Rg[w] !== undefined ? Rg[w] : lv[w]; if (v !== undefined) words[w] = v; }
-    return { kind: 'stage', kit: lv.kit ?? 'isekai-meadow', seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
+    // (open LAND, no path through it and nothing standing on it: nobody walks it, its ground at LAND_CELL)
+    const coarse = cell.kind === 'land' ? { cell: LAND_CELL } : {};
+    return { kind: 'stage', kit: lv.kit ?? 'isekai-meadow', seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
   };
   // THE SHADOWS ACROSS THE SEAMS: every tile's trees and boulders placed first (as its build will place them; a place's
   // tile none: its building clears its ground), so each tile is built with its neighbours' within reach casting on it

@@ -12,7 +12,7 @@
  *             path's bed eases level across it (its height the land's at the nearest point of the path), as a trail's
  *             does: so where two tiles' paths meet at an edge's middle, they meet at one height.
  *
- *   outTileSite(st, tile, seed) → a site; tile: { size, open: ['n' | 'e' | 's' | 'w'], origin: [x, y], level?: { seed,
+ *   outTileSite(st, tile, seed) → a site; tile: { size, open: ['n' | 'e' | 's' | 'w'], origin: [x, y], cell?, level?: { seed,
  *                                 hills, roll, rise } }
  *   tilePath(size, open)        → the path's polylines in the tile's frame
  *   levelHeight(x, y, L)        → the level's land at (x, y) of the level's frame (L.rise: the regions' rise, riseAt)
@@ -90,7 +90,8 @@ export function outTileSite(st, tile, seed = 1) {
     const N = nearest(paths, x, y), k = smooth(halfW + st.trail.fringe + 0.8, halfW * 0.5, N.d);
     return mix(land(x, y), land(N.at[0], N.at[1]) - 0.08, k);
   };
-  const Lf = st.landform, g = landformGrid({ x0: 0, x1: T, y0: 0, y1: T, res: Math.round(T / Lf.cell) + 1 });
+  // (`cell`: a tile's own ground cell, coarser where nobody walks; else the kit's)
+  const Lf = st.landform, g = landformGrid({ x0: 0, x1: T, y0: 0, y1: T, res: Math.round(T / (tile.cell ?? Lf.cell)) + 1 });
   bakeGrid(g, valley);
   const ground = (x, y) => gridSample(g, x, y), apronAt = () => 0;
   // (open ground: no cliff in the tile; its line past the tile's west edge, out of every placement's reach)

@@ -55,3 +55,6 @@
   their own builds place them, `isekaiTileCasters`; a place's tile built first and its grown things handed on as
   built), and its own casters are only those standing in its square. Bushes on a tile stand beside its own path,
   whichever way it runs. A law holds it: `seam-shade`, the share of points along the seams whose baked shade steps.
+- **A glyph map's open land is lighter.** A tile with no path and nothing standing on it lays its ground at a 1 m cell
+  (LAND_CELL), twice the kit's, where nobody walks; the one grass field takes it on the finest spacing (a coarser tile's
+  heights and cells written into it). On a 48-tile map: about a fifth fewer faces, the page about a quarter lighter.
