@@ -108,7 +108,7 @@ export function buildManaUi() {
     // in-game: the HUD's places
     hud: { group: 'hud', about: 'the in-game layer under the stack: its children are regions and the layers (anchors, edges, threat, letterbox)', props: {}, children: 'hud' },
     region: { group: 'hud', about: 'one of the nine screen places; parts stack inside it (in a hud, or laid out over a screen)', props: { at: [REGIONS, 'top-left'] }, children: true },
-    anchors: { group: 'hud', layer: true, about: 'one `row` drawn over each thing in the world at its screen place (x, y from 0 to 1): nameplates, damage numbers; a row with an `id` is its own element (a new id, a new one: its entrance plays); `pass` rows rise and fade once from where they land (damage numbers)', props: { rows: [L, [], true], row: [ND, undefined, true], x: [T, 'x'], y: [T, 'y'], pass: [B, false] } },
+    anchors: { group: 'hud', layer: true, about: 'one `row` drawn over each thing in the world at its screen place (x, y from 0 to 1): nameplates, damage numbers; a row with an `id` is its own element (a new id, a new one: its entrance plays); `pass` rows rise and fade once from where they land (damage numbers); a row\'s `world` ([x, y, z]) is its point in the game\'s world, where a headset draws it', props: { rows: [L, [], true], row: [ND, undefined, true], x: [T, 'x'], y: [T, 'y'], pass: [B, false] } },
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
     threat: { group: 'hud', layer: true, about: 'where harm came from: a mark on a ring round the centre for each bearing (degrees from where you face)', props: { markers: [L, [], true] } },
     letterbox: { group: 'hud', layer: true, about: 'the cinema bars of a cutscene', props: {} },
@@ -447,7 +447,9 @@ export function buildManaUi() {
             if (!isFinite(x) || !isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) return null; // off screen: not drawn
             // (a row with an id is its own element: a number that lands again is a new one, its rise played again)
             const id = isObj(item) && item.id !== undefined && item.id !== null ? String(item.id) : null;
-            return ['div', { class: 'mana-anchor', 'data-key': id === null ? null : `a${id}`, style: `left:${pct(x)};top:${pct(y)}` }, draw(n.props.row, `${key}.${id === null ? i : `#${id}`}`, { ...scope, item })];
+            // (a row's `world`, its point in the game's world: a surface that is the world, a headset, draws it there)
+            const at = isObj(item) && Array.isArray(item.world) && item.world.length === 3 && item.world.every((v) => typeof v === 'number' && isFinite(v)) ? item.world.map((v) => Math.round(v * 1000) / 1000).join(',') : null;
+            return ['div', { class: 'mana-anchor', 'data-key': id === null ? null : `a${id}`, 'data-world': at, style: `left:${pct(x)};top:${pct(y)}` }, draw(n.props.row, `${key}.${id === null ? i : `#${id}`}`, { ...scope, item })];
           })];
           case 'text': return ['span', { class: cls, 'data-role': p.role, ...(p.role === 'numeral' ? chOf(changeOf(key, p.value)) : {}) }, p.value];
           case 'stat': { const c = changeOf(key, p.value); return ['div', { class: cls }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num', ...chOf(c) }, p.value, p.max !== undefined ? ['span', { class: 'mana-max' }, ` / ${p.max}`] : null, gainOf(c)]]; }

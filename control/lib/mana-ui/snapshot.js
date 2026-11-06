@@ -35,7 +35,7 @@ export function buildManaSnapshot() {
    * What bakes the root's motion into a copy whose elements carry `data-snap="<index in walk order>"`: for each element
    * (or ::before / ::after) an animation or a transition is moving, every property it moves at the value it holds this
    * instant (the keyframes say which; the computed style says what). Nothing in the copy animates (the sheet's tail
-   * holds it still), so any renderer draws this frame: an SVG image starts its own animations a moment off.
+   * holds it still), so it is this frame however long the image takes to decode, on any renderer.
    * → { rules: [css], marks: Set of indices }
    */
   const kebab = (p) => p.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());

@@ -8,14 +8,15 @@
  * references nothing outside itself, so a page runs the same code by emitting `buildManaHost.toString()`
  * (mana-controls.js manaHostSource). Node imports the live instance for tests.
  *
- *   connect(rt, view, { keys, pad, padLayout, seatOf?, drivers?, listen?, loop? }) → { key(ev), poll(), stop() }
+ *   connect(rt, view, { keys, pad, padLayout, seatOf?, drivers?, listen?, loop? }) → { key(ev), poll(), drive(fn), stop() }
  *     rt, view    a mana-ui runtime and its mount (view.paint after an intent)
  *     keys, pad   the menu scheme resolved (code → action; per printed layout, buttons and half axes → action)
  *     padLayout   the kernel's reader of a pad's printed layout (controls-kernel.js padLayout)
  *     seatOf      (controller) → the 0-based seat it plays ('keyboard', 'pad:<index>', a driver's name), or null for
  *                 none: the seats kernel's answer on a couch page (seats-kernel.js seatOf); without it, the keyboard and
  *                 the first pad are the first seat and pad n the nth
- *     drivers     [() → { <action>: 1 } | { name?, input?, actions }]: any other device (a headset, a wheel)
+ *     drivers     [() → { <action>: 1 } | { name?, input?, actions }]: any other device (a headset, a wheel); one that
+ *                 comes later (a headset's session starting) joins with the handle's drive(fn) → its removal
  *     listen      false: the page routes its keydowns to key(ev) itself;  loop: false: it calls poll() itself
  *   While a screen is up the menu holds the input: a key it knows is taken in the capture phase (the game's own
  *   listeners never see it), and every pad and driver acts on its press edges, what was held as the screen opened not
@@ -48,7 +49,9 @@ export function buildManaHost() {
       return true;
     }
 
-    const prev = new Map();
+    const prev = new Map(), drivers = (o.drivers || []).slice();
+    // a device that comes after the connection (a headset's session): its driver joins, and leaves with what it held
+    const drive = (fn) => { drivers.push(fn); return () => { const i = drivers.indexOf(fn); if (i >= 0) drivers.splice(i, 1); }; };
     let shown = rt.state().screen;
     const edges = (id, now, mode, layout, controller, fallback) => {
       const was = prev.get(id) || {};
@@ -78,7 +81,7 @@ export function buildManaHost() {
         const id = 'pad:' + (g.index === undefined ? i : g.index);
         if (opened) prev.set(id, held); else did = edges(id, held, 'pad', L, id, i) || did;
       }
-      (o.drivers || []).forEach((fn, i) => {
+      drivers.forEach((fn, i) => {
         const r = fn() || {}, held = isObj(r.actions) ? r.actions : r, id = r.name || 'driver:' + i;
         if (opened) prev.set(id, held); else did = edges(id, held, r.input || 'pad', null, id, 0) || did;
       });
@@ -89,7 +92,7 @@ export function buildManaHost() {
     let live = true;
     if (o.listen !== false && typeof window !== 'undefined') window.addEventListener('keydown', key, true);
     if (o.loop !== false && typeof requestAnimationFrame === 'function') { const loop = () => { if (!live) return; poll(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
-    return { key, poll, stop: () => { live = false; if (o.listen !== false && typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('keydown', key, true); } };
+    return { key, poll, drive, stop: () => { live = false; if (o.listen !== false && typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('keydown', key, true); } };
   }
 
   return { connect };

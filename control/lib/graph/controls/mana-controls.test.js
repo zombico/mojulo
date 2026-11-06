@@ -73,6 +73,19 @@ describe('the controls layer drives the view', () => {
     now = { down: 1 }; h.poll(); h.poll();
     expect(rt.state()).toMatchObject({ input: 'xr', focus: 1 });
   });
+  it('a device that comes later (a headset\'s session) drives once it joins, and stops once it leaves', () => {
+    let now = {};
+    stubPads(() => []);
+    const rt = manaUi.runtime({ start: 'a', screens: { a: scr([{ use: 'list', props: { rows: ['a', 'b', 'c'] } }]) } }, { read: () => undefined });
+    const h = H.connect(rt, view(), { ...manaControls(), listen: false, loop: false });
+    h.poll();
+    const leave = h.drive(() => ({ name: 'xr', input: 'xr', actions: now }));
+    now = { down: 1 }; h.poll(); now = {}; h.poll();
+    expect(rt.state()).toMatchObject({ input: 'xr', focus: 1 });
+    leave();
+    now = { down: 1 }; h.poll();
+    expect(rt.state().focus).toBe(1);
+  });
   it('the drawn pad only names its gamepad controls (the touch driver reads it); the view takes no device from it', () => {
     const rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'region', props: { at: 'bottom' }, children: [{ use: 'touchpad', props: { buttons: ['A', { label: 'Fire', control: 'rt' }] } }] }] }, screens: {} }, { read: () => undefined });
     expect(rt.view()).toContain('data-control="south"');

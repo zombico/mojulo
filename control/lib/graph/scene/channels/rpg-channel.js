@@ -435,12 +435,13 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   function model() {
     return { battle: mode === 'battle' && R.b ? battleModel() : { on: false }, party: mode === 'field' ? partyModel() : {}, shop: mode === 'shop' ? shopModel() : {} };
   }
-  // where a figure's head is on the screen (px), by the scene's projection; null behind the eye or without one
+  // where a figure's head is on the screen (px), by the scene's projection, and in the world (its third: a headset draws
+  // what stands over it there); null behind the eye or without one
   function headAt(fig) {
     const w = W(), proj = window.__mojCtrl && window.__mojCtrl.project, e = fig && w && w.byId[fig];
     if (!e || !e.transform || !proj) return null;
-    const top = (e.rule && e.rule.collideHeight) || 1.8, p = proj(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] - ((e.rule && e.rule.eye) || 0) + top + 0.12);
-    return p[2] < 1 ? [p[0], p[1]] : null;
+    const top = (e.rule && e.rule.collideHeight) || 1.8, P = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] - ((e.rule && e.rule.eye) || 0) + top + 0.12], p = proj(P[0], P[1], P[2]);
+    return p[2] < 1 ? [p[0], p[1], P] : null;
   }
   function battleModel() {
     const b = R.b, cmd = phase === 'command', active = cmd ? commanders()[mi] : null, top = up(), lv = LEVEL[top] || 'cmd', aiming = cmd && top === 'rpg-target' && !!pend;
@@ -457,16 +458,16 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       if (!at) continue;
       const Mm = R.m[m], S = K.statsOf(cfg, R, m), s1 = b.side[m].st, k = stack[fig] = (stack[fig] || 0) + 1;
       const tags = [Mm.poison ? 'poison' : '', s1.sleep ? 'asleep' : '', s1.silence ? 'silenced' : ''].filter(Boolean);
-      heads.push({ id: m, px: [at[0], at[1] - 44 * (k - 1)], hp: hp(m, Mm.hp), hpMax: S.hp, mp: shown[m + ':mp'] != null ? shown[m + ':mp'] : Mm.mp, mpMax: S.mp > 0 ? S.mp : 0, statuses: tags.length ? tags : null, turn: m === active, foe: false });
+      heads.push({ id: m, px: [at[0], at[1] - 44 * (k - 1)], world: [at[2][0], at[2][1], at[2][2] + 0.3 * (k - 1)], hp: hp(m, Mm.hp), hpMax: S.hp, mp: shown[m + ':mp'] != null ? shown[m + ':mp'] : Mm.mp, mpMax: S.mp > 0 ? S.mp : 0, statuses: tags.length ? tags : null, turn: m === active, foe: false });
     }
     const placed = heads.slice().sort((x, y) => y.px[1] - x.px[1]);
     for (let i = 0; i < placed.length; i++) for (let j = 0; j < i; j++) { const a = placed[i], c = placed[j]; if (Math.abs(a.px[0] - c.px[0]) < 86 && Math.abs(a.px[1] - c.px[1]) < 36) a.px[1] = c.px[1] - 37; }
     const figs = {};
-    if (aiming) for (const x of b.foes) { const ff = figureOf(x.uid), at = !figs[ff] && headAt(ff); if (at) { figs[ff] = 1; heads.push({ id: 'fig-' + ff, px: at, foe: true }); } }
+    if (aiming) for (const x of b.foes) { const ff = figureOf(x.uid), at = !figs[ff] && headAt(ff); if (at) { figs[ff] = 1; heads.push({ id: 'fig-' + ff, px: [at[0], at[1]], world: at[2], foe: true }); } }
     for (const h of heads) { const [x, y] = frac(h.px); delete h.px; h.x = x; h.y = y; }
     // the numbers where blows land, over whoever took them (a foe over its own figure, or its pack's)
     const numbers = [];
-    for (const p of pops) { const at = headAt(figureOf(p.at)); if (at) { const [x, y] = frac(at); numbers.push({ id: p.id, x, y, value: p.value, kind: p.kind, role: p.role }); } }
+    for (const p of pops) { const at = headAt(figureOf(p.at)); if (at) { const [x, y] = frac(at); numbers.push({ id: p.id, x, y, world: at[2], value: p.value, kind: p.kind, role: p.role }); } }
     const next = K.preview(cfg, R, 6);
     return {
       on: true, phase, aiming, acting, message: msg, foeHp: cfg.rules.foeHp === 'bar',
@@ -624,6 +625,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     if (!mode) { openField(); if (mode) { ev.preventDefault(); ev.stopImmediatePropagation(); } }
   }, true);
   const input = M.host.connect(rt, face, { keys: ctl.keys, pad: ctl.pad, padLayout: ctl.padLayout, loop: false });
+  // (the view, registered: a headset draws its screens on a panel and drives it with the controllers, channels/xr.js)
+  (window.__manaViews = window.__manaViews || []).push({ root, rt, css: M.css, host: input });
   let selectWas = false;
   function padSelect() {
     const ps = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];

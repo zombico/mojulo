@@ -331,6 +331,33 @@ only), and the page's RPG channel (`scene/channels/rpg-channel.js`) is its host:
 - **Input** is mana-host's (`connect(rt, view, manaControls())`, polled on the page's frame). The channel keeps P and a
   pad's select, which are play's bindings, not the menu's.
 
+## In a headset
+
+A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itself, never a second drawing of it:
+
+- **The snapshot** (`snapshot.js`, page source like the kernel) copies a mounted view's elements and the sheet they were
+  drawn under into an SVG image the browser renders (a `data:` URL: Chromium, the Quest's browser, lets a WebGL texture
+  take it; Safari taints it, so a headset on Safari draws none of it). Whatever is moving is baked at the value it holds
+  this instant (the Web Animations API names the animations, their keyframes the properties), so a snapshot each frame
+  plays the screen's motion. Layout, theme, focus words, ornaments and pseudo-elements carry over because they are the
+  same CSS drawn by the same engine.
+- **The transfer gate** (`snapshot.chrome.test.js`, the e2e tier) holds a view's screenshot and its snapshot together,
+  pixel by pixel: a settled screen in a theme that uses every feature of the sheet, a frame mid-motion, one box alone.
+  They agree to within the half pixel a centred box is anti-aliased across; the view snapped without its theme fails it.
+- **The panel** (`scene/channels/xr.js`, on a page with a headset and a mana-ui surface): every mounted view registers on
+  the page (`window.__manaViews`: `{ root, rt, css, host }`); while one has a screen up, its snapshot is drawn on a panel
+  at eye height ahead of the player, placed where they look as the screen opens and left there. It is drawn again when
+  the view changes and at most thirty times a second while something on it moves.
+- **The controllers are the view's game controllers**: the menu scheme's `xr` rows (either stick moves, A or the
+  trigger accepts, B backs out, the grips turn the tabs) are read as a driver of the view's own input owner (mana-host
+  `drive()`), so the presses, the seats and the legends are mana-ui's as with a pad, and `rt.input('xr')` makes the
+  legends print the controller's buttons. While a screen is up the world, the walk and the turn hold. No laser pointer:
+  a headset's menu is worked as a console's is.
+- **The marks in the world**: an anchor row may say its point in the game's world (`world: [x, y, z]`, written as
+  `data-world`). In a headset such anchors leave the panel and stand over their points instead: the view's anchors are
+  laid out apart on one more snapshot (an atlas, the same sheet and motion), each a card square to the eye, as large to
+  the eye as on the screen. The RPG's bars over the fighters and its damage numbers are drawn this way.
+
 ## What is next
 
 1. The integration, one surface at a time, each step either drawing the same bytes or naming the change it makes to

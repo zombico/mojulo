@@ -215,6 +215,11 @@ describe('mana-ui: in game', () => {
     expect(view(false)).not.toContain('3/4');
     expect(view(false)).toContain('width:75%');
   });
+  it('an anchor\'s row may say its point in the game\'s world, for a surface that is the world (a headset)', () => {
+    const rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'anchors', props: { rows: [{ id: 'a', x: 0.5, y: 0.5, world: [1.23456, -2, 3] }, { id: 'b', x: 0.2, y: 0.5 }], row: txt('x') } }] }, screens: {} }, host({}));
+    expect(rt.view()).toContain('data-key="aa" data-world="1.235,-2,3"');
+    expect(rt.view()).toMatch(/data-key="ab" style=/);
+  });
   it('a HUD region\'s place may be bound: the part moves to the corner the game names', () => {
     const S = { at: 'bottom-right' }, spec = { hud: { use: 'hud', children: [{ use: 'region', props: { at: { bind: 'at' } }, children: [txt('Foes')] }] }, screens: {} };
     const rt = manaUi.runtime(spec, host(S));
