@@ -87,6 +87,20 @@ describe('a variant is a patch over the design, on its visual axes only', () => 
   });
 });
 
+describe('a scale is kept a scale', () => {
+  it('a whole-number scale moves in whole steps, its 1 too, and a ladder of them keeps its order', () => {
+    const tiers = { kind: 'equipment', tiers: { early: { ornament: 1 }, mid: { ornament: 2 }, late: { ornament: 3 } } };
+    let moved = 0;
+    for (const roll of [1, 2, 3, 4, 5]) for (const v of turnMangekyou({ manifest: tiers, concept: 'more ornate', n: 3, roll }).variants) {
+      const [a, b, c] = ['early', 'mid', 'late'].map((t) => v.manifest.tiers[t].ornament);
+      for (const x of [a, b, c]) expect(Number.isInteger(x) && x >= 1).toBe(true);
+      expect(a < b && b < c).toBe(true);
+      moved += 1;
+    }
+    expect(moved).toBeGreaterThan(0);
+  });
+});
+
 describe('principles hold', () => {
   it('a lock is never moved, a bound is kept, a palette holds every colour', () => {
     const palette = ['#101010', '#e0d0b0', '#7a1f2b'];

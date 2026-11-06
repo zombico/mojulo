@@ -5,7 +5,8 @@
  * reject, pass after pass. Called by the user through the variations door (run_experiment_sweep) and by departments.
  *
  *   turnMangekyou(order) → { order, variants: [{ id, says, moves, patch, manifest, distance }], reserve, spread }
- *     order: { manifest, concept?, n?, at?, principles?, kept?: [manifest], rejected?: [manifest], spread?, roll, by? }
+ *     order: { manifest, concept?, n?, at?, principles?, kept?: [manifest], rejected?: [manifest], spread?, roll, by?,
+ *              gate?: (manifest) → a refusal or null (its kind's: a refused candidate is passed over for the next) }
  *
  * GENERAL: the design is read by its leaves (leaves.js), not by its kind; a team (teams.js) adds context only.
  * AUTHORED, NOT SEEDED BY THE AUTHOR: `roll` is drawn from the system's dice when the order is authored (rollOrder,
@@ -109,8 +110,9 @@ function recolour(hex, m, rng, palette) {
 /** A number moved: a unit amount in logit space, a quantity by a ratio. */
 function moveNumber(leaf, amount) {
   if (leaf.form === 'unit') return r3(sigmoid(logit(leaf.value) + amount * 1.4));
-  const v = leaf.value * Math.exp(amount * 0.4);
-  return leaf.int ? Math.max(1, Math.round(v)) : sig(v);
+  // a whole number is a step on a scale: it moves by whole steps, and never to nothing
+  if (leaf.int) return Math.max(1, leaf.value + Math.round(amount * 1.2));
+  return sig(leaf.value * Math.exp(amount * 0.4));
 }
 
 /** A word moved: an ordered word steps along its scale, an unordered one is swapped for another of its own. */
@@ -147,6 +149,7 @@ function candidate(leaves, k, ctx) {
   const sizeAmt = committed.size ? (gauss(rng) * 0.9 + lean.size * 0.8) * committed.size : 0;
   if (committed.size) moves.size = { ratio: r3(Math.exp(sizeAmt * 0.4)) };
   const swaps = new Map(); // one word swapped the same way wherever it stands (a fire coat becomes frost all over)
+  const together = new Map(); // one move per key name
   for (const leaf of leaves) {
     const s = committed[leaf.axis];
     if (!s) continue;
@@ -161,8 +164,14 @@ function candidate(leaves, k, ctx) {
     else if (leaf.form === 'deg') v = r3(wrapHue(leaf.value + (col?.turn ?? 0) + gauss(rng) * 8 * s)); // a hue turns with the palette
     else if (leaf.axis === 'colour') v = moveNumber(leaf, gauss(rng) * 0.6 * s);
     else {
+      // values under one key move together (a tier's ornaments keep their order, a pair of horns stays a pair), each
+      // with a little of its own when it is not a step on a scale
       const leanOf = leaf.axis === 'detail' ? lean.detail : 0;
-      v = moveNumber(leaf, (gauss(rng) * 0.9 + leanOf * 0.7) * s);
+      const k = `${leaf.axis}:${leaf.key}`;
+      if (!together.has(k)) together.set(k, (gauss(rng) * 0.9 + leanOf * 0.7) * s);
+      // a ladder of steps shifts whole, never below its first rung's 1 (so its order holds)
+      v = leaf.int ? leaf.value + Math.max(Math.round(together.get(k) * 1.2), 1 - (ctx.floor.get(leaf.key) ?? 1))
+        : moveNumber(leaf, together.get(k) + gauss(rng) * 0.3 * s);
     }
     const b = principles.bounds[leaf.path];
     if (b && typeof v === 'number') v = clamp(v, b[0], b[1]);
@@ -202,21 +211,25 @@ function distance(a, b) {
 
 /** The n most dispersed of the pool: the first drawn among the boldest, then each the farthest from the design, the
  * picked and the rejected (a rejected place repels twice as hard). */
-function disperse(pool, n, rejected, rng) {
+function disperse(pool, n, rejected, rng, passes = () => true) {
   const origin = new Map();
   const live = pool.filter((c) => c.values.size);
   if (!live.length) return { picked: [], reserve: [] };
   const byNorm = [...live].sort((a, b) => distance(b.place, origin) - distance(a.place, origin));
-  const first = byNorm[Math.floor(rng() * Math.max(1, Math.ceil(byNorm.length / 3)))];
+  // the first among the boldest third that its kind would take (else the boldest that it would)
+  const start = Math.floor(rng() * Math.max(1, Math.ceil(byNorm.length / 3)));
+  const first = [...byNorm.slice(start), ...byNorm.slice(0, start)].find(passes);
+  if (!first) return { picked: [], reserve: [] };
   const picked = [first];
   const score = (c) => Math.min(distance(c.place, origin), ...picked.map((p) => distance(c.place, p.place)), ...rejected.map((r) => distance(c.place, r) / 2));
   while (picked.length < n) {
-    let best = null, bs = -1;
-    for (const c of live) { if (picked.includes(c)) continue; const s = score(c); if (s > bs) { bs = s; best = c; } }
+    let best = null;
+    const ranked = live.filter((c) => !picked.includes(c) && !c.refused).map((c) => [score(c), c]).sort((a, b) => b[0] - a[0]);
+    best = ranked.find(([, c]) => passes(c))?.[1] ?? null;
     if (!best) break;
     picked.push(best);
   }
-  const reserve = live.filter((c) => !picked.includes(c)).sort((a, b) => score(b) - score(a));
+  const reserve = live.filter((c) => !picked.includes(c) && !c.refused).sort((a, b) => score(b) - score(a));
   return { picked, reserve };
 }
 
@@ -251,7 +264,8 @@ function say(moves, values) {
   const c = moves.colour;
   if (c) {
     const bits = [];
-    if (Math.round(c.turn) % 360) bits.push(`hue ${c.turn > 0 ? '+' : ''}${Math.round(((c.turn + 540) % 360) - 180)}°`);
+    const d = Math.round(((c.turn + 540) % 360) - 180) || 0, deg = d === -180 ? 180 : d;
+    if (deg) bits.push(`hue ${deg > 0 ? '+' : ''}${deg}°`);
     if (c.toward !== null) bits.push(`pulled toward ${Math.round(c.toward)}°`);
     if (c.scatter) bits.push('scattered');
     if (Math.abs(c.light) > 0.03) bits.push(c.light > 0 ? 'lighter' : 'darker');
@@ -291,7 +305,9 @@ export function turnMangekyou(order) {
   const reach = axisCounts(leaves);
   const perAxis = reach;
 
-  const ctx = { roll: order.roll, pass, weights, lean: read.lean, spread, principles };
+  const floor = new Map();
+  for (const l of leaves) if (l.int) floor.set(l.key, Math.min(floor.get(l.key) ?? Infinity, l.value));
+  const ctx = { roll: order.roll, pass, weights, lean: read.lean, spread, principles, floor };
   const size = clamp(n * 6, 12, 96);
   const pool = [];
   for (let k = 0; k < size; k++) {
@@ -304,12 +320,25 @@ export function turnMangekyou(order) {
     for (const leaf of leaves) { const v = valueAt(m, leaf.path); if (v !== undefined && v !== leaf.value) values.set(leaf.path, v); }
     return placeOf(leaves, values, perAxis);
   });
-  const { picked, reserve } = disperse(pool, n, rejectedPlaces, diceOf(order.roll, pass, 'disperse'));
+  // a candidate made whole (once), and the gate its kind keeps, when the order brings one (a refusal is kept, not thrown)
+  const made = (c) => {
+    if (!c.manifest) { c.manifest = structuredClone(base); for (const [path, value] of c.values) setAt(c.manifest, path, value); }
+    return c.manifest;
+  };
+  const refusals = [];
+  const passes = typeof order.gate !== 'function' ? () => true : (c) => {
+    if (c.refused !== undefined) return !c.refused;
+    const why = order.gate(made(c));
+    c.refused = !!why;
+    if (why) refusals.push(String(why));
+    return !why;
+  };
+  const { picked, reserve } = disperse(pool, n, rejectedPlaces, diceOf(order.roll, pass, 'disperse'), passes);
 
   const variantOf = (c, i) => {
-    const manifest = structuredClone(base);
+    const manifest = structuredClone(made(c));
     const patch = [];
-    for (const [path, value] of c.values) { setAt(manifest, path, value); patch.push({ op: 'set', path, value }); }
+    for (const [path, value] of c.values) patch.push({ op: 'set', path, value });
     // a kept base differs from the design: the patch is said against the design, so it applies to it
     if (base !== order.manifest) for (const leaf of sourceLeaves) {
       const v = valueAt(manifest, leaf.path);
@@ -331,6 +360,7 @@ export function turnMangekyou(order) {
       team: { id: team.team, department: team.department, name: team.name, keep: team.keep, why: team.why },
       pass: { id: pass, kept: kept.length, rejected: rejected.length, crossed, spread },
       principles, reach,
+      ...(refusals.length ? { refused: { count: refusals.length, first: refusals[0].slice(0, 300) } } : {}),
       ...(unreached.length ? { unreached, note: `the concept asks for ${unreached.join(', ')}, which this design holds nothing of` } : {}),
     },
     variants,

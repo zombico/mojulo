@@ -95,6 +95,10 @@ export function readLeaves(manifest, { within = [''], lock = [], vocab = [] } = 
     }
   };
   walk(manifest, '', null);
+  // an INTEGER SCALE: a key that holds a whole number above 1 anywhere in the design (an ornament 0..3) holds steps
+  // everywhere, so its 1 is a step on that scale and never a 0..1 amount
+  const steps = new Set(out.filter((l) => typeof l.value === 'number' && Number.isInteger(l.value) && l.value > 1 && l.form === 'pos').map((l) => l.key));
+  for (const l of out) if (l.form === 'unit' && Number.isInteger(l.value) && steps.has(l.key)) { l.form = 'pos'; l.int = true; }
   return out;
 }
 
