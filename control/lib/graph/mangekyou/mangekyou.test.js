@@ -87,6 +87,21 @@ describe('a variant is a patch over the design, on its visual axes only', () => 
   });
 });
 
+describe("the house's words", () => {
+  it("an arm's parts are swapped slot by slot, within the words that slot takes, and its finish card by name", () => {
+    const rifle = { kind: 'equipment', item: 'rifle', model: 'assault', style: 'fde', parts: { optic: 'reddot', stock: 'collapsible', barrel: 'standard' } };
+    const slot = (id) => VOCABULARY.find((v) => v.id === id).words;
+    const out = turnMangekyou({ manifest: rifle, concept: 'different shapes and finishes', n: 5, roll: 4242 });
+    let parts = 0;
+    for (const v of out.variants) {
+      for (const [k, w] of Object.entries(v.manifest.parts)) { expect(slot(`part:${k}`)).toContain(w); if (w !== rifle.parts[k]) parts += 1; }
+      expect(VOCABULARY.find((x) => x.id === 'finish').words).toContain(v.manifest.style);
+    }
+    expect(parts).toBeGreaterThan(0);
+    expect(slot('part:barrel')).toEqual(['short', 'standard', 'long']);
+  });
+});
+
 describe('a scale is kept a scale', () => {
   it('a whole-number scale moves in whole steps, its 1 too, and a ladder of them keeps its order', () => {
     const tiers = { kind: 'equipment', tiers: { early: { ornament: 1 }, mid: { ornament: 2 }, late: { ornament: 3 } } };

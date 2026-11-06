@@ -158,7 +158,8 @@ function candidate(leaves, k, ctx) {
     else if (leaf.form === 'roll') v = 1 + Math.floor(rng() * (2 ** 31 - 2));
     else if (leaf.form === 'word') {
       const key = `${leaf.vocab}:${leaf.value}`;
-      if (!swaps.has(key)) swaps.set(key, rng() < clamp(0.35 + 0.5 * s, 0, 1) ? moveWord(leaf, rng, s, lean, principles.words[leaf.vocab]) : leaf.value);
+      // a step swaps about half the words on its axis, a leap nearly all: a take, not a reshuffle
+      if (!swaps.has(key)) swaps.set(key, rng() < clamp(0.2 + 0.35 * s, 0.15, 0.95) ? moveWord(leaf, rng, s, lean, principles.words[leaf.vocab]) : leaf.value);
       v = swaps.get(key);
     } else if (leaf.axis === 'size') v = moveNumber(leaf, sizeAmt + gauss(rng) * 0.1 * s);
     else if (leaf.form === 'deg') v = r3(wrapHue(leaf.value + (col?.turn ?? 0) + gauss(rng) * 8 * s)); // a hue turns with the palette

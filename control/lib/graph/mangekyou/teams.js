@@ -14,6 +14,7 @@ import { OOZES } from '../mutagen/oozes/index.js';
 import { REGISTER_WORDS, DETAIL_WORDS } from '../mutagen/stylism.js';
 import { MOTIF_NAMES } from '../mutagen/motif.js';
 import { ARM_FINISHES } from '../equipment/arms/finishes.js';
+import { ARM_MODELS } from '../equipment/arms/models.js';
 import { SKINS as PLATING_SKINS } from '../plating/styles.js';
 import { SKINS as FOOTWEAR_SKINS } from '../footwear/styles.js';
 import { SKINS as HANDWEAR_SKINS } from '../handwear/styles.js';
@@ -22,16 +23,28 @@ import { NAMED_SILHOUETTES } from '../stylism/silhouettes.js';
 
 const V = (id, axis, keys, words, ordered = false) => Object.freeze({ id, axis, keys, words: Object.freeze([...new Set(words)]), ordered });
 const byRank = (o) => Object.entries(o).sort((a, b) => a[1] - b[1]).map(([k]) => k);
+// the arms' parts, slot by slot: the words any model's slot takes (a model that takes fewer refuses the rest at its
+// mint, and the next candidate stands in); a length word is a scale, short to long
+const SLOTS = {};
+for (const item of Object.values(ARM_MODELS)) for (const m of Object.values(item.models ?? {})) for (const [slot, words] of Object.entries(m.takes ?? {})) {
+  for (const w of words) if (typeof w === 'string') (SLOTS[slot] ??= new Set()).add(w);
+}
+const LENGTHS = ['short', 'standard', 'long'];
+const slotRows = Object.entries(SLOTS).map(([slot, words]) => {
+  const ws = [...words], ordered = ws.every((w) => LENGTHS.includes(w));
+  return V(`part:${slot}`, 'silhouette', new RegExp(`^${slot}$`, 'i'), ordered ? LENGTHS.filter((w) => ws.includes(w)) : ws.sort(), ordered);
+});
 
 /** The visual words the house already speaks, each read only under a key of its own. */
 export const VOCABULARY = Object.freeze([
   V('ooze', 'surface', /^oozes?$|^coat$/i, Object.keys(OOZES)),
-  V('finish', 'surface', /^finish$/i, Object.keys(ARM_FINISHES)),
+  V('finish', 'surface', /^(finish|style)$/i, Object.keys(ARM_FINISHES)),
   V('colourway', 'colour', /^(skin|colou?rway|livery)$/i, [...Object.keys(PLATING_SKINS), ...Object.keys(FOOTWEAR_SKINS), ...Object.keys(HANDWEAR_SKINS)]),
   V('outline', 'silhouette', /^(silhouette|outline)$/i, [...OUTLINES, ...NAMED_SILHOUETTES]),
   V('motif', 'detail', /^motifs?$/i, MOTIF_NAMES),
   V('register', 'detail', /^register$/i, byRank(REGISTER_WORDS), true),
   V('detail', 'detail', /^detail$/i, byRank(DETAIL_WORDS), true),
+  ...slotRows,
 ]);
 
 const DEPT = Object.fromEntries(DEPARTMENTS.map((d) => [d.id, d.name]));

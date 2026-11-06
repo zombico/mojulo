@@ -25,3 +25,7 @@
   together so early stays below late; values under one key move together, so a pair stays a pair.
 - **Agents find it.** A routing card (`variations`) and two phrasings in the routing fixture send "do me four takes on
   this axe" to the variations door; `run_experiment_sweep` leaves the list of doors with no fixture row.
+- **An arm varies by its parts and its finish.** The arms' slot words (optic, muzzle, stock, barrel, underbarrel,
+  magazine, a knife's blade and guard) are the house's silhouette words, each swapped only for another its slot takes
+  (a barrel's short, standard, long a scale), and a finish card is read where an arm names it, its `style`. A step
+  swaps about half of an axis's words and a leap nearly all, so a variant reads as a take, not a reshuffle.
