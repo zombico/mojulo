@@ -23,3 +23,5 @@
   next is taken in its place. The studio card teaches a chapter's session the move.
 - **Scales stay scales.** A whole-number scale (an ornament 0–3) moves in whole steps, its ladder of tiers shifting
   together so early stays below late; values under one key move together, so a pair stays a pair.
+- **Agents find it.** A routing card (`variations`) and two phrasings in the routing fixture send "do me four takes on
+  this axe" to the variations door; `run_experiment_sweep` leaves the list of doors with no fixture row.
