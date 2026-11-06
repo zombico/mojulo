@@ -169,7 +169,10 @@ async function mangekyouSweep(input) {
   // replay (`roll` given) is the order it replays, so it looks away from nothing new
   const named = new Set([...keep, ...reject]);
   const seen = roll !== undefined ? [] : SketchRepository.inFoldersStartingWith(folderPrefix(ref)).filter((row) => !named.has(row.ref)).map((row) => row.manifest).filter(Boolean);
-  const turned = turnMangekyou({ manifest: base.manifest, concept, n, at, principles, kept, rejected, seen, spread, roll: roll ?? rollOrder(), by });
+  // a shape asked of a made thing is picked again by its outline (drawn, not guessed): the pool drawn wider for it
+  const steer = mint && OUTLINED_KINDS.has(base.manifest.kind);
+  const turned = turnMangekyou({ manifest: base.manifest, concept, n, at, principles, kept, rejected, seen, spread, roll: roll ?? rollOrder(), by,
+    ...(steer ? { reserve: 2 * (n ?? 4) } : {}) });
   const order = { ...turned.order, from: { ref, title: base.title, kind: base.manifest.kind ?? null }, keep, reject };
   const keepVia = order.team.keep === 'design_game' ? `design_game({ ref: '${ref}', patch })` : `update_sketch({ ref: '${ref}', patch })`;
   const next = `Next pass: run_experiment_sweep({ ref: '${ref}', concept, keep: [refs you like], reject: [refs you do not] }). `
@@ -181,7 +184,15 @@ async function mangekyouSweep(input) {
   const name = (title ?? `${base.title} · ${concept ?? 'variations'}`).slice(0, 120);
   const folder = SketchFolderRepository.create({ name, ref: `${folderPrefix(ref)}${rollOrder().toString(36)}` });
   const variants = [], refused = [];
-  const queue = [...turned.variants], reserve = [...turned.reserve];
+  const shapes = steer && turned.order.concept.weights.silhouette >= 0.5 ? await outlineStore(base) : null;
+  let queue = [...turned.variants], reserve = [...turned.reserve];
+  if (shapes) {
+    // the outline picks among all the candidates: the n farthest apart in shape first, the rest standing by in order
+    const all = [...queue, ...reserve], byId = new Map(all.map((v) => [v.id, v]));
+    for (const v of all) await shapes.add(v.id, v.manifest);
+    const ranked = shapes.pick(all.map((v) => v.id), queue.length).map((id) => byId.get(id));
+    queue = ranked.slice(0, queue.length); reserve = ranked.slice(queue.length);
+  } else reserve = reserve.slice(0, turned.variants.length);
   while (queue.length && variants.length < turned.variants.length) {
     const v = queue.shift();
     try {
@@ -192,7 +203,7 @@ async function mangekyouSweep(input) {
       if (reserve.length) queue.push(reserve.shift());
     }
   }
-  const outlines = await outlinesOf(base, variants);
+  const outlines = await outlinesOf(base, variants, shapes);
   return { ok: variants.length > 0, from: ref, order, folder_ref: folder.ref, variants, ...(refused.length ? { refused } : {}), spread: turned.spread,
     ...(outlines ? { outlines } : {}),
     note: `${variants.length} variants of '${ref}' in folder ${folder.ref}, routed to ${order.team.name.toLowerCase()} (${order.team.why}); '${ref}' is unchanged. The eyes gate is the gallery's: look before you keep.`,
@@ -202,18 +213,37 @@ async function mangekyouSweep(input) {
 // the kinds whose outline the gate reads: a made thing the World draws whole and quickly (a prop, a layered body, a
 // scad part), never a place, whose outline is its ground
 const OUTLINED_KINDS = new Set(['workbench', 'layered', 'scad']);
+const SAME_OUTLINE = 0.95;
 
 /** The outline gate over the variants minted (lib/graph/mangekyou/outline.js): each drawn as the World draws it and
  * compared flat from three sides; advisory, and absent for a kind it does not read or a scene that does not resolve. */
-async function outlinesOf(base, variants) {
+/** Outlines drawn once each: the design's at once, a candidate's when it is added; `pick` the ids farthest apart in
+ * shape, `masks` what was drawn. Null when the scene does not resolve (the pick falls back to the parameters'). */
+async function outlineStore(base) {
+  try {
+    const [{ resolveWorldScene }, { meshOfFaces, outlineMasks, pickByOutline }] = await Promise.all([import('@/lib/graph/worlds/world-scene.js'), import('@/lib/graph/mangekyou/outline.js')]);
+    const draw = async (ref, manifest) => { const mesh = meshOfFaces((await resolveWorldScene({ ref, kind: manifest.kind, manifest })).payload?.faces); return mesh.faces.length ? outlineMasks(mesh) : null; };
+    const masks = { design: await draw(base.ref, base.manifest) };
+    if (!masks.design) return null;
+    return {
+      masks,
+      async add(id, manifest) { try { const m = await draw(id, manifest); if (m) masks[id] = m; } catch { /* a candidate its scene refuses: no outline, picked last */ } },
+      pick: (ids, n) => pickByOutline(masks, ids, n, masks.design),
+    };
+  } catch { return null; }
+}
+
+async function outlinesOf(base, variants, shapes = null) {
   if (!OUTLINED_KINDS.has(base.manifest.kind) || variants.length < 1) return null;
   try {
-    const [{ resolveWorldScene }, { meshOfFaces, outlinesApart }] = await Promise.all([import('@/lib/graph/worlds/world-scene.js'), import('@/lib/graph/mangekyou/outline.js')]);
-    const meshOf = async (ref, manifest) => meshOfFaces((await resolveWorldScene({ ref, kind: manifest.kind, manifest })).payload?.faces);
-    const meshes = { design: await meshOf(base.ref, base.manifest) };
-    for (const v of variants) meshes[v.id] = await meshOf(v.ref, SketchRepository.getByRef(v.ref).manifest);
-    const gate = outlinesApart(meshes);
-    const shared = Object.entries(gate.from ?? {}).filter(([, iou]) => iou > gate.ceiling).map(([id]) => id);
+    const store = shapes ?? await outlineStore(base);
+    if (!store) return null;
+    for (const v of variants) if (!store.masks[v.id]) await store.add(v.id, SketchRepository.getByRef(v.ref).manifest);
+    const { outlinesApart } = await import('@/lib/graph/mangekyou/outline.js');
+    const ids = ['design', ...variants.map((v) => v.id)].filter((id) => store.masks[id]);
+    const gate = { ...outlinesApart(Object.fromEntries(ids.map((id) => [id, {}])), { masks: store.masks }), ...(shapes ? { steered: true } : {}) };
+    // a variant whose outline is the design's all but exactly: another coat, not another shape
+    const shared = Object.entries(gate.from ?? {}).filter(([, iou]) => iou >= SAME_OUTLINE).map(([id]) => id);
     return { ...gate, pairs: gate.pairs.slice(0, 3),
       says: gate.ok ? (shared.length ? `the variants' outlines differ from each other; ${shared.join(', ')} keep the design's outline (another coat, not another shape)` : 'every variant a shape of its own')
         : `${gate.mostAlike.a} and ${gate.mostAlike.b} read as one outline (${gate.mostAlike.iou}): a silhouette pass may want \`spread: 'wild'\` or a concept that names shape` };

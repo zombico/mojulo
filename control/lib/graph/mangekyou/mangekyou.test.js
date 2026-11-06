@@ -3,7 +3,7 @@ import { turnMangekyou, readConcept, routeOrder, readPrinciples, rollOrder, AXES
 import { readLeaves, valueAt } from './leaves.js';
 import { VOCABULARY } from './teams.js';
 import { hexToRgb, lchOf } from '../color-theorist/oklab.js';
-import { meshOfFaces, outlinesApart } from './outline.js';
+import { meshOfFaces, outlinesApart, outlineMasks, pickByOutline } from './outline.js';
 
 // the smallest design that holds every axis, plus the things a mangekyou must never touch
 const PROP = Object.freeze({
@@ -227,5 +227,13 @@ describe('the outline gate: different shapes, or one shape in other coats', () =
     expect(out.pairs).toEqual([{ a: 'v1', b: 'v2', iou: out.from.v2 }]);
     expect(out.ok).toBe(true);
     expect(outlinesApart({ v1: cube, v2: meshOfFaces(box([2, 2, 2])) })).toMatchObject({ ok: false, mostAlike: { iou: 1 } });
+  });
+  it('picks the candidates farthest apart in shape: never a twin of the design or of one picked, while another stands', () => {
+    const m = (d) => outlineMasks(meshOfFaces(box(d)));
+    const masks = { a: m([2, 2, 2]), b: m([4, 1, 1]), c: m([4.2, 1, 1]), d: m([1, 1, 4]) };
+    const order = pickByOutline(masks, ['a', 'b', 'c', 'd'], 2, m([1, 1, 1]));
+    expect(order).toHaveLength(4);
+    expect(order.slice(0, 2)).not.toContain('a'); // the design's own outline at another size
+    expect(order.slice(0, 2).filter((id) => id === 'b' || id === 'c')).toHaveLength(1); // one of the twins, not both
   });
 });

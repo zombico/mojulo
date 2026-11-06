@@ -7,7 +7,8 @@
  *   turnMangekyou(order) → { order, variants: [{ id, says, moves, patch, manifest, distance }], reserve, spread }
  *     order: { manifest, concept?, n?, at?, principles?, kept?: [manifest], rejected?: [manifest], spread?, roll, by?,
  *              gate?: (manifest) → a refusal or null (its kind's: a refused candidate is passed over for the next),
- *              seen?: [manifest] (variants shown before: the pick looks away from them) }
+ *              seen?: [manifest] (variants shown before: the pick looks away from them),
+ *              reserve?: how many runners-up to answer beside the n (default n) }
  *
  * GENERAL: the design is read by its leaves (leaves.js), not by its kind; a team (teams.js) adds context only.
  * AUTHORED, NOT SEEDED BY THE AUTHOR: `roll` is drawn from the system's dice when the order is authored (rollOrder,
@@ -156,7 +157,10 @@ function candidate(leaves, k, ctx) {
   const swaps = new Map(); // one word swapped the same way wherever it stands (a fire coat becomes frost all over)
   const together = new Map(); // one move per key name
   for (const leaf of leaves) {
-    const s = committed[leaf.axis];
+    // a silhouette move re-proportions the sizes too (a sofa deeper and lower, a blade longer and thinner): each size
+    // on its own, so the outline changes in its own frame, where a scale alone would not
+    const reshape = leaf.axis === 'size' && leaf.form !== 'unit' && committed.silhouette ? committed.silhouette : 0;
+    const s = committed[leaf.axis] ?? (reshape || undefined);
     if (!s) continue;
     let v = leaf.value;
     if (leaf.form === 'hex') v = recolour(leaf.value, col, rng, principles.palette);
@@ -166,7 +170,7 @@ function candidate(leaves, k, ctx) {
       // a step swaps about half the words on its axis, a leap nearly all: a take, not a reshuffle
       if (!swaps.has(key)) swaps.set(key, rng() < clamp(0.2 + 0.35 * s, 0.15, 0.95) ? moveWord(leaf, rng, s, lean, principles.words[leaf.vocab]) : leaf.value);
       v = swaps.get(key);
-    } else if (leaf.axis === 'size') v = moveNumber(leaf, sizeAmt + gauss(rng) * 0.1 * s);
+    } else if (leaf.axis === 'size') v = moveNumber(leaf, sizeAmt + gauss(rng) * 0.1 * (committed.size ?? 0) + gauss(rng) * 0.45 * reshape);
     else if (leaf.form === 'deg') v = r3(wrapHue(leaf.value + (col?.turn ?? 0) + gauss(rng) * 8 * s)); // a hue turns with the palette
     else if (leaf.axis === 'colour') v = moveNumber(leaf, gauss(rng) * 0.6 * s);
     else {
@@ -217,6 +221,7 @@ function distance(a, b) {
 
 /** The n most dispersed of the pool: the first drawn among the boldest, then each the farthest from the design, the
  * picked and the rejected (a rejected place repels twice as hard). */
+const mixOf = (c) => Object.keys(c.committed).sort().join('+');
 function disperse(pool, n, rejected, rng, passes = () => true, seen = []) {
   const origin = new Map();
   const live = pool.filter((c) => c.values.size);
@@ -234,7 +239,10 @@ function disperse(pool, n, rejected, rng, passes = () => true, seen = []) {
   const score = (c) => Math.min(distance(c.place, origin), ...picked.map((p) => distance(c.place, p.place)), ...rejected.map((r) => distance(c.place, r) / 2), ...seen.map((r) => distance(c.place, r)));
   while (picked.length < n) {
     let best = null;
-    const ranked = live.filter((c) => !picked.includes(c) && !c.refused).map((c) => [score(c), c]).sort((a, b) => b[0] - a[0]);
+    // a take that turns a mix of axes none picked yet turns stands a quarter farther: farthest-point alone favours the
+    // candidate that moved everything, and a kaleidoscope is takes, each committed to its own few
+    const mixes = new Set(picked.map(mixOf));
+    const ranked = live.filter((c) => !picked.includes(c) && !c.refused).map((c) => [score(c) * (mixes.has(mixOf(c)) ? 1 : 1.25), c]).sort((a, b) => b[0] - a[0]);
     best = ranked.find(([, c]) => passes(c))?.[1] ?? null;
     if (!best) break;
     picked.push(best);
@@ -362,7 +370,9 @@ export function turnMangekyou(order) {
   };
   const variants = picked.map(variantOf);
   // the reserve stands in for a variant its kind's gate refuses (the door mints from it): as many as were asked for
-  const reserveVariants = reserve.slice(0, n).map((c, i) => variantOf(c, picked.length + i));
+  // (or as many as the order asks: a door that picks again by what it can see, the outline, draws a wider pool)
+  const reserveN = Number.isInteger(order.reserve) ? clamp(order.reserve, 0, MAX_VARIANTS * 3) : n;
+  const reserveVariants = reserve.slice(0, reserveN).map((c, i) => variantOf(c, picked.length + i));
   const pair = [];
   for (let i = 0; i < picked.length; i++) for (let j = i + 1; j < picked.length; j++) pair.push(distance(picked[i].place, picked[j].place));
 

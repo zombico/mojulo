@@ -5,6 +5,8 @@
  * size), and every pair's overlap averaged over the three. Advisory, as every gate: it stamps, it never refuses.
  *
  *   meshOfFaces(faces)                          a World payload's faces (corners, studio left out) → { vertices, faces }
+ *   outlineMasks(mesh) · outlineIoU(a, b)       a mesh's three outlines, and two sets' mean overlap
+ *   pickByOutline(masks, ids, n, design?)       the n ids whose outlines stand farthest apart (and from the design's)
  *   outlinesApart(meshes, { res?, ceiling? })   { name: mesh } → { ok, ceiling, pairs: [{ a, b, iou }] most alike first,
  *                                               mostAlike, from? } (`from`: each variant's overlap with `design`, when
  *                                               the meshes hold one by that name)
@@ -41,10 +43,35 @@ function planeMask(mesh, [a, b], res) {
   return figureMask({ vertices, faces: mesh.faces }, 180, { res, frame });
 }
 
-export function outlinesApart(meshes, { res = 96, ceiling = DISTINCT_CEILING } = {}) {
-  const names = Object.keys(meshes).filter((n) => meshes[n]?.faces?.length);
-  const masks = Object.fromEntries(names.map((n) => [n, PLANES.map((pl) => planeMask(meshes[n], pl, res))]));
-  const iou = (x, y) => r3(PLANES.reduce((t, _, k) => t + maskIoU(masks[x][k], masks[y][k]), 0) / PLANES.length);
+/** A mesh's outlines on the three planes (what the gate compares; drawn once, compared many times). */
+export const outlineMasks = (mesh, res = 96) => PLANES.map((pl) => planeMask(mesh, pl, res));
+/** Two outline sets' overlap, averaged over the planes (1 the same outline). */
+export const outlineIoU = (a, b) => r3(PLANES.reduce((t, _, k) => t + maskIoU(a[k], b[k]), 0) / PLANES.length);
+
+/**
+ * The n of `ids` whose outlines are farthest apart: the first the farthest from the design's, each next the farthest
+ * from the design and every one picked (ties to the order given, the order the parameters dispersed them in).
+ * → ids, the n first, then the rest by how far they stand (a refused one is stood in for by the next)
+ */
+export function pickByOutline(masks, ids, n, design = null) {
+  const live = ids.filter((id) => masks[id]);
+  const apart = (id, others) => Math.min(...others.map((o) => 1 - outlineIoU(masks[id], o)));
+  const picked = [];
+  while (picked.length < Math.min(n, live.length)) {
+    const others = [...(design ? [design] : []), ...picked.map((id) => masks[id])];
+    let best = null, bs = -Infinity;
+    for (const id of live) if (!picked.includes(id)) { const s = others.length ? apart(id, others) : 0; if (s > bs) { bs = s; best = id; } }
+    picked.push(best);
+  }
+  const others = [...(design ? [design] : []), ...picked.map((id) => masks[id])];
+  const rest = live.filter((id) => !picked.includes(id)).sort((a, b) => apart(b, others) - apart(a, others));
+  return [...picked, ...rest, ...ids.filter((id) => !masks[id])];
+}
+
+export function outlinesApart(meshes, { res = 96, ceiling = DISTINCT_CEILING, masks: given = {} } = {}) {
+  const names = Object.keys(meshes).filter((n) => given[n] || meshes[n]?.faces?.length);
+  const masks = Object.fromEntries(names.map((n) => [n, given[n] ?? outlineMasks(meshes[n], res)]));
+  const iou = (x, y) => outlineIoU(masks[x], masks[y]);
   const variants = names.filter((n) => n !== 'design');
   const pairs = [];
   for (let i = 0; i < variants.length; i++) for (let j = i + 1; j < variants.length; j++) pairs.push({ a: variants[i], b: variants[j], iou: iou(variants[i], variants[j]) });

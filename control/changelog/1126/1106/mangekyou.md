@@ -43,3 +43,10 @@
   the next order on it looks away from everything shown before (what is kept or rejected now aside); a replay (`roll`
   given) is the order it replays. A concept that names an axis is heard by every variant: "different shapes" never
   answers with a new fabric alone. "Different" asks for difference, not for a reroll.
+- **Shape is picked by shape.** When a made thing is asked for shape, the door draws a pool twice as wide, draws each
+  candidate's outline and keeps the ones farthest apart in shape from the design and from each other (`outlines.steered`).
+  A silhouette move now re-proportions the sizes too, each on its own (a sofa deeper and lower), so an outline moves in
+  its own frame where a scale alone would not; on a chesterfield asked for "different shapes" the pair most alike went
+  from 0.99 to 0.68. A variant is said to keep the design's outline only when it all but does (0.95).
+- **Takes, not everything at once.** Farthest-point picking favours the candidate that moved every axis; a candidate
+  turning a mix of axes no pick has turned yet now stands a quarter farther, so a set is a kaleidoscope of takes.

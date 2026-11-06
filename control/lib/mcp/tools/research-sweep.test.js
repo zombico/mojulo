@@ -242,7 +242,10 @@ describe('run_experiment_sweep — variations in words (a mangekyou order)', () 
     expect(Object.keys(out.outlines.from).sort()).toEqual(out.variants.map((v) => v.id).sort());
     for (const iou of Object.values(out.outlines.from)) expect(iou).toBeGreaterThan(0);
     expect(typeof out.outlines.says).toBe('string');
-  }, 120_000);
+    // a shape asked: picked again by the outline, from a pool drawn wider
+    expect(out.outlines.steered).toBe(true);
+    for (const iou of Object.values(out.outlines.from)) expect(iou).toBeLessThan(1);
+  }, 180_000);
 
   it('refuses a mixed form and refs that do not exist', async () => {
     const ref = await stored();
