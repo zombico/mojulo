@@ -18,7 +18,7 @@ You talk to the agent you already use: Claude Code, Codex, the Claude app, ChatG
 npx mojulo init
 ```
 
-You need **Node 22.14+** and an agent that speaks MCP. `init` finds the agents on your machine, asks once for each, and opens the dashboard at `http://localhost:3001`. Then start a fresh agent session and ask for something: **"build an oak dining table"**, **"make me a hero in an anime style"**, **"build a snowy island at dusk"**, **"make me a kart racer"**. Or ask **"what is this?"** for a tour.
+You need **Node 22.14+** and an agent that speaks MCP. `init` finds the agents on your machine, asks once for each, and opens the dashboard at `http://localhost:3001`. Then start a fresh agent session and ask for something: **"build a plywood chest of drawers"**, **"a longsword and a shield"**, **"a lake in the hills at sunset"**, **"make me a kart racer"**. Or ask **"what is this?"** for a tour.
 
 In Claude Code you can install the plugin instead: `/plugin marketplace add zombico/mojulo`, then `/plugin install mojulo@mojulo` ([plugins/mojulo](plugins/mojulo/README.md)). Use the plugin or `init`, not both. In ChatGPT: [Mojulo for ChatGPT](plugins/mojulo-chatgpt/README.md).
 
@@ -53,44 +53,43 @@ Open the dashboard on its own with `npx -y mojulo-ui`.
 
 ## What you can make
 
-Start small and go as far as you like: an object, then a character to hold it, a place to put them in, a world that moves, a game to play in it.
+Start small and go as far as you like: an object, the gear a hero carries, the hero, a place to put them in, a world that moves, a game to play in it.
 
 ### 3D objects
 
-| | |
-|---|---|
-| ![An oak dining table in an exploded view: the top lifted clear, the four aprons pulled out of the legs with their tenons showing, and the angle brackets and screws floating where they fasten](docs/images/oak-table-exploded.jpg) | !["Build a plywood chest of drawers, 900 wide, four drawers": the piece exploded into its parts, the panels nested on full sheets with the saw kerf, the hardware list, a tip-over warning, and the build order](docs/images/dresser-shop-sheet.png) |
+![A plywood chest of drawers pulled apart into its pieces: the two sides, the top and bottom, the divider, the back, four drawer boxes with their fronts, the drawer slides and the screws, each floating where it fits](docs/images/dresser-pieces.jpg)
 
-<sub>"Build an oak dining table and show me how it goes together." · "Build a plywood chest of drawers, 900 wide, four drawers."</sub>
+<sub>"Build a plywood chest of drawers, 900 wide, four drawers."</sub>
 
-Anything you can describe, at its real size: a mug, a lamp, a bracket for your shelf, a Raspberry Pi case with standoffs on its mounting holes and cutouts for its ports. Furniture you can actually build, pulled apart to show how it goes together, with its cut list, hardware list and assembly order. Print it at true size, or keep it as an OpenSCAD program you go on editing.
+Anything you can describe, at its real size, down to the pieces it is made of. Furniture you can actually build, with its cut list, hardware list and assembly order; a bracket for your shelf, or a Raspberry Pi case with standoffs on its mounting holes and cutouts for its ports. Print it at true size, or keep it as an OpenSCAD program you go on editing.
+
+### Game items
+
+![Eight game items on a dark ground: a longsword, a staff with a sapphire in a branching head, a heater shield, a recurve bow; a long-barrelled revolver with a walnut grip, a white pulse rifle with blue lights, a railgun with a scope and bipod, a vibroblade with a glowing edge](docs/images/game-items.jpg)
+
+<sub>"A longsword, a mage's staff, a shield and a bow" · "a revolver, a pulse rifle, a railgun and a vibroblade."</sub>
+
+The gear a hero carries: swords, staffs, shields and bows, in a historical, elven or dwarven style; handguns, rifles, shotguns and knives, modern or from the near and far future, in the finish you name. The vehicles they drive: karts, supercars and race machines, aircraft and boats, trains, walking mecha. The props that fill a level. Every item comes ready for a hero's hand or a level's floor. More: [flight](docs/flight-games.md).
 
 ### Characters
 
 Heroes in a realistic, cartoon or anime look, with faces that act. Hair, clothes, armour, shoes and the gear they carry, all fitted to the body. Named heroes with their emblems, enemy crews, and animals mid-stride. Every character comes rigged and animated, ready for a game or for your 3D tools. More: [the realistic body](docs/realistic-body.md), [garments](docs/garment-principles.md), [armour](docs/plating.md).
 
-### Vehicles and props
-
-Karts, supercars and race machines, aircraft and boats, trains, walking mecha; the props that fill a room, and the weapons and gear a hero carries. More: [flight](docs/flight-games.md).
-
-### Rooms and buildings
+### Environments and levels
 
 ![A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it. The house is built from the picture, and the living room, the dining room and the big bedroom are designed; asked for sage green walls and the sofa facing the windows, the living room is repainted and rearranged, shown from eye level before and after; then a walkthrough of the three rooms is filmed](docs/images/decor-demo.gif)
 
 <sub>"We just moved in, here's our floor plan! Some ideas for how we could live in it?"</sub>
 
-Send a picture of your floor plan and you get your house, built to the inch, each room designed in a style, a palette and furniture at true size, with the walkways kept clear. Ask for sage green walls and you see the room before and after. Or start from a sentence: a six-storey building with a penthouse, a townhouse, an office, a lab or a warehouse.
-
-### Environments and levels
+Indoors: send a picture of your floor plan and you get your house, built to the inch, each room designed in a style, a palette and furniture at true size, with the walkways kept clear. Ask for sage green walls and you see the room before and after. Or start from a sentence: a six-storey building with a penthouse, an office, a warehouse, a base to sneak through, a torch-lit dungeon.
 
 | | |
 |---|---|
-| ![A hangar: a vaulted steel shed with an orange gantry crane, a yellow-hatched parking box and jersey barriers on the floor](docs/images/wcd-demo-hangar-room.jpg) | ![A barracks bunk room: wood-veneer walls, bunks along both sides, footlockers between them, carpet tile underfoot](docs/images/wcd-demo-barracks-room.jpg) |
-| ![A bunker corridor: board-formed concrete, yellow and green steel on its columns, a cable bent along the wall under its tray, hazard stripes at a doorway](docs/images/wcd-demo-armoury-corridor.jpg) | ![A generator hall: white panels, a catwalk and two stairs, the generator on its plinth between jersey barriers](docs/images/wcd-demo-reactor-room.jpg) |
+| ![A lake in the hills at sunset, in the look of a sixth-generation console game: low-poly trees with faceted crowns, smooth painted grass, a flat-shaded boulder, the lake a soft blue pool](docs/images/landscape-gen6.jpg) | ![The same lake in the hills at sunset, in the look of a seventh-generation console game: tall grass, branching trees with leaves, boulders with cracked and textured rock, the lake glinting behind them](docs/images/landscape-gen7.jpg) |
 
-<sub>Four levels of one military base, each with its own look: a hangar, barracks, a bunker armoury and a reactor plant.</sub>
+<sub>"A lake in the hills at sunset," in a sixth-generation look and a seventh.</sub>
 
-Places lit and dressed: a base to sneak through, caverns, a torch-lit dungeon, an island at any hour of the day, a planet, a historic city in its period ([docs/historic/README.md](docs/historic/README.md)). Rock, sand or snow underfoot, with forests and grass growing on it. Buildings stocked for what they are: bunks and footlockers in a barracks, weapon racks in an armoury, an extinguisher by every door. Cities at real scale in the style of New York, Paris, London or Tokyo. Ask for the same place again and you get the same place, on any machine.
+Outdoors: terrain grown from a sentence, with its hills, rock, water, grass and trees, at any hour of the day. Choose how real it looks, from the painted look of a sixth-generation console game to the grass, leaves and textured rock of a seventh. Rock, sand or snow underfoot; caverns, islands, planets, a historic city in its period ([docs/historic/README.md](docs/historic/README.md)), cities at real scale in the style of New York, Paris, London or Tokyo. Ask for the same place again and you get the same place, on any machine.
 
 ### Interactive worlds
 
