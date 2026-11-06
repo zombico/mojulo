@@ -10,7 +10,8 @@
 //     the depth buffer: at a city's distances the perspective buffer's steps fake tilts on flat faces. Ink hulls, lines,
 //     points, sprites, every fullscreen quad, what writes no depth of its own (a sky dome) and non-angular translucent
 //     meshes are hidden for it; a water sheet is drawn (unmarked: never inked), so the bed under it is hidden as the
-//     eye sees it.
+//     eye sees it. Grass blades (`userData.blades`, stage-grass.js: its fields, its tufts and the static cards) are
+//     hidden too: a blade carries no crease and casts no contact, and a meadow is the most the pass would draw again.
 //   • THE INK: a fullscreen pass (into its own target) per pixel rebuilds the position from
 //     the view depth, the face normal from the steadier neighbour on each axis, and samples a disc twice — a small one
 //     of constant pixel radius (the line) and one of constant WORLD radius projected (the wash). Each sample's rise above
@@ -315,7 +316,7 @@ const __creasePrepass = () => {
   scene.traverseVisible((o) => {
     if (o === scene) return;
     const m = o.material;
-    const solid = (o.isMesh || o.isInstancedMesh) && !o.userData.ink && m && (Array.isArray(m) || (m.depthTest !== false && m.depthWrite !== false && (!m.transparent || (o.userData.crease && m.opacity > 0.5))));
+    const solid = (o.isMesh || o.isInstancedMesh) && !o.userData.ink && !o.userData.blades && m && (Array.isArray(m) || (m.depthTest !== false && m.depthWrite !== false && (!m.transparent || (o.userData.crease && m.opacity > 0.5))));
     const water = !solid && o.isMesh && m && m.transparent && o.geometry && o.geometry.getAttribute('color') && o.geometry.getAttribute('color').itemSize === 4;
     if (solid || water) { __sw.push([o, m]); const __cls = ${cfg ? "o.userData.crease === 1 ? __crA : o.userData.crease === 0.5 ? __crL : __crB" : '__crB'}; o.material = !Array.isArray(m) && m.userData && m.userData.prepass ? __crMoved(__cls, m) : !Array.isArray(m) && m.alphaTest > 0 && m.map ? __crCut(__cls, m) : __cls; }
     else if (o.isMesh || o.isLine || o.isPoints || o.isSprite) { __sw.push([o, null]); o.visible = false; }
@@ -396,7 +397,7 @@ const __creasePrepass = () => {
     if (o === scene) return;
     const m = o.material;
     // a solid writes depth in the frame itself (a sky dome does not: it is the background, not a surface behind)
-    const solid = (o.isMesh || o.isInstancedMesh) && !o.userData.ink && m && (Array.isArray(m) || (m.depthTest !== false && m.depthWrite !== false && (!m.transparent || (o.userData.crease && m.opacity > 0.5))));
+    const solid = (o.isMesh || o.isInstancedMesh) && !o.userData.ink && !o.userData.blades && m && (Array.isArray(m) || (m.depthTest !== false && m.depthWrite !== false && (!m.transparent || (o.userData.crease && m.opacity > 0.5))));
     // a water sheet (channels/water.js: translucent, per-vertex alpha in RGBA colours) is a surface to the eye: it hides
     // the bed under it, and is never inked
     const water = !solid && o.isMesh && m && m.transparent && o.geometry && o.geometry.getAttribute('color') && o.geometry.getAttribute('color').itemSize === 4;

@@ -936,9 +936,10 @@ function folkCard() {
     '  ([Keeper: the errand]) and the rest plain words. It lives in the first town holding all its people.',
     'RECURRING: recurring: { <id>: { role, name? } } the Officer Jenny of a game: in each town with that role, its first',
     '  is them, one face and one name everywhere (the game\'s seed), the town\'s clothes and house. Talk names them.',
+    'LIFE: by default each one not looked for potters out before its door and back (life: false: they keep still).',
     'THE DAY: day: true | { start?, rate? } gives the level a clock (its hour on the HUD, its sky dark at night) and the',
     '  households, children and watch walk a day on it; the keeper, the elder, the recurring and anyone in a sidequest',
-    '  keep their place. Without it they stand. Walk up and press interact (E) to talk to anyone.',
+    '  keep their place. Without it they potter by their doors. Walk up and press interact (E) to talk to anyone.',
   );
 }
 
