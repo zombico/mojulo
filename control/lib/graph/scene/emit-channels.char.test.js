@@ -414,6 +414,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-06 (1105-rpg-slice: rays by grid): the 16 fixtures that embed the controllable runtime (the 14 played
 // live and the two captures). Their ground hook gains the grid raycast (ground-grid.js, by its source, its own tests) and
 // hands every big static mesh to it at the first probe; nothing else in them moved.
+// Re-pinned 2026-11-06 (1105-rpg-slice: grass out of the prepass): `creases`, `creases-outline`, `occlusion` and
+// `occlusion-creases`, the fixtures that carry the creases' prepass. Its solid test skips a mesh marked `blades`
+// (stage-grass.js marks its fields, tufts and cards), so a meadow is not drawn a second time; nothing else moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

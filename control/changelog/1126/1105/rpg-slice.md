@@ -127,3 +127,6 @@
   more, standing where it was built) now answers by a 2D grid of its triangles built at the first probe, its cells halved
   where it is crowded (`gridFit`): a ray straight down tests the triangles over its point, any other ray those of the
   cells its line crosses, each face as its material shows it, the same hits three's raycast finds.
+- **A meadow is drawn once.** The creases' and the occlusion's prepass drew every solid a second time, grass blades
+  among them (in chapter 1's town a fifth of the frame). A mesh marked `blades` (stage-grass.js: its fields, its tufts,
+  the static cards) is hidden for it: a blade carries no crease and casts no contact.

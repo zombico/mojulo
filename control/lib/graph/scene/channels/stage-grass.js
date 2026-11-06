@@ -184,13 +184,13 @@ ${o.far ? `
         win[i * 2] = W[0]; win[i * 2 + 1] = W[1]; rank[i] = a[q + 5];
       }
       g.setAttribute('iWin', new THREE.InstancedBufferAttribute(win, 2)); g.setAttribute('iRank', new THREE.InstancedBufferAttribute(rank, 1));
-      im.frustumCulled = false; im.userData.g = 'far-grass'; scene.add(im); n0 += n;
+      im.frustumCulled = false; im.userData.g = 'far-grass'; im.userData.blades = true; scene.add(im); n0 += n;
     }
     stat.far = n0;
   })();` : ''}
   function ensure(t, need) {
     if (need <= t.cap) return; if (t.im) { scene.remove(t.im); t.im.dispose(); }
-    t.cap = Math.max(need, Math.ceil(t.cap * 1.5), 64); t.im = new THREE.InstancedMesh(t.g, t.mat, t.cap); t.im.count = 0; t.im.frustumCulled = false; t.im.userData.g = 'live-grass';
+    t.cap = Math.max(need, Math.ceil(t.cap * 1.5), 64); t.im = new THREE.InstancedMesh(t.g, t.mat, t.cap); t.im.count = 0; t.im.frustumCulled = false; t.im.userData.g = 'live-grass'; t.im.userData.blades = true;
     t.win = new THREE.InstancedBufferAttribute(new Float32Array(2 * t.cap), 2); t.g.setAttribute('iWin', t.win);${o.flowers ? `
     if (t.flower) { t.flo = new THREE.InstancedBufferAttribute(new Float32Array(4 * t.cap), 4); t.g.setAttribute('iFlo', t.flo); t.im.userData.g = 'live-flowers'; }` : ''} scene.add(t.im);
   }
@@ -262,7 +262,7 @@ ${o.far ? `
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\nvarying vec3 vMojW; uniform vec3 uCam; uniform vec2 uFade;')
         .replace('void main() {', 'void main() {\\n  { float d = distance(vMojW, uCam), f = clamp((d - uFade.x) / (uFade.y - uFade.x), 0.0, 1.0); if (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) >= f) discard; }');
     };
-    mat.customProgramCacheKey = () => 'mojulo-grass-cards'; o.material = mat;
+    mat.customProgramCacheKey = () => 'mojulo-grass-cards'; o.material = mat; o.userData.blades = true;
   });
 ${o.contact ? `  // the BODIES in the grass, every frame: the walker (only while its feet are in the grass: an eye up in the air presses
   // nothing), the page's walkers and its physics spheres, and what the page presses itself; each stamps the bed where
