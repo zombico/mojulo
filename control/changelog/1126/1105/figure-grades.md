@@ -23,7 +23,9 @@
 - **The party walks again, and the chase comes in a little.** A party RPG's party walks the map behind the hero (the
   world's `battles.followers`, the default): each member finds its way round walls by the navmesh, never fights on the
   map (the arena holds the fights), and stops at its own distance, so the party trails in a file; the bodies pass through
-  each other. The party's chase is pulled in to 7.5 m behind and 4.4 m up, the hero an eighth of the frame across.
+  each other. A member walks in the hero's FOOTSTEPS (mind.js `rule.trail`): the hero leaves a crumb every 30 cm, and the
+  member's goal is the point its distance back along them, ground the hero has just walked, so no wall stands between
+  them however the hero turned; one woken or left more than 8 m from its point is set down on it. The party's chase is pulled in to 7.5 m behind and 4.4 m up, the hero an eighth of the frame across.
 - **The grass is laid round what the camera frames.** A follow camera's eye stands back from its subject, and the live
   field measured every distance from the eye: on a chase 12 m back the hero's own ground was already past the field's
   near and thinned, and the field ended a few metres ahead of it. The field, the far grass and the static cards now
