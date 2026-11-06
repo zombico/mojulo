@@ -151,6 +151,8 @@ function studioCard() {
     '           stops at the review and reports what the creator must decide.',
     '  proof    { ref, chapter, run: true }: its steps and what they name, made ahead of their approvals (`ahead`: say so).',
     '  a level  chapter: \'level:<id>\' is one level alone (its part, page, links in and out, stages): the levels a unit each.',
+    '  vary     { ref, chapter, vary: { concept, n } }: n visual takes on its pages (colour, size, silhouette, surface,',
+    '           detail), freshly rolled and proposed; take one with its patch, the next pass with keep / reject patches.',
     '  done     its state settled (approved; auto in autonomous mode), its `blockers` and `advises` cleared or said.',
     '',
     'A SUBAGENT gets the ref, the chapter id and the cards its view names (`chapter.cards`), and returns its chapter\'s',

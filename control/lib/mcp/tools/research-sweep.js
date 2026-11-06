@@ -1,8 +1,10 @@
 /**
  * run_experiment_sweep — variations in one call (Workflows).
  *
- * Two forms. `{ ref, path, values }` varies any stored recipe at one JSON Pointer: a new sketch per value, all in one
- * new folder (variationSweep below). `{ research_ref, base, param, values }` is the mechanics experiment, below.
+ * Three forms. `{ ref, path, values }` varies any stored recipe at one JSON Pointer: a new sketch per value, all in one
+ * new folder (variationSweep below). `{ ref, concept, n }` is a mangekyou order (lib/graph/mangekyou/): n visual
+ * variants of the design in words, routed to the department that owns it, pass after pass (mangekyouSweep below).
+ * `{ research_ref, base, param, values }` is the mechanics experiment, below.
  *
  * A parameter sweep is what every quantitative question actually is ("what happens to X as
  * I vary Y?"), and before this verb it lived as N manual mints + N manual binds with the
@@ -129,13 +131,137 @@ async function variationSweep({ ref, path, values, title }) {
     note: `${variants.length} variants of '${ref}' in folder ${folder.ref}; '${ref}' is unchanged. Keep one with update_sketch on its ref.` };
 }
 
+/** The folders a design's variations are filed in start with this, so a later order finds what was shown. */
+const folderPrefix = (ref) => `mk-${ref}-`;
+
+/** The stored manifest at a ref, or a refusal that names the role it was given for. */
+function storedManifest(ref, role) {
+  if (typeof ref !== 'string' || !ref) throw new Error(`\`${role}\` holds sketch refs`);
+  const row = SketchRepository.getByRef(ref);
+  if (!row) throw new Error(`No sketch exists at ref '${ref}' (${role})`);
+  if (!row.manifest || typeof row.manifest !== 'object') throw new Error(`'${ref}' has no stored manifest (${role})`);
+  return row;
+}
+
+/**
+ * A MANGEKYOU ORDER through the variations door: the design at `ref` (narrowed by `at`), a concept in words, n, and
+ * optionally its principles, kept and rejected variants of a pass before. The order is rolled here, when it is
+ * authored (never in the library), and answered with its roll, its team and its context. `mint` (default) mints each
+ * variant through create_sketch's gates into one new folder, the gallery being the contact sheet, and stands a reserve
+ * variant in for one its kind refuses; `mint: false` answers the patches alone, for a department to hold. The design
+ * is never written.
+ */
+async function mangekyouSweep(input) {
+  const { ref, concept, n, at, principles, keep = [], reject = [], spread, roll, mint = true, title, by = 'user' } = input;
+  const base = storedManifest(ref, 'ref');
+  const [{ isBeatsKind }, { isVoiceRegisterKind }, { turnMangekyou, rollOrder }] = await Promise.all([
+    import('@/lib/graph/beats/beats-manifest'), import('@/lib/graph/voice/voice-register'), import('@/lib/graph/mangekyou/index.js')]);
+  if (isBeatsKind(base.manifest.kind) || isVoiceRegisterKind(base.manifest.kind)) {
+    throw new Error(`'${ref}' is a ${base.manifest.kind}; vary it with its own tool (update_beats / create_voice), which validates it`);
+  }
+  if (concept !== undefined && typeof concept !== 'string') throw new Error('`concept` is the variation asked for, in words');
+  if (!Array.isArray(keep) || !Array.isArray(reject)) throw new Error('`keep` and `reject` are lists of variant refs from a pass before');
+  if (roll !== undefined && (!Number.isInteger(roll) || roll < 1)) throw new Error('`roll` replays an order: the roll a pass answered');
+  if (typeof by !== 'string' || !by) throw new Error("`by` is who asks: 'user', or the department working its chapter");
+  const kept = keep.map((r) => storedManifest(r, 'keep').manifest);
+  const rejected = reject.map((r) => storedManifest(r, 'reject').manifest);
+  // what this design's earlier orders showed (their folders are named for it), but what is kept or rejected now; a
+  // replay (`roll` given) is the order it replays, so it looks away from nothing new
+  const named = new Set([...keep, ...reject]);
+  const seen = roll !== undefined ? [] : SketchRepository.inFoldersStartingWith(folderPrefix(ref)).filter((row) => !named.has(row.ref)).map((row) => row.manifest).filter(Boolean);
+  // a shape asked of a made thing is picked again by its outline (drawn, not guessed): the pool drawn wider for it
+  const steer = mint && OUTLINED_KINDS.has(base.manifest.kind);
+  const turned = turnMangekyou({ manifest: base.manifest, concept, n, at, principles, kept, rejected, seen, spread, roll: roll ?? rollOrder(), by,
+    ...(steer ? { reserve: 2 * (n ?? 4) } : {}) });
+  const order = { ...turned.order, from: { ref, title: base.title, kind: base.manifest.kind ?? null }, keep, reject };
+  const keepVia = order.team.keep === 'design_game' ? `design_game({ ref: '${ref}', patch })` : `update_sketch({ ref: '${ref}', patch })`;
+  const next = `Next pass: run_experiment_sweep({ ref: '${ref}', concept, keep: [refs you like], reject: [refs you do not] }). `
+    + `Take one onto the design: ${keepVia} with its patch. Same order again: pass back roll ${order.roll}.`;
+  const said = (v) => ({ id: v.id, says: v.says, moves: v.moves, patch: v.patch, distance: v.distance });
+  if (!mint) return { ok: true, from: ref, order, variants: turned.variants.map(said), spread: turned.spread, next };
+
+  const { createSketchHandler } = await import('@/lib/mcp/tools/sketch-mint');
+  const name = (title ?? `${base.title} · ${concept ?? 'variations'}`).slice(0, 120);
+  const folder = SketchFolderRepository.create({ name, ref: `${folderPrefix(ref)}${rollOrder().toString(36)}` });
+  const variants = [], refused = [];
+  const shapes = steer && turned.order.concept.weights.silhouette >= 0.5 ? await outlineStore(base) : null;
+  let queue = [...turned.variants], reserve = [...turned.reserve];
+  if (shapes) {
+    // the outline picks among all the candidates: the n farthest apart in shape first, the rest standing by in order
+    const all = [...queue, ...reserve], byId = new Map(all.map((v) => [v.id, v]));
+    for (const v of all) await shapes.add(v.id, v.manifest);
+    const ranked = shapes.pick(all.map((v) => v.id), queue.length).map((id) => byId.get(id));
+    queue = ranked.slice(0, queue.length); reserve = ranked.slice(queue.length);
+  } else reserve = reserve.slice(0, turned.variants.length);
+  while (queue.length && variants.length < turned.variants.length) {
+    const v = queue.shift();
+    try {
+      const made = await createSketchHandler({ title: `${base.title} · ${v.id} · ${v.says}`.slice(0, 200), manifest: v.manifest, folder_ref: folder.ref });
+      variants.push({ ...said(v), ref: made.ref, url: made.url });
+    } catch (err) {
+      refused.push({ id: v.id, says: v.says, error: err.message });
+      if (reserve.length) queue.push(reserve.shift());
+    }
+  }
+  const outlines = await outlinesOf(base, variants, shapes);
+  return { ok: variants.length > 0, from: ref, order, folder_ref: folder.ref, variants, ...(refused.length ? { refused } : {}), spread: turned.spread,
+    ...(outlines ? { outlines } : {}),
+    note: `${variants.length} variants of '${ref}' in folder ${folder.ref}, routed to ${order.team.name.toLowerCase()} (${order.team.why}); '${ref}' is unchanged. The eyes gate is the gallery's: look before you keep.`,
+    next };
+}
+
+// the kinds whose outline the gate reads: a made thing the World draws whole and quickly (a prop, a layered body, a
+// scad part), never a place, whose outline is its ground
+const OUTLINED_KINDS = new Set(['workbench', 'layered', 'scad']);
+const SAME_OUTLINE = 0.95;
+
+/** The outline gate over the variants minted (lib/graph/mangekyou/outline.js): each drawn as the World draws it and
+ * compared flat from three sides; advisory, and absent for a kind it does not read or a scene that does not resolve. */
+/** Outlines drawn once each: the design's at once, a candidate's when it is added; `pick` the ids farthest apart in
+ * shape, `masks` what was drawn. Null when the scene does not resolve (the pick falls back to the parameters'). */
+async function outlineStore(base) {
+  try {
+    const [{ resolveWorldScene }, { meshOfFaces, outlineMasks, pickByOutline }] = await Promise.all([import('@/lib/graph/worlds/world-scene.js'), import('@/lib/graph/mangekyou/outline.js')]);
+    const draw = async (ref, manifest) => { const mesh = meshOfFaces((await resolveWorldScene({ ref, kind: manifest.kind, manifest })).payload?.faces); return mesh.faces.length ? outlineMasks(mesh) : null; };
+    const masks = { design: await draw(base.ref, base.manifest) };
+    if (!masks.design) return null;
+    return {
+      masks,
+      async add(id, manifest) { try { const m = await draw(id, manifest); if (m) masks[id] = m; } catch { /* a candidate its scene refuses: no outline, picked last */ } },
+      pick: (ids, n) => pickByOutline(masks, ids, n, masks.design),
+    };
+  } catch { return null; }
+}
+
+async function outlinesOf(base, variants, shapes = null) {
+  if (!OUTLINED_KINDS.has(base.manifest.kind) || variants.length < 1) return null;
+  try {
+    const store = shapes ?? await outlineStore(base);
+    if (!store) return null;
+    for (const v of variants) if (!store.masks[v.id]) await store.add(v.id, SketchRepository.getByRef(v.ref).manifest);
+    const { outlinesApart } = await import('@/lib/graph/mangekyou/outline.js');
+    const ids = ['design', ...variants.map((v) => v.id)].filter((id) => store.masks[id]);
+    const gate = { ...outlinesApart(Object.fromEntries(ids.map((id) => [id, {}])), { masks: store.masks }), ...(shapes ? { steered: true } : {}) };
+    // a variant whose outline is the design's all but exactly: another coat, not another shape
+    const shared = Object.entries(gate.from ?? {}).filter(([, iou]) => iou >= SAME_OUTLINE).map(([id]) => id);
+    return { ...gate, pairs: gate.pairs.slice(0, 3),
+      says: gate.ok ? (shared.length ? `the variants' outlines differ from each other; ${shared.join(', ')} keep the design's outline (another coat, not another shape)` : 'every variant a shape of its own')
+        : `${gate.mostAlike.a} and ${gate.mostAlike.b} read as one outline (${gate.mostAlike.iou}): a silhouette pass may want \`spread: 'wild'\` or a concept that names shape` };
+  } catch { return null; }
+}
+
+const MANGEKYOU_KEYS = ['concept', 'n', 'at', 'principles', 'keep', 'reject', 'spread', 'roll', 'mint', 'by'];
+
 export async function runExperimentSweepHandler(input, _ctx) {
   if (!input || typeof input !== 'object') {
-    throw new Error('run_experiment_sweep requires { ref, path, values } (variations) or { research_ref, base, param, values } (a mechanics experiment)');
+    throw new Error('run_experiment_sweep requires { ref, concept, n } (variations in words), { ref, path, values } (one value swept) or { research_ref, base, param, values } (a mechanics experiment)');
   }
   if (input.ref !== undefined) {
     if (typeof input.ref !== 'string' || !input.ref) throw new Error('`ref` is a sketch ref');
     if (input.research_ref !== undefined || input.base !== undefined) throw new Error('`ref` varies a stored recipe; `research_ref` + `base` run a mechanics experiment. Pass one form.');
+    if (input.path === undefined && input.values === undefined) return mangekyouSweep(input);
+    const stray = MANGEKYOU_KEYS.filter((k) => input[k] !== undefined);
+    if (stray.length) throw new Error(`{ ref, path, values } sweeps one value; ${stray.join(', ')} belong to { ref, concept, n } (variations in words). Pass one form.`);
     return variationSweep(input);
   }
   const { research_ref, base, param, values, outcome } = input;
@@ -215,16 +341,26 @@ export function registerResearchSweepTools() {
   registerTool({
     name: 'run_experiment_sweep',
     description:
-      "Variations of one thing in a call. `{ ref, path, values }`: the stored recipe at `ref` copied once per value with "
-      + "that value set at the JSON Pointer `path` (e.g. '/levels/0/height'), each copy minted through create_sketch's gates "
-      + 'as a new sketch in one new folder; `ref` is unchanged. 2–12 values; stops at the first copy its kind refuses. '
-      + '`{ research_ref, base, param, values }`: a mechanics-view experiment, per value a world and its SI outcomes '
-      + '(flightTime s, range m, maxHeight m, maxSpeed m/s, curl m) bound into the research session, then a plot of '
-      + 'param vs `outcome`; dynamics scenarios only, gated up front so a bad recipe never half-binds.',
+      "Variations of one thing in a call; `ref` is unchanged, the variants minted into one new folder. `{ ref, concept, n }`: "
+      + "n visual takes on any design in words ('darker corrupted elites'): colour, size, silhouette, surface, detail; "
+      + 'freshly rolled, dispersed, routed to its department; `at` narrows, `principles` lock or bound, `keep`/`reject` '
+      + 'refs make the next pass, `mint: false` answers patches. `{ ref, path, values }`: one value at a JSON Pointer, '
+      + '2–12 values. `{ research_ref, base, param, values }`: a mechanics-view experiment, per value a world and its SI '
+      + 'outcomes bound into the research session, then a plot of param vs `outcome`.',
     inputSchema: {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'The sketch to vary (variations).' },
+        concept: { type: 'string', description: 'The variation, in words.' },
+        n: { type: 'integer', description: 'Variants, 1–12 (4).' },
+        at: { type: 'string', description: 'JSON Pointer narrowing the design.' },
+        principles: { type: 'object', description: '{ lock, palette, bounds, axes, words, notes }.' },
+        keep: { type: 'array', items: { type: 'string' }, description: 'Variant refs to turn from.' },
+        reject: { type: 'array', items: { type: 'string' }, description: 'Variant refs to move from.' },
+        spread: { type: ['string', 'number'], description: 'near | wide | wild, or 0–3.' },
+        roll: { type: 'integer', description: 'Replays an order.' },
+        mint: { type: 'boolean', description: 'false: patches only.' },
+        by: { type: 'string', description: "'user' or a department." },
         path: { type: 'string', description: 'JSON Pointer to the value to vary; the recipe must already set it.' },
         title: { type: 'string', description: 'Folder name.' },
         research_ref: { type: 'string', description: 'The research session to bind the experiment into.' },
@@ -233,7 +369,6 @@ export function registerResearchSweepTools() {
         values: { type: 'array', description: '2–12 values, one variant each.' },
         outcome: { type: 'string', enum: ['flightTime', 'range', 'maxHeight', 'maxSpeed', 'curl'], description: "What the experiment's plot charts (default 'flightTime')." },
       },
-      required: ['values'],
     },
     handler: runExperimentSweepHandler,
   });

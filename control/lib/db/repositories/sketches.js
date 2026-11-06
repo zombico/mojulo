@@ -465,6 +465,19 @@ export const SketchRepository = {
    * store and nothing else — so it gets its own read rather than paying for the
    * whole gallery to find one row.
    */
+  /** The rows in folders whose ref starts with `prefix`, newest first: a design's earlier variations (the variations
+   * door files each order's variants in a folder named for its design, `mk-<ref>-…`), so a new order looks away. */
+  inFoldersStartingWith(prefix, { limit = 48 } = {}) {
+    const scope = spaceFilter();
+    const like = `${String(prefix).replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const cap = Math.max(1, Math.min(200, Number(limit) || 48));
+    return db()
+      .prepare(`SELECT * FROM sketches WHERE folder_ref LIKE ? ESCAPE '\\'${scope.sql} ORDER BY created_at DESC, id DESC LIMIT ?`)
+      .all(like, ...scope.params, cap)
+      .map(rowToSketch)
+      .filter(Boolean);
+  },
+
   recent({ limit = 40 } = {}) {
     const handle = db();
     const scope = spaceFilter();
