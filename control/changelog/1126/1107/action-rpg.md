@@ -29,3 +29,10 @@
   gameworld/foes.js foePlacements), as many as the mark says, of the bestiary entry its kind names; a mark of a kind the
   bestiary has not is left a mark, and a page whose sketch marks no fight stands none. A page with nothing approved stands
   its foes on its walk's beats, as before.
+- **A quick intro and the way on.** A sketched level's page says what the level is and where to go (level/guide.js,
+  drawn by scene/channels/guide.js): the concept's pitch held in the middle of the screen as the walk's first page opens,
+  then the journey's beats on that page one at a time, at the top of the screen in words, an arrow turned the way it lies
+  from where the camera looks and the metres to it, a pillar of light where it stands. Each beat stands where it is
+  played: an encounter at its mark (reached once no foe stands about it), a find at its loot or secret, the walk's end at
+  the goal's door, a traverse or a climb at the gate on to the walk's next segment. Drafts guide as approved segments do:
+  directions are not a build. A page with no guide emits none of it.

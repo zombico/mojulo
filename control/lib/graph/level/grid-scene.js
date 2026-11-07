@@ -37,6 +37,7 @@ import { frameOf, placed, ringTheMap, pageOf } from './map-scene.js';
 import { readZone, zoneOf, ZONE } from './zones.js';
 import { levelGrid, SKETCH_BIOCUBE, SKETCH_BOULDERS } from './map-sketch.js';
 import { farFaces } from './far-view.js';
+import { guideOf } from './guide.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const DOOR = placeDoors;
@@ -495,6 +496,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   // THE SKETCH'S MARKS (map-sketch.js): a post each where it was sketched, told on hover
   const SK = G.sketch ? sketchMarks(G, Z, seed) : null;
   if (SK) out.faces.push(...SK.faces);
+  const guidance = guideOf(lv, G, Z, { seed });
   const LG = oneGrass(grass), FA = Z ? oneFauna(fauna, box[2] - box[0], box[3] - box[1], box) : oneFauna(fauna, W, H), HD = oneHerds(fauna);
   return {
     ...page,
@@ -508,6 +510,8 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     ...(HD ? { faunaUnits: HD } : {}),
     walk: { ...(R.walk || {}), spawn: [r5(sx), r5(sy), r5(gz + (R.walk?.minEye ?? 1.7))] },
     ...(SK?.signs.length ? { signs: SK.signs } : {}),
+    // (a sketched level's intro and way on, guide.js: drawn by the page's guide channel)
+    ...(guidance ? { guide: guidance } : {}),
     map: { tile: T, rows: G.rows, cols: G.cols, cells, ...(G.regions ? { regions: regionsOf(G) } : {}), ...(G.plan ? { plan: G.plan, pieces: mapItems(G) } : {}), ...(Z ? { zone: zoneReadout(Z) } : {}), ...(G.sketch ? { sketch: { approved: G.sketch.approved, laid: G.sketch.laid, ...(unlaidHere(G, Z).length ? { unlaid: unlaidHere(G, Z) } : {}), marks: SK.marks } } : {}), laws: mapLaws(G, cells, out.faces, out.colliders, Z) },
   };
 }

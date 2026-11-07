@@ -103,16 +103,49 @@ describe('a sketched segment built', () => {
     for (const l of P.map.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
   });
 
-  it('builds a level with no approved segment as the plan alone, byte for byte', async () => {
+  it('builds a level with no approved segment as the plan alone, byte for byte, its guide beside it', async () => {
     const drafts = { ...g.sketch, segments: { ...g.sketch.segments, A: { ...g.sketch.segments.A, status: 'draft' } } };
     expect(levelGrid(level(drafts)).sketch).toBeUndefined();
     const { sketch: _s, ...bare } = level(drafts);
     const [a, b] = await Promise.all([assembleGridScene({ level: level(drafts) }, {}, { buildStage: tileStage }), assembleGridScene({ level: bare }, {}, { buildStage: tileStage })]);
-    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    // (but its guide: directions are not a build, a draft's journey guides as an approved one's)
+    expect(a.guide).toMatchObject({ intro: expect.stringMatching(/old keep/), steps: [] });
+    const { guide: _g, ...built } = a;
+    expect(JSON.stringify(built)).toBe(JSON.stringify(b));
   });
 
   it('says what it could not lay: a cliff, water, rocks off the path', () => {
     const wet = { ...g.sketch, segments: { ...g.sketch.segments, B: { ...g.sketch.segments.B, status: 'approved' } } };
     expect(levelGrid(level(wet)).sketch.unlaid.map((u) => u.says)).toEqual(['B row 1 column 3: rocks off the path (boulders are laid along a path)', 'B row 2 column 3: rocks off the path (boulders are laid along a path)', 'B row 3 column 3: cliff']);
+  });
+});
+
+// THE GUIDE: a sketched level's intro and its way on, the journey's beats on a page, each a place to reach.
+import { guideOf, GUIDE } from './guide.js';
+import { zoneOf } from './zones.js';
+import { guideScript } from '../scene/channels/guide.js';
+describe('a sketched level\'s guide', () => {
+  const lv = { seed: 5, grid: { tile: g.tile, plan: g.plan, segments: g.segments }, sketch: g.sketch };
+  it('opens the walk\'s first page on the pitch and leads its beats on, each at its place', () => {
+    const AB = guideOf(lv, G, zoneOf(G, ['A', 'B'], { seed: 5 }), { seed: 5 });
+    expect(AB.intro).toMatch(/old keep before the bell tolls/);
+    expect(AB.steps.map((s) => [s.id, s.kind])).toEqual([['old-road', 'traverse'], ['ambush', 'encounter'], ['cache', 'find']]);
+    // (the road's beat at the fields' gate on to the keep, the south side of B's middle column; the ambush at its mark,
+    // fought; the cache at the barn's loot mark)
+    expect(AB.steps[0].at.slice(0, 2)).toEqual([108, -72]);
+    expect(AB.steps[1]).toMatchObject({ fight: true, radius: GUIDE.fight, at: [expect.closeTo(108, 3), expect.closeTo(-36, 3), expect.any(Number)] });
+    expect(AB.steps[2].at.slice(0, 2)).toEqual([84, -12]);
+    // (the keep's page: no intro, the climb then the warden at the goal's door)
+    const D = guideOf(lv, G, zoneOf(G, 'D', { seed: 5 }), { seed: 5 });
+    expect(D.intro).toBeUndefined();
+    expect(D.steps.map((s) => s.id)).toEqual(['switchback', 'warden']);
+    // (a level with no concept has no guide)
+    expect(guideOf({ ...lv, sketch: { segments: {} } }, G, null)).toBeNull();
+  });
+  it('is drawn by its own channel, the steps and the intro as data', () => {
+    const js = guideScript(guideOf(lv, G, zoneOf(G, ['A', 'B'], { seed: 5 }), { seed: 5 }));
+    expect(js).toContain('the guide: the level\'s intro and the way on');
+    expect(js).toContain('"say":"Follow the old road east across the fields"');
+    expect(() => new Function(js.replace(/\bTHREE\b|\bscene\b|\bwrap\b|\bcamera\b/g, 'undefined'))).not.toThrow();
   });
 });
