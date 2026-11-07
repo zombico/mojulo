@@ -71,6 +71,17 @@
   page from the first step to the exit. Each segment's floors are beats that name their node, so its foes stand at its
   own density (foes.js `foePlacements` by node); its catch zones and laws name their segment. The level is titled by
   its own name (`stageTitle`). Giuseppe's first level: one 410 m run, the game 3.6 MB where its four trails were 7.1 MB.
+- **A side-scroller's pace.** A strip's segments are sized by their courses, not their trails' walks: each the least
+  line its gaps and floors fit on and a fifth more, its course standing on the ground (no stairs up to it, `coursePlan`
+  `lift: 0`), so the hero is on the first floor at once and a beat comes every couple of seconds. Giuseppe's first level
+  runs 157 m where it ran 410. The first level stands more foes: a few on the runs (a stomp to learn from the start, none
+  on the floor the hero is set down on), dense to meet, a swarm in the gauntlet.
+- **Lives and coins.** Two mechanics (`game/mechanics.js`, their cards): `lives` (a hit through its mercy and each fall
+  into a course's pit cost one, a `oneup` gives one back, none left fails) and `coins` (each a coin glyph that pops when
+  touched, in the air too, counted on the HUD; every `oneup` coins, 30, says `oneup`). A world's `mechanics.lives` puts
+  its levels on lives (no `fail-on-death`, the hero's body binds no hp, no hp bar or level badge on the HUD) and
+  `mechanics.coins` lays coins along a strip's course: a row along each floor at the feet's height, an arc over each gap
+  where a running jump carries them.
 - **The side camera on a course.** Its height is eased while the hero stands and held through a jump (`band`), so a
   stair's risers no longer jolt the frame, and the frame holds in from the lane's ends (`ends`, along the lane's chord),
   turning square to the chord near them. Absent a course, a side world lays and frames as it did.

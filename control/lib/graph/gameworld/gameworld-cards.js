@@ -462,10 +462,12 @@ function equipmentCard() {
 
 function systemsCard() {
   return lines(
-    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, legend?, ui?, gear?, destruction?, scars? }.',
+    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, legend?, lives?, coins?, ui?, gear?, destruction?, scars? }.',
     '',
     'legend: screen (the default: the controls on the play screen for a level\'s first seconds) | menu (only in the pause',
     '  menu, nothing over the play: a demo or a release).',
+    'lives: 1-9, a platformer\'s lives for hp (a hit or a fall costs one, none left loses; no hp bar). coins: true |',
+    '  { oneup }: coins along a side strip\'s course, a life every 30.',
     `scale (the coarse dials): ${Object.entries(SCALE).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `stages → epochs reached by level: ${Object.entries(EPOCH_LEVEL).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `how a power is gained, by system kind: ${Object.entries(GAINED).map(([k, v]) => `${k}: ${v.why}`).join('; ')}.`,

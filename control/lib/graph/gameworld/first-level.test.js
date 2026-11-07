@@ -15,7 +15,7 @@ describe('the first level, as words', () => {
     const L = firstLevel();
     expect(Object.keys(L.walk.nodes)).toEqual(['basic', 'meet', 'advanced', 'gauntlet']);
     expect(Object.values(L.course).map((c) => c.teach)).toEqual(['basic', 'meet', 'advanced', 'gauntlet']);
-    expect(L.foes.density).toEqual({ basic: 'none', meet: 'sparse', advanced: 'none', gauntlet: 'dense' });
+    expect(L.foes.density).toEqual({ basic: 'sparse', meet: 'dense', advanced: 'sparse', gauntlet: 'swarm' });
     expect(L.goal).toBeUndefined();
   });
 
@@ -57,11 +57,11 @@ describe('the first level, laid in a world', () => {
     }
   });
 
-  it('the foes stand at each trail\'s density, on its floors: none on basic and advanced, a few to meet, many in the gauntlet', () => {
+  it('the foes stand at each trail\'s density, on its floors: a few to run past, more to meet, a swarm in the gauntlet', () => {
     // (the run stands them, runner.js hostileCast, on the stage's beats: the course's floors, its trail node's density)
     const foes = (node) => foePlacements(G, lv, { ...orders[node].ends, node });
-    expect(foes('basic')).toEqual([]);
-    expect(foes('advanced')).toEqual([]);
+    expect(foes('basic').length).toBeGreaterThan(0);
+    expect(foes('advanced').length).toBeGreaterThan(0);
     expect(foes('meet').length).toBeGreaterThan(0);
     expect(foes('gauntlet').length).toBeGreaterThan(foes('meet').length);
     // up on the course, not under it
@@ -77,13 +77,16 @@ describe('the first level from the side: one strip, its trails the segments of o
   const stages = gameStages(W).filter((s) => s.level === lv), G = readGameworld(W), S = stages[0];
   const O = stageLevelOrder(G, S, { ref: 'lv-one', heroRef: 'gw-hero' }), M = O.args.manifest;
 
-  it('is one stage, a strip on a straight lane: the trails end to end in teaching order, each its own length', () => {
+  it('is one stage, a strip on a straight lane: the trails end to end in teaching order, each compressed to its course', () => {
     expect(stages.length).toBe(1);
     expect(isStrip(S.manifest)).toBe(true);
     expect(stageTitle(S)).toBe(G.levels[lv].name ?? lv);   // (its level's name, else its id)
     const seg = S.manifest.side.segments;
     expect(seg.map((x) => x.node)).toEqual(FIRST_LEVEL_SEGMENTS.filter((n) => n !== 'boss'));
-    seg.forEach((x, k) => { expect(x.length).toBeGreaterThan(40); if (k) expect(x.s0).toBeCloseTo(seg[k - 1].s0 + seg[k - 1].length, 2); });
+    seg.forEach((x, k) => { expect(x.length).toBeGreaterThan(12); if (k) expect(x.s0).toBeCloseTo(seg[k - 1].s0 + seg[k - 1].length, 2); });
+    // (a side-scroller's pace: the whole run far shorter than its trails walked, the floors near their least)
+    expect(S.manifest.side.length).toBeLessThan(220);
+    expect(Math.max(...O.course.floors.map((f) => f.s1 - f.s0))).toBeLessThan(16);
     expect(S.manifest.side.length).toBeCloseTo(seg.at(-1).s0 + seg.at(-1).length, 2);
     expect(new Set(stageLane(S).line.map(([x]) => x))).toEqual(new Set([0]));
   });
@@ -108,13 +111,16 @@ describe('the first level from the side: one strip, its trails the segments of o
     expect(new Set(O.laws.filter((l) => l.id.startsWith('course:')).map((l) => l.id.split(':')[1]))).toEqual(new Set(seg.map((x) => x.node)));
   });
 
-  it('stands each segment\'s foes at its own density, on the rail: none to run, a few to meet, many in the gauntlet', () => {
+  it('stands each segment\'s foes at its own density, on the rail: a few to run past, more to meet, a swarm in the gauntlet', () => {
     const seg = S.manifest.side.segments, foes = hostileCast(G, lv, { ...O.ends, node: S.node }, { refs: {}, rail: { length: S.manifest.side.length } }).entities;
     const inSeg = (n) => { const x = seg.find((q) => q.node === n); return foes.filter((e) => e.rule.rail.join[1] >= x.s0 && e.rule.rail.join[1] <= x.s0 + x.length); };
-    expect(inSeg('basic')).toEqual([]);
-    expect(inSeg('advanced')).toEqual([]);
+    expect(inSeg('basic').length).toBeGreaterThan(0);
+    expect(inSeg('advanced').length).toBeGreaterThan(0);
     expect(inSeg('meet').length).toBeGreaterThan(0);
-    expect(inSeg('gauntlet').length).toBeGreaterThan(inSeg('meet').length);
+    expect(inSeg('gauntlet').length).toBeGreaterThan(inSeg('basic').length);
+    // (none on the floor the hero is set down on)
+    const first = O.course.floors[0];
+    expect(foes.filter((e) => e.rule.rail.join[1] <= first.s1)).toEqual([]);
     for (const e of foes) { expect(e.rule.rail).toMatchObject({ wait: true }); expect(e.transform.pos[0]).toBe(RAIL.back); }
   });
 
@@ -126,6 +132,22 @@ describe('the first level from the side: one strip, its trails the segments of o
     const W2 = { ...W, mechanics: { legend: 'menu' } };
     expect(JSON.stringify(M)).toContain('A / D  run');
     expect(JSON.stringify(stageLevelOrder(readGameworld(W2), gameStages(W2).filter((s) => s.level === lv)[0], { ref: 'lv-one', heroRef: 'gw-hero' }).args.manifest)).not.toContain('A / D  run');
+  });
+
+  it('on lives: a hit or a fall costs one, none left loses; coins along the course, a life every thirty; no hp bar', () => {
+    const W2 = { ...W, mechanics: { lives: 3, coins: true } }, G2 = readGameworld(W2);
+    const O2 = stageLevelOrder(G2, gameStages(W2).filter((s) => s.level === lv)[0], { ref: 'lv-one', heroRef: 'gw-hero', goal: () => [{ kind: 'reach-exit', at: O.ends.exit }, { kind: 'fail-on-death', of: 'body' }], mechanics: { play: { parts: [{ part: 'readout', id: 'hp', variant: 'bar' }, { part: 'readout', id: 'level', variant: 'counter' }], stats: { bodies: { hpMax: 'hp', power: 'power' } } } } });
+    const mech = O2.args.manifest.game.mechanics, kinds = mech.map((m) => m.kind);
+    expect(kinds).not.toContain('fail-on-death');
+    const L = mech.find((m) => m.kind === 'lives');
+    expect(L.start).toBe(3);
+    const pits = O2.args.manifest.events.sources.filter((x) => x.zone?.startsWith('__course-')).map((x) => x.zone);
+    expect(L.falls).toEqual(pits);
+    const C = mech.find((m) => m.kind === 'coins');
+    expect(C.pickups.length).toBeGreaterThan(20);
+    for (const pk of C.pickups) expect(pk.at[0]).toBe(0);                     // on the lane
+    expect(O2.args.manifest.play.parts).toEqual([]);                          // no hp bar, no level badge
+    expect(O2.args.manifest.play.stats.bodies).toEqual({ power: 'power' });   // the body takes no hp
   });
 
   it('a side world with no course lays its trails as it did', () => {

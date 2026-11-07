@@ -64,6 +64,31 @@ describe('lowerMechanic — individual verbs', () => {
   });
 });
 
+describe('a platformer\'s lives and coins', () => {
+  it('lives: a hit and each fall zone take one, a oneup gives one to its max, none left fails', () => {
+    const m = lowerMechanic('lives', { start: 3, falls: ['__course-1-1__'] }, { i: 0, player: 'hero' });
+    expect(m.ends).toEqual(['fail']);
+    expect(m.world.vars).toEqual({ lives: 3 });
+    expect(m.world.reactions).toEqual([
+      { on: 'hit:hero', do: 'inc', var: 'lives', by: -1, min: 0 },
+      { on: 'enter', match: { zone: '__course-1-1__' }, do: 'inc', var: 'lives', by: -1, min: 0 },
+      { on: 'oneup', do: 'inc', var: 'lives', by: 1, max: 9 },
+    ]);
+    expect(m.world.watches).toEqual([{ type: 'dead', when: { var: 'lives', lte: 0 } }]);
+    expect(m.on).toEqual({ dead: { end: 'fail' } });
+    expect(() => lowerMechanic('lives', { falls: [3] }, { i: 0, player: 'hero' })).toThrow(/falls/);
+  });
+  it('coins: each a zone that counts and toggles off; every oneup coins says oneup, and counts again', () => {
+    const m = lowerMechanic('coins', { pickups: [{ at: [0, 4, 1] }, { at: [0, 5, 1] }], oneup: 2 }, { i: 1, player: 'hero' });
+    expect(m.world.vars).toEqual({ coins: 0, __coins_run_1: 0 });
+    expect(m.world.sources[0]).toMatchObject({ zone: 'cn_1_0', radius: 0.9, planar: false, watch: 'hero' });
+    expect(m.world.watches).toEqual([{ type: 'oneup', when: { var: '__coins_run_1', gte: 2 } }]);
+    expect(m.world.reactions.at(-1)).toEqual({ on: 'oneup', do: 'set', var: '__coins_run_1', to: 0 });
+    expect(m.world.reactions).toContainEqual({ on: 'enter', match: { zone: 'cn_1_0' }, do: 'emit', type: 'coin' });
+    expect(m.world.hud).toEqual([{ var: 'coins', label: 'Coins' }]);
+  });
+});
+
 describe('composeMechanics — merge + rules', () => {
   it('composes a crawler level: reach-exit + collect + hazard-damage + fail-on-death', () => {
     const out = composeMechanics([

@@ -102,13 +102,15 @@ function beatsOf(reach, teach, verticality) {
   return out;
 }
 
-/** The course a segment lays: its floors and the gaps between them along `length` metres of line. */
-export function coursePlan(reach, { teach = 'basic', verticality = 'flat', length = 72 } = {}) {
+/** The course a segment lays: its floors and the gaps between them along `length` metres of line. `lift` the height
+ * it stands over its ground (its stairs climb it; 0, a side strip's: no stairs, the floors start on the ground), `end`
+ * the ground before its first step and after its last. */
+export function coursePlan(reach, { teach = 'basic', verticality = 'flat', length = 72, lift = LIFT, end = END } = {}) {
   if (!TEACH.includes(teach)) throw new Error(`course: teach is one of ${TEACH.join(', ')}`);
   if (!VERTICALITY[verticality]) throw new Error(`course: verticality is one of ${Object.entries(VERTICALITY).map(([k, v]) => `${k} (${v.says})`).join(', ')}`);
   const beats = beatsOf(reach, teach, verticality);
-  const stairs = Math.ceil(LIFT / RISER) * TREAD;
-  const s0 = END + stairs, s1 = length - END - stairs, room = s1 - s0;
+  const stairs = Math.ceil(lift / RISER) * TREAD;
+  const s0 = end + stairs, s1 = length - end - stairs, room = s1 - s0;
   // the floors share what the gaps leave, a fighting segment's floors long enough to fight on
   const gapsLen = beats.reduce((a, b) => a + b.w, 0), n = beats.length + 1;
   const least = teach === 'gauntlet' || teach === 'meet' || teach === 'boss' ? FIGHT : LAND;
@@ -124,7 +126,7 @@ export function coursePlan(reach, { teach = 'basic', verticality = 'flat', lengt
     gaps.push({ s0: r3(s), s1: r3(s + b.w), w: b.w, dz: b.dz, teaches: b.teaches, kind: b.kind ?? (b.w > 0 ? 'gap' : b.dz >= 0 ? 'step' : 'drop') });
     s += b.w; z += b.dz;
   }
-  return { teach, verticality, lift: LIFT, start: r3(END), end: r3(length - END), floors, gaps };
+  return { teach, verticality, lift, start: r3(end), end: r3(length - end), floors, gaps };
 }
 
 /** The course's laws: what the machine gate reads. */

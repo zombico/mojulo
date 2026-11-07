@@ -138,6 +138,8 @@ export const MECHANIC_SFX = {
   survive: { 'time:up': 'goal' },
   collect: { 'pickup:*': 'pickup' },
   'fail-on-death': { dead: 'death' },
+  lives: { dead: 'death' },
+  coins: { coin: 'pickup', oneup: 'chime' },
   'hp-pool': { 'hit:*': 'hit', 'enemy:down': 'down' },
   'win-when': { 'win:met': 'goal' },
   'defeat-all': { 'all:defeated': 'goal' },

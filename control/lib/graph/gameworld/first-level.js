@@ -28,12 +28,13 @@ export const WINS = Object.freeze({
   boss: 'a story hook: the antagonist\'s line pushed forward (the main quest\'s beat, where the world has one)',
 });
 
-// each trail its teaching, its verticality, its foes and its run (seconds at the walk's 6 m/s: the line the course has)
+// each trail its teaching, its verticality, its foes and its run (seconds at the walk's 6 m/s: the line the course has;
+// a side strip sizes each by its course instead, levels.js). A foe to stomp from the first trail on, the gauntlet a swarm
 const SEGMENTS = Object.freeze([
-  { id: 'basic', teach: 'basic', verticality: 'rolling', density: 'none', run: 16 },
-  { id: 'meet', teach: 'meet', verticality: 'flat', density: 'sparse', run: 12 },
-  { id: 'advanced', teach: 'advanced', verticality: 'climbing', density: 'none', run: 24 },
-  { id: 'gauntlet', teach: 'gauntlet', verticality: 'flat', density: 'dense', run: 18 },
+  { id: 'basic', teach: 'basic', verticality: 'rolling', density: 'sparse', run: 16 },
+  { id: 'meet', teach: 'meet', verticality: 'flat', density: 'dense', run: 12 },
+  { id: 'advanced', teach: 'advanced', verticality: 'climbing', density: 'sparse', run: 24 },
+  { id: 'gauntlet', teach: 'gauntlet', verticality: 'flat', density: 'swarm', run: 18 },
 ]);
 const BOSS = Object.freeze({ id: 'boss', teach: 'boss', verticality: 'flat', density: 'none', run: 12 });
 export const FIRST_LEVEL_SEGMENTS = Object.freeze([...SEGMENTS.map((s) => s.id), BOSS.id]);

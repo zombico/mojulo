@@ -165,7 +165,7 @@ export function gameStages(world) {
     // a level whose trails are all courses a side camera plays is ONE side strip: its trails its SEGMENTS, end to end
     // along one straight lane, each its own length and its own course (sideSegments, stripCourse), played on one page
     if (laid.stages.length > 1 && laid.stages.every((s) => sideCourse(G, level, s))) {
-      const s0 = laid.stages[0], { seed } = outTrailStyle(s0.manifest), side = sideSegments(laid.stages);
+      const s0 = laid.stages[0], { seed } = outTrailStyle(s0.manifest), side = sideSegments(G, level, laid.stages);
       out.push({ level, node: s0.node, section: s0.section, index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'side', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed, side } });
       continue;
     }
@@ -840,6 +840,12 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     if (!strip) blocks = [...(blocks ?? []), ...course.lowered.blocks];
     const ev = pilotPart.events ?? {}, C = course.lowered.events;
     pilotPart = { ...pilotPart, events: { ...ev, sources: [...(ev.sources ?? []), ...C.sources], reactions: [...(ev.reactions ?? []), ...C.reactions] } };
+    // LIVES (the world's `mechanics.lives`): a hit or a fall into one of the course's pits costs one, none left loses;
+    // no hp of its own beside them. COINS (`mechanics.coins`) along a strip's course: a row along each floor, an arc
+    // over each gap, where the hero's feet pass
+    const M = G.mechanics ?? {};
+    if (M.lives) game.mechanics = [...game.mechanics.filter((m) => m.kind !== 'fail-on-death'), { kind: 'lives', start: M.lives, falls: C.sources.map((x) => x.zone).filter((z) => typeof z === 'string' && z.startsWith('__course-')) }];
+    if (M.coins && strip) game.mechanics = [...game.mechanics, { kind: 'coins', pickups: courseCoins(course.plan), ...(M.coins.oneup ? { oneup: M.coins.oneup } : {}) }];
   }
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
@@ -858,6 +864,12 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
+  // (a level on lives shows them, not the hp bar, and no level badge: the lives and coins counters say the run; and the
+  // hero's body takes no hp from the stats, so no health bar stands for it either)
+  if (G.mechanics?.lives && play) {
+    const { hpMax: _h, ...bodies } = play.stats?.bodies ?? {};
+    play = { ...play, ...(Array.isArray(play.parts) ? { parts: play.parts.filter((p) => !(p.part === 'readout' && (p.id === 'hp' || p.id === 'level'))) } : {}), ...(play.stats?.bodies ? { stats: { ...play.stats, bodies } } : {}) };
+  }
   play = withBookUi(G, play);
   const manifest = { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
@@ -1028,11 +1040,17 @@ function sideEnds(manifest) {
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   return out;
 }
-/** A strip's segments: its stages' trails end to end along its lane, each at its trail's own length. */
-function sideSegments(stages) {
+/** A strip's segments: its stages' trails end to end along its lane, each COMPRESSED to its course: the least line its
+ * gaps and floors fit on (course.js), and STRIP_SLACK more, so a beat comes every couple of seconds; a trail's own run
+ * is the walk's, too long for a side-scroller's pace. */
+function sideSegments(G, level, stages) {
+  const reach = reachOf(G.feel ? readFeel(G.feel) : null), spec = G.levels[level]?.course ? readCourse(G.levels[level].course, 'course') : null;
   let at = 0;
   const segments = stages.map((s) => {
-    const { st, seed } = outTrailStyle(s.manifest), D = outTrailSpan(st, s.manifest.trail === true ? {} : s.manifest.trail, seed).D;
+    const C = courseAt(spec, s.node);
+    let D = 12;
+    while (D < 400) { try { coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: D, lift: 0, end: STRIP_END }); break; } catch { D += 1; } }
+    D = Math.ceil(D * STRIP_SLACK);
     const seg = { node: s.node, s0: r3(at), length: r3(D) };
     at += D;
     return seg;
@@ -1054,7 +1072,8 @@ function stripCourse(G, stage) {
   for (const [j, seg] of segs.entries()) {
     const C = courseAt(spec, seg.node);
     if (!C) continue;
-    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length) });
+    // (on a strip the course stands on the ground: no stairs up to it, the hero on its first floor at once)
+    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length), lift: 0, end: STRIP_END });
     const line = Array.from({ length: Math.floor(seg.length) + 1 }, (_, k) => [0, r3(seg.s0 + k)]);
     const L = lowerCourse(plan, { line, ground: () => 0 }), B = L.blocks[0].blocks;
     B.forEach((b, k) => { const p = L.parts[k]; blocks.push(b); parts.push({ ...p, role: p.stair || (p.floor > 0 && plan.gaps[p.floor - 1]?.kind === 'wall') ? 'built' : 'terrain', node: seg.node }); });
@@ -1064,9 +1083,10 @@ function stripCourse(G, stage) {
     reactions.push(...L.events.reactions.map((x) => ({ ...x, match: { ...x.match, zone: name(x.match.zone) } })));
     laws.push(...courseLaws(plan, reach).map((x) => ({ ...x, id: segs.length > 1 ? `${seg.node}:${x.id}` : x.id })));
     const at = (s, z) => [0, r3(seg.s0 + s), r3(L.base + z)];
-    beats.push(...plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z), ...(segs.length > 1 ? { node: seg.node } : {}) })));
-    floors.push(...plan.floors.map((f) => ({ ...f, s0: r3(f.s0 + seg.s0), s1: r3(f.s1 + seg.s0), node: seg.node })));
-    gaps.push(...plan.gaps.map((g) => ({ ...g, s0: r3(g.s0 + seg.s0), s1: r3(g.s1 + seg.s0), node: seg.node })));
+    // (the floor the hero is set down on is no beat: nothing stands on it, the first foe a jump or two in)
+    beats.push(...plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z), ...(segs.length > 1 ? { node: seg.node } : {}) })).filter((_, k) => j > 0 || k > 0));
+    floors.push(...plan.floors.map((f) => ({ ...f, s0: r3(f.s0 + seg.s0), s1: r3(f.s1 + seg.s0), top: r3(L.base + f.z), node: seg.node })));
+    gaps.push(...plan.gaps.map((g, k) => ({ ...g, s0: r3(g.s0 + seg.s0), s1: r3(g.s1 + seg.s0), from: r3(L.base + plan.floors[k].z), to: r3(L.base + plan.floors[k + 1].z), node: seg.node })));
     spans.push([Math.min(...B.map((b) => b.min[1])), Math.max(...B.map((b) => b.max[1]))]);
   }
   // (the ground before the first step, between one segment's last step and the next one's first, and after the last)
@@ -1074,6 +1094,25 @@ function stripCourse(G, stage) {
   const ground = spans.length ? [pad(-16, spans[0][0]), ...spans.slice(1).map((sp, k) => pad(spans[k][1], sp[0])), pad(spans[spans.length - 1][1], S.length + 16)] : sidePads(blocks, S.length);
   const teach = segs.length > 1 ? 'level' : courseAt(spec, segs[0].node)?.teach;
   return { plan: { teach, segments: segs, floors, gaps }, lowered: { blocks: [{ blocks, course: false, value: 0.58 }], events: { sources, reactions }, parts }, laws, beats, ground };
+}
+/** A STRIP COURSE'S COINS (game/mechanics.js coins): along each floor a row of three every COIN_ROW metres, at the
+ * height the hero's feet pass walking; over each gap an arc of three where a running jump carries its feet. */
+/** A strip segment's ground before its first floor and after its last (metres), and how much past its course's least
+ * line a segment runs. */
+const STRIP_END = 1.5, STRIP_SLACK = 1.2;
+const COIN = Object.freeze({ row: 7, gap: 1.2, walk: 0.6, arc: [0.8, 1.3] });
+export function courseCoins(plan) {
+  const out = [], at = (s, z) => ({ at: [0, r3(s), r3(z)] });
+  for (const f of plan.floors) {
+    if (f.top === undefined || f.s1 - f.s0 < 3) continue;
+    for (let s = f.s0 + 2; s + 2 * COIN.gap <= f.s1 - 1; s += COIN.row) for (let k = 0; k < 3; k++) out.push(at(s + k * COIN.gap, f.top + COIN.walk));
+  }
+  for (const g of plan.gaps) {
+    if (g.kind === 'wall' || !(g.w > 0) || g.from === undefined) continue;
+    const z = Math.max(g.from, g.to);
+    out.push(at(g.s0 + 0.2 * g.w, z + COIN.arc[0]), at((g.s0 + g.s1) / 2, z + COIN.arc[1]), at(g.s1 - 0.2 * g.w, z + COIN.arc[0]));
+  }
+  return out.sort((a, b) => a.at[1] - b.at[1]);
 }
 /** The side camera's height on a course: eased while the hero stands (a stair's risers), held through a jump inside it. */
 export const SIDE_BAND = Object.freeze([1, 2]);

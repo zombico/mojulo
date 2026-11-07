@@ -418,7 +418,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // stands in place of the goal's cast: levels.js)
     // (the hero's hp is its body's own where the systems bind the hp stat to it and no battle on the stage reads the
     // level's: fail-on-death and the hazards on the body, a touch's cost the same share of its hp; foes.js onBody)
-    const hpBase = !fight && !G.levels[s.level]?.goal?.boss ? bodyHpBase(B.mechanics) : null;
+    // (a world on lives, mechanics.lives, has no hp to bind: a touch costs a life, the level's lives mechanic's)
+    const hpBase = !fight && !G.levels[s.level]?.goal?.boss && !G.mechanics?.lives ? bodyHpBase(B.mechanics) : null;
     const GA0 = goalArgs(G, s, lastOf, ref, { fought: !!fight }), GA = hpBase && GA0.goal ? { ...GA0, goal: (ends) => onBody(GA0.goal(ends), hpBase).mechanics } : GA0;
     const hostile = hostileOf(G, s, foeRefs, true, lastOf[s.level] === s.index, hpBase ? onBody([{ kind: 'fail-on-death', hits: LEVEL_GOAL.hit }], hpBase).hurt : null);
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
