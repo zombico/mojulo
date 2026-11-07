@@ -20,6 +20,12 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-07 (the action RPG: a hero's sprint on its stamina, the orbit camera): the runtime the page embeds
+// gained the platform rule's `sprint` (the boost held as a walker's sprint on its gauge: rules-platform.js) and its
+// `moveYaw: 'camera'`, and the follow rule's `orbit` (rules-basic.js). On the `controllable` fixture 35 lines are added
+// and 9 replaced in place (each a `sprints`/`moveYaw` guard on an existing line); a rule with neither runs as before.
+// Every fixture that embeds the controllable runtime re-pinned with it.
+//
 // Re-pinned 2026-10-07 (playscape: movers run rails and ride drives): the controllable runtime the page embeds gained
 // the mover's `path` / `drive: 'ride'` branch and the carry pass's `_ridden` mark. The diff on the `controllable` fixture
 // is additions only (85 lines, none removed); every fixture that embeds the controllable runtime re-pinned with it.
