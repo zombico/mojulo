@@ -53,3 +53,11 @@
   (`briefs/<segment>.md`), writes the sample out to sketch on (`--save-world`) and approves a segment in a world's file
   (`--approve <segment>`). The sample is a quest to an old keep: the town approved, the fields and the keep drafts, the
   woods not yet planned (its laws say the woods' east gate must rise to meet the keep's).
+- **The segments' crew plans in miniature.** `req: { unit: 'level:<id>', segments: true }` raises every segment of a
+  planned map, those reached only by joins too, an author each. Each author's brief now carries its segment's sketch
+  brief: the level's pitch and the journey's beats here, its land's height and the ground across each gate in metres, what
+  to decide (ground, height, marks), the sketch's laws and which of them fail as it stands; its gates say the joins too
+  (each a path the segment's law holds it to). An author writes its segment's sketch beside its glyphs
+  (`/levels/<id>/glyphs/sketch/segments/<S>`, laid for it when the req is raised), and nothing else; a malformed sketch is
+  refused by the world's read with nothing written, and a sketch its author marks approved is refused: the approval is the
+  creator's (the director's own patch).

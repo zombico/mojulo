@@ -764,6 +764,9 @@ async function questReq(ref, req) {
     const W0 = gameworldOf(SketchRepository.getByRef(ref).manifest);
     try { (req.segments ? segmentUnits(W0, seg.level) : [req.unit]).forEach((u) => checkSegment(W0, u)); } catch (e) { throw new Error(`design_game: ${e.message}`); }
     if (!isObj(W0.levels[seg.level].glyphs.segments)) await updateSketchHandler({ ref, patch: [{ op: 'set', path: `/levels/${seg.level}/glyphs/segments`, value: {} }], note: 'design_game: the planned map\'s segments laid for its authors' });
+    // (and its sketch's: each author plans its segment in miniature too, level/map-sketch.js)
+    const sk = W0.levels[seg.level].glyphs.sketch;
+    if (!isObj(sk) || !isObj(sk.segments)) await updateSketchHandler({ ref, patch: [{ op: 'set', path: `/levels/${seg.level}/glyphs/sketch`, value: { ...(isObj(sk) ? sk : {}), segments: {} } }], note: 'design_game: the planned map\'s sketch laid for its authors' });
     if (req.segments === true) {
       const units = segmentUnits(W0, seg.level), { unit: _u, segments: _s, ...rest } = req;
       // (a budget for the crew: an author a segment and one rework each, the critics and the assistant beside them)
@@ -835,7 +838,9 @@ async function reqWrites(ref, req) {
     // (a segment's author writes its segment only: two authors of one map never write one path)
     const seg = (job.kind === 'author' || job.kind === 'diverge') ? unitOf(jobUnit(job, r)) : null;
     const past = seg?.segment != null ? outsideOf(jobUnit(job, r), req.patch) : [];
-    if (past.length) throw new Error(`design_game: ${job.id}'s patch is refused, nothing written (${job.id} stays issued): ${jobUnit(job, r)} writes its segment only (/levels/${seg.level}/glyphs/segments/${seg.segment}), not ${past.join(', ')}`);
+    if (past.length) throw new Error(`design_game: ${job.id}'s patch is refused, nothing written (${job.id} stays issued): ${jobUnit(job, r)} writes its segment only (/levels/${seg.level}/glyphs/segments/${seg.segment} and its sketch, /levels/${seg.level}/glyphs/sketch/segments/${seg.segment}), not ${past.join(', ')}`);
+    // (a segment's sketch is approved by the creator, never by its author)
+    if (seg?.segment != null && approvesSketch(req.patch)) throw new Error(`design_game: ${job.id}'s patch is refused, nothing written (${job.id} stays issued): a segment's sketch is approved by the creator, never by its author (leave its status a draft)`);
     // a patch the door would refuse is refused before anything is written and before the job moves: the recipe and the
     // job stay as they were, so the job reports again (an author's patch is applied at once, a diverge one later)
     if (Array.isArray(req.patch) && (job.kind === 'author' || job.kind === 'diverge')) {
@@ -943,6 +948,8 @@ const probeState = (receipt) => {
   return /probe again|not played|no stage/.test(c.says ?? '') ? 'none' : 'failed';
 };
 
+// (an op that sets a sketch's status approved: the whole segment's sketch, or its status alone)
+const approvesSketch = (patch = []) => patch.some((op) => typeof op?.path === 'string' && /\/glyphs\/sketch\/segments\/[^/]+(\/status)?$/.test(op.path) && (op.value === 'approved' || op.value?.status === 'approved'));
 // (a segment's author is handed its plan's remit: its gates, role, words, the beats on it, the floor its fill lays)
 const segmentBrief = (W, j, r) => ((j.kind === 'author' || j.kind === 'diverge') && unitOf(jobUnit(j, r))?.segment != null ? { segment: segmentRemit(W, jobUnit(j, r)) } : {});
 

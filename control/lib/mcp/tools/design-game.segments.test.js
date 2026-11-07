@@ -7,6 +7,7 @@ import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { readGrid } from '@/lib/graph/level/grid.js';
 import { designGameHandler } from './design-game.js';
+import { WORLDMAP_SAMPLE } from '@/lib/graph/gameworld/worldmap-bed.js';
 
 // A PLANNED MAP WRITTEN BY A CREW (gameworld/segments.js): the map's plan settled, one req raises every segment, an
 // author each in its own seat, handed its gates and role from the plan; each writes its segment only, held to the
@@ -40,7 +41,7 @@ describe('design_game: a planned map\'s segments as a crew', () => {
     // each author's brief: its segment's pages, and its plan's remit (its role, its gates and whom they join)
     const view = await designGameHandler({ ref: 'pm', chapter: 'level:vale/B' });
     const j2 = view.req.jobs.find((j) => j.job === 'j2');
-    expect(j2).toMatchObject({ writes: ['/levels/vale/glyphs/segments/B'], segment: { segment: 'B', name: 'the woods', role: 'passage', size: 4 } });
+    expect(j2).toMatchObject({ writes: ['/levels/vale/glyphs/segments/B', '/levels/vale/glyphs/sketch/segments/B'], segment: { segment: 'B', name: 'the woods', role: 'passage', size: 4 } });
     expect(j2.segment.gates).toEqual(['in by the west side, row 2 column 1 a path (\'#\'), joining the town', 'out by the south side, row 4 column 2 a path (\'#\'), joining the shrine']);
     expect(j2.segment.floor.rows).toHaveLength(4);
     // a segment that breaks its law is refused before anything is written; the job stays issued
@@ -60,6 +61,39 @@ describe('design_game: a planned map\'s segments as a crew', () => {
     const R = (await designGameHandler({ ref: 'pm', chapter: 'level:vale/A' })).req.receipt;
     expect(R.checks.find((c) => c.check === 'proposal')).toMatchObject({ holds: true });
     expect(R.checks.find((c) => c.check === 'probe').says).toBe("no stage made: { chapter: 'level:vale', run: true }");
+  });
+
+  it('hands each author its segment\'s sketch brief, takes its sketch beside its glyphs, and leaves the approval to the creator', async () => {
+    // (the world map's sample: a quest to the keep, its concept written, the town approved, the woods off the walk)
+    await designGameHandler({ world: { ...WORLDMAP_SAMPLE, mode: 'gated' }, ref: 'sk' });
+    const id = (await designGameHandler({ ref: 'sk', req: { unit: 'level:overworld', segments: true } })).reqs.raised.at(-1).split(' ')[0];
+    // (every segment an author: the walk's, then the woods, reached by joins)
+    const started = await designGameHandler({ ref: 'sk', req: { id, start: true } });
+    expect(started.reqs.raised.map((x) => x.split(' ').slice(1, 4).join(' '))).toEqual(['j1 author level:overworld/A', 'j2 author level:overworld/B', 'j3 author level:overworld/D', 'j4 author level:overworld/C']);
+    const brief = (await designGameHandler({ ref: 'sk', chapter: 'level:overworld/C' })).req.jobs.find((j) => j.job === 'j4');
+    // (the woods: its gates are both joins; the journey's beat here; the keep's ground 4 m up across its east gate)
+    expect(brief.segment.gates).toEqual(["a join by the north side, row 1 column 2 a path ('#'), joining the town", "a join by the east side, row 2 column 3 a path ('#'), joining the keep"]);
+    expect(brief.segment.sketch).toMatchObject({ pitch: expect.stringMatching(/old keep/), journey: [expect.stringMatching(/shrine hidden in the woods/)], across: ['north: the town\'s ground across the gate stands 0 m up', 'east: the keep\'s ground across the gate stands 4 m up'] });
+    // (the woods not yet sketched: its path climbs a wall into the keep, and the gate's two sides stand apart)
+    expect(brief.segment.sketch.now).toEqual([expect.stringMatching(/^climb: a path climbs 4 m/), expect.stringMatching(/^gate-heights: .*C–D/)]);
+    expect(brief.writes).toEqual(['/levels/overworld/glyphs/segments/C', '/levels/overworld/glyphs/sketch/segments/C']);
+    // its sketch written beside its glyphs: the woods' east side raised to meet the keep
+    const sketch = { ground: ['f . f', 'g . .', 'f f w'], height: ['0 0 0', '0 1 1', '0 0 0'], marks: [{ at: [0, 1], kind: 'secret', say: 'The shrine, the keep\'s side key', item: 'side key' }], notes: 'Dense wood: the shrine is found, not seen.' };
+    const put = [{ op: 'set', path: '/levels/overworld/glyphs/sketch/segments/C', value: { status: 'draft', ...sketch } }];
+    // (an author approving its own sketch is refused, nothing written)
+    await expect(designGameHandler({ ref: 'sk', req: { id, job: 'j4', patch: [{ ...put[0], value: { ...put[0].value, status: 'approved' } }], decisions: why } })).rejects.toThrow(/approved by the creator, never by its author/);
+    // (a malformed sketch is refused by the world's read, nothing written)
+    await expect(designGameHandler({ ref: 'sk', req: { id, job: 'j4', patch: [{ ...put[0], value: { ...sketch, ground: ['f f'] } }], decisions: why } })).rejects.toThrow(/refused, nothing written[\s\S]*3 rows of 3/);
+    expect(SketchRepository.getByRef('sk').manifest.levels.overworld.glyphs.sketch.segments.C).toBeUndefined();
+    const kept = await designGameHandler({ ref: 'sk', req: { id, job: 'j4', patch: put, decisions: why } });
+    expect(kept.reqs.done[0]).toBe('j4 author kept: its patch applied');
+    expect(SketchRepository.getByRef('sk').manifest.levels.overworld.glyphs.sketch.segments.C).toMatchObject({ status: 'draft', marks: [{ kind: 'secret' }] });
+    // (its sketch meets the keep: the laws it was briefed against hold now)
+    const after = (await designGameHandler({ ref: 'sk', chapter: 'level:overworld/D' })).req.jobs.find((j) => j.job === 'j3');
+    expect(after.segment.sketch.now).toEqual([]);
+    // (the creator approves it: the director's own patch)
+    await designGameHandler({ ref: 'sk', patch: [{ op: 'set', path: '/levels/overworld/glyphs/sketch/segments/C/status', value: 'approved' }] });
+    expect(SketchRepository.getByRef('sk').manifest.levels.overworld.glyphs.sketch.segments.C.status).toBe('approved');
   });
 
   it('refuses segments of a level that is not planned, and a segment its plan does not lay out', async () => {

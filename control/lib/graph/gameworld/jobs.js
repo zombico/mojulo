@@ -71,7 +71,8 @@ export const reissuesLeft = (req, jobs) => Math.max(0, (budgetOf(req).reissues |
 export function unitPaths(unit) {
   const u = unitOf(unit);
   if (!u) return [];
-  if (u.segment != null) return [`/levels/${u.level}/glyphs/segments/${u.segment}`];
+  // (a segment's glyphs, and its sketch: the segment planned in miniature, level/map-sketch.js)
+  if (u.segment != null) return [`/levels/${u.level}/glyphs/segments/${u.segment}`, `/levels/${u.level}/glyphs/sketch/segments/${u.segment}`];
   return u.level != null ? [`/levels/${u.level}`] : [...u.chapter.paths];
 }
 
