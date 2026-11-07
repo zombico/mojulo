@@ -65,6 +65,12 @@
   the level's `style.geocube`, else the meadow's valley. A trail of Jumping Giuseppe's first level ships about 0.3–0.4 MB
   of geometry where its trail shipped 4.3–6.7 MB, and the level designs in half the time. The ground before the first
   step and after the last is the strip's own (`sidePads`); the course's catch zones and laws hold on it as on a trail.
+- **A first level played as one.** A level whose trails are all courses a side camera plays is one side strip: its
+  trails the strip's segments end to end along one lane, each at its own length with its own course (what it teaches,
+  its verticality), the course coming down its stairs to the ground between segments and up again into the next; one
+  page from the first step to the exit. Each segment's floors are beats that name their node, so its foes stand at its
+  own density (foes.js `foePlacements` by node); its catch zones and laws name their segment. The level is titled by
+  its own name (`stageTitle`). Giuseppe's first level: one 410 m run, the game 3.6 MB where its four trails were 7.1 MB.
 - **The side camera on a course.** Its height is eased while the hero stands and held through a jump (`band`), so a
   stair's risers no longer jolt the frame, and the frame holds in from the lane's ends (`ends`, along the lane's chord),
   turning square to the chord near them. Absent a course, a side world lays and frames as it did.

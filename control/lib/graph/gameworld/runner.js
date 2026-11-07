@@ -46,7 +46,7 @@ import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gauntletCast } from './gauntlet-cast.js';
-import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane } from './levels.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle } from './levels.js';
 import { bindStory } from './story.js';
 import { SIDE_KITS } from '../contest/team-arena.js';
 import { sportTeams } from './sport-concept.js';
@@ -471,7 +471,7 @@ const toMap = (args) => ({ ...args, manifest: { ...args.manifest, game: { ...arg
 // epoch's last stage's, which leads on to the next epoch's map (the final epoch's, back to its own: the map before the
 // end, open for what is left)
 function epochLevels(stages, refs, maps, G) {
-  const titleOf = (d) => { const i = refs.indexOf(d.ref); return i >= 0 ? `${stages[i].level} · ${stages[i].node}` : d.name; };
+  const titleOf = (d) => { const i = refs.indexOf(d.ref); return i >= 0 ? stageTitle(stages[i]) : d.name; };
   return maps.flatMap((m, k) => {
     const refOf = Object.fromEntries(m.dots.map((d) => [d.id, d.ref])), end = refs[m.at[m.at.length - 1]], on = maps[k + 1]?.ref ?? m.ref;
     const exits = m.dots.map((d) => ({ id: d.id, to: d.ref, ...(d.gate ? { gate: { completed: refOf[d.gate] } } : {}) }));

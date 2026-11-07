@@ -232,20 +232,28 @@ export function foePlacements(G, level, ends) {
   const free = freeBeats(ends);
   if (!free.length) return [];
   const read = readLevelFoes(LF, G.foes, `levels.${level}`), B = bestiaryOf(G), out = [];
-  // (a building's rooms are many: it stands ROOM_FOES by default, spread through them from the way in to the goal)
-  // (a density, the trail's: its node's rate of foes per free beat, `ends.node` the stage's trail node)
-  const rate = densityAt(read.density, ends.node);
-  const indoors = ends.use !== undefined, { from, count = rate !== null ? Math.min(MAX_FOES, Math.round(rate * free.length)) : indoors ? Math.min(ROOM_FOES, free.length) : free.length } = read;
-  if (!count) return [];
-  const along = (indoors || rate !== null) && count < free.length ? Array.from({ length: count }, (_, k) => free[Math.floor(((k + 0.5) * free.length) / count)]) : free;
-  for (let k = 0; k < count; k++) {
-    const beat = along[k % along.length], lap = Math.floor(k / along.length), eid = from[k % from.length], entry = B[eid];
-    const back = (k % along.length) ? along[(k % along.length) - 1].at : ends.spawn;
-    const at = lap ? round(beat.at, lap, Math.ceil(count / along.length), 2.5) : beat.at;
-    const pack = MOVES[foeClass(entry.class).move].group ? SWARM : 1;
-    for (let j = 0; j < pack; j++) out.push({ id: `foe-${eid}-${out.filter((p) => p.eid === eid).length + 1}`, eid, entry, at: round(at, j, pack, 1.2), heading: facing(at, back), ...(pack > 1 ? { group: `${eid}-${k + 1}` } : {}) });
-  }
+  // (a stage whose beats name their trail node, a side strip's segments: each node's beats at that node's density, in
+  // order along the way; else the stage's node for all of them)
+  const groups = free.some((b) => b.node !== undefined) ? free.reduce((g, b) => { const last = g[g.length - 1]; if (last && last.node === b.node) last.beats.push(b); else g.push({ node: b.node, beats: [b] }); return g; }, []) : [{ node: ends.node, beats: free }];
+  let gk = 0;
+  for (const { node, beats } of groups) placeAlong(beats, node);
   return out;
+  function placeAlong(beats, node) {
+    // (a building's rooms are many: it stands ROOM_FOES by default, spread through them from the way in to the goal)
+    // (a density, the trail's: its node's rate of foes per free beat)
+    const rate = densityAt(read.density, node);
+    const indoors = ends.use !== undefined, { from, count = rate !== null ? Math.min(MAX_FOES, Math.round(rate * beats.length)) : indoors ? Math.min(ROOM_FOES, beats.length) : beats.length } = read;
+    if (!count) return;
+    const along = (indoors || rate !== null) && count < beats.length ? Array.from({ length: count }, (_, k) => beats[Math.floor(((k + 0.5) * beats.length) / count)]) : beats;
+    for (let k = 0; k < count; k++) {
+      const beat = along[k % along.length], lap = Math.floor(k / along.length), eid = from[k % from.length], entry = B[eid];
+      const back = (k % along.length) ? along[(k % along.length) - 1].at : ends.spawn;
+      const at = lap ? round(beat.at, lap, Math.ceil(count / along.length), 2.5) : beat.at;
+      const pack = MOVES[foeClass(entry.class).move].group ? SWARM : 1;
+      for (let j = 0; j < pack; j++) out.push({ id: `foe-${eid}-${out.filter((p) => p.eid === eid).length + 1}`, eid, entry, at: round(at, j, pack, 1.2), heading: facing(at, back), ...(pack > 1 ? { group: `${eid}-${gk + k + 1}` } : {}) });
+    }
+    gk += count;   // (a pack's name counts on along the stage, past the node before)
+  }
 }
 
 // a beast's body in the field, by its grown size (foes/fit.js bodyOf) drawn at its game scale (its class's presence):
