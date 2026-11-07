@@ -10,7 +10,7 @@
  *   node scripts/worldmap.mjs --walk                 # build, serve and walk every gate in headless Chrome, timed
  *   node scripts/worldmap.mjs --reuse --walk         # walk the folder already built
  *   node scripts/worldmap.mjs --walk --shots <dir>   # and a picture at each arrival (for the eyes gate)
- *   node scripts/worldmap.mjs --map-only             # the world map in miniature alone (map.html), drawn in a moment
+ *   node scripts/worldmap.mjs --map-only             # the world map in miniature alone (map.html, model.html), in a moment
  *   (served, the miniature is http://127.0.0.1:4417/map.html: the world, a zone, a tile; drill in, cross sideways)
  *
  * The walk teleports the walker onto each exit in turn (the machine gate: the crossing, not the legs between) and reads
@@ -29,7 +29,7 @@ const argv = process.argv.slice(2);
 const flag = (k) => argv.includes(k);
 const opt = (k, d = null) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 
-const { WORLDMAP_SAMPLE, worldmapGame, buildWorldmap, crossings, worldmapPage } = await import('../lib/graph/gameworld/worldmap-bed.js');
+const { WORLDMAP_SAMPLE, worldmapGame, buildWorldmap, crossings, worldmapPage, worldmapModelPage } = await import('../lib/graph/gameworld/worldmap-bed.js');
 const world = opt('--world') ? JSON.parse(await fs.readFile(opt('--world'), 'utf8')) : WORLDMAP_SAMPLE;
 const dir = path.resolve(opt('--out') ?? path.join(os.tmpdir(), 'mojulo-worldmap', world.id));
 const port = Number(opt('--port', '4417'));
@@ -40,7 +40,8 @@ if (flag('--map-only')) {
   made = worldmapGame(world);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, 'map.html'), worldmapPage(world, made));
-  console.log(`worldmap: the miniature, ${path.join(dir, 'map.html')}`);
+  await fs.writeFile(path.join(dir, 'model.html'), await worldmapModelPage(world, made));
+  console.log(`worldmap: the miniature, ${path.join(dir, 'map.html')}; its model, ${path.join(dir, 'model.html')}`);
 } else if (flag('--reuse')) {
   made = worldmapGame(world);
   console.log(`worldmap: reusing ${dir}`);

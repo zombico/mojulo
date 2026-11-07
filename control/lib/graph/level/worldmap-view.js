@@ -14,7 +14,7 @@
  * levelHeight), as every tile lays it.
  *
  *   worldmapView(level, { title? })              → the views' data, pure: { title, T, rows, cols, n, zones, gates, cells, … }
- *   worldmapHtml(view, { play?: { <S>: href } }) → the page
+ *   worldmapHtml(view, { play?: { <S>: href }, model? }) → the page (`model`: the 3D model's page, worldmap-model.js)
  */
 import { readGrid, placeDoors } from './grid.js';
 import { zoneOf } from './zones.js';
@@ -161,12 +161,13 @@ const SIDE = { n: 'north', e: 'east', s: 'south', w: 'west' };
 const shapeWords = (x) => (x.kind === 'path' ? `a path, ${{ end: 'its end', I: 'straight through', L: 'turning a corner', T: 'forking', X: 'a crossing' }[x.shape] ?? x.shape} (open ${x.open.map((s) => SIDE[s]).join(', ')})` : x.kind === 'place' ? `a ${x.place?.use ?? 'place'}${x.place?.goal ? ', the walk\'s goal' : ''}${x.door ? `, its door ${SIDE[x.door.side]}` : ''}` : 'open land');
 
 /** The page: the world, each zone and each of its tiles, the one shown the one the address names. */
-export function worldmapHtml(V, { play = {} } = {}) {
+export function worldmapHtml(V, { play = {}, model = null } = {}) {
   const zoneOfTile = (r, c) => V.zones.find((z) => z.own.includes(`${r},${c}`));
   const crumbs = (...parts) => `<nav class="crumbs">${parts.map(([h, t], i) => (i < parts.length - 1 ? `<a href="#${h}">${esc(t)}</a> <span>›</span> ` : `<b>${esc(t)}</b>`)).join('')}</nav>`;
   const world = `<section id="world" class="view">${crumbs(['world', V.title])}<div class="body">${worldSvg(V)}<aside><h2>${esc(V.title)}</h2>
 <p>${V.zones.length} zones of ${V.n} × ${V.n} tiles (${V.T} m), each its own page, crossed at the ${V.gates.length} gates on their borders.</p>
 <ul>${V.zones.map((Z) => `<li><a href="#zone-${Z.id}"><i style="background:${Z.tint}"></i>${esc(Z.name)}</a> <small>${esc(ROLE_WORDS[Z.role] ?? Z.role)}${Z.holdsGoal ? ', holds the goal' : ''}</small></li>`).join('')}</ul>
+${model ? `<p><a class="play" href="${esc(model)}">See it as a model ▸</a></p>` : ''}
 <p class="key"><span class="k route"></span> the walk · <span class="k join"></span> a join off it · <span class="k gate"></span> a gate</p></aside></div></section>`;
   const zones = V.zones.map((Z) => `<section id="zone-${Z.id}" class="view">${crumbs(['world', V.title], [`zone-${Z.id}`, Z.name])}<div class="body">${zoneSvg(V, Z)}<aside><h2>${esc(Z.name)}</h2>
 <p>${esc(ROLE_WORDS[Z.role] ?? Z.role)}${Z.holdsGoal ? '; it holds the walk\'s goal' : ''}. Its page shows its ${Z.own.length} tiles and ${Z.built.length - Z.own.length} of its neighbours' (veiled), never walked.</p>

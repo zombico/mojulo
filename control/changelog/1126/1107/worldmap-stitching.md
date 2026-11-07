@@ -31,3 +31,8 @@
   place and door, what of the game lies on it, its gate), each a view drilled into by its address and back out by its
   crumbs. HTML and CSS alone, as the game book's pages are, so it can join the book as it stands. The test bed writes it
   beside the game (`map.html`, each zone's walk a link to its page); `--map-only` writes it alone.
+- **The world map as a model.** `level/worldmap-model.js` lays the same recipe as a greybox diorama on a plinth (the
+  land's rise lifted to read at table scale and lit in its colours, each zone's ground faintly its tint, its border broken
+  at its gates, the paths, the places as blocks, a post either side of every gate, the pieces, where each page sets out),
+  orbited on its own page with a bookmark over the whole and one over each zone, each zone named. The test bed writes it
+  as `model.html`, linked from the miniature's world view.
