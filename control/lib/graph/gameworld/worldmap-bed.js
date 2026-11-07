@@ -118,8 +118,9 @@ function zonedLevel(made) {
   const { zone: _z, apron: _a, ...level } = first.manifest.level;
   return level;
 }
-export function worldmapPage(world, made) {
-  const play = Object.fromEntries(made.levels.filter((l) => l.zone).map((l) => [l.zone, `levels/${l.ref}.html`]));
+export function worldmapPage(world, made, { built = null } = {}) {
+  // (each zone's walk its page: only the zones built, when the build was of some)
+  const play = Object.fromEntries(made.levels.filter((l) => l.zone && (!built || built.includes(l.zone))).map((l) => [l.zone, `levels/${l.ref}.html`]));
   return worldmapHtml(worldmapView(zonedLevel(made), { title: world.name ?? world.id }), { play, model: 'model.html', brief: (S) => `briefs/${S}.md` });
 }
 /** Each segment's planning subtask (level/map-sketch.js segmentBriefs), as words: { <segment>: markdown }. */
@@ -136,7 +137,7 @@ export function approveSegment(world, S) {
   return { ...world, levels: { ...world.levels, [id]: { ...world.levels[id], glyphs: { ...g, sketch: { ...g.sketch, segments: { ...g.sketch.segments, [S]: { ...seg, status: 'approved' } } } } } } };
 }
 /** The world map as a greybox model on a plinth (level/worldmap-model.js): orbit it, a bookmark a zone. */
-export const worldmapModelPage = (world, made) => worldmapModelHtml(zonedLevel(made), { title: world.name ?? world.id });
+export const worldmapModelPage = (world, made, { cdn = false } = {}) => worldmapModelHtml(zonedLevel(made), { title: world.name ?? world.id, cdn });
 
 /** Each segment's brief into `<dir>/briefs/<segment>.md`. */
 export async function writeBriefs(world, made, outDir) {
@@ -145,7 +146,7 @@ export async function writeBriefs(world, made, outDir) {
 }
 
 /** The world built to a folder: a page a zone, the play shell over them. */
-export async function buildWorldmap(world, { ref = world.id, outDir, log = () => {}, only = null } = {}) {
+export async function buildWorldmap(world, { ref = world.id, outDir, log = () => {}, only = null, cdn = false } = {}) {
   const [{ resolveWorldScene }, { emitThreeWorld }, { resolveGame }, { emitPlayShell }] = await Promise.all([
     import('../worlds/world-scene.js'), import('../scene/scene-three.js'), import('../game/game-resolve.js'), import('../game/play-shell.js'),
   ]);
@@ -159,7 +160,8 @@ export async function buildWorldmap(world, { ref = world.id, outDir, log = () =>
     const { payload } = await resolveWorldScene({ ref: L.ref, manifest: L.manifest });
     const buildMs = Date.now() - t;
     t = Date.now();
-    const html = emitThreeWorld({ ...payload, walk: true, hud: false, decollide: true, inline: true, spin: false, wireframe: false });
+    // (`cdn`: three.js from the pinned CDN, the only form a page host running a CSP executes; else inlined)
+    const html = emitThreeWorld({ ...payload, walk: true, hud: false, decollide: true, inline: !cdn, cdn, spin: false, wireframe: false });
     const emitMs = Date.now() - t;
     await fs.writeFile(path.join(outDir, 'levels', `${L.ref}.html`), html);
     const laws = payload.map?.laws ?? [];
@@ -172,8 +174,8 @@ export async function buildWorldmap(world, { ref = world.id, outDir, log = () =>
   const resolved = resolveGame({ kind: 'game', ...made.game }, (r) => (byRef.has(r) ? { ref: r, manifest: byRef.get(r).manifest } : null), (r) => `levels/${r}.html`);
   const shell = emitPlayShell(resolved.manifest, resolved.levels, { playtest: true, startLevel: made.levels[0].ref });
   await fs.writeFile(path.join(outDir, 'index.html'), shell);
-  await fs.writeFile(path.join(outDir, 'map.html'), worldmapPage(world, made));
-  await fs.writeFile(path.join(outDir, 'model.html'), await worldmapModelPage(world, made));
+  await fs.writeFile(path.join(outDir, 'map.html'), worldmapPage(world, made, { built: only }));
+  await fs.writeFile(path.join(outDir, 'model.html'), await worldmapModelPage(world, made, { cdn }));
   await writeBriefs(world, made, outDir);
   await fs.writeFile(path.join(outDir, 'worldmap.json'), JSON.stringify({ world, game: made.game, zones: made.zones, pages: pages.map(({ laws: _l, ...p }) => p) }, null, 1));
   return { dir: outDir, made, pages };

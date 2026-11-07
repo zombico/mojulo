@@ -130,5 +130,5 @@ export function worldmapModel(level, { lift = MODEL.lift, title = null } = {}) {
 export async function worldmapModelHtml(level, opts = {}) {
   const { emitThreeWorld } = await import('../scene/scene-three.js');
   const M = worldmapModel(level, opts);
-  return emitThreeWorld({ faces: M.faces, cameras: M.cameras, signs: M.signs, title: `${M.title} · model`, bg: '#e8e1cf', inline: true, hud: true, walk: false, decollide: false, glow: false });
+  return emitThreeWorld({ faces: M.faces, cameras: M.cameras, signs: M.signs, title: `${M.title} · model`, bg: '#e8e1cf', inline: !opts.cdn, cdn: !!opts.cdn, hud: true, walk: false, decollide: false, glow: false });
 }

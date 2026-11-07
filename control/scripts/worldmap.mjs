@@ -9,6 +9,7 @@
  *   node scripts/worldmap.mjs --out ./wm --serve     # build, then serve it (http://127.0.0.1:4417/) to walk by hand
  *   node scripts/worldmap.mjs --walk                 # build, serve and walk every gate in headless Chrome, timed
  *   node scripts/worldmap.mjs --world w.json --zones A   # build only zone A (its approved sketch lowered: a segment geocubed)
+ *   node scripts/worldmap.mjs ... --cdn              # three.js from the pinned CDN (a page host with a CSP: an artifact)
  *   node scripts/worldmap.mjs --reuse --walk         # walk the folder already built
  *   node scripts/worldmap.mjs --walk --shots <dir>   # and a picture at each arrival (for the eyes gate)
  *   node scripts/worldmap.mjs --map-only             # the world map in miniature alone (map.html, model.html), in a moment
@@ -62,7 +63,7 @@ if (flag('--map-only')) {
 } else {
   console.log(`worldmap: building '${world.name ?? world.id}' into ${dir}`);
   const t = Date.now();
-  ({ made } = await buildWorldmap(world, { outDir: dir, log: (s) => console.log(`  ${s}`), ...(opt('--zones') ? { only: opt('--zones').split(',') } : {}) }));
+  ({ made } = await buildWorldmap(world, { outDir: dir, log: (s) => console.log(`  ${s}`), ...(opt('--zones') ? { only: opt('--zones').split(',') } : {}), ...(flag('--cdn') ? { cdn: true } : {}) }));
   console.log(`worldmap: built in ${((Date.now() - t) / 1000).toFixed(1)} s`);
 }
 
