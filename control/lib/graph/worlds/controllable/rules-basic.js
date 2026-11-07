@@ -131,6 +131,9 @@ export function buildRulesBasic(E) {
       const sens = r.lookSens ?? 0.0025;
       if (e.orbitYaw == null) { e.orbitYaw = tgt.transform.heading; e.orbitPitch = r.orbitPitch ?? 0.3; }
       e.orbitYaw += (input.lookDX || 0) * sens;
+      // (`lockTrack`, the target locked on, lock.js: the camera swings round behind the pilot to hold the foe ahead)
+      const lk = r.lockTrack ? world.lock : null, foe = lk && lk.target && lk.pilot === r.target ? world.byId[lk.target] : null;
+      if (foe) { const want = Math.atan2(foe.transform.pos[1] - tgt.transform.pos[1], foe.transform.pos[0] - tgt.transform.pos[0]); let d = want - e.orbitYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); e.orbitYaw += d * smooth(r.lockRate ?? 5, dt); }
       e.orbitPitch = Math.max(r.pitchMin ?? -0.15, Math.min(r.pitchMax ?? 1.1, e.orbitPitch - (input.lookDY || 0) * sens));
       const of = fwdXY(e.orbitYaw), d0 = r.dist ?? 6, oc = Math.cos(e.orbitPitch), os = Math.sin(e.orbitPitch), lh = r.lookH ?? 1.5, tp = tgt.transform.pos;
       const want = [tp[0] - of[0] * d0 * oc, tp[1] - of[1] * d0 * oc, tp[2] + lh + d0 * os];

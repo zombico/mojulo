@@ -452,7 +452,8 @@ export function buildRulesPlatform(E) {
     // locomotion clip + gait: the DOMINANT planar axis picks which walk cycle plays (a figure-frames
     // body side-STEPS when strafing, walks when going fore/aft — same `speed`, so the cadence matches)
     // and its signed distance drives the phase (back-walk + left/right side-steps play it opposite ways).
-    const strideLen = r.stride ?? 2.4;
+    // (a sprint's stride the run's half again, `sprintStride`, so its legs cycle as a sprint's, never a run's spun up)
+    const strideLen = boosting && sprints ? (r.sprintStride ?? (r.stride ?? 2.4) * 1.45) : (r.stride ?? 2.4);
     // the directional flight clip: dominant axis picks side vs fore/aft
     // side dashes are DIRECTIONAL (bs > 0 = right): the flying-kick clips. Bodies baked before
     // the split fall back boost_right/left → boost_side → forward in the renderer.
@@ -535,6 +536,9 @@ export function buildRulesPlatform(E) {
     // ±π = back): the renderer VECTORS the backpack jets to exhaust opposite
     // the dash, so a left dash blows the flames out to the right.
     e.thrustYaw = boosting ? Math.atan2(bs / bn, bf / bn) : 0;
+
+    // (a sprint on the ground plays the body's own `sprint` clip, the run's where it has none: the page falls back)
+    if (boosting && sprints && e.locomotion === 'forward') e.locomotion = 'sprint';
 
     // BOOST GAUGE bookkeeping (opt-in): charge this frame's costs, regen when the thrusters are
     // cold, and latch/clear the empty-lock. `e.boost` is the live seconds-of-thrust remaining;

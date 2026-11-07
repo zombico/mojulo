@@ -149,7 +149,7 @@ describe('the course, driven', () => {
     let y0 = y();
     for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1, boost: 1 }, 1 / 60, { ground: flat });
     expect(y() - y0).toBeGreaterThan(8);
-    expect(p().locomotion).toBe('forward');
+    expect(p().locomotion).toBe('sprint');
     expect(p().boost).toBeCloseTo(1, 1);
     // run dry: WINDED, back to the run's speed, and no sprint until the gauge is full again
     for (let i = 0; i < 70; i++) stepWorld(w, { forward: 1, boost: 1 }, 1 / 60, { ground: flat });
@@ -183,6 +183,36 @@ describe('the course, driven', () => {
     const d = [p.transform.pos[0] - x0[0], p.transform.pos[1] - x0[1]];
     expect(Math.atan2(d[1], d[0])).toBeCloseTo(w.camera.orbitYaw, 1);
     expect(Math.cos(p.transform.heading - w.camera.orbitYaw)).toBeGreaterThan(0.99);
+  });
+
+  it('an ORBIT camera holding a LOCK: the camera swings round behind her to hold the foe ahead', () => {
+    const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { move: 'world', moveYaw: 'camera' } });
+    const foe = { id: 'f', team: 'foes', body: { type: 'box', size: [1, 1, 2], hittable: true }, rule: { type: 'static' }, transform: { pos: [0, 10, 0], heading: 0 } };
+    const w = createWorld({ entities: [...m.entities, foe], colliders: [], camera: { ...m.camera, orbit: true, mouseLook: true, lockTrack: true }, lock: { range: 30, cone: 180 } });
+    const flat = () => 0, p = w.byId.p;
+    p.transform.heading = Math.PI / 2;   // (she faces the foe, due north of her)
+    for (let i = 0; i < 5; i++) stepWorld(w, {}, 1 / 60, { ground: flat });
+    // (the camera turned away, a quarter round)
+    w.camera.orbitYaw = 0;
+    stepWorld(w, { lock: 1 }, 1 / 60, { ground: flat });
+    expect(w.lock && w.lock.target).toBe('f');
+    for (let i = 0; i < 120; i++) stepWorld(w, {}, 1 / 60, { ground: flat });
+    expect(Math.cos(w.camera.orbitYaw - Math.PI / 2)).toBeGreaterThan(0.95);
+  });
+
+  it('a sprinting hero DODGES on a double tap of the sprint\'s key: a dash, invulnerable, a second of her stamina, never all of it', () => {
+    const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { sprint: true, boostSpeed: 9, boostMax: 6, dodge: true, dodgeDur: 0.4, dodgeSpeed: 8, dodgeBoostCost: 1, dodgeOverheat: false, dodgeCooldown: 0.2 } });
+    const w = createWorld({ entities: m.entities, colliders: [], camera: m.camera }), p = w.byId.p, flat = () => 0;
+    for (let i = 0; i < 10; i++) stepWorld(w, {}, 1 / 60, { ground: flat });
+    // (tap, let go, tap again inside the window)
+    const seq = [{ boost: 1 }, {}, { boost: 1 }];
+    let sawDodge = false, sawInvincible = false;
+    for (const inp of seq) { stepWorld(w, { ...inp, forward: 1 }, 1 / 60, { ground: flat }); }
+    for (let i = 0; i < 30; i++) { stepWorld(w, { forward: 1 }, 1 / 60, { ground: flat }); sawDodge ||= p.dodgeT != null; sawInvincible ||= !!p.invincible; }
+    expect(p.dodgeCount).toBe(1);
+    expect(sawDodge || sawInvincible).toBe(true);
+    expect(p.boostLock).toBeFalsy();
+    expect(p.boost).toBeGreaterThan(4.5);
   });
 
   it('Space winds up, then she is in the air in the leap state, and lands', () => {

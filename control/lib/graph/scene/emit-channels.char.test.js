@@ -24,7 +24,9 @@ import { emitThreeWorld } from './scene-three.js';
 // gained the platform rule's `sprint` (the boost held as a walker's sprint on its gauge: rules-platform.js) and its
 // `moveYaw: 'camera'`, and the follow rule's `orbit` (rules-basic.js). On the `controllable` fixture 35 lines are added
 // and 9 replaced in place (each a `sprints`/`moveYaw` guard on an existing line); a rule with neither runs as before.
-// Every fixture that embeds the controllable runtime re-pinned with it.
+// Every fixture that embeds the controllable runtime re-pinned with it. Then (the controls): the sprint's own `sprint`
+// clip on its `sprintStride` (the stride's line guarded) and the orbit's swing round a locked foe (`lockTrack`): a few
+// more lines added, one replaced; the same fixtures re-pinned again.
 //
 // Re-pinned 2026-10-07 (playscape: movers run rails and ride drives): the controllable runtime the page embeds gained
 // the mover's `path` / `drive: 'ride'` branch and the carry pass's `_ridden` mark. The diff on the `controllable` fixture

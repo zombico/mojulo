@@ -50,7 +50,7 @@ export function playerHero(spec) {
 
 /** Per library, the clip each runtime state plays (a person: the jump's flight under boost too, no thrusters). */
 export const LIBRARY_STATES = Object.freeze({
-  'quaternius-ual': Object.freeze({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop', idle: 'Idle_Loop', leap: 'Jump_Loop', boost: 'Jump_Loop', squat: 'Jump_Start', turn: 'Walk_Loop', strafe: 'Jog_Fwd_Loop' }),
+  'quaternius-ual': Object.freeze({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop', idle: 'Idle_Loop', leap: 'Jump_Loop', boost: 'Jump_Loop', squat: 'Jump_Start', turn: 'Walk_Loop', strafe: 'Jog_Fwd_Loop', sprint: 'Sprint_Loop' }),
 });
 // per library, the run (`forward`) and the walk (`walk`), each its speed and its cycle's length at
 // that speed, the stride that keeps the feet on the ground. The walk's: the library's Walk_Loop covers about 2 m a

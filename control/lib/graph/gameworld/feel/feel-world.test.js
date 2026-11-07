@@ -23,7 +23,7 @@ describe('a gameworld\'s feel', () => {
     for (const [k, v] of Object.entries(want)) expect([k, hero[k]]).toEqual([k, v]);
     expect(hero.type).toBe(plain.entities[0].rule.type);
     // (and a card that sprints says its key beside the run: the stamina's, rules-platform.js `sprint`)
-    const sprints = !!want.sprint, said = ' · F  sprint (stamina)';
+    const sprints = !!want.sprint, said = ` · F  sprint (stamina)${want.dodge ? ' · F F  dodge' : ''}`;
     expect(felt.events.hud[0].text.includes(said)).toBe(sprints);
     const strip = (m) => JSON.stringify({ ...m, entities: m.entities.map((e, i) => (i === 0 ? { ...e, rule: null } : e)), events: { ...m.events, hud: m.events.hud.map((h) => ({ ...h, text: h.text.replace(said, '') })) } });
     expect(strip(felt)).toBe(strip(plain));

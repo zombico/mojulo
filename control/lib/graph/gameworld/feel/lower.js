@@ -27,7 +27,7 @@ import { FPS, r4, POLES, POLE_IDS, variantsOf, poleCard, blendPoles, mergeDeep }
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A hero's STAMINA (the sprint's gauge), its defaults: seconds of sprint, seconds to refill from empty, and seconds to
  * refill when WINDED (run dry: no sprint until full again). A card says its own as `stamina: { seconds?, refill?, winded? }`. */
-export const STAMINA = Object.freeze({ seconds: 6, refill: 4, winded: 6 });
+export const STAMINA = Object.freeze({ seconds: 6, refill: 4, winded: 6, dodge: 1 });
 const FEEL_KEYS = ['pole', 'variant', 'toward', 't', 'set'];
 const fail = (m) => new Error(`gameworld: feel${m}`);
 
@@ -110,6 +110,14 @@ export function lowerFeel(card, { gear = null } = {}) {
     put('ground.sprint', 'sprint', true); rule.boostSpeed = Gd.sprint;
     rule.boostMax = St.seconds; rule.boostRegen = r4(St.seconds / St.refill); rule.overheatRegen = r4(St.seconds / St.winded); rule.boostUnlockFrac = 1;
     carried.push('stamina');
+    // the DODGE, on the sprint's key (a double tap) and its stamina (`stamina.dodge` seconds of it, never the whole gauge):
+    // the card's dodge as the runtime's dash (maneuvers.js): its frames, its speed, invulnerable throughout; a roll's own
+    // tumble the body's clip where it has one
+    if (C.dodge && C.dodge.speed > 0) {
+      rule.dodge = true; rule.dodgeDur = r4(Math.max(6, C.dodge.frames) / FPS); rule.dodgeSpeed = C.dodge.speed;
+      rule.dodgeBoostCost = St.dodge; rule.dodgeOverheat = false; rule.dodgeCooldown = 0.2;
+      carried.push('dodge');
+    }
   }
   // the jump: its speed from the height and the rise's gravity (as the runtime steps them), the fall's own, the windows in
   // seconds; the gather a half frame long so the take-off lands on the card's frame (the runtime counts the press's)
@@ -150,8 +158,11 @@ export function lowerFeel(card, { gear = null } = {}) {
     if (field === 'armor') continue;
     if (field === 'jump.hang') { if (J.hang > 0) lost.push({ field, why }); continue; }
     if (field === 'glide' || field === 'jet') { if (gear === field) lost.push({ field, why }); continue; }   // worn only when the template names the gear
+    if (carried.includes(field)) continue;   // (the dodge, carried with a sprint's stamina)
     if (has(field)) lost.push({ field, why });
   }
+  // (a dodge carried as the runtime's dash: its roll's tumble is the body's clip, its i-frames the whole dash's)
+  if (carried.includes('dodge') && C.dodge.kind === 'roll') partly.push({ field: 'dodge.kind', why: 'the roll plays as the runtime\'s dash, invulnerable throughout: a body with no roll clip dashes on its run' });
   return { rule, lane, carried, partly, lost };
 }
 

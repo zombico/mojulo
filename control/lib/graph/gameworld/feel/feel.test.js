@@ -105,3 +105,15 @@ describe('the report', () => {
     expect(feelReport(varied).variant).toBe(variantsOf(varied)[0]);
   });
 });
+
+describe('a sprinting feel lowers its dodge onto the sprint\'s key and stamina', async () => {
+  const { lowerFeel, feelCard, STAMINA } = await import('./lower.js');
+  it('the dash, its frames and speed, a second of stamina, never the whole gauge; carried, not lost', () => {
+    const L = lowerFeel(feelCard({ pole: 'ebon-spirits', toward: 'fallen-angel', t: 0.4 }));
+    expect(L.rule).toMatchObject({ sprint: true, dodge: true, dodgeBoostCost: STAMINA.dodge, dodgeOverheat: false });
+    expect(L.rule.dodgeDur).toBeGreaterThan(0.1); expect(L.rule.dodgeSpeed).toBeGreaterThan(0);
+    expect(L.carried).toContain('dodge');
+    expect(L.lost.map((x) => x.field)).not.toContain('dodge');
+    expect(L.partly.map((x) => x.field)).toContain('dodge.kind');
+  });
+});

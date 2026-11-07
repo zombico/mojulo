@@ -84,7 +84,7 @@ const strikeWindow = (G, rule) => (carriesStrike(G) && !Array.isArray(rule?.stri
 const STRIKE_LEGEND = 'click  strike';
 // THE ORBIT CAMERA (cameras.js `orbit`): close over the hero's shoulder, looking at its chest, a little above it, turned
 // round it by the mouse (rules-basic.js follow `orbit`)
-const ORBIT_CAMERA = Object.freeze({ dist: 6, lookH: 1.5, orbitPitch: 0.28, orbit: true, mouseLook: true });
+const ORBIT_CAMERA = Object.freeze({ dist: 6, lookH: 1.5, orbitPitch: 0.28, orbit: true, mouseLook: true, lockTrack: true });
 // THE BODY'S OWN SHOT (adornment.js BASIC_VERBS 'shoot'): a hero carrying a firearm in its right hand for its shot fires
 // it as the quick shooter's player does (quick.js shootCast): a pistol the handgun's numbers, a long gun the rifle's,
 // fired from the eye; its body hittable; played third person, over the shoulder (its rounds converging on the
@@ -739,7 +739,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
     // (a hero that sprints on its stamina, feel/lower.js: its key said beside the run)
-    const sprintWords = rule?.sprint ? ' · F  sprint (stamina)' : '';
+    const sprintWords = rule?.sprint ? ` · F  sprint (stamina)${rule.dodge ? ' · F F  dodge' : ''}${orbit ? ' · C  lock on' : ''}` : (orbit ? ' · C  lock on' : '');
     const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: `${controls}${sprintWords}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves, startingGrants(G));
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
@@ -750,7 +750,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
         : orbit ? { rule: 'follow', target: 'hero', ...ORBIT_CAMERA }
         : partyChase(G, P.camera);
     const A = armedPilot(G, { ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }, cam);
-    pilotPart = { figures: P.figures, entities: [A.entity], camera: cam && cam !== 'third-person' ? camera : A.camera ?? camera, events };
+    // (an orbit camera's hero locks on to a foe, lock.js: C, the middle mouse, a pad's right stick pressed)
+    pilotPart = { figures: P.figures, entities: [A.entity], camera: cam && cam !== 'third-person' ? camera : A.camera ?? camera, events, ...(orbit ? { lock: true } : {}) };
     seatable = !look;
   } else {
     // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height (with a body the walls of
