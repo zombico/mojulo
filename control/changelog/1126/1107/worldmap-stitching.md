@@ -82,3 +82,7 @@
   the wind the live grass moves in (absent, they sway as before). With `grass.contact: false` (the walker never lays the
   grass) it is a map's to say for every tile (`glyphs.grass`). A sketched ground's flora presets bring the live grass,
   and with it the sway and the contact, where an unsketched map had neither.
+- **The grass is walked through, never stood on.** The live grass's blades, its far grass and the cards it takes over
+  (and a sakura's petals) take no ray (channels/stage-grass.js): a walker's ground probe stood on the tufts it was in, its
+  eye riding up to half a metre over the land. Measured walking a meadow in the town: the eye 1.70 to 2.19 m over the land
+  before, 1.70 m throughout after. A page with no live grass is unchanged.
