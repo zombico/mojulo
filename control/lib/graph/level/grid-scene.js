@@ -383,7 +383,9 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     const at = squareOf(cell), open = cell.kind === 'path' ? cell.open : [];
     // (a place's building, its door toward the path that reaches it)
     const place = cell.kind === 'place' && cell.place && typeof cell.place === 'object' && cell.place.use ? cell.place : null;
-    const building = place ? { id: `${cell.glyph}-${cell.r}-${cell.c}`, ...place, at: DOOR(T)[cell.open[0] ?? 's'] } : null;
+    // (a homely place, a house or a shop, furnished as a town's inside, never the stone rooms of a crypt: era/stage-
+    // buildings.js HOMELY_USES; its own kit or look wins)
+    const building = place ? { id: `${cell.glyph}-${cell.r}-${cell.c}`, homely: true, ...place, at: DOOR(T)[cell.open[0] ?? 's'] } : null;
     // (the stage's own words: the level's, then its region's over them)
     const Rg = cell.region ? G.regions[cell.region] : null, words = {};
     for (const w of STAGE_WORDS) { const v = Rg && Rg[w] !== undefined ? Rg[w] : lv[w]; if (v !== undefined) words[w] = v; }

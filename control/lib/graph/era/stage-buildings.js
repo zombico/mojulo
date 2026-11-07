@@ -238,6 +238,15 @@ function townStreet(town, kitId, seed0, solid = false) {
 
 // (a town's walked-in buildings laid as a town's, `town.inside`: the vernacular register composed, its palette the
 // town's where it names one; absent, the room kit as before)
+/** A HOMELY building's inside (`homely: true` on a house, a shop, a tavern…: HOMELY_USES) laid as a town's, wherever it
+ * stands: the vernacular register in the outdoor kit's own palette, never the stone rooms a crypt or a keep is built in.
+ * A building's own kit or look wins; any other use is left as it was. A glyph map's places ask for it (level/grid-scene.js). */
+export const HOMELY_USES = Object.freeze(['dwelling', 'shop', 'tavern', 'workshop', 'hall', 'barn', 'library', 'guardhouse']);
+const homelyOf = (b, kitId, seed) => {
+  if (!b?.homely) return b;
+  const { homely: _h, ...rest } = b;
+  return HOMELY_USES.includes(rest.use) && rest.kit === undefined && rest.look === undefined ? { ...insideLook({ inside: true }, kitId, rest.seed ?? seed ?? 1), ...rest } : rest;
+};
 const insideLook = (town, kitId, seed) => (town.inside ? { kit: 'bay-vernacular', look: { construction: insideConstruction(kitId, town, seed), palette: (town.inside === true ? null : town.inside.palette) ?? insidePalette(kitId, town) } } : {});
 // the town's interiors built as its houses are: the vernacular construction with its walls in the language's own
 // materials (a timbered town's boards, a stone town's ashlar, a plastered one's lime render) and its windows the
@@ -476,7 +485,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
   // a town's street (`town`): its lots in the town's own order, the first `enter` of them walked into, the rest its
   // houses standing as shells; seated after the recipe's own buildings, on what land is left
   const street = manifest.town !== undefined ? townStreet(manifest.town, manifest.kit, manifest.seed, !!ctx.solid) : [];
-  const list = [...list0, ...street];
+  const list = [...list0, ...street].map((b) => homelyOf(b, manifest.kit, manifest.seed));
   const kitId = manifest.kit, ground = groundIndex(payload.faces), paint = paintFor(kitId, manifest.town?.paint);
   const pockets = (payload.anchors || []).filter((a) => a.kind === 'beat' && a.beat === 'pocket');
   const sun = unit(payload.sky?.sun?.dir ?? [0.45, -0.55, 0.7]);

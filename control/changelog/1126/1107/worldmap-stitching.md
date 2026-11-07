@@ -73,3 +73,12 @@
   cliff, water, and rocks off a path are not laid yet, and the page says which (`unlaid`). A draft is never lowered, and
   a level with no approved segment builds byte for byte as before. The test bed builds one segment's zone alone
   (`--zones A`) and says what of the sketch it lowered.
+- **A town's houses are homes inside, not crypts.** A glyph map's places asked nothing of their insides, so a house, a
+  shop or a tavern was built in the stone room kit's crypt dress (rubble, cobwebs, moss, niches). They now ask for a
+  homely inside (`homely: true`, era/stage-buildings.js HOMELY_USES: a dwelling, a shop, a tavern, a workshop, a hall, a
+  barn, a library, a guardhouse): the town's vernacular register in the kit's own palette, as a town street's walked-in
+  houses are (`town.inside`). A temple, a crypt or a keep keeps its stone; a place's own kit or look wins.
+- **Still trees and untouched grass, by word.** `grass.sway: false` on an isekai stage: the trees' crowns stand still in
+  the wind the live grass moves in (absent, they sway as before). With `grass.contact: false` (the walker never lays the
+  grass) it is a map's to say for every tile (`glyphs.grass`). A sketched ground's flora presets bring the live grass,
+  and with it the sway and the contact, where an unsketched map had neither.

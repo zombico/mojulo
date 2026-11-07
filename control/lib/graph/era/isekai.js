@@ -1170,17 +1170,19 @@ function grittyGrass(LG, grit, st) {
     // (its crowns are chipped: the core and the chips sway with the wood)
     ...(LG.crowns ? { crowns: { ...LG.crowns, groups: [...LG.crowns.groups, CORE_GROUP, CHIP_GROUP, ...(st.thickets ? [SOFT_BRUSH.core, SOFT_BRUSH.chips] : [])] } } : {}) };
 }
-const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far'];
+const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far', 'sway'];
 /**
  * `grass` on an isekai stage: the live field's own dials, beside `wind` (and standing it in the default wind without one).
  * { look?: 'banded' | 'material' (default the kit's pole), contact?: true | false | { body?, press?, recover?, wave?,
- * land? } (vegetation/grass-contact.js), density? (tufts a square metre), height?: [lo, hi] (metres) } → error strings.
+ * land? } (vegetation/grass-contact.js), density? (tufts a square metre), height?: [lo, hi] (metres), sway?: false (the trees'
+ * crowns stand still in the wind the grass moves in; absent, they sway) } → error strings.
  */
 export function validateIsekaiGrass(g) {
   if (g === undefined || g === null || g === true) return [];
   if (typeof g !== 'object' || Array.isArray(g) || Object.keys(g).some((k) => !GRASS_KEYS.includes(k))) return ['grass must be true or { look?, contact?, density?, height? }'];
   const e = [];
   if (g.look !== undefined && !['banded', 'material'].includes(g.look)) e.push("grass.look must be 'banded' (the ramp's stops, locked) or 'material' (a material under light)");
+  if (g.sway !== undefined && g.sway !== false) e.push('grass.sway is false (the trees stand still in the wind), or left out (they sway)');
   if (g.far !== undefined && typeof g.far !== 'boolean') e.push('grass.far must be true or false (the far grass past the field: the card\'s, or none)');
   if (g.density !== undefined && !(Number.isFinite(g.density) && g.density >= 0.5 && g.density <= 12)) e.push('grass.density must be 0.5–12 (tufts a square metre)');
   if (g.height !== undefined && !(Array.isArray(g.height) && g.height.length === 2 && g.height.every((v) => Number.isFinite(v) && v >= 0.1 && v <= 2.5) && g.height[0] <= g.height[1])) e.push('grass.height must be [lo, hi], 0.1–2.5 m, lo ≤ hi');
@@ -1403,7 +1405,7 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, 
     // the MATERIAL pole draws the grass as a material under light: by the look's pole unless the recipe says
     ...((G.look ?? poleOf(st)) === 'material' ? { real: { ...REAL_GRASS, ...(L.real || {}), sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) } } : {}),
     // the sakura's PETALS: falling from under each crown, and the CARPET lying round the walker
-    ...(L.petals && st.trees.form === 'blossom' ? { petals: petalConfig(st, site, rocks, trees, shadow, L.petals, seed) } : {}), cards: ['isekai:grass'], crowns: L.crowns ? { groups: ['isekai:crown', 'isekai:wood'], ...L.crowns, ...trunkSway(trees) } : null, wind: W,
+    ...(L.petals && st.trees.form === 'blossom' ? { petals: petalConfig(st, site, rocks, trees, shadow, L.petals, seed) } : {}), cards: ['isekai:grass'], crowns: L.crowns && G.sway !== false ? { groups: ['isekai:crown', 'isekai:wood'], ...L.crowns, ...trunkSway(trees) } : null, wind: W,
   };
 }
 

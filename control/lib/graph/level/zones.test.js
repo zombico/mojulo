@@ -94,6 +94,13 @@ describe('a zone of the world map', () => {
     expect(tileFaces(A, 72)).toEqual(tileFaces(B, 72));
   });
 
+  it('asks a homely inside for its places: the town\'s house furnished as a town\'s, never a crypt\'s stone rooms', async () => {
+    const seen = [];
+    await assembleGridScene({ level: { ...level('A'), grid: { ...grid, segments: { A: { rows: ['. . .', 'h # #', '. # .'], key: { h: { use: 'dwelling' } } } } } } }, {}, { buildStage: async (m) => { seen.push(m); return tileStage(m); } });
+    const house = seen.flatMap((m) => m.buildings ?? []);
+    expect(house).toEqual([expect.objectContaining({ use: 'dwelling', homely: true })]);
+  });
+
   it('leaves a map with no zone as it was: the whole map on one page', async () => {
     const P = await assembleGridScene({ level: level(null) }, {}, { buildStage: tileStage });
     expect(P.map.cells).toHaveLength(36);

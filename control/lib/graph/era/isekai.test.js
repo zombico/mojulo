@@ -273,6 +273,12 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(assembleStageScene({ ...M, grass: true }).liveGrass.wind.grass).toHaveLength(1);
     expect(() => assembleStageScene({ ...M, grass: { contact: { press: 3 } } })).toThrow(/press/);
     expect(() => assembleStageScene({ ...M, grass: { look: 'oil' } })).toThrow(/look/);
+    // `grass.sway: false`: the trees stand still in the grass's wind (no crowns bent), the grass moving as it did
+    const still = assembleStageScene({ ...M, wind: true, grass: { sway: false } }).liveGrass;
+    expect(W.liveGrass.crowns).toBeTruthy();
+    expect(still.crowns).toBeNull();
+    expect(still.wind).toEqual(W.liveGrass.wind);
+    expect(() => assembleStageScene({ ...M, grass: { sway: true } })).toThrow(/sway is false/);
   });
 
   it('flowers, opt-in: a share of the tufts carries wildflowers, each part windowed into the flowers\' ramp', () => {
