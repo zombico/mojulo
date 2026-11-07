@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { WORLDMAP_SAMPLE, worldmapGame, crossings } from './worldmap-bed.js';
+import { WORLDMAP_SAMPLE, worldmapGame, crossings, approveSegment } from './worldmap-bed.js';
 import { readGameworld } from './world.js';
 import { gameStages } from './levels.js';
 
@@ -73,5 +73,28 @@ describe('a page of several segments', () => {
     expect(bad([['A', 'D']])).toThrow(/joined to the rest by no gate/);
     expect(bad([['A', 'B'], ['B', 'D']])).toThrow(/on two pages/);
     expect(bad([['A', 'Q']])).toThrow(/'Q' is no segment/);
+  });
+});
+
+// THE SKETCH'S FIGHTS ARE THE LEVEL'S: an approved segment's encounter marks stand the bestiary's foes round them, as many
+// as each says, of the entry its kind names; a mark of a kind the bestiary has not is left a mark.
+import { foePlacements } from './foes.js';
+import { stageEnds } from './levels.js';
+describe('a sketched map\'s fights', () => {
+  it('stands each approved encounter\'s foes round its mark, of the kind it names', () => {
+    const W0 = approveSegment(approveSegment(WORLDMAP_SAMPLE, 'B'), 'D');
+    const W = { ...W0, foes: { bandit: { class: 'charger', skin: { people: 'human' } } }, levels: { overworld: { ...W0.levels.overworld, foes: { from: ['bandit'] } } } };
+    const G = readGameworld(W), S = gameStages(W), at = (z) => S.find((s) => s.zone === z);
+    // (the fields: 'Bandits from the rocks at the bend', four of them, round the bend's tile)
+    const E = stageEnds(at('B').manifest), P = foePlacements(G, 'overworld', E);
+    expect(E.encounters).toEqual([expect.objectContaining({ count: 4, kind: 'bandit', tile: [1, 4] })]);
+    expect(P.map((p) => p.eid)).toEqual(['bandit', 'bandit', 'bandit', 'bandit']);
+    for (const p of P) expect(Math.hypot(p.at[0] - E.encounters[0].at[0], p.at[1] - E.encounters[0].at[1])).toBeLessThanOrEqual(2.51);
+    // (the keep's warden and guards are of a kind the bestiary has not: left a mark, no foe stands)
+    const D = stageEnds(at('D').manifest);
+    expect(D.encounters[0]).toMatchObject({ kind: 'guard', count: 3 });
+    expect(foePlacements(G, 'overworld', D)).toEqual([]);
+    // (a draft is no plan: the woods are unsketched, the walk's beats stand its foes as they did)
+    expect(stageEnds(at('C').manifest).encounters).toBeUndefined();
   });
 });

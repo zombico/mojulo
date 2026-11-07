@@ -24,3 +24,8 @@
   lowered: its ground tinted by the sketch (a forest darker, rocks grey, scrub dry, water), a wood's trees as cones, a
   cliff's slabs, its places as blocks, the walk's goal taller; the rim and the horizon ring the whole map, so the land runs
   on past the apron to the map's edge. Never walked: the zone's walls stand inside it. Absent, a zone's page as it was.
+- **The sketch's fights are the level's.** A glyph map's level may stand foes (`levels.<id>.foes`, as a walk's trails
+  do). Where its page holds an approved sketch, its foes stand round each encounter mark (grid-ends.js `encounters`,
+  gameworld/foes.js foePlacements), as many as the mark says, of the bestiary entry its kind names; a mark of a kind the
+  bestiary has not is left a mark, and a page whose sketch marks no fight stands none. A page with nothing approved stands
+  its foes on its walk's beats, as before.

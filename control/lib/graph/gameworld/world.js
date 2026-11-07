@@ -571,7 +571,8 @@ export function readGameworld(W) {
     // the level's foes (foes.js): which of the bestiary stand on its trails, or in a building's rooms
     if (L.foes !== undefined) {
       if (quickGame) throw new Error(`gameworld: ${at}.foes: a quick game's foes are its goal's (quick.foe)`);
-      if (L.walk === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
+      // (a glyph map's: on its walk's beats, or where its approved sketch marks its fights: gameworld/foes.js)
+      if (L.walk === undefined && L.glyphs === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails, a glyph map or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
       readLevelFoes(L.foes, foes, at);
     }
     // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one

@@ -206,6 +206,19 @@ const round = (at, k, n, r) => (k === 0 ? at : [r3(at[0] + r * Math.cos((2 * Mat
 export function foePlacements(G, level, ends) {
   const LF = G.levels[level]?.foes;
   if (LF === undefined) return [];
+  // A SKETCHED MAP's fights (grid-ends.js `encounters`, an approved sketch's marks): its foes stand round each mark, as
+  // many as it says, of the bestiary entry its kind names; a mark of a kind the bestiary has not is left a mark. The
+  // walk's beats are the stand-in only where a map says nothing of its fights.
+  if (ends.encounters) {
+    const B = bestiaryOf(G), out = [], read = readLevelFoes(LF, G.foes, `levels.${level}`);
+    for (const E of ends.encounters) {
+      const eid = E.kind && B[E.kind] && read.from.includes(E.kind) ? E.kind : null;
+      if (!eid) continue;
+      const entry = B[eid];
+      for (let j = 0; j < E.count; j++) out.push({ id: `foe-${eid}-${out.filter((p) => p.eid === eid).length + 1}`, eid, entry, at: round(E.at, j, E.count, 2.5), heading: facing(E.at, ends.spawn), encounter: E.segment });
+    }
+    return out;
+  }
   const free = freeBeats(ends);
   if (!free.length) return [];
   const read = readLevelFoes(LF, G.foes, `levels.${level}`), B = bestiaryOf(G), out = [];
