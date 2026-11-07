@@ -149,8 +149,12 @@ export function gameStages(world) {
     // (a ZONED map, level/zones.js: a stage a segment, each its own page, its walk's first segment first and its last
     // last, the segments off the walk after; each crossed into at the plan's gates, mapPlan)
     if (R.glyphs?.zoned) {
-      const { zoned: _z, ...glyphs } = R.glyphs, P = readGrid(glyphs.grid, 'glyphs').plan, order = [...P.route, ...Object.keys(P.segments).filter((S) => !P.route.includes(S))];
-      order.forEach((S, index) => out.push({ level, node: S, section: 'map', index, zone: S, manifest: { kind: 'map', level: { ...glyphs, zone: S } } }));
+      // (`zoned` a list of pages, each the segments walked as one, `[['A', 'B']]`: a segment no page names is a page of
+      // its own; a page in the order of its first segment's)
+      const { zoned, ...glyphs } = R.glyphs, P = readGrid(glyphs.grid, 'glyphs').plan, order = [...P.route, ...Object.keys(P.segments).filter((S) => !P.route.includes(S))];
+      const groups = Array.isArray(zoned) ? zoned : [], pageOf = (S) => groups.find((g) => g.includes(S)) ?? [S], pages = [];
+      for (const S of order) { const g = pageOf(S); if (!pages.includes(g)) pages.push(g); }
+      pages.forEach((g, index) => { const zone = g.length > 1 ? g : g[0]; out.push({ level, node: g.join('+'), section: 'map', index, zone, manifest: { kind: 'map', level: { ...glyphs, zone } } }); });
       continue;
     }
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
@@ -1041,11 +1045,15 @@ export function mapPlan(G, stages, refs) {
     // a zoned map's segments join at the plan's gates (level/zones.js): each way named for its side, toward the zone
     // across it; arrival there is keyed by that zone, one gate a pair of neighbours
     if (ix.length && stages[ix[0]].zone !== undefined) {
-      const P = readGrid(stages[ix[0]].manifest.level.grid, 'glyphs').plan, at = (S) => ix.find((i) => stages[i].zone === S);
+      const P = readGrid(stages[ix[0]].manifest.level.grid, 'glyphs').plan, at = (S) => ix.find((i) => [stages[i].zone].flat().includes(S));
       for (const g of P.gates) {
         const a = at(g.from), b = at(g.to);
-        plan[a].on.push({ to: refs[b], zone: g.to, side: g.side, id: `gate-${g.side}` });
-        plan[b].on.push({ to: refs[a], zone: g.from, side: OPP_SIDE[g.side], id: `gate-${OPP_SIDE[g.side]}` });
+        // (a gate inside one page is road on it, never a way)
+        if (a === b) continue;
+        // (named by its side; on a page of several segments, by its segment and side, two of its gates may face one way)
+        const name = (i, S, side) => (Array.isArray(stages[i].zone) ? `gate-${S}-${side}` : `gate-${side}`);
+        plan[a].on.push({ to: refs[b], zone: g.to, side: g.side, id: name(a, g.from, g.side) });
+        plan[b].on.push({ to: refs[a], zone: g.from, side: OPP_SIDE[g.side], id: name(b, g.to, OPP_SIDE[g.side]) });
       }
       continue;
     }

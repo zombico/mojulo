@@ -272,21 +272,31 @@ function edgeWalls(W, H, faces) {
 // middle), and the apron's far sides shut whole
 function zoneWalls(Z, outer, faces) {
   let lo = Infinity, hi = -Infinity; for (const f of faces) for (const c of f.corners) { if (c[2] < lo) lo = c[2]; if (c[2] > hi) hi = c[2]; }
-  const z0 = r5(lo - 2), z1 = r5(hi + RIM.wall), t = 0.5, g = ZONE.gap / 2, out = [];
-  const [x0, y0, x1, y1] = Z.box;
-  // (a side's run, from a to b along its axis, broken at its gates)
-  const run = (side, a, b, fixed, along) => {
-    const cuts = Z.ways.filter((w) => w.side === side).map((w) => w.cross[along]).sort((p, q) => p - q);
-    let from = a;
-    for (const c of [...cuts, null]) {
-      const to = c === null ? b : c - g;
-      if (to - from > 0.01) out.push(along === 0 ? { min: [r5(from), r5(fixed[0]), z0], max: [r5(to), r5(fixed[1]), z1], of: `zone:edge:${side}` } : { min: [r5(fixed[0]), r5(from), z0], max: [r5(fixed[1]), r5(to), z1], of: `zone:edge:${side}` });
-      if (c !== null) from = c + g;
+  const z0 = r5(lo - 2), z1 = r5(hi + RIM.wall), t = 0.5, g = ZONE.gap / 2, out = [], T = Z.tile;
+  // (its border's tile edges, side by side along each line merged into runs: a zone of several segments walled round its
+  // whole outline, a square one along its four sides)
+  const runs = new Map();
+  for (const { side, tile: [r, c] } of Z.border) {
+    const along = side === 'n' || side === 's' ? 0 : 1;
+    const fixed = side === 'n' ? -r * T : side === 's' ? -(r + 1) * T : side === 'w' ? c * T : (c + 1) * T;
+    const a = along === 0 ? c * T : -(r + 1) * T, k = `${side}|${fixed}`;
+    (runs.get(k) ?? runs.set(k, { side, along, fixed, spans: [] }).get(k)).spans.push([a, a + T]);
+  }
+  for (const R of [...runs.values()].sort((p, q) => 'nswe'.indexOf(p.side) - 'nswe'.indexOf(q.side) || p.fixed - q.fixed)) {
+    const spans = R.spans.sort((p, q) => p[0] - q[0]), merged = [];
+    for (const sp of spans) { const last = merged[merged.length - 1]; if (last && Math.abs(last[1] - sp[0]) < 1e-6) last[1] = sp[1]; else merged.push([...sp]); }
+    const thick = R.side === 'n' ? [R.fixed, R.fixed + t] : R.side === 's' ? [R.fixed - t, R.fixed] : R.side === 'w' ? [R.fixed - t, R.fixed] : [R.fixed, R.fixed + t];
+    const cuts = Z.ways.filter((w) => w.side === R.side && Math.abs(w.cross[1 - R.along] - R.fixed) < 1e-6).map((w) => w.cross[R.along]);
+    for (const [a, b] of merged) {
+      let from = a;
+      for (const c of [...cuts.filter((x) => x > a && x < b).sort((p, q) => p - q), null]) {
+        const to = c === null ? b : c - g;
+        if (to - from > 0.01) out.push(R.along === 0 ? { min: [r5(from), r5(thick[0]), z0], max: [r5(to), r5(thick[1]), z1], of: `zone:edge:${R.side}` } : { min: [r5(thick[0]), r5(from), z0], max: [r5(thick[1]), r5(to), z1], of: `zone:edge:${R.side}` });
+        if (c !== null) from = c + g;
+      }
     }
-  };
-  run('n', x0, x1, [y1, y1 + t], 0); run('s', x0, x1, [y0 - t, y0], 0);
-  run('w', y0, y1, [x0 - t, x0], 1); run('e', y0, y1, [x1, x1 + t], 1);
-  const [X0, Y0, X1, Y1] = outer;
+  }
+  const [X0, Y0, X1, Y1] = outer, [x0, y0, x1, y1] = Z.box;
   if (X0 < x0 || X1 > x1 || Y0 < y0 || Y1 > y1) out.push(
     { min: [X0 - t, Y0, z0], max: [X0, Y1, z1], of: 'zone:apron:w' }, { min: [X1, Y0, z0], max: [X1 + t, Y1, z1], of: 'zone:apron:e' },
     { min: [X0, Y1, z0], max: [X1, Y1 + t, z1], of: 'zone:apron:n' }, { min: [X0, Y0 - t, z0], max: [X1, Y0, z1], of: 'zone:apron:s' },

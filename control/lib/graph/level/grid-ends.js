@@ -79,7 +79,8 @@ export function gridEnds(level) {
 
 // a zone's ends: the map's, cut to its own square
 function zoneEnds(G, Z, E, { last, doorOf }) {
-  const mine = (t) => Z.own.has(`${t[0]},${t[1]}`), P = G.plan, i = P.route.indexOf(Z.id), next = i >= 0 ? P.route[i + 1] : undefined;
+  // (a zone of several segments: where it stands on the walk is its last segment on it; its way on, the one after)
+  const segs = Z.segments ?? [Z.id], mine = (t) => Z.own.has(`${t[0]},${t[1]}`), P = G.plan, i = Math.max(...segs.map((x) => P.route.indexOf(x))), next = i >= 0 ? P.route[i + 1] : undefined;
   const holdsGoal = last.kind === 'place' && mine([last.r, last.c]);
   // (its way on: toward the walk's next segment; off the walk, toward the furthest along it)
   const rank = (w) => P.route.indexOf(w.to);
@@ -101,7 +102,7 @@ function zoneEnds(G, Z, E, { last, doorOf }) {
   };
   if (!packs.length) delete out.packs;
   // (the region it sets out from: its own)
-  const own = G.regions?.[Z.id];
-  if (own) out.home = own.name ?? Z.id;
+  const own = G.regions?.[segs[0]];
+  if (own) out.home = own.name ?? segs[0];
   return out;
 }

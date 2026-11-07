@@ -48,3 +48,30 @@ describe('a zoned map made into a game', () => {
     expect(() => readGameworld({ ...WORLDMAP_SAMPLE, levels: { overworld: { glyphs: { ...plain, apron: 1 } } } })).toThrow(/apron is a zoned map's/);
   });
 });
+
+// SEAMLESS: segments walked as one page (`zoned: [['A', 'B']]`): the gate between them road on it, its ways out the gates
+// of its outline, each named by its segment and side.
+describe('a page of several segments', () => {
+  const W = { ...WORLDMAP_SAMPLE, levels: { overworld: { glyphs: { ...WORLDMAP_SAMPLE.levels.overworld.glyphs, zoned: [['A', 'B']] } } } };
+  it('is one stage, the town and the fields, its ways the outline\'s gates; the rest a page each', () => {
+    const S = gameStages(W);
+    expect(S.map((s) => [s.node, s.zone])).toEqual([['A+B', ['A', 'B']], ['D', 'D'], ['C', 'C']]);
+    const M = worldmapGame(W, { ref: 'wm' }), page = (z) => M.levels.find((l) => JSON.stringify(l.zone) === JSON.stringify(z));
+    const AB = M.game.levels.find((l) => l.ref === page(['A', 'B']).ref);
+    // (no way between the town and the fields; the town's south join to the woods and the fields' south to the keep)
+    expect(AB.exits.map((e) => e.id).sort()).toEqual(['gate-A-s', 'gate-B-s']);
+    // (the woods and the keep come back into it, each by its own gate)
+    const D = page('D').manifest, fromD = D.game.mechanics.find((m) => m.exit === 'gate-n');
+    expect(fromD).toBeTruthy();
+    expect(page(['A', 'B']).manifest.game.arrive.sort()).toEqual([page('C').ref, page('D').ref].sort());
+    // (its page sets out where the walk does, in the town)
+    expect(M.zones[page(['A', 'B']).ref]).toMatchObject({ id: 'A+B' });
+  });
+
+  it('refuses a page of segments no gate joins, or a segment on two pages', () => {
+    const bad = (zoned) => () => readGameworld({ ...W, levels: { overworld: { glyphs: { ...W.levels.overworld.glyphs, zoned } } } });
+    expect(bad([['A', 'D']])).toThrow(/joined to the rest by no gate/);
+    expect(bad([['A', 'B'], ['B', 'D']])).toThrow(/on two pages/);
+    expect(bad([['A', 'Q']])).toThrow(/'Q' is no segment/);
+  });
+});

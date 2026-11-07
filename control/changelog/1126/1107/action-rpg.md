@@ -14,3 +14,8 @@
   6 m back over its shoulder, looking at its chest); W A S D run the hero the way the camera looks and the hero turns to
   face its run (rules-platform.js `moveYaw: 'camera'`, the world-frame pilot the overhead camera already drives). Its
   controls: `W A S D  run · mouse  turn the camera`. The `third-person` chase behind the hero's heading is as it was.
+- **Seamless: segments walked as one page.** A level's `zone` may be a list of segments (level/zones.js): one page, its
+  apron round their whole outline, the gates between them road on it, walls along its outline's every tile edge (a run
+  where they line up) open at the gates to the rest. A gameworld's `glyphs.zoned: [['A', 'B'], …]` lays such pages, the
+  segments no page names a page each; a page's exits on a grouped page are named by segment and side (`gate-A-s`), as
+  two of its gates may face one way. Refused with words: a page of segments no gate joins, a segment on two pages.

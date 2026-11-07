@@ -182,6 +182,7 @@ export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 import { readBuildingParked } from '../vehicle-registry/parked.js';
 import { readGrid } from '../level/grid.js';
 import { readSketch } from '../level/map-sketch.js';
+import { zoneOf } from '../level/zones.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -592,7 +593,12 @@ export function readGameworld(W) {
         try { readSketch(L.glyphs.sketch, readGrid(gridOfGlyphs(L.glyphs), 'glyphs').plan, 'glyphs.sketch'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
       }
       if (L.glyphs.zoned !== undefined) {
-        if (L.glyphs.zoned !== true) throw new Error(`gameworld: ${at}.glyphs.zoned is true (each segment of its plan its own page, a zone crossed into at the plan's gates), or left out`);
+        const Z = L.glyphs.zoned, groups = Z === true ? [] : Array.isArray(Z) && Z.every((g) => Array.isArray(g) && g.length > 1 && g.every((x) => typeof x === 'string')) ? Z : null;
+        if (!groups) throw new Error(`gameworld: ${at}.glyphs.zoned is true (each segment of its plan its own page, a zone crossed into at the plan's gates), or a list of pages each the segments walked as one ([['A', 'B']]: the rest a page each), or left out`);
+        const named = groups.flat(), segs = L.glyphs.plan ? Object.keys(readGrid(gridOfGlyphs(L.glyphs), 'glyphs').plan.segments) : [];
+        for (const x of named) if (!segs.includes(x)) throw new Error(`gameworld: ${at}.glyphs.zoned: '${x}' is no segment of its plan (${segs.join(', ')})`);
+        if (new Set(named).size !== named.length) throw new Error(`gameworld: ${at}.glyphs.zoned names a segment on two pages`);
+        for (const g of groups) { try { zoneOf(readGrid(gridOfGlyphs(L.glyphs), 'glyphs'), g); } catch (e) { throw new Error(`gameworld: ${at}.glyphs.zoned: ${e.message.replace(/^level: /, '')}`); } }
         if (L.glyphs.plan === undefined) throw new Error(`gameworld: ${at}.glyphs.zoned builds a planned map a segment a page: write its plan (glyphs.plan)`);
         if (W.topology !== 'interconnected') throw new Error(`gameworld: ${at}.glyphs.zoned is a world map, travelled zone to zone: set topology: 'interconnected'`);
       } else if (L.glyphs.apron !== undefined) throw new Error(`gameworld: ${at}.glyphs.apron is a zoned map's (glyphs.zoned: true): how many tiles of a zone's neighbours its page shows`);

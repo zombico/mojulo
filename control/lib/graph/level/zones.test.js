@@ -101,6 +101,18 @@ describe('a zone of the world map', () => {
     expect(house).toEqual([expect.objectContaining({ use: 'dwelling', homely: true })]);
   });
 
+  it('builds several segments as one page: the gate between them road, walls round their whole outline, its laws holding', async () => {
+    const P = await assembleGridScene({ level: level(['A', 'B']) }, {}, { buildStage: tileStage });
+    // (the town and the fields, 18 tiles, and the ring of the rest round them: rows 0–3, columns 0–5)
+    expect(P.map.cells).toHaveLength(24);
+    expect(P.map.zone).toMatchObject({ id: 'A+B', box: [0, -72, 144, 0] });
+    expect(P.map.zone.ways.map((w) => `${w.side}:${w.to}`).sort()).toEqual(['s:C', 's:D']);
+    for (const l of P.map.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+    // (no wall across the road between them, at the town's east edge, x = 72)
+    expect(P.colliders.filter((c) => /^zone:edge/.test(c.of)).some((c) => c.min[0] <= 72 && c.max[0] >= 72 && c.min[1] <= -36 && c.max[1] >= -36)).toBe(false);
+    expect(() => readZone({ ...level(null), zone: ['A', 'A'] })).toThrow(/a list of segments/);
+  });
+
   it('leaves a map with no zone as it was: the whole map on one page', async () => {
     const P = await assembleGridScene({ level: level(null) }, {}, { buildStage: tileStage });
     expect(P.map.cells).toHaveLength(36);
