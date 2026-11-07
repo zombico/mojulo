@@ -3330,7 +3330,7 @@ function __foeRim(id) {
     for (const k of __rim.kids) if (k.parent) k.parent.remove(k);
     __rim.kids = []; __rim.id = id; __rim.g = g;
     const rf = g && g.userData.rigFig;
-    if (rf) for (const m of rf.boneMeshes) { if (!m) continue; __rimNormals(m.geometry); const k = new THREE.Mesh(m.geometry, __rimMat); k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true; m.add(k); __rim.kids.push(k); }
+    if (rf) for (const m of rf.boneMeshes) { if (!m || !m.geometry) continue; __rimNormals(m.geometry); const k = new THREE.Mesh(m.geometry, __rimMat); k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true; m.add(k); __rim.kids.push(k); }
     if (e && Array.isArray(e.body.targetRim)) __rimMat.uniforms.uCol.value.setRGB(e.body.targetRim[0], e.body.targetRim[1], e.body.targetRim[2]);
   }
   __rimMat.uniforms.uK.value = __rim.kids.length ? 0.75 + 0.25 * Math.sin(__world.time * 6) : 0;
