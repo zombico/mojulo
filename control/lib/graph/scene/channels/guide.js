@@ -6,7 +6,8 @@ import { safeJson } from '../emit-util.js';
 // and a pillar of light standing where it is. A beat is reached within its radius (a fight once its foes about it are
 // down: no one of the foes' team standing within the radius); the last one reached, the line says the way is the page's.
 // A beat that TEACHES shows its keys under the line while it is the way on (a control taught where it is first needed);
-// a HELD page (`held`, its ways out) says at a way that it stays shut while a foe stands on the page.
+// a HELD page (`held`, its ways out) says at a way that it stays shut while a foe stands on the page; a beat that says
+// something on reaching it (`says`: a meet's line, a find's item) says it there.
 // It reads the pilot and the cast through window.__mojCtrl (the controllable channel's), so it waits for it. Emitted only
 // when the page has a guide: every other page byte-identical.
 export function guideScript(guide) {
@@ -60,6 +61,12 @@ export function guideScript(guide) {
   // (the arrival's keys under the intro while it shows, then the beats')
   let opening = !!(GD.introKeys && GD.introKeys.length), up = false;
   function begin() { up = true; if (intro) intro(); if (opening) setTimeout(() => { opening = false; show(); }, 8000); }
+  // (a beat's line, said on reaching it: under the middle of the screen a few seconds)
+  const said = document.createElement('div');
+  said.style.cssText = css + ';bottom:22%;display:none;max-width:min(520px,80%);padding:8px 16px;background:rgba(20,16,10,.6);border-radius:6px;font:500 16px/1.4 Georgia,serif;transition:opacity .6s';
+  host.appendChild(said);
+  let saidT = null;
+  function tell(t) { said.textContent = t; said.style.display = ''; said.style.opacity = '1'; clearTimeout(saidT); saidT = setTimeout(() => { said.style.opacity = '0'; setTimeout(() => { said.style.display = 'none'; }, 700); }, 4000); }
   const standing = (W, e) => e.team === 'foes' && !e.gone && !e.downed && !(e.hp <= 0);
   const view = T3 ? new T3.Vector3() : null;
   function tick() {
@@ -72,7 +79,7 @@ export function guideScript(guide) {
       if (p && s) {
         const dx = s.at[0] - p.transform.pos[0], dy = s.at[1] - p.transform.pos[1], d = Math.hypot(dx, dy);
         const near = s.fight ? W.entities.some((e) => standing(W, e) && Math.hypot(e.transform.pos[0] - s.at[0], e.transform.pos[1] - s.at[1]) < s.radius) : false;
-        if (d < s.radius && !near) { k++; show(); plant(); }
+        if (d < s.radius && !near) { if (s.says) tell(s.says); k++; show(); plant(); }
         else {
           let yaw = p.transform.heading;
           if (view && typeof camera !== 'undefined') { camera.getWorldDirection(view); yaw = Math.atan2(view.y, view.x); }

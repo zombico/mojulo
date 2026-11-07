@@ -723,7 +723,11 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (a HELD page, map-sketch.js concept `hold`: its ways out wait on its foes' downs, leaving it its graduation; never the
   // way it was come in by)
   const held = ways ? heldWays(G, stage, ends, map, ways.mechanics) : null;
-  const placed = ways ? [...placed0.filter((m) => m.kind !== 'reach-exit' || keepsGoal), ...(held ?? ways.mechanics)] : placed0;
+  // (a sketched map's finds, level/grid-ends.js: each picked up into the bag where its beat stands)
+  const finds = stage.section === 'map' && ends.finds?.length ? [{ kind: 'collect', into: 'bag', pickups: ends.finds.map((f) => ({ item: f.item, at: f.at, radius: 1.6 })) }] : [];
+  // (a held page's own goal waits on its fights too: the climax is won by its fight, never walked past)
+  const hold = held?.find((m) => m.holds)?.holds, kept = (m) => (hold && m.kind === 'reach-exit' && !m.exit ? { ...m, holds: hold } : m);
+  const placed = [...(ways ? [...placed0.filter((m) => m.kind !== 'reach-exit' || keepsGoal).map(kept), ...(held ?? ways.mechanics)] : placed0), ...finds];
   // what the game lets break stays broken (the aftermath mechanic: the breaks kept in the world's aftermath slice)
   const after = mechanics?.destruction && mechanics.destruction !== 'none' ? [{ kind: 'aftermath', slice: AFTERMATH_SLICE }] : [];
   const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed), ...after], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
@@ -1255,15 +1259,17 @@ const OPP_SIDE = Object.freeze({ n: 's', s: 'n', e: 'w', w: 'e' });
 /** A stage's ways out laid on its own ground: the first way on at the trail's exit, the first way back just behind
  * the spawn, any more at its pockets then its landmarks; a key on a beat of its own; and for each way, the point a pilot
  * coming in by it arrives at, a few metres inside (the way back's arrival is the spawn itself). */
-/** A held page's ways out (map-sketch.js concept `hold`, a zone of a sketched map): each reach-exit but the way come in
- * by waits on the downs of the foes standing on the page (game/mechanics.js `holds`); null where nothing holds. */
+/** A held page's ways out (map-sketch.js concept `hold`, or a scenario beat that `opens`, a zone of a sketched map): each reach-exit but the way come in
+ * by waits on the downs of the foes standing on the page (game/mechanics.js `holds`); null where
+ * nothing holds. */
 function heldWays(G, stage, ends, plan, mechanics) {
-  if (stage.section !== 'map' || stage.manifest.level?.sketch?.concept?.hold !== true || !ends.zone) return null;
+  const sk = stage.manifest.level?.sketch, holds = sk?.concept?.hold === true || !!sk?.scenario?.beats?.some((b) => b.opens);
+  if (stage.section !== 'map' || !holds || !ends.zone) return null;
   const count = foePlacements(G, stage.level, { ...ends, node: stage.node }).length;
   if (!count) return null;
   const inWay = ends.zone.in ?? null;
   const cameIn = (m) => { const w = plan.on.find((x) => x.id === m.exit); return !!(inWay && w && w.zone === inWay.to && w.side === inWay.side); };
-  return mechanics.map((m) => (m.kind === 'reach-exit' && m.exit && !cameIn(m) ? { ...m, holds: { who: 'foe-*', count } } : m));
+  return mechanics.map((m) => (m.kind === 'reach-exit' && !cameIn(m) ? { ...m, holds: { who: 'foe-*', count } } : m));
 }
 
 function stageWays(stage, ends, plan) {
@@ -1331,6 +1337,8 @@ export function gameStore(world, book) {
   else if (G.errands?.length) slices.push({ name: 'bag', kind: 'inventory' });
   // a level whose goal collects picks up into the bag (its own goal: quick.js levelGoalMechanics)
   else if (G.ids.some((id) => G.levels[id].goal?.collect)) slices.push({ name: 'bag', kind: 'inventory' });
+  // a sketched map whose scenario finds things picks them up into the bag (level/map-sketch.js scenario `find`)
+  else if (G.ids.some((id) => (G.levels[id].glyphs?.sketch?.scenario?.beats ?? []).some((b) => b.item))) slices.push({ name: 'bag', kind: 'inventory' });
   if (pk.size) slices.push({ name: 'powers', kind: 'inventory' });
   // the world's scenes read and set flags: a story slice carries them from level to level
   // (and the party's flags the run lays when the book gives none, casting.js laidJoins: a member joining on its level

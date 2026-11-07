@@ -17,6 +17,7 @@
  *     places    each place's door ({ id, glyph, use?, at, N, region? }: the building's id on the page, its door on the
  *               land, the way out of it), what folk stand by
  *     encounters  an approved sketch's encounter marks (map-sketch.js): { at, tile, count, kind?, say, segment }
+ *     finds       an approved sketch's loot and secret marks that name their item (a scenario's find): { at, tile, item, beat? }
  * A ZONE (zones.js, `level.zone`): the ends of its own square: set down where its page sets out, left by its way on along
  * the walk (else the goal it holds, else its first way), its beats, packs and places its own tiles'; `zone` its ways.
  * Pure; the land's heights are the level's own, as every tile lays them.
@@ -83,6 +84,9 @@ export function gridEnds(level) {
   if (G.sketch?.marks?.length) {
     const enc = G.sketch.marks.filter((m) => m.kind === 'encounter').map((m) => { const x = G.at(...m.tile); return { at: mid(x), tile: m.tile, count: m.foes?.count ?? 1, ...(m.foes?.kind ? { kind: m.foes.kind } : {}), say: m.say, segment: m.segment }; });
     if (enc.length) out.encounters = enc;
+    // (and its finds: a loot or a secret mark that names its item, picked up there; a scenario's find or secret)
+    const finds = G.sketch.marks.filter((m) => (m.kind === 'loot' || m.kind === 'secret') && m.item).map((m) => ({ at: mid(G.at(...m.tile)), tile: m.tile, item: m.item, ...(m.beat ? { beat: m.beat } : {}) }));
+    if (finds.length) out.finds = finds;
   }
   const zw = readZone(level), read = zw ? zoneEnds(G, zoneOf(G, zw.id, { apron: zw.apron, seed: L.seed }), out, { doorOf, last }) : out;
   // the land's height at a point, as every tile lays it (not data)
@@ -109,7 +113,7 @@ function zoneEnds(G, Z, E, { last, doorOf }) {
     exitFrom: holdsGoal ? E.exitFrom : onWay ? `its way ${onWay.side} to ${onWay.to}` : E.exitFrom,
     beats: E.beats.filter((b) => mine(b.tile)),
     // (a page with an approved segment fights where its sketch says, none if it marks none; else the walk's beats)
-    ...((G.sketch?.approved ?? []).some((x) => segs.includes(x)) ? { encounters: (E.encounters ?? []).filter((x) => mine(x.tile)) } : {}),
+    ...((G.sketch?.approved ?? []).some((x) => segs.includes(x)) ? { encounters: (E.encounters ?? []).filter((x) => mine(x.tile)), finds: (E.finds ?? []).filter((x) => mine(x.tile)) } : {}),
     via: [[spawn[0], spawn[1]], ...E.via.filter(inBox), [exit[0], exit[1]]],
     places: E.places.filter((p) => inBox(p.at)),
     ...(packs.length ? { packs } : {}),
@@ -120,7 +124,8 @@ function zoneEnds(G, Z, E, { last, doorOf }) {
   if (!packs.length) delete out.packs;
   // (the first look is the page's that holds the walk's start)
   if (Z.spawn?.heading !== null) delete out.vista;
-  if (!(G.sketch?.approved ?? []).some((x) => segs.includes(x))) delete out.encounters;
+  if (!(G.sketch?.approved ?? []).some((x) => segs.includes(x))) { delete out.encounters; delete out.finds; }
+  if (!out.finds?.length) delete out.finds;
   // (the region it sets out from: its own)
   const own = G.regions?.[segs[0]];
   if (own) out.home = own.name ?? segs[0];

@@ -37,6 +37,7 @@
  */
 import { gateTile } from './plan.js';
 import { readGrid, mapStart } from './grid.js';
+import { paceOf, paceLaws } from './pace.js';
 
 const readGridOf = (level, at) => readGrid(level.grid, at);
 
@@ -59,7 +60,7 @@ export const SKETCH_MARKS = Object.freeze({
   hazard: 'a danger that is not a foe: a fall, a trap, a current',
   npc: 'someone met',
 });
-export const JOURNEY_KINDS = Object.freeze(['arrival', 'traverse', 'encounter', 'find', 'vista', 'secret', 'rest', 'climb', 'puzzle', 'climax']);
+export const JOURNEY_KINDS = Object.freeze(['arrival', 'traverse', 'encounter', 'find', 'vista', 'secret', 'rest', 'meet', 'climb', 'puzzle', 'climax']);
 const STATUS = ['draft', 'approved'];
 // THE VERBS A BEAT TEACHES (`teach`), each the keys the guide shows while that beat is the way on: a control taught where
 // it is first needed, never a list up front (the controls themselves are the hero's: gameworld/levels.js)
@@ -72,7 +73,7 @@ export const TEACH = Object.freeze({
   jump: { keys: 'Space  jump', say: 'the jump' },
 });
 // (the mark each kind of beat stands at, by preference: the guide's place for it and the first look's)
-export const BEAT_PLACE = Object.freeze({ encounter: ['encounter'], climax: ['encounter'], find: ['loot', 'secret'], secret: ['secret', 'loot'], rest: ['rest'], vista: ['landmark'], puzzle: ['hazard', 'landmark'], climb: ['hazard', 'landmark'] });
+export const BEAT_PLACE = Object.freeze({ meet: ['npc'], encounter: ['encounter'], climax: ['encounter'], find: ['loot', 'secret'], secret: ['secret', 'loot'], rest: ['rest'], vista: ['landmark'], puzzle: ['hazard', 'landmark'], climb: ['hazard', 'landmark'] });
 // (what a sketched ground is built as: the kit's own flora presets, era/biocube.js)
 export const SKETCH_BIOCUBE = Object.freeze({ f: 'forest', g: 'grove', m: 'meadow', s: 'upland' });
 export const SKETCH_BOULDERS = 8;
@@ -82,11 +83,56 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const strip = (r) => (typeof r === 'string' ? r.replace(/\s+/g, '') : '');
 const fail = (m) => new Error(`level: ${m}`);
 
+// THE SCENARIO (`scenario`, in place of a concept): the level beat by beat, each beat whole in one place: where it stands
+// (its segment, and its tile there), what it is, its one line, its foes or its find, what it teaches, how it feels (its
+// `pace`) and whether winning it opens the page's ways out (`opens`). Read into the concept (the journey) and a mark per
+// beat on its tile (its `beat` the id), so what reads a concept and its marks reads it unchanged, and nothing pairs a
+// beat with a mark by its kind or its order.
+export const SCENARIO_KINDS = Object.freeze(['arrival', 'vista', 'meet', 'fight', 'traverse', 'find', 'rest', 'secret', 'climb', 'climax']);
+export const PACES = Object.freeze(['calm', 'tension', 'peak', 'rest']);
+const BEAT_JOURNEY = Object.freeze({ fight: 'encounter' });
+const BEAT_MARK = Object.freeze({ arrival: 'landmark', vista: 'landmark', meet: 'npc', fight: 'encounter', traverse: 'landmark', find: 'loot', rest: 'rest', secret: 'secret', climb: 'hazard', climax: 'encounter' });
+function readScenario(sc, segs, n, segments, at) {
+  if (!isObj(sc)) throw fail(`${at} is { pitch?, beats }: the level beat by beat`);
+  for (const k of Object.keys(sc)) if (!['pitch', 'beats'].includes(k)) throw fail(`${at}.${k} is not a scenario's word (pitch, beats)`);
+  if (sc.pitch !== undefined && typeof sc.pitch !== 'string') throw fail(`${at}.pitch is the level in a sentence`);
+  if (!Array.isArray(sc.beats) || !sc.beats.length) throw fail(`${at}.beats is the level's beats in order: [{ id, at, tile?, kind, say, foes?, item?, teach?, faces?, pace?, opens? }]`);
+  const KEYS = ['id', 'at', 'tile', 'kind', 'say', 'foes', 'item', 'teach', 'faces', 'pace', 'opens'];
+  sc.beats.forEach((b, i) => {
+    const w = `${at}.beats[${i}]`;
+    if (!isObj(b)) throw fail(`${w} is { id, at, tile?, kind, say, … }`);
+    for (const k of Object.keys(b)) if (!KEYS.includes(k)) throw fail(`${w}.${k} is not a beat's word (${KEYS.join(', ')})`);
+    if (!SCENARIO_KINDS.includes(b.kind)) throw fail(`${w}.kind is ${SCENARIO_KINDS.join(', ')}`);
+    if (b.tile !== undefined && !(Array.isArray(b.tile) && b.tile.length === 2 && b.tile.every((t) => Number.isInteger(t) && t >= 0 && t < n))) throw fail(`${w}.tile is [row, col], a tile of its segment (0 to ${n - 1})`);
+    if (b.foes !== undefined && !(isObj(b.foes) && Object.keys(b.foes).length && Object.values(b.foes).every((c) => Number.isInteger(c) && c >= 1 && c <= 12))) throw fail(`${w}.foes is { <bestiary id>: how many } (1 to 12 each)`);
+    if (b.foes !== undefined && b.kind !== 'fight' && b.kind !== 'climax') throw fail(`${w}.foes: only a fight or the climax stands foes (its kind is ${b.kind})`);
+    if (b.kind === 'fight' && b.foes === undefined) throw fail(`${w} is a fight: its foes, { <bestiary id>: how many }`);
+    if (b.item !== undefined && (typeof b.item !== 'string' || !['find', 'secret'].includes(b.kind))) throw fail(`${w}.item is a find's (or a secret's): what is picked up, in words`);
+    if (b.pace !== undefined && !PACES.includes(b.pace)) throw fail(`${w}.pace is ${PACES.join(', ')}: how the beat feels`);
+    if (b.opens !== undefined && (b.opens !== true || !b.foes)) throw fail(`${w}.opens is true on a beat with foes: winning it opens its page's ways out`);
+    if ((b.foes || b.item || ['meet', 'find', 'rest', 'secret'].includes(b.kind)) && !b.tile) throw fail(`${w}.tile: a ${b.kind} stands on a tile of its segment ([row, col])`);
+  });
+  // (the journey: its checks are the concept's, read by the concept's reader)
+  const journey = sc.beats.map((b) => ({ id: b.id, say: b.say, kind: BEAT_JOURNEY[b.kind] ?? b.kind, at: b.at, ...(b.teach !== undefined ? { teach: b.teach } : {}), ...(b.faces !== undefined ? { faces: b.faces } : {}) }));
+  const { concept } = readSketch({ concept: { ...(sc.pitch !== undefined ? { pitch: sc.pitch } : {}), ...(sc.beats.some((b) => b.opens) ? { hold: true } : {}), journey } }, { at: Object.fromEntries(segs.map((x) => [x, true])), size: n }, at);
+  concept.journey.forEach((j, i) => { const b = sc.beats[i]; j.pace = b.pace ?? 'calm'; if (b.opens) j.opens = true; if (b.tile) j.tile = [...b.tile]; });
+  // (a mark a beat on its tile, one a foe kind for a fight of several kinds)
+  const out = { ...segments };
+  for (const b of sc.beats) {
+    if (!b.tile) continue;
+    const S = b.at, base = { at: [...b.tile], kind: b.foes ? 'encounter' : BEAT_MARK[b.kind], say: b.say, beat: b.id, ...(b.item ? { item: b.item } : {}) };
+    const marks = b.foes ? Object.entries(b.foes).map(([kind, count]) => ({ ...base, foes: { kind, count } })) : [base];
+    out[S] = out[S] ? { ...out[S], marks: [...out[S].marks, ...marks] } : { status: 'draft', ground: null, height: null, marks, notes: null };
+  }
+  return { concept, segments: out, scenario: { pitch: sc.pitch ?? null, beats: concept.journey } };
+}
+
 /** The sketch read against its plan. */
 export function readSketch(sketch, P, at = 'level.sketch') {
   if (sketch === undefined) return null;
-  if (!isObj(sketch)) throw fail(`${at} is { concept?, segments? }: the level decided in miniature before it is built`);
-  for (const k of Object.keys(sketch)) if (!['concept', 'segments'].includes(k)) throw fail(`${at}.${k} is not a sketch's word (concept, segments)`);
+  if (!isObj(sketch)) throw fail(`${at} is { scenario? | concept?, segments? }: the level decided in miniature before it is built`);
+  for (const k of Object.keys(sketch)) if (!['scenario', 'concept', 'segments'].includes(k)) throw fail(`${at}.${k} is not a sketch's word (scenario, concept, segments)`);
+  if (sketch.scenario !== undefined && sketch.concept !== undefined) throw fail(`${at} is written as a scenario or as a concept, not both (the scenario says the concept and its marks)`);
   if (!P) throw fail(`${at} sketches a planned map (level.grid.plan): its segments are what is sketched`);
   const segs = Object.keys(P.segments ?? P.at), n = P.size;
   const out = { concept: null, segments: {} };
@@ -107,7 +153,7 @@ export function readSketch(sketch, P, at = 'level.sketch') {
       if (!segs.includes(b.at)) throw fail(`${w}.at is a segment of the plan (${segs.join(', ')})`);
       const teach = b.teach === undefined ? [] : Array.isArray(b.teach) ? b.teach : [b.teach];
       for (const v of teach) if (!TEACH[v]) throw fail(`${w}.teach is a verb the hero learns here (${Object.keys(TEACH).join(', ')}), or a list of them`);
-      if (b.faces !== undefined && (b.kind !== 'arrival' || typeof b.faces !== 'string')) throw fail(`${w}.faces is an arrival's: the id of the beat its page sets out facing`);
+      if (b.faces !== undefined && ((b.kind !== 'arrival' && i > 0) || typeof b.faces !== 'string')) throw fail(`${w}.faces is an arrival's (or the first beat's): the id of the beat its page sets out facing`);
     });
     for (const [i, b] of C.journey.entries()) if (b.faces !== undefined && !C.journey.some((x) => x.id === b.faces && x !== b)) throw fail(`${at}.concept.journey[${i}].faces '${b.faces}' is no other beat of the journey`);
     out.concept = { pitch: C.pitch ?? null, ...(C.hold ? { hold: true } : {}), journey: C.journey.map((b) => ({ id: b.id, say: b.say, kind: b.kind, at: b.at, ...(b.teach !== undefined ? { teach: Array.isArray(b.teach) ? [...b.teach] : [b.teach] } : {}), ...(b.faces !== undefined ? { faces: b.faces } : {}) })) };
@@ -140,6 +186,7 @@ export function readSketch(sketch, P, at = 'level.sketch') {
       out.segments[S] = { status: v.status ?? 'draft', ground, height, marks: marks.map((m) => ({ ...m, at: [...m.at] })), notes: v.notes ?? null };
     }
   }
+  if (sketch.scenario !== undefined) Object.assign(out, readScenario(sketch.scenario, segs, n, out.segments, `${at}.scenario`));
   return out;
 }
 
@@ -206,6 +253,8 @@ export function sketchLaws(G, S) {
   }
   laws.push({ law: 'ground-walkable', ok: !blocked.length, value: blocked.length ? `a path runs on water or a cliff: ${blocked.join(', ')}` : 'no path on water or a cliff' });
   if (S.concept) laws.push(...firstZoneLaws(G, S, rise));
+  // (a scenario's pace, pace.js: dead air, its shape, each segment's interest)
+  if (S.scenario) laws.push(...paceLaws(paceOf(G, S, beatTile)));
   return laws;
 }
 
@@ -213,6 +262,7 @@ export function sketchLaws(G, S) {
  * segment, else its kind's mark there (BEAT_PLACE), else its segment's middle. */
 export function beatTile(G, S, b) {
   const P = G.plan, n = P.size, [r0, c0] = P.segments[b.at].at, marks = S?.segments[b.at]?.marks ?? [];
+  if (b.tile) return [r0 + b.tile[0], c0 + b.tile[1]];
   if (b.kind === 'climax') { const x = G.cells.find((y) => y.kind === 'place' && y.place?.goal && y.r >= r0 && y.r < r0 + n && y.c >= c0 && y.c < c0 + n); if (x) return [x.r, x.c]; }
   for (const k of BEAT_PLACE[b.kind] ?? []) { const m = marks.find((x) => x.kind === k); if (m) return [r0 + m.at[0], c0 + m.at[1]]; }
   return [r0 + (n - 1) / 2, c0 + (n - 1) / 2];
@@ -227,6 +277,10 @@ function firstZoneLaws(G, S, rise) {
   const J = S.concept?.journey ?? [], laws = [], fights = (b) => b.kind === 'encounter' || b.kind === 'climax';
   // (a fight's foes: the encounter mark its segment holds for it, the segment's fights and its marks taken in order)
   const countOf = (b) => {
+    // (a scenario's beat: its own marks, its foes counted)
+    const own = (S.segments[b.at]?.marks ?? []).filter((m) => m.beat === b.id && m.foes);
+    if (own.length) return own.reduce((t, m) => t + (m.foes.count ?? 1), 0);
+    if (S.scenario) return null;
     const mine = J.filter((x) => fights(x) && x.at === b.at), marks = (S.segments[b.at]?.marks ?? []).filter((m) => m.kind === 'encounter');
     const m = marks[mine.indexOf(b)] ?? marks[0];
     return m ? m.foes?.count ?? 1 : null;

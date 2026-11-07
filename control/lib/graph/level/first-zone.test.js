@@ -62,7 +62,7 @@ describe('a first zone laid', () => {
     const bad = (j, re, more = {}) => expect(() => readSketch({ concept: { journey: j, ...more } }, G.plan)).toThrow(re);
     bad([{ id: 'a', say: 'x', kind: 'arrival', at: 'A', teach: 'parry' }], /teach is a verb the hero learns here \(look, strike/);
     bad([{ id: 'a', say: 'x', kind: 'arrival', at: 'A', faces: 'nowhere' }], /faces 'nowhere' is no other beat/);
-    bad([{ id: 'a', say: 'x', kind: 'traverse', at: 'A', faces: 'a' }], /faces is an arrival's/);
+    bad([{ id: 'a', say: 'x', kind: 'arrival', at: 'A' }, { id: 'b', say: 'x', kind: 'traverse', at: 'A', faces: 'a' }], /faces is an arrival's \(or the first beat's\)/);
     bad([{ id: 'a', say: 'x', kind: 'arrival', at: 'A' }], /hold is true/, { hold: 'yes' });
   });
 });

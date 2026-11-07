@@ -9,6 +9,7 @@
  *
  *   guideOf(level, G, Z, { seed }) → { intro?, steps: [{ id, say, kind, at: [x, y, z], radius, fight?, keys? }], held? } | null
  *     G levelGrid's read, Z zoneOf's (null: the whole map); null where the level has no concept or no beat on the page
+ *     says   what is said on reaching it: a meet's or a rest's line, a find's 'Found: <item>'
  *     keys   a beat that teaches (its `teach`, map-sketch.js TEACH): the keys of what it teaches, shown while it is the way on
  *     introKeys  the arrival's keys (its `teach`), shown under the intro as the page opens
  *     held   a concept that holds its pages (`hold`): the page's ways out, each [x, y, z] and the word for it, held while a
@@ -37,11 +38,15 @@ export function guideOf(level, G, Z = null, { seed = 1 } = {}) {
   const steps = [];
   for (const b of C.journey) {
     if (!segs.includes(b.at) || b.kind === 'arrival') continue;
-    const at = b.kind === 'climax' ? goalIn(b.at) ?? markAt(b.at, ['encounter']) ?? middle(b.at)
+    const own = b.tile ? centre(P.segments[b.at].at[0] + b.tile[0], P.segments[b.at].at[1] + b.tile[1]) : null;
+    const at = own ? own : b.kind === 'climax' ? goalIn(b.at) ?? markAt(b.at, ['encounter']) ?? middle(b.at)
       : MARK_OF[b.kind] ? markAt(b.at, MARK_OF[b.kind]) ?? (b.kind === 'climb' ? onward(b.at) : null) ?? middle(b.at)
       : onward(b.at) ?? middle(b.at);
-    const fight = b.kind === 'encounter';
-    steps.push({ id: b.id, say: b.say, kind: b.kind, at, radius: fight ? GUIDE.fight : b.kind === 'find' || b.kind === 'secret' ? GUIDE.find : GUIDE.reach, ...(fight ? { fight: true } : {}), ...(b.teach?.length ? { keys: b.teach.map((v) => TEACH[v].keys) } : {}) });
+    const fight = b.kind === 'encounter' || (b.kind === 'climax' && (K.segments[b.at]?.marks ?? []).some((m) => m.beat === b.id && m.foes));
+    // (what is said on reaching it: a meet's or a rest's line, a find's item; a scenario's beat, by its own mark)
+    const item = (K.segments[b.at]?.marks ?? []).find((m) => m.beat === b.id && m.item)?.item;
+    const says = b.kind === 'meet' || b.kind === 'rest' ? b.say : item ? `Found: ${item}` : null;
+    steps.push({ id: b.id, say: b.say, kind: b.kind, at, radius: fight ? GUIDE.fight : b.kind === 'find' || b.kind === 'secret' ? GUIDE.find : GUIDE.reach, ...(fight ? { fight: true } : {}), ...(b.teach?.length ? { keys: b.teach.map((v) => TEACH[v].keys) } : {}), ...(says ? { says } : {}) });
   }
   const first = segs.includes(P.route[0]);
   if (!steps.length && !(first && C.pitch)) return null;
