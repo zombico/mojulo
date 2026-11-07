@@ -74,6 +74,18 @@ describe('mana-ui: props down and state in three places', () => {
     rt.press('accept');
     expect(S.name).toBe('ABB');
   });
+  it('a name is typed straight in from a keyboard: its charset and max kept, erased, done as Done does', () => {
+    const S = { name: '' }, rt = run(screen([{ use: 'textentry', props: { value: { bind: 'name' }, max: 4 } }, { use: 'button', props: { label: 'x' } }]), S);
+    expect(rt.typing()).toBe(true);
+    expect(rt.type('ab1 c!d')).toBe(true);   // lower case read as capitals; the digit and the mark not in the letters
+    expect(rt.view()).toContain('AB C');
+    expect(rt.type('e')).toBe(false);         // past the max
+    expect(rt.erase()).toBe(true);
+    expect(rt.submit()).toBe(true);
+    expect(S.name).toBe('AB');
+    while (rt.state().kind !== 'button') rt.press('down');
+    expect([rt.typing(), rt.type('a'), rt.erase(), rt.submit()]).toEqual([false, false, false, false]);   // nothing in focus to type into
+  });
   it('when and unless draw a node only while their value says so', () => {
     const rt = run(screen([{ use: 'text', props: { value: 'ready' }, when: { bind: 'ok' } }, { use: 'text', props: { value: 'wait' }, unless: { bind: 'ok' } }]), { ok: false });
     expect(rt.view()).toContain('wait');

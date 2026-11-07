@@ -12,7 +12,9 @@
  *
  *   manaControls({ scheme?, accept?, over? }) → { keys, pad, padLayout }   (scheme: the menu's; accept: other schemes'
  *                                    actions that also accept in a menu, the pilot's interact by default: the key that
- *                                    opened a menu picks in it; over: a remap, the kernel's override shape)
+ *                                    opened a menu picks in it; over: a remap, the kernel's override shape). keys carry
+ *                                    the scheme's `also` too (the keypad, Tab, the Page keys; 'Shift+Tab' the host reads
+ *                                    with Shift held), under every slot's binding
  *   manaGlyphs(schemes?, { over? }) → { keys, pad: { <layout>: … }, xr } each { <action>: label } (the first control
  *                                    bound; the menu's and the pilot's actions by default, a game's own schemes besides)
  *   controlsRows(scheme, { over?, layout? }) → [{ action, label, group, keys: [keyboard…, pad], conflict? }] for the
@@ -49,6 +51,8 @@ function padOf(B, extra) {
 export function manaControls({ scheme = SCHEMES.menu, accept = [{ scheme: SCHEMES.pilot, action: 'interact' }], over = null } = {}) {
   const keys = K.codeMap(K.resolve(scheme, { keyboard: DEVICES.keyboard }, over), 'keyboard');
   for (const A of accept) for (const c of K.resolve(A.scheme, { keyboard: DEVICES.keyboard }).bind.keyboard[A.action] || []) if (!keys[c]) keys[c] = 'accept';
+  // past the two slots, the conventions every player carries (the keypad, Tab, the Page keys): a slot's binding wins
+  for (const a of scheme.actions) for (const c of (a.also && a.also.keyboard) || []) if (!keys[c]) keys[c] = a.id;
   const pad = {};
   for (const L of LAYOUTS) {
     const B = K.resolve(scheme, { gamepad: DEVICES.gamepad }, over, { layout: L }).bind.gamepad;

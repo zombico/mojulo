@@ -1,6 +1,7 @@
 /**
  * MANA-UI's WIREFRAME BOARD — every idiom drawn in greybox on the sample state, one 16:9 frame each, live: click a frame
- * to drive it (arrows or WASD, Enter, Escape, [ ] for tabs; a second seat on I J K L, U to pick, O for back), and the
+ * to drive it (arrows, WASD or the keypad, Enter, Escape, [ ] for tabs, letters into a name; a second seat on I J K L, U to
+ * pick, O for back), and the
  * effects it emits are logged under it. The HUD frames layer the in-game parts over a play field, with a pause menu
  * that opens on Enter. The phone's frames (390 × 844) are driven by a finger: tap, drag a slider, swipe a carousel or
  * the tabs; their HUD's buttons are taps. A switcher lays each theme (theme.js) over the same frames, with what its colours read like
@@ -13,7 +14,8 @@
  *                         padLayoutSource } } from controls/mana-controls.js (manaHostSource, manaControls): then the live
  *                         frame is driven through the control schemes, pads too; glyphs: what its legends print. With
  *                         no host the board drives its frames with PREVIEW_KEYS, a stand-in of its own, never mana-ui's)
- *   PREVIEW_KEYS          the stand-in: arrows / WASD, Enter, Escape, [ ] (the menu scheme's defaults, for a preview)
+ *   PREVIEW_KEYS          the stand-in: arrows / WASD, Enter, Escape, [ ] (the menu scheme's defaults, for a preview), and
+ *                         its `also`: the keypad, Tab and Shift+Tab, Page Up and Down; previewKey its keydown
  */
 import { manaUiSource, manaUi } from './kernel.js';
 import { manaCss, FRAME_CSS } from './css.js';
@@ -41,8 +43,34 @@ export const BOARD_HUDS = Object.freeze({
 
 // a screen idiom's board section, by its shelf (the HUD frames come first, as 'In game')
 const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play' };
-// a preview's stand-in for the controls layer: the menu scheme's default keys, used only when no host is given
-export const PREVIEW_KEYS = Object.freeze({ ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Enter: 'accept', Space: 'accept', Escape: 'back', Backspace: 'back', BracketRight: 'tabNext', BracketLeft: 'tabPrev' });
+// a preview's stand-in for the controls layer: the menu scheme's default keys and its `also` (the keypad, Tab, the Page
+// keys), used only when no host is given
+export const PREVIEW_KEYS = Object.freeze({
+  ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+  Enter: 'accept', Space: 'accept', Escape: 'back', Backspace: 'back', BracketRight: 'tabNext', BracketLeft: 'tabPrev',
+  Numpad8: 'up', Numpad2: 'down', Numpad4: 'left', Numpad6: 'right', NumpadEnter: 'accept', Numpad5: 'accept', Numpad0: 'back',
+  Tab: 'down', 'Shift+Tab': 'up', PageDown: 'tabNext', PageUp: 'tabPrev', NumpadAdd: 'tabNext', NumpadSubtract: 'tabPrev',
+});
+/** The stand-in's keydown, inlined as page source (as controls/mana-host.js does it): a key the screen up takes, a held
+ *  one repeating only a move, a chord left to the browser, and a text entry in focus typed into. */
+export function previewKey(rt, view, keys, ev) {
+  if (!rt.state().screen || ev.ctrlKey || ev.altKey || ev.metaKey) return false;
+  const k = ev.key;
+  if (rt.typing()) {
+    let t = true;
+    if (k === 'Backspace' || k === 'Delete') rt.erase();
+    else if (k === 'Enter') { if (!ev.repeat) rt.submit(); }
+    else if (typeof k === 'string' && [...k].length === 1) rt.type(k);
+    else t = false;
+    if (t) { ev.preventDefault(); rt.input('keys'); view.paint(); return true; }
+  }
+  const a = (ev.shiftKey && keys['Shift+' + ev.code]) || keys[ev.code];
+  if (!a) return false;
+  ev.preventDefault();
+  if (ev.repeat && !['up', 'down', 'left', 'right'].includes(a)) return true;
+  rt.input('keys'); rt.press(a); view.paint();
+  return true;
+}
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const use = (id) => ({ use: id, props: IDIOMS[id].example });
@@ -80,7 +108,7 @@ figure{margin:0}figcaption{margin-top:6px;font-size:12px;color:#333}figcaption s
 pre{margin:4px 0 0;font:10px/1.3 ui-monospace,monospace;color:#555;white-space:pre-wrap;min-height:13px}
 ${manaCss('.mana-stage .mana-root')}
 ${FRAME_CSS}
-</style><style id="mana-theme"></style></head><body><header><h1>${esc(title)}</h1><p>Every idiom over one sample state: the structure, the data it reads and the effects it emits, in greybox; a theme is a layer over it. Click a frame to drive it: arrows or WASD, Enter, Escape, [ and ] for tabs; a second seat on I J K L, U, O.</p>
+</style><style id="mana-theme"></style></head><body><header><h1>${esc(title)}</h1><p>Every idiom over one sample state: the structure, the data it reads and the effects it emits, in greybox; a theme is a layer over it. Click a frame to drive it: arrows, WASD or the keypad, Enter, Escape, [ and ] for tabs, letters into a name; a second seat on I J K L, U, O.</p>
 <p><label for="look">Theme</label><select id="look">${looks.map((l) => `<option value="${esc(l.id)}"${l.id === theme ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></p><div id="advice"></div></header>${body}
 <script>
 const manaUi = ${manaUiSource()};
@@ -93,7 +121,7 @@ document.getElementById('look').addEventListener('change', (ev) => look(ev.targe
 look(${json(theme)});
 // the page's input owner: the controls layer's host when given, else the preview's stand-in keys
 const HOST = ${host ? `{ api: ${host.source}, controls: { keys: ${json(host.controls.keys)}, pad: ${json(host.controls.pad)}, padLayout: (${host.controls.padLayoutSource}) } }` : 'null'};
-const PREVIEW = ${json(PREVIEW_KEYS)};
+const PREVIEW = ${json(PREVIEW_KEYS)}, previewKey = ${previewKey.toString()};
 const GLYPHS = ${json(glyphs)};
 const runs = [];
 let live = null;
@@ -125,10 +153,9 @@ window.addEventListener('keydown', (ev) => {
   if (live === null) return;
   const R = runs[live];
   if (R.F.hud && !R.rt.state().screen && (ev.code === 'Enter' || ev.code === 'Escape')) { ev.preventDefault(); R.rt.open('pause'); R.m.paint(); return; }
-  if (P2[ev.code]) { ev.preventDefault(); R.rt.press(P2[ev.code], 1); R.m.paint(); return; }
+  if (P2[ev.code] && !R.rt.typing()) { ev.preventDefault(); R.rt.press(P2[ev.code], 1); R.m.paint(); return; }
   if (R.h) { R.h.key(ev); return; }
-  const a = PREVIEW[ev.code];
-  if (a && R.rt.state().screen) { ev.preventDefault(); R.rt.input('keys'); R.rt.press(a); R.m.paint(); }
+  previewKey(R.rt, R.m, PREVIEW, ev);
 });
 // each frame a 1280×720 screen, scaled to its box
 const fit = () => document.querySelectorAll('.mana-stage').forEach((st) => { st.style.transform = 'scale(' + st.parentNode.clientWidth / st.offsetWidth + ')'; });

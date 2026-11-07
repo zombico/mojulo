@@ -63,6 +63,10 @@
  *                         ends of a ◀ ▶ input turn it, anything else is done at once; a row with a detail beside it (in
  *                         a split) is selected first and done on a second tap
  *     .hudTap(n)          a tap on the HUD's tappable part n (a button or a slot with `on.accept`: pause, a skill)
+ *     .typing(seat?)      is the seat's focus in a text entry (then a keyboard types into it)
+ *     .type(text, seat?)  text typed into the text entry in focus: each character in its charset (a lower-case letter
+ *                         read as its capital) up to its max, the rest dropped → whether any was taken
+ *     .erase(seat?)       the draft's last character off;  .submit(seat?)  the entry done, as its Done does
  *     .view() → html .tree() .state() (the stack, the screen up, each seat's focus, what it is, the open screen's tabs)
  *     actions (the controls kernel's `menu` scheme): up, down, left, right, accept, back, tabNext, tabPrev
  *   toHtml(tree) · readPath(obj, path)
@@ -617,9 +621,11 @@ export function buildManaUi() {
           }
           case 'textentry': {
             const draft = key in U.vals ? U.vals[key] : words(p.value).slice(0, p.max), chars = [...CHARSETS[p.charset]], cols = 10;
-            const cells = chars.map((ch, i) => { const fi = focusable({ kind: 'char', n, key, ch, max: Math.floor(p.max), draft, g: { key, r: Math.floor(i / cols), c: i % cols }, scope }); return ['span', { class: 'mana-cell', ...mark(fi, 'shown') }, ch === ' ' ? '␣' : ch]; });
+            // every focusable of the entry carries what typing into it needs (the charset, the max, the draft)
+            const T = { n, key, max: Math.floor(p.max), set: CHARSETS[p.charset], draft, scope };
+            const cells = chars.map((ch, i) => { const fi = focusable({ ...T, kind: 'char', ch, g: { key, r: Math.floor(i / cols), c: i % cols } }); return ['span', { class: 'mana-cell', ...mark(fi, 'shown') }, ch === ' ' ? '␣' : ch]; });
             const row = Math.ceil(chars.length / cols);
-            const del = focusable({ kind: 'char-del', n, key, draft, g: { key, r: row, c: 0 }, scope }), done = focusable({ kind: 'char-done', n, key, draft, src: src.value, g: { key, r: row, c: 1 }, scope });
+            const del = focusable({ ...T, kind: 'char-del', g: { key, r: row, c: 0 } }), done = focusable({ ...T, kind: 'char-done', src: src.value, g: { key, r: row, c: 1 } });
             return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['div', { class: 'mana-draft' }, draft, ['span', { class: 'mana-caret' }, draft.length < p.max ? '_' : '']],
               ['div', { class: 'mana-grid', style: `--cols:${cols}` }, ...cells], ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, ['div', { class: 'mana-button', ...mark(del, 'shown') }, 'Delete'], ['div', { class: 'mana-button', ...mark(done, 'shown') }, 'Done']]];
           }
@@ -781,6 +787,40 @@ export function buildManaUi() {
       render();
       return true;
     }
+    // ── typing: a text entry in a seat's focus takes text straight from a keyboard (a pad types from the grid) ──────
+    // what is typed is text, never a key: the host says which characters, an erase or done; the entry keeps its charset
+    // (a letter typed in lower case is its capital) and its max
+    const entryOf = (seat) => {
+      if (!top()) return null;
+      if (!last || last.screen !== top()) render();
+      const f = last.focus[uiOf(top()).at[seat] || 0];
+      return f && (f.kind === 'char' || f.kind === 'char-del' || f.kind === 'char-done') ? f : null;
+    };
+    function typing(seat = 0) { return !!entryOf(seat); }
+    function type(text, seat = 0) {
+      const f = entryOf(seat);
+      if (!f) return false;
+      let d = f.draft;
+      for (const c of [...String(text)]) { const ch = f.set.includes(c) ? c : c.toUpperCase(); if (ch.length === 1 && f.set.includes(ch) && d.length < f.max) d += ch; }
+      if (d === f.draft) return false;
+      uiOf(top()).vals[f.key] = d;
+      render();
+      return true;
+    }
+    function erase(seat = 0) {
+      const f = entryOf(seat);
+      if (!f || !f.draft) return false;
+      uiOf(top()).vals[f.key] = f.draft.slice(0, -1);
+      render();
+      return true;
+    }
+    function submit(seat = 0) {
+      const f = entryOf(seat), done = f && last.focus.find((x) => x.kind === 'char-done' && x.key === f.key);
+      if (!done) return false;
+      accept(done, seat);
+      render();
+      return true;
+    }
     // a tap or a click: what is under it is selected and done (a row with a detail beside it: selected first)
     function point(k, x, seat = 0) {
       if (!top()) return false;
@@ -831,7 +871,7 @@ export function buildManaUi() {
     function reduceMotion(on) { const x = !!on; if (S.calm !== x) { S.calm = x; render(); } }
     if (start) open(start); else render();
     return {
-      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, hold, reduceMotion,
+      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, hold, reduceMotion, typing, type, erase, submit,
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
       state: () => {

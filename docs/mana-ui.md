@@ -111,6 +111,18 @@ widgets under a pointer (only the view knows where they are).
 - **The schemes in.** `controls/mana-controls.js manaControls()` resolves the menu scheme (the pilot's interact
   accepting too) onto the keyboard and each pad layout, in the shape the playscape menus read. A remap is the kernel's
   override.
+- **The keyboard's sane defaults.** Each menu action has two remappable slots (arrows or W A S D, Enter or Space, Esc or
+  Backspace, `[` `]`). Past them, the scheme's `also` carries the keys a player reaches for anyway: the keypad (8 4 6 2
+  move, 5 and its Enter accept, 0 backs out, + and − turn the tabs), Tab and Shift+Tab to move down and up, and Page
+  Down and Page Up to turn the tabs. They are never remapped or listed, and a slot's binding on the same key wins. The
+  host repeats a held key only for a move (never a pick or a back) and leaves a chord (Ctrl, Alt, Meta) to the browser.
+- **A held stick or d-pad repeats too.** A pad's move (and a driver's: a headset's sticks) repeats while held, after
+  0.4 s and then every 0.1 s (`connect`'s `repeat: { delay, every }` in ms, or `false`), a pick or a back never. What
+  was held as a screen opened neither acts nor repeats in it.
+- **Typing.** With a text entry in the keyboard's focus, the host types into it: a letter types (W does not move),
+  Backspace and Delete erase, Enter is done, and the arrows, Esc and Tab still move and back out. A pad still types
+  from the grid. The runtime takes text, never keys: `rt.typing(seat)`, `rt.type(text, seat)` (the entry's charset and
+  max kept, lower case read as capitals), `rt.erase(seat)`, `rt.submit(seat)`.
 - **The glyphs out.**
   - `manaGlyphs()` gives each action's control per family and layout. A `prompt` and a `legend` print the one in hand
     ("Enter", "A", "✕"), switching as the player picks up another device; a touch screen draws no legend.
@@ -119,7 +131,8 @@ widgets under a pointer (only the view knows where they are).
 - **The drawn touch pad** is a look only: its buttons are named by the gamepad controls they are (`data-control`). The
   virtual pad's driver is the controls layer's.
 - **Previews** (the board, `manaUiPage`) take the host as `host: { source: manaHostSource(), controls }`. Without one,
-  they drive their frames with `PREVIEW_KEYS`, a stand-in in the preview's own script, never in the kernel.
+  they drive their frames with `PREVIEW_KEYS` and `previewKey`, a stand-in in the preview's own script (the same keys,
+  held to the scheme by a test, and the same typing), never in the kernel.
 
 ## The components, by group
 
@@ -269,7 +282,7 @@ the menus around the play (the title, the team select, the pause, the results af
 frame, and the effects each frame emits are logged under it. A switcher lays each theme over the same frames and shows
 its advice. Click a frame to drive it:
 
-- arrows or WASD, Enter, Escape, and `[` `]` to turn tabs
+- arrows, WASD or the keypad, Enter, Escape, and `[` `]` (or Page Up and Down) to turn tabs; letters type into a name
 - a second seat on I J K L, with U to pick and O for back
 
 It is one self-contained page, and it is the eyes gate's view of the library.
@@ -284,6 +297,7 @@ const rt = manaUi.runtime({ screens: { pause: node, … }, hud?, defs?, start? }
 });
 rt.hold(on); rt.reduceMotion(on);       // the game's clock held (the HUD's motion holds); the player's less-motion option
 rt.press('down' | 'up' | 'left' | 'right' | 'accept' | 'back' | 'tabNext' | 'tabPrev', seat?);
+rt.typing(seat?); rt.type(text, seat?); rt.erase(seat?); rt.submit(seat?);   // a text entry in focus, typed into
 rt.open(id); rt.tick(); rt.view(); rt.state();   // state: the stack, the screen up, each seat's focus, the open tabs
 manaUi.mount(el, rt, { auto: true });   // the DOM backend, a view: it patches what it drew, hit-tests a pointer, a frame loop
 ```
