@@ -50,7 +50,7 @@ describe('a zoned map made into a game', () => {
 });
 
 // SEAMLESS: segments walked as one page (`zoned: [['A', 'B']]`): the gate between them road on it, its ways out the gates
-// of its outline, each named by its segment and side.
+// of its outline, each named by its segment and side (lower-case).
 describe('a page of several segments', () => {
   const W = { ...WORLDMAP_SAMPLE, levels: { overworld: { glyphs: { ...WORLDMAP_SAMPLE.levels.overworld.glyphs, zoned: [['A', 'B']] } } } };
   it('is one stage, the town and the fields, its ways the outline\'s gates; the rest a page each', () => {
@@ -59,7 +59,7 @@ describe('a page of several segments', () => {
     const M = worldmapGame(W, { ref: 'wm' }), page = (z) => M.levels.find((l) => JSON.stringify(l.zone) === JSON.stringify(z));
     const AB = M.game.levels.find((l) => l.ref === page(['A', 'B']).ref);
     // (no way between the town and the fields; the town's south join to the woods and the fields' south to the keep)
-    expect(AB.exits.map((e) => e.id).sort()).toEqual(['gate-A-s', 'gate-B-s']);
+    expect(AB.exits.map((e) => e.id).sort()).toEqual(['gate-a-s', 'gate-b-s']);
     // (the woods and the keep come back into it, each by its own gate)
     const D = page('D').manifest, fromD = D.game.mechanics.find((m) => m.exit === 'gate-n');
     expect(fromD).toBeTruthy();

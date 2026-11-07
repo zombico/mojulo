@@ -1051,7 +1051,9 @@ export function mapPlan(G, stages, refs) {
         // (a gate inside one page is road on it, never a way)
         if (a === b) continue;
         // (named by its side; on a page of several segments, by its segment and side, two of its gates may face one way)
-        const name = (i, S, side) => (Array.isArray(stages[i].zone) ? `gate-${S}-${side}` : `gate-${side}`);
+        // (an exit id is lower-case: an upper-case segment its lower case, a lower-case one with a mark, so A and a differ)
+        const seg = (S) => (S === S.toUpperCase() ? S.toLowerCase() : `${S}_`);
+        const name = (i, S, side) => (Array.isArray(stages[i].zone) ? `gate-${seg(S)}-${side}` : `gate-${side}`);
         plan[a].on.push({ to: refs[b], zone: g.to, side: g.side, id: name(a, g.from, g.side) });
         plan[b].on.push({ to: refs[a], zone: g.from, side: OPP_SIDE[g.side], id: name(b, g.to, OPP_SIDE[g.side]) });
       }

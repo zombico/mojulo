@@ -113,6 +113,22 @@ describe('a zone of the world map', () => {
     expect(() => readZone({ ...level(null), zone: ['A', 'A'] })).toThrow(/a list of segments/);
   });
 
+  it('sees the rest of the map far off (far: true): its land past the apron, at the land\'s own height, the rim round the whole map', async () => {
+    const P = await assembleGridScene({ level: level('B', { far: true }) }, {}, { buildStage: tileStage });
+    const far = P.faces.filter((f) => /^map:far:/.test(f.group));
+    // (the 20 tiles the page does not build, 16 cells each; the keep's temple, far off, a block)
+    expect(far.filter((f) => f.group === 'map:far:ground')).toHaveLength(20 * 16);
+    expect(far.filter((f) => f.group === 'map:far:place')).toHaveLength(5);
+    // (its ground at the land's own height: a corner of it is the level's)
+    const f0 = far[0].corners[0], G = readGrid(grid);
+    expect(f0[2]).toBeCloseTo(levelHeight(f0[0], f0[1], { seed: 5, rise: G.rise }), 2);
+    // (the rim round the whole map: west of it, past x = 0, where the zone alone ringed its apron from x = 48)
+    expect(P.faces.filter((f) => f.group === 'map:rim').some((f) => f.corners.some((c) => c[0] < -1))).toBe(true);
+    for (const l of P.map.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+    // (absent: as before, no far faces)
+    expect((await assembleGridScene({ level: level('B') }, {}, { buildStage: tileStage })).faces.some((f) => /^map:far:/.test(f.group))).toBe(false);
+  });
+
   it('leaves a map with no zone as it was: the whole map on one page', async () => {
     const P = await assembleGridScene({ level: level(null) }, {}, { buildStage: tileStage });
     expect(P.map.cells).toHaveLength(36);

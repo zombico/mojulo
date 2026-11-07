@@ -247,7 +247,8 @@ export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) 
 // level/zones.js, the world map of linked maps)
 // (`sketch`: the planned map decided in miniature before it is built, level/map-sketch.js: its concept, its segments'
 // ground, heights and marks; read by the miniature, not yet by the build)
-const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch'];
+// (`far`: a zoned map's pages see the rest of the map far off, level/far-view.js)
+const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its

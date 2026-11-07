@@ -17,5 +17,10 @@
 - **Seamless: segments walked as one page.** A level's `zone` may be a list of segments (level/zones.js): one page, its
   apron round their whole outline, the gates between them road on it, walls along its outline's every tile edge (a run
   where they line up) open at the gates to the rest. A gameworld's `glyphs.zoned: [['A', 'B'], …]` lays such pages, the
-  segments no page names a page each; a page's exits on a grouped page are named by segment and side (`gate-A-s`), as
+  segments no page names a page each; a page's exits on a grouped page are named by segment and side (`gate-a-s`), as
   two of its gates may face one way. Refused with words: a page of segments no gate joins, a segment on two pages.
+- **The far view: the rest of the map on the horizon.** A zone's page with `far: true` (a gameworld's `glyphs.far`;
+  level/far-view.js) lays every tile it does not build as greybox on the level's one land, its approved sketch's heights
+  lowered: its ground tinted by the sketch (a forest darker, rocks grey, scrub dry, water), a wood's trees as cones, a
+  cliff's slabs, its places as blocks, the walk's goal taller; the rim and the horizon ring the whole map, so the land runs
+  on past the apron to the map's edge. Never walked: the zone's walls stand inside it. Absent, a zone's page as it was.

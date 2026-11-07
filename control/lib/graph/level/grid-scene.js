@@ -36,6 +36,7 @@ import { mapItems } from './map-items.js';
 import { frameOf, placed, ringTheMap, pageOf } from './map-scene.js';
 import { readZone, zoneOf, ZONE } from './zones.js';
 import { levelGrid, SKETCH_BIOCUBE, SKETCH_BOULDERS } from './map-sketch.js';
+import { farFaces } from './far-view.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const DOOR = placeDoors;
@@ -479,8 +480,13 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     const rs = cells.map((x) => x.r), cs = cells.map((x) => x.c);
     box = [Math.min(...cs) * T, -(Math.max(...rs) + 1) * T, (Math.max(...cs) + 1) * T, -Math.min(...rs) * T];
     out.colliders.push(...zoneWalls(Z, box, out.faces));
-    out.faces.push(...rimFaces(box[2] - box[0], box[3] - box[1], out.faces, first.payload, box));
-    ringTheMap(out.faces, { map: [[box[0], box[3]], [box[2], box[3]], [box[2], box[1]], [box[0], box[1]]] });
+    // THE FAR VIEW (`far: true`, far-view.js): the rest of the map laid far off past the apron, the rim and the horizon
+    // round the whole map, so the land runs on to its edge and what stands far off reads on the horizon
+    const ground0 = (first.payload.faces || []).find((f) => f.group && /:ground$/.test(f.group))?.fill ?? '#7aa04a';
+    const ringBox = lv.far ? [0, -H, W, 0] : box;
+    if (lv.far) out.faces.push(...farFaces(G, Z, { seed, ground: ground0 }));
+    out.faces.push(...rimFaces(ringBox[2] - ringBox[0], ringBox[3] - ringBox[1], out.faces, first.payload, ringBox));
+    ringTheMap(out.faces, { map: [[ringBox[0], ringBox[3]], [ringBox[2], ringBox[3]], [ringBox[2], ringBox[1]], [ringBox[0], ringBox[1]]] });
   } else {
     out.colliders.push(...edgeWalls(W, H, out.faces));
     out.faces.push(...rimFaces(W, H, out.faces, first.payload));
