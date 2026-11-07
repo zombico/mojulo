@@ -7,7 +7,9 @@
  *   WORLDMAP_SAMPLE                 a 2 × 2 world of 3 × 3-tile zones: the town, the fields, the woods, the keep
  *   worldmapGame(world, { ref })    → { levels: [{ ref, title, zone, manifest }], game, zones: { <ref>: zone } } pure
  *   buildWorldmap(world, { ref, outDir, log? }) → { dir, pages: [{ ref, zone, bytes, buildMs, emitMs }] }
- *                                     writes `<dir>/index.html` (the shell) and `<dir>/levels/<ref>.html` (a page a zone)
+ *                                     writes `<dir>/index.html` (the shell), `<dir>/levels/<ref>.html` (a page a zone) and
+ *                                     `<dir>/map.html` (the world map in miniature, worldmapPage)
+ *   worldmapPage(world, made)       → the miniature: the world, a zone, a tile, drilled into (level/worldmap-view.js)
  *   crossings(made)                 → the walk round the world: each zone left by each of its gates once, in order
  *
  * scripts/worldmap.mjs serves the folder and walks it in headless Chrome.
@@ -16,6 +18,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { runSteps } from './runner.js';
 import { gridEnds } from '../level/grid-ends.js';
+import { worldmapView, worldmapHtml } from '../level/worldmap-view.js';
 
 /** Four zones round a square: the walk town → fields → keep, the woods off it, joined to the town and the keep. */
 export const WORLDMAP_SAMPLE = Object.freeze({
@@ -66,6 +69,16 @@ export function crossings(made) {
   return out;
 }
 
+/** The world map in miniature (level/worldmap-view.js): its first zoned level drawn from its recipe, no page built, each
+ * zone's walk its page in the folder. */
+export function worldmapPage(world, made) {
+  const first = made.levels.find((l) => l.zone);
+  if (!first) throw new Error('worldmap: the world has no zoned level to draw');
+  const { zone: _z, apron: _a, ...level } = first.manifest.level;
+  const play = Object.fromEntries(made.levels.filter((l) => l.zone).map((l) => [l.zone, `levels/${l.ref}.html`]));
+  return worldmapHtml(worldmapView(level, { title: world.name ?? world.id }), { play });
+}
+
 /** The world built to a folder: a page a zone, the play shell over them. */
 export async function buildWorldmap(world, { ref = world.id, outDir, log = () => {} } = {}) {
   const [{ resolveWorldScene }, { emitThreeWorld }, { resolveGame }, { emitPlayShell }] = await Promise.all([
@@ -90,6 +103,7 @@ export async function buildWorldmap(world, { ref = world.id, outDir, log = () =>
   const resolved = resolveGame({ kind: 'game', ...made.game }, (r) => (byRef.has(r) ? { ref: r, manifest: byRef.get(r).manifest } : null), (r) => `levels/${r}.html`);
   const shell = emitPlayShell(resolved.manifest, resolved.levels, { playtest: true, startLevel: made.levels[0].ref });
   await fs.writeFile(path.join(outDir, 'index.html'), shell);
+  await fs.writeFile(path.join(outDir, 'map.html'), worldmapPage(world, made));
   await fs.writeFile(path.join(outDir, 'worldmap.json'), JSON.stringify({ world, game: made.game, zones: made.zones, pages: pages.map(({ laws: _l, ...p }) => p) }, null, 1));
   return { dir: outDir, made, pages };
 }

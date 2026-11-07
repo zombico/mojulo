@@ -24,3 +24,10 @@
   walk; arrivals by its other gates keep that heading); a crossing is at a gate, not anywhere along a border (the zones'
   shared frame makes carrying the walker's place along the border the next step); each crossing is a whole page swapped
   behind the veil, never streamed or fetched ahead; a megaworld's rings do not yet take a zoned map as one of their zones.
+- **The world map in miniature.** `level/worldmap-view.js` draws a zoned map from its recipe alone, no page built (a
+  moment, against seconds a zone): the WORLD (each zone's square on the shaded land, its name and role, the walk and the
+  joins, every gate), a ZONE (its tiles, its apron veiled, its paths, places and pieces, where its page sets out and where
+  each gate sets one down, each gate a link sideways to the zone across) and a TILE (its ground, its path's shape, its
+  place and door, what of the game lies on it, its gate), each a view drilled into by its address and back out by its
+  crumbs. HTML and CSS alone, as the game book's pages are, so it can join the book as it stands. The test bed writes it
+  beside the game (`map.html`, each zone's walk a link to its page); `--map-only` writes it alone.
