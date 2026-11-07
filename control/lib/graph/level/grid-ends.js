@@ -7,6 +7,7 @@
  *     spawn     where a walk of the map starts (grid.js mapStart, the page's own spawn), at its path's middle, on the land
  *     heading   facing the way on; THE FIRST LOOK, where the sketch's arrival `faces` a beat (map-sketch.js): facing that
  *               beat's place, the place the level is about
+ *     vista     the first look's: that place, its top (map-sketch.js LOOK.place up), the opening camera looks at it
  *     exit      a place whose key says `goal` (its door), else the path end the most tiles away along the paths
  *     via       the tiles' middles (on their paths: a bend's along its arc, its quarter points) along the paths from the spawn to the exit (the fewest tiles), the door last
  *     beats     `along` each tile of that way between its ends; `pocket` each path END off it (a side way's end: what
@@ -24,7 +25,7 @@ import { readGrid, placeDoors } from './grid.js';
 import { mapWay, mapItems } from './map-items.js';
 import { levelHeight, tilePath } from '../era/out-tile.js';
 import { readZone, zoneOf } from './zones.js';
-import { levelGrid, readSketch, beatTile } from './map-sketch.js';
+import { levelGrid, readSketch, beatTile, LOOK } from './map-sketch.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const FACING = { '+y': [0, 1], '-y': [0, -1], '+x': [1, 0], '-x': [-1, 0] };
@@ -74,7 +75,7 @@ export function gridEnds(level) {
   const out = {
     spawn, heading: r3(Math.atan2(toward[1] - spawn[1], toward[0] - spawn[0])), exit: exitAt,
     exitFrom: last.kind === 'place' ? `the ${last.place?.use ?? 'place'}'s door (${last.glyph})` : 'the path\'s far end',
-    planar: true, beats, hazards: [], via: via.map((p) => [p[0], p[1]]), doors: [], places, map: true, ...(packs.length ? { packs } : {}), ...(regionOf(start) ? { home: regionOf(start) } : {}),
+    planar: true, beats, hazards: [], via: via.map((p) => [p[0], p[1]]), doors: [], places, map: true, ...(sight ? { vista: (([x, y, z]) => [x, y, r3(z + LOOK.place)])(on((sight[1] + 0.5) * T, -(sight[0] + 0.5) * T)) } : {}), ...(packs.length ? { packs } : {}), ...(regionOf(start) ? { home: regionOf(start) } : {}),
     ...(G.regions ? { regions: Object.fromEntries(Object.entries(G.regions).map(([k, v]) => [k, v.name ?? k])) } : {}),
   };
   // THE SKETCH'S ENCOUNTERS (map-sketch.js, an approved segment's): where each fight stands, by its tile's middle, its
@@ -117,6 +118,8 @@ function zoneEnds(G, Z, E, { last, doorOf }) {
     ...(holdsGoal ? { holdsGoal: true } : {}),
   };
   if (!packs.length) delete out.packs;
+  // (the first look is the page's that holds the walk's start)
+  if (Z.spawn?.heading !== null) delete out.vista;
   if (!(G.sketch?.approved ?? []).some((x) => segs.includes(x))) delete out.encounters;
   // (the region it sets out from: its own)
   const own = G.regions?.[segs[0]];

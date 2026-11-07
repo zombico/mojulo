@@ -10,6 +10,7 @@
  *   guideOf(level, G, Z, { seed }) → { intro?, steps: [{ id, say, kind, at: [x, y, z], radius, fight?, keys? }], held? } | null
  *     G levelGrid's read, Z zoneOf's (null: the whole map); null where the level has no concept or no beat on the page
  *     keys   a beat that teaches (its `teach`, map-sketch.js TEACH): the keys of what it teaches, shown while it is the way on
+ *     introKeys  the arrival's keys (its `teach`), shown under the intro as the page opens
  *     held   a concept that holds its pages (`hold`): the page's ways out, each [x, y, z] and the word for it, held while a
  *            foe stands on the page (gameworld/levels.js holds the exits; the page says why one does not open)
  * Pure.
@@ -47,5 +48,7 @@ export function guideOf(level, G, Z = null, { seed = 1 } = {}) {
   // (a held page's ways out, where it fights: each gate's exit; the word the page shows at one while foes stand)
   const fightHere = C.journey.some((b) => segs.includes(b.at) && (b.kind === 'encounter' || b.kind === 'climax'));
   const held = C.hold && Z && fightHere ? Z.ways.map((w) => [r3(w.exit[0]), r3(w.exit[1]), r3(w.exit[2])]) : null;
-  return { ...(first && C.pitch ? { intro: C.pitch } : {}), steps, ...(held?.length ? { held } : {}) };
+  // (the arrival's keys, a page holding the walk's start: shown under the intro, before the first beat's)
+  const arr = first ? C.journey.find((b) => b.kind === 'arrival' && segs.includes(b.at) && b.teach?.length) : null;
+  return { ...(first && C.pitch ? { intro: C.pitch } : {}), ...(arr ? { introKeys: arr.teach.map((v) => TEACH[v].keys) } : {}), steps, ...(held?.length ? { held } : {}) };
 }

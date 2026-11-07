@@ -219,7 +219,7 @@ export function beatTile(G, S, b) {
 }
 
 // how high a place stands that the first look looks for (a keep's gate, a tower: the top of what is seen), and the eye
-const LOOK = Object.freeze({ eye: 1.7, place: 6 });
+export const LOOK = Object.freeze({ eye: 1.7, place: 6 });
 
 /** A FIRST ZONE'S LAWS (a journey that teaches, or whose arrival faces a beat): what a fight asks is taught before it,
  * the first fight one foe, and the place the arrival faces seen from the start over the land as planned. */

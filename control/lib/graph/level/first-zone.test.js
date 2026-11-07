@@ -7,6 +7,8 @@ import { guideOf } from './guide.js';
 import { zoneOf } from './zones.js';
 import { lowerMechanic } from '../game/mechanics.js';
 import { WORLDMAP_SAMPLE } from '../gameworld/worldmap-bed.js';
+import { createWorld, stepWorld } from '../worlds/controllable-world.js';
+import { LOOK } from './map-sketch.js';
 
 // AN ACTION QUEST'S FIRST ZONE: the journey in teaching order (the first look, the lone foe, the traverse, the pack, the
 // climb, the climax), the controls taught where first needed, the first page left by winning it.
@@ -73,6 +75,22 @@ describe('a first zone played', () => {
     const [gr, gc] = [4, 4], want = Math.atan2(-(gr + 0.5) * g.tile - E.spawn[1], (gc + 0.5) * g.tile - E.spawn[0]);
     expect(E.heading).toBeCloseTo(want, 2);
     expect(plain.heading).not.toBeCloseTo(want, 2);
+    // (the opening camera's look: that place's top; only the start's page, and none without a face)
+    expect(E.vista.slice(0, 2)).toEqual([(gc + 0.5) * g.tile, -(gr + 0.5) * g.tile]);
+    expect(plain.vista).toBeUndefined();
+    expect(gridEnds({ ...lv(), zone: ['A', 'B'] }).vista).toEqual(E.vista);
+    expect(gridEnds({ ...lv(), zone: 'D' }).vista).toBeUndefined();
+  });
+
+  it('opens on the place the level is about: the chase high and looking at it, eased down behind the hero', () => {
+    const at = [60, 0, 20], mk = (vista) => createWorld({ entities: [{ id: 'h', pilotable: true, rule: { type: 'platform', eye: 0 }, transform: { pos: [0, 0, 0], heading: 0 } }], camera: { rule: 'follow', target: 'h', dist: 6, height: 3, lerp: 60, ...(vista ? { vista } : {}) } });
+    const run = (w, secs) => { for (let i = 0; i < secs * 60; i++) stepWorld(w, {}, 1 / 60, { ground: () => 0 }); return w; };
+    const V = run(mk({ at, secs: 6, rise: 16 }), 1), P = run(mk(null), 1);
+    expect(V.camera.transform.pos[2] - P.camera.transform.pos[2]).toBeGreaterThan(14);
+    expect(V.camera.lookAt).toEqual(expect.arrayContaining([expect.closeTo(60, 1)]));
+    // (past its seconds: the chase as it was)
+    expect(run(mk({ at, secs: 6, rise: 16 }), 7).camera.transform.pos[2]).toBeCloseTo(run(mk(null), 7).camera.transform.pos[2], 3);
+    expect(LOOK.place).toBeGreaterThan(LOOK.eye);
   });
 
   it('shows each beat\'s keys while it is the way on, and the page\'s ways held while it fights', () => {
@@ -80,6 +98,9 @@ describe('a first zone played', () => {
     const D = guideOf(lv(), Gs, page, { seed: 5 });
     expect(D.steps.map((s) => [s.id, s.keys ?? null])).toEqual([['lone-foe', [TEACH.strike.keys]], ['cross', [TEACH.sprint.keys]], ['pack', [TEACH.lock.keys, TEACH.dodge.keys]]]);
     expect(D.held).toEqual(page.ways.map((w) => w.exit.map((v) => Math.round(v * 1000) / 1000 + 0)));
+    // (the arrival's keys beside the intro, the start's page only)
+    expect(D.introKeys).toEqual([TEACH.look.keys]);
+    expect(guideOf(lv(), Gs, zoneOf(Gs, 'D', { seed: 5 }), { seed: 5 }).introKeys).toBeUndefined();
     // (the woods hold no fight: nothing held there)
     expect(guideOf(lv(), Gs, zoneOf(Gs, 'C', { seed: 5 }), { seed: 5 }).held).toBeUndefined();
   });

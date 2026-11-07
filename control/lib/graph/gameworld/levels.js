@@ -790,7 +790,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
         : partyChase(G, P.camera);
     const A = armedPilot(G, { ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }, cam);
     // (an action hero's orbit locks on to a foe, lock.js: C, the middle mouse, a pad's right stick pressed)
-    pilotPart = { figures: P.figures, entities: [A.entity], camera: cam && cam !== 'third-person' ? camera : A.camera ?? camera, events, ...(actionOrbit ? { lock: true } : {}) };
+    // (THE FIRST LOOK, a sketched map's start page, level/grid-ends.js `vista`: the chase opens high, on the place the level
+    // is about, then eases down behind the hero)
+    const cam0 = cam && cam !== 'third-person' ? camera : A.camera ?? camera, camOf = ends.vista && cam0?.rule === 'follow' ? { ...cam0, vista: { at: ends.vista } } : cam0;
+    pilotPart = { figures: P.figures, entities: [A.entity], camera: camOf, events, ...(actionOrbit ? { lock: true } : {}) };
     seatable = !look;
   } else {
     // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height (with a body the walls of

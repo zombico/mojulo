@@ -474,6 +474,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // again here); the
 // action hero's sprint keeps its own word in the platform rule (`stamina`, beside the run button's `sprint`), and its
 // orbit is the platformer's steered chase (rules-basic.js `steer: 'orbit'`), the lock-on swinging its yaw.
+// Re-pinned 2026-11-07 (1107-action-rpg: the first look): the 16 fixtures that embed the controllable runtime. The follow
+// camera gained `vista` (a level's opening: for its first seconds the chase stands high and looks at the place the level
+// is about, eased back down), a no-op absent; no fixture's camera takes it, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

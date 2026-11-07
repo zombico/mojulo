@@ -16,12 +16,15 @@ export function guideScript(guide) {
   const GD = ${safeJson(guide)};
   const host = (typeof wrap !== 'undefined' && wrap) || document.body;
   const css = 'position:absolute;left:50%;transform:translateX(-50%);pointer-events:none;z-index:14;font:600 15px/1.35 system-ui,sans-serif;color:#fff8e6;text-shadow:0 1px 4px rgba(0,0,0,.75);text-align:center';
+  // (the intro's and the arrival's keys' seconds counted from when the world is up, not from the page's parse: a level
+  // that loads slowly shows them as long)
+  let intro = null;
   if (GD.intro) {
     const card = document.createElement('div');
     card.style.cssText = css + ';top:30%;max-width:min(560px,80%);padding:14px 20px;background:rgba(20,16,10,.55);border:1px solid rgba(255,230,180,.35);border-radius:6px;font:500 18px/1.45 Georgia,serif;transition:opacity 1.2s';
     card.textContent = GD.intro;
     host.appendChild(card);
-    setTimeout(() => { card.style.opacity = '0'; setTimeout(() => card.remove(), 1400); }, 7000);
+    intro = () => setTimeout(() => { card.style.opacity = '0'; setTimeout(() => card.remove(), 1400); }, 7000);
   }
   const line = document.createElement('div');
   line.style.cssText = css + ';top:14px;display:none;padding:5px 12px;background:rgba(20,16,10,.38);border-radius:14px';
@@ -51,13 +54,18 @@ export function guideScript(guide) {
     const s = GD.steps[k];
     if (!s) { words.textContent = 'The way on lies past this place'; arrow.style.display = 'none'; dist.textContent = ''; } else { words.textContent = s.say; arrow.style.display = ''; }
     line.style.display = '';
-    if (s && s.keys && s.keys.length) { keys.textContent = s.keys.join('   ·   '); keys.style.display = ''; } else keys.style.display = 'none';
+    if (opening) { keys.textContent = GD.introKeys.join('   ·   '); keys.style.display = ''; }
+    else if (s && s.keys && s.keys.length) { keys.textContent = s.keys.join('   ·   '); keys.style.display = ''; } else keys.style.display = 'none';
   }
+  // (the arrival's keys under the intro while it shows, then the beats')
+  let opening = !!(GD.introKeys && GD.introKeys.length), up = false;
+  function begin() { up = true; if (intro) intro(); if (opening) setTimeout(() => { opening = false; show(); }, 8000); }
   const standing = (W, e) => e.team === 'foes' && !e.gone && !e.downed && !(e.hp <= 0);
   const view = T3 ? new T3.Vector3() : null;
   function tick() {
     const W = window.__mojCtrl && window.__mojCtrl.world;
     if (W) {
+      if (!up) begin();
       if (!line.style.display || line.style.display === 'none') { show(); plant(); }
       const p = (W.pilotId && W.byId[W.pilotId]) || W.entities.find((e) => e.pilotable);
       const s = GD.steps[k];
@@ -80,7 +88,7 @@ export function guideScript(guide) {
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
-  window.__mojGuide = { step: () => k, steps: GD.steps.length };
+  window.__mojGuide = { step: () => k, steps: GD.steps.length, held: GD.held || [] };
 })();
 `;
 }
