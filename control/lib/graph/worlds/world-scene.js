@@ -182,6 +182,14 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
     const { expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
     manifest = expandLayeredManifest({ ...manifest, plan: undefined, recipe: undefined, hero: { ...manifest.hero, grade: 'play' } });
   }
+  // `jumps`: the hero's own jumps a game's takes play (gameworld/feel/lower.js TAKES: hero-jump.js words), compiled onto
+  // its rig beside its clips (its recipe's `locomotion`, as its door motion is); a jump it already moves by stays its own.
+  // Absent: the hero's clips as minted
+  if (manifest && Array.isArray(spec.jumps) && spec.jumps.length && manifest.recipe?.rig) {
+    const { motionPlan } = await import('@/lib/graph/polygonizer/hero-motion.js');
+    const add = motionPlan(Object.fromEntries(spec.jumps.map((w) => [w, true])));
+    manifest = { ...manifest, recipe: { ...manifest.recipe, locomotion: { ...add, ...(manifest.recipe.locomotion || {}) } } };
+  }
   // `swing`: the world's game type (its composed juice's flavor), the timing the hero's swing plays at (hero-swing.js);
   // `swings`: the contact window of a body that strikes with what the hero holds (the held strike: its swing directions)
   if (!body) {
@@ -880,21 +888,37 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && payload.snowMap) delete payload.snowMap;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
-  // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word
-  if (payload && sketch.manifest.fxLight !== undefined) {
-    if (typeof sketch.manifest.fxLight !== 'boolean') throw new Error('fxLight is true (the light a world\'s beams, puffs and explosions throw on it, by rule) or false');
-    if (sketch.manifest.fxLight && payload.events) payload.events = { ...payload.events, fxLight: true };
-  }
-  // the effects' style floor (scene/effect-style.js): every beam and explosion raised to it, by rule. Opt-in: one word,
-  // or a composed floor (scene/juice-style.js: { register: anime | western, flavor: the game type, …dials })
-  if (payload && sketch.manifest.fxStyle !== undefined) {
+  // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word.
+  // The effects' style floor (scene/effect-style.js): every beam and explosion raised to it, by rule. Opt-in: one word,
+  // or a composed floor (scene/juice-style.js: { register: anime | western, flavor: the game type, …dials }). Both are
+  // laid on the world's events here, and again on the events its play's cues make below (which are built afresh)
+  const fxOnto = async (events) => {
+    let out = events;
+    if (sketch.manifest.fxLight !== undefined) {
+      if (typeof sketch.manifest.fxLight !== 'boolean') throw new Error('fxLight is true (the light a world\'s beams, puffs and explosions throw on it, by rule) or false');
+      if (sketch.manifest.fxLight && out) out = { ...out, fxLight: true };
+    }
+    if (sketch.manifest.fxStyle === undefined) return out;
     const fxs = sketch.manifest.fxStyle;
     if (typeof fxs !== 'boolean' && !(fxs && typeof fxs === 'object' && !Array.isArray(fxs))) throw new Error('fxStyle is true (every beam and explosion raised to the effects\' style floor, by rule), false, or { register?, flavor?, …dials } (the floor composed for the game: scene/juice-style.js)');
-    if (fxs === true && payload.events) payload.events = { ...payload.events, fxStyle: true };
+    if (fxs === true && out) return { ...out, fxStyle: true };
+    if (!fxs) return out;
+    const { readJuiceStyle, fidelityOfRead } = await import('@/lib/graph/scene/juice-style.js');
+    const S = readJuiceStyle(fxs);
+    if (!out) return out;
     // (a floor at the era's fidelity is drawn at the read's: the sixth generation's paint, the seventh's form)
-    else if (fxs && payload.events) { const { readJuiceStyle, fidelityOfRead } = await import('@/lib/graph/scene/juice-style.js'); const S = readJuiceStyle(fxs); payload.events = { ...payload.events, fxStyle: S.fidelity ? { ...S, fidelity: fidelityOfRead(S.fidelity, era) } : S }; }
-    else if (fxs) { const { readJuiceStyle } = await import('@/lib/graph/scene/juice-style.js'); readJuiceStyle(fxs); }
-  }
+    out = { ...out, fxStyle: S.fidelity ? { ...S, fidelity: fidelityOfRead(S.fidelity, era) } : S };
+    // on the flow (rupa-vayo, rupa/vayo.js): the air its effects move in is the world's one wind (its physics' own when it
+    // names one), at 10 m; a still world's is still
+    if (S.flow) {
+      const W = (sketch.manifest.matter && sketch.manifest.matter.wind) || physicsWind(sketch.manifest.wind);
+      const sp = W && W.speed > 0 ? W.speed : 0, d = W && Array.isArray(W.dir) ? Math.atan2(W.dir[1], W.dir[0]) : (((W && W.dir) || 0) * Math.PI) / 180;
+      if (sp > 0) out = { ...out, flowWind: [Math.round(sp * Math.cos(d) * 1000) / 1000, Math.round(sp * Math.sin(d) * 1000) / 1000] };
+    }
+    return out;
+  };
+  if (payload && payload.events) payload.events = await fxOnto(payload.events);
+  else if (payload) await fxOnto(null);   // (checked all the same)
   if (payload && sketch.manifest.crystalLight) {
     const { validateCrystalLight } = await import('@/lib/graph/scene/crystal-rig.js');
     const errs = validateCrystalLight(sketch.manifest.crystalLight);
@@ -1033,6 +1057,21 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         if (more.length) payload.fire = payload.fire ? { ...payload.fire, sources: [...had, ...more] }
           : firePageChannel({ embers: true, smoke: true, light: 1, sources: more }, { terrainAir: !!payload.terrain, day: payload.sky && Number.isFinite(payload.sky.day) ? payload.sky.day : 0 });
       }
+    }
+    // on the flow (rupa-vayo), a blast's air reaches the world's fires: it fans them or blows them out
+    // (worlds/controllable/vayo-air.js; the fire channel's `gusts`). A world not on the flow, or with no fires, keeps its bytes
+    { const fxs = sketch.manifest.fxStyle;
+      if (payload && payload.fire && Array.isArray(payload.fire.sources) && payload.fire.sources.length && fxs && typeof fxs === 'object' && fxs.flow) payload.fire = { ...payload.fire, gusts: true }; }
+    // knockback apart from damage (worlds/controllable/knock.js): the level's own (`knockback`); the attacks that carry
+    // their own kinetic or impact are found where the page is emitted (scene-three.js). Neither ⇒ no byte of it
+    if (payload && sketch.manifest.knockback !== undefined && sketch.manifest.knockback !== false) {
+      const { readKnockback } = await import('@/lib/graph/rupa/knock.js');
+      payload.knock = readKnockback(sketch.manifest.knockback);
+    }
+    // a hero's vayo moves (special abilities on its own air, rupa/vayo-move.js): checked here, moved by the page
+    if ((payload?.entities || []).some((e) => e && e.rule && e.rule.vayo !== undefined)) {
+      const { readVayo } = await import('@/lib/graph/rupa/vayo-move.js');
+      for (const e of payload.entities) if (e && e.rule && e.rule.vayo !== undefined) readVayo(e.rule.vayo, `${e.id || 'entity'}.rule.vayo`);
     }
     // scars (cosmetic damage): a map that may not change still shows what blows would do to it (rupa/index.js
     // readScarsSpec: its ground's soil and its walls' matter, from the world's cube unless named). Absent ⇒ no byte
@@ -1593,7 +1632,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const bornLooks = Object.fromEntries(born.filter((n) => LOOKS[n] && !(ev.looks && ev.looks[n])).map((n) => [n, coatless(n) ? { ...LOOKS[n], coat: false } : LOOKS[n]]));
       ev = { ...ev, layer0: true, ...(born.length ? { born, looks: { ...(ev.looks || {}), ...bornLooks } } : {}) };
     }
-    payload.events = ev;
+    payload.events = await fxOnto(ev);   // (its effects' light and style, laid on the events the cues made)
     payload.nonBakeable = true;
   }
 

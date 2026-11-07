@@ -16,6 +16,12 @@
  *     scale?: { hp?, power?, cost?, curve? },   // the coarse dials the derivation reads (SCALE)
  *     powers?: { <power id>: { spends } },      // a power's own spend of the resource over the derived (0: free; ledgered)
  *     hud?: 'derive' | false | [part],          // the readouts: derived (default), none, or the creator's own
+ *     lives?: 1 … 9,                            // a platformer's lives instead of hp (game/mechanics.js lives): a hit or a
+ *                                               // fall costs one, none left loses; the HUD says lives, not the hp bar
+ *     coins?: true | { oneup? },                // coins along a side strip's course (game/mechanics.js coins), every
+ *                                               // `oneup` (30) a life where the level is on lives
+ *     legend?: 'screen' | 'menu',               // where the controls are taught: on the play screen for a level's first
+ *                                               // seconds (the default), or only in the pause menu, as a game ships
  *     ui?: 'propose' | 'auto' | <direction>,    // play.ui (playscape/ui/direction.js), resolved when the world is minted
  *     gear?: { <class>: { stat?, by?: [early, mid, late] } },   // what a class raises, over GEAR_STAT / GEAR_BY
  *     destruction?: 'none' | 'objects' | 'cover' | 'world' | 'physical',   // how much the game lets break (playscape/
@@ -73,8 +79,8 @@ const STATS_LISTS = ['holders', 'stats', 'resources', 'epochs', 'tree', 'offers'
 
 /** Read a world's mechanics and say what is wrong. The numbers are judged by the stats kernel once laid over. */
 export function readMechanics(M) {
-  if (!isObj(M)) throw fail('mechanics is { stats?, scale?, powers?, hud?, ui?, gear?, destruction?, scars? }: the game\'s systems, derived from the hero\'s actions');
-  for (const k of Object.keys(M)) if (!['stats', 'scale', 'powers', 'hud', 'ui', 'gear', 'destruction', 'scars'].includes(k)) throw fail(`${k} is not part of the mechanics (stats, scale, powers, hud, ui, gear, destruction, scars)`);
+  if (!isObj(M)) throw fail('mechanics is { stats?, scale?, powers?, hud?, legend?, lives?, coins?, ui?, gear?, destruction?, scars? }: the game\'s systems, derived from the hero\'s actions');
+  for (const k of Object.keys(M)) if (!['stats', 'scale', 'powers', 'hud', 'legend', 'lives', 'coins', 'ui', 'gear', 'destruction', 'scars'].includes(k)) throw fail(`${k} is not part of the mechanics (stats, scale, powers, hud, legend, lives, coins, ui, gear, destruction, scars)`);
   const out = {};
   if (M.destruction !== undefined) out.destruction = readDegree(M.destruction, 'mechanics.destruction');
   if (M.scars !== undefined && M.scars !== false) { readScarsSpec(M.scars, { where: 'mechanics.scars' }); out.scars = M.scars; }
@@ -105,6 +111,19 @@ export function readMechanics(M) {
     if (M.hud !== 'derive' && M.hud !== false && !Array.isArray(M.hud)) throw fail('hud is \'derive\' (the default), false, or a list of play.parts');
     if (Array.isArray(M.hud)) M.hud.forEach((p, i) => readPart(p, i));
     out.hud = M.hud;
+  }
+  if (M.lives !== undefined) {
+    if (!(Number.isInteger(M.lives) && M.lives >= 1 && M.lives <= 9)) throw fail('lives is the lives a level starts with, 1 to 9 (a hit or a fall costs one; none left loses)');
+    out.lives = M.lives;
+  }
+  if (M.coins !== undefined) {
+    const C = M.coins;
+    if (!(C === true || (isObj(C) && Object.keys(C).every((k) => k === 'oneup') && (C.oneup === undefined || (Number.isInteger(C.oneup) && C.oneup > 0))))) throw fail('coins is true or { oneup }: coins along a side strip\'s course, a life every `oneup` (30)');
+    out.coins = C;
+  }
+  if (M.legend !== undefined) {
+    if (M.legend !== 'screen' && M.legend !== 'menu') throw fail('legend is \'screen\' (the default: the controls on the play screen for a level\'s first seconds) or \'menu\' (only in the pause menu)');
+    out.legend = M.legend;
   }
   if (M.ui !== undefined) {
     if (!(M.ui === 'propose' || M.ui === 'auto' || isObj(M.ui))) throw fail('ui is \'propose\', \'auto\', or a stored play.ui direction');
@@ -233,7 +252,7 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
   const powers = seed.verbs.map((v, i) => {
     const ix = stageIx(stageOf.get(v.id)), p = actions.powers.find((x) => x.id === v.id) ?? {};
     const look = LOOKS[p.look] ? p.look : LOOKS[p.element?.toLowerCase()] ? p.element.toLowerCase() : null;
-    return { id: v.id, ...(KEYS.powers[i] ? { key: KEYS.powers[i] } : {}), ...(res ? { spends: { [res]: 10 * S.cost * (ix + 1) } } : {}), ...(look ? { look } : {}), ...(p.attack ? { attack: p.attack, hurt: { stat: 'power', per: r2(1 + 0.2 * ix) } } : {}) };
+    return { id: v.id, ...(KEYS.powers[i] ? { key: KEYS.powers[i] } : {}), ...(res ? { spends: { [res]: 10 * S.cost * (ix + 1) } } : {}), ...(look ? { look } : {}), ...(p.attack ? { attack: p.attack, hurt: { stat: 'power', per: r2(1 + 0.2 * ix) } } : {}), ...(p.attack && (p.kinetic || p.impact) ? { knock: { ...(p.kinetic ? { kinetic: p.kinetic } : {}), ...(p.impact ? { impact: p.impact } : {}) } } : {}) };
   });
   for (const p of powers) if (!p.key) open.push(`power '${p.id}' has no key: only ${KEYS.powers.length} powers are on the keys`);
   // the creator's own spend over the derived, ledgered; a power the actions do not have is open, never thrown
@@ -265,7 +284,7 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
     then: [...(p.spends ? [{ grant: { res, by: -p.spends[res] } }] : []), ...(p.look ? [{ status: { who: HOLDER, is: p.id, look: p.look, for: 1.5 } }] : []),
       // (an attack lands: its beam from the hero's hand at the nearest foe in front, taking the hero's power × its per)
       // (its hurt the hero's power stat as it fires, raised by every level, × its per; the stat's base where no body holds it)
-      ...(p.hurt && p.attack ? [{ beam: { who: HOLDER, to: { nearest: POWER_REACH }, is: p.attack, hurt: { by: 'power', per: p.hurt.per, base: r2(statsOut.stats.find((x) => x.id === p.hurt.stat)?.base * p.hurt.per || p.hurt.per) } } }] : []),
+      ...(p.hurt && p.attack ? [{ beam: { who: HOLDER, to: { nearest: POWER_REACH }, is: p.attack, hurt: { by: 'power', per: p.hurt.per, base: r2(statsOut.stats.find((x) => x.id === p.hurt.stat)?.base * p.hurt.per || p.hurt.per) }, ...(p.knock ? { knock: p.knock } : {}) } }] : []),
       { say: p.id, as: 'toast' }],
   })), ...(play.menus ? [{ id: 'open-status', when: { on: 'status' }, then: { open: 'status' } }] : [])];
   const legend = [...powers.filter((p) => p.key).map((p) => `${p.key} ${p.id}`), ...(play.menus ? [`${KEYS.status.toUpperCase()} status`] : [])].join(' · ');

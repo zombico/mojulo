@@ -35,6 +35,18 @@ export function buildRulesPlatform(E) {
   const runClaims = (e, input, dt, world, ctx) => { for (const h of PHASES.claim) if (h.fn(e, input, dt, world, ctx)) return true; return false; };
   const platformPhaseOrder = () => Object.fromEntries(Object.entries(PHASES).map(([p, l]) => [p, l.map((h) => h.key)]));
 
+  // THE DASH'S BURST (`dash`, below): its share of the way through (0 → 1); the speed it drives at there — up from where
+  // it started to the card's over the first DASH_RISE (eased out), held to DASH_EASE, then eased down to the run's
+  const DASH_RISE = 0.25, DASH_EASE = 0.6;
+  const dashU = (e) => (e.dashLen > 0 ? 1 - e.dashT / e.dashLen : 1);
+  function dashNow(e, run) {
+    const u = dashU(e), top = e.dashSpeed, from = Math.min(top, e.dashFrom || 0), end = Math.min(run, top);
+    if (u < DASH_RISE) { const k = u / DASH_RISE; return from + (top - from) * (1 - (1 - k) * (1 - k)); }
+    if (u < DASH_EASE) return top;
+    const k = (u - DASH_EASE) / (1 - DASH_EASE);
+    return top + (end - top) * k * k * (3 - 2 * k);
+  }
+
   function platform(e, input, dt, world) {
     const r = e.rule;
     // A PERSON WALKS AND RUNS (opt-in `walkSpeed`, a hero's: playscape/player.js): no thrusters, so F is nothing of its
@@ -42,12 +54,15 @@ export function buildRulesPlatform(E) {
     // stick walks under `runAt` of its travel and runs past it; the walk key held (`input.walk`) walks. A rule whose F is
     // its gear's (`gear`) or a space suit keeps the boost. Absent → the boost below, byte-identical.
     const walker = r.walkSpeed > 0 && r.space !== true && !r.gear;
-    // A HERO SPRINTS (opt-in `sprint: true`, a feel's: gameworld/feel/lower.js): the boost held is a sprint on the ground,
+    // A HERO SPRINTS ON ITS STAMINA (opt-in `stamina: true`, a feel's: gameworld/feel/lower.js): the boost held is a sprint on the ground,
     // a walker's too, at `boostSpeed` along the stick (never with the stick at rest, never in the air), its legs the run's
     // clip faster, never a thruster's lean; the GAUGE is its STAMINA (`boostMax` seconds of sprint, `boostRegen` back,
     // empty is WINDED until `boostUnlockFrac` of it refills at `overheatRegen`), a jump free of it unless `jumpBoostCost`
     // says. Absent → the boost as it was, byte-identical.
-    const sprints = r.sprint === true && r.space !== true;
+    const sprints = r.stamina === true && r.space !== true;
+    // (F is the feel's when its card gives it one, a dash or a run button: never the thrusters, walk pace or none, as on
+    // a side-scroller's lane, whose hero only runs)
+    const ownF = !!(r.dash || r.sprint) && r.space !== true && !r.gear;
     let speed = r.speed ?? 6;
     const turnRate = r.turn ?? 2.4, strafe = r.strafe ?? 1, eye = r.eye ?? 0;
     const boostSpeed = r.boostSpeed ?? speed * 3.5;
@@ -102,8 +117,12 @@ export function buildRulesPlatform(E) {
     // LANE MOVEMENT (opt-in `move: 'lane'` with `lane`, a polyline [[x, y], …] on the ground plane): the side-scroller's
     // rule. D runs along the lane the way it was drawn, A back, W/S do nothing; the body faces its run and is held on the
     // line after every step (below), however the line bends. The `side` camera's partner.
+    // CAMERA MOVEMENT (opt-in `move: 'camera'`, a 3D platformer's): world movement whose frame is the camera's live yaw
+    // (a steered chase publishes it, rules-basic.js follow `steer`), so the stick's up runs away from the camera however
+    // it has turned; with no steered camera, the hero's own heading
     const laneMove = !space && r.move === 'lane' && Array.isArray(r.lane) && r.lane.length >= 2;
-    const worldMove = !space && (r.move === 'world' || laneMove);
+    const camMove = !space && r.move === 'camera';
+    const worldMove = !space && (r.move === 'world' || laneMove || camMove);
     let wmX = 0, wmY = 0, wmMag = 0;
     if (worldMove) {
       const side = clamp(input.strafe + input.turn, -1, 1);
@@ -111,10 +130,7 @@ export function buildRulesPlatform(E) {
         const L = laneNear(r.lane, t.pos[0], t.pos[1], side);
         wmX = L.tx * side; wmY = L.ty * side;
       } else {
-        // (`moveYaw: 'camera'`: the orbit camera's yaw, rules-basic.js follow `orbit`, so W runs the way the camera looks;
-        // before the camera has turned, the body's own heading)
-        const oc = r.moveYaw === 'camera' && world && world.byId ? Object.values(world.byId).find((x) => x.isCamera) : null;
-        const my = r.moveYaw === 'camera' ? (oc && Number.isFinite(oc.orbitYaw) ? oc.orbitYaw : t.heading) : (r.moveYaw ?? HALF_PI), wf = fwdXY(my), wr = rightXY(my);
+        const my = camMove ? (world && world.cameraYaw != null ? world.cameraYaw : t.heading) : (r.moveYaw ?? HALF_PI), wf = fwdXY(my), wr = rightXY(my);
         wmX = wf[0] * input.forward + wr[0] * side; wmY = wf[1] * input.forward + wr[1] * side;
       }
       wmMag = Math.min(1, Math.hypot(wmX, wmY));
@@ -168,6 +184,15 @@ export function buildRulesPlatform(E) {
     // the stick's travel into that pace, so every reader below (the drive, the step, the air) moves at it.
     const travel = walker ? Math.min(1, Math.hypot(fwdIn, sideIn)) : 0, runAt = r.runAt ?? 0.6;
     const walking = walker && travel > 1e-6 && (!!input.walk || travel < runAt);
+    // THE RUN BUTTON (opt-in `sprint`, a feel card's `ground.sprint` with its takes, a dash-less hero's F): held while
+    // running on the ground, the run's top speed builds toward `sprint.speed` over `sprint.build` seconds, and eases back
+    // over `sprint.fall` once let go (or the body stops or walks); the air keeps what it had. Momentum, not a move: the
+    // drive (`accel`) carries the body up to the speed as it builds. Absent → the run as it was.
+    if (ownF && r.sprint && !r.dash) {
+      const S = r.sprint, push = !!input.boost && Math.hypot(fwdIn, sideIn) > 1e-3 && !walking;
+      if (e.grounded) e.sprintK = push ? Math.min(1, (e.sprintK || 0) + dt / S.build) : Math.max(0, (e.sprintK || 0) - dt / S.fall);
+      if (e.sprintK > 0) speed += (S.speed - speed) * e.sprintK;
+    }
     if (walker && travel > 1e-6) {
       const pace = walking ? r.walkSpeed * Math.min(1, travel / runAt) : r.walkSpeed + (speed - r.walkSpeed) * (travel - runAt) / (1 - runAt);
       speed = pace / travel;
@@ -185,7 +210,7 @@ export function buildRulesPlatform(E) {
     // byte-identical legacy timing (buffer/coyote/jump-cut intact).
     const windup = r.jumpWindup ?? 0;
     const chargeMax = r.chargeMax ?? 0;
-    let jumped = false;
+    let jumped = false, airJumped = false;
     let charging = false;
     let chargeFrac = 0;   // 0..1 while gathering — the renderer reads it for the charge-up sound
     if (space) {
@@ -232,13 +257,23 @@ export function buildRulesPlatform(E) {
         e.gaitPhase = (1 - Math.max(0, e.jumpWind) / windup) * 0.9;   // quick dip down the same squat ramp
         if (e.jumpWind <= 0) { e.jumpWind = 0; e.vel[2] = jumpV; e.grounded = false; e.coyote = coyoteT; jumped = true; }
       }
+      // THE WALL KICK (opt-in `cling`, a feel card's: gameworld/feel/lower.js): a jump pressed against a wall (or within
+      // `cling.coyote` seconds of leaving it) kicks off it, before any air jump: up at `cling.kick`, away along the wall's
+      // normal at `cling.away` (with the dash held, a `dash.wall` card kicks at the dash's speed and keeps it), the stick
+      // locked out for `cling.lock` seconds. Absent `cling` → nothing here runs.
+      if (r.cling && input.jump && !jumped && !e.grounded && e.wallN && (e.cling || (e.wallCoyote ?? 0) > 0)) {
+        const dashKick = !!(r.dash && r.dash.wall && input.boost), away = dashKick ? r.dash.speed : r.cling.away;
+        e.vel[2] = r.cling.kick; e.kick = [e.wallN[0] * away, e.wallN[1] * away]; e.kickT = r.cling.lock; e.carry = dashKick ? away : 0;
+        e.cling = null; e.wallCoyote = 0; e.jumpBuf = 0; jumped = true;
+        if (e.drive) { e.drive[0] = e.kick[0]; e.drive[1] = e.kick[1]; }
+      }
       // AIR JUMPS (opt-in `airJumps`, a power's double jump): a press in the air, past the coyote grace, launches again at
       // once (no wind-up) at `airJumpMult` of the jump speed; the count resets on the ground. Absent → nothing here runs.
       const airJumps = r.airJumps ?? 0;
       if (airJumps > 0) {
         if (e.grounded) e.airJumpsUsed = 0;
         else if (input.jump && !jumped && !(e.jumpWind > 0) && e.coyote >= coyoteT && (e.airJumpsUsed ?? 0) < airJumps) {
-          e.vel[2] = jumpV * (r.airJumpMult ?? 0.9); e.airJumpsUsed = (e.airJumpsUsed ?? 0) + 1; e.jumpBuf = 0; jumped = true;
+          e.vel[2] = jumpV * (r.airJumpMult ?? 0.9); e.airJumpsUsed = (e.airJumpsUsed ?? 0) + 1; e.jumpBuf = 0; jumped = true; airJumped = true;
         }
       }
       // variable height: releasing jump while still rising caps the climb (short hop vs full jump).
@@ -251,6 +286,40 @@ export function buildRulesPlatform(E) {
     e.charging = charging;
     e.chargeFrac = charging ? chargeFrac : 0;
     if (jumped && chargeMax <= 0) e.jumpPower = 0.2;
+
+    // THE DASH (opt-in `dash`, a feel card's, a person's F: gameworld/feel/lower.js): a BURST, its length the card's
+    // whatever the button does. Pressed on the ground it drives the body along the stick (its facing with the stick at
+    // rest), from the speed it had up to `dash.speed` over the burst's first share, held there, then eased back down to
+    // the run's by its end (dashNow); the body leaves it at the run's speed. Pressed in the air, an AIR DASH (`dash.air`:
+    // so many an airtime, given back by the ground and a wall): the same burst on its own line, the fall stopped while it
+    // is at speed and given back as it eases. A jump in a ground dash is a DASH JUMP (`dash.jump`): it leaves at once and
+    // the air keeps the speed the burst had (`e.carry`) to the touch-down. Absent `dash` → nothing here runs.
+    const DS = r.dash && ownF && !space ? r.dash : null;
+    if (DS) {
+      const press = !!input.boost && !e.dashHeld; e.dashHeld = !!input.boost;
+      if (e.grounded && !jumped) { e.airDashes = DS.air ? DS.air.count : 0; e.carry = 0; }
+      if (e.dashT > 0 && jumped && !e.dashAir) { if (DS.jump) e.carry = Math.max(speed, dashNow(e, speed)); e.dashT = 0; }
+      if (press && !(e.dashT > 0) && !e.cling && !(e.kickT > 0)) {
+        const air = !e.grounded;
+        if (!air || (DS.air && e.airDashes > 0)) {
+          const wx = f[0] * fwdIn + rt[0] * sideIn, wy = f[1] * fwdIn + rt[1] * sideIn, wm = Math.hypot(wx, wy), F0 = fwdXY(t.heading);
+          e.dashDir = wm > 1e-3 ? [wx / wm, wy / wm] : [F0[0], F0[1]];
+          // (the speed it starts from: the body's own along the dash, never back past rest)
+          const dv = e.drive ? e.drive[0] * e.dashDir[0] + e.drive[1] * e.dashDir[1] : 0;
+          e.dashAir = air; e.dashSpeed = air ? DS.air.speed : DS.speed; e.dashT = e.dashLen = air ? DS.air.time : DS.time; e.dashFrom = Math.max(0, dv);
+          if (!air && e.dashGait == null) e.dashGait = e.gaitPhase || 0;   // (the stride cycle kept for after the lunge)
+          if (air) { e.airDashes--; e.vel[2] = 0; }
+        }
+      }
+      // the dash jump's speed held through the air, the stick still steering it; the ground ends an air dash
+      if (e.carry > speed && !e.grounded) speed = e.carry;
+      if (e.grounded && e.dashAir && e.dashT > 0 && !jumped) e.dashT = 0;
+    }
+    // the ground lets go of the wall; off it, the kick's grace counts down
+    if (r.cling && !space) {
+      if (e.grounded && !jumped) { e.cling = null; e.wallCoyote = 0; e.kickT = 0; }
+      else if (!e.cling && e.wallCoyote > 0) e.wallCoyote = Math.max(0, e.wallCoyote - dt);
+    }
 
 
     // ── S4 maneuver seams: the shared per-frame ctx the phase hooks read/write ──
@@ -272,7 +341,7 @@ export function buildRulesPlatform(E) {
     // RELEASED, then a fresh press dashes again.
     const boostAvailable = !hasGauge || (e.boost > 1e-6 && !e.boostLock);
     if (!input.boost) e.boostCut = false;
-    let boosting = (!walker || sprints) && !!input.boost && !dodging && !tackling && boostAvailable && !e.boostCut && (!sprints || (e.grounded && Math.abs(fwdIn) + Math.abs(sideIn) > 1e-3));
+    let boosting = (!walker || sprints) && !ownF && !!input.boost && !dodging && !tackling && boostAvailable && !e.boostCut && (!sprints || (e.grounded && Math.abs(fwdIn) + Math.abs(sideIn) > 1e-3));
     // KNEEL (opt-in `kneel:true` on the rule; held X): a grounded one-knee
     // hold — roots the entity and plays the 'kneel' clip. Boost and the
     // charge jump both take precedence (either input stands the unit up).
@@ -317,6 +386,15 @@ export function buildRulesPlatform(E) {
       if (sp > sMax) v = scl(v, sMax / sp);
       e.vel = v;
       t.pos = add(t.pos, scl(v, dt));
+    } else if (halt && (e.kickT > 0 || e.dashT > 0)) {
+      // the wall kick's fixed flight (the stick locked out) and the dash's line: each its own speed, read into the drive
+      // so the body leaves them with that momentum (cling and dash, above)
+      const ds = e.kickT > 0 ? 0 : dashNow(e, speed), v = e.kickT > 0 ? e.kick : [e.dashDir[0] * ds, e.dashDir[1] * ds];
+      t.pos[0] += v[0] * dt; t.pos[1] += v[1] * dt;
+      fwdMove = Math.hypot(v[0], v[1]) * dt;
+      if (accel > 0) { const d = e.drive || (e.drive = [0, 0]); d[0] = v[0]; d[1] = v[1]; }
+      if (e.kickT > 0) e.kickT = Math.max(0, e.kickT - dt);
+      else { e.dashT -= dt; if (e.dashT < 1e-4) e.dashT = 0; }
     } else if (accel > 0) {
       // GROUND ACCELERATION (opt-in `accel`, units/s², a feel card's ground.accel): the body carries its own planar
       // velocity, the DRIVE (`e.drive`, world-space), which builds toward the stick's velocity at `accel` and sheds
@@ -365,6 +443,18 @@ export function buildRulesPlatform(E) {
       else {
         const px = t.pos[0], py = t.pos[1];
         resolveBlocking(t.pos, footZ, r.collideHeight ?? (eye || 24), r.collideRadius ?? 0, world.colliders, step);
+        // THE WALL SLIDE (opt-in `cling`): falling against a wall with the stick into it (more than `cling.toward` of the
+        // push) holds the body to it, sliding down at `cling.slide` (below) and facing out; its air jumps and air dashes
+        // come back. Let go of it and the kick's grace (`cling.coyote`) counts down
+        if (r.cling && !e.grounded && e.vel[2] <= 0 && !(e.kickT > 0)) {
+          const ex = t.pos[0] - px, ey = t.pos[1] - py, el = Math.hypot(ex, ey);
+          const wx = f[0] * fwdIn + rt[0] * sideIn, wy = f[1] * fwdIn + rt[1] * sideIn, wm = Math.hypot(wx, wy);
+          if (el > 1e-9 && wm > 1e-3 && -(wx * ex + wy * ey) / el > r.cling.toward * wm) {
+            e.cling = [ex / el, ey / el]; e.wallN = e.cling; e.wallCoyote = r.cling.coyote; e.airJumpsUsed = 0;
+            if (r.dash && r.dash.air) e.airDashes = r.dash.air.count;
+            e.dashT = 0; e.carry = 0;
+          } else if (e.cling) e.cling = null;
+        }
         // a wall takes the part of the drive that went into it (the push-out's direction is the wall's normal); the
         // part along it stays, so the body slides on
         if (accel > 0 && e.drive) {
@@ -404,7 +494,9 @@ export function buildRulesPlatform(E) {
         const footZ0 = t.pos[2] - eye;   // pre-fall foot height (the swept-probe origin)
         // GLIDE (opt-in `glideFall`, a power's glide): jump held while falling caps the fall at that speed. Absent → maxFall.
         const fallCap = r.glideFall > 0 && input.jumpHeld && e.vel[2] <= 0 ? Math.min(maxFall, r.glideFall) : maxFall;
-        e.vel[2] = Math.max(-fallCap, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * dt);
+        if (e.cling && r.cling) e.vel[2] = -r.cling.slide;   // down the wall at a constant speed
+        else if (e.dashT > 0 && e.dashAir && dashU(e) < DASH_EASE) e.vel[2] = 0;    // the air dash holds its height at speed
+        else e.vel[2] = Math.max(-fallCap, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * dt);
         t.pos[2] += e.vel[2] * dt;
         // SWEEP the touchdown probe from the HIGHER of the pre/post foot, not the post-fall foot. A fast
         // fall (low framerate / big dt, a knockback launch, the drop-in settle over the wavy drape) moves
@@ -521,6 +613,71 @@ export function buildRulesPlatform(E) {
     else if (Math.abs(sideMove) > Math.abs(fwdMove)) { e.locomotion = 'strafe'; e.gaitPhase = (e.gaitPhase || 0) + sideMove / strideLen; e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6; }
     else { e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + fwdMove / strideLen; e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6; }
 
+    // THE TAKES (opt-in `takes`, a feel's: gameworld/feel/lower.js): the hero's own jumps played on THIS flight. A jump
+    // from standing (or a walk) plays `jump_up`, one out of the run `jump_fwd`, an air jump `jump_air` (the double jump
+    // from its kick). Each take's clip is shared out by `takes`: its gather [0, off) over the wind-up, its air [off, on)
+    // over the flight, the rise to the apex the first half and the fall the second, both read off the vertical speed (a
+    // jump cut short rescales the rise from where it stands, so the clip never skips; the fall's end is the speed a drop
+    // from this apex lands at), and its landing [on, 1) over `takes.land` seconds once down. Walking off an edge plays
+    // the standing take's fall. Absent `takes` → the ladder above, byte-identical.
+    if (r.takes && !space && !swinging && !boosting && !kneeling) {
+      const K = r.takes, span = (k) => (k === 'jump_air' ? K.air : k === 'jump_fwd' ? K.fwd : K.up);
+      // (out of a ground dash's lunge, below: the stride cycle given back where it left it, before a jump keeps it)
+      if (e.dashGait != null && !(e.dashT > 0 && e.grounded)) { e.gaitPhase = e.dashGait; e.dashGait = null; }
+      const pick = () => ((e.drive ? Math.hypot(e.drive[0], e.drive[1]) / Math.max(1e-6, r.speed ?? 6) : Math.hypot(fwdIn, sideIn)) > 0.35 && !walking ? 'jump_fwd' : 'jump_up');
+      // the stride cycle's phase is kept from the take-off and given back when the take ends, so the run picks up its
+      // cycle where it left it (as the held leap left it)
+      const hold = () => { if (e.takeGait == null) e.takeGait = e.gaitPhase || 0; };
+      const end = () => { e.take = null; e.takeLand = 0; if (e.takeGait != null) e.gaitPhase = e.takeGait; e.takeGait = null; };
+      const fly = (k, p0) => { hold(); e.take = k; e.takeV0 = Math.max(1e-3, e.vel[2]); e.takeVz = e.vel[2]; e.takeZ = t.pos[2]; e.takeEnd = null; e.takeP = p0; e.takeLand = 0; e.takeGather = false; };
+      // (a launch this frame did not count: a jump buffered into the touch-down, a launcher's throw: the speed rose)
+      let landK = 0;   // the landing's share still to play this frame (1 on its first, toward 0)
+      const relaunch = !jumped && !e.grounded && !!e.take && !e.takeGather && e.vel[2] > (e.takeVz ?? 0) + 1e-3;
+      if (airJumped) fly('jump_air', 0);
+      else if (jumped || relaunch) fly(e.takeGather ? e.take : pick(), 0);
+      else if (e.jumpWind > 0 && !e.takeGather) { hold(); e.take = pick(); e.takeGather = true; e.takeLand = 0; }
+      else if (!e.grounded && !e.take) { fly('jump_up', 0.5); e.takeEnd = Math.sqrt(2 * fallG); }   // off an edge: the fall alone
+      if (landedEdge && e.take && !e.takeGather) e.takeLand = K.land;
+      const S = e.take ? span(e.take) : null;
+      if (S && e.takeGather && e.jumpWind > 0) {
+        e.locomotion = e.take; e.gaitPhase = S[0] * (1 - Math.max(0, e.jumpWind) / (windup || 1)); e.moving = true;
+      } else if (S && !e.grounded) {
+        const vz = e.vel[2];
+        if (vz > 0) {
+          // a cut (the release capped the rise): the rise rescaled so the clip carries on from where it is
+          if (vz < e.takeVz - riseG * dt - 1e-6) e.takeV0 = vz / Math.max(1e-3, 1 - 2 * e.takeP);
+          e.takeP = Math.max(e.takeP, 0.5 * (1 - vz / e.takeV0));
+        } else {
+          if (e.takeEnd == null) e.takeEnd = Math.sqrt(2 * fallG * Math.max(0.05, t.pos[2] - e.takeZ));
+          e.takeP = Math.max(e.takeP, 0.5 + 0.5 * Math.min(1, -vz / e.takeEnd));
+        }
+        e.takeVz = vz;
+        e.locomotion = e.take; e.gaitPhase = S[0] + (S[1] - S[0]) * Math.min(e.takeP, 0.999); e.moving = true;
+      } else if (S && e.takeLand > 0) {
+        landK = e.takeLand / K.land;
+        e.locomotion = e.take; e.gaitPhase = Math.min(0.999, S[1] + (1 - S[1]) * (1 - landK)); e.moving = true;
+        // (the card's seconds are rounded to 0.1 ms: a remainder under that was the last frame's; the take ends next frame)
+        e.takeLand -= dt;
+        if (e.takeLand < 1e-4) e.takeLand = 0;
+      } else if (e.take && e.grounded && !e.takeGather) end();
+      // THE LOOK (`takes.squash`, the card's): squash and stretch about the feet, the volume kept. The gather sinks
+      // into it, the flight stretches with the speed (none at the apex), the landing squashes and springs back over
+      // the landing's frames. `e.squash` is [across, up] for the renderer; null when the body is its own shape
+      const Q = K.squash > 0 ? K.squash : 0;
+      let up = 1;
+      if (Q && e.take) {
+        if (e.takeGather && e.jumpWind > 0) up = 1 - 0.5 * Q * (1 - Math.max(0, e.jumpWind) / (windup || 1));
+        else if (!e.grounded) up = 1 + 0.5 * Q * Math.min(1, Math.abs(e.vel[2]) / Math.max(1e-3, e.takeV0));
+        else if (landK > 0) up = 1 - Q * landK;
+      }
+      e.squash = Q && up !== 1 ? [1 / Math.sqrt(up), up] : null;
+      // THE DASH'S LUNGE (`dash`): a ground dash is a burst, not a run, so it takes no strides: the hero holds the running
+      // jump's gather, leaning into it as the burst gets up to speed and rising out of it as it eases
+      if (r.dash && e.dashT > 0 && e.grounded && !e.take) {
+        const u = dashU(e), k = u < DASH_RISE ? u / DASH_RISE : u < DASH_EASE ? 1 : 1 - (u - DASH_EASE) / (1 - DASH_EASE);
+        e.locomotion = 'jump_fwd'; e.gaitPhase = K.fwd[0] * (0.5 + 0.45 * k); e.moving = true;
+      }
+    }
     }
 
     // thruster flame intensity (renderer lights the unit's backpack + foot jets,

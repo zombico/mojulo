@@ -236,6 +236,56 @@ const MECHANICS = {
     },
   },
 
+  // LIVES (a platformer's, not hp): the player starts with `start` lives (3); each hit it takes (the cast's
+  // hit:<player>, a foe's touch) costs one, and so does each fall into one of `falls` (the catch zones a course lays,
+  // which also put it back on the floor it left); a `oneup` (coins' every so many) gives one back, `max` at most (9).
+  // None left: fail. On the HUD as Lives. Requires no store slice.
+  lives: {
+    role: 'terminal', ends: ['fail'], requires: [],
+    lower(p, ctx) {
+      const start = Number.isInteger(p.start) && p.start > 0 ? p.start : 3, max = Number.isInteger(p.max) && p.max >= start ? p.max : 9;
+      if (p.falls !== undefined && !(Array.isArray(p.falls) && p.falls.every((z) => typeof z === 'string' && z))) throw new Error(`lives[${ctx.i}]: falls are the catch zones' names a fall into costs a life`);
+      const falls = p.falls ?? [];
+      return {
+        world: {
+          vars: { lives: start },
+          reactions: [
+            { on: `hit:${ctx.player}`, do: 'inc', var: 'lives', by: -1, min: 0 },
+            ...falls.map((zone) => ({ on: 'enter', match: { zone }, do: 'inc', var: 'lives', by: -1, min: 0 })),
+            { on: 'oneup', do: 'inc', var: 'lives', by: 1, max },
+          ],
+          watches: [{ type: 'dead', when: { var: 'lives', lte: 0 } }],
+          hud: [{ var: 'lives', label: 'Lives' }],
+        },
+        on: { dead: { end: 'fail' } },
+      };
+    },
+  },
+
+  // COINS along the way (a platformer's collectibles, no store): each a pickup that pops when touched (a sphere of
+  // `radius`, 0.9: a coin over a gap is taken in the air), counted on the HUD as Coins; every `oneup` coins (30) says
+  // `oneup` on the bus (lives gives one back).
+  coins: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const pickups = Array.isArray(p.pickups) ? p.pickups : [];
+      if (!pickups.length) throw new Error(`coins[${ctx.i}]: needs pickups: [{ at }]`);
+      const every = Number.isInteger(p.oneup) && p.oneup > 0 ? p.oneup : 30, run = `__coins_run_${ctx.i}`;
+      const world = { vars: { coins: 0, [run]: 0 }, sources: [], reactions: [], entities: [], watches: [{ type: 'oneup', when: { var: run, gte: every } }], hud: [{ var: 'coins', label: 'Coins' }] };
+      pickups.forEach((pk, j) => {
+        const zone = `cn_${ctx.i}_${j}`, at = pk.at || [0, 0, 0];
+        world.entities.push({ id: zone, on: true, position: at });
+        world.sources.push({ type: 'zone', zone, at, radius: pk.radius != null ? pk.radius : 0.9, planar: false, watch: ctx.player });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: 'coin' });   // (heard: its chime)
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: 'coins', by: 1 });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: run, by: 1 });
+      });
+      world.reactions.push({ on: 'oneup', do: 'set', var: run, to: 0 });
+      return { world, emits: ['coin', 'oneup'] };
+    },
+  },
+
   // ── the mechanics vocabulary's V1 words ────────────────────────────────────
 
   // generic predicate terminal: any numeric truth reaching a threshold → success. Clears the

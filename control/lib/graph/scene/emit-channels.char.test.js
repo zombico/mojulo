@@ -415,6 +415,27 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // and `kitchen-sink-capture`, the fixtures that inline the event bus. Its saga key joined an id and a scope with a raw NUL
 // byte written into the source (event-bus.js), so every page carrying the bus held a NUL, and an artifact host refused
 // it; it is written `'\x00'`, the same string at run time.
+// Re-pinned 2026-11-05 (1104-vayo-effects: natural knockback): every fixture with a controllable world (`controllable`,
+// `controllable-lock`, `-shadows`, `-smoke`, `-figure`, `-hangar`, `cast-shadows`, `live-shadows-actors`, `-both`, `fx`,
+// `shoot-live`, `toon-ink-controllable`, `toon-ink-fx`, `capture-controllable`, `kitchen-sink`, `kitchen-sink-capture`).
+// The combat builders the page inlines by their source gain the knockback seams (combat-ranged.js, combat-melee.js,
+// cast.js: a burst's splash share and its knock on the record, a shot's, a swing's and a beam's push), each a no-op
+// without the knock builder (worlds/controllable/knock.js), which none of these fixtures emits: their worlds step as before
+// (knock.test.js steps one byte for byte against the engine without it).
+// Re-pinned 2026-11-05 (1105-platformer-lv0-spike: the hero's own jumps): every fixture that embeds the controllable
+// runtime. The platform rule gained its `takes` (a feel's: the hero's jumps played on its flight, their squash and
+// stretch); on the `controllable` fixture 2 lines are replaced (the air jump marks itself) and 57 added. Absent `takes`
+// the branch never runs, and the renderer's squash is emitted only for a rule that carries one (no fixture does).
+// Re-pinned 2026-11-05 (1105-platformer-lv0-spike: the card's wall and dash): the same fixtures. The platform rule gained
+// the wall kick (before the air jump), the dash on a person's F, the kick and the dash owning the horizontal step, the
+// wall slide off the blocking pass's push-out, and gravity held on the wall and in an air dash. Absent `cling` and `dash`
+// every branch is skipped: the replaced line is the vertical integrate, its gravity now the last of three arms.
+// Re-pinned 2026-11-05 (1105-platformer-lv0-spike: a 3D platformer's chase): the same fixtures. The follow camera gained
+// its `steer` (its own yaw, trail or orbit, and a vertical deadzone), the world its `cameraYaw` getter, and the platform
+// rule `move: 'camera'`. Absent `steer` the chase reads the heading and the target's height as before.
+// Re-pinned 2026-11-05 (1105-platformer-lv0-spike merging 1104-vayo-effects' knockback): the same fixtures, their
+// emission the two re-pins above together (the platform rule's takes, wall, dash and camera move; the combat builders'
+// knockback seams), each a no-op without its own opt-in.
 // Re-pinned 2026-11-05 (1105-rpg-slice: the pixel budget): the 14 fixtures that embed the controllable runtime, every
 // page played live. Their density line becomes the budget's (capped at 1.5, the frame's time stepping it a quarter, the
 // `__budget(t)` call after each render); nothing else in them moved. No fixture's figure is a plain rigid rig, so none
@@ -431,6 +452,28 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-06 (1105-rpg-slice: a walk compiled draws nothing): every fixture. The capture bridge every page
 // carries steps without drawing when asked (`draw: false`: the walk compiler's legs, and a replay that keeps no
 // frame), keeping the scene's transforms as a draw would; the bridge asks it, nothing a page plays moved.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: a side camera on a course): the 16 fixtures that embed the controllable
+// runtime. The side camera gained `band` (its height eased while the hero stands, held through a jump) and `ends` (the
+// frame held in from the lane's ends), each a no-op absent; the i-frame shimmer dims a merged figure's one skin, not its
+// bones, and the target rim (where a page carries it) draws a merged foe's on its skin, bound to its skeleton.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: the dash a burst): the same 16 fixtures. The platform rule's dash is
+// the card's frames long whatever the button does, up to its speed and eased back to the run's, a lunge for its pose
+// (no strides), the air dash's fall stopped only while it is at speed; the held dash's branch is gone. Absent `dash`,
+// nothing in it runs.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: F is the feel's): the 16 controllable fixtures, and `versus`, `xr`
+// and `walk-xr`, which embed the controls kernel. A rule with a feel's dash or run button (`sprint`, its build) owns F
+// whatever its walk pace (a side lane's hero has none), never the thrusters; the pause legend's rows say the dash and
+// the run, its `unless` taking a list; no radar under a side camera. Absent `dash` and `sprint`, F boosts as it did.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike: the side camera's ends on the chord): the 16 controllable fixtures.
+// `ends` holds the frame along the lane's chord and turns the camera square to it near an end; absent `ends`, as it was.
+// Re-pinned 2026-11-06 (1105-platformer-lv0-spike merging 1105-rpg-slice's pixel budget): the same fixtures, their
+// emission the re-pins above together (the platform rule's takes, wall, dash and camera move; the knockback seams; the
+// pixel budget of a page played live, one draw a figure).
+// Re-pinned 2026-11-07 (1107-action-rpg merging 1105-rc): every fixture, the re-pins on both lines together (each line
+// had already moved every fixture's bytes; the 19 that embed the controllable runtime or the controls kernel move
+// again here); the
+// action hero's sprint keeps its own word in the platform rule (`stamina`, beside the run button's `sprint`), and its
+// orbit is the platformer's steered chase (rules-basic.js `steer: 'orbit'`), the lock-on swinging its yaw.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

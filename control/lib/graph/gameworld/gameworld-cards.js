@@ -48,6 +48,7 @@ import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
 import { CAMERAS } from './cameras.js';
+import { TEACH, VERTICALITY } from './course.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
 import { SWARM, MAX_FOES, PAIR_DOWNS, ROOM_FOES } from './foes.js';
@@ -152,6 +153,8 @@ function studioCard() {
     '           stops at the review and reports what the creator must decide.',
     '  proof    { ref, chapter, run: true }: its steps and what they name, made ahead of their approvals (`ahead`: say so).',
     '  a level  chapter: \'level:<id>\' is one level alone (its part, page, links in and out, stages): the levels a unit each.',
+    '  vary     { ref, chapter, vary: { concept, n } }: n visual takes on its pages (colour, size, silhouette, surface,',
+    '           detail), freshly rolled and proposed; take one with its patch, the next pass with keep / reject patches.',
     '  done     its state settled (approved; auto in autonomous mode), its `blockers` and `advises` cleared or said.',
     '',
     'A SUBAGENT gets the ref, the chapter id and the cards its view names (`chapter.cards`), and returns its chapter\'s',
@@ -358,12 +361,13 @@ function motionCard() {
 
 function feelCard() {
   return lines(
-    'THE FEEL — how the hero moves, as a game template: feel: \'<template>\' | { pole, variant?, toward?, t?, set? }.',
+    'THE FEEL — how the hero moves, as a game template: feel: \'<template>\' | { pole, variant?, toward?, t?, set?, takes? }.',
     'The template\'s card (the action lab\'s) is lowered over the hero\'s platform rule: the run and its acceleration, the',
     'jump\'s height and gravity up and down, coyote time and the buffer, the shortest hop, air control, the gather, air',
     'jumps, the 2D lane, the melee hitstop. design_game\'s readout says what the runtime carries of it, partly carries, and',
     'does not carry yet (the parry, the charge, offense armor, the roll\'s invincible frames, the runner): advice, never a refusal.',
     'The motion (gameworld-motion) is how the walk LOOKS; the feel is how the controls PLAY. Both may be set.',
+    'takes: true plays the hero\'s own jumps (a stand\'s, a run\'s, an air jump\'s) on the card\'s flight, landing and squash.',
     '',
     'templates (after · base feel · viewer):',
     ...POLE_IDS.map((id) => { const P = POLES[id], v = variantsOf(id); return `  ${id}  ${P.name} (after ${P.after}) · ${P.base} · ${P.view.camera}${v.length ? ` · variants ${v.join(', ')}` : ''}`; }),
@@ -467,8 +471,12 @@ function equipmentCard() {
 
 function systemsCard() {
   return lines(
-    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, ui?, gear?, destruction?, scars? }.',
+    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, legend?, lives?, coins?, ui?, gear?, destruction?, scars? }.',
     '',
+    'legend: screen (the default: the controls on the play screen for a level\'s first seconds) | menu (only in the pause',
+    '  menu, nothing over the play: a demo or a release).',
+    'lives: 1-9, a platformer\'s lives for hp (a hit or a fall costs one, none left loses; no hp bar). coins: true |',
+    '  { oneup }: coins along a side strip\'s course, a life every 30.',
     `scale (the coarse dials): ${Object.entries(SCALE).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `stages → epochs reached by level: ${Object.entries(EPOCH_LEVEL).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `how a power is gained, by system kind: ${Object.entries(GAINED).map(([k, v]) => `${k}: ${v.why}`).join('; ')}.`,
@@ -623,7 +631,7 @@ const quickShared = () => [
   'levers any goal takes (where its play allows; a refusal names the clash):',
   `  hero: ${HERO_WORDS} | { ref } (a hero from create_character): looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
   '    { mascot: true | { brief?, facets?, seed? } } a mascot on foot, its own walk, run and jump; absent or false: first person',
-  `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: a hero's third person, else first; top-down, side, orbit need a hero`,
+  `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person, or first person with no hero`,
   `  screen: ${Object.keys(SCREENS).join(' | ')} | { pole?, aspect?, orientation?, fov? }   the screen it is for (absent: ${NEW_GAME_SCREEN})`,
   '  climb: true   a climb after the trail;   run: n   a pool of n + 2 trails, each run draws n, a death ends it',
   '  building: { use, seed?, goal?, … }   a building as the level (reach, collect or survive; card game-building)',
@@ -742,6 +750,32 @@ function wcdCard() {
     'not colour a bay building; its look or its tone does.',
   );
 }
+function courseCard() {
+  return lines(
+    'THE COURSE — a platformer\'s level: trails linked one after another, each teaching what the next tests, its floors and',
+    'gaps laid over a trail\'s own line and SIZED BY THE HERO\'S REACH (its feel: the running jump, the air jump, the dash jump,',
+    'the wall kick), each gap tagged with the move it teaches. levels.<id>.course: { teach, verticality? } over every trail of',
+    'its walk, or { <trail node>: { teach, verticality? } } each its own.',
+    '',
+    `  teach        ${TEACH.join(' | ')}`,
+    '    basic      gaps and steps the running jump clears, widening as it goes',
+    '    meet       one long flat floor: the first encounter, room to learn the stomp or the blow',
+    '    advanced   the card\'s advanced moves, each just past the running jump, then tested (a template with takes: true',
+    '               carries its dash and its wall; its air jump without)',
+    '    gauntlet   basic gaps between floors long enough to fight on',
+    '    boss       one long floor, the arena',
+    `  verticality  ${Object.entries(VERTICALITY).map(([k, v]) => `${k} (${v.says})`).join(', ')}`,
+    '',
+    'THE FIRST LEVEL, the slice: five trail nodes, course { basic, meet, advanced, gauntlet, boss? } a node each, and the',
+    'foes\' density a node each (levels.<id>.foes.density: { meet: \'sparse\', gauntlet: \'dense\' }, gameworld-foes). A boss',
+    'only when the creator asks: a fifth node, course { teach: boss }, and goal: { boss: { win: jobber | rival | boss } }: a jobber',
+    'thrown away, a rival or a boss a story hook. The win changes no fight; the next level reads it, the story keeps it.',
+    'Side (camera: side) runs the trail\'s line; 3D runs it free: camera follow | orbit.',
+    'The readout\'s laws (course:gap-n) say each gap\'s width, its rise and what the move it teaches reaches; a fall into',
+    'a gap puts the hero back on the floor it left. Its floors are the stage\'s beats: what stands on it stands on them.',
+  );
+}
+
 function qowCard() {
   return lines(
     'THE QUEST OPEN WORLD (QOW) — the walled-core dungeon\'s opposite pole. A WCD forces the player in, layer by gated layer,',
@@ -782,9 +816,9 @@ function foesCard() {
     '        Or skin: { meshRef, height? }: a rigged humanoid .glb made elsewhere, bound onto that sketch, worn as a person.',
     '        A person dressed as a crew: { people: \'human\', dress: { faction, kind?, colourway?, body? } } (the grunt factions).',
     'levels.<id>.foes   true (the bestiary; each class on its stand-in if the world keeps none) or { from?: [<id>],',
-    '        count?, win?: exit | clear }: one foe on each free beat of a stage, cycling through from; clear: won when all fall;',
-    `        count stands that many (up to ${MAX_FOES}), the extra round the beats; a building, ${ROOM_FOES} of its rooms. A swarm, a pack of ${SWARM}. A stage they`,
-    '        stand on makes the hero hittable, its hp taking their hits.',
+    '        count? | density?, win?: exit | clear }: one foe on each free beat of a stage, cycling through from; clear: won when all fall;',
+    `        count stands that many (up to ${MAX_FOES}), the extra round the beats; a building, ${ROOM_FOES} of its rooms. A swarm, a pack of ${SWARM}.`,
+    '        density: foes a free beat, 0-4 (none sparse even dense swarm), or { <trail node>: it }. The hero is hittable.',
     `rank    ${Object.entries(FOE_RANKS).map(([k, R]) => `${k} ×${R.downs}`).join(', ')}: the blows it takes; a boss duels.`,
     '        skill: novice, regular, veteran, ace: how well it carries out what it decided.',
     '',
@@ -1087,6 +1121,7 @@ const CARDS = [
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
+  ['gameworld-course', 'The course', 'a platformer\'s level: floors and gaps over a trail sized by the hero\'s reach, each teaching a move', 'a platformer level, a side-scroller, a 3D platformer, jumps over gaps, a tutorial level, teach the double jump, a wall jump section, platforming, level 1', courseCard],
   ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path, an errand, a fetch quest, a delivery run, a bounty board', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],

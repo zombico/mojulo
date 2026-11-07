@@ -20,7 +20,8 @@
  *                           a follow camera, a test course, and the controls as a `legend` idiom on the HUD; `pilot` a
  *                           mascot's measures (egocube/mascot-pilot.js): its own clips, its capsule, stride and camera;
  *                           a hero on a library runs, and walks with Z held or a pad's stick tilted (`walk: false`: it
- *                           only runs, as a lane or a runner wants)
+ *                           only runs, as a lane or a runner wants); `takes` (state → the hero's jump: a feel's TAKES)
+ *                           plays the hero's own jumps on the platform rule's flight, compiled onto it by the figure
  *
  * The figures map takes the hero inline (`hero`) or stored (`heroRef`, world-scene.js), so the same manifest plays a
  * hero minted once at the door.
@@ -150,14 +151,18 @@ export function testCourse() {
 }
 
 /** A controllable world with the hero as the pilot. */
-export function playerWorld({ hero, heroRef, gaits, id = 'hero', library: lib = 'quaternius-ual', level, controls, title, clips: given, rule, pilot = null, walk: walks = true } = {}) {
+export function playerWorld({ hero, heroRef, gaits, id = 'hero', library: lib = 'quaternius-ual', level, controls, title, clips: given, rule, pilot = null, walk: walks = true, takes = null } = {}) {
   if (!hero && !heroRef) throw new Error('player: give a hero (inline, as the hero door takes it) or a heroRef');
   // a MASCOT pilot (egocube/mascot-pilot.js): its own clips (no library), its body's capsule, stride and camera
   const library = pilot ? null : lib, clips = pilot ? pilot.clips : given;
   const spec = hero ? playerHero(hero) : null;
   // the hero's own door gaits: given for a stored hero (`gaits`, its `motion` keys), read off an inline one
   const own = (gaits ?? (spec?.motion && typeof spec.motion === 'object' ? Object.keys(spec.motion) : [])).filter((g) => g in HERO_GAIT_STRIDE);
-  const states = clips || playerStates(spec ? [...Object.keys(spec.clips), ...own, 'idle', 'walk', 'wave'] : [...own, 'idle', 'walk'], library || null, own);
+  const states0 = clips || playerStates(spec ? [...Object.keys(spec.clips), ...own, 'idle', 'walk', 'wave'] : [...own, 'idle', 'walk'], library || null, own);
+  // the TAKES (a feel's, gameworld/feel/lower.js): the hero's own jumps, by the runtime's state, played on the platform
+  // rule's flight; the figure compiles them onto the hero (world-scene.js heroFigure `jumps`). A mascot keeps its own
+  const jumpTakes = takes && !pilot ? takes : null;
+  const states = jumpTakes ? { ...states0, ...jumpTakes } : states0;
   // the game's run speed stands; the stride is the clip forward plays, so its feet keep pace with the ground
   const base = (library && LIBRARY_STRIDE[library]) || { speed: 4, stride: 3.2 };
   const pace = pilot ? { speed: base.speed, stride: pilot.rule.stride } : HERO_GAIT_STRIDE[states.forward] ? { speed: base.speed, stride: HERO_GAIT_STRIDE[states.forward] } : base;
@@ -176,7 +181,7 @@ export function playerWorld({ hero, heroRef, gaits, id = 'hero', library: lib = 
     bg: '#c9ccd2',
     faces: [...floor, ...L.faces],
     colliders: L.colliders,
-    figures: { [id]: { ...(spec ? { hero: spec } : { heroRef }), ...(library ? { library } : {}), clips: states } },
+    figures: { [id]: { ...(spec ? { hero: spec } : { heroRef }), ...(library ? { library } : {}), clips: states, ...(jumpTakes ? { jumps: [...new Set(Object.values(jumpTakes))] } : {}) } },
     entities: [{
       id, pilotable: true,
       // a person, not a suit: a jog of under 4 m/s, a hop of about a metre, a short wind-up; the stride is the run

@@ -16,7 +16,7 @@ const outfit = Outfit({
 
 export const metadata = {
   title: 'Mojulo',
-  description: 'The mojulo dashboard — your agent\'s game studio: games, worlds and objects as small recipes, built by talking to Claude Code, Codex, or any other MCP-capable agent',
+  description: 'The mojulo dashboard — your agent\'s 3D creative studio: objects, worlds and playable games, made by talking to Claude Code, Codex, or any other MCP-capable agent',
 };
 
 export default async function RootLayout({ children }) {

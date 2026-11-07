@@ -5,12 +5,15 @@
 // absent: third person with a hero, first person without
 export const CAMERAS = Object.freeze({
   'third-person': 'a chase camera behind the hero',
-  orbit: 'a third-person camera the mouse turns round the hero; W A S D run the way it looks, the hero turning to face its run (needs a hero)',
   'first-person': 'you look out of the hero\'s eyes (or are the walker, with no hero); the mouse looks',
   side: 'a side-scroller: the hero runs the trail\'s own line with A / D, the camera square to it and swinging round its bends (needs a hero, and a trail: a climb has no line to run)',
   'top-down': 'a ¾ overhead camera, north up the screen; W walks up the screen (needs a hero to watch)',
   fixed: 'fixed cameras along the way, high off its side, cutting from one to the next as the hero passes (the survival-horror shot; needs a hero)',
+  follow: 'a 3D platformer\'s chase that follows by itself: W A S D run the way the camera looks, and it eases behind the hero\'s run, holding still through a jump (needs a hero)',
+  orbit: 'a 3D platformer\'s chase the player turns (a drag, the right stick): W A S D run the way the camera looks, held still through a jump; a hero that strikes turns it by the mouse and locks on to a foe (C) (needs a hero)',
 });
+/** The cameras a 3D platformer moves by (the stick's up is the camera's forward): the steered chase each lays. */
+export const STEERED = Object.freeze({ follow: 'trail', orbit: 'orbit' });
 
 /** The fixed cameras of a stage: one over each of its places in order (the start, the beats, the end), standing off
  * the way to alternate sides, `up` metres high and a little back, its focus the place. → [{ at, focus }] */

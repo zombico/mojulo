@@ -7,8 +7,9 @@ comments, docs, or the changelog: plans are working documents that move to
 
 ## What this is
 
-A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
-agent works through seven departments: worlds and levels (art direction, light, set pieces, cities planned for play),
+A local MCP server with a dashboard that turns the operator's agent into a 3D creative studio: 3D objects, characters,
+environments, interactive worlds and even playable games, exported to the person's desktop. Inside, the agent works
+through seven departments: worlds and levels (art direction, light, set pieces, cities planned for play),
 characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
 juice, `create_beats`), foes and bosses, cinematics (the actor: a persona's `style` and `role`, scenes and their coverage,
 `forge_motion`, the scenes card; craft in [docs/cinematics.md](docs/cinematics.md)), and game design and
@@ -26,8 +27,10 @@ whole game end to end on the web (`export_game`); developers and teams get a han
 their engine, with the recipe and its bible as the team's design source and the web build as the prototype that
 validated the loop (the `engine-handoff` theme).
 
-Two audiences, one truth. The README, the plugin and the manifests speak to the person (the studio); the drawers and
-the `initialize` preamble speak to the agent (the compiler). The canonical self-description is the `get_substrate`
+Two audiences, one truth. The README, the plugin and the manifests speak to the person (the 3D creative studio): they
+open broad, show the pieces it makes from the easy (an object) up to the hard (a game), and say what the person gets,
+never how (no departments, requisitions, orders, gates or install weight). The drawers and the `initialize` preamble
+speak to the agent (the compiler). The canonical self-description is the `get_substrate`
 drawer in [control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js): its one-breath answer is what the
 agent says to the person, so it and the README agree. The office wing (apps, daemons, contextmap, MCP-to-MCP binding)
 left the tool surface in 3.1.0: `RETIRED_PACKS` in `packs.js`, callable by name, never listed or routed to.

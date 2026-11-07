@@ -11,6 +11,7 @@ import { resolveWorldScene } from '../worlds/world-scene.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { groundOf } from './terrain.js';
+import { TAKES } from '../gameworld/feel/lower.js';
 
 const cast = JSON.parse(readFileSync(new URL('../../../../docs/examples/humanoid/cast/heroine.json', import.meta.url), 'utf8'));
 const HEROINE = { ...cast.hero, palette: { ...cast.hero.palette, ...cast.palette } };
@@ -96,6 +97,16 @@ describe('the heroine in a world', () => {
     expect(own.figures.h.clips).toMatchObject({ forward: 'run', idle: 'idleRelaxed', leap: 'leap' });
   });
 
+  it('with a feel\'s takes she plays her OWN jumps, compiled onto her rig, the library keeping her run', async () => {
+    const W = playerWorld({ hero: HEROINE, id: 'h', takes: TAKES });
+    expect(W.figures.h.clips).toMatchObject({ ...TAKES, forward: 'Jog_Fwd_Loop' });
+    expect(W.figures.h.jumps.sort()).toEqual([...new Set(Object.values(TAKES))].sort());
+    expect(playerWorld({ hero: HEROINE, id: 'h' }).figures.h.jumps).toBeUndefined();
+    const { payload } = await resolveWorldScene({ ref: 'sk_takes_test', manifest: W });
+    const fig = payload.figures.h;
+    for (const [state, clip] of Object.entries(TAKES)) { expect(fig.clips[state]).toBe(fig.clips[clip]); expect(fig.clips[clip].once).toBe(true); }
+  }, 60000);
+
   it('emits a World page that drives her', async () => {
     const { payload } = await scene();
     const html = emitThreeWorld(payload);
@@ -136,9 +147,9 @@ describe('the course, driven', () => {
     expect(w.byId.p.moving).toBe(false);
   });
 
-  it('a hero that SPRINTS (rule.sprint): F held runs her at the sprint on her run\'s legs, on a stamina gauge that winds her empty', () => {
+  it('a hero that SPRINTS on her stamina (rule.stamina): F held runs her at the sprint on her run\'s legs, on a stamina gauge that winds her empty', () => {
     // (the boost gauge as stamina: 2 s of sprint, back in 2 s, winded until full again; on a long flat floor)
-    const mk = () => { const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { sprint: true, boostSpeed: 9, boostMax: 2, boostRegen: 1, overheatRegen: 0.5 } }); return createWorld({ entities: m.entities, colliders: [], camera: m.camera }); };
+    const mk = () => { const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { stamina: true, boostSpeed: 9, boostMax: 2, boostRegen: 1, overheatRegen: 0.5 } }); return createWorld({ entities: m.entities, colliders: [], camera: m.camera }); };
     const flat = () => 0;
     let w = mk();
     const p = () => w.byId.p, y = () => p().transform.pos[1];
@@ -165,43 +176,23 @@ describe('the course, driven', () => {
     expect(p().boost).toBe(2);
   });
 
-  it('an ORBIT camera: the mouse turns the camera round her, never her; W runs her the way it looks, and she turns to face her run', () => {
-    const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { move: 'world', moveYaw: 'camera', faceRate: 20 } });
-    const w = createWorld({ entities: m.entities, colliders: [], camera: { ...m.camera, orbit: true, mouseLook: true } });
-    const flat = () => 0, p = w.byId.p, h0 = p.transform.heading;
-    // (the mouse alone: the camera swings a quarter turn round her; she stands as she was)
-    for (let i = 0; i < 10; i++) stepWorld(w, { lookDX: (Math.PI / 2) / 0.0025 / 10 }, 1 / 60, { ground: flat });
-    expect(p.transform.heading).toBeCloseTo(h0, 5);
-    expect(w.camera.orbitYaw).toBeCloseTo(h0 + Math.PI / 2, 3);
-    // (the camera stands behind her along its own yaw, not her heading)
-    for (let i = 0; i < 120; i++) stepWorld(w, {}, 1 / 60, { ground: flat });
-    const c = w.camera.transform.pos, back = [c[0] - p.transform.pos[0], c[1] - p.transform.pos[1]];
-    expect(Math.atan2(-back[1], -back[0])).toBeCloseTo(w.camera.orbitYaw, 1);
-    // W: she runs the way the camera looks, turned to face it
-    const x0 = [...p.transform.pos];
-    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1 }, 1 / 60, { ground: flat });
-    const d = [p.transform.pos[0] - x0[0], p.transform.pos[1] - x0[1]];
-    expect(Math.atan2(d[1], d[0])).toBeCloseTo(w.camera.orbitYaw, 1);
-    expect(Math.cos(p.transform.heading - w.camera.orbitYaw)).toBeGreaterThan(0.99);
-  });
-
   it('an ORBIT camera holding a LOCK: the camera swings round behind her to hold the foe ahead', () => {
-    const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { move: 'world', moveYaw: 'camera' } });
+    const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { move: 'camera' } });
     const foe = { id: 'f', team: 'foes', body: { type: 'box', size: [1, 1, 2], hittable: true }, rule: { type: 'static' }, transform: { pos: [0, 10, 0], heading: 0 } };
-    const w = createWorld({ entities: [...m.entities, foe], colliders: [], camera: { ...m.camera, orbit: true, mouseLook: true, lockTrack: true }, lock: { range: 30, cone: 180 } });
+    const w = createWorld({ entities: [...m.entities, foe], colliders: [], camera: { ...m.camera, steer: 'orbit', mouseLook: true, lockTrack: true }, lock: { range: 30, cone: 180 } });
     const flat = () => 0, p = w.byId.p;
     p.transform.heading = Math.PI / 2;   // (she faces the foe, due north of her)
     for (let i = 0; i < 5; i++) stepWorld(w, {}, 1 / 60, { ground: flat });
     // (the camera turned away, a quarter round)
-    w.camera.orbitYaw = 0;
+    w.camera.camYaw = 0;
     stepWorld(w, { lock: 1 }, 1 / 60, { ground: flat });
     expect(w.lock && w.lock.target).toBe('f');
     for (let i = 0; i < 120; i++) stepWorld(w, {}, 1 / 60, { ground: flat });
-    expect(Math.cos(w.camera.orbitYaw - Math.PI / 2)).toBeGreaterThan(0.95);
+    expect(Math.cos(w.camera.camYaw - Math.PI / 2)).toBeGreaterThan(0.95);
   });
 
   it('a sprinting hero DODGES on a double tap of the sprint\'s key: a dash, invulnerable, a second of her stamina, never all of it', () => {
-    const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { sprint: true, boostSpeed: 9, boostMax: 6, dodge: true, dodgeDur: 0.4, dodgeSpeed: 8, dodgeBoostCost: 1, dodgeOverheat: false, dodgeCooldown: 0.2 } });
+    const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { stamina: true, boostSpeed: 9, boostMax: 6, dodge: true, dodgeDur: 0.4, dodgeSpeed: 8, dodgeBoostCost: 1, dodgeOverheat: false, dodgeCooldown: 0.2 } });
     const w = createWorld({ entities: m.entities, colliders: [], camera: m.camera }), p = w.byId.p, flat = () => 0;
     for (let i = 0; i < 10; i++) stepWorld(w, {}, 1 / 60, { ground: flat });
     // (tap, let go, tap again inside the window)

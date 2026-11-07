@@ -14,6 +14,7 @@ import { GENRES } from '@/lib/graph/gameworld/intent';
 import { createCharacterHandler, updateCharacterHandler } from './create-character.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
+import { HERO_GAIT_STRIDE } from '@/lib/graph/playscape/player.js';
 import { buildGameStoreKernel } from '@/lib/graph/game/store-kernel.js';
 import { rpgInit, rpgStart, rpgRound, rpgTargets, rpgClose } from '@/lib/graph/playscape/rpg/kernel.js';
 
@@ -239,8 +240,10 @@ describe('design_game: the hero a run plays (character stitch)', () => {
     expect(stored('gp-hero').hero.motion.jog).toBeTruthy();
     const level = stored(Object.entries(gameworldOf(stored('gp')).made).find(([k]) => k.startsWith('level-'))[1].ref);
     const pilot = level.entities.find((e) => e.pilotable);
-    expect(level.figures[pilot.body.figure].clips).toMatchObject({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop', turn: 'Walk_Loop', idle: 'Idle_Loop' });
-    expect(pilot.rule).toMatchObject({ stride: 3.3, walkSpeed: 1.6, walkStride: 2 });
+    // (a run is smooth: the library's Jog_Fwd_Loop bobs past RUN_BOB, so the run is the hero's own calibrated jog,
+    // at that jog's stride)
+    expect(level.figures[pilot.body.figure].clips).toMatchObject({ walk: 'Walk_Loop', forward: 'jog', strafe: 'jog', turn: 'Walk_Loop', idle: 'Idle_Loop' });
+    expect(pilot.rule).toMatchObject({ stride: HERO_GAIT_STRIDE.jog, walkSpeed: 1.6, walkStride: 2 });
   }, 600_000);
 
   it('a hand edit to the hero is said on its base and plays: the equipped hero is built over it', async () => {
@@ -300,8 +303,9 @@ describe('design_game: party battles on the book path (battles)', () => {
     for (let r = 0; r < 30 && R.b.phase === 'command'; r++) rpgRound(cfg, R, { hero: { act: 'attack', target: rpgTargets(cfg, R, { act: 'attack' })[0]?.id } }, v);
     expect(R.b.phase).toBe('won');
     sim.run(0.5, { 0: rpgClose(cfg, R, v) });
-    // (a pack of several stands each foe as its own body, battles.js: `who` lists them; every one is downed)
-    for (const w of [].concat(enc.who)) expect(W.byId[w].downed, w).toBe(true);
+    // (a pack of several stands each foe as its own body, battles.js: `who` lists them; won, every one leaves the map in
+    // smoke, playscape/rpg/rpg.js: gone, never lying where it fell to be read as a pack still to fight)
+    for (const w of [].concat(enc.who)) expect([W.byId[w].gone, W.byId[w].downed], w).toEqual([true, false]);
     expect(v[`rpg-done-${enc.id}`]).toBe(1);
   }, 600_000);
 
@@ -335,9 +339,10 @@ describe('design_game: party battles on the book path (battles)', () => {
     // the hero's familiar fights beside it, picking for itself
     expect(stored('gc-level-meadow-ascent-0').play.rpg.party.map((p) => [p.id, p.auto?.keeper ?? null])).toEqual([['hero', null], ['party-1', null], ['sprite', null], ['kin', null], ['pet', 'hero']]);
     expect(out.parts.find((p) => p.id === 'characters:cast')).toBeTruthy();
-    // on the level map the member walks beside the hero from the start and plays its own moves over the library's
+    // on the level map the member walks beside the hero and plays its own moves over the library's; the party joins one
+    // a level by default (casting.js laidJoins), so the first member joins as the first level starts, on its flag
     const level = SketchRepository.getByRef('gc-level-meadow-ascent-0');
-    expect(level.manifest.play.party).toContainEqual({ who: 'party-1' });
+    expect(level.manifest.play.party).toContainEqual({ who: 'party-1', joins: 'join-party-1' });
     const { payload } = await resolveWorldScene(level);
     // (the beast-kin on the tiered body plays a person's moves as the party member does: casting.js beastOnTiered)
     for (const id of ['party-1', 'kin']) {
@@ -346,8 +351,9 @@ describe('design_game: party battles on the book path (battles)', () => {
       expect(fig.clips.getup).toEqual(fig.clips.knockedOutUp);
       expect(fig.clips.stagger).toBeTruthy();
     }
-    // the mascot and the wolf walk beside them on their own clips, no library
-    expect(level.manifest.play.party).toEqual(expect.arrayContaining([{ who: 'sprite' }, { who: 'kin' }, { who: 'pet' }]));
+    // the mascot and the wolf walk beside them on their own clips, no library; each party member on its own join flag
+    // (the default, one a level: casting.js laidJoins), the familiar with the hero from the start
+    expect(level.manifest.play.party).toEqual(expect.arrayContaining([{ who: 'sprite', joins: 'join-sprite' }, { who: 'kin', joins: 'join-kin' }, { who: 'pet' }]));
     const own = (id) => payload.figures[id].clips;
     expect(own('sprite').forward).toEqual(own('sprite').run);
     expect(own('pet').forward).toEqual(own('pet').trot);

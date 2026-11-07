@@ -111,7 +111,7 @@ describe('routing-card shelf — registry + body sweeps', () => {
 // the rule landed: shrink-only, so a new door brings its row instead of a name here.
 const DOORS_WITHOUT_A_ROW = [
   'capture_reference', 'cook', 'create_cover', 'create_sprite_sheet',
-  'execute_plan', 'forge_plan', 'forge_publications', 'mint_diagram', 'run_experiment_sweep', 'start_research',
+  'execute_plan', 'forge_plan', 'forge_publications', 'mint_diagram', 'start_research',
   'synthesize_abstract',
 ];
 

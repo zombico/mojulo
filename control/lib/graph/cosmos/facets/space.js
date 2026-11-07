@@ -14,14 +14,16 @@ export const SPACE = Object.freeze({
         // built 10-12: the `fixed` camera rule (rules-basic.js: stations, the nearest focus holds the shot, a cut with a hold)
         // and a gameworld's camera 'fixed' (a station over each place of the way). A floormap's room cameras are not yet fed in.
         fixed: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'fixed cameras over the way, cutting as the hero passes (camera: fixed; needs a hero); a floormap\'s room cameras not yet fed in' },
-        // built 11-07: the `follow` camera's `orbit` (the mouse turns it round the hero) and the `move: 'world'` pilot by its yaw
-        orbit: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a third-person camera the mouse turns round the hero, W A S D running the way it looks (rules-basic.js follow `orbit`, rules-platform.js moveYaw \'camera\')' },
         // built 10-11: the `overhead` camera and the `move: 'world'` pilot, chosen by a gameworld's `camera`.
         'top-down': { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'the ¾ `overhead` camera (north up), the hero moving in the screen\'s frame' },
         // built 10-11: the `side` camera and the `move: 'lane'` pilot held to a trail's own spine (2.5D: the lane bends with
         // the trail). A climb has no spine, so a side game is trails only.
         side: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'the `side` camera over a hero held to the trail\'s own line; trails only (a climb has no line to run)' },
         'first-person': { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'the `eye` camera: mouse look with pitch, the hero\'s body hidden, or the walker with no hero' },
+        // built 11-05 (1105-platformer-lv0-spike): a 3D platformer's two chases, the follow rule's `steer` (rules-basic.js)
+        // with the platform rule's `move: 'camera'`: the hero runs the way the camera looks, the view held through a jump
+        follow: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'a 3D platformer\'s chase that follows by itself (steer: trail): it eases behind the run, holds while the hero turns back at it, and holds its height through a jump; the hero moves the way it looks' },
+        orbit: { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'a 3D platformer\'s chase the player turns (steer: orbit: a drag, the right stick, yaw and pitch; an action hero\'s by the mouse, locked on by C, 11-07); the hero moves the way it looks; its height held through a jump' },
         // built 10-19 (strategy board): the board channel owns a battle level's camera (board/board-camera.js); a book's
         // board battles play through it (gameworld/board-levels.js), no camera word needed
         tactical: { status: 'built', lowers: 'lib/graph/board/board-camera.js', note: 'a locked pitch (two stops), quarter-turn rotation, zoom stops (the widest holds the board, the closer follow the cursor) and the focus held to the board, the cursor stepping the way the screen shows; an RTS form pans and edge-scrolls instead. A battle level on a board is played through it' },

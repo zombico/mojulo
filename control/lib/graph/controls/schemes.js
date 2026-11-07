@@ -90,7 +90,7 @@ const PILOT = {
   // `ids` joins each action's primary control with ' / ' (or `sep`); `dev` reads another family (the mouse)
   // and `with` appends one; `quad` reads four directions (W A S D, "arrows", "left stick"); `range` reads a
   // run of digits as 1–5; `chord` is a held button with the face buttons it deals; `text` is a fixed word.
-  // `label` may vary by live flag ({ _, space, vehicle }); `when` / `unless` name live world flags.
+  // `label` may vary by live flag ({ _, space, vehicle }); `when` / `unless` name live world flags (`unless` one or a list).
   legend: {
     keyboard: [
       { quad: MOVE4, label: { _: 'move & turn', space: 'thrust & turn', vehicle: 'throttle & steer' } },
@@ -98,7 +98,9 @@ const PILOT = {
       { ids: ['strafeRight', 'strafeLeft'], label: 'strafe' },
       { ids: ['jump', 'kneel'], label: 'ascend / descend', when: 'space' },
       { ids: ['jump'], label: 'jump', unless: 'space' },
-      { ids: ['boost'], label: 'boost thrusters', unless: 'walker' },
+      { ids: ['boost'], label: 'boost thrusters', unless: ['walker', 'dash', 'sprint'] },
+      { ids: ['boost'], label: 'dash', when: 'dash' },
+      { ids: ['boost'], label: 'run (hold)', when: 'sprint' },
       { ids: ['walk'], label: 'walk (hold)', when: 'walker', unless: 'space' },
       { ids: ['kneel'], label: 'kneel', when: 'kneel', unless: 'space' },
       { ids: ['tackle'], label: 'tackle', when: 'tackle', unless: 'space' },
@@ -119,6 +121,8 @@ const PILOT = {
       { chord: 'cycleWeapon', faces: ['west', 'north'], label: 'main weapon / main melee', when: 'armed' },
       { ids: ['jump', 'kneel'], label: 'ascend / descend', when: 'space' },
       { ids: ['jump', 'tackle'], sep: ' · ', label: 'jump · tackle', unless: 'space' },
+      { ids: ['boost'], label: 'dash', when: 'dash' },
+      { ids: ['boost'], label: 'run (hold)', when: 'sprint' },
       { ids: ['swapSuit', 'aiToggle'], sep: ' · ', label: 'switch suit · AI toggle' },
       { ids: ['lock'], label: 'target lock', when: 'lock' },
       { ids: ['transform'], label: 'transform', when: 'forms' },

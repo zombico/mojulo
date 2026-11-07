@@ -421,6 +421,9 @@ function houseGate(m0, was = null) {
 /** A gameworld manifest read and returned as written, or the reader's refusal. The hero its pages compose (and its
  * motion) is judged by the hero door here, so a page the door would refuse is refused when it is written, not first
  * when a run makes the hero. */
+/** Would a gameworld manifest be written as it stands? Throws the reader's refusal (a proposal's gate: design_game vary). */
+export function checkGameworldManifest(manifest) { gameworldManifest(manifest); }
+
 function gameworldManifest(manifest) {
   let out;
   try {
