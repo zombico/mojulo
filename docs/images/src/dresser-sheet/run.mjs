@@ -1,4 +1,4 @@
-// dresser-shop-sheet.png: mint the chest of drawers, read its furniture report, render the teardown, and lay
+// dresser-shop-sheet.png and dresser-pieces.jpg: mint the chest of drawers, read its furniture report, render the teardown, and lay
 // the report's numbers and cutting plan onto sheet-template.html.
 //
 //   node docs/images/src/dresser-sheet/run.mjs [workDir]
@@ -40,6 +40,8 @@ const raw = path.join(work, 'teardown.png');
 await captureWorld(path.join(env.MOJULO_OUTCOMES_DIR, REF, 'world.html'), raw, { width: 1000, height: 750, camera: { pos: [2900, -3400, 2300], target: [480, -80, 150], vfov: 36 } });
 const ff = spawnSync(process.env.FFMPEG || 'ffmpeg', ['-loglevel', 'error', '-y', '-i', raw, '-vf', 'crop=1840:1380:80:40', path.join(work, 'hero.png')]);
 if (ff.status !== 0) copyFileSync(raw, path.join(work, 'hero.png'));
+// the README's pieces alone (dresser-pieces.jpg): the same teardown, cropped to the parts, no sheet around it
+spawnSync(process.env.FFMPEG || 'ffmpeg', ['-loglevel', 'error', '-y', '-i', raw, '-vf', 'crop=1690:1160:205:205,scale=1200:-2', '-q:v', '3', path.join(work, 'dresser-pieces.jpg')]);
 
 // the cutting plan: three plywood sheets drawn at the report's own placements
 const LABEL = { 'side-l': 'side', 'side-r': 'side', top: 'top', bottom: 'bottom', divider: 'divider', plinth: 'plinth', back: 'back' };

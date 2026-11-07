@@ -166,7 +166,7 @@ export const TOOL_LINES = {
   verify_asset: L('observe', 'Check a file against its creator receipt: bytes, signature, creator id, ref and dates.'),
 
   // ── workflows: sweeps and the research book ───────────────────────────────
-  run_experiment_sweep: L('compose', 'Variations in one call: any recipe copied per value at a JSON Pointer, one folder of variants; or a mechanics experiment with its plot.'),
+  run_experiment_sweep: L('compose', 'Variations in one call: n visual takes on any design from a concept in words, pass after pass, or one value swept; one folder of variants; or a mechanics experiment.'),
   enter_research_mode: L('orient', 'The light research discipline (the legacy book). Only when the user asks to research.'),
   start_research: L('create', 'A research book; bind items with `bind_research_item`.'),
   bind_research_item: L('maintain', 'Add a link, note, quote, summary or sketch to a research book.'),

@@ -571,8 +571,57 @@ export function composedWorld(c) {
 // what a composed world's words decided (its brief): each word read and what it decided, the cube, what nothing read
 const composedOf = (b) => ({ prompt: b.prompt, read: b.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(b.cube ? { cube: b.cube } : {}), ...(b.unread?.length ? { unread: b.unread } : {}) });
 
+/**
+ * A department's variations (internal name mangekyou, lib/graph/mangekyou/): `vary` { at?, concept?, n?, principles?,
+ * keep?, reject?, spread?, roll? } over the game at `ref`, routed to the department whose chapter owns `at` (the chapter
+ * named, or the seat's unit, when `at` is not given). Answered as proposals and nothing is written: a variant is taken
+ * with design_game({ ref, patch }) and its stamps say what it moved. `keep` and `reject` are variant patches from a pass
+ * before (the game's variants are never minted, so a pass is carried by its patches); `roll` replays an order.
+ */
+async function varyGame(ref, vary, chapter) {
+  if (!isObj(vary)) throw new Error('design_game: vary is { at?, concept?, n?, principles?, keep?, reject?, spread?, roll? }');
+  const row = SketchRepository.getByRef(ref);
+  if (!row) throw new Error(`design_game: no sketch at '${ref}'`);
+  if (!isGameworldKind(row.manifest?.kind)) throw new Error(`design_game: '${ref}' is a '${row.manifest?.kind}', not a gameworld`);
+  const unit = chapter !== undefined ? unitOf(chapter) : null;
+  let at = vary.at;
+  if (at === undefined && unit) {
+    if (unit.level) {
+      const i = (row.manifest.levels ?? []).findIndex((l) => l?.id === unit.level);
+      if (i < 0) throw new Error(`design_game: the game has no level '${unit.level}' to vary`);
+      at = `/levels/${i}`;
+    } else at = unit.chapter.paths.find((q) => q.slice(1).split('/').reduce((v, k) => (v && typeof v === 'object' ? v[k] : undefined), row.manifest) !== undefined);
+    if (at === undefined) throw new Error(`design_game: the ${unit.chapter.name.toLowerCase()} chapter writes nothing yet to vary`);
+  }
+  const passOf = (list, name) => {
+    if (list === undefined) return [];
+    if (!Array.isArray(list) || list.some((p) => !Array.isArray(p))) throw new Error(`design_game: vary.${name} is a list of variant patches (each a list of ops) from a pass before`);
+    return list.map((p) => applyManifestPatch(row.manifest, p).manifest);
+  };
+  const [{ turnMangekyou, rollOrder }, { checkGameworldManifest }] = await Promise.all([import('@/lib/graph/mangekyou/index.js'), import('./sketch-mint.js')]);
+  // a proposal the game would refuse is never offered: the reader's own gate, the next candidate in its place
+  const gate = (m) => { try { checkGameworldManifest(m); return null; } catch (err) { return err.message; } };
+  const turned = turnMangekyou({
+    gate,
+    manifest: row.manifest, at, concept: vary.concept, n: vary.n, principles: vary.principles, spread: vary.spread,
+    kept: passOf(vary.keep, 'keep'), rejected: passOf(vary.reject, 'reject'),
+    roll: vary.roll ?? rollOrder(), by: unit ? unit.chapter.department : 'user',
+  });
+  return {
+    ref,
+    vary: {
+      order: { ...turned.order, from: { ref, title: row.title, kind: row.manifest.kind } },
+      variants: turned.variants.map(({ id, says, moves, patch, distance }) => ({ id, says, moves, patch, distance })),
+      spread: turned.spread,
+    },
+    next: `Proposals only: nothing was written. Take one with design_game({ ref: '${ref}', patch: <its patch> }); the next pass `
+      + `is design_game({ ref: '${ref}', vary: { …this order, keep: [patches you like], reject: [patches you do not] } }); `
+      + `the same order again is roll ${turned.order.roll}.`,
+  };
+}
+
 export async function designGameHandler(input, context = {}) {
-  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req?, ask?, trace?, preview?, production?, as? }');
+  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, check?, example?, compare?, chapter?, req?, ask?, trace?, preview?, production?, as?, vary? }');
   const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, check, example, compare, quick, compose, readout: shape, chapter: named, req, ask, trace, preview, production, as } = input;
   // a job's seat (`as`): its own view and its report, nothing else; its chapter defaults to its unit
   const seat = as !== undefined ? jobSeat(input) : null;
@@ -591,6 +640,11 @@ export async function designGameHandler(input, context = {}) {
   if (preview !== undefined && (preview !== true || patch === undefined || written !== undefined || given === undefined)) throw new Error('design_game: preview: true goes with a ref and a patch: it says what the patch would do and writes nothing');
   if (preview === true && (ask !== undefined || req !== undefined || approve !== undefined || revise !== undefined || asked !== undefined)) throw new Error('design_game: a preview writes nothing: give it alone with its patch, then the ask, verdicts or run with the patch itself');
   if (chapter !== undefined && !unitOf(chapter)) throw new Error(`design_game: chapter is one of ${CHAPTERS.map((c) => c.id).join(', ')} (the readout's \`chapters\`), or one level as 'level:<id>'`);
+  if (input.vary !== undefined) {
+    const others = Object.keys(input).filter((k) => !['ref', 'vary', 'chapter', 'as'].includes(k) && input[k] !== undefined);
+    if (!given || others.length) throw new Error(`design_game: vary goes with a ref (and a chapter or seat) alone: it proposes and writes nothing${others.length ? ` (not with ${others.join(', ')})` : ''}`);
+    return varyGame(given, input.vary, chapter);
+  }
   // the world as it stood before this call, for readout: 'changed'
   const prior = given ? SketchRepository.getByRef(given) : null;
   const before = prior && isGameworldKind(prior.manifest?.kind) ? gameworldOf(prior.manifest) : null;
@@ -1294,6 +1348,7 @@ export function registerDesignGameTools() {
         preview: { type: 'boolean' },
         production: { type: 'object' },
         as: { type: 'string', description: 'A job\'s seat, r<n>.j<n>: its own view.' },
+        vary: { type: 'object', description: 'Proposed variations { concept, n }.' },
       },
       required: [],
     },

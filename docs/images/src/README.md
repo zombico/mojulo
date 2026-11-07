@@ -10,7 +10,9 @@ kernel change instead of patched by hand.
 | `../wcd-demo.gif`, `../wcd-demo-*.jpg`, `../wcd-demo-book.png` | `wcd-demo/session.mjs`, `wcd-demo/run.mjs` | about 10 min (a real agent session, then the stills); the cooked base about 15 min |
 | `../interior-demo.gif` | `interior-demo/run.mjs` | about 3 min (three Cycles stills) |
 | `../level-demo.gif` | `level-demo/run.mjs` | about 5 min (two levels made, eight stills) |
-| `../dresser-shop-sheet.png` | `dresser-sheet/run.mjs` | about 30 s |
+| `../dresser-shop-sheet.png`, `../dresser-pieces.jpg` | `dresser-sheet/run.mjs` | about 30 s |
+| `../game-items.jpg` | `game-items/run.mjs` | about 1 min (eight items, no database) |
+| `../landscape-gen6.jpg`, `../landscape-gen7.jpg` | `landscape-eras/run.mjs` | about 4 min (one landscape minted twice, two World pages) |
 | `../dresser-manual-flow.png`, `../dresser-manual-viewer.png` | `dresser-manual/run.mjs` | about 30 s |
 | `../sheet-metal-sheet.png` | `sheet-metal/run.mjs` | about 15 s |
 
@@ -26,6 +28,8 @@ node docs/images/src/level-demo/run.mjs /tmp/mj-level
 node docs/images/src/dresser-sheet/run.mjs /tmp/mj-dresser
 node docs/images/src/dresser-manual/run.mjs /tmp/mj-manual
 node docs/images/src/sheet-metal/run.mjs /tmp/mj-sheet-metal
+node docs/images/src/game-items/run.mjs /tmp/mj-game-items
+node docs/images/src/landscape-eras/run.mjs /tmp/mj-landscape-eras            # [shot]: a camera the page names, default lake
 ```
 
 Each writes its image into the work directory you give it; copy it into `docs/images/` once you have looked at it.
@@ -92,7 +96,8 @@ used (`HOUSE_SEED`). Then `update_sketch` on the house (`roof`, `ceilings`, `pot
 **dresser-sheet.** `mint_solid` on `recipe.json`, then the furniture report fills `sheet-template.html`: tip-over,
 racking, sag, mass and carton, the hardware, and the cutting plan drawn at the report's own placements. The hero
 is the teardown's exploded pose. The headline ("It tips. Fix it to the wall.") and the build order are written for
-this piece, so the runner stops if the report no longer says it tips.
+this piece, so the runner stops if the report no longer says it tips. `dresser-pieces.jpg` is the same teardown
+cropped to its parts, with no sheet around it.
 
 **dresser-manual.** The same recipe through `mint_stash`, `gather` and `cook { publication: { kind:
 'instruction_manual' } }`, then the cover, the inventory and three step pages beside the calls in `flow.html`, and
@@ -104,6 +109,17 @@ runner stops if any page has a NaN coordinate.
 the sheet is drawn from the DXF's own polylines, and every dimension is read back from it. The runner stops if the
 DXF is not one outline with the holes and bend marks inside it, or if its length misses
 `30 + 50 + 30 + 2 × π/2 × (r + k·t)`.
+
+**game-items.** Eight equipment builds (a sword, an elven staff, a shield, a recurve bow; a revolver, a pulse rifle, a
+railgun, a vibroblade) lowered as the workbench lowers them, each drawn on the World page from the front three-quarter
+at a distance that fits its bounds to the tile, then tiled four by two. No database writes; `MOJULO_CHROMIUM` names the
+browser when none is found on its own.
+
+**landscape-eras.** `create_sketch { kind: 'geocube', words }` with no seed, so the scene is new and draws in gen-7
+(the form render); the runner stops if the minted cube names another era. The recipe it wrote, words and brief left
+out and its cube's `era` set to `'gen-6'`, is minted again as the painted render. Both are exported and shot through
+the same named camera on the live page (`captureShot`); the land is the same recipe, so the two differ only in how
+real it is drawn.
 
 ## Helpers
 

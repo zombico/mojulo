@@ -17,8 +17,10 @@ npx mojulo init
 You need **Node.js 22.14+** ([nodejs.org](https://nodejs.org), or ask your agent to install it) and an agent that speaks MCP. `init` finds the agents on your machine (Claude Code, Codex, Claude Desktop and others), asks once for each, and opens the dashboard. Then start a fresh agent session and ask:
 
 ```
-build an oak dining table, and show me how it goes together
+build a plywood chest of drawers, 900 wide, four drawers
+a longsword, a shield and a bow
 make me a hero in an anime style
+a lake in the hills at sunset
 here's our floor plan, some ideas for living in it?
 build a New York-style city at real scale
 make me a kart racer
@@ -56,12 +58,11 @@ Other MCP hosts: register the same `npx -y mojulo` stdio command.
 
 Start small and go as far as you like.
 
-- **3D objects.** A mug, a lamp, a bracket for your shelf, a Raspberry Pi case with standoffs on its mounting holes, at their real size. Furniture you can build, pulled apart to show how it goes together, with its cut list, hardware list and assembly order. Print it at true size as STL or 3MF.
+- **3D objects.** Anything you can describe, at its real size, down to the pieces it is made of: a chest of drawers you can build, with its cut list, hardware list and assembly order; a bracket for your shelf; a Raspberry Pi case. Print it at true size as STL or 3MF.
+- **Game items.** Swords, staffs, shields and bows in a historical, elven or dwarven style; handguns, rifles and knives, modern or from the future; karts, supercars, aircraft, boats, trains and walking mecha; the props that fill a level.
 - **Characters.** Heroes in a realistic, cartoon or anime look, with faces that act; hair, clothes, armour, shoes and gear fitted to the body; animals mid-stride. Rigged and animated, ready for a game or for your 3D tools.
-- **Vehicles and props.** Karts, supercars, aircraft, boats, trains, walking mecha, and the props that fill a room.
-- **Rooms and buildings.** Your house from a picture of its floor plan, built to the inch, each room designed with furniture at true size; or a six-storey building, a townhouse, an office from a sentence.
-- **Environments and levels.** A base to sneak through, caverns, a dungeon, an island at any hour, a historic city in its period, cities at real scale in the style of New York, Paris, London or Tokyo.
-- **Interactive worlds.** Worlds you walk in the browser, with traffic and people on the streets, music and sound made from scratch, and flythroughs and cutscenes with actors who play a role from a script.
+- **Environments and levels.** Your house from a picture of its floor plan, built to the inch, each room designed with furniture at true size. A facility of several levels, a hangar, barracks, an armoury and a reactor plant each in its own materials, planned first (the way through it and every level's walls, floors and light) and built only when you approve the plan. Terrain from a sentence, with its hills, rock, water, grass and trees, in the painted look of a sixth-generation console game or the grass, leaves and textured rock of a seventh. A dungeon, a historic city in its period, cities at real scale in the style of New York, Paris, London or Tokyo.
+- **Interactive worlds.** Worlds you walk in the browser, with destructible environments: buildings, walls, trees and ground that break by what they are made of and fall under their own weight. Music and sound made from scratch, and flythroughs and cutscenes with actors who play a role from a script.
 - **Playable games.** Stealth, racing, shooters, flight, fighting, rhythm, sports, board and strategy games, a pen-and-paper RPG; enemies from grunts to a boss; two to four players on one screen. You approve the plan first, and every level is played through to its win before you get it.
 
 ## Take it with you
