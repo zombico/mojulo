@@ -11,6 +11,9 @@
  *   node scripts/worldmap.mjs --reuse --walk         # walk the folder already built
  *   node scripts/worldmap.mjs --walk --shots <dir>   # and a picture at each arrival (for the eyes gate)
  *   node scripts/worldmap.mjs --map-only             # the world map in miniature alone (map.html, model.html), in a moment
+ *                                                    # and each segment's planning brief (briefs/<segment>.md)
+ *   node scripts/worldmap.mjs --save-world w.json    # the sample written out, to sketch on (level.glyphs.sketch)
+ *   node scripts/worldmap.mjs --world w.json --approve B --map-only   # B's sketch approved in the file, redrawn
  *   (served, the miniature is http://127.0.0.1:4417/map.html: the world, a zone, a tile; drill in, cross sideways)
  *
  * The walk teleports the walker onto each exit in turn (the machine gate: the crossing, not the legs between) and reads
@@ -29,8 +32,17 @@ const argv = process.argv.slice(2);
 const flag = (k) => argv.includes(k);
 const opt = (k, d = null) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 
-const { WORLDMAP_SAMPLE, worldmapGame, buildWorldmap, crossings, worldmapPage, worldmapModelPage } = await import('../lib/graph/gameworld/worldmap-bed.js');
-const world = opt('--world') ? JSON.parse(await fs.readFile(opt('--world'), 'utf8')) : WORLDMAP_SAMPLE;
+const { WORLDMAP_SAMPLE, worldmapGame, buildWorldmap, crossings, worldmapPage, worldmapModelPage, writeBriefs, approveSegment } = await import('../lib/graph/gameworld/worldmap-bed.js');
+let world = opt('--world') ? JSON.parse(await fs.readFile(opt('--world'), 'utf8')) : WORLDMAP_SAMPLE;
+// (the sample written out, to plan on: edit its sketch, then --world it)
+if (opt('--save-world')) { await fs.writeFile(opt('--save-world'), JSON.stringify(world, null, 2)); console.log(`worldmap: the world written to ${opt('--save-world')}`); process.exit(0); }
+// (a segment's sketch approved, in the world's own file)
+if (opt('--approve')) {
+  if (!opt('--world')) { console.error('worldmap: --approve <segment> writes the approval into a world file: --world <file> (--save-world <file> writes the sample out)'); process.exit(2); }
+  world = approveSegment(world, opt('--approve'));
+  await fs.writeFile(opt('--world'), JSON.stringify(world, null, 2));
+  console.log(`worldmap: ${opt('--approve')} approved in ${opt('--world')}`);
+}
 const dir = path.resolve(opt('--out') ?? path.join(os.tmpdir(), 'mojulo-worldmap', world.id));
 const port = Number(opt('--port', '4417'));
 
@@ -41,6 +53,7 @@ if (flag('--map-only')) {
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, 'map.html'), worldmapPage(world, made));
   await fs.writeFile(path.join(dir, 'model.html'), await worldmapModelPage(world, made));
+  await writeBriefs(world, made, dir);
   console.log(`worldmap: the miniature, ${path.join(dir, 'map.html')}; its model, ${path.join(dir, 'model.html')}`);
 } else if (flag('--reuse')) {
   made = worldmapGame(world);
@@ -58,7 +71,7 @@ if (!flag('--serve') && !flag('--walk')) { console.log(`worldmap: open with  nod
 const server = http.createServer(async (rq, rs) => {
   const u = new URL(rq.url, 'http://x'), p = path.join(dir, decodeURIComponent(u.pathname === '/' ? '/index.html' : u.pathname));
   if (!p.startsWith(dir)) { rs.writeHead(403).end(); return; }
-  try { const b = await fs.readFile(p); rs.writeHead(200, { 'content-type': p.endsWith('.html') ? 'text/html; charset=utf-8' : 'application/json' }).end(b); }
+  try { const b = await fs.readFile(p); rs.writeHead(200, { 'content-type': p.endsWith('.html') ? 'text/html; charset=utf-8' : p.endsWith('.md') ? 'text/markdown; charset=utf-8' : 'application/json' }).end(b); }
   catch { rs.writeHead(404).end(); }
 });
 await new Promise((r) => server.listen(port, '127.0.0.1', r));

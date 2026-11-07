@@ -2,7 +2,9 @@
  * THE WORLD MAP AS A MODEL — a zoned map (zones.js) as a greybox diorama on a plinth, from its recipe alone (no tile
  * built, no page baked): the level's one land, its rise lifted so it reads at table scale; each zone's ground faintly
  * its own tint, its border a dark line broken at its gates; the paths, the places as blocks (the walk's goal taller), a
- * post either side of every gate, the pieces as markers, where each zone's page sets out. A camera bookmark over the
+ * post either side of every gate, the pieces as markers, where each zone's page sets out. With a SKETCH (map-sketch.js):
+ * its heights in the land, its ground laid as greybox (trees in a forest or a grove, boulders, a cliff's slabs, water,
+ * meadow and scrub in their tints) and its marks as coloured posts, each told on hover. A camera bookmark over the
  * whole and one over each zone; each zone named over its middle.
  *
  *   worldmapModel(level, { lift?, title? }) → { faces, cameras, signs, title }   (the World payload's own words, z up)
@@ -13,6 +15,7 @@
 import { worldmapView } from './worldmap-view.js';
 import { levelHeight } from '../era/out-tile.js';
 import { readGrid } from './grid.js';
+import { readSketch, sketchRise } from './map-sketch.js';
 
 export const MODEL = Object.freeze({ lift: 4, k: 6, trail: 4, post: [1.6, 6], border: 0.9, gap: 7, plinth: 10 });
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
@@ -47,7 +50,10 @@ function ribbon(line, w, up, ground, fill, group) {
 
 export function worldmapModel(level, { lift = MODEL.lift, title = null } = {}) {
   const V = worldmapView(level, { title }), G = readGrid(level.grid, 'level.grid'), T = V.T, k = MODEL.k, step = T / k;
-  const L = { seed: level.seed ?? 1, ...(G.rise ? { rise: G.rise } : {}) }, ground = (x, y) => levelHeight(x, y, L) * lift;
+  const rise = sketchRise(G, readSketch(level.sketch, G.plan));
+  const L = { seed: level.seed ?? 1, ...(rise ? { rise } : {}) }, ground = (x, y) => levelHeight(x, y, L) * lift;
+  const groundOf = (r, c) => V.cells[r * V.cols + c]?.ground ?? null;
+  const TINT = { m: '#b9c79a', s: '#cbbb92', c: '#7d7366', f: '#8f9e80', g: '#a8b392' };
   const W = V.cols * T, H = V.rows * T, faces = [];
   const zoneAt = (r, c) => V.zones.find((Z) => Z.own.includes(`${r},${c}`));
   // THE LAND: a greybox sheet, each zone's ground faintly its tint
@@ -57,7 +63,8 @@ export function worldmapModel(level, { lift = MODEL.lift, title = null } = {}) {
     const c = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => [x, y, ground(x, y)]);
     for (const p of c) lo = Math.min(lo, p[2]);
     // (lit from the north-west, high: the slope toward it lighter, away darker, baked into its colour)
-    const f = quad(c[0], c[1], c[2], c[3], Z ? lerpHex(GREY, Z.tint, 0.28) : GREY, 'worldmap:land'), l = f.normal[0] * -0.45 + f.normal[1] * 0.45 + f.normal[2] * 0.77 - 0.77;
+    const gr = groundOf(Math.floor(j / k), Math.floor(i / k)), tint = Z ? lerpHex(GREY, Z.tint, 0.28) : GREY;
+    const f = quad(c[0], c[1], c[2], c[3], gr && TINT[gr] ? lerpHex(tint, TINT[gr], 0.55) : tint, 'worldmap:land'), l = f.normal[0] * -0.45 + f.normal[1] * 0.45 + f.normal[2] * 0.77 - 0.77;
     f.fill = l >= 0 ? lerpHex(f.fill, '#ffffff', Math.min(0.3, l * 1.6)) : lerpHex(f.fill, '#1e1c18', Math.min(0.3, -l * 1.6));
     faces.push(f);
   }
@@ -78,6 +85,18 @@ export function worldmapModel(level, { lift = MODEL.lift, title = null } = {}) {
       if (x.door) faces.push(...box(x.door.at[0], x.door.at[1], ground(...x.door.at), 2, 2, 0.6, '#f2c14e', 'worldmap:door'));
     }
   }
+  // THE SKETCH'S GROUND: trees, boulders, a cliff's slabs, water, where each tile's seed puts them
+  const hash = (r, c, n) => { let h = Math.imul(r + 101, 73856093) ^ Math.imul(c + 7, 19349663) ^ Math.imul(n + 3, 83492791); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  const spot = (x, n) => { const a = (x.c + 0.12 + 0.76 * hash(x.r, x.c, n)) * T, b = -(x.r + 0.12 + 0.76 * hash(x.r, x.c, n + 40)) * T; return [a, b]; };
+  const clearOfPath = (x, p) => !x.paths.some((Pl) => Pl.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < MODEL.trail));
+  for (const x of V.cells) {
+    if (!x.ground) continue;
+    const g = x.ground;
+    if (g === 'f' || g === 'g') for (let n = 0; n < (g === 'f' ? 12 : 5); n++) { const p = spot(x, n); if (clearOfPath(x, p)) faces.push(...box(p[0], p[1], ground(...p) - 0.3, 2.6, 2.6, 5 + 4 * hash(x.r, x.c, n + 80), g === 'f' ? '#3f6a3f' : '#5a8a4a', 'worldmap:tree')); }
+    if (g === 'r') for (let n = 0; n < 5; n++) { const p = spot(x, n), w = 1.6 + 2 * hash(x.r, x.c, n + 80); if (clearOfPath(x, p)) faces.push(...box(p[0], p[1], ground(...p) - 0.4, w, w * 0.8, w * 0.7, '#9a958a', 'worldmap:rock')); }
+    if (g === 'c') for (let n = 0; n < 3; n++) { const p = spot(x, n); faces.push(...box(p[0], p[1], ground(...p) - 1, 5, 3, 8 + 4 * hash(x.r, x.c, n + 80), '#6f655a', 'worldmap:cliff')); }
+    if (g === 'w') { const X0 = x.c * T + T * 0.1, X1 = (x.c + 1) * T - T * 0.1, Y1 = -x.r * T - T * 0.1, Y0 = -(x.r + 1) * T + T * 0.1, z = Math.min(...[[X0, Y0], [X1, Y0], [X1, Y1], [X0, Y1]].map((p) => ground(...p))) + 0.6; faces.push(quad([X0, Y0, z], [X1, Y0, z], [X1, Y1, z], [X0, Y1, z], '#5a8ab0', 'worldmap:water')); }
+  }
   // THE BORDERS between zones, broken at their gates; A POST either side of every gate
   const gates = V.gates.map((g) => g.cross);
   const nearGate = (x, y) => gates.some((p) => Math.hypot(p[0] - x, p[1] - y) < MODEL.gap / 2);
@@ -91,6 +110,10 @@ export function worldmapModel(level, { lift = MODEL.lift, title = null } = {}) {
   const MARK = { pack: '#b04a3a', boss: '#7a2030', 'hero-tree': '#2f6a3a' };
   for (const it of V.pieces) { const x = (it.tile[1] + 0.5) * T + T * 0.22, y = -(it.tile[0] + 0.5) * T - T * 0.22; faces.push(...box(x, y, ground(x, y), 3, 3, it.kind === 'hero-tree' ? 9 : 4, MARK[it.kind] ?? '#444', 'worldmap:piece')); }
   for (const Z of V.zones) faces.push(...box(Z.spawn[0], Z.spawn[1], ground(Z.spawn[0], Z.spawn[1]), 2.2, 2.2, 2.2, '#f2c14e', 'worldmap:spawn'));
+  // THE MARKS: a coloured post each, a cap on it, told on hover
+  const MARKC = { encounter: '#b04a3a', loot: '#c8962a', landmark: '#3a6aa8', secret: '#7a4a9a', rest: '#3a8a5a', hazard: '#d0702a', npc: '#2a8a8a' };
+  const markAt = (m) => { const same = V.marks.filter((o) => o.tile[0] === m.tile[0] && o.tile[1] === m.tile[1]), k = same.indexOf(m); return [(m.tile[1] + 0.5) * T + (k - (same.length - 1) / 2) * 6, -(m.tile[0] + 0.5) * T + 3]; };
+  for (const m of V.marks) { const [x, y] = markAt(m), z = ground(x, y); faces.push(...box(x, y, z, 1.4, 1.4, 7, MARKC[m.kind], 'worldmap:mark'), ...box(x, y, z + 7, 3, 3, 2, MARKC[m.kind], 'worldmap:mark')); }
   // THE CAMERAS: the whole from the south, a little east; each zone from its south, nearer
   const top = Math.max(...faces.map((f) => Math.max(...f.corners.map((c) => c[2])))), span = Math.max(W, H);
   const view = (name, cx, cy, s) => ({ name, worldFraming: { cameraPosition: [r3(cx + s * 0.3), r3(cy - s * 1.35), r3(top + s * 1.2)], lookAt: [r3(cx), r3(cy), r3(lo)], horizontalFov: 50 } });
@@ -98,6 +121,8 @@ export function worldmapModel(level, { lift = MODEL.lift, title = null } = {}) {
   // THE NAMES, over each zone's middle
   const chrome = { bg: 'rgba(243,238,226,.92)', color: '#2b2a26', border: '1px solid #2b2a26', radius: '4px', shadow: 'none', glow: 'none', font: 'Georgia, serif', fontSize: 13, fontWeight: 600, padding: '3px 7px' };
   const signs = V.zones.map((Z) => { const cx = (Z.box[0] + Z.box[2]) / 2, cy = (Z.box[1] + Z.box[3]) / 2; return { id: `zone-${Z.id}`, variant: 'popup', anchor: { kind: 'world', world: [r3(cx), r3(cy), r3(ground(cx, cy) + 18)] }, text: Z.name, body: [`${Z.name} · ${Z.role}${Z.holdsGoal ? ' · the goal' : ''}`], chrome }; });
+  const tip = { ...chrome, fontSize: 12, fontWeight: 500 };
+  for (const m of V.marks) { const [x, y] = markAt(m); signs.push({ id: `mark-${m.segment}-${m.n}`, variant: 'tooltip', anchor: { kind: 'world', world: [r3(x), r3(y), r3(ground(x, y) + 9.5)] }, text: `${m.kind}: ${m.say}`, body: [], chrome: tip }); }
   return { faces, cameras, signs, title: V.title };
 }
 

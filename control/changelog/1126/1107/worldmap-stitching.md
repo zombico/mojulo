@@ -36,3 +36,20 @@
   at its gates, the paths, the places as blocks, a post either side of every gate, the pieces, where each page sets out),
   orbited on its own page with a bookmark over the whole and one over each zone, each zone named. The test bed writes it
   as `model.html`, linked from the miniature's world view.
+- **The map sketch: a level decided in miniature before it is built.** `level/map-sketch.js` writes a planned map's
+  CONCEPT (its pitch and its journey, beat by beat: arrival, traverse, encounter, find, secret, climb, climax…, each on a
+  segment) and, a segment at a time, its SKETCH: each tile's ground (forest, grove, meadow, rocks, cliff, water, scrub),
+  its height in steps over its region's rise, and its marks (an encounter and who, loot and what, a landmark, a secret, a
+  rest, a hazard, someone met), each segment a draft until the creator approves it. Laws advise: the journey covers the
+  walk and follows it, a path climbs a step at a time, a gate's two sides stand within a step, no path on water or a
+  cliff. Each segment's SUBTASK is its brief (`segmentBriefs`): its beats, its fixed paths and places, its gates and the
+  ground across each in metres, what to decide and its laws. Not an RPG's: any action quest's map. A gameworld's zoned
+  glyph level carries it as `glyphs.sketch`; the build does not read it yet.
+- **The miniature reads the sketch.** The world view numbers the journey over the zones and says each zone's status
+  (approved, a draft, not yet planned), lists the journey and the sketch's laws; a zone shows its ground drawn (trees,
+  boulders, a cliff's hatching, water, meadow and scrub), its heights, its marks with what each is, its notes and its
+  brief; the land is shaded with the sketched heights. The model lays the same in greybox: trees, boulders, a cliff's
+  slabs, water, the ground's tints, and a coloured post a mark, told on hover. The test bed writes the briefs
+  (`briefs/<segment>.md`), writes the sample out to sketch on (`--save-world`) and approves a segment in a world's file
+  (`--approve <segment>`). The sample is a quest to an old keep: the town approved, the fields and the keep drafts, the
+  woods not yet planned (its laws say the woods' east gate must rise to meet the keep's).

@@ -181,6 +181,7 @@ import { readGeotown } from '../geotown/read.js';
 export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 import { readBuildingParked } from '../vehicle-registry/parked.js';
 import { readGrid } from '../level/grid.js';
+import { readSketch } from '../level/map-sketch.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -243,7 +244,9 @@ export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', '
 export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) => g[k] !== undefined).map((k) => [k, g[k]]));
 // (`zoned`: a planned map built a segment a page, each segment a zone the player crosses into at the plan's gates:
 // level/zones.js, the world map of linked maps)
-const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron'];
+// (`sketch`: the planned map decided in miniature before it is built, level/map-sketch.js: its concept, its segments'
+// ground, heights and marks; read by the miniature, not yet by the build)
+const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -585,6 +588,9 @@ export function readGameworld(W) {
       if (!isObj(L.glyphs)) throw new Error(`gameworld: ${at}.glyphs is { rows, key?, regions?, tile?, kit?, … } (a level written as a glyph grid: level/grid.js)`);
       for (const k of Object.keys(L.glyphs)) if (!GLYPHS_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.glyphs.${k} is not a glyph map's setting (settings: ${GLYPHS_LEVEL_KEYS.join(', ')})`);
       try { readGrid(gridOfGlyphs(L.glyphs), 'glyphs'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
+      if (L.glyphs.sketch !== undefined) {
+        try { readSketch(L.glyphs.sketch, readGrid(gridOfGlyphs(L.glyphs), 'glyphs').plan, 'glyphs.sketch'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
+      }
       if (L.glyphs.zoned !== undefined) {
         if (L.glyphs.zoned !== true) throw new Error(`gameworld: ${at}.glyphs.zoned is true (each segment of its plan its own page, a zone crossed into at the plan's gates), or left out`);
         if (L.glyphs.plan === undefined) throw new Error(`gameworld: ${at}.glyphs.zoned builds a planned map a segment a page: write its plan (glyphs.plan)`);
