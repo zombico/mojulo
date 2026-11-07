@@ -9,6 +9,7 @@
  *       size: 3,                        // a segment is size × size tiles (SEGMENT_SIZE)
  *       rows: ['A B', '. C'],           // the segments' layout, north row first ('.' no segment: open land)
  *       route: ['A', 'B', 'C'],         // the walk, segment by segment: the first sets out, the last holds the goal
+ *       joins?: [['A', 'C'], …],        // more ways between neighbours, off the walk (a world map's side ways, its loops)
  *       key?: { <S>: { name?, role?, goal?, rise?, …a region's words } },
  *       props?: { <piece id>: false | { tile } },   // pins on the map's pieces (level/map-items.js)
  *     },
@@ -16,7 +17,7 @@
  *   }
  *
  * THE GATES: between two segments the route walks in turn, one gate each side of their shared border, at the middle tile
- * of it (MID: an even size its lower middle). THE DEFAULT FILL: a path from its entry gate to its middle and on to its
+ * of it (MID: an even size its lower middle); a JOIN lays one more between two neighbours the walk does not step between. THE DEFAULT FILL: a path from its entry gate to its middle and on to its
  * exit gate (an I, or two arms meeting in an L), the first segment's from an end at its middle, the last's to its goal
  * place at its middle (the plan's `key.<S>.goal`); open land round it. A SEGMENT'S LAW: its rows size × size; a path at
  * each of its gates, and no other path on a side a neighbour segment lies beyond (it would join the neighbour where the
@@ -24,9 +25,10 @@
  * reached from its gates; a climax the plan names a goal in holds a place whose key says `goal: true`.
  *
  * THE ROLES (the scene composer's, era/compose-roles.js): the route's first segment the arrival, its last the climax, the
- * rest passages; `key.<S>.role` pins one.
+ * rest passages, a segment off the walk (reached by a join) a pocket; `key.<S>.role` pins one.
  *
- *   readPlan(plan, at?)                 → the plan read: { size, layout, route, at: { S: [row, col] }, gates, sides, roles, key }
+ *   readPlan(plan, at?)                 → the plan read: { size, layout, route, at: { S: [row, col] }, gates, sides, ways, roles, key }
+ *                                         (`sides[S]` its walk's way in and out; `ways[S]` every gate of it: { <side>: <neighbour> })
  *   fillSegment(P, S)                   → the default fill of segment S: { rows, key }
  *   readSegment(P, S, seg, at?)         → a written segment read and held to its law: { rows, key }
  *   stitchPlan(g, { at, regionWords })  → { grid: { tile?, rows, key, regions }, plan: its readout } (a plain grid)
@@ -37,7 +39,7 @@ import { ROLE_IDS } from '../era/compose-roles.js';
 export const SEGMENT_SIZE = Object.freeze({ lo: 3, hi: 8 });
 const SIDES = Object.freeze({ n: [-1, 0], e: [0, 1], s: [1, 0], w: [0, -1] });
 const OPP = Object.freeze({ n: 's', s: 'n', e: 'w', w: 'e' });
-const PLAN_KEYS = ['size', 'rows', 'route', 'key', 'props'];
+const PLAN_KEYS = ['size', 'rows', 'route', 'joins', 'key', 'props'];
 const SEGMENT_KEYS = ['rows', 'key'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const strip = (r) => (typeof r === 'string' ? r.replace(/\s+/g, '') : '');
@@ -65,10 +67,8 @@ export function readPlan(plan, at = 'grid.plan') {
   if (!Array.isArray(route) || route.length < 2) throw new Error(`level: ${at}.route is the walk through the segments, two or more, the first where it sets out and the last where its goal is`);
   for (const S of route) if (!where[S]) throw new Error(`level: ${at}.route: '${S}' is not a segment of the layout (segments: ${Object.keys(where).join(', ')})`);
   if (new Set(route).size !== route.length) throw new Error(`level: ${at}.route walks a segment twice (${route.join(' → ')})`);
-  const lost = Object.keys(where).filter((S) => !route.includes(S));
-  if (lost.length) throw new Error(`level: ${at}.route never reaches ${lost.map((S) => `'${S}'`).join(', ')} (every segment is on the walk)`);
   // THE GATES: each step of the route between two neighbours, the side of each it leaves and enters by
-  const gates = [], sides = Object.fromEntries(route.map((S) => [S, {}]));
+  const gates = [], sides = Object.fromEntries(Object.keys(where).map((S) => [S, {}]));
   for (let i = 0; i + 1 < route.length; i++) {
     const A = route[i], B = route[i + 1], [ra, ca] = where[A], [rb, cb] = where[B];
     const side = Object.keys(SIDES).find((s) => ra + SIDES[s][0] === rb && ca + SIDES[s][1] === cb);
@@ -76,16 +76,41 @@ export function readPlan(plan, at = 'grid.plan') {
     gates.push({ from: A, to: B, side });
     sides[A].out = side; sides[B].in = OPP[side];
   }
+  // THE JOINS: more ways between neighbours, off the walk (each pair once, never a step the walk already takes)
+  const neighbourSide = (A, B) => Object.keys(SIDES).find((s) => where[A][0] + SIDES[s][0] === where[B][0] && where[A][1] + SIDES[s][1] === where[B][1]);
+  const joins = plan.joins === undefined ? [] : plan.joins;
+  if (!Array.isArray(joins)) throw new Error(`level: ${at}.joins is a list of pairs of neighbouring segments, [['A', 'C'], …]: ways off the walk`);
+  const paired = new Set(gates.map((g) => [g.from, g.to].sort().join('|')));
+  joins.forEach((j, i) => {
+    if (!Array.isArray(j) || j.length !== 2 || !j.every((S) => typeof S === 'string')) throw new Error(`level: ${at}.joins[${i}] is a pair of segments, ['A', 'C']`);
+    const [A, B] = j;
+    for (const S of j) if (!where[S]) throw new Error(`level: ${at}.joins[${i}]: '${S}' is not a segment of the layout (segments: ${Object.keys(where).join(', ')})`);
+    const side = neighbourSide(A, B);
+    if (!side) throw new Error(`level: ${at}.joins[${i}] joins '${A}' and '${B}', which do not share a side (a join is between neighbours north, east, south or west)`);
+    const k = [A, B].sort().join('|');
+    if (paired.has(k)) throw new Error(`level: ${at}.joins[${i}]: '${A}' and '${B}' are already joined (by the route or an earlier join)`);
+    paired.add(k);
+    gates.push({ from: A, to: B, side, join: true });
+  });
+  // (every gate of each segment, by its side: the walk's and the joins')
+  const ways = Object.fromEntries(Object.keys(where).map((S) => [S, {}]));
+  for (const g of gates) { ways[g.from][g.side] = g.to; ways[g.to][OPP[g.side]] = g.from; }
+  // (every segment reached: on the walk, or off it by joins)
+  const reached = new Set(route);
+  for (let moved = true; moved;) { moved = false; for (const S of reached) for (const T of Object.values(ways[S])) if (!reached.has(T)) { reached.add(T); moved = true; } }
+  const lost = Object.keys(where).filter((S) => !reached.has(S));
+  if (lost.length) throw new Error(`level: ${at}.route never reaches ${lost.map((S) => `'${S}'`).join(', ')} (every segment is on the walk, or joined to it: joins)`);
   const key = plan.key === undefined ? {} : plan.key;
   if (!isObj(key)) throw new Error(`level: ${at}.key is { <segment>: { name?, role?, goal?, rise?, …a region's words } }`);
   for (const S of Object.keys(key)) if (!where[S]) throw new Error(`level: ${at}.key.${S}: no such segment (segments: ${Object.keys(where).join(', ')})`);
   // THE ROLES: the first the arrival, the last the climax, the rest passages; a segment's own pinned
+  // (a segment off the walk, reached by a join, a pocket)
   const roles = {};
-  route.forEach((S, i) => {
-    const pin = key[S]?.role;
+  for (const S of [...route, ...Object.keys(where).filter((x) => !route.includes(x))]) {
+    const pin = key[S]?.role, i = route.indexOf(S);
     if (pin !== undefined && !ROLE_IDS.includes(pin)) throw new Error(`level: ${at}.key.${S}.role is ${ROLE_IDS.join(', ')}`);
-    roles[S] = pin ?? (i === 0 ? 'arrival' : i === route.length - 1 ? 'climax' : 'passage');
-  });
+    roles[S] = pin ?? (i < 0 ? 'pocket' : i === 0 ? 'arrival' : i === route.length - 1 ? 'climax' : 'passage');
+  }
   // THE PINS on the map's pieces (level/map-items.js): a piece's id, false (none there) or a tile of its segment's own
   const props = plan.props;
   if (props !== undefined) {
@@ -95,7 +120,7 @@ export function readPlan(plan, at = 'grid.plan') {
       if (!ok) throw new Error(`level: ${at}.props.${pid} is false (none there) or { tile: [row, col] }, a tile of its segment (0 to ${n - 1})`);
     }
   }
-  return { size: n, layout, rows: layout.length, cols, route, at: where, gates, sides, roles, key, ...(props ? { props } : {}) };
+  return { size: n, layout, rows: layout.length, cols, route, at: where, gates, sides, ways, roles, key, ...(props ? { props } : {}) };
 }
 
 // a segment's rows as a grid of glyphs, and back
@@ -107,8 +132,10 @@ export function fillSegment(P, S) {
   const n = P.size, G = blank(n), m = [MID(n), MID(n)], { in: inS, out: outS } = P.sides[S], key = {};
   if (inS) lay(G, gateTile(n, inS), m);
   if (outS) lay(G, m, gateTile(n, outS));
+  // (a join's gate: its own arm from the middle; a segment off the walk entirely lays its arms the same way)
+  for (const side of Object.keys(P.ways?.[S] ?? {})) if (side !== inS && side !== outS) lay(G, m, gateTile(n, side));
   // (the last: its goal at its middle, the way in ending at its door; its own words the plan's)
-  if (!outS) {
+  if (!outS && S === P.route.at(-1)) {
     const goal = P.key[S]?.goal;
     if (goal !== undefined) {
       if (!isObj(goal) || typeof goal.use !== 'string') throw new Error(`level: grid.plan.key.${S}.goal is { use, …the building's words }: the place the walk ends at`);
@@ -136,7 +163,7 @@ export function readSegment(P, S, seg, at = `grid.segments.${S}`) {
   // segment's own
   const NAME = { n: 'north', e: 'east', s: 'south', w: 'west' }, [R0, C0] = P.at[S];
   const facing = (s) => /^[A-Za-z]$/.test(P.layout[R0 + SIDES[s][0]]?.[C0 + SIDES[s][1]] ?? '.');
-  const gateAt = Object.fromEntries(Object.values(P.sides[S]).map((side) => [gateTile(n, side).join(','), side]));
+  const gateAt = Object.fromEntries(Object.keys(P.ways[S]).map((side) => [gateTile(n, side).join(','), side]));
   const onSide = (r, c) => Object.keys(SIDES).filter((s) => (s === 'n' && r === 0) || (s === 's' && r === n - 1) || (s === 'w' && c === 0) || (s === 'e' && c === n - 1));
   for (const [k, side] of Object.entries(gateAt)) { const [r, c] = k.split(',').map(Number); if (rows[r][c] !== '#') throw new Error(`level: ${at}: its gate on the ${NAME[side]} side (row ${r + 1}, column ${c + 1}) is a path ('#'), where the plan's way crosses into its neighbour`); }
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
@@ -154,7 +181,7 @@ export function readSegment(P, S, seg, at = `grid.segments.${S}`) {
   }
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (rows[r][c] === '#' && !seen.has(`${r},${c}`)) throw new Error(`level: ${at}: the path at row ${r + 1}, column ${c + 1} is not reached from its gates (a segment's ways all lead to the plan's)`);
   // (where the plan names the walk's goal here, the segment holds it)
-  if (!P.sides[S].out && P.key[S]?.goal !== undefined && !Object.values(key).some((v) => isObj(v) && v.goal)) throw new Error(`level: ${at}: the route ends here at the plan's goal, and no place in it is that goal (a place whose key says goal: true)`);
+  if (S === P.route.at(-1) && P.key[S]?.goal !== undefined && !Object.values(key).some((v) => isObj(v) && v.goal)) throw new Error(`level: ${at}: the route ends here at the plan's goal, and no place in it is that goal (a place whose key says goal: true)`);
   return { rows: rows.map((r) => [...r].join(' ')), key };
 }
 
@@ -199,9 +226,9 @@ export function stitchPlan(g, { at = 'grid', regionWords = [] } = {}) {
   const grid = { ...(g.tile !== undefined ? { tile: g.tile } : {}), rows: rows.map((r) => r.join(' ')), key, regions: { rows: regions.map((r) => r.join(' ')), key: regionKey } };
   const readout = {
     size: n, layout: P.layout, route: P.route, roles: P.roles, ...(P.props ? { props: P.props } : {}),
-    gates: P.gates.map(({ from, to, side }) => {
+    gates: P.gates.map(({ from, to, side, join }) => {
       const a = gateTile(n, side), b = gateTile(n, OPP[side]);
-      return { from, to, side, tiles: [[P.at[from][0] * n + a[0], P.at[from][1] * n + a[1]], [P.at[to][0] * n + b[0], P.at[to][1] * n + b[1]]] };
+      return { from, to, side, ...(join ? { join } : {}), tiles: [[P.at[from][0] * n + a[0], P.at[from][1] * n + a[1]], [P.at[to][0] * n + b[0], P.at[to][1] * n + b[1]]] };
     }),
     segments: Object.fromEntries(Object.keys(P.at).map((S) => [S, { at: [P.at[S][0] * n, P.at[S][1] * n], written: written[S], role: P.roles[S] }])),
   };

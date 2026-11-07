@@ -34,6 +34,7 @@ import { readGrid, tileCentre, REGION_WORDS, placeDoors, mapStart } from './grid
 import { tilePath } from '../era/out-tile.js';
 import { mapItems } from './map-items.js';
 import { frameOf, placed, ringTheMap, pageOf } from './map-scene.js';
+import { readZone, zoneOf, ZONE } from './zones.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const DOOR = placeDoors;
@@ -72,14 +73,15 @@ function tileGround(faces, value = (f, k) => f.corners[k][2]) {
   };
 }
 // the laws of the map as built (see the header)
-function mapLaws(G, cells, faces, colliders) {
+function mapLaws(G, cells, faces, colliders, Z = null) {
   const T = G.tile, id = (r, c) => `${r},${c}`, laws = [];
-  laws.push({ law: 'one-page', ok: cells.length === G.rows * G.cols, value: `${cells.length} tiles on one page` });
+  // (a zone's page holds its own tiles and its apron: zones.js)
+  laws.push({ law: 'one-page', ok: cells.length === (Z ? Z.built.size : G.rows * G.cols), value: Z ? `${cells.length} tiles on zone ${Z.id}'s page (${Z.own.size} its own, the rest its apron)` : `${cells.length} tiles on one page` });
   // SEAMS: along each shared edge, a metre inside either tile, the heights agree
   const at = tileGround(faces), shade = tileGround(faces, shadeOf);
   let worst = 0, edges = 0, where = '', dark = 0, darkWhere = '', shades = 0, stepped = 0;
   for (const C of cells) for (const [dr, dc] of [[0, 1], [1, 0]]) {
-    const r2 = C.r + dr, c2 = C.c + dc; if (r2 >= G.rows || c2 >= G.cols) continue;
+    const r2 = C.r + dr, c2 = C.c + dc; if (r2 >= G.rows || c2 >= G.cols || (Z && !Z.built.has(id(r2, c2)))) continue;
     edges++;
     for (let t = 2; t < T - 1; t += 4) {
       // (the shared edge: east of C for dc, south of C for dr; each tile's own corners ON that line read at one point)
@@ -101,8 +103,10 @@ function mapLaws(G, cells, faces, colliders) {
   // PATHS CLEAR: each path's line every metre, at a walker's height over the ground, inside no collider
   const inside = (p) => colliders.some((b) => Array.isArray(b.min) && p[0] >= b.min[0] && p[0] <= b.max[0] && p[1] >= b.min[1] && p[1] <= b.max[1] && p[2] >= b.min[2] && p[2] <= b.max[2]);
   const blocked = [];
+  // (a zone's own tiles: its apron is never walked, its far wall across the neighbour's paths)
+  const walked = (C) => !Z || Z.own.has(id(C.r, C.c));
   for (const C of cells) {
-    if (C.kind !== 'path') continue;
+    if (C.kind !== 'path' || !walked(C)) continue;
     const o = [C.c * T, -(C.r + 1) * T];
     for (const P of tilePath(T, C.open)) for (let i = 0; i < P.length; i++) {
       const x = o[0] + P[i][0], y = o[1] + P[i][1], z = at(id(C.r, C.c), x, y);
@@ -113,7 +117,7 @@ function mapLaws(G, cells, faces, colliders) {
   // DOORS CLEAR: a place's door middle (its side's middle, a metre in) at a walker's height
   const doorsBlocked = [];
   for (const C of cells) {
-    if (C.kind !== 'place' || !C.open?.length) continue;
+    if (C.kind !== 'place' || !C.open?.length || !walked(C)) continue;
     const [cx, cy] = tileCentre(G, C.r, C.c), s = C.open[0], d = { n: [0, 1], s: [0, -1], e: [1, 0], w: [-1, 0] }[s], x = cx + d[0] * (T / 2 - 1), y = cy + d[1] * (T / 2 - 1);
     const z = at(id(C.r, C.c), x, y);
     if (z !== null && inside([x, y, z + 1])) doorsBlocked.push(`${C.glyph} at row ${C.r + 1} column ${C.c + 1}`);
@@ -138,6 +142,12 @@ function mapLaws(G, cells, faces, colliders) {
     const items = mapItems(G), want = Object.entries(G.plan.roles).filter(([, r]) => r === 'passage' || r === 'climax');
     const bare = want.filter(([S, r]) => !items.some((it) => it.segment === S && it.kind === (r === 'climax' ? 'boss' : 'pack')) && G.plan.props?.[`${S}/${r === 'climax' ? 'focus/boss' : 'way/pack'}`] !== false).map(([S]) => S);
     laws.push({ law: 'pieces', ok: !bare.length, value: bare.length ? `no piece placed in ${bare.join(', ')} (the way does not cross it)` : `${items.length} pieces placed: ${items.map((it) => it.id).join(', ')}` });
+  }
+  // THE WAYS (a zone, zones.js): every gate of it a path on its border, the tile across it a path on the neighbour's,
+  // and its border's walls open there
+  if (Z) {
+    const bad = Z.ways.filter((w) => G.at(...w.tile)?.kind !== 'path' || G.at(...w.across)?.kind !== 'path' || inside([w.cross[0], w.cross[1], w.exit[2] + 1]));
+    laws.push({ law: 'zone-ways', ok: !bad.length, value: bad.length ? `no way through at ${bad.map((w) => `${w.side} to ${w.to}`).join(', ')}` : `${Z.ways.length} way${Z.ways.length === 1 ? '' : 's'} out: ${Z.ways.map((w) => `${w.side} to ${w.to}`).join(', ') || 'none'}` });
   }
   return laws;
 }
@@ -198,7 +208,7 @@ function oneGrass(list) {
 // (each kind's colours its first tile's); the birds one flock, over the whole map. Its herds (`faunaUnits`) every tile's,
 // each unit named for its tile too, so no two tiles' herds share a name.
 const FIELD_LISTS = Object.freeze({ gnats: 'clouds', fireflies: 'flies', butterflies: 'homes', ducks: 'ducks' });
-function oneFauna(list, W, H) {
+function oneFauna(list, W, H, box = null) {
   let field = null;
   for (const { f, at } of list) {
     if (!f) continue;
@@ -209,7 +219,7 @@ function oneFauna(list, W, H) {
       const moved = f[kind][key].map((p) => p.map((v, i) => (i === 0 ? r5(v + at[0]) : i === 1 || (kind === 'ducks' && i === 3) ? r5(v + at[1]) : v)));
       field[kind] = field[kind] ? { ...field[kind], [key]: [...field[kind][key], ...moved] } : { ...f[kind], [key]: moved };
     }
-    if (f.birds && !field.birds) field.birds = { ...f.birds, centre: [r5(W / 2), r5(-H / 2), f.birds.centre[2]], span: r5(Math.hypot(W, H) * 0.75 + 40) };
+    if (f.birds && !field.birds) field.birds = { ...f.birds, centre: box ? [r5((box[0] + box[2]) / 2), r5((box[1] + box[3]) / 2), f.birds.centre[2]] : [r5(W / 2), r5(-H / 2), f.birds.centre[2]], span: r5(Math.hypot(W, H) * 0.75 + 40) };
   }
   return field && Object.keys(field).length > 1 ? field : null;
 }
@@ -257,15 +267,41 @@ function edgeWalls(W, H, faces) {
     { min: [0, 0, z0], max: [W, t, z1], of: 'map:edge:n' }, { min: [0, -H - t, z0], max: [W, -H, z1], of: 'map:edge:s' },
   ];
 }
+// A ZONE'S WALLS (zones.js): its square's sides, open at each of its gates (ZONE.gap wide, the path's crossing in its
+// middle), and the apron's far sides shut whole
+function zoneWalls(Z, outer, faces) {
+  let lo = Infinity, hi = -Infinity; for (const f of faces) for (const c of f.corners) { if (c[2] < lo) lo = c[2]; if (c[2] > hi) hi = c[2]; }
+  const z0 = r5(lo - 2), z1 = r5(hi + RIM.wall), t = 0.5, g = ZONE.gap / 2, out = [];
+  const [x0, y0, x1, y1] = Z.box;
+  // (a side's run, from a to b along its axis, broken at its gates)
+  const run = (side, a, b, fixed, along) => {
+    const cuts = Z.ways.filter((w) => w.side === side).map((w) => w.cross[along]).sort((p, q) => p - q);
+    let from = a;
+    for (const c of [...cuts, null]) {
+      const to = c === null ? b : c - g;
+      if (to - from > 0.01) out.push(along === 0 ? { min: [r5(from), r5(fixed[0]), z0], max: [r5(to), r5(fixed[1]), z1], of: `zone:edge:${side}` } : { min: [r5(fixed[0]), r5(from), z0], max: [r5(fixed[1]), r5(to), z1], of: `zone:edge:${side}` });
+      if (c !== null) from = c + g;
+    }
+  };
+  run('n', x0, x1, [y1, y1 + t], 0); run('s', x0, x1, [y0 - t, y0], 0);
+  run('w', y0, y1, [x0 - t, x0], 1); run('e', y0, y1, [x1, x1 + t], 1);
+  const [X0, Y0, X1, Y1] = outer;
+  if (X0 < x0 || X1 > x1 || Y0 < y0 || Y1 > y1) out.push(
+    { min: [X0 - t, Y0, z0], max: [X0, Y1, z1], of: 'zone:apron:w' }, { min: [X1, Y0, z0], max: [X1 + t, Y1, z1], of: 'zone:apron:e' },
+    { min: [X0, Y1, z0], max: [X1, Y1 + t, z1], of: 'zone:apron:n' }, { min: [X0, Y0 - t, z0], max: [X1, Y0, z1], of: 'zone:apron:s' },
+  );
+  return out;
+}
 // the rim: rings of land out from the border, each `step` metres, rising RIM.rise over RIM.deep (eased), from the land's
 // own height at the border, in the land's colour
-function rimFaces(W, H, faces, firstPayload) {
+function rimFaces(W, H, faces, firstPayload, box = [0, -H, W, 0]) {
   const at = borderHeight(faces), fill = (firstPayload.faces || []).find((f) => f.group && /:ground$/.test(f.group))?.fill ?? '#7aa04a';
   // the border's points, every `step` metres round it (clockwise from the north-west corner)
   const ring = [];
   const side = (a, b) => { const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / RIM.step)); for (let k = 0; k < n; k++) ring.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]); };
-  side([0, 0], [W, 0]); side([W, 0], [W, -H]); side([W, -H], [0, -H]); side([0, -H], [0, 0]);
-  const cx = W / 2, cy = -H / 2, n = ring.length, rings = Math.ceil(RIM.deep / RIM.step), base = ring.map(([x, y]) => at(x, y));
+  const [x0, y0, x1, y1] = box;
+  side([x0, y1], [x1, y1]); side([x1, y1], [x1, y0]); side([x1, y0], [x0, y0]); side([x0, y0], [x0, y1]);
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, n = ring.length, rings = Math.ceil(RIM.deep / RIM.step), base = ring.map(([x, y]) => at(x, y));
   // (out from the border along the way from the map's centre, a corner's outward way its diagonal)
   const outAt = (k, d) => { const [x, y] = ring[k], ux = x - cx, uy = y - cy, l = Math.hypot(ux, uy) || 1; return [x + (ux / l) * d, y + (uy / l) * d]; };
   const z = (k, i) => { const t = i / rings; return base[k] - 0.15 + RIM.rise * t * t * (3 - 2 * t); };
@@ -278,6 +314,8 @@ function rimFaces(W, H, faces, firstPayload) {
   return out;
 }
 
+// a zone as the page reads it out (zones.js): its segment, its square, its ways
+const zoneReadout = (Z) => ({ id: Z.id, at: Z.at, size: Z.n, apron: Z.apron, box: Z.box.map(r5), ways: Z.ways });
 // the regions as the game reads them: each its name, its rise and its tiles (row, column)
 function regionsOf(G) {
   return Object.fromEntries(Object.entries(G.regions).map(([k, v]) => [k, { ...(v.name ? { name: v.name } : {}), rise: v.rise ?? 0, tiles: G.cells.filter((x) => x.region === k).map((x) => [x.r, x.c]) }]));
@@ -301,6 +339,11 @@ export async function assembleGridScene(m, ctx = {}, { buildStage, tileCasters }
  *  isekaiTileCasters (or none). What reads a level's ends at once (gameworld/levels.js) builds it so. */
 export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = false } = {}) {
   const lv = m.level, G = readGrid(lv.grid, 'level.grid'), T = G.tile, seed = lv.seed ?? 1;
+  // A ZONE (zones.js): one segment of a planned map built as its own page, its apron round it; absent, the whole map
+  const zw = readZone(lv), Z = zw ? zoneOf(G, zw.id, { apron: zw.apron, seed }) : null;
+  const builds = (cell) => !Z || Z.built.has(`${cell.r},${cell.c}`);
+  // (the tiles whose trees may cast on a built one: a tile further out)
+  const casts = (cell) => !Z || [-1, 0, 1].some((dr) => [-1, 0, 1].some((dc) => Z.built.has(`${cell.r + dr},${cell.c + dc}`)));
   // (snow lies on a polygon land, a stage's `shading`, which no tile of a map is built with yet)
   for (const [who, v] of [['the level', lv.snow], ...Object.entries(G.regions ?? {}).map(([k, r]) => [`region '${k}'`, r.snow])]) {
     if (v !== undefined && v !== false) throw new Error(`map: ${who} says snow, which lies on a polygon land (a stage's \`shading\`); a glyph map's tiles are not built on one yet`);
@@ -312,7 +355,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   // a tile's square on the level's frame: its south-west corner (north up: columns east, rows south)
   const squareOf = (cell) => [cell.c * T, -(cell.r + 1) * T];
   // (one horizon a map, the first tile's, moved to ring it; one hero tree a region)
-  const heroes = heroTiles(G), ringed = G.cells[0];
+  const heroes = heroTiles(G), ringed = Z ? G.cells.find(builds) : G.cells[0];
   const manifestOf = (cell) => {
     const at = squareOf(cell), open = cell.kind === 'path' ? cell.open : [];
     // (a place's building, its door toward the path that reaches it)
@@ -334,7 +377,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   const castersOf = tileCasters;
   const standing = [], stones = [];
   if (castersOf && /^isekai/.test(lv.kit ?? 'isekai-meadow')) for (const cell of G.cells) {
-    if (cell.kind === 'place') continue;
+    if (cell.kind === 'place' || !casts(cell)) continue;
     const at = squareOf(cell), C = castersOf(manifestOf(cell)), own = `${cell.r},${cell.c}`;
     for (const t of C.trees) standing.push({ ...t, x: t.x + at[0], y: t.y + at[1], _cell: own });
     for (const k of C.rocks) stones.push({ it: k, seed: C.seed, at, _cell: own });
@@ -342,7 +385,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   const within = (x, y, at, R) => x > at[0] - R && x < at[0] + T + R && y > at[1] - R && y < at[1] + T + R;
   // (the PLACES' tiles built first: a building is planned with its tile's land, so what grows round it is known only
   // once built; their casting faces, on the level's frame, are handed to the tiles round them)
-  const order = castersOf ? [...G.cells.filter((x) => x.kind === 'place'), ...G.cells.filter((x) => x.kind !== 'place')] : G.cells;
+  const order = (castersOf ? [...G.cells.filter((x) => x.kind === 'place'), ...G.cells.filter((x) => x.kind !== 'place')] : G.cells).filter(builds);
   const payloads = new Map(), handed = [];
   for (const cell of order) {
     const at = squareOf(cell), manifest = manifestOf(cell), own = `${cell.r},${cell.c}`;
@@ -365,6 +408,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   }
   if (dry) return null;
   for (const cell of G.cells) {
+    if (!builds(cell)) continue;
     const at = squareOf(cell), payload = payloads.get(`${cell.r},${cell.c}`), F = frameOf({ at, heading: Math.PI / 2 }, 0);
     const P = placed(payload, F, `${cell.r},${cell.c}`, { band: [0, T, T], backdrop: !first, outdoorOnly: true });
     // (each ground face remembers its tile, for the seams' law; dropped before the page is emitted)
@@ -382,18 +426,28 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   // the map's spawn: where a walk of it starts (grid.js mapStart: the path end farthest from its goal, else its first),
   // at its path's middle
   const start = mapStart(G);
-  const sx = (start.c + 0.5) * T, sy = -(start.r + 0.5) * T;
+  const [sx, sy] = Z?.spawn ? Z.spawn.at : [(start.c + 0.5) * T, -(start.r + 0.5) * T];
   const R = first.payload, page = pageOf(R, [...payloads.values()]);
   // (the ground's height at the spawn: the nearest ground corner's)
   let gz = 0, gd = Infinity;
   for (const f of out.faces) if (f.group && /ground|trail/.test(f.group)) for (const c of f.corners) { const d = Math.hypot(c[0] - sx, c[1] - sy); if (d < gd) { gd = d; gz = c[2]; } }
   // (the first tile's horizon moved to ring the whole map)
   const W = G.cols * T, H = G.rows * T;
-  // THE EDGES: walls along the border, and a rim of hills rising beyond it from the land's height there
-  out.colliders.push(...edgeWalls(W, H, out.faces));
-  out.faces.push(...rimFaces(W, H, out.faces, first.payload));
-  ringTheMap(out.faces, { map: [[0, 0], [W, 0], [W, -H], [0, -H]] });
-  const LG = oneGrass(grass), FA = oneFauna(fauna, W, H), HD = oneHerds(fauna);
+  // THE EDGES: walls along the border, and a rim of hills rising beyond it from the land's height there (a zone's: its
+  // square's walls open at its gates, the rim round its apron)
+  let box = null;
+  if (Z) {
+    const rs = cells.map((x) => x.r), cs = cells.map((x) => x.c);
+    box = [Math.min(...cs) * T, -(Math.max(...rs) + 1) * T, (Math.max(...cs) + 1) * T, -Math.min(...rs) * T];
+    out.colliders.push(...zoneWalls(Z, box, out.faces));
+    out.faces.push(...rimFaces(box[2] - box[0], box[3] - box[1], out.faces, first.payload, box));
+    ringTheMap(out.faces, { map: [[box[0], box[3]], [box[2], box[3]], [box[2], box[1]], [box[0], box[1]]] });
+  } else {
+    out.colliders.push(...edgeWalls(W, H, out.faces));
+    out.faces.push(...rimFaces(W, H, out.faces, first.payload));
+    ringTheMap(out.faces, { map: [[0, 0], [W, 0], [W, -H], [0, -H]] });
+  }
+  const LG = oneGrass(grass), FA = Z ? oneFauna(fauna, box[2] - box[0], box[3] - box[1], box) : oneFauna(fauna, W, H), HD = oneHerds(fauna);
   return {
     ...page,
     title: ctx.title || 'mojulo map',
@@ -405,6 +459,6 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     ...(FA ? { fauna: FA } : {}),
     ...(HD ? { faunaUnits: HD } : {}),
     walk: { ...(R.walk || {}), spawn: [r5(sx), r5(sy), r5(gz + (R.walk?.minEye ?? 1.7))] },
-    map: { tile: T, rows: G.rows, cols: G.cols, cells, ...(G.regions ? { regions: regionsOf(G) } : {}), ...(G.plan ? { plan: G.plan, pieces: mapItems(G) } : {}), laws: mapLaws(G, cells, out.faces, out.colliders) },
+    map: { tile: T, rows: G.rows, cols: G.cols, cells, ...(G.regions ? { regions: regionsOf(G) } : {}), ...(G.plan ? { plan: G.plan, pieces: mapItems(G) } : {}), ...(Z ? { zone: zoneReadout(Z) } : {}), laws: mapLaws(G, cells, out.faces, out.colliders, Z) },
   };
 }

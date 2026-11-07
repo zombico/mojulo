@@ -33,6 +33,7 @@ import { rollArt, ART_KITS, ART_ITEMS } from '../era/art-direction.js';
 import { solvePalette, fingerprint as printOf } from '../color-theorist/solve.js';
 import { artPalette, natureColours } from '../color-theorist/adapters.js';
 import { layLevel } from '../level/index.js';
+import { readGrid } from '../level/grid.js';
 import { assembleStageScene, planStage, stageKit } from '../era/stage.js';
 import { ladderParams, climbSurface, LADDER, LADDER_VARIANTS } from '../playscape/objects/ladder.js';
 import { withGeocube } from '../era/geocube.js';
@@ -142,6 +143,13 @@ export function gameStages(world) {
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
     if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: levelBuildingStage(G, R, level) }); continue; }
     // a glyph-map level is one stage: the whole level one world on one page (level/grid-scene.js), walked end to end
+    // (a ZONED map, level/zones.js: a stage a segment, each its own page, its walk's first segment first and its last
+    // last, the segments off the walk after; each crossed into at the plan's gates, mapPlan)
+    if (R.glyphs?.zoned) {
+      const { zoned: _z, ...glyphs } = R.glyphs, P = readGrid(glyphs.grid, 'glyphs').plan, order = [...P.route, ...Object.keys(P.segments).filter((S) => !P.route.includes(S))];
+      order.forEach((S, index) => out.push({ level, node: S, section: 'map', index, zone: S, manifest: { kind: 'map', level: { ...glyphs, zone: S } } }));
+      continue;
+    }
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
     if (R.geotown) {
@@ -665,7 +673,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
   const ways = map ? stageWays(stage, ends, map) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
-  const keepsGoal = ways && stage.section === 'map' && !map.on.length;
+  // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
+  const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
   const placed = ways ? [...placed0.filter((m) => m.kind !== 'reach-exit' || keepsGoal), ...ways.mechanics] : placed0;
   // what the game lets break stays broken (the aftermath mechanic: the breaks kept in the world's aftermath slice)
   const after = mechanics?.destruction && mechanics.destruction !== 'none' ? [{ kind: 'aftermath', slice: AFTERMATH_SLICE }] : [];
@@ -1021,6 +1030,17 @@ export function mapPlan(G, stages, refs) {
     const ix = of(id);
     // a city's segments join each other at their own portals (cityStages), not one after another
     if (ix.length && stages[ix[0]].section === 'city') continue;
+    // a zoned map's segments join at the plan's gates (level/zones.js): each way named for its side, toward the zone
+    // across it; arrival there is keyed by that zone, one gate a pair of neighbours
+    if (ix.length && stages[ix[0]].zone !== undefined) {
+      const P = readGrid(stages[ix[0]].manifest.level.grid, 'glyphs').plan, at = (S) => ix.find((i) => stages[i].zone === S);
+      for (const g of P.gates) {
+        const a = at(g.from), b = at(g.to);
+        plan[a].on.push({ to: refs[b], zone: g.to, side: g.side, id: `gate-${g.side}` });
+        plan[b].on.push({ to: refs[a], zone: g.from, side: OPP_SIDE[g.side], id: `gate-${OPP_SIDE[g.side]}` });
+      }
+      continue;
+    }
     for (let k = 0; k + 1 < ix.length; k++) { plan[ix[k]].on.push({ to: refs[ix[k + 1]] }); plan[ix[k + 1]].back.push({ to: refs[ix[k]] }); }
   }
   for (const l of G.links) {
@@ -1035,13 +1055,16 @@ export function mapPlan(G, stages, refs) {
   }
   // the errands' legs on each level's last stage (errand.js): its trades and bounties, the giver's hand-in, the cargo
   for (const id of G.ids) { const ix = of(id); if (ix.length) plan[ix[ix.length - 1]].errand = errandLegs(G.errands, id); }
+  // (a zone's gate keeps its side's name; the rest are counted, on and back)
   for (const p of plan) {
-    p.on.forEach((w, j) => { w.id = j ? `on-${j + 1}` : 'on'; });
+    let k = 0;
+    p.on.forEach((w) => { if (w.zone === undefined) { w.id = k ? `on-${k + 1}` : 'on'; k++; } });
     p.back.forEach((w, j) => { w.id = j ? `back-${j + 1}` : 'back'; });
   }
   return plan;
 }
 
+const OPP_SIDE = Object.freeze({ n: 's', s: 'n', e: 'w', w: 'e' });
 /** A stage's ways out laid on its own ground: the first way on at the trail's exit, the first way back just behind
  * the spawn, any more at its pockets then its landmarks; a key on a beat of its own; and for each way, the point a pilot
  * coming in by it arrives at, a few metres inside (the way back's arrival is the spawn itself). */
@@ -1051,14 +1074,22 @@ function stageWays(stage, ends, plan) {
   const side = ends.beats.filter((b) => b.beat === 'pocket').concat(ends.beats.filter((b) => b.beat === 'landmark'));
   const h = ends.heading, behind = [r3(ends.spawn[0] - 2.4 * Math.cos(h)), r3(ends.spawn[1] - 2.4 * Math.sin(h)), ends.spawn[2]];
   const toward = (p, q, d) => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, t = Math.min(1, d / L); return [r3(p[0] + (q[0] - p[0]) * t), r3(p[1] + (q[1] - p[1]) * t), r3(p[2] + (q[2] - p[2]) * t + 1)]; };
+  // (a zone's gates, level/zones.js: each at its own border, never on a beat; the rest of its ways as any stage's)
+  const gated = plan.on.filter((w) => w.zone !== undefined), on = plan.on.filter((w) => w.zone === undefined);
+  plan = { ...plan, on };
   const extra = [...plan.on.slice(1), ...plan.back.slice(1)];
   if (extra.length > side.length) throw new Error(`levels: '${stage.level}/${stage.node}' has ${extra.length + 2} ways out and room for ${side.length + 2} (its exit, its start, ${side.length} pocket or landmark beat${side.length === 1 ? '' : 's'}): link fewer levels to it`);
   const spot = new Map();
   if (plan.on[0]) spot.set(plan.on[0], { at: ends.exit, arrive: toward(ends.exit, ends.spawn, 4) });
   if (plan.back[0]) spot.set(plan.back[0], { at: behind, arrive: null });
   extra.forEach((w, j) => spot.set(w, { at: side[j].at, arrive: toward(side[j].at, ends.spawn, 3) }));
+  for (const w of gated) {
+    const z = ends.zone?.ways.find((x) => x.to === w.zone && x.side === w.side);
+    if (!z) throw new Error(`levels: '${stage.level}/${stage.node}' has no gate on its ${w.side} side toward '${w.zone}' (its zone's ways: ${(ends.zone?.ways ?? []).map((x) => `${x.side} to ${x.to}`).join(', ') || 'none'})`);
+    spot.set(w, { at: z.exit, arrive: [z.arrive[0], z.arrive[1], r3(z.arrive[2] + 1)] });
+  }
   const mechanics = [], arrive = [];
-  for (const w of [...plan.on, ...plan.back]) {
+  for (const w of [...gated, ...plan.on, ...plan.back]) {
     const s = spot.get(w);
     mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }), ...(w.needs ? { needs: w.needs } : {}) });
     if (s.arrive) arrive.push({ from: w.to, at: s.arrive });

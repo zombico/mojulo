@@ -33,10 +33,12 @@ const id = (x) => `${x.r},${x.c}`;
 export function mapWay(G) {
   const start = mapStart(G);
   if (!start) return null;
-  const { dist, prev } = walkFrom(G, start), goal = mapGoal(G);
+  // (a planned map is walked along its route: a join off it, a loop through a pocket, is never the way on)
+  const onRoute = G.plan ? { ...G, cells: G.cells.filter((x) => G.plan.route.includes(x.region)) } : G;
+  const { dist, prev } = walkFrom(onRoute, start), goal = mapGoal(G);
   const net = G.cells.filter((x) => x.kind === 'path' || (x.kind === 'place' && x.open?.length));
   const ends = net.filter((x) => x.kind === 'path' && x.shape === 'end' && x !== start);
-  const last = goal ?? ends.reduce((m, x) => (!m || dist.get(id(x)) > dist.get(id(m)) ? x : m), null) ?? start;
+  const last = goal ?? ends.filter((x) => dist.has(id(x))).reduce((m, x) => (!m || dist.get(id(x)) > dist.get(id(m)) ? x : m), null) ?? start;
   const way = []; for (let x = last; x; x = prev.get(id(x))) way.unshift(x);
   return { start, last, way, dist, prev, net, ends };
 }

@@ -48,6 +48,8 @@ export const E2E = [
   'lib/mcp/tools/table-rpg-portraits.live.test.js',
   'lib/graph/game/play-shell-final.live.test.js',
   'lib/graph/game/play-shell-atlas.live.test.js',
+  // a zoned map's four zones built to a folder and walked gate by gate in headless Chrome (scripts/worldmap.mjs)
+  'lib/graph/gameworld/worldmap-bed.live.test.js',
   'lib/graph/game/pause-owner.live.test.js',
   'lib/graph/scene/channels/controllable/seats.live.test.js',
   'lib/graph/worlds/mount-ride.live.test.js',

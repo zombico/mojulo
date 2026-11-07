@@ -87,7 +87,7 @@ describe('a map planned as segments', () => {
 
   it('refuses a route that is not a walk through every segment, step by step', () => {
     const P = (p) => () => readGrid({ plan: { ...plan, ...p } });
-    expect(P({ route: ['A', 'C'] })).toThrow(/never reaches 'B'/);
+    expect(P({ route: ['A', 'B'] })).toThrow(/never reaches 'C'/);
     expect(P({ rows: ['A B', 'C .'], route: ['A', 'B', 'C'] })).toThrow(/do not share a side/);
     expect(P({ route: ['A', 'B', 'A'] })).toThrow(/walks a segment twice/);
     expect(() => readGrid({ plan, rows: ['# #'] })).toThrow(/never in rows/);

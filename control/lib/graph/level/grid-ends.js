@@ -13,11 +13,14 @@
  *     packs     a planned map's: where its pieces' packs and boss stand (level/map-items.js), in walk order
  *     places    each place's door ({ id, glyph, use?, at, N, region? }: the building's id on the page, its door on the
  *               land, the way out of it), what folk stand by
+ * A ZONE (zones.js, `level.zone`): the ends of its own square: set down where its page sets out, left by its way on along
+ * the walk (else the goal it holds, else its first way), its beats, packs and places its own tiles'; `zone` its ways.
  * Pure; the land's heights are the level's own, as every tile lays them.
  */
 import { readGrid, placeDoors } from './grid.js';
 import { mapWay, mapItems } from './map-items.js';
 import { levelHeight, tilePath } from '../era/out-tile.js';
+import { readZone, zoneOf } from './zones.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const FACING = { '+y': [0, 1], '-y': [0, -1], '+x': [1, 0], '-x': [-1, 0] };
@@ -66,7 +69,37 @@ export function gridEnds(level) {
     planar: true, beats, hazards: [], via: via.map((p) => [p[0], p[1]]), doors: [], places, map: true, ...(packs.length ? { packs } : {}), ...(regionOf(start) ? { home: regionOf(start) } : {}),
     ...(G.regions ? { regions: Object.fromEntries(Object.entries(G.regions).map(([k, v]) => [k, v.name ?? k])) } : {}),
   };
+  const zw = readZone(level), read = zw ? zoneEnds(G, zoneOf(G, zw.id, { apron: zw.apron, seed: L.seed }), out, { doorOf, last }) : out;
   // the land's height at a point, as every tile lays it (not data)
-  Object.defineProperty(out, 'ground', { value: (x, y) => levelHeight(x, y, L), enumerable: false });
+  Object.defineProperty(read, 'ground', { value: (x, y) => levelHeight(x, y, L), enumerable: false });
+  return read;
+}
+
+// a zone's ends: the map's, cut to its own square
+function zoneEnds(G, Z, E, { last, doorOf }) {
+  const mine = (t) => Z.own.has(`${t[0]},${t[1]}`), P = G.plan, i = P.route.indexOf(Z.id), next = i >= 0 ? P.route[i + 1] : undefined;
+  const holdsGoal = last.kind === 'place' && mine([last.r, last.c]);
+  // (its way on: toward the walk's next segment; off the walk, toward the furthest along it)
+  const rank = (w) => P.route.indexOf(w.to);
+  const onWay = Z.ways.find((w) => w.to === next) ?? (i < 0 ? [...Z.ways].sort((a, b) => rank(b) - rank(a))[0] : Z.ways.find((w) => rank(w) > i)) ?? Z.ways[0];
+  const exit = holdsGoal ? doorOf(last).at : onWay ? onWay.exit : E.exit;
+  const [x0, y0, x1, y1] = Z.box, inBox = (p) => p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1;
+  const spawn = Z.spawn?.heading === null ? E.spawn : Z.spawn ? Z.spawn.at : E.spawn;
+  const heading = Z.spawn?.heading === null ? E.heading : Z.spawn ? Z.spawn.heading : E.heading;
+  const packs = (E.packs ?? []).filter((p) => mine(p.tile));
+  const out = {
+    ...E, spawn, heading, exit,
+    exitFrom: holdsGoal ? E.exitFrom : onWay ? `its way ${onWay.side} to ${onWay.to}` : E.exitFrom,
+    beats: E.beats.filter((b) => mine(b.tile)),
+    via: [[spawn[0], spawn[1]], ...E.via.filter(inBox), [exit[0], exit[1]]],
+    places: E.places.filter((p) => inBox(p.at)),
+    ...(packs.length ? { packs } : {}),
+    zone: { id: Z.id, box: Z.box, ways: Z.ways },
+    ...(holdsGoal ? { holdsGoal: true } : {}),
+  };
+  if (!packs.length) delete out.packs;
+  // (the region it sets out from: its own)
+  const own = G.regions?.[Z.id];
+  if (own) out.home = own.name ?? Z.id;
   return out;
 }
