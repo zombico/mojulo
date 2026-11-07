@@ -49,7 +49,8 @@ export function segmentRemit(W, unit) {
     gates: gates.map((g) => `${g.way === 'joined' ? 'a join' : g.way} by the ${SIDE[g.side]} side, row ${g.tile[0] + 1} column ${g.tile[1] + 1} a path ('#'), joining ${g.joins}`),
     ...(goal ? { goal: `the walk ends here: a place whose key says goal: true (the plan's: ${goal.use})` } : {}),
     ...(beats.length ? { beats } : {}),
-    floor: fillSegment(P, S),
+    // (its floor: what is written there already, else what the plan's fill lays; the bar to beat either way)
+    ...(W.levels[u.level].glyphs.segments?.[S] ? { written: W.levels[u.level].glyphs.segments[S] } : { floor: fillSegment(P, S) }),
     law: `${n} rows of ${n} glyphs; a path at each gate and none other on a side a neighbour segment lies beyond; every path reached from the gates; a side on open land or the map's edge is yours`,
     sketch: sketchRemit(W, u.level, S),
     writes: `set /levels/${u.level}/glyphs/segments/${S} to { rows, key? }, and /levels/${u.level}/glyphs/sketch/segments/${S} to { ground, height, marks, notes? } (its approval is the creator's)`,

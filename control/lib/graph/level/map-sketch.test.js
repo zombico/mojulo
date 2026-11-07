@@ -45,6 +45,10 @@ describe('a map sketched in miniature', () => {
     // (water on the fields' road)
     const wet = readSketch({ ...g.sketch, segments: { ...g.sketch.segments, B: { ...g.sketch.segments.B, ground: ['m m r', 'w . r', 'm . c'] } } }, G.plan);
     expect(law(sketchLaws(G, wet), 'ground-walkable')).toMatchObject({ ok: false, value: expect.stringMatching(/B row 2 column 1/) });
+    // (the beats staged: the sample's sketched segments each mark what its beats need)
+    expect(law(L, 'beats-marked')).toMatchObject({ ok: true, value: expect.stringMatching(/3 sketched segments/) });
+    const unmarked = readSketch({ ...g.sketch, segments: { ...g.sketch.segments, B: { ...g.sketch.segments.B, marks: g.sketch.segments.B.marks.filter((m) => m.kind !== 'encounter') } } }, G.plan);
+    expect(law(sketchLaws(G, unmarked), 'beats-marked')).toMatchObject({ ok: false, value: expect.stringMatching(/B: 'Bandits spring an ambush.*wants an encounter mark/) });
     // (a beat back along the walk)
     const back = readSketch({ concept: { journey: [{ id: 'a', say: 'x', kind: 'arrival', at: 'B' }, { id: 'b', say: 'y', kind: 'traverse', at: 'A' }] } }, G.plan);
     expect(law(sketchLaws(G, back), 'journey-follows').ok).toBe(false);

@@ -44,6 +44,8 @@ describe('design_game: a planned map\'s segments as a crew', () => {
     expect(j2).toMatchObject({ writes: ['/levels/vale/glyphs/segments/B', '/levels/vale/glyphs/sketch/segments/B'], segment: { segment: 'B', name: 'the woods', role: 'passage', size: 4 } });
     expect(j2.segment.gates).toEqual(['in by the west side, row 2 column 1 a path (\'#\'), joining the town', 'out by the south side, row 4 column 2 a path (\'#\'), joining the shrine']);
     expect(j2.segment.floor.rows).toHaveLength(4);
+    // (a segment already written is handed what is written there, not the plan's fill)
+    expect((await designGameHandler({ ref: 'pm', chapter: 'level:vale/A' })).req.jobs.find((j) => j.job === 'j1').segment.floor).toBeDefined();
     // a segment that breaks its law is refused before anything is written; the job stays issued
     await expect(designGameHandler({ ref: 'pm', req: { id, job: 'j2', patch: set('B', { rows: ['. . . .', '# # . .', '# # . .', '. # . .'] }), decisions: why } })).rejects.toThrow(/refused, nothing written[\s\S]*west side, which a neighbour lies beyond/);
     // and one that writes past its segment
@@ -76,6 +78,10 @@ describe('design_game: a planned map\'s segments as a crew', () => {
     expect(brief.segment.sketch).toMatchObject({ pitch: expect.stringMatching(/old keep/), journey: [expect.stringMatching(/shrine hidden in the woods/)], across: ['north: the town\'s ground across the gate stands 0 m up', 'east: the keep\'s ground across the gate stands 4 m up'] });
     // (the woods not yet sketched: its path climbs a wall into the keep, and the gate's two sides stand apart)
     expect(brief.segment.sketch.now).toEqual([expect.stringMatching(/^climb: a path climbs 4 m/), expect.stringMatching(/^gate-heights: .*C–D/)]);
+    // (the town is written: its author is handed its rows, the house among them, not the plan's fill)
+    const town = (await designGameHandler({ ref: 'sk', chapter: 'level:overworld/A' })).req.jobs.find((j) => j.job === 'j1');
+    expect(town.segment.written.rows).toEqual(['. . .', 'h # #', '. # .']);
+    expect(town.segment.floor).toBeUndefined();
     expect(brief.writes).toEqual(['/levels/overworld/glyphs/segments/C', '/levels/overworld/glyphs/sketch/segments/C']);
     // its sketch written beside its glyphs: the woods' east side raised to meet the keep
     const sketch = { ground: ['f . f', 'g . .', 'f f w'], height: ['0 0 0', '0 1 1', '0 0 0'], marks: [{ at: [0, 1], kind: 'secret', say: 'The shrine, the keep\'s side key', item: 'side key' }], notes: 'Dense wood: the shrine is found, not seen.' };

@@ -45,6 +45,8 @@ export const SKETCH_MARKS = Object.freeze({
 });
 export const JOURNEY_KINDS = Object.freeze(['arrival', 'traverse', 'encounter', 'find', 'vista', 'secret', 'rest', 'climb', 'puzzle', 'climax']);
 const STATUS = ['draft', 'approved'];
+// (the marks a beat's kind needs; a kind not named here needs some mark)
+const BEAT_MARKS = Object.freeze({ encounter: ['encounter'], climax: ['encounter'], find: ['loot', 'secret'], secret: ['secret'], rest: ['rest'] });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const strip = (r) => (typeof r === 'string' ? r.replace(/\s+/g, '') : '');
 const fail = (m) => new Error(`level: ${m}`);
@@ -132,6 +134,20 @@ export function sketchLaws(G, S) {
     const order = S.concept.journey.map((b) => P.route.indexOf(b.at)).filter((i) => i >= 0);
     const back = order.findIndex((v, i) => i && v < order[i - 1]);
     laws.push({ law: 'journey-follows', ok: back < 0, value: back < 0 ? 'the beats follow the walk' : `beat ${back + 1} goes back along the walk (a return is a beat of its own kind, or a join)` });
+  }
+  // THE BEATS MARKED: each sketched segment marks what its beats need (a fight its encounter, a find its loot or secret,
+  // a secret its secret; any other beat some mark to stage it on)
+  if (S.concept) {
+    const bare = [];
+    for (const [seg, v] of Object.entries(S.segments)) {
+      const beats = S.concept.journey.filter((b) => b.at === seg);
+      for (const b of beats) {
+        const want = BEAT_MARKS[b.kind], has = want ? v.marks.some((m) => want.includes(m.kind)) : v.marks.length > 0;
+        if (!has) bare.push(`${seg}: '${b.say}' (${b.kind}) ${want ? `wants ${want.length > 1 ? 'a ' + want.join(' or a ') : 'an ' + want[0]} mark` : 'has no mark to stage it on'}`);
+      }
+    }
+    const sketched = Object.keys(S.segments).length;
+    if (sketched) laws.push({ law: 'beats-marked', ok: !bare.length, value: bare.length ? bare.join('; ') : `every beat of the ${sketched} sketched segment${sketched === 1 ? '' : 's'} staged on a mark` });
   }
   // THE CLIMB: no path steps more than one sketch step between neighbouring tiles
   let steep = null;

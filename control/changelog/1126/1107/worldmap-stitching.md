@@ -61,3 +61,7 @@
   (`/levels/<id>/glyphs/sketch/segments/<S>`, laid for it when the req is raised), and nothing else; a malformed sketch is
   refused by the world's read with nothing written, and a sketch its author marks approved is refused: the approval is the
   creator's (the director's own patch).
+- **Found by the first crew to plan in miniature.** A segment already written is handed what is written there (its
+  `written` rows and places), not the plan's default fill as its floor. A law, `beats-marked`: each sketched segment
+  stages its journey's beats on marks (a fight on an encounter, a find on loot or a secret, a secret on a secret, a rest on
+  a rest; any other beat on some mark).
