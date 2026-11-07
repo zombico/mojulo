@@ -60,6 +60,7 @@ import { STYLES, DIRECTS, checkProduction, postureOf, roleOf, maySettle, checkpo
 import { checkAsk, traceStart, traceOf } from '@/lib/graph/gameworld/asks.js';
 import { beatUnit, beatRemit, questUnits, beatCrew, actUnit, actRemit } from '@/lib/graph/gameworld/quest-reqs.js';
 import { authorPlan, criticPlan, jobsLeft, reissuesLeft, outsideOf, checkSubmit, jobBrief, jobReport, nextOf, jobLines, jobUnit, seatOf } from '@/lib/graph/gameworld/jobs.js';
+import { segmentUnits, checkSegment, segmentRemit } from '@/lib/graph/gameworld/segments.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
 import { withoutWarm } from '@/lib/graph/scene/scene-png-warm';
@@ -643,7 +644,7 @@ export async function designGameHandler(input, context = {}) {
     // a preview: what the patch would do, and nothing written
     if (preview === true) return previewPatch(ref, patchVehicleWords(patch).patch);
     // a quick game's vehicle word is read through the vehicle registry first, as the quick path reads it (doors.js)
-    if (patch !== undefined) await updateSketchHandler({ ref, patch: patchVehicleWords(patch).patch, ...(title ? { title } : {}) });
+    if (patch !== undefined) await oneWrite(ref, () => updateSketchHandler({ ref, patch: patchVehicleWords(patch).patch, ...(title ? { title } : {}) }));
   }
   // what the vehicle registry read: a word written as its table's key (absent when none was)
   const redirected = [...(quick !== undefined ? quickVehicleWords(quick).redirects : []), ...(patch !== undefined ? patchVehicleWords(patch).redirects : [])];
@@ -653,13 +654,25 @@ export async function designGameHandler(input, context = {}) {
     // a req naming the main quest read as the levels it plays on (and those a run would lay, laid); then a job's report
     // or a kept proposal, written before the readout reads the world
     const reqIn = req !== undefined ? await questReq(ref, req) : undefined;
-    const reqDone = reqIn !== undefined ? await reqWrites(ref, reqIn) : null;
+    const reqDone = reqIn !== undefined ? await oneWrite(ref, () => reqWrites(ref, reqIn)) : null;
     const out = await afterWrite(ref, { approve, revise, note, run, force, check, compare, before, shape, chapter, patched, req: reqIn, reqDone, ask, trace, production, seat }, context);
     return redirected.length ? { ...out, vehicles: { registry: redirected } } : out;
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
     throw new Error(`${err.message}\n— the gameworld is stored at '${ref}' as written; fix it with design_game({ ref: '${ref}', patch }) rather than starting a new one.`);
   }
+}
+
+// ONE WRITE AT A TIME A WORLD: a crew's authors report at once, and each patch is read whole and applied onto the recipe
+// as it is stored; the update reads the recipe and awaits its gates before it writes, so two applied together would
+// write over each other (the second dropping the first's segment). Each waits for the one before it; reads never wait.
+const WRITES = new Map();
+function oneWrite(ref, fn) {
+  const run = (WRITES.get(ref) ?? Promise.resolve()).then(fn, fn);
+  const tail = run.catch(() => {});
+  WRITES.set(ref, tail);
+  tail.then(() => { if (WRITES.get(ref) === tail) WRITES.delete(ref); });
+  return run;
 }
 
 // what a job's seat may send beside `as`: its view (chapter, readout) and its report (req, naming its own job)
@@ -722,7 +735,8 @@ function checkReq(req) {
     if (req.quest !== true || req.unit !== undefined || req.id !== undefined) throw new Error('design_game: { req: { quest: true, staffing?, budget? } } asks for every built beat of the main quest, in its order; give no unit or id with it');
   } else if ((req.unit === undefined) === (req.id === undefined)) throw new Error('design_game: a req names its `unit` (to raise one) or its `id` (r1, r2 …), one or the other');
   const beat = typeof req.unit === 'string' && /^(beat|act):[a-z][a-z0-9-]*$/.test(req.unit);
-  if (req.unit !== undefined && !beat && !unitOf(req.unit)) throw new Error(`design_game: a req's unit is a chapter (${CHAPTERS.map((c) => c.id).join(', ')}), one level as 'level:<id>', a main quest beat as 'beat:<id>', or a whole act of it as 'act:<id>' (its town, its outskirts and its dungeon, worked as one)`);
+  if (req.unit !== undefined && !beat && !unitOf(req.unit)) throw new Error(`design_game: a req's unit is a chapter (${CHAPTERS.map((c) => c.id).join(', ')}), one level as 'level:<id>', one segment of a planned map as 'level:<id>/<segment>', a main quest beat as 'beat:<id>', or a whole act of it as 'act:<id>' (its town, its outskirts and its dungeon, worked as one)`);
+  if (req.segments !== undefined && (req.segments !== true || !(typeof req.unit === 'string' && unitOf(req.unit)?.level != null && unitOf(req.unit).segment == null))) throw new Error('design_game: segments: true goes with a planned map\'s level (unit: \'level:<id>\'): every segment of its plan, an author each, worked as one');
   if (req.staffing !== undefined && !STAFFING[req.staffing]) throw new Error(`design_game: a req's staffing is ${Object.keys(STAFFING).join(' or ')}`);
   if (req.remit !== undefined && req.remit !== null && !isObj(req.remit)) throw new Error('design_game: a req\'s remit is an object (a level\'s: in, out, band, idea, foes, beat)');
   if (req.budget !== undefined && !isObj(req.budget)) throw new Error('design_game: a req\'s budget is an object (jobs, tier, diverge, critics, reissues)');
@@ -743,6 +757,19 @@ function checkReq(req) {
  * key by key). A beat whose level a run would lay is laid now, as the run lays it, so its req has a level to name.
  * → the req as the ledger takes it ({ …, raise: [{ unit, remit, beat }], questSaid? }), or the req as it was. */
 async function questReq(ref, req) {
+  // a planned map's SEGMENTS (gameworld/segments.js): one req, its first segment the unit and the rest its crew, an
+  // author each; the segments' page laid, so each author's set lands
+  const seg = typeof req.unit === 'string' ? unitOf(req.unit) : null;
+  if (seg?.level != null && (req.segments === true || seg.segment != null)) {
+    const W0 = gameworldOf(SketchRepository.getByRef(ref).manifest);
+    try { (req.segments ? segmentUnits(W0, seg.level) : [req.unit]).forEach((u) => checkSegment(W0, u)); } catch (e) { throw new Error(`design_game: ${e.message}`); }
+    if (!isObj(W0.levels[seg.level].glyphs.segments)) await updateSketchHandler({ ref, patch: [{ op: 'set', path: `/levels/${seg.level}/glyphs/segments`, value: {} }], note: 'design_game: the planned map\'s segments laid for its authors' });
+    if (req.segments === true) {
+      const units = segmentUnits(W0, seg.level), { unit: _u, segments: _s, ...rest } = req;
+      // (a budget for the crew: an author a segment and one rework each, the critics and the assistant beside them)
+      return { ...rest, budget: req.budget ?? { jobs: units.length * 2 + 3, reissues: units.length }, raise: [{ unit: units[0], remit: req.remit ?? null, crew: units.slice(1) }] };
+    }
+  }
   const beat = typeof req.unit === 'string' && req.unit.startsWith('beat:') ? req.unit.slice(5) : null;
   const act = typeof req.unit === 'string' && req.unit.startsWith('act:') ? req.unit.slice(4) : null;
   if (!beat && !act && req.quest !== true) return req;
@@ -805,6 +832,10 @@ async function reqWrites(ref, req) {
     const job = named(req.job);
     if (!job) throw new Error(`design_game: no job '${req.job}' on ${r.id} (${jobs.map((j) => j.id).join(', ') || 'none issued: start it'})`);
     try { checkSubmit(job, req); } catch (e) { throw new Error(`design_game: ${e.message}`); }
+    // (a segment's author writes its segment only: two authors of one map never write one path)
+    const seg = (job.kind === 'author' || job.kind === 'diverge') ? unitOf(jobUnit(job, r)) : null;
+    const past = seg?.segment != null ? outsideOf(jobUnit(job, r), req.patch) : [];
+    if (past.length) throw new Error(`design_game: ${job.id}'s patch is refused, nothing written (${job.id} stays issued): ${jobUnit(job, r)} writes its segment only (/levels/${seg.level}/glyphs/segments/${seg.segment}), not ${past.join(', ')}`);
     // a patch the door would refuse is refused before anything is written and before the job moves: the recipe and the
     // job stay as they were, so the job reports again (an author's patch is applied at once, a diverge one later)
     if (Array.isArray(req.patch) && (job.kind === 'author' || job.kind === 'diverge')) {
@@ -912,6 +943,9 @@ const probeState = (receipt) => {
   return /probe again|not played|no stage/.test(c.says ?? '') ? 'none' : 'failed';
 };
 
+// (a segment's author is handed its plan's remit: its gates, role, words, the beats on it, the floor its fill lays)
+const segmentBrief = (W, j, r) => ((j.kind === 'author' || j.kind === 'diverge') && unitOf(jobUnit(j, r))?.segment != null ? { segment: segmentRemit(W, jobUnit(j, r)) } : {});
+
 /** A req as its unit's view carries it: its remit, precedent, budget, what the director does next, and its jobs (an
  * issued job's brief, a reported one's report). */
 function reqView(ref, r, reqs, { W, parts, seat = null, agents = false }) {
@@ -927,7 +961,7 @@ function reqView(ref, r, reqs, { W, parts, seat = null, agents = false }) {
     ...V, ...(r.crew?.length ? { crew: unitsOf(r) } : {}), ...(r.style ? { style: r.style } : {}),
     ...(mine ? { intent: { ask: mine.id, intent: mine.intent } } : {}), does: nextOf(jobs, { level, probe: probeState(receipt), presented: !!r.verdict?.presented }), receipt,
     ...(notebook.length ? { notebook } : {}),
-    ...(jobs.length ? { jobs: jobs.filter((j) => !seat || j.id === seat.job.id || seat.job.kind === 'assistant').map((j) => (j.status === 'issued' ? jobBrief(j, r, { ref, agents }) : j.kind === 'probe' ? { job: j.id, kind: 'probe', holds: j.report?.holds ?? false, ...(j.report?.skipped ? { skipped: j.report.skipped } : {}), checks: j.report?.checks ?? [], frames: (j.report?.frames ?? []).map((f) => f.file ?? `${f.ref} at ${f.at}s`) } : jobReport(j))) } : {}),
+    ...(jobs.length ? { jobs: jobs.filter((j) => !seat || j.id === seat.job.id || seat.job.kind === 'assistant').map((j) => (j.status === 'issued' ? { ...jobBrief(j, r, { ref, agents }), ...segmentBrief(W, j, r) } : j.kind === 'probe' ? { job: j.id, kind: 'probe', holds: j.report?.holds ?? false, ...(j.report?.skipped ? { skipped: j.report.skipped } : {}), checks: j.report?.checks ?? [], frames: (j.report?.frames ?? []).map((f) => f.file ?? `${f.ref} at ${f.at}s`) } : jobReport(j))) } : {}),
   };
 }
 

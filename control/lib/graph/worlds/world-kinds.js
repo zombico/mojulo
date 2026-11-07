@@ -554,12 +554,13 @@ export const WORLD_KINDS = {
     resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }),
   },
   // a MAP (level/map-scene.js): a level laid as a graph, its sections placed on one ground and composed into one
-  // page (`level`: the level recipe, laid as a map). Each section is built as its own stage builds it
+  // page (`level`: the level recipe, laid as a map). Each section is built as its own stage builds it, with the world's
+  // whole context (its live sun's share, the form render, the unshaded export), as the stage kind is
   map: {
     title: 'mojulo map',
     walk: true,
     ao: true,
-    resolve: async (m, ctx) => (await import('@/lib/graph/level/map-scene.js')).assembleMapScene(m, { title: ctx.title }),
+    resolve: async (m, ctx) => (await import('@/lib/graph/level/map-scene.js')).assembleMapScene(m, ctx),
   },
   // a geocube (era/geocube.js): one style for a level's inside and outside, shown as one of its two specimens, the
   // bare room or the island landform, each built by the stage. A level is then a stage recipe with `geocube`.

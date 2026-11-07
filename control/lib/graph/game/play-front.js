@@ -151,6 +151,8 @@ export function playFrontRuntime(cfg, api) {
   function continueTo() {
     const last = api.progress();
     if (!last) return null;
+    // (a megaworld: continue is the current map)
+    if (api.current) return api.current();
     const at = api.levels.findIndex((l) => l.ref === last);
     const after = api.levels.slice(at + 1).find((l) => api.isOpen(l) && !api.cleared(l.ref));
     return after || firstUncleared() || api.levels.find((l) => l.ref === last) || null;

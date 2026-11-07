@@ -123,6 +123,8 @@ import { readWcd } from '../wcd/wcd.js';
 import { readComplex } from '../network/complex.js';
 import { readQow } from '../qow/qow.js';
 import { readMainQuest, mainQuestContext } from './main-quest.js';
+import { readGameBrief } from './gmn.js';
+import { readMegaworld } from './megaworld.js';
 import { readLoop } from './core-loop.js';
 import { readBookSkin } from './book-skin.js';
 import { tunnelTech } from './tunnel-tech.js';
@@ -231,12 +233,15 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'feel', 'juice', 'tempo', 'grade', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'moves', 'foes', 'story', 'quests', 'front', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'megaworld', 'made', 'quick', 'intent', 'feel', 'juice', 'tempo', 'grade', 'camera', 'screen', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'moves', 'foes', 'story', 'quests', 'front', 'wcd', 'qow', 'book', 'errands', 'xr', 'mainQuest', 'loop', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'glyphs'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
-const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'kit', 'biocube', 'grass', 'wind', 'shrubs'];
+// a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
+export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
+export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) => g[k] !== undefined).map((k) => [k, g[k]]));
+const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -577,8 +582,7 @@ export function readGameworld(W) {
       if (['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'places', 'ground', 'arena'].some((k) => L[k] !== undefined)) throw new Error(`gameworld: ${at}: a glyph-map level is the map alone: no walk, building, city, roadway, airspace, runner, geotown, places, ground or arena beside it`);
       if (!isObj(L.glyphs)) throw new Error(`gameworld: ${at}.glyphs is { rows, key?, regions?, tile?, kit?, … } (a level written as a glyph grid: level/grid.js)`);
       for (const k of Object.keys(L.glyphs)) if (!GLYPHS_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.glyphs.${k} is not a glyph map's setting (settings: ${GLYPHS_LEVEL_KEYS.join(', ')})`);
-      const { tile, rows, key, regions } = L.glyphs;
-      try { readGrid({ ...(tile !== undefined ? { tile } : {}), rows, ...(key !== undefined ? { key } : {}), ...(regions !== undefined ? { regions } : {}) }, 'glyphs'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
+      try { readGrid(gridOfGlyphs(L.glyphs), 'glyphs'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
     } else if (L.geotown !== undefined) {
       // a geotown level: a neighbourhood (geotown/: its pattern, its streetscape, a segment or a neighbourhood), drawn on
       // the level's geocube and walked from its streets; the town is its own ground
@@ -775,6 +779,9 @@ export function readGameworld(W) {
   // its grade (grade.js): the look laid over every frame of its levels, the base its moments' looks push from
   readGameGrade(W.grade);
   // the games inside the game (minigames.js): as written, else what the prompt's words ask for
+  // (the Game Brief, gmn.js: the workflow's, read here and carried)
+  readGameBrief(W.gameBrief);
+  const megaworld = readMegaworld(W.megaworld, W.levels);
   const minigames = W.minigames !== undefined ? readMinigameBook(W.minigames) : typeof W.brief?.prompt === 'string' ? minigamesOfWords(W.brief.prompt)?.games ?? null : null;
   if (W.moves !== undefined && typeof W.moves !== 'boolean') throw new Error('gameworld: moves is true (every person the run makes takes a blow on its own rig: a hit, a stagger, a fall and a rise) or false');
   // the walled-core dungeon (wcd/wcd.js): its spaces, doors and critical path over the world's levels; its principles
@@ -789,7 +796,7 @@ export function readGameworld(W) {
   // laws advise (design_game's readout), a malformed one is refused here. Its core loop (core-loop.js) is read the same
   const mainQuest = W.mainQuest === undefined || W.mainQuest === null ? null : (() => { try { return readMainQuest(W.mainQuest, mainQuestContext(W)); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
   try { readLoop(W.loop); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
 }
 
 /**
@@ -855,8 +862,8 @@ export function resolveLevel(world, id) {
   }
   // a glyph-map level: the map's level as the map kind takes it (level/grid-scene.js), its seed the level's
   if (L.glyphs) {
-    const { tile, rows, key, regions, kit = 'isekai-meadow', ...words } = L.glyphs;
-    const grid = { ...(tile !== undefined ? { tile } : {}), rows, ...(key !== undefined ? { key } : {}), ...(regions !== undefined ? { regions } : {}) };
+    const { tile, rows, key, regions, plan, segments, kit = 'isekai-meadow', ...words } = L.glyphs;
+    const grid = gridOfGlyphs(L.glyphs);
     return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, glyphs: { kit, seed: seed >>> 0, grid, ...words } };
   }
   // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh

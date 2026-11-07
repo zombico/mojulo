@@ -14,4 +14,17 @@ describe('a glyph map, built', () => {
     expect(P.anchors.some((a) => /h-1-2/.test(JSON.stringify(a)))).toBe(true);
     expect(P.faces.filter((f) => /trail/.test(f.group || '')).length).toBeGreaterThan(100);
   }, 300000);
+
+  it('is one page when planned as segments and written in them: the plan\'s fill and an author\'s segment, stitched', async () => {
+    // (three segments of 3 × 3 tiles: the town, the woods written by its author (a crossing, its lookouts on the map's
+    // north and east edges, its own sides), the shrine at its temple)
+    const plan = { size: 3, rows: ['A B', '. C'], route: ['A', 'B', 'C'], key: { A: { name: 'the town' }, B: { name: 'the woods', rise: 4 }, C: { name: 'the shrine', rise: 8, goal: { use: 'temple' } } } };
+    const segments = { B: { rows: ['. # .', '# # #', '. # .'] } };
+    const level = { kit: 'isekai-meadow', seed: 4, grid: { tile: 24, plan, segments } };
+    const { payload: P } = await resolveWorldScene({ ref: 'planned-map', manifest: { kind: 'map', level } });
+    for (const l of P.map.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+    expect(Object.values(P.map.regions).map((r) => r.name)).toEqual(['the town', 'the woods', 'the shrine']);
+    expect(P.anchors.some((a) => /temple|G-4-4/.test(JSON.stringify(a)))).toBe(true);
+  }, 300000);
 });
+

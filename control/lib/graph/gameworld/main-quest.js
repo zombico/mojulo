@@ -34,6 +34,16 @@
  *
  * Pure: the recipe in, the reading out.
  */
+import { readGrid } from '../level/grid.js';
+
+// a glyph-map level's regions (glyph → name), read as its map reads them; none for another level, or for a grid the
+// world's own read refuses (that read says why)
+const GRID_WORDS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments'];
+function glyphRegions(g) {
+  if (!g || typeof g !== 'object' || (!g.regions && !g.plan)) return null;
+  let G; try { G = readGrid(Object.fromEntries(GRID_WORDS.filter((k) => g[k] !== undefined).map((k) => [k, g[k]]))); } catch { return null; }
+  return G.regions ? Object.fromEntries(Object.entries(G.regions).map(([k, v]) => [k, v?.name ?? k])) : null;
+}
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
@@ -78,8 +88,8 @@ export function mainQuestContext(W = {}) {
     wcd: Object.keys(isObj(W.wcd?.spaces) ? W.wcd.spaces : {}),
     story: (Array.isArray(W.story) ? W.story : []).map((m) => m?.id).filter(Boolean),
     gauntlets: levels.filter((id) => W.levels[id]?.goal?.gauntlet !== undefined),
-    // (each glyph-map level's regions: glyph → name)
-    regions: Object.fromEntries(levels.filter((id) => isObj(W.levels[id]?.glyphs?.regions?.key)).map((id) => [id, Object.fromEntries(Object.entries(W.levels[id].glyphs.regions.key).map(([k, v]) => [k, v?.name ?? k]))])),
+    // (each glyph-map level's regions: glyph → name, as its map reads them, level/grid.js: a planned map's segments too)
+    regions: Object.fromEntries(levels.map((id) => [id, glyphRegions(W.levels[id]?.glyphs)]).filter(([, R]) => R)),
   };
 }
 

@@ -10,11 +10,13 @@
  *     beats     `along` each tile of that way between its ends; `pocket` each path END off it (a side way's end: what
  *               a quest hides or a pack waits in); `landmark` each place standing on it; each its tile and region
  *     map, home a glyph map's ends (true), and the region the walk sets out from (the town the party comes back to)
+ *     packs     a planned map's: where its pieces' packs and boss stand (level/map-items.js), in walk order
  *     places    each place's door ({ id, glyph, use?, at, N, region? }: the building's id on the page, its door on the
  *               land, the way out of it), what folk stand by
  * Pure; the land's heights are the level's own, as every tile lays them.
  */
-import { readGrid, placeDoors, walkFrom, mapGoal, mapStart } from './grid.js';
+import { readGrid, placeDoors } from './grid.js';
+import { mapWay, mapItems } from './map-items.js';
 import { levelHeight, tilePath } from '../era/out-tile.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -33,13 +35,9 @@ export function gridEnds(level) {
   // (a place's door on the land: its tile's door point, the way out of it the way it faces)
   const doorOf = (x) => { const s = x.open[0], D = placeDoors(T)[s]; return { at: on(x.c * T + D.x, -(x.r + 1) * T + D.y), N: FACING[D.facing] }; };
   // the network: paths and the places a path reaches, joined across their open sides
-  const net = G.cells.filter((x) => x.kind === 'path' || (x.kind === 'place' && x.open?.length));
-  const start = mapStart(G);
-  if (!start) throw new Error('levels: the glyph map lays no path to set the hero down on');
-  const { dist, prev } = walkFrom(G, start), goal = mapGoal(G);
-  const ends = net.filter((x) => x.kind === 'path' && x.shape === 'end' && x !== start);
-  const last = goal ?? ends.reduce((m, x) => (!m || dist.get(id(x)) > dist.get(id(m)) ? x : m), null) ?? start;
-  const way = []; for (let x = last; x; x = prev.get(id(x))) way.unshift(x);
+  const W = mapWay(G);
+  if (!W) throw new Error('levels: the glyph map lays no path to set the hero down on');
+  const { start, last, way, dist, net, ends } = W;
   const onWay = new Set(way.map(id));
   const spawn = mid(start), exitAt = last.kind === 'place' ? doorOf(last).at : mid(last);
   // (a bend is walked along its arc: its quarter points too, in the order the way enters it)
@@ -50,18 +48,22 @@ export function gridEnds(level) {
     return [0.25, 0.5, 0.75].map((t) => { const q = P[Math.round(t * (P.length - 1))]; return on(o[0] + q[0], o[1] + q[1]); });
   };
   const via = [...way.flatMap((x, i) => (x.kind === 'path' ? along(x, i) : [])), ...(last.kind === 'place' ? [exitAt] : [])];
-  const toward = via[1] ?? exitAt;
+  // (set down facing the way on: a start that is no path end, a bend or a street by a door, faces the next tile's middle,
+  // never along its own bend toward the door)
+  const toward = start.shape !== 'end' && way[1] ? mid(way[1]) : via[1] ?? exitAt;
   const tag = (x) => ({ tile: [x.r, x.c], ...(regionOf(x) ? { region: regionOf(x) } : {}) });
   const beats = [
     ...way.slice(1, -1).filter((x) => x.kind === 'path').map((x) => ({ beat: 'along', at: mid(x), ...tag(x) })),
     ...ends.filter((x) => !onWay.has(id(x))).sort((a, b) => dist.get(id(a)) - dist.get(id(b))).map((x) => ({ beat: 'pocket', at: mid(x), ...tag(x) })),
     ...net.filter((x) => x.kind === 'place' && x !== last && way.some((w) => Math.abs(w.r - x.r) + Math.abs(w.c - x.c) === 1)).map((x) => ({ beat: 'landmark', at: doorOf(x).at, ...tag(x) })),
   ];
+  // (a planned map's pieces, level/map-items.js: where its packs and its boss stand, in the order the way meets them)
+  const packs = mapItems(G).filter((it) => it.kind === 'pack' || it.kind === 'boss').map((it) => { const x = G.at(...it.tile); return { beat: 'along', at: mid(x), piece: it.id, ...tag(x) }; });
   const places = net.filter((x) => x.kind === 'place').map((x) => ({ id: `${x.glyph}-${x.r}-${x.c}`, glyph: x.glyph, ...(x.place?.use ? { use: x.place.use } : {}), ...doorOf(x), ...(regionOf(x) ? { region: regionOf(x) } : {}) }));
   const out = {
     spawn, heading: r3(Math.atan2(toward[1] - spawn[1], toward[0] - spawn[0])), exit: exitAt,
     exitFrom: last.kind === 'place' ? `the ${last.place?.use ?? 'place'}'s door (${last.glyph})` : 'the path\'s far end',
-    planar: true, beats, hazards: [], via: via.map((p) => [p[0], p[1]]), doors: [], places, map: true, ...(regionOf(start) ? { home: regionOf(start) } : {}),
+    planar: true, beats, hazards: [], via: via.map((p) => [p[0], p[1]]), doors: [], places, map: true, ...(packs.length ? { packs } : {}), ...(regionOf(start) ? { home: regionOf(start) } : {}),
     ...(G.regions ? { regions: Object.fromEntries(Object.entries(G.regions).map(([k, v]) => [k, v.name ?? k])) } : {}),
   };
   // the land's height at a point, as every tile lays it (not data)

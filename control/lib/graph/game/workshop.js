@@ -34,8 +34,10 @@ export const WEIGHT = Object.freeze({ path: { faces: 22000, bytes: 1.5e6 }, plac
 export function gameWeight(world = {}) {
   const levels = [];
   for (const [id, L] of Object.entries(world.levels ?? {})) {
-    if (!L?.glyphs?.rows) { levels.push({ level: id, estimated: false }); continue; }
-    let G; try { G = readGrid({ rows: L.glyphs.rows, ...(L.glyphs.key ? { key: L.glyphs.key } : {}), ...(L.glyphs.tile !== undefined ? { tile: L.glyphs.tile } : {}) }); } catch { levels.push({ level: id, estimated: false }); continue; }
+    if (!L?.glyphs?.rows && !L?.glyphs?.plan) { levels.push({ level: id, estimated: false }); continue; }
+    // (a planned level, level/plan.js: its plan and segments stitched, as its page is)
+    const g = L.glyphs, src = g.plan ? { plan: g.plan, ...(g.segments ? { segments: g.segments } : {}) } : { rows: g.rows, ...(g.key ? { key: g.key } : {}) };
+    let G; try { G = readGrid({ ...src, ...(g.tile !== undefined ? { tile: g.tile } : {}) }); } catch { levels.push({ level: id, estimated: false }); continue; }
     // (a tile's weight scales with its area: the measure is a 48 m tile's)
     const k = (G.tile / 48) ** 2, faces = Math.round(G.cells.reduce((a, x) => a + WEIGHT[x.kind].faces * k, 0)), bytes = Math.round(G.cells.reduce((a, x) => a + WEIGHT[x.kind].bytes * k, 0));
     levels.push({ level: id, estimated: true, tiles: G.cells.length, faces, bytes });

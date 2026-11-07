@@ -175,6 +175,14 @@ function landBetween(faces, bands, fill) {
   }
   return out;
 }
+// THE PAGE'S OWN WORDS: the sky, light and paint of its first section, and its one cloud deck (`effects`); beside them
+// what every section's page says of its faces (`soft`: the groups walked through, a bush's, an arrangement's)
+export const PAGE_KEEP = Object.freeze(['viewBox', 'bg', 'haze', 'sky', 'glow', 'pack', 'ao', 'fabric', 'vertexContrast', 'creases', 'occlusion', 'painted', 'shadows', 'lightTier', 'nonBakeable', 'weather', 'effects']);
+export function pageOf(R, payloads) {
+  const page = Object.fromEntries(PAGE_KEEP.filter((k) => R[k] !== undefined).map((k) => [k, R[k]]));
+  const soft = [...new Set(payloads.flatMap((p) => p.soft ?? []))];
+  return soft.length ? { ...page, soft } : page;
+}
 // the root's horizon moved to ring the whole map: its centre on the map's, pushed out past the farthest band
 export function ringTheMap(faces, bands) {
   const back = faces.filter((f) => f.group && BACKDROP.test(f.group));
@@ -191,7 +199,9 @@ export function ringTheMap(faces, bands) {
   mx /= m; my /= m;
   let reach = 0; for (const P of Object.values(bands)) for (const [x, y] of P) reach = Math.max(reach, Math.hypot(x - mx, y - my));
   const k = Number.isFinite(r0) && r0 < reach + LAND.margin + 60 ? (reach + LAND.margin + 60) / r0 : 1;
-  for (const f of back) f.corners = f.corners.map((c) => [r5(mx + (c[0] - cx) * k), r5(my + (c[1] - cy) * k), c[2]]);
+  // (its heights scaled with it, over the level's land at 0: the skyline stands at the angle its stage drew it at, never
+  // flattened behind the map's rim)
+  for (const f of back) f.corners = f.corners.map((c) => [r5(mx + (c[0] - cx) * k), r5(my + (c[1] - cy) * k), r5(c[2] * k)]);
 }
 
 export async function assembleMapScene(m, ctx = {}, { buildStage } = {}) {
@@ -240,8 +250,7 @@ export async function assembleMapScene(m, ctx = {}, { buildStage } = {}) {
   ringTheMap(out.faces, L.bands);
   // the page's own: the sky, light and paint of the first trail built; the walk from the root's spawn (a junction's
   // centre, else the first trail's own spawn), its cameras the first trail's
-  const R = root.payload, keep = ['viewBox', 'bg', 'haze', 'sky', 'glow', 'pack', 'ao', 'fabric', 'vertexContrast', 'creases', 'occlusion', 'painted', 'shadows', 'lightTier', 'nonBakeable', 'weather'];
-  const page = Object.fromEntries(keep.filter((k) => R[k] !== undefined).map((k) => [k, R[k]]));
+  const R = root.payload, page = pageOf(R, Object.values(byNode));
   const rootIsJunction = !!L.junctions[L.root];
   const spawn = rootIsJunction ? [0, 0, r5(lifts[L.root] + (R.walk?.minEye ?? 1.7))] : R.walk?.spawn ? root.F.P(R.walk.spawn) : [0, 0, 1.7];
   return {

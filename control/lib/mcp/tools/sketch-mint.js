@@ -74,6 +74,8 @@ import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
 import './palette-ledger.js';
+import { stampGameBrief } from '@/lib/graph/gameworld/gmn.js';
+import { stampMegaworld } from '@/lib/graph/gameworld/megaworld.js';
 import { stampWorldPalette, stampGeocubes, stampInteriorPalette, resolveArtPalette, resolveTonePalette, stampLookPalette, stampTerrainPalette, resolveStagePalette } from '@/lib/graph/color-theorist/stamp.js';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';
@@ -422,7 +424,8 @@ function houseGate(m0, was = null) {
 function gameworldManifest(manifest) {
   let out;
   try {
-    out = normalizeGameworldManifest(manifest);
+    // (the Game Brief read once, at authoring: its mix resolved, its orders laid; gameworld/gmn.js)
+    out = normalizeGameworldManifest(stampMegaworld(stampGameBrief(manifest)));
   } catch (err) {
     throw new Error(`Invalid manifest: ${err.message}`);
   }

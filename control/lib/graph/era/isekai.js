@@ -51,7 +51,7 @@ import { grassLadder } from '../vegetation/grass.js';
 import { resolveGrassContact, validateGrassContact } from '../vegetation/grass-contact.js';
 import { wildflowerLadder, flowerRamp, WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
-import { outTileSite } from './out-tile.js';
+import { outTileSite, pathAlong } from './out-tile.js';
 import { waterCameras, beachOf } from './out-water.js';
 import { boundFaces } from './out-bounds.js';
 import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP, SOLID_GROUP } from './ikebana-place.js';
@@ -415,6 +415,21 @@ function drape(out, a, b, a2, b2, len, off, n, key, scale, group) {
  * kit's round-mass crowns only (bamboo and blossom are not cast across a seam); no pebble.
  * → { trees: [{ x, y, h, v, z0, … }], rocks: [{ x, y, size, v, z0, … }], seed } in the tile's own frame.
  */
+/**
+ * Where the HERO tree stands: on a trail at its depth, beside the trail. On a glyph map's tile only where the map has
+ * named it (`tile.hero`: one a region, level/grid-scene.js), beside the middle of the tile's path; any other tile none,
+ * so a map is not a row of heroes. → { x, y } or null.
+ */
+function heroSpot(Hr, site, manifest) {
+  if (!site.tile) return { x: r5(site.trailX(Hr.y) + Hr.side * (site.halfWAt(Hr.y) + Hr.off)), y: Hr.y };
+  if (!manifest.tile?.hero) return null;
+  const A = pathAlong(site);
+  if (!A.length) return null;
+  const p = A.at(0.5), d = Hr.side * (site.halfW + Hr.off), x = p.c[0] + p.n[0] * d, y = p.c[1] + p.n[1] * d;
+  // (kept its own offset clear of every seam, so its crown is the tile's whole: a tile too small for one has none)
+  if (Math.min(x, y, site.W - x, site.D - y) < Hr.off) return null;
+  return { x: r5(x), y: r5(y) };
+}
 export function isekaiTileCasters(manifest = {}) {
   const st0 = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
   const B = st0 && manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null, st = B ? withFlora(st0, B) : st0;
@@ -423,8 +438,8 @@ export function isekaiTileCasters(manifest = {}) {
   const site = reserveSite(outTileSite(st, manifest.tile, seed), manifest._keepOut ?? null);
   const rocks = rockItems(st, site, seed).filter((r) => r.role !== 'pebble');
   if ((st.trees.form || 'blob') !== 'blob') return { trees: [], rocks, seed };
-  const trees = treeItems(st, site, seed), Hr = st.trees.hero;
-  if (Hr) trees.push({ x: r5(site.trailX(Hr.y) + Hr.side * (site.halfWAt(Hr.y) + Hr.off)), y: Hr.y, h: Hr.h, v: 0, cluster: -1, hero: true });
+  const trees = treeItems(st, site, seed), Hr = st.trees.hero, H = Hr ? heroSpot(Hr, site, manifest) : null;
+  if (H) trees.push({ ...H, h: Hr.h, v: 0, cluster: -1, hero: true });
   // (banded as its build bands them, treeBands: a stamped tree casts as its shell there, so it casts so here)
   const TB = st.trees.bands ? treeBands(st, site, trees.map((t) => ({ ...t }))) : null;
   const cast = TB ? [...TB.built, ...TB.stock.map((t) => ({ ...t, band: 'far' }))] : trees;
@@ -543,7 +558,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     const Hs = st.trees.heroes.map((H) => ({ x: r5(site.trailX(H.y) + H.side * (site.halfWAt(H.y) + H.off)), y: H.y, h: H.h, v: 0, cluster: -1, hero: true }));
     for (let i = trees.length - 1; i >= 0; i--) if (Hs.some((H) => Math.hypot(H.x - trees[i].x, H.y - trees[i].y) < st.trees.heroClear)) trees.splice(i, 1);
     trees.push(...Hs);
-  } else if (Hr) { const x = site.trailX(Hr.y) + Hr.side * (site.halfWAt(Hr.y) + Hr.off); trees.push({ x: r5(x), y: Hr.y, h: Hr.h, v: 0, cluster: -1, hero: true }); }
+  } else if (Hr) { const H = heroSpot(Hr, site, manifest); if (H) trees.push({ ...H, h: Hr.h, v: 0, cluster: -1, hero: true }); }
   if (keep) for (let i = trees.length - 1; i >= 0; i--) if (!kept(keep, trees[i].x, trees[i].y, CROWN)) trees.splice(i, 1);
   // (the form render's trail ALLOTTED, ALLOT: no tree standing in a stone's ground, its foot clear of it)
   if (ctx.form) { const stones = allotClaims(st, { rocks }); for (let i = trees.length - 1; i >= 0; i--) if (stones.some(([x, y, r]) => Math.hypot(trees[i].x - x, trees[i].y - y) < r + ALLOT.trunk)) trees.splice(i, 1); }
@@ -834,9 +849,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     });
   }
   // (a cavern lays no far layers round it: its rock is all it sees)
+  // (nor a glyph map's tile its map does not ring with it, `tile.backdrop: false`: the map has one horizon)
   // (the skirt's clumps' trees, as data, for the form render to grow them, plantItems `skirt`)
   const skirtTrees = [];
-  const ridges = site.cavern ? [] : layerFaces(st, site, dir, SN ? { line: SN.line, base: zLow, seed } : null, WS?.coast ? SEAWARD : null, skirtTrees);
+  const ridges = site.cavern || manifest.tile?.backdrop === false ? [] : layerFaces(st, site, dir, SN ? { line: SN.line, base: zLow, seed } : null, WS?.coast ? SEAWARD : null, skirtTrees);
   if (st.cumulus && !site.cavern) for (const f of cumulusFaces(st, site, dir, !!broken)) cel.push(f);
   // (a gritty polygon land's ground in detail: the path, the turf, the verge across the trail's fringe lanes; the land is
   // the bare ground, then the ribbon's lanes in order, then the rock. A paved trail, era/trail-dress.js `surface`, leans

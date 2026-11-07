@@ -44,7 +44,8 @@ export function fingerprint(v) {
 export function reviewParts(world) {
   const G = readGameworld(world), parts = [];
   // what game it is, first: the cube the world is laid for (written only; a world that writes none has no such part)
-  if (world.intent !== undefined) { const I = cubeOfWorld(world); parts.push({ id: 'intent', name: 'What game it is', content: { from: I.from, cube: I.cube, concerns: concernsOf(I.cube).map((c) => c.id) } }); }
+  // (and the Game Brief's mix and orders beside it, gmn.js: a change to them sends the part back to the creator)
+  if (world.intent !== undefined || world.gameBrief !== undefined) { const I = cubeOfWorld(world); parts.push({ id: 'intent', name: 'What game it is', content: { from: I.from, cube: I.cube, concerns: concernsOf(I.cube).map((c) => c.id), ...(world.gameBrief ? { gmn: world.gameBrief.gmn, orders: world.gameBrief.orders } : {}) } }); }
   parts.push({ id: 'world', name: 'The world', content: { id: G.id, name: G.name, seed: G.seed, levels: G.ids, links: G.links, start: G.start } });
   const levels = G.ids.map((id) => resolveLevel(G, id)), kits = [...new Set([G.style.kit, ...levels.map((R) => R.style.kit)])];
   parts.push({ id: 'nature', name: 'Natural world', content: { style: { kit: G.style.kit, trail: G.style.trail, meru: G.style.meru }, land: Object.fromEntries(kits.map((k) => [k, landFor(k, (levels.find((R) => R.style.kit === k)?.style.land) ?? G.style.land ?? {})])) } });

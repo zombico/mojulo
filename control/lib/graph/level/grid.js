@@ -16,6 +16,10 @@
  *     regions?: { rows, key },                  // a second layer of glyphs, the map's own shape: each tile's REGION
  *   }                                           // ('.' the level's own)
  *
+ * Or PLANNED (plan.js): `{ tile?, plan, segments? }` in place of rows, key and regions: the segments laid out, the walk
+ * through them, each segment written on its own (or laid from the plan), stitched into one grid here, each segment its
+ * region; the read carries `plan`, its readout (the route, the gates, the roles, which segments are written).
+ *
  * A REGION (`regions.key.<letter>`: REGION_WORDS) names a part of the map (the town, the meadows, the larch woods, the
  * pass) and dresses its tiles: the stage's own words each is built with (its look, what grows there, its grass), and
  * its RISE, metres over the level's land, eased between tile centres so the land stays one height across every seam.
@@ -36,6 +40,7 @@
  * Coordinates: column c runs east (+x), row r runs south (−y): the tile (r, c) has its centre at
  * (c + ½, −(r + ½)) × tile on the level's frame, north up. Pure.
  */
+import { stitchPlan } from './plan.js';
 
 export const GRID_TILE = Object.freeze({ d: 48, lo: 24, hi: 96 });
 export const GRID_GLYPHS = Object.freeze({ path: '#', land: '.' });
@@ -66,7 +71,15 @@ export function shapeOf(open) {
 
 export function readGrid(g, at = 'grid') {
   if (!isObj(g)) throw new Error(`level: ${at} is { tile?, rows, key? }`);
-  for (const k of Object.keys(g)) if (!['tile', 'rows', 'key', 'regions'].includes(k)) throw new Error(`level: ${at}.${k} is not a grid setting (settings: tile, rows, key, regions)`);
+  // A PLAN (plan.js): the map planned as segments and written in them, stitched into one plain grid first, so every
+  // reader of the grid (the page, its ends, the game) reads the same map
+  if (g.plan !== undefined) {
+    for (const k of Object.keys(g)) if (!['tile', 'plan', 'segments'].includes(k)) throw new Error(`level: ${at}.${k}: a planned map is written in its plan and its segments (settings: tile, plan, segments), never in rows`);
+    const S = stitchPlan(g, { at, regionWords: REGION_WORDS.filter((w) => w !== 'name' && w !== 'rise') });
+    return { ...readGrid(S.grid, at), plan: S.plan };
+  }
+  if (g.segments !== undefined) throw new Error(`level: ${at}.segments are written against a plan (${at}.plan)`);
+  for (const k of Object.keys(g)) if (!['tile', 'rows', 'key', 'regions'].includes(k)) throw new Error(`level: ${at}.${k} is not a grid setting (settings: tile, rows, key, regions, or plan and segments)`);
   const tile = g.tile ?? GRID_TILE.d;
   if (!(Number.isFinite(tile) && tile >= GRID_TILE.lo && tile <= GRID_TILE.hi)) throw new Error(`level: ${at}.tile is a tile's side in metres, ${GRID_TILE.lo} to ${GRID_TILE.hi}`);
   if (!Array.isArray(g.rows) || !g.rows.length || !g.rows.every((r) => typeof r === 'string')) throw new Error(`level: ${at}.rows is the map written as rows of glyphs, north first ('#' a path, '.' open land)`);
@@ -172,8 +185,19 @@ export function walkFrom(G, from) {
 /** The map's GOAL: the place whose key says `goal` (and a path reaches), or null. */
 export const mapGoal = (G) => G.cells.find((x) => x.kind === 'place' && x.open?.length && x.place && typeof x.place === 'object' && x.place.goal) ?? null;
 /** Where a walk of the map STARTS: the path end farthest along the paths from its goal (the far side of the map from
- *  where it is going), else its first path end, else its first path tile. */
+ *  where it is going), else its first path end, else its first path tile; a planned map's, in its arrival segment. */
 export function mapStart(G) {
+  // (a PLANNED map, plan.js, sets out from its route's first segment, the arrival: its path end farthest from the goal,
+  // else, where its ways all end at doors, its path tile farthest from the goal; never the first path in reading order,
+  // which may lie in any segment)
+  if (G.plan) {
+    const home = G.cells.filter((x) => x.kind === 'path' && x.region === G.plan.route[0]);
+    const pool = home.filter((x) => x.shape === 'end').length ? home.filter((x) => x.shape === 'end') : home, goal = mapGoal(G);
+    if (!pool.length) return null;
+    if (!goal) return pool[0];
+    const { dist } = walkFrom(G, goal), d = (x) => dist.get(`${x.r},${x.c}`) ?? -1;
+    return pool.reduce((m, x) => (d(x) > d(m) ? x : m));
+  }
   const ends = G.cells.filter((x) => x.kind === 'path' && x.shape === 'end'), goal = mapGoal(G);
   if (goal && ends.length) { const { dist } = walkFrom(G, goal), d = (x) => dist.get(`${x.r},${x.c}`) ?? -1; return ends.reduce((m, x) => (d(x) > d(m) ? x : m)); }
   return ends[0] ?? G.cells.find((x) => x.kind === 'path') ?? null;

@@ -41,10 +41,10 @@ const C = (id, department, name, { paths = [], parts = [], steps = [], cards = [
 
 /** The book's chapters, in the order a book is written (every chapter after the ones it reads). */
 export const CHAPTERS = Object.freeze([
-  C('intent', 'production', 'What game it is', { paths: ['/id', '/name', '/seed', '/intent', '/brief', '/quick', '/loop'], parts: ['intent'], cards: ['gameworld-guide', 'gameworld-intent', 'gameworld-intent-*', 'gameworld-quick'], outcome: 'intent' }),
+  C('intent', 'production', 'What game it is', { paths: ['/id', '/name', '/seed', '/intent', '/brief', '/gameBrief', '/quick', '/loop'], parts: ['intent'], cards: ['gameworld-guide', 'gameworld-brief', 'gameworld-intent', 'gameworld-intent-*', 'gameworld-quick'], outcome: 'intent' }),
   C('world', 'worlds', 'The world', { paths: ['/style', '/civilizations', '/grade'], parts: ['world', 'nature', 'civilizations', 'key', 'tech:*'], cards: ['gameworld-world'], reads: ['intent'], outcome: 'world' }),
   C('main-quest', 'production', 'The main quest', { paths: ['/mainQuest'], cards: ['gameworld-main-quest'], reads: ['intent', 'world'] }),
-  C('levels', 'worlds', 'The levels', { paths: ['/levels', '/links', '/start', '/hub', '/topology', '/wcd', '/qow'], parts: ['level:*'], steps: ['level-*', 'map-*'], cards: ['gameworld-wcd', 'gameworld-qow'], reads: ['world', 'main-quest'], outcome: 'levels' }),
+  C('levels', 'worlds', 'The levels', { paths: ['/levels', '/links', '/start', '/hub', '/topology', '/megaworld', '/wcd', '/qow'], parts: ['level:*'], steps: ['level-*', 'map-*'], cards: ['gameworld-wcd', 'gameworld-qow'], reads: ['world', 'main-quest'], outcome: 'levels' }),
   C('direction', 'characters', 'The direction', { paths: ['/characters/direction'], parts: ['characters:direction'], cards: ['gameworld-direction'], reads: ['intent', 'world'], outcome: 'characters' }),
   C('hero', 'characters', 'The hero', { paths: ['/characters/hero'], parts: ['hero:body', 'hero:head', 'hero:hair', 'hero:colour', 'hero:base'], steps: ['hero'], cards: ['gameworld-looks'], reads: ['direction'], outcome: 'characters' }),
   C('motion', 'play', 'The motion', { paths: ['/characters/hero/motion', '/moves'], parts: ['hero:motion'], cards: ['gameworld-motion'], reads: ['hero'], outcome: 'characters' }),
@@ -87,7 +87,12 @@ export function chapterWaves() {
  */
 export function unitOf(id) {
   if (typeof id !== 'string') return null;
-  if (id.startsWith('level:')) return id.length > 6 ? { id, chapter: BY_ID.get('levels'), level: id.slice(6) } : null;
+  // (a level, or one SEGMENT of a planned map's level: `level:<id>/<segment>`, gameworld/segments.js)
+  if (id.startsWith('level:')) {
+    const [level, segment, ...more] = id.slice(6).split('/');
+    if (!level || more.length || segment === '') return null;
+    return { id, chapter: BY_ID.get('levels'), level, ...(segment !== undefined ? { segment } : {}) };
+  }
   const c = BY_ID.get(id);
   return c ? { id, chapter: c, level: null } : null;
 }
