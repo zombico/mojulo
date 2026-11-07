@@ -511,7 +511,7 @@ function chapterLevels(world, played) {
 }
 const bossed = (G) => G.ids.some((id) => G.levels[id].goal?.boss);
 // the cameras that watch a hero (levels.js levelOrder refuses them without one)
-const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed']);
+const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed', 'orbit']);
 const guarded = (G) => G.ids.some((id) => G.levels[id].goal?.guards);
 const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.section !== 'interior' && !s.building?.ref) out[s.level] = s.index; return out; };
 function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {

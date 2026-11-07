@@ -82,6 +82,9 @@ const HELD_CONTACT = Object.freeze([0.28, 0.62]);
 const carriesStrike = (G) => (G.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('strike'));
 const strikeWindow = (G, rule) => (carriesStrike(G) && !Array.isArray(rule?.strikeContact) ? { strikeContact: [...HELD_CONTACT] } : null);
 const STRIKE_LEGEND = 'click  strike';
+// THE ORBIT CAMERA (cameras.js `orbit`): close over the hero's shoulder, looking at its chest, a little above it, turned
+// round it by the mouse (rules-basic.js follow `orbit`)
+const ORBIT_CAMERA = Object.freeze({ dist: 6, lookH: 1.5, orbitPitch: 0.28, orbit: true, mouseLook: true });
 // THE BODY'S OWN SHOT (adornment.js BASIC_VERBS 'shoot'): a hero carrying a firearm in its right hand for its shot fires
 // it as the quick shooter's player does (quick.js shootCast): a pistol the handgun's numbers, a long gun the rifle's,
 // fired from the eye; its body hittable; played third person, over the shoulder (its rounds converging on the
@@ -663,8 +666,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   if (cam === 'side' && !heroRef) throw new Error('levels: a side camera watches a hero run its lane; give the world a hero, or play it first-person');
   if (cam === 'third-person' && !heroRef) throw new Error('levels: a third-person camera follows a hero; give the world a hero, or play it first-person');
   if (cam === 'fixed' && !heroRef) throw new Error('levels: fixed cameras watch a hero walk past them; give the world a hero, or play it first-person');
-  const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
-  const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
+  if (cam === 'orbit' && !heroRef) throw new Error('levels: an orbit camera turns round a hero; give the world a hero, or play it first-person');
+  const look = cam === 'first-person', top = cam === 'top-down', orbit = cam === 'orbit', lane = cam === 'side' ? stageLane(stage) : null;
+  const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : orbit ? `W A S D  run${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''} · mouse  turn the camera` : look ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
   const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
@@ -721,7 +725,8 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     };
   } else if (heroRef) {
     // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
-    const camRule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : undefined;
+    // (an orbit camera: the hero runs the way it looks, rules-platform.js moveYaw 'camera')
+    const camRule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : orbit ? { move: 'world', moveYaw: 'camera' } : lane ? { move: 'lane', lane: lane.line } : undefined;
     // the world's feel (feel/lower.js): its template's card lowered over the hero's platform rule, the camera's way of
     // moving kept; no feel, the hero's own rule as it was
     const feelRule = G.feel ? lowerFeel(feelCard(G.feel)).rule : null;
@@ -738,6 +743,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
         : lane ? { rule: 'side', target: 'hero' }
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
+        : orbit ? { rule: 'follow', target: 'hero', ...ORBIT_CAMERA }
         : partyChase(G, P.camera);
     const A = armedPilot(G, { ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }, cam);
     pilotPart = { figures: P.figures, entities: [A.entity], camera: cam && cam !== 'third-person' ? camera : A.camera ?? camera, events };

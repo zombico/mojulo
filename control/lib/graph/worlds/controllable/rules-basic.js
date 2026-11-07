@@ -123,6 +123,21 @@ export function buildRulesBasic(E) {
       lkMix = lkTgt ? e.lockMix : 0;
       e._lkLook = lo.mix ?? 0.5; e._lkDist = lo.dist ?? 1.2;
     }
+    // ORBIT (opt-in `orbit: true`, a gameworld's `orbit` camera): the mouse turns the camera round its target and tilts it
+    // (input.lookDX / lookDY at `lookSens`, the tilt held between `pitchMin` and `pitchMax`), never the target itself; it
+    // stands `dist` back at that tilt and looks at the target `lookH` up; its yaw (`e.orbitYaw`, the camera entity's) is what
+    // the target runs by (rules-platform.js `moveYaw: 'camera'`). Absent → the chase behind the heading, as it was.
+    if (r.orbit) {
+      const sens = r.lookSens ?? 0.0025;
+      if (e.orbitYaw == null) { e.orbitYaw = tgt.transform.heading; e.orbitPitch = r.orbitPitch ?? 0.3; }
+      e.orbitYaw += (input.lookDX || 0) * sens;
+      e.orbitPitch = Math.max(r.pitchMin ?? -0.15, Math.min(r.pitchMax ?? 1.1, e.orbitPitch - (input.lookDY || 0) * sens));
+      const of = fwdXY(e.orbitYaw), d0 = r.dist ?? 6, oc = Math.cos(e.orbitPitch), os = Math.sin(e.orbitPitch), lh = r.lookH ?? 1.5, tp = tgt.transform.pos;
+      const want = [tp[0] - of[0] * d0 * oc, tp[1] - of[1] * d0 * oc, tp[2] + lh + d0 * os];
+      e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), smooth(r.lerp ?? 12, dt)));
+      e.lookAt = [tp[0], tp[1], tp[2] + lh];
+      return;
+    }
     const dist = (r.dist ?? 6) * (lkMix ? 1 + (e._lkDist - 1) * lkMix : 1), height = r.height ?? 3, shoulder = r.shoulder ?? 0, lead = r.lead ?? 4, lookH = r.lookH ?? 1.5, lerp = r.lerp ?? 8;
     const wantFlip = r.reverse ? 1 : 0;
     if (e.flipMix == null) e.flipMix = wantFlip;   // start settled (no swing on load)

@@ -111,7 +111,10 @@ export function buildRulesPlatform(E) {
         const L = laneNear(r.lane, t.pos[0], t.pos[1], side);
         wmX = L.tx * side; wmY = L.ty * side;
       } else {
-        const my = r.moveYaw ?? HALF_PI, wf = fwdXY(my), wr = rightXY(my);
+        // (`moveYaw: 'camera'`: the orbit camera's yaw, rules-basic.js follow `orbit`, so W runs the way the camera looks;
+        // before the camera has turned, the body's own heading)
+        const oc = r.moveYaw === 'camera' && world && world.byId ? Object.values(world.byId).find((x) => x.isCamera) : null;
+        const my = r.moveYaw === 'camera' ? (oc && Number.isFinite(oc.orbitYaw) ? oc.orbitYaw : t.heading) : (r.moveYaw ?? HALF_PI), wf = fwdXY(my), wr = rightXY(my);
         wmX = wf[0] * input.forward + wr[0] * side; wmY = wf[1] * input.forward + wr[1] * side;
       }
       wmMag = Math.min(1, Math.hypot(wmX, wmY));

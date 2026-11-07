@@ -165,6 +165,26 @@ describe('the course, driven', () => {
     expect(p().boost).toBe(2);
   });
 
+  it('an ORBIT camera: the mouse turns the camera round her, never her; W runs her the way it looks, and she turns to face her run', () => {
+    const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { move: 'world', moveYaw: 'camera', faceRate: 20 } });
+    const w = createWorld({ entities: m.entities, colliders: [], camera: { ...m.camera, orbit: true, mouseLook: true } });
+    const flat = () => 0, p = w.byId.p, h0 = p.transform.heading;
+    // (the mouse alone: the camera swings a quarter turn round her; she stands as she was)
+    for (let i = 0; i < 10; i++) stepWorld(w, { lookDX: (Math.PI / 2) / 0.0025 / 10 }, 1 / 60, { ground: flat });
+    expect(p.transform.heading).toBeCloseTo(h0, 5);
+    expect(w.camera.orbitYaw).toBeCloseTo(h0 + Math.PI / 2, 3);
+    // (the camera stands behind her along its own yaw, not her heading)
+    for (let i = 0; i < 120; i++) stepWorld(w, {}, 1 / 60, { ground: flat });
+    const c = w.camera.transform.pos, back = [c[0] - p.transform.pos[0], c[1] - p.transform.pos[1]];
+    expect(Math.atan2(-back[1], -back[0])).toBeCloseTo(w.camera.orbitYaw, 1);
+    // W: she runs the way the camera looks, turned to face it
+    const x0 = [...p.transform.pos];
+    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1 }, 1 / 60, { ground: flat });
+    const d = [p.transform.pos[0] - x0[0], p.transform.pos[1] - x0[1]];
+    expect(Math.atan2(d[1], d[0])).toBeCloseTo(w.camera.orbitYaw, 1);
+    expect(Math.cos(p.transform.heading - w.camera.orbitYaw)).toBeGreaterThan(0.99);
+  });
+
   it('Space winds up, then she is in the air in the leap state, and lands', () => {
     const { w } = world();
     let sawSquat = false, sawLeap = false, top = 0;

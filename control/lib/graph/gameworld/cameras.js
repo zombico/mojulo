@@ -5,6 +5,7 @@
 // absent: third person with a hero, first person without
 export const CAMERAS = Object.freeze({
   'third-person': 'a chase camera behind the hero',
+  orbit: 'a third-person camera the mouse turns round the hero; W A S D run the way it looks, the hero turning to face its run (needs a hero)',
   'first-person': 'you look out of the hero\'s eyes (or are the walker, with no hero); the mouse looks',
   side: 'a side-scroller: the hero runs the trail\'s own line with A / D, the camera square to it and swinging round its bends (needs a hero, and a trail: a climb has no line to run)',
   'top-down': 'a ¾ overhead camera, north up the screen; W walks up the screen (needs a hero to watch)',

@@ -14,6 +14,8 @@ export const SPACE = Object.freeze({
         // built 10-12: the `fixed` camera rule (rules-basic.js: stations, the nearest focus holds the shot, a cut with a hold)
         // and a gameworld's camera 'fixed' (a station over each place of the way). A floormap's room cameras are not yet fed in.
         fixed: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'fixed cameras over the way, cutting as the hero passes (camera: fixed; needs a hero); a floormap\'s room cameras not yet fed in' },
+        // built 11-07: the `follow` camera's `orbit` (the mouse turns it round the hero) and the `move: 'world'` pilot by its yaw
+        orbit: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a third-person camera the mouse turns round the hero, W A S D running the way it looks (rules-basic.js follow `orbit`, rules-platform.js moveYaw \'camera\')' },
         // built 10-11: the `overhead` camera and the `move: 'world'` pilot, chosen by a gameworld's `camera`.
         'top-down': { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'the ¾ `overhead` camera (north up), the hero moving in the screen\'s frame' },
         // built 10-11: the `side` camera and the `move: 'lane'` pilot held to a trail's own spine (2.5D: the lane bends with

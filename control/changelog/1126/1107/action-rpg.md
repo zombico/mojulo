@@ -9,3 +9,8 @@
   and its `stamina: { seconds?, refill?, winded? }` (STAMINA: 6 s of sprint, 4 s back, 6 s winded). The page reads the
   gauge as stamina, a green bar and WINDED in place of OVERHEAT, only where its hero sprints; the hero's controls say
   `F  sprint (stamina)`. A rule with no `sprint`, every boost as it was.
+- **An orbit camera: the action game's third person.** A gameworld's `camera: 'orbit'` (cameras.js, the cosmos's
+  space.camera): the mouse turns the camera round the hero and tilts it, never the hero (rules-basic.js follow `orbit`,
+  6 m back over its shoulder, looking at its chest); W A S D run the hero the way the camera looks and the hero turns to
+  face its run (rules-platform.js `moveYaw: 'camera'`, the world-frame pilot the overhead camera already drives). Its
+  controls: `W A S D  run · mouse  turn the camera`. The `third-person` chase behind the hero's heading is as it was.
