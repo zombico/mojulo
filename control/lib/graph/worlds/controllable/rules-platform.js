@@ -42,6 +42,12 @@ export function buildRulesPlatform(E) {
     // stick walks under `runAt` of its travel and runs past it; the walk key held (`input.walk`) walks. A rule whose F is
     // its gear's (`gear`) or a space suit keeps the boost. Absent → the boost below, byte-identical.
     const walker = r.walkSpeed > 0 && r.space !== true && !r.gear;
+    // A HERO SPRINTS (opt-in `sprint: true`, a feel's: gameworld/feel/lower.js): the boost held is a sprint on the ground,
+    // a walker's too, at `boostSpeed` along the stick (never with the stick at rest, never in the air), its legs the run's
+    // clip faster, never a thruster's lean; the GAUGE is its STAMINA (`boostMax` seconds of sprint, `boostRegen` back,
+    // empty is WINDED until `boostUnlockFrac` of it refills at `overheatRegen`), a jump free of it unless `jumpBoostCost`
+    // says. Absent → the boost as it was, byte-identical.
+    const sprints = r.sprint === true && r.space !== true;
     let speed = r.speed ?? 6;
     const turnRate = r.turn ?? 2.4, strafe = r.strafe ?? 1, eye = r.eye ?? 0;
     const boostSpeed = r.boostSpeed ?? speed * 3.5;
@@ -83,7 +89,7 @@ export function buildRulesPlatform(E) {
     const hasGauge = boostMax > 0;
     if (hasGauge && e.boost == null) e.boost = boostMax;
     const payBoost = (cost) => { if (hasGauge && cost > 0) e.boost = Math.max(0, e.boost - cost); };
-    const jumpCost = r.jumpBoostCost ?? 0.8;
+    const jumpCost = r.jumpBoostCost ?? (sprints ? 0 : 0.8);
 
     // look: A/D tank-turn (default) or full mouse-look (yaw + pitch). In mouselook the MOUSE steers, so
     // A/D (the turn axis) is freed up to STRAFE instead — standard FPS WASD. Pitch is clamped to just
@@ -263,7 +269,7 @@ export function buildRulesPlatform(E) {
     // RELEASED, then a fresh press dashes again.
     const boostAvailable = !hasGauge || (e.boost > 1e-6 && !e.boostLock);
     if (!input.boost) e.boostCut = false;
-    let boosting = !walker && !!input.boost && !dodging && !tackling && boostAvailable && !e.boostCut;
+    let boosting = (!walker || sprints) && !!input.boost && !dodging && !tackling && boostAvailable && !e.boostCut && (!sprints || (e.grounded && Math.abs(fwdIn) + Math.abs(sideIn) > 1e-3));
     // KNEEL (opt-in `kneel:true` on the rule; held X): a grounded one-knee
     // hold — roots the entity and plays the 'kneel' clip. Boost and the
     // charge jump both take precedence (either input stands the unit up).
@@ -319,13 +325,15 @@ export function buildRulesPlatform(E) {
       // the clips see what the direct step gave them. Absent `accel` → the direct step below, byte-identical.
       const d = e.drive || (e.drive = [0, 0]);
       if (!halt) { d[0] = 0; d[1] = 0; }
-      else if (boosting) {
+      else if (boosting && !sprints) {
         const k = r.boostInertia > 0 ? 0 : boostSpeed * ctl / bn;
         d[0] = (f[0] * bf + rt[0] * bs) * k; d[1] = (f[1] * bf + rt[1] * bs) * k;
       } else {
         const pushed = Math.abs(fwdIn) + Math.abs(sideIn) > 1e-3;
         if (pushed || e.grounded) {
-          const wx = (f[0] * fwdIn + rt[0] * sideIn * strafe) * speed, wy = (f[1] * fwdIn + rt[1] * sideIn * strafe) * speed;
+          // (a sprint builds to its own speed as the run does to the run's)
+          const pace = boosting ? boostSpeed : speed;
+          const wx = (f[0] * fwdIn + rt[0] * sideIn * strafe) * pace, wy = (f[1] * fwdIn + rt[1] * sideIn * strafe) * pace;
           const dx = wx - d[0], dy = wy - d[1], dl = Math.hypot(dx, dy);
           if (dl > 1e-12) {
             const building = pushed && Math.hypot(wx, wy) >= Math.hypot(d[0], d[1]) - 1e-9 && wx * d[0] + wy * d[1] >= 0;
@@ -338,8 +346,8 @@ export function buildRulesPlatform(E) {
       sideMove = (d[0] * rt[0] + d[1] * rt[1]) * dt;
       t.pos = add(t.pos, [d[0] * dt, d[1] * dt, 0]);
     } else {
-      fwdMove = (boosting ? (bf / bn) * boostSpeed * ctl * dt : fwdIn * speed * ctl * dt) * halt;
-      sideMove = (boosting ? (bs / bn) * boostSpeed * ctl * dt : sideIn * strafe * speed * ctl * dt) * halt;
+      fwdMove = (boosting && !sprints ? (bf / bn) * boostSpeed * ctl * dt : fwdIn * (boosting ? boostSpeed : speed) * ctl * dt) * halt;
+      sideMove = (boosting && !sprints ? (bs / bn) * boostSpeed * ctl * dt : sideIn * strafe * (boosting ? boostSpeed : speed) * ctl * dt) * halt;
       t.pos = add(t.pos, add(scl(f, fwdMove), scl(rt, sideMove)));
     }
 
@@ -481,7 +489,7 @@ export function buildRulesPlatform(E) {
       // squat clip's depth ramp — set by the jump block, not by distance)
       e.locomotion = 'squat';
       e.moving = true;
-    } else if (boosting) { e.locomotion = boostClip(); boostPhase(); e.moving = true; }
+    } else if (boosting && !sprints) { e.locomotion = boostClip(); boostPhase(); e.moving = true; }
     else if (kneeling) { e.locomotion = 'kneel'; e.moving = true; }
     else if (swinging) {
       // one-shot strike: the gait phase IS the swing progress (clamped under
@@ -535,7 +543,7 @@ export function buildRulesPlatform(E) {
         // direction-change bite: a set cost each time the DOMINANT dash direction flips mid-boost
         // (`boostTurnCost`, default 0.75 — the vectoring modifier; 0 disables it).
         const dir = boostClip();
-        const turnCost = r.boostTurnCost ?? 0.75;
+        const turnCost = r.boostTurnCost ?? (sprints ? 0 : 0.75);
         if (turnCost > 0 && e.boostDir && e.boostDir !== dir) payBoost(turnCost);
         e.boostDir = dir;
       } else {

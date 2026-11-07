@@ -136,6 +136,35 @@ describe('the course, driven', () => {
     expect(w.byId.p.moving).toBe(false);
   });
 
+  it('a hero that SPRINTS (rule.sprint): F held runs her at the sprint on her run\'s legs, on a stamina gauge that winds her empty', () => {
+    // (the boost gauge as stamina: 2 s of sprint, back in 2 s, winded until full again; on a long flat floor)
+    const mk = () => { const m = playerWorld({ hero: { cast: 'female' }, id: 'p', rule: { sprint: true, boostSpeed: 9, boostMax: 2, boostRegen: 1, overheatRegen: 0.5 } }); return createWorld({ entities: m.entities, colliders: [], camera: m.camera }); };
+    const flat = () => 0;
+    let w = mk();
+    const p = () => w.byId.p, y = () => p().transform.pos[1];
+    // (the stick at rest: F alone is nothing, no sprint, no stamina spent)
+    for (let i = 0; i < 30; i++) stepWorld(w, { boost: 1 }, 1 / 60, { ground: flat });
+    expect(p().boosting).toBe(false); expect(p().boost).toBe(2);
+    // sprinting: the sprint's speed, the run's clip, a second of stamina spent a second
+    let y0 = y();
+    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1, boost: 1 }, 1 / 60, { ground: flat });
+    expect(y() - y0).toBeGreaterThan(8);
+    expect(p().locomotion).toBe('forward');
+    expect(p().boost).toBeCloseTo(1, 1);
+    // run dry: WINDED, back to the run's speed, and no sprint until the gauge is full again
+    for (let i = 0; i < 70; i++) stepWorld(w, { forward: 1, boost: 1 }, 1 / 60, { ground: flat });
+    expect(p().boostLock).toBe(true);
+    y0 = y();
+    for (let i = 0; i < 60; i++) stepWorld(w, { forward: 1, boost: 1 }, 1 / 60, { ground: flat });
+    expect(y() - y0).toBeLessThan(p().rule.speed + 0.2);
+    for (let i = 0; i < 300; i++) stepWorld(w, {}, 1 / 60, { ground: flat });
+    expect(p().boostLock).toBe(false); expect(p().boost).toBe(2);
+    // a jump is free of it
+    w = mk();
+    for (let i = 0; i < 60; i++) stepWorld(w, { jump: i === 2 ? 1 : 0, jumpHeld: i < 20 ? 1 : 0 }, 1 / 60, { ground: flat });
+    expect(p().boost).toBe(2);
+  });
+
   it('Space winds up, then she is in the air in the leap state, and lands', () => {
     const { w } = world();
     let sawSquat = false, sawLeap = false, top = 0;

@@ -15,7 +15,8 @@
  *   lowerFeel(card, { gear? })   → { rule, lane, carried: [field], partly: [{ field, why }], lost: [{ field, why }] }
  *                       `rule` the platform rule's fields (speed, accel, decel, faceRate, jumpSpeed, gravity,
  *                       fallGravity, maxFall, coyote, buffer, jumpCut, airControl, jumpWindup, airJumps, airJumpMult,
- *                       strikeContact, combo, hitstop); `lane` the card holds the hero to a line (the level's own); `gear` the
+ *                       strikeContact, combo, hitstop; a card that sprints, `sprint` with its stamina: boostSpeed, boostMax,
+ *                       boostRegen, overheatRegen, boostUnlockFrac); `lane` the card holds the hero to a line (the level's own); `gear` the
  *                       template's worn gear (the glider or the jetpack), said when it names one
  *   feelReport(feel)  → { pole, name, after, variant?, toward?, t?, view, carried, partly, lost } the readout's
  *
@@ -24,6 +25,9 @@
 import { FPS, r4, POLES, POLE_IDS, variantsOf, poleCard, blendPoles, mergeDeep } from './cards.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+/** A hero's STAMINA (the sprint's gauge), its defaults: seconds of sprint, seconds to refill from empty, and seconds to
+ * refill when WINDED (run dry: no sprint until full again). A card says its own as `stamina: { seconds?, refill?, winded? }`. */
+export const STAMINA = Object.freeze({ seconds: 6, refill: 4, winded: 6 });
 const FEEL_KEYS = ['pole', 'variant', 'toward', 't', 'set'];
 const fail = (m) => new Error(`gameworld: feel${m}`);
 
@@ -99,7 +103,14 @@ export function lowerFeel(card, { gear = null } = {}) {
   if (Gd.accel > 0) put('ground.accel', 'accel', Gd.accel);
   if (Gd.decel > 0) put('ground.decel', 'decel', Gd.decel);
   if (Gd.turn != null) { rule.faceRate = Gd.turn === Infinity ? 60 : r4((Gd.turn * Math.PI) / 180); half('ground.turn', 'the facing\'s turn where the hero moves in the screen\'s frame or on a lane (faceRate); a tank-turned hero keeps its own'); }
-  if (Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
+  // the SPRINT: the boost held, on its gauge, the hero's STAMINA (rules-platform.js `sprint`): the card's `stamina` its
+  // seconds of sprint, its refill and its winded refill (STAMINA the defaults); a dodge's share of it said, not carried
+  if (Gd.sprint > Gd.run) {
+    const St = { ...STAMINA, ...(C.stamina ?? {}) };
+    put('ground.sprint', 'sprint', true); rule.boostSpeed = Gd.sprint;
+    rule.boostMax = St.seconds; rule.boostRegen = r4(St.seconds / St.refill); rule.overheatRegen = r4(St.seconds / St.winded); rule.boostUnlockFrac = 1;
+    carried.push('stamina');
+  }
   // the jump: its speed from the height and the rise's gravity (as the runtime steps them), the fall's own, the windows in
   // seconds; the gather a half frame long so the take-off lands on the card's frame (the runtime counts the press's)
   const v0 = steppedSpeed(J.height, J.gRise);

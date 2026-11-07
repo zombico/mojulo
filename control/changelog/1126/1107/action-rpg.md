@@ -1,0 +1,11 @@
+### The action RPG: a hero with a sword on an open world map, sprinting on a stamina gauge
+
+- **Stamina, lifted from the mobile suits' boost.** The platform rule's boost gauge (seconds of thrust, a refill, a
+  dodge's cost, run dry and locked until it refills) is a hero's stamina when its rule says `sprint: true`
+  (worlds/controllable/rules-platform.js): the boost held is a sprint on the ground, a walking hero's too, at `boostSpeed`
+  along the stick, never with the stick at rest or in the air, on the run's own legs (the run's clip, faster), never a
+  thruster's lean; a jump costs none of it unless `jumpBoostCost` says; run dry, the hero is WINDED, back to the run until
+  the gauge is full again. A feel whose sprint outruns its run lowers to it (gameworld/feel/lower.js): its sprint speed,
+  and its `stamina: { seconds?, refill?, winded? }` (STAMINA: 6 s of sprint, 4 s back, 6 s winded). The page reads the
+  gauge as stamina, a green bar and WINDED in place of OVERHEAT, only where its hero sprints; the hero's controls say
+  `F  sprint (stamina)`. A rule with no `sprint`, every boost as it was.

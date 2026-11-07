@@ -3413,7 +3413,18 @@ function __updateBoostHud() {
   __bg.fill.style.background = overheat ? '#ff6b6b' : (frac < 0.25 ? '#ffb347' : '#7fd4ff');
   __bg.fill.style.opacity = overheat ? '0.5' : '0.72';
   __bg.label.style.display = overheat ? '' : 'none';
-}
+}${entities.some((x) => x && x.rule && x.rule.sprint === true) ? `
+// STAMINA (a hero that sprints, rules-platform.js \`sprint\`): the boost gauge read as the hero's stamina, a green bar that
+// ambers low, and WINDED (not OVERHEAT) while it is run dry and refilling. Emitted only on a page whose hero sprints.
+if (__bg && __boostEnt && __boostEnt.rule && __boostEnt.rule.sprint) { __bg.label.textContent = 'WINDED'; __bg.label.style.color = '#ffb36b'; }
+const __updateBoostHud0 = __updateBoostHud;
+__updateBoostHud = function () {   // eslint-disable-line no-func-assign
+  __updateBoostHud0();
+  const ent = (__world.pilotId && __world.byId[__world.pilotId]) || __boostEnt;
+  if (!__bg || !ent || !ent.rule || !ent.rule.sprint) return;
+  const max = __boostMaxOf(ent), frac = Math.max(0, Math.min(1, (ent.boost == null ? max : ent.boost) / max));
+  __bg.fill.style.background = ent.boostLock ? '#ff8a5c' : (frac < 0.25 ? '#ffc35c' : '#8fdc6a');
+};` : ''}
 // muzzle-flash + tracer + impact effects: on each new shot (weapon.shots increments) spawn transient
 // additive meshes at the engine-provided from/to and fade them over their ttl. Non-pickable (raycast
 // disabled) so they never confuse the ground probe. Colour + size come from the weapon's fx config.

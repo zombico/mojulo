@@ -729,7 +729,9 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
-    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: `${controls}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves, startingGrants(G));
+    // (a hero that sprints on its stamina, feel/lower.js: its key said beside the run)
+    const sprintWords = rule?.sprint ? ' · F  sprint (stamina)' : '';
+    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: `${controls}${sprintWords}${movesLegend(moves)}`, ...(rule ? { rule } : {}) }), moves, startingGrants(G));
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
