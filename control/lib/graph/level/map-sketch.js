@@ -7,19 +7,24 @@
  * quest's map.
  *
  *   sketch: {
- *     concept?: { pitch?, journey: [{ id, say, kind, at: '<segment>' }] },
+ *     concept?: { pitch?, hold?, journey: [{ id, say, kind, at: '<segment>', teach?, faces? }] },
  *     segments?: { <S>: { status?: 'draft' | 'approved', ground?: [rows], height?: [rows], marks?: [mark], notes? } },
  *   }
  *   ground   a glyph a tile (SKETCH_GROUND): f forest, g grove, m meadow, r rocks, c cliff, w water, s scrub; '.' its
  *            region's own
  *   height   a digit a tile, 0-9: its height in steps of SKETCH.step metres over its region's rise
  *   mark     { at: [row, col] in its segment, kind (SKETCH_MARKS), say, foes?: { kind?, count? }, item? }
+ *   teach    a beat's verbs (TEACH): the controls the hero learns there, shown by the guide while it is the way on
+ *   faces    the arrival's: the id of the beat its page sets out facing (the first look: the place the level is about)
+ *   hold     true: a page's ways out are held while its fights stand (leaving is graduation: gameworld/levels.js)
  *
  *   readSketch(sketch, P, at?)       → the sketch read (P: readPlan's or readGrid's `plan` readout); throws, teaching
  *   sketchRise(G, S)                 → the grid's rise with each sketched tile's height over its region's (G: readGrid's)
  *   sketchLaws(G, S)                 → [{ law, ok, value }]: it advises, never refuses
  *   segmentBriefs(G, S, { level? })  → { <segment>: brief }: each segment's subtask, what its planner is given
  *   sketchStatus(S, P)               → { <segment>: 'approved' | 'draft' | 'unplanned' }
+ *   beatTile(G, S, beat)             → [row, col] where a beat stands on the map: its mark (BEAT_PLACE), a climax at the
+ *                                      goal's place, else its segment's middle
  *   levelGrid(level, at?)            → readGrid's read of the level's grid with its APPROVED segments' sketch lowered
  *                                      (THE GEOCUBE of a segment): their heights in its rise, `sketch` the rest of what
  *                                      the build reads ({ approved, ground: Map('r,c' → glyph), marks, laid, unlaid });
@@ -31,7 +36,7 @@
  * Pure.
  */
 import { gateTile } from './plan.js';
-import { readGrid } from './grid.js';
+import { readGrid, mapStart } from './grid.js';
 
 const readGridOf = (level, at) => readGrid(level.grid, at);
 
@@ -56,6 +61,18 @@ export const SKETCH_MARKS = Object.freeze({
 });
 export const JOURNEY_KINDS = Object.freeze(['arrival', 'traverse', 'encounter', 'find', 'vista', 'secret', 'rest', 'climb', 'puzzle', 'climax']);
 const STATUS = ['draft', 'approved'];
+// THE VERBS A BEAT TEACHES (`teach`), each the keys the guide shows while that beat is the way on: a control taught where
+// it is first needed, never a list up front (the controls themselves are the hero's: gameworld/levels.js)
+export const TEACH = Object.freeze({
+  look: { keys: 'mouse  look around', say: 'looking round' },
+  strike: { keys: 'click  strike', say: 'the blow' },
+  sprint: { keys: 'F  sprint · the green bar is your stamina', say: 'the sprint' },
+  dodge: { keys: 'F F  dodge', say: 'the dodge' },
+  lock: { keys: 'C  lock on to a foe', say: 'the lock-on' },
+  jump: { keys: 'Space  jump', say: 'the jump' },
+});
+// (the mark each kind of beat stands at, by preference: the guide's place for it and the first look's)
+export const BEAT_PLACE = Object.freeze({ encounter: ['encounter'], climax: ['encounter'], find: ['loot', 'secret'], secret: ['secret', 'loot'], rest: ['rest'], vista: ['landmark'], puzzle: ['hazard', 'landmark'], climb: ['hazard', 'landmark'] });
 // (what a sketched ground is built as: the kit's own flora presets, era/biocube.js)
 export const SKETCH_BIOCUBE = Object.freeze({ f: 'forest', g: 'grove', m: 'meadow', s: 'upland' });
 export const SKETCH_BOULDERS = 8;
@@ -77,6 +94,8 @@ export function readSketch(sketch, P, at = 'level.sketch') {
     const C = sketch.concept;
     if (!isObj(C)) throw fail(`${at}.concept is { pitch?, journey }: the level's flow, beat by beat`);
     if (C.pitch !== undefined && typeof C.pitch !== 'string') throw fail(`${at}.concept.pitch is the level in a sentence`);
+    for (const k of Object.keys(C)) if (!['pitch', 'journey', 'hold'].includes(k)) throw fail(`${at}.concept.${k} is not a concept's word (pitch, journey, hold)`);
+    if (C.hold !== undefined && C.hold !== true) throw fail(`${at}.concept.hold is true (a page's ways out held while its fights stand), or left out`);
     if (!Array.isArray(C.journey) || !C.journey.length) throw fail(`${at}.concept.journey is the beats of the way, in order: [{ id, say, kind, at }]`);
     const ids = new Set();
     C.journey.forEach((b, i) => {
@@ -86,8 +105,12 @@ export function readSketch(sketch, P, at = 'level.sketch') {
       ids.add(b.id);
       if (!JOURNEY_KINDS.includes(b.kind)) throw fail(`${w}.kind is ${JOURNEY_KINDS.join(', ')}`);
       if (!segs.includes(b.at)) throw fail(`${w}.at is a segment of the plan (${segs.join(', ')})`);
+      const teach = b.teach === undefined ? [] : Array.isArray(b.teach) ? b.teach : [b.teach];
+      for (const v of teach) if (!TEACH[v]) throw fail(`${w}.teach is a verb the hero learns here (${Object.keys(TEACH).join(', ')}), or a list of them`);
+      if (b.faces !== undefined && (b.kind !== 'arrival' || typeof b.faces !== 'string')) throw fail(`${w}.faces is an arrival's: the id of the beat its page sets out facing`);
     });
-    out.concept = { pitch: C.pitch ?? null, journey: C.journey.map((b) => ({ id: b.id, say: b.say, kind: b.kind, at: b.at })) };
+    for (const [i, b] of C.journey.entries()) if (b.faces !== undefined && !C.journey.some((x) => x.id === b.faces && x !== b)) throw fail(`${at}.concept.journey[${i}].faces '${b.faces}' is no other beat of the journey`);
+    out.concept = { pitch: C.pitch ?? null, ...(C.hold ? { hold: true } : {}), journey: C.journey.map((b) => ({ id: b.id, say: b.say, kind: b.kind, at: b.at, ...(b.teach !== undefined ? { teach: Array.isArray(b.teach) ? [...b.teach] : [b.teach] } : {}), ...(b.faces !== undefined ? { faces: b.faces } : {}) })) };
   }
   if (sketch.segments !== undefined) {
     if (!isObj(sketch.segments)) throw fail(`${at}.segments is { <segment>: { status?, ground?, height?, marks?, notes? } }`);
@@ -182,6 +205,60 @@ export function sketchLaws(G, S) {
     v.ground.forEach((row, r) => [...row].forEach((g, c) => { const x = G.at(r0 + r, c0 + c); if ((g === 'w' || g === 'c') && x?.kind === 'path') blocked.push(`${seg} row ${r + 1} column ${c + 1}`); }));
   }
   laws.push({ law: 'ground-walkable', ok: !blocked.length, value: blocked.length ? `a path runs on water or a cliff: ${blocked.join(', ')}` : 'no path on water or a cliff' });
+  if (S.concept) laws.push(...firstZoneLaws(G, S, rise));
+  return laws;
+}
+
+/** Where a beat stands on the map, [row, col] (a tile's, or a segment's middle): a climax at the goal's place in its
+ * segment, else its kind's mark there (BEAT_PLACE), else its segment's middle. */
+export function beatTile(G, S, b) {
+  const P = G.plan, n = P.size, [r0, c0] = P.segments[b.at].at, marks = S?.segments[b.at]?.marks ?? [];
+  if (b.kind === 'climax') { const x = G.cells.find((y) => y.kind === 'place' && y.place?.goal && y.r >= r0 && y.r < r0 + n && y.c >= c0 && y.c < c0 + n); if (x) return [x.r, x.c]; }
+  for (const k of BEAT_PLACE[b.kind] ?? []) { const m = marks.find((x) => x.kind === k); if (m) return [r0 + m.at[0], c0 + m.at[1]]; }
+  return [r0 + (n - 1) / 2, c0 + (n - 1) / 2];
+}
+
+// how high a place stands that the first look looks for (a keep's gate, a tower: the top of what is seen), and the eye
+const LOOK = Object.freeze({ eye: 1.7, place: 6 });
+
+/** A FIRST ZONE'S LAWS (a journey that teaches, or whose arrival faces a beat): what a fight asks is taught before it,
+ * the first fight one foe, and the place the arrival faces seen from the start over the land as planned. */
+function firstZoneLaws(G, S, rise) {
+  const J = S.concept?.journey ?? [], laws = [], fights = (b) => b.kind === 'encounter' || b.kind === 'climax';
+  // (a fight's foes: the encounter mark its segment holds for it, the segment's fights and its marks taken in order)
+  const countOf = (b) => {
+    const mine = J.filter((x) => fights(x) && x.at === b.at), marks = (S.segments[b.at]?.marks ?? []).filter((m) => m.kind === 'encounter');
+    const m = marks[mine.indexOf(b)] ?? marks[0];
+    return m ? m.foes?.count ?? 1 : null;
+  };
+  if (J.some((b) => b.teach?.length)) {
+    const taught = new Set(), short = [];
+    for (const b of J) {
+      for (const v of b.teach ?? []) taught.add(v);
+      if (!fights(b)) continue;
+      const n = countOf(b) ?? 1, want = ['strike', ...(n >= 2 ? ['lock'] : [])].filter((v) => !taught.has(v));
+      if (want.length) short.push(`'${b.say}' (${n} foe${n === 1 ? '' : 's'}) comes before ${want.map((v) => TEACH[v].say).join(' and ')} is taught`);
+    }
+    laws.push({ law: 'teaches-before-tests', ok: !short.length, value: short.length ? short.join('; ') : `every fight comes after what it asks is taught (${[...taught].join(', ')})` });
+    const first = J.find((b) => fights(b) && countOf(b) != null);
+    if (first) { const n = countOf(first); laws.push({ law: 'foes-ramp', ok: n <= 1, value: n <= 1 ? `the first fight, '${first.say}', is one foe: the pack comes after` : `the first fight, '${first.say}', is ${n} foes: one first, alone, then the pack` }); }
+  }
+  const arr = J.find((b) => b.faces);
+  if (arr) {
+    const tgt = J.find((b) => b.id === arr.faces), st = mapStart(G), zAt = (r, c) => rise?.z[r * G.cols + c] ?? 0;
+    if (tgt && st) {
+      const [tr, tc] = beatTile(G, S, tgt), a = [st.r + 0.5, st.c + 0.5, zAt(st.r, st.c) + LOOK.eye];
+      const b = [tr + 0.5, tc + 0.5, zAt(Math.round(tr), Math.round(tc)) + LOOK.place], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      let hid = null;
+      for (let k = 1, N = Math.max(2, Math.ceil(L * 8)); k < N; k++) {
+        const t = k / N, r = Math.floor(a[0] + (b[0] - a[0]) * t), c = Math.floor(a[1] + (b[1] - a[1]) * t);
+        if ((r === st.r && c === st.c) || (r === Math.floor(b[0]) && c === Math.floor(b[1]))) continue;
+        const over = zAt(r, c) - (a[2] + (b[2] - a[2]) * t);
+        if (over > 0 && (!hid || over > hid.over)) hid = { r, c, over };
+      }
+      laws.push({ law: 'first-look', ok: !hid, value: hid ? `'${tgt.say}' is hidden from the start behind row ${hid.r + 1} column ${hid.c + 1} (${Math.round(hid.over * 10) / 10} m over the sight line): the first look sees no goal` : `the start sets out facing '${tgt.say}', seen over the land as planned` });
+    }
+  }
   return laws;
 }
 

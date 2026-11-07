@@ -7,17 +7,20 @@
  * intro's. The page draws it (scene/channels/guide.js): the beat in words, a bearing and the metres to it, a pillar of
  * light where it stands. Drafts guide as well as approved segments: directions are not a build.
  *
- *   guideOf(level, G, Z, { seed }) → { intro?, steps: [{ id, say, kind, at: [x, y, z], radius, fight? }] } | null
+ *   guideOf(level, G, Z, { seed }) → { intro?, steps: [{ id, say, kind, at: [x, y, z], radius, fight?, keys? }], held? } | null
  *     G levelGrid's read, Z zoneOf's (null: the whole map); null where the level has no concept or no beat on the page
+ *     keys   a beat that teaches (its `teach`, map-sketch.js TEACH): the keys of what it teaches, shown while it is the way on
+ *     held   a concept that holds its pages (`hold`): the page's ways out, each [x, y, z] and the word for it, held while a
+ *            foe stands on the page (gameworld/levels.js holds the exits; the page says why one does not open)
  * Pure.
  */
-import { readSketch } from './map-sketch.js';
+import { readSketch, BEAT_PLACE, TEACH } from './map-sketch.js';
 import { levelHeight } from '../era/out-tile.js';
 
 export const GUIDE = Object.freeze({ reach: 6, fight: 12, find: 4 });
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
-// (the mark each kind of beat stands at, by preference)
-const MARK_OF = Object.freeze({ encounter: ['encounter'], find: ['loot', 'secret'], secret: ['secret', 'loot'], rest: ['rest'], vista: ['landmark'], puzzle: ['hazard', 'landmark'], climb: ['hazard', 'landmark'] });
+// (the mark each kind of beat stands at, by preference: map-sketch.js's, the climax's goal before its mark)
+const MARK_OF = BEAT_PLACE;
 
 export function guideOf(level, G, Z = null, { seed = 1 } = {}) {
   const P = G.plan, K = P && level.sketch ? readSketch(level.sketch, P) : null, C = K?.concept;
@@ -37,9 +40,12 @@ export function guideOf(level, G, Z = null, { seed = 1 } = {}) {
       : MARK_OF[b.kind] ? markAt(b.at, MARK_OF[b.kind]) ?? (b.kind === 'climb' ? onward(b.at) : null) ?? middle(b.at)
       : onward(b.at) ?? middle(b.at);
     const fight = b.kind === 'encounter';
-    steps.push({ id: b.id, say: b.say, kind: b.kind, at, radius: fight ? GUIDE.fight : b.kind === 'find' || b.kind === 'secret' ? GUIDE.find : GUIDE.reach, ...(fight ? { fight: true } : {}) });
+    steps.push({ id: b.id, say: b.say, kind: b.kind, at, radius: fight ? GUIDE.fight : b.kind === 'find' || b.kind === 'secret' ? GUIDE.find : GUIDE.reach, ...(fight ? { fight: true } : {}), ...(b.teach?.length ? { keys: b.teach.map((v) => TEACH[v].keys) } : {}) });
   }
   const first = segs.includes(P.route[0]);
   if (!steps.length && !(first && C.pitch)) return null;
-  return { ...(first && C.pitch ? { intro: C.pitch } : {}), steps };
+  // (a held page's ways out, where it fights: each gate's exit; the word the page shows at one while foes stand)
+  const fightHere = C.journey.some((b) => segs.includes(b.at) && (b.kind === 'encounter' || b.kind === 'climax'));
+  const held = C.hold && Z && fightHere ? Z.ways.map((w) => [r3(w.exit[0]), r3(w.exit[1]), r3(w.exit[2])]) : null;
+  return { ...(first && C.pitch ? { intro: C.pitch } : {}), steps, ...(held?.length ? { held } : {}) };
 }

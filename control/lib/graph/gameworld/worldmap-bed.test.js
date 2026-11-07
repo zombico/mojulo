@@ -98,3 +98,35 @@ describe('a sketched map\'s fights', () => {
     expect(stageEnds(at('C').manifest).encounters).toBeUndefined();
   });
 });
+
+// A FIRST ZONE'S GRADUATION (level/first-zone.js, its concept's `hold`): the first page's ways out wait on the downs of the
+// foes standing on it (game/mechanics.js reach-exit `holds`); a page with no fight, or a concept without `hold`, as before.
+import { firstZone } from '../level/first-zone.js';
+describe('a first zone\'s page, held until it is won', () => {
+  const Z = firstZone(WORLDMAP_SAMPLE.levels.overworld.glyphs.plan, { foe: 'bandit' });
+  const world = (concept) => {
+    const g = WORLDMAP_SAMPLE.levels.overworld.glyphs;
+    const sketch = { concept, segments: {
+      A: { status: 'approved', marks: [{ at: [1, 2], kind: 'encounter', say: 'a lone bandit', foes: { kind: 'bandit', count: 1 } }] },
+      B: { status: 'approved', marks: [{ at: [1, 1], kind: 'encounter', say: 'the pack', foes: { kind: 'bandit', count: 3 } }] },
+    } };
+    return { ...WORLDMAP_SAMPLE, foes: { bandit: { class: 'charger', skin: { people: 'human' } } }, levels: { overworld: { glyphs: { ...g, zoned: [['A', 'B']], sketch }, foes: { from: ['bandit'] } } } };
+  };
+  const exits = (W) => {
+    const M = worldmapGame(W, { ref: 'wm' }), page = (z) => M.levels.find((l) => JSON.stringify(l.zone) === JSON.stringify(z)).manifest;
+    return (z) => page(z).game.mechanics.filter((m) => m.kind === 'reach-exit' && m.exit).map((m) => [m.exit, m.holds?.count ?? null]).sort();
+  };
+  it('holds the town and the fields\' ways out on their four bandits; never the way a page is come in by', () => {
+    const E = exits(world(Z.concept));
+    expect(E(['A', 'B'])).toEqual([['gate-a-s', 4], ['gate-b-s', 4]]);
+    // (the keep, a draft whose walk stands its foes as before: its way back to the fields, come in by, open; its way to the
+    // woods held on them; the woods, no foe standing, nothing held)
+    const D = E('D');
+    expect(D.find(([id]) => id === 'gate-n')[1]).toBeNull();
+    expect(D.find(([id]) => id === 'gate-w')[1]).toBeGreaterThan(0);
+    expect(E('C').every(([, n]) => n === null)).toBe(true);
+    // (no hold in the concept: nothing held)
+    const { hold: _h, ...free } = Z.concept;
+    expect(exits(world(free))(['A', 'B']).every(([, n]) => n === null)).toBe(true);
+  });
+});

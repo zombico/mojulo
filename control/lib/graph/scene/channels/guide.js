@@ -5,6 +5,8 @@ import { safeJson } from '../emit-util.js';
 // words at the top of the screen with an arrow turned the way it lies from where the camera looks and the metres to it,
 // and a pillar of light standing where it is. A beat is reached within its radius (a fight once its foes about it are
 // down: no one of the foes' team standing within the radius); the last one reached, the line says the way is the page's.
+// A beat that TEACHES shows its keys under the line while it is the way on (a control taught where it is first needed);
+// a HELD page (`held`, its ways out) says at a way that it stays shut while a foe stands on the page.
 // It reads the pilot and the cast through window.__mojCtrl (the controllable channel's), so it waits for it. Emitted only
 // when the page has a guide: every other page byte-identical.
 export function guideScript(guide) {
@@ -27,6 +29,14 @@ export function guideScript(guide) {
   arrow.textContent = '▲'; arrow.style.cssText = 'display:inline-block;margin-right:8px;color:#ffd36b;transition:transform .08s linear';
   dist.style.cssText = 'margin-left:8px;opacity:.75;font-weight:500';
   line.append(arrow, words, dist); host.appendChild(line);
+  // (the keys a teaching beat shows, under the line; and the word at a held way)
+  const keys = document.createElement('div');
+  keys.style.cssText = css + ';top:50px;display:none;padding:4px 12px;background:rgba(20,16,10,.5);border:1px solid rgba(255,211,107,.45);border-radius:4px;font:600 14px/1.4 ui-monospace,Menlo,monospace;color:#ffe2a0;letter-spacing:.02em';
+  host.appendChild(keys);
+  const shut = document.createElement('div');
+  shut.style.cssText = css + ';top:42%;display:none;padding:8px 16px;background:rgba(20,16,10,.6);border-radius:6px';
+  shut.textContent = 'The way on is held while foes stand here';
+  host.appendChild(shut);
   let k = 0, pillar = null;
   const T3 = typeof THREE !== 'undefined' ? THREE : null, S3 = typeof scene !== 'undefined' ? scene : null;
   function plant() {
@@ -37,7 +47,13 @@ export function guideScript(guide) {
     pillar.rotation.x = Math.PI / 2; pillar.position.set(s.at[0], s.at[1], s.at[2] + 30); pillar.raycast = function () {};
     S3.add(pillar);
   }
-  function show() { const s = GD.steps[k]; if (!s) { words.textContent = 'The way on lies past this place'; arrow.style.display = 'none'; dist.textContent = ''; } else { words.textContent = s.say; arrow.style.display = ''; } line.style.display = ''; }
+  function show() {
+    const s = GD.steps[k];
+    if (!s) { words.textContent = 'The way on lies past this place'; arrow.style.display = 'none'; dist.textContent = ''; } else { words.textContent = s.say; arrow.style.display = ''; }
+    line.style.display = '';
+    if (s && s.keys && s.keys.length) { keys.textContent = s.keys.join('   ·   '); keys.style.display = ''; } else keys.style.display = 'none';
+  }
+  const standing = (W, e) => e.team === 'foes' && !e.gone && !e.downed && !(e.hp <= 0);
   const view = T3 ? new T3.Vector3() : null;
   function tick() {
     const W = window.__mojCtrl && window.__mojCtrl.world;
@@ -47,14 +63,18 @@ export function guideScript(guide) {
       const s = GD.steps[k];
       if (p && s) {
         const dx = s.at[0] - p.transform.pos[0], dy = s.at[1] - p.transform.pos[1], d = Math.hypot(dx, dy);
-        const standing = s.fight ? W.entities.some((e) => e.team === 'foes' && !e.gone && !e.downed && !(e.hp <= 0) && Math.hypot(e.transform.pos[0] - s.at[0], e.transform.pos[1] - s.at[1]) < s.radius) : false;
-        if (d < s.radius && !standing) { k++; show(); plant(); }
+        const near = s.fight ? W.entities.some((e) => standing(W, e) && Math.hypot(e.transform.pos[0] - s.at[0], e.transform.pos[1] - s.at[1]) < s.radius) : false;
+        if (d < s.radius && !near) { k++; show(); plant(); }
         else {
           let yaw = p.transform.heading;
           if (view && typeof camera !== 'undefined') { camera.getWorldDirection(view); yaw = Math.atan2(view.y, view.x); }
           arrow.style.transform = 'rotate(' + (-(Math.atan2(dy, dx) - yaw)) + 'rad)';
-          dist.textContent = Math.round(d) + ' m' + (standing && d < s.radius ? ' · fight' : '');
+          dist.textContent = Math.round(d) + ' m' + (near && d < s.radius ? ' · fight' : '');
         }
+      }
+      if (p && GD.held) {
+        const at = GD.held.some((h) => Math.hypot(h[0] - p.transform.pos[0], h[1] - p.transform.pos[1]) < 5);
+        shut.style.display = at && W.entities.some((e) => standing(W, e)) ? '' : 'none';
       }
     }
     requestAnimationFrame(tick);

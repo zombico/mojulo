@@ -5,6 +5,8 @@
  *
  *   gridEnds(level) → { spawn, heading, exit, exitFrom, planar, beats, hazards, via, regions, doors: [], places }
  *     spawn     where a walk of the map starts (grid.js mapStart, the page's own spawn), at its path's middle, on the land
+ *     heading   facing the way on; THE FIRST LOOK, where the sketch's arrival `faces` a beat (map-sketch.js): facing that
+ *               beat's place, the place the level is about
  *     exit      a place whose key says `goal` (its door), else the path end the most tiles away along the paths
  *     via       the tiles' middles (on their paths: a bend's along its arc, its quarter points) along the paths from the spawn to the exit (the fewest tiles), the door last
  *     beats     `along` each tile of that way between its ends; `pocket` each path END off it (a side way's end: what
@@ -22,7 +24,7 @@ import { readGrid, placeDoors } from './grid.js';
 import { mapWay, mapItems } from './map-items.js';
 import { levelHeight, tilePath } from '../era/out-tile.js';
 import { readZone, zoneOf } from './zones.js';
-import { levelGrid } from './map-sketch.js';
+import { levelGrid, readSketch, beatTile } from './map-sketch.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const FACING = { '+y': [0, 1], '-y': [0, -1], '+x': [1, 0], '-x': [-1, 0] };
@@ -56,7 +58,10 @@ export function gridEnds(level) {
   const via = [...way.flatMap((x, i) => (x.kind === 'path' ? along(x, i) : [])), ...(last.kind === 'place' ? [exitAt] : [])];
   // (set down facing the way on: a start that is no path end, a bend or a street by a door, faces the next tile's middle,
   // never along its own bend toward the door)
-  const toward = start.shape !== 'end' && way[1] ? mid(way[1]) : via[1] ?? exitAt;
+  // (THE FIRST LOOK: an arrival that faces a beat sets out facing where it stands; map-sketch.js beatTile)
+  const K = level.sketch && G.plan ? readSketch(level.sketch, G.plan) : null, look = K?.concept?.journey.find((b) => b.faces), seen = look ? K.concept.journey.find((b) => b.id === look.faces) : null;
+  const sight = seen ? beatTile(G, K, seen) : null;
+  const toward = sight ? [(sight[1] + 0.5) * T, -(sight[0] + 0.5) * T] : start.shape !== 'end' && way[1] ? mid(way[1]) : via[1] ?? exitAt;
   const tag = (x) => ({ tile: [x.r, x.c], ...(regionOf(x) ? { region: regionOf(x) } : {}) });
   const beats = [
     ...way.slice(1, -1).filter((x) => x.kind === 'path').map((x) => ({ beat: 'along', at: mid(x), ...tag(x) })),
@@ -97,6 +102,7 @@ function zoneEnds(G, Z, E, { last, doorOf }) {
   const spawn = Z.spawn?.heading === null ? E.spawn : Z.spawn ? Z.spawn.at : E.spawn;
   const heading = Z.spawn?.heading === null ? E.heading : Z.spawn ? Z.spawn.heading : E.heading;
   const packs = (E.packs ?? []).filter((p) => mine(p.tile));
+  const inWay = Z.spawn && Z.spawn.heading !== null ? Z.ways.find((w) => w.tile[0] === Z.spawn.tile[0] && w.tile[1] === Z.spawn.tile[1]) : null;
   const out = {
     ...E, spawn, heading, exit,
     exitFrom: holdsGoal ? E.exitFrom : onWay ? `its way ${onWay.side} to ${onWay.to}` : E.exitFrom,
@@ -106,7 +112,8 @@ function zoneEnds(G, Z, E, { last, doorOf }) {
     via: [[spawn[0], spawn[1]], ...E.via.filter(inBox), [exit[0], exit[1]]],
     places: E.places.filter((p) => inBox(p.at)),
     ...(packs.length ? { packs } : {}),
-    zone: { id: Z.id, box: Z.box, ways: Z.ways },
+    // (and the way its page is come in by, along the walk: none where it holds the walk's start)
+    zone: { id: Z.id, box: Z.box, ways: Z.ways, ...(inWay ? { in: { to: inWay.to, side: inWay.side } } : {}) },
     ...(holdsGoal ? { holdsGoal: true } : {}),
   };
   if (!packs.length) delete out.packs;
