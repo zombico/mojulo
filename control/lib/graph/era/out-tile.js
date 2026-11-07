@@ -99,7 +99,8 @@ export function outTileSite(st, tile, seed = 1) {
   // the composition's foci: the path's middle, where a tile has one
   const foci = paths.length ? [{ name: 'tile', x: T / 2, y: T / 2, r: Math.min(10, T / 4) }] : [];
   const inRadius = (x, y) => foci.some((f) => Math.hypot(x - f.x, y - f.y) < f.r);
-  return { W: T, D: T, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree: [], foci, inRadius, open: true, tile: { size: T, open, origin: [ox, oy], paths, seed: L.seed } };
+  // (`boulders`: how many the tile strews along its path, a sketched rocky tile's: level/map-sketch.js; absent, the kit's)
+  return { W: T, D: T, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree: [], foci, inRadius, open: true, ...(tile.boulders !== undefined ? { boulders: tile.boulders } : {}), tile: { size: T, open, origin: [ox, oy], paths, seed: L.seed } };
 }
 
 /** A point `u` (0…1) of the way along a site's path, and its right hand ({ c: [x, y], n }): a trail's line by depth; a

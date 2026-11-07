@@ -21,12 +21,14 @@ import { readGrid, placeDoors } from './grid.js';
 import { mapWay, mapItems } from './map-items.js';
 import { levelHeight, tilePath } from '../era/out-tile.js';
 import { readZone, zoneOf } from './zones.js';
+import { levelGrid } from './map-sketch.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const FACING = { '+y': [0, 1], '-y': [0, -1], '+x': [1, 0], '-x': [-1, 0] };
 
 export function gridEnds(level) {
-  const G = readGrid(level.grid, 'level.grid'), T = G.tile, L = { seed: level.seed ?? 1, ...(G.rise ? { rise: G.rise } : {}) };
+  // (its approved segments' sketch lowered, map-sketch.js: the land the page lays)
+  const G = levelGrid(level, 'level.grid'), T = G.tile, L = { seed: level.seed ?? 1, ...(G.rise ? { rise: G.rise } : {}) };
   const on = (x, y) => [r3(x), r3(y), r3(levelHeight(x, y, L))];
   // (a tile's middle on its path: the path's point nearest its centre; an L's path is an arc, its centre off it)
   const mid = (x) => {

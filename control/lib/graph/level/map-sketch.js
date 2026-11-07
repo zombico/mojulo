@@ -20,9 +20,20 @@
  *   sketchLaws(G, S)                 → [{ law, ok, value }]: it advises, never refuses
  *   segmentBriefs(G, S, { level? })  → { <segment>: brief }: each segment's subtask, what its planner is given
  *   sketchStatus(S, P)               → { <segment>: 'approved' | 'draft' | 'unplanned' }
+ *   levelGrid(level, at?)            → readGrid's read of the level's grid with its APPROVED segments' sketch lowered
+ *                                      (THE GEOCUBE of a segment): their heights in its rise, `sketch` the rest of what
+ *                                      the build reads ({ approved, ground: Map('r,c' → glyph), marks, laid, unlaid });
+ *                                      a level with no approved segment, readGrid's read as it was
+ *
+ * LOWERED (only an approved segment's): height → the tile's rise in the level's one land; ground f g m s → the kit's own
+ * flora (SKETCH_BIOCUBE: forest, grove, meadow, upland); r → boulders on a path tile (SKETCH_BOULDERS); c and w → none
+ * yet (no tile builder lays a cliff or water: `unlaid` names them); marks → a marker on the page, told on hover.
  * Pure.
  */
 import { gateTile } from './plan.js';
+import { readGrid } from './grid.js';
+
+const readGridOf = (level, at) => readGrid(level.grid, at);
 
 export const SKETCH = Object.freeze({ step: 3, steps: 9 });
 export const SKETCH_GROUND = Object.freeze({
@@ -45,6 +56,9 @@ export const SKETCH_MARKS = Object.freeze({
 });
 export const JOURNEY_KINDS = Object.freeze(['arrival', 'traverse', 'encounter', 'find', 'vista', 'secret', 'rest', 'climb', 'puzzle', 'climax']);
 const STATUS = ['draft', 'approved'];
+// (what a sketched ground is built as: the kit's own flora presets, era/biocube.js)
+export const SKETCH_BIOCUBE = Object.freeze({ f: 'forest', g: 'grove', m: 'meadow', s: 'upland' });
+export const SKETCH_BOULDERS = 8;
 // (the marks a beat's kind needs; a kind not named here needs some mark)
 const BEAT_MARKS = Object.freeze({ encounter: ['encounter'], climax: ['encounter'], find: ['loot', 'secret'], secret: ['secret'], rest: ['rest'] });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -223,4 +237,30 @@ export function briefText(B) {
     '', `Write: ${B.writes}`,
     B.current ? `\nCurrent (${B.current.status}): ${JSON.stringify({ ground: B.current.ground, height: B.current.height, marks: B.current.marks })}` : '',
   ].filter((x) => x !== null).join('\n');
+}
+
+/** The level's grid with its approved segments' sketch lowered: the build's read (grid-scene.js, grid-ends.js). */
+export function levelGrid(level, at = 'level.grid', read = null) {
+  const G = read ?? null;
+  const base = G ?? readGridOf(level, at);
+  if (level?.sketch === undefined || !base.plan) return base;
+  const K = readSketch(level.sketch, base.plan);
+  const approved = Object.entries(K.segments).filter(([, v]) => v.status === 'approved');
+  if (!approved.length) return base;
+  const only = { ...K, segments: Object.fromEntries(approved) }, P = base.plan;
+  const ground = new Map(), marks = [], laid = { height: 0, ground: 0, boulders: 0, marks: 0 }, unlaid = [];
+  for (const [seg, v] of approved) {
+    const [r0, c0] = P.segments[seg].at;
+    if (v.height) laid.height += v.height.length * v.height.length;
+    v.ground?.forEach((row, r) => [...row].forEach((g, c) => {
+      if (g === '.') return;
+      const x = base.at(r0 + r, c0 + c);
+      ground.set(`${r0 + r},${c0 + c}`, g);
+      if (SKETCH_BIOCUBE[g]) laid.ground++;
+      else if (g === 'r' && x.kind === 'path') laid.boulders++;
+      else unlaid.push({ tile: [r0 + r, c0 + c], says: `${seg} row ${r + 1} column ${c + 1}: ${SKETCH_GROUND[g].split(':')[0]}${g === 'r' ? ' off the path (boulders are laid along a path)' : ''}` });
+    }));
+    for (const m of v.marks) { marks.push({ ...m, segment: seg, tile: [r0 + m.at[0], c0 + m.at[1]] }); laid.marks++; }
+  }
+  return { ...base, rise: sketchRise(base, only), sketch: { approved: approved.map(([k]) => k), ground, marks, laid, unlaid } };
 }

@@ -65,3 +65,11 @@
   `written` rows and places), not the plan's default fill as its floor. A law, `beats-marked`: each sketched segment
   stages its journey's beats on marks (a fight on an encounter, a find on loot or a secret, a secret on a secret, a rest on
   a rest; any other beat on some mark).
+- **A segment geocubed: its approved sketch lowered into the build.** `levelGrid` (level/map-sketch.js), read by the map's
+  page and its ends in place of the plain grid: an APPROVED segment's heights go into its tiles' rise in the level's one
+  land (so a zone's apron and its neighbour's own page lay the same ground); its ground into each tile's flora (forest,
+  grove, meadow and scrub as the kit's own presets: forest, grove, meadow, upland); its rocks into more boulders on a path
+  tile (`tile.boulders`, era/out-tile.js); its marks onto the page, a post each, told on hover, read out on `map.sketch`. A
+  cliff, water, and rocks off a path are not laid yet, and the page says which (`unlaid`). A draft is never lowered, and
+  a level with no approved segment builds byte for byte as before. The test bed builds one segment's zone alone
+  (`--zones A`) and says what of the sketch it lowered.

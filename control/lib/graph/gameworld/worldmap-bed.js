@@ -145,7 +145,7 @@ export async function writeBriefs(world, made, outDir) {
 }
 
 /** The world built to a folder: a page a zone, the play shell over them. */
-export async function buildWorldmap(world, { ref = world.id, outDir, log = () => {} } = {}) {
+export async function buildWorldmap(world, { ref = world.id, outDir, log = () => {}, only = null } = {}) {
   const [{ resolveWorldScene }, { emitThreeWorld }, { resolveGame }, { emitPlayShell }] = await Promise.all([
     import('../worlds/world-scene.js'), import('../scene/scene-three.js'), import('../game/game-resolve.js'), import('../game/play-shell.js'),
   ]);
@@ -153,6 +153,8 @@ export async function buildWorldmap(world, { ref = world.id, outDir, log = () =>
   await fs.mkdir(path.join(outDir, 'levels'), { recursive: true });
   const pages = [];
   for (const L of made.levels) {
+    // (`only`: the zones to build, the rest left as they are: a segment geocubed on its own)
+    if (only && !only.includes(L.zone)) continue;
     let t = Date.now();
     const { payload } = await resolveWorldScene({ ref: L.ref, manifest: L.manifest });
     const buildMs = Date.now() - t;
@@ -161,7 +163,9 @@ export async function buildWorldmap(world, { ref = world.id, outDir, log = () =>
     const emitMs = Date.now() - t;
     await fs.writeFile(path.join(outDir, 'levels', `${L.ref}.html`), html);
     const laws = payload.map?.laws ?? [];
-    pages.push({ ref: L.ref, zone: L.zone, bytes: Buffer.byteLength(html), buildMs, emitMs, tiles: payload.map?.cells?.length ?? 0, laws });
+    pages.push({ ref: L.ref, zone: L.zone, bytes: Buffer.byteLength(html), buildMs, emitMs, tiles: payload.map?.cells?.length ?? 0, laws, ...(payload.map?.sketch ? { sketch: payload.map.sketch } : {}) });
+    const SK = payload.map?.sketch;
+    if (SK) log(`zone ${L.zone}: the sketch of ${SK.approved.join(', ')} lowered (${SK.laid.height} tiles' heights, ${SK.laid.ground} tiles' ground, ${SK.laid.boulders} rocky paths, ${SK.marks.length} marks on this page)${SK.unlaid ? `; not laid: ${SK.unlaid.join('; ')}` : ''}`);
     log(`zone ${L.zone ?? '-'} (${L.ref}): ${payload.map?.cells?.length ?? '?'} tiles, built ${(buildMs / 1000).toFixed(1)} s, emitted ${(emitMs / 1000).toFixed(1)} s, ${(Buffer.byteLength(html) / 1e6).toFixed(1)} MB; laws ${laws.filter((l) => !l.ok).map((l) => l.law).join(', ') || 'all hold'}`);
   }
   const byRef = new Map(made.levels.map((l) => [l.ref, l]));

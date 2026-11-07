@@ -70,3 +70,49 @@ describe('a map sketched in miniature', () => {
     expect(() => approveSegment(WORLDMAP_SAMPLE, 'C')).toThrow(/no sketch to approve/);
   });
 });
+
+// THE GEOCUBE OF A SEGMENT: only an approved segment's sketch is lowered into the build: its heights into the land, its
+// ground into the tiles' flora, its marks onto the page; a draft builds as the plan alone.
+import { levelGrid, SKETCH_BIOCUBE } from './map-sketch.js';
+import { assembleGridScene } from './grid-scene.js';
+describe('a sketched segment built', () => {
+  const level = (sketch) => ({ kit: 'isekai-meadow', seed: 5, grid: { tile: g.tile, plan: g.plan, segments: g.segments }, sketch, zone: 'A' });
+  const T = g.tile, seen = [];
+  const tileStage = async (m) => { seen.push(m); return { faces: [{ corners: [[0, 0, 0], [T, 0, 0], [T, T, 0], [0, T, 0]], normal: [0, 0, 1], group: 'isekai:ground', fill: '#7aa04a' }], walk: { speed: 6, minEye: 1.7 }, sky: { day: 1 } }; };
+
+  it('lowers the approved segments only: their heights, their ground, their marks', async () => {
+    // (the sample: the town approved, the fields and the keep drafts)
+    const L = levelGrid(level(g.sketch));
+    expect(L.sketch.approved).toEqual(['A']);
+    expect(L.sketch.laid).toEqual({ height: 9, ground: 5, boulders: 0, marks: 2 });
+    // (the town's corner tile a step up; the fields, a draft, at its region's rise alone)
+    expect(L.rise.z[2 * G.cols + 0]).toBe(SKETCH.step);
+    expect(L.rise.z[0 * G.cols + 4]).toBe(G.rise.z[0 * G.cols + 4]);
+    seen.length = 0;
+    const P = await assembleGridScene({ level: level(g.sketch) }, {}, { buildStage: tileStage });
+    // (the town's meadow tile built with the meadow's flora; a draft's tile with none of the sketch's)
+    const tileAt = (r, c) => seen.find((m) => m.tile.origin[0] === c * T && m.tile.origin[1] === -(r + 1) * T);
+    expect(tileAt(0, 0).biocube).toBe(SKETCH_BIOCUBE.m);
+    expect(tileAt(0, 2).biocube).toBe(SKETCH_BIOCUBE.g);
+    expect(tileAt(0, 3).biocube).toBeUndefined();
+    expect(tileAt(0, 2).tile.level.rise.z[2 * G.cols]).toBe(SKETCH.step);
+    // (its marks on the page, each a post and a tooltip)
+    expect(P.map.sketch.marks.map((m) => m.kind)).toEqual(['npc', 'rest']);
+    expect(P.signs.map((s) => s.text)).toEqual(['npc: The captain sends you out', 'rest: Home: save here']);
+    expect(P.faces.filter((f) => f.group === 'map:mark')).toHaveLength(2 * 10);
+    for (const l of P.map.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+  });
+
+  it('builds a level with no approved segment as the plan alone, byte for byte', async () => {
+    const drafts = { ...g.sketch, segments: { ...g.sketch.segments, A: { ...g.sketch.segments.A, status: 'draft' } } };
+    expect(levelGrid(level(drafts)).sketch).toBeUndefined();
+    const { sketch: _s, ...bare } = level(drafts);
+    const [a, b] = await Promise.all([assembleGridScene({ level: level(drafts) }, {}, { buildStage: tileStage }), assembleGridScene({ level: bare }, {}, { buildStage: tileStage })]);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
+  it('says what it could not lay: a cliff, water, rocks off the path', () => {
+    const wet = { ...g.sketch, segments: { ...g.sketch.segments, B: { ...g.sketch.segments.B, status: 'approved' } } };
+    expect(levelGrid(level(wet)).sketch.unlaid.map((u) => u.says)).toEqual(['B row 1 column 3: rocks off the path (boulders are laid along a path)', 'B row 2 column 3: rocks off the path (boulders are laid along a path)', 'B row 3 column 3: cliff']);
+  });
+});

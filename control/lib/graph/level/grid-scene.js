@@ -31,10 +31,11 @@
  * valley's sides, never as a drop into the sky.
  */
 import { readGrid, tileCentre, REGION_WORDS, placeDoors, mapStart } from './grid.js';
-import { tilePath } from '../era/out-tile.js';
+import { tilePath, levelHeight } from '../era/out-tile.js';
 import { mapItems } from './map-items.js';
 import { frameOf, placed, ringTheMap, pageOf } from './map-scene.js';
 import { readZone, zoneOf, ZONE } from './zones.js';
+import { levelGrid, SKETCH_BIOCUBE, SKETCH_BOULDERS } from './map-sketch.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const DOOR = placeDoors;
@@ -314,6 +315,27 @@ function rimFaces(W, H, faces, firstPayload, box = [0, -H, W, 0]) {
   return out;
 }
 
+// THE SKETCH'S MARKS on the page: a post and a cap a mark, its kind's colour, on the land where its tile stands (a zone's
+// own and its apron's), each a tooltip
+const MARK_COLOUR = Object.freeze({ encounter: '#b04a3a', loot: '#c8962a', landmark: '#3a6aa8', secret: '#7a4a9a', rest: '#3a8a5a', hazard: '#d0702a', npc: '#2a8a8a' });
+function sketchMarks(G, Z, seed) {
+  const T = G.tile, L = { seed, ...(G.rise ? { rise: G.rise } : {}) }, faces = [], signs = [], marks = [];
+  const here = G.sketch.marks.filter((m) => !Z || Z.built.has(`${m.tile[0]},${m.tile[1]}`));
+  const box = (x, y, z0, w, h, fill) => { const a = x - w / 2, b = x + w / 2, c = y - w / 2, d = y + w / 2, z1 = z0 + h, q = (P, n) => ({ corners: P.map((p) => p.map(r5)), normal: n, fill, group: 'map:mark', doubleSided: true });
+    return [q([[a, c, z1], [b, c, z1], [b, d, z1], [a, d, z1]], [0, 0, 1]), q([[a, c, z0], [b, c, z0], [b, c, z1], [a, c, z1]], [0, -1, 0]), q([[b, d, z0], [a, d, z0], [a, d, z1], [b, d, z1]], [0, 1, 0]), q([[b, c, z0], [b, d, z0], [b, d, z1], [b, c, z1]], [1, 0, 0]), q([[a, d, z0], [a, c, z0], [a, c, z1], [a, d, z1]], [-1, 0, 0])]; };
+  const chrome = { bg: 'rgba(243,238,226,.94)', color: '#2b2a26', border: '1px solid #2b2a26', radius: '4px', shadow: 'none', glow: 'none', font: 'Georgia, serif', fontSize: 12, fontWeight: 500, padding: '3px 7px' };
+  for (const m of here) {
+    const same = here.filter((o) => o.tile[0] === m.tile[0] && o.tile[1] === m.tile[1]), k = same.indexOf(m);
+    // (beside the tile's middle, a few metres off its path)
+    const x = (m.tile[1] + 0.5) * T + (k - (same.length - 1) / 2) * 3 + 3.5, y = -(m.tile[0] + 0.5) * T + 3.5, z = levelHeight(x, y, L);
+    faces.push(...box(x, y, z - 0.2, 0.35, 2.6, MARK_COLOUR[m.kind]), ...box(x, y, z + 2.4, 0.8, 0.8, MARK_COLOUR[m.kind]));
+    signs.push({ id: `mark-${m.segment}-${m.at.join('-')}-${k}`, variant: 'tooltip', anchor: { kind: 'world', world: [r5(x), r5(y), r5(z + 3.6)] }, text: `${m.kind}: ${m.say}`, body: [], chrome });
+    marks.push({ kind: m.kind, say: m.say, segment: m.segment, tile: m.tile, at: [r5(x), r5(y), r5(z)], ...(m.foes ? { foes: m.foes } : {}), ...(m.item ? { item: m.item } : {}) });
+  }
+  return { faces, signs, marks };
+}
+// (what of the sketch this page could not lay: its own tiles' and its apron's)
+const unlaidHere = (G, Z) => G.sketch.unlaid.filter((u) => !Z || Z.built.has(`${u.tile[0]},${u.tile[1]}`)).map((u) => u.says);
 // a zone as the page reads it out (zones.js): its segment, its square, its ways
 const zoneReadout = (Z) => ({ id: Z.id, at: Z.at, size: Z.n, apron: Z.apron, box: Z.box.map(r5), ways: Z.ways });
 // the regions as the game reads them: each its name, its rise and its tiles (row, column)
@@ -338,7 +360,8 @@ export async function assembleGridScene(m, ctx = {}, { buildStage, tileCasters }
 /** The glyph map's page, built synchronously: `buildStage` the stage kind's own (sync) builder, `tileCasters` the kit's
  *  isekaiTileCasters (or none). What reads a level's ends at once (gameworld/levels.js) builds it so. */
 export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = false } = {}) {
-  const lv = m.level, G = readGrid(lv.grid, 'level.grid'), T = G.tile, seed = lv.seed ?? 1;
+  // (its approved segments' sketch lowered, map-sketch.js: their heights in the land, their ground in the tiles' flora)
+  const lv = m.level, G = levelGrid(lv, 'level.grid'), T = G.tile, seed = lv.seed ?? 1;
   // A ZONE (zones.js): one segment of a planned map built as its own page, its apron round it; absent, the whole map
   const zw = readZone(lv), Z = zw ? zoneOf(G, zw.id, { apron: zw.apron, seed }) : null;
   const builds = (cell) => !Z || Z.built.has(`${cell.r},${cell.c}`);
@@ -364,12 +387,16 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     // (the stage's own words: the level's, then its region's over them)
     const Rg = cell.region ? G.regions[cell.region] : null, words = {};
     for (const w of STAGE_WORDS) { const v = Rg && Rg[w] !== undefined ? Rg[w] : lv[w]; if (v !== undefined) words[w] = v; }
+    // (a sketched ground over them: its flora the kit's preset; rocks, more boulders along its path)
+    const sg = G.sketch?.ground.get(`${cell.r},${cell.c}`);
+    if (sg && SKETCH_BIOCUBE[sg]) words.biocube = SKETCH_BIOCUBE[sg];
+    const rocks = sg === 'r' && cell.kind === 'path' ? { boulders: SKETCH_BOULDERS } : {};
     // (open LAND, no path through it and nothing standing on it: nobody walks it, its ground at LAND_CELL)
     const coarse = cell.kind === 'land' ? { cell: LAND_CELL } : {};
     // (a place's tile keeps its far layers: its building is seated on the land they lay past its square, and the map
     // drops their ridges and clips their skirt as it does every tile's)
     const own = { ...(heroes.has(`${cell.r},${cell.c}`) ? { hero: true } : {}), ...(cell === ringed || cell.kind === 'place' ? {} : { backdrop: false }) };
-    return { kind: 'stage', kit: lv.kit ?? 'isekai-meadow', seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
+    return { kind: 'stage', kit: lv.kit ?? 'isekai-meadow', seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
   };
   // THE SHADOWS ACROSS THE SEAMS: every tile's trees and boulders placed first (as its build will place them; a place's
   // tile none: its building clears its ground), so each tile is built with its neighbours' within reach casting on it
@@ -447,6 +474,9 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     out.faces.push(...rimFaces(W, H, out.faces, first.payload));
     ringTheMap(out.faces, { map: [[0, 0], [W, 0], [W, -H], [0, -H]] });
   }
+  // THE SKETCH'S MARKS (map-sketch.js): a post each where it was sketched, told on hover
+  const SK = G.sketch ? sketchMarks(G, Z, seed) : null;
+  if (SK) out.faces.push(...SK.faces);
   const LG = oneGrass(grass), FA = Z ? oneFauna(fauna, box[2] - box[0], box[3] - box[1], box) : oneFauna(fauna, W, H), HD = oneHerds(fauna);
   return {
     ...page,
@@ -459,6 +489,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     ...(FA ? { fauna: FA } : {}),
     ...(HD ? { faunaUnits: HD } : {}),
     walk: { ...(R.walk || {}), spawn: [r5(sx), r5(sy), r5(gz + (R.walk?.minEye ?? 1.7))] },
-    map: { tile: T, rows: G.rows, cols: G.cols, cells, ...(G.regions ? { regions: regionsOf(G) } : {}), ...(G.plan ? { plan: G.plan, pieces: mapItems(G) } : {}), ...(Z ? { zone: zoneReadout(Z) } : {}), laws: mapLaws(G, cells, out.faces, out.colliders, Z) },
+    ...(SK?.signs.length ? { signs: SK.signs } : {}),
+    map: { tile: T, rows: G.rows, cols: G.cols, cells, ...(G.regions ? { regions: regionsOf(G) } : {}), ...(G.plan ? { plan: G.plan, pieces: mapItems(G) } : {}), ...(Z ? { zone: zoneReadout(Z) } : {}), ...(G.sketch ? { sketch: { approved: G.sketch.approved, laid: G.sketch.laid, ...(unlaidHere(G, Z).length ? { unlaid: unlaidHere(G, Z) } : {}), marks: SK.marks } } : {}), laws: mapLaws(G, cells, out.faces, out.colliders, Z) },
   };
 }
