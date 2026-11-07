@@ -464,8 +464,12 @@ function equipmentCard() {
 
 function systemsCard() {
   return lines(
-    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, ui?, gear?, destruction?, scars? }.',
+    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, legend?, lives?, coins?, ui?, gear?, destruction?, scars? }.',
     '',
+    'legend: screen (the default: the controls on the play screen for a level\'s first seconds) | menu (only in the pause',
+    '  menu, nothing over the play: a demo or a release).',
+    'lives: 1-9, a platformer\'s lives for hp (a hit or a fall costs one, none left loses; no hp bar). coins: true |',
+    '  { oneup }: coins along a side strip\'s course, a life every 30.',
     `scale (the coarse dials): ${Object.entries(SCALE).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `stages → epochs reached by level: ${Object.entries(EPOCH_LEVEL).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `how a power is gained, by system kind: ${Object.entries(GAINED).map(([k, v]) => `${k}: ${v.why}`).join('; ')}.`,
@@ -757,7 +761,9 @@ function courseCard() {
     '',
     'THE FIRST LEVEL, the slice: five trail nodes, course { basic, meet, advanced, gauntlet, boss? } a node each, and the',
     'foes\' density a node each (levels.<id>.foes.density: { meet: \'sparse\', gauntlet: \'dense\' }, gameworld-foes). A boss',
-    'only when the creator asks. Side (camera: side) runs the trail\'s line; 3D runs it free: camera follow | orbit.',
+    'only when the creator asks: a fifth node, course { teach: boss }, and goal: { boss: { win: jobber | rival | boss } }: a jobber',
+    'thrown away, a rival or a boss a story hook. The win changes no fight; the next level reads it, the story keeps it.',
+    'Side (camera: side) runs the trail\'s line; 3D runs it free: camera follow | orbit.',
     'The readout\'s laws (course:gap-n) say each gap\'s width, its rise and what the move it teaches reaches; a fall into',
     'a gap puts the hero back on the floor it left. Its floors are the stage\'s beats: what stands on it stands on them.',
   );
@@ -938,9 +944,10 @@ function folkCard() {
     '  ([Keeper: the errand]) and the rest plain words. It lives in the first town holding all its people.',
     'RECURRING: recurring: { <id>: { role, name? } } the Officer Jenny of a game: in each town with that role, its first',
     '  is them, one face and one name everywhere (the game\'s seed), the town\'s clothes and house. Talk names them.',
+    'LIFE: by default each one not looked for potters out before its door and back (life: false: they keep still).',
     'THE DAY: day: true | { start?, rate? } gives the level a clock (its hour on the HUD, its sky dark at night) and the',
     '  households, children and watch walk a day on it; the keeper, the elder, the recurring and anyone in a sidequest',
-    '  keep their place. Without it they stand. Walk up and press interact (E) to talk to anyone.',
+    '  keep their place. Without it they potter by their doors. Walk up and press interact (E) to talk to anyone.',
   );
 }
 

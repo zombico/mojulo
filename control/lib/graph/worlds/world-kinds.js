@@ -26,6 +26,7 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
+import { assembleSideStrip } from '@/lib/graph/era/geocube-side';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '@/lib/graph/geotown/scene';
 import { assembleGeocityScene } from '@/lib/graph/geocity/scene';
@@ -575,6 +576,9 @@ export const WORLD_KINDS = {
         const p = assembleGeotownScene(own, { title: ctx.title, ...(ctx.formLit ? { form: true } : {}) });
         return played ? p : attachDummy(p);
       }
+      // a side-scroller's strip (era/geocube-side.js): a course skinned in the cube's layers, its land behind it in layers;
+      // played, the level's pilot and game layered over it by the page
+      if (m.show === 'side') return assembleSideStrip(m, { title: ctx.title });
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
       if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);

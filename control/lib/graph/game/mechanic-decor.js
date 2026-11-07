@@ -19,6 +19,9 @@
 
 import { escapeNames } from './escape-room.js';
 
+// a platformer's coin at a hand's size (the glyph shelf's coin stands about a metre)
+const COIN_SCALE = 0.42;
+
 // item name → glyph form. A small heuristic over the closed form shelf; unknowns default to a gem
 // (the canonical collectible). Extend by adding rows, not by opening the mapping.
 const ITEM_FORM = [
@@ -70,6 +73,15 @@ export function decorateMechanics(mechanics, ctx = {}) {
         // events don't reach the wrap; see channels.js). Explicit target = this pickup's glyph.
         on[zone] = { gesture: 'burst', target: gid };
         suppress.push(zone);                     // hide the mechanic's box marker (glyph replaces it)
+      });
+    } else if (m.kind === 'coins') {
+      // a platformer's coins (mechanics.js coins): each a coin glyph turning where it hangs, popped when taken
+      (Array.isArray(m.pickups) ? m.pickups : []).forEach((pk, j) => {
+        const zone = `cn_${i}_${j}`, gid = `dec_${zone}`, at = Array.isArray(pk.at) ? pk.at : [0, 0, 0];
+        entities.push({ id: gid, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'coin', scale: COIN_SCALE } });
+        states[gid] = 'float';
+        on[zone] = { gesture: 'burst', target: gid };
+        suppress.push(zone);
       });
     } else if (m.kind === 'supplies') {
       // a supply: a heart for health, an orb for rounds, a gem for armor, a star for overdrive, floating; it pops when

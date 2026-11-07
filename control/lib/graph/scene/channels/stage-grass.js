@@ -134,6 +134,12 @@ const FIELD = (o) => `
   // the tufts of a tile: [x, y, z, h, pick, lit, lean, az${o.flowers ? ', bloom' : ''}] each, from the mask and a seeded hash
   const hash = (i, j, s) => { let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(s, 1274126177); h = Math.imul(h ^ (h >>> 13), 1103515245); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
   const TILE = LG.tile, RAD = LG.radius, NEAR = LG.near, S = LG.seed | 0;
+  // THE FIELD IS LAID ROUND WHAT THE CAMERA FRAMES: a follow camera's eye stands back from its subject, so every distance
+  // the field reads (its near, its radius, the far grass's share, the cards' dissolve) is measured past that stand-off:
+  // the grass round the hero is the near grass however far back or high the chase stands. A camera framing no one (a
+  // walker's eye) stands off nothing
+  const OFF = { value: 0 }, lookAt = () => { const C = window.__mojCtrl && window.__mojCtrl.world && window.__mojCtrl.world.camera; return (C && C.rule && C.rule.type === 'follow' && C.lookAt) || null; };
+  const lookOff = () => { const L = lookAt(), c = camera.position; return L ? Math.hypot(c.x - L[0], c.y - L[1], c.z - L[2]) : 0; };
   function tuftsIn(ti, tj) {
     const out = [], c = G.cell, i0 = Math.floor((ti * TILE - G.x0) / c), j0 = Math.floor((tj * TILE - G.y0) / c), n = Math.round(TILE / c), per = LG.density * c * c;
     for (let j = j0; j < j0 + n; j++) for (let i = i0; i < i0 + n; i++) {
@@ -166,8 +172,8 @@ ${o.far ? `
         byT.get(ti).push(x, y, TW.kernel.groundAt(x, y), h, (cellAt(x, y) & 2) ? 1 : 0, hash(i, j, S + 411 + q * 7), 2 * Math.PI * hash(i, j, S + 413 + q * 7));
       }
     }
-    const FARV = 'attribute float iRank;\\n', f3 = (v) => v.toFixed(4);
-    const FARB = '#ifdef USE_INSTANCING\\n{ float mojD = distance(instanceMatrix[3].xyz, cameraPosition), mojK = mojD <= ' + f3(NEAR) + ' ? 1.0 : max(0.05, pow(' + f3(NEAR) + ' / mojD, 2.0));'
+    const FARV = 'attribute float iRank;\\nuniform float uMojOff;\\n', f3 = (v) => v.toFixed(4);
+    const FARB = '#ifdef USE_INSTANCING\\n{ float mojD = max(0.0, distance(instanceMatrix[3].xyz, cameraPosition) - uMojOff), mojK = mojD <= ' + f3(NEAR) + ' ? 1.0 : max(0.05, pow(' + f3(NEAR) + ' / mojD, 2.0));'
       + ' float mojFd = mojD > ' + f3(0.8 * RAD) + ' ? max(0.0, (' + f3(RAD) + ' - mojD) / ' + f3(0.2 * RAD) + ') : 1.0, mojF = 1.0 - min(1.0, ${(WIDEN * WIDEN).toFixed(4)} * mojK) * mojFd;'
       + ' transformed *= smoothstep(0.0, 0.25 * mojF + 1e-3, mojF - iRank); }\\n#endif\\n';
     const ZA = new THREE.Vector3(0, 0, 1), FM = new THREE.Matrix4(), FQ = new THREE.Quaternion(), FP = new THREE.Vector3(), FS = new THREE.Vector3();
@@ -175,7 +181,7 @@ ${o.far ? `
     for (const [ti, a] of byT) {
       const T0 = LG.templates[ti], n = a.length / 7, g = TPL[ti].g.clone(), win = new Float32Array(2 * n), rank = new Float32Array(n);
       const base = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), inner = patchFor(T0.H);
-      base.userData.mojPatch = (sh) => { inner(sh); sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\n' + FARV).replace('#include <begin_vertex>', '#include <begin_vertex>\\n' + FARB); };
+      base.userData.mojPatch = (sh) => { sh.uniforms.uMojOff = OFF; inner(sh); sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\n' + FARV).replace('#include <begin_vertex>', '#include <begin_vertex>\\n' + FARB); };
       base.userData.mojKey = '|stage-grass-far|' + T0.H.toFixed(4);
       const im = new THREE.InstancedMesh(g, TW.wind.material(base, LG.taker, T0.H), n);
       for (let i = 0; i < n; i++) {
@@ -184,13 +190,13 @@ ${o.far ? `
         win[i * 2] = W[0]; win[i * 2 + 1] = W[1]; rank[i] = a[q + 5];
       }
       g.setAttribute('iWin', new THREE.InstancedBufferAttribute(win, 2)); g.setAttribute('iRank', new THREE.InstancedBufferAttribute(rank, 1));
-      im.frustumCulled = false; im.userData.g = 'far-grass'; scene.add(im); n0 += n;
+      im.frustumCulled = false; im.userData.g = 'far-grass'; im.userData.blades = true; scene.add(im); n0 += n;
     }
     stat.far = n0;
   })();` : ''}
   function ensure(t, need) {
     if (need <= t.cap) return; if (t.im) { scene.remove(t.im); t.im.dispose(); }
-    t.cap = Math.max(need, Math.ceil(t.cap * 1.5), 64); t.im = new THREE.InstancedMesh(t.g, t.mat, t.cap); t.im.count = 0; t.im.frustumCulled = false; t.im.userData.g = 'live-grass';
+    t.cap = Math.max(need, Math.ceil(t.cap * 1.5), 64); t.im = new THREE.InstancedMesh(t.g, t.mat, t.cap); t.im.count = 0; t.im.frustumCulled = false; t.im.userData.g = 'live-grass'; t.im.userData.blades = true;
     t.win = new THREE.InstancedBufferAttribute(new Float32Array(2 * t.cap), 2); t.g.setAttribute('iWin', t.win);${o.flowers ? `
     if (t.flower) { t.flo = new THREE.InstancedBufferAttribute(new Float32Array(4 * t.cap), 4); t.g.setAttribute('iFlo', t.flo); t.im.userData.g = 'live-flowers'; }` : ''} scene.add(t.im);
   }
@@ -202,7 +208,7 @@ ${o.far ? `
     for (const tl of tiles.values()) {
       const a = tl.a;
       for (let q = 0; q < a.length; q += PER) {
-        const x = a[q], y = a[q + 1], z = a[q + 2], h = a[q + 3], d = Math.hypot(x - c.x, y - c.y, z + h / 2 - c.z); if (d > RAD) continue;
+        const x = a[q], y = a[q + 1], z = a[q + 2], h = a[q + 3], d = Math.max(0, Math.hypot(x - c.x, y - c.y, z + h / 2 - c.z) - OFF.value); if (d > RAD) continue;
         const keep = d <= NEAR ? 1 : Math.max(0.05, (NEAR / d) ** 2), rank = (a[q + 4] * 9.7361 + 0.1307) % 1; if (rank >= keep) continue;
         const fade = d > 0.8 * RAD ? Math.max(0, (RAD - d) / (0.2 * RAD)) : 1, s = h * fade * smooth(0, 0.25 * keep, keep - rank), w = Math.min(${WIDEN}, 1 / Math.sqrt(keep));
         if (s <= 1e-3) continue;
@@ -240,10 +246,12 @@ ${o.far ? `
   }
   let at = [1e12, 1e12, 1e12];
   function tick() {
-    const c = camera.position;${o.contact ? ' touch();' : ''}
-    if (Math.hypot(c.x - at[0], c.y - at[1], c.z - at[2]) > 0.75) {
-      at = [c.x, c.y, c.z];
-      const r = RAD + TILE, need = new Set();
+    const c = camera.position, off = lookOff();${o.contact ? ' touch();' : ''}
+    // (laid again every 40 cm the eye moves, or as the chase's stand-off draws in or out: a tuft at the edge of a share
+    // grows or shrinks a step at a time, never a jump)
+    if (Math.hypot(c.x - at[0], c.y - at[1], c.z - at[2]) > 0.4 || Math.abs(off - OFF.value) > 0.4) {
+      at = [c.x, c.y, c.z]; OFF.value = off;
+      const r = RAD + TILE + off, need = new Set();
       for (let j = Math.floor((c.y - r) / TILE); j <= Math.floor((c.y + r) / TILE); j++) for (let i = Math.floor((c.x - r) / TILE); i <= Math.floor((c.x + r) / TILE); i++) {
         const key = i + ':' + j; need.add(key); if (!tiles.has(key)) tiles.set(key, { a: tuftsIn(i, j) });
       }
@@ -253,16 +261,16 @@ ${o.far ? `
     requestAnimationFrame(tick);
   }
   // the static cards dissolve inside the field (dithered across its last fifth)
-  const CU = { uCam: { value: camera.position }, uFade: { value: new THREE.Vector2(0.8 * RAD, RAD) } };
+  const CU = { uCam: { value: camera.position }, uFade: { value: new THREE.Vector2(0.8 * RAD, RAD) }, uOff: OFF };
   scene.traverse((o) => {
     if (!o.isMesh || !LG.cards.includes(o.userData.g) || !o.material || !o.material.map) return;
     const mat = o.material.clone(); mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, CU);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\nvarying vec3 vMojW;').replace('#include <begin_vertex>', '#include <begin_vertex>\\nvMojW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\nvarying vec3 vMojW; uniform vec3 uCam; uniform vec2 uFade;')
-        .replace('void main() {', 'void main() {\\n  { float d = distance(vMojW, uCam), f = clamp((d - uFade.x) / (uFade.y - uFade.x), 0.0, 1.0); if (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) >= f) discard; }');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\nvarying vec3 vMojW; uniform vec3 uCam; uniform vec2 uFade; uniform float uOff;')
+        .replace('void main() {', 'void main() {\\n  { float d = max(0.0, distance(vMojW, uCam) - uOff), f = clamp((d - uFade.x) / (uFade.y - uFade.x), 0.0, 1.0); if (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) >= f) discard; }');
     };
-    mat.customProgramCacheKey = () => 'mojulo-grass-cards'; o.material = mat;
+    mat.customProgramCacheKey = () => 'mojulo-grass-cards'; o.material = mat; o.userData.blades = true;
   });
 ${o.contact ? `  // the BODIES in the grass, every frame: the walker (only while its feet are in the grass: an eye up in the air presses
   // nothing), the page's walkers and its physics spheres, and what the page presses itself; each stamps the bed where
@@ -277,7 +285,8 @@ ${o.contact ? `  // the BODIES in the grass, every frame: the walker (only while
   }
   function touch() {
     const t = clockS(), dt = lastT == null ? 0 : Math.max(0, Math.min(0.1, t - lastT)), c = camera.position; lastT = t;
-    bed.recover(dt); bed.follow(c.x, c.y);
+    // (the bed round what the camera frames: a chase's hero, else the eye's own ground)
+    const L = lookAt(); bed.recover(dt); bed.follow(L ? L[0] : c.x, L ? L[1] : c.y);
     body('eye', c.x, c.y, c.z - CT.eye, CT.body, t, dt);
     const W = window.__mojWalkers; if (Array.isArray(W)) W.forEach((w, i) => { const q = w && w.pos; if (q && (q[0] || q[1])) body('w' + i, q[0], q[1], q[2], 0.35, t, dt); });
     const S = window.__mojSim && window.__mojSim.meshes; if (S) for (const k in S) { const m = S[k]; if (!m || !m.geometry) continue; if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); const r = m.geometry.boundingSphere.radius * m.scale.x; body('s' + k, m.position.x, m.position.y, m.position.z - r, Math.max(0.2, 1.2 * r), t, dt); }

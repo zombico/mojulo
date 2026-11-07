@@ -970,7 +970,7 @@ function animeEar(studio, register, pivot, pitch) {
   const ids = Object.keys(e.points), at = Object.fromEntries(ids.map((id, i) => [id, i]));
   return { points: ids.map((id) => back(e.points[id])), faces: e.faces.map((f) => f.map((id) => at[id])), groups: e.groups };
 }
-export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null, body = null, paint = false, nose = null, drawing = null } = {}) {
+export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null, body = null, paint = false, nose = null, drawing = null, grade = null } = {}) {
   if (!ANIME_PRESETS.includes(preset)) throw new Error(`anime head: unknown design base '${preset}' (have ${ANIME_PRESETS.join(', ')})`);
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('anime head: scale must be positive');
   const bald = hair === 'none';
@@ -988,7 +988,9 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   // studio's separate clumps; the graphic face's lenses take the game budget on the lowpoly register
   // the hair form (the lift, the section, the cut's words) rides as its own option, never in the studio recipe
   const HAIR_FORM = bald ? null : animeHairForm(H);
-  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REG, rings: body } } : {}), sideburnPatch: true, ...(paint ? { paint: typeof paint === 'object' ? paint : {} } : {}), ...(nose ? { nose } : {}), ...(drawing ? { drawing } : {}) });
+  // (the PLAY grade, figure-grades.js: the coarse sampling, the game lenses and the play hair, whatever the register)
+  const PLAY = grade === 'play', COARSE = register === 'lowpoly' || PLAY;
+  const model = buildAnime(recipe, { coarse: COARSE, weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(COARSE ? { budget: 'game' } : {}) } : {}), ...(PLAY ? { grade: 'play' } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REG, rings: body } } : {}), sideburnPatch: true, ...(paint ? { paint: typeof paint === 'object' ? paint : {} } : {}), ...(nose ? { nose } : {}), ...(drawing ? { drawing } : {}) });
 
   // registration: the studio's pitched head → hero metres, by the fitted heads' numbers for this pole
   const skinFlat = model.parts.skin, faceEnd = model.ears.start;
@@ -1034,7 +1036,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
     const noseKeep = model.nose ? Object.fromEntries(flat.map((p, v) => [`v${v}`, Math.round(model.nose.keep(p) * 100) / 100]).filter(([, w]) => w >= 0.05)) : null;
     return { size: FACE_PAINT_SIZE, faces, uv, layers: paintLayers(model.parts, (p) => unpitch(p), { noseWidth: model.nose?.width }), ...(noseKeep ? { noseKeep } : {}) };
   })() : null;
-  for (const ear of components(meshOf(trisOf(skinFlat, model.ears.start, model.ears.end), null))) { const m = outward(orientConsistently(ear)); m.groups = m.groups.map(() => 'Skin'); meshes[centroid(m)[0] > 0 ? 'earR' : 'earL'] = SCULPT ? animeEar(m, register, toM(model.pivot), model.pitch) : m; }
+  for (const ear of components(meshOf(trisOf(skinFlat, model.ears.start, model.ears.end), null))) { const m = outward(orientConsistently(ear)); m.groups = m.groups.map(() => 'Skin'); meshes[centroid(m)[0] > 0 ? 'earR' : 'earL'] = SCULPT ? animeEar(m, COARSE ? 'lowpoly' : register, toM(model.pivot), model.pitch) : m; }
   const lens = (part, group, depth) => {
     for (const c of components(meshOf(trisOf(model.parts[part]), null))) {
       const o = orientConsistently(c); o.groups = o.groups.map(() => group);

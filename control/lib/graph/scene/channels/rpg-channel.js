@@ -252,7 +252,7 @@ export function rpgPage(cfg, K, ctl, jk) {
     const est = film ? (Date.now() - film.t) / 1000 + (shots.length ? shots[shots.length - 1].t1 / 1000 : 0) + 0.7 : 0;
     if (film) film.long = film.long || est > (CINE.skip ?? 3);
   }
-  function endFilm() { film = null; filmUi = null; shots = []; view(); }
+  function endFilm() { film = null; filmUi = null; shots = []; window.__mojFilmPose = null; view(); }
   // (the staged view given back to the camera)
   function view() { const w = W(), C = w && w.camera; if (C && staged && staged.view) { C.transform.pos = staged.view.pos.slice(); C.lookAt = staged.view.look.slice(); } }
   // each frame: the shot the beat is on, its camera placed by its figures (a close-up in front of one, behind the actor
@@ -261,6 +261,9 @@ export function rpgPage(cfg, K, ctl, jk) {
     const w = W(), C = w && w.camera;
     if (!C || !shots.length) return;
     const S = shots.find((x) => bt >= x.t0 && bt < x.t1) || null;
+    // (the figures a shot is on show their pose grade while it holds, figure-grades.js: the actor close, behind it at
+    // its target, the target landing)
+    window.__mojFilmPose = S ? [S.a, S.t].filter(Boolean) : null;
     if (!S) { if (bt >= shots[shots.length - 1].t1) view(); return; }
     const A = S.a && w.byId[S.a], T = S.t && w.byId[S.t];
     if (!A) return;

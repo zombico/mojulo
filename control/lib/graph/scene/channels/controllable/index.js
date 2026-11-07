@@ -17,6 +17,8 @@ import { touchLayout, touchScript } from './touch.js';
 import { runnerViewScript } from './runner-view.js';
 import { followPullIn } from './follow-pull-in.js';
 import { gunplayScript } from './gunplay-view.js';
+import { mergeableFigure, mergedFigureScript } from './merged-figure.js';
+import { groundGridScript } from './ground-grid.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -787,6 +789,11 @@ function __updateGearLines() {
   const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
   // (and one whose atlas has edges, the hero's hair cards: its material alpha tested; none ⇒ not a byte of it)
   const figHasMask = figHasPaint && Object.values(figures || {}).some((f) => f?.paintTex?.alphaMask);
+  // ONE DRAW A FIGURE (merged-figure.js): a plain rigid rig drawn as one skinned mesh, a draw a pass instead of one a part;
+  // off where a part's own mesh is read (the toon ink's hulls, a headset's hands). None mergeable ⇒ byte-identical
+  const figMerge = !xr && !toonInk && Object.values(figures || {}).some(mergeableFigure);
+  // (a figure with a pose twin, figure-grades.js: cut in while a close shot is on it; none, not a byte)
+  const figPose = figMerge && Object.values(figures || {}).some((f) => f && typeof f.pose === 'string' && mergeableFigure(f));
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
@@ -1281,9 +1288,10 @@ function __makeSkinGroup(fig, b, group) {
   group.userData.rigFig = { fig, boneMeshes: bones, mix: {}, blendTime: b.blendTime, lookA: 0, yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null, skin: mesh };
   return group;
 }
-` : ''}function __makeRigGroup(fig, b) {
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose }) : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();${figHasSkin ? `
-  if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}
+  if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
+  if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;${figHasForm ? `
@@ -2173,10 +2181,10 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
   // Restore full opacity when it ends.
   if (e.invincible) {
     const o = 0.45 + 0.35 * Math.sin(__world.time * 40);
-    for (const bm of rig.boneMeshes) { if (bm) { bm.material.transparent = true; bm.material.opacity = o; } }
+    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.transparent = true; bm.material.opacity = o; } }   // (a merged figure: its one skin)
     rig.__shimmered = true;
   } else if (rig.__shimmered) {
-    for (const bm of rig.boneMeshes) { if (bm) { bm.material.opacity = 1; bm.material.transparent = false; } }
+    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.opacity = 1; bm.material.transparent = false; } }
     rig.__shimmered = false;
   }
 }
@@ -2375,10 +2383,13 @@ ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on,
 const __surfaceT = ${safeJson(driveSurface)};
 const __surfaceAt = ${surfaceAt.toString()};
 const __surface = (p) => __surfaceAt(__surfaceT, p);
-` : ''}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
+` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __groundRay = new THREE.Raycaster();
 const __bodySet = () => Object.values(__bodies);
+let __gridOn = false;
 function __ground(pos) {
+  // (the big static meshes take straight-down rays by grid, indexed at the first probe: every mesh is built by then)
+  if (!__gridOn) { __gridOn = true; __gridMeshes(); }
   // Probe straight down FROM the passed origin — the CALLER chooses the height. The walk rule passes
   // its eye position (finds the floor below it); the platform rule passes feet+step (so it lands on the
   // surface under the FEET and ignores platforms whose tops sit above them — you jump onto a ledge, you
@@ -2604,6 +2615,7 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
   return __CTL.legend(__SCHEME, __BIND, __DEV, {
     space: r.space === true, kneel: r.kneel === true, tackle: !!r.tackle, vehicle: r.type === 'drive' || r.type === 'fly',
     walker: r.walkSpeed > 0 && r.space !== true && !r.gear,   // a person: the walk held, no thrusters
+    dash: !!r.dash, sprint: !!r.sprint && !r.dash,             // a feel's F: the dash, or the run button (rules-platform.js)
     mouselook: __MOUSELOOK, armed: W.entities.some((e) => e.weapon || lo(e)), lock: ${!!lock},
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
@@ -3189,7 +3201,8 @@ function __updateLock() {
 ` : ''}// the PILOTED suit each frame (T swaps it). Absent otherwise (byte-identical).
 let __radar = null;
 const __radarSelf = () => __world.spectate ? __specWatchEnt() : ((__world.pilotId && __world.byId[__world.pilotId]) || __armed || null);
-if (__radarSelf() && __world.entities.some((e) => e.body && e.body.hittable && e !== __radarSelf())) {
+// (none under a side camera: the screen is the lane, a side-scroller's foes in it)
+if (__radarSelf() && !(__world.camera && __world.camera.rule && __world.camera.rule.type === 'side') && __world.entities.some((e) => e.body && e.body.hittable && e !== __radarSelf())) {
   const RSZ = 132;
   const __rWrap = document.createElement('div');
   __rWrap.style.cssText = 'position:absolute;right:16px;top:16px;width:' + RSZ + 'px;height:' + RSZ + 'px;border-radius:50%;background:rgba(8,14,22,0.42);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.28),0 2px 10px rgba(0,0,0,0.42);pointer-events:none;z-index:9;overflow:hidden';
@@ -3312,9 +3325,10 @@ function __foeTopOf(e) {
   return Number.isFinite(top) && top > 0 ? (__foeTop[e.id] = Math.min(top, 12)) : 1;
 }${foeRim ? `
 // the TARGET RIM: a shell of light at the targeted foe's edges (fresnel: brightest where its surface turns from the eye),
-// pulsing, on each bone mesh of the body it is drawn as now; moved off when the target changes or its body does
+// pulsing, on each bone mesh of the body it is drawn as now, or on its one skinned mesh (a merged figure: its
+// boneMeshes are bones), bound to its skeleton; moved off when the target changes or its body does
 const __rimMat = new THREE.ShaderMaterial({ uniforms: { uCol: { value: new THREE.Color(1, 1, 1) }, uK: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  vertexShader: '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() { vec4 wp = modelMatrix * vec4(position + normal * 0.006, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
+  vertexShader: '#include <common>\\n#include <skinning_pars_vertex>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() {\\n#include <beginnormal_vertex>\\n#include <skinbase_vertex>\\n#include <skinnormal_vertex>\\n#include <begin_vertex>\\n#include <skinning_vertex>\\n vec4 wp = modelMatrix * vec4(transformed + objectNormal * 0.006, 1.0); vN = normalize(mat3(modelMatrix) * objectNormal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
   fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uCol; uniform float uK; varying vec3 vN; varying vec3 vV; void main() {\\n#include <logdepthbuf_fragment>\\n float f = pow(1.0 - abs(dot(normalize(vN), vV)), 1.8); gl_FragColor = vec4(uCol * (1.0 + f), min(1.0, (0.18 + 1.3 * f) * uK)); }' });
 const __rim = { id: null, g: null, kids: [] };
 // smooth normals for a bone mesh's triangle list, once (its corners averaged where they meet), for the rim's fresnel
@@ -3335,7 +3349,14 @@ function __foeRim(id) {
     for (const k of __rim.kids) if (k.parent) k.parent.remove(k);
     __rim.kids = []; __rim.id = id; __rim.g = g;
     const rf = g && g.userData.rigFig;
-    if (rf) for (const m of rf.boneMeshes) { if (!m) continue; __rimNormals(m.geometry); const k = new THREE.Mesh(m.geometry, __rimMat); k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true; m.add(k); __rim.kids.push(k); }
+    if (rf) for (const m of rf.skin ? [rf.skin] : rf.boneMeshes) {
+      if (!m || !m.geometry || !m.geometry.attributes.position) continue;
+      __rimNormals(m.geometry);
+      const k = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, __rimMat) : new THREE.Mesh(m.geometry, __rimMat);
+      k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true;
+      if (m.isSkinnedMesh) { k.frustumCulled = false; m.parent.add(k); k.bind(m.skeleton, m.bindMatrix); } else m.add(k);
+      __rim.kids.push(k);
+    }
     if (e && Array.isArray(e.body.targetRim)) __rimMat.uniforms.uCol.value.setRGB(e.body.targetRim[0], e.body.targetRim[1], e.body.targetRim[2]);
   }
   __rimMat.uniforms.uK.value = __rim.kids.length ? 0.75 + 0.25 * Math.sin(__world.time * 6) : 0;
@@ -4254,7 +4275,8 @@ ${hangarHook}  __msHookParams();
   // (a fight holds the world, but its bodies act and stand where it stages them: a figure with a battle act or a staged
   // place is drawn on, the rest stand as they were)
   else if (dt > 0) for (const e of __world.entities) if (e.act || e.staged) __syncEntity(e, dt);` : ''}
-  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}${tempoLook ? `
+  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}${figPose ? `
+  __poseFrame();   // (the pose grade cut in on the figures a close shot is on)` : ''}${tempoLook ? `
   // a moment's look over the world's grade (channels/grade.js), by the moment's weight; its impact frame hard for its
   // frames as it fires; its zoom aimed at whom it is about, on the screen as the camera now stands
   if (window.__mojGrade) {
