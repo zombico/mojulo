@@ -59,3 +59,20 @@ the body hook clean on his chest; the uppercut's bodies would pass 4 cm into eac
   its own body posed by the fight, segment by segment. `--cpu regular` sets the CPUs' level. `--set ring` puts the
   fight in the ring (the default arena of a fight made now); `--reemit` rebuilds the page from the run's baked scene
   after a change to the arena's own code, without minting or baking again.
+
+## Every style in the arena
+
+`styles.mjs` puts a body of every art style a game can pick into the arena: one new character per style, each made
+from the body rails (`gameworld/game-bodies.js`: `gameBody` → `lowerBody`, the words a game's style lays on a hero),
+minted into a scratch store, paired into matchups on greybox fight levels (a different preset each: flat, turned,
+rooftop, alley), CPU against CPU. The cases: the anime frame (Toji muscled, Kale), the realistic head on the Saikyo
+body (a boxer throwing its own punches), the realistic body, comic ink, Shonen High, the chibi and the lowpoly mascot.
+
+```bash
+node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles          # mint, bake, play, read, shoot
+node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --reuse  # re-shoot, the characters and arenas kept
+```
+
+The machine read (`report.json`, advisory): each body bakes and plays without a page error, stands on the lane's floor
+and on its line (its posed mesh's bounds against the lane), and what it weighs in the page (triangles, megabytes). The
+eyes gate is the operator's: `sheet.png`, two moments of each matchup.
