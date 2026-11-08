@@ -110,6 +110,7 @@
     "ui:sync": "node scripts/stage-ui-package.mjs --sync",
     "tool-surface": "node scripts/tool-surface.mjs",
     "flora-gaps": "node scripts/flora-gaps.mjs",
+    "sfx-baseline": "node scripts/sfx-baseline.mjs",
     "test": "vitest run",
     "test:critical": "vitest run --config vitest.critical.config.js",
     "test:changed": "node scripts/test-changed.mjs",
