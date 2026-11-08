@@ -124,6 +124,8 @@ const LAW_NAMES = {
   'stern-gerlach': 'a Stern–Gerlach magnet', decay: 'decay',
   schwarzschild: 'a black hole', observer: 'an observer', disk: 'a disk', body: 'an orbiting body', clock: 'clocks',
 };
+/** A law id as a person says it ('gravity-uniform' → 'gravity'). */
+export const lawName = (id) => LAW_NAMES[id] ?? id;
 const listed = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
 /**

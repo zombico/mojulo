@@ -65,3 +65,11 @@
 - **The experiment is the page's name.** A science page that names only its scale (a mint's default) is titled by its
   experiment instead, from its subjects and what acts on them ("Bead of glass: gravity, buoyancy and a setting
   liquid"), and the panel cites the matter table plainly rather than by an internal name.
+- **A ladder of scales on one page.** `create_view` with kind `ladder` lays rungs top down, each at its own scale and
+  saying what it is: simulated (any science world's model, run and checked), depicted (a metal's crystal cell, drawn
+  from its lattice constant and held to it) or explained (a sentence that cites a work and its year). Each rung stands in
+  its own case, magnified and saying by how much; a breadcrumb across the top steps the camera from one rung to the next
+  and shows each rung's size, its step from the rung above and its source. `below: { rung, body }` expands a body into
+  its matter's ladder, down to its nuclei, and a lower rung can feed the one above (a gelling law's `from: { rung }`).
+  The checks: every simulated rung's own, `ladder-depicted`, `ladder-cited` and `ladder-ordered`. The derived matter
+  ladder's sources now carry their years, and one that has none is marked unsourced.

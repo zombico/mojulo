@@ -141,7 +141,7 @@ describe('get_view_vocab reader', () => {
     const entries = generated.filter((c) => c.family === 'entry').length, stage = generated.filter((c) => c.family === 'world').length;
     expect(entries).toBeGreaterThan(0);
     expect(stage).toBeGreaterThan(0);
-    expect(all.cards.length).toBe(72 + entries + stage);   // (64: weather, a channel card, 2026-10-09; 65: structures, a channel card, 2026-10-18; 66: classical, 67: microscopic, 68: quantum, 69: relativistic, 70: science-setting, a channel card, science worlds, 2026-10-19; 71: creases, a channel card, 2026-10-22; 72: stadium, a compose_world base, 2026-10-26)
+    expect(all.cards.length).toBe(73 + entries + stage);   // (64: weather, a channel card, 2026-10-09; 65: structures, a channel card, 2026-10-18; 66: classical, 67: microscopic, 68: quantum, 69: relativistic, 70: science-setting, a channel card, science worlds, 2026-10-19; 71: creases, a channel card, 2026-10-22; 72: stadium, a compose_world base, 2026-10-26; 73: ladder, the science worlds' rungs on one page, 2026-11-08)
     const world = await getViewVocabHandler({ family: 'world' });
     expect(world.cards.length).toBe(15 + stage);   // (13: science-setting, a channel card, 2026-10-19; 14: creases, a channel card, 2026-10-22; 15: stadium, 2026-10-26)
     expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(16);   // the bases (the stadium base, 2026-10-26), the weather, structures, science-setting and creases channel cards and the generated city-plan card (city rails, 2026-10-12)

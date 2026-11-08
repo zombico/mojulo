@@ -71,7 +71,7 @@ export const UNITS = {
   pallet: U(DIM.scalar, 1), pallets: U(DIM.scalar, 1), case: U(DIM.scalar, 1), cases: U(DIM.scalar, 1), item: U(DIM.scalar, 1), items: U(DIM.scalar, 1),
   // the science worlds' units. Small lengths and masses, short times, angles (dimensionless), acceleration, the
   // fluid and spring constants, charge and fields, temperature and amount.
-  'µm': U(DIM.length, 1e-6), um: U(DIM.length, 1e-6), nm: U(DIM.length, 1e-9), pm: U(DIM.length, 1e-12), 'Å': U(DIM.length, 1e-10), mg: U(DIM.mass, 1e-6),
+  'µm': U(DIM.length, 1e-6), um: U(DIM.length, 1e-6), nm: U(DIM.length, 1e-9), pm: U(DIM.length, 1e-12), fm: U(DIM.length, 1e-15), 'Å': U(DIM.length, 1e-10), mg: U(DIM.mass, 1e-6),
   AU: U(DIM.length, 1.495978707e11), 'km/s': U(DIM.velocity, 1000),
   // the relativistic scale's: the Sun's mass (IAU 2015 nominal GM☉ over CODATA 2018 G), light-years, parsecs, and c
   'M☉': U(DIM.mass, 1.98840987e30), Msun: U(DIM.mass, 1.98840987e30), ly: U(DIM.length, 9.4607304725808e15), pc: U(DIM.length, 3.0856775814913673e16),

@@ -47,7 +47,7 @@ export const ELEMENT = {
   Pb: { name: 'lead', Z: 82, A: 208, covalent: 1.46 * Å },
 };
 const COVALENT_SOURCE = 'twice the covalent radius (Cordero et al., Dalton Trans. 2008)';
-const LATTICE_SOURCE = 'CRC Handbook of Chemistry and Physics, lattice constants of the elements (room temperature)';
+const LATTICE_SOURCE = 'CRC Handbook of Chemistry and Physics, 97th ed., 2016: lattice constants of the elements (room temperature)';
 
 // the cubic cells a drawing can hold: fractional positions of the conventional cube's atoms, and the closest spacing
 const LATTICE = {
@@ -63,7 +63,7 @@ const explained = (id, label, size, what, source, why) => ({ id, label, status: 
 
 const IRON = [
   explained('grain', 'ferrite grains', 20 * µm, 'crystals of iron about 20 µm across, each its lattice turned its own way; a crack or a dent starts at the boundaries between them',
-    'ASTM E112 grain size about 8, typical of hot-rolled structural steel', 'a grain\'s shape is the history of how it grew, which no table holds'),
+    'ASTM E112-13, 2013 (grain size about 8, typical of hot-rolled structural steel)', 'a grain\'s shape is the history of how it grew, which no table holds'),
   cell('α-iron cell', 'bcc', 2.8665 * Å, 'Fe', 'iron atoms on a body-centred cube 2.87 Å on a side; the carbon of a mild steel (about 0.2 %) sits in a few of its gaps'),
 ];
 const QUARTZ = explained('cell', 'quartz cell', 4.913 * Å, 'silica (SiO₂) on a trigonal cell, a = 4.913 Å and c = 5.405 Å: each silicon held by four oxygens',
@@ -77,7 +77,7 @@ const CELLULOSE = explained('fibril', 'cellulose microfibrils', 3 * nm, 'the cel
 const WOOD = (width, what) => explained('grain', 'wood cells', width, what, 'USDA Forest Products Laboratory, Wood Handbook (2021), ch. 2', 'a wood\'s cells grow to its season and its tree: no one drawing is the wood');
 const CSH = explained('gel', 'cement gel', 5 * nm, 'the paste is calcium silicate hydrate: a gel of particles a few nanometres across with no long-range order, holding water in its pores',
   'Jennings, Cement and Concrete Research 2000', 'a gel without order has no cell to draw');
-const AGGREGATE = explained('grain', 'aggregate', 20 * mm, 'stones and sand up to about 20 mm, held in a paste of hardened cement', 'a typical structural mix (EN 206, 20 mm maximum aggregate)', 'a mix is poured, not grown: where each stone lies is chance');
+const AGGREGATE = explained('grain', 'aggregate', 20 * mm, 'stones and sand up to about 20 mm, held in a paste of hardened cement', 'EN 206:2013 (a typical structural mix, 20 mm maximum aggregate)', 'a mix is poured, not grown: where each stone lies is chance');
 
 export const STRUCTURE = {
   steel: IRON,
@@ -89,15 +89,15 @@ export const STRUCTURE = {
   ],
   aluminium: [
     explained('grain', 'aluminium grains', 50 * µm, 'grains tens of micrometres across; inside them, the T6 temper grows Mg₂Si precipitates a few nanometres long that pin the lattice and give its strength',
-      'ASM Handbook, vol. 2 (6061 aluminium)', 'a grain\'s shape is the history of how it grew, which no table holds'),
+      'ASM Handbook, vol. 2, 1990 (6061 aluminium)', 'a grain\'s shape is the history of how it grew, which no table holds'),
     cell('aluminium cell', 'fcc', 4.0495 * Å, 'Al', 'aluminium atoms on a face-centred cube 4.05 Å on a side'),
   ],
   lead: [
-    explained('grain', 'lead grains', 1 * mm, 'cast lead cools into coarse grains, millimetres across', 'typical of a casting cooled in its mould', 'a grain\'s shape is the history of how it grew, which no table holds'),
+    explained('grain', 'lead grains', 1 * mm, 'cast lead cools into coarse grains, millimetres across', 'unsourced: typical of a casting cooled in its mould', 'a grain\'s shape is the history of how it grew, which no table holds'),
     cell('lead cell', 'fcc', 4.9502 * Å, 'Pb', 'lead atoms on a face-centred cube 4.95 Å on a side'),
   ],
   brass: [
-    explained('grain', 'α-brass grains', 30 * µm, 'grains a few tens of micrometres across, many of them twinned by the working that hardened it', 'ASM Handbook, vol. 2 (copper alloys)', 'a grain\'s shape is the history of how it grew, which no table holds'),
+    explained('grain', 'α-brass grains', 30 * µm, 'grains a few tens of micrometres across, many of them twinned by the working that hardened it', 'ASM Handbook, vol. 2, 1990 (copper alloys)', 'a grain\'s shape is the history of how it grew, which no table holds'),
     explained('cell', 'α-brass cell', 3.69 * Å, 'copper\'s face-centred cube (3.615 Å) widened to about 3.69 Å by the zinc in solution',
       'Pearson, Handbook of Lattice Spacings and Structures of Metals, 1958', 'which sites hold zinc is random, so no single cell is the brass'),
   ],
@@ -111,7 +111,7 @@ export const STRUCTURE = {
   ],
   stone: [
     explained('grain', 'mineral crystals', 3 * mm, 'interlocking crystals of quartz, feldspar and mica, 1 to 10 mm across: granite is coarse-grained because it cooled slowly underground',
-      'a phaneritic igneous rock (the IUGS classification)', 'three minerals in one rock: no single drawing is the granite'),
+      'Le Maitre (ed.), Igneous Rocks: A Classification and Glossary of Terms (IUGS), 2002', 'three minerals in one rock: no single drawing is the granite'),
     QUARTZ,
   ],
   sandstone: [
@@ -175,7 +175,7 @@ export function ladderOf(matter, radius) {
     rungs.push({
       id: 'atom', label: `${el.name} atom`, status: 'explained', size: d,
       what: `${el.Z} electrons round a nucleus, about ${sizeText(d)} across${fromCell ? ' (the spacing of its cell, the atoms taken as touching spheres)' : ''}`,
-      source: fromCell ? 'the cell above: its nearest-neighbour spacing' : COVALENT_SOURCE,
+      source: fromCell ? 'the cell above: its nearest-neighbour spacing' : COVALENT_SOURCE, ...(fromCell ? { derived: true } : {}),
       why: `the quantum scale solves one electron (hydrogen's); an atom of ${el.Z} is named, not solved`,
     });
     const D = 2 * R0 * Math.cbrt(el.A), share = Math.round(3 * Math.log10(D / d));

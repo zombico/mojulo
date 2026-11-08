@@ -30,7 +30,7 @@ import { scl, add, sub, dot, cross, len, isObj, sig, framing, bar, scaleLiberty 
 
 const fail = (where, msg) => { throw new Error(`science-worlds: ${where}: ${msg}`); };
 const KEYS = ['kind', 'model', 'dress', 'liberties', 'at', 'yaw', 'ground', 'setting', 'case', 'title'];
-const SCALES = {
+export const SCALES = {
   classical: { kind: 'classical-view', plan: planClassicalWorld, assemble: assembleClassicalScene },
   microscopic: { kind: 'microscopic-view', plan: planMicroscopicWorld, assemble: assembleMicroscopicScene },
   quantum: { kind: 'quantum-view', plan: planQuantumWorld, assemble: assembleQuantumScene },
@@ -54,10 +54,8 @@ export function readScienceSetting(spec, where = 'science') {
   if (extra.length) fail(where, `unknown field '${extra[0]}' (it takes ${KEYS.join(', ')})`);
   if (!SCALES[spec.kind]) fail(`${where}.kind`, `is one of ${Object.keys(SCALES).join(', ')}`);
   if (!isObj(spec.model)) fail(`${where}.model`, `wants the ${spec.kind} model (get_view_vocab({ id: '${spec.kind}' }))`);
-  if (spec.kind === 'relativistic' && spec.model.system === 'light') fail(`${where}.model`, 'a light world is drawn by a shader that fills the frame: it cannot stand in a world (an orbit or clocks world can)');
-  if (spec.kind === 'quantum' && isObj(spec.dress) && spec.dress.render === 'volume') fail(`${where}.dress.render`, 'a volume is drawn by a shader that fills the frame: it cannot stand in a world (the sampled points can)');
-  if (spec.kind === 'classical' && isObj(spec.dress) && ['volume', 'shells'].includes(spec.dress.field)) fail(`${where}.dress.field`, "a field drawn as a volume is a shader over the whole page: it cannot stand in a world (field: 'lines' can)");
-  if (spec.kind === 'quantum' && spec.model.system === 'plane') fail(`${where}.model`, 'a plane world\'s sheet is drawn by a shader over the whole page: it cannot stand in a world (a line, an atom\'s points, spin or decay can)');
+  const shaderOnly = unplaceable(spec.kind, spec.model, spec.dress);
+  if (shaderOnly) fail(`${where}.${shaderOnly.at}`, shaderOnly.why);
   if (!Array.isArray(spec.at) || spec.at.length !== 3) fail(`${where}.at`, 'wants [x, y, z] in the world (metres)');
   const at = spec.at.map((c, k) => quantity(c, 'length', `${where}.at[${k}]`));
   const yaw = spec.yaw === undefined ? 0 : quantity(spec.yaw, 'scalar', `${where}.yaw`);
@@ -145,6 +143,36 @@ export function sceneryCrossings(faces, tracks, covered) {
 }
 
 // ── the placement ──
+
+/**
+ * A demo's drawing moved somewhere else: its faces, planets and movers through T (a point), R (a direction) and k (the
+ * scale), each group renamed by G. A planet a mover carries sits at an offset from the mover's point (turned and
+ * scaled); a still one is placed. Shared by a demo stood in a world and by a ladder's rungs (ladder-view.js).
+ */
+export function movePlaced(placed, { T, R = (v) => v, k, G }) {
+  const moving = new Set((placed.movers || []).map((m) => m.group));
+  return {
+    faces: (placed.faces || []).map((f) => ({ ...f, corners: f.corners.map(T), group: G(f.group) })),
+    planets: (placed.planets || []).map((p) => ({ ...p, group: G(p.group), center: moving.has(p.group) ? R(scl(p.center, k)) : T(p.center), radius: p.radius * k })),
+    movers: (placed.movers || []).map((m) => ({
+      ...m, group: G(m.group),
+      ...(m.path ? { path: m.path.map(T) } : {}),
+      ...(Array.isArray(m.from) ? { from: m.from.map(T) } : {}), ...(Array.isArray(m.to) ? { to: m.to.map(T) } : {}),
+      ...(m.vdir ? { vdir: m.vdir.map(R) } : {}), ...(m.avec ? { avec: m.avec.map(R) } : {}),
+      ...(m.arrowLen ? { arrowLen: m.arrowLen * k } : {}),
+    })),
+  };
+}
+
+/** What cannot stand anywhere but its own page (a picture a shader draws over the whole frame): { at, why }, or null. */
+export function unplaceable(kind, model, dress) {
+  const no = (at, why) => ({ at, why });
+  if (kind === 'relativistic' && model?.system === 'light') return no('model', 'a light world is drawn by a shader that fills the frame: it cannot stand in a world (an orbit or clocks world can)');
+  if (kind === 'quantum' && isObj(dress) && dress.render === 'volume') return no('dress.render', 'a volume is drawn by a shader that fills the frame: it cannot stand in a world (the sampled points can)');
+  if (kind === 'classical' && isObj(dress) && ['volume', 'shells'].includes(dress.field)) return no('dress.field', "a field drawn as a volume is a shader over the whole page: it cannot stand in a world (field: 'lines' can)");
+  if (kind === 'quantum' && model?.system === 'plane') return no('model', 'a plane world\'s sheet is drawn by a shader over the whole page: it cannot stand in a world (a line, an atom\'s points, spin or decay can)');
+  return null;
+}
 
 const rotZ = (p, a) => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a), p[2]];
 
@@ -234,19 +262,7 @@ export function placeScience(payload, raw, { where = 'science' } = {}) {
 
   // drop the world-ground plane's own drawn patch (the world draws that surface already)
   const faces = (placed.faces || []).filter((f) => !(spec.ground && f.group === 'scene' && f.corners.every((q) => Math.abs(q[2] - (ground.z - spec.at[2])) < 1e-6)));
-  const moving = new Set((placed.movers || []).map((m) => m.group));
-  const moved = {
-    faces: faces.map((f) => ({ ...f, corners: f.corners.map(T), group: G(f.group) })),
-    // a planet a mover carries sits at an offset from the mover's point (turned and scaled); a still one, in the world
-    planets: (placed.planets || []).map((p) => ({ ...p, group: G(p.group), center: moving.has(p.group) ? R(scl(p.center, k)) : T(p.center), radius: p.radius * k })),
-    movers: (placed.movers || []).map((m) => ({
-      ...m, group: G(m.group),
-      ...(m.path ? { path: m.path.map(T) } : {}),
-      ...(Array.isArray(m.from) ? { from: m.from.map(T) } : {}), ...(Array.isArray(m.to) ? { to: m.to.map(T) } : {}),
-      ...(m.vdir ? { vdir: m.vdir.map(R) } : {}), ...(m.avec ? { avec: m.avec.map(R) } : {}),
-      ...(m.arrowLen ? { arrowLen: m.arrowLen * k } : {}),
-    })),
-  };
+  const moved = movePlaced({ ...placed, faces }, { T, R, k, G });
   // a case round a bench prop: its twelve edges
   if (!oneToOne) {
     const h = spec.caseSize / 2, e = 0.006 * spec.caseSize;

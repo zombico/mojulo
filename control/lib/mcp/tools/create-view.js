@@ -75,6 +75,7 @@ import { createWavepacketViewHandler } from '@/lib/mcp/tools/wavepacket-view';
 import { createWindmillViewHandler } from '@/lib/mcp/tools/windmill-view';
 // Science worlds: a demo composed from a scale's law table, not one authored experiment (lib/graph/science-worlds/).
 import { createClassicalViewHandler } from '@/lib/mcp/tools/classical-view';
+import { createLadderViewHandler } from '@/lib/mcp/tools/ladder-view';
 import { createMicroscopicViewHandler } from '@/lib/mcp/tools/microscopic-view';
 import { createQuantumViewHandler } from '@/lib/mcp/tools/quantum-view';
 import { createRelativisticViewHandler } from '@/lib/mcp/tools/relativistic-view';
@@ -111,6 +112,7 @@ export const VIEW_KINDS = {
   'fusion': { family: 'science', retired: 'create_fusion_view', handler: createFusionViewHandler },
   'galaxy': { family: 'science', retired: 'create_galaxy_view', handler: createGalaxyViewHandler },
   'gravity-wave': { family: 'science', retired: 'create_gravity_wave_view', handler: createGravityWaveViewHandler },
+  'ladder': { family: 'science', handler: createLadderViewHandler },   // the science worlds' rungs on one page, top down — no retired alias
   'lightning-storm': { family: 'science', retired: 'create_lightning_storm_view', handler: createLightningStormViewHandler },
   'mechanics': { family: 'science', retired: 'create_mechanics_view', handler: createMechanicsViewHandler },
   'microscopic': { family: 'science', handler: createMicroscopicViewHandler },   // a science world: composed from laws — no retired alias
