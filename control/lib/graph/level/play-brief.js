@@ -27,7 +27,8 @@ export function playBrief({ segment: S, G, sketch = null, page = null, kit = {},
   const path = G.cells.filter((x) => x.kind === 'path' && x.r >= r0 && x.r < r0 + n && x.c >= c0 && x.c < c0 + n).map((x) => { const at = [(x.c + 0.5) * T, -(x.r + 0.5) * T]; return { tile: [x.r - r0, x.c - c0], at: [at[0], at[1], z(at[0], at[1])], open: x.open ?? [] }; });
   // (what already stands solid in it: the tiles' trunks, boulders, houses, walls, the size of each)
   const inBox = (c) => c.max[0] >= box[0] && c.min[0] <= box[2] && c.max[1] >= box[1] && c.min[1] <= box[3];
-  const solid = (page?.colliders ?? []).filter(inBox).map((c) => ({ of: c.of ?? 'solid', at: [r1((c.min[0] + c.max[0]) / 2), r1((c.min[1] + c.max[1]) / 2)], size: [r1(c.max[0] - c.min[0]), r1(c.max[1] - c.min[1]), r1(c.max[2] - c.min[2])] }));
+  // (the land's own: the block's play pieces are the designer's, never in their way)
+  const solid = (page?.colliders ?? []).filter((c) => inBox(c) && !/^play:/.test(c.of ?? '')).map((c) => ({ of: c.of ?? 'solid', at: [r1((c.min[0] + c.max[0]) / 2), r1((c.min[1] + c.max[1]) / 2)], size: [r1(c.max[0] - c.min[0]), r1(c.max[1] - c.min[1]), r1(c.max[2] - c.min[2])] }));
   const ground = sketch?.segments?.[S] ?? null;
   const beats = (sketch?.concept?.journey ?? []).filter((b) => b.at === S).map((b) => { const [tr, tc] = beatTile(G, sketch, b), at = [(tc + 0.5) * T, -(tr + 0.5) * T]; return { id: b.id, kind: b.kind, say: b.say, pace: b.pace ?? null, teach: b.teach ?? null, at: [r1(at[0]), r1(at[1]), z(at[0], at[1])], ...(b.opens ? { opens: true } : {}) }; });
   const foesOf = (sketch?.segments?.[S]?.marks ?? []).filter((m) => m.foes && m.beat).map((m) => ({ beat: m.beat, kind: m.foes.kind, count: m.foes.count }));
