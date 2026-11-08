@@ -13,7 +13,10 @@
  *                                                          drag-quadratic | buoyancy | coulomb | lorentz
  *     planes:     [{ p: [3], n: [3], e, mu, mus, idx }],   rigid half-spaces bodies bounce on, rest on and slide along
  *     rods:       [{ a, b, anchor, L, rope }],             b = -1 for a fixed anchor point
- *     collisions: [{ e, idx }] }                           smooth spheres, impulses along the line of centres
+ *     collisions: [{ e, idx }],                            smooth spheres, impulses along the line of centres
+ *     log?:       true }                                   record each bounce and collision impulse in `impacts`
+ *
+ * A plane may carry `eb` ({ body index: e }): each body's own restitution against it (its matter's bounce), over `e`.
  *
  * Integrators: velocity Verlet (symplectic; only when every force reads position alone) and classical RK4. Rods and
  * ropes are exact Lagrange-multiplier forces inside the acceleration, with a projection after each step to hold drift
@@ -33,7 +36,7 @@ export function buildClassical() {
       m: new Float64Array(n), im: new Float64Array(n), r: new Float64Array(n), q: new Float64Array(n),
       x: new Float64Array(3 * n), v: new Float64Array(3 * n),
       forces: desc.forces || [], planes: desc.planes || [], rods: desc.rods || [], collisions: desc.collisions || [],
-      a: null,
+      a: null, log: desc.log ? [] : null, now: 0,
     };
     desc.bodies.forEach((b, i) => {
       S.m[i] = b.m || 0; S.im[i] = b.fixed || !(b.m > 0) ? 0 : 1 / b.m; S.r[i] = b.r || 0; S.q[i] = b.q || 0;
@@ -312,10 +315,12 @@ export function buildClassical() {
             // back up to the moment of impact along the normal (exact under constant acceleration), reverse the
             // normal speed there scaled by e, and spend the rest of the step moving off the surface
             const tau = impactTime(s, vn, an, dt);
-            const vi = vn - an * tau, vo = -P.e * vi;
+            const e = P.eb && P.eb[i] !== undefined ? P.eb[i] : P.e;
+            const vi = vn - an * tau, vo = -e * vi;
             const s1 = vo * tau + 0.5 * an * tau * tau, v1 = vo + an * tau;
             for (let k = 0; k < 3; k++) { S.x[3 * i + k] += (s1 - s) * P.n[k]; S.v[3 * i + k] += (v1 - vn) * P.n[k]; }
-            const dv = (1 + P.e) * -vi;
+            const dv = (1 + e) * -vi;
+            if (S.log) S.log.push({ t: S.now - tau, kind: 'plane', i, plane: pi, vn: -vi, e });
             if (P.mu > 0) {
               const vt = [0, 1, 2].map((k) => S.v[3 * i + k] - dot(S.v, 3 * i, P.n, 0) * P.n[k]);
               const sp = Math.hypot(vt[0], vt[1], vt[2]);
@@ -363,6 +368,7 @@ export function buildClassical() {
         const un = [0, 1, 2].reduce((s, k) => s + (S.v[3 * j + k] - S.v[3 * i + k]) * nrm[k], 0);
         if (un < 0) {
           const J = -(1 + C.e) * un / sum;
+          if (S.log) S.log.push({ t: S.now, kind: 'pair', i, j, vn: -un, e: C.e });
           for (let k = 0; k < 3; k++) { S.v[3 * i + k] -= J * ii * nrm[k]; S.v[3 * j + k] += J * ij * nrm[k]; }
         }
         for (let k = 0; k < 3; k++) { S.x[3 * i + k] -= nrm[k] * overlap * ii / sum; S.x[3 * j + k] += nrm[k] * overlap * ij / sum; }
@@ -443,6 +449,7 @@ export function buildClassical() {
     for (let k = 1; k <= samples; k++) {
       for (let s = 0; s < substeps; s++) {
         if (stepper === 'verlet') stepVerlet(S, dt); else stepRK4(S, dt);
+        S.now = ((k - 1) * substeps + s + 1) * dt;
         project(S);
         S.planes.forEach((P) => {
           for (const i of P.idx) {
@@ -456,6 +463,7 @@ export function buildClassical() {
       }
       record(k);
     }
+    if (S.log) out.impacts = S.log;
     return out;
   }
 

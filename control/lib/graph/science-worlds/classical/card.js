@@ -24,6 +24,7 @@ const SHAPE = {
 const fmtDefault = (d) => (Array.isArray(d) ? `[${d.join(', ')}]` : String(d));
 
 function paramLine(name, p) {
+  if (p.matter) return `\`${name}\` (${p.matter === 'medium' ? 'a liquid or gas from rupa\'s matter table: \'water\', \'air\', \'honey\', …' : 'a solid from rupa\'s matter table: \'steel\', \'glass\', \'concrete\', …'}; optional)`;
   const unit = p.number ? 'a number, SI' : p.dim === 'scalar' ? (name === 'tilt' ? 'an angle: rad, or \'30 deg\'' : 'a number') : `${p.vector ? '[x, y, z] in ' : ''}${UNIT[p.dim] || p.dim}`;
   const tail = p.required ? 'required' : p.default !== undefined ? `default ${fmtDefault(p.default)}` : 'optional';
   return `\`${name}\` (${unit}; ${tail})`;

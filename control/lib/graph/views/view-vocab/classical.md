@@ -212,7 +212,7 @@ A rope: like a rod while taut, but it only pulls; shorter than its length it goe
 Drag proportional to speed: F = −b·(v − wind). Give b, or a fluid viscosity for Stokes' law b = 6πηr.
 
 - Names its bodies with `on?: [ids]` (default: every body it can act on).
-- Takes `b` (N·s/m; optional), `viscosity` (Pa·s; optional), `wind` ([x, y, z] in m/s; default [0, 0, 0]).
+- Takes `b` (N·s/m; optional), `viscosity` (Pa·s; optional), `medium` (a liquid or gas from rupa's matter table: 'water', 'air', 'honey', …; optional), `wind` ([x, y, z] in m/s; default [0, 0, 0]).
 - Leaves out: Slow, smooth (viscous) flow: drag grows with speed, not its square.
 - Smallest example: `{"bodies":[{"id":"bead","mass":0.01,"radius":0.005,"at":[0,0,1]}],"laws":[{"law":"gravity-uniform"},{"law":"drag-linear","b":0.05}],"duration":2}`
 
@@ -221,7 +221,7 @@ Drag proportional to speed: F = −b·(v − wind). Give b, or a fluid viscosity
 Air drag: F = −½·ρ·Cd·A·|v − wind|·(v − wind). A defaults to the body's cross-section πr²; ρ to sea-level air.
 
 - Names its bodies with `on?: [ids]` (default: every body it can act on).
-- Takes `cd` (a number; default 0.47), `rho` (kg/m³; default 1.225), `area` (m²; optional), `wind` ([x, y, z] in m/s; default [0, 0, 0]).
+- Takes `cd` (a number; default 0.47), `rho` (kg/m³; default 1.225), `medium` (a liquid or gas from rupa's matter table: 'water', 'air', 'honey', …; optional), `area` (m²; optional), `wind` ([x, y, z] in m/s; default [0, 0, 0]).
 - Leaves out: The drag coefficient is constant with speed (no drag crisis); the body does not spin.
 - Smallest example: `{"bodies":[{"id":"ball","mass":0.06,"radius":0.033,"at":[0,0,50]}],"laws":[{"law":"gravity-uniform"},{"law":"drag-quadratic"}],"duration":4}`
 
@@ -230,7 +230,7 @@ Air drag: F = −½·ρ·Cd·A·|v − wind|·(v − wind). A defaults to the bo
 Archimedes: a fluid below height `surface` pushes a sphere up with the weight of the fluid it displaces (the sunk cap's volume).
 
 - Names its bodies with `on?: [ids]` (default: every body it can act on).
-- Takes `rho` (kg/m³; default 1000), `surface` (m; default 0).
+- Takes `rho` (kg/m³; default 1000), `medium` (a liquid or gas from rupa's matter table: 'water', 'air', 'honey', …; optional), `surface` (m; default 0).
 - Leaves out: The fluid is still and of constant density; the body is a sphere; no added mass, no waves.
 - Smallest example: `{"bodies":[{"id":"buoy","mass":2,"radius":0.1,"at":[0,0,0.2]}],"laws":[{"law":"gravity-uniform"},{"law":"buoyancy"}],"duration":3}`
 
@@ -257,7 +257,7 @@ Uniform electric and magnetic fields on charged bodies: F = q·(E + v × B). The
 A rigid flat surface through `point`: a floor (default), a wall (`normal`), or a ramp (`tilt` an angle, sloping down along `downhill`). Bodies bounce with restitution e, rest on it, and slide with friction μ (static μs, default μ).
 
 - Names its bodies with `id?` (bodies sit on it with `on_plane`), `on?: [ids]`.
-- Takes `point` ([x, y, z] in m; default [0, 0, 0]), `normal` (a number; optional), `tilt` (an angle: rad, or '30 deg'; optional), `downhill` (a number; default [1, 0, 0]), `e` (a number; default 1), `mu` (a number; default 0), `mus` (a number; optional).
+- Takes `point` ([x, y, z] in m; default [0, 0, 0]), `normal` (a number; optional), `tilt` (an angle: rad, or '30 deg'; optional), `downhill` (a number; default [1, 0, 0]), `e` (a number; default 1), `mu` (a number; default 0), `mus` (a number; optional), `matter` (a solid from rupa's matter table: 'steel', 'glass', 'concrete', …; optional).
 - Leaves out: The surface is rigid and flat; bodies slide, they do not roll; elastic and frictionless unless e and μ say otherwise.
 - Smallest example: `{"bodies":[{"id":"block","mass":1,"radius":0.05,"at":[0,0,0],"on_plane":"ramp"}],"laws":[{"law":"gravity-uniform"},{"law":"plane","id":"ramp","tilt":"30 deg","mu":0.2}],"duration":2}`
 

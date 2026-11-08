@@ -20,6 +20,7 @@ import { G as G_PRESET } from '../../machina/quantities.js';
 import { CLASSICAL_LAWS, CLASSICAL_LAW, G_NEWTON, planeNormal } from './laws.js';
 import { classical } from './kernel.js';
 import { closedFormGates } from './analytic.js';
+import { readMedium, readBodyMatter, bodyBudget, impactOf, verdictOf, sourceOf } from '../matter.js';
 import { along, peak, returnRange, period, at, vel } from './measure.js';
 
 export const MAX_STEPS = 400000;
@@ -39,6 +40,7 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const sig = (v, n = 6) => (typeof v === 'number' && Number.isFinite(v) ? +v.toPrecision(n) : v);
 const sigv = (a, n = 6) => a.map((c) => sig(c, n));
 
+export const MATTER_ASSUMPTION = 'Matter from rupa\'s table (typical handbook figures, never a guarantee): a body is a uniform sphere of it; a contact\'s lost energy is shared inversely to stiffness; a verdict is reported, and the run never breaks or dents a body.';
 export const BASE_ASSUMPTION = 'Newtonian mechanics: speeds far below light and paths far larger than a body\'s quantum wavelength (the regime gates check both).';
 
 function normalizeFrame(frame) {
@@ -95,7 +97,8 @@ function normalizeLaw(raw, i, ctx, lawIds) {
   for (const [name, spec] of Object.entries(row.params)) {
     const v = raw[name];
     if (v === undefined) { if (spec.required) fail(`${where}.${name}`, `'${row.id}' needs ${name} (a ${spec.dim})`); continue; }
-    if (spec.number) {
+    if (spec.matter) entry[name] = spec.matter === 'medium' ? readMedium(v, `${where}.${name}`) : readBodyMatter(v, `${where}.${name}`);
+    else if (spec.number) {
       if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) fail(`${where}.${name}`, 'wants a positive number (SI)');
       entry[name] = v;
     } else entry[name] = spec.vector ? vector(v, spec.dim, `${where}.${name}`) : quantity(v, spec.dim, `${where}.${name}`);
@@ -174,12 +177,15 @@ function resolveSystem(model, ctx) {
     bodies: model.bodies.map((b) => ({ m: b.mass ?? 0, r: b.radius, q: b.charge ?? 0, fixed: b.fixed, x: b.at, v: b.v })),
     forces: [], planes: [], rods: [], collisions: [],
   };
+  // a model with matter logs its contacts, so the readout can say what each one did to what it struck
+  if (model.bodies.some((b) => b.matter) || model.laws.some(({ entry }) => entry.matter)) desc.log = true;
   for (const { row, entry } of model.laws) {
     const r = row.resolve(entry, ctx);
     if (r.force) desc.forces.push(r.force);
     if (r.plane) desc.planes.push(r.plane);
     if (r.rod) desc.rods.push(r.rod);
     if (r.collision) desc.collisions.push(r.collision);
+    if (r.collisions) desc.collisions.push(...r.collisions);
   }
   return desc;
 }
@@ -307,14 +313,20 @@ export function solveClassical(params) {
   };
   const series = { ke: run.ke.map((v) => sig(v)), pe: run.pe.map((v) => sig(v)), e: E.map((v) => sig(v)), p: run.p.map((p) => sigv(p)), L: run.L.map((L) => sigv(L)) };
 
-  const assumptions = [BASE_ASSUMPTION, ...new Set(model.laws.map(({ row }) => row.assumption))];
+  const matter = run.impacts ? matterReadout(model, run.impacts) : null;
+  if (matter) gates.push(gate('bodies-intact', 'no body takes more of a contact\'s energy than its matter holds (the run keeps every body whole)',
+    !matter.broken.length, { broken: matter.broken },
+    matter.broken.length ? `${matter.broken.join(', ')} would break: the run past that contact is the unbroken body's, not what would happen` : 'every contact stays within what each matter absorbs'));
+
+  const assumptions = [BASE_ASSUMPTION, ...new Set(model.laws.map(({ row }) => row.assumption)), ...(matter ? [MATTER_ASSUMPTION] : [])];
   return {
     scale: 'classical',
-    model: { ...model, laws: model.laws.map(({ entry }) => entry) },
+    model: { ...model, bodies: model.bodies.map(compactBody), laws: model.laws.map(({ row, entry }) => compactEntry(row, entry)) },
     dress, liberties, assumptions, gaps, warnings,
     stepper, dt: sig(dt), substeps, samples, steps: samples * substeps,
     tracks, series,
     observed: observe(model, run, ctx, E),
+    ...(matter ? { matter } : {}),
     gates, held: gates.every((g) => g.ok),
     stats: {
       duration: sig(model.duration), bodies: model.bodies.length, laws: model.laws.length,
@@ -367,4 +379,61 @@ function widest(run, i) {
   });
   const c = span.indexOf(Math.max(...span));
   return [0, 1, 2].map((k) => (k === c ? 1 : 0));
+}
+
+// a body or a law entry as the readout prints it: a matter record by its id (absent: the object itself, unchanged)
+function compactBody(b) { return b.matter ? { ...b, matter: b.matter.id } : b; }
+function compactEntry(row, entry) {
+  const keys = Object.keys(row.params).filter((k) => row.params[k].matter && entry[k]);
+  if (!keys.length) return entry;
+  const out = { ...entry };
+  for (const k of keys) out[k] = entry[k].id;
+  return out;
+}
+
+/**
+ * What each contact did to the bodies with matter: rupa's impact law on the logged closing speed. A body with no matter
+ * (and a plane with none) is rigid: it takes none of the lost energy. Reported, never enacted.
+ */
+function matterReadout(model, impacts) {
+  const side = (b) => (b && b.matter
+    ? { mass: b.mass ?? 0, fixed: b.fixed, stiff: bodyBudget(b.matter, b.radius).stiff, joules: bodyBudget(b.matter, b.radius).joules }
+    : { mass: b?.mass ?? 0, fixed: b ? b.fixed : true, stiff: Infinity, joules: Infinity });
+  const planes = model.laws.filter(({ row }) => row.id === 'plane').map(({ entry }) => entry);
+  const per = model.bodies.map((b) => (b.matter ? { worst: 'holds', share: 0, at: null, contacts: 0 } : null));
+  const rank = { holds: 0, dents: 1, breaks: 2 };
+  const take = (i, share, t) => {
+    const b = model.bodies[i], p = per[i];
+    if (!p) return;
+    p.contacts++;
+    const v = verdictOf(share, bodyBudget(b.matter, b.radius), b.matter, b.radius);
+    if (share > p.share) { p.share = share; if (rank[v] >= rank[p.worst]) p.at = t; }
+    if (rank[v] > rank[p.worst]) { p.worst = v; p.at = t; }
+  };
+  for (const ev of impacts) {
+    const A = model.bodies[ev.i];
+    let B;
+    if (ev.kind === 'pair') B = model.bodies[ev.j];
+    else { const pl = planes[ev.plane]; B = pl?.matter ? { mass: 0, fixed: true, radius: 1, matter: pl.matter } : null; }
+    const a = { ...side(A), bounce: ev.e }, b = { ...(B ? side(B) : side(null)), bounce: ev.e, fixed: B ? B.fixed !== false : true };
+    if (ev.kind === 'plane' && B) { b.joules = Infinity; b.stiff = B.matter.E ?? 10e9; }   // a plane is a surface: its stiffness counts, its budget is not judged
+    const r = impactOf({ ...a, joules: a.joules }, { ...b, joules: Infinity }, ev.vn);
+    take(ev.i, r.toA, ev.t);
+    if (ev.kind === 'pair') {
+      const r2 = impactOf({ ...b, joules: b.joules }, { ...a, joules: Infinity }, ev.vn);
+      take(ev.j, r2.toA, ev.t);
+    }
+  }
+  const bodies = {}, broken = [];
+  model.bodies.forEach((b, i) => {
+    if (!per[i]) return;
+    const budget = bodyBudget(b.matter, b.radius);
+    bodies[b.id] = {
+      matter: b.matter.id, source: sourceOf(b.matter), mass: { value: sig(b.mass), unit: 'kg', from: b.massFrom === 'matter' ? 'density × volume' : 'given' },
+      holds: { value: sig(budget.joules), unit: 'J' }, contacts: per[i].contacts, worst: per[i].worst,
+      ...(per[i].contacts ? { peak: { value: sig(per[i].share), unit: 'J', at: sig(per[i].at, 6) } } : {}),
+    };
+    if (per[i].worst === 'breaks') broken.push(b.id);
+  });
+  return { bodies, broken, contacts: impacts.length, enacted: false };
 }

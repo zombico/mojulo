@@ -191,7 +191,7 @@ export const CLASSICAL_CLOSED_FORMS = [
       const n = unit(line), u1 = dot(A.v, n), u2 = dot(B.v, n), closing = u1 - u2;
       if (!(closing > 0)) return null;
       if (m.duration <= (len(line) - A.radius - B.radius) / closing * 1.05) return null;
-      const e = law(m, 'collision').e ?? 1, M = A.mass + B.mass, P = A.mass * u1 + B.mass * u2;
+      const e = m.resolved.collisions[0]?.e ?? law(m, 'collision').e ?? 1, M = A.mass + B.mass, P = A.mass * u1 + B.mass * u2;
       return { n, v1: (P + B.mass * e * (u2 - u1)) / M, v2: (P + A.mass * e * (u1 - u2)) / M };
     },
     expect: (a) => ({ v1: a.v1, v2: a.v2 }),

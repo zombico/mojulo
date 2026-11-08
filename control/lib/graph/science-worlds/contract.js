@@ -15,6 +15,7 @@
  */
 
 import { UNITS, DIM, qty, dimensionOf } from '../machina/quantities.js';
+import { readBodyMatter, sphereMass } from './matter.js';
 
 export const SCALES = ['classical', 'microscopic', 'quantum'];
 
@@ -66,9 +67,10 @@ export function positive(value, want, where, { zero = false } = {}) {
 const idOk = (s) => typeof s === 'string' && /^[a-z0-9][a-z0-9_-]{0,31}$/i.test(s);
 
 /**
- * The model's bodies: `{ id, mass?, radius?, at, v?, charge?, fixed?, on_plane? }`. A fixed body never moves (it may
- * still pull: a fixed sun) and needs no mass unless a law reads it. Ids are unique, short, and what laws and dress
- * name the body by.
+ * The model's bodies: `{ id, mass?, radius?, at, v?, charge?, fixed?, on_plane?, matter? }`. A fixed body never moves
+ * (it may still pull: a fixed sun) and needs no mass unless a law reads it. Ids are unique, short, and what laws and
+ * dress name the body by. `matter` names what it is made of (rupa's table, matter.js): with a radius and no mass, its
+ * mass is the matter's density × the sphere's volume; a collision or plane with no `e` takes its bounce.
  */
 export function normalizeBodies(list) {
   if (!Array.isArray(list) || !list.length) fail('model.bodies', 'wants at least one body');
@@ -82,8 +84,12 @@ export function normalizeBodies(list) {
     seen.add(b.id);
     const fixed = b.fixed === true;
     const out = { id: b.id, fixed };
-    if (b.mass !== undefined || !fixed) out.mass = positive(b.mass, 'mass', `${where}.mass`);
-    out.radius = b.radius === undefined ? 0 : positive(b.radius, 'length', `${where}.radius`, { zero: true });
+    const radius = b.radius === undefined ? 0 : positive(b.radius, 'length', `${where}.radius`, { zero: true });
+    const matter = b.matter === undefined ? null : readBodyMatter(b.matter, `${where}.matter`);
+    if (b.mass !== undefined) out.mass = positive(b.mass, 'mass', `${where}.mass`);
+    else if (matter && radius > 0) { out.mass = sphereMass(matter, radius); out.massFrom = 'matter'; }
+    else if (!fixed) out.mass = positive(b.mass, 'mass', `${where}.mass${matter ? ' (or a radius, so its matter gives the mass)' : ''}`);
+    out.radius = radius;
     out.at = vector(b.at ?? [0, 0, 0], 'length', `${where}.at`);
     out.v = fixed ? [0, 0, 0] : vector(b.v ?? [0, 0, 0], 'velocity', `${where}.v`);
     if (b.charge !== undefined) out.charge = quantity(b.charge, 'charge', `${where}.charge`);
@@ -91,6 +97,7 @@ export function normalizeBodies(list) {
       if (!idOk(b.on_plane)) fail(`${where}.on_plane`, 'names a plane law by its id');
       out.on_plane = b.on_plane;
     }
+    if (matter) out.matter = matter;
     return out;
   });
 }
