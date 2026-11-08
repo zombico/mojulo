@@ -60,7 +60,7 @@ export const GREYBOX_VARS = Object.freeze({
   // the focus: the ▶ (a shape, never a colour alone) and the room it keeps at an item's left (mark 0: none)
   cursor: '"\\25B6"', mark: '1',
   // the lean of tabs, bars, banners, keys and buttons (theme.js SLANTS); the rule an inner part is drawn with
-  slant: '0deg', 'rule-w': '1px',
+  slant: '0deg', 'slant-words': '0deg', 'rule-w': '1px',
   // a screen giving way to the next: the cover's animation (none: the screen fades) and its timing (theme.js TRANSITIONS)
   tx: 'none', 'tx-ease': 'ease-in-out',
   // what a pause does to what it covers (theme.js VEILS): nothing in the greybox
@@ -136,13 +136,19 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-screen[data-place=sheet]>.mana-window{width:min(${u(840)},100%);border-bottom:0;border-radius:calc(${v('radius')} + 14px) calc(${v('radius')} + 14px) 0 0;padding-top:${u(36)};padding-bottom:max(16px,env(safe-area-inset-bottom))}`,
     `${s} .mana-screen[data-place=sheet]>.mana-window::before{content:"";position:absolute;top:9px;left:50%;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:${v('soft')}}`,
     `${s} .mana-screen[data-place=full]>:is(.mana-split,.mana-window,.mana-tabs){flex:1;min-height:0}`,
+    // the words come first: in a pane that fills the screen, a picture gives up its height before the words beside it
+    // lose their room (it shrinks to what is left, never under a strip)
+    `${s} .mana-screen[data-place=full] .mana-window>.mana-stack:has(>.mana-image){height:100%}`,
+    `${s} .mana-screen[data-place=full] .mana-window>.mana-stack>.mana-image{flex:1 1 0;min-height:${u(90)};aspect-ratio:auto}`,
     // key art behind a screen (a title, an attract loop): the whole stage, under everything the screen holds
     `${s} .mana-screen>.mana-image[data-ratio=backdrop]{position:absolute;inset:0;z-index:-1;aspect-ratio:auto;border:0;border-radius:0;padding:${u(12)}}`,
     // the legend bar: what the buttons do here, pinned to the foot of the safe frame, right-aligned (a console's prompt bar)
     `${s} .mana-screen>.mana-legend{position:absolute;right:${safe('right', SX)};bottom:${safe('bottom', SY)};z-index:2;justify-content:flex-end;max-width:calc(100% - 2 * ${SX});padding:${u(8)} ${u(18)} ${u(8)} ${u(90)};margin-right:${u(-18)};background:linear-gradient(90deg,transparent,color-mix(in srgb,${v('panel')} 86%,transparent) ${u(90)})}`,
     `${s} .mana-screen:has(>.mana-legend):not([data-place=sheet]){padding-bottom:calc(${safe('bottom', SY)} + ${u(60)})}`,
-    // the lean: tabs, bars, banners, keys and buttons skew (never a window: what a screen holds stays square)
-    `${s} :is(.mana-tablabel,.mana-banner,.mana-key,.mana-button,.mana-track,.mana-badge){transform:skewX(${v('slant')})}`,
+    // the lean: tabs, bars, banners, keys and buttons skew (never a window: what a screen holds stays square); a shape
+    // with words to read leans no further than an italic (slant-words), a bar and a banner's display take the whole lean
+    `${s} :is(.mana-banner,.mana-track){transform:skewX(${v('slant')})}`,
+    `${s} :is(.mana-tablabel,.mana-key,.mana-button,.mana-badge){transform:skewX(${v('slant-words')})}`,
     `${s} .mana-bar[data-dir=rtl] .mana-track{transform:scaleX(-1) skewX(${v('slant')})}`,
     // the cover drawn over the stage as one screen gives way to the next (a new key replays it; out mirrors it)
     `${s}>.mana-transition{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;background:${v('shade')};animation:${v('tx')} calc(${v('dur')} * 3.5) ${v('tx-ease')} both}`,
@@ -167,8 +173,11 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-layers::after{inset:calc(-1 * ${v('frame-w')});background:${v('plate')};border:${v('frame-w')} ${v('frame-s')} ${v('line')};border-radius:${v('radius')}}`,
     `${s} .mana-layers>b{position:absolute;display:block}`,
     `${s} .mana-window .mana-window>.mana-layers::before,${s} .mana-window .mana-window>.mana-layers>b{display:none}`,
-    // the overlay: a filter over the whole stage while the UI is up (scanlines, a grid, a vignette, grain), over the cover
-    `${s}:is([data-hud=yes],:not([data-open=none]))::after{content:"";position:absolute;inset:0;z-index:10;pointer-events:none;background:${v('overlay')}}`,
+    // the overlay: a filter over the picture while the UI is up (scanlines, a grid, a vignette, grain), never over the
+    // words: over the world under the HUD and the screens, and over a screen's scrim, key art and stage under what it holds
+    `${s}:is([data-hud=yes],:not([data-open=none]))::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:${v('overlay')}}`,
+    `${s} .mana-screen::before{content:"";position:absolute;inset:0;pointer-events:none;background:${v('overlay')}}`,
+    `${s} .mana-screen>:where(*){position:relative}`,
     // the echo: a screen's title and a display's words drawn again behind them, huge and hollow, breaking past the box
     `${s} :is(.mana-screen>.mana-title,.mana-text[data-role=display]){position:relative}`,
     `${s} :is(.mana-screen>.mana-title,.mana-text[data-role=display])::before{content:none;position:absolute;left:-.3em;top:50%;translate:0 -52%;z-index:-1;font-size:2.6em;line-height:1;white-space:nowrap;color:transparent;-webkit-text-stroke:2px ${v('echo-ink')};opacity:.45;pointer-events:none;text-shadow:none}`,

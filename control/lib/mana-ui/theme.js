@@ -296,22 +296,38 @@ const svg = (body, w, h) => `url("data:image/svg+xml,${encodeURIComponent(`<svg 
 const noise = (freq, octaves, c, a, size, seed) => { const [r, g, b] = rgb(c).map((n) => (n / 255).toFixed(3)); return `${svg(`<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='${octaves}' seed='${seed}' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${r} 0 0 0 0 ${g} 0 0 0 0 ${b} ${a} 0 0 0 0'/></filter><rect width='100%' height='100%' filter='url(#n)'/>`, size, size)} 0 0/${size}px ${size}px`; };
 const du = (n) => `calc(${n} * var(--mana-du))`;
 const light = (c) => lum(c) > 0.4;
-// a plate's surface: the layers laid over its base, and the base itself where the material has its own
+// RESTRAINT WHERE THE WORDS ARE: a material's texture is loud at a window's rim and quiet under its words. The plate
+// every surface wears (a window, a toast, a HUD part, a prompt) carries the texture at the reading amplitude (FIELD);
+// a window's rim (its grain, themeCss) carries it whole, fading out before the words begin (RIM)
+export const FIELD = 0.2;
+const RIM = 28;
+// a material's texture at an amplitude (1 whole, FIELD under the words): the layers over a plate's base
+function textureOf(T, k, a) {
+  const m = T.material, A = (x) => +(x * a).toFixed(3);
+  if (m === 'parchment') {
+    const burn = light(k.panel) ? '#5a3816' : '#000000';
+    return [noise(0.85, 3, burn, A(0.32), 180, 7), noise(0.022, 2, burn, A(0.26), 420, 3), `radial-gradient(ellipse at 50% 45%,transparent 55%,${alpha(burn, A(0.34))} 100%)`];
+  }
+  if (m === 'paper') return [noise(0.9, 2, light(k.panel) ? '#000000' : '#ffffff', A(0.12), 160, 11)];
+  if (m === 'grid') return [`linear-gradient(${alpha(k.line, A(0.28))} 1px,transparent 1px) 0 0/${du(120)} ${du(120)}`, `linear-gradient(90deg,${alpha(k.line, A(0.28))} 1px,transparent 1px) 0 0/${du(120)} ${du(120)}`, `linear-gradient(${alpha(k.line, A(0.12))} 1px,transparent 1px) 0 0/${du(24)} ${du(24)}`, `linear-gradient(90deg,${alpha(k.line, A(0.12))} 1px,transparent 1px) 0 0/${du(24)} ${du(24)}`];
+  if (m === 'crt') return [`repeating-linear-gradient(0deg,${alpha('#000000', A(0.2))} 0 1px,transparent 1px 3px)`, `radial-gradient(ellipse at 50% 40%,${alpha(k.accent, A(0.12))},transparent 70%)`, `radial-gradient(ellipse at center,transparent 60%,${alpha('#000000', A(0.35))} 100%)`];
+  if (m === 'halftone') return [`radial-gradient(${alpha(k.ink, A(0.11))} 28%,transparent 31%) 0 0/7px 7px`, `linear-gradient(160deg,transparent 40%,${alpha(k.accent, A(0.12))})`];
+  if (m === 'metal') return [`linear-gradient(180deg,${alpha('#ffffff', A(0.16))},transparent 22%,transparent 78%,${alpha('#000000', A(0.22))})`, `repeating-linear-gradient(90deg,${alpha('#ffffff', A(0.035))} 0 1px,${alpha('#000000', A(0.035))} 1px 3px)`];
+  if (m === 'glass') return [`linear-gradient(170deg,${alpha('#ffffff', A(0.2))},transparent 38%)`];
+  return [];
+}
+// a plate's surface: its texture at the reading amplitude over its base (parchment lays a sheet of its own; glass is a
+// thin plate, the scene behind blurred, but thick enough under words that a bright scene does not wash them out)
 function materialOf(T, k, base) {
   const m = T.material;
   if (m === 'none') return base;
-  if (m === 'parchment') {
-    const burn = light(k.panel) ? '#5a3816' : '#000000', sheet = mix(k.panel, light(k.panel) ? '#ecd9ac' : '#4a341b', 0.45);
-    return [noise(0.85, 3, burn, 0.32, 180, 7), noise(0.022, 2, burn, 0.26, 420, 3), `radial-gradient(ellipse at 50% 45%,transparent 55%,${alpha(burn, 0.34)} 100%)`, sheet].join(',');
-  }
-  if (m === 'paper') return [noise(0.9, 2, light(k.panel) ? '#000000' : '#ffffff', 0.12, 160, 11), base].join(',');
-  if (m === 'grid') return [`linear-gradient(${alpha(k.line, 0.28)} 1px,transparent 1px) 0 0/${du(120)} ${du(120)}`, `linear-gradient(90deg,${alpha(k.line, 0.28)} 1px,transparent 1px) 0 0/${du(120)} ${du(120)}`, `linear-gradient(${alpha(k.line, 0.12)} 1px,transparent 1px) 0 0/${du(24)} ${du(24)}`, `linear-gradient(90deg,${alpha(k.line, 0.12)} 1px,transparent 1px) 0 0/${du(24)} ${du(24)}`, base].join(',');
-  if (m === 'crt') return [`repeating-linear-gradient(0deg,${alpha('#000000', 0.2)} 0 1px,transparent 1px 3px)`, `radial-gradient(ellipse at 50% 40%,${alpha(k.accent, 0.12)},transparent 70%)`, `radial-gradient(ellipse at center,transparent 60%,${alpha('#000000', 0.35)} 100%)`, base].join(',');
-  if (m === 'halftone') return [`radial-gradient(${alpha(k.ink, 0.11)} 28%,transparent 31%) 0 0/7px 7px`, `linear-gradient(160deg,transparent 40%,${alpha(k.accent, 0.12)})`, base].join(',');
-  if (m === 'metal') return [`linear-gradient(180deg,${alpha('#ffffff', 0.16)},transparent 22%,transparent 78%,${alpha('#000000', 0.22)})`, `repeating-linear-gradient(90deg,${alpha('#ffffff', 0.035)} 0 1px,${alpha('#000000', 0.035)} 1px 3px)`, base].join(',');
-  // glass: a sheen over a thin plate, the scene behind blurred (a rule of its own)
-  return [`linear-gradient(170deg,${alpha('#ffffff', 0.2)},transparent 38%)`, alpha(k.panel, 0.58)].join(',');
+  const under = m === 'parchment' ? mix(k.panel, light(k.panel) ? '#ecd9ac' : '#4a341b', 0.45) : m === 'glass' ? alpha(k.panel, 0.76) : base;
+  return [...textureOf(T, k, FIELD), under].join(',');
 }
+// the rim: where the whole texture shows, fading to nothing before a window's words begin (a mask of the four edges)
+const RIM_MASK = `linear-gradient(90deg,#000,transparent ${du(RIM)},transparent calc(100% - ${du(RIM)}),#000),linear-gradient(#000,transparent ${du(RIM)},transparent calc(100% - ${du(RIM)}),#000)`;
+// words on a fill take whichever of the ink and the panel reads on it
+const readOn = (k, bg) => (contrast(k.ink, bg) >= contrast(k.panel, bg) ? k.ink : k.panel);
 // a torn sheet's edge: a fixed jag (no dice), the same on every page
 const JAG = [0, 1.6, 0.5, 2.3, 1.1, 0.2, 1.9, 0.8, 2.6, 0.4, 1.4, 2.1, 0.7, 1.8, 0.3, 2.4, 1.2, 0.6, 2, 0.9];
 const torn = () => {
@@ -374,11 +390,13 @@ export function themeCss(theme, scope = '.mana-root') {
   const T = readTheme(theme), s = scope, k = T.tokens, win = `${s} .mana-window:not([data-variant=ghost]),${s} .mana-place>.mana-region:not(:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad)))`;
   const plate = { clear: 'transparent', flat: alpha(k.panel, 0.86), solid: k.panel, gradient: `linear-gradient(180deg,${mix(k.panel, '#ffffff', 0.1)} 0%,${k.panel} 55%,${mix(k.panel, '#000000', 0.25)} 100%)`, textured: `repeating-linear-gradient(0deg,${k.panel} 0 2px,${mix(k.panel, k.ink, 0.05)} 2px 3px)` }[T.plate];
   const plateOf = materialOf(T, k, plate);
-  const vars = { ...Object.fromEntries(Object.entries(k)), plain: k.accent, scrim: alpha(k.panel, 0.66), 'focus-ink': T.focus === 'fill' ? k.panel : k.ink,
+  // words on the accent (a filled focus, a heading tab, a learned node) and on the highlight bar's blend take the ink that reads
+  const onAccent = readOn(k, k.accent), onBar = readOn(k, mix(k.panel, k.accent, 0.42));
+  const vars = { ...Object.fromEntries(Object.entries(k)), plain: k.accent, scrim: alpha(k.panel, 0.66), 'focus-ink': T.focus === 'fill' ? onAccent : k.ink,
     ...Object.fromEntries(T.sides.map((c, i) => [`side-${i}`, c])),
     font: stack(T.type.body), display: stack(T.type.display), mono: stack(T.type.mono), scale: SCALE[T.scale], case: T.case === 'upper' ? 'uppercase' : 'none',
     radius: RADII[T.corner], 'frame-w': FRAMES[T.frame][0], 'frame-s': FRAMES[T.frame][1], plate: plateOf, motion: MOTION[T.motion], ...MOTIONS[T.motion],
-    ...DISTANCES[T.distance], halo: HALOS[T.halo], slant: SLANTS[T.slant], ...TRANSITIONS[T.transition], veil: VEILS[T.backdrop], 'rule-w': RULES[T.frame],
+    ...DISTANCES[T.distance], halo: HALOS[T.halo], slant: SLANTS[T.slant], 'slant-words': SLANTS[T.slant === 'hard' ? 'light' : T.slant], ...TRANSITIONS[T.transition], veil: VEILS[T.backdrop], 'rule-w': RULES[T.frame],
     overlay: OVERLAYS(k)[T.overlay], stage: STAGES(k)[T.stage],
     // the ▶ is the sheet's own focus; any other focus word takes it (and the room it keeps at an item's left) away
     cursor: T.focus === 'marker' ? '"\\25B6"' : 'none', mark: T.focus === 'marker' ? '1' : '0',
@@ -387,14 +405,22 @@ export function themeCss(theme, scope = '.mana-root') {
   const out = [
     ...T.faces.map((x) => `@font-face{font-family:'${x.family}';font-style:${x.style};font-weight:${x.weight};font-display:block;src:url(${x.src})}`),
     `${s}{${Object.entries(vars).map(([n, x]) => `--mana-${n}:${x}`).join(';')}}`,
-    `${s} .mana-node[data-state=learned]{background:${k.accent};color:${k.panel};border-color:${k.accent}}`,
-    `${s} .mana-node[data-state=learned][data-st=focus]{background:${mix(k.accent, k.panel, 0.2)};color:${k.panel};border-color:${k.ink}}`,
-    `${s} .mana-node[data-state=learned][data-st=focus]::before{color:${k.panel}}`,
+    `${s} .mana-node[data-state=learned]{background:${k.accent};color:${onAccent};border-color:${k.accent}}`,
+    `${s} .mana-node[data-state=learned][data-st=focus]{background:${mix(k.accent, k.panel, 0.2)};color:${readOn(k, mix(k.accent, k.panel, 0.2))};border-color:${k.ink}}`,
+    `${s} .mana-node[data-state=learned][data-st=focus]::before{color:${readOn(k, mix(k.accent, k.panel, 0.2))}}`,
     `${s} .mana-awareness[data-state=suspicious] b,${s} .mana-awareness[data-state=searching] b{border-color:${k.accent2};color:${k.accent2}}`,
   ];
   // A WINDOW IN LAYERS: the plate moves into the window's layers, so a backing can sit under it and a crest over its
   // edge, and what the window holds may reach past its box (a breakout tab, a crest) by as much as the clip allows
   const framed = `${s} .mana-window:not([data-variant=ghost])`, back = backingOf(T, k), crest = crestOf(T, k), tab = T.breakout === 'tab' || T.breakout === 'full';
+  // the rim: the material's whole texture and the ornaments that pattern a window, under its words and fading out before
+  // they begin (the window isolated, so the rim sits over its plate and under what it holds)
+  const rim = [];
+  if (T.ornaments.includes('ticks')) rim.push(corners(k.line, 4, 4));
+  if (T.ornaments.includes('hazard')) rim.push(`repeating-linear-gradient(-45deg,${k.accent2} 0 6px,transparent 6px 12px) top/100% 5px no-repeat`);
+  if (T.ornaments.includes('scanlines')) rim.push(`repeating-linear-gradient(0deg,${alpha('#000000', 0.22)} 0 1px,transparent 1px 3px)`);
+  if (T.ornaments.includes('dotgrid')) rim.push(`radial-gradient(${alpha(k.line, 0.5)} 1px,transparent 1.2px) 0 0/10px 10px`);
+  rim.push(...textureOf(T, k, 1));
   const layered = !!(back || crest);
   const CUT = 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)';
   if (layered) {
@@ -406,9 +432,9 @@ export function themeCss(theme, scope = '.mana-root') {
   // a window that takes the size of what it holds lets its layers and its tab past its box; one filling a pane keeps its
   // clip, its layers past it only where the browser takes a clip margin (overflow-clip-margin takes no calc())
   if (layered || tab) out.push(`${framed}{overflow:visible}`, `${s} :is(.mana-screen[data-place=full],.mana-split,.mana-each) .mana-window:not([data-variant=ghost]){overflow:clip;overflow-clip-margin:72px}`);
-  if (T.corner === 'cut') out.push(layered ? `${framed}>.mana-layers::after,${s} .mana-place>.mana-region:not(:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad))),${s} .mana-button{clip-path:${CUT}}` : `${win},${s} .mana-button{clip-path:${CUT}}`);
+  if (T.corner === 'cut') out.push(layered ? `${framed}>.mana-layers::after,${framed}::after,${s} .mana-place>.mana-region:not(:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad))),${s} .mana-button{clip-path:${CUT}}` : `${win},${s} .mana-button{clip-path:${CUT}}`);
   // a window's heading as a tab across its top edge, leaning with the theme, on the accent (a sub-panel's stays put)
-  if (tab) out.push(`${framed}>.mana-heading{position:absolute;top:0;left:${du(-12)};z-index:2;margin:0;padding:${du(5)} ${du(20)};translate:0 -55%;transform:skewX(var(--mana-slant));background:${k.accent};color:${k.panel};text-shadow:none;box-shadow:${du(5)} ${du(5)} 0 ${alpha('#000000', 0.45)}}`,
+  if (tab) out.push(`${framed}>.mana-heading{position:absolute;top:0;left:${du(-12)};z-index:2;margin:0;padding:${du(5)} ${du(20)};translate:0 -55%;transform:skewX(var(--mana-slant-words));background:${k.accent};color:${onAccent};text-shadow:none;box-shadow:${du(5)} ${du(5)} 0 ${alpha('#000000', 0.45)}}`,
     `${framed}:has(>.mana-heading){padding-top:${du(34)}}`,
     `${s} .mana-window .mana-window>.mana-heading{position:static;translate:none;transform:none;padding:0;background:none;color:inherit;box-shadow:none}`);
   // the echo: the words again, behind themselves (attr() read on the element itself, never through a variable, which
@@ -418,21 +444,27 @@ export function themeCss(theme, scope = '.mana-root') {
   if (T.material === 'glass') out.push(`${framed},${s} .mana-place>.mana-region,${s} .mana-toast{backdrop-filter:blur(10px) saturate(1.4);-webkit-backdrop-filter:blur(10px) saturate(1.4)}`);
   if (T.focus === 'ring') out.push(`${s} [data-st=focus]{outline:2px solid ${k.accent};outline-offset:-2px}`);
   // a highlight bar: a solid block at the leading edge, the accent fading off behind the words, moved on the frame
-  if (T.focus === 'bar') out.push(`${s} [data-st=focus]{outline:none;border-color:transparent;color:${k.ink};background:linear-gradient(90deg,${k.accent} 0 calc(7 * var(--mana-du)),${alpha(k.accent, 0.42)} calc(7 * var(--mana-du)),${alpha(k.accent, 0.12)} 78%,transparent)}`);
+  if (T.focus === 'bar') out.push(`${s} [data-st=focus]{outline:none;border-color:transparent;color:${onBar};background:linear-gradient(90deg,${k.accent} 0 calc(7 * var(--mana-du)),${alpha(k.accent, 0.42)} calc(7 * var(--mana-du)),${alpha(k.accent, 0.12)} 78%,transparent)}`);
   if (T.focus === 'lift') out.push(`${s} [data-st=focus]{outline:none;background:${k.panel};border-color:${k.line};box-shadow:0 6px 16px ${alpha(k.ink, 0.22)},0 0 0 1px ${k.accent};transform:translateY(-1px)}`);
-  if (T.focus === 'fill') out.push(`${s} [data-st=focus]{outline:none;background:${k.accent};border-color:${k.accent};color:${k.panel}}`, `${s} [data-st=focus]::before{color:${k.panel}}`, `${s} [data-st=focus] .mana-label,${s} [data-st=focus] .mana-mark,${s} [data-st=focus] .mana-text,${s} [data-st=focus] .mana-num{color:${k.panel}}`);
+  if (T.focus === 'fill') out.push(`${s} [data-st=focus]{outline:none;background:${k.accent};border-color:${k.accent};color:${onAccent}}`, `${s} [data-st=focus]::before{color:${onAccent}}`, `${s} [data-st=focus] .mana-label,${s} [data-st=focus] .mana-mark,${s} [data-st=focus] .mana-text,${s} [data-st=focus] .mana-num{color:${onAccent}}`);
   if (T.focus === 'glow') out.push(`${s} [data-st=focus]{outline:none;box-shadow:0 0 0 1px ${k.accent},0 0 14px ${alpha(k.accent, 0.75)}}`);
   if (T.focus === 'bracket') out.push(`${s} [data-st=focus]{outline:none;border-color:transparent;background:${corners(k.accent, 8, 2)},${k.wash}}`);
   if (T.fills === 'solid') out.push(...['mp', 'xp', 'stamina', 'shield'].map((x) => `${s} .mana-bar[data-variant=${x}] .mana-track i{background:${k[x]}}`));
   // ornaments: brackets before, the rest layered after
   // ornaments dress a window that has a plate; a ghost window (words over the world) wears none
   if (T.ornaments.includes('brackets')) out.push(`${framed}::before{content:"";position:absolute;inset:3px;pointer-events:none;background:${corners(k.accent, 12, 2)}}`);
-  const after = [];
-  if (T.ornaments.includes('ticks')) after.push(corners(k.line, 4, 4));
-  if (T.ornaments.includes('hazard')) after.push(`repeating-linear-gradient(-45deg,${k.accent2} 0 6px,transparent 6px 12px) top/100% 5px no-repeat`);
-  if (T.ornaments.includes('scanlines')) after.push(`repeating-linear-gradient(0deg,${alpha('#000000', 0.22)} 0 1px,transparent 1px 3px)`);
-  if (T.ornaments.includes('dotgrid')) after.push(`radial-gradient(${alpha(k.line, 0.5)} 1px,transparent 1.2px) 0 0/10px 10px`);
-  if (after.length) out.push(`${framed}::after{content:"";position:absolute;inset:0;pointer-events:none;background:${after.join(',')}}`);
+  if (rim.length) out.push(`${framed}{isolation:isolate}`, `${framed}::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:var(--mana-radius);background:${rim.join(',')};-webkit-mask:${RIM_MASK};mask:${RIM_MASK}}`,
+    // a sub-panel is all words: it wears the quiet plate alone
+    `${s} .mana-window .mana-window::after{content:none}`);
+  // words to read over a stage with no window behind them (a ghost window, a screen's own stack of rows, a bar, a
+  // caption) sit on a band of the panel fading away from them: the stage performs around the words, not under them
+  // (a halo of plate already gives a ghost window its plate)
+  const bare = [T.halo === 'plate' ? null : '.mana-window[data-variant=ghost]', '.mana-screen>.mana-stack:has(>:is(.mana-bar,.mana-list,.mana-text[data-role=caption]))'].filter(Boolean).join(',');
+  if (T.stage !== 'none') out.push(`${s} .mana-screen :is(${bare}){background:linear-gradient(90deg,${alpha(k.panel, 0.9)},${alpha(k.panel, 0.8)} calc(100% - ${du(90)}),${alpha(k.panel, 0)});padding:${du(12)} ${du(90)} ${du(12)} ${du(26)};margin:${du(-12)} ${du(-90)} ${du(-12)} ${du(-26)}}`);
+  // a button standing on the screen itself, over a stage, is filled with the panel (its word is read, not the stripes)
+  if (T.stage !== 'none') out.push(`${s} .mana-screen>.mana-button:not([data-st=focus]){background:${alpha(k.panel, 0.9)}}`);
+  // a window with no plate keeps its words' halo: nothing else stands between them and the world
+  if (T.plate === 'clear') out.push(`${framed}{text-shadow:var(--mana-halo)}`);
   if (T.ornaments.includes('stitch')) out.push(`${win}{outline:1px dashed ${k.line};outline-offset:-6px}`);
   // a blur-through draws nothing of its own: it blurs the stage under it
   if (T.transition === 'blur') out.push(`${s} .mana-transition{background:transparent}`);
@@ -450,8 +482,10 @@ export function themeAdvice(theme) {
   const need = (law, a, b, min, at, what) => { const r = contrast(a, b); if (r < min) out.push({ law, at, advice: `${what}: ${r.toFixed(2)}:1 where ${min}:1 reads; move the two apart in lightness` }); };
   need('ink-reads', k.ink, k.panel, 4.5, 'tokens.ink / panel', 'text on a window');
   need('mid-reads', k.mid, k.panel, 3, 'tokens.mid / panel', 'labels and captions on a window');
-  if (T.focus === 'fill') need('focus-reads', k.panel, k.accent, 4.5, 'tokens.panel / accent', 'text on a filled focus');
+  if (T.focus === 'fill') need('focus-reads', readOn(k, k.accent), k.accent, 4.5, 'tokens.accent / ink, panel', 'text on a filled focus');
   else need('focus-shows', k.accent, k.panel, 3, 'tokens.accent / panel', 'the focus against a window');
+  if (T.focus === 'bar') need('focus-reads', readOn(k, mix(k.panel, k.accent, 0.42)), mix(k.panel, k.accent, 0.42), 4.5, 'tokens.accent / ink, panel', 'text on the highlight bar');
+  if (T.breakout === 'tab' || T.breakout === 'full') need('tab-reads', readOn(k, k.accent), k.accent, 4.5, 'tokens.accent / ink, panel', 'a heading on its tab');
   if (T.frame !== 'none') need('frame-shows', k.line, k.panel, 1.5, 'tokens.line / panel', 'a window\'s edge');
   need('harm-shows', k.harm, k.panel, 3, 'tokens.harm / panel', 'a low bar and an alerted enemy');
   T.sides.slice(0, 2).forEach((c, i) => need('side-shows', c, k.panel, 1.5, `sides[${i}] / panel`, `side ${i + 1}'s chip against a window`));

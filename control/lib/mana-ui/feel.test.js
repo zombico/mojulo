@@ -14,11 +14,14 @@ const screen = (children, props = {}) => ({ use: 'screen', props, children });
 const sample = (p) => manaUi.readPath(SAMPLE_STATE, p);
 
 describe('mana-ui: the lean', () => {
-  it('a slant is a word: tabs, bars, banners, keys and buttons lean, a window never does', () => {
+  it('a slant is a word: tabs, bars, banners, keys and buttons lean, a window never does; words lean no further than an italic', () => {
     expect(themeCss({ slant: 'hard' })).toContain(`--mana-slant:${SLANTS.hard}`);
+    expect(themeCss({ slant: 'hard' })).toContain(`--mana-slant-words:${SLANTS.light}`);
     const lean = sheet.split('\n').find((l) => l.includes('{transform:skewX(var(--mana-slant))}'));
-    for (const c of ['tablabel', 'banner', 'key', 'button', 'track']) expect(lean, c).toContain(`.mana-${c}`);
-    expect(lean).not.toContain('.mana-window');
+    const words = sheet.split('\n').find((l) => l.includes('{transform:skewX(var(--mana-slant-words))}'));
+    for (const c of ['banner', 'track']) expect(lean, c).toContain(`.mana-${c}`);
+    for (const c of ['tablabel', 'key', 'button']) expect(words, c).toContain(`.mana-${c}`);
+    expect(lean + words).not.toContain('.mana-window');
     expect(sheet).toContain('.mana-bar[data-dir=rtl] .mana-track{transform:scaleX(-1) skewX(var(--mana-slant))}');
     expect(GREYBOX_VARS.slant).toBe('0deg');
   });

@@ -117,3 +117,10 @@
   code; three ship to start (Ink and Gold, Blueprint, Neon Rebel). Styling a game's UI joins the studio: a game's
   `ui` takes its look from the register its genre sets and its colours from the world's palette, and the game's
   review says where the look came from and what its colours read like.
+- **The words come first.** Wherever a menu has text to read, every look now holds back: a panel's texture (a grid,
+  halftone dots, scanlines, parchment fibre) shows at its edges and fades out before the words; screen filters such as
+  scanlines and CRT lines cover the picture behind a menu, never its words; words on a coloured highlight or tab take
+  whichever colour reads; buttons and tabs lean no further than italic type; glass panels are thick enough to read
+  through; words with no panel of their own over a theme's backdrop shapes (a title menu, a loading screen) get a soft
+  band behind them; and a preview picture shrinks rather than push a mode's description off its panel. Titles and
+  big display words can still perform.

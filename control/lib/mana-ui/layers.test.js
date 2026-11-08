@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { manaUi } from './kernel.js';
 import { manaCss, GREYBOX_VARS } from './css.js';
-import { readTheme, themeCss, themeAdvice, THEME_WORDS, LAYER_WORDS } from './theme.js';
+import { readTheme, themeCss, themeAdvice, contrast, THEME_WORDS, LAYER_WORDS, FIELD } from './theme.js';
 
 // A GAME'S UI SITS ON A THING THAT SITS ON A THING: a window's layers under what it holds (its plate, what the plate sits
 // on, a crest over its edge), the plate's material, words breaking out of the box, a filter over the stage. Each a theme
@@ -68,10 +68,13 @@ describe('mana-ui: words breaking out of the box', () => {
 });
 
 describe('mana-ui: a filter over the stage', () => {
-  it('an overlay is drawn over the whole stage only while the UI is up, and never moves', () => {
-    const rule = sheet.split('\n').find((l) => l.includes('::after{content:"";position:absolute;inset:0;z-index:10'));
-    expect(rule).toContain('.r:is([data-hud=yes],:not([data-open=none]))::after');
+  it('an overlay is drawn over the picture only while the UI is up, never over the words, and never moves', () => {
+    const rule = sheet.split('\n').find((l) => l.includes(':not([data-open=none]))::before{'));
+    expect(rule).toContain('.r:is([data-hud=yes],:not([data-open=none]))::before{content:"";position:absolute;inset:0;z-index:0');
     expect(rule).not.toContain('animation');
+    // over a screen's scrim, key art and stage, under what it holds (its parts are positioned, so they paint over it)
+    expect(sheet).toContain('.r .mana-screen::before{content:"";position:absolute;inset:0;pointer-events:none;background:var(--mana-overlay)}');
+    expect(sheet).toContain('.r .mana-screen>:where(*){position:relative}');
     expect(GREYBOX_VARS.overlay).toBe('none');
     expect(themeCss({ overlay: 'crt' })).toMatch(/--mana-overlay:repeating-linear-gradient\(0deg/);
   });
@@ -80,5 +83,46 @@ describe('mana-ui: a filter over the stage', () => {
       expect(THEME_WORDS[w][0]).toBe('none');
       expect(() => readTheme({ [w]: 'gilded' })).toThrow(new RegExp(`theme.${w} is one of: none,`));
     }
+  });
+});
+
+// RESTRAINT WHERE THE WORDS ARE: a look has many ways to show itself, but where the words are it holds back. The texture
+// is loud at a window's rim and quiet under its words; a filter covers the picture, never the words; words on a fill take
+// the ink that reads; words lean no further than an italic; a window with no plate keeps its words' halo.
+describe('mana-ui: restraint where the words are', () => {
+  it('a material\'s texture is quiet under the words and whole at the rim, which fades out before they begin', () => {
+    const css = themeCss({ material: 'grid' }), plate = css.match(/--mana-plate:([^;]+)/)[1];
+    const alphas = (x) => [...x.matchAll(/rgba\([\d,]+,([\d.]+)\)/g)].map((m) => +m[1]);
+    const rim = css.split('\n').find((l) => l.includes('.mana-window:not([data-variant=ghost])::after{'));
+    expect(Math.max(...alphas(plate))).toBeCloseTo(Math.max(...alphas(rim)) * FIELD, 3);   // the same texture, quieter
+    expect(rim).toMatch(/z-index:-1;.*mask:linear-gradient\(90deg,#000,transparent/);       // under the words, at the edges
+    expect(css).toContain('.mana-window:not([data-variant=ghost]){isolation:isolate}');      // over the plate, under its words
+    expect(css).toContain('.mana-window .mana-window::after{content:none}');               // a sub-panel is all words
+    expect(themeCss({ ornaments: ['scanlines'] })).toMatch(/::after\{[^}]*repeating-linear-gradient\(0deg[^}]*mask:/);
+    expect(themeCss('greybox')).not.toContain('mask:');                                     // no texture, no rim
+  });
+  it('words on a fill take whichever of the ink and the panel reads on it', () => {
+    const k = { ink: '#111111', panel: '#ffffff', line: '#111111', accent: '#ffd400' };      // a light accent on a light panel
+    const css = themeCss({ tokens: k, focus: 'fill', breakout: 'tab' });
+    expect(css).toContain('[data-st=focus]{outline:none;background:#ffd400;border-color:#ffd400;color:#111111}');
+    expect(css).toMatch(/>\.mana-heading\{[^}]*background:#ffd400;color:#111111/);
+    expect(themeAdvice({ tokens: k, focus: 'fill' }).some((a) => a.law === 'focus-reads')).toBe(false);
+    const dull = { ...k, ink: '#9a9a9a', panel: '#b0b0b0', accent: '#a5a5a5' };              // nothing reads: it is said
+    expect(themeAdvice({ tokens: dull, focus: 'bar' }).map((a) => a.law)).toContain('focus-reads');
+    expect(contrast('#111111', '#ffd400')).toBeGreaterThan(4.5);
+  });
+  it('over a stage, words with no window sit on a band of the panel, and a button on the screen is filled', () => {
+    const css = themeCss({ stage: 'burst' });
+    expect(css).toMatch(/\.mana-screen :is\(\.mana-window\[data-variant=ghost\],\.mana-screen>\.mana-stack:has\(>:is\(\.mana-bar,\.mana-list,[^)]*\)\)\)\{background:linear-gradient\(90deg/);
+    expect(css).toMatch(/\.mana-screen>\.mana-button:not\(\[data-st=focus\]\)\{background:rgba/);
+    expect(themeCss({ stage: 'none' })).not.toContain('.mana-screen>.mana-button:not(');
+    expect(themeCss({ stage: 'burst', halo: 'plate' })).not.toMatch(/:is\(\.mana-window\[data-variant=ghost\],/);  // the plate already does
+  });
+  it('in a pane that fills the screen, a picture gives up its height before the words beside it', () => {
+    expect(sheet).toMatch(/\.mana-screen\[data-place=full\] \.mana-window>\.mana-stack>\.mana-image\{flex:1 1 0;min-height:[^;]+;aspect-ratio:auto\}/);
+  });
+  it('a window with no plate keeps its words\' halo', () => {
+    expect(themeCss({ plate: 'clear' })).toContain('.mana-window:not([data-variant=ghost]){text-shadow:var(--mana-halo)}');
+    expect(themeCss({ plate: 'solid' })).not.toContain('{text-shadow:var(--mana-halo)}');
   });
 });

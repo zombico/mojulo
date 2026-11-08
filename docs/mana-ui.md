@@ -211,6 +211,35 @@ theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, fo
 - **Room to read.** A screen's own window takes the room a game gives it (at least about a third of the stage's width),
   its rows are tall, a pause menu's rows are set at a title's size, and the body is a step over the floor.
 
+### Restraint where the words are
+
+A look has many ways to show itself, and all of them happen around the words, never under them. Readability comes first
+wherever there is text to read. Every theme keeps these rules on its own; no word turns them off:
+
+- **A loud frame and a quiet field.** A material's texture (a grid, halftone, CRT lines, parchment's fibre, brushed
+  metal) shows whole at a window's rim and fades out before the words begin (`RIM`, a mask of the four edges). Under
+  the words, and on every small plate that is all words (a toast, a HUD part, a prompt), the same texture runs at the
+  reading amplitude (`FIELD`). Ornaments that pattern a window (scanlines, a dot grid) live at the rim too, and a
+  sub-panel wears the quiet plate alone.
+- **The filter covers the picture, never the words.** An overlay (scanlines, CRT, a grid, grain, a vignette) lies over
+  the world, and over a screen's scrim, key art and stage, under everything the screen holds.
+- **Words on a fill take the ink that reads.** On a filled focus, a heading tab, a learned node or the highlight bar's
+  blend, the words take whichever of the ink and the panel reads on it. The advice measures what remains
+  (`focus-reads`, `tab-reads`).
+- **Words lean no further than an italic.** A hard slant leans the bars and a banner's display words all the way; tabs,
+  keys, buttons and badges lean only as far as a light slant (`--mana-slant-words`).
+- **The stage performs around the words, not under them.** Over a theme's stage, words with no window of their own (a
+  ghost window such as a title's menu, a screen's own stack of rows, a bar and a caption such as a loading screen's)
+  sit on a band of the panel that fades out past them, and a button standing on the screen itself is filled with the
+  panel.
+- **A picture gives way to the words.** In a pane that fills the screen, a picture shrinks to the room its words leave
+  (never under a strip), so the words beside it are never pushed past the pane.
+- **A plate thick enough to read through.** Glass is translucent, but thick enough under its words that a bright scene
+  does not wash them out; a window with no plate (`plate: 'clear'`) keeps its words' halo.
+
+Display words may still perform: a title can echo huge and hollow behind itself, break out of its box, lean all the way
+and slam in. A menu's rows, labels, values and buttons stay plain.
+
 ### Theme cards: a look is data
 
 A new look is a card, not code: one JSON file on the shelf (`control/lib/graph/playscape/ui/theme-cards/`), the way a

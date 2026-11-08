@@ -40,7 +40,10 @@ No code. The loader (`loader.js`) reads every card when it loads and checks it w
 2. Prefer `from: "world"` for a look meant to fit any world: the colour theorist hands it the world's palette.
 3. Keep colours out unless the look is a brand of its own (a casino, a broadcast): a game's `ui.colour: "world"`
    replaces a card's colours with the world's anyway.
-4. Look at it: `node scripts/mana-board.mjs <out.html> --theme <id>` draws every screen and HUD part in it, with its
+4. Show the look around the words, not under them. The runtime already keeps texture at a window's rim, filters under
+   the words, and words on a fill legible (`docs/mana-ui.md`, restraint where the words are). A card should not fight
+   it: a loud stage, crest or overlay is fine; a panel the ink does not read on is not (the board's advice says so).
+5. Look at it: `node scripts/mana-board.mjs <out.html> --theme <id>` draws every screen and HUD part in it, with its
    sounds. The board shows its advice (contrast measured, never refused). That is the eyes gate: a person looks.
 
 A game uses a card by name (`ui: { theme: '<id>' }`), or writes the same words inline as its own child theme
