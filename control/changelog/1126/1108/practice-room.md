@@ -46,3 +46,18 @@
   orbit camera's `move: 'camera'`) faces its run, so S held turned it toward the camera and the dodge read S as a
   backflip, away from the camera. Under world or camera movement the roll goes along the stick, the body turned to face
   it (`beginDodge`'s `moveH`).
+- **A swing carried by the whole body** (`polygonizer/hero-swing-body.js` `swingBody`, opt-in: a hero whose rule plays a
+  moveset, baked through `world-scene.js` `swings.body`): the arm's arc on the strike solver's principles, on the
+  structured core's left-forward stance, so the sword hand is the rear hand and a forehand cut drives through as a cross
+  does. The hips lead the chest (turned back at the coil, coming forward at the cock while the chest is still wound),
+  the weight moves back then onto the lead foot (`shift`), the rear foot pivots (its heel up, its toe in), the off hand
+  counters a one-handed swing (out at the cock, home at the hip through the blow; a two-handed swing keeps its own), and
+  each key sinks the body as little as lets both planted legs reach their feet on the rig. A backhand turns the other
+  way. Absent, every swing as it was. Seen on the body study (the cut at its cock, strike and follow, with and without);
+  nobody has played it.
+- **The arsenal** (`gameworld/combos.js`): the weapons a hero steps through, each its own moves and strings, and the
+  figure it shows (drawn: the blade in hand; sheathed: on the back). A move may play a body's strike (`strike`: the
+  punch solver's jab and cross, the boxing solver's hook and uppercut) with its own contact window. The starter: the
+  sword (L L L, H) and the fist (L L L the jab, the cross and the hook; H the uppercut). Not yet wired to the runtime.
+- **The room's hero** (`--hero anime | tiered | <spec>`): another body on the game's rig and clips, its sword in hand and
+  on its back; the room bakes its figures at the pose grade (one hero up close), `--grade play` for the game's.

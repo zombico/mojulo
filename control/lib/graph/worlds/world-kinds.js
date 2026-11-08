@@ -62,6 +62,7 @@ import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroCl
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
+import { swingBody } from '@/lib/graph/polygonizer/hero-swing-body';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig, faceKnots } from '@/lib/graph/polygonizer/anime-face-rig';
@@ -976,7 +977,8 @@ export const WORLD_KINDS = {
           const own = isSwing(m.hero.gesture) && SWING_HAND[m.hero.gesture] === 'right' ? m.hero.gesture : 'chop';
           const swings = {};
           for (const [dir, verb] of Object.entries(HELD_SWINGS)) {
-            const word = verb ?? own, keys = swingClipKeys(word, cls, { base, grip }), T = ctx.swing ? swingTiming(cls, ctx.swing) : null;
+            // (an action game's hero, `swings.body`: the swing carried by the whole body, hero-swing.js swingBody)
+            const word = verb ?? own, keys0 = swingClipKeys(word, cls, { base, grip }), keys = ctx.swings.body ? swingBody(word, cls, keys0, R, rigNodesAt) : keys0, T = ctx.swing ? swingTiming(cls, ctx.swing) : null;
             const play = layeredClip(keys, R), fit = fitSwing(T ? T.strike : swingPhases(keys.length).strike, from);
             const fn = T ? (u) => play(T.warp(fit(u))) : (u) => play(fit(u)); fn.keys = 24;
             fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, ctx.swings.contact[1]], ...(T ? { flavor: ctx.swing } : {}), ...(tip ? { tip: { bone: hg.bone, at: [tip[0], tip[1], tip[2] + dz].map((v) => Math.round(v * 1e4) / 1e4) } } : {}) };

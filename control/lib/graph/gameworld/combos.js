@@ -4,7 +4,10 @@
  *
  * A MOVE is an attack primitive:
  *   swing    the runtime's swing it plays (worlds/controllable/combat-melee.js `swing_<dir>`, a held weapon's: neutral the
- *            hero's own cut, forward the thrust, back the two-handed cleave, left and right the rising cuts)
+ *            hero's own cut, forward the thrust, back the two-handed cleave, left and right the rising cuts); or
+ *   strike   a body's strike the hero's motion solves (hero-strike.js jab, cross; hero-box.js hook, uppercut), its clip
+ *            baked on the figure by name (world-scene.js `moves`): the fist's
+ *   contact  [from, to] the blow's window as shares of its length (absent: the swing's, where the hero was baked to land)
  *   role     opener (starts a string), filler (carries it on), finisher (ends it, the hardest blow), launcher (throws the
  *            foe up)
  *   frames   its length at 60 fps, wind-up to rest; its blow lands where the hero's swing was baked to land (the rule's
@@ -23,6 +26,11 @@
  * the move ended. Held and mashed beats are named for later and refused today.
  *
  *   BASIC_COMBOS              the starter: L L L (two cuts and the cleave), H (the thrust)
+ *   BASIC_ARSENAL             the starter's weapons, stepped through: the sword (BASIC_COMBOS) and the fist (L L L the
+ *                             jab, the cross and the hook; H the uppercut); a weapon's `figure` is the hero it shows
+ *                             (drawn: the blade in hand; sheathed: on the back)
+ *   readArsenal(A) / lowerArsenal(A)   → the platform rule's `weapons`: [{ id, name, figure, reach?, moveset }]
+ *   strikesOf(A)              → the body strikes its moves play (the figure's `moves`)
  *   readCombos(C)             → C, or throws what is wrong in words
  *   lowerCombos(C)            → the platform rule's `moveset` (seconds and shares; a tree a beat a level)
  *   comboList(C)              → [{ id, name, beats, moves: [{ id, role, swing, travel }] }] the director's list
@@ -31,6 +39,8 @@
 export const ROLES = Object.freeze(['opener', 'filler', 'finisher', 'launcher']);
 export const TRAVEL = Object.freeze(['none', 'step', 'lunge']);
 export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right']);
+/** the body strikes a move may play (hero-strike.js STRIKES, hero-box.js BOX_STRIKES): the fist's */
+export const STRIKES = Object.freeze(['jab', 'cross', 'hook', 'uppercut']);
 export const BEATS = Object.freeze(['L', 'H', 'S', '.']);
 /** beats named and not yet played: a held press (a charge) and a mashed one */
 export const LATER_BEATS = Object.freeze({ 'L+': 'a held light', 'H+': 'a held heavy', 'L*': 'a mashed light', 'H*': 'a mashed heavy' });
@@ -66,9 +76,12 @@ export function readCombos(C) {
   if (!isObj(C.moves) || !Object.keys(C.moves).length) no('moves is { <id>: a move }, one at least');
   for (const [id, m] of Object.entries(C.moves)) {
     const at = `moves.${id}`;
-    if (!isObj(m)) no(`${at} is { swing, role, frames, cancel?, travel?, damage?, impact?, topple?, launch? }`);
-    for (const k of Object.keys(m)) if (!['swing', 'role', 'frames', 'cancel', 'travel', 'damage', 'impact', 'topple', 'launch'].includes(k)) no(`${at}.${k} is not part of a move`);
-    if (!SWINGS.includes(m.swing)) no(`${at}.swing is the swing it plays: ${SWINGS.join(', ')}`);
+    if (!isObj(m)) no(`${at} is { swing | strike, role, frames, cancel?, contact?, travel?, damage?, impact?, topple?, launch? }`);
+    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch'].includes(k)) no(`${at}.${k} is not part of a move`);
+    if ((m.swing === undefined) === (m.strike === undefined)) no(`${at} plays a swing (${SWINGS.join(', ')}) or a strike (${STRIKES.join(', ')}), one`);
+    if (m.swing !== undefined && !SWINGS.includes(m.swing)) no(`${at}.swing is the swing it plays: ${SWINGS.join(', ')}`);
+    if (m.strike !== undefined && !STRIKES.includes(m.strike)) no(`${at}.strike is the body's strike it plays: ${STRIKES.join(', ')}`);
+    if (m.contact !== undefined && !(Array.isArray(m.contact) && m.contact.length === 2 && num(m.contact[0], 0.05, 0.95) && num(m.contact[1], m.contact[0], 0.98))) no(`${at}.contact is [from, to], shares of its length`);
     if (!ROLES.includes(m.role)) no(`${at}.role is ${ROLES.join(', ')}`);
     if (!num(m.frames, 6, 180)) no(`${at}.frames is its length at 60 fps, 6 to 180`);
     if (m.cancel !== undefined && !num(m.cancel, 1, m.frames - 1)) no(`${at}.cancel is the frame the next beat chains from, inside its ${m.frames}`);
@@ -116,7 +129,7 @@ export function readCombos(C) {
 export function lowerCombos(C0) {
   const C = readCombos(C0), T = { ...BASIC_COMBOS.timing, ...(C.timing ?? {}) };
   const moves = Object.fromEntries(Object.entries(C.moves).map(([id, m]) => [id, {
-    swing: m.swing, role: m.role, dur: r4(m.frames / FPS), cancel: m.cancel != null ? r4(m.cancel / m.frames) : 1,
+    ...(m.swing ? { swing: m.swing } : { strike: m.strike }), role: m.role, dur: r4(m.frames / FPS), ...(m.contact ? { contact: [...m.contact] } : {}), cancel: m.cancel != null ? r4(m.cancel / m.frames) : 1,
     travel: m.travel && m.travel.kind !== 'none' ? { kind: m.travel.kind, m: m.travel.m } : null,
     damage: m.damage ?? 1, ...(m.impact != null ? { impact: m.impact } : {}), ...(m.topple ? { topple: true } : {}), ...(m.launch ? { launch: m.launch } : {}),
   }]));
@@ -139,5 +152,48 @@ export function lowerCombos(C0) {
 export function comboList(C0) {
   const C = readCombos(C0);
   return C.combos.map((c) => ({ id: c.id, name: c.name ?? c.id, beats: c.beats.join(' '),
-    moves: c.moves.map((id) => ({ id, role: C.moves[id].role, swing: C.moves[id].swing, travel: C.moves[id].travel?.kind ?? 'none', frames: C.moves[id].frames })) }));
+    moves: c.moves.map((id) => ({ id, role: C.moves[id].role, ...(C.moves[id].swing ? { swing: C.moves[id].swing } : { strike: C.moves[id].strike }), travel: C.moves[id].travel?.kind ?? 'none', frames: C.moves[id].frames })) }));
 }
+
+// ─── the arsenal: the weapons a hero steps through, each its own moves and strings ───
+export const BASIC_ARSENAL = Object.freeze({
+  timing: BASIC_COMBOS.timing,
+  weapons: [
+    { id: 'sword', name: 'Sword', figure: 'drawn', moves: BASIC_COMBOS.moves, combos: BASIC_COMBOS.combos },
+    { id: 'fist', name: 'Fist', figure: 'sheathed', reach: 0.95, damage: 0.5,
+      moves: {
+        jab: { strike: 'jab', role: 'opener', frames: 22, cancel: 13, contact: [0.4, 0.52], travel: { kind: 'step', m: 0.15 }, damage: 1 },
+        cross: { strike: 'cross', role: 'filler', frames: 26, cancel: 16, contact: [0.42, 0.54], travel: { kind: 'step', m: 0.2 }, damage: 1.2 },
+        hook: { strike: 'hook', role: 'finisher', frames: 34, contact: [0.45, 0.6], travel: { kind: 'lunge', m: 0.35 }, damage: 2, impact: 2.5, topple: true },
+        uppercut: { strike: 'uppercut', role: 'opener', frames: 32, contact: [0.45, 0.6], travel: { kind: 'step', m: 0.2 }, damage: 1.6, impact: 1.5 },
+      },
+      combos: [
+        { id: 'one-two-hook', name: 'One, two, hook', beats: ['L', 'L', 'L'], moves: ['jab', 'cross', 'hook'] },
+        { id: 'uppercut', name: 'Uppercut', beats: ['H'], moves: ['uppercut'] },
+      ] },
+  ],
+});
+export function readArsenal(A) {
+  if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, reach?, damage?, moves, combos }] }');
+  for (const k of Object.keys(A)) if (!['timing', 'weapons'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons)`);
+  if (!Array.isArray(A.weapons) || !A.weapons.length) no('weapons is a list, one at least');
+  const ids = new Set();
+  for (const [i, W] of A.weapons.entries()) {
+    const at = `weapons[${i}]`;
+    if (!isObj(W) || typeof W.id !== 'string' || !W.id) no(`${at} is { id, name?, figure?, reach?, damage?, moves, combos }`);
+    if (ids.has(W.id)) no(`${at}: '${W.id}' twice`);
+    ids.add(W.id);
+    for (const k of Object.keys(W)) if (!['id', 'name', 'figure', 'reach', 'damage', 'moves', 'combos'].includes(k)) no(`${at}.${k} is not part of a weapon`);
+    if (W.figure !== undefined && !['drawn', 'sheathed'].includes(W.figure)) no(`${at}.figure is drawn (in hand) or sheathed (on the back)`);
+    if (W.reach !== undefined && !num(W.reach, 0.3, 6)) no(`${at}.reach is metres, 0.3 to 6`);
+    if (W.damage !== undefined && !num(W.damage, 0, 20)) no(`${at}.damage is × the held weapon's, 0 to 20`);
+    try { readCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }); } catch (e) { no(`${at} (${W.id}): ${e.message.replace(/^combos: /, '')}`); }
+  }
+  return A;
+}
+export function lowerArsenal(A0) {
+  const A = readArsenal(A0);
+  return A.weapons.map((W) => ({ id: W.id, name: W.name ?? W.id, figure: W.figure ?? 'drawn', ...(W.reach != null ? { reach: W.reach } : {}), ...(W.damage != null ? { damage: W.damage } : {}),
+    moveset: lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }) }));
+}
+export const strikesOf = (A) => [...new Set(readArsenal(A).weapons.flatMap((W) => Object.values(W.moves).filter((m) => m.strike).map((m) => m.strike)))];

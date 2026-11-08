@@ -1144,7 +1144,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             ride = (R, dz) => { mountRide = { sol: mountRiderSync(mountsSpec, { R, dz }, solve), riderId: rider.id }; return mountRide.sol.clips; };
           }
           // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}) });
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder ? { swings: { contact: wielder.rule.strikeContact, ...(wielder.rule.moveset ? { body: true } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}) });
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
           // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
@@ -1168,7 +1168,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
           // character (bones, clips, height) keep the play grade alone. Any other world: nothing more
           if (sketch.manifest.figureGrade === 'play' && !rawSpec.grade && (poseNames ??= (await import('@/lib/graph/figures/figure-grades.js')).poseCast(sketch.manifest)).has(name)) {
-            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact } } : {}) });
+            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact, ...(wielder.rule.moveset ? { body: true } : {}) } } : {}) });
             const { crossGradeErrors } = await import('@/lib/graph/figures/figure-grades.js');
             if (!crossGradeErrors(pose, payload.figures[name]).length) { payload.figures[`${name}@pose`] = pose; payload.figures[name] = { ...payload.figures[name], pose: `${name}@pose` }; }
           }

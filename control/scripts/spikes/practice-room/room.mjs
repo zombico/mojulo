@@ -23,6 +23,8 @@ if (!process.env.MOJULO_DATA_DIR && !process.env.MOJULO_HOME) { console.error('r
 
 const argv = process.argv.slice(2);
 const opt = (k, d = null) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
+// (the room is one hero up close: its figures at the pose grade, the full density, unless --grade play, the game's)
+const grade = opt('--grade', 'pose');
 const game = opt('--game', 'keep-hero'), out = path.resolve(opt('--out', 'practice-room')), pack = Math.max(1, Number(opt('--pack', '1'))), cdn = argv.includes('--cdn');
 
 const { SketchRepository } = await import('../../../lib/db/repositories/sketches.js');
@@ -65,7 +67,18 @@ const { vista: _v, ...camera } = L.camera;
 const H0 = structuredClone(hero);
 const entities = [{ ...H0, rule: { ...H0.rule, moveset: lowerCombos(combos) }, transform: { pos: [0, -3, 0], heading: Math.PI / 2 } }, ...foes];
 const legend = 'W A S D  run · mouse  look · click  light · right click  heavy · mouse forward  special · F  sprint · F F  dodge · C  lock on · P  foe AI · R  reset · H  HUD';
-const sketch = { ref: `${game}-practice-room`, manifest: { kind: 'controllable', title: `Practice room · ${G.name ?? game}`, bg: '#1b1d22', faces, colliders, figures: L.figures, entities, camera, ...(L.lock ? { lock: L.lock } : {}), ...(L.figureGrade ? { figureGrade: L.figureGrade } : {}), events: { hud: [{ text: legend, slot: 'bottom', ttl: 20 }] } } };
+// THE HERO: the game's own, or (--hero) another body on its rig and clips: `anime` the anime hero on the tiered body, or
+// a hero spec as JSON; its sword in hand (the drawn figure) and on its back (the sheathed one)
+const HEROES = { anime: { cast: 'male', head: 'anime', proportions: 'anime', form: 'tiered' }, tiered: { cast: 'male', form: 'tiered' } };
+const heroArg = opt('--hero');
+const own = heroArg ? (HEROES[heroArg] ?? JSON.parse(heroArg)) : null;
+const figures = own ? Object.fromEntries(Object.entries(L.figures).map(([n, f]) => {
+  if (n !== hero.body.figure && n !== hero.rule.combat?.drawn && n !== hero.rule.combat?.sheathed) return [n, f];
+  const { heroRef: _r, ...keep } = f, sheathed = n === hero.rule.combat?.sheathed && n !== hero.rule.combat?.drawn;
+  const motion = f.heroRef ? SketchRepository.getByRef(f.heroRef)?.manifest?.hero?.motion : null;   // (the game hero's own gaits: its jog, its sprint)
+  return [n, { ...keep, hero: { ...(motion ? { motion } : {}), ...own, gear: sheathed ? { back: { item: 'sword' } } : { right: { item: 'sword' } } } }];
+})) : L.figures;
+const sketch = { ref: `${game}-practice-room`, manifest: { kind: 'controllable', title: `Practice room · ${G.name ?? game}`, bg: '#1b1d22', faces, colliders, figures, entities, camera, ...(L.lock ? { lock: L.lock } : {}), ...(grade === 'play' ? { figureGrade: 'play' } : {}), events: { hud: [{ text: legend, slot: 'bottom', ttl: 20 }] } } };
 
 const { payload } = await resolveWorldScene(sketch, {});
 if (!payload) throw new Error('room: the room did not resolve');

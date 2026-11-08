@@ -73,3 +73,21 @@ describe('the moveset in the runtime', () => {
     expect(R.log[R.log.length - 1]).toMatchObject({ beat: 'H', verdict: 'dropped' });
   });
 });
+
+// THE ARSENAL (combos.js): the weapons a hero steps through, each its own moves and strings; the fist's moves the body's
+// strikes (the figure's `moves`)
+import { BASIC_ARSENAL, readArsenal, lowerArsenal, strikesOf } from './combos.js';
+describe('the arsenal', () => {
+  it('lowers each weapon to its own moveset, the fist on the sheathed figure playing the body\'s strikes', () => {
+    const W = lowerArsenal(BASIC_ARSENAL);
+    expect(W.map((w) => [w.id, w.figure])).toEqual([['sword', 'drawn'], ['fist', 'sheathed']]);
+    expect(W[1].moveset.tree.L.next.L.next.L).toMatchObject({ move: 'hook', ends: ['one-two-hook'] });
+    expect(W[1].moveset.moves.jab).toMatchObject({ strike: 'jab', contact: [0.4, 0.52] });
+    expect(strikesOf(BASIC_ARSENAL)).toEqual(['jab', 'cross', 'hook', 'uppercut']);
+  });
+  it('refuses a weapon that is not whole, in words', () => {
+    const A = JSON.parse(JSON.stringify(BASIC_ARSENAL));
+    A.weapons[1].moves.jab.swing = 'neutral';
+    expect(() => readArsenal(A)).toThrow(/weapons\[1\] \(fist\): .*a swing .* or a strike .*, one/);
+  });
+});
