@@ -105,7 +105,8 @@
   closes a screen still shows on the screen as it leaves. Two new transitions join the others: a fade (a dip to black
   and back) and a blur-through, and a new `backdrop` theme word makes a pause dim, blur or frost the game and the HUD
   behind it. The grim theme now fades between screens.
-- **The game UI's own words are translated.** The few words the game UI runtime says itself (a legend's Select and
-  Back, Loading, Rank, Turn order, an empty list's Nothing here) were English only. They now come from one table that
-  lives in the dashboard's locale catalogs, translated into every shipped language, and a game page, the wireframe
-  board and its script can be handed a language. A game's own words were already its own to translate.
+- **A game can ship in several languages.** A game's spec can now carry its words in each language it ships, and
+  the player can change language as they play. The game UI's own words (a legend's Select and Back, Loading, Rank,
+  Turn order, an empty list's Nothing here) come from one table the game's languages can say too, and the shared
+  screens and legends use it throughout, so a game's translations reach every screen. A word a language lacks reads in
+  English.

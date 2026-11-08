@@ -3,7 +3,7 @@
 // legends in the glyphs of the device in hand, and heard: the UI's sounds (beats/ui-sounds.js) in the set the chosen
 // look names, played as the live frame is driven. The eyes and ears gate's page; it loads nothing from anywhere.
 //
-//   node scripts/mana-board.mjs <out.html> [--theme <preset>] [--locale <code>] [--silent]
+//   node scripts/mana-board.mjs <out.html> [--theme <preset>] [--silent]
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,14 +15,13 @@ process.chdir(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'));
 
 const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
-const out = args.find((a, i) => !a.startsWith('--') && !(i > 0 && ['--theme', '--locale'].includes(args[i - 1])));
-if (!out) { console.error('usage: node scripts/mana-board.mjs <out.html> [--theme <preset>] [--locale <code>] [--silent]'); process.exit(2); }
+const out = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1] === '--theme'));
+if (!out) { console.error('usage: node scripts/mana-board.mjs <out.html> [--theme <preset>] [--silent]'); process.exit(2); }
 
 const { manaUiBoard, THEME_IDS } = await import('@/lib/mana-ui/index.js');
 const { manaControls, manaGlyphs, manaHostSource } = await import('@/lib/graph/controls/mana-controls.js');
 const { padLayoutSource } = await import('@/lib/graph/scene/channels/interact-channel.js');
 const { uiSoundAudio } = await import('@/lib/graph/beats/ui-sounds.js');
-const { manaWords } = await import('@/lib/graph/playscape/ui/mana-words.js');
 
 const theme = flag('--theme') || 'greybox';
 if (!THEME_IDS.includes(theme)) { console.error(`--theme is one of: ${THEME_IDS.join(', ')}`); process.exit(2); }
@@ -32,8 +31,6 @@ const page = manaUiBoard({
   host: { source: manaHostSource(), controls: { keys: C.keys, pad: C.pad, padLayoutSource: padLayoutSource() } },
   glyphs: manaGlyphs(),
   audio: args.includes('--silent') ? null : uiSoundAudio(),
-  // the runtime's own words in the board's language (the catalogs' gameUi namespace)
-  words: flag('--locale') ? manaWords(flag('--locale')) : null,
 });
 const file = path.resolve(cwd, out);
 writeFileSync(file, page);

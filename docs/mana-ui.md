@@ -331,20 +331,26 @@ Games choreograph what comes and goes; a page swaps it. The principles:
 6. **Less motion keeps the order and drops the travel.** Under the greybox or less motion nothing travels or glides,
    but things still fade in and out in the same order.
 
-## Words in the game's language
+## A game in several languages
 
-A game's own words (its menu items, its titles, its rows) are its data, passed in as props, so the game translates
-them. The few words the runtime says itself (a legend's Select and Back, a list's Nothing here, an idiom's Loading,
-Rank, Turn order) are one table, `WORDS` in `kernel.js`, in English. An idiom names one with `{ word: '<key>' }` and a
-format with `{@key}` (`'{@lv} {level}'`); a test holds the idioms to it, so none says a word of its own in English.
+A designer can ship a game in several languages, and the player picks one. The spec carries them:
 
-A host hands its language in as `host.words` (`manaUiPage(spec, { words })`, `manaUiBoard({ words })`,
-`node scripts/mana-board.mjs <out.html> --locale ja`). The words live in the dashboard's locale catalogs
-(`control/messages/<locale>.json`, the `gameUi` namespace, the same keys as `WORDS`, held equal by a test), so the
-game's menus speak every language the dashboard does, and `/sync-locales` carries a new word into all of them.
-`playscape/ui/mana-words.js manaWords(locale)` reads them (a word a language lacks reads in English). Nothing in the
-dashboard reads `gameUi` through next-intl, so the unused-keys report lists it, as it lists `gameTitles`; both are read
-by their bridges.
+```js
+{ screens: { … }, languages: { en: { newGame: 'New game' }, ja: { newGame: 'ニューゲーム', back: '戻る' } }, language: 'en' }
+rt.language('ja');   // a player's option (an options screen's language cycler): every word is said again in it
+rt.languages();      // the codes the game ships
+```
+
+- A node names a word with `{ word: '<key>' }`, and a format with `{@key}` (`'{@lv} {level}'`). The key is the
+  game's own (`newGame`) or one of the runtime's.
+- The runtime's own words (a legend's Select and Back, a list's Nothing here, an idiom's Loading, Rank, Turn order)
+  are one table, `WORDS` in `kernel.js`, in English. A game's language can say any of them over the English, and the
+  idioms name every word they say this way (a test holds them to it, legends included), so a game's languages reach
+  the shared screens too.
+- A word the language lacks reads in English (the game's English, then the runtime's); a key no table holds reads as
+  itself. A host can still say words over the game's (`host.words`, `manaUiPage(spec, { words })`).
+- The game's languages are its own: they are not the dashboard's locale catalogs, and a game ships as many or as few
+  as its designer writes.
 
 ## The UI's sounds
 

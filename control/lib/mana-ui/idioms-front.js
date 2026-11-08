@@ -11,7 +11,9 @@ const screen = (props, children, extra = {}) => ({ use: 'screen', props, childre
 const thenList = (rows, more = {}) => ({ use: 'list', props: { rows, ...more }, on: { accept: I('then') } });
 const back = { use: 'button', props: { label: { word: 'back' } }, on: { accept: { back: true } } };
 // what the buttons do here, printed in the glyphs of the controls in hand (the runtime's glyphs)
-const legend = (...rows) => ({ use: 'legend', props: { rows: rows.map(([action, label]) => (Array.isArray(action) ? { actions: action, label } : { action, label })) } });
+// (each label one of the runtime's words, so the legend is translated)
+const LEGEND_WORD = { pick: 'select', back: 'back', resume: 'resume', rebind: 'rebind', change: 'change', tabs: 'tabs' };
+const legend = (...rows) => ({ use: 'legend', props: { rows: rows.map(([action, label]) => { const w = { word: LEGEND_WORD[label] || label }; return Array.isArray(action) ? { actions: action, label: w } : { action, label: w }; }) } });
 
 export const FRONT_IDIOMS = {
   'attract-screen': {

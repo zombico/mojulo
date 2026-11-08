@@ -32,7 +32,9 @@
  *     { open: '<screen>' }, { close: true } and { back: true }; every other effect goes to the host's `act`.
  *   DEFS are compositions as data: { <name>: { params: [name…], node } }, `{ param: '<name>' }` inside.
  *
- *   A SPEC: { screens: { <id>: node (a screen) }, hud?: node (a hud, drawn under the stack), defs?, start? }
+ *   A SPEC: { screens: { <id>: node (a screen) }, hud?: node (a hud, drawn under the stack), defs?, start?,
+ *     languages?: { <code>: { <key>: word } }, language? } (a game in several languages: its words, and the runtime's,
+ *     in each; { word: '<key>' } names one, rt.language(code) changes the language)
  *   SIDES: a row, a cell, a table's row or a badge whose data carries `side` (0..7: a team, a seat, a lane) draws a chip
  *   in that side's colour (the theme's sides, a kit); its name still says whose it is (values first).
  *   MOTION THAT MEANS SOMETHING (the broadcast's, taken): what changed says so, once. A number that rose or fell (a stat,
@@ -57,6 +59,8 @@
  *     .reduceMotion(on)   the player asked for less motion (the game's option; the system's is read by the sheet)
  *     .reduceFlash(on)    the player asked for less flash (apart from less motion): no cover between screens, no
  *                         sheen, a change pops without flashing
+ *     .language(code)     the game's language (one of its spec's `languages`, or en): every word said again in it;
+ *                         .languages() the codes it ships
  *     .textScale(k)       the player's text size, 1 | 1.25 | 1.5 | 1.75 | 2 (× the theme's; XAG: text scales to 200%)
  *     .subtitlePlate(a)   the opacity of the plate behind the subtitles, 0..1 (null: the theme's), the player's (XAG 104)
  *   THE UI'S SOUNDS are effects: with host.cues ticks | full (a theme's `cues` word, the page passes it on) the runtime
@@ -114,10 +118,13 @@ export function buildManaUi() {
   // the player's text size (XAG: text scales to 200%)
   const TEXT_SCALES = [1, 1.25, 1.5, 1.75, 2];
   // THE RUNTIME'S OWN WORDS, in English: what it and its idioms say that no game passes in (a legend, a heading, an
-  // empty list). A host hands its language in (host.words: key → word, the catalogs' gameUi namespace); a word it lacks
-  // reads in English. An idiom names one with { word: '<key>' }, and a format with {@key}
+  // empty list). A GAME IN SEVERAL LANGUAGES says them, and its own, in the one it is set in: the spec's `languages`
+  // ({ <code>: { <key>: word } }), `language` the one it starts in, rt.language(code) to change (an options screen's
+  // language cycler). A node names a word with { word: '<key>' } and a format with {@key}; a word the language lacks
+  // reads in English, a key no table holds as itself
   const WORDS = {
     select: 'Select', change: 'Change', tabs: 'Tabs', back: 'Back', start: 'Start', confirm: 'Confirm', reset: 'Reset', delete: 'Delete', done: 'Done',
+    resume: 'Resume', rebind: 'Rebind', nextTab: 'Next tab', detail: 'Detail',
     nothingHere: 'Nothing here', more: '{n} more', on: 'On', off: 'Off', points: 'Points',
     keyArt: 'key art', keyArtPlace: 'key art of the place', loading: 'Loading', progress: 'Progress', tip: 'Tip', continue: 'Continue', gettingReady: 'Getting the world ready…',
     modes: 'Modes', players: 'Players', playersCount: 'players', roster: 'Roster', random: 'Random', resetDefaults: 'Reset to defaults', action: 'Action', keysPad: 'Keys · Pad', rank: 'Rank',
@@ -255,7 +262,7 @@ export function buildManaUi() {
     return out;
   }
   function readSpec(spec) {
-    if (!isObj(spec) || !isObj(spec.screens)) throw new Error('a mana-ui spec is { screens: { <id>: node }, hud?, defs?, start? }');
+    if (!isObj(spec) || !isObj(spec.screens)) throw new Error('a mana-ui spec is { screens: { <id>: node }, hud?, defs?, start?, languages?, language? }');
     const defs = spec.defs || {};
     for (const d in defs) {
       if (COMPONENTS[d]) throw new Error(`defs.${d}: a def may not take a component's name`);
@@ -272,7 +279,17 @@ export function buildManaUi() {
     if (hud && hud.use !== 'hud') throw new Error(`hud is a hud { use: 'hud', children: [regions, anchors] } (it is ${hud.use})`);
     const start = spec.start === undefined ? null : spec.start;
     if (start !== null && !screens[start]) throw new Error(`start '${start}' is one of the screens: ${Object.keys(screens).join(', ')}`);
-    return { screens, hud, start };
+    // the game's languages: each a table of words by key (its own keys and the runtime's), the one it starts in
+    const languages = spec.languages === undefined ? {} : spec.languages;
+    if (!isObj(languages)) throw new Error('languages is { <code>: { <key>: word } } (the game\'s words in each language it ships)');
+    for (const code in languages) {
+      if (!/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(code)) throw new Error(`languages.${code}: a language is a code like en, ja, pt-BR`);
+      if (!isObj(languages[code])) throw new Error(`languages.${code} is { <key>: word }`);
+      for (const k in languages[code]) if (typeof languages[code][k] !== 'string') throw new Error(`languages.${code}.${k} is a word (a string)`);
+    }
+    const language = spec.language === undefined ? (languages.en || !Object.keys(languages).length ? 'en' : Object.keys(languages)[0]) : spec.language;
+    if (spec.language !== undefined && !languages[language]) throw new Error(`language '${language}' is one of the game's languages: ${Object.keys(languages).join(', ') || 'none given'}`);
+    return { screens, hud, start, languages, language };
   }
 
   // ── form: the tree as HTML ────────────────────────────────────────────────────────────────────────────────────────
@@ -321,17 +338,21 @@ export function buildManaUi() {
 
   // ── the runtime ───────────────────────────────────────────────────────────────────────────────────────────────────
   function runtime(spec, host) {
-    const { screens, hud, start } = readSpec(spec);
+    const { screens, hud, start, languages, language: startLanguage } = readSpec(spec);
     const H = host || {};
     if (H.cues !== undefined && !CUES[H.cues]) throw new Error(`host.cues is one of: ${Object.keys(CUES).join(', ')} (the UI's sounds the host plays)`);
     const heard = new Set(CUES[H.cues || 'silent']);
-    if (H.words !== undefined && !isObj(H.words)) throw new Error('host.words is { <key>: word } (the runtime\'s words in the game\'s language; a key left out reads in English)');
-    // a word: the host's, else English, else its own key (so a game's own key still reads as itself)
-    const W = (k, vars) => { const w = words((H.words && typeof H.words[k] === 'string' && H.words[k]) || WORDS[k] || k); return vars ? w.replace(/\{(\w+)\}/g, (_, x) => words(vars[x])) : w; };
+    if (H.words !== undefined && !isObj(H.words)) throw new Error('host.words is { <key>: word } (words the host says over the game\'s; a key left out reads in the game\'s language)');
+    // a word: the host's, else the game's language's, else its English (the game's own, then the runtime's), else its key
+    const own = (code, k) => { const t = languages[code]; return t && typeof t[k] === 'string' && t[k] ? t[k] : null; };
+    const W = (k, vars) => {
+      const w = words((H.words && typeof H.words[k] === 'string' && H.words[k]) || own(S.language, k) || own('en', k) || WORDS[k] || k);
+      return vars ? w.replace(/\{(\w+)\}/g, (_, x) => words(vars[x])) : w;
+    };
     // a number that changed counts to its new value over countUp seconds of the game's clock (0: it lands at once)
     if (H.countUp !== undefined && !(typeof H.countUp === 'number' && H.countUp >= 0 && H.countUp <= 10)) throw new Error('host.countUp is the seconds a changed number counts for, 0 to 10 (0: at once)');
     const COUNT = H.now && H.countUp ? H.countUp : 0;
-    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), held: false, calm: false, dim: false, text: 1, plate: null, nav: null, pressed: null, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in' };
+    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), held: false, calm: false, dim: false, text: 1, plate: null, nav: null, pressed: null, language: startLanguage, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in' };
     // a sound the UI makes, if the host listens for it: an effect like any other, played by the host
     // (a cursor's sound says the way it went, a stepper's the step it took, so a sound set can pitch them)
     const cue = (name, seat = 0, more) => { if (!S.booting && heard.has(name) && H.act) H.act({ sound: name, ...(more || {}) }, { screen: top(), key: null, verb: 'cue', seat }); };
@@ -530,7 +551,8 @@ export function buildManaUi() {
         return ['div', { class: 'mana-legend' }, ...rows.map((r) => {
           // a row names an action, or several that share a word (left and right: change)
           const acts = isObj(r) && Array.isArray(r.actions) ? r.actions.map(words) : [isObj(r) ? words(r.action) : words(r)];
-          const label = isObj(r) && r.label !== undefined ? words(r.label) : acts.join(' / ');
+          // a row's label: words, or one of the runtime's words ({ word }), so a legend speaks the game's language
+          const label = isObj(r) && r.label !== undefined ? (isObj(r.label) && typeof r.label.word === 'string' ? W(r.label.word) : words(r.label)) : acts.join(' / ');
           return ['span', { class: 'mana-hint' }, ...acts.map((a) => ['span', { class: 'mana-key' }, glyphOf(a) || a]), ['span', null, label]];
         })];
       };
@@ -998,6 +1020,11 @@ export function buildManaUi() {
     function hold(on) { const x = !!on; if (S.held !== x) { S.held = x; render(); } }
     function reduceMotion(on) { const x = !!on; if (S.calm !== x) { S.calm = x; render(); } }
     function reduceFlash(on) { const x = !!on; if (S.dim !== x) { S.dim = x; render(); } }
+    // the game's language, changed (a player's option): every word the screen says is said again in it
+    function language(code) {
+      if (code !== 'en' && !languages[code]) throw new Error(`language '${code}' is one of the game's languages: ${['en', ...Object.keys(languages).filter((c) => c !== 'en')].join(', ')}`);
+      if (S.language !== code) { S.language = code; render(); }
+    }
     function textScale(k) {
       const x = Number(k);
       if (!TEXT_SCALES.includes(x)) throw new Error(`textScale: the player's text size is one of ${TEXT_SCALES.join(', ')} (× the theme's)`);
@@ -1012,12 +1039,13 @@ export function buildManaUi() {
     if (start) open(start); else render();
     S.booting = false;
     return {
-      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, hold, reduceMotion, reduceFlash, textScale, subtitlePlate,
+      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, hold, reduceMotion, reduceFlash, textScale, subtitlePlate, language,
+      languages: () => ['en', ...Object.keys(languages).filter((c) => c !== 'en')],
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
       state: () => {
         const id = top(), U = id ? uiOf(id) : null;
-        return { input: S.input, layout: S.layout, held: S.held, reducedMotion: S.calm, reducedFlash: S.dim, pressed: S.pressed ? { ...S.pressed } : null, textScale: S.text, subtitlePlate: S.plate, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
+        return { input: S.input, layout: S.layout, held: S.held, reducedMotion: S.calm, reducedFlash: S.dim, language: S.language, pressed: S.pressed ? { ...S.pressed } : null, textScale: S.text, subtitlePlate: S.plate, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
       },
     };
   }
