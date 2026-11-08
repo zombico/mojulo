@@ -400,6 +400,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // fighters are no characters and name no level; its versus-react.js, a body out cold lying on its back (LIMP), which
 // the fixture's fight draws only at a knockout; and the arena's fight read off the page's clock in milliseconds (it had
 // read them as seconds, six fight frames a drawn frame).
+// Re-pinned 2026-11-07 (1107-fg-remake: a fight on any level, by its lane): `versus` only. Its page inlines
+// versus-arena.client.js by its source, which now draws the whole fight in the lane's frame (versus/versus-lane.js): a
+// group set at the lane's centre on its floor and turned by its heading, every fight object in it, the camera, the
+// overlay's projection and the lit bodies' key mapped through it, a lane's `back` capping the camera. The fixture's
+// arena names no lane: its plane at heading 0, the group only lifting the fight where it always stood.
 // Re-pinned 2026-11-05 (1105-rpg-slice: a packed page packs its plain groups): `live-shadows-actors` only, the one
 // fixture laid with `pack: true`. Its plain groups ride their positions on a uint16 grid and their colours as sRGB bytes
 // (packGroupArrays), decoded by the page to the same Float32Arrays; every fixture without `pack` is unchanged.

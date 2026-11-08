@@ -293,6 +293,11 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Fight levels (Mojulo Fighter, internal name versus): a fight is laid on any level by its LANE
+  ([versus/versus-lane.js](control/lib/graph/versus/versus-lane.js): where it runs, its walls, its floor, the camera's
+  room); [versus/versus-levels.js](control/lib/graph/versus/versus-levels.js) turns each kind of level into a world
+  recipe and its lane (a new kind of level is a row); the runtime draws in the lane's frame. Blockouts:
+  [level/greybox-scene.js](control/lib/graph/level/greybox-scene.js).
 - Destructible physics (internal name rupa; `destruction: 'physical'`, opt-in, never a default):
   [rupa/](control/lib/graph/rupa/) (matter, heat, ground) and the runtime builder
   [controllable/rupa.js](control/lib/graph/worlds/controllable/rupa.js): [docs/rupa.md](docs/rupa.md).

@@ -210,7 +210,8 @@ import { readInnings, inningsManifest } from '../contest/innings-arena.js';
 import { resolveSport, MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS, INNINGS_SPORT_IDS, SHAPE_WORDS } from '../contest/sports.js';
 import { readSportConcept, sportTeams } from './sport-concept.js';
 import { SIDE_KITS as BROADCAST_SIDE_KITS } from '../broadcast/broadcast-package.js';
-import { readArena, arenaManifest } from '../versus/versus-arena.js';
+import { readArena } from '../versus/versus-arena.js';
+import { readFightLevel, fightLevel } from '../versus/versus-levels.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -786,14 +787,21 @@ function readFight(Q) {
   }
   if (Q.arenas === false) throw fail('.arenas: a fight is fought on its arenas (name them, or leave them out for a plaza and a nave)');
   if (Q.arenas !== undefined && Q.arenas !== false) {
-    if (!Array.isArray(Q.arenas) || Q.arenas.length < 1 || Q.arenas.length > 8) throw fail('.arenas is 1 to 8 arenas { id, name?, kit?, look?, width?, depth?, height?, crowd?, set? }, or false for flat stages');
+    if (!Array.isArray(Q.arenas) || Q.arenas.length < 1 || Q.arenas.length > 8) throw fail('.arenas is 1 to 8 arenas { id, name?, kit?, look?, width?, depth?, height?, crowd?, set? } or { id, name?, level: { kind, … } }, or false for flat stages');
     const ids = new Set();
     Q.arenas.forEach((a, i) => {
       if (!isObj(a) || typeof a.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(a.id)) throw fail(`.arenas[${i}] needs an id (a short lower-case name)`);
       if (ids.has(a.id)) throw fail(`.arenas[${i}].id '${a.id}' is taken`);
       ids.add(a.id);
       const { id: _id, name: _n, ...words } = a;
-      try { readArena(words); } catch (e) { throw fail(`.arenas[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+      // (an arena names a LEVEL, versus/versus-levels.js: any kind a fight can be laid on; else its words are a stage's)
+      if (words.level !== undefined) {
+        const extra = Object.keys(words).filter((k) => k !== 'level');
+        if (extra.length) throw fail(`.arenas[${i}]: ${extra.join(', ')} beside level: an arena that names a level says the rest in it`);
+        try { readFightLevel(words.level, 'level'); } catch (e) { throw fail(`.arenas[${i}].${e.message.replace(/^versus: /, '')}`); }
+      } else {
+        try { readArena(words); } catch (e) { throw fail(`.arenas[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+      }
     });
   }
   if (Q.rounds !== undefined && !(Number.isInteger(Q.rounds) && Q.rounds >= 1 && Q.rounds <= 3)) throw fail('.rounds is how many rounds win the match, 1 to 3');
@@ -814,7 +822,8 @@ export function fightArenas(Q, { title, roster } = {}) {
   const rules = fightRules(Q);
   return (Q.arenas ?? defaultArenas(Q)).map(({ id, name, ...words }) => ({
     id, name: name ?? id,
-    manifest: arenaManifest({ ...words, title: `${title ?? 'versus'} · ${name ?? id}`, ...(roster ? { roster } : {}), ...(rules ? { rules } : {}) }),
+    // (each arena a fight level: the one it names, else a stage of its words, the arena as it always was)
+    manifest: fightLevel(words.level ?? { kind: 'stage', ...words }, { title: `${title ?? 'versus'} · ${name ?? id}`, ...(roster ? { roster } : {}), ...(rules ? { rules } : {}) }),
   }));
 }
 

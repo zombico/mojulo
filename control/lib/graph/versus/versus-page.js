@@ -25,6 +25,7 @@ import { FIGHT_KINDS, kindRecipe } from './versus-kinds.js';
 import { lawStamp } from './versus-laws.js';
 import { DEFAULT_ROSTER, DEFAULT_STAGES } from './versus-roster.js';
 import { ARENA_PLANE } from './versus-arena.js';
+import { readLane } from './versus-lane.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES as CONTROL_SCHEMES } from '../controls/schemes.js';
@@ -123,7 +124,10 @@ export function versusArenaData(v = {}) {
   const rules = rulesOf(v.rules);
   const roster = (v.roster ?? DEFAULT_ROSTER).map(rosterEntry).map((e) => ({ ...e, recipe: kindRecipe(e.recipe, rules) }));
   if (roster.length < 1) throw new Error('versus: an arena needs at least one fighter');
-  return { plane: v.plane ?? ARENA_PLANE, half: v.half ?? 8, floor: v.floor ?? 0, roster, rules, wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}), ...(v.set ? { set: v.set } : {}) };
+  // (a level that names its LANE, versus-lane.js: its walls and floor the lane's, the lane carried for the runtime to fight
+  // in its frame; a stored arena's plane, walls and floor as they were, its lane read from them at heading 0)
+  const L = v.lane ? readLane(v.lane, 'versus.lane') : null;
+  return { plane: L ? L.at[1] : v.plane ?? ARENA_PLANE, half: L ? L.half : v.half ?? 8, floor: L ? L.floor : v.floor ?? 0, ...(L ? { lane: L } : {}), roster, rules, wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}), ...(v.set ? { set: v.set } : {}) };
 }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

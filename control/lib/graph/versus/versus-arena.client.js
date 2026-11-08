@@ -29,7 +29,18 @@
 
 const AV = VERSUS_ARENA;
 const hosted = window.parent !== window;
-const PLANE = AV.plane, FLOOR = AV.floor || 0;
+// THE LANE (versus-lane.js): where the level says the fight runs. Everything the fight draws lives in the lane's own
+// frame, a group set at the lane's centre on its floor and turned by its heading: the sim's x along the lane, the far
+// side +y, the camera's side −y, heights above the lane's floor. A stored arena's lane is its plane at heading 0, so the
+// group only lifts it where it always stood.
+const LANE = AV.lane || { at: [0, AV.plane], heading: 0, half: AV.half, floor: AV.floor || 0 };
+const HEADING = (LANE.heading * Math.PI) / 180;
+const STAGE = new THREE.Group();
+STAGE.position.set(LANE.at[0], LANE.at[1], LANE.floor);
+STAGE.rotation.z = HEADING;
+scene.add(STAGE);
+STAGE.updateMatrixWorld(true);
+const PLANE = 0, FLOOR = 0;
 
 // ── the overlay and the camera ───────────────────────────────────────────────────────────────────────────────
 
@@ -105,7 +116,7 @@ function makeBody(color, F) {
   // a weapon: one more inked cylinder, the blade's own colour, from the grip hand
   const blade = F && F.weapon ? part(CYL, new THREE.MeshBasicMaterial({ color: F.weapon.color, vertexColors: true })) : null;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
-  scene.add(group, shadow);
+  STAGE.add(group, shadow);
   return { group, limbs, joints, head, blade, shadow, near, far, base: figureBase(F.body) };
 }
 
@@ -163,7 +174,8 @@ function skinOf(ref) {
   return SKINS[ref] || (SKINS[ref] = { pack, base: characterBase(pack.bones), seg: pack.bones.map((b) => segmentOf(b.id)), ...(pack.played ? { hand: pack.bones.map((b) => /^foreArm[LR]$/.test(segmentOf(b.id)) && !/^(foreArm|elbowFold)[LR]?$/.test(b.id)) } : {}) });
 }
 const REST_KEY = new THREE.Vector3(0.35, -0.55, 0.75).normalize();     // the pack's baked light (station-loft-rig.js)
-const WORLD_KEY = new THREE.Vector3(-0.35, -0.6, 0.72).normalize();    // the arena's: from the camera's side, above
+// the arena's: from the camera's side, above (the lane's frame turned into the world's: the shader's normals are world)
+const WORLD_KEY = new THREE.Vector3(-0.35, -0.6, 0.72).normalize().applyAxisAngle(new THREE.Vector3(0, 0, 1), HEADING);
 const INK_WIDTH = 0.011;
 // smooth normals over a triangle soup (corners at one place share theirs)
 function smoothNormals(pos) {
@@ -214,7 +226,7 @@ function makeCharacter(skin) {
     return { fill, hull };
   });
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
-  scene.add(group, shadow);
+  STAGE.add(group, shadow);
   return { group, shadow, skin, meshes };
 }
 const M4 = new THREE.Matrix4();
@@ -254,33 +266,35 @@ function fighterLights() {
   key.position.set(-1.6, PLANE - 3.4, FLOOR + 4.2); fill.position.set(2.6, PLANE - 2.2, FLOOR + 1.6); rim.position.set(0.4, PLANE + 3.2, FLOOR + 2.8);
   for (const L of [key, fill, rim]) { L.target.position.set(0, PLANE, FLOOR + 1); LIT.add(L, L.target); }
   LIT.add(new THREE.HemisphereLight(0xdfe6ee, 0x3a332e, 0.55));
-  scene.add(LIT);
+  STAGE.add(LIT);
   return LIT;
 }
 /** THE RING (an arena's `set: 'ring'`, versus-arena.js ARENA_SETS): a raised canvas on the plane, its apron, four corner
  * posts with their pads, the ropes on three sides (the camera's side open, as a ring is shot), the light on the ring
  * (a spot over the canvas) and the hall round it fallen into the dark; built once, the arena's own */
 function buildRing() {
-  const h = AV.half + 0.45, H = FLOOR, g = new THREE.Group();
+  // (in the lane's frame: the canvas is the lane's floor (z 0), the apron runs down to the level's ground H below it)
+  const h = LANE.half + 0.45, H = LANE.floor, g = new THREE.Group();
   const mat = (color, rough = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 });
   const box = (w, d, t, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, d, t), m); b.position.set(x, y, z); g.add(b); return b; };
-  box(2 * h + 0.5, 2 * h + 0.5, 0.08, 0, PLANE, H - 0.04, mat(0xd8d2c4, 0.95));                 // the canvas
-  box(2 * h + 0.5, 2 * h + 0.5, H - 0.08, 0, PLANE, (H - 0.08) / 2, mat(0x17264f, 0.7));        // the apron
+  box(2 * h + 0.5, 2 * h + 0.5, 0.08, 0, PLANE, FLOOR - 0.04, mat(0xd8d2c4, 0.95));                       // the canvas
+  box(2 * h + 0.5, 2 * h + 0.5, H - 0.08, 0, PLANE, FLOOR - 0.08 - (H - 0.08) / 2, mat(0x17264f, 0.7));  // the apron
   const post = mat(0xbfc4cc, 0.35), pad = mat(0xb3262a, 0.6), ropeM = [mat(0xe8e8e8, 0.5), mat(0xb3262a, 0.5), mat(0x2047a6, 0.5)];
   const corners = [[-h, -h], [h, -h], [h, h], [-h, h]];
   for (const [x, y] of corners) {
-    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.45, 12), post); c.rotation.x = Math.PI / 2; c.position.set(x, PLANE + y, H + 0.72); g.add(c);
-    box(0.2, 0.2, 0.95, x, PLANE + y, H + 0.78, pad);
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.45, 12), post); c.rotation.x = Math.PI / 2; c.position.set(x, PLANE + y, FLOOR + 0.72); g.add(c);
+    box(0.2, 0.2, 0.95, x, PLANE + y, FLOOR + 0.78, pad);
   }
   // ropes: the far side and the two ends (the near side open to the camera)
   const rope = (a, b, z, m) => { const L = Math.hypot(b[0] - a[0], b[1] - a[1]), r = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, L, 8), m); r.position.set((a[0] + b[0]) / 2, PLANE + (a[1] + b[1]) / 2, z); r.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]) - Math.PI / 2; g.add(r); };
-  [0.42, 0.8, 1.18].forEach((dz, k) => { for (const [a, b] of [[corners[2], corners[3]], [corners[1], corners[2]], [corners[3], corners[0]]]) rope(a, b, H + dz, ropeM[k]); });
+  [0.42, 0.8, 1.18].forEach((dz, k) => { for (const [a, b] of [[corners[2], corners[3]], [corners[1], corners[2]], [corners[3], corners[0]]]) rope(a, b, FLOOR + dz, ropeM[k]); });
   // the light on the ring, and the hall fallen into the dark: its surfaces are baked and take no fog, so a dark veil
   // hangs behind the ring's far ropes, the crowd and the walls seen through it as the shapes in the dark past the light
-  const spot = new THREE.SpotLight(0xfff4e6, 2.4, 16, 0.62, 0.55, 1); spot.position.set(0, PLANE - 0.6, H + 6.5); spot.target.position.set(0, PLANE, H); g.add(spot, spot.target);
+  const spot = new THREE.SpotLight(0xfff4e6, 2.4, 16, 0.62, 0.55, 1); spot.position.set(0, PLANE - 0.6, FLOOR + 6.5); spot.target.position.set(0, PLANE, FLOOR); g.add(spot, spot.target);
   const veil = new THREE.Mesh(new THREE.PlaneGeometry(80, 40), new THREE.MeshBasicMaterial({ color: 0x05060a, transparent: true, opacity: 0.68, depthWrite: false, side: THREE.DoubleSide }));
-  veil.rotation.x = Math.PI / 2; veil.position.set(0, PLANE + h + 0.9, 12); veil.renderOrder = 2; g.add(veil);
-  scene.add(g);
+  // (the veil at 12 m above the level's ground, where it always hung)
+  veil.rotation.x = Math.PI / 2; veil.position.set(0, PLANE + h + 0.9, 12 - H); veil.renderOrder = 2; g.add(veil);
+  STAGE.add(g);
   fighterLights();
   return g;
 }
@@ -326,11 +340,11 @@ function makePlayed(skin) {
   if (lit) fighterLights();
   const mesh = new THREE.SkinnedMesh(geo, material);
   mesh.frustumCulled = false;
-  group.add(mesh); scene.add(group);
+  group.add(mesh); STAGE.add(group);
   group.updateMatrixWorld(true);
   mesh.bind(new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4())));
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
-  scene.add(shadow);
+  STAGE.add(shadow);
   return { group, shadow, skin, played: true, bones, mesh };
 }
 /** the clip and its phase (0 … 1) a fighter's state shows: its move's own clip at the frame's share of it; a blow taken
@@ -447,9 +461,9 @@ function defaults() {
 
 function begin(params) {
   lastParams = params;
-  for (const B of bodies) scene.remove(B.group, B.shadow);
+  for (const B of bodies) STAGE.remove(B.group, B.shadow);
   const fighters = params.fighters.map((r) => compileFighter(r));
-  const rules = hostedRules(AV.rules, params.rules, Math.round(AV.half * 1000));
+  const rules = hostedRules(AV.rules, params.rules, Math.round(LANE.half * 1000));
   match = newMatch({ fighters, names: params.names, colors: params.colors, schemes: params.schemes, mode: params.mode, level: params.level, cpu: params.cpu, rules, seed: params.seed ?? 1 });
   bodies = params.colors.map((c, i) => {
     const skin = skinOf(params.characters && params.characters[i]);
@@ -512,21 +526,25 @@ function frameCamera() {
   const sep = Math.abs(s.p[0].x - s.p[1].x) / 1000;
   // the genre's framing: a body near half the picture's height, both in frame with room to move (on a set, nearer: a
   // fighter near two thirds of it, shown as it was made)
-  const want = RING ? Math.max(3.6, Math.min(6, (sep + 2.2) / (2 * tanH))) : Math.max(5.8, Math.min(9, (sep + 3.4) / (2 * tanH)));
+  const framed = RING ? Math.max(3.6, Math.min(6, (sep + 2.2) / (2 * tanH))) : Math.max(5.8, Math.min(9, (sep + 3.4) / (2 * tanH)));
+  // (never further back than the room the level leaves on the camera's side: a walled alley's camera comes in close)
+  const want = LANE.back ? Math.min(framed, LANE.back - 0.3) : framed;
   cam.dist += (want - cam.dist) * 0.12;
   const halfView = cam.dist * tanH;
-  const lim = Math.max(0, AV.half + 0.8 - halfView);
+  const lim = Math.max(0, LANE.half + 0.8 - halfView);
   const mid = (s.p[0].x + s.p[1].x) / 2000;
   cam.x += (Math.max(-lim, Math.min(lim, mid)) - cam.x) * 0.15;
   const shake = match.shake > 0 ? Math.sin(match.t * 2.3) * match.shake * 0.006 : 0;
   if (camera.fov !== VFOV) { camera.fov = VFOV; camera.updateProjectionMatrix(); }
-  camera.position.set(cam.x + shake, PLANE - cam.dist, FLOOR + (RING ? 1.1 : 1.25) + cam.dist * 0.05);
-  camera.lookAt(cam.x + shake, PLANE, FLOOR + (RING ? 0.95 : 1.05));
+  // (framed in the lane's frame, then set in the world's)
+  camera.position.copy(STAGE.localToWorld(CAM_AT.set(cam.x + shake, PLANE - cam.dist, FLOOR + (RING ? 1.1 : 1.25) + cam.dist * 0.05)));
+  camera.lookAt(STAGE.localToWorld(CAM_TO.set(cam.x + shake, PLANE, FLOOR + (RING ? 0.95 : 1.05))));
 }
+const CAM_AT = new THREE.Vector3(), CAM_TO = new THREE.Vector3();
 
 const vP = new THREE.Vector3();
 function toScreen(xmm, ymm) {
-  vP.set(xmm / 1000, PLANE, FLOOR + ymm / 1000).project(camera);
+  STAGE.localToWorld(vP.set(xmm / 1000, PLANE, FLOOR + ymm / 1000)).project(camera);
   return [((vP.x + 1) / 2) * OW, ((1 - vP.y) / 2) * OH];
 }
 

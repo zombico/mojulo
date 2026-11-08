@@ -28,6 +28,18 @@ describe('quick: the fight goal', () => {
     expect(runSteps(world, { ref: 'gw_fight' })).toEqual(steps);
   });
 
+  it('an arena that names a level is laid on that level by its lane; one that also says stage words is refused', () => {
+    const world = quickWorld({ id: 'grey-fight', quick: { ...quick, arenas: [{ id: 'turned', level: { kind: 'greybox', preset: 'turned' } }, { id: 'nave', kit: 'gothic-nave' }] } });
+    const steps = runSteps(world, { ref: 'gw_grey' }), arenas = steps.filter((s) => s.key.startsWith('level-arena-'));
+    // (the level's own recipe, the fight's lane on it; the stage beside it as it always was)
+    expect(arenas[0].order.manifest).toMatchObject({ kind: 'greybox', versus: { lane: { heading: 35 }, rules: { rounds: 1, timer: 60 } } });
+    expect(arenas[0].order.manifest.versus.roster).toHaveLength(3);
+    expect(arenas[1].order.manifest).toMatchObject({ kind: 'stage', kit: 'gothic-nave' });
+    expect(arenas[1].order.manifest.versus).not.toHaveProperty('lane');
+    expect(() => readQuick({ ...quick, arenas: [{ id: 'x', kit: 'gothic-nave', level: { kind: 'greybox', preset: 'flat' } }] })).toThrow(/kit beside level/);
+    expect(() => readQuick({ ...quick, arenas: [{ id: 'x', level: { kind: 'greybox', preset: 'cliff' } }] })).toThrow(/preset/);
+  });
+
   it('a fight made now: a boxer strikes with its character\'s own punches, in the game and its arenas, every other style its own moves; one minted before as it did', () => {
     const boxer = { id: 'joe', tradition: 'boxing' };
     const world = quickWorld({ id: 'own', quick: { goal: 'fight', roster: [boxer, 'hero', { id: 'mira', hero: { ref: 'mira-ref' }, moves: { 'stand.L': 'jab' } }] } });
