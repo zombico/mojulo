@@ -11,8 +11,6 @@
  *   ordered  the dials whose values run in order, with the measures that must move with them (families.laws.test.js
  *            holds each: { dial, rises?: [measure], falls?: [measure] })
  *   swells   the dial values whose sound swells rather than strikes (its crest is not held to the register's)
- *   reference true for a recreation held to a description (a layer-by-layer brief, a reference recording's), to be
- *            compared with that reference: validated, pinned and held to its ordered dials, not yet to the register
  *   sustain  true for a held voice (families/held.js): its build is a sustain spec driven by a control, not a cue;
  *            `idle` says whether it is silent or running at 0
  *   build(d, seed)  the cue: a beats-sfx gesture list in the realistic register (layers.js), or a held voice's spec

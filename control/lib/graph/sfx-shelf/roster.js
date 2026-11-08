@@ -295,12 +295,12 @@ const ROWS = {
   uppercut: made('melee', 'strike', 'strike.hit', 'an uppercut', ['heavy punch', 'haymaker'], 'brawl', { act: 'uppercut' }),
   counter: made('melee', 'strike', 'on', 'a counter: a blow turned and returned', ['counter hit', 'riposte'], 'brawl', { act: 'counter' }),
   'knockout-blow': made('melee', 'down', 'on', 'a knockout blow', ['ko punch', 'finishing blow'], 'brawl', { act: 'knockout' }),
-  // a katana (families/blades.js): the described takes, and the one-event sounds a game fires
-  'katana-draw': made('melee', 'reload', 'on', 'a katana drawn slowly from its wooden saya', ['draw katana', 'unsheathe'], 'katana', { act: 'draw' }),
-  'katana-carry': made('melee', 'step', 'on', 'a sheathed katana carried at a walk, five seconds', ['carry katana', 'sheathed sword'], 'katana', { act: 'carry' }),
-  'katana-swing': made('melee', 'swing', 'on', 'a katana swung three times, outdoors', ['katana swings', 'sword practice'], 'katana', { act: 'swing' }),
-  'katana-jostle': made('melee', 'step', 'footsteps.step', 'a sheathed katana jostling with one step', ['saya rattle', 'sword jostle'], 'katana', { act: 'jostle' }),
-  'katana-cut': made('melee', 'swing', 'strike.swing', 'one katana cut', ['katana slash', 'katana cut'], 'katana', { act: 'cut' }),
+  // a katana (families/blades.js): the swing a stylized slash
+  'katana-swing': made('melee', 'swing', 'strike.swing', 'a katana swung: a stylized slash', ['katana', 'katana slash', 'katana cut'], 'katana', { act: 'swing' }),
+  'katana-heavy-swing': made('melee', 'swing', 'strike.swing', 'a heavy two-handed katana cut', ['heavy slash', 'katana heavy cut'], 'katana', { act: 'swing', weight: 'heavy' }),
+  'katana-draw': made('melee', 'reload', 'on', 'a katana drawn from its saya', ['draw katana', 'unsheathe'], 'katana', { act: 'draw' }),
+  'katana-sheathe': made('melee', 'reload', 'on', 'a katana sheathed', ['sheathe katana', 'sheathe'], 'katana', { act: 'sheathe' }),
+  'katana-jostle': made('melee', 'step', 'footsteps.step', 'a sheathed katana jostling with a step', ['saya rattle', 'sword jostle'], 'katana', { act: 'jostle' }),
 
   // ── the audio channel's own synth slots (scene/channels/audio.js): its code plays them, unless the level gives the
   //    slot the row's voice (a port of that code, range for range) ──

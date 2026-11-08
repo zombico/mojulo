@@ -25,12 +25,7 @@ describe('the families on the yardstick', () => {
       it(`${name}: held at its defaults, it follows its control`, async () => { expect(meetsHeld(await holding(name, {}), F)).toEqual([]); });
       continue;
     }
-    if (F.reference) it(`${name}: a reference recreation sounds (held to its description, not yet to the register)`, async () => {
-      const m = await measure(name, {});
-      expect(m.layers).toBeGreaterThan(0);
-      expect(m.ms).toBeGreaterThan(50);
-    });
-    else it(`${name}: its defaults are in the register`, async () => {
+    it(`${name}: its defaults are in the register`, async () => {
       const swell = (F.swells || []).includes(Object.values(F.defaults)[0]);
       expect(meetsRegister(await measure(name, {}), { swell })).toEqual([]);
     });

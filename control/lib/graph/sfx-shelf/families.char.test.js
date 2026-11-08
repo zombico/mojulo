@@ -191,11 +191,11 @@ const PINS = {
   'uppercut': '9e294c0715de',
   'counter': 'e4c34adfc568',
   'knockout-blow': '3a2de1af834a',
-  'katana-draw': '45e9989f12b4',
-  'katana-carry': '10eb97608383',
-  'katana-swing': '0dcde7d4fba3',
-  'katana-jostle': '367cc119af66',
-  'katana-cut': '1a6d9d04e5a9',
+  'katana-swing': '9b401dc77e39',
+  'katana-heavy-swing': '2ed79f01b55e',
+  'katana-draw': 'df2ba1e02aa4',
+  'katana-sheathe': '8d20976dc5cc',
+  'katana-jostle': '9f59235eb705',
 };
 
 describe('the families\' builds, pinned', () => {

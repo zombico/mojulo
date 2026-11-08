@@ -56,7 +56,7 @@ A held voice comes back as `{ sustain }`, a spec, rather than gestures.
 
 | kind | families |
 |---|---|
-| combat and its world | `explosion` (size, debris, metal), `impact` (material × weight), `footstep` (surface × body, a person to a giant), `melee`, `handling` (magazines, racking, switching, dry fire), `projectile` (flybys, ricochets, casings), `breakage`, `elemental`, `shield`, `launch`, `katana` (draw, carry, swing; one jostle, one cut by take) |
+| combat and its world | `explosion` (size, debris, metal), `impact` (material × weight), `footstep` (surface × body, a person to a giant), `melee`, `handling` (magazines, racking, switching, dry fire), `projectile` (flybys, ricochets, casings), `breakage`, `elemental`, `shield`, `launch`, `katana` (a stylized slash, light or heavy; draw, sheathe, jostle) |
 | held voices | `booster` (jet, rocket, ion), `engine` (car, motorbike, jet, prop, kart, boat, helicopter), `beam`, `servo`, `fire`, `charge`, `crowd`, `tires`, `cooking`, `heartbeat`, `breath` |
 | by game type | see below |
 
@@ -168,20 +168,10 @@ a person's ears.
   and the measures they move.
 - **A fixed set of cues:** write a set under `sets/`. Name a `floor` if it improves on another set.
 - **A one-off for one game:** write the gestures in that game's own audio recipe.
-- **From a description or a recording** (a layer-by-layer brief, a generated reference): map each layer's intent onto
-  the gestures, keep the brief's times, and mark the family `reference`. A reference family is validated, pinned and
-  held to its ordered dials, but not yet to the register, until it has been compared with the recording and tuned.
-  `families/blades.js` (`katana`) is the worked example; its header lists what was approximated and how:
-  - noise colour becomes the layer's filter;
-  - a held, wobbling, rising scrape becomes a train of overlapping band-passed bursts;
-  - a noise band sweeping up and down becomes a riser and a downlifter;
-  - an up-and-down pitch becomes two tones;
-  - Hz becomes the nearest note where a gesture takes notes;
-  - "random" becomes seeded;
-  - the room becomes a send, the space itself the level's.
-
-  Write a sequence (five seconds of carrying, three swings) as its one-event parts too (`jostle`, `cut`): a game fires
-  its sounds on its own events.
+- **A stylized sound** (a game's slash, not a recording of air): build it from noise and struck material, short, moving
+  across the stereo field. A held tone reads as a whistle. `families/blades.js` (`katana`) is the example: an approach
+  whoosh crossing left to right, a bright noise cut falling from the top of the band, the edge's struck ring, a spray
+  of grit, a push of air underneath.
 
 A new sound is a row first.
 
