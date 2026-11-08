@@ -42,6 +42,8 @@ import { contrast, DISTANCES, HALOS } from './theme.js';
 export const GREYBOX_VARS = Object.freeze({
   ink: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', line: '#111111', panel: '#fafafa', paper: '#fafafa', wash: '#ececec',
   scrim: 'rgba(255,255,255,.72)', shade: '#000000',
+  // light falling on a fight's bars (their gloss, a hit's slice): white whatever the theme, as the shade is black
+  gleam: '#ffffff',
   // the sides' kits (a team, a seat, a lane): greys in the greybox, told apart by their names and by shade
   'side-0': '#111111', 'side-1': '#8a8a8a', 'side-2': '#4a4a4a', 'side-3': '#b5b5b5', 'side-4': '#2a2a2a', 'side-5': '#6b6b6b', 'side-6': '#9e9e9e', 'side-7': '#3c3c3c', accent: '#111111', accent2: '#111111', 'focus-ink': '#111111',
   hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111', plain: '#111111', harm: '#111111',
@@ -349,6 +351,22 @@ export function manaCss(scope = '.mana-root') {
     // a bare region: no plate, its parts their own frame (a fight's bars, its combo over the round), the words haloed
     `${s} .mana-place>.mana-region[data-variant=bare]{background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0;text-shadow:${v('halo')}}`,
     `${s} .mana-place>.mana-region[data-variant=bare] .mana-track{background:${v('panel')};box-shadow:0 0 0 ${u(3)} ${v('panel')}}`,
+    // A FIGHT'S BARS, over the round: lit, not flat. The track sunk (a shade inside its top edge), the bar standing off
+    // the round on a soft shadow; each fill glossed (a highlight across its top, a shade at its foot) with a bright
+    // leading edge. A hit: the fill drops quickly, the slice it took flashes once, the chip holds what the combo took and
+    // drains after a beat once the game gives the ghost back as the value; a gain glows across what it filled; a super
+    // with a stock ready keeps a sheen running along it. All on the theme's motion: less motion stills the sheen and the
+    // glides, less flash dims the slice, a hit-stop holds them.
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-track{border:0;border-radius:${u(2)};background:linear-gradient(color-mix(in srgb,${v('shade')} 55%,transparent),color-mix(in srgb,${v('gleam')} 5%,transparent)),${v('panel')};box-shadow:inset 0 ${u(2)} ${u(4)} color-mix(in srgb,${v('shade')} 75%,transparent),0 0 0 ${u(2)} ${v('panel')},0 ${u(4)} ${u(10)} color-mix(in srgb,${v('shade')} 35%,transparent)}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-track i{overflow:hidden;box-shadow:inset ${u(-2)} 0 0 color-mix(in srgb,${v('gleam')} 70%,transparent);transition:width calc(${v('glide')} * .55) ${v('ease')}}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-track :is(i,u)::after{content:"";position:absolute;inset:0;background:linear-gradient(color-mix(in srgb,${v('gleam')} 55%,transparent),color-mix(in srgb,${v('gleam')} 16%,transparent) 40%,transparent 52%,color-mix(in srgb,${v('shade')} 22%,transparent));box-shadow:inset 0 ${u(-2)} 0 color-mix(in srgb,${v('shade')} 22%,transparent);pointer-events:none}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-track u{background:${v('harm')};opacity:1;transition:width calc(${v('glide')} * 2.6) cubic-bezier(.45,0,.65,1) calc(${v('glide')} * 1.8)}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-track s{display:block;position:absolute;top:0;bottom:0;z-index:2;background:${v('gleam')};pointer-events:none;mix-blend-mode:screen}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-track s[data-ch]{animation:mana-moved calc(${v('dur')} * 3) ease-out both}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-track s[data-ch=up]{background:${v('accent2')};animation-duration:calc(${v('dur')} * 4)}`,
+    `${s}[data-flash=reduced] .mana-place>.mana-region[data-variant=bare] .mana-track s[data-ch]{animation:mana-moved-dim calc(${v('dur')} * 3) ease-out both}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-bar[data-ready=yes]:not([data-variant=hp]) .mana-track i::before{content:"";position:absolute;top:0;bottom:0;left:0;width:35%;background:linear-gradient(90deg,transparent,color-mix(in srgb,${v('gleam')} 60%,transparent),transparent);animation:mana-runs 1.8s ease-in-out infinite;animation-play-state:${v('loop')}}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-bar[data-ready=yes]:not([data-variant=hp]) .mana-track{box-shadow:inset 0 ${u(2)} ${u(4)} color-mix(in srgb,${v('shade')} 75%,transparent),0 0 0 ${u(2)} ${v('panel')},0 0 ${u(12)} color-mix(in srgb,${v('xp')} 55%,transparent)}`,
     // (over the round, the two sides are each other's reflection: a row's parts centred across whichever end it runs
     // from, and figures in even widths, so a 1 and a 2 move nothing)
     `${s} .mana-place>.mana-region[data-variant=bare] .mana-stack[data-dir=row]:is([data-align=start],[data-align=end]){align-items:center}`,
@@ -395,7 +413,9 @@ export function manaCss(scope = '.mana-root') {
     `${s} :is(.mana-row,.mana-cell)>.mana-chip{position:absolute;left:calc(${u(12)} + ${v('mark')} * ${u(26)});top:${u(10)};bottom:${u(10)};width:${u(6)};height:auto;margin:0}`,
     `${s} .mana-table td[data-lead=yes]{font-weight:800}`, `${s} .mana-table td[data-lead=yes]::after{content:" \\25B2";font-size:.7em;color:${v('accent2')}}`,
     // the live game's own: a bar's chip and its mirror, tables, dials, slots, what is off screen, where harm came from
-    `${s} .mana-track u{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(-45deg,${v('ink')} 0 1px,transparent 1px 3px);opacity:.55}`,
+    `${s} .mana-track u{position:absolute;top:0;bottom:0;left:0;background:repeating-linear-gradient(-45deg,${v('ink')} 0 1px,transparent 1px 3px);opacity:.55}`,
+    // (the fill over its chip, the marks over both)
+    `${s} .mana-track i{position:relative;z-index:1}`, `${s} .mana-track b{z-index:2}`, `${s} .mana-track s{display:none}`,
     `${s} .mana-bar[data-dir=rtl]>.mana-num{order:1}`, `${s} .mana-bar[data-dir=rtl]>.mana-track{order:2}`, `${s} .mana-bar[data-dir=rtl]>.mana-label{order:3}`,
     `${s} .mana-badge[data-variant=strong]{background:${v('ink')};color:${v('panel')};border-color:${v('ink')}}`,
     `${s} .mana-badge[data-variant=muted]{border-style:dashed;color:${v('mid')}}`,
@@ -454,6 +474,8 @@ const KEYFRAMES = [
   `@keyframes mana-gain{0%{opacity:0}15%{opacity:1}100%{opacity:0;translate:0 calc(${v('travel')} * -2.4)}}`,
   `@keyframes mana-ring{from{opacity:1}to{opacity:0;scale:${pop(2.5)}}}`,
   `@keyframes mana-turn{50%{box-shadow:inset 9px 0 0 ${v('turn')},inset 0 0 0 2px ${v('turn')}}}`,
+  `@keyframes mana-moved{from{opacity:.95}to{opacity:0}}`, `@keyframes mana-moved-dim{from{opacity:.3}to{opacity:0}}`,
+  `@keyframes mana-runs{from{transform:translateX(-110%)}to{transform:translateX(300%)}}`,
   `@keyframes mana-sheen{from{transform:translateX(-120%) skewX(-20deg)}to{transform:translateX(320%) skewX(-20deg)}}`,
   // the focus lands: a small pop on the item the cursor moves to (the greybox's pop is 1: it lands still)
   `@keyframes mana-pick{from{translate:${v('snap-from')};scale:${pop(0.4)}}}`,

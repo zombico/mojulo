@@ -101,6 +101,29 @@ describe('mana-ui: the fight\'s language', () => {
   });
 });
 
+describe('mana-ui: a bar that moves with what happened', () => {
+  it('a hit marks the slice it took once, the chip holds what the combo took and drains to the value, a stock ready says so', () => {
+    const S = { hp: 1000, ghost: 1000, sup: 0.6 };
+    const rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'region', props: { at: 'top', variant: 'bare' }, children: [
+      { use: 'bar', props: { value: { bind: 'hp' }, max: 1000, ghost: { bind: 'ghost' }, variant: 'hp', figures: false } },
+      { use: 'bar', props: { value: { bind: 'sup' }, max: 3, segments: 3, variant: 'xp', figures: false } },
+    ] }] }, screens: {} }, { read: (p) => S[p] });
+    expect(rt.view()).not.toContain('mana-moved');
+    const now = () => { rt.tick(); return rt.view(); };
+    S.hp = 700;
+    const hit = now();
+    // (the slice from 70% to 100%, marked down, keyed so a new hit replays it; the chip still reaching where it began)
+    expect(hit).toMatch(/<s class="mana-moved" data-ch="down" data-key="ch1" style="left:70%;width:30%">/);
+    expect(hit).toContain('<u style="width:100%">');
+    expect(now()).toContain('data-key="ch1"');
+    S.ghost = 700;
+    expect(now()).toContain('<u style="width:70%">');
+    expect(hit).not.toMatch(/data-ready="yes"[^>]*data-variant="xp"/);
+    S.sup = 1.1;
+    expect(now()).toMatch(/data-ready="yes"[^>]*data-variant="xp"/);
+  });
+});
+
 describe('mana-ui: a table\'s column said in the game\'s language', () => {
   it('a column labelled by a word reads as the word, never as an object', () => {
     const S = JSON.parse(JSON.stringify(SAMPLE_STATE)), at = (p) => manaUi.readPath(S, p);

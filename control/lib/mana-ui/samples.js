@@ -105,9 +105,9 @@ export const SAMPLE_STATE = Object.freeze({
   // a fighting game's (idioms-fight.js): the two sides, the round, the callouts and the announcer, training, the roster,
   // the command list and the match's end
   fight: {
-    p1: { tag: 'P1', name: 'Ayla', style: 'Rushdown', hp: 620, hpMax: 1000, ghost: 780, rounds: 1, super: 2, guard: 640, burst: 1, combo: 7, comboDamage: 238,
+    p1: { tag: 'P1', name: 'Ayla', style: 'Rushdown', hp: 620, hpMax: 1000, ghost: 780, rounds: 1, super: 2.4, stock: 2, guard: 640, burst: 1, combo: 7, comboDamage: 238,
       calls: [{ id: 'c1', text: 'Counter', sub: '+62', weight: 'normal' }, { id: 'c2', text: 'Spark', sub: '+141', weight: 'major', tier: 'rare' }] },
-    p2: { tag: 'P2', name: 'Bram', style: 'Grappler', hp: 410, hpMax: 1000, ghost: 410, rounds: 1, super: 1, guard: 1000, burst: 0, combo: 0, comboDamage: 0, calls: [{ id: 'c3', text: 'Reversal', weight: 'normal' }] },
+    p2: { tag: 'P2', name: 'Bram', style: 'Grappler', hp: 410, hpMax: 1000, ghost: 410, rounds: 1, super: 1.3, stock: 1, guard: 1000, burst: 0, combo: 0, comboDamage: 0, calls: [{ id: 'c3', text: 'Reversal', weight: 'normal' }] },
     time: 47, round: 3, toWin: 2, stocks: 3, guardMax: 1000, arena: 'Training ground',
     announcer: [{ id: 'r3', text: 'Final round', weight: 'decisive' }, { id: 'go', text: 'Fight!', weight: 'decisive' }],
     pausedBy: { tag: 'P1', side: 0 },

@@ -23,7 +23,9 @@
  *      halo, each bar its own frame); its looks (the theme cards of the family `fight`) never lean, stack, break out
  *      or slam: a fighting game's, never a party game's. The elements do their talking: the frame says no word but
  *      the names, training's readouts carry no headings, a stock is its numeral.
- *   9. PICKED BY THEIR LOOK. The versus screens give each fighter its art at full height at its own side; the select
+ *   9. THE BARS ARE LIT AND MOVE WITH WHAT HAPPENED. Over the round a bar is glossed and sunk, a hit drops it and
+ *      flashes the slice it took, the chip drains after a beat, a stock ready runs a sheen (css.js, a fight's bars).
+ *  10. PICKED BY THEIR LOOK. The versus screens give each fighter its art at full height at its own side; the select
  *      shows a fighter's style and figures only when the game asks (`stats`).
  *
  * Every word it says is the runtime's (WORDS) or the game's, so a fight ships in every language its game does.
@@ -71,7 +73,7 @@ const healthHalf = (n, rtl) => {
 const meterHalf = (n, rtl) => {
   const k = (f) => P(`p${n}${f}`), dir = rtl ? { dir: 'rtl' } : {};
   const sup = { use: 'bar', props: { value: k('super'), max: P('stocks'), segments: P('stocks'), variant: 'xp', figures: false, ...dir } };
-  const stocks = txt(k('super'), 'display'), burst = { use: 'pips', props: { value: k('burst'), max: 1, shape: 'diamond' } };
+  const stocks = txt(k('stock'), 'display'), burst = { use: 'pips', props: { value: k('burst'), max: 1, shape: 'diamond' } };
   return row(rtl ? [burst, sup, stocks] : [stocks, sup, burst], rtl ? 'end' : 'start', 'tight');
 };
 // a side of the select, at its own edge (the first fighter's on the left, the second's on the right): the seat's tag in
@@ -103,10 +105,10 @@ export const FIGHT_IDIOMS = {
   },
   'fight-meters': {
     kind: 'hud', about: 'the foot of the screen: each fighter\'s super from its own corner in stocks (a stock a segment) and its burst, mirrored',
-    reads: 'p1, p2: { super, burst }, stocks', emits: '—',
-    params: ['p1super', 'p1burst', 'p2super', 'p2burst', 'stocks'],
+    reads: 'p1, p2: { super (in stocks, a fraction filling the next), stock (the stocks ready, whole), burst }, stocks', emits: '—',
+    params: ['p1super', 'p1stock', 'p1burst', 'p2super', 'p2stock', 'p2burst', 'stocks'],
     node: region('bottom', [row([meterHalf(1, false), meterHalf(2, true)], 'apart', 'loose', true)], {}, 'bare'),
-    example: { p1super: f('p1.super'), p1burst: f('p1.burst'), p2super: f('p2.super'), p2burst: f('p2.burst'), stocks: f('stocks') },
+    example: { p1super: f('p1.super'), p1stock: f('p1.stock'), p1burst: f('p1.burst'), p2super: f('p2.super'), p2stock: f('p2.stock'), p2burst: f('p2.burst'), stocks: f('stocks') },
   },
   'fight-combo': {
     kind: 'hud', about: 'a side\'s combo while it runs, at that side\'s edge (left for the first fighter, right for the second): the hits as a display numeral, the damage under it; each hit pops it',

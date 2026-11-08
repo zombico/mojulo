@@ -79,9 +79,9 @@ keeps its place.
   rim; flaring as the limb strikes, and a blow struck with it coats the one struck in the element. Drawn only: the sim
   never reads it, and the same fight is the same fight. `styles.mjs --elements --systems spark` bakes them.
 - **The fight's language in mana-ui** (`idioms-fight.js`, shelf `fight`; `docs/mana-ui.md`, "The fight's language"):
-  a fighting game's own UI, quiet and side against side, grown from the shared templates and held to nine principles
+  a fighting game's own UI, quiet and side against side, grown from the shared templates and held to ten principles
   (two sides and one centre, health the frame, the fight never covered, a callout a word, the round's ritual, meters in
-  stocks, the hit-stop holding it, quiet, picked by their look). In the fight: `fight-health` (the bars meeting at the clock, read by length,
+  stocks, the hit-stop holding it, quiet, the bars lit and moving, picked by their look). In the fight: `fight-health` (the bars meeting at the clock, read by length,
   a guard line under each), `fight-meters`, `fight-combo`, `fight-callouts`, `fight-announcer`, and training's
   `input-display`, `frame-meter`, `training-stats`; around it: `versus-splash`, `fighter-select` (each seat's fighter
   at its own edge, the roster between them), `fight-pause`, `command-list`, `training-settings`, `fight-results`. Its
@@ -89,7 +89,11 @@ keeps its place.
   every language its game does. The elements do their talking: the frame says no word but the names, training's
   readouts carry no headings; the versus screens give each fighter its art at full height (`portrait` `size: xl`,
   `caption: false`), and the select shows style and figures only with `stats: true`, so a fighter is picked by their
-  look. The second side is the first's reflection, part for part (held by `fight.test.js`): a row set at its end
+  look. The bars are lit and move with what happened: over the round the track sinks and each fill is glossed with a
+  bright leading edge; a hit drops the fill and flashes the slice it took once (a new mark on the track, `mana-moved`,
+  keyed by the change), the chip holds what the combo took and drains after a beat (drawn from the start under the
+  fill, so it drains rather than vanishing), a gain glows, a super with a stock ready runs a sheen (`data-ready`), its
+  stocks a whole numeral; less motion, less flash and a hit-stop each have their say. The second side is the first's reflection, part for part (held by `fight.test.js`): a row set at its end
   runs from that end, and over the round a row's parts are centred across and figures take even widths. A bar takes `size: large | thin` and `figures: false`; a region takes `variant: bare`
   (no plate, its parts their own frame); a filling row whose children say `fill` shares its width among them alone.
   Its looks are new theme cards of the family `fight`: `fight-clean` (the default), `fight-cel` (anime) and

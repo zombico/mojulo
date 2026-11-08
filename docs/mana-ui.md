@@ -570,7 +570,7 @@ a halo in the panel's colour so it reads over any scene.
 A fighting game's UI is its own language, not a party game's: quiet so the fight reads, side against side. It is grown
 from the shared templates (the live fight's bars, meters and combo; the moments; the selects, the pause and the
 results) and drawn by the same components, sheet and themes. It lives in `idioms-fight.js` (shelf `fight`) and holds to
-nine principles:
+ten principles:
 
 1. **Two sides, one centre.** Everything mirrors across the centre line: the first fighter's parts on the left, the
    second's on the right, its bars filling from the right. Each side is keyed to its kit (the theme's `sides` 0 and 1)
@@ -596,7 +596,13 @@ nine principles:
    word on its halo, each bar its own frame). Its looks never lean, stack, break out or slam. The elements do their
    talking: the frame says no word but the names (no round caption, no meter labels, no figures on a bar), training's
    readouts carry no headings, a stock is its numeral.
-9. **Picked by their look.** The versus screens give each fighter its art at full height (`portrait` `size: xl`) at its
+9. **The bars are lit and move with what happened.** Over the round a bar is not flat: its track sunk, the bar on a
+   soft shadow, each fill glossed with a bright leading edge. A hit drops the fill quickly and flashes the slice it
+   took once; the chip (`ghost`) holds what the combo took and drains after a beat once the game gives it back as the
+   value; a gain glows across what it filled; a super with a stock ready keeps a sheen running along it, its stocks a
+   whole numeral beside it. All on the theme's motion: less motion stills the sheen and the glides, less flash dims the
+   slice, a hit-stop holds them.
+10. **Picked by their look.** The versus screens give each fighter its art at full height (`portrait` `size: xl`) at its
    own side; the select shows a fighter's style and figures only when the game asks (`stats: true`).
 
 Its words are the runtime's (`WORDS`: round, fight, K.O., counter, punish, reversal, parry, spark, guard, burst, the
