@@ -51,3 +51,7 @@
   over-the-shoulder camera stood its eye 3 m nearer than its numbers (the stand-off a chase camera keeps), on the hero's
   head with the hero under the frame and the crosshair off the rounds' line; it stands where its numbers say now (a
   camera's `standOff`, 0 for the shoulder), the hero in the frame from behind, off its right shoulder.
+- **A shooter over the shoulder plays with the mouse.** Its camera turned on A and D and only a pad's trigger fired,
+  though its legend said "click fire". A third-person hero that shoots now looks as first person does: a click captures
+  the mouse, the mouse turns and pitches the hero, A and D step aside, the left button fires and the right one aims, and
+  the legend says "A / D  step aside · mouse  look". The combat book's shoulder page plays the same way.

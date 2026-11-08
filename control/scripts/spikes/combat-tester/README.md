@@ -160,9 +160,8 @@ runtime adds two things to every arc:
 Whether a realistic body should finish a jump it began on the ground once the ground has gone is a design call; today
 it does, and a level laid from the flat jump would be beaten by it.
 
-**The shoulder camera turns on A and D.** The game's own legend on a third-person shooter says "A / D turn": no mouse
-look, as the movement map read. The gym's eye page for the same game looks with the mouse (`turnMode: 'look'`), so the
-two can be played side by side.
+**The shoulder camera turned on A and D** (closed after phase 5, below). The game's own legend on a third-person shooter
+said "A / D turn": no mouse look, as the movement map read. Both of a game's gym pages look with the mouse now.
 
 ### One opt-in in lib
 
@@ -287,16 +286,24 @@ the player as it should. The hero was not drawn at all, and two bugs in the game
   eye, so the crosshair the player saw was off the rounds' line too. A camera's `standOff` (0 for the shoulder,
   gameworld/quick.js SHOULDER) stands the eye where the rule puts it; the wall pull-in still applies.
 
-Still open over the shoulder: the camera turns on A and D (no mouse look), and on a page without mouse look nothing but
-a pad's trigger fires, though the legend says "click fire"; the kit's gun is not in the hero's hands.
+- **The shoulder's controls.** The camera turned on A and D and, on a page without mouse look, nothing but a pad's trigger
+  fired, though the legend said "click fire". The shoulder camera carries `mouseLook` now (gameworld/quick.js SHOULDER),
+  and a third-person hero that shoots stands on `turnMode: 'look'` (levels.js): a click captures the mouse, the mouse
+  turns and pitches the hero, A and D step aside, the left button fires and the right one aims; the legend says
+  "A / D  step aside · mouse  look". Driven on a made Cogs page in headless Chromium (200 px left turned it 0.5 rad left,
+  100 px up pitched it 0.25 rad, D moved it 2.3 m across with its heading kept, the held button fired, the right button
+  raised the sights and let them down), and held by `design-game.quick.test.js`. (Headless Chromium's pointer lock sends
+  its own recentring moves; a harness drops them and sends its own `movementX`.)
+
+Still open over the shoulder: the kit's gun is not in the hero's hands.
 
 ## Gaps, in the order they move a measured number
 
 Closed in phase 4: the sprint, the round's energy (and the pellets), the automatic archetypes' bloom and climb, the
 hero-less first person, the boost a person cannot have, the walk. Still open:
 
-1. **The camera's aim over the shoulder**: the shoulder camera turns on A and D (no mouse look), and its rounds go to
-   the camera's crosshair.
+1. **The camera's aim over the shoulder**: the mouse looks now; its rounds go to the camera's crosshair, which nothing
+   measures (the peek neither).
 2. **A sprint clip**: the sprint runs the jog's clip faster (no sprint gait is picked at speed); the stance clips (none
    exist: crouch, prone).
 3. **Crouch** (half cover is a third of an arena's cover and nothing uses it), and the slide and mantle the contemporary
@@ -308,5 +315,5 @@ hero-less first person, the boost a person cannot have, the walk. Still open:
 ## Not measured yet
 
 Travelling rounds (lob, the bow: their own measure), the floor's pocks and a burst's crater, the stances (none exist),
-the camera's aim (the shoulder's mouse look and the peek: the gym shows it, nothing measures it), animation (the clips
+the camera's aim (the shoulder's look and the peek: the gym plays them, nothing measures them), animation (the clips
 at these speeds), a team or control arena (the grammar lays them; the grown laws have not been run on one).

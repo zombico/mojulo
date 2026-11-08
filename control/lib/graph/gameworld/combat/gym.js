@@ -197,7 +197,7 @@ export function reachOnBoxes(pilot, M) {
 // (the shooter's over-the-shoulder camera: gameworld/quick.js SHOULDER, its eye where the rule puts it)
 const SHOULDER_CAM = { rule: 'follow', ...SHOULDER };
 export function otherCamera(own, pilot) {
-  if (own?.rule === 'eye') return pilot.body?.type === 'figure-rig' ? { cam: { ...SHOULDER_CAM, target: pilot.id }, rule: {}, name: 'shoulder' } : null;
+  if (own?.rule === 'eye') return pilot.body?.type === 'figure-rig' ? { cam: { ...SHOULDER_CAM, target: pilot.id }, rule: { turnMode: 'look' }, name: 'shoulder' } : null;
   return { cam: { rule: 'eye', target: pilot.id, height: 1.6, mouseLook: true, hideTarget: true }, rule: { turnMode: 'look', lookPitch: true }, name: 'eye' };
 }
 export function gymReadout(m, gate) {

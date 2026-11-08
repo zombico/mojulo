@@ -653,7 +653,11 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
   // (a 3D platformer's chase, cameras.js STEERED: the hero moves the way the camera looks; orbit's look is the player's)
   const steered = STEERED[cam] ?? null;
-  const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : steered ? `W A S D  move${steered === 'orbit' ? ' · drag / right stick  look' : ''}` : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
+  // what the goal stands beside the pilot (EXTRA, below), read first: a shooter over the shoulder is a hero the mouse
+  // turns, as in first person (quick.js SHOULDER `mouseLook`); so is a hero carrying a gun (armedPilot)
+  const X0 = extra ? extra(ends) : goalCast ? goalCast(ends) : null;
+  const shoulder = !!heroRef && !look && (cam ?? 'third-person') === 'third-person' && !!(X0?.camera?.mouseLook || shotItem(G));
+  const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : steered ? `W A S D  move${steered === 'orbit' ? ' · drag / right stick  look' : ''}` : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look || shoulder ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${heroRef && carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${heroRef && shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (a runner's own goal is the run: a crash ends it, the score its result)
   const placed0 = goal ? goal(ends) : stage.section === 'runner' ? [{ kind: 'runner' }] : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
@@ -707,7 +711,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     };
   } else if (heroRef) {
     // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
-    const camRule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : steered ? { move: 'camera' } : undefined;
+    const camRule = look || shoulder ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : steered ? { move: 'camera' } : undefined;
     // the world's feel (feel/lower.js): its template's card lowered over the hero's platform rule, the camera's way of
     // moving kept; no feel, the hero's own rule as it was
     const written = G.feel ? feelRule(G.feel) : null;
@@ -769,7 +773,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (a level's own goal, `goalCast`: quick.js levelGoalCast, the same shape, or null when it stands nothing; its play
   // laid beside the systems' own, never over it)
   let extraPlay = null, blocks = null, posts = null, pads = null;
-  const X = extra ? extra(ends) : goalCast ? goalCast(ends) : null;
+  const X = X0;
   if (X) {
     const p0 = pilotPart.entities[0];
     // (a written feel wins over a goal's own feet: a deathmatch's shooter pole moves the pilot only where no feel is written)

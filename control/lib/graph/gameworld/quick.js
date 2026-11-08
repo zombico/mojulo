@@ -1349,7 +1349,9 @@ export function shootCast(quick, ends, ref, { hero = false, camera, G = null } =
 // keeps short of it: the eye the rounds converge from (the simulation's camera) is the eye the player sees, and the
 // hero stands in the frame. With the stand-off the page drew the eye on the hero's head, the hero under the frame and
 // the crosshair off the rounds' line (2026-11-08, the combat tester)
-export const SHOULDER = Object.freeze({ dist: 2.8, height: 1.8, shoulder: 0.75, lookH: 1.55, lead: 10, lerp: 16, pitchFollow: 1, standOff: 0 });
+// `mouseLook`: the mouse turns and pitches the hero (the level's rule `turnMode: 'look'`, levels.js), A and D step aside,
+// a click fires and the right button aims, as in first person; before, A and D turned it and only a pad's trigger fired
+export const SHOULDER = Object.freeze({ dist: 2.8, height: 1.8, shoulder: 0.75, lookH: 1.55, lead: 10, lerp: 16, pitchFollow: 1, standOff: 0, mouseLook: true });
 export const shoulderOf = (camera, hero) => (hero && camera === 'third-person' ? SHOULDER : null);
 
 /** A deathmatch's legend: fire, and on the shooter pole its feet and its kit. */
