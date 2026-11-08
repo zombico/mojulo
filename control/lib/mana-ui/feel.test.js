@@ -132,11 +132,16 @@ describe('mana-ui: the player\'s channels and the flash guard', () => {
   it('every animation that repeats breathes at under 3 a second (XAG 118), and repeats only where the theme moves', () => {
     const loops = sheet.split('\n').filter((l) => /animation:[^;}]*infinite/.test(l));
     expect(loops.length).toBeGreaterThan(0);
+    // a load's activity mark is a signal, not an ornament: it moves in every theme (a load must never look frozen), and
+    // less motion breathes it instead of turning it
+    const signal = (l) => /\.mana-spin|\.mana-sweep/.test(l);
     for (const l of loops) {
       const secs = Number(l.match(/animation:\S+ ([\d.]+)s/)[1]);
       expect(1 / secs, l.slice(0, 80)).toBeLessThan(3);
-      expect(l, 'a loop the greybox and less motion hold').toContain('animation-play-state:var(--mana-loop)');
+      if (!signal(l)) expect(l, 'a loop the greybox and less motion hold').toContain('animation-play-state:var(--mana-loop)');
     }
+    expect(sheet).toContain('.r[data-motion=reduced] .mana-spin,.r[data-motion=reduced] .mana-track[data-known=no] .mana-sweep{animation:mana-pulse');
+    expect(sheet).toMatch(/@media \(prefers-reduced-motion:reduce\)\{\.r \.mana-spin,[^{]*\{animation:mana-pulse/);
   });
   it('less flash is the player\'s own, apart from less motion: no cover, no sheen, a change pops without flashing', () => {
     expect(sheet).toMatch(/\.r\[data-flash=reduced\]\{--mana-sheen:0!important/);

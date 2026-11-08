@@ -9,7 +9,7 @@ const stats = (atk, def, mag, spd) => ({ atk, def, mag, spd });
 
 export const SAMPLE_STATE = Object.freeze({
   game: { title: 'Ashen Vale', subtitle: 'A greybox adventure', version: 'v0.1 greybox' },
-  load: { progress: 64, ready: false, place: 'The Lower Vale', tip: 'Guarding halves the next blow.' },
+  load: { progress: 64, ready: false, place: 'The Lower Vale', step: 'Raising the gatehouse', tips: ['Guarding halves the next blow.', 'A lantern keeps the hounds at bay.', 'Rest at a shrine to keep what you carry.'] },
   settings: { sound: 1, music: 0, subtitles: 1, volume: 7, fov: 90, difficulty: 'Normal', shake: 1, text: 'Medium' },
   player: { name: 'Ayla', hp: 64, hpMax: 80, mp: 10, mpMax: 20, lives: 2, livesMax: 3, gold: 240, weapon: 'Carbine', ammo: 12, reserve: 90, heading: 30, score: 1450, seconds: 312 },
   party: [
@@ -153,6 +153,6 @@ export const SAMPLE_STATE = Object.freeze({
 // words; a word one lacks reads in English, so the board shows the fallback too
 export const SAMPLE_LANGUAGES = Object.freeze({
   en: { languageName: 'English' },
-  ja: { languageName: '日本語', select: '決定', back: '戻る', change: '変更', tabs: 'タブ', resume: '再開', language: '言語', resetDefaults: '初期設定に戻す', loading: 'ロード中', tip: 'ヒント', rank: 'ランク', party: 'パーティー', status: 'ステータス', equip: 'そうび', skills: 'スキル', nothingHere: '何もありません', more: 'ほか{n}件', on: 'オン', off: 'オフ' },
-  es: { languageName: 'Español', select: 'Seleccionar', back: 'Atrás', change: 'Cambiar', tabs: 'Pestañas', resume: 'Reanudar', language: 'Idioma', resetDefaults: 'Restablecer', loading: 'Cargando', tip: 'Consejo', rank: 'Rango', party: 'Grupo', nothingHere: 'Aquí no hay nada', more: '{n} más', on: 'Sí', off: 'No' },
+  ja: { languageName: '日本語', select: '決定', back: '戻る', change: '変更', tabs: 'タブ', resume: '再開', language: '言語', resetDefaults: '初期設定に戻す', loading: 'ロード中', tip: 'ヒント', tips: 'ヒント', stillLoading: 'まだ読み込んでいます…', retry: 'もう一度', continue: 'つづける', rank: 'ランク', party: 'パーティー', status: 'ステータス', equip: 'そうび', skills: 'スキル', nothingHere: '何もありません', more: 'ほか{n}件', on: 'オン', off: 'オフ' },
+  es: { languageName: 'Español', select: 'Seleccionar', back: 'Atrás', change: 'Cambiar', tabs: 'Pestañas', resume: 'Reanudar', language: 'Idioma', resetDefaults: 'Restablecer', loading: 'Cargando', tip: 'Consejo', tips: 'Consejos', stillLoading: 'Sigue cargando…', retry: 'Reintentar', continue: 'Continuar', rank: 'Rango', party: 'Grupo', nothingHere: 'Aquí no hay nada', more: '{n} más', on: 'Sí', off: 'No' },
 });

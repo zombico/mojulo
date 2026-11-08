@@ -124,3 +124,9 @@
   through; words with no panel of their own over a theme's backdrop shapes (a title menu, a loading screen) get a soft
   band behind them; and a preview picture shrinks rather than push a mode's description off its panel. Titles and
   big display words can still perform.
+- **Loading screens that behave.** The progress bar never jumps backwards, and when the game cannot say how far along
+  it is, the bar sweeps instead of showing a made-up number. Something always moves so the game never looks frozen,
+  and a load that stalls says it is still loading. Tips turn on their own or by hand. A quick load never flashes its
+  screen; a slow one stays long enough to be read. A button held through the load does not skip the continue prompt.
+  A failed load says why and offers retry or a way back to the title. Back does nothing unless the game allows
+  cancelling. The screen covers what is half built behind it.

@@ -130,7 +130,7 @@ export function buildManaUi() {
     select: 'Select', change: 'Change', tabs: 'Tabs', back: 'Back', start: 'Start', confirm: 'Confirm', reset: 'Reset', delete: 'Delete', done: 'Done',
     resume: 'Resume', rebind: 'Rebind', nextTab: 'Next tab', detail: 'Detail', language: 'Language',
     nothingHere: 'Nothing here', more: '{n} more', on: 'On', off: 'Off', points: 'Points',
-    keyArt: 'key art', keyArtPlace: 'key art of the place', loading: 'Loading', progress: 'Progress', tip: 'Tip', continue: 'Continue', gettingReady: 'Getting the world ready…',
+    keyArt: 'key art', keyArtPlace: 'key art of the place', loading: 'Loading', progress: 'Progress', tip: 'Tip', tips: 'Tips', continue: 'Continue', gettingReady: 'Getting the world ready…', stillLoading: 'Still loading…', retry: 'Retry', quitToTitle: 'Quit to title',
     modes: 'Modes', players: 'Players', playersCount: 'players', roster: 'Roster', random: 'Random', resetDefaults: 'Reset to defaults', action: 'Action', keysPad: 'Keys · Pad', rank: 'Rank',
     party: 'Party', hp: 'HP', mp: 'MP', sp: 'SP', status: 'Status', attack: 'Attack', defence: 'Defence', magic: 'Magic', speed: 'Speed', equip: 'Equip', nothingWorn: 'Nothing worn', skills: 'Skills', noSkills: 'No skills yet',
     cost: 'Cost', levelUp: 'Level up', level: 'Level', weight: 'Weight', kg: 'kg', slots: 'Slots', swapFor: 'Swap for', nothingFits: 'Nothing fits this slot',
@@ -169,6 +169,8 @@ export function buildManaUi() {
     legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
     // values
     text: { group: 'value', about: 'words in a type role; `tone` what a number means (a blow\'s kind: hit, crit, heal, miss, block), the theme\'s colour', props: { value: [T, '', true], role: [ROLES, 'body'], tone: [A, 'plain'] } },
+    // a load: the unglamorous rules each game relearns (docs/mana-ui.md, loading)
+    loader: { group: 'value', about: 'a load in progress, honest about it: the progress never goes back (null: not known, a sweep), an activity mark that moves even while the page is busy, the step it is on, a still-loading line once nothing has moved for `stall` seconds, tips that turn every `turn` seconds (left and right turn them too; `seed` mixes their order), a failure said with its words; `auto` goes on by itself once ready (after `least` seconds on screen, or at once if ready before `grace`), else it waits for the player (a press made in the first moment after ready is not an answer); on the game\'s clock (host.now)', props: { progress: [A], max: [N, 100], step: [T], tips: [L, []], tip: [T], ready: [B, false], error: [T], auto: [B, false], stall: [N, 10], turn: [N, 8], seed: [N, 0], least: [N, 1], grace: [N, 0.3] }, verbs: ['done'] },
     stat: { group: 'value', about: 'a label and its number; `count` counts it up from zero as it first shows (a results row, on the game\'s clock with host.countUp)', props: { label: [T, '', true], value: [T, '', true], max: [T], count: [B, false] } },
     bar: { group: 'value', about: 'a value against its max; segments mark phases or chunks; `ghost` the value before the last hit (drawn hatched, the chip a fighting game shows); rtl fills from the right (the second fighter)', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0], ghost: [N, 0], dir: [['ltr', 'rtl'], 'ltr'] } },
     pips: { group: 'value', about: 'a count as marks: hearts, pips', props: { value: [N, 0, true], max: [N, 3, true], shape: [Object.keys(PIP_SHAPES), 'pip'], label: [T] } },
@@ -360,7 +362,7 @@ export function buildManaUi() {
     // a number that changed counts to its new value over countUp seconds of the game's clock (0: it lands at once)
     if (H.countUp !== undefined && !(typeof H.countUp === 'number' && H.countUp >= 0 && H.countUp <= 10)) throw new Error('host.countUp is the seconds a changed number counts for, 0 to 10 (0: at once)');
     const COUNT = H.now && H.countUp ? H.countUp : 0;
-    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), held: false, calm: false, dim: false, text: 1, plate: null, nav: null, pressed: null, language: startLanguage, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in' };
+    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), loads: new Map(), later: [], guard: -Infinity, held: false, calm: false, dim: false, text: 1, plate: null, nav: null, pressed: null, language: startLanguage, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in' };
     // a sound the UI makes, if the host listens for it: an effect like any other, played by the host
     // (a cursor's sound says the way it went, a stepper's the step it took, so a sound set can pitch them)
     const cue = (name, seat = 0, more) => { if (!S.booting && heard.has(name) && H.act) H.act({ sound: name, ...(more || {}) }, { screen: top(), key: null, verb: 'cue', seat }); };
@@ -456,6 +458,40 @@ export function buildManaUi() {
       const t = S.input === 'pad' ? G.pad && (G.pad[S.layout] || G.pad.xbox) : S.input === 'xr' ? G.xr : S.input === 'touch' ? G.touch : G.keys;
       return t && t[action] ? String(t[action]) : null;
     };
+    // A LOAD on the game's clock: what it has shown (the best progress, never less), when it last moved, the tip up, when
+    // it went ready; what it does next is due at a time (a tip turns, the still-loading line, going on by itself)
+    const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+    // a mixed order with no dice: a stride through the tips that visits each once before any comes again
+    const tipAt = (i, n, seed) => { if (!seed || n < 3) return i % n; let st = Math.max(1, Math.floor(n * 0.618)); while (gcd(st, n) !== 1) st += 1; return (Math.abs(Math.floor(seed)) + i * st) % n; };
+    function loadOf(key, p, n, scope, ctx) {
+      const t = H.now ? Number(H.now()) : NaN, timed = isFinite(t);
+      let G = S.loads.get(key);
+      if (!G) { G = { at: timed ? t : 0, best: null, moved: timed ? t : 0, tip: 0, turned: timed ? t : 0, ready: null, fired: false }; S.loads.set(key, G); }
+      G.drawn = S.renders;
+      const max = p.max > 0 ? p.max : 100, raw = p.progress === null || p.progress === undefined || p.progress === '' ? null : Number(p.progress), known = raw !== null && isFinite(raw);
+      if (known) { const v = clamp(raw, 0, max); if (G.best === null || v > G.best) { G.best = v; G.moved = timed ? t : 0; } }
+      const failed = !!p.error, tips = [...p.tips, ...(p.tip ? [p.tip] : [])].map(words).filter(Boolean);
+      // ready: heard as it comes, and a press in its first moment is not an answer (a button held or mashed through the load)
+      if (p.ready && !failed && G.ready === null) { G.ready = timed ? t : 0; S.queued.push(['appear']); if (timed) S.guard = t + 0.35; }
+      if (!p.ready || failed) { G.ready = null; G.fired = false; }
+      if (failed && !G.failed) S.queued.push(['deny']);
+      // a failure cleared is a new attempt (a retry): its progress starts again
+      if (!failed && G.failed) { G.best = known ? clamp(raw, 0, max) : null; G.moved = G.at = timed ? t : 0; }
+      G.failed = failed;
+      if (timed && tips.length > 1 && t - G.turned >= Math.max(2, p.turn)) { G.tip += 1; G.turned = t; }
+      const graceUp = timed && G.ready === null && !failed && t - G.at < p.grace;
+      const stalled = timed && G.ready === null && !failed && t - G.moved >= Math.max(1, p.stall);
+      // going on by itself: once ready, after `least` on screen (at once if it was ready before anything showed)
+      if (p.auto && G.ready !== null && !G.fired) {
+        const go = !timed || G.ready - G.at < p.grace ? G.ready : Math.max(G.ready, G.at + p.least);
+        if (!timed || t >= go) { G.fired = true; if (n.on && n.on.done) S.later.push([effectsOf(n.on.done, scope, ctx), { key, n, scope }, 'done', 0]); }
+        else G.goAt = go;
+      }
+      const due = [tips.length > 1 ? G.turned + Math.max(2, p.turn) : Infinity, G.ready === null && !failed ? G.moved + Math.max(1, p.stall) : Infinity, graceUp ? G.at + p.grace : Infinity, !G.fired && G.goAt !== undefined ? G.goAt : Infinity];
+      G.due = timed ? Math.min(...due.filter((d) => d > t), Infinity) : Infinity;
+      ctx.loader = { key, tips: tips.length };
+      return { G, max, known, failed, tips, graceUp, stalled, tip: tips.length ? tips[tipAt(G.tip, tips.length, p.seed)] : null };
+    }
     let last = null;
     const uiOf = (id) => (S.ui[id] = S.ui[id] || { at: { 0: 0 }, tabs: {}, sel: {}, seatSel: {}, top: {}, vals: {} });
     const top = () => S.stack[S.stack.length - 1] || null;
@@ -532,7 +568,10 @@ export function buildManaUi() {
       const q = S.queued.splice(0), by = new Map();
       for (const [name, more] of q) { const was = by.get(name); if (!was) by.set(name, more ? { ...more } : undefined); else if (more && more.count) was.count = (was.count || 0) + more.count; }
       for (const [name, more] of by) cue(name, 0, more);
-      return last;
+      // what this draw set going (a load that goes on by itself) is done once it is drawn
+      const now = last;
+      for (const [eff, f, verb, seat] of S.later.splice(0)) run(eff, f, verb, seat);
+      return now;
     }
 
     // one tree drawn: U is its screen's state; `live` says whether it takes the focus (a HUD never does)
@@ -571,7 +610,8 @@ export function buildManaUi() {
         if (F.some((f) => !CHANGERS.includes(f.kind))) out.push({ action: 'accept', label: p.press === 'any' ? W('start') : W('select') });
         if (F.some((f) => CHANGERS.includes(f.kind))) out.push({ actions: ['left', 'right'], label: W('change') });
         if (ctx.tabs.length) out.push({ actions: ['tabPrev', 'tabNext'], label: W('tabs') });
-        if (p.layer === 'modal' || S.stack.length > 1 || (n.on && n.on.back)) out.push({ action: 'back', label: W('back') });
+        if (ctx.loader && ctx.loader.tips > 1) out.push({ actions: ['left', 'right'], label: W('tips') });
+        if ((p.layer === 'modal' || S.stack.length > 1 || (n.on && n.on.back)) && !(n.on && n.on.back && !effectsOf(n.on.back, {}, ctx).length)) out.push({ action: 'back', label: W('back') });
         return out;
       };
 
@@ -643,6 +683,21 @@ export function buildManaUi() {
           }
           case 'icon': return ['span', { class: cls, 'data-size': p.size, title: p.name }, initials(p.name)];
           case 'portrait': return ['div', { class: cls, 'data-size': p.size }, ['span', { class: 'mana-ph' }, initials(p.name)], p.name ? ['span', { class: 'mana-caption' }, p.name] : null];
+          case 'loader': {
+            const L = loadOf(key, p, n, scope, ctx), G = L.G, state = L.failed ? 'failed' : G.ready !== null ? 'ready' : 'loading';
+            // ready is whole, whatever the game last said
+            const full = state === 'ready', pctOf = full ? 100 : L.known && G.best !== null ? Math.floor((G.best / L.max) * 100) : null, filled = full || (L.known && G.best !== null);
+            return ['div', { class: cls, 'data-state': state, 'data-grace': L.graceUp ? 'yes' : null, role: 'progressbar', 'aria-busy': state === 'loading' ? 'true' : 'false', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': pctOf === null ? null : String(pctOf), 'aria-valuetext': L.failed ? p.error : state === 'ready' ? W('continue') : p.step || W('loading') },
+              ['div', { class: 'mana-loadline' },
+                // the activity mark: it moves while the load runs, however the progress stands (drawn by the compositor, so it
+                // moves even while the page is busy)
+                state === 'loading' ? ['span', { class: 'mana-spin', 'aria-hidden': 'true' }] : null,
+                ['span', { class: 'mana-label' }, p.step || ''],
+                pctOf !== null ? ['span', { class: 'mana-num' }, `${pctOf}%`] : null],
+              ['span', { class: 'mana-track', 'data-known': filled ? null : 'no' }, filled ? ['i', { style: `width:${pct(full ? 1 : G.best / L.max)}` }] : ['i', { class: 'mana-sweep' }]],
+              ['div', { class: 'mana-loadsay', 'aria-live': 'polite' }, L.failed ? ['span', { class: 'mana-text', 'data-tone': 'harm' }, p.error] : L.stalled ? ['span', { class: 'mana-caption' }, W('stillLoading')] : null],
+              L.tip ? ['p', { class: 'mana-tip', 'data-key': `tip${G.tip}` }, ['b', null, W('tip')], ' ', L.tip] : null];
+          }
           case 'image': return ['div', { class: cls, 'data-ratio': p.ratio }, ['span', { class: 'mana-caption' }, p.label || 'image']];
           case 'badge': { const c = changeOf(key, p.value); return ['span', { class: cls, 'data-variant': p.variant === 'plain' ? null : p.variant, 'data-turn': turnOf(p.turn, p.side), ...chOf(c) }, chip(p.side), p.value, gainOf(c)]; }
           case 'table': {
@@ -839,6 +894,8 @@ export function buildManaUi() {
         for (const k of [...S.seen.keys()]) if (mine(k) || mine(k.split(':')[0])) S.seen.delete(k);
         for (const k of [...S.lists.keys()]) if (mine(k)) S.lists.delete(k);
         for (const k of [...S.counts.keys()]) if (mine(k)) S.counts.delete(k);
+        for (const k of [...S.loads.keys()]) if (mine(k)) S.loads.delete(k);
+        S.guard = -Infinity;
       }
       uiOf(id);
       const was = S.stack.length;
@@ -972,8 +1029,15 @@ export function buildManaUi() {
       const U = uiOf(top()), f = last.focus[U.at[seat] || 0];
       // a screen still counting (a results board): accept lands every number at once, and does nothing else
       if (action === 'accept' && countingOn(top())) { const mine = mineOf(top()); for (const [k, K] of S.counts) if (mine(k)) K.done = true; cue('skip', seat); render(); return true; }
+      // a press in the first moment after a load went ready was made before the player could see it: not an answer
+      if (action === 'accept' && H.now && Number(H.now()) < S.guard) return true;
       // press start: a face or a shoulder button is accept on a screen that waits for any
       if (screens[top()].props.press === 'any' && ANY.includes(action)) { if (f) accept(f, seat); render(); return true; }
+      // a load's tips turn with left and right where the cursor has nothing to turn
+      if ((action === 'left' || action === 'right') && last.loader && last.loader.tips > 1 && (!f || f.kind === 'button')) {
+        const G = S.loads.get(last.loader.key), d = action === 'right' ? 1 : -1;
+        if (G) { G.tip = (G.tip + d + last.loader.tips) % last.loader.tips; G.turned = H.now ? Number(H.now()) : 0; cue('change', seat, { step: d }); render(); return true; }
+      }
       if (action === 'up' || action === 'down' || action === 'left' || action === 'right') {
         // the cursor moved (or a long list scrolled under it): its tick; a value turned says so itself
         const was = `${U.at[seat] || 0}|${JSON.stringify(U.sel)}`;
@@ -986,7 +1050,8 @@ export function buildManaUi() {
       else if (action === 'back') {
         const on = screens[top()].on.back;
         if (!on) back();
-        else { const eff = effectsOf(on, { seat }, last); if (!eff.some((e) => e.back === true || e.close === true)) cue('back', seat); run(eff, null, 'back', seat); }
+        // a back that names nothing to do (a load with no way out) does nothing, and says nothing
+        else { const eff = effectsOf(on, { seat }, last); if (eff.length && !eff.some((e) => e.back === true || e.close === true)) cue('back', seat); run(eff, null, 'back', seat); }
       }
       render();
       return true;
@@ -1035,6 +1100,8 @@ export function buildManaUi() {
       for (const [path, was] of last.reads) { const x = H.read ? H.read(path) : undefined; if (JSON.stringify(x === undefined ? null : x) !== was) { render(); return true; } }
       // a moment's time is up, or one waiting may now take the screen (on the game's clock)
       if (H.now && S.moments.size) { const t = Number(H.now()); for (const M of S.moments.values()) if (M.drawn === S.renders && t >= M.due) { render(); return true; } }
+      // a load's tip turns, its still-loading line shows, its grace ends or it goes on by itself (on the game's clock)
+      if (H.now && S.loads.size) { const t = Number(H.now()); for (const G of S.loads.values()) if (G.drawn === S.renders && t >= G.due) { render(); return true; } }
       // a number still counting is drawn again each frame until it lands
       if (COUNT && [...S.counts.values()].some((K) => !K.done)) { render(); return true; }
       return false;

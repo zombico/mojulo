@@ -113,7 +113,7 @@ describe('mana-ui: restraint where the words are', () => {
   });
   it('over a stage, words with no window sit on a band of the panel, and a button on the screen is filled', () => {
     const css = themeCss({ stage: 'burst' });
-    expect(css).toMatch(/\.mana-screen :is\(\.mana-window\[data-variant=ghost\],\.mana-screen>\.mana-stack:has\(>:is\(\.mana-bar,\.mana-list,[^)]*\)\)\)\{background:linear-gradient\(90deg/);
+    expect(css).toMatch(/\.mana-screen :is\(\.mana-window\[data-variant=ghost\],\.mana-screen>\.mana-stack:has\(>:is\(\.mana-bar,\.mana-loader,\.mana-list,[^)]*\)\)\)\{background:linear-gradient\(90deg/);
     expect(css).toMatch(/\.mana-screen>\.mana-button:not\(\[data-st=focus\]\)\{background:rgba/);
     expect(themeCss({ stage: 'none' })).not.toContain('.mana-screen>.mana-button:not(');
     expect(themeCss({ stage: 'burst', halo: 'plate' })).not.toMatch(/:is\(\.mana-window\[data-variant=ghost\],/);  // the plate already does

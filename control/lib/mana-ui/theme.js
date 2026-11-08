@@ -459,7 +459,7 @@ export function themeCss(theme, scope = '.mana-root') {
   // words to read over a stage with no window behind them (a ghost window, a screen's own stack of rows, a bar, a
   // caption) sit on a band of the panel fading away from them: the stage performs around the words, not under them
   // (a halo of plate already gives a ghost window its plate)
-  const bare = [T.halo === 'plate' ? null : '.mana-window[data-variant=ghost]', '.mana-screen>.mana-stack:has(>:is(.mana-bar,.mana-list,.mana-text[data-role=caption]))'].filter(Boolean).join(',');
+  const bare = [T.halo === 'plate' ? null : '.mana-window[data-variant=ghost]', '.mana-screen>.mana-stack:has(>:is(.mana-bar,.mana-loader,.mana-list,.mana-text[data-role=caption]))'].filter(Boolean).join(',');
   if (T.stage !== 'none') out.push(`${s} .mana-screen :is(${bare}){background:linear-gradient(90deg,${alpha(k.panel, 0.9)},${alpha(k.panel, 0.8)} calc(100% - ${du(90)}),${alpha(k.panel, 0)});padding:${du(12)} ${du(90)} ${du(12)} ${du(26)};margin:${du(-12)} ${du(-90)} ${du(-12)} ${du(-26)}}`);
   // a button standing on the screen itself, over a stage, is filled with the panel (its word is read, not the stripes)
   if (T.stage !== 'none') out.push(`${s} .mana-screen>.mana-button:not([data-st=focus]){background:${alpha(k.panel, 0.9)}}`);

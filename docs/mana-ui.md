@@ -423,6 +423,40 @@ rt.languages();      // the codes the game ships
   a short table of autonyms (English, 日本語, Español…), else its code. Turning it says every word again in that
   language, plays the change cue and tells the game (`{ emit: 'language', to }`) so the game can keep the choice.
 
+## Loading: the unglamorous rules
+
+Every game relearns these, so the runtime keeps them. The `loader` component carries them, and the `loading-screen`
+idiom composes it (the place, its key art, the loader, continue, and retry and the title on a failure). All of it runs on
+the game's clock (`host.now`); a host keeps that clock running through a load, since a load is not a pause. Without a
+clock, nothing is timed: tips do not turn and an auto load goes on at once.
+
+- **The progress never goes back.** The bar shows the most the load has reported, so a step that starts over at zero
+  never pulls it back. A game reports the whole load's progress and says what it is doing in `step`. A retry after a
+  failure is a new attempt, and its bar starts again.
+- **Progress not known is said, not guessed.** With no `progress` (null), the track runs a sweep and claims no
+  number. Ready, the bar is whole whatever the game last reported.
+- **Something always moves.** While it loads, an activity mark turns. It is a signal, not an ornament, so it moves in
+  every theme, the greybox included. It turns by transform, so it keeps turning while the page's script is busy
+  loading. Less motion breathes it instead.
+- **A stall is spoken to.** Once nothing has moved for `stall` seconds (10), a line says it is still loading; it goes
+  when the progress moves again. The line and the tip keep their room, so nothing jumps when they speak.
+- **Tips turn.** One tip shows at a time, the next every `turn` seconds (8), and left and right turn them too (the
+  legend says so). A `seed` mixes their order with no dice, each tip shown once before any comes again. A tip is read
+  in a load, so keep it to a sentence.
+- **A quick load never flashes; a slow one can be read.** With `auto`, a load that is ready within its `grace` (0.3 s)
+  goes on at once, and its contents never show (only the cover is seen). One that took longer stays at least `least`
+  seconds (1) before it goes on.
+- **A press before the prompt is not an answer.** Without `auto`, Continue waits for the player, and a press in the
+  first moment after it shows is dropped, so a button held or mashed through the load does not skip the screen.
+  Ready is heard (`appear`).
+- **A failure says so.** `error` puts the game's words in place of the progress, stops the mark, is heard (`deny`) and
+  offers Retry and Quit to title (`retry`, `quit`).
+- **Back has nothing to leave.** Back on a load does nothing and makes no sound, unless the game gives the load a way
+  out (`cancel`).
+- **It covers the stage.** A load's screen is the panel, so nothing half built shows through it. Its loader is a
+  `progressbar` (busy while it loads, its percent and its step as values), and its spoken line is a polite live
+  region.
+
 ## The UI's sounds
 
 Sound is half of how a game's menu feels, and the web's is silent. mana-ui ships no audio and loads nothing: it emits

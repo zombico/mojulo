@@ -285,6 +285,22 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-bar[data-variant=boss] .mana-track{height:${u(24)}}`,
     // two fighters' bars, sharing a row across the top: the thickest on the screen (a fight is read off them)
     `${s} .mana-stack[data-fill=yes] .mana-bar[data-variant=hp] .mana-track{height:${u(30)}}`,
+    // A LOAD: its line (the activity mark, the step, the percent), its track, a line kept for what it may say (still
+    // loading, a failure) so nothing jumps when it speaks, and its tip at a reading measure, two lines kept for it
+    `${s} .mana-loader{display:flex;flex-direction:column;gap:${u(9)};width:100%}`,
+    `${s} .mana-loadline{display:flex;align-items:center;gap:${u(10)};min-height:${u(24)}}`,
+    `${s} .mana-loadline>.mana-label{flex:1}`,
+    `${s} .mana-loader .mana-track{height:${u(10)}}`,
+    `${s} .mana-loader[data-state=failed] .mana-track i{background:${v('harm')}}`,
+    `${s} .mana-loadsay{min-height:1.35em}`,
+    `${s} .mana-tip{margin:0;max-width:60ch;line-height:1.45;min-height:2.9em}`,
+    `${s} .mana-tip>b{margin-right:.4em;letter-spacing:.08em;text-transform:${v('case')};color:${v('accent')}}`,
+    `${s} .mana-spin{flex:none;width:${u(18)};height:${u(18)};border-radius:50%;border:${u(3)} solid ${v('soft')};border-top-color:${v('accent')}}`,
+    `${s} .mana-track[data-known=no] .mana-sweep{position:absolute;top:0;bottom:0;left:0;width:35%;background:${v('plain')}}`,
+    // a load covers the stage: nothing half built shows through it, and its words never sit on the world
+    `${s} .mana-screen:has(.mana-loader){background:${v('panel')}}`,
+    // a load that went ready before its grace was up never showed: what it holds waits, the cover alone is seen
+    `${s} .mana-screen:has(.mana-loader[data-grace=yes])>*{visibility:hidden}`,
     `${s} .mana-track b{position:absolute;top:-2px;bottom:-2px;width:1px;background:${v('line')};outline:1px solid ${v('paper')}}`,
     `${s} .mana-bar[data-low=yes] .mana-track i{background:repeating-linear-gradient(45deg,${v('harm')} 0 2px,transparent 2px 4px),repeating-linear-gradient(-45deg,${v('harm')} 0 2px,transparent 2px 4px)}`,
     `${s} .mana-pips .mana-glyphs{letter-spacing:2px;font-size:${ts(26)}}`,
@@ -423,6 +439,10 @@ const KEYFRAMES = [
   `@keyframes mana-pick{from{translate:${v('snap-from')};scale:${pop(0.4)}}}`,
   // a prompt that waits for the player (press start): a slow breath, well under the 3 flashes a second XAG 118 allows
   `@keyframes mana-pulse{50%{opacity:.35}}`,
+  // a load: the mark turns, an unknown load's sweep crosses its track, a tip fades in as it turns
+  '@keyframes mana-spin{to{transform:rotate(1turn)}}',
+  '@keyframes mana-sweep{from{transform:translateX(-100%)}to{transform:translateX(290%)}}',
+  '@keyframes mana-tip{from{opacity:0}}',
   // LEAVING: faster than arriving, accelerating away, never bouncing; back the way it came, or out to its edge
   `@keyframes mana-leave{to{opacity:0;translate:calc(-.6 * ${v('travel')}) calc(1.6 * ${v('travel')});scale:calc(1 - (${v('pop')} - 1) * .2)}}`,
   `@keyframes mana-leave-edge{to{opacity:0;translate:calc(3 * ${v('travel')}) 0}}`,
@@ -496,6 +516,13 @@ function MOTION_RULES(s) {
     // press start: the prompt breathes while it waits (a pulse the greybox holds still, as it holds every loop), no cursor
     `${s} .mana-screen[data-press=any] .mana-button{border-color:transparent;background:transparent;font-size:${ts(TYPE.title * 0.75)};font-weight:800;letter-spacing:.12em;text-transform:${v('case')};animation:mana-pulse ${PULSE}s ease-in-out infinite;animation-play-state:${v('loop')}}`,
     `${s} .mana-screen[data-press=any] .mana-button::before{content:none}`,
+    // a load's activity mark turns and an unknown load's sweep runs whatever the theme's loops do: they are a signal,
+    // not an ornament (turned by transform, so they keep moving while the page is busy); less motion breathes them
+    `${s} .mana-spin{animation:mana-spin .8s linear infinite}`,
+    `${s} .mana-track[data-known=no] .mana-sweep{animation:mana-sweep 1.4s ease-in-out infinite}`,
+    `${s} .mana-tip{animation:mana-tip calc(${v('dur')} * 2) ease-out}`,
+    ...[`${s}[data-motion=reduced]`, `@media (prefers-reduced-motion:reduce){${s}`].map((at) => `${at} .mana-spin,${at.startsWith('@') ? s : at} .mana-track[data-known=no] .mana-sweep{animation:mana-pulse ${PULSE}s ease-in-out infinite;transform:none}${at.startsWith('@') ? '}' : ''}`),
+    `${s}[data-motion=reduced] .mana-track[data-known=no] .mana-sweep{width:100%}`, `@media (prefers-reduced-motion:reduce){${s} .mana-track[data-known=no] .mana-sweep{width:100%}}`,
     // a bar and a dial glide to their new value
     `${s} .mana-track i{transition:width ${v('glide')} ${v('ease')}}`, `${s} .mana-dial i{transition:transform ${v('glide')} ${v('ease')}}`,
     // what changed says so once: a flash and a pop, its gain floating off (a new data-key replays it)
