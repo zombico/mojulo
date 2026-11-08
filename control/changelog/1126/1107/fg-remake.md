@@ -54,5 +54,29 @@ keeps its place.
   shadows stay deep; a rim from behind; a sky over a dark ground. The key follows the fight, its shadow's box tight round
   the fighters. Every body is baked as the lit export under a register (the stick figure lit the same way). A fight minted
   before carries none and draws each body as it always did. `styles.mjs --register` bakes a matchup in either look.
+- **The fight's effects** (`versus-fx.js`, drawn by `versus-fx.client.js` in the arena under a register): what happens
+  told apart at a glance, kept to a fighting game's impact (not a spell's), one library for every art style. Each event
+  has its card, parts the register skins its way (anime cel, hard bands round the white core and on twos; western
+  material, a soft falloff and a glow standing in for bloom): a hit's small white-hot core, shock ring and rays; a
+  counter's gold double ring and a faint blink; a block's striped shield arc bowed toward the blow; a parry's ring
+  snapping in; a clash's starburst; a guard crushed in shards; a KO's bloom. A heavier blow is a little bigger, brighter
+  and longer. All in shaders (the page has no bloom pass), timed by the fight's own clock, so hitstop holds an effect and
+  slow motion slows it; a brief real light at the contact lights the fighters by the rig they stand in. The overlay keeps
+  its words; its 2D sparks stand down under a register.
+- **The figure coated, not drawn over** (`bodyCoat` in the arena): every fighter's material carries a fresnel coat, light
+  on its own surface over the whole figure or a portion of it. A blow coats the one it lands on, round where it landed
+  (a block rims the guard blue, a counter gold) or whole (a parry, a crush, a KO), fading with the moment.
+- **A blow says what it was**: hit, counter and block events carry where they landed (`at`, the hitbox's overlap with
+  the hurtbox), how heavy (`w`, light … super), what struck (`limb`: fist, foot, knee, elbow, head, blade, shot) and the
+  move's kind.
+- **The spark** (system `spark`): a counter hit struck on the strike's very first active frame, the blow and the
+  opening met in one frame. Half again the damage, the moment held (`rules.sparkStop`), meter (`rules.sparkMeter`);
+  drawn as a black spark: the picture turned negative for two frames and held, black currents with a red edge crackling
+  out of the contact, the one struck darkened with a red rim, a red light, then it lets go.
+- **Elements on the limbs** (`element: 'fire' | 'lightning' | 'frost' | 'void' | { kind, on: fists | feet | limbs |
+  weapon }`, on a recipe or a roster entry), as a coat of light gathered round the limbs that carry them: fire a warm
+  licking rim (flaming fists), lightning a fast white-blue flicker, frost a slow cold breath, void a darkening with a red
+  rim; flaring as the limb strikes, and a blow struck with it coats the one struck in the element. Drawn only: the sim
+  never reads it, and the same fight is the same fight. `styles.mjs --elements --systems spark` bakes them.
 - **CI**: `design-game.vary.test.js` pins its order's roll (it drew one at random each run, and about one roll in
   four hundred lifts most of a late tier's ornaments past their 0–3 scale, the gate leaving two variants of three).

@@ -25,7 +25,7 @@
  * abort). On its own it fights the arena's first two fighters, player 1 against the CPU, and offers another.
  */
 
-/* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, renderer, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
+/* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, renderer, makeFightFx, FX_SKINS, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
    figureBase, characterBase, figurePose, figureSegments, segmentOf, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawnPose, drawEffects, drawHud, vsText, vsOutlined, pushBox */
 
 const AV = VERSUS_ARENA;
@@ -104,8 +104,9 @@ const farOf = (name, face) => { const S = name.slice(-1); return (S === 'L' && f
 
 function makeBody(color, F) {
   // (under the fight's register the stick figure is lit as every body is: the rig's light and its shadows)
-  const near = RIG ? RIG.material({ color }) : new THREE.MeshBasicMaterial({ color, vertexColors: true });
-  const far = RIG ? RIG.material({ color: new THREE.Color(color).multiplyScalar(0.55) }) : new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(0.55), vertexColors: true });
+  const coat = RIG ? bodyCoat() : null;
+  const near = RIG ? RIG.material({ color }, coat) : new THREE.MeshBasicMaterial({ color, vertexColors: true });
+  const far = RIG ? RIG.material({ color: new THREE.Color(color).multiplyScalar(0.55) }, coat) : new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(0.55), vertexColors: true });
   const group = new THREE.Group();
   const part = (geo, mat) => {
     const fill = new THREE.Mesh(geo, mat), ink = new THREE.Mesh(geo, INK);
@@ -120,7 +121,7 @@ function makeBody(color, F) {
   const blade = F && F.weapon ? part(CYL, new THREE.MeshBasicMaterial({ color: F.weapon.color, vertexColors: true })) : null;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: RIG ? 0.2 : 0.32, depthWrite: false }));
   STAGE.add(group, shadow);
-  return { group, limbs, joints, head, blade, shadow, near, far, base: figureBase(F.body) };
+  return { group, limbs, joints, head, blade, shadow, near, far, base: figureBase(F.body), coat };
 }
 
 const vA = new THREE.Vector3(), vB = new THREE.Vector3(), UP = new THREE.Vector3(0, 0, 1), vD = new THREE.Vector3();
@@ -133,6 +134,7 @@ function cylinderAt(mesh, a, b, r) {
 }
 function placeBody(B, p, F, drawn) {
   const { N } = poseFigure(B.base, p, F, drawn);
+  B.N = N;
   const r = F.body.limbR / 1000;
   for (const L of B.limbs) {
     worldOf(p, N[L.a], vA); worldOf(p, N[L.b], vB);
@@ -252,6 +254,7 @@ function makeCharacter(skin) {
 const M4 = new THREE.Matrix4();
 function placeCharacter(B, p, F, drawn) {
   const { N } = poseFigure(B.skin.base, p, F, drawn);
+  B.N = N;
   const S = figureSegments(B.skin.base, N);
   // the figure faces +y in its own frame: turned to face its foe along the plane, its feet on the fight's ground
   B.group.position.set(p.x / 1000, PLANE, FLOOR + p.y / 1000);
@@ -318,14 +321,97 @@ function fightRig(register) {
     // the key and its shadow's box over the fight's middle
     follow(x) { KEY_TO.set(x, 0, 1); key.target.position.copy(KEY_TO); key.position.copy(KEY_TO).addScaledVector(KEY_DIR, 10); },
     // a body's surface in the register
-    material(o) {
-      return toon ? new THREE.MeshToonMaterial({ side: THREE.DoubleSide, gradientMap: ramp, ...o })
+    // a body's surface in the register, coated by its `coat` (bodyCoat: the body's own uniforms) when it has one
+    material(o, coat) {
+      const m = toon ? new THREE.MeshToonMaterial({ side: THREE.DoubleSide, gradientMap: ramp, ...o })
         : new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.62, metalness: 0, ...o });
+      if (coat) coatMaterial(m, coat, toon);
+      return m;
     },
   };
 }
+/** THE COAT: light laid on the figure itself, a fresnel rim on its own surface (as a status look's coat is,
+ * playscape/elements), the whole figure or a portion of it: no shape drawn over it. Two coats a body:
+ *   - its ELEMENT's (versus-fx.js), gathered round the limbs that carry it (up to four points, `uElReach` metres),
+ *     flickering at its own rate, flaring as the limb strikes
+ *   - a BLOW's, on the body it lands on: round where it landed (`uHitReach`), or the whole figure (reach 0), fading
+ * A dark coat (a void, a spark) darkens what it coats, its colour only at the very rim. The cel register steps the
+ * rim in bands. */
+function bodyCoat() {
+  const v3 = () => ({ value: new THREE.Vector3(0, 0, -99) });
+  return {
+    uElCol: { value: new THREE.Color(0, 0, 0) }, uElK: { value: 0 }, uElReach: { value: 0.25 }, uElHz: { value: 8 }, uElDark: { value: 0 },
+    uElPts: { value: [0, 1, 2, 3].map(() => new THREE.Vector3(0, 0, -99)) },
+    uHitCol: { value: new THREE.Color(0, 0, 0) }, uHitK: { value: 0 }, uHitReach: { value: 0 }, uHitDark: { value: 0 }, uHitAt: v3(),
+    uCoatTime: { value: 0 },
+  };
+}
+function coatMaterial(m, coat, toon) {
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, coat);
+    sh.vertexShader = 'varying vec3 vCoatW;\n' + sh.vertexShader.replace('#include <skinning_vertex>', '#include <skinning_vertex>\n  vCoatW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = `varying vec3 vCoatW;
+uniform vec3 uElCol, uHitCol, uHitAt; uniform vec3 uElPts[4];
+uniform float uElK, uElReach, uElHz, uElDark, uHitK, uHitReach, uHitDark, uCoatTime;
+` + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  {
+    float facing = clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0);
+    float fres = pow(1.0 - facing, 2.2), edge = pow(1.0 - facing, 5.0);
+    ${toon ? 'fres = step(0.42, fres) * 0.55 + step(0.7, fres) * 0.45; edge = step(0.6, edge);' : ''}
+    float near = 0.0;
+    for (int i = 0; i < 4; i++) near = max(near, 1.0 - smoothstep(uElReach * 0.3, uElReach, distance(vCoatW, uElPts[i])));
+    float flick = 0.72 + 0.28 * sin(uCoatTime * uElHz + vCoatW.z * 11.0) * sin(uCoatTime * uElHz * 0.61 + vCoatW.x * 9.0);
+    float hit = uHitReach > 0.0 ? 1.0 - smoothstep(uHitReach * 0.3, uHitReach, distance(vCoatW, uHitAt)) : 1.0;
+    float el = uElK * near * flick, bl = uHitK * hit;
+    // (a dark coat darkens what it coats, its colour at the very rim; a bright one lights the rim)
+    diffuseColor.rgb *= 1.0 - clamp(uElDark * el * (0.35 + fres) + uHitDark * bl * (0.4 + fres), 0.0, 0.85);
+    totalEmissiveRadiance += uElCol * el * mix(fres, edge, uElDark) + uHitCol * bl * mix(fres, edge * 1.5, uHitDark);
+  }`);
+  };
+  m.customProgramCacheKey = () => (toon ? 'fight-coat-cel' : 'fight-coat');
+}
 const RIG = REGISTER ? fightRig(REGISTER) : null;
 if (RIG) RIG.follow(0);
+// THE FIGHT'S EFFECTS (versus-fx.client.js), drawn in the round under a register: what happens told apart at a glance,
+// the elements on the limbs that carry them; the overlay keeps its words
+const FX = RIG ? makeFightFx({ stage: STAGE, skin: FX_SKINS[REGISTER], wrap, sparkStop: (AV.rules && AV.rules.sparkStop) || 14 }) : null;
+/** where a body's fists and feet are this frame (the lane's frame), whatever draws it: the stick figure's nodes, a
+ * posed character's, a played one's bones (its hands' and its toes' middles) */
+const FX_V = new THREE.Vector3();
+function limbPoints(B, p) {
+  const out = {};
+  if (B.played) {
+    const pack = B.skin.pack;
+    if (!B.ends) {
+      const find = (...ids) => ids.map((id) => pack.bones.findIndex((b) => b.id === id)).find((i) => i >= 0);
+      B.ends = { fistL: find('handL'), fistR: find('handR'), footL: find('toesL', 'footL'), footR: find('toesR', 'footR') };
+    }
+    B.group.updateMatrix();
+    for (const [k, bi] of Object.entries(B.ends)) {
+      if (bi === undefined) continue;
+      const b = pack.bones[bi];
+      out[k] = new THREE.Vector3((b.head[0] + b.tail[0]) / 2, (b.head[1] + b.tail[1]) / 2, (b.head[2] + b.tail[2]) / 2).applyMatrix4(B.bones[bi].matrix).applyMatrix4(B.group.matrix);
+    }
+  } else if (B.N) {
+    const N = B.N, from = { fistL: N.fistL, fistR: N.fistR, footL: N.toeL, footR: N.toeR };
+    if (B.skin) { B.group.updateMatrix(); for (const [k, v] of Object.entries(from)) if (v) out[k] = new THREE.Vector3(v[0], v[1], v[2]).applyMatrix4(B.group.matrix); }
+    else for (const [k, v] of Object.entries(from)) if (v) out[k] = worldOf(p, v, new THREE.Vector3());
+  }
+  return out;
+}
+const FX_LIMB_WORD = { fist: 'fist', toe: 'foot', ankle: 'foot' };
+/** what an effect needs of a body: its coat, its element and its limbs' points (the coat gathers round them), the limb
+ * striking now (about its active frames) */
+function limbsOf(B, p, F) {
+  if (!B.coat) return null;
+  const points = F.element ? limbPoints(B, p) : {};
+  let striking = null;
+  if (p.mv) {
+    const m = F.moves[p.mv], word = m && FX_LIMB_WORD[m.limb.replace(/[FB]$/, '')];
+    if (word && p.mf >= m.startup - 1 && p.mf < m.startup + m.active + 2) striking = `${word}${(m.limb.endsWith('F') ? p.face > 0 : p.face < 0) ? 'L' : 'R'}`;
+  }
+  return { points, element: F.element ?? null, striking, coat: B.coat, toWorld: (v) => STAGE.localToWorld(v.clone()) };
+}
 /** THE FIGHTERS' LIGHTS (a lit body's, once): a warm key from the camera's side above, a cool fill from the other, a rim
  * from behind and a sky over the floor, as the hero's own viewer lights it. The room's surfaces are baked, so only the
  * fighters (and a set's lit pieces) take them */
@@ -417,8 +503,9 @@ function makePlayed(skin) {
   const tex = (t) => { const x = new THREE.TextureLoader().load(t.url); x.colorSpace = THREE.NoColorSpace; return x; };
   // (under the fight's register every body is drawn its one way: the cel's tones or the lit, from its albedo)
   if (RIG && !geo.attributes.normal) geo.setAttribute('normal', new THREE.BufferAttribute(smoothNormals(pos), 3));
+  const coat = RIG ? bodyCoat() : null;
   const material = RIG
-    ? RIG.material({ vertexColors: true, ...(map ? { map } : {}), ...alpha, ...(!RIG.toon && relief ? { normalMap: tex(pack.normalTex) } : {}), ...(!RIG.toon && pack.ormTex ? { roughness: 1, roughnessMap: tex(pack.ormTex) } : {}) })
+    ? RIG.material({ vertexColors: true, ...(map ? { map } : {}), ...alpha, ...(!RIG.toon && relief ? { normalMap: tex(pack.normalTex) } : {}), ...(!RIG.toon && pack.ormTex ? { roughness: 1, roughnessMap: tex(pack.ormTex) } : {}) }, coat)
     : toon
     ? toonMaterial({ ...(map ? { map } : {}), ...alpha })
     : lit
@@ -434,7 +521,7 @@ function makePlayed(skin) {
   mesh.bind(new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4())));
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: RIG ? 0.2 : 0.32, depthWrite: false }));
   STAGE.add(shadow);
-  return { group, shadow, skin, played: true, bones, mesh };
+  return { group, shadow, skin, played: true, bones, mesh, coat };
 }
 /** the clip and its phase (0 … 1) a fighter's state shows: its move's own clip at the frame's share of it; a blow taken
  * or blocked in its guard through the stun; its knockdown; otherwise its guard, held. null: it has no clip of it (a
@@ -554,6 +641,7 @@ function begin(params) {
   const fighters = params.fighters.map((r) => compileFighter(r));
   const rules = hostedRules(AV.rules, params.rules, Math.round(LANE.half * 1000));
   match = newMatch({ fighters, names: params.names, colors: params.colors, schemes: params.schemes, mode: params.mode, level: params.level, cpu: params.cpu, rules, seed: params.seed ?? 1 });
+  if (FX) match.noSparks = true;
   bodies = params.colors.map((c, i) => {
     const skin = skinOf(params.characters && params.characters[i]);
     return skin ? (skin.pack.played ? makePlayed(skin) : makeCharacter(skin)) : makeBody(c, fighters[i]);
@@ -599,6 +687,8 @@ function tick() {
   if ((inp[0].pause || inp[1].pause) && match.s.phase !== 'matchEnd') { phase = 'paused'; pauseIx = 0; pauseBy = inp[0].pause ? 0 : 1; return; }
   if (match.slow > 0) { match.slow--; if (match.slow % 3) return; }
   stepMatch(match);
+  // (each of the step's events to the effects, a KO at the fallen body; then the effects' own tick)
+  if (FX) { for (const e of match.s.events) FX.onEvent(e, match, e.t === 'ko' && match.s.p[e.p] ? [match.s.p[e.p].x, 1100] : null); FX.tick(); }
   if (match.end === 150) {
     const s = match.s;
     if (hosted) {
@@ -658,6 +748,7 @@ function draw() {
   const s = match.s;
   const at = drawnAt(s, match.ctx);
   for (let i = 0; i < 2; i++) placeFighter(bodies[i], at[i], match.ctx.fighters[i], drawnPose(match, i));
+  if (FX) FX.draw([0, 1].map((i) => limbsOf(bodies[i], at[i], match.ctx.fighters[i])), (match.t || 0) / 60);
   const S = OH / (2 * cam.dist * Math.tan((VFOV * Math.PI) / 360)) / 1000;
   drawEffects(g2, match, toScreen, S);
   drawHud(g2, OW, OH, match);
@@ -684,4 +775,4 @@ function stepArenaFight(ms) {
   draw();
 }
 
-window.__mojVersus = { get match() { return match; }, get phase() { return phase; }, get bodies() { return bodies; }, ROSTER };
+window.__mojVersus = { get match() { return match; }, get phase() { return phase; }, get bodies() { return bodies; }, ROSTER, fx: FX };

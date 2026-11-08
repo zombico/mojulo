@@ -18,6 +18,7 @@
  *     super?: { id, tune? },
  *     throw?: { tune? },
  *     weapon?: 'sword' | … | { kind?, grip?, length?, width?, butt?, angle?, tempo?, damage?, hurt? },
+ *     element?: 'fire' | 'lightning' | 'frost' | 'void' | { kind, on? },   // what its limbs carry (versus-fx.js): drawn only
  *     library?: { specials?: { <id>: record }, supers?: { <id>: record } },
  *   }
  *
@@ -43,6 +44,7 @@
 import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
 import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT, PRIORITY, PRIORITY_MAX } from './versus-library.js';
 import { FAMILIES, TRADITIONS, traditionRests } from './versus-traditions.js';
+import { readElement } from './versus-fx.js';
 
 // movement defaults (mm per frame, frames)
 export const MOVEMENT = Object.freeze({
@@ -933,6 +935,8 @@ export function compileFighter(recipe) {
   readMovement(recipe);
   const body = versusBody(recipe.cast ?? 'heroic', recipe.body ?? {});
   const weapon = readWeapon(recipe.weapon, body);
+  // (the element its limbs carry, versus-fx.js: drawn, never read by the sim)
+  const element = readElement(recipe.element, `${recipe.id ?? 'fighter'} element`);
   // a tradition's guard is where every move starts and comes home (none: the genre's own)
   const trad = traditionRests(recipe.tradition);
   // (a character's own guard, versus-hero.js: where its moves start and come home, its idle's stand)
@@ -992,6 +996,7 @@ export function compileFighter(recipe) {
     ...(strings ? { strings } : {}),
     ...(own ? { ...(recipe.tradition ? { tradition: recipe.tradition } : {}), poses: { guard: own.stand, crouch: own.crouch, walkA: own.walkA, walkB: own.walkB }, ...(recipe.tradition ? { rhythm: TRADITIONS[recipe.tradition].rhythm } : {}) } : {}),
     ...(weapon ? { weapon } : {}),
+    ...(element ? { element } : {}),
     moves,
   };
 }

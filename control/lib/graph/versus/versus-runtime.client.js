@@ -303,6 +303,8 @@ function onEvent(m, e) {
 }
 
 function spark(m, x, y, color, n) {
+  // (an arena that draws the fight's effects in the round draws its sparks there: versus-fx.client.js)
+  if (m.noSparks) return;
   for (let k = 0; k < n; k++) {
     const a = (k / n) * Math.PI * 2 + (m.s.f % 7);
     const sp = 18 + ((k * 37) % 23);

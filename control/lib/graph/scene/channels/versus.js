@@ -14,7 +14,7 @@ import { safeJson } from '../emit-util.js';
 import { versusSource, VERSUS_PAGE_MODULES } from '../../versus/versus-page.js';
 
 export function versusChannelScript(cfg) {
-  const lib = [...VERSUS_PAGE_MODULES, 'versus-figure.js', 'versus-runtime.client.js', 'versus-arena.client.js'].map(versusSource).join('\n');
+  const lib = [...VERSUS_PAGE_MODULES, 'versus-figure.js', 'versus-runtime.client.js', 'versus-fx.client.js', 'versus-arena.client.js'].map(versusSource).join('\n');
   return `
 // ── versus: the fight on this arena ──
 {

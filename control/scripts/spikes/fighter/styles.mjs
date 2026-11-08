@@ -6,12 +6,13 @@
 // without a page error, that it stands on the lane's floor and on the lane (its posed mesh's bounds against the lane),
 // what it weighs (triangles, its body's bytes in the page). The eyes gate is the operator's: the contact sheet.
 //
-//   node control/scripts/spikes/fighter/styles.mjs [--out dir] [--only id,id] [--reuse] [--at 2.5,6] [--level preset] [--register anime|western]
+//   node control/scripts/spikes/fighter/styles.mjs [--out dir] [--only id,id] [--reuse] [--at 2.5,6] [--level preset] [--register anime|western] [--elements] [--systems spark,…]
 //
 // --only keeps the matchups holding those cases; --reuse keeps minted characters and baked arenas (re-shoot only);
 // --at the moments shot, seconds of fight time after the handshake; --level lays every matchup on that greybox preset (the
 // training ground: `--level training`) instead of each its own; --register draws every body in that one look under the
-// fight's one light (versus-levels.js FIGHT_REGISTERS), as a fight game made now does. Needs Playwright's Chromium and ffmpeg. A realistic
+// fight's one light (versus-levels.js FIGHT_REGISTERS), as a fight game made now does; --elements gives each case its
+// element (versus-fx.js: flaming fists, lightning, frost, a void smoulder), --systems switches the rules' systems on (spark). Needs Playwright's Chromium and ffmpeg. A realistic
 // body's mint takes about two minutes.
 import { register, createRequire } from 'node:module';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -22,7 +23,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'fighter-styles') }, only: { type: 'string' }, reuse: { type: 'boolean', default: false }, at: { type: 'string', default: '2.5,6' }, level: { type: 'string' }, register: { type: 'string' } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'fighter-styles') }, only: { type: 'string' }, reuse: { type: 'boolean', default: false }, at: { type: 'string', default: '2.5,6' }, level: { type: 'string' }, register: { type: 'string' }, elements: { type: 'boolean', default: false }, systems: { type: 'string' } } });
 const out = path.resolve(opt.out); mkdirSync(out, { recursive: true });
 
 // THE CASES: one body per style a game can pick, a rail and its style (gameBody), a pole, the tradition it fights in;
@@ -47,7 +48,9 @@ const MATCHUPS = [
 ];
 const only = opt.only ? new Set(opt.only.split(',')) : null;
 // (a matchup's files named for the level it is laid on: its own preset, or the one --level names for all)
-const matchups = MATCHUPS.filter((m) => !only || only.has(m.a) || only.has(m.b) || only.has(m.id)).map((m) => ({ ...m, preset: opt.level ?? m.id, id: [opt.level, opt.register, m.id].filter(Boolean).join('-') }));
+const matchups = MATCHUPS.filter((m) => !only || only.has(m.a) || only.has(m.b) || only.has(m.id)).map((m) => ({ ...m, preset: opt.level ?? m.id, id: [opt.level, opt.register, opt.elements && 'fx', m.id].filter(Boolean).join('-') }));
+// (each case's element, with --elements)
+const ELEMENT_OF = { 'anime-toji': 'fire', 'comic-ink': 'lightning', 'saikyo-real': { kind: 'void', on: 'fists' }, realistic: 'frost', shonen: 'lightning', 'anime-kale': { kind: 'fire', on: 'feet' }, chibi: 'frost', lowpoly: 'fire' };
 const AT = opt.at.split(',').map(Number);
 
 // ─── mint and bake (a scratch store: the operator's own is never touched) ─────────────────────────────────────────
@@ -87,8 +90,8 @@ const needed = [...new Set(matchups.flatMap((m) => [m.a, m.b]))].map((id) => CAS
     const baked = path.join(out, `${M.id}.bake.json`);
     // (a matchup baked before: its page, its picks and what its bake read, kept)
     if (opt.reuse && existsSync(page) && existsSync(picks) && existsSync(baked)) { const K = JSON.parse(readFileSync(baked, 'utf8')); report.matchups[M.id] = K.matchup; for (const [id, c] of Object.entries(K.cases)) report.cases[id] = { ...report.cases[id], ...c }; continue; }
-    const roster = [M.a, M.b].map((id) => { const C = CASES.find((c) => c.id === id); return { id: C.id, name: C.label.split(' · ')[1] ?? C.id, color: C.color, tradition: C.tradition, hero: { ref: refs[C.id] }, ...(C.moves ? { moves: C.moves } : {}) }; });
-    const manifest = fightLevel({ kind: 'greybox', preset: M.preset }, { roster, title: `styles · ${M.id}`, ...(opt.register ? { register: opt.register } : {}) });
+    const roster = [M.a, M.b].map((id) => { const C = CASES.find((c) => c.id === id); return { id: C.id, name: C.label.split(' · ')[1] ?? C.id, color: C.color, tradition: C.tradition, hero: { ref: refs[C.id] }, ...(C.moves ? { moves: C.moves } : {}), ...(opt.elements ? { element: ELEMENT_OF[C.id] } : {}) }; });
+    const manifest = fightLevel({ kind: 'greybox', preset: M.preset }, { roster, title: `styles · ${M.id}`, ...(opt.register ? { register: opt.register } : {}), ...(opt.systems ? { rules: { systems: opt.systems.split(',') } } : {}) });
     console.log(`baking ${M.id} (${M.a} vs ${M.b}) …`);
     const t0 = Date.now();
     const { payload } = await resolveWorldScene({ ref: `styles-${M.id}`, title: manifest.title, manifest }, { live: true });

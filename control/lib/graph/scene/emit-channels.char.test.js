@@ -475,6 +475,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-08 (1107-fg-remake: the fight's register): `versus` only. Its page inlines versus-arena.client.js,
 // which lights every body one way under a register (a rig whose key casts, the renderer's shadows on); the fixture's
 // arena names no register and lights its bodies as before.
+// Re-pinned 2026-11-08 (1107-fg-remake: the fight's effects): `versus` only. Its page inlines versus-fx.js (the cards,
+// the elements), versus-fx.client.js (drawn in the round under a register), versus-core.js (a blow's place, weight, limb
+// and kind on its events; the spark system) and the runtime's sparks standing down where the arena draws them; the
+// fixture's arena names no register and draws its sparks as before.
+// Re-pinned 2026-11-08 (1107-fg-remake: the figure coated): `versus` only. Its page inlines versus-arena.client.js, whose
+// register materials carry a fresnel coat (bodyCoat) the effects drive; the fixture's arena names no register.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

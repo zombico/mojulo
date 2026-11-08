@@ -74,7 +74,9 @@ node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --reuse
 node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --reuse --level training  # every matchup on the training ground
 ```
 
-Each body's top is its roster colour, so a matchup's two sides read apart.
+Each body's top is its roster colour, so a matchup's two sides read apart. `--register anime|western` draws every body
+in that one look under the fight's light; `--elements` gives each case an element (flaming fists, lightning, frost, a
+void smoulder) and `--systems spark` switches the spark on, for the fight's effects (`versus-fx.js`).
 
 The machine read (`report.json`, advisory): each body bakes and plays without a page error, stands on the lane's floor
 and on its line (its posed mesh's bounds against the lane), and what it weighs in the page (triangles, megabytes). The

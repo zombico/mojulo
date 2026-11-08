@@ -316,4 +316,5 @@ export const SYSTEMS = Object.freeze({
   strings: 'a fighter\'s strings (its recipe\'s `strings`): each press of the next in order follows on from the last, hit, block or whiff',
   bound: 'normals juggle a falling body (up to rules.juggle hits), and a heavy blow on one slams it down so it bounds back up, once a combo: the juggle goes on',
   sidestep: 'a tap of up steps aside (off the line, in 2D a dodge): strikes and shots pass through for rules.sidestepInvuln frames; a throw still catches',
+  spark: 'a counter hit struck on the strike\'s very first active frame is a SPARK: half again the damage, the moment held (rules.sparkStop) and drawn as a black spark, meter (rules.sparkMeter)',
 });

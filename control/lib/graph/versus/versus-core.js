@@ -49,10 +49,11 @@ export const VERSUS_RULES = Object.freeze({
   resetCost: 500,   // meter a reset spends (reset)
   boundVy: 80, boundJuggle: 2,   // the bound's pop (mm a frame up) and the juggle hits it gives back (bound)
   sidestepFrames: 16, sidestepInvuln: 10,   // a sidestep's length and its frames strikes pass through (sidestep)
+  sparkStop: 14, sparkMeter: 120,   // a spark's moment held (frames of hitstop more) and the meter it gives (spark)
 });
 
 // the rules a game may set (the rest are the sim's own): whole numbers from a floor, the scaling row, the systems
-const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1, airActions: 1, airDashDist: 0, airDashFrames: 1, airJumpVy: 10, resetCost: 0, boundVy: 10, boundJuggle: 0, sidestepFrames: 4, sidestepInvuln: 0 };
+const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1, airActions: 1, airDashDist: 0, airDashFrames: 1, airJumpVy: 10, resetCost: 0, boundVy: 10, boundJuggle: 0, sidestepFrames: 4, sidestepInvuln: 0, sparkStop: 0, sparkMeter: 0 };
 
 /** A game's rules as written → the overrides newVersus takes; throws on a key or value it cannot read. */
 export function readRules(r) {
@@ -165,6 +166,15 @@ export function hitBox(p, F) {
   return fr && fr.hit ? worldBox(fr.hit, p.x, p.y, p.face) : null;
 }
 
+// where a blow lands: the middle of its box's overlap with the hurtbox it meets (mm, whole: an effect's place)
+const contactAt = (a, b) => [Math.round((Math.max(a[0], b[0]) + Math.min(a[2], b[2])) / 2), Math.round((Math.max(a[1], b[1]) + Math.min(a[3], b[3])) / 2)];
+const LIMB_WORD = { fist: 'fist', toe: 'foot', ankle: 'foot', knee: 'knee', elbow: 'elbow', head: 'head' };
+/** What a blow is, for what is drawn of it (the sim never reads it): where it landed, how heavy (0 light … 3 a super),
+ * what struck (fist, foot, knee, elbow, head, blade, shot) and the move's kind (normal, special, super, shot) */
+function blowOf(m, shot, at) {
+  if (shot) return { at, w: shot.sup ? 3 : 1, limb: 'shot', kind: 'shot' };
+  return { at, w: m.kind === 'super' ? 3 : ({ L: 0, M: 1, H: 2 })[m.strength] ?? 1, limb: m.armed ? 'blade' : LIMB_WORD[m.limb.replace(/[FB]$/, '')] ?? 'fist', kind: m.kind };
+}
 const shotBox = (t) => [t.x - t.w / 2, t.y - t.h / 2, t.x + t.w / 2, t.y + t.h / 2];
 
 function invulnTo(p, F, kind) {
@@ -669,7 +679,8 @@ function resolve(s, ctx) {
     // (under the bound, the iron kind's juggles, a normal juggles too)
     if (o.st === 'fall' && (!(m.juggle || (m.kind === 'normal' && sys(s, 'bound'))) || o.jug >= s.rules.juggle)) continue;
     if (invulnTo(o, F[1 - i], 'strike')) continue;
-    if (hurtBoxes(o, F[1 - i]).some((h) => overlap(hb, h))) contacts.push({ a: i, m });
+    const hurt = hurtBoxes(o, F[1 - i]).find((h) => overlap(hb, h));
+    if (hurt) contacts.push({ a: i, m, at: contactAt(hb, hurt) });
   }
   // shots against bodies, and against each other
   for (const t of s.shots) {
@@ -684,7 +695,8 @@ function resolve(s, ctx) {
     if (t.hits <= 0 || o.ko) continue;
     if (o.st === 'fall' && (!t.sup || o.jug >= s.rules.juggle)) continue;
     if (invulnTo(o, F[1 - t.o], 'projectile')) continue;
-    if (hurtBoxes(o, F[1 - t.o]).some((h) => overlap(sb, h))) contacts.push({ a: t.o, shot: t });
+    const hurt = hurtBoxes(o, F[1 - t.o]).find((h) => overlap(sb, h));
+    if (hurt) contacts.push({ a: t.o, shot: t, at: contactAt(sb, hurt) });
   }
   // PRIORITY (versus-library.js): two strikes landing on the same frame, the higher level's lands and the other's does
   // not; equal levels trade. A move compiled before the scale carries none and trades as it always did
@@ -729,8 +741,9 @@ function applyThrow(s, ctx, i) {
   s.events.push({ t: 'grab', p: i, x: (p.x + o.x) / 2 });
 }
 
-function applyHit(s, ctx, { a, m, shot }) {
+function applyHit(s, ctx, { a, m, shot, at: contact }) {
   const p = s.p[a], d = s.p[1 - a];
+  const blow = blowOf(m, shot, contact ?? null);
   const src = shot ?? m;
   const guard = shot ? 'mid' : m.guard;
   const face = shot ? sign(shot.vx) : p.face;
@@ -805,7 +818,7 @@ function applyHit(s, ctx, { a, m, shot }) {
     pushOut(push);
     d.meter = Math.min(METER_MAX, d.meter + 10);
     p.meter = Math.min(METER_MAX, p.meter + Math.round((src.meter ?? 20) / 2));
-    s.events.push({ t: 'block', p: a, x: (shot ? shot.x : d.x - face * 200), y: shot ? shot.y : 1100 });
+    s.events.push({ t: 'block', p: a, x: (shot ? shot.x : d.x - face * 200), y: shot ? shot.y : 1100, ...blow });
     if (d.hp <= 0) ko(s, 1 - a, face);
     return;
   }
@@ -820,15 +833,19 @@ function applyHit(s, ctx, { a, m, shot }) {
     return;
   }
   const counter = d.st === 'move' && d.mv && d.mf < ctx.fighters[1 - a].moves[d.mv].startup;
+  // the SPARK (system 'spark'): a counter hit struck on the strike's very first active frame, the blow and the opening
+  // met in one frame: half again the damage, the moment held (rules.sparkStop more hitstop), meter
+  const spark = !shot && counter && sys(s, 'spark') && p.mf === m.startup;
   let dmg = scaled(s, d, src.dmg ?? src.damage);
-  if (counter) dmg = Math.floor((dmg * 6) / 5);
+  if (spark) dmg = Math.floor((dmg * 3) / 2);
+  else if (counter) dmg = Math.floor((dmg * 6) / 5);
   d.hp -= dmg;
   d.combo++;
   d.mv = null;
   d.air = 0;
-  d.hs = hitstop;
-  if (!shot) { p.hs = hitstop; p.conn = 1; }
-  p.meter = Math.min(METER_MAX, p.meter + (src.meter ?? 20));
+  d.hs = hitstop + (spark ? s.rules.sparkStop : 0);
+  if (!shot) { p.hs = d.hs; p.conn = 1; }
+  p.meter = Math.min(METER_MAX, p.meter + (src.meter ?? 20) + (spark ? s.rules.sparkMeter : 0));
   d.meter = Math.min(METER_MAX, d.meter + Math.round((src.meter ?? 20) / 2));
   const knock = shot ? (shot.sup ? 'down' : 'none') : m.knock;
   // the BOUND (bound): a heavy blow on a body already falling in a juggle slams it to the floor and it bounds back up,
@@ -848,7 +865,8 @@ function applyHit(s, ctx, { a, m, shot }) {
     react(d, 'hit', at, hard, counter ? 1 : 0);
     pushOut(push);
   }
-  s.events.push({ t: counter ? 'counter' : 'hit', p: a, dmg, x: shot ? shot.x : d.x - face * 150, y: shot ? shot.y : 1100, combo: d.combo });
+  if (spark) s.events.push({ t: 'spark', p: a, dmg, ...blow });
+  s.events.push({ t: counter ? 'counter' : 'hit', p: a, dmg, x: shot ? shot.x : d.x - face * 150, y: shot ? shot.y : 1100, combo: d.combo, ...blow, ...(spark ? { spark: 1 } : {}) });
   if (d.hp <= 0) ko(s, 1 - a, face);
 }
 
