@@ -13,7 +13,7 @@ export const OWNER = {
   classical: [
     'gravity-uniform', 'gravity-newton', 'gravity', 'spring', 'rod', 'rope', 'pendulum', 'drag-linear', 'drag-quadratic',
     'air-resistance', 'buoyancy', 'coulomb', 'lorentz', 'plane', 'ground', 'incline', 'collision', 'projectile', 'orbit',
-    'heat', 'thermal', 'conduction', 'convection', 'cooling', 'melting',
+    'heat', 'thermal', 'conduction', 'convection', 'cooling', 'melting', 'magnus', 'rolling', 'curveball',
   ],
   microscopic: [
     'diffusion', 'brownian', 'brownian-motion', 'osmosis', 'reaction', 'mass-action', 'binding', 'enzyme',
@@ -35,10 +35,10 @@ export const OWNER = {
 
 // laws that are classical in spirit but not (yet) rows of the table, with what would close the gap
 const NOT_YET = {
-  magnus: 'spin lift on a ball: the curated `mechanics` kind\'s `flight` scenario has it today',
-  rolling: 'rolling without slipping needs rotational state; bodies slide in this table',
-  torque: 'rigid-body rotation is not in the table; bodies are point masses or smooth spheres',
-  'rigid-body': 'rigid-body rotation is not in the table; bodies are point masses or smooth spheres',
+  rolling: 'give a body spin ([0, 0, 0] to start still): it rolls on a plane with friction',
+  curveball: 'the magnus row, on a body given spin',
+  torque: 'bodies are spheres that may spin (give spin), turned only by a surface\'s friction; there is no torque row and no other shape',
+  'rigid-body': 'bodies are spheres that may spin (give spin), turned only by a surface\'s friction; there is no other shape',
   turbulence: 'turbulent flow is not modelled; quadratic drag is the closest row',
   fluid: 'fluid flow fields are not in the table; the curated `fluid` and `hydro` kinds show flow',
   relativity: 'the relativistic scale\'s rows are general relativity round one mass (schwarzschild); special relativity is not in the table yet',

@@ -294,6 +294,9 @@ export const CLASSICAL_LAWS = [
     },
     summary: 'A rigid flat surface through `point`: a floor (default), a wall (`normal`), or a ramp (`tilt` an angle, sloping down along `downhill`). Bodies bounce with restitution e, rest on it, and slide with friction μ (static μs, default μ).',
     assumption: 'The surface is rigid and flat; bodies slide, they do not roll; elastic and frictionless unless e and μ say otherwise.',
+    // a body that spins rolls on it (kernel.js): its friction acts at the contact point. The summary and assumption stay
+    // as they are, word for word (the page prints them, and a page is a pinned output); a model with spin reads this one
+    assumptionSpin: 'The surface is rigid and flat; a body given spin rolls on it (its friction acts at the contact point), any other slides; elastic and frictionless unless e and μ say otherwise; no rolling resistance.',
     resolve: (e, ctx) => {
       const idx = members(e, ctx, free), plane = { id: e.id, p: e.point ?? [0, 0, 0], n: planeNormal(e, ctx), e: e.e ?? 1, mu: e.mu ?? 0, mus: e.mus ?? e.mu ?? 0, idx };
       // with no e said, each body takes the lower bounce of its matter and the plane's (either absent: ideal, 1)
@@ -351,6 +354,33 @@ export const CLASSICAL_LAWS = [
     example: {
       bodies: [{ id: 'a', mass: 1, radius: 0.1, at: [-1, 0, 0], v: [2, 0, 0] }, { id: 'b', mass: 2, radius: 0.1, at: [1, 0, 0] }],
       laws: [{ law: 'collision', e: 0.5 }], duration: 2,
+    },
+  },
+  {
+    id: 'magnus',
+    words: ['magnus', 'spin', 'curve', 'curveball', 'topspin', 'backspin', 'swerve', 'lift'],
+    shape: 'each',
+    params: { rho: { dim: 'density', default: 1.225 }, medium: { matter: 'medium' }, cl: { number: true, default: 1 }, wind: { dim: 'velocity', vector: true, default: [0, 0, 0] } },
+    summary: 'Magnus lift on a spinning ball: F = ½·cl·ρ·π·r³·ω × (v − wind), the lift coefficient growing with the spin ratio (C_L = cl·r·ω / |v − wind|). Topspin dips a ball, backspin floats it, sidespin curves it.',
+    assumption: 'The lift grows in step with the spin ratio (the low-spin regime; cl is the slope, near 1 for a smooth ball); the air does not slow the spin; the ball is a sphere.',
+    resolve: (e, ctx) => {
+      const rho = e.rho ?? mediumOf(e)?.density ?? 1.225, idx = members(e, ctx, (b) => free(b) && b.spin && b.radius > 0);
+      return { force: { kind: 'magnus', idx, k: idx.map((i) => 0.5 * (e.cl ?? 1) * rho * Math.PI * ctx.bodies[i].radius ** 3), wind: e.wind ?? [0, 0, 0] } };
+    },
+    flags: () => ({ ...NONE, velocityDependent: true, external: true }),
+    // the time its lift takes to turn it a full circle at its spin: 2π·m / (k·|ω|)
+    timescale: (e, ctx) => {
+      const rho = e.rho ?? mediumOf(e)?.density ?? 1.225;
+      const ts = members(e, ctx, (b) => free(b) && b.spin && b.radius > 0).map((i) => {
+        const b = ctx.bodies[i], w = len(b.spin), k = 0.5 * (e.cl ?? 1) * rho * Math.PI * b.radius ** 3;
+        return w > 0 ? TAU * b.mass / (k * w) : Infinity;
+      }).filter(Number.isFinite);
+      return ts.length ? Math.min(...ts) : null;
+    },
+    validate: (e, ctx) => (members(e, ctx, (b) => free(b) && b.spin && b.radius > 0).length ? null : 'magnus lifts spinning bodies: give a body spin ([x, y, z] in rad/s, or \'300 rpm\')'),
+    example: {
+      bodies: [{ id: 'ball', mass: 0.43, radius: 0.11, at: [0, 0, 0.11], v: [25, 0, 6], spin: [0, 0, '8 rev/s'] }],
+      laws: [{ law: 'gravity-uniform' }, { law: 'drag-quadratic', cd: 0.25 }, { law: 'magnus' }], duration: 1.2,
     },
   },
   {

@@ -43,6 +43,7 @@ const sig = (v, n = 6) => (typeof v === 'number' && Number.isFinite(v) ? +v.toPr
 const sigv = (a, n = 6) => a.map((c) => sig(c, n));
 
 export const MATTER_ASSUMPTION = 'Matter from rupa\'s table (typical handbook figures, never a guarantee): a body is a uniform sphere of it; a contact\'s lost energy is shared inversely to stiffness; a verdict is reported, and the run never breaks or dents a body.';
+export const SPIN_ASSUMPTION = 'A body given spin is a rigid sphere (a uniform one, or a shell holding its matter\'s fill): a surface\'s friction turns its spin, nothing else does; pairs are smooth, so a collision leaves spin as it was; no rolling resistance.';
 export const BASE_ASSUMPTION = 'Newtonian mechanics: speeds far below light and paths far larger than a body\'s quantum wavelength (the regime gates check both).';
 
 function normalizeFrame(frame) {
@@ -159,7 +160,7 @@ export function normalizeClassical(params) {
 const OBSERVABLES = {
   energy: { body: false }, momentum: { body: false }, 'angular-momentum': { body: false },
   speed: { body: true }, height: { body: true }, apex: { body: true }, range: { body: true }, period: { body: true },
-  position: { body: true }, velocity: { body: true }, temperature: { body: true },
+  position: { body: true }, velocity: { body: true }, temperature: { body: true }, spin: { body: true },
 };
 
 function normalizeObserve(list, index) {
@@ -183,6 +184,9 @@ function resolveSystem(model, ctx) {
     bodies: model.bodies.map((b) => ({ m: b.mass ?? 0, r: b.radius, q: b.charge ?? 0, fixed: b.fixed, x: b.at, v: b.v })),
     forces: [], planes: [], rods: [], collisions: [],
   };
+  // the bodies that spin (contract.js: their inertia from their matter's fill), as the kernel takes them
+  const spinning = model.bodies.map((b, i) => (b.spin ? { i, I: b.inertia, w: b.spin } : null)).filter(Boolean);
+  if (spinning.length) desc.spin = spinning;
   // a model with matter logs its contacts, so the readout can say what each one did to what it struck
   if (model.bodies.some((b) => b.matter) || model.laws.some(({ entry }) => entry.matter)) desc.log = true;
   for (const { row, entry } of model.laws) {
@@ -237,6 +241,10 @@ export function solveClassical(params) {
     warnings.push('verlet reads position alone and these laws read velocity: stepped with rk4');
     stepper = 'rk4';
   }
+  if (desc.spin && stepper === 'verlet') {
+    if (model.stepper) warnings.push('a spinning body is stepped with rk4 (its friction reads its spin)');
+    stepper = 'rk4';
+  }
 
   const fast = fastest(model, ctx, desc);
   const samples = Math.max(60, Math.min(MAX_SAMPLES, Math.max(Math.round(model.duration * 60), fast ? Math.ceil((SAMPLES_PER_PERIOD * model.duration) / fast.t) : 0)));
@@ -278,6 +286,10 @@ export function solveClassical(params) {
       gates.push(gate('angular-momentum-conserved', 'total angular momentum holds (central forces only)', dL <= 1e-6, { drift: sig(dL, 3) }, 'every force acts along the line between bodies'));
     }
   }
+  if (run.w) {
+    gates.push(gate('spin-held', 'a spin changes only where a surface holds or strikes the body (nothing in flight turns it), to one part in a trillion',
+      run.spinDrift <= 1e-12, { drift: sig(run.spinDrift, 3) }, run.spinDrift <= 1e-12 ? 'in flight every spin holds' : 'a spin changed in flight: a torque with no source'));
+  }
   if (desc.rods.some((r) => !r.rope)) {
     gates.push(gate('constraints-held', 'rods keep their length within one part in a million', run.maxRodError <= 1e-6, { error: sig(run.maxRodError, 3) }, 'rigid links stay rigid'));
   }
@@ -316,6 +328,7 @@ export function solveClassical(params) {
     bodies: Object.fromEntries(ids.map((id, i) => [id, {
       x: run.x.map((x) => sigv(x.slice(3 * i, 3 * i + 3), 9)),
       v: run.v.map((v) => sigv(v.slice(3 * i, 3 * i + 3), 9)),
+      ...(run.w && model.bodies[i].spin ? { w: run.w.map((w) => sigv(w.slice(3 * i, 3 * i + 3), 9)) } : {}),
     }])),
   };
   const series = { ke: run.ke.map((v) => sig(v)), pe: run.pe.map((v) => sig(v)), e: E.map((v) => sig(v)), p: run.p.map((p) => sigv(p)), L: run.L.map((L) => sigv(L)) };
@@ -329,7 +342,7 @@ export function solveClassical(params) {
     !matter.broken.length, { broken: matter.broken },
     matter.broken.length ? `${matter.broken.join(', ')} would break: the run past that contact is the unbroken body's, not what would happen` : 'every contact stays within what each matter absorbs'));
 
-  const assumptions = [BASE_ASSUMPTION, ...new Set(model.laws.map(({ row }) => row.assumption)), ...(matter ? [MATTER_ASSUMPTION] : []), ...(heat ? heat.assumptions : [])];
+  const assumptions = [BASE_ASSUMPTION, ...new Set(model.laws.map(({ row }) => (desc.spin && row.assumptionSpin) || row.assumption)), ...(desc.spin ? [SPIN_ASSUMPTION] : []), ...(matter ? [MATTER_ASSUMPTION] : []), ...(heat ? heat.assumptions : [])];
   return {
     scale: 'classical',
     model: { ...model, bodies: model.bodies.map(compactBody), laws: model.laws.map(({ row, entry }) => compactEntry(row, entry)) },
@@ -379,7 +392,10 @@ function observe(model, run, ctx, E, heat) {
       out[key] = { value: T === null ? null : sig(T), unit: 's', axis: sigv(axis), ...(T === null ? { note: 'fewer than two full swings within the run' } : {}) };
     } else if (o.quantity === 'position') out[key] = { start: sigv(at(run, 0, i)), end: sigv(at(run, last, i)), unit: 'm' };
     else if (o.quantity === 'velocity') out[key] = { start: sigv(vel(run, 0, i)), end: sigv(vel(run, last, i)), unit: 'm/s' };
-    else if (o.quantity === 'temperature') {
+    else if (o.quantity === 'spin') {
+      const w = run.w && model.bodies[i].spin ? run.w.map((x) => Math.hypot(x[3 * i], x[3 * i + 1], x[3 * i + 2])) : null;
+      out[key] = w ? { start: sig(w[0]), max: sig(Math.max(...w)), end: sig(w[last]), unit: 'rad/s' } : { value: null, unit: 'rad/s', note: 'it was not given spin' };
+    } else if (o.quantity === 'temperature') {
       const T = heat?.series[o.of] ?? run.t.map(() => model.bodies[i].temperature ?? null);
       out[key] = T[0] === null ? { value: null, unit: 'K', note: 'it names no temperature and no heat law moves one' }
         : { start: sig(T[0]), max: sig(Math.max(...T)), min: sig(Math.min(...T)), end: sig(T[last]), unit: 'K' };

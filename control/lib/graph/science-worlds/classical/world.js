@@ -324,6 +324,7 @@ function scienceConfig(plan, title) {
       ] : []),
       ...(pShown ? [{ html: '|p|', values: series.p.map((p) => len(p)), unit: 'kg·m/s', suffix: ' · conserved' }] : []),
       ...model.observe.filter((o) => o.quantity === 'speed').map((o) => ({ html: esc(`v(${o.of})`), values: tracks.bodies[o.of].v.map((q) => len(q)), unit: 'm/s', cls: 'v' })),
+      ...model.observe.filter((o) => o.quantity === 'spin' && tracks.bodies[o.of].w).map((o) => ({ html: esc(`ω(${o.of})`), values: tracks.bodies[o.of].w.map((q) => len(q)), unit: 'rad/s', plain: true })),
       // the heat law's bodies, each its temperature (the first four; the readout has them all)
       ...Object.entries(series.T ?? {}).slice(0, 4).map(([id, T]) => ({ html: esc(`T(${id})`), values: T.map((K) => K - 273.15), unit: '°C', plain: true })),
     ],

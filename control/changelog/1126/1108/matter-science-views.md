@@ -32,3 +32,11 @@
   `temperature` can be observed. The destructible-physics matter table gains a `TRANSPORT` table beside it
   (conductivity and emissivity), read only by the science worlds: no game page changes. Heat is stepped along the run
   after the motion, so a model with no heat law is unchanged, byte for byte.
+- **Spin and rolling in the classical worlds.** A body given `spin` (`[x, y, z]` in rad/s, or `'300 rpm'`, `'8 rev/s'`)
+  is a sphere that turns, its moment of inertia a solid ball's or, when its matter fills less than all of it, a shell's.
+  On a plane with friction it rolls: a ball rolls down a ramp at 5/7 of the slide, a skid settles into a roll, a
+  backspun ball comes back, and a rough bounce trades speed for spin. The new `magnus` law lifts a spinning ball in the
+  air (topspin dips, backspin floats, sidespin curves). The checks: `closed-form:rolling` against the textbook ramp, and
+  `spin-held` (nothing in flight turns a spin); `spin` can be observed and shown on the page. `rpm`, `rev/s` and `rad/s`
+  join the units, and `'Hz'` is refused for a spin as ambiguous. A body without `spin` slides as before: every existing
+  model runs the same steps, byte for byte.

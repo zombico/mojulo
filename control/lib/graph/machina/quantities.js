@@ -93,6 +93,8 @@ export const UNITS = {
   'm²/s': U(DIM.diffusivity, 1), 'm2/s': U(DIM.diffusivity, 1), 'cm²/s': U(DIM.diffusivity, 1e-4), 'cm2/s': U(DIM.diffusivity, 1e-4),
   'µm²/s': U(DIM.diffusivity, 1e-12), 'um2/s': U(DIM.diffusivity, 1e-12), 'µm2/s': U(DIM.diffusivity, 1e-12),
   '/s': U(DIM.frequency, 1), 's⁻¹': U(DIM.frequency, 1), 's^-1': U(DIM.frequency, 1), Hz: U(DIM.frequency, 1), '/min': U(DIM.frequency, 1 / 60),
+  // angular speeds (a spin): radians per second, and turns as rpm or rev/s (2π radians a turn)
+  'rad/s': U(DIM.frequency, 1), rpm: U(DIM.frequency, (2 * Math.PI) / 60), 'rev/s': U(DIM.frequency, 2 * Math.PI),
   M: U(DIM.concentration, 1000), mM: U(DIM.concentration, 1), 'µM': U(DIM.concentration, 1e-3), uM: U(DIM.concentration, 1e-3), nM: U(DIM.concentration, 1e-6), 'mol/m³': U(DIM.concentration, 1),
   '/M/s': U(DIM.rate2, 1e-3), 'M⁻¹s⁻¹': U(DIM.rate2, 1e-3), 'M^-1s^-1': U(DIM.rate2, 1e-3), '/µM/s': U(DIM.rate2, 1e3), '/uM/s': U(DIM.rate2, 1e3),
 };

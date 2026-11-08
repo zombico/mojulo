@@ -87,11 +87,13 @@ export function positive(value, want, where, { zero = false } = {}) {
 const idOk = (s) => typeof s === 'string' && /^[a-z0-9][a-z0-9_-]{0,31}$/i.test(s);
 
 /**
- * The model's bodies: `{ id, mass?, radius?, at, v?, charge?, fixed?, on_plane?, matter?, temperature? }`. A fixed body never moves
+ * The model's bodies: `{ id, mass?, radius?, at, v?, charge?, fixed?, on_plane?, matter?, temperature?, spin? }`. A fixed body never moves
  * (it may still pull: a fixed sun) and needs no mass unless a law reads it. Ids are unique, short, and what laws and
  * dress name the body by. `matter` names what it is made of (rupa's table, matter.js): with a radius and no mass, its
  * mass is the matter's density × the sphere's volume; a collision or plane with no `e` takes its bounce. `temperature`
  * (kelvin, or '20 °C') is where it starts: the `heat` law moves it; with none, it stays (a hot body struck is weaker).
+ * `spin` ([x, y, z] rad/s, or '300 rpm' per component) makes it a spinning sphere: it rolls on a plane with friction, and
+ * the magnus law lifts it; its moment of inertia is a uniform sphere's, a shell's when its matter fills less than all.
  */
 export function normalizeBodies(list) {
   if (!Array.isArray(list) || !list.length) fail('model.bodies', 'wants at least one body');
@@ -120,6 +122,16 @@ export function normalizeBodies(list) {
     }
     if (matter) out.matter = matter;
     if (b.temperature !== undefined) out.temperature = temperature(b.temperature, `${where}.temperature`);
+    if (b.spin !== undefined) {
+      if (fixed) fail(`${where}.spin`, 'a fixed body never moves, so it does not spin');
+      if (!(radius > 0)) fail(`${where}.spin`, 'a point does not spin: give the body a radius');
+      if (Array.isArray(b.spin) && b.spin.some((c) => typeof c === 'string' && /\bHz\b/.test(c))) fail(`${where}.spin`, "'Hz' could mean turns or radians a second: say 'rev/s', 'rpm' or 'rad/s'");
+      out.spin = vector(b.spin, 'frequency', `${where}.spin`);
+      // a uniform sphere, or a thick shell holding its matter's fill (the inner radius where the rest is hollow)
+      const fill = matter?.fill ?? 1;
+      const ri = fill >= 1 ? 0 : radius * Math.cbrt(1 - fill);
+      out.inertia = fill >= 1 ? 0.4 * out.mass * radius * radius : 0.4 * out.mass * (radius ** 5 - ri ** 5) / (radius ** 3 - ri ** 3);
+    }
     return out;
   });
 }

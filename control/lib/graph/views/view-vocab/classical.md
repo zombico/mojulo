@@ -40,19 +40,20 @@ wants: `'500 g'`, `'36 km/h'`, `'30 deg'`, `[2, 'µC']`, `'2.5 yr'`. A mass give
 
 - `frame` — `{ g }`: the uniform gravity a `gravity-uniform` law uses (default Earth, 9.8 m/s²; or 'moon', 'mars',
   'jupiter', or a quantity). The world is z-up: down is −z.
-- `bodies` — `[{ id, mass, radius?, at, v?, charge?, fixed?, on_plane?, matter?, temperature? }]`. `at` and `v` are [x, y, z]. A body
+- `bodies` — `[{ id, mass, radius?, at, v?, charge?, fixed?, on_plane?, matter?, temperature?, spin? }]`. `at` and `v` are [x, y, z]. A body
   with no radius is a point mass. A `fixed` body never moves but still pulls (a sun, a pivot charge). `on_plane: '<plane
   id>'` sets a body on that surface. `matter` names what it is made of, a solid from the destructible-physics matter
   table (`'steel'`, `'glass'`, `'timber'`, …, or `{ is, …overrides }`): with a radius and no mass its mass is the
   matter's density × the sphere's volume, and a collision or plane with no `e` takes the lower bounce of the two.
   `temperature` is where it starts (kelvin, or `'20 °C'`, `'68 °F'`; `'C'` alone is the coulomb): the `heat` law moves
-  it, and a hot body is weaker when struck.
+  it, and a hot body is weaker when struck. `spin` (`[x, y, z]` in rad/s, or `'300 rpm'`, `'8 rev/s'` per component;
+  `[0, 0, 0]` for a ball that starts still) makes it a spinning sphere: see **Spin and rolling**.
 - `laws` — `[{ law: '<id>', …its params }]`, from the table below. A law id the table does not have is reported as a
   **gap** that names the scale that owns it (diffusion and reaction rates are microscopic; orbitals and bonds are
   quantum), and the rest of the model still runs.
 - `observe` — what the readout and the mint report: `'energy'` (default), `'momentum'`, `'angular-momentum'`, or
   `{ quantity, of: '<body>' }` for `'speed'`, `'height'`, `'apex'`, `'range'`, `'period'` (optional `axis`),
-  `'position'`, `'velocity'`, `'temperature'`.
+  `'position'`, `'velocity'`, `'temperature'`, `'spin'`.
 - `duration` — how long the model runs (a time). `dt` and `stepper` ('verlet' or 'rk4') override the solver's
   choice; leave them out unless a gate asks.
 
@@ -94,6 +95,19 @@ the path needs the quantum scale). Say which gates ran and what they saw; the ey
 The drawing declares its own liberties: a scale other than one metre per unit at very large or very small sizes, a
 body too small to see drawn larger (a body that touches things keeps its true size), time sped up or slowed down, and
 a field drawn (its lines a way to draw it, where they start, its glow's scale).
+
+## Spin and rolling
+
+A body given `spin` is a rigid sphere that turns. Its moment of inertia is a uniform ball's (2/5·m·r²), or a shell's
+when its matter fills less than all of it (sheet metal). On a plane with friction (`mu`, `mus`) the friction acts at the
+contact point, so it rolls: static friction holds the contact point still while it can (a solid ball rolls down a ramp
+at 5/7 of the slide), kinetic friction works on the slip until it rolls (a skidding ball settles to 5/7 of its speed; a
+backspun one comes back), and a bounce's friction trades speed and spin. The `magnus` law lifts it in the air: topspin
+dips a ball, backspin floats it, sidespin curves it. Nothing in flight turns a spin; collisions between bodies are
+smooth and leave it as it was; there is no rolling resistance. Bodies without `spin` slide as they always have.
+
+It adds the `spin-held` gate (a spin changes only where a surface holds or strikes the body) and `closed-form:rolling`
+when the model is a ball rolling from rest down a ramp. `{ quantity: 'spin', of }` reads it back, on the page too.
 
 ## Heat
 
@@ -318,6 +332,15 @@ Spheres that touch exchange an impulse along the line of centres with restitutio
 - Leaves out: Contacts are instantaneous; spheres are smooth and do not spin.
 - Smallest example: `{"bodies":[{"id":"a","mass":1,"radius":0.1,"at":[-1,0,0],"v":[2,0,0]},{"id":"b","mass":2,"radius":0.1,"at":[1,0,0]}],"laws":[{"law":"collision","e":0.5}],"duration":2}`
 
+### `magnus`
+
+Magnus lift on a spinning ball: F = ½·cl·ρ·π·r³·ω × (v − wind), the lift coefficient growing with the spin ratio (C_L = cl·r·ω / |v − wind|). Topspin dips a ball, backspin floats it, sidespin curves it.
+
+- Names its bodies with `on?: [ids]` (default: every body it can act on).
+- Takes `rho` (kg/m³; default 1.225), `medium` (a liquid or gas from rupa's matter table: 'water', 'air', 'honey', …; optional), `cl` (a number, SI; default 1), `wind` ([x, y, z] in m/s; default [0, 0, 0]).
+- Leaves out: The lift grows in step with the spin ratio (the low-spin regime; cl is the slope, near 1 for a smooth ball); the air does not slow the spin; the ball is a sphere.
+- Smallest example: `{"bodies":[{"id":"ball","mass":0.43,"radius":0.11,"at":[0,0,0.11],"v":[25,0,6],"spin":[0,0,"8 rev/s"]}],"laws":[{"law":"gravity-uniform"},{"law":"drag-quadratic","cd":0.25},{"law":"magnus"}],"duration":1.2}`
+
 ### `heat`
 
 Heat: each body with a matter holds one temperature, moved by its heat (mass × specific heat, the latent heat taken at its melting point). It trades heat with the medium by convection (h), with the surroundings by radiation (εσT⁴), and by conduction through a contact spot with the bodies and the planes with matter it touches.
@@ -338,6 +361,7 @@ When a model is exactly one of these setups, the run is measured and compared wi
 - `cyclotron`: period T = 2π·m/(|q|·B) and radius r = m·v⊥/(|q|·B), within 0.1%.
 - `terminal`: terminal speed m·g/b (linear drag) or √(m·g/(½ρCdA)) (quadratic), within 0.1%.
 - `incline`: slide distance s = ½·g·(sin α − μ·cos α)·t² from rest (0 when μs ≥ tan α), within 0.1%.
+- `rolling`: a sphere rolling from rest down a ramp: s = ½·g·sin α·t² / (1 + I/m·r²) (5/7 of the slide for a solid ball) while static friction holds it (μs ≥ tan α · I/(I + m·r²)), within 0.1%.
 - `collision`: head-on final speeds v₁′, v₂′ from momentum and restitution e, within 0.1%.
 - `cooling`: a body that loses heat by convection alone, touching nothing, follows Newton's cooling: T − T∞ = (T₀ − T∞)·e^(−h·A·t / m·c), within one part in a million.
 

@@ -169,13 +169,31 @@ export const CLASSICAL_CLOSED_FORMS = [
     tol: 1e-3,
     applies(m) {
       const i = lone(m);
-      if (i < 0 || !only(m, 'gravity-uniform', 'plane') || len(m.bodies[i].v) > 0) return null;
+      if (i < 0 || !only(m, 'gravity-uniform', 'plane') || len(m.bodies[i].v) > 0 || m.bodies[i].spin) return null;
       const p = m.resolved.planes[0];
       if (!m.restingOn(i, 0)) return null;
       const cos = dot(p.n, m.frame.up), sin = Math.sqrt(Math.max(0, 1 - cos * cos));
       if (!(cos > 0)) return null;
       const g = gOf(m), a = sin <= p.mus * cos ? 0 : g * (sin - p.mu * cos);
       return { i, a: Math.max(0, a), t: m.duration };
+    },
+    expect: (a) => ({ distance: 0.5 * a.a * a.t * a.t }),
+    measure: (run, a) => ({ distance: len(sub(at(run, run.t.length - 1, a.i), at(run, 0, a.i))) }),
+  },
+  {
+    id: 'rolling',
+    want: 'a sphere rolling from rest down a ramp: s = ½·g·sin α·t² / (1 + I/m·r²) (5/7 of the slide for a solid ball) while static friction holds it (μs ≥ tan α · I/(I + m·r²)), within 0.1%',
+    tol: 1e-3,
+    applies(m) {
+      const i = lone(m), b = m.bodies[i];
+      if (i < 0 || !b.spin || !only(m, 'gravity-uniform', 'plane') || len(b.v) > 0 || len(b.spin) > 0) return null;
+      const p = m.resolved.planes[0];
+      if (!m.restingOn(i, 0)) return null;
+      const cos = dot(p.n, m.frame.up), sin = Math.sqrt(Math.max(0, 1 - cos * cos));
+      if (!(cos > 0) || !(sin > 0)) return null;
+      const share = b.inertia / (b.inertia + b.mass * b.radius * b.radius);
+      if (share * sin > p.mus * cos) return null;   // it would slip: no closed form here
+      return { i, a: gOf(m) * sin * (1 - share), t: m.duration };
     },
     expect: (a) => ({ distance: 0.5 * a.a * a.t * a.t }),
     measure: (run, a) => ({ distance: len(sub(at(run, run.t.length - 1, a.i), at(run, 0, a.i))) }),

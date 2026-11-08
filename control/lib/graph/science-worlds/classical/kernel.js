@@ -14,7 +14,15 @@
  *     planes:     [{ p: [3], n: [3], e, mu, mus, idx }],   rigid half-spaces bodies bounce on, rest on and slide along
  *     rods:       [{ a, b, anchor, L, rope }],             b = -1 for a fixed anchor point
  *     collisions: [{ e, idx }],                            smooth spheres, impulses along the line of centres
- *     log?:       true }                                   record each bounce and collision impulse in `impacts`
+ *     log?:       true,                                    record each bounce and collision impulse in `impacts`
+ *     spin?:      [{ i, I, w: [3] }] }                     the bodies that SPIN: moment of inertia, angular velocity
+ *
+ * SPIN (opt-in: with no `spin` every path below is the one it was, byte for byte). A spinning body carries ω; a plane's
+ * friction acts at its contact point, so it rolls: static friction holds the contact point still while it can (for a
+ * sphere f = −m·a_t·I/(I + m·r²), its share of the tangential pull), kinetic friction opposes the contact point's slip,
+ * and a slip slow enough for friction to stop within a step is stopped by an impulse (J = −v_c/(1/m + r²/I)). A bounce's
+ * friction acts on the same slip. Magnus lift (kind 'magnus', k = ½·cl·ρ·π·r³ per body) is F = k·ω × (v − wind). Pairs
+ * stay smooth (no torque), and nothing in flight turns a spin: it changes only at a surface.
  *
  * A plane may carry `eb` ({ body index: e }): each body's own restitution against it (its matter's bounce), over `e`.
  *
@@ -38,6 +46,11 @@ export function buildClassical() {
       forces: desc.forces || [], planes: desc.planes || [], rods: desc.rods || [], collisions: desc.collisions || [],
       a: null, log: desc.log ? [] : null, now: 0,
     };
+    if (desc.spin && desc.spin.length) {
+      S.w = new Float64Array(3 * n); S.I = new Float64Array(n); S.iI = new Float64Array(n); S.al = null;
+      for (const b of desc.spin) { S.I[b.i] = b.I; S.iI[b.i] = 1 / b.I; for (let k = 0; k < 3; k++) S.w[3 * b.i + k] = b.w[k]; }
+      S.hit = new Uint8Array(n);
+    }
     desc.bodies.forEach((b, i) => {
       S.m[i] = b.m || 0; S.im[i] = b.fixed || !(b.m > 0) ? 0 : 1 / b.m; S.r[i] = b.r || 0; S.q[i] = b.q || 0;
       for (let k = 0; k < 3; k++) { S.x[3 * i + k] = b.x[k]; S.v[3 * i + k] = b.fixed ? 0 : b.v[k]; }
@@ -126,7 +139,7 @@ export function buildClassical() {
   }
 
   // ── resting contacts: the normal force cancels pressing, Coulomb friction opposes sliding ──
-  function planeForces(S, x, v, F) {
+  function planeForces(S, x, v, F, w, T) {
     S.planes.forEach((P, pi) => {
       const c = S.contact[pi];
       for (const i of P.idx) {
@@ -135,6 +148,7 @@ export function buildClassical() {
         if (fn >= 0) continue;
         const N = -fn;
         for (let k = 0; k < 3; k++) F[3 * i + k] += N * P.n[k];
+        if (w && S.iI[i] > 0) { rollForce(S, P, i, v, w, F, T, N); continue; }
         const vn = dot(v, 3 * i, P.n, 0);
         const vt = [0, 1, 2].map((k) => v[3 * i + k] - vn * P.n[k]);
         const sp = Math.hypot(vt[0], vt[1], vt[2]);
@@ -148,6 +162,42 @@ export function buildClassical() {
         }
       }
     });
+  }
+
+  // a spinning body on a plane: friction at the contact point (r_c = −r·n), as a force on it and a torque on its spin
+  function rollForce(S, P, i, v, w, F, T, N) {
+    const r = S.r[i], m = S.m[i], I = S.I[i], n = P.n, o = 3 * i;
+    // the contact point's slip: v + ω × r_c, its part along the plane
+    const rc = [-r * n[0], -r * n[1], -r * n[2]];
+    const vc = [v[o] + w[o + 1] * rc[2] - w[o + 2] * rc[1], v[o + 1] + w[o + 2] * rc[0] - w[o] * rc[2], v[o + 2] + w[o] * rc[1] - w[o + 1] * rc[0]];
+    const vcn = vc[0] * n[0] + vc[1] * n[1] + vc[2] * n[2];
+    for (let k = 0; k < 3; k++) vc[k] -= vcn * n[k];
+    const sp = Math.hypot(vc[0], vc[1], vc[2]);
+    let f;
+    if (sp > 1e-9) f = vc.map((c) => -P.mu * N * c / sp);
+    else {
+      const fn = F[o] * n[0] + F[o + 1] * n[1] + F[o + 2] * n[2];
+      const ft = [F[o] - fn * n[0], F[o + 1] - fn * n[1], F[o + 2] - fn * n[2]];
+      const hold = I / (I + m * r * r);
+      f = ft.map((c) => -hold * c);
+      const fm = Math.hypot(f[0], f[1], f[2]);
+      if (fm > P.mus * N && fm > 0) f = f.map((c) => (c * P.mu * N) / fm);
+    }
+    for (let k = 0; k < 3; k++) F[o + k] += f[k];
+    T[o] += rc[1] * f[2] - rc[2] * f[1]; T[o + 1] += rc[2] * f[0] - rc[0] * f[2]; T[o + 2] += rc[0] * f[1] - rc[1] * f[0];
+  }
+
+  // Magnus lift on a spinning body: F = k·ω × (v − wind)
+  function magnusForces(S, v, w, F) {
+    for (const f of S.forces) {
+      if (f.kind !== 'magnus') continue;
+      f.idx.forEach((i, t) => {
+        const o = 3 * i, ux = v[o] - f.wind[0], uy = v[o + 1] - f.wind[1], uz = v[o + 2] - f.wind[2];
+        F[o] += f.k[t] * (w[o + 1] * uz - w[o + 2] * uy);
+        F[o + 1] += f.k[t] * (w[o + 2] * ux - w[o] * uz);
+        F[o + 2] += f.k[t] * (w[o] * uy - w[o + 1] * ux);
+      });
+    }
   }
 
   // ── rods and ropes: Lagrange multipliers so the constraint's second derivative is zero ──
@@ -225,6 +275,50 @@ export function buildClassical() {
     return A;
   }
 
+  // with spin: the linear acceleration into A and the angular into Al
+  function accelSpin(S, x, v, w, A, Al) {
+    baseForces(S, x, v, A);
+    magnusForces(S, v, w, A);
+    Al.fill(0);
+    if (S.planes.length) planeForces(S, x, v, A, w, Al);
+    if (S.rods.length) rodForces(S, x, v, A);
+    for (let i = 0; i < S.n; i++) for (let k = 0; k < 3; k++) { A[3 * i + k] *= S.im[i]; Al[3 * i + k] *= S.iI[i]; }
+    return A;
+  }
+
+  function stepRK4Spin(S, dt) {
+    const N = 3 * S.n, x0 = S.x, v0 = S.v, w0 = S.w;
+    const x = new Float64Array(N), v = new Float64Array(N), w = new Float64Array(N);
+    const l1 = new Float64Array(N), l2 = new Float64Array(N), l3 = new Float64Array(N), l4 = new Float64Array(N);
+    const k1 = accelSpin(S, x0, v0, w0, new Float64Array(N), l1);
+    for (let j = 0; j < N; j++) { x[j] = x0[j] + 0.5 * dt * v0[j]; v[j] = v0[j] + 0.5 * dt * k1[j]; w[j] = w0[j] + 0.5 * dt * l1[j]; }
+    const v2 = Float64Array.from(v), k2 = accelSpin(S, x, v, w, new Float64Array(N), l2);
+    for (let j = 0; j < N; j++) { x[j] = x0[j] + 0.5 * dt * v2[j]; v[j] = v0[j] + 0.5 * dt * k2[j]; w[j] = w0[j] + 0.5 * dt * l2[j]; }
+    const v3 = Float64Array.from(v), k3 = accelSpin(S, x, v, w, new Float64Array(N), l3);
+    for (let j = 0; j < N; j++) { x[j] = x0[j] + dt * v3[j]; v[j] = v0[j] + dt * k3[j]; w[j] = w0[j] + dt * l3[j]; }
+    const v4 = Float64Array.from(v), k4 = accelSpin(S, x, v, w, new Float64Array(N), l4);
+    for (let j = 0; j < N; j++) {
+      x0[j] += dt / 6 * (v0[j] + 2 * v2[j] + 2 * v3[j] + v4[j]);
+      v0[j] += dt / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]);
+      w0[j] += dt / 6 * (l1[j] + 2 * l2[j] + 2 * l3[j] + l4[j]);
+    }
+  }
+
+  // a tangential impulse at the contact point (−r·n from the centre) on a spinning body: its share to v and to ω
+  function contactImpulse(S, i, n, J) {
+    const o = 3 * i, r = S.r[i], rc = [-r * n[0], -r * n[1], -r * n[2]];
+    for (let k = 0; k < 3; k++) S.v[o + k] += J[k] * S.im[i];
+    const tq = [rc[1] * J[2] - rc[2] * J[1], rc[2] * J[0] - rc[0] * J[2], rc[0] * J[1] - rc[1] * J[0]];
+    for (let k = 0; k < 3; k++) S.w[o + k] += tq[k] * S.iI[i];
+  }
+  // the contact point's slip along a plane, for a spinning body
+  function slipOf(S, i, n) {
+    const o = 3 * i, r = S.r[i], rc = [-r * n[0], -r * n[1], -r * n[2]], w = S.w, v = S.v;
+    const vc = [v[o] + w[o + 1] * rc[2] - w[o + 2] * rc[1], v[o + 1] + w[o + 2] * rc[0] - w[o] * rc[2], v[o + 2] + w[o] * rc[1] - w[o + 1] * rc[0]];
+    const vn = vc[0] * n[0] + vc[1] * n[1] + vc[2] * n[2];
+    return vc.map((c, k) => c - vn * n[k]);
+  }
+
   function stepVerlet(S, dt) {
     const N = 3 * S.n;
     if (!S.a) S.a = accel(S, S.x, S.v, new Float64Array(N));
@@ -286,6 +380,7 @@ export function buildClassical() {
     let moved = false;
     const F = new Float64Array(3 * S.n);
     baseForces(S, S.x, S.v, F);
+    if (S.w) magnusForces(S, S.v, S.w, F);
     S.planes.forEach((P, pi) => {
       const c = S.contact[pi];
       for (const i of P.idx) {
@@ -298,6 +393,17 @@ export function buildClassical() {
           if (an >= 0 || vn > vrest) { c[i] = 0; continue; }
           if (s < 0) { for (let k = 0; k < 3; k++) S.x[3 * i + k] -= s * P.n[k]; moved = true; }
           if (vn < 0) { for (let k = 0; k < 3; k++) S.v[3 * i + k] -= vn * P.n[k]; moved = true; }
+          if (S.w && S.iI[i] > 0) {
+            // a slip slow enough for friction to stop within a step stops (it rolls), when static friction can hold it
+            const vc = slipOf(S, i, P.n), sp = Math.hypot(vc[0], vc[1], vc[2]), m = S.m[i], r = S.r[i], I = S.I[i];
+            const per = 1 / m + (r * r) / I;
+            if (sp > 0 && sp <= P.mu * -an * dt * m * per) {
+              const fn = dot(F, 3 * i, P.n, 0);
+              const ft = [0, 1, 2].map((k) => F[3 * i + k] - fn * P.n[k]);
+              if ((I / (I + m * r * r)) * Math.hypot(ft[0], ft[1], ft[2]) <= P.mus * -fn) { contactImpulse(S, i, P.n, vc.map((c) => -c / per)); moved = true; }
+            }
+            continue;
+          }
           // a slide slow enough for friction to stop within a step stops, when static friction can hold it
           const vt = [0, 1, 2].map((k) => S.v[3 * i + k] - dot(S.v, 3 * i, P.n, 0) * P.n[k]);
           const sp = Math.hypot(vt[0], vt[1], vt[2]);
@@ -321,7 +427,12 @@ export function buildClassical() {
             for (let k = 0; k < 3; k++) { S.x[3 * i + k] += (s1 - s) * P.n[k]; S.v[3 * i + k] += (v1 - vn) * P.n[k]; }
             const dv = (1 + e) * -vi;
             if (S.log) S.log.push({ t: S.now - tau, kind: 'plane', i, plane: pi, vn: -vi, e });
-            if (P.mu > 0) {
+            if (S.w) S.hit[i] = 1;
+            if (P.mu > 0 && S.w && S.iI[i] > 0) {
+              // the bounce's friction on the contact point's slip, at most μ times the normal impulse
+              const vc = slipOf(S, i, P.n), sp = Math.hypot(vc[0], vc[1], vc[2]), per = S.im[i] + (S.r[i] * S.r[i]) * S.iI[i];
+              if (sp > 0) { const Jm = Math.min(sp / per, P.mu * dv * S.m[i]); contactImpulse(S, i, P.n, vc.map((c) => (-c / sp) * Jm)); }
+            } else if (P.mu > 0) {
               const vt = [0, 1, 2].map((k) => S.v[3 * i + k] - dot(S.v, 3 * i, P.n, 0) * P.n[k]);
               const sp = Math.hypot(vt[0], vt[1], vt[2]);
               if (sp > 0) { const cut = Math.min(sp, P.mu * dv) / sp; for (let k = 0; k < 3; k++) S.v[3 * i + k] -= cut * vt[k]; }
@@ -381,6 +492,7 @@ export function buildClassical() {
   function energy(S) {
     let ke = 0, pe = 0;
     for (let i = 0; i < S.n; i++) if (S.im[i] > 0) ke += 0.5 * S.m[i] * dot(S.v, 3 * i, S.v, 3 * i);
+    if (S.w) for (let i = 0; i < S.n; i++) if (S.iI[i] > 0) ke += 0.5 * S.I[i] * dot(S.w, 3 * i, S.w, 3 * i);
     for (const f of S.forces) {
       const idx = f.idx;
       if (f.kind === 'gravity-uniform') for (const i of idx) pe -= S.m[i] * dot(f.g, 0, S.x, 3 * i);
@@ -417,6 +529,7 @@ export function buildClassical() {
       L[0] += m * (x[o + 1] * v[o + 2] - x[o + 2] * v[o + 1]);
       L[1] += m * (x[o + 2] * v[o] - x[o] * v[o + 2]);
       L[2] += m * (x[o] * v[o + 1] - x[o + 1] * v[o]);
+      if (S.w && S.iI[i] > 0) for (let k = 0; k < 3; k++) L[k] += S.I[i] * S.w[o + k];
     }
     return L;
   }
@@ -428,8 +541,10 @@ export function buildClassical() {
   function run(desc, { interval, substeps, samples, stepper }) {
     const S = system(desc), dt = interval / substeps;
     const out = { t: [], x: [], v: [], ke: [], pe: [], p: [], L: [], maxSpeed: 0, maxRodError: 0, maxOvershoot: 0 };
+    if (S.w) { out.w = []; out.spinDrift = 0; }
     const record = (k) => {
       const e = energy(S);
+      if (S.w) out.w.push(Array.from(S.w));
       out.t.push(k * interval); out.x.push(Array.from(S.x)); out.v.push(Array.from(S.v));
       out.ke.push(e.ke); out.pe.push(e.pe); out.p.push(momentum(S)); out.L.push(angular(S));
     };
@@ -448,7 +563,8 @@ export function buildClassical() {
     record(0);
     for (let k = 1; k <= samples; k++) {
       for (let s = 0; s < substeps; s++) {
-        if (stepper === 'verlet') stepVerlet(S, dt); else stepRK4(S, dt);
+        const w0 = S.w ? Float64Array.from(S.w) : null, held = S.w ? S.planes.map((P, pi) => Uint8Array.from(S.contact[pi])) : null;
+        if (S.w) { S.hit.fill(0); stepRK4Spin(S, dt); } else if (stepper === 'verlet') stepVerlet(S, dt); else stepRK4(S, dt);
         S.now = ((k - 1) * substeps + s + 1) * dt;
         project(S);
         S.planes.forEach((P) => {
@@ -459,6 +575,15 @@ export function buildClassical() {
         });
         const a = contacts(S, dt), b = collide(S);
         if (a || b) S.a = null;
+        if (S.w) {
+          // a spin touching nothing all step (no plane held it, none struck it) must not have changed
+          for (let i = 0; i < S.n; i++) {
+            if (!(S.iI[i] > 0) || S.hit[i] || held.some((c, pi) => c[i] || S.contact[pi][i])) continue;
+            const d = Math.hypot(S.w[3 * i] - w0[3 * i], S.w[3 * i + 1] - w0[3 * i + 1], S.w[3 * i + 2] - w0[3 * i + 2]);
+            const ref = Math.max(Math.hypot(w0[3 * i], w0[3 * i + 1], w0[3 * i + 2]), 1e-300);
+            if (d / ref > out.spinDrift) out.spinDrift = d / ref;
+          }
+        }
         watch();
       }
       record(k);
