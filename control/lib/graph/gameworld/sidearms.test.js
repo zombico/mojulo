@@ -72,13 +72,13 @@ describe('the aim\'s pose (the page plays it: hero-swing-body.js aimClip)', () =
     expect(A.p.body.figure).toBe('hero-sheathed');
     A.step(); A.step();   // (loosed: the bow still up, the string forward)
     expect(A.p.weapon.shots).toBe(1);
-    expect(A.p.mvPose).toEqual({ clip: 'mv_aim_bow', phase: 0 });
+    expect(A.p.mvPose).toEqual({ clip: 'mv_aim_bow', phase: 0, sidearm: true, prop: 'bow' });
     for (let f = 0; f < 30; f++) A.step();
     expect(A.p.mvPose).toBe(null);
     expect(A.p.body.figure).toBe('hero');
     A.step({ cycle: 1 }); A.step();
     A.step({ special: 1 });
-    expect(A.p.mvPose).toEqual({ clip: 'mv_aim_pistols', phase: 0 });
+    expect(A.p.mvPose).toEqual({ clip: 'mv_aim_pistols', phase: 0, sidearm: true, prop: 'guns' });
     expect(A.p.mvRanged).toMatchObject({ mode: 'auto', hand: 'right', dual: true });
   });
 });

@@ -177,6 +177,8 @@ export function buildCombatMelee(E) {
         beginClash(e, tg, state);
         break;
       }
+      // (a guard up in front of the blow meets it: blocked or parried, guardMeets; a parry spends the swing)
+      if (tg.guarding && guardMeets(tg, e, v, flat, state)) { e.struckThisSwing[tg.id] = true; if (e.swingT == null) break; continue; }
       const origin = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + P.eye];
       e.struckThisSwing[tg.id] = true;
       e.meleeHitCount = (e.meleeHitCount || 0) + 1;
@@ -453,6 +455,55 @@ export function buildCombatMelee(E) {
   // the weapon cycle (R, a pad's right shoulder, the mouse's back button) steps to the next when no swing is live, its
   // string cleared; each weapon its own moves, reach and damage, and the figure it shows (`sheathed`: the blade on the
   // back, the fist's). `r.moveset` stays the current weapon's (the page reads its blend and its clips by it).
+  // THE GUARD (opt-in `rule.guard`, a feel card's lowered: gameworld/feel/lower.js): { move, push, stun, parry, riposte,
+  // stamina? } in seconds and metres. Held (`input.guard`) on the ground, out of a swing, a dodge, a reaction and a draw,
+  // it is up (`e.guarding`, raised at `e.guardAt`); let go it comes down, unless blockstun holds it. A blow from the front
+  // meets it (guardMeets, from stepMelee): within `parry` seconds of raising it (null: any guard) it is PARRIED, else
+  // BLOCKED (`blockT` of blockstun: no move, no attack; pushed back `push` m/s over it; the stamina's `cost`, and run dry
+  // the guard breaks into a stagger `break` long). The walk while guarding is `move` of the run (rules-platform.js).
+  // Absent `rule.guard`, no field.
+  function stepGuard(e, input, dt, world, ctx) {
+    const G = e.rule.guard, now = world && world.time != null ? world.time : 0;
+    if (e.blockT > 0) {
+      e.blockT = Math.max(0, e.blockT - dt);
+      if (e.guardPush) { const k = G.stun > 0 ? e.blockT / G.stun : 0; e.transform.pos[0] += e.guardPush[0] * k * dt; e.transform.pos[1] += e.guardPush[1] * k * dt; }
+    } else e.guardPush = null;
+    const St = G.stamina;
+    if (St) { if (e.guardSt == null) e.guardSt = St.max; if (!e.guarding) e.guardSt = Math.min(St.max, e.guardSt + St.regen * dt); }
+    const can = e.swingT == null && !ctx.dodging && e.staggerT == null && e.grounded !== false && !(e.weapon && e.weapon.charging) && !(St && e.guardSt <= 0 && !e.guarding);
+    const want = !!input.guard;
+    if (want && !e.guarding && can) { e.guarding = true; e.guardAt = now; }
+    else if (e.guarding && e.blockT <= 0 && (!want || !can)) e.guarding = false;
+  }
+  // a blow (attacker A's swing, `v` from A to the guard's body) meets the guard `tg`: 'parry', 'block', or null (it lands)
+  function guardMeets(tg, A, v, flat, state) {
+    const G = tg.rule && tg.rule.guard;
+    if (!G || !tg.guarding || tg.staggerT != null || (A.strikeParams && A.strikeParams.unblockable)) return null;
+    const f = fwdXY(tg.transform.heading), ux = -v[0] / flat, uy = -v[1] / flat;
+    if (f[0] * ux + f[1] * uy <= 0) return null;   // (from behind: it lands)
+    const lr = latR(tg), at = [tg.transform.pos[0] + ux * lr, tg.transform.pos[1] + uy * lr, hullZ(tg)];
+    const parry = G.parry == null || state.time - (tg.guardAt ?? -1e9) <= G.parry + 1e-9;
+    tg.guardSeq = (tg.guardSeq || 0) + 1;
+    if (parry) {
+      // PARRIED: the attacker's swing spent, it staggered open for the riposte; the guard free at once
+      A.swingT = null; A.swingCombo = false; A.comboT = 0; A.struckThisSwing = {};
+      armReaction(A, 'stagger', true);
+      if (A.staggerT != null && A.reactClip === 'stagger' && G.riposte > 0) A.reactDur = G.riposte;
+      A.parriedT = state.time;
+      tg.blockT = 0; tg.guardPush = null; tg.parries = (tg.parries || 0) + 1;
+      tg.lastGuard = { seq: tg.guardSeq, kind: 'parry', by: A.id, t: state.time, at: Math.round((state.time - (tg.guardAt ?? state.time)) * 1e4) / 1e4 };
+      state.clashes.push({ seq: state.clashSeq++, pos: at, dir: [ux, uy], t: state.time, fxColor: 0xffd27a, fxScale: 5, n: 48 });
+      return 'parry';
+    }
+    // BLOCKED: blockstun, pushed back along the blow, the stamina spent (run dry: the guard broken, a stagger)
+    tg.blockT = G.stun; tg.guardPush = [-ux * G.push, -uy * G.push]; tg.blocks = (tg.blocks || 0) + 1;
+    let broke = false;
+    if (G.stamina) { tg.guardSt = (tg.guardSt ?? G.stamina.max) - G.stamina.cost; if (tg.guardSt <= 0) { tg.guardSt = 0; broke = true; } }
+    tg.lastGuard = { seq: tg.guardSeq, kind: broke ? 'break' : 'block', by: A.id, t: state.time, at: Math.round((state.time - (tg.guardAt ?? state.time)) * 1e4) / 1e4 };
+    state.clashes.push({ seq: state.clashSeq++, pos: at, dir: [ux, uy], t: state.time, fxColor: 0xcfe8ff, fxScale: 2.5, n: 16 });
+    if (broke) { tg.guarding = false; tg.blockT = 0; tg.guardPush = null; armReaction(tg, 'stagger', true); if (tg.staggerT != null && G.stamina.break > 0) tg.reactDur = G.stamina.break; }
+    return 'block';
+  }
   const AIM_LINGER = 0.3;   // (seconds the aim holds after a loose or the last round, before the hero lowers it)
   function stepMoveset(e, input, dt, world, ctx, boosting0) {
     const r = e.rule, t = e.transform, now = world && world.time != null ? world.time : 0, Ws = Array.isArray(r.weapons) && r.weapons.length ? r.weapons : null;
@@ -507,10 +558,12 @@ export function buildCombatMelee(E) {
     }
     // THE AIM'S POSE (the page plays it: the sidearm's `aim` clip, hero-swing-body.js aimClip): while S holds the sidearm
     // and no swing owns the body, a draw at its share (the string back as the bow draws), held a beat after a loose
-    if (Wc && Wc.sidearm && Wc.sidearm.aim && e.swingT == null && (input.special || drawing)) {
+    // (the GUARD's pose first while it is up, combat-melee.js stepGuard: the weapon's `guard`, its shield on the page)
+    if (e.guarding && Wc && Wc.guard) { e.mvPose = { clip: Wc.guard.clip, phase: 0, ...(Wc.guard.prop ? { prop: Wc.guard.prop } : {}) }; e.mvPoseT = 0; }
+    else if (Wc && Wc.sidearm && Wc.sidearm.aim && e.swingT == null && (input.special || drawing)) {
       const w = e.weapon, k = drawing && w.chargeTime > 0 ? Math.min(1, (w.chargeT || 0) / w.chargeTime) : 0;
-      e.mvPose = { clip: Wc.sidearm.aim, phase: Math.round(k * 1e4) / 1e4 }; e.mvPoseT = AIM_LINGER;
-    } else if (e.mvPose && e.swingT == null && (e.mvPoseT = (e.mvPoseT || 0) - dt) > 0) e.mvPose = { clip: e.mvPose.clip, phase: 0 };
+      e.mvPose = { clip: Wc.sidearm.aim, phase: Math.round(k * 1e4) / 1e4, sidearm: true, prop: Wc.sidearm.mode === 'draw' ? 'bow' : 'guns' }; e.mvPoseT = AIM_LINGER;
+    } else if (e.mvPose && e.mvPose.sidearm && e.swingT == null && (e.mvPoseT = (e.mvPoseT || 0) - dt) > 0) e.mvPose = { ...e.mvPose, phase: 0 };
     else if (e.mvPose) e.mvPose = null;
     const edge = (k, prev) => { const on = !!input[k], was = !!e[prev]; e[prev] = on; return on && !was; };
     const lE = edge('fire', 'strikePrev'), hE = edge('heavy', 'heavyPrev'), sE = edge('special', 'specialPrev');
@@ -518,7 +571,9 @@ export function buildCombatMelee(E) {
     // (S is the sidearm's when the weapon carries one: stepWeapon takes it; a draw held refuses the blades)
     const beat = beat0 === 'S' && Wc && Wc.sidearm ? null : beat0;
     if (beat && drawing) { say(beat, 'dropped', 'drawing the bow'); S.buf = null; }
+    else if (beat && e.blockT > 0) { say(beat, 'dropped', 'in blockstun'); S.buf = null; }
     else if (beat) {
+      if (e.guarding) e.guarding = false;   // (a press out of the guard: the guard down, the move taken)
       if (S.buf) say(S.buf.beat, 'dropped', 'another press came first');
       S.buf = { beat, t: now };
     }
@@ -596,6 +651,7 @@ export function buildCombatMelee(E) {
     // 'neutral' — the overhead cross.
     // With a loadout, the strike mode comes from the ACTIVE config (a melee slot carries
     // `strike:'melee'`), so the click routes to whatever is currently in the fist.
+    if (r.guard) stepGuard(e, input, dt, world, ctx);   // (the guard, before the moves: a press out of it drops it)
     const strikeOn = activeCfg ? activeCfg.strike === 'melee' || activeCfg.strike === true
       : r.strike === 'melee' || r.strike === true;
     if (strikeOn && !tackling && r.moveset && !activeCfg) {
@@ -782,5 +838,5 @@ export function buildCombatMelee(E) {
   registerBodyOwner('clash', (e, input, dt, state) => stepClash(e, dt, state), 20);
   registerBodyOwner('cine', (e, input, dt, state) => stepTackleCine(e, dt, state), 30);
 
-  Object.assign(E, { meleeSwingSpec, meleeContacts, beginClash, stepClash, stepMelee, stepTackle, beginTackleCounter, stepTackleCine });
+  Object.assign(E, { meleeSwingSpec, meleeContacts, beginClash, stepClash, stepMelee, stepTackle, beginTackleCounter, stepTackleCine, guardMeets });
 }

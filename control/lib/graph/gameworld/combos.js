@@ -235,7 +235,8 @@ export function readArsenal(A) {
     if (!isObj(W) || typeof W.id !== 'string' || !W.id) no(`${at} is { id, name?, figure?, reach?, damage?, moves, combos }`);
     if (ids.has(W.id)) no(`${at}: '${W.id}' twice`);
     ids.add(W.id);
-    for (const k of Object.keys(W)) if (!['id', 'name', 'figure', 'sidearm', 'reach', 'damage', 'moves', 'combos'].includes(k)) no(`${at}.${k} is not part of a weapon`);
+    for (const k of Object.keys(W)) if (!['id', 'name', 'figure', 'sidearm', 'guard', 'reach', 'damage', 'moves', 'combos'].includes(k)) no(`${at}.${k} is not part of a weapon`);
+    if (W.guard !== undefined && W.guard !== false && !GUARDS.includes(W.guard)) no(`${at}.guard is how the weapon guards (${GUARDS.join(', ')}), or false: none`);
     if (W.sidearm !== undefined && !sidearms.has(W.sidearm)) no(`${at}.sidearm '${W.sidearm}' is none of the arsenal's ranged (${[...sidearms].join(', ') || 'none'})`);
     if (W.figure !== undefined && !['drawn', 'sheathed'].includes(W.figure)) no(`${at}.figure is drawn (in hand) or sheathed (on the back)`);
     if (W.reach !== undefined && !num(W.reach, 0.3, 6)) no(`${at}.reach is metres, 0.3 to 6`);
@@ -244,6 +245,10 @@ export function readArsenal(A) {
   }
   return A;
 }
+/** how a weapon guards (hero-swing-body.js AIM_POSES' guards): `shield` the blade's (a shield on the off arm), `cover` the
+ * fist's (both fists up); a weapon's own `guard`, else by the figure it shows (drawn: the shield; sheathed: the cover) */
+export const GUARDS = Object.freeze(['shield', 'cover']);
+const guardOf = (W) => (W.guard === false ? null : W.guard ?? ((W.figure ?? 'drawn') === 'sheathed' ? 'cover' : 'shield'));
 /** the aim each kind of sidearm is held in (hero-swing-body.js AIM_POSES) */
 export const AIM_OF = Object.freeze({ draw: 'archer', auto: 'gunslinger' });
 export function lowerArsenal(A0) {
@@ -252,6 +257,8 @@ export function lowerArsenal(A0) {
   return A.weapons.map((W) => ({ id: W.id, name: W.name ?? W.id, figure: W.figure ?? 'drawn', ...(W.reach != null ? { reach: W.reach } : {}), ...(W.damage != null ? { damage: W.damage } : {}),
     // (its sidearm on S, lowered to the runtime's ranged weapon, and the aim the hero holds it in: its clip `mv_aim_<id>`,
     // a draw's the archer's, an auto's the gunslinger's, hero-swing-body.js aimClip)
+    // (its GUARD's pose while the guard is up, `mv_guard_<weapon>`: a blade's the shield, the fist's the cover; false none)
+    ...(guardOf(W) ? { guard: { clip: `mv_guard_${W.id}`, pose: guardOf(W), ...(guardOf(W) === 'shield' ? { prop: 'shield' } : {}) } } : {}),
     ...(W.sidearm ? { sidearm: { id: W.sidearm, name: G[W.sidearm].name ?? W.sidearm, mode: G[W.sidearm].mode, weapon: lowerSidearm(G[W.sidearm]), aim: `mv_aim_${W.sidearm}`, pose: AIM_OF[G[W.sidearm].mode], hand: G[W.sidearm].hand ?? (G[W.sidearm].mode === 'draw' ? 'left' : 'right'), ...(G[W.sidearm].dual ? { dual: true } : {}) } } : {}),
     // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
     moveset: lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }) }));

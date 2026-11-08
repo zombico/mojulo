@@ -19,7 +19,7 @@
  *   lowerFeel(card, { gear? })   → { rule, lane, carried: [field], partly: [{ field, why }], lost: [{ field, why }] }
  *                       `rule` the platform rule's fields (speed, accel, decel, faceRate, jumpSpeed, gravity,
  *                       fallGravity, maxFall, coyote, buffer, jumpCut, airControl, jumpWindup, airJumps, airJumpMult,
- *                       strikeContact, combo, hitstop; a card that sprints, `sprint` with its stamina: boostSpeed, boostMax,
+ *                       strikeContact, combo, hitstop, guard; a card that sprints, `sprint` with its stamina: boostSpeed, boostMax,
  *                       boostRegen, overheatRegen, boostUnlockFrac); `lane` the card holds the hero to a line (the level's own); `gear` the
  *                       template's worn gear (the glider or the jetpack), said when it names one
  *   feelRule(feel)    → the rule a written feel lays over the hero's (its takes when it asks for them)
@@ -67,7 +67,7 @@ const LOST = Object.freeze({
   dodge: 'the dodge roll: the runtime\'s dodge is mobile-suit-arena\'s acrobatics on a double tap, not this roll and its invincible frames',
   dash: 'the dash: the platform rule\'s boost is a held thrust on a gauge (mobile-suit-arena\'s), not this dash',
   cling: 'the wall slide and the wall jump',
-  guard: 'the guard: the block, the parry and its window, witch time',
+  guard: 'the guard: the block, the parry and its window, witch time',   // (carried where the card has a block: lowerFeel)
   charge: 'the hold-release charge',
   pound: 'the stomp attack',
   'land.stomp': 'the stomp on a body\'s head (carried only where a level stands foes: gameworld/foes.js lays it on the hero there)',
@@ -198,6 +198,18 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
       ...(A && A.count > 0 ? { air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } } : {}) };
     half('dash', `the dash on F (a person's): the ground dash, ${A?.count ? 'the air dash, ' : ''}${D.jump ? 'the dash jump' : ''}${D.wall ? ', the dash wall kick' : ''}; a burst, the card's ${D.frames} frames whatever the button does${D.hold ? ' (its held dash is not carried)' : ''}${D.iframes ? '; its invincible frames are not carried' : ''}${D.cancel ? '; its cancel out of a move is not carried' : ''}`);
     moves.add('dash');
+  }
+  // the GUARD (combat-melee.js stepGuard; held: Shift, a pad's left shoulder): a blow from the front blocked (the card's
+  // blockstun and push back, its stamina's cost; run dry, the guard breaks into a stagger), one met within the `parry`
+  // seconds of the guard going up PARRIED (null: any guard parries), the attacker staggered open the `riposte` seconds;
+  // the walk at the guard's share of the run. Every foe's blow is parryable (the zones are the lab's); the perfect
+  // dodge's witch time is not carried
+  if (C.guard && C.guard.block) {
+    const G = C.guard;
+    rule.guard = { move: r4(G.move ?? 0), push: r4(G.block.push ?? 0), stun: r4((G.block.stun ?? 0) / FPS), parry: G.parry == null ? null : r4(G.parry / FPS), riposte: r4((G.riposte ?? 0) / FPS),
+      ...(G.stamina ? { stamina: { max: G.stamina.max, cost: G.stamina.cost, regen: G.stamina.regen, break: r4(G.stamina.break / FPS) } } : {}) };
+    half('guard', `the guard held (Shift, the pad's left shoulder): the block from the front, the parry ${G.parry == null ? 'on any guard' : `within ${Math.round(G.parry)} frames of raising it`}, the riposte; every foe's blow parryable (the zones are the lab's)${G.perfect ? '; the perfect dodge\'s witch time is not carried' : ''}`);
+    moves.add('guard');
   }
   for (const [field, why] of Object.entries(LOST)) {
     if (moves.has(field)) continue;

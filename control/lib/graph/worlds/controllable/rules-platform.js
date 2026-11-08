@@ -66,6 +66,8 @@ export function buildRulesPlatform(E) {
     let speed = r.speed ?? 6;
     // (a moveset's hero drawing its sidearm, combat-melee.js: the aim's pace, `aimMove` of its run)
     if (r.moveset && e.weapon && e.weapon.charging) speed *= r.aimMove ?? 0.45;
+    // (a guard up, combat-melee.js stepGuard: its walk, `guard.move` of the run; rooted in blockstun)
+    if (r.guard && e.guarding) speed *= e.blockT > 0 ? 0 : (r.guard.move ?? 0);
     const turnRate = r.turn ?? 2.4, strafe = r.strafe ?? 1, eye = r.eye ?? 0;
     const boostSpeed = r.boostSpeed ?? speed * 3.5;
     const riseG = r.gravity ?? 20, fallG = r.fallGravity ?? riseG * 1.7;         // asymmetric: snappier fall
@@ -203,9 +205,9 @@ export function buildRulesPlatform(E) {
       e.combatT = near || locked || e.swingT != null ? C.linger : Math.max(0, (e.combatT || 0) - dt);
       combatOn = e.combat = e.combatT > 0;
       // (a weapon that shows the sheathed figure, the fist's: sheathed in combat too, combat-melee.js r.weapons; and the
-      // sidearm's aim, `mvPose`: the blade back on the back while the bow or the guns are up)
+      // sidearm's aim, `mvPose.sidearm`: the blade back on the back while the bow or the guns are up; a guard keeps it)
       const Wf = Array.isArray(r.weapons) ? r.weapons[e.weaponIdx || 0] : null;
-      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn && !(Wf && Wf.figure === 'sheathed') && !e.mvPose ? C.drawn : C.sheathed;
+      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn && !(Wf && Wf.figure === 'sheathed') && !(e.mvPose && e.mvPose.sidearm) ? C.drawn : C.sheathed;
     }
     const walking = walker && travel > 1e-6 && (!!input.walk || travel < runAt || (combatOn && !input.boost));
     // THE RUN BUTTON (opt-in `sprint`, a feel card's `ground.sprint` with its takes, a dash-less hero's F): held while

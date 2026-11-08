@@ -70,6 +70,8 @@ const PILOT = {
     { id: 'light', label: 'light attack', group: 'combat', in: ['melee'], bind: { mouse: ['left'], gamepad: ['west'] } },
     { id: 'heavy', label: 'heavy attack', group: 'combat', in: ['melee'], bind: { mouse: ['right'], gamepad: ['north'] } },
     { id: 'special', label: 'special', group: 'combat', in: ['melee'], bind: { mouse: ['forward'], gamepad: ['east'] } },
+    // the guard, held (a hero with a feel's guard: combat-melee.js stepGuard): Shift, the pad's left shoulder (block on L1)
+    { id: 'guard', label: 'guard', group: 'combat', hold: true, in: ['melee'], bind: { keyboard: ['Shift'], gamepad: ['lb'] } },
     { id: 'cycleWeapon', label: 'next weapon', group: 'combat', in: ARMED, bind: { keyboard: ['KeyR'], mouse: ['back'], gamepad: ['rb'], xr: ['right.squeeze'] } },
     { id: 'weapon1', label: 'weapon 1', group: 'combat', in: ARMED, bind: { keyboard: ['Digit1'] } },
     { id: 'weapon2', label: 'weapon 2', group: 'combat', in: ARMED, bind: { keyboard: ['Digit2'] } },

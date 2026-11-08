@@ -129,3 +129,19 @@
   the foe, and the aim layer takes the pitch and yaw still lacking (none: level ahead). The sidearm aims at the foe's
   chest, not its middle. Measured in the room headless: within a degree of the foe at 4 m, 12 m, 2.5 m up and off to
   the side, every arrow landing.
+- **Guard and parry** (`combat-melee.js` `stepGuard`, `guardMeets`; `gameworld/feel/lower.js`). A feel card's `guard`
+  was said lost; it now rides the platform rule (`rule.guard`: the walk's share, the block's push and blockstun, the
+  parry window, the riposte, the stamina; in seconds). Held (Shift, a pad's left shoulder), on the ground and out of a
+  swing, a dodge, a reaction or a draw, the guard is up: a blow from the front is BLOCKED (unhurt, a blockstun that
+  refuses the blade, pushed back; the stamina's cost, and run dry the guard breaks into a stagger) or, met within the
+  parry window of raising the guard, PARRIED (the attacker's swing spent, it staggered open for the riposte, the guard
+  free at once to strike); from behind, or with the guard down, the blow lands. A press out of the guard drops it and
+  takes the move. It meets a blade's swing (`stepMelee`) and a body's touch (`foe.js`: a rushing foe stopped on the
+  shield as on a wall, a block its recover, a parry its daze). Every foe's blow is parryable (the lab's zones, and its
+  perfect dodge's witch time, are not carried). Each weapon guards in its own pose (`guard`, the arsenal's): the
+  blade's SHIELD (side on, a round shield on the left forearm out before the chest, drawn on the page) and the fist's
+  COVER (both fists up before the face), held stances the aim layer plays, the combat lean eased out. The room's HUD
+  says the guard, its window, its blocks, parries and stamina, and logs each block or parry with how soon after
+  raising the guard it came; the room lays the game's feel's guard on a level stored before it was carried. Measured
+  in the room headless against the bandit's rush: held, eight charges stopped on the shield; raised 0.117 s before the
+  contact (the window 0.127 s), parried.

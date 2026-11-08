@@ -33,6 +33,7 @@ const { SketchRepository } = await import('../../../lib/db/repositories/sketches
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
 const { asked } = await import('./measure.mjs');
+const { feelRule } = await import('../../../lib/graph/gameworld/feel/lower.js');
 const { BASIC_ARSENAL, readCombos, readArsenal, lowerArsenal, comboList } = await import('../../../lib/graph/gameworld/combos.js');
 // the arsenal the room plays (--combos <file>: an arsenal, or one weapon's combo manifest; the basic sword and fist by
 // default), every combo unlocked, the weapons stepped through on the cycle
@@ -70,8 +71,11 @@ const foes = Array.from({ length: pack }, (_, k) => {
 });
 const { vista: _v, ...camera } = L.camera;
 const H0 = structuredClone(hero);
-const entities = [{ ...H0, rule: { ...H0.rule, weapons, moveset: weapons[0].moveset, ...(weapons[0].sidearm ? { weapon: weapons[0].sidearm.weapon } : {}) }, transform: { pos: [0, -3, 0], heading: Math.PI / 2 } }, ...foes];
-const legend = 'W A S D  run · mouse  look · click  light · right click  heavy · mouse forward  sidearm (hold) · mouse back / R  weapon · F  sprint · F F  dodge · C  lock on · P  foe AI · K  reset · H  HUD';
+// (the game's feel's guard, lowered as a level built now lowers it, gameworld/feel/lower.js: a level stored before the
+// guard was carried has none)
+const guard = G.feel ? feelRule(G.feel).guard ?? null : null;
+const entities = [{ ...H0, rule: { ...H0.rule, weapons, moveset: weapons[0].moveset, ...(weapons[0].sidearm ? { weapon: weapons[0].sidearm.weapon } : {}), ...(guard ? { guard } : {}) }, transform: { pos: [0, -3, 0], heading: Math.PI / 2 } }, ...foes];
+const legend = 'W A S D  run · mouse  look · click  light · right click  heavy · mouse forward  sidearm (hold) · mouse back / R  weapon · Shift  guard (hold) · F  sprint · F F  dodge · C  lock on · P  foe AI · K  reset · H  HUD';
 // THE HERO: the game's own, or (--hero) another body on its rig and clips: `anime` the anime hero on the tiered body, or
 // a hero spec as JSON; its sword in hand (the drawn figure) and on its back (the sheathed one)
 const HEROES = { anime: { cast: 'male', head: 'anime', proportions: 'anime', form: 'tiered' }, tiered: { cast: 'male', form: 'tiered' } };
@@ -93,12 +97,12 @@ let html = emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: fals
 
 // ─── the HUD: the live world read each frame (window.__mojCtrl), the card's numbers beside it ───
 const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#pr b{color:#fff}#pr .k{color:#9aa0aa}#pr .bad{color:#f0a070}#pr .ok{color:#9fd49a}#pr .on{color:#ffd76a}#pr table{border-collapse:collapse;width:100%}#pr td{padding:0 4px 0 0;vertical-align:top}#pr .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#pr h4{margin:6px 0 2px;font-size:11px;color:#9aa0aa;font-weight:normal}</style>
-<div id="pr"><b>Practice room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><div id="pr-ai"></div><h4>combos (all unlocked)</h4><div id="pr-c"></div><div id="pr-s"></div><h4>last move</h4><table id="pr-t"></table><h4>presses</h4><div class="log" id="pr-log"></div></div>
+<div id="pr"><b>Practice room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><div id="pr-ai"></div><h4>combos (all unlocked)</h4><div id="pr-c"></div><div id="pr-s"></div><div id="pr-g"></div><h4>last move</h4><table id="pr-t"></table><h4>presses</h4><div class="log" id="pr-log"></div></div>
 <script>
 (() => {
   const MOUSELOOK = ${!!(camera.mouseLook || camera.turnMode === 'look')}, CARD = ${JSON.stringify(card)}, LISTS = ${JSON.stringify(Object.fromEntries(arsenal.weapons.map((W) => [W.id, { name: W.name ?? W.id, list: comboList({ moves: W.moves, combos: W.combos }) }])))}, MOVES = ${JSON.stringify(Object.fromEntries(arsenal.weapons.flatMap((W) => Object.entries(W.moves).map(([id, m]) => [id, m]))))};
   const $ = (id) => document.getElementById(id), F = (s) => Math.round(s * 60);
-  let W = null, H = null, foes = [], cur = null, last = null, log = [], seq = 0, hits0 = 0, homes = null, show = true, tPrev = 0;
+  let W = null, H = null, foes = [], cur = null, last = null, log = [], seq = 0, gseq = 0, hHits = 0, hits0 = 0, homes = null, show = true, tPrev = 0;
   const setAi = (on) => { W.aiEnabled = on; $('pr-ai').innerHTML = 'foe AI <b class="' + (on ? 'bad' : 'ok') + '">' + (on ? 'ON' : 'off') + '</b> · P · foes never die · K resets';  };
   addEventListener('keydown', (e) => {
     if (!W) return;
@@ -117,6 +121,9 @@ const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/
     const G = H.mvRanged, w = H.weapon;
     $('pr-s').innerHTML = G && w ? 'S <b>' + G.name + '</b> <span class="k">' + (G.mode === 'draw' ? 'hold to draw, let go when ready' : 'hold to fire') + '</span> · ' + (w.infinite ? 'endless' : w.ammo + (w.reserve != null ? ' + ' + w.reserve : '') + (w.reloading ? ' (nocking)' : ''))
       + (G.mode === 'draw' ? ' · <span class="' + (w.chargeReady ? 'ok' : 'k') + '">' + (w.charging ? (w.chargeReady ? 'READY' : 'draw ' + '▮'.repeat(Math.round(w.chargeFrac * 8)) + '▯'.repeat(8 - Math.round(w.chargeFrac * 8))) : '') + '</span>' : '') + ' · shots ' + w.shots : '';
+    // the guard (Shift, a pad's left shoulder): up or down, its window, what it has met (combat-melee.js stepGuard)
+    const Gd = H.rule && H.rule.guard;
+    $('pr-g').innerHTML = Gd ? 'guard <b>' + (H.guarding ? (H.blockT > 0 ? 'blockstun' : 'UP') : 'down') + '</b> <span class="k">hold Shift / LB · parry ' + (Gd.parry == null ? 'any guard' : F(Gd.parry) + ' f from raising it') + ' · riposte ' + F(Gd.riposte) + ' f</span> · blocks ' + (H.blocks || 0) + ' · parries ' + (H.parries || 0) + (Gd.stamina ? ' · stamina ' + Math.round(H.guardSt ?? Gd.stamina.max) : '') : '<span class="k">no guard in this feel</span>';
     const m = last, mv = m && MOVES[m.id];
     $('pr-t').innerHTML = (m ? row('move', m.id + ' · ' + mv.role, m.clip) + row('frames', mv.frames + (mv.cancel ? ' · cancel ' + mv.cancel : ' · no cancel'), (m.end != null ? m.end + ' f' : '…'))
       + row('press → contact', '', m.contact != null ? m.contact + ' f' : (m.end != null ? 'whiff' : '…'), m.contact != null ? 'ok' : (m.end != null ? 'bad' : ''))
@@ -131,6 +138,10 @@ const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/
       const t = W.time, hits = foes.reduce((s, f) => s + (f.hits || 0), 0), P = H.mvPress;
       // every press as the runtime judged it (combat-melee.js stepMoveset): taken and how, or dropped and why
       if (P && P.seq !== seq) { seq = P.seq; log.push({ t: P.t, ok: P.verdict === 'taken', text: P.beat + ' ' + P.verdict + ': ' + P.why }); }
+      // what the guard met: a parry (and how soon after raising it), a block (outside the window), a break; a blow taken
+      const Gl = H.lastGuard, Gd = H.rule && H.rule.guard;
+      if (Gl && Gl.seq !== gseq) { gseq = Gl.seq; log.push({ t: Gl.t, ok: Gl.kind === 'parry', text: Gl.kind === 'parry' ? 'PARRY: ' + F(Gl.at) + ' f after raising the guard; the foe open ' + F(Gd.riposte) + ' f' : Gl.kind === 'break' ? 'guard broken: stamina spent' : 'blocked: ' + F(Gl.at) + ' f after raising it' + (Gd.parry != null ? ' (the parry is ' + F(Gd.parry) + ' f)' : '') }); }
+      if ((H.hits || 0) > hHits) { hHits = H.hits || 0; log.push({ t, ok: false, text: 'hit taken: ' + (H.guarding ? 'from behind the guard' : 'the guard was down') }); }
       if (H.mvMove && (!cur || H.swingCount !== cur.n)) { cur = { n: H.swingCount, id: H.mvMove, clip: H.swingClip, t0: t, k: H.mvHit, contact: null, end: null, stop: 0, stopS: 0, stun: null, adv: null, stunEnd: null, at: H.transform.pos.slice(), moved: 0 }; last = cur; }
       if (cur) {
         if (hits > hits0 && cur.contact == null) cur.contact = F(t - cur.t0);

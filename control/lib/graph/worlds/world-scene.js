@@ -169,7 +169,9 @@ function movesOf(rule, name) {
   const moves = mine.flatMap((W) => Object.values(W.moveset.moves).filter((m) => m.clip).map((m) => ({ clip: m.clip, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), ...(m.travel ? { travel: m.travel } : {}), ...(m.contact ? { contact: m.contact } : {}) })));
   const readies = mine.map((W) => { const first = Object.values(W.moveset.moves)[0]; return { clip: W.moveset.ready ?? 'mv_ready', ...(first && first.strike ? { strike: first.strike } : {}) }; });
   // (the sidearms' aims, on every figure the hero shows: a sidearm is held on the sheathed hero, the blade on its back)
-  const aims = [...new Map(Ws.filter((W) => W.sidearm && W.sidearm.aim).map((W) => [W.sidearm.aim, { clip: W.sidearm.aim, pose: W.sidearm.pose, hand: W.sidearm.hand }])).values()];
+  const aims = [...new Map([...Ws.filter((W) => W.sidearm && W.sidearm.aim).map((W) => [W.sidearm.aim, { clip: W.sidearm.aim, pose: W.sidearm.pose, hand: W.sidearm.hand }]),
+    // (and each weapon's guard: its pose while the guard is up, combat-melee.js stepGuard)
+    ...Ws.filter((W) => W.guard && W.guard.clip).map((W) => [W.guard.clip, { clip: W.guard.clip, pose: W.guard.pose }])]).values()];
   return { moves, readies, ...(aims.length ? { aims } : {}) };
 }
 export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null } = {}) {

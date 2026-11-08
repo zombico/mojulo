@@ -812,6 +812,8 @@ function __updateGearLines() {
   const hasForms = (entities || []).some((e) => e && e.forms);
   // a moveset's beats (gameworld/combos.js): the heavy and special presses read, only where a body carries one
   const moveset = (entities || []).some((e) => e && e.rule && e.rule.moveset);
+  // a guard (combat-melee.js stepGuard, a feel card's lowered): the guard held, read only where a body carries one
+  const guards = (entities || []).some((e) => e && e.rule && e.rule.guard);
   // a hero's SQUASH AND STRETCH on its own jumps (rules-platform.js takes: `takes.squash`, a feel card's look): the rig
   // scaled about its feet by the rule's `e.squash`. No rule carries one ⇒ not a byte of it
   const figHasSquash = (entities || []).some((e) => e && e.rule && e.rule.takes && e.rule.takes.squash > 0);
@@ -2041,15 +2043,16 @@ const __aimQX = new THREE.Quaternion(), __aimQY = new THREE.Quaternion(), __aimA
 const __aimQ = new THREE.Quaternion(), __aimP = [0, 0, 0], __AIM_LOW = /^(pelvis|thigh|shank|hipFold|kneeFold|foot|toes)/;
 function __aimLayer(rig, fig, AP, dt) {
   const A = rig.aim || (rig.aim = { w: 0, clip: null, phase: 0, d: [0, 0, 0] });
-  if (AP) { A.clip = AP.clip; A.phase = AP.phase; }
+  if (AP) { if (AP.clip !== A.clip) A.corr = null; A.clip = AP.clip; A.phase = AP.phase; A.prop = AP.prop || null; A.side = !!AP.sidearm; }
   A.w = Math.max(0, Math.min(1, A.w + (AP ? 1 : -1) * (dt || 0) / 0.1));
   if (A.w <= 1e-3 || !A.clip || !fig.clips[A.clip]) return null;
   if (!fig.__aimLow) { fig.__aimLow = fig.bones.map((b) => __AIM_LOW.test(b.id)); fig.__aimRoot = fig.bones.findIndex((b) => b.id === 'lumbar'); }
   A.lower = fig.__aimLow; A.root = fig.__aimRoot; A.d[0] = A.d[1] = A.d[2] = 0;
   // ON THE TARGET: the body above the hips turned by the pitch and the yaw the props measured it still lacks (A.corr,
   // __sidearmProps), about the spine's base
-  const C = A.corr || (A.corr = [0, 0]);
-  __aimQY.setFromAxisAngle(__RIG_Z, C[1] * A.w); __aimQX.setFromAxisAngle(__aimAX, C[0] * A.w);
+  // (a sidearm's aim only: a guard's pose stands as it was solved)
+  const C = A.corr || (A.corr = [0, 0]), k = A.side ? A.w : 0;
+  __aimQY.setFromAxisAngle(__RIG_Z, C[1] * k); __aimQX.setFromAxisAngle(__aimAX, C[0] * k);
   if (!A.q) A.q = new THREE.Quaternion();
   A.q.copy(__aimQY).multiply(__aimQX); A.at = null;
   return A;
@@ -2077,7 +2080,7 @@ function __spOnTarget(e, m, A, o, d) {
   A.corr[1] = Math.max(-0.9, Math.min(0.9, A.corr[1] + 0.6 * (az(__spT) - az(d))));
 }
 function __sidearmProps(e, m, rig, fig, AL) {
-  const R = e.mvRanged, kind = R && AL ? (R.mode === 'draw' ? 'bow' : 'guns') : null;
+  const R = e.mvRanged || {}, kind = AL ? AL.prop : null;
   let P = rig.props;
   if (!P) {
     const ix = (id) => fig.bones.findIndex((b) => b.id === id);
@@ -2085,6 +2088,7 @@ function __sidearmProps(e, m, rig, fig, AL) {
   }
   if (P.bow) P.bow.g.visible = kind === 'bow';
   if (P.guns) P.guns.g.visible = kind === 'guns';
+  if (P.shield) P.shield.g.visible = kind === 'shield';
   if (rig.muzzle && rig.muzzle.userData.sidearm && kind !== 'guns') rig.muzzle = null;   // (the shot's flash from the gun that fired)
   if (!kind || P.hL < 0 || P.hR < 0 || P.fL < 0 || P.fR < 0) return;
   // each hand's grip: a hand's length past the wrist along the forearm
@@ -2114,6 +2118,20 @@ function __sidearmProps(e, m, rig, fig, AL) {
     B.shaft.visible = B.head.visible = armed;
     if (armed) { const tip = new THREE.Vector3().copy(nock).addScaledVector(a, 0.78); __spSpan(B.shaft, nock, tip); B.head.position.copy(tip); B.head.quaternion.setFromUnitVectors(__spY, a); }
     __spOnTarget(e, m, AL, pull, a);
+  } else if (kind === 'shield') {
+    // THE SHIELD (a blade's guard): a round shield on the left forearm, its face out from the arm toward where the body
+    // faces, its rim a band of iron, its boss at the middle
+    if (!P.shield) {
+      const g = new THREE.Group(), mk = (geo, col) => { const o = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col })); o.raycast = function () {}; g.add(o); return o; };
+      mk(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 20), 0x6b4423); mk(new THREE.TorusGeometry(0.3, 0.018, 6, 24), 0x8a8f96).rotation.x = Math.PI / 2;
+      mk(new THREE.SphereGeometry(0.06, 10, 6), 0xa9aeb5).position.y = 0.02;
+      m.add(g); P.shield = { g };
+    }
+    // (the cylinder's axis, +y, its face's normal: turned onto the arm's outward side, square to the forearm)
+    const n = new THREE.Vector3(0, 1, 0).addScaledVector(dL, -dL.y).normalize();
+    if (n.lengthSq() < 1e-6) n.set(0, 1, 0);
+    P.shield.g.position.copy(gL).addScaledVector(dL, -0.12).addScaledVector(n, 0.07);
+    __spX.crossVectors(dL, n).normalize(); __spM.makeBasis(dL, n, __spX); P.shield.g.quaternion.setFromRotationMatrix(__spM);
   } else {
     if (!P.guns) { const g = new THREE.Group(), L = __spGun(), Rg = __spGun(); g.add(L); g.add(Rg); m.add(g); P.guns = { g, L, R: Rg }; }
     const G = P.guns;
@@ -2155,7 +2173,7 @@ function __sidearmProps(e, m, rig, fig, AL) {
   ${figHasForms || acts || moveset ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
   // A SIDEARM'S AIM (e.mvPose, combat-melee.js: the archer's draw at its share, the gunslinger's guns): the whole body
   // standing, the body above the hips over the walk (the aim layer in the bone loop, __aimLayer)
-  const AP = e.mvPose && fig.clips && fig.clips[e.mvPose.clip] ? e.mvPose : null;
+  const AP = e.mvPose && e.staggerT == null && fig.clips && fig.clips[e.mvPose.clip] ? e.mvPose : null;   // (none while reeling)
   if (AP && !e.moving) mode = AP.clip;
   const AL = __aimLayer(rig, fig, AP, dt);` : ''}${figHasForms ? `
   if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
@@ -2739,7 +2757,8 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
     moveX: mx, moveY: -my,                     // stick up = forward
     lookX: lx, lookY: ly,
     fire: pb('fire'), boost: pb('boost'),${moveset ? `
-    light: pb('light', rb), heavy: pb('heavy', rb), special: pb('special', rb),   // a moveset's beats: the left, top and right faces` : ''}
+    light: pb('light', rb), heavy: pb('heavy', rb), special: pb('special', rb),   // a moveset's beats: the left, top and right faces` : ''}${guards ? `
+    guard: pb('guard'),   // the guard held: the left shoulder` : ''}
     // analog trigger VALUES — the vehicle rules (drive/fly) read RT/LT as throttle/brake, the
     // console-driving standard; suits keep the pressed reads above untouched.
     rt: __CTL.value(__BIND, 'fire', 'gamepad', __ga), lt: __CTL.value(__BIND, 'boost', 'gamepad', __ga),
@@ -2876,7 +2895,8 @@ function __readInput() {
     walk: __k('walk') ? 1 : 0,       // a person's walk, held (platform rule, walkSpeed); a pad walks by the stick's travel
     kneel: __k('kneel') || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
     fire: __fireDown || (__pad && (__pad.fire${moveset ? ' || __pad.light' : ''}) && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)${moveset ? `
-    heavy: __heavyDown || (__pad && __pad.heavy) ? 1 : 0, special: __specialDown || (__pad && __pad.special) ? 1 : 0,   // a moveset's heavy and special beats` : ''}
+    heavy: __heavyDown || (__pad && __pad.heavy) ? 1 : 0, special: __specialDown || (__pad && __pad.special) ? 1 : 0,   // a moveset's heavy and special beats` : ''}${guards ? `
+    guard: __k('guard') || (__pad && __pad.guard) ? 1 : 0,   // the guard held (Shift, the left shoulder)` : ''}
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)

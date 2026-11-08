@@ -229,6 +229,7 @@ export function strikeReadyClip(word, ctx) {
  *     arrow's length short of the bow hand) to ANCHORED (at the jaw), played by the draw's share (0 nocked … 1 full).
  *     The page turns the body above the hips onto the target itself (its pitch and yaw): the aim layer.
  *   • GUNSLINGER (an auto: two guns). Square, both arms straight out at the shoulders' height, a little in.
+ *   • the GUARDS (SHIELD, COVER: a weapon's guard up, combat-melee.js stepGuard) are held stances of their own words.
  * Each hand's place is a share of the arm's length, so a short arm and a long one hold the same pose. `hand` the bow's
  * (or a single gun's) hand: 'left' (the default bow hand) mirrors a right-led stance. ctx: { R, stance: heroStance,
  * reachArm (hero-stance.js), rigNodesAt (station-loft-rig.js), elbowsDown (hero-elbow.js) }.
@@ -236,6 +237,13 @@ export function strikeReadyClip(word, ctx) {
 export const AIM_POSES = Object.freeze({
   archer: Object.freeze({ spread: 0.5, line: 74, toes: { L: 82, R: 8 }, sink: 0.06, lean: 4, weight: 0.5, heel: 0, chest: 0.1, bow: { fwd: 0.93, up: 0.0 }, nock: 0.3, anchor: { fwd: 0.0, up: -0.02, side: -0.03 } }),
   gunslinger: Object.freeze({ spread: 0.5, line: 0, toes: { L: 10, R: -10 }, sink: 0.07, lean: 6, weight: 0.5, heel: 0, chest: 0, guns: { fwd: 0.97, up: 0, side: 0.06 } }),
+  // THE GUARDS (combat-melee.js stepGuard: the pose while the guard is up), each held still. Their hands' `fwd` a share
+  // of the arm's length. SHIELD (a blade's: the shield on the left arm out before the chest, the left side toward the
+  // target, the sword hand low at its own side, ready); COVER (the fist's: both fists up before the face, the elbows in)
+  shield: Object.freeze({ family: 'bladed', left: true, spread: 0.55, line: 35, toes: { L: 35, R: 5 }, sink: 0.1, lean: 10, weight: 0.55, heel: 0, chest: 0.4,
+    hands: { R: { at: 'chest', fwd: 0.55, up: 0.05, side: 0, line: true, hand: 'grip' }, L: { at: 'navel', fwd: 0.2, up: 0.05, side: -0.3, hand: 'grip' } } }),
+  cover: Object.freeze({ family: 'square', spread: 0.5, line: 0, toes: { L: 12, R: -12 }, sink: 0.1, lean: 14, weight: 0.5, heel: 0, chest: 0,
+    hands: { R: { at: 'chin', fwd: 0.22, up: -0.02, side: 0.06, line: true, hand: 'fist' }, L: { at: 'chin', fwd: 0.22, up: -0.02, side: -0.06, line: true, hand: 'fist' } } }),
 });
 const DRAW_SAMPLES = 8;   // (the draw's string hand re-solved at every eighth of the way)
 const armLength = (R, s) => { const J = R.joints, d = (a, b) => Math.hypot(J[a][0] - J[b][0], J[a][1] - J[b][1], J[a][2] - J[b][2]); return d(`shoulder${s}`, `elbow${s}`) + d(`elbow${s}`, `wrist${s}`); };
@@ -275,7 +283,9 @@ export function aimClip(pose, ctx) {
     return fn;
   }
   const G = A.guns, gun = (sd) => ({ at: 'shoulder', fwd: r4(G.fwd * arm), up: G.up, side: sd, hand: 'grip' });
-  const S = stance(stanceWords(A, { R: gun(-G.side), L: gun(G.side) }, 'square'), R);
+  const own = (h) => ({ ...h, fwd: r4(h.fwd * arm) });
+  const S = A.hands ? stance(stanceWords(A, { R: own(A.hands.R), L: own(A.hands.L) }, A.family), R, { left: !!A.left })
+    : stance(stanceWords(A, { R: gun(-G.side), L: gun(G.side) }, 'square'), R);
   const p = S.hold, fn = () => ({ ...p });
   fn.keys = 2; fn.once = true;
   fn.aim = { pose, checks: { held: S.checks } };

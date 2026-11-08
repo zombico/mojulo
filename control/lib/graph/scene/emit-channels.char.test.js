@@ -509,6 +509,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-08 (1108-practice-room: the aim on the target): the 16 fixtures that embed the controllable
 // runtime. A moveset's sidearm aims at the foe's chest, not its middle; the page's aim layer (a moveset's only) turns the
 // body onto the target. No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: guard and parry): the 16 fixtures that embed the controllable runtime. A
+// rule's `guard` (a feel card's, lowered) is held up against a blow from the front, a blade's or a foe's touch: blocked,
+// or parried within its window, the attacker staggered for the riposte; the guard's walk and its pose. No fixture's rule
+// takes a guard, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

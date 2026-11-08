@@ -29,7 +29,8 @@ game's first level's pilot (its rule, its figures, its orbit camera, its lock-on
 
 Inputs: L light (left click, a pad's left face), H heavy (right click, its top face), S the weapon's sidearm (the
 mouse's forward button, its right face; held: the bow draws and looses on release once ready, the pistols fire while
-held; the hero takes the archer's or the gunslinger's aim, the blade on its back, and can walk with it up), the weapon cycle (R, the mouse's back button, the right shoulder), jump on the bottom face. Keys: P the foe's AI
+held; the hero takes the archer's or the gunslinger's aim, the blade on its back, and can walk with it up), the weapon cycle (R, the mouse's back button, the right shoulder), the guard held (Shift, the left shoulder: from the
+front a blow is blocked, or parried when it comes within the window of raising it), jump on the bottom face. Keys: P the foe's AI
 on and off, K the foe set back (and stood up), H the HUD. The HUD (top left) reads the live world
 each frame: the last move's clip, press to contact, the swing to rest, when the next press was taken, the hitstop, the
 foe's stun, the advantage and the string's count, each beside the card's number; and the presses, each taken or dropped
