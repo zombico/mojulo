@@ -24,6 +24,8 @@
  *   readPlay(play, P, at?, { beats? })   → { <segment>: { pieces, suggestions } } (P: readPlan's or readGrid's plan); throws
  *   playBuild(pieces, { rock, wood })    → { faces, colliders }: the solid pieces in the world's colours, flat-shaded
  *   playLaws(pieces, { ground, box, colliders }) → [{ law, ok, value, drift? }]: `pieces-fit`
+ *   settlePieces(pieces, ground) → the pieces with each z made the land's where it stands (the vertical drag: what a
+ *                rebuilt land asks of every piece first)
  *   authorityLaws(block, { beats? }) → [{ law, ok, value }]: `suggestions-kept` (every must kept; every should kept or
  *                overridden with its reason) and `casting` (the foes the block stands against the scenario's for its
  *                beats: level design casts, unless a must says otherwise)
@@ -146,7 +148,8 @@ export function playLaws(pieces, { ground, box = null, colliders = [] }) {
   const drift = [];
   for (const p of pieces) {
     const [x, y, z] = p.at, g = ground(x, y), why = [];
-    if (Math.abs(z - g) > 0.6) why.push(`${r3(z - g)} m off the land`);
+    // (settled onto the land when built: a land that moved more than a step under it may no longer suit it)
+    if (Math.abs(z - g) > 1.5) why.push(`${r3(z - g)} m off the land`);
     if (!inBox(x, y)) why.push('outside its block');
     if (inside(x, y)) why.push('inside something solid');
     if (!why.length) continue;
@@ -184,4 +187,9 @@ export function authorityLaws(block, { beats = null, segment = null } = {}) {
     laws.push({ law: 'casting', ok: !forbidden, value: same ? `the block stands the scenario's foes (${say(stood)})` : `level design recast the block: ${say(stood)} where the scenario named ${say(asked)}` });
   }
   return laws;
+}
+
+/** Each piece settled onto the land where it stands: its z the land's (the vertical drag). */
+export function settlePieces(pieces, ground) {
+  return pieces.map((p) => ({ ...p, at: [p.at[0], p.at[1], r3(ground(p.at[0], p.at[1]))] }));
 }

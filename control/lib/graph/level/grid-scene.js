@@ -38,7 +38,7 @@ import { readZone, zoneOf, ZONE } from './zones.js';
 import { levelGrid, SKETCH_BIOCUBE, SKETCH_BOULDERS } from './map-sketch.js';
 import { farFaces } from './far-view.js';
 import { guideOf } from './guide.js';
-import { readPlay, playBuild, playLaws, authorityLaws } from './play-layer.js';
+import { readPlay, playBuild, playLaws, authorityLaws, settlePieces } from './play-layer.js';
 import { readSketch } from './map-sketch.js';
 
 // the groups a walker never stands on: a tree's crown, its leaves and blossom, a stamped tree (its trunk a collider)
@@ -89,9 +89,10 @@ function playOfPage(lv, G, Z, out, { seed }) {
   if (!pieces.length) return null;
   // (the world's own wood and stone: the commonest fill of the tiles' trunks and boulders)
   const commonest = (re) => { const N = new Map(); for (const f of out.faces) if (re.test(f.group ?? '') && typeof f.fill === 'string') N.set(f.fill, (N.get(f.fill) ?? 0) + 1); let best = null; for (const [k, v] of N) if (!best || v > best[1]) best = [k, v]; return best ? best[0] : undefined; };
-  const B = playBuild(pieces, { rock: commonest(/:rock$/), wood: commonest(/:wood$/) });
-  out.faces.push(...B.faces); out.colliders.push(...B.colliders);
   const L = { seed, ...(G.rise ? { rise: G.rise } : {}) }, ground = (x, y) => levelHeight(x, y, L);
+  // (built where they stand, settled onto the land: the vertical drag; a land that moved far under one is flagged below)
+  const B = playBuild(settlePieces(pieces, ground), { rock: commonest(/:rock$/), wood: commonest(/:wood$/) });
+  out.faces.push(...B.faces); out.colliders.push(...B.colliders);
   const boxOf = (S) => { const [r0, c0] = P.segments[S].at; return [c0 * T, -(r0 + n) * T, (c0 + n) * T, -r0 * T]; };
   const laws = segs.flatMap((S) => { const mine = pieces.filter((p) => p.segment === S); return mine.length ? playLaws(mine, { ground, box: boxOf(S), colliders: out.colliders }).map((l) => ({ ...l, value: `${S}: ${l.value}` })) : []; });
   const merged = [{ law: 'pieces-fit', ok: laws.every((l) => l.ok), value: laws.map((l) => l.value).join(' · '), ...(laws.some((l) => l.drift) ? { drift: laws.flatMap((l) => l.drift ?? []) } : {}) }];
