@@ -23,6 +23,42 @@ import { CAPTURE_GLOBAL, CAPTURE_FRAME } from '../capture-contract.js';
 // picture (science-worlds/shader.js), which the conformance gate holds to the solver: on a capture run with a `probe`,
 // THE PROBE BRIDGE evaluates the page's own model function at given inputs into a float target (`__sciProbe`) and
 // reads a rendered frame back (`__sciPixels`). An ordinary page carries none of it.
+// THE LADDER (a ladder page only): a breadcrumb across the top, a crumb per rung coloured by what it is (simulated,
+// depicted, explained); a click moves the camera to that rung's case and shows its caption: its size, its step from the
+// rung above, what it is and where that comes from.
+const LADDER_BAR = `if (SCI.hud && SCI.ladder && !_sciFilm) {
+  const L = SCI.ladder, btns = [];
+  // the crumbs, then the caption under them, stacked in one column so a wrapped row never sits under the caption
+  const col = _sciEl('div', 'position:absolute;left:50%;top:10px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;width:min(720px,94%);z-index:6;pointer-events:none');
+  const bar = _sciEl('div', 'display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:center;font-size:12px;color:#9cc4ff;pointer-events:auto');
+  const cap = _sciEl('div', 'width:min(560px,100%);background:rgba(11,18,32,.86);border:1px solid #24324a;border-radius:6px;padding:7px 11px;font-size:12px;color:#cfe3ff;line-height:1.4;pointer-events:auto');
+  const show = (k, first) => {
+    const c = L.crumbs[k];
+    btns.forEach((b, j) => { b.style.background = j === k ? '#1b2740' : 'rgba(11,18,32,.6)'; b.style.color = j === k ? '#fff' : '#9cc4ff'; });
+    cap.textContent = '';
+    const head = _sciEl('div', 'font-weight:600;margin-bottom:2px');
+    head.appendChild(_sciEl('span', 'color:' + L.tints[c.status], c.status));
+    head.appendChild(document.createTextNode(' · ' + c.label + (c.size ? ' · ' + c.size : '') + (c.step ? ' · ' + c.step : '')));
+    cap.appendChild(head);
+    if (c.what) cap.appendChild(_sciEl('div', '', c.what));
+    if (c.source) cap.appendChild(_sciEl('div', 'opacity:.65;margin-top:2px', 'source: ' + c.source));
+    // the readout is one rung's (the first simulated one): it shows while that rung is the one looked at
+    if (_sciRo) _sciRo.style.display = c.readout ? '' : 'none';
+    if (!first && typeof applyCam === 'function') applyCam(c.cam);
+  };
+  L.crumbs.forEach((c, k) => {
+    if (k) bar.appendChild(_sciEl('span', 'opacity:.5', '›'));
+    const b = _sciEl('button', 'border:1px solid #24324a;border-radius:5px;padding:3px 8px;cursor:pointer;font:inherit;display:flex;align-items:center;gap:5px');
+    b.appendChild(_sciEl('span', 'display:inline-block;width:8px;height:8px;border-radius:50%;background:' + L.tints[c.status]));
+    b.appendChild(document.createTextNode(c.label));
+    b.onclick = () => show(k, false);
+    bar.appendChild(b); btns.push(b);
+  });
+  col.appendChild(bar); col.appendChild(cap); wrap.appendChild(col);
+  show(Math.max(0, L.crumbs.findIndex((c) => c.cam === 0)), true);
+}
+`;
+
 export function scienceChannelScript(cfg, probe = null) {
   return `${probe ? probeBridge(probe) : ''}
 // ---- science channel: the system readout, the honesty panel, body labels ----
@@ -101,7 +137,7 @@ const _sciEnd = _sciFilm && _sciFilm.end ? (() => {
   }
   wrap.appendChild(card); return card;
 })() : null;
-const _sciLabels = SCI.hud ? SCI.labels.map((l) => {
+${cfg.ladder ? LADDER_BAR : ''}const _sciLabels = SCI.hud ? SCI.labels.map((l) => {
   const e = _sciEl('div', 'position:absolute;transform:translate(-50%,-140%);font-size:11px;color:#e9eefa;background:rgba(11,18,32,.6);padding:1px 5px;border-radius:3px;pointer-events:none;white-space:nowrap;z-index:4', l.text);
   wrap.appendChild(e); return { l, e };
 }) : [];

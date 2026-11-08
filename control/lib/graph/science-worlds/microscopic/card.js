@@ -10,6 +10,8 @@ import { CARD_BEGIN, CARD_END } from '../classical/card.js';
 const UNIT = { velocity: 'm/s (e.g. \'1 µm/s\')', force: 'N (e.g. \'2 pN\')', length: 'm', axis: "'x', 'y' or 'z'", species: 'species ids', rate: 'per second (one reactant) or per molar per second (two), e.g. \'2 /s\', \'1e6 /M/s\'' };
 
 function paramLine(name, p) {
+  if (p.text) return `\`${name}\` (${p.text}${p.default !== undefined ? `; default ${p.default}` : ''})`;
+  if (p.one) return `\`${name}\` (a species id; ${p.required ? 'required' : 'optional'})`;
   const what = p.perSpecies ? `{ <species>: ${UNIT[p.dim]} }` : p.list ? `[${UNIT[p.dim]}]` : `${p.vector ? '[x, y, z] in ' : ''}${UNIT[p.dim] || p.dim}`;
   const tail = p.required ? 'required' : p.default !== undefined ? `default ${p.default}` : 'optional';
   return `\`${name}\` (${what}; ${tail})`;

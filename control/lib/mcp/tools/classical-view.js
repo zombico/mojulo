@@ -34,12 +34,16 @@ export function mintClassicalView({ model, dress, liberties, title, viewBox, sce
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
     recipe: manifest,
     // the machine gate: every check the solver ran, what it wanted and what it saw (they advise; none refuse)
-    held: solved.held && plan.fieldGates.every((g) => g.ok),
-    // the solver's gates, then the drawn field's (dress.field) when there is one
-    gates: [...solved.gates, ...plan.fieldGates].map((g) => ({ id: g.id, ok: g.ok, want: g.want, value: g.value, detail: g.detail })),
+    held: solved.held && plan.drawnGates.every((g) => g.ok),
+    // the solver's gates, then the drawing's: the field's (dress.field) and the ladder's (dress.ladder) when drawn
+    gates: [...solved.gates, ...plan.drawnGates].map((g) => ({ id: g.id, ok: g.ok, want: g.want, value: g.value, detail: g.detail })),
     ...(solved.gaps.length ? { gaps: solved.gaps } : {}),
     ...(solved.warnings.length ? { warnings: solved.warnings } : {}),
     observed: solved.observed,
+    // what each body made of matter took from its contacts, and its ladder of scales: each rung's status, top down
+    ...(solved.matter ? { matter: Object.fromEntries(Object.entries(solved.matter.bodies).map(([id, b]) => [id, {
+      matter: b.matter, mass: b.mass, worst: b.worst, ladder: b.ladder.map((r) => `${r.label}: ${r.status}${r.size ? ` (${r.size} m)` : ''}`),
+    }])) } : {}),
     // what the page says is drawn rather than real: the drawing's own liberties, then the recipe's
     liberties: [...plan.drawn, ...solved.liberties],
     stats: classicalStats(solved),
