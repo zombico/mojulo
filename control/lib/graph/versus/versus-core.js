@@ -10,7 +10,7 @@
  *
  * The plane is x (mm, 0 mid-stage) and y (mm, 0 the floor). What it holds: walking, crouching, jumping with
  * prejump, dashing, auto-facing, push boxes, walls and the camera's span; strikes resolved hitbox against hurtbox
- * for both players at once (trades), blocking by holding back (low must be crouched, overhead stood), chip,
+ * for both players at once (a trade, or the higher priority's hit alone), blocking by holding back (low must be crouched, overhead stood), chip,
  * pushback (the attacker takes it at a wall), hitstop, hitstun and blockstun, counter hits, damage scaling,
  * knockdowns, launches and juggles, wake-up, throws with a tech window, command throws, projectiles that trade
  * with each other, invincibility, meter, supers with a freeze, and rounds: an intro, a timer, KO, time over,
@@ -685,6 +685,14 @@ function resolve(s, ctx) {
     if (o.st === 'fall' && (!t.sup || o.jug >= s.rules.juggle)) continue;
     if (invulnTo(o, F[1 - t.o], 'projectile')) continue;
     if (hurtBoxes(o, F[1 - t.o]).some((h) => overlap(sb, h))) contacts.push({ a: t.o, shot: t });
+  }
+  // PRIORITY (versus-library.js): two strikes landing on the same frame, the higher level's lands and the other's does
+  // not; equal levels trade. A move compiled before the scale carries none and trades as it always did
+  const struck = contacts.filter((c) => c.m);
+  if (struck.length === 2 && Number.isInteger(struck[0].m.priority) && Number.isInteger(struck[1].m.priority) && struck[0].m.priority !== struck[1].m.priority) {
+    const [win, lose] = struck[0].m.priority > struck[1].m.priority ? struck : [struck[1], struck[0]];
+    contacts.splice(contacts.indexOf(lose), 1);
+    s.events.push({ t: 'priority', p: win.a, over: [win.m.priority, lose.m.priority], x: (s.p[0].x + s.p[1].x) / 2, y: 1100 });
   }
   // a strike that lands on a throw's startup stops it; two throws on the same frame tech
   if (throws[0] && throws[1]) { tech(s, 0); return; }

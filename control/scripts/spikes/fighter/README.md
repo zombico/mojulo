@@ -98,3 +98,21 @@ clash. A held blade adds nothing at rest, and none in startup or active frames, 
 Every other weapon's default is `hurt: 'recovery'`, so its blade is a hurtbox through the whole of a swing's recovery,
 whiff or not: a jab can land on the blade alone (the sword's, from 1.68 to 2.33 m). `hurt: 'none'` takes the blade
 out. The 3D arena draws the blade only on the stick figure: a character's own body, posed or played, holds none.
+
+## Joints and the body's own parts
+
+`joints.mjs` poses every frame of every move of a fighter of each archetype in each tradition, the stances and the
+reactions, in the round (`versus-figure.js` figurePose on the sim's own skeleton), and reads each bend against its limit
+(the elbow's and the knee's fold, the spine's twist, the neck, the ankle in its hinge's plane, how far an arm reaches
+behind the back: `FIG_LIMITS`, `RIG_LIMITS`) and how deep each pair of the body's own parts passes into each other
+(the trunk an ellipse, the head, the limbs capsules: `FIG_BULK`). Pure, no browser; a few seconds.
+
+```bash
+node control/scripts/spikes/fighter/joints.mjs --out /tmp/fighter-joints
+```
+
+What it reads today, over about 29,600 poses: no elbow past 150°, no knee past 155°, no ankle past its range, no arm
+further than 60° behind the back, the spine twisted no further than 60° (to the degree its turns are whole); the
+forearms out of the trunk and the head, the legs out of each other. What is left: an arm hanging straight beside a
+raised knee in a few crouching kicks (its hand cannot move in depth, nor the chest turn enough to free it: about one
+pose in a hundred and fifty), and two forearms crossing by a few millimetres more than the skin allows.

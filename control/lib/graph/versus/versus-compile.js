@@ -23,8 +23,8 @@
  *
  * Extending a fighter is editing its recipe, never code:
  *   tune      on any normal, special (flat, or per strength `{ L, M, H }`), the super or the throw: startup, active,
- *             recovery, damage, adv { hit, block }, guard, knock, hitstop, push, chip, meter, travel, and the
- *             primitives below. The stun is still solved from the advantage, the frames re-laid from the poses.
+ *             recovery, damage, adv { hit, block }, guard, knock, hitstop, push, chip, meter, travel, priority (0 … 5,
+ *             who wins a trade: versus-library.js PRIORITY), and the primitives below. The stun is still solved from the advantage, the frames re-laid from the poses.
  *   library   the recipe's own specials and supers, the shipped record's shape (versus-library.js SPECIALS, SUPERS),
  *             optionally `from` a shipped one; poses by name ('crouch'), by name and overrides ({ from, armF }), or
  *             written out. Its id goes in a special slot like any other.
@@ -41,7 +41,7 @@
  */
 
 import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
-import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT } from './versus-library.js';
+import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT, PRIORITY, PRIORITY_MAX } from './versus-library.js';
 import { FAMILIES, TRADITIONS, traditionRests } from './versus-traditions.js';
 
 // movement defaults (mm per frame, frames)
@@ -211,7 +211,7 @@ const KNOCKS = ['none', 'down', 'launch'];
 const INVULN_KINDS = ['strike', 'projectile', 'throw'];
 // a tune's integer keys and their floors
 const TUNE_INTS = { startup: 1, active: 1, recovery: 1, damage: 0, hitstop: 0, push: 0, chip: 0, meter: 0, travel: -200, landing: 0, speed: 1, hits: 1 };
-const TUNE_KEYS = new Set([...Object.keys(TUNE_INTS), 'adv', 'guard', 'knock', 'invuln', 'armor', 'profile', 'riposte', 'juggle', 'vel', 'reach', 'L', 'M', 'H']);
+const TUNE_KEYS = new Set([...Object.keys(TUNE_INTS), 'adv', 'guard', 'knock', 'invuln', 'armor', 'profile', 'riposte', 'juggle', 'vel', 'reach', 'priority', 'L', 'M', 'H']);
 
 const isInt = (v) => Number.isInteger(v);
 
@@ -223,6 +223,7 @@ export function readTune(T, where) {
     if (!TUNE_KEYS.has(k)) throw new Error(`versus: ${where} tune has no '${k}' (one of ${[...TUNE_KEYS].join(', ')})`);
     if (k in TUNE_INTS && !(isInt(v) && v >= TUNE_INTS[k] && v <= 999)) throw new Error(`versus: ${where} tune.${k} is a whole number from ${TUNE_INTS[k]} to 999`);
     if (k === 'L' || k === 'M' || k === 'H') readTune(v, `${where}.${k}`);
+    if (k === 'priority' && !(isInt(v) && v >= 0 && v <= PRIORITY_MAX)) throw new Error(`versus: ${where} tune.priority is a whole number from 0 (a reversal's) to ${PRIORITY_MAX}`);
   }
   if (T.adv !== undefined) {
     if (typeof T.adv !== 'object') throw new Error(`versus: ${where} tune.adv is { hit?, block? }`);
@@ -290,6 +291,7 @@ function applyTune(m, T, adv) {
   if (T.guard) m.guard = T.guard;
   if (T.knock) m.knock = T.knock;
   if (T.juggle !== undefined) m.juggle = !!T.juggle;
+  if (T.priority !== undefined) m.priority = T.priority;
   const keys = Object.keys(T).filter((k) => k !== 'L' && k !== 'M' && k !== 'H');
   if (keys.length) m.tuned = keys;
   return { ...adv, ...(T.adv ?? {}) };
@@ -598,6 +600,8 @@ export function compileNormal(body, slot, { family, strength, tune, hero } = {},
   m.guard = fam.guard ?? (stance === 'air' ? 'overhead' : 'mid');
   m.knock = fam.knock ?? 'none';
   m.antiAir = !!fam.antiAir;
+  // (its level in a trade: its strength's, versus-library.js PRIORITY)
+  m.priority = st.priority;
   if (armed) m.disjoint = weapon.length;
   const adv = applyTune(m, T, { ...st.adv, ...(fam.adv ?? {}) });
   primitives(m, T, slot);
@@ -640,7 +644,7 @@ export function compileHeroNormal(body, slot, { hero, strength, tune } = {}, res
   const m = baseMove(slot, 'normal', stance, limb);
   m.id = hero.word ?? 'strike'; m.strength = strength ?? letter; m.hero = true;
   m.startup = st.startup; m.active = st.active; m.recovery = st.recovery;
-  m.damage = st.damage; m.hitstop = st.hitstop; m.push = st.push; m.meter = st.meter; m.guard = 'mid'; m.knock = 'none';
+  m.damage = st.damage; m.hitstop = st.hitstop; m.push = st.push; m.meter = st.meter; m.guard = 'mid'; m.knock = 'none'; m.priority = st.priority;
   const adv = applyTune(m, T, st.adv);
   primitives(m, T, slot);
   m.total = m.startup + m.active - 1 + m.recovery;
@@ -680,6 +684,18 @@ export function compileThrow(body, slot = 'throw', over = {}) {
   return m;
 }
 
+/** A special's or a super's level in a trade (versus-library.js PRIORITY): its record's, a number or one per strength;
+ * else its kind's (a reversal 0); else its strength's, or a super's. */
+function priorityOf(rec, strength, rps) {
+  const v = rec !== null && typeof rec === 'object' ? rec[strength] : rec;
+  if (v !== undefined) {
+    if (!(isInt(v) && v >= 0 && v <= PRIORITY_MAX)) throw new Error(`versus: priority is a whole number from 0 to ${PRIORITY_MAX}, or one per strength { L, M, H }`);
+    return v;
+  }
+  if (PRIORITY.rps[rps] !== undefined) return PRIORITY.rps[rps];
+  return strength ? STRENGTHS[strength].priority : PRIORITY.super;
+}
+
 /**
  * A special at a strength (L / M / H) → a compiled move. o: { lib (the specials shelf, libraryOf), tune, weapon }.
  */
@@ -713,6 +729,7 @@ export function compileSpecial(body, slot, id, strength = 'M', o = {}) {
   const m = baseMove(slot, 'special', 'stand', sp.limb);
   Object.assign(m, { id, strength, rps: sp.rps, guard: sp.guard ?? 'mid', knock: at.knock ?? sp.knock ?? 'none', chip: sp.chip ?? 0, hitstop: sp.hitstop ?? 10, push: sp.push ?? 180, meter: sp.meter ?? 40 });
   m.damage = at.damage ?? sp.damage;
+  m.priority = priorityOf(at.priority ?? base.priority, strength, sp.rps);
   m.startup = at.startup;
   m.active = at.active ?? 1;
   m.hits = sp.hits ?? 1;
@@ -818,6 +835,7 @@ export function compileSuper(body, id, o = {}) {
     if (su.travel) m.travel = su.travel;
   }
   Object.assign(m, { id, kind: 'super', cost: SUPER_COST, freeze: su.freeze, rps: sp.rps });
+  if (!m.throw) m.priority = priorityOf(su.priority, null, sp.rps);
   if (su.meter !== undefined) m.meter = su.meter;
   if (isInt(su.invuln)) m.invuln = [...m.invuln, [1, su.invuln, 'strike'], [1, su.invuln, 'projectile'], [1, su.invuln, 'throw']];
   else primitives(m, { invuln: su.invuln }, 'super');

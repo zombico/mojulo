@@ -469,6 +469,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-08 (1107-fg-remake: the training ground): `versus` only. Its page inlines versus-arena.client.js by
 // its source, which frames a level whose view is `near` (versus-levels.js, the training ground's) as it frames the ring;
 // the fixture's arena names no view and is framed as before.
+// Re-pinned 2026-11-08 (1107-fg-remake: priority, joint limits, the body kept out of itself): `versus` only. Its page
+// inlines versus-core.js (a trade won by the higher priority), versus-rig.js (a pose held within RIG_LIMITS as it becomes
+// joints), versus-figure.js (FIG_LIMITS and FIG_BULK in the round) and the runtime's PRIORITY flash.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

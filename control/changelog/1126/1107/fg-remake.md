@@ -27,5 +27,23 @@ keeps its place.
   minted before keeps the ring, the plaza and the nave.
 - **A level's view**: a greybox level's `view` (`genre` | `near`, its preset's by default) says how near the camera
   frames the fight; `near` is the ring's framing (a fighter near two thirds of the picture), now any level's.
+- **Attack priority** (`versus-library.js` PRIORITY): two strikes landing on the same frame, the higher level's lands and
+  the other's does not (a `priority` event, PRIORITY on the overlay); equal levels trade as before. It scales with
+  strength (light 1, medium 2, heavy 3, punches and kicks alike), a special's is its own (a rush 2 · 3 · 4 by strength, a
+  spinning kick 2 · 2 · 3, an overhead 3, a fireball 1), a super's 4, and a reversal's (the DP, `rps: 'reversal'`, and
+  the rising super) 0: its invincibility is how it wins. Any move takes `tune: { priority }` (0 to 5). Two laws keep it
+  a balance: `priority-pays` (no grounded normal outranks one that starts no slower than it) and `reversal-yields` (a
+  DP's priority is 0).
+- **Joint limits**: a pose is held within the bends a body makes as it becomes joints (`versus-rig.js` RIG_LIMITS: a knee
+  one way and not past 155°, the ankle from a pointed toe to the foot drawn up, the head 55° off the trunk, an arm no
+  further than 45° behind the back), and the body in the round within its own (`versus-figure.js` FIG_LIMITS: no elbow
+  past 150°, no knee past 155°, the spine twisted no further than 60°, the hips turned with the chest; a foot never folded
+  up into the shin as it is drawn). A knee bends toward its own thigh's front (up when the thigh is raised),
+  never sideways.
+- **The body keeps out of itself** (`versus-figure.js` FIG_BULK, from the body's own skeleton): a hand, a forearm or an
+  elbow that would pass into the trunk, the head, a thigh or the other arm is moved across the plane (the hand's depth,
+  the elbow turned out), or the chest turned until the arm clears it (a rear straight squares the shoulders); a leg into
+  the other is moved out. All in depth, so the side view, and the boxes, stay the sim's. `scripts/spikes/fighter/
+  joints.mjs` reads every pose of every fighter against the limits and the bulk.
 - **CI**: `design-game.vary.test.js` pins its order's roll (it drew one at random each run, and about one roll in
   four hundred lifts most of a late tier's ornaments past their 0–3 scale, the gate leaving two variants of three).
