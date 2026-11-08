@@ -76,7 +76,7 @@ export function verdictOf(share, budget, m, r) {
 }
 
 /** A short line naming where a derived number came from, for the readout. */
-export const sourceOf = (m) => `${m.label ?? m.id} (rupa matter table)`;
+export const sourceOf = (m) => `${m.label ?? m.id} (the matter table: typical handbook figures)`;
 
 /** How heat moves through and off a matter: its conductivity (W/(m·K)) and its surface's emissivity. */
 export function transportOf(m, where) {

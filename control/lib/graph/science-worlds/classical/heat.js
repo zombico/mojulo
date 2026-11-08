@@ -206,14 +206,14 @@ export function runHeat(model, run, ctx) {
     const K = (v) => ({ K: sig(v), C: celsius(v) });
     bodies[b.id] = {
       matter: b.matter.id, start: K(col[0]), end: K(col.at(-1)), max: K(Math.max(...col)), min: K(Math.min(...col)),
-      capacity: { value: sig(b.C), unit: 'J/K', from: 'mass × specific heat (rupa matter table)' },
+      capacity: { value: sig(b.C), unit: 'J/K', from: 'mass × specific heat (the matter table)' },
       conductivity: { value: b.k, unit: 'W/(m·K)' }, emissivity: radiation ? b.eps : 0,
-      strength: { value: sig(heatShare(b.matter, Math.max(...col)), 3), at: 'its hottest', from: 'rupa\'s heat factor: whole at 20 °C, half at its softening point, none at its melting point' },
+      strength: { value: sig(heatShare(b.matter, Math.max(...col)), 3), at: 'its hottest', from: 'whole at 20 °C, half at its softening point, none at its melting point' },
       ...(b.Tm !== null ? { melts: K(b.Tm), molten: { max: sig(Math.max(...mol), 3), end: sig(mol.at(-1), 3) } } : {}),
       biot: sig(biot[u], 3),
     };
   });
-  assumptions.push(`Heat: h = ${sig(h, 3)} W/(m²·K) (${hFrom}); radiation ${radiation ? 'to surroundings at the ambient, each surface\'s emissivity from rupa\'s table' : 'left out'}; touching bodies conduct through a spot ${sig(spot * 1000, 3)} mm in radius (contact), a plane with no matter conducts none.`);
+  assumptions.push(`Heat: h = ${sig(h, 3)} W/(m²·K) (${hFrom}); radiation ${radiation ? 'to surroundings at the ambient, each surface\'s emissivity from the matter table' : 'left out'}; touching bodies conduct through a spot ${sig(spot * 1000, 3)} mm in radius (contact), a plane with no matter conducts none.`);
   const readout = {
     ambient: { K: sig(Ta), C: celsius(Ta) }, h: { value: sig(h), unit: 'W/(m²·K)', from: hFrom }, radiation, contact: { value: spot, unit: 'm' },
     bodies, left: { convection: sig(total.conv), radiation: sig(total.rad), planes: sig(total.plane), unit: 'J' }, passed: { value: sig(total.pass), unit: 'J' },

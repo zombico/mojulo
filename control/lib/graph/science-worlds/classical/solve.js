@@ -23,6 +23,7 @@ import { closedFormGates } from './analytic.js';
 import { readMedium, readBodyMatter, bodyBudget, impactOf, verdictOf, sourceOf, heatShare } from '../matter.js';
 import { runHeat } from './heat.js';
 import { readCurve, curveAt, filmFlux, filmFluxNumeric, GEL_CLOSED_FORMS } from './gel.js';
+import { readHandoff, readRelations } from '../relations.js';
 import { ladderOf } from '../ladder.js';
 import { along, peak, returnRange, period, at, vel } from './measure.js';
 
@@ -43,7 +44,7 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const sig = (v, n = 6) => (typeof v === 'number' && Number.isFinite(v) ? +v.toPrecision(n) : v);
 const sigv = (a, n = 6) => a.map((c) => sig(c, n));
 
-export const MATTER_ASSUMPTION = 'Matter from rupa\'s table (typical handbook figures, never a guarantee): a body is a uniform sphere of it; a contact\'s lost energy is shared inversely to stiffness; a verdict is reported, and the run never breaks or dents a body.';
+export const MATTER_ASSUMPTION = 'Matter from the matter table (typical handbook figures, never a guarantee): a body is a uniform sphere of it; a contact\'s lost energy is shared inversely to stiffness; a verdict is reported, and the run never breaks or dents a body.';
 export const SPIN_ASSUMPTION = 'A body given spin is a rigid sphere (a uniform one, or a shell holding its matter\'s fill): a surface\'s friction turns its spin, nothing else does; pairs are smooth, so a collision leaves spin as it was; no rolling resistance.';
 export const BASE_ASSUMPTION = 'Newtonian mechanics: speeds far below light and paths far larger than a body\'s quantum wavelength (the regime gates check both).';
 
@@ -104,6 +105,8 @@ function normalizeLaw(raw, i, ctx, lawIds) {
     if (spec.matter) entry[name] = spec.matter === 'medium' ? readMedium(v, `${where}.${name}`) : readBodyMatter(v, `${where}.${name}`);
     else if (spec.temperature) entry[name] = temperature(v, `${where}.${name}`);
     else if (spec.curve) entry[name] = readCurve(v, entry.medium, `${where}.${name}`);
+    else if (spec.handoff) entry[name] = readHandoff(v, `${where}.${name}`);
+    else if (spec.relations) entry[name] = readRelations(v, `${where}.${name}`);
     else if (spec.flag) {
       if (typeof v !== 'boolean') fail(`${where}.${name}`, 'is true or false');
       entry[name] = v;
@@ -346,7 +349,7 @@ export function solveClassical(params) {
   // heat, stepped along the run already made (heat.js): absent the law, nothing here changes
   const heat = runHeat(model, run, ctx);
   if (heat) { gates.push(...heat.gates); warnings.push(...heat.warnings); series.T = heat.series; }
-  if (gel) { series.eta = gel.series.eta; series.yield = gel.series.tau; }
+  if (gel) { series.eta = gel.series.eta; series.yield = gel.series.tau; if (gel.series.share) series.share = gel.series.share; }
 
   const matter = run.impacts ? matterReadout(model, run.impacts, heat) : null;
   if (matter) gates.push(gate('bodies-intact', 'no body takes more of a contact\'s energy than its matter holds (the run keeps every body whole)',
@@ -430,9 +433,12 @@ function widest(run, i) {
 function compactBody(b) { return b.matter ? { ...b, matter: b.matter.id } : b; }
 function compactEntry(row, entry) {
   const keys = Object.keys(row.params).filter((k) => row.params[k].matter && entry[k]);
-  if (!keys.length) return entry;
+  if (!keys.length && !entry.from) return entry;
   const out = { ...entry };
   for (const k of keys) out[k] = entry[k].id;
+  // a handoff as the recipe said it: the scale and what was read, the relations by their rows (the series is the readout's)
+  if (entry.from) out.from = { scale: entry.from.scale, observe: entry.from.observe, of: entry.from.of };
+  if (entry.relations) out.relations = entry.relations.map(({ row, args }) => ({ relation: row.id, ...args }));
   return out;
 }
 
@@ -503,6 +509,17 @@ function gelReadout(model, ctx, run, G) {
   const law = model.laws.find(({ row }) => row.id === 'gelling').entry;
   const curve = G.curve, gates = [];
   const series = { eta: run.t.map((t) => sig(curveAt(curve, t).eta)), tau: run.t.map((t) => sig(curveAt(curve, t).tau)) };
+  // a share read from another scale, on this run's clock (held past that run's last sample)
+  if (law.from) {
+    const ft = law.from.t, fv = law.from.values;
+    series.share = run.t.map((t) => {
+      if (t >= ft[ft.length - 1]) return fv[fv.length - 1];
+      let k = 0;
+      while (ft[k + 1] < t) k++;
+      const u = (t - ft[k]) / (ft[k + 1] - ft[k]);
+      return sig(fv[k] + u * (fv[k + 1] - fv[k]));
+    });
+  }
   const bodies = {};
   let bad = 0;
   G.idx.forEach((i, u) => {
@@ -511,11 +528,33 @@ function gelReadout(model, ctx, run, G) {
     const from = states.findIndex((q, k) => q[0] && states.slice(k).every((r) => r[0]));
     bodies[model.bodies[i].id] = { held: from >= 0 ? { from: sig(run.t[from], 4), unit: 's' } : null, capacity: { value: sig(G.cap[u]), unit: 'N per Pa of yield', from: 'τy·π·D² / (6 × 0.048) (Beris et al. 1985)' } };
   });
+  // Stokes's drag holds only while the flow round a body is slow: its Reynolds number ρ·|v|·D/η under 1
+  let Re = 0, reBody = null;
+  G.idx.forEach((i) => {
+    const b = model.bodies[i];
+    run.t.forEach((t, k) => {
+      const v = Math.hypot(run.v[k][3 * i], run.v[k][3 * i + 1], run.v[k][3 * i + 2]);
+      const re = (law.medium.density * v * 2 * b.radius) / curveAt(curve, t).eta;
+      if (re > Re) { Re = re; reBody = b.id; }
+    });
+  });
   if (G.idx.length) {
+    gates.push(gate('stokes-regime', 'the flow round each body in the liquid stays slow enough for Stokes\'s drag (its Reynolds number ρ·|v|·D/η under 1)', Re <= 1, { reynolds: sig(Re, 3), body: reBody },
+      Re <= 1 ? 'viscosity rules the drag' : `${reBody} moves too fast for its size in this liquid: the drag grows faster than Stokes's law says, so the run falls too fast (a smaller or lighter body, or a thicker liquid)`));
     gates.push(gate('yield-holds', 'a body is held only while the yield stress\'s capacity carries the net force on it (Beris et al.\'s sphere criterion)', !bad, { violations: bad },
       bad ? 'a body was held past what the yield carries' : 'each hold is within what the yield carries'));
   }
+  // a curve read from another scale: what was read, through which rows, and whether that rung held its own checks
+  if (law.from) {
+    const failing = law.from.gates.filter((g) => !g.ok).map((g) => g.id);
+    gates.push(gate('handoff-held', `the ${law.from.scale} rung this liquid's state is read from holds its own checks`, !failing.length, { failing },
+      failing.length ? `the ${law.from.scale} rung advises (${failing.join(', ')}): the curve read from it carries that` : `its ${law.from.gates.length} checks held`));
+  }
   const readout = {
+    ...(law.from ? { from: {
+      scale: law.from.scale, observe: `the share of ${law.from.of} assembled`, until: { value: law.from.duration, unit: 's', note: 'its last sample: past it, its share holds' },
+      share: law.from.values, relations: law.relations.map(({ row, args }) => ({ relation: row.id, sets: row.sets, formula: row.formula, args, citation: row.citation })),
+    } } : {}),
     medium: law.medium.id, curve: { t: curve.t, viscosity: curve.eta.map((v) => sig(v)), yield: curve.tau.map((v) => sig(v)) }, bodies,
   };
   if (law.layer !== undefined) {

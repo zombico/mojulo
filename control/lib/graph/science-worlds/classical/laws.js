@@ -25,6 +25,7 @@
  */
 
 import { holdCapacity, readCurve } from './gel.js';
+import { handoffCurve } from '../relations.js';
 
 export const G_NEWTON = 6.6743e-11;          // m³ kg⁻¹ s⁻² (CODATA 2018)
 export const K_COULOMB = 8.9875517923e9;     // N m² C⁻² (1 / 4πε₀)
@@ -362,18 +363,25 @@ export const CLASSICAL_LAWS = [
     id: 'gelling',
     words: ['setting', 'set', 'gel', 'gelling', 'curing', 'coagulation', 'clotting', 'thickening', 'yield stress', 'bingham', 'viscometer'],
     shape: 'each',
-    params: { medium: { matter: 'medium', required: true }, curve: { curve: true }, layer: { dim: 'length' }, slope: { dim: 'scalar', default: Math.PI / 2, angle: '90 deg' } },
+    params: {
+      medium: { matter: 'medium', required: true }, curve: { curve: true }, from: { handoff: true }, relations: { relations: true },
+      layer: { dim: 'length' }, slope: { dim: 'scalar', default: Math.PI / 2, angle: '90 deg' },
+    },
     summary: 'A liquid that sets: the bodies in it are dragged by its viscosity (Stokes, 6πηr·v) and held once its yield stress carries them (a sphere stays put while the net force on it is under τy·π·D² / (6 × 0.048), Beris et al. 1985). `curve` moves both along the run: [{ at, viscosity?, yield? }]. A `layer` of it, that thick, on a surface tilted by `slope` flows as a Bingham film and holds once its yield passes ρ·g·h·sin(slope).',
     assumption: 'The liquid is uniform and still, and sets everywhere at once along its curve (no temperature or mixing in it); its yield resists a moving body like dry friction of the same capacity that holds it still (the drag of a yield-stress liquid on a moving sphere is more involved); a layer is wide and even, its flow the film\'s steady one.',
     resolve: (e, ctx) => {
       const idx = members(e, ctx, (b) => free(b) && b.radius > 0);
-      return { gel: { idx, cap: idx.map((i) => holdCapacity(ctx.bodies[i].radius)), curve: e.curve ?? readCurve(undefined, e.medium, 'gelling') } };
+      const curve = e.from ? handoffCurve(e.from, e.relations, e.medium) : e.curve ?? readCurve(undefined, e.medium, 'gelling');
+      return { gel: { idx, cap: idx.map((i) => holdCapacity(ctx.bodies[i].radius)), curve } };
     },
     flags: () => ({ ...NONE, velocityDependent: true, dissipative: true, external: true }),
     // its bodies are stepped exactly (kernel.js gel), so its drag, however stiff, asks for no smaller step
     timescale: () => null,
     validate: (e, ctx) => {
       if (e.medium.family !== 'liquid') return `${e.medium.id} is a gas: a liquid sets, a gas does not`;
+      if (e.from && e.curve) return 'give a curve or read one from another scale (from), not both';
+      if (e.from && !e.relations) return 'a share read from another scale needs the relations that turn it into a yield or a viscosity (relations: [{ relation: \'percolation\', top }, …])';
+      if (e.relations && !e.from) return 'relations turn a share read from another scale (from) into the liquid\'s state: give from';
       if (e.layer !== undefined && !(e.layer > 0)) return 'layer is the thickness of the film, > 0';
       if (e.layer !== undefined && !ctx.frame.g) return 'a layer flows under gravity: the frame has none';
       if (e.slope !== undefined && !(e.slope > 0 && e.slope <= Math.PI)) return 'slope is the surface\'s tilt, above 0 and at most 180° (upside down)';

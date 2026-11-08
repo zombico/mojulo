@@ -21,7 +21,7 @@ import { MICROSCOPIC_LAWS, AVOGADRO } from './laws.js';
 import { normalizeFilm, defaultShoot, filmConfig } from '../classical/film.js';
 import {
   PALETTE, scl, len, isObj, hex, hexRgb, hexInt, esc,
-  drawScale, times, scaleLiberty, timeLiberty, bar, framing, honesty,
+  drawScale, times, scaleLiberty, timeLiberty, bar, framing, honesty, exhibitName,
 } from '../page.js';
 
 const HOLD = 1.4;   // the mover channel's lifetime clock replays 1.4 s after the last track ends
@@ -179,7 +179,7 @@ export function planMicroscopicFilm(manifest, plan) {
 /** The World payload (emitThreeWorld) for a microscopic-view manifest. */
 export function assembleMicroscopicScene(manifest = {}, { title, plan: given } = {}) {
   const plan = given ?? planMicroscopicWorld(manifest);   // a world placing this demo plans it once (science-worlds/setting.js)
-  const name = title || manifest.title || 'mojulo microscopic world';
+  const name = exhibitName(title || manifest.title, { subjects: plan.solved.model.species.map((sp) => sp.id), laws: [...new Set((plan.solved.model?.laws ?? []).map((l) => l.law))] });
   const film = planMicroscopicFilm(manifest, plan);
   return {
     faces: plan.faces, picks: plan.picks, movers: plan.movers, planets: plan.planets,

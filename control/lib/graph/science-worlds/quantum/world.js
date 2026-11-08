@@ -25,7 +25,7 @@ import { QUANTUM_LAWS, BOHR } from './laws.js';
 import { volumeShader, volumeReach } from './volume-shader.js';
 import { planeShader } from './plane-shader.js';
 import { normalizeFilm, defaultShoot, filmConfig } from '../classical/film.js';
-import { scl, add, isObj, hex, hexRgb, esc, drawScale, times, scaleLiberty, timeLiberty, bar, quad, framing, honesty, sig } from '../page.js';
+import { scl, add, isObj, hex, hexRgb, esc, drawScale, times, scaleLiberty, timeLiberty, bar, quad, framing, honesty, sig, exhibitName } from '../page.js';
 
 const HOLD = 1.2, LIFE_HOLD = 1.4;   // the period movers hold 1.2 s; the lifetime clock replays 1.4 s after its last track
 const DRESS_KEYS = ['hud', 'camera', 'background', 'playback', 'film', 'phase', 'render', 'exposure'];
@@ -313,7 +313,7 @@ export function planQuantumFilm(manifest, plan) {
 /** The World payload (emitThreeWorld) for a quantum-view manifest. */
 export function assembleQuantumScene(manifest = {}, { title, plan: given } = {}) {
   const plan = given ?? planQuantumWorld(manifest);   // a world placing this demo plans it once (science-worlds/setting.js)
-  const name = title || manifest.title || 'mojulo quantum world';
+  const name = exhibitName(title || manifest.title, { subjects: [`a quantum ${plan.solved.system}`], laws: [...new Set((plan.solved.model?.laws ?? []).map((l) => l.law))] });
   const film = planQuantumFilm(manifest, plan);
   const science = plan.dress.hud || plan.shader ? { ...scienceConfig(plan, name), film: film.config, ...(plan.shader ? { probe: plan.shader.probe } : {}) } : null;
   return {

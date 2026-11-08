@@ -54,3 +54,14 @@
   share aggregated, and says the spheres stay single because the aggregation is counted, not placed.
 - **A classical demo under a tenth of a metre is drawn magnified** by a power of ten, with the magnification on the
   panel: at its true size it sat inside the camera's near plane and could not be seen. Larger demos draw as before.
+- **One scale feeds the next.** A setting liquid's state can be read from a lower rung instead of written: the classical
+  `gelling` law's `from` runs a microscopic model and reads the share its aggregation assembles, and `relations` turns
+  the share into the liquid's yield and viscosity through cited rows, never a formula of the recipe's own: `percolation`
+  (the yield grows from the gel point with the percolation exponent, de Gennes 1976) and `krieger-dougherty` (the
+  viscosity of a liquid filling with assembled matter, Krieger & Dougherty 1959). A glass bead in water is held once a
+  protein assembling in it has made a gel that carries it. The checks: `handoff-held` (the lower rung held its own),
+  and `stokes-regime`, which now advises whenever a body in the liquid moves too fast for Stokes's drag. The panel says
+  what was read and through which rows; the page shows the share assembled beside η and τy.
+- **The experiment is the page's name.** A science page that names only its scale (a mint's default) is titled by its
+  experiment instead, from its subjects and what acts on them ("Bead of glass: gravity, buoyancy and a setting
+  liquid"), and the panel cites the matter table plainly rather than by an internal name.

@@ -28,6 +28,8 @@ const fmtDefault = (d) => (Array.isArray(d) ? `[${d.join(', ')}]` : String(d));
 function paramLine(name, p) {
   if (p.temperature) return `\`${name}\` (a temperature: K, or '20 °C'; ${p.default !== undefined ? `default ${+(p.default - 273.15).toFixed(2)} °C` : 'optional'})`;
   if (p.curve) return `\`${name}\` (\`[{ at, viscosity?, yield? }]\` along the run, each point keeping what it does not say; optional: the medium's own, all along)`;
+  if (p.handoff) return `\`${name}\` (\`{ microscopic: <model>, observe: 'aggregated' }\`: read the curve from a microscopic run's assembled share, through \`relations\`; optional)`;
+  if (p.relations) return `\`${name}\` (\`[{ relation: 'percolation', top, onset? }, { relation: 'krieger-dougherty', phi }]\`: the cited rows that turn the share into a yield and a viscosity; with \`from\`)`;
   if (p.angle) return `\`${name}\` (an angle: rad, or '30 deg'; default ${p.angle})`;
   if (p.flag) return `\`${name}\` (true or false; default ${p.default})`;
   if (p.matter) return `\`${name}\` (${p.matter === 'medium' ? 'a liquid or gas from rupa\'s matter table: \'water\', \'air\', \'honey\', …' : 'a solid from rupa\'s matter table: \'steel\', \'glass\', \'concrete\', …'}; ${p.required ? 'required' : 'optional'})`;

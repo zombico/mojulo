@@ -39,10 +39,11 @@ import { CLASSICAL_LAWS, planeNormal } from './laws.js';
 import { normalizeFilm, keyMoment, defaultShoot, filmConfig } from './film.js';
 import { fieldSources, positionsAt, potentialAt, fieldAt, gaussCheck, traceLines, chargePlane, thin } from './field.js';
 import { fieldShader, trackTexture } from './field-shader.js';
+import { MATTER } from '../../rupa/matter.js';
 import { ladderSection, cellAtoms, nearestNeighbour, depictedGate, latticeLabel, sizeText } from '../ladder.js';
 import {
   PALETTE, sub, add, scl, len, dot, cross, unit, sig, isObj, hex, hexRgb, hexInt, esc,
-  drawScale, times, pow10, scaleLiberty, timeLiberty, quad, unitBar, bar, framing, honesty,
+  drawScale, times, pow10, exhibitName, scaleLiberty, timeLiberty, quad, unitBar, bar, framing, honesty,
 } from '../page.js';
 const LINK_TINT = { rod: '#9aa3b5', rope: '#c8a46a', spring: '#cf8a4a' };
 const PLANE_FILL = '#222a3b', ANCHOR_TINT = '#8e9bb6';
@@ -328,6 +329,7 @@ function scienceConfig(plan, title) {
       ...model.observe.filter((o) => o.quantity === 'speed').map((o) => ({ html: esc(`v(${o.of})`), values: tracks.bodies[o.of].v.map((q) => len(q)), unit: 'm/s', cls: 'v' })),
       ...model.observe.filter((o) => o.quantity === 'spin' && tracks.bodies[o.of].w).map((o) => ({ html: esc(`ω(${o.of})`), values: tracks.bodies[o.of].w.map((q) => len(q)), unit: 'rad/s', plain: true })),
       // a setting liquid's state along the run (gelling)
+      ...(series.share ? [{ html: esc(`${solved.gel.from.observe.replace(/^the share of /, '')}`), bar: true, values: series.share, max: 1, plain: true, color: '#f0d28a' }] : []),
       ...(series.eta ? [{ html: 'η', values: series.eta, unit: 'Pa·s', plain: true }, { html: 'τy', values: series.yield, unit: 'Pa', plain: true }] : []),
       // the heat law's bodies, each its temperature (the first four; the readout has them all)
       ...Object.entries(series.T ?? {}).slice(0, 4).map(([id, T]) => ({ html: esc(`T(${id})`), values: T.map((K) => K - 273.15), unit: '°C', plain: true })),
@@ -337,13 +339,20 @@ function scienceConfig(plan, title) {
       model: [...new Set(model.laws.map((l) => l.law))].map((id) => SUMMARY[id]),
       gates: [...gates, ...plan.drawnGates], assumptions: solved.assumptions, liberties: [...drawn, ...solved.liberties], gaps: solved.gaps,
       held: solved.held && plan.drawnGates.every((g) => g.ok),
-    }), plan, solved.matter),
+    }), plan, solved.matter, solved.gel),
   };
 }
 
 // a field drawn by a shader says so on the panel; bodies made of matter list their ladder after the model
-function withShader(h, plan, matter) {
+function withShader(h, plan, matter, gel) {
   if (matter) h.sections.splice(1, 0, ladderSection(matter.bodies));
+  // a liquid whose state is read from another scale: what was read, and through which cited rows
+  if (gel?.from) {
+    h.sections.splice(matter ? 2 : 1, 0, { head: 'Read from another scale', color: '#f0d28a', items: [
+      { text: `the liquid's state follows a ${gel.from.scale} run: ${gel.from.observe}`, note: `(its own checks are on its own page; past ${gel.from.until.value} s its share holds)` },
+      ...gel.from.relations.map((r) => ({ text: `its ${r.sets}: ${r.formula}`, note: `(${r.citation})` })),
+    ] });
+  }
   if (!plan.shader) return h;
   h.sections.splice(matter ? 3 : 2, 0, { head: 'Drawn by a shader', color: '#9ad0ff', items: [{ text: 'the field over the meshes is computed in the shader from the charges\' own paths, with the sums the checks above use; the shader conformance gate holds its E and V to them in the test suite (scripts/science-conformance.mjs)' }] });
   return h;
@@ -371,7 +380,12 @@ export function planClassicalFilm(manifest, plan) {
 /** The World payload (emitThreeWorld) for a classical-view manifest. */
 export function assembleClassicalScene(manifest = {}, { title, plan: given } = {}) {
   const plan = given ?? planClassicalWorld(manifest);   // a world placing this demo plans it once (science-worlds/setting.js)
-  const name = title || manifest.title || 'mojulo classical world';
+  // the experiment is the page's name: its moving bodies (what each is made of) and what acts on them
+  const { bodies } = plan.solved.model, shown = bodies.some((b) => !b.fixed) ? bodies.filter((b) => !b.fixed) : bodies;
+  const name = exhibitName(title || manifest.title, {
+    subjects: shown.map((b) => (b.matter ? `${b.id} of ${(MATTER[b.matter]?.label ?? b.matter).replace(/\s*\(.*\)$/, '').toLowerCase()}` : b.id)),
+    laws: [...new Set((plan.solved.model?.laws ?? []).map((l) => l.law))],
+  });
   const film = planClassicalFilm(manifest, plan);
   const science = plan.dress.hud || plan.shader ? { ...scienceConfig(plan, name), film: film.config, ...(plan.shader ? { probe: plan.shader.probe } : {}) } : null;
   return {

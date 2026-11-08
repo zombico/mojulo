@@ -122,6 +122,18 @@ surface tilted by `slope` (default upright, the tube-tilt test) flows as a Bingh
 `closed-form:viscometer` for a liquid that does not set. The readout gives the curve, when each body was held, and the
 layer's flux and when it held; the page shows η and τy along the run.
 
+### Reading the liquid's state from another scale
+
+Instead of a `curve`, a gelling law can read one from a lower rung: `from: { microscopic: <a microscopic model with an
+aggregation law>, observe: 'aggregated' }` runs that model and reads the share it assembles over time, and `relations`
+turns the share into the liquid's state through cited rows, never a formula of your own: `{ relation: 'percolation',
+top, onset? }` sets the yield (it grows from the gel point `onset` with the percolation exponent 1.9, de Gennes 1976,
+to `top` when all has assembled) and `{ relation: 'krieger-dougherty', phi }` sets the viscosity (the assembled matter
+filling `phi` of the volume, Krieger & Dougherty 1959). Both rungs keep one clock; past the lower run's end its share
+holds. The `handoff-held` gate says whether the lower rung held its own checks; the panel names what was read and the
+rows it went through, and the page shows the share assembled beside η and τy. The `stokes-regime` gate advises when a
+body moves too fast for Stokes's drag in the liquid.
+
 ## Heat
 
 The `heat` law gives every body with a matter and a radius a temperature that moves: it loses heat to the medium
@@ -231,6 +243,21 @@ A steel ball set on a steel hot plate at 250 °C, warming over ten minutes while
   "laws": [{ "law": "gravity-uniform" }, { "law": "plane", "id": "plate", "matter": "steel", "temperature": "250 °C" },
     { "law": "heat" }],
   "duration": 600, "observe": [{ "quantity": "temperature", "of": "ball" }] } }
+```
+
+A glass bead in water while a protein assembles in it: the microscopic run's assembled share becomes the water's yield
+and viscosity through the cited relations, and the bead is held once the gel can carry it:
+
+```
+{ "model": { "bodies": [{ "id": "bead", "matter": "glass", "radius": "50 µm", "at": [0, 0, 0] }],
+  "laws": [{ "law": "gravity-uniform" }, { "law": "buoyancy", "medium": "water", "surface": 1 },
+    { "law": "gelling", "medium": "water", "layer": "0.5 mm",
+      "from": { "microscopic": { "box": { "size": ["1 µm", "1 µm", "1 µm"] }, "represents": 5,
+        "species": [{ "id": "protein", "radius": "2 nm", "count": 120 }],
+        "laws": [{ "law": "aggregation", "of": "protein", "nucleus": 2, "nucleate": 2000, "grow": "2e6 /M/s" }], "duration": "30 s" },
+        "observe": "aggregated" },
+      "relations": [{ "relation": "percolation", "top": "20 Pa", "onset": 0.2 }, { "relation": "krieger-dougherty", "phi": 0.3 }] }],
+  "duration": 30 } }
 ```
 
 <!-- laws:begin (generated from the law tables: node scripts/science-cards.mjs) -->
@@ -350,7 +377,7 @@ Spheres that touch exchange an impulse along the line of centres with restitutio
 A liquid that sets: the bodies in it are dragged by its viscosity (Stokes, 6πηr·v) and held once its yield stress carries them (a sphere stays put while the net force on it is under τy·π·D² / (6 × 0.048), Beris et al. 1985). `curve` moves both along the run: [{ at, viscosity?, yield? }]. A `layer` of it, that thick, on a surface tilted by `slope` flows as a Bingham film and holds once its yield passes ρ·g·h·sin(slope).
 
 - Names its bodies with `on?: [ids]` (default: every body it can act on).
-- Takes `medium` (a liquid or gas from rupa's matter table: 'water', 'air', 'honey', …; required), `curve` (`[{ at, viscosity?, yield? }]` along the run, each point keeping what it does not say; optional: the medium's own, all along), `layer` (m; optional), `slope` (an angle: rad, or '30 deg'; default 90 deg).
+- Takes `medium` (a liquid or gas from rupa's matter table: 'water', 'air', 'honey', …; required), `curve` (`[{ at, viscosity?, yield? }]` along the run, each point keeping what it does not say; optional: the medium's own, all along), `from` (`{ microscopic: <model>, observe: 'aggregated' }`: read the curve from a microscopic run's assembled share, through `relations`; optional), `relations` (`[{ relation: 'percolation', top, onset? }, { relation: 'krieger-dougherty', phi }]`: the cited rows that turn the share into a yield and a viscosity; with `from`), `layer` (m; optional), `slope` (an angle: rad, or '30 deg'; default 90 deg).
 - Leaves out: The liquid is uniform and still, and sets everywhere at once along its curve (no temperature or mixing in it); its yield resists a moving body like dry friction of the same capacity that holds it still (the drag of a yield-stress liquid on a moving sphere is more involved); a layer is wide and even, its flow the film's steady one.
 - Smallest example: `{"bodies":[{"id":"ball","matter":"steel","radius":"2 mm","at":[0,0,0]}],"laws":[{"law":"gravity-uniform"},{"law":"buoyancy","medium":"honey","surface":1},{"law":"gelling","medium":"honey","curve":[{"at":"20 s","viscosity":200,"yield":100}],"layer":"5 mm"}],"duration":20}`
 

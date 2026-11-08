@@ -171,7 +171,7 @@ export const CLASSICAL_CLOSED_FORMS = [
       const i = lone(m), g = gOf(m), b = m.bodies[i];
       if (i < 0 || !only(m, 'gravity-uniform', 'buoyancy', 'gelling')) return null;
       const gel = law(m, 'gelling'), buoy = law(m, 'buoyancy');
-      if (gel.curve && gel.curve.t.length > 1) return null;
+      if (gel.from || (gel.curve && gel.curve.t.length > 1)) return null;   // a liquid that sets has no single terminal speed
       const eta = gel.curve ? gel.curve.eta[0] : gel.medium.viscosity, tau = gel.curve ? gel.curve.tau[0] : gel.medium.yield ?? 0;
       const rho = buoy.rho ?? buoy.medium?.density ?? 1000;
       if (tau > 0 || Math.abs(rho - gel.medium.density) > 1e-9 * rho || len(b.v) > 0) return null;

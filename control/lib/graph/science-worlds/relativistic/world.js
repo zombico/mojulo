@@ -17,7 +17,7 @@ import { RELATIVISTIC_LAWS } from './laws.js';
 import { lightShader } from './light-shader.js';
 import { PHOTON_SPHERE, ISCO } from './geodesic.js';
 import { normalizeFilm, defaultShoot, filmConfig } from '../classical/film.js';
-import { isObj, hex, hexRgb, hexInt, esc, sig, times, timeLiberty, bar, framing, honesty, PALETTE } from '../page.js';
+import { isObj, hex, hexRgb, hexInt, esc, sig, times, timeLiberty, bar, framing, honesty, PALETTE, exhibitName } from '../page.js';
 
 const HOLD = 1.2;
 const DRESS_KEYS = ['hud', 'camera', 'background', 'playback', 'film', 'trails', 'sky', 'hottest', 'exposure'];
@@ -212,7 +212,7 @@ export function planRelativisticFilm(manifest, plan) {
 /** The World payload (emitThreeWorld) for a relativistic-view manifest. */
 export function assembleRelativisticScene(manifest = {}, { title, plan: given } = {}) {
   const plan = given ?? planRelativisticWorld(manifest);   // a world placing this demo plans it once (science-worlds/setting.js)
-  const name = title || manifest.title || 'mojulo relativistic world';
+  const name = exhibitName(title || manifest.title, { subjects: [{ light: 'light', orbit: 'an orbit', clocks: 'clocks' }[plan.solved.system] ?? plan.solved.system], laws: [...new Set((plan.solved.model?.laws ?? []).map((l) => l.law))] });
   const film = planRelativisticFilm(manifest, plan);
   const bg = manifest.dress?.background === undefined && hex(manifest.scene?.bg) ? manifest.scene.bg : plan.dress.background;
   const science = plan.dress.hud || plan.shader ? { ...scienceConfig(plan, name), film: film.config, ...(plan.shader ? { probe: plan.shader.probe } : {}) } : null;
