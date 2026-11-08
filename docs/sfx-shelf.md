@@ -31,6 +31,25 @@ hash. A better voice of one of them is a new set, never an edit to this one. The
 servo and piston slam are still synthesized in code (`scene/channels/audio.js`); their rows name that channel slot
 until they are cues.
 
+## The layered set: the floor, improved
+
+`sets/mecha-layered.js` is the realistic voice of the same thirteen sounds. Each is its floor, every gesture kept in
+order, given what the mixer can do and the layers it lacked:
+
+| layer | what it is |
+|---|---|
+| transient | a few milliseconds of bright noise, centred and dry: where the ear hears it start |
+| body | the floor's own pitched voice |
+| harmonics | a copy of the body driven hard and highpassed: only the overtones the drive grows |
+| sub | a clean low thump, centred, never driven, never sent |
+| grit | grain trains panned apart |
+| tail | noise darkening as it fades, sent to the space |
+| detail | what it is made of: a plate ringing, a hydraulic hiss, a mechanism's clack |
+| duck | the big hits (the charged shot, the bazooka, the landing, the saber) dip the score |
+
+Driving the floor's body itself was tried first and is what not to do: a driven sine thump saturates its sub, so the
+sound grows louder, darker, and fills one band. The yardstick caught it on every cue. The harmonics layer is the fix.
+
 ## The yardstick
 
 `measure.js` measures one rendered cue, rendered the way an export renders it:
@@ -41,11 +60,23 @@ until they are cues.
 | `ms` | how long it sounds, from the onset to the last sample within 40 dB of the peak |
 | `centroidHz` | how bright its attack is (the first 4096 samples from the onset) |
 | `crestDb` | peak over RMS: how much punch stands over the body |
-| `bands` | its energy's share in sub, low, mid and high across the whole sound |
+| `bands` | its energy's share in sub, low, mid and high across the whole sound (both channels' power) |
+| `spread` | how many of the four bands it fills |
+| `width` | how wide it is: 1 − the left and right channels' correlation |
 
 `baseline.js` holds every set cue's numbers (`npm run sfx-baseline` writes it; `--wav <dir>` also writes each cue and
-two per-hit variants to listen to). `nearBaseline` compares a measure to a baseline within tolerance. These are machine
-gates only: nobody has listened unless the operator says so.
+two per-hit variants to listen to). `nearBaseline` compares a measure to a baseline within tolerance.
+
+**The floor law** (`meetsFloor`) holds a set that names a `floor` to it, cue for cue, measured dry. Each cue must:
+
+- stack at least as many layers;
+- fill at least as many bands, or stay full (2.5 of 4) where the floor was;
+- keep its punch: a crest at most 3 dB under the floor's;
+- keep at least 80 % of its length;
+- stay the same sound: an attack half to twice as bright, at most four times as long.
+
+Every layered cue meets its floor. These are machine gates only: nobody has listened unless the operator says so.
+Width stays near zero even with panned layers: the energy is in the low end, which is mono, as it should be.
 
 ## The SFX mixer
 
@@ -66,6 +97,5 @@ outside the bus.
 
 ## Not yet
 
-Nothing in a level reads the shelf yet. To come: re-voicing the mecha set through the mixer against this floor, the
-missing families and their designed variations, sustained sounds driven by a control, and wiring weapon roles,
+Nothing in a level reads the shelf yet. To come: the missing families and their designed variations, sustained sounds driven by a control, and wiring weapon roles,
 explosion presets, body sizes and surfaces to their sounds, with WAVs in the engine handoff.

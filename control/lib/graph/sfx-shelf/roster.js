@@ -50,7 +50,8 @@ export const SLOTS = Object.freeze([
 ]);
 
 const pal = (category, slot, label, aliases = []) => ({ label, aliases, category, palette: true, slot });
-const mecha = (category, family, slot, label, aliases = []) => ({ label, aliases, category, family, voices: { realistic: 'mecha' }, slot });
+// voiced realistic by the layered set; the rescued `mecha` set is its floor (sets.js)
+const mecha = (category, family, slot, label, aliases = []) => ({ label, aliases, category, family, voices: { realistic: 'mecha-layered' }, slot });
 
 const ROWS = {
   // ── the palettes' cue ids (beats/sfx-palettes.js): voiced by arcade, foley, orchestral and synth ──
@@ -77,7 +78,7 @@ const ROWS = {
   'beat-hit': pal('stinger', 'on', 'a beat hit in time', ['on beat']),
   'beat-miss': pal('stinger', 'on', 'a beat missed', ['off beat']),
 
-  // ── the mecha set (sets/mecha.js): Mobile Suit Arena's sounds, voiced realistic ──
+  // ── Mobile Suit Arena's sounds (sets/mecha.js, the floor; sets/mecha-layered.js, the realistic voice) ──
   'mech-step': mecha('movement', 'step', 'footsteps.step', 'a mobile suit\'s footstep', ['mech step', 'mech footstep']),
   'mech-land': mecha('movement', 'land', 'jump.land', 'a mobile suit landing: a metal clang under the weight', ['mech land', 'mech landing']),
   'mech-dodge': mecha('movement', 'dodge', 'dodge', 'a mobile suit\'s roll: three heavy contacts', ['mech dodge', 'mech roll']),

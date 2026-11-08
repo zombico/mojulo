@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import { SOUNDS, SOUND_IDS, CATEGORIES, SLOTS, normalizeName, soundNameIndex, resolveSoundId, soundsIn, sfxGaps } from './roster.js';
 import { STYLES, STYLE_NAMES } from './styles.js';
-import { SETS, SET_NAMES, setManifest } from './sets.js';
+import { SETS, SET_NAMES, FLOOR_SETS, setManifest } from './sets.js';
 import { MECHA, MECHA_HASH } from './sets/mecha.js';
 import { SFX_PALETTES, SFX_PALETTE_NAMES, SFX_CUE_IDS } from '../beats/sfx-palettes.js';
 import { validateBeatsManifest } from '../beats/beats-manifest.js';
@@ -66,15 +66,29 @@ describe('the palettes are frozen behind the shelf', () => {
 });
 
 describe('the sets', () => {
-  it('a row a set voices is a cue of that set, and every cue of a set is a row it voices', () => {
+  it('a row a set voices is a cue of that set, and every cue of a set no other stands on is a row it voices', () => {
     const voiced = SOUND_IDS.flatMap((id) => Object.values(SOUNDS[id].voices ?? {}).map((set) => `${set}:${id}`)).sort();
-    const cues = SET_NAMES.flatMap((s) => Object.keys(SETS[s].cues).map((c) => `${s}:${c}`)).sort();
+    const cues = SET_NAMES.filter((s) => !FLOOR_SETS.includes(s)).flatMap((s) => Object.keys(SETS[s].cues).map((c) => `${s}:${c}`)).sort();
     expect(voiced).toEqual(cues);
   });
 
-  it('a set is a beats-sfx manifest the beats tools take as it is', () => {
-    const name = SET_NAMES[0];
-    expect(validateBeatsManifest(setManifest(name))).toEqual({ ok: true, errors: [] });
+  it('a set that stands on a floor improves it cue for cue: the same ids, every floor gesture kept in order', () => {
+    for (const s of SET_NAMES.filter((n) => SETS[n].floor)) {
+      const F = SETS[SETS[s].floor];
+      expect(F, `${s}'s floor`).toBeDefined();
+      expect(Object.keys(SETS[s].cues).sort()).toEqual(Object.keys(F.cues).sort());
+      for (const [id, g] of Object.entries(F.cues)) {
+        const kept = SETS[s].cues[id].slice(0, g.length).map((x) => ({ type: x.type, seed: x.seed, from: x.from, to: x.to, note: x.note }));
+        expect(kept, `${s}:${id}`).toEqual(g.map((x) => ({ type: x.type, seed: x.seed, from: x.from, to: x.to, note: x.note })));
+      }
+    }
+  });
+
+  it('every set is a beats-sfx manifest the beats tools take as it is, in a space or dry', () => {
+    for (const name of SET_NAMES) {
+      expect(validateBeatsManifest(setManifest(name)), name).toEqual({ ok: true, errors: [] });
+      expect(validateBeatsManifest(setManifest(name, { space: 'hangar' })).ok).toBe(true);
+    }
     expect(() => setManifest('no-such-set')).toThrow(/one of/);
   });
 

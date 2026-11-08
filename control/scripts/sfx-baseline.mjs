@@ -37,7 +37,7 @@ export async function measureSets({ wav = null } = {}) {
   return out;
 }
 
-const row = (cue, v) => `    '${cue}': { layers: ${v.layers}, ms: ${v.ms}, centroidHz: ${v.centroidHz}, crestDb: ${v.crestDb}, bands: { ${Object.entries(v.bands).map(([b, x]) => `${b}: ${x}`).join(', ')} } },`;
+const row = (cue, v) => `    '${cue}': { layers: ${v.layers}, ms: ${v.ms}, centroidHz: ${v.centroidHz}, crestDb: ${v.crestDb}, bands: { ${Object.entries(v.bands).map(([b, x]) => `${b}: ${x}`).join(', ')} }, spread: ${v.spread}, width: ${v.width} },`;
 
 /** The page, as JS. */
 export async function baselineJs(measured) {
@@ -50,7 +50,7 @@ export async function baselineJs(measured) {
     ' */',
     '',
     'export const BASELINE = Object.freeze({',
-    ...Object.entries(sets).flatMap(([name, cues]) => [`  ${name}: {`, ...Object.entries(cues).map(([c, v]) => row(c, v)), '  },']),
+    ...Object.entries(sets).flatMap(([name, cues]) => [`  ${/^[A-Za-z_$][\w$]*$/.test(name) ? name : `'${name}'`}: {`, ...Object.entries(cues).map(([c, v]) => row(c, v)), '  },']),
     '});',
     '',
   ].join('\n');

@@ -26,4 +26,12 @@
   louder one steals the quietest. `distance` (on unless false) places a combat cue by its source's distance from the
   pilot: duller and roomier, not only quieter. A beats-sfx row takes `mix` too, and its WAV takes `?far=`. A recipe
   that uses none of it emits the same kernel and the same page, byte for byte.
-- Nothing in a level reads the shelf yet: the re-voiced set and the wiring come next.
+- **The layered set** (`sets/mecha-layered.js`): the realistic voice of the thirteen sounds. Each is the rescued cue,
+  every gesture kept in order, with its parts set apart (panned, sent) and the layers it lacked: a transient, a clean
+  sub, harmonics (a driven, highpassed copy of the body: driving the body itself saturated its sub, and the yardstick
+  caught it on every cue), grit, a tail, detail (a plate's ring, a hydraulic hiss, the action's clack), and ducks on
+  the big hits. `mecha` stays the floor; the roster's realistic voice is the layered set. The yardstick now reads both
+  channels' power, how many bands a sound fills (`spread`) and its `width`. Its floor law (`meetsFloor`): at least the
+  floor's layers and bands, its punch within 3 dB, its length kept, and the same sound. Every layered cue meets it (a
+  deep sweep holds them all). Machine gates; the ears are the operator's.
+- Nothing in a level reads the shelf yet: the wiring comes after the missing families.
