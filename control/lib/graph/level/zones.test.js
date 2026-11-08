@@ -82,6 +82,8 @@ describe('a zone of the world map', () => {
     const walls = P.colliders.filter((c) => /^zone:edge/.test(c.of));
     for (const w of P.map.zone.ways) expect(walls.some((b) => w.cross[0] >= b.min[0] && w.cross[0] <= b.max[0] && w.cross[1] >= b.min[1] && w.cross[1] <= b.max[1])).toBe(false);
     expect(walls.length).toBe(6);
+    // (a zone's walls and its apron's are its edge, never a face a wall's hero climbs: wall.js `hold: false`)
+    expect(P.colliders.filter((c) => /^zone:/.test(c.of)).every((c) => c.hold === false)).toBe(true);
     // (set down at its way in from the town)
     expect(P.walk.spawn[0]).toBeCloseTo(78);
   });

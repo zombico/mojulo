@@ -1294,6 +1294,10 @@ export function sheathedSpec(G, spec) {
   const { right: _r, ...rest } = spec.gear, { gesture: _g, ...bare } = spec;
   return { ...bare, gear: { ...rest, back: R } };
 }
+// AN ACTION HERO'S WALL (a hero that starts with `wall` or is granted it): walking into a wall, a house's or a rock's,
+// never climbs it; a jump at it takes hold (worlds/controllable/wall.js `ground: false`), as an open world's climb is a
+// choice and never a stumble. A city stalker's wall, taken from the ground, is its own
+export const actionWall = (rule) => (rule && rule.wall ? { wall: { ...(rule.wall === true ? {} : rule.wall), ground: false } } : {});
 function actionHero(entity, figures, sheathRef) {
   const fig = entity.body.figure, sheathed = sheathRef ? `${fig}-sheathed` : null;
   const own = figures[fig];
@@ -1301,7 +1305,7 @@ function actionHero(entity, figures, sheathRef) {
   const clipped = own && own.clips ? { ...own, clips: { ...own.clips, guard: 'walk' } } : own;
   return {
     figures: { ...figures, [fig]: clipped, ...(sheathed ? { [sheathed]: { ...clipped, heroRef: sheathRef } } : {}) },
-    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, combat: { ...COMBAT, ...(sheathed ? { drawn: fig, sheathed } : {}) } } },
+    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, ...actionWall(entity.rule), combat: { ...COMBAT, ...(sheathed ? { drawn: fig, sheathed } : {}) } } },
   };
 }
 

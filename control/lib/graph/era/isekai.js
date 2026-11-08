@@ -1007,11 +1007,13 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // SOLID FLORA (a tile's `solid`: a map a hero walks, level/grid-scene.js): each tree's trunk and each boulder a collider,
   // walked round and never through; their crowns and leaves are no footing (the page's `footless`, the map's). Absent,
   // not a byte
+  // (a trunk is never a wall a wall's hero takes hold of, `hold: false`, worlds/controllable/wall.js: its minFace leaves
+  // out a slim one, never a broad oak's; a boulder is held, climbed as a rock is)
   if (manifest.tile?.solid) {
     const cols = [], r5c = (v) => Math.round(v * 1e5) / 1e5 + 0;
     for (const t of trees) {
       const tr = Math.max(0.25, t.trunks?.[0]?.radii?.[0] ?? 0.3), z0 = t.trunks?.[0]?.pts?.[0]?.[2] ?? site.ground(t.x, t.y);
-      cols.push({ min: [r5c(t.x - tr), r5c(t.y - tr), r5c(z0 - 0.5)], max: [r5c(t.x + tr), r5c(t.y + tr), r5c(z0 + 3)], of: 'flora:trunk' });
+      cols.push({ min: [r5c(t.x - tr), r5c(t.y - tr), r5c(z0 - 0.5)], max: [r5c(t.x + tr), r5c(t.y + tr), r5c(z0 + 3)], of: 'flora:trunk', hold: false });
     }
     for (const b of boulders) {
       if (b.it.role === 'pebble' || b.it.role === 'talus') continue;

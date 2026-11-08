@@ -39,6 +39,9 @@ describe('a solid tile of the meadow kit', () => {
     const trunks = flora(solid).filter((c) => c.of === 'flora:trunk');
     expect(trunks.length).toBeGreaterThan(0);
     for (const c of trunks) { expect(c.max[0] - c.min[0]).toBeGreaterThanOrEqual(0.5); expect(c.max[2] - c.min[2]).toBeCloseTo(3.5, 5); }
+    // (a trunk, slim or broad, is never a wall a wall's hero takes hold of; a boulder is: a rock is climbed)
+    expect(trunks.every((c) => c.hold === false)).toBe(true);
+    expect(flora(solid).filter((c) => c.of === 'flora:rock').every((c) => c.hold === undefined)).toBe(true);
     // (everything else the same: the faces untouched)
     expect(solid.faces.length).toBe(plain.faces.length);
   });

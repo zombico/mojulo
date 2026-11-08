@@ -287,13 +287,16 @@ function borderHeight(faces) {
   for (const f of faces) if (f.group && /:ground$/.test(f.group)) for (const c of f.corners) pts.push(c);
   return (x, y) => { let best = 0, bd = Infinity; for (const c of pts) { const d = Math.abs(c[0] - x) + Math.abs(c[1] - y); if (d < bd) { bd = d; best = c[2]; } } return best; };
 }
+// a map's edge is not a wall to climb: a wall's hero never takes hold of it (`hold: false`, worlds/controllable/wall.js),
+// as a city level's edge is not (city/plan/level.js)
+const edgeOnly = (c) => ({ ...c, hold: false });
 function edgeWalls(W, H, faces) {
   let lo = Infinity, hi = -Infinity; for (const f of faces) for (const c of f.corners) { if (c[2] < lo) lo = c[2]; if (c[2] > hi) hi = c[2]; }
   const z0 = r5(lo - 2), z1 = r5(hi + RIM.wall), t = 0.5;
   return [
     { min: [-t, -H, z0], max: [0, 0, z1], of: 'map:edge:w' }, { min: [W, -H, z0], max: [W + t, 0, z1], of: 'map:edge:e' },
     { min: [0, 0, z0], max: [W, t, z1], of: 'map:edge:n' }, { min: [0, -H - t, z0], max: [W, -H, z1], of: 'map:edge:s' },
-  ];
+  ].map(edgeOnly);
 }
 // A ZONE'S WALLS (zones.js): its square's sides, open at each of its gates (ZONE.gap wide, the path's crossing in its
 // middle), and the apron's far sides shut whole
@@ -328,7 +331,7 @@ function zoneWalls(Z, outer, faces) {
     { min: [X0 - t, Y0, z0], max: [X0, Y1, z1], of: 'zone:apron:w' }, { min: [X1, Y0, z0], max: [X1 + t, Y1, z1], of: 'zone:apron:e' },
     { min: [X0, Y1, z0], max: [X1, Y1 + t, z1], of: 'zone:apron:n' }, { min: [X0, Y0 - t, z0], max: [X1, Y0, z1], of: 'zone:apron:s' },
   );
-  return out;
+  return out.map(edgeOnly);
 }
 // the rim: rings of land out from the border, each `step` metres, rising RIM.rise over RIM.deep (eased), from the land's
 // own height at the border, in the land's colour

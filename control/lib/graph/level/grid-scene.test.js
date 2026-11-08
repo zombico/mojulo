@@ -27,6 +27,8 @@ describe('the glyph map\'s page', () => {
     for (const l of P.map.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
     // the map is closed: walls on its four sides, a rim beyond
     expect(P.colliders.filter((c) => /^map:edge:/.test(c.of))).toHaveLength(4);
+    // (its edge is not a wall to climb: a wall's hero never takes hold of it, wall.js `hold: false`)
+    expect(P.colliders.filter((c) => /^map:edge:/.test(c.of)).every((c) => c.hold === false)).toBe(true);
     expect(P.faces.some((f) => f.group === 'map:rim')).toBe(true);
     // the walk starts at the first path end
     expect(P.walk.spawn[0]).toBeCloseTo(12, 5); expect(P.walk.spawn[1]).toBeCloseTo(-12, 5);

@@ -483,6 +483,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-08 (1107-action-rpg: combat): the 16 fixtures that embed the controllable runtime. The platform
 // rule gained `combat` (a foe near, a lock or a blow: the guard's walk and its weapon drawn, else sheathed), a no-op
 // absent; no fixture's rule takes it, so nothing they play moved.
+// Re-pinned 2026-11-08 (1107-action-rpg: the wall's hold): the 16 fixtures that embed the controllable runtime. The wall
+// (worlds/controllable/wall.js) reads `ground: false` as a leap since the body last stood, not merely a frame off the
+// ground; no fixture's rule takes the wall, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
