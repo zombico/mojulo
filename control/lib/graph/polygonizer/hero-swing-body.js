@@ -225,18 +225,19 @@ export function strikeReadyClip(word, ctx) {
  * THE AIMS a moveset's sidearm plays while S holds it (gameworld/combos.js `ranged`), each a stance said in its own words
  * and solved by the stance solver (its feet, its balance, its eyes on the target, each hand reaching its place):
  *   • ARCHER (a draw: the bow). Side on, the bow arm's shoulder toward the target (a right-handed archer's left), the
- *     bow hand straight out at its shoulder's height on the target line; the string hand from NOCKED (an arrow's length
- *     short of the bow hand) to ANCHORED (at the jaw), played by the draw's share (0 nocked … 1 full).
+ *     bow hand straight out on the target line at the anchor's height (the arrow level); the string hand from NOCKED (an
+ *     arrow's length short of the bow hand) to ANCHORED (at the jaw), played by the draw's share (0 nocked … 1 full).
+ *     The page turns the body above the hips onto the target itself (its pitch and yaw): the aim layer.
  *   • GUNSLINGER (an auto: two guns). Square, both arms straight out at the shoulders' height, a little in.
  * Each hand's place is a share of the arm's length, so a short arm and a long one hold the same pose. `hand` the bow's
  * (or a single gun's) hand: 'left' (the default bow hand) mirrors a right-led stance. ctx: { R, stance: heroStance,
  * reachArm (hero-stance.js), rigNodesAt (station-loft-rig.js), elbowsDown (hero-elbow.js) }.
  */
 export const AIM_POSES = Object.freeze({
-  archer: Object.freeze({ spread: 0.5, line: 74, toes: { L: 82, R: 8 }, sink: 0.06, lean: 4, weight: 0.5, heel: 0, chest: 0.1, bow: { fwd: 0.93, up: 0.0 }, nocked: { fwd: 0.42, side: -0.03 }, anchor: { fwd: 0.0, up: -0.02, side: -0.03 } }),
+  archer: Object.freeze({ spread: 0.5, line: 74, toes: { L: 82, R: 8 }, sink: 0.06, lean: 4, weight: 0.5, heel: 0, chest: 0.1, bow: { fwd: 0.93, up: 0.0 }, nock: 0.3, anchor: { fwd: 0.0, up: -0.02, side: -0.03 } }),
   gunslinger: Object.freeze({ spread: 0.5, line: 0, toes: { L: 10, R: -10 }, sink: 0.07, lean: 6, weight: 0.5, heel: 0, chest: 0, guns: { fwd: 0.97, up: 0, side: 0.06 } }),
 });
-const DRAW_SAMPLES = 4;   // (the draw's string hand re-solved at a quarter, a half and three quarters of the way)
+const DRAW_SAMPLES = 8;   // (the draw's string hand re-solved at every eighth of the way)
 const armLength = (R, s) => { const J = R.joints, d = (a, b) => Math.hypot(J[a][0] - J[b][0], J[a][1] - J[b][1], J[a][2] - J[b][2]); return d(`shoulder${s}`, `elbow${s}`) + d(`elbow${s}`, `wrist${s}`); };
 const stanceWords = (A, hands, family) => ({ family, spread: A.spread, line: A.line, toes: A.toes, sink: A.sink, lean: A.lean, weight: A.weight, heel: A.heel, chest: A.chest, hands, serves: [] });
 export function aimClip(pose, ctx) {
@@ -247,24 +248,30 @@ export function aimClip(pose, ctx) {
   if (pose === 'archer') {
     // (right-led: the right the bow hand, the left the string's; a left bow hand is its mirror)
     const bow = { at: 'leadShoulder', fwd: r4(A.bow.fwd * arm), up: A.bow.up, side: 0, line: true, hand: 'grip' };
-    const at = (string) => stance(stanceWords(A, { R: bow, L: string }, 'bladed'), R, { left });
-    const N = at({ at: 'leadShoulder', fwd: r4(A.nocked.fwd * arm), up: 0, side: A.nocked.side, line: true, hand: 'grip' });
-    const D = at({ at: 'chin', fwd: A.anchor.fwd, up: A.anchor.up, side: A.anchor.side, line: true, hand: 'grip' });
-    // THE DRAW: the string hand pulled straight back along the arrow, nock to anchor (each sample the string arm re-solved
-    // to its point on that line, seeded by the last), so the hand never arcs off the arrow's line
-    const s = left ? 'R' : 'L', a = rigNodesAt(R, N.hold).nodes[`wrist${s}`], b = rigNodesAt(R, D.hold).nodes[`wrist${s}`];
-    // (every sample on the drawn stance's body: the stances balance their feet each for its own arms, a millimetre apart;
-    // a solved arm is posed elbows down, as the stance's own are: hero-elbow.js, a roll added on top of the solver's)
-    const samples = []; let seed = null;
-    for (let i = 0; i < DRAW_SAMPLES; i++) {
-      const k = i / DRAW_SAMPLES, goal = [0, 1, 2].map((c) => a[c] + (b[c] - a[c]) * k);
-      const sol = ctx.reachArm(R, D.hold, s, goal, seed); seed = sol;
-      samples.push({ ...D.hold, [`sh${s}`]: ctx.elbowsDown(R, { [`sh${s}`]: sol.sh })[`sh${s}`], [`elbow${s}`]: sol.elbow });
+    const D = stance(stanceWords(A, { R: bow, L: { at: 'chin', fwd: A.anchor.fwd, up: A.anchor.up, side: A.anchor.side, line: true, hand: 'grip' } }, 'bladed'), R, { left });
+    const s = left ? 'R' : 'L', b = left ? 'L' : 'R', n = rigNodesAt(R, D.hold).nodes, anc = n[`wrist${s}`], sh = n[`shoulder${b}`];
+    // THE ARROW LEVEL: the bow hand raised to the anchor's height (the jaw sits above the shoulder), out at the bow arm's
+    // reach on the target line, so the arrow from the anchor to the bow points straight at the target, not into the floor
+    // (a solved arm is posed elbows down, as the stance's own are: hero-elbow.js, a roll added on top of the solver's)
+    const posed = (side, sol) => ({ [`sh${side}`]: ctx.elbowsDown(R, { [`sh${side}`]: sol.sh })[`sh${side}`], [`elbow${side}`]: sol.elbow });
+    const reach = A.bow.fwd * arm, bx = n[`wrist${b}`][0], dx = bx - sh[0], dz = anc[2] - sh[2];
+    const body = { ...D.hold, ...posed(b, ctx.reachArm(R, D.hold, b, [bx, sh[1] + Math.sqrt(Math.max(0, reach * reach - dx * dx - dz * dz)), anc[2]])) };
+    // THE DRAW: the string hand pulled straight back along the arrow, from the nock (an arrow's length, `nock`, short of
+    // the bow hand) to the anchor, each sample the string arm re-solved to its point on that line, so
+    // the hand never arcs off it
+    const bw = rigNodesAt(R, body).nodes[`wrist${b}`], L = Math.hypot(bw[0] - anc[0], bw[1] - anc[1], bw[2] - anc[2]);
+    const a = [0, 1, 2].map((c) => bw[c] + ((anc[c] - bw[c]) * Math.min(A.nock, L)) / L);
+    // (solved from the anchor out to the nock, each seeded by the one before it: one branch of the arm all the way, the
+    // elbow never flipping between samples)
+    const samples = [body]; let seed = null;
+    for (let i = DRAW_SAMPLES - 1; i >= 0; i--) {
+      const k = i / DRAW_SAMPLES, goal = [0, 1, 2].map((c) => a[c] + (anc[c] - a[c]) * k);
+      const sol = ctx.reachArm(R, body, s, goal, seed); seed = sol;
+      samples.unshift({ ...body, ...posed(s, sol) });
     }
-    samples.push(D.hold);
     const fn = (u) => { const x = Math.max(0, Math.min(1, u)) * DRAW_SAMPLES, i = Math.min(DRAW_SAMPLES - 1, Math.floor(x)); return lerpPose(samples[i], samples[i + 1], x - i); };
     fn.keys = 12; fn.once = true;   // (a one-shot, its last key the full draw: a share of 1 holds there)
-    fn.aim = { pose, string: s, checks: { nocked: N.checks, drawn: D.checks } };
+    fn.aim = { pose, string: s, checks: { drawn: D.checks } };
     return fn;
   }
   const G = A.guns, gun = (sd) => ({ at: 'shoulder', fwd: r4(G.fwd * arm), up: G.up, side: sd, hand: 'grip' });

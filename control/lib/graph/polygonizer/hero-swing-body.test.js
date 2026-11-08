@@ -170,15 +170,15 @@ describe('the footwork through a string', () => {
 describe('the aims', () => {
   const R = rig('male', 'sword'), N = (p) => rigNodesAt(R, p).nodes;
   const ctx = { R, stance: heroStance, reachArm, rigNodesAt, elbowsDown };
-  it('the archer: the bow hand straight out on the target line at its shoulder; the string drawn straight back along the arrow to the jaw; the feet still', () => {
+  it('the archer: the bow hand straight out on the target line, the arrow level; the string drawn straight back along it to the jaw; the feet still', () => {
     const c = aimClip('archer', ctx);
     expect(c.aim.string).toBe('R');   // (the bow in the left hand: a right-handed archer)
-    for (const k of ['nocked', 'drawn']) { expect(c.aim.checks[k].com.margin).toBeGreaterThan(0); expect(c.aim.checks[k].reach).toEqual({ L: 'ok', R: 'ok' }); }
+    expect(c.aim.checks.drawn.com.margin).toBeGreaterThan(0); expect(c.aim.checks.drawn.reach).toEqual({ L: 'ok', R: 'ok' });
     const at = [0, 0.25, 0.5, 0.75, 1].map((u) => N(c(u)));
     const arm = Math.hypot(...[0, 1, 2].map((i) => R.joints.shoulderL[i] - R.joints.elbowL[i])) + Math.hypot(...[0, 1, 2].map((i) => R.joints.elbowL[i] - R.joints.wristL[i]));
     for (const n of at) {
       expect(Math.abs(n.wristL[0])).toBeLessThan(0.03);                               // (on the target line)
-      expect(Math.abs(n.wristL[2] - n.shoulderL[2])).toBeLessThan(0.06);              // (at its shoulder's height)
+      expect(Math.abs(n.wristL[2] - at[4].wristR[2])).toBeLessThan(0.015);            // (at the anchor's height: the arrow level)
       expect(Math.hypot(...[0, 1, 2].map((i) => n.wristL[i] - n.shoulderL[i]))).toBeGreaterThan(0.85 * arm);   // (straight)
       for (const s of ['L', 'R']) for (let i = 0; i < 3; i++) expect(n[R.legs[s].toeBase][i]).toBeCloseTo(at[0][R.legs[s].toeBase][i], 4);
     }

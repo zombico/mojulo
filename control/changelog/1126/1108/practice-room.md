@@ -122,3 +122,10 @@
   fired, the pistols' flash a muzzle's size. A bow's rounds fly as arrows. Measured on the rig: the bow hand on the
   target line at its shoulder through the draw, the string hand within 4 cm of the arrow's line, the feet still; the
   guns straight out at the shoulders. Seen headless in the room, the eyes gate the operator's.
+- **The aim on the target.** The archer's arrow ran nose down (the bow hand at the shoulder, the anchor at the jaw a
+  hand higher): the bow hand now rises to the anchor's height, the arrow level by construction, the draw re-solved from
+  the anchor out (one branch of the arm, eight samples, within 4 cm of the arrow's line). On the page the body above
+  the hips turns onto the target: each frame the props measure where the arrow (or the guns) points against the line to
+  the foe, and the aim layer takes the pitch and yaw still lacking (none: level ahead). The sidearm aims at the foe's
+  chest, not its middle. Measured in the room headless: within a degree of the foe at 4 m, 12 m, 2.5 m up and off to
+  the side, every arrow landing.

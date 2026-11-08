@@ -506,6 +506,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // moveset's S says the aim the page plays (`mvPose`: its clip, the draw's share), its sidearm's hand and pairing ride
 // `mvRanged`, and the combat figure shows the sheathed hero while an aim is up; the page's aim layer, props and arrows
 // are emitted only for a moveset. No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the aim on the target): the 16 fixtures that embed the controllable
+// runtime. A moveset's sidearm aims at the foe's chest, not its middle; the page's aim layer (a moveset's only) turns the
+// body onto the target. No fixture's rule takes a moveset, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

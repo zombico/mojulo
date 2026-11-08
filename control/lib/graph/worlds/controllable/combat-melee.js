@@ -478,7 +478,7 @@ export function buildCombatMelee(E) {
     }
     if (Wc) e.mvRanged = Wc.sidearm ? { id: Wc.sidearm.id, name: Wc.sidearm.name, mode: Wc.sidearm.mode, ...(Wc.sidearm.hand ? { hand: Wc.sidearm.hand } : {}), ...(Wc.sidearm.dual ? { dual: true } : {}) } : null;
     // THE SIDEARM'S AIM (S held): the locked foe, else the nearest foe in front (within 35° of the facing, in range): the
-    // round leaves the chest straight for its body (`e.mvAim`, stepWeapon's aim in hand) and the hero turns to it; with
+    // round leaves the hero's chest straight for the foe's (`e.mvAim`, stepWeapon's aim in hand) and the hero turns to it; with
     // none, where the hero faces (a draw: where the camera looks). A DRAW held swings nothing, the platform rule walking
     // the hero at the aim's pace
     const drawing = !!(e.weapon && e.weapon.charging);
@@ -499,7 +499,8 @@ export function buildCombatMelee(E) {
       }
       if (tg) {
         const eye = (e.weapon && e.weapon.eye) || 1.25, from = [t.pos[0], t.pos[1], t.pos[2] + eye];
-        const tz = tg.transform.pos[2] + (tg.body.egg ? tg.body.egg.cz : (tg.body.radius || 0.5));
+        // (the chest: four tenths of the body's half height above its middle, well inside it)
+        const tz = tg.transform.pos[2] + (tg.body.egg ? tg.body.egg.cz + 0.4 * tg.body.egg.c : (tg.body.radius || 0.5));
         const dir = [tg.transform.pos[0] - from[0], tg.transform.pos[1] - from[1], tz - from[2]];
         e.mvAim = { from, dir }; t.heading = Math.atan2(dir[1], dir[0]);
       } else if (drawing && world && world.cameraYaw != null) t.heading = world.cameraYaw;

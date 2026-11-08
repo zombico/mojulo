@@ -2037,6 +2037,7 @@ function __poseLayers(e, fig, dt) {
 }
 ` : ''}${moveset ? `// A SIDEARM'S AIM LAYER (gameworld/combos.js a weapon's sidearm, hero-swing-body.js aimClip): its weight eased in and
 // out (a tenth of a second), the bones below the spine (the hips, the legs) left to the walk; the spine's base its root
+const __aimQX = new THREE.Quaternion(), __aimQY = new THREE.Quaternion(), __aimAX = new THREE.Vector3(1, 0, 0), __aimH = new THREE.Vector3();
 const __aimQ = new THREE.Quaternion(), __aimP = [0, 0, 0], __AIM_LOW = /^(pelvis|thigh|shank|hipFold|kneeFold|foot|toes)/;
 function __aimLayer(rig, fig, AP, dt) {
   const A = rig.aim || (rig.aim = { w: 0, clip: null, phase: 0, d: [0, 0, 0] });
@@ -2045,6 +2046,12 @@ function __aimLayer(rig, fig, AP, dt) {
   if (A.w <= 1e-3 || !A.clip || !fig.clips[A.clip]) return null;
   if (!fig.__aimLow) { fig.__aimLow = fig.bones.map((b) => __AIM_LOW.test(b.id)); fig.__aimRoot = fig.bones.findIndex((b) => b.id === 'lumbar'); }
   A.lower = fig.__aimLow; A.root = fig.__aimRoot; A.d[0] = A.d[1] = A.d[2] = 0;
+  // ON THE TARGET: the body above the hips turned by the pitch and the yaw the props measured it still lacks (A.corr,
+  // __sidearmProps), about the spine's base
+  const C = A.corr || (A.corr = [0, 0]);
+  __aimQY.setFromAxisAngle(__RIG_Z, C[1] * A.w); __aimQX.setFromAxisAngle(__aimAX, C[0] * A.w);
+  if (!A.q) A.q = new THREE.Quaternion();
+  A.q.copy(__aimQY).multiply(__aimQX); A.at = null;
   return A;
 }
 // THE SIDEARM IN HAND, drawn on the page at the posed hands while the aim is up: the bow (its limbs, bent as it draws,
@@ -2055,6 +2062,20 @@ function __spRod(r, col) { const o = new THREE.Mesh(new THREE.CylinderGeometry(r
 function __spSpan(o, a, b) { __spD.subVectors(b, a); const L = __spD.length() || 1e-4; o.position.addVectors(a, b).multiplyScalar(0.5); o.quaternion.setFromUnitVectors(__spY, __spD.multiplyScalar(1 / L)); o.scale.set(1, L, 1); }
 function __spBox(s, at, col, into) { const o = new THREE.Mesh(new THREE.BoxGeometry(s[0], s[1], s[2]), new THREE.MeshBasicMaterial({ color: col })); o.position.set(at[0], at[1], at[2]); o.raycast = function () {}; into.add(o); return o; }
 function __spGun() { const g = new THREE.Group(); __spBox([0.035, 0.2, 0.045], [0, 0.06, 0.03], 0x2b2e33, g); __spBox([0.03, 0.05, 0.1], [0, -0.01, -0.03], 0x3a2a1e, g); __spBox([0.02, 0.03, 0.02], [0, 0.17, 0.035], 0x55595f, g); g.userData.mz = new THREE.Object3D(); g.userData.mz.position.set(0, 0.19, 0.035); g.add(g.userData.mz); return g; }
+// ON THE TARGET: where the arrow (or the guns) points now (o, d: the figure's frame) against where the target is (the
+// aim's: e.mvAim, the round's own line to the foe's body; none, straight ahead and level): the pitch and yaw still
+// lacking, taken into the aim layer's turn (A.corr) a share at a time once the aim is all the way up
+const __spT = new THREE.Vector3(), __spInv = new THREE.Matrix4();
+function __spOnTarget(e, m, A, o, d) {
+  if (!A || A.w < 0.99 || !A.corr) return;
+  const M = e.mvAim;
+  if (M) { m.updateMatrix(); __spInv.copy(m.matrix).invert(); __spT.set(M.from[0] + M.dir[0], M.from[1] + M.dir[1], M.from[2] + M.dir[2]).applyMatrix4(__spInv).sub(o); }
+  else __spT.set(0, 1, 0);
+  const el = (v) => Math.atan2(v.z, Math.hypot(v.x, v.y)), az = (v) => Math.atan2(-v.x, v.y);
+  e.__aimErr = [Math.round((el(__spT) - el(d)) * 1800 / Math.PI) / 10, Math.round((az(__spT) - az(d)) * 1800 / Math.PI) / 10];   // (degrees still off: a check reads it)
+  A.corr[0] = Math.max(-0.9, Math.min(0.9, A.corr[0] + 0.6 * (el(__spT) - el(d))));
+  A.corr[1] = Math.max(-0.9, Math.min(0.9, A.corr[1] + 0.6 * (az(__spT) - az(d))));
+}
 function __sidearmProps(e, m, rig, fig, AL) {
   const R = e.mvRanged, kind = R && AL ? (R.mode === 'draw' ? 'bow' : 'guns') : null;
   let P = rig.props;
@@ -2092,12 +2113,14 @@ function __sidearmProps(e, m, rig, fig, AL) {
     const armed = !!(e.weapon && e.weapon.ammo > 0 && !e.weapon.reloading);
     B.shaft.visible = B.head.visible = armed;
     if (armed) { const tip = new THREE.Vector3().copy(nock).addScaledVector(a, 0.78); __spSpan(B.shaft, nock, tip); B.head.position.copy(tip); B.head.quaternion.setFromUnitVectors(__spY, a); }
+    __spOnTarget(e, m, AL, pull, a);
   } else {
     if (!P.guns) { const g = new THREE.Group(), L = __spGun(), Rg = __spGun(); g.add(L); g.add(Rg); m.add(g); P.guns = { g, L, R: Rg }; }
     const G = P.guns;
     const place = (o, grip, d) => { __spZ.set(0, 0, 1).addScaledVector(d, -d.z).normalize(); __spX.crossVectors(d, __spZ).normalize(); __spM.makeBasis(__spX, d, __spZ); o.quaternion.setFromRotationMatrix(__spM); o.position.copy(grip); };
     place(G.R, gR, dR); place(G.L, gL, dL);
     G.L.visible = !!R.dual; G.R.visible = true;
+    __spOnTarget(e, m, AL, R.dual ? new THREE.Vector3().addVectors(gL, gR).multiplyScalar(0.5) : gR, R.dual ? new THREE.Vector3().addVectors(dL, dR).normalize() : dR);
     const mz = (R.dual && e.weapon && (e.weapon.shots || 0) % 2 ? G.L : G.R).userData.mz; mz.userData.sidearm = true; rig.muzzle = mz;
   }
 }
@@ -2233,6 +2256,10 @@ ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
       if (bi === AL.root) { AL.d[0] = __rigPA[0] - __aimP[0]; AL.d[1] = __rigPA[1] - __aimP[1]; AL.d[2] = __rigPA[2] - __aimP[2]; }
       __rigQA.slerp(__aimQ, AL.w);
       for (let c = 0; c < 3; c++) __rigPA[c] += (__aimP[c] + AL.d[c] - __rigPA[c]) * AL.w;
+      // (turned onto the target about the spine's base)
+      if (bi === AL.root) AL.at = [__rigPA[0], __rigPA[1], __rigPA[2]];
+      else if (AL.at) { __aimH.set(__rigPA[0] - AL.at[0], __rigPA[1] - AL.at[1], __rigPA[2] - AL.at[2]).applyQuaternion(AL.q); __rigPA[0] = AL.at[0] + __aimH.x; __rigPA[1] = AL.at[1] + __aimH.y; __rigPA[2] = AL.at[2] + __aimH.z; }
+      __rigQA.premultiply(AL.q);
     }` : ''}
     if (fig.bones[bi].id === 'head' && Math.abs(rig.lookA) > 1e-4) {
       __rigQL.setFromAxisAngle(__RIG_Z, rig.lookA);
