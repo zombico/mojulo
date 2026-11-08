@@ -12,3 +12,12 @@
   template (no acceleration, jump or walk); no automatic gun blooms or climbs at its own rate of fire; every gun leaves
   the same mark on a wall; F boosts the shooter pole's hero-less player at 3.5 times its run. Switching and reloading
   are carried in the arm's own times.
+- **The gym page.** `scripts/spikes/combat-tester/gym.mjs` draws a game's gym in graybox, played as the game plays (its
+  player, kit, figure and camera, and the other camera beside it): a range with the game's own foe at 5, 15 and 30 m
+  that stands back up after it drops, five walls of brick, concrete, pine, sheet metal and steel each marked as its own
+  matter, and a lane whose stop box, step, ledge and gap are laid from the game's measured reach, green where it is
+  meant to be made and red where it is not. Its gate drives the game's rule at each station, and `--check` drives each
+  page's own runtime in headless Chromium. It found that a jump reaches further on boxes than on a floor: the step lifts
+  every jump onto a ledge, and a jump pressed at a lip finishes its gather in the air, past the edge.
+- **Walls of their own matter.** A level's `scars` takes `walls: [{ min, max, matter }]`, so walls side by side are each
+  marked as their own matter (steel dents beside a brick chip); any other wall is the world's. Absent, nothing changes.

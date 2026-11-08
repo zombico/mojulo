@@ -21,6 +21,7 @@ process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { register } from 'node:module';
 import { writeFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 register('../../mcp-stdio-loader.mjs', import.meta.url);
 const { designGameHandler } = await import('../../../lib/mcp/tools/design-game.js');
 const { SketchRepository } = await import('../../../lib/db/repositories/sketches.js');
@@ -44,13 +45,13 @@ export const GAMES = {
 };
 
 const FPS = 60, DT = 1 / FPS, E = composeLive();
-const BANDS = [5, 15, 30], MATTERS = ['brick', 'concrete', 'pine', 'sheet-metal', 'steel'];
+export const BANDS = [5, 15, 30], MATTERS = ['brick', 'concrete', 'pine', 'sheet-metal', 'steel'];
 const r2 = (v) => (v == null || !Number.isFinite(v) ? v : Math.round(v * 100) / 100), r3 = (v) => Math.round(v * 1000) / 1000;
 const flat = { ground: () => 0 };
 const copy = (o) => JSON.parse(JSON.stringify(o));
 
 // ── the game, minted: its pilot and its foe ──────────────────────────────────────────────────────────────────────────
-async function mint(name, quick) {
+export async function mint(name, quick) {
   const ref = `ct-${name}`.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 40);
   const out = await designGameHandler({ quick, ref });
   if (out?.ok === false) throw new Error(`${name}: ${JSON.stringify(out).slice(0, 400)}`);
@@ -60,7 +61,7 @@ async function mint(name, quick) {
   const pilot = payload.entities.find((e) => e.pilotable) ?? payload.entities.find((e) => e.id === 'player' || e.id === 'hero');
   const foe = payload.entities.find((e) => e !== pilot && e.body?.hittable && Number.isFinite(e.body?.hp));
   if (!pilot) throw new Error(`${name}: no pilot in the level`);
-  return { pilot, foe, camera: payload.camera ?? null };
+  return { pilot, foe, camera: payload.camera ?? null, payload };
 }
 
 // the pilot alone on a floor, its feet on it (a walker rides its eye over the floor; a body stands on it)
@@ -125,18 +126,24 @@ function mobility(pilot) {
   M.walk = Math.abs(walk - top) < 0.02 ? null : r2(walk);
   const boost = Math.max(...run(pilot, { forward: 1, boost: true }, 120).v);
   M.boost = Math.abs(boost - top) < 0.05 ? null : r2(boost);
-  // the jump, out of the run, held
+  // the jump, out of the run, held: followed past its landing height (the floor falls away once it leaves), so the
+  // arc says both how long it is (back at the take-off's height) and how far it CATCHES a lip a step lower (the rule
+  // steps onto any top within its step of the feet, in the air too: a ledge is reached at the jump's height plus the
+  // step, and a gap at the arc's reach a step down)
   if (R.type === 'platform' || R.jumpSpeed) {
-    const { w: w3, e: e3 } = soloWorld(pilot); let off = null, high = 0, land = null;
+    const stepH = R.step ?? 0.35, z0 = footZ(R);
+    let open = false; const fall = { ground: () => (open ? -1e4 : 0) };
+    const { w: w3, e: e3 } = soloWorld(pilot); let off = null, high = 0; const arc = [];
     for (let f = 0; f < 90; f++) E.stepWorld(w3, { forward: 1 }, DT, flat);
-    for (let f = 0; f < 300 && !land; f++) {
-      const z0 = footZ(R);
-      E.stepWorld(w3, { forward: 1, jump: f === 0, jumpHeld: true }, DT, flat);
+    for (let f = 0; f < 400; f++) {
+      E.stepWorld(w3, { forward: 1, jump: f === 0, jumpHeld: true }, DT, fall);
       const z = e3.transform.pos[2] - z0;
-      if (!off && z > 1e-4) off = { x: e3.transform.pos[0], f };
-      if (off) { high = Math.max(high, z); if (z <= 1e-4 && f > off.f + 1) land = { x: e3.transform.pos[0], f }; }
+      if (!off && z > 1e-4) { off = { x: e3.transform.pos[0] - e3.vel[0] * DT, f }; open = true; }
+      if (off) { high = Math.max(high, z); arc.push([e3.transform.pos[0] - off.x, z]); if (z < -stepH - 0.2) break; }
     }
-    M.jump = off ? { height: r2(high), long: land ? r2(land.x - off.x) : null, commit: r3(off.f * DT) } : null;
+    // where the arc comes down through `up` (above the take-off; negative below)
+    const at = (up) => { const k = arc.findIndex((q, i) => i > 0 && q[1] < up && arc[i - 1][1] >= up && arc.slice(0, i).some((p) => p[1] > up)); if (k < 1) return null; const [x0, z1] = arc[k - 1], [x1, z2] = arc[k]; return r2(x0 + ((x1 - x0) * (z1 - up)) / (z1 - z2)); };
+    M.jump = off ? { height: r2(high), long: at(0), catch: at(-stepH), reach: r2(high + stepH), commit: r3(off.f * DT) } : null;
   } else M.jump = null;
   return M;
 }
@@ -258,8 +265,8 @@ function reloading(pilot, slot) {
 }
 
 // ── a game, measured ─────────────────────────────────────────────────────────────────────────────────────────────────
-async function measureGame(name, G) {
-  const { pilot, foe } = await mint(name, G.quick);
+export async function measureGame(name, G, minted = null) {
+  const { pilot, foe } = minted ?? await mint(name, G.quick);
   const R = pilot.rule, slots = R.loadout?.length ? R.loadout : [{ name: 'gun', weapon: pilot.weapon }];
   const out = { game: name, says: G.says, rule: R.type ?? 'platform', camera: G.quick.camera ?? null, asked: asked(G.quick), foe: foe ? { hp: foe.body.hp } : null, mobility: mobility(pilot), slots: {} };
   for (const s of slots) {
@@ -274,7 +281,7 @@ async function measureGame(name, G) {
 }
 
 // ── the gate: what a game asked for against what it does ─────────────────────────────────────────────────────────────
-function laws(m) {
+export function laws(m) {
   const L = [], law = (name, ok, info) => L.push({ name, ok: !!ok, ...(info !== undefined ? { info } : {}) });
   const A = m.asked, M = m.mobility;
   if (A) {
@@ -322,11 +329,11 @@ function laws(m) {
 }
 
 // ── the readout ──────────────────────────────────────────────────────────────────────────────────────────────────────
-function print(m, L) {
+export function print(m, L) {
   const A = m.asked, M = m.mobility;
   console.log(`\n━━ ${m.game}: ${m.says}`);
   console.log(`   rule ${m.rule} · camera ${m.camera ?? 'the goal\'s'} · foe hp ${m.foe?.hp ?? '–'}${A ? ` · template ${A.template} (after ${A.after}, viewer ${A.view})` : ''}`);
-  console.log(`   mobility  run ${M.top} m/s in ${M.toTop} s · stop ${M.stop.s} s over ${M.stop.m} m · strafe ${M.strafe ? `${M.strafe.speed} m/s, reversed in ${M.strafe.reverse} s` : 'none'} · walk ${M.walk ?? '–'} · boost ${M.boost ?? '–'} · jump ${M.jump ? `${M.jump.height} m high, ${M.jump.long} m long, ${M.jump.commit} s to leave` : 'none'}`);
+  console.log(`   mobility  run ${M.top} m/s in ${M.toTop} s · stop ${M.stop.s} s over ${M.stop.m} m · strafe ${M.strafe ? `${M.strafe.speed} m/s, reversed in ${M.strafe.reverse} s` : 'none'} · walk ${M.walk ?? '–'} · boost ${M.boost ?? '–'} · jump ${M.jump ? `${M.jump.height} m high (a ledge of ${M.jump.reach} m with the step), ${M.jump.long} m long (${M.jump.catch} m to a lip a step down), ${M.jump.commit} s to leave` : 'none'}`);
   if (A) console.log(`   the card  walk ${A.ground.walk} · run ${A.ground.run} · sprint ${A.ground.sprint} · accel ${A.ground.accel} · decel ${A.ground.decel} · jump ${A.jump} m · dodge ${A.dodge ?? '–'}${A.needs.length ? `\n   needs     ${A.needs.join('; ')}` : ''}`);
   for (const [k, s] of Object.entries(m.slots)) {
     if (s.skipped) { console.log(`   ${k}: ${s.skipped}`); continue; }
@@ -339,6 +346,9 @@ function print(m, L) {
   for (const l of L) console.log(`   ${l.ok ? 'PASS' : 'FAIL'} ${l.name}${l.info !== undefined ? `  ${JSON.stringify(l.info)}` : ''}`);
 }
 
+// ── the command line (when run, not imported: gym.mjs imports the measures) ───────────────────────────────────────────
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) await main();
+async function main() {
 const args = process.argv.slice(2), opt = (k) => { const i = args.indexOf(k); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v; };
 const flag = (k) => { const i = args.indexOf(k); if (i < 0) return false; args.splice(i, 1); return true; };
 const jsonOut = opt('--json'), quickArg = opt('--quick'), twice = flag('--twice');
@@ -354,3 +364,4 @@ for (const [name, G] of Object.entries(chosen)) {
 }
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(all, null, 1));
 process.exit(0);
+}

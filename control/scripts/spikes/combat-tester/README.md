@@ -18,7 +18,8 @@ node scripts/spikes/combat-tester/measure.mjs [game …] [--quick '<json>'] [--j
 The meru island is the seed at a game's scale that a trail is grown on. Here the seed is the game's **gym**: its own
 numbers, measured on the runtime it ships, validated there; its levels are then grown from those measures and held to
 the same laws (as `gameworld/feel/reach.js` already sizes a platformer's segments from what its hero can cross). Phase 1
-is the measures. The gym page (the seed drawn: a movement lane, a firing range, a wall yard) and the grown arena follow.
+is the measures; phase 2 the gym page (the seed drawn: a movement lane, a firing range, a wall yard); the grown arena
+follows.
 
 ## How it measures
 
@@ -106,6 +107,70 @@ Carried, everywhere, to within two frames of the arm's own numbers: the switch i
 arm's draw (`handling.js`), and a sidearm is drawn faster than a long gun (0.55 s against the rifle's 0.88 and the
 sniper's 1.15). An emptied magazine reloads in the gun's time and R reloads a partly spent one and refills it.
 
+## Phase 2: the gym page
+
+```sh
+# from control/
+node scripts/spikes/combat-tester/gym.mjs <out-dir> [game …] [--quick '<json>'] [--camera own|other|both] [--check]
+```
+
+The game's seed, drawn in graybox and played as the game plays: its own player (rule, kit, figure), its own camera
+(and the other one: over the shoulder for a first-person game, the eye for a shoulder one), its own foe. Writes
+`<game>.html` and `<game>-<other camera>.html`, about 4.6 MB each, self-contained. Three stations round a start pad:
+
+- **the range** (ahead): the game's foe at 5, 15 and 30 m, standing back up 1.5 s after it drops (the match layer, its
+  scoreboard counting); distance posts every 5 m; a concrete backstop
+- **the wall yard** (right): brick, concrete, pine, sheet metal and steel side by side, 10 m off, each marked as its own
+  matter (rupa's scars: nothing breaks)
+- **the lane** (left): the run's strip with the measured stop box past the line, a step inside the rule's step and one
+  over it, a ledge at what the jump reaches and one past it, a gap it crosses and one it does not, half and full cover
+
+Every station is labelled with its numbers and a readout carries the game's measures. **Green is meant to be made, red
+is not.** Two gates hold it:
+
+- **the stations, headless**: the game's rule driven at each on the gym's own boxes (the floor the page finds: the
+  nearest top straight below), every jump tried at every press from the edge to 3 m before it, as a player's timing
+  would find. 28 of 28 as meant over the four games.
+- **the page** (`--check`): each page opened in headless Chromium and its own runtime stepped frame by frame
+  (`window.__mojCtrl.step`; software rendering is too slow to play in real time): it loads clean, a round drops the
+  15 m dummy, each wall takes its matter's mark (chips on masonry and wood, dents on metal), the green step is climbed
+  and the red is not. 32 of 32 over eight pages. Over the shoulder a round goes to the camera's crosshair (`converge`),
+  which a script turning the body does not move, so the check aims the body's own line: the gun is tested, not the
+  camera.
+
+### What the gym found
+
+**A jump reaches further on boxes than on a floor.** The jump stations are laid from the reach measured on boxes (the
+highest ledge and the widest gap the rule makes at its best timing, by bisection), not from the flat jump, because the
+runtime adds two things to every arc:
+
+- **The step lifts every jump.** In the air the platform rule still steps onto any top within its step of the feet, so
+  a ledge is reached at the jump's height plus the step (Cogs of Combat: 0.4 m of jump, a 0.69 m ledge).
+- **A jump's gather is finished off a lip.** Pressed at a platform's edge, the body runs on, falls, and takes off from
+  the air when its gather ends: Cogs of Combat leaves 0.73 m out over the gap, 0.18 m below the lip. With the step's
+  catch on landing, its gaps are crossed at 3.0 m where its arc is 2.11 m.
+
+| game | jump | ledge reached | arc | gap crossed |
+|---|---|---|---|---|
+| conscription-hero | 0.55 m | 0.84 m | 3.0 m | 3.7 m |
+| infinity-crisis | 1.3 m | 1.59 m | 3.54 m | 3.99 m |
+| cogs-of-combat | 0.4 m | 0.69 m | 2.11 m | 3.0 m |
+| steel-serpents | 0.4 m | 0.69 m | 2.33 m | 3.34 m |
+
+Whether a realistic body should finish a jump it began on the ground once the ground has gone is a design call; today
+it does, and a level laid from the flat jump would be beaten by it.
+
+**The shoulder camera turns on A and D.** The game's own legend on a third-person shooter says "A / D turn": no mouse
+look, as the movement map read. The gym's eye page for the same game looks with the mouse (`turnMode: 'look'`), so the
+two can be played side by side.
+
+### One opt-in in lib
+
+rupa's scars gave a world one wall matter, so five walls side by side could not each mark as their own. `rupa.scars`
+takes `walls: [{ min, max, matter }]` (`readScarsSpec`), walls of their own matter by the box each stands in; any other
+wall is the world's `wall`. Absent, the spec and every page are as they were (the byte pins `test:changed` reaches pass;
+`scars.test.js` holds it).
+
 ## Gaps, in the order they move a measured number
 
 1. **The sprint**: carried onto the platform rule (a person's, not the mech boost), so the cards' sprints reach a game.
@@ -120,5 +185,5 @@ sniper's 1.15). An emptied magazine reloads in the gun's time and R reloads a pa
 ## Not measured yet
 
 Travelling rounds (lob, the bow: their own measure), the floor's pocks and a burst's crater, the stances (none exist),
-the camera (the shoulder's mouse look and the peek), animation (the clips at these speeds). The gym page and the grown
-arena are phases 2 and 3.
+the camera's aim (the shoulder's mouse look and the peek: the gym shows it, nothing measures it), animation (the clips
+at these speeds). The grown arena is phase 3.

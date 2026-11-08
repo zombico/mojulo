@@ -104,7 +104,8 @@ export function breaches(matter, box, joules) {
 
 /**
  * A level's `scars` (cosmetic damage: the map may not change, but blows still paint what they would do): `true`, or
- * { ground?, wall? } (a matter each), → the runtime's spec: the ground's soil record (what a crater digs and throws) and
+ * { ground?, wall?, walls? } (a matter each; `walls` [{ min, max, matter }], walls of their own matter by the box each
+ * stands in, the walls that are not the world's: a range of walls side by side), → the runtime's spec: the ground's soil record (what a crater digs and throws) and
  * the walls' matter record (its strength, how big a bowl a blow crushes or, where it yields, dents; what spalls off).
  * Unnamed, the world's cube gives them (`cube`: era/geocube.js cubeMatter, its ground or floor, its walls), else loam
  * and brick. A floor that is not a soil (flagstones) digs as its toughness allows and throws chunks.
@@ -112,15 +113,25 @@ export function breaches(matter, box, joules) {
 export function readScarsSpec(v, { cube = null, where = 'scars' } = {}) {
   if (v === undefined || v === null || v === false) return null;
   if (v !== true && !isObj(v)) throw new Error(`${where} is true or { ground?, wall? }: blows paint what they would do on a map that may not change`);
-  if (isObj(v)) for (const k of Object.keys(v)) if (!['ground', 'wall'].includes(k)) throw new Error(`${where}.${k} is not one of ground, wall`);
+  if (isObj(v)) for (const k of Object.keys(v)) if (!['ground', 'wall', 'walls'].includes(k)) throw new Error(`${where}.${k} is not one of ground, wall, walls`);
   const pick = (k, roles, fallback) => (isObj(v) && v[k] !== undefined ? v[k] : roles.map((r) => cube && cube[r] && cube[r].matter).find(Boolean) ?? fallback);
   const g = resolveMatter(pick('ground', ['ground', 'floor'], 'loam'), `${where}.ground`), w = resolveMatter(pick('wall', ['wall'], 'brick'), `${where}.wall`);
   for (const [m, k] of [[g, 'ground'], [w, 'wall']]) if (m.family === 'liquid' || m.family === 'gas') throw new Error(`${where}.${k}: ${m.id} is a ${m.family}`);
   const ground = isSoil(g)
     ? { id: g.id, dig: g.dig, density: g.density, swell: g.swell, c: g.c, mu: g.mu, grain: g.grain, fines: g.fines, particle: g.particle }
     : { id: g.id, dig: g.toughness * 200, density: g.density, swell: 1.2, c: g.bond ?? g.tensile ?? 0, mu: 0.45, grain: 0.002, fines: 0.1, particle: g.density };
-  const wall = { id: w.id, density: w.density, compressive: w.compressive, frac: w.frac, shape: w.shape, spread: w.spread, ...(w.yield > 0 ? { yield: w.yield } : {}) };
-  return { ground, wall };
+  const wallOf = (m) => ({ id: m.id, density: m.density, compressive: m.compressive, frac: m.frac, shape: m.shape, spread: m.spread, ...(m.yield > 0 ? { yield: m.yield } : {}) });
+  const wall = wallOf(w);
+  // (walls of their own matter, by the box each stands in: absent, every wall is the world's and the spec as it was)
+  const W = isObj(v) ? v.walls : undefined;
+  const box3 = (b) => Array.isArray(b) && b.length === 3 && b.every(Number.isFinite);
+  if (W !== undefined && !(Array.isArray(W) && W.length && W.every((q) => isObj(q) && box3(q.min) && box3(q.max) && q.matter !== undefined))) throw new Error(`${where}.walls is [{ min, max, matter }]: walls of their own matter, by the box each stands in`);
+  const walls = W ? W.map((q, k) => {
+    const r = resolveMatter(q.matter, `${where}.walls[${k}].matter`);
+    if (r.family === 'liquid' || r.family === 'gas') throw new Error(`${where}.walls[${k}]: ${r.id} is a ${r.family}`);
+    return { min: [...q.min], max: [...q.max], wall: wallOf(r) };
+  }) : null;
+  return { ground, wall, ...(walls ? { walls } : {}) };
 }
 
 /**
