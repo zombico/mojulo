@@ -50,4 +50,10 @@
 - **Fixed: ramps re-set mid-glide.** A held voice or a duck re-set while a ramp was running lost that ramp, and
   offline the part already played went too. The partial ramp is laid again up to that moment.
 - A recipe that uses none of the mixer or the held voices emits the same kernel and the same page, byte for byte.
+- **A katana, recreated from a description** (`families/blades.js`): a slow draw from a wooden saya, five seconds
+  carried at a walk, three swings outdoors (`katana-draw`, `katana-carry`, `katana-swing`), with the one-event
+  sounds a game fires (`katana-jostle` for a step, `katana-cut` by take). Each described layer's intent is mapped onto
+  the gestures, and the approximations are written in its header. It is the first `reference` family: held to its
+  description and pinned, not yet to the register (its draw and swing fill fewer bands than the register asks), until
+  it is compared with the recording it describes.
 - Nothing in a level reads the shelf by its words yet: the wiring comes next.

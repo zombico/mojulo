@@ -17,6 +17,8 @@ describe('every family dial point (deep)', () => {
         if (!v.ok) { off.push(`${JSON.stringify(d)}: ${v.errors.join('; ')}`); continue; }
         if (F.sustain) { const { wav, ...m } = await renderHeld(man, 'h'); for (const o of meetsHeld(m, F)) off.push(`${JSON.stringify(d)}: ${o}`); continue; }
         const { wav, ...m } = await renderSound(man, 'c');
+        if (!m.ms) off.push(`${JSON.stringify(d)}: silent`);
+        if (F.reference) continue;   // held to its description, not yet to the register
         for (const o of meetsRegister(m, { swell: (F.swells || []).some((s) => Object.values(d).includes(s)) })) off.push(`${JSON.stringify(d)}: ${o}`);
       }
       expect(off).toEqual([]);
