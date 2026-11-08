@@ -18,3 +18,6 @@
   from, the energy it holds before it fails, and the worst any contact did to it (holds, dents, breaks), by the games'
   own impact law: the lost energy shared inversely to stiffness. The `bodies-intact` gate advises when a body would
   have broken, because the run keeps every body whole. A model that names no matter is unchanged, byte for byte.
+- **A science world's page is one picture.** The classical, microscopic, quantum and relativistic pages no longer show
+  the view-camera and wireframe buttons or the corner hint; the readout and the honesty panel stay, and `?hud=1` brings
+  the buttons back. Every other page is unchanged.

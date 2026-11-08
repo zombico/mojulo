@@ -181,7 +181,7 @@ export function assembleMicroscopicScene(manifest = {}, { title, plan: given } =
     faces: plan.faces, picks: plan.picks, movers: plan.movers, planets: plan.planets,
     cameras: plan.cameras,
     viewBox: isObj(manifest.viewBox) ? manifest.viewBox : { width: 1120, height: 780 },
-    title: name, bg: manifest.dress?.background === undefined && hex(manifest.scene?.bg) ? manifest.scene.bg : plan.dress.background, glow: false,
+    title: name, bg: manifest.dress?.background === undefined && hex(manifest.scene?.bg) ? manifest.scene.bg : plan.dress.background, glow: false, chrome: false,
     ...(plan.dress.hud ? { science: { ...scienceConfig(plan, name), film: film.config } } : {}),
     ...(film.proposed ? { defaultShoot: film.proposed } : {}),
   };

@@ -371,7 +371,7 @@ export function assembleClassicalScene(manifest = {}, { title, plan: given } = {
     faces: plan.faces, picks: plan.picks, movers: plan.movers, planets: plan.planets,
     cameras: plan.cameras,
     viewBox: isObj(manifest.viewBox) ? manifest.viewBox : { width: 1120, height: 780 },
-    title: name, bg: manifest.dress?.background === undefined && hex(manifest.scene?.bg) ? manifest.scene.bg : plan.dress.background, glow: false,
+    title: name, bg: manifest.dress?.background === undefined && hex(manifest.scene?.bg) ? manifest.scene.bg : plan.dress.background, glow: false, chrome: false,
     ...(plan.shader ? { effects: [plan.shader.layer] } : {}),
     ...(science ? { science: plan.dress.hud ? science : { ...science, rows: [], honesty: { sections: [] } } } : {}),
     // the film this world proposes when its recipe has no shoot plan of its own (forge_motion's shot.motion 'plan')

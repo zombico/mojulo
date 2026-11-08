@@ -161,11 +161,11 @@ export function ladderOf(matter, radius) {
   const id = baseId(matter), label = matter.label ?? id;
   const rungs = [{
     id: 'body', label: 'body', status: 'simulated', size: radius > 0 ? 2 * radius : null,
-    what: `a uniform sphere of ${label.toLowerCase()}${radius > 0 ? ` ${sizeText(2 * radius)} across` : ''}, whose motion the solver runs and whose contacts the gates examine`, source: `${label} (rupa matter table)`,
+    what: `a uniform sphere of ${label.toLowerCase()}: its motion run by the solver, its contacts checked by the gates`, source: `rupa's matter table (${label.toLowerCase()})`,
   }];
   const soil = SOIL[id];
   const below = soil
-    ? [explained('grain', 'soil grains', matter.grain, `${soil.what}, about ${sizeText(matter.grain)} (the grain rupa's craters throw)`, `${label} (rupa matter table)`, 'where each grain lies is how the soil settled'), ...soil.below]
+    ? [explained('grain', 'soil grains', matter.grain, `${soil.what}, about ${sizeText(matter.grain)} (the grain rupa's craters throw)`, `rupa's matter table (${label.toLowerCase()})`, 'where each grain lies is how the soil settled'), ...soil.below]
     : STRUCTURE[id] ?? [];
   rungs.push(...below.map((r) => ({ ...r })));
   const el = ATOM[id] ? ELEMENT[ATOM[id]] : null;

@@ -219,7 +219,7 @@ export function assembleRelativisticScene(manifest = {}, { title, plan: given } 
   return {
     faces: plan.faces, picks: [], movers: plan.movers, planets: plan.planets, cameras: plan.cameras,
     viewBox: isObj(manifest.viewBox) ? manifest.viewBox : { width: 1120, height: 780 },
-    title: name, bg, glow: false,
+    title: name, bg, glow: false, chrome: false,
     ...(plan.shader ? { effects: [plan.shader.layer] } : {}),
     ...(science ? { science: plan.dress.hud ? science : { ...science, rows: [], honesty: { sections: [] } } } : {}),
     ...(film.proposed ? { defaultShoot: film.proposed } : {}),
