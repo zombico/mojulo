@@ -34,4 +34,21 @@
   channels' power, how many bands a sound fills (`spread`) and its `width`. Its floor law (`meetsFloor`): at least the
   floor's layers and bands, its punch within 3 dB, its length kept, and the same sound. Every layered cue meets it (a
   deep sweep holds them all). Machine gates; the ears are the operator's.
-- Nothing in a level reads the shelf yet: the wiring comes after the missing families.
+- **The families** (`families.js`): the sounds the shelf builds from dials. A designed variation is a dial point:
+  - `explosion`: by size, debris and metal (a wreck coming apart);
+  - `impact`: by material and weight;
+  - `footstep`: by surface and the body making it, a person to a giant;
+  - `melee`: swings, hits, clashes, blocks, punches and kicks, steel or energy;
+  - `handling`: mag-out, mag-in, rack, switch and dry fire, on a firearm, an energy weapon or a mobile suit's arm;
+  - `projectile`: flybys, ricochets and casings;
+  - `breakage`: glass, wood, stone and metal;
+  - `elemental`: fire, ice, lightning, water and wind;
+  - `shield`: up, down and break.
+
+  Fifty-five roster rows name their presets under the words people say (`grenade`, `clang`, `parry`, `shatter`,
+  `whiz`); `sfxSound(word, { dials })` turns the dials further. Builds are pure (seeds hashed from the dials) and
+  pinned. An ordered dial moves its measures (bigger blasts and heavier blows longer and darker), and every dial
+  point is in the realistic register (`register.js`). The register's floor is the layered set's own weakest, with
+  bands counted as the ear weighs them: the yardstick's new `heard`, A-weighted, since a long low thump carries most
+  of a sound's energy and little of what is heard. The shelf has no empty category now.
+- Nothing in a level reads the shelf yet: sustained sounds and the wiring come next.

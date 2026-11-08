@@ -6,6 +6,7 @@ import { SETS, SET_NAMES, FLOOR_SETS, setManifest } from './sets.js';
 import { MECHA, MECHA_HASH } from './sets/mecha.js';
 import { SFX_PALETTES, SFX_PALETTE_NAMES, SFX_CUE_IDS } from '../beats/sfx-palettes.js';
 import { validateBeatsManifest } from '../beats/beats-manifest.js';
+import { FAMILIES, familyDials } from './families.js';
 
 const FROZEN = 'a palette cue id is exactly one shelf row (sfx-shelf/roster.js): a new sound is a row first';
 const canon = (v) => (Array.isArray(v) ? `[${v.map(canon).join(',')}]` : v && typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canon(v[k])}`).join(',')}}` : JSON.stringify(v));
@@ -17,7 +18,8 @@ const CONTRACT = {
   slot: (r) => SLOTS.includes(r.slot) || `slot: one of ${SLOTS.join(', ')}`,
   family: (r) => r.family === null || (r.family in SOUNDS && SOUNDS[r.family].palette === r.family) || 'family: null or a palette row',
   voiced: (r) => !!(r.palette || r.channel || (r.voices && Object.keys(r.voices).length)) || 'a palette cue, a set voice or a channel slot',
-  voices: (r) => Object.entries(r.voices ?? {}).every(([style, set]) => style in STYLES && !STYLES[style].palette && set in SETS) || 'voices: { <non-palette style>: <set> }',
+  voices: (r) => Object.entries(r.voices ?? {}).every(([style, set]) => style in STYLES && !STYLES[style].palette && (set in SETS || (set === 'families' && r.make))) || "voices: { <non-palette style>: <set> | 'families' (with make) }",
+  make: (r) => r.make === undefined || (r.make.family in FAMILIES && (() => { try { familyDials(r.make.family, r.make.dials); return true; } catch { return false; } })()) || 'make: { family, dials } a family builds at those dials',
   channel: (r) => r.channel === undefined || (SLOTS.includes(r.channel) && r.channel === r.slot) || 'channel: the slot its code plays in',
 };
 
@@ -67,7 +69,7 @@ describe('the palettes are frozen behind the shelf', () => {
 
 describe('the sets', () => {
   it('a row a set voices is a cue of that set, and every cue of a set no other stands on is a row it voices', () => {
-    const voiced = SOUND_IDS.flatMap((id) => Object.values(SOUNDS[id].voices ?? {}).map((set) => `${set}:${id}`)).sort();
+    const voiced = SOUND_IDS.flatMap((id) => Object.values(SOUNDS[id].voices ?? {}).filter((set) => set !== 'families').map((set) => `${set}:${id}`)).sort();
     const cues = SET_NAMES.filter((s) => !FLOOR_SETS.includes(s)).flatMap((s) => Object.keys(SETS[s].cues).map((c) => `${s}:${c}`)).sort();
     expect(voiced).toEqual(cues);
   });

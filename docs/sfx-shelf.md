@@ -7,8 +7,8 @@ styles, measured on one yardstick. Game effects only: a menu's sounds belong to 
 ## What is on it
 
 - **The roster** (`roster.js`): a row is a sound (`beam-rifle-shot`, `step`, `thruster-roar`), its aliases, its
-  category, the audio channel slot a level plays it in, its family, and what voices it. The categories with no row yet
-  are the shelf's gaps (`sfxGaps()`): today explosions, destruction and the elements.
+  category, the audio channel slot a level plays it in, its family, and what voices it. A category with no row is a
+  gap the shelf owes (`sfxGaps()`); today there is none.
 - **The styles** (`styles.js`): the four palettes (`arcade`, `foley`, `orchestral`, `synth`, from
   `beats/sfx-palettes.js`) and `realistic`, the shelf's own register: several voices sounding as one, each in its own
   band. `realistic` falls back to `foley` where it has no voice yet.
@@ -61,7 +61,8 @@ sound grows louder, darker, and fills one band. The yardstick caught it on every
 | `centroidHz` | how bright its attack is (the first 4096 samples from the onset) |
 | `crestDb` | peak over RMS: how much punch stands over the body |
 | `bands` | its energy's share in sub, low, mid and high across the whole sound (both channels' power) |
-| `spread` | how many of the four bands it fills |
+| `spread` | how many of the four bands it fills, by energy |
+| `heard` | how many it fills as the ear weighs them (A-weighted) |
 | `width` | how wide it is: 1 − the left and right channels' correlation |
 
 `baseline.js` holds every set cue's numbers (`npm run sfx-baseline` writes it; `--wav <dir>` also writes each cue and
@@ -77,6 +78,42 @@ two per-hit variants to listen to). `nearBaseline` compares a measure to a basel
 
 Every layered cue meets its floor. These are machine gates only: nobody has listened unless the operator says so.
 Width stays near zero even with panned layers: the energy is in the low end, which is mono, as it should be.
+
+## The families: sounds built, not stored
+
+`families.js` holds the sounds the shelf builds from dials. A family is a procedure over its dials, and a designed
+variation is a point on them, not a hand-written cue. Each family speaks the layer words of `layers.js`.
+
+| family | dials | what it makes |
+|---|---|---|
+| `explosion` | size (small → huge), debris, metal | a blast; `metal` is a machine's wreck coming apart |
+| `impact` | material (metal, armor, stone, wood, dirt, flesh, water, energy), weight (light → heavy) | one thing meeting another |
+| `footstep` | surface (concrete, metal, dirt, grass, gravel, wood, snow, water), body (human → giant) | one footfall |
+| `melee` | act (blade and blunt swings and hits, clash, block, punch, kick), kind (steel, energy) | close combat |
+| `handling` | act (mag-out, mag-in, rack, switch, dry-fire), kind (firearm, energy, mech) | a weapon worked, not fired |
+| `projectile` | act (flyby, ricochet, casing), kind (bullet, beam, rocket, shell) | a round passing, glancing off, its casing falling |
+| `breakage` | material (glass, wood, stone, metal), size | a thing breaking |
+| `elemental` | element (fire, ice, lightning, water, wind) | the elements as one-shots |
+| `shield` | act (up, down, break) | an energy shield |
+
+A roster row names a family and a dial preset (`make`), under the words people say (`grenade`, `clang`, `parry`,
+`shatter`). `sfxSound(word, { dials })` turns the dials further. A build is pure: its grain seeds are hashed from the
+family and its dials, never rolled.
+
+How a family is held to account:
+
+- **Pinned.** A build for given dials is a compatibility promise, as a kernel's is: `families.char.test.js` pins
+  every row's cue.
+- **Ordered dials move their measures.** A bigger blast is longer and darker; a heavier blow longer and darker; a
+  bigger body's step longer and darker; a machine's hands slower than a person's (`families.laws.test.js`).
+- **Materials are heard as themselves.** Metal rings brighter and longer than earth.
+- **Every dial point is in the register** (`register.js`, the deep sweep). The floor is the layered set's own
+  weakest: at least its layers, its punch (unless the sound swells, as a gust does), and as many bands **as the ear
+  hears them**.
+
+That last measure, `heard`, is A-weighted. A long low thump carries most of a sound's energy and little of what is
+heard, so the energy `spread` called every big, heavy sound thin. `spread` still holds a voice to its own floor;
+`heard` holds a sound to the register.
 
 ## The SFX mixer
 
@@ -97,5 +134,6 @@ outside the bus.
 
 ## Not yet
 
-Nothing in a level reads the shelf yet. To come: the missing families and their designed variations, sustained sounds driven by a control, and wiring weapon roles,
-explosion presets, body sizes and surfaces to their sounds, with WAVs in the engine handoff.
+Nothing in a level reads the shelf yet. To come: sustained sounds driven by a control (engines, boosters, held beams,
+the thruster and the jump servo as cues), and wiring weapon roles, explosion presets, body sizes and surfaces to their
+sounds, with WAVs in the engine handoff.

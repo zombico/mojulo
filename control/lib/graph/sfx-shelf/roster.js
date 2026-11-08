@@ -15,7 +15,9 @@
  *   family    the row it stands in for in a style that has no voice of its own for it: a beam rifle's shot is a shot.
  *             A palette row is its own family; a row with none (the charge-up) is unvoiced in such a style.
  *   palette   the palette cue id it is, when it is one
- *   voices    { <style>: <set> }: the sets that voice it, by style (STYLES)
+ *   voices    { <style>: <set> | 'families' }: what voices it, by style (STYLES): a set's cue, or its family's build
+ *   make      { family, dials }: the family that builds it and the dial preset it is (families.js); a caller turns
+ *             the dials further (sfxSound's `dials`)
  *   channel   the audio channel slot whose code synthesizes it (SLOTS), for a sound with no cue yet
  *   slot      the audio channel slot it fills (SLOTS): where a level plays it
  *
@@ -52,6 +54,9 @@ export const SLOTS = Object.freeze([
 const pal = (category, slot, label, aliases = []) => ({ label, aliases, category, palette: true, slot });
 // voiced realistic by the layered set; the rescued `mecha` set is its floor (sets.js)
 const mecha = (category, family, slot, label, aliases = []) => ({ label, aliases, category, family, voices: { realistic: 'mecha-layered' }, slot });
+
+// built by a family (families.js) at a dial preset, voiced realistic
+const made = (category, family, slot, label, aliases, fam, dials = {}) => ({ label, aliases, category, family, voices: { realistic: 'families' }, make: { family: fam, dials }, slot });
 
 const ROWS = {
   // ── the palettes' cue ids (beats/sfx-palettes.js): voiced by arcade, foley, orchestral and synth ──
@@ -93,13 +98,70 @@ const ROWS = {
   'saber-swing': mecha('melee', 'swing', 'strike.swing', 'a beam saber swung: crackling ozone', ['beam saber', 'saber swing']),
   'saber-hit': mecha('melee', 'strike', 'strike.hit', 'a beam saber connecting', ['saber hit', 'saber strike']),
 
+  // ── built by the families (families.js): the presets people name; the dials reach the rest ──
+  explosion: made('explosion', 'down', 'on', 'an explosion', ['blast', 'boom'], 'explosion'),
+  'grenade-blast': made('explosion', 'down', 'on', 'a small blast: a grenade, a mine', ['grenade', 'small explosion'], 'explosion', { size: 'small' }),
+  'big-explosion': made('explosion', 'down', 'on', 'a large blast', ['large explosion', 'big blast'], 'explosion', { size: 'large' }),
+  'huge-explosion': made('explosion', 'down', 'on', 'a huge blast', ['massive explosion', 'huge blast'], 'explosion', { size: 'huge' }),
+  'wreck-explosion': made('explosion', 'death', 'on', 'a machine\'s wreck going up: the blast and its plates coming apart', ['wreck', 'mech destroyed', 'suit destroyed'], 'explosion', { size: 'huge', metal: true }),
+  'metal-impact': made('impact', 'hit', 'weapon.hit', 'a blow on metal', ['metal hit', 'clang'], 'impact', { material: 'metal' }),
+  'stone-impact': made('impact', 'hit', 'weapon.hit', 'a blow on stone', ['stone hit', 'rock hit'], 'impact', { material: 'stone' }),
+  'wood-impact': made('impact', 'hit', 'weapon.hit', 'a blow on wood', ['wood hit', 'knock'], 'impact', { material: 'wood' }),
+  'dirt-impact': made('impact', 'thud', 'weapon.hit', 'a blow into the ground', ['dirt hit', 'ground hit'], 'impact', { material: 'dirt' }),
+  'flesh-impact': made('impact', 'hit', 'weapon.hit', 'a blow on a body', ['body hit', 'flesh hit'], 'impact', { material: 'flesh' }),
+  'water-impact': made('impact', 'hit', 'weapon.hit', 'a blow into water', ['water hit'], 'impact', { material: 'water' }),
+  'armor-hit': made('body', 'hit', 'on', 'a machine\'s plating taking a hit', ['armor impact', 'plating hit', 'armour hit'], 'impact', { material: 'armor' }),
+  'shield-hit': made('body', 'hit', 'on', 'a raised energy shield taking a hit', ['shield impact', 'energy hit'], 'impact', { material: 'energy' }),
+  'step-concrete': made('movement', 'step', 'footsteps.step', 'a footstep on concrete', ['concrete step', 'concrete footstep'], 'footstep', { surface: 'concrete' }),
+  'step-metal': made('movement', 'step', 'footsteps.step', 'a footstep on metal', ['metal step', 'metal footstep'], 'footstep', { surface: 'metal' }),
+  'step-dirt': made('movement', 'step', 'footsteps.step', 'a footstep on dirt', ['dirt step', 'dirt footstep'], 'footstep', { surface: 'dirt' }),
+  'step-grass': made('movement', 'step', 'footsteps.step', 'a footstep on grass', ['grass step', 'grass footstep'], 'footstep', { surface: 'grass' }),
+  'step-gravel': made('movement', 'step', 'footsteps.step', 'a footstep on gravel', ['gravel step', 'gravel footstep'], 'footstep', { surface: 'gravel' }),
+  'step-wood': made('movement', 'step', 'footsteps.step', 'a footstep on wood', ['wood step', 'wooden footstep'], 'footstep', { surface: 'wood' }),
+  'step-snow': made('movement', 'step', 'footsteps.step', 'a footstep in snow', ['snow step', 'snow footstep'], 'footstep', { surface: 'snow' }),
+  'step-water': made('movement', 'step', 'footsteps.step', 'a footstep in shallow water', ['water step', 'wading step'], 'footstep', { surface: 'water' }),
+  'heavy-step': made('movement', 'step', 'footsteps.step', 'a heavy footstep: an armoured trooper, a brute', ['heavy footstep', 'armored footstep'], 'footstep', { body: 'heavy' }),
+  'giant-step': made('movement', 'step', 'footsteps.step', 'a giant\'s footfall: the ground shaking', ['giant footstep', 'titan step'], 'footstep', { body: 'giant' }),
+  'blade-swing': made('melee', 'swing', 'strike.swing', 'a blade swung', ['sword swing', 'blade whoosh'], 'melee', { act: 'blade-swing' }),
+  'blade-hit': made('melee', 'strike', 'strike.hit', 'a blade connecting', ['sword hit', 'blade strike'], 'melee', { act: 'blade-hit' }),
+  'blade-clash': made('melee', 'strike', 'on', 'two blades meeting', ['sword clash', 'parry'], 'melee', { act: 'clash' }),
+  'energy-clash': made('melee', 'strike', 'on', 'two energy blades meeting', ['beam clash', 'saber clash'], 'melee', { act: 'clash', kind: 'energy' }),
+  block: made('melee', 'strike', 'on', 'a blow blocked on a shield', ['shield block', 'blocked'], 'melee', { act: 'block' }),
+  'blunt-swing': made('melee', 'swing', 'strike.swing', 'a club or a hammer swung', ['club swing', 'hammer swing'], 'melee', { act: 'blunt-swing' }),
+  'blunt-hit': made('melee', 'strike', 'strike.hit', 'a club or a hammer connecting', ['club hit', 'hammer hit'], 'melee', { act: 'blunt-hit' }),
+  punch: made('melee', 'strike', 'strike.hit', 'a punch landing', ['fist hit', 'punch hit'], 'melee', { act: 'punch' }),
+  kick: made('melee', 'strike', 'strike.hit', 'a kick landing', ['kick hit'], 'melee', { act: 'kick' }),
+  'mag-out': made('weapon', 'reload', 'weapon.reload', 'a magazine dropped out', ['magazine out', 'mag eject'], 'handling', { act: 'mag-out' }),
+  'mag-in': made('weapon', 'reload', 'weapon.reload', 'a magazine seated', ['magazine in', 'mag insert'], 'handling', { act: 'mag-in' }),
+  rack: made('weapon', 'reload', 'weapon.reload', 'the slide or bolt racked', ['rack slide', 'chamber round'], 'handling', { act: 'rack' }),
+  'weapon-switch': made('weapon', 'reload', 'on', 'a weapon drawn or switched', ['weapon swap', 'draw weapon'], 'handling', { act: 'switch' }),
+  'dry-fire': made('weapon', 'reload', 'on', 'the trigger on an empty chamber', ['empty click', 'out of ammo'], 'handling', { act: 'dry-fire' }),
+  'bullet-flyby': made('weapon', null, 'on', 'a bullet whizzing past', ['whiz', 'near miss'], 'projectile', { act: 'flyby' }),
+  'beam-flyby': made('weapon', null, 'on', 'a beam passing close', ['beam pass'], 'projectile', { act: 'flyby', kind: 'beam' }),
+  'rocket-flyby': made('weapon', null, 'on', 'a rocket roaring past', ['rocket pass', 'missile flyby'], 'projectile', { act: 'flyby', kind: 'rocket' }),
+  ricochet: made('impact', 'hit', 'on', 'a round glancing off', ['ricochet ping', 'glancing hit'], 'projectile', { act: 'ricochet' }),
+  'casing-drop': made('weapon', null, 'on', 'a spent casing bouncing on the floor', ['shell casing', 'brass drop'], 'projectile', { act: 'casing' }),
+  'glass-break': made('destruction', 'thud', 'on', 'glass shattering', ['shatter', 'window break'], 'breakage', { material: 'glass' }),
+  'wood-break': made('destruction', 'thud', 'on', 'wood splintering: a crate, a door', ['splinter', 'crate break'], 'breakage', { material: 'wood' }),
+  'stone-break': made('destruction', 'thud', 'on', 'stone crumbling', ['crumble', 'rock break'], 'breakage', { material: 'stone' }),
+  'metal-tear': made('destruction', 'thud', 'on', 'metal tearing', ['metal rip', 'tearing metal'], 'breakage', { material: 'metal' }),
+  collapse: made('destruction', 'thud', 'on', 'a structure coming down', ['building collapse', 'cave in'], 'breakage', { material: 'stone', size: 'large' }),
+  'fire-whoosh': made('elemental', null, 'on', 'fire flaring up', ['fireball', 'flame burst'], 'elemental', { element: 'fire' }),
+  'ice-crack': made('elemental', null, 'on', 'ice cracking', ['ice shatter', 'freeze'], 'elemental', { element: 'ice' }),
+  'lightning-strike': made('elemental', null, 'on', 'lightning striking, its thunder rolling', ['lightning', 'thunder'], 'elemental', { element: 'lightning' }),
+  'water-splash': made('elemental', 'land', 'on', 'water splashing', ['splash'], 'elemental', { element: 'water' }),
+  'wind-gust': made('elemental', null, 'on', 'a gust of wind', ['gust', 'wind'], 'elemental', { element: 'wind' }),
+  'shield-up': made('body', null, 'on', 'an energy shield raised', ['shield on', 'barrier up'], 'shield', { act: 'up' }),
+  'shield-down': made('body', null, 'on', 'an energy shield dropped', ['shield off', 'barrier down'], 'shield', { act: 'down' }),
+  'shield-break': made('body', 'death', 'on', 'an energy shield failing', ['shield shatter', 'barrier break'], 'shield', { act: 'break' }),
+
   // ── synthesized by the audio channel's own code (scene/channels/audio.js), no cue yet ──
   'thruster-roar': { label: 'a thruster held: a jet whine that swells with the thrust', aliases: ['thruster', 'boost', 'booster'], category: 'machinery', family: null, channel: 'thruster', slot: 'thruster' },
   'jump-servo': { label: 'a jump gathering: a hydraulic servo straining, pistons chuffing faster', aliases: ['servo', 'jump charge'], category: 'machinery', family: null, channel: 'jump.charge', slot: 'jump.charge' },
   'jump-launch': { label: 'a jump released: a piston slam, heavier the longer it was held', aliases: ['piston slam', 'jump release'], category: 'machinery', family: null, channel: 'jump.release', slot: 'jump.release' },
 };
 
-const freezeRow = (r) => Object.freeze({ ...r, aliases: Object.freeze(r.aliases.slice()), ...(r.voices ? { voices: Object.freeze({ ...r.voices }) } : {}) });
+const freezeRow = (r) => Object.freeze({ ...r, aliases: Object.freeze(r.aliases.slice()), ...(r.voices ? { voices: Object.freeze({ ...r.voices }) } : {}), ...(r.make ? { make: Object.freeze({ family: r.make.family, dials: Object.freeze({ ...r.make.dials }) }) } : {}) });
 export const SOUNDS = Object.freeze(Object.fromEntries(Object.entries(ROWS).map(([id, r]) => [id, freezeRow(r.palette ? { ...r, palette: id, family: id } : r)])));
 export const SOUND_IDS = Object.freeze(Object.keys(SOUNDS));
 

@@ -2,7 +2,7 @@
  * sfx-shelf/sets/mecha-layered — Mobile Suit Arena's sounds, layered: each one its floor (sets/mecha.js, the game's
  * own cue, every gesture kept) given what the SFX mixer can do, and the layers it lacked. Pure data.
  *
- * How a sound is layered (the shelf's own register, `realistic`):
+ * How a sound is layered (the shelf's own register, `realistic`; the words are layers.js):
  *   transient   a few milliseconds of bright noise, centred and dry: where the ear hears it start
  *   body        the floor's pitched voice, saturated (`drive`) so it reads on a small speaker
  *   sub         a clean low thump, centred, never driven and never sent: the weight
@@ -16,24 +16,10 @@
  * every one); whether it sounds better is the operator's ears, never claimed here.
  */
 import { MECHA } from './mecha.js';
+import { drive, transient, sub, grit, tail, plate, duck, harmonicsOf, freeze } from '../layers.js';
 
-const freeze = (v) => {
-  if (v && typeof v === 'object') { Object.values(v).forEach(freeze); Object.freeze(v); }
-  return v;
-};
 const over = (id, treat, add) => [...MECHA.cues[id].map((g, i) => ({ ...g, ...(treat[i] || {}) })), ...add];
-
-// the layers, as words
-const drive = (amount, tone) => ({ chain: [{ type: 'drive', amount, ...(tone ? { tone } : {}) }] });
-const transient = (hp, decay, vol, extra = {}) => ({ type: 'burst', decay, vol, highpass: hp, send: 0, ...extra });
-const sub = (from, to, decay, vol, extra = {}) => ({ type: 'thump', from, to, decay, vol, send: 0, ...extra });
-const grit = (grains, over_, lo, hi, vol, seed, extra = {}) => ({ type: 'grain', grains, over: over_, band: { lo, hi }, vol, spread: 0.5, seed, ...extra });
-const tail = (decay, from, to, vol, extra = {}) => ({ type: 'burst', decay, vol, filterEnv: { from, to, decay }, ...extra });
-const plate = (note, decay, vol, extra = {}) => ({ type: 'ring', material: 'plate', note, decay, vol, excite: 'noise', q: 24, ...extra });
-const duck = (depth, hold, release) => ({ type: 'duck', depth, hold, release });
-// the body's harmonics: a copy of a floor gesture driven hard, then highpassed, so only the overtones the drive grows
-// are added. Driving the gesture itself saturates its sub: the sound grows louder and darker, and fills one band.
-const harmonics = (id, i, vol, cut = 300) => ({ ...MECHA.cues[id][i], vol, send: 0.15, chain: [{ type: 'drive', amount: 0.75, tone: null }, { type: 'filter', mode: 'highpass', freq: cut, q: 0.7 }] });
+const harmonics = (id, i, vol, cut) => harmonicsOf(MECHA.cues[id][i], vol, cut);
 
 export const MECHA_LAYERED = freeze({
   label: 'Mobile Suit Arena, layered',

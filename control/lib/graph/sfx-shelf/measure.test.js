@@ -25,7 +25,7 @@ describe('the yardstick (pure)', () => {
   });
 
   it('silence measures nothing', () => {
-    expect(measureSound(new Float32Array(SR), SR, { layers: 0 })).toEqual({ layers: 0, ms: 0, centroidHz: 0, crestDb: 0, bands: { sub: 0, low: 0, mid: 0, high: 0 }, spread: 0, width: 0 });
+    expect(measureSound(new Float32Array(SR), SR, { layers: 0 })).toEqual({ layers: 0, ms: 0, centroidHz: 0, crestDb: 0, bands: { sub: 0, low: 0, mid: 0, high: 0 }, spread: 0, heard: 0, width: 0 });
   });
 
   it('two tones fill two bands; a sound in one channel is wide, the same in both is not', () => {

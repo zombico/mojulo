@@ -9,6 +9,9 @@
  *   bands       the share of its energy in each band (BANDS) across the whole sound: a full sound spreads, a thin one
  *               sits in one
  *   spread      how many bands it fills, 1 to 4: the inverse of the bands' summed squared shares
+ *   heard       the same as the ear weighs it (A-weighted, per frequency): a long low thump carries most of a sound's
+ *               energy and little of what is heard, so `spread` holds a voice to its own floor and `heard` holds a
+ *               sound to the register (families.js REGISTER)
  *   width       how wide it is: 1 − the correlation of left and right (0: mono)
  *
  * The length, the attack and the crest are read off the mid (left plus right, halved); the bands off both channels'
@@ -17,13 +20,26 @@
  * the kernel's own engine), so what is measured is what ships. `meetsFloor` holds a better voice to the one it
  * improves on.
  */
-import { centroid, bandEnergy, rms, peak, decodeWav, lrCorrelation } from '../beats/audio-measure.js';
+import { centroid, bandEnergy, magnitudeSpectrum, rms, peak, decodeWav, lrCorrelation } from '../beats/audio-measure.js';
 import { renderBeatsOffline } from '../beats/beats-render.js';
 
 /** The bands a sound's energy is split across (Hz, [lo, hi)). */
 export const BANDS = Object.freeze({ sub: [20, 120], low: [120, 500], mid: [500, 3000], high: [3000, 20000] });
 
 const FRAME = 4096;
+// A-weighting (IEC 61672) as a power gain at f Hz: the ear's sensitivity, flat near 1 kHz, about 25 dB down at 60 Hz.
+function aPower(f) {
+  const f2 = f * f, ra = (12194 ** 2 * f2 * f2) / ((f2 + 20.6 ** 2) * Math.sqrt((f2 + 107.7 ** 2) * (f2 + 737.9 ** 2)) * (f2 + 12194 ** 2));
+  return f > 0 ? (ra * 10 ** (2 / 20)) ** 2 : 0;
+}
+function heardEnergy(y, sr, start) {
+  const mag = magnitudeSpectrum(y, start, FRAME), e = Object.fromEntries(Object.keys(BANDS).map((b) => [b, 0]));
+  for (let k = 1; k < mag.length; k++) {
+    const f = (k * sr) / FRAME, w = aPower(f) * mag[k] * mag[k];
+    for (const [b, [lo, hi]] of Object.entries(BANDS)) if (f >= lo && f < hi) e[b] += w;
+  }
+  return e;
+}
 const r2 = (v) => Math.round(v * 100) / 100;
 
 /**
@@ -34,7 +50,7 @@ export function measureSound(y, sr, { layers = null } = {}) {
   const [L, R] = Array.isArray(y) ? (y.length > 1 ? y : [y[0], y[0]]) : [y, y];
   const m = L === R ? L : L.map((v, i) => (v + R[i]) / 2);
   const pk = peak(m);
-  if (!pk) return { layers, ms: 0, centroidHz: 0, crestDb: 0, bands: Object.fromEntries(Object.keys(BANDS).map((b) => [b, 0])), spread: 0, width: 0 };
+  if (!pk) return { layers, ms: 0, centroidHz: 0, crestDb: 0, bands: Object.fromEntries(Object.keys(BANDS).map((b) => [b, 0])), spread: 0, heard: 0, width: 0 };
   const floor = pk * 0.01;
   let on = 0, end = 0;
   while (on < m.length && Math.abs(m[on]) < floor) on++;
@@ -44,6 +60,9 @@ export function measureSound(y, sr, { layers = null } = {}) {
   for (let s = on; s < end; s += FRAME) for (const [b, [lo, hi]] of Object.entries(BANDS)) e[b] += bandEnergy(L, sr, s, FRAME, lo, hi) + (L === R ? bandEnergy(L, sr, s, FRAME, lo, hi) : bandEnergy(R, sr, s, FRAME, lo, hi));
   const total = Object.values(e).reduce((a, v) => a + v, 0) || 1;
   const shares = Object.values(e).map((v) => v / total);
+  const h = Object.fromEntries(Object.keys(BANDS).map((b) => [b, 0]));
+  for (let s = on; s < end; s += FRAME) for (const ch of L === R ? [L] : [L, R]) for (const [b, v] of Object.entries(heardEnergy(ch, sr, s))) h[b] += v;
+  const ht = Object.values(h).reduce((a, v) => a + v, 0) || 1;
   return {
     layers,
     ms: Math.round(((end - on) / sr) * 1000),
@@ -51,6 +70,7 @@ export function measureSound(y, sr, { layers = null } = {}) {
     crestDb: r2(20 * Math.log10(pk / (rms(m, on, end) || 1e-12))),
     bands: Object.fromEntries(Object.entries(e).map(([b, v]) => [b, r2(v / total)])),
     spread: r2(1 / shares.reduce((a, p) => a + p * p, 0)),
+    heard: r2(1 / Object.values(h).reduce((a, v) => a + (v / ht) ** 2, 0)),
     width: L === R ? 0 : r2(Math.max(0, 1 - lrCorrelation(L.subarray(on, end), R.subarray(on, end)))),
   };
 }
@@ -78,7 +98,7 @@ export function nearBaseline(m, b) {
   if (Math.abs(m.centroidHz - b.centroidHz) > Math.max(40, b.centroidHz * 0.03)) off.push(`centroid ${m.centroidHz} vs ${b.centroidHz}`);
   if (Math.abs(m.crestDb - b.crestDb) > 0.3) off.push(`crest ${m.crestDb} vs ${b.crestDb}`);
   for (const k of Object.keys(BANDS)) if (Math.abs(m.bands[k] - b.bands[k]) > 0.02) off.push(`${k} ${m.bands[k]} vs ${b.bands[k]}`);
-  for (const k of ['spread', 'width']) if (Math.abs(m[k] - b[k]) > 0.05) off.push(`${k} ${m[k]} vs ${b[k]}`);
+  for (const k of ['spread', 'heard', 'width']) if (Math.abs(m[k] - b[k]) > 0.05) off.push(`${k} ${m[k]} vs ${b[k]}`);
   return off;
 }
 
