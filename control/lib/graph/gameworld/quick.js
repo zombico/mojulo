@@ -1344,9 +1344,12 @@ export function shootCast(quick, ends, ref, { hero = false, camera, G = null } =
 
 // OVER THE SHOULDER: a shooter's third-person camera, close behind the hero and off its right shoulder, its crosshair's
 // line crossing the body's own `lead` metres out; the player's rounds go from the muzzle to the point under the
-// crosshair (weapon.converge), so what the crosshair is on is what is hit, a wall the gun cannot clear included
-export const SHOULDER = Object.freeze({ dist: 2.8, height: 1.8, shoulder: 0.75, lookH: 1.55, lead: 10, lerp: 16, pitchFollow: 1 });
-/** The over-the-shoulder camera for a shooter's hero played third-person (`camera`: the world's), else null. */
+// crosshair (weapon.converge), so what the crosshair is on is what is hit, a wall the gun cannot clear included.
+// `standOff: 0`: the page stands this camera's eye where the rule puts it (follow-pull-in.js), not the stand-off a chase
+// keeps short of it: the eye the rounds converge from (the simulation's camera) is the eye the player sees, and the
+// hero stands in the frame. With the stand-off the page drew the eye on the hero's head, the hero under the frame and
+// the crosshair off the rounds' line (2026-11-08, the combat tester)
+export const SHOULDER = Object.freeze({ dist: 2.8, height: 1.8, shoulder: 0.75, lookH: 1.55, lead: 10, lerp: 16, pitchFollow: 1, standOff: 0 });
 export const shoulderOf = (camera, hero) => (hero && camera === 'third-person' ? SHOULDER : null);
 
 /** A deathmatch's legend: fire, and on the shooter pole its feet and its kit. */

@@ -1408,7 +1408,9 @@ function __makeBody(e) {
   const lo = (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
     || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
     || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''};
-  if (lo && (b.type === 'figure-rig' || b.type === 'figure-frames')) {
+  // (a loadout whose slots name no figure, a carried kit's guns: arms-kit.js, has no variant bodies to build; the body is
+  // its own figure, below. Without this a hero carrying a kit was never drawn)
+  if (lo && lo.some((c) => c && c.figure) && (b.type === 'figure-rig' || b.type === 'figure-frames')) {
     const variants = {};
     const buildVariant = (fname) => {
       if (!fname || variants[fname] || !(__FIG[fname] && __FIG[fname].rig)) return;
@@ -2360,7 +2362,7 @@ function __driveCamera(dt) {
       const tg = __world.byId[c.rule.target], tb = (tg && tg.body) || {};
       const lead = tg ? Math.hypot(look[0] - tg.transform.pos[0], look[1] - tg.transform.pos[1]) : 0;
       const rad = (tg && tg.collideVol && tg.collideVol.a) || (tg && tg.rule && tg.rule.collideRadius) || (tb.egg ? tb.egg.a : tb.radius) || 0;
-      const target = __followPullIn(full, hitD, lead, Math.hypot(ux, uy), rad, (tg && tg.rule && tg.rule.collideHeight) || 0, camera.near);
+      const target = __followPullIn(full, hitD, lead, Math.hypot(ux, uy), rad, (tg && tg.rule && tg.rule.collideHeight) || 0, camera.near, c.rule.standOff);
       // pull IN instantly (never flash the wall); ease OUT so leaving cover doesn't snap the framing.
       if (target < __camCd) __camCd = target;
       else __camCd += (target - __camCd) * (1 - Math.exp(-6 * (dt || 0)));

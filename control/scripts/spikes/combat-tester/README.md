@@ -272,6 +272,24 @@ Cogs of Combat's would reach 98% but loses its high ground, so the first is kept
 Both are the operator's call: a smaller arena (`--cross`), a long gun, or a spray that blooms less. Every other arena
 law and page check holds (78 of 80).
 
+## The third person, looked into (found recording the book)
+
+The recording showed a figure facing the camera on the shoulder page. It was not the hero: it was the 5 m foe, facing
+the player as it should. The hero was not drawn at all, and two bugs in the game were found and fixed:
+
+- **A hero carrying a kit had no body.** The page builds a body per loadout slot's figure (a mobile suit's weapons each
+  carry one); a kit's guns (arms-kit.js) name none, so nothing was built. Every third-person shooter whose hero carries
+  `arms` was hit. The loadout branch runs only when a slot names a figure now (`armed-body.chrome.test.js`, which fails
+  without the fix).
+- **The over-the-shoulder camera stood on the hero's head.** The page stands a follow camera's eye 3 m short of the
+  rule's (the chase's stand-off, follow-pull-in.js); the shoulder camera is 2.8 m behind, so its eye was drawn about
+  0.3 m behind the hero, looking 10 m ahead, the hero under the frame. The simulation converges rounds from the rule's
+  eye, so the crosshair the player saw was off the rounds' line too. A camera's `standOff` (0 for the shoulder,
+  gameworld/quick.js SHOULDER) stands the eye where the rule puts it; the wall pull-in still applies.
+
+Still open over the shoulder: the camera turns on A and D (no mouse look), and on a page without mouse look nothing but
+a pad's trigger fires, though the legend says "click fire"; the kit's gun is not in the hero's hands.
+
 ## Gaps, in the order they move a measured number
 
 Closed in phase 4: the sprint, the round's energy (and the pellets), the automatic archetypes' bloom and climb, the

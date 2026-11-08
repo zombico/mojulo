@@ -433,6 +433,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // the weapon its spread's and recoil's `wait` (settling once the trigger rests: `restT`, kept only with one) and a
 // round's `blow` and `pellets`, carried on the shot's record. On the `controllable` fixture 22 lines are added and 6
 // replaced (the spread and recoil records, their settling, the two shot records), each as before without its opt-in.
+// Re-pinned 2026-11-08 (1108-realism-combat-tester: a shooter's hero over the shoulder, drawn and framed): the same
+// fixtures. The body builder's loadout branch (a body per slot's figure) runs only when a slot names a figure; a carried
+// kit's slots name none, and the body is its own figure (before, a hero carrying `arms` had no body). The wall pull-in
+// passes the camera rule's opt-in `standOff` to followPullIn, whose wall skin now applies only at a wall (the default
+// 3 m stand-off was always the larger cut in the open, so every default camera stands where it did). On the
+// `controllable` fixture 5 lines are replaced and 3 added; absent `standOff` and a figure-less loadout, as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

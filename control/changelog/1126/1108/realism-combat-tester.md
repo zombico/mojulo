@@ -46,3 +46,8 @@
   reload) and set in a graybox gym laid from those numbers, with what the game's feel asked for beside what it does.
   `design_game`'s readout links it (`combatBook`), and its equipment chapter reads it. The measures and the gym live in
   `lib/graph/gameworld/combat/`.
+- **Fixed: a shooter's hero over the shoulder was not seen.** A hero carrying an arms kit was never drawn: the page built
+  a body for each loadout slot's figure, and a kit's guns name none. It is drawn as its own figure now. And the
+  over-the-shoulder camera stood its eye 3 m nearer than its numbers (the stand-off a chase camera keeps), on the hero's
+  head with the hero under the frame and the crosshair off the rounds' line; it stands where its numbers say now (a
+  camera's `standOff`, 0 for the shoulder), the hero in the frame from behind, off its right shoulder.

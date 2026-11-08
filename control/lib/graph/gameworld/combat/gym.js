@@ -23,6 +23,7 @@
 import { emitThreeWorld } from '../../scene/scene-three.js';
 import { composeLive } from '../../worlds/controllable/compose.js';
 import { readScarsSpec } from '../../rupa/index.js';
+import { SHOULDER } from '../quick.js';
 
 const FPS = 60, DT = 1 / FPS, E = composeLive(), flat = { ground: () => 0 };
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -193,9 +194,10 @@ export function reachOnBoxes(pilot, M) {
 }
 
 // ── the page: the game's own player, camera and figures over the gym ──────────────────────────────────────────────────
-const SHOULDER = { rule: 'follow', dist: 2.8, height: 1.8, lookH: 1.55, lead: 10, shoulder: 0.75, lerp: 16, pitchFollow: 1 };
+// (the shooter's over-the-shoulder camera: gameworld/quick.js SHOULDER, its eye where the rule puts it)
+const SHOULDER_CAM = { rule: 'follow', ...SHOULDER };
 export function otherCamera(own, pilot) {
-  if (own?.rule === 'eye') return pilot.body?.type === 'figure-rig' ? { cam: { ...SHOULDER, target: pilot.id }, rule: {}, name: 'shoulder' } : null;
+  if (own?.rule === 'eye') return pilot.body?.type === 'figure-rig' ? { cam: { ...SHOULDER_CAM, target: pilot.id }, rule: {}, name: 'shoulder' } : null;
   return { cam: { rule: 'eye', target: pilot.id, height: 1.6, mouseLook: true, hideTarget: true }, rule: { turnMode: 'look', lookPitch: true }, name: 'eye' };
 }
 export function gymReadout(m, gate) {
