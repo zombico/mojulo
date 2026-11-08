@@ -8,7 +8,7 @@
  * references nothing outside itself, so a page runs the same code by emitting `buildManaHost.toString()`
  * (mana-controls.js manaHostSource). Node imports the live instance for tests.
  *
- *   connect(rt, view, { keys, pad, padLayout, seatOf?, drivers?, listen?, loop? }) → { key(ev), poll(), stop() }
+ *   connect(rt, view, { keys, pad, padLayout, seatOf?, drivers?, listen?, loop?, repeat?, now? }) → { key(ev), poll(), stop() }
  *     rt, view    a mana-ui runtime and its mount (view.paint after an intent)
  *     keys, pad   the menu scheme resolved (code → action; per printed layout, buttons and half axes → action)
  *     padLayout   the kernel's reader of a pad's printed layout (controls-kernel.js padLayout)
@@ -17,6 +17,9 @@
  *                 the first pad are the first seat and pad n the nth
  *     drivers     [() → { <action>: 1 } | { name?, input?, actions }]: any other device (a headset, a wheel)
  *     listen      false: the page routes its keydowns to key(ev) itself;  loop: false: it calls poll() itself
+ *     repeat      a direction held on a pad or a driver repeats, as a key held does: { delay, rate } in seconds
+ *                 (0.38 then every 0.075 by default, estimates to tune by hand), false for none; now() the clock it is
+ *                 timed on (the page's by default)
  *   While a screen is up the menu holds the input: a key it knows is taken in the capture phase (the game's own
  *   listeners never see it), and every pad and driver acts on its press edges, what was held as the screen opened not
  *   acting in it. With no screen up, nothing is taken: play has the devices.
@@ -49,12 +52,22 @@ export function buildManaHost() {
     }
 
     const prev = new Map();
+    // a held direction repeats (a long list, a slider): after the delay, at the rate; keys repeat by the system's own
+    const REPEATS = ['up', 'down', 'left', 'right'];
+    const R = o.repeat === false ? null : { delay: 0.38, rate: 0.075, ...(isObj(o.repeat) ? o.repeat : {}) };
+    const clock = () => (o.now ? o.now() : typeof performance !== 'undefined' ? performance.now() / 1000 : 0);
+    const due = new Map();
     let shown = rt.state().screen;
     const edges = (id, now, mode, layout, controller, fallback) => {
-      const was = prev.get(id) || {};
+      const was = prev.get(id) || {}, t = R ? clock() : 0, next = due.get(id) || {};
       prev.set(id, now);
+      due.set(id, next);
       let did = false;
-      for (const a in now) if (now[a] && !was[a]) did = act(a, mode, layout, controller, fallback) || did;
+      for (const a in now) {
+        if (now[a] && !was[a]) { did = act(a, mode, layout, controller, fallback) || did; if (R && REPEATS.includes(a)) next[a] = t + R.delay; }
+        else if (now[a] && next[a] !== undefined && t >= next[a]) { did = act(a, mode, layout, controller, fallback) || did; next[a] = t + R.rate; }
+      }
+      for (const a in next) if (!now[a]) delete next[a];
       return did;
     };
     function poll() {
@@ -64,7 +77,7 @@ export function buildManaHost() {
       const pads = pad && typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : [];
       if (!now) {
         // no screen up: the pads are play's; a press only tells the HUD's prompts which pad is in hand
-        prev.clear();
+        prev.clear(); due.clear();
         for (const g of pads) if (g && g.connected && g.buttons.some((x) => x && x.pressed)) { const L = o.padLayout ? o.padLayout(g.id) : 'xbox'; if (rt.state().input !== 'pad' || rt.state().layout !== L) { rt.input('pad', L); paint(); } break; }
         return opened;
       }

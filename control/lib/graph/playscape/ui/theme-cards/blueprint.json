@@ -1,0 +1,18 @@
+{
+  "id": "blueprint",
+  "name": "Blueprint",
+  "about": "The world's own colours drawn as an engineer's plan: a grid on every plate, hairline frames, a tech tab, mono numerals, a CRT's stillness.",
+  "family": "machine",
+  "tags": ["sci-fi", "mecha", "strategy", "engineering"],
+  "author": "mojulo",
+  "from": "world",
+  "frame": "hairline",
+  "corner": "cut",
+  "material": "grid",
+  "crest": "tech",
+  "overlay": "grid",
+  "stage": "stripes",
+  "focus": "bracket",
+  "type": { "mono": "mono" },
+  "sounds": "terminal"
+}
