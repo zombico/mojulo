@@ -25,6 +25,8 @@ const argv = process.argv.slice(2);
 const opt = (k, d = null) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 // (the room is one hero up close: its figures at the pose grade, the full density, unless --grade play, the game's)
 const grade = opt('--grade', 'pose');
+// (the game type's juice: action by default, its swing timing, wider poses and blade trails; --style none for none)
+const styleArg = opt('--style', 'action'), fxStyle = styleArg === 'none' ? null : { register: opt('--register', 'anime'), flavor: styleArg };
 const game = opt('--game', 'keep-hero'), out = path.resolve(opt('--out', 'practice-room')), pack = Math.max(1, Number(opt('--pack', '1'))), cdn = argv.includes('--cdn');
 
 const { SketchRepository } = await import('../../../lib/db/repositories/sketches.js');
@@ -78,7 +80,7 @@ const figures = own ? Object.fromEntries(Object.entries(L.figures).map(([n, f]) 
   const motion = f.heroRef ? SketchRepository.getByRef(f.heroRef)?.manifest?.hero?.motion : null;   // (the game hero's own gaits: its jog, its sprint)
   return [n, { ...keep, hero: { ...(motion ? { motion } : {}), ...own, gear: sheathed ? { back: { item: 'sword' } } : { right: { item: 'sword' } } } }];
 })) : L.figures;
-const sketch = { ref: `${game}-practice-room`, manifest: { kind: 'controllable', title: `Practice room · ${G.name ?? game}`, bg: '#1b1d22', faces, colliders, figures, entities, camera, ...(L.lock ? { lock: L.lock } : {}), ...(grade === 'play' ? { figureGrade: 'play' } : {}), events: { hud: [{ text: legend, slot: 'bottom', ttl: 20 }] } } };
+const sketch = { ref: `${game}-practice-room`, manifest: { kind: 'controllable', title: `Practice room · ${G.name ?? game}`, bg: '#1b1d22', faces, colliders, figures, entities, camera, ...(L.lock ? { lock: L.lock } : {}), ...(grade === 'play' ? { figureGrade: 'play' } : {}), ...(fxStyle ? { fxStyle } : {}), events: { hud: [{ text: legend, slot: 'bottom', ttl: 20 }], ...(fxStyle ? { cast: true, reactions: [] } : {}) } } };
 
 const { payload } = await resolveWorldScene(sketch, {});
 if (!payload) throw new Error('room: the room did not resolve');

@@ -490,6 +490,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // melee strike gained the moveset (gameworld/combos.js: a combo's beats chained at each move's cancel, its travel), the
 // dodge rolls along the stick under world movement, and the pilot scheme names light, heavy and special in its `melee`
 // context; no fixture's rule takes a moveset or moves on the world's frame, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the footwork): the 16 fixtures that embed the controllable runtime. A
+// moveset's move plays its own clip (`mv_<id>`, or `_still` where its travel does not fit before the body ahead), its
+// travel waits out the blend into it and a lunge's comes in two pieces (hero-swing-body.js travelAt); a moveset's hero
+// idles in combat in its fighting stance (`idleClip`); no fixture's rule takes a moveset, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

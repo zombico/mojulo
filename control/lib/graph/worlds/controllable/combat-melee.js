@@ -434,6 +434,21 @@ export function buildCombatMelee(E) {
     if (tg && tg.transform) return Math.atan2(tg.transform.pos[1] - e.transform.pos[1], tg.transform.pos[0] - e.transform.pos[0]);
     return ctx.moveH != null ? ctx.moveH : null;
   }
+  // the room ahead of a body along `dir`: to the nearest hittable body of another team in its path, less the two bodies'
+  // radii and a hand (a lunge stops there, never through what it strikes)
+  function mvRoom(e, world, dir) {
+    let room = Infinity;
+    if (!world || !world.byId) return room;
+    const t = e.transform, R = e.rule.collideRadius ?? 0.3;
+    for (const id in world.byId) {
+      const o = world.byId[id];
+      if (o === e || o.downed || o.gone || !(o.body && o.body.hittable) || (e.team && o.team === e.team)) continue;
+      const vx = o.transform.pos[0] - t.pos[0], vy = o.transform.pos[1] - t.pos[1], ahead = vx * dir[0] + vy * dir[1];
+      const side = Math.abs(vx * dir[1] - vy * dir[0]), need = R + latR(o) + 0.1;
+      if (ahead > 0 && side < need) room = Math.min(room, Math.max(0, ahead - need));
+    }
+    return room;
+  }
   function stepMoveset(e, input, dt, world, ctx, boosting0) {
     const r = e.rule, M = r.moveset, t = e.transform, now = world && world.time != null ? world.time : 0;
     let boosting = boosting0;
@@ -474,12 +489,19 @@ export function buildCombatMelee(E) {
         const face = mvFacing(e, world, ctx);
         if (face != null) t.heading = face;
         const spec = meleeSwingSpec(r, r, mv.swing, false);
-        e.swingT = 0; e.swingClip = spec.clip;
+        // THE FOOTWORK (hero-swing-body.js moveClip): a move steps in only where there is room for all of its travel (a
+        // body ahead nearer than that, it plays in place: its `_still` clip, no travel), so the feet its clip plants
+        // stay planted on the floor; a figure with the move's own clips plays them, any other its swing's
+        const room = mv.travel ? mvRoom(e, world, fwdXY(t.heading)) : Infinity, travels = !!mv.travel && room >= mv.travel.m - 1e-9;
+        e.swingT = 0; e.swingClip = r.moveClips && mv.clip ? (mv.travel && !travels ? `${mv.clip}_still` : mv.clip) : spec.clip;
         e.strikeParams = { ...spec.params, damage: (r.strikeDamage ?? 0) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0 };
         breakGuards(e);
         e.swingCount = (e.swingCount || 0) + 1; e.struckThisSwing = {}; e.lastSwingDir = mv.swing;
         const fw = fwdXY(t.heading), P = e.strikeParams;
-        e.mvTravel = mv.travel ? { dir: [fw[0], fw[1]], m: mv.travel.m, to: mv.travel.kind === 'step' ? Math.max(0.05, P.from) : Math.max(0.05, P.to), done: 0 } : null;
+        if (mv.contact) { P.from = mv.contact[0]; P.to = mv.contact[1]; }
+        // (the travel waits out the blend into the move, at most half its way to the blow: hero-swing-body.js travelAt)
+        const tTo = mv.travel ? Math.max(0.05, mv.travel.kind === 'step' ? P.from : P.to) : 0;
+        e.mvTravel = travels ? { dir: [fw[0], fw[1]], kind: mv.travel.kind, m: mv.travel.m, from: Math.min(mv.travel.wait || 0, tTo * 0.5), to: tTo, done: 0 } : null;
         S.k = how === 'an opener' ? 1 : S.k + 1;
         S.node = next; S.move = next.move;
         say(b, 'taken', `${how}: ${next.move}${next.ends ? ` (ends ${next.ends.join(', ')})` : ''}`);
@@ -666,7 +688,11 @@ export function buildCombatMelee(E) {
     // (it closes on a body ahead and stops at it, the two bodies' radii and a hand apart: a lunge never runs through
     // what it strikes)
     if (swinging && e.mvTravel) {
-      const T = e.mvTravel, u = Math.min(1, (e.swingT || 0) / T.to), prog = T.m * u * u * (3 - 2 * u);
+      // (an advance eased from `from` to `to`; a LUNGE its share by the blow, the rear foot's recovery the rest after it:
+      // hero-swing-body.js travelAt, LUNGE { share 0.55, recover 0.3 }, the footwork law holding the two equal)
+      const T = e.mvTravel, sw = e.swingT || 0, ez = (x) => { const q = Math.max(0, Math.min(1, x)); return q * q * (3 - 2 * q); }, f0 = T.from || 0;
+      const rec = Math.min(0.92, T.to + 0.3);
+      const prog = T.kind === 'lunge' ? (sw <= T.to ? T.m * 0.55 * ez((sw - f0) / (T.to - f0)) : T.m * 0.55 + T.m * 0.45 * ez((sw - T.to) / (rec - T.to))) : T.m * ez((sw - f0) / (T.to - f0));
       let dprog = prog - T.done;
       if (dprog > 0 && world && world.byId) {
         const R = r.collideRadius ?? 0.3;

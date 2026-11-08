@@ -2063,11 +2063,11 @@ function __poseLayers(e, fig, dt) {
     if (q) m.scale.set(s0 * q[0], s0 * q[0], s0 * q[1]); else { m.scale.setScalar(s0); m.userData.s0 = null; }
   }
   ` : ''}const fig = rig.fig;
-  ${figHasForms || acts ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
+  ${figHasForms || acts ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${figHasForms ? `
   if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
   const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
   if (act) mode = act.mode;` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, ${acts ? 'phase' : 'e.gaitPhase'}, dt || 0, rig.blendTime);
+  const mix = __CW.advanceGaitMix(rig.mix, mode, ${acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no
@@ -2345,8 +2345,8 @@ ${acts ? `    const act = __actMode(fig, e, m);
       }
       return;
     }
-    const mode = ${acts ? 'act ? act.mode : ' : ''}e.moving ? e.locomotion : 'idle';
-    const mix = __CW.advanceGaitMix(fig.mix, mode, ${acts ? 'act ? act.phase : ' : ''}e.gaitPhase, dt || 0, fig.blendTime);
+    const mode = ${acts ? 'act ? act.mode : ' : ''}e.moving ? e.locomotion : ${moveset ? "(e.idleClip || 'idle')" : "'idle'"};
+    const mix = __CW.advanceGaitMix(fig.mix, mode, ${acts ? 'act ? act.phase : ' : ''}e.gaitPhase, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : fig.blendTime)" : 'fig.blendTime'});
     const attr = fig.mesh.geometry.getAttribute('position');
     const out = attr.array;
     out.fill(0);

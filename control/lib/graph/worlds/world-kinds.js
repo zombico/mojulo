@@ -60,9 +60,9 @@ import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
 import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
-import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
+import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
-import { swingBody } from '@/lib/graph/polygonizer/hero-swing-body';
+import { swingBody, moveClip, readyClip } from '@/lib/graph/polygonizer/hero-swing-body';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig, faceKnots } from '@/lib/graph/polygonizer/anime-face-rig';
@@ -983,6 +983,18 @@ export const WORLD_KINDS = {
             const fn = T ? (u) => play(T.warp(fit(u))) : (u) => play(fit(u)); fn.keys = 24;
             fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, ctx.swings.contact[1]], ...(T ? { flavor: ctx.swing } : {}), ...(tip ? { tip: { bone: hg.bone, at: [tip[0], tip[1], tip[2] + dz].map((v) => Math.round(v * 1e4) / 1e4) } } : {}) };
             swings[`swing_${dir}`] = fn;
+          }
+          // A MOVESET's moves (`swings.moves`, gameworld/combos.js): each its own clip, its footwork baked (the advance
+          // a travelling move steps, hero-swing-body.js moveClip), and `_still`, the same move in place
+          if (Array.isArray(ctx.swings.moves)) {
+            // (the world's game type: its timing, and the action type's wider body: hero-swing-body.js SWING_STYLES)
+            const mc = { R, cls, base, grip, own, body: !!ctx.swings.body, style: ctx.swing === 'action' ? 'action' : null, timing: ctx.swing ? swingTiming(cls, ctx.swing) : null, contact: ctx.swings.contact, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS };
+            // (and the fighting stance the moves start and end in, the hero's idle in combat: the swing's ready key, whole)
+            swings.mv_ready = readyClip(mc);
+            for (const mv of ctx.swings.moves) {
+              swings[mv.clip] = moveClip(mv, { ...mc, footwork: true });
+              if (mv.travel) swings[`${mv.clip}_still`] = moveClip({ ...mv, travel: null }, mc);
+            }
           }
           clipsIn = { ...clipsIn, ...swings };
           held = { item: hg.item, class: cls, reach: Math.round((hg.length + 0.65) * 100) / 100, seconds: HELD_STRIKE[cls].seconds, damage: HELD_STRIKE[cls].damage };

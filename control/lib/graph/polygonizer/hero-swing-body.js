@@ -27,7 +27,35 @@ const OFF_HAND = Object.freeze({
   forehand: { coil: { shL: { yaw: -6, pitch: 40, roll: 0 }, elbowL: 35 }, cock: { shL: { yaw: -10, pitch: 55, roll: 0 }, elbowL: 25 }, load: { shL: { yaw: -10, pitch: 58, roll: 0 }, elbowL: 25 }, strike: { shL: { yaw: 10, pitch: -10, roll: 0 }, elbowL: 95 }, follow: { shL: { yaw: 12, pitch: -15, roll: 0 }, elbowL: 100 }, recover: { shL: { yaw: 0, pitch: 10, roll: 0 }, elbowL: 70 } },
   backhand: { coil: { shL: { yaw: 6, pitch: 5, roll: 0 }, elbowL: 80 }, cock: { shL: { yaw: 10, pitch: -10, roll: 0 }, elbowL: 95 }, load: { shL: { yaw: 10, pitch: -10, roll: 0 }, elbowL: 95 }, strike: { shL: { yaw: -14, pitch: 45, roll: 0 }, elbowL: 30 }, follow: { shL: { yaw: -16, pitch: 50, roll: 0 }, elbowL: 25 }, recover: { shL: { yaw: -4, pitch: 25, roll: 0 }, elbowL: 50 } },
 });
-export const SWING_BODY = Object.freeze({ phases: BODY_PHASES, turn: BODY_TURN, of: BODY_OF, offHand: OFF_HAND });
+/**
+ * THE ACTION STYLE (a world whose juice is the action game type's: `swings.style`, world-kinds.js from the world's
+ * fxStyle flavor): cartoon force, not a fencer's economy. A wider, lower stance; the WINGS (the animation spike's: a key's
+ * reach from the ready pose scaled up, the wind-up's and the follow-through's, never the blow's, so the blade still lands
+ * where it lands); the hips turned further and the weight thrown harder; the off arm flung wide against the cut.
+ */
+export const SWING_STYLES = Object.freeze({
+  action: Object.freeze({ stance: 1.8, stagger: 0.34, crouch: 0.06, wind: 1.6, after: 1.45, weight: 1.5, off: 1.6,
+    // the hips wound hard and thrown through (the chain kept: they come forward at the cock while the chest is still back)
+    turn: Object.freeze({
+      forehand: { ready: { facing: -12, w: 0 }, coil: { facing: -32, w: -0.04 }, cock: { facing: -26, w: -0.07 }, load: { facing: -30, w: -0.08 }, strike: { facing: 28, w: 0.1, heel: 30, pivot: 26 }, follow: { facing: 42, w: 0.12, heel: 38, pivot: 34 }, recover: { facing: 14, w: 0.04, heel: 12, pivot: 10 } },
+      backhand: { ready: { facing: -12, w: 0 }, coil: { facing: 10, w: -0.03 }, cock: { facing: 24, w: -0.06 }, load: { facing: 28, w: -0.07 }, strike: { facing: -26, w: 0.08 }, follow: { facing: -38, w: 0.1 }, recover: { facing: -16, w: 0.03 } },
+    }) }),
+});
+export const SWING_BODY = Object.freeze({ phases: BODY_PHASES, turn: BODY_TURN, of: BODY_OF, offHand: OFF_HAND, styles: SWING_STYLES });
+// a key's reach from ready scaled by `g` (the WINGS): the arms' and the trunk's angles, the twist's share, the hinge, the crouch
+const WING_ANGLES = (a, r, g) => (Number.isFinite(a) && Number.isFinite(r) ? Math.round((r + (a - r) * g) * 100) / 100 : a);
+function wing(k, ready, g) {
+  if (g === 1) return k;
+  const o = { ...k };
+  // (the arm's arc widened, its yaw and its pitch, the pitch held under the head: the swing's law, the elbow low, never over
+  // the head; its roll, the forearm's turn that carries the blade's edge, is the swing's own)
+  for (const j of ['shR', 'shL']) if (k[j] && ready[j]) o[j] = Object.fromEntries(Object.entries(k[j]).map(([a, v]) => [a, a === 'roll' ? v : a === 'pitch' ? Math.min(Math.max(v, 110), WING_ANGLES(v, ready[j][a] ?? 0, g)) : WING_ANGLES(v, ready[j][a] ?? 0, g)]));
+  for (const j of ['hinge']) if (Number.isFinite(k[j])) o[j] = Math.max(0, WING_ANGLES(k[j], ready[j] ?? 0, g));
+  if (Number.isFinite(k.shoulders)) o.shoulders = WING_ANGLES(k.shoulders, ready.shoulders ?? 0, g);
+  if (k.spine) o.spine = Object.fromEntries(Object.entries(k.spine).map(([a, v]) => [a, Array.isArray(v) ? [v[0], Math.min(0.6, v[1] * g)] : Number.isFinite(v) ? Math.min(0.5, v * g) : v]));
+  if (k.head?.pitch != null) o.head = { ...k.head, pitch: WING_ANGLES(k.head.pitch, ready.head?.pitch ?? 0, Math.min(g, 1.3)) };
+  return o;
+}
 /** a pose's legs reach on the rig (a strict rig throws; a clamping one reports) */
 function legsReach(R, pose, nodesAt) {
   try { const { report } = nodesAt(R, pose); return Object.values(report.legs).every((l) => !l.metaError || l.metaError < 1e-3); } catch { return false; }
@@ -36,13 +64,23 @@ function legsReach(R, pose, nodesAt) {
  * The keys of `word` at `cls` carried by the whole body on rig `R` (`nodesAt` the rig's own pose solve, rigNodesAt). A
  * verb whose own keys move the off hand (two hands on the grip, a shield's bash) keeps them.
  */
-export function swingBody(word, cls, keys, R, nodesAt) {
-  const phases = BODY_PHASES[cls] ?? BODY_PHASES.normal, side = BODY_OF[word] ?? 'forehand', T = BODY_TURN[side];
+export function swingBody(word, cls, keys, R, nodesAt, style = null) {
+  const phases = BODY_PHASES[cls] ?? BODY_PHASES.normal, side = BODY_OF[word] ?? 'forehand', T = BODY_TURN[side], St = SWING_STYLES[style] ?? null;
+  // (the action style: its wider stance under every key, and the wings on the wind-up and the follow-through)
+  if (St) {
+    const ready = keys[0];
+    keys = keys.map((k, i) => {
+      const ph = phases[i] ?? 'recover', g = ['coil', 'cock', 'load'].includes(ph) ? St.wind : ['follow'].includes(ph) ? St.after : ph === 'recover' ? 1 + (St.after - 1) * 0.5 : 1;
+      return { ...wing(k, ready, g), stance: St.stance, stagger: St.stagger, crouch: Math.min(0.4, (k.crouch ?? 0) + St.crouch) };
+    });
+  }
   // (a verb that moves its own off hand: its keys' left arm leaves the ready key's)
   const ownOff = keys.some((k) => JSON.stringify([k.shL, k.elbowL]) !== JSON.stringify([keys[0].shL, keys[0].elbowL]));
   return keys.map((k, i) => {
-    const ph = phases[i] ?? 'recover', B = T[ph] ?? T.recover;
-    const out = { ...k, facing: B.facing, ...(B.heel ? { heelR: B.heel, splayR: -B.pivot } : {}), ...(!ownOff && OFF_HAND[side][ph] ? OFF_HAND[side][ph] : {}) };
+    const ph = phases[i] ?? 'recover', B0 = T[ph] ?? T.recover;
+    const B = St ? (St.turn[side][ph] ?? St.turn[side].recover) : B0;
+    const off = !ownOff && OFF_HAND[side][ph] ? (St ? wing(OFF_HAND[side][ph], { shL: keys[0].shL, elbowL: keys[0].elbowL }, St.off) : OFF_HAND[side][ph]) : {};
+    const out = { ...k, facing: B.facing, ...(B.heel ? { heelR: B.heel, splayR: -B.pivot } : {}), ...off };
     // the weight, and the least sink the legs reach with (a strike solver's reachSink, stepped)
     for (let w = B.w; ; w = w > 0 ? Math.max(0, w - 0.02) : Math.min(0, w + 0.02)) {
       const at = { ...out, shift: { x: 0, y: Math.round(w * 1e4) / 1e4 } };
@@ -55,3 +93,99 @@ export function swingBody(word, cls, keys, R, nodesAt) {
   });
 }
 
+
+// ─── the footwork: a move's feet through its travel ─────────────────────────────────────────────────────────
+/**
+ * THE FOOTWORK (a move's own clip, `moveClip`): the runtime carries the body `m` metres along its facing as a move plays
+ * (worlds/controllable/combat-melee.js: the travel eased over the phase from `from` to `to`, smoothstepped, `from` the
+ * blend into the move waited out so the outgoing pose, held still, never rides the body), so a clip whose
+ * feet stood still on the hero would skate them across the floor. A travelling move ADVANCES as a fencer does: the lead
+ * foot steps out first, the rear foot follows, both down by `to` (before the blow lands, for a step; through it, for a
+ * lunge); a planted foot is held where it stands on the floor while the body moves over it, a stepping foot lifts on an
+ * arc and lands `m` ahead. Every move ends in the stance it began in, so a string chains without a foot jumping, and
+ * where a wide moment of the advance outstretches a leg the body sinks (`sink`) until both legs reach.
+ *
+ *   travelAt(u, T)          → metres the runtime has carried the body at phase u (its own law, here so the two agree)
+ *   footworkAt(u, T, lead)  → { L, R } each { dy (metres along the facing, off its stance place), lift } at phase u
+ *   moveClip(move, ctx)     → the move's clip (a function of the runtime's phase, `keys` samples): the held swing of its
+ *                             `swing`, the whole body over it (swingBody), its footwork; `move` on it as a swing's
+ */
+const ease = (x) => { const u = Math.max(0, Math.min(1, x)); return u * u * (3 - 2 * u); };
+/** A LUNGE (`kind: 'lunge'`) is not an advance: the lead foot drives out and lands with the blow while the rear foot
+ * holds, the rear leg extending behind as the body drops (`LUNGE.share` of the travel, the most one stride reaches), then
+ * after the blow the rear foot RECOVERS forward to the stance, the body rising through the rest of the travel by `rec`.
+ * The runtime carries the body by the same two pieces (combat-melee.js, its own copy: the law holds the two equal). */
+export const LUNGE = Object.freeze({ share: 0.55, recover: 0.3, most: 0.7 });
+export const lungeRec = (T) => Math.min(0.92, T.to + LUNGE.recover);
+export function travelAt(u, T) {
+  if (!T || !(T.m > 0)) return 0;
+  const f0 = T.from || 0;
+  if (T.kind !== 'lunge') return T.m * ease((u - f0) / (T.to - f0));
+  const k = LUNGE.share, rec = lungeRec(T);
+  return u <= T.to ? T.m * k * ease((u - f0) / (T.to - f0)) : T.m * k + T.m * (1 - k) * ease((u - T.to) / (rec - T.to));
+}
+/** the advance's split: the lead foot's flight over the first share of the travel's phases, the rear's over the rest */
+export const ADVANCE = Object.freeze({ split: 0.5, lift: (m) => Math.min(0.09, 0.03 + 0.12 * m) });
+export function footworkAt(u, T, lead = 'L') {
+  const rear = lead === 'L' ? 'R' : 'L';
+  if (!T || !(T.m > 0)) return { L: { dy: 0, lift: 0 }, R: { dy: 0, lift: 0 } };
+  const arc = (a, b) => (u > a && u < b ? Math.sin(Math.PI * (u - a) / (b - a)) : 0);
+  if (T.kind === 'lunge') {
+    // the lead foot out the whole travel, landing with the blow; the rear holding, then recovering forward after it
+    const f0 = T.from || 0, rec = lungeRec(T), d = travelAt(u, T), lift = ADVANCE.lift(T.m) * 0.7;
+    const leadW = T.m * ease((u - f0) / (T.to - f0)), rearW = T.m * ease((u - T.to) / (rec - T.to));
+    return { [lead]: { dy: leadW - d, lift: lift * arc(f0, T.to) }, [rear]: { dy: rearW - d, lift: lift * arc(T.to, rec) } };
+  }
+  const f0 = T.from || 0, h = f0 + (T.to - f0) * ADVANCE.split, d = travelAt(u, T), lift = ADVANCE.lift(T.m);
+  // each foot's own travel over the floor: the lead's over [from, h], the rear's over [h, to]
+  const leadW = T.m * ease((u - f0) / (h - f0)), rearW = T.m * ease((u - h) / (T.to - h));
+  return { [lead]: { dy: leadW - d, lift: lift * arc(f0, h) }, [rear]: { dy: rearW - d, lift: lift * arc(h, T.to) } };
+}
+/** the feet targets of a pose with its footwork: each foot from its stance place (plantedFoot), moved along the facing */
+function feetOf(R, pose, F, plantedFoot) {
+  const out = {};
+  for (const S of ['L', 'R']) {
+    const base = plantedFoot(R, R.legs[S], pose).toeBase;
+    out[S] = [base[0], base[1] + F[S].dy, base[2] + F[S].lift];
+  }
+  return out;
+}
+/**
+ * The clip a move plays: { swing, travel?: { kind, m }, contact? } at the hero's held class. ctx: { R, cls, base, grip,
+ * contact (the rule's window), own (the hero's own cut word), body (the whole body over the swing), timing (a game
+ * type's swingTiming, or null) } and the rig's functions { layeredClip, rigNodesAt, plantedFoot }, and the swing's
+ * { swingClipKeys, fitSwing, swingPhases, HELD_SWINGS }.
+ */
+export function moveClip(move, ctx) {
+  const { R, cls, base, grip, own, body, timing: T, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS } = ctx;
+  const word = HELD_SWINGS[move.swing] ?? own;
+  const keys0 = swingClipKeys(word, cls, { base, grip }), keys = body ? swingBody(word, cls, keys0, R, rigNodesAt, ctx.style ?? null) : keys0;
+  const contact = move.contact ?? ctx.contact, from = contact[0];
+  const play = layeredClip(keys, R), fit = fitSwing(T ? T.strike : swingPhases(keys.length).strike, from);
+  const arm = T ? (u) => play(T.warp(fit(u))) : (u) => play(fit(u));
+  // the travel as the runtime carries it (combat-melee.js: a step's to the window's start, a lunge's to its end)
+  const tTo = move.travel ? Math.max(0.05, move.travel.kind === 'step' ? contact[0] : contact[1]) : 0;
+  const travel = move.travel && move.travel.kind !== 'none' && move.travel.m > 0 ? { kind: move.travel.kind, m: move.travel.m, from: Math.min(move.travel.wait || 0, tTo * 0.5), to: tTo } : null;
+  const fn = (u) => {
+    const p = arm(u);
+    if (!travel || !ctx.footwork) return p;
+    const lead = (p.stagger ?? 0) >= 0 ? 'L' : 'R', F = footworkAt(u, travel, lead);
+    const at = { ...p, feet: feetOf(R, p, F, plantedFoot) };
+    // (the least sink both legs reach with)
+    for (let s = 0; s <= 0.3 + 1e-9; s += 0.01) { const q = s ? { ...at, sink: Math.round(((p.sink ?? 0) + s) * 1e4) / 1e4 } : at; if (legsReach(R, q, rigNodesAt)) return q; }
+    return at;
+  };
+  fn.keys = 24;
+  fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, contact[1]], ...(travel ? { travel } : {}) };
+  return fn;
+}
+
+/** THE FIGHTING STANCE (`mv_ready`): the stance a moveset's moves start and end in (the hero's own cut's ready key, the
+ * whole body over it), held: the hero's idle in combat, so standing and striking share their feet. */
+export function readyClip(ctx) {
+  const { R, cls, base, grip, own, body, layeredClip, rigNodesAt, swingClipKeys } = ctx;
+  const keys0 = swingClipKeys(own, cls, { base, grip }), ready = (body ? swingBody(own, cls, keys0, R, rigNodesAt, ctx.style ?? null) : keys0)[0];
+  const play = layeredClip([ready], R), fn = (u) => play(u);
+  fn.keys = 2;
+  return fn;
+}

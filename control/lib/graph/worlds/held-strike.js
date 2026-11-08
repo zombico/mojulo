@@ -6,13 +6,13 @@
  * Pure.
  *
  *   wieldsFigure(e, name) → true when e strikes with the hero `name` holds
- *   armHeld(e, held)      → e, its rule armed with the held item's reach and its class's seconds and damage (any the
- *                           rule names stand)
+ *   armHeld(e, held, moveClips?) → e, its rule armed with the held item's reach and its class's seconds and damage (any
+ *                           the rule names stand); `moveClips` where its figure carries its moveset's own clips
  */
 export function wieldsFigure(e, name) {
   if (!e || !e.body || !e.rule || e.rule.type !== 'platform' || !Array.isArray(e.rule.strikeContact) || e.rule.strike != null) return false;
   return e.body.figure === name || (!!e.rule.combat && e.rule.combat.drawn === name);
 }
-export function armHeld(e, held) {
-  return { ...e, rule: { ...e.rule, strike: 'melee', strikeReach: e.rule.strikeReach ?? held.reach, strikeDur: e.rule.strikeDur ?? held.seconds, strikeDamage: e.rule.strikeDamage ?? held.damage } };
+export function armHeld(e, held, moveClips = false) {
+  return { ...e, rule: { ...e.rule, strike: 'melee', strikeReach: e.rule.strikeReach ?? held.reach, strikeDur: e.rule.strikeDur ?? held.seconds, strikeDamage: e.rule.strikeDamage ?? held.damage, ...(moveClips ? { moveClips: true } : {}) } };
 }

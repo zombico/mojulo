@@ -13,15 +13,17 @@
  *   frames   its length at 60 fps, wind-up to rest; its blow lands where the hero's swing was baked to land (the rule's
  *            contact window, a share of the length)
  *   cancel   the frame from which the next beat chains into the next move (absent: the move plays out; a finisher's)
- *   travel   how it covers ground: none (it stays in place), step (a step into it before the blow lands), lunge (the
- *            swing carries the body through the blow); `m` metres
+ *   travel   how it covers ground: none (it stays in place), step (an advance before the blow: the lead foot, then the
+ *            rear; at most 0.4 m), lunge (the lead foot driven out to land with the blow, the rear leg extending behind,
+ *            then the rear foot recovering forward after it; at most 0.7 m, one stride); `m` metres
  *   damage   × the held weapon's; impact (the blow's shove: its hitstop grows with it), topple (knocks down), launch
  *
  * A COMBO is { id, name, beats, moves }: `beats` the presses, L (light), H (heavy), S (special) and `.` (a pause:
  * the next press held back until the last move has ended and a breath has passed), one move a press. Combos share their
  * openings: L L L and L L H are one tree that forks at the third beat; `.` forks a string on its timing.
  *
- * THE TIMING, with forgiveness (frames): `buffer` a press early is remembered this long and taken at the cancel; `late`
+ * THE TIMING, with forgiveness (frames): `blend` one move blends into the next this long (its travel waits it out, so no
+ * foot slides: hero-swing-body.js moveClip); `buffer` a press early is remembered this long and taken at the cancel; `late`
  * a press after a move has ended still chains this long; a pause beat is a press between `pause[0]` and `pause[1]` after
  * the move ended. Held and mashed beats are named for later and refused today.
  *
@@ -48,12 +50,12 @@ const FPS = 60;
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 export const BASIC_COMBOS = Object.freeze({
-  timing: { buffer: 12, late: 14, pause: [16, 50] },
+  timing: { buffer: 12, late: 14, pause: [16, 50], blend: 4 },
   moves: {
     'cut-1': { swing: 'neutral', role: 'opener', frames: 24, cancel: 15, travel: { kind: 'step', m: 0.25 }, damage: 1 },
     'cut-2': { swing: 'left', role: 'filler', frames: 24, cancel: 15, travel: { kind: 'step', m: 0.25 }, damage: 1 },
-    cleave: { swing: 'back', role: 'finisher', frames: 44, travel: { kind: 'lunge', m: 0.8 }, damage: 2, impact: 3, topple: true },
-    thrust: { swing: 'forward', role: 'opener', frames: 32, travel: { kind: 'lunge', m: 1.2 }, damage: 1.5, impact: 1.5 },
+    cleave: { swing: 'back', role: 'finisher', frames: 44, travel: { kind: 'lunge', m: 0.5 }, damage: 2, impact: 3, topple: true },
+    thrust: { swing: 'forward', role: 'opener', frames: 32, travel: { kind: 'lunge', m: 0.6 }, damage: 1.5, impact: 1.5 },
   },
   combos: [
     { id: 'three-cuts', name: 'Three cuts', beats: ['L', 'L', 'L'], moves: ['cut-1', 'cut-2', 'cleave'] },
@@ -72,6 +74,7 @@ export function readCombos(C) {
   if (!isObj(T)) no('timing is { buffer, late, pause: [from, to] } in frames');
   if (T.buffer !== undefined && !num(T.buffer, 0, 60)) no('timing.buffer is the frames a press is remembered early, 0 to 60');
   if (T.late !== undefined && !num(T.late, 0, 60)) no('timing.late is the frames a press after a move still chains, 0 to 60');
+  if (T.blend !== undefined && !num(T.blend, 1, 20)) no('timing.blend is the frames one move blends into the next, 1 to 20');
   if (T.pause !== undefined && !(Array.isArray(T.pause) && T.pause.length === 2 && num(T.pause[0], 1, 120) && num(T.pause[1], T.pause[0], 240))) no('timing.pause is [from, to] frames after a move has ended');
   if (!isObj(C.moves) || !Object.keys(C.moves).length) no('moves is { <id>: a move }, one at least');
   for (const [id, m] of Object.entries(C.moves)) {
@@ -88,6 +91,9 @@ export function readCombos(C) {
     if (m.travel !== undefined) {
       if (!isObj(m.travel) || !TRAVEL.includes(m.travel.kind)) no(`${at}.travel is { kind: ${TRAVEL.join(' | ')}, m }`);
       if (m.travel.kind !== 'none' && !num(m.travel.m, 0, 6)) no(`${at}.travel.m is the metres it covers, 0 to 6`);
+      // (one stride: a step is an advance, the lead foot then the rear; a lunge the lead foot driven out, the rear recovering)
+      if (m.travel.kind === 'step' && m.travel.m > 0.4) no(`${at}: a step covers at most 0.4 m (an advance: the lead foot, then the rear)`);
+      if (m.travel.kind === 'lunge' && m.travel.m > 0.7) no(`${at}: a lunge covers at most 0.7 m (one stride, the lead foot driven out and the rear recovering)`);
     }
     for (const k of ['damage', 'impact']) if (m[k] !== undefined && !num(m[k], 0, 20)) no(`${at}.${k} is a number 0 to 20`);
     if (m.launch !== undefined && !num(m.launch, 0, 20)) no(`${at}.launch is the foe's speed up (m/s)`);
@@ -129,8 +135,10 @@ export function readCombos(C) {
 export function lowerCombos(C0) {
   const C = readCombos(C0), T = { ...BASIC_COMBOS.timing, ...(C.timing ?? {}) };
   const moves = Object.fromEntries(Object.entries(C.moves).map(([id, m]) => [id, {
-    ...(m.swing ? { swing: m.swing } : { strike: m.strike }), role: m.role, dur: r4(m.frames / FPS), ...(m.contact ? { contact: [...m.contact] } : {}), cancel: m.cancel != null ? r4(m.cancel / m.frames) : 1,
-    travel: m.travel && m.travel.kind !== 'none' ? { kind: m.travel.kind, m: m.travel.m } : null,
+    // (its own clip, `mv_<id>`: its footwork baked on the figure, world-scene.js; `mv_<id>_still` the same move in place)
+    clip: `mv_${id}`, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), role: m.role, dur: r4(m.frames / FPS), ...(m.contact ? { contact: [...m.contact] } : {}), cancel: m.cancel != null ? r4(m.cancel / m.frames) : 1,
+    // (a travel waits out the blend into the move: the body moves once the two poses' feet are one, the footwork)
+    travel: m.travel && m.travel.kind !== 'none' ? { kind: m.travel.kind, m: m.travel.m, wait: r4(T.blend / m.frames) } : null,
     damage: m.damage ?? 1, ...(m.impact != null ? { impact: m.impact } : {}), ...(m.topple ? { topple: true } : {}), ...(m.launch ? { launch: m.launch } : {}),
   }]));
   const tree = {};
@@ -145,7 +153,7 @@ export function lowerCombos(C0) {
     }
     if (node) node.ends = [...(node.ends ?? []), c.id];
   }
-  return { moves, tree, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)] };
+  return { moves, tree, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)], blend: r4(T.blend / FPS) };
 }
 
 /** The director's list: each combo's beats and its moves, read whole. */

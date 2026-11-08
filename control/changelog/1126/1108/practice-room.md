@@ -29,7 +29,7 @@
   press; combos sharing their openings are one tree. The timing forgives: a press with a move to chain into is held to
   the live move's cancel however early, any other press is remembered a buffer's frames, a press just after a move ends
   still chains (`late`), a pause beat is a press in its window. Held and mashed beats are named and refused for now.
-  The starter: L L L (two cuts and the cleave, which lunges and topples) and H (the thrust). `readCombos` says what is
+  The starter: L L L (two cuts and the cleave, which lunges and topples) and H (the thrust, a lunge). `readCombos` says what is
   wrong in words; `lowerCombos` is the platform rule's `moveset`; `comboList` the director's list.
 - **The moveset in the runtime** (`worlds/controllable/combat-melee.js`, opt-in `moveset` on a platform rule with a
   melee strike): each press a beat, each move a swing of its own (its clip, length, travel and blow), chained at the
@@ -61,3 +61,29 @@
   sword (L L L, H) and the fist (L L L the jab, the cross and the hook; H the uppercut). Not yet wired to the runtime.
 - **The room's hero** (`--hero anime | tiered | <spec>`): another body on the game's rig and clips, its sword in hand and
   on its back; the room bakes its figures at the pose grade (one hero up close), `--grade play` for the game's.
+- **Footwork: no foot teleports or skates through a string** (`polygonizer/hero-swing-body.js` `moveClip`, the law in
+  its test). Each move of a moveset is baked as its own clip (`mv_<id>`): its travel is its footwork, every planted
+  foot held where it stands on the floor while the runtime carries the body. A STEP is an advance (the lead foot out,
+  then the rear, both down before the blow; at most 0.4 m). A LUNGE is not an advance: the lead foot drives out and
+  lands with the blow while the rear foot holds, the rear leg extending behind as the body drops, then the rear foot
+  recovers forward after the blow (at most 0.7 m, one stride). The body sinks as little as lets both legs reach. Every
+  move ends in the stance it began in; a move blends into the next in four frames (the manifest's `blend`) and its
+  travel waits that out, so the outgoing pose never rides the body. A move steps in only where all of its travel fits
+  before the body ahead (else its `_still` clip, in place). In combat the hero idles in its fighting stance
+  (`mv_ready`), so standing and striking share their feet. The law plays a string as the page does (the runtime's
+  travel, its crossfade between clips) and measures each planted foot: through stand, L L L, stand, and through the
+  thrust's lunge, no planted foot moves more than a centimetre a frame (the plain swings skated over half a metre).
+  Seen headless in the room: the moves play their own clips, the thrust in place when the foe stands too close.
+- **The action style: cartoon force, not a fencer's economy** (`hero-swing-body.js` `SWING_STYLES.action`, from the
+  world's juice flavor: `fxStyle: { flavor: 'action' }`). A wider, lower stance; the WINGS on the wind-up and the
+  follow-through (the arm's arc widened in yaw and pitch, its roll the swing's own, the elbow never over the head; the
+  trunk's twist and the shoulders further), never on the blow, so the blade lands where it lands; the hips wound hard
+  and thrown through (the chain kept); the weight thrown harder; the off arm flung wide. Measured on the rig: the
+  shoulder line sweeps half as far again from the wind-up to the follow, the base is wider, every key stands and the
+  sword hand stays clear of the head; the footwork law holds under it. The swing's action timing (a held cock, a
+  snapped blow) comes with the same word.
+- **The room plays the action style** by default (`--style action | none`): its swing timing, the wider body, the
+  composed floor's blade trail and hits.
+- **Fixed: a blade trail on a skinned hero.** The trail found a hand's blade as its bone mesh's farthest point; a
+  skinned figure's bones carry no mesh (the page threw and stopped). It now reads the skinned mesh's corners the hand's
+  bone holds whole, each in that bone's own frame (`trail-channel.js`). The trail is wired; nobody has seen it draw yet.

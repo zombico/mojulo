@@ -53,8 +53,9 @@ describe('the moveset in the runtime', () => {
     expect(R.log.map((l) => l.verdict)).toEqual(['taken', 'taken', 'taken']);
     expect(R.log[2].why).toMatch(/cleave \(ends three-cuts\)/);
     expect(R.w.byId.foe.hits).toBe(3);
-    // (the steps and the lunge carried the hero in, and stopped it at the foe's body, never through it)
-    expect(R.p.transform.pos[0]).toBeGreaterThan(0.5);
+    // (the two steps carried the hero in; the cleave's lunge, with less room than its 0.5 m before the foe's body, played
+    // in place: a move steps in only where all of its travel fits, its feet never skating)
+    expect(R.p.transform.pos[0]).toBeCloseTo(0.5, 3);
     expect(R.p.transform.pos[0]).toBeLessThan(R.w.byId.foe.transform.pos[0]);
   });
   it('a press long after a move opens the string again; a heavy is its own opener; a beat with no move says so', () => {

@@ -557,6 +557,10 @@ export function buildRulesPlatform(E) {
       e.hoverGrace = e.hovering ? (r.hoverCoyote ?? 0.45) : Math.max(0, (e.hoverGrace || 0) - dt);
     }
 
+    // A MOVESET's hero whose figure carries its moves' own clips (`moveClips`, worlds/world-scene.js) idles in combat in
+    // its fighting stance (`mv_ready`, the stance its moves start and end in: hero-swing-body.js), so no foot moves
+    // between standing and striking. Absent, no field.
+    if (r.moveClips) e.idleClip = e.combat ? 'mv_ready' : null;
     // edges + gait (surfaced to the bus later; drive land-dust / jump-sound / a figure's frame).
     // `landed` is the grounded rising edge computed up top (snap-inclusive), not this touchdown block.
     e.jumped = jumped; e.landed = landedEdge;

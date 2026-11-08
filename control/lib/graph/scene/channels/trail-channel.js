@@ -32,9 +32,12 @@ const __swCR = (a, b, c, d, f) => { const f2 = f * f, f3 = f2 * f; return [0, 1,
 const __swV = new THREE.Vector3(), __swW = new THREE.Vector3();
 const __swCol = (() => { const c = __swT.color, lite = c.map((x) => x + (1 - x) * 0.6), deep = c.map((x) => x * 0.55); return { c, lite, deep }; })();
 ${trail.glints ? `const __swGlint = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.15, 'rgba(255,255,255,0.6)'); g.addColorStop(0.4, 'rgba(255,255,255,0.05)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); x.fillStyle = '#fff'; x.beginPath(); for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 4, r = i % 2 ? 6 : 31; x.lineTo(32 + r * Math.cos(a), 32 + r * Math.sin(a)); } x.closePath(); x.fill(); return new THREE.CanvasTexture(cv); })();` : ''}
-function __swMake(m) {
-  const P = m.geometry.attributes.position; let best = 0, bi = -1;
-  for (let i = 0; i < P.count; i++) { const d = P.getX(i) ** 2 + P.getY(i) ** 2 + P.getZ(i) ** 2; if (d > best) { best = d; bi = i; } }
+// (a rigid rig's hand is its bone's own mesh; a SKINNED rig's hand is its bone, its blade the skinned mesh's corners held
+// whole by that bone, each in the bone's own frame as a rigid part's are: \`keep\` picks them)
+function __swMake(m, P, keep) {
+  if (!P) return null;
+  let best = 0, bi = -1;
+  for (let i = 0; i < P.count; i++) { if (keep && !keep(i)) continue; const d = P.getX(i) ** 2 + P.getY(i) ** 2 + P.getZ(i) ** 2; if (d > best) { best = d; bi = i; } }
   if (bi < 0 || Math.sqrt(best) < 0.32) return null;   // an empty hand: nothing to trail
   const tip = new THREE.Object3D(); tip.position.set(P.getX(bi), P.getY(bi), P.getZ(bi)); m.add(tip);
   const g = new THREE.BufferGeometry(), idx = [];
@@ -55,7 +58,9 @@ function __stepSwing() {
   if (n !== __swSeen) {
     __swSeen = n;
     for (const id in B) { const R = B[id] && B[id].userData && B[id].userData.rigFig; if (!R) continue;
-      R.fig.bones.forEach((bn, bi) => { const m = R.boneMeshes[bi]; if (!m || __swDone.has(m) || !/^hand[LR]$/.test(bn.id)) return; __swDone.add(m); const L = __swMake(m); if (L) __swL.push(L); }); }
+      const SG = R.skin && R.skin.geometry, SI = SG && SG.attributes.skinIndex, SW = SG && SG.attributes.skinWeight;
+      R.fig.bones.forEach((bn, bi) => { const m = R.boneMeshes[bi]; if (!m || __swDone.has(m) || !/^hand[LR]$/.test(bn.id)) return; __swDone.add(m);
+        const L = SG ? __swMake(m, SG.attributes.position, (i) => SI.getX(i) === bi && SW.getX(i) > 0.99) : __swMake(m, m.geometry && m.geometry.attributes.position, null); if (L) __swL.push(L); }); }
   }
   const now = W.time || 0;${trail.fps ? `
   // held on the floor's drawings a second: a new sample (and a redraw) only on a new drawing

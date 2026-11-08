@@ -159,6 +159,8 @@ export function readSeats(seats, entities, pilot = null) {
   return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}) };
 }
 
+/** a moveset's moves a figure bakes its own clips for (hero-swing-body.js moveClip): those that play a held swing */
+const movesOf = (M) => Object.values(M.moves).filter((m) => m.swing && m.clip).map((m) => ({ clip: m.clip, swing: m.swing, ...(m.travel ? { travel: m.travel } : {}), ...(m.contact ? { contact: m.contact } : {}) }));
 export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
@@ -1144,7 +1146,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             ride = (R, dz) => { mountRide = { sol: mountRiderSync(mountsSpec, { R, dz }, solve), riderId: rider.id }; return mountRide.sol.clips; };
           }
           // (a world a headset plays, its own `xr` or the page's `?xr=`: the hero's hands ride its figure, hero-xr-hands.js)
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder ? { swings: { contact: wielder.rule.strikeContact, ...(wielder.rule.moveset ? { body: true } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}) });
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder ? { swings: { contact: wielder.rule.strikeContact, ...(wielder.rule.moveset ? { body: true, moves: movesOf(wielder.rule.moveset) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}) });
           // (a body destroyed in it, `vanish.die` a dismantle or a cleave: each bone's parent rides the figure, the joints the
           // page's wreck cuts: figures/rig-tpose.js humanoidParents, read off the rest bones; a rig not a humanoid's, none)
           // (and one CLEAVED in it: its parts cut in two by a slash, scene/rig-cleave.js, seeded by the figure's name, the
@@ -1168,11 +1170,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
           // character (bones, clips, height) keep the play grade alone. Any other world: nothing more
           if (sketch.manifest.figureGrade === 'play' && !rawSpec.grade && (poseNames ??= (await import('@/lib/graph/figures/figure-grades.js')).poseCast(sketch.manifest)).has(name)) {
-            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact, ...(wielder.rule.moveset ? { body: true } : {}) } } : {}) });
+            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(wielder ? { swings: { contact: wielder.rule.strikeContact, ...(wielder.rule.moveset ? { body: true, moves: movesOf(wielder.rule.moveset) } : {}) } } : {}) });
             const { crossGradeErrors } = await import('@/lib/graph/figures/figure-grades.js');
             if (!crossGradeErrors(pose, payload.figures[name]).length) { payload.figures[`${name}@pose`] = pose; payload.figures[name] = { ...payload.figures[name], pose: `${name}@pose` }; }
           }
-          if (held) payload.entities = payload.entities.map((e) => (wields(e) ? armHeld(e, held) : e));
+          // (a moveset's hero whose figure carries its moves' own clips plays them: combat-melee.js `moveClips`)
+          const moveClips = !!(figure.clips && Object.keys(figure.clips).some((k) => k.startsWith('mv_')));
+          if (held) payload.entities = payload.entities.map((e) => (wields(e) ? armHeld(e, held, moveClips) : e));
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,
