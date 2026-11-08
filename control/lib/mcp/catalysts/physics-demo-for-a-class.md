@@ -38,7 +38,7 @@ ask for what the explanation needs to resolve:
 | bodies moving under forces, contacts, springs, orbits, fields on charges | classical | compose it (this catalyst); `dress.field` draws a charge's field as lines, a glow or equipotential shells, checked against Gauss's law |
 | molecules moving, colliding, binding, being counted; cells; diffusion | microscopic | compose it the same way: kind `microscopic`, card `get_view_vocab({ id: 'microscopic' })` |
 | energy levels, tunnelling, two slits building their fringes dot by dot, orbitals (as points or a volume), spin and measurement, half-life | quantum | compose it the same way: kind `quantum`, card `get_view_vocab({ id: 'quantum' })`; why a bond forms is not in its table yet (the curated `molecule` kind) |
-| a black hole's light, Mercury's turning orbit, clocks slowed by gravity, GPS | relativistic | compose it the same way: kind `relativistic`, card `get_view_vocab({ id: 'relativistic' })`; a spinning hole, gravitational waves and special relativity are not in its table (the curated `black-hole` / `gravity-wave` kinds) |
+| a black hole's light, Mercury's turning orbit, clocks slowed by gravity, GPS | relativistic | compose it the same way: kind `relativistic`, card `get_view_vocab({ id: 'relativistic' })`; a spinning hole, gravitational waves and special relativity are not in its table (the `black-hole` kind, called by name, draws a spinning hole; `gravity-wave` shows the waves) |
 
 A ready-made kind is quicker when it already *is* the demo (the mechanics kind's simple machines and engines, the
 orbit kind's solar system, the rocket and airplane missions). Compose when the setup is the teacher's own, or

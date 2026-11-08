@@ -75,6 +75,17 @@ allow four to five standard errors, so a sound run passes for any seed.
 - `overdamped-regime`, `molecular-regime`, `low-reynolds` — the model is still at this scale (inertia gone, nothing
   smaller than an atom, no wakes).
 
+### Aggregation: a species that binds to itself
+
+The `aggregation` law counts a species binding to itself in the well-mixed volume, by its own seeded Gillespie draw
+along the run. `mode: 'nucleation'` is nucleated growth (Oosawa): `nucleus` monomers seed a filament at
+`nucleate`·[M]^n, and each filament grows at `grow`·[M] (and may lose one at `shrink`), so the share aggregated follows
+an S-curve, its lag shorter the richer the monomer. `mode: 'coalescence'` merges any two clusters at `kernel`
+(Smoluchowski's constant kernel). The readout gives the share aggregated over time, the lag (a tenth aggregated) and
+half time, and the sizes at the end; the page shows the share as a bar. Gates: `mass-conserved` (nucleation) and
+`closed-form:smoluchowski` (coalescence, within its statistics). The spheres stay single on the page: the aggregation is
+counted, not placed, and the panel says so. No reaction may use the same species.
+
 ## The dress (the interactive page)
 
 - `species` — `{ <id>: { color: '#rrggbb', label: 'text' } }`; the label is what the readout calls it.
@@ -160,5 +171,13 @@ A reaction by mass action: `from` (one or two species) becomes `to` (one to thre
 - Takes `from` ([species ids]; required), `to` ([species ids]; required), `rate` (per second (one reactant) or per molar per second (two), e.g. '2 /s', '1e6 /M/s'; required), `reverse` (per second (one reactant) or per molar per second (two), e.g. '2 /s', '1e6 /M/s'; optional).
 - Leaves out: The volume is well mixed: a reaction's odds depend on how many molecules there are, not on where they are (the well-mixed gate checks it).
 - Smallest example: `{"box":{"size":["1 µm","1 µm","1 µm"]},"species":[{"id":"A","radius":"2 nm","count":120},{"id":"B","radius":"2 nm","count":0}],"laws":[{"law":"brownian"},{"law":"reaction","from":["A"],"to":["B"],"rate":"2 /s","reverse":"1 /s"}],"duration":"3 s"}`
+
+### `aggregation`
+
+A species that binds to itself, counted: `mode: 'nucleation'` (Oosawa's nucleated growth: `nucleus` monomers seed a filament at `nucleate`·[M]^n, in M^(1−n)/s; it grows at `grow`·[M], /M/s, and may lose one at `shrink`, /s), or `mode: 'coalescence'` (any two clusters merge at `kernel`, /M/s, Smoluchowski's constant kernel). Drawn by Gillespie's algorithm on the counts; the readout gives the share aggregated over time and the sizes at the end.
+
+- Takes `of` (a species id; required), `mode` ('nucleation' or 'coalescence'; default nucleation), `nucleus` (monomers in a nucleus, 2 to 12; default 2), `nucleate` (a number in M^(1−n)/s; nucleation), `grow` (/M/s; nucleation), `shrink` (/s; nucleation, optional), `kernel` (/M/s; coalescence).
+- Leaves out: The volume is well mixed, and the aggregation is counted, not drawn (the spheres show where the monomer starts); aggregates do not move apart or break, and no other law reacts with the species.
+- Smallest example: `{"box":{"size":["1 µm","1 µm","1 µm"]},"represents":5,"species":[{"id":"monomer","radius":"2 nm","count":120}],"laws":[{"law":"brownian"},{"law":"aggregation","of":"monomer","nucleus":2,"nucleate":20000,"grow":"2e7 /M/s"}],"duration":"3 s"}`
 
 <!-- laws:end -->
