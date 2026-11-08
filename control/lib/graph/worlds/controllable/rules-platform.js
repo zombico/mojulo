@@ -345,7 +345,7 @@ export function buildRulesPlatform(E) {
     const ctx = {
       r, t, space, ascend, descend, eye, speed, boostSpeed, strafe, hasGauge, probe, f, rt, ctl, sideIn, lookMode,
       charging, jumped, dodging: false, tackling: false, kneeling: false, swinging: false, boosting: false,
-      activeCfg: null, strideLen: 0,
+      activeCfg: null, strideLen: 0, moveH: wmH,   // (the stick's world heading under world or camera movement, else null)
     };
     runPhase('maneuver', e, input, dt, world, ctx);   // dodge + tackle (ms pack)
     const dodging = ctx.dodging, tackling = ctx.tackling;

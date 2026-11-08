@@ -419,6 +419,81 @@ export function buildCombatMelee(E) {
     if (e.tackleT != null && !owns.reaction && !owns.drop && !owns.clash && !owns.cine) stepTackle(e, dt, state);
   }, 30);
 
+  // ── THE MOVESET (opt-in `r.moveset`, gameworld/combos.js lowerCombos: a combo manifest's moves and its tree of
+  // beats) ── each press is a beat (L the fire press, H the heavy, S the special), BUFFERED: taken at once when the
+  // body is free, else held `buffer` seconds and taken at the live move's CANCEL share, where the tree's next move on
+  // that beat chains in (a fresh swing on its own clip, length, travel and blow). A press up to `late` after a move has
+  // ended still chains; one between `pause[0]` and `pause[1]` after it takes the tree's pause branch; any other press
+  // opens a string from the root. A press the tree has no move for is dropped, and every press says what became of it
+  // (`e.mvPress`: { seq, beat, verdict, why }, a page's HUD reads it). A press during a move that chains on its beat is
+  // held to the cancel however early; only a press with nothing to chain into ages out of the buffer. A dodge cancels
+  // the live move. Absent: the
+  // strike above, byte for byte.
+  function mvFacing(e, world, ctx) {
+    const L = world && world.lock, tg = L && L.pilot === e.id && L.target != null && world.byId ? world.byId[L.target] : null;
+    if (tg && tg.transform) return Math.atan2(tg.transform.pos[1] - e.transform.pos[1], tg.transform.pos[0] - e.transform.pos[0]);
+    return ctx.moveH != null ? ctx.moveH : null;
+  }
+  function stepMoveset(e, input, dt, world, ctx, boosting0) {
+    const r = e.rule, M = r.moveset, t = e.transform, now = world && world.time != null ? world.time : 0;
+    let boosting = boosting0;
+    const S = e.mv || (e.mv = { node: null, move: null, buf: null, endT: -1e9, k: 0, seq: 0 });
+    const say = (beat, verdict, why) => { S.seq++; e.mvPress = { seq: S.seq, beat, verdict, why, t: now }; };
+    const edge = (k, prev) => { const on = !!input[k], was = !!e[prev]; e[prev] = on; return on && !was; };
+    const lE = edge('fire', 'strikePrev'), hE = edge('heavy', 'heavyPrev'), sE = edge('special', 'specialPrev');
+    const beat = hE ? 'H' : lE ? 'L' : sE ? 'S' : null;
+    if (beat) {
+      if (S.buf) say(S.buf.beat, 'dropped', 'another press came first');
+      S.buf = { beat, t: now };
+    }
+    // a dodge cancels the live move
+    if (ctx.dodging && e.swingT != null) { e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
+    // the live move: its time, its end
+    if (e.swingT != null && S.move) {
+      e.swingT += dt / M.moves[S.move].dur;
+      if (e.swingT >= 1 || (!ctx.space && !e.grounded && (e.hoverGrace || 0) <= 0)) { e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
+    }
+    // the buffered beat, taken where the tree and the timing allow
+    if (S.buf && !ctx.charging && !ctx.kneeling && !ctx.dodging && (e.grounded || ctx.space)) {
+      const b = S.buf.beat, N = S.node;
+      let next = null, how = null, wait = false;
+      if (e.swingT != null) {
+        const cur = M.moves[S.move];
+        if (N && N.next && N.next[b]) { if (e.swingT >= cur.cancel) { next = N.next[b]; how = 'chained at the cancel'; } else wait = true; }
+        else wait = true;   // (no move on this beat from here: taken as an opener once the move has ended)
+      } else {
+        const since = now - S.endT;
+        if (N && N.pause && N.pause[b] && since >= M.pause[0] && since <= M.pause[1]) { next = N.pause[b]; how = 'chained on the pause'; }
+        else if (N && N.next && N.next[b] && since <= M.late + 1e-9) { next = N.next[b]; how = 'chained after the move'; }
+        else if (M.tree[b]) { next = M.tree[b]; how = 'an opener'; }
+        else { say(b, 'dropped', `no move on ${b}`); S.buf = null; }
+      }
+      if (next) {
+        const mv = M.moves[next.move];
+        if (boosting) { e.boostCut = true; boosting = false; }   // a strike out of the sprint cuts it
+        const face = mvFacing(e, world, ctx);
+        if (face != null) t.heading = face;
+        const spec = meleeSwingSpec(r, r, mv.swing, false);
+        e.swingT = 0; e.swingClip = spec.clip;
+        e.strikeParams = { ...spec.params, damage: (r.strikeDamage ?? 0) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0 };
+        breakGuards(e);
+        e.swingCount = (e.swingCount || 0) + 1; e.struckThisSwing = {}; e.lastSwingDir = mv.swing;
+        const fw = fwdXY(t.heading), P = e.strikeParams;
+        e.mvTravel = mv.travel ? { dir: [fw[0], fw[1]], m: mv.travel.m, to: mv.travel.kind === 'step' ? Math.max(0.05, P.from) : Math.max(0.05, P.to), done: 0 } : null;
+        S.k = how === 'an opener' ? 1 : S.k + 1;
+        S.node = next; S.move = next.move;
+        say(b, 'taken', `${how}: ${next.move}${next.ends ? ` (ends ${next.ends.join(', ')})` : ''}`);
+        S.buf = null;
+      } else if (wait) { /* held in the buffer */ }
+    }
+    // a press waiting on the live move's cancel, where the tree chains on its beat, is held until it; any other ages out
+    // of the buffer (a press too early with nothing to chain into)
+    const chains = S.buf && e.swingT != null && S.node && S.node.next && S.node.next[S.buf.beat];
+    if (S.buf && !chains && now - S.buf.t > M.buffer + 1e-9) { say(S.buf.beat, 'dropped', 'too early: the move has nothing on that beat to chain into'); S.buf = null; }
+    e.mvMove = S.move; e.mvRole = S.move ? M.moves[S.move].role : null; e.mvHit = S.k; e.mvCombos = S.node ? S.node.combos : null;
+    return { swinging: e.swingT != null, boosting };
+  }
+
   // ── S4: the platform ACT phase — melee strike + throw ride the maneuver seam (the blocks that
   // were woven inline in the platform rule; ctx carries the frame locals they shared).
   E.registerPlatformManeuver('act', 'strike', (e, input, dt, world, ctx) => {
@@ -440,7 +515,10 @@ export function buildCombatMelee(E) {
     // `strike:'melee'`), so the click routes to whatever is currently in the fist.
     const strikeOn = activeCfg ? activeCfg.strike === 'melee' || activeCfg.strike === true
       : r.strike === 'melee' || r.strike === true;
-    if (strikeOn && !tackling) {
+    if (strikeOn && !tackling && r.moveset && !activeCfg) {
+      const out = stepMoveset(e, input, dt, world, ctx, boosting);
+      swinging = out.swinging; boosting = out.boosting;
+    } else if (strikeOn && !tackling) {
       const fireEdge = !!input.fire && !e.strikePrev;
       e.strikePrev = !!input.fire;
       // COMBO 1 + MELEE ENFORCEMENT (2026-07-28, supersedes the unbounded 2026-07-27 strings;
@@ -583,6 +661,26 @@ export function buildCombatMelee(E) {
     // step/downswing (commits by ~38% phase) then HOLDS (dprog 0), so the suit ENDS the swing
     // advanced (not a lunge-and-return). Incremental delta so world.colliders eject it like any
     // other horizontal write (the block below), and the ground snap keeps the plant on the floor.
+    // a moveset's travel (stepMoveset): a step into the blow, eased over the wind-up, or a lunge carried through it;
+    // the same incremental write, so colliders eject it and the ground keeps the plant
+    // (it closes on a body ahead and stops at it, the two bodies' radii and a hand apart: a lunge never runs through
+    // what it strikes)
+    if (swinging && e.mvTravel) {
+      const T = e.mvTravel, u = Math.min(1, (e.swingT || 0) / T.to), prog = T.m * u * u * (3 - 2 * u);
+      let dprog = prog - T.done;
+      if (dprog > 0 && world && world.byId) {
+        const R = r.collideRadius ?? 0.3;
+        for (const id in world.byId) {
+          const o = world.byId[id];
+          if (o === e || o.downed || o.gone || !(o.body && o.body.hittable) || (e.team && o.team === e.team)) continue;
+          const vx = o.transform.pos[0] - t.pos[0], vy = o.transform.pos[1] - t.pos[1], ahead = vx * T.dir[0] + vy * T.dir[1];
+          const side = Math.abs(vx * T.dir[1] - vy * T.dir[0]), room = R + latR(o) + 0.1;
+          if (ahead > 0 && side < room) dprog = Math.min(dprog, Math.max(0, ahead - room));
+        }
+      }
+      if (dprog > 0) { t.pos[0] += T.dir[0] * dprog; t.pos[1] += T.dir[1] * dprog; }
+      T.done = prog;
+    }
     if (swinging && e.cleaveStepDir) {
       const prog = (r.cleaveStep || 0) * Math.min(1, (e.swingT || 0) / 0.38);
       const dprog = prog - (e.cleaveStepProg || 0);

@@ -256,7 +256,7 @@ export function buildCombatHit(E) {
   // a double-tap of F (identical clip selection + gauge cost / overheat). Extracted so a STAGGER can be
   // dodge-cancelled (stepReaction) with the exact same maneuver. Direction reads the held WASD at the
   // commit frame; `dodge:'twirl'` bodies roll the single grounded twirl.
-  function beginDodge(e, input, r) {
+  function beginDodge(e, input, r, moveH = null) {
     const hasGauge = r.boostMax > 0;
     const dodgeCost = r.dodgeBoostCost ?? 2;
     const dodgeOverheats = hasGauge && dodgeCost > 0 && (r.dodgeOverheat ?? true);
@@ -269,6 +269,13 @@ export function buildCombatHit(E) {
     e.dodgeCount = (e.dodgeCount || 0) + 1;
     if (dodgeOverheats) { e.boost = 0; e.boostLock = true; }
     else if (hasGauge && dodgeCost > 0) e.boost = Math.max(0, e.boost - dodgeCost);
+    // WORLD OR CAMERA MOVEMENT (`moveH`, the stick's heading on the ground): the stick is where the body goes, never a
+    // side of its facing (a body that runs toward the camera faces it), so the roll goes along the stick, the body
+    // turned to face it: a forward roll wherever the stick points
+    if (moveH != null && r.dodge !== 'twirl') {
+      t.heading = moveH; e.dodgeClip = 'dodge_roll'; e.dodgeKind = 'fwd'; e.dodgeSign = 1; e.dodgeDir = [Math.cos(moveH), Math.sin(moveH)];
+      return;
+    }
     if (r.dodge === 'twirl') { e.dodgeClip = 'dodge_twirl'; e.dodgeKind = 'spin'; e.dodgeSign = 1; }   // bulky/hover suits: one grounded twirl, any direction
     else if (Math.abs(sdH) > Math.abs(fwdH) && Math.abs(sdH) > 0.3) { e.dodgeClip = 'dodge_sideroll'; e.dodgeKind = 'side'; e.dodgeSign = sdH < 0 ? -1 : 1; }
     else if (fwdH < -0.3) { e.dodgeClip = 'dodge_backflip'; e.dodgeKind = 'back'; e.dodgeSign = 1; }

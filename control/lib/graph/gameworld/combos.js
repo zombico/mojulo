@@ -1,0 +1,143 @@
+/**
+ * THE COMBO MANIFEST — an action game's attacks and the strings that chain them, composed in the practice room
+ * (scripts/spikes/practice-room/) and handed to the game's director: every combo the game has, each a list of beats.
+ *
+ * A MOVE is an attack primitive:
+ *   swing    the runtime's swing it plays (worlds/controllable/combat-melee.js `swing_<dir>`, a held weapon's: neutral the
+ *            hero's own cut, forward the thrust, back the two-handed cleave, left and right the rising cuts)
+ *   role     opener (starts a string), filler (carries it on), finisher (ends it, the hardest blow), launcher (throws the
+ *            foe up)
+ *   frames   its length at 60 fps, wind-up to rest; its blow lands where the hero's swing was baked to land (the rule's
+ *            contact window, a share of the length)
+ *   cancel   the frame from which the next beat chains into the next move (absent: the move plays out; a finisher's)
+ *   travel   how it covers ground: none (it stays in place), step (a step into it before the blow lands), lunge (the
+ *            swing carries the body through the blow); `m` metres
+ *   damage   × the held weapon's; impact (the blow's shove: its hitstop grows with it), topple (knocks down), launch
+ *
+ * A COMBO is { id, name, beats, moves }: `beats` the presses, L (light), H (heavy), S (special) and `.` (a pause:
+ * the next press held back until the last move has ended and a breath has passed), one move a press. Combos share their
+ * openings: L L L and L L H are one tree that forks at the third beat; `.` forks a string on its timing.
+ *
+ * THE TIMING, with forgiveness (frames): `buffer` a press early is remembered this long and taken at the cancel; `late`
+ * a press after a move has ended still chains this long; a pause beat is a press between `pause[0]` and `pause[1]` after
+ * the move ended. Held and mashed beats are named for later and refused today.
+ *
+ *   BASIC_COMBOS              the starter: L L L (two cuts and the cleave), H (the thrust)
+ *   readCombos(C)             → C, or throws what is wrong in words
+ *   lowerCombos(C)            → the platform rule's `moveset` (seconds and shares; a tree a beat a level)
+ *   comboList(C)              → [{ id, name, beats, moves: [{ id, role, swing, travel }] }] the director's list
+ * Pure.
+ */
+export const ROLES = Object.freeze(['opener', 'filler', 'finisher', 'launcher']);
+export const TRAVEL = Object.freeze(['none', 'step', 'lunge']);
+export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right']);
+export const BEATS = Object.freeze(['L', 'H', 'S', '.']);
+/** beats named and not yet played: a held press (a charge) and a mashed one */
+export const LATER_BEATS = Object.freeze({ 'L+': 'a held light', 'H+': 'a held heavy', 'L*': 'a mashed light', 'H*': 'a mashed heavy' });
+const FPS = 60;
+const r4 = (v) => Math.round(v * 1e4) / 1e4;
+
+export const BASIC_COMBOS = Object.freeze({
+  timing: { buffer: 12, late: 14, pause: [16, 50] },
+  moves: {
+    'cut-1': { swing: 'neutral', role: 'opener', frames: 24, cancel: 15, travel: { kind: 'step', m: 0.25 }, damage: 1 },
+    'cut-2': { swing: 'left', role: 'filler', frames: 24, cancel: 15, travel: { kind: 'step', m: 0.25 }, damage: 1 },
+    cleave: { swing: 'back', role: 'finisher', frames: 44, travel: { kind: 'lunge', m: 0.8 }, damage: 2, impact: 3, topple: true },
+    thrust: { swing: 'forward', role: 'opener', frames: 32, travel: { kind: 'lunge', m: 1.2 }, damage: 1.5, impact: 1.5 },
+  },
+  combos: [
+    { id: 'three-cuts', name: 'Three cuts', beats: ['L', 'L', 'L'], moves: ['cut-1', 'cut-2', 'cleave'] },
+    { id: 'thrust', name: 'Thrust', beats: ['H'], moves: ['thrust'] },
+  ],
+});
+
+const no = (m) => { throw new Error(`combos: ${m}`); };
+const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+const num = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
+
+export function readCombos(C) {
+  if (!isObj(C)) no('a combo manifest is { timing?, moves, combos }');
+  for (const k of Object.keys(C)) if (!['timing', 'moves', 'combos'].includes(k)) no(`'${k}' is not part of a combo manifest (timing, moves, combos)`);
+  const T = C.timing ?? {};
+  if (!isObj(T)) no('timing is { buffer, late, pause: [from, to] } in frames');
+  if (T.buffer !== undefined && !num(T.buffer, 0, 60)) no('timing.buffer is the frames a press is remembered early, 0 to 60');
+  if (T.late !== undefined && !num(T.late, 0, 60)) no('timing.late is the frames a press after a move still chains, 0 to 60');
+  if (T.pause !== undefined && !(Array.isArray(T.pause) && T.pause.length === 2 && num(T.pause[0], 1, 120) && num(T.pause[1], T.pause[0], 240))) no('timing.pause is [from, to] frames after a move has ended');
+  if (!isObj(C.moves) || !Object.keys(C.moves).length) no('moves is { <id>: a move }, one at least');
+  for (const [id, m] of Object.entries(C.moves)) {
+    const at = `moves.${id}`;
+    if (!isObj(m)) no(`${at} is { swing, role, frames, cancel?, travel?, damage?, impact?, topple?, launch? }`);
+    for (const k of Object.keys(m)) if (!['swing', 'role', 'frames', 'cancel', 'travel', 'damage', 'impact', 'topple', 'launch'].includes(k)) no(`${at}.${k} is not part of a move`);
+    if (!SWINGS.includes(m.swing)) no(`${at}.swing is the swing it plays: ${SWINGS.join(', ')}`);
+    if (!ROLES.includes(m.role)) no(`${at}.role is ${ROLES.join(', ')}`);
+    if (!num(m.frames, 6, 180)) no(`${at}.frames is its length at 60 fps, 6 to 180`);
+    if (m.cancel !== undefined && !num(m.cancel, 1, m.frames - 1)) no(`${at}.cancel is the frame the next beat chains from, inside its ${m.frames}`);
+    if (m.travel !== undefined) {
+      if (!isObj(m.travel) || !TRAVEL.includes(m.travel.kind)) no(`${at}.travel is { kind: ${TRAVEL.join(' | ')}, m }`);
+      if (m.travel.kind !== 'none' && !num(m.travel.m, 0, 6)) no(`${at}.travel.m is the metres it covers, 0 to 6`);
+    }
+    for (const k of ['damage', 'impact']) if (m[k] !== undefined && !num(m[k], 0, 20)) no(`${at}.${k} is a number 0 to 20`);
+    if (m.launch !== undefined && !num(m.launch, 0, 20)) no(`${at}.launch is the foe's speed up (m/s)`);
+    if (m.topple !== undefined && typeof m.topple !== 'boolean') no(`${at}.topple is true or false`);
+  }
+  if (!Array.isArray(C.combos) || !C.combos.length) no('combos is a list, one at least');
+  const ids = new Set(), paths = new Map();
+  for (const [i, c] of C.combos.entries()) {
+    const at = `combos[${i}]`;
+    if (!isObj(c) || typeof c.id !== 'string' || !c.id) no(`${at} is { id, name?, beats, moves }`);
+    if (ids.has(c.id)) no(`${at}: '${c.id}' is named twice`);
+    ids.add(c.id);
+    if (!Array.isArray(c.beats) || !c.beats.length) no(`${at}.beats is a list of presses (${BEATS.join(' ')})`);
+    for (const b of c.beats) {
+      if (LATER_BEATS[b]) no(`${at}: '${b}' (${LATER_BEATS[b]}) is not played yet`);
+      if (!BEATS.includes(b)) no(`${at}: '${b}' is no beat (${BEATS.join(', ')})`);
+    }
+    if (c.beats[0] === '.' || c.beats[c.beats.length - 1] === '.') no(`${at}: a pause stands between two presses`);
+    if (c.beats.some((b, k) => b === '.' && c.beats[k + 1] === '.')) no(`${at}: one pause between two presses`);
+    const presses = c.beats.filter((b) => b !== '.');
+    if (!Array.isArray(c.moves) || c.moves.length !== presses.length) no(`${at}.moves is one move a press (${presses.length})`);
+    for (const m of c.moves) if (!C.moves[m]) no(`${at}: no move '${m}'`);
+    // (two combos on the same beats are one string: they must play the same moves on their shared beats)
+    let key = '';
+    let p = 0;
+    for (const b of c.beats) {
+      key += b;
+      if (b === '.') continue;
+      const had = paths.get(key);
+      if (had && had.move !== c.moves[p]) no(`${at}: its beats ${key.split('').join(' ')} play '${c.moves[p]}' where '${had.id}' plays '${had.move}'`);
+      if (!had) paths.set(key, { id: c.id, move: c.moves[p] });
+      p++;
+    }
+  }
+  return C;
+}
+
+/** The platform rule's moveset: each move in seconds and shares of its length, the tree of beats, the timing in seconds. */
+export function lowerCombos(C0) {
+  const C = readCombos(C0), T = { ...BASIC_COMBOS.timing, ...(C.timing ?? {}) };
+  const moves = Object.fromEntries(Object.entries(C.moves).map(([id, m]) => [id, {
+    swing: m.swing, role: m.role, dur: r4(m.frames / FPS), cancel: m.cancel != null ? r4(m.cancel / m.frames) : 1,
+    travel: m.travel && m.travel.kind !== 'none' ? { kind: m.travel.kind, m: m.travel.m } : null,
+    damage: m.damage ?? 1, ...(m.impact != null ? { impact: m.impact } : {}), ...(m.topple ? { topple: true } : {}), ...(m.launch ? { launch: m.launch } : {}),
+  }]));
+  const tree = {};
+  for (const c of C.combos) {
+    let level = tree, node = null, k = 0, pause = false;
+    for (const b of c.beats) {
+      if (b === '.') { pause = true; continue; }
+      const into = node ? (pause ? (node.pause ??= {}) : (node.next ??= {})) : level;
+      node = into[b] ??= { move: c.moves[k], depth: k + 1, combos: [] };
+      node.combos.push(c.id);
+      pause = false; k++;
+    }
+    if (node) node.ends = [...(node.ends ?? []), c.id];
+  }
+  return { moves, tree, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)] };
+}
+
+/** The director's list: each combo's beats and its moves, read whole. */
+export function comboList(C0) {
+  const C = readCombos(C0);
+  return C.combos.map((c) => ({ id: c.id, name: c.name ?? c.id, beats: c.beats.join(' '),
+    moves: c.moves.map((id) => ({ id, role: C.moves[id].role, swing: C.moves[id].swing, travel: C.moves[id].travel?.kind ?? 'none', frames: C.moves[id].frames })) }));
+}

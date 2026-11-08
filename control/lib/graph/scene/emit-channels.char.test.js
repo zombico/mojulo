@@ -486,6 +486,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-08 (1107-action-rpg: the wall's hold): the 16 fixtures that embed the controllable runtime. The wall
 // (worlds/controllable/wall.js) reads `ground: false` as a leap since the body last stood, not merely a frame off the
 // ground; no fixture's rule takes the wall, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the moveset): the 16 fixtures that embed the controllable runtime. The
+// melee strike gained the moveset (gameworld/combos.js: a combo's beats chained at each move's cancel, its travel), the
+// dodge rolls along the stick under world movement, and the pilot scheme names light, heavy and special in its `melee`
+// context; no fixture's rule takes a moveset or moves on the world's frame, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

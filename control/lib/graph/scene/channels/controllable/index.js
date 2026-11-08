@@ -810,6 +810,8 @@ function __updateGearLines() {
   // a body with FORMS (controllable/forms.js) and a figure baked to be both (transformation/compose.js): the transform
   // press, the clip each form plays, a flying form's attitude. Emitted only when some entity or figure carries forms.
   const hasForms = (entities || []).some((e) => e && e.forms);
+  // a moveset's beats (gameworld/combos.js): the heavy and special presses read, only where a body carries one
+  const moveset = (entities || []).some((e) => e && e.rule && e.rule.moveset);
   // a hero's SQUASH AND STRETCH on its own jumps (rules-platform.js takes: `takes.squash`, a feel card's look): the rig
   // scaled about its feet by the rule's `e.squash`. No rule carries one ⇒ not a byte of it
   const figHasSquash = (entities || []).some((e) => e && e.rule && e.rule.takes && e.rule.takes.squash > 0);
@@ -2457,7 +2459,7 @@ const __mb = (id, e) => __CTL.is(__BIND, id, 'mouse', Object.keys(__DEV.mouse.bu
 let __usePad = false;   // the device the player last used (a prompt names its key): a key press says keyboard, pad activity the pad
 window.addEventListener('keydown', (e) => { __held[e.code] = true; __usePad = false; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 window.addEventListener('keyup', (e) => { __held[e.code] = false; });
-let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;
+let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;${moveset ? ' let __heavyDown = false, __specialDown = false;' : ''}
 const __canvas = renderer.domElement;
 const __MOUSELOOK = ${!!(camera && (camera.turnMode === 'look' || camera.mouseLook))};   // FPS look camera?
 if (__MOUSELOOK) {
@@ -2468,7 +2470,12 @@ if (__MOUSELOOK) {
   // FIRE = left mouse, but ONLY once the pointer is captured (the first click captures the mouse and
   // does not fire). The weapon subsystem gates ROF / semi-edge / reload, so this is a raw held flag.
   __canvas.addEventListener('mousedown', (e) => { if (__mb('fire', e) && document.pointerLockElement === __canvas) __fireDown = true; });
-  window.addEventListener('mouseup', (e) => { if (__mb('fire', e)) __fireDown = false; });
+  window.addEventListener('mouseup', (e) => { if (__mb('fire', e)) __fireDown = false; });${moveset ? `
+  // A MOVESET's beats (gameworld/combos.js): heavy the right click, special the mouse's forward button, once the pointer
+  // is captured; neither opens the menu nor turns the browser's page (preventDefault on the side buttons)
+  __canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  __canvas.addEventListener('mousedown', (e) => { if (document.pointerLockElement !== __canvas) return; if (__mb('heavy', e)) __heavyDown = true; if (__mb('special', e)) { e.preventDefault(); __specialDown = true; } });
+  window.addEventListener('mouseup', (e) => { if (__mb('heavy', e)) __heavyDown = false; if (__mb('special', e)) { e.preventDefault(); __specialDown = false; } if (e.button === 3 || e.button === 4) e.preventDefault(); });` : ''}
 } else {
   // default: hold-to-look drag (walk / glide / orbit worlds keep the cursor visible).
   __canvas.addEventListener('pointerdown', () => { __drag = true; });
@@ -2625,7 +2632,8 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
   return {
     moveX: mx, moveY: -my,                     // stick up = forward
     lookX: lx, lookY: ly,
-    fire: pb('fire'), boost: pb('boost'),
+    fire: pb('fire'), boost: pb('boost'),${moveset ? `
+    light: pb('light', rb), heavy: pb('heavy', rb), special: pb('special', rb),   // a moveset's beats: the left, top and right faces` : ''}
     // analog trigger VALUES — the vehicle rules (drive/fly) read RT/LT as throttle/brake, the
     // console-driving standard; suits keep the pressed reads above untouched.
     rt: __CTL.value(__BIND, 'fire', 'gamepad', __ga), lt: __CTL.value(__BIND, 'boost', 'gamepad', __ga),
@@ -2761,7 +2769,8 @@ function __readInput() {
     boost: __k('boost') || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
     walk: __k('walk') ? 1 : 0,       // a person's walk, held (platform rule, walkSpeed); a pad walks by the stick's travel
     kneel: __k('kneel') || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
-    fire: __fireDown || (__pad && __pad.fire && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)
+    fire: __fireDown || (__pad && (__pad.fire${moveset ? ' || __pad.light' : ''}) && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)${moveset ? `
+    heavy: __heavyDown || (__pad && __pad.heavy) ? 1 : 0, special: __specialDown || (__pad && __pad.special) ? 1 : 0,   // a moveset's heavy and special beats` : ''}
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)

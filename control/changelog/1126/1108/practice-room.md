@@ -21,3 +21,28 @@
   still until P switches its AI on; R sets it back. A HUD reads the live world: the last move's frame data beside the
   card's, and every press, taken or dropped with its reason. Checked headless: real clicks strike, the foe takes them
   and stands, each dropped click says why. Nobody has played it.
+- **The combo manifest** (`gameworld/combos.js`): an action game's attacks and the strings that chain them. A move is an
+  attack primitive: the swing it plays (the hero's cut, the thrust, the cleave, the rising cuts), its role (opener,
+  filler, finisher, launcher), its length and its cancel in frames, how it covers ground (none: in place; step: a step
+  into it before the blow; lunge: the swing carries the body through it, stopping at the body it strikes), its damage,
+  impact, topple and launch. A combo is its beats, L (light), H (heavy), S (special) and `.` (a pause), one move a
+  press; combos sharing their openings are one tree. The timing forgives: a press with a move to chain into is held to
+  the live move's cancel however early, any other press is remembered a buffer's frames, a press just after a move ends
+  still chains (`late`), a pause beat is a press in its window. Held and mashed beats are named and refused for now.
+  The starter: L L L (two cuts and the cleave, which lunges and topples) and H (the thrust). `readCombos` says what is
+  wrong in words; `lowerCombos` is the platform rule's `moveset`; `comboList` the director's list.
+- **The moveset in the runtime** (`worlds/controllable/combat-melee.js`, opt-in `moveset` on a platform rule with a
+  melee strike): each press a beat, each move a swing of its own (its clip, length, travel and blow), chained at the
+  cancel, every press saying what became of it (taken, and how; dropped, and why). Absent, the strike as it was.
+- **L, H and S.** The pilot scheme's `melee` context: light on the left click and the pad's left face, heavy on the
+  right click and the top face, special on the mouse's forward button and the right face; the bottom face jumps. Read
+  only on a page where a body carries a moveset.
+- **The room plays combos.** All combos unlocked; the HUD lists them, lights the beats of the string being played,
+  shows the last move's frames, travel and hits, and logs the runtime's verdict on every press. The room writes the
+  manifest it played beside the page (`combos.json`), the list a game's director takes; `--combos <file>` plays your own.
+  Checked headless with real clicks: L L L plays the cut, the rising cut and the cleave, each chained at its cancel,
+  three hits.
+- **Fixed: the dodge rolled the wrong way under the camera's movement.** A hero that runs where the stick points (the
+  orbit camera's `move: 'camera'`) faces its run, so S held turned it toward the camera and the dodge read S as a
+  backflip, away from the camera. Under world or camera movement the roll goes along the stick, the body turned to face
+  it (`beginDodge`'s `moveH`).

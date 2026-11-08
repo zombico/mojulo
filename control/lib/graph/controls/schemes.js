@@ -37,7 +37,8 @@ const PILOT = {
   id: 'pilot',
   label: '3D pilot: walk, platform, suit, glide, drive, fly',
   // `reach`: standing somewhere usable (a cue's use place); an overlay on the others, where interact takes its controls
-  contexts: ['ground', 'space', 'glide', 'vehicle', 'spectate', 'reach'],
+  // `melee`: a hero with a moveset (gameworld/combos.js): its light, heavy and special beats, the action game's layout
+  contexts: ['ground', 'space', 'glide', 'vehicle', 'spectate', 'reach', 'melee'],
   actions: [
     // a pad's left stick X turns in a tank-turn world and strafes under a mouselook camera (the runtime picks);
     // in VR the left thumbstick walks and strafes and the right one turns, the comfort convention
@@ -64,6 +65,11 @@ const PILOT = {
     { id: 'walk', label: 'walk', group: 'move', hold: true, in: ['ground'], bind: { keyboard: ['KeyZ'] } },
     { id: 'tackle', label: 'tackle', group: 'combat', in: ['ground'], bind: { keyboard: ['Shift'], gamepad: ['north'], xr: ['left.primary'] } },
     { id: 'fire', label: 'fire', group: 'combat', hold: true, in: ARMED, bind: { mouse: ['left'], gamepad: ['rt'], xr: ['right.trigger'], sim: ['button1'] } },
+    // an action game's three attacks (a hero with a moveset): light the left click and the pad's left face, heavy the
+    // right click and the top face, special the mouse's forward button and the right face; the bottom face jumps
+    { id: 'light', label: 'light attack', group: 'combat', in: ['melee'], bind: { mouse: ['left'], gamepad: ['west'] } },
+    { id: 'heavy', label: 'heavy attack', group: 'combat', in: ['melee'], bind: { mouse: ['right'], gamepad: ['north'] } },
+    { id: 'special', label: 'special', group: 'combat', in: ['melee'], bind: { mouse: ['forward'], gamepad: ['east'] } },
     { id: 'cycleWeapon', label: 'next weapon', group: 'combat', in: ARMED, bind: { keyboard: ['KeyR'], gamepad: ['rb'], xr: ['right.squeeze'] } },
     { id: 'weapon1', label: 'weapon 1', group: 'combat', in: ARMED, bind: { keyboard: ['Digit1'] } },
     { id: 'weapon2', label: 'weapon 2', group: 'combat', in: ARMED, bind: { keyboard: ['Digit2'] } },

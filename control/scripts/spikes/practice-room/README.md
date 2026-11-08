@@ -9,7 +9,7 @@ what is tuned here is what every level plays. A spike: nothing registers a kind,
 export MOJULO_DATA_DIR=… MOJULO_OUTCOMES_DIR=…
 node scripts/spikes/practice-room/measure.mjs                    # the sword templates measured headless (machine gate)
 node scripts/spikes/practice-room/measure.mjs --page <level.html> --feel '<the game feel>'   # a built game's own pilot
-node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--cdn]  # the room page
+node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--combos my.json] [--cdn]  # the room page
 ```
 
 ## The measures (`measure.mjs`)
@@ -43,3 +43,28 @@ the stylish game, the adventure and the knight swing alike. The next press is ta
 string is the opener and one follow-up in another direction, then 2.5 s locked. The hitstop is carried; the lunge, the
 card's hitstun and the guard and parry are lost; the dodge is invincible all through. Each is the room's next fix, one
 a step, each moving its number.
+
+## Combos (`lib/graph/gameworld/combos.js`)
+
+The room plays a combo manifest, every combo unlocked, and writes it beside the page (`combos.json`): the list a game's
+director takes, the progression laid over it later. Inputs: L the left click (the pad's left face), H the right click
+(the top face), S the mouse's forward button (the right face).
+
+```json
+{
+  "timing": { "buffer": 12, "late": 14, "pause": [16, 50] },
+  "moves": {
+    "cut-1": { "swing": "neutral", "role": "opener", "frames": 24, "cancel": 15, "travel": { "kind": "step", "m": 0.25 } },
+    "cut-2": { "swing": "left", "role": "filler", "frames": 24, "cancel": 15, "travel": { "kind": "step", "m": 0.25 } },
+    "cleave": { "swing": "back", "role": "finisher", "frames": 44, "travel": { "kind": "lunge", "m": 0.8 }, "damage": 2, "impact": 3, "topple": true }
+  },
+  "combos": [{ "id": "three-cuts", "name": "Three cuts", "beats": ["L", "L", "L"], "moves": ["cut-1", "cut-2", "cleave"] }]
+}
+```
+
+A move: `swing` (neutral, forward, back, left, right: the held weapon's swings), `role` (opener, filler, finisher,
+launcher), `frames` and `cancel` (60 fps), `travel` (none, step, lunge, and its metres), `damage`, `impact`, `topple`,
+`launch`. A combo: its `beats` (L, H, S, and `.` a pause) and one move a press. Combos that share an opening are one
+string that forks. A press with a move to chain into is held to the live move's cancel; any other press is remembered
+`buffer` frames; a press up to `late` frames after a move still chains; a pause beat is a press `pause` frames after.
+Held (`L+`) and mashed (`L*`) beats are named and not played yet.
