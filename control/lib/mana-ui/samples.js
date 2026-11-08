@@ -30,7 +30,7 @@ export const SAMPLE_STATE = Object.freeze({
   map: [{ x: 0.5, y: 0.5, kind: 'self' }, { x: 0.3, y: 0.4, kind: 'foe' }, { x: 0.7, y: 0.6, kind: 'foe' }, { x: 0.8, y: 0.2, kind: 'goal', label: 'Gate' }, { x: 0.2, y: 0.8, kind: 'item' }],
   bearings: [{ bearing: 60, kind: 'goal' }, { bearing: 350, kind: 'foe' }],
   objective: { title: 'Reach the gatehouse', steps: [{ text: 'Find the crest key', done: true }, { text: 'Open the east gate', done: false }] },
-  feed: [{ text: 'Picked up 3 arrows' }, { text: 'Ayla reached level 7' }, { text: 'Warden spotted you' }],
+  feed: [{ text: 'Picked up 3 arrows' }, { text: 'Ayla reached level 7' }, { text: 'Picked up a tonic' }, { text: 'Picked up a tonic' }, { text: 'Warden spotted you' }],
   prompt: { show: true, action: 'E', label: 'Open the gate' },
   moments: [{ id: 'm1', text: 'Phase 2', sub: 'The Hollow King rises', weight: 'major' }],
   modes: [
@@ -128,6 +128,7 @@ export const SAMPLE_STATE = Object.freeze({
   lowerThird: { show: true, name: 'Isa', role: 'Ranger · 12 points' },
   cutscene: { show: true, who: 'Keeper', line: 'The gate has not opened in a hundred years.', skip: 'Hold to skip' },
   questToasts: [{ id: 'q1', text: 'Quest begun: The East Gate', weight: 'major' }, { id: 'q2', text: 'Step done: Find the crest key' }],
+  achievements: [{ id: 'a1', text: 'First Blood', sub: 'Achievement unlocked', icon: 'Sword' }, { id: 'a2', text: 'Untouchable', sub: 'Rare achievement', icon: 'Shield', tier: 'rare', weight: 'major' }],
   labels: [{ x: 0.3, y: 0.58, text: 'Crest Key' }, { x: 0.72, y: 0.5, text: 'Keeper' }, { x: 0.5, y: 0.34, text: 'East Gate' }],
   stealth: { state: 'searching', level: 62, max: 100 },
   touch: ['A', 'B', 'X', 'Y'],

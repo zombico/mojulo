@@ -28,6 +28,15 @@ describe('the guide as a mana-ui theme', () => {
     expect(T.ornaments).toEqual([]);
     expect(readTheme(manaThemeOfGuide(guide({ register: 'modern' }))).corner).toBe('round');
   });
+  it('the game\'s juice register: an anime game\'s menus snap, lean and slam between screens; a western one\'s wipe', () => {
+    const g = guide({ register: 'modern' }), plain = readTheme(manaThemeOfGuide(g));
+    expect([plain.slant, plain.transition]).toEqual(['none', 'none']);
+    const anime = readTheme(manaThemeOfGuide(g, { juice: 'anime' })), western = readTheme(manaThemeOfGuide(g, { juice: 'western' }));
+    expect([anime.slant, anime.transition]).toEqual(['light', 'slam']);
+    if (plain.motion === 'ease') expect(anime.motion).toBe('snap');
+    expect([western.transition, western.motion]).toEqual(['wipe', plain.motion]);
+    expect(() => manaThemeOfGuide(g, { juice: 'manga' })).toThrow(/juice register/);
+  });
   it('the register\'s sound dial says which of the UI\'s sounds a game hears', () => {
     const loud = guide({ register: 'console' }), calm = guide({ register: 'modern' });
     expect(readTheme(manaThemeOfGuide(loud)).cues).toBe(loud.dials.sound === 'cues' ? 'full' : 'silent');

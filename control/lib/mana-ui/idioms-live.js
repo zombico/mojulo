@@ -181,11 +181,18 @@ export const LIVE_IDIOMS = {
     example: { state: { bind: 'stealth.state' }, level: { bind: 'stealth.level' }, max: { bind: 'stealth.max' } },
   },
   'quest-toasts': {
-    kind: 'hud', about: 'a quest begun, a step done, a quest ended: passing words, one at a time by weight (a quest ended outweighs a step), sliding in (top right)',
+    kind: 'hud', about: 'a quest begun, a step done, a quest ended: passing words, one at a time by weight (a quest ended outweighs a step), sliding in (top right); a row\'s tier: rare holds longer, with its own sound',
     reads: 'toasts: [{ id, text, sub?, weight? }] (the game appends; host.now its clock)', emits: '—',
     params: ['toasts'],
     node: region('top-right', [{ use: 'moments', props: { rows: P('toasts'), as: 'toast', hold: 2.5, read: 1 } }]),
     example: { toasts: { bind: 'questToasts' } },
+  },
+  'achievement-toast': {
+    kind: 'hud', about: 'an achievement unlocked: its icon, its name and its line, sliding in one at a time (bottom right); a rare one held longer, with its own sound and a sheen',
+    reads: 'unlocks: [{ id, text, sub?, icon?, tier?: standard | rare, weight? }] (the game appends; host.now its clock)', emits: '—',
+    params: ['unlocks'],
+    node: region('bottom-right', [{ use: 'moments', props: { rows: P('unlocks'), as: 'toast', hold: 3.5, read: 1.5 } }]),
+    example: { unlocks: { bind: 'achievements' } },
   },
   'phone-buttons': {
     kind: 'hud', about: 'the buttons a touch screen needs where a pad has keys: pause and the map, tapped (top right)',

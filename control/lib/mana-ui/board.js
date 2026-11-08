@@ -30,7 +30,7 @@ export const BOARD_HUDS = Object.freeze({
   'fighting HUD': ['versus-bars', 'super-meters', 'combo-counter'],
   'racing HUD': ['race-standing', 'speedometer', 'minimap-corner', 'offscreen-markers'],
   'shooter HUD': ['crosshair', 'damage-direction', 'offscreen-markers', 'lock-on', 'ammo-counter', 'event-feed', 'score-timer'],
-  'action RPG HUD': ['vitals', 'ability-bar', 'enemy-plates', 'damage-numbers', 'quest-toasts', 'world-labels'],
+  'action RPG HUD': ['vitals', 'ability-bar', 'enemy-plates', 'damage-numbers', 'quest-toasts', 'achievement-toast', 'world-labels'],
   'survival HUD': ['vitals', 'hotbar', 'world-labels', 'interact-prompt'],
   'strategy HUD': ['resource-bar', 'unit-card', 'combat-forecast', 'minimap-corner'],
   'tower defence HUD': ['wave-status', 'world-labels', 'event-feed'],
@@ -103,6 +103,8 @@ FRAMES.forEach((F, i) => {
     read: (p) => manaUi.readPath(S, p),
     // every sound the UI makes is logged too (♪), so the board is heard as well as seen
     cues: 'full',
+    // the page's clock, so a moment passes, a number counts and a results board can be skipped
+    now: () => performance.now() / 1000, countUp: 0.8,
     act: (e, from) => {
       if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = S; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
       log.push((from.seat ? 'P' + (from.seat + 1) + ' ' : '') + (typeof e.sound === 'string' ? '\u266a ' + e.sound : JSON.stringify(e))); out.textContent = log.slice(-3).join('\\n');
@@ -135,6 +137,9 @@ window.addEventListener('keydown', (ev) => {
 // each frame a 1280×720 screen, scaled to its box
 const fit = () => document.querySelectorAll('.mana-stage').forEach((st) => { st.style.transform = 'scale(' + st.parentNode.clientWidth / st.offsetWidth + ')'; });
 fit(); window.addEventListener('resize', fit);
+// every frame on the clock: a moment passes, a number counts (a frame that reads nothing new draws nothing)
+const frame = () => { runs.forEach((r) => { if (r.rt.tick()) r.m.paint(); }); requestAnimationFrame(frame); };
+requestAnimationFrame(frame);
 // the host's pads drive the live frame only
 if (HOST) { const loop = () => { if (live !== null) runs[live].h.poll(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
 window.__manaBoard = runs.map((r) => r.rt);

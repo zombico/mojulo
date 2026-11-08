@@ -57,6 +57,10 @@ export const GREYBOX_VARS = Object.freeze({
   halo: HALOS.outline, 'sub-plate': '.82',
   // the focus: the ▶ (a shape, never a colour alone) and the room it keeps at an item's left (mark 0: none)
   cursor: '"\\25B6"', mark: '1',
+  // the lean of tabs, bars, banners, keys and buttons (theme.js SLANTS); the rule an inner part is drawn with
+  slant: '0deg', 'rule-w': '1px',
+  // a screen giving way to the next: the cover's animation (none: the screen fades) and its timing (theme.js TRANSITIONS)
+  tx: 'none', 'tx-ease': 'ease-in-out',
   // how things move (theme.js MOTIONS): the greybox fades and travels nowhere
   dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0', i: '0',
   // what a change flashes and whose turn is alight: the accent unless a rule says otherwise
@@ -121,13 +125,20 @@ export function manaCss(scope = '.mana-root') {
     // the legend bar: what the buttons do here, pinned to the foot of the safe frame, right-aligned (a console's prompt bar)
     `${s} .mana-screen>.mana-legend{position:absolute;right:${safe('right', SX)};bottom:${safe('bottom', SY)};z-index:2;justify-content:flex-end;max-width:calc(100% - 2 * ${SX})}`,
     `${s} .mana-screen:has(>.mana-legend):not([data-place=sheet]){padding-bottom:calc(${safe('bottom', SY)} + ${u(60)})}`,
+    // the lean: tabs, bars, banners, keys and buttons skew (never a window: what a screen holds stays square)
+    `${s} :is(.mana-tablabel,.mana-banner,.mana-key,.mana-button,.mana-track,.mana-badge){transform:skewX(${v('slant')})}`,
+    `${s} .mana-bar[data-dir=rtl] .mana-track{transform:scaleX(-1) skewX(${v('slant')})}`,
+    // the cover drawn over the stage as one screen gives way to the next (a new key replays it; out mirrors it)
+    `${s}>.mana-transition{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;background:${v('shade')};animation:${v('tx')} calc(${v('dur')} * 3.5) ${v('tx-ease')} both}`,
+    `${s}>.mana-transition[data-way=out]{scale:-1 1}`,
     // type roles: few levels, big jumps; a heading is the ink, never a grey eyebrow
     `${s} .mana-title{margin:0;font-family:${v('display')};font-size:${t('title')};font-weight:800;letter-spacing:.04em;line-height:1.05;text-transform:${v('case')}}`,
     `${s} .mana-heading{margin:0 0 ${u(12)};font-size:${t('heading')};font-weight:800;letter-spacing:.08em;text-transform:${v('case')};color:${v('ink')}}`,
     `${s} .mana-text[data-role=display]{font-family:${v('display')};font-size:${t('display')};font-weight:900;letter-spacing:.02em;text-transform:${v('case')};line-height:1}`,
     `${s} .mana-text[data-role=title]{font-family:${v('display')};font-size:${t('title')};font-weight:800;line-height:1.05}`,
     `${s} .mana-text[data-role=heading]{font-size:${t('heading')};font-weight:800;letter-spacing:.08em;text-transform:${v('case')}}`,
-    `${s} .mana-text[data-role=label],${s} .mana-label{font-size:${t('label')};color:${v('mid')}}`,
+    // a label is second-level text: the ink at a lower weight, never a grey step (grey is for what cannot be used)
+    `${s} .mana-text[data-role=label],${s} .mana-label{font-size:${t('label')};font-weight:500;color:${v('ink')}}`,
     `${s} .mana-text[data-role=caption],${s} .mana-caption{font-size:${t('caption')};color:${v('mid')}}`,
     `${s} .mana-text[data-role=numeral],${s} .mana-num{font-variant-numeric:tabular-nums;font-family:${v('mono')};font-size:${t('numeral')}}`,
     // nothing over the world goes bare: text with no window behind it keeps the halo; inside a window it needs none
@@ -135,6 +146,8 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-window:not([data-variant=ghost]),${s} .mana-place>*,${s} .mana-screen>.mana-region>:not(.mana-window),${s} .mana-anchor>*{text-shadow:none}`,
     // panels and layout
     `${s} .mana-window{position:relative;background:${v('plate')};border:${v('frame-w')} ${v('frame-s')} ${v('line')};border-radius:${v('radius')};padding:${u(15)} ${u(18)};min-width:${u(300)};max-width:100%;min-height:0;overflow:hidden}`,
+    // a window inside a window is a sub-panel: a lighter rule and a smaller corner than the panel it sits in
+    `${s} .mana-window .mana-window:not([data-variant=ghost]){border-width:${v('rule-w')};border-radius:calc(${v('radius')} * .6);padding:${u(9)} ${u(12)}}`,
     `${s} .mana-window[data-variant=inset]{border-style:dashed}`,
     `${s} .mana-window[data-variant=ghost]{background:transparent;border-color:transparent;padding:0}`,
     `${s} .mana-stack{display:flex;flex-direction:column;gap:${u(12)};min-width:0}`,
@@ -165,12 +178,12 @@ export function manaCss(scope = '.mana-root') {
     // a finger or a mouse moves no cursor: what is tapped is selected (the tint stays), a press sinks, a mouse lights
     `${s}:is([data-input=touch],[data-input=mouse]) [data-st=focus]{outline:none}`,
     `${s}:is([data-input=touch],[data-input=mouse]) [data-st=focus]::before{content:none}`,
-    `${s}:is([data-input=touch],[data-input=mouse]) [data-k]:active,${s} [data-tap]:active{transform:scale(.97)}`,
+    `${s}:is([data-input=touch],[data-input=mouse]) [data-k]:active,${s} [data-tap]:active{scale:.97}`,
     `@media (hover:hover){${s}[data-input=mouse] [data-k]:hover:not([data-st=focus]):not([data-st=disabled]){background:${v('wash')}}}`,
     `${s} [data-tap]{cursor:pointer;pointer-events:auto;touch-action:manipulation}`,
     `${s} [data-st=disabled]{color:${v('mid')};border:1px dashed ${v('soft')};cursor:default}`,
     `${s} [data-seats]::after{content:"P" attr(data-seats);position:absolute;right:3px;top:2px;font:700 ${u(14)}/1 ${v('mono')};padding:2px 3px;background:${v('accent')};color:${v('panel')}}`,
-    `${s} .mana-button{display:flex;align-items:center;justify-content:center;border:1px solid ${v('line')};text-align:center;padding:${u(9)} ${pl(21)}}`,
+    `${s} .mana-button{display:flex;align-items:center;justify-content:center;border:${v('rule-w')} solid ${v('line')};text-align:center;padding:${u(9)} ${pl(21)}}`,
     `${s} .mana-list{display:flex;flex-direction:column;gap:${u(3)};min-height:0;overflow:hidden}`,
     // a menu list (the title's, a hub's): its rows at the title's size, the ▶ beside them
     `${s} .mana-list[data-variant=menu]>.mana-row{font-family:${v('display')};font-size:${ts(TYPE.title * 0.75)};font-weight:800;letter-spacing:.03em;text-transform:${v('case')};padding-top:${u(6)};padding-bottom:${u(6)}}`,
@@ -178,10 +191,10 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-list[data-empty=yes],${s} .mana-grid[data-empty=yes]{padding:${u(9)} ${u(12)};border:1px dashed ${v('soft')}}`,
     `${s} .mana-more{font-size:${t('caption')};color:${v('mid')};text-align:center}`,
     `${s} .mana-grid{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:${u(6)}}`,
-    `${s} .mana-cell{border:1px solid ${v('soft')};min-height:${u(51)};padding:${u(6)} ${u(9)} ${u(6)} ${pl(24)};font-size:${t('body')}}`,
+    `${s} .mana-cell{border:${v('rule-w')} solid ${v('soft')};min-height:${u(51)};padding:${u(6)} ${u(9)} ${u(6)} ${pl(24)};font-size:${t('body')}}`,
     `${s} .mana-tree{display:grid;grid-template-columns:repeat(var(--cols,1),minmax(${u(165)},1fr));gap:${u(28)}}`,
     `${s} .mana-tier{display:flex;flex-direction:column;gap:${u(12)};justify-content:center}`,
-    `${s} .mana-node{border:1px solid ${v('line')};font-size:${t('body')};background:${v('paper')}}`,
+    `${s} .mana-node{border:${v('rule-w')} solid ${v('line')};font-size:${t('body')};background:${v('paper')}}`,
     `${s} .mana-node[data-state=learned]{background:${v('ink')};color:${v('panel')}}`,
     `${s} .mana-node[data-state=learned][data-st=focus]{background:${v('ink')};color:${v('panel')};opacity:.85}`,
     `${s} .mana-node[data-state=learned] :is(.mana-text,.mana-caption,.mana-label,.mana-req){color:inherit;opacity:.8}`,
@@ -194,7 +207,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} :is(.mana-toggle,.mana-cycler,.mana-slider,.mana-keybind,.mana-alloc)>.mana-label{font-size:${t('body')};color:inherit}`,
     `${s} .mana-toggle .mana-value{display:flex;align-items:center;gap:${u(9)}}`,
     // a switch: the knob's side is the state, the word beside it again
-    `${s} .mana-switch{position:relative;display:inline-block;width:${u(57)};height:${u(33)};border-radius:${u(16.5)};border:1px solid ${v('line')};background:${v('paper')};transition:${v('motion')}}`,
+    `${s} .mana-switch{position:relative;display:inline-block;width:${u(57)};height:${u(33)};border-radius:${u(16.5)};border:${v('rule-w')} solid ${v('line')};background:${v('paper')};transition:${v('motion')}}`,
     `${s} .mana-switch i{position:absolute;top:${u(4.5)};left:${u(4.5)};width:${u(21)};height:${u(21)};border-radius:50%;background:${v('mid')};transition:${v('motion')}}`,
     `${s} .mana-toggle[data-on=yes] .mana-switch{background:${v('accent')};border-color:${v('accent')}}`,
     `${s} .mana-toggle[data-on=yes] .mana-switch i{left:${u(28.5)};background:${v('panel')}}`,
@@ -209,7 +222,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-alloc{display:grid;grid-template-columns:1fr ${u(48)} ${u(21)} ${u(48)} ${u(51)}}`,
     `${s} .mana-keys{display:flex;gap:${u(6)}}`,
     `${s} .mana-keybind[data-conflict=yes]{border-style:dashed;border-color:${v('harm')}}`, `${s} .mana-clash{font-size:${t('caption')};color:${v('harm')}}`,
-    `${s} .mana-key{display:inline-block;min-width:${u(30)};padding:${u(1.5)} ${u(7.5)};border:1px solid ${v('line')};border-bottom-width:2px;border-radius:calc(${v('radius')}*.5);font:700 ${t('label')}/1.3 ${v('mono')};text-align:center;text-transform:uppercase;background:${v('paper')}}`,
+    `${s} .mana-key{display:inline-block;min-width:${u(30)};padding:${u(1.5)} ${u(7.5)};border:${v('rule-w')} solid ${v('line')};border-bottom-width:2px;border-radius:calc(${v('radius')}*.5);font:700 ${t('label')}/1.3 ${v('mono')};text-align:center;text-transform:uppercase;background:${v('paper')}}`,
     `${s} .mana-carousel{display:grid;grid-template-columns:${u(36)} 1fr ${u(36)};align-items:center;gap:${u(9)};padding:${u(12)} ${u(12)} ${u(27)}}`,
     `${s} .mana-carousel .mana-dots{position:absolute;left:0;right:0;bottom:3px;text-align:center;font-size:${u(14)};letter-spacing:${u(3)}}`,
     `${s} .mana-slide{min-width:0}`,
@@ -221,29 +234,31 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-stat{display:flex;justify-content:space-between;gap:${u(18)}}`,
     `${s} .mana-max{color:${v('mid')}}`,
     `${s} .mana-bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:${u(9)};font-size:${t('label')};min-width:${u(225)}}`,
-    `${s} .mana-track{position:relative;display:block;height:${u(14)};border:1px solid ${v('line')};background:${v('paper')};border-radius:calc(${v('radius')}*.4);overflow:hidden}`,
+    `${s} .mana-track{position:relative;display:block;height:${u(14)};border:${v('rule-w')} solid ${v('line')};background:${v('paper')};border-radius:calc(${v('radius')}*.4);overflow:hidden}`,
     `${s} .mana-track i{display:block;height:100%;background:${v('plain')}}`,
     ...Object.entries(FILL).map(([k, x]) => `${s} .mana-bar[data-variant=${k}] .mana-track i{background:${x}}`),
     `${s} .mana-bar[data-variant=boss]{min-width:${u(690)}}`,
     `${s} .mana-bar[data-variant=boss] .mana-track{height:${u(24)}}`,
+    // two fighters' bars, sharing a row across the top: the thickest on the screen (a fight is read off them)
+    `${s} .mana-stack[data-fill=yes] .mana-bar[data-variant=hp] .mana-track{height:${u(30)}}`,
     `${s} .mana-track b{position:absolute;top:-2px;bottom:-2px;width:1px;background:${v('line')};outline:1px solid ${v('paper')}}`,
     `${s} .mana-bar[data-low=yes] .mana-track i{background:repeating-linear-gradient(45deg,${v('harm')} 0 2px,transparent 2px 4px),repeating-linear-gradient(-45deg,${v('harm')} 0 2px,transparent 2px 4px)}`,
     `${s} .mana-pips .mana-glyphs{letter-spacing:2px;font-size:${ts(26)}}`,
     `${s} .mana-pips,${s} .mana-counter,${s} .mana-timer{display:flex;align-items:center;gap:${u(9)}}`,
     `${s} .mana-compare{display:grid;grid-template-columns:1fr auto ${u(21)} auto;gap:${u(9)};align-items:center}`,
     `${s} .mana-compare[data-way=better] .mana-mark,${s} .mana-compare[data-way=worse] .mana-mark{color:${v('ink')};font-weight:700}`,
-    `${s} .mana-icon{display:inline-flex;align-items:center;justify-content:center;width:${u(36)};height:${u(36)};border:1px solid ${v('line')};border-radius:calc(${v('radius')}*.4);font:700 ${u(14)} ${v('mono')};background:${v('paper')}}`,
+    `${s} .mana-icon{display:inline-flex;align-items:center;justify-content:center;width:${u(36)};height:${u(36)};border:${v('rule-w')} solid ${v('line')};border-radius:calc(${v('radius')}*.4);font:700 ${u(14)} ${v('mono')};background:${v('paper')}}`,
     `${s} .mana-icon[data-size=s]{width:${u(24)};height:${u(24)};font-size:${u(11)}}`, `${s} .mana-icon[data-size=l]{width:${u(60)};height:${u(60)};font-size:${u(18)}}`,
     `${s} .mana-portrait{display:inline-flex;flex-direction:column;align-items:center;gap:${u(3)}}`,
-    `${s} .mana-ph{display:flex;align-items:center;justify-content:center;width:${u(72)};height:${u(72)};border:1px solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${X_BOX} ${v('paper')};font:700 ${u(20)} ${v('mono')}}`,
+    `${s} .mana-ph{display:flex;align-items:center;justify-content:center;width:${u(72)};height:${u(72)};border:${v('rule-w')} solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${X_BOX} ${v('paper')};font:700 ${u(20)} ${v('mono')}}`,
     `${s} .mana-portrait[data-size=s] .mana-ph{width:${u(42)};height:${u(42)};font-size:${u(14)}}`, `${s} .mana-portrait[data-size=l] .mana-ph{width:${u(126)};height:${u(126)};font-size:${u(27)}}`,
-    `${s} .mana-image{display:flex;align-items:flex-end;justify-content:center;border:1px solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${X_BOX} ${v('paper')};aspect-ratio:16/9;width:100%;padding:${u(6)}}`,
+    `${s} .mana-image{display:flex;align-items:flex-end;justify-content:center;border:${v('rule-w')} solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${X_BOX} ${v('paper')};aspect-ratio:16/9;width:100%;padding:${u(6)}}`,
     `${s} .mana-image[data-ratio=square]{aspect-ratio:1}`, `${s} .mana-image[data-ratio=tall]{aspect-ratio:3/4}`, `${s} .mana-image[data-ratio=banner]{aspect-ratio:4/1}`,
-    `${s} .mana-badge{display:inline-block;padding:0 ${u(7.5)};border:1px solid ${v('line')};border-radius:${u(12)};font:700 ${t('caption')}/1.5 ${v('mono')}}`,
+    `${s} .mana-badge{display:inline-block;padding:0 ${u(7.5)};border:${v('rule-w')} solid ${v('line')};border-radius:${u(12)};font:700 ${t('caption')}/1.5 ${v('mono')}}`,
     // a legend: what the buttons do here, each beside the glyph of the control in hand
     `${s} .mana-legend{display:flex;flex-wrap:wrap;gap:${u(27)};align-items:center;font-size:${t('label')};font-weight:700;letter-spacing:.04em;text-transform:${v('case')};color:${v('ink')}}`,
     `${s} .mana-hint{display:inline-flex;align-items:center;gap:${u(8)}}`,
-    `${s} .mana-prompt{display:flex;align-items:center;gap:${u(9)};padding:${u(6)} ${u(12)};border:1px solid ${v('line')};border-radius:${v('radius')};background:${v('plate')}}`,
+    `${s} .mana-prompt{display:flex;align-items:center;gap:${u(9)};padding:${u(6)} ${u(12)};border:${v('rule-w')} solid ${v('line')};border-radius:${v('radius')};background:${v('plate')}}`,
     // in-game: regions, anchors, aim, maps, feed, moments. The HUD layer is the whole stage (a part over the world sits
     // where the game projects it); its places sit in the title-safe frame
     `${s} .mana-hud{position:absolute;inset:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);pointer-events:none}`,
@@ -267,15 +282,28 @@ export function manaCss(scope = '.mana-root') {
     // bare over the world, the aim keeps a halo in the panel's colour so it reads over any scene
     `${s} .mana-reticle{position:relative;font:300 ${u(39)}/1 ${v('mono')};text-align:center;text-shadow:0 0 2px ${v('panel')},0 0 3px ${v('panel')},0 0 1px ${v('panel')}}`,
     `${s} .mana-hit{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:${u(51)};font-weight:200}`,
-    `${s} .mana-minimap{position:relative;width:${u(195)};height:${u(195)};border:1px solid ${v('line')};background:${X_BOX} ${v('paper')}}`,
+    `${s} .mana-minimap{position:relative;width:${u(195)};height:${u(195)};border:${v('rule-w')} solid ${v('line')};background:${X_BOX} ${v('paper')}}`,
     `${s} .mana-minimap[data-shape=round]{border-radius:50%}`,
     `${s} .mana-marker{position:absolute;transform:translate(-50%,-50%);font-size:${u(16)};line-height:1}`,
     `${s} .mana-minimap .mana-caption{position:absolute;left:${u(6)};bottom:${u(3)}}`,
-    `${s} .mana-compass{position:relative;width:${u(450)};height:${u(33)};border:1px solid ${v('line')};background:${v('paper')};overflow:hidden}`,
+    `${s} .mana-compass{position:relative;width:${u(450)};height:${u(33)};border:${v('rule-w')} solid ${v('line')};background:${v('paper')};overflow:hidden}`,
     `${s} .mana-compass .mana-cardinal,${s} .mana-compass .mana-marker{position:absolute;top:50%;transform:translate(-50%,-50%);font:700 ${u(16)} ${v('mono')}}`,
     `${s} .mana-needle{position:absolute;left:50%;top:-3px;transform:translateX(-50%);font-size:${u(12)}}`,
     `${s} .mana-feed{display:flex;flex-direction:column;gap:${u(3)};font-size:${t('label')};min-width:${u(240)}}`,
-    `${s} .mana-toast{padding:${u(6)} ${u(15)};border:1px solid ${v('line')};background:${v('plate')};font-size:${t('body')}}`,
+    `${s} .mana-toast{display:flex;align-items:center;gap:${u(12)};padding:${u(6)} ${u(15)};border:${v('rule-w')} solid ${v('line')};background:${v('plate')};font-size:${t('body')}}`,
+    `${s} .mana-toast>.mana-words{display:flex;flex-direction:column}`,
+    // a rare one: the second accent's heavier edge and the banner's sheen (and its own sound, the runtime's)
+    `${s} .mana-toast[data-tier=rare]{position:relative;overflow:hidden;border-width:2px;border-color:${v('accent2')};box-shadow:inset 0 0 0 1px ${v('accent2')}}`,
+    `${s} .mana-toast[data-tier=rare]::after{content:"";position:absolute;top:0;bottom:0;left:0;width:30%;background:linear-gradient(90deg,transparent,${v('panel')},transparent);opacity:${v('sheen')};pointer-events:none;animation:mana-sheen calc(${v('dur')} * 6) ease-in-out calc(${v('dur')} * 2) both}`,
+    `${s} .mana-times{font-weight:800}`,
+    // a number's tone (a blow's kind): the theme's colours, its word still beside it
+    `${s} .mana-text[data-tone=crit]{color:${v('harm')}}`, `${s} .mana-text[data-tone=heal]{color:${v('hp')}}`, `${s} :is(.mana-text[data-tone=miss],.mana-text[data-tone=block]){color:${v('mid')}}`,
+    // damage numbers: bare over the world with the halo, a display numeral that pops and rises (a crit larger)
+    `${s} .mana-anchors[data-variant=bare] .mana-anchor>*{background:transparent;padding:0;opacity:1;text-shadow:${v('halo')}}`,
+    `${s} .mana-anchors[data-variant=bare] .mana-text[data-role=numeral]{display:inline-block;font-family:${v('display')};font-weight:900;font-size:${ts(TYPE.title * 0.8)};animation:mana-hit calc(${v('dur')} * 6) ${v('ease')} both}`,
+    `${s} .mana-anchors[data-variant=bare] .mana-text[data-role=numeral][data-tone=crit]{font-size:${ts(TYPE.title * 1.25)}}`,
+    // a rank stamped on as the screen settles
+    `${s} .mana-badge[data-variant=stamp]{padding:${u(3)} ${u(24)};border:3px solid ${v('accent')};border-radius:${v('radius')};color:${v('accent')};font:900 ${ts(TYPE.title)}/1 ${v('display')};rotate:-6deg;animation:mana-stamp calc(${v('dur')} * 3) ${v('ease')} calc(${v('dur')} * 8) both}`,
     `${s} .mana-banner{display:flex;flex-direction:column;align-items:center;gap:${u(3)};padding:${u(12)} ${u(36)};border-top:2px solid ${v('line')};border-bottom:2px solid ${v('line')};background:${v('plate')}}`,
     // the moments: one up at a time, the weightiest the boldest (a decisive one's rules doubled)
     `${s} .mana-moments{display:flex;flex-direction:column;align-items:center}`, `${s} .mana-moments[data-as=toast]{align-items:flex-end}`,
@@ -288,7 +316,6 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-table td[data-lead=yes]{font-weight:800}`, `${s} .mana-table td[data-lead=yes]::after{content:" \\25B2";font-size:.7em;color:${v('accent2')}}`,
     // the live game's own: a bar's chip and its mirror, tables, dials, slots, what is off screen, where harm came from
     `${s} .mana-track u{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(-45deg,${v('ink')} 0 1px,transparent 1px 3px);opacity:.55}`,
-    `${s} .mana-bar[data-dir=rtl] .mana-track{transform:scaleX(-1)}`,
     `${s} .mana-bar[data-dir=rtl]>.mana-num{order:1}`, `${s} .mana-bar[data-dir=rtl]>.mana-track{order:2}`, `${s} .mana-bar[data-dir=rtl]>.mana-label{order:3}`,
     `${s} .mana-badge[data-variant=strong]{background:${v('ink')};color:${v('panel')};border-color:${v('ink')}}`,
     `${s} .mana-badge[data-variant=muted]{border-style:dashed;color:${v('mid')}}`,
@@ -299,11 +326,11 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-table tr[data-mark=yes] td{font-weight:700;background:${v('wash')}}`,
     `${s} .mana-table tr[data-mark=yes] td:first-child::before{content:"\\25B6  "}`,
     `${s} .mana-gauge{display:inline-flex;flex-direction:column;align-items:center;gap:${u(3)}}`,
-    `${s} .mana-dial{position:relative;display:flex;align-items:center;justify-content:center;width:${u(144)};height:${u(144)};border-radius:50%;border:1px solid ${v('line')};background:conic-gradient(from -120deg,${v('plain')} calc(var(--r,0)*240deg),${v('paper')} 0 240deg,transparent 0)}`,
+    `${s} .mana-dial{position:relative;display:flex;align-items:center;justify-content:center;width:${u(144)};height:${u(144)};border-radius:50%;border:${v('rule-w')} solid ${v('line')};background:conic-gradient(from -120deg,${v('plain')} calc(var(--r,0)*240deg),${v('paper')} 0 240deg,transparent 0)}`,
     `${s} .mana-dial::after{content:"";position:absolute;inset:${u(14)};border-radius:50%;background:${v('panel')}}`,
     `${s} .mana-dial i{position:absolute;left:calc(50% - 1px);bottom:50%;width:2px;height:${u(60)};background:${v('ink')};transform-origin:50% 100%;z-index:1}`,
     `${s} .mana-dial .mana-num{position:relative;z-index:2;margin-top:${u(51)};font-size:${ts(26)};font-weight:700}`,
-    `${s} .mana-slot{position:relative;display:inline-flex;align-items:center;justify-content:center;width:${u(72)};height:${u(72)};border:1px solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${v('paper')};overflow:hidden}`,
+    `${s} .mana-slot{position:relative;display:inline-flex;align-items:center;justify-content:center;width:${u(72)};height:${u(72)};border:${v('rule-w')} solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${v('paper')};overflow:hidden}`,
     `${s} .mana-slot .mana-icon{border:0;background:transparent}`,
     `${s} .mana-slot .mana-key{position:absolute;left:2px;top:2px;min-width:0;padding:0 2px;font-size:${u(12)};border-bottom-width:1px}`,
     `${s} .mana-cool{position:absolute;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,${v('ink')} 0 1px,transparent 1px 4px);opacity:.55}`,
@@ -311,7 +338,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-slot[data-active=yes]{border:2px solid ${v('accent')};box-shadow:inset 0 0 0 1px ${v('accent')}}`,
     `${s} .mana-slot[data-empty=yes]{border-style:dashed;border-color:${v('soft')}}`,
     `${s} .mana-edges,${s} .mana-threat,${s} .mana-letterbox{position:absolute;inset:0;pointer-events:none}`,
-    `${s} .mana-edge{position:absolute;transform:translate(-50%,-50%);font:700 ${t('body')} ${v('mono')};padding:${u(1.5)} ${u(7.5)};background:${v('plate')};border:1px solid ${v('line')};border-radius:calc(${v('radius')}*.5)}`,
+    `${s} .mana-edge{position:absolute;transform:translate(-50%,-50%);font:700 ${t('body')} ${v('mono')};padding:${u(1.5)} ${u(7.5)};background:${v('plate')};border:${v('rule-w')} solid ${v('line')};border-radius:calc(${v('radius')}*.5)}`,
     `${s} .mana-threat{inset:auto;left:50%;top:50%;width:${u(360)};height:${u(360)};transform:translate(-50%,-50%);border:1px dashed ${v('soft')};border-radius:50%}`,
     `${s} .mana-arc{position:absolute;font-size:${u(33)};line-height:1;color:${v('harm')}}`,
     `${s} .mana-letterbox i{position:absolute;left:0;right:0;height:11%;background:${v('shade')}}`,
@@ -328,7 +355,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-awareness[data-state=alert] b,${s} .mana-awareness[data-state=combat] b{background:${v('harm')};border-color:${v('harm')};color:${v('panel')}}`,
     `${s} .mana-awareness[data-state=unaware] b,${s} .mana-awareness[data-state=down] b{border-style:dashed}`,
     `${s} .mana-statuses{display:inline-flex;gap:2px}`,
-    `${s} .mana-status{display:inline-block;padding:0 3px;border:1px solid ${v('line')};font:700 ${u(14)}/1.4 ${v('mono')};background:${v('paper')}}`,
+    `${s} .mana-status{display:inline-block;padding:0 3px;border:${v('rule-w')} solid ${v('line')};font:700 ${u(14)}/1.4 ${v('mono')};background:${v('paper')}}`,
     `${s} .mana-status sub{font-size:${u(11)};margin-left:1px}`,
     ...MOTION_RULES(s),
   ].join('\n');
@@ -339,23 +366,35 @@ export function manaCss(scope = '.mana-root') {
 const pop = (k) => `calc(1 + (${v('pop')} - 1) * ${k})`;
 const KEYFRAMES = [
   `@keyframes mana-fade{from{opacity:0}}`,
-  `@keyframes mana-rise{from{opacity:0;transform:translateY(${v('travel')})}}`,
-  `@keyframes mana-slide{from{opacity:0;transform:translateX(calc(${v('travel')} * 2))}}`,
-  `@keyframes mana-slam{0%{opacity:0;transform:scale(${pop(3)})}60%{opacity:1}100%{transform:none}}`,
-  `@keyframes mana-pop{from{transform:scale(${pop(1)})}}`,
+  `@keyframes mana-rise{from{opacity:0;translate:0 ${v('travel')}}}`,
+  `@keyframes mana-slide{from{opacity:0;translate:calc(${v('travel')} * 2) 0}}`,
+  `@keyframes mana-slam{0%{opacity:0;scale:${pop(3)}}60%{opacity:1}100%{scale:1}}`,
+  `@keyframes mana-pop{from{scale:${pop(1)}}}`,
   `@keyframes mana-flash{from{background-color:${v('flash')};color:${v('panel')}}}`,
-  `@keyframes mana-gain{0%{opacity:0}15%{opacity:1}100%{opacity:0;transform:translateY(calc(${v('travel')} * -2.4))}}`,
-  `@keyframes mana-ring{from{opacity:1}to{opacity:0;transform:scale(${pop(2.5)})}}`,
+  `@keyframes mana-gain{0%{opacity:0}15%{opacity:1}100%{opacity:0;translate:0 calc(${v('travel')} * -2.4)}}`,
+  `@keyframes mana-ring{from{opacity:1}to{opacity:0;scale:${pop(2.5)}}}`,
   `@keyframes mana-turn{50%{box-shadow:inset 9px 0 0 ${v('turn')},inset 0 0 0 2px ${v('turn')}}}`,
   `@keyframes mana-sheen{from{transform:translateX(-120%) skewX(-20deg)}to{transform:translateX(320%) skewX(-20deg)}}`,
   // the focus lands: a small pop on the item the cursor moves to (the greybox's pop is 1: it lands still)
-  `@keyframes mana-pick{from{transform:scale(${pop(0.4)})}}`,
+  `@keyframes mana-pick{from{scale:${pop(0.4)}}}`,
   // a prompt that waits for the player (press start): a slow breath, well under the 3 flashes a second XAG 118 allows
   `@keyframes mana-pulse{50%{opacity:.35}}`,
+  // a blow's number: it pops in large, settles and rises off where it landed
+  `@keyframes mana-hit{0%{opacity:0;scale:${pop(4)}}18%{opacity:1;scale:1}100%{opacity:1;translate:0 calc(${v('travel')} * -3)}}`,
+  // a stamp: dropped from above the page onto it
+  `@keyframes mana-stamp{0%{opacity:0;scale:${pop(5)}}70%{opacity:1}100%{opacity:1;scale:1}}`,
+  // the transitions' covers (theme.js TRANSITIONS): each covers the stage in its middle and ends off it, so a cover
+  // that has run leaves nothing drawn
+  `@keyframes mana-tx-wipe{0%{opacity:1;translate:-101% 0}42%,58%{opacity:1;translate:0 0}100%{opacity:1;translate:101% 0}}`,
+  `@keyframes mana-tx-slam{0%{opacity:1;translate:-120% 0}50%{opacity:1;translate:0 0}100%{opacity:1;translate:120% 0}}`,
+  `@keyframes mana-tx-iris{0%{opacity:1;clip-path:circle(75% at 50% 50%)}100%{opacity:1;clip-path:circle(0% at 50% 50%)}}`,
+  `@keyframes mana-tx-shutter{0%,25%{opacity:1;clip-path:inset(0 0 0 0)}100%{opacity:1;clip-path:inset(50% 0 50% 0)}}`,
 ];
 // the prompt's breath: one cycle in PULSE seconds (0.8 Hz)
 export const PULSE = 1.25;
-const CALM = `--mana-travel:0px!important;--mana-pop:1!important;--mana-stagger:0ms!important;--mana-glide:0ms!important;--mana-loop:paused!important;--mana-sheen:0!important`;
+const CALM = `--mana-travel:0px!important;--mana-pop:1!important;--mana-stagger:0ms!important;--mana-glide:0ms!important;--mana-loop:paused!important;--mana-sheen:0!important;--mana-tx:none!important`;
+// less flash (the player's, apart from less motion): no cover over the stage, no sheen, a change pops without flashing
+const DIM = `--mana-sheen:0!important;--mana-tx:none!important`;
 function MOTION_RULES(s) {
   const rows = `:is(.mana-list>.mana-row,.mana-grid>.mana-cell,.mana-each>*,.mana-table tbody tr,.mana-tier>.mana-node)`;
   return [
@@ -398,6 +437,8 @@ function MOTION_RULES(s) {
     // the game's clock held (a hit-stop): the HUD's motion holds with it; less motion: the fades are all that is left
     `${s}[data-clock=held] .mana-hud,${s}[data-clock=held] .mana-hud *,${s}[data-clock=held] .mana-hud *::after{animation-play-state:paused!important}`,
     `${s}[data-motion=reduced]{${CALM}}`,
+    `${s}[data-flash=reduced]{${DIM}}`,
+    `${s}[data-flash=reduced] [data-ch]{animation:mana-pop calc(${v('dur')} * 1.5) ${v('ease')}}`,
     `@media (prefers-reduced-motion:reduce){${s}{${CALM}}}`,
   ];
 }

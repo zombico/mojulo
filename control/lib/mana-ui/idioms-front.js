@@ -132,13 +132,13 @@ export const FRONT_IDIOMS = {
     example: { title: 'Quit to title', ask: 'Progress since the last save will be lost.', choices: [{ label: 'Keep playing', then: { back: true } }, { label: 'Quit', then: { emit: 'quit' } }] },
   },
   'results-screen': {
-    kind: 'screen', about: 'the end of a run (victory, defeat, a level cleared): the outcome, its figures, a rank, what next',
+    kind: 'screen', about: 'the end of a run (victory, defeat, a level cleared), in sequence: the outcome slams in, its figures rise and count up one after another, the rank is stamped on, then what next; accept while it counts lands every figure at once',
     reads: 'outcome, stats: [{ label, value }], rank, items: [{ label, then }]', emits: 'each item\'s then',
     params: ['outcome', 'stats', 'rank', 'items'],
     node: screen({ layer: 'modal', place: 'center' }, [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
-      txt(P('outcome'), 'display'),
-      { use: 'window', children: [{ use: 'stack', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value') } } } }, { use: 'divider' }, { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt('Rank', 'heading'), { use: 'badge', props: { value: P('rank') } }] }] }] },
-      { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'))] },
+      { use: 'banner', props: { value: P('outcome') } },
+      { use: 'window', children: [{ use: 'stack', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), count: true } } } }, { use: 'divider' }, { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt('Rank', 'heading'), { use: 'badge', props: { value: P('rank'), variant: 'stamp' } }] }] }] },
+      { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'), { variant: 'menu' })] },
     ] }]),
     example: { outcome: { bind: 'results.outcome' }, stats: { bind: 'results.stats' }, rank: { bind: 'results.rank' }, items: [{ label: 'Continue', then: { emit: 'continue' } }, { label: 'Retry', then: { emit: 'retry' } }, { label: 'Quit', then: { emit: 'quit' } }] },
   },

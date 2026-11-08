@@ -1,4 +1,4 @@
-### Game UI that reads as a game, not an app: the frame, the type, the legend bar and the UI's sounds
+### Game UI that reads, moves and sounds like a game, not an app
 
 - **Research behind it: how game UI differs from app UX.** `docs/game-ui-research.md` sets game UI against the SaaS look
   generated UIs default to (a 4 px rhythm, gentle type steps, grey hierarchy, one radius on everything). It covers the
@@ -32,3 +32,25 @@
 - **Title and attract screens look like a game's.** The title screen puts key art behind, the game's name and a large
   menu in the left third, and the version in a corner. The attract screen puts key art behind and a "press start"
   prompt that breathes slowly; any face or shoulder button starts the game, and the effect says which player pressed.
+- **Menus lean, and a cover passes between screens.** A theme's new `slant` word leans tabs, bars, banners, keys and
+  buttons (never a window), the diagonal energy most game UI schools share. A new `transition` word draws a cover over
+  the screen as one screen gives way to the next: a wipe, a diagonal slam, an iris, a shutter or a stepped wipe, mirrored
+  on the way back. The `modern` preset is now clean glass (a cool translucent plate, a light lean, a highlight bar)
+  instead of a dark dashboard card. A heavy frame now makes the inner parts heavier too, and a window inside a window is
+  drawn lighter.
+- **A world's UI and a sport's broadcast carry their energy across.** Passing a game's juice register to the guide
+  bridge makes an anime game's menus snap, lean and slam between screens, and a western one's wipe. A broadcast whose
+  plates lean now leans its menus and wipes between them.
+- **Numbers count up, and a results screen plays in sequence.** With the game's clock, a number that changes counts to
+  its new value, with a tick sound. The results screen slams its outcome in, counts each figure up from zero one after
+  another, then stamps the rank on; pressing confirm while it counts lands every number at once.
+- **Damage numbers, toasts and feeds read like a game's.** Damage numbers sit bare over the world with a halo, pop in
+  large and rise, coloured by their kind, a critical hit larger. A rare toast is held longer, gets an accent edge, a
+  sheen and its own sound, and a toast can show an icon. A new achievement toast slides in at the bottom right. A feed
+  merges a line said again in a row (×3). Fighting games' health bars are thicker.
+- **Grey means unavailable.** Labels are now in the main ink colour at a lighter weight; grey is kept for disabled items
+  and captions.
+- **A held direction on a pad repeats, and flashing is the player's to turn down.** The controls host repeats a held
+  direction after a short delay, as a held key does. A new less-flash option (separate from less motion) drops the
+  cover between screens, the sheen and a change's flash. Every repeating animation runs under three times a second,
+  checked by a test.

@@ -126,10 +126,10 @@ export const HUD_IDIOMS = {
     example: { name: { bind: 'target.name' }, level: { bind: 'target.level' }, hp: { bind: 'target.hp' }, hpMax: { bind: 'target.hpMax' }, state: { bind: 'target.state' }, distance: { bind: 'target.distance' } },
   },
   'damage-numbers': {
-    kind: 'hud', about: 'numbers rising where blows land: hit, crit, heal, miss, block told by their word',
-    reads: 'pops: [{ x, y, value, kind }]', emits: '—',
+    kind: 'hud', about: 'numbers popping where blows land and rising off, bare over the world with a halo: hit, crit (larger), heal, miss, block told by their word and their tone',
+    reads: 'pops: [{ x, y, value, kind }] (the game drops a pop once it has risen)', emits: '—',
     params: ['pops'],
-    node: { use: 'anchors', props: { rows: P('pops'), row: row([txt(I('value'), 'numeral'), txt(I('kind'), 'caption')], 'center') } },
+    node: { use: 'anchors', props: { variant: 'bare', rows: P('pops'), row: row([{ use: 'text', props: { value: I('value'), role: 'numeral', tone: I('kind') } }, txt(I('kind'), 'caption')], 'center') } },
     example: { pops: { bind: 'pops' } },
   },
 };

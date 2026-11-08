@@ -49,6 +49,8 @@ const host = {
   now: () => performance.now() / 1000,
   // the UI's sounds the theme asks for, as effects (logged here; a game plays them)
   cues: ${json(readTheme(theme).cues)},
+  // a changed number counts for this long on the clock (a results board counts up; accept lands it)
+  countUp: 0.8,
   act: (e, from) => {
     if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = STATE; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
     LOG.push({ e, from }); document.getElementById('log').textContent = LOG.slice(-4).map((x) => (x.from.screen || '-') + ' ' + JSON.stringify(x.e)).join('\\n');

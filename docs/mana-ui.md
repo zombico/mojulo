@@ -134,7 +134,8 @@ widgets under a pointer (only the view knows where they are).
   driving the UI:
   - While a screen is up, it takes the keys the menu scheme knows in the capture phase (play never sees them).
   - It reads every pad once a frame on its press edges, in its own printed layout, the seat from `seatOf` (the seats
-    kernel's answer on a couch page).
+    kernel's answer on a couch page). A direction held repeats after a delay at a rate (`repeat: { delay, rate }`,
+    estimates to tune by hand; `false` for none), as a held key does.
   - It reads any other device through a driver.
   - With no screen up, it takes nothing; it only tells the runtime which device is in hand, so the HUD's prompts follow.
 - **The schemes in.** `controls/mana-controls.js manaControls()` resolves the menu scheme (the pilot's interact
@@ -170,7 +171,7 @@ A theme is closed words and colours, read and checked like a node, and written a
 still carries no look; the theme is context, set once for a game.
 
 ```js
-theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, distance?, halo?, cues?, ornaments? }
+theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, distance?, halo?, cues?, slant?, transition?, ornaments? }
 ```
 
 - **Tokens** are colours: `ink`, `panel`, `line` and `accent` are the ones a theme needs. The rest (mid, soft, paper,
@@ -179,8 +180,13 @@ theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, fo
   the page loads nothing. `type.body`, `type.display` and `type.mono` name a stack or one of those families.
 - **The look in words:** `frame`, `corner`, `plate`, `focus` (marker, ring, lift, fill, glow, bracket, bar), `motion`,
   `fills` (pattern or solid), `scale`, `case`, `distance` (desk, couch, hand), `halo` (outline, glow, shadow, plate,
-  none), `cues` (silent, ticks, full: the UI's sounds, below), and `ornaments` drawn on the windows that have a plate
-  (brackets, ticks, scanlines, dotgrid, stitch, hazard, glow). `THEME_WORDS` lists each set.
+  none), `cues` (silent, ticks, full: the UI's sounds, below), `slant` (none, light, hard: tabs, bars, banners, keys
+  and buttons lean, a window never does), `transition` (none, wipe, slam, iris, shutter, stepped: the cover between
+  screens, below), and `ornaments` drawn on the windows that have a plate (brackets, ticks, scanlines, dotgrid,
+  stitch, hazard, glow). `THEME_WORDS` lists each set. A frame's weight reaches the inner parts too (a heavy frame's
+  cells, keys and tracks are heavier), and a window inside a window is a sub-panel, lighter and less rounded.
+- **Presets:** the greybox, and `modern` (clean glass: a cool translucent plate, a light lean, a highlight bar),
+  `console`, `terminal`, `storybook` and `arcade`.
 - **Presets** (`THEMES`): the greybox (the default) and a few starting looks. `{ from: '<preset>', … }` changes one.
 - **Measured, never refused:** `themeAdvice` gives the WCAG contrast of text, labels, the focus, a window's edge and
   harm against a window. Solid fills are advised to keep their labels (they tell bar kinds apart by colour alone).
@@ -194,6 +200,8 @@ other way) maps a world's UI guide onto a theme:
 - a border flavor's elements: ornaments, or the words they mean (a soft corner, a cut one, a double rule, a gradient
   plate, a bracket or glowing focus)
 - the font shelf's faces, inlined as the theme's own
+- the game's juice register, when the host passes it (`{ juice: 'anime' | 'western' }`): an anime game's menus snap
+  where the dial would only ease, lean a little and slam between screens; a western one's wipe
 
 So a game's menus wear the look its world was directed in.
 
@@ -218,8 +226,22 @@ board enters row by row.
   no clock it shows the weightiest the game still lists. `moment-banner` and `quest-toasts` are built on it.
 - **How it moves is the theme's** `motion` word (`MOTIONS` in `theme.js`): none fades and travels nowhere (the
   greybox), ease glides, snap overshoots, stepped moves in frames. Every distance, scale and delay is a variable.
+- **A cover between screens.** As a screen opens or leaves, a cover is drawn over the stage with a new key, and the
+  theme's `transition` animates it across (a wipe, a diagonal slam, an iris, a shutter, a stepped wipe); leaving
+  mirrors it. The greybox draws none.
+- **Numbers count.** With a clock and `host.countUp` (seconds), a number that changed counts to its new value, eased
+  out, its tick heard; a stat with `count` counts up from zero as it first shows, rows one after another. Accept on a
+  screen still counting lands every number at once and does nothing else (a results board's skip). A count moves as
+  the page calls `tick()` each frame (`mount`'s `auto`, the board's own loop).
+- **The results in sequence:** the outcome slams in as a banner, the figures rise and count, the rank is stamped on.
+- **Blows over the world:** damage numbers sit bare with the halo, a display numeral that pops in and rises, toned by
+  its kind (`text`'s `tone`: hit, crit, heal, miss, block), a crit larger, the word still beside it.
+- **Two tiers of passing words:** a feed merges a line said again (×3); a moment row's `tier: 'rare'` is held longer,
+  wears the second accent and a sheen, and has its own sound; a row's `icon` shows beside it.
 - **Less motion:** `prefers-reduced-motion`, or `rt.reduceMotion(true)` from the game's options, zeroes the travel and
-  keeps the fades; the turn's bar stays and stops breathing. `rt.hold(true)` (a hit-stop, the game's clock held) holds
+  keeps the fades; the turn's bar stays and stops breathing. **Less flash** is the player's own, apart from it
+  (`rt.reduceFlash(true)`): no cover between screens, no sheen, a change pops without flashing. Every animation that
+  repeats breathes under three times a second (XAG 118), and only where the theme moves. `rt.hold(true)` (a hit-stop, the game's clock held) holds
   the HUD's motion while a menu keeps its own.
 - **The view patches, never replaces.** `mount` patches the DOM by position: an element lives on while its tag and its
   `data-key` hold, so a bar's width glides and an entrance plays once. A new `data-key` is a new element.
@@ -240,6 +262,8 @@ the sounds as effects, `{ sound: <cue> }` to the host's `act`, and the host play
 | `tab` | a tab turned |
 | `change` | a value turned: a toggle, a stepper, a slider, a carousel, a point allocated |
 | `deny` | a disabled row was pressed |
+| `toast`, `rare` | a moment came up (a rare one) |
+| `tick`, `skip` | a number counted (at most twenty a second), and a count was skipped |
 
 `host.cues` says which it wants: `silent` (the default) none, `ticks` the cursor's three (move, accept, back), `full`
 every one. A theme's `cues` word says it for a game, and `manaUiPage` hands it to its host. The board hears them all
@@ -253,7 +277,7 @@ into the sample state (`samples.js`).
 - `idioms-front.js` — the front and the menus: attract (key art behind, a press-start that takes any button), title
   (key art behind, the name and the menu in the left third, the version in a corner), loading, mode select, character select (couch seats),
   arena select, pause, options (sections of fields), controls (keybinds; accept asks the host to capture), confirm,
-  results, save slots.
+  results (in sequence: the outcome slams in, the figures count, the rank is stamped), save slots.
 - `idioms-rpg.js` — the deep menus, each a list or grid beside the detail of what it has picked: party, skill tree,
   level up, loadout (candidates compared with what they replace, under a weight budget), inventory, shop, quest log,
   dialogue.
@@ -275,7 +299,7 @@ A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used a
 - a match: the score bug, a lower third
 - a cutscene: the cinema bars, subtitles
 - stealth: a detection meter
-- quests: passing quest words
+- quests: passing quest words; an achievement unlocked (a rare one held longer)
 - a phone: touch controls
 
 It also has the menus that come up mid-play: a turn-based battle's commands, targets, turn order and party; a
@@ -334,9 +358,11 @@ const rt = manaUi.runtime({ screens: { pause: node, … }, hud?, defs?, start? }
   act: (effect, from) => {},    // every effect but open / close / back
   now: () => seconds,           // optional: the game's clock (moments are timed on it; held when the game is)
   cues: 'silent' | 'ticks' | 'full',   // optional: the UI's sounds it wants, as { sound } effects to act
+  countUp: seconds,                    // optional, with now: a changed number counts this long (0: at once)
 });
 rt.hold(on); rt.reduceMotion(on);       // the game's clock held (the HUD's motion holds); the player's less-motion option
 rt.textScale(k); rt.subtitlePlate(a);   // the player's text size (1 to 2) and the subtitles' plate (0..1, null: the theme's)
+rt.reduceFlash(on);                     // the player's less-flash option, apart from less motion
 rt.press('down' | 'up' | 'left' | 'right' | 'accept' | 'back' | 'tabNext' | 'tabPrev', seat?);
 rt.open(id); rt.tick(); rt.view(); rt.state();
 manaUi.mount(el, rt, { auto: true });   // the DOM backend, a view: it patches what it drew, hit-tests a pointer, a frame loop
