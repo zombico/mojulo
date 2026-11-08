@@ -79,6 +79,7 @@ import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { lowerFaunaUnits } from '@/lib/graph/worlds/fauna-units';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
 import { optionalPackModule } from '@/lib/graph/content-pack';
+import { wieldsFigure, armHeld } from '@/lib/graph/worlds/held-strike';
 
 export { resolveWrapTextures };
 
@@ -1131,7 +1132,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // gameworld/feel/lower.js) and no strike of its own strikes with what the hero holds in its right hand: the
           // hero's swings as the runtime's swing directions (world-kinds.js), the rule armed with the item's reach, the
           // class's seconds and damage (any the rule names stand). Nothing held ⇒ the body as it was.
-          const wields = (e) => e && e.body && e.body.figure === name && e.rule && e.rule.type === 'platform' && Array.isArray(e.rule.strikeContact) && e.rule.strike == null;
+          // (an action hero sheathed out of combat plays `<hero>-sheathed` and draws this hero in a fight: held-strike.js)
+          const wields = (e) => wieldsFigure(e, name);
           const wielder = (payload.entities || []).find(wields);
           // THE RIDER (a world with `mounts`, worlds/mount-units.js): the pilot playing this hero learns to ride its horses, its
           // riding clips solved on its own rig in the pack (world-kinds.js ctx.ride). No mounts ⇒ the hero as it was
@@ -1170,7 +1172,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
             const { crossGradeErrors } = await import('@/lib/graph/figures/figure-grades.js');
             if (!crossGradeErrors(pose, payload.figures[name]).length) { payload.figures[`${name}@pose`] = pose; payload.figures[name] = { ...payload.figures[name], pose: `${name}@pose` }; }
           }
-          if (held) payload.entities = payload.entities.map((e) => (wields(e) ? { ...e, rule: { ...e.rule, strike: 'melee', strikeReach: e.rule.strikeReach ?? held.reach, strikeDur: e.rule.strikeDur ?? held.seconds, strikeDamage: e.rule.strikeDamage ?? held.damage } } : e));
+          if (held) payload.entities = payload.entities.map((e) => (wields(e) ? armHeld(e, held) : e));
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,
