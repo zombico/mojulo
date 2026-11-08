@@ -83,12 +83,49 @@ describe('the arsenal', () => {
     const W = lowerArsenal(BASIC_ARSENAL);
     expect(W.map((w) => [w.id, w.figure])).toEqual([['sword', 'drawn'], ['fist', 'sheathed']]);
     expect(W[1].moveset.tree.L.next.L.next.L).toMatchObject({ move: 'hook', ends: ['one-two-hook'] });
-    expect(W[1].moveset.moves.jab).toMatchObject({ strike: 'jab', contact: [0.4, 0.52] });
+    expect(W[1].moveset.moves.jab).toMatchObject({ strike: 'jab', contact: [0.4, 0.5], clip: 'mv_fist_jab' });
     expect(strikesOf(BASIC_ARSENAL)).toEqual(['jab', 'cross', 'hook', 'uppercut']);
   });
   it('refuses a weapon that is not whole, in words', () => {
     const A = JSON.parse(JSON.stringify(BASIC_ARSENAL));
     A.weapons[1].moves.jab.swing = 'neutral';
     expect(() => readArsenal(A)).toThrow(/weapons\[1\] \(fist\): .*a swing .* or a strike .*, one/);
+  });
+});
+
+// THE WEAPON CYCLE (combat-melee.js r.weapons): the cycle steps to the next weapon between moves, its own string, reach
+// and damage; the fist shows the sheathed hero, in combat too (rules-platform.js combat)
+describe('stepping through the weapons', () => {
+  const armed = () => {
+    const W = lowerArsenal(BASIC_ARSENAL);
+    const w = createWorld({ entities: [
+      { id: 'p', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeContact: [0.44, 0.52], weapons: W, moveset: W[0].moveset, moveClips: true, combat: { near: 10, far: 15, linger: 3, speed: 2.4, stride: 1.6, drawn: 'hero', sheathed: 'hero-sheathed' } }, body: { type: 'figure-rig', figure: 'hero-sheathed' }, transform: { pos: [0, 0, 0], heading: 0 } },
+      { id: 'foe', team: 'foes', body: { type: 'box', size: [0.6, 0.6, 1.8], hittable: true, hp: 1e6, poise: 1 }, rule: { type: 'static' }, transform: { pos: [1.4, 0, 0], heading: Math.PI } },
+    ] });
+    const hooks = { ground: () => 0 }, clips = [], log = [], p = w.byId.p;
+    const step = (inp = {}) => { stepWorld(w, inp, 1 / 60, hooks); if (p.swingClip && p.swingT != null && clips[clips.length - 1] !== p.swingClip) clips.push(p.swingClip); const P = p.mvPress; if (P && (!log.length || log[log.length - 1].seq !== P.seq)) log.push({ ...P }); };
+    for (let i = 0; i < 4; i++) step();
+    return { p, step, clips, log };
+  };
+  it('the cycle takes the fist; its L L L is the jab, the cross and the hook, on the sheathed hero', () => {
+    const A = armed();
+    expect(A.p.body.figure).toBe('hero');   // (a foe near: in combat, the blade drawn)
+    A.step({ cycle: 1 }); A.step();
+    expect(A.p.mvWeapon).toBe('fist');
+    expect(A.p.body.figure).toBe('hero-sheathed');
+    for (let f = 0; f < 120; f++) A.step(f === 0 || f === 2 || f === 16 ? { fire: 1 } : {});
+    expect(A.clips.filter((c) => c.startsWith('mv_fist_')).map((c) => c.replace(/_still$/, ''))).toEqual(['mv_fist_jab', 'mv_fist_cross', 'mv_fist_hook']);
+    expect(A.p.body.figure).toBe('hero-sheathed');
+    expect(A.p.idleClip).toBe('mv_fist_ready');
+    // (and round again: the sword)
+    A.step({ cycle: 1 }); A.step();
+    expect(A.p.mvWeapon).toBe('sword');
+    expect(A.p.body.figure).toBe('hero');
+  });
+  it('a cycle mid-swing is refused with its reason', () => {
+    const A = armed();
+    A.step({ fire: 1 }); A.step(); A.step({ cycle: 1 });
+    expect(A.p.mvWeapon).toBe('sword');
+    expect(A.log[A.log.length - 1]).toMatchObject({ beat: 'cycle', verdict: 'dropped' });
   });
 });

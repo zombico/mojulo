@@ -87,3 +87,14 @@
 - **Fixed: a blade trail on a skinned hero.** The trail found a hand's blade as its bone mesh's farthest point; a
   skinned figure's bones carry no mesh (the page threw and stopped). It now reads the skinned mesh's corners the hand's
   bone holds whole, each in that bone's own frame (`trail-channel.js`). The trail is wired; nobody has seen it draw yet.
+- **Weapon cycling: the sword and the fist** (`combat-melee.js` `r.weapons`, `gameworld/combos.js` the arsenal). The
+  weapon cycle (R, a pad's right shoulder, now the mouse's back button too, its page navigation blocked) steps to the
+  next weapon between moves, its string cleared; a cycle mid-swing is refused and says so. Each weapon is its own moves
+  (`mv_<weapon>_<move>`), its reach and damage, its fighting stance as the hero's idle in combat (`mv_<weapon>_ready`)
+  and the figure it shows: the fist the sheathed hero, its sword on its back, in combat too. The fist plays the body's
+  own strikes (the punch solver's jab and cross, the boxing solver's hook and uppercut: `hero-swing-body.js`
+  `strikeMoveClip`), from their guard, each window where its solver lands its blow, its footwork over the solver's own
+  feet as a swing's: L L L the jab, the cross and the hook (a short lunge), H the uppercut. The footwork law holds the
+  fist's string too. The room arms the arsenal (the HUD names the weapon and lists its combos; the foe's reset is now K)
+  and writes it as the manifest. Fixed on the way: a figure baked after the blade's bake had armed the hero lost its
+  moveset's clips (the sheathed hero's fist): a moveset's moves now bake on every figure its weapons show.

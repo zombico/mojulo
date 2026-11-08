@@ -141,14 +141,27 @@ export function footworkAt(u, T, lead = 'L') {
   const leadW = T.m * ease((u - f0) / (h - f0)), rearW = T.m * ease((u - h) / (T.to - h));
   return { [lead]: { dy: leadW - d, lift: lift * arc(f0, h) }, [rear]: { dy: rearW - d, lift: lift * arc(h, T.to) } };
 }
-/** the feet targets of a pose with its footwork: each foot from its stance place (plantedFoot), moved along the facing */
+/** the feet targets of a pose with its footwork: each foot from its stance place (the pose's own targets, a solved strike's;
+ * else plantedFoot's), moved along the facing */
 function feetOf(R, pose, F, plantedFoot) {
   const out = {};
   for (const S of ['L', 'R']) {
-    const base = plantedFoot(R, R.legs[S], pose).toeBase;
+    const base = Array.isArray(pose.feet?.[S]) ? pose.feet[S] : plantedFoot(R, R.legs[S], pose).toeBase;
     out[S] = [base[0], base[1] + F[S].dy, base[2] + F[S].lift];
   }
   return out;
+}
+/** A clip's footwork over it (a function of the runtime's phase): each foot from the clip's own stance place moved by the
+ * footwork, the body sunk as little as lets both legs reach. The lead foot is the one standing further forward. */
+export function withFootwork(arm, travel, { R, rigNodesAt, plantedFoot }) {
+  return (u) => {
+    const p = arm(u);
+    const F0 = feetOf(R, p, { L: { dy: 0, lift: 0 }, R: { dy: 0, lift: 0 } }, plantedFoot), lead = F0.L[1] >= F0.R[1] ? 'L' : 'R';
+    const at = { ...p, feet: feetOf(R, p, footworkAt(u, travel, lead), plantedFoot) };
+    // (the least sink both legs reach with)
+    for (let s = 0; s <= 0.3 + 1e-9; s += 0.01) { const q = s ? { ...at, sink: Math.round(((p.sink ?? 0) + s) * 1e4) / 1e4 } : at; if (legsReach(R, q, rigNodesAt)) return q; }
+    return at;
+  };
 }
 /**
  * The clip a move plays: { swing, travel?: { kind, m }, contact? } at the hero's held class. ctx: { R, cls, base, grip,
@@ -166,15 +179,7 @@ export function moveClip(move, ctx) {
   // the travel as the runtime carries it (combat-melee.js: a step's to the window's start, a lunge's to its end)
   const tTo = move.travel ? Math.max(0.05, move.travel.kind === 'step' ? contact[0] : contact[1]) : 0;
   const travel = move.travel && move.travel.kind !== 'none' && move.travel.m > 0 ? { kind: move.travel.kind, m: move.travel.m, from: Math.min(move.travel.wait || 0, tTo * 0.5), to: tTo } : null;
-  const fn = (u) => {
-    const p = arm(u);
-    if (!travel || !ctx.footwork) return p;
-    const lead = (p.stagger ?? 0) >= 0 ? 'L' : 'R', F = footworkAt(u, travel, lead);
-    const at = { ...p, feet: feetOf(R, p, F, plantedFoot) };
-    // (the least sink both legs reach with)
-    for (let s = 0; s <= 0.3 + 1e-9; s += 0.01) { const q = s ? { ...at, sink: Math.round(((p.sink ?? 0) + s) * 1e4) / 1e4 } : at; if (legsReach(R, q, rigNodesAt)) return q; }
-    return at;
-  };
+  const fn = travel && ctx.footwork ? withFootwork(arm, travel, ctx) : arm;
   fn.keys = 24;
   fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, contact[1]], ...(travel ? { travel } : {}) };
   return fn;
@@ -186,6 +191,31 @@ export function readyClip(ctx) {
   const { R, cls, base, grip, own, body, layeredClip, rigNodesAt, swingClipKeys } = ctx;
   const keys0 = swingClipKeys(own, cls, { base, grip }), ready = (body ? swingBody(own, cls, keys0, R, rigNodesAt, ctx.style ?? null) : keys0)[0];
   const play = layeredClip([ready], R), fn = (u) => play(u);
+  fn.keys = 2;
+  return fn;
+}
+
+// ─── the body's strikes: the fist's moves (hero-strike.js, hero-box.js) ─────────────────────────────────────────
+/**
+ * A move that plays a body's strike (`strike`: jab, cross from the punch solver; hook, uppercut from the boxing solver),
+ * on the rig: the solver's own clip (its guard stance, its chain, its pivots and its feet), played over the move's length
+ * by the runtime's phase, its footwork over it as a swing's (withFootwork: a planted foot held on the floor while the
+ * runtime carries the body). ctx: { R, rigNodesAt, plantedFoot, footwork, solvers: { strike: heroStrike, box: heroBox } }.
+ */
+export const STRIKE_FAMILY = Object.freeze({ jab: 'strike', cross: 'strike', hook: 'box', uppercut: 'box' });
+export function strikeMoveClip(move, ctx) {
+  const K = ctx.solvers[STRIKE_FAMILY[move.strike]](move.strike, ctx.R), arm = (u) => K.clip.fn(Math.max(0, Math.min(1, u)));
+  const contact = move.contact ?? [K.contact.t / K.seconds, Math.min(0.95, K.contact.t / K.seconds + 0.1)];
+  const tTo = move.travel ? Math.max(0.05, move.travel.kind === 'step' ? contact[0] : contact[1]) : 0;
+  const travel = move.travel && move.travel.kind !== 'none' && move.travel.m > 0 ? { kind: move.travel.kind, m: move.travel.m, from: Math.min(move.travel.wait || 0, tTo * 0.5), to: tTo } : null;
+  const fn = travel && ctx.footwork ? withFootwork(arm, travel, ctx) : arm;
+  fn.keys = 24;
+  fn.move = { family: 'strike', word: move.strike, hand: K.hand, strike: contact[0], window: [contact[0], contact[1]], ...(travel ? { travel } : {}) };
+  return fn;
+}
+/** The fist's fighting stance: its strikes' guard (the solved strike's first pose), held. */
+export function strikeReadyClip(word, ctx) {
+  const K = ctx.solvers[STRIKE_FAMILY[word]](word, ctx.R), p = K.clip.fn(0), fn = () => ({ ...p });
   fn.keys = 2;
   return fn;
 }

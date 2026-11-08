@@ -31,7 +31,8 @@
  *   BASIC_ARSENAL             the starter's weapons, stepped through: the sword (BASIC_COMBOS) and the fist (L L L the
  *                             jab, the cross and the hook; H the uppercut); a weapon's `figure` is the hero it shows
  *                             (drawn: the blade in hand; sheathed: on the back)
- *   readArsenal(A) / lowerArsenal(A)   → the platform rule's `weapons`: [{ id, name, figure, reach?, moveset }]
+ *   readArsenal(A) / lowerArsenal(A)   → the platform rule's `weapons`: [{ id, name, figure, reach?, damage?, moveset }],
+ *                             stepped through on the weapon cycle (R, a pad's right shoulder, the mouse's back button)
  *   strikesOf(A)              → the body strikes its moves play (the figure's `moves`)
  *   readCombos(C)             → C, or throws what is wrong in words
  *   lowerCombos(C)            → the platform rule's `moveset` (seconds and shares; a tree a beat a level)
@@ -132,11 +133,11 @@ export function readCombos(C) {
 }
 
 /** The platform rule's moveset: each move in seconds and shares of its length, the tree of beats, the timing in seconds. */
-export function lowerCombos(C0) {
+export function lowerCombos(C0, { prefix = '' } = {}) {
   const C = readCombos(C0), T = { ...BASIC_COMBOS.timing, ...(C.timing ?? {}) };
   const moves = Object.fromEntries(Object.entries(C.moves).map(([id, m]) => [id, {
     // (its own clip, `mv_<id>`: its footwork baked on the figure, world-scene.js; `mv_<id>_still` the same move in place)
-    clip: `mv_${id}`, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), role: m.role, dur: r4(m.frames / FPS), ...(m.contact ? { contact: [...m.contact] } : {}), cancel: m.cancel != null ? r4(m.cancel / m.frames) : 1,
+    clip: `mv_${prefix}${id}`, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), role: m.role, dur: r4(m.frames / FPS), ...(m.contact ? { contact: [...m.contact] } : {}), cancel: m.cancel != null ? r4(m.cancel / m.frames) : 1,
     // (a travel waits out the blend into the move: the body moves once the two poses' feet are one, the footwork)
     travel: m.travel && m.travel.kind !== 'none' ? { kind: m.travel.kind, m: m.travel.m, wait: r4(T.blend / m.frames) } : null,
     damage: m.damage ?? 1, ...(m.impact != null ? { impact: m.impact } : {}), ...(m.topple ? { topple: true } : {}), ...(m.launch ? { launch: m.launch } : {}),
@@ -153,7 +154,8 @@ export function lowerCombos(C0) {
     }
     if (node) node.ends = [...(node.ends ?? []), c.id];
   }
-  return { moves, tree, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)], blend: r4(T.blend / FPS) };
+  // (`ready`: the fighting stance its moves start and end in, the hero's idle in combat with this moveset)
+  return { moves, tree, ready: `mv_${prefix}ready`, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)], blend: r4(T.blend / FPS) };
 }
 
 /** The director's list: each combo's beats and its moves, read whole. */
@@ -170,10 +172,12 @@ export const BASIC_ARSENAL = Object.freeze({
     { id: 'sword', name: 'Sword', figure: 'drawn', moves: BASIC_COMBOS.moves, combos: BASIC_COMBOS.combos },
     { id: 'fist', name: 'Fist', figure: 'sheathed', reach: 0.95, damage: 0.5,
       moves: {
-        jab: { strike: 'jab', role: 'opener', frames: 22, cancel: 13, contact: [0.4, 0.52], travel: { kind: 'step', m: 0.15 }, damage: 1 },
-        cross: { strike: 'cross', role: 'filler', frames: 26, cancel: 16, contact: [0.42, 0.54], travel: { kind: 'step', m: 0.2 }, damage: 1.2 },
-        hook: { strike: 'hook', role: 'finisher', frames: 34, contact: [0.45, 0.6], travel: { kind: 'lunge', m: 0.35 }, damage: 2, impact: 2.5, topple: true },
-        uppercut: { strike: 'uppercut', role: 'opener', frames: 32, contact: [0.45, 0.6], travel: { kind: 'step', m: 0.2 }, damage: 1.6, impact: 1.5 },
+        // (each move's window where its solver lands its blow: the jab at 0.44 of its clip, the cross 0.46, the hook 0.49, the
+        // uppercut 0.68)
+        jab: { strike: 'jab', role: 'opener', frames: 22, cancel: 13, contact: [0.4, 0.5], travel: { kind: 'step', m: 0.15 }, damage: 1 },
+        cross: { strike: 'cross', role: 'filler', frames: 26, cancel: 16, contact: [0.42, 0.52], travel: { kind: 'step', m: 0.2 }, damage: 1.2 },
+        hook: { strike: 'hook', role: 'finisher', frames: 34, contact: [0.46, 0.58], travel: { kind: 'lunge', m: 0.35 }, damage: 2, impact: 2.5, topple: true },
+        uppercut: { strike: 'uppercut', role: 'opener', frames: 32, contact: [0.64, 0.76], travel: { kind: 'step', m: 0.2 }, damage: 1.6, impact: 1.5 },
       },
       combos: [
         { id: 'one-two-hook', name: 'One, two, hook', beats: ['L', 'L', 'L'], moves: ['jab', 'cross', 'hook'] },
@@ -202,6 +206,7 @@ export function readArsenal(A) {
 export function lowerArsenal(A0) {
   const A = readArsenal(A0);
   return A.weapons.map((W) => ({ id: W.id, name: W.name ?? W.id, figure: W.figure ?? 'drawn', ...(W.reach != null ? { reach: W.reach } : {}), ...(W.damage != null ? { damage: W.damage } : {}),
-    moveset: lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }) }));
+    // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
+    moveset: lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }) }));
 }
 export const strikesOf = (A) => [...new Set(readArsenal(A).weapons.flatMap((W) => Object.values(W.moves).filter((m) => m.strike).map((m) => m.strike)))];

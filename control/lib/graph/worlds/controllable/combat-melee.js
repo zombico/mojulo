@@ -449,11 +449,25 @@ export function buildCombatMelee(E) {
     }
     return room;
   }
+  // THE WEAPONS (opt-in `r.weapons`, gameworld/combos.js lowerArsenal: [{ id, name, figure, reach?, damage?, moveset }]):
+  // the weapon cycle (R, a pad's right shoulder, the mouse's back button) steps to the next when no swing is live, its
+  // string cleared; each weapon its own moves, reach and damage, and the figure it shows (`sheathed`: the blade on the
+  // back, the fist's). `r.moveset` stays the current weapon's (the page reads its blend and its clips by it).
   function stepMoveset(e, input, dt, world, ctx, boosting0) {
-    const r = e.rule, M = r.moveset, t = e.transform, now = world && world.time != null ? world.time : 0;
+    const r = e.rule, t = e.transform, now = world && world.time != null ? world.time : 0, Ws = Array.isArray(r.weapons) && r.weapons.length ? r.weapons : null;
     let boosting = boosting0;
     const S = e.mv || (e.mv = { node: null, move: null, buf: null, endT: -1e9, k: 0, seq: 0 });
     const say = (beat, verdict, why) => { S.seq++; e.mvPress = { seq: S.seq, beat, verdict, why, t: now }; };
+    if (Ws && input.cycle) {
+      if (e.swingT != null) say('cycle', 'dropped', 'mid-swing: the weapon changes between moves');
+      else if (Ws.length > 1) {
+        e.weaponIdx = ((e.weaponIdx || 0) + 1) % Ws.length;
+        S.node = null; S.move = null; S.buf = null; S.k = 0; e.mvTravel = null;
+        say('cycle', 'taken', `the ${Ws[e.weaponIdx].name}`);
+      }
+    }
+    const Wc = Ws ? Ws[e.weaponIdx || 0] : null, M = Wc ? Wc.moveset : r.moveset;
+    if (Wc) { r.moveset = M; e.mvWeapon = Wc.id; }
     const edge = (k, prev) => { const on = !!input[k], was = !!e[prev]; e[prev] = on; return on && !was; };
     const lE = edge('fire', 'strikePrev'), hE = edge('heavy', 'heavyPrev'), sE = edge('special', 'specialPrev');
     const beat = hE ? 'H' : lE ? 'L' : sE ? 'S' : null;
@@ -494,7 +508,7 @@ export function buildCombatMelee(E) {
         // stay planted on the floor; a figure with the move's own clips plays them, any other its swing's
         const room = mv.travel ? mvRoom(e, world, fwdXY(t.heading)) : Infinity, travels = !!mv.travel && room >= mv.travel.m - 1e-9;
         e.swingT = 0; e.swingClip = r.moveClips && mv.clip ? (mv.travel && !travels ? `${mv.clip}_still` : mv.clip) : spec.clip;
-        e.strikeParams = { ...spec.params, damage: (r.strikeDamage ?? 0) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0 };
+        e.strikeParams = { ...spec.params, ...(Wc && Wc.reach != null ? { reach: Wc.reach } : {}), damage: (r.strikeDamage ?? 0) * (Wc && Wc.damage != null ? Wc.damage : 1) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0 };
         breakGuards(e);
         e.swingCount = (e.swingCount || 0) + 1; e.struckThisSwing = {}; e.lastSwingDir = mv.swing;
         const fw = fwdXY(t.heading), P = e.strikeParams;

@@ -2459,7 +2459,7 @@ const __mb = (id, e) => __CTL.is(__BIND, id, 'mouse', Object.keys(__DEV.mouse.bu
 let __usePad = false;   // the device the player last used (a prompt names its key): a key press says keyboard, pad activity the pad
 window.addEventListener('keydown', (e) => { __held[e.code] = true; __usePad = false; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 window.addEventListener('keyup', (e) => { __held[e.code] = false; });
-let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;${moveset ? ' let __heavyDown = false, __specialDown = false;' : ''}
+let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;${moveset ? ' let __heavyDown = false, __specialDown = false, __cycleDown = false;' : ''}
 const __canvas = renderer.domElement;
 const __MOUSELOOK = ${!!(camera && (camera.turnMode === 'look' || camera.mouseLook))};   // FPS look camera?
 if (__MOUSELOOK) {
@@ -2474,8 +2474,8 @@ if (__MOUSELOOK) {
   // A MOVESET's beats (gameworld/combos.js): heavy the right click, special the mouse's forward button, once the pointer
   // is captured; neither opens the menu nor turns the browser's page (preventDefault on the side buttons)
   __canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-  __canvas.addEventListener('mousedown', (e) => { if (document.pointerLockElement !== __canvas) return; if (__mb('heavy', e)) __heavyDown = true; if (__mb('special', e)) { e.preventDefault(); __specialDown = true; } });
-  window.addEventListener('mouseup', (e) => { if (__mb('heavy', e)) __heavyDown = false; if (__mb('special', e)) { e.preventDefault(); __specialDown = false; } if (e.button === 3 || e.button === 4) e.preventDefault(); });` : ''}
+  __canvas.addEventListener('mousedown', (e) => { if (document.pointerLockElement !== __canvas) return; if (__mb('heavy', e)) __heavyDown = true; if (__mb('special', e)) { e.preventDefault(); __specialDown = true; } if (__mb('cycleWeapon', e)) { e.preventDefault(); __cycleDown = true; } });
+  window.addEventListener('mouseup', (e) => { if (__mb('heavy', e)) __heavyDown = false; if (__mb('special', e)) { e.preventDefault(); __specialDown = false; } if (__mb('cycleWeapon', e)) __cycleDown = false; if (e.button === 3 || e.button === 4) e.preventDefault(); });` : ''}
 } else {
   // default: hold-to-look drag (walk / glide / orbit worlds keep the cursor visible).
   __canvas.addEventListener('pointerdown', () => { __drag = true; });
@@ -2698,7 +2698,7 @@ function __readInput() {
   const jump = sp && !__prevJump ? 1 : 0;   // rising edge: a discrete press, not a held axis
   __prevJump = sp;
   // weapon cycling (platform rule, opt-in loadout): R press edge cycles, digit press edge selects
-  const cy = __k('cycleWeapon') || !!(__pad && __pad.cycle);
+  const cy = __k('cycleWeapon') || !!(__pad && __pad.cycle)${moveset ? ' || __cycleDown' : ''};   // (a moveset's: the mouse's back button too)
   const cycle = cy && !__prevCycle ? 1 : 0;
   __prevCycle = cy;
   let slotNow = (__pad && __pad.slot) || 0;

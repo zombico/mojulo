@@ -10,7 +10,7 @@
  *
  * The room is a `controllable` manifest resolved by world-scene.js and emitted as export_game emits a level: the hero is
  * the game's first level's pilot (its rule, its figures, its camera, its lock), the foe that level's first foe, so what
- * plays here is what ships. Keys in the room: P the foe's AI on / off, R the foe set back, H the HUD. A spike: nothing
+ * plays here is what ships. Keys in the room: P the foe's AI on / off, K the foe set back, H the HUD. A spike: nothing
  * registers; the eyes gate is the operator's.
  */
 import { register } from 'node:module';
@@ -33,9 +33,12 @@ const { SketchRepository } = await import('../../../lib/db/repositories/sketches
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
 const { asked } = await import('./measure.mjs');
-const { BASIC_COMBOS, readCombos, lowerCombos, comboList } = await import('../../../lib/graph/gameworld/combos.js');
-// the combo manifest the room plays (--combos <file>; the basic set by default), every combo unlocked
-const combos = readCombos(opt('--combos') ? JSON.parse(await fs.readFile(opt('--combos'), 'utf8')) : structuredClone(BASIC_COMBOS));
+const { BASIC_ARSENAL, readCombos, readArsenal, lowerArsenal, comboList } = await import('../../../lib/graph/gameworld/combos.js');
+// the arsenal the room plays (--combos <file>: an arsenal, or one weapon's combo manifest; the basic sword and fist by
+// default), every combo unlocked, the weapons stepped through on the cycle
+const given = opt('--combos') ? JSON.parse(await fs.readFile(opt('--combos'), 'utf8')) : null;
+const arsenal = readArsenal(!given ? structuredClone(BASIC_ARSENAL) : given.weapons ? given : { ...(given.timing ? { timing: given.timing } : {}), weapons: [{ id: 'sword', name: 'Sword', figure: 'drawn', ...readCombos(given) }] });
+const weapons = lowerArsenal(arsenal);
 
 const G = SketchRepository.getByRef(game)?.manifest;
 if (!G) throw new Error(`room: no gameworld '${game}' in this database (MOJULO_DATA_DIR)`);
@@ -67,8 +70,8 @@ const foes = Array.from({ length: pack }, (_, k) => {
 });
 const { vista: _v, ...camera } = L.camera;
 const H0 = structuredClone(hero);
-const entities = [{ ...H0, rule: { ...H0.rule, moveset: lowerCombos(combos) }, transform: { pos: [0, -3, 0], heading: Math.PI / 2 } }, ...foes];
-const legend = 'W A S D  run · mouse  look · click  light · right click  heavy · mouse forward  special · F  sprint · F F  dodge · C  lock on · P  foe AI · R  reset · H  HUD';
+const entities = [{ ...H0, rule: { ...H0.rule, weapons, moveset: weapons[0].moveset }, transform: { pos: [0, -3, 0], heading: Math.PI / 2 } }, ...foes];
+const legend = 'W A S D  run · mouse  look · click  light · right click  heavy · mouse back / R  weapon · F  sprint · F F  dodge · C  lock on · P  foe AI · K  reset · H  HUD';
 // THE HERO: the game's own, or (--hero) another body on its rig and clips: `anime` the anime hero on the tiered body, or
 // a hero spec as JSON; its sword in hand (the drawn figure) and on its back (the sheathed one)
 const HEROES = { anime: { cast: 'male', head: 'anime', proportions: 'anime', form: 'tiered' }, tiered: { cast: 'male', form: 'tiered' } };
@@ -93,22 +96,22 @@ const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/
 <div id="pr"><b>Practice room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><div id="pr-ai"></div><h4>combos (all unlocked)</h4><div id="pr-c"></div><h4>last move</h4><table id="pr-t"></table><h4>presses</h4><div class="log" id="pr-log"></div></div>
 <script>
 (() => {
-  const MOUSELOOK = ${!!(camera.mouseLook || camera.turnMode === 'look')}, CARD = ${JSON.stringify(card)}, LIST = ${JSON.stringify(comboList(combos))}, MOVES = ${JSON.stringify(combos.moves)};
+  const MOUSELOOK = ${!!(camera.mouseLook || camera.turnMode === 'look')}, CARD = ${JSON.stringify(card)}, LISTS = ${JSON.stringify(Object.fromEntries(arsenal.weapons.map((W) => [W.id, { name: W.name ?? W.id, list: comboList({ moves: W.moves, combos: W.combos }) }])))}, MOVES = ${JSON.stringify(Object.fromEntries(arsenal.weapons.flatMap((W) => Object.entries(W.moves).map(([id, m]) => [id, m]))))};
   const $ = (id) => document.getElementById(id), F = (s) => Math.round(s * 60);
   let W = null, H = null, foes = [], cur = null, last = null, log = [], seq = 0, hits0 = 0, homes = null, show = true, tPrev = 0;
-  const setAi = (on) => { W.aiEnabled = on; $('pr-ai').innerHTML = 'foe AI <b class="' + (on ? 'bad' : 'ok') + '">' + (on ? 'ON' : 'off') + '</b> · P · foes never die · R resets';  };
+  const setAi = (on) => { W.aiEnabled = on; $('pr-ai').innerHTML = 'foe AI <b class="' + (on ? 'bad' : 'ok') + '">' + (on ? 'ON' : 'off') + '</b> · P · foes never die · K resets';  };
   addEventListener('keydown', (e) => {
     if (!W) return;
     if (e.code === 'KeyP') setAi(!W.aiEnabled);
     if (e.code === 'KeyH') { show = !show; $('pr').style.display = show ? '' : 'none'; }
-    if (e.code === 'KeyR') foes.forEach((f, k) => { f.transform.pos = homes[k].slice(); f.staggerT = null; f.downed = false; f.gone = false; if (f.hpMax) f.body.hp = f.hpMax; f.hits = 0; hits0 = 0; });
+    if (e.code === 'KeyK') foes.forEach((f, k) => { f.transform.pos = homes[k].slice(); f.staggerT = null; f.downed = false; f.gone = false; if (f.hpMax) f.body.hp = f.hpMax; f.hits = 0; hits0 = 0; });
   });
   // (the click that only takes the mouse: the runtime never sees it, the room says so)
   addEventListener('mousedown', (e) => { if (W && MOUSELOOK && !document.pointerLockElement) log.push({ t: W.time, ok: false, text: 'click: the first click takes the mouse' }); });
   const row = (k, a, b, cls) => '<tr><td class="k">' + k + '</td><td>' + (a ?? '') + '</td><td class="' + (cls || '') + '">' + (b ?? '—') + '</td></tr>';
   function draw() {
-    const live = H.mvCombos || [], k = H.mvHit || 0;
-    $('pr-c').innerHTML = LIST.map((c) => { const on = H.swingT != null && live.indexOf(c.id) >= 0; const beats = c.beats.split(' ').map((b, i) => { let n = -1, j = 0; for (const x of c.beats.split(' ')) { if (x !== '.') n++; if (j++ === i) break; } return '<span class="' + (on && b !== '.' && n < k ? 'on' : '') + '">' + b + '</span>'; }).join(' ');
+    const live = H.mvCombos || [], k = H.mvHit || 0, Wn = LISTS[H.mvWeapon || Object.keys(LISTS)[0]], LIST = Wn.list;
+    $('pr-c').innerHTML = '<div>weapon <b>' + Wn.name + '</b> <span class="k">(' + Object.values(LISTS).map((x) => x.name).join(' · ') + ': mouse back / R)</span></div>' + LIST.map((c) => { const on = H.swingT != null && live.indexOf(c.id) >= 0; const beats = c.beats.split(' ').map((b, i) => { let n = -1, j = 0; for (const x of c.beats.split(' ')) { if (x !== '.') n++; if (j++ === i) break; } return '<span class="' + (on && b !== '.' && n < k ? 'on' : '') + '">' + b + '</span>'; }).join(' ');
       return '<div>' + beats + ' <span class="k">' + c.name + ' · ' + c.moves.map((m) => m.id).join(' → ') + '</span></div>'; }).join('');
     const m = last, mv = m && MOVES[m.id];
     $('pr-t').innerHTML = (m ? row('move', m.id + ' · ' + mv.role, m.clip) + row('frames', mv.frames + (mv.cancel ? ' · cancel ' + mv.cancel : ' · no cancel'), (m.end != null ? m.end + ' f' : '…'))
@@ -146,7 +149,7 @@ await fs.mkdir(out, { recursive: true });
 const file = path.join(out, 'practice-room.html');
 await fs.writeFile(file, html);
 // THE COMBO MANIFEST: what the room played, every combo unlocked, for the game's director
-await fs.writeFile(path.join(out, 'combos.json'), JSON.stringify(combos, null, 2));
-console.log(`room: ${comboList(combos).map((c) => `${c.beats} ${c.name}`).join(' · ')} → ${path.join(out, 'combos.json')}`);
+await fs.writeFile(path.join(out, 'combos.json'), JSON.stringify(arsenal, null, 2));
+console.log(`room: ${arsenal.weapons.map((W) => `${W.name ?? W.id}: ${comboList({ moves: W.moves, combos: W.combos }).map((c) => `${c.beats} ${c.name}`).join(', ')}`).join(' · ')} → ${path.join(out, 'combos.json')}`);
 console.log(`room: ${file} (${(html.length / 1e6).toFixed(1)} MB) · the hero '${pilot.body.figure}' (strike ${rule.strike ?? 'none'}, ${rule.strikeDur ?? '—'} s), ${pack} ${foe0.body.figure} never dying`);
 process.exit(0);

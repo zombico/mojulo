@@ -71,19 +71,27 @@ describe('a swing carried by the whole body', () => {
 // the runtime carries the body (a travelling move advances, the lead foot then the rear), and no foot jumps where one
 // move cuts into the next. Measured as the page plays it: the runtime's own presses, travel and phases, the page's
 // crossfade between clips (advanceGaitMix, the node positions blended), each foot put on the floor by the hero's place.
-import { moveClip, readyClip } from './hero-swing-body.js';
+import { moveClip, readyClip, strikeMoveClip, strikeReadyClip } from './hero-swing-body.js';
+import { heroStrike } from './hero-strike.js';
+import { heroBox } from './hero-box.js';
 import { fitSwing, swingPhases, HELD_SWINGS, swingTiming } from './hero-swing.js';
 import { layeredClip, plantedFoot } from './station-loft-rig.js';
 import { createWorld, stepWorld, advanceGaitMix } from '../worlds/controllable-world.js';
-import { BASIC_COMBOS, lowerCombos } from '../gameworld/combos.js';
+import { BASIC_COMBOS, BASIC_ARSENAL, lowerCombos, lowerArsenal } from '../gameworld/combos.js';
 
 const CONTACT = [0.44, 0.52];
-function chain({ footwork, foeAt = 6, style = null, presses = { 0: { fire: 1 }, 2: { fire: 1 }, 17: { fire: 1 } } }) {
-  const R = rig('male', 'sword'), M = lowerCombos(BASIC_COMBOS);
+function chain({ footwork, foeAt = 6, style = null, fist = false, presses = { 0: { fire: 1 }, 2: { fire: 1 }, 17: { fire: 1 } } }) {
+  const R = rig('male', 'sword'), M = fist ? lowerArsenal(BASIC_ARSENAL).find((W) => W.id === 'fist').moveset : lowerCombos(BASIC_COMBOS);
   const ctx = { R, cls: 'normal', base: STRUCTURED_SWING_BASE, grip: [], own: 'chop', body: true, style, timing: style ? swingTiming('normal', style) : null, contact: CONTACT, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS };
   const clips = {};
   for (const mv of Object.values(M.moves)) if (mv.swing) { clips[mv.clip] = moveClip(mv, { ...ctx, footwork }); clips[`${mv.clip}_still`] = moveClip({ ...mv, travel: null }, ctx); }
   clips.mv_ready = readyClip(ctx);   // (the fighting stance: the idle in combat)
+  if (fist) {
+    // (the fist: the body's strikes, their guard its stance)
+    const sc = { R, rigNodesAt, plantedFoot, solvers: { strike: heroStrike, box: heroBox } };
+    for (const mv of Object.values(M.moves)) { clips[mv.clip] = strikeMoveClip(mv, { ...sc, footwork }); clips[`${mv.clip}_still`] = strikeMoveClip({ ...mv, travel: null }, sc); }
+    clips[M.ready] = strikeReadyClip('jab', sc);
+  }
   const w = createWorld({ entities: [
     { id: 'p', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeContact: CONTACT, moveset: M, moveClips: true, combat: { near: 10, far: 15, linger: 3, speed: 2.4, stride: 1.6 } }, transform: { pos: [0, 0, 0], heading: 0 } },
     { id: 'foe', team: 'foes', body: { type: 'box', size: [0.6, 0.6, 1.8], hittable: true, hp: 1e6, poise: 1 }, rule: { type: 'static' }, transform: { pos: [foeAt, 0, 0], heading: Math.PI } },
@@ -141,6 +149,11 @@ describe('the footwork through a string', () => {
     const A = chain({ footwork: true, style: 'action' });
     expect(A.worst).toBeLessThan(0.01);
     expect(A.travelled).toBeGreaterThan(0.95);
+  });
+  it('the fist: the jab, the cross and the hook from the guard, the body\'s own strikes, the feet held as well', () => {
+    const F = chain({ footwork: true, fist: true });
+    expect(F.worst).toBeLessThan(0.01);
+    expect(F.travelled).toBeGreaterThan(0.6);   // (0.15 + 0.2 + the hook's 0.35 lunge)
   });
   it('a foe too near for the travel: the moves play in place, the feet still', () => {
     const near = chain({ footwork: true, foeAt: 1.0 });

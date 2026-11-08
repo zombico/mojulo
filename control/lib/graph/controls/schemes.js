@@ -70,7 +70,7 @@ const PILOT = {
     { id: 'light', label: 'light attack', group: 'combat', in: ['melee'], bind: { mouse: ['left'], gamepad: ['west'] } },
     { id: 'heavy', label: 'heavy attack', group: 'combat', in: ['melee'], bind: { mouse: ['right'], gamepad: ['north'] } },
     { id: 'special', label: 'special', group: 'combat', in: ['melee'], bind: { mouse: ['forward'], gamepad: ['east'] } },
-    { id: 'cycleWeapon', label: 'next weapon', group: 'combat', in: ARMED, bind: { keyboard: ['KeyR'], gamepad: ['rb'], xr: ['right.squeeze'] } },
+    { id: 'cycleWeapon', label: 'next weapon', group: 'combat', in: ARMED, bind: { keyboard: ['KeyR'], mouse: ['back'], gamepad: ['rb'], xr: ['right.squeeze'] } },
     { id: 'weapon1', label: 'weapon 1', group: 'combat', in: ARMED, bind: { keyboard: ['Digit1'] } },
     { id: 'weapon2', label: 'weapon 2', group: 'combat', in: ARMED, bind: { keyboard: ['Digit2'] } },
     { id: 'weapon3', label: 'weapon 3', group: 'combat', in: ARMED, bind: { keyboard: ['Digit3'] } },

@@ -494,6 +494,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // moveset's move plays its own clip (`mv_<id>`, or `_still` where its travel does not fit before the body ahead), its
 // travel waits out the blend into it and a lunge's comes in two pieces (hero-swing-body.js travelAt); a moveset's hero
 // idles in combat in its fighting stance (`idleClip`); no fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the weapons): the 16 fixtures that embed the controllable runtime. The
+// moveset steps through `r.weapons` on the cycle (its stance, its figure, its reach), the combat stance shows a weapon's
+// sheathed figure, and the pilot scheme binds the mouse's back button to the cycle; no fixture's rule takes weapons or
+// a moveset, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

@@ -200,7 +200,9 @@ export function buildRulesPlatform(E) {
       const locked = !!(world.lock && world.lock.target && world.lock.pilot === e.id);
       e.combatT = near || locked || e.swingT != null ? C.linger : Math.max(0, (e.combatT || 0) - dt);
       combatOn = e.combat = e.combatT > 0;
-      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn ? C.drawn : C.sheathed;
+      // (a weapon that shows the sheathed figure, the fist's: sheathed in combat too, combat-melee.js r.weapons)
+      const Wf = Array.isArray(r.weapons) ? r.weapons[e.weaponIdx || 0] : null;
+      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn && !(Wf && Wf.figure === 'sheathed') ? C.drawn : C.sheathed;
     }
     const walking = walker && travel > 1e-6 && (!!input.walk || travel < runAt || (combatOn && !input.boost));
     // THE RUN BUTTON (opt-in `sprint`, a feel card's `ground.sprint` with its takes, a dash-less hero's F): held while
@@ -558,9 +560,9 @@ export function buildRulesPlatform(E) {
     }
 
     // A MOVESET's hero whose figure carries its moves' own clips (`moveClips`, worlds/world-scene.js) idles in combat in
-    // its fighting stance (`mv_ready`, the stance its moves start and end in: hero-swing-body.js), so no foot moves
+    // its weapon's fighting stance (its moveset's `ready`, the stance its moves start and end in: hero-swing-body.js), so no foot moves
     // between standing and striking. Absent, no field.
-    if (r.moveClips) e.idleClip = e.combat ? 'mv_ready' : null;
+    if (r.moveClips) e.idleClip = e.combat ? ((Array.isArray(r.weapons) ? r.weapons[e.weaponIdx || 0].moveset : r.moveset)?.ready ?? 'mv_ready') : null;
     // edges + gait (surfaced to the bus later; drive land-dust / jump-sound / a figure's frame).
     // `landed` is the grounded rising edge computed up top (snap-inclusive), not this touchdown block.
     e.jumped = jumped; e.landed = landedEdge;

@@ -62,7 +62,9 @@ import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroCl
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
-import { swingBody, moveClip, readyClip } from '@/lib/graph/polygonizer/hero-swing-body';
+import { swingBody, moveClip, readyClip, strikeMoveClip, strikeReadyClip } from '@/lib/graph/polygonizer/hero-swing-body';
+import { heroStrike } from '@/lib/graph/polygonizer/hero-strike';
+import { heroBox } from '@/lib/graph/polygonizer/hero-box';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig, faceKnots } from '@/lib/graph/polygonizer/anime-face-rig';
@@ -990,14 +992,28 @@ export const WORLD_KINDS = {
             // (the world's game type: its timing, and the action type's wider body: hero-swing-body.js SWING_STYLES)
             const mc = { R, cls, base, grip, own, body: !!ctx.swings.body, style: ctx.swing === 'action' ? 'action' : null, timing: ctx.swing ? swingTiming(cls, ctx.swing) : null, contact: ctx.swings.contact, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS };
             // (and the fighting stance the moves start and end in, the hero's idle in combat: the swing's ready key, whole)
-            swings.mv_ready = readyClip(mc);
+            for (const rd of ctx.swings.readies ?? [{ clip: 'mv_ready' }]) if (!rd.strike) swings[rd.clip] = readyClip(mc);
             for (const mv of ctx.swings.moves) {
+              if (!mv.swing) continue;
               swings[mv.clip] = moveClip(mv, { ...mc, footwork: true });
               if (mv.travel) swings[`${mv.clip}_still`] = moveClip({ ...mv, travel: null }, mc);
             }
           }
           clipsIn = { ...clipsIn, ...swings };
           held = { item: hg.item, class: cls, reach: Math.round((hg.length + 0.65) * 100) / 100, seconds: HELD_STRIKE[cls].seconds, damage: HELD_STRIKE[cls].damage };
+        }
+        // A MOVESET's body strikes (`swings.moves` with `strike`: the fist's, hero-swing-body.js strikeMoveClip): the punch
+        // and boxing solvers' clips on this rig, its footwork over them, and the fist's fighting stance; whatever the hand
+        // holds (the fist's hero is the sheathed one)
+        if (ctx.swings && Array.isArray(ctx.swings.moves) && ctx.swings.moves.some((mv) => mv.strike)) {
+          const sc = { R, rigNodesAt, plantedFoot, solvers: { strike: heroStrike, box: heroBox } }, strikes = {};
+          for (const rd of ctx.swings.readies ?? []) if (rd.strike) strikes[rd.clip] = strikeReadyClip(rd.strike, sc);
+          for (const mv of ctx.swings.moves) {
+            if (!mv.strike) continue;
+            strikes[mv.clip] = strikeMoveClip(mv, { ...sc, footwork: true });
+            if (mv.travel) strikes[`${mv.clip}_still`] = strikeMoveClip({ ...mv, travel: null }, sc);
+          }
+          clipsIn = { ...clipsIn, ...strikes };
         }
         // RIDING (ctx.ride: a world with a mount, worlds/mount-units.js): the hero's riding clips, solved on this rig to the
         // horse's saddle, irons and bit (mount/game.js), each its pose words by key, lowered by this pack's lift. Absent ⇒ as before
