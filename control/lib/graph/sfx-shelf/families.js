@@ -29,9 +29,24 @@ import { elemental } from './families/elemental.js';
 import { shield } from './families/shield.js';
 import { launch } from './families/launch.js';
 import { booster, engine, beam, servo, fire, charge } from './families/held.js';
+import { ball, sport, crowd } from './families/sports.js';
+import { tires, crash, motoring } from './families/racing.js';
+import { magic, bow, interact } from './families/adventure.js';
+import { platform, puzzle, tabletop, dice } from './families/play.js';
+import { work, cooking } from './families/life.js';
+import { heartbeat, breath, horror } from './families/horror.js';
+import { build, siege, flight, brawl } from './families/war.js';
 import { freeze } from './layers.js';
 
-export const FAMILIES = Object.freeze({ explosion, impact, footstep, melee, handling, projectile, breakage, elemental, shield, launch, booster, engine, beam, servo, fire, charge });
+export const FAMILIES = Object.freeze({
+  // combat and its world
+  explosion, impact, footstep, melee, handling, projectile, breakage, elemental, shield, launch,
+  // held voices
+  booster, engine, beam, servo, fire, charge,
+  // by game type: sports, racing, adventure, platformers / puzzles / tables, life sims, horror, strategy / flight / brawlers
+  ball, sport, crowd, tires, crash, motoring, magic, bow, interact, platform, puzzle, tabletop, dice, work, cooking,
+  heartbeat, breath, horror, build, siege, flight, brawl,
+});
 export const FAMILY_NAMES = Object.freeze(Object.keys(FAMILIES));
 
 // FNV-1a over the family and its dials: a grain's seed, the same every read.

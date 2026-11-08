@@ -61,7 +61,7 @@ export const engine = {
   label: 'a motor by its throttle, idling at 0',
   sustain: true,
   ordered: [],
-  dials: { kind: ['car', 'motorbike', 'jet', 'prop'] },
+  dials: { kind: ['car', 'motorbike', 'jet', 'prop', 'kart', 'boat', 'helicopter'] },
   defaults: { kind: 'car' },
   idle: 'running',
   build(d) {
@@ -81,6 +81,25 @@ export const engine = {
         osc('sawtooth', [30, 110], [0.2, 0.4], { cutoff: [300, 1500], lfo: { to: 'gain', rate: [15, 55], depth: 0.7 } }),
         noise([0.05, 0.2], { cutoff: [800, 2500], lfo: { to: 'gain', rate: [15, 55], depth: 0.5 } }),
         osc('square', [15, 55], [0.08, 0.15], { cutoff: [200, 500] }),
+      ] };
+      case 'kart': return { attack: 0.08, release: 0.2, layers: [
+        // a small two-stroke: high, buzzy, its firing fast and hard
+        osc('sawtooth', [70, 300], [0.15, 0.4], { cutoff: [1200, 5000], q: 1.5, lfo: { to: 'gain', rate: [25, 110], depth: 0.6 } }),
+        osc('square', [35, 150], [0.06, 0.12], { cutoff: [400, 1200] }),
+        noise([0.03, 0.18], { band: { lo: 2000 }, pan: 0.2 }),
+      ] };
+      case 'boat': return { attack: 0.3, release: 0.6, layers: [
+        // an outboard: the motor's growl, the hull slapping the water, the wake hissing
+        osc('sawtooth', [40, 150], [0.15, 0.35], { cutoff: [400, 2000], lfo: { to: 'gain', rate: [12, 40], depth: 0.35 } }),
+        noise([0.06, 0.3], { cutoff: [500, 1500], lfo: { to: 'gain', rate: [0.7, 2.2], depth: 0.6 }, pan: -0.2 }),
+        noise([0.02, 0.2], { band: { lo: 2500 }, cutoff: [5000, 9000], pan: 0.25 }),
+      ] };
+      case 'helicopter': return { attack: 0.5, release: 1, layers: [
+        // the rotor's chop: noise under a deep gain modulation, its rate the rotor's; a turbine whining over it
+        noise([0.12, 0.5], { cutoff: [500, 1600], lfo: { to: 'gain', wave: 'sawtooth', rate: [7, 14], depth: -0.95 } }),
+        noise([0.04, 0.15], { band: { hi: 150 }, lfo: { to: 'gain', wave: 'sawtooth', rate: [7, 14], depth: -0.9 } }),
+        osc('sine', [1800, 3200], [0.02, 0.1], { pan: 0.25 }),
+        noise([0.02, 0.2], { band: { lo: 3000 }, cutoff: [6000, 11000], pan: -0.25 }),
       ] };
       default: return { attack: 0.12, release: 0.3, layers: [
         osc('sawtooth', [38, 160], [0.18, 0.55], { cutoff: [500, 2600], q: 1.2, lfo: { to: 'gain', rate: [14, 50], depth: 0.25 } }),

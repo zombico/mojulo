@@ -115,6 +115,31 @@ That last measure, `heard`, is A-weighted. A long low thump carries most of a so
 heard, so the energy `spread` called every big, heavy sound thin. `spread` still holds a voice to its own floor;
 `heard` holds a sound to the register.
 
+## By game type
+
+The genres mojulo makes (`docs/tool-surface/hillclimb.md`, the genre probes) each lacked their own sounds. They are
+families too, with the same laws: every one-shot in the register, every held voice under the held law, every row pinned.
+
+| game types | families | some of their words |
+|---|---|---|
+| athletics, net games, turn sports, team goal games | `ball`, `sport`, `crowd` (held) | `kick ball`, `swish`, `final whistle`, `goal horn`, `starting gun`, `crowd roar` |
+| time-trial and kart racing | `tires` (held), `crash`, `motoring`; `engine` kart, boat, helicopter | `skid`, `drift`, `crash`, `nitro`, `honk`, `go kart`, `chopper` |
+| dungeon crawlers, RPGs, roguelikes, Metroidvanias, adventures | `magic`, `bow`, `interact` | `heal`, `teleport`, `hex`, `arrow shot`, `bullseye`, `treasure chest`, `unlock`, `quaff`, `creak` |
+| platformers, collectathons, runners | `platform` | `coin pickup`, `powerup`, `spring`, `stomp enemy`, `ledge crumble`, `ouch` |
+| match-3, block-pushing and arcade puzzles, tabletop | `puzzle`, `tabletop`, `dice` | `match three`, `clear line`, `push block`, `chess move`, `shuffle`, `roll dice` |
+| farming and life sims | `work`, `cooking` (held) | `shovel`, `till`, `harvest`, `chop wood`, `pickaxe`, `fishing`, `frying` |
+| survival horror, stealth | `heartbeat`, `breath` (held), `horror` | `pulse`, `panting`, `jump scare`, `three knocks`, `dread` |
+| tower defence, real-time strategy | `build`, `siege` | `build tower`, `upgrade`, `trebuchet`, `artillery`, `volley`, `battle horn` |
+| flight sims, air combat, space shooters | `flight` | `sound barrier`, `fox two`, `afterburners`, `hyperspace`, `chaff` |
+| versus fighters, brawlers | `brawl` | `grapple`, `suplex`, `haymaker`, `riposte`, `finishing blow` |
+
+**Tones are swells.** A whistle, a buzzer and a horn are held tones by nature, not strikes, so they are the families'
+`swells`: their crest is not held to the register's.
+
+**Chimes need their bands.** A long-ringing bell or chime fills the mid band for as long as it rings, and the ear
+hears little else. The puzzle matches, the heals and the bells are kept short and soft. Each carries the two bands it
+lacks: `lowBody` (120–500 Hz) and `air` (above 5 kHz), from `layers.js`.
+
 ## Held voices: sounds driven by a control
 
 A cue is a one-shot. A held voice (the kernel feature `sustain`, `engine.sustain(spec)`) is a sound that runs while

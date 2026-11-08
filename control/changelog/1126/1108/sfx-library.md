@@ -68,4 +68,21 @@
   - A page without a held voice is the same as before, byte for byte.
 - **Fixed: ramps re-set mid-glide.** A held voice or a duck re-set while a ramp was running lost that ramp: offline,
   the part already played went too. The partial ramp is laid again up to that moment.
+- **Sounds for every game type.** Twenty-two new families, each speaking the layer words (`layers.js`). The register
+  and the held law hold every dial point of them (a deep sweep), and every row is pinned.
+
+  | game types | families |
+  |---|---|
+  | sports | `ball` (kicked, bounced, struck, caught, by the ball), `sport` (whistles, bat crack, net, horn, buzzer, starter's pistol, bell), `crowd` (held, by excitement) |
+  | racing | `tires` (held, by slip and surface), `crash` (by severity), `motoring` (gear shift, horns, boost, backfire, door); `engine` adds kart, boat and helicopter |
+  | adventures, RPGs | `magic` (cast, heal, buff, teleport, summon, curse, by school and power), `bow` (draw, loose, flyby, hits; longbow or crossbow), `interact` (chest, lever, pressure plate, key, gate, coins, potion, creak) |
+  | platformers, puzzles, tables | `platform` (coin, gem, power-up, bounce pad, stomp, crumble, ledge grab, hurt), `puzzle` (match by combo, swap, clear, drop, push, lock), `tabletop` (pieces, cards, chips, coin), `dice` |
+  | life sims | `work` (dig, hoe, plant, water, harvest, chop, mine, hammer, saw, fishing), `cooking` (held) |
+  | horror, stealth | `heartbeat` and `breath` (held), `horror` (jumpscare, distant knocks, far scrape, dread drone) |
+  | strategy, flight, brawlers | `build` (place, upgrade, demolish, repair), `siege` (catapult, cannon, ballista, arrow volley, war horn), `flight` (sonic boom, missile, afterburner, warp jump, gear, flares), `brawl` (grab, throw, body slam, uppercut, counter, knockout) |
+
+  114 new rows under their words (`swish`, `skid`, `hex`, `bullseye`, `quaff`, `match three`, `chess move`, `shovel`,
+  `jump scare`, `trebuchet`, `fox two`, `suplex` …), four new categories (sport, magic, play, work), and two new layer
+  words: `lowBody` and `air`, the bands a tonal sound lacks. Held tones (whistles, buzzers, horns) are swells, not
+  strikes.
 - Nothing in a level reads the shelf by its words yet: the wiring comes next.
