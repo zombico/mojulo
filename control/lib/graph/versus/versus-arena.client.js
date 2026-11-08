@@ -316,6 +316,9 @@ function buildRing() {
   return g;
 }
 const RING = AV.set === 'ring' ? buildRing() : null;
+// the camera near (a ring, or a level whose view is near, versus-levels.js: the training ground): a fighter near two
+// thirds of the picture, shown as it was made
+const NEAR = !!RING || AV.view === 'near';
 function makePlayed(skin) {
   const pack = skin.pack, group = new THREE.Group();
   const bones = pack.bones.map(() => { const o = new THREE.Bone(); o.matrixAutoUpdate = false; group.add(o); return o; });
@@ -552,7 +555,7 @@ function frameCamera() {
   const sep = Math.abs(s.p[0].x - s.p[1].x) / 1000;
   // the genre's framing: a body near half the picture's height, both in frame with room to move (on a set, nearer: a
   // fighter near two thirds of it, shown as it was made)
-  const framed = RING ? Math.max(3.6, Math.min(6, (sep + 2.2) / (2 * tanH))) : Math.max(5.8, Math.min(9, (sep + 3.4) / (2 * tanH)));
+  const framed = NEAR ? Math.max(3.6, Math.min(6, (sep + 2.2) / (2 * tanH))) : Math.max(5.8, Math.min(9, (sep + 3.4) / (2 * tanH)));
   // (never further back than the room the level leaves on the camera's side: a walled alley's camera comes in close)
   const want = LANE.back ? Math.min(framed, LANE.back - 0.3) : framed;
   cam.dist += (want - cam.dist) * 0.12;
@@ -563,8 +566,8 @@ function frameCamera() {
   const shake = match.shake > 0 ? Math.sin(match.t * 2.3) * match.shake * 0.006 : 0;
   if (camera.fov !== VFOV) { camera.fov = VFOV; camera.updateProjectionMatrix(); }
   // (framed in the lane's frame, then set in the world's)
-  camera.position.copy(STAGE.localToWorld(CAM_AT.set(cam.x + shake, PLANE - cam.dist, FLOOR + (RING ? 1.1 : 1.25) + cam.dist * 0.05)));
-  camera.lookAt(STAGE.localToWorld(CAM_TO.set(cam.x + shake, PLANE, FLOOR + (RING ? 0.95 : 1.05))));
+  camera.position.copy(STAGE.localToWorld(CAM_AT.set(cam.x + shake, PLANE - cam.dist, FLOOR + (NEAR ? 1.1 : 1.25) + cam.dist * 0.05)));
+  camera.lookAt(STAGE.localToWorld(CAM_TO.set(cam.x + shake, PLANE, FLOOR + (NEAR ? 0.95 : 1.05))));
 }
 const CAM_AT = new THREE.Vector3(), CAM_TO = new THREE.Vector3();
 

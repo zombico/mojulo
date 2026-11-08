@@ -466,6 +466,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // pixel budget of a page played live, one draw a figure).
 // Re-pinned 2026-11-08 (1107-fg-remake merging 1105-rc): `versus` only, its emission the re-pins above together (the
 // candidate's runtime changes, and this branch's lane frame and toon body).
+// Re-pinned 2026-11-08 (1107-fg-remake: the training ground): `versus` only. Its page inlines versus-arena.client.js by
+// its source, which frames a level whose view is `near` (versus-levels.js, the training ground's) as it frames the ring;
+// the fixture's arena names no view and is framed as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

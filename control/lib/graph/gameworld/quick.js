@@ -815,6 +815,9 @@ function readFight(Q) {
 // `strikes: 'own'`, stamped at mint) opens in the RING first, the set that shows them as they were made (versus-arena.js)
 export const FIGHT_ARENAS = Object.freeze([{ id: 'plaza', name: 'Plaza', kit: 'island-plaza' }, { id: 'nave', name: 'Nave', kit: 'gothic-nave' }]);
 export const RING_ARENA = Object.freeze({ id: 'ring', name: 'Ring', set: 'ring' });
+// a fight made now is fought on the TRAINING GROUND (versus-levels.js, the greybox preset: a ruled floor and wall, the
+// camera near), stamped at mint when the operator names no arenas: a fight minted before carries none and keeps its own
+export const TRAINING_ARENA = Object.freeze({ id: 'training', name: 'Training ground', level: Object.freeze({ kind: 'greybox', preset: 'training' }) });
 const defaultArenas = (Q) => (Q.strikes === 'own' ? [RING_ARENA, ...FIGHT_ARENAS] : FIGHT_ARENAS);
 
 /** A fight's arenas as stage recipes (each a level the fight runs on): → [{ id, name, manifest }]; none with arenas: false. */
@@ -860,7 +863,8 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   const camo = isObj(tiered) && tiered.ride !== undefined ? settingLivery(tiered, { style }) : null;
   // a fight's boxers throw their own strikes (versus-hero.js), stamped here at mint when the operator names none: a fight
   // minted before carries none and strikes with the fight's keyed moves
-  const struck = isObj(tiered) && tiered.goal === 'fight' && tiered.strikes === undefined ? { ...tiered, strikes: 'own' } : tiered;
+  const fight = isObj(tiered) && tiered.goal === 'fight';
+  const struck = fight ? { ...tiered, ...(tiered.strikes === undefined ? { strikes: 'own' } : {}), ...(tiered.arenas === undefined ? { arenas: [{ ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : {}) } : tiered;
   const given = camo ? { ...struck, livery: camo } : struck;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)

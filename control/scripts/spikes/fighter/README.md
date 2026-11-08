@@ -71,7 +71,10 @@ body (a boxer throwing its own punches), the realistic body, comic ink, Shonen H
 ```bash
 node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles          # mint, bake, play, read, shoot
 node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --reuse  # re-shoot, the characters and arenas kept
+node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --reuse --level training  # every matchup on the training ground
 ```
+
+Each body's top is its roster colour, so a matchup's two sides read apart.
 
 The machine read (`report.json`, advisory): each body bakes and plays without a page error, stands on the lane's floor
 and on its line (its posed mesh's bounds against the lane), and what it weighs in the page (triangles, megabytes). The

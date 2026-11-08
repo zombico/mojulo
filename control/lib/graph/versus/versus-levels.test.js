@@ -15,6 +15,8 @@ const inside = (b, [x, y]) => {
 // its camera (a `back`)
 const TURNED = Object.keys(GREYBOX_PRESETS).find((k) => GREYBOX_PRESETS[k].lane.heading !== 0 && GREYBOX_PRESETS[k].lane.at.some((v) => v !== 0));
 const WALLED = Object.keys(GREYBOX_PRESETS).find((k) => GREYBOX_PRESETS[k].lane.back !== undefined);
+// and a preset that frames the fight near (the training ground's view)
+const NEAR = Object.keys(GREYBOX_PRESETS).find((k) => GREYBOX_PRESETS[k].view === 'near');
 
 describe('versus levels: the fight laid on any kind of level by its lane', () => {
   it('a stage level is the arena as it was, its recipe arenaManifest\'s byte for byte, its lane its old plane', () => {
@@ -27,7 +29,7 @@ describe('versus levels: the fight laid on any kind of level by its lane', () =>
   });
 
   it('a greybox level\'s lane stands on its floor, wall to wall, with the camera\'s side open', () => {
-    for (const id of [TURNED, WALLED]) {
+    for (const id of [TURNED, WALLED, NEAR]) {
       const P = greyboxPreset(id), floors = P.blocks.filter((b) => b.tone === 'floor' || b.at[2] + b.size[2] === P.lane.floor);
       // (both walls and the centre over a block whose top is the lane's floor)
       for (const s of [-P.lane.half, 0, P.lane.half]) {
@@ -61,6 +63,21 @@ describe('versus levels: the fight laid on any kind of level by its lane', () =>
     expect(v.floor).toBe(v.lane.floor);
     // (a stored arena's data is as it was: no lane, its plane, walls and floor)
     expect(versusArenaData({ plane: 6, half: 7, floor: 0.75 })).not.toHaveProperty('lane');
+  });
+
+  it('a level\'s view rides to the fight: its preset\'s, or its own word; the genre\'s framing says nothing', () => {
+    expect(NEAR).toBeDefined();
+    expect(versusArenaData(fightLevel({ kind: 'greybox', preset: NEAR }).versus).view).toBe('near');
+    expect(fightLevel({ kind: 'greybox', preset: NEAR, view: 'genre' }).versus).not.toHaveProperty('view');
+    expect(versusArenaData(fightLevel({ kind: 'greybox', preset: TURNED, view: 'near' }).versus).view).toBe('near');
+    expect(versusArenaData(fightLevel({ kind: 'greybox', preset: TURNED }).versus)).not.toHaveProperty('view');
+    expect(() => readFightLevel({ kind: 'greybox', preset: NEAR, view: 'wide' })).toThrow(/view is genre \| near/);
+    // (its ruling stands proud of what it rules by millimetres: nothing a fighter stands on rises off the lane's floor)
+    const P = greyboxPreset(NEAR), lines = P.blocks.filter((b) => b.at[2] === P.lane.floor && b.size[2] < 0.02);
+    expect(lines.length).toBeGreaterThan(10);
+    // (and a wall stands at each of the lane's ends, past the sim's by a body's width, where its fighters stop)
+    for (const k of [-1, 1]) expect(P.blocks.some((b) => b.size[2] >= 2 && inside(b, lanePoint(P.lane, k * (P.lane.half + 0.6))))).toBe(true);
+    expect(P.blocks.some((b) => b.size[2] >= 2 && inside(b, lanePoint(P.lane, P.lane.half)))).toBe(false);
   });
 
   it('a greybox of its own blocks names its lane; a level is refused by the word that is wrong', () => {

@@ -18,3 +18,14 @@ keeps its place.
   Its tones are the light's own (each group's shade swatch, the eyes unlit as drawn), baked twice, every group lit and
   every group in shade, and the arena steps between them by its own key as the body turns, so both fighters are lit
   from the camera's side whichever way they face. No outline is drawn on them. Every other body is lit as before.
+- **The training ground** (`greybox` preset `training`): a fight's graybox stage, its middle the focus. Between its
+  walls the floor is the light tone, ruled a line every metre (every fifth lighter), the centre a bold band on the floor
+  and up the back wall; past the walls the floor falls dark and unruled. A wall stands at each of the lane's ends, a
+  body's width past the sim's, banded light up its front edge, along its foot and on the floor where it stands, so
+  where it is reads from the camera. The camera is near. A fight made now is fought there, stamped at mint
+  (`arenas: [{ id: 'training', level: { kind: 'greybox', preset: 'training' } }]`) when it names no arenas; a fight
+  minted before keeps the ring, the plaza and the nave.
+- **A level's view**: a greybox level's `view` (`genre` | `near`, its preset's by default) says how near the camera
+  frames the fight; `near` is the ring's framing (a fighter near two thirds of the picture), now any level's.
+- **CI**: `design-game.vary.test.js` pins its order's roll (it drew one at random each run, and about one roll in
+  four hundred lifts most of a late tier's ornaments past their 0–3 scale, the gate leaving two variants of three).
