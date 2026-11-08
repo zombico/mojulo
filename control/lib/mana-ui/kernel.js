@@ -117,6 +117,10 @@ export function buildManaUi() {
   const ANY = ['accept', 'tabNext', 'tabPrev'];
   // the player's text size (XAG: text scales to 200%)
   const TEXT_SCALES = [1, 1.25, 1.5, 1.75, 2];
+  // the inputs a left or a right turns
+  const CHANGERS = ['toggle', 'cycler', 'slider', 'carousel', 'alloc-row', 'language'];
+  // a language called by its own name, when its table does not say it (a game's languages: languageName)
+  const AUTONYMS = { en: 'English', ja: '日本語', es: 'Español', fr: 'Français', de: 'Deutsch', it: 'Italiano', pt: 'Português', 'pt-BR': 'Português (Brasil)', ko: '한국어', zh: '中文', ru: 'Русский', ar: 'العربية', nl: 'Nederlands', pl: 'Polski', tr: 'Türkçe', sv: 'Svenska', uk: 'Українська', hi: 'हिन्दी', id: 'Bahasa Indonesia', th: 'ไทย', vi: 'Tiếng Việt' };
   // THE RUNTIME'S OWN WORDS, in English: what it and its idioms say that no game passes in (a legend, a heading, an
   // empty list). A GAME IN SEVERAL LANGUAGES says them, and its own, in the one it is set in: the spec's `languages`
   // ({ <code>: { <key>: word } }), `language` the one it starts in, rt.language(code) to change (an options screen's
@@ -124,7 +128,7 @@ export function buildManaUi() {
   // reads in English, a key no table holds as itself
   const WORDS = {
     select: 'Select', change: 'Change', tabs: 'Tabs', back: 'Back', start: 'Start', confirm: 'Confirm', reset: 'Reset', delete: 'Delete', done: 'Done',
-    resume: 'Resume', rebind: 'Rebind', nextTab: 'Next tab', detail: 'Detail',
+    resume: 'Resume', rebind: 'Rebind', nextTab: 'Next tab', detail: 'Detail', language: 'Language',
     nothingHere: 'Nothing here', more: '{n} more', on: 'On', off: 'Off', points: 'Points',
     keyArt: 'key art', keyArtPlace: 'key art of the place', loading: 'Loading', progress: 'Progress', tip: 'Tip', continue: 'Continue', gettingReady: 'Getting the world ready…',
     modes: 'Modes', players: 'Players', playersCount: 'players', roster: 'Roster', random: 'Random', resetDefaults: 'Reset to defaults', action: 'Action', keysPad: 'Keys · Pad', rank: 'Rank',
@@ -199,6 +203,7 @@ export function buildManaUi() {
     toggle: { group: 'input', about: 'on or off (a bound value is set on the host, never held here)', props: { label: [T, '', true], value: [B, false, true] }, verbs: ['change'] },
     cycler: { group: 'input', about: '◀ a value ▶ from its options', props: { label: [T, '', true], options: [L, [], true], value: [A, '', true] }, verbs: ['change'] },
     slider: { group: 'input', about: 'a number between min and max, by step', props: { label: [T, '', true], value: [N, 0, true], min: [N, 0], max: [N, 10], step: [N, 1] }, verbs: ['change'] },
+    language: { group: 'input', about: 'the game\'s language, picked: ◀ its own name ▶ over the languages the game ships (its spec\'s `languages`); changing it says every word again in it and tells the game ({ emit: language, to: <code> }, to keep it); a game in one language draws none', props: { label: [T] }, verbs: [] },
     keybind: { group: 'input', about: 'an action and what it is bound to; accept asks the host to capture a new one; `conflict` when another action in the same context shares a control', props: { label: [T, '', true], keys: [L, []], conflict: [B, false] }, verbs: ['accept'] },
     field: { group: 'input', about: 'an input chosen by data (an options row): kind toggle | cycler | slider | keybind', props: { kind: [['toggle', 'cycler', 'slider', 'keybind'], undefined, true], label: [T, '', true], value: [A], options: [L, []], min: [N, 0], max: [N, 10], step: [N, 1], keys: [L, []] }, verbs: ['change', 'accept'] },
     allocator: { group: 'input', about: 'points spent across rows (level up): a draft until confirm, never past the points or a row\'s max', props: { rows: [L, [], true], points: [N, 0, true] }, verbs: ['confirm', 'change'] },
@@ -344,6 +349,9 @@ export function buildManaUi() {
     const heard = new Set(CUES[H.cues || 'silent']);
     if (H.words !== undefined && !isObj(H.words)) throw new Error('host.words is { <key>: word } (words the host says over the game\'s; a key left out reads in the game\'s language)');
     // a word: the host's, else the game's language's, else its English (the game's own, then the runtime's), else its key
+    // the languages a game ships, English first when it has its words, and each one's own name
+    const codesOf = () => { const c = Object.keys(languages); return c.length ? (c.includes('en') ? ['en', ...c.filter((x) => x !== 'en')] : c) : ['en']; };
+    const nameOf = (code) => { const t = languages[code]; return (t && typeof t.languageName === 'string' && t.languageName) || AUTONYMS[code] || code; };
     const own = (code, k) => { const t = languages[code]; return t && typeof t[k] === 'string' && t[k] ? t[k] : null; };
     const W = (k, vars) => {
       const w = words((H.words && typeof H.words[k] === 'string' && H.words[k]) || own(S.language, k) || own('en', k) || WORDS[k] || k);
@@ -560,8 +568,8 @@ export function buildManaUi() {
       // leaves something (a modal, a screen over another, a back of its own)
       const autoLegend = (n, p) => {
         const F = ctx.focus, out = [];
-        if (F.some((f) => !['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind))) out.push({ action: 'accept', label: p.press === 'any' ? W('start') : W('select') });
-        if (F.some((f) => ['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind))) out.push({ actions: ['left', 'right'], label: W('change') });
+        if (F.some((f) => !CHANGERS.includes(f.kind))) out.push({ action: 'accept', label: p.press === 'any' ? W('start') : W('select') });
+        if (F.some((f) => CHANGERS.includes(f.kind))) out.push({ actions: ['left', 'right'], label: W('change') });
         if (ctx.tabs.length) out.push({ actions: ['tabPrev', 'tabNext'], label: W('tabs') });
         if (p.layer === 'modal' || S.stack.length > 1 || (n.on && n.on.back)) out.push({ action: 'back', label: W('back') });
         return out;
@@ -762,6 +770,12 @@ export function buildManaUi() {
           }
           case 'button': { const fi = focusable({ kind: 'button', n, key, scope, off: p.disabled }); return ['div', { class: cls, ...mark(fi, 'shown', p.disabled), 'data-tap': tappable(n, key, scope) }, p.label]; }
           case 'toggle': case 'cycler': case 'slider': case 'keybind': return input(n.use, n, key, scope, p, src);
+          case 'language': {
+            const codes = codesOf();
+            if (codes.length < 2) return null;
+            const fi = focusable({ kind: 'language', n, key, scope });
+            return ['div', { class: 'mana-cycler mana-language', ...mark(fi, 'shown') }, ['span', { class: 'mana-label' }, p.label || W('language')], ['span', { class: 'mana-value' }, ['span', { class: 'mana-step', 'data-way': 'back' }, '◀'], ['span', { class: 'mana-now', lang: S.language }, nameOf(S.language)], ['span', { class: 'mana-step', 'data-way': 'on' }, '▶']]];
+          }
           case 'field': return input(p.kind, n, key, scope, p, src);
           case 'allocator': {
             const draft = U.vals[key] || {}, spent = Object.values(draft).reduce((a, b) => a + b, 0), left = Math.max(0, Math.floor(p.points) - spent);
@@ -881,7 +895,7 @@ export function buildManaUi() {
         const ks = same.map(([, k]) => k), out = d > 0 ? Math.max(...ks) + 1 : Math.min(...ks) - 1;
         return setAt(seat, (out + n) % n);
       }
-      if (!vert) { if (['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind)) change(f, d, seat); else crossPane(seat, f, d); return; }
+      if (!vert) { if (CHANGERS.includes(f.kind)) change(f, d, seat); else crossPane(seat, f, d); return; }
       setAt(seat, (cur + d + n) % n);
     }
     // left and right from the edge of a split's pane: into the next pane, onto its active row (else its first)
@@ -894,6 +908,14 @@ export function buildManaUi() {
     }
     function change(f, d, seat) {
       const U = uiOf(top());
+      // the game's language turned: every word is said again in it, and the game is told (to keep it)
+      if (f.kind === 'language') {
+        const codes = codesOf(), i = codes.indexOf(S.language), next = codes[((i < 0 ? 0 : i + d) % codes.length + codes.length) % codes.length];
+        cue('change', seat, { step: d });
+        language(next);
+        if (H.act) H.act({ emit: 'language', to: next }, from(f, 'change', seat));
+        return;
+      }
       if (f.kind === 'alloc-row') {
         const draft = { ...(U.vals[f.key] || {}) }, spent = Object.values(draft).reduce((a, b) => a + b, 0), now = draft[f.id] || 0, next = now + d;
         if (next < 0 || (d > 0 && spent >= f.points) || f.base + next > f.max) return;
@@ -927,7 +949,7 @@ export function buildManaUi() {
       if (f.off) { cue('deny', seat); return; }
       if (!['toggle', 'cycler', 'slider'].includes(f.kind)) cue('accept', seat);
       switch (f.kind) {
-        case 'toggle': case 'cycler': return change(f, 1, seat);
+        case 'toggle': case 'cycler': case 'language': return change(f, 1, seat);
         case 'slider': return;
         case 'alloc-confirm': { const draft = U.vals[f.key] || {}; delete U.vals[f.key]; if (on.confirm) run(effectsOf(on.confirm, scopeOf(f, seat, { input: draft }), last), f, 'confirm', seat); return; }
         case 'alloc-reset': delete U.vals[f.key]; return;
@@ -982,7 +1004,7 @@ export function buildManaUi() {
       if (f.kind === 'slider') {
         const lo = f.min, hi = f.max > f.min ? f.max : f.min + 1, st = f.step > 0 ? f.step : 1;
         commit(f, Math.round(clamp(Math.round((lo + rx * (hi - lo)) / st) * st, lo, hi) * 1e6) / 1e6, seat);
-      } else if (['cycler', 'carousel', 'alloc-row'].includes(f.kind) && (rx < 0.34 || rx > 0.66)) change(f, rx < 0.34 ? -1 : 1, seat);
+      } else if (['cycler', 'carousel', 'alloc-row', 'language'].includes(f.kind) && (rx < 0.34 || rx > 0.66)) change(f, rx < 0.34 ? -1 : 1, seat);
       else if (f.pane && (f.kind === 'row' || f.kind === 'cell' || f.kind === 'node') && !again) { /* selected: its detail shows */ }
       else accept(f, seat);
       render();
@@ -1040,7 +1062,7 @@ export function buildManaUi() {
     S.booting = false;
     return {
       open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, hold, reduceMotion, reduceFlash, textScale, subtitlePlate, language,
-      languages: () => ['en', ...Object.keys(languages).filter((c) => c !== 'en')],
+      languages: () => codesOf(),
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
       state: () => {

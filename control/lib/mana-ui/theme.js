@@ -5,7 +5,7 @@
  * moved through are the components'; how it looks is the theme's. A node still carries no look (the kernel refuses
  * one); the theme is context, set once for a game.
  *
- *   theme: '<preset>' | { from?: '<preset>', tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?,
+ *   theme: '<preset>' | { from?: '<preset>' | <a theme> (a child theme), tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?,
  *                         scale?, case?, ornaments? }
  *     tokens    colours (hex): ink, panel, line, accent (the four a theme needs) and mid, soft, paper, wash, accent2,
  *               harm, hp, mp, xp, stamina, shield, boss (derived from those four when left out)
@@ -200,9 +200,15 @@ export function readTheme(t) {
   if (typeof t === 'string') { if (!THEMES[t]) throw new Error(`theme '${t}' is one of: ${THEME_IDS.join(', ')}, or { from?, tokens?, … }`); t = { from: t }; }
   if (!isObj(t)) throw new Error('a theme is a preset name or { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, ornaments? }');
   for (const k in t) if (!KEYS.includes(k)) throw new Error(`theme.${k}: a theme says ${KEYS.join(', ')} (a look is words, never CSS)`);
-  const from = t.from === undefined ? 'greybox' : t.from;
-  if (!THEMES[from]) throw new Error(`theme.from '${from}' is one of: ${THEME_IDS.join(', ')}`);
-  const base = THEMES[from], out = { name: typeof t.name === 'string' ? t.name : base.name, from };
+  // a theme over a preset, or over another theme (a child theme: a card's parent, the world's look), read first
+  let base, from;
+  if (isObj(t.from)) { base = readTheme(t.from); from = base.from; }
+  else {
+    from = t.from === undefined ? 'greybox' : t.from;
+    if (!THEMES[from]) throw new Error(`theme.from '${from}' is one of: ${THEME_IDS.join(', ')}, or a theme of its own ({ from?, … })`);
+    base = THEMES[from];
+  }
+  const out = { name: typeof t.name === 'string' ? t.name : base.name, from };
   for (const k of Object.keys(THEME_WORDS)) {
     const x = t[k] === undefined ? base[k] : t[k];
     if (k === 'ornaments') {
@@ -228,7 +234,7 @@ export function readTheme(t) {
   const kits = sides || [out.tokens.accent, out.tokens.accent2, ...OKABE_ITO];
   out.sides = Array.from({ length: 8 }, (_, i) => kits[i % kits.length]);
   // faces you own, then the type that names them
-  const faces = t.faces === undefined ? [] : t.faces;
+  const faces = t.faces === undefined ? base.faces || [] : t.faces;
   if (!Array.isArray(faces)) throw new Error('theme.faces is [{ family, src: data:font/…;base64,…, weight?, style? }]');
   out.faces = faces.map((x, i) => {
     if (!isObj(x) || typeof x.family !== 'string' || !FAMILY.test(x.family)) throw new Error(`theme.faces[${i}].family is a name (letters, digits, spaces, hyphens)`);

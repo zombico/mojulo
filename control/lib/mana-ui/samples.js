@@ -148,3 +148,11 @@ export const SAMPLE_STATE = Object.freeze({
   },
   talk: { who: 'Keeper', text: 'You came by the garden gate. Few do. What brings you to the vale?', choices: [{ label: 'The east gate.', then: { emit: 'talk:gate' } }, { label: 'Who lives here?', then: { emit: 'talk:who' } }, { label: 'Goodbye.', then: { close: true } }] },
 });
+
+// A GAME IN THREE LANGUAGES (a spec's `languages`), for the board's frames: each its own name and some of the runtime's
+// words; a word one lacks reads in English, so the board shows the fallback too
+export const SAMPLE_LANGUAGES = Object.freeze({
+  en: { languageName: 'English' },
+  ja: { languageName: '日本語', select: '決定', back: '戻る', change: '変更', tabs: 'タブ', resume: '再開', language: '言語', resetDefaults: '初期設定に戻す', loading: 'ロード中', tip: 'ヒント', rank: 'ランク', party: 'パーティー', status: 'ステータス', equip: 'そうび', skills: 'スキル', nothingHere: '何もありません', more: 'ほか{n}件', on: 'オン', off: 'オフ' },
+  es: { languageName: 'Español', select: 'Seleccionar', back: 'Atrás', change: 'Cambiar', tabs: 'Pestañas', resume: 'Reanudar', language: 'Idioma', resetDefaults: 'Restablecer', loading: 'Cargando', tip: 'Consejo', rank: 'Rango', party: 'Grupo', nothingHere: 'Aquí no hay nada', more: '{n} más', on: 'Sí', off: 'No' },
+});

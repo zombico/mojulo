@@ -101,11 +101,13 @@ export const FRONT_IDIOMS = {
     example: { title: 'Paused', items: [{ label: 'Resume', then: { close: true } }, { label: 'Party', then: { open: 'party' } }, { label: 'Options', then: { open: 'options' } }, { label: 'Save', disabled: true }, { label: 'Quit to title', then: { emit: 'quit' } }] },
   },
   'options-screen': {
-    kind: 'screen', about: 'options in sections (video, audio, controls, gameplay, accessibility): each field a toggle, cycler, slider or keybind bound to the var it sets',
+    kind: 'screen', about: 'options in sections (video, audio, controls, gameplay, accessibility): each field a toggle, cycler, slider or keybind bound to the var it sets; the game\'s language picked under them when it ships more than one',
     reads: 'sections: [{ label, fields: [{ kind, label, var, options?, min?, max?, step?, keys? }] }]', emits: '{ set: <var>, to } on each change; reset',
     params: ['title', 'sections'],
     node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'stack', children: [
       { use: 'tabs', props: { pages: P('sections'), page: { use: 'each', props: { rows: I('fields'), row: { use: 'field', props: { kind: I('kind'), label: I('label'), value: { bind: I('var') }, options: I('options'), min: I('min'), max: I('max'), step: I('step'), keys: I('keys') } } } } } },
+      // the game's language, when it ships more than one (the picker draws nothing for one)
+      { use: 'language' },
       { use: 'stack', props: { dir: 'row' }, children: [{ use: 'button', props: { label: { word: 'resetDefaults' } }, on: { accept: { emit: 'options:reset' } } }, back] },
     ] }] }, legend([['left', 'right'], 'change'], [['tabPrev', 'tabNext'], 'tabs'], ['back', 'back'])]),
     example: { title: 'Options', sections: [

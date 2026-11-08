@@ -110,3 +110,10 @@
   Turn order, an empty list's Nothing here) come from one table the game's languages can say too, and the shared
   screens and legends use it throughout, so a game's translations reach every screen. A word a language lacks reads in
   English.
+- **A language picker, looks as cards, and the game's UI styled in the studio.** The options screen now has a
+  language row when a game ships more than one language, naming each in its own words; turning it changes every word
+  on the screen. A new look for a game's menus is now a theme card, a small file of words saying only what it changes
+  over a look that already exists (the way a WordPress theme is a file), so a model or a person can add one without
+  code; three ship to start (Ink and Gold, Blueprint, Neon Rebel). Styling a game's UI joins the studio: a game's
+  `ui` takes its look from the register its genre sets and its colours from the world's palette, and the game's
+  review says where the look came from and what its colours read like.

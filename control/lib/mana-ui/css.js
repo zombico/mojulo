@@ -249,6 +249,8 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-step{display:inline-flex;align-items:center;justify-content:center;min-width:${u(39)};min-height:calc(${v('target')} - ${u(12)});border-radius:calc(${v('radius')}*.5 + 2px);color:${v('mid')};font-size:${t('label')}}`,
     `${s}[data-input=touch] .mana-step{min-width:40px;border:1px solid ${v('soft')}}`,
     `${s} .mana-now{min-width:5.5em;text-align:center}`,
+    // the language picker: a cycler wide enough for a language's own name
+    `${s} .mana-language .mana-now{min-width:9em}`,
     `${s} .mana-slider .mana-value{display:flex;align-items:center;gap:${u(9)};min-width:${u(180)}}`,
     `${s} .mana-slider .mana-track{flex:1}`,
     `${s} .mana-allocator{display:flex;flex-direction:column;gap:${u(4)};min-width:${u(420)}}`,

@@ -211,6 +211,44 @@ theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, fo
 - **Room to read.** A screen's own window takes the room a game gives it (at least about a third of the stage's width),
   its rows are tall, a pause menu's rows are set at a title's size, and the body is a step over the floor.
 
+### Theme cards: a look is data
+
+A new look is a card, not code: one JSON file on the shelf (`control/lib/graph/playscape/ui/theme-cards/`), the way a
+WordPress theme is a `theme.json`. A card is a **child theme**: `from` names a preset, another card or `world` (the
+look the art director and the colour theorist give a game, below), and the card says only what it changes over it.
+Its other keys are the theme's own words, its tokens, type and faces, plus `id` (the file's name), `name`, `about`,
+`family`, `tags` and `author`. Every card is read when the shelf loads, its `from` chain followed and its words checked
+by `readTheme`, so a card that loads is a theme that draws, and a bad one is refused with the words that exist.
+
+`readTheme` takes a theme as a `from` too, so a child theme can stand on a card that stands on a preset. A game uses a
+card by name (`ui: { theme: '<card>' }`), or writes the same words inline over it (`ui: { theme: { from: '<card>',
+stage: 'band' } }`). The shelf's README is the authoring guide; `scripts/mana-board.mjs <out.html> --theme <card>`
+draws every screen in it and `--cards` adds the shelf to the board's switcher.
+
+### The interface's look in the studio
+
+Styling a game's UI is the interface department's work (the interface chapter, `gameworld/chapters.js`), done with
+the art director and the colour theorist. A gameworld's `ui` key (`playscape/ui/interface-look.js`) says it:
+
+```js
+ui: { theme?: 'world' | '<preset>' | '<card>' | { from?, …words }, colour?: 'world' | 'theme', languages?, language? }
+```
+
+- **The art director** starts the look from the register the game's intent sets (`INTENT_LOOKS`: a souls-like is
+  grim, a tactics game the tactician's paper, a fighter arcade; console when none) and moves it as the juice register
+  moves (an anime game's lively look snaps; a calm look keeps still). That is `theme: 'world'`, the default.
+- **The colour theorist** colours it from the world's palette, solved (`style.palette`'s `ui`: ink, panel, line,
+  accent, accent2). That is `colour: 'world'`, the default when the world has a palette; `theme` keeps the look's own
+  colours (a casino, a broadcast).
+- **The review** (`design_game`) shows a world with a `ui` the part `interface:look`: where the look and its colours
+  came from, its words, its tokens, its languages and its advice (contrast measured, never refused). A world with no
+  `ui` gains no part and changes nothing.
+- The manual card `gameworld-interface` teaches the order of work, the registers, the families, the shelf's cards and
+  the closed words.
+
+No game page draws its menus in mana-ui yet (the integration, below), so a game's `ui` lives in its recipe, its book
+and its review for now; the board is where a person looks at it.
+
 ### The party language
 
 The arcade preset's look, distilled so it can vary without losing itself. Its principles:
@@ -351,6 +389,10 @@ rt.languages();      // the codes the game ships
   itself. A host can still say words over the game's (`host.words`, `manaUiPage(spec, { words })`).
 - The game's languages are its own: they are not the dashboard's locale catalogs, and a game ships as many or as few
   as its designer writes.
+- **The language picker.** The options screen draws a `language` row (a cycler) when the game ships two languages or
+  more, and none when it ships one. It names each language in its own words: the language's `languageName` word, else
+  a short table of autonyms (English, 日本語, Español…), else its code. Turning it says every word again in that
+  language, plays the change cue and tells the game (`{ emit: 'language', to }`) so the game can keep the choice.
 
 ## The UI's sounds
 

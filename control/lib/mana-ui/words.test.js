@@ -63,3 +63,24 @@ describe('mana-ui: a game in several languages', () => {
     expect(rt.view()).toContain('<span>再開</span>');        // an idiom's own legend, in the game's language
   });
 });
+
+describe('mana-ui: the language picker', () => {
+  it('the options screen picks among the game\'s languages, by their own names; turning it says every word again and tells the game', () => {
+    const log = [], I = IDIOMS['options-screen'];
+    const rt = manaUi.runtime(withIdioms({ start: 's', languages: { en: {}, ja: { languageName: '日本語', back: '戻る' } }, screens: { s: { use: 'options-screen', props: I.example } } }), { read: () => undefined, act: (e) => log.push(e), cues: 'full' });
+    rt.input('keys');
+    expect(rt.view()).toMatch(/class="mana-cycler mana-language"[^>]*>.*<span class="mana-now" lang="en">English</);
+    const k = Number(rt.view().match(/class="mana-cycler mana-language" data-k="(\d+)"/)[1]);
+    rt.focusAt(k); rt.press('right');
+    expect(rt.state().language).toBe('ja');
+    expect(rt.view()).toContain('<span class="mana-now" lang="ja">日本語</span>');
+    expect(rt.view()).toContain('<span>戻る</span>');
+    expect(log).toEqual(expect.arrayContaining([{ sound: 'change', step: 1 }, { emit: 'language', to: 'ja' }]));
+    rt.press('right');
+    expect(rt.state().language).toBe('en');                  // it wraps
+  });
+  it('a game in one language draws no picker', () => {
+    const I = IDIOMS['options-screen'], rt = manaUi.runtime(withIdioms({ start: 's', screens: { s: { use: 'options-screen', props: I.example } } }), { read: () => undefined });
+    expect(rt.view()).not.toContain('mana-language');
+  });
+});

@@ -22,7 +22,7 @@ import { manaUiSource, manaUi } from './kernel.js';
 import { manaCss, FRAME_CSS } from './css.js';
 import { THEMES, themeCss, themeAdvice, readTheme } from './theme.js';
 import { IDIOMS, SCREEN_IDIOMS, withIdioms } from './idioms.js';
-import { SAMPLE_STATE } from './samples.js';
+import { SAMPLE_STATE, SAMPLE_LANGUAGES } from './samples.js';
 
 // a phone's frames (390 × 844, driven by a finger): its HUD and the screens a phone game needs most
 export const BOARD_PHONE = Object.freeze({ hud: ['vitals', 'minimap-corner', 'phone-buttons', 'ability-bar', 'touch-controls'], screens: ['action-sheet', 'options-screen', 'inventory-screen', 'party-screen', 'character-select', 'match-results'] });
@@ -82,7 +82,8 @@ export function boardFrames() {
   }
   frames.push({ name: 'HUD · phone', group: 'Phone', device: 'phone', input: 'touch', about: BOARD_PHONE.hud.join(' · '), reads: 'the sample state', emits: 'tap ❚❚ for the pause (an action sheet)', spec: withIdioms({ hud: { use: 'hud', children: BOARD_PHONE.hud.map(use) }, screens: { pause: use('action-sheet') } }), hud: true });
   for (const id of BOARD_PHONE.screens) frames.push({ name: `${id} · phone`, group: 'Phone', device: 'phone', input: 'touch', about: IDIOMS[id].about, reads: IDIOMS[id].reads, emits: IDIOMS[id].emits, spec: withIdioms({ screens: { s: use(id) }, start: 's' }) });
-  for (const f of frames) manaUi.readSpec(f.spec);
+  // every frame is a game in the sample's languages (the options screen's picker turns it)
+  for (const f of frames) { f.spec.languages = SAMPLE_LANGUAGES; manaUi.readSpec(f.spec); }
   return frames;
 }
 

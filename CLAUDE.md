@@ -266,7 +266,7 @@ Pointers only; each target carries its own design notes.
 - Game UI runtime (internal name mana-ui): [control/lib/mana-ui/](control/lib/mana-ui/) (the one runtime playscape's UI
   words run on, so a screen is built once and not game by game: components with props passed down, the game's state
   read through bindings and never copied, a form that is a tree of data, a function that is cue effects; greybox first,
-  styles a layer over it, `theme.js`, a world's guide reaching it through `playscape/ui/mana-theme.js`; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
+  styles a layer over it, `theme.js`, a world's guide reaching it through `playscape/ui/mana-theme.js`; a new look is a theme card in `playscape/ui/theme-cards/`, a game's `ui` dressed by the interface chapter in `playscape/ui/interface-look.js`; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
   wireframe board, `board.js`; imports nothing outside its folder; a view that reads no device: the controls layer drives
   it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md).
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
