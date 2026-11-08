@@ -185,6 +185,7 @@ export const GEOTOWN_ENTER = Object.freeze(['shop', 'hall', 'dwelling']);
 import { readBuildingParked } from '../vehicle-registry/parked.js';
 import { readGrid } from '../level/grid.js';
 import { readSketch } from '../level/map-sketch.js';
+import { readPlay } from '../level/play-layer.js';
 import { zoneOf } from '../level/zones.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
@@ -258,7 +259,7 @@ export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) 
 // (`sketch`: the planned map decided in miniature before it is built, level/map-sketch.js: its concept, its segments'
 // ground, heights and marks; read by the miniature, not yet by the build)
 // (`far`: a zoned map's pages see the rest of the map far off, level/far-view.js)
-const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far'];
+const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -608,6 +609,15 @@ export function readGameworld(W) {
       if (!isObj(L.glyphs)) throw new Error(`gameworld: ${at}.glyphs is { rows, key?, regions?, tile?, kit?, … } (a level written as a glyph grid: level/grid.js)`);
       for (const k of Object.keys(L.glyphs)) if (!GLYPHS_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.glyphs.${k} is not a glyph map's setting (settings: ${GLYPHS_LEVEL_KEYS.join(', ')})`);
       try { readGrid(gridOfGlyphs(L.glyphs), 'glyphs'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
+      // (the play layer, level/play-layer.js: level design's pieces on each block; a foe of the level's bestiary)
+      if (L.glyphs.play !== undefined) {
+        const P0 = readGrid(gridOfGlyphs(L.glyphs), 'glyphs').plan;
+        if (!P0) throw new Error(`gameworld: ${at}.glyphs.play places pieces on a planned map's blocks: write its plan`);
+        let K = null, Y;
+        try { K = L.glyphs.sketch !== undefined ? readSketch(L.glyphs.sketch, P0, 'glyphs.sketch') : null; Y = readPlay(L.glyphs.play, P0, 'glyphs.play', { beats: K?.concept?.journey ?? null }); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
+        const from = isObj(L.foes) && Array.isArray(L.foes.from) ? L.foes.from : [];
+        for (const [S, v] of Object.entries(Y)) for (const p of v.pieces) if (p.kind === 'foe' && !from.includes(p.of)) throw new Error(`gameworld: ${at}.glyphs.play.${S}: the foe '${p.id}' is a '${p.of}', not one the level stands (foes.from: ${from.join(', ') || 'none'})`);
+      }
       if (L.glyphs.sketch !== undefined) {
         try { readSketch(L.glyphs.sketch, readGrid(gridOfGlyphs(L.glyphs), 'glyphs').plan, 'glyphs.sketch'); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^level: /, '')}`); }
       }

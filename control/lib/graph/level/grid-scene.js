@@ -38,6 +38,8 @@ import { readZone, zoneOf, ZONE } from './zones.js';
 import { levelGrid, SKETCH_BIOCUBE, SKETCH_BOULDERS } from './map-sketch.js';
 import { farFaces } from './far-view.js';
 import { guideOf } from './guide.js';
+import { readPlay, playBuild, playLaws, authorityLaws } from './play-layer.js';
+import { readSketch } from './map-sketch.js';
 
 // the groups a walker never stands on: a tree's crown, its leaves and blossom, a stamped tree (its trunk a collider)
 const FOOTLESS = Object.freeze(['isekai:crown', 'isekai:leaves', 'isekai:blossom', 'isekai:petals', 'isekai:sprig', 'isekai:culm', 'isekai:trees:', 'isekai:spray']);
@@ -79,6 +81,25 @@ function tileGround(faces, value = (f, k) => f.corners[k][2]) {
   };
 }
 // the laws of the map as built (see the header)
+// THE PLAY LAYER of a page (play-layer.js): its blocks' pieces built and held to the land; the colours the tiles laid
+function playOfPage(lv, G, Z, out, { seed }) {
+  const P = G.plan, n = P.size, T = G.tile, segs = Z ? Z.segments ?? [Z.id] : Object.keys(P.segments);
+  const K = lv.sketch ? readSketch(lv.sketch, P) : null, Y = readPlay(lv.play, P, 'level.play', { beats: K?.concept?.journey ?? null }) ?? {};
+  const pieces = segs.flatMap((S) => Y[S]?.pieces ?? []);
+  if (!pieces.length) return null;
+  // (the world's own wood and stone: the commonest fill of the tiles' trunks and boulders)
+  const commonest = (re) => { const N = new Map(); for (const f of out.faces) if (re.test(f.group ?? '') && typeof f.fill === 'string') N.set(f.fill, (N.get(f.fill) ?? 0) + 1); let best = null; for (const [k, v] of N) if (!best || v > best[1]) best = [k, v]; return best ? best[0] : undefined; };
+  const B = playBuild(pieces, { rock: commonest(/:rock$/), wood: commonest(/:wood$/) });
+  out.faces.push(...B.faces); out.colliders.push(...B.colliders);
+  const L = { seed, ...(G.rise ? { rise: G.rise } : {}) }, ground = (x, y) => levelHeight(x, y, L);
+  const boxOf = (S) => { const [r0, c0] = P.segments[S].at; return [c0 * T, -(r0 + n) * T, (c0 + n) * T, -r0 * T]; };
+  const laws = segs.flatMap((S) => { const mine = pieces.filter((p) => p.segment === S); return mine.length ? playLaws(mine, { ground, box: boxOf(S), colliders: out.colliders }).map((l) => ({ ...l, value: `${S}: ${l.value}` })) : []; });
+  const merged = [{ law: 'pieces-fit', ok: laws.every((l) => l.ok), value: laws.map((l) => l.value).join(' · '), ...(laws.some((l) => l.drift) ? { drift: laws.flatMap((l) => l.drift ?? []) } : {}) }];
+  // (each block's suggestions kept, and its casting against the scenario's)
+  const beats = lv.sketch?.scenario?.beats ?? null;
+  for (const S of segs) if (Y[S]) for (const l of authorityLaws(Y[S], { beats, segment: S })) merged.push({ ...l, value: `${S}: ${l.value}` });
+  return { laws: merged, readout: { pieces: pieces.map(({ segment: _s, ...p }) => p) } };
+}
 function mapLaws(G, cells, faces, colliders, Z = null) {
   const T = G.tile, id = (r, c) => `${r},${c}`, laws = [];
   // (a zone's page holds its own tiles and its apron: zones.js)
@@ -500,6 +521,9 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   const SK = G.sketch ? sketchMarks(G, Z, seed) : null;
   if (SK) out.faces.push(...SK.faces);
   const guidance = guideOf(lv, G, Z, { seed });
+  // THE PLAY LAYER (play-layer.js, level design's): this page's blocks' pieces in the world's own wood and stone (the
+  // tiles' fills), the solid ones colliders; each held to the land it stands on now (`pieces-fit`)
+  const PL = lv.play && G.plan ? playOfPage(lv, G, Z, out, { seed }) : null;
   const LG = oneGrass(grass), FA = Z ? oneFauna(fauna, box[2] - box[0], box[3] - box[1], box) : oneFauna(fauna, W, H), HD = oneHerds(fauna);
   return {
     ...page,
@@ -517,6 +541,6 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     ...(guidance ? { guide: guidance } : {}),
     // (a map is walked: its trees' crowns and leaves are no footing, their trunks and boulders the tiles' colliders)
     footless: FOOTLESS,
-    map: { tile: T, rows: G.rows, cols: G.cols, cells, ...(G.regions ? { regions: regionsOf(G) } : {}), ...(G.plan ? { plan: G.plan, pieces: mapItems(G) } : {}), ...(Z ? { zone: zoneReadout(Z) } : {}), ...(G.sketch ? { sketch: { approved: G.sketch.approved, laid: G.sketch.laid, ...(unlaidHere(G, Z).length ? { unlaid: unlaidHere(G, Z) } : {}), marks: SK.marks } } : {}), laws: mapLaws(G, cells, out.faces, out.colliders, Z) },
+    map: { tile: T, rows: G.rows, cols: G.cols, cells, ...(G.regions ? { regions: regionsOf(G) } : {}), ...(G.plan ? { plan: G.plan, pieces: mapItems(G) } : {}), ...(Z ? { zone: zoneReadout(Z) } : {}), ...(G.sketch ? { sketch: { approved: G.sketch.approved, laid: G.sketch.laid, ...(unlaidHere(G, Z).length ? { unlaid: unlaidHere(G, Z) } : {}), marks: SK.marks } } : {}), laws: [...mapLaws(G, cells, out.faces, out.colliders, Z), ...(PL ? PL.laws : [])], ...(PL ? { play: PL.readout } : {}) },
   };
 }

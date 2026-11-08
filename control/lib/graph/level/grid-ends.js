@@ -17,6 +17,8 @@
  *     places    each place's door ({ id, glyph, use?, at, N, region? }: the building's id on the page, its door on the
  *               land, the way out of it), what folk stand by
  *     encounters  an approved sketch's encounter marks (map-sketch.js): { at, tile, count, kind?, say, segment }
+ *     placed      the play layer's foes (play-layer.js, level design's): { eid, at, heading, id, segment }, each where it was
+ *                 placed; a block with placed foes fights only them (its encounter marks' rings stood down)
  *     finds       an approved sketch's loot and secret marks that name their item (a scenario's find): { at, tile, item, beat? }
  * A ZONE (zones.js, `level.zone`): the ends of its own square: set down where its page sets out, left by its way on along
  * the walk (else the goal it holds, else its first way), its beats, packs and places its own tiles'; `zone` its ways.
@@ -27,6 +29,7 @@ import { mapWay, mapItems } from './map-items.js';
 import { levelHeight, tilePath } from '../era/out-tile.js';
 import { readZone, zoneOf } from './zones.js';
 import { levelGrid, readSketch, beatTile, LOOK } from './map-sketch.js';
+import { readPlay } from './play-layer.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const FACING = { '+y': [0, 1], '-y': [0, -1], '+x': [1, 0], '-x': [-1, 0] };
@@ -88,6 +91,18 @@ export function gridEnds(level) {
     const finds = G.sketch.marks.filter((m) => (m.kind === 'loot' || m.kind === 'secret') && m.item).map((m) => ({ at: mid(G.at(...m.tile)), tile: m.tile, item: m.item, ...(m.beat ? { beat: m.beat } : {}) }));
     if (finds.length) out.finds = finds;
   }
+  // THE PLAY LAYER (play-layer.js): level design's foes where it placed them, its pickups found where they lie; a block
+  // whose foes it placed fights only those (it casts: the marks' rings stood down there)
+  const Y = level.play && G.plan ? readPlay(level.play, G.plan, 'level.play') : null;
+  if (Y) {
+    const all = Object.values(Y).flatMap((v) => v.pieces), foes = all.filter((p) => p.kind === 'foe'), picks = all.filter((p) => p.kind === 'pickup');
+    if (foes.length) {
+      out.placed = foes.map((p) => ({ id: p.id, eid: p.of, at: p.at, heading: r3((p.yaw * Math.PI) / 180), segment: p.segment }));
+      const cast = new Set(foes.map((p) => p.segment));
+      if (out.encounters) { out.encounters = out.encounters.filter((x) => !cast.has(x.segment)); if (!out.encounters.length) delete out.encounters; }
+    }
+    if (picks.length) out.finds = [...(out.finds ?? []), ...picks.map((p) => ({ at: p.at, tile: [Math.floor(-p.at[1] / T), Math.floor(p.at[0] / T)], item: p.of, play: true, ...(p.beat ? { beat: p.beat } : {}) }))];
+  }
   const zw = readZone(level), read = zw ? zoneEnds(G, zoneOf(G, zw.id, { apron: zw.apron, seed: L.seed }), out, { doorOf, last }) : out;
   // the land's height at a point, as every tile lays it (not data)
   Object.defineProperty(read, 'ground', { value: (x, y) => levelHeight(x, y, L), enumerable: false });
@@ -114,6 +129,7 @@ function zoneEnds(G, Z, E, { last, doorOf }) {
     beats: E.beats.filter((b) => mine(b.tile)),
     // (a page with an approved segment fights where its sketch says, none if it marks none; else the walk's beats)
     ...((G.sketch?.approved ?? []).some((x) => segs.includes(x)) ? { encounters: (E.encounters ?? []).filter((x) => mine(x.tile)), finds: (E.finds ?? []).filter((x) => mine(x.tile)) } : {}),
+    ...(E.placed ? { placed: E.placed.filter((p) => segs.includes(p.segment)) } : {}),
     via: [[spawn[0], spawn[1]], ...E.via.filter(inBox), [exit[0], exit[1]]],
     places: E.places.filter((p) => inBox(p.at)),
     ...(packs.length ? { packs } : {}),
@@ -126,6 +142,9 @@ function zoneEnds(G, Z, E, { last, doorOf }) {
   if (Z.spawn?.heading !== null) delete out.vista;
   if (!(G.sketch?.approved ?? []).some((x) => segs.includes(x))) { delete out.encounters; delete out.finds; }
   if (!out.finds?.length) delete out.finds;
+  if (!out.placed?.length) delete out.placed;
+  // (a page's play pickups are its own wherever its sketch stands: level design's, not the sketch's)
+  if (E.finds && !out.finds) { const own = E.finds.filter((f) => f.play && mine(f.tile)); if (own.length) out.finds = own; }
   // (the region it sets out from: its own)
   const own = G.regions?.[segs[0]];
   if (own) out.home = own.name ?? segs[0];

@@ -1,6 +1,6 @@
 /**
  * THE CHAPTERS — the game book as the studio works it: each page of the book a CHAPTER, each chapter in one of the
- * studio's seven departments, each with its contract:
+ * studio's departments, each with its contract:
  *
  *   { id, department, name,
  *     paths     the recipe it owns, as JSON Pointers (the deepest that holds a path is its owner: /characters/hero is the
@@ -31,6 +31,9 @@ export const DEPARTMENTS = Object.freeze([
   { id: 'cinematics', name: 'Cinematics' },
   { id: 'production', name: 'Game design and production' },
   { id: 'interface', name: 'Interface and UX' },
+  // LEVEL DESIGN (the scene composer kai): handed the cast, the scenario and the built terrain, it makes each block's walk
+  // interesting: its play layer (level/play-layer.js), a block at a time
+  { id: 'level-design', name: 'Level design' },
 ]);
 
 // the figures a quick game rolls in pools (runner.js: `guard`, `guard-2` …)
@@ -57,10 +60,12 @@ export const CHAPTERS = Object.freeze([
   C('cast', 'characters', 'The cast', { paths: ['/characters/cast', '/characters/casting', '/characters/folk'], parts: ['cast', 'characters:cast'], steps: ['casting', 'cast-*', 'folk-*', 'farmhand', 'athlete', 'fighter-*'], cards: ['gameworld-folk'], reads: ['direction', 'levels'], outcome: 'characters' }),
   C('foes', 'foes', 'The foes', { paths: ['/foes'], parts: ['foes:*'], steps: ['foes-*', 'foe-*', 'foe', 'guard', 'tower'], cards: ['gameworld-foes'], reads: ['intent', 'levels'], outcome: 'foes' }),
   C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels', 'main-quest'], outcome: 'story' }),
+  // (a block's play layer: `/levels/<id>/glyphs/play`, a block a unit, `play:<level>/<segment>`)
+  C('play-layer', 'level-design', 'The level design', { paths: ['/levels/*/glyphs/play'], parts: ['play:*'], reads: ['levels', 'foes', 'cast', 'motion', 'actions'] }),
   C('camera', 'cinematics', 'The camera', { paths: ['/camera', '/xr'], reads: ['intent', 'levels'] }),
   // the menus, the front and the screen a game is worked through by hand (its runtime is control/lib/mana-ui/)
   C('interface', 'interface', 'The interface', { paths: ['/front', '/screen', '/hud'], reads: ['intent', 'world', 'systems', 'battles', 'cast'] }),
-  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface'], outcome: 'play' }),
+  C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface', 'play-layer'], outcome: 'play' }),
 ]);
 
 const BY_ID = new Map(CHAPTERS.map((c) => [c.id, c]));
@@ -87,6 +92,12 @@ export function chapterWaves() {
  */
 export function unitOf(id) {
   if (typeof id !== 'string') return null;
+  // (a block's PLAY LAYER, level design's: `play:<level>/<segment>`, level/play-layer.js)
+  if (id.startsWith('play:')) {
+    const [level, segment, ...more] = id.slice(5).split('/');
+    if (!level || !segment || more.length) return null;
+    return { id, chapter: BY_ID.get('play-layer'), level, segment };
+  }
   // (a level, or one SEGMENT of a planned map's level: `level:<id>/<segment>`, gameworld/segments.js)
   if (id.startsWith('level:')) {
     const [level, segment, ...more] = id.slice(6).split('/');
@@ -119,7 +130,8 @@ export function chapterOfStep(key) {
 /** The chapter a card is the manual of. */
 export const chapterOfCard = (id) => (typeof id === 'string' ? one((c) => c.cards.some((p) => named(p, id))) : null);
 
-const under = (path, root) => path === root || path.startsWith(`${root}/`);
+// (a root's `*` segment stands for any one: a level's own paths, `/levels/*/glyphs/play`)
+const under = (path, root) => { if (root.indexOf('*') < 0) return path === root || path.startsWith(`${root}/`); const a = path.split('/'), b = root.split('/'); return a.length >= b.length && b.every((x, i) => x === '*' || x === a[i]); };
 /** The chapters a write at `pointer` touches: the chapter owning the deepest path above it, or, for a pointer above
  * every path (the character book whole, `/characters`; the root, ''), every chapter whose paths lie under it. */
 export function chaptersOfPath(pointer) {
@@ -133,7 +145,9 @@ export function chaptersOfPath(pointer) {
 
 /** Does the world write anything at this chapter's paths (a path owned by a deeper chapter is that one's)? */
 function writes(world, c) {
-  const at = (q) => q.slice(1).split('/').reduce((v, k) => (v && typeof v === 'object' ? v[k] : undefined), world);
+  // (the value at a pointer; a `*` segment any child: the first written one)
+  const walk = (v, ks) => { if (!ks.length) return v; if (!v || typeof v !== 'object') return undefined; const [k, ...rest] = ks; if (k !== '*') return walk(v[k], rest); for (const x of Object.values(v)) { const got = walk(x, rest); if (got !== undefined && got !== null) return got; } return undefined; };
+  const at = (q) => walk(world, q.slice(1).split('/'));
   return c.paths.some((q) => {
     const v = at(q);
     if (v === undefined || v === null) return false;
