@@ -171,7 +171,7 @@ A theme is closed words and colours, read and checked like a node, and written a
 still carries no look; the theme is context, set once for a game.
 
 ```js
-theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, distance?, halo?, cues?, slant?, transition?, material?, backing?, crest?, breakout?, overlay?, stage?, sounds?, ornaments? }
+theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, distance?, halo?, cues?, slant?, transition?, backdrop?, material?, backing?, crest?, breakout?, overlay?, stage?, sounds?, ornaments? }
 ```
 
 - **Tokens** are colours: `ink`, `panel`, `line` and `accent` are the ones a theme needs. The rest (mid, soft, paper,
@@ -181,8 +181,8 @@ theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, fo
 - **The look in words:** `frame`, `corner`, `plate`, `focus` (marker, ring, lift, fill, glow, bracket, bar), `motion`,
   `fills` (pattern or solid), `scale`, `case`, `distance` (desk, couch, hand), `halo` (outline, glow, shadow, plate,
   none), `cues` (silent, ticks, full: the UI's sounds, below), `slant` (none, light, hard: tabs, bars, banners, keys
-  and buttons lean, a window never does), `transition` (none, wipe, slam, iris, shutter, stepped: the cover between
-  screens, below), and `ornaments` drawn on the windows that have a plate (brackets, ticks, scanlines, dotgrid,
+  and buttons lean, a window never does), `transition` (none, fade, blur, wipe, slam, iris, shutter, stepped: the cover
+  between screens, below), `backdrop` (none, dim, blur, frost: what a pause does to what it covers), and `ornaments` drawn on the windows that have a plate (brackets, ticks, scanlines, dotgrid,
   stitch, hazard, glow). `THEME_WORDS` lists each set. A frame's weight reaches the inner parts too (a heavy frame's
   cells, keys and tracks are heavier), and a window inside a window is a sub-panel, lighter and less rounded.
 - **Layers: a game's UI sits on a thing that sits on a thing.** Five words (`LAYER_WORDS`) build a window up in depth:
@@ -279,9 +279,16 @@ board enters row by row.
   moved down, from the left when it moved right), with the motion's overshoot, and the focus stands out by a nudge
   (`snap` and `nudge` in the motion words; nothing under the greybox or less motion). The cursor's sound says the way it
   went and a stepper's the step it took, so a sound set pitches them.
+- **A press is seen.** Confirm squashes what was pressed, flashes it in the accent and throws a ring off it; pressing a
+  disabled row shakes it on a harm edge (`data-press`: two names each, alternated, so a second press plays again; moving
+  away clears it). A confirm that opens or closes a screen is still seen: the view marks the item on the screen as it
+  leaves. Less flash keeps the ring and the shake, never the fill.
+- **A pause veils what it covers.** A modal screen dims, blurs or frosts the world and the HUD behind it (the theme's
+  `backdrop`), under its scrim, easing in with the screen: the world, its blur, the scrim, the stage, the window.
 - **A cover between screens.** As a screen opens or leaves, a cover is drawn over the stage with a new key, and the
-  theme's `transition` animates it across (a wipe, a diagonal slam, an iris, a shutter, a stepped wipe); leaving
-  mirrors it. The greybox draws none.
+  theme's `transition` animates it across (a fade, a dip to black and back; a blur, the stage blurred through and back;
+  a wipe, a diagonal slam, an iris, a shutter, a stepped wipe); leaving mirrors it. The greybox draws none, and less
+  motion or less flash draws none.
 - **Numbers count.** With a clock and `host.countUp` (seconds), a number that changed counts to its new value, eased
   out, its tick heard; a stat with `count` counts up from zero as it first shows, rows one after another. Accept on a
   screen still counting lands every number at once and does nothing else (a results board's skip). A count moves as
@@ -323,6 +330,21 @@ Games choreograph what comes and goes; a page swaps it. The principles:
    leaves is quieter than what arrives, and a ripple is quieter than the cursor.
 6. **Less motion keeps the order and drops the travel.** Under the greybox or less motion nothing travels or glides,
    but things still fade in and out in the same order.
+
+## Words in the game's language
+
+A game's own words (its menu items, its titles, its rows) are its data, passed in as props, so the game translates
+them. The few words the runtime says itself (a legend's Select and Back, a list's Nothing here, an idiom's Loading,
+Rank, Turn order) are one table, `WORDS` in `kernel.js`, in English. An idiom names one with `{ word: '<key>' }` and a
+format with `{@key}` (`'{@lv} {level}'`); a test holds the idioms to it, so none says a word of its own in English.
+
+A host hands its language in as `host.words` (`manaUiPage(spec, { words })`, `manaUiBoard({ words })`,
+`node scripts/mana-board.mjs <out.html> --locale ja`). The words live in the dashboard's locale catalogs
+(`control/messages/<locale>.json`, the `gameUi` namespace, the same keys as `WORDS`, held equal by a test), so the
+game's menus speak every language the dashboard does, and `/sync-locales` carries a new word into all of them.
+`playscape/ui/mana-words.js manaWords(locale)` reads them (a word a language lacks reads in English). Nothing in the
+dashboard reads `gameUi` through next-intl, so the unused-keys report lists it, as it lists `gameTitles`; both are read
+by their bridges.
 
 ## The UI's sounds
 

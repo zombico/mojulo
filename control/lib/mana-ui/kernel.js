@@ -19,6 +19,8 @@
  *                                   (couch play: a detail per player); the path may itself be a binding ({ format })
  *     { format: 'Lv {level}' }      the row's fields in words
  *     { input: true }               the value an input now holds (in a change's or a confirm's effects)
+ *     { word: '<key>' }             one of the runtime's own words (WORDS), in the host's language (host.words); a
+ *                                   format's {@key} the same
  *     { seat: true }                the seat that pressed (couch play: in an effect, who picked)
  *     Props are typed closed words; a style prop throws: the theme dresses (context, never a prop), and a closed
  *     `variant` is all a node may say about its look.
@@ -111,6 +113,21 @@ export function buildManaUi() {
   const ANY = ['accept', 'tabNext', 'tabPrev'];
   // the player's text size (XAG: text scales to 200%)
   const TEXT_SCALES = [1, 1.25, 1.5, 1.75, 2];
+  // THE RUNTIME'S OWN WORDS, in English: what it and its idioms say that no game passes in (a legend, a heading, an
+  // empty list). A host hands its language in (host.words: key → word, the catalogs' gameUi namespace); a word it lacks
+  // reads in English. An idiom names one with { word: '<key>' }, and a format with {@key}
+  const WORDS = {
+    select: 'Select', change: 'Change', tabs: 'Tabs', back: 'Back', start: 'Start', confirm: 'Confirm', reset: 'Reset', delete: 'Delete', done: 'Done',
+    nothingHere: 'Nothing here', more: '{n} more', on: 'On', off: 'Off', points: 'Points',
+    keyArt: 'key art', keyArtPlace: 'key art of the place', loading: 'Loading', progress: 'Progress', tip: 'Tip', continue: 'Continue', gettingReady: 'Getting the world ready…',
+    modes: 'Modes', players: 'Players', playersCount: 'players', roster: 'Roster', random: 'Random', resetDefaults: 'Reset to defaults', action: 'Action', keysPad: 'Keys · Pad', rank: 'Rank',
+    party: 'Party', hp: 'HP', mp: 'MP', sp: 'SP', status: 'Status', attack: 'Attack', defence: 'Defence', magic: 'Magic', speed: 'Speed', equip: 'Equip', nothingWorn: 'Nothing worn', skills: 'Skills', noSkills: 'No skills yet',
+    cost: 'Cost', levelUp: 'Level up', level: 'Level', weight: 'Weight', kg: 'kg', slots: 'Slots', swapFor: 'Swap for', nothingFits: 'Nothing fits this slot',
+    gold: 'Gold', goldMark: 'G', held: 'Held', buy: 'Buy', sell: 'Sell', nothingToSell: 'Nothing to sell', quests: 'Quests', steps: 'Steps',
+    ammo: 'Ammo', time: 'Time', score: 'Score', lv: 'Lv', range: 'Range', super: 'Super', hits: 'hits', pos: 'Pos', lap: 'Lap', best: 'Best',
+    move: 'Move', atk: 'Atk', rng: 'Rng', forecast: 'Forecast', wave: 'Wave', lives: 'Lives', seen: 'Seen', map: 'Map', cancel: 'Cancel', headToHead: 'Head to head',
+    turnOrder: 'Turn order', foes: 'Foes', command: 'Command', act: 'Act', close: 'Close', queue: 'Queue', orders: 'Orders',
+  };
   // a drawn pad's buttons, where a gamepad has them (the face buttons by their Xbox print)
   const PAD_FACES = { A: 'south', B: 'east', X: 'west', Y: 'north' };
   const ID = /^[a-z][a-z0-9-]*$/;
@@ -167,8 +184,8 @@ export function buildManaUi() {
     awareness: { group: 'enemy', about: `what an enemy knows of you, as a shape: ${Object.entries(AWARENESS).map(([k, v]) => `${k} ${v}`).join(', ')}`, props: { state: [Object.keys(AWARENESS), 'unaware', true], label: [B, true] } },
     statuses: { group: 'enemy', about: 'the statuses on someone (a word, or { name, turns })', props: { rows: [L, [], true] } },
     // inputs and collections
-    list: { group: 'input', about: 'rows to move through and pick; `visible` scrolls a long list; `menu` sets its rows at a title\'s size (a title screen\'s, a hub\'s)', props: { rows: [L, [], true], row: [ND], empty: [T, 'Nothing here'], visible: [N, 0], variant: [['plain', 'menu'], 'plain'] }, verbs: ['accept'] },
-    grid: { group: 'input', about: 'cells in columns, moved through in two directions (an inventory, a roster)', props: { cells: [L, [], true], cell: [ND], columns: [N, 4], empty: [T, 'Nothing here'] }, verbs: ['accept'] },
+    list: { group: 'input', about: 'rows to move through and pick; `visible` scrolls a long list; `menu` sets its rows at a title\'s size (a title screen\'s, a hub\'s)', props: { rows: [L, [], true], row: [ND], empty: [T], visible: [N, 0], variant: [['plain', 'menu'], 'plain'] }, verbs: ['accept'] },
+    grid: { group: 'input', about: 'cells in columns, moved through in two directions (an inventory, a roster)', props: { cells: [L, [], true], cell: [ND], columns: [N, 4], empty: [T] }, verbs: ['accept'] },
     tree: { group: 'input', about: 'nodes laid in tiers by what they require (a skill or tech tree): { id, requires?, state: learned | available | locked }', props: { nodes: [L, [], true], node: [ND], label: [T, 'name'] }, verbs: ['accept'] },
     carousel: { group: 'input', about: 'one item at a time, left and right turn it (a bound value is set by the item\'s id)', props: { items: [L, [], true], item: [ND], value: [A] }, verbs: ['accept', 'change'] },
     button: { group: 'input', about: 'a thing to press', props: { label: [T, '', true], disabled: [B, false] }, verbs: ['accept'] },
@@ -181,7 +198,7 @@ export function buildManaUi() {
     textentry: { group: 'input', about: 'a name typed from a grid of letters (a pad can type): a draft until done', props: { label: [T], value: [T, ''], max: [N, 12], charset: [['letters', 'alnum'], 'letters'] }, verbs: ['done'] },
   };
   const COMPONENT_IDS = Object.keys(COMPONENTS);
-  const BINDS = ['bind', 'item', 'pick', 'format', 'input', 'seat', 'param'];
+  const BINDS = ['bind', 'item', 'pick', 'format', 'input', 'seat', 'param', 'word'];
   const isBinding = (v) => isObj(v) && Object.keys(v).length === 1 && BINDS.includes(Object.keys(v)[0]);
   const CHARSETS = { letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ ', alnum: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ' };
 
@@ -308,10 +325,13 @@ export function buildManaUi() {
     const H = host || {};
     if (H.cues !== undefined && !CUES[H.cues]) throw new Error(`host.cues is one of: ${Object.keys(CUES).join(', ')} (the UI's sounds the host plays)`);
     const heard = new Set(CUES[H.cues || 'silent']);
+    if (H.words !== undefined && !isObj(H.words)) throw new Error('host.words is { <key>: word } (the runtime\'s words in the game\'s language; a key left out reads in English)');
+    // a word: the host's, else English, else its own key (so a game's own key still reads as itself)
+    const W = (k, vars) => { const w = words((H.words && typeof H.words[k] === 'string' && H.words[k]) || WORDS[k] || k); return vars ? w.replace(/\{(\w+)\}/g, (_, x) => words(vars[x])) : w; };
     // a number that changed counts to its new value over countUp seconds of the game's clock (0: it lands at once)
     if (H.countUp !== undefined && !(typeof H.countUp === 'number' && H.countUp >= 0 && H.countUp <= 10)) throw new Error('host.countUp is the seconds a changed number counts for, 0 to 10 (0: at once)');
     const COUNT = H.now && H.countUp ? H.countUp : 0;
-    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), held: false, calm: false, dim: false, text: 1, plate: null, nav: null, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in' };
+    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), held: false, calm: false, dim: false, text: 1, plate: null, nav: null, pressed: null, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in' };
     // a sound the UI makes, if the host listens for it: an effect like any other, played by the host
     // (a cursor's sound says the way it went, a stepper's the step it took, so a sound set can pitch them)
     const cue = (name, seat = 0, more) => { if (!S.booting && heard.has(name) && H.act) H.act({ sound: name, ...(more || {}) }, { screen: top(), key: null, verb: 'cue', seat }); };
@@ -421,7 +441,9 @@ export function buildManaUi() {
       if (k === 'item') return a === '' || a === '.' ? scope.item : readPath(scope.item, a);
       if (k === 'input') return scope.input;
       if (k === 'seat') return scope.seat === undefined ? 0 : scope.seat;
-      if (k === 'format') return String(a).replace(/\{([a-zA-Z0-9_.]+)\}/g, (_, f) => words(readPath(scope.item, f)));
+      if (k === 'word') return W(a);
+      // a format's {field} reads the row, its {@key} the runtime's words
+      if (k === 'format') return String(a).replace(/\{(@?)([a-zA-Z0-9_.]+)\}/g, (_, at, f) => (at ? W(f) : words(readPath(scope.item, f))));
       if (k === 'pick') {
         const dot = String(a).indexOf('.'), head = dot < 0 ? String(a) : String(a).slice(0, dot), field = dot < 0 ? '' : String(a).slice(dot + 1);
         const at = head.indexOf('@'), list = at < 0 ? head : head.slice(0, at), seat = at < 0 ? -1 : Number(head.slice(at + 1)) - 1;
@@ -491,7 +513,9 @@ export function buildManaUi() {
       const cursorless = (S.input === 'touch' || S.input === 'mouse') && !U.pointed;
       const mark = (fi, base, off) => {
         const s = live && !cursorless ? seatsAt(fi) : [];
-        return { 'data-k': live ? fi : null, 'data-st': s.length ? 'focus' : off ? 'disabled' : base, 'data-seats': seats > 1 && s.length ? s.join(' ') : null };
+        // the item just pressed says so (confirm or deny; its two names alternate, so a second press plays again)
+        const P = S.pressed, press = live && P && P.screen === rootKey && P.k === fi ? `${P.verb}-${P.n % 2 ? 'a' : 'b'}` : null;
+        return { 'data-k': live ? fi : null, 'data-st': s.length ? 'focus' : off ? 'disabled' : base, 'data-seats': seats > 1 && s.length ? s.join(' ') : null, 'data-press': press };
       };
       ctx.root = rootKey;
       let pane = null;   // the pane of a split being drawn: left and right cross between them
@@ -514,10 +538,10 @@ export function buildManaUi() {
       // leaves something (a modal, a screen over another, a back of its own)
       const autoLegend = (n, p) => {
         const F = ctx.focus, out = [];
-        if (F.some((f) => !['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind))) out.push({ action: 'accept', label: p.press === 'any' ? 'Start' : 'Select' });
-        if (F.some((f) => ['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind))) out.push({ actions: ['left', 'right'], label: 'Change' });
-        if (ctx.tabs.length) out.push({ actions: ['tabPrev', 'tabNext'], label: 'Tabs' });
-        if (p.layer === 'modal' || S.stack.length > 1 || (n.on && n.on.back)) out.push({ action: 'back', label: 'Back' });
+        if (F.some((f) => !['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind))) out.push({ action: 'accept', label: p.press === 'any' ? W('start') : W('select') });
+        if (F.some((f) => ['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind))) out.push({ actions: ['left', 'right'], label: W('change') });
+        if (ctx.tabs.length) out.push({ actions: ['tabPrev', 'tabNext'], label: W('tabs') });
+        if (p.layer === 'modal' || S.stack.length > 1 || (n.on && n.on.back)) out.push({ action: 'back', label: W('back') });
         return out;
       };
 
@@ -660,25 +684,25 @@ export function buildManaUi() {
 
           case 'list': {
             register(n, key, n.props.rows, scope);
-            if (!p.rows.length) return ['div', { class: cls, 'data-empty': 'yes' }, ['span', { class: 'mana-text', 'data-role': 'caption' }, p.empty]];
+            if (!p.rows.length) return ['div', { class: cls, 'data-empty': 'yes' }, ['span', { class: 'mana-text', 'data-role': 'caption' }, p.empty || W('nothingHere')]];
             // on a touch screen a long list scrolls under the finger: every row is drawn
             const total = p.rows.length, sel = clamp(U.sel[key] || 0, 0, total - 1), v = S.input === 'touch' ? 0 : Math.floor(p.visible), fresh = freshOf(key, p.rows);
             let from = 0, to = total;
             if (v > 0 && v < total) { let t = clamp(U.top[key] || 0, 0, total - v); if (sel < t) t = sel; if (sel >= t + v) t = sel - v + 1; U.top[key] = t; from = t; to = t + v; }
             const rows = [];
-            if (from > 0) rows.push(['div', { class: 'mana-more' }, `▲ ${from} more`]);
+            if (from > 0) rows.push(['div', { class: 'mana-more' }, `▲ ${W('more', { n: from })}`]);
             for (let i = from; i < to; i++) {
               const item = p.rows[i], sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
               const fi = focusable({ kind: 'row', n, key, i, total, win: v > 0 && v < total, scope: sc, off });
               const body = n.props.row ? draw(n.props.row, `${key}.${i}`, sc) : ['span', { class: 'mana-text' }, isObj(item) ? words(item.label ?? item.name ?? item.id) : words(item)];
               rows.push(['div', { class: 'mana-row', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off), ...rowMarks(fresh, item) }, isObj(item) ? chip(item.side) : null, body]);
             }
-            if (to < total) rows.push(['div', { class: 'mana-more' }, `▼ ${total - to} more`]);
+            if (to < total) rows.push(['div', { class: 'mana-more' }, `▼ ${W('more', { n: total - to })}`]);
             return ['div', { class: cls, 'data-variant': p.variant === 'menu' ? 'menu' : null }, ...rows];
           }
           case 'grid': {
             register(n, key, n.props.cells, scope);
-            if (!p.cells.length) return ['div', { class: cls, 'data-empty': 'yes' }, ['span', { class: 'mana-text', 'data-role': 'caption' }, p.empty]];
+            if (!p.cells.length) return ['div', { class: cls, 'data-empty': 'yes' }, ['span', { class: 'mana-text', 'data-role': 'caption' }, p.empty || W('nothingHere')]];
             const cols = clamp(Math.floor(p.columns) || 1, 1, 16), sel = clamp(U.sel[key] || 0, 0, p.cells.length - 1), fresh = freshOf(key, p.cells);
             return ['div', { class: cls, style: `--cols:${cols}` }, ...p.cells.map((item, i) => {
               const sc = { ...scope, item }, off = isObj(item) && !!item.disabled;
@@ -725,8 +749,8 @@ export function buildManaUi() {
               return ['div', { class: 'mana-alloc', ...mark(fi, add ? 'active' : 'shown') }, ['span', { class: 'mana-label' }, words(r.label ?? id)], ['span', { class: 'mana-num' }, String(base)], ['span', { class: 'mana-mark' }, add ? '→' : ''], ['span', { class: 'mana-num' }, add ? String(base + add) : ''], ['span', { class: 'mana-mark' }, '◀ ▶']];
             });
             const conf = focusable({ kind: 'alloc-confirm', n, key, scope, off: spent === 0 }), reset = focusable({ kind: 'alloc-reset', n, key, scope, off: spent === 0 });
-            return ['div', { class: cls }, ['div', { class: 'mana-stat' }, ['span', { class: 'mana-label' }, 'Points'], ['span', { class: 'mana-num' }, `${left} / ${Math.floor(p.points)}`]], ...rows,
-              ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, ['div', { class: 'mana-button', ...mark(conf, 'shown', spent === 0) }, 'Confirm'], ['div', { class: 'mana-button', ...mark(reset, 'shown', spent === 0) }, 'Reset']]];
+            return ['div', { class: cls }, ['div', { class: 'mana-stat' }, ['span', { class: 'mana-label' }, W('points')], ['span', { class: 'mana-num' }, `${left} / ${Math.floor(p.points)}`]], ...rows,
+              ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, ['div', { class: 'mana-button', ...mark(conf, 'shown', spent === 0) }, W('confirm')], ['div', { class: 'mana-button', ...mark(reset, 'shown', spent === 0) }, W('reset')]]];
           }
           case 'textentry': {
             const draft = key in U.vals ? U.vals[key] : words(p.value).slice(0, p.max), chars = [...CHARSETS[p.charset]], cols = 10;
@@ -734,7 +758,7 @@ export function buildManaUi() {
             const row = Math.ceil(chars.length / cols);
             const del = focusable({ kind: 'char-del', n, key, draft, g: { key, r: row, c: 0 }, scope }), done = focusable({ kind: 'char-done', n, key, draft, src: src.value, g: { key, r: row, c: 1 }, scope });
             return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['div', { class: 'mana-draft' }, draft, ['span', { class: 'mana-caret' }, draft.length < p.max ? '_' : '']],
-              ['div', { class: 'mana-grid', style: `--cols:${cols}` }, ...cells], ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, ['div', { class: 'mana-button', ...mark(del, 'shown') }, 'Delete'], ['div', { class: 'mana-button', ...mark(done, 'shown') }, 'Done']]];
+              ['div', { class: 'mana-grid', style: `--cols:${cols}` }, ...cells], ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, ['div', { class: 'mana-button', ...mark(del, 'shown') }, W('delete')], ['div', { class: 'mana-button', ...mark(done, 'shown') }, W('done')]]];
           }
         }
         return null;
@@ -750,7 +774,7 @@ export function buildManaUi() {
         const fi = focusable(f);
         let shown;
         // a switch: the knob's side says it, the word beside it again (values first)
-        if (kind === 'toggle') shown = [['span', { class: 'mana-switch' }, ['i', null]], ['span', { class: 'mana-caption' }, now ? 'On' : 'Off']];
+        if (kind === 'toggle') shown = [['span', { class: 'mana-switch' }, ['i', null]], ['span', { class: 'mana-caption' }, now ? W('on') : W('off')]];
         else if (kind === 'slider') { const lo = p.min, hi = p.max > p.min ? p.max : p.min + 1, v = clamp(Number(now) || 0, lo, hi); shown = [['span', { class: 'mana-track' }, ['i', { style: `width:${pct((v - lo) / (hi - lo))}` }]], ['span', { class: 'mana-num' }, String(v)]]; }
         else shown = [['span', { class: 'mana-step', 'data-way': 'back' }, '◀'], ['span', { class: 'mana-now' }, words(now)], ['span', { class: 'mana-step', 'data-way': 'on' }, '▶']];
         return ['div', { class: `mana-${kind}`, ...mark(fi, 'shown'), 'data-on': kind === 'toggle' ? (now ? 'yes' : 'no') : null }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-value' }, ...listOf(shown)]];
@@ -802,6 +826,7 @@ export function buildManaUi() {
     // the focus set: a list, grid, tree remembers the row it is on (what a detail reads)
     function setAt(seat, k) {
       const U = uiOf(top());
+      if (S.pressed && U.at[seat] !== k) S.pressed = null;
       U.at[seat] = k;
       const f = last && last.focus[k];
       if (f && (f.kind === 'row' || f.kind === 'cell' || f.kind === 'node')) { U.sel[f.key] = f.i; (U.seatSel[seat] = U.seatSel[seat] || {})[f.key] = f.i; U.vals[`$touched:${f.key}`] = true; }
@@ -874,6 +899,9 @@ export function buildManaUi() {
     }
     function accept(f, seat) {
       const U = uiOf(top()), on = f.n.on;
+      // the press is seen on what was pressed, before anything it opens or closes is drawn (the view keeps it on a screen
+      // that leaves)
+      if (f.kind !== 'slider') S.pressed = { n: (S.pressed ? S.pressed.n : 0) + 1, screen: top(), k: last.focus.indexOf(f), verb: f.off ? 'deny' : 'accept' };
       if (f.off) { cue('deny', seat); return; }
       if (!['toggle', 'cycler', 'slider'].includes(f.kind)) cue('accept', seat);
       switch (f.kind) {
@@ -989,7 +1017,7 @@ export function buildManaUi() {
       tree: () => (last || render()).tree,
       state: () => {
         const id = top(), U = id ? uiOf(id) : null;
-        return { input: S.input, layout: S.layout, held: S.held, reducedMotion: S.calm, reducedFlash: S.dim, textScale: S.text, subtitlePlate: S.plate, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
+        return { input: S.input, layout: S.layout, held: S.held, reducedMotion: S.calm, reducedFlash: S.dim, pressed: S.pressed ? { ...S.pressed } : null, textScale: S.text, subtitlePlate: S.plate, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
       },
     };
   }
@@ -1072,7 +1100,18 @@ export function buildManaUi() {
         if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) n.animate([{ translate: `${dx}px ${dy}px` }, { translate: '0 0' }], { duration: ms, easing: ease });
       }
     };
-    const paint = () => { const h = rt.view(); if (h !== html) { html = h; const before = places(); patch(el, [rt.tree()]); glide(before); } hold(); };
+    // a press whose screen is about to be replaced (a confirm that opens or closes) is marked on the screen still drawn,
+    // so the screen that leaves carries it out
+    let seenPress = 0;
+    const pressMark = () => {
+      const P = rt.state().pressed;
+      if (!P || P.n === seenPress) return;
+      seenPress = P.n;
+      const scr = el.querySelector && [...el.querySelectorAll('.mana-screen')].find((n) => !leaving(n) && n.getAttribute('data-key') === P.screen);
+      const item = scr && scr.querySelector(`[data-k="${P.k}"]`);
+      if (item) item.setAttribute('data-press', `${P.verb}-${P.n % 2 ? 'a' : 'b'}`);
+    };
+    const paint = () => { const h = rt.view(); if (h !== html) { html = h; pressMark(); const before = places(); patch(el, [rt.tree()]); glide(before); } hold(); };
     const near = (ev, sel) => (ev.target && ev.target.closest ? ev.target.closest(sel) : null);
     // where across its target a pointer is, on the rect taken when the press began (a repaint replaces the element)
     const across = (r, ev) => (r && r.width ? (ev.clientX - r.left) / r.width : 0.5);
@@ -1108,7 +1147,7 @@ export function buildManaUi() {
     return { paint };
   }
 
-  return { COMPONENTS, COMPONENT_IDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
+  return { WORDS, COMPONENTS, COMPONENT_IDS, ROLES, REGIONS, AWARENESS, MARKERS, PIP_SHAPES, ACTIONS, INPUTS, readNode, readSpec, runtime, toHtml, readPath, mount };
 }
 
 export const manaUi = buildManaUi();

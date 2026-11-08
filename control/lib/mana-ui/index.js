@@ -10,11 +10,12 @@
  *   idioms*.js       the shared screens and HUD parts as compositions; samples.js the sample state they bind into
  *   board.js         the wireframe board: every idiom live on the sample state
  *
- *   manaUiPage(spec, { state?, title?, open?, theme?, host?, glyphs?, audio? })  → a self-contained page that runs a spec over a plain state object
+ *   manaUiPage(spec, { state?, title?, open?, theme?, host?, glyphs?, audio?, words? })  → a self-contained page that runs a spec over a plain state object
  *     (a `set` writes the state, every other effect is logged, the theme's sounds among them), for the eyes gate and the headless driver
  *     (`window.__manaUi`: the runtime; `window.__manaLog`: the effects it emitted). audio: { source, sets, of } (from
  *     beats/ui-sounds.js uiSoundAudio, handed in: this folder imports nothing outside itself) plays the UI's sounds in
- *     the theme's set (`sounds`); without it the page is silent and carries no audio byte
+ *     the theme's set (`sounds`); without it the page is silent and carries no audio byte. words: the runtime's own
+ *     words in the game's language (playscape/ui/mana-words.js manaWords(locale), handed in), English without them
  */
 import { manaUi, manaUiSource } from './kernel.js';
 import { manaCss } from './css.js';
@@ -35,7 +36,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 /** A self-contained page: the spec (with the idioms) run over `state`. Throws, teaching, on a bad spec. */
 const soundsOf = (audio, set) => (audio ? `{ K: (${audio.source})(), sets: ${json(audio.sets)}, of: (${audio.of}), set: ${json(set)} }` : 'null');
 
-export function manaUiPage(spec, { state = {}, title = 'mana-ui', open = null, theme = 'greybox', host = null, glyphs = null, audio = null } = {}) {
+export function manaUiPage(spec, { state = {}, title = 'mana-ui', open = null, theme = 'greybox', host = null, glyphs = null, audio = null, words = null } = {}) {
   const full = withIdioms(spec);
   manaUi.readSpec(full);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -57,6 +58,7 @@ const host = {
   cues: ${json(readTheme(theme).cues)},
   // a changed number counts for this long on the clock (a results board counts up; accept lands it)
   countUp: 0.8,
+  ${words ? `words: ${json(words)},` : ''}
   act: (e, from) => {
     if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = STATE; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
     ${audio ? 'hear(SOUNDS, e);' : ''}

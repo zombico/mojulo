@@ -63,6 +63,8 @@ export const GREYBOX_VARS = Object.freeze({
   slant: '0deg', 'rule-w': '1px',
   // a screen giving way to the next: the cover's animation (none: the screen fades) and its timing (theme.js TRANSITIONS)
   tx: 'none', 'tx-ease': 'ease-in-out',
+  // what a pause does to what it covers (theme.js VEILS): nothing in the greybox
+  veil: 'none',
   // layers: the filter over the stage (a theme's overlay), and a title's hollow echo behind it (a theme's breakout)
   overlay: 'none', 'echo-ink': 'var(--mana-accent)',
   // how things move (theme.js MOTIONS): the greybox fades and travels nowhere
@@ -116,6 +118,8 @@ export function manaCss(scope = '.mana-root') {
     // the stack: a screen dims what it covers (a modal), and sits where it says, inside the title-safe frame
     `${s} .mana-screen{position:absolute;inset:0;display:flex;flex-direction:column;gap:${u(18)};padding:${safe('top', SY)} ${safe('right', SX)} ${safe('bottom', SY)} ${safe('left', SX)};pointer-events:auto;overflow:hidden;isolation:isolate}`,
     `${s} .mana-screen[data-layer=modal]{background:${v('scrim')}}`,
+    // a pause dims, blurs or frosts what it covers (the world and the HUD), under its scrim; it eases in with the screen
+    `${s} .mana-screen[data-layer=modal]{backdrop-filter:${v('veil')};-webkit-backdrop-filter:${v('veil')}}`,
     // THE STAGE: another layer behind what a screen holds (over its scrim and its key art), sweeping in as it opens
     `${s} .mana-screen::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:${v('stage')};animation:mana-stage calc(${v('dur')} * 3) ${v('ease')} both}`,
     // a screen's own window takes the room a game gives it: a menu is read from a sofa, not squeezed into a card
@@ -412,6 +416,13 @@ const KEYFRAMES = [
   `@keyframes mana-leave{to{opacity:0;translate:calc(-.6 * ${v('travel')}) calc(1.6 * ${v('travel')});scale:calc(1 - (${v('pop')} - 1) * .2)}}`,
   `@keyframes mana-leave-edge{to{opacity:0;translate:calc(3 * ${v('travel')}) 0}}`,
   `@keyframes mana-leave-shrink{to{opacity:0;scale:calc(1 - (${v('pop')} - 1) * .8)}}`,
+  // A PRESS IS SEEN: confirm squashes, flashes in the accent and throws a ring off; deny shakes on a harm edge (two names
+  // each, alternated, so a second press plays again); less flash keeps the ring and the shake, never the fill
+  ...['a', 'b'].flatMap((x) => [
+    `@keyframes mana-confirm-${x}{0%{scale:calc(1 - (${v('pop')} - 1) * .4);background-color:${v('accent')};color:${v('panel')};box-shadow:0 0 0 0 ${v('accent')}}30%{scale:${pop(0.35)}}100%{box-shadow:0 0 0 calc(18 * ${v('du')}) transparent}}`,
+    `@keyframes mana-press-${x}{0%{box-shadow:0 0 0 0 ${v('accent')}}100%{box-shadow:0 0 0 calc(18 * ${v('du')}) transparent}}`,
+    `@keyframes mana-deny-${x}{0%,100%{translate:0 0}15%{translate:calc(-.8 * ${v('travel')}) 0;box-shadow:inset 0 0 0 2px ${v('harm')}}35%{translate:calc(.8 * ${v('travel')}) 0}55%{translate:calc(-.5 * ${v('travel')}) 0}75%{translate:calc(.25 * ${v('travel')}) 0;box-shadow:inset 0 0 0 2px ${v('harm')}}}`,
+  ]),
   // a row that moved past others says which way, once: a lift as it rises, a dip as it falls
   `@keyframes mana-moved-up{0%{box-shadow:inset 0 0 0 2px ${v('accent2')}}40%{scale:${pop(0.5)}}}`,
   `@keyframes mana-moved-down{0%{box-shadow:inset 0 0 0 1px ${v('mid')};opacity:.7}}`,
@@ -423,6 +434,8 @@ const KEYFRAMES = [
   `@keyframes mana-stamp{0%{opacity:0;scale:${pop(5)}}70%{opacity:1}100%{opacity:1;scale:1}}`,
   // the transitions' covers (theme.js TRANSITIONS): each covers the stage in its middle and ends off it, so a cover
   // that has run leaves nothing drawn
+  `@keyframes mana-tx-fade{0%{opacity:0}42%,58%{opacity:1}100%{opacity:0}}`,
+  `@keyframes mana-tx-blur{0%{opacity:1;backdrop-filter:blur(0px)}50%{opacity:1;backdrop-filter:blur(14px)}100%{opacity:1;backdrop-filter:blur(0px)}}`,
   `@keyframes mana-tx-wipe{0%{opacity:1;translate:-101% 0}42%,58%{opacity:1;translate:0 0}100%{opacity:1;translate:101% 0}}`,
   `@keyframes mana-tx-slam{0%{opacity:1;translate:-120% 0}50%{opacity:1;translate:0 0}100%{opacity:1;translate:120% 0}}`,
   `@keyframes mana-tx-iris{0%{opacity:1;clip-path:circle(75% at 50% 50%)}100%{opacity:1;clip-path:circle(0% at 50% 50%)}}`,
@@ -463,6 +476,8 @@ function MOTION_RULES(s) {
     // SHUFFLES: the view glides a row from where it was to where it is (by its data-id, on the glide); a row that moved
     // past others says which way
     `${s} [data-moved=up]{animation:mana-moved-up calc(${v('dur')} * 4) ease-out}`, `${s} [data-moved=down]{animation:mana-moved-down calc(${v('dur')} * 3) ease-out}`,
+    // A PRESS: on what was pressed, after every other motion it has (it wins the element)
+    ...['a', 'b'].flatMap((x) => [`${s} [data-press=accept-${x}]{animation:mana-confirm-${x} calc(${v('dur')} * 2.2) ease-out}`, `${s} [data-press=deny-${x}]{animation:mana-deny-${x} calc(${v('dur')} * 2) ease-out}`, `${s}[data-flash=reduced] [data-press=accept-${x}]{animation:mana-press-${x} calc(${v('dur')} * 2.2) ease-out}`]),
     // the moments: a banner slams, its sheen sweeps once; a toast slides in from its edge
     `${s} .mana-banner{position:relative;overflow:hidden;animation:mana-slam calc(${v('dur')} * 2) ${v('ease')} both}`,
     `${s} .mana-banner::after{content:"";position:absolute;top:0;bottom:0;left:0;width:30%;background:linear-gradient(90deg,transparent,${v('panel')},transparent);opacity:${v('sheen')};pointer-events:none;animation:mana-sheen calc(${v('dur')} * 5) ease-in-out calc(${v('dur')} * 2) both}`,

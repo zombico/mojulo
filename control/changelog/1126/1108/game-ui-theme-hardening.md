@@ -100,3 +100,12 @@
   its sound plus a soft rising ripple of ticks timed to each row as it lands; rows that come, go or reshuffle are each
   heard once, however many. Every sound set gains these cues. The principles are written down in the game UI runtime's
   design doc.
+- **Pressing something is seen, and a pause blurs what it covers.** Confirming squashes the item, flashes it in the
+  accent and throws a ring off it; pressing something unavailable shakes it on a red edge. A confirm that opens or
+  closes a screen still shows on the screen as it leaves. Two new transitions join the others: a fade (a dip to black
+  and back) and a blur-through, and a new `backdrop` theme word makes a pause dim, blur or frost the game and the HUD
+  behind it. The grim theme now fades between screens.
+- **The game UI's own words are translated.** The few words the game UI runtime says itself (a legend's Select and
+  Back, Loading, Rank, Turn order, an empty list's Nothing here) were English only. They now come from one table that
+  lives in the dashboard's locale catalogs, translated into every shipped language, and a game page, the wireframe
+  board and its script can be handed a language. A game's own words were already its own to translate.

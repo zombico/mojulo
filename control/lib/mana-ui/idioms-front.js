@@ -9,7 +9,7 @@ const I = (field) => ({ item: field });
 const txt = (value, role) => ({ use: 'text', props: { value, ...(role ? { role } : {}) } });
 const screen = (props, children, extra = {}) => ({ use: 'screen', props, children, ...extra });
 const thenList = (rows, more = {}) => ({ use: 'list', props: { rows, ...more }, on: { accept: I('then') } });
-const back = { use: 'button', props: { label: 'Back' }, on: { accept: { back: true } } };
+const back = { use: 'button', props: { label: { word: 'back' } }, on: { accept: { back: true } } };
 // what the buttons do here, printed in the glyphs of the controls in hand (the runtime's glyphs)
 const legend = (...rows) => ({ use: 'legend', props: { rows: rows.map(([action, label]) => (Array.isArray(action) ? { actions: action, label } : { action, label })) } });
 
@@ -19,7 +19,7 @@ export const FRONT_IDIOMS = {
     reads: 'title, prompt; then: what pressing does', emits: 'then (usually { open: <the title screen> }, its seat the one that pressed)',
     params: ['title', 'prompt', 'then'],
     node: screen({ layer: 'overlay', place: 'center', press: 'any' }, [
-      { use: 'image', props: { label: 'key art', ratio: 'backdrop' } },
+      { use: 'image', props: { label: { word: 'keyArt' }, ratio: 'backdrop' } },
       { use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
         txt(P('title'), 'display'),
         { use: 'button', props: { label: P('prompt') }, on: { accept: P('then') } },
@@ -32,7 +32,7 @@ export const FRONT_IDIOMS = {
     reads: 'title, subtitle, items: [{ label, then, disabled? }], version', emits: 'each item\'s then',
     params: ['title', 'subtitle', 'items', 'version'],
     node: screen({ layer: 'overlay', place: 'left' }, [
-      { use: 'image', props: { label: 'key art', ratio: 'backdrop' } },
+      { use: 'image', props: { label: { word: 'keyArt' }, ratio: 'backdrop' } },
       { use: 'stack', props: { gap: 'loose', align: 'start' }, children: [
         { use: 'stack', props: { gap: 'tight', align: 'start' }, children: [txt(P('title'), 'display'), txt(P('subtitle'), 'label')] },
         { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'), { variant: 'menu' })] },
@@ -46,12 +46,12 @@ export const FRONT_IDIOMS = {
     reads: 'place, progress (0..100), tip, ready', emits: 'then once ready and pressed',
     params: ['place', 'progress', 'tip', 'ready', 'then'],
     node: screen({ layer: 'overlay', place: 'full' }, [{ use: 'stack', props: { gap: 'loose' }, children: [
-      { use: 'image', props: { label: 'key art of the place', ratio: 'banner' } },
-      { use: 'stack', props: { gap: 'tight' }, children: [txt('Loading', 'heading'), txt(P('place'), 'title')] },
-      { use: 'bar', props: { value: P('progress'), max: 100, label: 'Progress' } },
-      { use: 'stack', props: { dir: 'row', gap: 'normal' }, children: [txt('Tip', 'heading'), txt(P('tip'))] },
-      { use: 'button', props: { label: 'Continue' }, when: P('ready'), on: { accept: P('then') } },
-      { use: 'text', props: { value: 'Getting the world ready…', role: 'caption' }, unless: P('ready') },
+      { use: 'image', props: { label: { word: 'keyArtPlace' }, ratio: 'banner' } },
+      { use: 'stack', props: { gap: 'tight' }, children: [txt({ word: 'loading' }, 'heading'), txt(P('place'), 'title')] },
+      { use: 'bar', props: { value: P('progress'), max: 100, label: { word: 'progress' } } },
+      { use: 'stack', props: { dir: 'row', gap: 'normal' }, children: [txt({ word: 'tip' }, 'heading'), txt(P('tip'))] },
+      { use: 'button', props: { label: { word: 'continue' } }, when: P('ready'), on: { accept: P('then') } },
+      { use: 'text', props: { value: { word: 'gettingReady' }, role: 'caption' }, unless: P('ready') },
     ] }]),
     example: { place: { bind: 'load.place' }, progress: { bind: 'load.progress' }, tip: { bind: 'load.tip' }, ready: { bind: 'load.ready' }, then: { emit: 'enter' } },
   },
@@ -60,8 +60,8 @@ export const FRONT_IDIOMS = {
     reads: 'modes: [{ id, name, about, players, then, disabled? }]', emits: 'the picked mode\'s then',
     params: ['title', 'modes'],
     node: screen({ title: P('title'), place: 'full' }, [{ use: 'split', children: [
-      { use: 'window', props: { title: 'Modes' }, children: [{ use: 'list', id: 'modes', props: { rows: P('modes'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt(I('name'), 'heading'), { use: 'badge', props: { value: I('players') } }] } }, on: { accept: I('then') } }] },
-      { use: 'window', children: [{ use: 'stack', children: [{ use: 'image', props: { label: { pick: 'modes.name' } } }, txt({ pick: 'modes.name' }, 'title'), txt({ pick: 'modes.about' }), { use: 'stat', props: { label: 'Players', value: { pick: 'modes.players' } } }] }] },
+      { use: 'window', props: { title: { word: 'modes' } }, children: [{ use: 'list', id: 'modes', props: { rows: P('modes'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt(I('name'), 'heading'), { use: 'badge', props: { value: I('players') } }] } }, on: { accept: I('then') } }] },
+      { use: 'window', children: [{ use: 'stack', children: [{ use: 'image', props: { label: { pick: 'modes.name' } } }, txt({ pick: 'modes.name' }, 'title'), txt({ pick: 'modes.about' }), { use: 'stat', props: { label: { word: 'players' }, value: { pick: 'modes.players' } } }] }] },
     ] }, back]),
     example: { title: 'Play', modes: { bind: 'modes' } },
   },
@@ -70,7 +70,7 @@ export const FRONT_IDIOMS = {
     reads: 'roster: [{ id, name, role, stats: [{ label, value, max }] }], seats, players: [{ seat, label }] (a panel each)', emits: '{ emit: pick, seat, id } as a seat accepts',
     params: ['title', 'roster', 'seats', 'players'],
     node: screen({ title: P('title'), place: 'full', seats: P('seats') }, [{ use: 'split', props: { ratio: 'even' }, children: [
-      { use: 'window', props: { title: 'Roster' }, children: [{ use: 'grid', id: 'roster', props: { cells: P('roster'), columns: 3, cell: { use: 'stack', props: { align: 'center', gap: 'tight' }, children: [{ use: 'portrait', props: { name: I('name'), size: 'm' } }, txt(I('role'), 'caption')] } }, on: { accept: { emit: 'pick', seat: { seat: true }, id: I('id') } } }] },
+      { use: 'window', props: { title: { word: 'roster' } }, children: [{ use: 'grid', id: 'roster', props: { cells: P('roster'), columns: 3, cell: { use: 'stack', props: { align: 'center', gap: 'tight' }, children: [{ use: 'portrait', props: { name: I('name'), size: 'm' } }, txt(I('role'), 'caption')] } }, on: { accept: { emit: 'pick', seat: { seat: true }, id: I('id') } } }] },
       { use: 'each', props: { dir: 'row', rows: P('players'), row: { use: 'window', props: { title: I('label') }, children: [{ use: 'stack', children: [
         { use: 'portrait', props: { name: { pick: { format: 'roster@{seat}.name' } }, size: 'l' } }, txt({ pick: { format: 'roster@{seat}.role' } }, 'label'),
         { use: 'each', props: { rows: { pick: { format: 'roster@{seat}.stats' } }, row: { use: 'bar', props: { label: I('label'), value: I('value'), max: I('max') } } } },
@@ -85,9 +85,9 @@ export const FRONT_IDIOMS = {
     node: screen({ title: P('title'), place: 'center' }, [{ use: 'window', children: [{ use: 'stack', children: [
       { use: 'carousel', id: 'arena', props: { items: P('arenas'), value: P('value'), item: { use: 'stack', children: [
         { use: 'image', props: { label: I('name') } }, txt(I('name'), 'title'), txt(I('about')),
-        { use: 'stack', props: { dir: 'row', gap: 'tight' }, children: [{ use: 'badge', props: { value: I('size') } }, { use: 'badge', props: { value: { format: '{players} players' } } }] },
+        { use: 'stack', props: { dir: 'row', gap: 'tight' }, children: [{ use: 'badge', props: { value: I('size') } }, { use: 'badge', props: { value: { format: '{players} {@playersCount}' } } }] },
       ] } }, on: { accept: I('then') } },
-      { use: 'stack', props: { dir: 'row' }, children: [{ use: 'button', props: { label: 'Random' }, on: { accept: { emit: 'arena:random' } } }, back] },
+      { use: 'stack', props: { dir: 'row' }, children: [{ use: 'button', props: { label: { word: 'random' } }, on: { accept: { emit: 'arena:random' } } }, back] },
     ] }] }]),
     example: { title: 'Choose an arena', arenas: { bind: 'arenas' }, value: { bind: 'arena' } },
   },
@@ -104,7 +104,7 @@ export const FRONT_IDIOMS = {
     params: ['title', 'sections'],
     node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'stack', children: [
       { use: 'tabs', props: { pages: P('sections'), page: { use: 'each', props: { rows: I('fields'), row: { use: 'field', props: { kind: I('kind'), label: I('label'), value: { bind: I('var') }, options: I('options'), min: I('min'), max: I('max'), step: I('step'), keys: I('keys') } } } } } },
-      { use: 'stack', props: { dir: 'row' }, children: [{ use: 'button', props: { label: 'Reset to defaults' }, on: { accept: { emit: 'options:reset' } } }, back] },
+      { use: 'stack', props: { dir: 'row' }, children: [{ use: 'button', props: { label: { word: 'resetDefaults' } }, on: { accept: { emit: 'options:reset' } } }, back] },
     ] }] }, legend([['left', 'right'], 'change'], [['tabPrev', 'tabNext'], 'tabs'], ['back', 'back'])]),
     example: { title: 'Options', sections: [
       { label: 'Audio', fields: [{ kind: 'toggle', label: 'Sound', var: 'settings.sound' }, { kind: 'toggle', label: 'Music', var: 'settings.music' }, { kind: 'slider', label: 'Volume', var: 'settings.volume', min: 0, max: 10, step: 1 }] },
@@ -118,9 +118,9 @@ export const FRONT_IDIOMS = {
     reads: 'actions: [{ action, label, keys, conflict? }] (controls/mana-controls.js controlsRows: a scheme as the controls kernel labels it)', emits: '{ remap: <action> } on accept; controls:reset',
     params: ['title', 'actions'],
     node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'stack', children: [
-      { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt('Action', 'heading'), txt('Keys · Pad', 'heading')] },
+      { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt({ word: 'action' }, 'heading'), txt({ word: 'keysPad' }, 'heading')] },
       { use: 'each', props: { rows: P('actions'), row: { use: 'keybind', props: { label: I('label'), keys: I('keys'), conflict: I('conflict') }, on: { accept: { remap: I('action') } } } } },
-      { use: 'stack', props: { dir: 'row' }, children: [{ use: 'button', props: { label: 'Reset to defaults' }, on: { accept: { emit: 'controls:reset' } } }, back] },
+      { use: 'stack', props: { dir: 'row' }, children: [{ use: 'button', props: { label: { word: 'resetDefaults' } }, on: { accept: { emit: 'controls:reset' } } }, back] },
     ] }] }, legend(['accept', 'rebind'], ['back', 'back'])]),
     example: { title: 'Controls', actions: { bind: 'controls' } },
   },
@@ -137,7 +137,7 @@ export const FRONT_IDIOMS = {
     params: ['outcome', 'stats', 'rank', 'items'],
     node: screen({ layer: 'modal', place: 'center' }, [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
       { use: 'banner', props: { value: P('outcome') } },
-      { use: 'window', children: [{ use: 'stack', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), count: true } } } }, { use: 'divider' }, { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt('Rank', 'heading'), { use: 'badge', props: { value: P('rank'), variant: 'stamp' } }] }] }] },
+      { use: 'window', children: [{ use: 'stack', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), count: true } } } }, { use: 'divider' }, { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [txt({ word: 'rank' }, 'heading'), { use: 'badge', props: { value: P('rank'), variant: 'stamp' } }] }] }] },
       { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'), { variant: 'menu' })] },
     ] }]),
     example: { outcome: { bind: 'results.outcome' }, stats: { bind: 'results.stats' }, rank: { bind: 'results.rank' }, items: [{ label: 'Continue', then: { emit: 'continue' } }, { label: 'Retry', then: { emit: 'retry' } }, { label: 'Quit', then: { emit: 'quit' } }] },
@@ -147,7 +147,7 @@ export const FRONT_IDIOMS = {
     reads: 'slots: [{ name, place, time, level, then }]', emits: 'the slot\'s then (save:<n> / load:<n>)',
     params: ['title', 'slots'],
     node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'stack', children: [
-      { use: 'list', props: { rows: P('slots'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [{ use: 'stack', props: { gap: 'tight' }, children: [txt(I('name'), 'heading'), txt({ format: '{place} · {time}' }, 'caption')] }, { use: 'badge', props: { value: { format: 'Lv {level}' } } }] } }, on: { accept: I('then') } },
+      { use: 'list', props: { rows: P('slots'), row: { use: 'stack', props: { dir: 'row', align: 'apart' }, children: [{ use: 'stack', props: { gap: 'tight' }, children: [txt(I('name'), 'heading'), txt({ format: '{place} · {time}' }, 'caption')] }, { use: 'badge', props: { value: { format: '{@lv} {level}' } } }] } }, on: { accept: I('then') } },
       back,
     ] }] }]),
     example: { title: 'Load', slots: { bind: 'saves' } },

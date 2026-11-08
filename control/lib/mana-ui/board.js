@@ -14,7 +14,8 @@
  *                         frame is driven through the control schemes, pads too; glyphs: what its legends print. With
  *                         no host the board drives its frames with PREVIEW_KEYS, a stand-in of its own, never mana-ui's;
  *                         audio: { source, sets, of } (beats/ui-sounds.js uiSoundAudio): the live frame is heard in the
- *                         set the look names, and the set follows the look as it is switched)
+ *                         set the look names, and the set follows the look as it is switched; words: the runtime's
+ *                         own words in a language, playscape/ui/mana-words.js manaWords(locale))
  *   PREVIEW_KEYS          the stand-in: arrows / WASD, Enter, Escape, [ ] (the menu scheme's defaults, for a preview)
  */
 import { manaUiSource, manaUi } from './kernel.js';
@@ -86,7 +87,7 @@ export function boardFrames() {
 }
 
 /** The board page. */
-export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · board', theme = 'greybox', themes = THEMES, host = null, glyphs = null, audio = null } = {}) {
+export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · board', theme = 'greybox', themes = THEMES, host = null, glyphs = null, audio = null, words = null } = {}) {
   const frames = boardFrames(), groups = [...new Set(frames.map((f) => f.group))], scope = '.mana-stage .mana-root';
   const looks = Object.entries(themes).map(([id, t]) => ({ id, name: readTheme(t).name, sounds: readTheme(t).sounds, css: themeCss(t, scope), advice: themeAdvice(t).map((a) => `${a.law}: ${a.advice}`) }));
   if (!looks.some((l) => l.id === theme)) throw new Error(`board theme '${theme}' is one of: ${looks.map((l) => l.id).join(', ')}`);
@@ -119,6 +120,7 @@ look(${json(theme)});
 const HOST = ${host ? `{ api: ${host.source}, controls: { keys: ${json(host.controls.keys)}, pad: ${json(host.controls.pad)}, padLayout: (${host.controls.padLayoutSource}) } }` : 'null'};
 const PREVIEW = ${json(PREVIEW_KEYS)};
 const GLYPHS = ${json(glyphs)};
+const WORDS = ${words ? json(words) : 'undefined'};
 const runs = [];
 let live = null;
 FRAMES.forEach((F, i) => {
@@ -129,6 +131,7 @@ FRAMES.forEach((F, i) => {
     cues: 'full',
     // the page's clock, so a moment passes, a number counts and a results board can be skipped
     now: () => performance.now() / 1000, countUp: 0.8,
+    words: WORDS,
     act: (e, from) => {
       if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = S; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
       if (typeof e.sound === 'string' && SOUNDS && live === i) hear(SOUNDS, e);

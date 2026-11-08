@@ -246,3 +246,47 @@ describe('mana-ui: appearing, leaving, shuffling', () => {
     } finally { globalThis.document = saved.document; globalThis.getComputedStyle = saved.getComputedStyle; }
   });
 });
+
+describe('mana-ui: a press is seen', () => {
+  const spec = { start: 'a', screens: { a: screen([{ use: 'list', props: { rows: [{ label: 'Go' }, { label: 'Locked', disabled: true }, { label: 'Stay' }] }, on: { accept: { emit: 'go' } } }]) } };
+  it('confirm marks what was pressed, again on a second press; deny marks a disabled row; moving away clears it', () => {
+    const rt = manaUi.runtime(spec, { read: () => undefined, act: () => {} });
+    rt.press('accept');
+    expect(rt.view()).toMatch(/data-k="0" data-press="accept-a"/);
+    rt.press('accept');
+    expect(rt.view()).toMatch(/data-k="0" data-press="accept-b"/);   // a new name: it plays again
+    rt.press('down'); rt.press('accept');
+    expect(rt.view()).toMatch(/data-k="1" data-press="deny-[ab]"/);
+    rt.press('down');
+    expect(rt.view()).not.toContain('data-press');
+    expect(sheet).toMatch(/\.r \[data-press=accept-a\]\{animation:mana-confirm-a /);
+    expect(sheet).toMatch(/\.r\[data-flash=reduced\] \[data-press=accept-a\]\{animation:mana-press-a /);   // the ring, no fill
+    expect(sheet).toContain('@keyframes mana-deny-a{0%,100%{translate:0 0}15%{translate:calc(-.8 * var(--mana-travel)) 0;');
+  });
+  it('a confirm that opens another screen is still seen, on the screen that leaves', async () => {
+    const { JSDOM } = await import('jsdom');
+    const w = new JSDOM('<div id="m"></div>').window, saved = { document: globalThis.document, getComputedStyle: globalThis.getComputedStyle };
+    globalThis.document = w.document; globalThis.getComputedStyle = w.getComputedStyle.bind(w);
+    try {
+      const rt = manaUi.runtime({ start: 'a', screens: { a: screen([{ use: 'button', props: { label: 'Go' }, on: { accept: { open: 'b' } } }]), b: screen([{ use: 'button', props: { label: 'x' } }]) } }, { read: () => undefined });
+      const el = w.document.getElementById('m'), view = manaUi.mount(el, rt);
+      rt.press('accept'); view.paint();
+      const gone = el.querySelector('.mana-screen[data-leaving]');
+      expect(gone.querySelector('[data-press]').getAttribute('data-press')).toBe('accept-a');
+    } finally { globalThis.document = saved.document; globalThis.getComputedStyle = saved.getComputedStyle; }
+  });
+});
+
+describe('mana-ui: fades and the pause\'s veil', () => {
+  it('a fade dips the stage to black and back; a blur blurs it through; neither under less flash', () => {
+    expect(sheet).toMatch(/@keyframes mana-tx-fade\{0%\{opacity:0\}42%,58%\{opacity:1\}100%\{opacity:0\}\}/);
+    expect(sheet).toContain('@keyframes mana-tx-blur{0%{opacity:1;backdrop-filter:blur(0px)}50%{opacity:1;backdrop-filter:blur(14px)}');
+    expect(themeCss({ transition: 'blur' })).toContain('.mana-transition{background:transparent}');
+  });
+  it('a pause dims, blurs or frosts what it covers, under its scrim; the greybox covers it with the scrim alone', () => {
+    expect(sheet).toContain('.r .mana-screen[data-layer=modal]{backdrop-filter:var(--mana-veil);-webkit-backdrop-filter:var(--mana-veil)}');
+    expect(GREYBOX_VARS.veil).toBe('none');
+    expect(themeCss({ backdrop: 'frost' })).toMatch(/--mana-veil:blur\(18px\)/);
+    expect(() => readTheme({ backdrop: 'smoke' })).toThrow(/backdrop is one of: none, dim, blur, frost/);
+  });
+});
