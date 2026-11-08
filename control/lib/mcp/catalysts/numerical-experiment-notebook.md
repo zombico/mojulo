@@ -36,18 +36,19 @@ compose that way, and this catalyst is the composition written down.
 
 ## The honesty boundary (read before promising anything)
 
-Only the **SI-honest** kinds are instruments: `mechanics-view` dynamics scenarios
-(projectile / free-fall / inclined-plane / pendulum / spring / circular — RK4 pendulum,
-analytic SHM, real m/s², configurable g and initial conditions) and `orbit-view` (Kepler's
-equation with the real μ, vis-viva speeds, real periods). The double-slit, gravity-wave and
-wavepacket views are structurally correct but run in render units or exaggerated amplitude;
-machines and engines are quasi-static or kinematic. `measure_view` refuses those kinds by
-design. If the question needs one of them for a *quantitative* answer, say so and stop —
-do not dress a depictor up as an instrument.
+The instruments are the **science worlds** composed from laws: `classical`, `microscopic`, `quantum` and
+`relativistic` (`get_view_vocab({ id: 'classical' })` and its siblings). Every model is in SI with its units checked,
+every run carries its gates (conservation, the textbook answer, the regime it holds in), and `measure_view` reads each
+at tier `si`. A projectile, a pendulum, an orbit, a wave packet, the double slit, a liquid setting, a protein
+assembling: each is a model there, its starting conditions written into its recipe. The older `mechanics-view`
+dynamics scenarios are instruments too, and the one-call experiment form below still sweeps them. The ready-made
+depictors (a ripple tank, gravity waves, machines and engines, a spinning black hole) are pictures, not instruments:
+`measure_view` refuses them by design. If the question needs one of them for a *quantitative* answer, say so and
+stop — do not dress a depictor up as an instrument.
 
-Also scope-check the question itself: orbit-view scenarios are preset systems (you cannot
-pose arbitrary orbital elements), and mechanics scenarios are single-body. A question
-outside the posable surface is a finding too — report it rather than approximating.
+Also scope-check the question itself: a law the table lacks comes back as a **gap** naming the scale that owns it,
+and a regime gate says when the model has left its ground. A question outside the posable surface is a finding too —
+report it rather than approximating.
 
 ## The workflow
 
@@ -55,12 +56,12 @@ outside the posable surface is a finding too — report it rather than approxima
    design (varied parameter, range, held-constant values) as a `note` — the book's first
    item is the hypothesis, so the notebook records what was asked before what was found.
 
-2. **Sweep.** For mechanics dynamics, prefer the one-call form —
-   `run_experiment_sweep({ research_ref, base, param, values, outcome })` mints every
-   point, binds every experiment with full provenance, and auto-plots param-vs-outcome
-   into the book. For anything it doesn't cover (orbit scenarios, one-off runs): mint one
-   view per value (`create_view` with kind `mechanics` / `orbit`), varying ONLY the swept
-   parameter, and bind each response as its own experiment item, provenance verbatim:
+2. **Sweep.** Mint the science world once (`create_view` with kind `classical`, …), then vary
+   it: `run_experiment_sweep({ ref, path, values })` mints one variant per value at a JSON Pointer
+   into its recipe (`/model/frame/g`, `/model/bodies/0/v/0`), varying ONLY the swept parameter,
+   all in one folder. Bind each variant as its own experiment item, provenance verbatim (for the
+   older mechanics-view dynamics, the one-call `run_experiment_sweep({ research_ref, base, param,
+   values, outcome })` mints, binds and plots in one step):
 
    ```
    bind_research_item({
@@ -99,12 +100,14 @@ outside the posable surface is a finding too — report it rather than approxima
 
 Question: how does projectile range fall as g rises, at v₀ = 18 m/s, angle = 45°?
 
-- Sweep g ∈ {1.62 (Moon), 3.71 (Mars), 9.8 (Earth), 24.79 (Jupiter)}:
-  `create_view({ kind: 'mechanics', params: { scenario: 'projectile', v0: 18, angle: 45, g: <g> } })` × 4,
-  each bound as an experiment.
-- The closed form predicts range = v₀²·sin(2θ)/g — bind a `summary` comparing the
-  measured ranges (from `measure_view`'s final sample position, or the mint's stats) to
-  the prediction; the ratio test (range × g = const) is the analysis.
+- Mint the projectile once as a classical world: `frame: { g: 9.8 }`, a body at the origin with
+  `v: [12.73, 0, 12.73]` (18 m/s at 45°), `gravity-uniform`, `observe: [{ quantity: 'range', of: 'ball' }]`, and a duration long enough to land. Then
+  sweep g ∈ {1.62 (Moon), 3.71 (Mars), 9.8 (Earth), 24.79 (Jupiter)}:
+  `run_experiment_sweep({ ref, path: '/model/frame/g', values: [1.62, 3.71, 9.8, 24.79] })`, each variant bound as
+  an experiment.
+- The closed form predicts range = v₀²·sin(2θ)/g, and each run already checks it (its `closed-form:ballistic` gate):
+  bind a `summary` comparing the measured ranges (each mint's `observed`, or `measure_view`) to the prediction; the
+  ratio test (range × g = const) is the analysis.
 - Synthesize with `review: true`: "range is inversely proportional to g across two orders
   of magnitude of surface gravity; measured ranges match v₀²sin2θ/g to within sampling
   tolerance" — with all four recipes reproducibly behind it.

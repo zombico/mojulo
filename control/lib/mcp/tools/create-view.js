@@ -84,13 +84,16 @@ import { createRelativisticViewHandler } from '@/lib/mcp/tools/relativistic-view
 import { createDnaProcessHandler } from '@/lib/mcp/tools/dna-process';
 import { createEnergyCycleHandler } from '@/lib/mcp/tools/energy-cycle';
 
-// kind → { family, retired: the name the kind once had as its own tool, handler }. The handler keeps
-// each view's own param whitelisting/validation; create_view is pure dispatch.
+// kind → { family, retired: the name the kind once had as its own tool, handler, listed?, folded? }. The handler keeps
+// each view's own param whitelisting/validation; create_view is pure dispatch. A kind `listed: false` was FOLDED into the
+// science world `folded` names (that world composes it from laws, run and checked): it keeps its enum slot and its
+// handler, so a stored row renders and a call by name (a recipe-book recipe) still mints, but its card is out of the index
+// and search (`index: false`), so nothing new routes to it.
 export const VIEW_KINDS = {
   'atmosphere': { family: 'science', retired: 'create_atmosphere_view', handler: createAtmosphereViewHandler },
   'atom': { family: 'science', retired: 'create_atom_view', handler: createAtomViewHandler },
   'beach': { family: 'science', handler: createBeachViewHandler },   // born inside create_view — no retired alias
-  'black-hole': { family: 'science', retired: 'create_black_hole_view', handler: createBlackHoleViewHandler },
+  'black-hole': { family: 'science', retired: 'create_black_hole_view', handler: createBlackHoleViewHandler, listed: false, folded: 'relativistic' },   // folded into the relativistic world: renders its rows, answers by name, unlisted
   'cascade': { family: 'science', retired: 'create_cascade_view', handler: createCascadeViewHandler },
   'cellular': { family: 'bio', retired: 'create_cellular_view', handler: createCellularViewHandler },
   'classical': { family: 'science', handler: createClassicalViewHandler },   // a science world: composed from laws — no retired alias
@@ -101,7 +104,7 @@ export const VIEW_KINDS = {
   'conics': { family: 'math', retired: 'create_conics_view', handler: createConicsViewHandler },
   'derivative': { family: 'math', retired: 'create_derivative_view', handler: createDerivativeViewHandler },
   'dna': { family: 'bio', retired: 'create_dna_view', handler: createDnaViewHandler },
-  'double-slit': { family: 'science', retired: 'create_double_slit_view', handler: createDoubleSlitViewHandler },
+  'double-slit': { family: 'science', retired: 'create_double_slit_view', handler: createDoubleSlitViewHandler, listed: false, folded: 'quantum' },   // folded into the quantum world: renders its rows, answers by name, unlisted
   'field-flow': { family: 'math', retired: 'create_field_flow_view', handler: createFieldFlowViewHandler },
   'field': { family: 'science', retired: 'create_field_view', handler: createFieldViewHandler },
   'fission': { family: 'science', retired: 'create_fission_view', handler: createFissionViewHandler },
@@ -118,7 +121,7 @@ export const VIEW_KINDS = {
   'microscopic': { family: 'science', handler: createMicroscopicViewHandler },   // a science world: composed from laws — no retired alias
   'molecule': { family: 'bio', retired: 'create_molecule_view', handler: createMoleculeViewHandler },
   'ocean': { family: 'science', retired: 'create_ocean_view', handler: createOceanViewHandler },
-  'orbit': { family: 'science', retired: 'create_orbit_view', handler: createOrbitViewHandler },
+  'orbit': { family: 'science', retired: 'create_orbit_view', handler: createOrbitViewHandler, listed: false, folded: 'classical' },   // folded into the classical world: renders its rows, answers by name, unlisted
   'parallel-transport': { family: 'science', retired: 'create_parallel_transport_view', handler: createParallelTransportViewHandler },
   'plasma-globe': { family: 'science', retired: 'create_plasma_globe_view', handler: createPlasmaGlobeViewHandler },
   'probability': { family: 'math', retired: 'create_probability_view', handler: createProbabilityViewHandler },
@@ -141,7 +144,7 @@ export const VIEW_KINDS = {
   'transformer': { family: 'math', retired: 'create_transformer_view', handler: createTransformerViewHandler },
   'trig-circle': { family: 'math', retired: 'create_trig_circle_view', handler: createTrigCircleViewHandler },
   'vector-match': { family: 'math', retired: 'create_vector_match_view', handler: createVectorMatchViewHandler },
-  'wavepacket': { family: 'science', retired: 'create_wavepacket_view', handler: createWavepacketViewHandler },
+  'wavepacket': { family: 'science', retired: 'create_wavepacket_view', handler: createWavepacketViewHandler, listed: false, folded: 'quantum' },   // folded into the quantum world: renders its rows, answers by name, unlisted
   'windmill': { family: 'science', retired: 'create_windmill_view', handler: createWindmillViewHandler },
   // Animated bio PROCESS explainers (a live orbit World, not a still) — the
   // time-based siblings of the static bio kinds (dna / cellular / molecule).
@@ -248,8 +251,8 @@ export function registerCreateViewTools() {
     description:
       'Mint an animated 3D STUDY OBJECT — a science / math / bio explainer served as a live World at '
       + '`/api/sketches/<ref>/world` (orbit camera; tiny deterministic recipe stored, regenerated on render). '
-      + 'One tool, many kinds: physics (fission, fusion, double-slit, black-hole, galaxy, orbit, mechanics, '
-      + 'ocean, …), math explainers (derivative, conics, trig-circle, complex, …), biology (dna, cellular, '
+      + 'One tool, many kinds: physics (composed from laws: classical, quantum, …; fission, galaxy, mechanics, …), '
+      + 'math explainers (derivative, conics, trig-circle, complex, …), biology (dna, cellular, '
       + 'molecule). Pick `kind` from the enum; per-kind parameters go in `params` — find a kind by intent '
       + "via semantic_search({ kinds: ['view_vocab'] }) and read its parameter manual via "
       + 'get_view_vocab({ id: \'<kind>\' }) before passing params. Reach for "show/teach me <phenomenon>", '

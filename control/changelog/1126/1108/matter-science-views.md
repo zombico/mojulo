@@ -73,3 +73,11 @@
   its matter's ladder, down to its nuclei, and a lower rung can feed the one above (a gelling law's `from: { rung }`).
   The checks: every simulated rung's own, `ladder-depicted`, `ladder-cited` and `ladder-ordered`. The derived matter
   ladder's sources now carry their years, and one that has none is marked unsourced.
+- **The old one-off science views fold into the worlds that compose them.** The orbit, double-slit, wavepacket and
+  black-hole kinds leave the listing and search: their experiments are an orbit in the classical world, the slits and a
+  wave packet in the quantum world, a black hole's light in the relativistic world, each run, checked and measured, and
+  each card says where it went. They keep rendering every stored recipe and still answer a call by name (the recipe
+  book's black-hole and double-slit recipes, and a spinning hole, which no law table holds). The mechanics card's
+  motions (a projectile, a pendulum, a spring, a collision, a ball curling in flight), the fluid card's floating and
+  sinking, and the atom card's hydrogen orbitals point at the worlds the same way; those kinds keep their machines,
+  flows and many-electron atoms. The numerical-experiment notebook sweeps a classical world now.

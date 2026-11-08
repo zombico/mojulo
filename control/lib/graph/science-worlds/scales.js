@@ -50,7 +50,7 @@ const NOT_YET = {
   'time-dilation': 'the clock row (a clocks world)', 'event-horizon': 'the schwarzschild row: its horizon is at Rs',
   'perihelion-precession': 'the body row (an orbit world): its advance per orbit is a gate', precession: 'the body row (an orbit world)',
   geodesic: 'every body and every ray here follows one', 'gravitational-redshift': 'the clock row, and the disk row\'s light',
-  kerr: 'a spinning hole (Kerr) is not in the table yet; the curated `black-hole` kind draws one picture of the non-spinning hole',
+  kerr: 'a spinning hole (Kerr) is not in the table yet; the folded `black-hole` kind, called by name, draws one picture of it (its beta)',
   'gravitational-waves': 'gravitational waves are not in the table yet; the curated `gravity-wave` kind shows them',
   wormhole: 'wormholes are not in the table: no known matter holds one open',
   thermal: 'the heat row (conduction, convection, radiation, melting)',
