@@ -266,6 +266,10 @@ Pointers only; each target carries its own design notes.
   styles a layer over it, `theme.js`, a world's guide reaching it through `playscape/ui/mana-theme.js`; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
   wireframe board, `board.js`; imports nothing outside its folder; a view that reads no device: the controls layer drives
   it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md).
+- Combat: [gameworld/combat/](control/lib/graph/gameworld/combat/) (a made game's player and foe measured on its runtime:
+  movement against its feel's card, each gun's rounds to drop the foe, cone, climb, marks by matter, switching; the gym
+  laid from those numbers; the combat book, `/bible?book=combat`); the tester's spike, its findings and the grown arena
+  are `control/scripts/spikes/combat-tester/`.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).

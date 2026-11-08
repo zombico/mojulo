@@ -28,12 +28,12 @@ const r2 = (v) => Math.round(v * 100) / 100;
 
 // ── the seed's numbers: what the gym measured, read as the arena's ─────────────────────────────────────────────────────
 // a gun serves the bands at which it drops the foe within twice its time at 5 m (past that the fight is the other gun's,
-// or a walk), fired as it is best fired there, from the hip or aimed (a sniper is aimed); its reach is the farthest
-// such band
+// or a walk), fired as it is best fired there, from the hip, aimed (a sniper) or aimed in bursts (an automatic: its held
+// spray blooms); its reach is the farthest such band
 export function seedOf(m, R, pilot, { cross = 8, cover = 1 } = {}) {
   const rule = pilot.rule, eye = rule.type === 'walk' ? rule.eye ?? 1.7 : pilot.weapon?.eye ?? 1.5;
   const guns = Object.entries(m.slots).filter(([, s]) => !s.skipped).map(([k, s]) => {
-    const best = (d) => { const T = s.ttk[d]; if (!T) return null; const c = [T.still, T.aimed].filter((x) => typeof x?.s === 'number'); return c.length ? Math.min(...c.map((x) => x.s)) : null; };
+    const best = (d) => { const T = s.ttk[d]; if (!T) return null; const c = [T.still, T.aimed, T.burst].filter((x) => typeof x?.s === 'number'); return c.length ? Math.min(...c.map((x) => x.s)) : null; };
     const t5 = best(5), ok = (d) => best(d) != null && t5 != null && best(d) <= Math.max(2 * t5, t5 + 0.5);
     const bands = Object.keys(s.ttk).map(Number).filter(ok);
     return { gun: k, reach: bands.length ? Math.max(...bands) : 0 };
@@ -63,8 +63,21 @@ function layOut(rec, plan) {
 
 // ── tended by the game's laws: a crate the jump reaches that sees a spawn is stacked over the jump (with its turned
 // partner, so neither side has the better ground), and every law is run again; a few passes at most ─────────────────────
-export function tendArena(A, S, pilot, passes = 3) {
+export function tendArena(A, S, pilot, passes = 3, words = '') {
   const log = [];
+  // the guns' lines: an arena whose clear lines outrun its guns is grown again in close quarters (the grammar's own
+  // trait: staggered lanes, breaks across the long lines), kept when it serves the guns better
+  const served = (X) => { const L = arenaSightlines({ centre: [0, 0], half: X.half, z: 0 }, X.boxes); return L.filter((d) => d <= S.reach + 1e-9).length / Math.max(1, L.length); };
+  const lines0 = grownLaws(S, A, pilot).laws.find((l) => l.name.startsWith('sightlines'));
+  if (lines0 && !lines0.ok && !/close/.test(words)) {
+    // (never at the cost of what the words asked: its high ground and its lanes still shown, or the first is kept and
+    // the pull between them said)
+    const B = growArena(S, `${words} close quarters`), a = served(A), b = served(B);
+    const tops = (X) => (X.L.floors ?? []).length, kept = tops(B) >= tops(A) && (B.rec.plan.lanes ?? 0) === (A.rec.plan.lanes ?? 0);
+    if (b > a && kept) { log.push(`grown again in close quarters: ${Math.round(100 * a)}% → ${Math.round(100 * b)}% of the clear lines within the guns' ${S.reach} m`); A = B; }
+    else if (b > a) log.push(`close quarters would serve the guns better (${Math.round(100 * a)}% → ${Math.round(100 * b)}% of the lines within ${S.reach} m) but loses what the words asked (${tops(B)} of ${tops(A)} tops): kept, and said`);
+    else log.push(`close quarters served the guns no better (${Math.round(100 * b)}% of the lines within ${S.reach} m against ${Math.round(100 * a)}%): kept`);
+  }
   for (let k = 0; k < passes; k++) {
     const GL = grownLaws(S, A, pilot), seeing = GL.perches.filter((B) => GL.spotting.has(B));
     if (!seeing.length) return { A, GL, log };
@@ -169,7 +182,8 @@ async function checkArena(browser, file, A) {
   const F = (A.L.floors ?? [])[0] ?? null;
   const got = await page_.evaluate(`(() => {
     const C = window.__mojCtrl, w = C.world, e = Object.values(w.byId).find((x) => x.pilotable), F = ${JSON.stringify(F)};
-    const drive = (n, input) => { for (let i = 0; i < n; i++) C.step(1 / 60, typeof input === 'function' ? input(i) : input); };
+    // (a player's hand: the climb pulled down each frame, an automatic in short bursts: gym.mjs's)
+    const drive = (n, input) => { for (let i = 0; i < n; i++) { const k0 = (e.weapon && e.weapon.kickNow) || 0; C.step(1 / 60, typeof input === 'function' ? input(i) : input); e.transform.pitch -= (((e.weapon && e.weapon.kickNow) || 0) - k0) * Math.PI / 180; } };
     const z0 = e.transform.pos[2], out = {};
     for (const W of e.loadoutWeapons ?? [e.weapon]) if (W) W.converge = false;
     if (F) {
@@ -187,7 +201,7 @@ async function checkArena(browser, file, A) {
     e.transform.heading = Math.atan2(D.transform.pos[1] - e.transform.pos[1], D.transform.pos[0] - e.transform.pos[0]);
     e.transform.pitch = Math.atan2(1.2 - z0 - (e.weapon?.eye ?? 0), 2.5);
     const W = e.weapon; if (W) { W.ammo = W.magazine; W.reloading = false; }
-    drive(240, (i) => ({ fire: W && W.auto ? true : i % 2 === 0 }));
+    for (let f = 0; f < 600 && !((w.match && w.match.feed.length) || 0); f++) { if (W && W.ammo <= 0) { W.ammo = W.magazine; W.reloading = false; } drive(1, { fire: W && W.auto ? f % 36 < 18 : f % 2 === 0 }); }
     out.drops = w.match?.feed?.length ?? 0;
     return out;
   })()`);
@@ -212,7 +226,7 @@ for (const [name, Gm] of Object.entries(chosen)) {
   const minted = await mint(name, Gm.quick), m = await measureGame(name, Gm, minted);
   m.laws = laws(m);
   const R = reachOnBoxes(minted.pilot, m.mobility), S = seedOf(m, R, minted.pilot, { cross, cover: coverS });
-  const T = tendArena(growArena(S, words), S, minted.pilot), A = T.A, GL = T.GL;
+  const T = tendArena(growArena(S, words), S, minted.pilot, 3, words), A = T.A, GL = T.GL;
   console.log(`\n━━ ${name}: the arena grown from its gym ('${words}')`);
   console.log(`   the seed  run ${S.run} m/s · eye ${S.eye} m · step ${S.step} m · ledge ${S.ledge ?? '–'} m · guns ${S.guns.map((g) => `${g.gun} to ${g.reach} m`).join(', ')}`);
   console.log(`   grown     ${2 * A.half} m across, ${A.rec.plan.topology}${A.rec.plan.lanes ? ` of ${A.rec.plan.lanes} lanes` : ''}, ${(A.L.floors ?? []).length} tops, ${A.L.spawns.length} spawns, ${A.rec.passes.length} passes${A.rec.gaps.length ? `, gaps: ${A.rec.gaps.map((g) => g.word).join(', ')}` : ''}`);

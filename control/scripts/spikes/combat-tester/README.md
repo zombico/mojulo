@@ -19,7 +19,7 @@ The meru island is the seed at a game's scale that a trail is grown on. Here the
 numbers, measured on the runtime it ships, validated there; its levels are then grown from those measures and held to
 the same laws (as `gameworld/feel/reach.js` already sizes a platformer's segments from what its hero can cross). Phase 1
 is the measures; phase 2 the gym page (the seed drawn: a movement lane, a firing range, a wall yard); phase 3 the arena
-grown from it.
+grown from it; phase 4 the gaps closed; phase 5 the measures and the gym in lib and the combat book.
 
 ## How it measures
 
@@ -238,6 +238,39 @@ its recipe's output (the page's runtime text grows; the emitted-page pins are re
 `takes` (the hero's own jumps and the card's moves, unreleased on this line: the 1105 platformer slice) now carries the
 card's sprint and walk too, so a platformer with `takes` sprints on Shift at its card's sprint. The tester's games ask
 for their takes. Every law of the seven games holds (`measure.mjs`: 171 of 171).
+
+## Phase 5: promoted, and a book page
+
+The measures and the gym live in lib now, as the action lab's kernel did (`lib/graph/gameworld/feel/` and the feel
+book): this spike's scripts re-export them, so their commands and gates keep their paths.
+
+- `lib/graph/gameworld/combat/measure.js`: `measureCombat(pilot, foe, { feel })` (mobility, lethality, marks,
+  switching) and `combatLaws(m)`, over a level's own player and foe (`combatantsOf(payload)`)
+- `lib/graph/gameworld/combat/gym.js`: `reachOnBoxes`, `layGym`, `gymGate`, `gymOf`, `gymPageHtml`
+- `lib/graph/gameworld/combat/book.js`: **the combat book**, `/api/sketches/<ref>/bible?book=combat` (`&view=other` for
+  the other camera). The made game's first level's player and foe, measured on its runtime and set in the gym laid from
+  those numbers, the readout and the laws beside them: where the feel book plays the card a game is made from, the
+  combat book plays the game as it was made. A world that fights with guns (`combat/game.js`: a goal that shoots, or
+  arms) is linked from `design_game`'s readout (`combatBook`) and the rail's exits once it is made; its `equipment`
+  chapter reads it before the character bible. Tested in `combat.test.js` on the smallest game (a person, a card, a
+  rifle and a sidearm, a foe): every law holds, the gym's stations are as meant, the page is written from both cameras.
+
+The page checks' drive has a player's hand now: an automatic in three-round bursts with a rest past its wait, the climb
+pulled down, the aim settled between targets, and the range fired until the foe drops. Phase 4 made a held spray bloom
+and climb, and the old drive (the trigger held, nothing pulled) missed a 15 m body with it, which is the realistic
+end's cost of spraying.
+
+**The measures fire an automatic as a player does at range** (`burst`: aimed, three-round bursts): Cogs of Combat's
+rifle drops the foe at 15 m in 8 rounds and 1.3 s in bursts, against 31 rounds and 5.8 s held. A gun's reach (the grown
+arena's seed) reads the best of hip, aimed and burst.
+
+**The arenas, grown again on phase 4's guns.** The rifles' reach is 15 m now (30 m in bursts takes 3 s, past twice
+their close time), and the grow step tends an arena whose lines outrun its guns: it grows it again in close quarters
+(the grammar's own trait) and keeps it when it serves the guns better without losing what the words asked. Infinity
+Crisis's 52 m arena goes from 60% to 88% of its lines within 15 m (its law still fails: a 52 m arena for a 15 m kit);
+Cogs of Combat's would reach 98% but loses its high ground, so the first is kept and the pull between them said (77%).
+Both are the operator's call: a smaller arena (`--cross`), a long gun, or a spray that blooms less. Every other arena
+law and page check holds (78 of 80).
 
 ## Gaps, in the order they move a measured number
 

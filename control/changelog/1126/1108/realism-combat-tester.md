@@ -39,3 +39,10 @@
   mech's multiple of its run; its dodge stays).
 - **A first person that plays its feel.** A first-person game without a hero, with a feel, stands on the platform rule
   at its eye, so it accelerates, stops, jumps and sprints as its card says.
+- **The combat book.** A made game that fights with guns has a combat book (`/api/sketches/<ref>/bible?book=combat`,
+  `&view=other` for its other camera): its first level's player and foe measured on the runtime the game ships (how it
+  runs, stops, sprints and jumps; how many rounds each gun takes to drop the foe at 5, 15 and 30 m, still, strafing and
+  aimed; its cone and climb; the marks each gun leaves on brick, concrete, pine, sheet metal and steel; each switch and
+  reload) and set in a graybox gym laid from those numbers, with what the game's feel asked for beside what it does.
+  `design_game`'s readout links it (`combatBook`), and its equipment chapter reads it. The measures and the gym live in
+  `lib/graph/gameworld/combat/`.
