@@ -59,7 +59,7 @@ export const CHAPTERS = Object.freeze([
   C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels', 'main-quest'], outcome: 'story' }),
   C('camera', 'cinematics', 'The camera', { paths: ['/camera', '/xr'], reads: ['intent', 'levels'] }),
   // the menus, the front and the screen a game is worked through by hand (its runtime is control/lib/mana-ui/)
-  C('interface', 'interface', 'The interface', { paths: ['/front', '/screen'], reads: ['intent', 'world', 'systems', 'battles', 'cast'] }),
+  C('interface', 'interface', 'The interface', { paths: ['/front', '/screen', '/hud'], reads: ['intent', 'world', 'systems', 'battles', 'cast'] }),
   C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface'], outcome: 'play' }),
 ]);
 

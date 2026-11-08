@@ -28,12 +28,18 @@
  *     scale     compact | normal | large                               the type scale
  *     case      upper | none                                           titles and headings
  *     ornaments [brackets | ticks | scanlines | dotgrid | stitch | hazard | glow]   drawn on and around the windows
+ *     hud       panel | bare                                           how the in-game HUD sits on the play: each part on
+ *                                                                    its own plate (panel), or on the scene itself, its
+ *                                                                    words outlined and its meters slim and framed (bare:
+ *                                                                    an action game's, never a card)
  *     sides     the kits of the sides (a team, a seat, a lane) as hex, 1 to 8, cycled: the chip a row with `side` draws,
  *               keylined in the ink where the kit would sink into the panel (under 3:1)
  *               (a host with its own colour science hands its kits here: the broadcast's, already kept apart); left
  *               out, the accent, the second accent, then the Okabe–Ito set
  *
- *   THEMES · THEME_IDS     the presets: greybox (the default), modern, console, terminal, storybook, arcade
+ *   THEMES · THEME_IDS     the presets: greybox (the default), modern, console, terminal, storybook, arcade, adventure
+ *   gameHudCss(t)          → the in-game HUD's sheet for a theme's `hud` (scene/channels/events.js lays it over its own:
+ *                            the HUD's classes, until the HUD moves onto mana-ui); a panel HUD, none
  *   THEME_WORDS            each closed word set
  *   readTheme(t)           → the theme, every field filled (throws, teaching)
  *   themeCss(t, scope?)    → CSS laid after the sheet (manaCss) under the same scope
@@ -57,20 +63,24 @@ export const THEME_WORDS = Object.freeze({
   scale: ['compact', 'normal', 'large'],
   case: ['upper', 'none'],
   ornaments: ['brackets', 'ticks', 'scanlines', 'dotgrid', 'stitch', 'hazard', 'glow'],
+  hud: ['panel', 'bare'],
 });
 const NEEDED = ['ink', 'panel', 'line', 'accent'];
 const TOKENS = [...NEEDED, 'mid', 'soft', 'paper', 'wash', 'accent2', 'harm', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'];
-const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'ornaments', 'sides'];
+const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'ornaments', 'hud', 'sides'];
 // the colour-blind-safe categorical set, for the sides a theme does not name
 const OKABE_ITO = ['#e69f00', '#56b4e9', '#009e73', '#f0e442', '#0072b2', '#d55e00', '#cc79a7', '#999999'];
 
 export const THEMES = Object.freeze({
-  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'ring', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'] },
-  modern: { name: 'Modern', tokens: { ink: '#eef1f6', panel: '#151a23', line: '#3a4558', accent: '#5fb0ff', accent2: '#e8b96a', harm: '#ff5a4d' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'round', plate: 'flat', focus: 'fill', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', ornaments: [] },
-  console: { name: 'Console RPG', tokens: { ink: '#ffffff', panel: '#1b2a7c', line: '#eef1ff', accent: '#ffe07a', accent2: '#8fb0ff', harm: '#ff6b6b' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'double', corner: 'soft', plate: 'gradient', focus: 'marker', motion: 'snap', fills: 'solid', scale: 'normal', case: 'none', ornaments: [] },
-  terminal: { name: 'Terminal', tokens: { ink: '#c8f5d0', panel: '#06140c', line: '#3c8a52', accent: '#7dff9a', accent2: '#e8d36a', harm: '#ff7a5a' }, type: { body: 'mono', display: 'mono', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'bracket', motion: 'snap', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: ['brackets', 'scanlines'] },
-  storybook: { name: 'Storybook', tokens: { ink: '#3a2a20', panel: '#fff4e2', line: '#b98a5a', accent: '#a8471f', accent2: '#5f7f2e', harm: '#b3261e', hp: '#5f7f2e', mp: '#2f5d8a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'soft', plate: 'textured', focus: 'lift', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', ornaments: ['stitch'] },
-  arcade: { name: 'Arcade', tokens: { ink: '#ffffff', panel: '#0b0b10', line: '#ffffff', accent: '#ff2e88', accent2: '#00e5ff', harm: '#ff3b30', xp: '#ffe600' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'glow', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', ornaments: ['hazard'] },
+  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'ring', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'], hud: 'panel' },
+  modern: { name: 'Modern', tokens: { ink: '#eef1f6', panel: '#151a23', line: '#3a4558', accent: '#5fb0ff', accent2: '#e8b96a', harm: '#ff5a4d' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'round', plate: 'flat', focus: 'fill', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', ornaments: [], hud: 'panel' },
+  console: { name: 'Console RPG', tokens: { ink: '#ffffff', panel: '#1b2a7c', line: '#eef1ff', accent: '#ffe07a', accent2: '#8fb0ff', harm: '#ff6b6b' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'double', corner: 'soft', plate: 'gradient', focus: 'marker', motion: 'snap', fills: 'solid', scale: 'normal', case: 'none', ornaments: [], hud: 'panel' },
+  terminal: { name: 'Terminal', tokens: { ink: '#c8f5d0', panel: '#06140c', line: '#3c8a52', accent: '#7dff9a', accent2: '#e8d36a', harm: '#ff7a5a' }, type: { body: 'mono', display: 'mono', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'bracket', motion: 'snap', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: ['brackets', 'scanlines'], hud: 'panel' },
+  storybook: { name: 'Storybook', tokens: { ink: '#3a2a20', panel: '#fff4e2', line: '#b98a5a', accent: '#a8471f', accent2: '#5f7f2e', harm: '#b3261e', hp: '#5f7f2e', mp: '#2f5d8a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'soft', plate: 'textured', focus: 'lift', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', ornaments: ['stitch'], hud: 'panel' },
+  // an action adventure's: the HUD on the scene itself (no cards), its words outlined, its meters slim and framed, the
+  // menus dark glass with a gilt rule and a cut corner
+  adventure: { name: 'Adventure', tokens: { ink: '#fbf6e9', panel: '#16130e', line: '#e8d9b0', accent: '#f2c75c', accent2: '#8fd3c8', harm: '#e0533f', hp: '#e0533f', stamina: '#86c94f', mp: '#5aa6e8' }, type: { body: 'system', display: 'serif', mono: 'mono' }, frame: 'hairline', corner: 'cut', plate: 'gradient', focus: 'bracket', motion: 'ease', fills: 'solid', scale: 'normal', case: 'upper', ornaments: [], hud: 'bare' },
+  arcade: { name: 'Arcade', tokens: { ink: '#ffffff', panel: '#0b0b10', line: '#ffffff', accent: '#ff2e88', accent2: '#00e5ff', harm: '#ff3b30', xp: '#ffe600' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'glow', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', ornaments: ['hazard'], hud: 'panel' },
 });
 export const THEME_IDS = Object.keys(THEMES);
 
@@ -226,4 +236,39 @@ export function themeAdvice(theme) {
   T.sides.slice(0, 2).forEach((c, i) => need('side-shows', c, k.panel, 1.5, `sides[${i}] / panel`, `side ${i + 1}'s chip against a window`));
   if (T.fills === 'solid') out.push({ law: 'values-apart', at: 'fills', advice: 'solid fills tell hp, mp, xp and stamina apart by colour alone; keep their labels, or fills: pattern' });
   return out;
+}
+
+/** The in-game HUD's sheet for a theme's `hud` (the HUD page's classes, scene/channels/events.js, laid over its own until
+ * the HUD moves onto mana-ui): a BARE HUD's parts sit on the scene itself, no plate and no card: their words outlined
+ * against any ground, its meters slim, framed in a hairline of the theme's line with cut ends, their numbers left to the
+ * status page, the banners and toasts in the display face. A panel HUD adds nothing. */
+export function gameHudCss(t) {
+  const T = readTheme(t);
+  if (T.hud !== 'bare') return '';
+  const k = T.tokens, face = (f) => FACE_STACKS[f] ?? `"${f}",serif`, disp = face(T.type.display), body = face(T.type.body);
+  const ol = '0 1px 2px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.55)';
+  return [
+    `.moj-w{background:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:2px 0;color:${k.ink};text-shadow:${ol}}`,
+    `.moj-w-text .moj-lbl,.moj-w-legend{font:600 12px/1.3 ${body};letter-spacing:1.5px;text-transform:uppercase;opacity:.85}`,
+    `.moj-w-bar{min-width:0;width:min(280px,34vw);gap:8px}`,
+    `.moj-w-bar .moj-lbl{font:700 11px/1 ${disp};letter-spacing:2px;color:${k.ink};opacity:.9}`,
+    '.moj-w-bar .moj-val{display:none}',
+    `.moj-w-bar .moj-track{height:9px;border-radius:0;background:rgba(0,0,0,.55);box-shadow:0 0 0 1px ${alpha(k.line, 0.75)},0 2px 6px rgba(0,0,0,.45);clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}`,
+    '.moj-w-bar .moj-fill{background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0) 55%),currentColor}',
+    '.moj-w-counter{min-width:0;padding:0}',
+    `.moj-w-counter .moj-val{font:700 26px/1 ${disp}}`,
+    `.moj-w-banner{font:700 30px/1.2 ${disp};letter-spacing:8px;padding:6px 0}`,
+    `.moj-w-toast{font:700 20px/1.2 ${disp};letter-spacing:2px}`,
+    // (the pilot's own meters, the controllable channel's: its hp up at the top left where an action game keeps it, a
+    // slim framed meter with no card and no numbers; its stamina a slim framed gauge under the hero; the HUD's own top
+    // left column below the hp)
+    '.moj-c-hp{background:none!important;border:0!important;padding:0!important;left:16px!important;right:auto!important;top:16px!important;bottom:auto!important;width:min(260px,34vw)!important}',
+    `.moj-c-hp .moj-c-lbl{font:700 11px/1 ${disp}!important;letter-spacing:2px!important;color:${k.ink}!important;text-shadow:${ol}!important}`,
+    '.moj-c-hp .moj-c-num{display:none}',
+    `.moj-c-track,.moj-c-gauge{border-radius:0!important;background:rgba(0,0,0,.55)!important;box-shadow:0 0 0 1px ${alpha(k.line, 0.75)},0 2px 6px rgba(0,0,0,.45)!important;clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}`,
+    '.moj-c-track{height:9px!important}.moj-c-gauge{height:6px!important;width:min(200px,28vw)!important;bottom:22px!important}',
+    '.moj-c-fill{opacity:1!important;background-image:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0) 55%)!important}',
+    `.moj-c-cap{font:700 10px/1 ${disp}!important;letter-spacing:3px!important;bottom:34px!important}`,
+    '.moj-hud-top-left{top:44px!important}',
+  ].join('');
 }

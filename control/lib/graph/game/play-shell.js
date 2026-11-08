@@ -29,6 +29,7 @@
 import { buildGameStoreKernel } from './store-kernel.js';
 import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_SEATS } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
+import { THEMES } from '../../mana-ui/theme.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
@@ -80,6 +81,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   // the theme: the same tokens as the arena shell and the levels' HUD; sanitized here so a hand-poked row cannot
   // inject into the CSS context
   const theme = manifest.theme || {};
+  // (a bare HUD look, the world's `hud`, mana-ui/theme.js: no menu button under a mouse, the pause on Esc; a finger keeps it)
+  const bareHud = typeof manifest.hud === 'string' && THEMES[manifest.hud]?.hud === 'bare';
   const c = {
     bg: safeColor(theme.bg, '#0e1116'),
     ink: safeColor(theme.ink, '#e8edf4'),
@@ -162,7 +165,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   #veil .bar i{display:block;height:100%;width:40%;background:var(--accent);animation:slide 1.1s ease-in-out infinite}
   @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
   #pauseBtn{position:fixed;top:12px;right:12px;z-index:6;display:none;padding:6px 12px;background:var(--panel);border-radius:8px}
-  #pause{position:fixed;inset:0;z-index:7;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(6px)}
+${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!important}}\n' : ''}  #pause{position:fixed;inset:0;z-index:7;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(6px)}
   #pause .screen{max-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
   dl.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}
   dl.keys dt{color:var(--accent);white-space:nowrap}

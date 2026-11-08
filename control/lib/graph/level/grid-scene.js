@@ -39,6 +39,9 @@ import { levelGrid, SKETCH_BIOCUBE, SKETCH_BOULDERS } from './map-sketch.js';
 import { farFaces } from './far-view.js';
 import { guideOf } from './guide.js';
 
+// the groups a walker never stands on: a tree's crown, its leaves and blossom, a stamped tree (its trunk a collider)
+const FOOTLESS = Object.freeze(['isekai:crown', 'isekai:leaves', 'isekai:blossom', 'isekai:petals', 'isekai:sprig', 'isekai:culm', 'isekai:trees:', 'isekai:spray']);
+
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const DOOR = placeDoors;
 export const RIM = Object.freeze({ deep: 70, rise: 18, step: 6, wall: 6 });
@@ -410,7 +413,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     // (a place's tile keeps its far layers: its building is seated on the land they lay past its square, and the map
     // drops their ridges and clips their skirt as it does every tile's)
     const own = { ...(heroes.has(`${cell.r},${cell.c}`) ? { hero: true } : {}), ...(cell === ringed || cell.kind === 'place' ? {} : { backdrop: false }) };
-    return { kind: 'stage', kit: lv.kit ?? 'isekai-meadow', seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
+    return { kind: 'stage', kit: lv.kit ?? 'isekai-meadow', seed: hashTile(seed, cell.r, cell.c), tile: { size: T, open, origin: at, ...coarse, ...own, ...rocks, solid: true, level: { seed, ...(G.rise ? { rise: G.rise } : {}) } }, ...(building ? { buildings: [building] } : {}), ...words };
   };
   // THE SHADOWS ACROSS THE SEAMS: every tile's trees and boulders placed first (as its build will place them; a place's
   // tile none: its building clears its ground), so each tile is built with its neighbours' within reach casting on it
@@ -512,6 +515,8 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     ...(SK?.signs.length ? { signs: SK.signs } : {}),
     // (a sketched level's intro and way on, guide.js: drawn by the page's guide channel)
     ...(guidance ? { guide: guidance } : {}),
+    // (a map is walked: its trees' crowns and leaves are no footing, their trunks and boulders the tiles' colliders)
+    footless: FOOTLESS,
     map: { tile: T, rows: G.rows, cols: G.cols, cells, ...(G.regions ? { regions: regionsOf(G) } : {}), ...(G.plan ? { plan: G.plan, pieces: mapItems(G) } : {}), ...(Z ? { zone: zoneReadout(Z) } : {}), ...(G.sketch ? { sketch: { approved: G.sketch.approved, laid: G.sketch.laid, ...(unlaidHere(G, Z).length ? { unlaid: unlaidHere(G, Z) } : {}), marks: SK.marks } } : {}), laws: mapLaws(G, cells, out.faces, out.colliders, Z) },
   };
 }

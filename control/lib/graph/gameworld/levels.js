@@ -72,6 +72,7 @@ import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
 import { mergeExtras, libraryFigure, fieldFigure, stand } from './stage-figures.js';
 import { standFoe, foePlacements } from './foes.js';
+import { readTheme } from '../../mana-ui/theme.js';
 
 /** A sneak's guard: a guard in a person's skin (foes/classes/guard.js), and what the sneak plays it at: a watcher whose
  * sighting ends the run (the `unseen` mechanic reads its team), never fought, kept near its post. */
@@ -918,7 +919,13 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const { hpMax: _h, ...bodies } = play.stats?.bodies ?? {};
     play = { ...play, ...(Array.isArray(play.parts) ? { parts: play.parts.filter((p) => !(p.part === 'readout' && (p.id === 'hp' || p.id === 'level'))) } : {}), ...(play.stats?.bodies ? { stats: { ...play.stats, bodies } } : {}) };
   }
+  // (a bare HUD look, the world's `hud` (mana-ui's adventure): no level badge on the play; the level stays the status page's
+  // and its level-up banner's)
+  const bare = G.hud && readTheme(G.hud).hud === 'bare';
+  if (bare && Array.isArray(play?.parts)) play = { ...play, parts: play.parts.filter((p) => !(p.part === 'readout' && p.id === 'level')) };
   play = withBookUi(G, play);
+  // (and its HUD wears the look: events.look, scene/channels/events.js)
+  if (G.hud) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), look: G.hud } };
   const manifest = { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'

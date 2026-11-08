@@ -3167,6 +3167,7 @@ if (__boostEnt && !__world.spectate) {   // SPECTATE: boost is a pilot resource 
   __bgLabel.textContent = 'OVERHEAT';
   __bgLabel.style.cssText = 'position:absolute;left:50%;bottom:27px;transform:translateX(-50%);font:700 10px system-ui,sans-serif;letter-spacing:.14em;color:#ff6b6b;text-shadow:0 1px 3px rgba(0,0,0,.6);display:none;pointer-events:none;z-index:9';
   wrap.appendChild(__bgLabel);
+  __bgWrap.className = 'moj-c-gauge'; __bgFill.className = 'moj-c-fill'; __bgLabel.className = 'moj-c-cap';   // (a HUD look's hooks: mana-ui/theme.js gameHudCss)
   __bg = { wrap: __bgWrap, fill: __bgFill, label: __bgLabel };
 }
 // R19 SHIELD pip — REMOVED (operator, 2026-08-06): the shield's HP is no longer read out as a
@@ -3267,6 +3268,7 @@ if (__world.entities.some((e) => __hpMaxOf(e) > 0)) {
   __hpTrack.appendChild(__hpFill);
   __hpWrap.appendChild(__hpTop); __hpWrap.appendChild(__hpTrack);
   wrap.appendChild(__hpWrap);
+  __hpWrap.className = 'moj-c-hp'; __hpTrack.className = 'moj-c-track'; __hpFill.className = 'moj-c-fill'; __hpNum.className = 'moj-c-num'; __hpLbl.className = 'moj-c-lbl';   // (a HUD look's hooks: mana-ui/theme.js gameHudCss)
   __hp = { wrap: __hpWrap, fill: __hpFill, num: __hpNum };
 }
 function __updateHpHud() {
@@ -3439,15 +3441,15 @@ function __updateBoostHud() {
   __bg.fill.style.background = overheat ? '#ff6b6b' : (frac < 0.25 ? '#ffb347' : '#7fd4ff');
   __bg.fill.style.opacity = overheat ? '0.5' : '0.72';
   __bg.label.style.display = overheat ? '' : 'none';
-}${entities.some((x) => x && x.rule && x.rule.sprint === true) ? `
-// STAMINA (a hero that sprints, rules-platform.js \`sprint\`): the boost gauge read as the hero's stamina, a green bar that
+}${entities.some((x) => x && x.rule && x.rule.stamina === true) ? `
+// STAMINA (a hero that sprints on it, rules-platform.js \`stamina\`): the boost gauge read as the hero's stamina, a green bar that
 // ambers low, and WINDED (not OVERHEAT) while it is run dry and refilling. Emitted only on a page whose hero sprints.
-if (__bg && __boostEnt && __boostEnt.rule && __boostEnt.rule.sprint) { __bg.label.textContent = 'WINDED'; __bg.label.style.color = '#ffb36b'; }
+if (__bg && __boostEnt && __boostEnt.rule && __boostEnt.rule.stamina) { __bg.label.textContent = 'WINDED'; __bg.label.style.color = '#ffb36b'; }
 const __updateBoostHud0 = __updateBoostHud;
 __updateBoostHud = function () {   // eslint-disable-line no-func-assign
   __updateBoostHud0();
   const ent = (__world.pilotId && __world.byId[__world.pilotId]) || __boostEnt;
-  if (!__bg || !ent || !ent.rule || !ent.rule.sprint) return;
+  if (!__bg || !ent || !ent.rule || !ent.rule.stamina) return;
   const max = __boostMaxOf(ent), frac = Math.max(0, Math.min(1, (ent.boost == null ? max : ent.boost) / max));
   __bg.fill.style.background = ent.boostLock ? '#ff8a5c' : (frac < 0.25 ? '#ffc35c' : '#8fdc6a');
 };` : ''}

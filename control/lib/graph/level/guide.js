@@ -46,7 +46,9 @@ export function guideOf(level, G, Z = null, { seed = 1 } = {}) {
     // (what is said on reaching it: a meet's or a rest's line, a find's item; a scenario's beat, by its own mark)
     const item = (K.segments[b.at]?.marks ?? []).find((m) => m.beat === b.id && m.item)?.item;
     const says = b.kind === 'meet' || b.kind === 'rest' ? b.say : item ? `Found: ${item}` : null;
-    steps.push({ id: b.id, say: b.say, kind: b.kind, at, radius: fight ? GUIDE.fight : b.kind === 'find' || b.kind === 'secret' ? GUIDE.find : GUIDE.reach, ...(fight ? { fight: true } : {}), ...(b.teach?.length ? { keys: b.teach.map((v) => TEACH[v].keys) } : {}), ...(says ? { says } : {}) });
+    // (a meet's way on names who is met, its words before a colon; what they say is said on reaching them)
+    const way = b.kind === 'meet' && b.say.indexOf(':') > 0 ? b.say.slice(0, b.say.indexOf(':')).trim() : b.say;
+    steps.push({ id: b.id, say: way, kind: b.kind, at, radius: fight ? GUIDE.fight : b.kind === 'find' || b.kind === 'secret' ? GUIDE.find : GUIDE.reach, ...(fight ? { fight: true } : {}), ...(b.teach?.length ? { keys: b.teach.map((v) => TEACH[v].keys) } : {}), ...(says ? { says } : {}) });
   }
   const first = segs.includes(P.route[0]);
   if (!steps.length && !(first && C.pitch)) return null;

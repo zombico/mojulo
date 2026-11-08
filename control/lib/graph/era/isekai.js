@@ -1004,6 +1004,26 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // (the bushes' sections: a blocking bush a collider, the walked-through drawn in soft groups, each section an anchor)
   if (TH && TH.items.length) Object.assign(payload, { colliders: [...(payload.colliders ?? []), ...TH.colliders], anchors: [...(payload.anchors ?? []), ...TH.anchors],
     ...(TH.items.some((t) => t.soft) ? { soft: [...(payload.soft ?? []), ...Object.values(SOFT_BRUSH)] } : {}) });
+  // SOLID FLORA (a tile's `solid`: a map a hero walks, level/grid-scene.js): each tree's trunk and each boulder a collider,
+  // walked round and never through; their crowns and leaves are no footing (the page's `footless`, the map's). Absent,
+  // not a byte
+  if (manifest.tile?.solid) {
+    const cols = [], r5c = (v) => Math.round(v * 1e5) / 1e5 + 0;
+    for (const t of trees) {
+      const tr = Math.max(0.25, t.trunks?.[0]?.radii?.[0] ?? 0.3), z0 = t.trunks?.[0]?.pts?.[0]?.[2] ?? site.ground(t.x, t.y);
+      cols.push({ min: [r5c(t.x - tr), r5c(t.y - tr), r5c(z0 - 0.5)], max: [r5c(t.x + tr), r5c(t.y + tr), r5c(z0 + 3)], of: 'flora:trunk' });
+    }
+    for (const b of boulders) {
+      if (b.it.role === 'pebble' || b.it.role === 'talus') continue;
+      const cs = [...(b.sides ?? []), ...(b.cap ?? [])].flatMap((f) => f.corners ?? []);
+      if (!cs.length) continue;
+      const lo = [0, 1, 2].map((k) => Math.min(...cs.map((c) => c[k]))), hi = [0, 1, 2].map((k) => Math.max(...cs.map((c) => c[k])));
+      if (hi[2] - lo[2] < 0.4) continue;   // (a stone the feet step over)
+      const cx = (lo[0] + hi[0]) / 2, cy = (lo[1] + hi[1]) / 2, k = 0.8;   // (a little inside its faces: brushed past, not stopped short)
+      cols.push({ min: [r5c(cx - (cx - lo[0]) * k), r5c(cy - (cy - lo[1]) * k), r5c(lo[2])], max: [r5c(cx + (hi[0] - cx) * k), r5c(cy + (hi[1] - cy) * k), r5c(hi[2])], of: 'flora:rock' });
+    }
+    if (cols.length) payload.colliders = [...(payload.colliders ?? []), ...cols];
+  }
   // a biocube's FAUNA (era/biocube-fauna.js): the field's swarms and birds on the page (scene/channels/fauna.js), and its
   // herds as the units the world lowers to bodies on their rigs (worlds/fauna-units.js), each on its own ground; none,
   // not one byte
