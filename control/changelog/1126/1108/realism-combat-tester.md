@@ -59,3 +59,11 @@
   chest side-on to the line, a long gun's butt in the right shoulder and a pistol out at arm's length, pointed where it
   looks and dipped at a low ready until it aims or fires, lowered through a switch and rolled through a reload, each
   hand closed on the gun where its model says a hand goes. A kit's guns carry those places (`view.hands`).
+- **Small arms look like small arms.** A gun's `round` (`gameworld/rounds.js`: its round's speed and its muzzle flash's
+  length, by cartridge class) draws its shot as a sim draws one: a flash about a hand's length gone in a frame or two,
+  a wisp of smoke, the round a faint thin streak at its own speed, a pinch of dust where it strikes. The arms kit's guns,
+  the quick shooter's guns and the realistic half of the shooter pole carry it; without one, the glowing bolt and burst
+  a mech's beam rifle wants, as before. A carried gun flashes at its own muzzle.
+- **Fixed: rounds over the shoulder flew backwards.** The crosshair's point was searched from the camera, so a wall at
+  the shooter's back (the page pulls its camera in front of one) caught it, and every round went into that wall, toward
+  the camera. It is searched from the shooter's depth along the ray now.

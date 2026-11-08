@@ -439,6 +439,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // passes the camera rule's opt-in `standOff` to followPullIn, whose wall skin now applies only at a wall (the default
 // 3 m stand-off was always the larger cut in the open, so every default camera stands where it did). On the
 // `controllable` fixture 5 lines are replaced and 3 added; absent `standOff` and a figure-less loadout, as before.
+// Re-pinned 2026-11-08 (1108-realism-combat-tester: small arms drawn as small arms): the same fixtures. A weapon's
+// opt-in `round` (gameworld/rounds.js, kept by initWeapon) draws its shot in the sim register (__spawnRoundFx: a hand's
+// length of flash, a wisp, a one-pixel streak, dust), from a carried gun's own muzzle where the gunplay view gives one;
+// and the converge crosshair is searched from the shooter's depth along the camera's ray (a wall at its back caught it
+// and sent the round backwards). On the `controllable` fixture 4 lines are replaced and 61 added; a weapon without a
+// round draws as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

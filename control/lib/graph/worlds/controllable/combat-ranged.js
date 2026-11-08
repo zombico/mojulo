@@ -79,13 +79,17 @@ export function buildCombatRanged(E) {
     if (!(L > 1e-6)) return null;
     const d = [v[0] / L, v[1] / L, v[2] / L], reach = range + Math.hypot(e.transform.pos[0] - C[0], e.transform.pos[1] - C[1]);
     const far = [C[0] + d[0] * reach, C[1] + d[1] * reach, C[2] + d[2] * reach];
+    // (searched from the shooter's depth along the ray: what stands between the camera and the shooter, a wall at its
+    // back the page's camera is pulled in front of, is never what the crosshair is on; the round would fly backwards)
+    const q = e.transform.pos, t0 = Math.max(0, (q[0] - C[0]) * d[0] + (q[1] - C[1]) * d[1] + (q[2] - C[2]) * d[2]);
+    const S = [C[0] + d[0] * t0, C[1] + d[1] * t0, C[2] + d[2] * t0];
     let best = reach;
-    const wt = nearestWallT(C, far, state.colliders);
-    if (wt != null) best = wt * reach;
+    const wt = nearestWallT(S, far, state.colliders);
+    if (wt != null) best = t0 + wt * (reach - t0);
     for (const tg of state.entities) {
       if (tg === e || tg.isCamera || !(tg.body && tg.body.hittable && tg.body.egg)) continue;
       const te = hitEgg(C, d, tg);
-      if (te != null && te < best) best = te;
+      if (te != null && te > t0 && te < best) best = te;
     }
     e.crosshairAt = [C[0] + d[0] * best, C[1] + d[1] * best, C[2] + d[2] * best];
     return e.crosshairAt;
@@ -164,6 +168,9 @@ export function buildCombatRanged(E) {
       boostFire: w.boostFire ?? null,
       fxColor: w.fxColor ?? null,         // tracer/flash tint (renderer)
       fxScale: w.fxScale ?? null,         // effect base size (renderer)
+      // A ROUND (opt-in, gameworld/rounds.js): a small arm's look on the page, `speed` (m/s) its streak's and `flash` (m) its
+      // muzzle flash's length; absent, the renderer's bolt and burst at fxScale, as before
+      ...(w.round && typeof w.round === 'object' ? { round: { speed: w.round.speed > 0 ? w.round.speed : 800, flash: w.round.flash > 0 ? w.round.flash : 0.12 } } : {}),
       smokeTrail: w.smokeTrail ?? true,    // lob projectile smoke trail toggle (grenades opt out; bazookas keep it)
       reticleDist: w.reticleDist ?? null, // how far ahead the crosshair marks the aim point (renderer)
       sfx: w.sfx && typeof w.sfx === 'object' ? w.sfx : null,   // per-weapon SFX cues { shot?, hit?, reload? } — the audio channel prefers these over the world-level ones (a beam rifle and a machine gun sound different)

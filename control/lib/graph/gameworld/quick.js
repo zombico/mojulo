@@ -152,6 +152,7 @@
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
 import { armsLoadout, validateArmsKit, ARMS_LEGEND } from './arms-kit.js';
+import { ROUNDS } from './rounds.js';
 import { readBodyWord } from './game-bodies.js';
 import { TD_WAVES } from '../board/board-td.js';
 import { STAGE_KITS, isGroundKit, GROUND_KITS, roomKitDoor, resolveKitId } from '../era/stage.js';
@@ -238,15 +239,15 @@ export const QUICK_GOALS = Object.freeze({
   runner: 'an endless run down three lanes: the hero runs on its own, ever faster; swipe or A / D to change lane, jump the hurdles, slide (S) under the bars, take the coins; a crash ends the run, the best score kept (with distance: reach it to win)',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
-// supplies (health given, rounds given)
+// supplies (health given, rounds given); the guns small arms on the page (rounds.js)
 /** A dogfight's costs: what a hit on the craft takes off its hp, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hit: 4, crash: 25 });
 /** A shooter's foe: a hunter in a person's skin (foes/classes/hunter.js), and what the shooter plays it at. */
 const SHOOT_FOE = Object.freeze({ class: 'hunter', skin: { people: 'human' } });
 export const SHOOT = Object.freeze({
   hp: 100, hit: 8, health: 30, rounds: 24, foeHp: 4,
-  rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5 },
-  gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4 },
+  rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5, round: ROUNDS.rifle },
+  gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4, round: ROUNDS.rifle },
 });
 const SHOOT_TUNE = Object.freeze({ rule: { standoff: 12, speed: 3, turn: 3, burst: 0.3, pause: 1.2, navCell: 0.5 }, weapon: SHOOT.gun, body: { hp: SHOOT.foeHp, radius: 0.6 } });
 // a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet

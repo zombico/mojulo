@@ -18,6 +18,7 @@
 // its time to kill) so a kit fits the game it is carried in. Pure data and arithmetic; no dice.
 import { armHandling, armBoxes } from '../equipment/arms/handling.js';
 import { ARM_MODELS } from '../equipment/arms/models.js';
+import { roundOf } from './rounds.js';
 
 const r2 = (v) => Math.round(v * 100) / 100 + 0, r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 
@@ -50,6 +51,8 @@ export const ARMS_MAX = 5;
 // (an automatic's bloom and climb `wait` for the trigger to rest before they settle, so a held spray builds at its own
 // rate of fire; `blow` the joules a round carries, about its cartridge's at the muzzle, what it marks a wall with or
 // breaks it by (rupa.js); `pellets` the shot a shell parts into)
+// each archetype's round (gameworld/rounds.js): what the page draws of it going off
+const ROUND_OF = Object.freeze({ auto: 'rifle', spray: 'smg', pump: 'shotgun', marksman: 'marksman', bolt: 'sniper', sidearm: 'pistol', magnum: 'magnum' });
 const ARCHETYPES = Object.freeze({
   auto: { auto: true, rof: 9, dmg: 0.5, magazine: 30, reserve: 90, reload: 2.4, range: 70, blow: 1750, spread: { base: 0.6, move: 3, bloom: 0.45, recover: 5, max: 4, wait: 0.15 }, recoil: { kick: 0.45, recover: 4, max: 4, wait: 0.15 } },
   spray: { auto: true, rof: 13, dmg: 0.33, magazine: 30, reserve: 120, reload: 2, range: 35, blow: 550, spread: { base: 0.9, move: 2.2, bloom: 0.35, recover: 6, max: 5, wait: 0.15 }, recoil: { kick: 0.3, recover: 5, max: 3, wait: 0.15 }, falloff: { from: 15, to: 35, min: 0.5 } },
@@ -106,11 +109,11 @@ export function kitSlot(word, base, { eye = 0, hand = null, converge = false } =
       kind: 'bow', ads: { zoom: BOW.zoom, time: BOW.aimTime, spread: 1, move: ADS.move, moveSpread: 1 }, sway: BOW.sway, swap: { out: BOW.swapOut, in: BOW.swapIn },
       draw: { speed: BOW.speed, damage: [r3(BOW.dmg[0] * dmg0), r3(BOW.dmg[1] * dmg0)] }, view: { kind: 'bow', length: BOW.length } } };
   }
-  const arm = K.arm, h = armHandling(arm), A = ARCHETYPES[K.as ?? archetypeOf(arm, h)], st = h.stations, hd = h.handling;
+  const arm = K.arm, h = armHandling(arm), as = K.as ?? archetypeOf(arm, h), A = ARCHETYPES[as], st = h.stations, hd = h.handling;
   const scope = st.sight.zoom >= 3;
   const weapon = { fireClass: 'sight', auto: !!A.auto, ...(A.auto ? { rof: A.rof } : { cooldown: A.cooldown }), magazine: A.magazine, reserve: A.reserve, reload: A.reload, damage: r3(A.dmg * dmg0), impact: 1,
     range: A.range, coreAngle: A.coreAngle ?? base.coreAngle ?? 1.5, ...(A.headshot ? { headshot: A.headshot } : {}), spread: { ...A.spread }, recoil: { ...A.recoil, kick: r2(A.recoil.kick * (hd.recoil / 2)) }, ...(A.falloff ? { falloff: { ...A.falloff } } : {}),
-    ...(A.blow ? { blow: A.blow } : {}), ...(A.pellets ? { pellets: A.pellets } : {}), ...where };
+    ...(A.blow ? { blow: A.blow } : {}), ...(A.pellets ? { pellets: A.pellets } : {}), ...(ROUND_OF[as] ? { round: roundOf(ROUND_OF[as]) } : {}), ...where };
   // the viewmodel: the arm as its parts' boxes (cm), the fist's place, the sight line and the eye's relief
   const view = { kind: h.class === 'handgun' ? 'handgun' : 'long', boxes: armBoxes(arm).map(([lo, hi, c, part]) => [lo.map((v) => r2(v)), hi.map((v) => r2(v)), c, part]),
     grip: st.strong.at.map(r2), sight: { y: st.sight.y, rear: st.sight.rear, front: st.sight.front }, ...(st.sight.relief ? { relief: st.sight.relief } : {}), muzzle: st.muzzle.at[2], ...(st.magazine ? { mag: st.magazine.at.map(r2) } : {}),

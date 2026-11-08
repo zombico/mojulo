@@ -125,6 +125,7 @@ function __gpFrame(dt) {
   const scoped = !!g.ads.scope && a > 0.92;
   __gpScope.style.display = scoped ? 'block' : 'none';
   if (scoped) { const b = G.tired > 0 ? 1 : (G.breath || 0) / 4; __gpBreath.style.width = Math.round((1 - b) * 100) + '%'; __gpBreath.style.background = G.tired > 0 ? '#e55' : '#cfe8ff'; }
+  if (fp && window.__mojMuzzle) __gpMz(p.id, null);
   if (!fp || scoped) return;
   // the switch: the outgoing lowered over its swapOut, the incoming raised over its swapIn
   if (__GP.slot !== idx) { __GP.prev = __GP.slot; __GP.slot = idx; }
@@ -163,6 +164,7 @@ function __gpFrame(dt) {
     V.arrow.visible = w.ammo > 0 && !w.reloading; V.arrow.position.set(0.012, 0, nockZ - 0.37);
   }
   V.grp.visible = true;
+  if (V.kind !== 'bow') { camera.updateMatrixWorld(true); __gpMz(p.id, V.grp.localToWorld(new THREE.Vector3(0, 0, -(SG.view.muzzle || 0) / 100))); }
 }
 // the bow's arrows: shafts along their flight (the round's own ball drawn small: fxScale)
 function __gpArrows() {
@@ -184,6 +186,8 @@ function __gpArrows() {
 // fist's centre, its index side, its long axis; the arm reached to it in two bones, the elbow down. Laid over the rig's
 // pose each time the rig is posed (its sync wrapped), never accumulated; a rig without the bones carries nothing.
 const __gpHeld = {}, __gpV = () => new THREE.Vector3();
+// where a drawn gun's muzzle stands in the world, by its holder (the channel's shot effects start there)
+const __gpMz = (id, v) => { const M = window.__mojMuzzle || (window.__mojMuzzle = {}); if (v) M[id] = [v.x, v.y, v.z]; else delete M[id]; };
 const __gpT = { a: __gpV(), b: __gpV(), c: __gpV(), d: __gpV(), q: new THREE.Quaternion(), q2: new THREE.Quaternion(), m: new THREE.Matrix4(), m2: new THREE.Matrix4(), one: new THREE.Vector3(1, 1, 1), z: new THREE.Vector3(0, 0, 1) };
 const __gpA = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 function __gpHoldRig(rig) {
@@ -262,6 +266,7 @@ function __gpReach(rig, A, fist, a1, c1, pole, curl = 1) {
 }
 function __gpHold(e, m, rig, dt) {
   for (const k in __gpHeld) __gpHeld[k].grp.visible = false;
+  if (e.id === __world.pilotId && window.__mojMuzzle) __gpMz(e.id, null);
   const camR = __world.camera && __world.camera.rule;
   if (!camR || camR.type === 'eye' || e.id !== __world.pilotId) return;
   const lo = e.rule && e.rule.gunplay && Array.isArray(e.rule.loadout) ? e.rule.loadout : null, w = e.weapon;
@@ -334,6 +339,7 @@ function __gpHold(e, m, rig, dt) {
   const O = at.O;
   V.grp.matrix.makeBasis(L, U, F).setPosition(O); V.grp.visible = true;
   if (V.mag) V.mag.visible = re < 0.85;
+  m.updateMatrixWorld(true); __gpMz(e.id, V.grp.localToWorld(new THREE.Vector3(0, 0, (g.view.muzzle || 0) / 100)));
   // the hands: the strong one on its grip, the support one where it closes
   __gpReach(rig, H.R, item(hands.strong.at, O), along(hands.strong.a), along(hands.strong.c), new THREE.Vector3(0.6, -0.2, -0.8));
   if (at.fist) {

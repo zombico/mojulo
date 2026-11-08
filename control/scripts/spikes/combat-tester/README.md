@@ -306,6 +306,14 @@ the player as it should. The hero was not drawn at all, and two bugs in the game
   still over running legs), and a long shotgun's pump is out of reach in the run's crouch however far the chest turns
   (the gun is drawn back along its line, the butt under the arm, as a low ready carries it).
 
+- **The shot's look.** The kit's guns set no effect scale, so the page drew them at its default, a mech's: a muzzle
+  flash 1.5 m across, rounds as rods 30 cm thick and 5 m long, a ring and a star where they hit. A gun's `round`
+  (gameworld/rounds.js) draws small arms as a sim does: a flash of 9 to 22 cm by cartridge for two frames, a wisp of
+  smoke, a faint one-pixel streak crossing at the round's speed, dust where it strikes; measured on the page, the
+  flash 7 cm in radius and the smoke 9 cm. Looking at it found a bug: the crosshair's point was searched from the
+  simulation's camera, which stays behind a wall the page pulls its camera in front of, so with a wall at the hero's
+  back every round flew backwards into it, at the camera (`shoulder.test.js` holds the fix).
+
 Still open over the shoulder: the head is not brought down onto the stock (no cheek weld), the support hand does not
 slide along a handguard, the bow is not carried, and the foes' guns are not in their hands.
 

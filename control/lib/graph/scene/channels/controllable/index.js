@@ -3507,6 +3507,47 @@ function __spawnShotFx(shot, from, col, sz, range) {
   // bolt reaches the target instead of at fire time (each piece stays invisible until then, age < 0 guard).
   if (shot.mode === 'core' || shot.mode === 'assist') __spawnImpactFx(b, col, sz, dir, born + travelT);
 }
+// A ROUND (a weapon's \`round\`, gameworld/rounds.js: small arms in the sim register): what an eye sees of a gun going
+// off. A muzzle flash about a hand's length (three thin blades crossed along the bore round a small hot core), gone in
+// a frame or two, and a wisp of grey smoke that rises and spreads; the round a faint thin streak a few metres long that
+// crosses the gap at its own speed (a rifle's 30 m in two frames); where it strikes a wall a pinch of dust, on a body a
+// smaller one. No glow, no rings, no stars, nothing a metre wide.
+function __roundMat(c, o, add) { return new THREE.MeshBasicMaterial({ color: new THREE.Color(c), transparent: true, opacity: o, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, depthWrite: false, side: THREE.DoubleSide }); }
+function __roundPuff(at, col, size, ttl, dim, rise, born) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), __roundMat(col, dim, false));
+  m.position.set(at[0], at[1], at[2]); m.scale.setScalar(size * 0.3); m.raycast = function () {}; m.visible = false; scene.add(m);
+  __fx.push({ obj: m, born, ttl, kind: 'wisp', base: size, dim, rise, z0: at[2] });
+}
+function __spawnRoundFx(shot, from, R, range) {
+  if (!shot || !from || !shot.to) return;
+  const a = from, b = shot.to, born = __world.time;
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], dist = Math.hypot(dx, dy, dz);
+  if (dist < 0.05) return;
+  const dir = [dx / dist, dy / dist, dz / dist], fl = R.flash || 0.12, sp = R.speed || 800;
+  // the flash: blades along the bore from the muzzle, a core at it
+  const g = new THREE.Group();
+  g.position.set(a[0], a[1], a[2]); g.quaternion.setFromUnitVectors(__beamUpY, __beamDir.set(dir[0], dir[1], dir[2]));
+  for (let k = 0; k < 3; k++) { const bl = new THREE.Mesh(new THREE.PlaneGeometry(fl * 0.3, fl), __roundMat(0xffcf8a, 0.85, true)); bl.position.y = fl * 0.5; bl.rotation.y = k * Math.PI / 3; bl.raycast = function () {}; g.add(bl); }
+  const core = new THREE.Mesh(new THREE.SphereGeometry(fl * 0.2, 6, 4), __roundMat(0xfff0d8, 0.9, true)); core.raycast = function () {}; g.add(core);
+  scene.add(g);
+  __fx.push({ obj: g, born, ttl: 0.04, kind: 'mflash' });
+  __roundPuff([a[0] + dir[0] * fl, a[1] + dir[1] * fl, a[2] + dir[2] * fl], 0xc9c5bc, fl * 2.2, 0.7, 0.14, 0.18, born);
+  // the round: a streak travelling at its speed, never longer than the gap
+  const len = Math.min(dist, sp * 0.006), ttl = Math.max(1 / 60, dist / sp);
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute([a[0], a[1], a[2], a[0], a[1], a[2]], 3));
+  const ln = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: new THREE.Color(0xfff2d8), transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false }));
+  ln.raycast = function () {}; ln.frustumCulled = false; scene.add(ln);
+  __fx.push({ obj: ln, born, ttl, kind: 'streak', p0: a.slice(), dir, len, dist });
+  // the strike: dust off a wall (a miss that stopped short of its range), a smaller puff off a body
+  const struck = shot.mode === 'core' || shot.mode === 'assist', wall = shot.mode === 'miss' && range > 0 && dist < range * 0.98;
+  if (struck || wall) {
+    const back = [b[0] - dir[0] * 0.05, b[1] - dir[1] * 0.05, b[2] - dir[2] * 0.05];
+    __roundPuff(back, wall ? 0xa59a88 : 0x8a7c70, wall ? 0.32 : 0.16, wall ? 0.6 : 0.35, wall ? 0.45 : 0.3, 0.12, born + ttl);
+    const sk = new THREE.Mesh(new THREE.SphereGeometry(wall ? 0.03 : 0.02, 6, 4), __roundMat(0xffe6c0, 0.9, true));
+    sk.position.set(back[0], back[1], back[2]); sk.raycast = function () {}; sk.visible = false; scene.add(sk);
+    __fx.push({ obj: sk, born: born + ttl, ttl: 0.05, kind: 'mflash' });
+  }
+}
 function __updateFx() {
   // EVERY armed entity's shots spawn fx (the pilot, a fixed armed entity, an AI fire-back suit).
   for (const fent of __world.entities) {
@@ -3530,7 +3571,10 @@ function __updateFx() {
       const bodyMuzzle = __fshow === 'none';
       const body = __bodies[fent.id], rf = body && body.userData && body.userData.rigFig;
       if (rf && rf.muzzle && !bodyMuzzle) { rf.muzzle.getWorldPosition(__muzzleV); from = [__muzzleV.x, __muzzleV.y, __muzzleV.z]; }
-      __spawnShotFx(fent.lastShot, from, col, sz, rec.w.range);
+      // (a gun carried in the hands or before the eye, gunplay-view.js, flashes at its own muzzle)
+      else if (window.__mojMuzzle && window.__mojMuzzle[fent.id]) from = window.__mojMuzzle[fent.id].slice();
+      if (rec.w.round) __spawnRoundFx(fent.lastShot, from, rec.w.round, rec.w.range);
+      else __spawnShotFx(fent.lastShot, from, col, sz, rec.w.range);
       // DUAL WIELD (muzzleDual): the second gun fires SIMULTANEOUSLY — mirror the muzzle across the
       // body's sagittal plane (normal = the right vector) so the off-hand pistol flashes at its own tip.
       if (from && rec.w.muzzleDual) {
@@ -3561,6 +3605,16 @@ function __updateFx() {
       f.obj.material.opacity = 0.9 * fade;
     }
     else if (f.kind === 'flash') { f.obj.material.opacity = 1 - age; f.obj.scale.setScalar(f.base * (1 + age * 0.6)); }
+    // a round's (__spawnRoundFx): the muzzle flash shown whole and gone; the smoke rising and spreading as it thins; the
+    // streak's head crossing the gap at the round's speed, its tail a few metres behind
+    else if (f.kind === 'mflash') { f.obj.scale.setScalar(1 + age * 0.25); }
+    else if (f.kind === 'wisp') { f.obj.material.opacity = f.dim * (1 - age) * (1 - age); f.obj.scale.setScalar(f.base * (0.3 + age * 0.9)); f.obj.position.z = f.z0 + f.rise * age; }
+    else if (f.kind === 'streak') {
+      const lead = f.dist * Math.min(1, age + 1 / 60 / Math.max(1e-3, f.ttl)), tail = Math.max(0, lead - f.len), ap = f.obj.geometry.attributes.position;
+      ap.setXYZ(0, f.p0[0] + f.dir[0] * tail, f.p0[1] + f.dir[1] * tail, f.p0[2] + f.dir[2] * tail);
+      ap.setXYZ(1, f.p0[0] + f.dir[0] * lead, f.p0[1] + f.dir[1] * lead, f.p0[2] + f.dir[2] * lead);
+      ap.needsUpdate = true;
+    }
     else if (f.kind === 'impact') { f.obj.material.opacity = 1 - age; f.obj.scale.setScalar(f.base * (0.3 + age * 1.4)); }
     // impact CLUSTER (rifle/vulcan hit): a shock RING expands + fades; a radial SPARK STAR flies out + snaps out.
     else if (f.kind === 'shock') { f.obj.material.opacity = 0.9 * (1 - age); f.obj.scale.setScalar(f.base * (0.3 + age * 1.7)); }
