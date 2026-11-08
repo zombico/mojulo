@@ -18,8 +18,8 @@ node scripts/spikes/combat-tester/measure.mjs [game …] [--quick '<json>'] [--j
 The meru island is the seed at a game's scale that a trail is grown on. Here the seed is the game's **gym**: its own
 numbers, measured on the runtime it ships, validated there; its levels are then grown from those measures and held to
 the same laws (as `gameworld/feel/reach.js` already sizes a platformer's segments from what its hero can cross). Phase 1
-is the measures; phase 2 the gym page (the seed drawn: a movement lane, a firing range, a wall yard); the grown arena
-follows.
+is the measures; phase 2 the gym page (the seed drawn: a movement lane, a firing range, a wall yard); phase 3 the arena
+grown from it.
 
 ## How it measures
 
@@ -171,6 +171,56 @@ takes `walls: [{ min, max, matter }]` (`readScarsSpec`), walls of their own matt
 wall is the world's `wall`. Absent, the spec and every page are as they were (the byte pins `test:changed` reaches pass;
 `scars.test.js` holds it).
 
+## Phase 3: the arena, grown from the gym
+
+```sh
+# from control/
+node scripts/spikes/combat-tester/grow.mjs <out-dir> [game …] [--quick '<json>'] [--words '<arena words>'] [--cross <s>] [--cover <s>] [--check]
+```
+
+The meru island's step: the gym is the seed, and the arena is grown from it. `grow.mjs` takes a game's measures and its
+reach on boxes, reads them as the arena's numbers (**the seed**), tunnels the arena grammar (`gameworld/tunnel-arena.js`,
+the arena concern's own laws and tweaks) from the asked words (default "a three-lane arena with high ground") with its
+size from the seed, and holds what comes out to laws in **the game's own numbers**, where the arena concern's laws hold
+fixed ones (an eye at 1.6 m, cover within 3.5 m, any box counted as cover):
+
+| grown law | the game's number it reads |
+|---|---|
+| crossed in the seed's time | the run: the arena is `--cross` seconds of it across (default 8), inside the grammar's rails |
+| cover that hides the eye within a second's run | the eye (no crouch: a box under it hides nothing) and the run (`--cover` seconds of it, default 1) |
+| sightlines the guns use | each gun's reach: the farthest band where it drops the game's foe, hip or aimed, within twice its time at 5 m |
+| each tower's stair is climbed by the game's rule | the step, and the rule itself driven up each flight |
+| no tower top is jumped onto from the floor | the reach on boxes |
+| no perch the jump makes sees a spawn | the reach on boxes: a crate or wall top the jump lands on is high ground the arena's laws never looked from |
+
+What fails is **tended** by the game's laws as the grammar's tweaks tend its own: a crate the jump reaches that sees a
+spawn is stacked over the jump (its turned partner with it), and every law (the arena concern's and the grown ones) is
+run again. Then the arena is drawn as the gym is, played as the game plays, the game's player on the first spawn, its
+foe on the next four (standing back up after they drop), crates marked as pine and the rest as concrete, the perches
+the jump makes in yellow; `--check` drives each page's own runtime: it loads clean, a tower's stair is climbed on the
+page, a round drops a foe at its spawn.
+
+### What was measured
+
+All four games: the arena concern's eight laws, the six grown laws and the page checks hold, 80 of 80, and two runs
+write byte-identical pages.
+
+| game | the seed (run, reach of the guns) | grown | tended |
+|---|---|---|---|
+| conscription-hero | 4.6 m/s; rifle and handgun 30 m, shotgun 5 m | 36.8 m across, 99% of 387 lines within 30 m | – |
+| infinity-crisis | 6.5 m/s; rifle and SMG 30 m | 52 m across (the grammar's largest), 91% of 2043 lines within 30 m, the longest 50.6 m | 4 crates stacked over its 1.59 m jump: they saw spawns |
+| cogs-of-combat | 3.8 m/s; rifle 30 m, shotgun 5 m | 30.4 m across, all 370 lines within 30 m | – |
+| steel-serpents | 4.2 m/s; handgun and sniper 30 m | 33.6 m across, all 439 lines within 30 m | – |
+
+- **How fast the body moves sizes the map.** Eight seconds across is 30 m for the cover shooter and 52 m for the arena
+  shooter; the arena shooter's would be larger still but for the grammar's rail.
+- **A high jump turns cover into high ground.** Infinity Crisis's jump stands on a 1 m crate, and from four of them a
+  spawn was in sight: the arena's own spawn law looks only from tower tops. Tended, they are two high.
+- **Half cover is a third of the cover** (12 to 16 of 35 to 49 pieces are under the eye) and nothing can use it: there
+  is no crouch. The arena holds its cover law only by its taller pieces.
+- **The arena shooter's longest lines outrun its guns**: 9% of its lines are past 30 m. A long gun, or a smaller arena
+  (a faster `--cross`), is the call.
+
 ## Gaps, in the order they move a measured number
 
 1. **The sprint**: carried onto the platform rule (a person's, not the mech boost), so the cards' sprints reach a game.
@@ -186,4 +236,4 @@ wall is the world's `wall`. Absent, the spec and every page are as they were (th
 
 Travelling rounds (lob, the bow: their own measure), the floor's pocks and a burst's crater, the stances (none exist),
 the camera's aim (the shoulder's mouse look and the peek: the gym shows it, nothing measures it), animation (the clips
-at these speeds). The grown arena is phase 3.
+at these speeds), a team or control arena (the grammar lays them; the grown laws have not been run on one).

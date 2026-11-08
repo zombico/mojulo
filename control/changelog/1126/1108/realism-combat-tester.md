@@ -21,3 +21,9 @@
   every jump onto a ledge, and a jump pressed at a lip finishes its gather in the air, past the edge.
 - **Walls of their own matter.** A level's `scars` takes `walls: [{ min, max, matter }]`, so walls side by side are each
   marked as their own matter (steel dents beside a brick chip); any other wall is the world's. Absent, nothing changes.
+- **The arena, grown from the gym.** `scripts/spikes/combat-tester/grow.mjs` tunnels a match arena from a few words
+  with its size from the game's run (eight seconds of it across), and holds it to laws in the game's own numbers: cover
+  over its eye within a second's run, sightlines its guns drop the foe across, stairs its rule climbs, and no perch its
+  jump reaches that sees a spawn. A crate that fails the last is stacked over the jump and every law runs again. The
+  arena is drawn and played as the gym is. It found that a high jump turns cover into high ground the arena's own laws
+  never looked from.

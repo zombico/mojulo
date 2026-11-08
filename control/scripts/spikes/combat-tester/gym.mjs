@@ -25,6 +25,7 @@ import { register } from 'node:module';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 register('../../mcp-stdio-loader.mjs', import.meta.url);
 const { GAMES, mint, measureGame, laws } = await import('./measure.mjs');
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
@@ -35,11 +36,11 @@ const FPS = 60, DT = 1 / FPS, E = composeLive(), flat = { ground: () => 0 };
 const r2 = (v) => Math.round(v * 100) / 100;
 
 // ── the graybox: values only, a green for what is meant to be made and a red for what is not ──────────────────────────
-const G = Object.freeze({ floor: ['#8d8a83', '#86837c'], line: '#6d6f74', block: '#b9b4a9', yes: '#7fa77a', no: '#b0716a', post: '#5d5f64', pad: '#a7a296' });
-const WALL_FILL = Object.freeze({ brick: '#9a5c4c', concrete: '#a3a19c', pine: '#c9a46e', 'sheet-metal': '#8e9aa5', steel: '#6c757d' });
+export const G = Object.freeze({ floor: ['#8d8a83', '#86837c'], line: '#6d6f74', block: '#b9b4a9', yes: '#7fa77a', no: '#b0716a', post: '#5d5f64', pad: '#a7a296' });
+export const WALL_FILL = Object.freeze({ brick: '#9a5c4c', concrete: '#a3a19c', pine: '#c9a46e', 'sheet-metal': '#8e9aa5', steel: '#6c757d' });
 const quad = (a, b, c, d, fill, group) => ({ corners: [a, b, c, d], fill, group });
 // a box on the floor (or on `z0`): its top and four sides (no bottom), and its collider
-function box(x0, y0, x1, y1, h, fill, group, z0 = 0) {
+export function box(x0, y0, x1, y1, h, fill, group, z0 = 0) {
   const z1 = z0 + h;
   const faces = [
     quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], fill, group),
@@ -48,9 +49,9 @@ function box(x0, y0, x1, y1, h, fill, group, z0 = 0) {
   ];
   return { faces, collider: { min: [x0, y0, z0], max: [x1, y1, z1] } };
 }
-const CHROME = { bg: 'rgba(20,22,26,0.82)', color: '#e8e6e0', border: '1px solid #4a4c50', radius: '4px', shadow: 'none', glow: 'none', font: 'ui-monospace, monospace', fontSize: 11, fontWeight: 500, padding: '3px 6px' };
+export const CHROME = { bg: 'rgba(20,22,26,0.82)', color: '#e8e6e0', border: '1px solid #4a4c50', radius: '4px', shadow: 'none', glow: 'none', font: 'ui-monospace, monospace', fontSize: 11, fontWeight: 500, padding: '3px 6px' };
 // (a label always on, following its point: a toast that never times out; a tooltip shows only on hover)
-const label = (id, at, text) => ({ id, variant: 'toast', anchor: { kind: 'world', world: at }, text, body: [], after: 0, ttl: 1e6, chrome: CHROME });
+export const label = (id, at, text) => ({ id, variant: 'toast', anchor: { kind: 'world', world: at }, text, body: [], after: 0, ttl: 1e6, chrome: CHROME });
 
 /**
  * The gym laid from a game's measures (`m`, measure.mjs) and its player's rule: → { faces, colliders, signs, walls,
@@ -131,12 +132,12 @@ export function layGym(m, rule, R = null) {
 // ── the gym's own gate: the game's rule driven at each station on the gym's colliders ─────────────────────────────────
 // the floor the page finds (channels/controllable __ground: the nearest surface straight below the probe), from the
 // gym's boxes: the highest top under (x, y) at or below the probe, else the floor
-const groundOf = (colliders) => (p) => {
+export const groundOf = (colliders) => (p) => {
   let best = p[2] + 0.05 >= 0 ? 0 : null;
   for (const c of colliders) if (p[0] >= c.min[0] && p[0] <= c.max[0] && p[1] >= c.min[1] && p[1] <= c.max[1] && c.max[2] <= p[2] + 0.05 && (best === null || c.max[2] > best)) best = c.max[2];
   return best;
 };
-function station(pilot, colliders, S) {
+export function station(pilot, colliders, S) {
   const flat = { ground: groundOf(colliders) };
   const z0 = pilot.rule.eye ?? (pilot.rule.type === 'walk' ? 1.7 : 0);
   const fresh = (at) => {
@@ -187,7 +188,7 @@ function gymGate(pilot, gym) {
 // ── the reach on boxes: the highest ledge and the widest gap the game's rule makes at its best timing ─────────────────
 // (on the runtime's own boxes, as the page plays them: the step it takes in the air and a gather finished off a lip are
 // the game's; the flat-floor jump of measure.mjs is a measure of the arc alone)
-function reachOnBoxes(pilot, M) {
+export function reachOnBoxes(pilot, M) {
   const step = pilot.rule.step ?? 0.35, Y = 0;
   const ledge = (h) => [{ min: [6, Y - 0.9, 0], max: [8, Y + 0.9, h] }];
   const P = r2(Math.min(0.9, step * 2.4));
@@ -200,7 +201,7 @@ function reachOnBoxes(pilot, M) {
 
 // ── the page: the game's own player, camera and figures over the gym ──────────────────────────────────────────────────
 const SHOULDER = { rule: 'follow', dist: 2.8, height: 1.8, lookH: 1.55, lead: 10, shoulder: 0.75, lerp: 16, pitchFollow: 1 };
-function otherCamera(own, pilot) {
+export function otherCamera(own, pilot) {
   if (own?.rule === 'eye') return pilot.body?.type === 'figure-rig' ? { cam: { ...SHOULDER, target: pilot.id }, rule: {}, name: 'shoulder' } : null;
   return { cam: { rule: 'eye', target: pilot.id, height: 1.6, mouseLook: true, hideTarget: true }, rule: { turnMode: 'look', lookPitch: true }, name: 'eye' };
 }
@@ -215,14 +216,14 @@ function readout(m, gate) {
   if (fails.length) lines.push(`laws failing: ${fails.slice(0, 4).join('; ')}${fails.length > 4 ? ` (+${fails.length - 4})` : ''}`);
   return lines;
 }
-function page(minted, m, gym, gate, { cam = null, extraRule = {}, tag = '' } = {}) {
+export function page(minted, m, gym, gate, { cam = null, extraRule = {}, tag = '', lines = null, kind = 'gym' } = {}) {
   const { pilot, foe, payload } = minted;
-  const P = { ...JSON.parse(JSON.stringify(pilot)), rule: { ...pilot.rule, ...extraRule }, transform: { pos: [gym.spawn[0], gym.spawn[1], gym.spawn[2] + (pilot.rule.eye ?? 0)], heading: 0, pitch: 0 } };
+  const P = { ...JSON.parse(JSON.stringify(pilot)), rule: { ...pilot.rule, ...extraRule }, transform: { pos: [gym.spawn[0], gym.spawn[1], gym.spawn[2] + (pilot.rule.eye ?? 0)], heading: gym.heading ?? 0, pitch: 0 } };
   const foeFig = foe?.body?.figure;
-  const dummies = gym.dummies.map((d) => ({ id: d.id, rule: { type: 'static' }, body: { ...(foe?.body ?? { type: 'none' }), hittable: true }, transform: { pos: d.at, heading: Math.PI } }));
+  const dummies = gym.dummies.map((d) => ({ id: d.id, rule: { type: 'static' }, body: { ...(foe?.body ?? { type: 'none' }), hittable: true }, transform: { pos: d.at, heading: d.heading ?? Math.PI } }));
   const figures = Object.fromEntries(Object.entries(payload.figures ?? {}).filter(([k]) => k === pilot.body?.figure || k === foeFig));
   const legend = (payload.events?.hud ?? []).filter((h) => h.text);
-  const signs = [...gym.signs, { id: 'readout', variant: 'popup', anchor: { kind: 'slot', slot: 'top-right' }, text: `the gym · ${m.game}${tag ? ` · ${tag}` : ''}`, body: readout(m, gate), pageLines: 8, chrome: { ...CHROME, fontSize: 11, padding: '6px 8px' } }];
+  const signs = [...gym.signs, { id: 'readout', variant: 'popup', anchor: { kind: 'slot', slot: 'top-right' }, text: `the ${kind} · ${m.game}${tag ? ` · ${tag}` : ''}`, body: lines ?? readout(m, gate), pageLines: 8, chrome: { ...CHROME, fontSize: 11, padding: '6px 8px' } }];
   return emitThreeWorld({
     faces: gym.faces, colliders: gym.colliders, entities: [P, ...dummies], figures, camera: cam ?? payload.camera,
     events: { hud: legend.map((h) => ({ ...h, ttl: 30 })) }, signs,
@@ -230,7 +231,7 @@ function page(minted, m, gym, gate, { cam = null, extraRule = {}, tag = '' } = {
     match: { killTarget: 9999, respawnDelay: 1.5 },
     sky: payload.sky ?? { zenith: [120, 140, 170], horizon: [200, 205, 210], day: 1, stars: 0, seed: 1 }, bg: payload.bg ?? '#9aa0a8',
     ...(payload.lightTier ? { lightTier: payload.lightTier } : {}), ...(payload.shadows ? { shadows: payload.shadows } : {}),
-    viewBox: { width: 1120, height: 700 }, title: `gym · ${m.game}${tag ? ` · ${tag}` : ''}`, inline: true,
+    viewBox: { width: 1120, height: 700 }, title: `${kind} · ${m.game}${tag ? ` · ${tag}` : ''}`, inline: true,
   });
 }
 
@@ -280,7 +281,9 @@ async function checkPage(browser, file, gym) {
   ];
 }
 
-// ── the command line ─────────────────────────────────────────────────────────────────────────────────────────────────
+// ── the command line (when run, not imported: grow.mjs imports the gym's parts) ────────────────────────────────────────
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) await main();
+async function main() {
 const args = process.argv.slice(2), out = args.shift();
 if (!out) { console.error('usage: gym.mjs <out-dir> [game …] [--quick json] [--camera own|other|both]'); process.exit(2); }
 const opt = (k) => { const i = args.indexOf(k); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v; };
@@ -310,3 +313,4 @@ for (const [name, Gm] of Object.entries(chosen)) {
 }
 if (browser) await browser.close();
 process.exit(0);
+}
