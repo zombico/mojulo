@@ -27,6 +27,29 @@ describe('mana-ui: the fight\'s language', () => {
     expect(html).toContain('P2');
   });
 
+  it('the second side is the first\'s reflection: a row\'s parts reversed, a column\'s kept, each part the same, a bar filling from the other end', () => {
+    // (a node with a side: its `p1`/`p2` params, a seat's pick, a side's number, read apart from what mirrors)
+    const same = (x, y) => JSON.stringify(x).replace(/p[12]|roster@[12]|"side":[01]|,?"dir":"rtl"/g, '') === JSON.stringify(y).replace(/p[12]|roster@[12]|"side":[01]|,?"dir":"rtl"/g, '');
+    const mirrors = (a, b) => {
+      if (!a || !b || a.use !== b.use) return false;
+      if (a.use === 'bar') return (a.props.dir ?? 'ltr') === 'ltr' && b.props.dir === 'rtl';
+      if (a.use === 'stack') {
+        const row = a.props?.dir === 'row', A = a.children, B = row ? [...b.children].reverse() : b.children;
+        const ends = { start: 'end', end: 'start' }, al = a.props?.align;
+        if (A.length !== B.length || (al in ends && b.props?.align !== ends[al])) return false;
+        return A.every((c, i) => mirrors(c, B[i]));
+      }
+      return same(a, b);
+    };
+    const halves = (id) => { const [r] = nodes(id, 'region'), top = r.children[0].children; return [top[0], top[top.length - 1]]; };
+    for (const id of ['fight-health', 'fight-meters']) expect(mirrors(...halves(id)), id).toBe(true);
+    for (const id of ['fighter-select', 'versus-splash']) {
+      const rows = []; walk(IDIOMS[id].node, (n) => { if (n.use === 'stack' && n.props?.fill) rows.push(n); });
+      const top = rows[0].children;
+      expect(mirrors(top[0], top[top.length - 1]), id).toBe(true);
+    }
+  });
+
   it('the fight is never covered: a side\'s parts sit at its edge, the meters at the foot, only the announcer at the centre', () => {
     const at = (id) => nodes(id, 'region').map((r) => r.props.at);
     for (const id of FIGHT_HUD.filter((x) => x !== 'fight-announcer')) {

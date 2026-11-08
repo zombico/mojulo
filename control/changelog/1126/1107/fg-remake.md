@@ -89,7 +89,8 @@ keeps its place.
   every language its game does. The elements do their talking: the frame says no word but the names, training's
   readouts carry no headings; the versus screens give each fighter its art at full height (`portrait` `size: xl`,
   `caption: false`), and the select shows style and figures only with `stats: true`, so a fighter is picked by their
-  look. A bar takes `size: large | thin` and `figures: false`; a region takes `variant: bare`
+  look. The second side is the first's reflection, part for part (held by `fight.test.js`): a row set at its end
+  runs from that end, and over the round a row's parts are centred across and figures take even widths. A bar takes `size: large | thin` and `figures: false`; a region takes `variant: bare`
   (no plate, its parts their own frame); a filling row whose children say `fill` shares its width among them alone.
   Its looks are new theme cards of the family `fight`: `fight-clean` (the default), `fight-cel` (anime) and
   `fight-lit` (western), none leaning, stacking or slamming. The board draws a fight HUD, a training HUD and every

@@ -59,7 +59,7 @@ const tag = (value, side) => ({ use: 'badge', props: { value, variant: 'strong',
 // dots at the inner end, by the clock
 const healthHalf = (n, rtl) => {
   const k = (f) => P(`p${n}${f}`), dir = rtl ? { dir: 'rtl' } : {};
-  const who = row([tag(k('tag'), n - 1), txt(k('name'), 'heading')], rtl ? 'end' : 'start');
+  const who = row(rtl ? [txt(k('name'), 'heading'), tag(k('tag'), n - 1)] : [tag(k('tag'), n - 1), txt(k('name'), 'heading')], rtl ? 'end' : 'start');
   const won = { use: 'pips', props: { value: k('rounds'), max: P('toWin') } };
   return { ...col([
     { use: 'bar', props: { value: k('hp'), max: k('max'), ghost: k('ghost'), variant: 'hp', size: 'large', figures: false, ...dir } },

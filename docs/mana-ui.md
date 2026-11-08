@@ -574,8 +574,10 @@ nine principles:
 
 1. **Two sides, one centre.** Everything mirrors across the centre line: the first fighter's parts on the left, the
    second's on the right, its bars filling from the right. Each side is keyed to its kit (the theme's `sides` 0 and 1)
-   and to its tag and name, never a colour alone. The select too: each seat's fighter at its own edge, the roster
-   between them.
+   and to its tag and name, never a colour alone. The second side is the first's reflection, part for part: a row's
+   parts reversed (the tag at the outer end on both), each at the same distance from its edge; over the round a row's
+   parts are centred across and figures take even widths, so a 1 and a 2 move nothing. The select too: each seat's
+   fighter at its own edge, the roster between them.
 2. **Health is the frame.** The two bars own the top edge (`size: large`), meeting at the clock between them, read by
    their length (`figures: false`, never a number). The guard is a thin line under each (`size: thin`), the name at its
    outer end, the rounds won are dots by the clock, and the chip of the last combo is hatched.

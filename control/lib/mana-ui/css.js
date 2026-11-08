@@ -192,6 +192,8 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-stack[data-gap=tight]{gap:${u(4)}}`, `${s} .mana-stack[data-gap=loose]{gap:${u(28)}}`,
     `${s} .mana-stack[data-align=start]{align-items:flex-start}`, `${s} .mana-stack[data-align=center]{align-items:center}`,
     `${s} .mana-stack[data-align=end]{align-items:flex-end}`, `${s} .mana-stack[data-align=apart]{justify-content:space-between}`,
+    // (a row set at its end runs from that end too: the second fighter's parts from the right edge, the first's mirror)
+    `${s} .mana-stack[data-dir=row][data-align=end]{justify-content:flex-end}`,
     `${s} .mana-split{display:grid;grid-template-columns:minmax(${u(270)},1fr) 2fr;gap:${u(18)};width:100%;align-items:stretch;min-height:0}`,
     `${s} .mana-screen>.mana-bar,${s} .mana-screen>.mana-counter{max-width:${u(780)}}`,
     `${s} .mana-split[data-ratio=even]{grid-template-columns:1fr 1fr}`, `${s} .mana-split[data-ratio=wide]{grid-template-columns:2fr 1fr}`,
@@ -347,6 +349,10 @@ export function manaCss(scope = '.mana-root') {
     // a bare region: no plate, its parts their own frame (a fight's bars, its combo over the round), the words haloed
     `${s} .mana-place>.mana-region[data-variant=bare]{background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0;text-shadow:${v('halo')}}`,
     `${s} .mana-place>.mana-region[data-variant=bare] .mana-track{background:${v('panel')};box-shadow:0 0 0 ${u(3)} ${v('panel')}}`,
+    // (over the round, the two sides are each other's reflection: a row's parts centred across whichever end it runs
+    // from, and figures in even widths, so a 1 and a 2 move nothing)
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-stack[data-dir=row]:is([data-align=start],[data-align=end]){align-items:center}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] :is(.mana-text,.mana-num){font-variant-numeric:tabular-nums}`,
     // the subtitles: their own plate, its opacity the player's (XAG 104), at a size read from a sofa
     `${s} .mana-place>.mana-region[data-variant=subtitles]{background:color-mix(in srgb,${v('panel')} calc(${v('sub-plate')} * 100%),transparent);border:0;opacity:1;text-align:center;font-size:${ts(36)}}`,
     `${s} .mana-anchors{position:absolute;inset:0}`,
