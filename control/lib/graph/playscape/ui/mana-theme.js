@@ -6,17 +6,21 @@
  *
  *   guide.tokens        ink, panel, line, accent, accent2 → the theme's tokens (bg is the world's, not a window's)
  *   guide.font          the face (system | mono | serif | display) → type.body; type.display from the type dial
- *   guide.dials         frame → frame (material: heavy), plate → plate, motion → motion (mechanical: stepped);
+ *   guide.dials         frame → frame (material: heavy), plate → plate, motion → motion (mechanical: stepped),
+ *                       sound → cues (cues: full, a sound effect on every state change; silent: none);
  *                       the register's stop → corner and case (modern rounds and keeps case, the console's square and
  *                       capitalised)
  *   guide.border        a flavor's elements → ornaments (brackets, ticks, scanlines, dotgrid, stitch, hazard, glow), and
  *                       the rest to the words they mean: soft → a soft corner, notch → a cut one, double → a double rule,
  *                       gradient → a gradient plate; brackets focus as brackets, a glow glows, a console's stop keeps
  *                       the classic ▶ and the rest ring their focus
+ *   juice               the game's juice register (scene/juice-style.js: anime | western), when the host has one: an
+ *                       anime game's menus snap where the dial would ease, lean a little and slam between screens; a
+ *                       western one's wipe and keep the dial's motion. Without one, the dial's motion and no cover
  *   faces               the font shelf's keys (image-outcomes/fonts): its vendored faces inlined as the theme's own
  *                       (`{ body?: '<key>', display?: '<key>' }`), a key not vendored adding nothing
  *
- *   manaThemeOfGuide(guide, { faces? })  → a theme mana-ui reads (readTheme)
+ *   manaThemeOfGuide(guide, { faces?, juice? })  → a theme mana-ui reads (readTheme)
  *   shelfFaces(key)                      → the key's faces as mana-ui theme faces [{ family, src, weight, style }]
  */
 import { readTheme } from '../../../mana-ui/theme.js';
@@ -40,8 +44,11 @@ export function shelfFaces(key) {
 }
 
 /** A world's UI guide as a mana-ui theme. */
-export function manaThemeOfGuide(guide, { faces = {} } = {}) {
+const JUICE = ['anime', 'western'];
+
+export function manaThemeOfGuide(guide, { faces = {}, juice } = {}) {
   if (!guide || typeof guide !== 'object' || !guide.tokens || !guide.dials) throw new Error('manaThemeOfGuide takes a UI guide (direction.js: { tokens, dials, font, border?, stop })');
+  if (juice !== undefined && !JUICE.includes(juice)) throw new Error(`juice is the game's juice register: ${JUICE.join(' | ')}`);
   const t = guide.tokens, d = guide.dials, els = (guide.border && guide.border.elements) || [];
   const theme = {
     name: guide.border && guide.border.flavor ? `The world's ${guide.border.flavor} guide` : 'The world\'s guide',
@@ -52,9 +59,14 @@ export function manaThemeOfGuide(guide, { faces = {} } = {}) {
     plate: els.includes('gradient') ? 'gradient' : PLATE[d.plate] || 'solid',
     // the console stops keep the classic ▶ cursor; the modern ones a ring
     focus: els.includes('brackets') ? 'bracket' : els.includes('glow') ? 'glow' : guide.stop === 'console' || guide.stop === 'immersive' ? 'marker' : 'ring',
-    motion: MOTION[d.motion] || 'ease',
+    // an anime game's menus snap where the dial would only ease (a stepped or mechanical dial stays its own)
+    motion: juice === 'anime' && (MOTION[d.motion] || 'ease') === 'ease' ? 'snap' : MOTION[d.motion] || 'ease',
+    slant: juice === 'anime' ? 'light' : 'none',
+    transition: juice === 'anime' ? 'slam' : juice === 'western' ? 'wipe' : 'none',
     fills: 'solid',
     case: guide.stop === 'console' || guide.stop === 'immersive' ? 'upper' : 'none',
+    // the register's sound dial: a cue on every state change, or none
+    cues: d.sound === 'cues' ? 'full' : 'silent',
     ornaments: els.filter((e) => ORNAMENTS.includes(e)),
   };
   // fonts you own, from the shelf: the families they bring name the body and the display

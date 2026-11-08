@@ -345,7 +345,7 @@ describe('mana-ui: motion that means something', () => {
     expect(rt.view()).toContain('data-turn="2"');
     st.rows = [...st.rows, { id: 'c', label: 'C', last: true }]; rt.tick();
     expect((rt.view().match(/data-fresh="yes"/g) || []).length).toBe(1);
-    expect(rt.view()).toMatch(/data-fresh="yes" data-k="2" data-last="yes"/);
+    expect(rt.view()).toMatch(/data-fresh="yes" data-id="[^"]+" data-k="2" data-last="yes"/);
     rt.press('down'); // a move draws again: the fresh row stays fresh until the rows change
     expect(rt.view()).toContain('data-fresh="yes"');
     expect(run(screen([{ use: 'badge', props: { value: 'Ayla', turn: true } }])).view()).toContain('data-turn="yes"');

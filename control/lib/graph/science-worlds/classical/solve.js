@@ -14,12 +14,17 @@
  * Pure and deterministic: the same params give the same result, byte for byte.
  */
 
-import { splitParams, normalizeBodies, quantity, vector, MAX_LAWS } from '../contract.js';
+import { splitParams, normalizeBodies, quantity, vector, temperature, MAX_LAWS } from '../contract.js';
 import { gapFor } from '../scales.js';
 import { G as G_PRESET } from '../../machina/quantities.js';
 import { CLASSICAL_LAWS, CLASSICAL_LAW, G_NEWTON, planeNormal } from './laws.js';
 import { classical } from './kernel.js';
 import { closedFormGates } from './analytic.js';
+import { readMedium, readBodyMatter, bodyBudget, impactOf, verdictOf, sourceOf, heatShare, volumeOf } from '../matter.js';
+import { runHeat } from './heat.js';
+import { readCurve, curveAt, filmFlux, filmFluxNumeric, GEL_CLOSED_FORMS } from './gel.js';
+import { readHandoff, readRelations } from '../relations.js';
+import { ladderOf } from '../ladder.js';
 import { along, peak, returnRange, period, at, vel } from './measure.js';
 
 export const MAX_STEPS = 400000;
@@ -39,6 +44,8 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const sig = (v, n = 6) => (typeof v === 'number' && Number.isFinite(v) ? +v.toPrecision(n) : v);
 const sigv = (a, n = 6) => a.map((c) => sig(c, n));
 
+export const MATTER_ASSUMPTION = 'Matter from the matter table (typical handbook figures, never a guarantee): a body is a uniform sphere of it; a contact\'s lost energy is shared inversely to stiffness; a verdict is reported, and the run never breaks or dents a body.';
+export const SPIN_ASSUMPTION = 'A body given spin is a rigid sphere (a uniform one, or a shell holding its matter\'s fill): a surface\'s friction turns its spin, nothing else does; pairs are smooth, so a collision leaves spin as it was; no rolling resistance.';
 export const BASE_ASSUMPTION = 'Newtonian mechanics: speeds far below light and paths far larger than a body\'s quantum wavelength (the regime gates check both).';
 
 function normalizeFrame(frame) {
@@ -94,8 +101,16 @@ function normalizeLaw(raw, i, ctx, lawIds) {
   }
   for (const [name, spec] of Object.entries(row.params)) {
     const v = raw[name];
-    if (v === undefined) { if (spec.required) fail(`${where}.${name}`, `'${row.id}' needs ${name} (a ${spec.dim})`); continue; }
-    if (spec.number) {
+    if (v === undefined) { if (spec.required) fail(`${where}.${name}`, `'${row.id}' needs ${name}${spec.dim ? ` (a ${spec.dim})` : ''}`); continue; }
+    if (spec.matter) entry[name] = spec.matter === 'medium' ? readMedium(v, `${where}.${name}`) : readBodyMatter(v, `${where}.${name}`);
+    else if (spec.temperature) entry[name] = temperature(v, `${where}.${name}`);
+    else if (spec.curve) entry[name] = readCurve(v, entry.medium, `${where}.${name}`);
+    else if (spec.handoff) entry[name] = readHandoff(v, `${where}.${name}`);
+    else if (spec.relations) entry[name] = readRelations(v, `${where}.${name}`);
+    else if (spec.flag) {
+      if (typeof v !== 'boolean') fail(`${where}.${name}`, 'is true or false');
+      entry[name] = v;
+    } else if (spec.number) {
       if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) fail(`${where}.${name}`, 'wants a positive number (SI)');
       entry[name] = v;
     } else entry[name] = spec.vector ? vector(v, spec.dim, `${where}.${name}`) : quantity(v, spec.dim, `${where}.${name}`);
@@ -150,7 +165,7 @@ export function normalizeClassical(params) {
 const OBSERVABLES = {
   energy: { body: false }, momentum: { body: false }, 'angular-momentum': { body: false },
   speed: { body: true }, height: { body: true }, apex: { body: true }, range: { body: true }, period: { body: true },
-  position: { body: true }, velocity: { body: true },
+  position: { body: true }, velocity: { body: true }, temperature: { body: true }, spin: { body: true },
 };
 
 function normalizeObserve(list, index) {
@@ -174,12 +189,22 @@ function resolveSystem(model, ctx) {
     bodies: model.bodies.map((b) => ({ m: b.mass ?? 0, r: b.radius, q: b.charge ?? 0, fixed: b.fixed, x: b.at, v: b.v })),
     forces: [], planes: [], rods: [], collisions: [],
   };
+  // the bodies that spin (contract.js: their inertia from their matter's fill), as the kernel takes them
+  const spinning = model.bodies.map((b, i) => (b.spin ? { i, I: b.inertia, w: b.spin } : null)).filter(Boolean);
+  if (spinning.length) desc.spin = spinning;
+  // a model with matter logs its contacts, so the readout can say what each one did to what it struck
+  if (model.bodies.some((b) => b.matter) || model.laws.some(({ entry }) => entry.matter)) desc.log = true;
   for (const { row, entry } of model.laws) {
     const r = row.resolve(entry, ctx);
     if (r.force) desc.forces.push(r.force);
     if (r.plane) desc.planes.push(r.plane);
     if (r.rod) desc.rods.push(r.rod);
     if (r.collision) desc.collisions.push(r.collision);
+    if (r.collisions) desc.collisions.push(...r.collisions);
+    if (r.gel) {
+      if (desc.gel) fail('model.laws', 'one gelling law: the bodies sit in one liquid');
+      desc.gel = r.gel;
+    }
   }
   return desc;
 }
@@ -225,6 +250,10 @@ export function solveClassical(params) {
     warnings.push('verlet reads position alone and these laws read velocity: stepped with rk4');
     stepper = 'rk4';
   }
+  if (desc.spin && stepper === 'verlet') {
+    if (model.stepper) warnings.push('a spinning body is stepped with rk4 (its friction reads its spin)');
+    stepper = 'rk4';
+  }
 
   const fast = fastest(model, ctx, desc);
   const samples = Math.max(60, Math.min(MAX_SAMPLES, Math.max(Math.round(model.duration * 60), fast ? Math.ceil((SAMPLES_PER_PERIOD * model.duration) / fast.t) : 0)));
@@ -266,6 +295,10 @@ export function solveClassical(params) {
       gates.push(gate('angular-momentum-conserved', 'total angular momentum holds (central forces only)', dL <= 1e-6, { drift: sig(dL, 3) }, 'every force acts along the line between bodies'));
     }
   }
+  if (run.w) {
+    gates.push(gate('spin-held', 'a spin changes only where a surface holds or strikes the body (nothing in flight turns it), to one part in a trillion',
+      run.spinDrift <= 1e-12, { drift: sig(run.spinDrift, 3) }, run.spinDrift <= 1e-12 ? 'in flight every spin holds' : 'a spin changed in flight: a torque with no source'));
+  }
   if (desc.rods.some((r) => !r.rope)) {
     gates.push(gate('constraints-held', 'rods keep their length within one part in a million', run.maxRodError <= 1e-6, { error: sig(run.maxRodError, 3) }, 'rigid links stay rigid'));
   }
@@ -291,8 +324,9 @@ export function solveClassical(params) {
   gates.push(gate('classical-regime', 'each body\'s de Broglie wavelength is under a thousandth of its path', worst <= 1e-3, { ratio: sig(worst, 3) },
     worst <= 1e-3 ? 'waves are far too small to matter: the motion is classical' : 'the wavelength is comparable to the path: this belongs to the quantum scale'));
 
+  // the textbook setups read the laws that move bodies: a heat row changes none of them
   const m = {
-    bodies: model.bodies, laws: model.laws, frame: ctx.frame, duration: model.duration, ctx, G: G_NEWTON, resolved: desc,
+    bodies: model.bodies, laws: model.laws.filter(({ row }) => row.id !== 'heat'), frame: ctx.frame, duration: model.duration, ctx, G: G_NEWTON, resolved: desc,
     restingOn: (i, p) => !!classical.system(desc).contact[p]?.[i],
   };
   gates.push(...closedFormGates(m, run));
@@ -303,18 +337,36 @@ export function solveClassical(params) {
     bodies: Object.fromEntries(ids.map((id, i) => [id, {
       x: run.x.map((x) => sigv(x.slice(3 * i, 3 * i + 3), 9)),
       v: run.v.map((v) => sigv(v.slice(3 * i, 3 * i + 3), 9)),
+      ...(run.w && model.bodies[i].spin ? { w: run.w.map((w) => sigv(w.slice(3 * i, 3 * i + 3), 9)) } : {}),
     }])),
   };
   const series = { ke: run.ke.map((v) => sig(v)), pe: run.pe.map((v) => sig(v)), e: E.map((v) => sig(v)), p: run.p.map((p) => sigv(p)), L: run.L.map((L) => sigv(L)) };
 
-  const assumptions = [BASE_ASSUMPTION, ...new Set(model.laws.map(({ row }) => row.assumption))];
+  // the setting liquid (gelling): its bodies' holds, and its layer's film, checked against the closed form
+  const gel = desc.gel ? gelReadout(model, ctx, run, desc.gel) : null;
+  if (gel) gates.push(...gel.gates);
+
+  // heat, stepped along the run already made (heat.js): absent the law, nothing here changes
+  const heat = runHeat(model, run, ctx);
+  if (heat) { gates.push(...heat.gates); warnings.push(...heat.warnings); series.T = heat.series; }
+  if (gel) { series.eta = gel.series.eta; series.yield = gel.series.tau; if (gel.series.share) series.share = gel.series.share; }
+
+  const matter = run.impacts ? matterReadout(model, run.impacts, heat) : null;
+  if (matter) gates.push(gate('bodies-intact', 'no body takes more of a contact\'s energy than its matter holds (the run keeps every body whole)',
+    !matter.broken.length, { broken: matter.broken },
+    matter.broken.length ? `${matter.broken.join(', ')} would break: the run past that contact is the unbroken body's, not what would happen` : 'every contact stays within what each matter absorbs'));
+
+  const assumptions = [BASE_ASSUMPTION, ...new Set(model.laws.map(({ row }) => (desc.spin && row.assumptionSpin) || row.assumption)), ...(desc.spin ? [SPIN_ASSUMPTION] : []), ...(matter ? [MATTER_ASSUMPTION] : []), ...(heat ? heat.assumptions : [])];
   return {
     scale: 'classical',
-    model: { ...model, laws: model.laws.map(({ entry }) => entry) },
+    model: { ...model, bodies: model.bodies.map(compactBody), laws: model.laws.map(({ row, entry }) => compactEntry(row, entry)) },
     dress, liberties, assumptions, gaps, warnings,
     stepper, dt: sig(dt), substeps, samples, steps: samples * substeps,
     tracks, series,
-    observed: observe(model, run, ctx, E),
+    observed: observe(model, run, ctx, E, heat),
+    ...(matter ? { matter } : {}),
+    ...(heat ? { heat: heat.readout } : {}),
+    ...(gel ? { gel: gel.readout } : {}),
     gates, held: gates.every((g) => g.ok),
     stats: {
       duration: sig(model.duration), bodies: model.bodies.length, laws: model.laws.length,
@@ -329,7 +381,7 @@ export function classicalStats(r) {
   return { ...r.stats, stepper: r.stepper, dt: r.dt, steps: r.steps, samples: r.samples, held: r.held };
 }
 
-function observe(model, run, ctx, E) {
+function observe(model, run, ctx, E, heat) {
   const up = ctx.frame.up, last = run.t.length - 1, out = {};
   const index = Object.fromEntries(model.bodies.map((b, i) => [b.id, i]));
   for (const o of model.observe) {
@@ -355,6 +407,14 @@ function observe(model, run, ctx, E) {
       out[key] = { value: T === null ? null : sig(T), unit: 's', axis: sigv(axis), ...(T === null ? { note: 'fewer than two full swings within the run' } : {}) };
     } else if (o.quantity === 'position') out[key] = { start: sigv(at(run, 0, i)), end: sigv(at(run, last, i)), unit: 'm' };
     else if (o.quantity === 'velocity') out[key] = { start: sigv(vel(run, 0, i)), end: sigv(vel(run, last, i)), unit: 'm/s' };
+    else if (o.quantity === 'spin') {
+      const w = run.w && model.bodies[i].spin ? run.w.map((x) => Math.hypot(x[3 * i], x[3 * i + 1], x[3 * i + 2])) : null;
+      out[key] = w ? { start: sig(w[0]), max: sig(Math.max(...w)), end: sig(w[last]), unit: 'rad/s' } : { value: null, unit: 'rad/s', note: 'it was not given spin' };
+    } else if (o.quantity === 'temperature') {
+      const T = heat?.series[o.of] ?? run.t.map(() => model.bodies[i].temperature ?? null);
+      out[key] = T[0] === null ? { value: null, unit: 'K', note: 'it names no temperature and no heat law moves one' }
+        : { start: sig(T[0]), max: sig(Math.max(...T)), min: sig(Math.min(...T)), end: sig(T[last]), unit: 'K' };
+    }
   }
   return out;
 }
@@ -367,4 +427,159 @@ function widest(run, i) {
   });
   const c = span.indexOf(Math.max(...span));
   return [0, 1, 2].map((k) => (k === c ? 1 : 0));
+}
+
+// a body or a law entry as the readout prints it: a matter record by its id (absent: the object itself, unchanged)
+function compactBody(b) { return b.matter ? { ...b, matter: b.matter.id } : b; }
+function compactEntry(row, entry) {
+  const keys = Object.keys(row.params).filter((k) => row.params[k].matter && entry[k]);
+  if (!keys.length && !entry.from) return entry;
+  const out = { ...entry };
+  for (const k of keys) out[k] = entry[k].id;
+  // a handoff as the recipe said it: the scale and what was read, the relations by their rows (the series is the readout's)
+  if (entry.from) out.from = { scale: entry.from.scale, observe: entry.from.observe, of: entry.from.of };
+  if (entry.relations) out.relations = entry.relations.map(({ row, args }) => ({ relation: row.id, ...args }));
+  return out;
+}
+
+/**
+ * What each contact did to the bodies with matter: rupa's impact law on the logged closing speed. A body with no matter
+ * (and a plane with none) is rigid: it takes none of the lost energy. Reported, never enacted.
+ */
+function matterReadout(model, impacts, heat) {
+  // a hot body is weaker (rupa's heat factor): its budget at the moment of each contact; a body at no temperature keeps all
+  const strengthAt = (i, t) => {
+    const b = model.bodies[i];
+    if (!heat && b.temperature === undefined) return 1;
+    return heatShare(b.matter, heat ? heat.tAt(i, t) : b.temperature);
+  };
+  const side = (b) => (b && b.matter
+    ? { mass: b.mass ?? 0, fixed: b.fixed, stiff: bodyBudget(b.matter, b.radius, volumeOf(b)).stiff, joules: bodyBudget(b.matter, b.radius, volumeOf(b)).joules }
+    : { mass: b?.mass ?? 0, fixed: b ? b.fixed : true, stiff: Infinity, joules: Infinity });
+  const planes = model.laws.filter(({ row }) => row.id === 'plane').map(({ entry }) => entry);
+  const per = model.bodies.map((b) => (b.matter ? { worst: 'holds', share: 0, at: null, contacts: 0 } : null));
+  const rank = { holds: 0, dents: 1, breaks: 2 };
+  const take = (i, share, t) => {
+    const b = model.bodies[i], p = per[i];
+    if (!p) return;
+    p.contacts++;
+    const full = bodyBudget(b.matter, b.radius, volumeOf(b)), weak = strengthAt(i, t);
+    const v = verdictOf(share, weak === 1 ? full : { ...full, joules: full.joules * weak }, b.matter, b.radius, volumeOf(b));
+    if (share > p.share) { p.share = share; if (rank[v] >= rank[p.worst]) p.at = t; }
+    if (rank[v] > rank[p.worst]) { p.worst = v; p.at = t; }
+  };
+  for (const ev of impacts) {
+    const A = model.bodies[ev.i];
+    let B;
+    if (ev.kind === 'pair') B = model.bodies[ev.j];
+    else { const pl = planes[ev.plane]; B = pl?.matter ? { mass: 0, fixed: true, radius: 1, matter: pl.matter } : null; }
+    const a = { ...side(A), bounce: ev.e }, b = { ...(B ? side(B) : side(null)), bounce: ev.e, fixed: B ? B.fixed !== false : true };
+    if (ev.kind === 'plane' && B) { b.joules = Infinity; b.stiff = B.matter.E ?? 10e9; }   // a plane is a surface: its stiffness counts, its budget is not judged
+    if (A.matter) a.joules *= strengthAt(ev.i, ev.t);
+    if (ev.kind === 'pair' && B.matter) b.joules *= strengthAt(ev.j, ev.t);
+    const r = impactOf({ ...a, joules: a.joules }, { ...b, joules: Infinity }, ev.vn);
+    take(ev.i, r.toA, ev.t);
+    if (ev.kind === 'pair') {
+      const r2 = impactOf({ ...b, joules: b.joules }, { ...a, joules: Infinity }, ev.vn);
+      take(ev.j, r2.toA, ev.t);
+    }
+  }
+  const bodies = {}, broken = [];
+  model.bodies.forEach((b, i) => {
+    if (!per[i]) return;
+    const budget = bodyBudget(b.matter, b.radius, volumeOf(b));
+    bodies[b.id] = {
+      matter: b.matter.id, source: sourceOf(b.matter), mass: { value: sig(b.mass), unit: 'kg', from: b.massFrom === 'matter' ? 'density × volume' : b.massFrom === 'library' ? b.as.massFrom : 'given' },
+      holds: { value: sig(budget.joules), unit: 'J' }, contacts: per[i].contacts, worst: per[i].worst,
+      ...(per[i].contacts ? { peak: { value: sig(per[i].share), unit: 'J', at: sig(per[i].at, 6) } } : {}),
+      // what it is made of, rung by rung down to its nuclei: simulated, depicted or explained (ladder.js)
+      ladder: ladderOf(b.matter, b.radius).map((r) => ({ ...r, ...(r.size ? { size: sig(r.size, 4) } : {}) })),
+    };
+    if (per[i].worst === 'breaks') broken.push(b.id);
+  });
+  return { bodies, broken, contacts: impacts.length, enacted: false };
+}
+
+/**
+ * The setting liquid read back: its viscosity and yield along the run, when each body was held, and its layer's film.
+ * Gates: a body is held only while the yield's capacity carries the net force on it (the kernel's own state, sample by
+ * sample); the layer's flux, by integrating its velocity profile, is the Bingham film's closed form.
+ */
+function gelReadout(model, ctx, run, G) {
+  const law = model.laws.find(({ row }) => row.id === 'gelling').entry;
+  const curve = G.curve, gates = [];
+  const series = { eta: run.t.map((t) => sig(curveAt(curve, t).eta)), tau: run.t.map((t) => sig(curveAt(curve, t).tau)) };
+  // a share read from another scale, on this run's clock (held past that run's last sample)
+  if (law.from) {
+    const ft = law.from.t, fv = law.from.values;
+    series.share = run.t.map((t) => {
+      if (t >= ft[ft.length - 1]) return fv[fv.length - 1];
+      let k = 0;
+      while (ft[k + 1] < t) k++;
+      const u = (t - ft[k]) / (ft[k + 1] - ft[k]);
+      return sig(fv[k] + u * (fv[k + 1] - fv[k]));
+    });
+  }
+  const bodies = {};
+  let bad = 0;
+  G.idx.forEach((i, u) => {
+    const states = run.gel.map((row) => row[u]);
+    states.forEach(([held, cap, force]) => { if (held && force > cap * (1 + 1e-9)) bad++; });
+    const from = states.findIndex((q, k) => q[0] && states.slice(k).every((r) => r[0]));
+    bodies[model.bodies[i].id] = { held: from >= 0 ? { from: sig(run.t[from], 4), unit: 's' } : null, capacity: { value: sig(G.cap[u]), unit: 'N per Pa of yield', from: 'τy·π·D² / (6 × 0.048) (Beris et al. 1985)' } };
+  });
+  // Stokes's drag holds only while the flow round a body is slow: its Reynolds number ρ·|v|·D/η under 1
+  let Re = 0, reBody = null;
+  G.idx.forEach((i) => {
+    const b = model.bodies[i];
+    run.t.forEach((t, k) => {
+      const v = Math.hypot(run.v[k][3 * i], run.v[k][3 * i + 1], run.v[k][3 * i + 2]);
+      const re = (law.medium.density * v * 2 * b.radius) / curveAt(curve, t).eta;
+      if (re > Re) { Re = re; reBody = b.id; }
+    });
+  });
+  if (G.idx.length) {
+    gates.push(gate('stokes-regime', 'the flow round each body in the liquid stays slow enough for Stokes\'s drag (its Reynolds number ρ·|v|·D/η under 1)', Re <= 1, { reynolds: sig(Re, 3), body: reBody },
+      Re <= 1 ? 'viscosity rules the drag' : `${reBody} moves too fast for its size in this liquid: the drag grows faster than Stokes's law says, so the run falls too fast (a smaller or lighter body, or a thicker liquid)`));
+    gates.push(gate('yield-holds', 'a body is held only while the yield stress\'s capacity carries the net force on it (Beris et al.\'s sphere criterion)', !bad, { violations: bad },
+      bad ? 'a body was held past what the yield carries' : 'each hold is within what the yield carries'));
+  }
+  // a curve read from another scale: what was read, through which rows, and whether that rung held its own checks
+  if (law.from) {
+    const failing = law.from.gates.filter((g) => !g.ok).map((g) => g.id);
+    gates.push(gate('handoff-held', `the ${law.from.scale} rung this liquid's state is read from holds its own checks`, !failing.length, { failing },
+      failing.length ? `the ${law.from.scale} rung advises (${failing.join(', ')}): the curve read from it carries that` : `its ${law.from.gates.length} checks held`));
+  }
+  const readout = {
+    ...(law.from ? { from: {
+      scale: law.from.scale, observe: `the share of ${law.from.of} assembled`, until: { value: law.from.duration, unit: 's', note: 'its last sample: past it, its share holds' },
+      share: law.from.values, relations: law.relations.map(({ row, args }) => ({ relation: row.id, sets: row.sets, formula: row.formula, args, citation: row.citation })),
+    } } : {}),
+    medium: law.medium.id, curve: { t: curve.t, viscosity: curve.eta.map((v) => sig(v)), yield: curve.tau.map((v) => sig(v)) }, bodies,
+  };
+  if (law.layer !== undefined) {
+    const rho = law.medium.density, g = ctx.frame.gravity || ctx.frame.g, slope = law.slope ?? Math.PI / 2, h = law.layer;
+    const flux = run.t.map((t) => { const c = curveAt(curve, t); return filmFlux(rho, g, slope, h, c.eta, c.tau); });
+    // the closed form against the profile integrated, at a spread of moments along the run
+    let worst = 0;
+    const picks = [...new Set([0, ...Array.from({ length: 12 }, (_, k) => Math.round(((k + 1) * (run.t.length - 1)) / 12))])];
+    for (const k of picks) {
+      // measured against the film's flow with no yield at that viscosity, so a film all but held is not judged on a sliver
+      const c = curveAt(curve, run.t[k]), q = flux[k], qn = filmFluxNumeric(rho, g, slope, h, c.eta, c.tau);
+      const err = Math.abs(qn - q) / filmFlux(rho, g, slope, h, c.eta, 0);
+      worst = Math.max(worst, err);
+    }
+    const stress = rho * g * Math.sin(slope) * h;
+    const holds = flux.findIndex((q, k) => q === 0 && flux.slice(k).every((x) => x === 0));
+    let travelled = 0;
+    for (let k = 1; k < run.t.length; k++) travelled += 0.5 * (flux[k] + flux[k - 1]) / h * (run.t[k] - run.t[k - 1]);
+    gates.push(gate('closed-form:bingham-film', GEL_CLOSED_FORMS[0].want,
+      worst <= 1e-6, { error: sig(worst, 3), holds_at_yield: sig(stress, 4) }, worst <= 1e-6 ? 'the film matches the textbook answer' : `off by ${sig(worst * 100, 3)}%`));
+    readout.layer = {
+      thickness: { value: h, unit: 'm' }, slope: { value: sig((slope * 180) / Math.PI, 4), unit: 'deg' }, holdsAtYield: { value: sig(stress), unit: 'Pa' },
+      holds: holds >= 0 ? { from: sig(run.t[holds], 4), unit: 's' } : null, travelled: { value: sig(travelled), unit: 'm', note: 'how far its surface slid, by its mean speed' },
+      flux: flux.map((q) => sig(q)),
+    };
+  }
+  return { gates, readout, series };
 }

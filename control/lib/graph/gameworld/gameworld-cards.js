@@ -79,6 +79,9 @@ import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
 import { QOW_PRINCIPLES, SIGHT } from '../qow/qow.js';
 import { ATLAS_LOOK_IDS } from './atlas-html.js';
 import { BOOK_SKINS } from './book-skin.js';
+import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
+import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
+import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -409,6 +412,35 @@ function juiceCard() {
       const S = juiceSignature(juiceFloor({ register, look, flavor }));
       return `  ${brief} (${register} · ${look}, ${flavor}): ${S.look}; ${S.time}`;
     }),
+  );
+}
+
+function interfaceCard() {
+  const byLook = {};
+  for (const [g, l] of Object.entries(INTENT_LOOKS)) (byLook[l] = byLook[l] || []).push(g);
+  return lines(
+    'THE INTERFACE: the menus, the front and the HUD, and their LOOK, dressed by the interface department with the',
+    'ART DIRECTOR (the register the game speaks in) and the COLOUR THEORIST (the world\'s palette, solved: ink, panel,',
+    'line, accents, contrast checked). The game UI runtime (mana-ui) draws what they settle.',
+    'ui: { theme?, colour?, languages?, language? }:',
+    '  theme      world (the default: the register the intent sets, in the world\'s colours) | a preset | a theme card |',
+    '             { from?: any of those, ...words } (a child theme: say only what changes)',
+    '  colour     world (the colour theorist\'s palette; the default when the world has one) | theme (the look\'s own)',
+    '  languages  { <code>: { <key>: word } }, language the first: the game\'s words and the UI\'s (select, back,',
+    '             loading, rank…) in each language it ships; the options screen picks by languageName; English fills gaps',
+    'IN ORDER, after the world, the feel and the systems: 1 art direction: the intent\'s register (below), or a preset or',
+    'card when the game is not its genre\'s usual; one look for the whole game. 2 colour: world when the world has a',
+    'palette; theme only for a brand of its own (a casino). 3 dress it with words, not colours: layers (backing, crest,',
+    'breakout, stage, material, overlay), motion (motion, slant, transition, backdrop), sound (sounds, cues). 4 read the',
+    'part interface:look (where it came from, its advice: contrast measured, never refused); the eyes gate is the board',
+    '(scripts/mana-board.mjs --theme <id>): a person looks.',
+    'REGISTERS (intent → look; console when none):',
+    ...Object.entries(byLook).map(([look, gs]) => `  ${look}: ${gs.join(' ')}`),
+    `FAMILIES: ${Object.entries(THEME_FAMILIES).map(([f, ids]) => `${f} ${ids.join(' ')}`).join('; ')}.`,
+    `CARDS: ${THEME_CARD_IDS.join(', ')}. A NEW LOOK IS A CARD: { id, name, about, family?, tags?, from, ...words } as a`,
+    'JSON file on the shelf (playscape/ui/theme-cards/, its README), the way a WordPress theme is a theme.json; for one',
+    'game only, the same inline as ui.theme. WORDS (closed):',
+    ...Object.entries(THEME_WORDS).map(([k, ws]) => `  ${k}: ${ws.join('|')}`),
   );
 }
 
@@ -1061,6 +1093,7 @@ const CARDS = [
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],
   ['gameworld-feel', 'The feel', 'how the controls play: a game template (the run, the jump, its windows) lowered onto the hero', 'play like Mega Man X, a Devil May Cry feel, a Souls-like weight, a Mario jump, tighter controls, floatier jump, coyote time', feelCard],
   ['gameworld-juice', 'The juice', 'how its effects are drawn and timed: its register (anime | western) and its game type', 'anime-style hit effects, punchier impacts, western explosions, snappier effects, effects on twos, a cartoon boop', juiceCard],
+  ['gameworld-interface', 'The interface', 'the menus, the front and the HUD, and their look: a register the art director picks, the colour theorist\'s palette, a theme card or a child theme, the game\'s languages', 'the menus of my game, the UI look, a pause menu like Persona, a souls-like menu, a darker HUD, a language picker, my game in Japanese and Spanish, a theme for my game\'s UI', interfaceCard],
   ['gameworld-actions', 'The actions', 'what the hero can do; it decides the systems', 'my hero\'s powers, a metroidvania, a soulslike', actionsCard],
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],

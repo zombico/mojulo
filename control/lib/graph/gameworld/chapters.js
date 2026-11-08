@@ -58,8 +58,9 @@ export const CHAPTERS = Object.freeze([
   C('foes', 'foes', 'The foes', { paths: ['/foes'], parts: ['foes:*'], steps: ['foes-*', 'foe-*', 'foe', 'guard', 'tower'], cards: ['gameworld-foes'], reads: ['intent', 'levels'], outcome: 'foes' }),
   C('story', 'cinematics', 'The story', { paths: ['/story', '/quests', '/errands'], parts: ['story', 'quests'], cards: ['gameworld-story'], reads: ['cast', 'levels', 'main-quest'], outcome: 'story' }),
   C('camera', 'cinematics', 'The camera', { paths: ['/camera', '/xr'], reads: ['intent', 'levels'] }),
-  // the menus, the front and the screen a game is worked through by hand (its runtime is control/lib/mana-ui/)
-  C('interface', 'interface', 'The interface', { paths: ['/front', '/screen'], reads: ['intent', 'world', 'systems', 'battles', 'cast'] }),
+  // the menus, the front and the screen a game is worked through by hand (its runtime is control/lib/mana-ui/), and
+  // their look (`ui`), worked with the art direction (the intent's register) and the colour theorist (the world's palette)
+  C('interface', 'interface', 'The interface', { paths: ['/front', '/screen', '/ui'], parts: ['interface:*'], cards: ['gameworld-interface'], reads: ['intent', 'world', 'feel', 'systems', 'battles', 'cast'] }),
   C('build', 'production', 'The build', { paths: ['/mode', '/review', '/made', '/book'], steps: ['game', 'audit-level-*'], cards: ['gameworld-next', 'gameworld-studio', 'gameworld-ledger'], reads: ['intent', 'world', 'main-quest', 'levels', 'direction', 'hero', 'motion', 'feel', 'actions', 'adornment', 'systems', 'equipment', 'battles', 'cast', 'foes', 'story', 'camera', 'interface'], outcome: 'play' }),
 ]);
 

@@ -48,8 +48,8 @@ describe('mana-ui themes: writing and measuring', () => {
   it('the greybox theme is the sheet\'s own defaults; a preset sets the variables and adds only its own rules', () => {
     const grey = themeCss('greybox');
     for (const k of ['ink', 'mid', 'soft', 'line', 'wash', 'accent']) expect(grey).toContain(`--mana-${k}:${GREYBOX_VARS[k]}`);
-    const fancy = THEME_IDS.find((id) => THEMES[id].focus === 'fill');
-    expect(themeCss(fancy)).toMatch(/\[data-st=focus\]\{background:/);
+    const fancy = { from: THEME_IDS.find((id) => id !== 'greybox'), focus: 'fill' };
+    expect(themeCss(fancy)).toMatch(/ \[data-st=focus\]\{outline:none;background:/);
     expect(themeCss(fancy)).not.toMatch(/\.mana-screen\{/);   // the structure stays the sheet's
   });
   it('colours are measured and advised, never refused', () => {

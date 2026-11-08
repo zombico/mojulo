@@ -35,7 +35,7 @@ const LIVE = new Set(['shadows', 'occlusion', 'creases', 'lightTier']);
 
 /** The page inputs no era changes: what a world is and does, how the page is drawn, what it sounds like. */
 export const NEUTRAL_INPUTS = Object.freeze([
-  'cameras', 'viewBox', 'title', 'bg', 'inline', 'cdn', 'sky', 'wireframe', 'walk', 'spin', 'hud', 'picks', 'tracers', 'planets',
+  'cameras', 'viewBox', 'title', 'bg', 'inline', 'cdn', 'sky', 'wireframe', 'walk', 'spin', 'hud', 'chrome', 'picks', 'tracers', 'planets',
   'movers', 'comets', 'fields', 'heatSpheres', 'starSurfaces', 'buildups', 'transports', 'deforms', 'raymarch', 'decollide',
   'capture', 'captureSize', 'signs', 'physics', 'actions', 'entities', 'camera', 'pilot', 'spectate', 'seats', 'ai', 'colliders', 'breakables',
   'breakPieces', 'rupa', 'hangar', 'match', 'smoke', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'commander', 'events', 'fog',

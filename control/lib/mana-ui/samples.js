@@ -9,7 +9,7 @@ const stats = (atk, def, mag, spd) => ({ atk, def, mag, spd });
 
 export const SAMPLE_STATE = Object.freeze({
   game: { title: 'Ashen Vale', subtitle: 'A greybox adventure', version: 'v0.1 greybox' },
-  load: { progress: 64, ready: false, place: 'The Lower Vale', tip: 'Guarding halves the next blow.' },
+  load: { progress: 64, ready: false, place: 'The Lower Vale', step: 'Raising the gatehouse', tips: ['Guarding halves the next blow.', 'A lantern keeps the hounds at bay.', 'Rest at a shrine to keep what you carry.'] },
   settings: { sound: 1, music: 0, subtitles: 1, volume: 7, fov: 90, difficulty: 'Normal', shake: 1, text: 'Medium' },
   player: { name: 'Ayla', hp: 64, hpMax: 80, mp: 10, mpMax: 20, lives: 2, livesMax: 3, gold: 240, weapon: 'Carbine', ammo: 12, reserve: 90, heading: 30, score: 1450, seconds: 312 },
   party: [
@@ -30,7 +30,7 @@ export const SAMPLE_STATE = Object.freeze({
   map: [{ x: 0.5, y: 0.5, kind: 'self' }, { x: 0.3, y: 0.4, kind: 'foe' }, { x: 0.7, y: 0.6, kind: 'foe' }, { x: 0.8, y: 0.2, kind: 'goal', label: 'Gate' }, { x: 0.2, y: 0.8, kind: 'item' }],
   bearings: [{ bearing: 60, kind: 'goal' }, { bearing: 350, kind: 'foe' }],
   objective: { title: 'Reach the gatehouse', steps: [{ text: 'Find the crest key', done: true }, { text: 'Open the east gate', done: false }] },
-  feed: [{ text: 'Picked up 3 arrows' }, { text: 'Ayla reached level 7' }, { text: 'Warden spotted you' }],
+  feed: [{ text: 'Picked up 3 arrows' }, { text: 'Ayla reached level 7' }, { text: 'Picked up a tonic' }, { text: 'Picked up a tonic' }, { text: 'Warden spotted you' }],
   prompt: { show: true, action: 'E', label: 'Open the gate' },
   moments: [{ id: 'm1', text: 'Phase 2', sub: 'The Hollow King rises', weight: 'major' }],
   modes: [
@@ -128,6 +128,7 @@ export const SAMPLE_STATE = Object.freeze({
   lowerThird: { show: true, name: 'Isa', role: 'Ranger · 12 points' },
   cutscene: { show: true, who: 'Keeper', line: 'The gate has not opened in a hundred years.', skip: 'Hold to skip' },
   questToasts: [{ id: 'q1', text: 'Quest begun: The East Gate', weight: 'major' }, { id: 'q2', text: 'Step done: Find the crest key' }],
+  achievements: [{ id: 'a1', text: 'First Blood', sub: 'Achievement unlocked', icon: 'Sword' }, { id: 'a2', text: 'Untouchable', sub: 'Rare achievement', icon: 'Shield', tier: 'rare', weight: 'major' }],
   labels: [{ x: 0.3, y: 0.58, text: 'Crest Key' }, { x: 0.72, y: 0.5, text: 'Keeper' }, { x: 0.5, y: 0.34, text: 'East Gate' }],
   stealth: { state: 'searching', level: 62, max: 100 },
   touch: ['A', 'B', 'X', 'Y'],
@@ -146,4 +147,12 @@ export const SAMPLE_STATE = Object.freeze({
     foes: [{ id: 'g1', name: 'Warden', hp: 30, hpMax: 40, state: 'combat' }, { id: 'g3', name: 'Hound', hp: 8, hpMax: 22, state: 'combat' }],
   },
   talk: { who: 'Keeper', text: 'You came by the garden gate. Few do. What brings you to the vale?', choices: [{ label: 'The east gate.', then: { emit: 'talk:gate' } }, { label: 'Who lives here?', then: { emit: 'talk:who' } }, { label: 'Goodbye.', then: { close: true } }] },
+});
+
+// A GAME IN THREE LANGUAGES (a spec's `languages`), for the board's frames: each its own name and some of the runtime's
+// words; a word one lacks reads in English, so the board shows the fallback too
+export const SAMPLE_LANGUAGES = Object.freeze({
+  en: { languageName: 'English' },
+  ja: { languageName: '日本語', select: '決定', back: '戻る', change: '変更', tabs: 'タブ', resume: '再開', language: '言語', resetDefaults: '初期設定に戻す', loading: 'ロード中', tip: 'ヒント', tips: 'ヒント', stillLoading: 'まだ読み込んでいます…', retry: 'もう一度', continue: 'つづける', rank: 'ランク', party: 'パーティー', status: 'ステータス', equip: 'そうび', skills: 'スキル', nothingHere: '何もありません', more: 'ほか{n}件', on: 'オン', off: 'オフ' },
+  es: { languageName: 'Español', select: 'Seleccionar', back: 'Atrás', change: 'Cambiar', tabs: 'Pestañas', resume: 'Reanudar', language: 'Idioma', resetDefaults: 'Restablecer', loading: 'Cargando', tip: 'Consejo', tips: 'Consejos', stillLoading: 'Sigue cargando…', retry: 'Reintentar', continue: 'Continuar', rank: 'Rango', party: 'Grupo', nothingHere: 'Aquí no hay nada', more: '{n} más', on: 'Sí', off: 'No' },
 });

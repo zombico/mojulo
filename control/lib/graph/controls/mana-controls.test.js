@@ -62,16 +62,24 @@ describe('the controls layer drives the view', () => {
     expect(rt.state().seats[1]).toBe(1);                         // pad 0 moved seat 1 (P2)
     expect(rt.view()).toContain(`<span class="mana-key">${manaGlyphs().pad[rt.state().layout].accept}</span>`);
   });
-  it('another device through a driver the same way; held, it does not repeat; no screen, the pads are play\'s', () => {
-    let now = {};
+  it('another device through a driver the same way; held, a direction repeats after its delay at its rate; no screen, the pads are play\'s', () => {
+    let now = {}, t = 0;
     stubPads(() => [pad(OTHER, 0, [0])]);
-    const rt = manaUi.runtime({ screens: { a: scr([{ use: 'list', props: { rows: ['a', 'b', 'c'] } }]) } }, { read: () => undefined });
-    const h = H.connect(rt, view(), { ...manaControls(), drivers: [() => ({ name: 'xr', input: 'xr', actions: now })], listen: false, loop: false });
+    const rt = manaUi.runtime({ screens: { a: scr([{ use: 'list', props: { rows: ['a', 'b', 'c', 'd', 'e', 'f'] } }]) } }, { read: () => undefined });
+    const h = H.connect(rt, view(), { ...manaControls(), drivers: [() => ({ name: 'xr', input: 'xr', actions: now })], listen: false, loop: false, repeat: { delay: 0.4, rate: 0.1 }, now: () => t });
     h.poll();
     expect(rt.state()).toMatchObject({ input: 'pad', layout: OTHER, screen: null });   // in play: only the glyphs follow it
     rt.open('a'); h.poll();
-    now = { down: 1 }; h.poll(); h.poll();
-    expect(rt.state()).toMatchObject({ input: 'xr', focus: 1 });
+    now = { down: 1 }; h.poll(); t = 0.2; h.poll();
+    expect(rt.state()).toMatchObject({ input: 'xr', focus: 1 });   // pressed once; not yet repeating
+    t = 0.41; h.poll(); t = 0.52; h.poll(); t = 0.55; h.poll();
+    expect(rt.state().focus).toBe(3);                              // two repeats: at the delay, then a rate later
+    now = {}; h.poll(); now = { down: 1 }; t = 0.6; h.poll(); t = 0.7; h.poll();
+    expect(rt.state().focus).toBe(4);                              // let go: a fresh press, its delay again
+    stubPads(() => []);
+    const once = H.connect(rt, view(), { ...manaControls(), drivers: [() => ({ name: 'xr2', input: 'xr', actions: { up: 1 } })], listen: false, loop: false, repeat: false, now: () => t });
+    once.poll(); t = 5; once.poll();
+    expect(rt.state().focus).toBe(3);                              // repeat: false, held never repeats
   });
   it('the drawn pad only names its gamepad controls (the touch driver reads it); the view takes no device from it', () => {
     const rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'region', props: { at: 'bottom' }, children: [{ use: 'touchpad', props: { buttons: ['A', { label: 'Fire', control: 'rt' }] } }] }] }, screens: {} }, { read: () => undefined });

@@ -8,9 +8,11 @@ import { readTheme, themeAdvice } from '../../mana-ui/theme.js';
 const pick = (pred) => BROADCAST_PACKAGE_IDS.find((id) => pred(BROADCAST_PACKAGES[id]));
 
 describe('the broadcast as a mana-ui theme', () => {
-  it('the card\'s words reach the theme: a slant cuts and fills, a material is textured and keeps its case, no rim no frame', () => {
+  it('the card\'s words reach the theme: a slant cuts, fills, leans and wipes, a material is textured and keeps its case, no rim no frame', () => {
     const slab = readTheme(manaThemeOfBroadcast(broadcastData(pick((P) => P.slant > 0))));
-    expect([slab.corner, slab.focus]).toEqual(['cut', 'fill']);
+    expect([slab.corner, slab.focus, slab.transition]).toEqual(['cut', 'fill', 'wipe']);
+    expect(slab.slant).not.toBe('none');                                 // the plate's lean leans the menus too
+    expect(readTheme(manaThemeOfBroadcast(broadcastData(pick((P) => !P.slant)))).slant).toBe('none');
     const wood = readTheme(manaThemeOfBroadcast(broadcastData(pick((P) => P.grain))));
     expect([wood.plate, wood.case, wood.type.body]).toEqual(['textured', 'none', 'serif']);
     expect(readTheme(manaThemeOfBroadcast(broadcastData(pick((P) => !P.rim)))).frame).toBe('none');
