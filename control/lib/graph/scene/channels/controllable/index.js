@@ -787,6 +787,10 @@ function __updateGearLines() {
   // a body with MODES (worlds/controllable/vanish.js): each mode's figure built up front as a loadout's are, the sync's
   // variant swap showing the one it is in. None ⇒ the body as it was, byte for byte
   const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
+  // a body that sheathes its weapon out of combat (rules-platform.js `combat.drawn` / `combat.sheathed`): both figures built,
+  // the rule's choice shown; and a body's POSE LAYERS (\`body.layers\`): none, not a byte
+  const hasSheath = (entities || []).some((e) => e && e.rule && e.rule.combat && e.rule.combat.sheathed);
+  const figHasLayers = (entities || []).some((e) => e && e.body && e.body.layers);
   // (and one whose atlas has edges, the hero's hair cards: its material alpha tested; none ⇒ not a byte of it)
   const figHasMask = figHasPaint && Object.values(figures || {}).some((f) => f?.paintTex?.alphaMask);
   // ONE DRAW A FIGURE (merged-figure.js): a plain rigid rig drawn as one skinned mesh, a draw a pass instead of one a part;
@@ -1413,7 +1417,8 @@ function __makeBody(e) {
   // pilotRule — check both, or its weapons could never swap after a T take-over.
   const lo = (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
     || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
-    || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''};
+    || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''}${hasSheath ? `
+    || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }] : null)` : ''};
   if (lo && (b.type === 'figure-rig' || b.type === 'figure-frames')) {
     const variants = {};
     const buildVariant = (fname) => {
@@ -2009,6 +2014,25 @@ function __actMode(fig, e, m) {
   if (T && at <= 1) { const dx = T.transform.pos[0] - e.transform.pos[0], dy = T.transform.pos[1] - e.transform.pos[1], d = Math.hypot(dx, dy) || 1, k = Math.sin(Math.PI * at) * Math.min(1.2, d * 0.4) / d; m.position.x += dx * k; m.position.y += dy * k; }
   return c ? { mode: c, phase: Math.min(at, 0.999) } : null;
 }
+` : ''}${figHasLayers ? `// POSE LAYERS (\`body.layers: { run?, combat?: [{ pivot, chain, axis, deg }] }\`, an action hero's: gameworld/levels.js): a
+// pose laid over the clip a state plays, each op turning its pivot bone (figure-local: right +x, forward +y, up +z) and
+// carrying its chain round the pivot's head: the run's legs set apart, combat's guard (leaning in, the weapon arm up, the
+// feet wide). A layer eases in and out (8/s) with its state: the run while running out of combat, combat while in it
+// and not striking (the strike's clip owns the body)
+const __plH = new THREE.Vector3(), __plAx = new THREE.Vector3();
+function __poseLayers(e, fig, dt) {
+  const L = e.body.layers, W = e.__plw || (e.__plw = {}), out = [];
+  if (!fig.__pl) fig.__pl = {};
+  const busy = e.swingT != null || e.dodgeT != null || e.staggerT != null;
+  const want = { run: e.moving && !e.combat && (e.locomotion === 'forward' || e.locomotion === 'sprint') ? 1 : 0, combat: e.combat && !busy ? 1 : 0 };
+  for (const name in L) {
+    W[name] = (W[name] || 0) + ((want[name] || 0) - (W[name] || 0)) * Math.min(1, (dt || 0) * 8);
+    if (W[name] < 1e-3) continue;
+    const ops = fig.__pl[name] || (fig.__pl[name] = L[name].map((o) => ({ pi: fig.bones.findIndex((b) => b.id === o.pivot), ix: new Set(o.chain.map((c) => fig.bones.findIndex((b) => b.id === c)).filter((i) => i >= 0)), axis: o.axis, rad: o.deg * Math.PI / 180, q: new THREE.Quaternion(), at: null })).filter((o) => o.pi >= 0));
+    for (const op of ops) { op.at = null; __plAx.set(op.axis[0], op.axis[1], op.axis[2]).normalize(); op.q.setFromAxisAngle(__plAx, op.rad * W[name]); out.push(op); }
+  }
+  return out.length ? out : null;
+}
 ` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
   if (e.tumble && e.tumble.angle) {
@@ -2118,6 +2142,7 @@ function __actMode(fig, e, m) {
     }
   }
 ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
+` : ''}${figHasLayers ? `  const PL = e.body && e.body.layers ? __poseLayers(e, fig, dt) : null;
 ` : ''}  for (let bi = 0; bi < fig.bones.length; bi++) {
     const mesh = rig.boneMeshes[bi];
     if (!mesh) continue;
@@ -2147,7 +2172,16 @@ ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
         __rigQA.premultiply(__apQ);
       }
     }
-${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the steering wheel turns and a mast whips about their own heads,
+${figHasLayers ? `    // POSE LAYERS (__poseLayers): each op turns its pivot bone and carries its chain round the pivot's head
+    if (PL) for (const op of PL) {
+      if (bi === op.pi) { op.at = [__rigPA[0], __rigPA[1], __rigPA[2]]; __rigQA.premultiply(op.q); }
+      else if (op.at && op.ix.has(bi)) {
+        __plH.set(__rigPA[0] - op.at[0], __rigPA[1] - op.at[1], __rigPA[2] - op.at[2]).applyQuaternion(op.q);
+        __rigPA[0] = op.at[0] + __plH.x; __rigPA[1] = op.at[1] + __plH.y; __rigPA[2] = op.at[2] + __plH.z;
+        __rigQA.premultiply(op.q);
+      }
+    }
+` : ''}${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the steering wheel turns and a mast whips about their own heads,
     // then they, and the body, lean, pitch and bounce about the wheelbase's middle
     if (LV && LV.role[bi]) {
       const role = LV.role[bi];

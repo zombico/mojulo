@@ -16,7 +16,7 @@
  *
  * Pure: the shape only. The runner (runner.js) writes it; nothing here reads the database.
  */
-export const MADE_KEY = /^(hero|hero-equipped|(guard|foe|tower|farmhand|keeper|athlete)(-\d+)?|ride|cast-[a-z][a-z0-9-]*|casting|systems|gear-[a-z]+|stock-[a-z0-9-]+|level-[a-z0-9-]+|audit-level-[a-z0-9-]+|map-\d+|game|fighter-[a-z0-9-]+|foes-[a-z][a-z0-9-]*|foe-[a-z][a-z0-9-]*|folk-[a-z0-9-]+)$/;
+export const MADE_KEY = /^(hero|hero-equipped|hero-sheathed|(guard|foe|tower|farmhand|keeper|athlete)(-\d+)?|ride|cast-[a-z][a-z0-9-]*|casting|systems|gear-[a-z]+|stock-[a-z0-9-]+|level-[a-z0-9-]+|audit-level-[a-z0-9-]+|map-\d+|game|fighter-[a-z0-9-]+|foes-[a-z][a-z0-9-]*|foe-[a-z][a-z0-9-]*|folk-[a-z0-9-]+)$/;
 const PRINT = /^[0-9a-f]{8}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -25,7 +25,7 @@ export function readMade(made) {
   const fail = (m) => new Error(`gameworld: made${m} (the runner writes it: run design_game with run: true rather than writing it by hand)`);
   if (!isObj(made)) throw fail(' is { <hero | systems | gear-<class>>: { ref, order, stored } }');
   for (const [k, v] of Object.entries(made)) {
-    if (!MADE_KEY.test(k)) throw fail(`.${k} is not something a run makes (hero, hero-equipped, guard, ride, foe, tower, farmhand, keeper, athlete, cast-<id>, casting, systems, gear-<class>, stock-<id>, level-<level>-<n>, audit-level-<level>-<n>, map-<n>, game, fighter-<id>[-sheet], foes-<id>, foe-<kind>, folk-<town>-<body>; a figure's pool: guard-2 …)`);
+    if (!MADE_KEY.test(k)) throw fail(`.${k} is not something a run makes (hero, hero-equipped, hero-sheathed, guard, ride, foe, tower, farmhand, keeper, athlete, cast-<id>, casting, systems, gear-<class>, stock-<id>, level-<level>-<n>, audit-level-<level>-<n>, map-<n>, game, fighter-<id>[-sheet], foes-<id>, foe-<kind>, folk-<town>-<body>; a figure's pool: guard-2 …)`);
     if (!isObj(v) || typeof v.ref !== 'string' || !v.ref || !PRINT.test(v.order ?? '') || !PRINT.test(v.stored ?? '')) throw fail(`.${k} is { ref, order, stored }`);
     // a level's record keeps its opening frame's verdict; an audit's, its walk's
     const audit = k.startsWith('audit-'), extra = audit ? 'verdict' : 'frame';

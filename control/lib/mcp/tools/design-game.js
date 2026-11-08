@@ -119,8 +119,8 @@ function withPin(world, pin) {
  * (each role a pool of rolls: `guard`, `guard-2` …, runner.js) */
 // (a battle foe kind's figure, `foe-<kind>` (gameworld/battles.js FOE_LOOKS: a person), is made as a hero is)
 // (a town's folk, gameworld/folk-cast.js: each body a step minted through the hero door as a guard is)
-const HERO_STEP = /^(hero|hero-equipped|(guard|tower|farmhand|keeper|athlete)(-\d+)?|foe(-[a-z0-9][a-z0-9-]*)?|cast-.+|folk-[a-z0-9-]+)$/;
-const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped' };
+const HERO_STEP = /^(hero|hero-equipped|hero-sheathed|(guard|tower|farmhand|keeper|athlete)(-\d+)?|foe(-[a-z0-9][a-z0-9-]*)?|cast-.+|folk-[a-z0-9-]+)$/;
+const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped', 'hero-sheathed': 'the hero, its blade sheathed' };
 
 /** Make or remake one step; → the record to keep. */
 async function realize(step, action) {

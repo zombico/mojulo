@@ -480,6 +480,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-08 (1107-action-rpg: the game look): the 16 fixtures that embed the controllable runtime. The pilot's
 // hp panel and its gauge carry class names a HUD look restyles (mana-ui/theme.js gameHudCss), and the stamina gauge's
 // dressing reads the platform rule's `stamina` (the merge had renamed it from `sprint`); nothing they play moved.
+// Re-pinned 2026-11-08 (1107-action-rpg: combat): the 16 fixtures that embed the controllable runtime. The platform
+// rule gained `combat` (a foe near, a lock or a blow: the guard's walk and its weapon drawn, else sheathed), a no-op
+// absent; no fixture's rule takes it, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

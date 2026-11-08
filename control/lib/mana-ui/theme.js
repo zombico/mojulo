@@ -39,7 +39,8 @@
  *
  *   THEMES · THEME_IDS     the presets: greybox (the default), modern, console, terminal, storybook, arcade, adventure
  *   gameHudCss(t)          → the in-game HUD's sheet for a theme's `hud` (scene/channels/events.js lays it over its own:
- *                            the HUD's classes, until the HUD moves onto mana-ui); a panel HUD, none
+ *                            the HUD's classes, until the HUD moves onto mana-ui; the pilot's hp at the bottom left);
+ *                            a panel HUD, none
  *   THEME_WORDS            each closed word set
  *   readTheme(t)           → the theme, every field filled (throws, teaching)
  *   themeCss(t, scope?)    → CSS laid after the sheet (manaCss) under the same scope
@@ -259,16 +260,15 @@ export function gameHudCss(t) {
     `.moj-w-counter .moj-val{font:700 26px/1 ${disp}}`,
     `.moj-w-banner{font:700 30px/1.2 ${disp};letter-spacing:8px;padding:6px 0}`,
     `.moj-w-toast{font:700 20px/1.2 ${disp};letter-spacing:2px}`,
-    // (the pilot's own meters, the controllable channel's: its hp up at the top left where an action game keeps it, a
-    // slim framed meter with no card and no numbers; its stamina a slim framed gauge under the hero; the HUD's own top
-    // left column below the hp)
-    '.moj-c-hp{background:none!important;border:0!important;padding:0!important;left:16px!important;right:auto!important;top:16px!important;bottom:auto!important;width:min(260px,34vw)!important}',
+    // (the pilot's own meters, the controllable channel's: its hp down at the bottom left, a slim framed meter with no card
+    // and no numbers; its stamina a slim framed gauge under the hero; the HUD's own bottom left column above the hp)
+    '.moj-c-hp{background:none!important;border:0!important;padding:0!important;left:18px!important;right:auto!important;top:auto!important;bottom:18px!important;width:min(260px,34vw)!important}',
     `.moj-c-hp .moj-c-lbl{font:700 11px/1 ${disp}!important;letter-spacing:2px!important;color:${k.ink}!important;text-shadow:${ol}!important}`,
     '.moj-c-hp .moj-c-num{display:none}',
     `.moj-c-track,.moj-c-gauge{border-radius:0!important;background:rgba(0,0,0,.55)!important;box-shadow:0 0 0 1px ${alpha(k.line, 0.75)},0 2px 6px rgba(0,0,0,.45)!important;clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%)}`,
     '.moj-c-track{height:9px!important}.moj-c-gauge{height:6px!important;width:min(200px,28vw)!important;bottom:22px!important}',
     '.moj-c-fill{opacity:1!important;background-image:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0) 55%)!important}',
     `.moj-c-cap{font:700 10px/1 ${disp}!important;letter-spacing:3px!important;bottom:34px!important}`,
-    '.moj-hud-top-left{top:44px!important}',
+    '.moj-hud-bottom-left{bottom:52px!important}',
   ].join('');
 }

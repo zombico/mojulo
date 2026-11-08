@@ -669,7 +669,7 @@ function withBookUi(G, play) {
   return { ...play, ui: { seed: h % 2147483647 } };
 }
 
-function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
+function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
@@ -798,7 +798,10 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     // (THE FIRST LOOK, a sketched map's start page, level/grid-ends.js `vista`: the chase opens high, on the place the level
     // is about, then eases down behind the hero)
     const cam0 = cam && cam !== 'third-person' ? camera : A.camera ?? camera, camOf = ends.vista && cam0?.rule === 'follow' ? { ...cam0, vista: { at: ends.vista } } : cam0;
-    pilotPart = { figures: P.figures, entities: [A.entity], camera: camOf, events, ...(actionOrbit ? { lock: true } : {}) };
+    // (AN ACTION HERO, the orbit and a blow: combat's guard and the run's stride, and its weapon sheathed out of combat
+    // where the run made the sheathed hero, opts.sheathRef)
+    const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef) : null;
+    pilotPart = { figures: fighter ? fighter.figures : P.figures, entities: [fighter ? fighter.entity : A.entity], camera: camOf, events, ...(actionOrbit ? { lock: true } : {}) };
     seatable = !look;
   } else {
     // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height (with a body the walls of
@@ -1266,6 +1269,42 @@ const OPP_SIDE = Object.freeze({ n: 's', s: 'n', e: 'w', w: 'e' });
 /** A stage's ways out laid on its own ground: the first way on at the trail's exit, the first way back just behind
  * the spawn, any more at its pockets then its landmarks; a key on a beat of its own; and for each way, the point a pilot
  * coming in by it arrives at, a few metres inside (the way back's arrival is the spawn itself). */
+// AN ACTION HERO's combat and stride (rules-platform.js `combat`, the page's pose layers): in combat the deliberate guard
+// (its own walk at COMBAT.speed), leaning in, its weapon arm up and forward, its feet wide; on the run its legs set apart.
+// Figure-local turns: right +x, forward +y, up +z; each op turns its pivot and carries its chain round the pivot's head
+export const COMBAT = Object.freeze({ near: 10, far: 15, linger: 3, speed: 2.4, stride: 1.6 });
+const FINGERS = (s) => ['thumb', 'index', 'middle', 'ring', 'little'].flatMap((f) => [1, 2, 3].map((k) => `${f}${k}${s}`));
+const ARM = (s) => [`foreArm${s}`, `hand${s}`, ...FINGERS(s), `elbowFold${s}`];
+const LEG = (s) => [`shank${s}`, `kneeFold${s}`, `foot${s}`, `toes${s}`];
+export const POSE_LAYERS = Object.freeze({
+  run: [{ pivot: 'thighR', chain: LEG('R'), axis: [0, 1, 0], deg: -6 }, { pivot: 'thighL', chain: LEG('L'), axis: [0, 1, 0], deg: 6 }],
+  combat: [
+    { pivot: 'lumbar', chain: ['torso', 'neck', 'head', 'jaw', ...['R', 'L'].flatMap((s) => [`clavicle${s}`, `upperArm${s}`, ...ARM(s), `shoulderFold${s}`])], axis: [1, 0, 0], deg: -8 },
+    { pivot: 'upperArmR', chain: ARM('R'), axis: [1, 0, 0], deg: 40 }, { pivot: 'foreArmR', chain: [`handR`, ...FINGERS('R')], axis: [1, 0, 0], deg: 45 },
+    { pivot: 'upperArmL', chain: ARM('L'), axis: [1, 0, 0], deg: 25 }, { pivot: 'foreArmL', chain: [`handL`, ...FINGERS('L')], axis: [1, 0, 0], deg: 30 },
+    { pivot: 'thighR', chain: LEG('R'), axis: [0, 1, 0], deg: -9 }, { pivot: 'thighL', chain: LEG('L'), axis: [0, 1, 0], deg: 9 },
+  ],
+});
+/** The SHEATHED HERO an action hero's world makes beside the equipped one (gameworld/runner.js `hero-sheathed`): its spec
+ * with the right hand's blade on its back (polygonizer/hero-gear.js `back`: hilt up over the right shoulder), played out
+ * of combat; null where the world has no action hero (the orbit and a blow) or the hand holds no blade. */
+export function sheathedSpec(G, spec) {
+  const R = spec?.gear?.right, BLADES = ['dagger', 'sword', 'greatsword', 'knife'];
+  if (G.camera !== 'orbit' || !carriesStrike(G) || !R || !BLADES.includes(R.item) || spec.gear.back) return null;
+  const { right: _r, ...rest } = spec.gear, { gesture: _g, ...bare } = spec;
+  return { ...bare, gear: { ...rest, back: R } };
+}
+function actionHero(entity, figures, sheathRef) {
+  const fig = entity.body.figure, sheathed = sheathRef ? `${fig}-sheathed` : null;
+  const own = figures[fig];
+  // (the guard walks on the hero's own walk, its clip `walk`, where the figure keeps one)
+  const clipped = own && own.clips ? { ...own, clips: { ...own.clips, guard: 'walk' } } : own;
+  return {
+    figures: { ...figures, [fig]: clipped, ...(sheathed ? { [sheathed]: { ...clipped, heroRef: sheathRef } } : {}) },
+    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, combat: { ...COMBAT, ...(sheathed ? { drawn: fig, sheathed } : {}) } } },
+  };
+}
+
 /** A held page's ways out (map-sketch.js concept `hold`, or a scenario beat that `opens`, a zone of a sketched map): each reach-exit but the way come in
  * by waits on the downs of the foes standing on the page (game/mechanics.js `holds`); null where
  * nothing holds. */

@@ -50,7 +50,7 @@ export const CHAPTERS = Object.freeze([
   C('motion', 'play', 'The motion', { paths: ['/characters/hero/motion', '/moves'], parts: ['hero:motion'], cards: ['gameworld-motion'], reads: ['hero'], outcome: 'characters' }),
   C('feel', 'play', 'The feel and the juice', { paths: ['/feel', '/juice', '/tempo'], cards: ['gameworld-feel', 'gameworld-juice'], reads: ['intent', 'motion'] }),
   C('actions', 'play', 'The actions', { paths: ['/characters/hero/actions'], parts: ['hero:actions'], cards: ['gameworld-actions'], reads: ['intent', 'hero', 'main-quest'], outcome: 'characters' }),
-  C('adornment', 'characters', 'The adornment', { paths: ['/characters/hero/adornment'], parts: ['hero:adornment'], steps: ['hero-equipped'], cards: ['gameworld-adornment'], reads: ['hero', 'actions'], outcome: 'characters' }),
+  C('adornment', 'characters', 'The adornment', { paths: ['/characters/hero/adornment'], parts: ['hero:adornment'], steps: ['hero-equipped', 'hero-sheathed'], cards: ['gameworld-adornment'], reads: ['hero', 'actions'], outcome: 'characters' }),
   C('systems', 'play', 'The systems', { paths: ['/mechanics'], parts: ['mechanics:*'], steps: ['systems'], cards: ['gameworld-systems'], reads: ['hero', 'actions', 'motion'], outcome: 'systems' }),
   C('equipment', 'characters', 'The equipment', { paths: ['/equipment', '/mounts'], parts: ['equipment'], steps: ['gear-*', 'stock-*', 'ride'], cards: ['gameworld-equipment', 'gameworld-mounts'], reads: ['adornment', 'systems'], outcome: 'systems' }),
   C('battles', 'play', 'The battles', { paths: ['/battles', '/minigames'], steps: ['keeper'], cards: ['gameworld-battles'], reads: ['systems', 'levels'] }),

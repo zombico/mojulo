@@ -183,7 +183,26 @@ export function buildRulesPlatform(E) {
     // travel: W runs. The walk key held (`input.walk`) caps the pace at the walk's. `speed` becomes the scale that turns
     // the stick's travel into that pace, so every reader below (the drive, the step, the air) moves at it.
     const travel = walker ? Math.min(1, Math.hypot(fwdIn, sideIn)) : 0, runAt = r.runAt ?? 0.6;
-    const walking = walker && travel > 1e-6 && (!!input.walk || travel < runAt);
+    // COMBAT (opt-in `combat: { near, far, linger, speed, stride, drawn?, sheathed? }`, an action hero's: gameworld/levels.js):
+    // a foe standing within `near` metres (held to `far` once in it), a lock held or a blow being struck puts the body in
+    // combat, and it stays `linger` seconds past the last. In combat it WALKS a deliberate guard (`guard`, at `speed` over
+    // `stride`) unless the boost is held, its weapon drawn: the body shows `drawn`, out of it `sheathed` (the page swaps the
+    // figure). Absent → no combat, byte-identical.
+    let combatOn = false;
+    if (r.combat && world && world.byId) {
+      const C = r.combat, p0 = t.pos, R = e.combat ? C.far : C.near;
+      let near = false;
+      for (const id in world.byId) {
+        const x = world.byId[id];
+        if (x === e || x.team !== 'foes' || x.gone || x.downed || (x.body && x.body.hp <= 0) || x.hp <= 0) continue;
+        if ((x.transform.pos[0] - p0[0]) ** 2 + (x.transform.pos[1] - p0[1]) ** 2 < R * R) { near = true; break; }
+      }
+      const locked = !!(world.lock && world.lock.target && world.lock.pilot === e.id);
+      e.combatT = near || locked || e.swingT != null ? C.linger : Math.max(0, (e.combatT || 0) - dt);
+      combatOn = e.combat = e.combatT > 0;
+      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn ? C.drawn : C.sheathed;
+    }
+    const walking = walker && travel > 1e-6 && (!!input.walk || travel < runAt || (combatOn && !input.boost));
     // THE RUN BUTTON (opt-in `sprint`, a feel card's `ground.sprint` with its takes, a dash-less hero's F): held while
     // running on the ground, the run's top speed builds toward `sprint.speed` over `sprint.build` seconds, and eases back
     // over `sprint.fall` once let go (or the body stops or walks); the air keeps what it had. Momentum, not a move: the
@@ -194,7 +213,7 @@ export function buildRulesPlatform(E) {
       if (e.sprintK > 0) speed += (S.speed - speed) * e.sprintK;
     }
     if (walker && travel > 1e-6) {
-      const pace = walking ? r.walkSpeed * Math.min(1, travel / runAt) : r.walkSpeed + (speed - r.walkSpeed) * (travel - runAt) / (1 - runAt);
+      const pace = walking ? (combatOn ? r.combat.speed : r.walkSpeed) * Math.min(1, combatOn ? travel : travel / runAt) : r.walkSpeed + (speed - r.walkSpeed) * (travel - runAt) / (1 - runAt);
       speed = pace / travel;
     }
 
@@ -608,7 +627,7 @@ export function buildRulesPlatform(E) {
     else if (walking) {
       // a person walking (`walkSpeed`): the walk plays whichever way the step goes, its phase by the step's length
       const lead = Math.abs(sideMove) > Math.abs(fwdMove) ? sideMove : fwdMove;
-      e.locomotion = 'walk'; e.gaitPhase = (e.gaitPhase || 0) + lead / (r.walkStride ?? strideLen); e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6;
+      e.locomotion = combatOn ? 'guard' : 'walk'; e.gaitPhase = (e.gaitPhase || 0) + lead / (combatOn ? r.combat.stride : r.walkStride ?? strideLen); e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6;
     }
     else if (Math.abs(sideMove) > Math.abs(fwdMove)) { e.locomotion = 'strafe'; e.gaitPhase = (e.gaitPhase || 0) + sideMove / strideLen; e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6; }
     else { e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + fwdMove / strideLen; e.moving = (Math.abs(fwdMove) + Math.abs(sideMove)) > 1e-6; }
