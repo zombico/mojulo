@@ -84,3 +84,11 @@
   the beats engine when handed the library; a page without it stays silent and carries no audio. Each set is also a
   beats sound-effects recipe the beats tool mints and plays cue by cue. A new script, `scripts/mana-board.mjs`, writes
   the board with real controls and sound.
+- **Heavy sounds, and bombastic ones.** Four more sound sets join the library. `hydraulic` is servos, pneumatic hiss
+  and clamps landing (the mecha preset's). `clack` is hardwood blocks, with a clapper's double clack on confirm, for
+  serious games. `crypt` is stone, iron and a tolling bell: a dungeon door that creaks open over grit and slams shut
+  with a boom and a falling latch, for grim and souls-like games. `jackpot` counts in coin clinks, confirms with a brass
+  stab, and pays out a rare toast with a riser, a boom, a held fanfare chord, bells and a shower of coins. They follow
+  the same plan and the same loudness on confirm; the door and the jackpot are allowed to be louder. Three presets wear
+  them: `grim` (aged gold on black, a serif, a vignette, nothing that leans), `tactician` (paper and ink with an offset
+  sheet) and `jackpot` (a party variation in gold on purple with a sunburst).

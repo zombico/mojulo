@@ -205,8 +205,9 @@ theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, fo
   A sub-panel has no backing or crest of its own. Parchment's words are measured on the sheet it lays.
 - **Presets:** the greybox (no layers), and `modern` (clean glass: a cool translucent plate, a light lean, a highlight
   bar, rings behind), `console` (brushed metal on a riveted plinth, a heading tab), `terminal` (a grid plate, a tech
-  tab, a CRT over the stage), `storybook` (parchment on a torn sheet, a Victorian cresting, a vignette), and the party
-  family below. `THEME_FAMILIES` groups the presets by the language they share.
+  tab, a CRT over the stage), `storybook` (parchment on a torn sheet, a Victorian cresting, a vignette), `tactician` (a
+  serious game's paper and ink, an offset sheet, hardwood sounds), `grim` (a dark fantasy's restraint: aged gold on
+  black, a serif, nothing leans or slams, a vignette; its weight is the crypt's sounds), and the party family below. `THEME_FAMILIES` groups the presets by the language they share.
 - **Room to read.** A screen's own window takes the room a game gives it (at least about a third of the stage's width),
   its rows are tall, a pause menu's rows are set at a title's size, and the body is a step over the floor.
 
@@ -231,7 +232,8 @@ Its variations keep every principle and change the dials (the colours, the face,
 the voice): `arcade` (magenta and cyan, halftone, a burst, chip sounds), `rebel` (red, black and white, a huge band
 behind, two slabs, the party's sounds), `idol` (pink and cyan, rounded, a ribbon crest, a burst, glass sounds),
 `street` (yellow and black, shards and grain, stepped, chip sounds) and `mecha` (orange and teal on metal, a riveted
-plinth, a tech tab, stripes and a grid, terminal sounds). A test holds every variation to the principles.
+plinth, a tech tab, stripes and a grid, hydraulic sounds) and `jackpot` (gold on purple, rounded, a ribbon crest, a
+sunburst, the jackpot's coins and boom). A test holds every variation to the principles.
 
 - **Presets** (`THEMES`): the greybox (the default) and a few starting looks. `{ from: '<preset>', … }` changes one.
 - **Measured, never refused:** `themeAdvice` gives the WCAG contrast of text, labels, the focus, a window's edge and
@@ -320,8 +322,13 @@ every one. A theme's `cues` word says it for a game, and `manaUiPage` hands it t
 the way it went (`way`), a stepper's the step it took (`step`).
 
 **The sound library** (`control/lib/graph/beats/ui-sounds.js`) is what a page plays: beats-sfx gestures (the beats
-tool's own, nothing new in its kernel), in six sets (`glass`, `console`, `chip`, `terminal`, `paper`, `party`). Every
-set is built from one interval plan over its root, so the sets differ in timbre and belong together in harmony:
+tool's own, nothing new in its kernel), in ten sets: `glass`, `console`, `chip`, `terminal`, `paper`, `party`, and the
+heavy ones, `hydraulic` (servos, pneumatic hiss, clamps landing), `clack` (hardwood blocks, a clapper's double clack on
+confirm, for serious games), `crypt` (stone, iron and a toll, a dungeon door that creaks open and slams shut, for grim
+and souls-like games) and `jackpot` (coin clinks counting, a brass stab on confirm, a riser into a boom, a fanfare and a
+shower of coins on a rare one). Every set is built from one interval plan over its root, so the sets differ in timbre
+and belong together in harmony; a heavy set says some cues in its own gestures, held to the same plan (confirm rises,
+cancel falls, the cursor stays quiet):
 
 | cue | the plan |
 |---|---|
@@ -335,7 +342,7 @@ set is built from one interval plan over its root, so the sets differ in timbre 
 | `tick`, `skip` | a count's quiet pip; a swept breath |
 
 The sets are level-matched on confirm (measured on their rendered reels), and within a set what is pressed most is
-heard least. A game's key transposes the pitched gestures (`tonic`). A theme's `sounds` word picks the set (the presets
+heard least; a heavy set's big moments are let past confirm on purpose (the crypt's door, the jackpot's jackpot). A game's key transposes the pitched gestures (`tonic`). A theme's `sounds` word picks the set (the presets
 each name one); `uiSoundAudio()` hands a page the beats kernel (only the features the sets need), the sets and the cue
 picker, as `manaUiPage(spec, { audio })` or `manaUiBoard({ audio })` (this folder imports nothing outside itself, so
 it is handed in). Each set is also a beats-sfx recipe (`uiSoundManifest`) that `create_beats` mints and the beats

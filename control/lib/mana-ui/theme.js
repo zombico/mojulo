@@ -54,7 +54,8 @@
  *     stage     none | band | burst | shards | stripes | rings         one more layer: a shape behind everything a screen
  *                                                                    holds (over its scrim and its key art), sweeping in
  *     sounds    glass | console | chip | terminal | paper | party      which of the UI sound library's sets the page plays
- *                                                                    (beats/ui-sounds.js: one interval plan, six voices);
+ *               | hydraulic | clack | crypt | jackpot                  (beats/ui-sounds.js: one interval plan, each set a
+ *                                                                    voice; the last four the heavy ones);
  *                                                                    how many it hears is `cues`
  *     cues      silent | ticks | full                                  the UI's sounds as effects ({ sound: <cue> }): none,
  *                                                                    the cursor's (move, accept, back), or every state
@@ -100,7 +101,7 @@ export const THEME_WORDS = Object.freeze({
   breakout: ['none', 'tab', 'echo', 'full'],
   overlay: ['none', 'scanlines', 'crt', 'grid', 'vignette', 'grain'],
   stage: ['none', 'band', 'burst', 'shards', 'stripes', 'rings'],
-  sounds: ['console', 'glass', 'chip', 'terminal', 'paper', 'party'],
+  sounds: ['console', 'glass', 'chip', 'terminal', 'paper', 'party', 'hydraulic', 'clack', 'crypt', 'jackpot'],
   ornaments: ['brackets', 'ticks', 'scanlines', 'dotgrid', 'stitch', 'hazard', 'glow'],
 });
 const NEEDED = ['ink', 'panel', 'line', 'accent'];
@@ -154,11 +155,18 @@ export const THEMES = Object.freeze({
   rebel: { name: 'Rebel', tokens: { ink: '#ffffff', panel: '#121212', line: '#ffffff', accent: '#e3192d', accent2: '#ffffff', harm: '#ff4a4a' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'bar', motion: 'snap', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'shadow', cues: 'full', slant: 'hard', transition: 'slam', material: 'halftone', backing: 'stack', crest: 'none', breakout: 'full', overlay: 'none', stage: 'band', sounds: 'party', ornaments: [] },
   idol: { name: 'Idol', tokens: { ink: '#2a1240', panel: '#fff3fb', line: '#ff5fb3', accent: '#ff3f9f', accent2: '#13b8f0', harm: '#e5304a' }, type: { body: 'rounded', display: 'rounded', mono: 'mono' }, frame: 'rule', corner: 'round', plate: 'gradient', focus: 'bar', motion: 'snap', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'light', transition: 'iris', material: 'halftone', backing: 'offset', crest: 'ribbon', breakout: 'tab', overlay: 'none', stage: 'burst', sounds: 'glass', ornaments: [] },
   street: { name: 'Street', tokens: { ink: '#111111', panel: '#ffd400', line: '#111111', accent: '#111111', accent2: '#ff3d00', harm: '#c40000' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'fill', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'none', cues: 'full', slant: 'hard', transition: 'wipe', material: 'halftone', backing: 'offset', crest: 'none', breakout: 'full', overlay: 'grain', stage: 'shards', sounds: 'chip', ornaments: [] },
-  mecha: { name: 'Mecha', tokens: { ink: '#e8f1f2', panel: '#1b2329', line: '#ff7a00', accent: '#ff7a00', accent2: '#25d0c4', harm: '#ff3b30' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'rule', corner: 'cut', plate: 'solid', focus: 'bracket', motion: 'stepped', fills: 'solid', scale: 'normal', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'light', transition: 'shutter', material: 'metal', backing: 'plinth', crest: 'tech', breakout: 'tab', overlay: 'grid', stage: 'stripes', sounds: 'terminal', ornaments: ['hazard', 'ticks'] },
+  mecha: { name: 'Mecha', tokens: { ink: '#e8f1f2', panel: '#1b2329', line: '#ff7a00', accent: '#ff7a00', accent2: '#25d0c4', harm: '#ff3b30' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'rule', corner: 'cut', plate: 'solid', focus: 'bracket', motion: 'stepped', fills: 'solid', scale: 'normal', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'light', transition: 'shutter', material: 'metal', backing: 'plinth', crest: 'tech', breakout: 'tab', overlay: 'grid', stage: 'stripes', sounds: 'hydraulic', ornaments: ['hazard', 'ticks'] },
+  // the party at the casino: gold on purple, a sunburst, coins and a riser into a boom when it pays
+  jackpot: { name: 'Jackpot', tokens: { ink: '#fff6d8', panel: '#2a0f4a', line: '#ffcc33', accent: '#ffcc33', accent2: '#ff3d8b', harm: '#ff5a5a' }, type: { body: 'rounded', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'round', plate: 'gradient', focus: 'glow', motion: 'snap', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'light', transition: 'iris', material: 'halftone', backing: 'stack', crest: 'ribbon', breakout: 'full', overlay: 'none', stage: 'burst', sounds: 'jackpot', ornaments: ['glow'] },
+  // GRIM: the restraint of a dark fantasy's menus. Aged gold on black, a serif, thin rules, nothing that leans or slams:
+  // weight comes from the dark, the vignette and the sound (stone, iron, a toll; a door that shuts like a door)
+  grim: { name: 'Grim', tokens: { ink: '#ddd5c3', panel: '#0e0d0b', line: '#5e5544', accent: '#c9a560', accent2: '#8a7a5a', harm: '#b8402e' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'flat', focus: 'bar', motion: 'ease', fills: 'solid', scale: 'normal', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'none', transition: 'iris', material: 'paper', backing: 'none', crest: 'none', breakout: 'none', overlay: 'vignette', stage: 'none', sounds: 'crypt', ornaments: [] },
+  // TACTICIAN: a serious game's paper and ink, a period strategy game's; its pieces knock like hardwood
+  tactician: { name: 'Tactician', tokens: { ink: '#1f1b15', panel: '#ebe3cf', line: '#3d3427', accent: '#8f2e1c', accent2: '#2f5a4a', harm: '#a3261a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'square', plate: 'textured', focus: 'marker', motion: 'ease', fills: 'pattern', scale: 'normal', case: 'none', distance: 'desk', halo: 'plate', cues: 'full', slant: 'none', transition: 'wipe', material: 'paper', backing: 'offset', crest: 'none', breakout: 'tab', overlay: 'none', stage: 'none', sounds: 'clack', ornaments: ['ticks'] },
 });
 export const THEME_IDS = Object.keys(THEMES);
 // presets that share a design language: its principles held, its dials varied
-export const THEME_FAMILIES = Object.freeze({ party: ['arcade', 'rebel', 'idol', 'street', 'mecha'], calm: ['modern', 'console', 'storybook'], machine: ['terminal'] });
+export const THEME_FAMILIES = Object.freeze({ party: ['arcade', 'rebel', 'idol', 'street', 'mecha', 'jackpot'], calm: ['modern', 'console', 'storybook', 'tactician'], grave: ['grim'], machine: ['terminal'] });
 
 // ── colour ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;

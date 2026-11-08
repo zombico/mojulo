@@ -11,7 +11,8 @@ import { manaUiPage } from '../../mana-ui/index.js';
 const pitches = (list) => list.map((g) => g.note ?? g.from).filter((n) => typeof n === 'string').map(midiOf);
 const loud = (list) => list.reduce((a, g) => a + (g.vol || 0), 0);
 // the notes struck first and last (a set's click, pitched or not, is struck with the first)
-const ends = (list) => { const P = list.filter((g) => typeof (g.note ?? g.from) === 'string'), t0 = Math.min(...P.map((g) => g.at || 0)), t1 = Math.max(...P.map((g) => g.at || 0)); const at = (t) => P.filter((g) => (g.at || 0) === t).map((g) => midiOf(g.note ?? g.from)); return { first: at(t0), last: at(t1) }; };
+// (a bend ends where it bends to: a tone's or a sweep's `to`)
+const ends = (list) => { const P = list.filter((g) => typeof (g.note ?? g.from) === 'string'), t0 = Math.min(...P.map((g) => g.at || 0)), t1 = Math.max(...P.map((g) => g.at || 0)); const at = (t, end) => P.filter((g) => (g.at || 0) === t).map((g) => midiOf(end ? g.to ?? g.note ?? g.from : g.note ?? g.from)); return { first: at(t0, false), last: at(t1, true) }; };
 
 describe('the UI sound library', () => {
   it('every set is a beats-sfx recipe the beats tool mints, with every cue of the plan', () => {
