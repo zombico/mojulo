@@ -20,3 +20,13 @@
   on the land, what already stands solid on it, the scenario's beats there, the hero's kit (pace, sprint, jump, moves,
   abilities and when they come), the roster it may cast from, the suggestions with their authority, and what it writes
   back.
+- **The Old Keep through it.** Four level designers (one a block) worked from their briefs and their tickets (each block's
+  suggestions: the town's lone bandit a must, the barn's cache a must, the ambush from the north rocks a should, the
+  woods' shrine key a must, the warden a must and the guarded climb a should): 47 pieces, every must kept. The fields'
+  ambush is three bandits behind a barricade, a ruined wall and a second barricade round an open bend; the woods gained an
+  optional bandit camp on a pilgrims' trail to the shrine; the keep's climb is guarded by two bandits under a rockfall,
+  its court framed by columns. Three of the keep's pieces stood under the land (their z guessed): the law named the
+  spots, and they were dragged there.
+- **Held as the scenario says.** A scenario holds only the page whose beat opens it (its ways out) and the page whose
+  climax it is (its win, not its ways): an optional fight elsewhere holds nothing. A pickup level design places stands in
+  for the scenario's find of the same item. A gate is drawn but not yet solid (a gate that opens in play comes next).
