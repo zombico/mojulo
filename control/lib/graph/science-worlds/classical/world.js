@@ -40,6 +40,7 @@ import { normalizeFilm, keyMoment, defaultShoot, filmConfig } from './film.js';
 import { fieldSources, positionsAt, potentialAt, fieldAt, gaussCheck, traceLines, chargePlane, thin } from './field.js';
 import { fieldShader, trackTexture } from './field-shader.js';
 import { MATTER } from '../../rupa/matter.js';
+import { libraryFaces } from '../library.js';
 import { ladderSection, cellAtoms, nearestNeighbour, depictedGate, latticeLabel, sizeText } from '../ladder.js';
 import {
   PALETTE, sub, add, scl, len, dot, cross, unit, sig, isObj, hex, hexRgb, hexInt, esc,
@@ -112,6 +113,11 @@ export function planClassicalWorld(manifest) {
   const scaled = scaleLiberty(s);
   if (scaled) drawn.push(scaled);
 
+  // a library thing says how it is drawn and how it touches
+  for (const b of bodies.filter((x) => x.as)) {
+    drawn.push({ what: `${b.id} is drawn as ${b.as.mesh === 'loft' ? `the ${b.as.label}` : `the ${b.as.label}'s box (no mesh of its own yet)`}, ${b.as.dims.map((d) => sig(d, 3)).join(' × ')} m, resting on its base and not turning as it moves`,
+      why: `its contacts are a sphere ${sig(2 * b.as.R, 3)} m across, the box's diagonal: the classical bodies are spheres` });
+  }
   // drawn radii: true size when the body touches things (contact is part of the model), else at least visible
   const touching = new Set(model.laws.filter((l) => l.law === 'plane' || l.law === 'collision').flatMap((l) => (l.on || l.among || bodies.map((b) => b.id))));
   const minR = 0.012 * Ls;
@@ -141,20 +147,30 @@ export function planClassicalWorld(manifest) {
 
   bodies.forEach((b, i) => {
     const group = `body:${b.id}`, tint = color(b, i);
-    const facts = [['mass', b.mass !== undefined ? `${sig(b.mass, 4)} kg` : null], ['radius', b.radius ? `${sig(b.radius, 4)} m` : 'a point'],
+    const facts = [['is', b.as ? b.as.label : null], ['size', b.as ? `${b.as.dims.map((d) => sig(d, 3)).join(' × ')} m` : null],
+      ['mass', b.mass !== undefined ? `${sig(b.mass, 4)} kg${b.as && b.massFrom === 'library' ? ` (${b.as.massFrom})` : ''}` : null], ['radius', b.radius ? `${sig(b.radius, 4)} m${b.as ? ' (its contact sphere)' : ''}` : 'a point'],
       ['charge', b.charge ? `${sig(b.charge, 4)} C` : null], ['fixed', b.fixed ? 'never moves' : null]];
     picks.push({ name: group, kind: 'body', label: b.id, fields: facts.filter(([, v]) => v != null).map(([k, v]) => ({ k, v })) });
     const label = dress.bodies[b.id]?.label ?? (multiple || b.fixed ? b.id : false);
-    if (label) labels.push({ group, text: label, lift: rDraw[i] * 1.6 });
-    if (b.fixed) { planets.push({ group, center: scl(b.at, s), radius: rDraw[i], tint: hexRgb(tint), rough: 0.5 }); return; }
-    planets.push({ group, center: [0, 0, 0], radius: rDraw[i], tint: hexRgb(tint), rough: 0.5 });
+    // a library thing's label sits over its roof (its mesh sits low in its contact sphere), a ball's over the ball
+    if (label) labels.push({ group, text: label, lift: b.as ? (b.as.dims[2] - b.as.R + 0.3) * s : rDraw[i] * 1.6 });
+    // a library thing is drawn as itself (library.js): its mesh about its centre, base down, nose the way it first moves
+    const own = b.as ? libraryFaces(b.as, Math.hypot(b.v[0], b.v[1]) > 0 ? Math.atan2(b.v[1], b.v[0]) : 0, tint, group).map((f) => ({ ...f, corners: f.corners.map((p) => scl(p, s)) })) : null;
+    if (b.fixed) {
+      if (own) faces.push(...own.map((f) => ({ ...f, corners: f.corners.map((p) => add(p, scl(b.at, s))) })));
+      else planets.push({ group, center: scl(b.at, s), radius: rDraw[i], tint: hexRgb(tint), rough: 0.5 });
+      return;
+    }
+    if (own) faces.push(...own);
+    else planets.push({ group, center: [0, 0, 0], radius: rDraw[i], tint: hexRgb(tint), rough: 0.5 });
     const v = tracks.bodies[b.id].v;
     const speed = v.map((q) => len(q));
     const acc = v.map((q, k) => scl(sub(v[Math.min(k + 1, N - 1)], v[Math.max(k - 1, 0)]), 1 / (dtS * (Math.min(k + 1, N - 1) - Math.max(k - 1, 0)) || 1)));
     movers.push({
       group, path: path(b.id), basePos: [0, 0, 0], period: playback, loop: false, hold: HOLD, duration, label: b.id,
       g: model.frame.gravity, footer: ' ',
-      ...(dress.trails ? { track: true, trackColor: hexInt(tint) } : {}),
+      // (a library thing leaves no trail: its centre rides high in its contact sphere, and the line would float over it)
+      ...(dress.trails && !b.as ? { track: true, trackColor: hexInt(tint) } : {}),
       ...(dress.vectors ? {
         vectors: true, arrowLen,
         vdir: v.map((q) => (len(q) > 0 ? unit(q) : [1, 0, 0])), speed, maxSpeed: Math.max(...speed, 1e-30),
@@ -383,7 +399,7 @@ export function assembleClassicalScene(manifest = {}, { title, plan: given } = {
   // the experiment is the page's name: its moving bodies (what each is made of) and what acts on them
   const { bodies } = plan.solved.model, shown = bodies.some((b) => !b.fixed) ? bodies.filter((b) => !b.fixed) : bodies;
   const name = exhibitName(title || manifest.title, {
-    subjects: shown.map((b) => (b.matter ? `${b.id} of ${(MATTER[b.matter]?.label ?? b.matter).replace(/\s*\(.*\)$/, '').toLowerCase()}` : b.id)),
+    subjects: shown.map((b) => (b.as?.kind === 'vehicle' ? b.as.label : b.matter ? `${b.id} of ${(MATTER[b.matter]?.label ?? b.matter).replace(/\s*\(.*\)$/, '').toLowerCase()}` : b.id)),
     laws: [...new Set((plan.solved.model?.laws ?? []).map((l) => l.law))],
   });
   const film = planClassicalFilm(manifest, plan);

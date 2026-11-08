@@ -81,3 +81,10 @@
   motions (a projectile, a pendulum, a spring, a collision, a ball curling in flight), the fluid card's floating and
   sinking, and the atom card's hydrogen orbitals point at the worlds the same way; those kinds keep their machines,
   flows and many-electron atoms. The numerical-experiment notebook sweeps a classical world now.
+- **Things the studio makes can stand in an experiment.** A classical body can be `as: { vehicle: 'sedan' }` (any word
+  people say for a vehicle: its mass with its driver and its true size from the road tables, drawn as its true-size
+  loft, or its box where it has none) or `as: { part: 'crate', size }` (a building or prop part by its
+  destructible-physics class: its matter and solid share from the class table, its mass from both). Its contacts are a
+  sphere as wide as its box's diagonal, it is drawn resting on its base without turning, and the panel says so; its
+  matter feeds the impact verdicts, and heat reads its box's own surface and volume. A sedan can roll into a crate on a
+  concrete road and the readout says what the crate took.

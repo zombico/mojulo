@@ -51,8 +51,12 @@ export function readMedium(spec, where) {
 
 export const sphereMass = (m, r) => m.density * sphereVolume(r) * (m.fill ?? 1);
 
-export function bodyBudget(m, r) {
-  const V = sphereVolume(r), fill = m.fill ?? 1;
+// a body's own volume: its box when it is a library thing (library.js), else its sphere
+export const volumeOf = (b) => (b.as ? b.as.dims[0] * b.as.dims[1] * b.as.dims[2] : sphereVolume(b.radius));
+export const areaOf = (b) => (b.as ? 2 * (b.as.dims[0] * b.as.dims[1] + b.as.dims[0] * b.as.dims[2] + b.as.dims[1] * b.as.dims[2]) : 4 * Math.PI * b.radius * b.radius);
+
+export function bodyBudget(m, r, V = sphereVolume(r)) {
+  const fill = m.fill ?? 1;
   return { joules: m.toughness * V * fill, stiff: (m.E ?? 10e9) * fill };
 }
 
@@ -69,9 +73,9 @@ export function impactOf(a, b, vn) {
  * about σy² / 2E per cubic metre (a plastic matter); past it, the shape a blow leaves stays (a dent). Past its whole
  * budget it fails.
  */
-export function verdictOf(share, budget, m, r) {
+export function verdictOf(share, budget, m, r, V = sphereVolume(r)) {
   if (share >= budget.joules) return 'breaks';
-  if (isPlastic(m) && share > (m.yield * m.yield) / (2 * (m.E ?? 10e9)) * sphereVolume(r) * (m.fill ?? 1)) return 'dents';
+  if (isPlastic(m) && share > (m.yield * m.yield) / (2 * (m.E ?? 10e9)) * V * (m.fill ?? 1)) return 'dents';
   return 'holds';
 }
 

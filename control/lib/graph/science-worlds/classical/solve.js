@@ -20,7 +20,7 @@ import { G as G_PRESET } from '../../machina/quantities.js';
 import { CLASSICAL_LAWS, CLASSICAL_LAW, G_NEWTON, planeNormal } from './laws.js';
 import { classical } from './kernel.js';
 import { closedFormGates } from './analytic.js';
-import { readMedium, readBodyMatter, bodyBudget, impactOf, verdictOf, sourceOf, heatShare } from '../matter.js';
+import { readMedium, readBodyMatter, bodyBudget, impactOf, verdictOf, sourceOf, heatShare, volumeOf } from '../matter.js';
 import { runHeat } from './heat.js';
 import { readCurve, curveAt, filmFlux, filmFluxNumeric, GEL_CLOSED_FORMS } from './gel.js';
 import { readHandoff, readRelations } from '../relations.js';
@@ -454,7 +454,7 @@ function matterReadout(model, impacts, heat) {
     return heatShare(b.matter, heat ? heat.tAt(i, t) : b.temperature);
   };
   const side = (b) => (b && b.matter
-    ? { mass: b.mass ?? 0, fixed: b.fixed, stiff: bodyBudget(b.matter, b.radius).stiff, joules: bodyBudget(b.matter, b.radius).joules }
+    ? { mass: b.mass ?? 0, fixed: b.fixed, stiff: bodyBudget(b.matter, b.radius, volumeOf(b)).stiff, joules: bodyBudget(b.matter, b.radius, volumeOf(b)).joules }
     : { mass: b?.mass ?? 0, fixed: b ? b.fixed : true, stiff: Infinity, joules: Infinity });
   const planes = model.laws.filter(({ row }) => row.id === 'plane').map(({ entry }) => entry);
   const per = model.bodies.map((b) => (b.matter ? { worst: 'holds', share: 0, at: null, contacts: 0 } : null));
@@ -463,8 +463,8 @@ function matterReadout(model, impacts, heat) {
     const b = model.bodies[i], p = per[i];
     if (!p) return;
     p.contacts++;
-    const full = bodyBudget(b.matter, b.radius), weak = strengthAt(i, t);
-    const v = verdictOf(share, weak === 1 ? full : { ...full, joules: full.joules * weak }, b.matter, b.radius);
+    const full = bodyBudget(b.matter, b.radius, volumeOf(b)), weak = strengthAt(i, t);
+    const v = verdictOf(share, weak === 1 ? full : { ...full, joules: full.joules * weak }, b.matter, b.radius, volumeOf(b));
     if (share > p.share) { p.share = share; if (rank[v] >= rank[p.worst]) p.at = t; }
     if (rank[v] > rank[p.worst]) { p.worst = v; p.at = t; }
   };
@@ -487,9 +487,9 @@ function matterReadout(model, impacts, heat) {
   const bodies = {}, broken = [];
   model.bodies.forEach((b, i) => {
     if (!per[i]) return;
-    const budget = bodyBudget(b.matter, b.radius);
+    const budget = bodyBudget(b.matter, b.radius, volumeOf(b));
     bodies[b.id] = {
-      matter: b.matter.id, source: sourceOf(b.matter), mass: { value: sig(b.mass), unit: 'kg', from: b.massFrom === 'matter' ? 'density × volume' : 'given' },
+      matter: b.matter.id, source: sourceOf(b.matter), mass: { value: sig(b.mass), unit: 'kg', from: b.massFrom === 'matter' ? 'density × volume' : b.massFrom === 'library' ? b.as.massFrom : 'given' },
       holds: { value: sig(budget.joules), unit: 'J' }, contacts: per[i].contacts, worst: per[i].worst,
       ...(per[i].contacts ? { peak: { value: sig(per[i].share), unit: 'J', at: sig(per[i].at, 6) } } : {}),
       // what it is made of, rung by rung down to its nuclei: simulated, depicted or explained (ladder.js)

@@ -16,6 +16,7 @@
 
 import { UNITS, DIM, qty, dimensionOf } from '../machina/quantities.js';
 import { readBodyMatter, sphereMass } from './matter.js';
+import { readLibraryBody } from './library.js';
 
 export const SCALES = ['classical', 'microscopic', 'quantum'];
 
@@ -87,13 +88,15 @@ export function positive(value, want, where, { zero = false } = {}) {
 const idOk = (s) => typeof s === 'string' && /^[a-z0-9][a-z0-9_-]{0,31}$/i.test(s);
 
 /**
- * The model's bodies: `{ id, mass?, radius?, at, v?, charge?, fixed?, on_plane?, matter?, temperature?, spin? }`. A fixed body never moves
+ * The model's bodies: `{ id, mass?, radius?, at, v?, charge?, fixed?, on_plane?, matter?, temperature?, spin?, as? }`. A fixed body never moves
  * (it may still pull: a fixed sun) and needs no mass unless a law reads it. Ids are unique, short, and what laws and
  * dress name the body by. `matter` names what it is made of (rupa's table, matter.js): with a radius and no mass, its
  * mass is the matter's density × the sphere's volume; a collision or plane with no `e` takes its bounce. `temperature`
  * (kelvin, or '20 °C') is where it starts: the `heat` law moves it; with none, it stays (a hot body struck is weaker).
  * `spin` ([x, y, z] rad/s, or '300 rpm' per component) makes it a spinning sphere: it rolls on a plane with friction, and
  * the magnus law lifts it; its moment of inertia is a uniform sphere's, a shell's when its matter fills less than all.
+ * `as` makes it a thing from the libraries (library.js: a vehicle, a part): its mass, size and matter from their tables,
+ * its contacts its bounding sphere's, and the page draws it as itself.
  */
 export function normalizeBodies(list) {
   if (!Array.isArray(list) || !list.length) fail('model.bodies', 'wants at least one body');
@@ -107,9 +110,12 @@ export function normalizeBodies(list) {
     seen.add(b.id);
     const fixed = b.fixed === true;
     const out = { id: b.id, fixed };
-    const radius = b.radius === undefined ? 0 : positive(b.radius, 'length', `${where}.radius`, { zero: true });
-    const matter = b.matter === undefined ? null : readBodyMatter(b.matter, `${where}.matter`);
+    const lib = b.as === undefined ? null : readLibraryBody(b.as, `${where}.as`);
+    if (lib && b.radius !== undefined) fail(`${where}.radius`, `its size is the ${lib.label}'s own (as): its contact radius is half its box's diagonal`);
+    const radius = lib ? lib.R : b.radius === undefined ? 0 : positive(b.radius, 'length', `${where}.radius`, { zero: true });
+    const matter = b.matter === undefined ? lib?.matter ?? null : readBodyMatter(b.matter, `${where}.matter`);
     if (b.mass !== undefined) out.mass = positive(b.mass, 'mass', `${where}.mass`);
+    else if (lib) { out.mass = lib.mass; out.massFrom = 'library'; }
     else if (matter && radius > 0) { out.mass = sphereMass(matter, radius); out.massFrom = 'matter'; }
     else if (!fixed) out.mass = positive(b.mass, 'mass', `${where}.mass${matter ? ' (or a radius, so its matter gives the mass)' : ''}`);
     out.radius = radius;
@@ -121,6 +127,7 @@ export function normalizeBodies(list) {
       out.on_plane = b.on_plane;
     }
     if (matter) out.matter = matter;
+    if (lib) { const { matter: _m, ...plain } = lib; out.as = plain; }
     if (b.temperature !== undefined) out.temperature = temperature(b.temperature, `${where}.temperature`);
     if (b.spin !== undefined) {
       if (fixed) fail(`${where}.spin`, 'a fixed body never moves, so it does not spin');

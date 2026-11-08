@@ -40,14 +40,15 @@ wants: `'500 g'`, `'36 km/h'`, `'30 deg'`, `[2, 'µC']`, `'2.5 yr'`. A mass give
 
 - `frame` — `{ g }`: the uniform gravity a `gravity-uniform` law uses (default Earth, 9.8 m/s²; or 'moon', 'mars',
   'jupiter', or a quantity). The world is z-up: down is −z.
-- `bodies` — `[{ id, mass, radius?, at, v?, charge?, fixed?, on_plane?, matter?, temperature?, spin? }]`. `at` and `v` are [x, y, z]. A body
+- `bodies` — `[{ id, mass, radius?, at, v?, charge?, fixed?, on_plane?, matter?, temperature?, spin?, as? }]`. `at` and `v` are [x, y, z]. A body
   with no radius is a point mass. A `fixed` body never moves but still pulls (a sun, a pivot charge). `on_plane: '<plane
   id>'` sets a body on that surface. `matter` names what it is made of, a solid from the destructible-physics matter
   table (`'steel'`, `'glass'`, `'timber'`, …, or `{ is, …overrides }`): with a radius and no mass its mass is the
   matter's density × the sphere's volume, and a collision or plane with no `e` takes the lower bounce of the two.
   `temperature` is where it starts (kelvin, or `'20 °C'`, `'68 °F'`; `'C'` alone is the coulomb): the `heat` law moves
   it, and a hot body is weaker when struck. `spin` (`[x, y, z]` in rad/s, or `'300 rpm'`, `'8 rev/s'` per component;
-  `[0, 0, 0]` for a ball that starts still) makes it a spinning sphere: see **Spin and rolling**.
+  `[0, 0, 0]` for a ball that starts still) makes it a spinning sphere: see **Spin and rolling**. `as` makes it a thing
+  from the studio's libraries: see **A thing from the libraries**.
 - `laws` — `[{ law: '<id>', …its params }]`, from the table below. A law id the table does not have is reported as a
   **gap** that names the scale that owns it (diffusion and reaction rates are microscopic; orbitals and bonds are
   quantum), and the rest of the model still runs.
@@ -95,6 +96,16 @@ the path needs the quantum scale). Say which gates ran and what they saw; the ey
 The drawing declares its own liberties: a scale other than one metre per unit at very large or very small sizes, a
 body too small to see drawn larger (a body that touches things keeps its true size), time sped up or slowed down, and
 a field drawn (its lines a way to draw it, where they start, its glow's scale).
+
+## A thing from the libraries
+
+A body can be a thing the studio already makes: `as: { vehicle: 'sedan' }` (any word people say for a vehicle: its mass
+with its driver from the road physics table, its size from the highway fleet's true dimensions, drawn as its true
+loft, or as its box where it has none) or `as: { part: 'crate', size: [0.8, 0.8, 0.8] }` (a building or prop part by its
+destructible-physics class: a crate, a barrel, a door, a wall block, a boulder…; its matter and the solid share of its
+box from the class table, its mass from both). It takes no `radius`: its contacts are a sphere as wide as its box's
+diagonal, it is drawn resting on its base, and it does not turn as it moves (its nose points the way it first moves).
+The panel says each of these, and its matter feeds the impact verdicts and the ladder like any body's.
 
 ## Spin and rolling
 
@@ -258,6 +269,16 @@ and viscosity through the cited relations, and the bead is held once the gel can
         "observe": "aggregated" },
       "relations": [{ "relation": "percolation", "top": "20 Pa", "onset": 0.2 }, { "relation": "krieger-dougherty", "phi": 0.3 }] }],
   "duration": 30 } }
+```
+
+A sedan rolling into a crate on a concrete road (the car's mass and size are its tables', the crate's matter its class's):
+
+```
+{ "model": { "bodies": [
+    { "id": "car", "as": { "vehicle": "sedan" }, "at": [-8, 0, 2.71], "v": [10, 0, 0], "on_plane": "road" },
+    { "id": "crate", "as": { "part": "crate", "size": [0.8, 0.8, 0.8] }, "at": [0, 0, 0.7], "on_plane": "road" }],
+  "laws": [{ "law": "gravity-uniform" }, { "law": "plane", "id": "road", "mu": 0.6, "matter": "concrete" }, { "law": "collision" }],
+  "duration": 4 } }
 ```
 
 <!-- laws:begin (generated from the law tables: node scripts/science-cards.mjs) -->

@@ -20,7 +20,7 @@
  *                                                     assumptions, warnings, tAt(i, t) → K }
  */
 
-import { transportOf, heatShare } from '../matter.js';
+import { transportOf, heatShare, areaOf, volumeOf } from '../matter.js';
 import { planeNormal } from './laws.js';
 
 export const SIGMA = 5.670374419e-8;    // W/(m²·K⁴), the Stefan–Boltzmann constant (CODATA 2018, exact)
@@ -68,7 +68,7 @@ export function runHeat(model, run, ctx) {
     const tr = transportOf(b.matter, `model.bodies.${b.id}.matter`);
     const m = b.matter, C = b.mass * m.heat;
     B.push({
-      i, id: b.id, r: b.radius, A: 4 * Math.PI * b.radius * b.radius, C, k: tr.k, eps: radiation ? tr.emissivity : 0,
+      i, id: b.id, r: b.radius, A: areaOf(b), lc: volumeOf(b) / areaOf(b), C, k: tr.k, eps: radiation ? tr.emissivity : 0,
       Tm: m.melt === null || m.melt === undefined ? null : m.melt + 273.15, L: b.mass * (m.fusion || 0), matter: m,
       T0: b.temperature ?? Ta,
     });
@@ -169,7 +169,7 @@ export function runHeat(model, run, ctx) {
     drift <= 1e-9, { drift: sig(drift, 3), left: sig(out), passed: sig(total.pass) }, drift <= 1e-9 ? 'every joule is accounted for' : 'the books do not close: the step is too coarse'));
   // lumped: the inside keeps up with the surface while Bi = h_eff·(V/A) / k stays small
   const Tmax = B.map((b, u) => Math.max(...T.map((row) => row[u])));
-  const biot = B.map((b, u) => ((h + 4 * b.eps * SIGMA * Math.max(Tmax[u], Ta) ** 3) * (b.r / 3)) / b.k);
+  const biot = B.map((b, u) => ((h + 4 * b.eps * SIGMA * Math.max(Tmax[u], Ta) ** 3) * b.lc) / b.k);
   const worstBi = Math.max(...biot), atBi = B[biot.indexOf(worstBi)].id;
   gates.push(gate('lumped-holds', 'each body is one temperature throughout: its Biot number h·(V/A)/k is under 0.1', worstBi <= 0.1, { biot: sig(worstBi, 3), body: atBi },
     worstBi <= 0.1 ? 'heat crosses the inside far faster than it leaves the surface' : `${atBi}'s inside lags its surface (Bi ${sig(worstBi, 2)}): its temperature here is a mean, and its surface runs ${Tmax[biot.indexOf(worstBi)] > Ta ? 'cooler' : 'warmer'} than shown`));
