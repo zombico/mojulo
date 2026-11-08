@@ -113,10 +113,19 @@ export function kitSlot(word, base, { eye = 0, hand = null, converge = false } =
     ...(A.blow ? { blow: A.blow } : {}), ...(A.pellets ? { pellets: A.pellets } : {}), ...where };
   // the viewmodel: the arm as its parts' boxes (cm), the fist's place, the sight line and the eye's relief
   const view = { kind: h.class === 'handgun' ? 'handgun' : 'long', boxes: armBoxes(arm).map(([lo, hi, c, part]) => [lo.map((v) => r2(v)), hi.map((v) => r2(v)), c, part]),
-    grip: st.strong.at.map(r2), sight: { y: st.sight.y, rear: st.sight.rear, front: st.sight.front }, ...(st.sight.relief ? { relief: st.sight.relief } : {}), muzzle: st.muzzle.at[2], ...(st.magazine ? { mag: st.magazine.at.map(r2) } : {}) };
+    grip: st.strong.at.map(r2), sight: { y: st.sight.y, rear: st.sight.rear, front: st.sight.front }, ...(st.sight.relief ? { relief: st.sight.relief } : {}), muzzle: st.muzzle.at[2], ...(st.magazine ? { mag: st.magazine.at.map(r2) } : {}),
+    hands: handsOf(st) };
   return { name, weapon, switchReady: r2(hd.swapOut + hd.swapIn), gunplay: {
     kind: view.kind, arm, ads: { zoom: scope ? st.sight.zoom : st.sight.zoom > 1 ? st.sight.zoom : OPEN_ZOOM, time: hd.aimTime, spread: scope ? ADS.scopedSpread : ADS.spread, move: ADS.move, moveSpread: ADS.moveSpread, ...(scope ? { scope: true } : {}) },
     sway: hd.sway, swap: { out: hd.swapOut, in: hd.swapIn }, view } };
+}
+
+// where a body's hands close on the arm and where it meets the shoulder (arms/handling.js stations: a fist's centre, the
+// line out of its index side, its long axis), for a body that carries it (the page's gunplay view, over the shoulder)
+const station = (s) => ({ at: s.at.map(r2), c: s.c.map(r3), a: s.a.map(r3) });
+function handsOf(st) {
+  const sup = st.support;
+  return { strong: station(st.strong), ...(sup ? { support: { ...station(sup), ...(sup.alt ? { alt: station(sup.alt) } : {}) } } : {}), ...(st.butt ? { butt: st.butt.at.map(r2) } : {}) };
 }
 
 /** A kit's loadout on a base round: its slots in order (kitSlot). */

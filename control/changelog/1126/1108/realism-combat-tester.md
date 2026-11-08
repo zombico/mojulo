@@ -55,3 +55,7 @@
   though its legend said "click fire". A third-person hero that shoots now looks as first person does: a click captures
   the mouse, the mouse turns and pitches the hero, A and D step aside, the left button fires and the right one aims, and
   the legend says "A / D  step aside · mouse  look". The combat book's shoulder page plays the same way.
+- **A shooter's gun in its hero's hands.** Over the shoulder the gun was drawn nowhere. The hero now carries it: the
+  chest side-on to the line, a long gun's butt in the right shoulder and a pistol out at arm's length, pointed where it
+  looks and dipped at a low ready until it aims or fires, lowered through a switch and rolled through a reload, each
+  hand closed on the gun where its model says a hand goes. A kit's guns carry those places (`view.hands`).

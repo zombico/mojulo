@@ -295,7 +295,19 @@ the player as it should. The hero was not drawn at all, and two bugs in the game
   raised the sights and let them down), and held by `design-game.quick.test.js`. (Headless Chromium's pointer lock sends
   its own recentring moves; a harness drops them and sends its own `movementX`.)
 
-Still open over the shoulder: the kit's gun is not in the hero's hands.
+- **The gun in the hero's hands.** Over the shoulder the kit's gun was drawn nowhere: the eye's view carries it in first
+  person, and the hero has no clip that holds one. The page now carries it on the body (gunplay-view.js): the chest
+  turned side-on about the spine, a long gun's butt in the right shoulder's pocket and a pistol out at the arms' reach,
+  pointed along the look and dipped at a low ready until the sights come up or a round goes, each hand closed on its
+  station (the kit's `view.hands`, from arms/handling.js) with the arm reached to it in two bones and the fingers
+  curled. Measured on a made Cogs page with all five long and short guns, ready, aimed, looking up and down, running
+  and reloading: each wrist reaches its station (0 cm short). Getting there found two things: the run clip twists the
+  chest each stride, swinging the support shoulder 20 to 30 cm back (the twist is taken out, a shooter's chest holds
+  still over running legs), and a long shotgun's pump is out of reach in the run's crouch however far the chest turns
+  (the gun is drawn back along its line, the butt under the arm, as a low ready carries it).
+
+Still open over the shoulder: the head is not brought down onto the stock (no cheek weld), the support hand does not
+slide along a handguard, the bow is not carried, and the foes' guns are not in their hands.
 
 ## Gaps, in the order they move a measured number
 
