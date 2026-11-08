@@ -104,7 +104,7 @@ export function buildManaUi() {
   const ACTIONS = ['up', 'down', 'left', 'right', 'accept', 'back', 'tabNext', 'tabPrev'];
   const INPUTS = ['keys', 'pad', 'xr', 'touch', 'mouse'];
   // the UI's sounds, as effects ({ sound: <cue> }) the host plays: none, the cursor's, or every state change
-  const CUES = { silent: [], ticks: ['move', 'accept', 'back'], full: ['move', 'accept', 'back', 'open', 'close', 'tab', 'change', 'deny', 'toast', 'rare', 'tick', 'skip'] };
+  const CUES = { silent: [], ticks: ['move', 'accept', 'back'], full: ['move', 'accept', 'back', 'open', 'close', 'tab', 'change', 'deny', 'toast', 'rare', 'tick', 'skip', 'appear', 'vanish', 'shuffle'] };
   // what a number in words means (a blow's kind): a tone the theme colours, the word still saying it
   const TONES = ['plain', 'hit', 'crit', 'heal', 'miss', 'block'];
   // press start: the buttons that start (a face or a shoulder button; the d-pad moves, back still leaves)
@@ -347,7 +347,7 @@ export function buildManaUi() {
       if (r >= 1) { K.done = true; return value; }
       const e = 1 - (1 - r) ** 3, shown = Math.round((K.from + (K.to - K.from) * e) * 10 ** dec) / 10 ** dec;
       // its tick, as the whole number moves, at most twenty a second
-      if (Math.trunc(shown) !== Math.trunc(K.shown) && !(clockNow() - (K.heard ?? -1) < 0.05)) { K.heard = clockNow(); S.queued.push('tick'); }
+      if (Math.trunc(shown) !== Math.trunc(K.shown) && !(clockNow() - (K.heard ?? -1) < 0.05)) { K.heard = clockNow(); S.queued.push(['tick']); }
       K.shown = shown;
       return typeof value === 'string' ? String(shown) : shown;
     }
@@ -355,13 +355,31 @@ export function buildManaUi() {
     const countingOn = (id) => [...S.counts.entries()].some(([k, K]) => !K.done && mineOf(id)(k));
     const gainOf = (c) => (c && c.g !== null ? ['s', { class: 'mana-gain' }, `${c.g > 0 ? '+' : '−'}${Math.abs(c.g)}`] : null);
     // a list's rows that are new since its ids last changed (none on its first draw)
+    // what changed in a list since its ids last changed (none on its first draw): the rows that came, how many went, and
+    // the rows the others moved past (up or down among the rows both orders hold: a shuffle, a rank changed). Each is
+    // heard once (appear, vanish, shuffle, with how many) and drawn: a fresh row rings, a moved one says which way
     const freshOf = (key, rows) => {
       const ids = rows.map((r) => (isObj(r) && r.id !== undefined && r.id !== null ? String(r.id) : null)).filter((x) => x !== null), sig = ids.join('\u0001'), L = S.lists.get(key);
-      if (!L) { S.lists.set(key, { sig, ids: new Set(ids), fresh: new Set() }); return S.lists.get(key).fresh; }
-      if (L.sig !== sig) { const now = new Set(ids); L.fresh = new Set(ids.filter((x) => !L.ids.has(x))); L.ids = now; L.sig = sig; }
-      return L.fresh;
+      if (!L) { const first = { sig, ids: new Set(ids), order: ids, fresh: new Set(), moved: new Map() }; S.lists.set(key, first); return first; }
+      if (L.sig !== sig) {
+        const now = new Set(ids), gone = [...L.ids].filter((x) => !now.has(x)).length;
+        L.fresh = new Set(ids.filter((x) => !L.ids.has(x)));
+        const keep = ids.filter((x) => L.ids.has(x)), before = L.order.filter((x) => now.has(x));
+        L.moved = new Map();
+        keep.forEach((x, i) => { const j = before.indexOf(x); if (j !== i) L.moved.set(x, j > i ? 'up' : 'down'); });
+        if (L.fresh.size) S.queued.push(['appear', { count: L.fresh.size }]);
+        if (gone) S.queued.push(['vanish', { count: gone }]);
+        if (L.moved.size) S.queued.push(['shuffle', { count: L.moved.size }]);
+        L.ids = now; L.sig = sig; L.order = ids;
+      }
+      return L;
     };
-    const rowMarks = (fresh, item) => (isObj(item) ? { 'data-fresh': item.id !== undefined && item.id !== null && fresh.has(String(item.id)) ? 'yes' : null, 'data-last': item.last ? 'yes' : null, 'data-turn': turnOf(item.turn, item.side) } : {});
+    // a row's identity (the view glides it from where it was to where it is) and what changed about it
+    const rowMarks = (L, item) => {
+      if (!isObj(item)) return {};
+      const id = item.id !== undefined && item.id !== null ? String(item.id) : null;
+      return { 'data-id': id, 'data-fresh': id !== null && L.fresh.has(id) ? 'yes' : null, 'data-moved': id !== null ? L.moved.get(id) || null : null, 'data-last': item.last ? 'yes' : null, 'data-turn': turnOf(item.turn, item.side) };
+    };
     // the moment up: the broadcast's rule on the game's clock
     function momentOf(key, p) {
       const rows = p.rows.map((r, i) => { const o = isObj(r) ? r : { text: r }, text = words(o.text ?? o.value), w = typeof o.weight === 'number' && isFinite(o.weight) ? o.weight : WEIGHTS[o.weight] ?? 1; return { id: o.id !== undefined && o.id !== null ? `#${o.id}` : `${i}:${text}`, text, sub: o.sub === undefined || o.sub === null ? null : words(o.sub), w, side: o.side, rare: o.tier === 'rare', icon: o.icon === undefined || o.icon === null ? null : words(o.icon) }; }).filter((r) => r.text);
@@ -378,7 +396,7 @@ export function buildManaUi() {
       const holdOf = (x) => (x.rare ? hold * 1.6 : hold);
       if (M.up && t - M.up.at >= holdOf(M.up)) M.up = null;
       const next = M.queue.reduce((b, x) => (!b || x.w > b.w ? x : b), null);   // the weightiest, the first among equals
-      if (next && (!M.up || next.w > M.up.w || (next.w === M.up.w && t - M.up.at >= read))) { M.queue.splice(M.queue.indexOf(next), 1); M.up = { ...next, at: t, key: `m${++M.n}` }; S.queued.push(next.rare ? 'rare' : 'toast'); }
+      if (next && (!M.up || next.w > M.up.w || (next.w === M.up.w && t - M.up.at >= read))) { M.queue.splice(M.queue.indexOf(next), 1); M.up = { ...next, at: t, key: `m${++M.n}` }; S.queued.push([next.rare ? 'rare' : 'toast']); }
       M.due = M.up ? Math.min(M.up.at + holdOf(M.up), M.queue.some((x) => x.w === M.up.w) ? M.up.at + read : Infinity) : M.queue.length ? t : Infinity;
       return M.up;
     }
@@ -459,8 +477,10 @@ export function buildManaUi() {
       const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null, 'data-clock': S.held ? 'held' : null, 'data-motion': S.calm ? 'reduced' : null, 'data-flash': S.dim ? 'reduced' : null, 'data-nav': id ? S.nav : null, style: own || null }, ...parts];
       last = { tree, ...ctx };
       // what this draw set going (a moment up, a number ticking) is heard once it is drawn
-      const q = S.queued.splice(0);
-      for (const name of new Set(q)) cue(name);
+      // (one of each, the counts summed: a draw that brought three rows is one appear of three)
+      const q = S.queued.splice(0), by = new Map();
+      for (const [name, more] of q) { const was = by.get(name); if (!was) by.set(name, more ? { ...more } : undefined); else if (more && more.count) was.count = (was.count || 0) + more.count; }
+      for (const [name, more] of by) cue(name, 0, more);
       return last;
     }
 
@@ -753,7 +773,6 @@ export function buildManaUi() {
       if (top() !== id) {
         S.stack.push(id);
         S.nav = null;
-        cue('open');
         if (!S.booting) { S.tx += 1; S.txWay = 'in'; }
         // a screen opened shows what is there now; only what changes while it is up is news
         const mine = (k) => k === id || k.startsWith(`${id}.`);
@@ -762,7 +781,10 @@ export function buildManaUi() {
         for (const k of [...S.counts.keys()]) if (mine(k)) S.counts.delete(k);
       }
       uiOf(id);
+      const was = S.stack.length;
       render();
+      // heard as it lands: the frame, and the rows it fills with (a page ripples a soft tick down them on its stagger)
+      if (top() === id && was) cue('open', 0, { rows: Math.min(8, last.focus.filter((f) => f.kind === 'row' || f.kind === 'cell' || f.kind === 'node').length) });
     }
     function close() {
       if (S.stack.length) { cue('close'); S.tx += 1; S.txWay = 'out'; }
@@ -997,24 +1019,60 @@ export function buildManaUi() {
       for (const c of t.slice(2)) if (live(c)) e.appendChild(make(c));
       return e;
     };
+    // LEAVING: a screen, a toast or a banner that goes is kept where it was (data-leaving: the patch steps over it) until
+    // its exit has played (its own animation's end, or a ceiling), so what leaves is seen to leave
+    const LEAVERS = '.mana-screen,.mana-toast,.mana-banner';
+    const leaving = (n) => n.nodeType === 1 && n.hasAttribute('data-leaving');
+    const leaves = (n) => n && n.nodeType === 1 && !!n.matches && n.matches(LEAVERS);
+    const leave = (n) => {
+      const box = { left: n.offsetLeft, top: n.offsetTop, width: n.offsetWidth };
+      n.setAttribute('data-leaving', 'yes');
+      if (!n.classList.contains('mana-screen')) n.style.cssText += `;position:absolute;left:${box.left}px;top:${box.top}px;width:${box.width}px;margin:0`;
+      let gone = false;
+      const done = () => { if (!gone) { gone = true; if (n.parentNode) n.parentNode.removeChild(n); } };
+      n.addEventListener('animationend', (ev) => { if (ev.target === n) done(); });
+      setTimeout(done, 900);
+    };
+    const here = (parent) => [...parent.childNodes].filter((n) => !leaving(n));
     const patch = (parent, kids) => {
       const want = kids.filter(live);
       want.forEach((t, i) => {
-        const node = parent.childNodes[i];
+        const node = here(parent)[i];
         if (!Array.isArray(t)) {
           const txt = words(t);
           if (node && node.nodeType === 3) { if (node.nodeValue !== txt) node.nodeValue = txt; } else if (node) parent.replaceChild(doc.createTextNode(txt), node); else parent.appendChild(doc.createTextNode(txt));
           return;
         }
-        if (!node || node.nodeType !== 1 || node.tagName.toLowerCase() !== t[0] || node.getAttribute('data-key') !== keyOf(t)) { const e = make(t); if (node) parent.replaceChild(e, node); else parent.appendChild(e); return; }
+        if (!node || node.nodeType !== 1 || node.tagName.toLowerCase() !== t[0] || node.getAttribute('data-key') !== keyOf(t)) {
+          const e = make(t);
+          if (!node) parent.appendChild(e);
+          else if (leaves(node)) { parent.insertBefore(e, node); leave(node); } else parent.replaceChild(e, node);
+          return;
+        }
         const a = t[1] || {};
         for (const at of [...node.attributes]) if (!has(a[at.name])) node.removeAttribute(at.name);
         for (const k in a) if (has(a[k]) && node.getAttribute(k) !== String(a[k])) node.setAttribute(k, String(a[k]));
         patch(node, t.slice(2));
       });
-      while (parent.childNodes.length > want.length) parent.removeChild(parent.lastChild);
+      for (let cur = here(parent); cur.length > want.length; cur = here(parent)) { const n = cur[cur.length - 1]; if (leaves(n)) leave(n); else parent.removeChild(n); }
     };
-    const paint = () => { const h = rt.view(); if (h !== html) { html = h; patch(el, [rt.tree()]); } hold(); };
+    // SHUFFLES: a row with an identity (data-id) is glided from where it was drawn to where it is now, on the theme's
+    // glide and curve (none under the greybox or less motion); the patch moves its content, this moves its place
+    const seconds = (x) => { const m = /^\s*([\d.]+)(ms|s)\s*$/.exec(x || ''); return m ? Number(m[1]) * (m[2] === 'ms' ? 1 : 1000) : 0; };
+    const places = () => { const out = new Map(); if (el.querySelectorAll) for (const n of el.querySelectorAll('[data-id]')) { if (leaving(n)) continue; const P = out.get(n.parentNode) || new Map(); P.set(n.getAttribute('data-id'), n.getBoundingClientRect()); out.set(n.parentNode, P); } return out; };
+    const glide = (before) => {
+      const root = el.querySelector && el.querySelector('.mana-root');
+      if (!root || typeof getComputedStyle !== 'function') return;
+      const cs = getComputedStyle(root), ms = seconds(cs.getPropertyValue('--mana-glide')), ease = cs.getPropertyValue('--mana-ease').trim() || 'ease-out';
+      if (!ms) return;
+      for (const n of el.querySelectorAll('[data-id]')) {
+        const P = before.get(n.parentNode), was = P && P.get(n.getAttribute('data-id'));
+        if (!was || typeof n.animate !== 'function') continue;
+        const now = n.getBoundingClientRect(), k = n.offsetWidth ? now.width / n.offsetWidth : 1, dx = (was.left - now.left) / (k || 1), dy = (was.top - now.top) / (k || 1);
+        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) n.animate([{ translate: `${dx}px ${dy}px` }, { translate: '0 0' }], { duration: ms, easing: ease });
+      }
+    };
+    const paint = () => { const h = rt.view(); if (h !== html) { html = h; const before = places(); patch(el, [rt.tree()]); glide(before); } hold(); };
     const near = (ev, sel) => (ev.target && ev.target.closest ? ev.target.closest(sel) : null);
     // where across its target a pointer is, on the rect taken when the press began (a repaint replaces the element)
     const across = (r, ev) => (r && r.width ? (ev.clientX - r.left) / r.width : 0.5);

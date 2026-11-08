@@ -194,3 +194,55 @@ describe('mana-ui: the stage and the party language', () => {
     expect(new Set(sig).size).toBe(party.length);
   });
 });
+
+describe('mana-ui: appearing, leaving, shuffling', () => {
+  const listed = (st) => manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'region', children: [{ use: 'feed', props: { rows: [] } }] }] }, start: 'a', screens: { a: screen([{ use: 'list', props: { rows: { bind: 'rows' } } }]) } }, { read: (p) => st[p], cues: 'full', act: (e) => st.log.push(e) });
+  it('rows that came, went or moved past each other are marked and heard once, however many', () => {
+    const st = { rows: ['a', 'b', 'c', 'd'].map((id) => ({ id, label: id })), log: [] }, rt = listed(st);
+    expect(rt.view()).toContain('data-id="a"');
+    st.rows = [st.rows[1], st.rows[0], st.rows[2], st.rows[3]]; rt.tick();          // a and b trade places
+    expect(rt.view()).toMatch(/data-id="b"[^>]*data-moved="up"/);
+    expect(rt.view()).toMatch(/data-id="a"[^>]*data-moved="down"/);
+    st.rows = [{ id: 'z', label: 'z' }, ...st.rows]; rt.tick();                       // one comes in on top: nothing moved past
+    expect(rt.view()).not.toContain('data-moved');
+    st.rows = st.rows.slice(0, 2); rt.tick();                                          // three go
+    expect(st.log.filter((e) => e.sound)).toEqual([{ sound: 'shuffle', count: 2 }, { sound: 'appear', count: 1 }, { sound: 'vanish', count: 3 }]);
+  });
+  it('a screen opening is heard as it lands, with the rows it fills with; the screen a runtime starts on is not', () => {
+    const log = [], rt = manaUi.runtime({ start: 'a', screens: { a: screen([{ use: 'button', props: { label: 'Go' }, on: { accept: { open: 'b' } } }]), b: screen([{ use: 'list', props: { rows: ['x', 'y', 'z'] } }]) } }, { read: () => undefined, cues: 'full', act: (e) => log.push(e) });
+    expect(log).toEqual([]);
+    rt.press('accept');
+    expect(log.filter((e) => e.sound)).toEqual([{ sound: 'accept' }, { sound: 'open', rows: 3 }]);
+  });
+  it('the frame builds, its rows fill it after the lead in reading order, the title slams first; parts come from the screen\'s side', () => {
+    expect(sheet).toMatch(/animation-delay:calc\(var\(--mana-lead\) \+ var\(--mana-i,0\) \* var\(--mana-stagger\)\)/);
+    expect(sheet).toContain('.r .mana-screen[data-place=left]{--mana-enter:calc(-3 * var(--mana-travel)) 0}');
+    expect(sheet).toMatch(/@keyframes mana-rise\{from\{opacity:0;translate:var\(--mana-enter\)\}\}/);
+    expect(sheet).toMatch(/\.r \.mana-screen>\.mana-title\{animation:mana-slam/);
+    expect(GREYBOX_VARS.lead).toBe('0ms');
+  });
+  it('what leaves goes faster than it came, accelerating away, never bouncing', () => {
+    for (const sel of ['.mana-screen[data-leaving]', '.mana-toast[data-leaving]', '.mana-banner[data-leaving]']) {
+      const r = sheet.split('\n').find((l) => l.startsWith(`.r ${sel}{`));
+      expect(r, sel).toMatch(/calc\(var\(--mana-dur\) \* \.7\) var\(--mana-out\) both/);
+    }
+    for (const w of Object.keys(THEME_MODULE.MOTIONS)) expect(THEME_MODULE.MOTIONS[w].out, w).not.toMatch(/1\.[0-9]+\s*,\s*[\d.]+\)$/);   // no overshoot on an exit
+  });
+  it('the view keeps a screen that leaves until its exit has played, out of the way of what is drawn next', async () => {
+    const { JSDOM } = await import('jsdom');
+    const w = new JSDOM('<div id="m"></div>', { pretendToBeVisual: true }).window;
+    const saved = { document: globalThis.document, getComputedStyle: globalThis.getComputedStyle };
+    globalThis.document = w.document; globalThis.getComputedStyle = w.getComputedStyle.bind(w);
+    try {
+      const rt = manaUi.runtime({ start: 'a', screens: { a: screen([{ use: 'button', props: { label: 'Go' }, on: { accept: { open: 'b' } } }]), b: screen([{ use: 'button', props: { label: 'x' } }]) } }, { read: () => undefined });
+      const el = w.document.getElementById('m'), view = manaUi.mount(el, rt);
+      rt.press('accept'); view.paint();
+      const screens = () => [...el.querySelectorAll('.mana-screen')];
+      expect(screens().map((n) => [n.getAttribute('data-key'), n.hasAttribute('data-leaving')])).toEqual([['b', false], ['a', true]]);
+      rt.press('back'); view.paint();                                               // b leaves too; a comes back, drawn fresh
+      expect(screens().filter((n) => !n.hasAttribute('data-leaving')).map((n) => n.getAttribute('data-key'))).toEqual(['a']);
+      await new Promise((r) => setTimeout(r, 950));
+      expect(screens().map((n) => n.getAttribute('data-key'))).toEqual(['a']);       // the exits have played and gone
+    } finally { globalThis.document = saved.document; globalThis.getComputedStyle = saved.getComputedStyle; }
+  });
+});

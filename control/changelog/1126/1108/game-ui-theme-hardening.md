@@ -92,3 +92,11 @@
   the same plan and the same loudness on confirm; the door and the jackpot are allowed to be louder. Three presets wear
   them: `grim` (aged gold on black, a serif, a vignette, nothing that leans), `tactician` (paper and ink with an offset
   sheet) and `jackpot` (a party variation in gold on purple with a sunburst).
+- **What appears, leaves and shuffles is choreographed, and heard.** A screen now builds in order: its title slams in,
+  its windows rise, then its rows fill in reading order after a short lead, and the cursor lands last. Everything comes
+  from the side the screen sits on. Screens, toasts and banners that leave now play an exit instead of vanishing:
+  faster than they arrived, accelerating away and never bouncing. Rows that change order glide from their old place to
+  the new one instead of jumping, and a row that moved past others shows whether it rose or fell. Opening a screen plays
+  its sound plus a soft rising ripple of ticks timed to each row as it lands; rows that come, go or reshuffle are each
+  heard once, however many. Every sound set gains these cues. The principles are written down in the game UI runtime's
+  design doc.

@@ -19,6 +19,8 @@
  *   deny      a minor second low, twice (nothing is broken, it just will not do)
  *   toast     a chime on the tenth;   rare  the octave's arpeggio and a bell over it
  *   tick      a count's pip, two octaves up, quiet;   skip  a swept breath
+ *   appear-1…5  a row landing: a soft tick up a pentatonic ladder (a page ripples them down the rows on its stagger)
+ *   vanish    the tick falling, softer;   shuffle  a breath and a run of quick clicks (rows moved past each other)
  *
  *   UI_SOUND_SETS        name → the voice of a set: glass, console, chip, terminal, paper, party, and the heavy ones,
  *                        hydraulic (servos, pneumatics, clamps), clack (hardwood blocks), crypt (stone, iron, a toll; a
@@ -174,6 +176,13 @@ function basePlan(V, n) {
     rare: [...V.blip(n(12), 0.06, 0, 0.5), ...V.blip(n(16), 0.06, 0.07, 0.55), ...V.blip(n(19), 0.06, 0.14, 0.6), ...V.blip(n(24), 0.14, 0.21, 0.7), ...V.chime(n(28), 0.21, 0.8)],
     tick: [...V.blip(n(24), 0.015, 0, 0.25)],
     skip: [...V.breath(0, 1), ...V.blip(n(12), 0.04, 0.06, 0.45)],
+    // APPEARING: a soft tick as each row lands, up a pentatonic ladder (a page ripples them down a screen's rows on its
+    // stagger, so the sound lands where the eye does); quieter than the cursor: many of them come at once
+    ...Object.fromEntries([12, 14, 16, 19, 21].map((k, i) => [`appear-${i + 1}`, [...V.blip(n(k), 0.02, 0, 0.18)]])),
+    // LEAVING: the same tick falling, softer still (what goes is not news)
+    vanish: [...V.blip(n(19), 0.025, 0, 0.16), ...V.blip(n(12), 0.03, 0.035, 0.12)],
+    // SHUFFLING: a breath and a run of quick clicks, like cards riffled or tiles slid (once for the whole move)
+    shuffle: [...V.breath(0, 0.45), ...[0, 0.035, 0.065, 0.09].flatMap((t, i) => V.click(t, 0.35 + i * 0.05)), ...V.blip(n(19), 0.03, 0.11, 0.22)],
   };
 }
 export const UI_SOUND_CUES = Object.freeze(Object.keys(plan(UI_SOUND_SETS.glass)));
@@ -196,6 +205,7 @@ export function uiSounds(set, { tonic = 0 } = {}) {
 export function uiSoundOf(effect) {
   if (!effect || typeof effect.sound !== 'string') return null;
   const s = effect.sound;
+  if (s === 'appear') return 'appear-1';
   if (s === 'move' && effect.way) return effect.way === 'up' || effect.way === 'left' ? 'move-up' : 'move-down';
   if (s === 'change' && typeof effect.step === 'number' && effect.step) return effect.step > 0 ? 'change-up' : 'change-down';
   return s;

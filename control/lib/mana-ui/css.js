@@ -66,7 +66,9 @@ export const GREYBOX_VARS = Object.freeze({
   // layers: the filter over the stage (a theme's overlay), and a title's hollow echo behind it (a theme's breakout)
   overlay: 'none', 'echo-ink': 'var(--mana-accent)',
   // how things move (theme.js MOTIONS): the greybox fades and travels nowhere
-  dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0', snap: '0px', nudge: '0px', i: '0',
+  dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0', snap: '0px', nudge: '0px', lead: '0ms', out: 'ease-in', i: '0',
+  // the way a screen's parts arrive: from the side the screen sits on (its place sets it), else rising from below
+  enter: '0 var(--mana-travel)',
   // the way the cursor last went (the root's data-nav sets it): the side the item it lands on snaps in from
   'snap-from': '0 0',
   // what a change flashes and whose turn is alight: the accent unless a rule says otherwise
@@ -393,7 +395,7 @@ export function manaCss(scope = '.mana-root') {
 const pop = (k) => `calc(1 + (${v('pop')} - 1) * ${k})`;
 const KEYFRAMES = [
   `@keyframes mana-fade{from{opacity:0}}`,
-  `@keyframes mana-rise{from{opacity:0;translate:0 ${v('travel')}}}`,
+  `@keyframes mana-rise{from{opacity:0;translate:${v('enter')}}}`,
   `@keyframes mana-slide{from{opacity:0;translate:calc(${v('travel')} * 2) 0}}`,
   `@keyframes mana-slam{0%{opacity:0;scale:${pop(3)}}60%{opacity:1}100%{scale:1}}`,
   `@keyframes mana-pop{from{scale:${pop(1)}}}`,
@@ -406,6 +408,13 @@ const KEYFRAMES = [
   `@keyframes mana-pick{from{translate:${v('snap-from')};scale:${pop(0.4)}}}`,
   // a prompt that waits for the player (press start): a slow breath, well under the 3 flashes a second XAG 118 allows
   `@keyframes mana-pulse{50%{opacity:.35}}`,
+  // LEAVING: faster than arriving, accelerating away, never bouncing; back the way it came, or out to its edge
+  `@keyframes mana-leave{to{opacity:0;translate:calc(-.6 * ${v('travel')}) calc(1.6 * ${v('travel')});scale:calc(1 - (${v('pop')} - 1) * .2)}}`,
+  `@keyframes mana-leave-edge{to{opacity:0;translate:calc(3 * ${v('travel')}) 0}}`,
+  `@keyframes mana-leave-shrink{to{opacity:0;scale:calc(1 - (${v('pop')} - 1) * .8)}}`,
+  // a row that moved past others says which way, once: a lift as it rises, a dip as it falls
+  `@keyframes mana-moved-up{0%{box-shadow:inset 0 0 0 2px ${v('accent2')}}40%{scale:${pop(0.5)}}}`,
+  `@keyframes mana-moved-down{0%{box-shadow:inset 0 0 0 1px ${v('mid')};opacity:.7}}`,
   // the stage sweeps in from the side the screen leans from
   `@keyframes mana-stage{from{opacity:0;translate:calc(${v('travel')} * -8) 0}}`,
   // a blow's number: it pops in large, settles and rises off where it landed
@@ -430,15 +439,30 @@ function MOTION_RULES(s) {
     ...KEYFRAMES,
     // the focus lands with a pop (at no weight at all: an entrance, a change's flash or a pulse on the same element wins)
     `${s} :where([data-st=focus]){animation:mana-pick calc(${v('dur')} * 1.2) ${v('ease')}}`,
-    // entrances: a screen fades in, its windows and rows rise, staggered by their place
+    // ENTRANCES, in an order: the frame builds (the screen, its windows), its rows fill it in reading order after the
+    // lead, each a stagger after the last (capped: a long list's tail lands together), and the cursor lands last. They
+    // come from the side the screen sits on: a left menu from the left, a sheet from below
     `${s} .mana-screen{animation:mana-fade ${v('dur')} ease-out both}`,
+    `${s} .mana-screen[data-place=left]{--mana-enter:calc(-3 * ${v('travel')}) 0}`, `${s} .mana-screen[data-place=right]{--mana-enter:calc(3 * ${v('travel')}) 0}`,
+    `${s} .mana-screen[data-place=top]{--mana-enter:0 calc(-2 * ${v('travel')})}`, `${s} .mana-screen:is([data-place=bottom],[data-place=sheet]){--mana-enter:0 calc(4 * ${v('travel')})}`,
+    // the lead word slams in first: a screen's own title
+    `${s} .mana-screen>.mana-title{animation:mana-slam calc(${v('dur')} * 2) ${v('ease')} both}`,
     // (at the least weight a selector can have: a change's flash or a turn's breath on the same element wins)
     `${s} :where(.mana-screen .mana-window){animation:mana-rise calc(${v('dur')} * 1.3) ${v('ease')} both}`,
-    `${s} :where(.mana-screen) :where(${rows.slice(4, -1)}){animation:mana-rise ${v('dur')} ${v('ease')} both;animation-delay:calc(var(--mana-i,0) * ${v('stagger')})}`,
+    `${s} :where(.mana-screen) :where(${rows.slice(4, -1)}){animation:mana-rise ${v('dur')} ${v('ease')} both;animation-delay:calc(${v('lead')} + var(--mana-i,0) * ${v('stagger')})}`,
     // a row the cursor lands on keeps its entrance and adds the pop (an animation already run is not run again)
-    `${s} :where(.mana-screen) :where(${rows.slice(4, -1)})[data-st=focus]{animation:mana-rise ${v('dur')} ${v('ease')} both,mana-pick calc(${v('dur')} * 1.2) ${v('ease')};animation-delay:calc(var(--mana-i,0) * ${v('stagger')}),0ms}`,
+    `${s} :where(.mana-screen) :where(${rows.slice(4, -1)})[data-st=focus]{animation:mana-rise ${v('dur')} ${v('ease')} both,mana-pick calc(${v('dur')} * 1.2) ${v('ease')};animation-delay:calc(${v('lead')} + var(--mana-i,0) * ${v('stagger')}),0ms}`,
     ...Array.from({ length: 10 }, (_, i) => `${s} ${rows}:nth-child(${i + 2}){--mana-i:${i + 1}}`),
     `${s} ${rows}:nth-child(n+12){--mana-i:11}`,
+    // EXITS (the view keeps what leaves, data-leaving, until its exit has played): a screen sinks back the way it rose,
+    // a toast slides out to its edge, a banner shrinks away; faster than they came, on the exit's curve
+    `${s} [data-leaving]{pointer-events:none}`,
+    `${s} .mana-screen[data-leaving]{z-index:3;animation:mana-leave calc(${v('dur')} * .7) ${v('out')} both}`,
+    `${s} .mana-toast[data-leaving]{animation:mana-leave-edge calc(${v('dur')} * .7) ${v('out')} both}`,
+    `${s} .mana-banner[data-leaving]{animation:mana-leave-shrink calc(${v('dur')} * .7) ${v('out')} both}`,
+    // SHUFFLES: the view glides a row from where it was to where it is (by its data-id, on the glide); a row that moved
+    // past others says which way
+    `${s} [data-moved=up]{animation:mana-moved-up calc(${v('dur')} * 4) ease-out}`, `${s} [data-moved=down]{animation:mana-moved-down calc(${v('dur')} * 3) ease-out}`,
     // the moments: a banner slams, its sheen sweeps once; a toast slides in from its edge
     `${s} .mana-banner{position:relative;overflow:hidden;animation:mana-slam calc(${v('dur')} * 2) ${v('ease')} both}`,
     `${s} .mana-banner::after{content:"";position:absolute;top:0;bottom:0;left:0;width:30%;background:linear-gradient(90deg,transparent,${v('panel')},transparent);opacity:${v('sheen')};pointer-events:none;animation:mana-sheen calc(${v('dur')} * 5) ease-in-out calc(${v('dur')} * 2) both}`,

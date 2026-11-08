@@ -274,6 +274,7 @@ board enters row by row.
   no clock it shows the weightiest the game still lists. `moment-banner` and `quest-toasts` are built on it.
 - **How it moves is the theme's** `motion` word (`MOTIONS` in `theme.js`): none fades and travels nowhere (the
   greybox), ease glides, snap overshoots, stepped moves in frames. Every distance, scale and delay is a variable.
+- **Appearing, leaving and shuffling** follow principles of their own (below).
 - **The snap.** The item the cursor lands on snaps in from the way it went (the root's `data-nav`: from above when it
   moved down, from the left when it moved right), with the motion's overshoot, and the focus stands out by a nudge
   (`snap` and `nudge` in the motion words; nothing under the greybox or less motion). The cursor's sound says the way it
@@ -300,6 +301,29 @@ board enters row by row.
 - **Keylines:** a side whose kit would sink into the panel (under 3:1, WCAG's bar for a part of the UI) is keylined
   in the ink, so a black team's chip still shows on dark glass.
 
+### Appearing, leaving and shuffling
+
+Games choreograph what comes and goes; a page swaps it. The principles:
+
+1. **Things arrive in an order: the frame builds, its rows fill it, the cursor lands.** A screen fades in, its windows
+   rise, then after the motion's `lead` its rows rise in reading order, a `stagger` apart (capped, so a long list's tail
+   lands together), and the focus lands last. The screen's own title slams in first.
+2. **Things come from somewhere.** Every part of a screen arrives from the side the screen sits on (`--mana-enter`, set
+   by its `place`): a left menu from the left, a right panel from the right, a sheet from below, a centred screen rising.
+3. **Leaving is quicker than arriving, and never bounces.** An exit runs at about seven tenths of the entrance on the
+   motion's `out` curve, which accelerates away (an overshoot is for arriving). A screen sinks back the way it rose, a
+   toast slides out to its edge, a banner shrinks away. The view keeps what leaves (`data-leaving`) until its exit has
+   played, out of the way of what is drawn next.
+4. **Nothing teleports.** A row with an identity (its `id`, drawn as `data-id`) that changes place is glided from where
+   it was to where it is, on the theme's `glide` and curve. A row that moved past others says which way, once
+   (`data-moved`: a lift up, a dip down). A row that came in on top moves nothing past anything, so nothing is marked.
+5. **Sound lands with the eye, and says the whole move once.** A screen opening is heard as it lands, and the page
+   ripples a soft tick down its rows on the same lead and stagger (`open` with its `rows`, the `appear` ladder). Rows
+   that came, went or moved are each heard once, however many (`appear`, `vanish`, `shuffle`, with their `count`). What
+   leaves is quieter than what arrives, and a ripple is quieter than the cursor.
+6. **Less motion keeps the order and drops the travel.** Under the greybox or less motion nothing travels or glides,
+   but things still fade in and out in the same order.
+
 ## The UI's sounds
 
 Sound is half of how a game's menu feels, and the web's is silent. mana-ui ships no audio and loads nothing: it emits
@@ -316,6 +340,7 @@ the sounds as effects, `{ sound: <cue> }` to the host's `act`, and the host play
 | `deny` | a disabled row was pressed |
 | `toast`, `rare` | a moment came up (a rare one) |
 | `tick`, `skip` | a number counted (at most twenty a second), and a count was skipped |
+| `appear`, `vanish`, `shuffle` | rows came into a list, went out of it, or moved past each other (`count`: how many) |
 
 `host.cues` says which it wants: `silent` (the default) none, `ticks` the cursor's three (move, accept, back), `full`
 every one. A theme's `cues` word says it for a game, and `manaUiPage` hands it to its host. A cursor's sound carries
@@ -340,6 +365,8 @@ cancel falls, the cursor stays quiet):
 | `deny` | a low minor second, twice |
 | `toast`, `rare` | a chime on the tenth; the octave's arpeggio and a bell over it |
 | `tick`, `skip` | a count's quiet pip; a swept breath |
+| `appear-1`…`5` | a row landing: a soft tick up a pentatonic ladder, rippled down a screen's rows as it opens |
+| `vanish`, `shuffle` | the tick falling, softer; a breath and a run of quick clicks |
 
 The sets are level-matched on confirm (measured on their rendered reels), and within a set what is pressed most is
 heard least; a heavy set's big moments are let past confirm on purpose (the crypt's door, the jackpot's jackpot). A game's key transposes the pitched gestures (`tonic`). A theme's `sounds` word picks the set (the presets

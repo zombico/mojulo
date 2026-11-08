@@ -68,3 +68,19 @@ describe('the UI sound library', () => {
     expect(silent).toContain('const SOUNDS = window.__manaSounds = null');
   });
 });
+
+describe('the UI sound library: appearing, leaving, shuffling', () => {
+  it('rows landing climb a ladder, what leaves falls, a shuffle is quick, all under the cursor', () => {
+    for (const set of UI_SOUND_SET_IDS) {
+      const C = uiSounds(set), top = (id) => Math.max(...pitches(C[id]));
+      const ladder = [1, 2, 3, 4, 5].map((i) => top(`appear-${i}`));
+      expect(ladder, `${set} appear`).toEqual([...ladder].sort((a, b) => a - b));
+      expect(new Set(ladder).size, `${set} appear`).toBeGreaterThan(1);
+      const v = ends(C.vanish);
+      expect(Math.max(...v.last), `${set} vanish`).toBeLessThan(Math.max(...v.first));
+      expect(Math.max(...C.shuffle.map((g) => g.at || 0)), `${set} shuffle`).toBeLessThan(0.4);
+      expect(loud(C['appear-1']), `${set} appear under the cursor`).toBeLessThan(loud(C.move));
+    }
+    expect(uiSoundOf({ sound: 'appear', count: 3 })).toBe('appear-1');
+  });
+});

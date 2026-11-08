@@ -262,10 +262,12 @@ const MOTION = { none: 'background-color 0s', snap: 'background-color 0s', ease:
 // ease glides; snap overshoots and slams (a back curve); stepped moves in frames
 export const MOTIONS = Object.freeze({
   // snap: how far the item the cursor lands on travels in from the way it went; nudge: how far the focus stands out
-  none: { dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0', snap: '0px', nudge: '0px' },
-  ease: { dur: '220ms', ease: 'cubic-bezier(.2,.7,.2,1)', travel: '10px', pop: '1.12', stagger: '40ms', glide: '320ms', loop: 'running', sheen: '.35', snap: 'calc(10 * var(--mana-du))', nudge: 'calc(6 * var(--mana-du))' },
-  snap: { dur: '200ms', ease: 'cubic-bezier(.34,1.56,.64,1)', travel: '14px', pop: '1.25', stagger: '30ms', glide: '180ms', loop: 'running', sheen: '.5', snap: 'calc(18 * var(--mana-du))', nudge: 'calc(14 * var(--mana-du))' },
-  stepped: { dur: '240ms', ease: 'steps(4,end)', travel: '12px', pop: '1.2', stagger: '60ms', glide: '300ms', loop: 'running', sheen: '.5', snap: 'calc(14 * var(--mana-du))', nudge: 'calc(9 * var(--mana-du))' },
+  // lead: how long the frame has before its rows fill it (the frame builds, the rows fill it, the cursor lands); out: an
+  // exit's curve, accelerating away (never an overshoot: what leaves does not bounce)
+  none: { dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0', snap: '0px', nudge: '0px', lead: '0ms', out: 'ease-in' },
+  ease: { dur: '220ms', ease: 'cubic-bezier(.2,.7,.2,1)', travel: '10px', pop: '1.12', stagger: '40ms', glide: '320ms', loop: 'running', sheen: '.35', snap: 'calc(10 * var(--mana-du))', nudge: 'calc(6 * var(--mana-du))', lead: '90ms', out: 'cubic-bezier(.5,0,.75,0)' },
+  snap: { dur: '200ms', ease: 'cubic-bezier(.34,1.56,.64,1)', travel: '14px', pop: '1.25', stagger: '30ms', glide: '180ms', loop: 'running', sheen: '.5', snap: 'calc(18 * var(--mana-du))', nudge: 'calc(14 * var(--mana-du))', lead: '70ms', out: 'cubic-bezier(.6,0,.9,.2)' },
+  stepped: { dur: '240ms', ease: 'steps(4,end)', travel: '12px', pop: '1.2', stagger: '60ms', glide: '300ms', loop: 'running', sheen: '.5', snap: 'calc(14 * var(--mana-du))', nudge: 'calc(9 * var(--mana-du))', lead: '120ms', out: 'steps(3,end)' },
 });
 const SCALE = { compact: '0.9', normal: '1', large: '1.12' };
 const corners = (c, len, w) => ['top left', 'top right', 'bottom left', 'bottom right'].flatMap((at) => [`linear-gradient(${c},${c}) ${at}/${len}px ${w}px no-repeat`, `linear-gradient(${c},${c}) ${at}/${w}px ${len}px no-repeat`]).join(',');

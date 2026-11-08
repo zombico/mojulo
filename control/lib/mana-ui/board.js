@@ -47,11 +47,23 @@ const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play' };
 export const PREVIEW_KEYS = Object.freeze({ ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Enter: 'accept', Space: 'accept', Escape: 'back', Backspace: 'back', BracketRight: 'tabNext', BracketLeft: 'tabPrev' });
 // the page's ear: a sound effect played from the theme's set through the beats kernel, its engine made on the first sound
 // (a key or a tap has been pressed by then, so the browser lets it start)
+// a screen that opens ripples a soft tick down the rows it fills with, on the theme's own lead and stagger (read off the
+// root, so the sound lands as each row does); rows that came, went or moved are heard as one sound, however many
 export const AUDIO_SCRIPT = `const hear = (SOUNDS, e) => {
   if (!SOUNDS || typeof e.sound !== 'string') return;
   const cues = SOUNDS.sets[SOUNDS.set] || SOUNDS.sets[Object.keys(SOUNDS.sets)[0]], g = cues && (cues[SOUNDS.of(e)] || cues[e.sound]);
   if (!g) return;
-  try { if (!SOUNDS.engine) { const C = window.AudioContext || window.webkitAudioContext; SOUNDS.ctx = new C(); SOUNDS.engine = SOUNDS.K.createEngine(SOUNDS.ctx); } if (SOUNDS.ctx.state === 'suspended') SOUNDS.ctx.resume(); SOUNDS.engine.playCue(g); } catch (err) { /* no audio here: the UI goes on silent */ }
+  try {
+    if (!SOUNDS.engine) { const C = window.AudioContext || window.webkitAudioContext; SOUNDS.ctx = new C(); SOUNDS.engine = SOUNDS.K.createEngine(SOUNDS.ctx); }
+    if (SOUNDS.ctx.state === 'suspended') SOUNDS.ctx.resume();
+    SOUNDS.engine.playCue(g);
+    if (e.sound === 'open' && e.rows) {
+      const root = document.querySelector('.mana-root'), cs = root ? getComputedStyle(root) : null;
+      const secs = (x) => { const m = /([\\d.]+)(ms|s)/.exec(x || ''); return m ? Number(m[1]) / (m[2] === 'ms' ? 1000 : 1) : 0; };
+      const lead = cs ? secs(cs.getPropertyValue('--mana-lead')) + secs(cs.getPropertyValue('--mana-dur')) * 0.5 : 0.1, step = cs ? secs(cs.getPropertyValue('--mana-stagger')) : 0;
+      if (step > 0) for (let i = 0; i < e.rows; i++) { const t = cues['appear-' + (1 + (i % 5))]; if (t) SOUNDS.engine.playCue(t, SOUNDS.ctx.currentTime + lead + i * step); }
+    }
+  } catch (err) { /* no audio here: the UI goes on silent */ }
 };`;
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
