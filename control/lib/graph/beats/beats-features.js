@@ -150,9 +150,19 @@ function collect(m, set) {
   }
   for (const list of Object.values(m.cues || {})) addGestures(set, list);
   if (m.kind === 'beats-sfx' && m.mix) set.add('sfxmix');
+  if (m.kind === 'beats-sfx' && m.sustains) addSustains(set, Object.values(m.sustains));
 }
 
-const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix'];
+// a held voice (sustain): the feature, and what its layers' chains need
+function addSustains(set, specs) {
+  for (const sp of specs) {
+    if (!sp || typeof sp !== 'object') continue;
+    set.add('sustain');
+    for (const L of sp.layers || []) if (L && L.chain) layerChainFeatures(L.chain, set);
+  }
+}
+
+const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain'];
 const sorted = (set) => {
   for (const f of [...set]) for (const g of IMPLIES[f] || []) set.add(g);
   return ORDER.filter((f) => set.has(f));
@@ -178,6 +188,7 @@ export function audioFeatures(audio) {
   for (const k of ['weapon', 'strike']) for (const list of Object.values(audio[k] || {})) addGestures(set, list);
   if (audio.vary || audio.weather) set.add('sfx');
   if (audio.mix) set.add('sfxmix');
+  addSustains(set, [audio.thruster && audio.thruster.voice, audio.jump && audio.jump.charge && audio.jump.charge.voice]);
   if (audio.wind && audio.wind.vary) set.add('x');
   return sorted(set);
 }

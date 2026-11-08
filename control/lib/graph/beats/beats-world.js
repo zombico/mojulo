@@ -37,7 +37,7 @@
  */
 
 import { SketchRepository } from '../../db/repositories/sketches.js';
-import { validateBeatsManifest, normalizeBeatsManifest, isBeatsKind, checkSfxMix } from './beats-manifest.js';
+import { validateBeatsManifest, normalizeBeatsManifest, isBeatsKind, checkSfxMix, checkSustain } from './beats-manifest.js';
 import { emitBeatsKernel } from './beats-kernel.js';
 import { expandBeatsManifest } from './beats-authoring.js';
 import { audioFeatures, pagePatches } from './beats-features.js';
@@ -277,9 +277,17 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   // thruster ROAR: a sustained rocket-engine voice the audio channel swells with a controllable
   // entity's e.thrust (boost). Continuous like wind, but gain-modulated by sim state instead of an
   // LFO. `level` (0..1) is the overall loudness; `true` takes the default.
+  // `voice` (opt-in, a sustain spec: the SFX shelf's held voices) plays instead of the channel's own synth.
+  const heldVoice = (v, where) => {
+    const errors = [];
+    checkSustain(v, where, errors);
+    if (errors.length) throw new Error(`${where}:\n - ${errors.join('\n - ')}`);
+    return v;
+  };
   if (audioSpec.thruster) {
     const th = audioSpec.thruster === true ? {} : audioSpec.thruster;
     out.thruster = { level: Number.isFinite(th.level) ? th.level : 0.5 };
+    if (th.voice !== undefined) out.thruster.voice = heldVoice(th.voice, 'audio.thruster.voice');
   }
 
   // JUMP audio: the stop-and-charge GATHER whine (sustained synth) + a RELEASE transient scaled by
@@ -289,6 +297,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   if (audioSpec.jump) {
     const jp = audioSpec.jump, jOut = {};
     if (jp.charge) jOut.charge = { level: Number.isFinite((jp.charge || {}).level) ? jp.charge.level : 0.26 };
+    if (jp.charge && jp.charge.voice !== undefined) jOut.charge.voice = heldVoice(jp.charge.voice, 'audio.jump.charge.voice');
     if (jp.release) jOut.release = { level: Number.isFinite((jp.release || {}).level) ? jp.release.level : 0.5 };
     if (Array.isArray(jp.land) && jp.land.length) {
       const check = validateBeatsManifest({ kind: 'beats-sfx', title: 'jump land', cues: { land: jp.land } });

@@ -121,3 +121,22 @@ export function meetsFloor(m, f) {
   if (m.centroidHz < f.centroidHz * L.brightness[0] || m.centroidHz > f.centroidHz * L.brightness[1]) off.push(`attack ${m.centroidHz} Hz against ${f.centroidHz}: another sound`);
   return off;
 }
+
+/**
+ * A held voice on the yardstick: rendered along its control lane (beats-render's SUSTAIN_LANE by default: idle, half,
+ * full, let go) and measured over each hold, where it has settled: `{ idle, half, full, gone }`, each
+ * `{ rmsDb, centroidHz }`, and the full hold's `heard` spread. Silence reads −120 dB.
+ */
+export const HELD_HOLDS = Object.freeze({ idle: [0.15, 0.55], half: [0.9, 1.35], full: [1.9, 2.35], gone: [2.95, 3.15] });
+export async function renderHeld(manifest, sustain, { lane } = {}) {
+  const { wav } = await renderBeatsOffline(manifest, { sustain, tail: 0.3, ...(lane ? { lane } : {}) });
+  const { sr, channels } = decodeWav(wav);
+  const [L, R] = channels, m = L.map((v, i) => (v + R[i]) / 2);
+  const out = {};
+  for (const [k, [a, b]] of Object.entries(HELD_HOLDS)) {
+    const i0 = Math.round(a * sr), i1 = Math.round(b * sr), r = rms(m, i0, i1);
+    out[k] = { rmsDb: r > 1e-6 ? r2(20 * Math.log10(r)) : -120, centroidHz: r > 1e-6 ? Math.round(centroid(m, sr, i0, FRAME)) : 0 };
+  }
+  const f = measureSound([L.subarray(Math.round(HELD_HOLDS.full[0] * sr), Math.round(HELD_HOLDS.full[1] * sr)), R.subarray(Math.round(HELD_HOLDS.full[0] * sr), Math.round(HELD_HOLDS.full[1] * sr))], sr);
+  return { ...out, heard: f.heard, wav };
+}

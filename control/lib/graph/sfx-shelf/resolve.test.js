@@ -34,9 +34,10 @@ describe('sfxSound: a sound by its word, in a style', () => {
     expect(sfxSound(paletteRow, { style: fallbackStyle })).toEqual({ id: paletteRow, style: fb, from: `palette:${fb}`, gestures: SFX_PALETTES[fb][paletteRow] });
   });
 
-  it('a row with no family is unvoiced where it has no voice; a code-synthesized row names its channel', () => {
+  it('a row with no family is unvoiced where it has no voice; a code-synthesized row names its channel, and its voice', () => {
     expect(sfxSound(orphan, { style: paletteStyle })).toBeNull();
-    expect(sfxSound(channelRow)).toEqual({ id: channelRow, channel: SOUNDS[channelRow].channel });
+    expect(sfxSound(channelRow, { style: paletteStyle })).toEqual({ id: channelRow, channel: SOUNDS[channelRow].channel });
+    expect(sfxSound(channelRow)).toMatchObject({ id: channelRow, channel: SOUNDS[channelRow].channel, style: 'realistic' });
   });
 
   it('the default style is realistic; an unknown word is null; an unknown style throws', () => {
@@ -51,7 +52,7 @@ describe('sfxSound: a sound by its word, in a style', () => {
       const own = SOUNDS[id].voices?.[style] || (SOUNDS[id].voices?.[STYLES[style].fallback]);
       const s = sfxSound(id, { style });
       if (!s && (SOUNDS[id].family || own)) silent.push(`${id}@${style}`);
-      if (s) expect(Array.isArray(s.gestures) && s.gestures.length > 0).toBe(true);
+      if (s) expect((Array.isArray(s.gestures) && s.gestures.length > 0) || (s.sustain && s.sustain.layers.length > 0)).toBe(true);
     }
     expect(silent).toEqual([]);
   });

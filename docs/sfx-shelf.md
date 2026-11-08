@@ -115,6 +115,39 @@ That last measure, `heard`, is A-weighted. A long low thump carries most of a so
 heard, so the energy `spread` called every big, heavy sound thin. `spread` still holds a voice to its own floor;
 `heard` holds a sound to the register.
 
+## Held voices: sounds driven by a control
+
+A cue is a one-shot. A held voice (the kernel feature `sustain`, `engine.sustain(spec)`) is a sound that runs while
+something drives it with one control in 0..1, every range from the control at 0 to the control at 1. The held
+families are in `families/held.js`:
+
+| family | kinds | the control |
+|---|---|---|
+| `booster` | jet, rocket, ion | thrust |
+| `engine` | car, motorbike, jet, prop (idling at 0) | throttle |
+| `beam` | laser, plasma | power |
+| `servo` | hydraulic | a machine gathering itself |
+| `fire` | open (burning at 0) | its size |
+| `charge` | energy | its fill |
+
+`sfxSound` gives a held voice as `{ sustain }`, a spec, not gestures. **The game's code-synthesized sounds are ported
+into the shelf**:
+
+- **Thruster:** `booster` `jet` is Mobile Suit Arena's boost whine, transcribed from its audio channel range for range.
+- **Jump servo:** `servo` is the jump's servo with its piston chuffs, 4 to 13 a second as in the game.
+- **Jump release:** the one-shot family `launch` is the piston slam at three powers, plus the register's layers.
+
+A world's `audio.thruster.voice` or `audio.jump.charge.voice` plays the held voice in place of the channel's own
+synth. Without one, the page is the same as before, byte for byte. The ports are transcriptions of the code, and only
+the machine gates have run on them.
+
+**The held law** (`register.js` `meetsHeld`), measured along the lane (idle, half, full, let go):
+
+- louder at full than at a half by 2 dB or more, and at a half than idle;
+- no darker at full;
+- silent at idle and after it is let go when it idles silent, audible at idle when it idles running;
+- at full, as many bands as the register.
+
 ## The SFX mixer
 
 Cues used to play dry, mono and centred, straight to the master. The mixer (the kernel feature `sfxmix`, opt-in;
@@ -134,6 +167,6 @@ outside the bus.
 
 ## Not yet
 
-Nothing in a level reads the shelf yet. To come: sustained sounds driven by a control (engines, boosters, held beams,
-the thruster and the jump servo as cues), and wiring weapon roles, explosion presets, body sizes and surfaces to their
-sounds, with WAVs in the engine handoff.
+Nothing in a level reads the shelf by its words yet (a world gives the thruster a voice as a spec). To come: wiring
+weapon roles, explosion presets, body sizes, surfaces and vehicles to their sounds by word, a level's held voices on
+its `hold` slot (an engine on a vehicle's throttle), and WAVs in the engine handoff.

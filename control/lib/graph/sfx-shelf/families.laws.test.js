@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { FAMILIES, FAMILY_NAMES, familyCue } from './families.js';
-import { renderSound } from './measure.js';
-import { meetsRegister, REGISTER } from './register.js';
+import { renderSound, renderHeld } from './measure.js';
+import { meetsRegister, meetsHeld, REGISTER } from './register.js';
 
 // the families' laws, rendered as an export renders them: an ordered dial moves its measures the way it says, a
 // material is heard as itself, and each family's defaults are in the realistic register. Machine gates: nobody listened.
 const measure = async (name, dials) => { const { wav, ...m } = await renderSound({ kind: 'beats-sfx', title: name, cues: { c: familyCue(name, dials) } }, 'c'); return m; };
+const holding = async (name, dials) => { const { wav, ...m } = await renderHeld({ kind: 'beats-sfx', title: name, sustains: { h: familyCue(name, dials) } }, 'h'); return m; };
 
 describe('the families on the yardstick', () => {
   it('the register is the layered set\'s own weakest', () => {
@@ -16,6 +17,10 @@ describe('the families on the yardstick', () => {
 
   for (const name of FAMILY_NAMES) {
     const F = FAMILIES[name];
+    if (F.sustain) {
+      it(`${name}: held at its defaults, it follows its control`, async () => { expect(meetsHeld(await holding(name, {}), F)).toEqual([]); });
+      continue;
+    }
     it(`${name}: its defaults are in the register`, async () => {
       const swell = (F.swells || []).includes(Object.values(F.defaults)[0]);
       expect(meetsRegister(await measure(name, {}), { swell })).toEqual([]);

@@ -56,7 +56,7 @@ describe('the plan: a layer is tagged, a plain gesture is not', () => {
   it('the kernel\'s spaces are the ones validation knows; the mixer is a feature of its own', () => {
     expect(Object.keys(K.SFX_SPACES)).toEqual([...SFX_SPACE_NAMES]);
     expect(BEATS_KERNEL_FEATURES).toContain('sfxmix');
-    const without = BEATS_KERNEL_FEATURES.filter((f) => f !== 'sfxmix');
+    const without = BEATS_KERNEL_FEATURES.filter((f) => f !== 'sfxmix' && f !== 'sustain');   // sustain implies the mixer
     expect(emitBeatsKernel(without)).not.toContain('setSfx');
     expect(emitBeatsKernel(['sfxmix'])).toContain('setSfx');
   });

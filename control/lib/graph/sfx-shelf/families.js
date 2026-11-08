@@ -10,8 +10,10 @@
  *   defaults { <dial>: value }
  *   ordered  the dials whose values run in order, with the measures that must move with them (families.laws.test.js
  *            holds each: { dial, rises?: [measure], falls?: [measure] })
- *   swell    true when the sound swells rather than strikes (its crest is not held to the register's)
- *   build(d, seed)  the cue: a beats-sfx gesture list in the realistic register (layers.js)
+ *   swells   the dial values whose sound swells rather than strikes (its crest is not held to the register's)
+ *   sustain  true for a held voice (families/held.js): its build is a sustain spec driven by a control, not a cue;
+ *            `idle` says whether it is silent or running at 0
+ *   build(d, seed)  the cue: a beats-sfx gesture list in the realistic register (layers.js), or a held voice's spec
  *
  * A family's output for given dials is a compatibility promise, as a kernel's is: families.char.test.js pins every
  * roster row's cue. A new family is a file under `families/` and a line here; a new variation is a dial value.
@@ -25,9 +27,11 @@ import { projectile } from './families/projectile.js';
 import { breakage } from './families/breakage.js';
 import { elemental } from './families/elemental.js';
 import { shield } from './families/shield.js';
+import { launch } from './families/launch.js';
+import { booster, engine, beam, servo, fire, charge } from './families/held.js';
 import { freeze } from './layers.js';
 
-export const FAMILIES = Object.freeze({ explosion, impact, footstep, melee, handling, projectile, breakage, elemental, shield });
+export const FAMILIES = Object.freeze({ explosion, impact, footstep, melee, handling, projectile, breakage, elemental, shield, launch, booster, engine, beam, servo, fire, charge });
 export const FAMILY_NAMES = Object.freeze(Object.keys(FAMILIES));
 
 // FNV-1a over the family and its dials: a grain's seed, the same every read.
@@ -50,7 +54,7 @@ export function familyDials(name, dials = {}) {
   return d;
 }
 
-/** The cue a family makes at its dials: a frozen gesture list. */
+/** What a family makes at its dials, frozen: a gesture list (a cue), or a held voice's sustain spec. */
 export function familyCue(name, dials = {}) {
   const d = familyDials(name, dials);
   const key = `${name}|${Object.keys(FAMILIES[name].dials).map((k) => `${k}=${d[k]}`).join('|')}`;

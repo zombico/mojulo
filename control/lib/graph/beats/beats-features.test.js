@@ -126,6 +126,12 @@ const FIXTURES = {
     { type: 'grain', grains: 12, over: 0.2, band: { lo: 1500, hi: 9000 }, seed: 9, pan: 0.6 },
     { type: 'duck', depth: 8 },
   ] } }), ['voice', 'mix', 'sfx', 'ev', 'perc', 'sfxmix']],
+  // a held voice driven along its default lane: an osc with a pitch lane and a pitch lfo, a noise band with a swept
+  // cutoff and a chuffing gain lfo, a drive on one layer
+  sustain: [normalizeBeatsManifest({ kind: 'beats-sfx', title: 'h', sustains: { e: { attack: 0.3, release: 0.2, layers: [
+    { kind: 'osc', wave: 'sawtooth', pitch: [40, 160], gain: [0.2, 0.4], cutoff: [400, 2400], lfo: { to: 'pitch', rate: [5, 9], depth: 10 }, chain: [{ type: 'drive', amount: 0.4 }] },
+    { kind: 'noise', gain: [0, 0.3], band: { lo: 200 }, cutoff: [600, 3000], lfo: { to: 'gain', wave: 'sawtooth', rate: [4, 12], depth: -1 }, pan: 0.3 },
+  ] } } }), ['mix', 'sfx', 'sfxmix', 'sustain']],
 };
 
 describe('the frozen 2.1 kernel', () => {

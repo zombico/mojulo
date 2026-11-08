@@ -18,7 +18,8 @@
  *   voices    { <style>: <set> | 'families' }: what voices it, by style (STYLES): a set's cue, or its family's build
  *   make      { family, dials }: the family that builds it and the dial preset it is (families.js); a caller turns
  *             the dials further (sfxSound's `dials`)
- *   channel   the audio channel slot whose code synthesizes it (SLOTS), for a sound with no cue yet
+ *   channel   the audio channel slot whose own code synthesizes it (SLOTS) unless the level gives that slot this row's
+ *             voice (the thruster's `voice`, the jump charge's)
  *   slot      the audio channel slot it fills (SLOTS): where a level plays it
  *
  * Pure data and pure functions: no clock, no dice.
@@ -41,11 +42,12 @@ export const CATEGORIES = Object.freeze({
 
 /**
  * The audio channel's slots (scene/channels/audio.js and beats/sfx-palettes.js levelSfx): where a level plays a sound.
- * `on` is a bus event's cue (a level's `audio.on` row); the rest are the gait, weapon, melee and jump seams.
+ * `on` is a bus event's cue (a level's `audio.on` row); `hold` a held voice a level drives by a control (an engine's
+ * throttle, a beam's power); the rest are the gait, weapon, melee and jump seams.
  */
 export const SLOTS = Object.freeze([
   'footsteps.step', 'footsteps.jump', 'footsteps.land',
-  'jump.charge', 'jump.release', 'jump.land', 'thruster', 'dodge',
+  'jump.charge', 'jump.release', 'jump.land', 'thruster', 'dodge', 'hold',
   'weapon.shot', 'weapon.charge', 'weapon.chargedShot', 'weapon.hit', 'weapon.reload',
   'strike.swing', 'strike.hit',
   'on',
@@ -155,10 +157,23 @@ const ROWS = {
   'shield-down': made('body', null, 'on', 'an energy shield dropped', ['shield off', 'barrier down'], 'shield', { act: 'down' }),
   'shield-break': made('body', 'death', 'on', 'an energy shield failing', ['shield shatter', 'barrier break'], 'shield', { act: 'break' }),
 
-  // ── synthesized by the audio channel's own code (scene/channels/audio.js), no cue yet ──
-  'thruster-roar': { label: 'a thruster held: a jet whine that swells with the thrust', aliases: ['thruster', 'boost', 'booster'], category: 'machinery', family: null, channel: 'thruster', slot: 'thruster' },
-  'jump-servo': { label: 'a jump gathering: a hydraulic servo straining, pistons chuffing faster', aliases: ['servo', 'jump charge'], category: 'machinery', family: null, channel: 'jump.charge', slot: 'jump.charge' },
-  'jump-launch': { label: 'a jump released: a piston slam, heavier the longer it was held', aliases: ['piston slam', 'jump release'], category: 'machinery', family: null, channel: 'jump.release', slot: 'jump.release' },
+  // ── held voices (families/held.js): driven by a control in 0..1, a sustain spec rather than a cue ──
+  'rocket-booster': made('machinery', null, 'thruster', 'a rocket thruster held: a rough combustion roar', ['rocket thruster', 'rocket engine'], 'booster', { kind: 'rocket' }),
+  'ion-drive': made('machinery', null, 'thruster', 'an ion drive held: a sci-fi hum', ['ion engine', 'sci-fi engine'], 'booster', { kind: 'ion' }),
+  'car-engine': made('machinery', null, 'hold', 'a car\'s engine by its throttle', ['engine', 'car', 'car motor'], 'engine', { kind: 'car' }),
+  'motorbike-engine': made('machinery', null, 'hold', 'a motorbike\'s engine by its throttle', ['motorbike', 'motorcycle'], 'engine', { kind: 'motorbike' }),
+  'jet-engine': made('machinery', null, 'hold', 'a jet\'s turbine by its throttle', ['jet', 'turbine'], 'engine', { kind: 'jet' }),
+  'prop-engine': made('machinery', null, 'hold', 'a propeller plane\'s engine by its throttle', ['propeller', 'prop plane'], 'engine', { kind: 'prop' }),
+  'laser-beam': made('weapon', null, 'hold', 'a held laser beam by its power', ['held beam', 'laser'], 'beam', { kind: 'laser' }),
+  'plasma-beam': made('weapon', null, 'hold', 'a held plasma stream by its power', ['plasma stream', 'plasma thrower'], 'beam', { kind: 'plasma' }),
+  'charge-hum': made('weapon', null, 'hold', 'a charge filling', ['charging', 'charge loop'], 'charge', { kind: 'energy' }),
+  'fire-burning': made('elemental', null, 'hold', 'a fire burning on, by its size', ['campfire', 'burning', 'torch'], 'fire', { kind: 'open' }),
+
+  // ── Mobile Suit Arena's code-synthesized sounds (scene/channels/audio.js): the channel's own code plays them, unless
+  //    the level gives the slot the row's voice (a port of that code, range for range) ──
+  'thruster-roar': { ...made('machinery', null, 'thruster', 'a thruster held: a jet whine that swells with the thrust', ['thruster', 'boost', 'booster'], 'booster', { kind: 'jet' }), channel: 'thruster' },
+  'jump-servo': { ...made('machinery', null, 'jump.charge', 'a jump gathering: a hydraulic servo straining, pistons chuffing faster', ['servo', 'jump charge'], 'servo'), channel: 'jump.charge' },
+  'jump-launch': { ...made('machinery', null, 'jump.release', 'a jump released: a piston slam, heavier the longer it was held', ['piston slam', 'jump release'], 'launch'), channel: 'jump.release' },
 };
 
 const freezeRow = (r) => Object.freeze({ ...r, aliases: Object.freeze(r.aliases.slice()), ...(r.voices ? { voices: Object.freeze({ ...r.voices }) } : {}), ...(r.make ? { make: Object.freeze({ family: r.make.family, dials: Object.freeze({ ...r.make.dials }) }) } : {}) });

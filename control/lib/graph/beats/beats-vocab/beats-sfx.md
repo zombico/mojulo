@@ -230,6 +230,31 @@ A beats-sfx row's `mix: { space?, send?, voices? }` puts its cues in a space for
 `{ decay, predelay?, damp?, level? }`. The WAV takes `?far=` (0..1), the cue placed at a distance: duller and
 roomier. A cue that uses none of this plays exactly as before.
 
+## Held voices: a sound driven by a control
+
+A cue is a one-shot. An engine, a booster, a held beam, a charge filling and a fire burning on are **held voices**:
+a sound that runs while something drives it with one control `x` in 0..1 (throttle, thrust, power, fill). A
+beats-sfx row's `sustains: { <id>: voice }` holds them, and a row may hold only those.
+
+```json
+"engine": { "attack": 0.12, "release": 0.3, "layers": [
+  { "kind": "osc", "wave": "sawtooth", "pitch": [38, 160], "gain": [0.18, 0.55], "cutoff": [500, 2600], "q": 1.2,
+    "lfo": { "to": "gain", "rate": [14, 50], "depth": 0.25 } },
+  { "kind": "noise", "gain": [0.04, 0.35], "band": { "lo": 200 }, "cutoff": [600, 3000], "pan": 0.15 }
+] }
+```
+
+- **Ranges.** Every range is `[at x = 0, at x = 1]`. `pitch` (an osc), `cutoff` (a swept lowpass) and an lfo's
+  `rate` run geometrically; `gain` linearly.
+- **Idle.** A gain that starts at 0 makes the voice silent at idle. One above 0 idles running, as an engine does.
+- **Layer settings.** `band: { lo?, hi? }` is fixed filtering. `chain` takes the layer effects.
+- **LFOs.** `lfo: { to, wave?, rate, depth }` moves the gain (amplitude modulation, depth −1..1), the cutoff (Hz) or
+  the pitch (cents). A sawtooth on the gain with a negative depth is a train of chuffs: a sharp start, then a fall.
+- **Following the control.** `attack` and `release` are how fast it follows the control up and down.
+- **Rendering.** The WAV renders a held voice along a control lane (idle, half, full, let go, by default).
+- **In a world.** A world's `audio.thruster.voice` and `audio.jump.charge.voice` take one, in place of the
+  channel's own synth.
+
 ## Wiring into worlds
 
 A world binds cues to its live runtime via `manifest.audio.sfx`: bus reactions

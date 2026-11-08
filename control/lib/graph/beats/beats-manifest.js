@@ -462,6 +462,45 @@ export function checkSfxMix(m, where, errors, { world = false } = {}) {
   if (world && m.distance !== undefined && typeof m.distance !== 'boolean') errors.push(`${where}.distance must be true or false (a far cue duller and roomier, not only quieter)`);
 }
 
+/**
+ * A held voice (the kernel's sustain): { layers: [{ kind: 'noise' | 'osc', wave?, gain: [g0, g1], pitch?, cutoff?, q?,
+ * band?, lfo?, pan?, chain? }], attack?, release?, level?, send? }. Every range is [at x = 0, at x = 1].
+ */
+export const SUSTAIN_LFO_TARGETS = Object.freeze(['gain', 'cutoff', 'pitch']);
+export function checkSustain(sp, where, errors) {
+  if (!isObj(sp) || !Array.isArray(sp.layers) || !sp.layers.length) { errors.push(`${where} must be { layers: [layer, …], attack?, release?, level?, send? } (a held voice driven by one control in 0..1)`); return; }
+  const range = (r, w, lo, hi, why) => { if (r !== undefined && !(Array.isArray(r) && r.length === 2 && r.every((v) => inRange(v, lo, hi)))) errors.push(`${w} must be [at 0, at 1], each in [${lo}, ${hi}] (${why})`); };
+  for (const k of ['attack', 'release']) if (sp[k] !== undefined && !inRange(sp[k], 0.005, 5)) errors.push(`${where}.${k} must be seconds in [0.005, 5] (how fast it follows the control ${k === 'attack' ? 'up' : 'down'})`);
+  if (sp.level !== undefined && !inRange(sp.level, 0, 2)) errors.push(`${where}.level must be in [0, 2]`);
+  if (sp.send !== undefined && !inRange(sp.send, 0, 1)) errors.push(`${where}.send must be in [0, 1] (its share to the mix's space)`);
+  sp.layers.forEach((L, i) => {
+    const w = `${where}.layers[${i}]`;
+    if (!isObj(L) || !['noise', 'osc'].includes(L.kind)) { errors.push(`${w}.kind must be 'noise' or 'osc'`); return; }
+    if (L.wave !== undefined && !WAVES.has(L.wave)) errors.push(`${w}.wave must be one of: ${[...WAVES].join(', ')}`);
+    range(L.gain, `${w}.gain`, 0, 2, 'its level at each end of the control');
+    range(L.pitch, `${w}.pitch`, 1, 20000, 'Hz');
+    range(L.cutoff, `${w}.cutoff`, 20, 20000, 'Hz of its lowpass');
+    if (L.pitch !== undefined && L.kind !== 'osc') errors.push(`${w}.pitch is for an osc layer`);
+    if (L.q !== undefined && !inRange(L.q, 0.1, 30)) errors.push(`${w}.q must be in [0.1, 30]`);
+    if (L.band !== undefined && !(isObj(L.band) && ['lo', 'hi'].every((k) => L.band[k] === undefined || inRange(L.band[k], 20, 20000)))) errors.push(`${w}.band must be { lo?: Hz, hi?: Hz }`);
+    if (L.pan !== undefined && !inRange(L.pan, -1, 1)) errors.push(`${w}.pan must be in [-1, 1]`);
+    if (L.lfo !== undefined) {
+      if (!isObj(L.lfo) || !SUSTAIN_LFO_TARGETS.includes(L.lfo.to)) errors.push(`${w}.lfo must be { to: ${SUSTAIN_LFO_TARGETS.join(' | ')}, wave?, rate: [hz0, hz1], depth }`);
+      else {
+        range(L.lfo.rate, `${w}.lfo.rate`, 0.01, 200, 'Hz');
+        if (L.lfo.wave !== undefined && !WAVES.has(L.lfo.wave)) errors.push(`${w}.lfo.wave must be one of: ${[...WAVES].join(', ')}`);
+        if (L.lfo.depth !== undefined && !Number.isFinite(L.lfo.depth)) errors.push(`${w}.lfo.depth must be a number (gain: −1..1; cutoff: Hz; pitch: cents)`);
+        if (L.lfo.to === 'cutoff' && !L.cutoff) errors.push(`${w}.lfo.to 'cutoff' needs the layer's cutoff`);
+        if (L.lfo.to === 'pitch' && L.kind !== 'osc') errors.push(`${w}.lfo.to 'pitch' is for an osc layer`);
+      }
+    }
+    if (L.chain !== undefined) {
+      if (!Array.isArray(L.chain) || L.chain.some((f) => !f || !SFX_CHAIN_TYPES.includes(f.type))) errors.push(`${w}.chain is the layer's own effects, each one of: ${SFX_CHAIN_TYPES.join(', ')}`);
+      else checkChain(L.chain, w, errors);
+    }
+  });
+}
+
 function checkGestures(list, where, errors) {
   if (!Array.isArray(list) || !list.length) { errors.push(`${where} must be a non-empty gesture array`); return; }
   list.forEach((g, i) => {
@@ -862,7 +901,11 @@ export function validateBeatsManifest(manifest) {
 
   if (kind === 'beats-sfx') {
     const cues = manifest.cues;
-    if (!cues || typeof cues !== 'object' || !Object.keys(cues).length) {
+    if (manifest.sustains !== undefined) {
+      if (!isObj(manifest.sustains) || !Object.keys(manifest.sustains).length) errors.push('sustains must be { <id>: { layers, … } } (held voices driven by a control)');
+      else for (const [id, sp] of Object.entries(manifest.sustains)) checkSustain(sp, `sustains.${id}`, errors);
+    }
+    if (manifest.sustains !== undefined && cues === undefined) { /* a row of held voices only */ } else if (!cues || typeof cues !== 'object' || !Object.keys(cues).length) {
       errors.push('cues is required: { <cueId>: [gesture, ...] } with gesture.type ∈ sweep|flutter|burst|thump|grain|ring|tone');
     } else {
       for (const [id, list] of Object.entries(cues)) {

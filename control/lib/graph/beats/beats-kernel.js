@@ -80,6 +80,8 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 //   sfxmix  the SFX mixer: a gesture's own chain / pan / send, the duck
 //           gesture, the engine's SFX bus and space (setSfx), the music bus a
 //           duck dips, a voice cap and the distance a cue is placed at.
+//   sustain a held voice driven by one control in 0..1 (engine.sustain):
+//           engines, boosters, beams, charges, a fire burning on.
 // Regions nest: a region inside another region's new lines is resolved
 // first (innermost out), so a hook for a newer feature can sit inside an
 // older feature's lines. A nested feature implies its host (IMPLIES).
@@ -89,8 +91,8 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 // same transform a 2.1 page's did. A slice is syntax-checked once; if a
 // transform disturbed the markers (a minifier drops comments), the page gets
 // this whole function, whose markers are inert.
-export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix'];
-export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'] };
+export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain'];
+export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'], sustain: ['sfxmix', 'sfx', 'mix'] };
 // an innermost region: no region marker inside either half.
 const REGION = /\/\*@(\w+)\{\*\/\n((?:(?!\/\*@)[\s\S])*?)\/\*\|\n((?:(?!\/\*@)[\s\S])*?)@\*\/\n/g;
 export function sliceKernelText(text, keep) {
@@ -2934,11 +2936,14 @@ export function buildBeatsKernel() {
     function duck(t, depth, hold, release) {
       for (const e of duckLinks) e.duck(t, depth, hold, release);
       if (!musicBus) return;
-      const p = musicBus.gain, v = duckAt(dk, t), live = dk && t < dk.t3;
+      const p = musicBus.gain, v = duckAt(dk, t), live = dk && t < dk.t3, prev = dk;
       const g = Math.min(dbGain(-Math.abs(depth)), live && t < dk.t2 ? dk.g : 1);
       const t2 = Math.max(t + 0.012 + hold, live ? dk.t2 : 0);
       dk = { t0: t, t1: t + 0.012, t2, t3: t2 + Math.max(0.005, release), g };
-      p.cancelScheduledValues(t); p.setValueAtTime(v, t);
+      // inside a ramp (going down, or coming back), cancelling drops it whole: lay it again up to t
+      const ramping = prev && ((t > prev.t0 && t < prev.t1) || (t > prev.t2 && t < prev.t3));
+      p.cancelScheduledValues(t);
+      if (ramping) p.linearRampToValueAtTime(v, t); else p.setValueAtTime(v, t);
       p.linearRampToValueAtTime(g, dk.t1); p.setValueAtTime(g, dk.t2); p.linearRampToValueAtTime(1, dk.t3);
     }
     // one cue through the mixer. Each layered gesture's ops (cuePlan's `layer`)
@@ -2993,6 +2998,79 @@ export function buildBeatsKernel() {
         playOps(gops, t, input, v);
       }
       if (sfx && sfx.voices) sounding.push({ end, v, faders: wet ? [[fader, 1], [wet, wetGain]] : [[fader, 1]] });
+    }
+/*|
+@*/
+/*@sustain{*/
+    // ── sustained voices (the SFX shelf): one held sound driven by a control x
+    // in 0..1 — a booster's thrust, an engine's throttle, a beam's power, a
+    // charge's fill. spec: { layers, attack?, release?, level?, send? }; a layer:
+    // { kind: 'noise' | 'osc', wave?, gain: [g0, g1], pitch?: [hz0, hz1] (osc),
+    // cutoff?: [hz0, hz1] (a swept lowpass), q?, band?: { lo?, hi? } (fixed),
+    // lfo?: { to: 'gain' | 'cutoff' | 'pitch', wave?, rate: [hz0, hz1], depth },
+    // pan?, chain? }. Every range runs x = 0 → 1 (pitches, cutoffs and rates
+    // geometrically). An lfo on gain is amplitude modulation: a sawtooth with a
+    // negative depth is a train of chuffs. set(x, t?) glides there (`attack`
+    // rising, `release` falling) on ramps the voice plans itself; stop(t?) fades
+    // it out and frees it. It plays on the SFX bus when there is one.
+    function sustain(spec, dest) {
+      const S = spec || {}, t0 = ctx.currentTime, out = ctx.createGain();
+      out.gain.setValueAtTime(S.level == null ? 1 : S.level, t0);
+      out.connect(dest && dest !== master ? dest : sfx ? sfx.bus : master);
+      const snd = S.send == null ? (sfx ? sfx.send : 0) : S.send;
+      if (sfx && sfx.space && snd > 0) { const sg = ctx.createGain(); sg.gain.value = snd; out.connect(sg); sg.connect(sfx.space); }
+      const lanes = [], srcs = [];
+      const valOf = (p, v) => (p.geo ? p.r[0] * Math.pow(p.r[1] / p.r[0], v) : p.r[0] + (p.r[1] - p.r[0]) * v);
+      const valAt = (p, t) => (t >= p.b ? p.to : t <= p.a ? p.from : p.from + (p.to - p.from) * (t - p.a) / (p.b - p.a));
+      const lane = (param, r, geo) => { const p = { param, r, geo, a: t0, b: t0 }; p.from = p.to = valOf(p, 0); param.setValueAtTime(p.from, t0); lanes.push(p); };
+      (S.layers || []).forEach(function (L, i) {
+        let src;
+        if (L.kind === 'osc') { src = ctx.createOscillator(); src.type = L.wave || 'sine'; lane(src.frequency, L.pitch || [220, 220], true); src.start(t0); }
+        else src = noiseSrc(t0, unit(hashSeed(0x5A57, i)));
+        srcs.push(src);
+        let head = src;
+        const band = L.band || {};
+        if (band.lo) { const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = band.lo; hp.Q.value = 0.5; head.connect(hp); head = hp; }
+        if (band.hi) { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = band.hi; lp.Q.value = 0.5; head.connect(lp); head = lp; }
+        let cut = null;
+        if (L.cutoff) { cut = ctx.createBiquadFilter(); cut.type = 'lowpass'; cut.Q.value = L.q == null ? 0.7 : L.q; lane(cut.frequency, L.cutoff, true); head.connect(cut); head = cut; }
+        const g = ctx.createGain(); lane(g.gain, L.gain || [0, 1], false); head.connect(g);
+        let tail = g;
+        if (L.lfo) {
+          const o = ctx.createOscillator(); o.type = L.lfo.wave || 'sine'; lane(o.frequency, L.lfo.rate || [4, 4], true); o.start(t0); srcs.push(o);
+          const depth = L.lfo.depth == null ? 0.5 : L.lfo.depth, d = ctx.createGain();
+          if (L.lfo.to === 'cutoff' && cut) { d.gain.value = depth; o.connect(d); d.connect(cut.frequency); }
+          else if (L.lfo.to === 'pitch' && L.kind === 'osc') { d.gain.value = depth; o.connect(d); d.connect(src.detune); }
+          else { const am = ctx.createGain(); am.gain.value = 1 - Math.abs(depth) / 2; d.gain.value = depth / 2; o.connect(d); d.connect(am.gain); g.connect(am); tail = am; }
+        }
+        if (L.chain) { const built = buildChain(L.chain, hashSeed(0x5A58, i)); tail.connect(built.input); tail = built.output; }
+        tail.connect(L.pan != null ? panned(out, L.pan) : out);
+      });
+      let live = true, x = 0;
+      return {
+        set(v, t) {
+          if (!live) return;
+          const tt = t == null ? ctx.currentTime : t, to = Math.max(0, Math.min(1, v || 0));
+          const glide = to >= x ? (S.attack == null ? 0.08 : S.attack) : (S.release == null ? 0.2 : S.release);
+          x = to;
+          for (const p of lanes) {
+            const now = valAt(p, tt), dst = valOf(p, to);
+            // inside a glide, cancelling drops that ramp whole (offline, the part already played too): lay the
+            // partial ramp again up to now, then glide on from there
+            p.param.cancelScheduledValues(tt);
+            if (tt > p.a && tt < p.b) p.param.linearRampToValueAtTime(now, tt); else p.param.setValueAtTime(now, tt);
+            p.param.linearRampToValueAtTime(dst, tt + glide);
+            p.from = now; p.a = tt; p.to = dst; p.b = tt + glide;
+          }
+        },
+        stop(t) {
+          if (!live) return;
+          live = false;
+          const tt = t == null ? ctx.currentTime : t, r = S.release == null ? 0.2 : S.release;
+          out.gain.setValueAtTime(S.level == null ? 1 : S.level, tt); out.gain.linearRampToValueAtTime(0, tt + r);
+          for (const n of srcs) n.stop(tt + r + 0.05);
+        },
+      };
     }
 /*|
 @*/
@@ -3484,6 +3562,10 @@ export function buildBeatsKernel() {
 @*/
 /*|
       playCue(gestures, when, dest, velScale) { playOps(cuePlan(gestures), when == null ? ctx.currentTime : when, dest, velScale); },
+@*/
+/*@sustain{*/
+      sustain,
+/*|
 @*/
       startAmbient(recipe, patches) { startTransport(recipe, patches, 'ambient'); },
       startComposition(recipe, patches) { startTransport(recipe, patches, 'composition'); },

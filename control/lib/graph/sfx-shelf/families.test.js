@@ -29,19 +29,22 @@ describe('the families', () => {
     for (const name of FAMILY_NAMES) {
       const F = FAMILIES[name], dial = Object.keys(F.dials)[0], [a, b] = F.dials[dial];
       expect(familyCue(name, { [dial]: a })).toEqual(familyCue(name, { [dial]: a }));
-      expect(Object.isFrozen(familyCue(name)[0])).toBe(true);
-      expect(familyCue(name, { [dial]: a }), `${name}.${dial}`).not.toEqual(familyCue(name, { [dial]: b }));
+      expect(Object.isFrozen(F.sustain ? familyCue(name).layers[0] : familyCue(name)[0])).toBe(true);
+      if (b !== undefined) expect(familyCue(name, { [dial]: a }), `${name}.${dial}`).not.toEqual(familyCue(name, { [dial]: b }));
     }
     const seeds = (c) => c.filter((g) => g.type === 'grain').map((g) => g.seed);
     expect(seeds(familyCue('impact', { material: 'metal' }))).not.toEqual(seeds(familyCue('impact', { material: 'stone' })));
   });
 
-  it('every family\'s defaults are a beats-sfx cue the beats tools take as it is', () => {
-    for (const name of FAMILY_NAMES) expect(validateBeatsManifest({ kind: 'beats-sfx', title: name, cues: { c: familyCue(name) } }), name).toEqual({ ok: true, errors: [] });
+  it('every family\'s defaults are a beats-sfx cue, or a held voice, the beats tools take as it is', () => {
+    for (const name of FAMILY_NAMES) {
+      const m = FAMILIES[name].sustain ? { sustains: { h: familyCue(name) } } : { cues: { c: familyCue(name) } };
+      expect(validateBeatsManifest({ kind: 'beats-sfx', title: name, ...m }), name).toEqual({ ok: true, errors: [] });
+    }
   });
 
   it('a row a family builds resolves to that build; a caller\'s dials turn it further', () => {
-    const id = SOUND_IDS.find((i) => SOUNDS[i].make && Object.keys(SOUNDS[i].make.dials).length);
+    const id = SOUND_IDS.find((i) => SOUNDS[i].make && !FAMILIES[SOUNDS[i].make.family].sustain && Object.keys(SOUNDS[i].make.dials).length);
     const { family, dials } = SOUNDS[id].make, other = Object.keys(FAMILIES[family].dials).find((k) => !(k in dials));
     expect(sfxSound(id)).toEqual({ id, style: 'realistic', from: `family:${family}`, gestures: familyCue(family, dials) });
     if (other) {

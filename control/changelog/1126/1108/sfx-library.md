@@ -51,4 +51,21 @@
   point is in the realistic register (`register.js`). The register's floor is the layered set's own weakest, with
   bands counted as the ear weighs them: the yardstick's new `heard`, A-weighted, since a long low thump carries most
   of a sound's energy and little of what is heard. The shelf has no empty category now.
-- Nothing in a level reads the shelf yet: sustained sounds and the wiring come next.
+- **Held voices** (the kernel feature `sustain`, opt-in): a sound driven by one control in 0..1. A spec of noise and
+  oscillator layers, every range from the control at 0 to the control at 1 (pitch, cutoff, gain, and an LFO's rate
+  on the gain, the cutoff or the pitch: a sawtooth on the gain is a train of chuffs). `engine.sustain(spec)` returns
+  `set(x)` and `stop()`, gliding on ramps it plans itself.
+  - A beats-sfx row's `sustains` holds them, and its WAV renders them along a control lane.
+  - A world's `audio.thruster.voice` and `audio.jump.charge.voice` play one in place of the channel's own synth.
+  - The shelf's held families: `booster` (jet, rocket, ion), `engine` (car, motorbike, jet, prop, idling at 0),
+    `beam` (laser, plasma), `servo`, `fire`, `charge`.
+  - Mobile Suit Arena's thruster whine and jump servo are ported into them range for range, and its piston slam
+    into the one-shot family `launch`.
+  - Thirteen new rows (`engine`, `motorbike`, `laser`, `campfire` …); the thruster, servo and launch rows now carry
+    their voices.
+  - Each held voice follows its control (`meetsHeld`): louder and no darker at full, silent or running at idle as it
+    should, gone after it is let go. The families' pin is now one hash a row.
+  - A page without a held voice is the same as before, byte for byte.
+- **Fixed: ramps re-set mid-glide.** A held voice or a duck re-set while a ramp was running lost that ramp: offline,
+  the part already played went too. The partial ramp is laid again up to that moment.
+- Nothing in a level reads the shelf by its words yet: the wiring comes next.
