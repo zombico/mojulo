@@ -199,6 +199,10 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-each{display:flex;flex-direction:column;gap:${u(4)};min-width:0}`, `${s} .mana-each[data-dir=row]{flex-direction:row;flex-wrap:wrap;gap:${u(18)}}`,
     `${s} .mana-each[data-dir=row]>.mana-window{flex:1;min-width:${u(270)}}`,
     `${s} .mana-stack[data-fill=yes]{width:${u(1650)};max-width:100%}`, `${s} .mana-stack[data-fill=yes]>.mana-stack{flex:1;min-width:0}`,
+    // (a filling row whose children say which of them fill: only those share the width, the rest keep their own (a
+    // fight's clock between its two bars); the row's region takes its place's width, and its bars give way to it)
+    `${s} .mana-stack[data-fill=yes]:has(>.mana-stack[data-fill=yes])>.mana-stack:not([data-fill=yes]){flex:none}`,
+    `${s} .mana-place>.mana-region:has(>.mana-stack[data-fill=yes]){align-self:stretch}`, `${s} .mana-stack[data-fill=yes]>.mana-stack[data-fill=yes]>.mana-bar{min-width:0}`,
     `${s} .mana-divider{display:flex;align-items:center;gap:${u(12)};border-top:1px solid ${v('soft')};padding-top:${u(6)};margin-top:${u(6)}}`,
     `${s} .mana-tabstrip{display:flex;gap:${u(3)};margin-bottom:${u(15)};border-bottom:1px solid ${v('line')}}`,
     `${s} .mana-tablabel{padding:${u(6)} ${u(18)};cursor:pointer;font-size:${t('heading')};font-weight:700;letter-spacing:.08em;text-transform:${v('case')};color:${v('mid')};border:1px solid transparent;border-bottom:0;margin-bottom:-1px;border-radius:${v('radius')} ${v('radius')} 0 0}`,
@@ -283,6 +287,11 @@ export function manaCss(scope = '.mana-root') {
     ...Object.entries(FILL).map(([k, x]) => `${s} .mana-bar[data-variant=${k}] .mana-track i{background:${x}}`),
     `${s} .mana-bar[data-variant=boss]{min-width:${u(690)}}`,
     `${s} .mana-bar[data-variant=boss] .mana-track{height:${u(24)}}`,
+    // (a bar that is a frame: a fighter's health along the top, its meaning still its variant's)
+    `${s} .mana-bar[data-size=large] .mana-track{height:${u(30)}}`,
+    `${s} .mana-bar[data-size=thin] .mana-track{height:${u(6)}}`,
+    // a bar with no figures: its track takes the room the value took (mirrored, the track first)
+    `${s} .mana-bar[data-figures=no]{grid-template-columns:auto 1fr}`, `${s} .mana-bar[data-figures=no][data-dir=rtl]{grid-template-columns:1fr auto}`,
     // two fighters' bars, sharing a row across the top: the thickest on the screen (a fight is read off them)
     `${s} .mana-stack[data-fill=yes] .mana-bar[data-variant=hp] .mana-track{height:${u(30)}}`,
     // A LOAD: its line (the activity mark, the step, the percent), its track, a line kept for what it may say (still
@@ -333,6 +342,9 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-place>*,${s} .mana-screen>.mana-region>:not(.mana-window){background:${v('plate')};border:${v('frame-w')} ${v('frame-s')} ${v('line')};border-radius:${v('radius')};padding:${u(8)} ${u(10)};opacity:.94}`,
     // the parts that are their own frame sit bare, with the halo: the aim, a moment's banner, a phone's controls
     `${s} .mana-place>.mana-region:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad,.mana-moments)){background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0;text-shadow:${v('halo')}}`,
+    // a bare region: no plate, its parts their own frame (a fight's bars, its combo over the round), the words haloed
+    `${s} .mana-place>.mana-region[data-variant=bare]{background:transparent;border:0;opacity:1;clip-path:none;box-shadow:none;outline:0;text-shadow:${v('halo')}}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-track{background:${v('panel')};box-shadow:0 0 0 ${u(3)} ${v('panel')}}`,
     // the subtitles: their own plate, its opacity the player's (XAG 104), at a size read from a sofa
     `${s} .mana-place>.mana-region[data-variant=subtitles]{background:color-mix(in srgb,${v('panel')} calc(${v('sub-plate')} * 100%),transparent);border:0;opacity:1;text-align:center;font-size:${ts(36)}}`,
     `${s} .mana-anchors{position:absolute;inset:0}`,

@@ -78,5 +78,18 @@ keeps its place.
   licking rim (flaming fists), lightning a fast white-blue flicker, frost a slow cold breath, void a darkening with a red
   rim; flaring as the limb strikes, and a blow struck with it coats the one struck in the element. Drawn only: the sim
   never reads it, and the same fight is the same fight. `styles.mjs --elements --systems spark` bakes them.
+- **The fight's language in mana-ui** (`idioms-fight.js`, shelf `fight`; `docs/mana-ui.md`, "The fight's language"):
+  a fighting game's own UI, quiet and side against side, grown from the shared templates and held to eight principles
+  (two sides and one centre, health the frame, the fight never covered, a callout a word, the round's ritual, meters in
+  stocks, the hit-stop holding it, quiet). In the fight: `fight-health` (the bars meeting at the clock, read by length,
+  a guard line under each), `fight-meters`, `fight-combo`, `fight-callouts`, `fight-announcer`, and training's
+  `input-display`, `frame-meter`, `training-stats`; around it: `versus-splash`, `fighter-select` (each seat's fighter
+  at its own edge, the roster between them), `fight-pause`, `command-list`, `training-settings`, `fight-results`. Its
+  words are the runtime's (`WORDS`: the round's ritual, the callouts, the meters, the frame data), so a fight ships in
+  every language its game does. A bar takes `size: large | thin` and `figures: false`; a region takes `variant: bare`
+  (no plate, its parts their own frame); a filling row whose children say `fill` shares its width among them alone.
+  Its looks are new theme cards of the family `fight`: `fight-clean` (the default), `fight-cel` (anime) and
+  `fight-lit` (western), none leaning, stacking or slamming. The board draws a fight HUD, a training HUD and every
+  fight screen. A table's column labelled by a word now reads as the word (it printed the object).
 - **CI**: `design-game.vary.test.js` pins its order's roll (it drew one at random each run, and about one roll in
   four hundred lifts most of a late tier's ornaments past their 0–3 scale, the gate leaving two variants of three).

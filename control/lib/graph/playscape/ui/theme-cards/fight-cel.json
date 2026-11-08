@@ -1,0 +1,13 @@
+{
+  "id": "fight-cel",
+  "name": "Fight Cel",
+  "about": "The anime fighter's: the clean look inked, flat bright colour and a hard outline on every word, changes stepped on twos like the bodies; still quiet, still two sides and a clock. The anime register's look.",
+  "family": "fight",
+  "tags": ["fighting game", "versus", "anime", "cel"],
+  "author": "mojulo",
+  "from": "fight-clean",
+  "tokens": { "ink": "#ffffff", "panel": "#0b0b12", "line": "#ffffff", "accent": "#ffe14a", "accent2": "#5affe0", "harm": "#ff3b5c", "hp": "#ffe14a", "xp": "#38c8ff", "shield": "#a8dcff", "boss": "#ff3b5c" },
+  "motion": "stepped",
+  "transition": "wipe",
+  "sides": ["#ff4d5e", "#3d8bff"]
+}

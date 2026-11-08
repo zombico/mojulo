@@ -29,6 +29,8 @@ export const BOARD_PHONE = Object.freeze({ hud: ['vitals', 'minimap-corner', 'ph
 export const BOARD_HUDS = Object.freeze({
   'action HUD': ['vitals', 'objective-tracker', 'minimap-corner', 'ammo-counter', 'interact-prompt', 'event-feed', 'crosshair', 'enemy-plates', 'damage-numbers'],
   'boss fight HUD': ['boss-bar', 'party-strip', 'target-frame', 'score-timer', 'moment-banner', 'enemy-plates'],
+  'fight HUD': ['fight-health', 'fight-meters', 'fight-combo', 'fight-callouts', 'fight-announcer'],
+  'training HUD': ['fight-health', 'input-display', 'frame-meter', 'training-stats'],
   'explore HUD': ['vitals', 'compass-strip', 'minimap-corner', 'objective-tracker', 'interact-prompt'],
   'fighting HUD': ['versus-bars', 'super-meters', 'combo-counter'],
   'racing HUD': ['race-standing', 'speedometer', 'minimap-corner', 'offscreen-markers'],
@@ -43,7 +45,7 @@ export const BOARD_HUDS = Object.freeze({
 });
 
 // a screen idiom's board section, by its shelf (the HUD frames come first, as 'In game')
-const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play' };
+const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play', fight: 'Fight' };
 // a preview's stand-in for the controls layer: the menu scheme's default keys, used only when no host is given
 export const PREVIEW_KEYS = Object.freeze({ ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Enter: 'accept', Space: 'accept', Escape: 'back', Backspace: 'back', BracketRight: 'tabNext', BracketLeft: 'tabPrev' });
 // the page's ear: a sound effect played from the theme's set through the beats kernel, its engine made on the first sound
