@@ -19,6 +19,9 @@ describe('mana-ui: every idiom', () => {
         expect(rt.view(), `${id} draws something on its example`).not.toContain('<div class="mana-hud"></div>');
       } else {
         const S = JSON.parse(JSON.stringify(SAMPLE_STATE)), at = (p) => manaUi.readPath(S, p);
+        // a screen with nothing behind it to go back to (a load) leaves only by the way out the game gives it (`cancel`):
+        // the sweep gives it one
+        if (I.params.includes('cancel')) use.props = { ...I.example, cancel: { back: true } };
         const rt = manaUi.runtime(withIdioms({ start: 's', screens: { s: use } }), { read: at, act: () => {} });
         if (I.waits) {
           // nothing to press while it waits; something once the game says it is ready
