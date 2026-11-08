@@ -15,7 +15,14 @@
  *     rods:       [{ a, b, anchor, L, rope }],             b = -1 for a fixed anchor point
  *     collisions: [{ e, idx }],                            smooth spheres, impulses along the line of centres
  *     log?:       true,                                    record each bounce and collision impulse in `impacts`
- *     spin?:      [{ i, I, w: [3] }] }                     the bodies that SPIN: moment of inertia, angular velocity
+ *     spin?:      [{ i, I, w: [3] }],                      the bodies that SPIN: moment of inertia, angular velocity
+ *     gel?:       { idx, cap: [N/Pa], curve: { t, eta, tau } } }   bodies in a liquid that SETS (the gelling law)
+ *
+ * GEL (opt-in, behind `S.gel`): a body in a setting liquid feels Stokes drag 6πηr·v and its yield stress τy as a dry
+ * friction of capacity cap·τy (a sphere is held while the net force on it is under it, Beris et al. 1985). The drag of a
+ * near-set liquid is far too stiff for an explicit step, so these bodies are stepped exactly instead: over each step the
+ * other forces (and the yield, along the motion) are held at their start, and dv/dt = a − γ·v (γ = 6πηr/m) is solved in
+ * closed form. A body that would turn round within a step under a yield that can hold it is held.
  *
  * SPIN (opt-in: with no `spin` every path below is the one it was, byte for byte). A spinning body carries ω; a plane's
  * friction acts at its contact point, so it rolls: static friction holds the contact point still while it can (for a
@@ -51,6 +58,7 @@ export function buildClassical() {
       for (const b of desc.spin) { S.I[b.i] = b.I; S.iI[b.i] = 1 / b.I; for (let k = 0; k < 3; k++) S.w[3 * b.i + k] = b.w[k]; }
       S.hit = new Uint8Array(n);
     }
+    if (desc.gel && desc.gel.idx.length) S.gel = desc.gel;
     desc.bodies.forEach((b, i) => {
       S.m[i] = b.m || 0; S.im[i] = b.fixed || !(b.m > 0) ? 0 : 1 / b.m; S.r[i] = b.r || 0; S.q[i] = b.q || 0;
       for (let k = 0; k < 3; k++) { S.x[3 * i + k] = b.x[k]; S.v[3 * i + k] = b.fixed ? 0 : b.v[k]; }
@@ -319,6 +327,49 @@ export function buildClassical() {
     return vc.map((c, k) => c - vn * n[k]);
   }
 
+  // the setting liquid's viscosity and yield at a time: its viscosity moves by its logarithm between points, its yield linearly
+  function gelAt(c, t) {
+    const n = c.t.length;
+    if (n === 1 || t <= c.t[0]) return [c.eta[0], c.tau[0]];
+    if (t >= c.t[n - 1]) return [c.eta[n - 1], c.tau[n - 1]];
+    let k = 0;
+    while (c.t[k + 1] < t) k++;
+    const u = (t - c.t[k]) / (c.t[k + 1] - c.t[k]);
+    return [Math.exp(Math.log(c.eta[k]) + u * (Math.log(c.eta[k + 1]) - Math.log(c.eta[k]))), c.tau[k] + u * (c.tau[k + 1] - c.tau[k])];
+  }
+
+  // the bodies in a setting liquid, stepped exactly from where the step began (x0, v0): see GEL above
+  function gelStep(S, dt, x0, v0, t) {
+    const G = S.gel, [eta, tau] = gelAt(G.curve, t);
+    const A = accel(S, x0, v0, new Float64Array(3 * S.n));
+    G.idx.forEach((i, u) => {
+      const o = 3 * i, m = S.m[i], C = G.cap[u] * tau, gam = (6 * Math.PI * eta * S.r[i]) / m;
+      const F = [A[o] * m, A[o + 1] * m, A[o + 2] * m], fm = Math.hypot(F[0], F[1], F[2]);
+      const v = [v0[o], v0[o + 1], v0[o + 2]], sp = Math.hypot(v[0], v[1], v[2]);
+      G.state[u] = [0, C, fm];
+      if (sp <= 1e-12 && fm <= C) { for (let k = 0; k < 3; k++) { S.x[o + k] = x0[o + k]; S.v[o + k] = 0; } G.state[u][0] = 1; return; }
+      // the yield resists along the motion (or, from rest, against the pull that starts it)
+      const dir = sp > 1e-12 ? v.map((c) => c / sp) : F.map((c) => c / fm);
+      const a = F.map((c, k) => (c - C * dir[k]) / m);
+      const E = Math.exp(-gam * dt);
+      for (let k = 0; k < 3; k++) {
+        if (gam > 0) {
+          const vt = a[k] / gam;
+          S.v[o + k] = vt + (v[k] - vt) * E;
+          S.x[o + k] = x0[o + k] + vt * dt + (v[k] - vt) * (1 - E) / gam;
+        } else {
+          S.v[o + k] = v[k] + a[k] * dt;
+          S.x[o + k] = x0[o + k] + v[k] * dt + 0.5 * a[k] * dt * dt;
+        }
+      }
+      // turned round within the step by a yield that can hold it: it stops there
+      if (sp > 1e-12 && fm <= C && S.v[o] * v[0] + S.v[o + 1] * v[1] + S.v[o + 2] * v[2] <= 0) {
+        for (let k = 0; k < 3; k++) S.v[o + k] = 0;
+        G.state[u][0] = 1;
+      }
+    });
+  }
+
   function stepVerlet(S, dt) {
     const N = 3 * S.n;
     if (!S.a) S.a = accel(S, S.x, S.v, new Float64Array(N));
@@ -542,9 +593,11 @@ export function buildClassical() {
     const S = system(desc), dt = interval / substeps;
     const out = { t: [], x: [], v: [], ke: [], pe: [], p: [], L: [], maxSpeed: 0, maxRodError: 0, maxOvershoot: 0 };
     if (S.w) { out.w = []; out.spinDrift = 0; }
+    if (S.gel) { out.gel = []; S.gel = { ...S.gel, state: S.gel.idx.map(() => [0, 0, 0]) }; }
     const record = (k) => {
       const e = energy(S);
       if (S.w) out.w.push(Array.from(S.w));
+      if (S.gel) out.gel.push(S.gel.state.map((q) => q.slice()));
       out.t.push(k * interval); out.x.push(Array.from(S.x)); out.v.push(Array.from(S.v));
       out.ke.push(e.ke); out.pe.push(e.pe); out.p.push(momentum(S)); out.L.push(angular(S));
     };
@@ -564,8 +617,10 @@ export function buildClassical() {
     for (let k = 1; k <= samples; k++) {
       for (let s = 0; s < substeps; s++) {
         const w0 = S.w ? Float64Array.from(S.w) : null, held = S.w ? S.planes.map((P, pi) => Uint8Array.from(S.contact[pi])) : null;
+        const gx = S.gel ? Float64Array.from(S.x) : null, gv = S.gel ? Float64Array.from(S.v) : null;
         if (S.w) { S.hit.fill(0); stepRK4Spin(S, dt); } else if (stepper === 'verlet') stepVerlet(S, dt); else stepRK4(S, dt);
         S.now = ((k - 1) * substeps + s + 1) * dt;
+        if (S.gel) gelStep(S, dt, gx, gv, S.now - dt / 2);
         project(S);
         S.planes.forEach((P) => {
           for (const i of P.idx) {

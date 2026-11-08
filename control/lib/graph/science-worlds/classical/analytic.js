@@ -164,6 +164,26 @@ export const CLASSICAL_CLOSED_FORMS = [
     measure: (run, a) => ({ speed: Math.hypot(...vel(run, run.t.length - 1, a.i)) }),
   },
   {
+    id: 'viscometer',
+    want: 'a ball falling through a liquid that does not set, wholly under its surface, reaches Stokes\'s speed (m − ρ·V)·g / 6πηr, within 0.1%',
+    tol: 1e-3,
+    applies(m) {
+      const i = lone(m), g = gOf(m), b = m.bodies[i];
+      if (i < 0 || !only(m, 'gravity-uniform', 'buoyancy', 'gelling')) return null;
+      const gel = law(m, 'gelling'), buoy = law(m, 'buoyancy');
+      if (gel.curve && gel.curve.t.length > 1) return null;
+      const eta = gel.curve ? gel.curve.eta[0] : gel.medium.viscosity, tau = gel.curve ? gel.curve.tau[0] : gel.medium.yield ?? 0;
+      const rho = buoy.rho ?? buoy.medium?.density ?? 1000;
+      if (tau > 0 || Math.abs(rho - gel.medium.density) > 1e-9 * rho || len(b.v) > 0) return null;
+      const k = 6 * Math.PI * eta * b.radius, vt = ((b.mass - rho * (4 / 3) * Math.PI * b.radius ** 3) * g) / k;
+      // it sinks (heavier than the liquid) from wholly under the surface, so it stays under for the whole fall
+      if (!(vt > 0) || dot(b.at, m.frame.up) + b.radius > (buoy.surface ?? 0)) return null;
+      return m.duration >= 12 * b.mass / k ? { i, vt } : null;
+    },
+    expect: (a) => ({ speed: a.vt }),
+    measure: (run, a) => ({ speed: Math.hypot(...vel(run, run.t.length - 1, a.i)) }),
+  },
+  {
     id: 'incline',
     want: 'slide distance s = ½·g·(sin α − μ·cos α)·t² from rest (0 when μs ≥ tan α), within 0.1%',
     tol: 1e-3,

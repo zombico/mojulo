@@ -109,6 +109,19 @@ smooth and leave it as it was; there is no rolling resistance. Bodies without `s
 It adds the `spin-held` gate (a spin changes only where a surface holds or strikes the body) and `closed-form:rolling`
 when the model is a ball rolling from rest down a ramp. `{ quantity: 'spin', of }` reads it back, on the page too.
 
+## A liquid that sets
+
+The `gelling` law puts the bodies in a liquid (`medium`, from the matter table: `'honey'`, `'mud'`, `'water'`, …) whose
+viscosity and yield stress move along a `curve` you write, `[{ at, viscosity?, yield? }]` (between points the viscosity
+moves by its logarithm, the yield linearly; with no curve, the medium's own). A body in it is dragged by Stokes's law,
+stepped exactly so a near-set liquid needs no tiny step, and held once the yield carries the net force on it: a sphere
+stays put while that force is under τy·π·D² / (6 × 0.048) (Beris et al. 1985), so a falling-ball viscometer slows and
+stops as the liquid sets. Add `buoyancy` with the same medium for its lift. A `layer` (a thickness) of the liquid on a
+surface tilted by `slope` (default upright, the tube-tilt test) flows as a Bingham film and holds once its yield passes
+ρ·g·h·sin(slope). Gates: `yield-holds` (a hold is never past what the yield carries), `closed-form:bingham-film`, and
+`closed-form:viscometer` for a liquid that does not set. The readout gives the curve, when each body was held, and the
+layer's flux and when it held; the page shows η and τy along the run.
+
 ## Heat
 
 The `heat` law gives every body with a matter and a radius a temperature that moves: it loses heat to the medium
@@ -332,6 +345,15 @@ Spheres that touch exchange an impulse along the line of centres with restitutio
 - Leaves out: Contacts are instantaneous; spheres are smooth and do not spin.
 - Smallest example: `{"bodies":[{"id":"a","mass":1,"radius":0.1,"at":[-1,0,0],"v":[2,0,0]},{"id":"b","mass":2,"radius":0.1,"at":[1,0,0]}],"laws":[{"law":"collision","e":0.5}],"duration":2}`
 
+### `gelling`
+
+A liquid that sets: the bodies in it are dragged by its viscosity (Stokes, 6πηr·v) and held once its yield stress carries them (a sphere stays put while the net force on it is under τy·π·D² / (6 × 0.048), Beris et al. 1985). `curve` moves both along the run: [{ at, viscosity?, yield? }]. A `layer` of it, that thick, on a surface tilted by `slope` flows as a Bingham film and holds once its yield passes ρ·g·h·sin(slope).
+
+- Names its bodies with `on?: [ids]` (default: every body it can act on).
+- Takes `medium` (a liquid or gas from rupa's matter table: 'water', 'air', 'honey', …; required), `curve` (`[{ at, viscosity?, yield? }]` along the run, each point keeping what it does not say; optional: the medium's own, all along), `layer` (m; optional), `slope` (an angle: rad, or '30 deg'; default 90 deg).
+- Leaves out: The liquid is uniform and still, and sets everywhere at once along its curve (no temperature or mixing in it); its yield resists a moving body like dry friction of the same capacity that holds it still (the drag of a yield-stress liquid on a moving sphere is more involved); a layer is wide and even, its flow the film's steady one.
+- Smallest example: `{"bodies":[{"id":"ball","matter":"steel","radius":"2 mm","at":[0,0,0]}],"laws":[{"law":"gravity-uniform"},{"law":"buoyancy","medium":"honey","surface":1},{"law":"gelling","medium":"honey","curve":[{"at":"20 s","viscosity":200,"yield":100}],"layer":"5 mm"}],"duration":20}`
+
 ### `magnus`
 
 Magnus lift on a spinning ball: F = ½·cl·ρ·π·r³·ω × (v − wind), the lift coefficient growing with the spin ratio (C_L = cl·r·ω / |v − wind|). Topspin dips a ball, backspin floats it, sidespin curves it.
@@ -360,9 +382,11 @@ When a model is exactly one of these setups, the run is measured and compared wi
 - `kepler`: period T = 2π·√(a³/μ), a from the orbit's energy, within 0.1%.
 - `cyclotron`: period T = 2π·m/(|q|·B) and radius r = m·v⊥/(|q|·B), within 0.1%.
 - `terminal`: terminal speed m·g/b (linear drag) or √(m·g/(½ρCdA)) (quadratic), within 0.1%.
+- `viscometer`: a ball falling through a liquid that does not set, wholly under its surface, reaches Stokes's speed (m − ρ·V)·g / 6πηr, within 0.1%.
 - `incline`: slide distance s = ½·g·(sin α − μ·cos α)·t² from rest (0 when μs ≥ tan α), within 0.1%.
 - `rolling`: a sphere rolling from rest down a ramp: s = ½·g·sin α·t² / (1 + I/m·r²) (5/7 of the slide for a solid ball) while static friction holds it (μs ≥ tan α · I/(I + m·r²)), within 0.1%.
 - `collision`: head-on final speeds v₁′, v₂′ from momentum and restitution e, within 0.1%.
 - `cooling`: a body that loses heat by convection alone, touching nothing, follows Newton's cooling: T − T∞ = (T₀ − T∞)·e^(−h·A·t / m·c), within one part in a million.
+- `bingham-film`: a layer of a setting liquid on its slope flows as a Bingham film: its flux, the velocity profile integrated, is ρ·g·sinθ·h³/3η·(1 − 3ζ/2 + ζ³/2), and none once the yield passes ρ·g·h·sinθ, within a millionth of its flow with no yield.
 
 <!-- laws:end -->

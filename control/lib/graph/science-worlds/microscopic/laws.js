@@ -69,6 +69,22 @@ export const MICROSCOPIC_LAWS = [
       laws: [{ law: 'brownian' }, { law: 'reaction', from: ['A'], to: ['B'], rate: '2 /s', reverse: '1 /s' }], duration: '3 s',
     },
   },
+  {
+    id: 'aggregation',
+    words: ['aggregation', 'polymerization', 'nucleation', 'fibril', 'fibrillogenesis', 'assembly', 'coagulation', 'clumping', 'coalescence', 'gelation'],
+    params: {
+      of: { dim: 'species', one: true, required: true }, mode: { dim: 'word', default: 'nucleation', text: "'nucleation' or 'coalescence'" },
+      nucleus: { dim: 'count', default: 2, text: 'monomers in a nucleus, 2 to 12' }, nucleate: { dim: 'number', text: 'a number in M^(1−n)/s; nucleation' },
+      grow: { dim: 'rate2', text: '/M/s; nucleation' }, shrink: { dim: 'frequency', text: '/s; nucleation, optional' }, kernel: { dim: 'rate2', text: '/M/s; coalescence' },
+    },
+    summary: 'A species that binds to itself, counted: `mode: \'nucleation\'` (Oosawa\'s nucleated growth: `nucleus` monomers seed a filament at `nucleate`·[M]^n, in M^(1−n)/s; it grows at `grow`·[M], /M/s, and may lose one at `shrink`, /s), or `mode: \'coalescence\'` (any two clusters merge at `kernel`, /M/s, Smoluchowski\'s constant kernel). Drawn by Gillespie\'s algorithm on the counts; the readout gives the share aggregated over time and the sizes at the end.',
+    assumption: 'The volume is well mixed, and the aggregation is counted, not drawn (the spheres show where the monomer starts); aggregates do not move apart or break, and no other law reacts with the species.',
+    example: {
+      box: { size: ['1 µm', '1 µm', '1 µm'] }, represents: 5,
+      species: [{ id: 'monomer', radius: '2 nm', count: 120 }],
+      laws: [{ law: 'brownian' }, { law: 'aggregation', of: 'monomer', nucleus: 2, nucleate: 20000, grow: '2e7 /M/s' }], duration: '3 s',
+    },
+  },
 ];
 
 export const MICROSCOPIC_LAW = Object.fromEntries(MICROSCOPIC_LAWS.map((r) => [r.id, r]));

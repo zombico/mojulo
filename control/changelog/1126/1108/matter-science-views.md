@@ -40,3 +40,17 @@
   `spin-held` (nothing in flight turns a spin); `spin` can be observed and shown on the page. `rpm`, `rev/s` and `rad/s`
   join the units, and `'Hz'` is refused for a spin as ambiguous. A body without `spin` slides as before: every existing
   model runs the same steps, byte for byte.
+- **A liquid that sets.** The classical `gelling` law puts bodies in a liquid from the matter table whose viscosity and
+  yield stress move along a `curve` the recipe writes (`[{ at, viscosity?, yield? }]`). A body in it sinks at Stokes's
+  speed, stepped exactly so a near-set liquid needs no tiny step, and is held once the yield carries it (Beris et al.'s
+  sphere criterion, τy ≥ 0.048·Δρ·g·D): a falling-ball viscometer slows and stops as the liquid sets. A `layer` of it
+  on a `slope` flows as a Bingham film and holds once its yield passes ρ·g·h·sinθ (the tube-tilt test). The checks:
+  `yield-holds`, `closed-form:bingham-film`, and `closed-form:viscometer` for a liquid that does not set; the page shows
+  η and τy along the run.
+- **Aggregation in the microscopic worlds.** The `aggregation` law counts a species binding to itself: nucleated growth
+  (Oosawa: a nucleus, then one monomer at a time), whose S-curve's lag shortens as the monomer gets richer, or
+  coalescence (any two clusters merge, Smoluchowski's constant kernel, held to its closed form). The readout gives the
+  share aggregated over time, the lag and half time, and the sizes at the end; the page shows the free monomer and the
+  share aggregated, and says the spheres stay single because the aggregation is counted, not placed.
+- **A classical demo under a tenth of a metre is drawn magnified** by a power of ten, with the magnification on the
+  panel: at its true size it sat inside the camera's near plane and could not be seen. Larger demos draw as before.

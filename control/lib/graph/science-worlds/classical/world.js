@@ -105,7 +105,9 @@ export function planClassicalWorld(manifest) {
   for (const l of model.laws) if (l.between && typeof l.between[1] !== 'string') pts.push(l.between[1]);
   const lo = [0, 1, 2].map((k) => Math.min(...pts.map((p) => p[k]))), hi = [0, 1, 2].map((k) => Math.max(...pts.map((p) => p[k])));
   const L = Math.max(len(sub(hi, lo)), ...bodies.map((b) => 4 * b.radius), 1e-30);
-  const s = drawScale(L), Ls = L * s;
+  // a demo under a tenth of a metre at its drawing scale would sit inside the camera's near plane (0.1 units) and vanish:
+  // it is magnified by a power of ten to about a unit, and the panel says so (a larger demo draws as it always has)
+  const s0 = drawScale(L), s = L * s0 >= 0.1 ? s0 : s0 * 10 ** Math.ceil(Math.log10(1 / (L * s0))), Ls = L * s;
   const scaled = scaleLiberty(s);
   if (scaled) drawn.push(scaled);
 
@@ -325,6 +327,8 @@ function scienceConfig(plan, title) {
       ...(pShown ? [{ html: '|p|', values: series.p.map((p) => len(p)), unit: 'kg·m/s', suffix: ' · conserved' }] : []),
       ...model.observe.filter((o) => o.quantity === 'speed').map((o) => ({ html: esc(`v(${o.of})`), values: tracks.bodies[o.of].v.map((q) => len(q)), unit: 'm/s', cls: 'v' })),
       ...model.observe.filter((o) => o.quantity === 'spin' && tracks.bodies[o.of].w).map((o) => ({ html: esc(`ω(${o.of})`), values: tracks.bodies[o.of].w.map((q) => len(q)), unit: 'rad/s', plain: true })),
+      // a setting liquid's state along the run (gelling)
+      ...(series.eta ? [{ html: 'η', values: series.eta, unit: 'Pa·s', plain: true }, { html: 'τy', values: series.yield, unit: 'Pa', plain: true }] : []),
       // the heat law's bodies, each its temperature (the first four; the readout has them all)
       ...Object.entries(series.T ?? {}).slice(0, 4).map(([id, T]) => ({ html: esc(`T(${id})`), values: T.map((K) => K - 273.15), unit: '°C', plain: true })),
     ],

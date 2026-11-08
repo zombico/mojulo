@@ -147,9 +147,13 @@ function scienceConfig(plan, title) {
     t: tracks.t, period: playback, hold: HOLD, titleHtml: esc(title), titleText: title,
     barWidth: 230, labelWidth: Math.min(90, 8 + 7 * Math.max(...model.species.map((sp) => (dress.species[sp.id]?.label ?? sp.id).length))),
     rows: [
-      ...model.species.map((sp, i) => ({ html: name(sp), bar: true, values: series.counts[sp.id], max: peak, int: true, color: color(i) })),
+      // an aggregating species is counted free: what the aggregation has not taken (its spheres stay single on the page)
+      ...model.species.map((sp, i) => (series.aggregation && solved.aggregation.of === sp.id
+        ? { html: `${name(sp)} free`, bar: true, values: series.aggregation.free, max: peak, int: true, color: color(i) }
+        : { html: name(sp), bar: true, values: series.counts[sp.id], max: peak, int: true, color: color(i) })),
       ...(membrane ? model.species.map((sp) => ({ html: `${name(sp)} on the near side`, values: series.sides[0][sp.id], int: true })) : []),
       ...model.observe.filter((o) => o.quantity === 'concentration').map((o) => ({ html: esc(`[${o.of}]`), values: series.counts[o.of].map(conc), unit: 'mM' })),
+      ...(series.aggregation ? [{ html: 'aggregated', bar: true, values: series.aggregation.fraction, max: 1, plain: true, color: '#f0d28a' }] : []),
     ],
     labels: [],
     honesty: honesty({

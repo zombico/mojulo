@@ -22,6 +22,7 @@ import { splitParams, quantity, vector, positive, MAX_LAWS } from '../contract.j
 import { gapFor } from '../scales.js';
 import { MICROSCOPIC_LAWS, MICROSCOPIC_LAW, AVOGADRO, BOLTZMANN, WATER_37C, BODY_TEMPERATURE } from './laws.js';
 import { microscopic } from './kernel.js';
+import { runAggregation } from './aggregation.js';
 
 export const MAX_MOLECULES = 2000;
 export const MAX_SHOWN = 300;
@@ -111,6 +112,26 @@ function normalizeLaw(raw, i, ctx, lawIds) {
     if (raw.permeability !== undefined) {
       if (!isObj(raw.permeability)) fail(`${where}.permeability`, 'wants { <species>: <speed> }');
       for (const [id, P] of Object.entries(raw.permeability)) entry.permeability[known(id, `${where}.permeability`)] = positive(P, 'velocity', `${where}.permeability.${id}`, { zero: true });
+    }
+  } else if (row.id === 'aggregation') {
+    if (raw.of === undefined) fail(`${where}.of`, "'aggregation' names the species that binds to itself");
+    entry.of = known(raw.of, `${where}.of`);
+    entry.mode = raw.mode ?? 'nucleation';
+    if (!['nucleation', 'coalescence'].includes(entry.mode)) fail(`${where}.mode`, "is 'nucleation' (seeded growth) or 'coalescence' (clusters merging)");
+    const only = entry.mode === 'nucleation' ? ['nucleus', 'nucleate', 'grow', 'shrink'] : ['kernel'];
+    const stray = ['nucleus', 'nucleate', 'grow', 'shrink', 'kernel'].filter((k) => raw[k] !== undefined && !only.includes(k));
+    if (stray.length) fail(`${where}.${stray[0]}`, `belongs to the other mode (${entry.mode} takes ${only.join(', ')})`);
+    if (entry.mode === 'nucleation') {
+      entry.nucleus = raw.nucleus ?? 2;
+      if (!Number.isInteger(entry.nucleus) || entry.nucleus < 2 || entry.nucleus > 12) fail(`${where}.nucleus`, 'is how many monomers make a nucleus, 2 to 12');
+      if (!(typeof raw.nucleate === 'number' && raw.nucleate > 0)) fail(`${where}.nucleate`, `wants the nucleation rate constant, a number in M^(1−${entry.nucleus})/s`);
+      entry.nucleate = raw.nucleate;
+      if (raw.grow === undefined) fail(`${where}.grow`, 'wants the elongation rate constant (per molar per second)');
+      entry.grow = positive(raw.grow, 'rate2', `${where}.grow`);
+      if (raw.shrink !== undefined) entry.shrink = positive(raw.shrink, 'frequency', `${where}.shrink`, { zero: true });
+    } else {
+      if (raw.kernel === undefined) fail(`${where}.kernel`, 'wants the merging rate constant (per molar per second)');
+      entry.kernel = positive(raw.kernel, 'rate2', `${where}.kernel`);
     }
   } else if (row.id === 'reaction') {
     for (const side of ['from', 'to']) {
@@ -290,6 +311,16 @@ export function solveMicroscopic(params) {
   const run = microscopic.run(sys, { dt, substeps, samples, interval, seed: model.seed });
   if (run.capped) warnings.push('the reaction budget (200,000 events) was reached: the run stops reacting there; fewer molecules or slower rates keep it whole');
 
+  // aggregation, counted along the run's samples by its own seeded draw (aggregation.js): absent the law, nothing here changes
+  const aggLaws = lawsOf('aggregation');
+  if (aggLaws.length > 1) fail('model.laws', 'one aggregation law');
+  const agg = aggLaws.length ? (() => {
+    const e = aggLaws[0];
+    if (rxLaws.some((r) => r.from.includes(e.of) || r.to.includes(e.of))) fail('model.laws', `${e.of} aggregates, so no reaction may also use it (the aggregation counts it alone)`);
+    return runAggregation(e, { counts0: species[idx(e.of)].count, t: run.t, NAV, w, seed: model.seed, of: e.of });
+  })() : null;
+  if (agg?.capped) warnings.push('the aggregation\'s event budget (200,000 events) was reached: it stops there; fewer molecules (raise `represents`) or slower rates keep it whole');
+
   // ── gates ──
   const gates = [];
   const tN = run.t.length, last = tN - 1;
@@ -435,6 +466,7 @@ export function solveMicroscopic(params) {
     counts: Object.fromEntries(species.map((sp, s) => [sp.id, run.counts.map((n) => n[s] * w)])),
     sides: run.sides.map((m) => Object.fromEntries(species.map((sp, s) => [sp.id, m.map((l) => l[s] * w)]))),
     msd: Object.fromEntries(species.map((sp, s) => [sp.id, run.msd.map((q) => sig(q[s]))])),
+    ...(agg ? { aggregation: agg.series } : {}),
   };
   const observed = {};
   for (const o of model.observe) {
@@ -445,9 +477,11 @@ export function solveMicroscopic(params) {
     else if (o.quantity === 'diffusion') observed[key] = { value: sig(D[s], 4), unit: 'm²/s', note: species[s].givenD ? 'given' : 'Stokes–Einstein from the radius, temperature and viscosity' };
     else if (o.quantity === 'sides') observed[key] = membranes.length ? { start: run.sides[0][0][s] * w, end: run.sides[0][last][s] * w, of: run.counts[last][s] * w, side: 'left of the first membrane' } : { value: null, note: 'there is no membrane' };
   }
-  const assumptions = [BASE_ASSUMPTION, ...new Set(laws.map(({ row }) => row.assumption))];
+  if (agg) gates.push(...agg.gates);
+  const assumptions = [BASE_ASSUMPTION, ...new Set(laws.map(({ row }) => row.assumption)), ...(agg ? [agg.assumption] : [])];
   if (w > 1) assumptions.push(`Each sphere stands for ${sig(w, 3)} molecules: the counts are real, but their random ups and downs are √${sig(w, 3)} ≈ ${sig(Math.sqrt(w), 2)}× larger than a real cell's.`);
   const shownLiberties = particles.length > display.length ? [{ what: `${display.length} of the ${particles.length} spheres are drawn`, why: 'so the page stays quick; the counts are all of them' }] : [];
+  if (agg) shownLiberties.push({ what: `the ${agg.readout.of} spheres stay single on the page while the readout counts them aggregating`, why: 'the aggregation is counted in the well-mixed volume, not placed: where an aggregate is, the model does not say' });
   return {
     scale: 'microscopic',
     model: { ...model, laws: laws.map(({ entry }) => entry) },
@@ -455,6 +489,7 @@ export function solveMicroscopic(params) {
     dt: sig(dt), substeps, samples, steps: samples * substeps,
     D: species.map((sp, s) => sig(D[s], 4)), drift: v.map((u) => u.map((c) => sig(c, 4))),
     tracks, series, observed,
+    ...(agg ? { aggregation: agg.readout } : {}),
     events: run.events, firstEvent: run.first ? { t: sig(run.first.t, 6), particle: run.first.particle } : null,
     gates, held: gates.every((g) => g.ok),
     stats: { duration: sig(model.duration), species: S, molecules: molecules * w, spheres: molecules, events: run.events * w, represents: w, seed: model.seed },

@@ -22,6 +22,7 @@ import { classical } from './kernel.js';
 import { closedFormGates } from './analytic.js';
 import { readMedium, readBodyMatter, bodyBudget, impactOf, verdictOf, sourceOf, heatShare } from '../matter.js';
 import { runHeat } from './heat.js';
+import { readCurve, curveAt, filmFlux, filmFluxNumeric, GEL_CLOSED_FORMS } from './gel.js';
 import { ladderOf } from '../ladder.js';
 import { along, peak, returnRange, period, at, vel } from './measure.js';
 
@@ -99,9 +100,10 @@ function normalizeLaw(raw, i, ctx, lawIds) {
   }
   for (const [name, spec] of Object.entries(row.params)) {
     const v = raw[name];
-    if (v === undefined) { if (spec.required) fail(`${where}.${name}`, `'${row.id}' needs ${name} (a ${spec.dim})`); continue; }
+    if (v === undefined) { if (spec.required) fail(`${where}.${name}`, `'${row.id}' needs ${name}${spec.dim ? ` (a ${spec.dim})` : ''}`); continue; }
     if (spec.matter) entry[name] = spec.matter === 'medium' ? readMedium(v, `${where}.${name}`) : readBodyMatter(v, `${where}.${name}`);
     else if (spec.temperature) entry[name] = temperature(v, `${where}.${name}`);
+    else if (spec.curve) entry[name] = readCurve(v, entry.medium, `${where}.${name}`);
     else if (spec.flag) {
       if (typeof v !== 'boolean') fail(`${where}.${name}`, 'is true or false');
       entry[name] = v;
@@ -196,6 +198,10 @@ function resolveSystem(model, ctx) {
     if (r.rod) desc.rods.push(r.rod);
     if (r.collision) desc.collisions.push(r.collision);
     if (r.collisions) desc.collisions.push(...r.collisions);
+    if (r.gel) {
+      if (desc.gel) fail('model.laws', 'one gelling law: the bodies sit in one liquid');
+      desc.gel = r.gel;
+    }
   }
   return desc;
 }
@@ -333,9 +339,14 @@ export function solveClassical(params) {
   };
   const series = { ke: run.ke.map((v) => sig(v)), pe: run.pe.map((v) => sig(v)), e: E.map((v) => sig(v)), p: run.p.map((p) => sigv(p)), L: run.L.map((L) => sigv(L)) };
 
+  // the setting liquid (gelling): its bodies' holds, and its layer's film, checked against the closed form
+  const gel = desc.gel ? gelReadout(model, ctx, run, desc.gel) : null;
+  if (gel) gates.push(...gel.gates);
+
   // heat, stepped along the run already made (heat.js): absent the law, nothing here changes
   const heat = runHeat(model, run, ctx);
   if (heat) { gates.push(...heat.gates); warnings.push(...heat.warnings); series.T = heat.series; }
+  if (gel) { series.eta = gel.series.eta; series.yield = gel.series.tau; }
 
   const matter = run.impacts ? matterReadout(model, run.impacts, heat) : null;
   if (matter) gates.push(gate('bodies-intact', 'no body takes more of a contact\'s energy than its matter holds (the run keeps every body whole)',
@@ -352,6 +363,7 @@ export function solveClassical(params) {
     observed: observe(model, run, ctx, E, heat),
     ...(matter ? { matter } : {}),
     ...(heat ? { heat: heat.readout } : {}),
+    ...(gel ? { gel: gel.readout } : {}),
     gates, held: gates.every((g) => g.ok),
     stats: {
       duration: sig(model.duration), bodies: model.bodies.length, laws: model.laws.length,
@@ -480,4 +492,55 @@ function matterReadout(model, impacts, heat) {
     if (per[i].worst === 'breaks') broken.push(b.id);
   });
   return { bodies, broken, contacts: impacts.length, enacted: false };
+}
+
+/**
+ * The setting liquid read back: its viscosity and yield along the run, when each body was held, and its layer's film.
+ * Gates: a body is held only while the yield's capacity carries the net force on it (the kernel's own state, sample by
+ * sample); the layer's flux, by integrating its velocity profile, is the Bingham film's closed form.
+ */
+function gelReadout(model, ctx, run, G) {
+  const law = model.laws.find(({ row }) => row.id === 'gelling').entry;
+  const curve = G.curve, gates = [];
+  const series = { eta: run.t.map((t) => sig(curveAt(curve, t).eta)), tau: run.t.map((t) => sig(curveAt(curve, t).tau)) };
+  const bodies = {};
+  let bad = 0;
+  G.idx.forEach((i, u) => {
+    const states = run.gel.map((row) => row[u]);
+    states.forEach(([held, cap, force]) => { if (held && force > cap * (1 + 1e-9)) bad++; });
+    const from = states.findIndex((q, k) => q[0] && states.slice(k).every((r) => r[0]));
+    bodies[model.bodies[i].id] = { held: from >= 0 ? { from: sig(run.t[from], 4), unit: 's' } : null, capacity: { value: sig(G.cap[u]), unit: 'N per Pa of yield', from: 'τy·π·D² / (6 × 0.048) (Beris et al. 1985)' } };
+  });
+  if (G.idx.length) {
+    gates.push(gate('yield-holds', 'a body is held only while the yield stress\'s capacity carries the net force on it (Beris et al.\'s sphere criterion)', !bad, { violations: bad },
+      bad ? 'a body was held past what the yield carries' : 'each hold is within what the yield carries'));
+  }
+  const readout = {
+    medium: law.medium.id, curve: { t: curve.t, viscosity: curve.eta.map((v) => sig(v)), yield: curve.tau.map((v) => sig(v)) }, bodies,
+  };
+  if (law.layer !== undefined) {
+    const rho = law.medium.density, g = ctx.frame.gravity || ctx.frame.g, slope = law.slope ?? Math.PI / 2, h = law.layer;
+    const flux = run.t.map((t) => { const c = curveAt(curve, t); return filmFlux(rho, g, slope, h, c.eta, c.tau); });
+    // the closed form against the profile integrated, at a spread of moments along the run
+    let worst = 0;
+    const picks = [...new Set([0, ...Array.from({ length: 12 }, (_, k) => Math.round(((k + 1) * (run.t.length - 1)) / 12))])];
+    for (const k of picks) {
+      // measured against the film's flow with no yield at that viscosity, so a film all but held is not judged on a sliver
+      const c = curveAt(curve, run.t[k]), q = flux[k], qn = filmFluxNumeric(rho, g, slope, h, c.eta, c.tau);
+      const err = Math.abs(qn - q) / filmFlux(rho, g, slope, h, c.eta, 0);
+      worst = Math.max(worst, err);
+    }
+    const stress = rho * g * Math.sin(slope) * h;
+    const holds = flux.findIndex((q, k) => q === 0 && flux.slice(k).every((x) => x === 0));
+    let travelled = 0;
+    for (let k = 1; k < run.t.length; k++) travelled += 0.5 * (flux[k] + flux[k - 1]) / h * (run.t[k] - run.t[k - 1]);
+    gates.push(gate('closed-form:bingham-film', GEL_CLOSED_FORMS[0].want,
+      worst <= 1e-6, { error: sig(worst, 3), holds_at_yield: sig(stress, 4) }, worst <= 1e-6 ? 'the film matches the textbook answer' : `off by ${sig(worst * 100, 3)}%`));
+    readout.layer = {
+      thickness: { value: h, unit: 'm' }, slope: { value: sig((slope * 180) / Math.PI, 4), unit: 'deg' }, holdsAtYield: { value: sig(stress), unit: 'Pa' },
+      holds: holds >= 0 ? { from: sig(run.t[holds], 4), unit: 's' } : null, travelled: { value: sig(travelled), unit: 'm', note: 'how far its surface slid, by its mean speed' },
+      flux: flux.map((q) => sig(q)),
+    };
+  }
+  return { gates, readout, series };
 }
