@@ -101,6 +101,8 @@ export function gridEnds(level) {
       const cast = new Set(foes.map((p) => p.segment));
       if (out.encounters) { out.encounters = out.encounters.filter((x) => !cast.has(x.segment)); if (!out.encounters.length) delete out.encounters; }
     }
+    // (a pickup level design placed stands in for the scenario's find of the same item: one, where it put it)
+    if (picks.length && out.finds) { const own = new Set(picks.map((p) => p.of)); out.finds = out.finds.filter((f) => !own.has(f.item)); }
     if (picks.length) out.finds = [...(out.finds ?? []), ...picks.map((p) => ({ at: p.at, tile: [Math.floor(-p.at[1] / T), Math.floor(p.at[0] / T)], item: p.of, play: true, ...(p.beat ? { beat: p.beat } : {}) }))];
   }
   const zw = readZone(level), read = zw ? zoneEnds(G, zoneOf(G, zw.id, { apron: zw.apron, seed: L.seed }), out, { doorOf, last }) : out;

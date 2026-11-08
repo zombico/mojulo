@@ -6,7 +6,7 @@
  * dragged there.
  *
  *   play: { <segment>: { pieces: [piece], suggestions?: [suggestion] } }
- *   piece        { id, kind, at: [x, y, z], yaw?: degrees (0 faces +x, counter-clockwise), scale?, of?, beat?, why? }
+ *   piece        { id (its block's own), kind, at: [x, y, z], yaw?: degrees (0 faces +x, counter-clockwise), scale?, of?, beat?, why? }
  *     foe        `of` a bestiary id: one foe standing there, facing its yaw (LEVEL DESIGN casts: a block's placed foes
  *                stand in place of its encounter marks' rings, whatever kind the marks named)
  *     obstacle   `of` a shape of OBSTACLES (crate, barricade, log, wall, pillar, ledge, arch): built in the world's
@@ -54,8 +54,10 @@ const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 export function readPlay(play, P, at = 'level.play', { beats = null } = {}) {
   if (play === undefined) return null;
   if (!isObj(play)) throw fail(`${at} is { <segment>: { pieces, suggestions? } }: what level design places on each block`);
-  const segs = Object.keys(P.segments ?? P.at), out = {}, ids = new Set();
+  const segs = Object.keys(P.segments ?? P.at), out = {};
+  // (a piece's id is its block's own: each block is its own unit, worked apart)
   for (const [S, v] of Object.entries(play)) {
+    const ids = new Set();
     const w = `${at}.${S}`;
     if (!segs.includes(S)) throw fail(`${w}: no such block in the plan (${segs.join(', ')})`);
     if (!isObj(v)) throw fail(`${w} is { pieces, suggestions? }`);
@@ -135,7 +137,7 @@ export function playBuild(pieces, { rock = '#8e8a80', wood = '#7a5a3a' } = {}) {
       quad([P(u0, v1, z0), P(u0, v0, z0), P(u0, v0, z1), P(u0, v1, z1)], [r3(-c), r3(-s), 0], 0.74);
       if (SOLID.has(p.kind)) {
         const cs = [P(u0, v0, z0), P(u1, v0, z0), P(u1, v1, z0), P(u0, v1, z0)];
-        colliders.push({ min: [Math.min(...cs.map((q) => q[0])), Math.min(...cs.map((q) => q[1])), r3(p.at[2] + z0 - 0.3)], max: [Math.max(...cs.map((q) => q[0])), Math.max(...cs.map((q) => q[1])), r3(p.at[2] + z1)], of: `play:${p.id}` });
+        colliders.push({ min: [Math.min(...cs.map((q) => q[0])), Math.min(...cs.map((q) => q[1])), r3(p.at[2] + z0 - 0.3)], max: [Math.max(...cs.map((q) => q[0])), Math.max(...cs.map((q) => q[1])), r3(p.at[2] + z1)], of: `play:${p.segment ?? ''}/${p.id}` });
       }
     }
   }

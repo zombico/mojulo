@@ -727,7 +727,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // (a sketched map's finds, level/grid-ends.js: each picked up into the bag where its beat stands)
   const finds = stage.section === 'map' && ends.finds?.length ? [{ kind: 'collect', into: 'bag', pickups: ends.finds.map((f) => ({ item: f.item, at: f.at, radius: 1.6 })) }] : [];
   // (a held page's own goal waits on its fights too: the climax is won by its fight, never walked past)
-  const hold = held?.find((m) => m.holds)?.holds, kept = (m) => (hold && m.kind === 'reach-exit' && !m.exit ? { ...m, holds: hold } : m);
+  const hold = held?.hold, kept = (m) => (hold && m.kind === 'reach-exit' && !m.exit ? { ...m, holds: hold } : m);
   const placed = [...(ways ? [...placed0.filter((m) => m.kind !== 'reach-exit' || keepsGoal).map(kept), ...(held ?? ways.mechanics)] : placed0), ...finds];
   // what the game lets break stays broken (the aftermath mechanic: the breaks kept in the world's aftermath slice)
   const after = mechanics?.destruction && mechanics.destruction !== 'none' ? [{ kind: 'aftermath', slice: AFTERMATH_SLICE }] : [];
@@ -1309,13 +1309,19 @@ function actionHero(entity, figures, sheathRef) {
  * by waits on the downs of the foes standing on the page (game/mechanics.js `holds`); null where
  * nothing holds. */
 function heldWays(G, stage, ends, plan, mechanics) {
-  const sk = stage.manifest.level?.sketch, holds = sk?.concept?.hold === true || !!sk?.scenario?.beats?.some((b) => b.opens);
+  // (a scenario holds only the page whose beat `opens` it, and the page whose climax it is (its win): an optional fight
+  // elsewhere holds nothing; a concept's `hold` every page that fights)
+  const sk = stage.manifest.level?.sketch, segs = [].concat(stage.zone ?? []), beats = sk?.scenario?.beats ?? null;
+  const holds = beats ? beats.some((b) => (b.opens || (b.kind === 'climax' && b.foes)) && segs.includes(b.at)) : sk?.concept?.hold === true;
   if (stage.section !== 'map' || !holds || !ends.zone) return null;
+  const waysToo = beats ? beats.some((b) => b.opens && segs.includes(b.at)) : true;
   const count = foePlacements(G, stage.level, { ...ends, node: stage.node }).length;
   if (!count) return null;
   const inWay = ends.zone.in ?? null;
   const cameIn = (m) => { const w = plan.on.find((x) => x.id === m.exit); return !!(inWay && w && w.zone === inWay.to && w.side === inWay.side); };
-  return mechanics.map((m) => (m.kind === 'reach-exit' && !cameIn(m) ? { ...m, holds: { who: 'foe-*', count } } : m));
+  // (a climax page holds its win alone: its ways stay open, the fight is the goal's)
+  const hold = { who: 'foe-*', count }, out = mechanics.map((m) => (m.kind === 'reach-exit' && !cameIn(m) && (waysToo || !m.exit) ? { ...m, holds: hold } : m));
+  return Object.assign(out, { hold });
 }
 
 function stageWays(stage, ends, plan) {

@@ -51,7 +51,7 @@ describe('a play layer built', () => {
   it('builds the solid pieces in the world\'s colours, turned by their yaw, each a collider; a hazard and a marker no wall', () => {
     const pieces = readPlay(play, G.plan).B.pieces;
     const B = playBuild(pieces, { rock: '#808080', wood: '#806040' });
-    expect(B.colliders.map((c) => c.of)).toEqual(['play:wagon', 'play:crates']);
+    expect(B.colliders.map((c) => c.of)).toEqual(['play:B/wagon', 'play:B/crates']);
     // (the barricade turned 90°: its length across y, not x)
     const w = B.colliders[0];
     expect(w.max[1] - w.min[1]).toBeCloseTo(OBSTACLES.barricade.size[0], 2);
