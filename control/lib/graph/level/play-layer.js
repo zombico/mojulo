@@ -13,7 +13,9 @@
  *                style (the kit's own wood and stone), solid
  *     cover      the same shapes, low: something to fight round
  *     pickup     `of` the item, found where it lies (into the bag)
- *     gate       `of` what opens it (an item, a power, a flag): a barrier across the way, solid until opened
+ *     gate       `of` what opens it (an item, a power, a flag): a barrier across the way, drawn but not yet solid (a gate
+ *                that opens in play comes next: until then a solid one would shut the way for good; a page's held ways
+ *                hold it meanwhile)
  *     hazard     `of` a word (spikes, fire, drop): a marked danger, not solid
  *     marker     `of` a word: a thing seen from afar the walk steers by (a banner, a cairn), not solid
  *   suggestion   { from, say, authority: must | should | may, about?: { beat?, kind?, of? } }: another department's word to
@@ -43,7 +45,7 @@ export const OBSTACLES = Object.freeze({
   arch: { size: [4, 0.8, 3.4], mat: 'rock', arch: true },
 });
 const COVER = 0.6;   // cover stands at this share of its shape's height
-const SOLID = new Set(['obstacle', 'cover', 'gate']);
+const SOLID = new Set(['obstacle', 'cover']);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`level: ${m}`);
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
@@ -115,7 +117,7 @@ const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16), ch = [(n >> 16
 export function playBuild(pieces, { rock = '#8e8a80', wood = '#7a5a3a' } = {}) {
   const faces = [], colliders = [];
   for (const p of pieces) {
-    if (!SOLID.has(p.kind) && p.kind !== 'marker' && p.kind !== 'hazard') continue;
+    if (!SOLID.has(p.kind) && !['marker', 'hazard', 'gate'].includes(p.kind)) continue;
     const O = p.kind === 'gate' ? OBSTACLES.barricade : p.kind === 'marker' ? OBSTACLES.pillar : p.kind === 'hazard' ? { size: [2, 2, 0.15], mat: 'rock' } : OBSTACLES[p.of];
     const k = p.scale ?? 1, size = [O.size[0] * k, O.size[1] * k, O.size[2] * k * (p.kind === 'cover' ? COVER : 1)];
     const fill = p.kind === 'hazard' ? '#a8402a' : p.kind === 'marker' ? '#c9a24a' : O.mat === 'wood' ? wood : rock, yaw = (p.yaw * Math.PI) / 180;
