@@ -169,7 +169,7 @@ export const LIVE_IDIOMS = {
     kind: 'hud', about: 'who speaks and what they say, and how to skip (bottom)',
     reads: 'show, who, line, skip', emits: '—',
     params: ['show', 'who', 'line', 'skip'],
-    node: region('bottom', [col([txt(P('who'), 'heading'), txt(P('line')), txt(P('skip'), 'caption')], 'center')], { when: P('show') }),
+    node: region('bottom', [col([txt(P('who'), 'heading'), txt(P('line')), txt(P('skip'), 'caption')], 'center')], { when: P('show'), props: { at: 'bottom', variant: 'subtitles' } }),
     example: { show: { bind: 'cutscene.show' }, who: { bind: 'cutscene.who' }, line: { bind: 'cutscene.line' }, skip: { bind: 'cutscene.skip' } },
   },
   // stealth, quests, a phone

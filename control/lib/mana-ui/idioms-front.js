@@ -15,24 +15,30 @@ const legend = (...rows) => ({ use: 'legend', props: { rows: rows.map(([action, 
 
 export const FRONT_IDIOMS = {
   'attract-screen': {
-    kind: 'screen', about: 'before the title: the game\'s name and a press-start that leads on',
-    reads: 'title, prompt; then: what pressing does', emits: 'then (usually { open: <the title screen> })',
+    kind: 'screen', about: 'before the title: the key art, the game\'s name and a press-start that breathes while it waits; any face or shoulder button starts, the seat that pressed in the effect (the player who binds)',
+    reads: 'title, prompt; then: what pressing does', emits: 'then (usually { open: <the title screen> }, its seat the one that pressed)',
     params: ['title', 'prompt', 'then'],
-    node: screen({ layer: 'overlay', place: 'center' }, [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
-      { use: 'image', props: { label: 'key art', ratio: 'banner' } }, txt(P('title'), 'display'),
-      { use: 'button', props: { label: P('prompt') }, on: { accept: P('then') } },
-    ] }]),
-    example: { title: { bind: 'game.title' }, prompt: 'Press start', then: { emit: 'start' } },
+    node: screen({ layer: 'overlay', place: 'center', press: 'any' }, [
+      { use: 'image', props: { label: 'key art', ratio: 'backdrop' } },
+      { use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
+        txt(P('title'), 'display'),
+        { use: 'button', props: { label: P('prompt') }, on: { accept: P('then') } },
+      ] },
+    ]),
+    example: { title: { bind: 'game.title' }, prompt: 'Press start', then: { emit: 'start', seat: { seat: true } } },
   },
   'title-screen': {
-    kind: 'screen', about: 'the title: the name, its line, the main menu (continue, new, load, options, quit), the build\'s version',
+    kind: 'screen', about: 'the title: the key art behind, the name and its line over the main menu in the left third (continue, new, load, options, quit), the build\'s version in the corner',
     reads: 'title, subtitle, items: [{ label, then, disabled? }], version', emits: 'each item\'s then',
     params: ['title', 'subtitle', 'items', 'version'],
-    node: screen({ layer: 'overlay', place: 'center' }, [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
-      { use: 'stack', props: { align: 'center', gap: 'tight' }, children: [txt(P('title'), 'display'), txt(P('subtitle'), 'label')] },
-      { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'))] },
-      txt(P('version'), 'caption'),
-    ] }]),
+    node: screen({ layer: 'overlay', place: 'left' }, [
+      { use: 'image', props: { label: 'key art', ratio: 'backdrop' } },
+      { use: 'stack', props: { gap: 'loose', align: 'start' }, children: [
+        { use: 'stack', props: { gap: 'tight', align: 'start' }, children: [txt(P('title'), 'display'), txt(P('subtitle'), 'label')] },
+        { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'), { variant: 'menu' })] },
+      ] },
+      { use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'window', props: { variant: 'ghost' }, children: [txt(P('version'), 'caption')] }] },
+    ]),
     example: { title: { bind: 'game.title' }, subtitle: { bind: 'game.subtitle' }, version: { bind: 'game.version' }, items: [{ label: 'Continue', then: { emit: 'continue' } }, { label: 'New game', then: { emit: 'new-game' } }, { label: 'Load', then: { open: 'load' } }, { label: 'Options', then: { open: 'options' } }, { label: 'Quit', then: { emit: 'quit' } }] },
   },
   'loading-screen': {

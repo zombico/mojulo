@@ -101,9 +101,11 @@ FRAMES.forEach((F, i) => {
   const S = JSON.parse(JSON.stringify(STATE)), log = [], el = document.getElementById('f' + i), out = document.getElementById('log' + i);
   const host = {
     read: (p) => manaUi.readPath(S, p),
+    // every sound the UI makes is logged too (♪), so the board is heard as well as seen
+    cues: 'full',
     act: (e, from) => {
       if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = S; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
-      log.push((from.seat ? 'P' + (from.seat + 1) + ' ' : '') + JSON.stringify(e)); out.textContent = log.slice(-3).join('\\n');
+      log.push((from.seat ? 'P' + (from.seat + 1) + ' ' : '') + (typeof e.sound === 'string' ? '\u266a ' + e.sound : JSON.stringify(e))); out.textContent = log.slice(-3).join('\\n');
     },
   };
   const rt = manaUi.runtime({ ...F.spec, defs: DEFS }, host);

@@ -58,14 +58,43 @@ This follows React's principles but uses none of its code.
 - **Components are code; compositions are data.** The components are a closed set (`COMPONENTS` in `kernel.js`, each
   with its group, props and verbs). A composition is a def, `{ params, node }`, with `{ param: '<name>' }` inside.
 
+## The frame: a game's screen, never a page
+
+A game's screen is one fixed frame over a moving scene, read from a desk or a sofa, so it is not laid out like a scrolling
+document. The research behind this, set against the app and SaaS look, is [game-ui-research.md](game-ui-research.md).
+
+- **One unit, the stage's.** The root is the stage (a size container). Every length is in units of 1px at a 1080p
+  reference (`--mana-u`, the stage's height over 1080), so a screen keeps its proportions at any resolution and does not
+  reflow. A phone (`distance: hand`) sizes in CSS px instead.
+- **How far the player sits.** The theme's `distance` word (`DISTANCES` in `theme.js`): `desk` (the default), `couch`
+  (everything ×26/18, the ratio of XAG 101's console and PC minimums at 1080p) or `hand`. Text never goes under a floor
+  in CSS px, and the player's text size (`rt.textScale`, up to 2×) multiplies it.
+- **Few type levels, big jumps** (`TYPE` in `css.js`): the floor (caption and label), the body a step over it, a title
+  twice the body, a display near four times. A heading is the ink, never a small grey eyebrow; an input's own name is the
+  body.
+- **The title-safe frame.** A screen and the HUD's places sit 5% in from each side (`--mana-safe`, 90% title-safe), or
+  the device's own inset when larger. A part over the world (a nameplate, a damage number) still sits where the game
+  projects it.
+- **Nothing over the world goes bare.** Text with no window behind it (a ghost window, a screen's own title, a stack laid
+  straight on a screen, a banner) keeps a halo in the panel's colour, the theme's `halo` word (an outline by default; a
+  glow, a hard shadow, a plate behind it, or none). The subtitles sit on their own plate, its opacity the player's
+  (`rt.subtitlePlate`).
+- **The legend is a bar.** What the buttons do here is pinned to the foot of the safe frame, right-aligned. A screen that
+  names no `legend` gets one drawn from what it holds: select, change, tabs, and back where back leaves something (a
+  modal, a screen over another, a back of its own). `legend: 'none'` draws none, and a finger needs none.
+- **Key art behind.** An `image` with `ratio: 'backdrop'` fills the screen under everything it holds.
+
 ## Selection: keys, pads and touch
 
 How the focus shows depends on what the player is using (`rt.input(mode)`; `mount` sets it from the last key or
 pointer, and the root carries it as `data-input`).
 
-- **Keys or a pad** move a cursor. The focus is a ring just inside the item's edge by default. A theme's `focus` word
-  can make it a lift off the page, a fill, a glow, corner brackets, or the classic ▶ of a console RPG (the `console`
-  preset keeps that).
+- **Keys or a pad** move a cursor. The focus is the classic ▶ at the item's left by default (a shape, never a colour
+  alone), with a small pop as it lands. A theme's `focus` word can make it a ring just inside the item's edge, a lift
+  off the page, a fill, a glow, corner brackets, or a highlight bar.
+- **Press start.** A screen with `press: 'any'` (the attract screen) takes any face or shoulder button as accept, and
+  the effect carries the seat that pressed, so the player who binds is known. The d-pad still moves and back still
+  leaves.
 - **A finger or a mouse** moves no cursor:
   - Nothing shows selected until the screen has been tapped; then what was tapped is selected (tinted).
   - A tap does what it lands on at once. A row with a detail beside it (a list or grid in a split) is selected on
@@ -141,16 +170,17 @@ A theme is closed words and colours, read and checked like a node, and written a
 still carries no look; the theme is context, set once for a game.
 
 ```js
-theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, ornaments? }
+theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, distance?, halo?, cues?, ornaments? }
 ```
 
 - **Tokens** are colours: `ink`, `panel`, `line` and `accent` are the ones a theme needs. The rest (mid, soft, paper,
   wash, accent2, harm and the bar fills) are derived from them when left out.
 - **Fonts you own:** `faces` are `{ family, src }` with the font's bytes as a `data:` URL, inlined as `@font-face`, so
   the page loads nothing. `type.body`, `type.display` and `type.mono` name a stack or one of those families.
-- **The look in words:** `frame`, `corner`, `plate`, `focus` (marker, fill, glow, bracket), `motion`, `fills` (pattern
-  or solid), `scale`, `case`, and `ornaments` drawn on the windows (brackets, ticks, scanlines, dotgrid, stitch,
-  hazard, glow). `THEME_WORDS` lists each set.
+- **The look in words:** `frame`, `corner`, `plate`, `focus` (marker, ring, lift, fill, glow, bracket, bar), `motion`,
+  `fills` (pattern or solid), `scale`, `case`, `distance` (desk, couch, hand), `halo` (outline, glow, shadow, plate,
+  none), `cues` (silent, ticks, full: the UI's sounds, below), and `ornaments` drawn on the windows that have a plate
+  (brackets, ticks, scanlines, dotgrid, stitch, hazard, glow). `THEME_WORDS` lists each set.
 - **Presets** (`THEMES`): the greybox (the default) and a few starting looks. `{ from: '<preset>', … }` changes one.
 - **Measured, never refused:** `themeAdvice` gives the WCAG contrast of text, labels, the focus, a window's edge and
   harm against a window. Solid fills are advised to keep their labels (they tell bar kinds apart by colour alone).
@@ -159,7 +189,8 @@ theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, fo
 other way) maps a world's UI guide onto a theme:
 
 - the tokens and the face
-- the register's dials: frame, plate, motion, and the stop's corner and case
+- the register's dials: frame, plate, motion, sound (its `cues`: a cue on every state change, or none), and the stop's
+  corner and case
 - a border flavor's elements: ornaments, or the words they mean (a soft corner, a cut one, a double rule, a gradient
   plate, a bracket or glowing focus)
 - the font shelf's faces, inlined as the theme's own
@@ -179,7 +210,8 @@ board enters row by row.
   A row the game marks `last: true` (the last move, the tile just laid) rings once and keeps a dotted edge. A row or a
   badge marked `turn: true` is the side whose turn it is: a thick bar at its edge in its side's colour, breathing.
 - **Entrances:** a screen fades in, its windows and rows rise staggered, a moment's banner slams with a sheen, a toast
-  slides in.
+  slides in. The focus pops as it lands, and a press-start prompt breathes (0.8 Hz, well under XAG 118's three flashes
+  a second; still under the greybox and under less motion).
 - **One moment at a time** (`moments`, the broadcast's rule): rows `{ id, text, sub?, weight }` the game appends; a
   weightier one takes the screen at once, an equal one once the one up has been read (`read` seconds), a lighter one
   waits its turn, and each stays `hold` seconds. It runs on the game's clock (`host.now`), so a pause holds it. With
@@ -194,12 +226,32 @@ board enters row by row.
 - **Keylines:** a side whose kit would sink into the panel (under 3:1, WCAG's bar for a part of the UI) is keylined
   in the ink, so a black team's chip still shows on dark glass.
 
+## The UI's sounds
+
+Sound is half of how a game's menu feels, and the web's is silent. mana-ui ships no audio and loads nothing: it emits
+the sounds as effects, `{ sound: <cue> }` to the host's `act`, and the host plays them.
+
+| cue | when |
+|---|---|
+| `move` | the cursor moved (or a long list scrolled under it) |
+| `accept` | a pick was made |
+| `back`, `close` | a screen was left, or the whole stack closed |
+| `open` | a screen opened (not the one a runtime starts on) |
+| `tab` | a tab turned |
+| `change` | a value turned: a toggle, a stepper, a slider, a carousel, a point allocated |
+| `deny` | a disabled row was pressed |
+
+`host.cues` says which it wants: `silent` (the default) none, `ticks` the cursor's three (move, accept, back), `full`
+every one. A theme's `cues` word says it for a game, and `manaUiPage` hands it to its host. The board hears them all
+and logs each one as ♪.
+
 ## Idioms
 
 The screens and HUD parts games share, as defs. Each one says what it reads, what it emits, and an `example` bound
 into the sample state (`samples.js`).
 
-- `idioms-front.js` — the front and the menus: attract, title, loading, mode select, character select (couch seats),
+- `idioms-front.js` — the front and the menus: attract (key art behind, a press-start that takes any button), title
+  (key art behind, the name and the menu in the left third, the version in a corner), loading, mode select, character select (couch seats),
   arena select, pause, options (sections of fields), controls (keybinds; accept asks the host to capture), confirm,
   results, save slots.
 - `idioms-rpg.js` — the deep menus, each a list or grid beside the detail of what it has picked: party, skill tree,
@@ -281,8 +333,10 @@ const rt = manaUi.runtime({ screens: { pause: node, … }, hud?, defs?, start? }
   read: (path) => value,        // the game's state: bus vars, store slices, a kernel's query
   act: (effect, from) => {},    // every effect but open / close / back
   now: () => seconds,           // optional: the game's clock (moments are timed on it; held when the game is)
+  cues: 'silent' | 'ticks' | 'full',   // optional: the UI's sounds it wants, as { sound } effects to act
 });
 rt.hold(on); rt.reduceMotion(on);       // the game's clock held (the HUD's motion holds); the player's less-motion option
+rt.textScale(k); rt.subtitlePlate(a);   // the player's text size (1 to 2) and the subtitles' plate (0..1, null: the theme's)
 rt.press('down' | 'up' | 'left' | 'right' | 'accept' | 'back' | 'tabNext' | 'tabPrev', seat?);
 rt.open(id); rt.tick(); rt.view(); rt.state();
 manaUi.mount(el, rt, { auto: true });   // the DOM backend, a view: it patches what it drew, hit-tests a pointer, a frame loop
@@ -299,7 +353,7 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
   same spec, and lets the folder become a package of its own once a second consumer exists.
 - **Deterministic.** There is no clock of its own, no dice and no DOM until `mount`. The same spec over the same states,
   in the same order, gives the same HTML (what changed is marked against what was drawn before; time is the host's).
-- **Values first.** The greybox has no colour. Focus is a shape (a ring, or the theme's lift, brackets or ▶) and the
+- **Values first.** The greybox has no colour. Focus is a shape (the ▶, or the theme's ring, lift, brackets or bar) and the
   active row a tint with a bar at its edge. Bar variants differ by pattern, and a low bar on what can run out is cross-hatched. Placeholders are crossed
   boxes.
 - **Tests.** Each concept is tested once (`kernel.test.js`). The sweep over every idiom (`idioms.deep.test.js`) checks

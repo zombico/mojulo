@@ -6,7 +6,8 @@
  *
  *   guide.tokens        ink, panel, line, accent, accent2 → the theme's tokens (bg is the world's, not a window's)
  *   guide.font          the face (system | mono | serif | display) → type.body; type.display from the type dial
- *   guide.dials         frame → frame (material: heavy), plate → plate, motion → motion (mechanical: stepped);
+ *   guide.dials         frame → frame (material: heavy), plate → plate, motion → motion (mechanical: stepped),
+ *                       sound → cues (cues: full, a sound effect on every state change; silent: none);
  *                       the register's stop → corner and case (modern rounds and keeps case, the console's square and
  *                       capitalised)
  *   guide.border        a flavor's elements → ornaments (brackets, ticks, scanlines, dotgrid, stitch, hazard, glow), and
@@ -55,6 +56,8 @@ export function manaThemeOfGuide(guide, { faces = {} } = {}) {
     motion: MOTION[d.motion] || 'ease',
     fills: 'solid',
     case: guide.stop === 'console' || guide.stop === 'immersive' ? 'upper' : 'none',
+    // the register's sound dial: a cue on every state change, or none
+    cues: d.sound === 'cues' ? 'full' : 'silent',
     ornaments: els.filter((e) => ORNAMENTS.includes(e)),
   };
   // fonts you own, from the shelf: the families they bring name the body and the display

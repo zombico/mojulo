@@ -28,6 +28,12 @@ describe('the guide as a mana-ui theme', () => {
     expect(T.ornaments).toEqual([]);
     expect(readTheme(manaThemeOfGuide(guide({ register: 'modern' }))).corner).toBe('round');
   });
+  it('the register\'s sound dial says which of the UI\'s sounds a game hears', () => {
+    const loud = guide({ register: 'console' }), calm = guide({ register: 'modern' });
+    expect(readTheme(manaThemeOfGuide(loud)).cues).toBe(loud.dials.sound === 'cues' ? 'full' : 'silent');
+    expect(readTheme(manaThemeOfGuide(calm)).cues).toBe(calm.dials.sound === 'cues' ? 'full' : 'silent');
+    expect(new Set([loud.dials.sound, calm.dials.sound]).size).toBe(2);
+  });
   it('a font shelf face becomes a face the theme owns, inlined: the page loads nothing', () => {
     const key = Object.keys(FONT_SHELF).find((k) => shelfFaces(k).length);
     const theme = manaThemeOfGuide(guide({}), { faces: { display: key } }), T = readTheme(theme);

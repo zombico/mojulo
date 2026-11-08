@@ -15,17 +15,27 @@
  *     frame     none | hairline | rule | double | bevel | heavy        the edge a window sits in
  *     corner    square | soft | round | cut
  *     plate     clear | flat | solid | gradient | textured            what a window sits on
- *     focus     ring | lift | fill | glow | bracket | marker           how the focus shows with keys or a pad: a ring
- *                                                                    round it (the default), a lift off the page, a
- *                                                                    fill, a glow, corner brackets, or the classic ▶ of
- *                                                                    a console RPG; with a finger or a mouse there is no
- *                                                                    cursor, what is tapped is selected
+ *     focus     marker | ring | lift | fill | glow | bracket | bar      how the focus shows with keys or a pad: the ▶ of a
+ *                                                                    console RPG (the default: a shape), a ring round it,
+ *                                                                    a lift off the page, a fill, a glow, corner brackets,
+ *                                                                    or a highlight bar; with a finger or a mouse there is
+ *                                                                    no cursor, what is tapped is selected
  *     motion    none | ease | snap | stepped                           how a state change moves, and how a value that
  *                                                                    changed, a screen's entrance and a moment move
  *                                                                    (MOTIONS): none fades only, ease glides, snap
  *                                                                    overshoots, stepped moves in frames
  *     fills     pattern | solid                                        bar kinds by pattern (values first) or by colour
  *     scale     compact | normal | large                               the type scale
+ *     distance  desk | couch | hand                                    how far the player sits (DISTANCES): every length is
+ *                                                                    in units of 1px at a 1080p reference, scaled by the
+ *                                                                    stage's height and the distance (the 10-foot couch
+ *                                                                    sets type ~1.44× the desk's: XAG 101's 26 px against
+ *                                                                    18 px at 1080p); hand is a phone, in CSS px
+ *     halo      outline | glow | shadow | plate | none                 how text with no window behind it holds over the
+ *                                                                    world (a ghost window, a screen's own title, a banner)
+ *     cues      silent | ticks | full                                  the UI's sounds as effects ({ sound: <cue> }): none,
+ *                                                                    the cursor's (move, accept, back), or every state
+ *                                                                    change; read by the page, played by the host
  *     case      upper | none                                           titles and headings
  *     ornaments [brackets | ticks | scanlines | dotgrid | stitch | hazard | glow]   drawn on and around the windows
  *     sides     the kits of the sides (a team, a seat, a lane) as hex, 1 to 8, cycled: the chip a row with `side` draws,
@@ -51,26 +61,46 @@ export const THEME_WORDS = Object.freeze({
   frame: ['none', 'hairline', 'rule', 'double', 'bevel', 'heavy'],
   corner: ['square', 'soft', 'round', 'cut'],
   plate: ['clear', 'flat', 'solid', 'gradient', 'textured'],
-  focus: ['ring', 'lift', 'fill', 'glow', 'bracket', 'marker'],
+  focus: ['marker', 'ring', 'lift', 'fill', 'glow', 'bracket', 'bar'],
   motion: ['none', 'ease', 'snap', 'stepped'],
   fills: ['pattern', 'solid'],
   scale: ['compact', 'normal', 'large'],
   case: ['upper', 'none'],
+  distance: ['desk', 'couch', 'hand'],
+  halo: ['outline', 'glow', 'shadow', 'plate', 'none'],
+  cues: ['silent', 'ticks', 'full'],
   ornaments: ['brackets', 'ticks', 'scanlines', 'dotgrid', 'stitch', 'hazard', 'glow'],
 });
 const NEEDED = ['ink', 'panel', 'line', 'accent'];
 const TOKENS = [...NEEDED, 'mid', 'soft', 'paper', 'wash', 'accent2', 'harm', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'];
-const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'ornaments', 'sides'];
+const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'ornaments', 'sides'];
+// how far the player sits: the unit (1px at a 1080p reference, or a phone's CSS px), the distance's factor over the desk,
+// and the floor no text goes under in CSS px. XAG 101's body minimum at 1080p is 26 px on a console and 18 px on a PC
+// (to verify against the primary page before a test pins it): the couch is the desk's ×26/18
+export const DISTANCES = Object.freeze({
+  desk: { u: 'calc(100cqh / 1080)', k: '1', min: '11px' },
+  couch: { u: 'calc(100cqh / 1080)', k: '1.444', min: '11px' },
+  hand: { u: '.75px', k: '1', min: '13px' },
+});
+// the text-shadow a halo word writes (in the panel's colour, so it reads over any scene); plate is drawn by a rule
+const H = 'var(--mana-panel)';
+export const HALOS = Object.freeze({
+  outline: `-1px -1px 0 ${H},1px -1px 0 ${H},-1px 1px 0 ${H},1px 1px 0 ${H},0 0 3px ${H}`,
+  glow: `0 0 4px ${H},0 0 10px ${H},0 0 2px ${H}`,
+  shadow: `2px 2px 0 ${H},0 0 2px ${H}`,
+  plate: 'none',
+  none: 'none',
+});
 // the colour-blind-safe categorical set, for the sides a theme does not name
 const OKABE_ITO = ['#e69f00', '#56b4e9', '#009e73', '#f0e442', '#0072b2', '#d55e00', '#cc79a7', '#999999'];
 
 export const THEMES = Object.freeze({
-  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'ring', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'] },
-  modern: { name: 'Modern', tokens: { ink: '#eef1f6', panel: '#151a23', line: '#3a4558', accent: '#5fb0ff', accent2: '#e8b96a', harm: '#ff5a4d' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'round', plate: 'flat', focus: 'fill', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', ornaments: [] },
-  console: { name: 'Console RPG', tokens: { ink: '#ffffff', panel: '#1b2a7c', line: '#eef1ff', accent: '#ffe07a', accent2: '#8fb0ff', harm: '#ff6b6b' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'double', corner: 'soft', plate: 'gradient', focus: 'marker', motion: 'snap', fills: 'solid', scale: 'normal', case: 'none', ornaments: [] },
-  terminal: { name: 'Terminal', tokens: { ink: '#c8f5d0', panel: '#06140c', line: '#3c8a52', accent: '#7dff9a', accent2: '#e8d36a', harm: '#ff7a5a' }, type: { body: 'mono', display: 'mono', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'bracket', motion: 'snap', fills: 'pattern', scale: 'normal', case: 'upper', ornaments: ['brackets', 'scanlines'] },
-  storybook: { name: 'Storybook', tokens: { ink: '#3a2a20', panel: '#fff4e2', line: '#b98a5a', accent: '#a8471f', accent2: '#5f7f2e', harm: '#b3261e', hp: '#5f7f2e', mp: '#2f5d8a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'soft', plate: 'textured', focus: 'lift', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', ornaments: ['stitch'] },
-  arcade: { name: 'Arcade', tokens: { ink: '#ffffff', panel: '#0b0b10', line: '#ffffff', accent: '#ff2e88', accent2: '#00e5ff', harm: '#ff3b30', xp: '#ffe600' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'glow', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', ornaments: ['hazard'] },
+  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'marker', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', distance: 'desk', halo: 'outline', cues: 'silent', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'] },
+  modern: { name: 'Modern', tokens: { ink: '#eef1f6', panel: '#151a23', line: '#3a4558', accent: '#5fb0ff', accent2: '#e8b96a', harm: '#ff5a4d' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'round', plate: 'flat', focus: 'fill', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'glow', cues: 'ticks', ornaments: [] },
+  console: { name: 'Console RPG', tokens: { ink: '#ffffff', panel: '#1b2a7c', line: '#eef1ff', accent: '#ffe07a', accent2: '#8fb0ff', harm: '#ff6b6b' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'double', corner: 'soft', plate: 'gradient', focus: 'marker', motion: 'snap', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'shadow', cues: 'full', ornaments: [] },
+  terminal: { name: 'Terminal', tokens: { ink: '#c8f5d0', panel: '#06140c', line: '#3c8a52', accent: '#7dff9a', accent2: '#e8d36a', harm: '#ff7a5a' }, type: { body: 'mono', display: 'mono', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'bracket', motion: 'snap', fills: 'pattern', scale: 'normal', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', ornaments: ['brackets', 'scanlines'] },
+  storybook: { name: 'Storybook', tokens: { ink: '#3a2a20', panel: '#fff4e2', line: '#b98a5a', accent: '#a8471f', accent2: '#5f7f2e', harm: '#b3261e', hp: '#5f7f2e', mp: '#2f5d8a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'soft', plate: 'textured', focus: 'lift', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'plate', cues: 'ticks', ornaments: ['stitch'] },
+  arcade: { name: 'Arcade', tokens: { ink: '#ffffff', panel: '#0b0b10', line: '#ffffff', accent: '#ff2e88', accent2: '#00e5ff', harm: '#ff3b30', xp: '#ffe600' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'glow', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'shadow', cues: 'full', ornaments: ['hazard'] },
 });
 export const THEME_IDS = Object.keys(THEMES);
 
@@ -176,12 +206,15 @@ const stack = (k) => FACE_STACKS[k] || `'${k}',system-ui,sans-serif`;
 
 /** The theme as CSS, laid after the sheet under the same scope. */
 export function themeCss(theme, scope = '.mana-root') {
-  const T = readTheme(theme), s = scope, k = T.tokens, win = `${s} .mana-window,${s} .mana-place>.mana-region:not(:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad)))`;
+  const T = readTheme(theme), s = scope, k = T.tokens, win = `${s} .mana-window:not([data-variant=ghost]),${s} .mana-place>.mana-region:not(:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad)))`;
   const plate = { clear: 'transparent', flat: alpha(k.panel, 0.86), solid: k.panel, gradient: `linear-gradient(180deg,${mix(k.panel, '#ffffff', 0.1)} 0%,${k.panel} 55%,${mix(k.panel, '#000000', 0.25)} 100%)`, textured: `repeating-linear-gradient(0deg,${k.panel} 0 2px,${mix(k.panel, k.ink, 0.05)} 2px 3px)` }[T.plate];
   const vars = { ...Object.fromEntries(Object.entries(k)), plain: k.accent, scrim: alpha(k.panel, 0.66), 'focus-ink': T.focus === 'fill' ? k.panel : k.ink,
     ...Object.fromEntries(T.sides.map((c, i) => [`side-${i}`, c])),
     font: stack(T.type.body), display: stack(T.type.display), mono: stack(T.type.mono), scale: SCALE[T.scale], case: T.case === 'upper' ? 'uppercase' : 'none',
     radius: RADII[T.corner], 'frame-w': FRAMES[T.frame][0], 'frame-s': FRAMES[T.frame][1], plate, motion: MOTION[T.motion], ...MOTIONS[T.motion],
+    ...DISTANCES[T.distance], halo: HALOS[T.halo],
+    // the ▶ is the sheet's own focus; any other focus word takes it (and the room it keeps at an item's left) away
+    cursor: T.focus === 'marker' ? '"\\25B6"' : 'none', mark: T.focus === 'marker' ? '1' : '0',
     // a side whose kit would sink into the panel is keylined in the ink
     ...Object.fromEntries(T.sides.map((c, i) => [`side-${i}-key`, contrast(c, k.panel) < 3 ? k.ink : 'transparent'])) };
   const out = [
@@ -193,22 +226,27 @@ export function themeCss(theme, scope = '.mana-root') {
     `${s} .mana-awareness[data-state=suspicious] b,${s} .mana-awareness[data-state=searching] b{border-color:${k.accent2};color:${k.accent2}}`,
   ];
   if (T.corner === 'cut') out.push(`${win},${s} .mana-button{clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}`);
-  const items = ['row', 'cell', 'node', 'button', 'toggle', 'cycler', 'slider', 'keybind', 'carousel', 'alloc'].map((c) => `${s} .mana-${c}`).join(',');
-  if (T.focus === 'marker') out.push(`${items}{padding-left:24px}`, `${s} [data-st=focus]{outline:none;box-shadow:inset 0 0 0 2px ${k.accent}}`, `${s} [data-st=focus]::before{content:"\\25B6";position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:9px;color:${k.accent}}`);
+  if (T.focus === 'ring') out.push(`${s} [data-st=focus]{outline:2px solid ${k.accent};outline-offset:-2px}`);
+  // a highlight bar: a solid block at the leading edge, the accent fading off behind the words, moved on the frame
+  if (T.focus === 'bar') out.push(`${s} [data-st=focus]{outline:none;border-color:transparent;color:${k.ink};background:linear-gradient(90deg,${k.accent} 0 calc(7 * var(--mana-du)),${alpha(k.accent, 0.42)} calc(7 * var(--mana-du)),${alpha(k.accent, 0.12)} 78%,transparent)}`);
   if (T.focus === 'lift') out.push(`${s} [data-st=focus]{outline:none;background:${k.panel};border-color:${k.line};box-shadow:0 6px 16px ${alpha(k.ink, 0.22)},0 0 0 1px ${k.accent};transform:translateY(-1px)}`);
   if (T.focus === 'fill') out.push(`${s} [data-st=focus]{outline:none;background:${k.accent};border-color:${k.accent};color:${k.panel}}`, `${s} [data-st=focus]::before{color:${k.panel}}`, `${s} [data-st=focus] .mana-label,${s} [data-st=focus] .mana-mark,${s} [data-st=focus] .mana-text,${s} [data-st=focus] .mana-num{color:${k.panel}}`);
   if (T.focus === 'glow') out.push(`${s} [data-st=focus]{outline:none;box-shadow:0 0 0 1px ${k.accent},0 0 14px ${alpha(k.accent, 0.75)}}`);
   if (T.focus === 'bracket') out.push(`${s} [data-st=focus]{outline:none;border-color:transparent;background:${corners(k.accent, 8, 2)},${k.wash}}`);
   if (T.fills === 'solid') out.push(...['mp', 'xp', 'stamina', 'shield'].map((x) => `${s} .mana-bar[data-variant=${x}] .mana-track i{background:${k[x]}}`));
   // ornaments: brackets before, the rest layered after
-  if (T.ornaments.includes('brackets')) out.push(`${s} .mana-window::before{content:"";position:absolute;inset:3px;pointer-events:none;background:${corners(k.accent, 12, 2)}}`);
+  // ornaments dress a window that has a plate; a ghost window (words over the world) wears none
+  const framed = `${s} .mana-window:not([data-variant=ghost])`;
+  if (T.ornaments.includes('brackets')) out.push(`${framed}::before{content:"";position:absolute;inset:3px;pointer-events:none;background:${corners(k.accent, 12, 2)}}`);
   const after = [];
   if (T.ornaments.includes('ticks')) after.push(corners(k.line, 4, 4));
   if (T.ornaments.includes('hazard')) after.push(`repeating-linear-gradient(-45deg,${k.accent2} 0 6px,transparent 6px 12px) top/100% 5px no-repeat`);
   if (T.ornaments.includes('scanlines')) after.push(`repeating-linear-gradient(0deg,${alpha('#000000', 0.22)} 0 1px,transparent 1px 3px)`);
   if (T.ornaments.includes('dotgrid')) after.push(`radial-gradient(${alpha(k.line, 0.5)} 1px,transparent 1.2px) 0 0/10px 10px`);
-  if (after.length) out.push(`${s} .mana-window::after{content:"";position:absolute;inset:0;pointer-events:none;background:${after.join(',')}}`);
+  if (after.length) out.push(`${framed}::after{content:"";position:absolute;inset:0;pointer-events:none;background:${after.join(',')}}`);
   if (T.ornaments.includes('stitch')) out.push(`${win}{outline:1px dashed ${k.line};outline-offset:-6px}`);
+  // a plate behind text that has no window: the ghost windows and a screen's own title sit on the panel, the halo off
+  if (T.halo === 'plate') out.push(`${s} .mana-window[data-variant=ghost]{background:${alpha(k.panel, 0.82)};padding:calc(9 * var(--mana-du)) calc(15 * var(--mana-du))}`, `${s} .mana-screen>.mana-title{align-self:flex-start;background:${alpha(k.panel, 0.82)};padding:0 calc(15 * var(--mana-du))}`);
   if (T.ornaments.includes('glow')) out.push(`${win}{box-shadow:0 0 0 1px ${alpha(k.accent, 0.5)},0 0 18px ${alpha(k.accent, 0.35)}}`);
   return out.join('\n');
 }

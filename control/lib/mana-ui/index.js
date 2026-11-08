@@ -11,12 +11,12 @@
  *   board.js         the wireframe board: every idiom live on the sample state
  *
  *   manaUiPage(spec, { state?, title?, open?, theme?, host?, glyphs? })  → a self-contained page that runs a spec over a plain state object
- *     (a `set` writes the state, every other effect is logged), for the eyes gate and the headless driver
+ *     (a `set` writes the state, every other effect is logged, the theme's sounds among them), for the eyes gate and the headless driver
  *     (`window.__manaUi`: the runtime; `window.__manaLog`: the effects it emitted)
  */
 import { manaUi, manaUiSource } from './kernel.js';
 import { manaCss } from './css.js';
-import { themeCss } from './theme.js';
+import { themeCss, readTheme } from './theme.js';
 import { withIdioms } from './idioms.js';
 import { PREVIEW_KEYS } from './board.js';
 
@@ -47,6 +47,8 @@ const host = {
   read: (p) => manaUi.readPath(STATE, p),
   // the game's clock (a preview's is the page's; a game hands its own, held while it is)
   now: () => performance.now() / 1000,
+  // the UI's sounds the theme asks for, as effects (logged here; a game plays them)
+  cues: ${json(readTheme(theme).cues)},
   act: (e, from) => {
     if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = STATE; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
     LOG.push({ e, from }); document.getElementById('log').textContent = LOG.slice(-4).map((x) => (x.from.screen || '-') + ' ' + JSON.stringify(x.e)).join('\\n');

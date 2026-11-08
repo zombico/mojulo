@@ -47,10 +47,17 @@
  *   readNode(node, defs?, where?) → the node with its defs expanded, or throws, teaching
  *   readSpec(spec)                → { screens, hud, start }
  *   runtime(spec, host)           → the running UI. host: { read(path) → value, act(effect, from), now?() → the game's
- *                                   clock in seconds (held when the game is: a pause, a hit-stop) }
+ *                                   clock in seconds (held when the game is: a pause, a hit-stop), cues?: silent |
+ *                                   ticks | full (the UI's sounds it wants as effects) }
  *     .open(id) .close() .press(action, seat?) .focusAt(n, seat?) .tab(t, i) .tick() → re-rendered?
  *     .hold(on)           the game's clock is held (a hit-stop, a freeze): the HUD's motion holds with it
  *     .reduceMotion(on)   the player asked for less motion (the game's option; the system's is read by the sheet)
+ *     .textScale(k)       the player's text size, 1 | 1.25 | 1.5 | 1.75 | 2 (× the theme's; XAG: text scales to 200%)
+ *     .subtitlePlate(a)   the opacity of the plate behind the subtitles, 0..1 (null: the theme's), the player's (XAG 104)
+ *   THE UI'S SOUNDS are effects: with host.cues ticks | full (a theme's `cues` word, the page passes it on) the runtime
+ *     sends { sound: move | accept | back | open | close | tab | change | deny } to act as the cursor moves, a pick is
+ *     made, a value turns, a screen opens or leaves, a tab turns and a disabled row is pressed (ticks: the cursor's
+ *     three); silent (the default) sends none. The host owns the audio: mana-ui ships no sound and loads nothing.
  *     .input(mode, layout?)  what the player is using: keys | pad | xr (the focus shows as a cursor) | touch | mouse (it
  *                         does not: what is tapped is selected, and a touch screen's lists scroll and its targets grow);
  *                         a pad's printed layout (xbox | playstation | nintendo) picks its glyphs
@@ -86,6 +93,12 @@ export function buildManaUi() {
   const STYLE_KEYS = ['style', 'class', 'className', 'color', 'colour', 'font', 'css', 'border', 'theme', 'skin', 'tokens', 'register'];
   const ACTIONS = ['up', 'down', 'left', 'right', 'accept', 'back', 'tabNext', 'tabPrev'];
   const INPUTS = ['keys', 'pad', 'xr', 'touch', 'mouse'];
+  // the UI's sounds, as effects ({ sound: <cue> }) the host plays: none, the cursor's, or every state change
+  const CUES = { silent: [], ticks: ['move', 'accept', 'back'], full: ['move', 'accept', 'back', 'open', 'close', 'tab', 'change', 'deny'] };
+  // press start: the buttons that start (a face or a shoulder button; the d-pad moves, back still leaves)
+  const ANY = ['accept', 'tabNext', 'tabPrev'];
+  // the player's text size (XAG: text scales to 200%)
+  const TEXT_SCALES = [1, 1.25, 1.5, 1.75, 2];
   // a drawn pad's buttons, where a gamepad has them (the face buttons by their Xbox print)
   const PAD_FACES = { A: 'south', B: 'east', X: 'west', Y: 'north' };
   const ID = /^[a-z][a-z0-9-]*$/;
@@ -97,7 +110,7 @@ export function buildManaUi() {
   const T = 'text', N = 'num', B = 'bool', L = 'list', ND = 'node', A = 'any';
   const COMPONENTS = {
     // layout
-    screen: { group: 'layout', about: 'a screen on the stack: what one back leaves; `seats` > 1 gives each couch seat its own cursor', props: { title: [T], layer: [['overlay', 'modal'], 'modal'], place: [['center', 'left', 'right', 'full', 'top', 'bottom', 'sheet'], 'center'], seats: [N, 1] }, children: true, verbs: ['back'] },
+    screen: { group: 'layout', about: 'a screen on the stack: what one back leaves; `seats` > 1 gives each couch seat its own cursor; its legend bar is drawn from what it holds unless it names one (`legend: none` for none); `press: any` takes any face or shoulder button as accept (press start)', props: { title: [T], layer: [['overlay', 'modal'], 'modal'], place: [['center', 'left', 'right', 'full', 'top', 'bottom', 'sheet'], 'center'], seats: [N, 1], legend: [['auto', 'none'], 'auto'], press: [['focus', 'any'], 'focus'] }, children: true, verbs: ['back'] },
     window: { group: 'layout', about: 'a framed panel', props: { title: [T], variant: [['plain', 'inset', 'ghost'], 'plain'] }, children: true },
     stack: { group: 'layout', about: 'children in a column or a row; `fill` a row that takes its place\'s width, its children sharing it (two fighters\' bars)', props: { dir: [['column', 'row'], 'column'], gap: [['tight', 'normal', 'loose'], 'normal'], align: [['stretch', 'start', 'center', 'end', 'apart'], 'stretch'], fill: [B, false] }, children: true },
     split: { group: 'layout', about: 'two panes: the first a list, the second its detail', props: { ratio: [['narrow', 'even', 'wide'], 'narrow'] }, children: true },
@@ -107,7 +120,7 @@ export function buildManaUi() {
     divider: { group: 'layout', about: 'a rule between groups, with an optional label', props: { label: [T] } },
     // in-game: the HUD's places
     hud: { group: 'hud', about: 'the in-game layer under the stack: its children are regions and the layers (anchors, edges, threat, letterbox)', props: {}, children: 'hud' },
-    region: { group: 'hud', about: 'one of the nine screen places; parts stack inside it (in a hud, or laid out over a screen)', props: { at: [REGIONS, 'top-left'] }, children: true },
+    region: { group: 'hud', about: 'one of the nine screen places; parts stack inside it (in a hud, or laid out over a screen); `subtitles` sits on the subtitles\' plate (its opacity the player\'s)', props: { at: [REGIONS, 'top-left'], variant: [['plain', 'subtitles'], 'plain'] }, children: true },
     anchors: { group: 'hud', layer: true, about: 'one `row` drawn over each thing in the world at its screen place (x, y from 0 to 1): nameplates, damage numbers', props: { rows: [L, [], true], row: [ND, undefined, true], x: [T, 'x'], y: [T, 'y'] } },
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
     threat: { group: 'hud', layer: true, about: 'where harm came from: a mark on a ring round the centre for each bearing (degrees from where you face)', props: { markers: [L, [], true] } },
@@ -124,7 +137,7 @@ export function buildManaUi() {
     compare: { group: 'value', about: 'before → after, better or worse told by a shape (▲ ▼ =)', props: { label: [T, '', true], from: [N, 0, true], to: [N, 0, true], better: [['up', 'down'], 'up'] } },
     icon: { group: 'value', about: 'an icon\'s place, named', props: { name: [T, '', true], size: [['s', 'm', 'l'], 'm'] } },
     portrait: { group: 'value', about: 'a face\'s place, named', props: { name: [T, ''], size: [['s', 'm', 'l'], 'm'] } },
-    image: { group: 'value', about: 'a picture\'s place (a logo, an arena\'s preview, key art)', props: { label: [T, ''], ratio: [['wide', 'square', 'tall', 'banner'], 'wide'] } },
+    image: { group: 'value', about: 'a picture\'s place (a logo, an arena\'s preview, key art); `backdrop` fills the screen behind what it holds', props: { label: [T, ''], ratio: [['wide', 'square', 'tall', 'banner', 'backdrop'], 'wide'] } },
     badge: { group: 'value', about: 'a small mark: new, a count, a rank, a score; `side` its side\'s chip; `turn` alight while it is that side\'s turn', props: { value: [T, '', true], variant: [['plain', 'strong', 'muted'], 'plain'], side: [A], turn: [B, false] } },
     table: { group: 'value', about: 'rows under columns (a scoreboard, a forecast, a stat panel): the row whose `mark` field is true is yours, a row\'s `lead` names the column that leads it (marked ▲), a row\'s `side` its chip', props: { columns: [L, [], true], rows: [L, [], true], mark: [T, 'self'] } },
     gauge: { group: 'value', about: 'a value on a dial (a speedometer, a pressure, a charge)', props: { value: [N, 0, true], max: [N, 1, true], label: [T], unit: [T] } },
@@ -142,7 +155,7 @@ export function buildManaUi() {
     awareness: { group: 'enemy', about: `what an enemy knows of you, as a shape: ${Object.entries(AWARENESS).map(([k, v]) => `${k} ${v}`).join(', ')}`, props: { state: [Object.keys(AWARENESS), 'unaware', true], label: [B, true] } },
     statuses: { group: 'enemy', about: 'the statuses on someone (a word, or { name, turns })', props: { rows: [L, [], true] } },
     // inputs and collections
-    list: { group: 'input', about: 'rows to move through and pick; `visible` scrolls a long list', props: { rows: [L, [], true], row: [ND], empty: [T, 'Nothing here'], visible: [N, 0] }, verbs: ['accept'] },
+    list: { group: 'input', about: 'rows to move through and pick; `visible` scrolls a long list; `menu` sets its rows at a title\'s size (a title screen\'s, a hub\'s)', props: { rows: [L, [], true], row: [ND], empty: [T, 'Nothing here'], visible: [N, 0], variant: [['plain', 'menu'], 'plain'] }, verbs: ['accept'] },
     grid: { group: 'input', about: 'cells in columns, moved through in two directions (an inventory, a roster)', props: { cells: [L, [], true], cell: [ND], columns: [N, 4], empty: [T, 'Nothing here'] }, verbs: ['accept'] },
     tree: { group: 'input', about: 'nodes laid in tiers by what they require (a skill or tech tree): { id, requires?, state: learned | available | locked }', props: { nodes: [L, [], true], node: [ND], label: [T, 'name'] }, verbs: ['accept'] },
     carousel: { group: 'input', about: 'one item at a time, left and right turn it (a bound value is set by the item\'s id)', props: { items: [L, [], true], item: [ND], value: [A] }, verbs: ['accept', 'change'] },
@@ -281,7 +294,11 @@ export function buildManaUi() {
   function runtime(spec, host) {
     const { screens, hud, start } = readSpec(spec);
     const H = host || {};
-    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), held: false, calm: false, renders: 0 };
+    if (H.cues !== undefined && !CUES[H.cues]) throw new Error(`host.cues is one of: ${Object.keys(CUES).join(', ')} (the UI's sounds the host plays)`);
+    const heard = new Set(CUES[H.cues || 'silent']);
+    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), held: false, calm: false, text: 1, plate: null, renders: 0, booting: true };
+    // a sound the UI makes, if the host listens for it: an effect like any other, played by the host
+    const cue = (name, seat = 0) => { if (!S.booting && heard.has(name) && H.act) H.act({ sound: name }, { screen: top(), key: null, verb: 'cue', seat }); };
     // what changed since it was last drawn: { d: up | down | new, n: how many times, g: the gain } (null: nothing yet)
     const changeOf = (key, value) => {
       const now = JSON.stringify(value === undefined ? null : value), was = S.seen.get(key);
@@ -390,7 +407,9 @@ export function buildManaUi() {
         for (let s = 0; s < seats; s++) if (U.at[s] === undefined) { U.at[s] = 0; again = true; } else if (ctx.focus.length && U.at[s] >= ctx.focus.length) { U.at[s] = ctx.focus.length - 1; again = true; }
         if (again) return render();
       }
-      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null, 'data-clock': S.held ? 'held' : null, 'data-motion': S.calm ? 'reduced' : null }, ...parts];
+      // the player's options that are the sheet's: the text size, the subtitles' plate
+      const own = [S.text !== 1 ? `--mana-text:${S.text}` : null, S.plate !== null ? `--mana-sub-plate:${S.plate}` : null].filter(Boolean).join(';');
+      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null, 'data-clock': S.held ? 'held' : null, 'data-motion': S.calm ? 'reduced' : null, style: own || null }, ...parts];
       last = { tree, ...ctx };
       return last;
     }
@@ -411,6 +430,26 @@ export function buildManaUi() {
       const tappable = (n, key, scope) => (!live && n.on && n.on.accept ? ctx.taps.push({ n, key, scope }) - 1 : null);
       const register = (n, key, rowsRaw, scope) => { if (n.id) S.picks[`${rootKey}:${n.id}`] = S.picks[n.id] = { rows: rowsRaw, scope, screen: rootKey, key }; };
       const touched = (key) => !!U.vals[`$touched:${key}`];
+      // a legend: what the buttons do here, each beside the glyph of the control in hand; a finger needs none
+      const legendOf = (rows) => {
+        if (S.input === 'touch' || !rows.length) return null;
+        return ['div', { class: 'mana-legend' }, ...rows.map((r) => {
+          // a row names an action, or several that share a word (left and right: change)
+          const acts = isObj(r) && Array.isArray(r.actions) ? r.actions.map(words) : [isObj(r) ? words(r.action) : words(r)];
+          const label = isObj(r) && r.label !== undefined ? words(r.label) : acts.join(' / ');
+          return ['span', { class: 'mana-hint' }, ...acts.map((a) => ['span', { class: 'mana-key' }, glyphOf(a) || a]), ['span', null, label]];
+        })];
+      };
+      // the legend a screen that names none gets, from what it drew: a pick, a value to change, tabs, and back where back
+      // leaves something (a modal, a screen over another, a back of its own)
+      const autoLegend = (n, p) => {
+        const F = ctx.focus, out = [];
+        if (F.some((f) => !['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind))) out.push({ action: 'accept', label: p.press === 'any' ? 'Start' : 'Select' });
+        if (F.some((f) => ['toggle', 'cycler', 'slider', 'carousel', 'alloc-row'].includes(f.kind))) out.push({ actions: ['left', 'right'], label: 'Change' });
+        if (ctx.tabs.length) out.push({ actions: ['tabPrev', 'tabNext'], label: 'Tabs' });
+        if (p.layer === 'modal' || S.stack.length > 1 || (n.on && n.on.back)) out.push({ action: 'back', label: 'Back' });
+        return out;
+      };
 
       const draw = (n, key, scope) => {
         if (n.when !== undefined && !resolve(n.when, scope, ctx)) return null;
@@ -418,11 +457,16 @@ export function buildManaUi() {
         const { p, src } = propsOf(n, scope, ctx), cls = `mana-${n.use}`;
         const kids = () => n.children.map((c, i) => draw(c, `${key}.${c.id || i}`, scope));
         switch (n.use) {
-          case 'screen': return ['section', { class: cls, 'data-layer': p.layer, 'data-place': p.place, 'data-key': rootKey }, p.title ? ['h2', { class: 'mana-title' }, p.title] : null, ...kids()];
+          case 'screen': {
+            const body = kids();
+            // the legend bar: the screen's own, else what the buttons do here, read from what it drew
+            const bar = live && p.legend === 'auto' && !n.children.some((c) => c.use === 'legend') ? legendOf(autoLegend(n, p)) : null;
+            return ['section', { class: cls, 'data-layer': p.layer, 'data-place': p.place, 'data-press': p.press === 'any' ? 'any' : null, 'data-key': rootKey }, p.title ? ['h2', { class: 'mana-title' }, p.title] : null, ...body, bar];
+          }
           case 'window': return ['div', { class: cls, 'data-variant': p.variant }, p.title ? ['h3', { class: 'mana-heading' }, p.title] : null, ...kids()];
           case 'stack': return ['div', { class: cls, 'data-dir': p.dir, 'data-gap': p.gap, 'data-align': p.align, 'data-fill': p.fill ? 'yes' : null }, ...kids()];
           case 'split': return ['div', { class: cls, 'data-ratio': p.ratio }, ...n.children.map((c, i) => { const was = pane; pane = { split: key, i }; const t = draw(c, `${key}.${c.id || i}`, scope); pane = was; return t; })];
-          case 'tab': case 'region': return ['div', { class: cls, 'data-at': n.use === 'region' ? p.at : null }, ...kids()];
+          case 'tab': case 'region': return ['div', { class: cls, 'data-at': n.use === 'region' ? p.at : null, 'data-variant': n.use === 'region' && p.variant !== 'plain' ? p.variant : null }, ...kids()];
           case 'each': return ['div', { class: cls, 'data-dir': p.dir }, ...p.rows.map((item, i) => draw(n.props.row, `${key}.${i}`, { ...scope, item }))];
           case 'divider': return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null];
           case 'tabs': {
@@ -507,15 +551,7 @@ export function buildManaUi() {
             return ['span', { class: 'mana-pad', 'data-control': control }, label];
           })]];
           case 'prompt': return ['div', { class: cls }, ['span', { class: 'mana-key' }, p.glyph || glyphOf(p.action) || p.action], ['span', null, p.label]];
-          case 'legend': {
-            if (S.input === 'touch') return null;
-            return ['div', { class: cls }, ...p.rows.map((r) => {
-              // a row names an action, or several that share a word (left and right: change)
-              const acts = isObj(r) && Array.isArray(r.actions) ? r.actions.map(words) : [isObj(r) ? words(r.action) : words(r)];
-              const label = isObj(r) && r.label !== undefined ? words(r.label) : acts.join(' / ');
-              return ['span', { class: 'mana-hint' }, ...acts.map((a) => ['span', { class: 'mana-key' }, glyphOf(a) || a]), ['span', null, label]];
-            })];
-          }
+          case 'legend': return legendOf(p.rows);
           case 'reticle': return ['div', { class: cls, 'data-shape': p.shape, 'data-hit': p.hit ? 'yes' : null }, ['span', null, RETICLES[p.shape] || '+'], p.hit ? ['span', { class: 'mana-hit' }, '✕'] : null];
           case 'minimap': return ['div', { class: cls, 'data-shape': p.shape }, ...p.markers.map((m) => {
             if (!isObj(m) || !isFinite(Number(m.x)) || !isFinite(Number(m.y))) return null;
@@ -554,7 +590,7 @@ export function buildManaUi() {
               rows.push(['div', { class: 'mana-row', ...mark(fi, (i === sel && touched(key)) || (isObj(item) && item.active) ? 'active' : 'shown', off), ...rowMarks(fresh, item) }, isObj(item) ? chip(item.side) : null, body]);
             }
             if (to < total) rows.push(['div', { class: 'mana-more' }, `▼ ${total - to} more`]);
-            return ['div', { class: cls }, ...rows];
+            return ['div', { class: cls, 'data-variant': p.variant === 'menu' ? 'menu' : null }, ...rows];
           }
           case 'grid': {
             register(n, key, n.props.cells, scope);
@@ -652,6 +688,7 @@ export function buildManaUi() {
       if (!screens[id]) throw new Error(`no screen '${id}' (screens: ${Object.keys(screens).join(', ')})`);
       if (top() !== id) {
         S.stack.push(id);
+        cue('open');
         // a screen opened shows what is there now; only what changes while it is up is news
         const mine = (k) => k === id || k.startsWith(`${id}.`);
         for (const k of [...S.seen.keys()]) if (mine(k) || mine(k.split(':')[0])) S.seen.delete(k);
@@ -661,11 +698,13 @@ export function buildManaUi() {
       render();
     }
     function close() {
+      if (S.stack.length) cue('close');
       S.stack.length = 0;
       if (H.act) H.act({ emit: 'mana:closed' }, { screen: null, key: null, verb: 'close', seat: 0 });
       render();
     }
     function back() {
+      if (S.stack.length) cue('back');
       const id = S.stack.pop();
       if (!S.stack.length && H.act) H.act({ emit: 'mana:closed' }, { screen: id, key: id, verb: 'back', seat: 0 });
       render();
@@ -724,6 +763,7 @@ export function buildManaUi() {
         if (next < 0 || (d > 0 && spent >= f.points) || f.base + next > f.max) return;
         draft[f.id] = next;
         if (!next) delete draft[f.id];
+        cue('change', seat);
         U.vals[f.key] = draft;
         if (f.n.on.change) run(effectsOf(f.n.on.change, scopeOf(f, seat, { input: draft }), last), f, 'change', seat);
         return;
@@ -738,13 +778,15 @@ export function buildManaUi() {
     // a value an input now holds: set on the host when bound (the game's), else the screen's own
     function commit(f, v, seat) {
       const U = uiOf(top());
+      cue('change', seat);
       if (f.src) { if (H.act) H.act({ set: f.src, to: f.kind === 'toggle' ? (v ? 1 : 0) : v }, from(f, 'change', seat)); }
       else if (f.kind !== 'carousel') U.vals[f.key] = v;
       if (f.n.on.change) run(effectsOf(f.n.on.change, scopeOf(f, seat, { input: v }), last), f, 'change', seat);
     }
     function accept(f, seat) {
       const U = uiOf(top()), on = f.n.on;
-      if (f.off) return;
+      if (f.off) { cue('deny', seat); return; }
+      if (!['toggle', 'cycler', 'slider'].includes(f.kind)) cue('accept', seat);
       switch (f.kind) {
         case 'toggle': case 'cycler': return change(f, 1, seat);
         case 'slider': return;
@@ -767,10 +809,21 @@ export function buildManaUi() {
       if (!top() || seat < 0 || seat >= seatsOf(top())) return false;
       if (!last || last.screen !== top()) render();
       const U = uiOf(top()), f = last.focus[U.at[seat] || 0];
-      if (action === 'up' || action === 'down' || action === 'left' || action === 'right') move(seat, action);
-      else if (action === 'tabNext' || action === 'tabPrev') { const Tb = last.tabs[0]; if (Tb && Tb.n) { U.tabs[Tb.key] = ((U.tabs[Tb.key] || 0) + (action === 'tabNext' ? 1 : -1) + Tb.n) % Tb.n; } }
+      // press start: a face or a shoulder button is accept on a screen that waits for any
+      if (screens[top()].props.press === 'any' && ANY.includes(action)) { if (f) accept(f, seat); render(); return true; }
+      if (action === 'up' || action === 'down' || action === 'left' || action === 'right') {
+        // the cursor moved (or a long list scrolled under it): its tick; a value turned says so itself
+        const was = `${U.at[seat] || 0}|${JSON.stringify(U.sel)}`;
+        move(seat, action);
+        if (`${U.at[seat] || 0}|${JSON.stringify(U.sel)}` !== was) cue('move', seat);
+      }
+      else if (action === 'tabNext' || action === 'tabPrev') { const Tb = last.tabs[0]; if (Tb && Tb.n) { U.tabs[Tb.key] = ((U.tabs[Tb.key] || 0) + (action === 'tabNext' ? 1 : -1) + Tb.n) % Tb.n; cue('tab', seat); } }
       else if (action === 'accept') { if (f) accept(f, seat); }
-      else if (action === 'back') { const on = screens[top()].on.back; if (on) run(effectsOf(on, { seat }, last), null, 'back', seat); else back(); }
+      else if (action === 'back') {
+        const on = screens[top()].on.back;
+        if (!on) back();
+        else { const eff = effectsOf(on, { seat }, last); if (!eff.some((e) => e.back === true || e.close === true)) cue('back', seat); run(eff, null, 'back', seat); }
+      }
       render();
       return true;
     }
@@ -822,14 +875,26 @@ export function buildManaUi() {
     }
     function hold(on) { const x = !!on; if (S.held !== x) { S.held = x; render(); } }
     function reduceMotion(on) { const x = !!on; if (S.calm !== x) { S.calm = x; render(); } }
+    function textScale(k) {
+      const x = Number(k);
+      if (!TEXT_SCALES.includes(x)) throw new Error(`textScale: the player's text size is one of ${TEXT_SCALES.join(', ')} (× the theme's)`);
+      if (S.text !== x) { S.text = x; render(); }
+    }
+    function subtitlePlate(a) {
+      const x = a === null ? null : Number(a);
+      if (x !== null && !(x >= 0 && x <= 1)) throw new Error('subtitlePlate: the plate behind the subtitles is an opacity from 0 to 1 (null: the theme\'s)');
+      const r = x === null ? null : Math.round(x * 100) / 100;
+      if (S.plate !== r) { S.plate = r; render(); }
+    }
     if (start) open(start); else render();
+    S.booting = false;
     return {
-      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, hold, reduceMotion,
+      open, close, press, focusAt, tab, tick, point, hudTap, input, glyphs, hold, reduceMotion, textScale, subtitlePlate,
       view: () => toHtml((last || render()).tree),
       tree: () => (last || render()).tree,
       state: () => {
         const id = top(), U = id ? uiOf(id) : null;
-        return { input: S.input, layout: S.layout, held: S.held, reducedMotion: S.calm, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
+        return { input: S.input, layout: S.layout, held: S.held, reducedMotion: S.calm, textScale: S.text, subtitlePlate: S.plate, stack: S.stack.slice(), screen: id, focus: U ? U.at[0] || 0 : -1, seats: U ? Object.fromEntries(Object.entries(U.at)) : {}, focusables: last ? last.focus.length : 0, kind: U && last && last.focus[U.at[0] || 0] ? last.focus[U.at[0] || 0].kind : null };
       },
     };
   }

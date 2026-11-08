@@ -4,7 +4,7 @@ import { IDIOMS, IDIOM_IDS, withIdioms } from './idioms.js';
 import { SAMPLE_STATE } from './samples.js';
 
 // The sweep over the idioms (a catalog, so deep): each says what it reads and emits, and its example draws on the
-// sample state. A screen can be moved through and left; a HUD part takes no focus.
+// sample state. A screen can be moved through and left, and says what its buttons do; a HUD part takes no focus.
 const read = (p) => manaUi.readPath(SAMPLE_STATE, p);
 
 describe('mana-ui: every idiom', () => {
@@ -28,6 +28,9 @@ describe('mana-ui: every idiom', () => {
           k.reduce((o, x) => o[x], S)[last] = true; rt.tick();
         }
         expect(rt.state().focusables, `${id} has something to press`).toBeGreaterThan(0);
+        // what the buttons do here is a bar at the foot, its own or the one drawn from what it holds
+        rt.input('keys');
+        expect(rt.view(), `${id} says what the buttons do`).toContain('class="mana-legend"');
         for (const a of ['down', 'right', 'tabNext', 'up', 'left', 'tabPrev']) rt.press(a);
         rt.press('back');
         expect(rt.state().screen, `${id} lets the player out`).toBe(null);
