@@ -82,8 +82,20 @@ export function playerStates(clipNames, library = null, gaits = []) {
   const own = Object.fromEntries(Object.entries({ forward, idle, leap, boost: leap, squat: pick('squat'), turn: pick('walk', 'run'), strafe: forward, ...hurt }).filter(([, v]) => v));
   if (!library) return own;
   if (!LIBRARY_STATES[library]) throw new Error(`player: no states for the library '${library}' (libraries: ${Object.keys(LIBRARY_STATES).join(', ')})`);
-  return { ...own, ...LIBRARY_STATES[library] };
+  // A RUN IS SMOOTH: the hero's own calibrated jog (its door's gait, its stride measured so the feet stay planted) wins
+  // over a library's run whose hips drop further than a run's do (RUN_BOB: the Quaternius jog crouches a fifth of its hip
+  // height each stride, and reads as a bounce); the library plays the rest (its walk, its idle, its jump)
+  const L = LIBRARY_STATES[library], runOwn = (gaits ?? []).includes('jog') && has.has('jog') && libraryBob(library, L.forward) > RUN_BOB;
+  return { ...own, ...L, ...(runOwn ? { forward: 'jog', strafe: 'jog' } : {}) };
 }
+
+/** How far a run's hips may rise and fall each stride, as a share of the hip height (a person's run: 6 to 10%). */
+export const RUN_BOB = 0.12;
+/** Each library's clips' hips rise and fall, a share of its own hip height, as measured off its hub (`hips`, x, y, z a
+ *  frame; held here so a page that names no library never loads one: player.test.js measures them again). */
+export const LIBRARY_BOB = Object.freeze({ 'quaternius-ual': Object.freeze({ Jog_Fwd_Loop: 0.2523, Sprint_Loop: 0.1444, Walk_Loop: 0.0559 }) });
+/** A library clip's hips rise and fall (0 for one not measured). */
+export const libraryBob = (library, clip) => LIBRARY_BOB[library]?.[clip] ?? 0;
 
 /** The traversal states a model need not have (the city stalker's wall and gear, worlds/controllable/wall.js and
  *  swing.js): each falls back, in order, to a state every player already plays, so no figure is refused for a clip it

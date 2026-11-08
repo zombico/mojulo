@@ -438,7 +438,11 @@ const DESCRIPTION_ALLOWLIST = {
 // Held 2026-11-04 on 1103-dream-loop-death-rebirth at 212_700 (measured 212,061): the character reference target (one
 // enum word and its clauses on reference_protocol and capture_reference) paid for itself by re-cutting both tools'
 // target lines; the four figure-spec tools it retired were never listed. No new tool.
-const PAYLOAD_CEILING = 212_700;
+// Raised 2026-11-06 on 1106-variants-sampling (212_700 -> 213_100; measured 213,021) for variations in words (internal
+// name mangekyou, lib/graph/mangekyou/): run_experiment_sweep's `{ ref, concept, n }` form, folded into the variations
+// door rather than listed, ten schema properties (concept, n, at, principles, keep, reject, spread, roll, mint, by) held
+// to a clause each; design_game's `vary` (a department's variations, proposed) fits under the same pin. No new tool.
+const PAYLOAD_CEILING = 213_100;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

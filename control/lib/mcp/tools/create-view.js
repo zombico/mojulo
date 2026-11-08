@@ -251,7 +251,7 @@ export function registerCreateViewTools() {
     description:
       'Mint an animated 3D STUDY OBJECT — a science / math / bio explainer served as a live World at '
       + '`/api/sketches/<ref>/world` (orbit camera; tiny deterministic recipe stored, regenerated on render). '
-      + 'One tool, many kinds: physics (composed from laws: classical, quantum, …; fission, galaxy, mechanics, …), '
+      + 'One tool, many kinds: physics (from laws: classical, quantum, …; fission, galaxy, mechanics, …), '
       + 'math explainers (derivative, conics, trig-circle, complex, …), biology (dna, cellular, '
       + 'molecule). Pick `kind` from the enum; per-kind parameters go in `params` — find a kind by intent '
       + "via semantic_search({ kinds: ['view_vocab'] }) and read its parameter manual via "

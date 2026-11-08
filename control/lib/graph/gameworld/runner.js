@@ -46,7 +46,7 @@ import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gauntletCast } from './gauntlet-cast.js';
-import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane } from './levels.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle } from './levels.js';
 import { bindStory } from './story.js';
 import { SIDE_KITS } from '../contest/team-arena.js';
 import { sportTeams } from './sport-concept.js';
@@ -418,7 +418,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // stands in place of the goal's cast: levels.js)
     // (the hero's hp is its body's own where the systems bind the hp stat to it and no battle on the stage reads the
     // level's: fail-on-death and the hazards on the body, a touch's cost the same share of its hp; foes.js onBody)
-    const hpBase = !fight && !G.levels[s.level]?.goal?.boss ? bodyHpBase(B.mechanics) : null;
+    // (a world on lives, mechanics.lives, has no hp to bind: a touch costs a life, the level's lives mechanic's)
+    const hpBase = !fight && !G.levels[s.level]?.goal?.boss && !G.mechanics?.lives ? bodyHpBase(B.mechanics) : null;
     const GA0 = goalArgs(G, s, lastOf, ref, { fought: !!fight }), GA = hpBase && GA0.goal ? { ...GA0, goal: (ends) => onBody(GA0.goal(ends), hpBase).mechanics } : GA0;
     const hostile = hostileOf(G, s, foeRefs, true, lastOf[s.level] === s.index, hpBase ? onBody([{ kind: 'fail-on-death', hits: LEVEL_GOAL.hit }], hpBase).hurt : null);
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
@@ -471,7 +472,7 @@ const toMap = (args) => ({ ...args, manifest: { ...args.manifest, game: { ...arg
 // epoch's last stage's, which leads on to the next epoch's map (the final epoch's, back to its own: the map before the
 // end, open for what is left)
 function epochLevels(stages, refs, maps, G) {
-  const titleOf = (d) => { const i = refs.indexOf(d.ref); return i >= 0 ? `${stages[i].level} · ${stages[i].node}` : d.name; };
+  const titleOf = (d) => { const i = refs.indexOf(d.ref); return i >= 0 ? stageTitle(stages[i]) : d.name; };
   return maps.flatMap((m, k) => {
     const refOf = Object.fromEntries(m.dots.map((d) => [d.id, d.ref])), end = refs[m.at[m.at.length - 1]], on = maps[k + 1]?.ref ?? m.ref;
     const exits = m.dots.map((d) => ({ id: d.id, to: d.ref, ...(d.gate ? { gate: { completed: refOf[d.gate] } } : {}) }));
@@ -569,7 +570,9 @@ const foeRefsOf = (G, ref) => Object.fromEntries(fieldedIds(G).map((id) => [id, 
 // (and on a level's last stage, its wave gauntlet's foes stood asleep: gauntlet-cast.js; `hurt` a touch's cost on the
 // hero's body where the systems bind its hp, foes.js onBody)
 const hostileOf = (G, s, refs, hero, last = false, hurt = null) => {
-  const own = G.levels[s.level]?.foes !== undefined ? (ends) => hostileCast(G, s.level, { ...ends, node: s.node }, { refs, hero, ...(hurt ? { hurt } : {}) }) : null;
+  // (on a side strip the foes fight on its rail, coming in to it from the land behind: foes.js RAIL)
+  const rail = s.manifest?.kind === 'geocube' && s.manifest.show === 'side' ? { length: s.manifest.side.length } : null;
+  const own = G.levels[s.level]?.foes !== undefined ? (ends) => hostileCast(G, s.level, { ...ends, node: s.node }, { refs, hero, ...(hurt ? { hurt } : {}), ...(rail ? { rail } : {}) }) : null;
   const gauntlet = last && G.levels[s.level]?.goal?.gauntlet ? (ends) => gauntletCast(G, s.level, ends, { refs, hero }) : null;
   return composeExtras(own, gauntlet);
 };

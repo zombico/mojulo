@@ -22,6 +22,8 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { PLAY_GRADE } from '../figures/figure-grades.js';
+import { PARTY_CHASE } from '../playscape/hero-chase.js';
 import { errandLegs, layErrand } from './errand.js';
 import { readGameworld, resolveLevel, looksOfKit } from './world.js';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '../geotown/scene.js';
@@ -35,7 +37,9 @@ import { ladderParams, climbSurface, LADDER, LADDER_VARIANTS } from '../playscap
 import { withGeocube } from '../era/geocube.js';
 import { playerWorld, traversalStates, HERO_WALK_RUN } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
-import { outTrailOf } from '../era/out-trail-board.js';
+import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
+import { outTrailSpan } from '../era/out-trail.js';
+import { SIDE_CUBE, sidePads } from '../era/geocube-side.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, STEERED } from './cameras.js';
@@ -120,6 +124,8 @@ const juiceOf = (G) => { const J = juiceOfGame(G); return J ? { fxStyle: J.fxSty
 const tempoOf = (G) => { const T = tempoOfGame(G); return T ? { tempo: T.tempo } : {}; };
 // the world's grade (grade.js): the look over every frame of its levels; none written, nothing laid
 const gradeOf = (G) => { const R = gradeOfGame(G); return R ? { grade: R.grade } : {}; };
+// the grade its people are played at (figure-grades.js): a game's levels play the PLAY grade, the cinematics pose theirs
+const figuresOf = () => ({ figureGrade: PLAY_GRADE });
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -156,6 +162,13 @@ export function gameStages(world) {
     // manifest, coloured by the level's palette (the world's, or the world's moved by its script) where it has one
     if (R.airspace) { const pal = R.style?.palette ?? G.style?.palette; out.push({ level, node: 'airspace', section: 'airspace', index: 0, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed, ...(pal ? { palette: pal } : {}) } }); continue; }
     const laid = layLevel(R.level);
+    // a level whose trails are all courses a side camera plays is ONE side strip: its trails its SEGMENTS, end to end
+    // along one straight lane, each its own length and its own course (sideSegments, stripCourse), played on one page
+    if (laid.stages.length > 1 && laid.stages.every((s) => sideCourse(G, level, s))) {
+      const s0 = laid.stages[0], { seed } = outTrailStyle(s0.manifest), side = sideSegments(G, level, laid.stages);
+      out.push({ level, node: s0.node, section: s0.section, index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'side', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed, side } });
+      continue;
+    }
     // the level's buildings stand on the section they name, or on its first trail
     const home = (b) => b.node ?? laid.stages.find((s) => s.section === 'trail')?.node;
     laid.stages.forEach((s, i) => {
@@ -164,6 +177,13 @@ export function gameStages(world) {
       const street = R.street && s.node === laid.stages.find((x) => x.section === 'trail')?.node ? { ...R.street, seed: R.seed } : null;
       // the field its intent laid (lay-concerns.js), on the first trail it was flattened on
       const first = s.node === laid.stages.find((x) => x.section === 'trail')?.node;
+      // a platformer's course seen from the side is a SIDE STRIP (era/geocube-side.js): the course skinned in the level's
+      // geocube, its land behind it in layers, no valley round it; its lane the trail's length, straight
+      if (sideCourse(G, level, s)) {
+        const { st, seed } = outTrailStyle(s.manifest), span = outTrailSpan(st, s.manifest.trail === true ? {} : s.manifest.trail, seed);
+        out.push({ level, node: s.node, section: s.section, index: i, manifest: { kind: 'geocube', show: 'side', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed, side: { length: r3(span.D) } } });
+        return;
+      }
       // a loop's track: nothing grows on it (era/reserve.js)
       const keep = (R.loop || R.arena) && first ? { _keepOut: [...(R.loop?.keep ?? []), ...(R.arena?.keep ?? [])] } : {};
       // a stage drawn in a composed look carries the recipes that compose its kit (the look registry is the process's own)
@@ -396,7 +416,7 @@ export function climbRoute(manifest) {
 
 export function stageEnds(manifest) {
   const key = JSON.stringify(manifest);
-  if (!ENDS.has(key)) { if (ENDS.size >= ENDS_KEPT) ENDS.delete(ENDS.keys().next().value); ENDS.set(key, manifest.kind === 'geocube' && manifest.show === 'geotown' ? geotownEnds(manifest) : readEnds(manifest)); }
+  if (!ENDS.has(key)) { if (ENDS.size >= ENDS_KEPT) ENDS.delete(ENDS.keys().next().value); ENDS.set(key, manifest.kind === 'geocube' && manifest.show === 'geotown' ? geotownEnds(manifest) : isStrip(manifest) ? sideEnds(manifest) : readEnds(manifest)); }
   return ENDS.get(key);
 }
 function readEnds(manifest) {
@@ -627,13 +647,15 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   Object.defineProperty(ends, 'field', { value: stage.field ?? null, enumerable: false, configurable: true });
   // the level's platforming COURSE on this trail (course.js): floors and gaps sized by the hero's reach; its floors are the
   // stage's beats from here on, so what stands on the stage (foes, packs, pickups) stands on them, not under them
-  const courseSpec = stage.manifest.trail !== undefined ? courseAt(G.levels[stage.level]?.course ? readCourse(G.levels[stage.level].course, 'course') : null, stage.node) : null;
-  const course = courseSpec ? (() => {
+  const courseSpec = isStrip(stage.manifest) ? null : stage.manifest.trail !== undefined ? courseAt(G.levels[stage.level]?.course ? readCourse(G.levels[stage.level].course, 'course') : null, stage.node) : null;
+  let course = courseSpec ? (() => {
     const lane = stageLane(stage), reach = reachOf(G.feel ? readFeel(G.feel) : null), length = lane.line.length - 1;
     const plan = coursePlan(reach, { teach: courseSpec.teach, verticality: courseSpec.verticality ?? 'flat', length });
     const L = lowerCourse(plan, lane), at = (s, z) => { const i = Math.min(lane.line.length - 1, Math.max(0, Math.round(s))); return [lane.line[i][0], lane.line[i][1], r3(L.base + z)]; };
     return { plan, lowered: L, laws: courseLaws(plan, reach), beats: plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z) })) };
   })() : null;
+  const stripped = isStrip(stage.manifest) ? stripCourse(G, stage) : null;
+  if (stripped) course = stripped;
   if (course) ends.beats = [...(ends.beats ?? []).filter((b) => b.beat === 'trailhead'), ...course.beats, ...(ends.beats ?? []).filter((b) => b.beat === 'exit')];
   Object.defineProperty(ends, 'board', { value: stage.board ?? null, enumerable: false, configurable: true });
   Object.defineProperty(ends, 'spacing', { value: concerns.includes('circuit') ? SPACING : null, enumerable: false, configurable: true });
@@ -641,7 +663,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   // the arena (the intent's `arena` concern): its square on the land, laid from its plan (tunnel-arena.js) with its
   // walls, cover, spawns and supplies, before the goal reads them
   Object.defineProperty(ends, 'arena', { value: stage.arena ? (() => { const A = arenaOn(stage.arena, ends); return { ...A, ...arenaLayout(A) }; })() : null, enumerable: false, configurable: true });
-  const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
+  const name = title ?? `${G.name ?? G.id} · ${stageTitle(stage)}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
   // fingerprints hold: third person with a hero, the old first-person walker without one.
   const cam = G.camera ?? null;
@@ -717,15 +739,15 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
-    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: `${controls}${written?.dash ? ' · F  dash' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
+    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: G.mechanics?.legend === 'menu' ? '' : `${controls}${written?.dash ? ' · F  dash' : written?.sprint ? ' · F  run' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
-        : lane ? { rule: 'side', target: 'hero' }
+        : lane ? { rule: 'side', target: 'hero', ...(course ? { band: SIDE_BAND, ends: SIDE_ENDS } : {}) }
         : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
         : steered ? { ...P.camera, steer: steered }
         : stage.section === 'runner' ? { rule: 'follow', target: 'hero', ...RUNNER_CAMERA }
-        : P.camera;
+        : partyChase(G, P.camera);
     const A = armedPilot(G, { ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }, cam);
     pilotPart = { figures: P.figures, entities: [A.entity], camera: cam && cam !== 'third-person' ? camera : A.camera ?? camera, events };
     seatable = !look;
@@ -806,10 +828,24 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   const watched = concerns.includes('watchers') && stage.section === 'trail' && !ends.arena ? (watchers ?? posts ?? beatPosts(ends)) : null;
   if (watched?.length) blocks = [...(blocks ?? []), ...blindBlocks(watched, ends)];
   // the course's floors and stairs, and its catch zones (a fall into a gap: back on the floor it left)
+  // (on a side strip the course is the level: its boxes, and the ground before and after it, drawn by the strip in the
+  // cube's layers, each run terrain or built, and standing as colliders; a floor after a wall and the stairs are built)
+  let strip = null;
+  if (course && isStrip(stage.manifest)) {
+    const B = course.lowered.blocks[0].blocks, P = course.lowered.parts;
+    const boxes = [...B.map((b, k) => ({ ...b, role: P[k].role })), ...course.ground];
+    strip = { side: { ...stage.manifest.side, boxes }, colliders: boxes.map(({ min, max }) => ({ min, max, of: 'side:course' })) };
+  }
   if (course) {
-    blocks = [...(blocks ?? []), ...course.lowered.blocks];
+    if (!strip) blocks = [...(blocks ?? []), ...course.lowered.blocks];
     const ev = pilotPart.events ?? {}, C = course.lowered.events;
     pilotPart = { ...pilotPart, events: { ...ev, sources: [...(ev.sources ?? []), ...C.sources], reactions: [...(ev.reactions ?? []), ...C.reactions] } };
+    // LIVES (the world's `mechanics.lives`): a hit or a fall into one of the course's pits costs one, none left loses;
+    // no hp of its own beside them. COINS (`mechanics.coins`) along a strip's course: a row along each floor, an arc
+    // over each gap, where the hero's feet pass
+    const M = G.mechanics ?? {};
+    if (M.lives) game.mechanics = [...game.mechanics.filter((m) => m.kind !== 'fail-on-death'), { kind: 'lives', start: M.lives, falls: C.sources.map((x) => x.zone).filter((z) => typeof z === 'string' && z.startsWith('__course-')) }];
+    if (M.coins && strip) game.mechanics = [...game.mechanics, { kind: 'coins', pickups: courseCoins(course.plan), ...(M.coins.oneup ? { oneup: M.coins.oneup } : {}) }];
   }
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
@@ -828,8 +864,14 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
   }
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
+  // (a level on lives shows them, not the hp bar, and no level badge: the lives and coins counters say the run; and the
+  // hero's body takes no hp from the stats, so no health bar stands for it either)
+  if (G.mechanics?.lives && play) {
+    const { hpMax: _h, ...bodies } = play.stats?.bodies ?? {};
+    play = { ...play, ...(Array.isArray(play.parts) ? { parts: play.parts.filter((p) => !(p.part === 'readout' && (p.id === 'hp' || p.id === 'level'))) } : {}), ...(play.stats?.bodies ? { stats: { ...play.stats, bodies } } : {}) };
+  }
   play = withBookUi(G, play);
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game };
+  const manifest = { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
@@ -912,10 +954,15 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   if (joiners.length) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities], pilot = entities[0], h = ends.heading;
     // (on the pilot's own side when it has one: a team game's; else a side of their own)
-    const side = pilot.team ?? 'party';
+    const side = pilot.team ?? 'party', fights = laidBattles(G).battles, partyBattles = !!(fights && fights.on !== 'board');
     joiners.forEach((p, i) => {
       figures[p.id] ??= fieldFigure(p.ref, castFigures?.[p.id]);
-      const rule = { type: 'ai', mind: { motivation: 'escort' }, escort: pilot.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) };
+      // (a PARTY RPG's party, its fights the arena's: each member walks the map behind the hero and never fights on it,
+      // finds its way round walls by the navmesh, and stops at its own distance so the party trails in a file; the bodies
+      // pass through each other, none holding another up. Any other escort keeps its fight and its one distance)
+      const rule = partyBattles
+        ? { type: 'ai', mind: { motivation: 'escort', aggressiveness: 'passive', pathing: 'navmesh' }, escort: pilot.id, followDist: r3(2 + i * 1.1), eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) }
+        : { type: 'ai', mind: { motivation: 'escort' }, escort: pilot.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) };
       const k = entities.findIndex((e) => e.id === p.id);
       if (k >= 0) {
         // one the story stands here: waits at its stand until it joins, or (with the pilot from the start) follows at once
@@ -968,11 +1015,110 @@ export const storyCarried = (G) => Object.values(G.scenes ?? {}).some((list) => 
  * runs (spawn to exit), and the ground under it. A climb has no spine to run, so a side camera refuses it by name.
  */
 export function stageLane(stage) {
+  // a side strip's lane is straight, along +y at x 0, over no ground of its own (the course is its ground)
+  if (isStrip(stage.manifest)) { const line = []; for (let y = 0; y <= stage.manifest.side.length + 1e-9; y += 1) line.push([0, r3(y)]); return { line, ground: () => 0 }; }
   if (stage.manifest.trail === undefined) throw new Error(`levels: a side camera runs a trail's lane, and the stage '${stage.level}/${stage.node}' is a climb with no trail to run; play this world top-down or third-person, or leave the climb out`);
   const { site } = outTrailOf(stage.manifest), line = [];
   for (let y = 0; y <= site.D + 1e-9; y += 1) line.push([r3(site.trailX(y)), r3(y)]);
   return { line, ground: (x, y) => site.ground(x, y) };
 }
+
+/** A side strip's stage (era/geocube-side.js). */
+export const isStrip = (m) => m?.kind === 'geocube' && m.show === 'side';
+/** A stage a side camera plays a course on: built as a side strip. */
+function sideCourse(G, level, s) {
+  return G.camera === 'side' && s.manifest?.trail !== undefined && !!courseAt(G.levels?.[level]?.course ? readCourse(G.levels[level].course, 'course') : null, s.node);
+}
+/** A side strip's ends, read off its recipe (nothing is built for them): the hero set down on the ground before the
+ * first step, facing along the lane, the exit on the ground after the last; the course's floors become its beats. */
+function sideEnds(manifest) {
+  const D = manifest.side.length, spawn = [0, 1.75, 0], exit = [0, r3(D - 2), 0];
+  const out = { spawn, heading: r3(Math.PI / 2), exit, exitFrom: 'the strip\'s far end', planar: true, beats: [{ beat: 'trailhead', at: spawn }, { beat: 'exit', at: exit }], hazards: [] };
+  const flat = () => 0;
+  Object.defineProperty(out, 'ground', { value: flat, enumerable: false });
+  Object.defineProperty(out, 'surface', { value: flat, enumerable: false });
+  Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
+  return out;
+}
+/** A strip's segments: its stages' trails end to end along its lane, each COMPRESSED to its course: the least line its
+ * gaps and floors fit on (course.js), and STRIP_SLACK more, so a beat comes every couple of seconds; a trail's own run
+ * is the walk's, too long for a side-scroller's pace. */
+function sideSegments(G, level, stages) {
+  const reach = reachOf(G.feel ? readFeel(G.feel) : null), spec = G.levels[level]?.course ? readCourse(G.levels[level].course, 'course') : null;
+  let at = 0;
+  const segments = stages.map((s) => {
+    const C = courseAt(spec, s.node);
+    let D = 12;
+    while (D < 400) { try { coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: D, lift: 0, end: STRIP_END }); break; } catch { D += 1; } }
+    D = Math.ceil(D * STRIP_SLACK);
+    const seg = { node: s.node, s0: r3(at), length: r3(D) };
+    at += D;
+    return seg;
+  });
+  return { length: r3(at), segments };
+}
+/**
+ * A STRIP'S COURSE: each segment its node's course (course.js), laid over its own stretch of the lane, its stairs up
+ * from the ground and down to it again, the ground between segments the strip's; its catch zones named for their
+ * segment, its floors the stage's beats (each naming its node, so a node's foes stand at its density), its laws each
+ * naming its node. A strip of one trail is one segment. Each block says its role: a floor up a wall and the stairs
+ * are built, the rest terrain. → { plan, lowered: { blocks, events, parts }, laws, beats, ground }
+ */
+function stripCourse(G, stage) {
+  const S = stage.manifest.side, reach = reachOf(G.feel ? readFeel(G.feel) : null);
+  const spec = G.levels[stage.level]?.course ? readCourse(G.levels[stage.level].course, 'course') : null;
+  const segs = S.segments ?? [{ node: stage.node, s0: 0, length: S.length }];
+  const blocks = [], parts = [], sources = [], reactions = [], laws = [], beats = [], floors = [], gaps = [], spans = [];
+  for (const [j, seg] of segs.entries()) {
+    const C = courseAt(spec, seg.node);
+    if (!C) continue;
+    // (on a strip the course stands on the ground: no stairs up to it, the hero on its first floor at once)
+    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length), lift: 0, end: STRIP_END });
+    const line = Array.from({ length: Math.floor(seg.length) + 1 }, (_, k) => [0, r3(seg.s0 + k)]);
+    const L = lowerCourse(plan, { line, ground: () => 0 }), B = L.blocks[0].blocks;
+    B.forEach((b, k) => { const p = L.parts[k]; blocks.push(b); parts.push({ ...p, role: p.stair || (p.floor > 0 && plan.gaps[p.floor - 1]?.kind === 'wall') ? 'built' : 'terrain', node: seg.node }); });
+    // (a segment's catch zones named for it: two segments' first gaps are two zones)
+    const name = (z) => z.replace(/^__course-/, `__course-${j + 1}-`);
+    sources.push(...L.events.sources.map((x) => ({ ...x, zone: name(x.zone) })));
+    reactions.push(...L.events.reactions.map((x) => ({ ...x, match: { ...x.match, zone: name(x.match.zone) } })));
+    laws.push(...courseLaws(plan, reach).map((x) => ({ ...x, id: segs.length > 1 ? `${seg.node}:${x.id}` : x.id })));
+    const at = (s, z) => [0, r3(seg.s0 + s), r3(L.base + z)];
+    // (the floor the hero is set down on is no beat: nothing stands on it, the first foe a jump or two in)
+    beats.push(...plan.floors.map((f, k) => ({ beat: `floor-${k + 1}`, at: at((f.s0 + f.s1) / 2, f.z), ...(segs.length > 1 ? { node: seg.node } : {}) })).filter((_, k) => j > 0 || k > 0));
+    floors.push(...plan.floors.map((f) => ({ ...f, s0: r3(f.s0 + seg.s0), s1: r3(f.s1 + seg.s0), top: r3(L.base + f.z), node: seg.node })));
+    gaps.push(...plan.gaps.map((g, k) => ({ ...g, s0: r3(g.s0 + seg.s0), s1: r3(g.s1 + seg.s0), from: r3(L.base + plan.floors[k].z), to: r3(L.base + plan.floors[k + 1].z), node: seg.node })));
+    spans.push([Math.min(...B.map((b) => b.min[1])), Math.max(...B.map((b) => b.max[1]))]);
+  }
+  // (the ground before the first step, between one segment's last step and the next one's first, and after the last)
+  const pad = (y0, y1) => ({ min: [-1.5, r3(y0), -0.5], max: [1.5, r3(y1), 0], role: 'terrain' });
+  const ground = spans.length ? [pad(-16, spans[0][0]), ...spans.slice(1).map((sp, k) => pad(spans[k][1], sp[0])), pad(spans[spans.length - 1][1], S.length + 16)] : sidePads(blocks, S.length);
+  const teach = segs.length > 1 ? 'level' : courseAt(spec, segs[0].node)?.teach;
+  return { plan: { teach, segments: segs, floors, gaps }, lowered: { blocks: [{ blocks, course: false, value: 0.58 }], events: { sources, reactions }, parts }, laws, beats, ground };
+}
+/** A STRIP COURSE'S COINS (game/mechanics.js coins): along each floor a row of three every COIN_ROW metres, at the
+ * height the hero's feet pass walking; over each gap an arc of three where a running jump carries its feet. */
+/** A strip segment's ground before its first floor and after its last (metres), and how much past its course's least
+ * line a segment runs. */
+const STRIP_END = 1.5, STRIP_SLACK = 1.2;
+const COIN = Object.freeze({ row: 7, gap: 1.2, walk: 0.6, arc: [0.8, 1.3] });
+export function courseCoins(plan) {
+  const out = [], at = (s, z) => ({ at: [0, r3(s), r3(z)] });
+  for (const f of plan.floors) {
+    if (f.top === undefined || f.s1 - f.s0 < 3) continue;
+    for (let s = f.s0 + 2; s + 2 * COIN.gap <= f.s1 - 1; s += COIN.row) for (let k = 0; k < 3; k++) out.push(at(s + k * COIN.gap, f.top + COIN.walk));
+  }
+  for (const g of plan.gaps) {
+    if (g.kind === 'wall' || !(g.w > 0) || g.from === undefined) continue;
+    const z = Math.max(g.from, g.to);
+    out.push(at(g.s0 + 0.2 * g.w, z + COIN.arc[0]), at((g.s0 + g.s1) / 2, z + COIN.arc[1]), at(g.s1 - 0.2 * g.w, z + COIN.arc[0]));
+  }
+  return out.sort((a, b) => a.at[1] - b.at[1]);
+}
+/** The side camera's height on a course: eased while the hero stands (a stair's risers), held through a jump inside it. */
+export const SIDE_BAND = Object.freeze([1, 2]);
+/** …and held this far in from the lane's ends, about half the frame's width at its distance (a 16:9 frame's 55° across
+ *  at 10.8 m), so it does not look past the strip's ends and the spawn stays in the frame. */
+export const SIDE_ENDS = 5.5;
 
 /** A goal's placed points moved onto the lane (pockets and landmarks sit off the trail, where a lane cannot reach), each
  * at the height it stood above its own ground. */
@@ -1117,6 +1263,9 @@ export function gameStore(world, book) {
   return { slices };
 }
 
+/** A stage's title: its level's and its node's, or its own `label` (a level played as one strip: its level's name). */
+export const stageTitle = (s) => s.label ?? `${s.level} · ${s.node}`;
+
 /** The create_game `levels` list: the stages' level refs in walking order, each after the first unlocked by the one
  * before it (`refs` in the order of gameStages). */
 export function gameLevels(stages, refs, plan = null) {
@@ -1126,12 +1275,12 @@ export function gameLevels(stages, refs, plan = null) {
       // a city's segment leaves by its portals too, each named for the neighbour it leads to
       const portals = s.section === 'city' ? s.city.neighbours.map((id) => ({ id, to: refs[stages.findIndex((x) => x.level === s.level && x.node === id)] })).filter((x) => x.to) : [];
       const exits = [...plan[i].on, ...plan[i].back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })).concat(portals);
-      return { ref: refs[i], title: `${s.level} · ${s.node}`, ...(exits.length ? { exits } : {}) };
+      return { ref: refs[i], title: stageTitle(s), ...(exits.length ? { exits } : {}) };
     });
   }
   // an inside is entered by its door, never gated; the walk's stages unlock each other in order, skipping insides
   const prev = (i) => { for (let j = i - 1; j >= 0; j--) if (stages[j].section !== 'interior') return j; return -1; };
-  return stages.map((s, i) => ({ ref: refs[i], title: `${s.level} · ${s.node}`, ...(s.section !== 'interior' && prev(i) >= 0 ? { gate: { completed: refs[prev(i)] } } : {}) }));
+  return stages.map((s, i) => ({ ref: refs[i], title: stageTitle(s), ...(s.section !== 'interior' && prev(i) >= 0 ? { gate: { completed: refs[prev(i)] } } : {}) }));
 }
 
 /** A nature or jungle stage's palette data (color-theorist/recolour.js reads it), from the world's palette spec; null
@@ -1164,6 +1313,12 @@ export const levelBuildingStage = (G, R, level) => (R.building.ref ? null : R.bu
  * the fight's camera stands back inside it (rpg-channel.js's arena) rather than being cut away to; a building on a
  * core plan (an office, a base) keeps its own, as does a building that writes its rooms' sizes. */
 export const DUNGEON_SCALE = 2;
+/** A party RPG's chase (hero-chase.js PARTY_CHASE): a world that fights in party battles plays its people at the play
+ * grade, small on screen, from a chase pulled back and up; any other world's chase as it was. */
+function partyChase(G, camera) {
+  const fights = laidBattles(G).battles;
+  return fights && fights.on !== 'board' && camera?.rule === 'follow' && camera.target === 'hero' ? { ...camera, ...PARTY_CHASE } : camera;
+}
 function partyScaled(G, B) {
   const fights = laidBattles(G).battles, shape = PROGRAMS[B.use]?.shape;
   return fights && fights.on !== 'board' && shape && shape !== 'core' && B.look === undefined && !PROGRAMS[B.use]?.base ? { ...B, scale: DUNGEON_SCALE } : B;
@@ -1306,7 +1461,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   if (!heroRef) {
     if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [piloted(walker), ...X.entities], camera: lowered.camera };
     if (X?.inputs?.length) base = { ...base, events: { ...(base.events ?? {}), inputs: [...(base.events?.inputs ?? []), ...X.inputs] } };
-    return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G), ...tempoOf(G), ...gradeOf(G) } }, ends };
+    return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf() } }, ends };
   }
   // a hero with the wall or the line (actions.moves) plays it under its rooms' ceilings, laid as colliders (era/anchors.js)
   const moves = heroMoves(G);
@@ -1322,10 +1477,10 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const A = armedPilot(G, { ...P.entities[0], transform: { pos: cx ? spawn : steppedIn(plan, spawn, heading), heading } }, cam);
-  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : A.camera ?? P.camera;
+  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : A.camera ?? partyChase(G, P.camera);
   const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [piloted(A.entity), ...(X?.entities ?? [])], camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
-  const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G) };
+  const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf() };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

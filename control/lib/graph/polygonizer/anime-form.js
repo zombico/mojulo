@@ -155,6 +155,9 @@ export function buildAnime(r, options = {}) {
   const EYE_Y = S?.eyeLevel !== undefined ? S.eyeLevel : 0.055;
   // the lens resolution (a budget, never `coarse`); `paint`: the lenses are painted flat, so one ring holds their outline
   const LENS = options.paint ? { seg: 40, rings: 1 } : options.budget === 'game' ? { seg: 24, rings: 2 } : { seg: 40, rings: 3 };
+  // the PLAY grade (figure-grades.js): a lock drawn with fewer rings along it and fewer sides round it, its root, tip and
+  // curve the same (a lock seen at a play camera's distance holds its outline at half the sampling)
+  const PLAY = options.grade === 'play';
   function tri(part, a, b, c) { if (dmath.hypot(...cross(sub(b, a), sub(c, a))) < 1e-10) return; parts[part].push(...a, ...b, ...c); }
   function quad(part, a, b, c, d, edge = false) { if (options.coarse && capture && part === 'skin') headPolygons.push([a, b, c, d]); tri(part, a, b, c); tri(part, a, c, d); if (edge) cage.push(...a, ...b, ...b, ...c, ...c, ...d, ...d, ...a); }
   function width(y) { return profile(y, [[-1.02, 0.10 * f.chin], [-0.90, 0.27 * f.chin], [-0.64, 0.51 * f.jaw], [-0.30, 0.69 * (1 + 0.25 * (f.jaw - 1))], [0.12, 0.78], [0.45, 0.79], [0.78, 0.69], [1.04, 0.41], [1.16, 0.18], [1.19, 0.009]]) * f.width; }
@@ -577,7 +580,9 @@ export function buildAnime(r, options = {}) {
   const SH = HF?.shapes ?? null, SH_GROUPS = { fringe: /^fringe-/, temple: /-temple-/, back: /^back-/, crown: /^crown-/ };
   const SH_REPLACED = (name) => !!SH?.replace && SH.replace.some((g) => SH_GROUPS[g]?.test(name));
   const capStart = parts.hair.length;
-  for (let j = 0; j < 14; j++) for (let i = 0; i < 48; i++) quad('hair', capPoint(i / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, j / 14), capPoint((i + 1) / 48 * 2 * Math.PI, (j + 1) / 14), capPoint(i / 48 * 2 * Math.PI, (j + 1) / 14));
+  // (the cap's grid: half each way on the play grade)
+  const CJ = PLAY ? 7 : 14, CI = PLAY ? 24 : 48;
+  for (let j = 0; j < CJ; j++) for (let i = 0; i < CI; i++) quad('hair', capPoint(i / CI * 2 * Math.PI, j / CJ), capPoint((i + 1) / CI * 2 * Math.PI, j / CJ), capPoint((i + 1) / CI * 2 * Math.PI, (j + 1) / CJ), capPoint(i / CI * 2 * Math.PI, (j + 1) / CJ));
   if (FIT) for (let i = 0; i < 48; i++) tri('hair', FIT.crown, capPoint((i + 1) / 48 * 2 * Math.PI, 0), capPoint(i / 48 * 2 * Math.PI, 0));   // the fitted cap closes at the crown
   const capEnd = parts.hair.length;
   // mojulo: the SIDEBURN PATCH (`options.sideburnPatch`, every anime head wears it; the studio has none): a thin closed
@@ -608,7 +613,7 @@ export function buildAnime(r, options = {}) {
     const edit = r.locks?.[name]; if (edit) { control = add(control, [edit.cx, edit.cy, edit.cz]); tip = add(tip, [edit.tx, edit.ty, edit.tz]); }
     if (FIT && !cut) tip = FIT.drape(tip, 0.006);
     if (FORMS?.members.has(name)) { FORMS.curves[name] = { root, control, tip, width, normal, taperK }; return; }   // (a member is never a thick clump)   // a section's member: skinned below
-    const start = parts.hair.length; const rings = [], N = ringsOf(name, root, 14), S = 8;
+    const start = parts.hair.length; const rings = [], N = ringsOf(name, root, PLAY ? 7 : 14), S = PLAY && !SEC ? 6 : 8;
     if (SPINE_LINES) SPINE_LINES.set(name, { line: Array.from({ length: N + 1 }, (_, j) => { const t = j / N; return add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); }), depart: 0 });
     for (let j = 0; j < N; j++) { const t = j / N; let center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); const tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), taper = dmath.pow(Math.max(0.001, 1 - t), 0.60 * taperK) * (1 + 0.25 * dmath.sin(t * Math.PI)), w = width * h.clump * taper, th = (PINCH && !cut ? 0.040 * h.thickness * taper * PINCH(t) : 0.040 * h.thickness * taper) * thick; if (FIT && !cut) center = FIT.drape(center, SINK ? (th + 0.012 + w * w / 1.6) * SINK(t) : th + 0.012 + w * w / 1.6); rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI, q = SEC && !cut ? add(center, add(mul(across, SEC[i][0] * w), mul(thickDir, SEC[i][1] * th))) : add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); return FIT && j > 0 && !cut ? FIT.drape(q, 0.004) : q; })); }
     for (let j = 0; j < N - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
@@ -698,7 +703,7 @@ export function buildAnime(r, options = {}) {
   // style's family (a banana on a studio style).
   const BURNS = HF?.sideburns ?? null;
   if (SH || BURNS) {
-    const C = [0, 0.25, 0.07], S = 12, N = 16, G = SH?.scale ?? 1;
+    const C = [0, 0.25, 0.07], S = PLAY ? 4 : 12, N = 16, G = SH?.scale ?? 1;
     const anchorOf = (at) => capPoint(at[0] * Math.PI / 180, clamp(1 - at[1] / 90, 0, 1));
     // BODY: hair never cuts through the body. With `options.body` (anime-head: the hero's own neck and torso rings in the
     // head's frame, metres about the atlas before the head's scale, and the pole's registration) a point is carried into
@@ -729,7 +734,7 @@ export function buildAnime(r, options = {}) {
     // `path` (a CAP lock: its centre line walked over the dome) replaces the C-curve: resampled evenly along its length,
     // its flat side facing out from the head at each ring
     const piece = (name, root, control, tip, width, depthRatio, normal, profile, path = null, thick = null, cup = 0) => {
-      const start = parts.hair.length, rings = [], N = ringsOf(name, root, 16);
+      const start = parts.hair.length, rings = [], N = ringsOf(name, root, PLAY ? 6 : 16);
       let along = null;
       if (path) { const cum = [0]; for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + dmath.hypot(...sub(path[i], path[i - 1])));
         along = Array.from({ length: N + 1 }, (_, j) => { const want = cum.at(-1) * j / N; let i = 1; while (i < path.length - 1 && cum[i] < want) i++; const t = clamp((want - cum[i - 1]) / (cum[i] - cum[i - 1] || 1)); return mix3(path[i - 1], path[i], t); });

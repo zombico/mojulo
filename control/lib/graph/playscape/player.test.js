@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-import { playerHero, playerStates, playerWorld, testCourse, PLAYER_CLIPS, LIBRARY_STATES, HERO_GAIT_STRIDE, HERO_WALK_RUN } from './player.js';
+import { playerHero, playerStates, playerWorld, testCourse, PLAYER_CLIPS, LIBRARY_STATES, HERO_GAIT_STRIDE, HERO_WALK_RUN, LIBRARY_BOB, RUN_BOB } from './player.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -15,6 +15,18 @@ import { TAKES } from '../gameworld/feel/lower.js';
 
 const cast = JSON.parse(readFileSync(new URL('../../../../docs/examples/humanoid/cast/heroine.json', import.meta.url), 'utf8'));
 const HEROINE = { ...cast.hero, palette: { ...cast.hero.palette, ...cast.palette } };
+
+describe('a run is smooth', () => {
+  it('each library run\'s hips bob as LIBRARY_BOB holds it, measured off its hub; a run past RUN_BOB gives way to the hero\'s own jog', async () => {
+    const L = (await import('../figures/library/quaternius-ual.js')).default;
+    for (const [clip, bob] of Object.entries(LIBRARY_BOB['quaternius-ual'])) {
+      const zs = L.clips[clip].hips.filter((_, i) => i % 3 === 2);
+      expect(Math.max(...zs) - Math.min(...zs)).toBeCloseTo(bob, 3);
+    }
+    expect(LIBRARY_BOB['quaternius-ual'][LIBRARY_STATES['quaternius-ual'].forward]).toBeGreaterThan(RUN_BOB);
+    expect(LIBRARY_BOB['quaternius-ual'][LIBRARY_STATES['quaternius-ual'].walk]).toBeLessThan(RUN_BOB);
+  });
+});
 
 describe('the move set', () => {
   it('adds the jump to a hero, never over a clip of its own', () => {
@@ -36,13 +48,15 @@ describe('the move set', () => {
     expect(() => playerStates(['idle'], 'mixamo')).toThrow(/no states for the library/);
   });
 
-  it('on a library she runs the library\'s jog and walks its walk; her own gaits play without one', () => {
+  it('on a library she walks its walk and runs her own jog (the library\'s crouches too far to be smooth); her own gaits play without one', () => {
     const s = playerStates(['idle', 'walk', 'jog'], 'quaternius-ual', ['walk', 'jog']);
-    expect(s).toMatchObject({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop', strafe: 'Jog_Fwd_Loop', turn: 'Walk_Loop', idle: 'Idle_Loop', leap: 'Jump_Loop' });
+    expect(s).toMatchObject({ walk: 'Walk_Loop', forward: 'jog', strafe: 'jog', turn: 'Walk_Loop', idle: 'Idle_Loop', leap: 'Jump_Loop' });
+    // (a hero with no jog of her own runs the library's)
+    expect(playerStates(['idle'], 'quaternius-ual', [])).toMatchObject({ forward: 'Jog_Fwd_Loop', strafe: 'Jog_Fwd_Loop' });
     // the pilot walks at the library walk's pace and runs at the game's speed, each over its own cycle's length
     const W = playerWorld({ heroRef: 'sk_x', gaits: ['walk', 'jog'] });
-    expect(W.figures.hero.clips).toMatchObject({ walk: 'Walk_Loop', forward: 'Jog_Fwd_Loop' });
-    expect(W.entities[0].rule).toMatchObject({ speed: 3.6, stride: 3.3, walkSpeed: 1.6, walkStride: 2 });
+    expect(W.figures.hero.clips).toMatchObject({ walk: 'Walk_Loop', forward: 'jog' });
+    expect(W.entities[0].rule).toMatchObject({ speed: 3.6, stride: HERO_GAIT_STRIDE.jog, walkSpeed: 1.6, walkStride: 2 });
     expect(JSON.stringify(W.events)).toContain(HERO_WALK_RUN);
     // a lane or a runner keeps the run (no walk); without a library her own calibrated jog runs, and nothing walks
     expect(playerWorld({ heroRef: 'sk_x', walk: false }).entities[0].rule.walkSpeed).toBeUndefined();

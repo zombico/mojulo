@@ -102,3 +102,31 @@
 - **A member joined by the story is not joined twice.** The default arrival (the dungeon's quest's member, as its level
   starts) waits for the carried flags and plays only if the member has not joined yet: one the story joins as the quest
   is given in town is not toasted again at the dungeon's door.
+- **One draw a figure, culled as a whole; a pixel budget.** Chapter 1's town drew 8,680 calls a frame: each person a
+  rigid rig of 59 bone meshes, each its own material, drawn in the frame, the shadow map and the occlusion prepass, and
+  never culled. A plain rigid rig (`merged-figure.js mergeableFigure`: indexed parts, nothing that reads a bone's own
+  mesh) is now drawn as one skinned mesh, each part's corners bound wholly to its bone, posed as the bone meshes were,
+  and culled by a sphere round its height (a figure outside a render's view, the shadow's box included, is not drawn
+  there): the town's frame 676 calls, its shadow pass a third of its triangles. Off where a part's own mesh is read (the
+  toon ink's hulls, a headset's hands); a wreck of a merged figure goes as it falls. A page played live caps the
+  screen's density at 1.5 and holds it to the frame's time (`__mojBudget`: a second over 24 ms takes it down a quarter,
+  to 0.75; quick frames give it back). Tried and not kept: far levels welded by vertex clustering (a clothed body's
+  layers tear at any grid that saves much); a figure's own density is the next lever, at its mint.
+- **A run is smooth; a town's people are never statues.** A hero on a clip library ran the library's jog, whose hips
+  drop a quarter of their height every stride (Quaternius's crouched jog: 23 cm on a person, a bounce on screen). A run
+  is now held to `RUN_BOB` (12% of the hip height): a library run past it gives way to the hero's own calibrated jog (9
+  cm, its stride measured so the feet stay planted), the library playing the rest (its walk, its idle, its jump);
+  `LIBRARY_BOB` holds each library clip's measure, checked against its hub. And a town's folk potter by default: each one
+  nobody comes looking for (not a shop's keeper, a service's first, one met in every town, anyone in a sidequest, one
+  crouched at its work) steps out to a spot before its door and back at a stroll, lingering at each on its own heartbeat,
+  talked to wherever it stands (`folk.life: false` keeps them still; `folk.day` still gives the households a day).
+- **Rays by grid: no frame spent near a building.** Every walker found its feet by a ray straight down, and the camera
+  kept off the walls by a ray from the hero's head, each through three's raycast, which tests every triangle of a mesh
+  its box meets: the town's stone, its chips and its ground are one mesh each of tens of thousands, so near the houses
+  the frame went on rays (16 ms a ray on a slow machine). A big static mesh (`ground-grid.js`: a thousand triangles or
+  more, standing where it was built) now answers by a 2D grid of its triangles built at the first probe, its cells halved
+  where it is crowded (`gridFit`): a ray straight down tests the triangles over its point, any other ray those of the
+  cells its line crosses, each face as its material shows it, the same hits three's raycast finds.
+- **A meadow is drawn once.** The creases' and the occlusion's prepass drew every solid a second time, grass blades
+  among them (in chapter 1's town a fifth of the frame). A mesh marked `blades` (stage-grass.js: its fields, its tufts,
+  the static cards) is hidden for it: a blade carries no crease and casts no contact.
