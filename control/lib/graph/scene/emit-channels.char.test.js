@@ -405,6 +405,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // group set at the lane's centre on its floor and turned by its heading, every fight object in it, the camera, the
 // overlay's projection and the lit bodies' key mapped through it, a lane's `back` capping the camera. The fixture's
 // arena names no lane: its plane at heading 0, the group only lifting the fight where it always stood.
+// Re-pinned 2026-11-08 (1107-fg-remake: the anime register in the fight): `versus` only. Its page inlines
+// versus-arena.client.js by its source, which gains a TOON body (versus-character.js toonBody: a character drawn in the
+// character light, its lit and shade tones baked per corner), stepped by the arena's key in a toon material so both
+// fighters are lit from the camera's side. The fixture's fighters are stick figures, drawn as before.
 // Re-pinned 2026-11-05 (1105-rpg-slice: a packed page packs its plain groups): `live-shadows-actors` only, the one
 // fixture laid with `pack: true`. Its plain groups ride their positions on a uint16 grid and their colours as sRGB bytes
 // (packGroupArrays), decoded by the page to the same Float32Arrays; every fixture without `pack` is unchanged.

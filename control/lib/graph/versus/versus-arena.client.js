@@ -209,6 +209,23 @@ function inkMaterial() {
   };
   return mat;
 }
+/** THE TOON STEP (a played body in the character light, versus-character.js toonBody): each corner carries its lit tone
+ * (the vertex colour) and its shade tone (`colorShade`), the character light's own swatches; the fragment takes the lit
+ * one where the surface faces the arena's key past the step, over a narrow band so the line holds without stairs. The
+ * key is the world's, so both fighters are lit from the camera's side whichever way they face */
+const TOON_STEP = 0.05;
+function toonMaterial(opts) {
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, ...opts });
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uKey = { value: WORLD_KEY };
+    sh.uniforms.uStep = { value: TOON_STEP };
+    sh.vertexShader = 'attribute vec3 colorShade;\nvarying vec3 vShade;\nvarying vec3 vWorldN;\n' + sh.vertexShader.replace('#include <fog_vertex>',
+      '#include <fog_vertex>\n  vShade = colorShade;\n  vWorldN = normalize(mat3(modelMatrix) * objectNormal);');
+    sh.fragmentShader = 'uniform vec3 uKey;\nuniform float uStep;\nvarying vec3 vShade;\nvarying vec3 vWorldN;\n' + sh.fragmentShader.replace('#include <color_fragment>',
+      '#if defined( USE_COLOR )\n  float lit = smoothstep(uStep - 0.03, uStep + 0.03, dot(normalize(vWorldN) * (gl_FrontFacing ? 1.0 : -1.0), uKey));\n  diffuseColor.rgb *= mix(vShade, vColor.rgb, lit);\n#endif');
+  };
+  return mat;
+}
 function makeCharacter(skin) {
   const group = new THREE.Group(), lit = litMaterial(), ink = inkMaterial();
   const meshes = skin.pack.parts.map((part) => {
@@ -308,11 +325,14 @@ function makePlayed(skin) {
   // (a LIT body, the export's: each corner's normal, and the relief's tangent where it has its normal map)
   const lit = !!pack.lit, nrm = lit ? new Float32Array(n * 3) : null, relief = !!(lit && pack.normalTex && pack.parts.every((P) => !P || P.tan));
   const tan = relief ? new Float32Array(n * 4) : null;
+  // (a TOON body, the character light's: each corner's lit tone and its shade tone, stepped by the arena's key)
+  const toon = !!pack.toon && pack.parts.every((P) => !P || P.colShade), colS = toon ? new Uint8Array(n * 3) : null;
   let o = 0;
   for (const P of pack.parts) {
     if (!P) continue;
     const pp = decodeF32(P.pos), c = decodeU8(P.col), j = decodeU8(P.jnt), w = decodeF32(P.wgt), m = pp.length / 3;
     pos.set(pp, o * 3); col.set(c, o * 3); jnt.set(j, o * 4); wgt.set(w, o * 4);
+    if (colS) colS.set(decodeU8(P.colShade), o * 3);
     if (nrm && P.nrm) nrm.set(decodeF32(P.nrm), o * 3);
     if (tan) tan.set(decodeF32(P.tan), o * 4);
     if (uv) { if (P.uv) uv.set(decodeF32(P.uv), o * 2); else for (let k = 0; k < m; k++) { uv[(o + k) * 2] = pack.paintTex.white[0]; uv[(o + k) * 2 + 1] = pack.paintTex.white[1]; } }
@@ -326,6 +346,10 @@ function makePlayed(skin) {
   if (uv) geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   if (nrm) geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
   if (tan) geo.setAttribute('tangent', new THREE.BufferAttribute(tan, 4));
+  if (toon) {
+    geo.setAttribute('colorShade', new THREE.BufferAttribute(colS, 3, true));
+    if (!nrm) geo.setAttribute('normal', new THREE.BufferAttribute(smoothNormals(pos), 3));
+  }
   geo.computeBoundingSphere();
   let map = null;
   if (painted) { map = new THREE.TextureLoader().load(pack.paintTex.url); map.colorSpace = THREE.SRGBColorSpace; }
@@ -333,11 +357,13 @@ function makePlayed(skin) {
   // (lit, as an engine draws it: its albedo under the fighters' lights, its relief and its roughness from its maps; else
   // its baked light as the page packs it)
   const tex = (t) => { const x = new THREE.TextureLoader().load(t.url); x.colorSpace = THREE.NoColorSpace; return x; };
-  const material = lit
-    ? new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: pack.ormTex ? 1 : 0.62, metalness: 0, ...(map ? { map } : {}), ...alpha,
-      ...(relief ? { normalMap: tex(pack.normalTex) } : {}), ...(pack.ormTex ? { roughnessMap: tex(pack.ormTex) } : {}) })
-    : new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, ...(map ? { map } : {}), ...alpha });
-  if (lit) fighterLights();
+  const material = toon
+    ? toonMaterial({ ...(map ? { map } : {}), ...alpha })
+    : lit
+      ? new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: pack.ormTex ? 1 : 0.62, metalness: 0, ...(map ? { map } : {}), ...alpha,
+        ...(relief ? { normalMap: tex(pack.normalTex) } : {}), ...(pack.ormTex ? { roughnessMap: tex(pack.ormTex) } : {}) })
+      : new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, ...(map ? { map } : {}), ...alpha });
+  if (lit && !toon) fighterLights();
   const mesh = new THREE.SkinnedMesh(geo, material);
   mesh.frustumCulled = false;
   group.add(mesh); STAGE.add(group);

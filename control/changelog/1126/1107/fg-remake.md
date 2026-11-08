@@ -14,3 +14,7 @@ keeps its place.
   camera; `rooftop`, on a raised floor; `turned`, off centre at 35°), each overridable by words.
 - **A quick fight's arena may name a level**: `arenas: [{ id, level: { kind: 'greybox', preset: 'turned' } }]`; an arena
   without one is the stage as before.
+- **The anime register in the fight**: a character drawn in the character light (the anime head's) is played in it.
+  Its tones are the light's own (each group's shade swatch, the eyes unlit as drawn), baked twice, every group lit and
+  every group in shade, and the arena steps between them by its own key as the body turns, so both fighters are lit
+  from the camera's side whichever way they face. No outline is drawn on them. Every other body is lit as before.
