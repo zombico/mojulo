@@ -1059,6 +1059,9 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     ? (Array.isArray(shadows && shadows.toLight) && shadows.toLight.length === 3 ? shadows.toLight : light && Array.isArray(light.toLight) && light.toLight[2] > 0.05 ? light.toLight : [0.55, 0.4, 0.72]) : null;
   // a fight solved onto the map (rpg rules.stage 'arena'): the props' clearing (__mojClip), emitted only for it
   const arenaClip = !!(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'arena');
+  // THE PIXEL BUDGET: a page played live (the controllable channel: its pilot is the page's own pick), never a capture
+  // (its frame is its size), a headset's (its own) or the pixel look's (its own density). Every other page keeps its bytes
+  const pixelBudget = !!(hasControllable && !capture && !xrCfg && !pixel);
   const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!capture || !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true } : {}), ...(runner ? { runner } : {}), ...(seats ? { seats } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.vayo) ? { vayoGranted: true } : {}), ...(formSun ? { formSun } : {}), ...(tempo ? { tempo } : {}), ...(xrCfg ? { xr: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' ? { acts: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'backdrop' ? { backdrop: true } : {}), ...(hasEvents && triggersIn(events) ? { trigger: true } : {}), ...(hasEvents && events.fxStyle && typeof events.fxStyle === 'object' && events.fxStyle.flow ? { flow: true } : {}), ...(fire && fire.gusts && Array.isArray(fire.sources) && fire.sources.length ? { gusts: true } : {}), ...(knock ? { knock } : carriesKnock(entityList, events, game) ? { knock: { attacks: true } } : {})  }) : '';
   // the headset: on a page with a controllable channel it drives the pilot (channels/xr.js `ctrl`), else it walks
   // (and on a pilot whose figure carries its hands, hero-xr-hands.js, the hands on the controllers)
@@ -1210,7 +1213,22 @@ const wrap = document.getElementById('wrap'), canvas = document.getElementById('
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: ${pixel ? 'false' : 'true'}, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''}${layered ? ', stencil: true' : ''} });
 ${pixel ? `// THE PIXEL LOOK (cosmos reality.medium=pixel): drawn at a ${Math.round(Number(pixel.scale))}th of the page's size and blown up
 // without smoothing, so each drawn pixel is a block on screen
-renderer.setPixelRatio(1 / ${Math.round(Number(pixel.scale))}); canvas.style.imageRendering = 'pixelated';` : 'renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));'}
+renderer.setPixelRatio(1 / ${Math.round(Number(pixel.scale))}); canvas.style.imageRendering = 'pixelated';` : pixelBudget ? `// THE PIXEL BUDGET (a game page): the screen's density capped at 1.5, then held to the frame's time: a second of slow
+// frames (over 24 ms) takes it down a quarter, to three quarters at the least; a few seconds of quick ones (under 13 ms)
+// give it back, to the cap (the pixels a frame shades are what a laptop's screen costs it, not what the eye misses)
+const __dprCap = Math.min(window.devicePixelRatio || 1, 1.5);
+const __mojBudget = window.__mojBudget = { dpr: __dprCap, ms: 0, n: 0, sum: 0, since: 0, last: 0 };
+renderer.setPixelRatio(__dprCap);
+function __budget(t) {
+  const B = __mojBudget, d = B.last ? t - B.last : 0; B.last = t;
+  if (!(d > 0 && d < 250)) return;
+  B.n++; B.sum += d;
+  if (t - B.since < 1000) return;
+  B.ms = B.sum / B.n; B.n = 0; B.sum = 0;
+  const down = B.ms > 24 && B.dpr > 0.75, up = B.ms < 13 && B.dpr < __dprCap && t - B.since > 3000;
+  if (down || up) { B.dpr = Math.round((down ? Math.max(0.75, B.dpr - 0.25) : Math.min(__dprCap, B.dpr + 0.25)) * 100) / 100; renderer.setPixelRatio(B.dpr); }
+  B.since = t;
+}` : 'renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));'}
 
 const scene = new THREE.Scene();
 ${backdropUrl ? `scene.background = null; renderer.setClearColor(0x000000, 0);   // backdrop: the page's image shows through` : `scene.background = new THREE.Color(BG);`}${airEarly}${frameEarly}
@@ -1264,7 +1282,7 @@ function __grpCol(g) { if (!g.c8) return decodeF32(g.col); const c8 = decodeU8(g
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow${resampled ? `
     if (__RESAMPLE[t.key]) __resample(tm.material, __RESAMPLE[t.key]);   // (read again so it does not repeat: channels/resample.js)` : ''}
-    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || cone || arenaClip ? 'tm.userData.g = grp.name; ' : ''}${formBlock || leafBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || formLandBlock || skyBlock2 || cone || arenaClip ? 'tm.userData.g = grp.name; ' : ''}${formBlock || leafBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 
@@ -1843,7 +1861,8 @@ if (_capture) {
     if (!__ctrlOwnsCamera) controls.update();               // OrbitControls unless a camera entity owns the view
   }
   __mojStep(${shootBlock ? '__shClock(t - __pauseOffset)' : 't - __pauseOffset'});
-  updateCutaway(); ${prePass}renderer.render(scene, camera);
+  updateCutaway(); ${prePass}renderer.render(scene, camera);${pixelBudget ? `
+  __budget(t);` : ''}
 });
 </script>
 </body></html>

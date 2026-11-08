@@ -35,6 +35,7 @@ import { sidequestsOn, lowerSidequests, dispatchCues, whoOf } from '../folk/side
 import { settingOfGame } from './cast-setting.js';
 import { libraryFigure, stand, standRule } from './stage-figures.js';
 import { folkDay } from '../folk/routines.js';
+import { mulberry32 } from '../vegetation/grow.js';
 import { fingerprint } from './review.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -46,6 +47,10 @@ const BEHIND = 1.1;
 const REACH = 1.6;
 // a walker's pace (m/s): a stroll, the farmhands' own
 const STROLL = 1.4;
+// POTTERING (a town's people are never statues): each one not looked for steps out from its place to a spot on the
+// street before its door and back, lingering at each a while. Out from the wall and along it (m), the pace (m/s), how
+// long a turn takes at most and at least (s: the heartbeat that sends them, on each one's own die)
+const POTTER = Object.freeze({ out: [1.2, 2.6], along: [0.6, 2], speed: 0.85, every: [7, 14] });
 
 export function stageFolk(G, stage) {
   const ask = G?.characters?.folk, town = stage?.manifest?.town;
@@ -59,7 +64,7 @@ export function stageFolk(G, stage) {
   const setting = settingOfGame({ ...G, style: { ...(G.style ?? {}), kit } });
   const folk = folkOfTown({ seed: street.seed, heartbeat: street.town.heartbeat, lots }, { setting, folk: ask, gameSeed: Number.isInteger(G.seed) ? G.seed : 1 });
   const bodies = folkBodies(folk, { kit, setting, pool: ask.pool });
-  return { town: fingerprint({ kit, town, seed: stage.manifest.seed ?? null }), kit, setting, folk, bodies, houseOf, ...(ask.say ? { say: ask.say } : {}), ...(ask.sidequests ? { sidequests0: ask.sidequests } : {}), ...(ask.day ? { day: ask.day } : {}) };
+  return { town: fingerprint({ kit, town, seed: stage.manifest.seed ?? null }), kit, setting, folk, bodies, houseOf, ...(ask.say ? { say: ask.say } : {}), ...(ask.sidequests ? { sidequests0: ask.sidequests } : {}), ...(ask.day ? { day: ask.day } : {}), ...(ask.life === false ? { still: true } : {}) };
 }
 
 // (one met in every town is keyed by their look: towns that dress them alike mint them once)
@@ -136,7 +141,24 @@ export function folkExtra(plan, refOf, { shops = null } = {}) {
     // their place (a service's first, one met in every town, anyone in a sidequest)
     const inQuest = new Set(Object.keys(SQ?.talks ?? {}));
     const D = plan.day ? folkDay(plan.folk, { stood, doors, keep: new Set(plan.folk.people.filter((p) => (!p.parent && (p.service || p.recurring)) || inQuest.has(stood.get(p.path)?.id)).map((p) => p.path)) }) : null;
-    const spotAt = new Map((D?.spots ?? []).map((x) => [x.id, x.at]));
+    // POTTERING: everyone neither keeping a day nor looked for (the keeper of a shop, a service's first, one met in every
+    // town, anyone in a sidequest, one crouched at its work) steps out to its own spot before its door and back, at its
+    // own heartbeat; talked to where it stands, as a day's walker is (`folk-at-<id>`, its place's talk on while there)
+    const looked = (p) => (!p.parent && (p.service || p.recurring)) || inQuest.has(stood.get(p.path)?.id) || keeps.has(p.path) || idleOf.get(p.path) === 'crouch';
+    const potter = {}, potterSpots = [];
+    if (!plan.still) for (const p of plan.folk.people) {
+      const S = stood.get(p.path);
+      if (!S || D?.posts[S.id] || looked(p)) continue;
+      const door = doors.get(S.house);
+      if (!door) continue;
+      const die = mulberry32(parseInt(fingerprint(`${p.path}::potter`), 16) || 1), pick = (r) => r[0] + die() * (r[1] - r[0]);
+      const [nx, ny] = door.N, out = pick(POTTER.out), along = (die() < 0.5 ? -1 : 1) * pick(POTTER.along);
+      const x = S.at[0] + nx * out - ny * along, y = S.at[1] + ny * out + nx * along;
+      const home = `${S.id}-home`, away = `${S.id}-out`, face = (h) => r3((h * 180) / Math.PI);
+      potterSpots.push({ id: home, at: [S.at[0], S.at[1]], face: face(S.heading) }, { id: away, at: [r3(x), r3(y)], face: face(Math.atan2(y - S.at[1], x - S.at[0]) + (die() - 0.5) * 2) });
+      potter[S.id] = { posts: [home, away], every: Math.round(pick(POTTER.every)) };
+    }
+    const spotOf = new Map([...(D?.spots ?? []), ...potterSpots].map((x) => [x.id, x.at]));
     // each one's talk: their chitchat, opened by using them; one in a sidequest's chain dispatches first to its menus;
     // one who keeps a day is talked to where they stand, each place's talk on while they are there (`folk-at-<id>`)
     for (const p of plan.folk.people) {
@@ -144,6 +166,20 @@ export function folkExtra(plan, refOf, { shops = null } = {}) {
       if (!S) continue;
       const { id, at } = S, chat = `talk-${id}`, { speaker, lines } = linesFor(p, plan.folk, { say: plan.say });
       menus.push({ id: chat, kind: 'talk', who: speaker, lines });
+      const P = potter[id];
+      if (P) {
+        const e = part.entities.find((x) => x.id === id), here = `folk-at-${id}`;
+        e.rule = standRule({ speed: POTTER.speed });
+        cues.push({ id: `${id}-home-first`, when: { start: true }, then: { set: here, to: 0 } });
+        // (the heartbeat sends them to the other place: away from home, home from away; on the way, nowhere)
+        P.posts.forEach((spot, k) => {
+          const [x, y] = spotOf.get(spot), next = P.posts[(k + 1) % P.posts.length];
+          cues.push({ id: `${id}-go-${k}`, when: { every: P.every }, if: { var: here, eq: k }, then: [{ set: here, to: -1 }, { walk: { who: id, to: next, then: 'stay' } }] });
+          cues.push({ id: `${id}-on-${k}`, when: { arrive: { who: id, at: spot } }, then: { set: here, to: k } });
+          cues.push({ id: k ? `${id}-talk-${k}` : `${id}-talk`, when: { use: { at: [x, y], r: REACH }, prompt: 'Talk' }, if: { var: here, eq: k }, then: { open: chat } });
+        });
+        continue;
+      }
       const posts = D?.posts[id];
       if (posts) {
         const e = part.entities.find((x) => x.id === id), here = `folk-at-${id}`, R = D.routines.find((r) => r.who === id);
@@ -151,7 +187,7 @@ export function folkExtra(plan, refOf, { shops = null } = {}) {
         cues.push({ id: `${id}-away`, when: { start: true }, then: { set: here, to: -1 } });
         for (const h of R.plan.map((x) => x.hour)) cues.push({ id: `${id}-off-${h}`, when: { var: 'hour', eq: h }, then: { set: here, to: -1 } });
         posts.forEach((spot, k) => {
-          const [x, y] = spotAt.get(spot);
+          const [x, y] = spotOf.get(spot);
           cues.push({ id: `${id}-on-${k}`, when: { arrive: { who: id, at: spot } }, then: { set: here, to: k } });
           cues.push({ id: k ? `${id}-talk-${k}` : `${id}-talk`, when: { use: { at: [x, y], r: REACH }, prompt: 'Talk' }, if: { var: here, eq: k }, then: { open: chat } });
         });
@@ -165,7 +201,7 @@ export function folkExtra(plan, refOf, { shops = null } = {}) {
       // (its use cue opens nothing itself: its `cue:<id>` event is the press the dispatch reads)
       cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: 'Talk' }, then: { emit: `folk-talk:${id}` } }, ...dispatchCues(id, own, chat, `${id}-talk`).cues);
     }
-    return { ...part, play: { menus: [...menus, ...(SQ?.menus ?? [])], cues: [...cues, ...(SQ?.cues ?? [])], ...(SQ ? { quests: SQ.quests } : {}), ...(D?.walkers.length ? { spots: D.spots, routines: D.routines } : {}) },
+    return { ...part, play: { menus: [...menus, ...(SQ?.menus ?? [])], cues: [...cues, ...(SQ?.cues ?? [])], ...(SQ ? { quests: SQ.quests } : {}), ...(D?.walkers.length || potterSpots.length ? { spots: [...(D?.walkers.length ? D.spots : []), ...potterSpots] } : {}), ...(D?.walkers.length ? { routines: D.routines } : {}) },
       ...(D?.walkers.length ? { mechanics: [{ kind: 'clock', start: plan.day.start, rate: plan.day.rate }] } : {}) };
   };
 }

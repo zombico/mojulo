@@ -97,6 +97,9 @@ export const FIXTURE = [
   // level ground: a gameworld level's land shaped on its grid, apart from its look
   ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
   ['the walk in my level is too flat, make the climbs bigger', 'tune_ground'],
+  // variations of a thing already made, in words (internal name mangekyou): the variations door, not a new mint
+  ['I like this axe, now do me four takes on it, grimier and more brutal, so I can choose', 'run_experiment_sweep'],
+  ['riff on the lantern I made, a handful of versions in different colours and finishes', 'run_experiment_sweep'],
   ['my games all look the same, give this one colours of its own', 'pick_palette'],
   ['what colours should a cold, quiet drowned town at dusk be', 'pick_palette'],
   ['make the colours go from day to night as the levels go on', 'pick_palette'],

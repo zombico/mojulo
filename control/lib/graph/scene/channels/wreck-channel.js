@@ -105,7 +105,8 @@ const __wkStep = ${wreckStep.toString()};
 const __wkLive = {}, __WK_DT = 1 / 120;
 function __wkMake(e) {
   const body = window.__mojCtrl.bodies && window.__mojCtrl.bodies[e.id], rf = body && body.userData.rigFig;
-  if (!rf) return { none: true };
+  // (a figure drawn merged, merged-figure.js, has no bone meshes to break: it goes as it falls)
+  if (!rf || rf.merged) return { none: true };
   body.updateMatrixWorld(true);
   const fig = rf.fig, W = e.wreck, box = new THREE.Box3(), V = new THREE.Vector3();
   let a = (W.seed >>> 0) || 1; const rnd = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

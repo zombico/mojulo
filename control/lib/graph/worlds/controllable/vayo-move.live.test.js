@@ -60,22 +60,11 @@ describe('vayo moves on the World page', () => {
     await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojVayo, { timeout: 20000 });
     const frames = (n) => p.evaluate((n) => new Promise((r) => { const f = () => (--n ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
     await frames(20);
-    await p.keyboard.down('KeyV'); await frames(2); await p.keyboard.up('KeyV');
     await p.keyboard.down('KeyW'); await p.keyboard.down('Space');
-    // the startup read on the page's own clock, not a frame count: a slow host steps more time a frame, so its startup
-    // can be over by the eighth frame. Every frame is sampled until the jetpack has run through its startup
-    const early = await p.evaluate(() => new Promise((done) => {
-      const seen = [];
-      const look = () => {
-        const h = window.__mojCtrl.world.byId.p1, s = { kind: h.vayo && h.vayo.kind, startup: !!(h.vayo && h.vayo.startup), lean: h.tumble ? h.tumble.angle : 0 };
-        seen.push(s);
-        if ((s.kind === 'jetpack' && !s.startup && seen.some((x) => x.startup)) || seen.length > 120) {
-          const up = seen.filter((x) => x.kind === 'jetpack' && x.startup);
-          done({ kind: up.length ? 'jetpack' : s.kind, startup: up.length > 0, lean: Math.max(0, ...up.map((x) => x.lean)) });
-        } else requestAnimationFrame(look);
-      };
-      requestAnimationFrame(look);
-    }));
+    await p.keyboard.down('KeyV'); await frames(2); await p.keyboard.up('KeyV');
+    // (read by the jetpack's own clock, not the frames: a slow runner steps more of a second a frame)
+    await p.waitForFunction(() => { const J = window.__mojCtrl.world.byId.p1.vayoJet; return J && J.t > 0.1; }, { polling: 'raf', timeout: 20000 });
+    const early = await p.evaluate(() => { const h = window.__mojCtrl.world.byId.p1; return { kind: h.vayo && h.vayo.kind, startup: h.vayo && h.vayo.startup, lean: h.tumble ? h.tumble.angle : 0 }; });
     await frames(60);
     const later = await p.evaluate(() => { const h = window.__mojCtrl.world.byId.p1; return { z: h.transform.pos[2], lean: h.tumble ? h.tumble.angle : 0 }; });
     await p.keyboard.up('Space'); await p.keyboard.up('KeyW');
