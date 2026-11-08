@@ -127,7 +127,9 @@ export function versusArenaData(v = {}) {
   // (a level that names its LANE, versus-lane.js: its walls and floor the lane's, the lane carried for the runtime to fight
   // in its frame; a stored arena's plane, walls and floor as they were, its lane read from them at heading 0)
   const L = v.lane ? readLane(v.lane, 'versus.lane') : null;
-  return { plane: L ? L.at[1] : v.plane ?? ARENA_PLANE, half: L ? L.half : v.half ?? 8, floor: L ? L.floor : v.floor ?? 0, ...(L ? { lane: L } : {}), roster, rules, wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}), ...(v.set ? { set: v.set } : {}), ...(v.view === 'near' ? { view: 'near' } : {}) };
+  return { plane: L ? L.at[1] : v.plane ?? ARENA_PLANE, half: L ? L.half : v.half ?? 8, floor: L ? L.floor : v.floor ?? 0, ...(L ? { lane: L } : {}), roster, rules, wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}), ...(v.set ? { set: v.set } : {}), ...(v.view === 'near' ? { view: 'near' } : {}),
+    // (the game's register, and the level's sun to light it by: versus-levels.js)
+    ...(v.register === 'anime' || v.register === 'western' ? { register: v.register, ...(Array.isArray(v.sun) && v.sun.length === 3 ? { sun: v.sun } : {}) } : {}) };
 }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

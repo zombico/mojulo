@@ -28,6 +28,8 @@ const no = (msg) => { throw new Error(`greybox: ${msg}`); };
 /** the tones, by value: the floor the middle, a wall darker, a prop lighter, an edge (a lip, a kerb, a drop) lightest */
 export const GREYBOX_TONES = Object.freeze({ floor: '#8d8a83', wall: '#6d6f74', prop: '#a39f96', edge: '#c2bdb2' });
 const SUN = (() => { const v = [-0.35, -0.55, 0.76], L = Math.hypot(...v); return v.map((x) => x / L); })();
+/** the one sun every greybox is shaded by (toward it, world frame, unit): a fight laid on one lights its bodies by it */
+export const GREYBOX_SUN = Object.freeze(SUN.map((v) => r3(v)));
 const shade = (hex, n) => { const s = 0.5 + 0.5 * Math.max(0, n[0] * SUN[0] + n[1] * SUN[1] + n[2] * SUN[2]); return `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * s).toString(16).padStart(2, '0')).join('')}`; };
 const KEYS = ['kind', 'blocks', 'title', 'walk', 'versus'];
 const BLOCK_KEYS = ['at', 'size', 'turn', 'tone'];

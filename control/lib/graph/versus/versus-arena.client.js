@@ -1,6 +1,7 @@
 /**
  * versus arena (the World page's fight) — the fight drawn on a scapeshift arena in 3D (inlined as text by
- * scene/channels/versus.js inside one block, never imported).
+ * scene/channels/versus.js inside one block, never imported). Under a fight's register it also turns on the page
+ * renderer's shadows (`renderer.shadowMap`), for the rig's key to cast them.
  *
  * The pure modules and the runtime (versus-runtime.client.js) come first in the block; `VERSUS_ARENA` (the plane,
  * the walls, the roster, the rules, the level wire's names) is injected. From the page it uses only what a channel
@@ -24,7 +25,7 @@
  * abort). On its own it fights the arena's first two fighters, player 1 against the CPU, and offers another.
  */
 
-/* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
+/* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, renderer, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
    figureBase, characterBase, figurePose, figureSegments, segmentOf, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawnPose, drawEffects, drawHud, vsText, vsOutlined, pushBox */
 
 const AV = VERSUS_ARENA;
@@ -102,11 +103,13 @@ const JOINTS = [['pelvisHub', 1.6], ...['L', 'R'].flatMap((S) => [[`shoulder${S}
 const farOf = (name, face) => { const S = name.slice(-1); return (S === 'L' && face > 0) || (S === 'R' && face < 0); };
 
 function makeBody(color, F) {
-  const near = new THREE.MeshBasicMaterial({ color, vertexColors: true });
-  const far = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(0.55), vertexColors: true });
+  // (under the fight's register the stick figure is lit as every body is: the rig's light and its shadows)
+  const near = RIG ? RIG.material({ color }) : new THREE.MeshBasicMaterial({ color, vertexColors: true });
+  const far = RIG ? RIG.material({ color: new THREE.Color(color).multiplyScalar(0.55) }) : new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(0.55), vertexColors: true });
   const group = new THREE.Group();
   const part = (geo, mat) => {
     const fill = new THREE.Mesh(geo, mat), ink = new THREE.Mesh(geo, INK);
+    if (RIG) { fill.castShadow = true; fill.receiveShadow = true; }
     group.add(fill, ink);
     return { fill, ink };
   };
@@ -115,7 +118,7 @@ function makeBody(color, F) {
   const head = part(BALL, near);
   // a weapon: one more inked cylinder, the blade's own colour, from the grip hand
   const blade = F && F.weapon ? part(CYL, new THREE.MeshBasicMaterial({ color: F.weapon.color, vertexColors: true })) : null;
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: RIG ? 0.2 : 0.32, depthWrite: false }));
   STAGE.add(group, shadow);
   return { group, limbs, joints, head, blade, shadow, near, far, base: figureBase(F.body) };
 }
@@ -160,7 +163,7 @@ function placeBody(B, p, F, drawn) {
   B.head.fill.position.copy(vA); B.head.fill.scale.setScalar(hr);
   B.head.ink.position.copy(vA); B.head.ink.scale.setScalar(hr * 1.12);
   B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
-  B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
+  B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.8) * Math.max(0.4, 1 - p.y / 1600));
 }
 
 // a character's own body: one mesh per bone part riding its segment of the figure (versus-figure.js), relit by the
@@ -242,7 +245,7 @@ function makeCharacter(skin) {
     for (const m of [fill, hull]) { m.matrixAutoUpdate = false; m.frustumCulled = false; group.add(m); }   // matrices change every frame
     return { fill, hull };
   });
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: RIG ? 0.2 : 0.32, depthWrite: false }));
   STAGE.add(group, shadow);
   return { group, shadow, skin, meshes };
 }
@@ -265,18 +268,70 @@ function placeCharacter(B, p, F, drawn) {
     m.fill.matrix.copy(M4); m.hull.matrix.copy(M4);
   }
   B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
-  B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
+  B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.8) * Math.max(0.4, 1 - p.y / 1600));
 }
 
 // ── a character PLAYED in its own body (versus-character.js `played`: a fighter throwing its own strikes) ───────────
 // One skinned mesh of its parts, bound at the rest, its painted skin over it, as the World page plays a hero; each
 // frame its bones are set from its own clips at the moment the sim's state names (playedClip), so what lands is the
 // clip the character was made with, timed by the fight's frame data.
+/** THE FIGHT'S LOOK (its `register`, one a game, versus-levels.js FIGHT_REGISTERS): every body drawn the one way,
+ * under one light that casts its shadows, so the form reads on every frame.
+ *   - 'western': lit, as an engine lights it (its albedo, its relief, its roughness), the shadows soft
+ *   - 'anime': cel, three tones stepped from the same light, the shadows stepped with them and the shade cool
+ * The rig: a warm KEY from the camera's side and above (the level's own sun where it bakes one, a greybox's, so the
+ * room and the bodies share it) that casts: onto the floor (a shadow catcher over the lane's floor) and across the body
+ * itself (an arm over the chest); a low cool FILL from the other side, so the shadows stay deep; a RIM from behind, to
+ * cut the figure from the room; a sky over a dark ground. The key follows the fight along the lane, its shadow's box
+ * tight round the fighters. An arena made before the register carries none and lights its bodies as it always did. */
+const REGISTER = AV.register === 'anime' || AV.register === 'western' ? AV.register : null;
+const KEY_TO = new THREE.Vector3(), KEY_DIR = new THREE.Vector3();
+function fightRig(register) {
+  const toon = register === 'anime';
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = toon ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+  const g = new THREE.Group();
+  // (the key's direction in the lane's frame: the level's sun, turned out of the world's, else the camera's side above)
+  if (AV.sun) KEY_DIR.set(AV.sun[0], AV.sun[1], AV.sun[2]).normalize().applyAxisAngle(new THREE.Vector3(0, 0, 1), -HEADING);
+  else KEY_DIR.set(-0.35, -0.6, 0.72).normalize();
+  const key = new THREE.DirectionalLight(toon ? 0xfff6ea : 0xffeedb, toon ? 2.4 : 3.3);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  const sc = key.shadow.camera; sc.left = -3.6; sc.right = 3.6; sc.top = 3.6; sc.bottom = -3.6; sc.near = 0.5; sc.far = 24;
+  key.shadow.bias = -0.0004; key.shadow.normalBias = 0.025;
+  if (!toon) key.shadow.radius = 3;
+  const fill = new THREE.DirectionalLight(0xb9ccff, toon ? 0 : 0.28);
+  const rim = new THREE.DirectionalLight(0xffffff, toon ? 0.7 : 1.3);
+  fill.position.set(2.8, -2.4, 1.4); rim.position.set(0.6, 3.4, 3);
+  for (const L of [fill, rim]) { L.target.position.set(0, 0, 1); g.add(L, L.target); }
+  g.add(key, key.target, toon ? new THREE.HemisphereLight(0xc6d2ff, 0x5c5068, 0.75) : new THREE.HemisphereLight(0xdfe7f2, 0x2e2925, 0.3));
+  // the floor takes the key's shadow (the room's own surfaces are baked): a catcher a hair over the lane's floor
+  const catcher = new THREE.Mesh(new THREE.PlaneGeometry(2 * LANE.half + 12, 14), new THREE.ShadowMaterial({ color: toon ? 0x1c1830 : 0x000000, opacity: toon ? 0.6 : 0.55 }));
+  catcher.position.set(0, 1, 0.004); catcher.receiveShadow = true; catcher.renderOrder = 1;
+  g.add(catcher);
+  STAGE.add(g);
+  // (the cel's three tones: the shadow side, the turn, the light; nearest, so they step)
+  const ramp = toon ? new THREE.DataTexture(new Uint8Array([92, 92, 92, 255, 165, 165, 165, 255, 255, 255, 255, 255]), 3, 1) : null;
+  if (ramp) { ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true; }
+  return {
+    toon, ramp, key,
+    // the key and its shadow's box over the fight's middle
+    follow(x) { KEY_TO.set(x, 0, 1); key.target.position.copy(KEY_TO); key.position.copy(KEY_TO).addScaledVector(KEY_DIR, 10); },
+    // a body's surface in the register
+    material(o) {
+      return toon ? new THREE.MeshToonMaterial({ side: THREE.DoubleSide, gradientMap: ramp, ...o })
+        : new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.62, metalness: 0, ...o });
+    },
+  };
+}
+const RIG = REGISTER ? fightRig(REGISTER) : null;
+if (RIG) RIG.follow(0);
 /** THE FIGHTERS' LIGHTS (a lit body's, once): a warm key from the camera's side above, a cool fill from the other, a rim
  * from behind and a sky over the floor, as the hero's own viewer lights it. The room's surfaces are baked, so only the
  * fighters (and a set's lit pieces) take them */
 let LIT = null;
 function fighterLights() {
+  if (RIG) return null;
   if (LIT) return LIT;
   LIT = new THREE.Group();
   const key = new THREE.DirectionalLight(0xfff1e0, 1.7), fill = new THREE.DirectionalLight(0xc9dcff, 0.55), rim = new THREE.DirectionalLight(0xffffff, 1.1);
@@ -360,7 +415,11 @@ function makePlayed(skin) {
   // (lit, as an engine draws it: its albedo under the fighters' lights, its relief and its roughness from its maps; else
   // its baked light as the page packs it)
   const tex = (t) => { const x = new THREE.TextureLoader().load(t.url); x.colorSpace = THREE.NoColorSpace; return x; };
-  const material = toon
+  // (under the fight's register every body is drawn its one way: the cel's tones or the lit, from its albedo)
+  if (RIG && !geo.attributes.normal) geo.setAttribute('normal', new THREE.BufferAttribute(smoothNormals(pos), 3));
+  const material = RIG
+    ? RIG.material({ vertexColors: true, ...(map ? { map } : {}), ...alpha, ...(!RIG.toon && relief ? { normalMap: tex(pack.normalTex) } : {}), ...(!RIG.toon && pack.ormTex ? { roughness: 1, roughnessMap: tex(pack.ormTex) } : {}) })
+    : toon
     ? toonMaterial({ ...(map ? { map } : {}), ...alpha })
     : lit
       ? new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: pack.ormTex ? 1 : 0.62, metalness: 0, ...(map ? { map } : {}), ...alpha,
@@ -369,10 +428,11 @@ function makePlayed(skin) {
   if (lit && !toon) fighterLights();
   const mesh = new THREE.SkinnedMesh(geo, material);
   mesh.frustumCulled = false;
+  if (RIG) { mesh.castShadow = true; mesh.receiveShadow = true; }
   group.add(mesh); STAGE.add(group);
   group.updateMatrixWorld(true);
   mesh.bind(new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4())));
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: RIG ? 0.2 : 0.32, depthWrite: false }));
   STAGE.add(shadow);
   return { group, shadow, skin, played: true, bones, mesh };
 }
@@ -456,7 +516,7 @@ function placePlayed(B, p, F, drawn) {
     placeFromPose(B, p, F, drawn);
     B.group.updateMatrixWorld(true);
     B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
-    B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
+    B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.8) * Math.max(0.4, 1 - p.y / 1600));
     return;
   }
   const [name, phase] = pick, clip = pack.clips[name];
@@ -472,7 +532,7 @@ function placePlayed(B, p, F, drawn) {
   }
   B.group.updateMatrixWorld(true);
   B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
-  B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
+  B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.8) * Math.max(0.4, 1 - p.y / 1600));
 }
 const placeFighter = (B, p, F, drawn) => (B.played ? placePlayed(B, p, F, drawn) : B.skin ? placeCharacter(B, p, F, drawn) : placeBody(B, p, F, drawn));
 
@@ -563,6 +623,7 @@ function frameCamera() {
   const lim = Math.max(0, LANE.half + 0.8 - halfView);
   const mid = (s.p[0].x + s.p[1].x) / 2000;
   cam.x += (Math.max(-lim, Math.min(lim, mid)) - cam.x) * 0.15;
+  if (RIG) RIG.follow(mid);
   const shake = match.shake > 0 ? Math.sin(match.t * 2.3) * match.shake * 0.006 : 0;
   if (camera.fov !== VFOV) { camera.fov = VFOV; camera.updateProjectionMatrix(); }
   // (framed in the lane's frame, then set in the world's)

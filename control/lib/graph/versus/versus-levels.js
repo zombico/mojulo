@@ -13,8 +13,11 @@
  *              of the lane's ends banded light, the camera near (FIGHT_VIEWS: the fighters shown as they were made)
  *
  *   readFightLevel(level)                  → { kind, words } (throws naming the fault)
- *   fightLevel(level, { roster?, rules?, title? }) → the world manifest the fight is played on: the level's recipe with
- *                                            `versus` (its lane, the roster, the rules); a stage's is arenaManifest's
+ *   fightLevel(level, { roster?, rules?, title?, register? }) → the world manifest the fight is played on: the level's
+ *                                            recipe with `versus` (its lane, the roster, the rules, the game's register
+ *                                            and, on a greybox, the sun it is shaded by); a stage's is arenaManifest's
+ *   FIGHT_REGISTERS                        a fight game's one look (versus-arena.client.js): 'anime' its bodies cel,
+ *                                            'western' lit, every body the one way under one light that casts
  *   GREYBOX_PRESETS, greyboxPreset(id)     the presets: { reads, blocks, lane, view? }
  *   FIGHT_VIEWS                            how near the camera frames the fight: `genre` (a body near half the picture,
  *                                          the default) or `near` (near two thirds of it, as the ring frames it)
@@ -23,7 +26,7 @@
  */
 import { arenaManifest, readArena } from './versus-arena.js';
 import { readLane, laneOf, lanePoint } from './versus-lane.js';
-import { readGreybox } from '../level/greybox-scene.js';
+import { readGreybox, GREYBOX_SUN } from '../level/greybox-scene.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
@@ -31,6 +34,8 @@ const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
  * width along the lane, depth across it, height, turned with the lane */
 const laneBlock = (lane, s, n, z, [w, d, h], tone) => { const [x, y] = lanePoint(lane, s, n); return { at: [x, y, r3(z)], size: [w, d, h], turn: lane.heading, tone }; };
 
+/** a fight game's look, the drawing traditions' (gameworld/characters.js TRADITIONS): anime drawn cel, western lit */
+export const FIGHT_REGISTERS = Object.freeze(['anime', 'western']);
 /** how near the camera frames the fight (versus-arena.client.js frameCamera): the genre's framing, or near */
 export const FIGHT_VIEWS = Object.freeze(['genre', 'near']);
 
@@ -152,10 +157,15 @@ export function readFightLevel(level, where = 'level') {
 }
 
 /** The world manifest a fight is played on: the level's recipe with its `versus` block (the lane, the roster, the rules). */
-export function fightLevel(level, { roster, rules, title } = {}) {
+export function fightLevel(level, { roster, rules, title, register } = {}) {
   const { kind, words } = readFightLevel(level);
-  // (a stage is the arena as it always was: its recipe arenaManifest's, byte for byte)
-  if (kind === 'stage') return arenaManifest({ ...words, ...(title ? { title } : {}), ...(roster ? { roster } : {}), ...(rules ? { rules } : {}) });
+  if (register !== undefined && !FIGHT_REGISTERS.includes(register)) throw new Error(`versus: a fight's register is ${FIGHT_REGISTERS.join(' | ')}`);
+  // (a stage is the arena as it always was: its recipe arenaManifest's, byte for byte, the game's register beside it)
+  if (kind === 'stage') {
+    const m = arenaManifest({ ...words, ...(title ? { title } : {}), ...(roster ? { roster } : {}), ...(rules ? { rules } : {}) });
+    return register ? { ...m, versus: { ...m.versus, register } } : m;
+  }
   const { manifest, lane, view } = FIGHT_LEVELS[kind].build({ ...words, ...(title && !words.title ? { title } : {}) });
-  return { ...manifest, versus: { lane, ...(view ? { view } : {}), ...(roster ? { roster } : {}), ...(rules ? { rules } : {}) } };
+  // (a greybox is shaded by one sun: under a register the fight's key is it, so the room and the bodies share a light)
+  return { ...manifest, versus: { lane, ...(view ? { view } : {}), ...(roster ? { roster } : {}), ...(rules ? { rules } : {}), ...(register ? { register, ...(manifest.kind === 'greybox' ? { sun: [...GREYBOX_SUN] } : {}) } : {}) } };
 }

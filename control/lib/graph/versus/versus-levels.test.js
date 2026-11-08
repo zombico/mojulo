@@ -3,7 +3,7 @@ import { fightLevel, readFightLevel, greyboxPreset, GREYBOX_PRESETS, FIGHT_LEVEL
 import { arenaManifest } from './versus-arena.js';
 import { laneOf, lanePoint } from './versus-lane.js';
 import { versusArenaData } from './versus-page.js';
-import { assembleGreyboxScene } from '../level/greybox-scene.js';
+import { assembleGreyboxScene, GREYBOX_SUN } from '../level/greybox-scene.js';
 
 // a block's footprint test: is the plan point inside the block (turned about its own centre)?
 const inside = (b, [x, y]) => {
@@ -78,6 +78,18 @@ describe('versus levels: the fight laid on any kind of level by its lane', () =>
     // (and a wall stands at each of the lane's ends, past the sim's by a body's width, where its fighters stop)
     for (const k of [-1, 1]) expect(P.blocks.some((b) => b.size[2] >= 2 && inside(b, lanePoint(P.lane, k * (P.lane.half + 0.6))))).toBe(true);
     expect(P.blocks.some((b) => b.size[2] >= 2 && inside(b, lanePoint(P.lane, P.lane.half)))).toBe(false);
+  });
+
+  it('a fight\'s register rides every level it is laid on, a greybox\'s with the sun it is shaded by; none adds nothing', () => {
+    const grey = fightLevel({ kind: 'greybox', preset: TURNED }, { register: 'anime' });
+    expect(versusArenaData(grey.versus)).toMatchObject({ register: 'anime', sun: [...GREYBOX_SUN] });
+    const stage = fightLevel({ kind: 'stage', kit: 'gothic-nave' }, { register: 'western' });
+    expect(stage.versus.register).toBe('western');
+    expect(versusArenaData(stage.versus)).not.toHaveProperty('sun');
+    const { register: _r, ...plain } = stage.versus;
+    expect(plain).toEqual(arenaManifest({ kit: 'gothic-nave' }).versus);
+    expect(fightLevel({ kind: 'greybox', preset: TURNED }).versus).not.toHaveProperty('register');
+    expect(() => fightLevel({ kind: 'greybox', preset: TURNED }, { register: 'noir' })).toThrow(/register is anime \| western/);
   });
 
   it('a greybox of its own blocks names its lane; a level is refused by the word that is wrong', () => {

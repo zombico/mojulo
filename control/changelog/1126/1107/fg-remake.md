@@ -45,5 +45,14 @@ keeps its place.
   the elbow turned out), or the chest turned until the arm clears it (a rear straight squares the shoulders); a leg into
   the other is moved out. All in depth, so the side view, and the boxes, stay the sim's. `scripts/spikes/fighter/
   joints.mjs` reads every pose of every fighter against the limits and the bulk.
+- **One look a game: the fight's register** (`register: anime | western`, stamped at mint from the setting's drawing
+  tradition, western when it names none): every fighter is rolled in it and drawn its one way, under one light, on every
+  arena of the game. `western` lit as an engine lights it (its albedo, relief and roughness), the shadows soft; `anime`
+  cel, three tones stepped from the same light, the shadows stepped and the shade cool. The rig: a warm key from the
+  camera's side and above that casts, onto the floor (a shadow catcher over the lane) and across the body itself; on a
+  greybox it is the level's own sun (`GREYBOX_SUN`), so the room and the bodies share one light; a low cool fill so the
+  shadows stay deep; a rim from behind; a sky over a dark ground. The key follows the fight, its shadow's box tight round
+  the fighters. Every body is baked as the lit export under a register (the stick figure lit the same way). A fight minted
+  before carries none and draws each body as it always did. `styles.mjs --register` bakes a matchup in either look.
 - **CI**: `design-game.vary.test.js` pins its order's roll (it drew one at random each run, and about one roll in
   four hundred lifts most of a late tier's ornaments past their 0–3 scale, the gate leaving two variants of three).

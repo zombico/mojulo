@@ -472,6 +472,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-08 (1107-fg-remake: priority, joint limits, the body kept out of itself): `versus` only. Its page
 // inlines versus-core.js (a trade won by the higher priority), versus-rig.js (a pose held within RIG_LIMITS as it becomes
 // joints), versus-figure.js (FIG_LIMITS and FIG_BULK in the round) and the runtime's PRIORITY flash.
+// Re-pinned 2026-11-08 (1107-fg-remake: the fight's register): `versus` only. Its page inlines versus-arena.client.js,
+// which lights every body one way under a register (a rig whose key casts, the renderer's shadows on); the fixture's
+// arena names no register and lights its bodies as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

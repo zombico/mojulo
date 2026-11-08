@@ -1807,7 +1807,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { withCharacters, characterBodies } = await import('@/lib/graph/versus/versus-character.js');
     const measured = await withCharacters(sketch.manifest.versus);
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
-    payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster) });
+    payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster, { register: measured.register ?? null }) });
   }
   // an athletic meet on a track (contest/meet-arena.js): the event, the lanes, the register, the contest compiled, the
   // level wire's names; the page's meet channel runs it. Absent ⇒ nothing (scene/channels/contest.js). Each sport's

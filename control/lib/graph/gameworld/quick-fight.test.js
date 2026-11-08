@@ -17,7 +17,7 @@ describe('quick: the fight goal', () => {
     expect(steps.map((s) => s.key)).toEqual(['fighter-fighter-1-sheet', 'fighter-fighter-1', 'fighter-bear-sheet', 'fighter-bear', 'level-arena-training', 'game']);
     const [sheet, made] = steps;
     // each sheet rolled in the game's setting (cast-setting.js), as every other quick goal's people are
-    expect(sheet.order.manifest).toEqual({ kind: 'egocube', roll: { facets: { archetype: 'hero' }, seed: expect.any(Number), setting: settingOfGame(readGameworld(world), world.quick) } });
+    expect(sheet.order.manifest).toEqual({ kind: 'egocube', roll: { facets: { archetype: 'hero' }, seed: expect.any(Number), setting: { ...settingOfGame(readGameworld(world), world.quick), tradition: world.quick.register } } });
     expect(made.order).toMatchObject({ egocube: sheet.ref, title: expect.stringMatching(/^dojo-fight · The (Hero|Bully)$/) });
     const roster = [{ id: 'fighter-1', hero: { ref: made.ref } }, { id: 'bear', hero: { ref: steps[3].ref }, style: 'grappler' }, { id: 'mira', hero: { ref: 'mira-ref' }, style: 'rushdown' }];
     expect(steps[4].order.manifest).toMatchObject({ kind: 'greybox', versus: { roster, rules: { rounds: 1, timer: 60 }, view: 'near', lane: { heading: 0 } } });
@@ -26,6 +26,13 @@ describe('quick: the fight goal', () => {
     expect(game.arenas).toEqual([{ ref: steps[4].ref, name: 'Training ground' }]);
     // the same world runs the same steps (the sheets' seeds are the world's)
     expect(runSteps(world, { ref: 'gw_fight' })).toEqual(steps);
+    // (and its one look: the register, its setting's tradition, western when it names none; its sheets rolled in it, its
+    // arena carrying it and the training ground's sun)
+    expect(world.quick.register).toBe('western');
+    expect(sheet.order.manifest.roll.setting.tradition).toBe('western');
+    expect(steps[4].order.manifest.versus).toMatchObject({ register: 'western', sun: expect.any(Array) });
+    expect(quickWorld({ id: 'cel', quick: { ...quick, register: 'anime' } }).quick.register).toBe('anime');
+    expect(() => readQuick({ ...quick, register: 'noir' })).toThrow(/register is the game's one look/);
     // (a fight minted before the stamp keeps the arenas it was made with: the ring first, the plaza and the nave)
     const { arenas: _a, ...before } = world.quick;
     expect(runSteps({ ...world, quick: before }, { ref: 'gw_fight' }).filter((x) => x.key.startsWith('level-arena-')).map((x) => x.key)).toEqual(['level-arena-ring', 'level-arena-plaza', 'level-arena-nave']);

@@ -186,7 +186,7 @@ export async function versusGate(manifest) {
  * lights it as an engine does. → { played: true, lit?, bones, parts: [{ pos, col, jnt, wgt, faces, uv?, nrm?, tan? }],
  * clips, paintTex?, normalTex?, ormTex? }.
  */
-export async function characterBody(manifest, { fight = null } = {}) {
+export async function characterBody(manifest, { fight = null, register = null } = {}) {
   const { expandLayeredManifest } = await layered();
   const { WORLD_KINDS } = await import('../worlds/world-kinds.js');
   const m = fight && manifest?.hero ? { ...manifest, hero: { ...manifest.hero, motion: { ...(manifest.hero.motion ?? {}), ...Object.fromEntries(fightMotion(fight).map((w) => [w, true])) } } } : manifest;
@@ -194,7 +194,8 @@ export async function characterBody(manifest, { fight = null } = {}) {
   // are the light's own (each group's shade swatch, the unlit eyes and ink kept as drawn), baked TWICE, every group
   // stepped lit and every group stepped in shade, so each corner carries both of its tones and the arena steps between
   // them by its own key as the body turns (versus-arena.client.js), the light never turning with the body
-  if (fight && m?.hero && resolveCharacterLight(m, {})) {
+  // (a fight game's register draws every body its one way, from the lit export: versus-arena.client.js)
+  if (fight && !register && m?.hero && resolveCharacterLight(m, {})) {
     const toon = await toonBody(m, fight, WORLD_KINDS, expandLayeredManifest);
     if (toon) return toon;
   }
@@ -244,8 +245,9 @@ export const TRADITION_CLIPS = Object.freeze(['guard']);
 
 /** An arena's measured roster → { <ref>: body } for each character in it (one body per character), from the store,
  * each played in its own body: a fighter with its own strikes (`heroNormals`) with its fight's clips, one with a
- * tradition's moves with its guard's (the fight's poses drive the rest). */
-export async function characterBodies(roster) {
+ * tradition's moves with its guard's (the fight's poses drive the rest). Under a fight game's `register` every body is
+ * its lit export (its albedo and its normals), for the arena to draw each the register's one way. */
+export async function characterBodies(roster, { register = null } = {}) {
   const list = (Array.isArray(roster) ? roster : []).filter((e) => typeof e?.character === 'string');
   if (!list.length) return null;
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
@@ -253,7 +255,7 @@ export async function characterBodies(roster) {
   for (const e of list) {
     if (out[e.character]) continue;
     const fight = e.heroNormals ? fightClips(e.heroNormals) : TRADITION_CLIPS;
-    const body = await characterBody(SketchRepository.getByRef(e.character)?.manifest, { fight }).catch(() => null);
+    const body = await characterBody(SketchRepository.getByRef(e.character)?.manifest, { fight, register }).catch(() => null);
     if (body) out[e.character] = body;
   }
   return Object.keys(out).length ? out : null;
