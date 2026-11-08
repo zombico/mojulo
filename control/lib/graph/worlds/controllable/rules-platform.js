@@ -64,6 +64,8 @@ export function buildRulesPlatform(E) {
     // a side-scroller's lane, whose hero only runs)
     const ownF = !!(r.dash || r.sprint) && r.space !== true && !r.gear;
     let speed = r.speed ?? 6;
+    // (a moveset's hero drawing its sidearm, combat-melee.js: the aim's pace, `aimMove` of its run)
+    if (r.moveset && e.weapon && e.weapon.charging) speed *= r.aimMove ?? 0.45;
     const turnRate = r.turn ?? 2.4, strafe = r.strafe ?? 1, eye = r.eye ?? 0;
     const boostSpeed = r.boostSpeed ?? speed * 3.5;
     const riseG = r.gravity ?? 20, fallG = r.fallGravity ?? riseG * 1.7;         // asymmetric: snappier fall

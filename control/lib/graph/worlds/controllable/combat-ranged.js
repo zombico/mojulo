@@ -191,6 +191,9 @@ export function buildCombatRanged(E) {
       energyLock: false,
       charging: false, chargeT: 0, chargeFrac: 0, chargeReady: false, chargeCount: 0, chargedShots: 0,
       ...(w.knock ? { knock: w.knock } : {}),   // its kinetic and impact energy (knock.js: knockback apart from damage)
+      // a DRAW (a bow's: `early: 'none'`): a charge let go before it is ready looses nothing, where a charge shot's tap
+      // fires its pellet; INFINITE (`infinite: true`, a stylish game's pistols): its rounds never run out. Absent, no field
+      ...(w.early === 'none' ? { early: 'none' } : {}), ...(w.infinite === true ? { infinite: true } : {}),
     };
   }
 
@@ -301,6 +304,7 @@ export function buildCombatRanged(E) {
         // still rips its full string — charge only rides a full hold. Burst-1 weapons behave
         // exactly as the old forced single (same gates, one round, same cooldown arm).
         if (chargedShot) forcedShot = true;
+        else if (w.early === 'none') { w.prevFire = fireHeld; return; }   // (a draw let go too soon: nothing loosed)
         else if (w.cooldownT <= 0 && w.burstLeft <= 0 && w.ammo > 0 && energyReady) w.burstLeft = w.burst;
       } else if (edge && w.cooldownT <= 0 && w.burstLeft <= 0 && w.ammo > 0 && energyReady) {
         w.charging = true; w.chargeT = 0; w.chargeFrac = 0; w.chargeReady = false; w.chargeCount = (w.chargeCount || 0) + 1;
@@ -323,7 +327,7 @@ export function buildCombatRanged(E) {
     if (!w.auto && !forcedShot && edge && w.cooldownT <= 0 && w.burstLeft <= 0 && w.ammo > 0) w.burstLeft = w.burst;
     const want = energyReady && w.ammo > 0 && w.cooldownT <= 0 && (forcedShot || (w.auto ? !!input.fire : w.burstLeft > 0));
     if (want) {
-      w.ammo -= (chargedShot && w.chargedAmmoCost) ? Math.min(w.chargedAmmoCost, w.ammo) : 1;
+      if (!w.infinite) w.ammo -= (chargedShot && w.chargedAmmoCost) ? Math.min(w.chargedAmmoCost, w.ammo) : 1;
       w.shots += 1;
       if (w.energyMax > 0) {
         const ec = chargedShot ? (w.chargedEnergyCost ?? w.energyCost ?? 0) : (w.energyCost || 0);
@@ -384,7 +388,8 @@ export function buildCombatRanged(E) {
           id: 'proj-' + (state.projSeq++), owner: e.id,
           pos: from.slice(), vel: [dir[0] * sp, dir[1] * sp, dir[2] * sp],
           gravity: w.projectileGravity || 0, splashRadius: w.splashRadius || 0, projRadius: w.projRadius || 0.5, prox: w.proximity || 0,
-          damage: w.damage || 0, impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4,
+          // (a charged round carries the charge's damage, a bow's arrow drawn full; any other the weapon's own)
+          damage: chargedShot ? shotDamage : (w.damage || 0), impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4,
           fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false, ...(w.knock ? { knock: w.knock } : {}),
         });
         e.lastShot = { mode: 'launch', t: state.time, from, to: null, charged: chargedShot };
@@ -647,7 +652,8 @@ export function buildCombatRanged(E) {
     const suppressed = owns.reaction || owns.drop || owns.clash || owns.cine;
     const firesForPilot = !e.pilotable || state.pilotId === e.id || E.seated(state, e);
     if (e.weapon && !suppressed && e.rule && e.rule.type === 'ai') stepWeapon(e, { fire: e.aiFire ? 1 : 0 }, dt, state);
-    else if (e.weapon && !suppressed && e.tackleT == null && firesForPilot) stepWeapon(e, input, dt, state);   // a tackle owns the body — no firing mid-charge
+    // (a moveset's hero, gameworld/combos.js: its sidearm on S, never mid-swing; L and H are its blades)
+    else if (e.weapon && !suppressed && e.tackleT == null && firesForPilot) stepWeapon(e, e.rule && e.rule.moveset ? { ...input, fire: input.special && e.swingT == null ? 1 : 0, ...(e.mvAim ? { aim: e.mvAim } : {}) } : input, dt, state);   // a tackle owns the body — no firing mid-charge
   }, 10);
   // MISSILES (opt-in `rule.missiles`: skyscape/dogfight.js): { count?, lockTime?, cone?, range?, speed?, turn?, damage?,
   // splash?, prox?, fuse?, cooldown?, flares?, flareTime?, flareAt?, hitsAs? } (`hitsAs`: the hits a burst counts). Each step the body's LOCK builds on the hittable foe nearest

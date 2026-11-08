@@ -98,3 +98,14 @@
   fist's string too. The room arms the arsenal (the HUD names the weapon and lists its combos; the foe's reset is now K)
   and writes it as the manifest. Fixed on the way: a figure baked after the blade's bake had armed the hero lost its
   moveset's clips (the sheathed hero's fist): a moveset's moves now bake on every figure its weapons show.
+- **S, the sidearms: a hold, never a mash** (`gameworld/combos.js` the arsenal's `ranged`, `combat-melee.js`,
+  `combat-ranged.js`). Each melee weapon names its sidearm (the sword the bow, the fist the pistols) and S fires it; the
+  weapon cycle swaps both. Two kinds, each a hold: a DRAW (`mode: 'draw'`, the bow) loads while S is held, the walk
+  slowed (`aimMove`) and the hero turned to the aim, and looses on release once ready (0.45 s); let go early and nothing
+  flies (`early: 'none'`; `'tap'` keeps a charge shot's pellet), one arrow nocked at a time from a quiver. An AUTO
+  (`mode: 'auto'`, the pistols) fires at its rate while S is held, weak and endless (`infinite`: its rounds never run
+  out) or from a magazine that runs dry. S aims at the locked foe, else the nearest in front (35°) and in range (`mvAim`);
+  the blades refuse a swing while the bow is drawn and a sidearm never fires mid-swing. The room's HUD shows the
+  sidearm, its rounds, the draw bar and READY.
+- **Fixed: a charged lob dealt its uncharged damage.** A projectile weapon's charged round (a bow drawn full) carried
+  the weapon's base damage, not its `chargedDamage`; the arms kit's bows hit as hard as drawn now.

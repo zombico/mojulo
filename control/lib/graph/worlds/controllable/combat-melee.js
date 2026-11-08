@@ -468,10 +468,48 @@ export function buildCombatMelee(E) {
     }
     const Wc = Ws ? Ws[e.weaponIdx || 0] : null, M = Wc ? Wc.moveset : r.moveset;
     if (Wc) { r.moveset = M; e.mvWeapon = Wc.id; }
+    // THE SIDEARM (a weapon's `sidearm`, gameworld/combos.js: S, its ranged weapon, combat-ranged.js stepWeapon on the S
+    // press): the current weapon's, each its own state kept across the cycle (a quiver's arrows, a magazine)
+    if (Wc && Wc.sidearm && E.initWeapon && e.sidearmId !== Wc.sidearm.id) {
+      const sa = e.sidearms || (e.sidearms = {});
+      if (e.weapon && e.sidearmId) sa[e.sidearmId] = e.weapon;
+      e.weapon = sa[Wc.sidearm.id] || E.initWeapon(Wc.sidearm.weapon); e.sidearmId = Wc.sidearm.id;
+    }
+    if (Wc) e.mvRanged = Wc.sidearm ? { id: Wc.sidearm.id, name: Wc.sidearm.name, mode: Wc.sidearm.mode } : null;
+    // THE SIDEARM'S AIM (S held): the locked foe, else the nearest foe in front (within 35° of the facing, in range): the
+    // round leaves the chest straight for its body (`e.mvAim`, stepWeapon's aim in hand) and the hero turns to it; with
+    // none, where the hero faces (a draw: where the camera looks). A DRAW held swings nothing, the platform rule walking
+    // the hero at the aim's pace
+    const drawing = !!(e.weapon && e.weapon.charging);
+    e.mvAim = null;
+    if (Wc && Wc.sidearm && (input.special || drawing)) {
+      const L = world && world.lock, locked = L && L.pilot === e.id && L.target != null && world.byId ? world.byId[L.target] : null;
+      let tg = locked && !locked.downed ? locked : null;
+      if (!tg && world && world.byId) {
+        const range = Math.min(40, (e.weapon && e.weapon.range) || 30), fh = fwdXY(t.heading);
+        let best = Infinity;
+        for (const id in world.byId) {
+          const o = world.byId[id];
+          if (o === e || o.downed || o.gone || !(o.body && o.body.hittable) || (e.team && o.team === e.team)) continue;
+          const vx = o.transform.pos[0] - t.pos[0], vy = o.transform.pos[1] - t.pos[1], d = Math.hypot(vx, vy);
+          if (d < 1e-3 || d > range || (vx * fh[0] + vy * fh[1]) / d < Math.cos(35 * Math.PI / 180)) continue;
+          if (d < best) { best = d; tg = o; }
+        }
+      }
+      if (tg) {
+        const eye = (e.weapon && e.weapon.eye) || 1.25, from = [t.pos[0], t.pos[1], t.pos[2] + eye];
+        const tz = tg.transform.pos[2] + (tg.body.egg ? tg.body.egg.cz : (tg.body.radius || 0.5));
+        const dir = [tg.transform.pos[0] - from[0], tg.transform.pos[1] - from[1], tz - from[2]];
+        e.mvAim = { from, dir }; t.heading = Math.atan2(dir[1], dir[0]);
+      } else if (drawing && world && world.cameraYaw != null) t.heading = world.cameraYaw;
+    }
     const edge = (k, prev) => { const on = !!input[k], was = !!e[prev]; e[prev] = on; return on && !was; };
     const lE = edge('fire', 'strikePrev'), hE = edge('heavy', 'heavyPrev'), sE = edge('special', 'specialPrev');
-    const beat = hE ? 'H' : lE ? 'L' : sE ? 'S' : null;
-    if (beat) {
+    const beat0 = hE ? 'H' : lE ? 'L' : sE ? 'S' : null;
+    // (S is the sidearm's when the weapon carries one: stepWeapon takes it; a draw held refuses the blades)
+    const beat = beat0 === 'S' && Wc && Wc.sidearm ? null : beat0;
+    if (beat && drawing) { say(beat, 'dropped', 'drawing the bow'); S.buf = null; }
+    else if (beat) {
       if (S.buf) say(S.buf.beat, 'dropped', 'another press came first');
       S.buf = { beat, t: now };
     }

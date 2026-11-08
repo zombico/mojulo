@@ -498,6 +498,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // moveset steps through `r.weapons` on the cycle (its stance, its figure, its reach), the combat stance shows a weapon's
 // sheathed figure, and the pilot scheme binds the mouse's back button to the cycle; no fixture's rule takes weapons or
 // a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the sidearms): the 16 fixtures that embed the controllable runtime. A
+// ranged weapon may refuse an early release (`early: 'none'`, the bow) and never run dry (`infinite`, the pistols); a
+// charged lob deals its charged damage; a moveset's S fires its weapon's sidearm, aimed at the locked or front foe
+// (`mvAim`) and walking slower while it draws (`aimMove`). No fixture's rule takes a moveset, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

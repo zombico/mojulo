@@ -70,8 +70,8 @@ const foes = Array.from({ length: pack }, (_, k) => {
 });
 const { vista: _v, ...camera } = L.camera;
 const H0 = structuredClone(hero);
-const entities = [{ ...H0, rule: { ...H0.rule, weapons, moveset: weapons[0].moveset }, transform: { pos: [0, -3, 0], heading: Math.PI / 2 } }, ...foes];
-const legend = 'W A S D  run · mouse  look · click  light · right click  heavy · mouse back / R  weapon · F  sprint · F F  dodge · C  lock on · P  foe AI · K  reset · H  HUD';
+const entities = [{ ...H0, rule: { ...H0.rule, weapons, moveset: weapons[0].moveset, ...(weapons[0].sidearm ? { weapon: weapons[0].sidearm.weapon } : {}) }, transform: { pos: [0, -3, 0], heading: Math.PI / 2 } }, ...foes];
+const legend = 'W A S D  run · mouse  look · click  light · right click  heavy · mouse forward  sidearm (hold) · mouse back / R  weapon · F  sprint · F F  dodge · C  lock on · P  foe AI · K  reset · H  HUD';
 // THE HERO: the game's own, or (--hero) another body on its rig and clips: `anime` the anime hero on the tiered body, or
 // a hero spec as JSON; its sword in hand (the drawn figure) and on its back (the sheathed one)
 const HEROES = { anime: { cast: 'male', head: 'anime', proportions: 'anime', form: 'tiered' }, tiered: { cast: 'male', form: 'tiered' } };
@@ -93,7 +93,7 @@ let html = emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: fals
 
 // ─── the HUD: the live world read each frame (window.__mojCtrl), the card's numbers beside it ───
 const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#pr b{color:#fff}#pr .k{color:#9aa0aa}#pr .bad{color:#f0a070}#pr .ok{color:#9fd49a}#pr .on{color:#ffd76a}#pr table{border-collapse:collapse;width:100%}#pr td{padding:0 4px 0 0;vertical-align:top}#pr .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#pr h4{margin:6px 0 2px;font-size:11px;color:#9aa0aa;font-weight:normal}</style>
-<div id="pr"><b>Practice room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><div id="pr-ai"></div><h4>combos (all unlocked)</h4><div id="pr-c"></div><h4>last move</h4><table id="pr-t"></table><h4>presses</h4><div class="log" id="pr-log"></div></div>
+<div id="pr"><b>Practice room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><div id="pr-ai"></div><h4>combos (all unlocked)</h4><div id="pr-c"></div><div id="pr-s"></div><h4>last move</h4><table id="pr-t"></table><h4>presses</h4><div class="log" id="pr-log"></div></div>
 <script>
 (() => {
   const MOUSELOOK = ${!!(camera.mouseLook || camera.turnMode === 'look')}, CARD = ${JSON.stringify(card)}, LISTS = ${JSON.stringify(Object.fromEntries(arsenal.weapons.map((W) => [W.id, { name: W.name ?? W.id, list: comboList({ moves: W.moves, combos: W.combos }) }])))}, MOVES = ${JSON.stringify(Object.fromEntries(arsenal.weapons.flatMap((W) => Object.entries(W.moves).map(([id, m]) => [id, m]))))};
@@ -113,6 +113,10 @@ const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/
     const live = H.mvCombos || [], k = H.mvHit || 0, Wn = LISTS[H.mvWeapon || Object.keys(LISTS)[0]], LIST = Wn.list;
     $('pr-c').innerHTML = '<div>weapon <b>' + Wn.name + '</b> <span class="k">(' + Object.values(LISTS).map((x) => x.name).join(' · ') + ': mouse back / R)</span></div>' + LIST.map((c) => { const on = H.swingT != null && live.indexOf(c.id) >= 0; const beats = c.beats.split(' ').map((b, i) => { let n = -1, j = 0; for (const x of c.beats.split(' ')) { if (x !== '.') n++; if (j++ === i) break; } return '<span class="' + (on && b !== '.' && n < k ? 'on' : '') + '">' + b + '</span>'; }).join(' ');
       return '<div>' + beats + ' <span class="k">' + c.name + ' · ' + c.moves.map((m) => m.id).join(' → ') + '</span></div>'; }).join('');
+    // the sidearm on S: its name, its rounds (a quiver's arrows, a magazine, or endless), the draw and its readiness
+    const G = H.mvRanged, w = H.weapon;
+    $('pr-s').innerHTML = G && w ? 'S <b>' + G.name + '</b> <span class="k">' + (G.mode === 'draw' ? 'hold to draw, let go when ready' : 'hold to fire') + '</span> · ' + (w.infinite ? 'endless' : w.ammo + (w.reserve != null ? ' + ' + w.reserve : '') + (w.reloading ? ' (nocking)' : ''))
+      + (G.mode === 'draw' ? ' · <span class="' + (w.chargeReady ? 'ok' : 'k') + '">' + (w.charging ? (w.chargeReady ? 'READY' : 'draw ' + '▮'.repeat(Math.round(w.chargeFrac * 8)) + '▯'.repeat(8 - Math.round(w.chargeFrac * 8))) : '') + '</span>' : '') + ' · shots ' + w.shots : '';
     const m = last, mv = m && MOVES[m.id];
     $('pr-t').innerHTML = (m ? row('move', m.id + ' · ' + mv.role, m.clip) + row('frames', mv.frames + (mv.cancel ? ' · cancel ' + mv.cancel : ' · no cancel'), (m.end != null ? m.end + ' f' : '…'))
       + row('press → contact', '', m.contact != null ? m.contact + ' f' : (m.end != null ? 'whiff' : '…'), m.contact != null ? 'ok' : (m.end != null ? 'bad' : ''))

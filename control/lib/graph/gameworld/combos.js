@@ -169,8 +169,8 @@ export function comboList(C0) {
 export const BASIC_ARSENAL = Object.freeze({
   timing: BASIC_COMBOS.timing,
   weapons: [
-    { id: 'sword', name: 'Sword', figure: 'drawn', moves: BASIC_COMBOS.moves, combos: BASIC_COMBOS.combos },
-    { id: 'fist', name: 'Fist', figure: 'sheathed', reach: 0.95, damage: 0.5,
+    { id: 'sword', name: 'Sword', figure: 'drawn', sidearm: 'bow', moves: BASIC_COMBOS.moves, combos: BASIC_COMBOS.combos },
+    { id: 'fist', name: 'Fist', figure: 'sheathed', sidearm: 'pistols', reach: 0.95, damage: 0.5,
       moves: {
         // (each move's window where its solver lands its blow: the jab at 0.44 of its clip, the cross 0.46, the hook 0.49, the
         // uppercut 0.68)
@@ -184,10 +184,50 @@ export const BASIC_ARSENAL = Object.freeze({
         { id: 'uppercut', name: 'Uppercut', beats: ['H'], moves: ['uppercut'] },
       ] },
   ],
+  // the sidearms on S: the action-adventure's bow (held, it draws; let go once drawn, it looses; let go early, nothing)
+  // and the stylish game's pistols (held, they fire at their rate, never running dry, weak)
+  ranged: [
+    { id: 'bow', name: 'Bow', mode: 'draw', draw: 0.45, early: 'none', speed: 45, drop: 9, damage: 3, impact: 30, quiver: 30, nock: 0.3, hand: 'left' },
+    { id: 'pistols', name: 'Pistols', mode: 'auto', rof: 9, damage: 0.4, impact: 3, range: 30, infinite: true, hand: 'right', dual: true },
+  ],
 });
+/**
+ * THE SIDEARMS (an arsenal's `ranged`, on S; a weapon names its own: `sidearm`), in the designer's words, lowered to the
+ * runtime's ranged weapon (worlds/controllable/combat-ranged.js initWeapon):
+ *   auto   held, it fires at `rof` rounds a second (hitscan) until the magazine is dry and reloads (`magazine`, `reload`),
+ *          or never runs dry (`infinite`: a stylish game's pistols, weak to match); `damage`, `impact`, `range` (m),
+ *          `dual` (two guns taking turns)
+ *   draw   held, it draws for `draw` seconds and is ready; let go once ready, it looses its round (an arrow: `speed` m/s,
+ *          `drop` m/s² of gravity, `damage`, `impact`); let go before, `early`: none (a bow: nothing) or tap (a charge
+ *          shot's pellet: `tap { damage, impact }`); `quiver` arrows (absent: endless), `nock` seconds to the next
+ *   hand   the hand it is held in (right | left): where its round leaves from
+ */
+export const SIDEARM_MODES = Object.freeze(['auto', 'draw']);
+const SIDEARM_KEYS = Object.freeze({ auto: ['rof', 'damage', 'impact', 'range', 'infinite', 'magazine', 'reload', 'hand', 'dual'], draw: ['draw', 'early', 'tap', 'speed', 'drop', 'damage', 'impact', 'quiver', 'nock', 'hand'] });
+function readSidearm(G, at) {
+  if (!isObj(G) || typeof G.id !== 'string' || !G.id) no(`${at} is { id, name?, mode: auto | draw, … }`);
+  if (!SIDEARM_MODES.includes(G.mode)) no(`${at}.mode is auto (held, it fires at its rate) or draw (held, it draws; let go once drawn, it looses)`);
+  for (const k of Object.keys(G)) if (!['id', 'name', 'mode', ...SIDEARM_KEYS[G.mode]].includes(k)) no(`${at}.${k} is not part of a ${G.mode} sidearm (${SIDEARM_KEYS[G.mode].join(', ')})`);
+  const pos = (k, lo, hi) => { if (G[k] !== undefined && !num(G[k], lo, hi)) no(`${at}.${k} is a number, ${lo} to ${hi}`); };
+  pos('damage', 0, 50); pos('impact', 0, 500); pos('range', 1, 400); pos('rof', 0.5, 30); pos('magazine', 1, 999); pos('reload', 0, 10);
+  pos('draw', 0.05, 3); pos('speed', 5, 200); pos('drop', 0, 50); pos('quiver', 0, 999); pos('nock', 0, 5);
+  if (G.hand !== undefined && !['right', 'left'].includes(G.hand)) no(`${at}.hand is right or left`);
+  if (G.early !== undefined && !['none', 'tap'].includes(G.early)) no(`${at}.early is none (a bow: nothing loosed) or tap (a charge shot: its pellet)`);
+  return G;
+}
+/** a sidearm's runtime weapon (initWeapon's config) */
+export function lowerSidearm(G) {
+  const eye = 1.25, hand = G.hand ?? 'right';   // (the round leaves at the chest: a level shot meets a body's middle)
+  if (G.mode === 'auto') return { fireClass: 'sight', auto: true, rof: G.rof ?? 8, magazine: G.magazine ?? 60, reload: G.reload ?? 1.2, damage: G.damage ?? 0.5, impact: G.impact ?? 4, range: G.range ?? 30, coreAngle: 3, eye, hand, ...(G.infinite ? { infinite: true } : {}), ...(G.dual ? { muzzleAlt: true } : {}) };
+  return { fireClass: 'lob', auto: false, chargeTime: G.draw ?? 0.45, ...(G.early === 'tap' ? {} : { early: 'none' }), magazine: 1, reload: G.nock ?? 0.3, ...(Number.isFinite(G.quiver) ? { reserve: G.quiver } : {}),
+    projectileSpeed: G.speed ?? 45, projectileGravity: G.drop ?? 9, lobAngle: 1, projRadius: 0.12, splashRadius: 0, armTime: 0.04, fuse: 3, smokeTrail: false, cooldown: 0.1, eye, hand,
+    damage: G.tap?.damage ?? 0, impact: G.tap?.impact ?? 0, chargedDamage: G.damage ?? 3, chargedImpact: G.impact ?? 30, chargedRangeMul: 1 };
+}
 export function readArsenal(A) {
-  if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, reach?, damage?, moves, combos }] }');
-  for (const k of Object.keys(A)) if (!['timing', 'weapons'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons)`);
+  if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, sidearm?, reach?, damage?, moves, combos }], ranged? }');
+  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged)`);
+  if (A.ranged !== undefined && !Array.isArray(A.ranged)) no('ranged is a list of sidearms');
+  const sidearms = new Set((A.ranged ?? []).map((G, i) => readSidearm(G, `ranged[${i}]`).id));
   if (!Array.isArray(A.weapons) || !A.weapons.length) no('weapons is a list, one at least');
   const ids = new Set();
   for (const [i, W] of A.weapons.entries()) {
@@ -195,7 +235,8 @@ export function readArsenal(A) {
     if (!isObj(W) || typeof W.id !== 'string' || !W.id) no(`${at} is { id, name?, figure?, reach?, damage?, moves, combos }`);
     if (ids.has(W.id)) no(`${at}: '${W.id}' twice`);
     ids.add(W.id);
-    for (const k of Object.keys(W)) if (!['id', 'name', 'figure', 'reach', 'damage', 'moves', 'combos'].includes(k)) no(`${at}.${k} is not part of a weapon`);
+    for (const k of Object.keys(W)) if (!['id', 'name', 'figure', 'sidearm', 'reach', 'damage', 'moves', 'combos'].includes(k)) no(`${at}.${k} is not part of a weapon`);
+    if (W.sidearm !== undefined && !sidearms.has(W.sidearm)) no(`${at}.sidearm '${W.sidearm}' is none of the arsenal's ranged (${[...sidearms].join(', ') || 'none'})`);
     if (W.figure !== undefined && !['drawn', 'sheathed'].includes(W.figure)) no(`${at}.figure is drawn (in hand) or sheathed (on the back)`);
     if (W.reach !== undefined && !num(W.reach, 0.3, 6)) no(`${at}.reach is metres, 0.3 to 6`);
     if (W.damage !== undefined && !num(W.damage, 0, 20)) no(`${at}.damage is × the held weapon's, 0 to 20`);
@@ -205,7 +246,10 @@ export function readArsenal(A) {
 }
 export function lowerArsenal(A0) {
   const A = readArsenal(A0);
+  const G = Object.fromEntries((A.ranged ?? []).map((g) => [g.id, g]));
   return A.weapons.map((W) => ({ id: W.id, name: W.name ?? W.id, figure: W.figure ?? 'drawn', ...(W.reach != null ? { reach: W.reach } : {}), ...(W.damage != null ? { damage: W.damage } : {}),
+    // (its sidearm on S, lowered to the runtime's ranged weapon)
+    ...(W.sidearm ? { sidearm: { id: W.sidearm, name: G[W.sidearm].name ?? W.sidearm, mode: G[W.sidearm].mode, weapon: lowerSidearm(G[W.sidearm]) } } : {}),
     // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
     moveset: lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }) }));
 }
