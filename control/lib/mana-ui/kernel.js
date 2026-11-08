@@ -183,7 +183,7 @@ export function buildManaUi() {
     timer: { group: 'value', about: 'seconds as a clock', props: { seconds: [N, 0, true], format: [['mmss', 'ss', 'hmmss'], 'mmss'], label: [T] } },
     compare: { group: 'value', about: 'before → after, better or worse told by a shape (▲ ▼ =)', props: { label: [T, '', true], from: [N, 0, true], to: [N, 0, true], better: [['up', 'down'], 'up'] } },
     icon: { group: 'value', about: 'an icon\'s place, named', props: { name: [T, '', true], size: [['s', 'm', 'l'], 'm'] } },
-    portrait: { group: 'value', about: 'a face\'s place, named', props: { name: [T, ''], size: [['s', 'm', 'l'], 'm'] } },
+    portrait: { group: 'value', about: 'a face\'s place, named; `xl` a fighter\'s art at full height (a versus screen, a select\'s side); `caption: false` when the name is said beside it', props: { name: [T, ''], size: [['s', 'm', 'l', 'xl'], 'm'], caption: [B, true] } },
     image: { group: 'value', about: 'a picture\'s place (a logo, an arena\'s preview, key art); `backdrop` fills the screen behind what it holds', props: { label: [T, ''], ratio: [['wide', 'square', 'tall', 'banner', 'backdrop'], 'wide'] } },
     badge: { group: 'value', about: 'a small mark: new, a count, a rank, a score; `stamp` a rank stamped on as the screen settles; `side` its side\'s chip; `turn` alight while it is that side\'s turn', props: { value: [T, '', true], variant: [['plain', 'strong', 'muted', 'stamp'], 'plain'], side: [A], turn: [B, false] } },
     table: { group: 'value', about: 'rows under columns (a scoreboard, a forecast, a stat panel): the row whose `mark` field is true is yours, a row\'s `lead` names the column that leads it (marked ▲), a row\'s `side` its chip', props: { columns: [L, [], true], rows: [L, [], true], mark: [T, 'self'] } },
@@ -687,7 +687,7 @@ export function buildManaUi() {
             return ['div', { class: cls, 'data-way': d === 0 ? 'same' : good ? 'better' : 'worse' }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num' }, String(p.from)], ['span', { class: 'mana-mark' }, d === 0 ? '=' : good ? '▲' : '▼'], ['span', { class: 'mana-num' }, String(p.to)]];
           }
           case 'icon': return ['span', { class: cls, 'data-size': p.size, title: p.name }, initials(p.name)];
-          case 'portrait': return ['div', { class: cls, 'data-size': p.size }, ['span', { class: 'mana-ph' }, initials(p.name)], p.name ? ['span', { class: 'mana-caption' }, p.name] : null];
+          case 'portrait': return ['div', { class: cls, 'data-size': p.size }, ['span', { class: 'mana-ph' }, initials(p.name)], p.name && p.caption ? ['span', { class: 'mana-caption' }, p.name] : null];
           case 'loader': {
             const L = loadOf(key, p, n, scope, ctx), G = L.G, state = L.failed ? 'failed' : G.ready !== null ? 'ready' : 'loading';
             // ready is whole, whatever the game last said

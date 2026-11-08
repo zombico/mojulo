@@ -21,7 +21,10 @@
  *      entrance freeze with the blow and land with it.
  *   8. QUIET. The fight's parts sit bare over the round (a bare region: no plate across the screen, each word on its
  *      halo, each bar its own frame); its looks (the theme cards of the family `fight`) never lean, stack, break out
- *      or slam: a fighting game's, never a party game's.
+ *      or slam: a fighting game's, never a party game's. The elements do their talking: the frame says no word but
+ *      the names, training's readouts carry no headings, a stock is its numeral.
+ *   9. PICKED BY THEIR LOOK. The versus screens give each fighter its art at full height at its own side; the select
+ *      shows a fighter's style and figures only when the game asks (`stats`).
  *
  * Every word it says is the runtime's (WORDS) or the game's, so a fight ships in every language its game does.
  *
@@ -67,19 +70,19 @@ const healthHalf = (n, rtl) => {
 // a side's super along the foot, from its corner: the stocks as segments and their count, the burst a mark beside it
 const meterHalf = (n, rtl) => {
   const k = (f) => P(`p${n}${f}`), dir = rtl ? { dir: 'rtl' } : {};
-  const sup = { use: 'bar', props: { label: W('super'), value: k('super'), max: P('stocks'), segments: P('stocks'), variant: 'xp', ...dir } };
-  const burst = { use: 'pips', props: { label: W('burst'), value: k('burst'), max: 1, shape: 'diamond' } };
-  return row(rtl ? [burst, sup] : [sup, burst], rtl ? 'end' : 'start', 'tight');
+  const sup = { use: 'bar', props: { value: k('super'), max: P('stocks'), segments: P('stocks'), variant: 'xp', figures: false, ...dir } };
+  const stocks = txt(k('super'), 'display'), burst = { use: 'pips', props: { value: k('burst'), max: 1, shape: 'diamond' } };
+  return row(rtl ? [burst, sup, stocks] : [stocks, sup, burst], rtl ? 'end' : 'start', 'tight');
 };
 // a side of the select, at its own edge (the first fighter's on the left, the second's on the right): the seat's tag in
 // its kit, the fighter its cursor is on large, its name, style and figures; the second side mirrored
 const selectSide = (seat, rtl) => {
   const on = (f) => ({ pick: `roster@${seat}.${f}` }), dir = rtl ? { dir: 'rtl' } : {};
   return col([
-    tag(P(`p${seat}tag`), seat - 1),
-    { use: 'portrait', props: { name: on('name'), size: 'l' } },
-    txt(on('name'), 'title'), txt(on('style'), 'label'),
-    { use: 'each', props: { rows: on('stats'), row: { use: 'bar', props: { label: I('label'), value: I('value'), max: I('max'), segments: I('max'), figures: false, ...dir } } } },
+    { use: 'portrait', props: { name: on('name'), size: 'xl', caption: false } },
+    row(rtl ? [txt(on('name'), 'title'), tag(P(`p${seat}tag`), seat - 1)] : [tag(P(`p${seat}tag`), seat - 1), txt(on('name'), 'title')], rtl ? 'end' : 'start'),
+    // (who they are by their look first: the style and the figures only when the game shows them)
+    { ...col([txt(on('style'), 'label'), { use: 'each', props: { rows: on('stats'), row: { use: 'bar', props: { label: I('label'), value: I('value'), max: I('max'), segments: I('max'), figures: false, ...dir } } } }], rtl ? 'end' : 'start'), when: P('stats') },
   ], rtl ? 'end' : 'start');
 };
 const f = (path) => ({ bind: `fight.${path}` });
@@ -87,16 +90,16 @@ const f = (path) => ({ bind: `fight.${path}` });
 export const FIGHT_IDIOMS = {
   // ── in the fight ──────────────────────────────────────────────────────────────────────────────────────────────────
   'fight-health': {
-    kind: 'hud', about: 'the top frame: the two bars meeting at the clock (the second filling from the right, the chip of the last combo hatched, read by length, no numbers), a guard line under each, each fighter\'s tag in its kit and name at its outer end, the rounds it has won as dots by the clock',
-    reads: 'p1, p2: { tag, name, hp, hpMax, ghost, guard, rounds }, time, round, toWin, guardMax (none: no guard line)', emits: '—',
-    params: ['p1tag', 'p1name', 'p1hp', 'p1max', 'p1ghost', 'p1guard', 'p1rounds', 'p2tag', 'p2name', 'p2hp', 'p2max', 'p2ghost', 'p2guard', 'p2rounds', 'time', 'round', 'toWin', 'guardMax'],
+    kind: 'hud', about: 'the top frame: the two bars meeting at the clock (the second filling from the right, the chip of the last combo hatched, read by length, no numbers), a guard line under each, each fighter\'s tag in its kit and name at its outer end, the rounds it has won as dots by the clock; no words but the names',
+    reads: 'p1, p2: { tag, name, hp, hpMax, ghost, guard, rounds }, time, toWin, guardMax (none: no guard line)', emits: '—',
+    params: ['p1tag', 'p1name', 'p1hp', 'p1max', 'p1ghost', 'p1guard', 'p1rounds', 'p2tag', 'p2name', 'p2hp', 'p2max', 'p2ghost', 'p2guard', 'p2rounds', 'time', 'toWin', 'guardMax'],
     node: region('top', [row([
       healthHalf(1, false),
       // (the clock the medallion between the bars: a display numeral, the round under it)
-      col([txt(P('time'), 'display'), row([txt(W('round'), 'caption'), txt(P('round'), 'caption')], 'center')], 'center'),
+      col([txt(P('time'), 'display')], 'center'),
       healthHalf(2, true),
     ], 'center', 'loose', true)], {}, 'bare'),
-    example: { p1tag: f('p1.tag'), p1name: f('p1.name'), p1hp: f('p1.hp'), p1max: f('p1.hpMax'), p1ghost: f('p1.ghost'), p1guard: f('p1.guard'), p1rounds: f('p1.rounds'), p2tag: f('p2.tag'), p2name: f('p2.name'), p2hp: f('p2.hp'), p2max: f('p2.hpMax'), p2ghost: f('p2.ghost'), p2guard: f('p2.guard'), p2rounds: f('p2.rounds'), time: f('time'), round: f('round'), toWin: f('toWin'), guardMax: f('guardMax') },
+    example: { p1tag: f('p1.tag'), p1name: f('p1.name'), p1hp: f('p1.hp'), p1max: f('p1.hpMax'), p1ghost: f('p1.ghost'), p1guard: f('p1.guard'), p1rounds: f('p1.rounds'), p2tag: f('p2.tag'), p2name: f('p2.name'), p2hp: f('p2.hp'), p2max: f('p2.hpMax'), p2ghost: f('p2.ghost'), p2guard: f('p2.guard'), p2rounds: f('p2.rounds'), time: f('time'), toWin: f('toWin'), guardMax: f('guardMax') },
   },
   'fight-meters': {
     kind: 'hud', about: 'the foot of the screen: each fighter\'s super from its own corner in stocks (a stock a segment) and its burst, mirrored',
@@ -109,7 +112,7 @@ export const FIGHT_IDIOMS = {
     kind: 'hud', about: 'a side\'s combo while it runs, at that side\'s edge (left for the first fighter, right for the second): the hits as a display numeral, the damage under it; each hit pops it',
     reads: 'at: left | right, hits, damage', emits: '—',
     params: ['at', 'hits', 'damage'],
-    node: region(P('at'), [col([row([txt(P('hits'), 'display'), txt(W('hits'), 'label')], 'end'), row([txt(P('damage'), 'heading', 'hit'), txt(W('damage'), 'caption')], 'end')], 'center')], { when: P('hits') }, 'bare'),
+    node: region(P('at'), [col([row([txt(P('hits'), 'display'), txt(W('hits'), 'label')], 'end'), txt(P('damage'), 'heading', 'hit')], 'center')], { when: P('hits') }, 'bare'),
     example: { at: 'left', hits: f('p1.combo'), damage: f('p1.comboDamage') },
   },
   'fight-callouts': {
@@ -130,59 +133,59 @@ export const FIGHT_IDIOMS = {
     kind: 'hud', about: 'training: the inputs as they come (a direction and its buttons, the frames it was held), the newest on top, a repeat merged (×3)',
     reads: 'inputs: [{ text }] (newest first)', emits: '—',
     params: ['inputs'],
-    node: region('left', [col([txt(W('inputs'), 'label'), { use: 'feed', props: { rows: P('inputs'), max: 12 } }])]),
+    node: region('left', [{ use: 'feed', props: { rows: P('inputs'), max: 12 } }]),
     example: { inputs: f('training.inputs') },
   },
   'frame-meter': {
     kind: 'hud', about: 'training: the frames of the last exchange, each a mark: startup, active and recovery told by their shape (muted, strong, plain), the advantage at its end',
     reads: 'frames: [{ value, variant }] (variant: muted startup | strong active | plain recovery), advantage', emits: '—',
     params: ['frames', 'advantage'],
-    node: region('bottom', [col([row([txt(W('frameMeter'), 'label'), txt(P('advantage'), 'heading')], 'apart'), { use: 'each', props: { dir: 'row', rows: P('frames'), row: { use: 'badge', props: { value: I('value'), variant: I('variant') } } } }], 'center')]),
+    node: region('bottom', [row([txt(P('advantage'), 'heading'), { use: 'each', props: { dir: 'row', rows: P('frames'), row: { use: 'badge', props: { value: I('value'), variant: I('variant') } } } }], 'center')]),
     example: { frames: f('training.frames'), advantage: f('training.advantage') },
   },
   'training-stats': {
     kind: 'hud', about: 'training: the last combo\'s figures (damage, hits, the most it could have done), what changed flashing',
     reads: 'stats: [{ label, value }]', emits: '—',
     params: ['stats'],
-    node: region('right', [col([txt(W('training'), 'label'), { use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value') } } } }])]),
+    node: region('right', [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value') } } } }]),
     example: { stats: f('training.stats') },
   },
 
   // ── around the fight ──────────────────────────────────────────────────────────────────────────────────────────────
   'versus-splash': {
-    kind: 'screen', about: 'the two fighters face off before the fight: each one\'s portrait, tag and name on its own side, the vs between them, where they fight; any face button goes on (or it goes on its own)',
-    reads: 'p1, p2: { tag, name, style }, arena, prompt, then', emits: 'then',
-    params: ['p1tag', 'p1name', 'p1style', 'p2tag', 'p2name', 'p2style', 'arena', 'prompt', 'then'],
+    kind: 'screen', about: 'the two fighters face off before the fight: each one\'s art at full height at its own side with its tag and name, the vs between them, where they fight; any face button goes on (or it goes on its own)',
+    reads: 'p1, p2: { tag, name }, arena, prompt, then', emits: 'then',
+    params: ['p1tag', 'p1name', 'p2tag', 'p2name', 'arena', 'prompt', 'then'],
     node: screen({ layer: 'overlay', place: 'full', press: 'any', legend: 'auto' }, [
       { use: 'image', props: { label: W('keyArtPlace'), ratio: 'backdrop' } },
       { use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
         row([
-          col([{ use: 'portrait', props: { name: P('p1name'), size: 'l' } }, tag(P('p1tag'), 0), txt(P('p1name'), 'title'), txt(P('p1style'), 'label')], 'center'),
+          col([{ use: 'portrait', props: { name: P('p1name'), size: 'xl', caption: false } }, row([tag(P('p1tag'), 0), txt(P('p1name'), 'title')], 'start')], 'start'),
           txt(W('vs'), 'display'),
-          col([{ use: 'portrait', props: { name: P('p2name'), size: 'l' } }, tag(P('p2tag'), 1), txt(P('p2name'), 'title'), txt(P('p2style'), 'label')], 'center'),
-        ], 'center', 'loose'),
-        row([txt(W('stage'), 'caption'), txt(P('arena'), 'heading')], 'center'),
+          col([{ use: 'portrait', props: { name: P('p2name'), size: 'xl', caption: false } }, row([txt(P('p2name'), 'title'), tag(P('p2tag'), 1)], 'end')], 'end'),
+        ], 'apart', 'loose', true),
+        txt(P('arena'), 'heading'),
         { use: 'button', props: { label: P('prompt') }, on: { accept: P('then') } },
       ] },
     ]),
-    example: { p1tag: f('p1.tag'), p1name: f('p1.name'), p1style: f('p1.style'), p2tag: f('p2.tag'), p2name: f('p2.name'), p2style: f('p2.style'), arena: f('arena'), prompt: 'Fight', then: { emit: 'fight:go' } },
+    example: { p1tag: f('p1.tag'), p1name: f('p1.name'), p2tag: f('p2.tag'), p2name: f('p2.name'), arena: f('arena'), prompt: 'Fight', then: { emit: 'fight:go' } },
   },
   'fighter-select': {
-    kind: 'screen', about: 'pick fighters, side against side: the first seat\'s fighter large at the left edge, the second\'s at the right (mirrored), each in its kit with its name, style and figures; the roster a grid of portraits between them, each couch seat its own cursor; a random pick',
-    reads: 'roster: [{ id, name, style, stats: [{ label, value, max }] }], seats, p1tag, p2tag', emits: '{ emit: pick, seat, id } as a seat accepts; fighter:random',
-    params: ['title', 'roster', 'seats', 'p1tag', 'p2tag'],
+    kind: 'screen', about: 'pick fighters, side against side: the first seat\'s fighter at full height at the left edge, the second\'s at the right (mirrored), each with its tag and name (its style and figures only with `stats`); the roster a grid of faces between them, each couch seat its own cursor; a random pick',
+    reads: 'roster: [{ id, name, style, stats: [{ label, value, max }] }], seats, p1tag, p2tag, stats (show each side\'s style and figures; off: a fighter is picked by their look)', emits: '{ emit: pick, seat, id } as a seat accepts; fighter:random',
+    params: ['title', 'roster', 'seats', 'p1tag', 'p2tag', 'stats'],
     node: screen({ title: P('title'), place: 'full', seats: P('seats') }, [
       row([
         selectSide(1, false),
         col([
-          { use: 'grid', id: 'roster', props: { cells: P('roster'), columns: 4, cell: col([{ use: 'portrait', props: { name: I('name') } }, txt(I('name'), 'label')], 'center') }, on: { accept: { emit: 'pick', seat: { seat: true }, id: I('id') } } },
+          { use: 'grid', id: 'roster', props: { cells: P('roster'), columns: 4, cell: { use: 'portrait', props: { name: I('name'), caption: false } } }, on: { accept: { emit: 'pick', seat: { seat: true }, id: I('id') } } },
           { use: 'button', props: { label: W('random') }, on: { accept: { emit: 'fighter:random', seat: { seat: true } } } },
         ], 'center'),
         selectSide(2, true),
       ], 'apart', 'loose', true),
       legend(['accept', 'pick'], ['back', 'back']),
     ]),
-    example: { title: 'Choose your fighter', roster: f('roster'), seats: 2, p1tag: f('p1.tag'), p2tag: f('p2.tag') },
+    example: { title: 'Choose your fighter', roster: f('roster'), seats: 2, p1tag: f('p1.tag'), p2tag: f('p2.tag'), stats: false },
   },
   'fight-pause': {
     kind: 'screen', about: 'the pause over the held fight: who paused (in their kit), resume first, then the command list, training\'s settings, the controls, character select, quit; only the seat that paused moves it',
@@ -223,9 +226,9 @@ export const FIGHT_IDIOMS = {
     params: ['outcome', 'winner', 'winnerTag', 'winnerSide', 'quote', 'stats', 'items'],
     node: screen({ layer: 'modal', place: 'center' }, [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
       { use: 'banner', props: { value: P('outcome') } },
-      row([{ use: 'portrait', props: { name: P('winner'), size: 'l' } }, col([tag(P('winnerTag'), P('winnerSide')), txt(P('winner'), 'title'), txt(P('quote'))])], 'center', 'loose'),
-      { use: 'window', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), count: true } } } }] },
-      { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'), { variant: 'menu' })] },
+      row([{ use: 'portrait', props: { name: P('winner'), size: 'xl', caption: false } }, col([tag(P('winnerTag'), P('winnerSide')), txt(P('quote')),
+        { use: 'window', children: [{ use: 'each', props: { rows: P('stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), count: true } } } }] },
+        { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'), { variant: 'menu' })] }], 'start', 'loose')], 'center', 'loose'),
     ] }]),
     example: { outcome: f('results.outcome'), winner: f('results.winner'), winnerTag: f('results.tag'), winnerSide: f('results.side'), quote: f('results.quote'), stats: f('results.stats'), items: [{ label: 'Rematch', then: { emit: 'rematch' } }, { label: 'Character select', then: { emit: 'select' } }, { label: 'Quit', then: { emit: 'quit' } }] },
   },

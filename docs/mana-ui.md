@@ -570,7 +570,7 @@ a halo in the panel's colour so it reads over any scene.
 A fighting game's UI is its own language, not a party game's: quiet so the fight reads, side against side. It is grown
 from the shared templates (the live fight's bars, meters and combo; the moments; the selects, the pause and the
 results) and drawn by the same components, sheet and themes. It lives in `idioms-fight.js` (shelf `fight`) and holds to
-eight principles:
+nine principles:
 
 1. **Two sides, one centre.** Everything mirrors across the centre line: the first fighter's parts on the left, the
    second's on the right, its bars filling from the right. Each side is keyed to its kit (the theme's `sides` 0 and 1)
@@ -591,7 +591,11 @@ eight principles:
 7. **The hit-stop holds it.** The game holds the runtime through a hit-stop (`rt.hold`), so a bar's fall and a callout's
    entrance freeze with the blow and land with it.
 8. **Quiet.** The fight's parts sit bare over the round (a region's `variant: bare`: no plate across the screen, each
-   word on its halo, each bar its own frame). Its looks never lean, stack, break out or slam.
+   word on its halo, each bar its own frame). Its looks never lean, stack, break out or slam. The elements do their
+   talking: the frame says no word but the names (no round caption, no meter labels, no figures on a bar), training's
+   readouts carry no headings, a stock is its numeral.
+9. **Picked by their look.** The versus screens give each fighter its art at full height (`portrait` `size: xl`) at its
+   own side; the select shows a fighter's style and figures only when the game asks (`stats: true`).
 
 Its words are the runtime's (`WORDS`: round, fight, K.O., counter, punish, reversal, parry, spark, guard, burst, the
 frame data's) or the game's, so a fight ships in every language its game does.
@@ -603,8 +607,8 @@ frame data's) or the game's, so a fight ships in every language its game does.
 | `fight-combo`, `fight-callouts` | a side's combo and its callouts, at the edge the game names (`at: left \| right`) |
 | `fight-announcer` | the round's words at the centre |
 | `input-display`, `frame-meter`, `training-stats` | training's readouts over the fight's own (`TRAINING_HUD`) |
-| `versus-splash` | the face-off: both fighters, the vs, the arena; any button goes on |
-| `fighter-select` | side against side: each seat's fighter at its own edge in its kit, the roster between them |
+| `versus-splash` | the face-off: each fighter's art at full height at its side, the vs, the arena; any button goes on |
+| `fighter-select` | side against side: each seat's fighter at full height at its edge, the roster's faces between them; `stats` shows style and figures |
 | `fight-pause` | over the held fight: who paused, resume, the command list, training's settings, select, quit |
 | `command-list` | a fighter's moves by kind, each its input beside its frame data |
 | `training-settings` | the dummy, its guard, counter hits, the boxes, the frame meter, a reset |

@@ -49,21 +49,32 @@ describe('mana-ui: the fight\'s language', () => {
     expect(call.props.read).toBeLessThan(ritual.props.read);
   });
 
+  it('the elements do their talking: the frame says no word but the names, the select shows a fighter\'s figures only when asked', () => {
+    const html = hud(['fight-health', 'fight-meters']).view();
+    for (const w of ['Round', 'Super', 'Burst', 'Guard']) expect(html, w).not.toContain(`>${w}<`);
+    expect(html).not.toMatch(/\d+\/\d+/);
+    const sel = (stats) => manaUi.runtime(withIdioms({ start: 's', screens: { s: { use: 'fighter-select', props: { ...IDIOMS['fighter-select'].example, stats } } } }), { read, act: () => {} }).view();
+    expect(sel(false)).not.toContain('Rushdown');
+    expect(sel(true)).toContain('Rushdown');
+  });
+
   it('a combo shows only while one runs, and every word the fight says is a word a game can say again', () => {
     const none = hud(['fight-combo'], { 'fight-combo': { at: 'left', hits: 0, damage: 0 } }).view();
     expect(none).not.toContain('data-at="left"');
     // (the fight's words in a language of the game's: the runtime's table reaches them)
-    const rt = manaUi.runtime(withIdioms({ hud: { use: 'hud', children: [{ use: 'fight-meters', props: IDIOMS['fight-meters'].example }] }, screens: {}, languages: { ja: { super: 'スーパー', burst: 'バースト' } }, language: 'ja' }), { read });
-    expect(rt.view()).toContain('スーパー');
-    expect(rt.view()).toContain('バースト');
+    const rt = manaUi.runtime(withIdioms({ hud: { use: 'hud', children: [{ use: 'fight-combo', props: IDIOMS['fight-combo'].example }] }, screens: {}, languages: { ja: { hits: 'ヒット' } }, language: 'ja' }), { read });
+    expect(rt.view()).toContain('ヒット');
   });
 
   it('training lays its readouts over the fight\'s own, and the shelf is whole', () => {
     expect(TRAINING_HUD.every((id) => FIGHT_IDIOMS[id] && FIGHT_IDIOMS[id].kind === 'hud')).toBe(true);
     expect(FIGHT_HUD.every((id) => FIGHT_IDIOMS[id] && FIGHT_IDIOMS[id].kind === 'hud')).toBe(true);
     expect(Object.values(FIGHT_IDIOMS).every((I) => IDIOMS[Object.keys(FIGHT_IDIOMS).find((k) => FIGHT_IDIOMS[k] === I)].shelf === 'fight')).toBe(true);
+    // (the elements do their talking: no word heads a readout, the readouts are the figures)
     const html = hud([...TRAINING_HUD]).view();
-    for (const w of ['Inputs', 'Frame meter', 'Training']) expect(html).toContain(w);
+    for (const w of ['Inputs', 'Frame meter']) expect(html).not.toContain(w);
+    expect(html).toContain('mana-feed');
+    expect(html).toContain('+1');
   });
 });
 

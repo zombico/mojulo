@@ -321,6 +321,8 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-portrait{display:inline-flex;flex-direction:column;align-items:center;gap:${u(3)}}`,
     `${s} .mana-ph{display:flex;align-items:center;justify-content:center;width:${u(72)};height:${u(72)};border:${v('rule-w')} solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${X_BOX} ${v('paper')};font:700 ${u(20)} ${v('mono')}}`,
     `${s} .mana-portrait[data-size=s] .mana-ph{width:${u(42)};height:${u(42)};font-size:${u(14)}}`, `${s} .mana-portrait[data-size=l] .mana-ph{width:${u(126)};height:${u(126)};font-size:${u(27)}}`,
+    // (a fighter's art at full height: tall, the room a versus screen gives it)
+    `${s} .mana-portrait[data-size=xl] .mana-ph{width:${u(290)};height:${u(440)};font-size:${u(54)}}`,
     `${s} .mana-image{display:flex;align-items:flex-end;justify-content:center;border:${v('rule-w')} solid ${v('line')};border-radius:calc(${v('radius')}*.6);background:${X_BOX} ${v('paper')};aspect-ratio:16/9;width:100%;padding:${u(6)}}`,
     `${s} .mana-image[data-ratio=square]{aspect-ratio:1}`, `${s} .mana-image[data-ratio=tall]{aspect-ratio:3/4}`, `${s} .mana-image[data-ratio=banner]{aspect-ratio:4/1}`,
     `${s} .mana-badge{display:inline-block;padding:0 ${u(7.5)};border:${v('rule-w')} solid ${v('line')};border-radius:${u(12)};font:700 ${t('caption')}/1.5 ${v('mono')}}`,
