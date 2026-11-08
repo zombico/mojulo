@@ -3,7 +3,12 @@
 - **A science page is a ladder of scales, and each rung says what it is.** A rung is simulated (a model the solver
   runs and the gates examine), depicted (drawn at true proportions from sourced numbers and held to them) or explained
   (a cited sentence, where nothing can be drawn honestly). What is too far out of scale to show gets its own rung, never
-  a silent approximation.
+  a silent approximation. A classical body made of a matter carries its ladder, from the body down through its grains
+  and its crystal cell to its atoms and its nuclei, each rung with its size, its step from the one above and its
+  source; where nothing below is sourced, the last rung says so. A demo standing at true size in a world has the place
+  above its bodies. `dress.ladder: '<body>'` draws a body's depicted rung beside the demo (steel's iron cell, aluminium's,
+  lead's), its atoms where the lattice puts them, and the `ladder-depicted` gate holds the drawing to the lattice
+  constant.
 - **A classical body can say what it is made of.** `matter: 'steel'` (any row of the destructible-physics matter table,
   or `{ is, …overrides }`) gives a body with a radius its mass from the matter's density, and a collision or a plane
   with no `e` its bounce: each pair takes the lower of its two, as the games' impact law does. A plane can name its own

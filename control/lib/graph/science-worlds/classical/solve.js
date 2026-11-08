@@ -21,6 +21,7 @@ import { CLASSICAL_LAWS, CLASSICAL_LAW, G_NEWTON, planeNormal } from './laws.js'
 import { classical } from './kernel.js';
 import { closedFormGates } from './analytic.js';
 import { readMedium, readBodyMatter, bodyBudget, impactOf, verdictOf, sourceOf } from '../matter.js';
+import { ladderOf } from '../ladder.js';
 import { along, peak, returnRange, period, at, vel } from './measure.js';
 
 export const MAX_STEPS = 400000;
@@ -432,6 +433,8 @@ function matterReadout(model, impacts) {
       matter: b.matter.id, source: sourceOf(b.matter), mass: { value: sig(b.mass), unit: 'kg', from: b.massFrom === 'matter' ? 'density × volume' : 'given' },
       holds: { value: sig(budget.joules), unit: 'J' }, contacts: per[i].contacts, worst: per[i].worst,
       ...(per[i].contacts ? { peak: { value: sig(per[i].share), unit: 'J', at: sig(per[i].at, 6) } } : {}),
+      // what it is made of, rung by rung down to its nuclei: simulated, depicted or explained (ladder.js)
+      ladder: ladderOf(b.matter, b.radius).map((r) => ({ ...r, ...(r.size ? { size: sig(r.size, 4) } : {}) })),
     };
     if (per[i].worst === 'breaks') broken.push(b.id);
   });

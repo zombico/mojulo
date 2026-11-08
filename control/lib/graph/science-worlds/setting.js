@@ -24,6 +24,7 @@ import { assembleMicroscopicScene, planMicroscopicWorld } from './microscopic/wo
 import { assembleQuantumScene, planQuantumWorld } from './quantum/world.js';
 import { assembleRelativisticScene, planRelativisticWorld } from './relativistic/world.js';
 import { quantity } from './contract.js';
+import { placeRung, rungItem } from './ladder.js';
 import { G as G_PRESET } from '../machina/quantities.js';
 import { scl, add, sub, dot, cross, len, isObj, sig, framing, bar, scaleLiberty } from './page.js';
 
@@ -269,6 +270,9 @@ export function placeScience(payload, raw, { where = 'science' } = {}) {
     const sections = sci.honesty.sections.map((s) => ({ ...s, items: s.items.slice() }));
     const checks = sections.find((s) => s.head === 'Checked by the solver');
     if (checks) checks.items.push(...gates.map((g) => ({ mark: true, ok: g.ok, text: g.want, note: g.ok ? '' : g.detail })));
+    // a demo standing 1:1 has the world as the rung above its bodies' ladder
+    const ladder = oneToOne && plan.solved.matter ? sections.find((s) => s.head.startsWith('The ladder')) : null;
+    if (ladder) ladder.items.unshift(rungItem(placeRung({ ground: !!spec.ground, setting: spec.setting })));
     const left = sections.find((s) => s.head === 'Left out (assumptions)');
     if (left) left.items.push(...assumptions.map((text) => ({ text })));
     if (!oneToOne && plan.scaleNote) {

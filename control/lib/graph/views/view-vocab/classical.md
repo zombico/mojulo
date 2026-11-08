@@ -40,9 +40,11 @@ wants: `'500 g'`, `'36 km/h'`, `'30 deg'`, `[2, 'µC']`, `'2.5 yr'`. A mass give
 
 - `frame` — `{ g }`: the uniform gravity a `gravity-uniform` law uses (default Earth, 9.8 m/s²; or 'moon', 'mars',
   'jupiter', or a quantity). The world is z-up: down is −z.
-- `bodies` — `[{ id, mass, radius?, at, v?, charge?, fixed?, on_plane? }]`. `at` and `v` are [x, y, z]. A body with no
-  radius is a point mass. A `fixed` body never moves but still pulls (a sun, a pivot charge). `on_plane: '<plane id>'`
-  sets a body on that surface.
+- `bodies` — `[{ id, mass, radius?, at, v?, charge?, fixed?, on_plane?, matter? }]`. `at` and `v` are [x, y, z]. A body
+  with no radius is a point mass. A `fixed` body never moves but still pulls (a sun, a pivot charge). `on_plane: '<plane
+  id>'` sets a body on that surface. `matter` names what it is made of, a solid from the destructible-physics matter
+  table (`'steel'`, `'glass'`, `'timber'`, …, or `{ is, …overrides }`): with a radius and no mass its mass is the
+  matter's density × the sphere's volume, and a collision or plane with no `e` takes the lower bounce of the two.
 - `laws` — `[{ law: '<id>', …its params }]`, from the table below. A law id the table does not have is reported as a
   **gap** that names the scale that owns it (diffusion and reaction rates are microscopic; orbitals and bonds are
   quantum), and the rest of the model still runs.
@@ -90,6 +92,25 @@ the path needs the quantum scale). Say which gates ran and what they saw; the ey
 The drawing declares its own liberties: a scale other than one metre per unit at very large or very small sizes, a
 body too small to see drawn larger (a body that touches things keeps its true size), time sped up or slowed down, and
 a field drawn (its lines a way to draw it, where they start, its glow's scale).
+
+## Matter and the ladder of scales
+
+A model whose bodies name a matter reads back `matter`: each body's mass and where it came from, the energy it holds
+before it fails, and the worst any contact did to it (holds, dents, breaks) by the games' own impact law. The
+`bodies-intact` gate advises when a body would have broken; the run never breaks one.
+
+Each such body also carries its **ladder**: rung by rung from the body down to its nuclei, each one saying what it is.
+A rung is **simulated** (the body, run and gated; the world's ground when the demo stands in one), **depicted** (drawn
+at true proportions from sourced numbers: a cubic metal's cell, steel's iron, aluminium, lead) or **explained** (a cited
+sentence where nothing can be drawn honestly: a grain's shape, glass's network that never repeats, an atom of more
+than one electron, a nucleus tens of thousands of times smaller than its atom). Every rung gives its size, its step from the one above
+and its source; a rung under a thousandth of the one above is its own, never squeezed into that frame, and where the
+table has nothing further down the last rung says so. The panel lists the ladder.
+
+- `dress.ladder: '<body id>'` draws that body's depicted rung beside the demo: the cell's atoms where the lattice puts
+  them, as touching spheres, its magnification against the demo on the panel. The `ladder-depicted` gate measures the
+  drawn spacings against the source (one part in a billion). A body whose ladder has no depicted rung is refused, with
+  its rungs listed.
 
 ## Reading the numbers back
 

@@ -19,7 +19,12 @@
  *                                 lines traced from the charges where they start; or a shader over the meshes,
  *                                 moving with the charges, of its strength on a log scale or of the potential's shells
  *     lines?:    12               field lines from the largest charge (the others in proportion)
+ *     ladder?:   '<body id>'      draw that body's depicted rung (ladder.js) beside the demo: a cubic metal's cell,
+ *                                 its atoms where the sourced lattice puts them, held to it by `ladder-depicted`
  *   }
+ *
+ * A model whose bodies name a matter lists their ladder on the panel, rung by rung (simulated, depicted, explained)
+ * from the body down to its nuclei; a model that names none adds nothing.
  *
  * What the drawing changes is declared, never hidden: a scale other than 1 m per unit is noted; a body too small
  * to see is drawn larger and says so (a body that touches things keeps its true size, since contact is part of
@@ -34,14 +39,16 @@ import { CLASSICAL_LAWS, planeNormal } from './laws.js';
 import { normalizeFilm, keyMoment, defaultShoot, filmConfig } from './film.js';
 import { fieldSources, positionsAt, potentialAt, fieldAt, gaussCheck, traceLines, chargePlane, thin } from './field.js';
 import { fieldShader, trackTexture } from './field-shader.js';
+import { ladderSection, cellAtoms, nearestNeighbour, depictedGate, latticeLabel, sizeText } from '../ladder.js';
 import {
   PALETTE, sub, add, scl, len, dot, cross, unit, sig, isObj, hex, hexRgb, hexInt, esc,
-  drawScale, times, scaleLiberty, timeLiberty, quad, unitBar, bar, framing, honesty,
+  drawScale, times, pow10, scaleLiberty, timeLiberty, quad, unitBar, bar, framing, honesty,
 } from '../page.js';
 const LINK_TINT = { rod: '#9aa3b5', rope: '#c8a46a', spring: '#cf8a4a' };
 const PLANE_FILL = '#222a3b', ANCHOR_TINT = '#8e9bb6';
 const HOLD = 1.2;
-const DRESS_KEYS = ['bodies', 'trails', 'vectors', 'hud', 'camera', 'background', 'playback', 'film', 'field', 'lines'];
+const DRESS_KEYS = ['bodies', 'trails', 'vectors', 'hud', 'camera', 'background', 'playback', 'film', 'field', 'lines', 'ladder'];
+const ATOM_TINT = '#b9c3d3', CELL_TINT = '#f0d28a', ATOM_SHARE = 0.4;
 
 const fail = (where, msg) => { throw new Error(`science-worlds: ${where}: ${msg}`); };
 
@@ -69,11 +76,16 @@ export function normalizeWorldDress(dress, bodies) {
   if (dress.field !== undefined && !['lines', 'volume', 'shells'].includes(dress.field)) fail('dress.field', "is 'lines' (traced from the charges), 'volume' (its strength, glowing) or 'shells' (the potential's)");
   if (dress.lines !== undefined && !(Number.isInteger(dress.lines) && dress.lines >= 2 && dress.lines <= 32)) fail('dress.lines', 'is how many field lines leave the largest charge, 2 to 32');
   if (dress.lines !== undefined && dress.field !== 'lines') fail('dress.lines', "goes with field: 'lines'");
+  if (dress.ladder !== undefined) {
+    if (typeof dress.ladder !== 'string' || !ids.has(dress.ladder)) fail('dress.ladder', 'names the body whose ladder is drawn beside the demo');
+    if (!bodies.find((b) => b.id === dress.ladder).matter) fail('dress.ladder', `${dress.ladder} names no matter: a ladder starts from what a body is made of`);
+  }
   return {
     bodies: out, trails: dress.trails ?? true, vectors: dress.vectors ?? false, hud: dress.hud ?? true,
     camera: dress.camera ?? null, background: dress.background ?? '#0b1020', playback: dress.playback ?? null,
     film: normalizeFilm(dress.film, bodies),
     ...(dress.field ? { field: dress.field, lines: dress.lines ?? 12 } : {}),
+    ...(dress.ladder ? { ladder: dress.ladder } : {}),
   };
 }
 
@@ -177,6 +189,9 @@ export function planClassicalWorld(manifest) {
   // the field (dress.field): drawn from the same model; its own checks join the page's
   const field = dress.field ? layField({ solved, dress, drawn, faces, s, Ls, lo, hi, L, playback }) : null;
 
+  // the ladder (dress.ladder): a body's depicted rung drawn beside the demo; its own check joins the page's
+  const ladderGates = dress.ladder ? [layLadder({ solved, dress, drawn, faces, planets, picks, labels, s, Ls, lo, hi, rMax: Math.max(...rDraw) })] : [];
+
   // bounds and cameras
   const span = sub(hi, lo);
   const flat = span[2] <= 0.1 * Math.max(span[0], span[1]);
@@ -189,10 +204,37 @@ export function planClassicalWorld(manifest) {
     return scl(tracks.bodies[id].x[k], s);
   };
   const radiusOf = (id) => rDraw[bodies.findIndex((b) => b.id === id)];
-  return { solved, dress, drawn, faces, planets, movers, picks, labels, cameras, bounds: { center, radius }, playback, hold: HOLD, rate, scale: s, scaleNote: scaled, pagePos, radiusOf, fieldGates: field?.gates ?? [], ...(field?.shader ? { shader: field.shader } : {}) };
+  return { solved, dress, drawn, faces, planets, movers, picks, labels, cameras, bounds: { center, radius }, playback, hold: HOLD, rate, scale: s, scaleNote: scaled, pagePos, radiusOf, fieldGates: field?.gates ?? [], drawnGates: [...(field?.gates ?? []), ...ladderGates], ...(field?.shader ? { shader: field.shader } : {}) };
 }
 
 const gate = (id, want, ok, value, detail) => ({ id, want, ok: !!ok, value, detail });
+
+// a body's depicted rung, drawn in a cube beside the demo: its atoms where the sourced lattice puts them, as small balls
+// so the lattice shows, the cube's edges the cell; magnified, and saying by how much against the demo round it
+function layLadder({ solved, dress, drawn, faces, planets, picks, labels, s, Ls, lo, hi, rMax }) {
+  const id = dress.ladder, entry = solved.matter.bodies[id];
+  const rung = entry.ladder.find((r) => r.status === 'depicted');
+  if (!rung) fail('dress.ladder', `${id}'s ladder (${entry.matter}) has no depicted rung (${entry.ladder.map((r) => `${r.label}: ${r.status}`).join('; ')}): the panel lists it, rung by rung`);
+  const c = 0.22 * Ls, per = c / rung.cell.a;
+  const mid = scl(add(lo, hi), 0.5 * s);
+  const origin = [hi[0] * s + rMax + 0.25 * Ls, mid[1] - c / 2, mid[2] - c / 2];
+  const atoms = cellAtoms(rung.cell).map((p) => add(origin, scl(p, per)));
+  const nn = nearestNeighbour(rung.cell), rA = (ATOM_SHARE * nn * per) / 2;
+  const fields = [['lattice', latticeLabel(rung.cell.lattice)], ['edge', sizeText(rung.cell.a)], ['closest spacing', sizeText(nn)], ['drawn', `${times(per / s)} the demo's scale`], ['source', rung.source]].map(([k, v]) => ({ k, v }));
+  atoms.forEach((p, k) => {
+    planets.push({ group: `ladder:${k}`, center: p, radius: rA, tint: hexRgb(ATOM_TINT), rough: 0.35, nlat: 10, nlon: 14 });
+    picks.push({ name: `ladder:${k}`, kind: 'rung', label: rung.label, fields });
+  });
+  const C = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]].map((q) => add(origin, scl(q, c)));
+  for (const [a, b] of [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]]) faces.push(...bar(C[a], C[b], 0.01 * c, CELL_TINT, 'ladder:cell'));
+  // a label rides a mesh's position: the last site (bcc's centre, an fcc face's) carries it above the cube
+  labels.push({ group: `ladder:${atoms.length - 1}`, text: `${rung.label} (${id})`, lift: 0.75 * c });
+  const atomRung = entry.ladder.find((r) => r.id === 'atom'), nucleus = entry.ladder.find((r) => r.id === 'nucleus');
+  drawn.push({ what: `${id}'s ${rung.label}, beside the demo, is drawn ${times(per / s)} larger than the demo round it`, why: `a cell ${sizeText(rung.cell.a)} on a side would vanish at the demo's scale: it is a rung of its own` });
+  drawn.push({ what: `its atoms are drawn as balls ${ATOM_SHARE} as wide as their closest spacing`, why: 'so the lattice shows: taken as touching spheres (the atom rung\'s size) they would fill the cell, and an atom has no edge, its electrons a cloud' });
+  if (atomRung && nucleus) drawn.push({ what: 'its nuclei are not drawn', why: `each is ${pow10(Math.round(Math.log10(nucleus.size / atomRung.size)))} of its atom's width: a rung of its own, explained on the panel` });
+  return depictedGate({ label: rung.label, cell: rung.cell, atoms, edge: c, per });
+}
 
 // the field a world's coulomb and lorentz rows make, drawn: lines as bars (the run's start), or a shader layer over
 // the meshes that moves with the charges; with Gauss's law checked on the field drawn, and the lines on their ends
@@ -286,16 +328,17 @@ function scienceConfig(plan, title) {
     labels,
     honesty: withShader(honesty({
       model: [...new Set(model.laws.map((l) => l.law))].map((id) => SUMMARY[id]),
-      gates: [...gates, ...plan.fieldGates], assumptions: solved.assumptions, liberties: [...drawn, ...solved.liberties], gaps: solved.gaps,
-      held: solved.held && plan.fieldGates.every((g) => g.ok),
-    }), plan),
+      gates: [...gates, ...plan.drawnGates], assumptions: solved.assumptions, liberties: [...drawn, ...solved.liberties], gaps: solved.gaps,
+      held: solved.held && plan.drawnGates.every((g) => g.ok),
+    }), plan, solved.matter),
   };
 }
 
-// a field drawn by a shader says so on the panel
-function withShader(h, plan) {
+// a field drawn by a shader says so on the panel; bodies made of matter list their ladder after the model
+function withShader(h, plan, matter) {
+  if (matter) h.sections.splice(1, 0, ladderSection(matter.bodies));
   if (!plan.shader) return h;
-  h.sections.splice(2, 0, { head: 'Drawn by a shader', color: '#9ad0ff', items: [{ text: 'the field over the meshes is computed in the shader from the charges\' own paths, with the sums the checks above use; the shader conformance gate holds its E and V to them in the test suite (scripts/science-conformance.mjs)' }] });
+  h.sections.splice(matter ? 3 : 2, 0, { head: 'Drawn by a shader', color: '#9ad0ff', items: [{ text: 'the field over the meshes is computed in the shader from the charges\' own paths, with the sums the checks above use; the shader conformance gate holds its E and V to them in the test suite (scripts/science-conformance.mjs)' }] });
   return h;
 }
 
