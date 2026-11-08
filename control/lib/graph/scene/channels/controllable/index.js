@@ -704,6 +704,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const touchLayer = touch ? touchLayout(entities, camera, { runner: !!runner }) : null;
   // a shooter's carried arms (gunplay.js, gunplay-view.js): a body whose rule says gunplay; absent, nothing is emitted
   const gunplay = entities.some((e) => e && e.rule && e.rule.gunplay);
+  // a person's sprint (rules-platform.js sprintSpeed): Shift held, read only where a body has one; absent, nothing emitted
+  const sprint = entities.some((e) => e && e.rule && e.rule.sprintSpeed > 0);
   // a level whose only minds are its fauna (era/biocube-fauna.js: each `fauna: true`, passive) has nothing to attack:
   // no AI-attack button. Any other mind ⇒ the button, byte-identical.
   const ais = (entities || []).filter((e) => e && ((e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')));
@@ -2724,7 +2726,8 @@ function __readInput() {
     transform,                       // transform (B): a body with forms turns into its next one (forms.js)` : ''}
     missile: __k('missile') || window.__mojAltFire ? 1 : 0,   // a craft's missile (R, or the right mouse, pointer-locked: the flight block's)
     flare: __k('flare') ? 1 : 0,     // a craft's flare (X)${vayoOn ? `
-    vayo: __kbRead('KeyV') || (__pad && __pad.vayo) ? 1 : 0,   // a vayo move (V, or the pad's D-pad down): vayo-move.js` : ''}
+    vayo: __kbRead('KeyV') || (__pad && __pad.vayo) ? 1 : 0,   // a vayo move (V, or the pad's D-pad down): vayo-move.js` : ''}${sprint ? `
+    sprint: __kbRead('ShiftLeft') || __kbRead('ShiftRight') ? 1 : 0,   // a person's sprint, held (rules-platform.js sprintSpeed)` : ''}
     lookDX: __lookDX, lookDY: __lookDY,
   };
   __lookDX = 0; __lookDY = 0;

@@ -27,3 +27,15 @@
   jump reaches that sees a spawn. A crate that fails the last is stacked over the jump and every law runs again. The
   arena is drawn and played as the gym is. It found that a high jump turns cover into high ground the arena's own laws
   never looked from.
+- **A person's sprint.** The platform rule takes `sprintSpeed`: Shift held with the stick forward runs at the sprint,
+  never while firing or with the sights up. A feel with `takes` carries its card's sprint and walk, and the legend says
+  "Shift sprint".
+- **A spray that builds.** A weapon's spread and recoil take `wait`: they settle only once the trigger has rested that
+  long. The arms kit's automatic rifles and SMGs wait 0.15 s, so a held spray blooms and climbs.
+- **A round's mark is its gun's.** A weapon's `blow` (the joules a round carries) and `pellets` ride its shot to what it
+  stops on, so a sniper chips brick wider than a pistol and a shotgun leaves a pattern of pellet chips; with physical
+  destruction, a round breaks by its gun's energy. The arms kit gives each gun its round's energy.
+- **No thrust for a person.** A shooter-pole player without a hero walks as a person (Z walks; F no longer boosts at a
+  mech's multiple of its run; its dodge stays).
+- **A first person that plays its feel.** A first-person game without a hero, with a feel, stands on the platform rule
+  at its eye, so it accelerates, stops, jumps and sprints as its card says.

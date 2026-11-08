@@ -251,6 +251,8 @@ export const SHOOT = Object.freeze({
 const SHOOT_TUNE = Object.freeze({ rule: { standoff: 12, speed: 3, turn: 3, burst: 0.3, pause: 1.2, navCell: 0.5 }, weapon: SHOOT.gun, body: { hp: SHOOT.foeHp, radius: 0.6 } });
 // a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet
 export const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
+// a person's walk (m/s): the hero library's (playscape/player.js), a hero-less shooter's on the platform rule
+export const PERSON_WALK = 1.6;
 // a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
 // a race's numbers: the trail a loop is laid on (its run, seconds: the longest; its beats, none that cuts the land or
 // stands a stone on it: no pit, no stream, no landmark), laps round it, metres between its checkpoints, the grid (the first row's distance behind the
@@ -1425,8 +1427,10 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
   const s0 = spot('player', 0);
   // the player's feet: the pole's pace; past its jump threshold the platform rule (a jump, an air jump, a dash)
   // (with weapons it is the platform rule too: the rule that carries a loadout; short of the pole's jump, a hop a step high)
-  const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash }
-    : quick.weapons || quick.arms ? { type: 'platform', speed: P.move.speed, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
+  // (a person on the platform rule walks: `walkSpeed`, the hero library's, so Z walks and F is no mech's thrust; the
+  // dodge stays its double tap)
+  const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, walkSpeed: PERSON_WALK, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash }
+    : quick.weapons || quick.arms ? { type: 'platform', speed: P.move.speed, walkSpeed: PERSON_WALK, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
   const over = shoulderOf(camera ?? quick.camera, hero), conv = over ? { converge: true } : {};
   // (a carried kit, arms-kit.js: its rounds scaled to the pole's own gun, else the shooter's rifle)
   const kit = quick.arms ? armsLoadout(quick.arms, P ? P.weapon : SHOOT.rifle, { eye: hero ? 1.5 : 0, hand: 'right', converge: !!over }) : null;

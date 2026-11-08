@@ -221,16 +221,38 @@ write byte-identical pages.
 - **The arena shooter's longest lines outrun its guns**: 9% of its lines are past 30 m. A long gun, or a smaller arena
   (a faster `--cross`), is the call.
 
+## Phase 4: the gaps closed, each moving a measured number
+
+Five of the gaps the measures named are closed in lib, each an opt-in, so a game that does not ask keeps every byte of
+its recipe's output (the page's runtime text grows; the emitted-page pins are re-pinned with a note saying how):
+
+| gap | the change | before → after (measure.mjs) |
+|---|---|---|
+| the sprint carried by no game | a person's sprint on the platform rule (`sprintSpeed`, Shift held, the stick forward; never while firing or aiming), lowered from the card with the feel's `takes` | Conscription 7.2, Infinity Crisis 8.5, Cogs of Combat 7, Steel Serpents 5.8 m/s: the cards' sprints, none before |
+| the walk the library's whatever the card | the card's walk lowered with its `takes` (`walkSpeed`) | Infinity Crisis 1.6 → 2.5, Steel Serpents 1.6 → 1.3 m/s |
+| F boosts the pole's hero-less player at 3.5 × its run | a person's walk on the pole's platform feet (`walkSpeed`: no thrust, Z walks, the dodge kept) | realistic 15.75, stylized 22.75 m/s → none; walk 1.6 |
+| no automatic gun blooms or climbs | a spread's and a recoil's `wait` (settling only once the trigger rests), 0.15 s on the automatic archetypes | the rifle's tenth round 0.6° / 0.01° → 4° / 3.69°; the SMG's 0.9° → 4.05°, 1.62° of climb |
+| every gun leaves the same mark | a round's `blow` (joules, about its cartridge's at the muzzle) and a shell's `pellets`, carried on the shot to rupa's marks and blows | brick: the handgun 3.4 cm, the rifle 5.2, the sniper 7.8; the shotgun nine pellet chips of 3.1 cm (5.4 cm for every gun before) |
+| the hero-less first person cannot play its template | a hero-less first person with a feel stands on the platform rule at its eye (a person's walk); without one, the walker as before | Conscription: to its run in 0.017 → 0.28 s, the stop 0 → 0.49 m, the jump none → 0.55 m |
+
+`takes` (the hero's own jumps and the card's moves, unreleased on this line: the 1105 platformer slice) now carries the
+card's sprint and walk too, so a platformer with `takes` sprints on Shift at its card's sprint. The tester's games ask
+for their takes. Every law of the seven games holds (`measure.mjs`: 171 of 171).
+
 ## Gaps, in the order they move a measured number
 
-1. **The sprint**: carried onto the platform rule (a person's, not the mech boost), so the cards' sprints reach a game.
-2. **A round's energy from its gun** into rupa (`rupa.shot` per weapon, the shotgun as pellets), so a marks law can
-   tell a pistol from a rifle.
-3. **The automatic archetypes' bloom and climb**: recovery that waits for the trigger to rest, or numbers that add
-   faster than they recover, so a spray costs what the realistic end says it does.
-4. **The hero-less first person** on the platform rule (as the shooter spike asked), so the default FPS plays its card.
-5. **The boost a person cannot have**: a platform body with no gear and no walk should not thrust.
-6. **The walk** from the card.
+Closed in phase 4: the sprint, the round's energy (and the pellets), the automatic archetypes' bloom and climb, the
+hero-less first person, the boost a person cannot have, the walk. Still open:
+
+1. **The camera's aim over the shoulder**: the shoulder camera turns on A and D (no mouse look), and its rounds go to
+   the camera's crosshair.
+2. **A sprint clip**: the sprint runs the jog's clip faster (no sprint gait is picked at speed); the stance clips (none
+   exist: crouch, prone).
+3. **Crouch** (half cover is a third of an arena's cover and nothing uses it), and the slide and mantle the contemporary
+   FPS template names.
+4. **A jump's gather finished off a lip** and the step taken in the air: a design call (today the runtime does both).
+5. **The barrel's length and the muzzle's words** (a suppressor, a longer barrel) change no number; the shot leaves from
+   a fixed hand offset, not the arm's muzzle station.
 
 ## Not measured yet
 

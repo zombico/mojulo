@@ -88,6 +88,19 @@ describe('scars: a blow paints what it would do and changes nothing', () => {
     expect(() => readScarsSpec({ walls: [] })).toThrow(/walls is/);
   });
 
+  it('a round marks with its gun\'s blow: a heavier round a wider chip; a shot parts into its pellets\' chips', () => {
+    const gun = { id: 'gun', rule: { type: 'walk', speed: 0, eye: 0, collideRadius: 0.3, collideHeight: 1.7 }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 } };
+    const mark = (shot) => { const w = CW.createWorld({ entities: [gun], colliders: [wall], rupa: { scars: SCARS } }), e = w.byId.gun; e.lastShot = { mode: 'miss', t: w.time, from: [0, 0, 1.4], to: [3, 0, 1.4], ...shot }; step(w); return marks(w); };
+    const world = mark({})[0], pistol = mark({ blow: 500 })[0], sniper = mark({ blow: 6000 })[0];
+    expect(pistol.bowl).toBeLessThan(world.bowl);   // the world's round is 2000 J
+    expect(sniper.bowl).toBeGreaterThan(world.bowl);
+    const shot = mark({ blow: 3200, pellets: 9 });
+    expect(shot).toHaveLength(9);
+    expect(shot.every((m) => m.kind === 'chip' && m.bowl < world.bowl)).toBe(true);
+    expect(new Set(shot.map((m) => m.at.join())).size).toBe(9);   // a pattern, not one hole
+    expect(JSON.stringify(mark({ blow: 3200, pellets: 9 }))).toBe(JSON.stringify(shot));   // the same shot, the same pattern
+  });
+
   it('a mark is the bowl the blow would crush: a round chips centimetres, a harder matter less; a burst blackens its disc', () => {
     const chip = (wall) => rupaPhysics.scarOf([3, 0, 1.4], [-1, 0, 0], rupaPhysics.blowJoules('shot', {}), readScarsSpec({ wall }).wall, { how: 'shot', faceSize: 3 });
     const brick = chip('brick'), stone = chip('stone');

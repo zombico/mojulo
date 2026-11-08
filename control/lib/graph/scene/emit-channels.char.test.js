@@ -428,6 +428,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-05 (1105-platformer-lv0-spike merging 1104-vayo-effects' knockback): the same fixtures, their
 // emission the two re-pins above together (the platform rule's takes, wall, dash and camera move; the combat builders'
 // knockback seams), each a no-op without its own opt-in.
+// Re-pinned 2026-11-08 (1108-realism-combat-tester, phase 4: the gaps the combat tester measured): the fixtures that
+// embed the controllable runtime. The platform rule gained a person's sprint (`sprintSpeed`, held on `input.sprint`);
+// the weapon its spread's and recoil's `wait` (settling once the trigger rests: `restT`, kept only with one) and a
+// round's `blow` and `pellets`, carried on the shot's record. On the `controllable` fixture 22 lines are added and 6
+// replaced (the spread and recoil records, their settling, the two shot records), each as before without its opt-in.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

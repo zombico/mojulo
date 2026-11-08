@@ -9,7 +9,7 @@ import { designGameHandler } from './design-game.js';
 import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
-import { readQuick } from '@/lib/graph/gameworld/quick.js';
+import { readQuick, PERSON_WALK } from '@/lib/graph/gameworld/quick.js';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
 import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
 import { stageEnds } from '@/lib/graph/gameworld/levels.js';
@@ -765,7 +765,7 @@ describe('design_game quick', () => {
     expect(R.mechs).toEqual(['frags', 'supplies']);
     expect(S.mechs).toEqual(['frags', 'supplies', 'regen', 'abilities']);
     expect([R.player.rule.type, S.player.rule.type]).toEqual(['walk', 'platform']);
-    expect(S.player.rule).toMatchObject({ airJumps: 1, dodge: true });
+    expect(S.player.rule).toMatchObject({ airJumps: 1, dodge: true, walkSpeed: PERSON_WALK });   // a person: F is no thrust
     expect(R.player.weapon.damage * 4).toBeGreaterThanOrEqual(R.bot.body.hp - 1);   // four rounds drop a body
     expect(S.bot.body.hp).toBe(200);
     expect([R.bot.rule.peek, S.bot.rule.peek]).toEqual([true, false]);

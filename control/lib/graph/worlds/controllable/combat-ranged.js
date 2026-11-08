@@ -137,8 +137,10 @@ export function buildCombatRanged(E) {
       // the BLOOM a spray builds (`bloom` a shot, `recover` a second back, `max` the cone's widest); where in the cone is
       // a seeded hash of the shooter and its shot count (deterministic). RECOIL (opt-in, degrees): each shot climbs the
       // aim `kick` (to `max`), settling `recover` a second. Without them a shot goes where it is aimed, as before.
-      spread: w.spread && typeof w.spread === 'object' ? { base: w.spread.base ?? 0, move: w.spread.move ?? 0, bloom: w.spread.bloom ?? 0, recover: w.spread.recover ?? 4, max: w.spread.max ?? 6 } : null,
-      recoil: w.recoil && typeof w.recoil === 'object' ? { kick: w.recoil.kick ?? 0, recover: w.recoil.recover ?? 6, max: w.recoil.max ?? 6 } : null,
+      // `wait` (opt-in, seconds, either): the settling starts only once the trigger has rested that long, so a held
+      // spray builds its bloom and its climb at any rate of fire; absent, it settles every frame, as before.
+      spread: w.spread && typeof w.spread === 'object' ? { base: w.spread.base ?? 0, move: w.spread.move ?? 0, bloom: w.spread.bloom ?? 0, recover: w.spread.recover ?? 4, max: w.spread.max ?? 6, ...(w.spread.wait > 0 ? { wait: w.spread.wait } : {}) } : null,
+      recoil: w.recoil && typeof w.recoil === 'object' ? { kick: w.recoil.kick ?? 0, recover: w.recoil.recover ?? 6, max: w.recoil.max ?? 6, ...(w.recoil.wait > 0 ? { wait: w.recoil.wait } : {}) } : null,
       bloomNow: 0, kickNow: 0,
       // FALLOFF (opt-in, metres): a round's damage holds to `from`, then thins in a line to `min` of itself at `to` and
       // past it (a burst for a corner hurts little across a hall). Without it a round deals the same at any range.
@@ -151,6 +153,10 @@ export function buildCombatRanged(E) {
       converge: w.converge === true,      // CONVERGE (opt-in): the round goes from the muzzle to the crosshair's point (an over-the-shoulder camera's)
       muzzleAlt: w.muzzleAlt || false,        // DUAL WIELD (alternate): flip the lateral muzzle each shot (two guns take turns)
       muzzleDual: w.muzzleDual || false,      // DUAL WIELD (simultaneous): fire BOTH guns each shot — the renderer mirrors the muzzle flash
+      // A ROUND'S BLOW (opt-in): `blow` the joules a round carries (its gun's: arms-kit.js), `pellets` the shot it parts
+      // into (a shotgun's); the shot's record carries them to what it stops on (rupa.js: the blows and the scars). Absent,
+      // a round spends the world's own (rupa.shot), as before
+      ...(w.blow > 0 ? { blow: w.blow } : {}), ...(w.pellets > 1 ? { pellets: Math.round(w.pellets) } : {}),
       // NO-FIRE-WHILE-BOOSTING (operator): heavy launchers (lob) + precise semi beams (the beam-rifle
       // class) can't be fired mid-thrust; auto suppression weapons (MG/vulcan) still stream. null →
       // the class default (w.auto — true for area autos, false for lob + semi beams); set explicitly
@@ -210,8 +216,10 @@ export function buildCombatRanged(E) {
   function tickWeapon(w, dt) {
     if (!w) return;
     if (w.cooldownT > 0) w.cooldownT = Math.max(0, w.cooldownT - dt);
-    if (w.spread && w.bloomNow > 0) w.bloomNow = Math.max(0, w.bloomNow - w.spread.recover * dt);
-    if (w.recoil && w.kickNow > 0) w.kickNow = Math.max(0, w.kickNow - w.recoil.recover * dt);
+    // (a `wait`: the time since the last round, `restT`, kept only for a weapon that has one)
+    if (w.restT != null) w.restT += dt;
+    if (w.spread && w.bloomNow > 0 && !(w.spread.wait > 0 && w.restT < w.spread.wait)) w.bloomNow = Math.max(0, w.bloomNow - w.spread.recover * dt);
+    if (w.recoil && w.kickNow > 0 && !(w.recoil.wait > 0 && w.restT < w.recoil.wait)) w.kickNow = Math.max(0, w.kickNow - w.recoil.recover * dt);
     if (w.energyMax > 0) {
       const rr = w.energyLock ? (w.energyOverheatRegen ?? w.energyRegen) : w.energyRegen;
       if (rr > 0) w.energy = Math.min(w.energyMax, (w.energy ?? w.energyMax) + rr * dt);
@@ -325,6 +333,7 @@ export function buildCombatRanged(E) {
     if (want) {
       w.ammo -= (chargedShot && w.chargedAmmoCost) ? Math.min(w.chargedAmmoCost, w.ammo) : 1;
       w.shots += 1;
+      if ((w.spread && w.spread.wait > 0) || (w.recoil && w.recoil.wait > 0)) w.restT = 0;   // the trigger's rest starts again (a weapon with a `wait`)
       if (w.energyMax > 0) {
         const ec = chargedShot ? (w.chargedEnergyCost ?? w.energyCost ?? 0) : (w.energyCost || 0);
         w.energy = Math.max(0, (w.energy ?? w.energyMax) - ec);
@@ -441,7 +450,7 @@ export function buildCombatRanged(E) {
           // NOT the target's FEET origin (`transform.pos`, z≈0), which made every impact fx + beam bolt
           // terminate at the legs. Purely the visual/impact anchor (damage/poise are unchanged below).
           const hitPt = [origin[0] + aim[0] * best.d, origin[1] + aim[1] * best.d, origin[2] + aim[2] * best.d];
-          e.lastShot = { mode: best.mode, targetId: best.id, t: state.time, from, to: hitPt, charged: chargedShot };
+          e.lastShot = { mode: best.mode, targetId: best.id, t: state.time, from, to: hitPt, charged: chargedShot, ...(w.blow ? { blow: w.blow } : {}), ...(w.pellets ? { pellets: w.pellets } : {}) };
           tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + 1;
           tg.lastHitBy = e.id;   // match-layer attribution: the most recent hitter takes the kill credit
           // HEADSHOT (opt-in `weapon.headshot`, a multiplier): a core hit that enters the egg in its top HEAD_BAND is to the
@@ -483,7 +492,7 @@ export function buildCombatRanged(E) {
           // miss (or blocked by cover): stop the tracer AT the wall if the aim ray hits one, else fly to range.
           const far = [origin[0] + aim[0] * shotRange, origin[1] + aim[1] * shotRange, origin[2] + aim[2] * shotRange];
           const wt = nearestWallT(from, far, state.colliders);
-          e.lastShot = { mode: 'miss', t: state.time, from, to: wt != null ? lerp3(from, far, wt) : far, charged: chargedShot };
+          e.lastShot = { mode: 'miss', t: state.time, from, to: wt != null ? lerp3(from, far, wt) : far, charged: chargedShot, ...(w.blow ? { blow: w.blow } : {}), ...(w.pellets ? { pellets: w.pellets } : {}) };
         }
       }
     }

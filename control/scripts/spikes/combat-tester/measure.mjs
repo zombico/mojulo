@@ -35,11 +35,11 @@ const { POLES } = await import('../../../lib/graph/gameworld/feel/cards.js');
 // (a foe each: the tester needs the game's own foe body, not a fight; first person with no hero is the walker, a hero
 // is the platform rule the feel is lowered over)
 export const GAMES = {
-  conscription: { says: 'the contemporary FPS, as its template plays: first person, a rifle, a sidearm and a shotgun', quick: { goal: 'shoot', foes: 1, arms: ['rifle', 'handgun', 'shotgun'], camera: 'first-person', world: { id: 'ct-conscription', feel: 'conscription' } } },
-  'conscription-hero': { says: 'the same with a body: the platform rule the feel is lowered over, seen from the eye', quick: { goal: 'shoot', foes: 1, hero: {}, arms: ['rifle', 'handgun', 'shotgun'], camera: 'first-person', world: { id: 'ct-conscription-hero', feel: 'conscription' } } },
-  'infinity-crisis': { says: 'the arena and hero shooter: the stylized pole, its kit, its feel', quick: { goal: 'deathmatch', bots: 1, pole: 'stylized', arms: ['rifle', 'smg'], camera: 'first-person', hero: {}, world: { id: 'ct-infinity', feel: 'infinity-crisis' } } },
-  'cogs-of-combat': { says: 'the third-person cover shooter: over the shoulder, heavy bodies, a rifle and a shotgun', quick: { goal: 'shoot', foes: 1, hero: {}, arms: ['rifle', 'shotgun'], camera: 'third-person', world: { id: 'ct-cogs', feel: 'cogs-of-combat' } } },
-  'steel-serpents': { says: 'the military sim\'s body over the shoulder: a careful walk, a sidearm and a sniper', quick: { goal: 'shoot', foes: 1, hero: {}, arms: ['handgun', 'sniper'], camera: 'third-person', world: { id: 'ct-serpents', feel: 'steel-serpents' } } },
+  conscription: { says: 'the contemporary FPS, as its template plays: first person, a rifle, a sidearm and a shotgun', quick: { goal: 'shoot', foes: 1, arms: ['rifle', 'handgun', 'shotgun'], camera: 'first-person', world: { id: 'ct-conscription', feel: { pole: 'conscription', takes: true } } } },
+  'conscription-hero': { says: 'the same with a body: the platform rule the feel is lowered over, seen from the eye', quick: { goal: 'shoot', foes: 1, hero: {}, arms: ['rifle', 'handgun', 'shotgun'], camera: 'first-person', world: { id: 'ct-conscription-hero', feel: { pole: 'conscription', takes: true } } } },
+  'infinity-crisis': { says: 'the arena and hero shooter: the stylized pole, its kit, its feel', quick: { goal: 'deathmatch', bots: 1, pole: 'stylized', arms: ['rifle', 'smg'], camera: 'first-person', hero: {}, world: { id: 'ct-infinity', feel: { pole: 'infinity-crisis', takes: true } } } },
+  'cogs-of-combat': { says: 'the third-person cover shooter: over the shoulder, heavy bodies, a rifle and a shotgun', quick: { goal: 'shoot', foes: 1, hero: {}, arms: ['rifle', 'shotgun'], camera: 'third-person', world: { id: 'ct-cogs', feel: { pole: 'cogs-of-combat', takes: true } } } },
+  'steel-serpents': { says: 'the military sim\'s body over the shoulder: a careful walk, a sidearm and a sniper', quick: { goal: 'shoot', foes: 1, hero: {}, arms: ['handgun', 'sniper'], camera: 'third-person', world: { id: 'ct-serpents', feel: { pole: 'steel-serpents', takes: true } } } },
   'pole-realistic': { says: 'the shooter pole alone at its realistic end (no feel): its own feet and its own gun', quick: { goal: 'deathmatch', bots: 1, pole: 'realistic', arms: ['rifle'], world: { id: 'ct-pole-r' } } },
   'pole-stylized': { says: 'the shooter pole alone at its stylized end (no feel)', quick: { goal: 'deathmatch', bots: 1, pole: 'stylized', arms: ['rifle'], world: { id: 'ct-pole-s' } } },
 };
@@ -126,6 +126,9 @@ function mobility(pilot) {
   M.walk = Math.abs(walk - top) < 0.02 ? null : r2(walk);
   const boost = Math.max(...run(pilot, { forward: 1, boost: true }, 120).v);
   M.boost = Math.abs(boost - top) < 0.05 ? null : r2(boost);
+  // the sprint (Shift held: rules-platform.js sprintSpeed), where the rule carries one
+  const sprint = Math.max(...run(pilot, { forward: 1, sprint: 1 }, 180).v);
+  M.sprint = Math.abs(sprint - top) < 0.05 ? null : r2(sprint);
   // the jump, out of the run, held: followed past its landing height (the floor falls away once it leaves), so the
   // arc says both how long it is (back at the take-off's height) and how far it CATCHES a lip a step lower (the rule
   // steps onto any top within its step of the feet, in the air too: a ledge is reached at the jump's height plus the
@@ -216,10 +219,12 @@ function marks(pilot, slot, matter, { d = 10, rounds = 10 } = {}) {
     if (e.weapon.shots > s0 && e.lastShot?.mode === 'miss' && e.lastShot.to && Math.abs(e.lastShot.to[0] - d) < 0.01) ends.push(e.lastShot.to);
   }
   const M = w.rupa?.scars?.marks ?? [];
-  const placed = M.filter((m) => ends.some((q) => Math.hypot(q[0] - m.at[0], q[1] - m.at[1], q[2] - m.at[2]) < 0.01)).length;
+  // (a shot's pellets mark about where it stopped, as wide as the shot spreads by its way there: rupa.js 2.8 cm a metre)
+  const n = P.weapon.pellets > 1 ? P.weapon.pellets : 1, near = n > 1 ? 0.028 * d * 1.05 + 0.01 : 0.01;
+  const placed = M.filter((m) => ends.some((q) => Math.hypot(q[0] - m.at[0], q[1] - m.at[1], q[2] - m.at[2]) < near)).length;
   const mean = (k) => (M.length ? M.reduce((a, m) => a + (m[k] ?? 0), 0) / M.length : null);
   return {
-    met: ends.length, marks: M.length, placed, kinds: [...new Set(M.map((m) => m.kind))],
+    met: ends.length * n, marks: M.length, placed, kinds: [...new Set(M.map((m) => m.kind))],
     cm: r2(mean('radius') * 100), mm: r2(mean('depth') * 1000), spall: r2(M.length ? M.reduce((a, m) => a + (m.debris?.pieces?.length ?? m.debris?.length ?? 0), 0) / M.length : null),
   };
 }
@@ -287,7 +292,7 @@ export function laws(m) {
   if (A) {
     law('the run is the card\'s', Math.abs(M.top - A.ground.run) <= 0.1, { card: A.ground.run, runtime: M.top });
     if (A.ground.accel) law('the run builds as the card says (time to it within 25%)', Math.abs(M.toTop - A.ground.run / A.ground.accel) <= 0.25 * (A.ground.run / A.ground.accel) + 2 * DT, { card: r3(A.ground.run / A.ground.accel), runtime: M.toTop });
-    law('the sprint is carried', A.ground.sprint <= A.ground.run || (M.boost != null && Math.abs(M.boost - A.ground.sprint) <= 0.3), { card: A.ground.sprint, runtime: M.boost });
+    law('the sprint is carried', A.ground.sprint <= A.ground.run || (M.sprint != null && Math.abs(M.sprint - A.ground.sprint) <= 0.1), { card: A.ground.sprint, runtime: M.sprint });
     law('the walk is the card\'s', A.ground.walk == null || (M.walk != null && Math.abs(M.walk - A.ground.walk) <= 0.1), { card: A.ground.walk, runtime: M.walk });
     if (A.jump) law('the jump is carried', M.jump && Math.abs(M.jump.height - A.jump) <= 0.1, { card: A.jump, runtime: M.jump?.height ?? null });
   }
@@ -333,7 +338,7 @@ export function print(m, L) {
   const A = m.asked, M = m.mobility;
   console.log(`\n━━ ${m.game}: ${m.says}`);
   console.log(`   rule ${m.rule} · camera ${m.camera ?? 'the goal\'s'} · foe hp ${m.foe?.hp ?? '–'}${A ? ` · template ${A.template} (after ${A.after}, viewer ${A.view})` : ''}`);
-  console.log(`   mobility  run ${M.top} m/s in ${M.toTop} s · stop ${M.stop.s} s over ${M.stop.m} m · strafe ${M.strafe ? `${M.strafe.speed} m/s, reversed in ${M.strafe.reverse} s` : 'none'} · walk ${M.walk ?? '–'} · boost ${M.boost ?? '–'} · jump ${M.jump ? `${M.jump.height} m high (a ledge of ${M.jump.reach} m with the step), ${M.jump.long} m long (${M.jump.catch} m to a lip a step down), ${M.jump.commit} s to leave` : 'none'}`);
+  console.log(`   mobility  run ${M.top} m/s in ${M.toTop} s · stop ${M.stop.s} s over ${M.stop.m} m · strafe ${M.strafe ? `${M.strafe.speed} m/s, reversed in ${M.strafe.reverse} s` : 'none'} · walk ${M.walk ?? '–'} · sprint ${M.sprint ?? '–'} · boost ${M.boost ?? '–'} · jump ${M.jump ? `${M.jump.height} m high (a ledge of ${M.jump.reach} m with the step), ${M.jump.long} m long (${M.jump.catch} m to a lip a step down), ${M.jump.commit} s to leave` : 'none'}`);
   if (A) console.log(`   the card  walk ${A.ground.walk} · run ${A.ground.run} · sprint ${A.ground.sprint} · accel ${A.ground.accel} · decel ${A.ground.decel} · jump ${A.jump} m · dodge ${A.dodge ?? '–'}${A.needs.length ? `\n   needs     ${A.needs.join('; ')}` : ''}`);
   for (const [k, s] of Object.entries(m.slots)) {
     if (s.skipped) { console.log(`   ${k}: ${s.skipped}`); continue; }

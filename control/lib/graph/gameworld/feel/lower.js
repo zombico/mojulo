@@ -11,8 +11,9 @@
  *     set      the card's own fields laid over the template's (objects merge, anything else replaces)
  *     takes    true: the hero plays its OWN jumps on the card's flight (TAKES): the standing jump, the jump forward out
  *              of a run, the double jump's second push for an air jump, each clip's gather, air and landing played on
- *              the runtime's own take-off, flight and touch-down, the landing held the card's `land` frames. Absent: the
- *              animation library's held leap, every byte as before
+ *              the runtime's own take-off, flight and touch-down, the landing held the card's `land` frames; and the
+ *              card's moves: its wall, its dash, its sprint (Shift held) and its walk. Absent: the animation library's
+ *              held leap, every byte as before
  *
  *   readFeel(v)       → the feel checked ({ pole, variant?, toward?, t?, set? }); throws, teaching
  *   feelCard(feel)    → the card the feel makes
@@ -121,7 +122,10 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
   if (Gd.accel > 0) put('ground.accel', 'accel', Gd.accel);
   if (Gd.decel > 0) put('ground.decel', 'decel', Gd.decel);
   if (Gd.turn != null) { rule.faceRate = Gd.turn === Infinity ? 60 : r4((Gd.turn * Math.PI) / 180); half('ground.turn', 'the facing\'s turn where the hero moves in the screen\'s frame or on a lane (faceRate); a tank-turned hero keeps its own'); }
-  if (Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
+  // (with its takes, the card's moves: the sprint held on Shift and the walk, a person's pace; without, one speed, the run)
+  if (Gd.sprint > Gd.run && takes) put('ground.sprint', 'sprintSpeed', Gd.sprint);
+  else if (Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried (it is with the feel\'s takes)');
+  if (takes && Gd.walk > 0 && Gd.walk < Gd.run) put('ground.walk', 'walkSpeed', Gd.walk);
   // the jump: its speed from the height and the rise's gravity (as the runtime steps them), the fall's own, the windows in
   // seconds; the gather a half frame long so the take-off lands on the card's frame (the runtime counts the press's)
   const v0 = steppedSpeed(J.height, J.gRise);
