@@ -37,7 +37,7 @@
  */
 
 import { SketchRepository } from '../../db/repositories/sketches.js';
-import { validateBeatsManifest, normalizeBeatsManifest, isBeatsKind } from './beats-manifest.js';
+import { validateBeatsManifest, normalizeBeatsManifest, isBeatsKind, checkSfxMix } from './beats-manifest.js';
 import { emitBeatsKernel } from './beats-kernel.js';
 import { expandBeatsManifest } from './beats-authoring.js';
 import { audioFeatures, pagePatches } from './beats-features.js';
@@ -206,7 +206,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     for (const [g, c] of Object.entries(L.on)) if (!(g in on)) on[g] = c;
     audioSpec = {
       ...audioSpec,
-      sfx: { cues: { ...L.cues, ...stored, ...(auto.cues || {}) }, ...(Object.keys(on).length ? { on } : {}), vary: auto.vary !== false },
+      sfx: { cues: { ...L.cues, ...stored, ...(auto.cues || {}) }, ...(Object.keys(on).length ? { on } : {}), vary: auto.vary !== false, ...(auto.mix !== undefined ? { mix: auto.mix } : {}) },
       footsteps: audioSpec.footsteps ?? L.footsteps, weapon: audioSpec.weapon ?? L.weapon, strike: audioSpec.strike ?? L.strike, dodge: audioSpec.dodge ?? L.dodge,
     };
     out.palette = L.palette;
@@ -234,6 +234,14 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     }
     // vary (opt-in): the audio channel passes a hit counter as playCue's variant.
     if (sfx.vary === true) out.vary = true;
+    // mix (opt-in, the SFX mixer): the level's cues on an SFX bus in a space, ducking the score where a cue carries a
+    // duck, at most `voices` at once, and placed by their distance from the pilot (`distance`, on unless false).
+    if (sfx.mix !== undefined) {
+      const errors = [];
+      checkSfxMix(sfx.mix, 'audio.sfx.mix', errors, { world: true });
+      if (errors.length) throw new Error(`audio.sfx.mix:\n - ${errors.join('\n - ')}`);
+      out.mix = { ...sfx.mix, distance: sfx.mix.distance !== false };
+    }
   }
 
   if (audioSpec.footsteps) {

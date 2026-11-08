@@ -203,6 +203,33 @@ recipe is small); don't bind the pack refs. Vary `seed` on grain/jitter
 cues for sibling textures; retune `ring` cues by `note`. `foley-lab-1` is the
 pre-B10 A/B baseline — historical, not for use.
 
+## The SFX mixer: layers, spaces, ducks
+
+A realistic sound is several voices at once, each treated on its own: a hard transient, a saturated body, a low end,
+grit, a tail in a room. Any gesture can be a **layer** with its own processing:
+
+- `chain`: the layer's own effects, from `filter`, `drive`, `compress`, `crush` and `delay`. A layer takes no reverb:
+  the mix's space is the reverb.
+- `pan` (−1..1): where the layer sits.
+- `send` (0..1): how much of it reaches the space.
+
+```json
+"blast": [
+  { "type": "thump", "from": "E2", "to": "A0", "decay": 0.5, "chain": [{ "type": "drive", "amount": 0.7 }] },
+  { "type": "burst", "decay": 0.3, "highpass": 1800, "pan": -0.3, "send": 0.4 },
+  { "type": "grain", "grains": 40, "over": 0.6, "band": { "lo": 300, "hi": 4000 }, "pan": 0.3, "send": 0.6 },
+  { "type": "duck", "depth": 8, "hold": 0.2, "release": 0.6 }
+]
+```
+
+`duck` makes no sound: it dips the music under the cue by `depth` dB (default 6), holds for `hold` seconds, and
+lets the music back over `release`. It needs a mix (the music bus), which a world's `audio.sfx.mix` sets.
+
+A beats-sfx row's `mix: { space?, send?, voices? }` puts its cues in a space for the studio and the WAV export:
+`open`, `interior`, `hangar`, `cavern`, `vacuum` (no air: no space, the bus lowpassed), or
+`{ decay, predelay?, damp?, level? }`. The WAV takes `?far=` (0..1), the cue placed at a distance: duller and
+roomier. A cue that uses none of this plays exactly as before.
+
 ## Wiring into worlds
 
 A world binds cues to its live runtime via `manifest.audio.sfx`: bus reactions

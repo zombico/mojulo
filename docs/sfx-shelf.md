@@ -47,9 +47,25 @@ until they are cues.
 two per-hit variants to listen to). `nearBaseline` compares a measure to a baseline within tolerance. These are machine
 gates only: nobody has listened unless the operator says so.
 
+## The SFX mixer
+
+Cues used to play dry, mono and centred, straight to the master. The mixer (the kernel feature `sfxmix`, opt-in;
+`beats-vocab/beats-sfx.md` is its manual) gives a sound what a realistic one needs:
+
+- **Layers.** Any gesture may carry its own `chain` (filter, drive, compress, crush, delay), `pan` and `send`: the
+  body saturated, the transient bright and centred, the grit wide.
+- **A space.** A world's `audio.sfx.mix` (or a beats-sfx row's `mix`) puts the cues on an SFX bus with one shared
+  space: `open`, `interior`, `hangar`, `cavern`, or `vacuum` (no air: the bus dulled, no tail).
+- **Ducks.** A `duck` gesture dips the score under a big hit.
+- **A voice cap.** `voices` limits the cues sounding at once; a louder cue steals the quietest.
+- **Distance.** A combat cue is placed by its source's distance from the pilot: duller and roomier as well as
+  quieter. The export takes `far`.
+
+A page that uses none of it is byte-identical to what it was. The thruster and the jump's servo still play in code,
+outside the bus.
+
 ## Not yet
 
-The shelf names and measures; nothing in a level reads it yet. To come: per-layer processing and an SFX bus with a
-space (the music mixer's effects, which cues bypass today), re-voicing the mecha set through it against this floor, the
+Nothing in a level reads the shelf yet. To come: re-voicing the mecha set through the mixer against this floor, the
 missing families and their designed variations, sustained sounds driven by a control, and wiring weapon roles,
 explosion presets, body sizes and surfaces to their sounds, with WAVs in the engine handoff.

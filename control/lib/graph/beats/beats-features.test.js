@@ -119,6 +119,13 @@ const FIXTURES = {
     { name: 'p', instrument: 'grand-piano', pan: 0.3, send: 0.4, events: [['0:0:0', ['C3', 'G4'], '1:0:0']] },
     { name: 'kit', instrument: 'drum-kit', events: [['0:0:0', 'C2'], ['0:2:0', 'D2']] },
   ], { room: { decay: 2, model: 'room2' } }), ['voice', 'strings', 'mix']],
+  // the SFX mixer: a layer's chain (a compressor: perc) and pan, a send, a duck, the cue on a bus in a space.
+  sfxmix: [normalizeBeatsManifest({ kind: 'beats-sfx', title: 'm', mix: { space: 'hangar', send: 0.2, voices: 4 }, cues: { a: [
+    { type: 'thump', from: 'E2', to: 'A1', decay: 0.3, chain: [{ type: 'drive', amount: 0.6 }, { type: 'compress', threshold: -24 }] },
+    { type: 'burst', decay: 0.12, highpass: 900, pan: -0.6, send: 0.4 },
+    { type: 'grain', grains: 12, over: 0.2, band: { lo: 1500, hi: 9000 }, seed: 9, pan: 0.6 },
+    { type: 'duck', depth: 8 },
+  ] } }), ['voice', 'mix', 'sfx', 'ev', 'perc', 'sfxmix']],
 };
 
 describe('the frozen 2.1 kernel', () => {

@@ -63,7 +63,21 @@ function gestureNeedsSfx(g) {
   return false;
 }
 
+// the SFX mixer (sfxmix): a gesture's own chain / pan / send, or the duck gesture; a layer's chain needs the
+// features its effects live in, as a row's would.
+function gestureNeedsMix(g) {
+  return !!(g && typeof g === 'object' && (g.type === 'duck' || g.chain || g.pan != null || g.send != null));
+}
+function layerChainFeatures(chain, set) {
+  for (const f of chain || []) {
+    if (!f) continue;
+    if (f.type === 'compress') set.add('perc');
+    if (f.type === 'crush' || (f.type === 'drive' && f.model) || (f.type === 'delay' && f.model === 'dub')) set.add('fx');
+  }
+}
+
 function addGestures(set, list) {
+  if (Array.isArray(list) && list.some(gestureNeedsMix)) { set.add('sfxmix'); for (const g of list) if (g && g.chain) layerChainFeatures(g.chain, set); }
   if (Array.isArray(list) && list.some(gestureNeedsSfx)) set.add('sfx');
   if (Array.isArray(list) && list.some((g) => g && PRODUCTION.has(g.type))) set.add('anthem');
 }
@@ -135,9 +149,10 @@ function collect(m, set) {
     }
   }
   for (const list of Object.values(m.cues || {})) addGestures(set, list);
+  if (m.kind === 'beats-sfx' && m.mix) set.add('sfxmix');
 }
 
-const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop'];
+const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix'];
 const sorted = (set) => {
   for (const f of [...set]) for (const g of IMPLIES[f] || []) set.add(g);
   return ORDER.filter((f) => set.has(f));
@@ -162,6 +177,7 @@ export function audioFeatures(audio) {
   addGestures(set, audio.dodge);
   for (const k of ['weapon', 'strike']) for (const list of Object.values(audio[k] || {})) addGestures(set, list);
   if (audio.vary || audio.weather) set.add('sfx');
+  if (audio.mix) set.add('sfxmix');
   if (audio.wind && audio.wind.vary) set.add('x');
   return sorted(set);
 }

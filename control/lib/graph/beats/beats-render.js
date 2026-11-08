@@ -295,7 +295,10 @@ export function renderBeatsPlan(manifest, opts = {}) {
     }
     const gestures = manifest.cues[cue];
     const variant = opts.variant ? posInt(opts.variant, 'variant', 0) : 0;
-    const entries = [{ type: 'cue', t: 0, channel: null, gestures, vel: 1, ...(variant ? { variant } : {}) }];
+    // far (0..1, the SFX mixer): the cue placed at a distance, duller and roomier. Absent: where it always was.
+    if (opts.far !== undefined && !(Number.isFinite(opts.far) && opts.far >= 0 && opts.far <= 1)) throw new Error('beats-render: `far` must be in [0, 1] (how far away the cue is placed)');
+    const place = opts.far ? { far: opts.far } : null;
+    const entries = [{ type: 'cue', t: 0, channel: null, gestures, vel: 1, ...(variant ? { variant } : {}), ...(place ? { place } : {}) }];
     return { entries, duration: opsEnd(kernel.cuePlan(gestures, variant)), meta: variant ? { cue, variant } : { cue } };
   }
 
@@ -570,6 +573,8 @@ export async function renderWithKernel(K, manifest, opts = {}) {
   const ctx = new OfflineAudioContext(2, Math.max(1, Math.ceil(total * sampleRate)), sampleRate);
   const engine = K.createEngine(ctx);
   if (engine.setMaster) engine.setMaster(manifest.master);
+  // the SFX mixer (a beats-sfx manifest's `mix`): its bus and space, before any row routes.
+  if (engine.setSfx && manifest.kind === 'beats-sfx' && manifest.mix) engine.setSfx(manifest.mix);
 
   // Per-channel chains, exactly as startTransport builds them. Stored B5.2
   // macros are applied statically here: a `tone` value inserts the same
@@ -607,7 +612,8 @@ export async function renderWithKernel(K, manifest, opts = {}) {
     // AudioContext clamps that to "now", but OfflineAudioContext throws.
     const t = Math.max(0, e.t);
     if (e.type === 'cue') {
-      engine.playCue(e.gestures, t, e.channel ? chains[e.channel] : undefined, e.vel, e.variant);
+      if (e.place) engine.playCue(e.gestures, t, e.channel ? chains[e.channel] : undefined, e.vel, e.variant, e.place);
+      else engine.playCue(e.gestures, t, e.channel ? chains[e.channel] : undefined, e.vel, e.variant);
     } else if (e.type === 'sing') {
       // Synthesize the sung syllable at the context rate (no resample) and splice
       // it in as a buffer source — the reserved `voice:'buffer'` seam beside the

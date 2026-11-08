@@ -18,6 +18,9 @@ export function audioChannelScript(audio) {
   // cues, footsteps and wind at a steady level. Without it every line below is as it was.
   const combat = !!audio.combat;
   const musicEng = combat ? '(__engs ? __engs[__music.active] : __beatsEng)' : '__beatsEng';
+  // the SFX mixer (audio.mix, opt-in): the cues on a bus in a space, ducks dipping the score, a voice cap, a cue placed
+  // by its distance from the pilot. Absent, not a byte of it is emitted.
+  const mix = audio.mix || null, mixFar = !!(mix && mix.distance);
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
@@ -36,10 +39,12 @@ function __beatsApply() {
 function __beatsUnlock() {
   if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume(); return; }
   __beatsCtx = new (window.AudioContext || window.webkitAudioContext)();
-  __beatsEng = __BEATS.createEngine(__beatsCtx);
+  __beatsEng = __BEATS.createEngine(__beatsCtx);${mix ? `
+  __beatsEng.setSfx(__AUDIO.mix);   // the SFX mixer: the cues' bus and space, and the music bus a duck dips (before the score starts)` : ''}
   if (__AUDIO.soundtrack) {${audio.beat ? `
     __beatT0 = __beatsCtx.currentTime + 0.08;   // the transport's own start (startTransport's t0): the beat clock's zero` : ''}
-${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __BEATS.createEngine(__beatsCtx) };
+${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __BEATS.createEngine(__beatsCtx) };${mix ? `
+    __engs.explore.setSfx({}); __engs.combat.setSfx({}); __beatsEng.linkDuck(__engs.explore); __beatsEng.linkDuck(__engs.combat);   // a duck dips whichever score plays` : ''}
     __engs.combat.master.gain.value = 0;
     __startTrack(__engs.explore, __AUDIO.soundtrack);
     __musicT0 = __beatsCtx.currentTime + 0.08;   // the explore piece's t0: its bar lines are where a change may land` : `    if (__AUDIO.soundtrack.kind === 'beats-composition') __beatsEng.startComposition(__AUDIO.soundtrack, __BEATS_PATCHES);
@@ -151,7 +156,12 @@ function __proxGain(srcPos) {
   if (d >= 900) return 0;         // FAR: across the arena -> silent (skip the synth)
   return (900 - d) / 650;         // rolloff between
 }
-${audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
+${mixFar ? `// the SFX mixer's distance (audio.mix.distance): __proxGain also leaves the source's distance (d / 900 m) for the
+// cue it scales, read once and only by the call that passes that same gain (a loop that only reads a gain leaves no
+// distance for another cue) — a far cue duller and roomier, not only quieter.
+let __pf = null;
+__proxGain = (function (g) { return function (p) { var L = __listenerPos(), v = g(p); __pf = L && p ? { far: Math.min(1, Math.hypot(p[0] - L[0], p[1] - L[1], p[2] - L[2]) / 900), g: v } : null; return v; }; })(__proxGain);
+${audio.vary ? 'let __beatsVar = 0;\n' : ''}function __beatsCue(cue, gain) { var pl = __pf && gain != null && __pf.g === gain ? { far: __pf.far } : null; __pf = null; if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ${audio.vary ? '++__beatsVar' : 'undefined'}, pl); }` : audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
 let __beatsVar = 0;
 function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ++__beatsVar); }` : `function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }`}
 // bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the

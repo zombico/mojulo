@@ -43,10 +43,11 @@ export function measureSound(y, sr, { layers = null } = {}) {
 
 /**
  * Render one cue of a beats-sfx manifest offline and measure it: `{ ...measureSound, wav }`. `variant` is the per-hit
- * variant (0: the cue itself). Lazy-loads the native audio backend through beats-render.
+ * variant (0: the cue itself); `far` (0..1) places it at a distance, and a manifest's `mix` puts it in a space (the SFX
+ * mixer). Lazy-loads the native audio backend through beats-render.
  */
-export async function renderSound(manifest, cue, { variant = 0, sampleRate = 44100 } = {}) {
-  const { wav } = await renderBeatsOffline(manifest, { cue, tail: 0.5, sampleRate, ...(variant ? { variant } : {}) });
+export async function renderSound(manifest, cue, { variant = 0, far = 0, sampleRate = 44100 } = {}) {
+  const { wav } = await renderBeatsOffline(manifest, { cue, tail: 0.5, sampleRate, ...(variant ? { variant } : {}), ...(far ? { far } : {}) });
   const { sr, channels } = decodeWav(wav);
   return { ...measureSound(channels[0], sr, { layers: manifest.cues[cue].length }), wav };
 }

@@ -18,4 +18,12 @@
   attack's brightness, its crest and its energy by band. `baseline.js` holds the mecha set's numbers, the floor a
   better voice is held to (`npm run sfx-baseline`; `--wav <dir>` writes each cue and two per-hit variants to listen
   to). Machine gates only: the ears are the operator's.
-- Nothing in a level reads the shelf yet: the SFX mixer, the re-voiced set and the wiring come next.
+- **The SFX mixer** (the kernel feature `sfxmix`, opt-in). Cues used to play dry, mono and centred, straight to the
+  master. Now any gesture can be a layer with its own `chain` (filter, drive, compress, crush, delay), `pan` and `send`.
+  A world's `audio.sfx.mix: { space?, send?, voices?, distance? }` puts its cues on an SFX bus in one shared space
+  (`open`, `interior`, `hangar`, `cavern`, or `vacuum`: the bus dulled, no tail). A `duck` gesture dips the score under a
+  big hit (both scores of an adaptive pair). `voices` caps the cues sounding at once: a quieter new cue is dropped, a
+  louder one steals the quietest. `distance` (on unless false) places a combat cue by its source's distance from the
+  pilot: duller and roomier, not only quieter. A beats-sfx row takes `mix` too, and its WAV takes `?far=`. A recipe
+  that uses none of it emits the same kernel and the same page, byte for byte.
+- Nothing in a level reads the shelf yet: the re-voiced set and the wiring come next.

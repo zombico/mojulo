@@ -23,7 +23,12 @@ import { expandBeatsManifest, checkAuthoring } from './beats-authoring.js';
 export const BEATS_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern', 'beats-sfx'];
 const KIND_SET = new Set(BEATS_KINDS);
 const ROLES = new Set(['harmony', 'roots', 'melody', 'pulse']);
-const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch']);
+const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch', 'duck']);
+// the SFX mixer (sfxmix): the effects a gesture's own `chain` may carry (none runs an oscillator or computes an impulse
+// per hit: the space is the reverb), and the spaces setSfx knows (the kernel's SFX_SPACES; beats-sfxmix.test.js holds
+// the two lists equal).
+export const SFX_CHAIN_TYPES = Object.freeze(['filter', 'drive', 'compress', 'crush', 'delay']);
+export const SFX_SPACE_NAMES = Object.freeze(['open', 'interior', 'hangar', 'cavern', 'vacuum']);
 // production gestures (anthem styles): the song's transitions.
 const PRODUCTION_GESTURES = new Set(['riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch']);
 const RING_MATERIALS = new Set(['glass', 'metal', 'wood', 'cymbal', 'plate', 'bell']);
@@ -421,6 +426,42 @@ function checkFeel(feel, where, errors) {
   }
 }
 
+// a gesture as a layer of the SFX mixer: its own chain, pan and send; the duck gesture's dip.
+function checkLayer(g, w, errors) {
+  if (g.chain !== undefined) {
+    if (!Array.isArray(g.chain) || g.chain.some((f) => !f || !SFX_CHAIN_TYPES.includes(f.type))) errors.push(`${w}.chain is a layer's own effects, each one of: ${SFX_CHAIN_TYPES.join(', ')} (no reverb on a layer: the mix's space is the reverb)`);
+    else checkChain(g.chain, w, errors);
+  }
+  if (g.pan !== undefined && !inRange(g.pan, -1, 1)) errors.push(`${w}.pan must be in [-1, 1] (the layer's place, left to right)`);
+  if (g.send !== undefined && !inRange(g.send, 0, 1)) errors.push(`${w}.send must be in [0, 1] (the layer's share sent to the mix's space)`);
+  if (g.type === 'duck') {
+    const lim = (k, lo, hi, why) => { if (g[k] !== undefined && !inRange(g[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}] (${why})`); };
+    lim('depth', 0, 24, 'dB the music dips'); lim('hold', 0, 5, 'seconds it stays down'); lim('release', 0.01, 10, 'seconds it takes to come back'); lim('at', 0, 60, 'seconds after the hit');
+    if (g.chain !== undefined || g.pan !== undefined || g.send !== undefined) errors.push(`${w}: a duck makes no sound of its own (no chain, pan or send)`);
+  }
+}
+
+/**
+ * The SFX mixer's settings (a beats-sfx manifest's `mix`, a world's `audio.sfx.mix`): { space?: a name
+ * (SFX_SPACE_NAMES) or { decay, predelay?, damp?, level? }, send?: 0..1, voices?: 1..64, distance?: boolean (a world) }.
+ */
+export function checkSfxMix(m, where, errors, { world = false } = {}) {
+  if (!isObj(m)) { errors.push(`${where} must be { space?, send?, voices?${world ? ', distance?' : ''} }`); return; }
+  const keys = ['space', 'send', 'voices', ...(world ? ['distance'] : [])];
+  for (const k of Object.keys(m)) if (!keys.includes(k)) errors.push(`${where}.${k} is not a mix setting (${keys.join(', ')})`);
+  if (m.space !== undefined) {
+    if (typeof m.space === 'string') { if (!SFX_SPACE_NAMES.includes(m.space)) errors.push(`${where}.space must be one of: ${SFX_SPACE_NAMES.join(', ')} (or { decay, predelay?, damp?, level? })`); }
+    else if (isObj(m.space)) {
+      if (!inRange(m.space.decay, 0.1, 10)) errors.push(`${where}.space.decay must be seconds in [0.1, 10]`);
+      checkRoomShape({ ...m.space, model: undefined }, `${where}.space`, errors);
+      if (m.space.level !== undefined && !inRange(m.space.level, -40, 6)) errors.push(`${where}.space.level must be dB in [-40, 6] (the space's return)`);
+    } else errors.push(`${where}.space must be a space's name or { decay, predelay?, damp?, level? }`);
+  }
+  if (m.send !== undefined && !inRange(m.send, 0, 1)) errors.push(`${where}.send must be in [0, 1] (the share of a cue sent to the space, where its layer names none)`);
+  if (m.voices !== undefined && !(Number.isInteger(m.voices) && m.voices >= 1 && m.voices <= 64)) errors.push(`${where}.voices must be an integer in [1, 64] (how many cues may sound at once)`);
+  if (world && m.distance !== undefined && typeof m.distance !== 'boolean') errors.push(`${where}.distance must be true or false (a far cue duller and roomier, not only quieter)`);
+}
+
 function checkGestures(list, where, errors) {
   if (!Array.isArray(list) || !list.length) { errors.push(`${where} must be a non-empty gesture array`); return; }
   list.forEach((g, i) => {
@@ -429,6 +470,7 @@ function checkGestures(list, where, errors) {
       return;
     }
     if (g.type === 'sweep') { if (g.from != null) checkNote(g.from, `${where}[${i}].from`, errors); if (g.to != null) checkNote(g.to, `${where}[${i}].to`, errors); }
+    checkLayer(g, `${where}[${i}]`, errors);
     if (PRODUCTION_GESTURES.has(g.type)) {
       const w = `${where}[${i}]`, lim = (k, lo, hi, why) => { if (g[k] !== undefined && !inRange(g[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}]${why ? ` (${why})` : ''}`); };
       lim('dur', 0.05, 60, 'seconds'); lim('bars', 0.25, 64, 'bars at the recipe\'s tempo'); lim('beats', 0.25, 256); lim('vol', 0, 2); lim('at', 0, 60, 'seconds after the hit');
@@ -828,6 +870,7 @@ export function validateBeatsManifest(manifest) {
         if (Array.isArray(list) && list.some((g) => g && (g.bars !== undefined || g.beats !== undefined))) errors.push(`cues.${id}: bars / beats need a tempo — a beats-sfx cue times its gestures in dur (seconds)`);
       }
     }
+    if (manifest.mix !== undefined) checkSfxMix(manifest.mix, 'mix', errors);
   }
 
   checkBus(manifest, manifest.channels || manifest.parts || manifest.tracks, errors);

@@ -76,6 +76,10 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 //   loop    a looped composition's live transport: it wraps at the next bar
 //           line (loopPeriod, the seam the offline export folds at) and
 //           schedules the piece again, where 2.1 went silent after one pass.
+// The SFX shelf added one more:
+//   sfxmix  the SFX mixer: a gesture's own chain / pan / send, the duck
+//           gesture, the engine's SFX bus and space (setSfx), the music bus a
+//           duck dips, a voice cap and the distance a cue is placed at.
 // Regions nest: a region inside another region's new lines is resolved
 // first (innermost out), so a hook for a newer feature can sit inside an
 // older feature's lines. A nested feature implies its host (IMPLIES).
@@ -85,8 +89,8 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 // same transform a 2.1 page's did. A slice is syntax-checked once; if a
 // transform disturbed the markers (a minifier drops comments), the page gets
 // this whole function, whose markers are inert.
-export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop'];
-export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'] };
+export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix'];
+export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'] };
 // an innermost region: no region marker inside either half.
 const REGION = /\/\*@(\w+)\{\*\/\n((?:(?!\/\*@)[\s\S])*?)\/\*\|\n((?:(?!\/\*@)[\s\S])*?)@\*\/\n/g;
 export function sliceKernelText(text, keep) {
@@ -920,6 +924,18 @@ export function buildBeatsKernel() {
   }
 /*|
 @*/
+/*@sfxmix{*/
+  // the SFX mixer's spaces (setSfx): a room2 impulse each, or vacuum — no air,
+  // only what travels through a hull: no space, the bus lowpassed.
+  const SFX_SPACES = {
+    open: { decay: 0.7, predelay: 0.02, damp: 0.75, level: -12 },
+    interior: { decay: 0.9, predelay: 0.008, damp: 0.5, level: -8 },
+    hangar: { decay: 2.6, predelay: 0.03, damp: 0.35, level: -6 },
+    cavern: { decay: 4, predelay: 0.04, damp: 0.6, level: -5 },
+    vacuum: { vacuum: true, lowpass: 900 },
+  };
+/*|
+@*/
   // ── gestures: the chiptune foley vocabulary (beats.plan.md) ─────────────────
   // A cue is a list of gestures; gesturePlan lowers one gesture to primitive ops
   // [{ at, kind, ... }] — pure, so the foley choreography is unit-testable.
@@ -1078,6 +1094,12 @@ export function buildBeatsKernel() {
 @*/
       });
     }
+/*@sfxmix{*/
+    // duck (the SFX mixer): no sound of its own; the engine dips its music bus
+    // by `depth` dB at `at`, holds `hold` s, and lets it back over `release` s.
+    if (g.type === 'duck') return [{ at: g.at || 0, kind: 'duck', depth: g.depth == null ? 6 : g.depth, hold: g.hold == null ? 0.12 : g.hold, release: g.release == null ? 0.45 : g.release }];
+/*|
+@*/
 /*@sfx{*/
     throw new Error('beats: unknown gesture type "' + g.type + '" (sweep | flutter | burst | thump | grain | ring | tone)');
 /*|
@@ -1096,7 +1118,14 @@ export function buildBeatsKernel() {
     const ops = [];
 /*@sfx{*/
     (gestures || []).forEach(function (g, gi) {
+/*@sfxmix{*/
+      // a gesture with its own chain / pan / send is a layer: its ops carry its
+      // index, so the mixer routes them together. A plain gesture's ops carry none.
+      const lay = g && (g.chain || g.pan != null || g.send != null) ? gi : null;
+      if (!variant) { for (const op of gesturePlan(g)) ops.push(lay == null ? op : Object.assign({}, op, { layer: lay })); return; }
+/*|
       if (!variant) { for (const op of gesturePlan(g)) ops.push(op); return; }
+@*/
       const rng = mulberry32(hashSeed(variant >>> 0, 0x5EED + gi));
       const pf = Math.pow(2, (rng() * 2 - 1) * 15 / 1200), df = 1 + (rng() * 2 - 1) * 0.1;
       for (const o of gesturePlan(Object.assign({}, g, { seed: hashSeed(g.seed == null ? 0x64A17 : g.seed, variant >>> 0) }))) {
@@ -1108,6 +1137,10 @@ export function buildBeatsKernel() {
         for (const k of ['decay', 'dur']) if (op[k]) op[k] *= df;
 @*/
         if (op.kind === 'noise') op.offset = rng();
+/*@sfxmix{*/
+        if (lay != null) op.layer = lay;
+/*|
+@*/
         ops.push(op);
       }
     });
@@ -2858,10 +2891,119 @@ export function buildBeatsKernel() {
       }
     }
 
+/*@sfxmix{*/
+    // ── the SFX mixer (the SFX shelf) ──────────────────────────────────────────
+    // setSfx({ space?, send?, voices? }), once, before the transport starts:
+    // an SFX bus (dry → master), one mono send into one space convolver
+    // (→ master), and a music bus the rows' channel gains feed, which a duck
+    // gesture dips. Without it a cue plays exactly as it always has.
+    let sfx = null, musicBus = null;
+    const duckLinks = [], sounding = [];
+    function setSfx(o) {
+      o = o || {};
+      if (!musicBus) { musicBus = ctx.createGain(); musicBus.connect(master); }
+      if (sfx) return;
+      const sp = typeof o.space === 'string' ? SFX_SPACES[o.space] : o.space;
+      const bus = ctx.createGain();
+      if (sp && sp.vacuum) {
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = sp.lowpass || 900; lp.Q.value = 0.5;
+        bus.connect(lp); lp.connect(master);
+      } else bus.connect(master);
+      let space = null;
+      if (sp && !sp.vacuum) {
+        const cv = ctx.createConvolver(); cv.buffer = roomImpulse(Object.assign({}, sp, { model: 'room2' }), 0x5F0);
+        const ret = ctx.createGain(); ret.gain.value = dbGain(sp.level == null ? -6 : sp.level);
+        space = ctx.createGain(); space.channelCount = 1; space.channelCountMode = 'explicit';
+        space.connect(cv); cv.connect(ret); ret.connect(master);
+      }
+      sfx = { bus, space, send: o.send == null ? (space ? 0.18 : 0) : o.send, voices: o.voices || 0 };
+    }
+    // dip the music bus (and every linked engine's) by depth dB at t: down in
+    // 12 ms, held, back over `release`. Linear ramps the duck plans itself (an
+    // offline realizer's target ramps are not to be trusted); a duck landing in
+    // another's span starts from where that one has the gain, keeps the deeper
+    // dip and the later hold.
+    let dk = null;
+    function duckAt(d, t) {
+      if (!d || t <= d.t0) return 1;
+      if (t < d.t1) return 1 + (d.g - 1) * (t - d.t0) / (d.t1 - d.t0);
+      if (t < d.t2) return d.g;
+      if (t < d.t3) return d.g + (1 - d.g) * (t - d.t2) / (d.t3 - d.t2);
+      return 1;
+    }
+    function duck(t, depth, hold, release) {
+      for (const e of duckLinks) e.duck(t, depth, hold, release);
+      if (!musicBus) return;
+      const p = musicBus.gain, v = duckAt(dk, t), live = dk && t < dk.t3;
+      const g = Math.min(dbGain(-Math.abs(depth)), live && t < dk.t2 ? dk.g : 1);
+      const t2 = Math.max(t + 0.012 + hold, live ? dk.t2 : 0);
+      dk = { t0: t, t1: t + 0.012, t2, t3: t2 + Math.max(0.005, release), g };
+      p.cancelScheduledValues(t); p.setValueAtTime(v, t);
+      p.linearRampToValueAtTime(g, dk.t1); p.setValueAtTime(g, dk.t2); p.linearRampToValueAtTime(1, dk.t3);
+    }
+    // one cue through the mixer. Each layered gesture's ops (cuePlan's `layer`)
+    // play through its own route — chain → pan → the cue's fader — the rest
+    // together; each group's send taps into the cue's wet, the wet into the
+    // space. `place.far` (0..1) darkens the dry and wettens the send: a far
+    // shot is duller and roomier, not only quieter. `dest` master means the bus.
+    function sfxCue(gestures, ops, t, dest, vs, place) {
+      const list = gestures || [];
+      for (const op of ops) if (op.kind === 'duck') duck(t + op.at, op.depth, op.hold, op.release);
+      if (!sfx && !(place && place.far > 0) && !list.some((g) => g && (g.chain || g.pan != null || g.send != null))) { playOps(ops, t, dest, vs); return; }
+      const v = vs == null ? 1 : vs;
+      let end = t;
+      for (const op of ops) end = Math.max(end, t + op.at + (op.decay || op.dur || op.len || 0) + (op.release || 0) + 0.05);
+      if (sfx && sfx.voices) {
+        // the cap: drop a cue quieter than the quietest sounding, else steal that one.
+        for (let i = sounding.length - 1; i >= 0; i--) if (sounding[i].end <= t) sounding.splice(i, 1);
+        if (sounding.length >= sfx.voices) {
+          let q = 0;
+          for (let i = 1; i < sounding.length; i++) if (sounding[i].v < sounding[q].v) q = i;
+          if (v <= sounding[q].v) return;
+          for (const f of sounding.splice(q, 1)[0].faders) { f[0].gain.setValueAtTime(f[1], t); f[0].gain.linearRampToValueAtTime(0, t + 0.015); }
+        }
+      }
+      const far = place && place.far > 0 ? Math.min(1, place.far) : 0;
+      const fader = ctx.createGain();
+      let head = fader;
+      if (far) {
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.5;
+        lp.frequency.value = 16000 * Math.pow(1 - far, 2) + 900;
+        fader.connect(lp); head = lp;
+      }
+      head.connect(dest && dest !== master ? dest : sfx ? sfx.bus : master);
+      let wet = null;
+      const wetGain = 1 + 2 * far;
+      if (sfx && sfx.space) { wet = ctx.createGain(); wet.gain.value = wetGain; wet.connect(sfx.space); }
+      const groups = new Map();
+      for (const op of ops) {
+        if (op.kind === 'duck') continue;
+        const k = op.layer == null ? -1 : op.layer;
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(op);
+      }
+      for (const [k, gops] of groups) {
+        const g = k >= 0 ? list[k] : null;
+        const input = ctx.createGain();
+        let post = input;
+        if (g && g.chain) { const built = buildChain(g.chain, hashSeed(0x5F1, k)); input.connect(built.input); post = built.output; }
+        post.connect(g && g.pan != null ? panned(fader, g.pan) : fader);
+        const snd = g && g.send != null ? g.send : sfx ? sfx.send : 0;
+        if (wet && snd > 0) { const sg = ctx.createGain(); sg.gain.value = snd; post.connect(sg); sg.connect(wet); }
+        playOps(gops, t, input, v);
+      }
+      if (sfx && sfx.voices) sounding.push({ end, v, faders: wet ? [[fader, 1], [wet, wetGain]] : [[fader, 1]] });
+    }
+/*|
+@*/
     // per-channel gain (mutes) + patch/chain routing, built per recipe.
     const channels = {};
     function channelGain(name) {
+/*@sfxmix{*/
+      if (!channels[name]) { channels[name] = ctx.createGain(); channels[name].connect(musicBus || master); }
+/*|
       if (!channels[name]) { channels[name] = ctx.createGain(); channels[name].connect(master); }
+@*/
       return channels[name];
 /*@mix{*/
     }
@@ -3332,7 +3474,14 @@ export function buildBeatsKernel() {
 /*|
 @*/
 /*@sfx{*/
+/*@sfxmix{*/
+      playCue(gestures, when, dest, velScale, variant, place) { sfxCue(gestures, cuePlan(gestures, variant), when == null ? ctx.currentTime : when, dest, velScale, place); },
+      setSfx,
+      duck,
+      linkDuck(e) { if (e && e.duck) duckLinks.push(e); },
+/*|
       playCue(gestures, when, dest, velScale, variant) { playOps(cuePlan(gestures, variant), when == null ? ctx.currentTime : when, dest, velScale); },
+@*/
 /*|
       playCue(gestures, when, dest, velScale) { playOps(cuePlan(gestures), when == null ? ctx.currentTime : when, dest, velScale); },
 @*/
@@ -3389,6 +3538,10 @@ export function buildBeatsKernel() {
     patternEvents,
     gesturePlan,
     cuePlan,
+/*@sfxmix{*/
+    SFX_SPACES,
+/*|
+@*/
     createEngine,
   };
 }
