@@ -1,7 +1,7 @@
 /**
  * families/launch — a machine's jump released: a piston slam, heavier the longer the jump was gathered. Pure.
  *
- * The game's release (scene/channels/audio.js), ported at three powers: an air-release burst (300 Hz up, its lowpass
+ * The audio channel's jump release (scene/channels/audio.js), ported at three powers: an air-release burst (300 Hz up, its lowpass
  * opening 1.1 → 2.6 kHz, longer with power) and a sine launch thunk falling further and longer (about 180 → 72 Hz at
  * the lightest, 125 → 32 Hz at full; to the nearest notes). Then what the register adds: a transient, a sub, the
  * thunk's harmonics, the frame's plate clank, and a hiss trailing off.

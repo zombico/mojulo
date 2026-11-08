@@ -1,88 +1,53 @@
-### The SFX shelf: one library of game sounds, Mobile Suit Arena's effects its floor
+### The SFX shelf: a library of game sound effects
 
-- **A core shelf of game sounds** (`lib/graph/sfx-shelf/`, `docs/sfx-shelf.md`): one
-  row per sound under the word people say (`beam rifle`, `machine gun`, `mech step`), its category, the audio channel
-  slot a level plays it in, its family and what voices it. Game effects only; a menu's sounds are the interface's.
-  `sfxSound(word, { style })` gives its cue: the row's own voice, the palette's, its family's (a beam rifle's shot is a
-  `shoot`), or the style's fallback. The categories with no row yet are the shelf's gaps (`sfxGaps()`): explosions,
-  destruction, the elements.
-- **The styles are kept.** The four palettes (arcade, foley, orchestral, synth) are styles of the shelf and are frozen
-  behind it: every palette cue id is exactly one row, so no recipe changes by a byte. `realistic` is the shelf's own
-  style, several voices sounding as one, and falls back to foley where it has no voice yet.
-- **Mobile Suit Arena's effects, rescued.** The game's thirteen cues (the footstep, the landing, the roll, the beam
-  rifle's shot, hit, charge-up and charged shot, the bazooka's shot and hit, the machine gun, the fallback blip, the
-  beam saber's swing and hit) lived only in its rows; they are the `mecha` set now, verbatim, held to their recorded
-  hash. A set is a beats-sfx manifest (`setManifest`), so the beats tools mint, play and render it as it is. The game's
-  thruster roar and jump servo are rows naming the channel code that plays them.
-- **One yardstick** (`measure.js`): a cue rendered as an export renders it, measured by its layers, its length, its
-  attack's brightness, its crest and its energy by band. `baseline.js` holds the mecha set's numbers, the floor a
-  better voice is held to (`npm run sfx-baseline`; `--wav <dir>` writes each cue and two per-hit variants to listen
-  to). Machine gates only: the ears are the operator's.
-- **The SFX mixer** (the kernel feature `sfxmix`, opt-in). Cues used to play dry, mono and centred, straight to the
-  master. Now any gesture can be a layer with its own `chain` (filter, drive, compress, crush, delay), `pan` and `send`.
-  A world's `audio.sfx.mix: { space?, send?, voices?, distance? }` puts its cues on an SFX bus in one shared space
-  (`open`, `interior`, `hangar`, `cavern`, or `vacuum`: the bus dulled, no tail). A `duck` gesture dips the score under a
-  big hit (both scores of an adaptive pair). `voices` caps the cues sounding at once: a quieter new cue is dropped, a
-  louder one steals the quietest. `distance` (on unless false) places a combat cue by its source's distance from the
-  pilot: duller and roomier, not only quieter. A beats-sfx row takes `mix` too, and its WAV takes `?far=`. A recipe
-  that uses none of it emits the same kernel and the same page, byte for byte.
-- **The layered set** (`sets/mecha-layered.js`): the realistic voice of the thirteen sounds. Each is the rescued cue,
-  every gesture kept in order, with its parts set apart (panned, sent) and the layers it lacked: a transient, a clean
-  sub, harmonics (a driven, highpassed copy of the body: driving the body itself saturated its sub, and the yardstick
-  caught it on every cue), grit, a tail, detail (a plate's ring, a hydraulic hiss, the action's clack), and ducks on
-  the big hits. `mecha` stays the floor; the roster's realistic voice is the layered set. The yardstick now reads both
-  channels' power, how many bands a sound fills (`spread`) and its `width`. Its floor law (`meetsFloor`): at least the
-  floor's layers and bands, its punch within 3 dB, its length kept, and the same sound. Every layered cue meets it (a
-  deep sweep holds them all). Machine gates; the ears are the operator's.
-- **The families** (`families.js`): the sounds the shelf builds from dials. A designed variation is a dial point:
-  - `explosion`: by size, debris and metal (a wreck coming apart);
-  - `impact`: by material and weight;
-  - `footstep`: by surface and the body making it, a person to a giant;
-  - `melee`: swings, hits, clashes, blocks, punches and kicks, steel or energy;
-  - `handling`: mag-out, mag-in, rack, switch and dry fire, on a firearm, an energy weapon or a mobile suit's arm;
-  - `projectile`: flybys, ricochets and casings;
-  - `breakage`: glass, wood, stone and metal;
-  - `elemental`: fire, ice, lightning, water and wind;
-  - `shield`: up, down and break.
+- **A library of game sounds** (`lib/graph/sfx-shelf/`, `docs/sfx-shelf.md`): one row per sound under the words
+  people say (`clang`, `grenade`, `swish`, `skid`, `heal`, `match three`, `chess move`, `shovel`, `jump scare`,
+  `trebuchet`, `suplex` …). Each row has a category, the slot a level plays it in, the palette sound it stands in
+  for, and what voices it. Game effects only; a menu's sounds are the interface's.
+  `sfxSound(word, { style, dials })` gives its cue, or a held voice's spec.
+- **Recipes, not samples.** Nothing is stored as audio:
+  - a **cue** is a stack of gesture layers;
+  - a **held voice** is a set of layers whose every setting runs with one control in 0..1;
+  - a **family** builds either from dials, so a designed variation is a dial point.
 
-  Fifty-five roster rows name their presets under the words people say (`grenade`, `clang`, `parry`, `shatter`,
-  `whiz`); `sfxSound(word, { dials })` turns the dials further. Builds are pure (seeds hashed from the dials) and
-  pinned. An ordered dial moves its measures (bigger blasts and heavier blows longer and darker), and every dial
-  point is in the realistic register (`register.js`). The register's floor is the layered set's own weakest, with
-  bands counted as the ear weighs them: the yardstick's new `heard`, A-weighted, since a long low thump carries most
-  of a sound's energy and little of what is heard. The shelf has no empty category now.
-- **Held voices** (the kernel feature `sustain`, opt-in): a sound driven by one control in 0..1. A spec of noise and
-  oscillator layers, every range from the control at 0 to the control at 1 (pitch, cutoff, gain, and an LFO's rate
-  on the gain, the cutoff or the pitch: a sawtooth on the gain is a train of chuffs). `engine.sustain(spec)` returns
-  `set(x)` and `stop()`, gliding on ramps it plans itself.
-  - A beats-sfx row's `sustains` holds them, and its WAV renders them along a control lane.
-  - A world's `audio.thruster.voice` and `audio.jump.charge.voice` play one in place of the channel's own synth.
-  - The shelf's held families: `booster` (jet, rocket, ion), `engine` (car, motorbike, jet, prop, idling at 0),
-    `beam` (laser, plasma), `servo`, `fire`, `charge`.
-  - Mobile Suit Arena's thruster whine and jump servo are ported into them range for range, and its piston slam
-    into the one-shot family `launch`.
-  - Thirteen new rows (`engine`, `motorbike`, `laser`, `campfire` …); the thruster, servo and launch rows now carry
-    their voices.
-  - Each held voice follows its control (`meetsHeld`): louder and no darker at full, silent or running at idle as it
-    should, gone after it is let go. The families' pin is now one hash a row.
-  - A page without a held voice is the same as before, byte for byte.
-- **Fixed: ramps re-set mid-glide.** A held voice or a duck re-set while a ramp was running lost that ramp: offline,
-  the part already played went too. The partial ramp is laid again up to that moment.
-- **Sounds for every game type.** Twenty-two new families, each speaking the layer words (`layers.js`). The register
-  and the held law hold every dial point of them (a deep sweep), and every row is pinned.
+  Builds are pure (seeds hashed from the family and its dials) and pinned.
+- **The styles are kept.** The four palettes (arcade, foley, orchestral, synth) are styles of the shelf, frozen behind
+  it: every palette cue id is exactly one row, so no recipe changes by a byte. `realistic` is the shelf's own style,
+  several voices sounding as one, and falls back to foley where it has no voice yet.
+- **Thirty-eight families, 477 dial points, 217 rows.**
+  - **Combat and its world:** explosions by size, impacts by material and weight, footsteps by surface and body,
+    melee, weapon handling, projectiles, breakage, the elements, shields, a launch.
+  - **Held voices:** boosters, engines (car, motorbike, jet, prop, kart, boat, helicopter), beams, a servo, fire, a
+    charge, a crowd, tyres, cooking, a heartbeat, breath.
+  - **For each game type mojulo makes:** sports (ball, sport, crowd), racing (tires, crash, motoring), adventures
+    (magic, bow, interact), platformers, puzzles and tables (platform, puzzle, tabletop, dice), life sims (work,
+    cooking), horror (heartbeat, breath, horror), strategy, flight and brawlers (build, siege, flight, brawl).
+  - **Sets of fixed cues** where a sound is better written than built: `mecha` (mech combat) and `mecha-layered`, its
+    realistic voice.
+- **The SFX mixer** (the kernel feature `sfxmix`, opt-in). Any gesture can be a layer with its own `chain` (filter,
+  drive, compress, crush, delay), `pan` and `send`. A world's `audio.sfx.mix: { space?, send?, voices?, distance? }`
+  puts its cues on an SFX bus in one shared space (`open`, `interior`, `hangar`, `cavern`, or `vacuum`: the bus dulled,
+  no tail). A `duck` gesture dips the score under a big hit, on both scores of an adaptive pair. `voices` caps the cues
+  sounding at once: a quieter new cue is dropped, a louder one steals the quietest. `distance` (on unless false) places
+  a combat cue by its source's distance from the pilot: duller and roomier, not only quieter. A beats-sfx row takes
+  `mix` too, and its WAV takes `?far=`.
+- **Held voices** (the kernel feature `sustain`, opt-in): `engine.sustain(spec)` returns `set(x)` and `stop()`, gliding
+  on ramps it plans itself. The spec is noise and oscillator layers with ranges for pitch, cutoff and gain, and an LFO
+  on the gain, the cutoff or the pitch (a sawtooth on the gain is a train of chuffs). A beats-sfx row's `sustains`
+  holds them, and its WAV renders them along a control lane. A world's `audio.thruster.voice` and
+  `audio.jump.charge.voice` play one in place of the channel's own synth. The shelf's `booster` `jet` and `servo` are
+  ports of that synth.
+- **One yardstick** (`measure.js`): a sound rendered as an export renders it, measured by its layers, length, attack
+  brightness, crest, energy by band, `spread`, `heard` (bands as the ear weighs them, A-weighted) and `width`. The laws:
+  - every realistic one-shot is in the register (`register.js`: at least 4 layers, 1.31 bands heard, 8 dB of crest
+    unless it swells);
+  - every held voice follows its control (`meetsHeld`);
+  - ordered dials move their measures (bigger blasts and heavier blows longer and darker);
+  - a set that names a `floor` meets it cue for cue (`meetsFloor`).
 
-  | game types | families |
-  |---|---|
-  | sports | `ball` (kicked, bounced, struck, caught, by the ball), `sport` (whistles, bat crack, net, horn, buzzer, starter's pistol, bell), `crowd` (held, by excitement) |
-  | racing | `tires` (held, by slip and surface), `crash` (by severity), `motoring` (gear shift, horns, boost, backfire, door); `engine` adds kart, boat and helicopter |
-  | adventures, RPGs | `magic` (cast, heal, buff, teleport, summon, curse, by school and power), `bow` (draw, loose, flyby, hits; longbow or crossbow), `interact` (chest, lever, pressure plate, key, gate, coins, potion, creak) |
-  | platformers, puzzles, tables | `platform` (coin, gem, power-up, bounce pad, stomp, crumble, ledge grab, hurt), `puzzle` (match by combo, swap, clear, drop, push, lock), `tabletop` (pieces, cards, chips, coin), `dice` |
-  | life sims | `work` (dig, hoe, plant, water, harvest, chop, mine, hammer, saw, fishing), `cooking` (held) |
-  | horror, stealth | `heartbeat` and `breath` (held), `horror` (jumpscare, distant knocks, far scrape, dread drone) |
-  | strategy, flight, brawlers | `build` (place, upgrade, demolish, repair), `siege` (catapult, cannon, ballista, arrow volley, war horn), `flight` (sonic boom, missile, afterburner, warp jump, gear, flares), `brawl` (grab, throw, body slam, uppercut, counter, knockout) |
-
-  114 new rows under their words (`swish`, `skid`, `hex`, `bullseye`, `quaff`, `match three`, `chess move`, `shovel`,
-  `jump scare`, `trebuchet`, `fox two`, `suplex` …), four new categories (sport, magic, play, work), and two new layer
-  words: `lowBody` and `air`, the bands a tonal sound lacks. Held tones (whistles, buzzers, horns) are swells, not
-  strikes.
+  A deep sweep renders every dial point; `npm run sfx-baseline` writes the sets' numbers and, with `--wav <dir>`,
+  their WAVs. These are machine gates; the ears are the operator's.
+- **Fixed: ramps re-set mid-glide.** A held voice or a duck re-set while a ramp was running lost that ramp, and
+  offline the part already played went too. The partial ramp is laid again up to that moment.
+- A recipe that uses none of the mixer or the held voices emits the same kernel and the same page, byte for byte.
 - Nothing in a level reads the shelf by its words yet: the wiring comes next.

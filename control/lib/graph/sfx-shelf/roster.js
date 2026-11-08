@@ -89,7 +89,7 @@ const ROWS = {
   'beat-hit': pal('stinger', 'on', 'a beat hit in time', ['on beat']),
   'beat-miss': pal('stinger', 'on', 'a beat missed', ['off beat']),
 
-  // ── Mobile Suit Arena's sounds (sets/mecha.js, the floor; sets/mecha-layered.js, the realistic voice) ──
+  // ── mech combat (sets/mecha.js, the floor; sets/mecha-layered.js, the realistic voice) ──
   'mech-step': mecha('movement', 'step', 'footsteps.step', 'a mobile suit\'s footstep', ['mech step', 'mech footstep']),
   'mech-land': mecha('movement', 'land', 'jump.land', 'a mobile suit landing: a metal clang under the weight', ['mech land', 'mech landing']),
   'mech-dodge': mecha('movement', 'dodge', 'dodge', 'a mobile suit\'s roll: three heavy contacts', ['mech dodge', 'mech roll']),
@@ -296,8 +296,8 @@ const ROWS = {
   counter: made('melee', 'strike', 'on', 'a counter: a blow turned and returned', ['counter hit', 'riposte'], 'brawl', { act: 'counter' }),
   'knockout-blow': made('melee', 'down', 'on', 'a knockout blow', ['ko punch', 'finishing blow'], 'brawl', { act: 'knockout' }),
 
-  // ── Mobile Suit Arena's code-synthesized sounds (scene/channels/audio.js): the channel's own code plays them, unless
-  //    the level gives the slot the row's voice (a port of that code, range for range) ──
+  // ── the audio channel's own synth slots (scene/channels/audio.js): its code plays them, unless the level gives the
+  //    slot the row's voice (a port of that code, range for range) ──
   'thruster-roar': { ...made('machinery', null, 'thruster', 'a thruster held: a jet whine that swells with the thrust', ['thruster', 'boost', 'booster'], 'booster', { kind: 'jet' }), channel: 'thruster' },
   'jump-servo': { ...made('machinery', null, 'jump.charge', 'a jump gathering: a hydraulic servo straining, pistons chuffing faster', ['servo', 'jump charge'], 'servo'), channel: 'jump.charge' },
   'jump-launch': { ...made('machinery', null, 'jump.release', 'a jump released: a piston slam, heavier the longer it was held', ['piston slam', 'jump release'], 'launch'), channel: 'jump.release' },

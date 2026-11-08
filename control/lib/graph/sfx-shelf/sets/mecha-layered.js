@@ -1,10 +1,11 @@
 /**
- * sfx-shelf/sets/mecha-layered — Mobile Suit Arena's sounds, layered: each one its floor (sets/mecha.js, the game's
- * own cue, every gesture kept) given what the SFX mixer can do, and the layers it lacked. Pure data.
+ * sfx-shelf/sets/mecha-layered — mech combat's sounds in the realistic style: each one its floor (sets/mecha.js, every
+ * gesture kept in order) given what the SFX mixer can do, and the layers it lacked. Pure data.
  *
  * How a sound is layered (the shelf's own register, `realistic`; the words are layers.js):
  *   transient   a few milliseconds of bright noise, centred and dry: where the ear hears it start
- *   body        the floor's pitched voice, saturated (`drive`) so it reads on a small speaker
+ *   body        the floor's pitched voice, kept clean
+ *   harmonics   a driven, highpassed copy of the body: the overtones that let it read on a small speaker
  *   sub         a clean low thump, centred, never driven and never sent: the weight
  *   grit        grain trains panned apart: the width
  *   tail        a noise burst darkening as it fades (`filterEnv`), sent to the space: where the room answers
@@ -22,7 +23,7 @@ const over = (id, treat, add) => [...MECHA.cues[id].map((g, i) => ({ ...g, ...(t
 const harmonics = (id, i, vol, cut) => harmonicsOf(MECHA.cues[id][i], vol, cut);
 
 export const MECHA_LAYERED = freeze({
-  label: 'Mobile Suit Arena, layered',
+  label: 'Mech combat, layered',
   floor: 'mecha',
   cues: {
     // an eighteen-metre machine's foot: a sub under the floor's tick, the ground crunching wide, a plate in the foot

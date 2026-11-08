@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { FAMILIES, FAMILY_NAMES, familyCue } from './families.js';
 import { renderSound, renderHeld } from './measure.js';
 import { meetsRegister, meetsHeld, REGISTER } from './register.js';
+import { SET_NAMES, FLOOR_SETS } from './sets.js';
+import { BASELINE } from './baseline.js';
 
 // the families' laws, rendered as an export renders them: an ordered dial moves its measures the way it says, a
 // material is heard as itself, and each family's defaults are in the realistic register. Machine gates: nobody listened.
@@ -9,10 +11,12 @@ const measure = async (name, dials) => { const { wav, ...m } = await renderSound
 const holding = async (name, dials) => { const { wav, ...m } = await renderHeld({ kind: 'beats-sfx', title: name, sustains: { h: familyCue(name, dials) } }, 'h'); return m; };
 
 describe('the families on the yardstick', () => {
-  it('the register is the layered set\'s own weakest', () => {
-    expect(REGISTER.layers).toBeGreaterThanOrEqual(4);
-    expect(REGISTER.heard).toBeGreaterThan(1);
-    expect(REGISTER.crestDb).toBeGreaterThan(6);
+  it('every set that voices the realistic style is in the register (its stored numbers)', () => {
+    const voicing = SET_NAMES.filter((s) => !FLOOR_SETS.includes(s));
+    expect(voicing.length).toBeGreaterThan(0);
+    const off = voicing.flatMap((s) => Object.entries(BASELINE[s]).flatMap(([c, m]) => meetsRegister(m).map((o) => `${s}:${c}: ${o}`)));
+    expect(off).toEqual([]);
+    expect(REGISTER).toEqual({ layers: 4, heard: 1.31, crestDb: 8 });
   });
 
   for (const name of FAMILY_NAMES) {

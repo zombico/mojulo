@@ -1,20 +1,13 @@
 /**
- * sfx-shelf/register — the realistic register's floor: what any sound in it must reach, taken from the layered set's
- * own weakest (the Mobile Suit Arena floor, improved: sets/mecha-layered.js, measured in baseline.js), never written
- * by hand. A family's every dial point is held to it (families.deep.test.js); its defaults in the regular tier.
+ * sfx-shelf/register — the realistic register's floor: what every realistic one-shot reaches. A family's every dial
+ * point is held to it (families.deep.test.js), its defaults in the regular tier, and every set that voices the style
+ * meets it too (families.laws.test.js, from the stored baseline).
  *
- *   layers   at least as many as the thinnest layered sound stacks
- *   heard    it fills at least as many bands, as the ear weighs them (measure.js `heard`)
- *   crest    at least as much punch, unless it swells rather than strikes (a gust, a riser)
+ *   layers   it stacks at least 4 gestures: a transient, a body, a low end, grit, a tail, as it needs
+ *   heard    it fills at least 1.31 of the 4 bands, as the ear weighs them (measure.js `heard`)
+ *   crestDb  at least 8 dB of punch over its body, unless it swells rather than strikes (a gust, a whistle, a horn)
  */
-import { BASELINE } from './baseline.js';
-
-const L = Object.values(BASELINE['mecha-layered']);
-export const REGISTER = Object.freeze({
-  layers: Math.min(...L.map((m) => m.layers)),
-  heard: Math.min(...L.map((m) => m.heard)),
-  crestDb: Math.min(...L.map((m) => m.crestDb)),
-});
+export const REGISTER = Object.freeze({ layers: 4, heard: 1.31, crestDb: 8 });
 
 /** What a sound lacks of the register, as readable lines (none: it is in it). */
 export function meetsRegister(m, { swell = false } = {}) {

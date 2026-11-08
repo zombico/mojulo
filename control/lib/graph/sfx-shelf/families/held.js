@@ -2,11 +2,11 @@
  * families/held — the held voices: sounds that run as long as something drives them, each a sustain spec (the
  * kernel's `sustain`) whose every range runs from the control at 0 to the control at 1. Pure.
  *
- *   booster  a thruster: `jet` is Mobile Suit Arena's boost whine, ported from its audio channel (scene/channels/
- *            audio.js) range for range; `rocket` a rough combustion roar; `ion` a sci-fi drive's hum
+ *   booster  a thruster: `jet` a boost whine, the audio channel's thruster synth (scene/channels/audio.js) ported
+ *            range for range; `rocket` a rough combustion roar; `ion` a sci-fi drive's hum
  *   engine   a motor by its throttle, idling at 0: a car, a motorbike, a jet's turbine, a propeller's chop
  *   beam     a held beam weapon by its power: a laser's buzz, a plasma stream's roar
- *   servo    a machine gathering itself: Mobile Suit Arena's jump servo and its piston chuffs, ported
+ *   servo    a machine gathering itself: the audio channel's jump servo and its piston chuffs, ported
  *   fire     a fire burning on: its roar breathing, its crackle popping faster as it grows
  *   charge   a charge filling: a hum climbing an octave and more, its pulse quickening
  *
@@ -26,7 +26,7 @@ export const booster = {
   idle: 'silent',
   build(d) {
     if (d.kind === 'jet') return {
-      // the game's: an airy band (500 Hz up, its lowpass brightening 1.9 → 3.6 kHz and breathing at 1.1 Hz), a warm
+      // the channel's synth: an airy band (500 Hz up, its lowpass brightening 1.9 → 3.6 kHz and breathing at 1.1 Hz), a warm
       // body under it, a sine whine rising 720 → 1340 Hz; all three swell with the thrust (its gain node rode thrust ×
       // level, its filters set by the same thrust)
       attack: 0.15, release: 0.15,
@@ -140,7 +140,7 @@ export const servo = {
   defaults: { kind: 'hydraulic' },
   idle: 'silent',
   build() {
-    // the game's: a sawtooth motor 66 → 140 Hz through a resonant lowpass 240 → 760 Hz (Q 4), its gain rising with the
+    // the channel's synth: a sawtooth motor 66 → 140 Hz through a resonant lowpass 240 → 760 Hz (Q 4), its gain rising with the
     // charge; the chuffs a noise thump through 130 Hz up and a lowpass 480 → 1000 Hz, quickening as it coils
     return { attack: 0.05, release: 0.08, layers: [
       osc('sawtooth', [66, 140], [0, 0.5], { cutoff: [240, 760], q: 4 }),

@@ -1,5 +1,5 @@
 /**
- * sfx-shelf/sets/mecha — the sounds of Mobile Suit Arena, rescued verbatim. Pure data.
+ * sfx-shelf/sets/mecha — mech combat's sounds, recorded verbatim (where from: below). Pure data.
  *
  * The game (ref `sk_ms_arena`, manifest sha256/16 `ecc2375e5365db5e`, exported summer 2026 and published as
  * github.com/zombico/mobile-suit-arena) synthesized every effect live from cues like these. They lived only in its rows:
@@ -28,7 +28,7 @@ const freeze = (v) => {
 export const MECHA_HASH = '55e4d7c4223932db';
 
 export const MECHA = freeze({
-  label: 'Mobile Suit Arena',
+  label: 'Mech combat',
   source: { repo: 'zombico/mobile-suit-arena', commit: '0b2479e', game: 'sk_ms_arena', manifest: 'ecc2375e5365db5e', read: '2026-11-08' },
   used: {
     'mech-step': ['footsteps.step'],

@@ -2,8 +2,8 @@
  * sfx-shelf/styles — the looks a sound comes in. Pure data.
  *
  * Four are the palettes (beats/sfx-palettes.js), the same cue ids voiced four ways; `realistic` is the shelf's own: a
- * sound built from several voices at once (a transient, a body, a low end, grit, a tail), the register Mobile Suit Arena
- * reached in the summer of 2026 and the floor the shelf grows from. A style with no voice for a sound falls back to the
+ * sound built from several voices at once (a transient, a body, a low end, grit, a tail), each in its own band, held to
+ * the register (register.js). A style with no voice for a sound falls back to the
  * one it names (`fallback`); a palette style needs none, since every palette voices every one of its cue ids.
  */
 

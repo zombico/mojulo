@@ -94,7 +94,7 @@ describe('the sets', () => {
     expect(() => setManifest('no-such-set')).toThrow(/one of/);
   });
 
-  it('the mecha set is Mobile Suit Arena\'s cues verbatim (a better voice is a new set, never an edit)', () => {
+  it('the mecha set is its recorded cues verbatim (a better voice is a new set, never an edit)', () => {
     expect(createHash('sha256').update(canon(MECHA.cues)).digest('hex').slice(0, 16)).toBe(MECHA_HASH);
     expect(Object.isFrozen(MECHA.cues[Object.keys(MECHA.cues)[0]][0])).toBe(true);
     expect(Object.keys(MECHA.used).sort()).toEqual(Object.keys(MECHA.cues).sort());
