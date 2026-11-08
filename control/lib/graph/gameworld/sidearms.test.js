@@ -5,10 +5,10 @@ import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 // THE SIDEARMS (combos.js `ranged`, a weapon's `sidearm`; worlds/controllable combat-ranged.js on the S press): the bow
 // draws while S is held and looses once drawn (let go early, nothing); the pistols fire at their rate while it is held,
 // never running dry. The cycle carries each weapon's own.
-const world = ({ foeAt = 8 } = {}) => {
+const world = ({ foeAt = 8, combat = null } = {}) => {
   const W = lowerArsenal(BASIC_ARSENAL);
   const w = createWorld({ entities: [
-    { id: 'p', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeContact: [0.44, 0.52], weapons: W, moveset: W[0].moveset, weapon: W[0].sidearm.weapon }, transform: { pos: [0, 0, 0], heading: 0 } },
+    { id: 'p', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeContact: [0.44, 0.52], weapons: W, moveset: W[0].moveset, weapon: W[0].sidearm.weapon, ...(combat ? { combat } : {}) }, ...(combat ? { body: { figure: combat.drawn } } : {}), transform: { pos: [0, 0, 0], heading: 0 } },
     { id: 'foe', team: 'foes', body: { type: 'box', size: [0.6, 0.6, 1.8], hittable: true, hp: 100, poise: 50, radius: 0.35, egg: { a: 0.35, c: 0.752, cz: 0.752 } }, rule: { type: 'static' }, transform: { pos: [foeAt, 0, 0], heading: Math.PI } },
   ] });
   const hooks = { ground: () => 0 }, p = w.byId.p, log = [];
@@ -57,6 +57,29 @@ describe('the pistols: hold to fire', () => {
     // (back to the sword: its bow, its quiver as it was)
     A.step({ cycle: 1 }); A.step();
     expect(A.p.weapon.early).toBe('none');
+  });
+});
+
+describe('the aim\'s pose (the page plays it: hero-swing-body.js aimClip)', () => {
+  it('S held says the sidearm\'s aim, the draw at its share; held a beat after the loose, then lowered; the blade on the back', () => {
+    const A = world({ combat: { near: 12, far: 20, linger: 1, drawn: 'hero', sheathed: 'hero-sheathed' } });
+    expect(A.p.body.figure).toBe('hero');
+    const ph = [];
+    for (let f = 0; f < 36; f++) { A.step({ special: 1 }); ph.push(A.p.mvPose.phase); }
+    expect(A.p.mvPose.clip).toBe('mv_aim_bow');
+    ph.slice(1).forEach((v, i) => expect(v).toBeGreaterThanOrEqual(ph[i]));
+    expect(ph[ph.length - 1]).toBe(1);
+    expect(A.p.body.figure).toBe('hero-sheathed');
+    A.step(); A.step();   // (loosed: the bow still up, the string forward)
+    expect(A.p.weapon.shots).toBe(1);
+    expect(A.p.mvPose).toEqual({ clip: 'mv_aim_bow', phase: 0 });
+    for (let f = 0; f < 30; f++) A.step();
+    expect(A.p.mvPose).toBe(null);
+    expect(A.p.body.figure).toBe('hero');
+    A.step({ cycle: 1 }); A.step();
+    A.step({ special: 1 });
+    expect(A.p.mvPose).toEqual({ clip: 'mv_aim_pistols', phase: 0 });
+    expect(A.p.mvRanged).toMatchObject({ mode: 'auto', hand: 'right', dual: true });
   });
 });
 

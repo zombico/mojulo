@@ -218,7 +218,7 @@ function readSidearm(G, at) {
 /** a sidearm's runtime weapon (initWeapon's config) */
 export function lowerSidearm(G) {
   const eye = 1.25, hand = G.hand ?? 'right';   // (the round leaves at the chest: a level shot meets a body's middle)
-  if (G.mode === 'auto') return { fireClass: 'sight', auto: true, rof: G.rof ?? 8, magazine: G.magazine ?? 60, reload: G.reload ?? 1.2, damage: G.damage ?? 0.5, impact: G.impact ?? 4, range: G.range ?? 30, coreAngle: 3, eye, hand, ...(G.infinite ? { infinite: true } : {}), ...(G.dual ? { muzzleAlt: true } : {}) };
+  if (G.mode === 'auto') return { fireClass: 'sight', auto: true, rof: G.rof ?? 8, magazine: G.magazine ?? 60, reload: G.reload ?? 1.2, damage: G.damage ?? 0.5, impact: G.impact ?? 4, range: G.range ?? 30, coreAngle: 3, eye, hand, fxScale: 0.15, fxColor: 0xffd27a, ...(G.infinite ? { infinite: true } : {}), ...(G.dual ? { muzzleAlt: true } : {}) };
   return { fireClass: 'lob', auto: false, chargeTime: G.draw ?? 0.45, ...(G.early === 'tap' ? {} : { early: 'none' }), magazine: 1, reload: G.nock ?? 0.3, ...(Number.isFinite(G.quiver) ? { reserve: G.quiver } : {}),
     projectileSpeed: G.speed ?? 45, projectileGravity: G.drop ?? 9, lobAngle: 1, projRadius: 0.12, splashRadius: 0, armTime: 0.04, fuse: 3, smokeTrail: false, cooldown: 0.1, eye, hand,
     damage: G.tap?.damage ?? 0, impact: G.tap?.impact ?? 0, chargedDamage: G.damage ?? 3, chargedImpact: G.impact ?? 30, chargedRangeMul: 1 };
@@ -244,12 +244,15 @@ export function readArsenal(A) {
   }
   return A;
 }
+/** the aim each kind of sidearm is held in (hero-swing-body.js AIM_POSES) */
+export const AIM_OF = Object.freeze({ draw: 'archer', auto: 'gunslinger' });
 export function lowerArsenal(A0) {
   const A = readArsenal(A0);
   const G = Object.fromEntries((A.ranged ?? []).map((g) => [g.id, g]));
   return A.weapons.map((W) => ({ id: W.id, name: W.name ?? W.id, figure: W.figure ?? 'drawn', ...(W.reach != null ? { reach: W.reach } : {}), ...(W.damage != null ? { damage: W.damage } : {}),
-    // (its sidearm on S, lowered to the runtime's ranged weapon)
-    ...(W.sidearm ? { sidearm: { id: W.sidearm, name: G[W.sidearm].name ?? W.sidearm, mode: G[W.sidearm].mode, weapon: lowerSidearm(G[W.sidearm]) } } : {}),
+    // (its sidearm on S, lowered to the runtime's ranged weapon, and the aim the hero holds it in: its clip `mv_aim_<id>`,
+    // a draw's the archer's, an auto's the gunslinger's, hero-swing-body.js aimClip)
+    ...(W.sidearm ? { sidearm: { id: W.sidearm, name: G[W.sidearm].name ?? W.sidearm, mode: G[W.sidearm].mode, weapon: lowerSidearm(G[W.sidearm]), aim: `mv_aim_${W.sidearm}`, pose: AIM_OF[G[W.sidearm].mode], hand: G[W.sidearm].hand ?? (G[W.sidearm].mode === 'draw' ? 'left' : 'right'), ...(G[W.sidearm].dual ? { dual: true } : {}) } } : {}),
     // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
     moveset: lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }) }));
 }

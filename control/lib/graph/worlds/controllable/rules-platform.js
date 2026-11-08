@@ -202,9 +202,10 @@ export function buildRulesPlatform(E) {
       const locked = !!(world.lock && world.lock.target && world.lock.pilot === e.id);
       e.combatT = near || locked || e.swingT != null ? C.linger : Math.max(0, (e.combatT || 0) - dt);
       combatOn = e.combat = e.combatT > 0;
-      // (a weapon that shows the sheathed figure, the fist's: sheathed in combat too, combat-melee.js r.weapons)
+      // (a weapon that shows the sheathed figure, the fist's: sheathed in combat too, combat-melee.js r.weapons; and the
+      // sidearm's aim, `mvPose`: the blade back on the back while the bow or the guns are up)
       const Wf = Array.isArray(r.weapons) ? r.weapons[e.weaponIdx || 0] : null;
-      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn && !(Wf && Wf.figure === 'sheathed') ? C.drawn : C.sheathed;
+      if (C.drawn && C.sheathed && e.body) e.body.figure = combatOn && !(Wf && Wf.figure === 'sheathed') && !e.mvPose ? C.drawn : C.sheathed;
     }
     const walking = walker && travel > 1e-6 && (!!input.walk || travel < runAt || (combatOn && !input.boost));
     // THE RUN BUTTON (opt-in `sprint`, a feel card's `ground.sprint` with its takes, a dash-less hero's F): held while

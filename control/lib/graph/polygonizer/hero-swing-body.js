@@ -219,3 +219,63 @@ export function strikeReadyClip(word, ctx) {
   fn.keys = 2;
   return fn;
 }
+
+// ─── the sidearms' aims: the archer's draw and the gunslinger's two guns (hero-stance.js, a stance's own words) ─────
+/**
+ * THE AIMS a moveset's sidearm plays while S holds it (gameworld/combos.js `ranged`), each a stance said in its own words
+ * and solved by the stance solver (its feet, its balance, its eyes on the target, each hand reaching its place):
+ *   • ARCHER (a draw: the bow). Side on, the bow arm's shoulder toward the target (a right-handed archer's left), the
+ *     bow hand straight out at its shoulder's height on the target line; the string hand from NOCKED (an arrow's length
+ *     short of the bow hand) to ANCHORED (at the jaw), played by the draw's share (0 nocked … 1 full).
+ *   • GUNSLINGER (an auto: two guns). Square, both arms straight out at the shoulders' height, a little in.
+ * Each hand's place is a share of the arm's length, so a short arm and a long one hold the same pose. `hand` the bow's
+ * (or a single gun's) hand: 'left' (the default bow hand) mirrors a right-led stance. ctx: { R, stance: heroStance,
+ * reachArm (hero-stance.js), rigNodesAt (station-loft-rig.js), elbowsDown (hero-elbow.js) }.
+ */
+export const AIM_POSES = Object.freeze({
+  archer: Object.freeze({ spread: 0.5, line: 74, toes: { L: 82, R: 8 }, sink: 0.06, lean: 4, weight: 0.5, heel: 0, chest: 0.1, bow: { fwd: 0.93, up: 0.0 }, nocked: { fwd: 0.42, side: -0.03 }, anchor: { fwd: 0.0, up: -0.02, side: -0.03 } }),
+  gunslinger: Object.freeze({ spread: 0.5, line: 0, toes: { L: 10, R: -10 }, sink: 0.07, lean: 6, weight: 0.5, heel: 0, chest: 0, guns: { fwd: 0.97, up: 0, side: 0.06 } }),
+});
+const DRAW_SAMPLES = 4;   // (the draw's string hand re-solved at a quarter, a half and three quarters of the way)
+const armLength = (R, s) => { const J = R.joints, d = (a, b) => Math.hypot(J[a][0] - J[b][0], J[a][1] - J[b][1], J[a][2] - J[b][2]); return d(`shoulder${s}`, `elbow${s}`) + d(`elbow${s}`, `wrist${s}`); };
+const stanceWords = (A, hands, family) => ({ family, spread: A.spread, line: A.line, toes: A.toes, sink: A.sink, lean: A.lean, weight: A.weight, heel: A.heel, chest: A.chest, hands, serves: [] });
+export function aimClip(pose, ctx) {
+  const { R, stance, rigNodesAt } = ctx, A = AIM_POSES[pose];
+  if (!A) throw new Error(`hero-swing-body: no aim '${pose}' (have ${Object.keys(AIM_POSES).join(', ')})`);
+  const arm = Math.min(armLength(R, 'R'), armLength(R, 'L')), left = (ctx.hand ?? 'left') === 'left';
+  const r4 = (x) => Math.round(x * 1e4) / 1e4;
+  if (pose === 'archer') {
+    // (right-led: the right the bow hand, the left the string's; a left bow hand is its mirror)
+    const bow = { at: 'leadShoulder', fwd: r4(A.bow.fwd * arm), up: A.bow.up, side: 0, line: true, hand: 'grip' };
+    const at = (string) => stance(stanceWords(A, { R: bow, L: string }, 'bladed'), R, { left });
+    const N = at({ at: 'leadShoulder', fwd: r4(A.nocked.fwd * arm), up: 0, side: A.nocked.side, line: true, hand: 'grip' });
+    const D = at({ at: 'chin', fwd: A.anchor.fwd, up: A.anchor.up, side: A.anchor.side, line: true, hand: 'grip' });
+    // THE DRAW: the string hand pulled straight back along the arrow, nock to anchor (each sample the string arm re-solved
+    // to its point on that line, seeded by the last), so the hand never arcs off the arrow's line
+    const s = left ? 'R' : 'L', a = rigNodesAt(R, N.hold).nodes[`wrist${s}`], b = rigNodesAt(R, D.hold).nodes[`wrist${s}`];
+    // (every sample on the drawn stance's body: the stances balance their feet each for its own arms, a millimetre apart;
+    // a solved arm is posed elbows down, as the stance's own are: hero-elbow.js, a roll added on top of the solver's)
+    const samples = []; let seed = null;
+    for (let i = 0; i < DRAW_SAMPLES; i++) {
+      const k = i / DRAW_SAMPLES, goal = [0, 1, 2].map((c) => a[c] + (b[c] - a[c]) * k);
+      const sol = ctx.reachArm(R, D.hold, s, goal, seed); seed = sol;
+      samples.push({ ...D.hold, [`sh${s}`]: ctx.elbowsDown(R, { [`sh${s}`]: sol.sh })[`sh${s}`], [`elbow${s}`]: sol.elbow });
+    }
+    samples.push(D.hold);
+    const fn = (u) => { const x = Math.max(0, Math.min(1, u)) * DRAW_SAMPLES, i = Math.min(DRAW_SAMPLES - 1, Math.floor(x)); return lerpPose(samples[i], samples[i + 1], x - i); };
+    fn.keys = 12; fn.once = true;   // (a one-shot, its last key the full draw: a share of 1 holds there)
+    fn.aim = { pose, string: s, checks: { nocked: N.checks, drawn: D.checks } };
+    return fn;
+  }
+  const G = A.guns, gun = (sd) => ({ at: 'shoulder', fwd: r4(G.fwd * arm), up: G.up, side: sd, hand: 'grip' });
+  const S = stance(stanceWords(A, { R: gun(-G.side), L: gun(G.side) }, 'square'), R);
+  const p = S.hold, fn = () => ({ ...p });
+  fn.keys = 2; fn.once = true;
+  fn.aim = { pose, checks: { held: S.checks } };
+  return fn;
+}
+/** two poses of the same shape mixed channel by channel (a number lerped, an object each of its numbers; else the first's) */
+function lerpPose(a, b, k) {
+  const mix = (x, y) => (typeof x === 'number' && typeof y === 'number' ? x + (y - x) * k : x && y && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries([...new Set([...Object.keys(x), ...Object.keys(y)])].map((c) => [c, mix(x[c] ?? (typeof y[c] === 'number' ? 0 : y[c]), y[c] ?? (typeof x[c] === 'number' ? 0 : x[c]))])) : Array.isArray(x) && Array.isArray(y) && x.length === y.length ? x.map((v, i) => mix(v, y[i])) : k < 0.5 ? x : y);
+  return mix(a, b);
+}

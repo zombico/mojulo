@@ -502,6 +502,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // ranged weapon may refuse an early release (`early: 'none'`, the bow) and never run dry (`infinite`, the pistols); a
 // charged lob deals its charged damage; a moveset's S fires its weapon's sidearm, aimed at the locked or front foe
 // (`mvAim`) and walking slower while it draws (`aimMove`). No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the sidearms seen): the 16 fixtures that embed the controllable runtime. A
+// moveset's S says the aim the page plays (`mvPose`: its clip, the draw's share), its sidearm's hand and pairing ride
+// `mvRanged`, and the combat figure shows the sheathed hero while an aim is up; the page's aim layer, props and arrows
+// are emitted only for a moveset. No fixture's rule takes a moveset, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

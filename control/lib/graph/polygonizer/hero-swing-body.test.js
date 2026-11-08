@@ -7,6 +7,9 @@ import { swingClipKeys } from './hero-swing.js';
 import { swingBody, SWING_BODY } from './hero-swing-body.js';
 import { STRUCTURED_SWING_BASE } from './hero-gesture.js';
 import { validateRig, rigNodesAt } from './station-loft-rig.js';
+import { aimClip } from './hero-swing-body.js';
+import { heroStance, reachArm } from './hero-stance.js';
+import { elbowsDown } from './hero-elbow.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const rig = (cast, item) => validateRig(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, gesture: 'chop', gear: { right: { item } } }) }).recipe.rig);
@@ -159,5 +162,44 @@ describe('the footwork through a string', () => {
     const near = chain({ footwork: true, foeAt: 1.0 });
     expect(near.travelled).toBeLessThan(0.05);
     expect(near.worst).toBeLessThan(0.01);
+  });
+});
+
+// THE SIDEARMS' AIMS (aimClip): stances in their own words, solved on the rig. One case a procedure: the archer's draw
+// (a stance and its string hand re-solved along the arrow), the gunslinger's held guns.
+describe('the aims', () => {
+  const R = rig('male', 'sword'), N = (p) => rigNodesAt(R, p).nodes;
+  const ctx = { R, stance: heroStance, reachArm, rigNodesAt, elbowsDown };
+  it('the archer: the bow hand straight out on the target line at its shoulder; the string drawn straight back along the arrow to the jaw; the feet still', () => {
+    const c = aimClip('archer', ctx);
+    expect(c.aim.string).toBe('R');   // (the bow in the left hand: a right-handed archer)
+    for (const k of ['nocked', 'drawn']) { expect(c.aim.checks[k].com.margin).toBeGreaterThan(0); expect(c.aim.checks[k].reach).toEqual({ L: 'ok', R: 'ok' }); }
+    const at = [0, 0.25, 0.5, 0.75, 1].map((u) => N(c(u)));
+    const arm = Math.hypot(...[0, 1, 2].map((i) => R.joints.shoulderL[i] - R.joints.elbowL[i])) + Math.hypot(...[0, 1, 2].map((i) => R.joints.elbowL[i] - R.joints.wristL[i]));
+    for (const n of at) {
+      expect(Math.abs(n.wristL[0])).toBeLessThan(0.03);                               // (on the target line)
+      expect(Math.abs(n.wristL[2] - n.shoulderL[2])).toBeLessThan(0.06);              // (at its shoulder's height)
+      expect(Math.hypot(...[0, 1, 2].map((i) => n.wristL[i] - n.shoulderL[i]))).toBeGreaterThan(0.85 * arm);   // (straight)
+      for (const s of ['L', 'R']) for (let i = 0; i < 3; i++) expect(n[R.legs[s].toeBase][i]).toBeCloseTo(at[0][R.legs[s].toeBase][i], 4);
+    }
+    // the string hand: from an arrow's length short of the bow hand back to the jaw, never off the line between them
+    const a = at[0].wristR, b = at[4].wristR;
+    expect(at[0].wristL[1] - a[1]).toBeGreaterThan(0.25);
+    expect(Math.hypot(b[0] - at[4].headBase[0], b[1] - at[4].headBase[1], b[2] - at[4].headBase[2])).toBeLessThan(0.08);
+    const ab = [0, 1, 2].map((i) => b[i] - a[i]), L2 = ab.reduce((x, v) => x + v * v, 0);
+    for (const n of at.slice(1, 4)) {
+      const t = [0, 1, 2].reduce((x, i) => x + (n.wristR[i] - a[i]) * ab[i], 0) / L2;
+      expect(Math.hypot(...[0, 1, 2].map((i) => n.wristR[i] - (a[i] + ab[i] * t)))).toBeLessThan(0.04);
+    }
+  });
+  it('the gunslinger: square, both guns straight out at the shoulders\' height, the arms all but straight', () => {
+    const c = aimClip('gunslinger', ctx), n = N(c(0));
+    expect(c.aim.checks.held.com.margin).toBeGreaterThan(0);
+    for (const s of ['L', 'R']) {
+      expect(n[`wrist${s}`][1] - n[`shoulder${s}`][1]).toBeGreaterThan(0.45);
+      expect(Math.abs(n[`wrist${s}`][2] - n[`shoulder${s}`][2])).toBeLessThan(0.1);
+      expect(c(0)[`elbow${s}`]).toBeLessThan(15);
+    }
+    expect(n.wristL[0]).toBeCloseTo(-n.wristR[0], 3);
   });
 });

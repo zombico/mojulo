@@ -62,8 +62,10 @@ import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroCl
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
-import { swingBody, moveClip, readyClip, strikeMoveClip, strikeReadyClip } from '@/lib/graph/polygonizer/hero-swing-body';
+import { swingBody, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip } from '@/lib/graph/polygonizer/hero-swing-body';
 import { heroStrike } from '@/lib/graph/polygonizer/hero-strike';
+import { heroStance, reachArm } from '@/lib/graph/polygonizer/hero-stance';
+import { elbowsDown } from '@/lib/graph/polygonizer/hero-elbow';
 import { heroBox } from '@/lib/graph/polygonizer/hero-box';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
@@ -1014,6 +1016,12 @@ export const WORLD_KINDS = {
             if (mv.travel) strikes[`${mv.clip}_still`] = strikeMoveClip({ ...mv, travel: null }, sc);
           }
           clipsIn = { ...clipsIn, ...strikes };
+        }
+        // A MOVESET's sidearm aims (`swings.aims`: the archer's draw, the gunslinger's two guns, hero-swing-body.js aimClip),
+        // each a stance solved on this rig; the page plays one while S holds its sidearm (the draw by its share)
+        if (ctx.swings && Array.isArray(ctx.swings.aims)) {
+          const ac = { R, stance: heroStance, reachArm, rigNodesAt, elbowsDown };
+          clipsIn = { ...clipsIn, ...Object.fromEntries(ctx.swings.aims.map((a) => [a.clip, aimClip(a.pose, { ...ac, hand: a.hand })])) };
         }
         // RIDING (ctx.ride: a world with a mount, worlds/mount-units.js): the hero's riding clips, solved on this rig to the
         // horse's saddle, irons and bit (mount/game.js), each its pose words by key, lowered by this pack's lift. Absent ⇒ as before

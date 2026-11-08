@@ -2025,7 +2025,7 @@ const __plH = new THREE.Vector3(), __plAx = new THREE.Vector3();
 function __poseLayers(e, fig, dt) {
   const L = e.body.layers, W = e.__plw || (e.__plw = {}), out = [];
   if (!fig.__pl) fig.__pl = {};
-  const busy = e.swingT != null || e.dodgeT != null || e.staggerT != null;
+  const busy = e.swingT != null || e.dodgeT != null || e.staggerT != null${moveset ? ' || !!e.mvPose' : ''};${moveset ? '   // (a sidearm\'s aim owns the body as a swing does)' : ''}
   const want = { run: e.moving && !e.combat && (e.locomotion === 'forward' || e.locomotion === 'sprint') ? 1 : 0, combat: e.combat && !busy ? 1 : 0 };
   for (const name in L) {
     W[name] = (W[name] || 0) + ((want[name] || 0) - (W[name] || 0)) * Math.min(1, (dt || 0) * 8);
@@ -2034,6 +2034,72 @@ function __poseLayers(e, fig, dt) {
     for (const op of ops) { op.at = null; __plAx.set(op.axis[0], op.axis[1], op.axis[2]).normalize(); op.q.setFromAxisAngle(__plAx, op.rad * W[name]); out.push(op); }
   }
   return out.length ? out : null;
+}
+` : ''}${moveset ? `// A SIDEARM'S AIM LAYER (gameworld/combos.js a weapon's sidearm, hero-swing-body.js aimClip): its weight eased in and
+// out (a tenth of a second), the bones below the spine (the hips, the legs) left to the walk; the spine's base its root
+const __aimQ = new THREE.Quaternion(), __aimP = [0, 0, 0], __AIM_LOW = /^(pelvis|thigh|shank|hipFold|kneeFold|foot|toes)/;
+function __aimLayer(rig, fig, AP, dt) {
+  const A = rig.aim || (rig.aim = { w: 0, clip: null, phase: 0, d: [0, 0, 0] });
+  if (AP) { A.clip = AP.clip; A.phase = AP.phase; }
+  A.w = Math.max(0, Math.min(1, A.w + (AP ? 1 : -1) * (dt || 0) / 0.1));
+  if (A.w <= 1e-3 || !A.clip || !fig.clips[A.clip]) return null;
+  if (!fig.__aimLow) { fig.__aimLow = fig.bones.map((b) => __AIM_LOW.test(b.id)); fig.__aimRoot = fig.bones.findIndex((b) => b.id === 'lumbar'); }
+  A.lower = fig.__aimLow; A.root = fig.__aimRoot; A.d[0] = A.d[1] = A.d[2] = 0;
+  return A;
+}
+// THE SIDEARM IN HAND, drawn on the page at the posed hands while the aim is up: the bow (its limbs, bent as it draws,
+// its string to the drawing hand, the arrow on it while one is nocked) or the guns (one a hand, a dual sidearm's two),
+// in the figure's own frame (x right, y forward, z up, metres)
+const __spV = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], __spY = new THREE.Vector3(0, 1, 0), __spD = new THREE.Vector3(), __spM = new THREE.Matrix4(), __spX = new THREE.Vector3(), __spZ = new THREE.Vector3();
+function __spRod(r, col) { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 1, 6), new THREE.MeshBasicMaterial({ color: col })); o.raycast = function () {}; return o; }
+function __spSpan(o, a, b) { __spD.subVectors(b, a); const L = __spD.length() || 1e-4; o.position.addVectors(a, b).multiplyScalar(0.5); o.quaternion.setFromUnitVectors(__spY, __spD.multiplyScalar(1 / L)); o.scale.set(1, L, 1); }
+function __spBox(s, at, col, into) { const o = new THREE.Mesh(new THREE.BoxGeometry(s[0], s[1], s[2]), new THREE.MeshBasicMaterial({ color: col })); o.position.set(at[0], at[1], at[2]); o.raycast = function () {}; into.add(o); return o; }
+function __spGun() { const g = new THREE.Group(); __spBox([0.035, 0.2, 0.045], [0, 0.06, 0.03], 0x2b2e33, g); __spBox([0.03, 0.05, 0.1], [0, -0.01, -0.03], 0x3a2a1e, g); __spBox([0.02, 0.03, 0.02], [0, 0.17, 0.035], 0x55595f, g); g.userData.mz = new THREE.Object3D(); g.userData.mz.position.set(0, 0.19, 0.035); g.add(g.userData.mz); return g; }
+function __sidearmProps(e, m, rig, fig, AL) {
+  const R = e.mvRanged, kind = R && AL ? (R.mode === 'draw' ? 'bow' : 'guns') : null;
+  let P = rig.props;
+  if (!P) {
+    const ix = (id) => fig.bones.findIndex((b) => b.id === id);
+    P = rig.props = { hL: ix('handL'), hR: ix('handR'), fL: ix('foreArmL'), fR: ix('foreArmR'), bow: null, guns: null };
+  }
+  if (P.bow) P.bow.g.visible = kind === 'bow';
+  if (P.guns) P.guns.g.visible = kind === 'guns';
+  if (rig.muzzle && rig.muzzle.userData.sidearm && kind !== 'guns') rig.muzzle = null;   // (the shot's flash from the gun that fired)
+  if (!kind || P.hL < 0 || P.hR < 0 || P.fL < 0 || P.fR < 0) return;
+  // each hand's grip: a hand's length past the wrist along the forearm
+  const at = (h, f, out, k) => { const bh = fig.bones[h].head, bf = fig.bones[f].head; __spV[k].set(bh[0], bh[1], bh[2]).applyMatrix4(rig.boneMeshes[h].matrix); __spV[k + 1].set(bf[0], bf[1], bf[2]).applyMatrix4(rig.boneMeshes[f].matrix); __spD.subVectors(__spV[k], __spV[k + 1]).normalize(); out.copy(__spV[k]).addScaledVector(__spD, 0.07); return __spD.clone(); };
+  const gL = new THREE.Vector3(), gR = new THREE.Vector3(), dL = at(P.hL, P.fL, gL, 0), dR = at(P.hR, P.fR, gR, 2);
+  if (kind === 'bow') {
+    if (!P.bow) {
+      const g = new THREE.Group(), limbs = [], string = [__spRod(0.004, 0xeee6cf), __spRod(0.004, 0xeee6cf)];
+      for (let i = 0; i < 8; i++) { const o = __spRod(0.016, 0x7a4a24); limbs.push(o); g.add(o); }
+      string.forEach((o) => g.add(o));
+      const shaft = __spRod(0.007, 0xc9a46a), head = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.06, 6), new THREE.MeshBasicMaterial({ color: 0x9aa3ad }));
+      head.raycast = function () {}; g.add(shaft); g.add(head);
+      m.add(g); P.bow = { g, limbs, string, shaft, head };
+    }
+    const B = P.bow, bowHand = R.hand === 'right' ? gR : gL, pull = R.hand === 'right' ? gL : gR, k = AL.phase || 0;
+    // the arrow's line: from the drawing hand to the bow hand (else the body's forward); the limbs square to it, upright
+    const a = new THREE.Vector3().subVectors(bowHand, pull); if (a.lengthSq() < 0.01) a.set(0, 1, 0); a.normalize();
+    const u = new THREE.Vector3(0, 0, 1).addScaledVector(a, -a.z).normalize(), H = 0.62, bend = 0.1 + 0.12 * k;
+    const pt = (sg) => new THREE.Vector3().copy(bowHand).addScaledVector(u, sg * H).addScaledVector(a, -bend * sg * sg);
+    let prev = pt(-1);
+    for (let i = 0; i < 8; i++) { const nx = pt(-1 + (2 * (i + 1)) / 8); __spSpan(B.limbs[i], prev, nx); prev = nx; }
+    const top = pt(1), bot = pt(-1), rest = new THREE.Vector3().addVectors(top, bot).multiplyScalar(0.5);
+    const nock = e.weapon && e.weapon.charging ? pull : rest;
+    __spSpan(B.string[0], top, nock); __spSpan(B.string[1], nock, bot);
+    // the arrow on the string while one is nocked (its point past the bow)
+    const armed = !!(e.weapon && e.weapon.ammo > 0 && !e.weapon.reloading);
+    B.shaft.visible = B.head.visible = armed;
+    if (armed) { const tip = new THREE.Vector3().copy(nock).addScaledVector(a, 0.78); __spSpan(B.shaft, nock, tip); B.head.position.copy(tip); B.head.quaternion.setFromUnitVectors(__spY, a); }
+  } else {
+    if (!P.guns) { const g = new THREE.Group(), L = __spGun(), Rg = __spGun(); g.add(L); g.add(Rg); m.add(g); P.guns = { g, L, R: Rg }; }
+    const G = P.guns;
+    const place = (o, grip, d) => { __spZ.set(0, 0, 1).addScaledVector(d, -d.z).normalize(); __spX.crossVectors(d, __spZ).normalize(); __spM.makeBasis(__spX, d, __spZ); o.quaternion.setFromRotationMatrix(__spM); o.position.copy(grip); };
+    place(G.R, gR, dR); place(G.L, gL, dL);
+    G.L.visible = !!R.dual; G.R.visible = true;
+    const mz = (R.dual && e.weapon && (e.weapon.shots || 0) % 2 ? G.L : G.R).userData.mz; mz.userData.sidearm = true; rig.muzzle = mz;
+  }
 }
 ` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
@@ -2063,11 +2129,16 @@ function __poseLayers(e, fig, dt) {
     if (q) m.scale.set(s0 * q[0], s0 * q[0], s0 * q[1]); else { m.scale.setScalar(s0); m.userData.s0 = null; }
   }
   ` : ''}const fig = rig.fig;
-  ${figHasForms || acts ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${figHasForms ? `
+  ${figHasForms || acts || moveset ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
+  // A SIDEARM'S AIM (e.mvPose, combat-melee.js: the archer's draw at its share, the gunslinger's guns): the whole body
+  // standing, the body above the hips over the walk (the aim layer in the bone loop, __aimLayer)
+  const AP = e.mvPose && fig.clips && fig.clips[e.mvPose.clip] ? e.mvPose : null;
+  if (AP && !e.moving) mode = AP.clip;
+  const AL = __aimLayer(rig, fig, AP, dt);` : ''}${figHasForms ? `
   if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
   const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
   if (act) mode = act.mode;` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, ${acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
+  const mix = __CW.advanceGaitMix(rig.mix, mode, ${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no
@@ -2155,7 +2226,14 @@ ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
       __rigPA[0] += (__rigPB[0] - __rigPA[0]) * (1 - w);
       __rigPA[1] += (__rigPB[1] - __rigPA[1]) * (1 - w);
       __rigPA[2] += (__rigPB[2] - __rigPA[2]) * (1 - w);
-    }
+    }${moveset ? `
+    // the aim layer: each bone above the hips toward the aim clip's, carried with the spine's base onto the walk's
+    if (AL && !AL.lower[bi]) {
+      __rigBone(fig, AL.clip, AL.phase, false, bi, __aimQ, __aimP);
+      if (bi === AL.root) { AL.d[0] = __rigPA[0] - __aimP[0]; AL.d[1] = __rigPA[1] - __aimP[1]; AL.d[2] = __rigPA[2] - __aimP[2]; }
+      __rigQA.slerp(__aimQ, AL.w);
+      for (let c = 0; c < 3; c++) __rigPA[c] += (__aimP[c] + AL.d[c] - __rigPA[c]) * AL.w;
+    }` : ''}
     if (fig.bones[bi].id === 'head' && Math.abs(rig.lookA) > 1e-4) {
       __rigQL.setFromAxisAngle(__RIG_Z, rig.lookA);
       __rigQA.premultiply(__rigQL);
@@ -2209,7 +2287,8 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
     __rigH.set(rh[0], rh[1], rh[2]).applyQuaternion(__rigQA);
     __rigV.set(__rigPA[0] - __rigH.x, __rigPA[1] - __rigH.y, __rigPA[2] - __rigH.z);
     mesh.matrix.compose(__rigV, __rigQA, __RIG_ONE);
-  }${figHasFace ? `
+  }${moveset ? `
+  __sidearmProps(e, m, rig, fig, AL);` : ''}${figHasFace ? `
   if (fig.face) __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);` : ''}
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the
   // classic i-frame read. Both the acrobatic dodge and the getup rise set
@@ -3730,7 +3809,16 @@ function __updateProjectiles() {
   const live = {};
   for (const p of ps) {
     live[p.id] = true;
-    let rec = __projMeshes[p.id];
+    let rec = __projMeshes[p.id];${moveset ? `
+    // (a moveset's bow, gameworld/combos.js a draw sidearm: its round an ARROW, a shaft along its flight, its point leading)
+    if (!rec) {
+      const ow = __world.byId && __world.byId[p.owner];
+      if (ow && ow.mvRanged && ow.mvRanged.mode === 'draw') {
+        const g = new THREE.Group(), shaft = __spRod(0.008, 0xc9a46a), head = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.07, 6), new THREE.MeshBasicMaterial({ color: 0x9aa3ad })), fl = __spBox([0.004, 0.09, 0.05], [0, -0.34, 0], 0xb8322a, g);
+        shaft.scale.set(1, 0.78, 1); head.position.set(0, 0.42, 0); head.raycast = function () {}; g.add(shaft); g.add(head); fl.raycast = function () {};
+        scene.add(g); rec = __projMeshes[p.id] = { g: g };
+      }
+    }` : ''}
     if (!rec) {
       const col = p.fxColor != null ? p.fxColor : 0xffcc66, sz = p.fxScale != null ? p.fxScale : 3;
       // the round is a POINTED SHELL (a hot nose-cone, not a beachball): a long thin cone whose TIP

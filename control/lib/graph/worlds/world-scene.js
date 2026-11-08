@@ -159,7 +159,7 @@ export function readSeats(seats, entities, pilot = null) {
   return { bodies: seats.bodies.slice(), max, ...(seats.join ? { join: seats.join } : {}), ...(seats.drop ? { drop: seats.drop } : {}), ...(seats.floor !== undefined ? { floor: seats.floor } : {}), ...(seats.lives !== undefined ? { lives: seats.lives, pool: seats.pool ?? 'own' } : {}) };
 }
 
-/** the moves a figure bakes its own clips for (hero-swing-body.js moveClip, strikeMoveClip), and the fighting stances: those
+/** the moves a figure bakes its own clips for (hero-swing-body.js moveClip, strikeMoveClip, aimClip), and the fighting stances: those
  * of the weapons that show this figure (`r.weapons`' figure: the drawn hero the blade's, the sheathed one the fist's; a
  * lone `moveset` the drawn hero's) */
 function movesOf(rule, name) {
@@ -168,7 +168,9 @@ function movesOf(rule, name) {
   const mine = Ws.filter((W) => (W.figure === 'sheathed') === sheathed);
   const moves = mine.flatMap((W) => Object.values(W.moveset.moves).filter((m) => m.clip).map((m) => ({ clip: m.clip, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), ...(m.travel ? { travel: m.travel } : {}), ...(m.contact ? { contact: m.contact } : {}) })));
   const readies = mine.map((W) => { const first = Object.values(W.moveset.moves)[0]; return { clip: W.moveset.ready ?? 'mv_ready', ...(first && first.strike ? { strike: first.strike } : {}) }; });
-  return { moves, readies };
+  // (the sidearms' aims, on every figure the hero shows: a sidearm is held on the sheathed hero, the blade on its back)
+  const aims = [...new Map(Ws.filter((W) => W.sidearm && W.sidearm.aim).map((W) => [W.sidearm.aim, { clip: W.sidearm.aim, pose: W.sidearm.pose, hand: W.sidearm.hand }])).values()];
+  return { moves, readies, ...(aims.length ? { aims } : {}) };
 }
 export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null } = {}) {
   let manifest, body;

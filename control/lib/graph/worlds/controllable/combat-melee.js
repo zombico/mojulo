@@ -453,6 +453,7 @@ export function buildCombatMelee(E) {
   // the weapon cycle (R, a pad's right shoulder, the mouse's back button) steps to the next when no swing is live, its
   // string cleared; each weapon its own moves, reach and damage, and the figure it shows (`sheathed`: the blade on the
   // back, the fist's). `r.moveset` stays the current weapon's (the page reads its blend and its clips by it).
+  const AIM_LINGER = 0.3;   // (seconds the aim holds after a loose or the last round, before the hero lowers it)
   function stepMoveset(e, input, dt, world, ctx, boosting0) {
     const r = e.rule, t = e.transform, now = world && world.time != null ? world.time : 0, Ws = Array.isArray(r.weapons) && r.weapons.length ? r.weapons : null;
     let boosting = boosting0;
@@ -475,7 +476,7 @@ export function buildCombatMelee(E) {
       if (e.weapon && e.sidearmId) sa[e.sidearmId] = e.weapon;
       e.weapon = sa[Wc.sidearm.id] || E.initWeapon(Wc.sidearm.weapon); e.sidearmId = Wc.sidearm.id;
     }
-    if (Wc) e.mvRanged = Wc.sidearm ? { id: Wc.sidearm.id, name: Wc.sidearm.name, mode: Wc.sidearm.mode } : null;
+    if (Wc) e.mvRanged = Wc.sidearm ? { id: Wc.sidearm.id, name: Wc.sidearm.name, mode: Wc.sidearm.mode, ...(Wc.sidearm.hand ? { hand: Wc.sidearm.hand } : {}), ...(Wc.sidearm.dual ? { dual: true } : {}) } : null;
     // THE SIDEARM'S AIM (S held): the locked foe, else the nearest foe in front (within 35° of the facing, in range): the
     // round leaves the chest straight for its body (`e.mvAim`, stepWeapon's aim in hand) and the hero turns to it; with
     // none, where the hero faces (a draw: where the camera looks). A DRAW held swings nothing, the platform rule walking
@@ -503,6 +504,13 @@ export function buildCombatMelee(E) {
         e.mvAim = { from, dir }; t.heading = Math.atan2(dir[1], dir[0]);
       } else if (drawing && world && world.cameraYaw != null) t.heading = world.cameraYaw;
     }
+    // THE AIM'S POSE (the page plays it: the sidearm's `aim` clip, hero-swing-body.js aimClip): while S holds the sidearm
+    // and no swing owns the body, a draw at its share (the string back as the bow draws), held a beat after a loose
+    if (Wc && Wc.sidearm && Wc.sidearm.aim && e.swingT == null && (input.special || drawing)) {
+      const w = e.weapon, k = drawing && w.chargeTime > 0 ? Math.min(1, (w.chargeT || 0) / w.chargeTime) : 0;
+      e.mvPose = { clip: Wc.sidearm.aim, phase: Math.round(k * 1e4) / 1e4 }; e.mvPoseT = AIM_LINGER;
+    } else if (e.mvPose && e.swingT == null && (e.mvPoseT = (e.mvPoseT || 0) - dt) > 0) e.mvPose = { clip: e.mvPose.clip, phase: 0 };
+    else if (e.mvPose) e.mvPose = null;
     const edge = (k, prev) => { const on = !!input[k], was = !!e[prev]; e[prev] = on; return on && !was; };
     const lE = edge('fire', 'strikePrev'), hE = edge('heavy', 'heavyPrev'), sE = edge('special', 'specialPrev');
     const beat0 = hE ? 'H' : lE ? 'L' : sE ? 'S' : null;

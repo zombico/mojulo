@@ -109,3 +109,16 @@
   sidearm, its rounds, the draw bar and READY.
 - **Fixed: a charged lob dealt its uncharged damage.** A projectile weapon's charged round (a bow drawn full) carried
   the weapon's base damage, not its `chargedDamage`; the arms kit's bows hit as hard as drawn now.
+- **The sidearms seen: the archer's draw, the gunslinger's two guns** (`hero-swing-body.js` `aimClip`, the page's aim
+  layer and props). Each sidearm is held in an aim, a stance in its own words solved by the stance solver
+  (`hero-stance.js`: its feet, its balance, its eyes on the target, each hand reaching its place): the ARCHER side on,
+  the bow hand straight out on the target line at its shoulder, the string hand drawn from an arrow's length short of
+  the bow to the jaw, re-solved along the arrow's line so it never arcs off it, played by the draw's share; the
+  GUNSLINGER square, both arms straight out at the shoulders. The runtime says the aim (`e.mvPose`: its clip, the draw's
+  share; held a beat after a loose); the page plays it whole standing and above the hips over the walk (the legs walk,
+  the bow stays up), with the combat lean eased out. The blade goes on the back while a sidearm is up (the sheathed
+  figure). The bow and the guns are drawn at the posed hands: the bow's limbs bending as it draws, its string to the
+  drawing hand, the arrow on it while one is nocked; the guns along the forearms, the shot's flash from the barrel that
+  fired, the pistols' flash a muzzle's size. A bow's rounds fly as arrows. Measured on the rig: the bow hand on the
+  target line at its shoulder through the draw, the string hand within 4 cm of the arrow's line, the feet still; the
+  guns straight out at the shoulders. Seen headless in the room, the eyes gate the operator's.
