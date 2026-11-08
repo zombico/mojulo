@@ -510,9 +510,11 @@ export function buildManaUi() {
             const body = kids();
             // the legend bar: the screen's own, else what the buttons do here, read from what it drew
             const bar = live && p.legend === 'auto' && !n.children.some((c) => c.use === 'legend') ? legendOf(autoLegend(n, p)) : null;
-            return ['section', { class: cls, 'data-layer': p.layer, 'data-place': p.place, 'data-press': p.press === 'any' ? 'any' : null, 'data-key': rootKey }, p.title ? ['h2', { class: 'mana-title' }, p.title] : null, ...body, bar];
+            return ['section', { class: cls, 'data-layer': p.layer, 'data-place': p.place, 'data-press': p.press === 'any' ? 'any' : null, 'data-key': rootKey }, p.title ? ['h2', { class: 'mana-title', 'data-echo': p.title }, p.title] : null, ...body, bar];
           }
-          case 'window': return ['div', { class: cls, 'data-variant': p.variant }, p.title ? ['h3', { class: 'mana-heading' }, p.title] : null, ...kids()];
+          // a window's layers, under what it holds: the plate, the thing it sits on, the crest over its edge (drawn when
+          // the theme lays a window in layers; a ghost window, words over the world, has none)
+          case 'window': return ['div', { class: cls, 'data-variant': p.variant }, p.variant === 'ghost' ? null : ['i', { class: 'mana-layers', 'aria-hidden': 'true' }, ['b', null]], p.title ? ['h3', { class: 'mana-heading' }, p.title] : null, ...kids()];
           case 'stack': return ['div', { class: cls, 'data-dir': p.dir, 'data-gap': p.gap, 'data-align': p.align, 'data-fill': p.fill ? 'yes' : null }, ...kids()];
           case 'split': return ['div', { class: cls, 'data-ratio': p.ratio }, ...n.children.map((c, i) => { const was = pane; pane = { split: key, i }; const t = draw(c, `${key}.${c.id || i}`, scope); pane = was; return t; })];
           case 'tab': case 'region': return ['div', { class: cls, 'data-at': n.use === 'region' ? p.at : null, 'data-variant': n.use === 'region' && p.variant !== 'plain' ? p.variant : null }, ...kids()];
@@ -539,7 +541,8 @@ export function buildManaUi() {
           })];
           case 'text': {
             const tone = TONES.includes(p.tone) && p.tone !== 'plain' ? p.tone : null;
-            if (p.role !== 'numeral') return ['span', { class: cls, 'data-role': p.role, 'data-tone': tone }, p.value];
+            // a display's words carry their echo (a theme's breakout draws them again, huge and hollow, behind)
+            if (p.role !== 'numeral') return ['span', { class: cls, 'data-role': p.role, 'data-tone': tone, 'data-echo': p.role === 'display' ? p.value : null }, p.value];
             const c = changeOf(key, p.value);
             return ['span', { class: cls, 'data-role': p.role, 'data-tone': tone, ...chOf(c) }, words(counting(key, p.value, c, false))];
           }

@@ -54,3 +54,12 @@
   direction after a short delay, as a held key does. A new less-flash option (separate from less motion) drops the
   cover between screens, the sheen and a change's flash. Every repeating animation runs under three times a second,
   checked by a test.
+- **A window sits on a thing that sits on a thing.** Five new theme words build game UI in depth. `material` lays a
+  surface on every plate: parchment with fibre and burnt edges, paper, a blueprint grid, a CRT's phosphor lines,
+  halftone, brushed metal, or blurred glass, all drawn in the page with nothing loaded. `backing` puts something under a
+  window: a slab offset in the accent, two slabs at an angle, a torn darker sheet, or a riveted plinth. `crest` rides an
+  ornament over a window's top edge: a Victorian cresting of scrolls, a hatched tech tab or a ribbon. `breakout` lets
+  words out of the box: a window's heading as a tab across its edge, and a title echoed huge and hollow behind itself.
+  `overlay` lays a still filter over the whole screen while the UI is up: scanlines, a CRT, a grid, a vignette or grain.
+  The presets wear them (storybook on torn parchment under a cresting, arcade on slabs with breaking-out titles, console
+  on a riveted plinth, terminal on a grid under a CRT); the greybox stays flat.

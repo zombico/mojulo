@@ -61,6 +61,8 @@ export const GREYBOX_VARS = Object.freeze({
   slant: '0deg', 'rule-w': '1px',
   // a screen giving way to the next: the cover's animation (none: the screen fades) and its timing (theme.js TRANSITIONS)
   tx: 'none', 'tx-ease': 'ease-in-out',
+  // layers: the filter over the stage (a theme's overlay), and a title's hollow echo behind it (a theme's breakout)
+  overlay: 'none', 'echo-ink': 'var(--mana-accent)',
   // how things move (theme.js MOTIONS): the greybox fades and travels nowhere
   dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0', i: '0',
   // what a change flashes and whose turn is alight: the accent unless a rule says otherwise
@@ -144,6 +146,18 @@ export function manaCss(scope = '.mana-root') {
     // nothing over the world goes bare: text with no window behind it keeps the halo; inside a window it needs none
     `${BARE(s)}{text-shadow:${v('halo')}}`,
     `${s} .mana-window:not([data-variant=ghost]),${s} .mana-place>*,${s} .mana-screen>.mana-region>:not(.mana-window),${s} .mana-anchor>*{text-shadow:none}`,
+    // A WINDOW IN LAYERS (a theme lays it so): under what it holds, the plate (::after), the thing the plate sits on
+    // (::before) and a crest over its top edge (b); none drawn by the greybox. A sub-panel has no backing or crest
+    `${s} .mana-layers{display:none;position:absolute;inset:0;z-index:-1;pointer-events:none}`,
+    `${s} .mana-layers::before,${s} .mana-layers::after{content:"";position:absolute;inset:0}`,
+    `${s} .mana-layers::after{inset:calc(-1 * ${v('frame-w')});background:${v('plate')};border:${v('frame-w')} ${v('frame-s')} ${v('line')};border-radius:${v('radius')}}`,
+    `${s} .mana-layers>b{position:absolute;display:block}`,
+    `${s} .mana-window .mana-window>.mana-layers::before,${s} .mana-window .mana-window>.mana-layers>b{display:none}`,
+    // the overlay: a filter over the whole stage while the UI is up (scanlines, a grid, a vignette, grain), over the cover
+    `${s}:is([data-hud=yes],:not([data-open=none]))::after{content:"";position:absolute;inset:0;z-index:10;pointer-events:none;background:${v('overlay')}}`,
+    // the echo: a screen's title and a display's words drawn again behind them, huge and hollow, breaking past the box
+    `${s} :is(.mana-screen>.mana-title,.mana-text[data-role=display]){position:relative}`,
+    `${s} :is(.mana-screen>.mana-title,.mana-text[data-role=display])::before{content:none;position:absolute;left:-.3em;top:50%;translate:0 -52%;z-index:-1;font-size:2.6em;line-height:1;white-space:nowrap;color:transparent;-webkit-text-stroke:2px ${v('echo-ink')};opacity:.45;pointer-events:none;text-shadow:none}`,
     // panels and layout
     `${s} .mana-window{position:relative;background:${v('plate')};border:${v('frame-w')} ${v('frame-s')} ${v('line')};border-radius:${v('radius')};padding:${u(15)} ${u(18)};min-width:${u(300)};max-width:100%;min-height:0;overflow:hidden}`,
     // a window inside a window is a sub-panel: a lighter rule and a smaller corner than the panel it sits in

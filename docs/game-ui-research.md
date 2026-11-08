@@ -18,7 +18,8 @@ Each fits within the closed theme words, the greybox defaults, the self-containe
 > title and attract screens. So have its P1 rows: the juice register and the broadcast's slant in the bridges, `slant`,
 > the `transition` cover between screens, count-up numbers with a skip, the results sequence, damage pops, two tiers of
 > toasts and the achievement toast, frame weight by level, labels in the ink, pad repeat in the controls host, the flash
-> guard and a less-flash channel. The P2 rows below are the work still ahead. The `file:line` references are the
+> guard and a less-flash channel. Beyond the report, a window is now built in layers (a material, a backing, a crest,
+> words breaking out of the box, a filter over the stage). The P2 rows below are the work still ahead. The `file:line` references are the
 > audit's, from before P0, and have moved since.
 
 ## How to read the evidence in this report

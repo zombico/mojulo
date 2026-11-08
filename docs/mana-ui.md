@@ -171,7 +171,7 @@ A theme is closed words and colours, read and checked like a node, and written a
 still carries no look; the theme is context, set once for a game.
 
 ```js
-theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, distance?, halo?, cues?, slant?, transition?, ornaments? }
+theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, distance?, halo?, cues?, slant?, transition?, material?, backing?, crest?, breakout?, overlay?, ornaments? }
 ```
 
 - **Tokens** are colours: `ink`, `panel`, `line` and `accent` are the ones a theme needs. The rest (mid, soft, paper,
@@ -185,8 +185,26 @@ theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, fo
   screens, below), and `ornaments` drawn on the windows that have a plate (brackets, ticks, scanlines, dotgrid,
   stitch, hazard, glow). `THEME_WORDS` lists each set. A frame's weight reaches the inner parts too (a heavy frame's
   cells, keys and tracks are heavier), and a window inside a window is a sub-panel, lighter and less rounded.
-- **Presets:** the greybox, and `modern` (clean glass: a cool translucent plate, a light lean, a highlight bar),
-  `console`, `terminal`, `storybook` and `arcade`.
+- **Layers: a game's UI sits on a thing that sits on a thing.** Five words (`LAYER_WORDS`) build a window up in depth:
+  - `material` (parchment, paper, grid, crt, halftone, metal, glass): the plate's surface, wherever a plate is (a
+    window, a toast, a HUD part). Fibre and mottling are SVG noise drawn in the page from a fixed seed, so the same
+    theme draws the same page; glass blurs the scene behind it.
+  - `backing` (offset, stack, torn, plinth): what a window sits on. A slab offset in the accent; two slabs at an angle,
+    the accent on the shade; a torn darker sheet; a riveted plinth.
+  - `crest` (victorian, tech, ribbon): an ornament riding over a window's top edge; the window keeps room above it.
+  - `breakout` (tab, echo, full): words breaking out of the box. A window's heading becomes a tab across its edge; a
+    screen's title and a display's words are drawn again behind themselves, huge and hollow.
+  - `overlay` (scanlines, crt, grid, vignette, grain): a filter over the whole stage while the UI is up, still (it never
+    flickers).
+
+  Each window draws its layers under what it holds (`.mana-layers`: the plate, the backing, the crest; a ghost window has
+  none). A theme with a backing or a crest moves the plate into them. A window sized by what it holds lets them past its
+  box; one filling a pane keeps its clip, its layers past it only where the browser takes a clip margin (not Safari's).
+  A sub-panel has no backing or crest of its own. Parchment's words are measured on the sheet it lays.
+- **Presets:** the greybox (no layers), and `modern` (clean glass: a cool translucent plate, a light lean, a highlight
+  bar), `console` (brushed metal on a riveted plinth, a heading tab), `terminal` (a grid plate, a tech tab, a CRT over
+  the stage), `storybook` (parchment on a torn sheet, a Victorian cresting, a vignette) and `arcade` (halftone on two
+  slabs at an angle, headings and titles breaking out, scanlines).
 - **Presets** (`THEMES`): the greybox (the default) and a few starting looks. `{ from: '<preset>', … }` changes one.
 - **Measured, never refused:** `themeAdvice` gives the WCAG contrast of text, labels, the focus, a window's edge and
   harm against a window. Solid fills are advised to keep their labels (they tell bar kinds apart by colour alone).

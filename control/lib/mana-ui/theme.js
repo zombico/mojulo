@@ -39,6 +39,18 @@
  *     transition none | wipe | slam | iris | shutter | stepped         how one screen gives way to the next: a cover drawn
  *                                                                    over the stage as a screen opens or leaves (none: the
  *                                                                    screen fades; less motion, less flash: none)
+ *   LAYERS: a game's UI sits on a thing that sits on a thing (LAYER_WORDS):
+ *     material  none | parchment | paper | grid | crt | halftone | metal | glass   the plate's surface, wherever a plate
+ *                                                                    is (a window, a toast, a HUD part): fibre and burnt
+ *                                                                    edges, blueprint lines, phosphor, a brushed sheen, glass
+ *     backing   none | offset | stack | torn | plinth                  what a window sits on: a slab offset in the accent, two
+ *                                                                    slabs at an angle, a torn sheet, a riveted plinth
+ *     crest     none | victorian | tech | ribbon                       an ornament riding over a window's top edge: a
+ *                                                                    cresting of scrolls, a hatched tab, a ribbon
+ *     breakout  none | tab | echo | full                               words breaking out of the box: a window's heading a
+ *                                                                    tab across its edge; a title echoed huge and hollow
+ *                                                                    behind itself; both
+ *     overlay   none | scanlines | crt | grid | vignette | grain       a filter over the whole stage while the UI is up
  *     cues      silent | ticks | full                                  the UI's sounds as effects ({ sound: <cue> }): none,
  *                                                                    the cursor's (move, accept, back), or every state
  *                                                                    change; read by the page, played by the host
@@ -77,11 +89,17 @@ export const THEME_WORDS = Object.freeze({
   cues: ['silent', 'ticks', 'full'],
   slant: ['none', 'light', 'hard'],
   transition: ['none', 'wipe', 'slam', 'iris', 'shutter', 'stepped'],
+  material: ['none', 'parchment', 'paper', 'grid', 'crt', 'halftone', 'metal', 'glass'],
+  backing: ['none', 'offset', 'stack', 'torn', 'plinth'],
+  crest: ['none', 'victorian', 'tech', 'ribbon'],
+  breakout: ['none', 'tab', 'echo', 'full'],
+  overlay: ['none', 'scanlines', 'crt', 'grid', 'vignette', 'grain'],
   ornaments: ['brackets', 'ticks', 'scanlines', 'dotgrid', 'stitch', 'hazard', 'glow'],
 });
 const NEEDED = ['ink', 'panel', 'line', 'accent'];
 const TOKENS = [...NEEDED, 'mid', 'soft', 'paper', 'wash', 'accent2', 'harm', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'];
-const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'ornaments', 'sides'];
+const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'material', 'backing', 'crest', 'breakout', 'overlay', 'ornaments', 'sides'];
+export const LAYER_WORDS = Object.freeze(['material', 'backing', 'crest', 'breakout', 'overlay']);
 // how far the player sits: the unit (1px at a 1080p reference, or a phone's CSS px), the distance's factor over the desk,
 // and the floor no text goes under in CSS px. XAG 101's body minimum at 1080p is 26 px on a console and 18 px on a PC
 // (to verify against the primary page before a test pins it): the couch is the desk's ×26/18
@@ -114,14 +132,14 @@ export const HALOS = Object.freeze({
 const OKABE_ITO = ['#e69f00', '#56b4e9', '#009e73', '#f0e442', '#0072b2', '#d55e00', '#cc79a7', '#999999'];
 
 export const THEMES = Object.freeze({
-  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'marker', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', distance: 'desk', halo: 'outline', cues: 'silent', slant: 'none', transition: 'none', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'] },
+  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'marker', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', distance: 'desk', halo: 'outline', cues: 'silent', slant: 'none', transition: 'none', material: 'none', backing: 'none', crest: 'none', breakout: 'none', overlay: 'none', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'] },
   // clean glass: a cool translucent plate under a bright edge, soft corners, a light lean, a highlight bar (FFXIV's clear
   // blue, a modern console's system menus), not a dashboard's dark card
-  modern: { name: 'Modern', tokens: { ink: '#f2f6ff', panel: '#16305a', line: '#9cc4ff', accent: '#7cc8ff', accent2: '#ffd27a', harm: '#ff6a5c' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'soft', plate: 'gradient', focus: 'bar', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'glow', cues: 'ticks', slant: 'light', transition: 'wipe', ornaments: ['glow'] },
-  console: { name: 'Console RPG', tokens: { ink: '#ffffff', panel: '#1b2a7c', line: '#eef1ff', accent: '#ffe07a', accent2: '#8fb0ff', harm: '#ff6b6b' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'double', corner: 'soft', plate: 'gradient', focus: 'marker', motion: 'snap', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'shadow', cues: 'full', slant: 'none', transition: 'wipe', ornaments: [] },
-  terminal: { name: 'Terminal', tokens: { ink: '#c8f5d0', panel: '#06140c', line: '#3c8a52', accent: '#7dff9a', accent2: '#e8d36a', harm: '#ff7a5a' }, type: { body: 'mono', display: 'mono', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'bracket', motion: 'snap', fills: 'pattern', scale: 'normal', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'none', transition: 'shutter', ornaments: ['brackets', 'scanlines'] },
-  storybook: { name: 'Storybook', tokens: { ink: '#3a2a20', panel: '#fff4e2', line: '#b98a5a', accent: '#a8471f', accent2: '#5f7f2e', harm: '#b3261e', hp: '#5f7f2e', mp: '#2f5d8a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'soft', plate: 'textured', focus: 'lift', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'plate', cues: 'ticks', slant: 'none', transition: 'iris', ornaments: ['stitch'] },
-  arcade: { name: 'Arcade', tokens: { ink: '#ffffff', panel: '#0b0b10', line: '#ffffff', accent: '#ff2e88', accent2: '#00e5ff', harm: '#ff3b30', xp: '#ffe600' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'glow', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'shadow', cues: 'full', slant: 'hard', transition: 'slam', ornaments: ['hazard'] },
+  modern: { name: 'Modern', tokens: { ink: '#f2f6ff', panel: '#16305a', line: '#9cc4ff', accent: '#7cc8ff', accent2: '#ffd27a', harm: '#ff6a5c' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'soft', plate: 'gradient', focus: 'bar', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'glow', cues: 'ticks', slant: 'light', transition: 'wipe', material: 'glass', backing: 'none', crest: 'none', breakout: 'none', overlay: 'none', ornaments: ['glow'] },
+  console: { name: 'Console RPG', tokens: { ink: '#ffffff', panel: '#1b2a7c', line: '#eef1ff', accent: '#ffe07a', accent2: '#8fb0ff', harm: '#ff6b6b' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'double', corner: 'soft', plate: 'gradient', focus: 'marker', motion: 'snap', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'shadow', cues: 'full', slant: 'none', transition: 'wipe', material: 'metal', backing: 'plinth', crest: 'none', breakout: 'tab', overlay: 'none', ornaments: [] },
+  terminal: { name: 'Terminal', tokens: { ink: '#c8f5d0', panel: '#06140c', line: '#3c8a52', accent: '#7dff9a', accent2: '#e8d36a', harm: '#ff7a5a' }, type: { body: 'mono', display: 'mono', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'bracket', motion: 'snap', fills: 'pattern', scale: 'normal', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'none', transition: 'shutter', material: 'grid', backing: 'none', crest: 'tech', breakout: 'none', overlay: 'crt', ornaments: ['brackets', 'scanlines'] },
+  storybook: { name: 'Storybook', tokens: { ink: '#3a2a20', panel: '#fff4e2', line: '#b98a5a', accent: '#a8471f', accent2: '#5f7f2e', harm: '#b3261e', hp: '#5f7f2e', mp: '#2f5d8a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'soft', plate: 'textured', focus: 'lift', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'plate', cues: 'ticks', slant: 'none', transition: 'iris', material: 'parchment', backing: 'torn', crest: 'victorian', breakout: 'none', overlay: 'vignette', ornaments: ['stitch'] },
+  arcade: { name: 'Arcade', tokens: { ink: '#ffffff', panel: '#0b0b10', line: '#ffffff', accent: '#ff2e88', accent2: '#00e5ff', harm: '#ff3b30', xp: '#ffe600' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'glow', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'shadow', cues: 'full', slant: 'hard', transition: 'slam', material: 'halftone', backing: 'stack', crest: 'none', breakout: 'full', overlay: 'scanlines', ornaments: ['hazard'] },
 });
 export const THEME_IDS = Object.keys(THEMES);
 
@@ -227,15 +245,88 @@ const SCALE = { compact: '0.9', normal: '1', large: '1.12' };
 const corners = (c, len, w) => ['top left', 'top right', 'bottom left', 'bottom right'].flatMap((at) => [`linear-gradient(${c},${c}) ${at}/${len}px ${w}px no-repeat`, `linear-gradient(${c},${c}) ${at}/${w}px ${len}px no-repeat`]).join(',');
 const stack = (k) => FACE_STACKS[k] || `'${k}',system-ui,sans-serif`;
 
+// ── layers ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+// an image drawn in the page: an SVG as a data: URL (nothing loaded from anywhere)
+const svg = (body, w, h) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>${body}</svg>`)}")`;
+// noise of a colour: fibre (a high frequency), mottling (a low one); its seed fixed, so the same theme draws the same page
+const noise = (freq, octaves, c, a, size, seed) => { const [r, g, b] = rgb(c).map((n) => (n / 255).toFixed(3)); return `${svg(`<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='${octaves}' seed='${seed}' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${r} 0 0 0 0 ${g} 0 0 0 0 ${b} ${a} 0 0 0 0'/></filter><rect width='100%' height='100%' filter='url(#n)'/>`, size, size)} 0 0/${size}px ${size}px`; };
+const du = (n) => `calc(${n} * var(--mana-du))`;
+const light = (c) => lum(c) > 0.4;
+// a plate's surface: the layers laid over its base, and the base itself where the material has its own
+function materialOf(T, k, base) {
+  const m = T.material;
+  if (m === 'none') return base;
+  if (m === 'parchment') {
+    const burn = light(k.panel) ? '#5a3816' : '#000000', sheet = mix(k.panel, light(k.panel) ? '#ecd9ac' : '#4a341b', 0.45);
+    return [noise(0.85, 3, burn, 0.32, 180, 7), noise(0.022, 2, burn, 0.26, 420, 3), `radial-gradient(ellipse at 50% 45%,transparent 55%,${alpha(burn, 0.34)} 100%)`, sheet].join(',');
+  }
+  if (m === 'paper') return [noise(0.9, 2, light(k.panel) ? '#000000' : '#ffffff', 0.12, 160, 11), base].join(',');
+  if (m === 'grid') return [`linear-gradient(${alpha(k.line, 0.28)} 1px,transparent 1px) 0 0/${du(120)} ${du(120)}`, `linear-gradient(90deg,${alpha(k.line, 0.28)} 1px,transparent 1px) 0 0/${du(120)} ${du(120)}`, `linear-gradient(${alpha(k.line, 0.12)} 1px,transparent 1px) 0 0/${du(24)} ${du(24)}`, `linear-gradient(90deg,${alpha(k.line, 0.12)} 1px,transparent 1px) 0 0/${du(24)} ${du(24)}`, base].join(',');
+  if (m === 'crt') return [`repeating-linear-gradient(0deg,${alpha('#000000', 0.2)} 0 1px,transparent 1px 3px)`, `radial-gradient(ellipse at 50% 40%,${alpha(k.accent, 0.12)},transparent 70%)`, `radial-gradient(ellipse at center,transparent 60%,${alpha('#000000', 0.35)} 100%)`, base].join(',');
+  if (m === 'halftone') return [`radial-gradient(${alpha(k.ink, 0.11)} 28%,transparent 31%) 0 0/7px 7px`, `linear-gradient(160deg,transparent 40%,${alpha(k.accent, 0.12)})`, base].join(',');
+  if (m === 'metal') return [`linear-gradient(180deg,${alpha('#ffffff', 0.16)},transparent 22%,transparent 78%,${alpha('#000000', 0.22)})`, `repeating-linear-gradient(90deg,${alpha('#ffffff', 0.035)} 0 1px,${alpha('#000000', 0.035)} 1px 3px)`, base].join(',');
+  // glass: a sheen over a thin plate, the scene behind blurred (a rule of its own)
+  return [`linear-gradient(170deg,${alpha('#ffffff', 0.2)},transparent 38%)`, alpha(k.panel, 0.58)].join(',');
+}
+// a torn sheet's edge: a fixed jag (no dice), the same on every page
+const JAG = [0, 1.6, 0.5, 2.3, 1.1, 0.2, 1.9, 0.8, 2.6, 0.4, 1.4, 2.1, 0.7, 1.8, 0.3, 2.4, 1.2, 0.6, 2, 0.9];
+const torn = () => {
+  const n = 20, edge = (i) => JAG[i % JAG.length];
+  const pts = [
+    ...Array.from({ length: n + 1 }, (_, i) => `${(i * 100) / n}% ${edge(i)}%`),
+    ...Array.from({ length: n + 1 }, (_, i) => `${100 - edge(i + 3)}% ${(i * 100) / n}%`),
+    ...Array.from({ length: n + 1 }, (_, i) => `${100 - (i * 100) / n}% ${100 - edge(i + 7)}%`),
+    ...Array.from({ length: n + 1 }, (_, i) => `${edge(i + 11)}% ${100 - (i * 100) / n}%`),
+  ];
+  return `polygon(${pts.join(',')})`;
+};
+function backingOf(T, k) {
+  const b = T.backing;
+  if (b === 'offset') return `background:${k.accent};translate:${du(10)} ${du(10)};border-radius:var(--mana-radius)`;
+  // two slabs at an angle: the accent, and the shade behind it (Persona's panels on panels)
+  if (b === 'stack') return `inset:${du(-6)} ${du(-12)};background:${k.accent};rotate:-2.2deg;box-shadow:${du(16)} ${du(14)} 0 #000000`;
+  if (b === 'torn') return `inset:${du(-14)};background:${noise(0.8, 3, '#000000', 0.25, 160, 5)},${mix(k.panel, k.ink, 0.3)};clip-path:${torn()};rotate:.6deg`;
+  if (b === 'plinth') {
+    const rivet = (at) => `radial-gradient(circle at ${at},${mix(k.line, '#ffffff', 0.3)} 0 ${du(3)},${alpha('#000000', 0.5)} ${du(3.5)},transparent ${du(4.5)})`;
+    return `inset:${du(-10)};border:1px solid ${k.line};border-radius:calc(var(--mana-radius) + 4px);background:${['10px 10px', 'calc(100% - 10px) 10px', '10px calc(100% - 10px)', 'calc(100% - 10px) calc(100% - 10px)'].map(rivet).join(',')},linear-gradient(180deg,${mix(k.panel, '#000000', 0.3)},${mix(k.panel, '#000000', 0.6)})`;
+  }
+  return null;
+}
+function crestOf(T, k) {
+  const c = T.crest;
+  if (c === 'victorian') {
+    // a cresting of scrolls, mirrored about a leaf: the line's colour, the leaf the accent's
+    const half = `<g id='h' fill='none' stroke='${k.line}' stroke-width='2' stroke-linecap='round'><path d='M116 40C98 40 86 30 70 30C56 30 50 38 40 38C30 38 26 30 32 25C38 20 46 26 42 31'/><path d='M70 30C74 20 88 14 100 18C108 21 106 30 99 29C94 28 95 22 100 23'/><path d='M40 38C28 44 14 44 4 40'/><circle cx='56' cy='22' r='2.2' fill='${k.line}' stroke='none'/></g>`;
+    const art = svg(`${half}<use href='#h' transform='matrix(-1 0 0 1 240 0)'/><path d='M120 4C128 15 128 26 120 36C112 26 112 15 120 4Z' fill='${k.accent}'/><circle cx='120' cy='42' r='3' fill='${k.accent}'/>`, 240, 48);
+    return `left:50%;top:${du(-40)};width:${du(260)};height:${du(52)};translate:-50% 0;background:${art} center/contain no-repeat`;
+  }
+  if (c === 'tech') return `left:${du(22)};top:${du(-13)};width:${du(160)};height:${du(13)};background:repeating-linear-gradient(-45deg,${k.accent} 0 4px,transparent 4px 8px),${alpha(k.line, 0.35)};clip-path:polygon(0 100%,8% 0,92% 0,100% 100%)`;
+  if (c === 'ribbon') {
+    const fold = mix(k.accent, '#000000', 0.4), art = svg(`<polygon points='0,12 34,12 26,24 34,36 0,36' fill='${fold}'/><polygon points='280,12 246,12 254,24 246,36 280,36' fill='${fold}'/><polygon points='24,30 34,36 34,30' fill='${mix(fold, '#000000', 0.4)}'/><polygon points='256,30 246,36 246,30' fill='${mix(fold, '#000000', 0.4)}'/><rect x='24' y='4' width='232' height='26' fill='${k.accent}'/>`, 280, 40);
+    return `left:50%;top:${du(-26)};width:${du(300)};height:${du(43)};translate:-50% 0;background:${art} center/contain no-repeat`;
+  }
+  return null;
+}
+const OVERLAYS = (k) => ({
+  none: 'none',
+  scanlines: `repeating-linear-gradient(0deg,${alpha('#000000', 0.14)} 0 1px,transparent 1px 3px)`,
+  crt: [`repeating-linear-gradient(0deg,${alpha('#000000', 0.16)} 0 1px,transparent 1px 3px)`, `repeating-linear-gradient(90deg,${alpha('#ff0000', 0.035)} 0 1px,${alpha('#00ff00', 0.035)} 1px 2px,${alpha('#0000ff', 0.035)} 2px 3px)`, `radial-gradient(ellipse at center,transparent 58%,${alpha('#000000', 0.5)} 100%)`].join(','),
+  grid: [`linear-gradient(${alpha(k.line, 0.1)} 1px,transparent 1px) 0 0/${du(60)} ${du(60)}`, `linear-gradient(90deg,${alpha(k.line, 0.1)} 1px,transparent 1px) 0 0/${du(60)} ${du(60)}`].join(','),
+  vignette: `radial-gradient(ellipse at center,transparent 55%,${alpha('#000000', 0.45)} 100%)`,
+  grain: noise(0.95, 2, '#808080', 0.16, 220, 13),
+});
+
 /** The theme as CSS, laid after the sheet under the same scope. */
 export function themeCss(theme, scope = '.mana-root') {
   const T = readTheme(theme), s = scope, k = T.tokens, win = `${s} .mana-window:not([data-variant=ghost]),${s} .mana-place>.mana-region:not(:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad)))`;
   const plate = { clear: 'transparent', flat: alpha(k.panel, 0.86), solid: k.panel, gradient: `linear-gradient(180deg,${mix(k.panel, '#ffffff', 0.1)} 0%,${k.panel} 55%,${mix(k.panel, '#000000', 0.25)} 100%)`, textured: `repeating-linear-gradient(0deg,${k.panel} 0 2px,${mix(k.panel, k.ink, 0.05)} 2px 3px)` }[T.plate];
+  const plateOf = materialOf(T, k, plate);
   const vars = { ...Object.fromEntries(Object.entries(k)), plain: k.accent, scrim: alpha(k.panel, 0.66), 'focus-ink': T.focus === 'fill' ? k.panel : k.ink,
     ...Object.fromEntries(T.sides.map((c, i) => [`side-${i}`, c])),
     font: stack(T.type.body), display: stack(T.type.display), mono: stack(T.type.mono), scale: SCALE[T.scale], case: T.case === 'upper' ? 'uppercase' : 'none',
-    radius: RADII[T.corner], 'frame-w': FRAMES[T.frame][0], 'frame-s': FRAMES[T.frame][1], plate, motion: MOTION[T.motion], ...MOTIONS[T.motion],
+    radius: RADII[T.corner], 'frame-w': FRAMES[T.frame][0], 'frame-s': FRAMES[T.frame][1], plate: plateOf, motion: MOTION[T.motion], ...MOTIONS[T.motion],
     ...DISTANCES[T.distance], halo: HALOS[T.halo], slant: SLANTS[T.slant], ...TRANSITIONS[T.transition], 'rule-w': RULES[T.frame],
+    overlay: OVERLAYS(k)[T.overlay],
     // the ▶ is the sheet's own focus; any other focus word takes it (and the room it keeps at an item's left) away
     cursor: T.focus === 'marker' ? '"\\25B6"' : 'none', mark: T.focus === 'marker' ? '1' : '0',
     // a side whose kit would sink into the panel is keylined in the ink
@@ -248,7 +339,30 @@ export function themeCss(theme, scope = '.mana-root') {
     `${s} .mana-node[data-state=learned][data-st=focus]::before{color:${k.panel}}`,
     `${s} .mana-awareness[data-state=suspicious] b,${s} .mana-awareness[data-state=searching] b{border-color:${k.accent2};color:${k.accent2}}`,
   ];
-  if (T.corner === 'cut') out.push(`${win},${s} .mana-button{clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}`);
+  // A WINDOW IN LAYERS: the plate moves into the window's layers, so a backing can sit under it and a crest over its
+  // edge, and what the window holds may reach past its box (a breakout tab, a crest) by as much as the clip allows
+  const framed = `${s} .mana-window:not([data-variant=ghost])`, back = backingOf(T, k), crest = crestOf(T, k), tab = T.breakout === 'tab' || T.breakout === 'full';
+  const layered = !!(back || crest);
+  const CUT = 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)';
+  if (layered) {
+    out.push(`${framed}{background:transparent;border-color:transparent;isolation:isolate}`, `${framed}>.mana-layers{display:block}`);
+    if (back) out.push(`${framed}>.mana-layers::before{${back}}`);
+    // a crest rides over the edge: the window keeps room above it, so what sits over the window does not cover it
+    if (crest) out.push(`${framed}>.mana-layers>b{${crest}}`, `${s} .mana-window:not([data-variant=ghost]):not(.mana-window *){margin-top:${du(T.crest === 'tech' ? 14 : 34)}}`);
+  }
+  // a window that takes the size of what it holds lets its layers and its tab past its box; one filling a pane keeps its
+  // clip, its layers past it only where the browser takes a clip margin (overflow-clip-margin takes no calc())
+  if (layered || tab) out.push(`${framed}{overflow:visible}`, `${s} :is(.mana-screen[data-place=full],.mana-split,.mana-each) .mana-window:not([data-variant=ghost]){overflow:clip;overflow-clip-margin:72px}`);
+  if (T.corner === 'cut') out.push(layered ? `${framed}>.mana-layers::after,${s} .mana-place>.mana-region:not(:has(>:is(.mana-reticle,.mana-banner,.mana-touchpad))),${s} .mana-button{clip-path:${CUT}}` : `${win},${s} .mana-button{clip-path:${CUT}}`);
+  // a window's heading as a tab across its top edge, leaning with the theme, on the accent (a sub-panel's stays put)
+  if (tab) out.push(`${framed}>.mana-heading{position:absolute;top:0;left:${du(-12)};z-index:2;margin:0;padding:${du(5)} ${du(20)};translate:0 -55%;transform:skewX(var(--mana-slant));background:${k.accent};color:${k.panel};text-shadow:none;box-shadow:${du(5)} ${du(5)} 0 ${alpha('#000000', 0.45)}}`,
+    `${framed}:has(>.mana-heading){padding-top:${du(34)}}`,
+    `${s} .mana-window .mana-window>.mana-heading{position:static;translate:none;transform:none;padding:0;background:none;color:inherit;box-shadow:none}`);
+  // the echo: the words again, behind themselves (attr() read on the element itself, never through a variable, which
+  // would read it on the root)
+  if (T.breakout === 'echo' || T.breakout === 'full') out.push(`${s} :is(.mana-screen>.mana-title,.mana-text[data-role=display])::before{content:attr(data-echo)}`);
+  // glass: the scene behind a plate blurred
+  if (T.material === 'glass') out.push(`${framed},${s} .mana-place>.mana-region,${s} .mana-toast{backdrop-filter:blur(10px) saturate(1.4);-webkit-backdrop-filter:blur(10px) saturate(1.4)}`);
   if (T.focus === 'ring') out.push(`${s} [data-st=focus]{outline:2px solid ${k.accent};outline-offset:-2px}`);
   // a highlight bar: a solid block at the leading edge, the accent fading off behind the words, moved on the frame
   if (T.focus === 'bar') out.push(`${s} [data-st=focus]{outline:none;border-color:transparent;color:${k.ink};background:linear-gradient(90deg,${k.accent} 0 calc(7 * var(--mana-du)),${alpha(k.accent, 0.42)} calc(7 * var(--mana-du)),${alpha(k.accent, 0.12)} 78%,transparent)}`);
@@ -259,7 +373,6 @@ export function themeCss(theme, scope = '.mana-root') {
   if (T.fills === 'solid') out.push(...['mp', 'xp', 'stamina', 'shield'].map((x) => `${s} .mana-bar[data-variant=${x}] .mana-track i{background:${k[x]}}`));
   // ornaments: brackets before, the rest layered after
   // ornaments dress a window that has a plate; a ghost window (words over the world) wears none
-  const framed = `${s} .mana-window:not([data-variant=ghost])`;
   if (T.ornaments.includes('brackets')) out.push(`${framed}::before{content:"";position:absolute;inset:3px;pointer-events:none;background:${corners(k.accent, 12, 2)}}`);
   const after = [];
   if (T.ornaments.includes('ticks')) after.push(corners(k.line, 4, 4));
@@ -271,7 +384,7 @@ export function themeCss(theme, scope = '.mana-root') {
   // a slam is two bands, the accent before the shade, cut on the diagonal
   if (T.transition === 'slam') out.push(`${s} .mana-transition{background:linear-gradient(105deg,transparent 0 18%,${k.accent} 18% 46%,#000000 46% 82%,transparent 82%)}`);
   // a plate behind text that has no window: the ghost windows and a screen's own title sit on the panel, the halo off
-  if (T.halo === 'plate') out.push(`${s} .mana-window[data-variant=ghost]{background:${alpha(k.panel, 0.82)};padding:calc(9 * var(--mana-du)) calc(15 * var(--mana-du))}`, `${s} .mana-screen>.mana-title{align-self:flex-start;background:${alpha(k.panel, 0.82)};padding:0 calc(15 * var(--mana-du))}`);
+  if (T.halo === 'plate') out.push(`${s} .mana-window[data-variant=ghost]{background:${alpha(k.panel, 0.82)};padding:calc(9 * var(--mana-du)) calc(15 * var(--mana-du))}`, `${s} .mana-screen>.mana-title{width:fit-content;background:${alpha(k.panel, 0.82)};padding:0 calc(15 * var(--mana-du))}`);
   if (T.ornaments.includes('glow')) out.push(`${win}{box-shadow:0 0 0 1px ${alpha(k.accent, 0.5)},0 0 18px ${alpha(k.accent, 0.35)}}`);
   return out.join('\n');
 }
@@ -287,6 +400,9 @@ export function themeAdvice(theme) {
   if (T.frame !== 'none') need('frame-shows', k.line, k.panel, 1.5, 'tokens.line / panel', 'a window\'s edge');
   need('harm-shows', k.harm, k.panel, 3, 'tokens.harm / panel', 'a low bar and an alerted enemy');
   T.sides.slice(0, 2).forEach((c, i) => need('side-shows', c, k.panel, 1.5, `sides[${i}] / panel`, `side ${i + 1}'s chip against a window`));
+  // a material that changes the sheet: its words are measured on the sheet it lays, not the panel it names
+  if (T.material === 'parchment') need('ink-reads', k.ink, mix(k.panel, light(k.panel) ? '#ecd9ac' : '#4a341b', 0.45), 4.5, 'material: parchment / ink', 'text on the parchment');
+  if (T.material === 'glass' && T.halo === 'none') out.push({ law: 'glass-reads', at: 'material / halo', advice: 'glass shows the scene behind its words: a bright scene washes them out; keep a halo' });
   if (T.fills === 'solid') out.push({ law: 'values-apart', at: 'fills', advice: 'solid fills tell hp, mp, xp and stamina apart by colour alone; keep their labels, or fills: pattern' });
   return out;
 }
