@@ -8,11 +8,13 @@
  * request leaves it.
  *
  *   BOARD_HUDS            the HUD frames: name → the HUD idioms it layers
- *   manaUiBoard({ state?, title?, theme?, themes?, host?, glyphs? })  → the page (themes: name → theme, the presets
+ *   manaUiBoard({ state?, title?, theme?, themes?, host?, glyphs?, audio? })  → the page (themes: name → theme, the presets
  *                         by default; host: the controls layer's input owner, { source, controls: { keys, pad,
  *                         padLayoutSource } } from controls/mana-controls.js (manaHostSource, manaControls): then the live
  *                         frame is driven through the control schemes, pads too; glyphs: what its legends print. With
- *                         no host the board drives its frames with PREVIEW_KEYS, a stand-in of its own, never mana-ui's)
+ *                         no host the board drives its frames with PREVIEW_KEYS, a stand-in of its own, never mana-ui's;
+ *                         audio: { source, sets, of } (beats/ui-sounds.js uiSoundAudio): the live frame is heard in the
+ *                         set the look names, and the set follows the look as it is switched)
  *   PREVIEW_KEYS          the stand-in: arrows / WASD, Enter, Escape, [ ] (the menu scheme's defaults, for a preview)
  */
 import { manaUiSource, manaUi } from './kernel.js';
@@ -43,6 +45,14 @@ export const BOARD_HUDS = Object.freeze({
 const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play' };
 // a preview's stand-in for the controls layer: the menu scheme's default keys, used only when no host is given
 export const PREVIEW_KEYS = Object.freeze({ ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Enter: 'accept', Space: 'accept', Escape: 'back', Backspace: 'back', BracketRight: 'tabNext', BracketLeft: 'tabPrev' });
+// the page's ear: a sound effect played from the theme's set through the beats kernel, its engine made on the first sound
+// (a key or a tap has been pressed by then, so the browser lets it start)
+export const AUDIO_SCRIPT = `const hear = (SOUNDS, e) => {
+  if (!SOUNDS || typeof e.sound !== 'string') return;
+  const cues = SOUNDS.sets[SOUNDS.set] || SOUNDS.sets[Object.keys(SOUNDS.sets)[0]], g = cues && (cues[SOUNDS.of(e)] || cues[e.sound]);
+  if (!g) return;
+  try { if (!SOUNDS.engine) { const C = window.AudioContext || window.webkitAudioContext; SOUNDS.ctx = new C(); SOUNDS.engine = SOUNDS.K.createEngine(SOUNDS.ctx); } if (SOUNDS.ctx.state === 'suspended') SOUNDS.ctx.resume(); SOUNDS.engine.playCue(g); } catch (err) { /* no audio here: the UI goes on silent */ }
+};`;
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const use = (id) => ({ use: id, props: IDIOMS[id].example });
@@ -64,9 +74,9 @@ export function boardFrames() {
 }
 
 /** The board page. */
-export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · board', theme = 'greybox', themes = THEMES, host = null, glyphs = null } = {}) {
+export function manaUiBoard({ state = SAMPLE_STATE, title = 'mana-ui · board', theme = 'greybox', themes = THEMES, host = null, glyphs = null, audio = null } = {}) {
   const frames = boardFrames(), groups = [...new Set(frames.map((f) => f.group))], scope = '.mana-stage .mana-root';
-  const looks = Object.entries(themes).map(([id, t]) => ({ id, name: readTheme(t).name, css: themeCss(t, scope), advice: themeAdvice(t).map((a) => `${a.law}: ${a.advice}`) }));
+  const looks = Object.entries(themes).map(([id, t]) => ({ id, name: readTheme(t).name, sounds: readTheme(t).sounds, css: themeCss(t, scope), advice: themeAdvice(t).map((a) => `${a.law}: ${a.advice}`) }));
   if (!looks.some((l) => l.id === theme)) throw new Error(`board theme '${theme}' is one of: ${looks.map((l) => l.id).join(', ')}`);
   const body = groups.map((g) => `<h2 class="sec">${esc(g)}</h2><div class="grid">${frames.map((f, i) => (f.group !== g ? '' : `<figure><div class="mana-frame"${f.device ? ` data-device="${f.device}"` : ''}><div class="mana-stage"${f.device ? ` data-device="${f.device}"` : ''} id="f${i}"></div></div><figcaption><b>${esc(f.name)}</b> ${esc(f.about)}<br><span>reads</span> ${esc(f.reads)}<br><span>emits</span> ${esc(f.emits)}<pre id="log${i}"></pre></figcaption></figure>`)).join('')}</div>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -88,7 +98,9 @@ const DEFS = ${json(frames[0].spec.defs)};
 const FRAMES = ${json(frames.map((f) => ({ spec: { ...f.spec, defs: undefined }, hud: !!f.hud, input: f.input || null })))};
 const STATE = ${json(state)};
 const LOOKS = ${json(looks)};
-const look = (id) => { const L = LOOKS.find((x) => x.id === id) || LOOKS[0]; document.getElementById('mana-theme').textContent = L.css; document.getElementById('advice').textContent = L.advice.join('\\n'); };
+${audio ? AUDIO_SCRIPT : ''}
+const SOUNDS = window.__manaSounds = ${audio ? `{ K: (${audio.source})(), sets: ${json(audio.sets)}, of: (${audio.of}), set: null }` : 'null'};
+const look = (id) => { const L = LOOKS.find((x) => x.id === id) || LOOKS[0]; document.getElementById('mana-theme').textContent = L.css; document.getElementById('advice').textContent = L.advice.join('\\n'); if (SOUNDS) SOUNDS.set = L.sounds; };
 document.getElementById('look').addEventListener('change', (ev) => look(ev.target.value));
 look(${json(theme)});
 // the page's input owner: the controls layer's host when given, else the preview's stand-in keys
@@ -107,6 +119,7 @@ FRAMES.forEach((F, i) => {
     now: () => performance.now() / 1000, countUp: 0.8,
     act: (e, from) => {
       if (typeof e.set === 'string') { const k = e.set.split('.'), last = k.pop(); let o = S; for (const x of k) o = o[x] = o[x] || {}; o[last] = e.to; }
+      if (typeof e.sound === 'string' && SOUNDS && live === i) hear(SOUNDS, e);
       log.push((from.seat ? 'P' + (from.seat + 1) + ' ' : '') + (typeof e.sound === 'string' ? '\u266a ' + e.sound : JSON.stringify(e))); out.textContent = log.slice(-3).join('\\n');
     },
   };

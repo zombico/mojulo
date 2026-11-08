@@ -46,13 +46,15 @@ export const GREYBOX_VARS = Object.freeze({
   'side-0': '#111111', 'side-1': '#8a8a8a', 'side-2': '#4a4a4a', 'side-3': '#b5b5b5', 'side-4': '#2a2a2a', 'side-5': '#6b6b6b', 'side-6': '#9e9e9e', 'side-7': '#3c3c3c', accent: '#111111', accent2: '#111111', 'focus-ink': '#111111',
   hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111', plain: '#111111', harm: '#111111',
   font: 'system-ui,-apple-system,"Segoe UI",sans-serif', display: 'system-ui,-apple-system,"Segoe UI",sans-serif', mono: 'ui-monospace,Menlo,Consolas,monospace',
-  scale: '1', case: 'uppercase', radius: '0px', 'frame-w': '1px', 'frame-s': 'solid', plate: '#fafafa', motion: 'none',
+  scale: '1', case: 'uppercase', radius: '0px', 'frame-w': '1px', 'frame-s': 'solid', plate: '#fafafa', motion: 'background-color 0s',
   // THE FRAME: a length is in units of 1px at a 1080p reference (u: the stage's height over 1080, or a phone's CSS px),
   // times the distance's factor (k) — du — so a screen keeps its proportions at any resolution and grows for a couch;
   // text never goes under `min` (CSS px), and the player's text size (`text`, rt.textScale) multiplies it; `safe` is the
   // title-safe inset a side (90% title-safe), the frame a screen and the HUD's places sit in
   ...DISTANCES.desk, du: 'calc(var(--mana-u) * var(--mana-k))', text: '1', safe: '.05',
-  target: 'calc(45 * var(--mana-du))',
+  target: 'calc(54 * var(--mana-du))',
+  // a shape behind everything a screen holds (a theme's stage: a band, a burst, shards): none in the greybox
+  stage: 'none',
   // text that has no window behind it keeps a halo in the panel's colour; the subtitles' plate (rt.subtitlePlate)
   halo: HALOS.outline, 'sub-plate': '.82',
   // the focus: the ▶ (a shape, never a colour alone) and the room it keeps at an item's left (mark 0: none)
@@ -64,7 +66,9 @@ export const GREYBOX_VARS = Object.freeze({
   // layers: the filter over the stage (a theme's overlay), and a title's hollow echo behind it (a theme's breakout)
   overlay: 'none', 'echo-ink': 'var(--mana-accent)',
   // how things move (theme.js MOTIONS): the greybox fades and travels nowhere
-  dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0', i: '0',
+  dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0', snap: '0px', nudge: '0px', i: '0',
+  // the way the cursor last went (the root's data-nav sets it): the side the item it lands on snaps in from
+  'snap-from': '0 0',
   // what a change flashes and whose turn is alight: the accent unless a rule says otherwise
   flash: 'var(--mana-accent)', turn: 'var(--mana-accent)',
   // a side's keyline: the ink round a chip that would sink into the panel
@@ -77,7 +81,7 @@ const v = (k) => `var(--mana-${k})`;
 const u = (n) => `calc(${n} * ${v('du')})`;
 // THE TYPE RAMP, at the 1080p reference on a desk (the couch multiplies it): few levels, big jumps. The floor (caption,
 // label) is XAG 101's PC minimum; body a step over it; a title twice the body; the display, a hero, near four times
-export const TYPE = Object.freeze({ caption: 18, label: 18, body: 22, heading: 22, numeral: 22, title: 44, display: 84 });
+export const TYPE = Object.freeze({ caption: 18, label: 18, body: 24, heading: 24, numeral: 24, title: 48, display: 92 });
 const ts = (n) => `calc(max(${v('min')}, ${n} * ${v('du')}) * ${v('scale')} * ${v('text')})`;
 const t = (role) => ts(TYPE[role]);
 // the title-safe frame: a side's inset, the device's own (a notch, the home bar) when that is larger
@@ -110,6 +114,10 @@ export function manaCss(scope = '.mana-root') {
     // the stack: a screen dims what it covers (a modal), and sits where it says, inside the title-safe frame
     `${s} .mana-screen{position:absolute;inset:0;display:flex;flex-direction:column;gap:${u(18)};padding:${safe('top', SY)} ${safe('right', SX)} ${safe('bottom', SY)} ${safe('left', SX)};pointer-events:auto;overflow:hidden;isolation:isolate}`,
     `${s} .mana-screen[data-layer=modal]{background:${v('scrim')}}`,
+    // THE STAGE: another layer behind what a screen holds (over its scrim and its key art), sweeping in as it opens
+    `${s} .mana-screen::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:${v('stage')};animation:mana-stage calc(${v('dur')} * 3) ${v('ease')} both}`,
+    // a screen's own window takes the room a game gives it: a menu is read from a sofa, not squeezed into a card
+    `${s} .mana-screen:is([data-place=center],[data-place=left],[data-place=right])>.mana-window{min-width:min(100%,${u(640)})}`,
     `${s} .mana-screen[data-place=center]{align-items:center;justify-content:center}`,
     `${s} .mana-screen[data-place=left]{align-items:flex-start;justify-content:center}`,
     `${s} .mana-screen[data-place=left]>.mana-stack{max-width:min(100%,46cqw)}`,
@@ -125,7 +133,7 @@ export function manaCss(scope = '.mana-root') {
     // key art behind a screen (a title, an attract loop): the whole stage, under everything the screen holds
     `${s} .mana-screen>.mana-image[data-ratio=backdrop]{position:absolute;inset:0;z-index:-1;aspect-ratio:auto;border:0;border-radius:0;padding:${u(12)}}`,
     // the legend bar: what the buttons do here, pinned to the foot of the safe frame, right-aligned (a console's prompt bar)
-    `${s} .mana-screen>.mana-legend{position:absolute;right:${safe('right', SX)};bottom:${safe('bottom', SY)};z-index:2;justify-content:flex-end;max-width:calc(100% - 2 * ${SX})}`,
+    `${s} .mana-screen>.mana-legend{position:absolute;right:${safe('right', SX)};bottom:${safe('bottom', SY)};z-index:2;justify-content:flex-end;max-width:calc(100% - 2 * ${SX});padding:${u(8)} ${u(18)} ${u(8)} ${u(90)};margin-right:${u(-18)};background:linear-gradient(90deg,transparent,color-mix(in srgb,${v('panel')} 86%,transparent) ${u(90)})}`,
     `${s} .mana-screen:has(>.mana-legend):not([data-place=sheet]){padding-bottom:calc(${safe('bottom', SY)} + ${u(60)})}`,
     // the lean: tabs, bars, banners, keys and buttons skew (never a window: what a screen holds stays square)
     `${s} :is(.mana-tablabel,.mana-banner,.mana-key,.mana-button,.mana-track,.mana-badge){transform:skewX(${v('slant')})}`,
@@ -159,7 +167,7 @@ export function manaCss(scope = '.mana-root') {
     `${s} :is(.mana-screen>.mana-title,.mana-text[data-role=display]){position:relative}`,
     `${s} :is(.mana-screen>.mana-title,.mana-text[data-role=display])::before{content:none;position:absolute;left:-.3em;top:50%;translate:0 -52%;z-index:-1;font-size:2.6em;line-height:1;white-space:nowrap;color:transparent;-webkit-text-stroke:2px ${v('echo-ink')};opacity:.45;pointer-events:none;text-shadow:none}`,
     // panels and layout
-    `${s} .mana-window{position:relative;background:${v('plate')};border:${v('frame-w')} ${v('frame-s')} ${v('line')};border-radius:${v('radius')};padding:${u(15)} ${u(18)};min-width:${u(300)};max-width:100%;min-height:0;overflow:hidden}`,
+    `${s} .mana-window{position:relative;background:${v('plate')};border:${v('frame-w')} ${v('frame-s')} ${v('line')};border-radius:${v('radius')};padding:${u(21)} ${u(27)};min-width:${u(300)};max-width:100%;min-height:0;overflow:hidden}`,
     // a window inside a window is a sub-panel: a lighter rule and a smaller corner than the panel it sits in
     `${s} .mana-window .mana-window:not([data-variant=ghost]){border-width:${v('rule-w')};border-radius:calc(${v('radius')} * .6);padding:${u(9)} ${u(12)}}`,
     `${s} .mana-window[data-variant=inset]{border-style:dashed}`,
@@ -181,7 +189,12 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-tablabel{padding:${u(6)} ${u(18)};cursor:pointer;font-size:${t('heading')};font-weight:700;letter-spacing:.08em;text-transform:${v('case')};color:${v('mid')};border:1px solid transparent;border-bottom:0;margin-bottom:-1px;border-radius:${v('radius')} ${v('radius')} 0 0}`,
     `${s} .mana-tablabel[data-st=active]{color:${v('ink')};background:${v('panel')};border-color:${v('line')};font-weight:800}`,
     // what can be focused: ▶ is the focus; a bar at the edge the active row; a dashed line disabled
-    `${all('')}{position:relative;min-height:${v('target')};padding:${u(9)} ${u(15)} ${u(9)} ${pl(15)};border:1px solid transparent;border-radius:calc(${v('radius')}*.6);cursor:pointer;transition:${v('motion')};touch-action:manipulation;user-select:none}`,
+    `${all('')}{position:relative;min-height:${v('target')};padding:${u(12)} ${u(18)} ${u(12)} ${pl(18)};border:1px solid transparent;border-radius:calc(${v('radius')}*.6);cursor:pointer;transition:${v('motion')},translate ${v('glide')} ${v('ease')};touch-action:manipulation;user-select:none}`,
+    // the focus stands out: nudged along the way the eye reads, gliding back as it leaves
+    `${s}:not([data-input=touch]):not([data-input=mouse]) :is(${FOCUSABLE.map((c) => `.mana-${c}`).join(',')})[data-st=focus]{translate:${v('nudge')} 0}`,
+    // the way the cursor went: the item it lands on snaps in from that side (an overshoot under snap)
+    `${s}[data-nav=down]{--mana-snap-from:0 calc(-1 * ${v('snap')})}`, `${s}[data-nav=up]{--mana-snap-from:0 ${v('snap')}}`,
+    `${s}[data-nav=right]{--mana-snap-from:calc(-1 * ${v('snap')}) 0}`, `${s}[data-nav=left]{--mana-snap-from:${v('snap')} 0}`,
     `${s} :is(.mana-row,.mana-cell):has(>.mana-chip){padding-left:${pl(30)}}`,
     // the focus, a cursor (keys, a pad): the ▶ at its left and a tint, never moving what it marks; a theme's focus word
     // may take the ▶ away (--mana-cursor: none) for a ring, a lift, a fill, a glow, brackets or a bar
@@ -390,9 +403,11 @@ const KEYFRAMES = [
   `@keyframes mana-turn{50%{box-shadow:inset 9px 0 0 ${v('turn')},inset 0 0 0 2px ${v('turn')}}}`,
   `@keyframes mana-sheen{from{transform:translateX(-120%) skewX(-20deg)}to{transform:translateX(320%) skewX(-20deg)}}`,
   // the focus lands: a small pop on the item the cursor moves to (the greybox's pop is 1: it lands still)
-  `@keyframes mana-pick{from{scale:${pop(0.4)}}}`,
+  `@keyframes mana-pick{from{translate:${v('snap-from')};scale:${pop(0.4)}}}`,
   // a prompt that waits for the player (press start): a slow breath, well under the 3 flashes a second XAG 118 allows
   `@keyframes mana-pulse{50%{opacity:.35}}`,
+  // the stage sweeps in from the side the screen leans from
+  `@keyframes mana-stage{from{opacity:0;translate:calc(${v('travel')} * -8) 0}}`,
   // a blow's number: it pops in large, settles and rises off where it landed
   `@keyframes mana-hit{0%{opacity:0;scale:${pop(4)}}18%{opacity:1;scale:1}100%{opacity:1;translate:0 calc(${v('travel')} * -3)}}`,
   // a stamp: dropped from above the page onto it
@@ -406,7 +421,7 @@ const KEYFRAMES = [
 ];
 // the prompt's breath: one cycle in PULSE seconds (0.8 Hz)
 export const PULSE = 1.25;
-const CALM = `--mana-travel:0px!important;--mana-pop:1!important;--mana-stagger:0ms!important;--mana-glide:0ms!important;--mana-loop:paused!important;--mana-sheen:0!important;--mana-tx:none!important`;
+const CALM = `--mana-travel:0px!important;--mana-pop:1!important;--mana-stagger:0ms!important;--mana-glide:0ms!important;--mana-loop:paused!important;--mana-sheen:0!important;--mana-tx:none!important;--mana-snap:0px!important;--mana-nudge:0px!important`;
 // less flash (the player's, apart from less motion): no cover over the stage, no sheen, a change pops without flashing
 const DIM = `--mana-sheen:0!important;--mana-tx:none!important`;
 function MOTION_RULES(s) {

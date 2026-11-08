@@ -171,7 +171,7 @@ A theme is closed words and colours, read and checked like a node, and written a
 still carries no look; the theme is context, set once for a game.
 
 ```js
-theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, distance?, halo?, cues?, slant?, transition?, material?, backing?, crest?, breakout?, overlay?, ornaments? }
+theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, focus?, motion?, fills?, scale?, case?, distance?, halo?, cues?, slant?, transition?, material?, backing?, crest?, breakout?, overlay?, stage?, sounds?, ornaments? }
 ```
 
 - **Tokens** are colours: `ink`, `panel`, `line` and `accent` are the ones a theme needs. The rest (mid, soft, paper,
@@ -196,15 +196,43 @@ theme: '<preset>' | { from?, tokens?, type?, faces?, frame?, corner?, plate?, fo
     screen's title and a display's words are drawn again behind themselves, huge and hollow.
   - `overlay` (scanlines, crt, grid, vignette, grain): a filter over the whole stage while the UI is up, still (it never
     flickers).
+  - `stage` (band, burst, shards, stripes, rings): one more layer, a shape behind everything a screen holds (over its
+    scrim and its key art), sweeping in as the screen opens. The legend bar sits on its own band over it.
 
   Each window draws its layers under what it holds (`.mana-layers`: the plate, the backing, the crest; a ghost window has
   none). A theme with a backing or a crest moves the plate into them. A window sized by what it holds lets them past its
   box; one filling a pane keeps its clip, its layers past it only where the browser takes a clip margin (not Safari's).
   A sub-panel has no backing or crest of its own. Parchment's words are measured on the sheet it lays.
 - **Presets:** the greybox (no layers), and `modern` (clean glass: a cool translucent plate, a light lean, a highlight
-  bar), `console` (brushed metal on a riveted plinth, a heading tab), `terminal` (a grid plate, a tech tab, a CRT over
-  the stage), `storybook` (parchment on a torn sheet, a Victorian cresting, a vignette) and `arcade` (halftone on two
-  slabs at an angle, headings and titles breaking out, scanlines).
+  bar, rings behind), `console` (brushed metal on a riveted plinth, a heading tab), `terminal` (a grid plate, a tech
+  tab, a CRT over the stage), `storybook` (parchment on a torn sheet, a Victorian cresting, a vignette), and the party
+  family below. `THEME_FAMILIES` groups the presets by the language they share.
+- **Room to read.** A screen's own window takes the room a game gives it (at least about a third of the stage's width),
+  its rows are tall, a pause menu's rows are set at a title's size, and the body is a step over the floor.
+
+### The party language
+
+The arcade preset's look, distilled so it can vary without losing itself. Its principles:
+
+1. **Everything leans**, at one angle the whole screen shares (`slant`), never a window's contents.
+2. **Planes stack.** A plate sits on a slab that sits on another, each a little off in place and angle (`backing:
+   stack | offset | plinth`); depth comes from offset planes, never from a blur.
+3. **Words break out of their boxes.** A heading is a tab across its window's edge; a title is echoed huge and hollow
+   behind itself (`breakout`).
+4. **Two colours punch against one neutral,** in flat blocks: the accent, the shade, the ink.
+5. **Print texture, not soft light:** halftone, metal, scanlines (`material`, `overlay`).
+6. **Hard edges:** cut corners, hard offset shadows.
+7. **Motion slams:** an overshoot (`snap`) or frames (`stepped`), a cover that slams or wipes between screens, the
+   focus snapping in from the way the cursor went.
+8. **A shape behind it all** (`stage`): a band, a burst, shards, stripes.
+9. **It sounds like it moves:** a snapped click under every note (`sounds`).
+
+Its variations keep every principle and change the dials (the colours, the face, the angle, the texture, the stage,
+the voice): `arcade` (magenta and cyan, halftone, a burst, chip sounds), `rebel` (red, black and white, a huge band
+behind, two slabs, the party's sounds), `idol` (pink and cyan, rounded, a ribbon crest, a burst, glass sounds),
+`street` (yellow and black, shards and grain, stepped, chip sounds) and `mecha` (orange and teal on metal, a riveted
+plinth, a tech tab, stripes and a grid, terminal sounds). A test holds every variation to the principles.
+
 - **Presets** (`THEMES`): the greybox (the default) and a few starting looks. `{ from: '<preset>', … }` changes one.
 - **Measured, never refused:** `themeAdvice` gives the WCAG contrast of text, labels, the focus, a window's edge and
   harm against a window. Solid fills are advised to keep their labels (they tell bar kinds apart by colour alone).
@@ -244,6 +272,10 @@ board enters row by row.
   no clock it shows the weightiest the game still lists. `moment-banner` and `quest-toasts` are built on it.
 - **How it moves is the theme's** `motion` word (`MOTIONS` in `theme.js`): none fades and travels nowhere (the
   greybox), ease glides, snap overshoots, stepped moves in frames. Every distance, scale and delay is a variable.
+- **The snap.** The item the cursor lands on snaps in from the way it went (the root's `data-nav`: from above when it
+  moved down, from the left when it moved right), with the motion's overshoot, and the focus stands out by a nudge
+  (`snap` and `nudge` in the motion words; nothing under the greybox or less motion). The cursor's sound says the way it
+  went and a stepper's the step it took, so a sound set pitches them.
 - **A cover between screens.** As a screen opens or leaves, a cover is drawn over the stage with a new key, and the
   theme's `transition` animates it across (a wipe, a diagonal slam, an iris, a shutter, a stepped wipe); leaving
   mirrors it. The greybox draws none.
@@ -284,8 +316,34 @@ the sounds as effects, `{ sound: <cue> }` to the host's `act`, and the host play
 | `tick`, `skip` | a number counted (at most twenty a second), and a count was skipped |
 
 `host.cues` says which it wants: `silent` (the default) none, `ticks` the cursor's three (move, accept, back), `full`
-every one. A theme's `cues` word says it for a game, and `manaUiPage` hands it to its host. The board hears them all
-and logs each one as ♪.
+every one. A theme's `cues` word says it for a game, and `manaUiPage` hands it to its host. A cursor's sound carries
+the way it went (`way`), a stepper's the step it took (`step`).
+
+**The sound library** (`control/lib/graph/beats/ui-sounds.js`) is what a page plays: beats-sfx gestures (the beats
+tool's own, nothing new in its kernel), in six sets (`glass`, `console`, `chip`, `terminal`, `paper`, `party`). Every
+set is built from one interval plan over its root, so the sets differ in timbre and belong together in harmony:
+
+| cue | the plan |
+|---|---|
+| `move` | a click and a high pip (an octave over the root); up a step higher |
+| `change` | the stepper: a click and the fifth going up, the fourth going down |
+| `accept` | confirm: the fifth rising to the octave, the loudest of the everyday sounds |
+| `back` | cancel: the fifth falling to the root, softer than confirm |
+| `tab`, `open`, `close` | a flick and a breath; the triad up; the triad down |
+| `deny` | a low minor second, twice |
+| `toast`, `rare` | a chime on the tenth; the octave's arpeggio and a bell over it |
+| `tick`, `skip` | a count's quiet pip; a swept breath |
+
+The sets are level-matched on confirm (measured on their rendered reels), and within a set what is pressed most is
+heard least. A game's key transposes the pitched gestures (`tonic`). A theme's `sounds` word picks the set (the presets
+each name one); `uiSoundAudio()` hands a page the beats kernel (only the features the sets need), the sets and the cue
+picker, as `manaUiPage(spec, { audio })` or `manaUiBoard({ audio })` (this folder imports nothing outside itself, so
+it is handed in). Each set is also a beats-sfx recipe (`uiSoundManifest`) that `create_beats` mints and the beats
+player fires cue by cue.
+
+**The board with its controls and its sounds:** `node scripts/mana-board.mjs <out.html> [--theme <preset>]` writes the
+board driven by the controls layer (keys and pads, their glyphs), heard in the set the chosen look names. Click a
+frame to drive it.
 
 ## Idioms
 

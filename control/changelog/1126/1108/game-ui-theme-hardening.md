@@ -63,3 +63,24 @@
   `overlay` lays a still filter over the whole screen while the UI is up: scanlines, a CRT, a grid, a vignette or grain.
   The presets wear them (storybook on torn parchment under a cresting, arcade on slabs with breaking-out titles, console
   on a riveted plinth, terminal on a grid under a CRT); the greybox stays flat.
+- **More room, and one more layer behind.** A screen's own window takes more of the screen, rows are taller, a pause
+  menu's rows are set at title size, and body text is a step larger. A new `stage` word draws a shape behind everything
+  a screen holds (a huge band, a sunburst, shards, stripes or rings) that sweeps in as the screen opens, and the button
+  legend sits on its own band over it.
+- **The party look is a design language with variations.** The arcade preset's look is written down as principles
+  (everything leans; planes stack on planes; words break out; two colours punch against one neutral; print texture; hard
+  edges; motion slams; a shape behind; a click under every sound), and four new presets vary it: `rebel` (red, black
+  and white with a huge band behind), `idol` (pink and cyan with a ribbon crest and a sunburst), `street` (yellow and
+  black with shards and grain) and `mecha` (orange and teal on riveted metal with hazard stripes). A test holds every
+  variation to the principles.
+- **The focus snaps in from the way you moved.** Moving down, the item you land on snaps in from above with the theme's
+  overshoot (from the left when you move right), and the focused item stands out with a small nudge. The cursor's
+  sound says which way it went and a stepper's which way it stepped.
+- **The UI has a sound library, made with the beats tool.** Six sound sets (glass, console, chip, terminal, paper and
+  party) give the cursor click, confirm, cancel, the stepper up and down, tabs, opening and closing, a refusal, toasts,
+  counting and skipping. Every set follows one interval plan (confirm rises a fifth to the octave, cancel falls back
+  to the root, the stepper goes up a fifth or down a fourth), so the sets belong together, and they are level-matched
+  so changing theme does not change loudness. Each theme names its set. Pages and the wireframe board play them through
+  the beats engine when handed the library; a page without it stays silent and carries no audio. Each set is also a
+  beats sound-effects recipe the beats tool mints and plays cue by cue. A new script, `scripts/mana-board.mjs`, writes
+  the board with real controls and sound.

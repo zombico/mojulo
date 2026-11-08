@@ -51,6 +51,11 @@
  *                                                                    tab across its edge; a title echoed huge and hollow
  *                                                                    behind itself; both
  *     overlay   none | scanlines | crt | grid | vignette | grain       a filter over the whole stage while the UI is up
+ *     stage     none | band | burst | shards | stripes | rings         one more layer: a shape behind everything a screen
+ *                                                                    holds (over its scrim and its key art), sweeping in
+ *     sounds    glass | console | chip | terminal | paper | party      which of the UI sound library's sets the page plays
+ *                                                                    (beats/ui-sounds.js: one interval plan, six voices);
+ *                                                                    how many it hears is `cues`
  *     cues      silent | ticks | full                                  the UI's sounds as effects ({ sound: <cue> }): none,
  *                                                                    the cursor's (move, accept, back), or every state
  *                                                                    change; read by the page, played by the host
@@ -94,12 +99,14 @@ export const THEME_WORDS = Object.freeze({
   crest: ['none', 'victorian', 'tech', 'ribbon'],
   breakout: ['none', 'tab', 'echo', 'full'],
   overlay: ['none', 'scanlines', 'crt', 'grid', 'vignette', 'grain'],
+  stage: ['none', 'band', 'burst', 'shards', 'stripes', 'rings'],
+  sounds: ['console', 'glass', 'chip', 'terminal', 'paper', 'party'],
   ornaments: ['brackets', 'ticks', 'scanlines', 'dotgrid', 'stitch', 'hazard', 'glow'],
 });
 const NEEDED = ['ink', 'panel', 'line', 'accent'];
 const TOKENS = [...NEEDED, 'mid', 'soft', 'paper', 'wash', 'accent2', 'harm', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'];
-const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'material', 'backing', 'crest', 'breakout', 'overlay', 'ornaments', 'sides'];
-export const LAYER_WORDS = Object.freeze(['material', 'backing', 'crest', 'breakout', 'overlay']);
+const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds', 'ornaments', 'sides'];
+export const LAYER_WORDS = Object.freeze(['material', 'backing', 'crest', 'breakout', 'overlay', 'stage']);
 // how far the player sits: the unit (1px at a 1080p reference, or a phone's CSS px), the distance's factor over the desk,
 // and the floor no text goes under in CSS px. XAG 101's body minimum at 1080p is 26 px on a console and 18 px on a PC
 // (to verify against the primary page before a test pins it): the couch is the desk's ×26/18
@@ -132,16 +139,26 @@ export const HALOS = Object.freeze({
 const OKABE_ITO = ['#e69f00', '#56b4e9', '#009e73', '#f0e442', '#0072b2', '#d55e00', '#cc79a7', '#999999'];
 
 export const THEMES = Object.freeze({
-  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'marker', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', distance: 'desk', halo: 'outline', cues: 'silent', slant: 'none', transition: 'none', material: 'none', backing: 'none', crest: 'none', breakout: 'none', overlay: 'none', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'] },
+  greybox: { name: 'Greybox', tokens: { ink: '#111111', panel: '#fafafa', line: '#111111', accent: '#111111', mid: '#6b6b6b', soft: '#bdbdbd', paper: '#fafafa', wash: '#ececec', accent2: '#111111', harm: '#111111', hp: '#111111', mp: '#111111', xp: '#111111', stamina: '#111111', shield: '#111111', boss: '#111111' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'marker', motion: 'none', fills: 'pattern', scale: 'normal', case: 'upper', distance: 'desk', halo: 'outline', cues: 'silent', slant: 'none', transition: 'none', material: 'none', backing: 'none', crest: 'none', breakout: 'none', overlay: 'none', stage: 'none', sounds: 'console', ornaments: [], sides: ['#111111', '#8a8a8a', '#4a4a4a', '#b5b5b5', '#2a2a2a', '#6b6b6b', '#9e9e9e', '#3c3c3c'] },
   // clean glass: a cool translucent plate under a bright edge, soft corners, a light lean, a highlight bar (FFXIV's clear
   // blue, a modern console's system menus), not a dashboard's dark card
-  modern: { name: 'Modern', tokens: { ink: '#f2f6ff', panel: '#16305a', line: '#9cc4ff', accent: '#7cc8ff', accent2: '#ffd27a', harm: '#ff6a5c' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'soft', plate: 'gradient', focus: 'bar', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'glow', cues: 'ticks', slant: 'light', transition: 'wipe', material: 'glass', backing: 'none', crest: 'none', breakout: 'none', overlay: 'none', ornaments: ['glow'] },
-  console: { name: 'Console RPG', tokens: { ink: '#ffffff', panel: '#1b2a7c', line: '#eef1ff', accent: '#ffe07a', accent2: '#8fb0ff', harm: '#ff6b6b' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'double', corner: 'soft', plate: 'gradient', focus: 'marker', motion: 'snap', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'shadow', cues: 'full', slant: 'none', transition: 'wipe', material: 'metal', backing: 'plinth', crest: 'none', breakout: 'tab', overlay: 'none', ornaments: [] },
-  terminal: { name: 'Terminal', tokens: { ink: '#c8f5d0', panel: '#06140c', line: '#3c8a52', accent: '#7dff9a', accent2: '#e8d36a', harm: '#ff7a5a' }, type: { body: 'mono', display: 'mono', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'bracket', motion: 'snap', fills: 'pattern', scale: 'normal', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'none', transition: 'shutter', material: 'grid', backing: 'none', crest: 'tech', breakout: 'none', overlay: 'crt', ornaments: ['brackets', 'scanlines'] },
-  storybook: { name: 'Storybook', tokens: { ink: '#3a2a20', panel: '#fff4e2', line: '#b98a5a', accent: '#a8471f', accent2: '#5f7f2e', harm: '#b3261e', hp: '#5f7f2e', mp: '#2f5d8a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'soft', plate: 'textured', focus: 'lift', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'plate', cues: 'ticks', slant: 'none', transition: 'iris', material: 'parchment', backing: 'torn', crest: 'victorian', breakout: 'none', overlay: 'vignette', ornaments: ['stitch'] },
-  arcade: { name: 'Arcade', tokens: { ink: '#ffffff', panel: '#0b0b10', line: '#ffffff', accent: '#ff2e88', accent2: '#00e5ff', harm: '#ff3b30', xp: '#ffe600' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'glow', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'shadow', cues: 'full', slant: 'hard', transition: 'slam', material: 'halftone', backing: 'stack', crest: 'none', breakout: 'full', overlay: 'scanlines', ornaments: ['hazard'] },
+  modern: { name: 'Modern', tokens: { ink: '#f2f6ff', panel: '#16305a', line: '#9cc4ff', accent: '#7cc8ff', accent2: '#ffd27a', harm: '#ff6a5c' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'hairline', corner: 'soft', plate: 'gradient', focus: 'bar', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'glow', cues: 'ticks', slant: 'light', transition: 'wipe', material: 'glass', backing: 'none', crest: 'none', breakout: 'none', overlay: 'none', stage: 'rings', sounds: 'glass', ornaments: ['glow'] },
+  console: { name: 'Console RPG', tokens: { ink: '#ffffff', panel: '#1b2a7c', line: '#eef1ff', accent: '#ffe07a', accent2: '#8fb0ff', harm: '#ff6b6b' }, type: { body: 'system', display: 'system', mono: 'mono' }, frame: 'double', corner: 'soft', plate: 'gradient', focus: 'marker', motion: 'snap', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'shadow', cues: 'full', slant: 'none', transition: 'wipe', material: 'metal', backing: 'plinth', crest: 'none', breakout: 'tab', overlay: 'none', stage: 'none', sounds: 'console', ornaments: [] },
+  terminal: { name: 'Terminal', tokens: { ink: '#c8f5d0', panel: '#06140c', line: '#3c8a52', accent: '#7dff9a', accent2: '#e8d36a', harm: '#ff7a5a' }, type: { body: 'mono', display: 'mono', mono: 'mono' }, frame: 'hairline', corner: 'square', plate: 'solid', focus: 'bracket', motion: 'snap', fills: 'pattern', scale: 'normal', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'none', transition: 'shutter', material: 'grid', backing: 'none', crest: 'tech', breakout: 'none', overlay: 'crt', stage: 'none', sounds: 'terminal', ornaments: ['brackets', 'scanlines'] },
+  storybook: { name: 'Storybook', tokens: { ink: '#3a2a20', panel: '#fff4e2', line: '#b98a5a', accent: '#a8471f', accent2: '#5f7f2e', harm: '#b3261e', hp: '#5f7f2e', mp: '#2f5d8a' }, type: { body: 'serif', display: 'serif', mono: 'mono' }, frame: 'rule', corner: 'soft', plate: 'textured', focus: 'lift', motion: 'ease', fills: 'solid', scale: 'normal', case: 'none', distance: 'desk', halo: 'plate', cues: 'ticks', slant: 'none', transition: 'iris', material: 'parchment', backing: 'torn', crest: 'victorian', breakout: 'none', overlay: 'vignette', stage: 'none', sounds: 'paper', ornaments: ['stitch'] },
+  arcade: { name: 'Arcade', tokens: { ink: '#ffffff', panel: '#0b0b10', line: '#ffffff', accent: '#ff2e88', accent2: '#00e5ff', harm: '#ff3b30', xp: '#ffe600' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'glow', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'shadow', cues: 'full', slant: 'hard', transition: 'slam', material: 'halftone', backing: 'stack', crest: 'none', breakout: 'full', overlay: 'scanlines', stage: 'burst', sounds: 'chip', ornaments: ['hazard'] },
+  // THE PARTY LANGUAGE (docs/mana-ui.md): everything leans at one angle; planes stack (the plate on a slab on a slab, each
+  // a little off); words break out of their boxes; two colours punch against one neutral, in blocks; print texture, never
+  // a soft blur; hard shadows and cut corners; motion slams; a stage shape behind it all. Its variations keep every
+  // principle and change the dials: the colours, the face, the angle, the texture, the stage, the voice
+  rebel: { name: 'Rebel', tokens: { ink: '#ffffff', panel: '#121212', line: '#ffffff', accent: '#e3192d', accent2: '#ffffff', harm: '#ff4a4a' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'bar', motion: 'snap', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'shadow', cues: 'full', slant: 'hard', transition: 'slam', material: 'halftone', backing: 'stack', crest: 'none', breakout: 'full', overlay: 'none', stage: 'band', sounds: 'party', ornaments: [] },
+  idol: { name: 'Idol', tokens: { ink: '#2a1240', panel: '#fff3fb', line: '#ff5fb3', accent: '#ff3f9f', accent2: '#13b8f0', harm: '#e5304a' }, type: { body: 'rounded', display: 'rounded', mono: 'mono' }, frame: 'rule', corner: 'round', plate: 'gradient', focus: 'bar', motion: 'snap', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'light', transition: 'iris', material: 'halftone', backing: 'offset', crest: 'ribbon', breakout: 'tab', overlay: 'none', stage: 'burst', sounds: 'glass', ornaments: [] },
+  street: { name: 'Street', tokens: { ink: '#111111', panel: '#ffd400', line: '#111111', accent: '#111111', accent2: '#ff3d00', harm: '#c40000' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'heavy', corner: 'cut', plate: 'solid', focus: 'fill', motion: 'stepped', fills: 'solid', scale: 'large', case: 'upper', distance: 'desk', halo: 'none', cues: 'full', slant: 'hard', transition: 'wipe', material: 'halftone', backing: 'offset', crest: 'none', breakout: 'full', overlay: 'grain', stage: 'shards', sounds: 'chip', ornaments: [] },
+  mecha: { name: 'Mecha', tokens: { ink: '#e8f1f2', panel: '#1b2329', line: '#ff7a00', accent: '#ff7a00', accent2: '#25d0c4', harm: '#ff3b30' }, type: { body: 'system', display: 'display', mono: 'mono' }, frame: 'rule', corner: 'cut', plate: 'solid', focus: 'bracket', motion: 'stepped', fills: 'solid', scale: 'normal', case: 'upper', distance: 'desk', halo: 'glow', cues: 'full', slant: 'light', transition: 'shutter', material: 'metal', backing: 'plinth', crest: 'tech', breakout: 'tab', overlay: 'grid', stage: 'stripes', sounds: 'terminal', ornaments: ['hazard', 'ticks'] },
 });
 export const THEME_IDS = Object.keys(THEMES);
+// presets that share a design language: its principles held, its dials varied
+export const THEME_FAMILIES = Object.freeze({ party: ['arcade', 'rebel', 'idol', 'street', 'mecha'], calm: ['modern', 'console', 'storybook'], machine: ['terminal'] });
 
 // ── colour ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -232,14 +249,15 @@ const FRAMES = { none: ['0px', 'solid'], hairline: ['1px', 'solid'], rule: ['2px
 // the rule an inner part is drawn with (a cell, a track, a key, a slot, a badge): a heavy frame's parts are heavier too
 const RULES = { none: '1px', hairline: '1px', rule: '1px', double: '2px', bevel: '2px', heavy: '2px' };
 const RADII = { square: '0px', soft: '5px', round: '12px', cut: '0px' };
-const MOTION = { none: 'none', snap: 'none', ease: 'background-color .18s cubic-bezier(.2,.7,.2,1),border-color .18s,box-shadow .18s,color .18s', stepped: 'background-color .15s steps(3),border-color .15s steps(3),box-shadow .15s steps(3)' };
+const MOTION = { none: 'background-color 0s', snap: 'background-color 0s', ease: 'background-color .18s cubic-bezier(.2,.7,.2,1),border-color .18s,box-shadow .18s,color .18s', stepped: 'background-color .15s steps(3),border-color .15s steps(3),box-shadow .15s steps(3)' };
 // how a change, an entrance and a moment move (the broadcast's motion cards, as words): none fades and travels nowhere;
 // ease glides; snap overshoots and slams (a back curve); stepped moves in frames
 export const MOTIONS = Object.freeze({
-  none: { dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0' },
-  ease: { dur: '220ms', ease: 'cubic-bezier(.2,.7,.2,1)', travel: '10px', pop: '1.12', stagger: '40ms', glide: '320ms', loop: 'running', sheen: '.35' },
-  snap: { dur: '200ms', ease: 'cubic-bezier(.34,1.56,.64,1)', travel: '14px', pop: '1.25', stagger: '30ms', glide: '180ms', loop: 'running', sheen: '.5' },
-  stepped: { dur: '240ms', ease: 'steps(4,end)', travel: '12px', pop: '1.2', stagger: '60ms', glide: '300ms', loop: 'running', sheen: '.5' },
+  // snap: how far the item the cursor lands on travels in from the way it went; nudge: how far the focus stands out
+  none: { dur: '160ms', ease: 'ease-out', travel: '0px', pop: '1', stagger: '0ms', glide: '0ms', loop: 'paused', sheen: '0', snap: '0px', nudge: '0px' },
+  ease: { dur: '220ms', ease: 'cubic-bezier(.2,.7,.2,1)', travel: '10px', pop: '1.12', stagger: '40ms', glide: '320ms', loop: 'running', sheen: '.35', snap: 'calc(10 * var(--mana-du))', nudge: 'calc(6 * var(--mana-du))' },
+  snap: { dur: '200ms', ease: 'cubic-bezier(.34,1.56,.64,1)', travel: '14px', pop: '1.25', stagger: '30ms', glide: '180ms', loop: 'running', sheen: '.5', snap: 'calc(18 * var(--mana-du))', nudge: 'calc(14 * var(--mana-du))' },
+  stepped: { dur: '240ms', ease: 'steps(4,end)', travel: '12px', pop: '1.2', stagger: '60ms', glide: '300ms', loop: 'running', sheen: '.5', snap: 'calc(14 * var(--mana-du))', nudge: 'calc(9 * var(--mana-du))' },
 });
 const SCALE = { compact: '0.9', normal: '1', large: '1.12' };
 const corners = (c, len, w) => ['top left', 'top right', 'bottom left', 'bottom right'].flatMap((at) => [`linear-gradient(${c},${c}) ${at}/${len}px ${w}px no-repeat`, `linear-gradient(${c},${c}) ${at}/${w}px ${len}px no-repeat`]).join(',');
@@ -307,6 +325,15 @@ function crestOf(T, k) {
   }
   return null;
 }
+// the stage: a shape behind everything a screen holds, in the theme's colours
+const STAGES = (k) => ({
+  none: 'none',
+  band: [`linear-gradient(-14deg,transparent 0 53.5%,${alpha('#000000', 0.85)} 53.5% 59%,transparent 59%)`, `linear-gradient(-14deg,transparent 0 33%,${k.accent} 33% 53%,transparent 53%)`].join(','),
+  burst: `repeating-conic-gradient(from 0deg at 14% 86%,${alpha(k.accent, 0.24)} 0 5deg,transparent 5deg 14deg)`,
+  shards: [`linear-gradient(118deg,transparent 0 62%,${k.accent2} 62% 64.5%,transparent 64.5%)`, `linear-gradient(118deg,transparent 0 66%,${alpha(k.accent, 0.92)} 66% 82%,transparent 82%)`, `linear-gradient(-32deg,transparent 0 78%,${alpha('#000000', 0.55)} 78%)`].join(','),
+  stripes: `repeating-linear-gradient(-14deg,${alpha(k.accent, 0.14)} 0 ${du(20)},transparent ${du(20)} ${du(60)})`,
+  rings: `repeating-radial-gradient(circle at 82% 28%,${alpha(k.accent, 0.16)} 0 ${du(4)},transparent ${du(4)} ${du(44)})`,
+});
 const OVERLAYS = (k) => ({
   none: 'none',
   scanlines: `repeating-linear-gradient(0deg,${alpha('#000000', 0.14)} 0 1px,transparent 1px 3px)`,
@@ -326,7 +353,7 @@ export function themeCss(theme, scope = '.mana-root') {
     font: stack(T.type.body), display: stack(T.type.display), mono: stack(T.type.mono), scale: SCALE[T.scale], case: T.case === 'upper' ? 'uppercase' : 'none',
     radius: RADII[T.corner], 'frame-w': FRAMES[T.frame][0], 'frame-s': FRAMES[T.frame][1], plate: plateOf, motion: MOTION[T.motion], ...MOTIONS[T.motion],
     ...DISTANCES[T.distance], halo: HALOS[T.halo], slant: SLANTS[T.slant], ...TRANSITIONS[T.transition], 'rule-w': RULES[T.frame],
-    overlay: OVERLAYS(k)[T.overlay],
+    overlay: OVERLAYS(k)[T.overlay], stage: STAGES(k)[T.stage],
     // the ▶ is the sheet's own focus; any other focus word takes it (and the room it keeps at an item's left) away
     cursor: T.focus === 'marker' ? '"\\25B6"' : 'none', mark: T.focus === 'marker' ? '1' : '0',
     // a side whose kit would sink into the panel is keylined in the ink

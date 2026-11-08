@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { manaUi } from './kernel.js';
 import { manaCss, GREYBOX_VARS } from './css.js';
+import * as THEME_MODULE from './theme.js';
 import { readTheme, themeCss, SLANTS, TRANSITIONS } from './theme.js';
 import { IDIOMS, withIdioms } from './idioms.js';
 import { SAMPLE_STATE } from './samples.js';
@@ -146,5 +147,50 @@ describe('mana-ui: the player\'s channels and the flash guard', () => {
     expect(label).toContain('color:var(--mana-ink)');
     expect(sheet).toMatch(/\.r \[data-st=disabled\]\{color:var\(--mana-mid\)/);
     expect(readTheme('modern').focus).toBe('bar');
+  });
+});
+
+describe('mana-ui: the snap', () => {
+  it('the item the cursor lands on snaps in from the way it went; a screen opening starts still', () => {
+    const log = [], rt = manaUi.runtime({ start: 'a', screens: { a: screen([{ use: 'list', props: { rows: ['a', 'b', 'c'] } }, { use: 'slider', props: { label: 'Vol', value: 3 } }]) } }, { read: () => undefined, cues: 'full', act: (e) => log.push(e) });
+    expect(rt.view()).not.toContain('data-nav');
+    rt.press('down');
+    expect(rt.view()).toMatch(/class="mana-root" data-nav="down"/);
+    rt.press('up');
+    expect(rt.view()).toContain('data-nav="up"');
+    rt.press('down'); rt.press('down'); rt.press('down'); rt.press('left');
+    expect(log.filter((e) => e.sound)).toEqual(expect.arrayContaining([{ sound: 'move', way: 'down' }, { sound: 'move', way: 'up' }, { sound: 'change', step: -1 }]));
+    expect(sheet).toContain('.r[data-nav=down]{--mana-snap-from:0 calc(-1 * var(--mana-snap))}');
+    expect(sheet).toMatch(/@keyframes mana-pick\{from\{translate:var\(--mana-snap-from\)/);
+  });
+  it('how far it snaps and how far the focus stands out are the motion\'s; the greybox and less motion keep it still', () => {
+    expect(GREYBOX_VARS.snap).toBe('0px');
+    expect(GREYBOX_VARS.nudge).toBe('0px');
+    expect(themeCss({ motion: 'snap' })).toMatch(/--mana-snap:calc\(18 \* var\(--mana-du\)\);--mana-nudge:/);
+    expect(sheet).toMatch(/\.r\[data-motion=reduced\]\{[^}]*--mana-snap:0px!important;--mana-nudge:0px!important/);
+  });
+});
+
+describe('mana-ui: the stage and the party language', () => {
+  it('a stage is another layer behind everything a screen holds, over its scrim, sweeping in', () => {
+    expect(sheet).toMatch(/\.r \.mana-screen::after\{content:"";position:absolute;inset:0;z-index:-1;[^}]*background:var\(--mana-stage\);animation:mana-stage/);
+    expect(GREYBOX_VARS.stage).toBe('none');
+    expect(themeCss({ stage: 'band' })).toMatch(/--mana-stage:linear-gradient\(-14deg/);
+  });
+  it('every variation of the party language keeps its principles and changes its dials', () => {
+    const { THEME_FAMILIES } = THEME_MODULE;
+    const party = THEME_FAMILIES.party.map((id) => readTheme(id));
+    for (const T of party) {
+      expect(T.slant, `${T.name} leans`).not.toBe('none');
+      expect(T.backing, `${T.name} stacks its planes`).not.toBe('none');
+      expect(T.breakout, `${T.name} breaks out of the box`).not.toBe('none');
+      expect(T.stage, `${T.name} has a shape behind`).not.toBe('none');
+      expect(T.material, `${T.name} has a print texture`).not.toBe('none');
+      expect(['snap', 'stepped'], `${T.name} slams`).toContain(T.motion);
+      expect(T.corner === 'cut' || T.corner === 'round', `${T.name} a hard or a pop edge`).toBe(true);
+    }
+    // the dials differ: no two variations share their accent, their stage and their voice all at once
+    const sig = party.map((T) => `${T.tokens.accent}|${T.stage}|${T.sounds}`);
+    expect(new Set(sig).size).toBe(party.length);
   });
 });

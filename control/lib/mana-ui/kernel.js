@@ -311,9 +311,10 @@ export function buildManaUi() {
     // a number that changed counts to its new value over countUp seconds of the game's clock (0: it lands at once)
     if (H.countUp !== undefined && !(typeof H.countUp === 'number' && H.countUp >= 0 && H.countUp <= 10)) throw new Error('host.countUp is the seconds a changed number counts for, 0 to 10 (0: at once)');
     const COUNT = H.now && H.countUp ? H.countUp : 0;
-    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), held: false, calm: false, dim: false, text: 1, plate: null, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in' };
+    const S = { stack: [], ui: {}, picks: {}, input: null, layout: 'xbox', glyphs: null, seen: new Map(), lists: new Map(), moments: new Map(), held: false, calm: false, dim: false, text: 1, plate: null, nav: null, renders: 0, booting: true, counts: new Map(), queued: [], tx: 0, txWay: 'in' };
     // a sound the UI makes, if the host listens for it: an effect like any other, played by the host
-    const cue = (name, seat = 0) => { if (!S.booting && heard.has(name) && H.act) H.act({ sound: name }, { screen: top(), key: null, verb: 'cue', seat }); };
+    // (a cursor's sound says the way it went, a stepper's the step it took, so a sound set can pitch them)
+    const cue = (name, seat = 0, more) => { if (!S.booting && heard.has(name) && H.act) H.act({ sound: name, ...(more || {}) }, { screen: top(), key: null, verb: 'cue', seat }); };
     // what changed since it was last drawn: { d: up | down | new, n: how many times, g: the gain } (null: nothing yet)
     const changeOf = (key, value) => {
       const now = JSON.stringify(value === undefined ? null : value), was = S.seen.get(key);
@@ -455,7 +456,7 @@ export function buildManaUi() {
       const own = [S.text !== 1 ? `--mana-text:${S.text}` : null, S.plate !== null ? `--mana-sub-plate:${S.plate}` : null].filter(Boolean).join(';');
       // the cover over the stage as one screen gives way to the next (a new key each time: the theme's transition plays)
       if (S.tx) parts.push(['div', { class: 'mana-transition', 'data-key': `tx${S.tx}`, 'data-way': S.txWay }]);
-      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null, 'data-clock': S.held ? 'held' : null, 'data-motion': S.calm ? 'reduced' : null, 'data-flash': S.dim ? 'reduced' : null, style: own || null }, ...parts];
+      const tree = ['div', { class: 'mana-root', 'data-open': id || 'none', 'data-hud': hud ? 'yes' : null, 'data-input': S.input, 'data-layout': S.input === 'pad' ? S.layout : null, 'data-clock': S.held ? 'held' : null, 'data-motion': S.calm ? 'reduced' : null, 'data-flash': S.dim ? 'reduced' : null, 'data-nav': id ? S.nav : null, style: own || null }, ...parts];
       last = { tree, ...ctx };
       // what this draw set going (a moment up, a number ticking) is heard once it is drawn
       const q = S.queued.splice(0);
@@ -751,6 +752,7 @@ export function buildManaUi() {
       if (!screens[id]) throw new Error(`no screen '${id}' (screens: ${Object.keys(screens).join(', ')})`);
       if (top() !== id) {
         S.stack.push(id);
+        S.nav = null;
         cue('open');
         if (!S.booting) { S.tx += 1; S.txWay = 'in'; }
         // a screen opened shows what is there now; only what changes while it is up is news
@@ -828,7 +830,7 @@ export function buildManaUi() {
         if (next < 0 || (d > 0 && spent >= f.points) || f.base + next > f.max) return;
         draft[f.id] = next;
         if (!next) delete draft[f.id];
-        cue('change', seat);
+        cue('change', seat, { step: d });
         U.vals[f.key] = draft;
         if (f.n.on.change) run(effectsOf(f.n.on.change, scopeOf(f, seat, { input: draft }), last), f, 'change', seat);
         return;
@@ -838,12 +840,12 @@ export function buildManaUi() {
       else if (f.kind === 'slider') { const st = f.step > 0 ? f.step : 1, hi = f.max > f.min ? f.max : f.min + 1; v = clamp(Math.round(((Number(f.value) || 0) + d * st) / st) * st, f.min, hi); v = Math.round(v * 1e6) / 1e6; }
       else if (f.kind === 'carousel') { const n = f.items.length; if (!n) return; const i = ((f.i + d) % n + n) % n, it = f.items[i]; v = isObj(it) && it.id !== undefined ? it.id : i; if (!f.src) { U.vals[f.key] = i; U.sel[f.key] = i; } }
       else { const o = listOf(f.options), i = o.findIndex((x) => words(x) === words(f.value)); if (!o.length) return; v = o[((i < 0 ? 0 : i + d) % o.length + o.length) % o.length]; }
-      commit(f, v, seat);
+      commit(f, v, seat, d);
     }
     // a value an input now holds: set on the host when bound (the game's), else the screen's own
-    function commit(f, v, seat) {
+    function commit(f, v, seat, step = 1) {
       const U = uiOf(top());
-      cue('change', seat);
+      cue('change', seat, { step });
       if (f.src) { if (H.act) H.act({ set: f.src, to: f.kind === 'toggle' ? (v ? 1 : 0) : v }, from(f, 'change', seat)); }
       else if (f.kind !== 'carousel') U.vals[f.key] = v;
       if (f.n.on.change) run(effectsOf(f.n.on.change, scopeOf(f, seat, { input: v }), last), f, 'change', seat);
@@ -882,7 +884,8 @@ export function buildManaUi() {
         // the cursor moved (or a long list scrolled under it): its tick; a value turned says so itself
         const was = `${U.at[seat] || 0}|${JSON.stringify(U.sel)}`;
         move(seat, action);
-        if (`${U.at[seat] || 0}|${JSON.stringify(U.sel)}` !== was) cue('move', seat);
+        // the way the cursor went: the item it lands on snaps in from that side (the root's data-nav)
+        if (`${U.at[seat] || 0}|${JSON.stringify(U.sel)}` !== was) { S.nav = action; cue('move', seat, { way: action }); }
       }
       else if (action === 'tabNext' || action === 'tabPrev') { const Tb = last.tabs[0]; if (Tb && Tb.n) { U.tabs[Tb.key] = ((U.tabs[Tb.key] || 0) + (action === 'tabNext' ? 1 : -1) + Tb.n) % Tb.n; cue('tab', seat); } }
       else if (action === 'accept') { if (f) accept(f, seat); }

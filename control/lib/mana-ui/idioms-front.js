@@ -95,7 +95,7 @@ export const FRONT_IDIOMS = {
     kind: 'screen', about: 'the pause over the held game: resume, then what the game offers (party, options, quit)',
     reads: 'items: [{ label, then, disabled? }]', emits: 'each item\'s then (back resumes: the stack closes)',
     params: ['title', 'items'],
-    node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'list', id: 'pause', props: { rows: P('items') }, on: { accept: I('then') } }] }, legend(['accept', 'pick'], ['back', 'resume'])]),
+    node: screen({ title: P('title'), layer: 'modal', place: 'center' }, [{ use: 'window', children: [{ use: 'list', id: 'pause', props: { rows: P('items'), variant: 'menu' }, on: { accept: I('then') } }] }, legend(['accept', 'pick'], ['back', 'resume'])]),
     example: { title: 'Paused', items: [{ label: 'Resume', then: { close: true } }, { label: 'Party', then: { open: 'party' } }, { label: 'Options', then: { open: 'options' } }, { label: 'Save', disabled: true }, { label: 'Quit to title', then: { emit: 'quit' } }] },
   },
   'options-screen': {
