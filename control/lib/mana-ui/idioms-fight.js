@@ -61,9 +61,11 @@ const tag = (value, side) => ({ use: 'badge', props: { value, variant: 'strong',
 // dots at the inner end, by the clock
 const healthHalf = (n, rtl) => {
   const k = (f) => P(`p${n}${f}`), dir = rtl ? { dir: 'rtl' } : {};
-  const who = row(rtl ? [txt(k('name'), 'heading'), tag(k('tag'), n - 1)] : [tag(k('tag'), n - 1), txt(k('name'), 'heading')], rtl ? 'end' : 'start');
+  // (the tag on its own line over the bar's outer end, the name under it: each read on its own)
+  const mark = row([tag(k('tag'), n - 1)], rtl ? 'end' : 'start'), who = txt(k('name'), 'heading');
   const won = { use: 'pips', props: { value: k('rounds'), max: P('toWin') } };
   return { ...col([
+    mark,
     { use: 'bar', props: { value: k('hp'), max: k('max'), ghost: k('ghost'), variant: 'hp', size: 'large', figures: false, ...dir } },
     { use: 'bar', props: { value: k('guard'), max: P('guardMax'), variant: 'shield', size: 'thin', figures: false, ...dir }, when: P('guardMax') },
     row(rtl ? [won, who] : [who, won], 'apart', 'tight'),
@@ -73,7 +75,7 @@ const healthHalf = (n, rtl) => {
 const meterHalf = (n, rtl) => {
   const k = (f) => P(`p${n}${f}`), dir = rtl ? { dir: 'rtl' } : {};
   const sup = { use: 'bar', props: { value: k('super'), max: P('stocks'), segments: P('stocks'), variant: 'xp', figures: false, ...dir } };
-  const stocks = txt(k('stock'), 'display'), burst = { use: 'pips', props: { value: k('burst'), max: 1, shape: 'diamond' } };
+  const stocks = txt(k('stock'), 'heading'), burst = { use: 'pips', props: { value: k('burst'), max: 1, shape: 'diamond' } };
   return row(rtl ? [burst, sup, stocks] : [stocks, sup, burst], rtl ? 'end' : 'start', 'tight');
 };
 // a side of the select, at its own edge (the first fighter's on the left, the second's on the right): the seat's tag in
@@ -82,7 +84,7 @@ const selectSide = (seat, rtl) => {
   const on = (f) => ({ pick: `roster@${seat}.${f}` }), dir = rtl ? { dir: 'rtl' } : {};
   return col([
     { use: 'portrait', props: { name: on('name'), size: 'xl', caption: false } },
-    row(rtl ? [txt(on('name'), 'title'), tag(P(`p${seat}tag`), seat - 1)] : [tag(P(`p${seat}tag`), seat - 1), txt(on('name'), 'title')], rtl ? 'end' : 'start'),
+    tag(P(`p${seat}tag`), seat - 1), txt(on('name'), 'title'),
     // (who they are by their look first: the style and the figures only when the game shows them)
     { ...col([txt(on('style'), 'label'), { use: 'each', props: { rows: on('stats'), row: { use: 'bar', props: { label: I('label'), value: I('value'), max: I('max'), segments: I('max'), figures: false, ...dir } } } }], rtl ? 'end' : 'start'), when: P('stats') },
   ], rtl ? 'end' : 'start');
@@ -92,7 +94,7 @@ const f = (path) => ({ bind: `fight.${path}` });
 export const FIGHT_IDIOMS = {
   // ── in the fight ──────────────────────────────────────────────────────────────────────────────────────────────────
   'fight-health': {
-    kind: 'hud', about: 'the top frame: the two bars meeting at the clock (the second filling from the right, the chip of the last combo hatched, read by length, no numbers), a guard line under each, each fighter\'s tag in its kit and name at its outer end, the rounds it has won as dots by the clock; no words but the names',
+    kind: 'hud', about: 'the top frame: the two bars meeting at the clock (the second filling from the right, the chip of the last combo hatched, read by length, no numbers), a guard line under each, each fighter\'s tag in its kit and name at its outer end, the rounds it has won as dots by the clock; each side\'s tag on its own line over its bar\'s outer end, its name under the bar; no words but the names',
     reads: 'p1, p2: { tag, name, hp, hpMax, ghost, guard, rounds }, time, toWin, guardMax (none: no guard line)', emits: '—',
     params: ['p1tag', 'p1name', 'p1hp', 'p1max', 'p1ghost', 'p1guard', 'p1rounds', 'p2tag', 'p2name', 'p2hp', 'p2max', 'p2ghost', 'p2guard', 'p2rounds', 'time', 'toWin', 'guardMax'],
     node: region('top', [row([
@@ -162,9 +164,9 @@ export const FIGHT_IDIOMS = {
       { use: 'image', props: { label: W('keyArtPlace'), ratio: 'backdrop' } },
       { use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
         row([
-          col([{ use: 'portrait', props: { name: P('p1name'), size: 'xl', caption: false } }, row([tag(P('p1tag'), 0), txt(P('p1name'), 'title')], 'start')], 'start'),
+          col([{ use: 'portrait', props: { name: P('p1name'), size: 'xl', caption: false } }, tag(P('p1tag'), 0), txt(P('p1name'), 'title')], 'start'),
           txt(W('vs'), 'display'),
-          col([{ use: 'portrait', props: { name: P('p2name'), size: 'xl', caption: false } }, row([txt(P('p2name'), 'title'), tag(P('p2tag'), 1)], 'end')], 'end'),
+          col([{ use: 'portrait', props: { name: P('p2name'), size: 'xl', caption: false } }, tag(P('p2tag'), 1), txt(P('p2name'), 'title')], 'end'),
         ], 'apart', 'loose', true),
         txt(P('arena'), 'heading'),
         { use: 'button', props: { label: P('prompt') }, on: { accept: P('then') } },

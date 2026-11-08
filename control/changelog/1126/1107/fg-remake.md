@@ -82,7 +82,7 @@ keeps its place.
   a fighting game's own UI, quiet and side against side, grown from the shared templates and held to ten principles
   (two sides and one centre, health the frame, the fight never covered, a callout a word, the round's ritual, meters in
   stocks, the hit-stop holding it, quiet, the bars lit and moving, picked by their look). In the fight: `fight-health` (the bars meeting at the clock, read by length,
-  a guard line under each), `fight-meters`, `fight-combo`, `fight-callouts`, `fight-announcer`, and training's
+  a guard line under each, each side's tag on its own line over its bar), `fight-meters`, `fight-combo`, `fight-callouts`, `fight-announcer`, and training's
   `input-display`, `frame-meter`, `training-stats`; around it: `versus-splash`, `fighter-select` (each seat's fighter
   at its own edge, the roster between them), `fight-pause`, `command-list`, `training-settings`, `fight-results`. Its
   words are the runtime's (`WORDS`: the round's ritual, the callouts, the meters, the frame data), so a fight ships in
