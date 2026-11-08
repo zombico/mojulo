@@ -13,6 +13,7 @@ export const OWNER = {
   classical: [
     'gravity-uniform', 'gravity-newton', 'gravity', 'spring', 'rod', 'rope', 'pendulum', 'drag-linear', 'drag-quadratic',
     'air-resistance', 'buoyancy', 'coulomb', 'lorentz', 'plane', 'ground', 'incline', 'collision', 'projectile', 'orbit',
+    'heat', 'thermal', 'conduction', 'convection', 'cooling', 'melting',
   ],
   microscopic: [
     'diffusion', 'brownian', 'brownian-motion', 'osmosis', 'reaction', 'mass-action', 'binding', 'enzyme',
@@ -50,8 +51,9 @@ const NOT_YET = {
   kerr: 'a spinning hole (Kerr) is not in the table yet; the curated `black-hole` kind draws one picture of the non-spinning hole',
   'gravitational-waves': 'gravitational waves are not in the table yet; the curated `gravity-wave` kind shows them',
   wormhole: 'wormholes are not in the table: no known matter holds one open',
-  thermal: 'heat flow is not in the table yet',
-  heat: 'heat flow is not in the table yet',
+  thermal: 'the heat row (conduction, convection, radiation, melting)',
+  conduction: 'the heat row: touching bodies, and a plane with matter, conduct through a contact spot',
+  convection: 'the heat row (h, or the medium\'s order)', cooling: 'the heat row', melting: 'the heat row: the latent heat at the melting point',
   // microscopic laws not yet rows (each species already evens out its own concentration across a membrane it crosses)
   osmosis: 'osmotic flow needs the solvent\'s pressure, which is not modelled; the membrane row shows each species evening out its own concentration',
   transcription: 'a process line (transcription, translation, mitosis) with sourced rates is not in the table yet',

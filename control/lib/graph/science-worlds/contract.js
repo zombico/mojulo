@@ -51,6 +51,26 @@ export function quantity(value, want, where) {
   return q.v;
 }
 
+/**
+ * A temperature in kelvin. A bare number is kelvin; '20 °C', '68 °F', '300 K' (or a pair, [20, '°C']) are read here,
+ * never through the unit table, because Celsius and Fahrenheit are offsets, not scales ('C' alone is the coulomb).
+ */
+export function temperature(value, where) {
+  let n, unit = 'K';
+  if (typeof value === 'number') n = value;
+  else if (Array.isArray(value) && value.length === 2 && typeof value[1] === 'string') [n, unit] = [value[0], value[1].trim()];
+  else if (typeof value === 'string') {
+    const m = value.trim().match(/^([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)\s*(.*)$/i);
+    if (!m) fail(where, `'${value}' is not a temperature ('20 °C', '300 K')`);
+    n = +m[1]; unit = m[2].trim() || 'K';
+  } else fail(where, "wants a temperature: a number in kelvin, or '20 °C', '68 °F', '300 K'");
+  if (typeof n !== 'number' || !Number.isFinite(n)) fail(where, 'not a finite number');
+  const K = { K: n, '°C': n + 273.15, degC: n + 273.15, '℃': n + 273.15, '°F': (n - 32) * (5 / 9) + 273.15, degF: (n - 32) * (5 / 9) + 273.15 }[unit];
+  if (K === undefined) fail(where, `'${unit}' is not a temperature unit (K, °C or °F${unit === 'C' ? "; 'C' alone is the coulomb" : ''})`);
+  if (!(K > 0)) fail(where, 'is below absolute zero');
+  return K;
+}
+
 /** A 3-vector of one dimension: [x, y, z], each component a quantity. */
 export function vector(value, want, where) {
   if (!Array.isArray(value) || value.length !== 3) fail(where, `wants [x, y, z] (${want})`);
@@ -67,10 +87,11 @@ export function positive(value, want, where, { zero = false } = {}) {
 const idOk = (s) => typeof s === 'string' && /^[a-z0-9][a-z0-9_-]{0,31}$/i.test(s);
 
 /**
- * The model's bodies: `{ id, mass?, radius?, at, v?, charge?, fixed?, on_plane?, matter? }`. A fixed body never moves
+ * The model's bodies: `{ id, mass?, radius?, at, v?, charge?, fixed?, on_plane?, matter?, temperature? }`. A fixed body never moves
  * (it may still pull: a fixed sun) and needs no mass unless a law reads it. Ids are unique, short, and what laws and
  * dress name the body by. `matter` names what it is made of (rupa's table, matter.js): with a radius and no mass, its
- * mass is the matter's density × the sphere's volume; a collision or plane with no `e` takes its bounce.
+ * mass is the matter's density × the sphere's volume; a collision or plane with no `e` takes its bounce. `temperature`
+ * (kelvin, or '20 °C') is where it starts: the `heat` law moves it; with none, it stays (a hot body struck is weaker).
  */
 export function normalizeBodies(list) {
   if (!Array.isArray(list) || !list.length) fail('model.bodies', 'wants at least one body');
@@ -98,6 +119,7 @@ export function normalizeBodies(list) {
       out.on_plane = b.on_plane;
     }
     if (matter) out.matter = matter;
+    if (b.temperature !== undefined) out.temperature = temperature(b.temperature, `${where}.temperature`);
     return out;
   });
 }

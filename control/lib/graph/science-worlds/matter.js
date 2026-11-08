@@ -16,11 +16,16 @@
  *   verdictOf(share, budget, m)   → 'holds' | 'dents' | 'breaks': a share under the budget holds, except that a plastic
  *                                   matter keeps a dent once the share passes what its yield takes elastically
  *
+ *   transportOf(m, where)        → { k, emissivity }: how heat moves through and off it (rupa's TRANSPORT table, kept apart
+ *                                   from MATTER so no game page changes); a matter of its own (no `is`) has none
+ *   heatShare(m, T)              → the share of its strength a matter keeps at T kelvin (rupa's heatFactor: whole at
+ *                                   20 °C, half at `soften`, none at `melt`)
+ *
  * The run is never altered by a verdict: a body that would break is reported, not broken (breaking mid-run is a
  * later law). The readout says so.
  */
 
-import { resolveMatter, isLiquid, isGas, isFluid, isPlastic } from '../rupa/matter.js';
+import { resolveMatter, isLiquid, isGas, isFluid, isPlastic, TRANSPORT } from '../rupa/matter.js';
 import { rupaPhysics } from '../rupa/index.js';
 
 const fail = (where, msg) => { throw new Error(`science-worlds: ${where}: ${msg}`); };
@@ -72,3 +77,13 @@ export function verdictOf(share, budget, m, r) {
 
 /** A short line naming where a derived number came from, for the readout. */
 export const sourceOf = (m) => `${m.label ?? m.id} (rupa matter table)`;
+
+/** How heat moves through and off a matter: its conductivity (W/(m·K)) and its surface's emissivity. */
+export function transportOf(m, where) {
+  const t = TRANSPORT[String(m.id).replace(/\+$/, '')];
+  if (!t) fail(where, `${m.id} names no conductivity or emissivity: build it on a matter of the table (\`{ is: 'steel', … }\`)`);
+  return t;
+}
+
+/** The share of its strength a matter keeps at T kelvin (rupa's own heatFactor, in °C). */
+export const heatShare = (m, T) => rupaPhysics.heatFactor(T - 273.15, m.soften, m.melt);

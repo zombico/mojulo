@@ -9,8 +9,10 @@
  *                                        'pairs' → among?: [ids]        (default: every body the law can act on)
  *                                        'link'  → between: [id, id | [x, y, z]]   (a point is a fixed anchor)
  *                                        'plane' → point, normal | tilt (+ downhill), on?: [ids]
- *     params: { name: { dim, vector?, default?, number?, required? } | { matter: 'medium' | 'solid' } },   dims are
- *                                      machina/quantities DIM names; a matter param names a row of rupa's table
+ *     params: { name: { dim, vector?, default?, number?, required? } | { matter: 'medium' | 'solid' }
+ *                     | { temperature: true, default? } | { flag: true, default? } },   dims are machina/quantities DIM
+ *                                      names; a matter param names a row of rupa's table; a temperature is kelvin, or
+ *                                      '20 °C' (contract.js temperature); a flag is true or false
  *     validate?(entry, ctx) → message | null   what the params alone cannot say
  *     summary, assumption,             what it does; what the model leaves out (the page shows every assumption)
  *     resolve(entry, ctx) → { force } | { plane } | { rod } | { collision }   the kernel's resolved form
@@ -288,6 +290,7 @@ export const CLASSICAL_LAWS = [
       point: { dim: 'length', vector: true, default: [0, 0, 0] }, normal: { dim: 'scalar', vector: true },
       tilt: { dim: 'scalar' }, downhill: { dim: 'scalar', vector: true, default: [1, 0, 0] },
       e: { dim: 'scalar', default: 1 }, mu: { dim: 'scalar', default: 0 }, mus: { dim: 'scalar' }, matter: { matter: 'solid' },
+      temperature: { temperature: true },
     },
     summary: 'A rigid flat surface through `point`: a floor (default), a wall (`normal`), or a ramp (`tilt` an angle, sloping down along `downhill`). Bodies bounce with restitution e, rest on it, and slide with friction μ (static μs, default μ).',
     assumption: 'The surface is rigid and flat; bodies slide, they do not roll; elastic and frictionless unless e and μ say otherwise.',
@@ -313,6 +316,7 @@ export const CLASSICAL_LAWS = [
       if ((e.e ?? 1) < 0 || (e.e ?? 1) > 1) return 'e (restitution) is between 0 and 1';
       if ((e.mu ?? 0) < 0 || (e.mus ?? 0) < 0) return 'friction is ≥ 0';
       if (e.tilt !== undefined && (e.tilt <= -Math.PI / 2 || e.tilt >= Math.PI / 2)) return 'tilt is between −90° and 90°';
+      if (e.temperature !== undefined && !e.matter) return 'a plane at a temperature passes heat through its matter: name it (matter: \'steel\', …)';
       return null;
     },
     example: {
@@ -347,6 +351,33 @@ export const CLASSICAL_LAWS = [
     example: {
       bodies: [{ id: 'a', mass: 1, radius: 0.1, at: [-1, 0, 0], v: [2, 0, 0] }, { id: 'b', mass: 2, radius: 0.1, at: [1, 0, 0] }],
       laws: [{ law: 'collision', e: 0.5 }], duration: 2,
+    },
+  },
+  {
+    id: 'heat',
+    words: ['heat', 'temperature', 'cooling', 'warming', 'conduction', 'convection', 'radiation', 'melting', 'hot', 'cold', 'thermal'],
+    shape: 'each',
+    params: {
+      ambient: { temperature: true, default: 293.15 }, medium: { matter: 'medium' }, h: { number: true, unit: 'W/(m²·K)' },
+      radiation: { flag: true, default: true }, contact: { dim: 'length', default: 0.001 },
+    },
+    summary: 'Heat: each body with a matter holds one temperature, moved by its heat (mass × specific heat, the latent heat taken at its melting point). It trades heat with the medium by convection (h), with the surroundings by radiation (εσT⁴), and by conduction through a contact spot with the bodies and the planes with matter it touches.',
+    assumption: 'Each body is one temperature throughout (lumped: the Biot gate says when that is wrong); the medium and the surroundings stay at `ambient`, and a plane at its own; motion makes no heat (no friction or impact heating); a melted body keeps its shape and its motion.',
+    resolve: () => ({}),
+    // heat moves no body: it leaves every mechanical flag (and so every mechanical gate) as it was
+    flags: () => ({ ...NONE, central: true }),
+    timescale: () => null,
+    validate: (e, ctx) => {
+      const idx = members(e, ctx, () => true);
+      const bare = idx.map((i) => ctx.bodies[i]).filter((b) => e.on && (!b.matter || !(b.radius > 0)));
+      if (bare.length) return `${bare[0].id} needs a matter and a radius to hold heat`;
+      if (!idx.some((i) => ctx.bodies[i].matter && ctx.bodies[i].radius > 0)) return 'heat acts on bodies with a matter and a radius: give one a matter';
+      if (e.contact !== undefined && !(e.contact > 0)) return 'contact is the radius of the spot touching bodies conduct through, > 0';
+      return null;
+    },
+    example: {
+      bodies: [{ id: 'ball', matter: 'steel', radius: '2 cm', at: [0, 0, 0], fixed: true, temperature: '200 °C' }],
+      laws: [{ law: 'heat' }], duration: 600,
     },
   },
 ];

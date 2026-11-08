@@ -21,3 +21,14 @@
 - **A science world's page is one picture.** The classical, microscopic, quantum and relativistic pages no longer show
   the view-camera and wireframe buttons or the corner hint; the readout and the honesty panel stay, and `?hud=1` brings
   the buttons back. Every other page is unchanged.
+- **Heat in the classical worlds.** A body can start at a `temperature` (kelvin, `'20 °C'` or `'68 °F'`), and the
+  `heat` law moves it: each body with a matter is one temperature, losing heat to the air or water round it
+  (convection), to its surroundings (radiation, each surface's emissivity from the matter table) and through a contact
+  spot to the bodies and the planes with matter it touches; a plane with a `temperature` is a hot plate. A body takes
+  its latent heat at its melting point before it rises past it. The checks: every joule lost is a joule that leaves
+  (`heat-conserved`), one temperature is fair for each body (`lumped-holds`, its Biot number), cooling by convection
+  alone matches Newton's law (`closed-form:cooling`), and an advisory when a body would melt (`bodies-solid`). A hot
+  body struck is weaker, by the games' own heat factor. The page's readout shows each body's temperature, and
+  `temperature` can be observed. The destructible-physics matter table gains a `TRANSPORT` table beside it
+  (conductivity and emissivity), read only by the science worlds: no game page changes. Heat is stepped along the run
+  after the motion, so a model with no heat law is unchanged, byte for byte.

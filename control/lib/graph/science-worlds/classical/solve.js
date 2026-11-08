@@ -14,13 +14,14 @@
  * Pure and deterministic: the same params give the same result, byte for byte.
  */
 
-import { splitParams, normalizeBodies, quantity, vector, MAX_LAWS } from '../contract.js';
+import { splitParams, normalizeBodies, quantity, vector, temperature, MAX_LAWS } from '../contract.js';
 import { gapFor } from '../scales.js';
 import { G as G_PRESET } from '../../machina/quantities.js';
 import { CLASSICAL_LAWS, CLASSICAL_LAW, G_NEWTON, planeNormal } from './laws.js';
 import { classical } from './kernel.js';
 import { closedFormGates } from './analytic.js';
-import { readMedium, readBodyMatter, bodyBudget, impactOf, verdictOf, sourceOf } from '../matter.js';
+import { readMedium, readBodyMatter, bodyBudget, impactOf, verdictOf, sourceOf, heatShare } from '../matter.js';
+import { runHeat } from './heat.js';
 import { ladderOf } from '../ladder.js';
 import { along, peak, returnRange, period, at, vel } from './measure.js';
 
@@ -99,7 +100,11 @@ function normalizeLaw(raw, i, ctx, lawIds) {
     const v = raw[name];
     if (v === undefined) { if (spec.required) fail(`${where}.${name}`, `'${row.id}' needs ${name} (a ${spec.dim})`); continue; }
     if (spec.matter) entry[name] = spec.matter === 'medium' ? readMedium(v, `${where}.${name}`) : readBodyMatter(v, `${where}.${name}`);
-    else if (spec.number) {
+    else if (spec.temperature) entry[name] = temperature(v, `${where}.${name}`);
+    else if (spec.flag) {
+      if (typeof v !== 'boolean') fail(`${where}.${name}`, 'is true or false');
+      entry[name] = v;
+    } else if (spec.number) {
       if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) fail(`${where}.${name}`, 'wants a positive number (SI)');
       entry[name] = v;
     } else entry[name] = spec.vector ? vector(v, spec.dim, `${where}.${name}`) : quantity(v, spec.dim, `${where}.${name}`);
@@ -154,7 +159,7 @@ export function normalizeClassical(params) {
 const OBSERVABLES = {
   energy: { body: false }, momentum: { body: false }, 'angular-momentum': { body: false },
   speed: { body: true }, height: { body: true }, apex: { body: true }, range: { body: true }, period: { body: true },
-  position: { body: true }, velocity: { body: true },
+  position: { body: true }, velocity: { body: true }, temperature: { body: true },
 };
 
 function normalizeObserve(list, index) {
@@ -298,8 +303,9 @@ export function solveClassical(params) {
   gates.push(gate('classical-regime', 'each body\'s de Broglie wavelength is under a thousandth of its path', worst <= 1e-3, { ratio: sig(worst, 3) },
     worst <= 1e-3 ? 'waves are far too small to matter: the motion is classical' : 'the wavelength is comparable to the path: this belongs to the quantum scale'));
 
+  // the textbook setups read the laws that move bodies: a heat row changes none of them
   const m = {
-    bodies: model.bodies, laws: model.laws, frame: ctx.frame, duration: model.duration, ctx, G: G_NEWTON, resolved: desc,
+    bodies: model.bodies, laws: model.laws.filter(({ row }) => row.id !== 'heat'), frame: ctx.frame, duration: model.duration, ctx, G: G_NEWTON, resolved: desc,
     restingOn: (i, p) => !!classical.system(desc).contact[p]?.[i],
   };
   gates.push(...closedFormGates(m, run));
@@ -314,20 +320,25 @@ export function solveClassical(params) {
   };
   const series = { ke: run.ke.map((v) => sig(v)), pe: run.pe.map((v) => sig(v)), e: E.map((v) => sig(v)), p: run.p.map((p) => sigv(p)), L: run.L.map((L) => sigv(L)) };
 
-  const matter = run.impacts ? matterReadout(model, run.impacts) : null;
+  // heat, stepped along the run already made (heat.js): absent the law, nothing here changes
+  const heat = runHeat(model, run, ctx);
+  if (heat) { gates.push(...heat.gates); warnings.push(...heat.warnings); series.T = heat.series; }
+
+  const matter = run.impacts ? matterReadout(model, run.impacts, heat) : null;
   if (matter) gates.push(gate('bodies-intact', 'no body takes more of a contact\'s energy than its matter holds (the run keeps every body whole)',
     !matter.broken.length, { broken: matter.broken },
     matter.broken.length ? `${matter.broken.join(', ')} would break: the run past that contact is the unbroken body's, not what would happen` : 'every contact stays within what each matter absorbs'));
 
-  const assumptions = [BASE_ASSUMPTION, ...new Set(model.laws.map(({ row }) => row.assumption)), ...(matter ? [MATTER_ASSUMPTION] : [])];
+  const assumptions = [BASE_ASSUMPTION, ...new Set(model.laws.map(({ row }) => row.assumption)), ...(matter ? [MATTER_ASSUMPTION] : []), ...(heat ? heat.assumptions : [])];
   return {
     scale: 'classical',
     model: { ...model, bodies: model.bodies.map(compactBody), laws: model.laws.map(({ row, entry }) => compactEntry(row, entry)) },
     dress, liberties, assumptions, gaps, warnings,
     stepper, dt: sig(dt), substeps, samples, steps: samples * substeps,
     tracks, series,
-    observed: observe(model, run, ctx, E),
+    observed: observe(model, run, ctx, E, heat),
     ...(matter ? { matter } : {}),
+    ...(heat ? { heat: heat.readout } : {}),
     gates, held: gates.every((g) => g.ok),
     stats: {
       duration: sig(model.duration), bodies: model.bodies.length, laws: model.laws.length,
@@ -342,7 +353,7 @@ export function classicalStats(r) {
   return { ...r.stats, stepper: r.stepper, dt: r.dt, steps: r.steps, samples: r.samples, held: r.held };
 }
 
-function observe(model, run, ctx, E) {
+function observe(model, run, ctx, E, heat) {
   const up = ctx.frame.up, last = run.t.length - 1, out = {};
   const index = Object.fromEntries(model.bodies.map((b, i) => [b.id, i]));
   for (const o of model.observe) {
@@ -368,6 +379,11 @@ function observe(model, run, ctx, E) {
       out[key] = { value: T === null ? null : sig(T), unit: 's', axis: sigv(axis), ...(T === null ? { note: 'fewer than two full swings within the run' } : {}) };
     } else if (o.quantity === 'position') out[key] = { start: sigv(at(run, 0, i)), end: sigv(at(run, last, i)), unit: 'm' };
     else if (o.quantity === 'velocity') out[key] = { start: sigv(vel(run, 0, i)), end: sigv(vel(run, last, i)), unit: 'm/s' };
+    else if (o.quantity === 'temperature') {
+      const T = heat?.series[o.of] ?? run.t.map(() => model.bodies[i].temperature ?? null);
+      out[key] = T[0] === null ? { value: null, unit: 'K', note: 'it names no temperature and no heat law moves one' }
+        : { start: sig(T[0]), max: sig(Math.max(...T)), min: sig(Math.min(...T)), end: sig(T[last]), unit: 'K' };
+    }
   }
   return out;
 }
@@ -396,7 +412,13 @@ function compactEntry(row, entry) {
  * What each contact did to the bodies with matter: rupa's impact law on the logged closing speed. A body with no matter
  * (and a plane with none) is rigid: it takes none of the lost energy. Reported, never enacted.
  */
-function matterReadout(model, impacts) {
+function matterReadout(model, impacts, heat) {
+  // a hot body is weaker (rupa's heat factor): its budget at the moment of each contact; a body at no temperature keeps all
+  const strengthAt = (i, t) => {
+    const b = model.bodies[i];
+    if (!heat && b.temperature === undefined) return 1;
+    return heatShare(b.matter, heat ? heat.tAt(i, t) : b.temperature);
+  };
   const side = (b) => (b && b.matter
     ? { mass: b.mass ?? 0, fixed: b.fixed, stiff: bodyBudget(b.matter, b.radius).stiff, joules: bodyBudget(b.matter, b.radius).joules }
     : { mass: b?.mass ?? 0, fixed: b ? b.fixed : true, stiff: Infinity, joules: Infinity });
@@ -407,7 +429,8 @@ function matterReadout(model, impacts) {
     const b = model.bodies[i], p = per[i];
     if (!p) return;
     p.contacts++;
-    const v = verdictOf(share, bodyBudget(b.matter, b.radius), b.matter, b.radius);
+    const full = bodyBudget(b.matter, b.radius), weak = strengthAt(i, t);
+    const v = verdictOf(share, weak === 1 ? full : { ...full, joules: full.joules * weak }, b.matter, b.radius);
     if (share > p.share) { p.share = share; if (rank[v] >= rank[p.worst]) p.at = t; }
     if (rank[v] > rank[p.worst]) { p.worst = v; p.at = t; }
   };
@@ -418,6 +441,8 @@ function matterReadout(model, impacts) {
     else { const pl = planes[ev.plane]; B = pl?.matter ? { mass: 0, fixed: true, radius: 1, matter: pl.matter } : null; }
     const a = { ...side(A), bounce: ev.e }, b = { ...(B ? side(B) : side(null)), bounce: ev.e, fixed: B ? B.fixed !== false : true };
     if (ev.kind === 'plane' && B) { b.joules = Infinity; b.stiff = B.matter.E ?? 10e9; }   // a plane is a surface: its stiffness counts, its budget is not judged
+    if (A.matter) a.joules *= strengthAt(ev.i, ev.t);
+    if (ev.kind === 'pair' && B.matter) b.joules *= strengthAt(ev.j, ev.t);
     const r = impactOf({ ...a, joules: a.joules }, { ...b, joules: Infinity }, ev.vn);
     take(ev.i, r.toA, ev.t);
     if (ev.kind === 'pair') {

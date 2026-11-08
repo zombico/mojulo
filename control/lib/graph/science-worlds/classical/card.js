@@ -6,6 +6,7 @@
 
 import { CLASSICAL_LAWS } from './laws.js';
 import { CLASSICAL_CLOSED_FORMS } from './analytic.js';
+import { HEAT_CLOSED_FORMS } from './heat.js';
 
 export const CARD_BEGIN = '<!-- laws:begin (generated from the law tables: node scripts/science-cards.mjs) -->';
 export const CARD_END = '<!-- laws:end -->';
@@ -24,8 +25,10 @@ const SHAPE = {
 const fmtDefault = (d) => (Array.isArray(d) ? `[${d.join(', ')}]` : String(d));
 
 function paramLine(name, p) {
+  if (p.temperature) return `\`${name}\` (a temperature: K, or '20 °C'; ${p.default !== undefined ? `default ${+(p.default - 273.15).toFixed(2)} °C` : 'optional'})`;
+  if (p.flag) return `\`${name}\` (true or false; default ${p.default})`;
   if (p.matter) return `\`${name}\` (${p.matter === 'medium' ? 'a liquid or gas from rupa\'s matter table: \'water\', \'air\', \'honey\', …' : 'a solid from rupa\'s matter table: \'steel\', \'glass\', \'concrete\', …'}; optional)`;
-  const unit = p.number ? 'a number, SI' : p.dim === 'scalar' ? (name === 'tilt' ? 'an angle: rad, or \'30 deg\'' : 'a number') : `${p.vector ? '[x, y, z] in ' : ''}${UNIT[p.dim] || p.dim}`;
+  const unit = p.number ? (p.unit ?? 'a number, SI') : p.dim === 'scalar' ? (name === 'tilt' ? 'an angle: rad, or \'30 deg\'' : 'a number') : `${p.vector ? '[x, y, z] in ' : ''}${UNIT[p.dim] || p.dim}`;
   const tail = p.required ? 'required' : p.default !== undefined ? `default ${fmtDefault(p.default)}` : 'optional';
   return `\`${name}\` (${unit}; ${tail})`;
 }
@@ -41,7 +44,7 @@ export function classicalCardBlock() {
     `- Leaves out: ${r.assumption}`,
     `- Smallest example: \`${JSON.stringify(r.example)}\``,
   ].join('\n'));
-  const forms = CLASSICAL_CLOSED_FORMS.map((c) => `- \`${c.id}\`: ${c.want}.`);
+  const forms = [...CLASSICAL_CLOSED_FORMS, ...HEAT_CLOSED_FORMS].map((c) => `- \`${c.id}\`: ${c.want}.`);
   return [CARD_BEGIN, '', '## The laws', '', ...laws.flatMap((l) => [l, '']), '## Textbook answers the solver checks itself against', '',
     'When a model is exactly one of these setups, the run is measured and compared with the closed form; the result is a gate.', '',
     ...forms, '', CARD_END].join('\n');

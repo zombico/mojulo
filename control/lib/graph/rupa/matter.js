@@ -56,6 +56,8 @@
  *   MATTER_IDS, SOIL_IDS
  *   CLASS_MATTER           a class's matter when the thing names none (breakability.js classOf): { matter, fill }
  *   resolveMatter(spec, where?) → a matter record (an id, or { is?, ...overrides } over one), checked
+ *   TRANSPORT              { id: { k, emissivity } }: how heat moves through and off each matter, its own table beside
+ *                          MATTER (the science worlds' heat law reads it; no game page does)
  *   isBrittle(m), isSoil(m), isLiquid(m), isGas(m), isFluid(m), isPlastic(m), isCuttable(m), LIQUID_IDS, PLASTIC_IDS
  *   a block's `porosity` (0 solid, to under 1) is the open share of it a flow can pass through (a hedge, a slatted fence,
  *   a mesh): see the runtime's blocking law; `{ matter, porosity }` sets it
@@ -194,6 +196,20 @@ const SOIL_GRAIN = { sand: [0.0004, 0.02, 2650], loam: [0.0002, 0.4, 2650], clay
 const TENSION = { water: 0.072, seawater: 0.073, oil: 0.032, honey: 0.05, mud: 0.06, lava: 0.35 };
 const debrisOf = (k) => (DEBRIS[k] ? { frac: DEBRIS[k][0], shape: DEBRIS[k][1], spread: DEBRIS[k][2] } : {});
 export const MATTER = Object.freeze(Object.fromEntries(Object.entries(BASE).map(([k, m]) => [k, Object.freeze({ ...m, ...THERMAL[k], bounce: BOUNCE[k], ...debrisOf(k), ...(EJECTA_MU[k] ? { mu: EJECTA_MU[k] } : {}), ...(SOIL_GRAIN[k] ? { grain: SOIL_GRAIN[k][0], fines: SOIL_GRAIN[k][1], particle: SOIL_GRAIN[k][2] } : {}), ...(TENSION[k] ? { tension: TENSION[k] } : {}) })])));
+// TRANSPORT, how heat moves through and off a matter (handbook orders, Incropera & DeWitt's appendix tables): `k` the
+// thermal conductivity, W/(m·K); `emissivity` its surface's, 0 to 1 (a dull or oxidized surface, as a thing in a world
+// is; a polished metal is far lower). Its own table, exported beside MATTER and never merged into its records: the game
+// pages read MATTER, and a science world reads both (science-worlds/matter.js)
+const TR = (k, emissivity) => Object.freeze({ k, emissivity });
+export const TRANSPORT = Object.freeze({
+  concrete: TR(1.4, 0.9), 'reinforced-concrete': TR(1.7, 0.9), brick: TR(0.7, 0.93), stone: TR(2.8, 0.9), sandstone: TR(1.7, 0.9),
+  adobe: TR(0.6, 0.9), ceramic: TR(1.0, 0.9), glass: TR(1.0, 0.92), ice: TR(2.2, 0.97),
+  steel: TR(50, 0.7), 'sheet-metal': TR(50, 0.7), 'armour-steel': TR(30, 0.7), brass: TR(110, 0.2), aluminium: TR(167, 0.1), lead: TR(35, 0.4),
+  putty: TR(0.5, 0.9), dough: TR(0.4, 0.9), timber: TR(0.17, 0.9), pine: TR(0.12, 0.9), drywall: TR(0.17, 0.9), bone: TR(0.4, 0.95),
+  sand: TR(0.3, 0.9), loam: TR(0.5, 0.92), clay: TR(1.0, 0.92), gravel: TR(0.7, 0.9), snow: TR(0.2, 0.98),
+  water: TR(0.6, 0.96), seawater: TR(0.6, 0.96), oil: TR(0.17, 0.9), honey: TR(0.5, 0.9), mud: TR(1.0, 0.95), lava: TR(1.5, 0.95),
+  air: TR(0.026, 0),
+});
 export const CHAR_RATE = 0.65e-3 / 60;   // m/s, the char front's speed into a face of burning wood (Eurocode 5, softwood)
 export const AMBIENT = 20;              // °C
 export const MATTER_IDS = Object.freeze(Object.keys(MATTER));

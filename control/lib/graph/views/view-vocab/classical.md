@@ -40,17 +40,19 @@ wants: `'500 g'`, `'36 km/h'`, `'30 deg'`, `[2, 'µC']`, `'2.5 yr'`. A mass give
 
 - `frame` — `{ g }`: the uniform gravity a `gravity-uniform` law uses (default Earth, 9.8 m/s²; or 'moon', 'mars',
   'jupiter', or a quantity). The world is z-up: down is −z.
-- `bodies` — `[{ id, mass, radius?, at, v?, charge?, fixed?, on_plane?, matter? }]`. `at` and `v` are [x, y, z]. A body
+- `bodies` — `[{ id, mass, radius?, at, v?, charge?, fixed?, on_plane?, matter?, temperature? }]`. `at` and `v` are [x, y, z]. A body
   with no radius is a point mass. A `fixed` body never moves but still pulls (a sun, a pivot charge). `on_plane: '<plane
   id>'` sets a body on that surface. `matter` names what it is made of, a solid from the destructible-physics matter
   table (`'steel'`, `'glass'`, `'timber'`, …, or `{ is, …overrides }`): with a radius and no mass its mass is the
   matter's density × the sphere's volume, and a collision or plane with no `e` takes the lower bounce of the two.
+  `temperature` is where it starts (kelvin, or `'20 °C'`, `'68 °F'`; `'C'` alone is the coulomb): the `heat` law moves
+  it, and a hot body is weaker when struck.
 - `laws` — `[{ law: '<id>', …its params }]`, from the table below. A law id the table does not have is reported as a
   **gap** that names the scale that owns it (diffusion and reaction rates are microscopic; orbitals and bonds are
   quantum), and the rest of the model still runs.
 - `observe` — what the readout and the mint report: `'energy'` (default), `'momentum'`, `'angular-momentum'`, or
   `{ quantity, of: '<body>' }` for `'speed'`, `'height'`, `'apex'`, `'range'`, `'period'` (optional `axis`),
-  `'position'`, `'velocity'`.
+  `'position'`, `'velocity'`, `'temperature'`.
 - `duration` — how long the model runs (a time). `dt` and `stepper` ('verlet' or 'rk4') override the solver's
   choice; leave them out unless a gate asks.
 
@@ -92,6 +94,22 @@ the path needs the quantum scale). Say which gates ran and what they saw; the ey
 The drawing declares its own liberties: a scale other than one metre per unit at very large or very small sizes, a
 body too small to see drawn larger (a body that touches things keeps its true size), time sped up or slowed down, and
 a field drawn (its lines a way to draw it, where they start, its glow's scale).
+
+## Heat
+
+The `heat` law gives every body with a matter and a radius a temperature that moves: it loses heat to the medium
+(convection, `h`: still air's order unless given, or a liquid's when `medium` names one), to the surroundings
+(radiation, each surface's emissivity from the matter table, `radiation: false` to leave it out), and through a contact
+spot (`contact`, 1 mm) to the bodies and the planes with matter it touches; a plane with a `temperature` is a hot plate
+or a cold one. A body is one temperature throughout, and takes its latent heat at its melting point before it rises
+past it. The heat is stepped along the run once the motion is solved: heat never moves a body.
+
+It adds its gates: `heat-conserved` (every joule the bodies lose is one that leaves them), `lumped-holds` (each body's
+Biot number is under 0.1, so one temperature is fair), `heat-dt-resolves`, `bodies-solid` (advises when a body would
+melt; the run keeps it whole), and `closed-form:cooling` when the model is exactly Newton's cooling. The readout says,
+body by body, its temperature from start to end, where its heat capacity came from, its melting point and how much of
+it melted, and the share of its strength it keeps at its hottest; with matter, each contact's verdict uses the
+strength the body has at that moment. The page's readout shows each body's temperature.
 
 ## Matter and the ladder of scales
 
@@ -177,6 +195,15 @@ A ball bouncing on a lossy floor until it rests:
   "duration": 5, "observe": ["energy", { "quantity": "height", "of": "ball" }] },
   "dress": { "vectors": true, "film": { "callouts": [{ "at": [0, 0.5], "text": "Dropped from 1.5 m" },
     { "at": [0.5, 1.5], "text": "Each bounce keeps 75% of the speed", "on": "ball" }] } } }
+```
+
+A steel ball set on a steel hot plate at 250 °C, warming over ten minutes while it loses heat to the room:
+
+```
+{ "model": { "bodies": [{ "id": "ball", "matter": "steel", "radius": "1 cm", "at": [0, 0, 0.01], "on_plane": "plate" }],
+  "laws": [{ "law": "gravity-uniform" }, { "law": "plane", "id": "plate", "matter": "steel", "temperature": "250 °C" },
+    { "law": "heat" }],
+  "duration": 600, "observe": [{ "quantity": "temperature", "of": "ball" }] } }
 ```
 
 <!-- laws:begin (generated from the law tables: node scripts/science-cards.mjs) -->
@@ -278,7 +305,7 @@ Uniform electric and magnetic fields on charged bodies: F = q·(E + v × B). The
 A rigid flat surface through `point`: a floor (default), a wall (`normal`), or a ramp (`tilt` an angle, sloping down along `downhill`). Bodies bounce with restitution e, rest on it, and slide with friction μ (static μs, default μ).
 
 - Names its bodies with `id?` (bodies sit on it with `on_plane`), `on?: [ids]`.
-- Takes `point` ([x, y, z] in m; default [0, 0, 0]), `normal` (a number; optional), `tilt` (an angle: rad, or '30 deg'; optional), `downhill` (a number; default [1, 0, 0]), `e` (a number; default 1), `mu` (a number; default 0), `mus` (a number; optional), `matter` (a solid from rupa's matter table: 'steel', 'glass', 'concrete', …; optional).
+- Takes `point` ([x, y, z] in m; default [0, 0, 0]), `normal` (a number; optional), `tilt` (an angle: rad, or '30 deg'; optional), `downhill` (a number; default [1, 0, 0]), `e` (a number; default 1), `mu` (a number; default 0), `mus` (a number; optional), `matter` (a solid from rupa's matter table: 'steel', 'glass', 'concrete', …; optional), `temperature` (a temperature: K, or '20 °C'; optional).
 - Leaves out: The surface is rigid and flat; bodies slide, they do not roll; elastic and frictionless unless e and μ say otherwise.
 - Smallest example: `{"bodies":[{"id":"block","mass":1,"radius":0.05,"at":[0,0,0],"on_plane":"ramp"}],"laws":[{"law":"gravity-uniform"},{"law":"plane","id":"ramp","tilt":"30 deg","mu":0.2}],"duration":2}`
 
@@ -290,6 +317,15 @@ Spheres that touch exchange an impulse along the line of centres with restitutio
 - Takes `e` (a number; default 1).
 - Leaves out: Contacts are instantaneous; spheres are smooth and do not spin.
 - Smallest example: `{"bodies":[{"id":"a","mass":1,"radius":0.1,"at":[-1,0,0],"v":[2,0,0]},{"id":"b","mass":2,"radius":0.1,"at":[1,0,0]}],"laws":[{"law":"collision","e":0.5}],"duration":2}`
+
+### `heat`
+
+Heat: each body with a matter holds one temperature, moved by its heat (mass × specific heat, the latent heat taken at its melting point). It trades heat with the medium by convection (h), with the surroundings by radiation (εσT⁴), and by conduction through a contact spot with the bodies and the planes with matter it touches.
+
+- Names its bodies with `on?: [ids]` (default: every body it can act on).
+- Takes `ambient` (a temperature: K, or '20 °C'; default 20 °C), `medium` (a liquid or gas from rupa's matter table: 'water', 'air', 'honey', …; optional), `h` (W/(m²·K); optional), `radiation` (true or false; default true), `contact` (m; default 0.001).
+- Leaves out: Each body is one temperature throughout (lumped: the Biot gate says when that is wrong); the medium and the surroundings stay at `ambient`, and a plane at its own; motion makes no heat (no friction or impact heating); a melted body keeps its shape and its motion.
+- Smallest example: `{"bodies":[{"id":"ball","matter":"steel","radius":"2 cm","at":[0,0,0],"fixed":true,"temperature":"200 °C"}],"laws":[{"law":"heat"}],"duration":600}`
 
 ## Textbook answers the solver checks itself against
 
@@ -303,5 +339,6 @@ When a model is exactly one of these setups, the run is measured and compared wi
 - `terminal`: terminal speed m·g/b (linear drag) or √(m·g/(½ρCdA)) (quadratic), within 0.1%.
 - `incline`: slide distance s = ½·g·(sin α − μ·cos α)·t² from rest (0 when μs ≥ tan α), within 0.1%.
 - `collision`: head-on final speeds v₁′, v₂′ from momentum and restitution e, within 0.1%.
+- `cooling`: a body that loses heat by convection alone, touching nothing, follows Newton's cooling: T − T∞ = (T₀ − T∞)·e^(−h·A·t / m·c), within one part in a million.
 
 <!-- laws:end -->
