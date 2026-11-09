@@ -29,3 +29,15 @@
   and linked from design_game's readout (`practiceRoom`) and the rail. `room.mjs` is its CLI (`--kit`, `--combos`,
   `--art`, `--hero`, `--cast` over the game's). Checked in headless Chrome: a template's room comes up with no error,
   and three clicks play its L L L string, each press taken and all three blows landing.
+- **The feel measured: the feel chapter's machine gate** (`gameworld/feel/measure.js`). The room's hero is played
+  headless on the runtime the game ships, each number beside what was asked: carried, partly or lost.
+  - The kit: every ground combo of every weapon as written, each move's contact in its window, its chain at its cancel
+    or its length, less its own hitstop, and its travel.
+  - The card: the hitstop, the foe's stun, the dodge's frames and invincible frames, the parry window.
+  - Not measured, and named: air strings and the sidearm's press.
+  
+  design_game's readout carries it as `feel.measured`: the tally, and the lines that fell short or were lost; a loss is
+  a `feel` step in `next`. `measure.mjs` is now its CLI (`--feel`, `--game`, `--page`). What it found on the templates'
+  rooms: every kit carried move by move. The card's stun falls short on every template that asks it (13 or 14 frames
+  where it asks 27 or 30: its hitstun is not lowered onto the foe), and the dodge is invincible all through where the
+  card opens a window.

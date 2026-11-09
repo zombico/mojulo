@@ -15,13 +15,22 @@ node scripts/spikes/practice-room/measure.mjs --page <level.html> --feel '<the g
 node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--kit fallen-angel] [--combos my.json] [--hero anime] [--cast female] [--strings 2.5] [--cdn]  # the room page
 ```
 
-## The measures (`measure.mjs`)
+## The measures (`measure.mjs`, over `lib/graph/gameworld/feel/measure.js`)
 
-A game's melee played headless on `stepWorld` (scripted presses at 60 Hz, as `gameworld/feel/reach.js` measures a jump)
-against a dummy that never dies, each number beside what the feel card asks for: carried, partly or lost. Press to
-contact, the swing to rest, when the next press is taken, the string (mashed, and with its sides alternated), the
-hitstop, the foe's stun and the advantage, the lunge, the reach, the dodge's frames and invincible frames, the guard.
-The rule is a template's (`--feel`, the held weapon's `--class`) or a built level's pilot, byte for byte (`--page`).
+The feel chapter's machine gate, carried by design_game's readout as `feel.measured` (a loss is a `feel` step in
+`next`). The room's hero, armed as the page arms a held blade, played headless on `stepWorld` (scripted presses at
+60 Hz, as `gameworld/feel/reach.js` measures a jump) against a dummy that never dies, each number beside what was asked:
+carried, partly or lost.
+
+- **The kit:** every ground combo of every weapon played as written, each press early (held to the live move's
+  cancel), on a dummy just inside the weapon's reach. For each move: its contact inside its window; the frame the next
+  beat is taken at against its cancel (the last move's length against its frames), less the frames its own hitstop
+  froze it; and the ground its travel covers, on a dummy out of the way.
+- **The card:** the hitstop of the first blow (inside the card's base to max), the foe's stun (where the card asks the
+  rule's), the dodge's frames and invincible frames, and the guard's parry window.
+- **Not measured:** the air strings (they start from a jump) and the sidearm's press are named, not played.
+
+`--feel` one template's room, `--game` a stored game's, `--page` a built level's own pilot, byte for byte.
 
 ## The room (`room.mjs`)
 
@@ -50,13 +59,17 @@ Checked headless (software rendering, about 10 frames a second, so its frame cou
 second and a half with no error, the AI starts off, real clicks strike, the foe takes its hits and stands, the log says
 why each click was dropped. Nobody has played it; the eyes gate is the operator's.
 
-## What the measures found (The Old Keep's sword, the three templates)
+## What the measures found (the templates' rooms, 2026-11-10)
 
-Every template swings the held weapon's 0.5 s whatever its card asks (cards of 23 to 27 frames play as 33 to 36), so
-the stylish game, the adventure and the knight swing alike. The next press is taken only once a swing has ended; a
-string is the opener and one follow-up in another direction, then 2.5 s locked. The hitstop is carried; the lunge, the
-card's hitstun and the guard and parry are lost; the dodge is invincible all through. Each is the room's next fix, one
-a step, each moving its number.
+Every template that fights hand to hand carries its kit: every contact lands in its window, every string chains at its
+cancel, and every finisher plays its length and every travel its metres. Fallen Angel is 39 carried and 2 partly;
+Fable of Artesia is 23 and 2. Two numbers of the card fall short on every template that asks them:
+- **The stun:** the foe reels 13 or 14 frames where the card asks 27 or 30. The card's hitstun is not lowered onto the
+  foe.
+- **The dodge:** it is invincible all through (24 of 24 frames) where the card opens a window (13).
+
+The first measures, before the moveset (every swing the held weapon's 0.5 s, the next press only at its end), are in the
+git history of this file.
 
 ## The game's arsenal (`lib/graph/gameworld/arsenal.js`)
 
