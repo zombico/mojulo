@@ -28,8 +28,10 @@
  *     screen?: 'phone' | 'tablet' | 'screen' | { … },   // the screen it is made for (screen.js)
  *     run?: { length },                    // RUNS (the play shell): each run draws `length` of the levels in a seeded
  *                                          // order; a clear goes on, a death ends the run; the store carries over
- *     final?: <level ref> }                // THE END (the play shell): that level's first win completes the game (the
+ *     final?: <level ref>,                 // THE END (the play shell): that level's first win completes the game (the
  *                                          // front's end plays; a map game does not travel on from it), cleared alone
+ *     flow?: { start, steps } }            // THE FLOW (flow.js): what plays when, screens, cinematics, levels and holds;
+ *                                          // absent: the flow its front, levels and run make (defaultFlow)
  *
  * `setup` is the optional PRE-LEVEL presentation, per party slice — how the setup screen renders
  * that slice's pick (the default is the plain radio/checkbox picker). Two styles:
@@ -85,6 +87,7 @@ import { readScreen } from './screen.js';
 import { buildGameStoreKernel } from './store-kernel.js';
 import { validateHudStyle } from './hud-widgets.js';
 import { readFront } from './play-front.js';
+import { readFlow } from './flow.js';
 
 const K = buildGameStoreKernel();
 
@@ -306,6 +309,13 @@ export function validateGameManifest(manifest) {
   if (manifest.front !== undefined) {
     if (manifest.shell !== 'play') errors.push("front is the light shell's title screen, start menu and credits: add shell: 'play' (the arena shell's is menu)");
     readFront(manifest.front, { levels: Array.isArray(manifest.levels) ? manifest.levels.length : 0, run: manifest.run !== undefined }).forEach((e) => errors.push(e));
+  }
+
+  // FLOW (flow.js): what plays when, from the first screen to the credits; the play shell runs it. A game without one
+  // has the flow its front, levels and run have always made (defaultFlow)
+  if (manifest.flow !== undefined) {
+    if (manifest.shell !== 'play') errors.push("flow is what the play shell runs, from the first screen to the credits: add shell: 'play'");
+    readFlow(manifest.flow, { levels: Array.isArray(manifest.levels) ? manifest.levels.map((l) => l && l.ref).filter(Boolean) : [] }).forEach((e) => errors.push(e));
   }
 
   // SCREEN (screen.js): the screen the game is made for; its levels hold the frame, the shell leaves room for the
