@@ -2,14 +2,17 @@
 
 The single-foe practice mode of a stylish action game is the whole game's engine: one foe, a bare room, every swing,
 string, weapon, guard and parry tried on it. This room is the game minus its level, on the runtime the game ships, so
-what is tuned here is what every level plays. A spike: nothing registers a kind, a door, a tool or a recipe field.
+what is tuned here is what every level plays. The room itself is now the recipe's (`lib/graph/gameworld/practice-room.js`,
+its page `practice-room-page.js`), served by a gameworld as `bible?book=practice` and linked from design_game's readout
+(`practiceRoom`) as soon as the world writes a feel that fights hand to hand; `room.mjs` is its CLI and `measure.mjs`
+the measures, still a spike.
 
 ```sh
 # from control/, with the data directory a game was made in (docs/examples/the-old-keep/README.md: Rebuild it)
 export MOJULO_DATA_DIR=… MOJULO_OUTCOMES_DIR=…
 node scripts/spikes/practice-room/measure.mjs                    # the sword templates measured headless (machine gate)
 node scripts/spikes/practice-room/measure.mjs --page <level.html> --feel '<the game feel>'   # a built game's own pilot
-node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--combos my.json] [--strings 2.5] [--cdn]  # the room page
+node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--kit fallen-angel] [--combos my.json] [--hero anime] [--cast female] [--strings 2.5] [--cdn]  # the room page
 ```
 
 ## The measures (`measure.mjs`)
@@ -22,10 +25,15 @@ The rule is a template's (`--feel`, the held weapon's `--class`) or a built leve
 
 ## The room (`room.mjs`)
 
-A `controllable` manifest resolved by `world-scene.js` and emitted as `export_game` emits a level: a 24 m ring of 1 m
-tiles in two greys (distances read off the floor), a low wall, four pillars and a ledge (`hold: false`). The hero is the
-game's first level's pilot (its rule, its figures, its orbit camera, its lock-on); the foe is that level's first foe
-(`--pack n` for several), standing still until its AI is switched on. Its hp is `--strings` (2.5) of the hero's first
+A `controllable` manifest resolved by `world-scene.js` and emitted as `export_game` emits a level, built from the
+gameworld alone, no level needed: the feel template's own stage (`feel/cards.js` STAGES, the floor the stick view plays
+on) in 1 m tiles of two greys (distances read off the floor), its blocks and a low wall round it (`hold: false`; the
+24 m ring with four pillars and a ledge where a template has no stage). The hero is the game's own where the run has
+made it (its sketch and its sheathed twin), else a stand-in on the template's body (`--cast`, `--hero` another body),
+the world's blade in its right hand and on its back out of a fight; on the feel's rule, the orbit camera and the
+lock-on, and the arsenal (the world's `arsenal`, else its template's kit, else the basic one). The foe is the
+bestiary's first, its sketch where the run made it, else a person of its class standing in (`--pack n` for several),
+standing still until its AI is switched on, two metres ahead of the hero. Its hp is `--strings` (2.5) of the hero's first
 combo, measured on the resolved hero and foe headless (the runtime's own blows, its combo scaling and all); felled, it
 plays its fall and comes back where it stood, whole, three seconds on.
 

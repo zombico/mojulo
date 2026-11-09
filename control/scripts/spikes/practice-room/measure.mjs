@@ -25,6 +25,7 @@ const opt = (k, d = null) => { const i = argv.indexOf(k); return i >= 0 && argv[
 const { createWorld, stepWorld } = await import('../../../lib/graph/worlds/controllable-world.js');
 const { shippedRule } = await import('../../../lib/graph/gameworld/feel/reach.js');
 const { feelCard } = await import('../../../lib/graph/gameworld/feel/lower.js');
+const { cardAsked } = await import('../../../lib/graph/gameworld/practice-room-page.js');
 const { HELD_STRIKE } = await import('../../../lib/graph/polygonizer/hero-swing.js');
 
 const FPS = 60, DT = 1 / FPS;
@@ -118,16 +119,8 @@ export function dodge(rule) {
 }
 
 // ─── the card's side (what the feel asks for) ───
-export function asked(feel) {
-  const C = feelCard(feel), S = C.moves?.string ?? [], m = S[0];
-  const cancel = !m || C.moves.cancel === 'none' || S.length < 2 ? null : C.moves.cancel === 'half' ? m.startup + m.active + Math.ceil(m.recovery / 2) : m.startup + m.active + C.moves.cancel;
-  return {
-    startup: m?.startup ?? null, total: m ? m.startup + m.active + m.recovery : null, cancel, string: S.length, lunge: m?.lunge ?? 0,
-    hitstop: C.hit?.hitstop ? `${C.hit.hitstop.base}-${C.hit.hitstop.max}` : 'none', stun: C.hit?.stun?.model ?? 'none',
-    dodge: C.dodge ? { frames: C.dodge.frames, invincible: C.dodge.iframes ? C.dodge.iframes[1] - C.dodge.iframes[0] : 0 } : null,
-    guard: C.guard ? { parry: C.guard.parry, perfect: C.guard.perfect?.window ?? null } : null,
-  };
-}
+// (what the card asks of one swing: practice-room-page.js cardAsked, the room's HUD's too)
+export const asked = (feel) => cardAsked(feel);
 
 export function measure(rule, feel) {
   const one = single(rule), next = nextTaken(rule);

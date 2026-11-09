@@ -15,3 +15,17 @@
   names the kit, the weapons, the combos and the sidearm. The feel card says the key.
 - **The room plays the game's arsenal** (`scripts/spikes/practice-room/room.mjs`): the world's `arsenal` when it writes
   one, `--kit` over it.
+- **The practice room from the recipe, before any level** (`gameworld/practice-room.js`, its page
+  `practice-room-page.js`): a world that writes a feel that fights hand to hand (or any feel with an arsenal) has a
+  room. It is built from the world alone:
+  - the feel template's own stage, greyboxed (the floor the stick view plays on), or the ring;
+  - the hero: the run's own (its sketch and its sheathed twin) where made, else a stand-in on the template's body with
+    the world's blade, sheathed out of a fight;
+  - the foe: the bestiary's first, its sketch or a person of its class standing in, two metres ahead;
+  - the arsenal: the world's, else the template's kit, else the basic one.
+  
+  The page measures the foe's health on the resolved bodies and lays the HUD (frame data beside the card, the combos,
+  every press taken or dropped and why). It is served on read as `bible?book=practice` (`cast=female` for the stand-in)
+  and linked from design_game's readout (`practiceRoom`) and the rail. `room.mjs` is its CLI (`--kit`, `--combos`,
+  `--art`, `--hero`, `--cast` over the game's). Checked in headless Chrome: a template's room comes up with no error,
+  and three clicks play its L L L string, each press taken and all three blows landing.

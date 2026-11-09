@@ -41,6 +41,13 @@ describe('GET /bible', () => {
     // the atlas: the world's levels drawn as a map, in a look; a look it does not have refused
     expect(await (await bible('gw_hero', '?book=atlas&look=ink')).text()).toBe(gameworldAtlasHtml(MEADOWMARK_HERO, { look: 'ink' }));
     expect((await bible('gw_hero', '?book=atlas&look=sepia')).status).toBe(400);
+    // the practice room: a world whose feel does not fight hand to hand (or that writes none) has none, and says why; a
+    // cast it does not stand in refused (the room itself: gameworld/practice-room.live.test.js)
+    const none = await bible('gw_ground', '?book=practice');
+    expect(none.status).toBe(422);
+    expect((await none.json()).reason).toMatch(/writes no feel/);
+    SketchRepository.create({ ref: 'gw_fight', title: 'Fight', manifest: { kind: 'gameworld', ...MEADOWMARK_HERO, feel: 'fable-of-artesia' } });
+    expect((await bible('gw_fight', '?book=practice&cast=robot')).status).toBe(400);
     expect((await bible('gw_hero', '?download=1')).headers.get('content-disposition')).toMatch(/attachment; filename="Meadowmark\.html"/);
     expect((await bible('gw_hero', '?book=characters&download=1')).headers.get('content-disposition')).toMatch(/attachment; filename="Meadowmark-characters\.html"/);
   }, 120_000);
