@@ -5,7 +5,8 @@
  *   stepBrawl(state, pads, ctx) → state            one frame at 60 Hz
  *   brawlHash(state)                               a short, stable fingerprint (replays, determinism)
  *   ctx = { fighters: [compiled, …], belt? }       (versus-compile.js; brawl-belt.js readBelt; constant through a brawl)
- *   body = { fighter, side: 'player' | 'crowd', x, z, face? }    x mm along the belt, z mm across it (the band), y up
+ *   body = { fighter, side: 'player' | 'crowd', x, z, face?, grabs?, wave? }    x mm along the belt, z mm across it (the
+ *          band), y up; `grabs: false` never takes hold, `wave: k` waits offstage until its wave comes in (brawl-crowd.js)
  *   pad  = { x: -1 | 0 | 1, z: -1 | 0 | 1, mv?, jump? }           the stick along and across, and a command: `mv` a move's
  *                                                                 slot to start (or cancel into), `jump` a jump
  *
@@ -78,6 +79,8 @@ function newBody(i, b, ctx) {
     hl: [], conn: 0, combo: 0, jug: 0, pushv: 0, pushn: 0, air: 0, airMove: 0, landing: 0, inv: 0, ko: 0, gone: 0, tg: -1, gw: 0,
     // (a body that never takes hold: `grabs: false`)
     ...(b.grabs === false ? { ng: 1 } : {}),
+    // (a body of a wave waits offstage, gone, until its wave comes in: brawl-crowd.js)
+    ...(b.wave !== undefined ? { gone: 1, wv: b.wave } : {}),
   };
 }
 
@@ -452,7 +455,7 @@ function resolve(s, ctx) {
       if (o.st === 'fall' && (!m.juggle || o.jug >= s.rules.juggle)) continue;
       if (untouchable(o, F(o), 'strike')) continue;
       const hurt = bodyHurt(o, F(o)).find((h) => crosses(hb, h));
-      if (hurt) contacts.push({ a: p, d: o, m, at: mid(hb, hurt) });
+      if (hurt) contacts.push({ a: p, d: o, m, at: mid(hb, hurt), box: hb });
     }
   }
   for (const t of s.shots) {
@@ -463,7 +466,7 @@ function resolve(s, ctx) {
       if (o.st === 'fall' && (!t.sup || o.jug >= s.rules.juggle)) continue;
       if (untouchable(o, F(o), 'projectile')) continue;
       const hurt = bodyHurt(o, F(o)).find((h) => crosses(sb, h));
-      if (hurt) contacts.push({ a: B[t.o], d: o, shot: t, at: mid(sb, hurt) });
+      if (hurt) contacts.push({ a: B[t.o], d: o, shot: t, at: mid(sb, hurt), box: sb });
     }
   }
   // PRIORITY between two bodies striking each other on one frame (the fight's): the higher level's lands alone
@@ -504,7 +507,7 @@ function resolve(s, ctx) {
 }
 
 const LIMBS = { fist: 'fist', toe: 'foot', ankle: 'foot', knee: 'knee', elbow: 'elbow', head: 'head' };
-function blow(s, ctx, { a: p, d, m, shot, at }) {
+function blow(s, ctx, { a: p, d, m, shot, at, box }) {
   const src = shot ?? m, Fd = ctx.fighters[d.fi];
   // (a holder struck lets go)
   if (d.st === 'hold') letGo(s, d);
@@ -544,7 +547,6 @@ function blow(s, ctx, { a: p, d, m, shot, at }) {
   d.meter = Math.min(METER_MAX, d.meter + Math.round((src.meter ?? 20) / 2));
   const knock = shot ? (shot.sup ? 'down' : 'none') : m.knock;
   const w = (shot && shot.sup) || (!shot && m.kind === 'super') ? 2 : (src.dmg ?? src.damage ?? 30) < 45 ? 0 : (src.dmg ?? src.damage) < 85 ? 1 : 2;
-  const box = shot ? shotRect(shot) : strikeOf(p, ctx.fighters[p.fi]);
   const top = Math.max(...bodyHurt(d, Fd).map((b) => b[3]), d.y + 1);
   const h = !shot && m.guard === 'low' ? 2 : (() => { const rel = ((box[1] + box[3]) / 2 - d.y) / Math.max(1, top - d.y); return rel > 0.7 ? 0 : rel < 0.38 ? 2 : 1; })();
   if (airborne || knock === 'launch' || knock === 'down') {

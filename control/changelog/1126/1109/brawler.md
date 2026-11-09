@@ -37,3 +37,11 @@
   it down), throw it forward into the crowd or behind, or, taken from behind, suplex it. A held body breaks free after a
   while, a holder struck lets go, and the desperation breaks out of a hold. A power-up's state works in the brawl as in
   the fight.
+- The crowd's mind (`brawl/brawl-crowd.js`): a crowd that fights like one. Only two close in on a player at once, lining
+  up across the street before they swing, and only one swings at a time, so a player always gets a moment to act
+  between two attackers' blows; the rest circle in view, half of them working round to the player's back; a thug that
+  is hurt backs off and waits before it comes in again. Its types are fighters: the thug, the knife, the charger (a
+  rush from range), the jumper (a leaping overhead), the heavy (a big body that grabs, knees and throws).
+- Waves: each held screen's crowd waits offstage until a player walks into the screen, then comes in from the right
+  edge, the left and the street's back, six at most at once, and the gate opens when the last falls. A scripted player
+  beats them all.
