@@ -21,14 +21,14 @@ import { manaUi, manaUiSource } from './kernel.js';
 import { manaCss } from './css.js';
 import { themeCss, readTheme } from './theme.js';
 import { withIdioms } from './idioms.js';
-import { PREVIEW_KEYS, AUDIO_SCRIPT } from './board.js';
+import { PREVIEW_KEYS, AUDIO_SCRIPT, previewKey } from './board.js';
 
 export { manaUi, manaUiSource, buildManaUi } from './kernel.js';
 export { manaCss, FRAME_CSS, GREYBOX_VARS } from './css.js';
-export { THEMES, THEME_IDS, THEME_WORDS, FACE_STACKS, readTheme, themeCss, themeAdvice, contrast } from './theme.js';
+export { THEMES, THEME_IDS, THEME_WORDS, FACE_STACKS, readTheme, themeCss, themeAdvice, contrast, gameHudCss } from './theme.js';
 export { IDIOMS, IDIOM_IDS, SCREEN_IDIOMS, HUD_IDIOM_IDS, withIdioms, coverageOverlap } from './idioms.js';
 export { SAMPLE_STATE, SAMPLE_LANGUAGES } from './samples.js';
-export { manaUiBoard, boardFrames, BOARD_HUDS, PREVIEW_KEYS } from './board.js';
+export { manaUiBoard, boardFrames, BOARD_HUDS, PREVIEW_KEYS, previewKey } from './board.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -71,6 +71,6 @@ ${open ? `rt.open(${json(open)});` : ''}
 const view = window.__manaMount = manaUi.mount(document.getElementById('mana'), rt, { auto: true });
 // the input owner: the controls layer's host when given (controls/mana-host.js), else the preview's stand-in keys
 ${host ? `window.__manaHost = (${host.source}).connect(rt, view, { keys: ${json(host.controls.keys)}, pad: ${json(host.controls.pad)}, padLayout: (${host.controls.padLayoutSource}) });` : `const PREVIEW = ${json(PREVIEW_KEYS)};
-window.addEventListener('keydown', (ev) => { const a = PREVIEW[ev.code]; if (!a || !rt.state().screen) return; ev.preventDefault(); rt.input('keys'); rt.press(a); view.paint(); });`}
+window.addEventListener('keydown', (ev) => (${previewKey.toString()})(rt, view, PREVIEW, ev));`}
 </script></body></html>`;
 }

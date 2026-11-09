@@ -790,6 +790,10 @@ function __updateGearLines() {
   // a body with MODES (worlds/controllable/vanish.js): each mode's figure built up front as a loadout's are, the sync's
   // variant swap showing the one it is in. None ⇒ the body as it was, byte for byte
   const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
+  // a body that sheathes its weapon out of combat (rules-platform.js `combat.drawn` / `combat.sheathed`): both figures built,
+  // the rule's choice shown; and a body's POSE LAYERS (\`body.layers\`): none, not a byte
+  const hasSheath = (entities || []).some((e) => e && e.rule && e.rule.combat && e.rule.combat.sheathed);
+  const figHasLayers = (entities || []).some((e) => e && e.body && e.body.layers);
   // (and one whose atlas has edges, the hero's hair cards: its material alpha tested; none ⇒ not a byte of it)
   const figHasMask = figHasPaint && Object.values(figures || {}).some((f) => f?.paintTex?.alphaMask);
   // ONE DRAW A FIGURE (merged-figure.js): a plain rigid rig drawn as one skinned mesh, a draw a pass instead of one a part;
@@ -809,6 +813,10 @@ function __updateGearLines() {
   // a body with FORMS (controllable/forms.js) and a figure baked to be both (transformation/compose.js): the transform
   // press, the clip each form plays, a flying form's attitude. Emitted only when some entity or figure carries forms.
   const hasForms = (entities || []).some((e) => e && e.forms);
+  // a moveset's beats (gameworld/combos.js): the heavy and special presses read, only where a body carries one
+  const moveset = (entities || []).some((e) => e && e.rule && e.rule.moveset);
+  // a guard (combat-melee.js stepGuard, a feel card's lowered): the guard held, read only where a body carries one
+  const guards = (entities || []).some((e) => e && e.rule && e.rule.guard);
   // a hero's SQUASH AND STRETCH on its own jumps (rules-platform.js takes: `takes.squash`, a feel card's look): the rig
   // scaled about its feet by the rule's `e.squash`. No rule carries one ⇒ not a byte of it
   const figHasSquash = (entities || []).some((e) => e && e.rule && e.rule.takes && e.rule.takes.squash > 0);
@@ -1416,7 +1424,8 @@ function __makeBody(e) {
   // pilotRule — check both, or its weapons could never swap after a T take-over.
   const lo = (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
     || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
-    || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''};
+    || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''}${hasSheath ? `
+    || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }] : null)` : ''};
   if (lo && (b.type === 'figure-rig' || b.type === 'figure-frames')) {
     const variants = {};
     const buildVariant = (fname) => {
@@ -2012,6 +2021,130 @@ function __actMode(fig, e, m) {
   if (T && at <= 1) { const dx = T.transform.pos[0] - e.transform.pos[0], dy = T.transform.pos[1] - e.transform.pos[1], d = Math.hypot(dx, dy) || 1, k = Math.sin(Math.PI * at) * Math.min(1.2, d * 0.4) / d; m.position.x += dx * k; m.position.y += dy * k; }
   return c ? { mode: c, phase: Math.min(at, 0.999) } : null;
 }
+` : ''}${figHasLayers ? `// POSE LAYERS (\`body.layers: { run?, combat?: [{ pivot, chain, axis, deg }] }\`, an action hero's: gameworld/levels.js): a
+// pose laid over the clip a state plays, each op turning its pivot bone (figure-local: right +x, forward +y, up +z) and
+// carrying its chain round the pivot's head: the run's legs set apart, combat's guard (leaning in, the weapon arm up, the
+// feet wide). A layer eases in and out (8/s) with its state: the run while running out of combat, combat while in it
+// and not striking (the strike's clip owns the body)
+const __plH = new THREE.Vector3(), __plAx = new THREE.Vector3();
+function __poseLayers(e, fig, dt) {
+  const L = e.body.layers, W = e.__plw || (e.__plw = {}), out = [];
+  if (!fig.__pl) fig.__pl = {};
+  const busy = e.swingT != null || e.dodgeT != null || e.staggerT != null${moveset ? ' || !!e.mvPose' : ''};${moveset ? '   // (a sidearm\'s aim owns the body as a swing does)' : ''}
+  const want = { run: e.moving && !e.combat && (e.locomotion === 'forward' || e.locomotion === 'sprint') ? 1 : 0, combat: e.combat && !busy${moveset ? ' && !(e.moving && e.rule && e.rule.moveset)' : ''} ? 1 : 0 };${moveset ? '   // (a moveset\'s hero on the move carries its blade in its gaits: hero-swing-body.js carryArm)' : ''}
+  for (const name in L) {
+    W[name] = (W[name] || 0) + ((want[name] || 0) - (W[name] || 0)) * Math.min(1, (dt || 0) * 8);
+    if (W[name] < 1e-3) continue;
+    const ops = fig.__pl[name] || (fig.__pl[name] = L[name].map((o) => ({ pi: fig.bones.findIndex((b) => b.id === o.pivot), ix: new Set(o.chain.map((c) => fig.bones.findIndex((b) => b.id === c)).filter((i) => i >= 0)), axis: o.axis, rad: o.deg * Math.PI / 180, q: new THREE.Quaternion(), at: null })).filter((o) => o.pi >= 0));
+    for (const op of ops) { op.at = null; __plAx.set(op.axis[0], op.axis[1], op.axis[2]).normalize(); op.q.setFromAxisAngle(__plAx, op.rad * W[name]); out.push(op); }
+  }
+  return out.length ? out : null;
+}
+` : ''}${moveset ? `// A SIDEARM'S AIM LAYER (gameworld/combos.js a weapon's sidearm, hero-swing-body.js aimClip): its weight eased in and
+// out (a tenth of a second), the bones below the spine (the hips, the legs) left to the walk; the spine's base its root
+const __aimQX = new THREE.Quaternion(), __aimQY = new THREE.Quaternion(), __aimAX = new THREE.Vector3(1, 0, 0), __aimH = new THREE.Vector3();
+const __aimQ = new THREE.Quaternion(), __aimP = [0, 0, 0], __AIM_LOW = /^(pelvis|thigh|shank|hipFold|kneeFold|foot|toes)/;
+function __aimLayer(rig, fig, AP, dt) {
+  const A = rig.aim || (rig.aim = { w: 0, clip: null, phase: 0, d: [0, 0, 0] });
+  if (AP) { if (AP.clip !== A.clip) A.corr = null; A.clip = AP.clip; A.phase = AP.phase; A.prop = AP.prop || null; A.side = !!AP.sidearm; }
+  A.w = Math.max(0, Math.min(1, A.w + (AP ? 1 : -1) * (dt || 0) / 0.1));
+  if (A.w <= 1e-3 || !A.clip || !fig.clips[A.clip]) return null;
+  if (!fig.__aimLow) { fig.__aimLow = fig.bones.map((b) => __AIM_LOW.test(b.id)); fig.__aimRoot = fig.bones.findIndex((b) => b.id === 'lumbar'); }
+  A.lower = fig.__aimLow; A.root = fig.__aimRoot; A.d[0] = A.d[1] = A.d[2] = 0;
+  // ON THE TARGET: the body above the hips turned by the pitch and the yaw the props measured it still lacks (A.corr,
+  // __sidearmProps), about the spine's base
+  // (a sidearm's aim only: a guard's pose stands as it was solved)
+  const C = A.corr || (A.corr = [0, 0]), k = A.side ? A.w : 0;
+  __aimQY.setFromAxisAngle(__RIG_Z, C[1] * k); __aimQX.setFromAxisAngle(__aimAX, C[0] * k);
+  if (!A.q) A.q = new THREE.Quaternion();
+  A.q.copy(__aimQY).multiply(__aimQX); A.at = null;
+  return A;
+}
+// THE SIDEARM IN HAND, drawn on the page at the posed hands while the aim is up: the bow (its limbs, bent as it draws,
+// its string to the drawing hand, the arrow on it while one is nocked) or the guns (one a hand, a dual sidearm's two),
+// in the figure's own frame (x right, y forward, z up, metres)
+const __spV = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], __spY = new THREE.Vector3(0, 1, 0), __spD = new THREE.Vector3(), __spM = new THREE.Matrix4(), __spX = new THREE.Vector3(), __spZ = new THREE.Vector3();
+function __spRod(r, col) { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 1, 6), new THREE.MeshBasicMaterial({ color: col })); o.raycast = function () {}; return o; }
+function __spSpan(o, a, b) { __spD.subVectors(b, a); const L = __spD.length() || 1e-4; o.position.addVectors(a, b).multiplyScalar(0.5); o.quaternion.setFromUnitVectors(__spY, __spD.multiplyScalar(1 / L)); o.scale.set(1, L, 1); }
+function __spBox(s, at, col, into) { const o = new THREE.Mesh(new THREE.BoxGeometry(s[0], s[1], s[2]), new THREE.MeshBasicMaterial({ color: col })); o.position.set(at[0], at[1], at[2]); o.raycast = function () {}; into.add(o); return o; }
+function __spGun() { const g = new THREE.Group(); __spBox([0.035, 0.2, 0.045], [0, 0.06, 0.03], 0x2b2e33, g); __spBox([0.03, 0.05, 0.1], [0, -0.01, -0.03], 0x3a2a1e, g); __spBox([0.02, 0.03, 0.02], [0, 0.17, 0.035], 0x55595f, g); g.userData.mz = new THREE.Object3D(); g.userData.mz.position.set(0, 0.19, 0.035); g.add(g.userData.mz); return g; }
+// ON THE TARGET: where the arrow (or the guns) points now (o, d: the figure's frame) against where the target is (the
+// aim's: e.mvAim, the round's own line to the foe's body; none, straight ahead and level): the pitch and yaw still
+// lacking, taken into the aim layer's turn (A.corr) a share at a time once the aim is all the way up
+const __spT = new THREE.Vector3(), __spInv = new THREE.Matrix4();
+function __spOnTarget(e, m, A, o, d) {
+  if (!A || A.w < 0.99 || !A.corr) return;
+  const M = e.mvAim;
+  if (M) { m.updateMatrix(); __spInv.copy(m.matrix).invert(); __spT.set(M.from[0] + M.dir[0], M.from[1] + M.dir[1], M.from[2] + M.dir[2]).applyMatrix4(__spInv).sub(o); }
+  else __spT.set(0, 1, 0);
+  const el = (v) => Math.atan2(v.z, Math.hypot(v.x, v.y)), az = (v) => Math.atan2(-v.x, v.y);
+  e.__aimErr = [Math.round((el(__spT) - el(d)) * 1800 / Math.PI) / 10, Math.round((az(__spT) - az(d)) * 1800 / Math.PI) / 10];   // (degrees still off: a check reads it)
+  A.corr[0] = Math.max(-0.9, Math.min(0.9, A.corr[0] + 0.6 * (el(__spT) - el(d))));
+  A.corr[1] = Math.max(-0.9, Math.min(0.9, A.corr[1] + 0.6 * (az(__spT) - az(d))));
+}
+function __sidearmProps(e, m, rig, fig, AL) {
+  const R = e.mvRanged || {}, kind = AL ? AL.prop : null;
+  let P = rig.props;
+  if (!P) {
+    const ix = (id) => fig.bones.findIndex((b) => b.id === id);
+    P = rig.props = { hL: ix('handL'), hR: ix('handR'), fL: ix('foreArmL'), fR: ix('foreArmR'), bow: null, guns: null };
+  }
+  if (P.bow) P.bow.g.visible = kind === 'bow';
+  if (P.guns) P.guns.g.visible = kind === 'guns';
+  if (P.shield) P.shield.g.visible = kind === 'shield';
+  if (rig.muzzle && rig.muzzle.userData.sidearm && kind !== 'guns') rig.muzzle = null;   // (the shot's flash from the gun that fired)
+  if (!kind || P.hL < 0 || P.hR < 0 || P.fL < 0 || P.fR < 0) return;
+  // each hand's grip: a hand's length past the wrist along the forearm
+  const at = (h, f, out, k) => { const bh = fig.bones[h].head, bf = fig.bones[f].head; __spV[k].set(bh[0], bh[1], bh[2]).applyMatrix4(rig.boneMeshes[h].matrix); __spV[k + 1].set(bf[0], bf[1], bf[2]).applyMatrix4(rig.boneMeshes[f].matrix); __spD.subVectors(__spV[k], __spV[k + 1]).normalize(); out.copy(__spV[k]).addScaledVector(__spD, 0.07); return __spD.clone(); };
+  const gL = new THREE.Vector3(), gR = new THREE.Vector3(), dL = at(P.hL, P.fL, gL, 0), dR = at(P.hR, P.fR, gR, 2);
+  if (kind === 'bow') {
+    if (!P.bow) {
+      const g = new THREE.Group(), limbs = [], string = [__spRod(0.004, 0xeee6cf), __spRod(0.004, 0xeee6cf)];
+      for (let i = 0; i < 8; i++) { const o = __spRod(0.016, 0x7a4a24); limbs.push(o); g.add(o); }
+      string.forEach((o) => g.add(o));
+      const shaft = __spRod(0.007, 0xc9a46a), head = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.06, 6), new THREE.MeshBasicMaterial({ color: 0x9aa3ad }));
+      head.raycast = function () {}; g.add(shaft); g.add(head);
+      m.add(g); P.bow = { g, limbs, string, shaft, head };
+    }
+    const B = P.bow, bowHand = R.hand === 'right' ? gR : gL, pull = R.hand === 'right' ? gL : gR, k = AL.phase || 0;
+    // the arrow's line: from the drawing hand to the bow hand (else the body's forward); the limbs square to it, upright
+    const a = new THREE.Vector3().subVectors(bowHand, pull); if (a.lengthSq() < 0.01) a.set(0, 1, 0); a.normalize();
+    const u = new THREE.Vector3(0, 0, 1).addScaledVector(a, -a.z).normalize(), H = 0.62, bend = 0.1 + 0.12 * k;
+    const pt = (sg) => new THREE.Vector3().copy(bowHand).addScaledVector(u, sg * H).addScaledVector(a, -bend * sg * sg);
+    let prev = pt(-1);
+    for (let i = 0; i < 8; i++) { const nx = pt(-1 + (2 * (i + 1)) / 8); __spSpan(B.limbs[i], prev, nx); prev = nx; }
+    const top = pt(1), bot = pt(-1), rest = new THREE.Vector3().addVectors(top, bot).multiplyScalar(0.5);
+    const nock = e.weapon && e.weapon.charging ? pull : rest;
+    __spSpan(B.string[0], top, nock); __spSpan(B.string[1], nock, bot);
+    // the arrow on the string while one is nocked (its point past the bow)
+    const armed = !!(e.weapon && e.weapon.ammo > 0 && !e.weapon.reloading);
+    B.shaft.visible = B.head.visible = armed;
+    if (armed) { const tip = new THREE.Vector3().copy(nock).addScaledVector(a, 0.78); __spSpan(B.shaft, nock, tip); B.head.position.copy(tip); B.head.quaternion.setFromUnitVectors(__spY, a); }
+    __spOnTarget(e, m, AL, pull, a);
+  } else if (kind === 'shield') {
+    // THE SHIELD (a blade's guard): a round shield on the left forearm, its face out from the arm toward where the body
+    // faces, its rim a band of iron, its boss at the middle
+    if (!P.shield) {
+      const g = new THREE.Group(), mk = (geo, col) => { const o = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col })); o.raycast = function () {}; g.add(o); return o; };
+      mk(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 20), 0x6b4423); mk(new THREE.TorusGeometry(0.3, 0.018, 6, 24), 0x8a8f96).rotation.x = Math.PI / 2;
+      mk(new THREE.SphereGeometry(0.06, 10, 6), 0xa9aeb5).position.y = 0.02;
+      m.add(g); P.shield = { g };
+    }
+    // (the cylinder's axis, +y, its face's normal: turned onto the arm's outward side, square to the forearm)
+    const n = new THREE.Vector3(0, 1, 0).addScaledVector(dL, -dL.y).normalize();
+    if (n.lengthSq() < 1e-6) n.set(0, 1, 0);
+    P.shield.g.position.copy(gL).addScaledVector(dL, -0.12).addScaledVector(n, 0.07);
+    __spX.crossVectors(dL, n).normalize(); __spM.makeBasis(dL, n, __spX); P.shield.g.quaternion.setFromRotationMatrix(__spM);
+  } else {
+    if (!P.guns) { const g = new THREE.Group(), L = __spGun(), Rg = __spGun(); g.add(L); g.add(Rg); m.add(g); P.guns = { g, L, R: Rg }; }
+    const G = P.guns;
+    const place = (o, grip, d) => { __spZ.set(0, 0, 1).addScaledVector(d, -d.z).normalize(); __spX.crossVectors(d, __spZ).normalize(); __spM.makeBasis(__spX, d, __spZ); o.quaternion.setFromRotationMatrix(__spM); o.position.copy(grip); };
+    place(G.R, gR, dR); place(G.L, gL, dL);
+    G.L.visible = !!R.dual; G.R.visible = true;
+    __spOnTarget(e, m, AL, R.dual ? new THREE.Vector3().addVectors(gL, gR).multiplyScalar(0.5) : gR, R.dual ? new THREE.Vector3().addVectors(dL, dR).normalize() : dR);
+    const mz = (R.dual && e.weapon && (e.weapon.shots || 0) % 2 ? G.L : G.R).userData.mz; mz.userData.sidearm = true; rig.muzzle = mz;
+  }
+}
 ` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
   if (e.tumble && e.tumble.angle) {
@@ -2040,7 +2173,12 @@ function __actMode(fig, e, m) {
     if (q) m.scale.set(s0 * q[0], s0 * q[0], s0 * q[1]); else { m.scale.setScalar(s0); m.userData.s0 = null; }
   }
   ` : ''}const fig = rig.fig;
-  ${figHasForms || acts || takes ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
+  ${figHasForms || acts || moveset || takes ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
+  // A SIDEARM'S AIM (e.mvPose, combat-melee.js: the archer's draw at its share, the gunslinger's guns): the whole body
+  // standing, the body above the hips over the walk (the aim layer in the bone loop, __aimLayer)
+  const AP = e.mvPose && e.staggerT == null && fig.clips && fig.clips[e.mvPose.clip] ? e.mvPose : null;   // (none while reeling)
+  if (AP && !e.moving) mode = AP.clip;
+  const AL = __aimLayer(rig, fig, AP, dt);` : ''}${figHasForms ? `
   if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
   const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
   if (act) mode = act.mode;` : ''}${takes ? `
@@ -2048,7 +2186,7 @@ function __actMode(fig, e, m) {
   const tk = __world.take && !e.moving && fig.clips[__world.take.clip] ? __world.take : null;
   if (tk) mode = tk.clip;
   e.taking = tk ? tk.clip : null;` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, ${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${acts ? 'phase' : 'e.gaitPhase'}, dt || 0, rig.blendTime);
+  const mix = __CW.advanceGaitMix(rig.mix, mode, ${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no
@@ -2125,6 +2263,7 @@ function __actMode(fig, e, m) {
     }
   }
 ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
+` : ''}${figHasLayers ? `  const PL = e.body && e.body.layers ? __poseLayers(e, fig, dt) : null;
 ` : ''}  for (let bi = 0; bi < fig.bones.length; bi++) {
     const mesh = rig.boneMeshes[bi];
     if (!mesh) continue;
@@ -2135,7 +2274,18 @@ ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
       __rigPA[0] += (__rigPB[0] - __rigPA[0]) * (1 - w);
       __rigPA[1] += (__rigPB[1] - __rigPA[1]) * (1 - w);
       __rigPA[2] += (__rigPB[2] - __rigPA[2]) * (1 - w);
-    }
+    }${moveset ? `
+    // the aim layer: each bone above the hips toward the aim clip's, carried with the spine's base onto the walk's
+    if (AL && !AL.lower[bi]) {
+      __rigBone(fig, AL.clip, AL.phase, false, bi, __aimQ, __aimP);
+      if (bi === AL.root) { AL.d[0] = __rigPA[0] - __aimP[0]; AL.d[1] = __rigPA[1] - __aimP[1]; AL.d[2] = __rigPA[2] - __aimP[2]; }
+      __rigQA.slerp(__aimQ, AL.w);
+      for (let c = 0; c < 3; c++) __rigPA[c] += (__aimP[c] + AL.d[c] - __rigPA[c]) * AL.w;
+      // (turned onto the target about the spine's base)
+      if (bi === AL.root) AL.at = [__rigPA[0], __rigPA[1], __rigPA[2]];
+      else if (AL.at) { __aimH.set(__rigPA[0] - AL.at[0], __rigPA[1] - AL.at[1], __rigPA[2] - AL.at[2]).applyQuaternion(AL.q); __rigPA[0] = AL.at[0] + __aimH.x; __rigPA[1] = AL.at[1] + __aimH.y; __rigPA[2] = AL.at[2] + __aimH.z; }
+      __rigQA.premultiply(AL.q);
+    }` : ''}
     if (fig.bones[bi].id === 'head' && Math.abs(rig.lookA) > 1e-4) {
       __rigQL.setFromAxisAngle(__RIG_Z, rig.lookA);
       __rigQA.premultiply(__rigQL);
@@ -2154,7 +2304,16 @@ ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
         __rigQA.premultiply(__apQ);
       }
     }
-${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the steering wheel turns and a mast whips about their own heads,
+${figHasLayers ? `    // POSE LAYERS (__poseLayers): each op turns its pivot bone and carries its chain round the pivot's head
+    if (PL) for (const op of PL) {
+      if (bi === op.pi) { op.at = [__rigPA[0], __rigPA[1], __rigPA[2]]; __rigQA.premultiply(op.q); }
+      else if (op.at && op.ix.has(bi)) {
+        __plH.set(__rigPA[0] - op.at[0], __rigPA[1] - op.at[1], __rigPA[2] - op.at[2]).applyQuaternion(op.q);
+        __rigPA[0] = op.at[0] + __plH.x; __rigPA[1] = op.at[1] + __plH.y; __rigPA[2] = op.at[2] + __plH.z;
+        __rigQA.premultiply(op.q);
+      }
+    }
+` : ''}${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the steering wheel turns and a mast whips about their own heads,
     // then they, and the body, lean, pitch and bounce about the wheelbase's middle
     if (LV && LV.role[bi]) {
       const role = LV.role[bi];
@@ -2180,7 +2339,8 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
     __rigH.set(rh[0], rh[1], rh[2]).applyQuaternion(__rigQA);
     __rigV.set(__rigPA[0] - __rigH.x, __rigPA[1] - __rigH.y, __rigPA[2] - __rigH.z);
     mesh.matrix.compose(__rigV, __rigQA, __RIG_ONE);
-  }${figHasFace ? `
+  }${moveset ? `
+  __sidearmProps(e, m, rig, fig, AL);` : ''}${figHasFace ? `
   if (fig.face) __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);` : ''}${takes && figHasFace ? `
   // (a taking face's weights, where a headless driver reads them: e.takeFace)
   if (fig.face) { const fm = tk ? rig.boneMeshes.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
@@ -2318,8 +2478,8 @@ ${acts ? `    const act = __actMode(fig, e, m);
       }
       return;
     }
-    const mode = ${acts ? 'act ? act.mode : ' : ''}e.moving ? e.locomotion : 'idle';
-    const mix = __CW.advanceGaitMix(fig.mix, mode, ${acts ? 'act ? act.phase : ' : ''}e.gaitPhase, dt || 0, fig.blendTime);
+    const mode = ${acts ? 'act ? act.mode : ' : ''}e.moving ? e.locomotion : ${moveset ? "(e.idleClip || 'idle')" : "'idle'"};
+    const mix = __CW.advanceGaitMix(fig.mix, mode, ${acts ? 'act ? act.phase : ' : ''}e.gaitPhase, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : fig.blendTime)" : 'fig.blendTime'});
     const attr = fig.mesh.geometry.getAttribute('position');
     const out = attr.array;
     out.fill(0);
@@ -2432,7 +2592,7 @@ const __mb = (id, e) => __CTL.is(__BIND, id, 'mouse', Object.keys(__DEV.mouse.bu
 let __usePad = false;   // the device the player last used (a prompt names its key): a key press says keyboard, pad activity the pad
 window.addEventListener('keydown', (e) => { __held[e.code] = true; __usePad = false; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 window.addEventListener('keyup', (e) => { __held[e.code] = false; });
-let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;
+let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;${moveset ? ' let __heavyDown = false, __specialDown = false, __cycleDown = false;' : ''}
 const __canvas = renderer.domElement;
 const __MOUSELOOK = ${!!(camera && (camera.turnMode === 'look' || camera.mouseLook))};   // FPS look camera?
 if (__MOUSELOOK) {
@@ -2443,7 +2603,12 @@ if (__MOUSELOOK) {
   // FIRE = left mouse, but ONLY once the pointer is captured (the first click captures the mouse and
   // does not fire). The weapon subsystem gates ROF / semi-edge / reload, so this is a raw held flag.
   __canvas.addEventListener('mousedown', (e) => { if (__mb('fire', e) && document.pointerLockElement === __canvas) __fireDown = true; });
-  window.addEventListener('mouseup', (e) => { if (__mb('fire', e)) __fireDown = false; });
+  window.addEventListener('mouseup', (e) => { if (__mb('fire', e)) __fireDown = false; });${moveset ? `
+  // A MOVESET's beats (gameworld/combos.js): heavy the right click, special the mouse's forward button, once the pointer
+  // is captured; neither opens the menu nor turns the browser's page (preventDefault on the side buttons)
+  __canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  __canvas.addEventListener('mousedown', (e) => { if (document.pointerLockElement !== __canvas) return; if (__mb('heavy', e)) __heavyDown = true; if (__mb('special', e)) { e.preventDefault(); __specialDown = true; } if (__mb('cycleWeapon', e)) { e.preventDefault(); __cycleDown = true; } });
+  window.addEventListener('mouseup', (e) => { if (__mb('heavy', e)) __heavyDown = false; if (__mb('special', e)) { e.preventDefault(); __specialDown = false; } if (__mb('cycleWeapon', e)) __cycleDown = false; if (e.button === 3 || e.button === 4) e.preventDefault(); });` : ''}
 } else {
   // default: hold-to-look drag (walk / glide / orbit worlds keep the cursor visible).
   __canvas.addEventListener('pointerdown', () => { __drag = true; });
@@ -2600,7 +2765,9 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
   return {
     moveX: mx, moveY: -my,                     // stick up = forward
     lookX: lx, lookY: ly,
-    fire: pb('fire'), boost: pb('boost'),
+    fire: pb('fire'), boost: pb('boost'),${moveset ? `
+    light: pb('light', rb), heavy: pb('heavy', rb), special: pb('special', rb),   // a moveset's beats: the left, top and right faces` : ''}${guards ? `
+    guard: pb('guard'),   // the guard held: the left shoulder` : ''}
     // analog trigger VALUES — the vehicle rules (drive/fly) read RT/LT as throttle/brake, the
     // console-driving standard; suits keep the pressed reads above untouched.
     rt: __CTL.value(__BIND, 'fire', 'gamepad', __ga), lt: __CTL.value(__BIND, 'boost', 'gamepad', __ga),
@@ -2665,7 +2832,7 @@ function __readInput() {
   const jump = sp && !__prevJump ? 1 : 0;   // rising edge: a discrete press, not a held axis
   __prevJump = sp;
   // weapon cycling (platform rule, opt-in loadout): R press edge cycles, digit press edge selects
-  const cy = __k('cycleWeapon') || !!(__pad && __pad.cycle);
+  const cy = __k('cycleWeapon') || !!(__pad && __pad.cycle)${moveset ? ' || __cycleDown' : ''};   // (a moveset's: the mouse's back button too)
   const cycle = cy && !__prevCycle ? 1 : 0;
   __prevCycle = cy;
   let slotNow = (__pad && __pad.slot) || 0;
@@ -2736,7 +2903,9 @@ function __readInput() {
     boost: __k('boost') || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
     walk: __k('walk') ? 1 : 0,       // a person's walk, held (platform rule, walkSpeed); a pad walks by the stick's travel
     kneel: __k('kneel') || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
-    fire: __fireDown || (__pad && __pad.fire && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)
+    fire: __fireDown || (__pad && (__pad.fire${moveset ? ' || __pad.light' : ''}) && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)${moveset ? `
+    heavy: __heavyDown || (__pad && __pad.heavy) ? 1 : 0, special: __specialDown || (__pad && __pad.special) ? 1 : 0,   // a moveset's heavy and special beats` : ''}${guards ? `
+    guard: __k('guard') || (__pad && __pad.guard) ? 1 : 0,   // the guard held (Shift, the left shoulder)` : ''}
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)
@@ -3176,6 +3345,7 @@ if (__boostEnt && !__world.spectate) {   // SPECTATE: boost is a pilot resource 
   __bgLabel.textContent = 'OVERHEAT';
   __bgLabel.style.cssText = 'position:absolute;left:50%;bottom:27px;transform:translateX(-50%);font:700 10px system-ui,sans-serif;letter-spacing:.14em;color:#ff6b6b;text-shadow:0 1px 3px rgba(0,0,0,.6);display:none;pointer-events:none;z-index:9';
   wrap.appendChild(__bgLabel);
+  __bgWrap.className = 'moj-c-gauge'; __bgFill.className = 'moj-c-fill'; __bgLabel.className = 'moj-c-cap';   // (a HUD look's hooks: mana-ui/theme.js gameHudCss)
   __bg = { wrap: __bgWrap, fill: __bgFill, label: __bgLabel };
 }
 // R19 SHIELD pip — REMOVED (operator, 2026-08-06): the shield's HP is no longer read out as a
@@ -3276,6 +3446,7 @@ if (__world.entities.some((e) => __hpMaxOf(e) > 0)) {
   __hpTrack.appendChild(__hpFill);
   __hpWrap.appendChild(__hpTop); __hpWrap.appendChild(__hpTrack);
   wrap.appendChild(__hpWrap);
+  __hpWrap.className = 'moj-c-hp'; __hpTrack.className = 'moj-c-track'; __hpFill.className = 'moj-c-fill'; __hpNum.className = 'moj-c-num'; __hpLbl.className = 'moj-c-lbl';   // (a HUD look's hooks: mana-ui/theme.js gameHudCss)
   __hp = { wrap: __hpWrap, fill: __hpFill, num: __hpNum };
 }
 function __updateHpHud() {
@@ -3448,7 +3619,18 @@ function __updateBoostHud() {
   __bg.fill.style.background = overheat ? '#ff6b6b' : (frac < 0.25 ? '#ffb347' : '#7fd4ff');
   __bg.fill.style.opacity = overheat ? '0.5' : '0.72';
   __bg.label.style.display = overheat ? '' : 'none';
-}
+}${entities.some((x) => x && x.rule && x.rule.stamina === true) ? `
+// STAMINA (a hero that sprints on it, rules-platform.js \`stamina\`): the boost gauge read as the hero's stamina, a green bar that
+// ambers low, and WINDED (not OVERHEAT) while it is run dry and refilling. Emitted only on a page whose hero sprints.
+if (__bg && __boostEnt && __boostEnt.rule && __boostEnt.rule.stamina) { __bg.label.textContent = 'WINDED'; __bg.label.style.color = '#ffb36b'; }
+const __updateBoostHud0 = __updateBoostHud;
+__updateBoostHud = function () {   // eslint-disable-line no-func-assign
+  __updateBoostHud0();
+  const ent = (__world.pilotId && __world.byId[__world.pilotId]) || __boostEnt;
+  if (!__bg || !ent || !ent.rule || !ent.rule.stamina) return;
+  const max = __boostMaxOf(ent), frac = Math.max(0, Math.min(1, (ent.boost == null ? max : ent.boost) / max));
+  __bg.fill.style.background = ent.boostLock ? '#ff8a5c' : (frac < 0.25 ? '#ffc35c' : '#8fdc6a');
+};` : ''}
 // muzzle-flash + tracer + impact effects: on each new shot (weapon.shots increments) spawn transient
 // additive meshes at the engine-provided from/to and fade them over their ttl. Non-pickable (raycast
 // disabled) so they never confuse the ground probe. Colour + size come from the weapon's fx config.
@@ -3683,7 +3865,16 @@ function __updateProjectiles() {
   const live = {};
   for (const p of ps) {
     live[p.id] = true;
-    let rec = __projMeshes[p.id];
+    let rec = __projMeshes[p.id];${moveset ? `
+    // (a moveset's bow, gameworld/combos.js a draw sidearm: its round an ARROW, a shaft along its flight, its point leading)
+    if (!rec) {
+      const ow = __world.byId && __world.byId[p.owner];
+      if (ow && ow.mvRanged && ow.mvRanged.mode === 'draw') {
+        const g = new THREE.Group(), shaft = __spRod(0.008, 0xc9a46a), head = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.07, 6), new THREE.MeshBasicMaterial({ color: 0x9aa3ad })), fl = __spBox([0.004, 0.09, 0.05], [0, -0.34, 0], 0xb8322a, g);
+        shaft.scale.set(1, 0.78, 1); head.position.set(0, 0.42, 0); head.raycast = function () {}; g.add(shaft); g.add(head); fl.raycast = function () {};
+        scene.add(g); rec = __projMeshes[p.id] = { g: g };
+      }
+    }` : ''}
     if (!rec) {
       const col = p.fxColor != null ? p.fxColor : 0xffcc66, sz = p.fxScale != null ? p.fxScale : 3;
       // the round is a POINTED SHELL (a hot nose-cone, not a beachball): a long thin cone whose TIP

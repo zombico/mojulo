@@ -145,6 +145,9 @@ export function buildRulesBasic(E) {
         const sens = r.lookSens ?? 0.0035;
         e.camYaw = wrapA(e.camYaw + (input.lookDX || 0) * sens);
         e.camPitch = Math.max(-0.45, Math.min(0.7, (e.camPitch || 0) + (input.lookDY || 0) * sens));
+        // (`lockTrack` with a foe locked on, lock.js: the yaw swings round behind the hero to hold the foe ahead, at
+        // `lockRate`/s; the look turns it again once the lock is let go)
+        if (lkTgt && lkMix > 0.5) { const want = Math.atan2(lkTgt.transform.pos[1] - tgt.transform.pos[1], lkTgt.transform.pos[0] - tgt.transform.pos[0]); e.camYaw = wrapA(e.camYaw + wrapA(want - e.camYaw) * smooth(r.lockRate ?? 5, dt)); }
         pSteer = e.camPitch;
       } else {
         // (only a heading that has settled: while the hero turns round fast, the view waits for where it ends up)
@@ -174,6 +177,11 @@ export function buildRulesBasic(E) {
       tgt.transform.pos[1] - f[1] * dist * cp + rt[1] * shoulder,
       tz + height - dist * sp,
     ];
+    // THE FIRST LOOK (opt-in `vista: { at, secs?, rise? }`, a level's opening, gameworld/levels.js): for its first `secs`
+    // of play the chase stands `rise` metres higher and looks at `at`, the place the level is about, over what grows round
+    // the start; eased back down into the chase over its last third. Absent → the chase as it was.
+    const vT = r.vista && Array.isArray(r.vista.at) ? r.vista.secs ?? 6 : 0, vq = vT && world.time < vT ? 1 - Math.max(0, (world.time - vT * 2 / 3) / (vT / 3)) : 0, vs = vq * vq * (3 - 2 * vq);
+    if (vs) want[2] += (r.vista.rise ?? 16) * vs;
     const k = smooth(lerp, dt);
     e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), k));
     e.lookAt = [
@@ -181,6 +189,7 @@ export function buildRulesBasic(E) {
       tgt.transform.pos[1] + f[1] * lead * cp,
       tz + lookH + lead * sp,
     ];
+    if (vs) { const a = r.vista.at; e.lookAt = [e.lookAt[0] + (a[0] - e.lookAt[0]) * vs, e.lookAt[1] + (a[1] - e.lookAt[1]) * vs, e.lookAt[2] + (a[2] - e.lookAt[2]) * vs]; }
     // ROLL (skyscape, opt-in `rollFollow` 0..1): the chase banks with a target that rolls (the fly rule's tilt.roll),
     // eased on the same lerp, so a turn reads as a bank and the horizon tilts. Absent, `e.roll` is never set.
     if (r.rollFollow) { const want = ((tgt.tilt && tgt.tilt.roll) || 0) * r.rollFollow; e.roll = (e.roll || 0) + (want - (e.roll || 0)) * k; }

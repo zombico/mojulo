@@ -93,6 +93,11 @@ describe('desktop-gate', () => {
     expect(smokePages([{ file: 'README.md' }, { file: 'levels/menu-x.html' }, { file: 'levels/preview-y.html' }, { file: 'levels/sk_a.html' }]))
       .toEqual(['game.html', 'levels/sk_a.html']);
     expect(smokePages(['game.html', 'recipe/game.json'])).toEqual(['game.html']);
+    // (its command line: Chromium's flags before the folder, the pages after the mark; no sandbox as root, a software
+    // WebGL allowed where no GPU answers)
+    const { smokeArgs } = await import('./desktop-gate.js');
+    expect(smokeArgs({ dir: '/g', pages: ['game.html'], root: false })).toEqual(['--enable-unsafe-swiftshader', '/g', '--mojulo-smoke', 'game.html']);
+    expect(smokeArgs({ dir: '/g', pages: ['game.html'], root: true })[0]).toBe('--no-sandbox');
     expect(parseSmoke('noise\nMOJULO_SMOKE {"ok":true,"pages":[]}\n')).toEqual({ ok: true, pages: [] });
     expect(parseSmoke('no line')).toBe(null);
     expect(await runDesktopGate({ dir: '/x', electron: null, pages: [] })).toMatchObject({ ran: false, skipped: expect.stringMatching(/MOJULO_ELECTRON/) });
@@ -101,10 +106,11 @@ describe('desktop-gate', () => {
   it('lays `env` over the environment for the app it launches (a stand-in Electron that prints the report)', async () => {
     if (process.platform === 'win32') return;
     const { runDesktopGate } = await import('./desktop-gate.js');
-    // `node -e` as the binary: argv is [dir, --mojulo-smoke, ...pages]; it echoes the bound back as the report
+    // `node -e` as the binary: argv is [Chromium's flags…, dir, --mojulo-smoke, ...pages] (the pages after the mark, as
+    // main.js reads them); it echoes the bound back as the report
     const d = mkdtempSync(path.join(tmpdir(), 'desk-gate-'));
     const bin = path.join(d, 'electron');
-    writeFileSync(bin, `#!${process.execPath}\nprocess.stdout.write('MOJULO_SMOKE ' + JSON.stringify({ ok: true, t: process.env.MOJULO_SMOKE_TIMEOUT_MS, pages: process.argv.slice(4) }) + '\\n');\n`, { mode: 0o755 });
+    writeFileSync(bin, `#!${process.execPath}\nprocess.stdout.write('MOJULO_SMOKE ' + JSON.stringify({ ok: true, t: process.env.MOJULO_SMOKE_TIMEOUT_MS, pages: process.argv.slice(process.argv.indexOf('--mojulo-smoke') + 1) }) + '\\n');\n`, { mode: 0o755 });
     const fake = { d, bin };
     const r = await runDesktopGate({ dir: fake.d, electron: fake.bin, pages: ['game.html'], timeoutMs: 20000, env: { MOJULO_SMOKE_TIMEOUT_MS: '60000' } });
     expect(r).toMatchObject({ ran: true, exit: 0, ok: true, t: '60000', pages: ['game.html'] });

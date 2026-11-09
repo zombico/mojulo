@@ -60,6 +60,9 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 - What grows on what ground, and the flora library's gaps: [docs/flora-gaps.md](docs/flora-gaps.md) (generated from
   `era/substrate.js` and `era/substrate-flora.js`; after changing either or the library, `npm run flora-gaps`: a test
   fails on a stale page). Read it before adding flora.
+- Where a game is made and where it is seen: [docs/workshop.md](docs/workshop.md). A cloud box builds and checks any game
+  but shows a level only under its page limit, draws in software and forgets its data at session end; say so before a
+  big game (a glyph-map chapter) is built there (design_game's `workshop` step; `pack-data` carries the database over).
 - Never hardcode an enumerable count in docs (kinds, packs, tools, locales, test files). Point at the
   list that defines it; counts drift the day after they are written.
 - "graph" means three things: `control/lib/graph/` is the geometry library; the contextmap is the
@@ -272,10 +275,12 @@ Pointers only; each target carries its own design notes.
   read through bindings and never copied, a form that is a tree of data, a function that is cue effects; greybox first,
   styles a layer over it, `theme.js`, a world's guide reaching it through `playscape/ui/mana-theme.js`; a new look is a theme card in `playscape/ui/theme-cards/`, a game's `ui` dressed by the interface chapter in `playscape/ui/interface-look.js`; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
   wireframe board, `board.js`; imports nothing outside its folder; a view that reads no device: the controls layer drives
-  it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md).
+  it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md). Its first surface: the RPG's battles, party menu and
+  shops, a spec in `playscape/rpg/rpg-ui.js` hosted by the page's RPG channel.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
-  `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).
+  `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers). How a hero swings a
+  blade (an arsenal's `art`: realistic, inspired, freestyle): [docs/sword-arts.md](docs/sword-arts.md).
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);

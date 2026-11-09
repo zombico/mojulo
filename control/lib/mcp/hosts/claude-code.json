@@ -43,7 +43,8 @@
       "rendersStructuredContentInsteadOfText": true,
       "cdns": ["cdnjs.cloudflare.com", "cdn.jsdelivr.net/npm/"],
       "egress": "git",
-      "ephemeral": true
+      "ephemeral": true,
+  "gpu": false
     }
   }
 }

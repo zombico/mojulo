@@ -198,10 +198,19 @@ export function cubeOfWorld(world) {
   return { cube, from, said };
 }
 
+const briefReadout = ({ resolved: R, orders }) => ({
+  ...(R.motivation ? { motivation: R.motivation, stakes: R.stakes, script: R.script, cast: R.cast, spine: R.spine } : {}),
+  ...(R.labour ? { labour: R.labour, structure: R.structure, side: R.side } : {}),
+  ...(R.said ? { said: R.said } : {}),
+  orders: (orders ?? []).map((O) => `${O.id}: ${O.kind}, ${O.role}: ${O.words}`),
+});
+
 export function intentReport(world) {
   const { cube, from } = cubeOfWorld(world), written = world?.intent !== undefined;
   const brief = typeof world?.brief === 'string' ? world.brief : world?.brief?.prompt ?? world?.brief?.text ?? '';
-  const suggest = !written && !world?.quick && brief ? suggestGenres(brief) : [];
+  // (a Game Brief's labours suit their genres, gmn.js: suggested first, never forced)
+  const briefed = !written && !world?.quick ? (world?.gameBrief?.resolved?.genres ?? []).filter((id) => GENRES[id]).map((id) => ({ id, matched: [`the brief's ${world.gameBrief.resolved.labour}`] })) : [];
+  const suggest = [...briefed, ...(!written && !world?.quick && brief ? suggestGenres(brief).filter((g) => !briefed.some((x) => x.id === g.id)) : [])];
   const I = readIntent(world?.intent), run = dryRun(cube);
   // a quick game's written genre against what its goal reads as now (a goal patched since): said, never rewritten
   const reads = quickGenre(world?.quick), drift = I?.from && reads && reads !== I.from ? { written: I.from, goal: reads } : null;
@@ -213,5 +222,7 @@ export function intentReport(world) {
     ...(suggest.length ? { suggest: suggest.map((g) => ({ id: g.id, matched: g.matched })) } : {}),
     ...(drift ? { drift } : {}),
     ...(latent.length ? { latent } : {}),
+    // (what the Game Brief decided, gmn.js: the structure, the stakes, the orders to raise)
+    ...(world?.gameBrief?.resolved ? { gameBrief: briefReadout(world.gameBrief) } : {}),
   };
 }

@@ -409,6 +409,35 @@ export const POLES = Object.freeze({
       slope: { runner: { lanes: null, speed: 11, max: 22, kinds: { barrier: 0, overhead: 0, train: 0, coin: 0, rock: 3, pillar: 2, ring: 4 }, crash: 'end', every: 12 } },
     },
     needs: ['the chaser (the guard who catches a second stumble)', 'ramps onto the trains\' roofs', 'power-ups (the magnet, the jetpack, the super sneakers)', 'the track\'s turns (the free runner\'s corners)'] },
+  // THE MIDDLE OF THE SWORD (practice room, 1108): between Ebon Spirits and Fallen Angel, the action-adventure's: quicker
+  // than the knight, never the stylish game's long air strings; a three-cut string, a charged spin, the shield
+  'fable-of-artesia': { demo: ['move', 'sprint', 'jump', 'glide', 'attack', 'charge', 'dodge', 'guard', 'lock', 'spar'], name: 'Fable of Artesia', after: 'The Legend of Zelda', base: 'action', gear: 'glide', view: { camera: 'third-person', D: 4.5, h: 2.4 }, stage: 'field',
+    says: 'the action-adventure\'s sword and shield, between the knight and the stylish game: a ready run, a consequential jump (a metre and a fifth clear, carried from the run: gaps and ledges are play), a three-cut string with a short freeze, the charged spin, a side hop and a backflip on the lock, the shield up and its perfect guard',
+    set: {
+      ground: { walk: 1.8, run: 5.5, sprint: 7.5, accel: 30, decel: 40, turn: 1080 },
+      // (a jump that counts in 3D: 1.2 m clear, a third over the first card's and under the stylish game's, its flight 0.6
+      // of a second, a softer pull than the action base's so the arc reads without floating; a run's jump crosses 3.25 m of
+      // gap: feel/reach.js)
+      jump: { commit: 4, height: 1.2, gRise: 22, gFall: 32, hang: 2, cut: 0.6 }, air: null, cling: null, pound: null, dash: null,
+      dodge: { kind: 'roll', frames: 22, speed: 6.5, iframes: [2, 12], back: { speed: 0.7, frames: 0.75 }, cancel: true },
+      lock: { range: 14, turn: 1080, strafe: 0.75 },
+      guard: { move: 0.5, block: { push: 1.5, stun: 12 }, parry: 8, riposte: 40, stamina: null, perfect: { window: 5, witch: 90 } },
+      moves: {
+        string: [
+          { take: 'jab', startup: 8, snap: 3, active: 3, recovery: 16, wings: { wind: 1.3, after: 1.2 }, lunge: 0.2 },
+          { take: 'jab', startup: 8, snap: 3, active: 3, recovery: 16, wings: { wind: 1.3, after: 1.2 }, lunge: 0.2 },
+          { take: 'cross', startup: 11, snap: 4, active: 3, recovery: 22, wings: { wind: 1.5, after: 1.3 }, lunge: 0.3, finisher: true, force: { gain: 6, lift: 6 } },
+        ],
+        cancel: 4, buffer: 10, root: 'stop', air: false,
+      },
+      hit: { hitstop: { base: 3, perMs: 0.5, max: 10 }, stun: { model: 'rule', base: 0.45, decay: 0.85, min: 0.12 } },
+      charge: { kind: 'heavy', levels: [45], show: 30, stance: true, move: 0.35, air: false, at: [
+        { take: 'cross', startup: 10, snap: 3, active: 6, recovery: 24, wings: { wind: 1.8, after: 1.6 }, lunge: 0.2, force: { gain: 10, lift: 10 }, tags: ['heavy', 'spin'], armor: { by: ['heavy'] } },
+      ] },
+      glide: { kind: 'paraglider', min: 1.5, fall: 1.8, speed: 7, accel: 5, turn: 120, time: null },
+      look: { squash: 0.03, smear: 0.06 },
+    },
+    needs: ['the shield: a guard held while it walks, its perfect guard the parry', 'the perfect dodge that opens a flurry', 'climbing on a stamina', 'a bow aimed in the air'] },
 });
 export const POLE_IDS = Object.freeze(Object.keys(POLES));
 /**

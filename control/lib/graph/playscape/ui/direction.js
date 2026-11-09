@@ -44,6 +44,7 @@ import { withRoutineCues } from './routines.js';
 import { withBattle } from './battles.js';
 import { withRpg, lowerRpg } from '../rpg/rpg.js';
 import { withMinigames, lowerMinigames } from './minigames.js';
+import { manaThemeOfGuide } from './mana-theme.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
 const ROLLED = ['guide', 'motion'];
@@ -271,6 +272,9 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
       out.register = { ...u.guide.dials, ...(u.guide.border ? { border: [...u.guide.border.elements] } : {}), ...(u.guide.pixel ? { pixel: u.guide.pixel } : {}), ...(u.guide.inventory ? { inventory: { ...u.guide.inventory } } : {}) };
     }
     else out.style = { ...GREYBOX_TOKENS, font: 'system' };
+    // the battles' screens (mana-ui's) wear the guide as a theme: its tokens, dials, border and stop; the greybox until
+    // the guide is settled, as the HUD's
+    if (out.rpg) out.rpg = { ...out.rpg, theme: uiSettled(u) ? manaThemeOfGuide(u.guide) : 'greybox' };
   }
   return Object.keys(out).length ? out : null;
 }

@@ -62,11 +62,16 @@ const MECHANICS = {
       const shape = Array.isArray(p.half) ? { half: p.half } : { radius: p.radius != null ? p.radius : 2 };
       // `needs`: a story flag the way waits on (the flag's var, set where it is set or carried in: playscape/ui/scenes.js);
       // shut, walking into it does nothing
-      const gate = typeof p.needs === 'string' && p.needs ? { if: { var: `flag-${p.needs}`, eq: 1 } } : {};
+      // `holds`: { who?, count } the way held until that many of `who` (a glob, the foes' by default) are down, counted as
+      // defeat-all counts them: a page's ways out held while its fights stand (map-sketch.js concept `hold`); it holds in
+      // place of `needs` where a way has both
+      const held = p.holds && Number.isFinite(p.holds.count) && p.holds.count > 0 ? { v: `__held_${ctx.i}`, who: typeof p.holds.who === 'string' && p.holds.who ? p.holds.who : 'foe-*', count: p.holds.count } : null;
+      const gate = held ? { if: { var: held.v, gte: held.count } } : typeof p.needs === 'string' && p.needs ? { if: { var: `flag-${p.needs}`, eq: 1 } } : {};
       return {
         world: {
+          ...(held ? { vars: { [held.v]: 0 } } : {}),
           sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: ctx.player }],
-          reactions: [{ on: 'enter', match: { zone }, do: 'emit', type: p.exit ? `goal:reached:${p.exit}` : 'goal:reached', ...gate }],
+          reactions: [...(held ? [{ on: 'down', match: { entity: held.who }, do: 'inc', var: held.v, by: 1 }] : []), { on: 'enter', match: { zone }, do: 'emit', type: p.exit ? `goal:reached:${p.exit}` : 'goal:reached', ...gate }],
         },
         // `exit`: one of a level's several ways out, named on the envelope (a map game travels by it)
         on: p.exit ? { [`goal:reached:${p.exit}`]: { end: 'success', exit: p.exit } } : { 'goal:reached': { end: 'success' } },

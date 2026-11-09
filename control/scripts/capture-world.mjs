@@ -6,7 +6,7 @@ import puppeteer from 'puppeteer-core';
 import { resolveChromium, CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_ARGS } from '../lib/graph/scene/chromium.js';
 
 const [ref, outPath = `/tmp/${ref}-world.png`, settle = '2600'] = process.argv.slice(2);
-const url = `http://localhost:3001/api/sketches/${ref}/world`;
+const url = `http://localhost:3001/api/sketches/${ref}/world?built=1`;   // (built: the bake itself, never the loader a person's tab is given)
 const browser = await puppeteer.launch({ executablePath: await resolveChromium(), headless: true, args: [...CHROMIUM_LAUNCH_ARGS, ...CHROMIUM_WEBGL_ARGS] });
 const page = await browser.newPage();
 await page.setViewport({ width: 1000, height: 1000, deviceScaleFactor: 2 });

@@ -29,6 +29,7 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
+import { atlasOf, coreOf } from './megaworld.js';
 import { ARMS_LEGEND } from './arms-kit.js';
 import { railOfWord, gameBody, lowerBody, bookRail, bodyWords } from './game-bodies.js';
 import { egocubeCreate, rollStored } from '../egocube/kind.js';
@@ -46,7 +47,7 @@ import { composeExtras } from './stage-figures.js';
 import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.js';
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gauntletCast } from './gauntlet-cast.js';
-import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle } from './levels.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
@@ -253,6 +254,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const toon = adopted ? lookup?.head?.toon : hero.mint.toon;
     const { toon: _t, ...mint } = hero.mint;
     steps.push({ key: 'hero-equipped', ref: childRef(ref, 'hero-equipped'), ready: ready.adornment.ready, ...waits(ready.adornment), order: { mint: { ...mint, ...(toon ? { toon } : {}), title: `${hero.mint.title} · equipped`, spec }, spec }, print: fingerprint({ spec, ...lit(toon) }) });
+    // the SHEATHED hero (an action hero's: levels.js sheathedSpec): the same, its blade on its back, played out of combat
+    const sheathed = sheathedSpec(G, spec);
+    if (sheathed) steps.push({ key: 'hero-sheathed', ref: childRef(ref, 'hero-sheathed'), ready: ready.adornment.ready, ...waits(ready.adornment), order: { mint: { ...mint, ...(toon ? { toon } : {}), title: `${hero.mint.title} · sheathed`, spec: sheathed }, spec: sheathed }, print: fingerprint({ spec: sheathed, ...lit(toon) }) });
   }
   // the cast: each made after the hero, as the hero is (a hero-door base, then its motion); it waits on nothing
   for (const id of Object.keys(G.characters?.cast ?? {})) {
@@ -438,7 +442,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // on an epoch's map, a level won goes back to the map
@@ -451,7 +455,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const links = onBoard ? [] : gameLinks(C.stages, C.refs);
     const theme = paletteTheme(G);
     const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : null;
-    const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
     // THE GAME'S FLOW (game-flow.js): the world's own, its levels the refs of their first stages and a story moment's
     // cinematic on the stage the moment is bound to; else the flow the game has always had, with the story's opening,
     // prologue and ending placed in it (story.js GAME_SLOTS; the main quest's ending, played as a moment, when the story
@@ -580,7 +584,9 @@ const foeSteps = (G, ref, ready) => {
     const roll = peopleRollOf(G, id, entry), manifest = { kind: 'egocube', roll, moves: true }, sheetRef = childRef(ref, `foes-${id}-sheet`);
     // (the body its game puts in its henchmen, where the book names one (game-bodies.js): the words it changes over the
     // sheet's person, laid over it when the character is made; a book that names none makes it as before)
-    const words = hench ? henchOverSheet(manifest, hench, setting, G) : null;
+    // (and what it carries, its skin's `gear`, foes/people.js: the hero door's words over the rolled person)
+    const body = hench ? henchOverSheet(manifest, hench, setting, G) : null, gear = entry.skin && entry.skin.gear;
+    const words = body || gear ? { ...(body ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}) } : null;
     return [
       { key: `foes-${id}-sheet`, ref: sheetRef, ...ready, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) },
       { key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { egocube: sheetRef, title, ...(words ? { spec: words } : {}) }, print: fingerprint({ roll, moves: true, ...(words ? { spec: words } : {}) }) },
@@ -646,7 +652,7 @@ function worldSteps(world, G, ref, composite) {
   const C = composedStages(stages, levelRefs, map, composite);
   if (C.stages.length) {
     const links = gameLinks(C.stages, C.refs), theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(G.megaworld ? { atlas: atlasOf(G.megaworld, C.stages, C.refs) } : {}), ...(coreOf(G.megaworld, C.stages, C.refs) ? { final: coreOf(G.megaworld, C.stages, C.refs) } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
     // (a composite's game waits on the levels in it, not on parts the creator is still working one at a time)
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(Array.isArray(composite) ? stamps.map((x) => x.id).filter((id) => !id.startsWith('level:') || composite.includes(id.slice(6))) : stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
     steps.push(...composedAudits(auditSteps(steps, stages), C, composite));
@@ -1001,7 +1007,7 @@ function quickSteps(world, G, ref, lookup) {
   const links = gameLinks(stages, levelRefs);
   // a run draws its levels: none waits on another
   const lvls = gameLevels(stages, levelRefs, map).map((l) => (Q.run ? (({ gate: _g, ...x }) => x)(l) : l));
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}) };
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
   steps.push({ key: 'game', ref: gameRef, ready: true, order: game, print: fingerprint(game) });
   steps.push(...auditSteps(steps, stages));
   return steps;

@@ -61,8 +61,14 @@ import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
 import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
-import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip } from '@/lib/graph/polygonizer/station-loft-rig';
-import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
+import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
+import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, MOVE_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
+import { swingBody, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip, carryArm, carryClip, SWING_BODY, artTiming } from '@/lib/graph/polygonizer/hero-swing-body';
+const CARRY_GAITS = ['walk', 'jog', 'sprint', 'run', 'strafe'];   // (the gaits a drawn blade is carried through)
+import { heroStrike } from '@/lib/graph/polygonizer/hero-strike';
+import { heroStance, reachArm } from '@/lib/graph/polygonizer/hero-stance';
+import { elbowsDown } from '@/lib/graph/polygonizer/hero-elbow';
+import { heroBox } from '@/lib/graph/polygonizer/hero-box';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig, faceKnots } from '@/lib/graph/polygonizer/anime-face-rig';
@@ -560,6 +566,15 @@ export const WORLD_KINDS = {
     ao: true,   // corners, the junction band and under the cornice darken by occlusion (dirt.js leaves AO to this)
     resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }),
   },
+  // a MAP (level/map-scene.js): a level laid as a graph, its sections placed on one ground and composed into one
+  // page (`level`: the level recipe, laid as a map). Each section is built as its own stage builds it, with the world's
+  // whole context (its live sun's share, the form render, the unshaded export), as the stage kind is
+  map: {
+    title: 'mojulo map',
+    walk: true,
+    ao: true,
+    resolve: async (m, ctx) => (await import('@/lib/graph/level/map-scene.js')).assembleMapScene(m, ctx),
+  },
   // a geocube (era/geocube.js): one style for a level's inside and outside, shown as one of its two specimens, the
   // bare room or the island landform, each built by the stage. A level is then a stage recipe with `geocube`.
   geocube: {
@@ -980,14 +995,55 @@ export const WORLD_KINDS = {
           const own = isSwing(m.hero.gesture) && SWING_HAND[m.hero.gesture] === 'right' ? m.hero.gesture : 'chop';
           const swings = {};
           for (const [dir, verb] of Object.entries(HELD_SWINGS)) {
-            const word = verb ?? own, keys = swingClipKeys(word, cls, { base, grip }), T = ctx.swing ? swingTiming(cls, ctx.swing) : null;
+            // (an action game's hero, `swings.body`: the swing carried by the whole body, hero-swing.js swingBody)
+            const word = verb ?? own, keys0 = swingClipKeys(word, cls, { base, grip }), keys = ctx.swings.body ? swingBody(word, cls, keys0, R, rigNodesAt) : keys0, T = ctx.swing ? swingTiming(cls, ctx.swing) : null;
             const play = layeredClip(keys, R), fit = fitSwing(T ? T.strike : swingPhases(keys.length).strike, from);
             const fn = T ? (u) => play(T.warp(fit(u))) : (u) => play(fit(u)); fn.keys = 24;
             fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, ctx.swings.contact[1]], ...(T ? { flavor: ctx.swing } : {}), ...(tip ? { tip: { bone: hg.bone, at: [tip[0], tip[1], tip[2] + dz].map((v) => Math.round(v * 1e4) / 1e4) } } : {}) };
             swings[`swing_${dir}`] = fn;
           }
+          // A MOVESET's moves (`swings.moves`, gameworld/combos.js): each its own clip, its footwork baked (the advance
+          // a travelling move steps, hero-swing-body.js moveClip), and `_still`, the same move in place
+          if (Array.isArray(ctx.swings.moves)) {
+            // (the world's game type: its timing, and the action type's wider body: hero-swing-body.js SWING_STYLES)
+            // (a sword ART, the arsenal's `art`, swings past the game type's own: its body and its timing in place of the type's)
+            const art = ctx.swings.art && SWING_BODY.styles[ctx.swings.art] && SWING_BODY.styles[ctx.swings.art].timing ? ctx.swings.art : null;
+            const mc = { R, cls, base, grip, own, body: !!ctx.swings.body, style: art ?? (ctx.swing === 'action' ? 'action' : null), timing: art ? artTiming(cls, art) : ctx.swing ? swingTiming(cls, ctx.swing) : null, contact: ctx.swings.contact, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS: MOVE_SWINGS };
+            // (and the fighting stance the moves start and end in, the hero's idle in combat: the swing's ready key, whole)
+            for (const rd of ctx.swings.readies ?? [{ clip: 'mv_ready' }]) if (!rd.strike) swings[rd.clip] = readyClip(mc);
+            for (const mv of ctx.swings.moves) {
+              if (!mv.swing) continue;
+              swings[mv.clip] = moveClip(mv, { ...mc, footwork: true });
+              if (mv.travel) swings[`${mv.clip}_still`] = moveClip({ ...mv, travel: null }, mc);
+            }
+          }
           clipsIn = { ...clipsIn, ...swings };
+          // A MOVESET's hero runs with the blade drawn CARRIED (hero-swing-body.js carryArm): the sword arm held out low at
+          // its side, the blade aimed back, over its walk, jog, sprint and strafe; the other arm swings with the gait
+          if (Array.isArray(ctx.swings.moves) && tip) {
+            const arm = carryArm({ R, rigNodesAt, boneFrames, tip });
+            if (arm) for (const g of CARRY_GAITS) if (clipsIn[g]) clipsIn = { ...clipsIn, [g]: carryClip(clipsIn[g], arm, layeredClip, R) };
+          }
           held = { item: hg.item, class: cls, reach: Math.round((hg.length + 0.65) * 100) / 100, seconds: HELD_STRIKE[cls].seconds, damage: HELD_STRIKE[cls].damage };
+        }
+        // A MOVESET's body strikes (`swings.moves` with `strike`: the fist's, hero-swing-body.js strikeMoveClip): the punch
+        // and boxing solvers' clips on this rig, its footwork over them, and the fist's fighting stance; whatever the hand
+        // holds (the fist's hero is the sheathed one)
+        if (ctx.swings && Array.isArray(ctx.swings.moves) && ctx.swings.moves.some((mv) => mv.strike)) {
+          const sc = { R, rigNodesAt, plantedFoot, solvers: { strike: heroStrike, box: heroBox } }, strikes = {};
+          for (const rd of ctx.swings.readies ?? []) if (rd.strike) strikes[rd.clip] = strikeReadyClip(rd.strike, sc);
+          for (const mv of ctx.swings.moves) {
+            if (!mv.strike) continue;
+            strikes[mv.clip] = strikeMoveClip(mv, { ...sc, footwork: true });
+            if (mv.travel) strikes[`${mv.clip}_still`] = strikeMoveClip({ ...mv, travel: null }, sc);
+          }
+          clipsIn = { ...clipsIn, ...strikes };
+        }
+        // A MOVESET's sidearm aims (`swings.aims`: the archer's draw, the gunslinger's two guns, hero-swing-body.js aimClip),
+        // each a stance solved on this rig; the page plays one while S holds its sidearm (the draw by its share)
+        if (ctx.swings && Array.isArray(ctx.swings.aims)) {
+          const ac = { R, stance: heroStance, reachArm, rigNodesAt, elbowsDown };
+          clipsIn = { ...clipsIn, ...Object.fromEntries(ctx.swings.aims.map((a) => [a.clip, aimClip(a.pose, { ...ac, hand: a.hand })])) };
         }
         // RIDING (ctx.ride: a world with a mount, worlds/mount-units.js): the hero's riding clips, solved on this rig to the
         // horse's saddle, irons and bit (mount/game.js), each its pose words by key, lowered by this pack's lift. Absent ⇒ as before

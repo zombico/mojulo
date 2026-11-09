@@ -190,13 +190,13 @@ ${o.far ? `
         win[i * 2] = W[0]; win[i * 2 + 1] = W[1]; rank[i] = a[q + 5];
       }
       g.setAttribute('iWin', new THREE.InstancedBufferAttribute(win, 2)); g.setAttribute('iRank', new THREE.InstancedBufferAttribute(rank, 1));
-      im.frustumCulled = false; im.userData.g = 'far-grass'; im.userData.blades = true; scene.add(im); n0 += n;
+      im.frustumCulled = false; im.userData.g = 'far-grass'; im.userData.blades = true; im.raycast = __noFoot; scene.add(im); n0 += n;
     }
     stat.far = n0;
   })();` : ''}
   function ensure(t, need) {
     if (need <= t.cap) return; if (t.im) { scene.remove(t.im); t.im.dispose(); }
-    t.cap = Math.max(need, Math.ceil(t.cap * 1.5), 64); t.im = new THREE.InstancedMesh(t.g, t.mat, t.cap); t.im.count = 0; t.im.frustumCulled = false; t.im.userData.g = 'live-grass'; t.im.userData.blades = true;
+    t.cap = Math.max(need, Math.ceil(t.cap * 1.5), 64); t.im = new THREE.InstancedMesh(t.g, t.mat, t.cap); t.im.count = 0; t.im.frustumCulled = false; t.im.userData.g = 'live-grass'; t.im.userData.blades = true; t.im.raycast = __noFoot;
     t.win = new THREE.InstancedBufferAttribute(new Float32Array(2 * t.cap), 2); t.g.setAttribute('iWin', t.win);${o.flowers ? `
     if (t.flower) { t.flo = new THREE.InstancedBufferAttribute(new Float32Array(4 * t.cap), 4); t.g.setAttribute('iFlo', t.flo); t.im.userData.g = 'live-flowers'; }` : ''} scene.add(t.im);
   }
@@ -270,7 +270,7 @@ ${o.far ? `
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\nvarying vec3 vMojW; uniform vec3 uCam; uniform vec2 uFade; uniform float uOff;')
         .replace('void main() {', 'void main() {\\n  { float d = max(0.0, distance(vMojW, uCam) - uOff), f = clamp((d - uFade.x) / (uFade.y - uFade.x), 0.0, 1.0); if (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) >= f) discard; }');
     };
-    mat.customProgramCacheKey = () => 'mojulo-grass-cards'; o.material = mat; o.userData.blades = true;
+    mat.customProgramCacheKey = () => 'mojulo-grass-cards'; o.material = mat; o.userData.blades = true; o.raycast = __noFoot;
   });
 ${o.contact ? `  // the BODIES in the grass, every frame: the walker (only while its feet are in the grass: an eye up in the air presses
   // nothing), the page's walkers and its physics spheres, and what the page presses itself; each stamps the bed where
@@ -398,7 +398,7 @@ const PETALS = `
   // lying where it lands for \`rest\` s, then let go again — a closed form of the clock. The window by its face to the sun:
   // a petal turned to it is lit, edge-on it is shade, so a tumbling petal flickers
   const NF = PT.sources.length * PT.per, fg = geo(), fwin = new THREE.InstancedBufferAttribute(new Float32Array(NF * 2), 2); fg.setAttribute('iWin', fwin);
-  const fall = new THREE.InstancedMesh(fg, material(null, {}), NF); fall.frustumCulled = false; fall.userData.g = 'petals'; scene.add(fall);
+  const fall = new THREE.InstancedMesh(fg, material(null, {}), NF); fall.frustumCulled = false; fall.userData.g = 'petals'; fall.raycast = __noFoot; scene.add(fall);
   const P = Array.from({ length: NF }, (_, i) => {
     const src = PT.sources[Math.floor(i / PT.per)], a = 6.2832 * hash(i, 3), r = src[3] * Math.sqrt(hash(i, 5)) * 0.9;
     const x = src[0] + Math.cos(a) * r, y = src[1] + Math.sin(a) * r, z = src[2] - src[3] * (0.1 + 0.4 * hash(i, 7)), g = TW.kernel.groundAt(x, y);
@@ -440,7 +440,7 @@ const PETALS = `
     const ensure = (need) => {
       if (need <= cap) return; if (im) { scene.remove(im); im.dispose(); }
       cap = Math.max(need, Math.ceil(cap * 1.5), 256); const g = geo(); win = new THREE.InstancedBufferAttribute(new Float32Array(cap * 2), 2); g.setAttribute('iWin', win);
-      im = new THREE.InstancedMesh(g, mat, cap); im.count = 0; im.frustumCulled = false; im.userData.g = 'petal-carpet'; scene.add(im);
+      im = new THREE.InstancedMesh(g, mat, cap); im.count = 0; im.frustumCulled = false; im.userData.g = 'petal-carpet'; im.raycast = __noFoot; scene.add(im);
     };
     // the petals of a tile: [x, y, z, size, yaw, tilt, lit, rank] each
     const inTile = (ti, tj) => {
@@ -514,6 +514,9 @@ export function stageGrassScript(cfg) {
   const { wind, ...rest } = cfg, lg = safeJson(rest);
   return `
 // --- stage live grass (opt-in): the stage's ground for the wind, then the field, then the crowns ---
+// (what grows is walked through, never stood on: its blades, its cards and its petals take no ray, so a walker's ground
+// probe, the camera's pull-in and a pick see the land under them)
+var __noFoot = function () {};
 (function () {
   const LG = ${lg};
   const dec = (v) => { const s = atob(v.__b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new self[v.t](u.buffer); };

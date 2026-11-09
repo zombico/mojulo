@@ -120,6 +120,23 @@ describe('resolveWorldAudio', () => {
   });
 });
 
+describe('a moveset\'s sounds (audio.moves)', () => {
+  const thud = [{ type: 'thump', from: 'A2', to: 'A1', dur: 0.1 }];
+  const sfx = { cues: { cut: thud, heavy: thud, clang: thud } };
+  it('names its events\' cues: the swing and the hit by weapon and weight, the rest one cue each; the page plays them', () => {
+    const A = resolveWorldAudio({ sfx, moves: { swing: { sword: { light: 'cut', heavy: 'heavy' } }, parry: 'clang' } });
+    expect(A.moves).toEqual({ swing: { sword: { light: 'cut', heavy: 'heavy' } }, parry: 'clang' });
+    expect(audioChannelScript(A)).toContain('__beatsMoves');
+    // (absent, not a byte of it)
+    expect(audioChannelScript(resolveWorldAudio({ sfx }))).not.toContain('__beatsMoves');
+  });
+  it('refuses a cue the level has not, an event it does not know, and a weight that is none', () => {
+    expect(() => resolveWorldAudio({ sfx, moves: { block: 'boom' } })).toThrow(/audio\.moves\.block: 'boom' is no cue of audio\.sfx\.cues/);
+    expect(() => resolveWorldAudio({ sfx, moves: { jump: 'cut' } })).toThrow(/audio\.moves\.jump is not a moveset's event/);
+    expect(() => resolveWorldAudio({ sfx, moves: { hit: { sword: { mighty: 'cut' } } } })).toThrow(/a move's weight is light, heavy, finisher/);
+  });
+});
+
 describe('CSS3D scene soundtrack (B4)', () => {
   // a minimal two-point room manifest the CSS3D room renderer accepts.
   const ROOM = {

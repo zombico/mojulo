@@ -13,6 +13,7 @@
  * /svg, which can render it as a still.
  */
 
+import { wantsWorldLoader, worldLoaderHtml } from '@/lib/graph/worlds/world-loader.js';
 import { NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -302,6 +303,10 @@ export async function GET(request, { params }) {
     if (cacheKey) {
       const cached = worldCacheGet(cacheKey);
       if (cached) return worldHtmlResponse(cached, sketch, ref, ['1', 'true'].includes(search.get('download')), 'HIT', etag, streamed.header);
+      // a world opened in a tab and not yet baked: a loader at once, never a blank tab for minutes (worlds/world-loader.js)
+      if (wantsWorldLoader(request.headers, search)) {
+        return new Response(worldLoaderHtml({ title: sketch.title || sketch.manifest?.title || ref }), { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Mojulo-World-Cache': 'LOADER' } });
+      }
     }
 
     // The kind → assemble*Scene dispatch lives in lib/graph/world-scene.js so the live

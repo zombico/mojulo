@@ -20,6 +20,14 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-07 (the action RPG: a hero's sprint on its stamina, the orbit camera): the runtime the page embeds
+// gained the platform rule's `sprint` (the boost held as a walker's sprint on its gauge: rules-platform.js) and its
+// `moveYaw: 'camera'`, and the follow rule's `orbit` (rules-basic.js). On the `controllable` fixture 35 lines are added
+// and 9 replaced in place (each a `sprints`/`moveYaw` guard on an existing line); a rule with neither runs as before.
+// Every fixture that embeds the controllable runtime re-pinned with it. Then (the controls): the sprint's own `sprint`
+// clip on its `sprintStride` (the stride's line guarded) and the orbit's swing round a locked foe (`lockTrack`): a few
+// more lines added, one replaced; the same fixtures re-pinned again.
+//
 // Re-pinned 2026-10-07 (playscape: movers run rails and ride drives): the controllable runtime the page embeds gained
 // the mover's `path` / `drive: 'ride'` branch and the carry pass's `_ridden` mark. The diff on the `controllable` fixture
 // is additions only (85 lines, none removed); every fixture that embeds the controllable runtime re-pinned with it.
@@ -447,6 +455,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-06 (1105-rpg-slice: grass out of the prepass): `creases`, `creases-outline`, `occlusion` and
 // `occlusion-creases`, the fixtures that carry the creases' prepass. Its solid test skips a mesh marked `blades`
 // (stage-grass.js marks its fields, tufts and cards), so a meadow is not drawn a second time; nothing else moved.
+// Re-pinned 2026-11-06 (1105-rpg-slice: a party's footsteps): the 16 fixtures that embed the controllable runtime. Its
+// minds (worlds/controllable/mind.js, inlined by its source) gained an escort that walks its ward's footsteps
+// (`rule.trail`, `rule.flank`); no fixture's escort takes it, so nothing they play moved.
+// Re-pinned 2026-11-06 (1105-rpg-slice: a walk compiled draws nothing): every fixture. The capture bridge every page
+// carries steps without drawing when asked (`draw: false`: the walk compiler's legs, and a replay that keeps no
+// frame), keeping the scene's transforms as a draw would; the bridge asks it, nothing a page plays moved.
 // Re-pinned 2026-11-06 (1105-platformer-lv0-spike: a side camera on a course): the 16 fixtures that embed the controllable
 // runtime. The side camera gained `band` (its height eased while the hero stands, held through a jump) and `ends` (the
 // frame held in from the lane's ends), each a no-op absent; the i-frame shimmer dims a merged figure's one skin, not its
@@ -464,6 +478,79 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-06 (1105-platformer-lv0-spike merging 1105-rpg-slice's pixel budget): the same fixtures, their
 // emission the re-pins above together (the platform rule's takes, wall, dash and camera move; the knockback seams; the
 // pixel budget of a page played live, one draw a figure).
+// Re-pinned 2026-11-07 (1107-action-rpg merging 1105-rc): every fixture, the re-pins on both lines together (each line
+// had already moved every fixture's bytes; the 19 that embed the controllable runtime or the controls kernel move
+// again here); the
+// action hero's sprint keeps its own word in the platform rule (`stamina`, beside the run button's `sprint`), and its
+// orbit is the platformer's steered chase (rules-basic.js `steer: 'orbit'`), the lock-on swinging its yaw.
+// Re-pinned 2026-11-07 (1107-action-rpg: the first look): the 16 fixtures that embed the controllable runtime. The follow
+// camera gained `vista` (a level's opening: for its first seconds the chase stands high and looks at the place the level
+// is about, eased back down), a no-op absent; no fixture's camera takes it, so nothing they play moved.
+// Re-pinned 2026-11-08 (1107-action-rpg: the game look): the 16 fixtures that embed the controllable runtime. The pilot's
+// hp panel and its gauge carry class names a HUD look restyles (mana-ui/theme.js gameHudCss), and the stamina gauge's
+// dressing reads the platform rule's `stamina` (the merge had renamed it from `sprint`); nothing they play moved.
+// Re-pinned 2026-11-08 (1107-action-rpg: combat): the 16 fixtures that embed the controllable runtime. The platform
+// rule gained `combat` (a foe near, a lock or a blow: the guard's walk and its weapon drawn, else sheathed), a no-op
+// absent; no fixture's rule takes it, so nothing they play moved.
+// Re-pinned 2026-11-08 (1107-action-rpg: the wall's hold): the 16 fixtures that embed the controllable runtime. The wall
+// (worlds/controllable/wall.js) reads `ground: false` as a leap since the body last stood, not merely a frame off the
+// ground; no fixture's rule takes the wall, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the moveset): the 16 fixtures that embed the controllable runtime. The
+// melee strike gained the moveset (gameworld/combos.js: a combo's beats chained at each move's cancel, its travel), the
+// dodge rolls along the stick under world movement, and the pilot scheme names light, heavy and special in its `melee`
+// context; no fixture's rule takes a moveset or moves on the world's frame, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the footwork): the 16 fixtures that embed the controllable runtime. A
+// moveset's move plays its own clip (`mv_<id>`, or `_still` where its travel does not fit before the body ahead), its
+// travel waits out the blend into it and a lunge's comes in two pieces (hero-swing-body.js travelAt); a moveset's hero
+// idles in combat in its fighting stance (`idleClip`); no fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the weapons): the 16 fixtures that embed the controllable runtime. The
+// moveset steps through `r.weapons` on the cycle (its stance, its figure, its reach), the combat stance shows a weapon's
+// sheathed figure, and the pilot scheme binds the mouse's back button to the cycle; no fixture's rule takes weapons or
+// a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the sidearms): the 16 fixtures that embed the controllable runtime. A
+// ranged weapon may refuse an early release (`early: 'none'`, the bow) and never run dry (`infinite`, the pistols); a
+// charged lob deals its charged damage; a moveset's S fires its weapon's sidearm, aimed at the locked or front foe
+// (`mvAim`) and walking slower while it draws (`aimMove`). No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the sidearms seen): the 16 fixtures that embed the controllable runtime. A
+// moveset's S says the aim the page plays (`mvPose`: its clip, the draw's share), its sidearm's hand and pairing ride
+// `mvRanged`, and the combat figure shows the sheathed hero while an aim is up; the page's aim layer, props and arrows
+// are emitted only for a moveset. No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: the aim on the target): the 16 fixtures that embed the controllable
+// runtime. A moveset's sidearm aims at the foe's chest, not its middle; the page's aim layer (a moveset's only) turns the
+// body onto the target. No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-08 (1108-practice-room: guard and parry): the 16 fixtures that embed the controllable runtime. A
+// rule's `guard` (a feel card's, lowered) is held up against a blow from the front, a blade's or a foe's touch: blocked,
+// or parried within its window, the attacker staggered for the riposte; the guard's walk and its pose. No fixture's rule
+// takes a guard, so nothing they play moved.
+// Re-pinned 2026-11-09 (1108-practice-room: no spamming): the 16 fixtures that embed the controllable runtime. A
+// moveset's move keeps its `cooldown` before it opens a string again, and its `rest` holds every string after a
+// finisher. No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-09 (1108-practice-room: a jump carries its takeoff): the 16 fixtures that embed the controllable
+// runtime. A hero sprinting on its stamina keeps its sprint through the air (`airPace`) where the run's pace braked it;
+// no fixture's rule sprints on a stamina, so nothing they play moved.
+// Re-pinned 2026-11-09 (1108-practice-room: a jump held is one jump): the 16 fixtures that embed the controllable
+// runtime. The jump buffer remembers a press's first frame (`jumpWas`) and a launch out of the gather consumes it, so a
+// jump held through the gather no longer launches twice; the runtime they embed changed, their worlds as they were.
+// Re-pinned 2026-11-09 (1108-practice-room: the launcher and the juggle): the 16 fixtures that embed the controllable
+// runtime. The moveset reads back + heavy, an air tree, a rise and the air's hang and kick; a combo's juggle may recover
+// in the air; a rise is not cut by the jump's release. All of it reads a moveset or a combo's `recover` no fixture
+// names, so the runtime they embed changed, their worlds as they were.
+// Re-pinned 2026-11-09 (1108-practice-room: a launcher easy to land): the 16 fixtures that embed the controllable
+// runtime, and `court`, `turns` and `pitch`, which inline the swing system (hero-swing.js). The swing system gains a verb
+// (`upswing`, a moveset's `up` swing only) and the runtime reads back against the engaged foe and holds a moveset move's
+// facing; no fixture names a moveset, and no contest swings the new verb, so the sources they carry changed, their play
+// as it was.
+// Re-pinned 2026-11-09 (1108-practice-room: air moves facing the foe): the 16 fixtures that embed the controllable
+// runtime. In the air a moveset's move plays its own clip, and a launch's thrown foe (`mvThrown`) turns the airborne hero
+// to it; both read a moveset no fixture names, so the runtime they embed changed, their worlds as they were.
+// Re-pinned 2026-11-09 (1108-practice-room: the sword arts): `court`, `turns` and `pitch`, which inline the swing system
+// (hero-swing.js). The upswing (a moveset's launcher only) chambers its blade higher, off the floor under a body's crouch;
+// no contest swings it, so the source they carry changed, their play as it was. The runtime is untouched.
+// Re-pinned 2026-11-09 (1108-practice-room: the templates' kits): the 16 fixtures that embed the controllable runtime,
+// and `court`, `turns` and `pitch`, which inline the swing system (hero-swing.js). A move's `arc` and `spin` (the spin
+// attack: its blow all round, the body turned through it), the swing system's `around` (a moveset's level sweep, baked as
+// a move's clip only), and the hitstop keeping the pilot's presses through its own freeze; no fixture names a moveset or
+// taps through a freeze, so the sources they carry changed, their play as it was.
 // Re-pinned 2026-11-08 (1107-fg-remake merging 1105-rc): `versus` only, its emission the re-pins above together (the
 // candidate's runtime changes, and this branch's lane frame and toon body).
 // Re-pinned 2026-11-08 (1107-fg-remake: the training ground): `versus` only. Its page inlines versus-arena.client.js by
@@ -512,6 +599,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // strips and its move list from the pause, under a register; the pause's items), versus-runtime.client.js (training's
 // panel under the lab) and versus-core.js (a rekka's next stage on its motion's last direction and a button, typed
 // through hitstop); the fixture's arena names no register and carries no lab.
+// Re-pinned 2026-11-09 (1109-cosmos-contraction merging 1108-practice-room): `game`, `versus`, `kitchen-sink` and
+// `kitchen-sink-capture`, the four whose pins both lines had moved: each side's pin held its own change alone (the flow
+// runner's sidecars and stage, the screenplay scenes on one; the practice room's moveset runtime, its RPG channel on
+// mana-ui and the fighter's lab on the other), and the merged page carries both. No fixture takes a moveset, a script or
+// a flow, so the sources they carry changed, their play as it was.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

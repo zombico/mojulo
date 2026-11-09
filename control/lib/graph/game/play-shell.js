@@ -34,6 +34,7 @@
 import { buildGameStoreKernel } from './store-kernel.js';
 import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
+import { THEMES } from '../../mana-ui/theme.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
@@ -87,6 +88,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   // the theme: the same tokens as the arena shell and the levels' HUD; sanitized here so a hand-poked row cannot
   // inject into the CSS context
   const theme = manifest.theme || {};
+  // (a bare HUD look, the world's `hud`, mana-ui/theme.js: no menu button under a mouse, the pause on Esc; a finger keeps it)
+  const bareHud = typeof manifest.hud === 'string' && THEMES[manifest.hud]?.hud === 'bare';
   const c = {
     bg: safeColor(theme.bg, '#0e1116'),
     ink: safeColor(theme.ink, '#e8edf4'),
@@ -174,7 +177,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   #veil .bar i{display:block;height:100%;width:40%;background:var(--accent);animation:slide 1.1s ease-in-out infinite}
   @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
   #pauseBtn{position:fixed;top:12px;right:12px;z-index:6;display:none;padding:6px 12px;background:var(--panel);border-radius:8px}
-  #pause{position:fixed;inset:0;z-index:7;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(6px)}
+${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!important}}\n' : ''}  #pause{position:fixed;inset:0;z-index:7;display:none;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(6px)}
   #pause .screen{max-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
   dl.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:14px}
   dl.keys dt{color:var(--accent);white-space:nowrap}
@@ -283,7 +286,17 @@ export function playShellRuntime(cfg, K) {
   // a map game (levels with exits): a level is open once found through an open exit; a list game reads its gates.
   // A playtest opens every level to pick from; travel inside the game still follows the game's own exits and keys.
   const MAP = K.isMap(LEVELS);
-  const isOpen = (lv) => PLAYTEST || (MAP ? !!K.reachable(SCHEMA, state, LEVELS)[lv.ref] : K.evalGate(SCHEMA, state, lv.gate));
+  // ---- the atlas (a megaworld): where the player is, kept in the store; found by having been, never by completing ----
+  const ATLAS = M.atlas || null;
+  const atlas = () => (ATLAS && state[ATLAS.slice] ? state[ATLAS.slice].flags : {});
+  const setAtlas = (flags) => { const r = K.applyEvents(SCHEMA, state, Object.keys(flags).map((key) => ({ type: 'setFlag', slice: ATLAS.slice, key, value: flags[key] }))); if (r.ok) state = r.state; };
+  const atlasFound = () => {
+    const F = atlas(), found = {};
+    if (LEVELS.length) found[LEVELS[0].ref] = true;
+    LEVELS.forEach((lv) => { if (F['been:' + lv.ref]) { found[lv.ref] = true; (lv.exits || []).forEach((x) => { if (K.evalGate(SCHEMA, state, x.gate)) found[x.to] = true; }); } });
+    return found;
+  };
+  const isOpen = (lv) => PLAYTEST || (ATLAS ? !!atlasFound()[lv.ref] && K.evalGate(SCHEMA, state, lv.gate) : MAP ? !!K.reachable(SCHEMA, state, LEVELS)[lv.ref] : K.evalGate(SCHEMA, state, lv.gate));
   const needs = (g) => (g.completed ? 'clear ' + levelTitle(g.completed) + ' first' : g.has ? 'needs ' + (g.count > 1 ? g.count + ' × ' : 'a ') + g.has : 'locked');
   const sliceKind = (name) => (SCHEMA.slices.find((s) => s.name === name) || {}).kind;
   const levelTitle = (ref) => (LEVELS.find((l) => l.ref === ref) || {}).title || ref;
@@ -400,12 +413,33 @@ export function playShellRuntime(cfg, K) {
     return b;
   }
 
+  // THE TRAVEL SCREEN (a megaworld): the zones on their rings, the first ring outermost and the core at the centre, the
+  // ways between them; a zone found travelled to by a touch, one not yet found a dim mark
+  function atlasMap() {
+    const S = 320, c = S / 2, rings = ATLAS.rings, n = rings.length, at = atlas().at, box = document.createElement('div'), out = [];
+    const attr = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const radius = (i) => (n === 1 ? 0.7 : 1 - i / (n - 1) + (i === n - 1 && rings[i].length > 1 ? 0.3 : 0)) * (c - 34);
+    const place = {};
+    rings.forEach((r, i) => r.forEach((ref, j) => { const a = -Math.PI / 2 + (2 * Math.PI * j) / r.length + i * 0.35, R = radius(i); place[ref] = [c + R * Math.cos(a), c + R * Math.sin(a)]; }));
+    rings.forEach((r, i) => { if (radius(i) > 0) out.push('<circle cx="' + c + '" cy="' + c + '" r="' + radius(i) + '" fill="none" stroke="var(--line)" stroke-dasharray="2 5"/>'); });
+    LEVELS.forEach((lv) => (lv.exits || []).forEach((x) => { const p = place[lv.ref], q = place[x.to]; if (p && q) out.push('<line x1="' + p[0] + '" y1="' + p[1] + '" x2="' + q[0] + '" y2="' + q[1] + '" stroke="' + (K.evalGate(SCHEMA, state, x.gate) ? 'var(--dim)' : 'var(--line)') + '"/>'); }));
+    LEVELS.forEach((lv) => {
+      const p = place[lv.ref]; if (!p) return;
+      const open = isOpen(lv), here = lv.ref === at;
+      out.push('<g data-zone="' + attr(lv.ref) + '" aria-label="' + attr(lv.title) + '"' + (open ? ' role="button" style="cursor:pointer"' : '') + '><circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (here ? 11 : 8) + '" fill="' + (open ? 'var(--accent)' : 'var(--panel)') + '" stroke="' + (here ? 'var(--ink)' : 'var(--line)') + '" stroke-width="' + (here ? 2 : 1) + '"/><text x="' + p[0] + '" y="' + (p[1] + 24) + '" text-anchor="middle" font-size="11" fill="' + (open ? 'var(--ink)' : 'var(--dim)') + '">' + attr(open ? lv.title : '?') + '</text></g>');
+    });
+    box.innerHTML = '<svg class="atlas" viewBox="0 0 ' + S + ' ' + S + '" style="display:block;width:min(100%,360px);margin:0 auto 12px">' + out.join('') + '</svg>';
+    box.querySelectorAll('g[role=button]').forEach((g) => g.addEventListener('click', () => launch(LEVELS.find((l) => l.ref === g.getAttribute('data-zone')))));
+    return box.firstChild;
+  }
+
   function renderLevels() {
     show('levels');
     const s = el('div', { cls: 'screen' }, [
       el('div', { cls: 'center screen' }, [PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null, el('h1', { text: M.title })]),
     ]);
-    const lastAt = MAP && runLog.length ? runLog[runLog.length - 1].levelRef : null;
+    const lastAt = ATLAS ? atlas().at || null : MAP && runLog.length ? runLog[runLog.length - 1].levelRef : null;
+    if (ATLAS) s.appendChild(atlasMap());
     LEVELS.forEach((lv, i) => {
       const open = isOpen(lv);
       const gated = lv.gate && !K.evalGate(SCHEMA, state, lv.gate);
@@ -415,7 +449,7 @@ export function playShellRuntime(cfg, K) {
       s.appendChild(el('div', { cls: 'card' }, [
         el('div', { cls: 'muted', text: String(i + 1) }),
         el('div', { cls: 'grow' }, [el('div', { cls: 'name', text: lv.title }), lock ? el('div', { cls: 'muted', text: lock }) : null, ways ? el('div', { cls: 'muted', text: ways }) : null]),
-        lastAt === lv.ref ? el('span', { cls: 'badge', text: 'last here' }) : null,
+        lastAt === lv.ref ? el('span', { cls: 'badge', text: ATLAS ? 'you are here' : 'last here' }) : null,
         cleared(lv.ref) ? el('span', { cls: 'badge', text: 'cleared' }) : null,
         el('button', { cls: open ? 'primary' : '', text: 'play', disabled: open ? null : 'disabled', on: () => { if (open) go('pick', { picked: lv.ref }); } }),
       ]));
@@ -445,7 +479,7 @@ export function playShellRuntime(cfg, K) {
     return params;
   }
 
-  let veilCap = 0, ctlRows = null;
+  let veilCap = 0, veilHint = 0, ctlRows = null;
   // `arrive`: the level a map game's travel came from (the level moves the player to that end of itself); `carry`: the
   // params a door brings in (the session's, and the door it enters by), in place of the level's own
   // outcome STINGERS (music.victory / music.defeat): played once when a level ends, the level's own sound muted under
@@ -465,6 +499,8 @@ export function playShellRuntime(cfg, K) {
     if (stingerEl) stingerEl.pause();
     if (STINGERS) { warmStinger(STINGERS.victory); warmStinger(STINGERS.defeat); }
     launches += 1;
+    // (a megaworld: the map loaded is the current map; resumed, it is arrived at by the way it was last come in by)
+    if (ATLAS) { const F = atlas(); if (!arrive && !carry && F.at === lv.ref && F.from) arrive = F.from; setAtlas({ at: lv.ref, from: arrive || '', ['been:' + lv.ref]: true }); persist(); }
     const params = carry || paramsFor(lv);
     if (arrive) params.arrive = arrive;
     if (stage) params.__stage = stage;
@@ -476,7 +512,11 @@ export function playShellRuntime(cfg, K) {
     if (MANA) MANA.loading(lv.title);
     else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; }
     clearTimeout(veilCap);
-    veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 45000);   // a level without the bridge still shows
+    // (a big map is baked before a byte of it arrives, for minutes: the veil holds, and says so, until the frame has loaded;
+    // a level without the bridge still shows, a while after it has)
+    clearTimeout(veilHint);
+    veilHint = setTimeout(() => { $('veilText').textContent = lv.title + ' · being built for the first time: a big map can take a few minutes'; }, 8000);
+    veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 600000);
     frame.src = lv.src;
   }
   function post(msg) { try { if (frame.contentWindow) frame.contentWindow.postMessage(msg, '*'); } catch (e) { /* opaque frame */ } }
@@ -485,6 +525,7 @@ export function playShellRuntime(cfg, K) {
     post({ moj: W.gamepad, on: true, deadZone: 0.15, lookScale: 18, invertY: false });
   };
   frame.addEventListener('load', pushPrefs);
+  frame.addEventListener('load', () => { if (veil.style.display === 'none') return; clearTimeout(veilCap); clearTimeout(veilHint); $('veilText').textContent = session ? session.level.title : ''; veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 45000); });
 
   window.addEventListener('message', (e) => {
     const d = e.data;
@@ -499,7 +540,7 @@ export function playShellRuntime(cfg, K) {
     // the level's own end card read (or put away): the flow goes on
     if (d.moj === W.cardDone) { if (waitCard) { const f = waitCard; waitCard = null; f(); } signal('card-done'); return; }
     if (d.moj === W.ready) {
-      clearTimeout(veilCap); veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 1200);
+      clearTimeout(veilCap); clearTimeout(veilHint); veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 1200);
       if (d.contractVersion !== W.version) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); toast('This level speaks a newer contract (v' + d.contractVersion + '); re-make the game.'); return; }
       post({ moj: W.init, contractVersion: W.version, params: session.params, seed: session.seed, theme: cfg.theme });
       pushPrefs();
@@ -516,7 +557,8 @@ export function playShellRuntime(cfg, K) {
       const to = (cfg.links[session.level.ref] || {})[d.door], lv = to && LEVELS.find((l) => l.ref === to.ref);
       if (!lv) { toast('That door leads nowhere.'); return; }
       if (!PLAYTEST && lv.gate && !K.evalGate(SCHEMA, state, lv.gate)) { toast(lv.title + ' is locked.'); return; }
-      const carry = JSON.parse(JSON.stringify(session.params || {}));
+      // (the store as the door left it, what the session gathered included: never what the session started with)
+      const carry = paramsFor(lv);
       carry.__entry = { door: to.door, from: session.level.ref };
       if (!go('door', { doorTo: lv.ref, carry })) toast('That door leads nowhere.');
       return;
@@ -531,7 +573,8 @@ export function playShellRuntime(cfg, K) {
       if (!r.ok) { lastErrors = r.errors; toast('The level sent an outcome the game could not apply; nothing changed.'); }
       else {
         state = r.state;
-        if (env.result === 'success' && progression && !state[progression].completed[session.level.ref]) {
+        // (a megaworld: leaving a map by a way is travel, never its completion)
+        if (env.result === 'success' && progression && !(ATLAS && env.exit) && !state[progression].completed[session.level.ref]) {
           const pr = K.applyEvents(SCHEMA, state, [{ type: 'promote', slice: progression, ref: session.level.ref, result: 'success' }]);
           if (pr.ok) state = pr.state;
         }
@@ -720,7 +763,8 @@ export function playShellRuntime(cfg, K) {
   const front = cfg.front && typeof __mojFront === 'function' ? __mojFront(cfg, {
     el, app, show, saveSettings, pushPrefs, continueTo, go, poke, has: onOf,
     playtest: PLAYTEST, title: M.title,
-    progress: () => (runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
+    progress: () => (ATLAS ? atlas().at || null : runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
+    ...(ATLAS ? { current: () => LEVELS.find((l) => l.ref === atlas().at) || null } : {}),
     settings: () => settings,
     reset: () => { resetStore(); persist(); },
   }) : null;
@@ -777,6 +821,8 @@ export function playShellRuntime(cfg, K) {
   }
   // continue: the open level after the last one played, else the first open one not cleared
   function continueTo() {
+    // (a megaworld: continue is the current map, where the player is)
+    if (ATLAS) return LEVELS.find((l) => l.ref === atlas().at) || null;
     const last = runLog.length ? runLog[runLog.length - 1].levelRef || null : null;
     if (!last) return null;
     const i = LEVELS.findIndex((l) => l.ref === last);

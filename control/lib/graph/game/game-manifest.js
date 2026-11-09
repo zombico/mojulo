@@ -28,6 +28,8 @@
  *     screen?: 'phone' | 'tablet' | 'screen' | { … },   // the screen it is made for (screen.js)
  *     run?: { length },                    // RUNS (the play shell): each run draws `length` of the levels in a seeded
  *                                          // order; a clear goes on, a death ends the run; the store carries over
+ *     atlas?: { slice, shape?, rings },    // A MEGAWORLD (the play shell): the current map kept in a flags slice, leaving by an exit never
+ *                                          // completes a level, Continue resumes where the player is, the travel screen a mandala
  *     final?: <level ref>,                 // THE END (the play shell): that level's first win completes the game (the
  *                                          // front's end plays; a map game does not travel on from it), cleared alone
  *     flow?: { start, steps },             // THE FLOW (flow.js): what plays when, screens, cinematics, levels and holds;
@@ -178,6 +180,13 @@ export function validateGameManifest(manifest) {
     if (manifest.links !== undefined) errors.push('run and links: a run draws its levels, it does not walk between them');
   }
 
+  // THE ATLAS (a megaworld, gameworld/megaworld.js): the current map, kept in a flags slice of the store
+  if (manifest.atlas !== undefined) {
+    const A = manifest.atlas, slice = (manifest.store?.slices ?? []).find((x) => x.name === A?.slice), known = (manifest.levels ?? []).map((l) => l?.ref);
+    if (!A || typeof A !== 'object' || !Array.isArray(A.rings) || A.rings.some((r) => !Array.isArray(r) || r.some((x) => !known.includes(x)))) errors.push('atlas is { slice, rings: [[level ref]] }: the zones in their rings');
+    else if (slice?.kind !== 'flags') errors.push(`atlas.slice is a flags slice of the store (${A.slice})`);
+    if (manifest.shell !== 'play') errors.push("atlas plays in the light shell: add shell: 'play'");
+  }
   if (manifest.final !== undefined) {
     const refs = Array.isArray(manifest.levels) ? manifest.levels.map((l) => l && l.ref) : [];
     if (typeof manifest.final !== 'string' || !refs.includes(manifest.final)) errors.push(`final is the level whose first win completes the game: one of ${refs.join(', ') || 'the levels'}`);

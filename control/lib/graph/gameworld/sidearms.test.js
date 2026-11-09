@@ -1,0 +1,123 @@
+import { describe, it, expect } from 'vitest';
+import { BASIC_ARSENAL, lowerArsenal, readArsenal } from './combos.js';
+import { createWorld, stepWorld } from '../worlds/controllable-world.js';
+
+// THE SIDEARM (combos.js `ranged`, the loadout's one; worlds/controllable combat-ranged.js on the S press): the bow
+// draws while S is held and looses once drawn (let go early, nothing); an autofire sidearm (pistols) fires at its rate
+// while it is held, never running dry. The weapon cycle never changes it.
+// (an autofire sidearm, a stylish game's pistols: the loadout's one in place of the bow)
+const PISTOLS = { id: 'pistols', name: 'Pistols', mode: 'auto', rof: 9, damage: 0.4, impact: 3, range: 30, infinite: true, hand: 'right', dual: true };
+const world = ({ foeAt = 8, combat = null, ranged = null } = {}) => {
+  const W = lowerArsenal(ranged ? { ...BASIC_ARSENAL, ranged: [ranged] } : BASIC_ARSENAL);
+  const w = createWorld({ entities: [
+    { id: 'p', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeContact: [0.44, 0.52], weapons: W, moveset: W[0].moveset, weapon: W[0].sidearm.weapon, ...(combat ? { combat } : {}) }, ...(combat ? { body: { figure: combat.drawn } } : {}), transform: { pos: [0, 0, 0], heading: 0 } },
+    { id: 'foe', team: 'foes', body: { type: 'box', size: [0.6, 0.6, 1.8], hittable: true, hp: 100, poise: 50, radius: 0.35, egg: { a: 0.35, c: 0.752, cz: 0.752 } }, rule: { type: 'static' }, transform: { pos: [foeAt, 0, 0], heading: Math.PI } },
+  ] });
+  const hooks = { ground: () => 0 }, p = w.byId.p, log = [];
+  const step = (inp = {}) => { stepWorld(w, inp, 1 / 60, hooks); const P = p.mvPress; if (P && (!log.length || log[log.length - 1].seq !== P.seq)) log.push({ ...P }); };
+  for (let i = 0; i < 4; i++) step();
+  return { w, p, foe: w.byId.foe, step, log };
+};
+
+describe('the bow: hold to draw, let go once drawn', () => {
+  it('a full draw looses an arrow that wounds the foe; let go early, nothing', () => {
+    const A = world();
+    expect(A.p.weapon.early).toBe('none');
+    for (let f = 0; f < 10; f++) A.step({ special: 1 });
+    expect(A.p.weapon.charging).toBe(true);
+    A.step();   // (let go a sixth of a second in: not drawn)
+    expect(A.p.weapon.shots).toBe(0);
+    for (let f = 0; f < 40; f++) A.step();
+    for (let f = 0; f < 36; f++) A.step({ special: 1 });   // (0.6 s: drawn)
+    expect(A.p.weapon.chargeReady).toBe(true);
+    A.step();
+    expect(A.p.weapon.shots).toBe(1);
+    for (let f = 0; f < 60; f++) A.step();
+    expect(A.foe.body.hp).toBeLessThan(100);
+  });
+  it('the draw walks the hero at the aim\'s pace and refuses the blade', () => {
+    const run = (special) => { const A = world({ foeAt: 30 }); const x0 = A.p.transform.pos[0]; for (let f = 0; f < 25; f++) A.step({ forward: 1, special }); return { d: A.p.transform.pos[0] - x0, A }; };
+    const free = run(0), aiming = run(1);
+    expect(aiming.d).toBeLessThan(free.d * 0.6);
+    aiming.A.step({ forward: 1, special: 1, fire: 1 });
+    expect(aiming.A.log[aiming.A.log.length - 1]).toMatchObject({ beat: 'L', verdict: 'dropped', why: 'drawing the bow' });
+  });
+});
+
+describe('one sidearm a loadout', () => {
+  it('the weapon cycle steps the blade and the fist, never the bow: the fist draws the same bow, its quiver as it was', () => {
+    const A = world();
+    for (let f = 0; f < 36; f++) A.step({ special: 1 });
+    A.step();
+    const left = A.p.weapon.ammo + A.p.weapon.reserve, w0 = A.p.weapon;
+    expect(A.p.weapon.shots).toBe(1);
+    A.step({ cycle: 1 }); A.step();
+    expect(A.p.mvWeapon).toBe('fist');
+    expect(A.p.weapon).toBe(w0);
+    expect(A.p.mvRanged).toMatchObject({ id: 'bow', mode: 'draw' });
+    expect(A.p.weapon.ammo + A.p.weapon.reserve).toBe(left);
+  });
+});
+
+describe('an autofire sidearm: hold to fire', () => {
+  it('fires at its rate while S is held, never running dry', () => {
+    const A = world({ foeAt: 6, ranged: PISTOLS });
+    expect(A.p.weapon.infinite).toBe(true);
+    const ammo = A.p.weapon.ammo;
+    for (let f = 0; f < 60; f++) A.step({ special: 1 });
+    expect(A.p.weapon.shots).toBeGreaterThanOrEqual(8);
+    expect(A.p.weapon.ammo).toBe(ammo);
+    // (every round on the foe: the sidearm aims for the body in front, the hand's own offset aside)
+    expect(100 - A.foe.body.hp).toBeCloseTo(A.p.weapon.shots * 0.4, 5);
+    expect(A.p.mvPose).toEqual({ clip: 'mv_aim_pistols', phase: 0, sidearm: true, prop: 'guns' });
+    expect(A.p.mvRanged).toMatchObject({ mode: 'auto', hand: 'right', dual: true });
+  });
+});
+
+describe('the aim\'s pose (the page plays it: hero-swing-body.js aimClip)', () => {
+  it('S held says the sidearm\'s aim, the draw at its share; held a beat after the loose, then lowered; the blade on the back', () => {
+    const A = world({ combat: { near: 12, far: 20, linger: 1, drawn: 'hero', sheathed: 'hero-sheathed' } });
+    expect(A.p.body.figure).toBe('hero');
+    const ph = [];
+    for (let f = 0; f < 36; f++) { A.step({ special: 1 }); ph.push(A.p.mvPose.phase); }
+    expect(A.p.mvPose.clip).toBe('mv_aim_bow');
+    ph.slice(1).forEach((v, i) => expect(v).toBeGreaterThanOrEqual(ph[i]));
+    expect(ph[ph.length - 1]).toBe(1);
+    expect(A.p.body.figure).toBe('hero-sheathed');
+    A.step(); A.step();   // (loosed: the bow still up, the string forward)
+    expect(A.p.weapon.shots).toBe(1);
+    expect(A.p.mvPose).toEqual({ clip: 'mv_aim_bow', phase: 0, sidearm: true, prop: 'bow' });
+    for (let f = 0; f < 30; f++) A.step();
+    expect(A.p.mvPose).toBe(null);
+    expect(A.p.body.figure).toBe('hero');
+    A.step({ cycle: 1 }); A.step();
+    A.step({ special: 1 });
+    expect(A.p.mvPose).toEqual({ clip: 'mv_aim_bow', phase: 0, sidearm: true, prop: 'bow' });   // (the fist's S: the same bow)
+  });
+});
+
+describe('the aim', () => {
+  it('a foe off to the side, inside the cone: the hero turns to it and the rounds land; none in front, none aimed', () => {
+    const A = world({ foeAt: 6, ranged: PISTOLS });
+    A.foe.transform.pos = [5, 2.5, 0];   // (26° off the facing)
+    for (let f = 0; f < 30; f++) A.step({ special: 1 });
+    expect(Math.abs(A.p.transform.heading - Math.atan2(2.5, 5))).toBeLessThan(0.02);
+    expect(A.foe.body.hp).toBeLessThan(100);
+    const B = world({ foeAt: 6, ranged: PISTOLS });
+    B.foe.transform.pos = [0, 6, 0];   // (90° off: outside the cone)
+    for (let f = 0; f < 30; f++) B.step({ special: 1 });
+    expect(B.p.mvAim).toBeNull();
+    expect(B.foe.body.hp).toBe(100);
+  });
+});
+
+describe('the arsenal\'s sidearms, read', () => {
+  it('one sidearm a loadout, its own mode\'s words; a weapon names none other (or false: none)', () => {
+    const A = JSON.parse(JSON.stringify(BASIC_ARSENAL));
+    A.weapons[0].sidearm = 'crossbow';
+    expect(() => readArsenal(A)).toThrow(/sidearm 'crossbow' is not the arsenal's ranged \(bow\)/);
+    expect(() => readArsenal({ ...BASIC_ARSENAL, ranged: [...BASIC_ARSENAL.ranged, PISTOLS] })).toThrow(/ranged is the loadout's one sidearm \(not 2\)/);
+    expect(() => readArsenal({ ...BASIC_ARSENAL, ranged: [{ ...PISTOLS, draw: 0.5 }] })).toThrow(/ranged\[0\]\.draw is not part of a auto sidearm/);
+    expect(lowerArsenal({ ...BASIC_ARSENAL, weapons: [{ ...BASIC_ARSENAL.weapons[0], sidearm: false }, BASIC_ARSENAL.weapons[1]] }).map((W) => W.sidearm?.id ?? null)).toEqual([null, 'bow']);
+  });
+});

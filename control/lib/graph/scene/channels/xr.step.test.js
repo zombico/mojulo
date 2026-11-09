@@ -9,6 +9,8 @@ import { heroRecord, expandLayeredManifest } from '../../../mcp/tools/layered.js
 import { xrHands } from '../../polygonizer/hero-xr-hands.js';
 import { gearMounts } from '../../polygonizer/hero-gear.js';
 import { buildSweep } from '../../worlds/controllable/sweep.js';
+import { manaUi } from '../../../mana-ui/kernel.js';
+import { buildManaHost } from '../../controls/mana-host.js';
 
 // The headset's locomotion, run: the emitted block against the vendored three's math, a fake session whose sticks and
 // head the test moves, so "goes straight" and "turns in place" are measured, not read off the source. The eyes gate
@@ -257,7 +259,7 @@ describe('xr config', () => {
 // pilot. The head moves in the play space (position, yaw, pitch); the sticks and buttons are the test's.
 const K = composeLive();
 const FLAT = { ground: () => 0 };
-function gameUp(xr, { entities, camera = null, colliders = null, aims = {}, grips = {}, document: doc = null, window: win = null } = {}) {
+function gameUp(xr, { entities, camera = null, colliders = null, aims = {}, grips = {}, document: doc = null, window: win = null, mana = false } = {}) {
   const cfg = xrConfig(xr, null, { ctrl: true });
   const pad = () => ({ axes: [0, 0, 0, 0], buttons: Array.from({ length: 6 }, () => ({ pressed: false, value: 0 })) });
   const pads = { left: pad(), right: pad() };
@@ -286,7 +288,7 @@ function gameUp(xr, { entities, camera = null, colliders = null, aims = {}, grip
   // the page's input read in miniature: the pad (the headset's while a session plays), a tank-turn world's shape, the
   // jump's press edge; then the headset finishes it on the body
   const body = `let walkOn = false, __xrCtl = null, stepControllable = () => {}, __prevJump = false;
-${xrModeScript(cfg, { ctrl: true })}
+${xrModeScript(cfg, { ctrl: true, mana })}
 stepControllable = (dt) => {
   const p = __xrCtl ? __xrCtl.pad() : null;
   const jump = !!(p && p.jump) && !__prevJump ? 1 : 0; __prevJump = !!(p && p.jump);
@@ -295,9 +297,9 @@ stepControllable = (dt) => {
   __inputs.push(inp);
   __K.stepWorld(__world, inp, dt, __FLAT);
 };
-return { enter: __xrEnter, step: __xrStep, rig: () => __xrRig, ctl: () => __xrCtl, panel: () => __xrPanel, exit: __xrExit };`;
+return { enter: __xrEnter, step: __xrStep, rig: () => __xrRig, ctl: () => __xrCtl, panel: () => __xrPanel, exit: __xrExit, menu: () => (typeof __xrMenu !== 'undefined' ? __xrMenu : null) };`;
   const page = new Function(...Object.keys(env), body)(...Object.values(env));
-  return { pads, press, head, page, world, inputs, aims, grips };
+  return { pads, press, head, page, world, inputs, aims, grips, scene: env.scene };
 }
 const hero = (over = {}, at = [0, 0, 0]) => ({ id: 'hero', pilotable: true, rule: { type: 'platform', eye: 0, speed: 4, collideRadius: 0.3, collideHeight: 1.7, ...over }, transform: { pos: [...at], heading: 0 } });
 // the head's world place: the rig carrying the viewer's
@@ -712,5 +714,104 @@ describe('the HUD in the headset', () => {
     const off = gameUp({ hud: false }, { entities: [hero()], document: hudDom().document });
     await off.page.enter();
     expect(off.page.panel()).toBeNull();
+  });
+});
+
+// MANA-UI IN THE HEADSET: a view registered on the page (a real mana-ui runtime and its input owner, mana-host), its
+// snapshot stood in for (the browser's drawing is the transfer gate's, mana-ui/snapshot.chrome.test.js)
+function manaUp() {
+  const log = [], drawn = [];
+  const rt = manaUi.runtime({ screens: { menu: { use: 'screen', children: [{ use: 'list', props: { rows: [{ id: 'a', label: 'Attack' }, { id: 'b', label: 'Guard' }] }, on: { accept: { emit: 'pick', id: { item: 'id' } } } }, { use: 'tabs', children: [{ use: 'tab', props: { label: 'One' } }, { use: 'tab', props: { label: 'Two' } }] }] } } }, { read: () => undefined, act: (e) => log.push(e) });
+  const host = buildManaHost().connect(rt, { paint() {} }, { keys: {}, pad: null, listen: false, loop: false });
+  let left = 0;
+  const drive = host.drive;
+  host.drive = (fn) => { const leave = drive(fn); return () => { left++; leave(); }; };
+  const img = { drawn: true }, shots = [];
+  // (one anchor that says its world point: a bar over a fighter's head at [5, 0, 2])
+  const mark = { getBoundingClientRect: () => ({ x: 400, y: 300, width: 80, height: 30 }), querySelectorAll: () => [], getAttribute: (k) => (k === 'data-world' ? '5,0,2' : 'aayla') };
+  const root = { querySelector: () => null, getBoundingClientRect: () => ({ x: 0, y: 0, width: 1280, height: 720 }), querySelectorAll: (q) => (q.includes('[data-world]') ? [mark] : []) };
+  const view = { root, rt, css: '', host, shot: (extra) => { shots.push(extra); return Promise.resolve(img); } };
+  const ctx = { clearRect() {}, drawImage: (i, x, y, w, h) => drawn.push({ i, w, h }) };
+  const canvas = { width: 0, height: 0, getContext: () => ctx };
+  const document = { createElement: (tag) => (tag === 'canvas' ? canvas : { classList: { add() {}, remove() {} }, hidden: false }), querySelector: () => null, pointerLockElement: null };
+  const window = { __manaViews: [view] };
+  return { rt, host, view, log, drawn, document, window, left: () => left, img, shots };
+}
+const settle = () => new Promise((r) => setTimeout(r, 0));
+
+describe('mana-ui in the headset', () => {
+  it('a screen up: its view on a panel at eye height ahead, square to the player, drawn from its snapshot', async () => {
+    const M = manaUp(), g = gameUp(true, { entities: [hero()], document: M.document, window: M.window, mana: true });
+    await g.page.enter();
+    run(g, 1);
+    expect(g.page.menu()).toBeNull();          // no screen: no panel, the game has the controllers
+    M.rt.open('menu');
+    run(g, 1); await settle();
+    const P = g.page.menu(), w = new THREE.Vector3();
+    expect(P.m.parent).toBe(g.page.rig());
+    expect(P.m.visible).toBe(true);
+    expect(M.drawn.at(-1)).toMatchObject({ i: M.img, w: 2048, h: 1152 });   // the snapshot, at the panel's resolution
+    g.page.rig().updateMatrixWorld(true); P.m.getWorldPosition(w);
+    expect(w.x).toBeCloseTo(1.4, 6);             // ahead: the head faces +X
+    expect(w.z).toBeCloseTo(1.6 - 0.12, 6);      // a little under the eye
+    const n = new THREE.Vector3(0, 0, 1).transformDirection(P.m.matrixWorld);
+    expect(n.x).toBeCloseTo(-1, 6);              // facing the player
+  });
+
+  it('the controllers are its game controllers: a stick moves, A accepts, the grips turn the tabs; the world and the turn hold', async () => {
+    const M = manaUp(), g = gameUp(true, { entities: [hero()], document: M.document, window: M.window, mana: true });
+    await g.page.enter();
+    M.rt.open('menu');
+    const tick = () => { g.page.step(1 / 60); M.host.poll(); };
+    tick();
+    const yaw = g.page.rig().quaternion.clone(), at = [...g.world.byId.hero.transform.pos];
+    g.pads.right.axes = [0, 0, 1, 1]; tick();          // the right stick: down (and across: no turn while a screen is up)
+    g.pads.right.axes = [0, 0, 0, 0]; tick();
+    expect(M.rt.state()).toMatchObject({ input: 'xr', focus: 1 });
+    expect(g.page.rig().quaternion.equals(yaw)).toBe(true);
+    g.pads.left.axes = [0, 0, 0, -1]; tick(); tick();  // the left stick moves the menu too, and walks nobody
+    g.pads.left.axes = [0, 0, 0, 0]; tick();
+    expect(M.rt.state().focus).toBe(0);
+    expect(g.world.byId.hero.transform.pos).toEqual(at);
+    g.press('right', 4, true); tick(); g.press('right', 4, false); tick();   // A
+    expect(M.log).toEqual([{ emit: 'pick', id: 'a' }]);
+    g.press('right', 1, true); tick(); g.press('right', 1, false); tick();   // the right grip: the next tab
+    expect(M.rt.state().tabs).toEqual([1]);
+    // the screen closed (B): the panel goes, the sticks are the game's again
+    g.press('right', 5, true); tick(); g.press('right', 5, false); tick();
+    expect(M.rt.state().screen).toBeNull();
+    tick();
+    expect(g.page.menu()).toBeNull();
+    g.pads.left.axes = [0, 0, 0, -1]; run(g, 30);
+    expect(g.world.byId.hero.transform.pos[0]).toBeGreaterThan(at[0] + 0.5);
+  });
+
+  it('what the view stands over the world (an anchor with its world point) is a card there, not on the panel', async () => {
+    const M = manaUp(), g = gameUp(true, { entities: [hero()], document: M.document, window: M.window, mana: true });
+    await g.page.enter();
+    M.rt.open('menu');
+    run(g, 1); await settle(); run(g, 1);
+    expect(M.shots[0]).toContain('.mana-anchor[data-world]{visibility:hidden!important}');   // the panel leaves it out
+    expect(M.shots[1]).toContain('.mana-anchor[data-key="aayla"]{left:');                     // the atlas lays it apart
+    const cards = g.scene.children.filter((c) => c.renderOrder === 994);
+    expect(cards).toHaveLength(1);
+    const c = cards[0], d = Math.hypot(5, 0, 2 - 1.6), s = 0.0011 * d;
+    expect(c.scale.x).toBeCloseTo(80 * s, 6); expect(c.scale.y).toBeCloseTo(30 * s, 6);   // as large to the eye as on the screen
+    expect(c.position.x).toBeCloseTo(5, 6);
+    expect(c.position.z).toBeGreaterThan(2);                                               // its foot on the point: it stands over it
+    const n = new THREE.Vector3(0, 0, 1).applyQuaternion(c.quaternion);
+    expect(n.x).toBeLessThan(-0.99);                                                       // square to the eye
+    g.page.exit();
+    expect(g.scene.children.filter((c) => c.renderOrder === 994)).toHaveLength(0);
+  });
+  it('the controllers leave the view with the session; a page without mana-ui has none of it', async () => {
+    const M = manaUp(), g = gameUp(true, { entities: [hero()], document: M.document, window: M.window, mana: true });
+    await g.page.enter();
+    M.rt.open('menu'); run(g, 1);
+    g.page.exit();
+    expect(M.left()).toBe(1);
+    expect(g.page.menu()).toBeNull();
+    expect(xrModeScript(xrConfig(true, null, { ctrl: true }), { ctrl: true })).not.toContain('__xrMenu');
+    expect(xrModeScript(xrConfig(true, null, { ctrl: true }), { ctrl: true, mana: true })).toContain('__xrMenuStep');
   });
 });
