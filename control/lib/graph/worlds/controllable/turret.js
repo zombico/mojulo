@@ -16,7 +16,8 @@
  *   gun    barrel      metres from the trunnion to the muzzle
  *   rounds (opt-in) the rounds the gun may load (weapon rows, gameworld/combat/ordnance.js): `input.slot` n loads the nth,
  *          the breech empty until its reload is done (the entity's weapon is the loaded round); a round's own `at` and
- *          `barrel` (opt-in) its mount's, for a turret of twin mounts (a walker's backpack: gameworld/combat/frames.js)
+ *          `barrel` (opt-in) its mount's, for a turret of twin mounts (a walker's backpack: gameworld/combat/frames.js), and
+ *          `atForm` ({ <form>: at }, opt-in) its mount's place in each of a body's forms (forms.js: a walker's tank form)
  *
  * THE HAND: the pilot's look (input.lookDX / lookDY, a mouse's pixels, a pad's stick through the page) moves where the
  * gunner asks the gun to point; the mount slews toward it at its rates, braking to stop on it, never past its limits.
@@ -61,7 +62,8 @@ export function buildTurret(E) {
   // `barrel`; both mounts follow the one aim)
   function place(e) {
     const T = e.turret, m = T.mount || {}, t = e.transform, h = t.heading * 180 / Math.PI, R = T.rounds && T.rounds[T.loaded || 0];
-    const at = (R && R.at) || m.at || [0, 0, 0], ch = Math.cos(t.heading), sh = Math.sin(t.heading);
+    // (a body of two forms carries its mount elsewhere in each: the round's own place in the form it is in, `atForm`)
+    const at = (R && R.atForm && e.form && R.atForm[e.form]) || (R && R.at) || m.at || [0, 0, 0], ch = Math.cos(t.heading), sh = Math.sin(t.heading);
     const piv = [t.pos[0] + ch * at[0] - sh * -(at[1] || 0), t.pos[1] + sh * at[0] + ch * -(at[1] || 0), t.pos[2] + (at[2] || 0)];
     const yw = (h + T.yaw) * D, el = T.pitch * D, dir = [Math.cos(el) * Math.cos(yw), Math.cos(el) * Math.sin(yw), Math.sin(el)];
     const L = (R && R.barrel) || (T.gun && T.gun.barrel) || 0;

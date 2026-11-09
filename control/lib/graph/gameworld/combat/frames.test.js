@@ -51,14 +51,7 @@ describe('the frames on the range', () => {
     expect(B.mountClass).toBe('pack');
   }, 30000);
 
-  it('a transforming walker in its tank form stands its mounts lower than braced', () => {
-    const T = lightest((a) => MECHA_ARCHETYPES[a].stances?.roll && guns(MECHA_ARCHETYPES[a].backpack));
-    const braced = frameBase({ frame: word(T) }), rolled = frameBase({ frame: word(T), stance: 'roll' });
-    expect(rolled.stance).toBe('roll');
-    expect(rolled.rounds[0].at[2]).toBeLessThan(braced.rounds[0].at[2]);
-  }, 30000);
-
-  it('walks: a forward clip of its gait\'s keys, each body where the IK puts it at that key; in its tank form it stands', () => {
+  it('walks: a forward clip of its gait\'s keys, each body where the IK puts it at that key', () => {
     const F = frameBase({ frame: word(BARE) }), clip = F.figure.clips.forward, nb = F.figure.bones.length;
     expect(F.gait.archetype).toBe(BARE);
     expect(clip.k).toBe(gaitStances(F.gait).length);
@@ -71,9 +64,30 @@ describe('the frames on the range', () => {
     const got = [0, 1, 2].map((i) => [hx, hy, hz][i] + d[i] + 2 * (qw * u[i] + [qy * u[2] - qz * u[1], qz * u[0] - qx * u[2], qx * u[1] - qy * u[0]][i]));
     const want = key.faces[pk.faceStart].corners[0];
     expect(Math.hypot(...got.map((g, i) => g - want[i]))).toBeLessThan(2e-3);
-    const T = Object.keys(MECHA_ARCHETYPES).find((a) => MECHA_ARCHETYPES[a].stances?.roll);
-    expect(frameBase({ frame: word(T), stance: 'roll' }).gait).toBeUndefined();
   }, 60000);
+
+  it('a transforming walker has its tank form: it drives on its wheels, folds and unfolds by its chain, its gun lower', () => {
+    const T = lightest((a) => MECHA_ARCHETYPES[a].stances?.roll && MECHA_ARCHETYPES[a].wheels && guns(MECHA_ARCHETYPES[a].backpack));
+    const F = frameBase({ frame: word(T) }), C = F.figure.clips, nb = F.figure.bones.length;
+    expect(F.form).toBe('walker');
+    expect(F.figure.forms).toEqual({ base: 'walker' });
+    for (const k of ['forward', 'tank:idle', 'tank:forward', 'transform:tank', 'transform:walker']) expect(C[k], k).toBeTruthy();
+    expect(C['transform:tank'].once).toBe(true);
+    // (its drive from its wheels: a wheel's turn a cycle, its pace by its wheelbase, its turn within its grip)
+    expect(F.drive.wheels).toBe(MECHA_ARCHETYPES[T].wheels.length);
+    expect(F.drive.stride).toBeCloseTo(2 * Math.PI * F.drive.radius, 2);
+    expect(F.drive.turn).toBeLessThanOrEqual(F.drive.lateral / F.drive.speed + 1e-3);
+    // (the fold starts where it stands, every bone at rest, and ends in its tank form's pose)
+    const key = (clip, k) => clip.b.slice(k * nb * 7, (k + 1) * nb * 7);
+    const first = key(C['transform:tank'], 0);
+    for (let i = 0; i < nb; i++) { expect(Math.abs(first[i * 7 + 3])).toBeCloseTo(1, 3); for (let j = 0; j < 3; j++) expect(first[i * 7 + 4 + j]).toBeCloseTo(F.figure.bones[i].head[j], 2); }
+    const last = key(C['transform:tank'], C['transform:tank'].k - 1), idle = key(C['tank:idle'], 0);
+    for (let i = 0; i < last.length; i++) expect(last[i]).toBeCloseTo(idle[i], 2);
+    // (its gun lower in its tank form)
+    for (const r of F.rounds) expect(r.atForm.tank[2]).toBeLessThan(r.at[2]);
+    // (and starts in its tank form when its stance says roll)
+    expect(frameBase({ frame: word(T), stance: 'roll' }).form).toBe('tank');
+  }, 90000);
 
   it('refuses what is not a frame, a stance it has not, a word it does not take', () => {
     expect(validateFrame({ frame: 'no such machine at all' }).join()).toMatch(/not a vehicle of the library/);

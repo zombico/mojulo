@@ -98,3 +98,19 @@
   four-legged frame) always down, a walk and not a run. On the range a frame walks at its gait's pace (W / S, A / D
   turn), each body a bone keyed at each step by the IK, its gun laid as it goes; in its tank form it stands. O steps
   through the sight, the view behind the gun and a view beside the base, watching it walk.
+- **The transforming walkers drive in their tank form.** The rover walker, the siege walkers and the brood walker are
+  one body with two forms on the range: they walk, and B folds them into their tank form and they drive on their wheels
+  (the runtime's forms: a beat, then the tank form's rule), B again unfolding them. The fold is solved by their chain,
+  their joints and their pelvis carried from standing to rolled in even steps, so the legs stay joined as they fold; the
+  tank form's bodies are a pose of the same rig, its wheels turning a full turn every 2πr driven. Its drive from its
+  structure and size as its walk is: a wheeled machine's off-road pace at Froude 4 on its wheelbase (the rover walker
+  6.1 m/s, the siege walker 9.2, its Mk 1 11.9, the brood walker 16.1), its turn no quicker than keeps its grip within
+  half of what would roll it over. Its gun fires from where its mount is in each form, and its sight carries each form's
+  range marks. A base transforming on the range stays solid (the beat's shimmer is a game's tell).
+- **A four-legged frame's feet pass clear.** The brood walker's legs aim their hips at their ankles, so each foot (its
+  bay, its petals, its wheels) turns as it reaches, and in a lateral sequence a hind foot swung into the fore foot still
+  planted ahead of it. A four-legged frame's gait now takes the order of the six that keeps a side's two feet farthest
+  apart, sets its feet as much wider fore and aft as lets it walk fastest, and shortens its stride until each foot's
+  outline in plan, turned with its leg, passes its neighbour's clear: a new law. The brood walker walks a diagonal
+  sequence, its feet 15% wider, a 2.6 m stride at 1.1 m/s (from 5 m at 2.1, its bays meeting); no two of its legs'
+  bodies touch at any key.

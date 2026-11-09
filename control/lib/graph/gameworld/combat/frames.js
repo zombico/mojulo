@@ -22,7 +22,7 @@
  * Vehicle space as the shelves' (+y forward, +x right, metres). Pure; a frame's assembly is the slow part (up to a second
  * and a half for the big walkers).
  */
-import { MECHA_ARCHETYPES, assembleFrame, frameRow } from '../../mecha-shelf/index.js';
+import { MECHA_ARCHETYPES, assembleFrame, frameRow, posedFrame, massOf } from '../../mecha-shelf/index.js';
 import { MECHA_BACKPACKS } from '../../mecha-shelf/mecha-backpacks.js';
 import { MECHA_PALETTES } from '../../mecha-shelf/mecha-common.js';
 import { lowerAssemblerBuild } from '../../worlds/workbench-assembler.js';
@@ -93,8 +93,11 @@ export function frameBase(base, { mounts = FRAME_MOUNTS } = {}) {
   const errs = validateFrame(base);
   if (errs.length) throw new Error(`artillery range: ${errs.join('; ')}`);
   const { id, archetype } = frameOf(base.frame), row = MECHA_ARCHETYPES[archetype];
-  const stance = base.stance ?? (row.stances?.brace ? 'brace' : 'stand');
-  let { manifest, readout, armed, words } = assembled(archetype, stance, base.palette);
+  // (a frame that rolls has two forms: it walks, and it drives in its tank form, its legs folded onto its wheels; it is
+  // baked standing as it walks, its tank form a pose of the same bodies, and starts in the form its stance names)
+  const transforms = !!(row.wheels && row.stances?.roll), walkStance = row.stances?.brace ? 'brace' : 'stand';
+  const stance = base.stance ?? walkStance, bakeAt = transforms && stance === 'roll' ? walkStance : stance;
+  let { manifest, readout, armed, words } = assembled(archetype, bakeAt, base.palette);
   let weapons = armed ? readout.weapons ?? {} : null, roof = null;
   const fitted = new Set();
   // (a frame with no gun is fitted one on its roof: the donor's ring, cradle and autocannon)
@@ -120,6 +123,8 @@ export function frameBase(base, { mounts = FRAME_MOUNTS } = {}) {
   const sourceOf = new Map();
   for (const it of manifest.items) { const b = boneOf(it.id); if (b === `gun${it.id.slice(-1)}` && !it.id.startsWith('cradle')) continue; if (!sourceOf.has(b)) sourceOf.set(b, it.id); }
   for (const it of manifest.items) { const b = boneOf(it.id); if (!/^(turret|gun)/.test(b) && sourceOf.get(b) === it.id) bones.push({ id: b, head: it.at.map(r3) }); }
+  // (its tank form's bodies, where it has one: the mounts' places in it, and its drive)
+  const rollItems = transforms ? itemsAt(archetype, words, 'roll') : null;
   const rounds = [], mountClass = Object.values(weapons).includes('howitzer') ? 'siege' : 'pack', M = mounts[mountClass];
   for (const s of sides) {
     const S = s.toUpperCase(), ring = P.get(`mount${S}`), cradle = P.get(`cradle${S}`), wf = facesOf(P.get(`weapon${S}`)).flatMap((f) => f.corners);
@@ -128,16 +133,31 @@ export function frameBase(base, { mounts = FRAME_MOUNTS } = {}) {
     const fore = wf.filter((c) => c[1] > muzzleY - 0.2 * (muzzleY - least(wf.map((q) => q[1])))), bz = r3((least(fore.map((c) => c[2])) + most(fore.map((c) => c[2]))) / 2);
     bones.push({ id: `turret${S}`, head: ring.translate.map(r3) }, { id: `gun${S}`, head: trunnion });
     // (a mount's place is [forward, right, up]: vehicle +y, +x, +z)
-    for (const w of WEAPON_ROUNDS[weapons[s]] ?? []) rounds.push({ ...ordnanceWeapon(w), at: [trunnion[1], trunnion[0], bz], barrel: r3(muzzleY - trunnion[1]), mountSide: s, weapon: weapons[s] });
+    // (in its tank form, the trunnion where that form carries it, a fitted mount where its roof is carried)
+    const placed = (form) => { const t = form.get(`cradle${S}`)?.t ?? carried(form, `cradle${S}`); return [r3(t[1]), r3(t[0]), r3(t[2] + bz - trunnion[2])]; };
+    const carried = (form, id) => { const it = manifest.items.find((x) => x.id === id), A0 = { R: rotOf(manifest.items.find((x) => x.id === roof.id).rotate), t: manifest.items.find((x) => x.id === roof.id).at }, Ak = form.get(roof.id), D = mul(Ak.R, tr(A0.R)); return Ak.t.map((v, i) => v + app(D, it.at.map((u, j) => u - A0.t[j]))[i]); };
+    for (const w of WEAPON_ROUNDS[weapons[s]] ?? []) rounds.push({ ...ordnanceWeapon(w), at: [trunnion[1], trunnion[0], bz], barrel: r3(muzzleY - trunnion[1]), mountSide: s, weapon: weapons[s], ...(rollItems ? { atForm: { tank: placed(rollItems) } } : {}) });
   }
   if (!rounds.length) throw new Error(`artillery range: the ${id}'s weapons (${Object.values(weapons).join(', ')}) fire nothing on this range`);
   // the walk (mecha-shelf/mecha-gait.js): its gait from its structure and size, each key's bodies placed by the IK at
   // that key's stance; a frame in its tank form stands
-  const gait = stance === 'roll' ? null : gaitOf(readout.archetype ?? archetype);
+  const gait = stance === 'roll' && !transforms ? null : gaitOf(readout.archetype ?? archetype);
   let figure = packVehicleFigure(bones, buckets, { rolls: [] });
-  if (gait) figure = { ...figure, clips: { forward: walkClip(archetype, words, manifest, bones, sourceOf, fitted, roof, gait) } };
+  const keyed = (items, spin) => poseKey(manifest, bones, sourceOf, fitted, roof, items, spin);
+  const clips = gait ? { forward: { k: GK(gait), b: gaitStances(gait).flatMap((st) => keyed(itemsAt(archetype, words, st))) } } : {};
+  // the tank form: standing on its wheels, driving with them turning, and the fold and the unfold between its forms
+  const drive = transforms ? driveOf(readout.archetype ?? archetype, row, rollItems) : null;
+  if (drive) {
+    const spin = (th) => (b) => (drive.wheels.has(b) ? th : 0);
+    clips['tank:idle'] = { k: 1, b: keyed(rollItems) };
+    clips['tank:forward'] = { k: DRIVE_KEYS, b: Array.from({ length: DRIVE_KEYS }, (_, k) => keyed(rollItems, spin((-2 * Math.PI * k) / DRIVE_KEYS))).flat() };
+    const fold = foldKeys(archetype, words, readout.archetype ?? archetype, bakeAt);
+    clips['transform:tank'] = { k: fold.length, once: true, b: fold.flatMap((it) => keyed(it)) };
+    clips['transform:walker'] = { k: fold.length, once: true, b: [...fold].reverse().flatMap((it) => keyed(it)) };
+  }
+  if (Object.keys(clips).length) figure = { ...figure, clips, ...(drive ? { forms: { base: 'walker' } } : {}) };
   const T = mountOf('light-tank', { mount: M.mount, gun: M.gun });
-  return { id, archetype, stance, armed, weapons, mountClass, figure, rounds, ...(gait ? { gait } : {}), turret: { ...T, mount: { ...T.mount, at: rounds[0].at }, gun: { ...T.gun, barrel: rounds[0].barrel } }, height: r3(B.faces.reduce((a, f) => f.corners.reduce((b, c) => (c[2] > b ? c[2] : b), a), 0)) };
+  return { id, archetype, stance, ...(transforms ? { form: stance === 'roll' ? 'tank' : 'walker', walkStance: bakeAt } : {}), armed, weapons, mountClass, figure, rounds, ...(gait ? { gait } : {}), ...(drive ? { drive: drive.out } : {}), turret: { ...T, mount: { ...T.mount, at: rounds[0].at }, gun: { ...T.gun, barrel: rounds[0].barrel } }, height: r3(B.faces.reduce((a, f) => f.corners.reduce((b, c) => (c[2] > b ? c[2] : b), a), 0)) };
 }
 
 // a body's orientation from its item's `rotate` (degrees, Rz·Ry·Rx: the assembler's)
@@ -157,21 +177,51 @@ function quatOf(m) {
   else { const s = Math.sqrt(1 + m[2][2] - m[0][0] - m[1][1]) * 2; q = [(m[0][2] + m[2][0]) / s, (m[1][2] + m[2][1]) / s, s / 4, (m[1][0] - m[0][1]) / s]; }
   return q.map((v) => Math.round(v * 1e4) / 1e4 + 0);
 }
-/** The walk's clip: per key, per bone, [qx, qy, qz, qw, hx, hy, hz] (the bone turned from its baked place, its head where
- * that key's stance puts its body), the vehicle rig's packing (vehicle-designer/vehicle-rig.js). */
-function walkClip(archetype, words, rest, bones, sourceOf, fitted, roof, gait) {
-  const at0 = new Map(rest.items.map((it) => [it.id, { R: rotOf(it.rotate), t: it.at }]));
-  const stances = gaitStances(gait), flat = [];
-  for (const st of stances) {
-    const items = new Map(assembleFrame(archetype, { ...words, pose: st, laws: false }).manifest.items.map((it) => [it.id, { R: rotOf(it.rotate), t: it.at }]));
-    for (const b of bones) {
-      if (b.id === 'root') { flat.push(0, 0, 0, 1, 0, 0, 0); continue; }
-      const src = sourceOf.get(b.id), r0 = at0.get(src);
-      // (a fitted part rides the body it is fitted on: that body's turn and its travel, carried to the part's place)
-      const by = fitted.has(src) ? roof.id : src, A0 = at0.get(by), Ak = items.get(by) ?? A0;
-      const D = mul(Ak.R, tr(A0.R)), head = fitted.has(src) ? Ak.t.map((v, i) => v + app(D, r0.t.map((u, j) => u - A0.t[j]))[i]) : Ak.t;
-      flat.push(...quatOf(D), ...head.map((v) => Math.round(v * 1e4) / 1e4 + 0));
-    }
-  }
-  return { k: stances.length, b: flat };
+const GK = (gait) => gaitStances(gait).length, DRIVE_KEYS = 12, FOLD_KEYS = 12;
+// a pose's bodies (their orientation and place): a stance's name, a stance, or { joints, root }
+function itemsAt(archetype, words, pose) {
+  return new Map(assembleFrame(archetype, { ...words, pose, laws: false }).manifest.items.map((it) => [it.id, { R: rotOf(it.rotate), t: it.at }]));
 }
+/** One key of a clip: per bone, [qx, qy, qz, qw, hx, hy, hz], the bone turned from its baked place and its head where the
+ * key's pose puts its body (the vehicle rig's packing, vehicle-designer/vehicle-rig.js); a fitted part rides the body it is
+ * fitted on; `spin(bone)` a wheel's turn about its axle (the frame's +x through its hub) over its pose. */
+function poseKey(rest, bones, sourceOf, fitted, roof, items, spin = null) {
+  const at0 = new Map(rest.items.map((it) => [it.id, { R: rotOf(it.rotate), t: it.at }])), out = [];
+  for (const b of bones) {
+    if (b.id === 'root') { out.push(0, 0, 0, 1, 0, 0, 0); continue; }
+    const src = sourceOf.get(b.id), r0 = at0.get(src);
+    const by = fitted.has(src) ? roof.id : src, A0 = at0.get(by), Ak = items.get(by) ?? A0;
+    let D = mul(Ak.R, tr(A0.R));
+    const head = fitted.has(src) ? Ak.t.map((v, i) => v + app(D, r0.t.map((u, j) => u - A0.t[j]))[i]) : Ak.t;
+    const th = spin ? spin(b.id) : 0;
+    if (th) { const c = Math.cos(th), s = Math.sin(th); D = mul([[1, 0, 0], [0, c, -s], [0, s, c]], D); }
+    out.push(...quatOf(D), ...head.map((v) => Math.round(v * 1e4) / 1e4 + 0));
+  }
+  return out;
+}
+// the fold between its forms: its joints and its pelvis carried from its standing stance to its tank form's in even
+// steps, each step's bodies placed by the chain (never a body's own slerp: the legs stay joined as they fold)
+function foldKeys(archetype, words, key, from) {
+  const A = posedFrame(key, from), B = posedFrame(key, 'roll');
+  return Array.from({ length: FOLD_KEYS }, (_, k) => {
+    const u = k / (FOLD_KEYS - 1), e = u * u * (3 - 2 * u), joints = {};
+    for (const j of Object.keys(A.joints)) joints[j] = Math.round((A.joints[j] + ((B.joints[j] ?? A.joints[j]) - A.joints[j]) * e) * 100) / 100;
+    return itemsAt(archetype, words, { joints, root: A.root.t.map((v, i) => v + (B.root.t[i] - v) * e) });
+  });
+}
+/**
+ * A transforming walker's drive in its tank form, from its structure: its wheels (their hubs, their radius: the hub's
+ * height on the ground), its wheelbase and track, its centre of mass rolled. Its pace by its size as a walker's is, a
+ * wheeled machine's at Froude 4 on its wheelbase (an off-road pace); its turn as quick as keeps its lateral grip within
+ * half of what would roll it over (g · half its track over its centre of mass's height). → { wheels, out }
+ */
+function driveOf(key, row, roll) {
+  const ids = row.wheels.map((w) => w.id), hubs = ids.map((id) => roll.get(id).t);
+  const r = hubs.reduce((a, h) => a + h[2], 0) / hubs.length, ys = hubs.map((h) => h[1]), xs = hubs.map((h) => h[0]);
+  const wheelbase = Math.max(...ys) - Math.min(...ys), track = Math.max(...xs) - Math.min(...xs);
+  const P = posedFrame(key, 'roll'), hcg = massOf(key, P.joints, P.root).com[2];
+  const speed = Math.sqrt(DRIVE.froude * 9.81 * Math.max(wheelbase, 2 * r)), grip = (0.5 * 9.81 * track) / 2 / hcg;
+  return { wheels: new Set(ids), out: { wheels: ids.length, radius: r3(r), wheelbase: r3(wheelbase), track: r3(track), cg: r3(hcg), speed: r3(speed), stride: r3(2 * Math.PI * r), turn: r3(Math.min(0.8, grip / speed)), lateral: r3(grip) } };
+}
+/** A tank form's pace: Froude 4 on its wheelbase. */
+export const DRIVE = Object.freeze({ froude: 4 });

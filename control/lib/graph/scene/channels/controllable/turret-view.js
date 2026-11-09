@@ -40,7 +40,9 @@ function __tvReticle() {
   const g = __tvGun();
   if (!g || !__TV.sight) { __tvGlass.innerHTML = ''; return; }
   const W = innerWidth, H = innerHeight, cx = W / 2, cy = H / 2, ppd = H / __TV_ZOOM[__TV.zoom];
-  const R = g.turret.rounds && g.turret.rounds[g.turret.loaded || 0], word = R && R.ordnance, T = (g.turret.range && g.turret.range.table && g.turret.range.table[word]) || [];
+  // (the marks of the form the base is in: a walker's tank form carries its gun lower)
+  const RG = g.turret.range, tables = RG && ((RG.tableForm && g.form && RG.tableForm[g.form]) || RG.table);
+  const R = g.turret.rounds && g.turret.rounds[g.turret.loaded || 0], word = R && R.ordnance, T = (tables && tables[word]) || [];
   let s = '<g stroke="#101214" stroke-width="1.4" fill="none" opacity="0.85">';
   s += '<line x1="' + (cx - 160) + '" y1="' + cy + '" x2="' + (cx - 14) + '" y2="' + cy + '"/><line x1="' + (cx + 14) + '" y1="' + cy + '" x2="' + (cx + 160) + '" y2="' + cy + '"/>';
   s += '<line x1="' + cx + '" y1="' + (cy - 120) + '" x2="' + cx + '" y2="' + (cy - 14) + '"/><circle cx="' + cx + '" cy="' + cy + '" r="2" fill="#101214"/>';
@@ -101,6 +103,8 @@ function __tvBuild(e) {
 const __tvQY = new THREE.Quaternion(), __tvQP = new THREE.Quaternion(), __tvO = new THREE.Vector3(), __TV_Z = new THREE.Vector3(0, 0, 1), __TV_X = new THREE.Vector3(1, 0, 0);
 function __tvRigBone(e, fig, bi, Q, P, mesh) {
   // (a twin-mount gun's bones by their side: 'turretR' and 'gunR' turn together, 'turretL' and 'gunL')
+  // (each body's mesh kept: a base transforming on the range stays solid, its beat's shimmer a game's tell, not a gun's)
+  if (e.transformT != null) (e.__tvMeshes || (e.__tvMeshes = new Set())).add(mesh);
   const k = /^(turret|gun)(.*)$/.exec(fig.bones[bi].id);
   if (!k) return;
   const T = e.turret, map = fig.__tvTi || (fig.__tvTi = {}), ti = map[k[2]] !== undefined ? map[k[2]] : (map[k[2]] = fig.bones.findIndex((b) => b.id === 'turret' + k[2]));
@@ -135,7 +139,7 @@ function __tvCamera(g) {
   const T = g.turret, d = T.dir, m = T.muzzle, R = T.rounds && T.rounds[T.loaded || 0], L = (R && R.barrel) || (T.gun && T.gun.barrel) || 5;
   const piv = [m[0] - d[0] * L, m[1] - d[1] * L, m[2] - d[2] * L], left = [-d[1], d[0], 0], ln = Math.hypot(left[0], left[1]) || 1;
   // (the sight on the mount's outer side: a right-hand mount's to its right, clear of the frame it rides)
-  const at = (R && R.at) || (T.mount && T.mount.at) || [0, 0, 0], side = at[1] > 0.2 ? -1 : 1;
+  const at = (R && R.atForm && g.form && R.atForm[g.form]) || (R && R.at) || (T.mount && T.mount.at) || [0, 0, 0], side = at[1] > 0.2 ? -1 : 1;
   if (__TV.sight) {
     camera.position.set(piv[0] + side * left[0] / ln * 0.75 + d[0] * 0.6, piv[1] + side * left[1] / ln * 0.75 + d[1] * 0.6, piv[2] + 0.35);
     camera.up.set(0, 0, 1); camera.lookAt(camera.position.x + d[0] * 100, camera.position.y + d[1] * 100, camera.position.z + d[2] * 100);
@@ -196,13 +200,14 @@ function __tvStrike(g, rec, q) {
 }
 function __tvFrame() {
   const g = __tvGun();
+  for (const e of __world.entities) if (e.__tvMeshes) { for (const m of e.__tvMeshes) if (m.material) { m.material.opacity = 1; m.material.transparent = false; } if (e.transformT == null) e.__tvMeshes = null; }
   for (const e of __world.entities) if (e.turret && e.turret.dir) __tvPose(e);
   if (!g || !g.turret.dir) return;
   __tvCamera(g);
   // (the small arms' reticle and ammo card are not a gunner's: the sight and the readout are)
   if (typeof __wep !== 'undefined' && __wep) { __wep.ret.style.display = 'none'; if (__wep.iconEl) __wep.iconEl.parentNode.style.display = 'none'; }
   // (a round loaded: its range marks on the glass)
-  if (__TV.lr !== g.turret.loaded) { __TV.lr = g.turret.loaded; __tvReticle(); }
+  if (__TV.lr !== g.turret.loaded || __TV.lf !== g.form) { __TV.lr = g.turret.loaded; __TV.lf = g.form; __tvReticle(); }
   // the rounds in flight: their round (the one in the breech as it is first seen) and their last velocity, for the strike
   // when they burst
   const live = new Set();

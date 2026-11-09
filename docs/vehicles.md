@@ -43,7 +43,8 @@ and its parts, and a paint over a class's true numbers. The shelf's own guide is
 - Its laws are measured in `mecha-laws.js`.
 - Its walk is `mecha-gait.js`: read from its structure (its legs, their reach within their joints' ranges through the
   IK) and scaled to its size (a walk at a Froude number: the bigger the frame, the longer its stride and the slower its
-  steps), each key a stance the IK solves, held to its gait laws. The artillery range walks it
+  steps), each key a stance the IK solves, held to its gait laws; a four-legged frame's leg order, foot spread and stride
+  chosen so a side's two feet, their outlines turned with their legs, pass clear. The artillery range walks it
   (`gameworld/combat/frames.js`).
 - The inventory is `mecha-odm.js`, the archetypes `mecha-archetypes.js`, and the door `index.js`.
 - Review renders: `scripts/render-mecha.mjs`.

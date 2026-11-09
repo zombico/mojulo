@@ -416,3 +416,9 @@ Found on the way: the reach at a stride's two ends is not the cycle's (a foot li
 most: a knee-forward work frame's stride fell to a third of its natural one until its swing lifted later, its foot
 carried forward first); a swinging foot lifted less than a millimetre read as planted; the turret's pivot must be the
 mount where the walk has carried it.
+
+The transforming walkers drive: B folds the rover, siege and brood walkers into their tank form and back (one rig, the
+fold solved by their chain, the wheels turning), each form its own rule, mount place and range marks. Found on the way: a
+key pressed and let go between two frames is never read (the page polls); the brood walker's feet collided because its
+aiming legs turn its feet as they reach (a fixed foot length missed it: its outline, turned with its leg, is what is
+kept clear); the forms beat's invincibility shimmer reads as a glitch on a machine.

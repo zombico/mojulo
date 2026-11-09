@@ -187,7 +187,8 @@ export function artilleryOf(spec = {}) {
   if (own && !own.length) throw new Error(`artillery range: ordnance: the ${F.id} fires ${F.rounds.map((r) => r.ordnance).join(', ')}`);
   const words = own ? own.map((r) => r.ordnance) : spec.ordnance ?? roundsFor(T);
   // (each round from its own mount, as it stands: a twin-mount frame's on the side that fires it)
-  const from = (w) => { const r = own && own.find((x) => x.ordnance === w); return r ? { ...T, mount: { ...T.mount, at: r.at }, gun: { ...T.gun, barrel: r.barrel } } : T; };
+  // (and in a form of its own, a walker's tank form: its mount where that form carries it)
+  const from = (w, form = null) => { const r = own && own.find((x) => x.ordnance === w); return r ? { ...T, mount: { ...T.mount, at: (form && r.atForm?.[form]) || r.at }, gun: { ...T.gun, barrel: r.barrel } } : T; };
   // the flight of each round from this mount as it stands (the indirect shell's high arc), and what it does to each
   // matter there
   const flight = {}, terminal = {};
@@ -201,27 +202,33 @@ export function artilleryOf(spec = {}) {
     reload: sounds.reload ? cue(sounds.reload) : [...cue('mag out'), ...later(cue('mag in'), reload * 0.5), ...later(cue('rack'), reload * 0.85)],
     burst: cue(sounds.burst ?? 'big explosion'),
   };
-  const rounds = words.map((w) => { const r = own && own.find((x) => x.ordnance === w); return { ...ordnanceWeapon(w, { reload }), ...(r ? { at: r.at, barrel: r.barrel } : {}), ...(heard ? { sfx: { shot: heard.shot, reload: heard.reload } } : {}) }; });
+  const rounds = words.map((w) => { const r = own && own.find((x) => x.ordnance === w); return { ...ordnanceWeapon(w, { reload }), ...(r ? { at: r.at, barrel: r.barrel, ...(r.atForm ? { atForm: r.atForm } : {}) } : {}), ...(heard ? { sfx: { shot: heard.shot, reload: heard.reload } } : {}) }; });
   // (each round's marks from its own sight: its mount's height)
-  const sightZ = (w) => (from(w).mount.at?.[2] ?? 0) + 0.35;
+  const sightZ = (w, form) => (from(w, form).mount.at?.[2] ?? 0) + 0.35;
   const table = Object.fromEntries(words.filter((w) => !ORDNANCE[w].indirect).map((w) => [w, marksOf(flight[w], sightZ(w))]));
+  // (a walker's tank form carries its gun lower: its own marks, from its own flights)
+  const tableForm = F?.drive ? { tank: Object.fromEntries(words.filter((w) => !ORDNANCE[w].indirect).map((w) => [w, marksOf(measureOrdnance(w, { mount: from(w, 'tank'), bands: DIRECT_BANDS }), sightZ(w, 'tank'))])) } : null;
   const chart = Object.fromEntries(words.filter((w) => ORDNANCE[w].indirect).map((w) => [w, Object.entries(flight[w].bands).map(([d, b]) => [Number(d), b.mils, b.tof])]));
   const matter = Object.fromEntries([...new Set([...layout.stands.map((s) => s.matter), 'loam'])].map((k) => [k, MATTER[k]]));
   const turret = {
     ...T, rounds, look: { base: base === 'hull' ? 'hull' : cls === 'tower' ? 'tower' : cls === 'field-gun' ? 'field' : 'plinth', ...(F ? { back: Math.max(7, Math.round(F.height * 2.2)), up: Math.max(2, Math.round(F.height * 0.5)), size: F.height } : {}) },
-    range: { stands: layout.stands, ordnance: Object.fromEntries(words.map((w) => [w, ORDNANCE[w]])), matter, table, chart, ground: 'loam' },
+    range: { stands: layout.stands, ordnance: Object.fromEntries(words.map((w) => [w, ORDNANCE[w]])), matter, table, ...(tableForm ? { tableForm } : {}), chart, ground: 'loam' },
   };
   // (a vehicle drives on its own class's rule; the graybox hull walks; a fixed base stands)
   // (a frame walks at its gait's pace, its stride the clip's cycle: frames.js, mecha-shelf/mecha-gait.js; in its tank form
   // it stands)
-  const rule = F ? (F.gait ? { type: 'walk', speed: F.gait.speed, turn: F.gait.turn, stride: F.gait.stride, eye: 0, collideRadius: Math.max(1, F.gait.track || F.gait.L / 2), collideHeight: F.height } : { type: 'static' }) : V ? V.rule : base === 'hull' ? { type: 'walk', speed: 8, turn: 0.45, eye: 0, collideRadius: 3.5, collideHeight: 2.5 } : { type: 'static' };
-  const pilot = { id: 'gun', pilotable: true, rule, turret, weapon: rounds[0], body: V || F ? { type: 'figure-rig', figure: 'base' } : { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 } };
-  const keys = `mouse  lay the gun · click  fire · 1-${words.length}  load (${words.join(', ')}) · right click  zoom · O  view${F ? (F.gait ? ' · W / S  walk · A / D  turn' : ` · ${F.stance}`) : V ? ' · W / S  drive · A / D  steer' : base === 'hull' ? ' · W / S  drive · A / D  turn the hull' : ''}`;
+  const walkRule = F?.gait ? { type: 'walk', speed: F.gait.speed, turn: F.gait.turn, stride: F.gait.stride, eye: 0, collideRadius: Math.max(1, F.gait.track || F.gait.L / 2), collideHeight: F.height } : null;
+  // (a transforming walker's tank form: it drives on its wheels at its drive's pace, its clip's cycle a wheel's turn)
+  const driveRule = F?.drive ? { type: 'walk', speed: F.drive.speed, turn: F.drive.turn, stride: F.drive.stride, eye: 0, collideRadius: Math.max(1, F.drive.track / 2 + 0.5), collideHeight: F.height } : null;
+  const formsOf = driveRule ? { forms: { walker: { rule: walkRule }, tank: { rule: driveRule } }, form: F.form, transformDur: Math.round((1 + 0.25 * F.gait.L) * 10) / 10 } : {};
+  const rule = F ? (driveRule ? (F.form === 'tank' ? driveRule : walkRule) : walkRule ?? { type: 'static' }) : V ? V.rule : base === 'hull' ? { type: 'walk', speed: 8, turn: 0.45, eye: 0, collideRadius: 3.5, collideHeight: 2.5 } : { type: 'static' };
+  const pilot = { id: 'gun', pilotable: true, rule, ...formsOf, turret, weapon: rounds[0], body: V || F ? { type: 'figure-rig', figure: 'base' } : { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 } };
+  const keys = `mouse  lay the gun · click  fire · 1-${words.length}  load (${words.join(', ')}) · right click  zoom · O  view${F ? (F.drive ? ' · W / S  walk or drive · A / D  turn · B  transform' : F.gait ? ' · W / S  walk · A / D  turn' : ` · ${F.stance}`) : V ? ' · W / S  drive · A / D  steer' : base === 'hull' ? ' · W / S  drive · A / D  turn the hull' : ''}`;
   const audio = heard ? { mix: { space: 'open', voices: 12, distance: true, reach: 6000 }, cues: { shot: heard.shot, reload: heard.reload, burst: heard.burst }, weapon: { shot: heard.shot, reload: heard.reload }, burst: heard.burst } : null;
   // (the camera is the turret view's: the sight, or outside; a base of its own figure is drawn, its turret hidden in the
   // sight by the view)
   const payload = { camera: { rule: 'eye', target: 'gun', height: 0, mouseLook: true, ...(V || F ? {} : { hideTarget: true }) }, events: { hud: [{ text: keys }] }, ...(V || F ? { figures: { base: (V || F).figure } } : {}), ...(audio ? { audio } : {}) };
-  return { minted: { pilot, payload }, mount: cls, base: F ? F.id : V ? V.id : base, ...(F ? { frame: { archetype: F.archetype, stance: F.stance, armed: F.armed, weapons: F.weapons, height: F.height, ...(F.gait ? { gait: F.gait } : {}) } } : {}), ordnance: words, flight, terminal, laws, layout, name: spec.name ?? 'the artillery range' };
+  return { minted: { pilot, payload }, mount: cls, base: F ? F.id : V ? V.id : base, ...(F ? { frame: { archetype: F.archetype, stance: F.stance, armed: F.armed, weapons: F.weapons, height: F.height, ...(F.gait ? { gait: F.gait } : {}), ...(F.drive ? { drive: F.drive, form: F.form } : {}) } } : {}), ordnance: words, flight, terminal, laws, layout, name: spec.name ?? 'the artillery range' };
 }
 
 /** The readout's lines (short: a sign's width): each round's elevation (mils) at its bands, the indirect shell's flight to
@@ -230,7 +237,9 @@ export function artilleryReadout(A) {
   const lines = [A.base === 'hull' ? `${A.mount}, on a hull` : A.base === 'fixed' ? `${A.mount}, fixed` : A.frame ? `the ${A.base}, ${A.frame.stance}${A.frame.armed ? '' : ', fitted'}` : `the ${A.base}'s gun`];
   // (a walking frame's gait: its pace and its stride, what set them)
   const g = A.frame?.gait;
-  if (g) lines.push(`walks ${g.speed} m/s, ${g.stride} m a stride, ${g.stepsPerMinute} steps/min (${g.limitedBy === 'reach' ? 'its reach' : 'its size'})`);
+  if (g) lines.push(`walks ${g.speed} m/s, ${g.stride} m a stride, ${g.stepsPerMinute} steps/min (${g.limitedBy === 'reach' ? 'its reach' : g.limitedBy === 'feet' ? 'its feet' : 'its size'})`);
+  const dv = A.frame?.drive;
+  if (dv) lines.push(`drives ${dv.speed} m/s on ${dv.wheels} wheels (B transforms)`);
   const direct = A.ordnance.filter((w) => !ORDNANCE[w].indirect), high = A.ordnance.filter((w) => ORDNANCE[w].indirect);
   if (direct.length) lines.push(`mils at ${DIRECT_BANDS.join(' ')} m`);
   for (const w of direct) { const B = A.flight[w].bands; lines.push(`${w} ${DIRECT_BANDS.map((d) => (Math.abs(B[d].mils) < 0.05 ? 0 : B[d].mils).toFixed(1)).join(' ')}`); }

@@ -91,7 +91,7 @@ describe('the artillery range, played', () => {
     expect(got.marks).toMatchObject([{ stand: 'rha-100@500', effect: 'hole', perforated: true }]);
   }, 240000);
 
-  it('on a walker of the mecha shelf: both mounts turned by the one aim, its kinetic round fired from its own mount; it walks its gait', async () => {
+  it('on a walker of the mecha shelf: both mounts turned by the one aim, its kinetic round fired from its own mount; it walks its gait, and transforming, drives', async () => {
     if (!browser) return;
     // (the lightest frame carrying its own guns, found on the shelf)
     const armed = Object.keys(MECHA_ARCHETYPES).filter((a) => MECHA_ARCHETYPES[a].backpack && MECHA_BACKPACKS[MECHA_ARCHETYPES[a].backpack].takes.some((w) => WEAPON_ROUNDS[w])).sort((a, b) => MECHA_ARCHETYPES[a].mass - MECHA_ARCHETYPES[b].mass)[0];
@@ -117,7 +117,16 @@ describe('the artillery range, played', () => {
       const p0 = g.transform.pos.slice(), ph0 = g.gaitPhase || 0;
       go(120, { forward: 1 });
       const walked = Math.hypot(g.transform.pos[0] - p0[0], g.transform.pos[1] - p0[1]);
-      return { rig: C.turret().rig, yaw: T.yaw, side, right: Math.sign(r.at[1]), marks, walked, phase: g.gaitPhase - ph0, speed: g.rule.speed, stride: g.rule.stride };
+      const out = { rig: C.turret().rig, yaw: T.yaw, side, right: Math.sign(r.at[1]), marks, walked, phase: g.gaitPhase - ph0, speed: g.rule.speed, stride: g.rule.stride };
+      // (a walker that transforms: B, through its beat, into its tank form; it drives a second at its drive's pace)
+      if (g.forms) {
+        const z0 = T.muzzle[2];
+        go(30, {}); go(1, { transform: 1 }); go(Math.ceil(g.transformDur * 60) + 10, {});
+        const p1 = g.transform.pos.slice();
+        go(60, { forward: 1 });
+        Object.assign(out, { form: g.form, drove: Math.hypot(g.transform.pos[0] - p1[0], g.transform.pos[1] - p1[1]), driveSpeed: g.rule.speed, lower: T.muzzle[2] < z0 - 0.2 });
+      }
+      return out;
     });
     await page.close();
     expect(errors).toEqual([]);
@@ -126,5 +135,10 @@ describe('the artillery range, played', () => {
     expect(got.marks).toMatchObject([{ stand: 'rha-100@500', effect: 'hole', perforated: true }]);
     expect(got.walked).toBeCloseTo(got.speed * 2, 1);
     expect(got.phase).toBeCloseTo(got.walked / got.stride, 2);
+    if (got.form !== undefined) {
+      expect(got.form).toBe('tank');
+      expect(got.drove).toBeCloseTo(got.driveSpeed, 1);
+      expect(got.lower).toBe(true);
+    }
   }, 240000);
 });

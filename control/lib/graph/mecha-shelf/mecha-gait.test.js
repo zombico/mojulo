@@ -21,11 +21,15 @@ describe('a frame\'s gait', () => {
     expect(g.duty).toBeGreaterThan(0.5);
   });
 
-  it('a four-legged frame walks its lateral sequence, three feet always down', () => {
+  it('a four-legged frame lifts one foot at a time, three always down, its feet on a side passing clear of each other', () => {
     const { g, laws } = lawsOf(QUAD);
-    expect(g.pattern).toBe('lateral sequence');
+    expect(g.pattern).toMatch(/sequence/);
     expect(laws.filter((l) => !l.ok)).toEqual([]);
     expect(laws.find((l) => /fewer than 3/.test(l.name)).info).toBeGreaterThanOrEqual(3);
+    // (the order of the six that keeps a side's feet farthest apart, a quarter of a cycle between lifts)
+    expect(Object.values(g.phase).sort()).toEqual([0, 0.25, 0.5, 0.75]);
+    expect(laws.find((l) => /pass clear/.test(l.name)).ok).toBe(true);
+    expect(g.footGap).toBeGreaterThanOrEqual(g.footClear);
   });
 
   it('by its size: the bigger strides longer and steps slower, faster over the ground; its stride its legs\' reach at most', () => {
