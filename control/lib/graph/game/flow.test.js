@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFlow, defaultFlow, stepFlow, walkFlow, FLOW_SPECIALS, SCREEN_EVENTS } from './flow.js';
+import { readFlow, defaultFlow, stepFlow, walkFlow, flowStart, FLOW_SPECIALS, SCREEN_EVENTS } from './flow.js';
 import { validateGameManifest } from './game-manifest.js';
 
 // A GAME'S FLOW: what plays when, from the first screen to the credits, as data. The reader teaches every fault; a game
@@ -35,7 +35,7 @@ const path = (flow, seen) => seen.map((x) => (x.stuck ? `stuck:${x.stuck}` : flo
 const walk = (flow, ctx, S, events) => {
   // each win clears its level once the step it leads to is known
   const out = [];
-  let at = { step: flow.start, level: null };
+  let at = flowStart(flow, ctx);
   out.push(at);
   for (const e of events) {
     const ev = typeof e === 'string' ? { event: e } : e;
@@ -142,14 +142,45 @@ describe('a game that says no flow has the one it always had', () => {
   });
 });
 
+describe('the story\'s cinematics, placed', () => {
+  const CIN = { opening: { scene: 'dawn', stage: 'vale' }, prologue: { scene: 'setting-out', stage: 'vale' }, ending: { scene: 'home-again', stage: 'keep' } };
+  const lv = LEVELS.map((ref) => ({ ref }));
+  it('the opening on a first boot and as the title\'s attract, the prologue after New Game handing its page to play, the ending before the end card', () => {
+    const F = defaultFlow({ levels: lv, front: { credits: { roll: [{ role: 'made by', names: ['a'] }] } }, cinematics: CIN });
+    expect(readFlow(F, { levels: LEVELS, scenes: ['dawn', 'setting-out', 'home-again'] })).toEqual([]);
+    const { ctx, S, won } = shell(LEVELS), seen = new Set();
+    const boot = { ...ctx, guard: (g, c, to) => (g === 'unseen' ? !seen.has(to) : ctx.guard(g, c)) };
+    expect(walk(F, boot, S, ['next', 'idle', 'next', 'play', 'next', won(), 'next', won(), 'next', won(), 'next', 'done', 'done'])).toEqual([
+      'opening', 'title', 'opening', 'title', 'prologue', 'play(vale)', 'result', 'play(gate)', 'result', 'play(keep)', 'ending', 'end', 'credits', 'title',
+    ]);
+    seen.add('opening');                                        // a later boot: the title at once
+    expect(walk(F, boot, shell(LEVELS).S, [])).toEqual(['title']);
+  });
+  it('a prologue staged on another level than the first is followed by the first; a run has none, nor an ending', () => {
+    const F = defaultFlow({ levels: lv, front: {}, cinematics: { prologue: { scene: 'p', stage: 'gate' } } });
+    expect(F.steps.prologue).toEqual({ kind: 'cinematic', scene: 'p', stage: 'gate', next: '$first' });
+    const { ctx, S } = shell(LEVELS);
+    expect(walk(F, ctx, S, ['play', 'next'])).toEqual(['title', 'prologue', 'play(vale)']);
+    const R = defaultFlow({ levels: lv, run: { length: 2 }, front: {}, cinematics: CIN });
+    expect([R.steps.prologue, R.steps.ending]).toEqual([undefined, undefined]);
+    expect(readFlow(R, { levels: LEVELS })).toEqual([]);
+  });
+  it('a game with no end card plays its ending before the result of its final level', () => {
+    const F = defaultFlow({ levels: lv, final: 'keep', cinematics: { ending: { scene: 'e', stage: 'keep' } } });
+    expect(F.steps.ending.next).toBe('result');
+    expect(F.steps.play.on.won[0]).toEqual({ when: 'complete', go: 'ending' });
+    expect(readFlow(F, { levels: LEVELS })).toEqual([]);
+  });
+});
+
 describe('the flow is stepped, and walked headless', () => {
   it('an event leads where its step says; an event a step does not take leads nowhere', () => {
     const F = authored();
-    expect(stepFlow(F, 'title', 'idle')).toEqual({ step: 'opening', level: null });
+    expect(stepFlow(F, 'title', 'idle')).toEqual({ step: 'opening', level: 'vale' });   // a cinematic plays its stage
     expect(stepFlow(F, 'opening', 'next')).toEqual({ step: 'title', level: null });
     expect(stepFlow(F, 'prologue', 'next')).toEqual({ step: 'vale', level: 'vale' });
     expect(stepFlow(F, 'title', 'levels')).toBeNull();
-    expect(walkFlow(F, ['next', 'nope'])).toEqual([{ step: 'opening', level: null }, { step: 'title', level: null }, { stuck: 'nope', at: 'title' }]);
+    expect(walkFlow(F, ['next', 'nope'])).toEqual([{ step: 'opening', level: 'vale' }, { step: 'title', level: 'vale' }, { stuck: 'nope', at: 'title' }]);
   });
   it('the authored flow plays from the opening to the credits and home', () => {
     const { ctx, S, won } = shell(LEVELS);

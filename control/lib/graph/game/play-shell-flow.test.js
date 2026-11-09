@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { emitPlayShell } from './play-shell.js';
+import { defaultFlow } from './flow.js';
 import { normalizeGameManifest } from './game-manifest.js';
 import { normalizeLevelContract, CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_SHOWN, MSG_CARD_DONE, MSG_DOOR, MSG_SCENE_END } from './level-contract.js';
 
@@ -13,8 +14,10 @@ const contract = (ref) => normalizeLevelContract({ levelRef: ref, produces: { ev
 const game = (more = {}) => normalizeGameManifest({ kind: 'game', title: 'Lantern Keep', shell: 'play', store: { slices: [{ name: 'campaign', kind: 'progression' }] }, levels: REFS.map((ref) => ({ ref, title: ref.toUpperCase() })), ...more });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function page(more) {
-  const dom = new JSDOM(emitPlayShell(game(more), REFS.map((ref) => ({ ref, contract: contract(ref) }))), { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/game.html' });
+// `seen`: the flow's steps a save has already entered (a later boot)
+function page(more, { seen = null } = {}) {
+  const dom = new JSDOM(emitPlayShell(game(more), REFS.map((ref) => ({ ref, contract: contract(ref) }))), { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/game.html',
+    beforeParse: (win) => { if (seen) win.localStorage.setItem('moj-play:Lantern Keep:seen', JSON.stringify(seen)); } });
   const w = dom.window, d = w.document, frame = d.getElementById('frame');
   const level = () => (frame.getAttribute('src') ? frame.getAttribute('src').replace(/^levels\/|\.html$/g, '') : null);
   // the level speaks from the frame
@@ -114,6 +117,24 @@ describe('the play shell runs the game\'s flow', () => {
     expect(P.d.getElementById('pauseBtn').style.display).toBe('block');
     P.end();
     expect(P.level()).toBe('gate');                                    // the kept level's outcome is the flow's, as any level's
+  });
+  it('the story\'s opening plays on a first boot only; its prologue hands its page to play', () => {
+    const lv = REFS.map((ref) => ({ ref }));
+    const flow = defaultFlow({ levels: lv, front: {}, cinematics: { opening: { scene: 'dawn', stage: 'keep' }, prologue: { scene: 'setting-out', stage: 'vale' } } });
+    const P = page({ front: {}, flow });
+    expect(P.level()).toBe('keep');
+    expect(P.ready().params.__stage).toEqual({ scene: 'dawn' });
+    P.say({ moj: MSG_SCENE_END, scene: 'dawn' });
+    P.click('start', '#front .fx-menu button');
+    expect(P.level()).toBe('vale');
+    expect(P.ready().params.__stage).toEqual({ scene: 'setting-out' });
+    const src = P.frame.getAttribute('src');
+    P.say({ moj: MSG_SCENE_END, scene: 'setting-out' });
+    expect(P.frame.getAttribute('src')).toBe(src);                    // play goes on, the same page
+    expect(JSON.parse(P.w.localStorage.getItem('moj-play:Lantern Keep:seen'))).toMatchObject({ opening: 1, prologue: 1 });
+    const later = page({ front: {}, flow }, { seen: { opening: 1 } });
+    expect(later.level()).toBeNull();                                  // a later boot: the title at once
+    expect(later.d.querySelector('#front .fx-menu')).not.toBeNull();
   });
   it('a stage that has no such scene says so, and the flow goes on', () => {
     const P = page({ flow: { start: 'opening', steps: {

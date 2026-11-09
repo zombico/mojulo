@@ -18,3 +18,8 @@
 - **Scenes no longer get lost.** When two cutscenes are triggered at once, or one is triggered while another plays,
   they now play one after another instead of the later one being dropped. A scene that should open a level now waits
   until the game has handed the level its saved progress, so it can no longer start too early.
+- **A game's story can have an opening, a prologue and an ending.** A moment in a game's story can now be its
+  opening, its prologue or its ending, staged on one of its levels. The opening plays before the title on the first
+  launch and again when the title is left alone, like an attract loop. The prologue plays after New Game and, on the
+  first level, hands over to play without a reload. The ending plays after the game is first completed, before the end
+  card. A game whose story has none of these is unchanged.

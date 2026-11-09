@@ -47,7 +47,8 @@ import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gauntletCast } from './gauntlet-cast.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle } from './levels.js';
-import { bindStory } from './story.js';
+import { bindStory, GAME_SLOTS } from './story.js';
+import { defaultFlow } from '../game/flow.js';
 import { SIDE_KITS } from '../contest/team-arena.js';
 import { sportTeams } from './sport-concept.js';
 import { resolveSport } from '../contest/sports.js';
@@ -442,7 +443,14 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const links = onBoard ? [] : gameLinks(C.stages, C.refs);
     const theme = paletteTheme(G);
     const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : null;
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    // THE STORY's opening, prologue and ending (story.js GAME_SLOTS): staged by the game's flow on their levels' pages,
+    // the flow the game has always had with them placed in it (game/flow.js defaultFlow); none, no flow key
+    const cinematics = Object.fromEntries((told?.bound ?? []).filter((b) => GAME_SLOTS.includes(b.slot)).map((b) => {
+      const k = (onBoard ? stages : C.stages).findIndex((st) => st.level === b.level && st.node === b.node);
+      return [b.slot, { scene: b.id, stage: k >= 0 ? (onBoard ? levelRefs : C.refs)[k] : null }];
+    }).filter(([, c]) => c.stage));
+    const game = Object.keys(cinematics).length ? { ...game0, flow: defaultFlow({ ...game0, cinematics }) } : game0;
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
     steps.push(...composedAudits(auditSteps(steps, stages), C, onBoard ? undefined : composite));
   }

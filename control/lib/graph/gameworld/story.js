@@ -17,7 +17,9 @@
  *                                                (its battle won, before the level ends; a walked stage's exit as the
  *                                                hero comes to it); on an epoch (`where: { epoch: <n or name> }`),
  *                                                'begin' (its map opening, once a game) or 'end' (after its last stage's
- *                                                own after)
+ *                                                own after); the GAME's slots ('opening' before the title, 'prologue'
+ *                                                after New Game, 'ending' after the first full clear) are staged by the
+ *                                                game's flow on the moment's level's page (game/flow.js), one each
  *   }]
  *
  * A place is one of the stage's places by name (start, exit, pocket, pocket-2…, landmark…) or a kind, which takes the
@@ -55,6 +57,10 @@ const SCENE_KEYS = ['id', 'when', 'if', 'sets', 'once', 'beats'];
 // the story slots: a level's (its battle's, its walk's) and an epoch's; an epoch's end plays in its last level's after
 export const LEVEL_SLOTS = Object.freeze(['before', 'after']);
 export const EPOCH_SLOTS = Object.freeze(['begin', 'end']);
+// the game's slots (game/flow.js FLOW_CINEMATICS): its opening before the title, its prologue after New Game, its ending
+// after the first full clear. A moment in one is staged by the game's flow on its level's page: nothing in the level
+// raises it
+export const GAME_SLOTS = Object.freeze(['opening', 'prologue', 'ending']);
 export const seenFlag = (id) => `seen-${id}`;
 export function storyScene(m, cast = {}) {
   const names = Object.fromEntries((m.who ?? []).filter((w) => cast[w]?.name).map((w) => [w, cast[w].name]));
@@ -70,7 +76,7 @@ export function storyScene(m, cast = {}) {
 export function readStory(S) {
   if (S === undefined) return [];
   if (!Array.isArray(S)) throw err(' is a list of moments { id, who?, where, stand?, when, beats, if?, sets? }');
-  const seen = new Set();
+  const seen = new Set(), gameSlot = {};
   return S.map((m, i) => {
     const at = `[${i}]`;
     if (!isObj(m)) throw err(`${at} is a moment { id, who?, where, stand?, when, beats, if?, sets? }`);
@@ -80,7 +86,9 @@ export function readStory(S) {
     seen.add(m.id);
     if (m.who !== undefined && !(Array.isArray(m.who) && m.who.every((w) => typeof w === 'string' && ID.test(w)))) throw err(`${at}.who is a list of cast ids (['mayor'])`);
     const slot = m.when?.slot, epoch = m.where?.epoch;
-    if (slot !== undefined && (Object.keys(m.when).length !== 1 || ![...LEVEL_SLOTS, ...EPOCH_SLOTS].includes(slot))) throw err(`${at}.when.slot is ${[...LEVEL_SLOTS, ...EPOCH_SLOTS].map((x) => `'${x}'`).join(', ')}, alone in when: the story slot it plays in`);
+    if (slot !== undefined && (Object.keys(m.when).length !== 1 || ![...LEVEL_SLOTS, ...EPOCH_SLOTS, ...GAME_SLOTS].includes(slot))) throw err(`${at}.when.slot is ${[...LEVEL_SLOTS, ...EPOCH_SLOTS, ...GAME_SLOTS].map((x) => `'${x}'`).join(', ')}, alone in when: the story slot it plays in`);
+    if (GAME_SLOTS.includes(slot) && gameSlot[slot]) throw err(`${at}.when.slot '${slot}': the game has one ${slot}, and '${gameSlot[slot]}' is it`);
+    if (GAME_SLOTS.includes(slot)) gameSlot[slot] = m.id;
     if (isObj(m.where) && epoch !== undefined) {
       for (const k of Object.keys(m.where)) if (k !== 'epoch') throw err(`${at}.where is { epoch } alone for an epoch's moment (its ${k} is a level's)`);
       if (!((typeof epoch === 'string' && epoch.trim()) || (Number.isInteger(epoch) && epoch >= 1))) throw err(`${at}.where.epoch is the epoch's name or its number, from 1`);

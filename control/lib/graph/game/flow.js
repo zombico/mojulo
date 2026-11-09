@@ -5,7 +5,7 @@
  * worlds'. Pure: no page, no clock; the runner (play-shell.js) and the headless walk (walkFlow) both step it.
  *
  *   flow: {
- *     start: '<step>',
+ *     start: target,              the first step (a step, or alts: the opening on a first boot, else the title)
  *     home?: '<screen step>',     where quitting a level and resetting progress go (else the first screen past an attract)
  *     steps: { <id>: step },
  *   }
@@ -32,12 +32,14 @@
  *     $door      where the door the level was left by leads
  *     $run       a new run, its first level       $run-next  the run's next level, while the run goes on
  *   guards:  complete   this clear first completed the game
+ *            unseen     the step it goes to has never been entered in this save (an opening on the first boot)
  *
  *   FLOW_KINDS · FLOW_SCREENS · SCREEN_EVENTS · LEVEL_EVENTS · FLOW_SPECIALS · FLOW_GUARDS
  *   readFlow(flow, { levels, scenes?, where? })  → errors[] (teaching): shape, events, targets, reach, exits, loops
  *   defaultFlow(game)                            → the flow a play-shell game has always had (its front, its levels,
  *                                                  its run, its map, its final level), so a game that says none
- *                                                  plays as it did
+ *                                                  plays as it did; with game.cinematics ({ opening?, prologue?,
+ *                                                  ending?: { scene, stage } }) the story's placed in it
  *   buildFlowKernel()                            → { stepFlow, levelStep, homeOf, walkFlow }: self-contained, inlined
  *                                                  in the play shell by toString(); node uses the same
  *   stepFlow(flow, at, event, ctx)               → { step, level } the event leads to (null: nowhere)
@@ -63,7 +65,10 @@ export const SCREEN_EVENTS = Object.freeze({
 export const FLOW_SCREENS = Object.freeze(Object.keys(SCREEN_EVENTS));
 export const LEVEL_EVENTS = Object.freeze(['won', 'lost', 'left', 'door']);
 export const FLOW_SPECIALS = Object.freeze(['$first', '$next', '$again', '$continue', '$picked', '$travel', '$door', '$run', '$run-next']);
-export const FLOW_GUARDS = Object.freeze(['complete']);
+export const FLOW_GUARDS = Object.freeze(['complete', 'unseen']);
+// the story's cinematics a default flow places (gameworld/story.js GAME_SLOTS): before the title, after New Game, after
+// the game's first full clear
+export const FLOW_CINEMATICS = Object.freeze(['opening', 'prologue', 'ending']);
 
 const KEYS = {
   screen: ['kind', 'screen', 'on', 'next', 'idle'],
@@ -96,11 +101,12 @@ export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = 
   for (const k of Object.keys(flow)) if (!['start', 'home', 'steps'].includes(k)) errors.push(`${where}.${k}: a flow is { start, home?, steps }`);
   if (!isObj(flow.steps) || !Object.keys(flow.steps).length) return [...errors, `${where}.steps is { <id>: step }, at least one (a step is a ${FLOW_KINDS.join(', ')})`];
   const steps = flow.steps, ids = Object.keys(steps), refs = new Set(levels);
-  if (!isStr(flow.start) || !steps[flow.start]) errors.push(`${where}.start names the first step (${ids.join(', ')})`);
+  const startAlts = flow.start === undefined ? [] : altsOf(flow.start);
+  if (!startAlts.length || !startAlts.every((a) => isStr(a.to) && steps[a.to] && (a.when === undefined || FLOW_GUARDS.includes(a.when)))) errors.push(`${where}.start names the first step (${ids.join(', ')}), or alts of them ([{ when: 'unseen', go: 'opening' }, 'title'])`);
   if (flow.home !== undefined && !(isStr(flow.home) && steps[flow.home] && steps[flow.home].kind === 'screen')) errors.push(`${where}.home names the screen quitting and resetting go back to (${ids.filter((id) => isObj(steps[id]) && steps[id].kind === 'screen').join(', ') || 'no screens'})`);
 
   // a target: a step, a special, or alts; checked where it stands
-  const target = (t, at, event) => {
+  const target = (t, at, event, from) => {
     if (t === undefined) return errors.push(`${at}: a target is a step (${ids.join(', ')}), a special (${FLOW_SPECIALS.join(', ')}), or [alts]`);
     for (const { to, when } of altsOf(t)) {
       if (when !== undefined && !FLOW_GUARDS.includes(when)) errors.push(`${at}: when '${when}' is a guard (${FLOW_GUARDS.join(', ')})`);
@@ -111,7 +117,7 @@ export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = 
         else if (to === '$door' && event !== 'door') errors.push(`${at}: $door is where a level's door leads, so it stands under on.door`);
         else if (to === '$picked' && event !== 'pick') errors.push(`${at}: $picked is the level picked on the levels screen, so it stands under its on.pick`);
       } else if (!steps[to]) errors.push(`${at}: no step '${to}' (${ids.join(', ')})`);
-      else if (steps[to].kind === 'level' && steps[to].level === '$any') errors.push(`${at}: '${to}' plays whichever level it is given, so say which: a special (${FLOW_SPECIALS.filter((x) => x !== '$door' && x !== '$picked').join(', ')})`);
+      else if (steps[to].kind === 'level' && steps[to].level === '$any' && !(from && from.kind === 'cinematic')) errors.push(`${at}: '${to}' plays whichever level it is given, so say which: a special (${FLOW_SPECIALS.filter((x) => x !== '$door' && x !== '$picked').join(', ')})`);
     }
   };
 
@@ -149,7 +155,8 @@ export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = 
       if (s.until !== undefined && !isStr(s.until)) errors.push(`${at}.until names the event it waits for`);
       if (s.next === undefined) errors.push(`${at}.next: where it goes once it has waited`);
     }
-    for (const [e, t] of exitsOf(s)) target(t, `${at}.${e === 'next' ? 'next' : e === 'idle' ? 'idle.go' : `on.${e}`}`, e);
+    // (a cinematic's next may name the $any step by id: its stage is the level it plays)
+    for (const [e, t] of exitsOf(s)) target(t, `${at}.${e === 'next' ? 'next' : e === 'idle' ? 'idle.go' : `on.${e}`}`, e, s);
   }
   if (errors.length) return errors;
 
@@ -162,7 +169,7 @@ export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = 
     if (missing.length) errors.push(`${where}: a special lands on any level, and ${missing.join(', ')} has no level step: give each a step, or one with level: '$any'`);
   }
   // every step reached from the start (a special may land on any level step)
-  const seen = new Set(), todo = [flow.start];
+  const seen = new Set(), todo = startAlts.map((a) => a.to);
   const levelSteps = ids.filter((id) => steps[id].kind === 'level');
   while (todo.length) {
     const id = todo.pop();
@@ -170,7 +177,7 @@ export function readFlow(flow, { levels = [], scenes = null, where = 'flow' } = 
     seen.add(id);
     for (const [, t] of exitsOf(steps[id])) for (const { to } of altsOf(t)) (to.startsWith('$') ? levelSteps : [to]).forEach((x) => todo.push(x));
   }
-  for (const id of ids) if (!seen.has(id)) errors.push(`${where}.steps.${id}: nothing reaches it from ${flow.start}`);
+  for (const id of ids) if (!seen.has(id)) errors.push(`${where}.steps.${id}: nothing reaches it from ${startAlts.map((a) => a.to).join(' or ')}`);
   // no loop of cinematics and holds alone: something in every loop is the player's to press or play
   const auto = (id) => ['cinematic', 'hold'].includes(steps[id].kind);
   const state = {};
@@ -228,7 +235,31 @@ export function defaultFlow(game) {
     steps.result = { kind: 'screen', screen: 'result', on: { next: '$next', again: '$again', home } };
     if (end) steps.end = { kind: 'screen', screen: 'end', on: { done: end.credits ? 'credits' : 'title' } };
   }
-  return { start: steps.attract ? 'attract' : home, home, steps };
+  // THE STORY's cinematics (game.cinematics: { opening?, prologue?, ending?: { scene, stage } }, gameworld/story.js
+  // GAME_SLOTS), each where a game plays it
+  const C = isObj(game.cinematics) ? game.cinematics : {}, first = steps.attract ? 'attract' : home;
+  let start = first;
+  // the opening: before the first screen on a first boot (unseen), and again as the attract loop when the first screen
+  // is left alone
+  if (C.opening) {
+    steps.opening = { kind: 'cinematic', scene: C.opening.scene, stage: C.opening.stage, next: first };
+    start = [{ when: 'unseen', go: 'opening' }, first];
+    steps[first] = { ...steps[first], idle: { after: 45, go: 'opening' } };
+  }
+  // the prologue: after New Game (the title's play), before control; on the first level's own page it hands that page
+  // straight on to the level (keep), elsewhere the first level follows it
+  if (C.prologue && !run && steps.title && steps.title.on && steps.title.on.play === '$first') {
+    const keep = C.prologue.stage === levels[0];
+    steps.prologue = { kind: 'cinematic', scene: C.prologue.scene, stage: C.prologue.stage, next: keep ? 'play' : '$first', ...(keep ? { keep: true } : {}) };
+    steps.title = { ...steps.title, on: { ...steps.title.on, play: 'prologue' } };
+  }
+  // the ending: after the game's first full clear, before the end card (a game with no end card: before its result)
+  if (C.ending && !run && ((F && F.end) || game.final)) {
+    steps.ending = { kind: 'cinematic', scene: C.ending.scene, stage: C.ending.stage, next: F && F.end ? 'end' : 'result' };
+    const won = steps.play.on.won.filter((a) => !(isObj(a) && a.when === 'complete'));
+    steps.play = { ...steps.play, on: { ...steps.play.on, won: [{ when: 'complete', go: 'ending' }, ...won] } };
+  }
+  return { start, home, steps };
 }
 
 /**
@@ -242,7 +273,9 @@ export function buildFlowKernel() {
   // The level last played carries through the steps that play none (a result's next and again step on from it)
   function land(flow, to, ctx) {
     const last = ctx.level || null;
-    if (to.charAt(0) !== '$') { const s = flow.steps[to]; return s ? { step: to, level: s.kind === 'level' ? s.level : last } : null; }
+    // (a cinematic plays its stage: the level step it hands on to by id plays that level)
+    // ($any named by id plays the level it is handed: a kept cinematic's stage)
+    if (to.charAt(0) !== '$') { const s = flow.steps[to]; return s ? { step: to, level: s.kind === 'level' ? (s.level === '$any' ? last : s.level) : s.kind === 'cinematic' ? s.stage : last } : null; }
     const ref = ctx.resolve ? ctx.resolve(to, ctx) : null;
     if (!ref) return null;
     const ids = Object.keys(flow.steps);
@@ -256,13 +289,19 @@ export function buildFlowKernel() {
     if (!s) return null;
     const t = event === 'idle' ? s.idle && s.idle.go : s.on && s.on[event] !== undefined ? s.on[event] : event === 'next' || (s.kind === 'screen' && !s.on) ? s.next : undefined;
     if (t === undefined) return null;
+    return pick(flow, t, c);
+  }
+  // the first alt of a target that resolves (a guard is asked with the step its alt goes to)
+  function pick(flow, t, c) {
     for (const a of altsOf(t)) {
-      if (a.when !== undefined && !(c.guard && c.guard(a.when, c))) continue;
+      if (a.when !== undefined && !(c.guard && c.guard(a.when, c, a.to))) continue;
       const got = land(flow, a.to, c);
       if (got) return got;
     }
     return null;
   }
+  // where the game starts: the start's first alt that holds (an opening unseen, else the title)
+  function startOf(flow, ctx) { return pick(flow, flow.start, ctx || {}) || { step: altsOf(flow.start).slice(-1)[0].to, level: null }; }
   // a level's own step (its own, else $any's), the way into it without an event (a playtest's start level)
   function levelStep(flow, ref) {
     const ids = Object.keys(flow.steps);
@@ -272,7 +311,7 @@ export function buildFlowKernel() {
   // home: the flow's own (`home`), else the first screen its start reaches (where quitting and resetting go)
   function homeOf(flow) {
     if (flow.home && flow.steps[flow.home]) return flow.home;
-    const seen = {}, todo = [flow.start];
+    const seen = {}, todo = altsOf(flow.start).map((a) => a.to);
     while (todo.length) {
       const id = todo.shift();
       if (seen[id] || !flow.steps[id]) continue;
@@ -284,11 +323,11 @@ export function buildFlowKernel() {
       if (s.next !== undefined) outs.push(s.next);
       for (const t of outs) for (const a of altsOf(t)) if (typeof a.to === 'string' && a.to.charAt(0) !== '$') todo.push(a.to);
     }
-    return flow.start;
+    return altsOf(flow.start).slice(-1)[0].to;
   }
   // the headless walk: from the start, each event in turn (a string, or { event, ...what that moment knows)
   function walkFlow(flow, events, ctx) {
-    let at = { step: flow.start, level: null };
+    let at = startOf(flow, ctx);
     const seen = [at];
     for (const e of events) {
       const ev = typeof e === 'string' ? { event: e } : e;
@@ -299,7 +338,7 @@ export function buildFlowKernel() {
     }
     return seen;
   }
-  return { stepFlow, levelStep, homeOf, walkFlow, altsOf };
+  return { stepFlow, startOf, levelStep, homeOf, walkFlow, altsOf };
 }
 const FK = buildFlowKernel();
 
@@ -307,5 +346,7 @@ const FK = buildFlowKernel();
 export const stepFlow = (flow, at, event, ctx = {}) => FK.stepFlow(flow, at, event, ctx);
 /** The headless walk: the steps a run of events visits; stops where an event leads nowhere ({ stuck: event }). */
 export const walkFlow = (flow, events, ctx = {}) => FK.walkFlow(flow, events, ctx);
+/** Where the game starts: the start's first alt that holds ({ step, level }). */
+export const flowStart = (flow, ctx = {}) => FK.startOf(flow, ctx);
 /** Where quitting and resetting go: the flow's `home`, else the first screen its start reaches (past an attract). */
 export const flowHome = (flow) => FK.homeOf(flow);

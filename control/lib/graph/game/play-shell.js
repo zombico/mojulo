@@ -253,7 +253,15 @@ export function playShellRuntime(cfg, K) {
   const saveSettings = () => { try { storage.setItem(SET_KEY, JSON.stringify(settings)); } catch (e) { /* session only */ } };
 
   let state, runLog;
+  // the flow's steps this save has entered (its cinematics: an opening plays on a first boot, the flow's `unseen`), kept
+  // beside the save and cleared with it
+  const SEEN_KEY = SAVE_KEY + ':seen';
+  let seenSteps = {};
+  try { const v = JSON.parse(storage.getItem(SEEN_KEY) || 'null'); if (v && typeof v === 'object') seenSteps = v; } catch (e) { /* none seen */ }
   function freshStore() { state = K.createStore(SCHEMA); runLog = []; }
+  // a reset (the player's, the drawer's): the store anew, and what the flow has shown forgotten with it (a first boot's
+  // fresh store keeps it: a player who has seen the opening and not yet finished a level has no save, and has seen it)
+  function resetStore() { freshStore(); seenSteps = {}; try { storage.removeItem(SEEN_KEY); } catch (e) { /* session only */ } }
   (function boot() {
     const raw = storage.getItem(SAVE_KEY);
     if (raw) {
@@ -289,7 +297,7 @@ export function playShellRuntime(cfg, K) {
     if (lastParams) block('last params', lastParams);
     block('store', state);
     block('run log', runLog.length + ' session' + (runLog.length === 1 ? '' : 's'));
-    body.appendChild(el('button', { cls: 'link', text: 'reset store', on: () => { freshStore(); persist(); lastErrors = null; renderDebug(); if (screen !== 'level') home(); } }));
+    body.appendChild(el('button', { cls: 'link', text: 'reset store', on: () => { resetStore(); persist(); lastErrors = null; renderDebug(); if (screen !== 'level') home(); } }));
   }
   if (PLAYTEST) $('playtag').style.display = 'block';
 
@@ -380,7 +388,7 @@ export function playShellRuntime(cfg, K) {
     const b = el('button', { cls: 'link', text: 'reset progress' });
     b.addEventListener('click', () => {
       if (!armed) { armed = true; b.textContent = 'tap again to reset'; return; }
-      freshStore(); persist(); home();
+      resetStore(); persist(); home();
     });
     return b;
   }
@@ -706,7 +714,7 @@ export function playShellRuntime(cfg, K) {
     playtest: PLAYTEST, title: M.title,
     progress: () => (runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
     settings: () => settings,
-    reset: () => { freshStore(); persist(); },
+    reset: () => { resetStore(); persist(); },
   }) : null;
 
   // ---- the flow runner ----
@@ -726,7 +734,7 @@ export function playShellRuntime(cfg, K) {
         if (sp === '$run-next') return run && run.at < run.order.length ? run.order[run.at].ref : null;
         return null;
       },
-      guard: (g, c) => g === 'complete' && !!c.complete,
+      guard: (g, c, to) => (g === 'complete' ? !!c.complete : g === 'unseen' ? !seenSteps[to] : false),
     }, more || {});
   }
   // continue: the open level after the last one played, else the first open one not cleared
@@ -769,7 +777,10 @@ export function playShellRuntime(cfg, K) {
     }
     if (s.kind === 'screen') { drawScreen(s.screen); if (s.idle) { idleAfter = s.idle.after; poke(); } return; }
     if (s.kind === 'hold') { if (s.for) holdTimer = setTimeout(() => { if (at === next) go('next'); }, s.for * 1000); else holdUntil = s.until; return; }
-    // a cinematic: played on its stage, the level's page, with no pause button (Esc and a held key are the scene's skip);
+    // a cinematic: seen from now on (an opening plays on a first boot)
+    seenSteps[next.step] = 1;
+    try { storage.setItem(SEEN_KEY, JSON.stringify(seenSteps)); } catch (e) { /* session only */ }
+    // played on its stage, the level's page, with no pause button (Esc and a held key are the scene's skip);
     // the level says when it ends. A level that never answers (a page from before stages) is given two minutes
     const stage = LEVELS.find((l) => l.ref === s.stage);
     if (!stage) { holdTimer = setTimeout(() => { if (at === next) go('next'); }, 0); return; }
@@ -800,5 +811,5 @@ export function playShellRuntime(cfg, K) {
   // ---- go: the flow's start, or a playtest's level straight away ----
   const start = cfg.startLevel ? LEVELS.find((l) => l.ref === cfg.startLevel) : null;
   if (start) { const st = FK.levelStep(FLOW, start.ref); if (st) enter(st); else launch(start); }
-  else enter({ step: FLOW.start, level: null });
+  else enter(FK.startOf(FLOW, flowCtx({ level: null })));
 }
