@@ -32,3 +32,23 @@
   steel, reinforced and plain concrete, brick, granite, timber, sandbags, earth. Held to laws: a thicker plate stops what
   a thinner one stopped, the rod slows and cuts less, a jet does not, a shell holes no thick armour and breaches no
   metre of reinforced concrete, more filler digs a wider crater.
+- **The artillery range, played** (`gameworld/combat/artillery.js`, `artilleryOf` / `artilleryHtml`; the spike
+  `scripts/spikes/combat-tester/artillery.mjs`). A game's big gun given as its mount (a class, or its fields over one),
+  its rounds (up to four, keys 1 to 4), its base (a concrete plinth, or a hull on the range's track: W / S drive, A / D
+  turn, the stabilizer holding the aim), its reload and its sounds. The range: the gun on the firing line, a row of each
+  stand at 250, 500, 1000 and 2000 m on its own bearing so no near row hides a far one, the sloped plate laid back at its
+  angle, white posts taller the farther; with the indirect shell (a mount that elevates past 45°), a bunker's roof and a
+  ring of sandbags at 3, 4 and 5 km. The gunner looks through the sight beside the barrel (right click zooms it wide, 4×
+  and 10×; O steps outside behind the gun): the bore's cross and, under it, a mark for each band of the loaded round,
+  from that round's own flight measured on the runtime, where the target must sit for the round to drop onto it. The
+  indirect shell's chart (its elevation in mils and its flight for each range) is on the gunner's readout. Each round
+  that bursts on a stand or the ground is marked by the same law the measures run: a hole (and its exit through), a
+  breach and its rubble, a spall, a dent, a scorch, a crater and its rim. It sounds from the SFX shelf: a cannon, the
+  breech worked over the reload, a large blast where the shell went off. In the browser: a long rod laid by its 1000 m
+  mark goes through 300 mm of armour, the HE shell breaches a brick wall at 500 m, the indirect shell laid off the chart
+  lands 12 m from 4 km after 47 s.
+- **The turret's rounds by key and its view on the page.** A turret's opt-in `rounds` are loaded by the slot keys, the
+  breech empty until the reload is done. A page whose world has a turret draws its gun in graybox, its sight, its marks
+  and its readout (`channels/controllable/turret-view.js`); every other page keeps every byte.
+- **A mix heard farther.** The SFX mixer's opt-in `reach` (metres, with its distance): a cue as far off as the arena's
+  distances times its reach is heard as one at them, so a shell bursting 4 km off still sounds. Absent, as it was.

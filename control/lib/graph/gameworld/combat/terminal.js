@@ -29,67 +29,80 @@
 import { MATTER } from '../../rupa/matter.js';
 import { ORDNANCE } from './ordnance.js';
 
-const RHA = MATTER['armour-steel'], TNT = 4.184e6, COUPLE = 0.25, KINETIC_DIG = 0.1;
-// the long rod's law, calibrated (A, K): 650 mm of RHA at 1650 m/s, 600 mm at 1542 m/s for a 0.57 m tungsten rod
-const A = 1.33, K = 28;
-const r3 = (v) => Math.round(v * 1000) / 1000;
-const strength = (m) => m.yield ?? m.compressive;
-// a blast's energy density to spall masonry or wood: its crushing strength, stiffened by its toughness (rebar holds a
-// reinforced wall together); wood splinters along its grain at a third of its strength
-const breachDensity = (m) => (m.family === 'wood' ? strength(m) * 0.3 : strength(m) * (1 + m.toughness / 1e6));
-// THE BREACH: the engineers' breaching formula (FM 5-250), the charge (kg TNT) that opens a wall of thickness t (m):
-// W = 0.4536 · (t / 0.3048)³ · K · C, K the material's (ordinary masonry and timber 0.23, first-class masonry and
-// concrete 0.35, reinforced concrete 0.70), C the placing's (an untamped charge on its face: 3.6)
-const BREACH_K = { 'reinforced-concrete': 0.7, concrete: 0.35, stone: 0.35, sandstone: 0.35, brick: 0.23, adobe: 0.23, ceramic: 0.23, timber: 0.23, pine: 0.23, drywall: 0.1 };
-const UNTAMPED = 3.6;
-export const breachCharge = (matter, t) => 0.4536 * (t / 0.3048) ** 3 * (BREACH_K[matter] ?? 0.35) * UNTAMPED;
-// a crater's bowl from its volume: a paraboloid two and a half times as wide as deep
-const bowl = (V) => { const r = Math.cbrt((5 * V) / Math.PI); return { r: r3(r), depth: r3(r / 2.5) }; };
+/**
+ * The law as an import-free kernel (the page carries it by toString(), so a shell's mark on the range is the same law
+ * the measures run): `terminalKernel(ORD, MAT)` over a round table and a matter table → { strike, penetration,
+ * breachCharge }.
+ */
+export function terminalKernel(ORDNANCE, MATTER) {
+  const RHA = MATTER['armour-steel'] || { density: 7850 }, TNT = 4.184e6, COUPLE = 0.25, KINETIC_DIG = 0.1;
+  // the long rod's law, calibrated (A, K): 650 mm of RHA at 1650 m/s, 600 mm at 1542 m/s for a 0.57 m tungsten rod
+  const A = 1.33, K = 28;
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  const strength = (m) => m.yield ?? m.compressive;
+  // a blast's energy density to spall masonry or wood: its crushing strength, stiffened by its toughness (rebar holds a
+  // reinforced wall together); wood splinters along its grain at a third of its strength
+  const breachDensity = (m) => (m.family === 'wood' ? strength(m) * 0.3 : strength(m) * (1 + m.toughness / 1e6));
+  // THE BREACH: the engineers' breaching formula (FM 5-250), the charge (kg TNT) that opens a wall of thickness t (m):
+  // W = 0.4536 · (t / 0.3048)³ · K · C, K the material's (ordinary masonry and timber 0.23, first-class masonry and
+  // concrete 0.35, reinforced concrete 0.70), C the placing's (an untamped charge on its face: 3.6)
+  const BREACH_K = { 'reinforced-concrete': 0.7, concrete: 0.35, stone: 0.35, sandstone: 0.35, brick: 0.23, adobe: 0.23, ceramic: 0.23, timber: 0.23, pine: 0.23, drywall: 0.1 };
+  const UNTAMPED = 3.6;
+  const breachCharge = (matter, t) => 0.4536 * (t / 0.3048) ** 3 * (BREACH_K[matter] ?? 0.35) * UNTAMPED;
+  // a crater's bowl from its volume: a paraboloid two and a half times as wide as deep
+  const bowl = (V) => { const r = Math.cbrt((5 * V) / Math.PI); return { r: r3(r), depth: r3(r / 2.5) }; };
+  // penetration (m) of a round into a matter, at v
+  function penetration(word, matter, v) {
+    const O = ORDNANCE[word], M = MATTER[matter];
+    if (O.rod) return O.rod.length * A * Math.sqrt(O.rod.density / M.density) * Math.exp(-K * strength(M) / (O.rod.density * v * v));
+    if (O.jet) return O.jet.rha * Math.sqrt(RHA.density / M.density);
+    return 0;
+  }
+  function strike(word, { v, obliquity = 0 }, target) {
+    const O = ORDNANCE[word], M = MATTER[target.matter];
+    if (!O) throw new Error(`strike: no ordnance '${word}'`);
+    if (!M) throw new Error(`strike: no matter '${target.matter}'`);
+    const angle = Math.min(80, Math.abs((target.angle ?? 0) + obliquity)), t = target.thickness ?? Infinity;
+    const eff = Number.isFinite(t) ? t / Math.cos(angle * Math.PI / 180) : Infinity;
+    const blast = O.filler * TNT * COUPLE, soil = M.family === 'soil';
+    // earth: a crater by the round's energy (a blast's, a tenth of a kinetic one's), the sandbag wall it cuts through
+    if (soil && (O.rod || O.jet) && Number.isFinite(t)) {
+      // (a rod or a jet through a wall of earth: it goes by its penetration in it, a small hole and a spray)
+      const P = penetration(word, target.matter, v);
+      if (P >= eff) return { matter: target.matter, thickness: t, effective: r3(eff), penetration: r3(P), perforated: true, depth: r3(eff), effect: 'hole', hole: 0.1, residual: r3(P - eff) };
+    }
+    if (soil) {
+      const E = blast + (O.rod ? KINETIC_DIG * 0.5 * O.mass * v * v : 0), c = bowl(E / M.dig);
+      const through = Number.isFinite(t) && c.depth * 2 >= t;
+      return { matter: target.matter, thickness: t, perforated: through, depth: r3(Math.min(c.depth, t)), effect: through ? 'breach' : 'crater', crater: c, ...(through ? { hole: c.r } : {}) };
+    }
+    if (O.rod || O.jet) {
+      const P = penetration(word, target.matter, v), through = P >= eff, wide = M.family === 'metal' ? 1 : 4;
+      const hole = O.rod ? r3(O.rod.diameter * 0.75 * wide) : r3(0.02 * wide);
+      return { matter: target.matter, thickness: t, effective: r3(eff), penetration: r3(P), perforated: through, depth: r3(Math.min(P, eff)),
+        effect: through ? 'hole' : M.family === 'metal' ? 'dent' : 'spall', hole, ...(through ? { residual: r3(P - eff) } : {}), ...(O.jet && O.filler ? { scorch: r3(0.15 * Math.cbrt(O.filler)) } : {}) };
+    }
+    // a blast: a thin plate holed and petalled, a thick one scorched
+    if (M.family === 'metal') {
+      const most = 0.02 * Math.cbrt(O.filler) * Math.sqrt(235e6 / strength(M)), through = eff <= most;
+      return { matter: target.matter, thickness: t, perforated: through, depth: r3(Math.min(eff, most)), effect: through ? 'hole' : 'scorch', limit: r3(most), ...(through ? { hole: r3(0.15 * Math.cbrt(O.filler)) } : { scorch: r3(0.3 * Math.cbrt(O.filler)) }) };
+    }
+    // masonry or wood: breached when its filler is the breaching charge for the wall's thickness, the hole the breaching
+    // radius (the thickness) grown by how far over it is; else its face spalled, a cone its energy digs
+    const need = Number.isFinite(eff) ? breachCharge(target.matter, eff) : Infinity;
+    if (O.filler >= need) return { matter: target.matter, thickness: t, perforated: true, depth: r3(eff), effect: 'breach', hole: r3(Math.min(1, eff * Math.cbrt(O.filler / need))), charge: r3(need) };
+    const r = Math.cbrt((6 * blast / breachDensity(M)) / Math.PI);
+    return { matter: target.matter, thickness: t, perforated: false, depth: r3(Math.min(eff, r / 2)), effect: 'spall', crater: { r: r3(r), depth: r3(Math.min(eff, r / 2)) }, ...(Number.isFinite(need) ? { charge: r3(need) } : {}) };
+  }
+  return { strike, penetration, breachCharge };
+}
 
+const K0 = terminalKernel(ORDNANCE, MATTER);
 /** Penetration (m) of a round into a matter, at `v`. */
-export function penetration(word, matter, v) {
-  const O = ORDNANCE[word], M = MATTER[matter];
-  if (O.rod) return O.rod.length * A * Math.sqrt(O.rod.density / M.density) * Math.exp(-K * strength(M) / (O.rod.density * v * v));
-  if (O.jet) return O.jet.rha * Math.sqrt(RHA.density / M.density);
-  return 0;
-}
-
-export function strike(word, { v, obliquity = 0 }, target) {
-  const O = ORDNANCE[word], M = MATTER[target.matter];
-  if (!O) throw new Error(`strike: no ordnance '${word}'`);
-  if (!M) throw new Error(`strike: no matter '${target.matter}'`);
-  const angle = Math.min(80, Math.abs((target.angle ?? 0) + obliquity)), t = target.thickness ?? Infinity;
-  const eff = Number.isFinite(t) ? t / Math.cos(angle * Math.PI / 180) : Infinity;
-  const blast = O.filler * TNT * COUPLE, soil = M.family === 'soil';
-  // earth: a crater by the round's energy (a blast's, a tenth of a kinetic one's), the sandbag wall it cuts through
-  if (soil && (O.rod || O.jet) && Number.isFinite(t)) {
-    // (a rod or a jet through a wall of earth: it goes by its penetration in it, a small hole and a spray)
-    const P = penetration(word, target.matter, v);
-    if (P >= eff) return { matter: target.matter, thickness: t, effective: r3(eff), penetration: r3(P), perforated: true, depth: r3(eff), effect: 'hole', hole: 0.1, residual: r3(P - eff) };
-  }
-  if (soil) {
-    const E = blast + (O.rod ? KINETIC_DIG * 0.5 * O.mass * v * v : 0), c = bowl(E / M.dig);
-    const through = Number.isFinite(t) && c.depth * 2 >= t;
-    return { matter: target.matter, thickness: t, perforated: through, depth: r3(Math.min(c.depth, t)), effect: through ? 'breach' : 'crater', crater: c, ...(through ? { hole: c.r } : {}) };
-  }
-  if (O.rod || O.jet) {
-    const P = penetration(word, target.matter, v), through = P >= eff, wide = M.family === 'metal' ? 1 : 4;
-    const hole = O.rod ? r3(O.rod.diameter * 0.75 * wide) : r3(0.02 * wide);
-    return { matter: target.matter, thickness: t, effective: r3(eff), penetration: r3(P), perforated: through, depth: r3(Math.min(P, eff)),
-      effect: through ? 'hole' : M.family === 'metal' ? 'dent' : 'spall', hole, ...(through ? { residual: r3(P - eff) } : {}), ...(O.jet && O.filler ? { scorch: r3(0.15 * Math.cbrt(O.filler)) } : {}) };
-  }
-  // a blast: a thin plate holed and petalled, a thick one scorched
-  if (M.family === 'metal') {
-    const most = 0.02 * Math.cbrt(O.filler) * Math.sqrt(235e6 / strength(M)), through = eff <= most;
-    return { matter: target.matter, thickness: t, perforated: through, depth: r3(Math.min(eff, most)), effect: through ? 'hole' : 'scorch', limit: r3(most), ...(through ? { hole: r3(0.15 * Math.cbrt(O.filler)) } : { scorch: r3(0.3 * Math.cbrt(O.filler)) }) };
-  }
-  // masonry or wood: breached when its filler is the breaching charge for the wall's thickness, the hole the breaching
-  // radius (the thickness) grown by how far over it is; else its face spalled, a cone its energy digs
-  const need = Number.isFinite(eff) ? breachCharge(target.matter, eff) : Infinity;
-  if (O.filler >= need) return { matter: target.matter, thickness: t, perforated: true, depth: r3(eff), effect: 'breach', hole: r3(Math.min(1, eff * Math.cbrt(O.filler / need))), charge: r3(need) };
-  const r = Math.cbrt((6 * blast / breachDensity(M)) / Math.PI);
-  return { matter: target.matter, thickness: t, perforated: false, depth: r3(Math.min(eff, r / 2)), effect: 'spall', crater: { r: r3(r), depth: r3(Math.min(eff, r / 2)) }, ...(Number.isFinite(need) ? { charge: r3(need) } : {}) };
-}
+export const penetration = K0.penetration;
+/** The charge (kg TNT) that breaches a wall of a matter at a thickness (FM 5-250, untamped). */
+export const breachCharge = K0.breachCharge;
+export const strike = K0.strike;
 
 // the range's targets, each a matter at a thickness (m), one sloped
 export const STANDS = Object.freeze([

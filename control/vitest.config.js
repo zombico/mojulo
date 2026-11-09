@@ -61,6 +61,7 @@ export const E2E = [
   'lib/graph/scene/channels/controllable/armed-body.chrome.test.js',
   // the firing range heard: its page in headless Chrome, each action's sound counted by the sources it starts
   'lib/graph/gameworld/combat/range-sound.chrome.test.js',
+  'lib/graph/gameworld/combat/artillery.chrome.test.js',
   'lib/graph/scene/visual-gate.chrome.test.js',
 ];
 

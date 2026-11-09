@@ -21,6 +21,9 @@ export function audioChannelScript(audio) {
   // the SFX mixer (audio.mix, opt-in): the cues on a bus in a space, ducks dipping the score, a voice cap, a cue placed
   // by its distance from the pilot. Absent, not a byte of it is emitted.
   const mix = audio.mix || null, mixFar = !!(mix && mix.distance);
+  // (the mix's reach, opt-in with its distance: the metres a cue is heard to, for a range of big guns whose shells burst
+  // kilometres off; absent, the arena's 900)
+  const reach = mixFar && mix.reach > 900 ? mix.reach : 0;
   // held voices (the sustain feature): a thruster or a jump charge given a `voice` plays it, not its own synth
   const thrHeld = !!(audio.thruster && audio.thruster.voice), jumpHeld = !!(audio.jump && audio.jump.charge && audio.jump.charge.voice);
   return `
@@ -163,7 +166,9 @@ ${mixFar ? `// the SFX mixer's distance (audio.mix.distance): __proxGain also le
 // distance for another cue) — a far cue duller and roomier, not only quieter.
 let __pf = null;
 __proxGain = (function (g) { return function (p) { var L = __listenerPos(), v = g(p); __pf = L && p ? { far: Math.min(1, Math.hypot(p[0] - L[0], p[1] - L[1], p[2] - L[2]) / 900), g: v } : null; return v; }; })(__proxGain);
-${audio.vary ? 'let __beatsVar = 0;\n' : ''}function __beatsCue(cue, gain) { var pl = __pf && gain != null && __pf.g === gain ? { far: __pf.far } : null; __pf = null; if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ${audio.vary ? '++__beatsVar' : 'undefined'}, pl); }` : audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
+${reach ? `// the mix's reach (audio.mix.reach): a source as far off as the arena's distances times its reach is heard as one at them
+__proxGain = (function (g) { var k = ${900 / reach}; return function (p) { var L = __listenerPos(); return L && p ? g([L[0] + (p[0] - L[0]) * k, L[1] + (p[1] - L[1]) * k, L[2] + (p[2] - L[2]) * k]) : g(p); }; })(__proxGain);
+` : ''}${audio.vary ? 'let __beatsVar = 0;\n' : ''}function __beatsCue(cue, gain) { var pl = __pf && gain != null && __pf.g === gain ? { far: __pf.far } : null; __pf = null; if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ${audio.vary ? '++__beatsVar' : 'undefined'}, pl); }` : audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
 let __beatsVar = 0;
 function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ++__beatsVar); }` : `function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }`}
 // bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the

@@ -371,3 +371,25 @@ names (`sounds: { <weapon>: { shot?, reload?, hit?, draw? } }`, a melee weapon's
 for none. The shelf had no small arms, so a `gunshot` family joined it (by cartridge, suppressed). In headless Chrome
 each action's sources are counted (`range-sound.chrome.test.js`): a still range starts none; a rifle shot about 17, a
 reload 53, a switch 21, a cut 22, a rocket's launch 82 and its burst 60.
+
+## The artillery range, a big gun's
+
+The firing range's sibling at a big gun's scale (lib: `gameworld/combat/artillery.js`; `artillery.mjs` here prints the
+rounds' flight, what each does to each stand at each band, the laws, and writes the page). One turret
+(`worlds/controllable/turret.js`) on its base, its rounds by key.
+
+    node scripts/spikes/combat-tester/artillery.mjs [--spec '<json>'] [--out page.html]
+
+    { mount?: 'battle-tank' | 'light-tank' | 'field-gun' | 'howitzer' | 'tower' | { class, ...its fields },
+      ordnance?: [ 'apfsds' | 'heat' | 'he' | 'indirect' ],    up to four, keys 1 to 4 (the indirect shell: a mount past 45°)
+      base?: 'fixed' | 'hull', reload?, sounds?: { shot?, reload?, burst? }, quiet? }
+
+The stands (`terminal.js` STANDS) stand in a row at 250, 500, 1000 and 2000 m, each row on its own bearing so none hides
+another; with the indirect shell, a bunker's roof and a ring of sandbags at 3, 4 and 5 km. The page is played from the
+gun's sight: a mark under the bore for each band of the loaded round (from its flight measured on the runtime), zoom on
+the right button, O for the outside view; the indirect shell's chart on the readout. A round's burst is marked by the
+measures' own law (a hole, a breach, a spall, a dent, a scorch, a crater). In headless Chrome
+(`artillery.chrome.test.js`): the long rod laid by its 1000 m mark holes 300 mm of armour, the HE shell breaches brick at
+500 m, a shell on the ground craters it. Found on the way: the near marks are not in order of range (the sight sits above
+the target's centre, so near targets sit further under the bore: parallax, kept); one indirect shell laid off the chart
+lands about 12 m from 4 km, so the 12 m bunker takes a few rounds (its 1.5 mils of dispersion).

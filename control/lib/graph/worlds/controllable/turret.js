@@ -14,6 +14,8 @@
  *                      false or absent: the aim is carried by the base, as a crank-laid gun's is
  *          look        degrees the aim moves for a pixel of the hand (absent: 0.08)
  *   gun    barrel      metres from the trunnion to the muzzle
+ *   rounds (opt-in) the rounds the gun may load (weapon rows, gameworld/combat/ordnance.js): `input.slot` n loads the nth,
+ *          the breech empty until its reload is done (the entity's weapon is the loaded round)
  *
  * THE HAND: the pilot's look (input.lookDX / lookDY, a mouse's pixels, a pad's stick through the page) moves where the
  * gunner asks the gun to point; the mount slews toward it at its rates, braking to stop on it, never past its limits.
@@ -23,7 +25,8 @@
  * { from, dir }), the base's heading aside.
  *
  * Field ownership: e.turret.yaw / pitch (the mount: yaw off the base's heading, the barrel's elevation, °), .vy / .vp (its
- * slew, °/s), .ty0 / .tp0 (the last step's ask on the mount), .h0 (the base's heading at the last step), .want ({ yaw, pitch }: where the hand asks, in the world when stabilized, on the base when not), .muzzle,
+ * slew, °/s), .ty0 / .tp0 (the last step's ask on the mount), .h0 (the base's heading at the last step), .loaded (the round in
+ * the breech, its index in .rounds), .want ({ yaw, pitch }: where the hand asks, in the world when stabilized, on the base when not), .muzzle,
  * .dir (the barrel's world point and direction, read by the page and the measures).
  */
 export function buildTurret(E) {
@@ -62,9 +65,20 @@ export function buildTurret(E) {
     T.dir = dir; T.muzzle = [piv[0] + dir[0] * L, piv[1] + dir[1] * L, piv[2] + dir[2] * L];
     return T;
   }
+  // a round loaded: the nth of the gun's rounds in the breech once its reload is done
+  function load(e, n) {
+    const T = e.turret, R = T.rounds;
+    if (!Array.isArray(R) || !(n >= 1 && n <= R.length) || T.loaded === n - 1 || !E.initWeapon) return;
+    T.loaded = n - 1;
+    const w = E.initWeapon(R[n - 1]);
+    w.ammo = 0; w.reloading = true; w.reloadT = w.reload;
+    e.weapon = w;
+  }
   // a turret's step, before the world's: the hand moves the ask, the mount slews to it
   function aim(e, input, dt) {
     const T = e.turret, m = T.mount || (T.mount = {}), tr = m.traverse || {}, el = m.elevation || {};
+    if (T.loaded === undefined) T.loaded = 0;
+    if (input.slot) load(e, input.slot);
     const h = e.transform.heading * 180 / Math.PI;
     if (T.yaw === undefined) { T.yaw = into(0, tr); T.pitch = into(0, el); T.vy = 0; T.vp = 0; T.want = m.stabilized ? { yaw: h + T.yaw, pitch: T.pitch } : { yaw: T.yaw, pitch: T.pitch }; }
     // (the hand: the page's look is already the view's way round, a positive lookDX left, a positive lookDY up, as the
@@ -97,7 +111,7 @@ export function buildTurret(E) {
     [T.pitch, T.vp] = slew(T.pitch, T.vp, tp, vtp, el, dt, false);
     place(e);
     // the look was the turret's; the weapon fires along the barrel
-    return { ...input, lookDX: 0, lookDY: 0, aim: { from: T.muzzle.slice(), dir: T.dir.slice() } };
+    return { ...input, lookDX: 0, lookDY: 0, ...(T.rounds ? { slot: 0 } : {}), aim: { from: T.muzzle.slice(), dir: T.dir.slice() } };
   }
   E.stepWorld = function stepWithTurret(state, input, dt, hooks) {
     const p = state.pilotId ? state.byId[state.pilotId] : null;
