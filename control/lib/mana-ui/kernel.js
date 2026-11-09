@@ -143,6 +143,8 @@ export function buildManaUi() {
     counterHit: 'Counter', punish: 'Punish', reversal: 'Reversal', parry: 'Parry', guardCrush: 'Guard crush', spark: 'Spark', priority: 'Priority', firstAttack: 'First attack',
     guard: 'Guard', burst: 'Burst', damage: 'Damage', maxCombo: 'Max combo', vs: 'VS', stage: 'Stage', training: 'Training', inputs: 'Inputs', frameMeter: 'Frame meter',
     frameData: 'Frame data', frames: 'Frames', startup: 'Startup', activeFrames: 'Active', recovery: 'Recovery', onHit: 'On hit', onBlock: 'On block', resetPosition: 'Reset position',
+    moveList: 'Move list', normals: 'Normals', commandNormals: 'Command normals', specials: 'Specials', supers: 'Supers', throws: 'Throws',
+    guardHigh: 'High', guardMid: 'Mid', guardLow: 'Low', guardOverhead: 'Overhead', guardThrow: 'Throw', unblockable: 'Unblockable', knockdown: 'Knockdown', launch: 'Launch', landing: 'Landing', noHit: 'No hit',
   };
   // a drawn pad's buttons, where a gamepad has them (the face buttons by their Xbox print)
   const PAD_FACES = { A: 'south', B: 'east', X: 'west', Y: 'north' };
@@ -364,6 +366,8 @@ export function buildManaUi() {
       const w = words((H.words && typeof H.words[k] === 'string' && H.words[k]) || own(S.language, k) || own('en', k) || WORDS[k] || k);
       return vars ? w.replace(/\{(\w+)\}/g, (_, x) => words(vars[x])) : w;
     };
+    // a value that may be one of the words ({ word }: a tab's label, a table's cell or column), said in the game's language
+    const said = (v) => (isObj(v) && typeof v.word === 'string' ? W(v.word) : words(v));
     // a number that changed counts to its new value over countUp seconds of the game's clock (0: it lands at once)
     if (H.countUp !== undefined && !(typeof H.countUp === 'number' && H.countUp >= 0 && H.countUp <= 10)) throw new Error('host.countUp is the seconds a changed number counts for, 0 to 10 (0: at once)');
     const COUNT = H.now && H.countUp ? H.countUp : 0;
@@ -643,7 +647,7 @@ export function buildManaUi() {
           case 'tabs': {
             const dyn = !n.children.length, count = dyn ? p.pages.length : n.children.length, open = clamp(U.tabs[key] || 0, 0, Math.max(0, count - 1));
             ctx.tabs.push({ key, n: count });
-            const labels = dyn ? p.pages.map((pg) => words(isObj(pg) ? pg[p.label] : pg)) : n.children.map((c) => words(resolve(c.props.label, scope, ctx)));
+            const labels = dyn ? p.pages.map((pg) => said(isObj(pg) ? pg[p.label] : pg)) : n.children.map((c) => words(resolve(c.props.label, scope, ctx)));
             const strip = ['div', { class: 'mana-tabstrip' }, ...labels.map((l, i) => ['span', { class: 'mana-tablabel', 'data-st': i === open ? 'active' : 'shown', 'data-tab': `${ctx.tabs.length - 1}:${i}` }, l])];
             const body = !count ? null : dyn ? (n.props.page ? draw(n.props.page, `${key}.${open}`, { ...scope, item: p.pages[open] }) : null) : draw(n.children[open], `${key}.${open}`, scope);
             return ['div', { class: cls }, strip, body];
@@ -714,13 +718,12 @@ export function buildManaUi() {
           case 'badge': { const c = changeOf(key, p.value); return ['span', { class: cls, 'data-variant': p.variant === 'plain' ? null : p.variant, 'data-turn': turnOf(p.turn, p.side), ...chOf(c) }, chip(p.side), p.value, gainOf(c)]; }
           case 'table': {
             // (a column's label may be one of the words, { word }: said in the game's language like any other)
-            const said = (v) => (isObj(v) && typeof v.word === 'string' ? W(v.word) : words(v));
             const cols = p.columns.map((c) => (isObj(c) ? { key: words(c.key), label: said(c.label ?? c.key), align: ['left', 'right', 'center'].includes(c.align) ? c.align : null } : { key: words(c), label: words(c), align: null }));
             const fresh = freshOf(key, p.rows), rk = (r, i) => (isObj(r) && r.id !== undefined && r.id !== null ? `#${r.id}` : i);
             return ['table', { class: cls }, ['thead', null, ['tr', null, ...cols.map((c) => ['th', { 'data-align': c.align }, c.label])]],
               ['tbody', null, ...p.rows.map((r, i) => ['tr', { 'data-mark': isObj(r) && r[p.mark] ? 'yes' : null, ...rowMarks(fresh, r) }, ...cols.map((c, ci) => {
                 const x = isObj(r) ? readPath(r, c.key) : r;
-                return ['td', { 'data-align': c.align, 'data-lead': isObj(r) && r.lead !== undefined && r.lead !== null && words(r.lead) === c.key ? 'yes' : null, ...(numOf(x) !== null ? chOf(changeOf(`${key}.${rk(r, i)}.${c.key}`, x)) : {}) }, ci === 0 && isObj(r) ? chip(r.side) : null, words(x)];
+                return ['td', { 'data-align': c.align, 'data-lead': isObj(r) && r.lead !== undefined && r.lead !== null && words(r.lead) === c.key ? 'yes' : null, ...(numOf(x) !== null ? chOf(changeOf(`${key}.${rk(r, i)}.${c.key}`, x)) : {}) }, ci === 0 && isObj(r) ? chip(r.side) : null, said(x)];
               })])]];
           }
           case 'gauge': {

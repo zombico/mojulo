@@ -246,7 +246,8 @@ export const SETUP_CHANNELS = [
     provides: ['__mojShootSet'] },     // piece count and the ids showing now, for probes
   { key: 'audio', anchor: 'post-overlays', script: audioChannelScript,
     normalizeIn: 'emitThreeWorld',     // capture-gated: never emitted on capture runs
-    requiresOptional: ['__BUS', '__mojCtrl'] },   // + walkOn (a registry let) for the gait loop
+    requiresOptional: ['__BUS', '__mojCtrl'],   // + walkOn (a registry let) for the gait loop
+    provides: ['__AUDIO', '__beatsCue', '__beatsUnlock'] },   // the fight's sounds (versus) play its cues and start it on a key (typeof-guarded)
   { key: 'game', anchor: 'post-capture', script: gameChannelScript,
     normalizeIn: 'emitThreeWorld',     // emitted in capture runs too — the envelope stays observable
     provides: ['__mojGame'],           // reads `_capture`, defined by the page one line earlier

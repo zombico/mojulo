@@ -96,7 +96,7 @@ describe('mana-ui: the fight\'s language', () => {
     // (the elements do their talking: no word heads a readout, the readouts are the figures)
     const html = hud([...TRAINING_HUD]).view();
     for (const w of ['Inputs', 'Frame meter']) expect(html).not.toContain(w);
-    expect(html).toContain('mana-feed');
+    expect(html).toContain('data-at="bottom"');   // (the inputs along the foot)
     expect(html).toContain('+1');
   });
 });

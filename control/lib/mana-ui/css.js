@@ -367,6 +367,10 @@ export function manaCss(scope = '.mana-root') {
     `${s}[data-flash=reduced] .mana-place>.mana-region[data-variant=bare] .mana-track s[data-ch]{animation:mana-moved-dim calc(${v('dur')} * 3) ease-out both}`,
     `${s} .mana-place>.mana-region[data-variant=bare] .mana-bar[data-ready=yes]:not([data-variant=hp]) .mana-track i::before{content:"";position:absolute;top:0;bottom:0;left:0;width:35%;background:linear-gradient(90deg,transparent,color-mix(in srgb,${v('gleam')} 60%,transparent),transparent);animation:mana-runs 1.8s ease-in-out infinite;animation-play-state:${v('loop')}}`,
     `${s} .mana-place>.mana-region[data-variant=bare] .mana-bar[data-ready=yes]:not([data-variant=hp]) .mana-track{box-shadow:inset 0 ${u(2)} ${u(4)} color-mix(in srgb,${v('shade')} 75%,transparent),0 0 0 ${u(2)} ${v('panel')},0 0 ${u(12)} color-mix(in srgb,${v('xp')} 55%,transparent)}`,
+    // (a lab's strips over the round, the inputs and a frame meter: one line each, the frames close as a meter's marks,
+    // a mark that carries no number narrow)
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-each[data-dir=row]:has(>.mana-badge){flex-wrap:nowrap;gap:${u(3)}}`,
+    `${s} .mana-place>.mana-region[data-variant=bare] .mana-each[data-dir=row]>.mana-badge:empty{min-width:${u(9)};padding:0;height:1.5em}`,
     // (over the round, the two sides are each other's reflection: a row's parts centred across whichever end it runs
     // from, and figures in even widths, so a 1 and a 2 move nothing)
     `${s} .mana-place>.mana-region[data-variant=bare] .mana-stack[data-dir=row]:is([data-align=start],[data-align=end]){align-items:center}`,

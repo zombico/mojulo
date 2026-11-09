@@ -96,6 +96,20 @@ export function limitPose(pose) {
   }
   return out;
 }
+/**
+ * A REST STOOPED (a stance's `stoop`, degrees: a beast's head carried low, versus-compile.js): the knees bent by 0.7 of it,
+ * the trunk and the head hinged forward by 0.35 of it over hips sat back by as far as the hinge carries the neck, so the
+ * head comes down without coming forward (the hurt box shorter, its front where it was, the fists where they were). A
+ * rest only (the stand, the crouch, the walk): a move's own poses are its own, so what lands is unchanged. 0: the pose.
+ */
+export function stoopPose(pose, stoop, body) {
+  if (!pose || !(stoop > 0)) return pose;
+  const t = pose.torso ?? 0, h = pose.head ?? t, a = 0.35 * stoop, k = 0.7 * stoop, hip = pose.hip ?? [0, 0];
+  const back = body.torso * (Math.sin((t + a) * DEG) - Math.sin(t * DEG));
+  const leg = (l) => (l ? [l[0] + k, l[1] - k, ...l.slice(2)] : l);
+  return { ...pose, torso: t + a, head: h + a, hip: [hip[0] - back, hip[1]], ...(pose.legF ? { legF: leg(pose.legF) } : {}), ...(pose.legB ? { legB: leg(pose.legB) } : {}) };
+}
+
 // a limb's direction: 0 down, + forward
 const limbDir = (a) => [Math.sin(a * DEG), -Math.cos(a * DEG)];
 // a trunk's direction: 0 up, + forward

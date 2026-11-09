@@ -481,6 +481,28 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // fixture's arena names no register and draws its sparks as before.
 // Re-pinned 2026-11-08 (1107-fg-remake: the figure coated): `versus` only. Its page inlines versus-arena.client.js, whose
 // register materials carry a fresnel coat (bodyCoat) the effects drive; the fixture's arena names no register.
+// Re-pinned 2026-11-09 (1107-fg-remake: non-human fighters): `versus` only. Its page inlines versus-arena.client.js, whose
+// posed character body is drawn in the register under one (the rig's material, its shadows, its coat, no ink hull), and
+// versus-figure.js, whose face bones (lids, lips, brows, ears, a snout, horns) ride the head and a serpent's coil its
+// hips then the ground (a `ground` segment, planted); the fixture's fighters are no characters and its arena names no
+// register.
+// Re-pinned 2026-11-09 (1107-fg-remake: a snout carried low): `versus` only. Its page inlines versus-rig.js (stoopPose),
+// versus-compile.js (a stance's `stoop` sinking its rests) and versus-figure.js (a head posed over its own carriage, a
+// beast's crown forward of its base kept); the fixture's fighters name no stoop and are no characters.
+// Re-pinned 2026-11-09 (1107-fg-remake: the fight's sounds): `versus` only. Its page inlines versus-runtime.client.js,
+// whose blows play the SFX shelf's cues where the page's audio channel carries them (fightCue, fightSound; the beep
+// where it does not), and versus-arena.client.js, which starts the sound on a first key or touch; the fixture's arena
+// names no register, carries no audio and beeps as before.
+// Re-pinned 2026-11-09 (1107-fg-remake: the move primitives): `versus` only. Its page inlines versus-library.js (the
+// overhead families, the traversal, charge and rekka specials, the airblock system), versus-compile.js (command normals,
+// a charge's motion, a rekka's stages, a move that passes through or strikes nothing), versus-input.js (a command normal
+// off the stick, a charge's hold) and versus-core.js (the charge kept, a rekka's next stage, the push boxes off while a
+// body passes through, a block in the air) and versus-movelist.js (a fighter's moves as its player reads them); the
+// fixture's fighters take none of them and fight as before.
+// Re-pinned 2026-11-09 (1107-fg-remake: the lab): `versus` only. Its page inlines versus-arena.client.js (the lab's
+// strips and its move list from the pause, under a register; the pause's items), versus-runtime.client.js (training's
+// panel under the lab) and versus-core.js (a rekka's next stage on its motion's last direction and a button, typed
+// through hitstop); the fixture's arena names no register and carries no lab.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

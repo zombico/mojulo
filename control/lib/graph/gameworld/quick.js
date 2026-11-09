@@ -821,6 +821,7 @@ export const RING_ARENA = Object.freeze({ id: 'ring', name: 'Ring', set: 'ring' 
 // a fight made now is fought on the TRAINING GROUND (versus-levels.js, the greybox preset: a ruled floor and wall, the
 // camera near), stamped at mint when the operator names no arenas: a fight minted before carries none and keeps its own
 export const TRAINING_ARENA = Object.freeze({ id: 'training', name: 'Training ground', level: Object.freeze({ kind: 'greybox', preset: 'training' }) });
+const isLab = (level) => !!level && level.kind === 'greybox' && level.preset === 'training';
 const defaultArenas = (Q) => (Q.strikes === 'own' ? [RING_ARENA, ...FIGHT_ARENAS] : FIGHT_ARENAS);
 
 /** A fight's arenas as stage recipes (each a level the fight runs on): → [{ id, name, manifest }]; none with arenas: false. */
@@ -828,6 +829,8 @@ export function fightArenas(Q, { title, roster } = {}) {
   const rules = fightRules(Q);
   return (Q.arenas ?? defaultArenas(Q)).map(({ id, name, ...words }) => ({
     id, name: name ?? id,
+    // (the training ground is the game's LAB: training mode is fought there, whatever stage is picked)
+    ...(isLab(words.level) ? { lab: true } : {}),
     // (each arena a fight level: the one it names, else a stage of its words, the arena as it always was; every one in
     // the game's register)
     manifest: fightLevel(words.level ?? { kind: 'stage', ...words }, { title: `${title ?? 'versus'} · ${name ?? id}`, ...(roster ? { roster } : {}), ...(rules ? { rules } : {}), ...(Q.register ? { register: Q.register } : {}) }),
@@ -871,7 +874,7 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   // none: a fight minted before carries none and draws each body as it always did
   const fight = isObj(tiered) && tiered.goal === 'fight';
   const register = fight && tiered.register === undefined ? (settingOfGame({ style, characters: rest.characters }, tiered).tradition ?? 'western') : null;
-  const struck = fight ? { ...tiered, ...(tiered.strikes === undefined ? { strikes: 'own' } : {}), ...(tiered.arenas === undefined ? { arenas: [{ ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : {}), ...(register ? { register } : {}) } : tiered;
+  const struck = fight ? { ...tiered, ...(tiered.strikes === undefined ? { strikes: 'own' } : {}), ...(tiered.arenas === undefined ? { arenas: [{ ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : register && Array.isArray(tiered.arenas) && !tiered.arenas.some((a) => isLab(a?.level)) ? { arenas: [...tiered.arenas, { ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : {}), ...(register ? { register } : {}) } : tiered;
   const given = camo ? { ...struck, livery: camo } : struck;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)

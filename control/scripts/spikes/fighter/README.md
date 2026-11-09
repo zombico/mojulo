@@ -67,11 +67,16 @@ from the body rails (`gameworld/game-bodies.js`: `gameBody` → `lowerBody`, the
 minted into a scratch store, paired into matchups on greybox fight levels (a different preset each: flat, turned,
 rooftop, alley), CPU against CPU. The cases: the anime frame (Toji muscled, Kale), the realistic head on the Saikyo
 body (a boxer throwing its own punches), the realistic body, comic ink, Shonen High, the chibi and the lowpoly mascot.
+Six cases are not people, to read each in the register's look as a hero is: a bear and a hedgehog through
+create_character's mascot door (`as: 'mascot'`), fought against each other on the training ground (`creatures`) and
+against Shonen High (`crossover`); beastfolk through the hero door's `beast` (a wolf-kin against a naga on its serpent's
+coil, `beastfolk`) and a horn-crowned xeno (`xenoSpecies`) against a four-armed insectoid (`xenos`).
 
 ```bash
 node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles          # mint, bake, play, read, shoot
 node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --reuse  # re-shoot, the characters and arenas kept
 node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --reuse --level training  # every matchup on the training ground
+node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --only creatures,crossover --register anime   # the creatures
 ```
 
 Each body's top is its roster colour, so a matchup's two sides read apart. `--register anime|western` draws every body
@@ -81,6 +86,17 @@ void smoulder) and `--systems spark` switches the spark on, for the fight's effe
 The machine read (`report.json`, advisory): each body bakes and plays without a page error, stands on the lane's floor
 and on its line (its posed mesh's bounds against the lane), and what it weighs in the page (triangles, megabytes). The
 eyes gate is the operator's: `sheet.png`, two moments of each matchup.
+
+## The lab
+
+`lab.mjs` bakes the training ground under a register with a fighter carrying the new primitives (a rekka, a charged
+shot, a charged flip kick, a roll, an axe-kick overhead) and hosts it in training mode on a virtual clock, the first
+player's keys set between frames: the rekka run, the overhead, the charge; F for the frame meter; the pause's move list,
+tabbed to the specials. Shots: `lab.png`, `movelist.png`, `movelist-specials.png`.
+
+```bash
+node control/scripts/spikes/fighter/lab.mjs --out /tmp/fighter-lab [--register anime|western] [--scheme classic|modern]
+```
 
 ## Weapons: usable, and where the blade is a hurtbox
 

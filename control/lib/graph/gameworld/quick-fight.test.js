@@ -23,7 +23,8 @@ describe('quick: the fight goal', () => {
     expect(steps[4].order.manifest).toMatchObject({ kind: 'greybox', versus: { roster, rules: { rounds: 1, timer: 60 }, view: 'near', lane: { heading: 0 } } });
     const game = steps[5].order;
     expect(game).toMatchObject({ kind: 'game', engine: 'versus', title: 'dojo-fight', roster, rules: { rounds: 1, timer: 60 } });
-    expect(game.arenas).toEqual([{ ref: steps[4].ref, name: 'Training ground' }]);
+    // (the training ground is the game's lab: training is fought there)
+    expect(game.arenas).toEqual([{ ref: steps[4].ref, name: 'Training ground', lab: true }]);
     // the same world runs the same steps (the sheets' seeds are the world's)
     expect(runSteps(world, { ref: 'gw_fight' })).toEqual(steps);
     // (and its one look: the register, its setting's tradition, western when it names none; its sheets rolled in it, its
@@ -46,6 +47,8 @@ describe('quick: the fight goal', () => {
     expect(arenas[0].order.manifest.versus.roster).toHaveLength(3);
     expect(arenas[1].order.manifest).toMatchObject({ kind: 'stage', kit: 'gothic-nave' });
     expect(arenas[1].order.manifest.versus).not.toHaveProperty('lane');
+    // (a fight made now names its arenas and still has its lab: the training ground beside them)
+    expect(arenas.map((a) => a.key)).toEqual(['level-arena-turned', 'level-arena-nave', 'level-arena-training']);
     expect(() => readQuick({ ...quick, arenas: [{ id: 'x', kit: 'gothic-nave', level: { kind: 'greybox', preset: 'flat' } }] })).toThrow(/kit beside level/);
     expect(() => readQuick({ ...quick, arenas: [{ id: 'x', level: { kind: 'greybox', preset: 'cliff' } }] })).toThrow(/preset/);
   });

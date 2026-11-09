@@ -315,3 +315,30 @@ describe('versus extend: an arena hosted by its game', () => {
     expect(hostedRules(made, undefined, 7000)).toEqual({ systems: ['parry'], timer: 60, half: 7000 });   // on its own
   });
 });
+
+describe('versus extend: a stance that stoops (a beast\'s head carried low)', () => {
+  const top = (F, k) => Math.max(...F.idle[k].hurt.map((b) => b[3]));
+  const front = (F, k) => Math.max(...F.idle[k].hurt.map((b) => b[2]));
+  it('its rests sink: the head lower standing and crouched, the front where it was; the jabs thrown from the rest shorter, every other move as it was', () => {
+    const S = withRecipe({ stance: { stoop: 26 } }), T = withRecipe({ stance: { stoop: 26 }, tradition: 'boxing' }), B = withRecipe({ tradition: 'boxing' });
+    for (const [plain, low] of [[K, S], [B, T]]) {
+      expect(top(low, 'stand')).toBeLessThan(top(plain, 'stand') - 40);
+      expect(top(low, 'crouch')).toBeLessThan(top(plain, 'crouch') - 100);
+      expect(front(low, 'stand')).toBeLessThanOrEqual(front(plain, 'stand') + 30);
+      // (a move's own poses are its own: the mid and heavy normals, the air's and the specials land where they did; the
+      // lights, thrown from the rest, start from the sunk shoulder: the trade a hunched beast makes, a smaller target for
+      // a shorter jab; the grab reaches from the chest, a little further)
+      for (const slot of ['stand.M', 'stand.H', 'crouch.M', 'crouch.H', 'air.M', 'special.back.M']) expect(low.moves[slot].reach, slot).toBe(plain.moves[slot].reach);
+      for (const slot of ['stand.L', 'crouch.L']) { expect(low.moves[slot].reach).toBeLessThan(plain.moves[slot].reach); expect(low.moves[slot].reach).toBeGreaterThan(plain.moves[slot].reach * 0.88); }
+      expect(low.moves.throw.reach).toBeLessThan(plain.moves.throw.reach * 1.06);
+      // (the body drawn stands its rests: the poses it carries are the stooped ones)
+      expect(low.poses.guard.torso).toBeGreaterThan((plain.poses?.guard ?? low.poses.guard).torso - 0.01);
+    }
+    expect(S.poses.crouch.legF[0]).toBeGreaterThan(70);
+  });
+  it('absent, a fighter compiles as it did; a stoop past what the stance reads is refused', () => {
+    expect(JSON.stringify(withRecipe({ stance: { open: 45 } }).idle)).toBe(JSON.stringify(withRecipe({ stance: { open: 45, stoop: 0 } }).idle));
+    expect(K.poses).toBeUndefined();
+    expect(() => withRecipe({ stance: { stoop: 45 } })).toThrow(/stance\.stoop is degrees from 0 to 30/);
+  });
+});
