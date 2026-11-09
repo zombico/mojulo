@@ -5,16 +5,20 @@
  *   attack (A)   the CHAIN: on the ground, each press while the last blow connected throws the next (jab, jab, body
  *                blow, … the style's); the last knocks down, and with the stick toward the foe on the last press a
  *                different finisher. A whiff ends it: the next press starts it again.
- *                In the air: a jump with a direction its jump kick (the fighter's air.H), a jump straight up its stomp
- *                (air.M).
+ *                In the air: a jump straight up its air punch (the fighter's air.L), a jump with a direction its
+ *                flying kick (air.M).
+ *                Running: the running blow (the style's `run` slot, carried on by the run).
  *                Holding a body (walk into one, brawl-core.js the clinch): a knee; with the stick toward or away, a
  *                throw that way (taken from behind, the suplex).
  *   strong (St)  the STRONG blow, slower and heavier, on its own COOLDOWN (`cool` frames from its start, the style's):
  *                from a stand the OPENER (it staggers long, and the chain follows on from its second blow: St, A, A …);
  *                after a fast blow connected the BREAKER (it ends the chain early with a knockdown: A, A, St) or, with
  *                the stick toward the foe, the BLOWOUT (the body flung down the street, bowling the crowd behind it:
- *                A, A, → St); in the air the DIVE (it knocks down). A strong blow on its cooldown is not thrown.
+ *                A, A, → St); in the air, straight up the STOMP (straight down), with a direction the DIVE KICK (down at
+ *                a slant), each knocking down. A strong blow on its cooldown is not thrown.
  *   jump (J)     a jump the way the stick points (along and across the street), held two frames for an attack with it
+ *   the stick    tapped twice the same way along the street: toward the way the body faces, a RUN (held, it runs on;
+ *                attack the running blow, jump the long jump); away, the BACK-STEP (the fighter's back dash)
  *   A + J        the DESPERATION (the library's `whirl`): invincible, all round, it knocks down what it meets and
  *                costs a slice of health when it lands; it breaks a hold on the held body
  *   special (S)  the fighter's signature special from the library (S with the stick toward or away the special at
@@ -24,10 +28,11 @@
  *   BRAWL_STYLES[archetype] = { says, chain, finisher?, grab, strong }   the fighting style: its chain (the fight's
  *                slots, in order), the forward finisher's slot, its grabs' strength (% of the brawl's knee and suplex,
  *                of the fighter's throw), its strong blow ({ slot, air, cool }: the fight's slots it is thrown with,
- *                standing and in the air, and its cooldown)
+ *                standing and in the air, and its cooldown), its running blow's slot (`run`)
  *   brawlFighter(recipe, { style? })  → the fight's compiled fighter (versus-compile.js) with the brawler's rows:
  *                `chain.1` … `chain.n` (each following on to the next on a connect), `chain.nf` the forward finisher,
- *                the strong blows `strong`, `strong.break`, `strong.out`, `strong.air` (each with its `cool`),
+ *                the strong blows `strong`, `strong.break`, `strong.out`, `strong.air`, `strong.dive` (each with its `cool`),
+ *                `run.attack`,
  *                `desperate`, and `brawl` { style, chain, knee, suplex, throw, cool } (the core reads its grabs' strength)
  *   newReader() / readButtons(reader, buttons, body, F) → [pad, reader']: a seat's buttons this frame
  *                ({ x, z, a, h, j, s }, held: h the strong) into the core's command (brawl-core.js pad), the press remembered PRESS_BUFFER
@@ -44,7 +49,7 @@ export const DESPERATION = Object.keys(SPECIALS).find((id) => SPECIALS[id].price
 export const PRESS_BUFFER = 4;
 export const JUMP_WAIT = 2;
 
-const style = (says, chain, finisher, grab, strong) => Object.freeze({ says, chain: Object.freeze(chain), finisher, grab: Object.freeze(grab), strong: Object.freeze(strong) });
+const style = (says, chain, finisher, grab, strong, run = 'stand.M') => Object.freeze({ says, chain: Object.freeze(chain), finisher, grab: Object.freeze(grab), strong: Object.freeze(strong), run });
 /**
  * THE STYLES, by the fighter's archetype (versus-solver.js ARCHETYPES): the chain (the fight's normals in order, the
  * last the knockdown), the forward finisher, and its grabs (%: the knee and the suplex of the brawl's, the throw of
@@ -63,7 +68,12 @@ const KNEE = 40, SUPLEX = 150;   // (the brawl core's knee and suplex, BRAWL_RUL
  * end, the least its cooldown leaves) */
 export const STRONG = Object.freeze({ damage: 125, stun: 10, rest: 20 });
 /** the strong blows: what each is, by when it is thrown */
-export const STRONG_SLOTS = Object.freeze(['strong', 'strong.break', 'strong.out', 'strong.air']);
+export const STRONG_SLOTS = Object.freeze(['strong', 'strong.break', 'strong.out', 'strong.air', 'strong.dive']);
+/** the air's strong blows' flight as they start ([along, down] mm a frame): the stomp straight down, the dive kick at a
+ * slant */
+export const DIVES = Object.freeze({ stomp: Object.freeze([0, 70]), kick: Object.freeze([60, 60]) });
+/** frames between a stick's two taps the same way that make a dash */
+export const DASH_WAIT = 12;
 
 /** The brawler's fighter: the fight's compiled record and the brawler's rows over it. */
 export function brawlFighter(recipe, { style: id } = {}) {
@@ -91,7 +101,12 @@ export function brawlFighter(recipe, { style: id } = {}) {
   moves.strong = heavy(S.strong.slot, 'strong', { chain: ['chain.2'].filter((x) => moves[x]), knock: 'none' });
   moves['strong.break'] = heavy(S.strong.slot, 'strong.break', { chain: [], knock: 'down' });
   moves['strong.out'] = heavy(S.strong.slot, 'strong.out', { chain: [], knock: 'fling' });
-  moves['strong.air'] = heavy(S.strong.air, 'strong.air', { chain: [], knock: 'down' });
+  moves['strong.air'] = heavy(S.strong.air, 'strong.air', { chain: [], knock: 'down', dive: DIVES.stomp });
+  moves['strong.dive'] = heavy(S.strong.air, 'strong.dive', { chain: [], knock: 'down', dive: DIVES.kick });
+  // THE RUNNING BLOW: the style's, carried on by the run (half its speed through the blow's startup and active frames),
+  // knocking down
+  if (!F.moves[S.run]) throw new Error(`brawl: style ${sid}'s running blow names ${S.run}, which the fighter has not`);
+  moves['run.attack'] = { ...F.moves[S.run], slot: 'run.attack', chain: [], knock: 'down', travel: Math.round(F.dash.f.dist / F.dash.f.frames / 2) };
   // (a fast blow that connected goes on to the breaker or the blowout, all but the chain's last)
   for (let k = 1; k < n; k++) moves[`chain.${k}`] = { ...moves[`chain.${k}`], chain: [...moves[`chain.${k}`].chain, 'strong.break', 'strong.out'] };
   const pct = (v, p) => Math.round((v * p) / 100);
@@ -99,11 +114,12 @@ export function brawlFighter(recipe, { style: id } = {}) {
 }
 
 /** A seat's reader: the presses it remembers. */
-export const newReader = () => ({ pa: 0, ph: 0, pj: 0, ps: 0, a: 99, j: 99, s: 99, want: null, keep: 0, jump: -1, hold: null, hk: 0, kn: 0, tk: 0 });
+export const newReader = () => ({ pa: 0, ph: 0, pj: 0, ps: 0, a: 99, j: 99, s: 99, want: null, keep: 0, jump: -1, hold: null, hk: 0, kn: 0, tk: 0, px: 0, tx: 0, tt: 99, tf: 0 });
 
 /** What the next press of attack is, for this body now. */
 function attackOf(body, F, x) {
-  if (body.st === 'air' || body.st === 'prejump') return body.jx ? 'air.H' : 'air.M';
+  if (body.st === 'air' || body.st === 'prejump') return body.jx ? 'air.M' : 'air.L';
+  if (body.st === 'run') return 'run.attack';
   const n = F.brawl.chain;
   const k = body.mv && body.mv.startsWith('chain.') ? parseInt(body.mv.slice(6), 10) : 0;
   if (!k) return body.mv === 'strong' && F.moves['chain.2'] ? 'chain.2' : 'chain.1';
@@ -113,7 +129,7 @@ function attackOf(body, F, x) {
 /** What a press of strong is, for this body now: the dive in the air, the breaker or the blowout after a fast blow of
  * the chain (not its last), else the opener. */
 function strongOf(body, F, x) {
-  if (body.st === 'air' || body.st === 'prejump') return 'strong.air';
+  if (body.st === 'air' || body.st === 'prejump') return body.jx ? 'strong.dive' : 'strong.air';
   const k = body.mv && body.mv.startsWith('chain.') ? parseInt(body.mv.slice(6), 10) : 0;
   if (k && k < F.brawl.chain && !body.mv.endsWith('f')) return x === body.face ? 'strong.out' : 'strong.break';
   return 'strong';
@@ -131,6 +147,15 @@ export function readButtons(reader, buttons, body, F) {
   const aP = !!buttons.a && !r.pa, hP = !!buttons.h && !r.ph, jP = !!buttons.j && !r.pj, sP = !!buttons.s && !r.ps;
   r.pa = buttons.a ? 1 : 0; r.ph = buttons.h ? 1 : 0; r.pj = buttons.j ? 1 : 0; r.ps = buttons.s ? 1 : 0;
   r.a = aP ? 0 : Math.min(99, r.a + 1); r.j = jP ? 0 : Math.min(99, r.j + 1); r.s = sP ? 0 : Math.min(99, r.s + 1);
+  // the stick tapped twice the same way along the street within DASH_WAIT: a dash, a run toward the way the body faced at
+  // the first tap, a back-step away from it
+  let dash = null;
+  const tap = x && x !== r.px;
+  r.px = x; r.tt = Math.min(99, r.tt + 1);
+  if (tap) {
+    if (x === r.tx && r.tt <= DASH_WAIT) { dash = x === r.tf ? 'run' : 'back'; r.tx = 0; r.tt = 99; }
+    else { r.tx = x; r.tt = 0; r.tf = body.face; }
+  }
   // (a press taken: the body has started what it asked for)
   if (r.want && body.mv === r.want) { r.want = null; r.keep = 0; }
   // (the press is kept while the body is frozen in a blow's hitstop, as the fight's buffer is: a press typed through the
@@ -140,7 +165,7 @@ export function readButtons(reader, buttons, body, F) {
   if (r.want && r.want.startsWith('chain.') && r.want !== 'chain.1' && (body.st === 'stand' || body.st === 'walk')) r.want = 'chain.1';
   // (the breaker or the blowout asked for while the last blow missed: the opener, once the body is free)
   if ((r.want === 'strong.break' || r.want === 'strong.out') && (body.st === 'stand' || body.st === 'walk')) r.want = 'strong';
-  const pad = { x, z };
+  const pad = { x, z, ...(dash ? { dash } : {}) };
   // holding a body: a knee, or a throw toward or away (kept, as a press is, until the body is free to take it)
   if (body.st === 'hold') {
     // (taken once the body has kneed since the press)

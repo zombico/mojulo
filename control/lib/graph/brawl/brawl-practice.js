@@ -306,7 +306,7 @@ const dataOf = (m) => [
   { what: 'damage', value: String((m.damage ?? 0) * (m.hits || 1)) },
 ];
 /** A brawler's moves as its player reads them, by kind: the chain (its style's), in the air, the clinch, the desperation,
- * the special, the street's things; the strong blows and their cooldown. */
+ * the special, the street's things; the strong blows and their cooldown; the dashes. */
 export function brawlMoveList(F) {
   const S = BRAWL_STYLES[F.brawl.style], n = F.brawl.chain;
   const chain = Array.from({ length: n }, (_, k) => {
@@ -321,14 +321,21 @@ export function brawlMoveList(F) {
     { name: `Strong: ${blowWords(F.moves.strong, S.strong.slot)}`, input: 'St', about: 'from a stand, the opener: heavier and slower, it staggers long, and the chain follows on from its second blow (St, A, A …)', data: [...dataOf(F.moves.strong), { what: 'cooldown', value: cool }] },
     { name: 'Breaker', input: 'A …, St', about: 'after a fast blow that hit: the chain ended early, the body knocked down', data: [...dataOf(F.moves['strong.break']), { what: 'cooldown', value: cool }] },
     { name: 'Blowout', input: 'A …, → + St', about: 'after a fast blow that hit, toward the foe: the body flung down the street, bowling over the crowd behind it', data: [...dataOf(F.moves['strong.out']), { what: 'cooldown', value: cool }] },
-    { name: 'Dive', input: 'J, St', about: 'in the air: a strong blow down that knocks down', data: [...dataOf(F.moves['strong.air']), { what: 'cooldown', value: cool }] },
   ];
   return [
     { label: 'Chain', moves: chain },
     { label: 'Strong', moves: strong },
     { label: 'Air', moves: [
-      { name: 'Stomp', input: 'J, A', about: 'a jump straight up, then attack: straight down', data: dataOf(F.moves['air.M']) },
-      { name: 'Jump kick', input: '→ J, A', about: 'a jump with a direction, then attack', data: dataOf(F.moves['air.H']) },
+      { name: 'Air punch', input: 'J, A', about: 'a jump straight up, then attack: quick, close', data: dataOf(F.moves['air.L']) },
+      { name: 'Flying kick', input: '→ J, A', about: 'a jump with a direction, then attack (from a run, the long jump\'s)', data: dataOf(F.moves['air.M']) },
+      { name: 'Stomp', input: 'J, St', about: 'a jump straight up, then strong: straight down, it knocks down', data: [...dataOf(F.moves['strong.air']), { what: 'cooldown', value: cool }] },
+      { name: 'Dive kick', input: '→ J, St', about: 'a jump with a direction, then strong: down at a slant, it knocks down', data: [...dataOf(F.moves['strong.dive']), { what: 'cooldown', value: cool }] },
+    ] },
+    { label: 'Dash', moves: [
+      { name: 'Run', input: '→ →', about: 'tapped twice toward, held: a run, across the street too', data: [{ what: 'speed (mm a frame)', value: String(Math.round((F.dash.f.dist * BRAWL_RULES.run) / (F.dash.f.frames * 100))) }] },
+      { name: `Running blow: ${blowWords(F.moves['run.attack'], 'run.attack')}`, input: '→ →, A', about: 'running, attack: carried on by the run, it knocks down', data: dataOf(F.moves['run.attack']) },
+      { name: 'Long jump', input: '→ →, J', about: `running, jump: it carries ${BRAWL_RULES.runJump - 100}% further`, data: [] },
+      { name: 'Back-step', input: '← ←', about: 'tapped twice away: a step back, still facing the foe, untouchable as it starts', data: [{ what: 'distance (mm)', value: String(F.dash.b.dist) }, { what: 'frames', value: String(F.dash.b.frames) }, { what: 'untouchable', value: String(F.dash.b.invuln ?? 0) }] },
     ] },
     { label: 'Clinch', moves: [
       { name: 'Take hold', input: 'walk into', about: 'walk into a foe lined up in front of you', data: [{ what: 'frames walking in', value: String(BRAWL_RULES.grab) }] },

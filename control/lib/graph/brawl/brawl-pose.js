@@ -2,8 +2,9 @@
  * brawl pose — what a body of the brawl is drawn as: its pose this frame, for the fight's rig to joint (versus-rig.js
  * rigJoints) and its figure to stand in the round (versus-figure.js figurePose). A move plays its frames' poses, a body
  * reacting plays the fight's reactions (versus-react.js: a hit, a fall, down, rising, held), as a fighter does; the
- * brawl's own states have their own: the walk along and across the street, the clinch (the arms reaching to hold, a
- * knee driven up as it lands), a held body as one thrown, a body bending to pick a thing up.
+ * brawl's own states have their own: the walk along and across the street, the run and the back-step, the clinch
+ * (the arms reaching to hold, a knee driven up as it lands), a held body as one thrown, a body bending to pick a thing
+ * up.
  *
  *   brawlPoseOf(p, F, t, rules) → a pose (the fight's pose words)
  *
@@ -30,6 +31,13 @@ export function brawlPoseOf(p, F, t = 0, rules = {}) {
       const w = wave(t, 0.22), s = w * 2 - 1, along = p.wx !== 0;
       return { ...lerpPose(own.walkA ?? POSES.walkA, own.walkB ?? POSES.walkB, w), sway: s * 7, twist: (along ? 8 : 2) - s * 5, tilt: s * 3 };
     }
+    // running: the stride quicker and longer, the body leaning into it; the back-step the fight's back dash
+    case 'run': {
+      const w = wave(t, 0.42), s = w * 2 - 1;
+      const stride = lerpPose(own.walkA ?? POSES.walkA, own.walkB ?? POSES.walkB, w);
+      return { ...stride, torso: (stride.torso ?? 0) + 18, sway: s * 9, twist: 10 - s * 7, tilt: s * 4 };
+    }
+    case 'back': return own.backdash ?? POSES.backdash;
     case 'prejump': return POSES.prejump;
     case 'air': return POSES.jump;
     case 'land': return lerpPose(crouch, guard, Math.min(1, p.sf / Math.max(1, p.landing || 4)));

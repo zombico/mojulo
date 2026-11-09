@@ -165,9 +165,11 @@ describe('brawl practice: what the room shows', () => {
 });
 
 describe('brawl practice: the move list', () => {
-  it('the chain by its style, the air, the clinch, the desperation and its price, the street', () => {
+  it('the chain by its style, the strong, the air, the dashes, the clinch, the desperation and its price, the street', () => {
     const F = room([]).ctx.fighters[0], L = brawlMoveList(F);
-    expect(L.map((k) => k.label)).toEqual(expect.arrayContaining(['Chain', 'Strong', 'Air', 'Clinch', 'Desperation', 'Street']));
+    expect(L.map((k) => k.label)).toEqual(expect.arrayContaining(['Chain', 'Strong', 'Air', 'Dash', 'Clinch', 'Desperation', 'Street']));
+    // (the air: a punch and a kick on attack, the stomp and the dive kick on strong)
+    expect(L.find((k) => k.label === 'Air').moves.map((m) => m.input)).toEqual(['J, A', '→ J, A', 'J, St', '→ J, St']);
     // (the strong blows each say their cooldown)
     expect(L.find((k) => k.label === 'Strong').moves.every((m) => m.data.some((d) => d.what === 'cooldown'))).toBe(true);
     expect(L[0].moves.length).toBe(F.brawl.chain + 1);

@@ -7,8 +7,9 @@
  *   ctx = { fighters: [compiled, …], belt? }       (versus-compile.js; brawl-belt.js readBelt; constant through a brawl)
  *   body = { fighter, side: 'player' | 'crowd', x, z, face?, grabs?, wave? }    x mm along the belt, z mm across it (the
  *          band), y up; `grabs: false` never takes hold, `wave: k` waits offstage until its wave comes in (brawl-crowd.js)
- *   pad  = { x: -1 | 0 | 1, z: -1 | 0 | 1, mv?, jump? }           the stick along and across, and a command: `mv` a move's
- *                                                                 slot to start (or cancel into), `jump` a jump
+ *   pad  = { x: -1 | 0 | 1, z: -1 | 0 | 1, mv?, jump?, dash? }    the stick along and across, and a command: `mv` a move's
+ *                                                                 slot to start (or cancel into), `jump` a jump, `dash`
+ *                                                                 'run' (the way the stick points) or 'back' (a back-step)
  *
  * The core runs commands, it reads no buttons: what a button means is the brawler's moves' (brawl-moves.js, a player's
  * buttons to a slot) and the crowd's mind's (brawl-crowd.js, a thug's choice); both hand this the slot.
@@ -23,6 +24,15 @@
  *   • NO BLOCK (the genre's): a body is beaten by moving, lining up, throwing and the specials.
  *   • A FLUNG BODY: a thrown body flies as a blow of its own, knocking down the bodies of its side it meets, each once;
  *     a blow whose `knock` is 'fling' (the brawler's blowout) flings the body it lands on the same way.
+ *   • THE FIGHT'S DASHES, the brawler's way: `dash: 'run'` runs the way the stick points at the fighter's forward dash's
+ *     speed (`dash.f`, `run` % of it) for as long as the stick is held that way, across the street at the walk's share;
+ *     from a run a move starts (the brawler's running blow) and a jump carries `runJump` % further (the long jump).
+ *     `dash: 'back'` is the fighter's back dash (`dash.b`: its distance, its frames, untouchable its first `invuln`), the
+ *     body still facing the way it faced.
+ *   • THROUGH: a move that passes through (the fight's roll, its blink: `through` frames) has no push box on them, so it
+ *     goes through the crowd it would bump.
+ *   • A DIVE: an air move with a `dive` ([along, down] mm a frame) sets the body's flight as it starts: down at a slant,
+ *     or straight down.
  *   • COOLDOWN: a move with a `cool` (the brawler's strong blows) leaves its body unable to start another with one for
  *     `cool` frames from its start (`cd`, frames left; absent when none); asked for meanwhile, it is not started.
  *   • WAKE-UP: a body rising from the floor is untouchable `wake` frames more, so a crowd cannot keep it down.
@@ -71,6 +81,8 @@ export const BRAWL_RULES = Object.freeze({
   pick: 12,         // frames a body takes to pick a thing up (or throw its weapon)
   reachThing: 500,  // mm along the belt a thing lies within to be picked up
   scaling: [100, 100, 80, 70, 60, 50, 40, 30, 20, 10],
+  run: 100,         // % of the fighter's forward dash's speed a run goes at
+  runJump: 160,     // % of a jump's carry along the belt a jump from a run has (the long jump)
 });
 const SIDES = ['player', 'crowd'];
 const stateOf = (p, k) => (p.ist ? STATES[p.ist[0]][k] ?? 100 : 100);
@@ -209,6 +221,14 @@ function think(s, p, pad, ctx) {
     if (want && !p.airMove && F.moves[want].stance === 'air') start(s, p, F, want);
     return;
   }
+  // running: a move from the run, the long jump, on while the stick holds the way, else it stops
+  if (p.st === 'run') {
+    p.combo = 0; p.jug = 0;
+    if (want && F.moves[want].stance !== 'air') { start(s, p, F, want); return; }
+    if (pad.jump) { p.st = 'prejump'; p.sf = 0; p.jx = p.face; p.jz = sgn(pad.z); p.rj = 1; return; }
+    if (sgn(pad.x) === p.face) { p.wz = sgn(pad.z); return; }
+    p.st = 'stand'; p.sf = 0; p.wz = 0;
+  }
   if (!FREE.has(p.st)) return;
   p.combo = 0;
   p.jug = 0;
@@ -218,7 +238,10 @@ function think(s, p, pad, ctx) {
     if (want && p.side === 'player') { const t = underfoot(s, p); if (t && pick(s, p, t, ctx)) return; }
   }
   if (want && F.moves[want].stance !== 'air') { start(s, p, F, want); return; }
-  if (pad.jump) { p.st = 'prejump'; p.sf = 0; p.jx = sgn(pad.x); p.jz = sgn(pad.z); return; }
+  if (pad.jump) { p.st = 'prejump'; p.sf = 0; p.jx = sgn(pad.x); p.jz = sgn(pad.z); delete p.rj; return; }
+  // the dashes: a run the way the stick points, a back-step facing the way it faced
+  if (pad.dash === 'run' && sgn(pad.x)) { p.st = 'run'; p.sf = 0; p.face = sgn(pad.x); p.wx = 0; p.wz = sgn(pad.z); return; }
+  if (pad.dash === 'back') { if (sgn(pad.x)) p.face = -sgn(pad.x); p.st = 'back'; p.sf = 0; p.wx = 0; p.wz = 0; p.inv = Math.max(p.inv, F.dash.b.invuln ?? 0); return; }
   const wx = sgn(pad.x), wz = sgn(pad.z);
   const next = wx || wz ? 'walk' : 'stand';
   if (next !== p.st) { p.st = next; p.sf = 0; }
@@ -229,7 +252,12 @@ function start(s, p, F, slot) {
   const m = F.moves[slot];
   p.mv = slot; p.mf = 0; p.conn = 0; p.hl = []; p.air = 0;
   if (m.cool) p.cd = m.cool;
-  if (m.stance === 'air') { p.airMove = 1; return; }
+  if (m.stance === 'air') {
+    p.airMove = 1;
+    // (a dive sets the flight: along the way it faces and down)
+    if (m.dive) { p.vx = p.face * m.dive[0]; p.vy = -m.dive[1]; p.vz = 0; }
+    return;
+  }
   p.st = 'move'; p.sf = 0; p.vx = 0; p.vz = 0; p.wx = 0; p.wz = 0;
   if (m.kind === 'super') {
     p.meter -= m.cost;
@@ -258,13 +286,29 @@ function advance(s, p, ctx) {
   if (p.pushn > 0) { p.x += p.pushv; p.pushn--; }
   switch (p.st) {
     case 'walk': { const v = stated(p, 'speed', F.walk.f); p.x += p.wx * v; p.z += Math.round((p.wz * v * R.walkZ) / 100); break; }
+    case 'run': {
+      const v = stated(p, 'speed', Math.round((F.dash.f.dist * R.run) / (F.dash.f.frames * 100)));
+      p.x += p.face * v; p.z += Math.round((p.wz * stated(p, 'speed', F.walk.f) * R.walkZ) / 100);
+      break;
+    }
+    case 'back': {
+      const d = F.dash.b;
+      p.x -= p.face * stated(p, 'speed', Math.round(d.dist / d.frames));
+      if (p.sf >= d.frames) { p.st = 'stand'; p.sf = 0; }
+      break;
+    }
     case 'hold':
       if (p.kf > 0) p.kf--;
       // (held long enough, the body breaks free: both stagger apart)
       if (p.sf >= R.hold) { const o = s.bodies[p.hold]; letGo(s, p); for (const [q, d] of [[p, -p.face], [o, p.face]]) { q.pushv = d * 30; q.pushn = 8; } s.events.push({ t: 'free', p: o.id, d: p.id, x: o.x, z: o.z }); }
       break;
     case 'prejump':
-      if (p.sf >= J.prejump) { p.st = 'air'; p.sf = 0; p.vy = J.vy; p.vx = p.jx * J.vx; p.vz = Math.round((p.jz * J.vx) / 2); p.y = 0; p.airMove = 0; }
+      if (p.sf >= J.prejump) {
+        // (from a run, the long jump)
+        const carry = p.rj ? Math.round((J.vx * R.runJump) / 100) : J.vx;
+        p.st = 'air'; p.sf = 0; p.vy = J.vy; p.vx = p.jx * carry; p.vz = Math.round((p.jz * J.vx) / 2); p.y = 0; p.airMove = 0;
+        delete p.rj;
+      }
       break;
     case 'air':
       if (p.mv) { p.mf++; if (p.mf > F.moves[p.mv].total) p.mv = null; }
@@ -387,7 +431,9 @@ function separate(s, ctx) {
   // a thrown body rides the thrower's hands, a held one its holder's
   for (const p of B) if (p.st === 'throwing' || p.st === 'hold') { const o = B[p.hold]; o.x = p.x + p.face * (p.st === 'hold' ? R.gap : 360); o.z = p.z; o.y = 0; }
   // push boxes, pair by pair (in order: the same bodies, the same pushes), only between bodies lined up across the belt
-  const solid = (p) => !p.gone && p.st !== 'thrown' && p.st !== 'throwing' && p.st !== 'hold' && p.st !== 'held' && p.st !== 'ko' && !p.fl;
+  // (a move passing THROUGH, a roll or a blink as it travels, has no push box: it goes through the crowd)
+  const passing = (p) => { const m = p.mv && p.st === 'move' ? ctx.fighters[p.fi].moves[p.mv] : null; return !!(m && m.through && p.mf >= m.through[0] && p.mf <= m.through[1]); };
+  const solid = (p) => !p.gone && p.st !== 'thrown' && p.st !== 'throwing' && p.st !== 'hold' && p.st !== 'held' && p.st !== 'ko' && !p.fl && !passing(p);
   for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
     const a = B[i], b = B[j];
     if (!solid(a) || !solid(b) || Math.abs(a.z - b.z) >= 2 * R.body) continue;

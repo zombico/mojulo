@@ -61,3 +61,11 @@
   fast blow that hit the BREAKER (the chain ended early, the body knocked down: A, A, St) or, toward the foe, the BLOWOUT
   (a blow whose `knock` is 'fling': the body flung down the street as a thrown one, bowling over the crowd behind it),
   and in the air the DIVE (it knocks down). The rushdown's comes back soonest, the grappler's last.
+- The fight's movement in the brawler: the stick tapped twice along the street runs the way it points (the fighter's
+  forward dash's speed, held as long as the stick is: across the street too; attack from it the RUNNING BLOW, carried on
+  by the run and knocking down; jump from it the LONG JUMP, `runJump` % further) or, away from the way the body faces,
+  BACK-STEPS (the fighter's back dash: its distance, its frames, untouchable as it starts, still facing the foe). In the
+  air every height of the fighter's: attack on a jump straight up the AIR PUNCH, on a jump with a direction the FLYING
+  KICK; strong straight up the STOMP (straight down), with a direction the DIVE KICK (down at a slant: an air move's
+  `dive` sets its flight), both knocking down. A move that passes THROUGH (the fight's roll, its blink) has no push box
+  while it travels, so it goes through the crowd it would bump.

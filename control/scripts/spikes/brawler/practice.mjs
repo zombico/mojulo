@@ -2,7 +2,8 @@
 // brawler practice — the practice yard played: the yard (brawlLevel 'yard' with a practice) built, resolved and
 // emitted as its World page, then driven from the keyboard as a person would, on a virtual clock (each frame stepped by
 // the spike, the keys set between frames): walk in, chain on a dummy, line up on a walker, the settings screen, the move
-// list. The strong: the opener and the chain after it, then the blowout. The eyes gate is the operator's: the shots.
+// list. The strong: the opener and the chain after it, then the blowout. The dashes, the long jump's flying kick, the
+// dive kick. The eyes gate is the operator's: the shots.
 //
 //   node control/scripts/spikes/brawler/practice.mjs [--out dir] [--characters] [--register anime|western]
 //
@@ -89,6 +90,27 @@ await play(90);
 await play(2, ['KeyK']); await play(3); await play(2, ['KeyD', 'KeyI']); await play(20);
 log.push(['blowout', await read()]);
 await shot('blowout');
+// the dashes: back to the spots, a back-step (A A), a run (D D held) into the running blow (K)
+await play(2, ['KeyR']); await play(10);
+await play(1, ['KeyA']); await play(2); await play(1, ['KeyA']); await play(8);
+log.push(['back-step', await read()]);
+await play(20);   // (the back-step over)
+await play(1, ['KeyD']); await play(2); await play(18, ['KeyD']);
+await shot('run');
+await play(2, ['KeyD', 'KeyK']); await play(12);
+log.push(['running blow', await read()]);
+await shot('running-blow');
+// in the air: back to the spots, a run and the long jump (J) into the flying kick (K); later a jump straight up, the
+// air punch, and a jump forward, the dive kick (I)
+await play(2, ['KeyR']); await play(10);
+await play(1, ['KeyD']); await play(2); await play(10, ['KeyD']);
+await play(2, ['KeyD', 'KeyJ']); await play(10, ['KeyD']); await play(2, ['KeyD', 'KeyK']); await play(4);
+log.push(['flying kick', await read()]);
+await shot('flying-kick');
+await play(60);
+await play(2, ['KeyD', 'KeyJ']); await play(10, ['KeyD']); await play(2, ['KeyI']); await play(4);
+log.push(['dive kick', await read()]);
+await shot('dive-kick');
 // the settings, then the move list
 await play(2, ['Enter']); await play(6);
 await shot('settings');

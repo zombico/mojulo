@@ -11,12 +11,12 @@ const cap = (w) => w[0].toUpperCase() + w.slice(1);
 const PRESS = { attack: 'A', strong: 'St', jump: 'J', special: 'S', 'attack + jump': 'A+J', 'attack + special': 'A+S', 'jump + special': 'J+S', 'attack + strong': 'A+St', 'strong + jump': 'St+J', 'strong + special': 'St+S' };
 const nameOf = (slot) => (slot === 'desperate' ? 'Desperation' : slot.split('.').map(cap).join(' '));
 // the strong blows by what they do (the blow's own name beside it)
-const STRONG_WORDS = { strong: 'Strong', 'strong.break': 'Breaker', 'strong.out': 'Blowout', 'strong.air': 'Dive' };
+const STRONG_WORDS = { strong: 'Strong', 'strong.break': 'Breaker', 'strong.out': 'Blowout', 'strong.air': 'Stomp', 'strong.dive': 'Dive kick', 'run.attack': 'Running' };
 const ENDS = { finisher: 'Finisher', breaker: 'Breaker', blowout: 'Blowout' };
 /** the chain's blows by name, from its style (brawl-moves.js keeps each blow's source on the move's own `id`) */
 const blowName = (slot, F) => {
   const m = F.moves[slot];
-  if (m && slot.startsWith('chain.')) return cap(String(m.id ?? 'blow').replace(/-/g, ' '));
+  if (m && (slot.startsWith('chain.') || slot.startsWith('air.'))) return cap(String(m.id ?? 'blow').replace(/-/g, ' '));
   if (m && STRONG_WORDS[slot]) return `${STRONG_WORDS[slot]}: ${cap(String(m.id ?? 'blow').replace(/-/g, ' '))}`;
   return nameOf(slot);
 };

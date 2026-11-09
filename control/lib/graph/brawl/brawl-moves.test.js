@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { brawlFighter, newReader, readButtons, BRAWL_STYLES, BRAWL_STYLE_IDS, DESPERATION, STRONG } from './brawl-moves.js';
+import { brawlFighter, newReader, readButtons, BRAWL_STYLES, BRAWL_STYLE_IDS, DESPERATION, STRONG, DASH_WAIT } from './brawl-moves.js';
 import { newBrawl, stepBrawl, brawlHash, grantState, BRAWL_RULES } from './brawl-core.js';
 import { solveFighter } from '../versus/versus-solver.js';
 import { SPECIALS, STATES } from '../versus/versus-library.js';
@@ -102,19 +102,73 @@ describe('brawl moves: the strong', () => {
     expect(out.moves.slice(0, 2)).toEqual(['chain.1', 'strong.out']);
     expect(out.ev.some(([, e]) => e.t === 'hit' && e.kind === 'flung' && e.p === 1 && e.d === 2)).toBe(true);
   });
-  it('in the air, the dive: it knocks down', () => {
-    const out = play(near(), 60, (k) => ({ j: k === 0, x: k < 6 ? 1 : 0, h: k === 12 }));
-    expect(out.moves).toEqual(['strong.air']);
-    expect(P.moves['strong.air'].knock).toBe('down');
+  it('in the air: straight up the stomp, straight down; with a direction the dive kick, down at a slant; each knocks down', () => {
+    const far = () => newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 4000)] });
+    // (the flight the frame after it starts)
+    const flight = (fn) => { let at = null; play(far(), 30, (k, s) => { const p = s.bodies[0]; if (!at && p.mv && p.mv.startsWith('strong')) at = { mv: p.mv, vx: p.vx, vy: p.vy }; return fn(k); }); return at; };
+    const up = flight((k) => ({ j: k === 0, h: k === 12 }));
+    expect(up).toMatchObject({ mv: 'strong.air', vx: 0 });
+    expect(up.vy).toBeLessThan(0);
+    const on = flight((k) => ({ j: k === 0, x: k < 6 ? 1 : 0, h: k === 12 }));
+    expect(on.mv).toBe('strong.dive');
+    expect(on.vx).toBeGreaterThan(0);
+    expect(on.vy).toBeLessThan(0);
+    for (const m of ['strong.air', 'strong.dive']) expect(P.moves[m].knock, m).toBe('down');
   });
 });
 
 describe('brawl moves: in the air', () => {
-  it('a jump straight up and attack: the stomp; a jump with a direction: the jump kick', () => {
+  it('a jump straight up and attack: the air punch; a jump with a direction: the flying kick', () => {
     const up = play(newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 3000)] }), 40, (k) => ({ j: k === 0, a: k === 12 }));
-    expect(up.moves).toEqual(['air.M']);
+    expect(up.moves).toEqual(['air.L']);
     const on = play(newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 3000)] }), 40, (k) => ({ j: k === 0, x: k < 6 ? 1 : 0, a: k === 12 }));
-    expect(on.moves).toEqual(['air.H']);
+    expect(on.moves).toEqual(['air.M']);
+  });
+});
+
+describe('brawl moves: the dashes', () => {
+  // (the stick tapped toward twice, then held: from frame 0, 1 frame on, 2 off, then on)
+  const twice = (dir, hold = 99) => (k) => ({ x: k === 0 || (k >= 3 && k < 3 + hold) ? dir : 0 });
+  const st = (out) => out.s.bodies[0].st;
+  it('tapped twice toward: a run, faster than the walk, on while the stick holds; let go, it stops', () => {
+    const s0 = newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 9000)] });
+    const run = play(s0, 30, twice(1));
+    expect(st(run)).toBe('run');
+    const walk = play(s0, 30, () => ({ x: 1 }));
+    expect(run.s.bodies[0].x).toBeGreaterThan(walk.s.bodies[0].x);
+    expect(st(play(s0, 30, twice(1, 10)))).toBe('stand');
+    // (too slow a second tap: a walk)
+    expect(st(play(s0, 30, (k) => ({ x: k === 0 || k >= DASH_WAIT + 4 ? 1 : 0 })))).toBe('walk');
+  });
+  it('from a run: attack the running blow, knocking down; jump the long jump, further than a jump from a stand', () => {
+    const s0 = newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 1500)] });
+    const blow = play(s0, 90, (k, s) => ({ ...twice(1)(k), a: s.bodies[0].st === 'run' && s.bodies[0].sf === 6 }));
+    expect(blow.moves).toContain('run.attack');
+    expect(blow.ev.some(([, e]) => e.t === 'land' && e.p === 1)).toBe(true);
+    const far = newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 20000)] });
+    // (the distance a jump carries, from its take-off to its landing)
+    const carry = (fn) => { let from = null, to = null; play(far, 90, (k, s) => { const p = s.bodies[0]; if (from === null && p.st === 'air') from = p.x; if (from !== null && to === null && p.st === 'land') to = p.x; return fn(k, s); }); return to - from; };
+    const long = carry((k, s) => ({ ...twice(1)(k), j: s.bodies[0].st === 'run' && s.bodies[0].sf === 4 }));
+    const short = carry((k) => ({ x: 1, j: k === 0 }));
+    expect(long).toBeGreaterThan(short);
+  });
+  it('tapped twice away: the back-step, still facing the foe, untouchable as it starts', () => {
+    const s0 = newBrawl(ctx, { bodies: [body('player', 2000), body('crowd', 3500)] });
+    let seen = null;
+    const out = play(s0, 40, (k, s) => { if (!seen && s.bodies[0].st === 'back') seen = { face: s.bodies[0].face, inv: s.bodies[0].inv }; return twice(-1, 1)(k); });
+    expect(seen.face).toBe(1);
+    expect(seen.inv).toBeGreaterThan(0);
+    expect(out.s.bodies[0].x).toBeLessThan(2000 - P.dash.b.dist / 2);
+  });
+});
+
+describe('brawl moves: through', () => {
+  it('a roll goes through the body in its way', () => {
+    const R = brawlFighter({ ...recipe(), specials: { forward: { id: 'roll' } } }), c = { fighters: [R] };
+    const s0 = newBrawl(c, { bodies: [body('player', 0), body('crowd', 900)] });
+    const rolled = play(s0, 60, (k, s) => ({ x: s.bodies[0].mv || k > 2 ? 0 : 1, s: k === 1 }), c);
+    expect(rolled.moves).toContain('special.forward.M');
+    expect(rolled.s.bodies[0].x).toBeGreaterThan(rolled.s.bodies[1].x);
   });
 });
 

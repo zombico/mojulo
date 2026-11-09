@@ -48,3 +48,6 @@
 - The yard reads the strong: its press in the log (a strong on its cooldown dropped, saying how long is left), a chain
   ended by the breaker or the blowout said so, one opened by the strong too; the move list's Strong tab (each blow, its
   frames and its cooldown); on the move list the stick turns its tabs.
+- The yard's move list gains the Dash tab (the run, the running blow, the long jump, the back-step, with the run's
+  speed and the back-step's frames) and the Air tab every air blow (the air punch, the flying kick, the stomp, the dive
+  kick); the spike plays each.

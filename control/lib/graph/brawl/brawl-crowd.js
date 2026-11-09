@@ -64,7 +64,8 @@ export const CROWD_RULES = Object.freeze({
   enter: 1200,        // mm outside the view a body enters from
 });
 
-const FREE = new Set(['stand', 'walk', 'land']);
+// (free: a body that may swing, or be swung at; a running player is fair game)
+const FREE = new Set(['stand', 'walk', 'land', 'run']);
 const HURT = new Set(['hit', 'fall', 'down', 'rise', 'held', 'thrown']);
 const sgn = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
 // a body's own variety: a hash of its id, 0 … 1
