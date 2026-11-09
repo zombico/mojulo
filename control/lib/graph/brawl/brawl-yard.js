@@ -23,7 +23,7 @@ import { PRACTICE_MODE_IDS } from './brawl-practice.js';
 import { CROWD_TYPES } from './brawl-crowd.js';
 export { yardHud, inputRun } from './brawl-yard-read.js';
 
-const USES = ['line-marks', 'token-marks', 'chain-beats', 'clinch-meter', 'gun-meter', 'press-log', 'input-display', 'command-list', 'training-settings'];
+const USES = ['line-marks', 'token-marks', 'chain-beats', 'clinch-meter', 'gun-meter', 'wave-meter', 'press-log', 'input-display', 'command-list', 'training-settings'];
 const b = (path) => ({ bind: `brawl.practice.${path}` });
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
 
@@ -44,6 +44,7 @@ export function yardSpec() {
       { use: 'line-marks', props: { marks: b('marks') }, when: b('set.marks') },
       { use: 'token-marks', props: { heads: b('heads') } },
       { use: 'chain-beats', props: { beats: b('beats'), ended: b('ended') }, when: b('melee') },
+      { use: 'wave-meter', props: { n: b('wave.n'), of: b('wave.of'), name: b('wave.name'), shape: b('wave.shape'), left: b('wave.left'), last: b('wave.last'), on: b('wave.on') } },
       { use: 'gun-meter', props: { name: b('gun.name'), ammo: b('gun.ammo'), of: b('gun.of'), grenades: b('gun.grenades'), shots: b('gun.shots'), on: b('gun.on') } },
       { use: 'clinch-meter', props: { left: b('clinch.left'), of: b('clinch.of'), knees: b('clinch.knees'), behind: b('clinch.behind'), holding: b('clinch.holding') } },
       { use: 'press-log', props: { presses: b('presses') }, when: b('set.log') },

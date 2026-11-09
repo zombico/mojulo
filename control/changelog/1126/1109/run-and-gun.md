@@ -49,3 +49,14 @@
   the body's poise does it flinch (a big body soaks a stream: the bazooka, the axe, the heavy carry more; a rifleman
   flinches almost at once), a flinch cuts short a foe's aim (its shot never comes), a heavy round floors; the range
   reads each dummy's stagger on its line mark.
+- The range's WAVE TESTER (`brawl/brawl-waves.js`; `range: { waves, loop? }`, `waves: true` its sampler): a wave a
+  group of the crowd's types (each `{ type, n, hp?, poise? }`) with its FORMATION (line, column, stairs, pincer,
+  surround, back: where it comes in from and the stations it takes round the player as it starts, on the street and in
+  the view) and its ATTACK PATTERN (tokens: the street's crowd; volley: all together on the beat; sweep: one after
+  another down the formation; alternate: by halves, half a beat apart; pincer: by sides), its `beat` and its breath
+  before (`after`). One wave at a time: its bodies come in from the view's edges or the street's back to their
+  stations, its shooters fire to the pattern (each volley warned of, the aim fixed from its start, a flinch cutting it
+  short), its brawlers fight as the street's crowd; cleared when its last falls (its time and the rounds taken kept),
+  the next after its breath, the set over again. Its page: the wave meter on mana-ui's brawler shelf (`wave-meter`:
+  which wave of how many, its name, its formation and pattern, the bodies left and its clock, the last clear) and the
+  settings' Waves; the spike's `--waves` plays the sampler.

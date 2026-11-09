@@ -8,6 +8,7 @@
  *   clinch-meter  holding a body: the hold's time running out, the knees left, from behind (the suplex)
  *   press-log     each press and its verdict, newest at the foot: taken (how many frames late) or dropped, and why
  *   gun-meter     the run & gun range's: the gun held, its rounds left, the grenades, how the shooting is going
+ *   wave-meter    the wave tester's: which wave of how many, its formation and pattern, the bodies left, its clock
  *
  * The fight's `input-display` and `command-list` are shared (a brawler's buttons and its move list run through them);
  * the rest of the fight's shelf is the fight's.
@@ -73,7 +74,17 @@ export const BRAWL_IDIOMS = {
     ], 'start')]), when: P('on') },
     example: { name: b('practice.gun.name'), ammo: b('practice.gun.ammo'), of: b('practice.gun.of'), grenades: b('practice.gun.grenades'), shots: b('practice.gun.shots'), on: b('practice.gun.on') },
   },
+  'wave-meter': {
+    kind: 'hud', about: 'the wave tester\'s: which wave of how many (pips), its name, its formation and its attack pattern, the bodies left and its clock, and the last wave\'s clear (its time, the rounds taken)',
+    reads: 'n, of, name, shape (words), left (words), last (words), on', emits: '—',
+    params: ['n', 'of', 'name', 'shape', 'left', 'last', 'on'],
+    node: { ...region('top', [col([
+      row([{ use: 'pips', props: { value: P('n'), max: P('of') } }, txt(P('name'), 'label')], 'center'),
+      txt(P('shape'), 'caption'), txt(P('left'), 'label'), txt(P('last'), 'caption'),
+    ], 'center')]), when: P('on') },
+    example: { n: b('practice.wave.n'), of: b('practice.wave.of'), name: b('practice.wave.name'), shape: b('practice.wave.shape'), left: b('practice.wave.left'), last: b('practice.wave.last'), on: b('practice.wave.on') },
+  },
 };
 
 /** The practice room's HUD parts. */
-export const BRAWL_PRACTICE_HUD = Object.freeze(['line-marks', 'token-marks', 'chain-beats', 'clinch-meter', 'press-log', 'gun-meter']);
+export const BRAWL_PRACTICE_HUD = Object.freeze(['line-marks', 'token-marks', 'chain-beats', 'clinch-meter', 'press-log', 'gun-meter', 'wave-meter']);

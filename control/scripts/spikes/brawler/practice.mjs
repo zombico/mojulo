@@ -5,14 +5,15 @@
 // list. The strong: the opener and the chain after it, then the blowout. The dashes, the long jump's flying kick, the
 // dive kick. The eyes gate is the operator's: the shots.
 //
-//   node control/scripts/spikes/brawler/practice.mjs [--out dir] [--characters] [--register anime|western] [--armed] [--range]
+//   node control/scripts/spikes/brawler/practice.mjs [--out dir] [--characters] [--register anime|western] [--armed] [--range] [--waves]
 //
 // --characters mints two characters into the spike's own scratch store (a wolf-kin hero, a mascot bear: a few minutes)
 // and plays the wolf-kin against the bear, each in its own body, beside a fighter of the solver's (the operator's store
 // is never touched); --register draws the yard in the fight's look (cel or lit, one key that casts), the characters
 // played by their own clips; --armed the armed brawler (every hero its own weapon, the street laying none); --range the
 // run & gun's range (the guns passed in: a stream, a shot aimed across, a shooter's warning stepped off, the rocket,
-// a grenade, the guns' list)
+// a grenade, the guns' list); --waves the range's wave tester (its sampler: each wave in, its formation, a volley's
+// warnings, then the wave felled for the next)
 import { register as registerLoader, createRequire } from 'node:module';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -21,7 +22,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-practice') }, characters: { type: 'boolean', default: false }, register: { type: 'string' }, armed: { type: 'boolean', default: false }, range: { type: 'boolean', default: false } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-practice') }, characters: { type: 'boolean', default: false }, register: { type: 'string' }, armed: { type: 'boolean', default: false }, range: { type: 'boolean', default: false }, waves: { type: 'boolean', default: false } } });
 const out = path.resolve(opt.out); mkdirSync(out, { recursive: true });
 process.chdir(CONTROL);
 registerLoader(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
@@ -42,9 +43,9 @@ if (opt.characters) {
 }
 const manifest = brawlLevel({ kind: 'greybox', preset: 'yard' }, { title: 'practice', ...(opt.register ? { register: opt.register } : {}), ...(opt.armed ? { armed: true } : {}), practice: {
   ...(roster ? { roster, players: [0] } : {}),
-  ...(opt.range ? { range: { guns: ['machine-gun', 'spread', 'flame', 'rocket'], grenades: 3 } } : {}),
-  dummies: opt.range ? [{ mode: 'stand', at: 8, n: 0, type: 'rifleman' }, { mode: 'walk', at: 10, n: 1, type: 'gunner' }, { mode: 'shoot', at: 13, n: -0.4, type: 'rifleman' }] : roster ? [{ mode: 'stand', at: 7, n: 0, fighter: 1 }, { mode: 'walk', at: 9.5, n: 1, fighter: 2 }, { mode: 'swing', at: 12, n: -1, fighter: 1 }] : [{ mode: 'stand', at: 7, n: 0 }, { mode: 'walk', at: 9.5, n: 1 }, { mode: 'swing', at: 12, n: -1 }].map((d, i) => (opt.armed ? { ...d, type: ['sword', 'spear', 'axe'][i] } : d)),
-  things: opt.range ? [] : [...(opt.armed ? [] : [{ kind: 'weapon', what: 'pipe', at: 5.5, n: 2 }]), { kind: 'food', what: 'chicken', at: 3, n: 2 }, { kind: 'box', what: 'barrel', at: 14, n: 1.6, holds: { kind: 'power', what: 'power' } }],
+  ...(opt.range || opt.waves ? { range: { guns: ['machine-gun', 'spread', 'flame', 'rocket'], grenades: 3, ...(opt.waves ? { waves: true } : {}) } } : {}),
+  dummies: opt.waves ? [] : opt.range ? [{ mode: 'stand', at: 8, n: 0, type: 'rifleman' }, { mode: 'walk', at: 10, n: 1, type: 'gunner' }, { mode: 'shoot', at: 13, n: -0.4, type: 'rifleman' }] : roster ? [{ mode: 'stand', at: 7, n: 0, fighter: 1 }, { mode: 'walk', at: 9.5, n: 1, fighter: 2 }, { mode: 'swing', at: 12, n: -1, fighter: 1 }] : [{ mode: 'stand', at: 7, n: 0 }, { mode: 'walk', at: 9.5, n: 1 }, { mode: 'swing', at: 12, n: -1 }].map((d, i) => (opt.armed ? { ...d, type: ['sword', 'spear', 'axe'][i] } : d)),
+  things: opt.range || opt.waves ? [] : [...(opt.armed ? [] : [{ kind: 'weapon', what: 'pipe', at: 5.5, n: 2 }]), { kind: 'food', what: 'chicken', at: 3, n: 2 }, { kind: 'box', what: 'barrel', at: 14, n: 1.6, holds: { kind: 'power', what: 'power' } }],
 } });
 const { payload } = await resolveWorldScene({ ref: 'practice', title: 'practice', manifest }, {});
 writeFileSync(path.join(out, 'practice.html'), emitThreeWorld({ ...payload, hud: false, inline: true }));
@@ -73,6 +74,27 @@ const log = [];
 await play(30);
 await play(2, ['KeyK']); await play(10);   // (the keyboard sits down: attack, K)
 await shot('yard');
+if (opt.waves) {
+  const wave = () => tab.evaluate(() => window.__mojBrawl.read.wave);
+  for (let k = 0; k < 4; k++) {
+    // (its wave in, to its stations, and a volley's warning showing)
+    for (let t = 0; t < 400 && (await wave()).state !== 'on'; t++) await play(4);
+    await play(110);
+    for (let t = 0; t < 160 && !(await tab.evaluate(() => window.__mojBrawl.room.s.bodies.some((b) => b.side === 'crowd' && !b.gone && b.tl > 8))); t++) await play(2);
+    const w = await wave();
+    log.push([`wave ${w.n}`, { name: w.name, formation: w.formation, pattern: w.pattern, left: w.left }]);
+    await shot(`wave-${w.n}`);
+    // (felled for the next: a spike's shortcut, the wave cleared at once)
+    await tab.evaluate(() => { for (const b of window.__mojBrawl.room.s.bodies) if (b.side === 'crowd' && !b.gone) { b.ko = 1; b.hp = 0; b.st = 'ko'; b.sf = 0; } });
+    await play(10);
+  }
+  log.push(['cleared', (await wave()).cleared]);
+  console.log(JSON.stringify(log));
+  console.log('errors', JSON.stringify([...new Set(errs)].slice(0, 8)));
+  await browser.close();
+  console.log(out);
+  process.exit(0);
+}
 if (opt.range) {
   const gun = () => tab.evaluate(() => { const r = window.__mojBrawl.read; return { gun: r.gun, log: r.log.slice(-3).map((e) => `${e.words} ${e.verdict} ${e.what ?? e.why}`) }; });
   // the stream held into the standing rifleman (K)

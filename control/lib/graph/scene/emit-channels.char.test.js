@@ -614,6 +614,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // special in play no longer opens the move list).
 // Re-pinned 2026-11-09 (1109-run-and-gun: a rifle held; shot sounds, impact frames, poise): `brawl` only. Its page inlines
 // the guns (their sounds, hitstop, freeze, impact), the core's poise and the client's sounds and impact frames.
+// Re-pinned 2026-11-09 (1109-run-and-gun: the wave tester): `brawl` only. Its page inlines brawl-waves.js and the range's
+// waves (the practice's wave run, the wave meter, the Waves setting).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

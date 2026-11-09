@@ -87,7 +87,7 @@ const footShadow = () => new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THR
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
 const FIRST = BY.dummies[0] || {};
 const RANGE = BY.range || null;
-const SET = { gun: RANGE ? RANGE.names[0] : null, mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
+const SET = { gun: RANGE ? RANGE.names[0] : null, waves: !!(RANGE && RANGE.waves), mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
 let picks = BY.players.slice(0, 4);
 let dummies = BY.dummies;
 let room = null, bodies = [], things = new Map(), rounds = new Map(), t = 0;
@@ -103,7 +103,8 @@ function build() {
   for (const B of bodies) { YARD.remove(B.group, B.shadow, B.line); if (B.blade) YARD.remove(B.blade.fill, B.blade.ink); if (B.gun) YARD.remove(B.gun.barrel.fill, B.gun.barrel.ink, B.gun.mag.fill, B.gun.mag.ink, B.gun.warn); }
   // (on the range, the gun chosen held first)
   const g = RANGE ? Math.max(0, RANGE.names.indexOf(SET.gun)) : 0;
-  const range = RANGE ? { range: { guns: [RANGE.guns[g], ...RANGE.guns.filter((_, k) => k !== g)], grenades: RANGE.grenades } } : {};
+  // (its waves while the settings' Waves is on)
+  const range = RANGE ? { range: { guns: [RANGE.guns[g], ...RANGE.guns.filter((_, k) => k !== g)], grenades: RANGE.grenades, ...(RANGE.waves && SET.waves ? { waves: RANGE.waves, loop: RANGE.loop } : {}) } } : {};
   room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase(), ...range });
   for (const m of rounds.values()) YARD.remove(m.tracer, m.shadow);
   rounds.clear();
@@ -663,6 +664,7 @@ const UI = (() => {
   // (the fighter from the roster; the dummies' type the street's crowd or anyone on the roster)
   const settings = [{ kind: 'cycler', label: 'Fighter', var: 'brawl.practice.set.fighter', options: BY.roster.map((r) => r.name) },
     ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
+    ...(RANGE && RANGE.waves ? [{ kind: 'toggle', label: 'Waves', var: 'brawl.practice.set.waves' }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
   const state = { brawl: { practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
   const el = document.createElement('div');

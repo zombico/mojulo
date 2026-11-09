@@ -49,8 +49,13 @@ export function yardHud(read, F, project, inputs = []) {
   const gun = g
     ? { on: true, name: g.name ?? cap(g.id.replace(/-/g, ' ')), ammo: g.ammo ?? 1, of: g.of ?? 1, grenades: g.grenades, shots: `${g.landed} of ${g.fired} landed · ${g.damage} damage · struck ${g.struck}` }
     : { on: false, name: '', ammo: 0, of: 1, grenades: 0, shots: '' };
+  // (the wave tester's wave: which, its shape, how many left and its clock (or the breath before it), the last clear)
+  const W = read.wave, secs = (f) => `${(f / 60).toFixed(1)} s`, lastC = W && W.cleared.length ? W.cleared[W.cleared.length - 1] : null;
+  const wave = W
+    ? { on: true, n: W.n, of: W.of, name: cap(W.name), shape: `${W.formation} · ${W.pattern}`, left: W.state === 'on' ? `${W.left} left · ${secs(W.frames)}` : W.state === 'wait' ? `next in ${secs(W.next)}` : 'all cleared', last: lastC ? `wave ${lastC.k + 1} cleared in ${secs(lastC.frames)} · struck ${lastC.struck}` : '' }
+    : { on: false, n: 0, of: 1, name: '', shape: '', left: '', last: '' };
   return {
-    marks, heads, gun, melee: !g,
+    marks, heads, gun, wave, melee: !g,
     beats: Array.from({ length: n }, (_, k) => ({ value: String(k + 1), variant: landed.includes(k + 1) ? 'strong' : 'muted' })),
     ended, presses, inputs,
     clinch: c ? { left: c.left, of: c.of, knees: c.knees, behind: c.back ? 'Suplex' : '', holding: true } : { left: 0, of: 1, knees: 0, behind: '', holding: false },
