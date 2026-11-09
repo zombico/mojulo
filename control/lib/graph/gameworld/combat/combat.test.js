@@ -6,6 +6,8 @@ import { feelRule } from '../feel/lower.js';
 import { armsLoadout } from '../arms-kit.js';
 import { SHOOT, PERSON } from '../quick.js';
 import { rangeOf, rangeBody, validateRange, FIRE } from './range.js';
+import { shotWordOf, reloadCue } from './range-sound.js';
+import { sfxSound } from '../../sfx-shelf/resolve.js';
 
 // the combat tester's measures, gym and book, promoted: a game's player and foe as a level ships them, measured on the
 // runtime and set in the gym laid from the numbers. The smallest game that exercises them: a person on the platform rule
@@ -109,6 +111,45 @@ describe('the firing range', () => {
     for (const d of BANDS) expect(typeof m.slots.rocket.ttk[d].still.rounds).toBe('number');
     expect(m.melee).toMatchObject({ name: 'blade', cuts: 2, past: true });
     expect(m.laws.filter((l) => !l.ok).map((l) => l.name)).toEqual([]);
+  });
+});
+
+// THE RANGE HEARD (range-sound.js): each weapon voiced from the SFX shelf by what it is, or by the game's own word
+describe('the firing range, heard', () => {
+  const g = (w) => sfxSound(w).gestures;
+  const spec = { weapons: ['handgun', { name: 'zap', fire: 'hitscan', rof: 12 }, { name: 'boom', fire: 'projectile' }, { name: 'cut', fire: 'melee' }] };
+  it('a shot by what it is: a kit gun by its round, a fast automatic a submachine gun, a launcher a missile away', () => {
+    const { pilot } = rangeBody(spec), [hand, zap, boom] = pilot.rule.loadout;
+    expect([shotWordOf(hand), shotWordOf(zap), shotWordOf(boom)]).toEqual(['pistol shot', 'smg shot', 'missile launch']);
+    expect(hand.weapon.sfx.shot).toEqual(g('pistol shot'));
+    expect(zap.weapon.sfx.draw).toEqual(g('weapon switch'));
+    expect(shotWordOf(rangeBody({ weapons: ['shotgun'] }).pilot.rule.loadout[0])).toBe('shotgun shot');
+  });
+  it('a reload is one cue over the gun\'s own time: the magazine out, a fresh one in, the action racked', () => {
+    const { pilot } = rangeBody(spec), hand = pilot.rule.loadout[0], cue = reloadCue(hand), r = hand.weapon.reload;
+    expect(cue.length).toBe(g('mag out').length + g('mag in').length + g('rack').length);
+    expect(Math.max(...cue.map((x) => x.at ?? 0))).toBeGreaterThanOrEqual(r * 0.8 - 1e-3);
+    expect(cue.filter((x) => (x.at ?? 0) >= r * 0.55 - 1e-3).length).toBe(g('mag in').length + g('rack').length);
+  });
+  it('the range\'s audio: hits, the blade, the feet, the rocket\'s blast, on a mix in the open; every cue in its book of cues', () => {
+    const { payload, pilot } = rangeBody(spec), A = payload.audio;
+    expect(A.mix).toEqual({ space: 'open', voices: 16, distance: true });
+    expect(A.strike).toEqual({ swing: g('blade swing'), hit: g('blade hit') });
+    expect(A.burst).toEqual(g('explosion'));
+    expect(A.footsteps.step).toEqual(g('step concrete'));
+    for (const s of pilot.rule.loadout) for (const [k, c] of Object.entries(s.weapon.sfx)) expect(A.cues[`${s.name}:${k}`]).toEqual(c);
+    // (no launcher, no blast; no blade, no strike)
+    const plain = rangeBody({ weapons: ['rifle'] }).payload.audio;
+    expect(plain.burst).toBeUndefined(); expect(plain.strike).toBeUndefined();
+  });
+  it('the game\'s own word wins; a word the shelf lacks is named; quiet is silent', () => {
+    const own = rangeBody({ ...spec, sounds: { zap: { shot: 'machine gun' }, cut: { swing: 'katana swing' } } });
+    expect(own.pilot.rule.loadout[1].weapon.sfx.shot).toEqual(g('machine gun'));
+    expect(own.payload.audio.strike.swing).toEqual(g('katana swing'));
+    expect(validateRange({ ...spec, sounds: { zap: { shot: 'pew pew' } } }).join()).toMatch(/'pew pew' is not a sound on the SFX shelf/);
+    expect(validateRange({ ...spec, sounds: { cut: { shot: 'rifle shot' } } }).join()).toMatch(/melee weapon sounds its swing, hit/);
+    const q = rangeBody({ ...spec, quiet: true });
+    expect(q.payload.audio).toBeUndefined(); expect(q.pilot.rule.loadout[0].weapon.sfx).toBeUndefined();
   });
 });
 

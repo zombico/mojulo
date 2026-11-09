@@ -6,7 +6,7 @@
  * numbers and played (gym.js, the combat book's page). A made game's own weapons go through the combat book; this is
  * the same range before there is a game.
  *
- *   rangeOf({ weapons, skins?, foe?, name? })   → { minted, m, reach, gym, gate } (book.js combatSample's shape)
+ *   rangeOf({ weapons, skins?, sounds?, foe?, name?, quiet? })   → { minted, m, reach, gym, gate } (book.js combatSample's shape)
  *   rangeHtml(spec)                              → the page
  *
  *   weapons  1 to 5 (a body's slots, in order), each one of:
@@ -19,6 +19,9 @@
  *   skins    { [name]: a kit word or an arm's build words ({ item, model?, line?, parts? }) }: what a weapon looks like
  *            in the hands, its numbers untouched; absent, a graybox of its fire type (a rifle's shape for hitscan, a
  *            launcher's tube for a projectile, the combat knife for melee)
+ *   sounds   { [name]: { shot?, reload?, hit?, draw? } } (a melee weapon's { swing?, hit? }), each a word of the SFX shelf:
+ *            what a weapon sounds like, the game's own choice; absent, chosen by what it is (range-sound.js). `quiet`:
+ *            no sound at all
  *   foe      { hp? }: the body the rounds are timed against (100)
  * Pure but for the measures' time (a few seconds a weapon).
  */
@@ -27,6 +30,8 @@ import { ARM_MODELS } from '../../equipment/arms/models.js';
 import { SHOOT } from '../quick.js';
 import { measureCombat, combatLaws } from './measure.js';
 import { gymOf, gymPageHtml } from './gym.js';
+import { rangeAudio } from './range-sound.js';
+import { resolveSoundId } from '../../sfx-shelf/roster.js';
 
 /** A fire type's numbers when it is not given them: one body (100 hp) in four hitscan rounds, two rockets, two cuts; a
  * hitscan round a rifle's cone, climb and look (rounds.js); a rocket drawn at a person's launcher's scale (`fxScale`: its body, its flash and its sparks; the page's default is a mech's). */
@@ -44,7 +49,7 @@ const MAX = 5;
 const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
 
 /** What is wrong with a range's spec, by name; [] when it can be set up. */
-export function validateRange({ weapons, skins = {}, foe = {} } = {}) {
+export function validateRange({ weapons, skins = {}, sounds = {}, foe = {} } = {}) {
   const errs = [];
   if (!Array.isArray(weapons) || !weapons.length || weapons.length > MAX) return [`weapons: 1 to ${MAX}, each a kit word (${Object.keys(ARMS_KIT).join(', ')}), { name, fire: ${FIRE_TYPES.join(' | ')}, ...numbers } or { name, weapon }`];
   const names = new Set();
@@ -71,6 +76,14 @@ export function validateRange({ weapons, skins = {}, foe = {} } = {}) {
     if (k === meleeName && !blade) errs.push(`skins.${k}: a melee weapon's skin is a knife's build words ({ item: 'knife', model? })`);
     else if (k !== meleeName && blade) errs.push(`skins.${k}: a knife is a melee weapon's skin`);
   }
+  for (const [k, S] of Object.entries(sounds ?? {})) {
+    if (!names.has(k)) { errs.push(`sounds.${k}: no weapon of that name`); continue; }
+    const melee = k === meleeName, slotsOk = melee ? ['swing', 'hit'] : ['shot', 'reload', 'hit', 'draw'];
+    for (const [slot, w] of Object.entries(S ?? {})) {
+      if (!slotsOk.includes(slot)) errs.push(`sounds.${k}.${slot}: a ${melee ? 'melee weapon' : 'gun'} sounds its ${slotsOk.join(', ')}`);
+      else if (!resolveSoundId(w)) errs.push(`sounds.${k}.${slot}: '${w}' is not a sound on the SFX shelf`);
+    }
+  }
   if (foe && foe.hp !== undefined && !(foe.hp > 0)) errs.push('foe.hp: a positive number');
   return errs;
 }
@@ -88,8 +101,8 @@ const GUNPLAY = (view) => ({ kind: view.kind, ads: { zoom: 1.3, time: 0.25, spre
 const lookOf = (skin, base) => (skin ? kitSlot(skin, base).gunplay : null);
 
 /** A range's body and its target: the slots its weapons make, the knife its melee is. → { pilot, foe, payload } */
-export function rangeBody({ weapons, skins = {}, foe = {}, name = null } = {}) {
-  const errs = validateRange({ weapons, skins, foe });
+export function rangeBody({ weapons, skins = {}, sounds = {}, foe = {}, name = null, quiet = false } = {}) {
+  const errs = validateRange({ weapons, skins, sounds, foe });
   if (errs.length) throw new Error(`firing range: ${errs.join('; ')}`);
   const hp = foe.hp ?? 100;
   // (a kit word's rounds scaled to this body: the kit's numbers are against the quick shooter's foe)
@@ -115,13 +128,17 @@ export function rangeBody({ weapons, skins = {}, foe = {}, name = null } = {}) {
     const view = look ? look.view : weapon.fireClass === 'lob' ? TUBE : kitSlot('rifle', base).gunplay.view;
     slots.push({ name: w.name, weapon, switchReady: 0.65, gunplay: look ? { ...GUNPLAY(view), ads: look.ads, sway: look.sway, swap: look.swap } : GUNPLAY(view) });
   }
+  // its sounds (range-sound.js): each weapon's own, by what it is or the game's word; the range's on a mix in the open
+  const heard = quiet ? null : rangeAudio({ slots, knife, sounds });
+  if (heard) for (const s of slots) s.weapon = { ...s.weapon, sfx: heard.sfx[s.name] };
   // a person, first person, as a made first-person shooter lays one: a person's pace, the eye at 1.7 m, a hull under it
   const rule = { type: 'walk', speed: 4.5, turn: 2.4, eye: 1.7, turnMode: 'look', lookPitch: true, strafe: 1, collideRadius: 0.3, collideHeight: 1.7, ...(slots.length ? { loadout: slots, gunplay: true } : {}), ...(knife ? { knife } : {}) };
   const pilot = { id: 'player', pilotable: true, rule, ...(slots.length ? { weapon: slots[0].weapon } : {}), body: { type: 'none', hittable: true, radius: 0.5, egg: { ...PERSON, cz: PERSON.c - 1.7 } } };
   // the target: a body's box on its feet, its hit volume a person's
   const target = { id: 'target', body: { type: 'mesh', shape: 'box', size: [0.5, 0.3, 1.8], color: 0xb0716a, marker: false, hittable: true, hp, radius: 0.5, egg: { ...PERSON, cz: 0 } }, lift: 0.9 };
   const payload = { camera: { rule: 'eye', target: 'player', height: 0, mouseLook: true, hideTarget: true }, figures: {},
-    events: { hud: [{ text: `W / S  walk · A / D  step aside · mouse  look · click  fire · right click  aim · R  reload · 1-5 or wheel  switch${knife ? ' · V  knife' : ''}` }] } };
+    events: { hud: [{ text: `W / S  walk · A / D  step aside · mouse  look · click  fire · right click  aim · R  reload · 1-5 or wheel  switch${knife ? ' · V  knife' : ''}` }] },
+    ...(heard ? { audio: heard.audio } : {}) };
   return { pilot, foe: target, payload, name: name ?? 'the firing range' };
 }
 

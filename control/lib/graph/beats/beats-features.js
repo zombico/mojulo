@@ -185,6 +185,7 @@ export function audioFeatures(audio) {
   for (const list of Object.values(audio.footsteps || {})) addGestures(set, list);
   addGestures(set, audio.jump && audio.jump.land);
   addGestures(set, audio.dodge);
+  addGestures(set, audio.burst);
   for (const k of ['weapon', 'strike']) for (const list of Object.values(audio[k] || {})) addGestures(set, list);
   if (audio.vary || audio.weather) set.add('sfx');
   if (audio.mix) set.add('sfxmix');

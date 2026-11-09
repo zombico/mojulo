@@ -80,3 +80,14 @@
   and its reach, cones, climb, marks, reloads and every switch, with the laws beside (an automatic given no climb
   fails "a held spray climbs"). Travelling rounds and melee are measured now, in the combat book too.
   `scripts/spikes/combat-tester/range.mjs --spec '<json>'` prints it and writes the page.
+- **The firing range is heard.** Each weapon sounds from the SFX shelf by what it is: a gun's shot by its cartridge, a
+  launcher's launch, its reload as one cue over its own reload time (the magazine out, a fresh one in, the action
+  racked), a round landing on a body, the draw on a switch, the knife's swing and its connect, a rocket's blast where it
+  bursts, footsteps on the range's concrete, all on a mix in the open. A game names its own sound for any of them
+  (`sounds: { <weapon>: { shot, reload, hit, draw } }`, a shelf word each); `quiet` is silent.
+- **Gunshots on the SFX shelf.** A `gunshot` family voices a small arm by its cartridge (a pistol, a submachine gun, a
+  magnum, a rifle, a shotgun, a sniper rifle) and suppressed: the report, the blast and its overtones, a sub under the
+  heavier rounds, a rifle round's supersonic crack, the action cycling, the casing, the shot rolling off; each in the
+  realistic register, the heavier the longer. Seven rows (`pistol shot` to `suppressed shot`).
+- **Two sounds a world's audio takes.** `audio.weapon.switch` (a gun drawn; a weapon's own `sfx.draw` wins) and
+  `audio.burst` (a travelling round's burst, where it went off). Absent, a page is as it was.

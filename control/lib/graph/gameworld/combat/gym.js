@@ -233,7 +233,7 @@ export function gymPageHtml(minted, m, gym, gate, { cam = null, extraRule = {}, 
     rupa: { scars: readScarsSpec({ ground: 'loam', wall: 'concrete', walls: gym.walls }) },
     match: { killTarget: 9999, respawnDelay: 1.5 },
     sky: payload.sky ?? { zenith: [120, 140, 170], horizon: [200, 205, 210], day: 1, stars: 0, seed: 1 }, bg: payload.bg ?? '#9aa0a8',
-    ...(payload.lightTier ? { lightTier: payload.lightTier } : {}), ...(payload.shadows ? { shadows: payload.shadows } : {}),
+    ...(payload.lightTier ? { lightTier: payload.lightTier } : {}), ...(payload.shadows ? { shadows: payload.shadows } : {}), ...(payload.audio ? { audio: payload.audio } : {}),
     viewBox: { width: 1120, height: 700 }, title: `${kind} · ${m.game}${tag ? ` · ${tag}` : ''}`, inline: true,
   });
 }

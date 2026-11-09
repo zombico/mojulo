@@ -365,3 +365,9 @@ the body's quick knife (V), its cuts to drop a body at three quarters of its rea
 is touched. The example spec (a kit rifle, an automatic of its own skinned as an SMG, a rocket launcher with no skin, a
 blade skinned as a tanto) found an automatic given no climb fails "a held spray climbs"; given a fire type's defaults it
 holds every law. A rocket is drawn at a person's launcher's scale (`fxScale` 0.5; the page's default is a mech's).
+
+The range is heard: each weapon voiced from the SFX shelf by what it is (`range-sound.js`), or by a shelf word the spec
+names (`sounds: { <weapon>: { shot?, reload?, hit?, draw? } }`, a melee weapon's `{ swing?, hit? }`); `quiet: true`
+for none. The shelf had no small arms, so a `gunshot` family joined it (by cartridge, suppressed). In headless Chrome
+each action's sources are counted (`range-sound.chrome.test.js`): a still range starts none; a rifle shot about 17, a
+reload 53, a switch 21, a cut 22, a rocket's launch 82 and its burst 60.

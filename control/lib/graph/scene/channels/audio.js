@@ -241,7 +241,10 @@ if (__AUDIO.weapon) {
     for (const e of ctrl.entities) {
       if (!e.weapon) continue;
       const last = __wLast[e.id] || (__wLast[e.id] = { w: e.weapon, shots: e.weapon.shots || 0, charge: e.weapon.chargeCount || 0, reloading: !!e.weapon.reloading, hitT: null });
-      if (last.w !== e.weapon) {
+      if (last.w !== e.weapon) {${audio.weapon && audio.weapon.switch ? `
+        // (a switch: the incoming gun drawn, its own draw or the world's)
+        const __sw = (e.weapon.sfx && e.weapon.sfx.draw) || __AUDIO.weapon.switch;
+        if (__sw) __beatsCue(__sw, __proxGain(e.transform.pos));` : ''}
         last.w = e.weapon; last.shots = e.weapon.shots || 0; last.charge = e.weapon.chargeCount || 0; last.reloading = !!e.weapon.reloading; last.hitT = null;
       }
       // per-weapon SFX (initWeapon carries e.weapon.sfx): a loadout's beam rifle and machine gun
@@ -264,7 +267,21 @@ if (__AUDIO.weapon) {
     }
   })();
 }
-// strike (melee) SFX: the beam saber's overhead cross. Read-only sim-state → SFX, the same
+${audio.burst ? `// BURSTS (audio.burst, opt-in): a travelling round's burst (a rocket, a grenade: the world's bursts, seq-keyed as the
+// effects read them) sounds where it went off, by its distance from you. Read-only.
+if (__AUDIO.burst) {
+  let __bSeq = null;
+  (function __beatsBurst() {
+    requestAnimationFrame(__beatsBurst);
+    const W = window.__mojCtrl && window.__mojCtrl.world;
+    if (!W || !W.bursts) return;
+    const top = W.bursts.length ? W.bursts[W.bursts.length - 1].seq : -1;
+    if (__bSeq === null || !__beatsEng || __beatsMuted) { __bSeq = top; return; }
+    for (const b of W.bursts) if (b.seq > __bSeq) __beatsCue(__AUDIO.burst, __proxGain(b.pos));
+    __bSeq = Math.max(__bSeq, top);
+  })();
+}
+` : ''}// strike (melee) SFX: the beam saber's overhead cross. Read-only sim-state → SFX, the same
 // posture as footsteps/weapon. 'swing' fires on each swing START (e.swingCount edge — the
 // crackling-ozone whoosh); 'hit' fires whenever the blade CONNECTS (e.meleeHitCount edge — the
 // distinct impact clash). A swing that whiffs plays only the swing cue; a connect plays both.

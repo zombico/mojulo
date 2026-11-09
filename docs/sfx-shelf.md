@@ -56,7 +56,7 @@ A held voice comes back as `{ sustain }`, a spec, rather than gestures.
 
 | kind | families |
 |---|---|
-| combat and its world | `explosion` (size, debris, metal), `impact` (material × weight), `footstep` (surface × body, a person to a giant), `melee`, `handling` (magazines, racking, switching, dry fire), `projectile` (flybys, ricochets, casings), `breakage`, `elemental`, `shield`, `launch`, `katana` (a stylized slash, light or heavy; draw, sheathe, jostle) |
+| combat and its world | `gunshot` (a small arm by its cartridge: pistol, smg, magnum, rifle, shotgun, sniper; suppressed), `explosion` (size, debris, metal), `impact` (material × weight), `footstep` (surface × body, a person to a giant), `melee`, `handling` (magazines, racking, switching, dry fire), `projectile` (flybys, ricochets, casings), `breakage`, `elemental`, `shield`, `launch`, `katana` (a stylized slash, light or heavy; draw, sheathe, jostle) |
 | held voices | `booster` (jet, rocket, ion), `engine` (car, motorbike, jet, prop, kart, boat, helicopter), `beam`, `servo`, `fire`, `charge`, `crowd`, `tires`, `cooking`, `heartbeat`, `breath` |
 | by game type | see below |
 
@@ -175,8 +175,16 @@ a person's ears.
 
 A new sound is a row first.
 
+## Where a game hears it
+
+The firing range (`gameworld/combat/range-sound.js`) is the first to read the shelf by its words: each weapon's shot
+by its cartridge (the `gunshot` family) or its fire type (a launcher's `missile launch`), its reload as one cue over
+its own reload time (`mag out`, `mag in`, `rack`), its hit (`flesh impact`), its draw (`weapon switch`), a blade's
+`blade swing` and `blade hit`, a rocket's `explosion`, footsteps on `step concrete`, on a mix in the open. A game
+names its own word for any of them.
+
 ## Not yet
 
-Nothing in a level reads the shelf by its words yet. To come: wiring weapon roles, explosion presets, body sizes,
+Made levels do not read the shelf by its words yet. To come: wiring weapon roles, explosion presets, body sizes,
 surfaces and vehicles to their sounds by word, a level's held voices on its `hold` slot (an engine on a vehicle's
 throttle), and WAVs in the engine handoff.
