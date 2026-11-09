@@ -228,7 +228,7 @@ A cube that names no domains offers one per terrain and one per interior.
   cars in its car parks; its parking blocks each a yard (`yards`: a bus depot, a works yard with
   its garbage trucks and works pickups, an emergency station with its fire engines, ambulances and police cars, the rest
   car parks); a vacant block by its construction sites their contractor's yard of mixers, tippers and loaders. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
-  streets?, segments?, roads?, grammar?, outskirts?, industry?, highways?, evoke?, at?, along?, play?, profile?, slope? }`: `industry` its
+  streets?, segments?, roads?, grammar?, outskirts?, industry?, highways?, waterfront?, evoke?, at?, along?, play?, profile?, slope? }`: `industry` its
   industrial neighbourhoods (`false` none, or `{ share, segments: { works, warehouse, storage, tanks }, block: [least,
   most] }`: a share of the outskirts' neighbourhoods, its land's edge and its shore first; big blocks: a works' corrugated
   hall and its stack, a clad warehouse's docks and trucks, container stacks and silos, a tank farm's tanks, gas spheres or
@@ -238,7 +238,13 @@ A cube that names no domains offers one per terrain and one per interior.
   piers: a lakeshore expressway over its shore's edge, a crosstown over its arterial farthest from the shore, two cross
   highways over its outermost arterials the other way, flying over the crosstown and joining the shore's; `along` names
   their arterials, 'shore' its shore; each driven by its traffic, the street's lamps and trees cleared from under its
-  deck); `profile` its streets laid
+  deck); `waterfront` (true by default, `false` none) its shores reclaimed: a strip out into the water along each, on
+  its main shore a boulevard under the lakeshore expressway and a row of the waterfront's own buildings, then segments
+  each its way of meeting the water (a quay's granite plaza, rink and moored tour boat; finger piers on piles with a shed
+  or a restaurant and boats along them; a restaurant row's patios under parasols; a park's lawn, trees and rock
+  revetment; a beach's sand under pink parasols and loungers, a boardwalk behind; a marina's clubhouse, lot, pontoons and
+  boats; timber steps down to the water), a promenade along its edge with lamps, benches and railings, the ground falling
+  from the land's edge to the promenade a little over the water; `profile` its streets laid
   as a hill town lays them (`true` or `{ walkable, curve }`: the arterials' crossings level, each block between graded on
   one ramp, the land's edges and its shore kept; each neighbourhood's collectors and locals the same inside it; its
   composed geotowns profiled on its ground unless their recipes say; `walkable` names a stretch too steep to walk); `slope:

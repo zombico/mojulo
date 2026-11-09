@@ -64,6 +64,9 @@ export function highwaysOf(d) {
       const axis = along(shore), at = r3(shore === 's' ? ly0 - HIGHWAY.offshore : shore === 'n' ? ly1 + HIGHWAY.offshore : shore === 'w' ? lx0 - HIGHWAY.offshore : lx1 + HIGHWAY.offshore);
       const edge = shore === 's' ? ly0 : shore === 'n' ? ly1 : shore === 'w' ? lx0 : lx1;
       const [lo, hi] = axis === 'x' ? [lx0, lx1] : [ly0, ly1];
+      // (over the waterfront's boulevard where its shore is reclaimed, waterfront.js: on its median, on its ground)
+      const bv = d.waterfront?.find((W) => W.side === shore)?.boulevard;
+      if (bv) { const tc = (bv.t0 + bv.t1) / 2, at2 = r3(shore === 's' ? edge - tc : shore === 'n' ? edge + tc : shore === 'w' ? edge - tc : edge + tc); return { id, role: 'shore', along: 'shore', axis, at: at2, lo, hi, w, lanes: H0.lanes, H: H0.height, ground: (u) => (axis === 'x' ? S(u, edge) : S(edge, u)), boulevard: true }; }
       return { id, role: 'shore', along: 'shore', axis, at, lo, hi, w, lanes: H0.lanes, H: H0.height, ground: (u) => (axis === 'x' ? S(u, edge) : S(edge, u)), water: true };
     }
     const l = d.lines.find((x) => x.id === p.along);
@@ -109,7 +112,7 @@ export function highwaysOf(d) {
     const piers = [], crossings = (h.line ? d.lines.filter((l) => l.axis !== h.line.axis) : []).map((l) => [l.at - l.half - 2, l.at + l.half + 2]);
     // its piers every stride, none in a crossing (moved on past it); a pair in its arterial's kerb lanes, one under its
     // middle over the water
-    const cols = h.line ? (() => { const pk = h.line.bands.filter((b) => b.kind === 'parking'); return pk.length === 2 ? pk.map((b) => r2((b.from + b.to) / 2)) : [r2(-h.line.road / 2 - 0.6), r2(h.line.road / 2 + 0.6)]; })() : [0];
+    const cols = h.boulevard ? [0] : h.line ? (() => { const pk = h.line.bands.filter((b) => b.kind === 'parking'); return pk.length === 2 ? pk.map((b) => r2((b.from + b.to) / 2)) : [r2(-h.line.road / 2 - 0.6), r2(h.line.road / 2 + 0.6)]; })() : [0];
     for (let u = h.lo + HIGHWAY.pier / 2; u <= h.hi - 4; u += HIGHWAY.pier) {
       let v = u;
       const hit = crossings.find(([a, b]) => v > a && v < b);
@@ -118,7 +121,7 @@ export function highwaysOf(d) {
       piers.push({ u: r2(v), cols });
     }
     const stations = h.us.flatMap((u, i) => [r2(u), r2(h.z[i])]);
-    return { id: h.id, role: h.role, along: h.along, axis: h.axis, at: r3(h.at), lo: r2(h.lo), hi: r2(h.hi), w: h.w, lanes: h.lanes, H: h.H, stations, piers, ...(h.water ? { water: true } : {}), ...(h.joins ? { joins: h.joins } : {}), ...(h.over ? { over: h.over } : {}) };
+    return { id: h.id, role: h.role, along: h.along, axis: h.axis, at: r3(h.at), lo: r2(h.lo), hi: r2(h.hi), w: h.w, lanes: h.lanes, H: h.H, stations, piers, ...(h.water ? { water: true } : {}), ...(h.boulevard ? { boulevard: true } : {}), ...(h.joins ? { joins: h.joins } : {}), ...(h.over ? { over: h.over } : {}) };
   });
   // (a deck's profile before it is held: the deck being laid's z at u)
   function deckProfile(h, u) { const i = Math.max(0, Math.min(h.us.length - 1, Math.round(((u - h.lo) / (h.hi - h.lo)) * (h.us.length - 1)))); return h.z[i]; }

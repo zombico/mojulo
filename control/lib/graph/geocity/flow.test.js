@@ -10,12 +10,15 @@ const geocity = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }
 const D = designGeocity(geocity, { seed: 2 }), F = flowOf(D, { seed: 2 });
 // (a street's lanes, and a highway's on its deck over them: highways.js)
 const onDeck = (L) => (D.highways ?? []).some((h) => h.id === L.line);
+// (and the waterfront's boulevard, waterfront.js: along its shore, out past the land's crossings)
+const onShore = (L) => L.line.startsWith('wf-');
+const street = (L) => !onDeck(L) && !onShore(L);
 
 describe('the metro\'s traffic, planned', () => {
   it('drives each arterial\'s travel lanes but a streetcar\'s, the land\'s length, each its way', () => {
     const travel = D.lines.flatMap((l) => l.bands.filter((b) => b.kind === 'travel' && !b.streetcar).map((b) => ({ l, b })));
-    expect(F.lanes.filter((L) => !onDeck(L)).length).toBe(travel.length);
-    for (const L of F.lanes.filter((x) => !onDeck(x))) {
+    expect(F.lanes.filter(street).length).toBe(travel.length);
+    for (const L of F.lanes.filter(street)) {
       const l = D.lines.find((x) => x.id === L.line), b = l.bands.find((x) => x.kind === 'travel' && !x.streetcar && Math.abs(l.at + (x.from + x.to) / 2 - L.cross) < 1e-3);
       expect(b).toBeDefined();
       expect(L.dir).toBe(b.dir);
@@ -54,7 +57,7 @@ describe('the metro\'s traffic on its highways', () => {
     for (const L of hw) {
       const h = D.highways.find((x) => x.id === L.line);
       expect(L.crossings).toHaveLength(0);
-      expect(L.speed).toBeGreaterThan(F.lanes.find((x) => !onDeck(x)).speed);
+      expect(L.speed).toBeGreaterThan(F.lanes.find(street).speed);
       expect(L.ground).toEqual(h.stations);
       expect(Math.abs(L.cross - h.at)).toBeLessThan(h.w / 2);
     }
@@ -70,7 +73,7 @@ describe('the metro\'s traffic, driven as the page drives it', () => {
     const cycle = F.signals[0].cycle, T = F.T;
     // each lane its own model, come into reach at its own clock (the page's rule: from its cycle's last turn)
     // (a highway's lanes run over the crossings on its deck, not through them)
-    const lanes = F.lanes.map((L, li) => [L, li]).filter(([L]) => !onDeck(L)).map(([L, li]) => {
+    const lanes = F.lanes.map((L, li) => [L, li]).filter(([L]) => street(L)).map(([L, li]) => {
       const cars = F.cars.filter((c) => c[0] === li), m = createTrafficModel([L], cars.map((c) => ({ lane: 0, startFrac: c[3], len: F.kinds[c[1]].len })), F.signals, T);
       return { L, m, cars, enter: (li * 7.3) % 50 };
     });

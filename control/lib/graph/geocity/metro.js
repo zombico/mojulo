@@ -51,6 +51,9 @@
  *     highways      { count, lanes, height, along? } or false: its expressways (highways.js), elevated on piers: by
  *                   default four, a lakeshore expressway along its shore, a crosstown over its far arterial, two cross
  *                   highways over its outermost arterials the other way; `along` names their lines ('shore' its shore)
+ *     waterfront    true (the default) or false: its shores reclaimed (waterfront.js): a strip out into the water
+ *                   along each, a boulevard on its main one, quays, piers, dining, parks, a beach, a marina and steps
+ *                   down to the water along a promenade
  *     grade         the steepest arterial (rise over run): steeper is advice
  *     grades        { collector?, local? }: the steepest of a neighbourhood's streets (by default the gentler of a tenth
  *                   and an eighth or the arterials')
@@ -181,7 +184,7 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'industry', 'highways', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
@@ -288,6 +291,9 @@ export function readGeocity(spec = {}) {
     || (Hw.along !== undefined && !(Array.isArray(Hw.along) && Hw.along.length && Hw.along.every((a) => typeof a === 'string'))) || Object.keys(Hw).some((k) => !['count', 'lanes', 'height', 'along'].includes(k)))
     no('highways is false or { count: 0–6, lanes: 1–5 each way, height: 7–20 m, along?: [\'shore\' | an arterial\'s id, …] }');
   if (Hw.along) Hw.count = Math.max(Hw.count, Hw.along.length);
+  // (its waterfront, waterfront.js: its shores reclaimed unless `false`)
+  if (M.waterfront === undefined) M.waterfront = true;
+  if (typeof M.waterfront !== 'boolean') no('waterfront is true or false: its shores reclaimed (a boulevard, quays, piers, parks, a beach, a marina along a promenade) or left at the land\'s edge');
   const Rd = M.roads;
   if (!isObj(Rd) || !num(Rd.lane, 2.5, 4.5) || !num(Rd.parking, 0, 4) || !num(Rd.bike, 0, 3) || !(Number.isInteger(Rd.lanes) && Rd.lanes >= 2 && Rd.lanes <= 8 && Rd.lanes % 2 === 0)) no('roads is { lane: 2.5–4.5 m, parking: m, bike: m, lanes: an even 2–8, median, oneway, streetcar }');
   if (!isObj(Rd.median) || !num(Rd.median.share, 0, 1) || !num(Rd.median.w, 1, 20)) no('roads.median is { share: 0–1, w: metres }');

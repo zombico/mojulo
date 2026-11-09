@@ -107,6 +107,8 @@ export const MATERIAL_WORDS = Object.freeze({
     (X) => ({ params: { cut: 'pavement', face: 'floor', stone: [176, 174, 168], mortar: X.mortar, cols: 2, vary: 8, ...X.machine }, metres: 3 })),
   asphalt: W('modern', 'ground', '#3f3e3c', 'aggregate in its binder, patched and sealed',
     (X) => ({ params: { cut: 'asphalt', face: 'floor', stone: [70, 70, 72], mortar: X.mortar, vary: 8, ...X.machine }, metres: 4 })),
+  sand: W('either', 'ground', '#d6c7a1', 'sand, rippled by the wind, a shell\'s fleck here and there',
+    (X) => ({ params: { cut: 'sand', face: 'floor', stone: [214, 199, 161], mortar: X.mortar, vary: 10, ...X.machine }, metres: 1.2 })),
   // MODERN, MADE: a shed's and a works' (matte-paint/dressed.js's made cuts): sheet steel, cladding, block, a metal roof
   corrugated: W('modern', 'wall', '#a3a8ab', 'corrugated steel sheet, its ribs lapped at the top, fixings on the crowns, the weather streaked down',
     (X) => ({ params: { cut: 'corrugated', stone: [163, 168, 171], mortar: X.mortar, cols: 12, ...X.machine }, metres: 3 })),

@@ -78,7 +78,7 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
     const off = (b.from + b.to) / 2;
     raw.push({ axis: l.axis === 'ns' ? 'y' : 'x', cross: r4(l.at + off), lo: l.axis === 'ns' ? ly0 : lx0, hi: l.axis === 'ns' ? ly1 : lx1, dir: b.dir, line: l.id, ground: groundOf(l, off) });
   }
-  if (!raw.length && !(d.highways ?? []).length) return null;
+  if (!raw.length && !(d.highways ?? []).length && !(d.waterfront ?? []).some((W) => W.boulevard)) return null;
   // what drives: each vehicle a role's (its model, paint and roof), measured
   const kinds = [], kindOf = new Map(), tints = [], tintOf = new Map();
   const pick = (R) => {
@@ -109,6 +109,20 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
     for (let j = 0; j < want * 2 && list.length < want; j++) { const p = pick(R); if (p) list.push(p); }
     own.set(L, { list, start: R() });
     hw.push(L);
+  }
+  // (the waterfront's boulevard, waterfront.js: two lanes each way along its shore, at the land's edge's height)
+  for (const Wf of d.waterfront ?? []) {
+    const B = Wf.boulevard;
+    if (!B) continue;
+    const tc = (B.t0 + B.t1) / 2, axis = Wf.side === 's' || Wf.side === 'n' ? 'x' : 'y', centre = Wf.side === 's' || Wf.side === 'w' ? Wf.edge - tc : Wf.edge + tc;
+    const n = Math.max(2, Math.ceil((Wf.a1 - Wf.a0) / 16)), ground = Array.from({ length: n + 1 }, (_, i) => { const u = Wf.a0 + ((Wf.a1 - Wf.a0) * i) / n, z = axis === 'x' ? S(u, Wf.edge) : S(Wf.edge, u); return [r2(u), r2(z)]; }).flat();
+    for (const dir of [1, -1]) for (let k = 0; k < B.lanes; k++) {
+      const sg = (axis === 'x' ? -dir : dir) * hand, L = { axis, cross: r4(centre + sg * (1 + 3.5 * (k + 0.5))), lo: Wf.a0, hi: Wf.a1, dir, total: r2(Wf.a1 - Wf.a0), speed: FLOW.speed, crossings: [], line: `wf-${Wf.side}`, ground };
+      const R = streamOf(seed, 'flow', `wf-${Wf.side}:${dir}:${k}`), want = Math.max(1, Math.round(L.total / (FLOW.spacing * (FLOW.spread[0] + (FLOW.spread[1] - FLOW.spread[0]) * R())))), list = [];
+      for (let j = 0; j < want * 2 && list.length < want; j++) { const p = pick(R); if (p) list.push(p); }
+      own.set(L, { list, start: R() });
+      hw.push(L);
+    }
   }
   const T = { ...TRAFFIC, ...FLOW.T, CAR_LEN: Math.max(...kinds.map((k) => k.len)), CAR_WID: Math.max(...kinds.map((k) => k.wid)) };
   // the crossings: each north-south line over each east-west one, its box the two rights-of-way

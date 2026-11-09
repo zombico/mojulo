@@ -54,6 +54,7 @@ import { townsOf, blockTownsOf } from './towns.js';
 import { isSoft } from './segments.js';
 import { streamOf } from '../city/plan/dice.js';
 import { highwaysOf, highwayLaws } from './highways.js';
+import { waterfrontOf, waterfrontLaws } from './waterfront.js';
 import { terrainField } from '../terrain/terrain-field.js';
 import { profileStreets, climbLift } from '../geotown/profile.js';
 import { assignYards } from './fleets.js';
@@ -311,11 +312,14 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
     heights: { reach: Hs.reach, nodes: Hs.nodes, storeysAt: Hs.storeysAt }, ledger, ...(Object.keys(yards).length ? { yards } : {}) };
   // (its streets' profiles: the arterials', each neighbourhood's, and the stairs a stretch past walkable wants)
   if (PFA) d.profile = { arterials: PFA.streets, neighbourhoods: Object.fromEntries(Object.entries(inner).map(([id, Pn]) => [id, Pn.streets])) };
+  // (its WATERFRONT, waterfront.js: its shores reclaimed, a boulevard along its main one, its segments out past it)
+  const wf = waterfrontOf(d);
+  if (wf.length) d.waterfront = wf;
   // (its HIGHWAYS, highways.js: elevated over its arterials and along its shore, joining its far neighbourhoods)
   const hws = highwaysOf(d);
   if (hws.length) d.highways = hws;
   d.laws = geocityLaws(d);
-  d.laws.push(...highwayLaws(d, hws));
+  d.laws.push(...highwayLaws(d, hws), ...waterfrontLaws(d));
   // 10 an evocation: what it centres on and draws at detail, and the metro to scale it is held to
   if (T.evoke !== 'metro') {
     d.evoked = evokedOf(d, T);
