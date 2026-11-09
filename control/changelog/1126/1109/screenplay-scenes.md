@@ -20,3 +20,9 @@
   the moment plays on; a line left alone plays out and then waits, the cast listening, for the press. However quickly
   or slowly the player reads, the next line starts on its own beat, so the acting that follows in a later step stays
   in step with the words.
+- **Characters act their written scenes.** In a scene written as a script, the characters now perform it in the
+  level: their bodies move with the lines, gestures land on the stressed words, and the listener nods and stays alive
+  while the other speaks. A realistic character's face plays too: the eyes and brows lead the words, and the eyes find
+  whoever they are talking to. When a line has played out and waits for the player, or once the scene is over, everyone
+  goes back to standing and breathing as normal. Characters whose faces the game doesn't animate yet still act with
+  their bodies.

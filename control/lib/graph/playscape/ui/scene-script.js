@@ -28,8 +28,8 @@
  *   a turn                 { do: { walk: { who, to: where it stands, then: 'stay', face } } } (it turns where it stands)
  *   a wait                 { wait }
  *   the end                { do: [{ stop: who }…] }: each body handed back to its own rule (the player's to the player)
- * `looks at`, slow motion, real time and freezes are kept by the blocking and lowered to nothing yet: the face takes the
- * look (the actor's takes on the page), the world clock the time.
+ * `looks at` is no beat: the face's take carries it (its gaze, scene-takes.js, played on the page). Slow motion, real time
+ * and freezes are kept by the blocking and lowered to nothing yet: the world clock takes the time.
  *
  *   readScriptText(text, where)                 → the text, or throws, teaching
  *   lowerScript(text, { people, places, player, seed? }) → { beats, cast, cuts, scene }
@@ -37,13 +37,18 @@
  *     places  { <id>: [x, y, z?] }
  *   scriptsIn(beats)                            → [text]: every script beat, inside choices too
  *   hasScripts(play)                            → whether any scene has one
- *   withScripts(play, { people, places, player }) → the play with each script beat lowered (the same object when none)
+ *   withScripts(play, { people, places, player }, { onScript? }) → the play with each script beat lowered (the same
+ *                                               object when none); each script's line takes name its clip, takeClip
+ *                                               (scene:<id>:<k>, its k-th script), and onScript(clip, lowered) hears it
+ *   scriptStage(manifest, play, anchors, player) → { people, places, player }: the stage both the beats and the takes
+ *                                               are blocked on (scene-takes.js)
  *
  * Pure and deterministic.
  */
 import { actScene, WALK, TURN } from '../../actor/scene.js';
 import { sceneCuts, CLOSE_LOOK } from '../../actor/coverage.js';
 import { parseScreenplay } from '../../actor/screenplay.js';
+import { readSpots, withStands } from './cast.js';
 
 /** the player's mark from the first other character it meets (m): a conversation's distance */
 export const HERO_APART = 1.8;
@@ -66,7 +71,7 @@ export function readScriptText(text, where = 'script') {
 const boxWords = (text) => text.replace(/\*([^*]*)\*/g, '$1').replace(/\[pause[^\]]*\]/gi, ' ').replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
 
 /** One script lowered on the page's people and places (see the header). */
-export function lowerScript(text, { people = {}, places = {}, player = null, seed = 1 } = {}) {
+export function lowerScript(text, { people = {}, places = {}, player = null, seed = 1, clip = null } = {}) {
   const script = readScriptText(text);
   const ids = Object.keys(people);
   if (!ids.length) throw new Error('script: no one on the page to play it (its names are the characters\' ids, in capitals)');
@@ -123,7 +128,8 @@ export function lowerScript(text, { people = {}, places = {}, player = null, see
 
   // each line's take: its span on the scene's clock, from its words' start through the gap after (never into the next
   // line's), the segment the actor's take for it plays over while the box waits for the press
-  const takes = scene.turns.map((T, k) => ({ at: T.at, end: r3(Math.min(T.at + T.hold, scene.turns[k + 1]?.at ?? scene.seconds, scene.seconds)) }));
+  // (with the clip the cast's takes for this script are packed under, and the scene's length it is sampled over)
+  const takes = scene.turns.map((T, k) => ({ at: T.at, end: r3(Math.min(T.at + T.hold, scene.turns[k + 1]?.at ?? scene.seconds, scene.seconds)), ...(clip ? { clip, of: scene.seconds } : {}) }));
   let said = 0;
   scene.beats.forEach((b, i) => {
     beats.push(...shotsAt(i));
@@ -162,15 +168,40 @@ export function scriptsIn(beats) {
 export const hasScripts = (play) => isObj(play) && Array.isArray(play.scenes) && play.scenes.some((s) => scriptsIn(s?.beats).length > 0);
 
 /** The play with each scene's script beats lowered on the page (see the header); the same object when it has none. */
-export function withScripts(play, { people = {}, places = {}, player = null } = {}) {
+export function withScripts(play, { people = {}, places = {}, player = null } = {}, { onScript = null } = {}) {
   if (!hasScripts(play)) return play;
-  const lay = (beats, where) => beats.flatMap((b, j) => {
-    const at = `${where}[${j}]`;
-    if (isObj(b) && b.script !== undefined) {
-      try { return lowerScript(b.script, { people, places, player }).beats; } catch (e) { throw new Error(`play.scenes${at}.script: ${e.message.replace(/^(script|screenplay|scene): /, '')}`); }
-    }
-    if (isObj(b) && isObj(b.choose) && Array.isArray(b.choose.options)) return [{ ...b, choose: { ...b.choose, options: b.choose.options.map((o, k) => (isObj(o) && Array.isArray(o.beats) ? { ...o, beats: lay(o.beats, `${at}.choose.options[${k}].beats`) } : o)) } }];
-    return [b];
-  });
-  return { ...play, scenes: play.scenes.map((s, i) => (isObj(s) && Array.isArray(s.beats) && scriptsIn(s.beats).length ? { ...s, beats: lay(s.beats, `[${i}].beats`) } : s)) };
+  const lower = (scene) => {
+    let k = 0;
+    const lay = (beats, where) => beats.flatMap((b, j) => {
+      const at = `${where}[${j}]`;
+      if (isObj(b) && b.script !== undefined) {
+        // (each script's takes go by the clip its scene and its place in it name: scene:<id>:<k>)
+        const clip = takeClip(scene.id, k++);
+        try {
+          const L = lowerScript(b.script, { people, places, player, clip });
+          if (onScript) onScript(clip, L);
+          return L.beats;
+        } catch (e) { throw new Error(`play.scenes${at}.script: ${e.message.replace(/^(script|screenplay|scene): /, '')}`); }
+      }
+      if (isObj(b) && isObj(b.choose) && Array.isArray(b.choose.options)) return [{ ...b, choose: { ...b.choose, options: b.choose.options.map((o, n) => (isObj(o) && Array.isArray(o.beats) ? { ...o, beats: lay(o.beats, `${at}.choose.options[${n}].beats`) } : o)) } }];
+      return [b];
+    });
+    return lay;
+  };
+  return { ...play, scenes: play.scenes.map((s, i) => (isObj(s) && Array.isArray(s.beats) && scriptsIn(s.beats).length ? { ...s, beats: lower(s)(s.beats, `[${i}].beats`) } : s)) };
+}
+
+/** The clip a script's takes are packed under: its scene, and which of the scene's scripts it is (from 0). */
+export const takeClip = (scene, k) => `scene:${scene}:${k}`;
+
+/** The stage a page's scripts are blocked on: its characters (every body, and the player) where they stand, and its
+ * places (the play's spots, the map's anchors and their stand points). The lowering and the takes read the same one. */
+export function scriptStage(manifest, play, anchors, player) {
+  const people = {}, places = {};
+  for (const e of Array.isArray(manifest?.entities) ? manifest.entities : []) {
+    if (!isObj(e) || typeof e.id !== 'string' || !isObj(e.transform) || !Array.isArray(e.transform.pos)) continue;
+    if (e.id === player || (isObj(e.body) && !e.isCamera)) people[e.id] = { at: e.transform.pos, heading: Number.isFinite(e.transform.heading) ? e.transform.heading : 0 };
+  }
+  for (const p of [...readSpots(play), ...withStands(anchors || [])]) if (p && typeof p.id === 'string' && Array.isArray(p.at)) places[p.id] ??= p.at;
+  return { people, places, player };
 }

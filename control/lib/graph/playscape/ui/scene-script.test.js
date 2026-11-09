@@ -139,8 +139,8 @@ describe('the line clock and the press', () => {
     });
     // read as a scene's line, and carried to the runner's program
     const P = lowerPlay({ entities: ENTITIES, play: { spots: SPOTS, scenes: [{ id: 's', when: { start: true }, beats: [{ script: SCRIPT }] }] } }, { player: 'hero' }).scenes[0];
-    expect(P.beats.filter((b) => b.kind === 'line').map((b) => b.take)).toEqual(takes);
-    expect(() => readScenes({ scenes: [{ id: 'x', when: { start: true }, beats: [{ line: { who: 'a', take: { at: 2, end: 1 } } }] }] })).toThrow(/take is \{ at, end \}/);
+    expect(P.beats.filter((b) => b.kind === 'line').map((b) => b.take)).toEqual(takes.map((t) => ({ ...t, clip: 'scene:s:0', of: L.scene.seconds })));
+    expect(() => readScenes({ scenes: [{ id: 'x', when: { start: true }, beats: [{ line: { who: 'a', take: { at: 2, end: 1 } } }] }] })).toThrow(/take is \{ at, end, clip\?, of\? \}/);
   });
 
   // the scene played to its first line; then each line's take read off the runner's view
@@ -164,7 +164,7 @@ describe('the line clock and the press', () => {
   it('left alone, a line\'s take plays out and holds at its end until the press; however long, the next starts at its own start', () => {
     const L = toLine(level([SCENE])), T = L.ev.scenes[0].beats.filter((b) => b.kind === 'line').map((b) => b.take);
     for (let i = 0; i < Math.ceil((T[0].end - T[0].at + 3) * 30); i++) L.tick();
-    expect(take(L)).toEqual({ t: T[0].end, held: true });                     // held, not drifting on
+    expect(take(L)).toMatchObject({ t: T[0].end, held: true });               // held, not drifting on
     expect(L.view().line.full).toBe(true);
     L.tick({ next: true });
     expect(take(L).t).toBeCloseTo(T[1].at, 1);

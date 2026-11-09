@@ -19,11 +19,12 @@
  *                             and `finish` when a scene is skipped: every walk lands where it was going)
  *   R.view(S)                 → { on, bars (0..1), line: { who, name, text (typed so far), full, expression?, take? } | null,
  *                               choice: { options: [text], sel } | null }   (a choice shows its question as the line)
- *                             take: { t, held } for a line with a take (a script's, scene-script.js): t the script's clock
+ *                             take: { t, held, clip?, u? } for a line with a take (a script's, scene-script.js): t the script's clock
  *                             at this frame, from the line's own start to its end; held once it has played out, the cast
  *                             holding (listening) until the press. A press shows the words; the take plays on; the next
  *                             press goes on, and the next line's take starts at its own start (a held or hurried line
- *                             never drifts the next)
+ *                             never drifts the next); clip the cast's takes for its script, u the phase they play at (t
+ *                             over the script's length)
  *
  * A line types on at RATE characters a second; a press shows it whole, the next goes on. Holding the advance key for
  * HOLD seconds, or Esc, skips: the scene's remaining beats fire at once (their effects land), the walks finish, and the
@@ -163,7 +164,11 @@ export function buildSceneRunner() {
 
   // a line's take on its script's clock: from its own start, never past its end, where the cast holds (listening) until
   // the press; the next line's take starts at its own start, however long this one was held or however soon pressed
-  function takeAt(T, lt) { const len = T.end - T.at, u = Math.min(lt || 0, len); return { t: Math.round((T.at + u) * 1000) / 1000, held: (lt || 0) >= len }; }
+  function takeAt(T, lt) {
+    const len = T.end - T.at, u = Math.min(lt || 0, len), t = Math.round((T.at + u) * 1000) / 1000;
+    // (with its clip: the phase the cast's takes are sampled at, over the script's length)
+    return T.clip ? { clip: T.clip, t, u: Math.min(1, t / T.of), held: (lt || 0) >= len } : { t, held: (lt || 0) >= len };
+  }
 
   function view(S) {
     const A = S.active, L = A && A.line;

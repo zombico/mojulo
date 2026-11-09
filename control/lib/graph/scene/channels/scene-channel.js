@@ -31,7 +31,10 @@ export const SCENE_CSS = `
 .moj-scene-hint{position:fixed;right:16px;z-index:31;font:11px var(--moj-font,system-ui);color:#9aa4b4;pointer-events:none;display:none}
 `;
 
-export function sceneScript() {
+/** Whether a page's scene program plays takes: a line of it names its script's clip (scene-script.js). */
+export const sceneTakesOn = (program) => (program || []).some((sc) => (sc.beats || []).some((b) => b && b.kind === 'line' && b.take && typeof b.take.clip === 'string'));
+
+export function sceneScript({ takes = false } = {}) {
   return `
 // SCENES: the runner (playscape/ui/scene-runner.js), the bars, the box, the keys
 const __SCN = (${buildSceneRunner.toString()})();
@@ -86,7 +89,11 @@ function __stepScenes(dtSec) {
   // the beats' events first, and the cast ops they queue (a walk) handed down, so a skip's finish lands them too
   if (o.fire.length) { __BUS.processEvents(__busState, o.fire.map((type) => ({ type }))); __watchFix(); if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities, window.__mojCtrl.cast); }
   if (o.ops.length && window.__mojCtrl && window.__mojCtrl.cast) window.__mojCtrl.cast(o.ops);
-  const v = __SCN.view(__scn), bar = (v.bars * 11).toFixed(2) + 'vh';
+  const v = __SCN.view(__scn), bar = (v.bars * 11).toFixed(2) + 'vh';${takes ? `
+  // THE TAKES (scene-takes.js): while a script's line plays, its cast plays the script's clip at the line's phase; held
+  // (played out, waiting on the press) or between lines, each goes back to its own clips, the idle's breath and blink
+  const __tk = v.line && v.line.take && v.line.take.clip && !v.line.take.held ? v.line.take : null;
+  if (window.__mojCtrl) window.__mojCtrl.world.take = __tk ? { clip: __tk.clip, u: __tk.u } : null;` : ''}
   __scnTop.style.height = bar; __scnBot.style.height = bar;
   __scnBox.style.bottom = 'calc(' + bar + ' + 16px)';
   __scnHint.style.top = 'calc(' + bar + ' + 8px)';

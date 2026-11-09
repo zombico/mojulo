@@ -203,8 +203,18 @@ then this department directs it (`playscape/ui/scene-script.js`), lowered at bui
   runner keeps that clock while the line is up: a press shows the words whole and the take plays on; left alone, the
   take plays out and the cast holds, listening, until the press; the next press goes on, and the next line's take
   starts at its own start. A held line or a hurried one never drifts the next, so the takes cut at build stay true.
-- **What waits.** The actor's takes themselves (the face and the body, driven by that clock), `looks at`, and the
-  screenplay's slow motion and freezes are lowered to nothing yet, so a scene reads as blocked and shot, not yet acted.
+- **The takes on the page.** Each actor of a script plays its take there (`playscape/ui/scene-takes.js`): blocked on
+  the very stage the beats are lowered on, so its clock is the lines' clock. Its body's act is packed on its own rig as a
+  one-shot clip named for its script (`scene:<id>:<k>`, `worlds/world-kinds.js` `ctx.takes`), and a realistic face, the
+  one face the page plays, gets the take's performance track under the same name: the eyes and brows on the read, the
+  gaze on its partners, `looks at` among it. While a line plays, the scene channel names the take and its phase
+  (`world.take`) and every figure that carries it plays it, the listener as much as the speaker; held for the press,
+  between lines and after, each goes back to its own clips, the idle's breath and blink. An act a rig cannot stand (a
+  beast, a mascot) is left out and that figure plays the scene as blocked; a head with no face on the page plays its
+  body alone.
+- **What it costs.** A take is about 16 kB a scene-second for a realistic hero (its face about 3 of that) and 11 for a
+  plain one, as the page ships it; `TAKE_BUDGET` and `TAKES_PAGE` say when a page's takes are advised against.
+- **What waits.** The screenplay's slow motion and freezes are lowered to nothing yet.
 
 ## Where to look
 

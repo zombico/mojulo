@@ -84,6 +84,9 @@ import { animeFormed } from '@/lib/graph/polygonizer/anime-looks';
 import { formBodied } from '@/lib/graph/polygonizer/hero-form';
 import { emoteTake, emoteClips } from '@/lib/graph/face-acting/emotes';
 import { actClipOn } from '@/lib/graph/actor/act';
+// a scene's takes on the page (ctx.takes): the body's keys a second, the face's frames a second (a take runs a scene's
+// length, so both are under a clip's and an export's: the page's bytes, the scene-takes budget)
+export const TAKE_KEYS = 10, TAKE_FACE_FPS = 15;
 /** a packed face part's rows (`morph: { i, d }`, f32) as 16-bit steps of their largest offset (`{ i, q, s }`): the page's
  * players read `q × s` (rig-preview.js, controllable) */
 function quantMorph({ i, d }) {
@@ -999,12 +1002,30 @@ export const WORLD_KINDS = {
         // light, and the page's clips' the same atlas)
         const paintPack0 = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? heroSkin ?? beastCoat ?? null);
         const paintPack = ctx.face || !lockCoat ? paintPack0 : paintPack0 ? stackPaints(paintPack0, lockCoat) : lockCoat;
+        // A SCENE'S TAKES (ctx.takes, playscape/ui/scene-takes.js: the page's scripts, each actor's act and face take on
+        // its script's clock): each act a one-shot clip on this rig from the actor's stand, under its script's clip name
+        // (scene:<id>:<k>), sampled at TAKE_KEYS a second, the page playing it at the line's phase. An act this rig cannot
+        // stand (no arms the stand finds: a beast's, a mascot's) is left out, and the figure plays the scene as it was.
+        // Absent ⇒ as before.
+        const takeClips = {};
+        if (ctx.takes && R) for (const [k, T] of Object.entries(ctx.takes)) {
+          try { const fn = actClipOn(T.act, R, m.hero); fn.keys = Math.max(2, Math.round(T.act.seconds * TAKE_KEYS) + 1); takeClips[k] = fn; } catch { /* the act left out */ }
+        }
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
-        // authored face with its blinks)
+        // authored face with its blinks; a take's face is its own, below)
         if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, clipsIn, seconds, face.authored, face.K) : heroFaceTracks(m.hero, clipsIn, seconds, face.authored));
+        if (Object.keys(takeClips).length) clipsIn = { ...clipsIn, ...takeClips };
         // THE FACE'S PERFORMANCES (the door's `perform`, face-acting/perform.js): each take played by the realistic face's
         // targets as a LINEAR weights track, a face-only clip an engine layers over a body's (`face:<take>`), derived here
         // and never stored. Absent ⇒ as before.
+        // (each take's face, where the face plays on the page: the realistic one's performance track under the act's
+        // name, so the face the take drives is the one the scene's blocking set, its gaze on its partners; held to the
+        // track's own frames, TAKE_FACE_FPS a second, never the ambient blink over it)
+        if (face?.meta?.tracks && m.hero.head === 'relational') for (const k of Object.keys(takeClips)) {
+          const { t, w } = performanceTrack(perform(ctx.takes[k].perform), { fps: TAKE_FACE_FPS });
+          face.meta.tracks[k] = { t, w };
+          if (Array.isArray(face.meta.ambientOver)) face.meta.ambientOver = face.meta.ambientOver.filter((c) => c !== k);
+        }
         if (face?.meta && m.hero.head === 'relational' && m.hero.perform) face.meta.performances = Object.fromEntries(Object.entries(m.hero.perform).map(([k, P]) => [k, performanceTrack(perform(P))]));
         // (the ANIME face's: each take read as drawings, face-acting/anime-read.js, a STEP track on its targets: the 7G
         // drawings where its rig draws them, anime-face-rig.js sevenG, else lowered to its four channels, painted or drawn)

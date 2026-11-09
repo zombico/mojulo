@@ -149,8 +149,11 @@ function readLine(l, at) {
   if (l.say !== undefined && !words(l.say)) throw err(`${at}.say is the line, in words (leave it out for a placeholder)`);
   if (l.expression !== undefined && !(typeof l.expression === 'string' && ID.test(l.expression))) throw err(`${at}.expression is a word (smiling, worried…)`);
   // (take: the line's span on its script's clock, scene-script.js writes it: the actor's take for the line plays over it)
-  if (l.take !== undefined && !(isObj(l.take) && Object.keys(l.take).length === 2 && Number.isFinite(l.take.at) && Number.isFinite(l.take.end) && l.take.at >= 0 && l.take.end > l.take.at)) throw err(`${at}.take is { at, end }: the line's span on its script's clock, seconds (at ≥ 0, end > at)`);
-  return { who: l.who, ...(l.say !== undefined ? { say: l.say.trim() } : {}), ...(l.expression ? { expression: l.expression } : {}), ...(l.take ? { take: { at: l.take.at, end: l.take.end } } : {}) };
+  // (and the clip the cast's takes for its script are packed under, sampled over the script's length `of`)
+  const T = l.take, timed = isObj(T) && Number.isFinite(T.at) && Number.isFinite(T.end) && T.at >= 0 && T.end > T.at;
+  const clipped = isObj(T) && (T.clip === undefined ? T.of === undefined : typeof T.clip === 'string' && /^scene:[a-z][a-z0-9-]*:\d+$/.test(T.clip) && Number.isFinite(T.of) && T.of >= T.end);
+  if (T !== undefined && !(timed && clipped && Object.keys(T).every((k) => ['at', 'end', 'clip', 'of'].includes(k)))) throw err(`${at}.take is { at, end, clip?, of? }: the line's span on its script's clock, seconds (at ≥ 0, end > at), and the takes' clip (scene:<id>:<n>) over the script's length of`);
+  return { who: l.who, ...(l.say !== undefined ? { say: l.say.trim() } : {}), ...(l.expression ? { expression: l.expression } : {}), ...(T ? { take: { at: T.at, end: T.end, ...(T.clip ? { clip: T.clip, of: T.of } : {}) } } : {}) };
 }
 
 function readChoose(C, at, ctx, depth) {
