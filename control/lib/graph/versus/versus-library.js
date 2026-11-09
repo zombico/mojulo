@@ -16,6 +16,10 @@
  *                    (an overhead), grab (a command throw); each at L / M / H.
  *   SUPERS           a special's bigger self: a freeze, invincibility, damage, a full meter; a `lock` makes it a script
  *                    once it catches: a hit-combo super (in the fight) or a cutscene super (the clock stops).
+ *   PRIORITY         who wins a trade: two strikes landing on the same frame, the higher level's lands and the other's
+ *                    does not (equal levels trade). It scales with strength (a light 1, a medium 2, a heavy 3), a
+ *                    special's is its own (a rush ploughs through, an overhead comes down on top), a super's is 4, and a
+ *                    reversal's (the DP, `rps: 'reversal'`) is 0: its invincibility is how it wins, never a trade.
  *   WEAPONS          what a fighter may hold: a blade on the grip hand that its strikes hit with (versus-compile.js
  *                    lays the blade, its disjoint and what that costs).
  *
@@ -57,9 +61,9 @@ POSES.lose = P(POSES.crouch, { torso: 60, head: 70, armF: [5, 0], armB: [-5, 0] 
 
 // a strength's frame shape, damage and intended advantage; a family's tempo stretches startup and recovery
 export const STRENGTHS = Object.freeze({
-  L: { startup: 4, active: 2, recovery: 7, damage: 30, adv: { hit: 4, block: 1 }, hitstop: 8, push: 140, meter: 20 },
-  M: { startup: 6, active: 3, recovery: 13, damage: 60, adv: { hit: 4, block: -1 }, hitstop: 10, push: 180, meter: 30 },
-  H: { startup: 9, active: 3, recovery: 20, damage: 90, adv: { hit: 2, block: -4 }, hitstop: 12, push: 220, meter: 40 },
+  L: { startup: 4, active: 2, recovery: 7, damage: 30, adv: { hit: 4, block: 1 }, hitstop: 8, push: 140, meter: 20, priority: 1 },
+  M: { startup: 6, active: 3, recovery: 13, damage: 60, adv: { hit: 4, block: -1 }, hitstop: 10, push: 180, meter: 30, priority: 2 },
+  H: { startup: 9, active: 3, recovery: 20, damage: 90, adv: { hit: 2, block: -4 }, hitstop: 12, push: 220, meter: 40, priority: 3 },
 });
 
 export const STANCES = Object.freeze(['stand', 'crouch', 'air']);
@@ -172,6 +176,7 @@ export const SPECIALS = Object.freeze({
     strike: P(POSES.guard, { torso: 20, armF: [90, 90], armB: [84, 88], legF: [38, -8, 90], legB: [-38, -30, 70], hip: [80, 0] }),
     at: { L: { startup: 13, recovery: 30, speed: 45 }, M: { startup: 12, recovery: 31, speed: 60 }, H: { startup: 11, recovery: 32, speed: 80 } },
     damage: 60, chip: 15, guard: 'mid', projectile: { w: 260, h: 220, y: -260, life: 150 }, adv: { hit: 0, block: 0 }, hitstop: 10, push: 160, meter: 40,
+    priority: 1,
   },
   rising: {
     rps: 'reversal', limb: 'fistB', motion: '623', says: 'the invincible reversal: it beats everything but a block, and a block punishes it',
@@ -183,6 +188,7 @@ export const SPECIALS = Object.freeze({
       H: { startup: 5, active: 12, landing: 22, damage: 130, invuln: 10, vel: [30, 125] },
     },
     guard: 'mid', knock: 'launch', juggle: true, airborne: 4, hitstop: 14, push: 0, meter: 60, chip: 10,
+    priority: 0,
   },
   rush: {
     rps: 'rush', limb: 'elbowF', motion: '214', says: 'a rush: it closes the distance and ends a combo, it is unsafe if blocked close',
@@ -194,6 +200,7 @@ export const SPECIALS = Object.freeze({
       H: { startup: 16, active: 6, recovery: 22, damage: 110, travel: 85, adv: { hit: 0, block: -10 }, knock: 'down' },
     },
     guard: 'mid', hitstop: 12, push: 260, meter: 40, chip: 12,
+    priority: { L: 2, M: 3, H: 4 },
   },
   spin: {
     rps: 'rush', limb: 'toeF', motion: '214', says: 'a spinning kick that travels, low-risk at range, it passes over low pokes',
@@ -205,6 +212,7 @@ export const SPECIALS = Object.freeze({
       H: { startup: 14, active: 12, recovery: 18, damage: 110, travel: 60, adv: { hit: 2, block: -8 }, knock: 'down' },
     },
     guard: 'mid', hits: 2, hitstop: 10, push: 200, meter: 40, chip: 10, lift: 160,
+    priority: { L: 2, M: 2, H: 3 },
   },
   leap: {
     rps: 'overhead', limb: 'fistB', motion: '22', says: 'a leaping overhead: it must be blocked standing, slow enough to react to',
@@ -216,6 +224,7 @@ export const SPECIALS = Object.freeze({
       H: { startup: 22, active: 4, recovery: 16, damage: 90, travel: 60, adv: { hit: 3, block: -6 } },
     },
     guard: 'overhead', hitstop: 12, push: 200, meter: 40, chip: 8,
+    priority: 3,
   },
   grab: {
     rps: 'throw', limb: 'fistF', motion: '41236', says: 'a command throw: it beats a block from further away than a throw, a whiff is very punishable',
@@ -245,7 +254,7 @@ export const SUPERS = Object.freeze({
   },
   'super-rising': {
     from: 'rising', says: 'the reversal at full height: invincible and long, the anti-air that ends a round',
-    startup: 4, active: 18, landing: 30, damage: 340, hits: 4, rehit: 4, invuln: 16, freeze: 40, vel: [24, 150],
+    startup: 4, active: 18, landing: 30, damage: 340, hits: 4, rehit: 4, invuln: 16, freeze: 40, vel: [24, 150], priority: 0,
   },
   'super-chain': {
     from: 'rush', says: 'the hit-combo super: the first blow catches and the rest follow on their own, in the fight\'s own camera, every hit landing; blocked, one blocked blow',
@@ -262,6 +271,12 @@ export const SUPERS = Object.freeze({
 });
 
 export const SUPER_COST = 1000;
+
+/** THE PRIORITY SCALE: a strike's level, 0 … PRIORITY_MAX, read where two strikes land on the same frame. A super's is
+ * PRIORITY.super unless its record says; a special's or a super's record without one takes its kind's (`rps`): a
+ * reversal 0, anything else its strength's. */
+export const PRIORITY_MAX = 5;
+export const PRIORITY = Object.freeze({ super: 4, rps: Object.freeze({ reversal: 0 }) });
 export const METER_MAX = 1000;
 
 // ── weapons ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -301,4 +316,5 @@ export const SYSTEMS = Object.freeze({
   strings: 'a fighter\'s strings (its recipe\'s `strings`): each press of the next in order follows on from the last, hit, block or whiff',
   bound: 'normals juggle a falling body (up to rules.juggle hits), and a heavy blow on one slams it down so it bounds back up, once a combo: the juggle goes on',
   sidestep: 'a tap of up steps aside (off the line, in 2D a dodge): strikes and shots pass through for rules.sidestepInvuln frames; a throw still catches',
+  spark: 'a counter hit struck on the strike\'s very first active frame is a SPARK: half again the damage, the moment held (rules.sparkStop) and drawn as a black spark, meter (rules.sparkMeter)',
 });

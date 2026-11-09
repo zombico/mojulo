@@ -218,8 +218,9 @@ describe('world-scene kinds — side tables pinned as literals', () => {
     // re-pinned 2026-10-13 (driving primitives): + 'roadway' — a road built for driving, stood in at its driver's eye.
     // re-pinned 2026-10-14 (interior designer): + 'interior' — a room fitted out in its house is walked from its middle.
     // re-pinned 2026-10-14 (skyscape): + 'airspace' — a flight map is walked (and free-flown) from its runway's threshold.
+    // re-pinned 2026-11-08 (1107-fg-remake): + 'greybox' — a level blocked out in boxes is walked on its floor.
     expect([...WALK_KINDS].sort()).toEqual([
-      'airspace', 'city', 'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'geocube', 'heartbeat', 'historic', 'interior', 'koenigsberg', 'mall', 'math-structure',
+      'airspace', 'city', 'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'geocube', 'greybox', 'heartbeat', 'historic', 'interior', 'koenigsberg', 'mall', 'math-structure',
       'office', 'painted-landscape', 'restaurant', 'roadway', 'room', 'school-complex', 'stage', 'store',
       'subway-building', 'subway-station', 'terrain', 'transportation-hub',
     ]);

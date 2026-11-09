@@ -400,6 +400,15 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // fighters are no characters and name no level; its versus-react.js, a body out cold lying on its back (LIMP), which
 // the fixture's fight draws only at a knockout; and the arena's fight read off the page's clock in milliseconds (it had
 // read them as seconds, six fight frames a drawn frame).
+// Re-pinned 2026-11-07 (1107-fg-remake: a fight on any level, by its lane): `versus` only. Its page inlines
+// versus-arena.client.js by its source, which now draws the whole fight in the lane's frame (versus/versus-lane.js): a
+// group set at the lane's centre on its floor and turned by its heading, every fight object in it, the camera, the
+// overlay's projection and the lit bodies' key mapped through it, a lane's `back` capping the camera. The fixture's
+// arena names no lane: its plane at heading 0, the group only lifting the fight where it always stood.
+// Re-pinned 2026-11-08 (1107-fg-remake: the anime register in the fight): `versus` only. Its page inlines
+// versus-arena.client.js by its source, which gains a TOON body (versus-character.js toonBody: a character drawn in the
+// character light, its lit and shade tones baked per corner), stepped by the arena's key in a toon material so both
+// fighters are lit from the camera's side. The fixture's fighters are stick figures, drawn as before.
 // Re-pinned 2026-11-05 (1105-rpg-slice: a packed page packs its plain groups): `live-shadows-actors` only, the one
 // fixture laid with `pack: true`. Its plain groups ride their positions on a uint16 grid and their colours as sRGB bytes
 // (packGroupArrays), decoded by the page to the same Float32Arrays; every fixture without `pack` is unchanged.
@@ -455,6 +464,23 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-06 (1105-platformer-lv0-spike merging 1105-rpg-slice's pixel budget): the same fixtures, their
 // emission the re-pins above together (the platform rule's takes, wall, dash and camera move; the knockback seams; the
 // pixel budget of a page played live, one draw a figure).
+// Re-pinned 2026-11-08 (1107-fg-remake merging 1105-rc): `versus` only, its emission the re-pins above together (the
+// candidate's runtime changes, and this branch's lane frame and toon body).
+// Re-pinned 2026-11-08 (1107-fg-remake: the training ground): `versus` only. Its page inlines versus-arena.client.js by
+// its source, which frames a level whose view is `near` (versus-levels.js, the training ground's) as it frames the ring;
+// the fixture's arena names no view and is framed as before.
+// Re-pinned 2026-11-08 (1107-fg-remake: priority, joint limits, the body kept out of itself): `versus` only. Its page
+// inlines versus-core.js (a trade won by the higher priority), versus-rig.js (a pose held within RIG_LIMITS as it becomes
+// joints), versus-figure.js (FIG_LIMITS and FIG_BULK in the round) and the runtime's PRIORITY flash.
+// Re-pinned 2026-11-08 (1107-fg-remake: the fight's register): `versus` only. Its page inlines versus-arena.client.js,
+// which lights every body one way under a register (a rig whose key casts, the renderer's shadows on); the fixture's
+// arena names no register and lights its bodies as before.
+// Re-pinned 2026-11-08 (1107-fg-remake: the fight's effects): `versus` only. Its page inlines versus-fx.js (the cards,
+// the elements), versus-fx.client.js (drawn in the round under a register), versus-core.js (a blow's place, weight, limb
+// and kind on its events; the spark system) and the runtime's sparks standing down where the arena draws them; the
+// fixture's arena names no register and draws its sparks as before.
+// Re-pinned 2026-11-08 (1107-fg-remake: the figure coated): `versus` only. Its page inlines versus-arena.client.js, whose
+// register materials carry a fresnel coat (bodyCoat) the effects drive; the fixture's arena names no register.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

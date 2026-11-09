@@ -1,0 +1,15 @@
+{
+  "id": "fight-lit",
+  "name": "Fight Lit",
+  "about": "A realistic fighter's: the clean look under light, a soft gradient plate, a shadow under the words, warm gold health and a restrained palette; the western register's look.",
+  "family": "fight",
+  "tags": ["fighting game", "versus", "realistic"],
+  "author": "mojulo",
+  "from": "fight-clean",
+  "tokens": { "ink": "#f2f4f6", "panel": "#14171b", "line": "#4a525c", "accent": "#e8b04a", "accent2": "#5fc3ff", "harm": "#c23b2e", "hp": "#e8c45a", "xp": "#5fc3ff", "shield": "#a9c7de", "boss": "#c23b2e" },
+  "plate": "gradient",
+  "halo": "shadow",
+  "backdrop": "blur",
+  "sounds": "glass",
+  "sides": ["#e2483d", "#3a8dde"]
+}

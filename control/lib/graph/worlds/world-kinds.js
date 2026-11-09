@@ -35,6 +35,7 @@ import { attachDummy } from '@/lib/graph/local-meru/dummy';
 import { assembleBoardScene } from '@/lib/graph/board/board-scene';
 import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
+import { assembleGreyboxScene } from '@/lib/graph/level/greybox-scene';
 import { assembleCityScene, cityFogBoxes } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { historicAudio } from '@/lib/graph/historic/soundtrack';
@@ -619,6 +620,13 @@ export const WORLD_KINDS = {
     title: 'mojulo heartbeat',
     walk: true,
     resolve: (m, ctx) => assembleHeartbeatScene(m, { title: ctx.title }),
+  },
+  // a level blocked out in boxes (level/greybox-scene.js): its masses in values under one sun, before any look; a fight is
+  // laid on one by its lane (versus/versus-levels.js) as on any level.
+  greybox: {
+    title: 'mojulo greybox',
+    walk: true,
+    resolve: (m, ctx) => assembleGreyboxScene(m, { title: ctx.title === 'mojulo greybox' ? undefined : ctx.title }),
   },
   // a culture at its period (historic/historic-kind.js): the town, its land, a farmstead or the works, on the
   // World page. The builder's own title ('mojulo historic city · New Kingdom Thebes') unless the row names one.

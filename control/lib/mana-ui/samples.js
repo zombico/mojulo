@@ -102,6 +102,45 @@ export const SAMPLE_STATE = Object.freeze({
   ],
   // the live game, across the kinds of game: a fight, a race, a firefight, a field, a match, a cutscene
   versus: { p1: { name: 'Ayla', hp: 620, hpMax: 1000, ghost: 780, rounds: 1, super: 2, superMax: 3 }, p2: { name: 'Bram', hp: 410, hpMax: 1000, ghost: 410, rounds: 1, super: 1, superMax: 3 }, time: 47, combo: 7 },
+  // a fighting game's (idioms-fight.js): the two sides, the round, the callouts and the announcer, training, the roster,
+  // the command list and the match's end
+  fight: {
+    p1: { tag: 'P1', name: 'Ayla', style: 'Rushdown', hp: 620, hpMax: 1000, ghost: 780, rounds: 1, super: 2.4, stock: 2, guard: 640, burst: 1, combo: 7, comboDamage: 238,
+      calls: [{ id: 'c1', text: 'Counter', sub: '+62', weight: 'normal' }, { id: 'c2', text: 'Spark', sub: '+141', weight: 'major', tier: 'rare' }] },
+    p2: { tag: 'P2', name: 'Bram', style: 'Grappler', hp: 410, hpMax: 1000, ghost: 410, rounds: 1, super: 1.3, stock: 1, guard: 1000, burst: 0, combo: 0, comboDamage: 0, calls: [{ id: 'c3', text: 'Reversal', weight: 'normal' }] },
+    time: 47, round: 3, toWin: 2, stocks: 3, guardMax: 1000, arena: 'Training ground',
+    announcer: [{ id: 'r3', text: 'Final round', weight: 'decisive' }, { id: 'go', text: 'Fight!', weight: 'decisive' }],
+    pausedBy: { tag: 'P1', side: 0 },
+    roster: [
+      { id: 'ayla', name: 'Ayla', style: 'Rushdown', stats: [{ label: 'Speed', value: 5, max: 5 }, { label: 'Power', value: 3, max: 5 }, { label: 'Reach', value: 2, max: 5 }] },
+      { id: 'bram', name: 'Bram', style: 'Grappler', stats: [{ label: 'Speed', value: 2, max: 5 }, { label: 'Power', value: 5, max: 5 }, { label: 'Reach', value: 3, max: 5 }] },
+      { id: 'kesh', name: 'Kesh', style: 'Zoner', stats: [{ label: 'Speed', value: 3, max: 5 }, { label: 'Power', value: 3, max: 5 }, { label: 'Reach', value: 5, max: 5 }] },
+      { id: 'mira', name: 'Mira', style: 'All-rounder', stats: [{ label: 'Speed', value: 4, max: 5 }, { label: 'Power', value: 4, max: 5 }, { label: 'Reach', value: 3, max: 5 }] },
+    ],
+    moves: [
+      { label: 'Normals', moves: [
+        { name: 'Jab', input: 'LP', about: 'The fastest button: it interrupts pressure.', data: [{ what: 'Startup', value: 4 }, { what: 'Active', value: 2 }, { what: 'Recovery', value: 7 }, { what: 'On hit', value: '+4' }, { what: 'On block', value: '+1' }, { what: 'Damage', value: 30 }] },
+        { name: 'Sweep', input: '↓ HK', about: 'A low that knocks down; punished on block.', data: [{ what: 'Startup', value: 9 }, { what: 'Active', value: 3 }, { what: 'Recovery', value: 20 }, { what: 'On hit', value: 'KD' }, { what: 'On block', value: '-12' }, { what: 'Damage', value: 90 }] },
+      ] },
+      { label: 'Specials', moves: [
+        { name: 'Rising strike', input: '→↓↘ P', about: 'The invincible reversal: it beats everything but a block.', data: [{ what: 'Startup', value: 3 }, { what: 'Active', value: 8 }, { what: 'Recovery', value: 'land' }, { what: 'On block', value: '-34' }, { what: 'Damage', value: 90 }] },
+      ] },
+    ],
+    training: {
+      inputs: [{ text: '→↓↘ + HP' }, { text: '↓ + LK' }, { text: '← (12f)' }],
+      frames: [{ value: '1', variant: 'muted' }, { value: '2', variant: 'muted' }, { value: '3', variant: 'muted' }, { value: '4', variant: 'strong' }, { value: '5', variant: 'strong' }, { value: '6', variant: 'plain' }, { value: '7', variant: 'plain' }],
+      advantage: '+1', stats: [{ label: 'Damage', value: 238 }, { label: 'Hits', value: 7 }, { label: 'Max combo', value: 312 }],
+      dummy: 'Stand', block: 'After first hit', counter: false, boxes: true, meter: true,
+      settings: [
+        { kind: 'cycler', label: 'Dummy', var: 'fight.training.dummy', options: ['Stand', 'Crouch', 'Jump', 'CPU', 'Record'] },
+        { kind: 'cycler', label: 'Guard', var: 'fight.training.block', options: ['None', 'All', 'After first hit', 'Random'] },
+        { kind: 'toggle', label: 'Counter hits', var: 'fight.training.counter' },
+        { kind: 'toggle', label: 'Hitboxes', var: 'fight.training.boxes' },
+        { kind: 'toggle', label: 'Frame meter', var: 'fight.training.meter' },
+      ],
+    },
+    results: { outcome: 'Ayla wins', winner: 'Ayla', tag: 'P1', side: 0, quote: 'You blinked first.', stats: [{ label: 'Damage', value: 1000 }, { label: 'Max combo', value: 312 }, { label: 'Counters', value: 4 }, { label: 'Sparks', value: 1 }] },
+  },
   race: { position: '3/8', lap: '2/3', speed: 142, speedMax: 240, time: 83, best: 79 },
   shooter: {
     threats: [{ bearing: 130 }, { bearing: 250 }],

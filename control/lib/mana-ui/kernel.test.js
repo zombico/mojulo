@@ -196,8 +196,9 @@ describe('mana-ui: the live game', () => {
   it('a fighter\'s bar shows the chip of the last hit, and the second fighter\'s fills from the right', () => {
     const v = hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 8, dir: 'rtl' } })]).view();
     expect(v).toContain('data-dir="rtl"');
-    expect(v).toContain('<u style="left:60%;width:20%"></u>');
-    expect(hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 4 } })]).view()).not.toContain('<u ');   // healing leaves no chip
+    expect(v).toContain('<u style="width:80%"></u>');
+    // (healing leaves no chip: it sits wholly under the fill, so it drains rather than vanishing)
+    expect(hudOf([at({ use: 'bar', props: { value: 6, max: 10, ghost: 4 } })]).view()).toContain('<u style="width:60%"></u>');
   });
   it('what is off screen is held at the edge with an arrow toward it; what is on screen is not', () => {
     const v = hudOf([{ use: 'edges', props: { markers: [{ x: 1.4, y: 0.5, kind: 'goal' }, { x: 0.5, y: -0.2, kind: 'foe' }, { x: 0.4, y: 0.4, kind: 'ally' }] } }]).view();

@@ -1,7 +1,8 @@
 // Every family of every tradition, swept (the law tests pick one move per procedure; this walks them all): each
 // compiles on its own tradition's guard, holds its fighter's laws, and seen from the side its round body is the sim's
-// figure on every frame it is not turned about the vertical (the hands, the feet and the pelvis on the sim's points),
-// so what the arena draws hitting is where the hitbox is.
+// figure on every frame it is not turned about the vertical (the hands and the pelvis on the sim's points; the feet too,
+// or turned off them a little by the ankle held against the shin as it is drawn, and on a kick's active frames within a
+// few millimetres), so what the arena draws hitting is where the hitbox is.
 import { describe, it, expect } from 'vitest';
 import { TRADITIONS, FAMILIES, traditionRests } from './versus-traditions.js';
 import { NORMAL_FAMILIES } from './versus-library.js';
@@ -27,7 +28,7 @@ describe('versus traditions, swept', () => {
 
   it('every family\'s frames, seen from the side, are the sim\'s figure wherever the body is not turned about the vertical', () => {
     const F = compileFighter(solveFighter({ id: 'k' }).recipe), base = figureBase(F.body);
-    const worst = {};
+    const worst = {}, striking = {}, toes = {};
     for (const [id, fam] of Object.entries(FAMILIES)) {
       const t = homeOf[id], rests = traditionRests(t) ?? undefined;
       const stance = t ? solveFighter({ id: 'k', tradition: t }).recipe.stance : F.stance;
@@ -40,13 +41,23 @@ describe('versus traditions, swept', () => {
           const N = figurePose(base, J, { face, air: !!pose.air, stance, twist: pose.twist ?? 0, sway: pose.sway ?? 0, tilt: pose.tilt ?? 0, ...(pose.hands ? { hands: pose.hands } : {}), ...(pose.feet ? { feet: pose.feet } : {}) });
           const lead = face > 0 ? 'L' : 'R', rear = lead === 'L' ? 'R' : 'L';
           let w = near2(side(N.pelvisHub), J.pelvis);
-          for (const [S, X] of [[lead, 'F'], [rear, 'B']]) w = Math.max(w, near2(side(N[`wrist${S}`]), J[`hand${X}`]), near2(side(N[`toe${S}`]), J[`toe${X}`]));
+          // (a toe is the sim's, or turned off it by the ankle held against the shin as it is drawn, versus-figure.js: a
+          // foot never folded up into it; on a kick's active frames its striking toe stays within a few millimetres)
+          const active = f >= m.startup && f < m.startup + m.active;
+          for (const [S, X] of [[lead, 'F'], [rear, 'B']]) {
+            w = Math.max(w, near2(side(N[`wrist${S}`]), J[`hand${X}`]));
+            const off = near2(side(N[`toe${S}`]), J[`toe${X}`]);
+            toes[id] = Math.max(toes[id] ?? 0, off);
+            if (active && (m.limb === `toe${X}` || m.limb === `ankle${X}`)) striking[id] = Math.max(striking[id] ?? 0, off);
+          }
           worst[id] = Math.max(worst[id] ?? 0, w);
         }
       }
     }
     const off = Object.entries(worst).filter(([, w]) => w >= 2).map(([id, w]) => `${id} ${Math.round(w)}mm`);
     expect(off).toEqual([]);
+    expect(Object.entries(striking).filter(([, w]) => w >= 6).map(([id, w]) => `${id} ${Math.round(w)}mm`)).toEqual([]);
+    expect(Object.entries(toes).filter(([, w]) => w >= F.body.foot / 5).map(([id, w]) => `${id} ${Math.round(w)}mm`)).toEqual([]);
     expect(Object.keys(worst).length).toBe(Object.keys(FAMILIES).length);
     expect(Object.keys(NORMAL_FAMILIES).every((f) => FAMILIES[f] === NORMAL_FAMILIES[f])).toBe(true);
   });

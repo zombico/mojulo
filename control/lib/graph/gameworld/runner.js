@@ -783,7 +783,8 @@ function quickSteps(world, G, ref, lookup) {
     // the game's setting (cast-setting.js), as every other quick goal's people are rolled in: its tradition how a
     // fighter's body is drawn (its own `tradition` is how it strikes), its era and the world's colours; the fight genre
     // leans the roll toward fighters and never to a mascot, and the roster's own facets win
-    const setting = settingOfGame(G, Q);
+    // (a fight made now names its one look, its register: its fighters are rolled in that tradition, drawn one way)
+    const setting = Q.register ? { ...settingOfGame(G, Q), tradition: Q.register } : settingOfGame(G, Q);
     const roster = [];
     // (a boxer's own strikes, solved on its rig, when the fight strikes so: versus-hero.js, the one tradition a character
     // throws its own way; every other fighter keeps its style's or its tradition's moves, played on its own body as

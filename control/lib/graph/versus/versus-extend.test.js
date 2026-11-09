@@ -146,6 +146,53 @@ describe('versus extend: weapons', () => {
   });
 });
 
+describe('versus extend: priority', () => {
+  // two jabs that land on the same frame: one fighter's tuned to a higher level
+  const strong = withRecipe({ normals: { ...base.normals, 'stand.L': { ...base.normals['stand.L'], tune: { priority: 3 } } } });
+  const both = (d, fighters) => {
+    const { ctx, s } = fight(d, fighters);
+    return run(s, ctx, 20, (k) => [{ x: 0, y: 0, b: tap(k, 0, BTN.L) }, { x: 0, y: 0, b: tap(k, 0, BTN.L) }]);
+  };
+  const traded = (fighters) => {
+    for (let d = 500; d <= 1400; d += 25) {
+      const r = both(d, fighters);
+      const hits = r.events.filter(([, e]) => e.t === 'hit' || e.t === 'counter');
+      if (hits.length) return { r, hits };
+    }
+    return null;
+  };
+
+  it('equal levels trade; the higher level lands alone, the other strike does not', () => {
+    const even = traded([K, K]);
+    expect(new Set(even.hits.map(([, e]) => e.p))).toEqual(new Set([0, 1]));
+    const won = traded([strong, K]);
+    expect(won.hits.map(([, e]) => e.p)).toEqual([0]);
+    expect(won.r.events.find(([, e]) => e.t === 'priority')[1]).toMatchObject({ p: 0, over: [3, 1] });
+    expect(won.r.s.p[0].hp).toBe(strong.hp);
+  });
+
+  it('the scale: a normal\'s strength, a special\'s own, a super 4, the DP 0; a tune moves it within 0 to 5', () => {
+    expect(['L', 'M', 'H'].map((k) => K.moves[`stand.${k}`].priority)).toEqual([1, 2, 3]);
+    const all = withRecipe({ specials: { neutral: { id: 'rising' }, forward: { id: 'rush' }, back: { id: 'spin' }, down: { id: 'leap' } }, super: { id: 'super-rising' } });
+    const at = (dir) => ['L', 'M', 'H'].map((k) => all.moves[`special.${dir}.${k}`].priority);
+    expect(at('neutral')).toEqual([0, 0, 0]);
+    expect(at('forward')).toEqual([2, 3, 4]);
+    expect(at('back')).toEqual([2, 2, 3]);
+    expect(at('down')).toEqual([3, 3, 3]);
+    expect(all.moves.super.priority).toBe(0);
+    expect(withRecipe({ super: { id: 'super-rush' } }).moves.super.priority).toBe(4);
+    expect(K.moves.throw.priority).toBeUndefined();
+    expect(() => withRecipe({ normals: { ...base.normals, 'stand.L': { ...base.normals['stand.L'], tune: { priority: 6 } } } })).toThrow(/priority is a whole number from 0/);
+  });
+
+  it('the laws: priority is paid for in frames, and the DP yields', () => {
+    expect(lawsFor(K).filter((l) => /priority|reversal-yields/.test(l.id)).every((l) => l.ok)).toBe(true);
+    expect(lawsFor(strong).find((l) => l.id === 'priority-pays')).toMatchObject({ ok: false });
+    const dp = withRecipe({ specials: { neutral: { id: 'rising', tune: { priority: 2 } } } });
+    expect(lawsFor(dp).find((l) => l.id === 'reversal-yields')).toMatchObject({ ok: false });
+  });
+});
+
 describe('versus extend: systems and rules', () => {
   it('absent, the systems change nothing: the same seed is the same fight, and no state carries them', () => {
     const a = runVersus({ fighters: [base, base], seed: 9, maxFrames: 1200 });

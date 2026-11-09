@@ -530,6 +530,10 @@ into the sample state (`samples.js`).
 
 A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used as a screen of the spec.
 
+- `idioms-fight.js` — a fighting game's own language (below): the top frame, the meters, a side's combo and callouts, the
+  announcer, training's readouts; the face-off, fighter select, the fight's pause, the command list, training's settings,
+  the match's results.
+
 ### The live game
 
 `idioms-live.js` covers what shows during play in each kind of game:
@@ -560,6 +564,72 @@ second look of its own. `style-rules.test.js` holds every component to that:
 
 A part that is its own frame (the aim, a moment's banner, a phone's controls) sits bare over the world. The aim keeps
 a halo in the panel's colour so it reads over any scene.
+
+## The fight's language
+
+A fighting game's UI is its own language, not a party game's: quiet so the fight reads, side against side. It is grown
+from the shared templates (the live fight's bars, meters and combo; the moments; the selects, the pause and the
+results) and drawn by the same components, sheet and themes. It lives in `idioms-fight.js` (shelf `fight`) and holds to
+ten principles:
+
+1. **Two sides, one centre.** Everything mirrors across the centre line: the first fighter's parts on the left, the
+   second's on the right, its bars filling from the right. Each side is keyed to its kit (the theme's `sides` 0 and 1)
+   and to its tag and name, never a colour alone. The second side is the first's reflection, part for part: a row's
+   parts reversed (the tag on its own line at the outer end on both), each at the same distance from its edge; over the round a row's
+   parts are centred across and figures take even widths, so a 1 and a 2 move nothing. The select too: each seat's
+   fighter at its own edge, the roster between them.
+2. **Health is the frame.** The two bars own the top edge (`size: large`), meeting at the clock between them, read by
+   their length (`figures: false`, never a number). Each side's tag sits on its own line over its bar's outer end, the
+   guard is a thin line under each (`size: thin`), the name under it at the outer end, the rounds won are dots by the
+   clock, and the chip of the last combo is hatched.
+3. **The fight is never covered.** The middle of the screen is the fighters'. A side's combo and callouts sit at its own
+   edge, the meters along the foot; the announcer takes the centre only between exchanges.
+4. **A callout is a word.** Counter, punish, reversal, parry, a guard crushed, a spark: one display word slammed in at
+   its side, weighed (a spark outweighs a counter), held a moment on the fight's clock, its line the damage. Never a
+   sentence, and quicker than the round's words, so the fight goes on under it.
+5. **The ritual.** The round's words (round n, final round, fight, K.O., time, draw, perfect, a winner) are moments at
+   the centre, decisive, one at a time, each read before the next.
+6. **Meters in stocks.** The super in segments, a stock a segment; the guard a shield that can be crushed; a burst a
+   mark.
+7. **The hit-stop holds it.** The game holds the runtime through a hit-stop (`rt.hold`), so a bar's fall and a callout's
+   entrance freeze with the blow and land with it.
+8. **Quiet.** The fight's parts sit bare over the round (a region's `variant: bare`: no plate across the screen, each
+   word on its halo, each bar its own frame). Its looks never lean, stack, break out or slam. The elements do their
+   talking: the frame says no word but the names (no round caption, no meter labels, no figures on a bar), training's
+   readouts carry no headings, a stock is its numeral.
+9. **The bars are lit and move with what happened.** Over the round a bar is not flat: its track sunk, the bar on a
+   soft shadow, each fill glossed with a bright leading edge. A hit drops the fill quickly and flashes the slice it
+   took once; the chip (`ghost`) holds what the combo took and drains after a beat once the game gives it back as the
+   value; a gain glows across what it filled; a super with a stock ready keeps a sheen running along it, its stocks a
+   whole numeral beside it. All on the theme's motion: less motion stills the sheen and the glides, less flash dims the
+   slice, a hit-stop holds them.
+10. **Picked by their look.** The versus screens give each fighter its art at full height (`portrait` `size: xl`) at its
+   own side; the select shows a fighter's style and figures only when the game asks (`stats: true`).
+
+Its words are the runtime's (`WORDS`: round, fight, K.O., counter, punish, reversal, parry, spark, guard, burst, the
+frame data's) or the game's, so a fight ships in every language its game does.
+
+| shelf `fight` | what |
+|---|---|
+| `fight-health` | the top frame: the bars and their chip meeting at the clock, the guard under each, tags, names, rounds |
+| `fight-meters` | the foot: each side's super stocks and burst, from its corner |
+| `fight-combo`, `fight-callouts` | a side's combo and its callouts, at the edge the game names (`at: left \| right`) |
+| `fight-announcer` | the round's words at the centre |
+| `input-display`, `frame-meter`, `training-stats` | training's readouts over the fight's own (`TRAINING_HUD`) |
+| `versus-splash` | the face-off: each fighter's art at full height at its side, the vs, the arena; any button goes on |
+| `fighter-select` | side against side: each seat's fighter at full height at its edge, the roster's faces between them; `stats` shows style and figures |
+| `fight-pause` | over the held fight: who paused, resume, the command list, training's settings, select, quit |
+| `command-list` | a fighter's moves by kind, each its input beside its frame data |
+| `training-settings` | the dummy, its guard, counter hits, the boxes, the frame meter, a reset |
+| `fight-results` | the winner slams in, their line, the match's figures counting, a rematch |
+
+**Its looks** are theme cards of the family `fight` (`playscape/ui/theme-cards/`), written for the fight and not
+borrowed from the party: `fight-clean` (the look a fight wears when its game names none: gold health over a red chip,
+white names, the rounds as dots, a hairline where a window needs an edge), and two over it, one a register:
+`fight-cel` (the anime register's: inked, flat bright colour, changes stepped on twos) and `fight-lit` (the western
+register's: a soft gradient plate, a shadow under the words, warm gold). Each keys its two sides apart, and none
+leans, stacks, breaks out, stands a shape behind the fight or slams (`fight-look.test.js`). The board draws the fight
+and training HUDs and every fight screen: `node scripts/mana-board.mjs <out.html> --theme fight-clean`.
 
 ## Sports and the broadcast
 
@@ -633,5 +703,5 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
 
 1. The integration, one surface at a time, each step either drawing the same bytes or naming the change it makes to
    what a page emits: the RPG channel's menus through a bridge from its kernel, playscape's menu kinds, both shells'
-   fronts, the versus pause.
+   fronts, the versus pause and the fight's HUD (the fight's language above).
 2. The engine handoff: the same spec as Unity UI Toolkit (UXML and USS), then a Godot theme and scenes.

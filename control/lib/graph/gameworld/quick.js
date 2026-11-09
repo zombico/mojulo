@@ -210,7 +210,9 @@ import { readInnings, inningsManifest } from '../contest/innings-arena.js';
 import { resolveSport, MATCH_SPORT_IDS, TURN_SPORT_IDS, TEAM_SPORT_IDS, INNINGS_SPORT_IDS, SHAPE_WORDS } from '../contest/sports.js';
 import { readSportConcept, sportTeams } from './sport-concept.js';
 import { SIDE_KITS as BROADCAST_SIDE_KITS } from '../broadcast/broadcast-package.js';
-import { readArena, arenaManifest } from '../versus/versus-arena.js';
+import { readArena } from '../versus/versus-arena.js';
+import { readFightLevel, fightLevel, FIGHT_REGISTERS } from '../versus/versus-levels.js';
+import { settingOfGame } from './cast-setting.js';
 import { RTS_DOCTRINES } from '../board/board-rts.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -574,7 +576,8 @@ export function readQuick(Q) {
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
   for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'strikes']) if (Q.goal !== 'fight' && !(Q.goal === 'contest' && k === 'rounds') && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
   if (Q.goal === 'fight') readFight(Q);
-  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && !(Q.goal === 'tabletop' && TABLETOP_KEYS.includes(k)) && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
+  // (a fight's register is its own word: its one look, versus-levels.js FIGHT_REGISTERS)
+  for (const k of SPORT_KEYS) if (Q.goal !== 'meet' && Q.goal !== 'contest' && !(Q.goal === 'tabletop' && TABLETOP_KEYS.includes(k)) && !(Q.goal === 'fight' && k === 'register') && Q[k] !== undefined) throw fail(`.${k} belongs to the meet and contest goals`);
   for (const k of ['game', 'human', 'lift']) if (Q.goal !== 'tabletop' && Q[k] !== undefined) throw fail(`.${k} belongs to the tabletop goal`);
   if (Q.venue !== undefined && !['meet', 'contest', 'tabletop'].includes(Q.goal)) throw fail('.venue belongs to the meet, contest and tabletop goals (the stadium round the arena)');
   if (Q.goal === 'meet' || Q.goal === 'contest') readSport(Q);
@@ -759,7 +762,7 @@ export function tabletopArenas(Q, { title, seed = 1 } = {}) {
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)
-const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'strikes', 'theme', 'camera', 'screen'];
+const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'strikes', 'register', 'theme', 'camera', 'screen'];
 /** how a fight's fighters strike (`strikes`): 'own', a boxer's own punches solved on its rig (versus-hero.js; stamped at
  * mint on a fight made now; every other fighter its style's or tradition's keyed moves), or 'tradition', the fight's
  * keyed moves for all (a fight minted before carries none, and strikes so) */
@@ -771,6 +774,7 @@ function readFight(Q) {
   }
   if (Q.camera !== undefined && Q.camera !== 'side') throw fail('.fight is seen from the side (camera side)');
   if (Q.strikes !== undefined && !FIGHT_STRIKES.includes(Q.strikes)) throw fail(".strikes is 'own' (a boxer throws its own punches, solved on its rig) or 'tradition' (the fight's keyed moves for all)");
+  if (Q.register !== undefined && !FIGHT_REGISTERS.includes(Q.register)) throw fail(`.register is the game's one look: ${FIGHT_REGISTERS.join(' (cel) | ')} (lit), its fighters drawn in it and lit by one light`);
   if (Q.roster !== undefined) {
     if (!Array.isArray(Q.roster) || Q.roster.length < 1 || Q.roster.length > 12) throw fail('.roster is 1 to 12 fighters, each a character: an archetype word, a brief in words, { brief?, facets?, seed?, archetype?, role?, build?, age?, … }, or { hero: { ref } }');
     const ids = new Set();
@@ -786,14 +790,21 @@ function readFight(Q) {
   }
   if (Q.arenas === false) throw fail('.arenas: a fight is fought on its arenas (name them, or leave them out for a plaza and a nave)');
   if (Q.arenas !== undefined && Q.arenas !== false) {
-    if (!Array.isArray(Q.arenas) || Q.arenas.length < 1 || Q.arenas.length > 8) throw fail('.arenas is 1 to 8 arenas { id, name?, kit?, look?, width?, depth?, height?, crowd?, set? }, or false for flat stages');
+    if (!Array.isArray(Q.arenas) || Q.arenas.length < 1 || Q.arenas.length > 8) throw fail('.arenas is 1 to 8 arenas { id, name?, kit?, look?, width?, depth?, height?, crowd?, set? } or { id, name?, level: { kind, … } }, or false for flat stages');
     const ids = new Set();
     Q.arenas.forEach((a, i) => {
       if (!isObj(a) || typeof a.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(a.id)) throw fail(`.arenas[${i}] needs an id (a short lower-case name)`);
       if (ids.has(a.id)) throw fail(`.arenas[${i}].id '${a.id}' is taken`);
       ids.add(a.id);
       const { id: _id, name: _n, ...words } = a;
-      try { readArena(words); } catch (e) { throw fail(`.arenas[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+      // (an arena names a LEVEL, versus/versus-levels.js: any kind a fight can be laid on; else its words are a stage's)
+      if (words.level !== undefined) {
+        const extra = Object.keys(words).filter((k) => k !== 'level');
+        if (extra.length) throw fail(`.arenas[${i}]: ${extra.join(', ')} beside level: an arena that names a level says the rest in it`);
+        try { readFightLevel(words.level, 'level'); } catch (e) { throw fail(`.arenas[${i}].${e.message.replace(/^versus: /, '')}`); }
+      } else {
+        try { readArena(words); } catch (e) { throw fail(`.arenas[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+      }
     });
   }
   if (Q.rounds !== undefined && !(Number.isInteger(Q.rounds) && Q.rounds >= 1 && Q.rounds <= 3)) throw fail('.rounds is how many rounds win the match, 1 to 3');
@@ -807,6 +818,9 @@ function readFight(Q) {
 // `strikes: 'own'`, stamped at mint) opens in the RING first, the set that shows them as they were made (versus-arena.js)
 export const FIGHT_ARENAS = Object.freeze([{ id: 'plaza', name: 'Plaza', kit: 'island-plaza' }, { id: 'nave', name: 'Nave', kit: 'gothic-nave' }]);
 export const RING_ARENA = Object.freeze({ id: 'ring', name: 'Ring', set: 'ring' });
+// a fight made now is fought on the TRAINING GROUND (versus-levels.js, the greybox preset: a ruled floor and wall, the
+// camera near), stamped at mint when the operator names no arenas: a fight minted before carries none and keeps its own
+export const TRAINING_ARENA = Object.freeze({ id: 'training', name: 'Training ground', level: Object.freeze({ kind: 'greybox', preset: 'training' }) });
 const defaultArenas = (Q) => (Q.strikes === 'own' ? [RING_ARENA, ...FIGHT_ARENAS] : FIGHT_ARENAS);
 
 /** A fight's arenas as stage recipes (each a level the fight runs on): → [{ id, name, manifest }]; none with arenas: false. */
@@ -814,7 +828,9 @@ export function fightArenas(Q, { title, roster } = {}) {
   const rules = fightRules(Q);
   return (Q.arenas ?? defaultArenas(Q)).map(({ id, name, ...words }) => ({
     id, name: name ?? id,
-    manifest: arenaManifest({ ...words, title: `${title ?? 'versus'} · ${name ?? id}`, ...(roster ? { roster } : {}), ...(rules ? { rules } : {}) }),
+    // (each arena a fight level: the one it names, else a stage of its words, the arena as it always was; every one in
+    // the game's register)
+    manifest: fightLevel(words.level ?? { kind: 'stage', ...words }, { title: `${title ?? 'versus'} · ${name ?? id}`, ...(roster ? { roster } : {}), ...(rules ? { rules } : {}), ...(Q.register ? { register: Q.register } : {}) }),
   }));
 }
 
@@ -851,7 +867,11 @@ export function quickWorld({ quick: asked, id, name, seed, style, ...rest } = {}
   const camo = isObj(tiered) && tiered.ride !== undefined ? settingLivery(tiered, { style }) : null;
   // a fight's boxers throw their own strikes (versus-hero.js), stamped here at mint when the operator names none: a fight
   // minted before carries none and strikes with the fight's keyed moves
-  const struck = isObj(tiered) && tiered.goal === 'fight' && tiered.strikes === undefined ? { ...tiered, strikes: 'own' } : tiered;
+  // and its one look (its register: anime drawn cel, western lit), its setting's drawing tradition, western when it names
+  // none: a fight minted before carries none and draws each body as it always did
+  const fight = isObj(tiered) && tiered.goal === 'fight';
+  const register = fight && tiered.register === undefined ? (settingOfGame({ style, characters: rest.characters }, tiered).tradition ?? 'western') : null;
+  const struck = fight ? { ...tiered, ...(tiered.strikes === undefined ? { strikes: 'own' } : {}), ...(tiered.arenas === undefined ? { arenas: [{ ...TRAINING_ARENA, level: { ...TRAINING_ARENA.level } }] } : {}), ...(register ? { register } : {}) } : tiered;
   const given = camo ? { ...struck, livery: camo } : struck;
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   // (and the screen it is made for, beside it: game/screen.js)

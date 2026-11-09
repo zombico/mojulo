@@ -20,6 +20,12 @@
  * lifted or sunk so its lowest foot point touches y = 0 (a crouch sinks without saying so); `air: true` keeps the
  * pelvis at its standing height plus `hip`, and the sim adds the jump. `hip[0]` shifts the body forward.
  *
+ * JOINT LIMITS (RIG_LIMITS): a pose is read within the bends a body makes before its joints are laid, whatever its keys
+ * or a blend between them say: a knee bends one way and not past a fold, an ankle neither folds the foot up into the shin
+ * nor past a pointed toe, the head turns on the neck only so far off the trunk, an arm reaches only so far behind the
+ * back (the forearm carried with it). The side view's own: the bends seen in
+ * the round (the elbow, the spine's twist) are the figure's (versus-figure.js FIG_LIMITS).
+ *
  * Bodies are lengths from a height and a cast (the hero door's cast words: heroic, brute, lithe, stout, ...), so the
  * same pose reaches further on a longer arm and the solved boxes follow. Pure, no dice; floats in, the compiler
  * rounds what the sim keeps.
@@ -62,6 +68,34 @@ export function versusBody(cast = 'heroic', over = {}) {
 }
 
 const DEG = Math.PI / 180;
+
+/** THE SIDE VIEW'S JOINT LIMITS (degrees): the knee's bend (thigh − shin: 0 straight, + folded) from a hair past
+ * straight to its fold; the ankle (foot − shin: 90 standing) from a pointed toe to the foot drawn up; the head off the
+ * trunk either way; the shoulder (the upper arm off the trunk's downward line, + forward) no further behind the back */
+export const RIG_LIMITS = Object.freeze({ knee: Object.freeze([-10, 155]), ankle: Object.freeze([10, 120]), neck: 55, shoulder: -45 });
+const clampTo = (v, [lo, hi]) => Math.max(lo, Math.min(hi, v));
+/** A pose held within RIG_LIMITS: → the same pose when it is (no copy), else a copy with the bends held. */
+export function limitPose(pose) {
+  let out = pose;
+  const set = (k, v) => { if (out === pose) out = { ...pose }; out[k] = v; };
+  const torso = pose.torso ?? 0, head = pose.head ?? torso;
+  if (Math.abs(head - torso) > RIG_LIMITS.neck) set('head', torso + Math.sign(head - torso) * RIG_LIMITS.neck);
+  for (const side of ['F', 'B']) {
+    // (the upper arm's angle off the trunk's line down: its own angle and the trunk's lean, both + forward)
+    const arm = pose[`arm${side}`];
+    if (arm && arm[0] + torso < RIG_LIMITS.shoulder) {
+      const by = RIG_LIMITS.shoulder - torso - arm[0];
+      set(`arm${side}`, [arm[0] + by, (arm[1] ?? 0) + by, ...arm.slice(2)]);
+    }
+    const leg = pose[`leg${side}`];
+    if (!leg) continue;
+    const [thigh, shin0, foot0 = 90] = leg;
+    const shin = thigh - clampTo(thigh - shin0, RIG_LIMITS.knee);
+    const foot = shin + clampTo(foot0 - shin, RIG_LIMITS.ankle);
+    if (shin !== shin0 || foot !== foot0) set(`leg${side}`, leg.length > 2 || foot !== foot0 ? [thigh, shin, foot] : [thigh, shin]);
+  }
+  return out;
+}
 // a limb's direction: 0 down, + forward
 const limbDir = (a) => [Math.sin(a * DEG), -Math.cos(a * DEG)];
 // a trunk's direction: 0 up, + forward
@@ -69,7 +103,8 @@ const trunkDir = (a) => [Math.sin(a * DEG), Math.cos(a * DEG)];
 const along = (p, d, len) => [p[0] + d[0] * len, p[1] + d[1] * len];
 
 /** The joints of a body in a pose: { pelvis, neck, head, shoulder, elbowF, handF, fistF, …, kneeF, ankleF, toeF, … }. */
-export function rigJoints(body, pose) {
+export function rigJoints(body, pose0) {
+  const pose = limitPose(pose0);
   const hip = pose.hip ?? [0, 0];
   const pelvis = [hip[0], body.pelvis + hip[1]];
   const J = { pelvis };

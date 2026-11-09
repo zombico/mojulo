@@ -138,6 +138,11 @@ export function buildManaUi() {
     ammo: 'Ammo', time: 'Time', score: 'Score', lv: 'Lv', range: 'Range', super: 'Super', hits: 'hits', pos: 'Pos', lap: 'Lap', best: 'Best',
     move: 'Move', atk: 'Atk', rng: 'Rng', forecast: 'Forecast', wave: 'Wave', lives: 'Lives', seen: 'Seen', map: 'Map', cancel: 'Cancel', headToHead: 'Head to head',
     turnOrder: 'Turn order', foes: 'Foes', command: 'Command', act: 'Act', close: 'Close', queue: 'Queue', orders: 'Orders',
+    // a fight's (idioms-fight.js): the round's ritual, a side's callouts, its meters, training and the command list
+    round: 'Round', finalRound: 'Final round', fight: 'Fight!', ko: 'K.O.', doubleKo: 'Double K.O.', timeUp: 'Time', draw: 'Draw', perfect: 'Perfect', wins: 'wins',
+    counterHit: 'Counter', punish: 'Punish', reversal: 'Reversal', parry: 'Parry', guardCrush: 'Guard crush', spark: 'Spark', priority: 'Priority', firstAttack: 'First attack',
+    guard: 'Guard', burst: 'Burst', damage: 'Damage', maxCombo: 'Max combo', vs: 'VS', stage: 'Stage', training: 'Training', inputs: 'Inputs', frameMeter: 'Frame meter',
+    frameData: 'Frame data', frames: 'Frames', startup: 'Startup', activeFrames: 'Active', recovery: 'Recovery', onHit: 'On hit', onBlock: 'On block', resetPosition: 'Reset position',
   };
   // a drawn pad's buttons, where a gamepad has them (the face buttons by their Xbox print)
   const PAD_FACES = { A: 'south', B: 'east', X: 'west', Y: 'north' };
@@ -160,7 +165,7 @@ export function buildManaUi() {
     divider: { group: 'layout', about: 'a rule between groups, with an optional label', props: { label: [T] } },
     // in-game: the HUD's places
     hud: { group: 'hud', about: 'the in-game layer under the stack: its children are regions and the layers (anchors, edges, threat, letterbox)', props: {}, children: 'hud' },
-    region: { group: 'hud', about: 'one of the nine screen places; parts stack inside it (in a hud, or laid out over a screen); `subtitles` sits on the subtitles\' plate (its opacity the player\'s)', props: { at: [REGIONS, 'top-left'], variant: [['plain', 'subtitles'], 'plain'] }, children: true },
+    region: { group: 'hud', about: 'one of the nine screen places; parts stack inside it (in a hud, or laid out over a screen); `subtitles` sits on the subtitles\' plate (its opacity the player\'s); `bare` sits on no plate, its parts their own frame with the halo (a fight\'s bars over the round)', props: { at: [REGIONS, 'top-left'], variant: [['plain', 'subtitles', 'bare'], 'plain'] }, children: true },
     anchors: { group: 'hud', layer: true, about: 'one `row` drawn over each thing in the world at its screen place (x, y from 0 to 1): nameplates on a plate, damage numbers `bare` (a halo, no plate)', props: { rows: [L, [], true], row: [ND, undefined, true], x: [T, 'x'], y: [T, 'y'], variant: [['plate', 'bare'], 'plate'] } },
     edges: { group: 'hud', layer: true, about: 'what is off screen, held at the screen\'s edge with an arrow toward it (x, y outside 0..1): an objective, a foe behind you', props: { markers: [L, [], true] } },
     threat: { group: 'hud', layer: true, about: 'where harm came from: a mark on a ring round the centre for each bearing (degrees from where you face)', props: { markers: [L, [], true] } },
@@ -172,13 +177,13 @@ export function buildManaUi() {
     // a load: the unglamorous rules each game relearns (docs/mana-ui.md, loading)
     loader: { group: 'value', about: 'a load in progress, honest about it: the progress never goes back (null: not known, a sweep), an activity mark that moves even while the page is busy, the step it is on, a still-loading line once nothing has moved for `stall` seconds, tips that turn every `turn` seconds (left and right turn them too; `seed` mixes their order), a failure said with its words; `auto` goes on by itself once ready (after `least` seconds on screen, or at once if ready before `grace`), else it waits for the player (a press made in the first moment after ready is not an answer); on the game\'s clock (host.now)', props: { progress: [A], max: [N, 100], step: [T], tips: [L, []], tip: [T], ready: [B, false], error: [T], auto: [B, false], stall: [N, 10], turn: [N, 8], seed: [N, 0], least: [N, 1], grace: [N, 0.3] }, verbs: ['done'] },
     stat: { group: 'value', about: 'a label and its number; `count` counts it up from zero as it first shows (a results row, on the game\'s clock with host.countUp)', props: { label: [T, '', true], value: [T, '', true], max: [T], count: [B, false] } },
-    bar: { group: 'value', about: 'a value against its max; segments mark phases or chunks; `ghost` the value before the last hit (drawn hatched, the chip a fighting game shows); rtl fills from the right (the second fighter)', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0], ghost: [N, 0], dir: [['ltr', 'rtl'], 'ltr'] } },
+    bar: { group: 'value', about: 'a value against its max; segments mark phases or chunks; `ghost` the value before the last hit (drawn hatched, the chip a fighting game shows; given as the value once the combo ends, it drains); rtl fills from the right (the second fighter); `size: large` a bar that is a frame (a fighter\'s health along the top), thicker, `thin` one that rides under another (a guard under the health), its meaning still its variant\'s; `figures: false` draws no value/max (a fight\'s health is read by its length, never its number)', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0], ghost: [N, 0], dir: [['ltr', 'rtl'], 'ltr'], size: [['normal', 'large', 'thin'], 'normal'], figures: [B, true] } },
     pips: { group: 'value', about: 'a count as marks: hearts, pips', props: { value: [N, 0, true], max: [N, 3, true], shape: [Object.keys(PIP_SHAPES), 'pip'], label: [T] } },
     counter: { group: 'value', about: 'an icon and a count (ammo, coins, keys)', props: { label: [T, '', true], value: [T, '', true], max: [T], icon: [T] } },
     timer: { group: 'value', about: 'seconds as a clock', props: { seconds: [N, 0, true], format: [['mmss', 'ss', 'hmmss'], 'mmss'], label: [T] } },
     compare: { group: 'value', about: 'before → after, better or worse told by a shape (▲ ▼ =)', props: { label: [T, '', true], from: [N, 0, true], to: [N, 0, true], better: [['up', 'down'], 'up'] } },
     icon: { group: 'value', about: 'an icon\'s place, named', props: { name: [T, '', true], size: [['s', 'm', 'l'], 'm'] } },
-    portrait: { group: 'value', about: 'a face\'s place, named', props: { name: [T, ''], size: [['s', 'm', 'l'], 'm'] } },
+    portrait: { group: 'value', about: 'a face\'s place, named; `xl` a fighter\'s art at full height (a versus screen, a select\'s side); `caption: false` when the name is said beside it', props: { name: [T, ''], size: [['s', 'm', 'l', 'xl'], 'm'], caption: [B, true] } },
     image: { group: 'value', about: 'a picture\'s place (a logo, an arena\'s preview, key art); `backdrop` fills the screen behind what it holds', props: { label: [T, ''], ratio: [['wide', 'square', 'tall', 'banner', 'backdrop'], 'wide'] } },
     badge: { group: 'value', about: 'a small mark: new, a count, a rank, a score; `stamp` a rank stamped on as the screen settles; `side` its side\'s chip; `turn` alight while it is that side\'s turn', props: { value: [T, '', true], variant: [['plain', 'strong', 'muted', 'stamp'], 'plain'], side: [A], turn: [B, false] } },
     table: { group: 'value', about: 'rows under columns (a scoreboard, a forecast, a stat panel): the row whose `mark` field is true is yours, a row\'s `lead` names the column that leads it (marked ▲), a row\'s `side` its chip', props: { columns: [L, [], true], rows: [L, [], true], mark: [T, 'self'] } },
@@ -666,10 +671,17 @@ export function buildManaUi() {
             const r = p.max > 0 ? clamp(p.value / p.max, 0, 1) : 0, seg = Math.max(0, Math.floor(p.segments));
             // low is a warning on what can run out (health, a shield, mana, stamina), never on a stat
             const warns = ['hp', 'boss', 'shield', 'mp', 'stamina'].includes(p.variant);
-            const g = p.max > 0 ? clamp(p.ghost / p.max, 0, 1) : 0;
-            return ['div', { class: cls, 'data-variant': p.variant, 'data-dir': p.dir === 'rtl' ? 'rtl' : null, 'data-low': warns && r <= 0.25 ? 'yes' : null }, ['span', { class: 'mana-label' }, p.label || ''],
-              ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(r)}` }], g > r ? ['u', { style: `left:${pct(r)};width:${pct(g - r)}` }] : null, ...Array.from({ length: seg > 1 ? seg - 1 : 0 }, (_, k) => ['b', { style: `left:${pct((k + 1) / seg)}` }])],
-              ['span', { class: 'mana-num', ...chOf(changeOf(key, p.value)) }, `${p.value}/${p.max}`]];
+            const g = p.max > 0 ? clamp(p.ghost / p.max, 0, 1) : 0, c = changeOf(key, p.value);
+            // what a change moved, marked once on the track (a new data-key replays it; the fill keeps its element, so its
+            // width glides): the slice a hit took, or the stretch a gain filled
+            const was = c && c.p !== null && c.p !== undefined && p.max > 0 ? clamp(c.p / p.max, 0, 1) : null;
+            const moved = was !== null && was !== r ? ['s', { class: 'mana-moved', 'data-ch': c.d, 'data-key': `ch${c.n}`, style: `left:${pct(Math.min(was, r))};width:${pct(Math.abs(was - r))}` }] : null;
+            // the chip: drawn while a ghost is given, at nothing once the value has caught up to it (so it drains, not vanishes)
+            // (from the start, under the fill: what shows of it is what the last combo took)
+            const chip = p.ghost > 0 ? ['u', { style: `width:${pct(Math.max(g, r))}` }] : null;
+            return ['div', { class: cls, 'data-variant': p.variant, 'data-dir': p.dir === 'rtl' ? 'rtl' : null, 'data-size': p.size === 'normal' ? null : p.size, 'data-figures': p.figures ? null : 'no', 'data-low': warns && r <= 0.25 ? 'yes' : null, 'data-ready': (seg > 1 ? r * seg >= 1 : r >= 1) ? 'yes' : null }, ['span', { class: 'mana-label' }, p.label || ''],
+              ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(r)}` }], chip, moved, ...Array.from({ length: seg > 1 ? seg - 1 : 0 }, (_, k) => ['b', { style: `left:${pct((k + 1) / seg)}` }])],
+              p.figures ? ['span', { class: 'mana-num', ...chOf(c) }, `${p.value}/${p.max}`] : null];
           }
           case 'pips': {
             const [on, offc] = PIP_SHAPES[p.shape] || PIP_SHAPES.pip, max = clamp(Math.floor(p.max), 0, 40), v = clamp(Math.round(p.value), 0, max);
@@ -682,7 +694,7 @@ export function buildManaUi() {
             return ['div', { class: cls, 'data-way': d === 0 ? 'same' : good ? 'better' : 'worse' }, ['span', { class: 'mana-label' }, p.label], ['span', { class: 'mana-num' }, String(p.from)], ['span', { class: 'mana-mark' }, d === 0 ? '=' : good ? '▲' : '▼'], ['span', { class: 'mana-num' }, String(p.to)]];
           }
           case 'icon': return ['span', { class: cls, 'data-size': p.size, title: p.name }, initials(p.name)];
-          case 'portrait': return ['div', { class: cls, 'data-size': p.size }, ['span', { class: 'mana-ph' }, initials(p.name)], p.name ? ['span', { class: 'mana-caption' }, p.name] : null];
+          case 'portrait': return ['div', { class: cls, 'data-size': p.size }, ['span', { class: 'mana-ph' }, initials(p.name)], p.name && p.caption ? ['span', { class: 'mana-caption' }, p.name] : null];
           case 'loader': {
             const L = loadOf(key, p, n, scope, ctx), G = L.G, state = L.failed ? 'failed' : G.ready !== null ? 'ready' : 'loading';
             // ready is whole, whatever the game last said
@@ -701,7 +713,9 @@ export function buildManaUi() {
           case 'image': return ['div', { class: cls, 'data-ratio': p.ratio }, ['span', { class: 'mana-caption' }, p.label || 'image']];
           case 'badge': { const c = changeOf(key, p.value); return ['span', { class: cls, 'data-variant': p.variant === 'plain' ? null : p.variant, 'data-turn': turnOf(p.turn, p.side), ...chOf(c) }, chip(p.side), p.value, gainOf(c)]; }
           case 'table': {
-            const cols = p.columns.map((c) => (isObj(c) ? { key: words(c.key), label: words(c.label ?? c.key), align: ['left', 'right', 'center'].includes(c.align) ? c.align : null } : { key: words(c), label: words(c), align: null }));
+            // (a column's label may be one of the words, { word }: said in the game's language like any other)
+            const said = (v) => (isObj(v) && typeof v.word === 'string' ? W(v.word) : words(v));
+            const cols = p.columns.map((c) => (isObj(c) ? { key: words(c.key), label: said(c.label ?? c.key), align: ['left', 'right', 'center'].includes(c.align) ? c.align : null } : { key: words(c), label: words(c), align: null }));
             const fresh = freshOf(key, p.rows), rk = (r, i) => (isObj(r) && r.id !== undefined && r.id !== null ? `#${r.id}` : i);
             return ['table', { class: cls }, ['thead', null, ['tr', null, ...cols.map((c) => ['th', { 'data-align': c.align }, c.label])]],
               ['tbody', null, ...p.rows.map((r, i) => ['tr', { 'data-mark': isObj(r) && r[p.mark] ? 'yes' : null, ...rowMarks(fresh, r) }, ...cols.map((c, ci) => {

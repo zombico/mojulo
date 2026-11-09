@@ -16,6 +16,7 @@ import { BODY_DIALS } from './versus-compile.js';
 import { fighterSpec, fighterFromSheet, fighterName } from './versus-sheet.js';
 import { castOf, BODY_DEFAULTS } from '../polygonizer/hero-form.js';
 import { FLAT_LIGHT } from '../polygonizer/vexar.js';
+import { resolveCharacterLight } from '../polygonizer/station-loft-shade.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -185,10 +186,19 @@ export async function versusGate(manifest) {
  * lights it as an engine does. → { played: true, lit?, bones, parts: [{ pos, col, jnt, wgt, faces, uv?, nrm?, tan? }],
  * clips, paintTex?, normalTex?, ormTex? }.
  */
-export async function characterBody(manifest, { fight = null } = {}) {
+export async function characterBody(manifest, { fight = null, register = null } = {}) {
   const { expandLayeredManifest } = await layered();
   const { WORLD_KINDS } = await import('../worlds/world-kinds.js');
   const m = fight && manifest?.hero ? { ...manifest, hero: { ...manifest.hero, motion: { ...(manifest.hero.motion ?? {}), ...Object.fromEntries(fightMotion(fight).map((w) => [w, true])) } } } : manifest;
+  // A CHARACTER DRAWN IN THE CHARACTER LIGHT (the anime hero's cel look, station-loft-shade.js) is played in it: its tones
+  // are the light's own (each group's shade swatch, the unlit eyes and ink kept as drawn), baked TWICE, every group
+  // stepped lit and every group stepped in shade, so each corner carries both of its tones and the arena steps between
+  // them by its own key as the body turns (versus-arena.client.js), the light never turning with the body
+  // (a fight game's register draws every body its one way, from the lit export: versus-arena.client.js)
+  if (fight && !register && m?.hero && resolveCharacterLight(m, {})) {
+    const toon = await toonBody(m, fight, WORLD_KINDS, expandLayeredManifest);
+    if (toon) return toon;
+  }
   // (a played body as an engine gets it, the lit export's: its albedo unshaded, each corner's normal, the skin's relief
   // and its full-size atlas, for the arena to light as it moves; the posed figure as before)
   const ctx = fight ? { title: 'fighter', light: FLAT_LIGHT, unshaded: true, face: true } : { title: 'fighter' };
@@ -203,6 +213,25 @@ export async function characterBody(manifest, { fight = null } = {}) {
   }
   return { bones, parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col } : null)) };
 }
+
+/** A toon body: the character light baked with every palette group's step forced lit, then forced in shade (no highlight,
+ * so neither bake splits a face and both carry the same corners), the shade tone riding each corner as `colShade`.
+ * → the played body with `toon: true`, or null when the two bakes do not line up (the lit export's body is played) */
+async function toonBody(m, fight, WORLD_KINDS, expandLayeredManifest) {
+  const groups = Object.keys(expandLayeredManifest(m).recipe?.palette ?? {});
+  const stepped = (t) => ({ ...m, toon: { ...(m.toon ?? {}), light: { threshold: t, thresholds: Object.fromEntries(groups.map((g) => [g, t])), highlight: {} } } });
+  // (a threshold under every N·L steps a group lit, one over every N·L in shade)
+  const [lit, shade] = await Promise.all([-2, 2].map((t) => WORLD_KINDS.layered.resolve(expandLayeredManifest(stepped(t)), { title: 'fighter', face: true })));
+  const A = lit?.figures?.body, B = shade?.figures?.body;
+  if (!A?.parts?.some((p) => p?.jnt) || !B?.parts || A.parts.length !== B.parts.length) return null;
+  if (A.parts.some((p, i) => (p?.faces ?? 0) !== (B.parts[i]?.faces ?? 0))) return null;
+  const clips = Object.fromEntries(Object.entries(A.clips ?? {}).filter(([k]) => fight.includes(k)).map(([k, c]) => [k, { k: c.k, b: c.b, ...(c.once ? { once: true } : {}), ...(c.s ? { s: c.s } : {}) }]));
+  return {
+    played: true, toon: true, bones: A.bones.map(({ id, head, tail }) => ({ id, head, tail })),
+    parts: A.parts.map((p, i) => (p?.pos ? { pos: p.pos, col: p.col, colShade: B.parts[i].col, jnt: p.jnt, wgt: p.wgt, faces: p.faces, ...(p.uv ? { uv: p.uv } : {}) } : null)),
+    clips, ...(A.paintTex ? { paintTex: A.paintTex } : {}),
+  };
+}
 /** the clips a fighter with its own strikes plays: its strikes (by slot), its guard, its blows and blocks taken in the
  * guard, and its knockdown (a rest: getting down, and up) */
 export const FIGHT_REACTS = Object.freeze(['guard', 'block', 'blockBody', 'guardHitHigh', 'guardHitBody', 'guardHitLow', 'guardStagger', 'knockedOutDown', 'knockedOutUp']);
@@ -216,8 +245,9 @@ export const TRADITION_CLIPS = Object.freeze(['guard']);
 
 /** An arena's measured roster → { <ref>: body } for each character in it (one body per character), from the store,
  * each played in its own body: a fighter with its own strikes (`heroNormals`) with its fight's clips, one with a
- * tradition's moves with its guard's (the fight's poses drive the rest). */
-export async function characterBodies(roster) {
+ * tradition's moves with its guard's (the fight's poses drive the rest). Under a fight game's `register` every body is
+ * its lit export (its albedo and its normals), for the arena to draw each the register's one way. */
+export async function characterBodies(roster, { register = null } = {}) {
   const list = (Array.isArray(roster) ? roster : []).filter((e) => typeof e?.character === 'string');
   if (!list.length) return null;
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
@@ -225,7 +255,7 @@ export async function characterBodies(roster) {
   for (const e of list) {
     if (out[e.character]) continue;
     const fight = e.heroNormals ? fightClips(e.heroNormals) : TRADITION_CLIPS;
-    const body = await characterBody(SketchRepository.getByRef(e.character)?.manifest, { fight }).catch(() => null);
+    const body = await characterBody(SketchRepository.getByRef(e.character)?.manifest, { fight, register }).catch(() => null);
     if (body) out[e.character] = body;
   }
   return Object.keys(out).length ? out : null;
