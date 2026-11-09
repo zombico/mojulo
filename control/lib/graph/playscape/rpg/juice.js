@@ -17,6 +17,9 @@
  *       { puff: '<moment>', at?, color?, scale? }   a moment plays there (playscape/elements/moments.js)
  *       { beam: '<attack>', color? }               an attack flies from the actor to the target (beams.js presets)
  *       { shake: k, for? }                         the camera shakes (k 0..1)
+ *       { act: strike | cast | hurt | fall, at?, for? }   the figure acts it out with its own clip: the actor's swing
+ *                                                  (leaning toward its target), a cast, the target's recoil, a fall
+ *                                                  (a member's; a pack's figure recoils, and falls when the fight is won)
  *     in the window:
  *       { flash: '#rrggbb'?, for? }                the screen flashes
  *       { jolt: 'target' | 'actor' | 'window', k? } its row (or the window) jolts
@@ -47,21 +50,25 @@ export const JUICE_STEPS = Object.freeze({
   pop: '{ pop: normal | big | crit | small, color? } how the number rises',
   hold: '{ hold: s } the beat lingers',
   emit: '{ emit: <event> } a bus event, for any cue to answer',
+  act: '{ act: strike | cast | hurt | fall, at?: target | actor, for?: s } the figure acts it out with its own clip',
+  shot: '{ shot: closeup | behind | target | view, at?: actor | target, for?: s } the camera cuts to it for the beat: a close-up on a figure, behind the actor at its target, on the target, or back to the fight\'s view',
 });
+export const SHOTS = Object.freeze(['closeup', 'behind', 'target', 'view']);
+export const ACTS = Object.freeze(['strike', 'cast', 'hurt', 'fall']);
 const POPS = ['normal', 'big', 'crit', 'small'];
 const JOLTS = ['target', 'actor', 'window'];
 const HEX = /^#[0-9a-f]{6}$/i;
 
 export const JUICE_PRESETS = Object.freeze({
-  hit: [{ pop: 'normal' }, { jolt: 'target' }, { puff: 'sparks', scale: 0.5 }],
-  crit: [{ pop: 'crit' }, { flash: '#ffffff', for: 0.08 }, { shake: 0.35 }, { jolt: 'target', k: 2 }, { puff: 'flash' }, { hold: 0.25 }],
-  weak: [{ pop: 'big' }, { shake: 0.2 }],
-  resist: [{ pop: 'small' }, { jolt: 'target', k: 0.5 }],
-  miss: [{ pop: 'small' }],
+  hit: [{ act: 'strike', at: 'actor' }, { act: 'hurt' }, { pop: 'normal' }, { jolt: 'target' }, { puff: 'sparks', scale: 0.5 }],
+  crit: [{ act: 'strike', at: 'actor' }, { act: 'hurt' }, { pop: 'crit' }, { flash: '#ffffff', for: 0.08 }, { shake: 0.35 }, { jolt: 'target', k: 2 }, { puff: 'flash' }, { hold: 0.25 }],
+  weak: [{ act: 'strike', at: 'actor' }, { act: 'hurt' }, { pop: 'big' }, { shake: 0.2 }],
+  resist: [{ act: 'strike', at: 'actor' }, { pop: 'small' }, { jolt: 'target', k: 0.5 }],
+  miss: [{ act: 'strike', at: 'actor' }, { pop: 'small' }],
   heal: [{ pop: 'normal', color: '#7dffa5' }, { puff: 'sparks', color: '#7dffa5', scale: 0.5 }],
   status: [{ puff: 'smoke', scale: 0.5 }],
-  ko: [{ puff: 'smoke' }, { shake: 0.2 }, { hold: 0.15 }],
-  fall: [{ jolt: 'window', k: 1.5 }, { flash: '#ff3030', for: 0.12 }],
+  ko: [{ act: 'fall' }, { puff: 'smoke' }, { shake: 0.2 }, { hold: 0.15 }],
+  fall: [{ act: 'fall' }, { jolt: 'window', k: 1.5 }, { flash: '#ff3030', for: 0.12 }],
   start: [{ flash: '#ffffff', for: 0.12 }, { shake: 0.25 }],
   boss: [{ flash: '#ff6040', for: 0.3 }, { shake: 0.6 }, { hold: 0.6 }],
   victory: [{ flash: '#ffe07a', for: 0.2 }],
@@ -87,7 +94,7 @@ const KEY = /^[a-z][a-z0-9-]*(:[a-z][a-z0-9-]*)?$/;
 function readStep(s, where, fx) {
   const k = Object.keys(s).find((x) => JUICE_STEPS[x]);
   if (!k) throw err(`${where} is a step: ${Object.keys(JUICE_STEPS).join(', ')} (or a juice's name)`);
-  const allow = { puff: ['puff', 'at', 'color', 'scale'], beam: ['beam', 'color'], shake: ['shake', 'for'], flash: ['flash', 'for'], jolt: ['jolt', 'k'], pop: ['pop', 'color'], hold: ['hold'], emit: ['emit'] }[k];
+  const allow = { puff: ['puff', 'at', 'color', 'scale'], beam: ['beam', 'color'], shake: ['shake', 'for'], flash: ['flash', 'for'], jolt: ['jolt', 'k'], pop: ['pop', 'color'], hold: ['hold'], emit: ['emit'], act: ['act', 'at', 'for'], shot: ['shot', 'at', 'for'] }[k];
   for (const x of Object.keys(s)) if (!allow.includes(x)) throw err(`${where}.${x} is not part of a ${k} (${allow.join(', ')})`);
   if (s.color !== undefined && !(typeof s.color === 'string' && (HEX.test(s.color) || /^[a-z]+$/.test(s.color)))) throw err(`${where}.color is '#rrggbb' or a colorant`);
   if (s.at !== undefined && s.at !== 'target' && s.at !== 'actor') throw err(`${where}.at is target or actor`);
@@ -104,6 +111,8 @@ function readStep(s, where, fx) {
   if (k === 'jolt' && !JOLTS.includes(s.jolt)) throw err(`${where}.jolt is ${JOLTS.join(', ')}`);
   if (k === 'pop' && !POPS.includes(s.pop)) throw err(`${where}.pop is ${POPS.join(', ')}`);
   if (k === 'hold' && !(num(s.hold) && s.hold > 0 && s.hold <= 3)) throw err(`${where}.hold is seconds, above 0, at most 3`);
+  if (k === 'act' && !ACTS.includes(s.act)) throw err(`${where}.act is ${ACTS.join(', ')}`);
+  if (k === 'shot' && !SHOTS.includes(s.shot)) throw err(`${where}.shot is ${SHOTS.join(', ')}`);
   if (k === 'emit' && !(typeof s.emit === 'string' && /^[a-z][a-z0-9:_-]*$/i.test(s.emit))) throw err(`${where}.emit is a bus event`);
   return { ...s };
 }

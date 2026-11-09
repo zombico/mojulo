@@ -14,7 +14,7 @@
   "parameters": [
     {
       "name": "intent",
-      "description": "The hero in words (e.g. 'a stout smith with a square jaw and cropped hair', 'a lanky courier, low-poly, with a ponytail', 'a boxy pixel knight'). Human characters only — a creature or invented body is creature-from-plan, a real species is mint_solid kind 'animal', a person as an SVG turnaround or a walker for pose work is the figure kind (character-from-dream). Omit to ask the operator."
+      "description": "The hero in words (e.g. 'a stout smith with a square jaw and cropped hair', 'a lanky courier, low-poly, with a ponytail', 'a boxy pixel knight'). Human characters only — a creature or invented body is creature-from-plan, a real species is mint_solid kind 'animal', a person as an SVG turnaround or a walker for pose work is the figure kind. Omit to ask the operator."
     }
   ],
   "mcpTools": { "mojulo": ["get_solid_vocab", "create_character", "update_character", "measure_solid", "export_model", "semantic_search"] }
@@ -61,7 +61,7 @@ through `create_character({ as: 'hero', spec: { cast, register, tune } })`; its 
   panels, buckles or patches. None before the silhouette, the face and the hair read; an adornment whose
   signature the ledger calls `reads, but small` or `unjustified` is made bolder or removed, not shipped.
 - **Human characters only.** A creature is `creature-from-plan`; a real species is kind `animal`; a
-  person for a turnaround picture or pose study is the figure kind (`character-from-dream`).
+  person for a turnaround picture or pose study is the figure kind.
 
 ## Capability ladder — resolve ONCE
 

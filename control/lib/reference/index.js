@@ -37,6 +37,7 @@ import {
 } from '@/lib/graph/polygonizer/painted-landscape.js';
 import { solvePoseFromXManji } from './pose-solve.js';
 import { OBJECT_PROTOCOL, lowerObjectCage, fuseObjectInsights, summarizeObject } from './object-lower.js';
+import { CHARACTER_PROTOCOL } from './character-protocol.js';
 import { resolveSceneCamera, depthAtRow, rowAtDepth, equalAreaBands, foreshorteningRatio } from './scene-camera.js';
 
 // Named figure views → azimuth degrees (matches figure-render's view convention).
@@ -69,11 +70,11 @@ export function resolvePoseDials(insights = {}) {
   return { dials, view: insights.view, solve: { source: 'dials' } };
 }
 
-export const REFERENCE_TARGETS = ['scene', 'pose', 'landscape', 'object'];
+export const REFERENCE_TARGETS = ['scene', 'pose', 'landscape', 'object', 'character'];
 
 // Per-target default fidelity. Every target leans THEMATIC/GESTURE — recover the
 // scaffold's attitude, let the substrate fill the rest; `faithful` is the opt-in.
-export const DEFAULT_FIDELITY = { scene: 'thematic', pose: 'gesture', landscape: 'thematic', object: 'blocky' };
+export const DEFAULT_FIDELITY = { scene: 'thematic', pose: 'gesture', landscape: 'thematic', object: 'blocky', character: 'likeness' };
 
 // ---------------------------------------------------------------------------
 // The extraction protocols (the heart — content, not plumbing). Each is the
@@ -249,7 +250,7 @@ const LANDSCAPE_PROTOCOL = {
     "capture_reference({ target:'landscape', fidelity, insights:{ heartbeat, splatch, scene?, structures?, forest?, sky?, camera?, light?, bridges?, city?, cityDensity?, elevation?, renderStyle?, seed?, gesture?, caveats? }, stash_ref? })",
 };
 
-const PROTOCOLS = { scene: SCENE_PROTOCOL, pose: POSE_PROTOCOL, landscape: LANDSCAPE_PROTOCOL, object: OBJECT_PROTOCOL };
+const PROTOCOLS = { scene: SCENE_PROTOCOL, pose: POSE_PROTOCOL, landscape: LANDSCAPE_PROTOCOL, object: OBJECT_PROTOCOL, character: CHARACTER_PROTOCOL };
 
 export function getReferenceProtocol(target) {
   const proto = PROTOCOLS[target];

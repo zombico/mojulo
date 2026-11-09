@@ -13,6 +13,7 @@
  *
  * Pure.
  */
+import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
 import { TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS } from './characters.js';
@@ -24,11 +25,18 @@ import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
+import { ARMS_KIT_WORDS, ARMS_MAX } from './arms-kit.js';
+// the carried arms a shooter's player holds (arms-kit.js): aimed with the right mouse, switched on the wheel
+const ARMS_LINE = `  arms: [${ARMS_KIT_WORDS.join(' | ')} | { item, model }] (1..${ARMS_MAX})   the player's own kit: right click aims down the sights (a scope zooms, Shift steadies it), R reloads, wheel or 1-5 switches, a bow draws while held`;
 import { TRADITIONS as FIGHT_TRADITIONS } from '../versus/versus-traditions.js';
 import { CLASS_SLOTS } from './equipment.js';
 import { SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 import { WORLD_STYLE, CIVILIZATION, LINK_KINDS, TOPOLOGIES } from './world.js';
 import { MODES, STAMPS } from './review.js';
+import { chapterById, chapterWaves } from './chapters.js';
+import { LENGTHS, LOOSENESS, PASSAGES, BEAT_AS, SHAPES, LAWS as MAIN_QUEST_LAWS } from './main-quest.js';
+import { LOOP_LAYERS, BODY_VERBS } from './core-loop.js';
+import { GOALPOSTS } from './goalposts.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
@@ -39,6 +47,7 @@ import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
 import { CAMERAS } from './cameras.js';
+import { TEACH, VERTICALITY } from './course.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
 import { SWARM, MAX_FOES, PAIR_DOWNS, ROOM_FOES } from './foes.js';
@@ -68,7 +77,11 @@ import { ROOMS_KEPT } from './minigames.js';
 import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
 import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
 import { QOW_PRINCIPLES, SIGHT } from '../qow/qow.js';
+import { ATLAS_LOOK_IDS } from './atlas-html.js';
 import { BOOK_SKINS } from './book-skin.js';
+import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
+import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
+import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -78,13 +91,135 @@ const pair = (page, a, b) => [
 ];
 const samples = (page) => `Browse more: get_game_vocab({ samples: '${page}', n?, seed? }) draws up to ${SAMPLE_MAX} random fragments of this page, brief-blind, each with what it derives.`;
 
+// the ledger: the units asked for one at a time (gameworld/reqs.js), their jobs (jobs.js), their received gate and the
+// game built up to its last accepted level (runner.js composedStages); the studio card points here
+function ledgerCard() {
+  return lines(
+    'THE LEDGER — a game made one unit at a time: a chapter of the book, or one level (level:<id>), worked to quality',
+    'before the next, so a mistake stays in its unit and an accepted unit is ground the next stands on.',
+    '',
+    'ASK FOR A UNIT: { ref, req: { unit, remit?, staffing? } } (a chapter, or level:<id>); what it reads and',
+    'has not settled is asked for first. `reqs.current` is the unit being worked; its view carries its `req` (the remit,',
+    'the precedent: the last accepted unit of its kind and the creator\'s notes on what they sent back). It is accepted',
+    'when the creator approves its parts (a unit with none: { ref, req: { id, accept: true } } on their word).',
+    'THE MAIN QUEST AS THE QUEUE: { req: { unit: \'beat:<id>\' } } asks for the level a beat is played on (laid now if',
+    'a run would lay it), its remit filled from the quest (the act and its stage, the beat\'s foes and gains, the beats',
+    'around it, the core loop; your words win key by key). { req: { quest: true } } asks for every built beat, in order.',
+    'A chapter whole: { req: { unit: \'act:<id>\' } }, one req, its levels in play order and its departments one crew.',
+    'ITS JOBS ({ ref, req: { id, start: true } }; the view\'s `req.does` says what is next: start, work, keep, critique,',
+    'probe, fix, review). Hand each issued job to one agent with its brief (`req.jobs`: what it reads, writes and reports): an author',
+    'sends its pages as `patch` and its `decisions`, each with `because`; diverge authors each take an `angle`, their',
+    'patches held until you keep one ({ req: { id, keep } }); a critic reads with a `lens` and sends `findings`.',
+    'A brief\'s read carries its seat (`as: \'r2.j1\'`): the agent\'s view is its own unit and its own job, its call its',
+    'report alone. Its `agent` names the plugin\'s agent to hand it to, where the host has them.',
+    'RECEIVED is its machine gate (`req.receipt`: a proposal kept, its decisions cited, its critics in, its laws holding):',
+    'a level\'s stages are made by its run ({ chapter: \'level:<id>\', run: true }), then played by the probe',
+    '({ req: { id, probe: true } }: it loads, it is not lost before input, it has something to play against, no debug',
+    'text; its frames are for a look critic). Received is not accepted: show the creator, whose verdict it is.',
+    '',
+    'THE PRODUCTION ({ ref, production: { style, checkpoints? } }): yeoman, auteur (unset) or avant-garde sets the',
+    'assistant director\'s posture: assistive, strict, elevating. A beat as one crew: { req: { unit: \'beat:<id>\', crew:',
+    'true } }, an author per unit in a stable `role` (keep one agent per role: its precedent stays in its context), all',
+    'posting to a notebook ({ req: { id, job, post } }). Then { req: { id, assist: true } }: the assistant recommends',
+    'pass-up, rework or elevate. You decide: { req: { id, direct: settle | rework | creator } }. Settle (directed, not',
+    'accepted) only after the creator accepts the vertical slice, never a pillar or a checkpoint.',
+    '',
+    'THE TICKET: give `ask: { intent }` with the work it causes (a req, a verdict, a patch, a run): the intent you',
+    'inferred and are acting on, in your own words, never the person\'s message. `ask: \'a3\'` adds to it. { ref, trace:',
+    '\'a3\' | \'r2\' | \'r2.j1\' } reads the chain: the intent, its reqs and jobs (each decision\'s because), verdicts, revisions.',
+    '',
+    'THE COMPOSITE: once a level is accepted and the game lacks it, `next` says composite: run: true makes the game of',
+    'the accepted levels alone (no level made that no one has worked), playable to the last. A stale level stays out.',
+  );
+}
+
+// the studio: the book worked a chapter at a time, in the waves the chapters' reads make (chapters.js chapterWaves): the
+// card is generated from the registry, so its order is the chapters' own
+function studioCard() {
+  const waves = chapterWaves().map((ids, i) => `  ${String(i + 1).padStart(2)}  ${ids.map((id) => `${id} (${chapterById(id).department})`).join(' · ')}`);
+  return lines(
+    'THE STUDIO — a game of several departments, worked a chapter at a time. Each page of the book is a chapter in a',
+    'department; design_game\'s readout says them (`chapters`: each one\'s state, open parts, and what it `waits` on).',
+    '',
+    'THE ORDER (each chapter after what it reads). Work ONE unit at a time to quality, so a mistake stays in it:',
+    ...waves,
+    '',
+    'A CHAPTER\'S SESSION (a department\'s or a subagent\'s: it holds this card and its chapter\'s cards, not the book):',
+    '  read     design_game({ ref, chapter }): its parts, its pages, its upstream as a digest (`reads`: each one\'s state',
+    '           and print; a print that moved since you read it: read that chapter again), its next moves, `book`.',
+    '  write    { ref, chapter, patch } on its own pages; a write past them is written and said (`outside`).',
+    '  preview  { ref, patch, preview: true } first, for a change that may reach far: the parts back for review, the',
+    '           accepted units gone stale, what a run would remake. Nothing is written.',
+    '  show     its bible section (`read`) to the creator. The verdicts (approve, revise) are the creator\'s: a subagent',
+    '           stops at the review and reports what the creator must decide.',
+    '  proof    { ref, chapter, run: true }: its steps and what they name, made ahead of their approvals (`ahead`: say so).',
+    '  a level  chapter: \'level:<id>\' is one level alone (its part, page, links in and out, stages): the levels a unit each.',
+    '  vary     { ref, chapter, vary: { concept, n } }: n visual takes on its pages (colour, size, silhouette, surface,',
+    '           detail), freshly rolled and proposed; take one with its patch, the next pass with keep / reject patches.',
+    '  done     its state settled (approved; auto in autonomous mode), its `blockers` and `advises` cleared or said.',
+    '',
+    'A SUBAGENT gets the ref, the chapter id and the cards its view names (`chapter.cards`), and returns its chapter\'s',
+    'state and the creator\'s questions. Hand the next unit once the last is settled, never one that `waits`.',
+    '',
+    'ONE UNIT AT A TIME: the ledger asks for each unit, hands its jobs to agents and receives it before the creator',
+    'is shown it; the game is built up to its last accepted level (gameworld-ledger).',
+    '',
+    'THE BUILD (the last wave): { ref, chapter: \'build\' } reads the pre-compile check (`compile`: blockers by chapter,',
+    'advises, the estimate). Then run: true until nothing is `pending`, telling the creator how far each call got;',
+    'check: true walks each level and reads its first frame (`audits`, the machine gate). The eyes gate is the creator',
+    'playing it (`play`): never say it passed.',
+    '',
+    'THE FIRST SESSION: not the game done, the game started. The readout\'s `goalposts` say where it stands (met, partial,',
+    'open), each open one with the question only the creator answers, and `next`: where this session goes on, and the',
+    'next one picks up. A good first session leaves:',
+    ...GOALPOSTS.map((g, i) => `  ${i + 1}. ${g.id.padEnd(12)} ${g.says}`),
+    '',
+    'One level and a simple goal is the quick path, not the studio (gameworld-quick).',
+  );
+}
+
+function mainQuestCard() {
+  return lines(
+    'THE MAIN QUEST — the game\'s spine: its acts, a beat at a time. Not a game type: the flow and the sequence, and the',
+    'levels and maps laid from it. Any long game composes on it (an RPG, a metroidvania, a campaign of dungeons).',
+    '',
+    'ASK THE CREATOR, before writing it (their answers are the recipe; never pick for them):',
+    '  how long does the main path play? what periods does it span, on the same maps or new ones? how big is the world?',
+    '  where does the story take the hero, and does it end (an ending can wait: a game being built may have none)?',
+    '  how loose are the side quests from the main thing?',
+    '',
+    `mainQuest: { length?: ${Object.keys(LENGTHS).join(' | ')} | { hours }, periods?: [{ id, name?, passage?: ${Object.keys(PASSAGES).join(' | ')} }],`,
+    '  acts | chapters: [{ id, name?, period?, goal: \'<words>\', turn?, beats: [{ id, goal, as?, gains?, foes?, who?, built?: false }] }],',
+    `  the shape, one or the other: ${Object.entries(SHAPES).map(([k, v]) => `${k}, ${v}`).join('; ')}. A chapter\'s turn is what`,
+    '      a happening changes in the world, carried on (the time facet\'s chapter overlay).',
+    `  ending?: { beat, stakes? }, sides?: { looseness: ${Object.keys(LOOSENESS).join(' | ')} } }`,
+    `  as: ${BEAT_AS.map((k) => `{ ${k} }`).join(' ')}: what the beat is played as (a level, a WCD space, a QOW quest, a`,
+    '      gauntlet level, an errand, an epoch by number, a story moment). gains: powers gained on it; foes: the bestiary',
+    '      it fields; who: its cast. built: false is a beat planned, not made yet: priced, never run.',
+    '  LAID AT A RUN: a built beat with no `as` is laid its own level from its words (named by its goal, standing its',
+    '      foes), once, into the recipe: yours from then on, edited in place. The game plays the beats\' levels in order.',
+    `  passage: ${Object.entries(PASSAGES).map(([k, v]) => `${k}, ${v}`).join('; ')}.`,
+    '',
+    'AN ACT (OR A CHAPTER) IS A STAGE of the hero\'s progression: the first early, the last late, the middle mid. So the',
+    'actions page\'s progression and the quest say the same: a power gained on a beat is gained in that act\'s stage.',
+    '',
+    'LAWS (advice, never refused):',
+    ...MAIN_QUEST_LAWS.map((l) => `  ${l.law.padEnd(16)} ${l.says}`),
+    '',
+    'THE CORE LOOP (loop, the intent\'s page): what the player does, nested, each layer feeding the next.',
+    ...Object.entries(LOOP_LAYERS).map(([k, v]) => `  ${k.padEnd(10)} ${v}`),
+    `  loop: { moment?: [verbs], encounter?, reward?, session? }; a layer not written is read from the book. A moment verb is`,
+    `  a power\'s verb or the body\'s own (${BODY_VERBS.join(', ')}). The main quest is the loop\'s outermost turn.`,
+  );
+}
+
 function guide() {
   return lines(
     'THE GAME BOOK — design a game top down, then let the rail make it. You DESIGN; design_game makes, keeps and remakes.',
     '',
-    'SIZE THE ASK first (you infer it). One level, a simple goal (reach, collect, survive, avoid), no powers, stats or',
+    'SIZE THE ASK first. One level, a simple goal (reach, collect, survive, avoid), no powers, stats or',
     'progression: the QUICK path, one call; read gameworld-quick only. Several levels, no hero: COMPOSE,',
-    '{ compose: { prompt } }, then run. A hero, powers, gear or a story: the book below.',
+    '{ compose: { prompt } }, then run. A hero, powers, gear or a story: the book below, by chapter (gameworld-studio).',
     '',
     'THE LOOP (each page answers ONE question, from the brief and the pages above it; never from a default):',
     '  intent      what game is it? its cube; the world is laid for it (gameworld-intent)',
@@ -156,6 +291,7 @@ function worldCard() {
     `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     '  in a map, a link may take key: \'<item>\', keyAt: \'<level>\': the item there opens it (a trail, or a city roof in reach);',
     '  a hero\'s power as the key also gives the hero its move.',
+    '  needs: \'<flag>\' (a quest\'s): the way shut till the story sets it (no dungeon before its quest).',
     `screen: ${Object.keys(SCREENS).join(' | ')} | { aspect } (a new game: ${NEW_GAME_SCREEN}).`,
     '',
     'ANSWER FROM: the brief\'s places and moods. One level that promises the rest beats many; the world bible draws each.',
@@ -221,12 +357,13 @@ function motionCard() {
 
 function feelCard() {
   return lines(
-    'THE FEEL — how the hero moves, as a game template: feel: \'<template>\' | { pole, variant?, toward?, t?, set? }.',
+    'THE FEEL — how the hero moves, as a game template: feel: \'<template>\' | { pole, variant?, toward?, t?, set?, takes? }.',
     'The template\'s card (the action lab\'s) is lowered over the hero\'s platform rule: the run and its acceleration, the',
     'jump\'s height and gravity up and down, coyote time and the buffer, the shortest hop, air control, the gather, air',
     'jumps, the 2D lane, the melee hitstop. design_game\'s readout says what the runtime carries of it, partly carries, and',
     'does not carry yet (the parry, the charge, offense armor, the roll\'s invincible frames, the runner): advice, never a refusal.',
     'The motion (gameworld-motion) is how the walk LOOKS; the feel is how the controls PLAY. Both may be set.',
+    'takes: true plays the hero\'s own jumps (a stand\'s, a run\'s, an air jump\'s) on the card\'s flight, landing and squash.',
     '',
     'templates (after · base feel · viewer):',
     ...POLE_IDS.map((id) => { const P = POLES[id], v = variantsOf(id); return `  ${id}  ${P.name} (after ${P.after}) · ${P.base} · ${P.view.camera}${v.length ? ` · variants ${v.join(', ')}` : ''}`; }),
@@ -259,7 +396,8 @@ function juiceCard() {
     'type\'s strength), and a status\'s coat the look\'s rim; rim: 0 turns it off.',
     'A composed world writes \'auto\'; design_game\'s readout suggests one (a `juice` step) for a world that writes none.',
     'TEMPO, the world clock: \'auto\' | false | finisher | kill-cam | impact | bullet | { moments: [{ on, scale, hold }] }:',
-    'slows the world on strike, down:foe, last-down, dodge, the camera on real time (manual: the controllable card).',
+    'slows the world on strike, down:foe, last-down, dodge; a moment\'s cam and look take the camera and the grade.',
+    'GRADE, the look over every frame: \'auto\' (anime vivid, western film) | false | film | noir | bleach | vivid | pastel.',
     '',
     'registers and their looks (look: a register\'s first is its own; an anime fighter or brawler is drawn cel):',
     ...Object.entries(JUICE_REGISTERS).flatMap(([r, R]) => R.looks.map((l) => `  ${r} · ${l}  ${JUICE_LOOKS[l].says}`)),
@@ -274,6 +412,35 @@ function juiceCard() {
       const S = juiceSignature(juiceFloor({ register, look, flavor }));
       return `  ${brief} (${register} · ${look}, ${flavor}): ${S.look}; ${S.time}`;
     }),
+  );
+}
+
+function interfaceCard() {
+  const byLook = {};
+  for (const [g, l] of Object.entries(INTENT_LOOKS)) (byLook[l] = byLook[l] || []).push(g);
+  return lines(
+    'THE INTERFACE: the menus, the front and the HUD, and their LOOK, dressed by the interface department with the',
+    'ART DIRECTOR (the register the game speaks in) and the COLOUR THEORIST (the world\'s palette, solved: ink, panel,',
+    'line, accents, contrast checked). The game UI runtime (mana-ui) draws what they settle.',
+    'ui: { theme?, colour?, languages?, language? }:',
+    '  theme      world (the default: the register the intent sets, in the world\'s colours) | a preset | a theme card |',
+    '             { from?: any of those, ...words } (a child theme: say only what changes)',
+    '  colour     world (the colour theorist\'s palette; the default when the world has one) | theme (the look\'s own)',
+    '  languages  { <code>: { <key>: word } }, language the first: the game\'s words and the UI\'s (select, back,',
+    '             loading, rank…) in each language it ships; the options screen picks by languageName; English fills gaps',
+    'IN ORDER, after the world, the feel and the systems: 1 art direction: the intent\'s register (below), or a preset or',
+    'card when the game is not its genre\'s usual; one look for the whole game. 2 colour: world when the world has a',
+    'palette; theme only for a brand of its own (a casino). 3 dress it with words, not colours: layers (backing, crest,',
+    'breakout, stage, material, overlay), motion (motion, slant, transition, backdrop), sound (sounds, cues). 4 read the',
+    'part interface:look (where it came from, its advice: contrast measured, never refused); the eyes gate is the board',
+    '(scripts/mana-board.mjs --theme <id>): a person looks.',
+    'REGISTERS (intent → look; console when none):',
+    ...Object.entries(byLook).map(([look, gs]) => `  ${look}: ${gs.join(' ')}`),
+    `FAMILIES: ${Object.entries(THEME_FAMILIES).map(([f, ids]) => `${f} ${ids.join(' ')}`).join('; ')}.`,
+    `CARDS: ${THEME_CARD_IDS.join(', ')}. A NEW LOOK IS A CARD: { id, name, about, family?, tags?, from, ...words } as a`,
+    'JSON file on the shelf (playscape/ui/theme-cards/, its README), the way a WordPress theme is a theme.json; for one',
+    'game only, the same inline as ui.theme. WORDS (closed):',
+    ...Object.entries(THEME_WORDS).map(([k, ws]) => `  ${k}: ${ws.join('|')}`),
   );
 }
 
@@ -329,8 +496,12 @@ function equipmentCard() {
 
 function systemsCard() {
   return lines(
-    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, ui?, gear?, destruction? }.',
+    'THE SYSTEMS — the numbers and the HUD, derived from the actions: mechanics { stats?, scale?, hud?, legend?, lives?, coins?, ui?, gear?, destruction?, scars? }.',
     '',
+    'legend: screen (the default: the controls on the play screen for a level\'s first seconds) | menu (only in the pause',
+    '  menu, nothing over the play: a demo or a release).',
+    'lives: 1-9, a platformer\'s lives for hp (a hit or a fall costs one, none left loses; no hp bar). coins: true |',
+    '  { oneup }: coins along a side strip\'s course, a life every 30.',
     `scale (the coarse dials): ${Object.entries(SCALE).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `stages → epochs reached by level: ${Object.entries(EPOCH_LEVEL).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
     `how a power is gained, by system kind: ${Object.entries(GAINED).map(([k, v]) => `${k}: ${v.why}`).join('; ')}.`,
@@ -338,7 +509,13 @@ function systemsCard() {
     'powers: { <power id>: { spends } }: what one power spends of the resource over the derived (0: free, a guard that',
     '  costs nothing); ledgered. The readout\'s `numbers` says the stats, the resource and what each power spends.',
     'destruction: how much the game lets break, never a default: none, objects (crates, barrels, pots), cover (furniture,',
-    '  doors, boulders too) or world (walls as well); copied onto every level.',
+    '  doors, boulders too) or world (walls as well); copied onto every level. Walls that hold and objects that break suit',
+    '  most games. physical (destructible physics: only when asked) breaks what world does by its matter (a thing\'s',
+    '  `matter`: concrete, brick, steel, glass…) and drops what loses its support; the level\'s matter { power: human |',
+    '  heroic | super | titan | cosmic } scales every blow.',
+    'scars: true | { ground?, wall? } (cosmetic damage, any degree): a map that may not change still shows its blows, a',
+    '  burst\'s painted crater and thrown dirt, a wall\'s scorch and spalled chips, a round\'s chip or pock, by the',
+    '  same laws as physical; ground and wall are matters, else the geocube\'s, else loam and brick.',
     'LAWS: every number carries its reason; your own `stats` are laid over the derived (lists by id, objects by key) and',
     'ledgered. Each power is a key (1, 2, 3 …) that spends its cost and shows its look; I opens the status page. The HUD',
     'is derived (hp, the resource, the level, banners, a status page) or yours (play parts: get_play_vocab).',
@@ -403,9 +580,9 @@ const QUICK_LEVERS = {
   race: () => [
     `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,
     `  ride: ${Object.keys(RIDES).join(' | ')} | a registry vehicle ('a jeep')   you drive it (WASD), followed from behind; no hero, climb or building`,
-    // (the road's classes by name; the field's, the airside's and the cycles' grow a class at a time, so a registry word
-    // names them: the card stays under its ceiling)
-    `    vehicle: ${Object.keys(VEHICLES).filter((k) => !MILITARY_CLASSES[k] && wheelLayout(VEHICLES[k]) === 'axles').join(' | ')}, others by a registry word; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
+    // (a few of the road's classes by name, the rest by a registry word: every shelf grows a class at a time, so the card
+    // names none it would have to keep up with and stays under its ceiling)
+    `    vehicle: a physics class (${Object.keys(VEHICLES).filter((k) => !MILITARY_CLASSES[k] && wheelLayout(VEHICLES[k]) === 'axles').slice(0, 8).join(' | ')}, …) or any registry word; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
     '  rivals: n (1..7, with a ride)   finish on the podium',
     '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade?, light? }):',
     '    the whole field, yours first (no ride, hero or rivals beside it); shade: gloss (default) | smooth | cel (flat); light: form (default: lit by the page) | paint',
@@ -422,28 +599,33 @@ const QUICK_LEVERS = {
   farm: () => [`  plots: n (1..12, 6), target: gold (10..500, 40), days: n (2..30, 6), folk: n (0..6, 2), farmhand: ${HERO_WORDS}   a clock: night falls`],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
   fight: () => [
-    '  roster (1..12): every fighter a CHARACTER, designed by the character loop. A sheet (an Egocube: egocube card) the run',
+    '  roster (1..12): every fighter a CHARACTER. A sheet (egocube card) the run',
     '    makes into one: an archetype word, a brief in words, or { brief?, facets?, seed?, archetype?, role?, build?, age?,',
     '    name?, color? }; or { hero: { ref } }, one made with create_character. The fight is read off the sheet (role the',
     '    style, archetype and its shadow the signature, build heavy or light), the entry\'s own words over it: style',
-    '    (grappler | rushdown | zoner | all-rounder), signature, weapon, library, normals, specials, super, tune, and',
-    `    tradition (${Object.keys(FIGHT_TRADITIONS).join(' | ')}): how it stands and strikes, its punches and kicks in every`,
-    '    slot (a tradition word alone is a fighter: a sheet rolled to fight that way). Not the drawing tradition (anime |',
-    '    western): every sheet is rolled in the game\'s setting, its world\'s look, era and colours, a person every time.',
-    '    Absent: four sheets, one per style. Revise a fighter with update_character; the fight follows on read',
-    '  arenas: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }] (1..8)   the stage worlds it is fought on in 3D',
-    '  rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round; rules: { systems?: [parry | burst | guard], … } the sim\'s dials',
-    '  its own simulation, seen from the side: only theme and camera side beside these (no hero, trail, building, ride or run)',
+    '    (grappler | rushdown | zoner | all-rounder), signature, weapon, element (fire | lightning | frost | void, on fists |',
+    '    feet), library, normals, specials, super, tune, moves,',
+    `    tradition (${Object.keys(FIGHT_TRADITIONS).join(' | ')}): how it stands and strikes (alone, a fighter).`,
+    '    Absent: four sheets, one per style. Revise one with update_character; the fight follows',
+    '  register: anime | western (stamped, the setting\'s)   one look: every fighter cel or lit, rolled in it, one light',
+    '  strikes: own (stamped) | tradition   own: a boxer\'s own punches, solved on its rig; tradition:',
+    '    keyed moves for all. Each in its own body',
+    '  arenas: [{ id, name?, kit?, look?, width?, depth?, height?, crowd?, set: ring? }] (1..8) 3D stages, or { id, level:',
+    '    { kind: greybox, preset: training | flat | alley | rooftop | turned } } by its lane. Absent: training (stamped)',
+    '  rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round; rules: { systems?: [parry | burst | spark …] } the sim\'s dials',
+    '  seen from the side: theme and camera beside these',
   ],
   shoot: () => [
     `  foes: n (4), foe: ${HERO_WORDS}   first person by default (or third-person); walls to take cover behind`,
     `  craft: ${Object.keys(CRAFT).join(' | ')}   a dogfight instead: waves: n of fighters, assist, airspace (as fly's); followed from behind`,
+    ARMS_LINE,
   ],
   deathmatch: () => [
     `  bots: n (1..7, 3), frags: n (1..50, 10), seconds: n (10..600) a time limit, foe: ${HERO_WORDS}`,
     '  arena: \'<words>\' ("a tight three-lane arena with long sightlines"), pole: realistic..stylized (0..1),',
     '    weapons: true (the pole\'s guns on the arena\'s floor; needs a pole)',
     `  mode: ${DEATHMATCH_MODES.join(' | ')}   two sides: team deathmatch, or a point held for time`,
+    `${ARMS_LINE} (or weapons, not both)`,
     '  camera first-person or third-person (over the shoulder); no building, ride, climb or run',
   ],
   conquer: () => [
@@ -476,7 +658,7 @@ const quickShared = () => [
   'levers any goal takes (where its play allows; a refusal names the clash):',
   `  hero: ${HERO_WORDS} | { ref } (a hero from create_character): looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
   '    { mascot: true | { brief?, facets?, seed? } } a mascot on foot, its own walk, run and jump; absent or false: first person',
-  `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person with a hero, first person without; top-down and side need a hero`,
+  `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person, or first person with no hero`,
   `  screen: ${Object.keys(SCREENS).join(' | ')} | { pole?, aspect?, orientation?, fov? }   the screen it is for (absent: ${NEW_GAME_SCREEN})`,
   '  climb: true   a climb after the trail;   run: n   a pool of n + 2 trails, each run draws n, a death ends it',
   '  building: { use, seed?, goal?, … }   a building as the level (reach, collect or survive; card game-building)',
@@ -497,23 +679,33 @@ const quickShared = () => [
 
 function battlesCard() {
   return lines(
-    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, foe?, rest?,',
-    '  random?, classes?, skills?, foes?, items?, rules? }. Absent: no battles (a turn-based cube asks for them: the',
+    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, foe?, looks?,',
+    '  shops?, rest?, random?, classes?, skills?, foes?, items?, rules? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
     '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
     '',
     `party   the hero and each cast member who joins (characters.cast.<id>.joins), each a class: { hero: { class, name? },`,
     `        <cast id>: { class } }. Unnamed: the hero a fighter, those who join in turn ${JOINER_CLASSES.join(', ')};`,
     '        with characters.casting, the hero and its first party each the class their sheet reads as.',
     `        Classes: ${BATTLE_CLASSES.join(', ')}, or the world's own (classes). A member switches class on P, outside a`,
-    '        fight; each class keeps its own rank, points and skill tree; learned skills stay.',
+    '        fight; each class keeps its own rank, points and skill tree; learned skills stay. followers: false, it',
+    '        fights but does not walk the map.',
     `packs   the packs met along the way, walked in order across the game's trail stages (default: ${PACKS.slice(0, 3).map((p) => `[${p.join(', ')}]`).join(', ')} …);`,
     '        per: n on each trail stage (2), on its beats, as many as it has room for. boss: a pack, the last stage\'s',
-    '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map, or { species, ooze?, stylism? }:',
+    '        last (a building\'s: its goal room), with no escape; sets: the story flag its fall sets (a quest\'s last step).',
+    '        foe: { <hero-door words> } how a foe stands on the map, or { species, ooze?, stylism? }:',
     '        a beast on its own gaits (a wolf pack, dire wolves); walk up to one to fight.',
+    'looks   each foe its own: { <foe id>: { species, ooze?, stylism? } a beast | { people, facets?, dress? } a people (a',
+    '        lineage, the beast-kin: lupine, feline …, the undead: skeleton, zombie) | hero-door words }; the presets\' own.',
+    'shops   a merchant (wares by how far on, bought back at half) and an inn (a night: HP, MP, cured) beside each fighting',
+    '        stage\'s start: shops: false | { wares?: [ids], inn?: gold | false }. Where an inn stands it is the rest.',
+    'hub     the world\'s hub: \'<level>\' (topology interconnected): the town every way leads back to, no fights in it,',
+    '        its merchant and inn there; kept by its folk (characters.folk) where it has them, else by the way in.',
     'rest    E at each stage\'s start restores HP and MP (rest: false for none). random: { every?, chance?, after? }',
     '        random fights on the trails, drawn from the stage\'s packs.',
     'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
     '        Equip tab (P) wears what the bag holds. gear: the world\'s own, { <item>: { slot, atk?, def?, …, classes? } }.',
+    'foes    { <id>: { hp, mp?, atk, def, mag, spd, xp, gold, skills?, drops?: [{ item, chance }], weak?, boss? } }: a row',
+    '        REPLACES its preset whole, its skills and drops too: name them again.',
     'rules   { turns: rounds (every member picks, then all act by speed) | timeline (each acts when its gauge fills: the',
     '        quick more often), defeat: fail (the level) | retry, switch: anywhere | never, carry: class | all, cap, xp, cp, sp }.',
     'juice   what the moments feel like: { on: { <happening>: juice }, also?, <name>: [steps] } over the defaults (false:',
@@ -536,6 +728,17 @@ function battlesCard() {
     '  steps up a trail stage (fishing). E there plays a round in a pixel window over the field (it holds still).',
     '  Its score pays gold (gold: a point) into the carried bag;',
     '  goal is the score that wins; the first win gives its prize (an item) and sets its flag (a scene or quest reads it).',
+  );
+}
+
+function mountsCard() {
+  return lines(
+    `MOUNTS — horses the hero gets on and rides: mounts: 2 (that many bays beside each walking level's spawn) | [{ coat?`,
+    `  (${Object.keys(COATS).join(' | ')}), at?: [x, y], heading? }]. E in reach walks to the near side and gets on; W urges`,
+    '  it up through walk, trot, canter and gallop, letting go halts it, S checks it and reins back, A/D turn it (wider at',
+    '  speed), Space jumps at a trot or faster (a low wall cleared); E at a walk or halted gets off. Any hero rides: its',
+    '  riding clips are solved on its own rig to the horse\'s saddle, irons and bit.',
+    'A world whose levels walk lays them on each; a level whose hero is a car or a craft leaves them standing loose.',
   );
 }
 
@@ -574,6 +777,32 @@ function wcdCard() {
     'not colour a bay building; its look or its tone does.',
   );
 }
+function courseCard() {
+  return lines(
+    'THE COURSE — a platformer\'s level: trails linked one after another, each teaching what the next tests, its floors and',
+    'gaps laid over a trail\'s own line and SIZED BY THE HERO\'S REACH (its feel: the running jump, the air jump, the dash jump,',
+    'the wall kick), each gap tagged with the move it teaches. levels.<id>.course: { teach, verticality? } over every trail of',
+    'its walk, or { <trail node>: { teach, verticality? } } each its own.',
+    '',
+    `  teach        ${TEACH.join(' | ')}`,
+    '    basic      gaps and steps the running jump clears, widening as it goes',
+    '    meet       one long flat floor: the first encounter, room to learn the stomp or the blow',
+    '    advanced   the card\'s advanced moves, each just past the running jump, then tested (a template with takes: true',
+    '               carries its dash and its wall; its air jump without)',
+    '    gauntlet   basic gaps between floors long enough to fight on',
+    '    boss       one long floor, the arena',
+    `  verticality  ${Object.entries(VERTICALITY).map(([k, v]) => `${k} (${v.says})`).join(', ')}`,
+    '',
+    'THE FIRST LEVEL, the slice: five trail nodes, course { basic, meet, advanced, gauntlet, boss? } a node each, and the',
+    'foes\' density a node each (levels.<id>.foes.density: { meet: \'sparse\', gauntlet: \'dense\' }, gameworld-foes). A boss',
+    'only when the creator asks: a fifth node, course { teach: boss }, and goal: { boss: { win: jobber | rival | boss } }: a jobber',
+    'thrown away, a rival or a boss a story hook. The win changes no fight; the next level reads it, the story keeps it.',
+    'Side (camera: side) runs the trail\'s line; 3D runs it free: camera follow | orbit.',
+    'The readout\'s laws (course:gap-n) say each gap\'s width, its rise and what the move it teaches reaches; a fall into',
+    'a gap puts the hero back on the floor it left. Its floors are the stage\'s beats: what stands on it stands on them.',
+  );
+}
+
 function qowCard() {
   return lines(
     'THE QUEST OPEN WORLD (QOW) — the walled-core dungeon\'s opposite pole. A WCD forces the player in, layer by gated layer,',
@@ -614,9 +843,9 @@ function foesCard() {
     '        Or skin: { meshRef, height? }: a rigged humanoid .glb made elsewhere, bound onto that sketch, worn as a person.',
     '        A person dressed as a crew: { people: \'human\', dress: { faction, kind?, colourway?, body? } } (the grunt factions).',
     'levels.<id>.foes   true (the bestiary; each class on its stand-in if the world keeps none) or { from?: [<id>],',
-    '        count?, win?: exit | clear }: one foe on each free beat of a stage, cycling through from; clear: won when all fall;',
-    `        count stands that many (up to ${MAX_FOES}), the extra round the beats; a building, ${ROOM_FOES} of its rooms. A swarm, a pack of ${SWARM}. A stage they`,
-    '        stand on makes the hero hittable, its hp taking their hits.',
+    '        count? | density?, win?: exit | clear }: one foe on each free beat of a stage, cycling through from; clear: won when all fall;',
+    `        count stands that many (up to ${MAX_FOES}), the extra round the beats; a building, ${ROOM_FOES} of its rooms. A swarm, a pack of ${SWARM}.`,
+    '        density: foes a free beat, 0-4 (none sparse even dense swarm), or { <trail node>: it }. The hero is hittable.',
     `rank    ${Object.entries(FOE_RANKS).map(([k, R]) => `${k} ×${R.downs}`).join(', ')}: the blows it takes; a boss duels.`,
     '        skill: novice, regular, veteran, ace: how well it carries out what it decided.',
     '',
@@ -638,6 +867,7 @@ function foesCard() {
     '        cleaves, a round knocks some off, a burst tears it apart): the undead\'s default, layer 0 under every foe.',
     'CAST    /bible?book=foes, the cast sheet: parts foes:cast, foes:<id>. None kept: design_game\'s `foes` step proposes one.',
     'A world or level without foes is laid as it was.',
+    'GAUNTLET a level\'s goal: { gauntlet: { arenas: [{ waves: [{ <id>: <n> }] }], checkpoint? } }: sealed in waves (card wave-gauntlet).',
   );
 }
 
@@ -748,9 +978,10 @@ function folkCard() {
     '  ([Keeper: the errand]) and the rest plain words. It lives in the first town holding all its people.',
     'RECURRING: recurring: { <id>: { role, name? } } the Officer Jenny of a game: in each town with that role, its first',
     '  is them, one face and one name everywhere (the game\'s seed), the town\'s clothes and house. Talk names them.',
+    'LIFE: by default each one not looked for potters out before its door and back (life: false: they keep still).',
     'THE DAY: day: true | { start?, rate? } gives the level a clock (its hour on the HUD, its sky dark at night) and the',
     '  households, children and watch walk a day on it; the keeper, the elder, the recurring and anyone in a sidequest',
-    '  keep their place. Without it they stand. Walk up and press interact (E) to talk to anyone.',
+    '  keep their place. Without it they potter by their doors. Walk up and press interact (E) to talk to anyone.',
   );
 }
 
@@ -762,6 +993,8 @@ function nextCard() {
     '             { ref, revise: { part, note } }). The verdicts are theirs, never yours. The bible\'s look is the world\'s',
     `             book: { skin: ${Object.keys(BOOK_SKINS).map((k) => `'${k}'`).join(' | ')} | { from?, paper, sheet, ink, muted, rule, accent, signal (#rrggbb),`,
     '             display, body, mono (font names), frame: rule | bracket, texture: none | grid | scanlines, plates: paper | night } }.',
+    '             Its atlas, the levels, trails and ways drawn as a map (flat or tilted on the table): /bible?book=atlas&look=',
+    `             ${ATLAS_LOOK_IDS.join(' | ')}.`,
     '  advised    autonomous: the machine gate advises on those `parts`: change the page, or approve it as it stands.',
     '  play       the game is made: `url`. Its levels are walkable by construction (the hero spawns on each stage\'s ground,',
     '             its exit is the stage\'s own end); whether they can be beaten is the creator\'s to judge in play: nothing',
@@ -770,6 +1003,8 @@ function nextCard() {
     '             what this host allows per option (here | carry | ask | no); the call that made the game carries the',
     '             whole offer (`share`: each option\'s call and why). Where nothing can leave the host, the recipe is the handoff.',
     '  run        run: true makes every step that is ready: the hero first; a world with no characters (a composed one), its levels and the game.',
+    '             A run stops at its budget (~2 min): with `pending`, run again (tell the creator). Each',
+    '             reach or survive level is walked after the game, a step each, on check: true: `audits` (machine gate).',
     '  rerun      after a change, run again: what moved is remade, a hand edit is left (force: true overwrites it).',
     '  adornment  the page is empty: the bible proposes what the hero carries from the power verbs, with reasons; write',
     '             your own at `path` (gameworld-adornment); its items seed the equipment table.',
@@ -777,6 +1012,12 @@ function nextCard() {
     '             its brief\'s words point at. Until then its cube is read from what it says, and its concerns follow.',
     '             With `drift`: a quick goal now reads as another genre than the written one; keep it or change it.',
     '  wait       step `on` waits on those parts (their stamps in brackets).',
+    '  compile    `compile.blockers` (by chapter): what the build would hit; fix first. `estimate`: the build left.',
+    '  req        the unit being worked (`unit`): its view { ref, chapter: unit } carries its `req` (gameworld-ledger).',
+    '  composite  accepted `levels` the game lacks: run: true makes the game of them alone, playable to the last.',
+    '  chapters   (not a step) each chapter: department, state, `open` parts, what it `waits` on. Work one at a time,',
+    '             upstream first: { ref, chapter } is its view (a department, or a subagent given only that and its card).',
+    '             With run: true it makes that chapter and what it names, ahead of approvals (`ahead`: say so).',
     '  form       what the game it is asks and the world lacks (`asks`: for, field, by, says): a field `by: creator` is',
     '             theirs (the hero: ask who it is, never pick one), a `by: composer` field compose fills; run lays it after.',
     '  feel       no feel written: `suggest` is the template its brief, shooter pole or genre points at (`why`, `from`):',
@@ -838,20 +1079,26 @@ export function genreCardById(id) {
 
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
+  ['gameworld-studio', 'The studio', 'the book worked a chapter at a time: the departments in waves, a chapter\'s session, the build', 'a big game, many levels, several departments, who does what and in what order, subagents, a team of agents', studioCard],
+  ['gameworld-ledger', 'The ledger', 'a game made one unit at a time: a req per chapter or level, its jobs for agents, its received gate, the game built up to the last accepted level', 'one level at a time, requisition, req, remit, precedent, subagents, jobs, author, diverge, critic, probe, received, accepted, composite', ledgerCard],
+  ['gameworld-main-quest', 'The main quest', 'the game\'s spine: acts of beats, each played as a level, a dungeon, an open world, a gauntlet, an errand; the core loop', 'a long game, an RPG, a campaign, the story from start to end, acts, how long is the game, beginning middle and end, the core loop', mainQuestCard],
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
+  ['gameworld-course', 'The course', 'a platformer\'s level: floors and gaps over a trail sized by the hero\'s reach, each teaching a move', 'a platformer level, a side-scroller, a 3D platformer, jumps over gaps, a tutorial level, teach the double jump, a wall jump section, platforming, level 1', courseCard],
   ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path, an errand, a fetch quest, a delivery run, a bounty board', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],
   ['gameworld-feel', 'The feel', 'how the controls play: a game template (the run, the jump, its windows) lowered onto the hero', 'play like Mega Man X, a Devil May Cry feel, a Souls-like weight, a Mario jump, tighter controls, floatier jump, coyote time', feelCard],
   ['gameworld-juice', 'The juice', 'how its effects are drawn and timed: its register (anime | western) and its game type', 'anime-style hit effects, punchier impacts, western explosions, snappier effects, effects on twos, a cartoon boop', juiceCard],
+  ['gameworld-interface', 'The interface', 'the menus, the front and the HUD, and their look: a register the art director picks, the colour theorist\'s palette, a theme card or a child theme, the game\'s languages', 'the menus of my game, the UI look, a pause menu like Persona, a souls-like menu, a darker HUD, a language picker, my game in Japanese and Spanish, a theme for my game\'s UI', interfaceCard],
   ['gameworld-actions', 'The actions', 'what the hero can do; it decides the systems', 'my hero\'s powers, a metroidvania, a soulslike', actionsCard],
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
+  ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],

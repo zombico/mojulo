@@ -132,7 +132,7 @@ const PRINT_PROFILES = {
   study: new Set(['figure', 'manji-tree']),
   maquette: new Set([
     'fractal-city', 'condo-complex', 'school-complex', 'edifice', 'dungeon',
-    'transportation-hub', 'subway-station', 'subway-building', 'floorplan',
+    'transportation-hub', 'subway-station', 'subway-building', 'airport', 'floorplan',
     'restaurant', 'store', 'mall', 'painted-landscape', 'planetary', 'controllable',
     'koenigsberg', 'math-structure',
   ]),

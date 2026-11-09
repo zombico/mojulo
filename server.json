@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.zombico/mojulo",
-  "description": "Turn your agent into a game studio: games, worlds and objects as editable recipes. Godot, STL.",
+  "description": "A 3D creative studio for your agent: objects, worlds and playable games, exported to your desktop.",
   "repository": {
     "url": "https://github.com/zombico/mojulo",
     "source": "github"

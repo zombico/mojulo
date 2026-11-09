@@ -25,6 +25,7 @@
  * budget ran out), gates only the levels it has not gated as they stand.
  */
 import { createHash } from 'node:crypto';
+import { deflateSync, inflateSync } from 'node:zlib';
 import { judgeFrame, worse, FIRST_FRAME } from './first-frame.js';
 
 const MEMO = new Map();
@@ -46,7 +47,8 @@ export async function levelBrowser({ env = process.env, resolve } = {}) {
 }
 
 /** A level's capture page and opening fov, or { skip } when it has no World form. */
-async function levelPage(ref) {
+/** (exported for the play probe, game/level-probe.js: the same page, the same frame) */
+export async function levelPage(ref) {
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
   const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');
   const { emitThreeWorld } = await import('@/lib/graph/scene/scene-three');
@@ -56,7 +58,10 @@ async function levelPage(ref) {
   if (!payload) return { skip: 'no World form to render' };
   // a game made for a screen (game/screen.js) is judged in its own frame, its long side the check's
   const { payloadFrame } = await import('@/lib/graph/game/screen');
-  return { html: emitThreeWorld({ ...payload, inline: true, capture: true, walk: false, decollide: true }), ...(payload.screen ? { frame: payloadFrame(payload.screen, Math.max(FIRST_FRAME.width, FIRST_FRAME.height)) } : {}) };
+  // (a composed stage's report, era/compose-report.js, measured in the build this page is: its laws that advise, kept by
+  // the play probe for the received gate)
+  const composed = (payload.compose?.report?.laws ?? []).filter((l) => !l.ok).map((l) => ({ law: l.id, says: l.says }));
+  return { html: emitThreeWorld({ ...payload, inline: true, capture: true, walk: false, decollide: true }), ...(payload.screen ? { frame: payloadFrame(payload.screen, Math.max(FIRST_FRAME.width, FIRST_FRAME.height)) } : {}), ...(composed.length ? { composed } : {}) };
 }
 
 /**
@@ -80,11 +85,14 @@ export async function firstFrameCheck(refs, { findBrowser = levelBrowser, page =
     const kept = MEMO.get(key);
     const row = { ref, ...(kept ?? {}) };
     levels.push(row);
-    if (!kept) todo.push({ row, key, html: P.html, ...(P.frame ? { frame: P.frame } : {}) });
+    // (each page kept deflated until the browser reads it: a level's capture page inlines its figures, a town of folk
+    // a hundred megabytes and more, and a world's pages held whole at once ran a run out of memory)
+    if (!kept) todo.push({ row, key, packed: deflateSync(Buffer.from(P.html), { level: 1 }), ...(P.frame ? { frame: P.frame } : {}) });
   }
   if (todo.length) {
     let shots;
-    try { shots = await capture(todo.map((x) => ({ ref: x.row.ref, html: x.html, ...(x.frame ? { frame: x.frame } : {}) })), { executablePath: browser.path, width: T.width, height: T.height }); }
+    const item = (x) => Object.defineProperty({ ref: x.row.ref, ...(x.frame ? { frame: x.frame } : {}) }, 'html', { get: () => inflateSync(x.packed).toString(), enumerable: true });
+    try { shots = await capture(todo.map(item), { executablePath: browser.path, width: T.width, height: T.height }); }
     catch (e) { shots = todo.map(() => ({ error: e.message })); }
     todo.forEach((x, i) => {
       const s = shots[i] ?? { error: 'no frame' };
@@ -122,7 +130,8 @@ export async function firstFrameReadout(world, ran, opts = {}) {
   // each level's record in the run (made[key]): a level whose row still prints as it did when a run judged it is gated
   // (its verdict kept there); the rest are checked now, whatever this run did (a run resumed after the tool's budget
   // ran out made them in the run before, whose readout never came back)
-  const keyOf = Object.fromEntries(Object.entries(world.made).filter(([, v]) => v?.ref).map(([k, v]) => [v.ref, k]));
+  // (an audit's record shares its level's ref, runner.js auditSteps: the level's own record is the one that keeps a frame)
+  const keyOf = Object.fromEntries(Object.entries(world.made).filter(([k, v]) => v?.ref && !k.startsWith('audit-')).map(([k, v]) => [v.ref, k]));
   const gated = (ref) => { const m = world.made[keyOf[ref]]; return m?.frame && m.frame.stored === m.stored ? m.frame : null; };
   const todo = refs.filter((r) => !gated(r));
   const kept = refs.filter((r) => gated(r)).map((ref) => ({ ref, status: gated(ref).status, kept: true, ...(gated(ref).says?.length ? { says: gated(ref).says } : {}) }));

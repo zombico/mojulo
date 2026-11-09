@@ -335,7 +335,7 @@ export const STYLE_VOCAB = {
   },
 
   // The RECONSTRUCTION register — the dream loops' default (shape-from-dream,
-  // character-from-dream, mobile-suit, dream-edifice). Every other preset on
+  // mobile-suit, dream-edifice). Every other preset on
   // this shelf tunes the DRAWING; this one asks for an untextured modeling-app
   // viewport render, because the loops' output is geometry, not paint. Two
   // reasons it lifts the hit rate: (a) an image model asked for a clay model

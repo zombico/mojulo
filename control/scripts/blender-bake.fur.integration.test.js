@@ -31,7 +31,7 @@ describe.skipIf(!BLENDER)('blender-bake --fur (real Blender)', () => {
       ...process.env, MOJULO_HOME: home, MOJULO_DATA_DIR: data, SQLITE_PATH: path.join(data, 'mojulo-lite.db'),
       STORAGE_ROOT: path.join(data, 'storage'), MOJULO_OUTCOMES_DIR: path.join(home, 'outcomes'),
       MOJULO_EXPORTS_DIR: path.join(data, 'exports'), MOJULO_SCENE_PNG_DIR: path.join(data, 'scene-png'),
-      MOJULO_TURNTABLE_DIR: path.join(data, 'turntable'), MOJULO_FIGURE_SPECS_DIR: path.join(data, 'figure-specs'),
+      MOJULO_TURNTABLE_DIR: path.join(data, 'turntable'),
     };
     try {
       const mint = spawnSync(process.execPath, ['--input-type=module', '-e', MINT], { env, encoding: 'utf8' });

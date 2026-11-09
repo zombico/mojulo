@@ -54,6 +54,7 @@ describe('design_game quick', () => {
   it('reach with a climb and a hero the door draws: the hero pilots both stages, the climb\'s exit is its top, in volume', async () => {
     const hero = { cast: 'female', head: 'anime', look: ['heroine', 'determined'], hair: ['frieda-pony'], palette: { Top: '#7a2f8e' }, gear: { right: { item: 'sword' } } };
     const out = await designGameHandler({ quick: { goal: 'reach', climb: true, hero, theme: { accent: '#7a2f8e', style: 'hud' }, world: { id: 'summit', style: { kit: 'isekai-meadow' } } }, ref: 's' });
+    // (a run compiles: each stage's walk is a step of its own, taken when the run asks to check, runner.js auditSteps)
     expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'level-run-1', 'game']);
     expect(stored('s-hero').hero.gear.right).toMatchObject({ item: 'sword' });
     expect(stored('s-level-run-1').figures.hero.heroRef).toBe('s-hero');
@@ -369,11 +370,12 @@ describe('design_game quick', () => {
 
   it('a realistic ride: the car\'s realistic loft, compiled in place on its class\'s physics, its rivals in it too', async () => {
     // the game reads realistic (its juice drawn in the form render): the tier is stamped at mint, and the sedan is its loft
+    // (the car shelf's family sedan, car-shelf/: the sedan row's card, at the midsize class's numbers)
     const out = await designGameHandler({ quick: { goal: 'race', ride: 'car', rivals: 1, world: { id: 'real', style: { kit: 'trail-valley' }, juice: { fidelity: 'form' } } }, ref: 'rr' });
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
     expect(stored('rr').quick).toMatchObject({ ride: 'car', tier: 'realistic' });
     const L = stored('rr-level-run-0');
-    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', seed: 1, light: 'form' } });
+    expect(L.figures.ride).toEqual({ loft: { class: 'midsize', car: 'familySedan', seed: 1, light: 'form' } });
     expect(L.figures['rival-1']).toEqual(L.figures.ride);
     expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'midsize' } });
     expect(L.camera.dist).toBeGreaterThan(7);
@@ -401,6 +403,26 @@ describe('design_game quick', () => {
     const night = (await resolveWorldScene(SketchRepository.getByRef('jn-level-run-0'))).payload;
     expect(night.figures.ride.form.keyIntensity).toBeLessThan(jeep.form.keyIntensity);
     expect(night.figures.ride.form.sky.zenith).toEqual(night.sky.zenith);
+  }, 240_000);
+
+  it('a ride astride: the cycle shelf\'s machine, its rider seated on it, its rivals on theirs, leaning on the page', async () => {
+    // a motorcycle by the word people say: a dirt bike, ridden at any tier (it has only its realistic build)
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'a dirt bike', rivals: 1, world: { id: 'moto', style: { kit: 'trail-valley' } } }, ref: 'mx' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(stored('mx').quick.ride).toBe('dirt-bike');
+    const L = stored('mx-level-run-0');
+    expect(L.figures.ride).toEqual({ cycle: { archetype: 'dirtBike', ride: true, rider: true } });
+    expect(L.figures['rival-1']).toEqual(L.figures.ride);
+    expect(L.entities[0]).toMatchObject({ id: 'car', rule: { type: 'drive', vehicle: 'dirtBike', wheels: 2 } });
+    // chased over the rider's head
+    expect(L.camera.height).toBeGreaterThan(3);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('mx-level-run-0'));
+    const bike = payload.figures.ride;
+    expect(bike.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['root', 'front', 'wheelF', 'wheelR']));
+    expect(bike.live).toMatchObject({ ridden: true, lean: 'rule' });
+    // its rider astride: seated, the hands on the grips, the machine and the rider over a seated head's height
+    expect(bike.cycle.rider.posture).toBe('mx');
+    expect(bike.figH).toBeGreaterThan(1.5);
   }, 240_000);
 
   it('kart race: rivals in the same car round a loop on the trail\'s land, the place on the HUD, a podium to win', async () => {
@@ -681,6 +703,31 @@ describe('design_game quick', () => {
     expect(P.weapon.reserve).toBe(before + 24);
   }, 240_000);
 
+  it('shoot with a carried kit: the arms in the walker\'s loadout, the page carrying their hands, aimed, scoped, switched and drawn', async () => {
+    await designGameHandler({ quick: { goal: 'shoot', foes: 1, arms: ['rifle', 'sniper', 'bow'], world: { id: 'kit', style: { kit: 'trail-valley' } } }, ref: 'gk' });
+    const L = stored('gk-level-run-0'), P0 = L.entities[0];
+    expect(P0.rule).toMatchObject({ gunplay: true });
+    expect(P0.rule.loadout.map((s) => s.name)).toEqual(['rifle', 'sniper', 'bow']);
+    expect(P0.weapon).toEqual(P0.rule.loadout[0].weapon);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('gk-level-run-0'));
+    const html = emitThreeWorld({ ...payload, inline: true });
+    expect(html).toContain('function buildGunplay(E)');
+    expect(html).toContain('// ── GUNPLAY ──');
+    expect(html).toContain('right click  aim');
+    // played headless: the sights up, the sniper scoped and steadied, the bow drawn and loosed
+    const land = stageEnds(L).ground, ground = (q) => land(q[0], q[1]) ?? 0;
+    const sim = simLevel({ entities: payload.entities, events: payload.events, colliders: payload.colliders }, { ground }), W = sim.world, P = W.byId[W.pilotId];
+    Object.assign(sim.input, { aim: 1 }); sim.run(0.5);
+    expect(P.gp.aim).toBe(1);
+    Object.assign(sim.input, { aim: 0, slot: 2 }); sim.frame(1 / 30); Object.assign(sim.input, { slot: 0, aim: 1 }); sim.run(2.5);
+    expect(P.loadoutIdx).toBe(1); expect(P.gp.aim).toBe(1);
+    Object.assign(sim.input, { breath: 1 }); sim.run(0.5);
+    expect(P.gp.steady).toBe(true);
+    Object.assign(sim.input, { aim: 0, breath: 0, slot: 3 }); sim.frame(1 / 30); Object.assign(sim.input, { slot: 0 }); sim.run(1.2);
+    Object.assign(sim.input, { fire: 1 }); sim.run(1); Object.assign(sim.input, { fire: 0 }); sim.run(0.1);
+    expect(W.projectiles.some((r) => r.owner === P.id) || P.weapon.shots > 0).toBe(true);
+  }, 240_000);
+
   it('deathmatch: an arena laid on the trail\'s land whose laws hold, bots that fight each other, frags to a limit', async () => {
     const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 3, frags: 3, world: { id: 'arena', style: { kit: 'trail-valley' } } }, ref: 'dm' });
     // every arena law holds: no advice from it
@@ -837,7 +884,8 @@ describe('design_game quick', () => {
     SketchRepository.create({ ref: 'mira', title: 'Mira', manifest: { kind: 'layered', hero: heroRecord({ cast: 'female', palette: { Top: '#2a8f6a' } }) } });
     const quick = { goal: 'fight', roster: [{ id: 'kai', role: 'frontline', archetype: 'hero', facets: { motivation: 0.1 } }, { id: 'mira', hero: { ref: 'mira' }, style: 'rushdown' }], arenas: [{ id: 'plaza', kit: 'island-plaza' }], world: { id: 'duel' } };
     const out = await designGameHandler({ quick, ref: 'du' });
-    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['fighter-kai-sheet', 'make'], ['fighter-kai', 'make'], ['level-arena-plaza', 'make'], ['game', 'make']]);
+    // (a fight made now names its arenas and still has its lab, the training ground, beside them)
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['fighter-kai-sheet', 'make'], ['fighter-kai', 'make'], ['level-arena-plaza', 'make'], ['level-arena-training', 'make'], ['game', 'make']]);
     // the sheet is an egocube; the character it made records it
     expect(stored('du-fighter-kai-sheet')).toMatchObject({ kind: 'egocube', sheet: { facets: { role: 'frontline', archetype: 'hero' } } });
     expect(stored('du-fighter-kai')).toMatchObject({ kind: 'layered', hero: expect.any(Object), egocube: { ref: 'du-fighter-kai-sheet' } });

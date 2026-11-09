@@ -116,7 +116,10 @@ export const DOWN_CLIP = [
   [0.75, ROLLED],
   [1, rxPose(KNEEL, { lie: false })],
 ];
-const LIMP = rxPose(LIE, { head: -10, armF: [100, 120], armB: [-120, -100], legF: [20, 10, 100], legB: [-6, -10, 80] });
+// (out cold on the back, the arms flung back past the head along the floor as the fall threw them, the legs out flat:
+// every limb on the floor, so the body rests on its back; the rear arm turned into the floor had propped the trunk 70 cm
+// up on its fist, the legs raised)
+const LIMP = rxPose(LIE, { head: -10, armF: [162, 174], armB: [168, 178], legF: [8, 0, 100], legB: [2, -4, 90] });
 export const RISE_CLIP = [[0, KNEEL], [1, GUARD]];
 export const TECH_CLIP = [[0, CROUCH], [0.45, POSES.backdash, 'snap'], [1, GUARD]];
 const HELD = (s) => rxPose(GUARD, { torso: 26, head: 22, armF: [72, 112], armB: [42, 100], legF: [10, 0, 100], legB: [-12, -10, 92], hip: [60, 30], twist: 8 * s });

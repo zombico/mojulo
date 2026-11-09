@@ -11,6 +11,10 @@
  *   reach-costs      no normal that reaches further than the jab starts faster than it
  *   disjoint-pays    an armed normal pays for the blade its hurtbox does not cover: its tip stays hurtable after a
  *                    whiff, or it recovers slower than the same normal unarmed (a fighter with a weapon)
+ *   priority-pays    priority is paid for in frames: no grounded normal outranks another that starts no slower than
+ *                    it (a trade won is a slower button's, versus-library.js PRIORITY)
+ *   reversal-yields  an invincible reversal's (the DP's, `rps: 'reversal'`) priority is 0: its invincibility is how it wins, and past it, it wins no
+ *                    trade
  *
  * lawsFor(fighter) → [{ id, ok, says, measured }]
  */
@@ -50,6 +54,13 @@ export function lawsFor(F) {
     const plus = fireballs.filter((m) => m.adv.block > 0);
     law('fireball-minus', !plus.length, 'a fireball is not plus on block at point blank', { block: fireballs.map((m) => m.adv.block) });
   }
+
+  // (priority: a trade won by a slower button; a move compiled before the scale carries none and is not read)
+  const ranked = ground.filter((m) => Number.isInteger(m.priority));
+  const free = ranked.filter((a) => ranked.some((b) => a.priority > b.priority && a.startup < b.startup));
+  law('priority-pays', !free.length, 'no grounded normal outranks one that starts no slower than it', { free: free.map((m) => `${m.slot} (${m.priority}, ${m.startup}f)`), levels: Object.fromEntries(ranked.map((m) => [m.slot, m.priority])) });
+  const bold = reversals.filter((m) => m.rps === 'reversal' && Number.isInteger(m.priority) && m.priority > 0);
+  law('reversal-yields', !bold.length, 'an invincible reversal (the DP)\'s priority is 0', { above: bold.map((m) => `${m.slot}${m.strength ? `.${m.strength}` : ''}: ${m.priority}`) });
 
   const jab = F.moves['stand.L'];
   const cheap = ground.filter((m) => m.reach > jab.reach && m.startup < jab.startup);

@@ -29,8 +29,7 @@ spec: {
   setup?:   'studio-grey'|'white-cyc'|'blueprint-wire' | null,
   toon?:    true | { bands?: <tones ≥ 2>, ink?: true | { color, width, crease } },
   background?: <boolean>,
-  animate?: <boolean> | { frames, fps },
-  dream_audit?: { source, invoked_generator, prompt, <generation id> }
+  animate?: <boolean> | { frames, fps }
 }
 ```
 
@@ -232,7 +231,7 @@ Segments/nodes name two/one of the 17 LANDMARKS: `headTop`, `headBase`, `neckHub
 
 ### garment — clothing over the body
 
-Tracks the pose + body for free (svgile-row bespoke tailoring — the body's own geometry is the tape measure, so body-relative cuts/panels/seams fit any form). One of the wardrobe keys: `skinSuit`, `wetsuit`, `tee`, `tank`, `dress`, `vest`, `fittedShirt`, `oversizedShirt`, `trousers` (slim|baggy), `skirt`, `jacket` (cut|allCut|paneled) — or an INLINE wardrobe-piece spec `{ id, color?{cloth,under}, pieces:[{ fit: hug|hull|drape|radial|pelvis|torso|shoulders|sleeve|sash|pattern, coverage?, clearance?, thickness?, basin?, anchor? }], cuts?:[{ kind: wedge|band|capsule|hole|halfspace|neck|armhole, … }], panels?, seams? }` (the piece's mugen clearance IS its looseness — slim vs baggy is only the number; `fit:'pattern'` is the CUT-AND-SEWN family — flat pieces in cm with an `outline`, a body `chart` and `anchor`, sewn by `seams` and reporting girths, strain and seam ease — see the `wardrobe-construction` card §6) — or an ARRAY mixing keys and specs to LAYER them (e.g. `['tank', {…dreamPants}, 'jacketCut']`) — or `null` = bare.
+Tracks the pose + body for free (svgile-row bespoke tailoring — the body's own geometry is the tape measure, so body-relative cuts/panels/seams fit any form). One of the wardrobe keys: `skinSuit`, `wetsuit`, `tee`, `tank`, `dress`, `vest`, `fittedShirt`, `oversizedShirt`, `trousers` (slim|baggy), `skirt`, `jacket` (cut|allCut|paneled) — or an INLINE wardrobe-piece spec `{ id, color?{cloth,under}, pieces:[{ fit: hug|hull|drape|radial|pelvis|torso|shoulders|sleeve|sash|pattern, coverage?, clearance?, thickness?, basin?, anchor? }], cuts?:[{ kind: wedge|band|capsule|hole|halfspace|neck|armhole, … }], panels?, seams? }` (the piece's mugen clearance IS its looseness — slim vs baggy is only the number; `fit:'pattern'` is the CUT-AND-SEWN family — flat pieces in cm with an `outline`, a body `chart` and `anchor`, sewn by `seams` and reporting girths, strain and seam ease — see the `wardrobe-construction` card §6) — or an ARRAY mixing keys and specs to LAYER them (e.g. `['tank', {…pants}, 'jacketCut']`) — or `null` = bare.
 
 Skin seam: the figure's filled control scaffold can be painted and bound so the figure then WEARS the paint deterministically at its `/skin.png`.
 
@@ -274,7 +273,6 @@ the World and the `.glb` agree; `ink` is World-only (silhouette hull + crease li
 
 - `background` (boolean) — light backdrop (default true; false → transparent). A setup supplies its own ground; `background:false` still forces transparency for the still SVG.
 - `animate` — motion GIF control. Omit → auto (GIF when motion is set); `false` → still only; `{ frames, fps }` → tune.
-- `dream_audit` — character-from-dream PROVENANCE (the machine gate). Provide ONLY when this figure was reconstructed from an image worker's dreamed reference (a character sheet / exploded garment pieces actually generated and READ). Attests the dream really happened: `{ source: 'native' | 'local:<detail>', invoked_generator: true (REQUIRED — a figure tuned from imagination must NOT set this), prompt: '<the brief dreamed>', and one generation id: job_id | image_sha256 | seed | token }`; optional `notes`. A malformed audit or `invoked_generator≠true` is REFUSED. Omit for an ordinary (imagined) figure — the dreamed pixels are discarded either way; only this attestation persists as provenance.
 
 ## Worked example
 

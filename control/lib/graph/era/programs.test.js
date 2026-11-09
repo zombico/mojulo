@@ -38,6 +38,17 @@ describe('every use lays a building the stage builds and the level plays', () =>
     expect(planProgram({ use: 'tavern', seed: 4 }).rooms).not.toEqual(planProgram({ use: 'tavern', seed: 5 }).rooms);
   });
 
+  it('scale lays the template\'s rooms larger: twice as long and wide, taller by its root; the recipe\'s own sizes its own', () => {
+    const one = planProgram({ use: 'temple', seed: 2 }), two = planProgram({ use: 'temple', seed: 2, scale: 2 });
+    const nave = (P) => P.rooms.find((r) => r.id === 'nave');
+    expect(nave(two).w).toBeGreaterThanOrEqual(2 * nave(one).w - 1);
+    expect(nave(two).d).toBeGreaterThanOrEqual(2 * nave(one).d - 1);
+    expect(nave(two).h).toBeGreaterThan(nave(one).h * 1.3);
+    expect(nave(planProgram({ use: 'temple', seed: 2, scale: 2, rooms: { nave: { w: 8, d: 12 } } }))).toMatchObject({ w: 8, d: 12 });
+    expect(() => planProgram({ use: 'temple', scale: 5 })).toThrow(/scale is how much larger/);
+    expect(() => planProgram({ use: 'office', scale: 2 })).toThrow(/not a setting/);
+  });
+
   it('an unknown use or setting, or an open-ground kit, is refused, saying what is', () => {
     expect(() => planProgram({ use: 'casino' })).toThrow(/tavern/);
     expect(() => planProgram({ use: 'tavern', floors: 2 })).toThrow(/not a setting/);

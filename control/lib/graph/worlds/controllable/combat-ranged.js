@@ -190,6 +190,7 @@ export function buildCombatRanged(E) {
       energy: Number.isFinite(w.energyMax ?? w.energy) && (w.energyMax ?? w.energy) > 0 ? (w.energyMax ?? w.energy) : 0,
       energyLock: false,
       charging: false, chargeT: 0, chargeFrac: 0, chargeReady: false, chargeCount: 0, chargedShots: 0,
+      ...(w.knock ? { knock: w.knock } : {}),   // its kinetic and impact energy (knock.js: knockback apart from damage)
     };
   }
 
@@ -343,14 +344,20 @@ export function buildCombatRanged(E) {
       // the lateral (right) offset flips sign each shot, so the tracer/flash alternates left↔right hand.
       const mo = w.muzzleOffset, hf = fwdXY(t.heading), hr = rightXY(t.heading);
       const rMul = (mo && w.muzzleAlt && (w.shots % 2 === 0)) ? -1 : 1;
-      const from = mo
+      // AIM IN HAND (opt-in `input.aim`: { from, dir }, a headset's held muzzle or its controller's ray, channels/xr.js): the
+      // round leaves from there along it, the body's heading and pitch aside. Absent ⇒ the muzzle and the aim below
+      const held = input.aim && Array.isArray(input.aim.from) && Array.isArray(input.aim.dir) ? input.aim : null;
+      const from = held ? held.from.slice() : mo
         ? [t.pos[0] + hf[0] * (mo.f || 0) + hr[0] * (mo.r || 0) * rMul, t.pos[1] + hf[1] * (mo.f || 0) + hr[1] * (mo.r || 0) * rMul, t.pos[2] + (mo.u != null ? mo.u : w.eye)]
         : origin.slice();
       // the aim's base: the body's heading and pitch, or (CONVERGE, opt-in `weapon.converge`: an over-the-shoulder
       // camera's) the line from the muzzle to the point under the crosshair, the round leaving from the muzzle
       let baseH = t.heading, baseP = t.pitch || 0;
-      const conv = w.converge ? crosshairPoint(e, state, shotRange) : null;
-      if (conv) {
+      const conv = w.converge && !held ? crosshairPoint(e, state, shotRange) : null;
+      if (held) {
+        const d = held.dir, L = Math.hypot(d[0], d[1], d[2]) || 1e-6;
+        baseH = Math.atan2(d[1], d[0]); baseP = Math.asin(clamp(d[2] / L, -1, 1)); origin = from.slice();
+      } else if (conv) {
         const v = [conv[0] - from[0], conv[1] - from[1], conv[2] - from[2]], L = Math.hypot(v[0], v[1], v[2]) || 1e-6;
         baseH = Math.atan2(v[1], v[0]); baseP = Math.asin(clamp(v[2] / L, -1, 1)); origin = from.slice();
       }
@@ -378,7 +385,7 @@ export function buildCombatRanged(E) {
           pos: from.slice(), vel: [dir[0] * sp, dir[1] * sp, dir[2] * sp],
           gravity: w.projectileGravity || 0, splashRadius: w.splashRadius || 0, projRadius: w.projRadius || 0.5, prox: w.proximity || 0,
           damage: w.damage || 0, impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4,
-          fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false,
+          fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false, ...(w.knock ? { knock: w.knock } : {}),
         });
         e.lastShot = { mode: 'launch', t: state.time, from, to: null, charged: chargedShot };
       } else {
@@ -470,6 +477,7 @@ export function buildCombatRanged(E) {
           if (tg.body && Number.isFinite(tg.body.hp) && tg.body.hp <= 0) {
             armReaction(tg, 'stagger');   // kill → downed even without a poise break
           }
+          if (w.knock && E.knockHit) E.knockHit(state, tg, e, w.knock, aim);   // its kinetic along the shot (knock.js)
           }
         } else {
           // miss (or blocked by cover): stop the tracer AT the wall if the aim ray hits one, else fly to range.
@@ -566,6 +574,8 @@ export function buildCombatRanged(E) {
       // SPLASH catches a target whose EGG is within R of the burst (a direct hit is trivially inside).
       if (tg.body.egg) { if (!pointInEgg(p.pos, tg, R)) continue; }
       else { const v = sub(tg.transform.pos, p.pos); if (Math.hypot(v[0], v[1], v[2]) > R + (tg.body.radius || 0.5)) continue; }
+      // (in a level with knockback the splash falls off with proximity, knock.js splashNear; else it is whole)
+      const near = E.splashNear ? E.splashNear(state, p, tg, R) : 1, dmg = (p.damage || 0) * near, imp = (p.impact || 0) * near;
       // TEAM friendly stagger: an ally caught in the blast is ROCKED, not hurt — no hp/shield/attribution,
       // just the poise break (if not already reacting). Careless explosives cost tempo, never a team-kill.
       if (ownerTeam && tg.team && tg.team === ownerTeam) {
@@ -574,14 +584,14 @@ export function buildCombatRanged(E) {
       }
       tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + (p.hitsAs || 1);   // a missile (hitsAs) counts as that many hits (what hp-pools and fail-on-death charge)
       tg.lastHitBy = p.owner;   // match-layer attribution (the round remembers its shooter)
-      tg.lastHitDmg = p.damage || 0; tg.lastHitHead = false; tg.lastHitDmgN = tg.hits;   // what the burst dealt, for the hit fact
+      tg.lastHitDmg = dmg; tg.lastHitHead = false; tg.lastHitDmgN = tg.hits;   // what the burst dealt, for the hit fact
       const mst = matchStat(state, p.owner);
       if (mst && !p.statHit) { p.statHit = true; mst.hits += 1; }   // one on-target credit per round, however wide the splash (accuracy stays ≤ 100%)
       // R19: a frontal shield eats the burst too (drains + a break staggers); a flank/rear burst bypasses.
-      if (absorbShield(tg, p.pos, p.damage || 0, state)) continue;
+      if (absorbShield(tg, p.pos, dmg, state)) continue;
       if (tg.body && Number.isFinite(tg.body.hp)) {
         const hp0 = tg.body.hp;
-        tg.body.hp = Math.max(0, tg.body.hp - comboDamage(tg, p.damage || 0));
+        tg.body.hp = Math.max(0, tg.body.hp - comboDamage(tg, dmg));
         if (mst) mst.dmg += hp0 - tg.body.hp;   // splash hull damage per caught target
       }
       // R23 BOOST ARMOR: a splash is a 100%-stun (worth a full poise bar) — normally an
@@ -599,7 +609,7 @@ export function buildCombatRanged(E) {
         armReaction(tg, 'stagger');
       } else if (p.impact > 0) {
         if (Number.isFinite(tg.poise) && tg.staggerT == null) {
-          tg.poise -= p.impact * f;
+          tg.poise -= imp * f;
           if (tg.poise <= 0) armReaction(tg, 'stagger');
         }
       } else if (f >= 1 || !(Number.isFinite(tg.poise) && tg.staggerT == null)) {
@@ -609,7 +619,7 @@ export function buildCombatRanged(E) {
         if (tg.poise <= 0) armReaction(tg, 'stagger');
       }
     }
-    state.bursts.push({ seq: state.burstSeq++, pos: p.pos.slice(), t: state.time, radius: R, fxColor: p.fxColor, fxScale: p.fxScale });
+    state.bursts.push({ seq: state.burstSeq++, pos: p.pos.slice(), t: state.time, radius: R, fxColor: p.fxColor, fxScale: p.fxScale, ...(p.knock ? { knock: p.knock, by: p.owner } : {}) });
   }
 
   // R20.3: passive weapon timers tick for EVERY carried weapon, every frame — stowed loadout

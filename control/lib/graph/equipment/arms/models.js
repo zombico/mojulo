@@ -43,6 +43,9 @@ export const ARM_MODELS = Object.freeze({
       parts: { barrel: 'standard', stock: 'fixed', magazine: 'curved', optic: 'holo', muzzle: 'flash', rail: 'top', underbarrel: 'grip' }, future: FUT_GUN, near: NEAR_GUN },
     marksman: { build: 'long', layout: 'marksman', barrel: { short: 50.8, standard: 61, long: 71 }, takes: LONG_TAKES,
       parts: { barrel: 'standard', stock: 'fixed', magazine: 'box', optic: 'scope', muzzle: 'brake', rail: 'top', underbarrel: 'bipod' }, future: FUT_GUN, near: NEAR_GUN },
+    // a bolt-gun's reach on the marksman's receiver: the longest barrel, a long scope, a brake and a bipod
+    sniper: { build: 'long', layout: 'marksman', barrel: { short: 61, standard: 71, long: 81 }, takes: LONG_TAKES,
+      parts: { barrel: 'standard', stock: 'fixed', magazine: 'box', optic: 'scope', muzzle: 'brake', rail: 'top', underbarrel: 'bipod' }, future: FUT_GUN, near: NEAR_GUN },
     caseless: { build: 'caseless', line: 'near', barrel: { short: 44, standard: 54, long: 62 }, takes: CASELESS_TAKES,
       parts: { barrel: 'standard', optic: 'smart', muzzle: 'plain', underbarrel: 'none' }, future: { muzzle: 'emitter' } },
     coilgun: { build: 'coilgun', line: 'near', barrel: { short: 46, standard: 58, long: 70 }, takes: COIL_TAKES,

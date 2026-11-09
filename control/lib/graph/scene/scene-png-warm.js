@@ -54,7 +54,16 @@ function warmingDisabled() {
  *
  * @param {{ ref?: string, manifest?: object }} sketch
  */
+// (held while a run compiles a world, design_game: the rows it makes are the game's, not the gallery's to bake as they
+// land; a held warm is skipped, and the gallery bakes on first view as it always could)
+let held = 0;
+/** Hold the warms while `fn` runs (a compile): none of the rows made meanwhile is baked in the background. */
+export async function withoutWarm(fn) { held += 1; try { return await fn(); } finally { held -= 1; } }
+/** Whether a compile holds the warms now. */
+export const warmHeld = () => held > 0;
+
 export function warmScenePng(sketch) {
+  if (held) return;
   if (warmingDisabled()) return;
   if (!sketch || !sketch.manifest) return;
   const mode = sketchRenderMode(sketch.manifest);

@@ -12,13 +12,20 @@
 
 import { safeJson } from '../emit-util.js';
 import { versusSource, VERSUS_PAGE_MODULES } from '../../versus/versus-page.js';
+import { labOf } from '../../versus/versus-lab.js';
+import { manaUiSource } from '../../../mana-ui/kernel.js';
 
 export function versusChannelScript(cfg) {
-  const lib = [...VERSUS_PAGE_MODULES, 'versus-figure.js', 'versus-runtime.client.js', 'versus-arena.client.js'].map(versusSource).join('\n');
+  const lib = [...VERSUS_PAGE_MODULES, 'versus-figure.js', 'versus-runtime.client.js', 'versus-fx.client.js', 'versus-arena.client.js'].map(versusSource).join('\n');
+  // (a fight game's arena, under its register, carries the LAB: mana-ui over the fight, versus/versus-lab.js; an arena
+  // made before the register carries none, not a byte)
+  const lab = labOf({ register: cfg.register ?? null });
   return `
 // ── versus: the fight on this arena ──
 {
-const VERSUS_ARENA = ${safeJson(cfg)};
+const VERSUS_ARENA = ${safeJson(cfg)};${lab ? `
+const VERSUS_LAB = ${safeJson({ spec: lab.spec, css: lab.css })};
+const manaUi = ${manaUiSource()};` : ''}
 ${lib}
 stepFight = stepArenaFight;
 }`;

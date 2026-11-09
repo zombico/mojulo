@@ -3,6 +3,7 @@ import { folkBodies, mintKey } from './bodies.js';
 import { folkOfTown } from './folk.js';
 import { settingOfGame, QUICK_FIGURES } from '../gameworld/cast-setting.js';
 import { UNDERLAYERS } from '../gameworld/hero-looks.js';
+import { validateOutfitBuild } from '../outfit/expand.js';
 
 // a lot per procedure: two houses, two counters (one uniform, two keepers), a workshop (its apprentice), the tower (its rank)
 const lot = (use, s, band = [2, 3]) => ({ use, route: 'lane', side: 'left', s, band });
@@ -28,6 +29,25 @@ describe('folk bodies: who gets one of their own', () => {
     }
     for (const p of B.people.filter((x) => x.tier === 'own')) expect(p.body).toBe(mintKey(p.path));
     expect(B.mints.length).toBeLessThan(B.people.length);
+  });
+
+  it('never lends a body across a sex; past the pool, each wears the body nearest their age, the near ones in turn', () => {
+    const AGES = ['child', 'youth', 'adult', 'seasoned', 'elder'], age = (p) => AGES.indexOf(p.sheet.facets.age ?? 'adult');
+    const big = made(LOTS, KIT, { domicile: 'D of F (P + C2)', cap: 40 }, 1);
+    const who = (path) => big.F.people.find((p) => p.path === path), of = (b) => who(big.B.mints.find((m) => m.key === b).of);
+    const pooled = big.B.people.filter((x) => x.tier === 'pooled');
+    for (const p of pooled) expect(of(p.body).sheet.facets.pole).toBe(who(p.path).sheet.facets.pole);
+    // (with one body a pool, no nearer one: each pool's people wear its one, of their own sex)
+    const minted = new Set(big.B.mints.map((m) => m.key));
+    for (const p of pooled) expect(minted.has(p.body)).toBe(true);
+    // with room for three, a pooled person's body is never further from their age than the pool's nearest
+    const three = made(LOTS, KIT, { domicile: 'D of F (P + C2)', cap: 40 }, 3);
+    const w3 = (path) => three.F.people.find((p) => p.path === path), of3 = (b) => w3(three.B.mints.find((m) => m.key === b).of);
+    const key = (p) => `${p.uniform ?? 'plain'}:${p.sheet.facets.age === 'child' ? 'child' : 'grown'}:${p.sheet.facets.pole}`;
+    for (const x of three.B.people.filter((q) => q.tier === 'pooled')) {
+      const me = w3(x.path), pool = three.B.mints.filter((m) => m.tier === 'pooled' && key(w3(m.of)) === key(me)).map((m) => w3(m.of));
+      expect(Math.abs(age(of3(x.body)) - age(me))).toBe(Math.min(...pool.map((q) => Math.abs(age(q) - age(me)))));
+    }
   });
 
   it('never lends a body across a uniform or from a grown person to a child', () => {
@@ -71,8 +91,30 @@ describe('folk bodies: the role\'s uniform, the culture\'s cloth', () => {
   it('dresses the same role in two worlds two ways', () => {
     const other = Object.keys(UNDERLAYERS).find((k) => k !== KIT && UNDERLAYERS[k].style === UNDERLAYERS[KIT].style && JSON.stringify(UNDERLAYERS[k].language) !== JSON.stringify(UNDERLAYERS[KIT].language));
     const there = made(LOTS, other).B, keeper = F.people.find((p) => p.role === 'keeper').path;
-    expect(mint(B, mintKey(keeper)).spec.outfit.language).toEqual(UNDERLAYERS[KIT].language);
-    expect(mint(there, mintKey(keeper)).spec.outfit.language).toEqual(UNDERLAYERS[other].language);
+    // (the culture the town's: its cloth and its shoes; the cut the role's: the counter's vest over its shirt)
+    const here = mint(B, mintKey(keeper)).spec.outfit.language, away = mint(there, mintKey(keeper)).spec.outfit.language;
+    for (const [L, kit] of [[here, KIT], [away, other]]) {
+      expect(L.top.family).toBe(UNDERLAYERS[kit].language.top.family);
+      expect(L.outer).toMatchObject({ sleeve: 'none', open: true });
+    }
+    expect(away).not.toEqual(here);
+  });
+});
+
+describe('folk bodies: the wardrobe and the stances (folk/garb.js)', () => {
+  it('dresses the roles apart and the townsfolk each by their own dice; each stands one way, every outfit one the outfit door reads', () => {
+    const big = made(LOTS, KIT, { domicile: 'D of F (P + C2)', cap: 40 }, 3);
+    const who = (path) => big.F.people.find((p) => p.path === path);
+    const langs = big.B.mints.map((m) => JSON.stringify(m.spec.outfit.language));
+    // (more than one cut in a town: not one outfit repeated)
+    expect(new Set(langs).size).toBeGreaterThan(2);
+    for (const m of big.B.mints) expect(validateOutfitBuild(m.spec.outfit)).toEqual([]);
+    // every grown person holds a stand; a child's is relaxed; how each stands is one of the three
+    for (const m of big.B.mints) expect(m.spec.gesture).toBeTruthy();
+    for (const m of big.B.mints.filter((x) => who(x.of).sheet.facets.age === 'child')) expect(m.spec.gesture).toEqual(['relaxed']);
+    for (const p of big.B.people) expect(['own', 'library', 'crouch']).toContain(p.idle);
+    // (the keeper at the counter holds their stand; an elder too)
+    for (const p of big.B.people.filter((x) => ['keeper', 'elder'].includes(who(x.path).role) && !who(x.path).as)) expect(p.idle).toBe('own');
   });
 });
 
@@ -98,7 +140,8 @@ describe('folk bodies: one met in every town', () => {
     expect(a.tier).toBe('own');
     expect(b.spec).toEqual(a.spec);
     expect(face(c.spec)).toEqual(face(a.spec));
-    expect(c.spec.outfit.language).toEqual(UNDERLAYERS[other].language);
+    expect(c.spec.outfit.language.top.family).toBe(UNDERLAYERS[other].language.top.family);
+    expect(c.spec.outfit.language).not.toEqual(a.spec.outfit.language);
   });
 });
 

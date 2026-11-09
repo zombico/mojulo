@@ -33,6 +33,10 @@
  *     craft     craft-shelf CRAFT_ARCHETYPES
  *     sky       skyscape/eye.js CRAFT: the fly goal's flight model
  *     cycle     cycle-shelf CYCLE_ARCHETYPES: a machine ridden astride, or a three-wheeler made of one and its add-ons
+ *     car       car-shelf CAR_CARDS: a personal or family car composed (its class, body, language, trim, paint); the
+ *               row's first card its realistic build
+ *     construction  construction-shelf CON_ARCHETYPES: a site's machine, its carrier, its upper, its front and its tool
+ *     mecha     mecha-shelf MECHA_ARCHETYPES: a legged frame a rider sits in, its legs posed by where its feet are
  *     tech      tech-crafter's vehicle trait: the concept it falls back to at every tier (many rows may share one)
  *
  * Pure data and pure functions: no clock, no dice.
@@ -63,6 +67,7 @@ export const ROLES = Object.freeze({
   scout: 'a light field vehicle: it scouts, patrols and carries a few',
   armour: 'armoured and armed: it fights',
   work: 'it works a field, a yard or a dock',
+  construction: 'it builds, digs, hauls or lifts on a site',
   trainer: 'a craft to learn to fly in',
   courier: 'a small fast craft for a few people',
   liner: 'a craft that carries passengers far',
@@ -101,27 +106,55 @@ const HELI = ['driven', 'crewed', 'parked', 'watched'];
 
 export const VEHICLES = {
   // ── cars ────────────────────────────────────────────────────────────────────
+  // (a personal or family car's realistic build is the car shelf's card, car-shelf/car-library.js: the `car` handle,
+  // its first card the row's own; the class's plain loft stays its build for the recipes minted before)
   sedan: row('sedan', ['saloon', 'family car', 'midsize car', 'midsize sedan', 'four door', 'automobile'], 'road', 'commuter', M, ROAD,
-    { scenery: 'sedan', physics: 'midsize', fleet: 'midsize', assembly: 'sedan', ride: 'car', tech: 'car' }),
-  compact: row('compact car', ['hatchback', 'small car', 'city car', 'subcompact'], 'road', 'commuter', M, ROAD,
-    { physics: 'compact', fleet: 'compact', tech: 'car' }),
-  coupe: row('coupe', ['two door', 'two-door coupe'], 'road', 'commuter', M, ROAD,
-    { assembly: 'coupe', ride: 'coupe', tech: 'car' }),
-  'station-wagon': row('station wagon', ['estate', 'estate car', 'follow-me car', 'ops wagon'], 'road', 'commuter', M, ROAD,
-    { scenery: 'opsWagon', tech: 'car' }),
+    { scenery: 'sedan', physics: 'midsize', fleet: 'midsize', assembly: 'sedan', ride: 'car', car: 'familySedan', tech: 'car' }),
+  compact: row('compact car', ['hatchback', 'family hatchback', 'five door', 'compact hatchback'], 'road', 'commuter', M, ROAD,
+    { physics: 'compact', fleet: 'compact', car: 'familyHatch', tech: 'car' }),
+  coupe: row('coupe', ['two door', 'two-door coupe', 'sports coupe'], 'road', 'sport', M, ROAD,
+    { assembly: 'coupe', ride: 'coupe', physics: 'coupe', car: 'sportsCoupe', tech: 'car' }),
+  'station-wagon': row('station wagon', ['estate', 'estate car', 'family estate', 'estate wagon', 'follow-me car', 'ops wagon'], 'road', 'commuter', M, ROAD,
+    { scenery: 'opsWagon', car: 'estate', tech: 'car' }),
   crossover: row('crossover', ['crossover suv', 'cuv', 'compact suv'], 'road', 'commuter', M, ROAD,
-    { physics: 'crossover', fleet: 'crossover', tech: 'car' }),
-  suv: row('suv', ['sport utility vehicle', 'four by four', '4x4', 'off-roader'], 'road', 'commuter', M, ROAD,
-    { scenery: 'suv', assembly: 'suv', tech: 'car' }),
-  minivan: row('minivan', ['people carrier', 'mpv', 'family van', 'boxy van'], 'road', 'commuter', M, ROAD,
-    { assembly: 'minivan', ride: 'van', tech: 'truck' }),
+    { physics: 'crossover', fleet: 'crossover', car: 'crossover', tech: 'car' }),
+  suv: row('suv', ['sport utility vehicle', 'family suv', 'three-row suv', 'midsize suv'], 'road', 'commuter', M, ROAD,
+    { scenery: 'suv', assembly: 'suv', physics: 'midSuv', car: 'familySuv', tech: 'car' }),
+  minivan: row('minivan', ['people carrier', 'mpv', 'family van', 'boxy van', 'people mover'], 'road', 'commuter', M, ROAD,
+    { assembly: 'minivan', ride: 'van', physics: 'minivan', car: 'peopleCarrier', tech: 'truck' }),
+  supermini: row('supermini', ['subcompact', 'small car', 'small hatchback', 'b-segment car'], 'road', 'commuter', M, ROAD,
+    { physics: 'subcompact', car: ['supermini', 'ninetiesHatch'], tech: 'car' }),
+  'city-car': row('city car', ['citycar', 'a-segment car', 'minicar', 'town car'], 'road', 'commuter', M, ROAD,
+    { physics: 'cityCar', car: 'cityCar', tech: 'car' }),
+  'kei-car': row('kei car', ['kei', 'kei wagon', 'tall wagon', 'kei jidosha'], 'road', 'commuter', M, ROAD,
+    { physics: 'keiCar', car: 'keiWagon', tech: 'car' }),
+  microcar: row('microcar', ['micro car', 'bubble car', 'two-seat city car', 'quadricycle'], 'road', 'commuter', M, ROAD,
+    { physics: 'microcar', car: 'microcar', tech: 'car' }),
+  'luxury-sedan': row('luxury sedan', ['luxury saloon', 'luxury car', 'executive car', 'full-size sedan', 'limousine sedan'], 'road', 'commuter', M, ROAD,
+    { physics: 'fullsize', car: 'luxurySaloon', tech: 'car' }),
+  'electric-car': row('electric car', ['electric vehicle', 'electric sedan', 'electric saloon', 'electric hatchback', 'electric crossover', 'battery car'], 'road', 'commuter', M, ROAD,
+    { car: ['electricSaloon', 'electricHatch', 'electricCrossover'], tech: 'car' }),
+  'hot-hatch': row('hot hatch', ['hot hatchback', 'pocket rocket', 'sport hatchback'], 'road', 'sport', M, ROAD,
+    { car: 'hotHatch', tech: 'car' }),
+  convertible: row('convertible', ['cabriolet', 'drop-top', 'droptop', 'soft top', 'open-top car'], 'road', 'sport', M, ROAD,
+    { car: 'convertible', tech: 'car' }),
+  roadster: row('roadster', ['two-seat roadster', 'open two-seater', 'spyder', 'spider'], 'road', 'sport', M, ROAD,
+    { physics: 'roadster', car: 'roadster', tech: 'car' }),
+  'muscle-car': row('muscle car', ['pony car', 'v8 coupe', 'american muscle'], 'road', 'sport', M, ROAD,
+    { physics: 'muscle', car: 'muscleCar', tech: 'car' }),
+  'large-suv': row('full-size suv', ['large suv', 'body-on-frame suv', 'big suv', 'full size suv'], 'road', 'commuter', M, ROAD,
+    { physics: 'largeSuv', car: 'largeSuv', tech: 'car' }),
+  'off-roader': row('off-roader', ['offroader', 'four by four', '4x4', 'off-road vehicle', 'boxy 4x4'], 'offroad', 'trail', M, ROAD,
+    { physics: 'offroader', car: 'offroader', tech: 'car' }),
+  'classic-car': row('classic car', ['fifties cruiser', 'chrome-age car', 'land yacht', 'old-timer', 'oldtimer', 'eighties sedan', 'retro sedan'], 'road', 'commuter', M, ROAD,
+    { car: ['classicCruiser', 'eightiesSedan'], tech: 'car' }),
   'camper-van': row('camper van', ['campervan', 'camper', 'motorhome', 'caravan van', 'recreational vehicle'], 'road', 'commuter', M, ROAD,
     { assembly: 'caravanVan', tech: 'truck' }),
   taxi: row('taxi', ['cab', 'taxicab', 'yellow cab'], 'road', 'hire', M, ROAD,
     { scenery: 'taxi', tech: 'car' }),
   limousine: row('limousine', ['limo', 'stretch limo'], 'road', 'hire', M, ['traffic', 'parked'],
     { net: 'limo', tech: 'car' }),
-  'sports-car': row('sports car', ['roadster', 'sportscar'], 'road', 'sport', M, ROAD,
+  'sports-car': row('sports car', ['sportscar'], 'road', 'sport', M, ROAD,
     { physics: 'sports', tech: 'car' }),
   supercar: row('supercar', ['hypercar', 'exotic car', 'wedge', 'grand tourer', 'fastback', 'track special'], 'road', 'sport', M, ['driven', 'parked', 'watched'],
     { supercar: ['razor', 'strada', 'endurance', 'touring'], tech: 'car' }),
@@ -215,7 +248,7 @@ export const VEHICLES = {
     { physics: 'refuseTruck', tech: 'truck' }),
   // (the garbage truck's other models, each its own silhouette: forks on arms over the cab, a gripper arm on the right
   // side, a hook lift and its container, portal arms and a skip)
-  'front-loader': row('front loader garbage truck', ['front loader', 'front-loading garbage truck', 'front load truck', 'commercial garbage truck', 'dumpster truck', 'front loader refuse truck'], 'road', 'service', M, ROAD,
+  'front-loader-truck': row('front loader garbage truck', ['front-loading garbage truck', 'front load truck', 'commercial garbage truck', 'dumpster truck', 'front loader refuse truck'], 'road', 'service', M, ROAD,
     { physics: 'frontLoader', tech: 'truck' }),
   'side-loader': row('side loader garbage truck', ['side loader', 'automated side loader', 'automated garbage truck', 'side-loading garbage truck', 'side load truck', 'side loader refuse truck', 'robot arm garbage truck'], 'road', 'service', M, ROAD,
     { physics: 'sideLoader', tech: 'truck' }),
@@ -258,8 +291,46 @@ export const VEHICLES = {
   // ── work and war on the ground ──────────────────────────────────────────────
   tractor: row('tractor', ['farm tractor'], 'offroad', 'work', M, ['driven', 'parked'],
     { tech: 'car' }),
-  forklift: row('forklift', ['fork lift', 'lift truck'], 'road', 'work', M, ['driven', 'parked'],
-    { tech: 'car' }),
+  forklift: row('forklift', ['fork lift', 'lift truck', 'counterbalance forklift', 'fork truck'], 'road', 'work', M, ['driven', 'parked'],
+    { physics: 'forklift', construction: 'forklift', tech: 'car' }),
+  // ── the site's machines (the construction shelf's, construction-shelf/: each a carrier, an upper, a front and a tool;
+  // a crawler and a skid steer drawn and parked until skid steer is built; the tower crane stands where it is put) ───
+  excavator: row('excavator', ['digger', 'crawler excavator', 'tracked excavator', 'hydraulic excavator', 'trackhoe', 'power shovel'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'crawlerExcavator', construction: 'crawlerExcavator', tech: 'tracked' }),
+  'mini-excavator': row('mini excavator', ['mini digger', 'compact excavator', 'micro excavator'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'miniExcavator', construction: 'miniExcavator', tech: 'tracked' }),
+  'wheeled-excavator': row('wheeled excavator', ['wheel excavator', 'rubber tyred excavator', 'mobile excavator'], 'road', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'wheeledExcavator', construction: 'wheeledExcavator', tech: 'truck' }),
+  bulldozer: row('bulldozer', ['dozer', 'crawler dozer', 'crawler tractor', 'track dozer'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'crawlerDozer', construction: 'bulldozer', tech: 'tracked' }),
+  'wheel-loader': row('wheel loader', ['front loader', 'front end loader', 'bucket loader', 'payloader', 'shovel loader'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'wheelLoader', construction: 'wheelLoader', tech: 'truck' }),
+  'backhoe-loader': row('backhoe loader', ['backhoe', 'loader backhoe', 'digger loader'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'backhoeLoader', construction: 'backhoeLoader', tech: 'truck' }),
+  'skid-steer': row('skid steer loader', ['skid steer', 'skidsteer', 'skid loader'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'skidSteer', construction: 'skidSteer', tech: 'car' }),
+  'compact-track-loader': row('compact track loader', ['track loader', 'tracked skid steer', 'multi terrain loader'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'compactTrackLoader', construction: 'compactTrackLoader', tech: 'tracked' }),
+  telehandler: row('telehandler', ['telescopic handler', 'telescopic forklift', 'reach forklift'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'telehandler', construction: 'telehandler', tech: 'truck' }),
+  'tipper-truck': row('tipper truck', ['tipper', 'dump truck', 'dumper truck', 'tip truck', 'dump lorry', 'tipper lorry'], 'road', 'construction', M, ROAD.concat('watched'),
+    { physics: 'tipperTruck', construction: 'tipperTruck', tech: 'truck' }),
+  'mixer-truck': row('concrete mixer truck', ['mixer truck', 'cement truck', 'cement mixer', 'concrete mixer', 'transit mixer', 'concrete truck'], 'road', 'construction', M, ROAD.concat('watched'),
+    { physics: 'mixerTruck', construction: 'mixerTruck', tech: 'truck' }),
+  'articulated-dump-truck': row('articulated dump truck', ['articulated hauler', 'dumper', 'adt', 'site dumper'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'articulatedDumpTruck', construction: 'articulatedDumpTruck', tech: 'truck' }),
+  'haul-truck': row('haul truck', ['mining truck', 'off highway truck', 'rigid dump truck', 'quarry truck'], 'offroad', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'haulTruck', construction: 'haulTruck', tech: 'truck' }),
+  'mobile-crane': row('mobile crane', ['all terrain crane', 'truck crane', 'crane truck', 'rough terrain crane', 'telescopic crane'], 'road', 'construction', M, ROAD.concat('watched'),
+    { physics: 'mobileCrane', construction: 'mobileCrane', tech: 'truck' }),
+  // (a tower crane never drives: its words and its uses are a site's centrepiece, its size the shelf's as built, to
+  // the height under its hook it is built to; its concept, a truck, is the crafter's nearest)
+  'tower-crane': row('tower crane', ['crane', 'building crane', 'construction crane', 'hammerhead crane', 'luffing crane', 'site crane'], 'road', 'construction', M, ['parked', 'watched'],
+    { construction: 'towerCrane', tech: 'truck' }),
+  'road-roller': row('road roller', ['roller', 'steamroller', 'compactor', 'tandem roller', 'asphalt roller', 'drum roller'], 'road', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'roadRoller', construction: 'roadRoller', tech: 'truck' }),
+  'motor-grader': row('motor grader', ['grader', 'road grader', 'blade grader'], 'road', 'construction', M, ['driven', 'parked', 'watched'],
+    { physics: 'motorGrader', construction: 'motorGrader', tech: 'truck' }),
   // (the field's: a light utility 4x4, a canvas-topped cargo truck, an eight-wheeled carrier; their realistic bodies
   // are the military hull kit's, car-designer/road-military.js; "jeep" is said of any light military 4x4, so it is a
   // word here, the one maker's name the roster keeps)
@@ -287,6 +358,40 @@ export const VEHICLES = {
     { tech: 'tracked' }),
   mech: row('mech', ['walker', 'battle mech', 'mecha', 'strider'], 'offroad', 'armour', F, FIGHT,
     { tech: 'walker' }),
+  // (a ridden walker: the mecha shelf's first frame, mecha-shelf/, its rider astride as on a sport motorcycle, carried on
+  // two six-joint legs; drawn on the studio grid at a stance, ridden when its gait is built)
+  'all-terrain-walker': row('all-terrain walker', ['all terrain walker', 'riding walker', 'ridden walker', 'bipedal walker', 'legged walker', 'walking machine', 'walker frame', 'walking chair'], 'offroad', 'trail', F, ['driven', 'parked', 'watched'],
+    { mecha: 'allTerrainWalker', tech: 'walker' }),
+  // (the all-terrain walker hardened as a military all-terrain transport, unarmed: drawn larger for rough ground, its
+  // beams guarded, its feet cleated, dressed in the field's look, car-designer's military styling)
+  'field-walker': row('field walker', ['military walker', 'army walker', 'military all terrain walker', 'military all-terrain walker', 'patrol walker', 'scout walker', 'recon walker', 'walker transport'], 'offroad', 'scout', F, ['driven', 'parked', 'watched'],
+    { mecha: 'fieldWalker', tech: 'walker' }),
+  // (the field walker on four wheels, armed: it walks, or collapses its legs and rolls as a four-wheeler; its heavy
+  // weapons backpack an autocannon, a rocket launcher and the service tail)
+  'rover-walker': row('rover walker', ['wheeled walker', 'walker atv', 'atv walker', 'transforming walker', 'wheel walker', 'quad walker', 'roller walker', 'wheel leg walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
+    { mecha: 'roverWalker', tech: 'walker' }),
+  // (the rover walker's principles at 2.5 times: six wheels collapsed, its cockpit out on a keel, a howitzer and a
+  // missile launcher on its back served by twin scorpion tails)
+  'siege-walker': row('siege walker', ['walking fortress', 'artillery walker', 'howitzer walker', 'siege mech', 'heavy rover walker', 'mobile fortress', 'six wheel walker', 'land cruiser walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
+    { mecha: 'siegeWalker', tech: 'walker' }),
+  // (the siege walker's first pattern, kept beside it: its cockpit out on a keel under a radar mast, no hull between,
+  // its weapons high on its backpack's tower, tall foot plates)
+  'siege-walker-mk1': row('siege walker mk1', ['siege walker mk 1', 'first siege walker', 'original siege walker', 'tower siege walker', 'keel walker', 'radar mast walker'], 'offroad', 'armour', F, ['driven', 'parked', 'watched'],
+    { mecha: 'siegeWalkerMk1', tech: 'walker' }),
+  // (a big four-legged drone carrier: its hull a single hangar, its feet rounded bays on wheels, two drones in each; it
+  // walks as an insect does, tall on its bays, or tucks them in along its hull and drives on them)
+  'brood-walker': row('brood walker', ['bug mom', 'drone mother', 'drone carrier walker', 'drone walker', 'mothership walker', 'hangar walker', 'quad walker carrier', 'four legged drone carrier'], 'offroad', 'transport', F, ['driven', 'parked', 'watched'],
+    { mecha: 'broodWalker', tech: 'walker' }),
+  // (a general-purpose work frame on the same shelf: its operator seated in a torso frame, knee-forward legs, two arms
+  // on rams for the lifting)
+  'utility-walker': row('utility walker', ['work walker', 'walking work frame', 'power frame', 'work frame', 'lifting walker', 'cargo walker', 'loader walker', 'walking loader'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
+    { mecha: 'utilityWalker', tech: 'walker' }),
+  // (the utility walker drawn larger for heavy construction: its operator in a closed, guarded cab)
+  'heavy-walker': row('heavy walker', ['heavy work walker', 'construction walker', 'site walker', 'heavy lifting walker', 'walking crane', 'demolition walker', 'heavy power frame'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
+    { mecha: 'heavyWalker', tech: 'walker' }),
+  // (the heavy walker's cab and arms on a more robust frame, a giant arm pack on its back: two giant arms over the cab)
+  'giant-arm-walker': row('giant arm walker', ['giant arm pack walker', 'gap walker', 'gau walker', 'four arm walker', 'big arm walker', 'heavy lift walker', 'rescue walker'], 'offroad', 'work', F, ['driven', 'parked', 'watched'],
+    { mecha: 'giantArmWalker', tech: 'walker' }),
   hovercraft: row('hovercraft', ['hoverbike', 'speeder', 'skimmer', 'grav car'], 'offroad', 'transport', M.concat(F), ['driven', 'traffic', 'watched'],
     { tech: 'hover' }),
   // ── drawn ───────────────────────────────────────────────────────────────────
@@ -365,8 +470,11 @@ export const VEHICLES = {
     { scenery: 'regional', craft: 'regional', tech: 'winged' }),
   airliner: row('airliner', ['narrowbody', 'jetliner', 'passenger jet', 'single-aisle jet'], 'air', 'liner', M, AIR,
     { scenery: 'airliner', craft: 'narrowbody', tech: 'winged' }),
-  widebody: row('widebody airliner', ['widebody', 'jumbo jet', 'jumbo', 'long-haul jet', 'twin-aisle jet'], 'air', 'liner', M, AIR,
+  widebody: row('widebody airliner', ['widebody', 'long-haul jet', 'twin-aisle jet', 'twin-engine widebody'], 'air', 'liner', M, AIR,
     { scenery: 'widebody', craft: 'widebody', tech: 'winged' }),
+  // (the four-engined jumbo, an upper deck over its nose, a class and not a replica: the words "jumbo" are its)
+  'jumbo-jet': row('jumbo jet', ['jumbo', 'four-engine airliner', 'four engine jet', 'quad jet', 'upper deck airliner', 'humped airliner'], 'air', 'liner', M, AIR,
+    { craft: 'jumbo', tech: 'winged' }),
   'camera-drone': row('camera drone', ['quadcopter', 'camera quad', 'quad drone', 'consumer drone'], 'air', 'survey', M, AIR,
     { craft: 'cameraQuad', tech: 'rotor' }),
   'racing-drone': row('racing drone', ['fpv drone', 'fpv quad', 'racing quad', 'freestyle quad'], 'air', 'racer', M, ['driven', 'watched'],
@@ -465,6 +573,9 @@ export const HANDLE_TABLES = Object.freeze({
   craft: { claim: 'one', table: 'craft-shelf/craft-archetypes.js CRAFT_ARCHETYPES' },
   sky: { claim: 'one', table: 'skyscape/eye.js CRAFT' },
   cycle: { claim: 'one', table: 'cycle-shelf/cycle-archetypes.js CYCLE_ARCHETYPES' },
+  car: { claim: 'one', table: 'car-shelf/car-library.js CAR_CARDS' },
+  construction: { claim: 'one', table: 'construction-shelf/con-archetypes.js CON_ARCHETYPES' },
+  mecha: { claim: 'one', table: 'mecha-shelf/mecha-archetypes.js MECHA_ARCHETYPES' },
   tech: { claim: 'shared', table: 'gameworld/tech-crafter.js CRAFT_TRAITS.vehicle (a form\'s variant)' },
 });
 

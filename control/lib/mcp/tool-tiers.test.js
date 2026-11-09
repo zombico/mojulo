@@ -102,3 +102,21 @@ describe('tools/list', () => {
     }
   });
 });
+
+// A req's brief names the plugin's job agent only for a host that declares capabilities.jobAgents, under the Claude
+// plugin (which installs them): anywhere else the agents are not there to name.
+describe('capabilities.jobAgents', () => {
+  it('is Claude Code\'s, and only under the plugin', async () => {
+    const { clientTakesJobAgents } = await import('@/lib/mcp/server');
+    const was = process.env.MOJULO_DISTRIBUTION;
+    try {
+      delete process.env.MOJULO_DISTRIBUTION;
+      expect(clientTakesJobAgents({ name: 'claude-code' })).toBe(false);
+      process.env.MOJULO_DISTRIBUTION = 'claude-plugin';
+      expect(clientTakesJobAgents({ name: 'claude-code' })).toBe(true);
+      for (const clientInfo of [{ name: 'codex' }, { name: 'some-new-host' }, undefined]) expect(clientTakesJobAgents(clientInfo)).toBe(false);
+    } finally {
+      if (was === undefined) delete process.env.MOJULO_DISTRIBUTION; else process.env.MOJULO_DISTRIBUTION = was;
+    }
+  });
+});

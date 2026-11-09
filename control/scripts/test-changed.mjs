@@ -49,6 +49,7 @@ export const TEXT_READERS = Object.freeze([
   { reads: /^lib\/graph\/gameworld\/feel\/(cards|kernel|page\.client)\.js$/, by: ['lib/graph/gameworld/feel/page.js'], why: 'the action lab page inlines its kernel' },
   { reads: /^lib\/graph\/pixelizer\/[^/]+\.js$/, by: ['lib/graph/pixelizer/brickster-shell.js', 'lib/graph/pixelizer/philosophers-stone-shell.js'], why: 'the pixelizer shells inline their siblings' },
   { reads: /^lib\/graph\/scene\/scene-three\.js$/, by: ['lib/graph/era/era-marks.test.js'], why: 'the era marks read the World page\'s inputs from its source' },
+  { reads: /^lib\/mana-ui\/[^/]+\.js$/, by: ['lib/mana-ui/boundary.test.js'], why: 'the boundary guard reads every mana-ui module for what it imports' },
   { reads: /^lib\/mcp\/apps\/preview-ui\.js$/, by: ['lib/mcp/apps/preview.js'], why: 'the app preview inlines its UI script' },
   { reads: /^lib\/mcp\/(catalysts|routing-cards)\/[^/]+\.md$|^lib\/graph\/(.+\/)?[a-z-]+-vocab\/.+\.md$|^lib\/mcp\/tools\/[^/]+\.js$|^scripts\/orient-mcp\.mjs$/, by: ['lib/mcp/no-dead-pointers.test.js'], why: 'the dead-pointer guard reads the shelves, the cards and the tools\' prose for names an agent cannot call' },
 ]);
@@ -57,7 +58,7 @@ export const TEXT_READERS = Object.freeze([
 export const DATA_READERS = Object.freeze([
   'app/api/sketches/[ref]/model.glb/route.js', 'lib/app-mcp-scaffold/install.js', 'lib/graph/beats/beats-vocab/loader.js',
   'lib/graph/creature-heads/index.js', 'lib/graph/face-acting/recordings.js', 'lib/graph/game/hud-cards/loader.js', 'lib/graph/game/mechanic-cards/loader.js',
-  'lib/graph/game/title-carve.js', 'lib/graph/game/title-words.js',
+  'lib/graph/game/title-carve.js', 'lib/graph/game/title-words.js', 'lib/graph/playscape/ui/theme-cards/loader.js',
   'lib/graph/game/slice-cards/loader.js', 'lib/graph/image-outcomes/fonts/font-shelf.js', 'lib/graph/image-outcomes/render-store.js',
   'lib/graph/image-outcomes/sheet-store.js', 'lib/graph/manji-programs/loader.js', 'lib/graph/motion-vocab/loader.js',
   'lib/graph/painted-landscape-cards/loader.js', 'lib/graph/polygonizer/humanoid-head-fit.js', 'lib/graph/polygonizer/relational-face-store.js',

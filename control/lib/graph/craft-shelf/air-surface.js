@@ -309,10 +309,13 @@ export function markCraft(stage, L, { seed = 1, trim } = {}) {
     const r = (((L.seed ?? seed) * 2654435761) >>> 0) % 10000000, code = M.number ? `${M.number}` : `${String(Math.floor(r / 10000)).padStart(3, '0')}-${String(r % 10000).padStart(4, '0')}`;
     const ink = (f) => ({ material: f.material, albedo: lum(f.albedo) > 120 ? scaleBy(f.albedo, 0.3) : mixHex(f.albedo, '#ecebe6', 0.8) });
     // (the registration where the cabin runs into its boom, clear of its doors: centred on the skin's own height there)
-    const yr = y1 - 0.56 * Lh, near = fs.filter((f) => Math.abs(f.corners.reduce((t, c) => t + c[1], 0) / f.corners.length - yr) < 0.35);
+    // (a fixed wing's aft, under its tail, as an airliner's is; a helicopter's at its boom's root)
+    const heli = stage.some((it) => it.kind === 'heli-rotor');
+    const yr = heli ? y1 - 0.56 * Lh : y0 + 0.17 * Lh, near = fs.filter((f) => Math.abs(f.corners.reduce((t, c) => t + c[1], 0) / f.corners.length - yr) < 0.35);
     const [rz0, rz1] = near.length ? extentOf(near, 2) : [z0, z1], hr = Math.min(0.3, H * 0.11, (rz1 - rz0) * 0.3);
+    const zr = heli ? (rz0 + rz1) / 2 : rz0 + (rz1 - rz0) * 0.62;
     for (const sx of [1, -1]) {
-      lay(hull, { at: [0, yr, (rz0 + rz1) / 2], out: [sx, 0, 0], up: [0, 0, 1] }, digits(code, hr), ink, { depth: 3 });
+      lay(hull, { at: [0, yr, zr], out: [sx, 0, 0], up: [0, 0, 1] }, digits(code, hr), ink, { depth: 3 });
       if (M.stripe && trim) lay(hull, { at: [0, y1 - 0.24 * Lh, zc - H * 0.1], out: [sx, 0, 0], up: [0, 0, 1] }, [rect(-0.2 * Lh, -H * 0.035, 0.2 * Lh, H * 0.035)], (f) => ({ material: f.material, albedo: String(trim).toLowerCase() }), { depth: 3 });
     }
   }

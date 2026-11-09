@@ -20,6 +20,7 @@
  * The bay stands on the side of the front away from the door; under a porch across the front it is the porch's
  * (no higher than its roof) or, `upper`, an oriel over it. Pure: no dice.
  */
+import { AWNING_CLEAR } from '../era/headroom.js';
 export const FRONT = Object.freeze({
   porch: Object.freeze({ door: 1.8, full: 2.2, beside: 0.8, post: 0.18, stride: 2.6, skirt: 0.7, slab: 0.12, over: 0.3, rail: 0.9 }),
   // a shopfront: its glazing's head under the storey's top, its kick plate, its mullions' stride, the sign band, the awning
@@ -145,11 +146,16 @@ export function frontOf(front = {}, house) {
     else if (sign === 'blade') { const x = doorX < W / 2 ? W - 0.45 : 0.45; out.push(...box(x - 0.04, -1.05, x + 0.04, -0.2, sh + 0.25, sh + 1.15, 'sign', sg), ...box(x - 0.03, -1.1, x + 0.03, 0, sh + 1.15, sh + 1.2, 'trim', fr)); }
     else if (sign === 'window' && wide[1] - wide[0] > 1.6) { const m = (wide[0] + wide[1]) / 2, h = Math.min(0.9, (wide[1] - wide[0]) * 0.35); out.push({ corners: [P(m - h, -0.075, zt - 1.05), P(m + h, -0.075, zt - 1.05), P(m + h, -0.075, zt - 0.8), P(m - h, -0.075, zt - 0.8)], out: [0, -1, 0], role: 'sign', ...(V.letterHex ? { hex: V.letterHex } : sg) }); }
     // its awning: sloped canvas, a flat metal canopy on its rods, a rounded one, none
-    const awning = V.awning ?? 'slope', ao = Sf.awning, a0 = Sf.edge * 0.6, a1 = W - Sf.edge * 0.6, zh = zt + 0.05, zl = zh - ao * 0.45;
+    // (each hung so its lowest edge clears the base model by half a body, era/headroom.js: a slope lifted toward the
+    // storey's top, its fall flattened where the storey has no room for it; a flat or a round lifted whole)
+    const awning = V.awning ?? 'slope', ao = Sf.awning, a0 = Sf.edge * 0.6, a1 = W - Sf.edge * 0.6, z0 = zt + 0.05;
+    const fall0 = awning === 'slope' ? ao * 0.45 + 0.25 : awning === 'flat' ? 0.12 : 0.4;
+    const zh = awning === 'slope' ? Math.max(z0, Math.min(AWNING_CLEAR + fall0, sh - 0.05), AWNING_CLEAR + 0.1) : Math.max(z0, AWNING_CLEAR + fall0);
+    const k = awning === 'slope' ? Math.min(1, (zh - AWNING_CLEAR) / fall0) : 1, zl = zh - ao * 0.45 * k, val = 0.25 * k;
     if (awning === 'slope') {
       out.push({ corners: [P(a0, -ao, zl), P(a1, -ao, zl), P(a1, 0, zh), P(a0, 0, zh)], out: [0, -0.4, 0.9], role: 'canvas', ...aw });
-      out.push({ corners: [P(a0, -ao, zl - 0.25), P(a1, -ao, zl - 0.25), P(a1, -ao, zl), P(a0, -ao, zl)], out: [0, -1, 0], role: 'canvas', ...aw });
-      for (const [x, sx] of [[a0, -1], [a1, 1]]) out.push({ corners: [P(x, 0, zh), P(x, -ao, zl), P(x, -ao, zl - 0.25)], out: [sx, 0, 0], role: 'canvas', ...aw });
+      out.push({ corners: [P(a0, -ao, zl - val), P(a1, -ao, zl - val), P(a1, -ao, zl), P(a0, -ao, zl)], out: [0, -1, 0], role: 'canvas', ...aw });
+      for (const [x, sx] of [[a0, -1], [a1, 1]]) out.push({ corners: [P(x, 0, zh), P(x, -ao, zl), P(x, -ao, zl - val)], out: [sx, 0, 0], role: 'canvas', ...aw });
     } else if (awning === 'flat') {
       out.push(...box(a0, -ao * 0.85, a1, -0.02, zh - 0.12, zh, 'canopy', aw));
       for (const x of [a0 + 0.3, a1 - 0.3]) out.push({ corners: [P(x, -0.02, zh + 0.9), P(x, -ao * 0.85, zh), P(x, -ao * 0.85, zh + 0.04), P(x, -0.02, zh + 0.94)], out: [1, 0, 0], role: 'trim', ...fr });

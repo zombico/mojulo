@@ -24,6 +24,7 @@
  */
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
+import { VAYO_ELEMENTS } from '../rupa/vayo-move.js';
 
 /** What powers run on. */
 export const SYSTEM_KINDS = Object.freeze({
@@ -36,6 +37,10 @@ export const SYSTEM_KINDS = Object.freeze({
 export const STAGES = Object.freeze(['early', 'mid', 'late']);
 
 /** The moves a power can give the hero: each a change to the platform rule, made from the level's own rule. */
+/** The words an attack's knockback energy may be said in (worlds/controllable/knock.js WORDS: tap 50 J, light 300,
+ *  heavy 3000, massive 30000). */
+export const KNOCK_WORDS = Object.freeze(['tap', 'light', 'heavy', 'massive']);
+
 export const TRAVERSAL_MOVES = Object.freeze({
   'double-jump': { read: 'a second jump in the air', rule: () => ({ airJumps: 1 }) },
   glide: { read: 'a held jump slows the fall', rule: () => ({ glideFall: 2.5 }) },
@@ -43,7 +48,20 @@ export const TRAVERSAL_MOVES = Object.freeze({
   // the city stalker's, found rather than started with (HERO_MOVES): the roofs a wall opens, the gaps a line crosses
   wall: { read: 'any wall climbed', rule: () => ({ wall: true }) },
   swinger: { read: 'a line swung across a gap', rule: () => ({ gear: 'swinger' }) },
+  // the special abilities that move the hero on its own air (rupa/vayo-move.js): the power's element shapes it (wind,
+  // earth, lightning, fire, water), the game's feel card tunes it (`tune`: feel/lower.js feelVayo), the hero's own numbers last
+  'vayo-dash': { read: 'a dash on the hero\'s own air: a burst to its peak, then a carry (V)', rule: (base, p) => vayoGrant(base, p, 'dash') },
+  'vayo-jump': { read: 'a jump again in the air on the hero\'s own air: the same height from wherever it fires', rule: (base, p) => vayoGrant(base, p, 'jump') },
+  'vayo-air-dash': { read: 'a dash in the air on the hero\'s own air, again after the ground; held, it carries on as flight (V)', rule: (base, p) => vayoGrant(base, p, 'airDash') },
+  'vayo-jetpack': { read: 'a jetpack on the hero\'s own air: a startup leans it into the launch, and it goes where it leans (V in the air)', rule: (base, p) => vayoGrant(base, p, 'jetpack') },
+  'vayo-flight': { read: 'flight on the hero\'s own air: rise, hover and fly at will (V in the air)', rule: (base, p) => vayoGrant(base, p, 'flight') },
 });
+function vayoGrant(base, p, kind) {
+  const V = (base && base.vayo) || {}, own = V[kind] && V[kind] !== true ? V[kind] : {}, tune = p && p.tune && p.tune[kind] ? p.tune[kind] : {};
+  const element = V.element ?? (p && VAYO_ELEMENTS.includes(p.element) ? p.element : undefined);
+  const move = { ...tune, ...own };
+  return { vayo: { ...V, ...(element ? { element } : {}), [kind]: Object.keys(move).length ? move : true } };
+}
 
 /** The moves a hero STARTS with (`actions.moves`, the city stalker's): each a patch to the platform rule, held from the
  *  first level, in every level it plays (a trail, a building, an inside), outdoors and in: the wall (any wall held and
@@ -125,12 +143,15 @@ export function readActions(A) {
   }
   if (A.system !== undefined) out.system = readSystem(A.system, '.system');
   if (A.powers !== undefined) {
-    if (!Array.isArray(A.powers)) throw err('.powers is a list of { id, verb, element?, look?, attack?, move? } (a hero with no powers: none: true)');
+    if (!Array.isArray(A.powers)) throw err('.powers is a list of { id, verb, element?, look?, attack?, move?, kinetic?, impact? } (a hero with no powers: none: true)');
     const seen = new Set();
     out.powers = A.powers.map((p, i) => {
       const at = `.powers[${i}]`;
-      if (!isObj(p)) throw err(`${at} is { id, verb, element?, look?, attack?, move? }`);
-      for (const k of Object.keys(p)) if (!['id', 'verb', 'element', 'look', 'attack', 'move'].includes(k)) throw err(`${at}.${k} is not part of a power (id, verb, element, look, attack, move)`);
+      if (!isObj(p)) throw err(`${at} is { id, verb, element?, look?, attack?, move?, kinetic?, impact? }`);
+      for (const k of Object.keys(p)) if (!['id', 'verb', 'element', 'look', 'attack', 'move', 'kinetic', 'impact'].includes(k)) throw err(`${at}.${k} is not part of a power (id, verb, element, look, attack, move, kinetic, impact)`);
+      // (its attack's knockback, apart from its hurt: the energy it pushes its target with, and the energy it releases
+      // where it lands, joules or a word: worlds/controllable/knock.js)
+      for (const k of ['kinetic', 'impact']) if (p[k] !== undefined && !((typeof p[k] === 'number' && p[k] > 0) || KNOCK_WORDS.includes(p[k]))) throw err(`${at}.${k} is joules above 0 or a word (${KNOCK_WORDS.join(', ')}): the energy its attack ${k === 'kinetic' ? 'pushes its target with' : 'releases where it lands'}`);
       if (p.move !== undefined && !TRAVERSAL_MOVES[p.move]) throw err(`${at}.move is one of ${Object.keys(TRAVERSAL_MOVES).map((m) => `'${m}'`).join(', ')}: what the power lets the hero do`);
       if (!ID.test(p.id ?? '')) throw err(`${at}.id is a lowercase id ("fire-lance")`);
       if (seen.has(p.id)) throw err(`${at}.id '${p.id}' appears twice`);
@@ -142,6 +163,7 @@ export function readActions(A) {
         q[k] = p[k].trim();
       }
       if (p.move !== undefined) q.move = p.move;
+      for (const k of ['kinetic', 'impact']) if (p[k] !== undefined) q[k] = p[k];
       return q;
     });
   }

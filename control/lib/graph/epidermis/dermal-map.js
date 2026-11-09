@@ -58,6 +58,7 @@ export const DERMIS_DIALS = Object.freeze({
   nape: 'mm, −15 … 20 (the nape\'s line lower; − higher; absent 0)',
   marks: 'the skin\'s MARKS on the face: [{ kind: mole | beauty | cafe | wine, at: [X, Y] (mm on the head: X out from the middle, the figure\'s right +, round the head; Y up from the menton), size: mm }] (a mole a raised brown dot, a beauty mark a small dark one, a café-au-lait patch a light brown stain, a port-wine stain a red-violet one; absent, none)',
   shade: '0 … 1, or { amount 0 … 1, colour?: a hex (the shade\'s hue: an art direction\'s shadow), steps?: 0 smooth | 2 … 8 hard bands (a cel look), curve?: \'linear\' | \'deep\' (a near-black, only where the skin is enclosed deepest) } (the broad SHADING painted into the colour, as a game paints its light in: the sockets, under the cheekbone, beside the nose, under the lip and the jaw; absent 0, the colour as it was)',
+  bareScalp: 'true: the scalp bare skin, no follicles painted (a make-up bald cap: lib/graph/xeno); absent, the scalp as its hair leaves it',
   bald: '0 … 1 (hair loss by its sex\'s pattern: a man\'s temples, then the crown, then the front, to the horseshoe; a woman\'s front kept, the crown and the part thinned; absent 0)',
   beard: '0 … 1.5 (the beard tract\'s density)',
   stubble: 'mm, 0 … 30 (the beard\'s length: 1 a shadow, 4 stubble, 12 a short beard)',
@@ -179,6 +180,7 @@ export function readDermis(spec = 'male') {
     if (!Array.isArray(D.marks) || D.marks.length > 24 || D.marks.some((m) => !m || !MARK_KINDS[m.kind] || !Array.isArray(m.at) || m.at.length !== 2 || !m.at.every(Number.isFinite) || !(m.size > 0 && m.size <= 60)))
       throw new Error(`dermis: marks ${JSON.stringify(D.marks).slice(0, 120)} (${DERMIS_DIALS.marks})`);
   }
+  if (D.bareScalp !== undefined && D.bareScalp !== true) throw new Error(`dermis: bareScalp ${JSON.stringify(D.bareScalp)} (${DERMIS_DIALS.bareScalp})`);
   if (D.beardStyle !== undefined) {
     const s = D.beardStyle, word = typeof s === 'string' ? s : s?.style;
     if (!BEARD_STYLES[word] || (typeof s === 'object' && (Object.keys(s).some((k) => !['style', 'lengths'].includes(k)) || (s.lengths && Object.entries(s.lengths).some(([k, v]) => !['moustache', 'chin', 'cheek'].includes(k) || !(v >= 0 && v <= 120))))))

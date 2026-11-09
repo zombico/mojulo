@@ -76,3 +76,18 @@ describe('the scene on the time map', () => {
     expect(directorsNotes(M, coverScene(M)).filter((n) => n.id === 'slowed-line')).toEqual([]);
   });
 });
+
+describe('the film pack\'s grade', () => {
+  it('scene.json carries the grade and look.py builds it as compositor nodes; a pack without one carries none', async () => {
+    const { readGrade } = await import('../scene/channels/grade.js');
+    const { lookPy } = await import('./scene-film.js');
+    const S = actScene(B), C = coverScene(S), actors = { mara: { take: 'scene' }, jon: { take: 'scene' } };
+    const files = Object.fromEntries(sceneFilmFiles({ S, coverage: C, actors, fps: 24, title: 't', grade: readGrade('noir') }).map((f) => [f.file, f.text]));
+    expect(JSON.parse(files['scene.json']).grade).toEqual(readGrade('noir'));
+    expect(files['SCENE.md']).toMatch(/compositor/);
+    for (const node of ['CompositorNodeHueSat', 'CompositorNodeBrightContrast', 'CompositorNodeEllipseMask', 'compositing_node_group']) expect(lookPy()).toContain(node);
+    const plain = Object.fromEntries(sceneFilmFiles({ S, coverage: C, actors, fps: 24, title: 't' }).map((f) => [f.file, f.text]));
+    expect(JSON.parse(plain['scene.json'])).not.toHaveProperty('grade');
+    expect(plain['SCENE.md']).not.toMatch(/compositor/);
+  });
+});

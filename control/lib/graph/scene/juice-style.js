@@ -181,6 +181,8 @@ export const JUICE_DIALS = Object.freeze({
   halo: 'switch',
   motes: 'switch',
   comic: 'switch',
+  // (rupa-vayo, rupa/vayo-fx.js: blasts and power-ups drawn as the world's air moves them, in bold soft shapes)
+  flow: 'switch',
 });
 const STYLE_KEYS = ['register', 'look', 'flavor', 'fidelity', 'trailColor', ...Object.keys(JUICE_DIALS)];
 
@@ -248,6 +250,7 @@ export function juiceFloor(style) {
     sparks: Object.freeze({ ...F.sparks, glyph: glyphs[F.sparks.glyph] ?? F.sparks.glyph, count: Math.max(1, Math.round(F.sparks.count * sparkK)), life: r3(F.sparks.life * Fl.sparkLife) }),
     rate: pick('rate', Fl.rate), fps,
     glyphs: Object.freeze(glyphs), sparkK, sparkLife: Fl.sparkLife,
+    ...(S.flow ? { flow: true } : {}),
     comic: pick('comic', Rg.comic), glow: Rg.glow, onions: Rg.onions, debris: Rg.debris, halo: pick('halo', Rg.halo), motes: pick('motes', Rg.motes), tint: pick('tint', Rg.tint), edge: Rg.edge, cel: Rg.cel,
     shakeK: pick('shake', Fl.shake), lightK: pick('light', r3(Rg.light * (Fi ? Fi.light : 1))), smokeK: pick('smoke', r3(Rg.smoke * (Fi ? Fi.smoke : 1))),
     // the fidelity: a flash's light laid on the ground as a pool, a bloom round its hot core (each a strength, 0 none)

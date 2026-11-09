@@ -102,7 +102,8 @@ describe('what turns and what stands', () => {
 // bodies waiting until built, and never a ride (skid steer is not built)
 
 describe('the tracked classes and their rows', () => {
-  const TRACKED = Object.keys(PHYSICS).filter((k) => PHYSICS[k].running === 'track');
+  // (the field's: a site's crawler is the construction shelf's, its own running gear)
+  const TRACKED = Object.keys(PHYSICS).filter((k) => PHYSICS[k].running === 'track' && !PHYSICS[k].site);
   it('each a class on a track pair, its row found by the words people say', () => {
     expect(TRACKED.length).toBeGreaterThan(0);
     for (const k of TRACKED) {

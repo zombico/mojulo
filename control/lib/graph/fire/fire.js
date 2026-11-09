@@ -422,6 +422,31 @@ export function fireLightColor(color, kind = 'brazier', soot) {
   return base.map((v, j) => +(v * (1 - k) + c.line[j] * k).toFixed(4));
 }
 
+/**
+ * A BLOCK'S FIRE (destructible physics, rupa): what burns under `destruction: 'physical'` carries its own flame, sized
+ * by its heat release rather than a kind's table: Heskestad's L = 0.235·Q^⅖ − 1.02·D (Q in kW, D its top's equivalent
+ * diameter), the same law the runtime's combustion uses (controllable/rupa.js flameOf), so a pine log's flame stands
+ * under a metre and an oak trunk's a couple. Flamelets by its breadth (a broad bed burns as many narrow tongues, a
+ * campfire's seven for a log), light and embers by the square root of its heat against a campfire's (60 kW: light 12,
+ * 30 embers; light at most 30, so a big fire lights farther without whiting out what stands by it), no smoke of its own (the runtime's dust-and-smoke draws it). It is off
+ * (`life.start` never) until the page sees the block catch; the fire channel lights it then, carries it with the block
+ * and lets it die back when the block is doused or burnt out.
+ *   blockFires(breakables) → resolved sources, one per combustible block ({ burnRate } W, as rupa/matter.js gives it)
+ */
+export const NEVER = 1e12;
+export function blockFires(breakables, { from = 0 } = {}) {
+  const out = [];
+  for (const b of breakables || []) {
+    if (!b || !(b.burnRate > 0) || out.length >= FIRE_MAX_SOURCES - from) continue;
+    const Q = b.burnRate / 1000, D = Math.sqrt((4 * (b.max[0] - b.min[0]) * (b.max[1] - b.min[1])) / Math.PI);
+    const L = Math.max(0.05, 0.235 * Math.pow(Q, 0.4) - 1.02 * D), k = Q / 60;
+    out.push({ kind: 'block', rupa: b.id, at: [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, b.max[2]].map((v) => +v.toFixed(4)), D: +D.toFixed(4), L: +L.toFixed(4),
+      n: Math.max(4, Math.min(9, Math.round(4 + 4 * D))), lam: false, light: +Math.min(30, 12 * Math.sqrt(k)).toFixed(3), embers: Math.min(60, Math.round(30 * Math.sqrt(k))), smoke: 0, soot: 0.85, phi: 1,
+      baked: false, seed: ((from + out.length) * 7919 + 17) | 0, life: { start: NEVER, kindle: 2.5 } });
+  }
+  return out;
+}
+
 /** firePageChannel(resolved, { terrainAir, day }) → the page block's cfg. day: the world's daylight 0–1 (a fire lights
  *  a night, barely a noon). */
 export function firePageChannel(resolved, { terrainAir = false, day = 0, unit = null } = {}) {
@@ -430,7 +455,7 @@ export function firePageChannel(resolved, { terrainAir = false, day = 0, unit = 
 }
 
 /** A fire's own light colour, by kind: what its soot glows (a grass fire's is the reddest, a candle's the yellowest). */
-export const FIRE_KIND_LIGHT = Object.freeze({ candle: [1, 0.66, 0.34], torch: [1, 0.55, 0.24], brazier: [1, 0.52, 0.22], campfire: [1, 0.5, 0.2], fireball: [1, 0.55, 0.22], grass: [1, 0.48, 0.17] });
+export const FIRE_KIND_LIGHT = Object.freeze({ candle: [1, 0.66, 0.34], torch: [1, 0.55, 0.24], brazier: [1, 0.52, 0.22], campfire: [1, 0.5, 0.2], fireball: [1, 0.55, 0.22], grass: [1, 0.48, 0.17], block: [1, 0.5, 0.2] });
 
 /** fireLightRGB(s) → the [r, g, b] a resolved source lights with: its kind's warm yellow, or as much of its colorant's
  *  lines as the flame is coloured (what soot is left still glows yellow). */

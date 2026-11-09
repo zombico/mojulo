@@ -46,7 +46,7 @@ import { readSidequests } from './sidequests.js';
 import { readDay } from './routines.js';
 import { readDomicile, rollDomicile, notationOf, SHAPES, DWELLER, partnerLean, childLean } from './domicile.js';
 
-export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles', 'pool', 'say', 'sidequests', 'recurring', 'day']);
+export const FOLK_KEYS = Object.freeze(['seed', 'cap', 'domicile', 'domiciles', 'pool', 'say', 'sidequests', 'recurring', 'day', 'life']);
 const RECURRING_ID = /^[a-z][a-z0-9-]{0,23}$/;
 export const FOLK_CAP = Object.freeze({ default: 60, max: 400 });
 // how many people a body pool mints as themselves (bodies.js): a quick game's crowd is three faces (CAST_POOL)
@@ -74,7 +74,9 @@ export function readFolk(spec) {
     throw new Error('folk: say is { <person path | role>: text | [text, …] }: the words a person (or every person of a role) says in place of the line book\'s');
   }
   const recurring = spec.recurring !== undefined ? readRecurring(spec.recurring) : undefined;
-  return { ...(spec.seed !== undefined ? { seed: spec.seed } : {}), cap, pool, ...(domicile ? { domicile } : {}), ...(domiciles ? { domiciles } : {}), ...(spec.say ? { say: spec.say } : {}), ...(spec.sidequests ? { sidequests: readSidequests(spec.sidequests) } : {}), ...(recurring ? { recurring } : {}), ...(spec.day !== undefined && spec.day !== false ? { day: readDay(spec.day) } : {}) };
+  // (life: false, the people keep still where they stand; by default each one not looked for potters about its door)
+  if (spec.life !== undefined && typeof spec.life !== 'boolean') throw new Error('folk: life is false for people who keep still where they stand (by default they potter about their doors)');
+  return { ...(spec.seed !== undefined ? { seed: spec.seed } : {}), cap, pool, ...(domicile ? { domicile } : {}), ...(domiciles ? { domiciles } : {}), ...(spec.say ? { say: spec.say } : {}), ...(spec.sidequests ? { sidequests: readSidequests(spec.sidequests) } : {}), ...(recurring ? { recurring } : {}), ...(spec.day !== undefined && spec.day !== false ? { day: readDay(spec.day) } : {}), ...(spec.life === false ? { life: false } : {}) };
 }
 
 /**

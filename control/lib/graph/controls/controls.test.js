@@ -58,9 +58,10 @@ describe('schemes', () => {
   });
 
   // a pad player can do what a keyboard player can in the pilot scheme: every action has a pad binding but the few a
-  // pad says another way (the left stick strafes under mouselook, the RB chord selects a weapon, kneel descends a glide)
+  // pad says another way (the left stick strafes under mouselook, the RB chord selects a weapon, kneel descends a glide,
+  // the stick's travel walks a person)
   it('pilot: every action but those a pad says another way has a pad binding', () => {
-    const OTHERWISE = ['strafeLeft', 'strafeRight', 'descend', 'weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5'];
+    const OTHERWISE = ['strafeLeft', 'strafeRight', 'descend', 'weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5', 'walk'];
     expect(SCHEMES.pilot.actions.filter((a) => !a.bind.gamepad?.length && !OTHERWISE.includes(a.id)).map((a) => a.id)).toEqual([]);
   });
 

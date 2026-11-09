@@ -7,7 +7,7 @@
  *                `sparkle`, and an fx `burst` on collect (the pickup pops out of existence). The
  *                mechanic's own box marker is SUPPRESSED (the glyph replaces it).
  *   - supplies → a `heart` (health) or `orb` (rounds) glyph at each, floating, burst when taken.
- *   - reach-exit → a `flag` glyph at the goal + a green `aura` beacon.
+ *   - reach-exit → a `flag` glyph at the goal + a green `aura` beacon (none for one with `marker: false`).
  *   - hazard-damage → a red danger `aura` at each hazard (a pulsing "stay away").
  * survive / fail-on-death are stateful, not spatial → no world decoration (their HUD is enough).
  *
@@ -18,6 +18,9 @@
  */
 
 import { escapeNames } from './escape-room.js';
+
+// a platformer's coin at a hand's size (the glyph shelf's coin stands about a metre)
+const COIN_SCALE = 0.42;
 
 // item name → glyph form. A small heuristic over the closed form shelf; unknowns default to a gem
 // (the canonical collectible). Extend by adding rows, not by opening the mapping.
@@ -71,6 +74,15 @@ export function decorateMechanics(mechanics, ctx = {}) {
         on[zone] = { gesture: 'burst', target: gid };
         suppress.push(zone);                     // hide the mechanic's box marker (glyph replaces it)
       });
+    } else if (m.kind === 'coins') {
+      // a platformer's coins (mechanics.js coins): each a coin glyph turning where it hangs, popped when taken
+      (Array.isArray(m.pickups) ? m.pickups : []).forEach((pk, j) => {
+        const zone = `cn_${i}_${j}`, gid = `dec_${zone}`, at = Array.isArray(pk.at) ? pk.at : [0, 0, 0];
+        entities.push({ id: gid, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'coin', scale: COIN_SCALE } });
+        states[gid] = 'float';
+        on[zone] = { gesture: 'burst', target: gid };
+        suppress.push(zone);
+      });
     } else if (m.kind === 'supplies') {
       // a supply: a heart for health, an orb for rounds, a gem for armor, a star for overdrive, floating; it pops when
       // taken (as a pickup does)
@@ -81,7 +93,8 @@ export function decorateMechanics(mechanics, ctx = {}) {
         on[zone] = { gesture: 'burst', target: gid };
         suppress.push(zone);
       });
-    } else if (m.kind === 'reach-exit') {
+    } else if (m.kind === 'reach-exit' && m.marker !== false) {
+      // (marker: false, an exit the place itself shows the way to: a party RPG's road or door, no flag over it)
       const at = Array.isArray(m.at) ? m.at : [0, 0, 0];
       entities.push({ id: `dec_exit_${i}`, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: 'flag' } });
       sfx.push({ verb: 'aura', at, color: [0.25, 1.0, 0.45], params: { base: 0.3, pulse: 0.35, r: 1.0, cz: 1.0 } });

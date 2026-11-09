@@ -157,7 +157,7 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
   const use = program.use, P = PROGRAMS[use];
   if (!P) throw new Error(`program: use '${use}' is not one (${PROGRAM_IDS.join(', ')})`);
   // (a building's settings are its plan's: storeys, wings, loading, bays; a house's are its rooms')
-  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays', 'basement'] : ['use', 'seed', 'rooms', 'add', 'civilization'];
+  const settings = P.shape === 'core' ? ['use', 'seed', 'civilization', 'storeys', 'wings', 'loading', 'bays', 'basement'] : ['use', 'seed', 'rooms', 'add', 'civilization', 'scale'];
   for (const k of Object.keys(program)) if (!settings.includes(k)) throw new Error(`program: '${k}' is not a setting (${settings.join(', ')})`);
   // (a composed interior's card, compose.js, where it is not the kit's own: its doorways set the corridors' widths)
   const kit = card ?? STAGE_KITS[kitId];
@@ -171,11 +171,15 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
     return { use, reads: P.reads, rooms, links: C.links, ways: C.ways, entry: C.entry, goal: C.goal, front: '-y', language: lang, findings: C.findings, plan: C.plan, ...(C.under ? { under: C.under } : {}) };
   }
   const g = kit.grid, need = kit.door.width + 2 * kit.door.frame + kit.wall;   // the wall a doorway needs (stage.js planStage)
-  const pick = (r) => Math.round((r[0] + rnd() * (r[1] - r[0])) / g) * g;
+  // (scale: the template's rooms laid larger, the plan scale times, its rooms' heights by its root: a party fights in
+  // them under a camera that stands back, gameworld/levels.js; the recipe's own sizes are its own)
+  const S = program.scale ?? 1;
+  if (!(typeof S === 'number' && S >= 1 && S <= 3)) throw new Error('program: scale is how much larger its rooms are laid than a walker needs, 1 to 3');
+  const pick = (r, k = S) => Math.round(((r[0] + rnd() * (r[1] - r[0])) * k) / g) * g;
   // the heights: the language's storey, lifted for a game, a tall use promoted as the town's uses are
   const dwellingH = mid(STRUCTURE_USES.dwelling.storeyH);
   const tallH = P.tall ? mid(STRUCTURE_USES[P.tall].storeyH) / dwellingH : 1;
-  const heightOf = (o) => Math.max(2.5, half(lang.storeyH * GAME * (o.h === 'tall' ? tallH : o.h ?? 1)));
+  const heightOf = (o) => Math.max(2.5, half(lang.storeyH * GAME * (o.h === 'tall' ? tallH : o.h ?? 1) * (S === 1 || o.added ? 1 : Math.sqrt(S))));
   // the rooms in order (the template's, then the recipe's own), each with its id: its role, numbered past the first
   const over = program.rooms ?? {};
   if (typeof over !== 'object' || Array.isArray(over)) throw new Error('program: rooms is { <role or id>: { w?, d?, h?, drop? } }');
@@ -210,7 +214,7 @@ export function planProgram(program, kitId = 'gothic-stone', { civilization = nu
     // a twin stands over the room its `over` names, on the storey under it
     const under = typeof t.over === 'string' ? byId.get(rolesOf.get(t.over) ?? t.over) : stair ? par0 : null;
     if (st && !(par0 && (stair ? (par0.s ?? 0) === st - 1 : (par0.s ?? 0) === st) && (!t.over || (under && (under.s ?? 0) === st - 1)))) { findings.push({ id: 'orphan', room: t.id, says: `the ${t.id} on storey ${st} opens off the ${t.of}${t.over && !stair ? ` over the ${t.over}` : ''}, which ${stair ? 'is not under it' : 'is not there on its storey'}` }); continue; }
-    const w0 = under ? under.w : o.w ?? pick(t.w), d0 = under ? under.d : o.d ?? pick(t.d), h = o.h ?? heightOf(t);
+    const w0 = under ? under.w : o.w ?? pick(t.w, t.added ? 1 : S), d0 = under ? under.d : o.d ?? pick(t.d, t.added ? 1 : S), h = o.h ?? heightOf(t);
     let room = null;
     if (!parentId) room = { id: t.id, x: 0, y: 0, w: w0, d: d0, h };
     // the room over another: its twin a storey up (over its parent: climbed to by a stair; else through a doorway)

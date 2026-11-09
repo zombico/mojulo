@@ -19,19 +19,27 @@
  *     RUSH    `rush`: { range, brace s, speed, run m, stun s, recover s }: it turns to a hero in range, braces (the
  *             telegraph), locks its line and charges down it; a wall stuns it, the end of its run only stops it
  *     LURK    `lurk`: { radius }: it lies still until a hero comes inside the radius, then wakes for good and hunts
+ *   RAIL    `rule.rail`: { a, b, join, heading, wait?, wake, time, arc } (a side strip's, gameworld/foes.js): the
+ *             2D rail a side-scroller's fight is on, the lane from `a` to `b`. A foe with `wait` stands off the rail there
+ *             (the land behind it), facing in, until a hero comes within `wake` m of its place along the lane; then it
+ *             leaps in on an arc (`time` s, `arc` m high) to `join`, its place on the floor, facing along the lane
+ *             (`heading`). On the rail, everything it does (its own move, the mind's chase, a blow's knockback) is held to
+ *             the lane: it fights in the hero's plane, never round it
  *   TOUCH and STOMP, after every step, for each pilot against each foe it overlaps (the two bodies' radii, their heights):
- *     falling onto its top (the feet above it before the step), the pilot STOMPS: `stomp` on the foe says what that
+ *     falling onto its top (the feet above it before the step, within half its height of its top, or 0.3 m on a foe
+ *     taller: a hero standing on a short foe's ground touches it, never stands on it), the pilot STOMPS: `stomp` on the foe says what that
  *     does (blow: one of the hero's blows, `rule.stomp.blow` hp, and the pilot bounces `low`, or `high` with the jump
  *     held; hurts: the pilot is hit and bounced off; bounce: the pilot bounces and the foe takes nothing). Any other
  *     overlap with a foe that hurts by `touch` (`during: 'charge'`: only while it charges) hits the pilot: its hits
  *     counted (the bus's hit:<pilot>, which a level's hp takes), knocked back off it, and spared further touches for
- *     `rule.stomp.mercy` s. The pilot's `rule.stomp` is laid only where foes stand; a pilot without it touches but
+ *     `rule.stomp.mercy` s; with `rule.stomp.hurt`, that much off a pilot body's own hp as well (a stats-bound body:
+ *     the level's hp is the body's), downed at none. The pilot's `rule.stomp` is laid only where foes stand; a pilot without it touches but
  *     never stomps.
  *
  * Opt-in (compose.js EMISSION_OPT_IN): emitted only into a page whose world stands a foe, so every other page keeps
  * every byte; on the live instance a world without one steps exactly as before. Wraps the `ai` rule and stepWorld, as
  * hitstop.js does, so the pinned pipeline order is untouched. Import-free (the page runs this source via toString()).
- * Field ownership: e.foe- (foeEnds, foeLeg, foeHopT, foeDive, foeT, foeAt, foeAim, foeCool, foeRush, foeRun, foeStunFor,
+ * Field ownership: e.foe- (foeRail, foeRailT, foeRailFrom, foeEnds, foeLeg, foeHopT, foeDive, foeT, foeAt, foeAim, foeCool, foeRush, foeRun, foeStunFor,
  * foeAwake, foeCharging, foeStomped, foeMercyT).
  */
 
@@ -188,12 +196,40 @@ export function buildFoe(E) {
     return true;
   }
 
+  // ── THE RAIL ───────────────────────────────────────────────────────────────────────────────────
+  const railAlong = (R, p) => { const ux = R.b[0] - R.a[0], uy = R.b[1] - R.a[1], L = Math.hypot(ux, uy) || 1; return { u: ((p[0] - R.a[0]) * ux + (p[1] - R.a[1]) * uy) / L, ux: ux / L, uy: uy / L, L }; };
+  function onRail(e, R) {
+    const t = e.transform, A = railAlong(R, t.pos), u = Math.max(0, Math.min(A.L, A.u));
+    t.pos[0] = R.a[0] + A.ux * u; t.pos[1] = R.a[1] + A.uy * u;
+  }
+  // off the rail: waiting where it stands, then coming in on its arc; true while it is not yet on
+  function approach(e, R, dt, world) {
+    const t = e.transform;
+    if (e.foeRail === 'on') return false;
+    if (e.foeRail !== 'in') {
+      e.foeRail = 'wait'; e.moving = false; e.locomotion = 'idle'; settle(e, e.rule, world);
+      t.heading = angleTo(t.pos, R.join);
+      const j = railAlong(R, R.join).u;
+      for (const p of pilotsOf(world)) if (p && !p.downed && !p.gone && Math.abs(railAlong(R, p.transform.pos).u - j) <= R.wake) { e.foeRail = 'in'; e.foeRailT = 0; e.foeRailFrom = t.pos.slice(); }
+      if (e.foeRail !== 'in') return true;
+    }
+    e.foeRailT = Math.min(1, (e.foeRailT || 0) + dt / R.time);
+    const u = e.foeRailT, k = u * u * (3 - 2 * u), F0 = e.foeRailFrom, J = R.join;
+    t.pos[0] = F0[0] + (J[0] - F0[0]) * k; t.pos[1] = F0[1] + (J[1] - F0[1]) * k;
+    t.pos[2] = F0[2] + (J[2] - F0[2]) * k + R.arc * 4 * u * (1 - u);
+    t.heading = angleTo(F0, J); e.moving = true; e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + dt * 2;
+    if (u >= 1) { e.foeRail = 'on'; t.pos = [J[0], J[1], J[2]]; settle(e, e.rule, world); t.heading = R.heading ?? t.heading; }
+    return true;
+  }
+
   const MOVES = { pace, patrol, hop, dive, rush, lurk };
   RULES.ai = function foeAi(e, input, dt, world) {
-    const F = e.rule.foe, own = F && MOVES[F.move];
-    if (!own) return ai(e, input, dt, world);
+    const F = e.rule.foe, own = F && MOVES[F.move], R = e.rule.rail;
+    if (R && R.wait && approach(e, R, dt, world)) return;
+    if (!own) { ai(e, input, dt, world); if (R) onRail(e, R); return; }
     if (world && world.aiEnabled === false) { e.moving = false; return; }
     if (own(e, e.rule, dt, world) === false) ai(e, input, dt, world);
+    if (R) onRail(e, R);
   };
 
   // ── TOUCH and STOMP ────────────────────────────────────────────────────────────────────────────
@@ -203,6 +239,7 @@ export function buildFoe(E) {
     if ((p.foeMercyT || 0) > 0 || p.invincible) return;
     p.hits = (p.hits || 0) + 1; p.lastHitBy = e.id; p.hitFlash = state.time;
     p.foeMercyT = S.mercy ?? DEF.mercy;
+    if (S.hurt > 0 && p.body && Number.isFinite(p.body.hp)) { p.body.hp = Math.max(0, p.body.hp - S.hurt); if (p.body.hp <= 0) { p.downed = true; p.moving = false; return; } }
     const d = flat(e.transform.pos, p.transform.pos), ux = d > 1e-6 ? (p.transform.pos[0] - e.transform.pos[0]) / d : -Math.cos(p.transform.heading), uy = d > 1e-6 ? (p.transform.pos[1] - e.transform.pos[1]) / d : -Math.sin(p.transform.heading);
     p.transform.pos[0] += ux * DEF.knock; p.transform.pos[1] += uy * DEF.knock;
     if (p.vel) { p.vel[2] = Math.max(p.vel[2], DEF.hop); p.grounded = false; }
@@ -225,6 +262,8 @@ export function buildFoe(E) {
     dt = dt || 1 / 60;
     const before = pilotsOf(state).map((p) => [p, p.transform.pos[2] - eyeOf(p.rule)]);
     step(state, input, dt, hooks);
+    // (a blow's knockback moves a body after its rule did: one on the rail is put back on it)
+    for (const e of foes) if (e.rule.rail && (!e.rule.rail.wait || e.foeRail === 'on') && !e.gone) onRail(e, e.rule.rail);
     const held = !!(input && (input.jumpHeld || input.jump));
     for (const [p, foot0] of before) {
       if (p.downed || p.gone) continue;
@@ -235,7 +274,7 @@ export function buildFoe(E) {
         if (flat(e.transform.pos, p.transform.pos) >= (p.rule.collideRadius ?? 0.3) + (e.rule.collideRadius ?? 0.3)) continue;
         const efoot = e.transform.pos[2] - eyeOf(e.rule), top = efoot + (e.rule.collideHeight ?? 1), foot = p.transform.pos[2] - eyeOf(p.rule);
         if (foot > top + 0.05 || foot + (p.rule.collideHeight ?? 1.7) < efoot) continue;
-        if (p.rule.stomp && p.vel && p.vel[2] <= 0 && foot0 >= top - 0.3) stomp(state, p, e, top, held);
+        if (p.rule.stomp && p.vel && p.vel[2] <= 0 && foot0 >= top - Math.min(0.3, (e.rule.collideHeight ?? 1) / 2)) stomp(state, p, e, top, held);
         else if (F.touch && (F.during !== 'charge' || e.foeCharging)) hurt(state, p, e);
       }
     }

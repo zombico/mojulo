@@ -33,7 +33,7 @@ const STAGES = ARENAS.length ? ARENAS : VERSUS.stages;
 const MODES = [
   { id: 'versus', name: 'Versus', says: 'two players, one keyboard or two pads' },
   { id: 'cpu', name: 'Versus CPU', says: 'you against the machine' },
-  { id: 'training', name: 'Training', says: 'a dummy, the boxes, the frame data' },
+  { id: 'training', name: 'Training', says: 'the lab: your fighter and a partner on the training ground, your inputs, the frame data, the move list' },
   { id: 'watch', name: 'CPU vs CPU', says: 'watch the roster fight itself' },
 ];
 const WIRE = VERSUS.wire;
@@ -69,7 +69,8 @@ function startMatch() {
 
 function hostArena(P) {
   closeArena();
-  const arena = ARENAS[game.stageIx];
+  // (training is fought in the game's LAB, the training ground, whatever stage is picked)
+  const arena = (P.mode === 'training' && ARENAS.find((a) => a.lab)) || ARENAS[game.stageIx];
   const frame = document.createElement('iframe');
   frame.src = arena.src;
   frame.title = arena.name;
@@ -146,7 +147,8 @@ function tickMenus(inp) {
         const last = game.pick[1].locked ? 1 : game.pick[0].locked ? 0 : -1;
         if (last >= 0) game.pick[last].locked = false; else game.screen = 'mode';
       }
-      if (game.pick[0].locked && game.pick[1].locked) game.screen = 'stage';
+      // (training goes from the select straight to the game's lab, the training ground: no stage to pick)
+      if (game.pick[0].locked && game.pick[1].locked) { if (game.mode === 'training' && ARENAS.some((a) => a.lab)) startMatch(); else game.screen = 'stage'; }
       break;
     }
     case 'stage':

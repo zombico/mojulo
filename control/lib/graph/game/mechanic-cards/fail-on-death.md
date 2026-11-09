@@ -17,11 +17,17 @@ success-terminal rule; always pair it with `reach-exit` or `survive`.
   values must MATCH (they share the `hp` var; a conflict is a resolve error).
 - `hits` — the hp each hit on the player takes (the cast's `hit:<player>`: a round, a blade, a splash from the
   world's combat). The player must be hittable (`body.hittable`). With it, hp shows on the HUD.
+- `of: 'body'` — the player's body's own hp instead of a level hp: the stats' hp bound to the body
+  (`play.stats.bodies.hpMax`), its bar the one readout. Takes no `startHp` or `hits`: each hit takes what its source
+  deals (a blow, a beam, a foe's touch by the pilot's `rule.stomp.hurt`), and the level fails when the body is down. A
+  book world whose systems bind the hp stat lays its fighting levels this way (no battle on them).
 
 ## Lowers to
 
 - world: the `hp` var + a watch `{ when: { var: "hp", lte: 0 } }` that emits `dead`.
 - contract: `on: { "dead": { end: "fail" } }`.
+- `of: 'body'`: no `hp` var; a reaction `{ on: 'down', match: { entity: <player> } }` emits `dead`. A lethal fall kills
+  the body (`ctrl kill`).
 
 ## Composition
 

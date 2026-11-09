@@ -15,7 +15,10 @@ const lowers = (play) => lowerPlay({ kind: 'controllable', play: { ...play, ui: 
 
 describe('the game\'s systems', () => {
   it('says what is wrong', () => {
-    bad([], /mechanics is \{ stats\?, scale\?, powers\?, hud\?, ui\?, gear\?, destruction\? \}/);
+    bad([], /mechanics is \{ stats\?, scale\?, powers\?, hud\?, legend\?, lives\?, coins\?, ui\?, gear\?, destruction\?, scars\? \}/);
+    bad({ scars: { wall: 'water' } }, /mechanics.scars.wall: water is a liquid/);
+    expect(readMechanics({ destruction: 'objects', scars: true })).toMatchObject({ destruction: 'objects', scars: true });
+    expect(readMechanics({ scars: false })).not.toHaveProperty('scars');
     bad({ destruction: 'lots' }, /mechanics.destruction is how much a game lets break: none, objects, cover, world/);
     bad({ numbers: {} }, /numbers is not part of the mechanics/);
     bad({ scale: { hp: -1 } }, /scale.hp is a number above 0/);
@@ -24,6 +27,11 @@ describe('the game\'s systems', () => {
     bad({ hud: 'big' }, /hud is 'derive'/);
     bad({ hud: [{ part: 'nope' }] }, /parts:/);
     bad({ ui: 3 }, /ui is 'propose', 'auto'/);
+    bad({ legend: 'corner' }, /legend is 'screen'/);
+    bad({ lives: 0 }, /lives is the lives a level starts with/);
+    bad({ coins: { every: 3 } }, /coins is true or \{ oneup \}/);
+    expect(readMechanics({ lives: 3, coins: { oneup: 50 } })).toMatchObject({ lives: 3, coins: { oneup: 50 } });
+    expect(readMechanics({ legend: 'menu' })).toMatchObject({ legend: 'menu' });
     bad({ gear: { lance: {} } }, /gear.lance: not a class of gear/);
     bad({ gear: { staff: { by: [1, 2] } } }, /gear.staff.by is three numbers/);
     expect(() => readGameworld({ ...MEADOWMARK, mechanics: { numbers: 1 } })).toThrow(/numbers is not part of the mechanics/);
@@ -46,7 +54,8 @@ describe('the game\'s systems', () => {
     expect(S.tree.filter((n) => !n.gives)).toEqual([{ id: 'gust-step', epoch: 'early' }, { id: 'wind-orb', epoch: 'mid' }, { id: 'cyclone', epoch: 'late' }]);
     expect(S.tree.find((n) => n.id === 'staff-mid')).toEqual({ id: 'staff-mid', epoch: 'mid', requires: { has: 'staff-early' }, gives: { raise: { power: 3 } } });
     expect(S.stats.map((x) => x.id)).toEqual(['hp', 'power', 'guard']);
-    expect(S.bodies).toEqual({ hpMax: 'hp' });
+    // (the hp stat is the body's hp; the power stat what its attacks hurt by, as it rises)
+    expect(S.bodies).toEqual({ hpMax: 'hp', power: 'power' });
     expect(M.open).toEqual([]);
     expect(M.reasons.join('\n')).toMatch(/wind-orb \(mid\): found in the world/);
     expect(() => readStats({ stats: S })).not.toThrow();
@@ -104,17 +113,22 @@ describe('the game\'s systems', () => {
 
   it('each power on a key: it spends its cost and shows its look on the hero (an attack, its element\'s); how hard it lands is data', () => {
     const M = book(idiom('shonen-like')).mechanics;
-    expect(M.powers.find((p) => p.id === 'wind-orb')).toEqual({ id: 'wind-orb', key: '2', spends: { ki: 20 }, look: 'wind', hurt: { stat: 'power', per: 1.2 } });
+    expect(M.powers.find((p) => p.id === 'wind-orb')).toEqual({ id: 'wind-orb', key: '2', spends: { ki: 20 }, look: 'wind', attack: 'orb', hurt: { stat: 'power', per: 1.2 } });
     expect(M.powers.find((p) => p.id === 'gust-step')).toEqual({ id: 'gust-step', key: '1', spends: { ki: 10 }, look: 'spiral' });
     expect(M.inputs).toEqual([
       { on: 'key', key: '1', emit: { type: 'power-gust-step' } }, { on: 'key', key: '2', emit: { type: 'power-wind-orb' } },
       { on: 'key', key: '3', emit: { type: 'power-cyclone' } }, { on: 'key', key: 'i', emit: { type: 'status' } },
     ]);
-    expect(M.play.cues.find((c) => c.id === 'power-wind-orb')).toEqual({ id: 'power-wind-orb', when: { on: 'power-wind-orb' }, then: [{ grant: { res: 'ki', by: -20 } }, { status: { who: 'hero', is: 'wind-orb', look: 'wind', for: 1.5 } }, { say: 'wind-orb', as: 'toast' }] });
+    // (a later stage's power: gated on its node and its spend, refused with why; its attack's beam at the nearest foe in
+    // front, its hurt the hero's power stat as it fires × its per)
+    expect(M.play.cues.find((c) => c.id === 'power-wind-orb')).toEqual({ id: 'power-wind-orb', when: { on: 'power-wind-orb' },
+      if: [{ var: 'hero.wind-orb', gte: 1 }, { var: 'hero.ki', gte: 20 }], else: { say: 'wind-orb: not gained yet, or not enough ki', as: 'toast' },
+      then: [{ grant: { res: 'ki', by: -20 } }, { status: { who: 'hero', is: 'wind-orb', look: 'wind', for: 1.5 } },
+        { beam: { who: 'hero', to: { nearest: { range: 24, cone: 0.7 } }, is: 'orb', hurt: { by: 'power', per: 1.2, base: 12 } } }, { say: 'wind-orb', as: 'toast' }] });
     expect(M.play.cues.find((c) => c.id === 'open-status')).toEqual({ id: 'open-status', when: { on: 'status' }, then: { open: 'status' } });
     expect(M.legend).toBe('1 gust-step · 2 wind-orb · 3 cyclone · I status');
     // what the runtime cannot do yet is said, but never advised
-    expect(M.limits.join('\n')).toMatch(/no such guard yet/);
+    expect(M.limits.join('\n')).toMatch(/the HP bar is designed on the UI board/);
     expect(M.open).toEqual([]);
   });
 

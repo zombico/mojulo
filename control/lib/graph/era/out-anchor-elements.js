@@ -22,6 +22,7 @@
  * Pure; seeded dice only; values only (each face a value on a surface group; the paint colours it).
  */
 import { geometry as G } from './out-structures.js';
+import { SHUTTER_LEAF_IDS } from './shutter-leaves.js';
 
 const { face, wallQuad, wallPoly, wallOf, add3, unit, dice, subSeed, r3 } = G;
 
@@ -36,7 +37,7 @@ const WORDS = {
   walkForm: ['kerbed', 'flush', 'boards', 'verge'],
   // the openings as architecture (era/out-openings.js)
   glazing: ['none', 'lattice', 'sash', 'casement', 'plate', 'arabesque', 'ornamental', 'stained'], trim: ['str:paint', 'str:timber', 'str:stone', 'str:plaster', 'str:accent'],
-  leaf: ['boards', 'panels', 'glazed'], surround: ['none', 'frame', 'pilasters', 'hood'], fanlight: ['none', 'rect', 'arch'], shutterForm: ['flat', 'boards', 'louvred'],
+  leaf: ['boards', 'panels', 'glazed'], surround: ['none', 'frame', 'pilasters', 'hood'], fanlight: ['none', 'rect', 'arch'], shutterForm: ['flat', 'boards', 'louvred', ...SHUTTER_LEAF_IDS],
 };
 export const ELEMENT_KINDS = Object.freeze({
   wall: { family: 'building', depth: 0, read: 'the wall, storey by storey: its material (a surface group and value) and how it is laid (its bond, marks in the tile)', params: { bond: { rail: WORDS.bond, hold: ST } } },

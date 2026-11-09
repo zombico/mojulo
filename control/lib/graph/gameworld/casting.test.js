@@ -25,8 +25,8 @@ describe('the casting page: the people rolled for the game, as many as it asks f
     const C = castingOf(readGameworld(world));
     const party = levels(S)[0].order.manifest.play.rpg.party;
     expect(party.map((p) => [p.id, p.class])).toEqual([['hero', C.anchor.cls], ...C.members.map((M) => [M.id, M.cls])]);
-    // in from the start: no joins flag, so no field follower waits on one
-    expect(party.every((p) => p.joins === undefined)).toBe(true);
+    // one a level by default (casting.js laidJoins): each member its flag, set as its level starts
+    expect(party.filter((p) => p.id !== 'hero').map((p) => [p.id, p.joins])).toEqual(C.members.map((M) => [M.id, `join-${M.id}`]));
     expect(classOf(C.sheet.members['hero/party-1'])).toBe(C.members[0].cls);
   });
 
@@ -37,28 +37,30 @@ describe('the casting page: the people rolled for the game, as many as it asks f
     expect(party.at(-1).auto).toEqual({ keeper: 'hero' });
   });
 
-  it('on the level map each member plays its own moves and the first party follows from the start, a beast on its own gaits', () => {
+  it('on the level map each member plays its own moves and the party follows as it joins, a beast on its own gaits', () => {
     const world = W({ scale: 'party', n: 2, cast: { party: { relation: 'party', n: 2, body: 'person' }, red: { relation: 'party', body: 'beast', species: 'wolf' } } });
     const L = levels(runSteps(world, { ref: 'gw' }))[0].order.manifest, C = castingOf(readGameworld(world));
     const P1 = C.members.find((M) => M.id === 'party-1');
     expect(L.figures['party-1']).toMatchObject({ heroRef: 'gw-cast-party-1', clips: { forward: 'Walk_Loop' }, moves: P1.field.moves });
     expect(L.figures['party-1'].moves).toMatchObject({ stagger: 'stagger', topple: 'knockedOutDown', getup: 'knockedOutUp' });
-    expect(L.play.party).toEqual(expect.arrayContaining([{ who: 'party-1' }, { who: 'party-2' }]));
-    expect(L.play.carry).toBeUndefined();   // no joins flag to carry between levels
+    // joining one a level by default: each on its flag, carried between levels
+    expect(L.play.party).toEqual(expect.arrayContaining([{ who: 'party-1', joins: 'join-party-1' }, { who: 'party-2', joins: 'join-party-2' }]));
+    expect(L.play.carry).toBe('story');
     // the wolf walks beside them on its own trot and walk, no library (a walker: it follows, it never pilots)
     expect(L.figures.red).toEqual({ heroRef: 'gw-cast-red', walker: true, clips: { forward: 'trot', turn: 'walk', strafe: 'trot' }, moves: { stagger: 'flinch', topple: 'fall', getup: 'rise' } });
-    expect(L.play.party).toContainEqual({ who: 'red' });
+    expect(L.play.party).toContainEqual({ who: 'red', joins: 'join-red' });
     // the hero's own figure is as it was
     expect(levels(runSteps(W({ scale: 'hero' }), { ref: 'gw' }))[0].order.manifest.play.party).toBeUndefined();
   });
 
   it('a journey cast waits on its page: the members are made once characters:cast is approved', () => {
     const world = { ...W({ scale: 'journey', n: 1 }), mode: 'gated' };
-    const wait = runSteps(world, { ref: 'gw' }).filter((s) => s.order?.egocube);
+    // (the cast's members: a battle's people foes are made from their own sheets, waiting on nothing)
+    const wait = runSteps(world, { ref: 'gw' }).filter((s) => s.order?.egocube && s.key.startsWith('cast-'));
     expect(wait.length).toBeGreaterThan(4);
     expect(wait.every((s) => !s.ready && s.waiting.some((x) => x.id === CAST_PART))).toBe(true);
     const approved = { ...world, review: approveCharacter(world, CAST_PART) };
-    expect(runSteps(approved, { ref: 'gw' }).filter((s) => s.order?.egocube).every((s) => s.ready)).toBe(true);
+    expect(runSteps(approved, { ref: 'gw' }).filter((s) => s.order?.egocube && s.key.startsWith('cast-')).every((s) => s.ready)).toBe(true);
   });
 
   it('the page is a review part only where a book has one; it shows each member\'s reading and class', () => {
@@ -82,6 +84,13 @@ describe('the casting page: the people rolled for the game, as many as it asks f
     expect(castingOf(L).members).toEqual(castingOf(G).members);
     expect(battleParty(L).map((p) => p.id)).toEqual(['hero']);   // a rival is not first party
     expect(castingIds({ scale: 'party', n: 2 })).toEqual([{ id: 'party-1', key: 'party', bond: 'party' }, { id: 'party-2', key: 'party', bond: 'party' }]);
+  });
+
+  it('the book names a rolled member without moving the roll: a name alone is the box\'s, the member the scale\'s', () => {
+    const plain = castingOf(readGameworld(W({ scale: 'party', n: 2 }))), named = castingOf(readGameworld(W({ scale: 'party', n: 2, cast: { 'party-2': { name: 'Wren' } } })));
+    expect(JSON.stringify(named.sheet)).toBe(JSON.stringify(plain.sheet));
+    expect(named.members.map((m) => m.name)).toEqual([plain.members[0].name, 'Wren']);
+    expect(battleParty(readGameworld(W({ scale: 'party', n: 2, cast: { 'party-2': { name: 'Wren' } } }))).map((m) => m.name)).toContain('Wren');
   });
 
   it('refuses what it cannot read, by name', () => {

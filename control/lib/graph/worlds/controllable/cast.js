@@ -38,10 +38,15 @@
  *     finish                  (no who) every walk lands where it was going (a skipped scene): its last point, its face and
  *                         pose, and the arrive fact; a looping walk keeps walking
  *     shake { k, for? }       (no who) the camera shakes k (0..1) over for seconds: a moment { is: 'shake', k, for, t0 }
- *     beam { to, spec, land, name?, color? }   who fires an attack (playscape/elements/beams.js) from its hand (or over
- *                         its head, a charge `at: above`) at a character (its middle, where it stands now) or a point: a
- *                         moment { is: 'beam', from, to, target?, spec, hit, until }; it lands at hit (the least a + b ×
- *                         distance of `land`), its impact and shake are moments then, and `struck` fires on a target
+ *     beam { to, spec, land, name?, color?, hurt? }   who fires an attack (playscape/elements/beams.js) from its hand (or
+ *                         over its head, a charge `at: above`) at a character (its middle, where it stands now) or a
+ *                         point: a moment { is: 'beam', from, to, target?, spec, hit, until }; it lands at hit (the least
+ *                         a + b × distance of `land`), its impact and shake are moments then, and `struck` fires on a
+ *                         target. `to: { nearest: { range?, cone? } }`: the nearest standing foe (a mind, not its own
+ *                         team) in front of who (within cone radians of its heading, 0.7) within range (30 m), or, with
+ *                         none, straight ahead at range. `hurt`: the hp it takes when it lands, as a blow does (a hit,
+ *                         its flash; downed at 0); `{ by: 'power', per, base }` its caster's power as it fires (the
+ *                         stats bound to its body) × per, or base where it has none
  *   castFacts(state, prev) → { events, prev }   edge-detected happenings, as bus events with `entity`:
  *     down · gone · spawned · arrive { at: the point's name, last: 1 | 0, pose? } · stuck · faded { is } (a status ran
  *     out, here, or was lifted) · struck { by, beam } (a beam reached it) · hit:<id> { by, dmg?, harm?, head? } once per
@@ -109,6 +114,23 @@ export function buildCast(E) {
   // where a character stands: its eye above its feet, or half its height
   const feet = (e) => { const p = e.transform.pos, r = e.rule || {}, b = e.body || {}; return [p[0], p[1], p[2] - (Number.isFinite(r.eye) ? r.eye : Array.isArray(b.size) ? b.size[2] / 2 : Number.isFinite(b.radius) ? b.radius : 0)]; };
   // a moment: kept 3 s on the world clock
+  // the nearest standing foe in front of e (a beam's `to: { nearest }`): a mind (an ai rule, its own or ambient) not on
+  // e's team, not down, gone or asleep, within `cone` radians of e's heading and `range` metres
+  function nearestFoe(state, e, N) {
+    const range = Number.isFinite(N.range) ? N.range : 30, cone = Number.isFinite(N.cone) ? N.cone : 0.7, f = e.transform.pos, h = e.transform.heading || 0;
+    let best = null, bd = Infinity;
+    for (const x of state.entities) {
+      if (x === e || x.isCamera || x.gone || x.downed || x.dormant || x.pilotable) continue;
+      const mind = (x.rule && x.rule.type === 'ai') || (x.ambientRule && x.ambientRule.type === 'ai');
+      if (!mind || (e.team != null && x.team === e.team)) continue;
+      const q = x.transform.pos, d = Math.hypot(q[0] - f[0], q[1] - f[1]);
+      if (d > range || d >= bd) continue;
+      let a = Math.atan2(q[1] - f[1], q[0] - f[0]) - h; a = Math.atan2(Math.sin(a), Math.cos(a));
+      if (Math.abs(a) > cone) continue;
+      best = x; bd = d;
+    }
+    return best;
+  }
   function moment(state, m) { const t = state.time || 0; state.moments = (state.moments || []).filter((x) => t < (x.until != null ? x.until : x.t0 + 3)).concat([{ t0: t, ...m }]); }
   // a puff, or an explosion (o.spec, playscape/elements/explosions.js): a chain is count blasts scattered round the
   // spot by seeded dice, one after another; a scale sizes it (and its spread)
@@ -166,11 +188,15 @@ export function buildCast(E) {
         // from the hand (forward of it, at chest height), or over the head; at a character's middle, or a point
         const f = feet(e), h = e.transform.heading || 0, above = o.spec.charge && o.spec.charge.at === 'above';
         const from = above ? [f[0], f[1], f[2] + 2.7] : [f[0] + Math.cos(h) * 0.45, f[1] + Math.sin(h) * 0.45, f[2] + 1.15];
-        const T = typeof o.to === 'string' ? state.byId[o.to] : null;
+        const N = o.to && typeof o.to === 'object' && !Array.isArray(o.to) && o.to.nearest ? o.to.nearest : null;
+        const T = N ? nearestFoe(state, e, N) : typeof o.to === 'string' ? state.byId[o.to] : null;
         if (typeof o.to === 'string' && (!T || T.gone)) continue;
-        const to = T ? T.transform.pos.slice() : pt3(o.to, 0), D = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
+        const reach = N && Number.isFinite(N.range) ? N.range : 30;
+        const to = T ? T.transform.pos.slice() : N ? [f[0] + Math.cos(h) * reach, f[1] + Math.sin(h) * reach, f[2] + 1.15] : pt3(o.to, 0), D = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
         const hit = t + Math.min(...(o.land || [[0, 0]]).map(([a, b]) => a + b * D));
-        moment(state, { is: 'beam', at: from, from, to, ...(T ? { target: T.id } : {}), by: e.id, name: o.name || null, spec: o.spec, ...(o.color !== undefined ? { color: o.color } : {}), hit, until: hit + 8 });
+        // (a hurt by the caster's power, `{ by: 'power', per, base }`: its power stat as it fires, × per; base without one)
+        const hu = o.hurt && typeof o.hurt === 'object' ? Math.round((Number.isFinite(e.power) ? e.power * o.hurt.per : o.hurt.base) * 100) / 100 : o.hurt;
+        moment(state, { is: 'beam', at: from, from, to, ...(T ? { target: T.id } : {}), by: e.id, name: o.name || null, spec: o.spec, ...(o.color !== undefined ? { color: o.color } : {}), ...(T && Number.isFinite(hu) && hu > 0 ? { hurt: hu } : {}), ...(o.knock ? { knock: o.knock } : {}), hit, until: hit + 8 });
         const land = T ? feet(T) : to;
         if (o.spec.impact) puff(state, { is: o.spec.impact, ...(o.spec.impactSpec ? { spec: o.spec.impactSpec } : {}), ...(o.color !== undefined ? { color: o.color } : {}) }, land, hit);
         if (o.spec.shake) moment(state, { is: 'shake', at: land, k: o.spec.shake, for: 0.4, t0: hit });
@@ -297,7 +323,23 @@ export function buildCast(E) {
       if (!seed && b.broken && !was && prev[k] !== undefined && b.broken.how !== 'restore') events.push({ type: 'broke', entity: b.id, how: b.broken.how }, { type: 'broke:' + b.id, entity: b.id });
     }
     // a beam that has reached its character
-    for (const M of state.moments || []) if (M.is === 'beam' && M.target && !M.struck && (state.time || 0) >= M.hit) { M.struck = true; if (!seed) events.push({ type: 'struck', entity: M.target, by: M.by, ...(M.name ? { beam: M.name } : {}) }); }
+    for (const M of state.moments || []) if (M.is === 'beam' && M.target && !M.struck && (state.time || 0) >= M.hit) {
+      M.struck = true; if (!seed) events.push({ type: 'struck', entity: M.target, by: M.by, ...(M.name ? { beam: M.name } : {}) });
+      // (a beam that hurts takes its hp as it lands, as a blow does: a hit counted, its flash, downed at 0)
+      const X = M.hurt ? state.byId[M.target] : null;
+      if (X && !X.downed && !X.gone && X.body && Number.isFinite(X.body.hp)) {
+        X.body.hp = Math.max(0, X.body.hp - M.hurt); X.hitFlash = state.time; X.hits = (X.hits || 0) + 1; X.lastHitBy = M.by;
+        if (X.body.hp <= 0) { X.downed = true; X.castDown = true; X.route = null; X.held = false; X.moving = false; }
+      }
+    }
+    // a beam with kinetic or impact energy (knock.js): it pushes its target along the beam and releases its impact where
+    // it lands, or on the ground where it ends when it struck nobody
+    if (E.knockHit) for (const M of state.moments || []) if (M.is === 'beam' && M.knock && !M.knocked && (state.time || 0) >= M.hit) {
+      M.knocked = true;
+      const X = M.target ? state.byId[M.target] : null;
+      if (X && !X.gone) E.knockHit(state, X, state.byId[M.by], M.knock, [X.transform.pos[0] - M.from[0], X.transform.pos[1] - M.from[1]]);
+      else if (!M.target && M.knock.impact) E.knockShock(state, M.to, E.knockLaw.joulesOf(M.knock.impact));
+    }
     return { events, prev: next };
   }
 

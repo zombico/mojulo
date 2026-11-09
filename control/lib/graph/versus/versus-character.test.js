@@ -3,7 +3,8 @@
 // nothing at all for a roster without one; two characters walked into each other stop with their bodies apart.
 import { describe, it, expect } from 'vitest';
 import { heroRecord } from '@/lib/mcp/tools/layered.js';
-import { resolveCharacters, bodyDials, characterBody } from './versus-character.js';
+import { resolveCharacters, bodyDials, characterBody, snoutStoop } from './versus-character.js';
+import { beastWords } from '../beast/tiered.js';
 import { characterBase, figurePose, figureSegments, segmentOf } from './versus-figure.js';
 import { newVersus, stepVersus } from './versus-core.js';
 import { rigJoints } from './versus-rig.js';
@@ -12,6 +13,8 @@ import { rollEgocube } from '../egocube/egocube.js';
 import { rosterEntry, readVersusManifest } from './versus-page.js';
 import { compileFighter } from './versus-compile.js';
 import { readQuick } from '../gameworld/quick.js';
+import { rollMascot } from '../egocube/mascot.js';
+import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
 
 // rows as the store keeps them: a create_character hero is a layered row with its hero record
 const ROWS = {
@@ -19,6 +22,17 @@ const ROWS = {
   reach: { kind: 'layered', hero: heroRecord({ cast: 'male', tune: { armLength: 1.15 }, palette: { Top: '#aa2222' } }) },
   her: { kind: 'layered', hero: heroRecord({ cast: 'female' }) },
   crate: { kind: 'layered', recipe: { parts: {} } },
+  // not a person: a mascot (the creature door's ring plan, its skeleton the fight's joints); a four-legged species; a
+  // creature on two legs and no arms
+  bear: { kind: 'layered', plan: mascotPlanFromSheet(rollMascot({ brief: 'a round friendly bear', seed: 3 })).create.spec.plan },
+  wolf: { kind: 'layered', species: 'wolf', recipe: { parts: {} } },
+  legs: { kind: 'layered', plan: { schema: 'layered-plan-v1', frame: { up: '+z', front: '+y' },
+    joints: { hip: [0.2, 0, 1], knee: [0.22, 0.1, 0.5], toe: [0.22, 0.3, 0.05] },
+    segments: [
+      { name: 'torso', kind: 'trunk', stations: [{ z: 0.9, r: [0.3, 0.22] }, { z: 1.3, r: [0.32, 0.24] }, { z: 1.7, r: [0.2, 0.16] }], caps: { back: [0, 0, 0.8], tip: [0, 0, 1.8] }, group: 'Torso', tint: '#667', mirror: 'plane' },
+      { name: 'thighR', kind: 'segment', from: 'hip', to: 'knee', rA: 0.14, rB: 0.1, group: 'Legs', tint: '#565', mirror: 'name' },
+      { name: 'shinR', kind: 'segment', from: 'knee', to: 'toe', rA: 0.1, rB: [0.08, 0.04], over: [0.6, 0.3], group: 'Legs', tint: '#565', mirror: 'name' },
+    ] } },
 };
 const lookup = (ref) => ROWS[ref] ?? null;
 
@@ -50,12 +64,41 @@ describe('versus: a character as a fighter', () => {
 
   it('refuses by name what is not a stored character, and a body beside one', async () => {
     await expect(resolveCharacters([{ id: 'a', hero: { ref: 'nobody' } }], lookup)).rejects.toThrow(/roster\[0\]\.hero\.ref 'nobody' is not a stored character/);
-    await expect(resolveCharacters([{ id: 'a', hero: { ref: 'crate' } }], lookup)).rejects.toThrow(/'crate' is not a stored character/);
+    await expect(resolveCharacters([{ id: 'a', hero: { ref: 'crate' } }], lookup)).rejects.toThrow(/'crate' has no skeleton to fight with: a fighter stands on two legs and fights with two arms/);
     await expect(resolveCharacters([{ id: 'a', hero: { ref: 'him' }, cast: 'brute' }], lookup)).rejects.toThrow(/roster\[0\]: cast: a fighter's body is its character's/);
     await expect(resolveCharacters([{ id: 'a', hero: 'him' }], lookup)).rejects.toThrow(/roster\[0\]: hero is \{ ref \}/);
     await expect(resolveCharacters([{ id: 'a', hero: { ref: 'him' }, archetype: 'zoner' }], lookup)).rejects.toThrow(/'zoner' is a fight style: give it as style/);
     // unmeasured, a character never reaches the page as a stick default
     expect(readVersusManifest({ roster: [{ id: 'a', hero: { ref: 'him' } }] }).errors[0]).toMatch(/is a character .* measured from the store/);
+  });
+
+  it('a body that is not a person fights when it stands on two legs with two arms: measured off its own skeleton, in its own colour', async () => {
+    const [him, bear] = await resolveCharacters([{ id: 'a', hero: { ref: 'him' } }, { id: 'b', name: 'Bruno', tradition: 'brawler', hero: { ref: 'bear' } }], lookup);
+    expect(bear).toMatchObject({ id: 'b', name: 'Bruno', character: 'bear', tradition: 'brawler' });
+    // (a mascot: shorter than the man, broader for its height, its colour its palette's)
+    expect(bear.body.height).toBeLessThan(him.body.height);
+    expect(bear.body.girth).toBeGreaterThan(him.body.girth);
+    expect(bear.color).toMatch(/^#[0-9a-f]{6}$/i);
+    const F = compileFighter(rosterEntry(bear, 1).recipe);
+    expect(F.moves['stand.L'].reach).toBeGreaterThan(0);
+  });
+
+  it('beastfolk with a snout carry their heads low, by how far the head reaches forward; a person stands as before', async () => {
+    const kin = (k) => heroRecord(beastWords({ cast: 'male', beast: { kin: k } }));
+    expect(['lupine', 'draconic', 'ursine', 'feline', 'avian', 'serpentine', 'insectoid'].map((k) => snoutStoop(kin(k)))).toEqual([26, 26, 16, 16, 16, 10, 10]);
+    expect(snoutStoop(ROWS.him.hero)).toBe(0);
+    const rows = { wolf: { kind: 'layered', hero: kin('lupine') } };
+    const [wolf, own, man] = await resolveCharacters([{ id: 'w', hero: { ref: 'wolf' } }, { id: 'o', hero: { ref: 'wolf' }, stance: { stoop: 8 } }, { id: 'm', hero: { ref: 'him' } }], (r) => rows[r] ?? ROWS[r]);
+    expect(wolf.stance).toMatchObject({ stoop: 26 });
+    expect(own.stance.stoop).toBe(8);   // (the entry's own word over its head's)
+    expect(man.stance?.stoop).toBeUndefined();
+    expect(() => compileFighter(rosterEntry(wolf, 0).recipe)).not.toThrow();
+  });
+
+  it('a body that cannot fight is refused with the reason: four legs, no arms; and its own strikes are a hero\'s', async () => {
+    await expect(resolveCharacters([{ id: 'a', hero: { ref: 'wolf' } }], lookup)).rejects.toThrow(/'wolf' is a four-legged wolf: a fighter stands on two legs and fights with two arms/);
+    await expect(resolveCharacters([{ id: 'a', hero: { ref: 'legs' } }], lookup)).rejects.toThrow(/'legs'('s body has no arms| has no skeleton) to fight with/);
+    await expect(resolveCharacters([{ id: 'a', hero: { ref: 'bear' }, moves: 'hero' }], lookup)).rejects.toThrow(/roster\[0\]\.moves: a fighter's own strikes are a hero's/);
   });
 
   it('a roster without a character comes back as given (adds nothing)', async () => {

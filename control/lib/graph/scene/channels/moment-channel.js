@@ -3,6 +3,7 @@ import { AURA_SRC } from './aura-src.js';
 import { FIRE_COLORANTS } from '../../fire/fire.js';
 import { sprayPoints } from '../../playscape/elements/elements.js';
 import { MOMENTS, MOMENT_KEYS, strikeBolt } from '../../playscape/elements/moments.js';
+import { vayoEnvelope, vayoPoints } from '../../rupa/vayo.js';
 
 /**
  * moment-channel — the page's side of the cast's MOMENTS (state.moments, a puff's kinds and the camera's shake): each
@@ -13,6 +14,11 @@ import { MOMENTS, MOMENT_KEYS, strikeBolt } from '../../playscape/elements/momen
  *
  * GLYPHS is the particle textures, shared with the status channel's drift (cached on window, made once).
  * Emitted only when a world's cues puff or shake, with only the kinds they use.
+ *
+ * ON THE FLOW (`flow`, a composed effect style's rupa-vayo, rupa/vayo.js): an explosion whose spec is drawn on the flow
+ * has the air round its spot presolved when it goes off (its open ways against the world's boxes, its floor, the
+ * world's wind, a pool it is in) and each of its flow sprays played along it; and the world's bursts (a grenade's, a
+ * death's, a scripted blast's: state.bursts) go off as the flow's blast, in place of the controllable page's spheres.
  */
 
 /** The moments a world's events play (puff kinds, 'explosion' when any carries its own parts, and 'shake'), in
@@ -58,6 +64,16 @@ export const VOXEL_GLYPHS_SRC = `(window.__mojGlyphs.cube || Object.assign(windo
   const face = (pts, c) => { x.fillStyle = c; x.beginPath(); pts.forEach(([a, b]) => x.lineTo(a, b)); x.closePath(); x.fill(); };
   face([[32, 6], [58, 19], [32, 32], [6, 19]], '#ffffff'); face([[6, 19], [32, 32], [32, 60], [6, 46]], '#c4c4c4'); face([[32, 32], [58, 19], [58, 46], [32, 60]], '#8c8c8c');
   return { cube: { tex: new THREE.CanvasTexture(cv), add: false } };
+})()))`;
+
+// the flow's glyph (rupa-vayo, rupa/vayo-fx.js): a flame TONGUE, a soft teardrop laid along its flight (round at its root,
+// tapering to its tip, a brighter heart inside it), so a rising column reads as flames, not as glowing balls. Emitted only
+// where an effect is drawn on the flow
+export const FLOW_GLYPHS_SRC = `(window.__mojGlyphs.tongue || Object.assign(window.__mojGlyphs, (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d');
+  const drop = (cx, r, tip, a) => { x.fillStyle = 'rgba(255,255,255,' + a + ')'; x.beginPath(); x.moveTo(tip, 32); x.quadraticCurveTo(cx + r * 0.6, 32 - r * 0.95, cx, 32 - r); x.arc(cx, 32, r, -Math.PI / 2, Math.PI / 2, true); x.quadraticCurveTo(cx + r * 0.6, 32 + r * 0.95, tip, 32); x.fill(); };
+  x.filter = 'blur(2px)'; drop(20, 13, 60, 0.7); drop(20, 9, 50, 0.9); drop(19, 5, 38, 1);
+  return { tongue: { tex: new THREE.CanvasTexture(cv), add: false, stretch: true } };
 })()))`;
 
 // the particle glyphs, drawn white (a sprite's colour tints them); additive ones glow, the rest lie over the scene
@@ -111,7 +127,7 @@ function __sprStep(P, pts, fade, show) {
 }
 function __sprDrop(P) { for (const s of P.sprs) { scene.remove(s); s.material.dispose(); } for (const r of P.rings) { scene.remove(r); r.geometry.dispose(); r.material.dispose(); } }`;
 
-export function momentScript(kinds, { fx = false, fps = false, cel = false, aura = false, voxel = false, pool = false, bloom = false } = {}) {
+export function momentScript(kinds, { fx = false, fps = false, cel = false, aura = false, voxel = false, pool = false, bloom = false, flow = null } = {}) {
   const K = kinds.filter((k) => MOMENTS[k]), shake = kinds.includes('shake'), boom = kinds.includes('explosion');
   const spec = Object.fromEntries(K.map((k) => [k, { ...MOMENTS[k], key: MOMENT_KEYS[k] }]));
   const bolt = K.some((k) => MOMENTS[k].bolt), light = boom || K.some((k) => MOMENTS[k].light);
@@ -129,7 +145,18 @@ ${VOXEL_GLYPHS_SRC};` : ''}${pool || bloom ? `
 const __moFi = (() => { const mk = (draw) => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; draw(cv.getContext('2d')); return new THREE.CanvasTexture(cv); };
   const rad = (stops) => mk((x) => { const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); for (const [o, a] of stops) g.addColorStop(o, 'rgba(255,255,255,' + a + ')'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); });
   return { pool: rad([[0, 0.85], [0.35, 0.5], [0.75, 0.12], [1, 0]]), square: mk((x) => { x.fillStyle = 'rgba(255,255,255,0.75)'; x.fillRect(20, 20, 88, 88); x.fillStyle = 'rgba(255,255,255,0.35)'; x.fillRect(6, 6, 116, 116); }), bloom: rad([[0, 0.6], [0.2, 0.32], [0.55, 0.08], [1, 0]]) }; })();` : ''}${aura ? `\n// an aura: a blast's fire as spirit onions and rings of spikes (playscape/elements/aura.js)\nconst __moAU = ${AURA_SRC};` : ''}
-const __moSpray = ${sprayPoints.toString()};
+const __moSpray = ${sprayPoints.toString()};${flow ? `
+// rupa-vayo: the air round a blast presolved when it goes off, and its tracers along it (rupa/vayo.js)
+const __moVayoEnv = ${vayoEnvelope.toString()};
+const __moVayo = ${vayoPoints.toString()};
+${FLOW_GLYPHS_SRC};
+const __moWind = ${safeJson(flow.wind || [0, 0])}, __moBlast = ${safeJson(flow.blast || null)}, __moPage = [];
+let __moBurstSeen = -1;
+window.__mojFlowBursts = !!__moBlast;   // (the controllable page leaves the world's bursts to the flow)
+function __moFlowEnv(S, at, sc) {
+  const W = window.__mojCtrl && window.__mojCtrl.world, g = typeof __ground === 'function' ? __ground([at[0], at[1], at[2] + 2]) : null;
+  return __moVayoEnv(at, { colliders: (W && W.colliders) || [], floor: typeof g === 'number' && g <= at[2] + 0.5 ? g : at[2], wind: __moWind, pools: (W && W.rupa && W.rupa.pools) || [], size: S.flow.size * sc });
+}` : ''}
 ${SPRAY_SRC.replace(/__spr/g, '__moSpr')}${bolt ? `
 const __moBolt = ${strikeBolt.toString()};
 const __moA = new THREE.Vector3(), __moB = new THREE.Vector3(), __moD = new THREE.Vector3(), __moV = new THREE.Vector3(), __moS = new THREE.Vector3();
@@ -164,7 +191,8 @@ const __moComic = (n) => __moComics[n] || (__moComics[n] = __moCanvas((x) => {
 ` : ''}const __moLive = {};
 function __moMake(M) {
   const S = M.spec || __MO[M.is], col = M.color != null ? __moRgb(M.color) : null, at = M.at, I = { S, at, t0: M.t0, sc: M.scale || 1, sprays: [], extra: [] };
-  S.parts.forEach((p, i) => { const k = col && S.key.includes(i); I.sprays.push(__moSprMake(k && p.ramp ? { ...p, ramp: p.ramp.map((c) => (S.color && c.every((x, j) => x === S.color[j]) ? col : c)) } : p, k ? col : p.color || [1, 1, 1], __moGlyph)); });
+  S.parts.forEach((p, i) => { const k = col && S.key.includes(i); I.sprays.push(__moSprMake(k && p.ramp ? { ...p, ramp: p.ramp.map((c) => (S.color && c.every((x, j) => x === S.color[j]) ? col : c)) } : p, k ? col : p.color || [1, 1, 1], __moGlyph)); });${flow ? `
+  if (S.flow) { I.E = __moFlowEnv(S, at, I.sc); I.sprays.forEach((P) => { if (P.S.flow) P.F = { ...P.S, r: (P.S.r || S.flow.size) * I.sc, size: P.S.size * I.sc }; }); }` : ''}
   const mat = (m) => { m.userData.__fire = true; return m; };
   if (S.star) { const c = col && S.star.key ? col : S.star.color || [1, 0.97, 0.88]; I.star = new THREE.Sprite(mat(new THREE.SpriteMaterial({ map: __moGlyph.star.tex, color: new THREE.Color(c[0], c[1], c[2]), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }))); I.star.raycast = function () {}; I.star.renderOrder = 10; scene.add(I.star); I.extra.push(I.star); }
   // its rings: along the ground, or (air) a ring of air round the middle
@@ -191,7 +219,7 @@ function __moStep(I, age) {
   if (I.aura) { const Q = S.aura, u = (age - Q.delay) / Q.life; __moAU.step(I.aura, at, age, (u <= 0 ? 0 : Math.min(1, Math.sqrt(u / 0.18))) * sc, u > 0 && u < 1, u > 0.65 ? Math.max(0, (1 - u) / 0.35) : 1); }` : ''}
   // a scaled one: every point out from the spot, every size, by its scale
   const big = (pts) => (sc === 1 ? pts : pts.map((q) => ({ ...q, p: [at[0] + (q.p[0] - at[0]) * sc, at[1] + (q.p[1] - at[1]) * sc, at[2] + (q.p[2] - at[2]) * sc], s: q.s * sc })));
-  I.sprays.forEach((P) => __moSprStep(P, big(__moSpray(P.S, at, age, false)), 1, true));
+  I.sprays.forEach((P) => __moSprStep(P, ${flow ? 'P.F && I.E ? __moVayo(P.F, I.E, age, false) : ' : ''}big(__moSpray(P.S, at, age, false)), 1, true));
   if (I.star) { const u = (age - (S.star.delay || 0)) / S.star.life; I.star.visible = u >= 0 && u < 1; I.star.position.set(at[0], at[1], at[2] + S.star.z * sc); const k = sm(u * 4) * (1 - u); I.star.scale.setScalar(sc * S.star.size * (0.4 + 0.8 * Math.sqrt(Math.max(0, Math.min(1, u))))); I.star.material.opacity = Math.min(1, 1.6 * k); I.star.material.rotation = age * 0.6; }
 ${pool ? `  if (I.pool) { const P = S.pool, u = (age - (P.delay || 0)) / P.life; I.pool.visible = u >= 0 && u < 1; if (I.pool.visible) { I.pool.scale.setScalar(P.r * sc * (0.7 + 0.3 * sm(u * 5))); I.pool.material.opacity = P.k * 0.8 * sm(u * 12) * (1 - u) * (1 - u); } }
 ` : ''}${bloom ? `  if (I.bloom) { const B = S.bloom, u = (age - (B.delay || 0)) / B.life; I.bloom.visible = u >= 0 && u < 1; if (I.bloom.visible) { I.bloom.position.set(at[0], at[1], at[2] + B.z * sc); I.bloom.scale.setScalar(B.size * sc * (0.75 + 0.25 * sm(u * 3))); I.bloom.material.opacity = B.k * 0.9 * sm(u * 10) * (1 - u); } }
@@ -222,7 +250,12 @@ function __stepMoments() {
   const now = W.time || 0;${light ? `
   let lk = 0;` : ''}${shake ? `
   __moShake.set(0, 0, 0);` : ''}
-  for (const M of W.moments || []) {
+${flow ? `  // the world's bursts, each the flow's blast as big as its reach (a death's spectacle as big as it is drawn)
+  if (__moBlast) {
+    for (const b of W.bursts || []) { if (!(b.seq > __moBurstSeen)) continue; __moBurstSeen = b.seq; __moPage.push({ is: 'explosion', spec: __moBlast, at: b.pos.slice(), t0: b.t, scale: Math.max(0.3, (b.fxRadius || b.radius || 2.5) / 2.5) }); }
+    while (__moPage.length && now - __moPage[0].t0 > __moBlast.dur + 1) __moPage.shift();
+  }
+` : ''}  for (const M of ${flow ? '[...(W.moments || []), ...__moPage]' : 'W.moments || []'}) {
     const age = now - M.t0;${shake ? `
     if (M.is === 'shake') {
       // dying away; three tones a world clock apart, so a replay shakes the same

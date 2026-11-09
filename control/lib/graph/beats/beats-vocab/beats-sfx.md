@@ -203,6 +203,58 @@ recipe is small); don't bind the pack refs. Vary `seed` on grain/jitter
 cues for sibling textures; retune `ring` cues by `note`. `foley-lab-1` is the
 pre-B10 A/B baseline — historical, not for use.
 
+## The SFX mixer: layers, spaces, ducks
+
+A realistic sound is several voices at once, each treated on its own: a hard transient, a saturated body, a low end,
+grit, a tail in a room. Any gesture can be a **layer** with its own processing:
+
+- `chain`: the layer's own effects, from `filter`, `drive`, `compress`, `crush` and `delay`. A layer takes no reverb:
+  the mix's space is the reverb.
+- `pan` (−1..1): where the layer sits.
+- `send` (0..1): how much of it reaches the space.
+
+```json
+"blast": [
+  { "type": "thump", "from": "E2", "to": "A0", "decay": 0.5, "chain": [{ "type": "drive", "amount": 0.7 }] },
+  { "type": "burst", "decay": 0.3, "highpass": 1800, "pan": -0.3, "send": 0.4 },
+  { "type": "grain", "grains": 40, "over": 0.6, "band": { "lo": 300, "hi": 4000 }, "pan": 0.3, "send": 0.6 },
+  { "type": "duck", "depth": 8, "hold": 0.2, "release": 0.6 }
+]
+```
+
+`duck` makes no sound: it dips the music under the cue by `depth` dB (default 6), holds for `hold` seconds, and
+lets the music back over `release`. It needs a mix (the music bus), which a world's `audio.sfx.mix` sets.
+
+A beats-sfx row's `mix: { space?, send?, voices? }` puts its cues in a space for the studio and the WAV export:
+`open`, `interior`, `hangar`, `cavern`, `vacuum` (no air: no space, the bus lowpassed), or
+`{ decay, predelay?, damp?, level? }`. The WAV takes `?far=` (0..1), the cue placed at a distance: duller and
+roomier. A cue that uses none of this plays exactly as before.
+
+## Held voices: a sound driven by a control
+
+A cue is a one-shot. An engine, a booster, a held beam, a charge filling and a fire burning on are **held voices**:
+a sound that runs while something drives it with one control `x` in 0..1 (throttle, thrust, power, fill). A
+beats-sfx row's `sustains: { <id>: voice }` holds them, and a row may hold only those.
+
+```json
+"engine": { "attack": 0.12, "release": 0.3, "layers": [
+  { "kind": "osc", "wave": "sawtooth", "pitch": [38, 160], "gain": [0.18, 0.55], "cutoff": [500, 2600], "q": 1.2,
+    "lfo": { "to": "gain", "rate": [14, 50], "depth": 0.25 } },
+  { "kind": "noise", "gain": [0.04, 0.35], "band": { "lo": 200 }, "cutoff": [600, 3000], "pan": 0.15 }
+] }
+```
+
+- **Ranges.** Every range is `[at x = 0, at x = 1]`. `pitch` (an osc), `cutoff` (a swept lowpass) and an lfo's
+  `rate` run geometrically; `gain` linearly.
+- **Idle.** A gain that starts at 0 makes the voice silent at idle. One above 0 idles running, as an engine does.
+- **Layer settings.** `band: { lo?, hi? }` is fixed filtering. `chain` takes the layer effects.
+- **LFOs.** `lfo: { to, wave?, rate, depth }` moves the gain (amplitude modulation, depth −1..1), the cutoff (Hz) or
+  the pitch (cents). A sawtooth on the gain with a negative depth is a train of chuffs: a sharp start, then a fall.
+- **Following the control.** `attack` and `release` are how fast it follows the control up and down.
+- **Rendering.** The WAV renders a held voice along a control lane (idle, half, full, let go, by default).
+- **In a world.** A world's `audio.thruster.voice` and `audio.jump.charge.voice` take one, in place of the
+  channel's own synth.
+
 ## Wiring into worlds
 
 A world binds cues to its live runtime via `manifest.audio.sfx`: bus reactions

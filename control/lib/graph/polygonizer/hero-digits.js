@@ -27,7 +27,9 @@
  * The output is the rig's own `fingers<S>` value (the wider hand's objects), so a shape plays and exports as any hand
  * word does. Pure and deterministic.
  */
-import { digitPose, DIP_OF_PIP, HAND_POSES } from './station-loft-rig.js';
+import { digitPose, DIP_OF_PIP, HAND_POSES, validateRig, handValue, wideValue } from './station-loft-rig.js';
+import { strHash } from '../city/plan/dice.js';
+import { HAND_SHAPE_WORDS } from './hand-shape-words.js';
 import { digitRead, handFrame, HAND_SERVOS } from './hero-servo.js';
 import { HAND_FORM } from './hero-hand.js';
 import { lm } from './hero-grip.js';
@@ -303,7 +305,7 @@ export const HAND_SHAPES = Object.freeze({
     goals: { index: { set: { mcp: 0, pip: 0, dip: 0, spread: -4 } }, middle: { set: { mcp: 0, pip: 0, dip: 0, spread: 0 } }, ring: { set: { mcp: 0, pip: 0, dip: 0, spread: -4 } }, little: { set: { mcp: 0, pip: 0, dip: 0, spread: -4 } }, thumb: { set: { across: -5, toPalm: -5, mcp: 0, ip: 0 } } } },
   pinch: { says: 'the thumb’s and the index’s tips meeting, the others relaxed', alias: [],
     goals: { index: { reach: { at: (b) => b.at(1.45 * b.palmLen, 0.6 * b.breadth, 0.05), contact: 'tip' } }, thumb: { reach: { on: ['index', 3, 3, 0], contact: 'tip' } } } },
-  ok: { says: 'the thumb’s and the index’s pads meeting in a ring, the other three open and fanned (OK)', alias: ['okay', 'ring'],
+  ok: { says: 'the thumb’s and the index’s pads meeting in a ring, the other three open and fanned (OK)', alias: ['okay'],
     goals: { thumb: { reach: { at: (b) => b.at(1.25 * b.palmLen, 0.55 * b.breadth, 0.05), contact: 'tip' } }, index: { reach: { on: ['thumb', 3, 3, 0], contact: 'pad' } }, middle: { set: { mcp: 10, pip: 10, dip: 5, spread: 4 } }, ring: { set: { mcp: 10, pip: 10, dip: 5, spread: 8 } }, little: { set: { mcp: 10, pip: 10, dip: 5, spread: 14 } } } },
   // ── the hand words as compositions (POLES: the solver must land near the word) ──
   // (the boxer's thumb across the folded middle phalanges is past this thumb's servos: its knuckle and last joint close
@@ -317,6 +319,9 @@ export const HAND_SHAPES = Object.freeze({
 });
 export const HAND_SHAPE_NAMES = Object.freeze(Object.keys(HAND_SHAPES));
 const ALIASES = Object.freeze(Object.fromEntries(Object.entries(HAND_SHAPES).flatMap(([k, s]) => s.alias.map((a) => [a, k]))));
+/** every word a hand shape answers to AT THE DOOR (hand-shape-words.js: the door's checks read it there, without this
+ * module's imports): its name and its plain aliases, but the hand words, whose shapes are their poles */
+export { HAND_SHAPE_WORDS };
 
 /**
  * A hand shape solved on a rig: { name, fingers (the rig's `fingers<S>` value), digits ({ <digit>: { value, err?, past,
@@ -391,3 +396,39 @@ export function poleError(R, S, shape, word = HAND_SHAPES[shape.name]?.pole, { f
 }
 
 export { HAND_SERVOS };
+
+// ─── at the door ────────────────────────────────────────────────────────────────────────────────────────────────────
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+/** a hand value that asks for the wider hand: a shape's word, or a digit given joint by joint */
+const asksWide = (v) => (typeof v === 'string' && HAND_SHAPE_WORDS.includes(v)) || (isObj(v) && Object.values(v).some((x) => isObj(x)));
+const shapeCache = new Map();
+/** a hand shape solved on a rig, by the hand's rest joints and the word (a hero's plan regenerates on every read) */
+function shapeOn(R, S, word) {
+  const H = R.hands[S], key = `${S}|${word}|${strHash(JSON.stringify(H.joints.map((j) => R.joints[j])))}`;
+  if (!shapeCache.has(key)) { if (shapeCache.size > 256) shapeCache.delete(shapeCache.keys().next().value); shapeCache.set(key, handShape(R, S, word).fingers); }
+  return shapeCache.get(key);
+}
+/** any hand value (a word, a shape, a number, an object of digits) in the explicit form, every digit named */
+export function explicitHand(R, S, v) {
+  const per = typeof v === 'string' && HAND_SHAPE_WORDS.includes(v) ? shapeOn(R, S, v) : handValue(R, `fingers${S}`, v);
+  return Object.fromEntries(Object.keys(R.hands[S].digits).map((d) => [d, wideValue(R, S, d, per[d] ?? 0)]));
+}
+/**
+ * THE HAND SHAPES AT THE DOOR: a hero's plan with every clip where a key's `fingersL` / `fingersR` names a hand shape
+ * (hero-digits.js HAND_SHAPES, by its word or an alias) or a digit joint by joint written so its keys blend — each key's
+ * fingers on that side in the explicit form (station-loft-rig.js wideValue), a shape solved on the plan's own rig. The
+ * plan itself, untouched, when no clip asks (every hero minted before).
+ */
+export function withHandShapes(plan) {
+  if (!plan?.rig?.hands || !plan.clips) return plan;
+  let R = null; const clips = {}; let changed = false;
+  for (const [name, clip] of Object.entries(plan.clips)) {
+    const list = Array.isArray(clip) ? clip : clip?.keys;
+    const sides = Array.isArray(list) ? ['L', 'R'].filter((S) => list.some((k) => isObj(k) && asksWide(k[`fingers${S}`]))) : [];
+    if (!sides.length) { clips[name] = clip; continue; }
+    R ??= validateRig(plan.rig); changed = true;
+    const keys = list.map((k) => { if (!isObj(k)) return k; const o = { ...k }; for (const S of sides) if (o[`fingers${S}`] !== undefined && R.hands?.[S]) o[`fingers${S}`] = explicitHand(R, S, o[`fingers${S}`]); return o; });
+    clips[name] = Array.isArray(clip) ? keys : { ...clip, keys };
+  }
+  return changed ? { ...plan, clips } : plan;
+}

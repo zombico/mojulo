@@ -4,11 +4,15 @@
  * the platform rule; combat-melee.js: the strike), laid over the hero's own (playscape/player.js), and what the runtime
  * does not carry yet is SAID, never dropped silently: the report is advice, as an intent's target is (intent.js).
  *
- *   feel: '<pole>' | { pole, variant?, toward?, t?, set? }
+ *   feel: '<pole>' | { pole, variant?, toward?, t?, set?, takes? }
  *     pole     a template (POLE_IDS)
  *     variant  one of its variants (variantsOf), its first by default
  *     toward   a second template to tune toward, `t` how far (0 … 1, 0.5 when only `toward` is named)
  *     set      the card's own fields laid over the template's (objects merge, anything else replaces)
+ *     takes    true: the hero plays its OWN jumps on the card's flight (TAKES): the standing jump, the jump forward out
+ *              of a run, the double jump's second push for an air jump, each clip's gather, air and landing played on
+ *              the runtime's own take-off, flight and touch-down, the landing held the card's `land` frames. Absent: the
+ *              animation library's held leap, every byte as before
  *
  *   readFeel(v)       → the feel checked ({ pole, variant?, toward?, t?, set? }); throws, teaching
  *   feelCard(feel)    → the card the feel makes
@@ -17,14 +21,17 @@
  *                       fallGravity, maxFall, coyote, buffer, jumpCut, airControl, jumpWindup, airJumps, airJumpMult,
  *                       strikeContact, combo, hitstop); `lane` the card holds the hero to a line (the level's own); `gear` the
  *                       template's worn gear (the glider or the jetpack), said when it names one
- *   feelReport(feel)  → { pole, name, after, variant?, toward?, t?, view, carried, partly, lost } the readout's
+ *   feelRule(feel)    → the rule a written feel lays over the hero's (its takes when it asks for them)
+ *   TAKES             the hero's jumps the takes play (clip names: hero-jump.js), by the runtime's state
+ *   feelReport(feel)  → { pole, name, after, variant?, toward?, t?, takes?, view, carried, partly, lost } the readout's
  *
  * Units: the card's frames at 60 fps become the runtime's seconds; its metres and m/s are the runtime's units. Pure.
  */
 import { FPS, r4, POLES, POLE_IDS, variantsOf, poleCard, blendPoles, mergeDeep } from './cards.js';
+import { jumpShares } from '../../polygonizer/hero-jump.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const FEEL_KEYS = ['pole', 'variant', 'toward', 't', 'set'];
+const FEEL_KEYS = ['pole', 'variant', 'toward', 't', 'set', 'takes'];
 const fail = (m) => new Error(`gameworld: feel${m}`);
 
 /** A gameworld's `feel` as written → checked. */
@@ -38,7 +45,8 @@ export function readFeel(v) {
   if (F.toward !== undefined && (!POLES[F.toward] || F.toward === F.pole)) throw fail(`.toward is another template (${POLE_IDS.filter((id) => id !== F.pole).join(', ')})`);
   if (F.t !== undefined && (F.toward === undefined || !(typeof F.t === 'number' && F.t >= 0 && F.t <= 1))) throw fail(F.toward === undefined ? '.t is how far toward `toward`: name it first' : '.t is a number from 0 (the pole) to 1 (toward)');
   if (F.set !== undefined && !isObj(F.set)) throw fail('.set is the card\'s own fields ({ ground?, jump?, air?, … }), laid over the template\'s');
-  return { pole: F.pole, ...(F.variant !== undefined ? { variant: F.variant } : {}), ...(F.toward !== undefined ? { toward: F.toward, t: F.t ?? 0.5 } : {}), ...(F.set !== undefined ? { set: F.set } : {}) };
+  if (F.takes !== undefined && F.takes !== true) throw fail('.takes is true (the hero plays its own jumps on the card\'s flight), or left out');
+  return { pole: F.pole, ...(F.variant !== undefined ? { variant: F.variant } : {}), ...(F.toward !== undefined ? { toward: F.toward, t: F.t ?? 0.5 } : {}), ...(F.set !== undefined ? { set: F.set } : {}), ...(F.takes ? { takes: true } : {}) };
 }
 
 /** The card a feel makes: the template's (its variant, or blended toward another), its own fields over it. */
@@ -88,8 +96,26 @@ export function steppedSpeed(h, g, dt = 1 / FPS) {
   return r4(hi);
 }
 
-/** A card → the platform rule's fields, and what is carried, partly carried and not carried. */
-export function lowerFeel(card, { gear = null } = {}) {
+/**
+ * THE TAKES: by the runtime's state, the hero's jump it plays (hero-jump.js). `jump_up` a jump from standing (or a walk),
+ * `jump_fwd` a jump out of the run, `jump_air` an air jump (the double jump's second push: its clip from the kick on).
+ */
+export const TAKES = Object.freeze({ jump_up: 'jump', jump_fwd: 'jumpForward', jump_air: 'doubleJump' });
+
+/** The run button's build (`rule.sprint`): a held run gets to the card's sprint over a second of running, as a mascot
+ * platformer's does (momentum earned, not a burst: the dash is that), and gives it back over half a second let go. */
+export const SPRINT = Object.freeze({ build: 1, fall: 0.5 });
+
+/** The platform rule's `takes`: each take's flight as shares of its clip, and the landing's seconds (the card's). */
+function takesOf(J, look) {
+  const S = Object.fromEntries(Object.entries(TAKES).map(([state, clip]) => [state, jumpShares(clip)]));
+  const squash = look?.squash > 0 ? r4(look.squash) : 0;
+  return { up: [S.jump_up.off, S.jump_up.on], fwd: [S.jump_fwd.off, S.jump_fwd.on], air: [S.jump_air.kick, S.jump_air.on], land: r4(Math.max(1, J.land ?? 0) / FPS), ...(squash ? { squash } : {}) };
+}
+
+/** A card → the platform rule's fields, and what is carried, partly carried and not carried. `takes`: the hero's own
+ * jumps played on the card's flight (TAKES), the landing held the card's frames. */
+export function lowerFeel(card, { gear = null, takes = false } = {}) {
   const rule = {}, carried = [], partly = [], lost = [];
   const C = card, Gd = C.ground, J = C.jump;
   const put = (field, k, v) => { rule[k] = v; carried.push(field); };
@@ -99,7 +125,11 @@ export function lowerFeel(card, { gear = null } = {}) {
   if (Gd.accel > 0) put('ground.accel', 'accel', Gd.accel);
   if (Gd.decel > 0) put('ground.decel', 'decel', Gd.decel);
   if (Gd.turn != null) { rule.faceRate = Gd.turn === Infinity ? 60 : r4((Gd.turn * Math.PI) / 180); half('ground.turn', 'the facing\'s turn where the hero moves in the screen\'s frame or on a lane (faceRate); a tank-turned hero keeps its own'); }
-  if (Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
+  // the sprint: with the takes and no dash, the run button (F held), its speed built as a mascot platformer's run is, over
+  // SPRINT.build seconds of running; else one speed, the run
+  const sprints = takes && Gd.sprint > Gd.run && !(C.dash && C.dash.kind === 'dash');
+  if (sprints) { rule.sprint = { speed: Gd.sprint, ...SPRINT }; half('ground.sprint', `the run button (F held while running): the run built up to ${Gd.sprint} m/s over ${SPRINT.build} s, eased back over ${SPRINT.fall} s let go`); }
+  else if (Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
   // the jump: its speed from the height and the rise's gravity (as the runtime steps them), the fall's own, the windows in
   // seconds; the gather a half frame long so the take-off lands on the card's frame (the runtime counts the press's)
   const v0 = steppedSpeed(J.height, J.gRise);
@@ -133,7 +163,26 @@ export function lowerFeel(card, { gear = null } = {}) {
   if (lane) half('lane', 'the hero held to the level\'s own lane (a side camera lays one)' + (C.lane.face ? '; facing the foe is the fighter\'s, not carried' : ''));
   // the rest, said
   const has = (path) => { const v = path.split('.').reduce((o, k) => (o == null ? o : o[k]), C); return v != null && v !== false && !(isObj(v) && path === 'land.stomp'); };
+  // the card's moves the takes carry (the runtime's: rules-platform.js): the wall slide and kick, and the dash (its
+  // ground dash, air dash, dash jump and dash wall kick; a boost on a gauge is not this dash)
+  const moves = new Set();
+  if (takes && C.cling) {
+    const K = C.cling;
+    rule.cling = { slide: K.slide, toward: K.toward, kick: steppedSpeed(J.height * (K.up ?? 1), J.gRise), away: K.away, lock: r4(K.lock / FPS), coyote: r4(K.coyote / FPS) };
+    carried.push('cling'); moves.add('cling');
+  }
+  if (takes && C.dash && C.dash.kind === 'dash') {
+    const D = C.dash, A = D.air;
+    // (a burst the card's frames long: a dash held longer is not carried, a dash is not a run)
+    rule.dash = { speed: D.speed, time: r4(D.frames / FPS), ...(D.jump ? { jump: true } : {}), ...(D.wall ? { wall: true } : {}),
+      ...(A && A.count > 0 ? { air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } } : {}) };
+    half('dash', `the dash on F (a person's): the ground dash, ${A?.count ? 'the air dash, ' : ''}${D.jump ? 'the dash jump' : ''}${D.wall ? ', the dash wall kick' : ''}; a burst, the card's ${D.frames} frames whatever the button does${D.hold ? ' (its held dash is not carried)' : ''}${D.iframes ? '; its invincible frames are not carried' : ''}${D.cancel ? '; its cancel out of a move is not carried' : ''}`);
+    moves.add('dash');
+  }
   for (const [field, why] of Object.entries(LOST)) {
+    if (moves.has(field)) continue;
+    // (the takes carry the look's squash and stretch on the hero's own jumps; its smears stay the renderer's)
+    if (field === 'look' && takes && C.look?.squash > 0) { half('look', 'the squash and stretch on the take-off, the flight and the landing, with the hero\'s own jumps; the smears are not carried'); continue; }
     if (field === 'land.stomp') { if (C.land?.model === 'stomp') lost.push({ field, why }); continue; }
     if (field === 'moves.string.armor') { if (S?.some((m) => m.armor)) lost.push({ field, why }); continue; }
     if (field === 'armor') continue;
@@ -141,15 +190,56 @@ export function lowerFeel(card, { gear = null } = {}) {
     if (field === 'glide' || field === 'jet') { if (gear === field) lost.push({ field, why }); continue; }   // worn only when the template names the gear
     if (has(field)) lost.push({ field, why });
   }
+  // the takes: the hero's own jumps on this flight, the landing its frames (the card's `land`, at least one)
+  if (takes) { rule.takes = takesOf(J, C.look); carried.push('jump.land'); }
   return { rule, lane, carried, partly, lost };
+}
+
+/** The rule a written feel lays over the hero's platform rule: its card lowered, with its takes when it asks for them. */
+export function feelRule(feel) {
+  const F = readFeel(feel);
+  return lowerFeel(feelCard(F), { takes: !!F.takes }).rule;
+}
+
+/**
+ * A card's dash and jetpack as the tuning of a hero's vayo moves (rupa/vayo-move.js), for a hero that has one: the dash's
+ * peak its speed, its push a third of its frames (at most a tenth of a second) and its carry the rest of the ground it
+ * covered at that speed, its invincible frames kept as frames; the jetpack's rise the flight's climb, the time its thrust
+ * takes to reach it the flight's rise, its fuel the meter a second it drains; its air jump the vayo jump's height and
+ * count; its dash's `air` the air dash; its jetpack the vayo jetpack too (its thrust over the card's gravity, its delay the
+ * startup). A card with none of them: null. A hero without
+ * vayo moves never reads this, so it lowers as it did.
+ */
+export function feelVayo(card) {
+  const D = card && card.dash, J = card && card.jet, out = {};
+  if (D && D.speed > 0 && D.frames > 0) {
+    const T = D.frames / FPS, rise = r4(Math.min(0.1, T / 3));
+    out.dash = { speed: D.speed, rise, carry: r4(Math.max(0.5, D.speed * T - 0.55 * D.speed * rise)), ...(Array.isArray(D.iframes) && D.iframes[1] > D.iframes[0] ? { iframes: { frames: [D.iframes[0], D.iframes[1]] } } : {}), air: !!D.air };
+  }
+  // the card's air dash (its dash's `air`), as a vayo air dash: its speed, push and carry as the dash's, and its count
+  if (D && D.air && (D.air.speed > 0 || D.speed > 0)) {
+    const sp = D.air.speed > 0 ? D.air.speed : D.speed, T = (D.air.frames > 0 ? D.air.frames : D.frames > 0 ? D.frames : 12) / FPS, rise = r4(Math.min(0.1, T / 3));
+    out.airDash = { speed: sp, rise, carry: r4(Math.max(0.5, sp * T - 0.55 * sp * rise)), count: Math.max(1, Math.round(D.air.count ?? 1)) };
+  }
+  // the card's air jump, as a vayo jump's height and count (its multiple of the ground jump's height)
+  const A = card && card.air, Jg = card && card.jump;
+  if (A && A.jumps >= 1 && Jg && Jg.height > 0) out.jump = { height: r4(Jg.height * (A.mult ?? 1)), count: Math.round(A.jumps) };
+  if (J && J.rise > 0) {
+    const a = J.thrust > 9.81 ? J.thrust - 9.81 : 0;
+    out.flight = { climb: J.rise, ...(a > 0 ? { rise: r4(J.rise / a) } : {}), ...(J.fuel > 0 ? { drain: r4(FPS / J.fuel) } : {}) };
+  }
+  // the card's jetpack, as a vayo jetpack: its thrust over the card's gravity, its delay the startup, its fuel's seconds
+  const gJ = Jg && Jg.gRise > 0 ? Jg.gRise : 9.81;
+  if (J && J.thrust > 0) out.jetpack = { thrust: r4(Math.max(1.05, J.thrust / gJ)), ...(J.delay > 0 ? { startup: { frames: Math.round(J.delay) } } : {}), ...(J.fuel > 0 ? { fuel: r4(J.fuel / FPS) } : {}) };
+  return out.dash || out.airDash || out.flight || out.jump || out.jetpack ? out : null;
 }
 
 /** What a gameworld's feel makes of its hero, for the readout: the template, its viewer (advice), and what is carried. */
 export function feelReport(feel) {
-  const F = readFeel(feel), P = POLES[F.pole], L = lowerFeel(feelCard(F), { gear: P.gear ?? null });
+  const F = readFeel(feel), P = POLES[F.pole], L = lowerFeel(feelCard(F), { gear: P.gear ?? null, takes: !!F.takes });
   return {
     pole: F.pole, name: P.name, after: P.after, ...(F.variant ? { variant: F.variant } : variantsOf(F.pole).length ? { variant: variantsOf(F.pole)[0] } : {}),
-    ...(F.toward ? { toward: F.toward, t: F.t } : {}), view: P.view.camera,
+    ...(F.toward ? { toward: F.toward, t: F.t } : {}), ...(F.takes ? { takes: true } : {}), view: P.view.camera,
     carried: L.carried, partly: L.partly, lost: L.lost,
   };
 }

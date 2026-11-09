@@ -1,0 +1,13 @@
+{
+  "cast": "male",
+  "animeBody": "toji",
+  "muscleShirt": { "definition": 1 },
+  "head": "relational",
+  "face": { "seed": 23, "ethnicity": "latin", "character": [0.7, 0.9], "want": { "chin": "strong" }, "age": 30, "scalp": "fade" },
+  "detail": "swimsuit",
+  "outfit": ["boxingGloves", "highTops"],
+  "palette": { "Swim": "#a3161d" },
+  "target": { "resolution": "1080p", "framing": "close" },
+  "gesture": "guard",
+  "motion": { "guard": true, "jab": true, "cross": true, "hook": true, "uppercut": true, "bodyHook": true, "hitHigh": true }
+}

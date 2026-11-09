@@ -195,7 +195,7 @@ const SHEET_VIEWS = ['front', 'three-quarter', 'side', 'back'];
 // repeats of the same view) — the geometric identity lock. Maps the sheet's
 // column label to a figure-render camera (FIGURE_VIEWS / VIEW_AZ).
 export const SHEET_VIEW_CAMERA = { front: 'frontal', 'three-quarter': 'three-quarter', side: 'lateral', back: 'back' };
-// The per-outfit body dials (character-from-dream C1 wardrobe channel) merged
+// The per-outfit body dials (the sheet's wardrobe channel) merged
 // OVER the shared rig body so each row wears its own outfit on the same body.
 const OUTFIT_DIAL_KEYS = ['garment', 'pose', 'motion', 'phase', 'proto'];
 const outfitDialsOf = (outfit) => {

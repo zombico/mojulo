@@ -1,0 +1,13 @@
+{
+  "id": "neon-rebel",
+  "name": "Neon Rebel",
+  "about": "The rebel at night: the party language in magenta and electric blue, rings behind instead of a band, a CRT over the stage.",
+  "family": "party",
+  "tags": ["night city", "cyberpunk", "action"],
+  "author": "mojulo",
+  "from": "rebel",
+  "tokens": { "ink": "#f4f0ff", "panel": "#0d0618", "line": "#ff3fd8", "accent": "#ff3fd8", "accent2": "#3fd8ff" },
+  "stage": "rings",
+  "overlay": "crt",
+  "sounds": "chip"
+}

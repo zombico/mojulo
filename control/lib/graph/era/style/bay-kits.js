@@ -30,7 +30,7 @@ import { tileFamilyOf } from '../tile-specs.js';
 import { CATALOG } from '../../construction/catalog.js';
 import { UNITS } from '../../construction/masonry.js';
 import { glassLook } from '../../construction/glazing.js';
-import { CONSTRUCTIONS, PALETTES, PLOTS, DRESSINGS, REGISTER_PRESETS } from './bay-axes.js';
+import { CONSTRUCTIONS, PALETTES, PLOTS, DRESSINGS, REGISTER_PRESETS, paletteOf, constructionOf, axisHas } from './bay-axes.js';
 
 const CABLE = [0.07, 0.07, 0.08];
 // the air, from the catalog (mm → m): a register's duct round or rectangular, the terminals and the hanger rod, the
@@ -111,8 +111,8 @@ const AXES = { construction: CONSTRUCTIONS, palette: PALETTES, plot: PLOTS, dres
  * the shell. Every axis named, each a value its table holds.
  */
 export function composeRegister(axes) {
-  for (const [axis, table] of Object.entries(AXES)) if (!table[axes?.[axis]]) throw new Error(`bay: ${axis} '${axes?.[axis]}' is not one (${Object.keys(table).join(', ')})`);
-  const C = CONSTRUCTIONS[axes.construction], P = PALETTES[axes.palette], L = PLOTS[axes.plot], D = DRESSINGS[axes.dressing];
+  for (const [axis, table] of Object.entries(AXES)) if (!axisHas(axis, table, axes?.[axis])) throw new Error(`bay: ${axis} '${axes?.[axis]}' is not one (${Object.keys(table).join(', ')})`);
+  const C = constructionOf(axes.construction), P = paletteOf(axes.palette), L = PLOTS[axes.plot], D = DRESSINGS[axes.dressing];
   const tiles = {}, options = {}, keyOf = (role, i) => (i ? `${role}${i + 1}` : role);
   for (const [role, mats] of Object.entries(C.surfaces)) {
     const sw = P[role] || [];
@@ -122,7 +122,7 @@ export function composeRegister(axes) {
   // (the shell's parts, each laid from what the construction, the dressing and the plot say of it)
   const parts = [...new Set([C.shell, D.shell, L.shell].flatMap((x) => Object.keys(x || {})))];
   const shell = Object.fromEntries(parts.map((part) => [part, { ...C.shell?.[part], ...D.shell?.[part], ...L.shell?.[part] }]));
-  return { tiles, options, roofs: C.roofs, braced: C.braced, ...(D.craned === false ? { craned: false } : {}), duct: C.duct, glass: C.glass,
+  return { tiles, options, roofs: C.roofs, braced: C.braced, ...(C.air === false ? { noAir: true } : {}), ...(D.craned === false ? { craned: false } : {}), duct: C.duct, glass: C.glass,
     booth: { ...C.booth, ...L.booth }, light: L.light, ...(parts.length ? { shell } : {}), ...(C.door ? { door: C.door } : {}), ...(P.ambient ? { ambient: P.ambient } : {}) };
 }
 export const BAY_REGISTERS = Object.freeze(Object.keys(REGISTER_PRESETS));
@@ -153,7 +153,7 @@ export function bayKitOf(axes) {
     // (the dressed cuts carry their own colour: a white band leaves it as painted)
     // (an untextured cable takes its colour here: rubber's near black)
     tint: Object.fromEntries(Object.keys({ ...R.tiles, ...AIR_TILES }).map((k) => [k, k === 'cable' ? CABLE : white])),
-    B: { ...SHELL, ...shell, light: L, options: R.options, roofs: R.roofs, braced: R.braced, craned: R.craned !== false, air: airOf(R.duct),
-      glass: { ...SHELL.glass, low: R.glass.low, look: glassLook(R.glass.clear), other: glassLook(R.glass.other), names: { clear: R.glass.clear, other: R.glass.other } }, booth: { ...SHELL.booth, ...R.booth }, highbay: { ...(shell.highbay || SHELL.highbay) } },
+    B: { ...SHELL, ...shell, light: L, options: R.options, roofs: R.roofs, braced: R.braced, craned: R.craned !== false, air: airOf(R.duct), ...(R.noAir ? { noAir: true } : {}),
+      glass: { ...SHELL.glass, ...(shell.glass ?? {}), low: R.glass.low, look: glassLook(R.glass.clear), other: glassLook(R.glass.other), names: { clear: R.glass.clear, other: R.glass.other } }, booth: { ...SHELL.booth, ...R.booth }, highbay: { ...(shell.highbay || SHELL.highbay) } },
   });
 }

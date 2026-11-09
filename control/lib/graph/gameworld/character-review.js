@@ -11,7 +11,8 @@
  *
  * `characterReady` says which later steps may start: adornment (equipment shaped to the main loop) needs the base and
  * the actions settled; the game's systems (numbers and UI) also need the motion; the equipment (the gear classes, made)
- * needs the systems' parts AND the stats settled (`mechanics:stats`). It advises; nothing refuses.
+ * needs the systems' parts AND the stats settled (`mechanics:stats`), the parts alone in a world with no systems page.
+ * It advises; nothing refuses.
  *
  * A book with a casting page (casting.js) has one part more, `characters:cast`: the rolled cast, each member's reading,
  * and the laws it kept. A journey cast's members are made once it is settled (`characterReady(...).cast`).
@@ -138,7 +139,8 @@ export function keepApproval(before, after, part) {
  * Which later steps may start: `{ adornment, systems, equipment }`, each `{ ready, waiting: [{ id, status }] }`.
  * Adornment needs `hero:base` and `hero:actions` settled (approved, or auto); the systems need `hero:motion` as well;
  * the equipment needs the systems' parts and the stats settled (`mechanics:stats`), since gear matters only once they
- * exist.
+ * exist; a world with no systems page (a hero with no powers: what it carries serves its own strike or shot) needs
+ * the systems' parts alone, its stats never to come.
  * `state` is characterState's, if at hand.
  */
 export function characterReady(world, { state: given, ...opts } = {}) {
@@ -148,5 +150,6 @@ export function characterReady(world, { state: given, ...opts } = {}) {
     return { ready: state.length > 0 && !waiting.length, waiting };
   };
   const systems = ['hero:base', 'hero:actions', 'hero:motion'];
-  return { adornment: step(['hero:base', 'hero:actions']), systems: step(systems), equipment: step([...systems, 'mechanics:stats']), ...(world.characters?.casting ? { cast: step([CAST_PART]) } : {}) };
+  const stats = world.mechanics !== undefined && world.mechanics !== null ? ['mechanics:stats'] : [];
+  return { adornment: step(['hero:base', 'hero:actions']), systems: step(systems), equipment: step([...systems, ...stats]), ...(world.characters?.casting ? { cast: step([CAST_PART]) } : {}) };
 }

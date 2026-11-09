@@ -14,6 +14,7 @@
  *   loops=N  — beats-pattern: pattern repetitions (default 2)
  *   cue=id   — beats-sfx: which cue (default: the only one)
  *   variant=N — beats-sfx: a per-hit variation of the cue (0/absent = the cue itself)
+ *   far=F    — beats-sfx: the cue placed at a distance, 0..1 (duller and roomier; absent = where it always was)
  *   tail=S   — seconds of ring-out appended (default 2)
  *   loop=1   — one seamless pass to the bar line, tail folded onto the head, smpl loop chunk
  */
@@ -55,6 +56,7 @@ export async function GET(request, { params }) {
         loops: intParam(searchParams, 'loops'),
         cue: searchParams.get('cue') || undefined,
         variant: intParam(searchParams, 'variant'),
+        ...(searchParams.get('far') === null ? {} : { far: Number(searchParams.get('far')) }),
         tail: tailRaw === null ? undefined : Number(tailRaw),
         ...(searchParams.get('loop') === null ? {} : { loop: searchParams.get('loop') === '1' }),
       });

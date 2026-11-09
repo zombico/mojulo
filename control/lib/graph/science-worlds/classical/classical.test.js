@@ -112,11 +112,11 @@ describe('science worlds: classical', () => {
   });
 
   it('names a missing law as a gap with the scale that owns it, and runs the rest', () => {
-    const r = solveClassical({ model: { ...law('gravity-uniform'), laws: [{ law: 'gravity-uniform' }, { law: 'diffusion' }, { law: 'orbital' }, { law: 'magnus' }] } });
-    expect(r.gaps.map((g) => g.law)).toEqual(['diffusion', 'orbital', 'magnus']);
+    const r = solveClassical({ model: { ...law('gravity-uniform'), laws: [{ law: 'gravity-uniform' }, { law: 'diffusion' }, { law: 'orbital' }, { law: 'turbulence' }] } });
+    expect(r.gaps.map((g) => g.law)).toEqual(['diffusion', 'orbital', 'turbulence']);
     expect(r.gaps[0].why).toMatch(/microscopic/);
     expect(r.gaps[1].why).toMatch(/quantum/);
-    expect(r.gaps[2].why).toMatch(/mechanics/);
+    expect(r.gaps[2].why).toMatch(/quadratic drag/);
     expect(gateOf(r, 'closed-form:ballistic').ok).toBe(true);
   });
 

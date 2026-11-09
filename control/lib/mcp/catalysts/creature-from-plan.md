@@ -14,7 +14,7 @@
   "parameters": [
     {
       "name": "intent",
-      "description": "The creature in words (e.g. 'a hulking dragon with lizard legs and a detailed head', 'a lean four-legged swamp hound', 'a squat armoured beetle-bear'). Invented or organic bodies only — a person is character-from-dream, a real species with a real skeleton is mint_solid kind 'animal', a lamp or a machine is reconstruct-from-dream. Omit to ask the operator."
+      "description": "The creature in words (e.g. 'a hulking dragon with lizard legs and a detailed head', 'a lean four-legged swamp hound', 'a squat armoured beetle-bear'). Invented or organic bodies only — a person is create_character (as: 'hero'), a real species with a real skeleton is mint_solid kind 'animal', a lamp or a machine is reconstruct-from-dream. Omit to ask the operator."
     }
   ],
   "mcpTools": { "mojulo": ["get_solid_vocab", "create_character", "update_character", "measure_solid", "export_model", "semantic_search", "get_image_render_packet"] }

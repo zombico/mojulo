@@ -28,6 +28,10 @@
  *                the hips and the shoulders (shares of the trunk's height), round to `reach`
  *   dorsal       { color = seam, width = 0.025 }   a line down the spine, the neck's back and the tail's top (half width, m)
  *
+ * A LOCK of hair (polygonizer/hair-coat.js: a coated anime lock, region `lock`) is read as a tail is, down its own length
+ * (`chain` 0 its root … 1 its tip, `s` in metres), its outer face the dorsal side (D +1) and the side toward the head the
+ * underside; `points` darken from `from` to its tip, `dorsal` runs down its outer face (`across`: metres round from it).
+ *
  * A colour is '#rrggbb' or one of the coat's own words (mutagen/push.js colorWords: suit, armor, seam, accent, opposite).
  * Lengths are at a 1.8 m figure and scale with the body. Every field is deterministic (a hash of the place, no dice).
  *
@@ -95,13 +99,13 @@ function nearest(p, cell, salt) {
 const BODY = new Set(['trunk', 'neck']), LIMB = new Set(['arm', 'leg']);
 /** each layer's weight at a sample (0 … 1): the share of its colour over what lies under it */
 const WEIGHT = {
-  countershade: (L, S) => (S.region === 'coil' || S.region === 'tail' || BODY.has(S.region) || LIMB.has(S.region) ? smooth(1 - L.reach - L.soft, 1 - L.reach + L.soft, (1 - S.D) / 2) : 0),
+  countershade: (L, S) => (S.region === 'coil' || S.region === 'tail' || S.region === 'lock' || BODY.has(S.region) || LIMB.has(S.region) ? smooth(1 - L.reach - L.soft, 1 - L.reach + L.soft, (1 - S.D) / 2) : 0),
   stripes(L, S, k) {
     const P = L.period * k, wob = L.wobble * noise3(Math.abs(S.p[0]) / (2.2 * P), S.p[1] / (2.2 * P), S.p[2] / (2.2 * P));
     let phase, taper;
     if (BODY.has(S.region)) { if (S.theta > L.reach) return 0; phase = S.z / P + L.slant * S.theta * 2 + wob; taper = 1 - (S.theta / L.reach) ** 2; }
     else if (LIMB.has(S.region)) { if (!L.limbs || S.D < -0.25) return 0; phase = S.s / P + wob * 0.6; taper = smooth(-0.25, 0.35, S.D) * (S.chain > 0.9 ? 0 : 1); }
-    else if (S.region === 'tail' || S.region === 'coil') { phase = S.s / (P * 1.3) + wob * 0.4; taper = S.region === 'coil' ? smooth(-0.3, 0.3, S.D) : 1; }
+    else if (S.region === 'tail' || S.region === 'coil' || S.region === 'lock') { phase = S.s / (P * 1.3) + wob * 0.4; taper = S.region === 'coil' ? smooth(-0.3, 0.3, S.D) : 1; }
     else return 0;
     const w = L.width * taper, f = frac(phase), e = 0.06;
     return w <= 0 ? 0 : smooth(0, e, f) * (1 - smooth(w - e, w, f));
@@ -118,10 +122,12 @@ const WEIGHT = {
     const gap = noise3(Math.abs(S.p[0]) * 60 / k, S.p[1] * 60 / k, S.p[2] * 60 / k) < -0.35 ? 0 : 1;
     return n.d < rin ? -1 : (1 - smooth(r * 0.88, r, n.d)) * gap;   // (−1: the centre, its fill)
   },
-  points: (L, S) => (LIMB.has(S.region) ? smooth(L.from - L.soft, L.from + L.soft, S.chain) : S.region === 'tail' ? smooth(0.55, 0.85, S.chain) : 0),
+  points: (L, S) => (LIMB.has(S.region) || S.region === 'lock' ? smooth(L.from - L.soft, L.from + L.soft, S.chain) : S.region === 'tail' ? smooth(0.55, 0.85, S.chain) : 0),
   socks: (L, S) => (LIMB.has(S.region) ? smooth(L.from - L.soft, L.from + L.soft, S.chain) : 0),
   saddle: (L, S) => (S.region === 'trunk' ? smooth(1 - 2 * L.reach - L.soft, 1 - 2 * L.reach + L.soft, S.D) * smooth(L.bottom - L.soft, L.bottom + L.soft, S.zt) * (1 - smooth(L.top - L.soft, L.top + L.soft, S.zt)) : 0),
   dorsal(L, S, k) {
+    // (a lock's line runs down its outer face: `across` is the distance round from it, in metres)
+    if (S.region === 'lock') { const w = L.width * k; return S.D < 0.2 ? 0 : 1 - smooth(w * 0.7, w, S.across); }
     if (!(BODY.has(S.region) || S.region === 'tail')) return 0;
     const facing = S.region === 'tail' ? S.D : S.D, w = L.width * k;
     return facing < 0.2 ? 0 : 1 - smooth(w * 0.7, w, Math.abs(S.p[0]));

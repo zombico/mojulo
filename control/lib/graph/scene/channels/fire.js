@@ -1,5 +1,5 @@
 import { safeJson } from '../emit-util.js';
-import { fireKernel, fireLightRGB, firePropParts, FIRE_KIND_LIGHT, FIRE_PROP_COLORS } from '../../fire/fire.js';
+import { fireKernel, fireLightRGB, firePropParts, FIRE_KIND_LIGHT, FIRE_PROP_COLORS, NEVER } from '../../fire/fire.js';
 
 // In-page script: the FIRE channel (opt-in `fire` on any world; fire/fire.js). Only emitted with `fire`.
 //   · the kernel (fireKernel, inlined) gives every fire's flamelets, embers and smoke as functions of time; the air
@@ -25,7 +25,12 @@ export function fireChannelScript(cfg) {
   // (one that chars the body it burns on: its `char`, a foe's base state, foes/states.js. None ⇒ byte-identical)
   const charred = follow && cfg.sources.some((x) => x.follow && Number.isFinite(x.char));
   // (one that stands at its own height over the body's feet, `lift` in metres: a foe's flaming at its chest. None ⇒ byte-identical)
+  // a block's fire (destructible physics, fire.js blockFires): lit when its block catches. None ⇒ byte-identical
+  const blocks = cfg.sources.some((x) => x.rupa);
   const lifted = follow && cfg.sources.some((x) => x.follow && Number.isFinite(x.lift));
+  // on the flow (rupa-vayo, worlds/controllable/vayo-air.js): a blast's air leans, flares, strains and blows out the fires,
+  // a block's by its physics. None ⇒ byte-identical (and none in a world built in its own units)
+  const gusts = !!cfg.gusts && !u;
   const props = cfg.sources.map((x) => (x.follow ? [] : firePropParts(x))).map((parts) => (u ? parts.map((p) => ({ ...p, ...(p.a ? { a: p.a.map((v) => v * k), b: p.b.map((v) => v * k), r0: p.r0 * k, r1: p.r1 * k } : {}), ...(p.at ? { at: p.at.map((v) => v * k) } : {}), ...(p.r ? { r: p.r * k } : {}) })) : parts));
   return `
 // --- fire (opt-in \`fire\`) ---
@@ -57,7 +62,13 @@ function __fireFollow(K) {
     embers: (i, t) => (off[i] === null ? [] : at(i, (m) => (m ? mv(K.embers(i, t), 7, 6) : K.embers(i, t)))),
     smoke: (i, t) => (off[i] === null ? [] : at(i, (m) => (m ? mv(K.smoke(i, t), 5, 3) : K.smoke(i, t)))) };
 }
-` : ''}const __fireK = ${follow ? '__fireFollow(' : ''}${u ? '__fireUnit(' : ''}(${fireKernel.toString()})(FIRE, __fireWind ? (x, y, z, t) => __fireWind.field.at(x, y, 1.2, t) : null, __fireWorld)${u ? `, ${k})` : ''}${follow ? ')' : ''};
+` : ''}${blocks ? `// a block's flame leans in destructible physics' own wind when the world has no terrain wind
+const __fireRupaAir = (x, y, z, t) => { const C = window.__mojCtrl, W = C && C.world; return W && W.rupa && W.rupa.wind && C.physics ? C.physics.windAt(W.rupa.wind, [x, y, z], W.time) : [0, 0, 0]; };
+` : ''}${gusts ? `// on the flow: a fire's air is its wind and each recent blast's, outward from it and held for the eye (vayo-air.js gustAt)
+const __fireGust = (base) => (x, y, z, t) => { const w = base ? base(x, y, z, t) : null, C = window.__mojCtrl, W = C && C.world, o = [w ? w[0] || 0 : 0, w ? w[1] || 0 : 0, w ? w[2] || 0 : 0];
+  if (!(C && C.air && W && W.vayoAir && W.vayoAir.gusts.length)) return o;
+  const g = C.air.gustAt(W, [x, y, z]); return [o[0] + g[0], o[1] + g[1], o[2] + g[2]]; };
+` : ''}const __fireK = ${follow ? '__fireFollow(' : ''}${u ? '__fireUnit(' : ''}(${fireKernel.toString()})(FIRE, ${gusts ? '__fireGust(' : ''}__fireWind ? (x, y, z, t) => __fireWind.field.at(x, y, 1.2, t) : ${blocks ? '__fireRupaAir' : 'null'}${gusts ? ')' : ''}, __fireWorld)${u ? `, ${k})` : ''}${follow ? ')' : ''};
 // every fire the kernel draws: the standing ones (FIRE.sources, with their props) and the grass fires' fronts
 const __fireN = __fireK.N, __FNP = __fireK.NP, __fireAll = Array.from({ length: __fireN }, (_, i) => __fireK.src(i));
 // a fire's light: its kind's warm yellow, or as much of its colorant's lines as the flame is coloured (fire.js fireLightRGB)
@@ -219,10 +230,28 @@ function __fireChar(id, k) {
   if (!B || (was && was.g === B && was.k === k)) return;
   paint(B, k); __fireCharred[id] = { g: B, k };
 }
+` : ''}${gusts ? `// a strained flame lifts off its bed (a third of its height at the limit) and gutters, thinning in pulses
+const __fireStrain = new Float64Array(__fireN), __fireGustPeak = new WeakMap();
+function __fireGutter(i, fl, T) {
+  const k = __fireStrain[i]; if (!(k > 0.01)) return fl;
+  const lift = 0.35 * k * __fireAll[i].L, g = 1 - 0.5 * k * (0.5 + 0.5 * Math.sin(2 * Math.PI * 7 * T + 1.7 * i));
+  return fl.map((f) => f && { ...f, pts: f.pts.map((v, j) => (j % 3 === 2 ? v + lift : v)), rad: f.rad.map((r) => r * g) });
+}
 ` : ''}const stepFire = (ms) => {
   // the page's step time: a capture frame pins it, so a fire is the same at the same t; live it runs with the wind's
   // own clock, so the flames lean in the gusts the grass bends in
-  const T = ms / 1000;${follow ? `
+  const T = ms / 1000;${blocks ? `
+  // BLOCK FIRES: a block's flame kindles when the runtime has it catch, rides its block, and dies back when it is
+  // doused or burnt out (its source's life, which the kernel reads as it draws)
+  { const W = window.__mojCtrl && window.__mojCtrl.world;
+    for (let i = 0; i < __fireN; i++) {
+      const s = __fireAll[i]; if (!s.rupa) continue;
+      const b = W && W.breakables && (s.__b || (s.__b = W.breakables.find((q) => q.id === s.rupa)));
+      const on = !!(b && !b.broken && b.rupa && b.rupa.burning), lit = s.life.start < ${NEVER} && !Number.isFinite(s.life.out);
+      if (on && !lit) s.life = { start: T, kindle: s.life.kindle || 2.5 };
+      else if (!on && lit) s.life = { ...s.life, out: T, die: ${gusts ? "b && b.rupa && b.rupa.air && b.rupa.air.blown != null && W.time - b.rupa.air.blown < 0.5 ? 0.2 : 3" : '3'} };
+      if (b && !b.broken) { s.at[0] = (b.min[0] + b.max[0]) / 2; s.at[1] = (b.min[1] + b.max[1]) / 2; s.at[2] = b.max[2]; }
+    } }` : ''}${follow ? `
   // carry each body's fire to its body's feet, or put it out
   { const W = window.__mojCtrl && window.__mojCtrl.world;
     for (let i = 0; i < __fireK.N; i++) {
@@ -236,14 +265,30 @@ function __fireChar(id, k) {
       const foot = p[2] - (Number.isFinite(r.eye) ? r.eye : Array.isArray(b.size) ? b.size[2] / 2 : Number.isFinite(b.radius) ? b.radius : 0);
       __fireK.off[i] = [p[0], p[1], foot + ${lifted ? '(s.lift != null ? s.lift : s.rise * h)' : 's.rise * h'}];
     } }` : ''}
-  if (!(ms - __firePatchT < 500 && __firePatchT >= 0)) { __firePatchT = ms; __firePatchAll(); }   // terrain chunks stream in
+${gusts ? `  // ON THE FLOW: how hard each fire's air strains it (0–1: its flame lifts off its bed and gutters); a block's the physics
+  // reckons, a fire the physics does not hold (a torch, a candle) by the same law, and blown out past its limit it stays out
+  { const C = window.__mojCtrl, W = C && C.world, A = W && W.vayoAir;
+    for (let i = 0; i < __fireN; i++) {
+      const s = __fireAll[i];
+      if (s.rupa) { const b = s.__b; __fireStrain[i] = b && !b.broken && b.rupa && b.rupa.burning && b.rupa.air ? b.rupa.air.strain || 0 : 0; continue; }
+      __fireStrain[i] = 0;
+      if (!(C && C.air && A) || s.follow || s.path || s.kind === 'grass' || s.__out) continue;
+      const ubo = C.air.blowout(s.D), p = [s.at[0], s.at[1], s.at[2] + 0.5 * s.L];
+      for (const g of A.gusts) {
+        let pk = __fireGustPeak.get(g); if (!pk) { pk = new Float64Array(__fireN).fill(-1); __fireGustPeak.set(g, pk); }
+        if (pk[i] < 0) pk[i] = C.air.peakAt(W, g, p);
+        if (pk[i] >= ubo) { if (!s.__out) { s.life = { ...(s.life || {}), out: T, die: 0.2 }; s.__out = 1; } break; }
+        __fireStrain[i] = Math.max(__fireStrain[i], C.air.strainOf(pk[i], ubo) * Math.exp(-Math.max(0, W.time - g.t) / C.air.HOLD));
+      }
+    } }
+` : ''}  if (!(ms - __firePatchT < 500 && __firePatchT >= 0)) { __firePatchT = ms; __firePatchAll(); }   // terrain chunks stream in
   camera.updateMatrixWorld();   // a capture frame steps before it renders: the eye may have just moved
   __fpm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); __ffr.setFromProjectionMatrix(__fpm);
   const cam = camera.position;
   // the eight fires nearest the eye light the world
   // where each fire is now (a fireball moves, and is nowhere between casts), how hard it burns
   const where = __fireAll.map((s, i) => __fireK.centre(i, T)), kk = __fireAll.map((s, i) => (where[i] ? __fireK.intensity(i, T) : 0));
-  const order = __fireAll.map((s, i) => [i, where[i] ? Math.hypot(where[i][0] - cam.x, where[i][1] - cam.y, where[i][2] - cam.z) - Math.sqrt(s.light) * 3 : 1e9]).sort((a, b) => a[1] - b[1]);
+  const order = __fireAll.map((s, i) => [i, where[i]${blocks ? ' && kk[i] > 0.001' : ''} ? Math.hypot(where[i][0] - cam.x, where[i][1] - cam.y, where[i][2] - cam.z) - Math.sqrt(s.light) * 3 : 1e9]).sort((a, b) => a[1] - b[1]);
   const flick = new Float64Array(__fireN), live = new Uint8Array(__fireN);
   for (let r = 0; r < order.length; r++) {
     const i = order[r][0], s = __fireAll[i], c = where[i]; if (!c) continue;
@@ -256,7 +301,7 @@ function __fireChar(id, k) {
   }
   for (let r = 0; r < 8; r++) {
     const P = __fireU.uFireP.value[r], C = __fireU.uFireC.value[r];
-    if (r >= order.length || !where[order[r][0]]) { P.w = 0; continue; }
+    if (r >= order.length || !where[order[r][0]]${blocks ? ' || !(kk[order[r][0]] > 0.001)' : ''}) { P.w = 0; continue; }${blocks ? '   // an unlit block\'s fire takes no light' : ''}
     const i = order[r][0], s = __fireAll[i], col = __fireCols[i], c = where[i];
     P.set(c[0], c[1], c[2] + (s.path ? 0 : 0.4 * s.L), (s.baked ? -1 : 1) * s.light * FIRE.light); C.set(col[0], col[1], col[2], flick[i] / FIRE.light || 0);
     __fireU.uFireR.value[r] = (0.7 * s.L + 0.3 * s.D) ** 2 + 0.01;
@@ -275,7 +320,7 @@ function __fireChar(id, k) {
   const lists = new Map();
   for (const F of __fireFlames) {
     if (!F.m.visible) continue;
-    if (!lists.has(F.i)) lists.set(F.i, __fireK.flames(F.i, T));
+    if (!lists.has(F.i)) lists.set(F.i, ${gusts ? '__fireGutter(F.i, __fireK.flames(F.i, T), T)' : '__fireK.flames(F.i, T)'});
     const f = lists.get(F.i)[F.k]; if (!f) { F.m.visible = false; continue; }
     const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
     for (let k = 0; k < __FNP; k++) {
@@ -292,7 +337,15 @@ function __fireChar(id, k) {
     const h = __fireHalos[i]; h.visible = !!live[i]; if (!live[i]) return;
     const k = flick[i] / Math.max(FIRE.light, 1e-6), c = where[i]; h.position.set(c[0], c[1], c[2] + (s.path ? 0 : 0.45 * s.L)); h.scale.setScalar((2.2 * s.L + 1.2 * s.D) * (0.9 + 0.1 * k)); h.material.opacity = Math.min(1, 0.55 * k) * (1 - 0.7 * (FIRE.day || 0));
   });
-  // coals glow with the fire, and keep a dull glow when it has died back
+${gusts ? `  // a block's bed blown out glows dull red while it is hot (it relights if a neighbour's flame reaches it)
+  for (let i = 0; i < __fireN; i++) {
+    const s = __fireAll[i]; if (!s.rupa) continue;
+    const b = s.__b, h = __fireHalos[i], r = b && !b.broken && b.rupa, A = r && r.air;
+    const glow = A && A.blown != null && !r.burning ? Math.pow(Math.max(0, Math.min(1, (r.T - r.T0) / Math.max(1, r.ignite - r.T0))), 3) : 0;
+    if (glow > 0.02 && where[i]) { const c = where[i]; h.visible = true; h.position.set(c[0], c[1], c[2] + 0.05); h.scale.setScalar(1.4 * s.D); h.material.color.setRGB(1, 0.22, 0.06); h.material.opacity = 0.5 * glow * (1 - 0.7 * (FIRE.day || 0)); h.__ember = 1; }
+    else if (h.__ember) { h.material.color.setRGB(1, 1, 1); h.__ember = 0; }
+  }
+` : ''}  // coals glow with the fire, and keep a dull glow when it has died back
   for (const c of __fireCoals) { const k = live[c.i] ? 0.3 + 0.7 * Math.min(2, flick[c.i] / Math.max(FIRE.light, 1e-6)) : 0.3 + 0.7 * Math.min(1, kk[c.i]); const dd = 1 - 0.6 * (FIRE.day || 0); c.m.material.color.setRGB(0.62 * k * dd, 0.13 * k * dd, 0.02 * dd); }
   // embers: streaks a few millimetres wide, at least a pixel
   { const P = __fireEmb.g.attributes.position.array, C = __fireEmb.g.attributes.color.array, U = __fireEmb.g.attributes.uv.array; let n = 0;

@@ -4,7 +4,7 @@
   "version": "3.1.1",
   "license": "Apache-2.0",
   "type": "module",
-  "description": "Mojulo turns your agent into a game studio: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself (the Claude app or web, ChatGPT work mode with Codex, Grok chat, Meta Muse). You direct the agent you already run (Claude Code, Codex, or any MCP host); it builds games, walkable worlds, characters and printable objects through the studio's departments, each kept as a small deterministic recipe that plays in the browser, hands its levels to a team's Godot, Unity, Unreal or Blender, exports to STL, and re-mints identically from a box at home. Underneath, a 3D compiler: the recipe is the source and stays yours.",
+  "description": "Mojulo turns your agent into a 3D creative studio: ask the agent you already use (Claude Code, Codex, the Claude app, ChatGPT, or any MCP host) for 3D objects, characters, environments, interactive worlds and even playable games. Play them in the browser or as a desktop app, print them at true size, or open them in Godot, Unity, Unreal or Blender. It runs on your machine or in the Linux box your agent gives itself, with no account and no API key, and what you make stays yours.",
   "author": "Franz Ombico",
   "homepage": "https://mojulo.ai",
   "repository": {
@@ -110,6 +110,7 @@
     "ui:sync": "node scripts/stage-ui-package.mjs --sync",
     "tool-surface": "node scripts/tool-surface.mjs",
     "flora-gaps": "node scripts/flora-gaps.mjs",
+    "sfx-baseline": "node scripts/sfx-baseline.mjs",
     "test": "vitest run",
     "test:critical": "vitest run --config vitest.critical.config.js",
     "test:changed": "node scripts/test-changed.mjs",

@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readGameworld, MEADOWMARK } from '../index.js';
 import { gameStages, stageLevelOrder } from '../levels.js';
 import { POLE_IDS, POLES } from './cards.js';
-import { feelCard, lowerFeel } from './lower.js';
+import { feelCard, lowerFeel, TAKES } from './lower.js';
 
 const pole = POLE_IDS.find((id) => !POLES[id].set?.lane && !POLES[id].variants);
 const order = (W) => { const G = readGameworld(W), st = gameStages(W)[0]; return stageLevelOrder(G, st, { ref: 'lv_0', heroRef: 'gw-hero' }).args.manifest; };
@@ -32,5 +32,18 @@ describe('a gameworld\'s feel', () => {
     const own = at(MEADOWMARK), felt = at({ ...MEADOWMARK, feel: pole }), want = lowerFeel(feelCard(pole)).rule;
     expect([own.speed, own.jumpSpeed]).toEqual([1.23, 3.21]);
     expect([felt.speed, felt.jumpSpeed, felt.loadout]).toEqual([want.speed, want.jumpSpeed, ['kept']]);
+  });
+
+  it('a feel that asks for its takes ships them: the rule\'s takes, the hero\'s own jumps by state; the rest of the level as the plain feel\'s', () => {
+    const plain = order({ ...MEADOWMARK, feel: pole }), taken = order({ ...MEADOWMARK, feel: { pole, takes: true } });
+    expect(taken.entities[0].rule.takes).toEqual(lowerFeel(feelCard(pole), { takes: true }).rule.takes);
+    const fig = taken.entities[0].body.figure, F = taken.figures[fig];
+    expect(F.clips).toMatchObject(TAKES);
+    expect(F.jumps.sort()).toEqual([...new Set(Object.values(TAKES))].sort());
+    if (taken.entities[0].rule.dash) expect(JSON.stringify(taken.events)).toContain('F  dash');
+    expect(JSON.stringify(plain.events)).not.toContain('F  dash');
+    // (the card's moves ride the takes: its wall and its dash, F named on the legend)
+    const strip = (m) => JSON.stringify({ ...m, events: null, entities: m.entities.map((e, i) => { if (i) return e; const { takes, cling, dash, ...rule } = e.rule; return { ...e, rule }; }), figures: Object.fromEntries(Object.entries(m.figures ?? {}).map(([k, f]) => [k, { ...f, clips: Object.fromEntries(Object.entries(f.clips ?? {}).filter(([st]) => !(st in TAKES))), jumps: null }])) });
+    expect(strip(taken)).toBe(strip({ ...plain, figures: Object.fromEntries(Object.entries(plain.figures ?? {}).map(([k, f]) => [k, { ...f, jumps: null }])) }));
   });
 });

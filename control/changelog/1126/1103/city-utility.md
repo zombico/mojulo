@@ -76,7 +76,7 @@ crew are, and named in the vehicle registry. Each is a class, not a replica.
   side, the rear quarter, and deployed.
 - **The garbage truck's other models** (`car-designer/road-civic-refuse.js`), each read by its silhouette, beside the
   rear loader. Four new classes at their true numbers ([E]), their rows, their deployments and their liveries:
-  - `frontLoader`, the front loader (front loader, dumpster truck, commercial garbage truck): a cab well ahead of its
+  - `frontLoader`, the front loader (front loader garbage truck, dumpster truck, commercial garbage truck; a bare "front loader" is the site's wheel loader): a cab well ahead of its
     set-back axle, narrower than the two arms that arch over it from the body's front corners to the forks ahead of its
     bumper; the hopper open in the body's roof. `lifting` swings the arms up and back over the cab (the reach: the
     forks' lowest point);

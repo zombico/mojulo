@@ -1,14 +1,12 @@
 # Mojulo
 
-**Mojulo turns Claude into a game studio.** You direct; Claude builds. Describe the game you want
-and Claude works through mojulo's departments: it drafts the game's bible for you to approve, then
-builds the worlds and levels, the characters, props and vehicles, the play modes with their animation
-and sound, the foes and bosses, and the camera work and cutscenes. The same studio makes characters, objects, walkable
-worlds, diagrams and music. Each one is a deterministic recipe: a few hundred bytes of JSON, or
-an OpenSCAD program, that compiles back to the same result every time. You edit and diff the
-recipe like code; every render is derived from it. From the recipe mojulo exports print-ready STL
-and 3MF at true scale, glTF, OpenUSD, a self-contained HTML page you can walk offline, and Godot,
-Blender and Unity packs, and Unreal asset packs. Everything stays on your machine under `~/.mojulo/`.
+**A 3D creative studio for Claude.** Make 3D objects, characters, environments, interactive worlds
+and even playable games, just by asking, and take them to your desktop: play them in the browser or
+as a desktop app, print them at true size as STL or 3MF, or open them in Godot, Unity, Unreal or
+Blender, with glTF and OpenUSD for everything else. Start small and go as far as you like: a mug,
+then a hero to hold it, a room to put them in, a town to walk through, a game to play in it. Change
+anything by asking, and everything that uses it changes too. Everything stays on your machine
+under `~/.mojulo/`.
 
 **Runs on the Claude you already use.** Mojulo holds the recipes and does the geometry; the
 thinking is Claude's, in your session. It needs no account, no API key and no GPU. Nothing is sent

@@ -31,7 +31,7 @@
  *                                       and the turns after it play out until the next member's
  *   preview(cfg, R, n)                → the next n turns on the timeline [{ who, name, party }]
  *   close(cfg, R, vars)               → the bus events the battle ends on: rpg-won / rpg-fled / rpg-lost, alone and :<encounter>
- *   switchClass / buy / rest / classesOf / treeOf / statsOf / partyOf / mirror
+ *   switchClass / buy / rest / classesOf / treeOf / statsOf / partyOf / mirror; the shops: waresOf / sellsOf / purchase / sell / stay
  *   gearOf / equip / unequip          what each member wears (one item a slot, from the bag and back to it)
  *   save(cfg, R) / load(cfg, R, roster, vars)   the run as the store's party slice keeps it (numbers only), and back
  *
@@ -594,6 +594,49 @@ export function buildRpg() {
     if (vars) mirror(cfg, R, vars);
   }
 
+  // ── the shops (rpg.js shops): a ware bought with the gold into the bag, a priced thing in the bag sold at half, a
+  // night at an inn (a rest for its price); each answers '' when done, else why not ('gold', 'none', 'shop', 'ware')
+  function shopOf(cfg, sid) { return (cfg.shops && cfg.shops[sid]) || null; }
+  function waresOf(cfg, sid, vars) {
+    const S = shopOf(cfg, sid);
+    if (!S) return [];
+    return S.wares.map((w) => ({ item: w.item, kind: w.kind, price: w.price, name: (w.kind === 'item' ? cfg.items : cfg.gear)[w.item].name, have: (vars && vars['held:bag:' + w.item]) || 0 }));
+  }
+  // (what the bag holds that the shop buys back: anything priced among the shop's wares or any shop's, at half)
+  function sellsOf(cfg, sid, vars) {
+    const S = shopOf(cfg, sid), out = [];
+    if (!S || !S.buys || !vars) return out;
+    const price = {};
+    for (const k in cfg.shops) for (const w of cfg.shops[k].wares) if (!(w.item in price)) price[w.item] = w;
+    for (const k in price) { const n = vars['held:bag:' + k] || 0; if (n > 0) out.push({ item: k, kind: price[k].kind, price: Math.max(1, Math.floor(price[k].price / 2)), name: (price[k].kind === 'item' ? cfg.items : cfg.gear)[k].name, have: n }); }
+    return out;
+  }
+  function purchase(cfg, sid, item, vars) {
+    const w = waresOf(cfg, sid, vars).find((x) => x.item === item);
+    if (!w) return 'ware';
+    const g = cfg.rules.gold, have = (vars && vars[g]) || 0;
+    if (have < w.price) return 'gold';
+    vars[g] = have - w.price;
+    vars['held:bag:' + item] = (vars['held:bag:' + item] || 0) + 1;
+    return '';
+  }
+  function sell(cfg, sid, item, vars) {
+    const w = sellsOf(cfg, sid, vars).find((x) => x.item === item);
+    if (!w) return 'none';
+    vars['held:bag:' + item] -= 1;
+    vars[cfg.rules.gold] = (vars[cfg.rules.gold] || 0) + w.price;
+    return '';
+  }
+  function stay(cfg, R, sid, vars) {
+    const S = shopOf(cfg, sid);
+    if (!S || S.inn == null) return 'shop';
+    const g = cfg.rules.gold, have = (vars && vars[g]) || 0;
+    if (have < S.inn) return 'gold';
+    if (vars) vars[g] = have - S.inn;
+    rest(cfg, R, vars);
+    return '';
+  }
+
   function classOpen(cfg, R, id, cls, vars) {
     const p = memberOf(cfg, id), C = cfg.classes[cls];
     if (!C) return 'unknown';
@@ -764,7 +807,7 @@ export function buildRpg() {
     vars['rpg.won'] = R.won;
   }
 
-  return { STATS, roll: rnd, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto };
+  return { STATS, roll: rnd, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto, shopOf, waresOf, sellsOf, purchase, sell, stay };
 }
 
 const _rpg = buildRpg();

@@ -164,18 +164,56 @@ export const CLASSICAL_CLOSED_FORMS = [
     measure: (run, a) => ({ speed: Math.hypot(...vel(run, run.t.length - 1, a.i)) }),
   },
   {
+    id: 'viscometer',
+    want: 'a ball falling through a liquid that does not set, wholly under its surface, reaches Stokes\'s speed (m − ρ·V)·g / 6πηr, within 0.1%',
+    tol: 1e-3,
+    applies(m) {
+      const i = lone(m), g = gOf(m), b = m.bodies[i];
+      if (i < 0 || !only(m, 'gravity-uniform', 'buoyancy', 'gelling')) return null;
+      const gel = law(m, 'gelling'), buoy = law(m, 'buoyancy');
+      if (gel.from || (gel.curve && gel.curve.t.length > 1)) return null;   // a liquid that sets has no single terminal speed
+      const eta = gel.curve ? gel.curve.eta[0] : gel.medium.viscosity, tau = gel.curve ? gel.curve.tau[0] : gel.medium.yield ?? 0;
+      const rho = buoy.rho ?? buoy.medium?.density ?? 1000;
+      if (tau > 0 || Math.abs(rho - gel.medium.density) > 1e-9 * rho || len(b.v) > 0) return null;
+      const k = 6 * Math.PI * eta * b.radius, vt = ((b.mass - rho * (4 / 3) * Math.PI * b.radius ** 3) * g) / k;
+      // it sinks (heavier than the liquid) from wholly under the surface, so it stays under for the whole fall
+      if (!(vt > 0) || dot(b.at, m.frame.up) + b.radius > (buoy.surface ?? 0)) return null;
+      return m.duration >= 12 * b.mass / k ? { i, vt } : null;
+    },
+    expect: (a) => ({ speed: a.vt }),
+    measure: (run, a) => ({ speed: Math.hypot(...vel(run, run.t.length - 1, a.i)) }),
+  },
+  {
     id: 'incline',
     want: 'slide distance s = ½·g·(sin α − μ·cos α)·t² from rest (0 when μs ≥ tan α), within 0.1%',
     tol: 1e-3,
     applies(m) {
       const i = lone(m);
-      if (i < 0 || !only(m, 'gravity-uniform', 'plane') || len(m.bodies[i].v) > 0) return null;
+      if (i < 0 || !only(m, 'gravity-uniform', 'plane') || len(m.bodies[i].v) > 0 || m.bodies[i].spin) return null;
       const p = m.resolved.planes[0];
       if (!m.restingOn(i, 0)) return null;
       const cos = dot(p.n, m.frame.up), sin = Math.sqrt(Math.max(0, 1 - cos * cos));
       if (!(cos > 0)) return null;
       const g = gOf(m), a = sin <= p.mus * cos ? 0 : g * (sin - p.mu * cos);
       return { i, a: Math.max(0, a), t: m.duration };
+    },
+    expect: (a) => ({ distance: 0.5 * a.a * a.t * a.t }),
+    measure: (run, a) => ({ distance: len(sub(at(run, run.t.length - 1, a.i), at(run, 0, a.i))) }),
+  },
+  {
+    id: 'rolling',
+    want: 'a sphere rolling from rest down a ramp: s = ½·g·sin α·t² / (1 + I/m·r²) (5/7 of the slide for a solid ball) while static friction holds it (μs ≥ tan α · I/(I + m·r²)), within 0.1%',
+    tol: 1e-3,
+    applies(m) {
+      const i = lone(m), b = m.bodies[i];
+      if (i < 0 || !b.spin || !only(m, 'gravity-uniform', 'plane') || len(b.v) > 0 || len(b.spin) > 0) return null;
+      const p = m.resolved.planes[0];
+      if (!m.restingOn(i, 0)) return null;
+      const cos = dot(p.n, m.frame.up), sin = Math.sqrt(Math.max(0, 1 - cos * cos));
+      if (!(cos > 0) || !(sin > 0)) return null;
+      const share = b.inertia / (b.inertia + b.mass * b.radius * b.radius);
+      if (share * sin > p.mus * cos) return null;   // it would slip: no closed form here
+      return { i, a: gOf(m) * sin * (1 - share), t: m.duration };
     },
     expect: (a) => ({ distance: 0.5 * a.a * a.t * a.t }),
     measure: (run, a) => ({ distance: len(sub(at(run, run.t.length - 1, a.i), at(run, 0, a.i))) }),
@@ -191,7 +229,7 @@ export const CLASSICAL_CLOSED_FORMS = [
       const n = unit(line), u1 = dot(A.v, n), u2 = dot(B.v, n), closing = u1 - u2;
       if (!(closing > 0)) return null;
       if (m.duration <= (len(line) - A.radius - B.radius) / closing * 1.05) return null;
-      const e = law(m, 'collision').e ?? 1, M = A.mass + B.mass, P = A.mass * u1 + B.mass * u2;
+      const e = m.resolved.collisions[0]?.e ?? law(m, 'collision').e ?? 1, M = A.mass + B.mass, P = A.mass * u1 + B.mass * u2;
       return { n, v1: (P + B.mass * e * (u2 - u1)) / M, v2: (P + A.mass * e * (u1 - u2)) / M };
     },
     expect: (a) => ({ v1: a.v1, v2: a.v2 }),

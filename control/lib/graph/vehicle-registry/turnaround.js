@@ -45,6 +45,9 @@ const DEFAULT_CREW = Object.freeze({
 const CAMO_OF_AIR = Object.freeze({ wraparound: 'woodland', desert: 'desert', splinter: 'tiger', arctic: 'winter', counterShaded: 'urban' });
 const GAP = 0.08;   // (a rubber nose short of the skin)
 const r3 = (n) => Math.round(n * 1e3) / 1e3 + 0;
+// (the least and the most of a list, by a loop: a big craft's corners are too many to spread into an argument list)
+const minOf = (xs) => { let m = Infinity; for (const x of xs) if (x < m) m = x; return m; };
+const maxOf = (xs) => { let m = -Infinity; for (const x of xs) if (x > m) m = x; return m; };
 
 const memo = new Map();
 /** What a turnaround reads of a parked craft: its nose gear, its doors and holds with their sills and the skin's x at
@@ -56,12 +59,12 @@ export function craftService(archetype) {
   const { items } = craftForm(archetype, { attitude: 'ground', pose: { gear: 0 } });
   // (the parked frame: the footprint's centre in plan, as craftFootprint and the figure stand it)
   const all = items.flatMap((it) => it.faces.flatMap((f) => f.corners));
-  const lo = [0, 1].map((k) => Math.min(...all.map((p) => p[k]))), hi = [0, 1].map((k) => Math.max(...all.map((p) => p[k])));
+  const lo = [0, 1].map((k) => minOf(all.map((p) => p[k]))), hi = [0, 1].map((k) => maxOf(all.map((p) => p[k])));
   const c = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2], at = (p) => [p[0] - c[0], p[1] - c[1], p[2]];
   const facesOf = (re) => items.filter((it) => re.test(it.id)).flatMap((it) => it.faces.map((f) => f.corners.map(at)));
   const pts = (re) => facesOf(re).flat();
   const hullFaces = facesOf(/^hull$/), hull = hullFaces.flat(), nosePts = pts(/^nose$/);
-  const yNose = Math.max(...hull.map((p) => p[1])), L = yNose - Math.min(...hull.map((p) => p[1]));
+  const yNose = maxOf(hull.map((p) => p[1])), L = yNose - minOf(hull.map((p) => p[1]));
   // the skin's ring at a station: its centre, half height; the skin's x at a height, each side
   // (the hull cut by the plane at y: each edge that crosses it, where it does)
   const ring = (y) => {
@@ -73,7 +76,7 @@ export function craftService(archetype) {
       q.push([a[0] + (b[0] - a[0]) * t, y, a[2] + (b[2] - a[2]) * t]);
     }
     const zs = q.map((p) => p[2]);
-    return { q, z0: Math.min(...zs), z1: Math.max(...zs) };
+    return { q, z0: minOf(zs), z1: maxOf(zs) };
   };
   // (the ring's points on one side, by height, read between the two either side of z)
   const skinX = (R, z, s) => {
@@ -94,23 +97,31 @@ export function craftService(archetype) {
   // what stands over a band of x on the right (the wing, its engine and pylon, the tailplane, the main gear): how far
   // forward it reaches
   // (by faces, so a wing lofted root to tip with nothing between still stands over the band: its face's foremost corner)
-  const parts = facesOf(/^(wing|engine|pylon|stab)-r$|^main-r$/);
+  // (each engine, pylon and main leg by its layout's id: a jumbo's inner and outer pairs as much as a twin's one)
+  const parts = facesOf(/^(wing|engine\w*|pylon\w*|stab)-r$|^(main|body)\w*-r$/);
   const clear = (x0, x1) => {
-    const q = parts.filter((F) => Math.max(...F.map((p) => p[0])) >= x0 && Math.min(...F.map((p) => p[0])) <= x1);
-    return q.length ? Math.max(...q.flat().map((p) => p[1])) : -Infinity;
+    const q = parts.filter((F) => maxOf(F.map((p) => p[0])) >= x0 && minOf(F.map((p) => p[0])) <= x1);
+    return q.length ? maxOf(q.flat().map((p) => p[1])) : -Infinity;
   };
   // the holds, low in the belly on the right: ahead of the wing, between it and the nose gear, and behind it
-  const noseGear = nosePts.length ? [r3((Math.min(...nosePts.map((p) => p[0])) + Math.max(...nosePts.map((p) => p[0]))) / 2), r3((Math.min(...nosePts.map((p) => p[1])) + Math.max(...nosePts.map((p) => p[1]))) / 2)] : null;
+  const noseGear = nosePts.length ? [r3((minOf(nosePts.map((p) => p[0])) + maxOf(nosePts.map((p) => p[0]))) / 2), r3((minOf(nosePts.map((p) => p[1])) + maxOf(nosePts.map((p) => p[1]))) / 2)] : null;
   const wingRoot = pts(/^wing-r$/).filter((p) => p[0] < 4);
   const holds = [];
-  if (noseGear && wingRoot.length && row.role === 'liner') {
-    const le = Math.max(...wingRoot.map((p) => p[1])), te = Math.min(...wingRoot.map((p) => p[1]));
+  // (the row's own holds where it names them, their sills where its made finish draws their doors; else ahead of the
+  // wing, between it and the nose gear, and behind it)
+  const own = hullRow(archetype)?.build?.holds;
+  if (own) for (const [sf, zf, , h] of own) {
+    const y = yNose - sf * L, R = ring(y), cz = (R.z0 + R.z1) / 2, hh = (R.z1 - R.z0) / 2, sill = cz + zf * hh - h / 2;
+    holds.push({ y: r3(y), sill: r3(sill), x: r3(skinX(R, sill + 0.15, 1)) });
+  }
+  else if (noseGear && wingRoot.length && row.role === 'liner') {
+    const le = maxOf(wingRoot.map((p) => p[1])), te = minOf(wingRoot.map((p) => p[1]));
     for (const y of [le + (noseGear[1] - le) * 0.45, te - 1.6]) {
       const R = ring(y), sill = R.z0 + 0.35;
       holds.push({ y: r3(y), sill: r3(sill), x: r3(skinX(R, sill + 0.15, 1)) });
     }
   }
-  const wingR = pts(/^wing-r$/), tip = wingR.length ? Math.max(...wingR.map((p) => p[0])) : 3, wingY = wingR.length ? (Math.min(...wingR.map((p) => p[1])) + Math.max(...wingR.map((p) => p[1]))) / 2 : 0;
+  const wingR = pts(/^wing-r$/), tip = wingR.length ? maxOf(wingR.map((p) => p[0])) : 3, wingY = wingR.length ? (minOf(wingR.map((p) => p[1])) + maxOf(wingR.map((p) => p[1]))) / 2 : 0;
   const out = Object.freeze({ nose: noseGear, doors, holds, clear, tip: r3(tip), wingY: r3(wingY), length: r3(L) });
   memo.set(archetype, out);
   return out;

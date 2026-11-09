@@ -20,7 +20,11 @@
  * same on every body to half a percent, so it is the style's own), held to the measure by its test. The fit is stamped
  * with the style it was fitted for (`fit: { style, head, neck }`): the neck's girth follows the fitted head half the
  * way (NECK_BETA), so the join reads as one; a stamp without one (a row minted before) fits nothing, without a `neck`
- * fits the head alone. */
+ * fits the head alone.
+ *
+ * UNDER ANOTHER HEAD (fighter wiring): the same body on the lofted hero under the landmark or the realistic head, its
+ * tune laid under the hero's own and its muscular form the same card, the head sized by its own proportions (the stamp's
+ * fit null). */
 import { resolveTune } from './hero-form.js';
 import { ANIME_STYLES, ANIME_STYLE_DEFAULT } from './anime-styles.js';
 
@@ -90,18 +94,22 @@ export function neckFit(word, pole, style) {
 }
 /** The stamp the door stores beside the word: its pole, its tune resolved (every body word), its card's word, and the
  * head's fit for the style it is worn under (`style`, the default's when absent). A body of either pole takes the
- * hero's (`pole`, male when absent). */
+ * hero's (`pole`, male when absent). Under a head of no anime style (`style` null: the landmark or the realistic head
+ * on the same lofted body, fighter wiring) the fit is null: that head is sized by its own proportions, not a style's. */
 export function resolveAnimeBody(word, pole = null, style = ANIME_STYLE_DEFAULT) {
   const B = ANIME_BODIES[word]; if (!B) throw new Error(validateAnimeBody(word)[0]);
   const { from: _f, head: _h, ...tune } = resolveTune([B.pole ? B.tune : B.tune[pole === 'female' ? 'female' : 'male']]);
   const P = B.pole ?? (pole === 'female' ? 'female' : 'male');
-  return { word, pole: P, tune, card: B.card, fit: { style, head: headFit(word, P, style), neck: neckFit(word, P, style) } };
+  return { word, pole: P, tune, card: B.card, fit: style === null ? null : { style, head: headFit(word, P, style), neck: neckFit(word, P, style) } };
 }
 /** the hero's pole as a body reads it: its cast word, or its build's pole */
 export const animePoleOf = (hero) => { const c = hero?.cast; const p = typeof c === 'string' ? c : c?.pole; return p === 'female' ? 'female' : 'male'; };
 /** does a hero's stamp stand for its word (and, for a body of either pole, its pole)? */
 export const animeBodyStamped = (hero) => hero?.animeBodyResolved?.word === hero?.animeBody && (ANIME_BODIES[hero.animeBody]?.pole || hero.animeBodyResolved.pole === animePoleOf(hero))
-  // (a fitted stamp stands for the style it was fitted under; a stamp without a fit, minted before, stands as it is)
-  && (!hero.animeBodyResolved.fit || hero.animeBodyResolved.fit.style === (hero.animeStyle ?? ANIME_STYLE_DEFAULT));
+  // (a fitted stamp stands for the style it was fitted under; a stamp without a fit, minted before, stands as it is; under
+  // a head of no style, the stamp whose fit is null)
+  && (hero.head !== 'anime' ? hero.animeBodyResolved.fit === null : !hero.animeBodyResolved.fit || hero.animeBodyResolved.fit.style === (hero.animeStyle ?? ANIME_STYLE_DEFAULT));
+/** the anime style a body codename is fitted under: the hero's style (the default's) on the anime head, none on another */
+export const animeBodyStyle = (hero) => (hero?.head === 'anime' ? hero.animeStyle ?? undefined : null);
 /** a hero's resolved body, or null */
 export const animeBodyOf = (hero) => (hero?.animeBody && hero.animeBodyResolved?.word === hero.animeBody ? hero.animeBodyResolved : null);

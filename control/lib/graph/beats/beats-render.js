@@ -46,6 +46,8 @@ export const VOICE_PATCH = 'voice';
 
 // Hard ceiling on rendered audio — an export is a sample, not an album side.
 export const MAX_RENDER_SECONDS = 300;
+// a held voice's default control lane [[t, x], …]: idle, half, full, then let go
+export const SUSTAIN_LANE = Object.freeze([[0, 0], [0.6, 0], [0.62, 0.5], [1.4, 0.5], [1.42, 1], [2.4, 1], [2.42, 0], [3.2, 0]].map((p) => Object.freeze(p)));
 
 const kernel = buildBeatsKernel();
 
@@ -283,6 +285,21 @@ export function renderBeatsPlan(manifest, opts = {}) {
     return { entries, duration: loops * pat.duration, meta: { loops } };
   }
 
+  if (kind === 'beats-sfx' && (opts.sustain || (!manifest.cues && manifest.sustains))) {
+    // a held voice (the sustain feature), driven along a control lane [[t, x], …] (x 0..1): by default idle, half,
+    // full, then off — the run that shows how it answers its control.
+    const ids = Object.keys(manifest.sustains || {});
+    const id = opts.sustain || (ids.length === 1 ? ids[0] : null);
+    if (!id) throw new Error(`beats-render: this sfx artifact has ${ids.length} held voices — pass \`sustain\` (one of: ${ids.join(', ')})`);
+    if (!manifest.sustains || !manifest.sustains[id]) throw new Error(`beats-render: unknown held voice '${id}' (held voices: ${ids.join(', ')})`);
+    const lane = opts.lane === undefined ? SUSTAIN_LANE : opts.lane;
+    if (!Array.isArray(lane) || !lane.length || lane.some((p, i) => !Array.isArray(p) || p.length !== 2 || !(p[0] >= 0) || !(p[1] >= 0 && p[1] <= 1) || (i && p[0] < lane[i - 1][0]))) {
+      throw new Error('beats-render: `lane` must be [[t, x], …]: times in seconds, rising, and each x in [0, 1]');
+    }
+    const end = lane[lane.length - 1][0];
+    return { entries: [{ type: 'sustain', t: 0, spec: manifest.sustains[id], lane, end }], duration: end + (manifest.sustains[id].release ?? 0.2), meta: { sustain: id } };
+  }
+
   if (kind === 'beats-sfx') {
     const ids = Object.keys(manifest.cues || {});
     let cue = opts.cue;
@@ -295,7 +312,10 @@ export function renderBeatsPlan(manifest, opts = {}) {
     }
     const gestures = manifest.cues[cue];
     const variant = opts.variant ? posInt(opts.variant, 'variant', 0) : 0;
-    const entries = [{ type: 'cue', t: 0, channel: null, gestures, vel: 1, ...(variant ? { variant } : {}) }];
+    // far (0..1, the SFX mixer): the cue placed at a distance, duller and roomier. Absent: where it always was.
+    if (opts.far !== undefined && !(Number.isFinite(opts.far) && opts.far >= 0 && opts.far <= 1)) throw new Error('beats-render: `far` must be in [0, 1] (how far away the cue is placed)');
+    const place = opts.far ? { far: opts.far } : null;
+    const entries = [{ type: 'cue', t: 0, channel: null, gestures, vel: 1, ...(variant ? { variant } : {}), ...(place ? { place } : {}) }];
     return { entries, duration: opsEnd(kernel.cuePlan(gestures, variant)), meta: variant ? { cue, variant } : { cue } };
   }
 
@@ -570,6 +590,8 @@ export async function renderWithKernel(K, manifest, opts = {}) {
   const ctx = new OfflineAudioContext(2, Math.max(1, Math.ceil(total * sampleRate)), sampleRate);
   const engine = K.createEngine(ctx);
   if (engine.setMaster) engine.setMaster(manifest.master);
+  // the SFX mixer (a beats-sfx manifest's `mix`): its bus and space, before any row routes.
+  if (engine.setSfx && manifest.kind === 'beats-sfx' && manifest.mix) engine.setSfx(manifest.mix);
 
   // Per-channel chains, exactly as startTransport builds them. Stored B5.2
   // macros are applied statically here: a `tone` value inserts the same
@@ -606,8 +628,15 @@ export async function renderWithKernel(K, manifest, opts = {}) {
     // Feel jitter can push a time-zero event a few ms negative; the browser's
     // AudioContext clamps that to "now", but OfflineAudioContext throws.
     const t = Math.max(0, e.t);
+    if (e.type === 'sustain') {
+      const h = engine.sustain(e.spec);
+      for (const [lt, lx] of e.lane) h.set(lx, lt);
+      h.stop(e.end);
+      continue;
+    }
     if (e.type === 'cue') {
-      engine.playCue(e.gestures, t, e.channel ? chains[e.channel] : undefined, e.vel, e.variant);
+      if (e.place) engine.playCue(e.gestures, t, e.channel ? chains[e.channel] : undefined, e.vel, e.variant, e.place);
+      else engine.playCue(e.gestures, t, e.channel ? chains[e.channel] : undefined, e.vel, e.variant);
     } else if (e.type === 'sing') {
       // Synthesize the sung syllable at the context rate (no resample) and splice
       // it in as a buffer source — the reserved `voice:'buffer'` seam beside the

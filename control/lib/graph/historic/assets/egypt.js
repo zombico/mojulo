@@ -14,6 +14,7 @@ import { battered, slopedFlight } from './kit.js';
 import { scaleHex } from '../../polygonizer/vexar.js';
 import { palm } from '../patterns.js';
 import { SUMER_ART } from './sumer-art.js';
+import { AWNING_CLEAR } from '../../era/headroom.js';
 
 const box = (kind, x, y, w, d, z0, z1, tint, o = {}) => ({ kind, x, y, w, d, z0, z1, tint, ...o });
 const drum = (cx, cy, r, z0, z1, tint, o = {}) => ({ kind: o.kind || 'drum', solid: 'drum', x: cx - r, y: cy - r, w: 2 * r, d: 2 * r, z0, z1, tint, ...o });
@@ -366,8 +367,9 @@ export const house = {
     const t = 0.3, ph = 0.8;
     out.push(box('house-parapet', k, k, W - 2 * k, t, H, H + ph, tint), box('house-parapet', k, D - k - t, W - 2 * k, t, H, H + ph, tint), box('house-parapet', k, k + t, t, D - 2 * k - 2 * t, H, H + ph, tint), box('house-parapet', W - k - t, k + t, t, D - 2 * k - 2 * t, H, H + ph, tint));
     const sx = W * 0.55, sw = W - k - t - sx, sd = Math.min(3.2, D * 0.45);
-    for (const [px, py] of [[sx, D - k - t - sd], [sx + sw - 0.25, D - k - t - sd]]) out.push(box('post', px, py, 0.22, 0.22, H, H + 2.3, P.palmwood));
-    out.push(box('awning', sx - 0.1, D - k - t - sd - 0.2, sw + 0.2, sd + 0.2, H + 2.3, H + 2.5, P.reed));
+    // (the reed shelter over the roof clears the base model by half a body, era/headroom.js)
+    for (const [px, py] of [[sx, D - k - t - sd], [sx + sw - 0.25, D - k - t - sd]]) out.push(box('post', px, py, 0.22, 0.22, H, H + AWNING_CLEAR, P.palmwood));
+    out.push(box('awning', sx - 0.1, D - k - t - sd - 0.2, sw + 0.2, sd + 0.2, H + AWNING_CLEAR, H + AWNING_CLEAR + 0.2, P.reed));
     out.push({ kind: 'wind-catcher', solid: 'wedge', x: W * 0.18, y: D * 0.35, w: 1.4, d: 1.6, z0: H, z1: H + 1.8, rise: 'y-', tint: scaleHex(tint, 0.96) });
     out.push(box('wind-catcher', W * 0.18, D * 0.35 - 0.1, 1.4, 0.1, H, H + 1.4, dark));
     // the door, framed, and small high windows on the street front and a side

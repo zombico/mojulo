@@ -177,6 +177,8 @@ function overlay(recipe, intent, notes) {
     recipe.body = { ...intent.body };
     notes.push(`body: ${intent.character ? `the character ${intent.character}'s, ` : ''}${Object.entries(intent.body).map(([k, v]) => `${k} ${v}`).join(', ')}`);
   }
+  // (the element its limbs carry: drawn, never solved for, versus-fx.js)
+  if (intent.element) recipe.element = intent.element;
   if (intent.weapon) {
     recipe.weapon = intent.weapon;
     const kind = typeof intent.weapon === 'string' ? intent.weapon : intent.weapon.kind ?? 'sword';

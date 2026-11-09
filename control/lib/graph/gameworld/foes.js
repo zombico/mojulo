@@ -34,13 +34,18 @@
  *   dressOf(G, id, entry)               → { grunt, mint } its hero-door order, in the game's tradition, on the entry's seed
  *   isModel(entry)                      → the entry is skinned as a model made elsewhere: it stands on its own ref (the
  *                                         sketch its model is bound onto), made by no step, on the library as a person
- *   foePlacements(G, level, ends)       → [{ id, entry, at, heading, group? }]: who stands where on a stage
- *   hostileCast(G, level, ends, { refs, hero })   → the stage's extra (levels.js stageLevelOrder): the foes' figures and
- *                                         entities, and a hittable pilot; null when nothing stands
+ *   foePlacements(G, level, ends)       → [{ id, entry, at, heading, group? }]: who stands where on a stage (its trail
+ *                                         node, `ends.node`, picks its density: DENSITY_WORDS)
+ *   hostileCast(G, level, ends, { refs, hero, hurt? })   → the stage's extra (levels.js stageLevelOrder): the foes' figures and
+ *                                         entities, and a hittable pilot (`hurt`: what a foe's touch takes off its body's
+ *                                         own hp, onBody's); null when nothing stands
  *   stompOf(G)                          → the hero's stomp where foes stand: { low, high, blow, mercy }
  *   withFoeWin(G, level, ends, mechanics)   → a stage won by clearing it: its exit's reach replaced by every foe on it down
  *   withFoeHits(mechanics)              → a level's mechanics with the hero's hp taking each hit (fail-on-death `hits`):
  *                                         the goal's own when it has one, else one laid before its terminal
+ *   onBody(mechanics, hpBase)           → { mechanics, hurt }: the same level with its hp the hero's body's own (the
+ *                                         stats' hp and its bar): fail-on-death and the hazards `of: 'body'`, each
+ *                                         cost scaled to the same share of the body's hp, and what a touch takes (hurt)
  *
  * Pure and deterministic: no dice (a foe's place is its beat's).
  */
@@ -51,6 +56,7 @@ import { foeFigure, fieldFigure, modelFigure, libraryFigure, facing } from './st
 import { dressOrders } from '../foes/dress.js';
 import { isModelSkin } from '../foes/model.js';
 import { LEVEL_GOAL, PERSON } from './quick.js';
+import { gauntletIds } from './gauntlet.js';
 import { HERO } from '../foes/vocab.js';
 import { FEELS, FPS } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
@@ -106,7 +112,24 @@ function readSummons(v, at, id, F) {
   if (v.bound !== undefined && typeof v.bound !== 'boolean') throw new Error(`${at}.bound is true (they fall with it) or false (they fight on)`);
   return { foe: v.foe, ...(v.count !== undefined ? { count: v.count } : {}), ...(v.bound !== undefined ? { bound: v.bound } : {}) };
 }
-const LEVEL_KEYS = ['from', 'count', 'win'];
+const LEVEL_KEYS = ['from', 'count', 'win', 'density'];
+/** ENEMY DENSITY, a trail's: foes per free beat of a stage (its beats but the trailhead and the exit), as a number 0 … 4
+ * or a word; per trail node as { <node>: density }, a node it does not name standing the even one. Below one the beats
+ * are skipped evenly, above it the extra foes stand round a beat (as `count` laps them). `count` is a total, density a
+ * rate: a level names one. */
+export const DENSITY_WORDS = Object.freeze({ none: 0, sparse: 0.5, even: 1, dense: 2, swarm: 3 });
+export const MAX_DENSITY = 4;
+const readRate = (v, at) => {
+  const d = typeof v === 'string' ? DENSITY_WORDS[v] : v;
+  if (!(Number.isFinite(d) && d >= 0 && d <= MAX_DENSITY)) throw new Error(`gameworld: ${at} is foes per free beat, 0 to ${MAX_DENSITY}, or a word (${Object.entries(DENSITY_WORDS).map(([w, n]) => `${w} ${n}`).join(', ')})`);
+  return v;
+};
+/** A stage's density: its node's, else the level's one rate, else none said (null). */
+export const densityAt = (density, node) => {
+  if (density === undefined) return null;
+  const v = isObj(density) ? density[node] ?? 'even' : density;
+  return typeof v === 'string' ? DENSITY_WORDS[v] : v;
+};
 /** How a stage its foes stand on is won: `exit` (the default: reach its exit, the foes in the way) or `clear` (every foe on it
  * down, a summoner's summons with it). */
 export const FOE_WINS = Object.freeze(['exit', 'clear']);
@@ -169,12 +192,19 @@ export function readLevelFoes(LF, bestiary, at) {
   for (const id of from) if (!B[id]) throw new Error(`gameworld: ${at}.foes.from: '${id}' is not in the bestiary (${ids.join(', ')})`);
   if (LF.count !== undefined && !(Number.isInteger(LF.count) && LF.count >= 1 && LF.count <= MAX_FOES)) throw new Error(`gameworld: ${at}.foes.count is a whole number, 1 to ${MAX_FOES}`);
   if (LF.win !== undefined && !FOE_WINS.includes(LF.win)) throw new Error(`gameworld: ${at}.foes.win is how the stage is won: exit (reach it) or clear (every foe down)`);
-  return { from: [...from], ...(LF.count !== undefined ? { count: LF.count } : {}), ...(LF.win !== undefined ? { win: LF.win } : {}) };
+  if (LF.density !== undefined && LF.count !== undefined) throw new Error(`gameworld: ${at}.foes: count is a total and density a rate; name one`);
+  if (LF.density !== undefined) {
+    if (isObj(LF.density)) { if (!Object.keys(LF.density).length) throw new Error(`gameworld: ${at}.foes.density is a rate or { <trail node>: rate }, at least one node`); for (const [n, v] of Object.entries(LF.density)) readRate(v, `${at}.foes.density.${n}`); }
+    else readRate(LF.density, `${at}.foes.density`);
+  }
+  return { from: [...from], ...(LF.count !== undefined ? { count: LF.count } : {}), ...(LF.win !== undefined ? { win: LF.win } : {}), ...(LF.density !== undefined ? { density: LF.density } : {}) };
 }
 
 export function fieldedIds(G) {
   const used = new Set();
   for (const id of G.ids) { const LF = G.levels[id].foes; if (LF !== undefined) for (const f of readLevelFoes(LF, G.foes, `levels.${id}`).from) used.add(f); }
+  // (and what a level's wave gauntlet wakes: gauntlet.js)
+  for (const f of gauntletIds(G)) used.add(f);
   // (and what a summoner it fields calls, and who a pair stands with)
   for (const id of [...used]) { const E = bestiaryOf(G)[id]; if (E?.summons) used.add(E.summons.foe); if (E?.pair) used.add(E.pair.foe); }
   // (and the modes each of them becomes)
@@ -202,17 +232,28 @@ export function foePlacements(G, level, ends) {
   const free = freeBeats(ends);
   if (!free.length) return [];
   const read = readLevelFoes(LF, G.foes, `levels.${level}`), B = bestiaryOf(G), out = [];
-  // (a building's rooms are many: it stands ROOM_FOES by default, spread through them from the way in to the goal)
-  const indoors = ends.use !== undefined, { from, count = indoors ? Math.min(ROOM_FOES, free.length) : free.length } = read;
-  const along = indoors && count < free.length ? Array.from({ length: count }, (_, k) => free[Math.floor(((k + 0.5) * free.length) / count)]) : free;
-  for (let k = 0; k < count; k++) {
-    const beat = along[k % along.length], lap = Math.floor(k / along.length), eid = from[k % from.length], entry = B[eid];
-    const back = (k % along.length) ? along[(k % along.length) - 1].at : ends.spawn;
-    const at = lap ? round(beat.at, lap, Math.ceil(count / along.length), 2.5) : beat.at;
-    const pack = MOVES[foeClass(entry.class).move].group ? SWARM : 1;
-    for (let j = 0; j < pack; j++) out.push({ id: `foe-${eid}-${out.filter((p) => p.eid === eid).length + 1}`, eid, entry, at: round(at, j, pack, 1.2), heading: facing(at, back), ...(pack > 1 ? { group: `${eid}-${k + 1}` } : {}) });
-  }
+  // (a stage whose beats name their trail node, a side strip's segments: each node's beats at that node's density, in
+  // order along the way; else the stage's node for all of them)
+  const groups = free.some((b) => b.node !== undefined) ? free.reduce((g, b) => { const last = g[g.length - 1]; if (last && last.node === b.node) last.beats.push(b); else g.push({ node: b.node, beats: [b] }); return g; }, []) : [{ node: ends.node, beats: free }];
+  let gk = 0;
+  for (const { node, beats } of groups) placeAlong(beats, node);
   return out;
+  function placeAlong(beats, node) {
+    // (a building's rooms are many: it stands ROOM_FOES by default, spread through them from the way in to the goal)
+    // (a density, the trail's: its node's rate of foes per free beat)
+    const rate = densityAt(read.density, node);
+    const indoors = ends.use !== undefined, { from, count = rate !== null ? Math.min(MAX_FOES, Math.round(rate * beats.length)) : indoors ? Math.min(ROOM_FOES, beats.length) : beats.length } = read;
+    if (!count) return;
+    const along = (indoors || rate !== null) && count < beats.length ? Array.from({ length: count }, (_, k) => beats[Math.floor(((k + 0.5) * beats.length) / count)]) : beats;
+    for (let k = 0; k < count; k++) {
+      const beat = along[k % along.length], lap = Math.floor(k / along.length), eid = from[k % from.length], entry = B[eid];
+      const back = (k % along.length) ? along[(k % along.length) - 1].at : ends.spawn;
+      const at = lap ? round(beat.at, lap, Math.ceil(count / along.length), 2.5) : beat.at;
+      const pack = MOVES[foeClass(entry.class).move].group ? SWARM : 1;
+      for (let j = 0; j < pack; j++) out.push({ id: `foe-${eid}-${out.filter((p) => p.eid === eid).length + 1}`, eid, entry, at: round(at, j, pack, 1.2), heading: facing(at, back), ...(pack > 1 ? { group: `${eid}-${gk + k + 1}` } : {}) });
+    }
+    gk += count;   // (a pack's name counts on along the stage, past the node before)
+  }
 }
 
 // a beast's body in the field, by its grown size (foes/fit.js bodyOf) drawn at its game scale (its class's presence):
@@ -315,7 +356,11 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   return e;
 }
 
-export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
+/** THE RAIL a side strip's foes fight on (worlds/controllable/foe.js RAIL): each waits on the land behind the lane
+ * (`back` m behind it, a little under its floor) and comes in on an arc when the hero is within `wake` m of its place. */
+export const RAIL = Object.freeze({ back: -5.5, drop: 0.85, wake: 9, time: 0.7, arc: 1.4 });
+
+export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, rail = null } = {}) {
   const P = foePlacements(G, level, ends);
   if (!P.length) return null;
   const figures = {}, entities = [], part = { figures, entities };
@@ -340,9 +385,16 @@ export function hostileCast(G, level, ends, { refs, hero = true } = {}) {
     standOne(p, { rule: { summon: { ids, at: Math.min(SUMMON.at, n), every: SUMMON.every, wind: r3(resolveFoe(specOf(p.entry)).attack.timing.startup / 60), radius: SUMMON.radius, ring: SUMMON.ring, with: SUMMON.with } } });
     ids.forEach((id) => standOne({ id, eid: S.foe, entry: B[S.foe], at: p.at, heading: p.heading }, { dormant: true, rule: { summoned: { by: p.id, bound } } }));
   }
+  // on a side strip's rail: each body that stands (a summons sleeps on its summoner) waits behind the lane and comes in
+  if (rail) for (const e of entities) {
+    if (e.dormant) continue;
+    const at = e.transform.pos;
+    e.rule = { ...e.rule, rail: { a: [0, -RAIL.wake], b: [0, r3(rail.length + RAIL.wake)], join: at, heading: e.transform.heading, wait: true, wake: RAIL.wake, time: RAIL.time, arc: RAIL.arc } };
+    e.transform = { ...e.transform, pos: [RAIL.back, at[1], r3(at[2] - RAIL.drop)], heading: 0 };
+  }
   // the hero takes their hits: hittable (a person's egg over its feet, or under the eye a first-person walker walks at);
   // a hero with legs stomps them (worlds/controllable/foe.js)
-  const pilot = { ...(hero ? { rule: { stomp: stompOf(G) } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } };
+  const pilot = { ...(hero ? { rule: { stomp: { ...stompOf(G), ...(hurt > 0 ? { hurt } : {}) } } } : {}), body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } } };
   return { figures, entities, pilot };
 }
 
@@ -380,4 +432,20 @@ export function withFoeHits(mechanics) {
 export function targetRimOf(G) {
   let c = null; try { c = resolveTrailColor('palette', trailContext(G)); } catch { c = null; }
   return Array.isArray(c) && c.length === 3 ? c.map((x) => Math.round(x * 1000) / 1000) : [1, 0.86, 0.6];
+}
+
+/** A level whose hp is the hero's body's own (a world whose systems bind the hp stat to the hero's body, the stats' bar
+ * its readout): fail-on-death and the hazards on the body (`of: 'body'`), each cost the same share of the body's hp
+ * (the stat's base) as of the level's (LEVEL_GOAL.hp), and what a foe's touch takes (`hurt`, hostileCast's), so the bar
+ * the player watches is the one that ends the level. A level with no hp of its own passes as it was. */
+export function onBody(mechanics, hpBase) {
+  const scale = hpBase / LEVEL_GOAL.hp, r2 = (v) => Math.round(v * 100) / 100;
+  const death = mechanics.find((m) => m.kind === 'fail-on-death');
+  if (!death || !(scale > 0)) return { mechanics, hurt: null };
+  const out = mechanics.map((m) => {
+    if (m.kind === 'fail-on-death') return { kind: 'fail-on-death', of: 'body' };
+    if (m.kind === 'hazard-damage') { const { startHp, ...rest } = m; return { ...rest, of: 'body', hazards: m.hazards.map((h) => ({ ...h, damage: r2((h.damage ?? 20) * scale) })) }; }
+    return m;
+  });
+  return { mechanics: out, hurt: death.hits ? r2(death.hits * scale) : null };
 }

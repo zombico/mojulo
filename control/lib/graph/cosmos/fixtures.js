@@ -83,6 +83,20 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'long-rpg',
+    name: 'Long role-playing game',
+    anchor: false,
+    why: 'a hero\'s long main quest told chapter on chapter, the world turned between them, side quests loose on a big map',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'interconnected' },
+      power: { combat: ['melee'], stats: ['xp', 'level'], systems: ['equip'] },
+      soul: { hero: 'hero', party: 'party', equipment: ['sword'] },
+      mind: { motivation: 'hunt', aggressiveness: 'bold', rank: 'boss', social: 'talk' },
+      time: { progression: 'gated', arc: 'chapters', periods: 'same-maps', chapters: 'overlays', advance: 'quests', sides: 'loose', shots: ['banter', 'staged'] },
+    },
+  },
+  {
     id: 'metroidvania',
     name: 'Metroidvania',
     anchor: false,

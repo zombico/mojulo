@@ -9,11 +9,15 @@
  *   assembly   the vehicle designer's assembled ride (the stylised build, minted as its own sketch, as it always was)
  *   loft       the class's realistic loft at its true numbers (car-designer/realistic.js), a figure the world compiles
  *              in place (nothing to mint), driven on its class's own row (roads/vehicles.js)
+ *   cycle      a machine ridden astride, the cycle shelf's (cycle-shelf/): its rider seated on it, a figure the world
+ *              compiles in place, driven on its archetype's class (a motorcycle, a quad, a tuk-tuk, a bicycle)
  *
  * A row with no build at the tier falls to the nearest one (said in `fell`): a pickup has no stylised ride, so a
  * stylised game drives its loft; a sedan has no toy build, so a toy game drives its assembled ride.
  *
- *   rideOf(Q)          → { id, kind: 'assembly', ride } | { id, kind: 'loft', class, tier, fell? }   throws when the
+ *   rideOf(Q)          → { id, kind: 'assembly', ride } | { id, kind: 'loft', class, car?, tier, fell? } (`car`: the car
+ *                        shelf's card the loft is, car-shelf/car-library.js)
+ *                        | { id, kind: 'cycle', archetype, class, tier, fell? }   throws when the
  *                        word names no row or a row nothing can drive
  *   rideableRows()     → the rows a ride can name by id (those with a driven assembly or loft build)
  *   loftCamera(dims)   the follow camera a loft ride is chased by, scaled to its length
@@ -28,11 +32,12 @@
 import { VEHICLES, handlesOf, rowOfHandle, suggestVehicles } from './roster.js';
 import { buildsOf, buildOf } from './builds.js';
 import { RIDES } from '../gameworld/ride.js';
+import { CYCLE_ARCHETYPES } from '../cycle-shelf/cycle-archetypes.js';
 import { MILITARY_CLASSES } from '../car-designer/road-military.js';
 import { readLivery, camoForSetting } from '../car-designer/livery-cut.js';
 import { readWear } from '../car-designer/mil-wear.js';
 
-const DRIVEN = ['ride', 'loft'];
+const DRIVEN = ['ride', 'loft', 'cycle'];
 const drivable = (id) => buildsOf(id).some((b) => DRIVEN.includes(b.via) && b.uses.includes('driven'));
 
 let ROWS = null;
@@ -59,7 +64,9 @@ export function rideOf(Q) {
   const build = DRIVEN.includes(at.build.via) ? at.build : buildsOf(id).find((b) => DRIVEN.includes(b.via));
   const fell = build === at.build ? at.fell : `its ${tier} build is a ${at.build.via}, which a ride is not: drawn as its ${build.via}`;
   if (build.via === 'ride') return { id, kind: 'assembly', ride: build.key, tier: build.tier, ...(fell ? { fell } : {}) };
-  return { id, kind: 'loft', class: build.key, tier: build.tier, ...(fell ? { fell } : {}) };
+  if (build.via === 'cycle') return { id, kind: 'cycle', archetype: build.key, class: CYCLE_ARCHETYPES[build.key].physics, tier: build.tier, ...(fell ? { fell } : {}) };
+  // (a car shelf's card is a loft of its class with the card's own look: car-shelf/)
+  return { id, kind: 'loft', class: build.key, ...(build.car ? { car: build.car } : {}), tier: build.tier, ...(fell ? { fell } : {}) };
 }
 
 /** The class a ride's physics come from when the quick game asks for a tuning or conditions (its row's first). */

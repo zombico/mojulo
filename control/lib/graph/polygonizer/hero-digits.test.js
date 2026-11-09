@@ -9,6 +9,7 @@ import { validateRig, rigNodesAt, digitPose, HAND_POSES } from './station-loft-r
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { handRead } from './hero-servo.js';
 import { handBox, digitGeometry, reachDigit, grasp, inPalm, handShape, poleError, capsuleClear, HAND_SHAPES, DIGITS, FINGERS } from './hero-digits.js';
+import { HAND_SHAPE_ALIASES, HAND_SHAPE_POLES } from './hand-shape-words.js';
 
 const R = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'male', form: 'realistic' }) }).recipe.rig);
 const box = handBox(R, 'R');
@@ -66,6 +67,12 @@ describe('octopus boxer', () => {
     expect(clearOf(word, 'thumb'), 'the word’s thumb pressed into the fingers').toBeLessThan(-0.01);
     expect(clearOf(fist.fingers, 'thumb')).toBeGreaterThan(-0.003);
   }, 240000);
+
+  it('the door’s word list (hand-shape-words.js) is the shapes’ own: every name, every alias, the poles the hand words', () => {
+    expect(Object.fromEntries(Object.entries(HAND_SHAPES).map(([k, s]) => [k, [...s.alias]]))).toEqual(Object.fromEntries(Object.entries(HAND_SHAPE_ALIASES).map(([k, a]) => [k, [...a]])));
+    expect(Object.entries(HAND_SHAPES).filter(([, s]) => s.pole).map(([k]) => k).sort()).toEqual([...HAND_SHAPE_POLES].sort());
+    for (const p of HAND_SHAPE_POLES) expect(Object.keys(HAND_POSES)).toContain(p);
+  });
 
   it('words and aliases resolve, an unknown one throws, and the same solve gives the same hand', () => {
     for (const [name, s] of Object.entries(HAND_SHAPES)) for (const a of s.alias) expect(handShape(R, 'R', a).name, a).toBe(name);

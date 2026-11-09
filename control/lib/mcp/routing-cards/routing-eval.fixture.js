@@ -22,6 +22,9 @@ export const FIXTURE = [
   ['an illustration of an old lighthouse for the cover of my story, moody and atmospheric', 'sketch_what_possible'],
   ['I want a picture of a woman mid-stride', 'mint_solid'],
   ['recreate the camera angle from this photo I am showing you', 'reference_protocol'],
+  // a character from a picture the person gave: the reference door's character target, never a hero from words alone
+  ['here is a drawing of my OC, can you make her into a 3D character I can animate', 'reference_protocol'],
+  ['turn this selfie into a low-poly game character of me', 'reference_protocol'],
   ['our company logo in shiny 3D chrome', 'mint_solid'],
   ['model a wine glass true to size', 'mint_solid'],
   ['write me a bracket with four bolt holes in openscad', 'mint_solid'],
@@ -29,6 +32,7 @@ export const FIXTURE = [
   ['put the wheels and the chassis together into one model', 'mint_solid'],
   // a vehicle by name: the vehicle registry's door
   ['show me a pickup truck I can spin around and look at', 'mint_solid'],
+  ['an excavator with a breaker on, its boom raised', 'mint_solid'],
   // a field vehicle by name, its camo and its mud as words beside it (the registry's realistic military body)
   ['show me a muddy army jeep in desert camo that I can turn around and look at', 'mint_solid'],
   // a tracked body by name, its variations as words beside it
@@ -93,6 +97,9 @@ export const FIXTURE = [
   // level ground: a gameworld level's land shaped on its grid, apart from its look
   ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
   ['the walk in my level is too flat, make the climbs bigger', 'tune_ground'],
+  // variations of a thing already made, in words (internal name mangekyou): the variations door, not a new mint
+  ['I like this axe, now do me four takes on it, grimier and more brutal, so I can choose', 'run_experiment_sweep'],
+  ['riff on the lantern I made, a handful of versions in different colours and finishes', 'run_experiment_sweep'],
   ['my games all look the same, give this one colours of its own', 'pick_palette'],
   ['what colours should a cold, quiet drowned town at dusk be', 'pick_palette'],
   ['make the colours go from day to night as the levels go on', 'pick_palette'],

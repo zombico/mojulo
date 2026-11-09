@@ -93,8 +93,8 @@ export const TOOL_LINES = {
   diff_sketches: L('observe', 'A visual diff of two sketch refs: added, removed, changed and moved parts highlighted, with a similarity verdict.'),
   sketch_what_possible: L('create', 'VISUAL ONLY: resolve a scene illustration\'s knobs over turns, then `create_sketch` with the recipe. Charts go through `get_sketch_vocab`.'),
   create_cover: L('create', 'A publication cover: illustration, title and metadata under one art direction, ready to bind onto a `cook` outcome.'),
-  reference_protocol: L('orient', 'Step 1 of reading a photo YOU can see into dials (scene perspective or pose); returns the protocol and the `capture_reference` call to make.'),
-  capture_reference: L('create', 'Step 2: file what you read from a photo into a stash as a cage sketch; feeds `mint_solid` pose, `forge_motion` or `cook`.'),
+  reference_protocol: L('orient', 'Step 1 of reading a picture YOU can see into dials (a scene, a pose, an object, a landscape or a character); returns the protocol and the `capture_reference` call to make.'),
+  capture_reference: L('create', 'Step 2: file what you read from a picture into a stash (a cage sketch, or for a character the hero itself, drawn back); feeds `mint_solid` pose, `update_character`, `forge_motion` or `cook`.'),
   create_view: L('create', 'An animated 3D study object (physics, math, biology: fission, orbits, DNA, …). Manual: `get_view_vocab`; find a kind with `semantic_search`.'),
   get_view_vocab: L('orient', 'A `create_view` kind or `compose_world` base manual: depiction, routing phrases, parameters. Omit `id` for the index.'),
   measure_view: L('observe', 'The physical time series of a science view in declared real units: the measurement channel the render never shows.'),
@@ -166,7 +166,7 @@ export const TOOL_LINES = {
   verify_asset: L('observe', 'Check a file against its creator receipt: bytes, signature, creator id, ref and dates.'),
 
   // ── workflows: sweeps and the research book ───────────────────────────────
-  run_experiment_sweep: L('compose', 'Variations in one call: any recipe copied per value at a JSON Pointer, one folder of variants; or a mechanics experiment with its plot.'),
+  run_experiment_sweep: L('compose', 'Variations in one call: n visual takes on any design from a concept in words, pass after pass, or one value swept; one folder of variants; or a mechanics experiment.'),
   enter_research_mode: L('orient', 'The light research discipline (the legacy book). Only when the user asks to research.'),
   start_research: L('create', 'A research book; bind items with `bind_research_item`.'),
   bind_research_item: L('maintain', 'Add a link, note, quote, summary or sketch to a research book.'),

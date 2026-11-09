@@ -58,7 +58,30 @@ describe('play.rpg: read and lowered', () => {
     expect(eventsChannelScript(ev)).not.toContain('__stepRpg');
   });
 
-  it('on the bus: walking up starts it once; a win fells the foe on the map; a loss fails the level', () => {
+  it('where a fight is fought: on the map as it stands, or on its own arena before a backdrop of the map', () => {
+    expect(readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'backdrop' } } }).rules.stage).toBe('backdrop');
+    expect(readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'live' } } }).rules.stage).toBe('live');
+    expect(readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'arena' } } }).rules.stage).toBe('arena');
+    expect(() => readRpg({ rpg: { ...PLAY.rpg, rules: { stage: 'ring' } } })).toThrow(/rules\.stage is live or backdrop or arena/);
+  });
+
+  it('on a page that carries flags a won pack stays won: its flag set as it falls; carried in, the pack is gone at once', () => {
+    const kept = rpgCues({ ...PLAY, carry: 'story' });
+    expect(kept.find((c) => c.id === 'rpg-beaten-wolves').then).toContainEqual({ emit: 'flag:won-wolves' });
+    expect(kept.find((c) => c.id === 'rpg-won-before-wolves')).toEqual({ id: 'rpg-won-before-wolves', when: { on: 'flag-carried:won-wolves' }, then: [{ set: 'rpg-done-wolves', to: 1 }, { vanish: 'wolf-1' }] });
+    // (a page that carries nothing: as before)
+    expect(rpgCues(PLAY).some((c) => c.id.startsWith('rpg-won-before-'))).toBe(false);
+    expect(rpgCues(PLAY).find((c) => c.id === 'rpg-beaten-wolves').then.some((t) => t.emit)).toBe(false);
+  });
+
+  it('an encounter met in a room carries the room, for an arena held to it; a room that is not a box is refused', () => {
+    const enc = (room) => ({ ...PLAY.rpg, encounters: [{ ...PLAY.rpg.encounters[0], room }] });
+    expect(readRpg({ rpg: enc([7, 0, 16, 13, 0]) }).met[0].room).toEqual([7, 0, 16, 13, 0]);
+    expect(readRpg({ rpg: PLAY.rpg }).met[0].room).toBeUndefined();
+    expect(() => readRpg({ rpg: enc([16, 0, 7, 13, 0]) })).toThrow(/room is the room it is fought in/);
+  });
+
+  it('on the bus: walking up starts it once; a win sends the foe off the map in smoke; a loss fails the level', () => {
     const cues = rpgCues(PLAY);
     expect(cues.find((c) => c.id === 'rpg-meet-wolves')).toEqual({ id: 'rpg-meet-wolves', when: { enter: { at: [8, 0], r: 2.2 } }, if: [{ var: 'rpg.battle', eq: 0 }, { var: 'rpg-done-wolves', eq: 0 }], then: { emit: 'rpg-battle:wolves' } });
     const L = level(PLAY);
@@ -67,6 +90,8 @@ describe('play.rpg: read and lowered', () => {
     L.fire('rpg-won:wolves');
     expect(L.bus.vars['rpg-done-wolves']).toBe(1);
     expect(L.ev.reactions.some((r) => r.on === 'rpg-won:wolves' || (r.do === 'ctrl' && r.op === 'kill'))).toBe(true);
+    // the beaten pack leaves the map (vanish, in smoke), never left lying where it fell
+    expect(cues.find((c) => c.id === 'rpg-beaten-wolves').then.slice(1)).toEqual([].concat(PLAY.rpg.encounters.find((e) => e.id === 'wolves').who ?? []).map((w) => ({ vanish: { who: w, with: 'smoke' } })));
     L.bus.vars.hp = 50;
     L.fire('rpg-lost:drake');
     expect(L.bus.vars.hp).toBe(50);
@@ -81,9 +106,10 @@ function page(play, vars = {}, game = null, more = {}) {
   const ev = lowerPlay({ entities: ENTITIES, play }, { player: 'hero' });
   const bus = createBusState(ev, []);
   Object.assign(bus.vars, vars);
-  const el = () => ({ className: '', innerHTML: '', textContent: '', style: { setProperty() {} }, offsetWidth: 0, classList: { add() {}, remove() {} }, appendChild() {}, addEventListener() {} });
-  const keys = [];
-  const document = { createElement: el, head: el(), body: el() };
+  // (an element just big enough: its class list edits its className, as the page's own does)
+  const el = () => { const o = { className: '', innerHTML: '', textContent: '', style: { setProperty() {} }, offsetWidth: 0, appendChild() {}, addEventListener() {} }; o.classList = { add: (c) => { if (!o.className.split(' ').includes(c)) o.className = (o.className + ' ' + c).trim(); }, remove: (c) => { o.className = o.className.split(' ').filter((x) => x !== c).join(' '); } }; return o; };
+  const keys = [], appended = [];
+  const document = { createElement: el, head: el(), body: { ...el(), appendChild: (x) => appended.push(x) } };
   const window = { addEventListener: (_, f) => keys.push(f), ...(game ? { __mojGame: game } : {}), ...more };
   const queue = [];
   const ctl = { ...menuControls(), layout: () => 'xbox', select: 8 };
@@ -93,7 +119,7 @@ function page(play, vars = {}, game = null, more = {}) {
   const press = (code) => { for (const f of keys) f({ code, repeat: false, preventDefault() {}, stopImmediatePropagation() {} }); };
   // what the page said on the bus, less the juice's happenings (rpg-on:<key>)
   const said = () => queue.filter((e) => !e.type.startsWith('rpg-on:'));
-  return { api, bus, queue, said, frames, press, window };
+  return { api, bus, queue, said, frames, press, window, appended };
 }
 
 describe('the page: the battle window and the party menu', () => {
@@ -184,6 +210,48 @@ describe('the page: the battle window and the party menu', () => {
       press(8);
       expect(P.api.state().mode).toBeNull();
     } finally { if (was) Object.defineProperty(globalThis, 'navigator', was); else delete globalThis.navigator; }
+  });
+
+  it('a shop: its wares bought with the gold into the bag, the bag sold back at half, a night at the inn; short of gold, nothing', () => {
+    const shops = { merchant: { wares: ['potion', 'bronze-sword'] }, inn: { inn: 10 } };
+    const P = page({ rpg: { ...PLAY.rpg, shops } }, { gold: 20 });
+    processEvents(P.bus, [{ type: 'rpg-shop:merchant' }]);
+    P.frames();
+    expect(P.api.state().shop).toMatchObject({ id: 'merchant', tab: 'Buy', rows: [{ label: 'Potion', right: '8 G', ok: true }, { label: 'Bronze Sword', right: '25 G', ok: false }] });
+    expect(P.window.__mojFreeze).toBe(true);
+    P.press('Enter');
+    expect(P.bus.vars.gold).toBe(12);
+    expect(P.bus.vars['held:bag:potion']).toBe(1);
+    expect(P.said()).toContainEqual({ type: 'rpg-bought:merchant:potion' });
+    // (the sword is dearer than the purse: nothing changes hands)
+    P.press('ArrowDown'); P.press('Enter');
+    expect(P.bus.vars.gold).toBe(12);
+    expect(P.api.state().shop.said).toBe('Not enough gold.');
+    // Sell: the potion back at half
+    P.press('ArrowRight');
+    expect(P.api.state().shop).toMatchObject({ tab: 'Sell', rows: [{ label: 'Potion', right: '4 G' }] });
+    P.press('Enter');
+    expect([P.bus.vars.gold, P.bus.vars['held:bag:potion']]).toEqual([16, 0]);
+    P.press('Escape');
+    expect(P.api.state().mode).toBeNull();
+    // the inn: the party hurt, a night for its price, all well again
+    P.api.R.m.ayla.hp = 1;
+    processEvents(P.bus, [{ type: 'rpg-shop:inn' }]);
+    P.frames();
+    expect(P.api.state().shop).toMatchObject({ tab: 'Stay', rows: [{ right: '10 G', ok: true }] });
+    P.press('Enter');
+    expect(P.bus.vars.gold).toBe(6);
+    expect(P.api.R.m.ayla.hp).toBeGreaterThan(1);
+    expect(P.said()).toContainEqual({ type: 'rpg-stayed:inn' });
+  });
+
+  it('a shop is read: its wares the world\'s and priced, an inn a price; a ware it cannot sell is refused', () => {
+    const cfg = readRpg({ rpg: { party: PARTY, shops: { m: { wares: ['potion'] }, i: { inn: 5 } } } });
+    expect(cfg.shops).toEqual({ m: { name: 'Shop', wares: [{ item: 'potion', kind: 'item', price: 8 }], buys: true, inn: null }, i: { name: 'Inn', wares: [], buys: false, inn: 5 } });
+    expect(readRpg({ rpg: { party: PARTY } }).shops).toBeUndefined();
+    expect(() => readRpg({ rpg: { party: PARTY, shops: { m: { wares: ['nope'] } } } })).toThrow(/none of the world's items or gear/);
+    expect(() => readRpg({ rpg: { party: PARTY, items: { tonic: { heal: 5 } }, shops: { m: { wares: ['tonic'] } } } })).toThrow(/no price/);
+    expect(() => readRpg({ rpg: { party: PARTY, shops: { m: {} } } })).toThrow(/sells nothing/);
   });
 
   it('the page carries the channel only when the events have rpg, and its script parses', () => {
@@ -294,5 +362,109 @@ describe('the party carried between levels (the party mechanic)', () => {
     expect(P2.api.R.m.ayla.cls).toBe('knight');
     expect(P2.bus.vars['rpg.ayla.class']).toBe('knight');
     expect(g2.out).toEqual([]);
+  });
+});
+
+describe('the staging: a fight lines its sides up and frames them, and puts them back', () => {
+  // (a world with its figures where they stand on the field: the hero, a member, the pack's figure, the follow camera)
+  const world = () => {
+    const E = [{ id: 'hero', transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'platform' } }, { id: 'ayla', transform: { pos: [-1, 1, 0], heading: 0 }, rule: { type: 'ai' } }, { id: 'wolf-1', transform: { pos: [8, 0, 0], heading: Math.PI }, rule: { type: 'static' } }];
+    const camera = { transform: { pos: [-5, 0, 2], heading: 0, pitch: 0 }, lookAt: null, rule: { type: 'follow', target: 'hero' } };
+    return { pilotId: 'hero', time: 0, entities: E, byId: Object.fromEntries(E.map((e) => [e.id, e])), camera };
+  };
+  it('the party in a wedge a few metres from the pack, facing it; the camera off to the side, fitted to the fight; all put back at the close', () => {
+    const w = world(), before = JSON.parse(JSON.stringify({ at: w.entities.map((e) => e.transform), cam: w.camera }));
+    const P = page(PLAY, {}, null, { __mojCtrl: { world: w, cast() {}, ground: () => 0 } });
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames();
+    expect(P.api.state().mode).toBe('battle');
+    const [hero, ayla, wolf] = w.entities, d = (e) => Math.hypot(e.transform.pos[0] - 8, e.transform.pos[1]);
+    // (the party's first at the wedge's point nearest the pack, the next a rank back and aside (bram, who has no figure,
+    // stood for by the pilot), each turned to it; the pack turned to them)
+    expect(d(ayla)).toBeLessThan(d(hero));
+    for (const e of [hero, ayla]) { expect(d(e)).toBeGreaterThan(3.5); expect(d(e)).toBeLessThan(7); expect(e.staged).toBe(true); expect(Math.cos(Math.atan2(-e.transform.pos[1], 8 - e.transform.pos[0]) - e.transform.heading)).toBeCloseTo(1, 5); }
+    expect(Math.hypot(hero.transform.pos[0] - ayla.transform.pos[0], hero.transform.pos[1] - ayla.transform.pos[1])).toBeGreaterThan(1);
+    expect(Math.cos(wolf.transform.heading - Math.PI)).toBeGreaterThan(0.9);
+    // (the camera taken off its follow, off to the side of the fight, looking at it)
+    expect(w.camera.rule).toBeNull();
+    expect(Array.isArray(w.camera.lookAt)).toBe(true);
+    const cd = Math.hypot(w.camera.transform.pos[0] - w.camera.lookAt[0], w.camera.transform.pos[1] - w.camera.lookAt[1]);
+    expect(cd).toBeGreaterThanOrEqual(4.5); expect(cd).toBeLessThanOrEqual(12.5);
+    expect(Math.abs(w.camera.transform.pos[1])).toBeGreaterThan(3.5);
+    // the fight played out: everything back where it stood, the camera following again
+    for (let k = 0; k < 400 && P.api.state().mode === 'battle'; k++) { P.api.act('accept'); P.frames(); }
+    expect(P.api.state().mode).toBeNull();
+    expect(w.entities.map((e) => e.transform)).toEqual(before.at);
+    expect(w.camera).toEqual(before.cam);
+    expect(w.entities.some((e) => e.staged || e.act)).toBe(false);
+  });
+});
+
+describe('the battle window is dressed by the world\'s UI guide', () => {
+  it('its register and border on the window\'s panels where the world has a guide; its own defaults where none', () => {
+    const L = level(PLAY), plain = eventsChannelScript(L.ev);
+    const dressed = eventsChannelScript({ ...L.ev, style: { panel: '#203040', accent: '#e0a040', ink: '#f0f0e0' }, register: 0.75 });
+    expect(plain).not.toMatch(/\.moj-rpg \.moj-w\{/);
+    expect(dressed).toMatch(/\.moj-rpg \.moj-w\{/);
+    expect(dressed).toContain('--moj-panel:#203040');
+    expect(() => new Function(dressed)).not.toThrow();
+  });
+});
+
+describe('the bars over the fighters\' heads', () => {
+  const world = () => {
+    const E = [{ id: 'hero', transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'platform' } }, { id: 'ayla', transform: { pos: [-1, 1, 0], heading: 0 }, rule: { type: 'ai' } }, { id: 'wolf-1', transform: { pos: [8, 0, 0], heading: Math.PI }, rule: { type: 'static' } }];
+    return { pilotId: 'hero', time: 0, entities: E, byId: Object.fromEntries(E.map((e) => [e.id, e])), camera: { transform: { pos: [-5, 0, 2], heading: 0, pitch: 0 }, lookAt: null, rule: { type: 'follow' } } };
+  };
+  it('each member a bar over its head, no name; the one picking marked; a status said; the window steps aside as a round plays', () => {
+    const P = page(PLAY, {}, null, { __mojCtrl: { world: world(), cast() {}, ground: () => 0 } });
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames(); P.api.advance(); P.frames();
+    const heads = P.appended.find((x) => x.className.split(' ').includes('moj-rpg-heads')), root = P.appended.find((x) => x.className.split(' ').includes('moj-rpg'));
+    expect(heads.innerHTML).toMatch(/class="moj-rpg-head turn"[^>]*data-aim="ayla"/);
+    expect(heads.innerHTML).not.toMatch(/class="n">Ayla/);
+    // (a member poisoned: its head says so)
+    P.api.R.m.ayla.poison = true; P.api.act('down'); P.frames();
+    expect(heads.innerHTML).toMatch(/class="st">poison/);
+    // (the picks made, the round plays out: the window and the bars step aside)
+    const H = P.api;
+    expect(H.state().mode).toBe('battle');
+    for (let k = 0; k < 400 && H.state().mode === 'battle'; k++) { H.act('accept'); P.frames(); if (/acting/.test(root.className)) break; }
+    expect(String(root.className)).toMatch(/acting/);
+  });
+});
+
+describe('the cinema: a blow played as a short film, skippable, the view given back', () => {
+  const world = () => {
+    const E = [{ id: 'hero', transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'platform' } }, { id: 'ayla', transform: { pos: [-1, 1, 0], heading: 0 }, rule: { type: 'ai' } }, { id: 'wolf-1', transform: { pos: [8, 0, 0], heading: Math.PI }, rule: { type: 'static' } }];
+    return { pilotId: 'hero', time: 0, entities: E, byId: Object.fromEntries(E.map((e) => [e.id, e])), camera: { transform: { pos: [-5, 0, 2], heading: 0, pitch: 0 }, lookAt: null, rule: { type: 'follow' } } };
+  };
+  it('the camera cuts to the blow and back; the screen as the book keeps it; accept cuts a long film short', () => {
+    const play = { rpg: { ...PLAY.rpg, rules: { cinema: { on: 'all', ui: 'none', skip: 0 } } } }, w = world();
+    const P = page(play, {}, null, { __mojCtrl: { world: w, cast() {}, ground: () => 0 } });
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames(); P.api.advance(); P.frames();
+    const viewAt = w.camera.transform.pos.slice(), root = P.appended.find((x) => x.className.split(' ').includes('moj-rpg'));
+    // (the picks made: the round plays, the first blow filmed)
+    let filmed = false, cut = false;
+    for (let k = 0; k < 60 && P.api.state().mode === 'battle'; k++) {
+      if (P.api.state().phase === 'play') {
+        P.frames();
+        if (JSON.stringify(w.camera.transform.pos) !== JSON.stringify(viewAt)) filmed = true;
+        if (filmed && /cine-none/.test(root.className) && /Skip/.test(root.innerHTML)) { cut = true; P.api.act('accept'); P.frames(); break; }
+      } else { P.api.act('accept'); P.frames(); }
+    }
+    expect(filmed).toBe(true);
+    expect(cut).toBe(true);
+    // (cut short: the view given back)
+    expect(w.camera.transform.pos).toEqual(viewAt);
+    for (let k = 0; k < 400 && P.api.state().mode === 'battle'; k++) { P.api.act('accept'); P.frames(); }
+    expect(P.api.state().mode).toBeNull();
+  });
+
+  it('a book writes its cinema in the battles\' rules; a wrong one is refused, saying what it takes', () => {
+    expect(() => lowerPlay({ entities: ENTITIES, play: { rpg: { ...PLAY.rpg, rules: { cinema: { on: 'skills', ui: 'numbers', skip: 3 } } } } }, { player: 'hero' })).not.toThrow();
+    expect(() => lowerPlay({ entities: ENTITIES, play: { rpg: { ...PLAY.rpg, rules: { cinema: { on: 'always' } } } } }, { player: 'hero' })).toThrow(/cinema.on is 'skills'/);
+    expect(() => lowerPlay({ entities: ENTITIES, play: { rpg: { ...PLAY.rpg, rules: { view: 'diagonal' } } } }, { player: 'hero' })).toThrow(/view is side or front or left or right or overhead/);
   });
 });

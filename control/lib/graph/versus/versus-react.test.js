@@ -96,4 +96,11 @@ describe('versus: falling, down and up', () => {
     for (const st of ['stand', 'crouch', 'walkF', 'air', 'move', 'win']) expect(reactionPose(base({ st })), st).toBeNull();
     expect(Object.keys(HIT_PEAKS)).toEqual(['high', 'body', 'low', 'crouch']);
   });
+
+  it('a body out cold lies on its back on the floor, its limbs along it, not propped on a fist', () => {
+    const J = rigJoints(body, reactionPose(base({ st: 'ko', y: 0, ko: 1, rx: { k: 'hit', h: 1, w: 1 } }), {}));
+    const tall = body.thigh + body.shin + body.upper;
+    expect(J.pelvis[1]).toBeLessThan(tall * 0.12);
+    for (const k of ['neck', 'head', 'kneeF', 'kneeB', 'ankleF', 'ankleB', 'fistF', 'fistB']) expect(J[k][1], k).toBeLessThan(tall * 0.25);
+  });
 });

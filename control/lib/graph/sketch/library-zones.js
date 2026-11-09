@@ -178,7 +178,7 @@ export const ROOM_FACETS = {
   scenes: [
     { key: 'walkable', kinds: ['controllable'] },
     { key: 'cities', kinds: ['fractal-city'] },
-    { key: 'hubs', kinds: ['transportation-hub', 'subway-building'] },
+    { key: 'hubs', kinds: ['transportation-hub', 'subway-building', 'airport'] },
     { key: 'interiors', kinds: ['dungeon', 'floorplan', 'interior'] },
   ],
   models: [

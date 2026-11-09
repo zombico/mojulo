@@ -18,6 +18,7 @@
  * lights, and its livery unless one is named. A look never changes a drone's frame, arms, motors or rotors. Pure.
  */
 
+import { LINER_LOOKS, LINER_LOOK_IDS } from './liner-looks.js';
 import { HELI_LOOKS, HELI_LOOK_IDS } from './heli-looks.js';
 import { BOAT_LOOKS, BOAT_LOOK_IDS } from './boat-looks.js';
 
@@ -48,6 +49,12 @@ export const DRONE_LOOK_IDS = Object.freeze(Object.keys(DRONE_LOOKS));
 /** The card a look names in its craft's family, or throws naming that family's looks: a helicopter's ('heli',
  *  heli-looks.js), else a drone's or a boat's (boat-looks.js), as a drone's and a boat's cards never share a word. */
 export function lookCard(look, family = 'drone') {
+  // (an airliner's: its airline scheme, liner-looks.js)
+  if (family === 'liner') {
+    const card = LINER_LOOKS[look];
+    if (!card) throw new Error(`airliner look: '${look}' is no look (a look is one of ${LINER_LOOK_IDS.join(' | ')})`);
+    return card;
+  }
   if (family === 'heli') {
     const card = HELI_LOOKS[look];
     if (!card) throw new Error(`helicopter look: '${look}' is no look (a look is one of ${HELI_LOOK_IDS.join(' | ')})`);

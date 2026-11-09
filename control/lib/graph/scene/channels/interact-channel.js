@@ -17,7 +17,9 @@ import { DEVICES } from '../../controls/devices.js';
  *                           stops the world and the bus's clock (a scene holds input only: its cast walks on). A view
  *                           (shop, chest, inventory) sends menu-act:<menu>:<row> for the row in focus and stays up.
  *   reachScript(uses)       which usable zone the walker stands in (window.__mojReach), the prompt beside the live key,
- *                           and the interact press (__mojCtrl.interacts) turned into use-<place> on the bus
+ *                           and the interact press (__mojCtrl.interacts) turned into use-<place> on the bus; where
+ *                           usable zones overlap (usesOf gives those their centres), the nearest the walker is the one
+ *                           in reach, not the last entered (a town's folk a step apart: the one faced answers)
  */
 
 // A play block's menus over the play: centred, solid, taking the pointer; the guide's register and border dress them
@@ -168,16 +170,31 @@ window.__mojMenus = { open: () => (__menuOpen ? __menuOpen.id : null), act: __me
 /** The pad layout reader the page runs (controls-kernel.js padLayout), for a channel that polls the pad itself. */
 export const padLayoutSource = () => K.padLayout.toString();
 
-export const usesOf = (sources) => Object.fromEntries((sources || []).filter((s) => s && s.type === 'zone' && s.use).map((s) => [s.zone, { id: s.use, prompt: s.prompt || '' }]));
+// (a usable zone that overlaps another carries its centre, so the nearest is the one in reach: a town's folk stand a
+// step apart, each talked to from further than that; a page with none overlapping is as it was)
+const reachOf = (s) => (s.half ? Math.hypot(s.half[0] ?? 0, s.half[1] ?? 0) : s.radius ?? 0);
+export const usesOf = (sources) => {
+  const Z = (sources || []).filter((s) => s && s.type === 'zone' && s.use);
+  const over = (a) => Array.isArray(a.at) && Z.some((b) => b !== a && Array.isArray(b.at) && Math.hypot(a.at[0] - b.at[0], a.at[1] - b.at[1]) < reachOf(a) + reachOf(b));
+  return Object.fromEntries(Z.map((s) => [s.zone, { id: s.use, prompt: s.prompt || '', ...(over(s) ? { at: [s.at[0], s.at[1]] } : {}) }]));
+};
 
 export function reachScript(uses) {
+  // (where usable zones overlap, the one whose centre is nearest the walker is in reach, not the last entered)
+  const near = Object.values(uses).some((u) => u.at);
   return `
 // REACH: the usable places (a cue's use) the walker stands in, the last entered on top; the prompt shows the live
 // interact key (__mojCtrl.label) and the place's word; the interact press sends use-<place> into the bus
 const __USES = ${safeJson(uses)};
 const __reachEl = document.createElement('div'); __reachEl.className = 'moj-reach'; wrap.appendChild(__reachEl);
 const __reachSt = document.createElement('style'); __reachSt.textContent = ${JSON.stringify(REACH_CSS)}; document.head.appendChild(__reachSt);
-let __reach = [], __itPrev = null, __reachShown = '';
+let __reach = [], __itPrev = null, __reachShown = '';${near ? `
+function __nearest() {
+  const W = window.__mojCtrl && window.__mojCtrl.world, e = W && ((W.pilotId && W.byId[W.pilotId]) || W.entities[0]), p = e && e.transform && e.transform.pos;
+  let best = __reach[__reach.length - 1], d0 = Infinity;
+  if (p) for (const z of __reach) { const a = __USES[z].at; if (!a) continue; const d = Math.hypot(a[0] - p[0], a[1] - p[1]); if (d < d0) { d0 = d; best = z; } }
+  return best;
+}` : ''}
 window.__mojUses = true;
 function __stepReach(zoneEvents, incoming) {
   for (const ev of zoneEvents) {
@@ -185,7 +202,7 @@ function __stepReach(zoneEvents, incoming) {
     __reach = __reach.filter((z) => z !== ev.zone);
     if (ev.type === 'enter') __reach.push(ev.zone);
   }
-  const top = __reach.length ? __USES[__reach[__reach.length - 1]] : null;
+  const top = __reach.length ? __USES[${near ? '__nearest()' : '__reach[__reach.length - 1]'}] : null;
   window.__mojReach = top ? top.id : null;
   const n = window.__mojCtrl && window.__mojCtrl.interacts ? window.__mojCtrl.interacts() : 0;
   if (__itPrev !== null && n !== __itPrev && top && !window.__mojMenuOpen) incoming.push({ type: 'use-' + top.id });

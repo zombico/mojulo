@@ -30,6 +30,7 @@
  * Pure: the dice are the caller's.
  */
 import { box } from './fronts.js';
+import { AWNING_CLEAR } from '../era/headroom.js';
 
 export const YARDS = Object.freeze({
   lawn: Object.freeze({ read: 'open lawn (in the yard\'s middle a tree over it)', zone: 'any', need: 0, trees: 1 }),
@@ -105,7 +106,8 @@ export function yardOf(plan, { w, v0, v1, R }) {
       // a table, its chairs, a parasol over it
       out.push(...box(cu - 0.6, cv - 0.4, cu + 0.6, cv + 0.4, 0.7, 0.76, 'timber'), ...box(cu - 0.04, cv - 0.04, cu + 0.04, cv + 0.04, 0.03, 0.7, 'metal'));
       for (const [du, dv] of [[-0.95, 0], [0.95, 0], [0, -0.75], [0, 0.75]]) out.push(...box(cu + du - 0.22, cv + dv - 0.22, cu + du + 0.22, cv + dv + 0.22, 0.03, 0.45, 'timber'));
-      const ph = 2.3, pr = 1.1;
+      // (its rim clears the base model by half a body, era/headroom.js)
+      const ph = AWNING_CLEAR + 0.35, pr = 1.1;
       out.push(...box(cu - 0.025, cv - 0.025, cu + 0.025, cv + 0.025, 0.76, ph, 'metal'));
       for (const [a, b] of [[[-1, -1], [1, -1]], [[1, -1], [1, 1]], [[1, 1], [-1, 1]], [[-1, 1], [-1, -1]]]) out.push({ corners: [P(cu + a[0] * pr, cv + a[1] * pr, ph - 0.35), P(cu + b[0] * pr, cv + b[1] * pr, ph - 0.35), P(cu, cv, ph)], out: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 1], role: 'canvas' });
     } else {

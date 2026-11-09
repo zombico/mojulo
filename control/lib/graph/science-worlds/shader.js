@@ -111,7 +111,7 @@ export function pixelRay({ pos, target, vfov, up = [0, 0, 1] }, px, py, width, h
  * framed on `points` (what the picture must show, in world units), and the science block (readout, honesty panel)
  * carrying the shader's probe for a capture run. `science` is the channel's config (channels/science.js).
  */
-export function shaderPayload({ shader, points, science, viewBox = { width: 1120, height: 780 }, lead = 'angle', title = 'mojulo science world', bg = '#000000' }) {
+export function shaderPayload({ shader, points, science, viewBox = { width: 1120, height: 780 }, lead = 'angle', title = 'A science experiment', bg = '#000000' }) {
   if (!science || !Array.isArray(science.t) || !science.t.length) throw new Error('science-worlds: a shader page carries its science block (the readout and the honesty panel)');
   const { center, radius, cameras } = framing(points, { viewBox, lead });
   return {

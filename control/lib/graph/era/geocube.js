@@ -27,6 +27,12 @@
  *             steel, kanamono as gold, leather as leather, by the armour's family and each metal group's own tone),
  *             or { age?, <group>: <material> } over that (`age`: new, worn, old or ancient: copper alloys tarnish
  *             and turn green, steel dulls and blackens); a hero takes it through its `geocube`. Absent: tones, as always
+ *   matter    (optional) what the cube's things are MADE of, by role (rupa/look-matter.js ROLES: wall, floor, accent,
+ *             trim, roof, ground, wood, metal, glass), each a matter (rupa/matter.js) or { matter, fill?, porosity? }: what
+ *             a physical level painted by it breaks by. Where it names a role none, the role is READ off the cube's own
+ *             look, so the matter agrees with the skin: its surfaces' tiles (a stone-brick wall is stone), its bones' kit
+ *             (a research lab concrete and steel), its settlements' material words (a slate roof stone, a thatch one
+ *             pine). cubeMatter(cube) says each role's matter and why
  *   inside    the bones (a room kit, bare), the specimen room's size, the accent wall; and its INTERIORS: the cube's own
  *             room is one (named by `interior`, 'room' unless named), `interiors` the others, each a few changes to it
  *             ({ reads?, bones?, size?, accentWall? }: a hall, a cellar)
@@ -59,6 +65,9 @@
  *             it: a level asks for one by name, as { from: <name>, …changes }, or composes its own from the cube's
  *             ingredients; style never changes in a domain (a different style is a different cube)
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
+ *   wind      (optional) the air over its land (vegetation/wind.js: true or { speed at 2 m, dir, gust, … }): its outside
+ *             levels' wind when a recipe names none, so their plants, grass and cloth sway in it and a physical level's
+ *             blocks, dust and smoke feel the same air (rupa/one-wind.js)
  *   biocube   (optional) what grows on its land (era/biocube.js: a preset id, a document or { from, …changes }): its
  *             streets' flora (show 'town', a domain's street, a recipe's geocube with a trail) unless a recipe names
  *             its own. Absent, a street's land grows nothing, as its island's
@@ -95,11 +104,13 @@
  *   expandGeocube(cube, ask, hint) domain expansion: the domain picked and lowered → { manifest, pick }
  *   geocubeStructures(manifest)    a stage's or a specimen's domain's structures, painted and placed → { list, light } | null
  *   geocubeTown(cube, domain)      a domain's settlement as a stage's `town` (its street on a trail) | null
+ *   cubeStreetLook(cube)           the look the cube gives a street laid on it from elsewhere: { anchor?, paint, street, dress? }
  *   cubeContrast(cube, side)       the cube's `contrast` resolved against its light and colour, as a payload carries it
  *   geocubeContrastOf(manifest)    the resolved contrast of the cube a world manifest is painted by, or null
  *   geocubeRegisterOf(manifest)    the crease pass's terms (creases, outline) that cube's register asks for, or null
  *   geocubeEraOf(manifest)         the era (era/eras.js) of the cube a world manifest is painted by, or null
  */
+import { validateTerrainWind } from '../vegetation/wind.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { readAvoid, measureAvoid } from './geocube-laws.js';
 import { rampFrom, resample } from './look-facets.js';
@@ -124,6 +135,7 @@ import { readCrystals } from '../local-meru/crystals.js';
 import { rollTiers } from '../local-meru/roll.js';
 import { outTrailOf } from './out-trail-board.js';
 import { materialsErrors } from '../materials/dress-materials.js';
+import { ROLES as LOOK_ROLES, readRoleMatter, matterOfTile, matterOfWord, KIT_MATTER, DEFAULT_ROLE } from '../rupa/look-matter.js';
 import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
@@ -390,7 +402,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, matter: 1, wind: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -497,6 +509,17 @@ export function readGeocube(spec) {
   if (c.contrast === undefined && c.register.contrast !== undefined && c.register.contrast !== false) c.contrast = c.register.contrast;
   if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
   if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
+  // matter (optional): what its things are made of, by role (rupa/look-matter.js); a role it names none is read off its look
+  if (c.matter !== undefined) {
+    if (!c.matter || typeof c.matter !== 'object' || Array.isArray(c.matter)) no(`matter is { <role>: matter }, its roles ${LOOK_ROLES.join(', ')}`);
+    else for (const [k, v] of Object.entries(c.matter)) {
+      if (!LOOK_ROLES.includes(k)) no(`matter.${k} is not a role (${LOOK_ROLES.join(', ')})`);
+      else { try { readRoleMatter(v, `geocube matter.${k}`); } catch (e) { no(e.message); } }
+    }
+  }
+  // wind (optional): the air over its land (vegetation/wind.js: speed at 2 m, dir, gust, …), its outside levels' wind unless
+  // a recipe names its own: their plants, grass and cloth sway in it, and a physical level's blocks, dust and smoke feel it
+  if (c.wind !== undefined) { const e = validateTerrainWind(c.wind); if (e.length) no(e.map((x) => x.replace(/^terrain\.wind/, 'wind')).join('; ')); }
   // biocube (optional): what grows on its land, its streets' flora unless a recipe names its own (era/biocube.js)
   if (c.biocube !== undefined) readBiocube(c.biocube);
   // snow (optional): the snow on its land, its trail's stage under it unless a recipe names its own (era/snow.js)
@@ -721,7 +744,7 @@ function onInterior(cube, name) {
 }
 
 // the keys of a cube that are its style or its ingredients: never a domain's to change
-const STYLE_WORDS = ['light', 'colour', 'palette', 'register', 'contrast', 'grit', 'surfaces', 'era', 'target', 'materials', 'why', 'avoid', 'buildings'];
+const STYLE_WORDS = ['light', 'colour', 'palette', 'register', 'contrast', 'grit', 'surfaces', 'era', 'target', 'materials', 'matter', 'why', 'avoid', 'buildings'];
 /** A domain read against the cube: outside on one of its terrains (at an hour), or inside one of its interiors. */
 function composeDomain(cube, d, at) {
   if (!isObj(d)) no(`${at} is { ${DOMAIN_KEYS.map((k) => `${k}?`).join(', ')} }: outside on a terrain (at an hour), or inside an interior`);
@@ -801,6 +824,14 @@ export function geocubeTown(cube, D, over) {
     ...(t.doors !== undefined ? { doors: t.doors } : {}), ...(t.town !== undefined ? { recipe: t.town } : {}), paint: { ...CUBE_STREET_PAINT },
     // (its street laid through it in its language, era/stage-street.js)
     street: true, ...(dress ? { dress } : {}) };
+}
+/** The look a cube gives a street laid on it from elsewhere (a gameworld level's town, gameworld/world.js): the cube's
+ *  street paint (its roof, timber and trim from its ramps), its builders' dress (their style's material words and
+ *  colours over its grit), the road laid through it, and its builders' language for a street that names none. */
+export function cubeStreetLook(cube) {
+  const { style, anchor } = settlementStyle(cube, undefined);
+  const dress = style ? styleTownDress(style, cube, townDressOf(cube)) : townDressOf(cube);
+  return { ...(anchor !== undefined ? { anchor } : {}), paint: { ...CUBE_STREET_PAINT }, street: true, ...(dress ? { dress } : {}) };
 }
 /**
  * The levels the cube makes, by name: its `domains`, else one per terrain (outside, its own first) and one per interior
@@ -945,8 +976,17 @@ function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow, own
 
 // the cube's own made ramps, under names of their own so the kit's are untouched: what a street of houses in the cube's
 // look is painted from (CUBE_STREET_PAINT)
+// (each of a street's cube swatches and the cube colour it is made from: CUBE_STREET_RAMPS)
+export const CUBE_STREET_RAMPS = Object.freeze({ 'cube-stone': 'stone', 'cube-trim': 'trim', 'cube-roof': 'floor', 'cube-accent': 'accent' });
 const cubeMade = (cube) => { const shadow = shadeHue(cube), r = (hex) => rampFrom(rgbOf(hex), 5, { shadow });
-  return { 'cube-stone': r(cube.colour.stone), 'cube-trim': r(cube.colour.trim), 'cube-roof': r(cube.colour.floor), 'cube-accent': r(cube.colour.accent) }; };
+  return Object.fromEntries(Object.entries(CUBE_STREET_RAMPS).map(([sw, colour]) => [sw, r(cube.colour[colour])])); };
+/** What each of the cube's colours paints on a street of houses in its look (CUBE_STREET_PAINT): { <colour>: [surface
+ *  group, …] } ('tile', 'timber'…); the walls of plaster and stone are its land's soil and rock. */
+export const cubeStreetParts = () => {
+  const out = {};
+  for (const [g, sw] of Object.entries(CUBE_STREET_PAINT)) (out[CUBE_STREET_RAMPS[sw]] ??= []).push(g.replace(/^str:/, ''));
+  return out;
+};
 /** A street of houses painted by the cube (a stage town's `paint`, era/stage-buildings.js): its frames and boards the
  * trim, its roofs the floor (terracotta, slate, flags), its shells the stone, its painted things the accent. The walls
  * of plaster and stone are the land's soil and rock, already the cube's. */
@@ -1046,6 +1086,67 @@ export function geocubeEraOf(manifest) {
   return readGeocube(spec).era;
 }
 
+/**
+ * What a cube's things are made of, by role: { <role>: { matter, fill?, porosity?, why } }. Its own `matter` words win;
+ * a role it names none is read off its look, in order: its surfaces' tiles (wall, floor, accent; a pillar's or a plinth's
+ * the trim's), its bones' kit, its settlements' material words (their walls, roofs and roads), then the defaults (wood
+ * timber, metal steel, glass glass). A role nothing says stays out: the class keeps its own.
+ */
+export function cubeMatter(cube) {
+  const out = {}, set = (role, spec, why) => { if (role && spec && !out[role]) out[role] = { ...spec, why: spec.why ?? why }; };
+  for (const [k, v] of Object.entries(cube.matter || {})) out[k] = { ...readRoleMatter(v, `geocube matter.${k}`), why: 'the cube says so' };
+  const S = cube.surfaces || {};
+  for (const [surface, role] of [['wall', 'wall'], ['floor', 'floor'], ['accent', 'accent'], ['pillar', 'trim'], ['plinth', 'trim']]) set(role, matterOfTile(S[surface]), `its ${surface}`);
+  const kit = KIT_MATTER[cube.inside?.bones];
+  if (kit) for (const [role, spec] of Object.entries(kit)) set(role, spec);
+  // its settlements' material words, each in the style it is built in (a named style resolved: era/arch-style.js)
+  for (const st of Object.values(cube.settlements || {})) {
+    const T = settlementMatter(cube, st);
+    for (const role of ['wall', 'roof', 'wood', 'ground']) set(role, T[role]);
+  }
+  for (const [role, spec] of Object.entries(DEFAULT_ROLE)) set(role, spec);
+  return out;
+}
+/**
+ * What a settlement's houses are made of: the words of the style it is built in (its own, else the cube's builders'),
+ * its walls by their facade (`punched`, the wall its windows are cut in), else plaster, stone or banding; its roof, its
+ * timber, its road. Each with its reason; a word the style lacks gives nothing.
+ */
+export function settlementMatter(cube, t) {
+  let style = null;
+  try { style = settlementStyle(cube, t ?? {}).style; } catch { style = null; }
+  // (a style that does not resolve, a recipe's few words of its own: those words)
+  const W = style?.materials || (t && isObj(t.style) ? t.style.materials || {} : {}), first = (w) => (Array.isArray(w) ? w[0] : w);
+  const pick = (...ks) => { for (const k of ks) { const w = first(W[k]), m = matterOfWord(w); if (m) return { ...m, why: `its ${k} is ${w}: ${m.why}` }; } return null; };
+  return { wall: pick('punched', 'plaster', 'stone', 'banded'), roof: pick('roof'), wood: pick('timber'), ground: pick('road', 'walk') };
+}
+/** The settlement a minted world's town was built from (its readout's), as its houses' matter; null when it has none. */
+export function geocubeTownMatterOf(manifest, payload) {
+  const spec = cubeSpecOf(manifest ?? {});
+  if (spec === undefined || spec === null) return null;
+  const name = payload?.geocube?.town?.settlement ?? payload?.painted?.settlement;
+  if (name === undefined) return null;
+  const cube = readGeocube(spec), t = cube.settlements?.[name] ?? (name === 'micro' ? MICRO_TOWN : null);
+  return t ? settlementMatter(cube, t) : null;
+}
+/** The wind a world's cube gives it (its `wind`, when the recipe names none of its own), or null. */
+export function geocubeWindOf(manifest) {
+  const m = manifest ?? {};
+  if (m.wind !== undefined || m.kind === 'layered') return null;
+  const spec = cubeSpecOf(m);
+  if (spec === undefined || spec === null) return null;
+  const w = readGeocube(spec).wind;
+  return w === undefined || w === false ? null : w;
+}
+/** The cube a world manifest is painted by, as its matter by role (cubeMatter); null when no cube paints it. */
+export function geocubeMatterOf(manifest) {
+  const m = manifest ?? {};
+  if (m.kind === 'layered') return null;
+  const spec = cubeSpecOf(m);
+  if (spec === undefined || spec === null) return null;
+  return cubeMatter(readGeocube(spec));
+}
+
 /** The shows a new geocube scene is minted in the form render for (gen-7: its land, its trail and its plants as form,
  *  lit by the cube's light): the cube's own path (the scene door's) and the island's trail. */
 export const FORM_SCENE_SHOWS = Object.freeze(['path', 'trail']);
@@ -1116,11 +1217,18 @@ export function withGeocube(manifest) {
     if (C !== undefined && tr.ground?.cliff === undefined && !(C === false && keep)) m.trail = { ...tr, ground: { ...(tr.ground ?? {}), cliff: C } };
     if (Wt !== tr.ground?.water) m.trail = { ...(isObj(m.trail) ? m.trail : {}), ground: { ...(isObj(m.trail) ? m.trail.ground ?? {} : {}), water: Wt } };
     // (and its dunes the cube's under the trail's own, out-dunes.js)
-    const Dn = cubeDunes(O, tr.ground ?? {});
+    const Dn0 = cubeDunes(O, tr.ground ?? {});
+    // (one wind: the cube's wind lays its dunes across itself when they name no way of their own; dunes that name one give
+    // the cube's wind its way when it names none, out-dunes.js and vegetation/wind.js read the same degrees)
+    const CW = m.wind === undefined && cube.wind !== undefined && cube.wind !== false ? (isObj(cube.wind) ? cube.wind : {}) : null;
+    const Dn = CW && CW.dir !== undefined && Dn0 !== undefined && Dn0 !== false && !(isObj(Dn0) && Dn0.wind !== undefined) ? { ...(isObj(Dn0) ? Dn0 : {}), wind: CW.dir } : Dn0;
+    if (CW && CW.dir === undefined && isObj(Dn0) && Dn0.wind !== undefined) m.wind = { ...CW, dir: Dn0.wind };
     if (Dn !== undefined && Dn !== tr.ground?.dunes) m.trail = { ...(isObj(m.trail) ? m.trail : {}), ground: { ...(isObj(m.trail) ? m.trail.ground ?? {} : {}), dunes: Dn } };
     return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}),
       // (and its snow, era/snow.js: the cube's when the recipe names none)
-      ...(own && m.snow === undefined && cube.snow !== undefined ? { snow: cube.snow } : {}) };
+      ...(own && m.snow === undefined && cube.snow !== undefined ? { snow: cube.snow } : {}),
+      // (and its wind, vegetation/wind.js: the cube's when the recipe names none)
+      ...(m.wind === undefined && cube.wind !== undefined ? { wind: cube.wind } : {}) };
   }
   if (m.meru !== undefined) {
     const low = lowerGeocube(cube, 'outside', T?.name, H, Wr);
@@ -1129,7 +1237,7 @@ export function withGeocube(manifest) {
     // follows a trail stands on it, not on the cube's island
     const own = m.meru === true ? {} : m.meru, { tiers: cubeTiers, island: cubeIsland, ...rest } = low.meru;
     const lowMeru = { ...(own.after ? {} : { island: cubeIsland }), ...rest };
-    return { ...low, ...m, kit: low.kit, meru: { ...lowMeru, ...(T && (own.preset !== undefined || own.tiers !== undefined) ? {} : { tiers: cubeTiers }), ...own } };
+    return { ...low, ...m, kit: low.kit, meru: { ...lowMeru, ...(T && (own.preset !== undefined || own.tiers !== undefined) ? {} : { tiers: cubeTiers }), ...own }, ...(m.wind === undefined && cube.wind !== undefined ? { wind: cube.wind } : {}) };
   }
   if (T) no('terrain is the outside\'s: a stage on a geocube takes it with trail or meru');
   if (H !== undefined) no('hour is the outside\'s: a stage on a geocube takes it with trail or meru');
@@ -1319,14 +1427,18 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // (and its water, out-water.js, the cube's under the trail's own: one rule for every trail the cube paints)
   const OT = onTerrain(cube, D?.terrain).outside, T0 = manifest.trail ?? {}, CW = cubeWater(OT, isObj(T0.ground) ? T0.ground : {});
   // (and its dunes, out-dunes.js: the cube's under the trail's own)
-  const DN = cubeDunes(OT, isObj(T0.ground) ? T0.ground : {});
+  const DN0 = cubeDunes(OT, isObj(T0.ground) ? T0.ground : {});
+  // (one wind, as withGeocube has it: the cube's wind and its dunes share their way)
+  const AW0 = cube.wind !== undefined && cube.wind !== false ? (isObj(cube.wind) ? cube.wind : {}) : null;
+  const DN = AW0 && AW0.dir !== undefined && DN0 !== undefined && DN0 !== false && !(isObj(DN0) && DN0.wind !== undefined) ? { ...(isObj(DN0) ? DN0 : {}), wind: AW0.dir } : DN0;
+  const AW = AW0 && AW0.dir === undefined && isObj(DN0) && DN0.wind !== undefined ? { ...AW0, dir: DN0.wind } : AW0 ? (cube.wind === true ? true : AW0) : null;
   const cliff = OT.cliff === false && CW.keep ? undefined : OT.cliff, dress = { ...(manifest.path ?? {}), ...(cliff !== undefined || CW.water || DN ? { ground: { ...(cliff !== undefined ? { cliff } : {}), ...(CW.water ? { water: CW.water } : {}), ...(DN ? { dunes: DN } : {}) } } : {}) };
   // (the path's own trail recipe, a level's trail's: its dials, its ground and rocks; the cube's cliff where it names none)
   if (manifest.trail !== undefined && show !== 'path') no('trail is the path\'s own trail recipe (its dials, ground, rocks): show \'path\'');
   if (manifest.trail !== undefined && !isObj(manifest.trail)) no('trail is a trail recipe: { run?, heartbeat?, bumpiness?, ground?, rocks?, … }');
   const ground = { ...(cliff !== undefined ? { cliff } : {}), ...(T0.ground ?? {}), ...(CW.water !== undefined ? { water: CW.water } : {}), ...(DN !== undefined ? { dunes: DN } : {}) };
   const pathTrail = { ...T0, ...(manifest.path ?? {}), ...(Object.keys(ground).length ? { ground } : {}) };
-  const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(bio !== undefined ? { biocube: bio } : {}) };
+  const land = { ...(low0.meru?.shading ? { shading: low0.meru.shading } : {}), ...(bio !== undefined ? { biocube: bio } : {}), ...(AW ? { wind: AW } : {}) };
   // the PATH: the way through the cube's land, no town and nobody on it (a place to walk, not a game), under its snow
   // the HALL: the cube's interior walked as rooms strung on a walk (era/in-hall.js), its kit dressed (the set piece in its
   // landmark's room), laid from the seed

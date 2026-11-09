@@ -51,6 +51,9 @@ import { dressTownFace } from './town-dress.js';
 import { stepsLift } from './out-openings.js';
 import { townLanguage } from './out-town.js';
 import { streetSpan, layStreet } from './stage-street.js';
+import { streetWalls } from './stage-walls.js';
+import { registerPalette, registerConstruction, CONSTRUCTIONS } from './style/bay-axes.js';
+import { fortOfLanguage } from './out-fortress.js';
 import { outTrailOf } from './out-trail-board.js';
 import { slabOf } from './solid.js';
 import { exteriorOf, stairConcrete } from './style/bay-exterior.js';
@@ -199,29 +202,76 @@ const RING_ORDER = { near: 0, mid: 1, far: 2 };
  * first `houses` of them: `{ seed, houses, enter, town, lots: [{ l, k }] }`, `town` the designed town (its seed, its
  * heartbeat) and `k` a lot's place in it. Its houses are `town-<use>-<n>` in this order (the folk stand by them). */
 export function streetLots(town, kitId, seed0, solid = false) {
-  const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, enter = Math.min(town.enter ?? 1, houses);
+  const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, named = Array.isArray(town.enter);
+  const enter = named ? Math.min(town.enter.length, houses) : Math.min(town.enter ?? 1, houses);
   const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) }, { solid });
-  const lots = T.lots.map((l, k) => ({ l, k })).sort((a, b) => (b.l.focus ? 1 : 0) - (a.l.focus ? 1 : 0) || (RING_ORDER[a.l.ring] ?? 3) - (RING_ORDER[b.l.ring] ?? 3)
-    || USE_ORDER.indexOf(a.l.use) - USE_ORDER.indexOf(b.l.use) || a.k - b.k).slice(0, houses);
-  return { seed, houses, enter, town: T, lots };
+  const all = T.lots.map((l, k) => ({ l, k })).sort((a, b) => (b.l.focus ? 1 : 0) - (a.l.focus ? 1 : 0) || (RING_ORDER[a.l.ring] ?? 3) - (RING_ORDER[b.l.ring] ?? 3)
+    || USE_ORDER.indexOf(a.l.use) - USE_ORDER.indexOf(b.l.use) || a.k - b.k);
+  // (the uses walked into named, `enter: ['shop', 'dwelling']`: the first lot of each from the whole town, in the street's
+  // order, entered first, and the street's own order after them; a house from the next ring stands on the street)
+  if (!named) return { seed, houses, enter, town: T, lots: all.slice(0, houses) };
+  const picked = [];
+  for (const use of town.enter.slice(0, enter)) { const hit = all.find((x) => x.l.use === use && !picked.includes(x)); if (!hit) throw new Error(`stage: town.enter names '${use}', and the town has no ${use} left to walk into (its uses: ${[...new Set(T.lots.map((l) => l.use))].join(', ')})`); picked.push(hit); }
+  return { seed, houses, enter, town: T, lots: [...picked, ...all.filter((x) => !picked.includes(x))].slice(0, houses) };
 }
 function townStreet(town, kitId, seed0, solid = false) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe?, paint?, street? }');
-  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe, paint, dress, street)`);
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'walk', 'walls', 'inside', 'recipe', 'paint', 'dress', 'street'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, walk, walls, inside, recipe, paint, dress, street)`);
+  if (town.inside !== undefined && !(town.inside === true || (town.inside && typeof town.inside === 'object' && !Array.isArray(town.inside)))) throw new Error('stage: town.inside is true (its walked-in buildings laid as a town\'s, the vernacular register: rendered walls under beams, furnished by each room\'s role) or { palette }');
+  if (town.walls !== undefined && !(town.walls === true || typeof town.walls === 'string' || (town.walls && typeof town.walls === 'object'))) throw new Error('stage: town.walls is true (the town\'s own, from its building language), a fortification\'s id (crenellated, battered), { seed }, or its elements: a gatehouse at each end of the street, its curtain behind the houses');
+  if (town.walls !== undefined && !town.street) throw new Error('stage: town.walls closes the street: give the town its street (town.street: true)');
+  if (town.walk !== undefined && !(Array.isArray(town.walk) && town.walk.every((u) => typeof u === 'string'))) throw new Error('stage: town.walk is the uses walked into as part of the world (a shop: [\'shop\']), the rest of those entered changing the scene at their door');
   if (town.street !== undefined && typeof town.street !== 'boolean') throw new Error('stage: town.street is true (the trail through the town laid as its language\'s street) or false');
   if (town.paint !== undefined && (typeof town.paint !== 'object' || town.paint === null || Array.isArray(town.paint) || !Object.values(town.paint).every((n) => typeof n === 'string'))) throw new Error('stage: town.paint is { <surface group>: <one of the kit\'s ramps> }: the street\'s houses re-pointed');
   const { seed, enter, lots } = streetLots(town, kitId, seed0, solid);
   // (a language written as its elements is spoken by the houses too; a seeded one, { seed }, only by the street)
   const anchor = typeof town.anchor === 'string' || town.anchor?.elements || town.anchor?.pieces ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
   // how each is entered: a household or a counter changes the scene at its door; a hall, a tower, a barn, a work floor
-  // is walked into as terrain (the recipe's `doors: false` walks into all of them)
+  // is walked into as terrain (the recipe's `doors: false` walks into all of them; `walk` names the uses that are, a
+  // single room's shop part of the world while a house keeps its door)
   return lots.map(({ l }, n) => (n < enter
-    ? (town.doors !== false && DOOR_USES.has(l.use)
+    ? (town.doors !== false && DOOR_USES.has(l.use) && !(town.walk ?? []).includes(l.use)
       ? { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l, enter: 'door', seed: seed + n, civilization: anchor }
-      : { id: `town-${l.use}-${n + 1}`, use: l.use, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}) })
+      : { id: `town-${l.use}-${n + 1}`, use: l.use, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}), ...insideLook(town, kitId, seed) })
     : { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l }));
 }
 
+// (a town's walked-in buildings laid as a town's, `town.inside`: the vernacular register composed, its palette the
+// town's where it names one; absent, the room kit as before)
+const insideLook = (town, kitId, seed) => (town.inside ? { kit: 'bay-vernacular', look: { construction: insideConstruction(kitId, town, seed), palette: (town.inside === true ? null : town.inside.palette) ?? insidePalette(kitId, town) } } : {});
+// the town's interiors built as its houses are: the vernacular construction with its walls in the language's own
+// materials (a timbered town's boards, a stone town's ashlar, a plastered one's lime render) and its windows the
+// language's lights (their width, their sill and their height), leaded small, registered under its print
+function insideConstruction(kitId, town, seed) {
+  const L = townLanguage(structureStyle(kitId, seed), town.anchor), V = CONSTRUCTIONS.vernacular;
+  const D = (cut, metres, o) => ({ dressed: { cut, ...o }, metres });
+  const ofGroup = (g, bond) => (g === 'str:timber' ? D('boards', 2.4, { cols: 8, grit: 0.35 }) : g === 'str:stone' ? D('ashlar', 3, bond === 'rubble' ? { rows: 6, cols: 5, grit: 0.5 } : { rows: 5, cols: 4, grit: 0.4 })
+    : g === 'str:plaster' ? D('render', 3, { rows: 4, cols: 3, grit: 0.3, loss: 0.04 }) : D('stucco', 3, { cols: 2, rows: 2, grit: 0.3 }));
+  const storeys = L.values?.storeys ?? [], walls = [...new Map(storeys.map((st) => [st.group, ofGroup(st.group, st.bond ?? L.bonds?.[0])])).values()];
+  if (walls.length < 2) walls.push(D('stucco', 3, { cols: 2, rows: 2, grit: 0.3 }));
+  const Lt = L.elements?.lights ?? {}, cl = (v, a, b, d0) => Math.max(a, Math.min(b, Number.isFinite(v) ? v : d0)), sill = cl(Lt.sill, 0.6, 1.2, 0.9);
+  const spec = { ...V, surfaces: { ...V.surfaces, wall: walls }, shell: { ...V.shell, glass: { ...V.shell.glass, punched: { w: cl(Lt.w, 0.6, 1.4, 0.9), sill, head: Math.round((sill + cl(Lt.h, 1.0, 1.8, 1.2)) * 100) / 100 } } } };
+  let h = 2166136261; const t = JSON.stringify(spec); for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  return registerConstruction(`vernacular-${(h >>> 0).toString(36)}`, spec);
+}
+// the town's interiors in the town's own colours: its houses' plaster, stone, timber and tile as its exterior is painted
+// (paintFor: the kit's, or the cube's where it paints the stage), made into the vernacular register's palette and
+// registered under its print (style/bay-axes.js registerPalette)
+function insidePalette(kitId, town) {
+  const P = paintRaw(kitId, town.paint), rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const k = (c, f) => c.map((v) => Math.max(0, Math.min(255, Math.round(v * f)))), mix = (a, b, t) => a.map((v, i) => Math.round(v * (1 - t) + b[i] * t));
+  const plaster = rgb(P('str:plaster', 0.88)), stone = rgb(P('str:stone', 0.6)), timber = rgb(P('str:timber', 0.42)), board = rgb(P('str:timber', 0.62)), tile = rgb(P('str:tile', 0.55));
+  const sw = (c, f = 0.7) => ({ stone: c, mortar: k(c, f) });
+  const spec = {
+    ambient: '#4a4036',
+    floor: [sw(mix(stone, [140, 134, 124], 0.3), 0.62), sw(board, 0.66)], band: [sw(k(stone, 0.92), 0.66)], hazard: [sw(timber)],
+    base: [sw(k(stone, 0.85), 0.72)], wall: [sw(plaster, 0.9), sw(mix(plaster, tile, 0.12), 0.9), sw(stone, 0.72)],
+    crown: [sw(timber)], column: [sw(timber)], paint: [sw(mix(tile, plaster, 0.35))], services: [sw(timber)], cabinet: [sw(board)], trim: [sw(k(timber, 0.92))],
+    ceiling: [sw(board, 0.68), sw(plaster, 0.9)], soffit: [sw(board, 0.68)], concrete: [sw(stone, 0.7)], beam: [sw(k(timber, 0.9))], grate: [sw(board, 0.62)], infill: [sw(board, 0.62)],
+  };
+  let h = 2166136261; const t = JSON.stringify(spec); for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  return registerPalette(`town-${(h >>> 0).toString(36)}`, spec);
+}
 const quad = (corners, group, fill) => ({ corners: corners.map(P3), group, fill, cornerFills: [fill, fill, fill, fill].slice(0, corners.length) });
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -449,6 +499,9 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const offStreet = (x, y) => ST && Math.abs(x - ST.site.trailX(y)) < ST.span.half + 0.2;
   // the street's stretch: from before its first house to past its last, along the trail
   const streetRange = (ys) => [Math.max(0, Math.min(...ys) - 6), Math.min(ST.site.D, Math.max(...ys) + 6)], planned = [];
+  // the walls a fortified street closes it with (town.walls): true, the town's own, from its building language
+  // (out-fortress.js fortOfLanguage); else the fortification named
+  const wallsOf = (y0, y1) => streetWalls(ST.site, ST.span, { y0, y1, taken, ground: (x, y) => ground(x, y), fort: manifest.town.walls === true ? fortOfLanguage(ST.L, manifest.town.seed ?? manifest.seed ?? 1) : manifest.town.walls, seed: manifest.town.seed ?? manifest.seed ?? 1 });
   list.forEach((b, i) => {
     if (!b || typeof b.use !== 'string') throw new Error(`stage: buildings[${i}] needs a use`);
     const id = b.id ?? `${b.use}-${i + 1}`, anchor = anchorOf(b, kitId), t = 0.25;
@@ -667,7 +720,10 @@ export function withBuildings(payload, manifest, ctx = {}) {
     // each room's highest face inside: the roof stands over the vault, not through it
     const tops = Object.fromEntries(inner.rooms.map((r) => [r.id, Math.max(0, ...P.faces.filter((f) => { const n = f.corners.length, cx = f.corners.reduce((a, c) => a + c[0], 0) / n, cy = f.corners.reduce((a, c) => a + c[1], 0) / n; return cx > r.x && cx < r.x + r.w && cy > r.y && cy < r.y + r.d; }).flatMap((f) => f.corners.map((c) => c[2])))]));
     // (a composed bay building wears its construction outside, painted in its palette: style/bay-exterior.js)
-    const X = bay ? exteriorOf(P0.compose?.axes) : null;
+    // (a town's building, its interior the vernacular made from its language (`town.inside`), wears its town's outside
+    // as the street's houses do: the language's wall and roof, painted and dressed as theirs, its windows cut through)
+    const vern = bay && /^vernacular/.test(P0.compose?.axes?.construction ?? '');
+    const X = bay && !vern ? exteriorOf(P0.compose?.axes) : null;
     const shell = X ? shellOf(inner, ways, 0.5, X.cap, X.pitch, below, tops, !!ctx.solid, { holes, parapet: X.parapet }).map((s) => {
       // (lit by the land's sun where its sky has one, else by its day alone: a dusk under its moon, a night; the fill is
       // the light the page multiplies the tile by, so a sunlit wall carries white and shows its material as painted)
@@ -675,7 +731,7 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const T = s.group === 'roof' ? X.roof : X.wall, flat = Math.abs(nn[2]) > 0.5, day = Math.max(0, Math.min(1, payload.sky?.day ?? 1)), g = Math.round(255 * Math.min(1, (0.68 + 0.32 * lam) * (0.35 + 0.65 * day))), fill = `#${g.toString(16).padStart(2, '0').repeat(3)}`;
       const uv = c.map((p) => (flat ? [p[0], p[1]] : [p[0] * -nn[1] + p[1] * nn[0], p[2]]).map((v) => r5(v / T.scale)));
       return { ...quad(c, `building:${s.group}`, fill), texture: T.key, textureLit: true, uv, normal: P3(nn), outNormal: P3(nn) };
-    }) : shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops, !!ctx.solid).map((s) => {
+    }) : shellOf(inner, ways, 0.5, L.vocab.cap, L.proportions.pitch, below, tops, !!ctx.solid, vern ? { holes } : null).map((s) => {
       const c = s.corners.map(W), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
       const roof = s.group === 'roof', v = (roof ? roofV : wallV) * (0.55 + 0.45 * lam);
       const F0 = { ...quad(c, `building:${s.group}`, paint(roof ? roofGroup : wallGroup, Math.min(1, v))), normal: P3(nn), outNormal: P3(nn) };
@@ -708,7 +764,19 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const pathF = legs.flatMap(([p, q2]) => slabPath(p, q2, (x, y) => ground(x, y) ?? floor)).map((f) => { const nn = unit(cross(sub3(f.corners[1], f.corners[0]), sub3(f.corners[3], f.corners[0]))); return { ...quad(nn[2] < 0 ? f.corners.slice().reverse() : f.corners, 'building:path', paint('str:stone', 0.62)), normal: P3(nn[2] < 0 ? nn.map((v) => -v) : nn), outNormal: P3(nn[2] < 0 ? nn.map((v) => -v) : nn) }; });
     if (pathF.length) pathFaces.push(...pathF);
     if (SF) colliders.push(...SF.colliders.map((c) => { const a = W(c.min), z = W(c.max); return { min: P3([Math.min(a[0], z[0]), Math.min(a[1], z[1]), a[2]]), max: P3([Math.max(a[0], z[0]), Math.max(a[1], z[1]), z[2]]), of: `${id}:stair` }; }));
-    faces = [...faces, ...moved, ...shell, ...stoop, ...stairF, ...pathF];
+    // (a town's building's windows framed as its houses' are: a lintel over each and a sill under it, in its language's
+    // ornament, painted and lit as its shell)
+    const trims = vern ? (holes ?? []).flatMap((h) => {
+      const orn = L.values?.ornaments ?? {}, lin = orn.lintel ?? orn.lintels ?? orn.cornice ?? { group: 'str:stone', value: 0.6 }, sl = orn.sill ?? orn.sills ?? lin;
+      const along = h.n[0] === 0, o = (u, v, z) => (along ? [u, h.plane + h.n[1] * v, z] : [h.plane + h.n[0] * v, u, z]);
+      const piece = (u0, u1, z0, z1, d, P0) => {
+        const c = (u, v, z) => W(o(u, v, z)), fs = [[[u0, d, z0], [u1, d, z0], [u1, d, z1], [u0, d, z1]], [[u0, 0, z1], [u1, 0, z1], [u1, d, z1], [u0, d, z1]], [[u0, 0, z0], [u0, d, z0], [u0, d, z1], [u0, 0, z1]], [[u1, d, z0], [u1, 0, z0], [u1, 0, z1], [u1, d, z1]], [[u0, 0, z0], [u1, 0, z0], [u1, d, z0], [u0, d, z0]]];
+        return fs.map((q) => { const cs = q.map((p) => c(...p)), nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))), lam = Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
+          return { ...quad(cs, 'building:trim', paint(P0.group ?? 'str:stone', Math.min(1, (P0.value ?? 0.6) * (0.55 + 0.45 * lam)))), normal: P3(nn), outNormal: P3(nn) }; });
+      };
+      return [...piece(h.u0 - 0.14, h.u1 + 0.14, h.z1, h.z1 + 0.2, 0.09, lin), ...piece(h.u0 - 0.08, h.u1 + 0.08, h.z0 - 0.08, h.z0, 0.11, sl)];
+    }) : [];
+    faces = [...faces, ...moved, ...shell, ...trims, ...stoop, ...stairF, ...pathF];
     for (const c of P.cutouts || []) cutouts.add(c);
     lights.push(...(P.lights || []).map((l) => ({ ...l, name: `${id}-${l.name}`, position: P3(W(l.position)) })));
     // its colliders: the stage's own, moved (a quarter turn keeps a box a box)
@@ -751,13 +819,13 @@ export function withBuildings(payload, manifest, ctx = {}) {
         ...(St ? { stair: { side: St.side, steps: St.n, riser: St.h, foot: pt([sx, St.foot], St.lo), head: pt([sx, St.head], St.hi) }, round } : {}), paths: legs.length };
     })() : null;
     const anchorRec = {
-      id: `building-${id}`, kind: 'building', use: b.use, enter: 'walk', language: L.id, ...(X ? { look: { construction: P0.compose.axes.construction, palette: P0.compose.axes.palette } } : {}), ...(embed ? { embed } : {}), turn: q,
+      id: `building-${id}`, kind: 'building', use: b.use, enter: 'walk', language: L.id, ...(X || vern ? { look: { construction: P0.compose.axes.construction, palette: P0.compose.axes.palette } } : {}), ...(embed ? { embed } : {}), turn: q,
       at: P3(W([doorPlan[0], doorPlan[1], 0])), N: P3(turnN([0, -1, 0])), floor: r5(floor),
       entry: entry.id, goal: goal?.id ?? null, rooms: inner.rooms.map((r) => ({ id: r.id, box: roomBox(r), ...(r.storey ? { storey: r.storey } : {}) })),
       route, goalAt: P3([...toWorld(L2.goal.at), floor + (L2.goal.at[2] ?? 0)]), ...(PI.storeys ? { storeys: PI.storeys.length } : {}), ...(b.goal ? { isGoal: true } : {}),
     };
     anchors.push(anchorRec);
-    seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, ...(X ? { look: anchorRec.look } : {}), floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough,
+    seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, ...(X || vern ? { look: anchorRec.look } : {}), floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough,
       findings: [...inner._program.findings.map((f) => f.says), ...(!E && into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : []),
         ...(E && !St ? [`the ${id} is set into its slope with no stair beside it: neither side is long enough to hold the flight and its landings, so its bank is the way up`] : []),
         ...(E && Math.abs(embed.drop - E.rise) > 1 ? [`the ${id} is set into land that ${embed.drop >= 0 ? `falls ${embed.drop}` : `rises ${-embed.drop}`} m from its back to its front where its upper storey stands ${E.rise} m up: the land is cut and filled ${r5(Math.abs(embed.drop - E.rise))} m to take it`] : []),
@@ -767,6 +835,11 @@ export function withBuildings(payload, manifest, ctx = {}) {
   if (ctx.planOnly && ST && planned.length) {
     const [y0, y1] = streetRange(planned);
     for (let y = y0; y < y1; y += 2) { const xs = [y, y + 1, y + 2].map((q) => ST.site.trailX(Math.min(q, y1))), h = ST.span.half + 0.5; reserved.push([r5(Math.min(...xs) - h), r5(y), r5(Math.max(...xs) + h), r5(Math.min(y + 2, y1))]); }
+  }
+  // (planning: the walls' ground too, era/stage-walls.js)
+  if (ctx.planOnly && ST && planned.length && manifest.town.walls) {
+    const [y0, y1] = streetRange(planned);
+    reserved.push(...wallsOf(y0, y1).keep.map((B) => B.map(r5)));
   }
   if (ctx.planOnly) return { reserved, ...(grades.length ? { grade: grades, placed } : {}) };
   // the street, once its houses stand: from before the first to past the last along the trail, the land's growth and
@@ -787,6 +860,16 @@ export function withBuildings(payload, manifest, ctx = {}) {
       const under = (f) => f.corners.every((c) => paved(c[0], c[1])) && paved(...mid(f));
       faces = [...faces.filter((f) => { const g = f.group || ''; if (GROUND.test(g) && under(f)) return false; if (!(CLEARED.test(g) || PATH.test(g))) return true; const [cx, cy] = mid(f); return !clear(cx, cy) && !(CLEARED.test(g) && near(cx, cy)); }), ...SF];
       if (payload.liveGrass) liveGrass = offPaving(payload.liveGrass, paved);
+      // THE WALLS (town.walls, era/stage-walls.js): the street closed by its fortification, a gatehouse at each end, its
+      // curtain and towers behind the houses, painted in the town's paint and light, each a collider (its gates open)
+      if (manifest.town.walls) {
+        const Wl = wallsOf(y0, y1), Pw = paintRaw(kitId, manifest.town?.paint);
+        for (const P of Wl.pieces) {
+          for (const f of P.faces) { const nn = unit(cross(sub3(f.corners[1], f.corners[0]), sub3(f.corners[f.corners.length - 1], f.corners[0]))); faces.push({ ...quad(f.corners, 'town:wall', Pw(f.group ?? 'str:stone', Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }); }
+          for (const B of P.boxes) colliders.push({ min: P3([B[0], B[1], P.z0]), max: P3([B[2], B[3], P.z1]), of: `town:walls${P.gatehouse ? ':gate' : P.tower ? ':tower' : ''}` });
+        }
+        anchors.push({ id: 'town-walls', kind: 'walls', fort: Wl.fort.read ?? null, gates: Wl.pieces.filter((P) => P.gatehouse).length, height: Wl.H });
+      }
     }
   }
   // (no grass through the paths of slabs to a building set into its slope)

@@ -1,4 +1,5 @@
 import { b64, safeJson } from '../../emit-util.js';
+import { packRigMesh } from '../../../figures/rig-bake.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
 import { surfaceAt } from '../../../roads/surface.js';
 import { commanderSource } from '../../../worlds/controllable/commander.js';
@@ -7,12 +8,17 @@ import { hangarStepperBlock } from './hangar-menu.js';
 import { projectileSmokeBlock } from './projectile-smoke.js';
 import { suitShadowBlock } from './suit-shadows.js';
 import { buildControlsKernel } from '../../../controls/controls-kernel.js';
+import { vayoTrailScript } from '../vayo-trail.js';
+import { knockFxScript } from '../knock-fx.js';
 import { SCHEMES } from '../../../controls/schemes.js';
 import { DEVICES } from '../../../controls/devices.js';
 import { buildSeatsKernel } from '../../../controls/seats-kernel.js';
 import { touchLayout, touchScript } from './touch.js';
 import { runnerViewScript } from './runner-view.js';
 import { followPullIn } from './follow-pull-in.js';
+import { gunplayScript } from './gunplay-view.js';
+import { mergeableFigure, mergedFigureScript } from './merged-figure.js';
+import { groundGridScript } from './ground-grid.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -52,6 +58,61 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
+// the page's figure bank, as the page reads it. A LAYERED figure (station-loft-rig packLayeredRig) is drawn part by
+// part, each part carried by its bone: its skin's joints and weights (`jnt`, `wgt`, a quarter or more of a party's
+// bank) are the engine exports' (scene-gltf.js reads them from the figure's own row), never read by the page, so they
+// are left out of it; and its parts, packed as a triangle soup of float32 corners (a hero's body past 100,000 triangles),
+// go to the page as unit rigs' do (rig-bake.js packRigMesh: the corners shared, the positions on a uint16 grid, read by
+// __makeRigGroup's q branch), each part that carries nothing laid per corner the page reads (paint, a face's morphs,
+// correctives, normals, metal). A skinned figure (`skin: true`, one mesh skinned in the page: __makeSkinGroup) keeps it
+// all. And a figure byte-identical to one before it (a battle's foe slots, one sheet each) is emitted once and named
+// again (`same`). A bank with none of these is returned as it came, so its page is byte for byte as before.
+const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8'];
+function pagePart(p) {
+  if (!p || (p.jnt === undefined && p.wgt === undefined)) return p;
+  const { jnt: _j, wgt: _w, ...rest } = p;
+  if (typeof rest.pos !== 'string' || typeof rest.col !== 'string' || PER_CORNER.some((k) => rest[k] !== undefined)) return rest;
+  const buf = (s) => Buffer.from(s, 'base64');
+  const P = buf(rest.pos), C = buf(rest.col);
+  // (the packer takes colours on [0, 1], as a bake hands them, and writes them back as bytes: k/255 returns k exactly)
+  const positions = new Float32Array(P.buffer, P.byteOffset, P.byteLength / 4), bytes = new Uint8Array(C.buffer, C.byteOffset, C.byteLength);
+  if (bytes.length !== positions.length) return rest;
+  const colors = Float32Array.from(bytes, (k) => k / 255);
+  const { pos: _p, col: _c, ...keep } = rest;
+  return { ...keep, ...packRigMesh({ positions, colors }, rest.faces) };
+}
+// a layered figure's clip as the page reads it: its frames (`b`: per key, per bone, a quaternion and a head) on 16 bits,
+// the quaternions over ±1 and the heads over the clip's own reach (its step about a tenth of a millimetre on a figure's
+// clips, the decimals' own grain), the page decoding them to a Float32Array once (__unclip16) and indexing it as before.
+// Identical clips (a figure's `leap` and `boost`) are then identical strings, and the bank's pool keeps one of each.
+function pageClip(c) {
+  if (!c || !Array.isArray(c.b) || !c.b.length || !c.b.every((v) => typeof v === 'number' && Number.isFinite(v))) return c;
+  let reach = 0;
+  for (let i = 0; i < c.b.length; i++) if (i % 7 >= 4) reach = Math.max(reach, Math.abs(c.b[i]));
+  const step = Number(((reach || 1) / 32767).toPrecision(8));
+  const q = new Int16Array(c.b.length);
+  for (let i = 0; i < c.b.length; i++) {
+    const v = i % 7 < 4 ? Math.round(c.b[i] * 32767) : Math.round(c.b[i] / step);
+    q[i] = v > 32767 ? 32767 : v < -32767 ? -32767 : v;
+  }
+  return { ...c, b: { q16: Buffer.from(q.buffer).toString('base64'), s: step } };
+}
+const pageClips = (C) => (C && typeof C === 'object' ? Object.fromEntries(Object.entries(C).map(([n, c]) => [n, pageClip(c)])) : C);
+export function pageFigures(figures) {
+  const drop = (f) => !!f && f.rig === true && f.skin !== true && Array.isArray(f.parts) && f.parts.some((p) => p && (p.jnt !== undefined || p.wgt !== undefined));
+  const out = {}, same = {}, seen = new Map();
+  let changed = false;
+  for (const [name, f] of Object.entries(figures)) {
+    const g = drop(f) ? { ...f, parts: f.parts.map(pagePart), ...(f.clips ? { clips: pageClips(f.clips) } : {}), ...(f.acts ? { acts: pageClips(f.acts) } : {}) } : f;
+    if (g !== f) changed = true;
+    const key = g && typeof g === 'object' ? JSON.stringify(g) : null;
+    if (key && key.length >= 4096 && seen.has(key)) { same[name] = seen.get(key); changed = true; continue; }
+    if (key) seen.set(key, name);
+    out[name] = g;
+  }
+  return changed ? { figs: out, same } : { figs: figures, same };
+}
+
 /** The page's seats (a world's `seats: { bodies, max?, join?, drop? }`): seat 1 is the player the world
  * already has, read through its own controller once it has one; seats 2 to N each a compact read of their own controller
  * through the pilot scheme, riding the frame's input as `input.seats` (worlds/controllable/core.js). A controller sits down
@@ -86,7 +147,7 @@ function __seatSnap(x) {
   if (kb) { mx = __CTL.axis(__BIND, 'turnRight', 'turnLeft', 'keyboard', rd); my = __CTL.axis(__BIND, 'moveForward', 'moveBack', 'keyboard', rd); }
   else { const st = __padStick(g.axes[0] || 0, g.axes[1] || 0); mx = st[0]; my = -st[1]; }
   const P = __seatPrev[x.n] || (__seatPrev[x.n] = {}), jh = h('jump'), tk = h('tackle');
-  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
+  const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, walk: h('walk') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
   P.jump = jh; P.tackle = tk;
   return out;
 }
@@ -148,13 +209,503 @@ window.__mojSeatRings = () => Object.keys(__seatRing).map((n) => ({ n: +n, color
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, tempo = null } = {}) {
+/**
+ * The page's side of distortion (rupa, controllable/rupa.js): a block that keeps its shape (a plastic or cuttable
+ * matter) and has taken a blow is drawn as its box (the runtime's, squashed or cut or not) subdivided where its marks
+ * are. A dent is the law's own bowl, depth d·(1 − r²/a²), its rim d / 3 high out to 2a, no higher than half its radius
+ * (a deep narrow channel pushes its volume aside along its length, not up at its mouth); a hole is dark through to the
+ * far face, which petals out; a dish moves both faces, cos² across, no rim; a cut is a dark groove along its plane, a
+ * slit through when it is through. The halves of a cut block wear its skin; a stripped plate rides its body down,
+ * tipping away from the wall; a felling turns what it fells about its hinge (`state.rupa.fells`) until it lies. Rebuilt only when a block's `form` count moves, from state the runtime owns, so a
+ * capture stays byte-identical.
+ */
+/**
+ * The page's side of SCARS (rupa, controllable/rupa.js): cosmetic damage on a map that may not change. Each of the
+ * runtime's marks (state.rupa.scars.marks) is painted once: a crater as a decal on the floor (a scorched bowl, the ring
+ * of thrown soil out to three radii), a scorch, a chip or a dent on a wall's face, a round's pock; and the debris it
+ * carries flies (a crater's clumps, spray and dust; a wall's spalled chips and dust), stepped on sim dt and seeded by
+ * the mark, so a capture stays byte-identical. Nothing a walker meets changes. Emitted only when the world is scarred.
+ */
+export function scarsViewScript() {
+  return `// scars (rupa): what blows would do, painted on a map that may not change
+const __scarTex = (() => {
+  const make = (draw) => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); draw(g); const t = new THREE.CanvasTexture(c); return t; };
+  const radial = (g, stops) => { const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); for (const [o, col] of stops) r.addColorStop(o, col); g.fillStyle = r; g.fillRect(0, 0, 128, 128); };
+  const rng = __clashRng(0x5ca7);
+  return {
+    crater: make((g) => radial(g, [[0, 'rgba(18,14,10,0.92)'], [0.22, 'rgba(40,30,20,0.85)'], [0.33, 'rgba(92,72,48,0.7)'], [0.6, 'rgba(120,96,66,0.35)'], [1, 'rgba(120,96,66,0)']])),
+    scorch: make((g) => radial(g, [[0, 'rgba(10,9,8,0.85)'], [0.5, 'rgba(25,22,20,0.5)'], [1, 'rgba(30,28,26,0)']])),
+    chip: make((g) => { radial(g, [[0, 'rgba(214,208,196,0.85)'], [0.35, 'rgba(160,154,144,0.5)'], [1, 'rgba(160,154,144,0)']]); g.fillStyle = 'rgba(60,56,50,0.6)'; for (let i = 0; i < 14; i++) { const a = rng() * 6.283, d = rng() * 46; g.fillRect(64 + Math.cos(a) * d, 64 + Math.sin(a) * d, 3, 3); } }),
+    dent: make((g) => radial(g, [[0, 'rgba(255,255,255,0.25)'], [0.55, 'rgba(0,0,0,0.05)'], [0.8, 'rgba(0,0,0,0.45)'], [1, 'rgba(0,0,0,0)']])),
+    pock: make((g) => radial(g, [[0, 'rgba(15,12,10,0.9)'], [0.4, 'rgba(60,52,44,0.5)'], [1, 'rgba(60,52,44,0)']])),
+    puff: make((g) => radial(g, [[0, 'rgba(255,255,255,1)'], [0.45, 'rgba(255,255,255,0.55)'], [1, 'rgba(255,255,255,0)']])),
+  };
+})();
+const __scarDecals = [], __scarBits = [];
+let __scarSeen = -1;
+function __scarDecal(kind, at, normal, radius) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: __scarTex[kind] || __scarTex.scorch, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+  const n = new THREE.Vector3(normal[0], normal[1], normal[2]);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+  m.position.set(at[0] + n.x * 0.015, at[1] + n.y * 0.015, at[2] + n.z * 0.015); m.scale.setScalar(radius); m.raycast = function () {}; scene.add(m);
+  __scarDecals.push(m);
+  if (__scarDecals.length > 96) { const old = __scarDecals.shift(); scene.remove(old); old.geometry.dispose(); old.material.dispose(); }
+}
+// a bit of debris: a small box that falls; a dust billow (opts.dust) a soft sprite that rises, swells and thins
+function __scarBit(at, vel, size, color, opts) {
+  const dust = !!(opts && opts.dust);
+  const m = dust ? new THREE.Sprite(new THREE.SpriteMaterial({ map: __scarTex.puff, color, transparent: true, opacity: 0.4, depthWrite: false }))
+    : new THREE.Mesh(new THREE.BoxGeometry(size, size, size * 0.7), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 }));
+  if (dust) m.scale.setScalar(size);
+  m.position.set(at[0], at[1], at[2]); m.raycast = function () {}; scene.add(m);
+  __scarBits.push({ m, v: [...vel], born: __world.time, drag: opts && opts.drag || 0, dust, size, half: dust ? 0 : size / 2 });
+}
+function __updateScars(dt) {
+  const S = __world.rupa && __world.rupa.scars;
+  if (!S) return;
+  const floor = __world.breakFloor || 0;
+  for (const k of S.marks) {
+    if (k.seq <= __scarSeen) continue;
+    __scarSeen = k.seq;
+    const ground = k.kind === 'crater' || k.kind === 'pock';
+    __scarDecal(k.kind, ground ? [k.at[0], k.at[1], floor] : k.at, ground ? [0, 0, 1] : k.normal, ground ? (k.rim || k.radius) : k.radius);
+    const d = k.debris;
+    if (!d) continue;
+    if (d.clumps) for (const c of d.clumps.slice(0, 30)) __scarBit(c.at, c.vel, Math.max(0.04, c.size * 0.6), 0x4a3a2a);
+    if (d.spray) for (const p of d.spray.parcels.slice(0, 40)) __scarBit(p.at, p.vel, 0.05, 0x8a7458, { drag: d.spray.drag });
+    if (d.pieces) for (const p of d.pieces) __scarBit(p.at, p.vel, Math.max(0.02, Math.min(...p.size)), 0x9a948a);
+    const dust = d.cloud || d.dust;
+    if (dust && dust.radius > 0.3) for (let i = 0; i < 5; i++) __scarBit([dust.at[0], dust.at[1], dust.at[2]], [(i - 2) * 0.3, ((i * 7) % 5 - 2) * 0.3, 0.4], Math.min(2.5, dust.radius) * 0.6, 0xb8b0a2, { dust: true, drag: 3 });
+  }
+  for (let i = __scarBits.length - 1; i >= 0; i--) {
+    const q = __scarBits[i], age = __world.time - q.born;
+    if (age > 5) { scene.remove(q.m); q.m.geometry.dispose(); q.m.material.dispose(); __scarBits.splice(i, 1); continue; }
+    const k = 1 / (1 + q.drag * dt);
+    q.v[0] *= k; q.v[1] *= k; q.v[2] = q.dust ? q.v[2] * k + 0.05 * dt : (q.v[2] - 9.8 * dt) * (q.drag ? k : 1);
+    q.m.position.x += q.v[0] * dt; q.m.position.y += q.v[1] * dt; q.m.position.z += q.v[2] * dt;
+    if (q.dust) { q.m.material.opacity = Math.max(0, 0.4 * (1 - age / 5)); q.m.scale.setScalar(q.size * (1 + age * 0.4)); continue; }
+    if (q.m.position.z < floor + q.half) { q.m.position.z = floor + q.half; q.v[2] *= -0.2; q.v[0] *= 0.5; q.v[1] *= 0.5; }
+    if (age > 3.5) q.m.material.opacity = Math.max(0, 1 - (age - 3.5) / 1.5);
+  }
+}
+`;
+}
+
+/**
+ * The page's side of GROUND (rupa, controllable/rupa.js: the land as a soil grid the physics digs). What the stage lays on
+ * its land (every isekai group but its sky, water and trees: ground, trail, scree, cliff, its tufts and stones), and the
+ * live grass on it (each blade by its root), sink and rise with the grid: the dug depth at each grid
+ * point is a texture (two bytes a point, ±8 m), read in the land's vertex shader at the vertex's place and added to its
+ * height, bilinear over the four points round it, so a crater opens in the very land drawn. The ground probe adds the
+ * same depth where it lands on the land, so a walker stands in the crater. Read from the state the runtime owns: a
+ * capture stays byte-identical. Emitted only when the world has ground.
+ */
+export function groundViewScript() {
+  return `// ground (rupa): the land sinks and rises with the soil grid the physics digs
+// (what the stage lays on its land rides it: every isekai group but its sky, its water and its trees' wood and leaves)
+const __GND_OFF = ['isekai:cloud', 'isekai:water', 'isekai:wood', 'isekai:crown', 'isekai:blossom', 'isekai:core', 'isekai:chips', 'isekai:culm', 'isekai:leaves', 'isekai:petals'];
+const __gndLand = (name) => name.indexOf('isekai:') === 0 && !__GND_OFF.some((g) => name === g || name.indexOf(g + '#') === 0 || name.indexOf(g + ':') === 0);
+const __gndU = { uGround: { value: null }, uGroundBox: { value: new THREE.Vector3() }, uGroundSize: { value: new THREE.Vector2() } };
+let __gndTex = null, __gndSeen = -1, __gndN = 0;
+window.__mojGround = { patched: () => __gndN };
+const __gndVS = 'uniform sampler2D uGround; uniform vec3 uGroundBox; uniform vec2 uGroundSize;\\n' +
+  'float rupaGroundAt(vec2 ij) { vec4 t = texture2D(uGround, (ij + 0.5) / uGroundSize); return (t.r * 65280.0 + t.g * 255.0) / 65535.0 * 16.0 - 8.0; }\\n';
+const __gndBody = '{\\n#ifdef USE_INSTANCING\\n vec2 gxy = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xy; float gs = max(length(instanceMatrix[2].xyz), 1e-4);\\n#else\\n vec2 gxy = (modelMatrix * vec4(transformed, 1.0)).xy; float gs = 1.0;\\n#endif\\n vec2 g = (gxy - uGroundBox.xy) / uGroundBox.z;\\n' +
+  ' if (g.x >= 0.0 && g.y >= 0.0 && g.x <= uGroundSize.x - 1.0 && g.y <= uGroundSize.y - 1.0) { vec2 i0 = min(floor(g), uGroundSize - 2.0), f = g - i0;\\n' +
+  ' transformed.z += mix(mix(rupaGroundAt(i0), rupaGroundAt(i0 + vec2(1.0, 0.0)), f.x), mix(rupaGroundAt(i0 + vec2(0.0, 1.0)), rupaGroundAt(i0 + vec2(1.0, 1.0)), f.x), f.y) / gs; } }';
+function __gndPatch(mat) {
+  if (!mat || mat.userData.__gnd) return;
+  mat.userData.__gnd = true; __gndN++;
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = function (sh, r) { if (prev) prev.call(this, sh, r); Object.assign(sh.uniforms, __gndU); sh.vertexShader = __gndVS + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n' + __gndBody); };
+  const key = mat.customProgramCacheKey ? mat.customProgramCacheKey.bind(mat) : () => '';
+  mat.customProgramCacheKey = () => key() + '|rupa-ground';
+  mat.needsUpdate = true;
+}
+function __updateGround() {
+  const Gd = __world.rupa && __world.rupa.ground;
+  if (!Gd) return;
+  if (!__gndTex) {
+    __gndTex = new THREE.DataTexture(new Uint8Array(Gd.nx * Gd.ny * 4), Gd.nx, Gd.ny, THREE.RGBAFormat);
+    __gndTex.magFilter = __gndTex.minFilter = THREE.NearestFilter; __gndTex.needsUpdate = true;
+    __gndU.uGround.value = __gndTex; __gndU.uGroundBox.value.set(Gd.x0, Gd.y0, Gd.dx); __gndU.uGroundSize.value.set(Gd.nx, Gd.ny);
+    for (const name of Object.keys(meshes)) if (__gndLand(name)) { const m = meshes[name]; for (const mat of Array.isArray(m.material) ? m.material : [m.material]) __gndPatch(mat); }
+  }
+  // rain on the land: the weather's state now (its rate, mm/h, the physics' table), blended as the sky blends
+  if (Gd.w && window.__mojWeather) { const a = window.__mojWeather.at(__world.time), RN = __CW.rupaRain || {}; __world.rupa.rain = (RN[a.is] || 0) * (1 - (a.mix || 0)) + (RN[a.next] || 0) * (a.mix || 0); }
+  if (Gd.w) __updateWater(Gd);
+  __updateDirt(Gd);
+  if (Gd.version === __gndSeen) return;
+  __gndSeen = Gd.version;
+  // what grows on the land rides it: the live grass, its flowers and a carpet of petals (instanced: each blade by its root;
+  // a tile laid since is patched as it comes)
+  scene.traverse((o) => { if (o.isInstancedMesh && o.userData && /grass|flowers|carpet/.test(String(o.userData.g || ''))) for (const mat of Array.isArray(o.material) ? o.material : [o.material]) __gndPatch(mat); });
+  const D = __gndTex.image.data;
+  for (let k = 0; k < Gd.z.length; k++) { const u = Math.max(0, Math.min(65535, Math.round(((Gd.z[k] - Gd.z0[k] + 8) / 16) * 65535))); D[k * 4] = u >> 8; D[k * 4 + 1] = u & 255; }
+  __gndTex.needsUpdate = true;
+}
+// the DIRT a crater throws (the runtime's dirt law on its own soil: clumps, spray and dust), flown on the world's clock
+// and landing on the dug ground; the dust hangs, swells and thins
+const __dirtBits = [], __dirtTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,0.9)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+let __dirtSeen = -1, __dirtT = null;
+function __dirtBit(at, vel, size, color, dust, drag) {
+  const m = dust ? new THREE.Sprite(new THREE.SpriteMaterial({ map: __dirtTex, color, transparent: true, opacity: 0.45, depthWrite: false }))
+    : new THREE.Mesh(new THREE.BoxGeometry(size, size, size * 0.75), new THREE.MeshLambertMaterial({ color }));
+  if (dust) m.scale.setScalar(size);
+  m.position.set(at[0], at[1], at[2]); m.raycast = function () {}; scene.add(m);
+  __dirtBits.push({ m, v: vel.slice(), born: __world.time, dust, size, drag: drag || 0, half: dust ? 0 : size / 2, landed: false });
+}
+function __updateDirt(Gd) {
+  const P = __CW.rupaPhysics, R = __world.rupa;
+  for (const c of R.craters || []) {
+    if (c.seq <= __dirtSeen) continue;
+    __dirtSeen = c.seq;
+    const d = c.debris; if (!d) continue;
+    for (const k of d.clumps.slice(0, 40)) __dirtBit(k.at, k.vel, Math.max(0.05, Math.min(0.5, k.size)), 0x5a4330, false, 0);
+    for (const q of d.spray.parcels.slice(0, 48)) __dirtBit(q.at, q.vel, 0.06, 0x7a6248, false, d.spray.drag);
+    if (d.cloud) for (let i = 0; i < 6; i++) __dirtBit([d.cloud.at[0] + (i - 2.5) * 0.4, d.cloud.at[1] + ((i * 7) % 5 - 2) * 0.4, d.cloud.at[2]], [((i * 3) % 5 - 2) * 0.2, ((i * 5) % 5 - 2) * 0.2, 0.3], Math.min(4, d.cloud.radius), 0xb3a58e, true, 1.5);
+  }
+  const t = __world.time, dt = __dirtT === null ? 0 : Math.max(0, Math.min(0.1, t - __dirtT));
+  __dirtT = t;
+  for (let i = __dirtBits.length - 1; i >= 0; i--) {
+    const q = __dirtBits[i], age = t - q.born;
+    if (age > 6) { scene.remove(q.m); q.m.geometry && q.m.geometry.dispose(); q.m.material.dispose(); __dirtBits.splice(i, 1); continue; }
+    if (q.dust) { const k = 1 / (1 + q.drag * dt); q.v[0] *= k; q.v[1] *= k; q.v[2] *= k; q.m.position.x += q.v[0] * dt; q.m.position.y += q.v[1] * dt; q.m.position.z += q.v[2] * dt; q.m.scale.setScalar(q.size * (1 + age * 0.3)); q.m.material.opacity = Math.max(0, 0.45 * (1 - age / 6)); continue; }
+    if (q.landed) { if (age > 4.5) q.m.material.transparent = true, q.m.material.opacity = Math.max(0, 1 - (age - 4.5) / 1.5); continue; }
+    const k = 1 / (1 + q.drag * dt);
+    q.v[0] *= k; q.v[1] *= k; q.v[2] = (q.v[2] - 9.81 * dt) * (q.drag ? k : 1);
+    q.m.position.x += q.v[0] * dt; q.m.position.y += q.v[1] * dt; q.m.position.z += q.v[2] * dt;
+    const g = P.groundZ(Gd, q.m.position.x, q.m.position.y);
+    if (q.m.position.z < g + q.half) { q.m.position.z = g + q.half; q.landed = true; }
+  }
+}
+// the WATER the physics moves (its lake and sea, rain, a flood through a broken levee): one mesh over the grid, its
+// points lifted by the ground's dug depth and the water's own (the texture's last two bytes, 0 to 16 m), drawn only where
+// the water is not as the stage drew it (new water, or the lake's or a running river's own where it moved 5 cm or more)
+let __wMesh = null, __wSeen = -1;
+function __updateWater(Gd) {
+  if (!__wMesh) {
+    const nx = Gd.nx, ny = Gd.ny, pos = new Float32Array(nx * ny * 3), idx = [];
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; pos[k * 3] = Gd.x0 + i * Gd.dx; pos[k * 3 + 1] = Gd.y0 + j * Gd.dx; pos[k * 3 + 2] = Gd.z0[k]; }
+    for (let j = 0; j + 1 < ny; j++) for (let i = 0; i + 1 < nx; i++) { const a = j * nx + i; idx.push(a, a + 1, a + nx + 1, a, a + nx + 1, a + nx); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+    const mat = new THREE.MeshLambertMaterial({ color: 0x3f7896, transparent: true, opacity: 0.74, depthWrite: false });
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, __gndU);
+      sh.vertexShader = __gndVS + 'float rupaWaterAt(vec2 ij) { vec4 t = texture2D(uGround, (ij + 0.5) / uGroundSize); return (t.b * 65280.0 + t.a * 255.0) / 65535.0 * 16.0; }\\nvarying float vWater;\\n' +
+        sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n{ vec2 ij = floor((position.xy - uGroundBox.xy) / uGroundBox.z + 0.5); vWater = rupaWaterAt(ij); transformed.z += rupaGroundAt(ij) + vWater; }');
+      sh.fragmentShader = 'varying float vWater;\\n' + sh.fragmentShader.replace('void main() {', 'void main() {\\n  if (vWater < 0.01) discard;');
+    };
+    __wMesh = new THREE.Mesh(geo, mat); __wMesh.renderOrder = 2; __wMesh.raycast = function () {}; __wMesh.frustumCulled = false; scene.add(__wMesh);
+  }
+  if (Gd.wVersion === __wSeen) return;
+  __wSeen = Gd.wVersion;
+  const D = __gndTex.image.data;
+  for (let k = 0; k < Gd.w.length; k++) { const w = Gd.w[k], w0 = Gd.w0[k], show = Math.abs(w - w0) > 0.05 || (w0 <= 0 && w > 0.02) ? w : 0, u = Math.max(0, Math.min(65535, Math.round((show / 16) * 65535))); D[k * 4 + 2] = u >> 8; D[k * 4 + 3] = u & 255; }
+  __gndTex.needsUpdate = true;
+}
+// the probe: where it lands on the land as drawn (the grid's first heights), the depth dug there
+const __ground0 = __ground;
+__ground = function (pos) {   // eslint-disable-line no-func-assign
+  const g = __ground0(pos), Gd = __world.rupa && __world.rupa.ground;
+  if (g === null || !Gd) return g;
+  const P = __CW.rupaPhysics, base = P.groundZ(Gd, pos[0], pos[1], 'z0');
+  return Math.abs(g - base) > 0.35 ? g : g + (P.groundZ(Gd, pos[0], pos[1]) - base);
+};
+`;
+}
+
+export function distortViewScript() {
+  return `// distortion: blocks keep the shape their blows leave
+const __dentDraw = {}, __dentLight = [0.35, -0.55, 0.76];
+function __dentAt(b, ax, side, p, thick, hw) {
+  let z = 0, hole = false, slot = false;
+  const u = (ax + 1) % 3, v = (ax + 2) % 3, shell = !!b.rupa.wall;
+  for (const q of b.rupa.dents) {
+    if (q.ax !== ax) continue;
+    const r = Math.hypot(p[u] - q.at[u], p[v] - q.at[v]);
+    if (q.dish) {   // the panel moves: in on the struck face, out on the far one
+      if (r < q.a) { const c = Math.cos((Math.PI * r) / (2 * q.a)); z += (q.side === side ? 1 : -1) * q.d * c * c; }
+    } else if (q.side === side) {
+      if (r < q.a) { z += q.d * (1 - (r * r) / (q.a * q.a)); if (q.hole && r < 0.7 * q.a) hole = true; }
+      else if (r < 2 * q.a) { const s = Math.sin((Math.PI * (r - q.a)) / q.a); z -= Math.min(q.d / 3, q.a / 2) * s * s; }
+    } else if (q.hole && !shell) {   // the far face of a hole: through in the core, petalled out round it
+      if (r < 0.7 * q.a) hole = true;
+      else if (r < 1.6 * q.a) z -= Math.min(q.d / 3, q.a / 2) * (1 - (r - 0.7 * q.a) / (0.9 * q.a));
+    }
+  }
+  for (const c of b.rupa.cuts || []) {
+    if (c.ax !== ax || Math.abs(p[c.n] - c.at) > hw) continue;
+    if (c.side === side) { z = Math.max(z, Math.min(c.depth, 0.95 * thick)); slot = true; if (c.through) hole = true; }
+    else if (c.through && !shell) hole = true;
+  }
+  if (hole) return { z: shell ? Math.min(thick / 2, 0.05) : thick / 2, hole };
+  return { z: Math.min(z, 0.95 * thick), hole: slot };
+}
+function __dentMesh(b) {
+  const id = b.skin || b.id, show = __breakPieces[id], own = meshes['break:' + id], tm = own && own.userData.tex && own.userData.tex[0], map = tm && tm.material.map;
+  const skin = new THREE.Color(show ? show.fill : '#8a8f96').multiplyScalar(show && show.tex && !map ? 0.72 : 1);
+  const c = [0, 1, 2].map((k) => (b.min[k] + b.max[k]) / 2), ext = [0, 1, 2].map((k) => b.max[k] - b.min[k]);
+  const pos = [], col = [], uv = [];
+  for (let ax = 0; ax < 3; ax++) for (const side of [-1, 1]) {
+    const u = (ax + 1) % 3, v = (ax + 2) % 3, mine = b.rupa.dents.filter((q) => q.ax === ax && (q.side === side || q.hole || q.dish));
+    const cuts = (b.rupa.cuts || []).filter((q) => q.ax === ax), floor = Math.max(Math.min(ext[u], ext[v]) / 48, 0.004);
+    const fine = cuts.length ? floor : mine.length ? Math.max(floor, Math.min(...mine.map((q) => q.a)) / 3) : Infinity;
+    const nu = Math.max(1, Math.min(48, Math.ceil(ext[u] / fine))), nv = Math.max(1, Math.min(48, Math.ceil(ext[v] / fine)));
+    const hw = Math.max(0.002, ext[u] / nu, ext[v] / nv) * 0.75, dmax = Math.max(1e-3, ...mine.map((q) => q.d), ...cuts.map((q) => q.depth)), grid = [];
+    for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
+      const p = [0, 0, 0];
+      p[u] = b.min[u] + (ext[u] * i) / nu; p[v] = b.min[v] + (ext[v] * j) / nv; p[ax] = side > 0 ? b.max[ax] : b.min[ax];
+      const t = [p[0], p[1], p[2]], D = mine.length || cuts.length ? __dentAt(b, ax, side, p, ext[ax], hw) : { z: 0, hole: false };
+      p[ax] -= side * D.z;
+      grid.push({ p: [p[0] - c[0], p[1] - c[1], p[2] - c[2]], uv: [t[u] / 1.2, t[v] / 1.2], z: D.z, hole: D.hole });
+    }
+    const at = (i, j) => grid[j * (nu + 1) + i];
+    for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) for (const tri of [[at(i, j), at(i + 1, j), at(i + 1, j + 1)], [at(i, j), at(i + 1, j + 1), at(i, j + 1)]]) {
+      const [A, B, C] = tri, e1 = [B.p[0] - A.p[0], B.p[1] - A.p[1], B.p[2] - A.p[2]], e2 = [C.p[0] - A.p[0], C.p[1] - A.p[1], C.p[2] - A.p[2]];
+      let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+      const nl = Math.hypot(n[0], n[1], n[2]) || 1; n = n.map((x) => x / nl);
+      if (n[ax] * side < 0) n = n.map((x) => -x);
+      // lit as the flat face is, its slopes by how far they turn from it (so an unmarked face reads as before and a
+      // bowl reads by its walls), and darker toward the bottom of a bowl
+      const flat = side * __dentLight[ax], turn = n[0] * __dentLight[0] + n[1] * __dentLight[1] + n[2] * __dentLight[2] - flat;
+      const lit = Math.max(0.2, (map ? 0.95 : 0.55) + (map ? 0.3 : 0.45) * Math.max(0, flat) + 1.4 * turn);
+      const deep = (A.z + B.z + C.z) / 3, k = (A.hole || B.hole || C.hole ? 0.18 : 1 - 0.45 * Math.min(1, Math.max(0, deep) / dmax)) * lit;
+      for (const q of tri) { pos.push(q.p[0], q.p[1], q.p[2]); col.push(skin.r * k, skin.g * k, skin.b * k); uv.push(q.uv[0], q.uv[1]); }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  if (map) g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, ...(map ? { map } : {}) }));
+  m.position.set(c[0], c[1], c[2]); m.raycast = function () {};
+  if (own) { own.visible = false; for (const x of (own.userData.tex || [])) x.visible = false; }
+  return { mesh: m, c, ext };
+}
+function __dentDrop(D) { scene.remove(D.mesh); D.mesh.geometry.dispose(); D.mesh.material.dispose(); }
+function __updateDents() {
+  for (const b of (__world.breakables || [])) {
+    if (!b.rupa || !b.rupa.dents) continue;
+    const id = b.id;
+    let D = __dentDraw[id];
+    if (b.broken && b.broken.how !== 'strip') { if (D && D.mesh.visible) D.mesh.visible = false; continue; }
+    if (!b.broken && b.rupa.form && (!D || D.form !== b.rupa.form)) {
+      if (D) __dentDrop(D);
+      D = __dentDraw[id] = { ...__dentMesh(b), form: b.rupa.form };
+      scene.add(D.mesh);
+    }
+    if (!b.broken) { if (D && b.fell == null) D.mesh.position.set((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2); continue; }   // it rides its box: a falling half, a settling block
+    // stripped: the plate rides its body, tipping away from the wall as it goes
+    if (!D) { D = __dentDraw[id] = { ...__dentMesh(b), form: b.rupa.form }; scene.add(D.mesh); }
+    if (!D.strip) { const br = (__world.breaks || []).find((x) => x.id === id && x.how === 'strip'); D.strip = { body: br && br.body, away: (br && br.away) || [0, 0, 0], t0: b.broken.t }; }
+    const body = ((__world.rupa && __world.rupa.bodies) || []).find((x) => x.id === D.strip.body);
+    if (!body) continue;
+    const a = D.strip.away, th = Math.hypot(a[0], a[1]) > 0 ? Math.min(Math.PI / 2, (__world.time - D.strip.t0) * 3) : 0;
+    const hz = D.ext[2] / 2, ht = (Math.abs(a[0]) * D.ext[0] + Math.abs(a[1]) * D.ext[1]) / 2;
+    const floor = __world.breakFloor || 0, bottom = Math.max(floor, body.pos[2] - hz);
+    D.mesh.position.set(body.pos[0], body.pos[1], bottom + hz * Math.cos(th) + ht * Math.sin(th));
+    if (th > 0) D.mesh.quaternion.setFromAxisAngle(new THREE.Vector3(-a[1], a[0], 0).normalize(), th);
+  }
+  // a felling: what is above the cut turns about its hinge as one body (its drawing, or the thing's own mesh)
+  for (const f of ((__world.rupa && __world.rupa.fells) || [])) {
+    if (f.done) continue;
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-f.dir[1], f.dir[0], 0), f.theta), P = new THREE.Vector3(f.pivot[0], f.pivot[1], f.pivot[2]);
+    for (const id of f.ids) {
+      const D = __dentDraw[id];
+      if (D) { D.mesh.position.set(D.c[0], D.c[1], D.c[2]).sub(P).applyQuaternion(q).add(P); D.mesh.quaternion.copy(q); continue; }
+      const b = (__world.breakables || []).find((x) => x.id === id), own = meshes['break:' + ((b && b.skin) || id)];
+      for (const m of own ? [own, ...(own.userData.tex || [])] : []) { m.position.copy(P).sub(P.clone().applyQuaternion(q)); m.quaternion.copy(q); }
+    }
+  }
+}
+`;
+}
+
+/**
+ * The page's metal panels (rupa, rupa/panels.js; controllable/rupa.js PANELS): each plate on an object drawn as the
+ * sheet the runtime keeps (`state.rupa.panels`), a hair proud of the body it skins, riding its entity (its heading, a
+ * flyer's roll and pitch). A sheet bends as one, so both its faces go with the blow: a dish (cos² across it) in where it
+ * was struck from outside and out where from inside; a dent the law's bowl, d·(1 − r²/a²), its rim d / 3 out to 2a; an
+ * opening where a hole is wider than the sheet's grid, a slit along a cut through. Lit as the dented blocks are: as
+ * the flat face, its slopes by how far they turn from it, darker toward the bottom of a bowl. A round's hole finer than
+ * the grid shows as its bore, dark, and the petals round it, on both faces. A plate off its object rides the body it
+ * became, tipping away from the blow. A box body plated on every face but its floor is drawn by its plates alone (any
+ * other body is drawn as well, and a dent deeper than the plate stands proud of it goes behind it). Read from state the
+ * runtime owns, at its time, so a capture stays byte-identical. Emitted only when an object carries panels.
+ */
+export function panelsViewScript() {
+  return `// panels: an object's metal plates, each a sheet riding its entity, bent by its blows
+const __panelDraw = {}, __PANEL_PROUD = 0.002, __panelLight = [0.35, -0.55, 0.76];
+const __PANEL_FACE = { front: [0, 1], back: [0, -1], left: [1, 1], right: [1, -1], top: [2, 1], bottom: [2, -1] };
+// the bend at a point of the sheet (m, inward positive) and whether it is open there
+function __panelAt(P, ax, out, p, hw) {
+  let z = 0, hole = false;
+  const u = (ax + 1) % 3, v = (ax + 2) % 3;
+  for (const q of P.rupa.dents) {
+    const r = Math.hypot(p[u] - q.at[u], p[v] - q.at[v]), s = q.side === out ? 1 : -1;
+    if (q.dish) { if (r < q.a) { const c = Math.cos((Math.PI * r) / (2 * q.a)); z += s * q.d * c * c; } continue; }
+    if (q.hole && r < 0.7 * q.a) hole = true;
+    if (r < q.a) z += s * q.d * (1 - (r * r) / (q.a * q.a));
+    else if (r < 2 * q.a) { const k = Math.sin((Math.PI * (r - q.a)) / q.a); z -= s * Math.min(q.d / 3, q.a / 2) * k * k; }
+  }
+  for (const c of P.rupa.cuts || []) if (c.through && Math.abs(p[c.n] - c.at) <= hw) hole = true;
+  return { z, hole };
+}
+function __panelMesh(P) {
+  const [ax, out] = __PANEL_FACE[P.face], u = (ax + 1) % 3, v = (ax + 2) % 3, skin = new THREE.Color(P.color || '#8a8f96');
+  const face = out > 0 ? P.max[ax] + __PANEL_PROUD : P.min[ax] - __PANEL_PROUD;
+  const ext = [0, 1, 2].map((k) => P.max[k] - P.min[k]), c = [0, 1, 2].map((k) => (P.min[k] + P.max[k]) / 2);
+  c[ax] = face;
+  const marks = P.rupa.dents, floor = Math.max(Math.min(ext[u], ext[v]) / 64, 0.004);
+  const fine = (P.rupa.cuts || []).length ? floor : marks.length ? Math.max(floor, Math.min(...marks.map((q) => q.a)) / 6) : Infinity;
+  const nu = Math.max(1, Math.min(64, Math.ceil(ext[u] / fine))), nv = Math.max(1, Math.min(64, Math.ceil(ext[v] / fine)));
+  const hw = Math.max(0.002, ext[u] / nu, ext[v] / nv) * 0.75, dmax = Math.max(1e-3, ...marks.map((q) => q.d)), grid = [];
+  for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
+    const p = [0, 0, 0];
+    p[u] = P.min[u] + (ext[u] * i) / nu; p[v] = P.min[v] + (ext[v] * j) / nv; p[ax] = face;
+    const D = marks.length || (P.rupa.cuts || []).length ? __panelAt(P, ax, out, p, hw) : { z: 0, hole: false };
+    p[ax] -= out * D.z;
+    grid.push({ p: [p[0] - c[0], p[1] - c[1], p[2] - c[2]], z: D.z, hole: D.hole });
+  }
+  const pos = [], col = [], at = (i, j) => grid[j * (nu + 1) + i], flat = out * __panelLight[ax];
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) for (const tri of [[at(i, j), at(i + 1, j), at(i + 1, j + 1)], [at(i, j), at(i + 1, j + 1), at(i, j + 1)]]) {
+    const [A, B, C] = tri;
+    if (A.hole && B.hole && C.hole) continue;   // open: the hole is wider than the grid
+    const e1 = [B.p[0] - A.p[0], B.p[1] - A.p[1], B.p[2] - A.p[2]], e2 = [C.p[0] - A.p[0], C.p[1] - A.p[1], C.p[2] - A.p[2]];
+    let n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    const nl = Math.hypot(n[0], n[1], n[2]) || 1; n = n.map((x) => x / nl);
+    if (n[ax] * out < 0) n = n.map((x) => -x);
+    const turn = n[0] * __panelLight[0] + n[1] * __panelLight[1] + n[2] * __panelLight[2] - flat;
+    const lit = Math.max(0.2, 0.55 + 0.45 * Math.max(0, flat) + 1.4 * turn), deep = (A.z + B.z + C.z) / 3;
+    const k = (A.hole || B.hole || C.hole ? 0.18 : 1 - 0.45 * Math.min(1, Math.max(0, deep) / dmax)) * lit;
+    for (const q of tri) { pos.push(q.p[0], q.p[1], q.p[2]); col.push(skin.r * k, skin.g * k, skin.b * k); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  m.position.set(c[0], c[1], c[2]); m.raycast = function () {};
+  // a round's hole finer than the grid: its bore, dark, and the petals round it, on both faces
+  const bore = new THREE.MeshBasicMaterial({ color: 0x0b0b0c, side: THREE.DoubleSide }), petal = new THREE.MeshBasicMaterial({ color: skin.clone().multiplyScalar(0.55), side: THREE.DoubleSide });
+  for (const q of marks) {
+    if (!q.hole || q.a * 1.4 > hw * 2) continue;
+    const D = __panelAt(P, ax, out, q.at, hw);
+    for (const sd of [-1, 1]) for (const [geo, mat, lift] of [[new THREE.CircleGeometry(q.a, 14), bore, 0.0006], [new THREE.RingGeometry(q.a, 1.8 * q.a, 14), petal, 0.0004]]) {
+      const d = new THREE.Mesh(geo, mat), w = q.at.slice();
+      w[ax] = face - out * D.z + sd * lift;
+      d.position.set(w[0] - c[0], w[1] - c[1], w[2] - c[2]);
+      if (ax === 0) d.rotation.y = sd * Math.PI / 2; else if (ax === 1) d.rotation.x = -sd * Math.PI / 2; else if (sd < 0) d.rotation.x = Math.PI;
+      d.raycast = function () {};
+      m.add(d);
+    }
+  }
+  return m;
+}
+function __updatePanels() {
+  const R = __world.rupa;
+  if (!R || !R.panels) return;
+  for (const P of R.panels) {
+    let D = __panelDraw[P.id];
+    if (!D) {
+      const g = new THREE.Group(); scene.add(g); D = __panelDraw[P.id] = { g, form: -1, mesh: null };
+      // a box body plated on every face but its floor is drawn by its plates alone (they are its skin: a dent goes in)
+      const e = __world.byId[P.of], b = e && e.body, faces = new Set(R.panels.filter((q) => q.of === P.of).map((q) => q.face));
+      if (b && b.type === 'mesh' && b.shape === 'box' && ['front', 'back', 'left', 'right', 'top'].every((f) => faces.has(f)) && __bodies[P.of]) __bodies[P.of].traverse((x) => { if (x.material) x.material.visible = false; });
+    }
+    if (D.form !== P.rupa.form) {
+      if (D.mesh) { D.g.remove(D.mesh); D.mesh.traverse((x) => { if (x.geometry) x.geometry.dispose(); if (x.material) x.material.dispose(); }); }
+      D.mesh = __panelMesh(P); D.g.add(D.mesh); D.form = P.rupa.form;
+      if (D.loose) D.mesh.position.set(0, 0, 0);
+    }
+    if (!P.off) {
+      const e = __world.byId[P.of];
+      if (!e) continue;
+      D.g.visible = !e.gone;
+      D.g.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2]);
+      if (e.tilt) D.g.rotation.set(e.tilt.roll || 0, -(e.tilt.pitch || 0), e.transform.heading, 'ZYX'); else D.g.rotation.set(0, 0, e.transform.heading);
+      continue;
+    }
+    // off: the plate rides the body it became, turned as it was, tipping away from the blow
+    const body = (R.bodies || []).find((x) => x.id === P.off.body);
+    if (!body) continue;
+    if (!D.loose) { D.loose = true; D.mesh.position.set(0, 0, 0); }
+    const a = P.off.away, th = Math.hypot(a[0], a[1]) > 0 ? Math.min(Math.PI / 2, (__world.time - P.off.t) * 3) : 0;
+    D.g.position.set(body.pos[0], body.pos[1], body.pos[2]);
+    D.g.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), P.off.heading);
+    if (th > 0) D.g.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-a[1], a[0], 0).normalize(), th));
+  }
+}
+`;
+}
+
+/**
+ * The page's dust and smoke (rupa, controllable/rupa.js SMOKE): each source on `state.rupa.smoke` is solved once by the
+ * runtime's own smokeOf (a fire's plume, a break's dust in the sizes that hang, a douse's steam) and its puffs placed
+ * every frame by the same formula of time (puffAt, plumePuffs), carried by the level's wind: soft sprites from one
+ * pool, as wide as a puff has spread and as opaque as its optical depth. Dust takes the colour of what broke as the
+ * scene lights it, greyed as powder is; wood smoke is grey and paler as it thins; steam paler still. Read from state the runtime owns, at
+ * its time, so a capture stays byte-identical.
+ */
+export function smokeViewScript() {
+  return `// dust and smoke: puffs on the wind
+const __smokeSolved = {}, __smokePool = [], __SMOKE_MAX = 480;
+const __smokeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  for (let i = 0; i <= 8; i++) { const r = i / 8; gr.addColorStop(r, 'rgba(255,255,255,' + Math.exp(-4.5 * r * r).toFixed(3) + ')'); }   // a Gaussian puff
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c); return t; })();
+function __smokeSprite(i) {
+  if (!__smokePool[i]) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: __smokeTex, transparent: true, depthWrite: false, fog: true })); m.raycast = function () {}; scene.add(m); __smokePool[i] = m; }
+  return __smokePool[i];
+}
+// wood smoke is grey (its tar and water droplets scatter light; black smoke is an oil's or a tyre's), paler as it
+// thins; steam paler still. Mid tones: a sprite is unlit
+const __smokeSoot = new THREE.Color('#77746f'), __smokeGrey = new THREE.Color('#9c9994'), __smokeSteam = new THREE.Color('#b8bcc1');
+function __updateSmoke() {
+  const R = __world.rupa, P = __CW.rupaPhysics;
+  if (!R || !R.smoke || !P) return;
+  const t = __world.time, wind = R.wind;
+  let n = 0;
+  for (const src of R.smoke) {
+    let S = __smokeSolved[src.seq];
+    if (!S) {
+      S = __smokeSolved[src.seq] = P.smokeOf(src, wind);
+      const show = src.skin && __breakPieces[src.skin];
+      // dust in the colour of what broke as the scene lights it (its faces' baked fill), a little greyed as powder is
+      if (src.kind === 'dust') { const c = new THREE.Color(show ? show.fill : '#8a8070'), l = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b; S.color = c.lerp(new THREE.Color(l, l, l), 0.3); }
+      else S.color = src.kind === 'steam' ? __smokeSteam : null;
+    }
+    const list = S.plume ? P.plumePuffs({ ...S.plume, t1: src.t1 }, wind, t) : S.puffs.map((p) => (t - p.t0 <= p.life ? P.puffAt(p, wind, t) : null)).filter(Boolean);
+    for (const q of list) {
+      if (n >= __SMOKE_MAX) break;
+      const m = __smokeSprite(n++), k = Math.min(1, q.alpha);
+      m.visible = true; m.position.set(q.pos[0], q.pos[1], q.pos[2]); m.scale.setScalar(3 * q.sigma);
+      m.material.opacity = Math.min(0.85, k);
+      if (S.plume) m.material.color.copy(__smokeSoot).lerp(__smokeGrey, Math.min(1, q.age / 6)); else m.material.color.copy(S.color);
+    }
+  }
+  for (let i = n; i < __smokePool.length; i++) __smokePool[i].visible = false;
+}
+`;
+}
+
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, runner = null, gearGranted = false, seats = null, formSun = null, acts = false, tempo = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null } = {}) {
+  // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
+  const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
+  // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
+  const distort = !!(rupa && Array.isArray(breakables) && breakables.some((b) => b && (b.yield > 0 || b.kerfWork > 0)));
+  // metal panels on objects (rupa/panels.js): drawn only when an object carries resolved panels, so every other page keeps its bytes
+  const panelsOn = !!(rupa && Array.isArray(entities) && entities.some((e) => e && Array.isArray(e.panels) && e.panels.some((p) => p && p.yield > 0)));
+  // scars (rupa, cosmetic damage): painted only when the world is scarred, so every other page keeps its bytes
+  const scarsOn = !!(rupa && rupa.scars);
+  // ground (rupa, the land as a soil grid): drawn and probed only when the world has ground, so every other page keeps its bytes
+  const groundOn = !!(rupa && rupa.ground);
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
   // matching how specularChannelScript itself is gated in scene-three.js.
   // the TOUCH layer (touch.js): a game made for a screen draws a virtual pad, laid out for its pilot and camera
   const touchLayer = touch ? touchLayout(entities, camera, { runner: !!runner }) : null;
+  // a shooter's carried arms (gunplay.js, gunplay-view.js): a body whose rule says gunplay; absent, nothing is emitted
+  const gunplay = entities.some((e) => e && e.rule && e.rule.gunplay);
   // a level whose only minds are its fauna (era/biocube-fauna.js: each `fauna: true`, passive) has nothing to attack:
   // no AI-attack button. Any other mind ⇒ the button, byte-identical.
   const ais = (entities || []).filter((e) => e && ((e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')));
@@ -187,6 +738,9 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // entity carries a gear → the emitted channel is byte-identical
   // (or one a power grants later: a map game's game.powers, scene-three.js reads its grants)
   const gearUsed = gearGranted || (entities || []).some((e) => e && e.rule && e.rule.gear);
+  // vayo moves (special abilities on the hero's own air: worlds/controllable/vayo-move.js): a hero that carries one, or a
+  // power that grants one. None ⇒ no byte of it
+  const vayoOn = vayoGranted || (entities || []).some((e) => e && ((e.rule && e.rule.vayo) || (e.pilotRule && e.pilotRule.vayo)));
   const gearBlock = gearUsed ? `
 // ---- the gear's line (swing.js): hand to anchor while a body swings or zips ----
 const __gearLines = {};
@@ -215,6 +769,10 @@ function __updateGearLines() {
   // a vehicle rig that LIVES (car-designer/racer.js `live`: steer, lean, squat, dive, bounce, a mast's wobble) —
   // the overlay below is emitted only when some figure carries one, so every other page stays byte-identical.
   const figHasLive = Object.values(figures || {}).some((f) => f && f.rig && f.live);
+  // a machine RIDDEN astride (cycle-shelf/cycle-figure.js cycleRideFigure, its live.ridden): its front turned about the
+  // steering axis and orbiting the head, the whole machine leaning with its front by the drive rule's own lean (wheels in
+  // line), a three-wheeler's inner wheel lifting about the edge it would tip over. None ridden → byte-identical.
+  const figHasRide = figHasLive && Object.values(figures || {}).some((f) => f && f.rig && f.live && f.live.ridden);
   // a FACED body (the realistic hero, relational-face-rig.js: `face` and its parts' `morph`): morph targets on its bone
   // meshes, driven per frame by the state's facial track, the ambient blink over the states that hold the face. No
   // faced body → the emitted channel is byte-identical.
@@ -223,11 +781,19 @@ function __updateGearLines() {
   // each part's `uv`): its bone meshes drawn on the atlas (texel × the part's lit colour), as the World page draws it.
   // No painted body → the emitted channel is byte-identical.
   const figHasPaint = Object.values(figures || {}).some((f) => f && f.rig && f.paintTex && Array.isArray(f.parts) && f.parts.some((p) => p && p.uv));
+  // a SKINNED body (the mount, lib/graph/mount/game.js: one welded skin, `skin` and its parts' joints and weights): its bones
+  // drive ONE skinned mesh (a rigid part a bone would tear the skin at every joint). None ⇒ not a byte of it
+  const figHasSkin = Object.values(figures || {}).some((f) => f && f.rig && f.skin === true && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt));
   // a body with MODES (worlds/controllable/vanish.js): each mode's figure built up front as a loadout's are, the sync's
   // variant swap showing the one it is in. None ⇒ the body as it was, byte for byte
   const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
   // (and one whose atlas has edges, the hero's hair cards: its material alpha tested; none ⇒ not a byte of it)
   const figHasMask = figHasPaint && Object.values(figures || {}).some((f) => f?.paintTex?.alphaMask);
+  // ONE DRAW A FIGURE (merged-figure.js): a plain rigid rig drawn as one skinned mesh, a draw a pass instead of one a part;
+  // off where a part's own mesh is read (the toon ink's hulls, a headset's hands). None mergeable ⇒ byte-identical
+  const figMerge = !xr && !toonInk && Object.values(figures || {}).some(mergeableFigure);
+  // (a figure with a pose twin, figure-grades.js: cut in while a close shot is on it; none, not a byte)
+  const figPose = figMerge && Object.values(figures || {}).some((f) => f && typeof f.pose === 'string' && mergeableFigure(f));
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
@@ -240,6 +806,9 @@ function __updateGearLines() {
   // a body with FORMS (controllable/forms.js) and a figure baked to be both (transformation/compose.js): the transform
   // press, the clip each form plays, a flying form's attitude. Emitted only when some entity or figure carries forms.
   const hasForms = (entities || []).some((e) => e && e.forms);
+  // a hero's SQUASH AND STRETCH on its own jumps (rules-platform.js takes: `takes.squash`, a feel card's look): the rig
+  // scaled about its feet by the rule's `e.squash`. No rule carries one ⇒ not a byte of it
+  const figHasSquash = (entities || []).some((e) => e && e.rule && e.rule.takes && e.rule.takes.squash > 0);
   const figHasForms = Object.values(figures || {}).some((f) => f && f.rig && f.forms);
   // a car's own light in a dark mood (car-designer/supercar-figure.js: the headlamps' pool on the road, the tail lamps'
   // ribbons) — emitted only when some figure's juice carries them.
@@ -553,15 +1122,28 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   requestAnimationFrame(tick);
 })();
 ` : '';
+  // (a tempo whose moments carry a look: the page lays it over the grade)
+  const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(tempo ? { clock: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''} });
-${commanderBlock}${flyHudBlock}${(() => {
-    const pooled = poolFigureBuffers(figures || {});
-    if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''} });
+${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
+let __xrCtl = null;
+` : ''}${commanderBlock}${flyHudBlock}${(() => {
+    const { figs, same } = PAGE;
+    // (clips on 16 bits: decoded once, after the bank and its pool, before any consumer reads a frame)
+    const q16 = Object.values(figs).some((f) => f && ['clips', 'acts'].some((k) => f[k] && Object.values(f[k]).some((c) => c && c.b && c.b.q16 !== undefined)));
+    const unclip = q16 ? `
+(function __unclip16(F) { for (const n in F) { const f = F[n]; if (!f) continue; for (const k of ['clips', 'acts']) { const C = f[k]; if (!C) continue; for (const c in C) { const b = C[c] && C[c].b; if (!b || b.q16 === undefined) continue; const bin = atob(b.q16), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); const q = new Int16Array(u.buffer), out = new Float32Array(q.length); for (let i = 0; i < q.length; i++) out[i] = i % 7 < 4 ? q[i] / 32767 : q[i] * b.s; C[c] = { ...C[c], b: out }; } } } })(__FIG);` : '';
+    // (a figure named again: the one it is byte for byte, after the bank, so the export's hoist of the bank keeps it)
+    const again = Object.keys(same).length ? `
+const __FIGSAME = ${safeJson(same)};   // name → the figure it is byte for byte (emitted once)
+for (const k in __FIGSAME) __FIG[k] = __FIG[__FIGSAME[k]];` : '';
+    const pooled = poolFigureBuffers(figs);
+    if (!pooled.pool.length) return `const __FIG = ${safeJson(figs)};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)${unclip}${again}`;
     return `const __FIGPOOL = ${safeJson(pooled.pool)};   // shared packed buffers (deduped across figures — livery variants)
 const __FIG = ${safeJson(pooled.fig)};   // name → packed baked figure frames (pos/col b64 or {__p:i} into __FIGPOOL)
-(function __unpool(o) { for (const k in o) { const v = o[k]; if (v && typeof v === 'object') { if (v.__p != null) o[k] = __FIGPOOL[v.__p]; else __unpool(v); } } })(__FIG);`;
+(function __unpool(o) { for (const k in o) { const v = o[k]; if (v && typeof v === 'object') { if (v.__p != null) o[k] = __FIGPOOL[v.__p]; else __unpool(v); } } })(__FIG);${unclip}${again}`;
   })()}
 const __bodies = {};
 // figure-frames body: re-expand baked frames (Uint16 corners + Uint8 colour) into raw Float32
@@ -680,8 +1262,36 @@ function __rigFace(rig, clipName, phase) {
 }
 ` : ''}${figHasPaint ? `// the painted body's atlas, once per figure (shared by every entity wearing it)
 function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; } return fig.__tex; }
-` : ''}function __makeRigGroup(fig, b) {
-  const group = new THREE.Group();
+` : ''}${figHasSkin ? `// a SKINNED rig: its bones (posed by the sync as a rigid rig's bone meshes are) drive one skinned mesh bound at the rest,
+// every part's corners in it with their joints and weights; it never raycasts (no footing, no target)
+function __makeSkinGroup(fig, b, group) {
+  const bones = fig.bones.map(() => { const o = new THREE.Bone(); o.matrixAutoUpdate = false; group.add(o); return o; });
+  let n = 0; for (const P of fig.parts) if (P) n += P.faces * 3;
+  const pos = new Float32Array(n * 3), col = new Uint8Array(n * 3), jnt = new Uint16Array(n * 4), wgt = new Float32Array(n * 4);
+  let o = 0;
+  for (const P of fig.parts) {
+    if (!P) continue;
+    const p = decodeF32(P.pos), c = decodeU8(P.col), j = decodeU8(P.jnt), w = decodeF32(P.wgt), m = p.length / 3;
+    pos.set(p, o * 3); col.set(c, o * 3); jnt.set(j, o * 4); wgt.set(w, o * 4); o += m;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+  geo.setAttribute('skinIndex', new THREE.BufferAttribute(jnt, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(wgt, 4));
+  geo.computeBoundingSphere();
+  const mesh = new THREE.SkinnedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  mesh.frustumCulled = false; mesh.raycast = function () {};
+  group.add(mesh); scene.add(group);
+  group.updateMatrixWorld(true);
+  mesh.bind(new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4())));
+  group.userData.rigFig = { fig, boneMeshes: bones, mix: {}, blendTime: b.blendTime, lookA: 0, yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null, skin: mesh };
+  return group;
+}
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose }) : ''}function __makeRigGroup(fig, b) {
+  const group = new THREE.Group();${figHasSkin ? `
+  if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
+  if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;${figHasForm ? `
@@ -1346,24 +1956,34 @@ ${figHasHeroJuice ? `    if (rj.J.hero) __rjHero(rj, e, F, d);
 // whip and a propeller's spin. → per bone: 'steer' | 'body' | 'wheel' | 'mast' and the frame's quaternions.
 const __lvQ = new THREE.Quaternion(), __lvQB = new THREE.Quaternion(), __lvQP = new THREE.Quaternion(), __lvQS = new THREE.Quaternion(), __lvQW = new THREE.Quaternion(), __lvQM = new THREE.Quaternion(), __lvH = new THREE.Vector3();
 const __LV_X = new THREE.Vector3(1, 0, 0), __LV_Y = new THREE.Vector3(0, 1, 0), __LV_Z = new THREE.Vector3(0, 0, 1);
-function __rigLive(e, rig, dt) {
+${figHasRide ? `const __lvQR = new THREE.Quaternion(), __lvA = new THREE.Vector3();
+` : ''}function __rigLive(e, rig, dt) {
   const L = rig.fig.live, G = L.gains, d = Math.min(0.05, dt || 0);
   if (!rig.lv) { rig.lv = { lean: 0, pitch: 0, bz: 0, vz: 0, spin: 0, whip: 0, role: {} }; rig.fig.bones.forEach((b, i) => { if (L.steer.includes(b.id)) rig.lv.role[i] = 'steer'; else if (b.id === L.wheel) rig.lv.role[i] = 'wheel'; else if (b.id === L.mast) rig.lv.role[i] = 'mast'; else if (L.body.bones.includes(b.id)) rig.lv.role[i] = 'body'; }); }
-  const S = rig.lv, v = e.speed || 0, st = e.steerAngle || 0, k = (r) => Math.min(1, d * r);
+${figHasRide ? `  if (L.ridden && !rig.lv.at) { rig.lv.at = {}; rig.lv.pv = [0, 0, 0]; rig.lv.lift = 0; rig.fig.bones.forEach((b, i) => { if (L.steerAt && L.steerAt[b.id]) rig.lv.at[i] = L.steerAt[b.id]; }); }
+` : ''}  const S = rig.lv, v = e.speed || 0, st = e.steerAngle || 0, k = (r) => Math.min(1, d * r);
   const steer = Math.max(-G.steerMax, Math.min(G.steerMax, st * G.steer));
-  S.lean += (Math.max(-G.leanMax, Math.min(G.leanMax, st * Math.abs(v) * G.lean)) - S.lean) * k(6);
-  S.pitch += ((e.throttle || 0) * G.squat * (v >= 0 ? 1 : -1) - (e.braking ? G.dive : 0) - S.pitch) * k(5);
+  S.lean += (Math.max(-G.leanMax, Math.min(G.leanMax, ${figHasRide ? `L.lean === 'rule' ? -(e.lean || 0) : ` : ''}st * Math.abs(v) * G.lean)) - S.lean) * k(6);
+${figHasRide ? `  // (a three-wheeler: the turn's pull, v² tan(steer) / wheelbase, against what tips it toward the outside, ssf·g;
+  // the inner wheel lifts over its last 30%, about the outer edge where the centre of mass meets it)
+  if (L.lift) {
+    const lat = v * v * Math.tan(st) / L.lift.wb, E = lat >= 0 ? L.lift.r : L.lift.l, a = Math.abs(lat) / (E.ssf * 9.81);
+    S.lift += (Math.sign(lat) * G.liftMax * Math.max(0, Math.min(1, (a - 0.7) / 0.3)) - S.lift) * k(6);
+    S.pv[0] = S.lift >= 0 ? L.lift.r.x : L.lift.l.x; S.pv[1] = L.body.pivot[1]; S.pv[2] = L.body.pivot[2];
+  }
+` : ''}  S.pitch += ((e.throttle || 0) * G.squat * (v >= 0 ? 1 : -1) - (e.braking ? G.dive : 0) - S.pitch) * k(5);
   if (e.landed) S.vz -= G.bounce * 4;
   S.vz += (-140 * S.bz - 11 * S.vz) * d; S.bz += S.vz * d;
   S.spin += d * (5 + Math.abs(v) * 1.6);
   S.whip += (Math.min(G.wobbleMax, Math.abs(v) * G.wobble) + (e.braking ? -0.15 : 0) - S.whip) * k(4);
   const shiver = (e.throttle || 0) > 0.05 || Math.abs(v) < 0.5 ? 0.004 * Math.sin((__world.time || 0) * 52) : 0;
   __lvQS.setFromAxisAngle(__LV_Z, steer);
-  __lvQW.setFromAxisAngle(__LV_Y, -steer * 2.2);
-  __lvQB.setFromAxisAngle(__LV_Y, S.lean); __lvQP.setFromAxisAngle(__LV_X, S.pitch); __lvQB.multiply(__lvQP);
+${figHasRide ? `  if (L.steerAxis) __lvQR.setFromAxisAngle(__lvA.fromArray(L.steerAxis), steer);
+` : ''}  __lvQW.setFromAxisAngle(__LV_Y, -steer * 2.2);
+  __lvQB.setFromAxisAngle(__LV_Y, S.lean${figHasRide ? ` + (L.lift ? S.lift : 0)` : ''}); __lvQP.setFromAxisAngle(__LV_X, S.pitch); __lvQB.multiply(__lvQP);
   __lvQM.setFromAxisAngle(__LV_X, S.whip + 0.05 * Math.sin((__world.time || 0) * 9) * Math.min(1, Math.abs(v) / 8));
   if (L.spin) { __lvQ.setFromAxisAngle(__LV_Z, S.spin); __lvQM.multiply(__lvQ); }
-  return { role: S.role, steer: __lvQS, wheel: __lvQW, body: __lvQB, mast: __lvQM, pivot: L.body.pivot, dz: Math.max(-0.2, S.bz) + shiver };
+  return { role: S.role, steer: __lvQS, wheel: __lvQW, body: __lvQB, mast: __lvQM, pivot: ${figHasRide ? `L.lift ? S.pv : ` : ''}L.body.pivot, dz: Math.max(-0.2, S.bz) + shiver${figHasRide ? `, rides: !!L.ridden, at: S.at, axisQ: __lvQR` : ''} };
 }
 ` : ''}${figHasForms ? `// A BODY IN TWO FORMS (transformation/compose.js): the base form plays the plain clips; another form plays its own
 // (\`vehicle:drive\`), holding its rest (\`vehicle:idle\`) for any it has none of; the transformation's clips
@@ -1374,6 +1994,20 @@ function __formMode(fig, e, mode) {
   if (f === fig.forms.base) return mode;
   const k = f + ':' + mode;
   return fig.clips[k] ? k : f + ':idle';
+}
+` : ''}${acts ? `// a battle act's clip among the figure's own: the first it has of the act's names (its swing, its recoil, its fall)
+const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'] };
+function __actClip(fig, is) { const L = __ACT_CLIPS[is] || []; for (let i = 0; i < L.length; i++) if (fig.clips[L[i]]) return L[i]; return null; }
+// A BATTLE ACT (the party battles' juice, rpg-channel.js: e.act { is, t0, for, to? }): the figure plays its own clip for it
+// at the act's phase on the world's clock (a fight holds the world still, its clock running), a strike leaning toward its
+// target and back; a fall holds its last frame; a figure without the clip plays nothing new (A.clip says which it played)
+function __actMode(fig, e, m) {
+  const A = e.act, at = A ? ((__world.time || 0) - A.t0) / A.for : -1;
+  if (!(A && at >= 0 && (at <= 1 || A.is === 'fall'))) { if (A && at > 1) e.act = null; return null; }
+  const c = __actClip(fig, A.is); A.clip = c;
+  const T = A.to && A.is === 'strike' ? __world.byId[A.to] : null;
+  if (T && at <= 1) { const dx = T.transform.pos[0] - e.transform.pos[0], dy = T.transform.pos[1] - e.transform.pos[1], d = Math.hypot(dx, dy) || 1, k = Math.sin(Math.PI * at) * Math.min(1.2, d * 0.4) / d; m.position.x += dx * k; m.position.y += dy * k; }
+  return c ? { mode: c, phase: Math.min(at, 0.999) } : null;
 }
 ` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
@@ -1396,10 +2030,18 @@ function __formMode(fig, e, mode) {
     ${figHasForms ? `if (e.tilt && rig.fig.forms) m.rotation.set(e.tilt.pitch || 0, e.tilt.roll || 0, yawA, 'ZYX');   // a flying form's attitude
     else ` : ''}m.rotation.set(0, 0, yawA);
   }
-  const fig = rig.fig;
-  ${figHasForms ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
-  if (fig.forms) mode = __formMode(fig, e, mode);` : ''}
-  const mix = __CW.advanceGaitMix(rig.mix, mode, e.gaitPhase, dt || 0, rig.blendTime);
+  ${figHasSquash ? `// the rule's squash and stretch (e.squash: [across, up]) about the feet, over the body's own scale
+  if (e.squash || m.userData.s0 != null) {
+    if (m.userData.s0 == null) m.userData.s0 = m.scale.z;
+    const s0 = m.userData.s0, q = e.squash;
+    if (q) m.scale.set(s0 * q[0], s0 * q[0], s0 * q[1]); else { m.scale.setScalar(s0); m.userData.s0 = null; }
+  }
+  ` : ''}const fig = rig.fig;
+  ${figHasForms || acts ? 'let' : 'const'} mode = e.moving ? e.locomotion : 'idle';${figHasForms ? `
+  if (fig.forms) mode = __formMode(fig, e, mode);` : ''}${acts ? `
+  const act = __actMode(fig, e, m), phase = act ? act.phase : e.gaitPhase;
+  if (act) mode = act.mode;` : ''}
+  const mix = __CW.advanceGaitMix(rig.mix, mode, ${acts ? 'phase' : 'e.gaitPhase'}, dt || 0, rig.blendTime);
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no
@@ -1509,8 +2151,15 @@ ${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the s
     // then they, and the body, lean, pitch and bounce about the wheelbase's middle
     if (LV && LV.role[bi]) {
       const role = LV.role[bi];
-      if (role === 'steer') __rigQA.premultiply(LV.steer);
-      else {
+${figHasRide ? `      // (a ridden machine's front turns about the steering axis, orbiting the head; then it leans with the rest)
+      const A = LV.rides && role === 'steer' ? LV.at[bi] : null;
+      if (A) {
+        __lvH.set(__rigPA[0] - A[0], __rigPA[1] - A[1], __rigPA[2] - A[2]).applyQuaternion(LV.axisQ);
+        __rigPA[0] = A[0] + __lvH.x; __rigPA[1] = A[1] + __lvH.y; __rigPA[2] = A[2] + __lvH.z;
+        __rigQA.premultiply(LV.axisQ);
+      } else if (role === 'steer') __rigQA.premultiply(LV.steer);
+      if (role !== 'steer' || LV.rides) {` : `      if (role === 'steer') __rigQA.premultiply(LV.steer);
+      else {`}
         if (role === 'wheel') __rigQA.premultiply(LV.wheel);
         else if (role === 'mast') __rigQA.premultiply(LV.mast);
         const P = LV.pivot;
@@ -1532,10 +2181,10 @@ ${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the s
   // Restore full opacity when it ends.
   if (e.invincible) {
     const o = 0.45 + 0.35 * Math.sin(__world.time * 40);
-    for (const bm of rig.boneMeshes) { if (bm) { bm.material.transparent = true; bm.material.opacity = o; } }
+    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.transparent = true; bm.material.opacity = o; } }   // (a merged figure: its one skin)
     rig.__shimmered = true;
   } else if (rig.__shimmered) {
-    for (const bm of rig.boneMeshes) { if (bm) { bm.material.opacity = 1; bm.material.transparent = false; } }
+    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.opacity = 1; bm.material.transparent = false; } }
     rig.__shimmered = false;
   }
 }
@@ -1616,7 +2265,8 @@ function __syncEntity(e, dt) {
   // menu holds this body hidden (userData.hangarHidden, __showActive): this unconditional
   // per-frame re-show is what superposed every suit at the origin after the respawn work.
   if (!m.visible && !m.userData.hangarHidden${hideId ? ` && e.id !== ${JSON.stringify(hideId)}` : ''}) m.visible = true;${hideId ? `
-  if (e.id === ${JSON.stringify(hideId)}) m.visible = false;   // first person: the eye rides inside this body` : ''}
+  if (e.id === ${JSON.stringify(hideId)}) m.visible = false;   // first person: the eye rides inside this body` : ''}${xr ? `
+  if (__xrCtl && __xrCtl.hides(e)) m.visible = false;   // in the headset: the player stands inside this body` : ''}
   m.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2]);
   // hit flash: a hittable target (invincible) whitens for a beat when a shot lands, then restores.
   if (e.body && e.body.hittable && m.material) {
@@ -1643,10 +2293,11 @@ function __syncEntity(e, dt) {
   const fig = m.userData && m.userData.fig;
   if (fig) {
     m.rotation.set(0, 0, e.transform.heading + fig.yaw);
-    if (!fig.lerpable) {   // mismatched clip topologies → legacy frame snapping
-      const clip = __figClipOf(fig, e, e.moving ? e.locomotion : 'idle');
-      const N = clip.length, ph = ((e.gaitPhase % 1) + 1) % 1;
-      const frame = e.moving ? (Math.floor(ph * N) % N) : 0;
+${acts ? `    const act = __actMode(fig, e, m);
+` : ''}    if (!fig.lerpable) {   // mismatched clip topologies → legacy frame snapping
+      const clip = __figClipOf(fig, e, ${acts ? "act ? act.mode : " : ''}e.moving ? e.locomotion : 'idle');
+      const N = clip.length, ph = ((${acts ? '(act ? act.phase : e.gaitPhase)' : 'e.gaitPhase'} % 1) + 1) % 1;
+      const frame = ${acts ? 'act || ' : ''}e.moving ? (Math.floor(ph * N) % N) : 0;
       const attr = fig.mesh.geometry.getAttribute('position');
       if (attr.array.length === clip[frame].pos.length) {
         attr.array.set(clip[frame].pos); attr.needsUpdate = true;
@@ -1658,8 +2309,8 @@ function __syncEntity(e, dt) {
       }
       return;
     }
-    const mode = e.moving ? e.locomotion : 'idle';
-    const mix = __CW.advanceGaitMix(fig.mix, mode, e.gaitPhase, dt || 0, fig.blendTime);
+    const mode = ${acts ? 'act ? act.mode : ' : ''}e.moving ? e.locomotion : 'idle';
+    const mix = __CW.advanceGaitMix(fig.mix, mode, ${acts ? 'act ? act.phase : ' : ''}e.gaitPhase, dt || 0, fig.blendTime);
     const attr = fig.mesh.geometry.getAttribute('position');
     const out = attr.array;
     out.fill(0);
@@ -1732,10 +2383,13 @@ ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on,
 const __surfaceT = ${safeJson(driveSurface)};
 const __surfaceAt = ${surfaceAt.toString()};
 const __surface = (p) => __surfaceAt(__surfaceT, p);
-` : ''}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
+` : ''}${groundGridScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __groundRay = new THREE.Raycaster();
 const __bodySet = () => Object.values(__bodies);
+let __gridOn = false;
 function __ground(pos) {
+  // (the big static meshes take straight-down rays by grid, indexed at the first probe: every mesh is built by then)
+  if (!__gridOn) { __gridOn = true; __gridMeshes(); }
   // Probe straight down FROM the passed origin — the CALLER chooses the height. The walk rule passes
   // its eye position (finds the floor below it); the platform rule passes feet+step (so it lands on the
   // surface under the FEET and ignores platforms whose tops sit above them — you jump onto a ledge, you
@@ -1948,7 +2602,8 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
     swap: pb('swapSuit'), ai: pb('aiToggle'),  // D-pad up = switch suit · select = AI toggle
     lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)${hasForms ? `
     transform: pb('transform'),                // L3 (left stick click) = transform (forms.js)` : ''}
-    interact: pb('interact', rb),              // X / PS square — use / talk where the figure stands in reach (silent inside an RB chord)
+    interact: pb('interact', rb),              // X / PS square — use / talk where the figure stands in reach (silent inside an RB chord)${vayoOn ? `
+    vayo: !!(g.buttons && g.buttons[13] && g.buttons[13].pressed),   // D-pad down — a vayo move (vayo-move.js)` : ''}
   };
 }
 // the pause legend for the piloted entity (scene-three's __controlRows asks): the scheme's rows,
@@ -1959,6 +2614,8 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
   const W = __world, lo = (e) => (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length) || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length);
   return __CTL.legend(__SCHEME, __BIND, __DEV, {
     space: r.space === true, kneel: r.kneel === true, tackle: !!r.tackle, vehicle: r.type === 'drive' || r.type === 'fly',
+    walker: r.walkSpeed > 0 && r.space !== true && !r.gear,   // a person: the walk held, no thrusters
+    dash: !!r.dash, sprint: !!r.sprint && !r.dash,             // a feel's F: the dash, or the run button (rules-platform.js)
     mouselook: __MOUSELOOK, armed: W.entities.some((e) => e.weapon || lo(e)), lock: ${!!lock},
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
@@ -1989,7 +2646,8 @@ function __readInput() {
   // a menu is up (events channel): the figure takes nothing — not a key held as it opened, not the pad, not the look.
   // The edges read as held, so the key that picked doesn't jump or interact again when the menu goes.
   if (window.__mojMenuOpen) { __lookDX = 0; __lookDY = 0; __fireDown = false; __prevJump = true; __prevInteract = true; return { ...__CW.ZERO_INPUT }; }
-  const __pad = __pollPad();   // null when no controller (or prefs turned it off)
+  const __pad = ${xr ? '__xrCtl ? __xrCtl.pad() : ' : ''}__pollPad();   // null when no controller (or prefs turned it off)${xr ? `
+  // (in the headset, channels/xr.js: the controllers are the pad, and the read is finished on the body below)` : ''}
   // INTERACT (use / talk) press edge: counted; the events channel sends use-<place> when the figure stands in reach
   const it = __k('interact') || !!(__pad && __pad.interact);
   if (it && !__prevInteract) __interactN++;
@@ -2067,6 +2725,7 @@ function __readInput() {
     lift: __kx('jump', 'descend') || (__pad ? (__pad.jump ? 1 : 0) - (__pad.kneel ? 1 : 0) : 0),
     jump, jumpHeld: sp ? 1 : 0,
     boost: __k('boost') || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
+    walk: __k('walk') ? 1 : 0,       // a person's walk, held (platform rule, walkSpeed); a pad walks by the stick's travel
     kneel: __k('kneel') || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
     fire: __fireDown || (__pad && __pad.fire && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
@@ -2076,11 +2735,12 @@ function __readInput() {
     lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge${hasForms ? `
     transform,                       // transform (B): a body with forms turns into its next one (forms.js)` : ''}
     missile: __k('missile') || window.__mojAltFire ? 1 : 0,   // a craft's missile (R, or the right mouse, pointer-locked: the flight block's)
-    flare: __k('flare') ? 1 : 0,     // a craft's flare (X)
+    flare: __k('flare') ? 1 : 0,     // a craft's flare (X)${vayoOn ? `
+    vayo: __kbRead('KeyV') || (__pad && __pad.vayo) ? 1 : 0,   // a vayo move (V, or the pad's D-pad down): vayo-move.js` : ''}
     lookDX: __lookDX, lookDY: __lookDY,
   };
   __lookDX = 0; __lookDY = 0;
-  return inp;
+  return ${xr ? '__xrCtl ? __xrCtl.input(inp) : ' : ''}inp;
 }
 ${seats ? seatsScript(seats) : ''}// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
 // (otherwise OrbitControls keeps the view — e.g. a clock-driven figure turntable orbited by hand).
@@ -2541,7 +3201,8 @@ function __updateLock() {
 ` : ''}// the PILOTED suit each frame (T swaps it). Absent otherwise (byte-identical).
 let __radar = null;
 const __radarSelf = () => __world.spectate ? __specWatchEnt() : ((__world.pilotId && __world.byId[__world.pilotId]) || __armed || null);
-if (__radarSelf() && __world.entities.some((e) => e.body && e.body.hittable && e !== __radarSelf())) {
+// (none under a side camera: the screen is the lane, a side-scroller's foes in it)
+if (__radarSelf() && !(__world.camera && __world.camera.rule && __world.camera.rule.type === 'side') && __world.entities.some((e) => e.body && e.body.hittable && e !== __radarSelf())) {
   const RSZ = 132;
   const __rWrap = document.createElement('div');
   __rWrap.style.cssText = 'position:absolute;right:16px;top:16px;width:' + RSZ + 'px;height:' + RSZ + 'px;border-radius:50%;background:rgba(8,14,22,0.42);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.28),0 2px 10px rgba(0,0,0,0.42);pointer-events:none;z-index:9;overflow:hidden';
@@ -2664,9 +3325,10 @@ function __foeTopOf(e) {
   return Number.isFinite(top) && top > 0 ? (__foeTop[e.id] = Math.min(top, 12)) : 1;
 }${foeRim ? `
 // the TARGET RIM: a shell of light at the targeted foe's edges (fresnel: brightest where its surface turns from the eye),
-// pulsing, on each bone mesh of the body it is drawn as now; moved off when the target changes or its body does
+// pulsing, on each bone mesh of the body it is drawn as now, or on its one skinned mesh (a merged figure: its
+// boneMeshes are bones), bound to its skeleton; moved off when the target changes or its body does
 const __rimMat = new THREE.ShaderMaterial({ uniforms: { uCol: { value: new THREE.Color(1, 1, 1) }, uK: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  vertexShader: '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() { vec4 wp = modelMatrix * vec4(position + normal * 0.006, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
+  vertexShader: '#include <common>\\n#include <skinning_pars_vertex>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() {\\n#include <beginnormal_vertex>\\n#include <skinbase_vertex>\\n#include <skinnormal_vertex>\\n#include <begin_vertex>\\n#include <skinning_vertex>\\n vec4 wp = modelMatrix * vec4(transformed + objectNormal * 0.006, 1.0); vN = normalize(mat3(modelMatrix) * objectNormal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
   fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uCol; uniform float uK; varying vec3 vN; varying vec3 vV; void main() {\\n#include <logdepthbuf_fragment>\\n float f = pow(1.0 - abs(dot(normalize(vN), vV)), 1.8); gl_FragColor = vec4(uCol * (1.0 + f), min(1.0, (0.18 + 1.3 * f) * uK)); }' });
 const __rim = { id: null, g: null, kids: [] };
 // smooth normals for a bone mesh's triangle list, once (its corners averaged where they meet), for the rim's fresnel
@@ -2687,7 +3349,14 @@ function __foeRim(id) {
     for (const k of __rim.kids) if (k.parent) k.parent.remove(k);
     __rim.kids = []; __rim.id = id; __rim.g = g;
     const rf = g && g.userData.rigFig;
-    if (rf) for (const m of rf.boneMeshes) { if (!m) continue; __rimNormals(m.geometry); const k = new THREE.Mesh(m.geometry, __rimMat); k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true; m.add(k); __rim.kids.push(k); }
+    if (rf) for (const m of rf.skin ? [rf.skin] : rf.boneMeshes) {
+      if (!m || !m.geometry || !m.geometry.attributes.position) continue;
+      __rimNormals(m.geometry);
+      const k = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, __rimMat) : new THREE.Mesh(m.geometry, __rimMat);
+      k.raycast = function () {}; k.renderOrder = 5; k.userData.ink = true;
+      if (m.isSkinnedMesh) { k.frustumCulled = false; m.parent.add(k); k.bind(m.skeleton, m.bindMatrix); } else m.add(k);
+      __rim.kids.push(k);
+    }
     if (e && Array.isArray(e.body.targetRim)) __rimMat.uniforms.uCol.value.setRGB(e.body.targetRim[0], e.body.targetRim[1], e.body.targetRim[2]);
   }
   __rimMat.uniforms.uK.value = __rim.kids.length ? 0.75 + 0.25 * Math.sin(__world.time * 6) : 0;
@@ -2790,7 +3459,19 @@ function __fxMat(c) { return new THREE.MeshBasicMaterial({ color: new THREE.Colo
 // hit reads visually, not just as a dropping number. Deferred to the bolt's arrival, and seeded
 // ONLY by geometry (no Math.random → capture stays byte-identical). Sized by the weapon's fxScale, so a
 // vulcan round sparks small and a rifle bolt hits big.
+${flow ? `// on the flow (rupa-vayo): a hit is a soft flash and a ring of air, sprites, no meshes and no spikes
+const __fxSoftTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const __fxRingTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 18, 32, 32, 31); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.7, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const __fxSprite = (tex, col) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(col), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })); s.geometry = s.geometry.clone(); s.raycast = function () {}; s.visible = false; scene.add(s); return s; };   // (its own quad: a dropped effect frees what it holds)
 function __spawnImpactFx(b, col, sz, dir, at) {
+  const flash = __fxSprite(__fxSoftTex, 0xffffff); flash.position.set(b[0], b[1], b[2]); flash.scale.setScalar(sz * 0.42);
+  __fx.push({ obj: flash, born: at, ttl: 0.13, kind: 'impact', base: sz * 0.85 });
+  const glow = __fxSprite(__fxSoftTex, col); glow.position.set(b[0], b[1], b[2]);
+  __fx.push({ obj: glow, born: at, ttl: 0.22, kind: 'burst', base: sz * 0.7, dim: 0.6 });
+  const ring = __fxSprite(__fxRingTex, col); ring.position.set(b[0], b[1], b[2]);
+  __fx.push({ obj: ring, born: at, ttl: 0.2, kind: 'burst', base: sz * 0.9, dim: 0.7 });
+}
+` : ''}function __spawnImpactFx${flow ? 'Mesh' : ''}(b, col, sz, dir, at) {
   const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
   flash.position.set(b[0], b[1], b[2]); flash.scale.setScalar(sz * 0.42); flash.raycast = function () {}; flash.visible = false; scene.add(flash);
   __fx.push({ obj: flash, born: at, ttl: 0.13, kind: 'impact', base: sz * 0.85 });
@@ -3023,7 +3704,8 @@ function __updateProjectiles() {
   const bs = __world.bursts || [];   // spawn an expanding shell for any burst not yet drawn
   for (const b of bs) {
     if (b.seq <= __burstSeen) continue;
-    __burstSeen = b.seq;
+    __burstSeen = b.seq;${flow ? `
+    if (window.__mojFlowBursts) continue;   // (on the flow, rupa-vayo: the moment channel sets it off as the flow's blast)` : ''}
     const col = b.fxColor != null ? b.fxColor : 0xffcc66;
     // the shell peaks at the TRUE splash reach (b.radius) — honest to the gameplay AoE — but stays
     // TRANSLUCENT (dim 0.5) so it reads as a fireball, not a screen-filling wash. A small, brighter
@@ -3481,7 +4163,9 @@ ${breakables ? `// breakability: a block that broke (the runtime's state.breaks)
 // how it broke) take its place, parting the cut's way (impact bursts from the blow, a blade slips the halves apart,
 // anime holds the beat first), falling, tumbling and settling on the floor it stood on, then sinking away. Seeded by
 // the break's seq and stepped on sim dt, so a capture stays byte-identical.
-const __breakPieces = ${safeJson(breakPieces || {})};
+const __breakPieces = ${safeJson(breakPieces || {})};${Object.values(breakPieces || {}).some((v) => v && v.like) ? `
+// blocks of one size and cut share their pieces (playscape/destruct/breakability.js piecesOf share): each takes the first's, in its own colour
+for (const k in __breakPieces) { const v = __breakPieces[k]; if (v.like) __breakPieces[k] = { ...__breakPieces[v.like], fill: v.fill, tex: v.tex }; }` : ''}
 const __pieces = [];
 let __breaksSeen = 0;
 const __PART = { impact: { speed: 3.2, up: 2.2, blow: 1.6, hold: 0 }, blade: { speed: 0.9, up: 0.6, blow: 0.9, hold: 0.06 }, laser: { speed: 0.3, up: 0.2, blow: 0.2, hold: 0.25 }, anime: { speed: 1.2, up: 0.5, blow: 0.7, hold: 0.42 } };
@@ -3540,7 +4224,7 @@ function __updateBreaks(dt) {
   for (; __breaksSeen < B.length; __breaksSeen++) {
     const br = B[__breaksSeen], m = meshes['break:' + br.id];
     if (m) { m.visible = false; for (const tm of (m.userData.tex || [])) tm.visible = false; }
-    if (br.how !== 'restore') __spawnBreak(br);   // a restored break (an aftermath carried in) is simply gone
+    if (br.how !== 'restore'${distort ? " && br.how !== 'strip' && br.how !== 'cut'" : ''}) __spawnBreak(br);   // a restored break (an aftermath carried in) is simply gone${distort ? '; a stripped plate falls whole and a cut block parts in two (__updateDents)' : ''}
   }
   for (let i = __pieces.length - 1; i >= 0; i--) {
     const q = __pieces[i], age = __world.time - q.born;
@@ -3561,7 +4245,7 @@ function __updateBreaks(dt) {
     }
   }
 }
-` : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
+${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });${tempo ? `
@@ -3578,10 +4262,32 @@ ${hangarHook}  __msHookParams();
     __updateClashes();
     __updateThrusters(${tempo ? 'wdt' : 'dt'});${figHasJuice ? `
     __updateRacerJuice(${tempo ? 'wdt' : 'dt'});` : ''}${shadowHook}${smokeHook}${gearHook}${breakables ? `
-    __updateBreaks(${tempo ? 'wdt' : 'dt'});` : ''}${runner ? `
-    __updateRunner(${tempo ? 'wdt' : 'dt'});` : ''}
-  }
-  if (__ctrlOwnsCamera) __driveCamera(dt);
+    __updateBreaks(${tempo ? 'wdt' : 'dt'});${distort ? `
+    __updateDents();` : ''}${rupa ? `
+    __updateSmoke();` : ''}` : ''}${panelsOn ? `
+    __updatePanels();` : ''}${scarsOn ? `
+    __updateScars(${tempo ? 'wdt' : 'dt'});` : ''}${groundOn ? `
+    __updateGround();` : ''}${runner ? `
+    __updateRunner(${tempo ? 'wdt' : 'dt'});` : ''}${vayoOn ? `
+    __updateVayo(dt);` : ''}${knock ? `
+    __updateKnock(dt);` : ''}
+  }${acts ? `
+  // (a fight holds the world, but its bodies act and stand where it stages them: a figure with a battle act or a staged
+  // place is drawn on, the rest stand as they were)
+  else if (dt > 0) for (const e of __world.entities) if (e.act || e.staged) __syncEntity(e, dt);` : ''}
+  if (__ctrlOwnsCamera${xr ? ' && !__xrCtl' : ''}) __driveCamera(dt);${xr ? '   // (in the headset the head is the camera)' : ''}${figPose ? `
+  __poseFrame();   // (the pose grade cut in on the figures a close shot is on)` : ''}${tempoLook ? `
+  // a moment's look over the world's grade (channels/grade.js), by the moment's weight; its impact frame hard for its
+  // frames as it fires; its zoom aimed at whom it is about, on the screen as the camera now stands
+  if (window.__mojGrade) {
+    const P = __world.tempo && __world.tempo.playing, L = P && P.m.look;
+    if (L) {
+      const hit = L.impact && P.t < L.impact / 60, who = P.who && (__world.byId[P.who.b] || __world.byId[P.who.a]);
+      let at = null;
+      if (who) { camera.updateMatrixWorld(); __tmAt.set(who.transform.pos[0], who.transform.pos[1], who.transform.pos[2] + 1).project(camera); at = [(__tmAt.x + 1) / 2, (__tmAt.y + 1) / 2]; }
+      window.__mojGrade.moment(hit ? { ...L, invert: 1 } : L, hit ? 1 : __CW.tempoWeight(__world), at);
+    } else if (window.__mojGrade.look) window.__mojGrade.moment(null);
+  }` : ''}
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame
   __updateBoostHud();
   __updateRadar();${lock ? '\n  __updateLock();' : ''}
@@ -3590,7 +4296,22 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-${tempo ? `let __tmLast = null;
-window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on) => __CW.tempoMoment(__world, on) };
-` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
+${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
+window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who) };
+` : ''}${backdrop ? `// THE ENCOUNTER'S BACKDROP (a fight staged on its own arena, rpg rules.stage 'backdrop'): the map drawn once from a pose
+// into a texture, stood as a full-frame quad behind the arena's camera (the same pose shifted by \`shift\`), so the arena
+// reads as the place the fight was met; the world itself stays where it is, out of the arena camera's sight
+function __mojBackdrop(from, look, shift) {
+  const el = renderer.domElement, rt = new THREE.WebGLRenderTarget(Math.max(2, el.width), Math.max(2, el.height));
+  const cam = camera.clone(); cam.up.copy(camera.up); cam.position.set(from[0], from[1], from[2]); cam.lookAt(look[0], look[1], look[2]); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+  const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(prev);
+  const dir = new THREE.Vector3(look[0] - from[0], look[1] - from[1], look[2] - from[2]), reach = dir.length(); dir.normalize();
+  const d = Math.max(60, 4 * reach), H = 2 * d * Math.tan((cam.fov * Math.PI) / 360) * 1.04, Wd = H * cam.aspect;
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(Wd, H), new THREE.MeshBasicMaterial({ map: rt.texture, fog: false, depthWrite: false }));
+  const eye = new THREE.Vector3(from[0] + shift[0], from[1] + shift[1], from[2] + shift[2]);
+  quad.position.copy(eye).addScaledVector(dir, d); quad.up.copy(camera.up); quad.lookAt(eye); quad.renderOrder = -1; quad.frustumCulled = false;
+  scene.add(quad);
+  return { dispose: () => { scene.remove(quad); quad.geometry.dispose(); quad.material.dispose(); rt.dispose(); } };
+}
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}`;
 }

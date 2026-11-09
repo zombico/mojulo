@@ -7,12 +7,15 @@ comments, docs, or the changelog: plans are working documents that move to
 
 ## What this is
 
-A local MCP server with a dashboard that turns the operator's agent into a game studio. The person directs; the
-agent works through six departments: worlds and levels (art direction, light, set pieces, cities planned for play),
+A local MCP server with a dashboard that turns the operator's agent into a 3D creative studio: 3D objects, characters,
+environments, interactive worlds and even playable games, exported to the person's desktop. Inside, the agent works
+through seven departments: worlds and levels (art direction, light, set pieces, cities planned for play),
 characters, props and vehicles (`create_character`, `mint_solid`), play modes, animation and sound (`create_game`, feel,
 juice, `create_beats`), foes and bosses, cinematics (the actor: a persona's `style` and `role`, scenes and their coverage,
 `forge_motion`, the scenes card; craft in [docs/cinematics.md](docs/cinematics.md)), and game design and
-production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game. The audit and the engine legs
+production (`design_game`, the bibles, plans and sweeps), which ties the rest into a game, and interface and UX (menus, a
+game's front and screen; its runtime is mana-ui, below; newest, so not yet in the README or the `get_substrate` drawer,
+which join it once a game's UI runs on mana-ui). The audit and the engine legs
 are how everything holds up, not departments. Every department writes into one tiny deterministic recipe (a `sketches`
 row) that regenerates on every read and exports to the web, a team's engine (Godot, Unity, Unreal, Blender), GLB, STL,
 3MF, USD, which is why a game's bible, its levels and its export agree. Play, Print, Read, Hear and Observe are what
@@ -24,8 +27,10 @@ whole game end to end on the web (`export_game`); developers and teams get a han
 their engine, with the recipe and its bible as the team's design source and the web build as the prototype that
 validated the loop (the `engine-handoff` theme).
 
-Two audiences, one truth. The README, the plugin and the manifests speak to the person (the studio); the drawers and
-the `initialize` preamble speak to the agent (the compiler). The canonical self-description is the `get_substrate`
+Two audiences, one truth. The README, the plugin and the manifests speak to the person (the 3D creative studio): they
+open broad, show the pieces it makes from the easy (an object) up to the hard (a game), and say what the person gets,
+never how (no departments, requisitions, orders, gates or install weight). The drawers and the `initialize` preamble
+speak to the agent (the compiler). The canonical self-description is the `get_substrate`
 drawer in [control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js): its one-breath answer is what the
 agent says to the person, so it and the README agree. The office wing (apps, daemons, contextmap, MCP-to-MCP binding)
 left the tool surface in 3.1.0: `RETIRED_PACKS` in `packs.js`, callable by name, never listed or routed to.
@@ -132,7 +137,8 @@ at any depth, its deep sweeps, and the critical tier for a config change (`scrip
 `--list` shows the pick). Add `test:critical` for a change to the MCP surface, a pin or a guard, and `test:e2e` only
 for a gameworld, city, game or structure kernel change. Do not run whole folders or the whole suite locally. The
 whole suite, `test:deep` and `test:e2e` run in CI, sharded, on every PR, on pushes to `main` and the
-release-candidate branches (`*-consolidated`), and on demand for any branch (the workflow's manual run). Before merging
+release-candidate branches (`*-consolidated`), and on demand for any branch (the workflow's manual run): the whole suite on
+Node 22, the critical tier and its byte pins on the other runtimes (22.14.0, 24, macOS). Before merging
 a branch into a release candidate, merge the candidate into it, push it and open a pull request from it into the
 candidate: the workflow runs on every pull request (the whole suite, the deep sweeps and the e2e tier, sharded); land it
 on green by fast-forwarding the candidate (work on the next branch meanwhile). A prose-only branch needs no run. CI then runs everything again on the candidate's push, and a red there is the next fix. A module that reads files beside it is declared in
@@ -232,27 +238,15 @@ Pointers only; each target carries its own design notes.
 - Room furniture: [furnishings/roster.js](control/lib/graph/furnishings/roster.js) names every piece (one row, the
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
 - Vehicles: [vehicle-registry/roster.js](control/lib/graph/vehicle-registry/roster.js) names every vehicle (one row, the
-  words people say, its handles into the tables that build it); the old tables (nets, physics, fleet, rides, race
-  machines, craft shelf) are frozen behind it, every door reads a vehicle word through it, and a new vehicle is a row
-  first. Its builds by tier (toy | stylised | realistic) and what each needs to be drawn realistic: `builds.js`. The
-  field's vehicles (a military class's realistic body) are the hull kit's: `car-designer/road-military.js` over `mil-hull.js`, a
-  tracked class's running gear `mil-track.js`; the airfield's ground crew (catering, belt loader, stairs) too, `road-airside.js`;
-  the city's utility vehicles (works, the refuse fleet, emergency, aerial lifts, delivery) too, `road-civic.js` over `civic-kit.js`; review:
-  `scripts/render-civic.mjs`.
-- Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft, rotorcraft and spacecraft parts → whole
-  craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
-  Boats are on the same shelf (`boat-odm.js`, `boat-parts.js`, `boat-archetypes.js`): a hull drawn from its lines and
-  floated by its weight, its drive, its fittings; a warship's parts (superstructure, mast, turret, launch cells) in
-  `boat-ship.js`, a carrier's flight deck in `boat-carrier.js`, a submarine's round hull in `boat-sub.js`; a boat
-  underway, its wake from its hull and speed, in `boat-wake.js`, run round a course on the World page's live water by
-  `worlds/seaway-scene.js` and the `seaway` channel (its Kelvin field `kelvin.js`); review: `scripts/render-boats.mjs`.
-- Rail: [rail-shelf/](control/lib/graph/rail-shelf/) (primitives for locomotive transit on the vehicle ODM's pattern: a cab
-  car's grammar solves a brief into a frame, its section and its front as a field over it, held to laws; its surface
-  compiler names each quad; design cards by preset; the bogies under it the same way, `bogie-odm.js` and
-  `bogie-surface.js`, its pantographs `panto-odm.js` and `panto-surface.js`, the overhead line they reach
-  `catenary.js`; the cars behind it `car-odm.js` and `car-surface.js` over the shell they share, `body-shell.js`; their
-  insides `interior-odm.js` and `interior-surface.js`, the lining cut by the body's own openings; a train coupled from
-  them `consist.js`); review: `scripts/render-rail.mjs`.
+  words people say, its handles into the tables that build it); the old tables are frozen behind it, every door reads a
+  vehicle word through it, and a new vehicle is a row first. The shelves that build them (road, the car shelf's
+  personal cars, the mecha shelf's legged frames, the craft shelf's aircraft and boats, the rail shelf), file by file:
+  [docs/vehicles.md](docs/vehicles.md).
+- Airports: [airport/](control/lib/graph/airport/) (the transport hub's grammar laid at an airport's real figures, `plan.js`:
+  piers, nose-in stands sized to the craft shelf's liners and their jet bridges, the taxiway and runway at their
+  separations, the tower and hangar, each concourse a wing; drawn whole as a miniature on a plinth, `miniature.js`, or one
+  wing at full scale, `wing.js`: its piers, its apron's marks, its stands' aircraft, crews and jet bridges, `jet-bridge.js`;
+  the `/world` kind `airport`, minted by the transport hub's `mode: 'airport', show: 'miniature' | 'wing'`).
 - Books: [book/](control/lib/graph/book/) (the press: a style library of looks, formats and faces from the font shelf,
   one self-contained page a book, printed to PDF by headless Chromium): [docs/books.md](docs/books.md).
 - Table RPG: [table-rpg/](control/lib/graph/table-rpg/) (a pen-and-paper module played in text: rules as procedures, a
@@ -264,6 +258,17 @@ Pointers only; each target carries its own design notes.
   an echo, the `structures` world channel any kind takes; manual: the `structures` view-vocab card).
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
+- The game book's chapters: [gameworld/chapters.js](control/lib/graph/gameworld/chapters.js) (each page a chapter in one of
+  the seven departments: the recipe paths, review parts, run steps and cards it owns, and the chapters it reads; a new one
+  that joins no chapter fails `chapters.test.js`). `design_game`'s readout says them (`chapters`); `{ ref, chapter }`
+  is one chapter's view ([gameworld/chapter-view.js](control/lib/graph/gameworld/chapter-view.js)), a department's; the
+  studio card (`gameworld-studio`, generated from the registry) teaches the agent to work them in waves.
+- Game UI runtime (internal name mana-ui): [control/lib/mana-ui/](control/lib/mana-ui/) (the one runtime playscape's UI
+  words run on, so a screen is built once and not game by game: components with props passed down, the game's state
+  read through bindings and never copied, a form that is a tree of data, a function that is cue effects; greybox first,
+  styles a layer over it, `theme.js`, a world's guide reaching it through `playscape/ui/mana-theme.js`; a new look is a theme card in `playscape/ui/theme-cards/`, a game's `ui` dressed by the interface chapter in `playscape/ui/interface-look.js`; the shared screens and HUD parts as compositions in `idioms-*.js`, all drawn live by the
+  wireframe board, `board.js`; imports nothing outside its folder; a view that reads no device: the controls layer drives
+  it, `controls/mana-host.js`): [docs/mana-ui.md](docs/mana-ui.md).
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers).
@@ -288,6 +293,14 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Fight levels (Mojulo Fighter, internal name versus): a fight is laid on any level by its LANE
+  ([versus/versus-lane.js](control/lib/graph/versus/versus-lane.js): where it runs, its walls, its floor, the camera's
+  room); [versus/versus-levels.js](control/lib/graph/versus/versus-levels.js) turns each kind of level into a world
+  recipe and its lane (a new kind of level is a row); the runtime draws in the lane's frame. Blockouts:
+  [level/greybox-scene.js](control/lib/graph/level/greybox-scene.js).
+- Destructible physics (internal name rupa; `destruction: 'physical'`, opt-in, never a default):
+  [rupa/](control/lib/graph/rupa/) (matter, heat, ground) and the runtime builder
+  [controllable/rupa.js](control/lib/graph/worlds/controllable/rupa.js): [docs/rupa.md](docs/rupa.md).
 - Effects: [playscape/elements/](control/lib/graph/playscape/elements/) (attacks, blasts, puffs, looks), raised to the style
   floor [scene/effect-style.js](control/lib/graph/scene/effect-style.js), composed per game by
   [scene/juice-style.js](control/lib/graph/scene/juice-style.js) (register anime | western × the game type's flavor; a
@@ -295,12 +308,17 @@ Pointers only; each target carries its own design notes.
 - Broadcast: [broadcast/](control/lib/graph/broadcast/) (the graphics over every contest and tabletop page: the packages,
   the colour theory, metal from measured reflectance, a cue per kernel call, the director's closeup; the board games in
   their own `table` furniture by `broadcast-dom.js`; a contest's or a tabletop's `broadcast` key):
-  [docs/broadcast.md](docs/broadcast.md). A new contest page feeds it or its guard test fails.
+  [docs/broadcast.md](docs/broadcast.md). A new contest page feeds it or its guard test fails. It owns a sport's coverage;
+  the menus around it are mana-ui's, in its look (`broadcast-mana.js`), the results read by `contest/contest-results.js`.
 - Science worlds: [science-worlds/](control/lib/graph/science-worlds/) (`classical`, `microscopic`, `quantum`, `relativistic`: a demo composed from a
   law table, model examined and dress declared; a law the scale lacks is a gap from `scales.js`, never approximated; a
   picture drawn by a shader is generated from the model's numbers and held to them by `conformance.js`).
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image
   outcomes [graph/image-outcomes/](control/lib/graph/image-outcomes/), edifice
   [architecture/edifice.js](control/lib/graph/architecture/edifice.js).
+- Game sounds: [sfx-shelf/](control/lib/graph/sfx-shelf/) (the SFX library: one row per sound under the words people
+  say, voiced by style, the palettes frozen behind it; recipes, never samples: cues, held voices, and families that
+  build them from dials, a variation a dial point; measured on `measure.js`'s yardstick and held to `register.js`; a new
+  sound is a row first, a new variation a dial value): [docs/sfx-shelf.md](docs/sfx-shelf.md).
 - Rendering docs: [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md),
   [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md), [docs/local-blender-worker.md](docs/local-blender-worker.md).

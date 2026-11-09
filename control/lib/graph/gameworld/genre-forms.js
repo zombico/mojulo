@@ -93,10 +93,17 @@ export function heroFrameOf(id, tradition) {
   const moves = GENRE_FORMS[id]?.hero?.moves;
   // (a genre that fights arms its hero, in the right hand, for its own blow or its own shot (adornment.js BASIC_VERBS):
   // a blade where it fights in melee, a gun where it fights only at range; a climber's hands are its own)
-  const item = moves ? null : combat.includes('melee') ? MELEE_ITEM : ranged ? { ...RANGED_ITEM, build: { item: GENRE_GUN[id] ?? 'carbine' } } : null;
+  // (a turn-based hero carries the blade too: its swing is what it acts out in the party battles)
+  const item = moves ? null : combat.includes('melee') || combat.includes('turn-based') ? MELEE_ITEM : ranged ? { ...RANGED_ITEM, build: { item: GENRE_GUN[id] ?? 'carbine' } } : null;
+  // (a genre that fights is played by people who take its blows: every person the run makes has its own hit, stagger,
+  // fall and rise, world.js moves)
+  const fights = combat.some((k) => ['melee', 'ranged', 'turn-based'].includes(k));
+  // (a genre that fights turn by turn fights as a party: a casting page, its scale read from the sentence's own words
+  // or a party by default (casting.js), the rolled companions in the party battles from the start, each in its class)
+  const party = combat.includes('turn-based');
   return {
-    characters: { direction: { tradition, body: 'game' }, hero: { motion: { vibe: [vibe] }, actions: { none: true, ...(moves ? { moves: [...moves] } : {}) }, ...(item ? { adornment: { items: [{ ...item, build: { ...item.build }, serves: [...item.serves] }] } } : {}) } },
-    camera, screen: 'screen',
+    characters: { direction: { tradition, body: 'game' }, hero: { motion: { vibe: [vibe] }, actions: { none: true, ...(moves ? { moves: [...moves] } : {}) }, ...(item ? { adornment: { items: [{ ...item, build: { ...item.build }, serves: [...item.serves] }] } } : {}) }, ...(party ? { casting: {} } : {}) },
+    camera, screen: 'screen', ...(fights ? { moves: true } : {}),
   };
 }
 

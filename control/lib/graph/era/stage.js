@@ -30,6 +30,8 @@ import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.j
 import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall } from './geom.js';
 import { archedOpening, engagedColumn, naveVault, portal, oculus } from './gothic.js';
 import { roundArch, archInfill, archRing, archSoffit } from './arches.js';
+// a round-headed doorway's jamb is laid in courses about this tall (metres), a mortar joint between each
+const JAMB_COURSE = 0.6, JAMB_JOINT = 0.02;
 import { GOTHIC_NAVE } from './style/gothic-nave.js';
 import { naveDress } from './nave.js';
 import { cryptDress } from './crypt.js';
@@ -492,9 +494,10 @@ export function planStage(m = {}) {
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
   const planned = { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}),
-    // (a military base's building is stocked by its rooms' uses, a hospital's by its own table: stocking.js,
+    // (a military base's building is stocked by its rooms' uses, a hospital's by its own table, a
+    // vernacular town's by its uses: stocking.js,
     // compose-dress.js layProps)
-    ...(m._program?.base ? { use: m._program.use } : m._program?.hospital ? { use: m._program.use, stock: 'hospital' } : {}),
+    ...(m._program?.base || (composed && composed.dressing === 'vernacular' && m._program?.use) ? { use: m._program.use } : m._program?.hospital ? { use: m._program.use, stock: 'hospital' } : {}),
     // (a composed interior's rooms read for their parts in the walk: compose-roles.js)
     ...(composed ? { compose: { axes: composed, mood: composed.mood ?? 'even', beats: beatsPinned(m), roles: m._composeRoles ?? roomRoles({ rooms, links, ways, stairs }, { goal: m._program?.goal, pinned: rolesPinned(m) }) } } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
     ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
@@ -697,8 +700,13 @@ export function buildStageGeometry(plan) {
           // a round head: the wall filled down to a semicircle, jambs to its springing, an archivolt round it
           const half = (b - a) / 2, zs = top - half, seg = kit.arch.door.seg;
           archInfill(out, F, roundArch(a, b, zs, half, seg), top, wallS);
-          wallBox(out, F, a - fw, a, 0, zs, fo, trim, cell);
-          wallBox(out, F, b, b + fw, 0, zs, fo, trim, cell);
+          // (its jambs laid in courses, as its ring is in voussoirs: a joint between each, the wall behind in it)
+          const courses = Math.max(2, Math.round(zs / JAMB_COURSE));
+          for (let c = 0; c < courses; c++) {
+            const z0 = (zs * c) / courses + (c ? JAMB_JOINT / 2 : 0), z1 = (zs * (c + 1)) / courses - (c < courses - 1 ? JAMB_JOINT / 2 : 0);
+            wallBox(out, F, a - fw, a, z0, z1, fo, trim, cell);
+            wallBox(out, F, b, b + fw, z0, z1, fo, trim, cell);
+          }
           archRing(out, F, a, b, zs, half, seg, fw, fo, trim);
           continue;
         }
@@ -763,7 +771,7 @@ export function buildStageGeometry(plan) {
     const half = (l.hi - l.lo) / 2, zs = kit.arch && kit.arch.door ? l.top - half : l.top;
     panel(out, pt(l.lo, base, 0), A, 2 * t, [0, 0, 1], zs, jn, trim, cell);
     panel(out, pt(l.hi, base, 0), A, 2 * t, [0, 0, 1], zs, mul(jn, -1), trim, cell);
-    if (kit.arch && kit.arch.door) archSoffit(out, (u, dd, z) => pt(u, base + dd, z), roundArch(l.lo, l.hi, zs, half, kit.arch.door.seg), 2 * t, trim, (n) => (alongX ? [n[0], 0, n[1]] : [0, n[0], n[1]]), S);
+    if (kit.arch && kit.arch.door) archSoffit(out, (u, dd, z) => pt(u, base + dd, z), roundArch(l.lo, l.hi, zs, half, kit.arch.door.seg), 2 * t, trim, (n) => (alongX ? [n[0], 0, n[1]] : [0, n[0], n[1]]), S, { a: l.lo, b: l.hi, zs, rise: half });
     else panel(out, pt(l.lo, base, l.top), S, l.hi - l.lo, A, 2 * t, [0, 0, -1], trim, cell);
     panel(out, pt(l.lo, base, 0), S, l.hi - l.lo, A, 2 * t, [0, 0, 1], trim, cell);   // the sill: one dressed stone
   }

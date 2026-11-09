@@ -1,6 +1,6 @@
-// create_figure inline garment specs (character-from-dream.plan.md C1 unlock):
+// create_figure inline garment specs:
 // `garment` accepts wardrobe KEYS and INLINE piece specs (validated via
-// validateGarmentSpec), mixed in one layering array — a dreamed wardrobe piece
+// validateGarmentSpec), mixed in one layering array — a wardrobe piece
 // is authored as data and worn by any body. Same in-memory isolation as
 // emote-figure.test.js.
 process.env.SQLITE_PATH = ':memory:';

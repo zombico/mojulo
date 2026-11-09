@@ -101,7 +101,7 @@ export function runnerEnv(opts, env = process.env) {
     SQLITE_PATH: path.join(data, 'mojulo-lite.db'), STORAGE_ROOT: path.join(data, 'storage'),
     MOJULO_MODELS_DIR: path.join(loc.home, 'models'), MOJULO_CHROMIUM_DIR: path.join(loc.home, 'chromium'), MOJULO_FFMPEG_DIR: path.join(loc.home, 'ffmpeg'),
     MOJULO_OUTCOMES_DIR: path.join(data, 'outcomes'), MOJULO_EXPORTS_DIR: path.join(data, 'exports'),
-    MOJULO_SCENE_PNG_DIR: path.join(data, 'scene-png'), MOJULO_TURNTABLE_DIR: path.join(data, 'turntable'), MOJULO_FIGURE_SPECS_DIR: path.join(data, 'figure-specs'),
+    MOJULO_SCENE_PNG_DIR: path.join(data, 'scene-png'), MOJULO_TURNTABLE_DIR: path.join(data, 'turntable'),
   };
 }
 function requireReady(opts) {

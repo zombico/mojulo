@@ -10,7 +10,7 @@
  *
  * The plane is x (mm, 0 mid-stage) and y (mm, 0 the floor). What it holds: walking, crouching, jumping with
  * prejump, dashing, auto-facing, push boxes, walls and the camera's span; strikes resolved hitbox against hurtbox
- * for both players at once (trades), blocking by holding back (low must be crouched, overhead stood), chip,
+ * for both players at once (a trade, or the higher priority's hit alone), blocking by holding back (low must be crouched, overhead stood), chip,
  * pushback (the attacker takes it at a wall), hitstop, hitstun and blockstun, counter hits, damage scaling,
  * knockdowns, launches and juggles, wake-up, throws with a tech window, command throws, projectiles that trade
  * with each other, invincibility, meter, supers with a freeze, and rounds: an intro, a timer, KO, time over,
@@ -23,7 +23,7 @@
  * (the page cuts away: versus-runtime.client.js). Blocked, it is a blocked hit; whiffed, a whiff.
  */
 
-import { recordInput, readCommand, autoNext, consume, pressed, traced, currentDir, downish, BTN, SCHEMES, ZERO_PAD } from './versus-input.js';
+import { recordInput, readCommand, autoNext, consume, pressed, traced, currentDir, downish, BTN, SCHEMES, ZERO_PAD, CHARGE_KEEP } from './versus-input.js';
 import { METER_MAX, SYSTEMS } from './versus-library.js';
 import { kindRules } from './versus-kinds.js';
 
@@ -49,10 +49,11 @@ export const VERSUS_RULES = Object.freeze({
   resetCost: 500,   // meter a reset spends (reset)
   boundVy: 80, boundJuggle: 2,   // the bound's pop (mm a frame up) and the juggle hits it gives back (bound)
   sidestepFrames: 16, sidestepInvuln: 10,   // a sidestep's length and its frames strikes pass through (sidestep)
+  sparkStop: 14, sparkMeter: 120,   // a spark's moment held (frames of hitstop more) and the meter it gives (spark)
 });
 
 // the rules a game may set (the rest are the sim's own): whole numbers from a floor, the scaling row, the systems
-const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1, airActions: 1, airDashDist: 0, airDashFrames: 1, airJumpVy: 10, resetCost: 0, boundVy: 10, boundJuggle: 0, sidestepFrames: 4, sidestepInvuln: 0 };
+const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1, airActions: 1, airDashDist: 0, airDashFrames: 1, airJumpVy: 10, resetCost: 0, boundVy: 10, boundJuggle: 0, sidestepFrames: 4, sidestepInvuln: 0, sparkStop: 0, sparkMeter: 0 };
 
 /** A game's rules as written → the overrides newVersus takes; throws on a key or value it cannot read. */
 export function readRules(r) {
@@ -165,6 +166,15 @@ export function hitBox(p, F) {
   return fr && fr.hit ? worldBox(fr.hit, p.x, p.y, p.face) : null;
 }
 
+// where a blow lands: the middle of its box's overlap with the hurtbox it meets (mm, whole: an effect's place)
+const contactAt = (a, b) => [Math.round((Math.max(a[0], b[0]) + Math.min(a[2], b[2])) / 2), Math.round((Math.max(a[1], b[1]) + Math.min(a[3], b[3])) / 2)];
+const LIMB_WORD = { fist: 'fist', toe: 'foot', ankle: 'foot', knee: 'knee', elbow: 'elbow', head: 'head' };
+/** What a blow is, for what is drawn of it (the sim never reads it): where it landed, how heavy (0 light … 3 a super),
+ * what struck (fist, foot, knee, elbow, head, blade, shot) and the move's kind (normal, special, super, shot) */
+function blowOf(m, shot, at) {
+  if (shot) return { at, w: shot.sup ? 3 : 1, limb: 'shot', kind: 'shot' };
+  return { at, w: m.kind === 'super' ? 3 : ({ L: 0, M: 1, H: 2 })[m.strength] ?? 1, limb: m.armed ? 'blade' : LIMB_WORD[m.limb.replace(/[FB]$/, '')] ?? 'fist', kind: m.kind };
+}
 const shotBox = (t) => [t.x - t.w / 2, t.y - t.h / 2, t.x + t.w / 2, t.y + t.h / 2];
 
 function invulnTo(p, F, kind) {
@@ -201,6 +211,7 @@ export function stepVersus(prev, pads, ctx) {
     }
     p.hist = rec.hist;
     p.held = rec.held;
+    if (ctx.fighters[i].charge && !frozen) chargeStep(p);
   }
 
   if (s.phase === 'intro') {
@@ -224,6 +235,17 @@ export function stepVersus(prev, pads, ctx) {
   return s;
 }
 
+// THE CHARGE (a fighter with a charge special, versus-input.js charged): how long back and down have been held, and
+// what was held when the stick left, kept CHARGE_KEEP frames. p.chg = [back, back kept, since, down, down kept, since];
+// a fighter with no charge special carries none (its state, its hash, as they were)
+function chargeStep(p) {
+  const c = p.chg ?? (p.chg = [0, 0, 99, 0, 0, 99]), dir = currentDir(p.hist);
+  const step = (k, on) => { if (on) { c[k]++; c[k + 2] = 0; c[k + 1] = 0; } else { if (c[k]) { c[k + 1] = c[k]; c[k + 2] = 0; c[k] = 0; } else if (c[k + 2] < 99) c[k + 2]++; } };
+  step(0, dir === 1 || dir === 4 || dir === 7);
+  step(3, dir === 1 || dir === 2 || dir === 3);
+}
+const chargeOf = (p) => (p.chg ? { b: Math.max(p.chg[0], p.chg[2] <= CHARGE_KEEP ? p.chg[1] : 0), d: Math.max(p.chg[3], p.chg[5] <= CHARGE_KEEP ? p.chg[4] : 0) } : undefined);
+
 // ── decisions ────────────────────────────────────────────────────────────────────────────────────────────────
 
 function think(s, i, ctx) {
@@ -235,19 +257,25 @@ function think(s, i, ctx) {
   if (p.hs > 0) return;
   const dir = currentDir(p.hist);
   const hasShot = s.shots.some((t) => t.o === i);
-  const opts = { hasShot, meter: p.meter };
+  const opts = { hasShot, meter: p.meter, ...(p.chg ? { charge: chargeOf(p) } : {}) };
 
   // a connected move cancels into what its record allows, while the hit is fresh
   if (p.mv && (p.st === 'move' || p.st === 'air')) {
     const m = F.moves[p.mv];
     // a string follows on hit, block or whiff, from its first active frame (strings); anything else only off a connect
     const onString = !!(F.strings && p.spath && sys(s, 'strings'));
-    if (p.mf > m.startup + m.active - 1 + R_CANCEL(s) || (!p.conn && !(onString && p.mf >= m.startup))) return;
+    // (a REKKA's stage goes on to the next on the same motion again, hit, block or whiff, from its first active frame)
+    const onRekka = !!m.rekka && p.mf >= m.startup;
+    if (p.mf > m.startup + m.active - 1 + R_CANCEL(s) || (!p.conn && !(onString && p.mf >= m.startup) && !onRekka)) return;
+    // (a rekka typed through its blow's hitstop: the buffer keeps the button while the body is frozen, not the motion's
+    // turns, so the motion's last direction and a button go on to the next stage, as the whole motion does)
+    if (onRekka && pressed(p.hist, BTN.L | BTN.M | BTN.H) && dir === Number(String(m.motion).slice(-1))) { start(s, i, ctx, { type: 'special', slot: m.rekka }); return; }
     const auto = p.scheme === 'simple' ? autoNext(F, p.mv) : null;
     const cmd = readCommand(p.hist, p.scheme, F, { ...opts, stance: p.st === 'air' ? 'air' : (downish(dir) ? 'crouch' : 'stand'), auto });
     if (!cmd) return;
     const path = onString && cmd.type === 'normal' ? stringStep(F, p.spath, cmd.slot) : null;
     if (path) { start(s, i, ctx, cmd); p.spath = path; return; }
+    if (onRekka && cmd.type === 'special' && cmd.slot.split('.')[1] === p.mv.split('.')[1]) { start(s, i, ctx, { type: 'special', slot: m.rekka }); return; }
     if (!p.conn) return;
     const kind = cmd.type === 'normal' ? cmd.slot : cmd.type;
     if (m.cancel.includes(kind) || m.chain.includes(cmd.slot) || (auto && cmd === auto) || gatling(s, p.mv, cmd)) start(s, i, ctx, cmd);
@@ -547,6 +575,7 @@ function advanceShots(s) {
   s.shots = s.shots.filter((t) => t.life > 0 && t.hits > 0 && Math.abs(t.x) < R.half + 800);
 }
 
+const passing = (p, F) => { const m = p.mv && p.st === 'move' ? F.moves[p.mv] : null; return !!(m && m.through && p.mf >= m.through[0] && p.mf <= m.through[1]); };
 function separate(s, ctx, before) {
   const R = s.rules;
   const [a, b] = s.p;
@@ -561,9 +590,9 @@ function separate(s, ctx, before) {
       p.x -= sign(p.x - s.p[1 - i].x) * Math.round(share[i]);
     }
   }
-  // push boxes
+  // push boxes (none while a body passes THROUGH: a roll, a blink, as it travels)
   const pa = pushBox(a, ctx.fighters[0]), pb = pushBox(b, ctx.fighters[1]);
-  if (overlap(pa, pb) && a.st !== 'thrown' && b.st !== 'thrown') {
+  if (overlap(pa, pb) && a.st !== 'thrown' && b.st !== 'thrown' && !passing(a, ctx.fighters[0]) && !passing(b, ctx.fighters[1])) {
     const left = a.x < b.x || (a.x === b.x && a.face > 0) ? 0 : 1;
     const L = s.p[left], Rr = s.p[1 - left];
     const pl = left === 0 ? pa : pb, pr = left === 0 ? pb : pa;
@@ -669,7 +698,8 @@ function resolve(s, ctx) {
     // (under the bound, the iron kind's juggles, a normal juggles too)
     if (o.st === 'fall' && (!(m.juggle || (m.kind === 'normal' && sys(s, 'bound'))) || o.jug >= s.rules.juggle)) continue;
     if (invulnTo(o, F[1 - i], 'strike')) continue;
-    if (hurtBoxes(o, F[1 - i]).some((h) => overlap(hb, h))) contacts.push({ a: i, m });
+    const hurt = hurtBoxes(o, F[1 - i]).find((h) => overlap(hb, h));
+    if (hurt) contacts.push({ a: i, m, at: contactAt(hb, hurt) });
   }
   // shots against bodies, and against each other
   for (const t of s.shots) {
@@ -684,7 +714,16 @@ function resolve(s, ctx) {
     if (t.hits <= 0 || o.ko) continue;
     if (o.st === 'fall' && (!t.sup || o.jug >= s.rules.juggle)) continue;
     if (invulnTo(o, F[1 - t.o], 'projectile')) continue;
-    if (hurtBoxes(o, F[1 - t.o]).some((h) => overlap(sb, h))) contacts.push({ a: t.o, shot: t });
+    const hurt = hurtBoxes(o, F[1 - t.o]).find((h) => overlap(sb, h));
+    if (hurt) contacts.push({ a: t.o, shot: t, at: contactAt(sb, hurt) });
+  }
+  // PRIORITY (versus-library.js): two strikes landing on the same frame, the higher level's lands and the other's does
+  // not; equal levels trade. A move compiled before the scale carries none and trades as it always did
+  const struck = contacts.filter((c) => c.m);
+  if (struck.length === 2 && Number.isInteger(struck[0].m.priority) && Number.isInteger(struck[1].m.priority) && struck[0].m.priority !== struck[1].m.priority) {
+    const [win, lose] = struck[0].m.priority > struck[1].m.priority ? struck : [struck[1], struck[0]];
+    contacts.splice(contacts.indexOf(lose), 1);
+    s.events.push({ t: 'priority', p: win.a, over: [win.m.priority, lose.m.priority], x: (s.p[0].x + s.p[1].x) / 2, y: 1100 });
   }
   // a strike that lands on a throw's startup stops it; two throws on the same frame tech
   if (throws[0] && throws[1]) { tech(s, 0); return; }
@@ -721,8 +760,9 @@ function applyThrow(s, ctx, i) {
   s.events.push({ t: 'grab', p: i, x: (p.x + o.x) / 2 });
 }
 
-function applyHit(s, ctx, { a, m, shot }) {
+function applyHit(s, ctx, { a, m, shot, at: contact }) {
   const p = s.p[a], d = s.p[1 - a];
+  const blow = blowOf(m, shot, contact ?? null);
   const src = shot ?? m;
   const guard = shot ? 'mid' : m.guard;
   const face = shot ? sign(shot.vx) : p.face;
@@ -773,6 +813,19 @@ function applyHit(s, ctx, { a, m, shot }) {
     else { d.pushv = face * per; d.pushn = 8; }
   };
 
+  // AIR BLOCKING (system 'airblock'): a body in the air, in no move of its own, holding back, blocks an air attack or a
+  // shot (a strike from the ground still hits it); its arc goes on, pushed back, no air normal after it
+  if (airborne && d.st === 'air' && !d.mv && sys(s, 'airblock') && (shot || m.stance === 'air') && [1, 4, 7].includes(currentDir(d.hist))) {
+    const lethal = shot ? shot.sup : m.kind === 'super';
+    d.hp = Math.max(lethal ? 0 : Math.min(d.hp, 1), d.hp - (src.chip ?? 0));
+    d.hs = hitstop - 2;
+    if (!shot) { p.hs = hitstop - 2; p.conn = p.conn || 2; }
+    d.vx = face * 12; d.airMove = 1;
+    d.meter = Math.min(METER_MAX, d.meter + 10);
+    s.events.push({ t: 'block', p: a, air: 1, x: shot ? shot.x : d.x - face * 200, y: shot ? shot.y : d.y + 1100, ...blow });
+    if (d.hp <= 0) ko(s, 1 - a, face);
+    return;
+  }
   if (!airborne && canBlock(d, guard)) {
     // the guard bar (system 'guard'): a block wears it, an empty one is crushed open
     if (d.gd !== undefined) {
@@ -797,7 +850,7 @@ function applyHit(s, ctx, { a, m, shot }) {
     pushOut(push);
     d.meter = Math.min(METER_MAX, d.meter + 10);
     p.meter = Math.min(METER_MAX, p.meter + Math.round((src.meter ?? 20) / 2));
-    s.events.push({ t: 'block', p: a, x: (shot ? shot.x : d.x - face * 200), y: shot ? shot.y : 1100 });
+    s.events.push({ t: 'block', p: a, x: (shot ? shot.x : d.x - face * 200), y: shot ? shot.y : 1100, ...blow });
     if (d.hp <= 0) ko(s, 1 - a, face);
     return;
   }
@@ -812,15 +865,19 @@ function applyHit(s, ctx, { a, m, shot }) {
     return;
   }
   const counter = d.st === 'move' && d.mv && d.mf < ctx.fighters[1 - a].moves[d.mv].startup;
+  // the SPARK (system 'spark'): a counter hit struck on the strike's very first active frame, the blow and the opening
+  // met in one frame: half again the damage, the moment held (rules.sparkStop more hitstop), meter
+  const spark = !shot && counter && sys(s, 'spark') && p.mf === m.startup;
   let dmg = scaled(s, d, src.dmg ?? src.damage);
-  if (counter) dmg = Math.floor((dmg * 6) / 5);
+  if (spark) dmg = Math.floor((dmg * 3) / 2);
+  else if (counter) dmg = Math.floor((dmg * 6) / 5);
   d.hp -= dmg;
   d.combo++;
   d.mv = null;
   d.air = 0;
-  d.hs = hitstop;
-  if (!shot) { p.hs = hitstop; p.conn = 1; }
-  p.meter = Math.min(METER_MAX, p.meter + (src.meter ?? 20));
+  d.hs = hitstop + (spark ? s.rules.sparkStop : 0);
+  if (!shot) { p.hs = d.hs; p.conn = 1; }
+  p.meter = Math.min(METER_MAX, p.meter + (src.meter ?? 20) + (spark ? s.rules.sparkMeter : 0));
   d.meter = Math.min(METER_MAX, d.meter + Math.round((src.meter ?? 20) / 2));
   const knock = shot ? (shot.sup ? 'down' : 'none') : m.knock;
   // the BOUND (bound): a heavy blow on a body already falling in a juggle slams it to the floor and it bounds back up,
@@ -840,7 +897,8 @@ function applyHit(s, ctx, { a, m, shot }) {
     react(d, 'hit', at, hard, counter ? 1 : 0);
     pushOut(push);
   }
-  s.events.push({ t: counter ? 'counter' : 'hit', p: a, dmg, x: shot ? shot.x : d.x - face * 150, y: shot ? shot.y : 1100, combo: d.combo });
+  if (spark) s.events.push({ t: 'spark', p: a, dmg, ...blow });
+  s.events.push({ t: counter ? 'counter' : 'hit', p: a, dmg, x: shot ? shot.x : d.x - face * 150, y: shot ? shot.y : 1100, combo: d.combo, ...blow, ...(spark ? { spark: 1 } : {}) });
   if (d.hp <= 0) ko(s, 1 - a, face);
 }
 
