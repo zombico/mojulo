@@ -52,3 +52,16 @@
   and its readout (`channels/controllable/turret-view.js`); every other page keeps every byte.
 - **A mix heard farther.** The SFX mixer's opt-in `reach` (metres, with its distance): a cue as far off as the arena's
   distances times its reach is heard as one at them, so a shell bursting 4 km off still sounds. Absent, as it was.
+- **The turret on its bases.** The range's `base` takes a vehicle of the library (`{ vehicle: 'light tank', livery?,
+  wear?, seed? }`, any word the vehicle registry knows): its realistic build drawn as itself (its camo, its wear), driven
+  on its own class's rule (W / S, A / D steer), the mount laid where its gun is (the trunnion, the barrel's length) at
+  its class's rates; its turret bone turned by the mount's traverse and its gun bone by its elevation, the stabilizer
+  holding the gun's line in the world while the hull steers. A road car, or a field vehicle with no turret, is refused by
+  name. The graybox bases gained their own looks: a fortress tower (its shaft and parapet, the gun on its roof) and a
+  field gun's carriage (its wheels on their axle, its split trails spread to their spades, its shield on the top
+  carriage). In the browser: the light tank's turret laid 40° left and its gun 8° up turn its bones; steered through
+  45° the gun's world aim is held within a degree; back on the line, its long rod holes the 100 mm plate at 500 m.
+- **A field vehicle's gun on a bone of its own** (`car-designer/military.js`, opt-in `gun`, also through
+  `compileRealistic`): a turret's gun and mantlet split off onto a `gun` bone, its head the trunnion (the mantlet's back
+  on the barrel's axis), and `gun: { trunnion, muzzle }` said, so a turret runtime can elevate it. Absent, the figure is
+  as it was, byte for byte.

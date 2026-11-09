@@ -4,8 +4,8 @@
  * realistic.js compileRealistic returns, so every door that draws a loft draws it: the quick ride, the studio grid, a
  * world's figure, the GLB.
  *
- *   compileMilitary(sheet, { keys?, form?, livery?, wear?, setting? }) → { spec, faces: { root, wheels }, figure, census, rule, envelope,
- *                                              class, form? }
+ *   compileMilitary(sheet, { keys?, form?, livery?, wear?, setting?, gun? }) → { spec, faces: { root, wheels }, figure, census, rule,
+ *                                              envelope, class, form?, gun? }
  *     livery       its paint as words (livery-cut.js: mono or a camo, its stencils), cut into the hull and its fittings;
  *                  absent, plain olive drab and no stencils, as it always was
  *     wear         its history (mil-wear.js: pristine | used | battered, or { level, soil }): caked mud and chips cut
@@ -13,6 +13,8 @@
  *     pose         an airside vehicle's ({ reach }: how high its lift, belt or platform stands, road-airside.js)
  *     setting      the world it stands in, when a world draws it ({ sky?, wet? }: world-scene.js): lit by that world's
  *                  sky (form-light.js skyMood), its ground bounce the soil's, its slots wet in the rain; absent, noon
+ *     gun: true    a turret's gun on a bone of its own (`gun`, its head the trunnion), and `gun: { trunnion, muzzle }` said
+ *                  (vehicle space): what a turret runtime elevates; absent, the gun rides in the turret's faces
  *     form: true   the figure in the form render (each face its material, albedo and normals, the page lighting it, under
  *                  the field's materials, MIL_MATERIALS); absent, its faces baked under the studio's light (road-form.js
  *                  bakeForm), the figure a world without the form render draws
@@ -39,7 +41,20 @@ const r4 = (n) => Math.round(n * 1e4) / 1e4 + 0;
 // a field tyre's width, by its radius (a light 4x4's, a truck's)
 const tyreWidth = (r) => (r > 0.5 ? 0.38 : 0.3);
 
-export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, setting = null, pose } = {}) {
+// the gun's faces (a turret's gun and its mantlet) moved onto a bone of their own: → { trunnion, muzzle } (vehicle space)
+function splitGun(body) {
+  const of = (f) => f.bone === 'turret' && /^(gun|mantlet)/.test(f.part ?? ''), g = body.filter(of);
+  if (!g.length) return null;
+  const barrel = g.filter((f) => /^gun\.barrel/.test(f.part)), ax = (barrel.length ? barrel : g).flatMap((f) => f.corners);
+  const zc = (Math.min(...ax.map((c) => c[2])) + Math.max(...ax.map((c) => c[2]))) / 2;
+  const mant = g.filter((f) => f.part === 'mantlet'), y0 = Math.min(...(mant.length ? mant : g).flatMap((f) => f.corners.map((c) => c[1])));
+  const y1 = Math.max(...g.flatMap((f) => f.corners.map((c) => c[1])));
+  // (the body's list re-pointed, its faces copied: a face is never changed under another reader)
+  body.forEach((f, i) => { if (of(f)) body[i] = { ...f, bone: 'gun' }; });
+  return { trunnion: [0, r4(y0), r4(zc)], muzzle: [0, r4(y1), r4(zc)] };
+}
+
+export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, setting = null, pose, gun = false } = {}) {
   const cls = sheet.facets.class, v = VEHICLES[cls];
   if (!MILITARY_CLASSES[cls]) throw new Error(`car-designer: compileMilitary reads a military class (${Object.keys(MILITARY_CLASSES).join(', ')}), not ${cls}`);
   const spec = { kind: MILITARY_CLASSES[cls], L: v.L, W: v.W, H: v.H, wb: v.wheelbase, track: v.track, r: v.wheelRadius, tyreW: tyreWidth(v.wheelRadius), lift: 0 };
@@ -65,6 +80,11 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
   const wheelForm = wheels.map((w) => soak(weatherWheel(w.faces ?? milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}), ...(AIRSIDE_CLASSES[cls] ? { lugs: 0 } : {}) }), W, { soil })));
   // centred on its footprint (the body is built centred; the census holds it); a part that turns on its own (a turret)
   // its own bone, its faces those its body tagged with it, held still by the roll
+  // (`gun`, opt-in: the gun and its mantlet split off the turret into a bone of their own, its head the trunnion (the
+  // mantlet's back, on the barrel's axis), so a turret runtime can elevate it: worlds/controllable/turret.js; absent,
+  // the gun rides in the turret's faces, as it always did)
+  const G = gun && parts.turret ? splitGun(body) : null;
+  if (G) parts.gun = G.trunnion;
   const own = Object.keys(parts), onRoot = own.length ? body.filter((f) => !f.bone) : body;
   const bones = [{ id: 'root', head: [0, 0, 0] }, ...wheels.map((w) => ({ id: name(w), head: w.hub.map(r4) })), ...own.map((id) => ({ id, head: parts[id].map(r4) }))];
   const formOf = new Map([['root', onRoot], ...wheels.map((w, k) => [name(w), wheelForm[k]]), ...own.map((id) => [id, body.filter((f) => f.bone === id)])]);
@@ -83,7 +103,7 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
     warnings: [],
   };
   const compiled = {
-    spec, class: cls, figure, rule: vehicleRule(cls), envelope: envelope(cls),
+    spec, class: cls, figure, rule: vehicleRule(cls), envelope: envelope(cls), ...(G ? { gun: G } : {}),
     faces: { root: baked.get('root'), wheels: wheels.map((w) => ({ bone: name(w), faces: baked.get(name(w)), hub: w.hub.map(r4) })) },
   };
   // (the census measures the hull and its wheels against the class: the fittings hang off it, as a mirror does a car)

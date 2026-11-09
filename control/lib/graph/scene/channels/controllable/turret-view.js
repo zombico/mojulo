@@ -2,8 +2,10 @@
 // a page whose world has a turret. Appended after the controllable channel's own script (it wraps stepControllable), so
 // every other page keeps every byte.
 //
-//   THE GUN     a graybox of the base (`turret.look.base`: a concrete plinth, or a hull), the turret and the barrel,
-//               posed each frame from the mount's yaw and elevation; hidden from the gunner's own sight
+//   THE GUN     a graybox of the base (`turret.look.base`: a concrete plinth, a tower, a field gun's carriage, or a hull),
+//               the turret and the barrel, posed each frame from the mount's yaw and elevation; or, on a base that is its
+//               own figure (a tank from the vehicle library), its turret and gun bones turned; hidden from the gunner's
+//               own sight
 //   THE SIGHT   the camera on the gun's sight line, beside the barrel, along it: a reticle (the bore's line, and below it
 //               a mark for each range of the loaded round, from `turret.range.table`: where the target must sit for the
 //               gun to drop the round onto it); the right button zooms it (wide, 4×, 10×); O steps outside (a commander's
@@ -58,19 +60,59 @@ addEventListener('resize', __tvReticle);
 // (the page's world is shaded by its faces, not lit: each side of a box its own value, the top the lightest)
 const __TV_SHADE = [0.82, 0.62, 0.74, 0.68, 1, 0.45];
 function __tvBox(sx, sy, sz, c) { const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), __TV_SHADE.map((k) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k) }))); m.raycast = function () {}; return m; }
+// a box laid from one point to another (its length along them)
+function __tvBeam(a, b, w, h, c) {
+  const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]), m = __tvBox(d.length(), w, h, c);
+  m.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); m.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), d.normalize());
+  return m;
+}
 function __tvBuild(e) {
   const L = e.turret.look || {}, hull = L.base === 'hull', at = (e.turret.mount && e.turret.mount.at) || [0, 0, 2];
   const base = new THREE.Group(), turret = new THREE.Group(), barrel = new THREE.Group();
+  const field = L.base === 'field', tower = L.base === 'tower';
   if (hull) { const h = __tvBox(7, 3.6, 1.4, '#5a6150'); h.position.set(0, 0, 0.9); base.add(h); for (const s of [1, -1]) { const t = __tvBox(6.8, 0.6, 0.9, '#2e3030'); t.position.set(0, s * 1.6, 0.45); base.add(t); } }
+  else if (field) {
+    // (a field gun's carriage: its wheels on their axle, its split trails spread back to their spades)
+    for (const s of [1, -1]) {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.22, 18), new THREE.MeshBasicMaterial({ color: 0x2b2d2e })); w.position.set(0, s * 0.95, 0.62); w.raycast = function () {}; base.add(w);
+      base.add(__tvBeam([-0.2, s * 0.3, 0.6], [-3.4, s * 1.25, 0.2], 0.18, 0.2, '#5d6152'));
+      const sp = __tvBox(0.12, 0.5, 0.4, '#3b3d3a'); sp.position.set(-3.5, s * 1.25, 0.15); base.add(sp);
+    }
+    const ax = __tvBox(0.2, 2, 0.2, '#4d5146'); ax.position.set(0, 0, 0.62); base.add(ax);
+  } else if (tower) {
+    // (a fortress tower: its shaft and its parapet, the gun on its roof)
+    const h = Math.max(1, at[2] - 0.9), sh = __tvBox(5, 5, h, '#9d9a92'); sh.position.set(0, 0, h / 2); base.add(sh);
+    for (const [x, y, sx, sy] of [[2.4, 0, 0.3, 5], [-2.4, 0, 0.3, 5], [0, 2.4, 5, 0.3], [0, -2.4, 5, 0.3]]) { const p = __tvBox(sx, sy, 0.9, '#8d8a82'); p.position.set(x, y, h + 0.45); base.add(p); }
+  }
   else { const pl = __tvBox(3.2, 3.2, Math.max(0.4, at[2] - 0.6), '#a3a19c'); pl.position.set(0, 0, Math.max(0.4, at[2] - 0.6) / 2); base.add(pl); }
-  const tb = __tvBox(3.2, 2.8, 0.9, hull ? '#626a57' : '#7d7f78'); tb.position.set(-0.4, 0, 0); turret.add(tb);
+  // (the turret: a field gun's is its shield and cradle on the top carriage, any other's a box round the trunnion)
+  if (field) { const sd = __tvBox(0.08, 2, 1.3, '#5d6152'); sd.position.set(0.5, 0, 0.1); turret.add(sd); const cr = __tvBox(1.6, 0.5, 0.45, '#4d5146'); cr.position.set(-0.4, 0, -0.1); turret.add(cr); }
+  else { const tb = __tvBox(3.2, 2.8, 0.9, hull ? '#626a57' : '#7d7f78'); tb.position.set(-0.4, 0, 0); turret.add(tb); }
   const len = (e.turret.gun && e.turret.gun.barrel) || 5, br = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, len, 10), new THREE.MeshBasicMaterial({ color: 0x4a4f56 }));
   br.rotation.z = -Math.PI / 2; br.position.set(len / 2, 0, 0); br.raycast = function () {}; barrel.add(br);
   const mant = __tvBox(0.5, 0.9, 0.6, '#4a4e47'); mant.position.set(0.1, 0, 0); barrel.add(mant);
   turret.add(barrel); scene.add(base); scene.add(turret);
   return { base, turret, barrel };
 }
+// a base drawn as its own figure (a tank from the vehicle library: its 'turret' bone, and its 'gun' bone where it has one,
+// car-designer/military.js 'gun') is turned on the rig itself, each frame, as the controllable channel poses it: the gun
+// elevated about its trunnion, then both turned about the turret's ring; hidden from the gunner's own sight
+const __tvQY = new THREE.Quaternion(), __tvQP = new THREE.Quaternion(), __tvO = new THREE.Vector3(), __TV_Z = new THREE.Vector3(0, 0, 1), __TV_X = new THREE.Vector3(1, 0, 0);
+function __tvRigBone(e, fig, bi, Q, P, mesh) {
+  const id = fig.bones[bi].id;
+  if (id !== 'turret' && id !== 'gun') return;
+  const T = e.turret, ti = fig.__tvTi !== undefined ? fig.__tvTi : (fig.__tvTi = fig.bones.findIndex((b) => b.id === 'turret')), piv = fig.bones[ti].head;
+  if (id === 'gun') { __tvQP.setFromAxisAngle(__TV_X, (T.pitch || 0) * Math.PI / 180); Q.premultiply(__tvQP); }
+  __tvQY.setFromAxisAngle(__TV_Z, (T.yaw || 0) * Math.PI / 180);
+  __tvO.set(P[0] - piv[0], P[1] - piv[1], P[2] - piv[2]).applyQuaternion(__tvQY);
+  P[0] = piv[0] + __tvO.x; P[1] = piv[1] + __tvO.y; P[2] = piv[2] + __tvO.z;
+  Q.premultiply(__tvQY);
+  mesh.visible = !(__TV.sight && e.id === __world.pilotId);
+  __TV.rig = { yaw: T.yaw, pitch: T.pitch };
+}
 function __tvPose(e) {
+  // (a base that is its own figure turns its own bones: no graybox)
+  if (e.body && e.body.type === 'figure-rig') return;
   const B = __TV.built[e.id] || (__TV.built[e.id] = __tvBuild(e)), t = e.transform, T = e.turret, at = (T.mount && T.mount.at) || [0, 0, 2];
   const ch = Math.cos(t.heading), sh = Math.sin(t.heading);
   B.base.position.set(t.pos[0], t.pos[1], t.pos[2]); B.base.rotation.set(0, 0, t.heading);
@@ -170,7 +212,8 @@ function __tvFrame() {
 }
 const __tvStep0 = stepControllable;
 stepControllable = (dt, inputOverride) => { __tvStep0(dt, inputOverride); __tvFrame(); };
-window.__mojCtrl.turret = () => ({ sight: __TV.sight, zoom: __TV_ZOOM[__TV.zoom], marks: __TV.marks.slice() });
+window.__mojCtrl.turret = () => ({ sight: __TV.sight, zoom: __TV_ZOOM[__TV.zoom], marks: __TV.marks.slice(), ...(__TV.rig ? { rig: { ...__TV.rig } } : {}) });
+window.__tvReady = true;
 setTimeout(__tvReticle, 0);
 `;
 }

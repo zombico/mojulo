@@ -7,7 +7,7 @@
  *                               shell), `indirect` (a shell fired high to fall on what the gun cannot see)
  *   ordnanceWeapon(word, over?) → the runtime's weapon row: a travelling round at its muzzle velocity, on gravity and its
  *                               drag, its gun's dispersion as a seeded cone, a magazine of one reloaded at the gun's rate
- *   measureOrdnance(word, { mount, bands }) → its flight at each band: the elevation to hit (° and mils), the time of
+ *   measureOrdnance(word, { mount, bands }) → (`mount` a class, or a turret as it stands: mountOf's shape) its flight at each band: the elevation to hit (° and mils), the time of
  *                               flight, the speed it arrives at and its share kept, the drop below the bore's line; an
  *                               indirect round's high arc to land at each band, its apex; the spread of a dozen rounds
  *   ordnanceLaws(m)             → [{ name, ok, info }]
@@ -55,7 +55,7 @@ const r2 = (v) => (v == null || !Number.isFinite(v) ? v : Math.round(v * 100) / 
 // a gun on a standing mount, laid at `elev`° (the mount's own slew aside: the ballistics are the round's), firing one
 // round along +x; → its path sampled every step, until it bursts
 function shoot(word, elev, mount, { seed = 'g', shots = 1, z0 = 0 } = {}) {
-  const turret = mountOf(mount), weapon = ordnanceWeapon(word);
+  const turret = typeof mount === 'string' ? mountOf(mount) : mount, weapon = ordnanceWeapon(word);
   const w = E.createWorld({ entities: [{ id: seed, pilotable: true, rule: { type: 'static' }, body: { type: 'none' }, turret, weapon, transform: { pos: [0, 0, z0], heading: 0, pitch: 0 } }] });
   E.stepWorld(w, {}, DT, hooks);
   const g = w.byId[seed], T = g.turret;
@@ -103,7 +103,7 @@ export const INDIRECT_BANDS = Object.freeze([2000, 3000, 4000, 5000]);
 const AIM = 1.2;   // a target's centre over the ground (m)
 
 export function measureOrdnance(word, { mount = 'battle-tank', bands = null } = {}) {
-  const O = ORDNANCE[word], out = { ordnance: word, kind: O.kind, v0: O.v0, drag: O.drag, mount, bands: {} };
+  const O = ORDNANCE[word], out = { ordnance: word, kind: O.kind, v0: O.v0, drag: O.drag, mount: typeof mount === 'string' ? mount : 'its own', bands: {} };
   if (!O.indirect) {
     for (const d of bands ?? DIRECT_BANDS) {
       // the elevation to put the round through the target's centre at d

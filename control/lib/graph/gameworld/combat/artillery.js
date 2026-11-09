@@ -11,8 +11,12 @@
  *             (its fields laid over the class's, mountOf); default the battle tank's
  *   ordnance  1 to 4 rounds the gun loads (ordnance.js ORDNANCE: apfsds, heat, he, indirect), keys 1 to 4; the indirect
  *             shell needs a mount that elevates past 45° (the field gun, the howitzer); default every round the mount fires
- *   base      'fixed' (a concrete plinth, or the tower) or 'hull' (a tracked hull on the range's track: W / S drive, A / D
- *             turn, the turret's stabilizer, if it has one, holding the aim)
+ *   base      'fixed' (a concrete plinth, the tower's tower, the field gun's carriage), 'hull' (a graybox tracked hull on
+ *             the range's track: W / S drive, A / D turn, the turret's stabilizer, if it has one, holding the aim), or
+ *             { vehicle, livery?, wear?, seed? }: a vehicle of the library (vehicle-registry/, a word people say: 'light
+ *             tank') with a turret, its realistic build drawn, driven on its own class's rule, its turret and gun bones
+ *             turned by the mount (car-designer/military.js `gun`), the mount laid where its gun is (its class the
+ *             light tank's unless `mount` names one)
  *   reload    the gun's seconds to load a round (6)
  *   sounds    { shot?, reload?, burst? }, each a word of the SFX shelf; absent, a cannon, a breech worked, a large blast
  *
@@ -29,6 +33,10 @@ import { MATTER } from '../../rupa/matter.js';
 import { sfxSound } from '../../sfx-shelf/resolve.js';
 import { resolveSoundId } from '../../sfx-shelf/roster.js';
 import { MOUNTS, MOUNT_NAMES, mountOf } from './mount.js';
+import { resolveVehicle, handlesOf } from '../../vehicle-registry/roster.js';
+import { MILITARY_CLASSES } from '../../car-designer/road-military.js';
+import { rollVehicleSheet } from '../../car-designer/sheet.js';
+import { compileMilitary } from '../../car-designer/military.js';
 import { ORDNANCE, ORDNANCE_NAMES, ordnanceWeapon, measureOrdnance, ordnanceLaws, DIRECT_BANDS, INDIRECT_BANDS } from './ordnance.js';
 import { STANDS, measureTerminal, terminalLaws } from './terminal.js';
 import { box, CHROME } from './gym.js';
@@ -49,7 +57,12 @@ const quad = (a, b, c, d, fill, group) => ({ corners: [a, b, c, d], fill, group 
 export function validateArtillery({ mount = 'battle-tank', ordnance = null, base = 'fixed', reload = 6, sounds = {} } = {}) {
   const errs = [], cls = typeof mount === 'string' ? mount : mount?.class;
   if (!MOUNTS[cls]) errs.push(`mount: one of ${MOUNT_NAMES.join(', ')}, or { class, ...its fields }`);
-  if (base !== 'fixed' && base !== 'hull') errs.push(`base: 'fixed' or 'hull'`);
+  if (base !== 'fixed' && base !== 'hull' && !(base && typeof base === 'object')) errs.push(`base: 'fixed', 'hull', or { vehicle, livery?, wear?, seed? } (a vehicle of the library with a turret)`);
+  else if (typeof base === 'object') {
+    const v = vehicleClassOf(base.vehicle);
+    if (!v.class) errs.push(`base.vehicle: ${v.why}`);
+    for (const k of Object.keys(base)) if (!['vehicle', 'livery', 'wear', 'seed'].includes(k)) errs.push(`base.${k}: a vehicle base is { vehicle, livery?, wear?, seed? }`);
+  }
   if (ordnance !== null && (!Array.isArray(ordnance) || !ordnance.length || ordnance.length > MAX)) errs.push(`ordnance: 1 to ${MAX} of ${ORDNANCE_NAMES.join(', ')}`);
   else if (ordnance) {
     const seen = new Set();
@@ -65,6 +78,26 @@ export function validateArtillery({ mount = 'battle-tank', ordnance = null, base
 }
 
 const turretOf = (mount) => (typeof mount === 'string' ? mountOf(mount) : mountOf(mount.class, mount));
+// a vehicle base's word through the library (vehicle-registry/roster.js): its row, and the field vehicle's class its
+// realistic build compiles (car-designer/military.js), or why not
+function vehicleClassOf(word) {
+  const hit = typeof word === 'string' ? resolveVehicle(word) : null;
+  if (!hit) return { why: `'${word}' is not a vehicle of the library` };
+  const cls = (handlesOf(hit.id).physics ?? []).find((k) => MILITARY_CLASSES[k]);
+  return cls ? { id: hit.id, class: cls } : { why: `the ${hit.id} is no field vehicle (a turret rides a field vehicle's hull: the light tank)` };
+}
+/** A vehicle of the library as the gun's base: its realistic build with its gun on a bone of its own, and the mount laid
+ * where its gun is (the trunnion, the barrel's length), over the mount's class's rates. → { id, figure, rule, turret } */
+export function vehicleBase(base, mount = 'light-tank') {
+  const v = vehicleClassOf(base.vehicle);
+  if (!v.class) throw new Error(`artillery range: base.vehicle: ${v.why}`);
+  const sheet = rollVehicleSheet({ brief: '', facets: { pole: 'realistic', class: v.class }, seed: base.seed ?? 1 });
+  const c = compileMilitary(sheet, { form: true, gun: true, ...(base.livery !== undefined ? { livery: base.livery } : {}), ...(base.wear !== undefined ? { wear: base.wear } : {}) });
+  if (!c.gun) throw new Error(`artillery range: base.vehicle: the ${v.id} carries no turret`);
+  // (vehicle space is +y forward, +x right; a mount's place is [forward, right, up])
+  const T = turretOf(mount), [x, y, z] = c.gun.trunnion;
+  return { id: v.id, figure: c.figure, rule: c.rule, turret: { ...T, mount: { ...T.mount, at: [y, x, z] }, gun: { ...T.gun, barrel: Math.round((c.gun.muzzle[1] - y) * 1000) / 1000 } } };
+}
 // the rounds a mount fires when none are named: the direct three, and the indirect shell where it elevates for it
 const roundsFor = (T) => (T.mount.elevation.max >= 45 ? ['apfsds', 'heat', 'he', 'indirect'] : ['apfsds', 'heat', 'he']);
 
@@ -136,13 +169,18 @@ export function artilleryOf(spec = {}) {
   const errs = validateArtillery(spec);
   if (errs.length) throw new Error(`artillery range: ${errs.join('; ')}`);
   const { mount = 'battle-tank', base = 'fixed', reload = 6, sounds = {}, quiet = false } = spec;
-  const cls = typeof mount === 'string' ? mount : mount.class, T = turretOf(mount), words = spec.ordnance ?? roundsFor(T);
-  // the flight of each round from this mount (the indirect shell's high arc), and what it does to each matter there
+  // (a vehicle of the library as the base: its own figure and drive, the mount where its gun is; its class the light
+  // tank's unless the spec names one)
+  const V = typeof base === 'object' ? vehicleBase(base, spec.mount ?? 'light-tank') : null;
+  const cls = V ? (typeof spec.mount === 'object' ? spec.mount.class : spec.mount ?? 'light-tank') : typeof mount === 'string' ? mount : mount.class;
+  const T = V ? V.turret : turretOf(mount), words = spec.ordnance ?? roundsFor(T);
+  // the flight of each round from this mount as it stands (the indirect shell's high arc), and what it does to each
+  // matter there
   const flight = {}, terminal = {};
-  for (const w of words) { flight[w] = measureOrdnance(w, { mount: cls }); terminal[w] = measureTerminal(w, flight[w]); }
+  for (const w of words) { flight[w] = measureOrdnance(w, { mount: V ? T : cls }); terminal[w] = measureTerminal(w, flight[w]); }
   const laws = [...words.flatMap((w) => ordnanceLaws(flight[w], flight)), ...terminalLaws(terminal)];
   const indirect = words.includes('indirect');
-  const layout = layArtillery({ indirect, base });
+  const rolling = base === 'hull' || !!V, layout = layArtillery({ indirect, base: rolling ? 'hull' : 'fixed' });
   // the sound: the gun's shot, the breech worked over the reload, the shell's burst far off (the mix heard to 6 km)
   const heard = quiet ? null : {
     shot: cue(sounds.shot ?? 'cannon'),
@@ -155,21 +193,24 @@ export function artilleryOf(spec = {}) {
   const chart = Object.fromEntries(words.filter((w) => ORDNANCE[w].indirect).map((w) => [w, Object.entries(flight[w].bands).map(([d, b]) => [Number(d), b.mils, b.tof])]));
   const matter = Object.fromEntries([...new Set([...layout.stands.map((s) => s.matter), 'loam'])].map((k) => [k, MATTER[k]]));
   const turret = {
-    ...T, rounds, look: { base: base === 'hull' ? 'hull' : cls === 'tower' ? 'tower' : 'plinth' },
+    ...T, rounds, look: { base: base === 'hull' ? 'hull' : cls === 'tower' ? 'tower' : cls === 'field-gun' ? 'field' : 'plinth' },
     range: { stands: layout.stands, ordnance: Object.fromEntries(words.map((w) => [w, ORDNANCE[w]])), matter, table, chart, ground: 'loam' },
   };
-  const rule = base === 'hull' ? { type: 'walk', speed: 8, turn: 0.45, eye: 0, collideRadius: 3.5, collideHeight: 2.5 } : { type: 'static' };
-  const pilot = { id: 'gun', pilotable: true, rule, turret, weapon: rounds[0], body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 } };
-  const keys = `mouse  lay the gun · click  fire · 1-${words.length}  load (${words.join(', ')}) · right click  zoom · O  outside${base === 'hull' ? ' · W / S  drive · A / D  turn the hull' : ''}`;
+  // (a vehicle drives on its own class's rule; the graybox hull walks; a fixed base stands)
+  const rule = V ? V.rule : base === 'hull' ? { type: 'walk', speed: 8, turn: 0.45, eye: 0, collideRadius: 3.5, collideHeight: 2.5 } : { type: 'static' };
+  const pilot = { id: 'gun', pilotable: true, rule, turret, weapon: rounds[0], body: V ? { type: 'figure-rig', figure: 'base' } : { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 } };
+  const keys = `mouse  lay the gun · click  fire · 1-${words.length}  load (${words.join(', ')}) · right click  zoom · O  outside${V ? ' · W / S  drive · A / D  steer' : base === 'hull' ? ' · W / S  drive · A / D  turn the hull' : ''}`;
   const audio = heard ? { mix: { space: 'open', voices: 12, distance: true, reach: 6000 }, cues: { shot: heard.shot, reload: heard.reload, burst: heard.burst }, weapon: { shot: heard.shot, reload: heard.reload }, burst: heard.burst } : null;
-  const payload = { camera: { rule: 'eye', target: 'gun', height: 0, mouseLook: true, hideTarget: true }, events: { hud: [{ text: keys }] }, ...(audio ? { audio } : {}) };
-  return { minted: { pilot, payload }, mount: cls, base, ordnance: words, flight, terminal, laws, layout, name: spec.name ?? 'the artillery range' };
+  // (the camera is the turret view's: the sight, or outside; a base of its own figure is drawn, its turret hidden in the
+  // sight by the view)
+  const payload = { camera: { rule: 'eye', target: 'gun', height: 0, mouseLook: true, ...(V ? {} : { hideTarget: true }) }, events: { hud: [{ text: keys }] }, ...(V ? { figures: { base: V.figure } } : {}), ...(audio ? { audio } : {}) };
+  return { minted: { pilot, payload }, mount: cls, base: V ? V.id : base, ordnance: words, flight, terminal, laws, layout, name: spec.name ?? 'the artillery range' };
 }
 
 /** The readout's lines (short: a sign's width): each round's elevation (mils) at its bands, the indirect shell's flight to
  * the farthest, the laws. */
 export function artilleryReadout(A) {
-  const lines = [`${A.mount}, ${A.base === 'hull' ? 'on a hull' : 'fixed'}`];
+  const lines = [A.base === 'hull' ? `${A.mount}, on a hull` : A.base === 'fixed' ? `${A.mount}, fixed` : `the ${A.base}'s gun`];
   const direct = A.ordnance.filter((w) => !ORDNANCE[w].indirect), high = A.ordnance.filter((w) => ORDNANCE[w].indirect);
   if (direct.length) lines.push(`mils at ${DIRECT_BANDS.join(' ')} m`);
   for (const w of direct) { const B = A.flight[w].bands; lines.push(`${w} ${DIRECT_BANDS.map((d) => (Math.abs(B[d].mils) < 0.05 ? 0 : B[d].mils).toFixed(1)).join(' ')}`); }
@@ -183,7 +224,7 @@ export function artilleryReadout(A) {
 export function artilleryHtml(spec = {}) {
   const A = artilleryOf(spec), { pilot, payload } = A.minted;
   return emitThreeWorld({
-    faces: A.layout.faces, colliders: A.layout.colliders, entities: [pilot], camera: payload.camera,
+    faces: A.layout.faces, colliders: A.layout.colliders, entities: [pilot], camera: payload.camera, ...(payload.figures ? { figures: payload.figures } : {}),
     events: { hud: payload.events.hud.map((h) => ({ ...h, ttl: 30 })) },
     signs: [{ id: 'readout', variant: 'popup', anchor: { kind: 'slot', slot: 'top-right' }, text: `${A.name} · ${A.mount}`, body: artilleryReadout(A), pageLines: 8, chrome: { ...CHROME, fontSize: 11, padding: '6px 8px' } }],
     sky: { zenith: [118, 142, 176], horizon: [204, 208, 212], day: 1, stars: 0, seed: 3 }, bg: '#a9b0b8', haze: { color: '#bfc5cb', density: 0.00011 },

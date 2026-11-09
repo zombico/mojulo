@@ -393,3 +393,10 @@ measures' own law (a hole, a breach, a spall, a dent, a scorch, a crater). In he
 500 m, a shell on the ground craters it. Found on the way: the near marks are not in order of range (the sight sits above
 the target's centre, so near targets sit further under the bore: parallax, kept); one indirect shell laid off the chart
 lands about 12 m from 4 km, so the 12 m bunker takes a few rounds (its 1.5 mils of dispersion).
+
+The base can be a vehicle of the library: `base: { vehicle: 'light tank', livery?: 'woodland', wear? }` draws the
+vehicle registry's light tank as itself, driven on its own class, the turret's mount laid at its gun's trunnion
+(`car-designer/military.js` splits the gun onto a `gun` bone with `gun: true`) and its turret and gun bones turned by
+the mount. The graybox bases have their own looks by mount: the tower's tower, the field gun's carriage, a plinth for
+the others. Found on the way: the tank's gun rode in its turret's faces (an elevation bone was waiting for a parented
+rig), now split opt-in; the stabilized gun trails a hull still turning by about half a degree.

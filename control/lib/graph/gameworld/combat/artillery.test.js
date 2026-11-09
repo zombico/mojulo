@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { validateArtillery, layArtillery, artilleryOf, artilleryReadout } from './artillery.js';
+import { validateArtillery, layArtillery, artilleryOf, artilleryReadout, vehicleBase } from './artillery.js';
+import { VEHICLES, handlesOf } from '../../vehicle-registry/roster.js';
+import { MILITARY_CLASSES } from '../../car-designer/road-military.js';
 import { ORDNANCE, ORDNANCE_NAMES, DIRECT_BANDS, INDIRECT_BANDS } from './ordnance.js';
 import { MOUNTS, MOUNT_NAMES } from './mount.js';
 import { STANDS } from './terminal.js';
@@ -36,7 +38,27 @@ describe('the artillery range', () => {
     expect(validateArtillery({ base: 'boat' }).join()).toMatch(/base/);
     expect(validateArtillery({ sounds: { shot: 'no such sound at all' } }).join()).toMatch(/not a sound/);
     expect(() => artilleryOf({ ordnance: [] })).toThrow(/artillery range/);
+    // (a base from the library: a word it knows, a field vehicle; a road car carries no turret)
+    expect(validateArtillery({ base: { vehicle: 'no such machine at all' } }).join()).toMatch(/not a vehicle of the library/);
+    expect(validateArtillery({ base: { vehicle: 'sedan' } }).join()).toMatch(/no field vehicle/);
+    expect(validateArtillery({ base: { vehicle: 'light tank', paint: 'red' } }).join()).toMatch(/base.paint/);
   });
+
+  it('a vehicle of the library as the base: its own figure with its gun on a bone, driven on its class, the mount where its gun is', () => {
+    // (the library's turreted field vehicle, and one without a turret: found in the roster, not named)
+    const field = Object.keys(VEHICLES).filter((id) => (handlesOf(id).physics ?? []).some((k) => MILITARY_CLASSES[k]));
+    const tank = field.find((id) => (handlesOf(id).physics ?? []).some((k) => MILITARY_CLASSES[k] === 'lightTank'));
+    const V = vehicleBase({ vehicle: tank });
+    expect(V.figure.bones.map((b) => b.id)).toEqual(expect.arrayContaining(['turret', 'gun']));
+    const gun = V.figure.bones.find((b) => b.id === 'gun').head;
+    // (vehicle space +y forward, +x right; the mount's place forward, right, up)
+    expect(V.turret.mount.at).toEqual([gun[1], gun[0], gun[2]]);
+    expect(V.turret.gun.barrel).toBeGreaterThan(1.5);
+    expect(V.rule.type).toBe('drive');
+    const bare = field.find((id) => id !== tank && MILITARY_CLASSES[(handlesOf(id).physics ?? []).find((k) => MILITARY_CLASSES[k])] === 'trackedCarrier');
+    expect(bare).toBeTruthy();
+    expect(() => vehicleBase({ vehicle: bare })).toThrow(/carries no turret/);
+  }, 30000);
 
   it('the gun: its turret on its base, its rounds by key, the sight\'s marks from its flight, heard to the far field', () => {
     const A = artilleryOf({ mount: flat, ordnance: [direct], base: 'hull' }), P = A.minted.pilot, T = P.turret;

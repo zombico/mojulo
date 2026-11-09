@@ -2146,7 +2146,9 @@ ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
         __rigQA.premultiply(__apQ);
       }
     }
-${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the steering wheel turns and a mast whips about their own heads,
+${turretOn ? `    // (a base's turret and gun bones turned by its turret, worlds/controllable/turret.js: turret-view.js)
+    if (e.turret && e.turret.yaw !== undefined && window.__tvReady) __tvRigBone(e, fig, bi, __rigQA, __rigPA, mesh);
+` : ''}${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the steering wheel turns and a mast whips about their own heads,
     // then they, and the body, lean, pitch and bounce about the wheelbase's middle
     if (LV && LV.role[bi]) {
       const role = LV.role[bi];

@@ -52,4 +52,39 @@ describe('the artillery range, played', () => {
     expect(got.ground).toMatchObject([{ stand: 'ground', effect: 'crater' }]);
     expect(got.sight).toBe(true);
   }, 180000);
+
+  it('on a tank from the vehicle library: its own turret and gun bones turned by the mount, held on its aim as it drives, its round marked', async () => {
+    if (!browser) return;
+    const html = artilleryHtml({ base: { vehicle: 'light tank' }, ordnance: [rod], quiet: true });
+    const page = await browser.newPage(), errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!(window.__mojCtrl && window.__mojCtrl.turret), { timeout: 90000 });
+    const got = await page.evaluate(() => {
+      const C = window.__mojCtrl, g = C.world.byId.gun, T = g.turret, R = T.range, out = {};
+      const go = (n, inp) => { for (let f = 0; f < n; f++) C.step(1 / 60, inp); };
+      T.want.yaw = 40; T.want.pitch = 8; go(240, {});
+      out.rig = C.turret().rig;
+      // (driven and steered: the stabilized gun holds its line in the world)
+      go(120, { forward: 1, turn: 0.6 });
+      out.turned = g.transform.heading * 180 / Math.PI; out.world = T.yaw + out.turned;
+      // (back on the firing line, laid on the 500 m plate by its mark)
+      g.transform.pos = [0, 0, g.transform.pos[2]]; g.transform.heading = 0; T.want.yaw = 0; go(240, {});
+      for (const k of ['speed', 'v']) if (typeof g[k] === 'number') g[k] = 0;
+      const st = R.stands.find((s) => s.id === 'rha-100@500'), m = R.table[T.rounds[0].ordnance].find((x) => x[0] === 500);
+      T.want.yaw = Math.atan2((st.min[1] + st.max[1]) / 2 - g.transform.pos[1], st.min[0] - g.transform.pos[0]) * 180 / Math.PI;
+      T.want.pitch = Math.atan2(1.2 - (T.mount.at[2] + 0.35), st.min[0]) * 180 / Math.PI + m[1];
+      go(300, {});
+      const n0 = C.turret().marks.length; go(1, { fire: 1 }); go(150, {});
+      out.marks = C.turret().marks.slice(n0);
+      return out;
+    });
+    await page.close();
+    expect(errors).toEqual([]);
+    expect(got.rig.yaw).toBeCloseTo(40, 0);
+    expect(got.rig.pitch).toBeCloseTo(8, 0);
+    expect(Math.abs(got.turned)).toBeGreaterThan(5);
+    expect(Math.abs(got.world - 40)).toBeLessThan(1);   // (the stabilizer a little behind a hull still turning)
+    expect(got.marks).toMatchObject([{ stand: 'rha-100@500', effect: 'hole', perforated: true }]);
+  }, 240000);
 });
