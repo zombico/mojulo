@@ -528,7 +528,8 @@ export function buildRulesPlatform(E) {
         const fallCap = r.glideFall > 0 && input.jumpHeld && e.vel[2] <= 0 ? Math.min(maxFall, r.glideFall) : maxFall;
         if (e.cling && r.cling) e.vel[2] = -r.cling.slide;   // down the wall at a constant speed
         else if (e.dashT > 0 && e.dashAir && dashU(e) < DASH_EASE) e.vel[2] = 0;    // the air dash holds its height at speed
-        else e.vel[2] = Math.max(-fallCap, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * dt);
+        // (an air move's HANG, combat-melee.js `mvHang`: the hero held aloft, its gravity that share of its own)
+        else e.vel[2] = Math.max(-fallCap, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * (e.mvHang != null ? e.mvHang : 1) * dt);
         t.pos[2] += e.vel[2] * dt;
         // SWEEP the touchdown probe from the HIGHER of the pre/post foot, not the post-fall foot. A fast
         // fall (low framerate / big dt, a knockback launch, the drop-in settle over the wavy drape) moves

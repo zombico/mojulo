@@ -197,3 +197,19 @@
   ground's snap still held the body: a jump held three frames or more rose a third higher than a tap (1.93 m for
   1.45 m), which any person pressing the key did. The buffer now remembers a press's first frame and the launch
   consumes it: a press of one frame and one held through the gather rise the same.
+- **The launcher and the juggle** (`gameworld/combos.js`, `combat-melee.js`, `combat-hit.js`). A new beat, back + heavy
+  (`bH`: the heavy pressed with the stick pulled away from where the hero faces, the lock's facing under a lock-on),
+  plays each weapon's launcher (the sword's rising cut, the fist's rising uppercut), throwing the foe up. With the heavy
+  held through the launch, the hero rises with it (`rise`), into an air string: a combo marked `air` is lowered to the
+  moveset's `airTree`, its moves `air` moves that live in the air and end on landing (the sword's air-1, air-2 and
+  air-slam, the fist's air jab, air cross and air hammer). Air stickiness: each air move stops the hero's climb or fall
+  at a small kick and holds it there on a fraction of its gravity while it plays (the arsenal's `juggle.hang` and
+  `kick`), and each blow lifts the foe again. Hitstun is the juggle's budget: each blow re-arms the foe's airborne stun
+  at its decayed length (40 frames, × 0.85 a blow, never under 12), with its gravity growing a little a blow and a cap
+  on blows. When the stun runs out in the air the foe recovers (`recover`): an invincible flip that lands it on its feet,
+  the combo spent. The air string's finisher slams it into the ground (`slam`, its speed down), and that landing is a
+  knockdown: the topple, the floor and the getup's wake guard. Lowered by `lowerJuggle` into the foe's `combo` and the
+  moveset's `air`. A rise is the blow's, not the legs': releasing jump does not cut it. The room shows the juggle on
+  its HUD (in the air, recovering, slammed, knocked down, the stun left, the blows). Checked headless in the room:
+  launch, rise, three air blows, slam, knockdown, getup; and a launch left alone recovering on its feet. The air moves
+  play the ground swings' clips (no air pose yet), and the recovery flip is the body's tumble.

@@ -223,6 +223,10 @@ export function buildCombatMelee(E) {
       // (armReaction's kill override).
       const topples = (P.topple != null ? !!P.topple : e.swingClip === 'swing_back') && (P.combo ? !!e.swingCombo : true);
       armReaction(tg, topples ? 'topple' : 'stagger', topples, { launch: P.launch });
+      // (a launch that threw its target up: the launcher's rise may follow, combat-melee.js stepMoveset; a SLAM drives a
+      // juggled target down into the ground, the landing its knockdown)
+      if (P.launch > 0 && tg.juggle) e.mvLaunched = true;
+      if (P.slam > 0 && tg.juggle) { tg.juggle.vz = -P.slam; tg.juggle.knock = true; }
       if (P.knock && E.knockHit) E.knockHit(state, tg, e, P.knock, [tg.transform.pos[0] - e.transform.pos[0], tg.transform.pos[1] - e.transform.pos[1]]);
     }
   }
@@ -505,6 +509,7 @@ export function buildCombatMelee(E) {
     return 'block';
   }
   const AIM_LINGER = 0.3;   // (seconds the aim holds after a loose or the last round, before the hero lowers it)
+  const RISE = 1.12;        // (a launcher's rise: × the hero's own jump, to meet the foe near its apex)
   function stepMoveset(e, input, dt, world, ctx, boosting0) {
     const r = e.rule, t = e.transform, now = world && world.time != null ? world.time : 0, Ws = Array.isArray(r.weapons) && r.weapons.length ? r.weapons : null;
     let boosting = boosting0;
@@ -565,9 +570,14 @@ export function buildCombatMelee(E) {
       e.mvPose = { clip: Wc.sidearm.aim, phase: Math.round(k * 1e4) / 1e4, sidearm: true, prop: Wc.sidearm.mode === 'draw' ? 'bow' : 'guns' }; e.mvPoseT = AIM_LINGER;
     } else if (e.mvPose && e.mvPose.sidearm && e.swingT == null && (e.mvPoseT = (e.mvPoseT || 0) - dt) > 0) e.mvPose = { ...e.mvPose, phase: 0 };
     else if (e.mvPose) e.mvPose = null;
+    if (e.grounded && e.launchedBy === 'rise') e.launchedBy = null;   // (a rise landed: the next jump is the legs' again)
     const edge = (k, prev) => { const on = !!input[k], was = !!e[prev]; e[prev] = on; return on && !was; };
     const lE = edge('fire', 'strikePrev'), hE = edge('heavy', 'heavyPrev'), sE = edge('special', 'specialPrev');
-    const beat0 = hE ? 'H' : lE ? 'L' : sE ? 'S' : null;
+    // (BACK + HEAVY, `bH`: the heavy pressed with the stick pulled away from where the hero faces, against the lock's
+    // facing as a stylish game reads it; a tree with no bH plays it as H)
+    const airborne = !ctx.space && !e.grounded && (e.hoverGrace || 0) <= 0, T0 = airborne ? M.airTree || {} : M.tree;
+    const back = ctx.moveH != null ? Math.cos(ctx.moveH - t.heading) < -0.5 : (input.forward || 0) < -0.5;
+    const beat0 = hE ? (back && (T0.bH || (S.node && S.node.next && S.node.next.bH)) ? 'bH' : 'H') : lE ? 'L' : sE ? 'S' : null;
     // (S is the sidearm's when the weapon carries one: stepWeapon takes it; a draw held refuses the blades)
     const beat = beat0 === 'S' && Wc && Wc.sidearm ? null : beat0;
     if (beat && drawing) { say(beat, 'dropped', 'drawing the bow'); S.buf = null; }
@@ -583,11 +593,24 @@ export function buildCombatMelee(E) {
     if (ctx.dodging && e.swingT != null) { ended(); e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
     // the live move: its time, its end
     if (e.swingT != null && S.move) {
-      e.swingT += dt / M.moves[S.move].dur;
-      if (e.swingT >= 1 || (!ctx.space && !e.grounded && (e.hoverGrace || 0) <= 0)) { ended(); e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
+      const live = M.moves[S.move];
+      e.swingT += dt / live.dur;
+      // (a ground move ends on leaving the ground; an AIR move lives in the air and ends on landing)
+      if (e.swingT >= 1 || (live.air ? e.grounded : airborne)) { ended(); e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
+      // THE RISE (a launcher's `rise`): its blow launched a foe and the heavy is still held: the hero leaves the ground
+      // with it, the move cut there, into the air string
+      else if (live.rise && e.mvLaunched && input.heavy && e.grounded) {
+        ended(); e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now;
+        e.vel[2] = (r.jumpSpeed ?? 8.5) * RISE; e.grounded = false; e.coyote = 1; e.mvRose = now; e.launchedBy = 'rise';   // (the rise is the blow's, not the legs': no jump released cuts it)
+        say('H', 'taken', 'held through the launch: rising with it');
+      }
     }
+    e.mvLaunched = false;
+    // THE HANG (air stickiness, the moveset's `air`): an air move holds the hero aloft, its gravity `hang` of its own
+    // while the move plays (rules-platform.js reads `mvHang`)
+    e.mvHang = e.swingT != null && S.move && M.moves[S.move].air && M.air ? M.air.hang : null;
     // the buffered beat, taken where the tree and the timing allow
-    if (S.buf && !ctx.charging && !ctx.kneeling && !ctx.dodging && (e.grounded || ctx.space)) {
+    if (S.buf && !ctx.charging && !ctx.kneeling && !ctx.dodging && (e.grounded || ctx.space || (airborne && M.airTree))) {
       const b = S.buf.beat, N = S.node;
       let next = null, how = null, wait = false;
       if (e.swingT != null) {
@@ -598,14 +621,14 @@ export function buildCombatMelee(E) {
         const since = now - S.endT;
         if (N && N.pause && N.pause[b] && since >= M.pause[0] && since <= M.pause[1]) { next = N.pause[b]; how = 'chained on the pause'; }
         else if (N && N.next && N.next[b] && since <= M.late + 1e-9) { next = N.next[b]; how = 'chained after the move'; }
-        else if (M.tree[b]) {
+        else if (T0[b]) {
           // (an opener waits out the finisher's rest and its own cooldown: held when the wait is inside the buffer, else dropped)
-          const op = M.tree[b].move, rest = (S.restT ?? -1e9) - now, cool = ((S.cool && S.cool[op]) ?? -1e9) - now, left = Math.max(rest, cool);
-          if (left <= 1e-9) { next = M.tree[b]; how = 'an opener'; }
+          const op = T0[b].move, rest = (S.restT ?? -1e9) - now, cool = ((S.cool && S.cool[op]) ?? -1e9) - now, left = Math.max(rest, cool);
+          if (left <= 1e-9) { next = T0[b]; how = airborne ? 'an air opener' : 'an opener'; }
           else if (left <= M.buffer + 1e-9) wait = true;
           else { say(b, 'dropped', rest >= cool ? `resting after the finisher (${left.toFixed(2)} s)` : `${op} cooling down (${left.toFixed(2)} s)`); S.buf = null; }
         }
-        else { say(b, 'dropped', `no move on ${b}`); S.buf = null; }
+        else { say(b, 'dropped', airborne ? `no air move on ${b}` : `no move on ${b}`); S.buf = null; }
       }
       if (next) {
         const mv = M.moves[next.move];
@@ -618,7 +641,10 @@ export function buildCombatMelee(E) {
         // stay planted on the floor; a figure with the move's own clips plays them, any other its swing's
         const room = mv.travel ? mvRoom(e, world, fwdXY(t.heading)) : Infinity, travels = !!mv.travel && room >= mv.travel.m - 1e-9;
         e.swingT = 0; e.swingClip = r.moveClips && mv.clip ? (mv.travel && !travels ? `${mv.clip}_still` : mv.clip) : spec.clip;
-        e.strikeParams = { ...spec.params, ...(Wc && Wc.reach != null ? { reach: Wc.reach } : {}), damage: (r.strikeDamage ?? 0) * (Wc && Wc.damage != null ? Wc.damage : 1) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0 };
+        e.strikeParams = { ...spec.params, ...(Wc && Wc.reach != null ? { reach: Wc.reach } : {}), damage: (r.strikeDamage ?? 0) * (Wc && Wc.damage != null ? Wc.damage : 1) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0, ...(mv.slam ? { slam: mv.slam } : {}) };
+        // (an air move's KICK, the air's stickiness: the climb or the fall stopped, the hero lifted a little as it begins, the
+        // hang holding it there beside the foe it struck)
+        if (mv.air && M.air && !e.grounded) e.vel[2] = M.air.kick;
         breakGuards(e);
         e.swingCount = (e.swingCount || 0) + 1; e.struckThisSwing = {}; e.lastSwingDir = mv.swing;
         const fw = fwdXY(t.heading), P = e.strikeParams;
@@ -626,7 +652,7 @@ export function buildCombatMelee(E) {
         // (the travel waits out the blend into the move, at most half its way to the blow: hero-swing-body.js travelAt)
         const tTo = mv.travel ? Math.max(0.05, mv.travel.kind === 'step' ? P.from : P.to) : 0;
         e.mvTravel = travels ? { dir: [fw[0], fw[1]], kind: mv.travel.kind, m: mv.travel.m, from: Math.min(mv.travel.wait || 0, tTo * 0.5), to: tTo, done: 0 } : null;
-        S.k = how === 'an opener' ? 1 : S.k + 1;
+        S.k = how === 'an opener' || how === 'an air opener' ? 1 : S.k + 1;
         S.node = next; S.move = next.move;
         say(b, 'taken', `${how}: ${next.move}${next.ends ? ` (ends ${next.ends.join(', ')})` : ''}`);
         S.buf = null;

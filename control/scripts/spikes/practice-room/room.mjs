@@ -35,7 +35,7 @@ const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js
 const { asked } = await import('./measure.mjs');
 const { feelRule } = await import('../../../lib/graph/gameworld/feel/lower.js');
 const { sfxSound } = await import('../../../lib/graph/sfx-shelf/resolve.js');
-const { BASIC_ARSENAL, readCombos, readArsenal, lowerArsenal, comboList } = await import('../../../lib/graph/gameworld/combos.js');
+const { BASIC_ARSENAL, readCombos, readArsenal, lowerArsenal, comboList, lowerJuggle } = await import('../../../lib/graph/gameworld/combos.js');
 // the arsenal the room plays (--combos <file>: an arsenal, or one weapon's combo manifest; the basic sword and fist by
 // default), every combo unlocked, the weapons stepped through on the cycle
 const given = opt('--combos') ? JSON.parse(await fs.readFile(opt('--combos'), 'utf8')) : null;
@@ -74,7 +74,9 @@ const guard = G.feel ? feelRule(G.feel).guard ?? null : null;
 const heroE = { ...H0, rule: { ...H0.rule, weapons, moveset: weapons[0].moveset, ...(weapons[0].sidearm ? { weapon: weapons[0].sidearm.weapon } : {}), ...(guard ? { guard } : {}) }, transform: { pos: [0, -3, 0], heading: Math.PI / 2 } };
 const foes = Array.from({ length: pack }, (_, k) => {
   const a = pack === 1 ? 0 : (k / pack) * 2 * Math.PI, at = pack === 1 ? [0, 1, 0] : [3 * Math.sin(a), 2 + 3 * Math.cos(a), 0];
-  return { ...structuredClone(foe0), id: `foe-${k + 1}`, transform: { pos: at, heading: -Math.PI / 2 } };
+  // (the arsenal's JUGGLE rules on the foe's body: its hitstun, its air time, its recovery, combos.js lowerJuggle)
+  const F = structuredClone(foe0);
+  return { ...F, id: `foe-${k + 1}`, ...(arsenal.juggle ? { body: { ...F.body, combo: lowerJuggle(arsenal.juggle).combo } } : {}), transform: { pos: at, heading: -Math.PI / 2 } };
 });
 const entities = [heroE, ...foes];
 // THE SOUNDS (--sound realistic | arcade | foley | orchestral | synth | none): the SFX shelf's by the words people say
@@ -145,13 +147,13 @@ let html = emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: fals
 
 // ─── the HUD: the live world read each frame (window.__mojCtrl), the card's numbers beside it ───
 const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#pr b{color:#fff}#pr .k{color:#9aa0aa}#pr .bad{color:#f0a070}#pr .ok{color:#9fd49a}#pr .on{color:#ffd76a}#pr table{border-collapse:collapse;width:100%}#pr td{padding:0 4px 0 0;vertical-align:top}#pr .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#pr h4{margin:6px 0 2px;font-size:11px;color:#9aa0aa;font-weight:normal}</style>
-<div id="pr"><b>Practice room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><div id="pr-ai"></div><h4>combos (all unlocked)</h4><div id="pr-c"></div><div id="pr-s"></div><div id="pr-g"></div><h4>last move</h4><table id="pr-t"></table><h4>presses</h4><div class="log" id="pr-log"></div></div>
+<div id="pr"><b>Practice room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><div id="pr-ai"></div><h4>combos (all unlocked)</h4><div id="pr-c"></div><div id="pr-s"></div><div id="pr-g"></div><div id="pr-j"></div><h4>last move</h4><table id="pr-t"></table><h4>presses</h4><div class="log" id="pr-log"></div></div>
 <script>
 (() => {
   const STRINGS = ${strings}, SDN = ${JSON.stringify(SD.beats)}, SDD = ${SD.damage}, BACK = 3, foeHp = ${foeHp};
   const MOUSELOOK = ${!!(camera.mouseLook || camera.turnMode === 'look')}, CARD = ${JSON.stringify(card)}, LISTS = ${JSON.stringify(Object.fromEntries(arsenal.weapons.map((W) => [W.id, { name: W.name ?? W.id, list: comboList({ moves: W.moves, combos: W.combos }) }])))}, MOVES = ${JSON.stringify(Object.fromEntries(arsenal.weapons.flatMap((W) => Object.entries(W.moves).map(([id, m]) => [id, m]))))};
   const $ = (id) => document.getElementById(id), F = (s) => Math.round(s * 60);
-  let W = null, H = null, foes = [], cur = null, last = null, log = [], seq = 0, gseq = 0, hHits = 0, hits0 = 0, homes = null, show = true, tPrev = 0;
+  let W = null, H = null, foes = [], cur = null, last = null, log = [], seq = 0, gseq = 0, hHits = 0, hits0 = 0, homes = null, show = true, tPrev = 0, jst = 'ground';
   const setAi = (on) => { W.aiEnabled = on; $('pr-ai').innerHTML = 'foe AI <b class="' + (on ? 'bad' : 'ok') + '">' + (on ? 'ON' : 'off') + '</b> · P · K resets' + '<div>foe <b>' + foeHp + '</b> hp <span class="k">(' + STRINGS + ' × ' + SDN + ': ' + SDD + ' a string) · back ' + BACK + ' s after it falls</span> · <span id="pr-hp"></span></div>';  };
   const back = (f, k) => { f.transform.pos = homes[k].slice(); f.staggerT = null; f.reactClip = null; f.downed = false; f.gone = false; f.dormant = false; f.body.hp = f.hpMax; f.hits = 0; f.backAt = null; };
   addEventListener('keydown', (e) => {
@@ -165,8 +167,8 @@ const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/
   const row = (k, a, b, cls) => '<tr><td class="k">' + k + '</td><td>' + (a ?? '') + '</td><td class="' + (cls || '') + '">' + (b ?? '—') + '</td></tr>';
   function draw() {
     const live = H.mvCombos || [], k = H.mvHit || 0, Wn = LISTS[H.mvWeapon || Object.keys(LISTS)[0]], LIST = Wn.list;
-    $('pr-c').innerHTML = '<div>weapon <b>' + Wn.name + '</b> <span class="k">(' + Object.values(LISTS).map((x) => x.name).join(' · ') + ': mouse back / R)</span></div>' + LIST.map((c) => { const on = H.swingT != null && live.indexOf(c.id) >= 0; const beats = c.beats.split(' ').map((b, i) => { let n = -1, j = 0; for (const x of c.beats.split(' ')) { if (x !== '.') n++; if (j++ === i) break; } return '<span class="' + (on && b !== '.' && n < k ? 'on' : '') + '">' + b + '</span>'; }).join(' ');
-      return '<div>' + beats + ' <span class="k">' + c.name + ' · ' + c.moves.map((m) => m.id).join(' → ') + '</span></div>'; }).join('');
+    $('pr-c').innerHTML = '<div>weapon <b>' + Wn.name + '</b> <span class="k">(' + Object.values(LISTS).map((x) => x.name).join(' · ') + ': mouse back / R)</span></div>' + LIST.map((c) => { const on = H.swingT != null && live.indexOf(c.id) >= 0; const beats = c.beats.split(' ').map((b, i) => { let n = -1, j = 0; for (const x of c.beats.split(' ')) { if (x !== '.') n++; if (j++ === i) break; } return '<span class="' + (on && b !== '.' && n < k ? 'on' : '') + '">' + (b === 'bH' ? 'back+H' : b) + '</span>'; }).join(' ');
+      return '<div>' + (c.air ? '<span class="k">in the air:</span> ' : '') + beats + ' <span class="k">' + c.name + ' · ' + c.moves.map((m) => m.id).join(' → ') + '</span></div>'; }).join('');
     // the sidearm on S: its name, its rounds (a quiver's arrows, a magazine, or endless), the draw and its readiness
     const G = H.mvRanged, w = H.weapon;
     $('pr-s').innerHTML = G && w ? 'S <b>' + G.name + '</b> <span class="k">' + (G.mode === 'draw' ? 'hold to draw, let go when ready' : 'hold to fire') + '</span> · ' + (w.infinite ? 'endless' : w.ammo + (w.reserve != null ? ' + ' + w.reserve : '') + (w.reloading ? ' (nocking)' : ''))
@@ -174,6 +176,10 @@ const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/
     // the guard (Shift, a pad's left shoulder): up or down, its window, what it has met (combat-melee.js stepGuard)
     const Gd = H.rule && H.rule.guard;
     $('pr-g').innerHTML = Gd ? 'guard <b>' + (H.guarding ? (H.blockT > 0 ? 'blockstun' : 'UP') : 'down') + '</b> <span class="k">hold Shift / LB · parry ' + (Gd.parry == null ? 'any guard' : F(Gd.parry) + ' f from raising it') + ' · riposte ' + F(Gd.riposte) + ' f</span> · blocks ' + (H.blocks || 0) + ' · parries ' + (H.parries || 0) + (Gd.stamina ? ' · stamina ' + Math.round(H.guardSt ?? Gd.stamina.max) : '') : '<span class="k">no guard in this feel</span>';
+    // the juggle (combos.js juggle, combat-hit.js): the foe in the air, its stun left (the budget), its air blows; its
+    // recovery (an invincible flip out) or its knockdown
+    const Fj = foes[0];
+    $('pr-j').innerHTML = Fj && Fj.comboCfg && Fj.comboCfg.juggle ? 'juggle <b>' + (Fj.juggle ? (Fj.juggle.recover ? 'RECOVERING' : Fj.juggle.knock ? 'SLAMMED' : 'IN THE AIR') : Fj.reactClip === 'topple' || Fj.reactClip === 'downpause' || Fj.reactClip === 'getup' ? 'KNOCKED DOWN' : 'grounded') + '</b> <span class="k">back+H to launch (lock on: C) · hold H to rise</span>' + (Fj.juggle && !Fj.juggle.recover ? ' · stun ' + Math.max(0, Fj.juggle.stunT || 0).toFixed(2) + ' s · blows ' + (Fj.comboHits || 0) : '') + ' · recoveries ' + (Fj.airRecoveries || 0) : '';
     const m = last, mv = m && MOVES[m.id];
     $('pr-t').innerHTML = (m ? row('move', m.id + ' · ' + mv.role, m.clip) + row('frames', mv.frames + (mv.cancel ? ' · cancel ' + mv.cancel : ' · no cancel'), (m.end != null ? m.end + ' f' : '…'))
       + row('press → contact', '', m.contact != null ? m.contact + ' f' : (m.end != null ? 'whiff' : '…'), m.contact != null ? 'ok' : (m.end != null ? 'bad' : ''))
@@ -192,6 +198,12 @@ const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/
       const Gl = H.lastGuard, Gd = H.rule && H.rule.guard;
       if (Gl && Gl.seq !== gseq) { gseq = Gl.seq; log.push({ t: Gl.t, ok: Gl.kind === 'parry', text: Gl.kind === 'parry' ? 'PARRY: ' + F(Gl.at) + ' f after raising the guard; the foe open ' + F(Gd.riposte) + ' f' : Gl.kind === 'break' ? 'guard broken: stamina spent' : 'blocked: ' + F(Gl.at) + ' f after raising it' + (Gd.parry != null ? ' (the parry is ' + F(Gd.parry) + ' f)' : '') }); }
       if ((H.hits || 0) > hHits) { hHits = H.hits || 0; log.push({ t, ok: false, text: 'hit taken: ' + (H.guarding ? 'from behind the guard' : 'the guard was down') }); }
+      // (the juggle's moments: launched, recovered, knocked down)
+      const Fj = foes[0];
+      if (Fj) {
+        const st = Fj.juggle ? (Fj.juggle.recover ? 'rec' : 'air') : (Fj.reactClip === 'topple' ? 'down' : 'ground');
+        if (st !== jst) { if (st === 'air' && jst !== 'air') log.push({ t, ok: true, text: 'launched' }); if (st === 'rec') log.push({ t, ok: false, text: 'the foe recovered: its stun ran out in the air (' + (Fj.comboHits || 0) + ' blows)' }); if (st === 'down' && (jst === 'air' || jst === 'rec')) log.push({ t, ok: true, text: 'KNOCKDOWN: slammed after ' + (Fj.comboHits || 0) + ' blows' }); jst = st; }
+      }
       if (H.mvMove && (!cur || H.swingCount !== cur.n)) { cur = { n: H.swingCount, id: H.mvMove, clip: H.swingClip, t0: t, k: H.mvHit, contact: null, end: null, stop: 0, stopS: 0, stun: null, adv: null, stunEnd: null, at: H.transform.pos.slice(), moved: 0 }; last = cur; }
       if (cur) {
         if (hits > hits0 && cur.contact == null) cur.contact = F(t - cur.t0);

@@ -47,7 +47,8 @@ export const TRAVEL = Object.freeze(['none', 'step', 'lunge']);
 export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right']);
 /** the body strikes a move may play (hero-strike.js STRIKES, hero-box.js BOX_STRIKES): the fist's */
 export const STRIKES = Object.freeze(['jab', 'cross', 'hook', 'uppercut']);
-export const BEATS = Object.freeze(['L', 'H', 'S', '.']);
+// (bH: back + heavy, the heavy pressed with the stick pulled away from where the hero faces: the launcher's beat)
+export const BEATS = Object.freeze(['L', 'H', 'S', 'bH', '.']);
 /** beats named and not yet played: a held press (a charge) and a mashed one */
 export const LATER_BEATS = Object.freeze({ 'L+': 'a held light', 'H+': 'a held heavy', 'L*': 'a mashed light', 'H*': 'a mashed heavy' });
 const FPS = 60;
@@ -60,10 +61,18 @@ export const BASIC_COMBOS = Object.freeze({
     'cut-2': { swing: 'left', role: 'filler', frames: 24, cancel: 15, travel: { kind: 'step', m: 0.25 }, damage: 1 },
     cleave: { swing: 'back', role: 'finisher', frames: 44, travel: { kind: 'lunge', m: 0.5 }, damage: 2, impact: 3, topple: true },
     thrust: { swing: 'forward', role: 'opener', frames: 32, travel: { kind: 'lunge', m: 0.6 }, damage: 1.5, impact: 1.5, cooldown: 40 },
+    // the LAUNCHER (back + heavy): a rising cut throwing the foe up; the heavy held through it, the hero rises with it
+    launcher: { swing: 'right', role: 'launcher', frames: 36, damage: 1, launch: 9, rise: true, cooldown: 30 },
+    // the AIR STRING: two cuts in the air, the hero held aloft by each, and the overhead slam driving the foe down
+    'air-1': { swing: 'neutral', role: 'opener', frames: 22, cancel: 13, damage: 1, air: true },
+    'air-2': { swing: 'left', role: 'filler', frames: 22, cancel: 13, damage: 1, air: true },
+    'air-slam': { swing: 'back', role: 'finisher', frames: 34, damage: 2, impact: 3, topple: true, slam: 16, air: true },
   },
   combos: [
     { id: 'three-cuts', name: 'Three cuts', beats: ['L', 'L', 'L'], moves: ['cut-1', 'cut-2', 'cleave'] },
     { id: 'thrust', name: 'Thrust', beats: ['H'], moves: ['thrust'] },
+    { id: 'launcher', name: 'Launcher', beats: ['bH'], moves: ['launcher'] },
+    { id: 'aerial-rave', name: 'Aerial rave', air: true, beats: ['L', 'L', 'L'], moves: ['air-1', 'air-2', 'air-slam'] },
   ],
 });
 
@@ -85,7 +94,10 @@ export function readCombos(C) {
   for (const [id, m] of Object.entries(C.moves)) {
     const at = `moves.${id}`;
     if (!isObj(m)) no(`${at} is { swing | strike, role, frames, cancel?, contact?, travel?, damage?, impact?, topple?, launch?, cooldown? }`);
-    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch', 'cooldown'].includes(k)) no(`${at}.${k} is not part of a move`);
+    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch', 'cooldown', 'air', 'slam', 'rise'].includes(k)) no(`${at}.${k} is not part of a move`);
+    if (m.air !== undefined && typeof m.air !== 'boolean') no(`${at}.air is true (a move made in the air) or false`);
+    if (m.slam !== undefined && !(num(m.slam, 0, 40) && m.air)) no(`${at}.slam is the foe's speed down (m/s) an air move drives it into the ground at`);
+    if (m.rise !== undefined && !(typeof m.rise === 'boolean' && m.launch > 0)) no(`${at}.rise is true on a launching move: the hero rising with the foe while the button is held`);
     if (m.cooldown !== undefined && !num(m.cooldown, 0, 300)) no(`${at}.cooldown is the frames after it ends before it opens a string again, 0 to 300`);
     if ((m.swing === undefined) === (m.strike === undefined)) no(`${at} plays a swing (${SWINGS.join(', ')}) or a strike (${STRIKES.join(', ')}), one`);
     if (m.swing !== undefined && !SWINGS.includes(m.swing)) no(`${at}.swing is the swing it plays: ${SWINGS.join(', ')}`);
@@ -109,7 +121,8 @@ export function readCombos(C) {
   const ids = new Set(), paths = new Map();
   for (const [i, c] of C.combos.entries()) {
     const at = `combos[${i}]`;
-    if (!isObj(c) || typeof c.id !== 'string' || !c.id) no(`${at} is { id, name?, beats, moves }`);
+    if (!isObj(c) || typeof c.id !== 'string' || !c.id) no(`${at} is { id, name?, air?, beats, moves }`);
+    if (c.air !== undefined && typeof c.air !== 'boolean') no(`${at}.air is true (a string made in the air, from a jump or a launch) or false`);
     if (ids.has(c.id)) no(`${at}: '${c.id}' is named twice`);
     ids.add(c.id);
     if (!Array.isArray(c.beats) || !c.beats.length) no(`${at}.beats is a list of presses (${BEATS.join(' ')})`);
@@ -122,8 +135,10 @@ export function readCombos(C) {
     const presses = c.beats.filter((b) => b !== '.');
     if (!Array.isArray(c.moves) || c.moves.length !== presses.length) no(`${at}.moves is one move a press (${presses.length})`);
     for (const m of c.moves) if (!C.moves[m]) no(`${at}: no move '${m}'`);
-    // (two combos on the same beats are one string: they must play the same moves on their shared beats)
-    let key = '';
+    // (an air string is made of air moves, a ground string of ground moves)
+    for (const m of c.moves) if (!!C.moves[m].air !== !!c.air) no(`${at}: '${m}' is ${C.moves[m].air ? 'an air move' : 'a ground move'} in ${c.air ? 'an air string' : 'a ground string'}`);
+    // (two combos on the same beats are one string: they must play the same moves on their shared beats; the air's apart)
+    let key = c.air ? 'air:' : '';
     let p = 0;
     for (const b of c.beats) {
       key += b;
@@ -147,10 +162,12 @@ export function lowerCombos(C0, { prefix = '' } = {}) {
     travel: m.travel && m.travel.kind !== 'none' ? { kind: m.travel.kind, m: m.travel.m, wait: r4(T.blend / m.frames) } : null,
     damage: m.damage ?? 1, ...(m.impact != null ? { impact: m.impact } : {}), ...(m.topple ? { topple: true } : {}), ...(m.launch ? { launch: m.launch } : {}),
     ...(m.cooldown > 0 ? { cooldown: r4(m.cooldown / FPS) } : {}),
+    ...(m.air ? { air: true } : {}), ...(m.slam > 0 ? { slam: m.slam } : {}), ...(m.rise ? { rise: true } : {}),
   }]));
-  const tree = {};
+  // (the ground's tree and the air's: a string made in the air opens from a jump or a launch, the ground's from the feet)
+  const tree = {}, airTree = {};
   for (const c of C.combos) {
-    let level = tree, node = null, k = 0, pause = false;
+    let level = c.air ? airTree : tree, node = null, k = 0, pause = false;
     for (const b of c.beats) {
       if (b === '.') { pause = true; continue; }
       const into = node ? (pause ? (node.pause ??= {}) : (node.next ??= {})) : level;
@@ -161,13 +178,13 @@ export function lowerCombos(C0, { prefix = '' } = {}) {
     if (node) node.ends = [...(node.ends ?? []), c.id];
   }
   // (`ready`: the fighting stance its moves start and end in, the hero's idle in combat with this moveset)
-  return { moves, tree, ready: `mv_${prefix}ready`, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)], blend: r4(T.blend / FPS), ...(T.rest > 0 ? { rest: r4(T.rest / FPS) } : {}) };
+  return { moves, tree, ...(Object.keys(airTree).length ? { airTree } : {}), ready: `mv_${prefix}ready`, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)], blend: r4(T.blend / FPS), ...(T.rest > 0 ? { rest: r4(T.rest / FPS) } : {}) };
 }
 
 /** The director's list: each combo's beats and its moves, read whole. */
 export function comboList(C0) {
   const C = readCombos(C0);
-  return C.combos.map((c) => ({ id: c.id, name: c.name ?? c.id, beats: c.beats.join(' '),
+  return C.combos.map((c) => ({ id: c.id, name: c.name ?? c.id, ...(c.air ? { air: true } : {}), beats: c.beats.join(' '),
     moves: c.moves.map((id) => ({ id, role: C.moves[id].role, ...(C.moves[id].swing ? { swing: C.moves[id].swing } : { strike: C.moves[id].strike }), travel: C.moves[id].travel?.kind ?? 'none', frames: C.moves[id].frames })) }));
 }
 
@@ -184,12 +201,20 @@ export const BASIC_ARSENAL = Object.freeze({
         cross: { strike: 'cross', role: 'filler', frames: 26, cancel: 16, contact: [0.42, 0.52], travel: { kind: 'step', m: 0.2 }, damage: 1.2 },
         hook: { strike: 'hook', role: 'finisher', frames: 34, contact: [0.46, 0.58], travel: { kind: 'lunge', m: 0.35 }, damage: 2, impact: 2.5, topple: true },
         uppercut: { strike: 'uppercut', role: 'opener', frames: 32, contact: [0.64, 0.76], travel: { kind: 'step', m: 0.2 }, damage: 1.6, impact: 1.5, cooldown: 40 },
+        'rising-uppercut': { strike: 'uppercut', role: 'launcher', frames: 32, contact: [0.64, 0.76], damage: 1.4, launch: 8.5, rise: true, cooldown: 30 },
+        'air-jab': { strike: 'jab', role: 'opener', frames: 20, cancel: 12, contact: [0.4, 0.5], damage: 1, air: true },
+        'air-cross': { strike: 'cross', role: 'filler', frames: 24, cancel: 15, contact: [0.42, 0.52], damage: 1.2, air: true },
+        'air-hammer': { strike: 'hook', role: 'finisher', frames: 32, contact: [0.46, 0.58], damage: 2, impact: 2.5, topple: true, slam: 14, air: true },
       },
       combos: [
         { id: 'one-two-hook', name: 'One, two, hook', beats: ['L', 'L', 'L'], moves: ['jab', 'cross', 'hook'] },
         { id: 'uppercut', name: 'Uppercut', beats: ['H'], moves: ['uppercut'] },
+        { id: 'rising-uppercut', name: 'Rising uppercut', beats: ['bH'], moves: ['rising-uppercut'] },
+        { id: 'air-flurry', name: 'Air flurry', air: true, beats: ['L', 'L', 'L'], moves: ['air-jab', 'air-cross', 'air-hammer'] },
       ] },
   ],
+  // THE JUGGLE (the foe's side of a launch, and the hero's hang): see JUGGLE
+  juggle: { hitstun: { base: 40, decay: 0.85, min: 12 }, launch: 9, hitLift: 3.5, gravity: 1.06, g: 20, max: 8, recover: true, hang: 0.15, kick: 1.2 },
   // the sidearm on S, the loadout's one, whatever is in hand: the action-adventure's bow (held, it draws; let go once
   // drawn, it looses; let go early, nothing)
   ranged: [
@@ -228,9 +253,42 @@ export function lowerSidearm(G) {
     projectileSpeed: G.speed ?? 45, projectileGravity: G.drop ?? 9, lobAngle: 1, projRadius: 0.12, splashRadius: 0, armTime: 0.04, fuse: 3, smokeTrail: false, cooldown: 0.1, eye, hand,
     damage: G.tap?.damage ?? 0, impact: G.tap?.impact ?? 0, chargedDamage: G.damage ?? 3, chargedImpact: G.impact ?? 30, chargedRangeMul: 1 };
 }
+/**
+ * THE JUGGLE RULES (an arsenal's `juggle`, frames and metres): how long a launched foe stays in the air for the hero's
+ * blows, and how the hero hangs there with it. HITSTUN is the budget: each blow stuns the foe `base` frames, every later
+ * blow `decay` of the last (never under `min`), and the air pulls it down harder each blow (`gravity` × per blow, from
+ * `g` m/s²); an air blow lifts it `hitLift` m/s (the AIR STICKINESS), up to `max` blows. When the stun runs out in the air
+ * the foe RECOVERS (`recover`: an invincible flip, landing on its feet, the combo spent); slammed down, or landing still
+ * stunned, it is KNOCKED DOWN (the topple, its getup's wake guard after). `launch` the launcher's speed up when a move
+ * names none. The HERO's hang: an air move holds it aloft, its gravity `hang` of its own while the move plays and a
+ * `kick` m/s up as each begins.
+ */
+export const JUGGLE_KEYS = Object.freeze(['hitstun', 'launch', 'hitLift', 'gravity', 'g', 'max', 'recover', 'hang', 'kick', 'scaling']);
+export function readJuggle(J, at = 'juggle') {
+  if (!isObj(J)) no(`${at} is { ${JUGGLE_KEYS.join(', ')} }`);
+  for (const k of Object.keys(J)) if (!JUGGLE_KEYS.includes(k)) no(`${at}.${k} is not part of the juggle (${JUGGLE_KEYS.join(', ')})`);
+  const H = J.hitstun ?? {};
+  if (!isObj(H) || (H.base !== undefined && !num(H.base, 1, 240)) || (H.decay !== undefined && !num(H.decay, 0.3, 1)) || (H.min !== undefined && !num(H.min, 0, 120))) no(`${at}.hitstun is { base: frames, decay: 0.3 to 1, min: frames }`);
+  for (const [k, lo, hi] of [['launch', 1, 30], ['hitLift', 0, 20], ['gravity', 1, 2], ['g', 5, 60], ['max', 1, 30], ['hang', 0, 1], ['kick', 0, 10]]) if (J[k] !== undefined && !num(J[k], lo, hi)) no(`${at}.${k} is ${lo} to ${hi}`);
+  if (J.recover !== undefined && typeof J.recover !== 'boolean') no(`${at}.recover is true (the foe flips out when its stun runs out in the air) or false`);
+  if (J.scaling !== undefined && !(isObj(J.scaling) && num(J.scaling.perHit, 0.3, 1) && num(J.scaling.floor ?? 0.3, 0, 1))) no(`${at}.scaling is { perHit: 0.3 to 1, floor? }`);
+  return J;
+}
+/** the juggle lowered: `combo`, a foe body's (worlds/controllable/combat-hit.js normalizeCombo, seconds), and `air`, the
+ * hero's hang (each weapon's moveset) */
+export function lowerJuggle(J0) {
+  const J = readJuggle(J0), H = J.hitstun ?? {};
+  return {
+    combo: { hitstun: { base: r4((H.base ?? 40) / FPS), decay: H.decay ?? 0.85, min: r4((H.min ?? 12) / FPS) },
+      juggle: { launch: J.launch ?? 9, lift: 0.7, hitLift: J.hitLift ?? 3.5, gravity: J.gravity ?? 1, g: J.g ?? 20, max: J.max ?? 8, land: 'knockdown', recover: J.recover !== false },
+      ...(J.scaling ? { scaling: { perHit: J.scaling.perHit, floor: J.scaling.floor ?? 0.3 } } : { scaling: false }), reset: 0.3 },
+    air: { hang: J.hang ?? 0.15, kick: J.kick ?? 1.2 },
+  };
+}
 export function readArsenal(A) {
   if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, sidearm?, reach?, damage?, moves, combos }], ranged?: [one sidearm] }');
-  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged)`);
+  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle)`);
+  if (A.juggle !== undefined) readJuggle(A.juggle);
   if (A.ranged !== undefined && !Array.isArray(A.ranged)) no('ranged is a list of sidearms');
   // (ONE sidearm a loadout: the weapon cycle steps the blades and the fists, never the ranged weapon, so every weapon
   // carries the same one, its quiver kept across the cycle)
@@ -272,6 +330,6 @@ export function lowerArsenal(A0) {
     ...(guardOf(W) ? { guard: { clip: `mv_guard_${W.id}`, pose: guardOf(W), ...(guardOf(W) === 'shield' ? { prop: 'shield' } : {}) } } : {}),
     ...(sidOf(W) ? { sidearm: sideOf(sidOf(W)) } : {}),
     // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
-    moveset: lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }) }));
+    moveset: { ...lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }), ...(A.juggle ? { air: lowerJuggle(A.juggle).air } : {}) } }));
 }
 export const strikesOf = (A) => [...new Set(readArsenal(A).weapons.flatMap((W) => Object.values(W.moves).filter((m) => m.strike).map((m) => m.strike)))];

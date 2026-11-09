@@ -154,6 +154,9 @@ export function buildCombatHit(E) {
   //       (`lift`× the hit's launch, else `hitLift`) — until `max` hits, after which nothing lifts.
   //       Landing: `land` 'knockdown' (default — the topple → getup → wake guard, which ENDS the
   //       combo) or 'stand' (the target simply recovers). A toppling hit mid-air knocks down on landing.
+  //       `recover` (opt-in): HITSTUN is the juggle's budget — each blow re-arms the airborne stun at its decayed
+  //       length (`stunT`); run out in the air, the target RECOVERS: an invincible flip (e.tumble) down onto its feet,
+  //       the combo spent. A toppling (or slamming) blow first makes it a knockdown, which no recovery escapes.
   //   scaling { perHit, floor } — a hit's damage × max(floor, perHit^k), k = stunning hits already
   //       in the combo. Un-stunned chip (ranged fire on an upright suit) never chains: k stays 0.
   //   reset — sec after recovery inside which the next hit still LINKS (a combo continues across a
@@ -166,7 +169,7 @@ export function buildCombatHit(E) {
     const hs = sect(o.hitstun), jg = sect(o.juggle), sc = sect(o.scaling);
     return {
       hitstun: hs ? { base: num(hs.base, 0.5), decay: num(hs.decay, 1), min: num(hs.min, 0.12) } : null,
-      juggle: jg ? { launch: num(jg.launch, 8), lift: num(jg.lift, 0.7), hitLift: num(jg.hitLift, 3), gravity: num(jg.gravity, 1), g: num(jg.g, 20), max: num(jg.max, 5), land: jg.land === 'stand' ? 'stand' : 'knockdown' } : null,
+      juggle: jg ? { launch: num(jg.launch, 8), lift: num(jg.lift, 0.7), hitLift: num(jg.hitLift, 3), gravity: num(jg.gravity, 1), g: num(jg.g, 20), max: num(jg.max, 5), land: jg.land === 'stand' ? 'stand' : 'knockdown', ...(jg.recover === true ? { recover: true } : {}) } : null,
       scaling: sc ? { perHit: num(sc.perHit, 0.9), floor: num(sc.floor, 0.3) } : null,
       reset: num(o.reset, 0.3),
     };
@@ -226,6 +229,8 @@ export function buildCombatHit(E) {
         if (C.juggle) {
           if (tg.juggle) { if (n <= C.juggle.max) tg.juggle.vz = Math.max(tg.juggle.vz, launch > 0 ? launch * C.juggle.lift : C.juggle.hitLift); }
           else if (launch > 0 && n <= C.juggle.max) tg.juggle = { vz: launch, z0: tg.transform.pos[2], knock: false };
+          // (the airborne stun, the juggle's budget: re-armed by each blow at its decayed length)
+          if (tg.juggle && C.juggle.recover) tg.juggle.stunT = tg.reactDur;
         }
         return;
       }
@@ -302,8 +307,16 @@ export function buildCombatHit(E) {
         const J = e.juggle, n = Math.max(1, e.comboHits || 1);
         const g = C.juggle ? C.juggle.g * Math.pow(C.juggle.gravity, n - 1) : 20;
         J.vz -= g * dt; e.transform.pos[2] += J.vz * dt;
+        // THE AIR RECOVERY (`recover`): the stun run out in the air, not knocked down: an invincible flip down onto its feet
+        if (J.stunT != null && !J.knock && !e.downed && !J.recover) { J.stunT -= dt; if (J.stunT <= 0) { J.recover = true; J.flip = 0; e.airRecoveries = (e.airRecoveries || 0) + 1; } }
+        if (J.recover) { e.invincible = true; J.flip = Math.min(1, J.flip + dt / 0.45); e.tumble = { axis: [Math.cos(e.transform.heading + Math.PI / 2), Math.sin(e.transform.heading + Math.PI / 2), 0], angle: -2 * Math.PI * J.flip }; }
         if (e.transform.pos[2] <= J.z0 && J.vz <= 0) {
           e.transform.pos[2] = J.z0; e.juggle = null;
+          if (J.recover) {   // (landed out of its recovery: on its feet, the combo spent)
+            e.tumble = null; e.invincible = false; e.staggerT = null; e.downPauseT = null; e.locomotion = e.staggerReturn || 'forward'; e.reactionEnded = true;
+            e.comboLive = false; e.comboHits = 0; e.comboScale = 1; e.comboT = 1e9;
+            return false;
+          }
           if (e.downed || J.knock || !C.juggle || C.juggle.land !== 'stand') {   // the landing IS the knockdown
             e.poise = e.poiseMax; e.staggerT = 0; e.downPauseT = null; e.reactClip = 'topple';
             e.reactDur = e.toppleDur || (e.staggerDur || 1.3) * 1.3;
@@ -311,7 +324,7 @@ export function buildCombatHit(E) {
             e.staggerT = null; e.downPauseT = null; e.locomotion = e.staggerReturn || 'forward'; e.reactionEnded = true; e.invincible = false; e.comboT = 0;
             return false;
           }
-        } else { e.locomotion = 'topple'; e.moving = true; e.gaitPhase = 0.35; e.invincible = false; return true; }   // mid-air: the stun holds until landing
+        } else { e.locomotion = J.recover ? 'leap' : 'topple'; e.moving = true; e.gaitPhase = 0.35; if (!J.recover) e.invincible = false; return true; }   // mid-air: the stun holds until landing (a recovery's flip, invincible)
       }
       e.comboT += dt;
       if (e.staggerT == null && e.comboLive && e.comboT > C.reset) { e.comboLive = false; e.comboHits = 0; e.comboScale = 1; }
