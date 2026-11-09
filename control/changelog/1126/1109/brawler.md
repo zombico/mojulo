@@ -93,3 +93,9 @@
   of the two sides lined up, their armed blows' blades crossing on a frame: neither lands that blow, both recoil), and a
   body with its own weapon keeps it (it picks no other up and is never disarmed). The yard draws a held blade along the
   line the sim strikes with, in a played character's own hand.
+- The armed crowd and the armed boss: four crowd types each with its own weapon the whole fight (`sword`: two cuts and a
+  strong one, or a leaping cut; `spear`: pokes from far off and runs in on its point; `axe`: a big slow body, its strong
+  a chop to the floor, a dive from the air; `staff`: three blows, a sweep that blows the player down the street, its wood
+  struck as it swings), each its own tune and plays; a wave's boss takes a `weapon` (any of the fight's) for the whole
+  fight, its CPU's blows and its own plays swinging it. As in the fight, only the weapon hand's blows are the blade's (a
+  kick stays a kick). An armed brawl's yard sets swordsmen as its dummies unless it says.

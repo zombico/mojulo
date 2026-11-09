@@ -605,6 +605,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // (the boss's tune and its plays between its CPU's own).
 // Re-pinned 2026-11-09 (1109-gen-bodywork: the armed brawler): `brawl` only. Its page inlines the brawl's core (blades
 // that clash, a body keeping its own weapon) and the yard's client (a held blade drawn).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the armed crowd and the armed boss): `brawl` only. Its page inlines the crowd
+// (the sword, the spear, the axe, the staff; a boss's weapon).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

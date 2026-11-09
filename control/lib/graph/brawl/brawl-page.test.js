@@ -76,6 +76,8 @@ describe('brawl page: the armed brawler', () => {
     expect(D.roster).toBe(BRAWL_ARMED_ROSTER);
     expect(D.roster.every((r) => WEAPONS[r.recipe.weapon])).toBe(true);
     expect(new Set(D.roster.map((r) => r.recipe.weapon)).size).toBe(D.roster.length);
+    // (its dummies the armed crowd's unless it says)
+    expect(D.dummies.every((d) => d.type === 'sword')).toBe(true);
     // (a roster entry's own weapon; one without, or a weapon laid on its street, refused)
     expect(brawlYardData(armed({ roster: [{ id: 'kai', archetype: 'rushdown', weapon: 'spear' }] }).brawl).roster[0].recipe.weapon).toBe('spear');
     expect(() => brawlYardData(armed({ roster: [{ id: 'kai', archetype: 'rushdown' }] }).brawl)).toThrow(/no weapon/);

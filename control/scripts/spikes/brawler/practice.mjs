@@ -40,7 +40,7 @@ if (opt.characters) {
 }
 const manifest = brawlLevel({ kind: 'greybox', preset: 'yard' }, { title: 'practice', ...(opt.register ? { register: opt.register } : {}), ...(opt.armed ? { armed: true } : {}), practice: {
   ...(roster ? { roster, players: [0] } : {}),
-  dummies: roster ? [{ mode: 'stand', at: 7, n: 0, fighter: 1 }, { mode: 'walk', at: 9.5, n: 1, fighter: 2 }, { mode: 'swing', at: 12, n: -1, fighter: 1 }] : [{ mode: 'stand', at: 7, n: 0 }, { mode: 'walk', at: 9.5, n: 1 }, { mode: 'swing', at: 12, n: -1 }],
+  dummies: roster ? [{ mode: 'stand', at: 7, n: 0, fighter: 1 }, { mode: 'walk', at: 9.5, n: 1, fighter: 2 }, { mode: 'swing', at: 12, n: -1, fighter: 1 }] : [{ mode: 'stand', at: 7, n: 0 }, { mode: 'walk', at: 9.5, n: 1 }, { mode: 'swing', at: 12, n: -1 }].map((d, i) => (opt.armed ? { ...d, type: ['sword', 'spear', 'axe'][i] } : d)),
   things: [...(opt.armed ? [] : [{ kind: 'weapon', what: 'pipe', at: 5.5, n: 2 }]), { kind: 'food', what: 'chicken', at: 3, n: 2 }, { kind: 'box', what: 'barrel', at: 14, n: 1.6, holds: { kind: 'power', what: 'power' } }],
 } });
 const { payload } = await resolveWorldScene({ ref: 'practice', title: 'practice', manifest }, {});

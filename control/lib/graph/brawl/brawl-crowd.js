@@ -20,8 +20,9 @@
  *     into its screen (a held screen with no wave is open from the start), entering by turns from the view's right edge, its left and the street's back, at most `limit`
  *     on the street at once (the rest as others fall); the screen's gate opens (`cleared`) when the last falls.
  *
- *   • THE BOSS (a wave's `boss: { recipe, cpu?, hp?, tune?, plays? }`, the belt's boss screen only): any of the
- *     fight's characters, a body as every other is (a brawler's fighter, its own `tune`), played by the fight's own
+ *   • THE BOSS (a wave's `boss: { recipe, cpu?, hp?, tune?, plays?, weapon? }`, the belt's boss screen only): any of
+ *     the fight's characters, a body as every other is (a brawler's fighter, its own `tune`, its own `weapon` the whole
+ *     fight: an armed boss, the fight's blade), played by the fight's own
  *     opponent (versus-cpu.js cpuPad), shown the duel it reads (the boss and its target along the belt) and its modern
  *     buttons turned into the brawl's commands; and, every while (BOSS_REST frames after the last), a PLAY of its own
  *     (`plays`, BOSS_PLAYS by default: the brawler's strong and its enders, the run, the leaps, the desperation when
@@ -41,6 +42,7 @@
  * Pure and deterministic: its only variety is a hash of a body's id (no dice, no clock).
  */
 import { solveFighter } from '../versus/versus-solver.js';
+import { WEAPONS } from '../versus/versus-library.js';
 import { cpuPad, newCpuMemory, CPU_LEVELS } from '../versus/versus-cpu.js';
 import { BTN } from '../versus/versus-input.js';
 import { brawlFighter, STRONG_SLOTS } from './brawl-moves.js';
@@ -74,6 +76,11 @@ export const CROWD_TYPES = Object.freeze({
   charger: type('a rush from range: it lines up far off and runs the player down, or blows them away down the street', { archetype: 'all-rounder', hp: 300, tune: { damage: 90, startup: 2 }, plays: ['special.back', 'special.back', 'run', 'blowout'], combo: 2 }),
   jumper: type('it leaps: a leaping overhead, a flying kick, a dive kick from a jump away', { archetype: 'rushdown', hp: 220, tune: { damage: 85, startup: 1, recovery: 2 }, plays: ['special.down', 'kick', 'dive'], combo: 2 }),
   heavy: type('a big slow body that grabs: it walks into the player, knees and throws, or swings its strong; held, it breaks out', { archetype: 'grappler', hp: 600, tune: { damage: 110, startup: 4, recovery: 5, cool: 140 }, plays: ['grab', 'grab', 'strong', 'break', 'desperate'], combo: 2, knees: 2 }),
+  // THE ARMED CROWD (an armed brawl's own, any brawl's too): each its weapon the whole fight, the fight's blades
+  sword: type('a sword in the lead hand: two cuts and a strong one, or a leaping cut', { archetype: 'all-rounder', hp: 240, weapon: 'sword', tune: { damage: 85, startup: 2, recovery: 3 }, plays: ['chain', 'chain', 'strong', 'kick'], combo: 2 }),
+  spear: type('a spear in the rear hand: it pokes from far off, or runs in on its point; the longest reach, the slowest home', { archetype: 'zoner', hp: 220, weapon: 'spear', tune: { damage: 80, startup: 3, recovery: 4 }, plays: ['chain', 'chain', 'run', 'break'], combo: 2 }),
+  axe: type('a big body with an axe: slow, and one cut floors you; its strong, a chop to the floor, a dive from the air', { archetype: 'grappler', hp: 420, weapon: 'axe', tune: { damage: 105, startup: 4, recovery: 5, cool: 130 }, plays: ['strong', 'chain', 'break', 'dive'], combo: 2 }),
+  staff: type('a staff, long both ways: three blows, a sweep that blows the player down the street, a leaping strike; its wood is struck as it swings', { archetype: 'zoner', hp: 260, weapon: 'staff', tune: { damage: 85, startup: 2, recovery: 3 }, plays: ['chain', 'chain', 'blowout', 'kick'], combo: 3 }),
 });
 export const CROWD_TYPE_IDS = Object.freeze(Object.keys(CROWD_TYPES));
 
@@ -116,12 +123,13 @@ export function readWaves(waves, belt) {
     }
     if (w.boss !== undefined) {
       if (!sc.boss) throw new Error(`brawl: ${at}.boss: a boss stands on the belt's boss screen (its last)`);
-      if (!w.boss || typeof w.boss !== 'object' || !w.boss.recipe) throw new Error(`brawl: ${at}.boss is { recipe, cpu?, hp?, tune?, plays? } (a fighter's recipe: the fight's characters)`);
+      if (!w.boss || typeof w.boss !== 'object' || !w.boss.recipe) throw new Error(`brawl: ${at}.boss is { recipe, cpu?, hp?, tune?, plays?, weapon? } (a fighter's recipe: the fight's characters)`);
+      if (w.boss.weapon !== undefined && !WEAPONS[w.boss.weapon]) throw new Error(`brawl: ${at}.boss.weapon is one of ${Object.keys(WEAPONS).join(', ')}`);
       if (w.boss.plays !== undefined && Array.isArray(w.boss.plays) && w.boss.plays.includes('grab')) throw new Error(`brawl: ${at}.boss.plays: a boss's grab is the fight's throw, its CPU's (no 'grab' play)`);
       if (w.boss.cpu !== undefined && !CPU_LEVELS[w.boss.cpu]) throw new Error(`brawl: ${at}.boss.cpu is one of ${Object.keys(CPU_LEVELS).join(', ')}`);
       if (w.boss.hp !== undefined && !(Number.isInteger(w.boss.hp) && w.boss.hp >= 1 && w.boss.hp <= 99999)) throw new Error(`brawl: ${at}.boss.hp is a whole number from 1 to 99999`);
     }
-    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n })), ...(w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), plays: w.boss.plays ?? BOSS_PLAYS } } : {}) };
+    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n })), ...(w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? BOSS_PLAYS } } : {}) };
   }).sort((a, b) => a.screen - b.screen);
 }
 
@@ -162,7 +170,7 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd } = {
     // (the boss first of its wave: it comes in as the wave does)
     if (w.boss) {
       // (a body as every other: a brawler's fighter in its own tune, its plays on it)
-      const BF = brawlFighter({ ...w.boss.recipe, ...(w.boss.hp ? { hp: w.boss.hp } : {}) }, { tune: w.boss.tune });
+      const BF = brawlFighter({ ...w.boss.recipe, ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}) }, { tune: w.boss.tune });
       bosses[bodies.length] = { cpu: w.boss.cpu, name: w.boss.recipe.name ?? w.boss.recipe.id ?? 'boss', plays: readPlays(w.boss.plays, BF, `waves[${k}].boss.plays`), combo: Math.max(1, BF.brawl.chain - 1), knees: 3 };   // (its chain to the blow before the last: an ender's place)
       fighters.push(BF);
       bodies.push({ fighter: fighters.length - 1, side: 'crowd', x: 0, z: 0, wave: k }); kinds.push('boss');

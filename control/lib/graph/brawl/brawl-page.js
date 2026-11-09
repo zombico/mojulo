@@ -98,7 +98,8 @@ export function brawlYardData(block, bodies = null) {
   }
   const pick = (k, where) => { if (!(Number.isInteger(k) && k >= 0 && k < roster.length)) throw new Error(`brawl: ${where} is a roster index, 0 to ${roster.length - 1}`); return k; };
   const players = (P.players ?? [0]).map((k, i) => pick(k, `practice.players[${i}]`));
-  const dummies = (P.dummies ?? [{ mode: 'stand' }, { mode: 'walk' }, { mode: 'swing' }]).map((d, i) => {
+  // (an armed brawl's dummies the armed crowd's swordsmen unless it says)
+  const dummies = (P.dummies ?? (block.armed ? [{ mode: 'stand', type: 'sword' }, { mode: 'walk', type: 'sword' }, { mode: 'swing', type: 'sword' }] : [{ mode: 'stand' }, { mode: 'walk' }, { mode: 'swing' }])).map((d, i) => {
     if (d.fighter === undefined) return d;
     const k = pick(d.fighter, `practice.dummies[${i}].fighter`), { fighter: _f, ...rest } = d;
     return { ...rest, recipe: roster[k].recipe, roster: k };

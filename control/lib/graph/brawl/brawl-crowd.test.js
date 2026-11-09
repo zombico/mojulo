@@ -133,6 +133,26 @@ describe('brawl crowd: every play a player\'s move', () => {
   });
 });
 
+describe('brawl crowd: the armed crowd', () => {
+  const ARMED = CROWD_TYPE_IDS.filter((id) => CROWD_TYPES[id].weapon && id !== 'knife');
+  it('each carries its own weapon the whole fight: the blows of its weapon\'s hand the blade\'s (a kick stays a kick)', () => {
+    expect(ARMED.length).toBeGreaterThanOrEqual(4);
+    for (const id of ARMED) {
+      const F = crowdFighter(id);
+      expect(F.weapon.kind, id).toBe(CROWD_TYPES[id].weapon);
+      const blows = Object.entries(F.moves).filter(([k, m]) => m.kind === 'normal' && !m.throw);
+      expect(blows.some(([, m]) => m.armed), id).toBe(true);
+      for (const [k, m] of blows) expect(!!m.armed, `${id} ${k}`).toBe(m.limb === F.weapon.limb);
+    }
+  });
+  it('their blows land with the blade', () => {
+    // (one street of the armed crowd, a passive player: the hits on it, by limb)
+    const log = standing(ARMED.map((type) => ({ type, n: 1 })), 1500);
+    const blades = new Set(log.flatMap((st) => st.s.events.filter((e) => e.t === 'hit' && e.d === 0 && e.limb === 'blade').map((e) => CROWD_TYPES[st.mind.type[e.p]].weapon)));
+    expect(blades.size, [...blades].join(' ')).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe('brawl crowd: the waves', () => {
   const waves = [{ screen: 1, crowd: [{ type: 'thug', n: 4 }, { type: 'knife', n: 2 }, { type: 'jumper', n: 1 }] }, { screen: 2, crowd: [{ type: 'thug', n: 3 }, { type: 'charger', n: 1 }, { type: 'heavy', n: 1 }] }];
   let st = streetOf({ belt, players: [hero(99999)], waves });
@@ -195,6 +215,7 @@ describe('brawl crowd: the boss', () => {
   // (a passive player stood in the boss's screen: the boss and its crowd on their own)
   // (walked in until its wave comes, then left alone)
   const log = [];
+  const walkIn2 = (st) => { for (let k = 0; k < 3000 && st.mind.begun !== 0; k++) st = stepStreet(st, [{ x: 1 }]); return st; };
   const walkIn = (st) => { for (let k = 0; k < 3000 && st.mind.begun !== 0; k++) { st = stepStreet(st, [{ x: 1 }]); log.push(st); } return st; };
   let st = walkIn(streetOf({ belt, players: [hero(99999)], waves: [wave()] }));
   for (let k = 0; k < 2400; k++) { st = stepStreet(st, [{}]); log.push(st); }
@@ -239,6 +260,16 @@ describe('brawl crowd: the boss', () => {
     expect(F.moves['stand.H'].damage).toBe(Math.round((plain.moves['stand.H'].damage * 130) / 100));
     expect(() => readWaves([wave({ plays: ['grab'] })], belt)).toThrow(/grab/);
     expect(() => streetOf({ belt, players: [hero()], waves: [wave({ plays: ['sing'] })] })).toThrow(/play/);
+  });
+  it('an armed boss: its own weapon the whole fight, its blows (the CPU\'s and its plays) the blade\'s', () => {
+    expect(() => readWaves([wave({ weapon: 'trident' })], belt)).toThrow(/weapon/);
+    let t = walkIn2(streetOf({ belt, players: [hero(99999)], waves: [wave({ weapon: 'katana' })] }));
+    const id = Number(Object.keys(t.mind.bosses)[0]), F = t.ctx.fighters[t.s.bodies[id].fi];
+    expect(F.weapon.kind).toBe('katana');
+    expect(Object.values(F.moves).some((m) => m.armed)).toBe(true);
+    const hits = [];
+    for (let k = 0; k < 1500; k++) { t = stepStreet(t, [{}]); hits.push(...t.s.events.filter((e) => e.t === 'hit' && e.p === id && e.d === 0)); }
+    expect(hits.some((e) => e.limb === 'blade')).toBe(true);
   });
   it('it takes no token', () => {
     expect(log.every((x) => !(x.mind.tok[0] ?? []).includes(bossId))).toBe(true);
