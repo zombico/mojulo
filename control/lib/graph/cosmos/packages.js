@@ -21,6 +21,8 @@ export const PACKAGES = Object.freeze({
   'comic-panel': { name: 'The comic panel: a beat held as a still with a border, a caption and an onomatopoeia', effort: 'S' },
   // hostile encounters (10-27): the foe classes' moves and attacks that do not run yet, priced so the sweep ranks them
   // the time map (11-02): the screen's clock built offline, the world clock in play (11-02); a replay in play and a grain to each layer
+  // the brawler (11-09): its sim, crowd and belt built as their own, waiting on the door that makes one from a gameworld
+  brawler: { name: 'The brawler from a gameworld: a world that says it is a beat-em-up laid down a belt, its crowd, waves and boss', effort: 'M' },
   replay: { name: 'Replay in play: a recorded world clock, a moment shown again slowed and from another camera (the kill cam\'s replay)', effort: 'M' },
   keying: { name: 'Keying: a body\'s clips stepped on twos or threes in play, each layer its own grain (characters on twos, the camera on ones)', effort: 'M' },
   // the main quest (11-04): what a long game's spine still waits on, priced so the sweep ranks it

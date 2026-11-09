@@ -54,6 +54,32 @@ export const FIXTURES = Object.freeze([
       time: { progression: 'gated', advance: 'steps' },
     },
   },
+  // the action game's two templates (11-10, 1110-practice-room-slice): a hero's melee played as strings, its kit the
+  // template's (gameworld/combos.js), its room before any level
+  {
+    id: 'stylish-action',
+    name: 'Stylish action',
+    anchor: false,
+    why: 'a hero chains swings into strings, launches a foe and juggles it, cancels into a gun, under an orbit camera that locks on (Fallen Angel\'s kit)',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'orbit', topology: 'linear', levelForm: 'rooms' },
+      power: { combat: ['melee', 'ranged'], moveset: 'strings', mechanics: ['hp-pool', 'defeat-all'] },
+      soul: { hero: 'hero' },
+    },
+  },
+  {
+    id: 'open-adventure',
+    name: 'Open-world action-adventure',
+    anchor: false,
+    why: 'a hero with a sword and shield, a bow and a spin attack crosses an open land on horseback between its dungeons (Fable of Artesia\'s kit)',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'open' },
+      power: { combat: ['melee', 'ranged'], moveset: 'strings' },
+      soul: { hero: 'hero', equipment: ['sword', 'shield', 'bow'], mount: 'horse' },
+    },
+  },
   {
     id: 'shooter',
     name: 'First-person shooter',
@@ -459,8 +485,10 @@ export const FIXTURES = Object.freeze([
     why: 'two to four friends fight down a 3D street, the screen holding until each wave is beaten, joining in at any time',
     cube: {
       reality: { medium: '3d', look: 'city-night' },
-      space: { camera: 'third-person', levelForm: 'trail', topology: 'linear' },
-      power: { combat: ['melee'], mechanics: ['waves', 'hp-pool', 'reach-exit'] },
+      // (11-10: asks for the brawler's own belt and fight, built as their own and not yet made from a gameworld; before,
+      // a trail and the action runtime's melee stood in, and the probe read makeable)
+      space: { camera: 'third-person', levelForm: 'belt', topology: 'linear' },
+      power: { combat: ['brawl'], mechanics: ['waves', 'hp-pool', 'reach-exit'] },
       soul: { hero: 'hero', seats: 'four', contest: 'co-op', dependence: 'parallel', frame: 'follow-all', input: 'real-time', pool: 'own', join: 'drop-in' },
     },
   },

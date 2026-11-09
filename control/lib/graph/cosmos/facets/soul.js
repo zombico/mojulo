@@ -81,6 +81,16 @@ export const SOUL = Object.freeze({
         four: { status: 'built', lowers: LEVELS, note: SEATS_KERNEL },
       },
     },
+    // built 10-29 (mounts): a horse the hero gets on and rides (worlds/mount-units.js, the runtime's `ride` rule: the gaits,
+    // the jump, getting on and off, any hero's riding clips solved on its own rig), a world's `mounts` laid on each walking
+    // level; 11-10: its mount lane (gameworld/mount-lane.js) tunes the ride before any level, and a template that rides
+    // (the action-adventure) is suggested mounts
+    mount: {
+      values: {
+        none: { status: 'built' },
+        horse: { status: 'built', lowers: 'lib/graph/worlds/mount-units.js', note: 'a world\'s mounts: horses beside each walking level\'s spawn, ridden through walk, trot, canter and gallop, jumping a low wall; the mount lane to tune the ride' },
+      },
+    },
     // built 11-09 (screenplay scenes): how the cast plays a scene, the actor's (actor/): its takes on the page
     acting: {
       values: {

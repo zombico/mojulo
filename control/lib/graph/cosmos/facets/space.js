@@ -33,7 +33,7 @@ export const SPACE = Object.freeze({
       values: {
         linear: { status: 'built', lowers: 'lib/graph/level/graph.js', note: "LEVEL_LAYOUTS is 'sequential'" },
         hub: { status: 'built', lowers: 'lib/graph/gameworld/world.js', note: 'a gameworld joins its levels by road and gate' },
-        open: { status: 'partial', effort: 'L', lowers: 'lib/graph/scene/channels/stream.js', note: 'terrain LOD and city tile streaming exist on world pages only; no game level is a streamed region, nothing loads content by region' },
+        open: { status: 'partial', effort: 'L', lowers: 'lib/graph/scene/channels/stream.js', note: 'terrain LOD and city tile streaming exist on world pages only; a world map\'s zones (interconnected, level/zones.js) load as they are walked into, but each crossing is a whole page swapped at a gate behind the veil: nothing streams a region or crosses a border anywhere along it' },
         // built 10-11: a gameworld's topology: 'interconnected' plays as a map (exits, travel, arrival, keyed doors).
         interconnected: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a map: two-way links, levels left by named exits, the game travelling on and arriving at the matching end, doors opened by keys found elsewhere, an item or one of the hero\'s powers (whose move it then gives, the wall and the line among them); trails, and a city (its key on a roof the hero reaches)' },
       },
@@ -45,6 +45,10 @@ export const SPACE = Object.freeze({
         trail: { status: 'built', lowers: 'lib/graph/era/out-trail.js' },
         meru: { status: 'built', lowers: 'lib/graph/local-meru/plan.js' },
         arena: { status: 'built', lowers: 'lib/graph/worlds/match-modes.js' },
+        // local 11-09 (1109-gen-bodywork): the brawler's belt, a fight's lane opened up: a straight street with a depth band
+        // across it, cut into screens the camera scrolls through, each held at a gate until its wave is beaten, the last
+        // the boss's; the angle locked a stage; laid on the greybox street or an indoor level's rooms (brawl-levels.js)
+        belt: { status: 'local', effort: 'M', pkg: 'brawler', lowers: 'lib/graph/brawl/brawl-belt.js', note: 'a beat-em-up\'s street: a depth band cut into screens, the camera held at each gate until its wave falls, its angle locked (classic, high, low, ahead); the greybox street or an indoor level\'s rooms (brawl-levels.js); reached from a greybox\'s brawl block, not yet from a gameworld' },
         // built 10-19 (mobile genres): a runner level, the run alone on its floor, its rows laid ahead as it is played
         run: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'an endless run down lanes (worlds/controllable/runner.js): its rows laid at play time from its seed, drawn round the hero' },
         // built 10-12 (kart racer): a loop laid on a trail's land, gone round lap after lap

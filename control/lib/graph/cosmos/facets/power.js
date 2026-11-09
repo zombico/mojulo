@@ -45,6 +45,23 @@ export const POWER = Object.freeze({
         // millimetres; normals, specials, supers, throws, blocking, rounds), played by two local players or the CPU. A
         // quick game's goal fight; the World page draws it on a stage arena (scene/channels/versus.js).
         versus: { status: 'built', lowers: 'lib/graph/versus/versus-core.js', note: 'a 1v1 fighter from the side: a frame simulation of normals, specials, supers, throws, blocks and rounds, two local players or the CPU (quick goal fight), fought on a stage arena' },
+        // local 11-09 (1109-gen-bodywork): the brawler, many bodies down a belt, two sides, each a compiled fighter (the
+        // fight's frame data: the same frame, damage and recovery), the crowd's mind (two close in, one swings at a time),
+        // waves, the clinch and its throws, the street's things, a boss; built as its own sim and its practice yard, reached
+        // from a greybox's `brawl` block, not yet from design_game
+        brawl: { status: 'local', effort: 'M', pkg: 'brawler', requires: ['space.levelForm=belt'], lowers: 'lib/graph/brawl/brawl-core.js', note: 'a beat-em-up down a belt (brawl-core.js, brawl-crowd.js, brawl-moves.js): many bodies, the crowd taking turns, waves held at gates, the clinch and its throws, the street\'s things, a boss; its practice yard (brawl-practice.js) and readouts in mana-ui; reached from a greybox\'s brawl block and the spikes, not yet from a gameworld' },
+      },
+    },
+    // built 11-10 (1110-practice-room-slice): how a hero's melee is played. `strike` the body's own blow, one swing a
+    // press; `strings` the combo manifest (gameworld/combos.js): moves chained at their cancels into strings, launchers and
+    // the juggle, air strings, specials on a modifier and an MP pool, weapons stepped through, a sidearm; a world's
+    // `arsenal` (arsenal.js), a template's kit (Fallen Angel's, Fable of Artesia's) or edits over it, laid on every
+    // level's hero that strikes. Its practice room (practice-room.js) plays it before any level; its measures
+    // (feel/measure.js) hold the runtime to what each move asks
+    moveset: {
+      values: {
+        strike: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-melee.js', note: 'the held weapon\'s swing, one a press, its contact the swing\'s downstroke' },
+        strings: { status: 'built', requires: ['power.combat=melee'], lowers: 'lib/graph/gameworld/arsenal.js', note: 'the combo manifest (combos.js): strings chained at their cancels, launchers and the juggle, air strings, specials and MP, weapons and a sidearm; a world\'s arsenal, a template\'s kit; measured move by move on its practice room' },
       },
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },
