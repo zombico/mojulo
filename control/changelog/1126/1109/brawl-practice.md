@@ -16,3 +16,8 @@
 - Found by the press log: a press made during a blow's hitstop ran out before the freeze ended, so a chain only carried
   by mashing; the brawler's press is now kept through the freeze, as the fight's is. And a chain's next press made
   while the blow before missed starts a fresh chain once the body is free, never the chain's second blow from a stand.
+- The brawler's readouts in mana-ui (`mana-ui/idioms-brawl.js`, a shelf of its own beside the fight's): marks at each
+  body's feet saying how far across the street it stands and whether a blow can land, marks over the heads of the crowd
+  that may close in next, the chain's blows lit as they land and how the last chain ended, the clinch's time and knees,
+  and the press log; the yard's screen over them (`brawl/brawl-yard.js`: the HUD, the move list, the practice settings)
+  in a brawler's look (the `brawl-yard` theme card); the board draws them as the brawler practice HUD.

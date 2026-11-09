@@ -33,6 +33,7 @@ export const BOARD_HUDS = Object.freeze({
   'boss fight HUD': ['boss-bar', 'party-strip', 'target-frame', 'score-timer', 'moment-banner', 'enemy-plates'],
   'fight HUD': ['fight-health', 'fight-meters', 'fight-combo', 'fight-callouts', 'fight-announcer'],
   'training HUD': ['fight-health', 'input-display', 'frame-meter', 'training-stats'],
+  'brawler practice HUD': ['line-marks', 'token-marks', 'chain-beats', 'clinch-meter', 'press-log', 'input-display'],
   'explore HUD': ['vitals', 'compass-strip', 'minimap-corner', 'objective-tracker', 'interact-prompt'],
   'fighting HUD': ['versus-bars', 'super-meters', 'combo-counter'],
   'racing HUD': ['race-standing', 'speedometer', 'minimap-corner', 'offscreen-markers'],
@@ -47,7 +48,7 @@ export const BOARD_HUDS = Object.freeze({
 });
 
 // a screen idiom's board section, by its shelf (the HUD frames come first, as 'In game')
-const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play', fight: 'Fight' };
+const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play', fight: 'Fight', brawl: 'Brawler' };
 // a preview's stand-in for the controls layer: the menu scheme's default keys and its `also` (the keypad, Tab, the Page
 // keys), used only when no host is given
 export const PREVIEW_KEYS = Object.freeze({

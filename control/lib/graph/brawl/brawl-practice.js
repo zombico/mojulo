@@ -269,7 +269,7 @@ export function yardRead(room, i = 0) {
   const reach = F.moves['chain.1'].reach;
   const line = s.bodies.slice(P).filter((d) => !d.gone).map((d) => {
     const dz = d.z - p.z, dx = d.x - p.x;
-    return { id: d.id, dz, dx, lined: Math.abs(dz) <= s.rules.line, inReach: Math.abs(dx) <= reach + F.idle.stand.push[2], ko: !!d.ko, hp: d.hp, hpMax: yard.hp[d.id], mode: yard.modes[d.id - P], token: (mind.tok[i] ?? []).includes(d.id) };
+    return { id: d.id, at: [d.x, d.z], dz, dx, lined: Math.abs(dz) <= s.rules.line, inReach: Math.abs(dx) <= reach + F.idle.stand.push[2], ko: !!d.ko, hp: d.hp, hpMax: yard.hp[d.id], mode: yard.modes[d.id - P], token: (mind.tok[i] ?? []).includes(d.id) };
   });
   const ch = yard.chain[i];
   return {
