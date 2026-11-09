@@ -55,9 +55,26 @@ describe('the artillery range', () => {
     expect(V.turret.mount.at).toEqual([gun[1], gun[0], gun[2]]);
     expect(V.turret.gun.barrel).toBeGreaterThan(1.5);
     expect(V.rule.type).toBe('drive');
-    const bare = field.find((id) => id !== tank && MILITARY_CLASSES[(handlesOf(id).physics ?? []).find((k) => MILITARY_CLASSES[k])] === 'trackedCarrier');
-    expect(bare).toBeTruthy();
-    expect(() => vehicleBase({ vehicle: bare })).toThrow(/carries no turret/);
+  }, 30000);
+
+  it('a field vehicle with no turret is fitted a weapon station where it has a ring for one, and a wheeled one steers', () => {
+    // (one tracked and one wheeled, found in the roster: the carrier with its mount ring, an eight-wheeler)
+    const field = Object.keys(VEHICLES).filter((id) => (handlesOf(id).physics ?? []).some((k) => MILITARY_CLASSES[k] && !/^(lightTank)$/.test(k) && MILITARY_CLASSES[k] !== 'airside' && !k.startsWith('airside')));
+    const kind = (id) => MILITARY_CLASSES[(handlesOf(id).physics ?? []).find((k) => MILITARY_CLASSES[k])];
+    const tracked = vehicleBase({ vehicle: field.find((id) => kind(id) === 'trackedCarrier') });
+    expect(tracked.station).toBe(true);
+    expect(tracked.figure.bones.map((b) => b.id).slice(-2)).toEqual(['turret', 'gun']);
+    expect(tracked.turret.mount.stabilized).toBe(true);
+    expect(tracked.turret.mount.traverse.min).toBeUndefined();
+    expect(tracked.rounds).toEqual(['apds30', 'he30']);
+    expect(tracked.figure.steer).toBeUndefined();
+    const eight = vehicleBase({ vehicle: field.find((id) => kind(id) === 'carrier') });
+    // (an eight-wheeler steers its front two axles, both sides, the second less far ahead of the fixed axles' line)
+    const S = eight.figure.steer;
+    expect(S.wheels).toHaveLength(4);
+    expect(new Set(S.wheels.map((w) => Math.sign(w.x)))).toEqual(new Set([1, -1]));
+    expect(Math.min(...S.wheels.map((w) => w.y))).toBeGreaterThan(0);
+    expect(eight.rule.type).toBe('drive');
   }, 30000);
 
   it('the gun: its turret on its base, its rounds by key, the sight\'s marks from its flight, heard to the far field', () => {

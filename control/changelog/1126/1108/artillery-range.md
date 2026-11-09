@@ -126,3 +126,17 @@
   third-person view: behind and over the base by its size, following its heading eased so a steered curve swings the world
   and not the camera, the gun's aim a pip on the glass), the view behind the gun and the view beside the base. The mouse
   lays the gun in every view; W / S / A / D drive in every view.
+- **The walkers heard.** A frame's footfalls sound as each of its feet is planted (its legs' phases in its gait, four a
+  cycle for the brood walker), weighted by its mass (a heavy footstep, a mech's, a giant's), never in its tank form; its
+  hydraulics follow its walking pace and its diesel power pack its speed, idling as it stands. A light tank or a tracked
+  carrier rumbles on its tracked engine, a truck on its diesel. The SFX shelf gains the rows: `diesel-engine` and
+  `tank-engine` (the engine family's new `diesel` and `tracked` kinds: a slow knock and a sub-rumble, the turbo; the
+  tracks' links clanking faster with speed) and `walker-hydraulics` (the servo family's `walker`: a pump whining up, the
+  valves chuffing with the steps). A world's own held voices are an opt-in `audio.sustains`.
+- **The other military vehicles drivable.** Every field vehicle of the library is a base: the utility vehicle, the heavy
+  utility vehicle, the cargo truck, the armoured personnel carrier, the tracked carrier and the missile launcher, each
+  driven on its own class's physics (W throttle, A / D steer). One with no turret is fitted a remote weapon station (the
+  shelf's ring, cradle and autocannon, stabilized, all round) on the ring it has for one (the carriers' mount rings, the
+  heavy utility vehicle's roof ring, the truck's and the launcher's cab hatch ring) or else on its roof. A wheeled one
+  steers its front axle (an eight-wheeler its front two), each wheel drawn at its own angle from the drive rule's own
+  steering. The views stand back by a vehicle's size (its height, or a long one's share of its length).

@@ -74,7 +74,9 @@ function assembled(archetype, stance, palette) {
 }
 // the donor's mount, cradle and weapon, each item's place off its mount ring's: what a fitted frame is given
 let DONATED = null;
-function donated() {
+/** The fitted mount (the shelf's traverse ring, cradle and autocannon), each part's item placed off its ring's centre:
+ * what a base with no gun of its own is given (a frame's roof, a field vehicle's mount ring: artillery.js). */
+export function donated() {
   if (DONATED) return DONATED;
   const { manifest } = assembleFrame(DONOR.archetype, {}), S = DONOR.side, by = (id) => manifest.items.find((i) => i.id === id);
   const ring = by(`mount${S}`);
@@ -158,7 +160,7 @@ export function frameBase(base, { mounts = FRAME_MOUNTS } = {}) {
   // (its steered wheels as the page turns them: each one's place off the fixed axles' line, the steering wheelbase)
   if (Object.keys(clips).length) figure = { ...figure, clips, ...(drive ? { forms: { base: 'walker' }, steer: { wheelbase: drive.steer.wheelbase, wheels: drive.steer.wheels } } : {}) };
   const T = mountOf('light-tank', { mount: M.mount, gun: M.gun });
-  return { id, archetype, stance, ...(transforms ? { form: stance === 'roll' ? 'tank' : 'walker', walkStance: bakeAt } : {}), armed, weapons, mountClass, figure, rounds, ...(gait ? { gait } : {}), ...(drive ? { drive: { ...drive.out, steer: { wheelbase: drive.steer.wheelbase, max: drive.steer.max, rate: drive.steer.rate } } } : {}), turret: { ...T, mount: { ...T.mount, at: rounds[0].at }, gun: { ...T.gun, barrel: rounds[0].barrel } }, height: r3(B.faces.reduce((a, f) => f.corners.reduce((b, c) => (c[2] > b ? c[2] : b), a), 0)) };
+  return { id, archetype, mass: row.mass, stance, ...(transforms ? { form: stance === 'roll' ? 'tank' : 'walker', walkStance: bakeAt } : {}), armed, weapons, mountClass, figure, rounds, ...(gait ? { gait } : {}), ...(drive ? { drive: { ...drive.out, steer: { wheelbase: drive.steer.wheelbase, max: drive.steer.max, rate: drive.steer.rate } } } : {}), turret: { ...T, mount: { ...T.mount, at: rounds[0].at }, gun: { ...T.gun, barrel: rounds[0].barrel } }, height: r3(B.faces.reduce((a, f) => f.corners.reduce((b, c) => (c[2] > b ? c[2] : b), a), 0)) };
 }
 
 // a body's orientation from its item's `rotate` (degrees, Rz·Ry·Rx: the assembler's)

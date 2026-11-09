@@ -13,8 +13,8 @@
  *             shell needs a mount that elevates past 45° (the field gun, the howitzer); default every round the mount fires
  *   base      'fixed' (a concrete plinth, the tower's tower, the field gun's carriage), 'hull' (a graybox tracked hull on
  *             the range's track: W / S drive, A / D turn, the turret's stabilizer, if it has one, holding the aim), or
- *             { vehicle, livery?, wear?, seed? }: a vehicle of the library (vehicle-registry/, a word people say: 'light
- *             tank') with a turret, its realistic build drawn, driven on its own class's rule, its turret and gun bones
+ *             { vehicle, livery?, wear?, seed? }: a field vehicle of the library (vehicle-registry/, a word people say:
+ *             'light tank', 'apc', 'cargo truck'), its turret, or a weapon station fitted where it has a ring for one, its realistic build drawn, driven on its own class's rule, its turret and gun bones
  *             turned by the mount (car-designer/military.js `gun`), the mount laid where its gun is (its class the
  *             light tank's unless `mount` names one); or { frame, stance?, palette? }: a frame of the mecha shelf (a
  *             word the library knows: 'utility walker', 'rover walker', 'siege walker'), standing at its stance, firing
@@ -40,7 +40,11 @@ import { resolveVehicle, handlesOf } from '../../vehicle-registry/roster.js';
 import { MILITARY_CLASSES } from '../../car-designer/road-military.js';
 import { rollVehicleSheet } from '../../car-designer/sheet.js';
 import { compileMilitary } from '../../car-designer/military.js';
-import { frameBase, validateFrame } from './frames.js';
+import { frameBase, validateFrame, donated, FRAME_MOUNTS } from './frames.js';
+import { lowerAssemblerBuild } from '../../worlds/workbench-assembler.js';
+import { packVehicleFigure } from '../../vehicle-designer/vehicle-rig.js';
+import { WEAPON_ROUNDS } from './ordnance.js';
+import { VEHICLES as PHYSICS } from '../../roads/vehicles.js';
 import { ORDNANCE, ORDNANCE_NAMES, ordnanceWeapon, measureOrdnance, ordnanceLaws, DIRECT_BANDS, INDIRECT_BANDS } from './ordnance.js';
 import { STANDS, measureTerminal, terminalLaws } from './terminal.js';
 import { box, CHROME } from './gym.js';
@@ -91,17 +95,65 @@ function vehicleClassOf(word) {
   const cls = (handlesOf(hit.id).physics ?? []).find((k) => MILITARY_CLASSES[k]);
   return cls ? { id: hit.id, class: cls } : { why: `the ${hit.id} is no field vehicle (a turret rides a field vehicle's hull: the light tank)` };
 }
-/** A vehicle of the library as the gun's base: its realistic build with its gun on a bone of its own, and the mount laid
- * where its gun is (the trunnion, the barrel's length), over the mount's class's rates. → { id, figure, rule, turret } */
+/**
+ * A vehicle of the library as the gun's base: its realistic build drawn as itself, driven on its own class's rule. A
+ * field vehicle with a turret (the light tank) has its gun on a bone of its own and the mount laid where its gun is over
+ * the mount's class's rates; one without (a utility vehicle, a truck, a carrier, a launcher) is fitted a remote weapon
+ * station (the shelf's ring, cradle and autocannon: frames.js `donated`) on the ring it has for one (its mount ring, its
+ * roof's or its cab's hatch ring) or else on its roof, stabilized and all round, its rounds the autocannon's. A wheeled
+ * vehicle's front axle steers (the front two of an eight-wheeler), drawn by the drive rule's own steering angle.
+ * → { id, tracked, figure, rule, turret, rounds? }
+ */
 export function vehicleBase(base, mount = 'light-tank') {
   const v = vehicleClassOf(base.vehicle);
   if (!v.class) throw new Error(`artillery range: base.vehicle: ${v.why}`);
   const sheet = rollVehicleSheet({ brief: '', facets: { pole: 'realistic', class: v.class }, seed: base.seed ?? 1 });
   const c = compileMilitary(sheet, { form: true, gun: true, ...(base.livery !== undefined ? { livery: base.livery } : {}), ...(base.wear !== undefined ? { wear: base.wear } : {}) });
-  if (!c.gun) throw new Error(`artillery range: base.vehicle: the ${v.id} carries no turret`);
-  // (vehicle space is +y forward, +x right; a mount's place is [forward, right, up])
-  const T = turretOf(mount), [x, y, z] = c.gun.trunnion;
-  return { id: v.id, figure: c.figure, rule: c.rule, turret: { ...T, mount: { ...T.mount, at: [y, x, z] }, gun: { ...T.gun, barrel: Math.round((c.gun.muzzle[1] - y) * 1000) / 1000 } } };
+  const tracked = PHYSICS[v.class]?.running === 'track', steer = tracked ? null : steeringOf(c);
+  // (its size for the views that watch it: its height, or a long vehicle's share of its length)
+  const size = Math.round(Math.max(c.figure.figH, (PHYSICS[v.class]?.L ?? 4) / 2.6) * 100) / 100;
+  if (c.gun) {
+    // (vehicle space is +y forward, +x right; a mount's place is [forward, right, up])
+    const T = turretOf(mount), [x, y, z] = c.gun.trunnion;
+    return { id: v.id, tracked, size, figure: { ...c.figure, ...(steer ? { steer } : {}) }, rule: c.rule, turret: { ...T, mount: { ...T.mount, at: [y, x, z] }, gun: { ...T.gun, barrel: Math.round((c.gun.muzzle[1] - y) * 1000) / 1000 } } };
+  }
+  // the weapon station: on the ring the vehicle has for one, or its roof
+  const at = stationAt(c), given = donated().map((it) => ({ ...it, at: it.at.map((q, i) => Math.round((q + at[i]) * 1000) / 1000) }));
+  const B = lowerAssemblerBuild({ items: given }), P = new Map(B.placements.map((p) => [p.id, p])), faces = (id) => { const p = P.get(id); return B.faces.slice(p.faceStart, p.faceStart + p.faceCount); };
+  const ring = P.get('mountR'), cradle = P.get('cradleR'), wf = faces('weaponR').flatMap((f) => f.corners);
+  const muzzleY = wf.reduce((m, q) => Math.max(m, q[1]), -Infinity), fore = wf.filter((q) => q[1] > muzzleY - 0.3);
+  const bz = (fore.reduce((m, q) => Math.min(m, q[2]), Infinity) + fore.reduce((m, q) => Math.max(m, q[2]), -Infinity)) / 2, tr = cradle.translate;
+  const bones = [...c.figure.bones, { id: 'turret', head: ring.translate }, { id: 'gun', head: tr }];
+  const rolls = c.figure.bones.map((b) => b.id).filter((id) => id !== 'root');
+  const packed = packVehicleFigure(bones, new Map([['turret', faces('mountR')], ['gun', [...faces('cradleR'), ...faces('weaponR')]]]), { keys: c.figure.clips.roll.k, rolls, form: new Map(Object.entries(c.form)) });
+  const figure = { ...c.figure, ...packed, ...(steer ? { steer } : {}) };
+  // (a weapon station: stabilized, all round, quick: a backpack mount's rates without its stops)
+  const R = FRAME_MOUNTS.pack.mount, T = mountOf('light-tank', { mount: { traverse: { rate: R.traverse.rate, accel: R.traverse.accel }, elevation: R.elevation, stabilized: true, look: R.look } });
+  const r3 = (q) => Math.round(q * 1000) / 1000;
+  return { id: v.id, tracked, size, station: true, figure, rule: c.rule, rounds: [...WEAPON_ROUNDS.autocannon], turret: { ...T, mount: { ...T.mount, at: [r3(tr[1]), r3(tr[0]), r3(bz)] }, gun: { ...T.gun, barrel: r3(muzzleY - tr[1]) } } };
+}
+// where a weapon station stands on a field vehicle: the centre of the ring it has for one (its mount ring, its roof's
+// ring, its cab's hatch ring), on its top; else the top of its roof by its centreline (its aerials aside)
+function stationAt(c) {
+  const all = Object.values(c.form).flat();
+  for (const part of ['mount.ring', 'roof.ring', 'hatch.ring']) {
+    const fs = all.filter((f) => f.part === part);
+    if (!fs.length) continue;
+    const cs = fs.flatMap((f) => f.corners), mid = (k) => (cs.reduce((m, q) => Math.min(m, q[k]), Infinity) + cs.reduce((m, q) => Math.max(m, q[k]), -Infinity)) / 2;
+    return [mid(0), mid(1), cs.reduce((m, q) => Math.max(m, q[2]), -Infinity)];
+  }
+  const roof = (c.form.root ?? []).filter((f) => !/^antenna/.test(f.part ?? '') && f.corners.every((q) => Math.abs(q[0]) < 0.7));
+  const top = roof.reduce((m, f) => f.corners.reduce((n, q) => Math.max(n, q[2]), m), -Infinity), up = roof.filter((f) => f.corners.some((q) => q[2] > top - 0.05)).flatMap((f) => f.corners);
+  return [0, up.reduce((a, q) => a + q[1], 0) / up.length, top];
+}
+// a wheeled field vehicle's steering as the page draws it: its front axle's wheels (an eight-wheeler's front two axles'),
+// each one's place off the line of its fixed axles, the drive rule's wheelbase the circle's; null when it has no axles
+function steeringOf(c) {
+  const W = c.faces.wheels.filter((w) => /^wheel/.test(w.bone));
+  if (W.length < 4) return null;
+  const ys = [...new Set(W.map((w) => w.hub[1]))].sort((a, b) => b - a), steered = new Set(ys.slice(0, ys.length >= 4 ? 2 : 1));
+  const fixed = W.filter((w) => !steered.has(w.hub[1])), yc = fixed.reduce((a, w) => a + w.hub[1], 0) / fixed.length;
+  return { wheelbase: c.rule.wheelbase, wheels: W.filter((w) => steered.has(w.hub[1])).map((w) => ({ id: w.bone, x: w.hub[0], y: Math.round((w.hub[1] - yc) * 1000) / 1000 })) };
 }
 // the rounds a mount fires when none are named: the direct three, and the indirect shell where it elevates for it
 const roundsFor = (T) => (T.mount.elevation.max >= 45 ? ['apfsds', 'heat', 'he', 'indirect'] : ['apfsds', 'heat', 'he']);
@@ -185,7 +237,7 @@ export function artilleryOf(spec = {}) {
   // (a frame's rounds are its weapons'; `ordnance` chooses among them)
   const own = F ? F.rounds.filter((r) => !spec.ordnance || spec.ordnance.includes(r.ordnance)) : null;
   if (own && !own.length) throw new Error(`artillery range: ordnance: the ${F.id} fires ${F.rounds.map((r) => r.ordnance).join(', ')}`);
-  const words = own ? own.map((r) => r.ordnance) : spec.ordnance ?? roundsFor(T);
+  const words = own ? own.map((r) => r.ordnance) : spec.ordnance ?? V?.rounds ?? roundsFor(T);
   // (each round from its own mount, as it stands: a twin-mount frame's on the side that fires it)
   // (and in a form of its own, a walker's tank form: its mount where that form carries it)
   const from = (w, form = null) => { const r = own && own.find((x) => x.ordnance === w); return r ? { ...T, mount: { ...T.mount, at: (form && r.atForm?.[form]) || r.at }, gun: { ...T.gun, barrel: r.barrel } } : T; };
@@ -211,7 +263,7 @@ export function artilleryOf(spec = {}) {
   const chart = Object.fromEntries(words.filter((w) => ORDNANCE[w].indirect).map((w) => [w, Object.entries(flight[w].bands).map(([d, b]) => [Number(d), b.mils, b.tof])]));
   const matter = Object.fromEntries([...new Set([...layout.stands.map((s) => s.matter), 'loam'])].map((k) => [k, MATTER[k]]));
   const turret = {
-    ...T, rounds, look: { base: base === 'hull' ? 'hull' : cls === 'tower' ? 'tower' : cls === 'field-gun' ? 'field' : 'plinth', ...(F ? { back: Math.max(7, Math.round(F.height * 2.2)), up: Math.max(2, Math.round(F.height * 0.5)), size: F.height } : {}) },
+    ...T, rounds, look: { base: base === 'hull' ? 'hull' : cls === 'tower' ? 'tower' : cls === 'field-gun' ? 'field' : 'plinth', ...(F ? { back: Math.max(7, Math.round(F.height * 2.2)), up: Math.max(2, Math.round(F.height * 0.5)), size: F.height } : V ? { size: V.size, back: Math.max(18, Math.round(V.size * 3.5)), up: Math.max(7, Math.round(V.size * 1.4)) } : {}) },
     range: { stands: layout.stands, ordnance: Object.fromEntries(words.map((w) => [w, ORDNANCE[w]])), matter, table, ...(tableForm ? { tableForm } : {}), chart, ground: 'loam' },
   };
   // (a vehicle drives on its own class's rule; the graybox hull walks; a fixed base stands)
@@ -225,7 +277,12 @@ export function artilleryOf(spec = {}) {
   const rule = F ? (driveRule ? (F.form === 'tank' ? driveRule : walkRule) : walkRule ?? { type: 'static' }) : V ? V.rule : base === 'hull' ? { type: 'walk', speed: 8, turn: 0.45, eye: 0, collideRadius: 3.5, collideHeight: 2.5 } : { type: 'static' };
   const pilot = { id: 'gun', pilotable: true, rule, ...formsOf, turret, weapon: rounds[0], body: V || F ? { type: 'figure-rig', figure: 'base' } : { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 } };
   const keys = `mouse  lay the gun · click  fire · 1-${words.length}  load (${words.join(', ')}) · right click  zoom · O  view${F ? (F.drive ? ' · W / S  walk or drive · A / D  turn or steer · B  transform' : F.gait ? ' · W / S  walk · A / D  turn' : ` · ${F.stance}`) : V ? ' · W / S  drive · A / D  steer' : base === 'hull' ? ' · W / S  drive · A / D  turn the hull' : ''}`;
-  const audio = heard ? { mix: { space: 'open', voices: 12, distance: true, reach: 6000 }, cues: { shot: heard.shot, reload: heard.reload, burst: heard.burst }, weapon: { shot: heard.shot, reload: heard.reload }, burst: heard.burst } : null;
+  // the base heard (its own, from the shelf): a frame's footfalls by its weight at each foot's planting, its hydraulics by
+  // its pace and its power pack; a tracked hull's engine and its tracks; a wheeled hull's diesel; a fixed gun nothing
+  const held = (w) => sfxSound(w).sustain;
+  const baseSound = !heard ? null : F ? { engine: held('diesel-engine'), ...(F.gait ? { hydraulics: held('walker-hydraulics'), step: cue(F.mass < 1500 ? 'heavy step' : F.mass < 12000 ? 'mech step' : 'giant step'), legs: Object.values(F.gait.phase), stepGain: r2(Math.min(1, 0.45 + F.mass / 40000)) } : {}) }
+    : V ? { engine: held(V.tracked ? 'tank-engine' : 'diesel-engine') } : base === 'hull' ? { engine: held('tank-engine') } : null;
+  const audio = heard ? { mix: { space: 'open', voices: 12, distance: true, reach: 6000 }, cues: { shot: heard.shot, reload: heard.reload, burst: heard.burst, ...(baseSound?.step ? { 'base:step': baseSound.step } : {}) }, weapon: { shot: heard.shot, reload: heard.reload }, burst: heard.burst, ...(baseSound ? { base: baseSound, sustains: Object.fromEntries(['engine', 'hydraulics'].filter((k) => baseSound[k]).map((k) => [k, baseSound[k]])) } : {}) } : null;
   // (the camera is the turret view's: the sight, or outside; a base of its own figure is drawn, its turret hidden in the
   // sight by the view)
   const payload = { camera: { rule: 'eye', target: 'gun', height: 0, mouseLook: true, ...(V || F ? {} : { hideTarget: true }) }, events: { hud: [{ text: keys }] }, ...(V || F ? { figures: { base: (V || F).figure } } : {}), ...(audio ? { audio } : {}) };

@@ -14,7 +14,7 @@ let browser = null;
 beforeAll(async () => {
   let exe;
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
-  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS });
+  browser = await launchChromium({ executablePath: exe, headless: true, args: [...CHROMIUM_WEBGL_ARGS, '--autoplay-policy=no-user-gesture-required'] });
 }, 60000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
@@ -163,5 +163,76 @@ describe('the artillery range, played', () => {
       for (const [, a] of W) expect(a).toBeGreaterThan(0);
       expect(Math.max(...byName(/R$/))).toBeGreaterThan(Math.max(...byName(/L$/)));
     }
+  }, 240000);
+
+  it('a walker heard: its engine held as it stands, a footfall at each foot planted as it walks, none as it drives', async () => {
+    if (!browser) return;
+    const armed = Object.keys(MECHA_ARCHETYPES).filter((a) => MECHA_ARCHETYPES[a].backpack && MECHA_ARCHETYPES[a].wheels).sort((a, b) => MECHA_ARCHETYPES[a].mass - MECHA_ARCHETYPES[b].mass)[0];
+    const frame = VEHICLES[Object.keys(VEHICLES).find((id) => (handlesOf(id).mecha ?? []).includes(armed))].label;
+    const kinetic = Object.keys(ORDNANCE).find((k) => ORDNANCE[k].rod && Object.values(WEAPON_ROUNDS).flat().includes(k));
+    const html = artilleryHtml({ base: { frame }, ordnance: [kinetic] });
+    const page = await browser.newPage(), errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!(window.__mojCtrl && window.__mojCtrl.turret), { timeout: 90000 });
+    // (the page makes its audio at the first press: every source it starts is counted)
+    await page.evaluate(() => {
+      window.__src = 0;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      for (const k of ['createOscillator', 'createBufferSource']) { const f = AC.prototype[k]; AC.prototype[k] = function () { window.__src++; return f.apply(this, arguments); }; }
+    });
+    await page.evaluate(() => document.querySelector('canvas').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    const got = await page.evaluate(async () => {
+      const C = window.__mojCtrl, g = C.world.byId.gun, out = {};
+      const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+      const go = async (n, inp) => { for (let f = 0; f < n; f++) { C.step(1 / 60, inp); await frame(); } };
+      await go(30, {});
+      const s0 = window.__src; await go(40, {}); out.still = window.__src - s0;
+      const s1 = window.__src, p0 = g.gaitPhase || 0; await go(90, { forward: 1 }); out.walk = window.__src - s1; out.cycles = (g.gaitPhase || 0) - p0;
+      // (transformed, it drives: its wheels make no footfalls)
+      await go(1, { transform: 1 }); await go(Math.ceil(g.transformDur * 60) + 10, {});
+      const s2 = window.__src; await go(60, { forward: 1 }); out.drive = window.__src - s2; out.form = g.form;
+      out.heard = C.turret().heard || null;
+      return out;
+    });
+    await page.close();
+    expect(errors).toEqual([]);
+    expect(got.heard).toEqual({ engine: true, hydraulics: true });
+    expect(got.still).toBe(0);
+    expect(got.walk).toBeGreaterThan(0);
+    expect(got.cycles).toBeGreaterThan(1);
+    expect(got.form).toBe('tank');
+    expect(got.drive).toBe(0);
+  }, 240000);
+
+  it('a field vehicle without a turret: its weapon station fires, it drives on its class, its front wheels steer', async () => {
+    if (!browser) return;
+    const html = artilleryHtml({ base: { vehicle: 'armoured personnel carrier' }, ordnance: [Object.keys(ORDNANCE).find((k) => ORDNANCE[k].rod && Object.values(WEAPON_ROUNDS).flat().includes(k))], quiet: true });
+    const page = await browser.newPage(), errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!(window.__mojCtrl && window.__mojCtrl.turret), { timeout: 90000 });
+    const got = await page.evaluate(() => {
+      const C = window.__mojCtrl, g = C.world.byId.gun, T = g.turret, R = T.range;
+      const go = (n, inp) => { for (let i = 0; i < n; i++) C.step(1 / 60, inp); };
+      go(5, {});
+      const st = R.stands.find((s) => s.id === 'rha-100@500'), m = R.table[T.rounds[0].ordnance].find((x) => x[0] === 500);
+      T.want.yaw = Math.atan2((st.min[1] + st.max[1]) / 2, st.min[0] - T.mount.at[0]) * 180 / Math.PI;
+      T.want.pitch = Math.atan2(1.2 - (T.mount.at[2] + 0.35), st.min[0]) * 180 / Math.PI + m[1];
+      go(300, {}); const n0 = C.turret().marks.length; go(1, { fire: 1 }); go(120, {});
+      const marks = C.turret().marks.slice(n0), p0 = g.transform.pos.slice();
+      go(120, { forward: 1 }); const h0 = g.transform.heading; go(60, { forward: 1, turn: 1 });
+      return { marks, drove: Math.hypot(g.transform.pos[0] - p0[0], g.transform.pos[1] - p0[1]), turned: g.transform.heading - h0, wheels: C.turret().wheels || {} };
+    });
+    await page.close();
+    expect(errors).toEqual([]);
+    expect(got.marks).toMatchObject([{ stand: 'rha-100@500', effect: 'hole', perforated: true }]);
+    expect(got.drove).toBeGreaterThan(5);
+    expect(got.turned).toBeLessThan(0);   // (D: a right turn)
+    const W = Object.entries(got.wheels);
+    expect(W.length).toBe(4);
+    for (const [, a] of W) expect(a).toBeGreaterThan(0);
+    expect(got.wheels.wheelFR).toBeGreaterThan(got.wheels.wheelFL);
+    expect(got.wheels.wheelFR).toBeGreaterThan(got.wheels.wheelRR);
   }, 240000);
 });

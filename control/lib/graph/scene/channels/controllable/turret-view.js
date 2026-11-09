@@ -108,10 +108,12 @@ function __tvRigBone(e, fig, bi, Q, P, mesh) {
   if (e.transformT != null) (e.__tvMeshes || (e.__tvMeshes = new Set())).add(mesh);
   // (a steered wheel turned to its own angle about its hub, over its spin: the circle's centre on the fixed axles' line,
   // a right turn's to the right, the inner wheel more; worlds/controllable/steer.js e.steer)
-  if (fig.steer && e.steer) {
+  // (the steer.js rule's angle, ° to the right, or the drive rule's own, radians to the left)
+  const sd = e.steer != null ? e.steer : e.steerAngle ? -e.steerAngle * 180 / Math.PI : 0;
+  if (fig.steer && sd) {
     const by = fig.__steerBy || (fig.__steerBy = Object.fromEntries(fig.steer.wheels.map((w) => [w.id, w]))), W = by[fig.bones[bi].id];
     if (W) {
-      const R = fig.steer.wheelbase / Math.tan(e.steer * Math.PI / 180), a = Math.atan(W.y / (R - W.x));
+      const R = fig.steer.wheelbase / Math.tan(sd * Math.PI / 180), a = Math.atan(W.y / (R - W.x));
       __tvQY.setFromAxisAngle(__TV_Z, -a); Q.premultiply(__tvQY);
       (__TV.wheels || (__TV.wheels = {}))[W.id] = Math.round(a * 1800 / Math.PI) / 10;
       return;
@@ -235,6 +237,28 @@ function __tvAimPip(g) {
   __tvPip.style.display = on ? 'block' : 'none';
   if (on) { const x = (__tvPV.x + 1) / 2 * innerWidth, y = (1 - __tvPV.y) / 2 * innerHeight; __tvPip.style.left = x + 'px'; __tvPip.style.top = y + 'px'; __TV.pip = [Math.round(x), Math.round(y)]; } else __TV.pip = null;
 }
+// THE BASE HEARD (the world's audio.base, the artillery range's): its engine held and driven by its speed (idling
+// standing), a walking frame's hydraulics by its pace, and a footfall as each of its feet is planted (its legs' phases in
+// its gait), never in its tank form; read-only, as every sound on the page is
+const __tvHeard = { eng: null, hyd: null, last: null, legs: {} };
+function __tvSound(g, dt) {
+  const A = typeof __AUDIO !== 'undefined' && __AUDIO ? __AUDIO.base : null;
+  if (!A || typeof __beatsEng === 'undefined' || !__beatsEng || !__beatsEng.sustain) return;
+  try {
+    if (!__tvHeard.eng && A.engine) __tvHeard.eng = __beatsEng.sustain(A.engine);
+    if (!__tvHeard.hyd && A.hydraulics) __tvHeard.hyd = __beatsEng.sustain(A.hydraulics);
+  } catch (e) { return; }
+  const p = g.transform.pos, L = __tvHeard.last, v = L && dt > 0 ? Math.hypot(p[0] - L[0], p[1] - L[1]) / dt : 0;
+  __tvHeard.last = [p[0], p[1], p[2]];
+  const vmax = (g.rule && (g.rule.topSpeed || g.rule.speed)) || 6, pace = Math.min(1, v / vmax), walking = !!A.legs && g.form !== 'tank' && g.transformT == null;
+  if (__tvHeard.eng) __tvHeard.eng.set(Math.min(1, 0.1 + 0.9 * pace));
+  if (__tvHeard.hyd) __tvHeard.hyd.set(walking && g.moving ? Math.max(0.2, pace) : 0);
+  // (each foot's count of plantings kept while it walks, standing or not: a footfall as one is added on the move)
+  if (walking && A.step) {
+    const ph = g.gaitPhase || 0;
+    A.legs.forEach((q, i) => { const k = Math.floor(ph - q); if (g.moving && __tvHeard.legs[i] !== undefined && k !== __tvHeard.legs[i]) __beatsCue(A.step, A.stepGain || 1); __tvHeard.legs[i] = k; });
+  } else __tvHeard.legs = {};
+}
 function __tvFrame(dt) {
   const g = __tvGun();
   for (const e of __world.entities) if (e.__tvMeshes) { for (const m of e.__tvMeshes) if (m.material) { m.material.opacity = 1; m.material.transparent = false; } if (e.transformT == null) e.__tvMeshes = null; }
@@ -242,6 +266,7 @@ function __tvFrame(dt) {
   if (!g || !g.turret.dir) return;
   __tvCamera(g, dt);
   __tvAimPip(g);
+  __tvSound(g, dt);
   // (the small arms' reticle and ammo card are not a gunner's: the sight and the readout are)
   if (typeof __wep !== 'undefined' && __wep) { __wep.ret.style.display = 'none'; if (__wep.iconEl) __wep.iconEl.parentNode.style.display = 'none'; }
   // (a round loaded: its range marks on the glass)
@@ -272,7 +297,7 @@ function __tvFrame(dt) {
 }
 const __tvStep0 = stepControllable;
 stepControllable = (dt, inputOverride) => { __tvStep0(dt, inputOverride); __tvFrame(dt); };
-window.__mojCtrl.turret = () => ({ sight: __TV.sight, view: ['sight', 'chase', 'behind', 'beside'][__TV.view], camera: [camera.position.x, camera.position.y, camera.position.z], ...(__TV.pip ? { pip: __TV.pip.slice() } : {}), zoom: __TV_ZOOM[__TV.zoom], marks: __TV.marks.slice(), ...(__TV.rig ? { rig: { ...__TV.rig } } : {}), ...(__TV.wheels ? { wheels: { ...__TV.wheels } } : {}) });
+window.__mojCtrl.turret = () => ({ sight: __TV.sight, view: ['sight', 'chase', 'behind', 'beside'][__TV.view], camera: [camera.position.x, camera.position.y, camera.position.z], ...(__TV.pip ? { pip: __TV.pip.slice() } : {}), zoom: __TV_ZOOM[__TV.zoom], marks: __TV.marks.slice(), ...(__TV.rig ? { rig: { ...__TV.rig } } : {}), ...(__TV.wheels ? { wheels: { ...__TV.wheels } } : {}), ...(__tvHeard.eng || __tvHeard.hyd ? { heard: { engine: !!__tvHeard.eng, hydraulics: !!__tvHeard.hyd } } : {}) });
 window.__tvReady = true;
 setTimeout(__tvReticle, 0);
 `;

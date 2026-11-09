@@ -114,6 +114,10 @@ const PINS = {
   'car-door': 'ef4a9a177b85',
   'kart-engine': '43dfb6c0858e',
   'boat-engine': '0447bec3c238',
+  // (new rows: the heavy diesel and the tracked engine, a walking machine's hydraulics: the artillery range's bases)
+  'diesel-engine': 'c096cf2c7466',
+  'tank-engine': '603e700a05e4',
+  'walker-hydraulics': '94b48bc613a7',
   'helicopter': '6a1db48b91b1',
   'spell-cast': 'e05c1b18f22f',
   'heal': '346509c7e2b9',
