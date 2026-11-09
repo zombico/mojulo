@@ -23,3 +23,8 @@
   launch and again when the title is left alone, like an attract loop. The prologue plays after New Game and, on the
   first level, hands over to play without a reload. The ending plays after the game is first completed, before the end
   card. A game whose story has none of these is unchanged.
+- **The flow is a page in the studio.** When a game's designer wants a different order, they can now write the
+  game's flow for the whole game, naming its levels as the world names them. The review shows the flow as a
+  storyboard: each step, which part of the studio it comes from, what it waits for and where it leads. If the main
+  quest's ending is played as a story moment, that moment now becomes the game's ending cutscene, unless the story
+  has an ending of its own. The studio's guidance makes the flow the main agent's own page, never handed off.

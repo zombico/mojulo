@@ -47,7 +47,8 @@ import { stageFolk, folkExtra, folkMintKey, placeSidequests } from './folk-cast.
 import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots, skirmishStages, bookEpochs, epochDraw, MAP_DOTS } from './board-levels.js';
 import { gauntletCast } from './gauntlet-cast.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle } from './levels.js';
-import { bindStory, GAME_SLOTS } from './story.js';
+import { bindStory } from './story.js';
+import { storyCinematics, flowToRefs } from './game-flow.js';
 import { defaultFlow } from '../game/flow.js';
 import { SIDE_KITS } from '../contest/team-arena.js';
 import { sportTeams } from './sport-concept.js';
@@ -444,13 +445,21 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const theme = paletteTheme(G);
     const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : null;
     const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
-    // THE STORY's opening, prologue and ending (story.js GAME_SLOTS): staged by the game's flow on their levels' pages,
-    // the flow the game has always had with them placed in it (game/flow.js defaultFlow); none, no flow key
-    const cinematics = Object.fromEntries((told?.bound ?? []).filter((b) => GAME_SLOTS.includes(b.slot)).map((b) => {
-      const k = (onBoard ? stages : C.stages).findIndex((st) => st.level === b.level && st.node === b.node);
-      return [b.slot, { scene: b.id, stage: k >= 0 ? (onBoard ? levelRefs : C.refs)[k] : null }];
-    }).filter(([, c]) => c.stage));
-    const game = Object.keys(cinematics).length ? { ...game0, flow: defaultFlow({ ...game0, cinematics }) } : game0;
+    // THE GAME'S FLOW (game-flow.js): the world's own, its levels the refs of their first stages and a story moment's
+    // cinematic on the stage the moment is bound to; else the flow the game has always had, with the story's opening,
+    // prologue and ending placed in it (story.js GAME_SLOTS; the main quest's ending, played as a moment, when the story
+    // has none); nothing to say, no flow key
+    const S0 = onBoard ? stages : C.stages, R0 = onBoard ? levelRefs : C.refs;
+    const boundRef = (id) => { const b = (told?.bound ?? []).find((x) => x.id === id && x.level); const k = b ? S0.findIndex((st) => st.level === b.level && st.node === b.node) : -1; return k >= 0 ? R0[k] : null; };
+    const firstRef = (level) => { const k = S0.findIndex((st) => st.level === level); return k >= 0 ? R0[k] : null; };
+    const cinematics = Object.fromEntries(Object.entries(storyCinematics(G)).map(([slot, c]) => [slot, { scene: c.scene, stage: boundRef(c.scene) }]).filter(([, c]) => c.stage));
+    let flow = null;
+    if (G.flow) {
+      const m = flowToRefs(G.flow, firstRef);
+      if (!m.missing.length) flow = { ...m.flow, steps: Object.fromEntries(Object.entries(m.flow.steps).map(([id, st]) => [id, st.kind === 'cinematic' && boundRef(st.scene) ? { ...st, stage: boundRef(st.scene) } : st])) };
+    }
+    if (!flow && Object.keys(cinematics).length) flow = defaultFlow({ ...game0, cinematics });
+    const game = flow ? { ...game0, flow } : game0;
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
     steps.push(...composedAudits(auditSteps(steps, stages), C, onBoard ? undefined : composite));
   }

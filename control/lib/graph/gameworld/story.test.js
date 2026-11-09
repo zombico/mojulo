@@ -308,6 +308,28 @@ describe('the game\'s slots: an opening, a prologue, an ending', () => {
   }, 240_000);
 });
 
+describe('the game\'s flow, the game director\'s', () => {
+  const line = [{ line: { who: 'hero', say: 'On.' } }];
+  it('a world\'s own flow plays in its game, its levels the refs of their stages; the main quest\'s ending as a moment is the game\'s ending; the review shows the storyboard', () => {
+    const story = [{ id: 'home-again', where: { level: 'cave' }, when: { on: 'staged' }, beats: line }, { id: 'dawn', where: { level: 'gate', stage: 'yard' }, when: { on: 'staged' }, beats: line }];
+    const flow = { start: 'intro', steps: {
+      intro: { kind: 'cinematic', scene: 'dawn', stage: 'gate', next: 'title' },
+      title: { kind: 'screen', screen: 'title', on: { play: 'cave' } },
+      cave: { kind: 'level', level: 'cave', on: { won: 'title', lost: 'cave' } },
+    } };
+    const own = runSteps({ ...W({ story }), front: {}, flow }, { ref: 'gw' });
+    const game = own.find((s) => s.key === 'game').order, ref = (key) => own.find((s) => s.key === key).ref;
+    expect(game.flow.steps.cave.level).toBe(ref('level-cave-0'));
+    expect(game.flow.steps.intro.stage).toBe(ref('level-gate-1'));          // the stage its moment is bound to
+    expect(reviewParts({ ...W({ story }), front: {}, flow }).find((p) => p.id === 'flow:sequence').content).toMatchObject({ source: 'the game\'s own', start: 'intro' });
+    // no flow of its own: the main quest's ending, played as the moment, is the game's ending, before the end card
+    const mainQuest = { acts: [{ id: 'one', goal: 'Go home.', beats: [{ id: 'home', goal: 'Get home.', as: { scene: 'home-again' } }] }], ending: { beat: 'home' } };
+    const quest = runSteps({ ...W({ story }), front: {}, mainQuest }, { ref: 'gw' });
+    const end = quest.find((s) => s.key === 'game').order.flow.steps.ending;
+    expect(end).toEqual({ kind: 'cinematic', scene: 'home-again', stage: quest.find((s) => s.key === 'level-cave-0').ref, next: 'end' });
+  }, 240_000);
+});
+
 describe('the story\'s slots (a tactics book\'s)', () => {
   const line = [{ line: { who: 'hero', say: 'On.' } }];
   const at = (m) => ({ id: 'm', beats: line, ...m });

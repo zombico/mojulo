@@ -82,6 +82,7 @@ import { BOOK_SKINS } from './book-skin.js';
 import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
+import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS } from '../game/flow.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -160,6 +161,7 @@ function studioCard() {
     '',
     'A SUBAGENT gets the ref, the chapter id and the cards its view names (`chapter.cards`), and returns its chapter\'s',
     'state and the creator\'s questions. Hand the next unit once the last is settled, never one that `waits`.',
+    'THE FLOW (production) is the game director\'s, yours: it reads every department\'s page, so never hand it to a subagent.',
     '',
     'ONE UNIT AT A TIME: the ledger asks for each unit, hands its jobs to agents and receives it before the creator',
     'is shown it; the game is built up to its last accepted level (gameworld-ledger).',
@@ -441,6 +443,29 @@ function interfaceCard() {
     'JSON file on the shelf (playscape/ui/theme-cards/, its README), the way a WordPress theme is a theme.json; for one',
     'game only, the same inline as ui.theme. WORDS (closed):',
     ...Object.entries(THEME_WORDS).map(([k, ws]) => `  ${k}: ${ws.join('|')}`),
+  );
+}
+
+// the game's flow, the game director's page (game/flow.js, gameworld/game-flow.js): words from the flow's own tables
+function flowCard() {
+  return lines(
+    'THE FLOW — what plays when, from the first screen to the credits: the game director\'s page, YOURS (the main agent\'s,',
+    'never a subagent\'s: it reads the main quest, the levels, the story and the interface). The creator approves it.',
+    'Most games say none: the game plays the flow its front, levels and run make, the story\'s cinematics placed in it',
+    '(story slots opening, prologue, ending; the main quest\'s ending when its beat is a story moment). Write one only',
+    'for an order the default does not give; the review\'s part flow:sequence shows either as a storyboard.',
+    'flow: { start, home?, steps: { <id>: step } }   its levels by the world\'s level ids',
+    `  kinds: ${FLOW_KINDS.join(', ')}`,
+    '  screen     { screen, on: { <event>: target }, idle?: { after: s, go } }   the interface\'s; left by the player',
+    ...Object.entries(SCREEN_EVENTS).map(([k, evs]) => `               ${k}: ${evs.join(', ')}`),
+    '  cinematic  { scene, stage: <level id>, next, keep?, skip? }   a story moment (or a level\'s scene) played on its',
+    '             level\'s page; keep: the prologue\'s, play goes on from it; skip: false, unskippable',
+    `  level      { level: <level id> | $any, on: { ${LEVEL_EVENTS.join(', ')} } }`,
+    '  hold       { for?: s, until?: event, next }',
+    `  target: a step id, a special (${FLOW_SPECIALS.join(' ')}), or [alts], an alt { when: ${FLOW_GUARDS.join(' | ')}, go }`,
+    '  start: a step, or alts: [{ when: \'unseen\', go: \'opening\' }, \'title\'] (an opening on a first boot)',
+    'Every step reached from the start, every one with a way out, no loop of cinematics and holds alone: the read says',
+    'which, and how. A cinematic waits for its scene to end; a level for its end; a screen for the player.',
   );
 }
 
@@ -1103,6 +1128,7 @@ const CARDS = [
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],
   ['gameworld-folk', 'The town\'s people', 'NPCs grown from a town\'s houses: their houses and faces, their talk, their sidequests, their day', 'villagers to talk to, a shopkeeper, townsfolk, NPCs with errands, side quests, the same nurse in every town', folkCard],
+  ['gameworld-flow', 'The flow', 'what plays when, from the first screen to the credits: the default flow, the story\'s opening, prologue and ending in it, or a flow of the game\'s own', 'an opening cinematic, an intro before the title, a cutscene after New Game, the ending before the credits, the order of the screens and levels, an attract loop', flowCard],
   ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, feel, foes, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));
