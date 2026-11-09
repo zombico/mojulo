@@ -18,6 +18,11 @@ export function audioChannelScript(audio) {
   // cues, footsteps and wind at a steady level. Without it every line below is as it was.
   const combat = !!audio.combat;
   const musicEng = combat ? '(__engs ? __engs[__music.active] : __beatsEng)' : '__beatsEng';
+  // the SFX mixer (audio.mix, opt-in): the cues on a bus in a space, ducks dipping the score, a voice cap, a cue placed
+  // by its distance from the pilot. Absent, not a byte of it is emitted.
+  const mix = audio.mix || null, mixFar = !!(mix && mix.distance);
+  // held voices (the sustain feature): a thruster or a jump charge given a `voice` plays it, not its own synth
+  const thrHeld = !!(audio.thruster && audio.thruster.voice), jumpHeld = !!(audio.jump && audio.jump.charge && audio.jump.charge.voice);
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
@@ -36,10 +41,12 @@ function __beatsApply() {
 function __beatsUnlock() {
   if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume(); return; }
   __beatsCtx = new (window.AudioContext || window.webkitAudioContext)();
-  __beatsEng = __BEATS.createEngine(__beatsCtx);
+  __beatsEng = __BEATS.createEngine(__beatsCtx);${mix ? `
+  __beatsEng.setSfx(__AUDIO.mix);   // the SFX mixer: the cues' bus and space, and the music bus a duck dips (before the score starts)` : ''}
   if (__AUDIO.soundtrack) {${audio.beat ? `
     __beatT0 = __beatsCtx.currentTime + 0.08;   // the transport's own start (startTransport's t0): the beat clock's zero` : ''}
-${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __BEATS.createEngine(__beatsCtx) };
+${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __BEATS.createEngine(__beatsCtx) };${mix ? `
+    __engs.explore.setSfx({}); __engs.combat.setSfx({}); __beatsEng.linkDuck(__engs.explore); __beatsEng.linkDuck(__engs.combat);   // a duck dips whichever score plays` : ''}
     __engs.combat.master.gain.value = 0;
     __startTrack(__engs.explore, __AUDIO.soundtrack);
     __musicT0 = __beatsCtx.currentTime + 0.08;   // the explore piece's t0: its bar lines are where a change may land` : `    if (__AUDIO.soundtrack.kind === 'beats-composition') __beatsEng.startComposition(__AUDIO.soundtrack, __BEATS_PATCHES);
@@ -151,7 +158,12 @@ function __proxGain(srcPos) {
   if (d >= 900) return 0;         // FAR: across the arena -> silent (skip the synth)
   return (900 - d) / 650;         // rolloff between
 }
-${audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
+${mixFar ? `// the SFX mixer's distance (audio.mix.distance): __proxGain also leaves the source's distance (d / 900 m) for the
+// cue it scales, read once and only by the call that passes that same gain (a loop that only reads a gain leaves no
+// distance for another cue) — a far cue duller and roomier, not only quieter.
+let __pf = null;
+__proxGain = (function (g) { return function (p) { var L = __listenerPos(), v = g(p); __pf = L && p ? { far: Math.min(1, Math.hypot(p[0] - L[0], p[1] - L[1], p[2] - L[2]) / 900), g: v } : null; return v; }; })(__proxGain);
+${audio.vary ? 'let __beatsVar = 0;\n' : ''}function __beatsCue(cue, gain) { var pl = __pf && gain != null && __pf.g === gain ? { far: __pf.far } : null; __pf = null; if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ${audio.vary ? '++__beatsVar' : 'undefined'}, pl); }` : audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
 let __beatsVar = 0;
 function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ++__beatsVar); }` : `function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }`}
 // bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the
@@ -299,7 +311,23 @@ if (__AUDIO.dodge) {
 // into one gain that rides the thrust via setTargetAtTime (an exponential spool-up / spool-down),
 // with an LFO wobbling the roar cutoff for combustion flutter. Read-only + presentation-only like
 // every other layer; built lazily on first unlock. (No backticks — this lives in a template literal.)
-if (__AUDIO.thruster) {
+${thrHeld ? `if (__AUDIO.thruster) {
+  // the thruster's held voice (audio.thruster.voice, a sustain spec: the SFX shelf's port of the synth this replaces,
+  // or another): built lazily on unlock, its control the loudest thrust weighted by its distance from you, its level
+  // the thruster's level. Read-only and presentation-only, as every layer here is.
+  let __thrH = null;
+  (function __beatsThruster() {
+    requestAnimationFrame(__beatsThruster);
+    if (!__beatsEng) return;
+    if (!__thrH) { try { const v = __AUDIO.thruster.voice; __thrH = __beatsEng.sustain(Object.assign({}, v, { level: (v.level == null ? 1 : v.level) * (__AUDIO.thruster.level == null ? 0.4 : __AUDIO.thruster.level) })); } catch (e) { return; } }
+    const ctrl = window.__mojCtrl && window.__mojCtrl.world;
+    let thrust = 0;
+    if (ctrl) for (const e of ctrl.entities) { const v = (e.thrust || 0) * __proxGain(e.transform.pos); if (v > thrust) thrust = v; }
+    if (__beatsMuted) thrust = 0;
+    __thrH.set(Math.max(0, Math.min(1, thrust)));
+  })();
+}
+` : `if (__AUDIO.thruster) {
   let __thr = null;
   const __thrBuild = () => {
     const ctx = __beatsCtx, master = __beatsEng.master;
@@ -350,7 +378,7 @@ if (__AUDIO.thruster) {
     __thr.tone.frequency.setTargetAtTime(720 + thrust * 620, now, 0.12);    // the whine rises 720 -> 1340 Hz
   })();
 }
-// JUMP audio (charge / release / land): the stop-and-charge GATHERS like a mech loading up — a low
+`}// JUMP audio (charge / release / land): the stop-and-charge GATHERS like a mech loading up — a low
 // hydraulic SERVO STRAIN (a resonant sawtooth-through-lowpass motor, not a cartoon tone) with rhythmic
 // PISTON chuffs that speed up as it coils (e.chargeFrac) — then a piston-SLAM RELEASE on launch whose
 // weight scales with how long it was held (e.jumpPower), and a metal CLANG when the suit lands (scaled
@@ -367,11 +395,13 @@ if (__AUDIO.jump) {
     for (let i = 0; i < d.length; i++) { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; d[i] = (s / 0x7fffffff) - 1; }
     // the GATHER = a hydraulic servo STRAIN: a low sawtooth through a resonant lowpass (a motor
     // loading up, not a tone), gated by charging. Piston chuffs layer on top in the loop.
-    const motor = ctx.createOscillator(); motor.type = 'sawtooth'; motor.frequency.value = 66;
+${jumpHeld ? `    // the charge's held voice (audio.jump.charge.voice): the servo and its chuffs in one sustain, at the charge's level
+    const v = __J.charge.voice, held = __beatsEng.sustain(Object.assign({}, v, { level: (v.level == null ? 1 : v.level) * (__J.charge.level || 0.26) }));
+    return { buf, held, lastT: ctx.currentTime, level: __J.charge.level || 0.26 };` : `    const motor = ctx.createOscillator(); motor.type = 'sawtooth'; motor.frequency.value = 66;
     const motorLp = ctx.createBiquadFilter(); motorLp.type = 'lowpass'; motorLp.frequency.value = 300; motorLp.Q.value = 4;
     const motorG = ctx.createGain(); motorG.gain.value = 0;
     motor.connect(motorLp); motorLp.connect(motorG); motorG.connect(master); motor.start();
-    return { buf, motor, motorLp, motorG, chuffPh: 0, lastT: ctx.currentTime, level: (__J.charge && __J.charge.level) || 0.26 };
+    return { buf, motor, motorLp, motorG, chuffPh: 0, lastT: ctx.currentTime, level: (__J.charge && __J.charge.level) || 0.26 };`}
   };
   // one PISTON chuff: a short highpassed+lowpassed noise thump — a mechanical CHUNK, brighter + firmer
   // as the charge builds. Fired rhythmically from the loop at a rate that rises with the charge.
@@ -424,13 +454,14 @@ if (__AUDIO.jump) {
     }
     const now = __beatsCtx.currentTime;
     const dtJ = Math.min(0.1, Math.max(0, now - __jn.lastT)); __jn.lastT = now;
-    // servo strain rises + tightens as it gathers; the resonant cutoff climbs so the motor "loads up"
+${jumpHeld ? `    // the held voice's control: a third of the way in as the charge begins (the servo's gain at rest), full at full coil
+    __jn.held.set(charging ? (0.32 + 0.68 * frac) * chargeG : 0, now);` : `    // servo strain rises + tightens as it gathers; the resonant cutoff climbs so the motor "loads up"
     __jn.motor.frequency.setTargetAtTime(66 + frac * 74, now, 0.05);
     __jn.motorLp.frequency.setTargetAtTime(240 + frac * 520, now, 0.06);
     __jn.motorG.gain.setTargetAtTime(charging ? (0.16 + frac * 0.34) * __jn.level * chargeG : 0, now, 0.03);   // R28 proximity: distant charge servo fades
     // piston chuffs: 4/sec at rest -> ~13/sec at full coil (the pistons pumping faster as it gathers)
     if (charging) { __jn.chuffPh += dtJ * (4 + frac * 9); while (__jn.chuffPh >= 1) { __jn.chuffPh -= 1; __jChuff(frac); } }
-    else __jn.chuffPh = 0;
+    else __jn.chuffPh = 0;`}
   })();
 }
 ${audio.weather ? weatherAudioScript() + '\n' : ''}// world bindings (B5.3): sim-state selectors → soundtrack channel macros, evaluated per frame.
