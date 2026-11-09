@@ -41,6 +41,10 @@ export const STONE_LADDER = Object.freeze({ px: 1, step: 0.5 });
  *  of the sky's air (its nearest layer to its farthest); `rough` its roughness. */
 export const FAR_LAND = Object.freeze({ rise: Object.freeze([0.35, 0.85]), tone: 0.06, air: Object.freeze([0.25, 0.7]), rough: 0.95 });
 
+// A far land's own HAZE (a land read's `haze`, { fog, air }: a glyph map's far range, worlds/world-scene.js): the page's
+// fog thinned to `fog` of its density over it (exponential-squared, as the page's; a linear fog's far end pushed out as
+// far), so mountains a few hundred metres off read through a morning's haze; absent, the page's own fog, as it always was
+const hazeFog = (k0) => { const k = Number(k0).toFixed(3); return `#ifdef USE_FOG\\n  #ifdef FOG_EXP2\\n    float fogFactor = 1.0 - exp( - ${k} * fogDensity * fogDensity * vFogDepth * vFogDepth );\\n  #else\\n    float fogFactor = smoothstep( fogNear, fogFar / ${k}, vFogDepth );\\n  #endif\\n  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\\n#endif`; };
 export function formLandScript(form, flora = null, { capture = false } = {}) {
   return `
 // --- the form render (gen-7): the land as material, lit by the cube's light (channels/form-land.js) ---
@@ -70,7 +74,7 @@ export function formLandScript(form, flora = null, { capture = false } = {}) {
   // sets it: the air where the far land stands), more of it the farther its layer
   const FAR_AIR = { value: new THREE.Vector3(0.5, 0.6, 0.65) };
   function farLand(R) {
-    const FL = ${JSON.stringify(FAR_LAND)}, n = R.count, P0 = POS.subarray(R.start * 3, (R.start + n) * 3), col = new Float32Array(n * 3), air = new Float32Array(n);
+    const FL = ${JSON.stringify(form.haze ? { ...FAR_LAND, air: form.haze.air } : FAR_LAND)}, n = R.count, P0 = POS.subarray(R.start * 3, (R.start + n) * 3), col = new Float32Array(n * 3), air = new Float32Array(n);
     const gentle = (D.grass && D.grass.base) || D.layers.pathBase, steep = D.stones && D.stones.base ? D.stones.base : D.layers.stoneBase;
     const cx = (D.box[0][0] + D.box[0][1]) / 2, cy = (D.box[1][0] + D.box[1][1]) / 2, r = (v) => Math.hypot(P0[v * 3] - cx, P0[v * 3 + 1] - cy);
     let z0 = Infinity, z1 = -Infinity, r0 = Infinity, r1 = -Infinity;
@@ -87,7 +91,7 @@ export function formLandScript(form, flora = null, { capture = false } = {}) {
     const m = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: FL.rough, metalness: 0, side: THREE.DoubleSide });
     m.onBeforeCompile = (sh) => { sh.uniforms.uAir = FAR_AIR;
       sh.vertexShader = 'attribute float aAir;\\nvarying float vAir;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vAir = aAir;');
-      sh.fragmentShader = 'uniform vec3 uAir;\\nvarying float vAir;\\n' + sh.fragmentShader.replace('#include <fog_fragment>', '  gl_FragColor.rgb = mix( gl_FragColor.rgb, uAir, vAir );\\n#include <fog_fragment>'); };
+      sh.fragmentShader = 'uniform vec3 uAir;\\nvarying float vAir;\\n' + sh.fragmentShader.replace('#include <fog_fragment>', '  gl_FragColor.rgb = mix( gl_FragColor.rgb, uAir, vAir );\\n${form.haze ? hazeFog(form.haze.fog) : '#include <fog_fragment>'}'); };
     m.customProgramCacheKey = () => 'form-far-land';
     const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh); __formMeshes.push(mesh);
   }

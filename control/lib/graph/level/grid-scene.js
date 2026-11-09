@@ -43,6 +43,7 @@
 import { readGrid, tileCentre, REGION_WORDS, MAP_WORDS, placeDoors, mapStart } from './grid.js';
 import { pathRanks } from './path-ranks.js';
 import { mapWater } from './map-water.js';
+import { farRange } from './far-range.js';
 import { tilePath, levelHeight } from '../era/out-tile.js';
 import { mapItems } from './map-items.js';
 import { frameOf, placed, ringTheMap, pageOf } from './map-scene.js';
@@ -480,6 +481,9 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   const ranks = lv.ways === 'one' ? null : pathRanks(G);
   // (THE WATER: its bodies, their levels and their shores' edges, map-water.js; none without a water tile)
   const MW = mapWater(G, { seed });
+  // (THE FAR RANGE, far-range.js: a map a geocube paints, read in the form render (gen-7), is ringed by real mountains,
+  // the form's far land, in place of its first tile's painted far ring; a painted read keeps the ring)
+  const range = !!ctx.form && lv.geocube !== undefined;
   // (the map's GEOCUBE, its terrain, hour and clouds: every tile lowered under it, manifestOf)
   const cube = lv.geocube !== undefined ? Object.fromEntries(CUBE_WORDS.filter((w) => lv[w] !== undefined).map((w) => [w, lv[w]])) : null;
   if (!cube) for (const w of CUBE_WORDS) if (lv[w] !== undefined) throw new Error(`map: ${w} is the geocube's (its ${w === 'terrain' ? 'outside\'s terrain' : w === 'hour' ? 'outside lit at an hour' : 'sky\'s clouds'}): name the level's geocube`);
@@ -559,7 +563,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   for (const cell of G.cells) {
     if (!builds(cell)) continue;
     const at = squareOf(cell), payload = payloads.get(`${cell.r},${cell.c}`), F = frameOf({ at, heading: Math.PI / 2 }, 0);
-    const P = placed(payload, F, `${cell.r},${cell.c}`, { band: [0, T, T], backdrop: !first, outdoorOnly: true });
+    const P = placed(payload, F, `${cell.r},${cell.c}`, { band: [0, T, T], backdrop: !first && !range, outdoorOnly: true });
     // (each ground face remembers its tile, for the seams' law; dropped before the page is emitted)
     // (only the ground wholly in its own square: a kit's far skirt reaching in is not the tile's ground)
     const inSquare = (c) => c[0] >= at[0] - 0.01 && c[0] <= at[0] + T + 0.01 && c[1] >= at[1] - 0.01 && c[1] <= at[1] + T + 0.01;
@@ -595,12 +599,18 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     const ground0 = (first.payload.faces || []).find((f) => f.group && /:ground$/.test(f.group))?.fill ?? '#7aa04a';
     const ringBox = lv.far ? [0, -H, W, 0] : box;
     if (lv.far) out.faces.push(...farFaces(G, Z, { seed, ground: ground0 }));
-    out.faces.push(...rimFaces(ringBox[2] - ringBox[0], ringBox[3] - ringBox[1], out.faces, first.payload, ringBox));
-    ringTheMap(out.faces, { map: [[ringBox[0], ringBox[3]], [ringBox[2], ringBox[3]], [ringBox[2], ringBox[1]], [ringBox[0], ringBox[1]]] });
+    const rim = rimFaces(ringBox[2] - ringBox[0], ringBox[3] - ringBox[1], out.faces, first.payload, ringBox);
+    if (range) out.faces.push(...farRange({ box: ringBox, at: borderHeight(out.faces), seed, fill: ground0, rim: RIM }));
+    // (under the range, the rim is its foot: drawn as the same far land, never a painted band between them)
+    out.faces.push(...(range ? rim.map((f) => ({ ...f, group: 'isekai:ridge' })) : rim));
+    if (!range) ringTheMap(out.faces, { map: [[ringBox[0], ringBox[3]], [ringBox[2], ringBox[3]], [ringBox[2], ringBox[1]], [ringBox[0], ringBox[1]]] });
   } else {
     out.colliders.push(...edgeWalls(W, H, out.faces));
-    out.faces.push(...rimFaces(W, H, out.faces, first.payload));
-    ringTheMap(out.faces, { map: [[0, 0], [W, 0], [W, -H], [0, -H]] });
+    const rim = rimFaces(W, H, out.faces, first.payload);
+    if (range) out.faces.push(...farRange({ box: [0, -H, W, 0], at: borderHeight(out.faces), seed, fill: (first.payload.faces || []).find((f) => f.group && /:ground$/.test(f.group))?.fill ?? '#7aa04a', rim: RIM }));
+    // (under the range, the rim is its foot: drawn as the same far land, never a painted band between them)
+    out.faces.push(...(range ? rim.map((f) => ({ ...f, group: 'isekai:ridge' })) : rim));
+    if (!range) ringTheMap(out.faces, { map: [[0, 0], [W, 0], [W, -H], [0, -H]] });
   }
   // THE SKETCH'S MARKS (map-sketch.js): a post each where it was sketched, told on hover
   const SK = G.sketch ? sketchMarks(G, Z, seed) : null;

@@ -16,8 +16,18 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   biocube's moss and grass) and its plants grown as form (form/flora-read.js: trees with branches and leaves, bushes,
   shrubs) in the painted ones' place: the map page carries its tiles' plants on the level's frame (`plants`), and the
   land is read framed from the south over the map's middle, as an island's camera frames it. Before, a gen-7 map drew
-  the sixth generation's painted trees and land under the live light. Not right yet: the rim past the map's edge reads
-  with a wavy stripe and a few white marks, and the far ridges come out near-white.
+  the sixth generation's painted trees and land under the live light. The page says what it got (`map.form`: the form
+  read, its plants and its far range); a map no geocube paints, read in gen-7, is drawn as paint and says why and how to
+  have the form's (name its level's geocube). The era's own record (era/eras.js) names the glyph map among what the form
+  render draws.
+- **Real mountains round a gen-7 map** (level/far-range.js). The far ring a map took from its first tile (painted
+  curtains, scaled out round the whole map) read as the sixth generation's impressionistic backdrop, washed near-white by
+  the distance. A map read in the form render is ringed instead by a range of real ground: rising out of the rim at its
+  height (the rim is its foot, drawn as the same far land), ridged peaks on the level's frame growing outward over a slow
+  lift, out to 800 m past the map. They are the form's far land (`isekai:ridge`): lit in facets, the grass's colour low
+  and the stone's toward the peaks. Its own haze (`haze` on the land read: the page's fog at 0.3 of its density, and less
+  of the sky's air) lets them read through a morning's air; the haze is emitted only on a page whose land read asks for
+  it, so every other gen-7 page is byte for byte as it was. A painted read keeps its ring.
 - **A gritty cube's tiles build.** A tile on a polygon land with grit (the cube's `grit`, at 0.35 and over) failed:
   its solid flora read an item off the gritty land's strewn stones, which carry none (they are skipped, as pebbles
   are). And its edge stones were strewn by the trail's line by depth, which a tile's ways do not follow, in rows across
