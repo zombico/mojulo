@@ -169,4 +169,13 @@ describe('what a glyph map hands its tiles', () => {
     expect(P.map.water[0].tiles).toEqual([[0, 1]]);
     expect(law(P, 'paths-dry')).toBeDefined();
   });
+
+  it('carries its tiles\' plants (a form read\'s) onto the level\'s frame; a painted read none', async () => {
+    const withPlants = (m) => tileStage(() => 0, () => ({ plants: { form: 'blob', kinds: null, bushKinds: null, trees: [{ x: 2, y: 3, z: 0, h: 8, kind: -1, cluster: 0 }], bushes: [], shrubs: [], clear: [[2, 3, 0.7]] } }))(m);
+    const P = await assembleGridScene({ level: level(['# #']) }, {}, { buildStage: withPlants });
+    expect(P.plants.trees.map((t) => [t.x, t.y])).toEqual([[2, 3 - T], [2 + T, 3 - T]]);
+    expect(P.plants.clear).toEqual([[2, 3 - T, 0.7], [2 + T, 3 - T, 0.7]]);
+    expect((await assembleGridScene({ level: level(['# #']) }, {}, { buildStage: tileStage(() => 0) })).plants).toBeUndefined();
+  });
 });
+

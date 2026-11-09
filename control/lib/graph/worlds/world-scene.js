@@ -812,8 +812,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // on the page in the painted land's place (scene/channels/form-land.js). The trail's dress its words: rubble on or off,
   // its patches. Any other read, and the unshaded export: none, every byte as it was. The engine handoff (scene/handoff.js,
   // `handoff: true`) reads it unshaded: its land's data is what an engine is handed, its light the engine's own
-  if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && sketch.manifest.kind === 'geocube' && ERAS[era]?.surface === 'form') {
-    const M = sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown';
+  // (and a glyph map a geocube paints, level/grid-scene.js: its land and its plants read as the cube's trail's are, its
+  // level's cube, hour, clouds and biocube the recipe's words)
+  const formMap = sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && sketch.manifest.level.geocube !== undefined;
+  if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && (sketch.manifest.kind === 'geocube' || formMap) && ERAS[era]?.surface === 'form') {
+    const M = formMap ? { ...sketch.manifest.level, cube: sketch.manifest.level.geocube } : sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown';
     // (a town, geotown: its land a lawn's, no trail's rubble, dust, clay or patches)
     const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
@@ -827,7 +830,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const grown = floraBox(payload.plants);
     // (a winter, snow over the whole land with no line, grows no grass at all; under a snow line the grass stands below it)
     const S0 = payload.snowMap ? readSnow(cube.snow) : null, winter = !!S0 && (S0.line === undefined || S0.line === null);
-    const read = landRead(payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
+    // (a map carries no camera of its own: the land is read framed from the south over its middle, raised, as an island's)
+    const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
+    const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter ? false : 'map', ...(moss ? { moss } : {}), ...(sward !== undefined ? { sward } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
     // (the recipe's weather for the form's sky, channels/form-sky.js: its clouds, or the weather's own; absent, the sky reads
     // what the stage painted)

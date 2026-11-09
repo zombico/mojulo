@@ -272,6 +272,18 @@ function oneGrass(list) {
   return { ...first, ...(crowns !== undefined ? { crowns } : {}), ...(petals ? { petals } : {}), grid: { ...first.grid, x0: r5(x0), y0: r5(y0), nx, ny, zlo: r5(lo), zsc, z: enc(zq), m: enc(M) } };
 }
 
+// THE PLANTS over the map (era/isekai.js plantItems: where the form render grows its own plants): every tile's trees,
+// bushes, shrubs and claims moved onto the level's frame, the card's kinds the first tile's; no tile's skirt (the map has
+// one horizon, and its tiles no far layers)
+function onePlants(list) {
+  if (!list.length) return null;
+  const mv = (at) => (q) => ({ ...q, x: r5(q.x + at[0]), y: r5(q.y + at[1]) });
+  const { form, kinds, bushKinds } = list[0].p;
+  return { form, kinds, bushKinds,
+    trees: list.flatMap(({ p, at }) => (p.trees ?? []).map(mv(at))), bushes: list.flatMap(({ p, at }) => (p.bushes ?? []).map(mv(at))),
+    shrubs: list.flatMap(({ p, at }) => (p.shrubs ?? []).map(mv(at))), clear: list.flatMap(({ p, at }) => (p.clear ?? []).map(([x, y, r]) => [r5(x + at[0]), r5(y + at[1]), r])) };
+}
+
 // THE FAUNA over the map (era/biocube-fauna.js): every tile's swarms on the level's frame, laid together kind by kind
 // (each kind's colours its first tile's); the birds one flock, over the whole map. Its herds (`faunaUnits`) every tile's,
 // each unit named for its tile too, so no two tiles' herds share a name.
@@ -472,7 +484,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   const cube = lv.geocube !== undefined ? Object.fromEntries(CUBE_WORDS.filter((w) => lv[w] !== undefined).map((w) => [w, lv[w]])) : null;
   if (!cube) for (const w of CUBE_WORDS) if (lv[w] !== undefined) throw new Error(`map: ${w} is the geocube's (its ${w === 'terrain' ? 'outside\'s terrain' : w === 'hour' ? 'outside lit at an hour' : 'sky\'s clouds'}): name the level's geocube`);
   const out = { faces: [], repeats: [], cutouts: [], lights: [], anchors: [], colliders: [], textures: {}, resample: {} };
-  const grass = [], fauna = [], cells = [];
+  const grass = [], fauna = [], cells = [], plants = [];
   let first = null;
   // a tile's square on the level's frame: its south-west corner (north up: columns east, rows south)
   const squareOf = (cell) => [cell.c * T, -(cell.r + 1) * T];
@@ -556,6 +568,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     for (const c of payload.cutouts || []) if (!out.cutouts.includes(c)) out.cutouts.push(c);
     Object.assign(out.textures, payload.textures || {}); Object.assign(out.resample, payload.resample || {});
     if (payload.liveGrass) grass.push({ lg: payload.liveGrass, at });
+    if (payload.plants) plants.push({ p: payload.plants, at });
     if (payload.fauna || payload.faunaUnits) fauna.push({ f: payload.fauna, u: payload.faunaUnits, at, id: `${cell.r}-${cell.c}` });
     if (!first) first = { payload, F };
     cells.push({ r: cell.r, c: cell.c, glyph: cell.glyph, kind: cell.kind, ...(cell.shape ? { shape: cell.shape } : {}), ...(cell.open?.length ? { open: cell.open } : {}), ...(cell.region ? { region: cell.region } : {}), at });
@@ -596,6 +609,9 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
   // THE PLAY LAYER (play-layer.js, level design's): this page's blocks' pieces in the world's own wood and stone (the
   // tiles' fills), the solid ones colliders; each held to the land it stands on now (`pieces-fit`)
   const PL = lv.play && G.plan ? playOfPage(lv, G, Z, out, { seed }) : null;
+  // (THE PLANTS, a form read's, gen-7: every tile's on the level's frame, where the form grows its own trees, bushes and
+  // shrubs in the painted ones' place, worlds/world-scene.js; none on a painted read)
+  const PLT = onePlants(plants);
   const LG = oneGrass(grass), FA = Z ? oneFauna(fauna, box[2] - box[0], box[3] - box[1], box) : oneFauna(fauna, W, H), HD = oneHerds(fauna);
   return {
     ...page,
@@ -605,6 +621,7 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     resample: Object.keys(out.resample).length ? out.resample : undefined,
     cameras: [],
     ...(LG ? { liveGrass: LG } : {}),
+    ...(PLT ? { plants: PLT } : {}),
     ...(FA ? { fauna: FA } : {}),
     ...(HD ? { faunaUnits: HD } : {}),
     walk: { ...(R.walk || {}), spawn: [r5(sx), r5(sy), r5(gz + (R.walk?.minEye ?? 1.7))] },

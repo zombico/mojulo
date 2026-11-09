@@ -10,9 +10,19 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   names none. The page's era, contrast and register are the level's cube's (`cubeSpecOf` reads a map's level), so a
   sixth or seventh generation cube paints the map as it paints its trails. A gameworld's glyph level takes its style's
   geocube, terrain and hour (and is lit by it: no `unlit` advice), unless the level names its own kit. `terrain`, `hour`
-  or `clouds` without a cube is refused with words. A map with no cube is as it was. A seventh generation map draws as
-  paint under the live light (its shadows, its contact occlusion); the form render's land read is not wired to a map page
-  yet.
+  or `clouds` without a cube is refused with words. A map with no cube is as it was.
+- **A seventh generation map is the form render's.** A glyph map a geocube paints, read in a form era, takes the land
+  read a geocube page takes (form/land-read.js: its land as material under the cube's light, the ways' dress, the
+  biocube's moss and grass) and its plants grown as form (form/flora-read.js: trees with branches and leaves, bushes,
+  shrubs) in the painted ones' place: the map page carries its tiles' plants on the level's frame (`plants`), and the
+  land is read framed from the south over the map's middle, as an island's camera frames it. Before, a gen-7 map drew
+  the sixth generation's painted trees and land under the live light. Not right yet: the rim past the map's edge reads
+  with a wavy stripe and a few white marks, and the far ridges come out near-white.
+- **A gritty cube's tiles build.** A tile on a polygon land with grit (the cube's `grit`, at 0.35 and over) failed:
+  its solid flora read an item off the gritty land's strewn stones, which carry none (they are skipped, as pebbles
+  are). And its edge stones were strewn by the trail's line by depth, which a tile's ways do not follow, in rows across
+  the tile and over the water: on a tile only those at a way's edge are kept, and none on the map's water or its
+  beach.
 - **A tile's casters are grown in its own look.** The trees and stones a tile hands its neighbours to cast across a seam
   were grown from `manifest.style`, which a tile never names: under a cube whose card is not the meadow's, the casters were
   the meadow's trees, not the tile's. They are grown in the kit's style, as the stage builds the tile
