@@ -62,7 +62,8 @@ export function buildRulesPlatform(E) {
     const sprints = r.stamina === true && r.space !== true;
     // (F is the feel's when its card gives it one, a dash or a run button: never the thrusters, walk pace or none, as on
     // a side-scroller's lane, whose hero only runs)
-    const ownF = !!(r.dash || r.sprint) && r.space !== true && !r.gear;
+    // (an AIR DASH alone, `dash.ground: false`, leaves F on the ground to the sprint and the dodge)
+    const ownF = !!((r.dash && r.dash.ground !== false) || r.sprint) && r.space !== true && !r.gear;
     let speed = r.speed ?? 6;
     // (a moveset's hero drawing its sidearm, combat-melee.js: the aim's pace, `aimMove` of its run)
     if (r.moveset && e.weapon && e.weapon.charging) speed *= r.aimMove ?? 0.45;
@@ -325,14 +326,14 @@ export function buildRulesPlatform(E) {
     // so many an airtime, given back by the ground and a wall): the same burst on its own line, the fall stopped while it
     // is at speed and given back as it eases. A jump in a ground dash is a DASH JUMP (`dash.jump`): it leaves at once and
     // the air keeps the speed the burst had (`e.carry`) to the touch-down. Absent `dash` → nothing here runs.
-    const DS = r.dash && ownF && !space ? r.dash : null;
+    const DS = r.dash && (ownF || (r.dash.ground === false && r.space !== true && !r.gear)) && !space ? r.dash : null;
     if (DS) {
       const press = !!input.boost && !e.dashHeld; e.dashHeld = !!input.boost;
       if (e.grounded && !jumped) { e.airDashes = DS.air ? DS.air.count : 0; e.carry = 0; }
       if (e.dashT > 0 && jumped && !e.dashAir) { if (DS.jump) e.carry = Math.max(speed, dashNow(e, speed)); e.dashT = 0; }
       if (press && !(e.dashT > 0) && !e.cling && !(e.kickT > 0)) {
         const air = !e.grounded;
-        if (!air || (DS.air && e.airDashes > 0)) {
+        if ((!air && DS.ground !== false) || (air && DS.air && e.airDashes > 0)) {
           const wx = f[0] * fwdIn + rt[0] * sideIn, wy = f[1] * fwdIn + rt[1] * sideIn, wm = Math.hypot(wx, wy), F0 = fwdXY(t.heading);
           e.dashDir = wm > 1e-3 ? [wx / wm, wy / wm] : [F0[0], F0[1]];
           // (the speed it starts from: the body's own along the dash, never back past rest)
@@ -527,7 +528,8 @@ export function buildRulesPlatform(E) {
       } else {
         const footZ0 = t.pos[2] - eye;   // pre-fall foot height (the swept-probe origin)
         // GLIDE (opt-in `glideFall`, a power's glide): jump held while falling caps the fall at that speed. Absent → maxFall.
-        const fallCap = r.glideFall > 0 && input.jumpHeld && e.vel[2] <= 0 ? Math.min(maxFall, r.glideFall) : maxFall;
+        // (a glide held once the air jumps are spent, `glideSpent`: jump, jump, hold; a first jump held never glides early)
+        const fallCap = r.glideFall > 0 && input.jumpHeld && e.vel[2] <= 0 && (!r.glideSpent || (e.airJumpsUsed ?? 0) >= (r.airJumps ?? 0)) ? Math.min(maxFall, r.glideFall) : maxFall;
         if (e.cling && r.cling) e.vel[2] = -r.cling.slide;   // down the wall at a constant speed
         else if (e.dashT > 0 && e.dashAir && dashU(e) < DASH_EASE) e.vel[2] = 0;    // the air dash holds its height at speed
         // (an air move's HANG, combat-melee.js `mvHang`: the hero held aloft, its gravity that share of its own)

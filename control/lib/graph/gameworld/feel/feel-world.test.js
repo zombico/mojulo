@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { readGameworld, MEADOWMARK } from '../index.js';
-import { gameStages, stageLevelOrder } from '../levels.js';
+import { gameStages, stageLevelOrder, airKeys } from '../levels.js';
 import { POLE_IDS, POLES } from './cards.js';
 import { feelCard, lowerFeel, TAKES } from './lower.js';
 
@@ -18,12 +18,13 @@ describe('a gameworld\'s feel', () => {
   });
 
   it('lays the template\'s card over the hero\'s rule; the rest of the level is the level it was', () => {
-    const plain = order(MEADOWMARK), felt = order({ ...MEADOWMARK, feel: pole }), want = lowerFeel(feelCard(pole)).rule;
+    const plain = order(MEADOWMARK), felt = order({ ...MEADOWMARK, feel: pole }), want = lowerFeel(feelCard(pole), { gear: POLES[pole].gear ?? null }).rule;
     const hero = felt.entities[0].rule;
     for (const [k, v] of Object.entries(want)) expect([k, hero[k]]).toEqual([k, v]);
     expect(hero.type).toBe(plain.entities[0].rule.type);
-    // (and a card that sprints says its key beside the run: the stamina's, rules-platform.js `stamina`)
-    const sprints = !!want.stamina, said = ` · F  sprint (stamina)${want.dodge ? ' · F F  dodge' : ''}`;
+    // (and a card that sprints says its key beside the run: the stamina's, rules-platform.js `stamina`; and the air's own,
+    // an air dash and a glide)
+    const sprints = !!want.stamina, said = ` · F  sprint (stamina)${want.dodge ? ' · F F  dodge' : ''}${airKeys(want)}`;
     expect(felt.events.hud[0].text.includes(said)).toBe(sprints);
     const strip = (m) => JSON.stringify({ ...m, entities: m.entities.map((e, i) => (i === 0 ? { ...e, rule: null } : e)), events: { ...m.events, hud: m.events.hud.map((h) => ({ ...h, text: h.text.replace(said, '') })) } });
     expect(strip(felt)).toBe(strip(plain));

@@ -300,6 +300,8 @@ function withMoves(P, moves, grants = []) {
 // a hero runs and walks with Z held (player.js HERO_WALK_RUN); a mascot pilot runs on its own clips, and a hero with the
 // gear (the swing and zip) runs as it did
 const walkRun = (pilot, extra = '') => (pilot || /\bF\s/.test(extra ?? '') ? 'W / S  run' : HERO_WALK_RUN);
+// (the air's own keys a feel gives: an air dash alone on F, `dash.ground: false`, and the glide held on the jump)
+export const airKeys = (R) => `${R?.dash?.ground === false ? ' · F in the air  air dash' : ''}${R?.glideFall > 0 ? ` · Space held in the air  glide${R.glideSpent ? ' (once the air jumps are spent)' : ''}` : ''}`;
 const movesLegend = (moves) => (moves && moves.gear ? ' · F  swing (in the air), zip (on the ground)' : '');
 
 /** A city segment's create_sketch call: its manifest with the levels of its neighbours by ref, and in a map the world's
@@ -784,7 +786,7 @@ function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, me
     const rule = struck ? { ...(rule0 ?? {}), ...struck } : rule0;
     // (a mascot pilot, egocube/mascot-pilot.js: its own clips, capsule, stride, camera and eye)
     const moves = heroMoves(G);
-    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: G.mechanics?.legend === 'menu' ? '' : `${controls}${written?.dash ? ' · F  dash' : written?.sprint ? ' · F  run' : rule?.stamina ? ` · F  sprint (stamina)${rule.dodge ? ' · F F  dodge' : ''}` : ''}${actionOrbit ? ' · C  lock on' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
+    const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), ...(lane || stage.section === 'runner' ? { walk: false } : {}), id: 'hero', title: name, controls: G.mechanics?.legend === 'menu' ? '' : `${controls}${written?.dash && written.dash.ground !== false ? ' · F  dash' : written?.sprint ? ' · F  run' : rule?.stamina ? ` · F  sprint (stamina)${rule.dodge ? ' · F F  dodge' : ''}` : ''}${airKeys(written)}${actionOrbit ? ' · C  lock on' : ''}${movesLegend(moves)}`, ...(rule ? { rule } : {}), ...(takes ? { takes } : {}) }), moves, startingGrants(G));
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: pilot ? pilot.eye : HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }

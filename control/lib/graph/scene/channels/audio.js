@@ -322,7 +322,7 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
       const l = L[e.id] || (L[e.id] = { swing: e.swingCount || 0, hit: e.meleeHitCount || 0, guard: e.lastGuard ? e.lastGuard.seq : 0, w: e.mvWeapon, charge: e.weapon ? e.weapon.chargeCount || 0 : 0, shots: e.weapon ? e.weapon.shots || 0 : 0, down: !!e.downed, hits: e.hits || 0 });
       if (e === P) {
         // (the move's weight: a finisher by its role, a heavy by the beat that took it)
-        const weight = e.mvRole === 'finisher' ? 'finisher' : e.mvPress && e.mvPress.verdict === 'taken' && (e.mvPress.beat === 'H' || e.mvPress.beat === 'bH') ? 'heavy' : 'light';
+        const weight = e.mvRole === 'finisher' ? 'finisher' : e.mvPress && e.mvPress.verdict === 'taken' && (e.mvPress.beat === 'H' || e.mvPress.beat === 'bH' || e.mvPress.beat === 'mH') ? 'heavy' : 'light';
         if ((e.swingCount || 0) > l.swing) play(pick(M.swing, e.mvWeapon, weight));
         if ((e.meleeHitCount || 0) > l.hit) play(pick(M.hit, e.mvWeapon, weight));
         if (e.lastGuard && e.lastGuard.seq !== l.guard) play(M[e.lastGuard.kind]);

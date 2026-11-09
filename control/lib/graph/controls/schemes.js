@@ -72,6 +72,9 @@ const PILOT = {
     { id: 'special', label: 'special', group: 'combat', in: ['melee'], bind: { mouse: ['forward'], gamepad: ['east'] } },
     // the guard, held (a hero with a feel's guard: combat-melee.js stepGuard): Shift, the pad's left shoulder (block on L1)
     { id: 'guard', label: 'guard', group: 'combat', hold: true, in: ['melee'], bind: { keyboard: ['Shift'], gamepad: ['lb'] } },
+    // the MODIFIER, held (a moveset's specials, gameworld/combos.js mL mH mS): a face pressed with it is that face's
+    // special; the right trigger (a sword's hero fires nothing on it: its sidearm is the special's button), left Ctrl
+    { id: 'modifier', label: 'special (hold, with an attack)', group: 'combat', hold: true, in: ['melee'], bind: { keyboard: ['ControlLeft'], gamepad: ['rt'] } },
     { id: 'cycleWeapon', label: 'next weapon', group: 'combat', in: ARMED, bind: { keyboard: ['KeyR'], mouse: ['back'], gamepad: ['rb'], xr: ['right.squeeze'] } },
     { id: 'weapon1', label: 'weapon 1', group: 'combat', in: ARMED, bind: { keyboard: ['Digit1'] } },
     { id: 'weapon2', label: 'weapon 2', group: 'combat', in: ARMED, bind: { keyboard: ['Digit2'] } },

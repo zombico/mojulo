@@ -258,3 +258,26 @@
 - **Fixed: a tap on the freeze was lost** (`hitstop.js`). A body frozen on its blow sits its step out, so an attack
   pressed for a frame inside the freeze never reached it: a quick tap timed on the hit dropped the next cut. The pilot's
   attack presses made through its own freeze are kept and handed to its first free frame.
+- **Fallen Angel: the guns back, and the air** (`gameworld/combos.js`, `feel/cards.js`, `feel/lower.js`,
+  `rules-platform.js`). The stylish game's kit carries the two pistols as its sidearm (held, they fire at nine rounds a
+  second and never run dry, weak); Artesia keeps the bow. Its template now has the stylish game's air: the double jump it
+  had, the AIR DASH on F in the air (a card's `dash.ground: false`: the air dash alone, the ground's F left to the sprint
+  and the dodge; one an airtime, 9 m/s for 14 frames, the fall stopped), and the GLIDE (the template wears the glider,
+  `gear: 'glide'`): the jump held in the air caps the fall at 2 m/s once the air jumps are spent (`glideSpent`: jump,
+  jump, hold; a first jump held never glides early). A worn glider the template holds (`kind: 'glide'`) is now carried
+  by the lowering as the runtime's capped fall, and a level's feel reads its template's gear (`feelRule`): Vigilante
+  Justice's cape glide is carried with it; Artesia's paraglider, opened by a press, is not yet. The level's controls say
+  the air's keys. Checked in the room on a Fallen Angel copy of the Old Keep: six rounds in two thirds of a second, an air
+  dash of 1.65 m, a glide held 98 frames at 2 m/s.
+- **The modifier and its specials** (`gameworld/combos.js`, `combat-melee.js`). A face pressed with the MODIFIER held is
+  that face's SPECIAL: new beats `mL`, `mH`, `mS` (the light, heavy and special buttons, W, N, E on a pad); `mS` is the MP
+  ability in the sidearm's place (the sidearm never fires with the modifier held). The modifier is its own control
+  (`modifier`, `controls/schemes.js`): the right trigger on a pad (a sword's hero fires nothing on it: its sidearm is the
+  special's button, so on a moveset's page the trigger no longer doubles the light), left Ctrl on a keyboard; the guard
+  stays the left shoulder and Shift. An arsenal's `mp` pool (`max`, `regen` a second, `onHit` a blow landed) pays a move's `mp` cost, and
+  a press the pool cannot pay is refused and says so. New move words: a travel `dash` (the body carried in a glide to the
+  blow, the feet held, closing on what is ahead, up to 4 m) and a move's own `reach`. The kits: Fallen Angel's sword has
+  the stinger (a thrust on a 3.5 m dash), the drive (an overhead reaching 5 m) and the devil burst (MP 40: a two-turn
+  whirlwind all round, 3.2 m, knocking down), its meter built only by landing blows (4 a hit); Artesia has the leaping
+  strike (an overhead on a 2 m dash), the rising slash (the upswing knocking down) and the fire burst (MP 50: all round, 4 m,
+  knocking down), its meter refilling at 4 a second. The room's HUD shows the MP and names the specials.

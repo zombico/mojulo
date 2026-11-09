@@ -227,6 +227,9 @@ export function buildCombatMelee(E) {
       // juggled target down into the ground, the landing its knockdown)
       if (P.launch > 0 && tg.juggle) { e.mvLaunched = true; e.mvThrown = tg.id; }   // (the foe it threw: faced in the air)
       if (P.slam > 0 && tg.juggle) { tg.juggle.vz = -P.slam; tg.juggle.knock = true; }
+      // (a blow landed fills the MP pool by its `onHit`: the moveset's, the weapon in hand's)
+      const Wm = Array.isArray(e.rule && e.rule.weapons) ? e.rule.weapons[e.weaponIdx || 0] : null, Mm = (Wm && Wm.moveset) || (e.rule && e.rule.moveset);
+      if (Mm && Mm.mp && Mm.mp.onHit > 0) e.mp = Math.min(Mm.mp.max, (e.mp ?? Mm.mp.max) + Mm.mp.onHit);
       if (P.knock && E.knockHit) E.knockHit(state, tg, e, P.knock, [tg.transform.pos[0] - e.transform.pos[0], tg.transform.pos[1] - e.transform.pos[1]]);
     }
   }
@@ -599,6 +602,9 @@ export function buildCombatMelee(E) {
       const d = ((headingTo(e, aimed) - t.heading + Math.PI) % TAU2 + TAU2) % TAU2 - Math.PI, mx = AIM_TURN * dt;
       t.heading += Math.max(-mx, Math.min(mx, d));
     } else if (e.mvThrown != null && ((e.grounded && e.swingT == null) || !aimed || aimed.gone || aimed.downed)) e.mvThrown = null;   // (the launcher still playing holds it for the rise)
+    // (THE MP POOL, the moveset's `mp`: full at the start, back at `regen` a second; a special spends it, a blow landed
+    // adds `onHit`, stepMelee)
+    if (M.mp) e.mp = e.mp == null ? M.mp.max : Math.min(M.mp.max, e.mp + (M.mp.regen || 0) * dt);
     const edge = (k, prev) => { const on = !!input[k], was = !!e[prev]; e[prev] = on; return on && !was; };
     const lE = edge('fire', 'strikePrev'), hE = edge('heavy', 'heavyPrev'), sE = edge('special', 'specialPrev');
     // (BACK + HEAVY, `bH`: the heavy pressed with the stick pulled away from where the hero faces, against the lock's
@@ -607,7 +613,11 @@ export function buildCombatMelee(E) {
     // (back is away from the ENGAGED foe, locked on or not; with none, away from where the hero faces)
     const foe0 = hE ? mvFoe(e, world) : null;
     const back = ctx.moveH != null ? Math.cos(ctx.moveH - (foe0 ? headingTo(e, foe0) : t.heading)) < -0.5 : (input.forward || 0) < -0.5;
-    const beat0 = hE ? (back && (T0.bH || (S.node && S.node.next && S.node.next.bH)) ? 'bH' : 'H') : lE ? 'L' : sE ? 'S' : null;
+    const beat1 = hE ? (back && (T0.bH || (S.node && S.node.next && S.node.next.bH)) ? 'bH' : 'H') : lE ? 'L' : sE ? 'S' : null;
+    // (THE MODIFIER held, `mod` (the right trigger, left Ctrl): a face pressed with it is that face's SPECIAL, `mL` `mH`
+    // `mS`, where the tree has one; mS is the MP ability in the sidearm's place)
+    const mB = beat1 && beat1 !== 'bH' ? `m${beat1}` : beat1 === 'bH' ? 'mH' : null;
+    const beat0 = input.mod && mB && (T0[mB] || (S.node && S.node.next && S.node.next[mB])) ? mB : beat1;
     // (S is the sidearm's when the weapon carries one: stepWeapon takes it; a draw held refuses the blades)
     const beat = beat0 === 'S' && Wc && Wc.sidearm ? null : beat0;
     if (beat && drawing) { say(beat, 'dropped', 'drawing the bow'); S.buf = null; }
@@ -666,8 +676,11 @@ export function buildCombatMelee(E) {
         }
         else { say(b, 'dropped', airborne ? `no air move on ${b}` : `no move on ${b}`); S.buf = null; }
       }
+      // (a move that costs MP, the pool short: refused, said)
+      if (next && M.moves[next.move].mp > 0 && (e.mp ?? 0) < M.moves[next.move].mp - 1e-9) { say(b, 'dropped', `not enough MP (${Math.floor(e.mp ?? 0)} of ${M.moves[next.move].mp})`); S.buf = null; next = null; }
       if (next) {
         const mv = M.moves[next.move];
+        if (mv.mp > 0) e.mp -= mv.mp;
         if (boosting) { e.boostCut = true; boosting = false; }   // a strike out of the sprint cuts it
         // (a launcher, taken on back + heavy, turns to the foe it was pulled back from, never along the stick)
         const aimA = airborne && e.mvThrown != null && world && world.byId ? world.byId[e.mvThrown] : null;
@@ -677,9 +690,9 @@ export function buildCombatMelee(E) {
         // THE FOOTWORK (hero-swing-body.js moveClip): a move steps in only where there is room for all of its travel (a
         // body ahead nearer than that, it plays in place: its `_still` clip, no travel), so the feet its clip plants
         // stay planted on the floor; a figure with the move's own clips plays them, any other its swing's
-        const room = mv.travel ? mvRoom(e, world, fwdXY(t.heading)) : Infinity, travels = !!mv.travel && room >= mv.travel.m - 1e-9;
+        const room = mv.travel ? mvRoom(e, world, fwdXY(t.heading)) : Infinity, travels = !!mv.travel && (mv.travel.kind === 'dash' || room >= mv.travel.m - 1e-9);   // (a dash glides in, closing on what is ahead)
         e.swingT = 0; e.swingClip = r.moveClips && mv.clip ? (mv.travel && !travels ? `${mv.clip}_still` : mv.clip) : spec.clip;
-        e.strikeParams = { ...spec.params, ...(Wc && Wc.reach != null ? { reach: Wc.reach } : {}), damage: (r.strikeDamage ?? 0) * (Wc && Wc.damage != null ? Wc.damage : 1) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0, ...(mv.slam ? { slam: mv.slam } : {}) };
+        e.strikeParams = { ...spec.params, ...(Wc && Wc.reach != null ? { reach: Wc.reach } : {}), ...(mv.reach ? { reach: mv.reach } : {}), damage: (r.strikeDamage ?? 0) * (Wc && Wc.damage != null ? Wc.damage : 1) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0, ...(mv.slam ? { slam: mv.slam } : {}) };
         // (an air move's KICK, the air's stickiness: the climb or the fall stopped, the hero lifted a little as it begins, the
         // hang holding it there beside the foe it struck)
         if (mv.air && M.air && !e.grounded) e.vel[2] = M.air.kick;
@@ -692,7 +705,7 @@ export function buildCombatMelee(E) {
         if (mv.arc) P.cosCone = Math.cos(Math.min(180, mv.arc / 2) * Math.PI / 180);
         e.mvSpin = mv.spin ? { h0: t.heading, turns: mv.spin } : null;
         // (the travel waits out the blend into the move, at most half its way to the blow: hero-swing-body.js travelAt)
-        const tTo = mv.travel ? Math.max(0.05, mv.travel.kind === 'step' ? P.from : P.to) : 0;
+        const tTo = mv.travel ? Math.max(0.05, mv.travel.kind === 'step' || mv.travel.kind === 'dash' ? P.from : P.to) : 0;
         e.mvTravel = travels ? { dir: [fw[0], fw[1]], kind: mv.travel.kind, m: mv.travel.m, from: Math.min(mv.travel.wait || 0, tTo * 0.5), to: tTo, done: 0 } : null;
         S.k = how === 'an opener' || how === 'an air opener' ? 1 : S.k + 1;
         S.node = next; S.move = next.move;

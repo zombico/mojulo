@@ -39,7 +39,8 @@ export const copy = (o) => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinit
  *            the button is held, `frames` at most, `min` at least), jump (a jump in a ground dash is a DASH JUMP: it
  *            leaves at once and the air keeps the dash's speed), wall (a wall jump with the dash held kicks at its
  *            speed and keeps it), air ({ count, speed, frames }: the AIR DASH, gravity off, `count` an airtime, given
- *            back by landing and by a wall; null: none), cancel (out of a move's recovery)
+ *            back by landing and by a wall; null: none), cancel (out of a move's recovery), ground (false: the AIR DASH
+ *            alone, the dash's F on the ground left to the sprint and the dodge)
  *   moves    string: the moves a press chains through, each { take, startup, snap (load → contact, inside startup),
  *            active, recovery, wings { wind, after } (how far the wind-up and follow-through go from ready: the clip's,
  *            takes.mjs), lunge (m stepped through startup), finisher, force (over the card's) }; cancel ('none',
@@ -340,9 +341,11 @@ export function fighterCard(K) {
  * kind of game it echoes), needs (what it names that the lab has not built).
  */
 export const POLES = Object.freeze({
-  'fallen-angel': { demo: ['move', 'jump', 'air', 'attack', 'charge', 'dodge', 'dash', 'guard', 'lock', 'spar'], name: 'Fallen Angel', after: 'Devil May Cry', base: 'action', view: { camera: 'third-person', D: 5, h: 2.6 }, stage: 'courtyard',
+  'fallen-angel': { demo: ['move', 'jump', 'air', 'glide', 'attack', 'charge', 'dodge', 'dash', 'guard', 'lock', 'spar'], name: 'Fallen Angel', after: 'Devil May Cry', base: 'action', gear: 'glide', view: { camera: 'third-person', D: 5, h: 2.6 }, stage: 'courtyard',
     says: 'offense first: twitchy movement, long strings, a hard freeze on every blow, the launcher, the air; the guard and the parry there, but attack is the answer',
-    set: { ground: { walk: 2.2, run: 7, sprint: 9.5, accel: 60, decel: 80, turn: 1800 }, jump: { commit: 2, height: 1.5, hang: 6 }, air: { jumps: 1, mult: 0.85 }, hit: { hitstop: { base: 5, perMs: 0.7, max: 16 } }, look: { squash: 0.08, smear: 0.12 }, guard: { parry: 10 } },
+    // (the air is the stylish game's: a double jump, the AIR DASH on F in the air (the ground's F the sprint and the
+    // dodge), and the glide held once the air jumps are spent: jump, jump, hold)
+    set: { ground: { walk: 2.2, run: 7, sprint: 9.5, accel: 60, decel: 80, turn: 1800 }, jump: { commit: 2, height: 1.5, hang: 6 }, air: { jumps: 1, mult: 0.85 }, dash: { ground: false }, hit: { hitstop: { base: 5, perMs: 0.7, max: 16 } }, look: { squash: 0.08, smear: 0.12 }, guard: { parry: 10 } },
     needs: ['melee weapon switching (a moveset a weapon)', 'juggle physics (a floatier air hitstun, combo decay)', 'jump cancel'] },
   'ebon-spirits': { demo: ['move', 'sprint', 'attack', 'charge', 'dodge', 'guard', 'lock', 'spar'], name: 'Ebon Spirits', after: 'God of War, Dark Souls', base: 'realistic', view: { camera: 'shoulder', D: 3.8, h: 2.3, off: 0.55, pitch: 0.16 }, stage: 'ruins',
     says: 'offense and defense, leaning to defense: slower deliberate movement, committed blows with a short freeze, a roll with invincible frames, the lock-on, the parry and stamina',

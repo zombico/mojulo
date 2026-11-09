@@ -17,7 +17,10 @@
  *   cancel   the frame from which the next beat chains into the next move (absent: the move plays out; a finisher's)
  *   travel   how it covers ground: none (it stays in place), step (an advance before the blow: the lead foot, then the
  *            rear; at most 0.4 m), lunge (the lead foot driven out to land with the blow, the rear leg extending behind,
- *            then the rear foot recovering forward after it; at most 0.7 m, one stride); `m` metres
+ *            then the rear foot recovering forward after it; at most 0.7 m, one stride), dash (the body carried in a glide
+ *            to the blow, the feet held in the stance, closing on what is ahead: a special's, at most 4 m); `m` metres
+ *   mp       the MP it costs (a special's: the arsenal's `mp` pool; refused, said, when the pool is short)
+ *   reach    the metres its blow reaches, in place of the weapon's (a burst's, a shockwave's)
  *   damage   × the held weapon's; impact (the blow's shove: its hitstop grows with it), topple (knocks down), launch
  *   cooldown frames after it ends before it opens a string again (a heavy's: no spamming it); a press inside it is
  *            held when the wait is inside the buffer, else dropped and said
@@ -45,7 +48,7 @@
  * Pure.
  */
 export const ROLES = Object.freeze(['opener', 'filler', 'finisher', 'launcher']);
-export const TRAVEL = Object.freeze(['none', 'step', 'lunge']);
+export const TRAVEL = Object.freeze(['none', 'step', 'lunge', 'dash']);
 // THE SWORD ARTS (an arsenal's `art`: how its blades are swung, the clips baked in it; polygonizer/hero-swing-body.js
 // SWING_STYLES, docs/sword-arts.md): realistic (the game type's own swing, the default), inspired (real technique
 // performed for the camera), freestyle (the anime sword: anything goes)
@@ -53,8 +56,10 @@ export const ARTS = Object.freeze(['realistic', 'inspired', 'freestyle']);
 export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right', 'up', 'around']);
 /** the body strikes a move may play (hero-strike.js STRIKES, hero-box.js BOX_STRIKES): the fist's */
 export const STRIKES = Object.freeze(['jab', 'cross', 'hook', 'uppercut']);
-// (bH: back + heavy, the heavy pressed with the stick pulled away from where the hero faces: the launcher's beat)
-export const BEATS = Object.freeze(['L', 'H', 'S', 'bH', '.']);
+// (bH: back + heavy, the heavy pressed with the stick pulled away from where the hero faces: the launcher's beat; mL, mH,
+// mS: a face pressed with the MODIFIER held (the right trigger, left Ctrl): the specials, mS the MP ability in the
+// sidearm's place)
+export const BEATS = Object.freeze(['L', 'H', 'S', 'bH', 'mL', 'mH', 'mS', '.']);
 /** beats named and not yet played: a held press (a charge) and a mashed one */
 export const LATER_BEATS = Object.freeze({ 'L+': 'a held light', 'H+': 'a held heavy', 'L*': 'a mashed light', 'H*': 'a mashed heavy' });
 const FPS = 60;
@@ -102,7 +107,9 @@ export function readCombos(C) {
   for (const [id, m] of Object.entries(C.moves)) {
     const at = `moves.${id}`;
     if (!isObj(m)) no(`${at} is { swing | strike, role, frames, cancel?, contact?, travel?, damage?, impact?, topple?, launch?, cooldown? }`);
-    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch', 'cooldown', 'air', 'slam', 'rise', 'arc', 'spin'].includes(k)) no(`${at}.${k} is not part of a move`);
+    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch', 'cooldown', 'air', 'slam', 'rise', 'arc', 'spin', 'mp', 'reach'].includes(k)) no(`${at}.${k} is not part of a move`);
+    if (m.mp !== undefined && !num(m.mp, 0, 200)) no(`${at}.mp is the MP it costs, 0 to 200 (a move with none costs nothing)`);
+    if (m.reach !== undefined && !num(m.reach, 0.5, 8)) no(`${at}.reach is the metres its blow reaches, over the weapon's, 0.5 to 8`);
     if (m.arc !== undefined && !num(m.arc, 30, 360)) no(`${at}.arc is the degrees round the hero its blow reaches, 30 to 360 (360: all round, a spin attack's)`);
     if (m.spin !== undefined && !num(m.spin, 0, 3)) no(`${at}.spin is the turns the body makes through the blow, 0 to 3`);
     if (m.air !== undefined && typeof m.air !== 'boolean') no(`${at}.air is true (a move made in the air) or false`);
@@ -122,6 +129,8 @@ export function readCombos(C) {
       // (one stride: a step is an advance, the lead foot then the rear; a lunge the lead foot driven out, the rear recovering)
       if (m.travel.kind === 'step' && m.travel.m > 0.4) no(`${at}: a step covers at most 0.4 m (an advance: the lead foot, then the rear)`);
       if (m.travel.kind === 'lunge' && m.travel.m > 0.7) no(`${at}: a lunge covers at most 0.7 m (one stride, the lead foot driven out and the rear recovering)`);
+      // (a dash: the body carried in a glide, its feet held in the stance, a special's: a stinger's)
+      if (m.travel.kind === 'dash' && m.travel.m > 4) no(`${at}: a dash covers at most 4 m`);
     }
     for (const k of ['damage', 'impact']) if (m[k] !== undefined && !num(m[k], 0, 20)) no(`${at}.${k} is a number 0 to 20`);
     if (m.launch !== undefined && !num(m.launch, 0, 20)) no(`${at}.launch is the foe's speed up (m/s)`);
@@ -173,7 +182,7 @@ export function lowerCombos(C0, { prefix = '' } = {}) {
     damage: m.damage ?? 1, ...(m.impact != null ? { impact: m.impact } : {}), ...(m.topple ? { topple: true } : {}), ...(m.launch ? { launch: m.launch } : {}),
     ...(m.cooldown > 0 ? { cooldown: r4(m.cooldown / FPS) } : {}),
     ...(m.air ? { air: true } : {}), ...(m.slam > 0 ? { slam: m.slam } : {}), ...(m.rise ? { rise: true } : {}),
-    ...(m.arc ? { arc: m.arc } : {}), ...(m.spin ? { spin: m.spin } : {}),
+    ...(m.arc ? { arc: m.arc } : {}), ...(m.spin ? { spin: m.spin } : {}), ...(m.mp > 0 ? { mp: m.mp } : {}), ...(m.reach ? { reach: m.reach } : {}),
   }]));
   // (the ground's tree and the air's: a string made in the air opens from a jump or a launch, the ground's from the feet)
   const tree = {}, airTree = {};
@@ -236,8 +245,8 @@ export const BASIC_ARSENAL = Object.freeze({
  * THE TEMPLATES' KITS (a game template's starter arsenal: gameworld/feel/cards.js POLES; docs/sword-arts.md). What the
  * practice room settled on for each, so a game tuned toward the template starts from it:
  *   fallen-angel       the stylish game (Devil May Cry): the basic arsenal as it stands, the sword and the fist, their
- *                      strings, the launcher on back + heavy, the juggle and the air strings ending in a slam, the bow;
- *                      swung freestyle (the anime sword)
+ *                      strings, the launcher on back + heavy, the juggle and the air strings ending in a slam; its
+ *                      sidearm the two pistols; swung freestyle (the anime sword)
  *   fable-of-artesia   the action-adventure (Zelda): the sword and shield, deliberate (a press remembered longer, a string
  *                      that must play further before it chains, a longer rest after the finisher), no launcher, no juggle,
  *                      no air strings; back + heavy is the SPIN ATTACK, the blade swept all round the hero, the body turned
@@ -260,16 +269,45 @@ export const ARTESIA_ARSENAL = Object.freeze({
         // the SPIN ATTACK (back + heavy): the blade swept level all round, the body turned once through the blow, every foe
         // in reach struck once and knocked back (not up: there is no juggle here), a long cooldown
         spin: { swing: 'around', role: 'finisher', frames: 44, contact: [0.3, 0.72], arc: 360, spin: 1, damage: 1.5, impact: 3, cooldown: 50 },
+        // the SPECIALS (the modifier held, a face pressed): the leaping strike (an overhead carried in on a dash),
+        // the rising slash (the upswing knocking the foe down), and the MP ability in the bow's place, the fire burst (a
+        // ring of fire all round, a long reach, every foe in it knocked down)
+        'leap-strike': { swing: 'back', role: 'opener', frames: 36, contact: [0.44, 0.6], travel: { kind: 'dash', m: 2 }, damage: 2, impact: 2.5, cooldown: 40 },
+        'rising-slash': { swing: 'up', role: 'opener', frames: 34, contact: [0.34, 0.66], damage: 1.5, impact: 3, topple: true, cooldown: 40 },
+        'fire-burst': { swing: 'around', role: 'finisher', frames: 44, contact: [0.36, 0.7], arc: 360, reach: 4, damage: 3, impact: 4, topple: true, mp: 50, cooldown: 30 },
       },
       combos: [
         { id: 'three-cuts', name: 'Three cuts', beats: ['L', 'L', 'L'], moves: ['cut-1', 'cut-2', 'cleave'] },
         { id: 'thrust', name: 'Thrust', beats: ['H'], moves: ['thrust'] },
         { id: 'spin', name: 'Spin attack', beats: ['bH'], moves: ['spin'] },
+        { id: 'leap-strike', name: 'Leaping strike', beats: ['mL'], moves: ['leap-strike'] },
+        { id: 'rising-slash', name: 'Rising slash', beats: ['mH'], moves: ['rising-slash'] },
+        { id: 'fire-burst', name: 'Fire burst (MP)', beats: ['mS'], moves: ['fire-burst'] },
       ] },
   ],
   ranged: BASIC_ARSENAL.ranged,
+  // (the magic meter: 100, back at 4 a second, a spell's 50 every dozen seconds or so)
+  mp: { max: 100, regen: 4 },
 });
-export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle' });
+// (the sword's SPECIALS, the modifier held: the stinger (a thrust carried in on a long dash), the drive (an overhead
+// whose blow reaches far ahead), and the MP ability in the guns' place, the devil burst (a whirlwind, two turns, all round,
+// a long reach, every foe in it knocked down); the meter built by fighting: a blow landed fills it, it never refills alone)
+const FA_SPECIALS = {
+  moves: {
+    stinger: { swing: 'forward', role: 'opener', frames: 30, contact: [0.4, 0.62], travel: { kind: 'dash', m: 3.5 }, damage: 2, impact: 3, cooldown: 30 },
+    drive: { swing: 'back', role: 'opener', frames: 40, contact: [0.44, 0.6], arc: 50, reach: 5, damage: 2, impact: 2.5, cooldown: 40 },
+    'devil-burst': { swing: 'around', role: 'finisher', frames: 48, contact: [0.3, 0.75], arc: 360, spin: 2, reach: 3.2, damage: 3, impact: 4, topple: true, mp: 40, cooldown: 30 },
+  },
+  combos: [
+    { id: 'stinger', name: 'Stinger', beats: ['mL'], moves: ['stinger'] },
+    { id: 'drive', name: 'Drive', beats: ['mH'], moves: ['drive'] },
+    { id: 'devil-burst', name: 'Devil burst (MP)', beats: ['mS'], moves: ['devil-burst'] },
+  ],
+};
+// (its sidearm the stylish game's pistols: two guns, held they fire at their rate and never run dry, weak; every weapon's)
+export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle', mp: { max: 100, onHit: 4 },
+  weapons: BASIC_ARSENAL.weapons.map((W) => (W.id === 'sword' ? { ...W, moves: { ...W.moves, ...FA_SPECIALS.moves }, combos: [...W.combos, ...FA_SPECIALS.combos] } : W)),
+  ranged: [{ id: 'pistols', name: 'Pistols', mode: 'auto', rof: 9, damage: 0.4, impact: 3, range: 30, infinite: true, hand: 'right', dual: true }] });
 export const TEMPLATE_ARSENALS = Object.freeze({ 'fallen-angel': FALLEN_ANGEL_ARSENAL, 'fable-of-artesia': ARTESIA_ARSENAL });
 export function arsenalFor(feel) {
   const of = (id) => (typeof id === 'string' && TEMPLATE_ARSENALS[id] ? { template: id, arsenal: TEMPLATE_ARSENALS[id] } : null);
@@ -344,7 +382,9 @@ export function lowerJuggle(J0) {
 }
 export function readArsenal(A) {
   if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, sidearm?, reach?, damage?, moves, combos }], ranged?: [one sidearm] }');
-  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art)`);
+  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp)`);
+  // (the MP pool the specials draw on: `max`, `regen` a second, `onHit` gained for each blow that lands)
+  if (A.mp !== undefined && !(isObj(A.mp) && num(A.mp.max, 1, 1000) && (A.mp.regen === undefined || num(A.mp.regen, 0, 100)) && (A.mp.onHit === undefined || num(A.mp.onHit, 0, 100)) && Object.keys(A.mp).every((k) => ['max', 'regen', 'onHit'].includes(k)))) no('mp is { max, regen? (a second), onHit? (a blow landed) }');
   if (A.juggle !== undefined) readJuggle(A.juggle);
   if (A.art !== undefined && !ARTS.includes(A.art)) no(`art is how the blades are swung: ${ARTS.join(' | ')} (realistic the game type's own swing)`);
   if (A.ranged !== undefined && !Array.isArray(A.ranged)) no('ranged is a list of sidearms');
@@ -388,6 +428,6 @@ export function lowerArsenal(A0) {
     ...(guardOf(W) ? { guard: { clip: `mv_guard_${W.id}`, pose: guardOf(W), ...(guardOf(W) === 'shield' ? { prop: 'shield' } : {}) } } : {}),
     ...(sidOf(W) ? { sidearm: sideOf(sidOf(W)) } : {}),
     // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
-    moveset: { ...lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }), ...(A.juggle ? { air: lowerJuggle(A.juggle).air } : {}), ...(A.art && A.art !== 'realistic' ? { art: A.art } : {}) } }));
+    moveset: { ...lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }), ...(A.juggle ? { air: lowerJuggle(A.juggle).air } : {}), ...(A.art && A.art !== 'realistic' ? { art: A.art } : {}), ...(A.mp ? { mp: { max: A.mp.max, regen: A.mp.regen ?? 0, onHit: A.mp.onHit ?? 0 } } : {}) } }));
 }
 export const strikesOf = (A) => [...new Set(readArsenal(A).weapons.flatMap((W) => Object.values(W.moves).filter((m) => m.strike).map((m) => m.strike)))];
