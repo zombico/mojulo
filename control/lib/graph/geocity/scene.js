@@ -65,7 +65,7 @@ import { flowOf, flowLaws } from './flow.js';
 import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON, INDUSTRY_FINISHES, finishOf } from './industry.js';
 import { INDUSTRY_SEGMENTS } from './segments.js';
 import { HIGHWAY, deckAt } from './highways.js';
-import { WATERFRONT, WATERFRONT_PAINT, frameOf, waterfrontTemplates } from './waterfront.js';
+import { WATERFRONT, WATERFRONT_PAINT, frameOf, waterfrontTemplates, shoreAt } from './waterfront.js';
 import { rooftopTemplates, rooftopPlan, beaconsOf, BEACON } from './rooftop.js';
 import { assembleGeotownScene } from '../geotown/scene.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
@@ -891,6 +891,8 @@ export function assembleGeocityScene(m, ctx = {}) {
       const BV = W.boulevard, tc0 = BV ? BV.t1 : 0;
       // (a quad in the strip's frame: a0…a1 along, t0…t1 out, its height at each corner)
       const quad = (a0, a1, t0, t1, z, group, hex, want = null) => { const c = [[a0, t0], [a1, t0], [a1, t1], [a0, t1]].map(([a, t]) => [...P(a, t), z(a, t)]); put(c, group, hex, want); };
+      // (a strip of it whose edges follow a line out from the land's edge: t0(a) to t1(a), a natural shore's)
+      const quadT = (a0, a1, t0, t1, z, group, hex) => put([[a0, t0(a0)], [a1, t0(a1)], [a1, t1(a1)], [a0, t1(a0)]].map(([a, t]) => [...P(a, t), z(a, t)]), group, hex);
       const wall = (a0, a1, t, ztop, zbot, group, hex, facing = out) => put([[...P(a0, t), zbot], [...P(a1, t), zbot], [...P(a1, t), ztop(a1)], [...P(a0, t), ztop(a0)]], group, hex, facing);
       const cut = (a0, a1, step) => { const n = Math.max(1, Math.ceil((a1 - a0) / step)); return Array.from({ length: n }, (_, i) => [a0 + ((a1 - a0) * i) / n, a0 + ((a1 - a0) * (i + 1)) / n]); };
       const col2 = { quay: '#bdb7aa', deck: '#9b7d5a', prom: '#c8c2b4', sand: '#d9c9a0', pontoon: '#b9b3a6', wall: '#a8a49b', rip: '#8f8a80' };
@@ -917,19 +919,43 @@ export function assembleGeocityScene(m, ctx = {}) {
         // (a walker's box round each of its masses, but on the skyline, never walked)
         holder = E?.evoke === 'skyline' ? null : `wf-${W.side}-${k}`;
         const D = g.depth, te = D - PROM, mid = (g.a0 + g.a1) / 2, len = g.a1 - g.a0, R = streamOf(seed, 'waterfront', `${W.side}:${k}`);
-        const zAt = (a, t) => (t <= t0c ? zl(a) + KERB : t >= te ? zq(a) : zl(a) + KERB + ((zq(a) - zl(a) - KERB) * (t - t0c)) / (te - t0c));
+        // (its shore: a straight one at its depth, or its natural line, waterfront.js shoreAt; its promenade behind it)
+        const Sh = (a) => shoreAt(g, a), teA = (a) => Sh(a) - PROM, natural = !!g.shore;
+        const zAt = (a, t) => { const tE = natural ? teA(a) : te; return t <= t0c ? zl(a) + KERB : t >= tE ? zq(a) : zl(a) + KERB + ((zq(a) - zl(a) - KERB) * (t - t0c)) / (tE - t0c); };
         const at = (a, t, dz = 0) => [...P(a, t), zAt(a, t) + dz];
         const soft = g.kind === 'park' || g.kind === 'steps' || g.kind === 'beach';
         // its ground: paved (a quay's granite) or a lawn, falling to its promenade; its promenade along its edge
-        for (const [p, q] of cut(g.a0, g.a1, CELL)) {
+        // (a natural shore's ground in narrow strips along its line; the rest in cells)
+        const tb = natural ? Math.min(...cut(g.a0, g.a1, 8).flat().map(Sh)) - 40 : te - 30;
+        if (natural) for (const [p, q] of cut(g.a0, g.a1, 8)) {
+          if (g.kind === 'park') {
+            quadT(p, q, () => t0c, teA, zAt, 'geocity:park', col.park);
+            quadT(p, q, teA, Sh, (a) => zq(a), 'geocity:deck', col2.deck);
+          } else quadT(p, q, () => t0c, () => tb - 8, zAt, 'geocity:park', col.park);
+        }
+        if (!natural) for (const [p, q] of cut(g.a0, g.a1, CELL)) {
           quad(p, q, t0c, g.kind === 'beach' ? te - 38 : te, zAt, soft ? 'geocity:park' : 'geocity:quay', soft ? col.park : col2.quay);
           if (g.kind === 'marina') quad(p, q, t0c + 26, t0c + 54, (a, t) => zAt(a, t) + 0.02, 'geocity:lot', col.lot);
           if (g.kind !== 'beach') quad(p, q, te, D, (a) => zq(a), g.kind === 'park' || g.kind === 'steps' ? 'geocity:deck' : 'geocity:promenade', g.kind === 'park' || g.kind === 'steps' ? col2.deck : col2.prom);
         }
         // its edge down to the water, by its kind
         const zqA = (a) => zq(a);
-        if (g.kind === 'park') for (const [p, q] of cut(g.a0, g.a1, CELL)) quad(p, q, D, D + 7, (a, t) => (t <= D ? zq(a) : zw - 1.2), 'geocity:riprap', col2.rip);
-        else if (g.kind === 'beach') {
+        if (g.kind === 'park') for (const [p, q] of cut(g.a0, g.a1, natural ? 8 : CELL)) quadT(p, q, Sh, (a) => Sh(a) + 7, (a, t) => (t <= Sh(a) + 0.01 ? zq(a) : zw - 1.2), 'geocity:riprap', col2.rip);
+        else if (g.kind === 'beach' && natural) {
+          // (its crescent of sand from the boardwalk down to the water's line and on under it; the boardwalk behind it)
+          const zb = (a) => zAt(a, tb), zsand = (a, t) => zb(a) + ((zw + 0.25 - zb(a)) * (t - tb)) / Math.max(1, Sh(a) - tb);
+          for (const [p, q] of cut(g.a0, g.a1, 8)) {
+            quadT(p, q, () => tb, Sh, (a, t) => (t <= tb + 0.01 ? zb(a) : zw + 0.25), 'geocity:sand', col2.sand);
+            quadT(p, q, Sh, (a) => Sh(a) + 14, (a, t) => (t <= Sh(a) + 0.01 ? zw + 0.25 : zw - 1.25), 'geocity:sand', col2.sand);
+            quadT(p, q, () => tb - 8, () => tb, (a) => zb(a) + 0.45, 'geocity:deck', col2.deck);
+            wall(p, q, tb, (a) => zb(a) + 0.45, zb(p) - 0.1, 'geocity:deck', mix(col2.deck, '#000000', 0.3));
+          }
+          for (let a = g.a0 + 8; a <= g.a1 - 8; a += 9) for (let t = tb + 6; t <= Sh(a) - 8; t += 10) {
+            const z = zsand(a, t);
+            wfs('parasol', [...P(a, t), z], { tint: linC(WATERFRONT_PAINT.beach[Math.floor(R() * 2)]) });
+            if (R() < 0.7) wfs(`lounger`, [...P(a + 1.2, t + 0.6), z], { rotZ: r5(rotT), tint: linC(WATERFRONT_PAINT.lounger[Math.floor(R() * WATERFRONT_PAINT.lounger.length)]) });
+          }
+        } else if (g.kind === 'beach') {
           // (its sand from the boardwalk down to the water and on under it; a boardwalk behind it)
           for (const [p, q] of cut(g.a0, g.a1, CELL)) {
             quad(p, q, te - 30, D + 14, (a, t) => (t <= te - 30 ? zAt(a, te - 30) : t <= D ? zAt(a, te - 30) + ((zw + 0.25 - zAt(a, te - 30)) * (t - (te - 30))) / (D - (te - 30)) : zw + 0.25 - ((t - D) / 14) * 1.5), 'geocity:sand', col2.sand);
@@ -957,13 +983,13 @@ export function assembleGeocityScene(m, ctx = {}) {
         }
         // its promenade's lamps and benches facing the water; a railing where it drops (bollards on a quay instead)
         if (g.kind !== 'beach') {
-          for (let a = g.a0 + 12; a <= g.a1 - 6; a += 30) wfsKit(`lamp:${W.side}`, at(a, te + 1), 0);
-          for (let a = g.a0 + 20; a <= g.a1 - 10; a += 25) wfsKit(`bench:${W.side}`, at(a, D - 3), 0);
-          if (g.kind === 'dining' || g.kind === 'park') for (let a = g.a0; a + 3 <= g.a1; a += 3) wfs(`rail:${axA}`, at(a, D - 0.3));
+          for (let a = g.a0 + 12; a <= g.a1 - 6; a += 30) wfsKit(`lamp:${W.side}`, at(a, (natural ? teA(a) : te) + 1), 0);
+          for (let a = g.a0 + 20; a <= g.a1 - 10; a += 25) wfsKit(`bench:${W.side}`, at(a, (natural ? Sh(a) : D) - 3), 0);
+          if (g.kind === 'dining' || (g.kind === 'park' && !natural)) for (let a = g.a0; a + 3 <= g.a1; a += 3) wfs(`rail:${axA}`, at(a, D - 0.3));
           if (g.kind === 'quay' || g.kind === 'pier' || g.kind === 'marina') for (let a = g.a0 + 6; a <= g.a1 - 4; a += 15) wfs('bollard', at(a, D - 0.8));
         }
         // its content, by its kind
-        const trees = (t0, t1, every) => { for (let a = g.a0 + 8; a <= g.a1 - 8; a += every) for (let t = t0; t <= t1; t += every) { const j = (R() - 0.5) * every * 0.5; plant('dense', ...P(a + j, t + j * 0.5), zAt(a, t), `wf:${W.side}:${k}:${Math.round(a)}:${Math.round(t)}`); } };
+        const trees = (t0, t1, every) => { for (let a = g.a0 + 8; a <= g.a1 - 8; a += every) for (let t = t0; t <= t1; t += every) { if (natural && t > teA(a) - 6) continue; const j = (R() - 0.5) * every * 0.5; plant('dense', ...P(a + j, t + j * 0.5), zAt(a, t), `wf:${W.side}:${k}:${Math.round(a)}:${Math.round(t)}`); } };
         const pav = (a0, a1, t0, t1, h, wallHex, roofHex) => { const p = P(a0, t0), q = P(a1, t1), z = zAt((a0 + a1) / 2, (t0 + t1) / 2); box(Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), z, z + h, wallHex, roofHex, 'geocity:pavilion'); };
         // (along its boulevard a row of the waterfront's own buildings: condominiums and offices, shops facing the water)
         if (BV && (g.kind === 'quay' || g.kind === 'pier' || g.kind === 'dining')) {
@@ -1022,7 +1048,7 @@ export function assembleGeocityScene(m, ctx = {}) {
         }
         if (g.kind === 'park') { trees(t0c + 8, te - 6, 15); for (let a = g.a0 + 6; a <= g.a1 - 6; a += 6) quad(a, Math.min(a + 6, g.a1 - 6), (t0c + te) / 2 - 2, (t0c + te) / 2 + 2, (aa, t) => zAt(aa, t) + 0.03, 'geocity:promenade', col2.prom); }
         if (g.kind === 'steps') { trees(t0c + 8, te - 20, 18); for (let a = g.a0 + 6; a <= g.a1 - 6; a += 7) if (R() < 0.7) wfs('lounger', at(a, te - 6 - R() * 10), { rotZ: r5(rotT + Math.PI), tint: linC(WATERFRONT_PAINT.lounger[Math.floor(R() * WATERFRONT_PAINT.lounger.length)]) }); }
-        if (g.kind === 'beach') trees(t0c + 6, te - 42, 14);
+        if (g.kind === 'beach') trees(t0c + 6, natural ? tb - 12 : te - 42, 14);
         if (g.kind === 'marina') {
           // its clubhouse and its lot, its pontoons combed out into the water at the water's level, boats in their slips
           pav(mid - 14, mid + 14, t0c + 8, t0c + 22, 6, '#8a6a48', '#4a4f55');

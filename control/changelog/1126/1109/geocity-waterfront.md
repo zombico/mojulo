@@ -34,3 +34,9 @@
   `sand` on the dressed tiles' sand cut, its matter sand.
 - **Laws and readout.** A new law, `waterfront`: each shore met end to end, its ways of meeting the water more than
   one. The readout carries `waterfront`: each shore's segments, whether it has the boulevard, and the area reclaimed.
+- **Natural shores.** A beach's and a park's edge need not be straight (`shoreAt`, a segment's `shore`, on its own dice
+  so the strip's segments are the same whatever their shores). A beach is a crescent bay cut 25 to 60 m into the strip,
+  its sand following the water's line down into it, its parasols and loungers inside the curve, its boardwalk straight
+  behind. A park is a headland out into the water or a cove into it, its line wavering. Its timber boardwalk and its
+  rock revetment follow the curve, and its trees, lamps and benches keep to its side of it. Each is flush with its
+  straight depth at its ends, so it meets its neighbours as before. None comes closer than 60 m to the strip's back.

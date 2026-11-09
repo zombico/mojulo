@@ -8,8 +8,10 @@
  *   pier       the quay's plaza, and finger piers out over the water on piles, a pier shed or a restaurant on each, boats
  *              moored along them
  *   dining     restaurant pavilions along the promenade, their patios out front (tables under parasols), planters, a kiosk
- *   park       a lawn under trees, its paths, benches, the edge a rock revetment down into the water, a lookout
- *   beach      sand under pink parasols and loungers, a boardwalk behind it, the sand running down into the water
+ *   park       a lawn under trees, its paths, benches, the edge a rock revetment down into the water along a natural
+ *              shore (a headland out into the water or a cove into it), a timber boardwalk following it
+ *   beach      a crescent bay of sand under pink parasols and loungers, a boardwalk behind it, the sand running down
+ *              into the water
  *   marina     a clubhouse and its lot, pontoons combed out into the water at the water's level, boats in their slips
  *   steps      timber terraces stepping down to the water (to sit by it), a lawn and its trees behind, chairs on it
  *
@@ -21,6 +23,8 @@
  *                   height over the water, the segments' lengths and weights
  *   waterfrontOf(d) → [{ side, main, edge, a0, a1, boulevard?: { t0, t1, lanes }, segments: [{ kind, a0, a1, depth,
  *                   piers?: [{ a, w, len }] }] }]: each water side's strip, `t` metres out from the land's edge
+ *   shoreAt(g, a)   a segment's depth at a along it: its natural line where it has one (`shore`: a beach's crescent
+ *                   `bay`, a park's `headland` or `cove`, wavering), flush with its straight depth at its ends
  *   frameOf(W)      → { P(a, t) → [x, y], along: 'x' | 'y', out: [dx, dy] }: a strip's frame in the design's
  *   waterfrontTemplates(L) → { parasol, patio, lounger, bollard, rail: { x, y }, pile, planter, boat: { sail, motor,
  *                   ferry } each { x, y } }: its kit under the scene's light (a parasol's canopy and a lounger pale for a
@@ -38,7 +42,20 @@ export const WATERFRONT = Object.freeze({
   length: [150, 270],
   kinds: { main: { quay: 2, pier: 2, dining: 2, park: 2, beach: 1, marina: 1.5, steps: 1 }, other: { park: 3, beach: 2, steps: 1, marina: 1, dining: 1 } },
   pier: { w: [16, 22], len: [70, 130] }, marina: 90,
+  // a natural shore's reach (m): a beach's bay, a park's headland or cove; the least of the strip it leaves behind it
+  natural: { bay: [25, 60], headland: [12, 40], cove: [10, 32], least: 60 },
 });
+
+/** A segment's shore at a along it: its depth out from the land's edge, its natural line where it has one (flush with
+ *  its straight depth at its ends). */
+export function shoreAt(g, a) {
+  const N = g.shore;
+  if (!N) return g.depth;
+  const u = Math.min(1, Math.max(0, (a - g.a0) / (g.a1 - g.a0))), uu = u ** N.lean, taper = Math.sin(Math.PI * uu);
+  const wave = N.waves.reduce((s, [k, ph, amp]) => s + amp * Math.sin(2 * Math.PI * k * u + ph), 0) * taper;
+  const body = N.form === 'bay' ? -N.amp * taper ** 0.7 : N.form === 'headland' ? N.amp * taper ** 1.5 : -N.amp * taper ** 1.2;
+  return g.depth + body + wave;
+}
 export const WATERFRONT_KINDS = Object.freeze(['quay', 'pier', 'dining', 'park', 'beach', 'marina', 'steps']);
 
 /** A strip's frame: `a` along its shore, `t` out from the land's edge into the water. */
@@ -73,6 +90,15 @@ export function waterfrontOf(d) {
       if (kind === 'pier') {
         const n = len > 200 ? 2 : 1, P = WATERFRONT.pier;
         seg.piers = Array.from({ length: n }, (_, k) => ({ a: r2(a + (len * (k + 1)) / (n + 1)), w: r2(P.w[0] + (P.w[1] - P.w[0]) * R()), len: r2(P.len[0] + (P.len[1] - P.len[0]) * R()) }));
+      }
+      // (a beach's or a park's shore NATURAL, not straight: a beach a crescent bay cut into the strip, a park a headland
+      // out into the water or a cove into it, its line wavering; flush with its neighbours at its ends. Its own dice, so
+      // the strip's segments are the same whatever their shores)
+      if (kind === 'beach' || kind === 'park') {
+        const Q = streamOf(d.seed, 'shore', `${side}:${segments.length}`), room = depth - (isMain ? WATERFRONT.boulevard.t1 : 6) - WATERFRONT.natural.least;
+        const form = kind === 'beach' ? 'bay' : Q() < 0.5 ? 'headland' : 'cove', A = WATERFRONT.natural[form];
+        const amp = r2(Math.max(0, Math.min(room, A[0] + (A[1] - A[0]) * Q()))), waves = kind === 'park' ? [[2 + Math.floor(Q() * 3), r2(Q() * 6.28), r2(3 + Q() * 6)], [5 + Math.floor(Q() * 4), r2(Q() * 6.28), r2(1.5 + Q() * 3)]] : [[3, r2(Q() * 6.28), r2(1 + Q() * 2)]];
+        if (amp > 2) seg.shore = { form, amp, lean: r2(0.7 + Q() * 0.6), waves };
       }
       segments.push(seg);
       a += len; last = kind;

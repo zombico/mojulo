@@ -242,7 +242,8 @@ A cube that names no domains offers one per terrain and one per interior.
   its main shore a boulevard under the lakeshore expressway and a row of the waterfront's own buildings, then segments
   each its way of meeting the water (a quay's granite plaza, rink and moored tour boat; finger piers on piles with a shed
   or a restaurant and boats along them; a restaurant row's patios under parasols; a park's lawn, trees and rock
-  revetment; a beach's sand under pink parasols and loungers, a boardwalk behind; a marina's clubhouse, lot, pontoons and
+  revetment along a natural shore, a headland or a cove; a beach's crescent bay of sand under pink parasols and
+  loungers, a boardwalk behind; a marina's clubhouse, lot, pontoons and
   boats; timber steps down to the water), a promenade along its edge with lamps, benches and railings, the ground falling
   from the land's edge to the promenade a little over the water. Its details: an industrial hall glazed in a ribbon high
   on its walls and its offices a row of windows a storey; a transformer's can on every fourth wooden pole; on the flat
