@@ -4,7 +4,8 @@
  *
  * A MOVE is an attack primitive:
  *   swing    the runtime's swing it plays (worlds/controllable/combat-melee.js `swing_<dir>`, a held weapon's: neutral the
- *            hero's own cut, forward the thrust, back the two-handed cleave, left and right the rising cuts); or
+ *            hero's own cut, forward the thrust, back the two-handed cleave, left and right the rising cuts; up the
+ *            upswing, a move's only: straight up in front, a launcher's); or
  *   strike   a body's strike the hero's motion solves (hero-strike.js jab, cross; hero-box.js hook, uppercut), its clip
  *            baked on the figure by name (world-scene.js `moves`): the fist's
  *   contact  [from, to] the blow's window as shares of its length (absent: the swing's, where the hero was baked to land)
@@ -44,7 +45,7 @@
  */
 export const ROLES = Object.freeze(['opener', 'filler', 'finisher', 'launcher']);
 export const TRAVEL = Object.freeze(['none', 'step', 'lunge']);
-export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right']);
+export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right', 'up']);
 /** the body strikes a move may play (hero-strike.js STRIKES, hero-box.js BOX_STRIKES): the fist's */
 export const STRIKES = Object.freeze(['jab', 'cross', 'hook', 'uppercut']);
 // (bH: back + heavy, the heavy pressed with the stick pulled away from where the hero faces: the launcher's beat)
@@ -61,8 +62,10 @@ export const BASIC_COMBOS = Object.freeze({
     'cut-2': { swing: 'left', role: 'filler', frames: 24, cancel: 15, travel: { kind: 'step', m: 0.25 }, damage: 1 },
     cleave: { swing: 'back', role: 'finisher', frames: 44, travel: { kind: 'lunge', m: 0.5 }, damage: 2, impact: 3, topple: true },
     thrust: { swing: 'forward', role: 'opener', frames: 32, travel: { kind: 'lunge', m: 0.6 }, damage: 1.5, impact: 1.5, cooldown: 40 },
-    // the LAUNCHER (back + heavy): a rising cut throwing the foe up; the heavy held through it, the hero rises with it
-    launcher: { swing: 'right', role: 'launcher', frames: 36, damage: 1, launch: 9, rise: true, cooldown: 30 },
+    // the LAUNCHER (back + heavy): the upswing, straight up in front, a lunge in and its blade live from the floor to the
+    // sky (a long window, straight ahead: easy to land on a foe in front), throwing the foe up; the heavy held through
+    // it, the hero rises with it
+    launcher: { swing: 'up', role: 'launcher', frames: 36, contact: [0.34, 0.66], travel: { kind: 'lunge', m: 0.5 }, damage: 1, launch: 9, rise: true, cooldown: 30 },
     // the AIR STRING: two cuts in the air, the hero held aloft by each, and the overhead slam driving the foe down
     'air-1': { swing: 'neutral', role: 'opener', frames: 22, cancel: 13, damage: 1, air: true },
     'air-2': { swing: 'left', role: 'filler', frames: 22, cancel: 13, damage: 1, air: true },
@@ -201,7 +204,7 @@ export const BASIC_ARSENAL = Object.freeze({
         cross: { strike: 'cross', role: 'filler', frames: 26, cancel: 16, contact: [0.42, 0.52], travel: { kind: 'step', m: 0.2 }, damage: 1.2 },
         hook: { strike: 'hook', role: 'finisher', frames: 34, contact: [0.46, 0.58], travel: { kind: 'lunge', m: 0.35 }, damage: 2, impact: 2.5, topple: true },
         uppercut: { strike: 'uppercut', role: 'opener', frames: 32, contact: [0.64, 0.76], travel: { kind: 'step', m: 0.2 }, damage: 1.6, impact: 1.5, cooldown: 40 },
-        'rising-uppercut': { strike: 'uppercut', role: 'launcher', frames: 32, contact: [0.64, 0.76], damage: 1.4, launch: 8.5, rise: true, cooldown: 30 },
+        'rising-uppercut': { strike: 'uppercut', role: 'launcher', frames: 32, contact: [0.58, 0.8], travel: { kind: 'step', m: 0.25 }, damage: 1.4, launch: 8.5, rise: true, cooldown: 30 },
         'air-jab': { strike: 'jab', role: 'opener', frames: 20, cancel: 12, contact: [0.4, 0.5], damage: 1, air: true },
         'air-cross': { strike: 'cross', role: 'filler', frames: 24, cancel: 15, contact: [0.42, 0.52], damage: 1.2, air: true },
         'air-hammer': { strike: 'hook', role: 'finisher', frames: 32, contact: [0.46, 0.58], damage: 2, impact: 2.5, topple: true, slam: 14, air: true },

@@ -435,6 +435,25 @@ export function buildCombatMelee(E) {
   // held to the cancel however early; only a press with nothing to chain into ages out of the buffer. A dodge cancels
   // the live move. Absent: the
   // strike above, byte for byte.
+  // THE ENGAGED FOE: the lock's target, else the nearest live foe the body is engaged with (in its combat stance, the
+  // rule's `combat`: within its reach of a foe; a rule without one, within ENGAGE metres), else null
+  const ENGAGE = 4;
+  function mvFoe(e, world) {
+    const L = world && world.lock, tg = L && L.pilot === e.id && L.target != null && world.byId ? world.byId[L.target] : null;
+    if (tg && tg.transform) return tg;
+    const r = e.rule;
+    if (!world || !world.byId || e.team === 'foes' || (r.combat && !e.combat)) return null;
+    const R = r.combat ? (r.combat.far ?? ENGAGE) : ENGAGE, p = e.transform.pos;
+    let best = null, bd = R * R;
+    for (const id in world.byId) {
+      const x = world.byId[id];
+      if (x === e || x.team !== 'foes' || x.gone || x.downed || !x.transform || (x.body && x.body.hp <= 0)) continue;
+      const d = (x.transform.pos[0] - p[0]) ** 2 + (x.transform.pos[1] - p[1]) ** 2;
+      if (d < bd) { bd = d; best = x; }
+    }
+    return best;
+  }
+  const headingTo = (e, x) => Math.atan2(x.transform.pos[1] - e.transform.pos[1], x.transform.pos[0] - e.transform.pos[0]);
   function mvFacing(e, world, ctx) {
     const L = world && world.lock, tg = L && L.pilot === e.id && L.target != null && world.byId ? world.byId[L.target] : null;
     if (tg && tg.transform) return Math.atan2(tg.transform.pos[1] - e.transform.pos[1], tg.transform.pos[0] - e.transform.pos[0]);
@@ -576,7 +595,9 @@ export function buildCombatMelee(E) {
     // (BACK + HEAVY, `bH`: the heavy pressed with the stick pulled away from where the hero faces, against the lock's
     // facing as a stylish game reads it; a tree with no bH plays it as H)
     const airborne = !ctx.space && !e.grounded && (e.hoverGrace || 0) <= 0, T0 = airborne ? M.airTree || {} : M.tree;
-    const back = ctx.moveH != null ? Math.cos(ctx.moveH - t.heading) < -0.5 : (input.forward || 0) < -0.5;
+    // (back is away from the ENGAGED foe, locked on or not; with none, away from where the hero faces)
+    const foe0 = hE ? mvFoe(e, world) : null;
+    const back = ctx.moveH != null ? Math.cos(ctx.moveH - (foe0 ? headingTo(e, foe0) : t.heading)) < -0.5 : (input.forward || 0) < -0.5;
     const beat0 = hE ? (back && (T0.bH || (S.node && S.node.next && S.node.next.bH)) ? 'bH' : 'H') : lE ? 'L' : sE ? 'S' : null;
     // (S is the sidearm's when the weapon carries one: stepWeapon takes it; a draw held refuses the blades)
     const beat = beat0 === 'S' && Wc && Wc.sidearm ? null : beat0;
@@ -633,7 +654,8 @@ export function buildCombatMelee(E) {
       if (next) {
         const mv = M.moves[next.move];
         if (boosting) { e.boostCut = true; boosting = false; }   // a strike out of the sprint cuts it
-        const face = mvFacing(e, world, ctx);
+        // (a launcher, taken on back + heavy, turns to the foe it was pulled back from, never along the stick)
+        const foeB = b === 'bH' ? mvFoe(e, world) : null, face = foeB ? headingTo(e, foeB) : mvFacing(e, world, ctx);
         if (face != null) t.heading = face;
         const spec = meleeSwingSpec(r, r, mv.swing, false);
         // THE FOOTWORK (hero-swing-body.js moveClip): a move steps in only where there is room for all of its travel (a

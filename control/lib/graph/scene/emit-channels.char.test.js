@@ -526,6 +526,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // runtime. The moveset reads back + heavy, an air tree, a rise and the air's hang and kick; a combo's juggle may recover
 // in the air; a rise is not cut by the jump's release. All of it reads a moveset or a combo's `recover` no fixture
 // names, so the runtime they embed changed, their worlds as they were.
+// Re-pinned 2026-11-09 (1108-practice-room: a launcher easy to land): the 16 fixtures that embed the controllable
+// runtime, and `court`, `turns` and `pitch`, which inline the swing system (hero-swing.js). The swing system gains a verb
+// (`upswing`, a moveset's `up` swing only) and the runtime reads back against the engaged foe and holds a moveset move's
+// facing; no fixture names a moveset, and no contest swings the new verb, so the sources they carry changed, their play
+// as it was.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

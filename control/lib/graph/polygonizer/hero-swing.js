@@ -21,10 +21,10 @@
 
 // the contest's verbs (battle city, contest/hit.js): the forehand and the backhand level across the body, the bat two-handed
 // and level; an overhead serve or spike would lift the elbow over the head, which the law below forbids, so none is here
-export const SWING_WORDS = Object.freeze(['chop', 'thrust', 'rising', 'cleave', 'bash', 'plant', 'forehand', 'backhand', 'bat']);
+export const SWING_WORDS = Object.freeze(['chop', 'thrust', 'rising', 'cleave', 'bash', 'plant', 'forehand', 'backhand', 'bat', 'upswing']);
 export const isSwing = (g) => typeof g === 'string' && SWING_WORDS.includes(g);
 /** the hand each verb swings with (its gear slot) */
-export const SWING_HAND = Object.freeze({ chop: 'right', thrust: 'right', rising: 'right', cleave: 'right', bash: 'left', plant: 'right', forehand: 'right', backhand: 'right', bat: 'right' });
+export const SWING_HAND = Object.freeze({ chop: 'right', thrust: 'right', rising: 'right', cleave: 'right', bash: 'left', plant: 'right', forehand: 'right', backhand: 'right', bat: 'right', upswing: 'right' });
 
 const READY = { support: 'both', crouch: 0.1, shR: { yaw: 4, pitch: 40, roll: 0 }, elbowR: 40, shL: { yaw: -6, pitch: 20, roll: 0 }, elbowL: 50, shoulders: 0, head: { pitch: -6 } };
 const pose = (o) => ({ ...READY, ...o });
@@ -57,6 +57,16 @@ const VERBS = {
     strike: { crouch: 0.12, shR: { yaw: -20, pitch: 96, roll: 0 }, elbowR: 16, shoulders: -18, spine: { twist: ['right', 0.25], arch: 0.1 } },
     follow: { crouch: 0.1, shR: { yaw: -34, pitch: 98, roll: 0 }, elbowR: 30, shoulders: -24, spine: { twist: ['right', 0.35], arch: 0.15 }, head: { pitch: -2 } },
     recover: { crouch: 0.1, shR: { yaw: -10, pitch: 70, roll: 0 }, elbowR: 32, shoulders: -8 },
+  },
+  // THE UPSWING (a launcher's): straight up in front. The body sinks over the blade, the arm low by the right thigh with
+  // the blade trailing near the floor; then the legs drive up as the arm rises along the centreline, the blade swept from
+  // the floor to the sky in front of the chest, the elbow under the shoulder line (the law: never over the head)
+  upswing: {
+    coil: { crouch: 0.14, shR: { yaw: 8, pitch: 12, roll: 0 }, elbowR: 30, shoulders: 6, spine: { curl: 0.1 }, hinge: 10 },
+    cock: { crouch: 0.18, shR: { yaw: 10, pitch: 14, roll: 0 }, elbowR: 18, shoulders: 10, spine: { curl: 0.16 }, hinge: 16, head: { pitch: 6 } },
+    strike: { crouch: 0.08, shR: { yaw: 4, pitch: 92, roll: 0 }, elbowR: 14, shoulders: -6, spine: { arch: 0.12 }, head: { pitch: -6 } },
+    follow: { crouch: 0.04, shR: { yaw: 2, pitch: 104, roll: 0 }, elbowR: 22, shoulders: -10, spine: { arch: 0.16 }, head: { pitch: -10 } },
+    recover: { crouch: 0.08, shR: { yaw: 4, pitch: 70, roll: 0 }, elbowR: 30, shoulders: -4 },
   },
   // two hands: the off hand tracks the sword hand's pitch and yaws hard inboard, so the fists meet on the centreline
   // the sword hand keeps the chop's low-elbow cock; the off hand comes up under it as far as its own low elbow lets it
@@ -202,6 +212,9 @@ export function swingTiming(cls, flavor) {
  * thrust forward, the cleave back (the runtime's topple), the rising diagonal to either side.
  */
 export const HELD_SWINGS = Object.freeze({ neutral: null, forward: 'thrust', back: 'cleave', left: 'rising', right: 'rising' });
+/** A moveset's swings (gameworld/combos.js SWINGS): the held swings and `up`, the launcher's upswing straight up in front,
+ * baked only as a move's own clip (world-kinds.js moveClip), never a held strike's */
+export const MOVE_SWINGS = Object.freeze({ ...HELD_SWINGS, up: 'upswing' });
 /** the held strike's numbers by class: its seconds a swing (the runtime's strikeDur), its damage (hits, as the runtime's
  * conformance counts them) */
 export const HELD_STRIKE = Object.freeze({ light: { seconds: 0.35, damage: 1 }, normal: { seconds: 0.5, damage: 2 }, heavy: { seconds: 0.72, damage: 3 } });

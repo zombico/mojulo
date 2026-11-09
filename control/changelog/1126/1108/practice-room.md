@@ -213,3 +213,12 @@
   its HUD (in the air, recovering, slammed, knocked down, the stun left, the blows). Checked headless in the room:
   launch, rise, three air blows, slam, knockdown, getup; and a launch left alone recovering on its feet. The air moves
   play the ground swings' clips (no air pose yet), and the recovery flip is the body's tumble.
+- **A launcher easy to land, locked on or not.** The sword's launcher was the side rising cut, its blow yawed off to the
+  right and live for three frames: hard to hit. It is now its own swing, `up` (a moveset's only, baked as the move's
+  clip: hero-swing.js `upswing`, the body sunk over the blade trailing by the floor, then driven up as the blade sweeps
+  straight up in front, the elbow under the shoulder line), straight ahead, lunging half a metre in, its blade live a
+  third of the move. The fist's rising uppercut opens its window the same way. Back + heavy reads back against the
+  ENGAGED foe (the lock's target, else the nearest foe the hero's combat stance has engaged, within 4 m on a rule with
+  none), not against where the hero faces: pulling the stick back with no lock turns the hero away, and the press still
+  launches, the hero turned back to the foe. A moveset's move now holds the facing it was taken at while it plays, the
+  stick turning the body again once it ends.

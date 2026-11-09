@@ -61,7 +61,7 @@ import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, chara
 import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds, STRUCTURED_SWING_BASE } from '@/lib/graph/polygonizer/hero-gesture';
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
-import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
+import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, MOVE_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { swingBody, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip, carryArm, carryClip } from '@/lib/graph/polygonizer/hero-swing-body';
 const CARRY_GAITS = ['walk', 'jog', 'sprint', 'run', 'strafe'];   // (the gaits a drawn blade is carried through)
 import { heroStrike } from '@/lib/graph/polygonizer/hero-strike';
@@ -993,7 +993,7 @@ export const WORLD_KINDS = {
           // a travelling move steps, hero-swing-body.js moveClip), and `_still`, the same move in place
           if (Array.isArray(ctx.swings.moves)) {
             // (the world's game type: its timing, and the action type's wider body: hero-swing-body.js SWING_STYLES)
-            const mc = { R, cls, base, grip, own, body: !!ctx.swings.body, style: ctx.swing === 'action' ? 'action' : null, timing: ctx.swing ? swingTiming(cls, ctx.swing) : null, contact: ctx.swings.contact, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS };
+            const mc = { R, cls, base, grip, own, body: !!ctx.swings.body, style: ctx.swing === 'action' ? 'action' : null, timing: ctx.swing ? swingTiming(cls, ctx.swing) : null, contact: ctx.swings.contact, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS: MOVE_SWINGS };
             // (and the fighting stance the moves start and end in, the hero's idle in combat: the swing's ready key, whole)
             for (const rd of ctx.swings.readies ?? [{ clip: 'mv_ready' }]) if (!rd.strike) swings[rd.clip] = readyClip(mc);
             for (const mv of ctx.swings.moves) {

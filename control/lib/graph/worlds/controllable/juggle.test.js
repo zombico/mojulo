@@ -9,13 +9,13 @@ import { BASIC_ARSENAL, BASIC_COMBOS, readCombos, lowerCombos, lowerArsenal, low
 const CW = composeLive();
 const copy = (o) => JSON.parse(JSON.stringify(o));
 const J = lowerJuggle(BASIC_ARSENAL.juggle);
-const world = () => {
+const world = ({ rule = {}, at = 1.3 } = {}) => {
   const W = lowerArsenal(BASIC_ARSENAL);
   const w = CW.createWorld({ entities: [
-    { id: 'p', rule: { type: 'platform', eye: 0, speed: 5, airControl: 0.4, jumpSpeed: 8.17, gravity: 22, fallGravity: 32, jumpCut: 6, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeContact: [0.44, 0.52], weapons: W, moveset: W[0].moveset },
+    { id: 'p', rule: { type: 'platform', eye: 0, speed: 5, airControl: 0.4, jumpSpeed: 8.17, gravity: 22, fallGravity: 32, jumpCut: 6, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeContact: [0.44, 0.52], weapons: W, moveset: W[0].moveset, ...rule },
       body: { type: 'box', size: [0.6, 0.6, 1.8], hittable: true, hp: 100, poise: 10, radius: 0.35 }, transform: { pos: [0, 0, 0], heading: 0 } },
     { id: 'f', team: 'foes', body: { type: 'box', size: [0.6, 0.6, 1.8], hittable: true, hp: 1000, poise: 2, radius: 0.35, egg: { a: 0.35, c: 0.94, cz: 0.94 }, combo: J.combo },
-      rule: { type: 'static' }, transform: { pos: [1.3, 0, 0], heading: Math.PI } },
+      rule: { type: 'static' }, transform: { pos: [at, 0, 0], heading: Math.PI } },
   ] });
   const p = w.byId.p, f = w.byId.f, log = [], hooks = { ground: () => 0 };
   let seq = 0;
@@ -55,6 +55,30 @@ describe('the launcher and the air string', () => {
     const B = world();
     launch(B, 3);
     expect(B.log[0]).toMatch(/bH taken: an opener: launcher/);
+  });
+
+  it('back is away from the engaged foe, locked on or not: the stick pulled back turns the hero away, and back + heavy still launches, turned to the foe', () => {
+    // (world movement: the stick is where the body goes, so pulling back faces the hero away from the foe before the press)
+    const A = world({ rule: { move: 'world', moveYaw: 0 } });
+    A.run(() => ({ forward: -1 }), 9);
+    expect(Math.cos(A.p.transform.heading)).toBeLessThan(0);
+    A.run((i) => ({ forward: -1, heavy: i < 3 ? 1 : 0 }), 3);
+    expect(A.log[0]).toMatch(/bH taken: an opener: launcher/);
+    expect(Math.cos(A.p.transform.heading)).toBeGreaterThan(0.99);
+    A.run(() => ({}), 20);
+    expect(A.f.juggle).toBeTruthy();
+    // no foe engaged (one 10 m off): back is the hero's own, so the stick back faces it away and heavy is the thrust
+    const B = world({ rule: { move: 'world', moveYaw: 0 }, at: 10 });
+    B.run(() => ({ forward: -1 }), 12);
+    B.run((i) => ({ forward: -1, heavy: i < 3 ? 1 : 0 }), 3);
+    expect(B.log[0]).toMatch(/H taken: an opener: thrust/);
+  });
+
+  it('the launcher is the upswing straight ahead, a lunge in and a long window: a foe at the edge of reach is thrown up', () => {
+    const A = world({ at: 2.1 });
+    launch(A, 3);
+    A.run(() => ({}), 30);
+    expect(A.f.juggle).toBeTruthy();
   });
 
   it('held through the launch the hero rises with the foe; L L L in the air keeps it up, each blow buying less stun; the slam knocks it down', () => {

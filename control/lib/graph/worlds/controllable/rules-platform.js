@@ -139,7 +139,8 @@ export function buildRulesPlatform(E) {
       }
       wmMag = Math.min(1, Math.hypot(wmX, wmY));
       turnAmt = 0;
-      if (wmMag > 1e-3) {
+      // (a moveset's move, committed, holds the facing it was taken at: the stick turns the body again once it ends)
+      if (wmMag > 1e-3 && !(r.moveset && e.swingT != null)) {
         const d = ((Math.atan2(wmY, wmX) - t.heading + Math.PI) % TAU + TAU) % TAU - Math.PI, mx = (r.faceRate ?? 12) * dt;
         turnAmt = clamp(d, -mx, mx);
         t.heading = (t.heading + turnAmt) % TAU;
