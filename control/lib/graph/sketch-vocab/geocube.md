@@ -217,7 +217,11 @@ A cube that names no domains offers one per terrain and one per interior.
   ring (the core's towers, the frame's mid-rise, the outskirts at four storeys and lower, a geotown's own blocks), a
   park in each, secondary nodes on the spine, mid-rise lining the arterials; its land falling to its water (a shore,
   or water all round: an island). Built as massing: every block's buildings by its segment on terraces that keep the
-  streets' grade, lit windows past dusk. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
+  streets' grade, lit windows past dusk; near a person's eye (a camera near the ground) its walls dressed at street
+  level (geocity/frontage.js): windows in frames on every storey, storefronts with their signs and awnings on its
+  shopping streets (arterials and collectors in the core and the frame, main streets, avenues), apartment entries on its
+  residential streets, an office's lobby among shops, balconies on some, a cornice; an evocation's detailed facades
+  their ground floors dressed the same. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
   streets?, segments?, roads?, grammar?, outskirts?, evoke?, at?, along?, play?, profile?, slope? }`: `profile` its streets laid
   as a hill town lays them (`true` or `{ walkable, curve }`: the arterials' crossings level, each block between graded on
   one ramp, the land's edges and its shore kept; each neighbourhood's collectors and locals the same inside it; its

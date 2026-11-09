@@ -236,3 +236,21 @@ describe('the geocity read in the form render', () => {
   });
 });
 
+
+describe('the metro at a person\'s height: its frontage', () => {
+  it('dresses the walls near its street-level eyes (storefronts, entries, windows), the skyline none', async () => {
+    const { assembleGeocityScene: A } = await import('./scene.js');
+    const { designGeocity: Dg } = await import('./design.js');
+    const at = Dg({}, { seed: 2 }).regions.find((r) => r.ring === 'outskirts' && !r.park).id;
+    const p = A({ kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, geocity: { evoke: 'neighbourhood', at } });
+    const fr = p.repeats.filter((r) => r.group.startsWith('geocity:front-'));
+    expect(p.geocity.counts.fronts).toBeGreaterThan(20);
+    for (const g of ['geocity:front-shop-sign', 'geocity:front-entry-door', 'geocity:front-band-band']) expect(fr.some((r) => r.group === g)).toBe(true);
+    expect(fr.some((r) => r.group.startsWith('geocity:front-win-unit'))).toBe(true);
+    expect(fr.reduce((a, r) => a + r.transforms.length, 0)).toBe(p.geocity.counts.frontPieces);
+    // (every piece near an eye, drawn near the camera)
+    expect(fr.every((r) => r.near > 0)).toBe(true);
+    const sky = A({ kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, geocity: { evoke: 'skyline' } });
+    expect((sky.repeats ?? []).some((r) => r.group.startsWith('geocity:front-'))).toBe(false);
+  });
+});

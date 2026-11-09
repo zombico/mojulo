@@ -58,6 +58,7 @@ import { nightFaces } from '../city/plan/night.js';
 import { ORGANIC_SHAPES } from '../city/plan/organic.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { kitTemplates } from './kit.js';
+import { frontageTemplates, frontsOf, wallsOf } from './frontage.js';
 import { assembleGeotownScene } from '../geotown/scene.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
@@ -122,6 +123,19 @@ export const TOWN_SEAM = Object.freeze({ probe: 0.6, tol: 0.3 });
 const STREET_LEVEL = /^geotown:(road|walk|verge|furnish|lane|margin)$/;
 // kerb (the metro's stride, fractal-city.js METRO_LAMP_STEP), a streetcar's poles every POLE
 const NEAR = 320, LAMP = 31, POLE = 35;
+// the frontage's eyes: the cameras within this many metres of the ground (a person's, not a bird's)
+const FRONT_EYE = 25;
+// (a detailed lot's ground floor stood this proud of its facade's plane, before its piers)
+const FRONT_PROUD = 0.35;
+// the frontage's paints: a building's window frames and balcony rails, its shops' frames, signs and awnings, its doors
+const FRONT_PAINT = Object.freeze({
+  frame: ['#efe9dd', '#e4ddcf', '#f4f1ea', '#d2c8b4', '#8a8f94', '#4a5547'],
+  shop: ['#1f3a2c', '#262626', '#5b1f24', '#6b4a2e', '#1e2f4a', '#ece6d8', '#3d5a4a'],
+  sign: ['#b8322a', '#f2c14e', '#2c5f8a', '#1d1d1d', '#ece6d8', '#3c7a4f', '#8a3d6b', '#d9792b'],
+  awning: ['#9c2b27', '#245b3a', '#1f3f6a', '#d9cfb8', '#2b2b2b', '#c46a2b', '#6a2c4f'],
+  door: ['#5a3a22', '#1f1f1f', '#7d2a24', '#22384f', '#2f4a33', '#6e6a62'],
+  rail: ['#2b2b2b', '#e8e4dc', '#3a3f45'],
+});
 // the furniture's strides (m): a hydrant, a bench and its bike rings, a residential street's hydro poles
 const HYDRANT = 90, BENCH = 70, HYDRO = 38;
 // the ground and the masses in their material words (era/arch-style.js MATERIAL_WORDS), laid as tiles (texel × light):
@@ -222,6 +236,9 @@ export function assembleGeocityScene(m, ctx = {}) {
   };
   // the street's kit stamped where it stands: each template's transforms, drawn near the camera only
   const KIT = kitTemplates(LIGHT, { gauge: d.metro.roads.streetcar.gauge }), stamps = new Map();
+  // THE FRONTAGE (frontage.js): each building's walls as the street sees them, recorded as it is laid (its boxes, its
+  // storeys, its use, the walls inside it), dressed once the cameras say which are near a person's eye
+  const fronts = [], frontOf = (b, q, z0, storeys, floorH, use, { skip = [], only = null, ground = false, house = null } = {}) => { if (storeys >= 1) fronts.push({ b, q, z0, storeys: Math.round(storeys), floorH, use, skip, only, ground, house }); };
   const stamp = (key, pos, rotZ, scale = null) => { if (!stamps.has(key)) stamps.set(key, []); stamps.get(key).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}), ...(scale ? { scale } : {}) }); };
   const templateOf = (key) => { const [k, f] = key.split(':'); return f ? KIT[k][f] : KIT[k]; };
   // a site's machines (SITE above): the crane drawn within its district's reach of the camera, the machines inside its
@@ -618,7 +635,9 @@ export function assembleGeocityScene(m, ctx = {}) {
     const inset = (share) => { const e = ((w + h) - Math.sqrt((w + h) ** 2 - 4 * w * h * (1 - share))) / 4; return [x0 + e, y0 + e, x1 - e, y1 - e]; };
     // the face it fronts: an arterial's side first, else its south
     const fs = ['s', 'n', 'w', 'e'].find((k) => b.sides[k]?.kind === 'arterial') ?? 's', front = { n: '+y', s: '-y', e: '+x', w: '-x' }[fs];
-    const lot = (id, [a0, b0, a1, b1], z0, floors, floorH, skin, use, extra = {}) => lots.push({ id, x0: a0, y0: b0, x1: a1, y1: b1, z0, h: floors * floorH, floors, floorH, skin, use, front, shopfront: use !== 'residential', ...extra });
+    // (a lot's ground floor the frontage's, its storefronts, lobby or entries; its storeys over it the facade's; a tower's
+    // shaft its lobby among shops where it meets the walk)
+    const lot = (id, [a0, b0, a1, b1], z0, floors, floorH, skin, use, { skip = [], ...extra } = {}) => { lots.push({ id, x0: a0, y0: b0, x1: a1, y1: b1, z0, h: floors * floorH, floors, floorH, skin, use, front, shopfront: use !== 'residential', ...extra }); frontOf(b, [a0, b0, a1, b1], z0, floors, floorH, use === 'office' ? 'office' : use === 'mixed' ? 'mixed' : 'residential', { ground: true, skip }); };
     if (b.kind === 'tower') {
       lot(`${b.id}:podium`, inset(0.62), zc, b.podium, office, 'stone', 'mixed');
       b.towers.forEach((t, k) => {
@@ -630,7 +649,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     else if (b.kind === 'midrise') {
       const dp = Math.min(14, w / 3, h / 3);
       put([[x0 + dp, y0 + dp, zc + 0.02], [x1 - dp, y0 + dp, zc + 0.02], [x1 - dp, y1 - dp, zc + 0.02], [x0 + dp, y1 - dp, zc + 0.02]], 'geocity:court', col.court);
-      [[x0, y0, x1, y0 + dp], [x0, y1 - dp, x1, y1], [x0, y0 + dp, x0 + dp, y1 - dp], [x1 - dp, y0 + dp, x1, y1 - dp]].forEach((q, k) => lot(`${b.id}:m${k}`, q, zc, Math.max(1, Math.round(med)), resid, 'brick', 'residential'));
+      const inner = [['n'], ['s'], ['e', 's', 'n'], ['w', 's', 'n']];
+      [[x0, y0, x1, y0 + dp], [x0, y1 - dp, x1, y1], [x0, y0 + dp, x0 + dp, y1 - dp], [x1 - dp, y0 + dp, x1, y1 - dp]].forEach((q, k) => lot(`${b.id}:m${k}`, q, zc, Math.max(1, Math.round(med)), resid, 'brick', 'residential', { skip: inner[k] }));
     } else if (b.kind === 'slab') {
       const long = Math.max(w, h) * 0.72, dp = Math.min(15, Math.min(w, h) * 0.35), longY = h >= w;
       lot(`${b.id}:slab`, longY ? [cx - dp / 2, cy - long / 2, cx + dp / 2, cy + long / 2] : [cx - long / 2, cy - dp / 2, cx + long / 2, cy + dp / 2], zc, Math.max(1, Math.round(med)), resid, 'stone', 'residential');
@@ -647,10 +667,13 @@ export function assembleGeocityScene(m, ctx = {}) {
       const [g, frame] = famOf(glass, b.id), pod = inset(0.62), zp = zc + b.podium * office, [, ston] = famOf(stone, b.id);
       box(pod[0], pod[1], pod[2], pod[3], zc, zp, ston, roofs[strHash(b.id) % roofs.length], 'geocity:podium');
       lights(pod[0], pod[1], pod[2], pod[3], zc, zp, office, Rb);
+      frontOf(b, pod, zc, b.podium, office, 'mixed');
       for (const t of b.towers) {
         const [a0, b0, a1, b1] = t.rect, z0 = zAt((a0 + a1) / 2, (b0 + b1) / 2), z1 = z0 + t.storeys * office;
         const glassy = Rb() < G.skin.towerGlass;
         box(a0, b0, a1, b1, z0, z1, glassy ? g : frame, frame, 'geocity:tower');
+        // (its shaft's ground floor where it meets the walk: a lobby among shops; its shaft over it the tower's skin)
+        frontOf(b, t.rect, z0, t.storeys, office, 'office', { ground: true });
         // (a glass tower's walls take the sun's sheen)
         if (glassy) for (const f of faces.slice(-4)) f.spec = GLASS_SPEC;
         lights(a0, b0, a1, b1, z0, z1, office, Rb);
@@ -660,6 +683,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       const q = inset(0.8), [, ston] = famOf(stone, b.id), z1 = zc + med * office;
       box(q[0], q[1], q[2], q[3], zc, z1, ston, roofs[strHash(b.id) % roofs.length], 'geocity:podium');
       lights(q[0], q[1], q[2], q[3], zc, z1, office, Rb);
+      frontOf(b, q, zc, med, office, 'office');
     } else if (b.kind === 'square') {
       const e = Math.min(w, h) * 0.18;
       put([[x0 + e, y0 + e, zc + 0.02], [x1 - e, y0 + e, zc + 0.02], [x1 - e, y1 - e, zc + 0.02], [x0 + e, y1 - e, zc + 0.02]], 'geocity:planting', col.court);
@@ -667,10 +691,13 @@ export function assembleGeocityScene(m, ctx = {}) {
     } else if (b.kind === 'midrise') {
       const dp = Math.min(14, w / 3, h / 3), [, br] = famOf(brick, b.id), roof = roofs[strHash(b.id) % roofs.length], z1 = zc + med * resid;
       put([[x0 + dp, y0 + dp, zc + 0.02], [x1 - dp, y0 + dp, zc + 0.02], [x1 - dp, y1 - dp, zc + 0.02], [x0 + dp, y1 - dp, zc + 0.02]], 'geocity:court', col.court);
-      for (const q of [[x0, y0, x1, y0 + dp], [x0, y1 - dp, x1, y1], [x0, y0 + dp, x0 + dp, y1 - dp], [x1 - dp, y0 + dp, x1, y1 - dp]]) {
+      // (its four wings round its court: each wing's walls on the court and at its joins inside it)
+      const inner = [['n'], ['s'], ['e', 's', 'n'], ['w', 's', 'n']];
+      [[x0, y0, x1, y0 + dp], [x0, y1 - dp, x1, y1], [x0, y0 + dp, x0 + dp, y1 - dp], [x1 - dp, y0 + dp, x1, y1 - dp]].forEach((q, k) => {
         box(q[0], q[1], q[2], q[3], zc, z1, br, roof, 'geocity:midrise');
         lights(q[0], q[1], q[2], q[3], zc, z1, resid, Rb);
-      }
+        frontOf(b, q, zc, med, resid, 'residential', { skip: inner[k] });
+      });
     } else if (b.kind === 'slab') {
       const long = Math.max(w, h) * 0.72, dp = Math.min(15, Math.min(w, h) * 0.35), [, ston] = famOf(stone, b.id), z1 = zc + med * resid;
       const q = longY ? [cx - dp / 2, cy - long / 2, cx + dp / 2, cy + long / 2] : [cx - long / 2, cy - dp / 2, cx + long / 2, cy + dp / 2];
@@ -678,6 +705,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       put([[lot[0], lot[1], zAt(cx, cy) + 0.02], [lot[2], lot[1], zAt(cx, cy) + 0.02], [lot[2], lot[3], zAt(cx, cy) + 0.02], [lot[0], lot[3], zAt(cx, cy) + 0.02]], 'geocity:lot', col.lot);
       box(q[0], q[1], q[2], q[3], zc, z1, ston, roofs[strHash(b.id) % roofs.length], 'geocity:slab');
       lights(q[0], q[1], q[2], q[3], zc, z1, resid, Rb);
+      frontOf(b, q, zc, med, resid, 'residential');
     } else if (b.kind === 'construction') going(b, { x0, y0, x1, y1, longY, zAt, Rb, far });
     else if (b.kind === 'parking') parked(b, { x0, y0, x1, y1, longY, zAt, Rb });
     else if (b.kind === 'vacant') fenced(b, { x0, y0, x1, y1 }, zAt((x0 + x1) / 2, (y0 + y1) / 2), 'fence');
@@ -771,14 +799,18 @@ export function assembleGeocityScene(m, ctx = {}) {
         const st = Math.max(1, Math.min(b.storeys.rail[1], med + (Rb() < 0.3 ? 1 : 0) - (Rb() < 0.2 ? 1 : 0))), ze = z0 + st * STOREY, zr = ze + Math.min(4.5, 0.32 * f);
         // the gable to the street: its ridge runs into the block
         gable(q[0], q[1], q[2], q[3], z0, ze, zr, longY ? 'x' : 'y', brickOf(), ROOFS[Math.floor(Rb() * ROOFS.length)], 'geocity:house');
+        // (its windows each storey, its door to its street)
+        frontOf(b, q, z0, st, STOREY, 'residential', { house: s });
         counts.houses += 2;
       }
     };
     const shops = (s, storeys, group) => {
       const n = Math.max(1, Math.round(L / 30)), f = L / n;
       for (let k = 0; k < n; k++) {
-        const q = rectOf(s, k * f + 0.4, (k + 1) * f - 0.4, 0, Math.min(SHOP_D, deep / 2 - 2)), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
-        box(q[0], q[1], q[2], q[3], z0, z0 + (storeys + (Rb() < 0.3 ? 1 : 0)) * STOREY + 0.6, SHOP_FRONT[Math.floor(Rb() * SHOP_FRONT.length)], ROOFS[2], group);
+        const q = rectOf(s, k * f + 0.4, (k + 1) * f - 0.4, 0, Math.min(SHOP_D, deep / 2 - 2)), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), st = storeys + (Rb() < 0.3 ? 1 : 0);
+        box(q[0], q[1], q[2], q[3], z0, z0 + st * STOREY + 0.6, SHOP_FRONT[Math.floor(Rb() * SHOP_FRONT.length)], ROOFS[2], group);
+        // (its shops on its street, flats or offices over them)
+        frontOf(b, q, z0, st, STOREY, group === 'geocity:avenue' ? 'office' : 'residential', { only: [s] });
       }
     };
     const onLong = (rank) => sides.find((s) => (rank === 'arterial' ? b.sides[s].kind === 'arterial' : b.sides[s].rank === rank));
@@ -792,10 +824,12 @@ export function assembleGeocityScene(m, ctx = {}) {
         const u = (k + 0.5) * (L / n), q = rectOf(sides[0], u - 14, u + 14, deep / 2 - 7.5, deep / 2 + 7.5), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), z1 = z0 + 4 * STOREY;
         box(q[0], q[1], q[2], q[3], z0, z1, famOf(brick, `${b.id}:${k}`)[0], ROOFS[2], 'geocity:lowrise');
         lights(q[0], q[1], q[2], q[3], z0, z1, STOREY, Rb);
+        frontOf(b, q, z0, 4, STOREY, 'residential');
       }
     } else if (b.kind === 'apartments') {
       const q = rectOf(sides[0], 4, 34, 6, 20), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
       box(q[0], q[1], q[2], q[3], z0, z0 + 4 * STOREY, famOf(brick, b.id)[0], ROOFS[2], 'geocity:walkup');
+      frontOf(b, q, z0, 4, STOREY, 'residential');
       houses(sides[0], 40, L - 2); houses(sides[1], 2, L - 2);
     } else if (b.kind === 'school') {
       const q = rectOf(sides[0], L / 2 - 30, L / 2 + 30, 6, 22), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
@@ -1116,11 +1150,41 @@ export function assembleGeocityScene(m, ctx = {}) {
   laws.push(...netLaws);
   const bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const kinds = d.regions.flatMap((r) => r.blocks).reduce((acc, b) => ({ ...acc, [b.kind]: (acc[b.kind] ?? 0) + 1 }), {});
+  // ── the FRONTAGE dressed (frontage.js): each wall of each building within reach of a person's eye (a camera near the
+  // ground) its ground floor by the street it faces (an office's lobby among shops; a residential building's shops on an
+  // arterial or a collector in the core and the frame, else its entries; windows only on the water and the land's
+  // edge), its windows over it, balconies on some, its cornice; each piece a repeat drawn near the camera ──
+  const eyes = cameras.map((c) => c.worldFraming.cameraPosition).filter(([x, y, z]) => z - S(x, y) < FRONT_EYE), frontStamps = new Map();
+  const nearEye = (q) => eyes.some(([x, y]) => Math.hypot(Math.max(q[0] - x, 0, x - q[2]), Math.max(q[1] - y, 0, y - q[3])) < NEAR + 60);
+  const groundOf = (use, side, b) => {
+    if (!side || side.kind === 'water' || side.kind === 'beyond') return 'windows';
+    if (use !== 'residential') return 'lobby';
+    return (side.kind === 'arterial' || side.rank === 'collector') && b.ring !== 'outskirts' ? 'shops' : 'entries';
+  };
+  for (const F of fronts) {
+    if (!nearEye(F.q)) continue;
+    const R = streamOf(seed, 'frontage', `${F.b.id}:${F.q.map((v) => Math.round(v)).join(',')}`), one = (xs) => [xs[Math.floor(R() * xs.length)]];
+    const palette = { frame: one(FRONT_PAINT.frame), shop: FRONT_PAINT.shop, sign: FRONT_PAINT.sign, awning: FRONT_PAINT.awning, door: FRONT_PAINT.door, rail: one(FRONT_PAINT.rail) };
+    const W4 = wallsOf(F.q);
+    for (const f of ['s', 'e', 'n', 'w']) {
+      if (F.skip.includes(f) || (F.only && !F.only.includes(f))) continue;
+      // (a house its door on its street, windows round it)
+      const side = F.b.sides?.[f], ground = F.house ? (f === F.house ? 'entries' : 'windows') : groundOf(F.use, side, F.b);
+      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}) }, R)) {
+        (frontStamps.get(p.key) ?? frontStamps.set(p.key, []).get(p.key)).push({ pos: P3(p.pos), ...(p.scale ? { scale: p.scale } : {}), ...(p.tint ? { tint: p.tint } : {}) });
+      }
+      counts.fronts = (counts.fronts ?? 0) + 1;
+    }
+  }
   // (the kit's repeats, each drawn near the camera only; the skyline draws none)
   // (the URBAN PIZZA VIEWER, a live page whose world asks for the view cone, scene/channels/city-cone.js: the kit drawn by
   // the cone's rule rather than the ring; an export, and a page without the cone, as before)
   const coned = !!ctx.live && m.cone !== undefined && m.cone !== null, kit = coned ? { cone: 'kit' } : {};
   const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR, ...kit }));
+  if (E?.evoke !== 'skyline') {
+    const FT = frontageTemplates(LIGHT, { frames: FRONT_PAINT.frame });
+    for (const [key, transforms] of [...frontStamps].sort(([a], [b]) => a.localeCompare(b))) { repeats.push({ group: `geocity:front-${key.split(':')[0]}`, template: FT[key], transforms, near: NEAR, ...kit }); counts.frontPieces = (counts.frontPieces ?? 0) + transforms.length; }
+  }
   // the street trees grown (vegetation/pool.js): a few variants a species, each at the detail the cameras see it at,
   // their crowns raised over the walk, drawn near the camera only like the kit
   // (read by the seventh generation: the street trees the form grows, each its species at its height, form/flora-read.js)

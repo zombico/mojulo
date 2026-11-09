@@ -166,3 +166,18 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   `grade` and, newly, each neighbourhood's collectors and locals along their runs against its `grades` (a recipe's
   `grades: { collector, local }`, by default the gentler of 10 % and 12 % or the arterials'), each measured every 4 m on
   the streets' ground as built (profiled where asked), naming each street over and the steepest of each rank.
+- **The metro at a person's height: storefronts, windows, doors.** A geocity's buildings were massing at street level
+  (grey and brick boxes without a window, lit panes past dusk only) and an evocation's detailed facades met the walk with
+  blank ground floors. Now near a person's eye (each camera within 25 m of the ground) every building's walls are
+  dressed (geocity/frontage.js), as the street kit is, by templates the light is baked into (each way a wall faces its
+  own) stamped as instanced repeats drawn near the camera: WINDOWS in frames with a stone sill and head on every storey
+  (a block of four bays by two storeys where it can be, its windows stretched to the wall's bay and storey, a template
+  once each frame's paint); STOREFRONTS on its shopping streets (arterials and collectors in the core and the frame, main
+  streets, avenues): glazing over a stall riser between pilasters, a door, a transom, a fascia sign in its shop's colour,
+  an awning on nearly half, a band over them; APARTMENT ENTRIES on its residential streets (a pair of doors in a stone
+  surround under a canopy, a step), every 18 m or so among ground-floor windows; an office's LOBBY under its canopy among
+  shops; BALCONIES on nearly half its residential buildings; a cornice. A mid-rise's courtyard walls and its wings' joins
+  are left bare; a tower's shaft takes its ground floor (its skin over it is its own); an outskirts house its windows and
+  its door on its street; an evocation's detailed lots their ground floors, stood proud of their piers. The page says how
+  many walls and pieces (`counts.fronts`, `frontPieces`): a core neighbourhood about 400 walls in 30,000 pieces, its page
+  4.4 MB heavier (36 to 40 MB).
