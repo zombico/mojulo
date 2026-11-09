@@ -11,11 +11,13 @@ const d = designGeocity({ evoke: 'neighbourhood' }, { seed: 2 }), H = d.highways
 const role = (r) => H.filter((h) => h.role === r);
 
 describe('the metro\'s highways, planned', () => {
-  it('runs four by default: one along its shore over the water, a crosstown over the arterial farthest from it, two cross highways over its outermost arterials the other way', () => {
+  it('runs four by default: one along its shore (over its waterfront\'s boulevard, waterfront.js), a crosstown over the arterial farthest from it, two cross highways over its outermost arterials the other way', () => {
     expect(H).toHaveLength(4);
     const [shore] = role('shore'), [cross0, cross1] = role('cross'), [town] = role('crosstown');
-    expect(shore.water).toBe(true);
+    expect(shore.boulevard).toBe(true);
     expect(shore.at).toBeLessThan(d.land.rect[1]);
+    // (over the water where its shore is not reclaimed)
+    expect(designGeocity({ evoke: 'neighbourhood', waterfront: false }, { seed: 2 }).highways.find((h) => h.role === 'shore').water).toBe(true);
     const ew = d.lines.filter((l) => l.axis === 'ew' && l.rank !== 'spine');
     expect(town.along).toBe(ew.slice().sort((p, q) => q.at - p.at)[0].id);
     const ns = d.lines.filter((l) => l.axis === 'ns' && l.rank !== 'spine').map((l) => l.at);
@@ -33,7 +35,7 @@ describe('the metro\'s highways, planned', () => {
   });
 
   it('stands its piers in its arterial\'s kerb lanes and never in a crossing', () => {
-    for (const h of H.filter((x) => !x.water)) {
+    for (const h of H.filter((x) => x.role !== 'shore')) {
       const l = d.lines.find((x) => x.id === h.along), kerb = l.bands.filter((b) => b.kind === 'parking').map((b) => (b.from + b.to) / 2);
       for (const p of h.piers) {
         expect(p.cols).toEqual(kerb);

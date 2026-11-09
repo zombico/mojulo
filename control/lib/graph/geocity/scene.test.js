@@ -105,7 +105,8 @@ describe('an evocation built', () => {
     const inside = (c, q) => (c.min[0] + c.max[0]) / 2 >= q[0] && (c.min[0] + c.max[0]) / 2 <= q[2] && (c.min[1] + c.max[1]) / 2 >= q[1] && (c.min[1] + c.max[1]) / 2 <= q[3];
     expect(N.colliders.length).toBeGreaterThan(0);
     // (a crane's jib reaches out over the street, high over it: its mast stands in its block)
-    expect(N.colliders.filter((c) => !c.of.endsWith(':crane')).every((c) => massed.some((r) => inside(c, r.rect)))).toBe(true);
+    // (the waterfront's buildings out past the land's edge, waterfront.js)
+    expect(N.colliders.filter((c) => !c.of.endsWith(':crane') && !c.of.startsWith('wf-')).every((c) => massed.some((r) => inside(c, r.rect)))).toBe(true);
     // an evoked tower's lot its own box
     expect(N.colliders.some((c) => /^[^:]+:t0$/.test(c.of) && DN.evoked.blocks.includes(c.of.split(':')[0]))).toBe(true);
     expect(N.geocity.laws.find((l) => l.law === 'walk-clear').ok).toBe(true);

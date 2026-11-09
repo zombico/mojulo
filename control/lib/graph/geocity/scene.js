@@ -902,7 +902,8 @@ export function assembleGeocityScene(m, ctx = {}) {
       } else for (const [p, q] of cut(W.a0, W.a1, CELL)) quad(p, q, 0, 6, (a) => zl(a) + KERB, 'geocity:walk', col.walk);
       const t0c = BV ? BV.t1 : 6;
       W.segments.forEach((g, k) => {
-        holder = `wf-${W.side}-${k}`;
+        // (a walker's box round each of its masses, but on the skyline, never walked)
+        holder = E?.evoke === 'skyline' ? null : `wf-${W.side}-${k}`;
         const D = g.depth, te = D - PROM, mid = (g.a0 + g.a1) / 2, len = g.a1 - g.a0, R = streamOf(seed, 'waterfront', `${W.side}:${k}`);
         const zAt = (a, t) => (t <= t0c ? zl(a) + KERB : t >= te ? zq(a) : zl(a) + KERB + ((zq(a) - zl(a) - KERB) * (t - t0c)) / (te - t0c));
         const at = (a, t, dz = 0) => [...P(a, t), zAt(a, t) + dz];
