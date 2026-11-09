@@ -99,3 +99,10 @@
   struck as it swings), each its own tune and plays; a wave's boss takes a `weapon` (any of the fight's) for the whole
   fight, its CPU's blows and its own plays swinging it. As in the fight, only the weapon hand's blows are the blade's (a
   kick stays a kick). An armed brawl's yard sets swordsmen as its dummies unless it says.
+- The WEAPON ARTS (`BRAWL_ARTS`, one for each weapon on the fight's shelf): a weapon's own chain, every blow one of its
+  hand's so every one swings the blade, laid into the fighter's slots from the fight's families (the lead hand's blades
+  thrust, cut across, cut rising and cleave from overhead; the spear pokes, thrusts, thrusts low and lunges; the staff
+  butt-strikes, swings wide and strikes from overhead), each with its finisher, its strong, its air strong and its blows'
+  own names (the katana: thrust, cut, rising cut, cleave; forward on the last, a rising slash). A fighter with a weapon
+  fights in its weapon's art (`brawlFighter(recipe, { art })` names another, `art: false` keeps the style's chain); the
+  style keeps its grabs. The crowd's armed types, the armed boss and a weapon picked up off the street fight in theirs.

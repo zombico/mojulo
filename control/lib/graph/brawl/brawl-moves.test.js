@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { brawlFighter, newReader, readButtons, BRAWL_STYLES, BRAWL_STYLE_IDS, DESPERATION, STRONG, DASH_WAIT } from './brawl-moves.js';
+import { brawlFighter, newReader, readButtons, BRAWL_STYLES, BRAWL_STYLE_IDS, BRAWL_ARTS, BRAWL_ART_IDS, DESPERATION, STRONG, DASH_WAIT } from './brawl-moves.js';
 import { newBrawl, stepBrawl, brawlHash, grantState, BRAWL_RULES } from './brawl-core.js';
 import { solveFighter } from '../versus/versus-solver.js';
-import { SPECIALS, STATES } from '../versus/versus-library.js';
+import { SPECIALS, STATES, WEAPONS } from '../versus/versus-library.js';
 
 // THE BRAWLER'S MOVES, pressed as a player presses them (attack, jump, special and the stick, through the reader):
 // the chain on a connect, its finisher to the floor, the jump kick and the stomp, the clinch's knees, throws and suplex,
@@ -46,6 +46,35 @@ describe('brawl moves: the styles', () => {
     expect(R.brawl.chain).toBeGreaterThan(G.brawl.chain);
     expect(R.moves['chain.1'].startup).toBeLessThan(G.moves['chain.1'].startup);
     for (const k of ['knee', 'suplex', 'throw']) expect(G.brawl[k], k).toBeGreaterThan(R.brawl[k]);
+  });
+});
+
+describe('brawl moves: the weapon arts', () => {
+  it('every weapon of the fight has its art', () => {
+    expect([...BRAWL_ART_IDS].sort()).toEqual(Object.keys(WEAPONS).sort());
+  });
+  // (one art a grip: a lead hand's blade and a rear hand's, chosen from the shelf by its grip)
+  const byGrip = ['F', 'B'].map((g) => BRAWL_ART_IDS.find((w) => WEAPONS[w].grip === g));
+  for (const w of byGrip) {
+    it(`${w}: every blow of its chain, its finisher, its strong and its air strong the blade's, by the art's own names`, () => {
+      const F = brawlFighter({ ...recipe(), weapon: w }), A = BRAWL_ARTS[w];
+      expect(F.brawl.art).toBe(w);
+      expect(F.brawl.chain).toBe(A.chain.length);
+      for (const slot of [...A.chain.map((_, k) => `chain.${k + 1}`), `chain.${A.chain.length}f`, 'strong', 'strong.break', 'strong.out', 'strong.air', 'strong.dive']) expect(F.moves[slot].armed, `${w} ${slot}`).toBe(true);
+      expect(A.chain.map((_, k) => F.moves[`chain.${k + 1}`].id)).toEqual(A.chain.map((c) => c[1]));
+      // (pressed on a body in reach: the art's chain to its end, a blade's every hit)
+      const c = { fighters: [F] };
+      const out = play(newBrawl(c, { bodies: [body('player', 0), body('crowd', 900)] }), 160, mash(), c);
+      expect(out.moves.slice(0, A.chain.length)).toEqual(A.chain.map((_, k) => `chain.${k + 1}`));
+      expect(hitsOn(out.ev, 1).every(([, e]) => e.limb === 'blade')).toBe(true);
+    });
+  }
+  it('no weapon, no art: the style\'s chain; `art: false` keeps the style\'s chain on a blade', () => {
+    expect(P.brawl.art).toBeNull();
+    const plain = brawlFighter({ ...recipe(), weapon: 'katana' }, { art: false });
+    expect(plain.brawl.art).toBeNull();
+    expect(plain.brawl.chain).toBe(BRAWL_STYLES['all-rounder'].chain.length);
+    expect(() => brawlFighter(recipe(), { art: 'nunchaku' })).toThrow(/art/);
   });
 });
 
