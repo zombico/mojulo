@@ -17,6 +17,11 @@
  *     lob       thrown in an arc (vy up, g down) and bursting where it lands
  *     ammo      rounds a pick-up holds (null: the sidearm's, never out)
  *     telegraph frames a foe aims before it fires (its round's warning)
+ *     hitstop   frames a body its round staggers is frozen (the hit's weight; the shooter never freezes)
+ *     freeze    frames the whole street holds still where its burst goes off (a rocket's, a grenade's)
+ *     impact    IMPACT FRAMES the page shows as its round lands heavy (a burst, a stagger): frames of the picture
+ *               flashed (inverted, the anime's; or white)
+ *     sound     its shot's voice, a row of the SFX shelf (sfx-shelf/roster.js); hit: its landing's
  *   GUN_IDS
  *   readGun(spec, where?) → a gun: a row's name, or dials (`{ from?: <row>, …its keys }`) passed into a practice room to
  *                           be demoed (throws naming the key)
@@ -28,20 +33,20 @@
  * Pure: no clock, no dice.
  */
 
-const row = (says, o) => Object.freeze({ says, speed: 200, rate: 12, pellets: 1, spread: 0, jitter: 0, damage: 10, stun: 8, life: 50, pierce: 1, size: 80, line: 300, knock: 'none', area: 0, lob: false, vy: 0, g: 0, ammo: null, telegraph: 0, ...o });
+const row = (says, o) => Object.freeze({ says, speed: 200, rate: 12, pellets: 1, spread: 0, jitter: 0, damage: 10, stun: 8, life: 50, pierce: 1, size: 80, line: 300, knock: 'none', area: 0, lob: false, vy: 0, g: 0, ammo: null, telegraph: 0, hitstop: 2, freeze: 0, impact: 0, sound: 'machine-gun-shot', hit: 'flesh-impact', ...o });
 export const GUNS = Object.freeze({
   // the players'
-  sidearm: row('the sidearm, never out: a quick round, a steady rate', { speed: 220, rate: 11, damage: 12, stun: 8, life: 50 }),
-  'machine-gun': row('a stream: fast rounds close together, wandering a little; it chews through a wave', { speed: 300, rate: 5, jitter: 3, damage: 9, stun: 6, life: 45, ammo: 200 }),
-  spread: row('a fan of five: a wave in front of you, a body close takes them all', { speed: 240, rate: 16, pellets: 5, spread: 11, damage: 10, stun: 8, life: 38, ammo: 60 }),
-  flame: row('a short wide gout, slow, through whoever stands in it', { speed: 120, rate: 3, jitter: 6, damage: 4, stun: 4, life: 16, pierce: 4, size: 260, line: 420, ammo: 300 }),
-  rocket: row('a slow rocket that bursts where it lands, floors what is round it', { speed: 150, rate: 40, damage: 70, stun: 20, life: 90, size: 140, knock: 'down', area: 1300, ammo: 12 }),
-  grenade: row('lobbed in an arc over the crowd, it bursts where it lands (about three metres on)', { speed: 55, rate: 30, damage: 80, stun: 20, life: 120, size: 140, knock: 'down', area: 1500, lob: true, vy: 95, g: 5, ammo: 6 }),
+  sidearm: row('the sidearm, never out: a quick round, a steady rate', { speed: 220, rate: 11, damage: 12, stun: 8, life: 50 , hitstop: 2 }),
+  'machine-gun': row('a stream: fast rounds close together, wandering a little; it chews through a wave', { speed: 300, rate: 5, jitter: 3, damage: 9, stun: 6, life: 45, ammo: 200 , hitstop: 1 }),
+  spread: row('a fan of five: a wave in front of you, a body close takes them all', { speed: 240, rate: 16, pellets: 5, spread: 11, damage: 10, stun: 8, life: 38, ammo: 60 , hitstop: 3, impact: 1 }),
+  flame: row('a short wide gout, slow, through whoever stands in it', { speed: 120, rate: 3, jitter: 6, damage: 4, stun: 4, life: 16, pierce: 4, size: 260, line: 420, ammo: 300 , hitstop: 0, sound: 'fire-whoosh' }),
+  rocket: row('a slow rocket that bursts where it lands, floors what is round it', { speed: 150, rate: 40, damage: 70, stun: 20, life: 90, size: 140, knock: 'down', area: 1300, ammo: 12 , hitstop: 6, freeze: 3, impact: 3, sound: 'bazooka-shot', hit: 'bazooka-hit' }),
+  grenade: row('lobbed in an arc over the crowd, it bursts where it lands (about three metres on)', { speed: 55, rate: 30, damage: 80, stun: 20, life: 120, size: 140, knock: 'down', area: 1500, lob: true, vy: 95, g: 5, ammo: 6 , hitstop: 6, freeze: 3, impact: 3, sound: 'throw', hit: 'grenade-blast' }),
   // the foes': slow enough to see and step off, a warning before each
-  rifle: row('a foe\'s rifle: a beat of aim, then one slow round', { speed: 110, rate: 60, damage: 40, stun: 16, life: 110, telegraph: 30 }),
-  burst: row('a foe\'s burst: a beat of aim, then three rounds close together', { speed: 120, rate: 6, damage: 22, stun: 10, life: 100, telegraph: 26 }),
-  bazooka: row('a foe\'s rocket: a long aim, then a slow rocket that bursts', { speed: 90, rate: 90, damage: 70, stun: 20, life: 140, size: 160, knock: 'down', area: 1200, telegraph: 45 }),
-  lob: row('a foe\'s grenade: lobbed at where the player stands', { speed: 60, rate: 80, damage: 60, stun: 18, life: 140, size: 140, knock: 'down', area: 1300, lob: true, vy: 90, g: 5, telegraph: 30 }),
+  rifle: row('a foe\'s rifle: a beat of aim, then one slow round', { speed: 110, rate: 60, damage: 40, stun: 16, life: 110, telegraph: 30 , hitstop: 4, impact: 1 }),
+  burst: row('a foe\'s burst: a beat of aim, then three rounds close together', { speed: 120, rate: 6, damage: 22, stun: 10, life: 100, telegraph: 26 , hitstop: 2 }),
+  bazooka: row('a foe\'s rocket: a long aim, then a slow rocket that bursts', { speed: 90, rate: 90, damage: 70, stun: 20, life: 140, size: 160, knock: 'down', area: 1200, telegraph: 45 , hitstop: 6, freeze: 3, impact: 3, sound: 'bazooka-shot', hit: 'bazooka-hit' }),
+  lob: row('a foe\'s grenade: lobbed at where the player stands', { speed: 60, rate: 80, damage: 60, stun: 18, life: 140, size: 140, knock: 'down', area: 1300, lob: true, vy: 90, g: 5, telegraph: 30 , hitstop: 6, freeze: 3, impact: 3, sound: 'throw', hit: 'grenade-blast' }),
 });
 export const GUN_IDS = Object.freeze(Object.keys(GUNS));
 
@@ -49,6 +54,7 @@ export const GUN_IDS = Object.freeze(Object.keys(GUNS));
 const DIALS = Object.freeze({
   speed: [10, 800], rate: [1, 240], pellets: [1, 12], spread: [0, 45], jitter: [0, 20], damage: [0, 999], stun: [0, 60],
   life: [2, 600], pierce: [1, 20], size: [10, 800], line: [50, 1500], area: [0, 4000], vy: [0, 300], g: [0, 40], telegraph: [0, 120],
+  hitstop: [0, 20], freeze: [0, 20], impact: [0, 8],
 });
 const KNOCKS = ['none', 'down'];
 
@@ -66,8 +72,9 @@ export function readGun(spec, where = 'gun') {
     if (k === 'lob') { if (typeof v !== 'boolean') throw new Error(`brawl: ${where}.lob is true or false`); continue; }
     if (k === 'ammo') { if (v !== null && !(Number.isInteger(v) && v >= 1 && v <= 9999)) throw new Error(`brawl: ${where}.ammo is a whole number from 1 to 9999, or null (never out)`); continue; }
     if (k === 'says') { if (typeof v !== 'string') throw new Error(`brawl: ${where}.says is words`); continue; }
+    if (k === 'sound' || k === 'hit') { if (!(typeof v === 'string' && /^[a-z0-9-]{1,40}$/.test(v))) throw new Error(`brawl: ${where}.${k} is a sound's id on the SFX shelf`); continue; }
     const r = DIALS[k];
-    if (!r) throw new Error(`brawl: ${where} has no '${k}' (${[...Object.keys(DIALS), 'knock', 'lob', 'ammo', 'says'].join(', ')})`);
+    if (!r) throw new Error(`brawl: ${where} has no '${k}' (${[...Object.keys(DIALS), 'knock', 'lob', 'ammo', 'says', 'sound', 'hit'].join(', ')})`);
     if (!(Number.isInteger(v) && v >= r[0] && v <= r[1])) throw new Error(`brawl: ${where}.${k} is a whole number from ${r[0]} to ${r[1]}`);
   }
   const base = from ? GUNS[from] : row('a gun of its own', {});

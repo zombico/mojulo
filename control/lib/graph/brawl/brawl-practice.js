@@ -104,7 +104,7 @@ export function practiceOf({ belt, players, dummies = [], things, health = 'chai
   // (each body's arms: a player on the range its first gun over its sidearm, its grenades; a shooting dummy its gun)
   const arms = [
     ...players.map(() => (range ? { gun: 1, grenades: range.grenades ?? 3, grenadeGun: 1 + (range.guns ?? RANGE_GUNS).length } : {})),
-    ...spec.map((d) => (d.gun !== undefined ? { gun: d.gun } : {})),
+    ...spec.map((d, j) => ({ ...(d.gun !== undefined ? { gun: d.gun } : {}), ...(CROWD_TYPES[d.type]?.poise && !dummies[j].recipe ? { poise: CROWD_TYPES[d.type].poise } : {}) })),
   ];
   const bodies = [
     ...players.map((_, i) => ({ fighter: i, side: 'player', x: homes[i][0], z: homes[i][1], ...arms[i] })),
@@ -167,7 +167,9 @@ function dummyPads(room, M) {
     }
     if (!T) { pads[i] = {}; continue; }
     if (mode === 'shoot') {
-      // its ground held; on the beat its aim (the gun's warning, the aim kept from its start), then its round where it aimed
+      // its ground held; on the beat its aim (the gun's warning, the aim kept from its start), then its round where it
+      // aimed; a flinch cuts it short (its shot never comes)
+      if (d.st === 'hit' || d.st === 'fall' || d.st === 'down' || d.st === 'rise') { delete yard.volley[i]; pads[i] = {}; continue; }
       const G = ctx.guns[d.gn], v = yard.volley[i];
       if (v) {
         const t = v.t + 1;
@@ -372,7 +374,7 @@ export function yardRead(room, i = 0) {
   const reach = F.moves['chain.1'].reach;
   const line = s.bodies.slice(P).filter((d) => !d.gone).map((d) => {
     const dz = d.z - p.z, dx = d.x - p.x;
-    return { id: d.id, at: [d.x, d.z], dz, dx, lined: Math.abs(dz) <= (yard.range ? ctx.guns[p.gn].line : s.rules.line), inReach: Math.abs(dx) <= reach + F.idle.stand.push[2], ko: !!d.ko, hp: d.hp, hpMax: yard.hp[d.id], mode: yard.modes[d.id - P], token: (mind.tok[i] ?? []).includes(d.id) };
+    return { id: d.id, at: [d.x, d.z], dz, dx, lined: Math.abs(dz) <= (yard.range ? ctx.guns[p.gn].line : s.rules.line), inReach: Math.abs(dx) <= reach + F.idle.stand.push[2], ko: !!d.ko, hp: d.hp, hpMax: yard.hp[d.id], mode: yard.modes[d.id - P], token: (mind.tok[i] ?? []).includes(d.id), ...(yard.range ? { stagger: d.sg ? Math.round((d.sg * 100) / (d.po ?? s.rules.poise)) : 0 } : {}) };
   });
   const ch = yard.chain[i];
   return {

@@ -126,3 +126,38 @@ describe('brawl guns: bursts, the lob, ammo, the roll, a stream', () => {
     expect(BRAWL_RULES.rollInv).toBeGreaterThan(0);
   });
 });
+
+describe('brawl guns: hitstun by poise, impact', () => {
+  // (a stand-still body of the crowd with its own poise, shot at by a stream from close)
+  const target = (poise) => newBrawl(ctx, { bodies: [{ fighter: 0, side: 'player', x: 0, gun: G['machine-gun'] }, { fighter: 0, side: 'crowd', x: 1500, grabs: false, face: -1, ...(poise ? { poise } : {}) }] });
+  const firstFlinch = (s) => { for (let k = 0; k < 120; k++) { s = stepBrawl(s, [{ fire: [1, 0] }, {}], ctx); const e = s.events.find((x) => x.t === 'hit' && x.d === 1); if (e && e.flinch) return { k, e, s }; } return null; };
+  it('a light round staggers and nudges; only past the body\'s poise does it flinch, a big body soaking more', () => {
+    const small = firstFlinch(target(5)), big = firstFlinch(target(60));
+    expect(small && big).toBeTruthy();
+    expect(big.k).toBeGreaterThan(small.k);
+    // (before its flinch the big body stood its ground, pushed back a little by each round)
+    let s = target(60), x0 = s.bodies[1].x, st = new Set();
+    for (let k = 0; k < big.k; k++) { s = stepBrawl(s, [{ fire: [1, 0] }, {}], ctx); st.add(s.bodies[1].st); }
+    expect([...st]).toEqual(['stand']);
+    expect(s.bodies[1].x).toBeGreaterThan(x0);
+    expect(s.bodies[1].sg).toBeGreaterThan(0);
+  });
+  it('a flinch\'s weight is its gun\'s: the body frozen its hitstop; the event says its gun', () => {
+    const f = firstFlinch(target(5));
+    expect(f.e.gun).toBe('machine-gun');
+    expect(f.s.bodies[1].hs).toBe(GUNS['machine-gun'].hitstop);
+    expect(f.s.bodies[1].st).toBe('hit');
+  });
+  it('a stagger drains when the stream stops', () => {
+    let s = target(60);
+    for (let k = 0; k < 12; k++) s = stepBrawl(s, [{ fire: [1, 0] }, {}], ctx);
+    for (let k = 0; k < 120; k++) s = stepBrawl(s, [{}, {}], ctx);
+    expect(s.bodies[1].sg).toBeUndefined();
+  });
+  it('a burst holds the whole street still its gun\'s freeze', () => {
+    let s = range('rocket', [[2500]]), froze = false;
+    for (let k = 0; k < 60 && !froze; k++) { s = stepBrawl(s, [k === 0 ? { fire: [1, 0] } : {}, {}], ctx); froze = s.events.some((e) => e.t === 'burst') && s.freeze === GUNS.rocket.freeze; }
+    expect(froze).toBe(true);
+    expect(GUNS.rocket.impact).toBeGreaterThan(0);
+  });
+});

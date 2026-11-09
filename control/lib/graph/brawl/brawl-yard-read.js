@@ -30,7 +30,9 @@ export function yardHud(read, F, project, inputs = []) {
     const [x, y] = project(d.at[0], d.at[1], 0);
     // (on the range a round's line: on it or not, never a blow's reach)
     const on = read.gun ? 'ON THE LINE' : d.inReach ? 'LINED' : 'LINED · CLOSER';
-    return { id: `d${d.id}`, x, y, text: d.lined ? on : `${d.dz > 0 ? '+' : '−'}${Math.round(Math.abs(d.dz) / 10)} CM`, kind: d.lined ? 'heal' : 'miss' };
+    // (and on the range how near it is to flinching: its stagger against its poise)
+    const st = read.gun && d.stagger ? ` · STAGGER ${Math.min(100, d.stagger)}%` : '';
+    return { id: `d${d.id}`, x, y, text: `${d.lined ? on : `${d.dz > 0 ? '+' : '−'}${Math.round(Math.abs(d.dz) / 10)} CM`}${st}`, kind: d.lined ? 'heal' : 'miss' };
   });
   const heads = read.line.filter((d) => d.token && !d.ko).map((d) => { const [x, y] = project(d.at[0], d.at[1], 2100); return { id: `t${d.id}`, x, y }; });
   const last = read.chain.last;

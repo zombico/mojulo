@@ -97,6 +97,13 @@ if (opt.range) {
   await play(14, ['KeyK']); await play(16);
   log.push(['rocket', await gun()]);
   await shot('range-rocket');
+  // a second rocket, stepped a frame at a time until its burst's impact frame shows (the picture flashed)
+  await play(30, ['KeyK']);
+  let impact = false;
+  for (let k = 0; k < 120 && !impact; k++) { await play(1); impact = await tab.evaluate(() => document.getElementById('brawl-impact')?.style.display === 'block'); }
+  log.push(['impact frame', impact]);
+  if (impact) await tab.screenshot({ path: path.join(out, 'range-impact.png') });
+  await play(20);
   // a grenade (L) over the near one, and a roll (S S) out
   await play(2, ['KeyL']); await play(40);
   await shot('range-grenade');

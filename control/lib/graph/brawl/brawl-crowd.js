@@ -12,7 +12,8 @@
  *   • EVERYONE IS A BODY: a thug is a brawler as a player is (brawl-moves.js brawlFighter: the chain, the strong, the
  *     run, every air blow, the desperation, its specials), only its own TIMING AND DAMAGE (`tune`, BRAWL_TUNE) and its
  *     REPERTOIRE (`plays`, CROWD_PLAYS: the player's own moves as its commands). TYPES as recipes (CROWD_TYPES): a
- *     fighter from the fight's solver (an archetype, a weapon, its health), its tune, its plays, how much of its chain.
+ *     fighter from the fight's solver (an archetype, a weapon, its health), its tune, its plays, how much of its chain,
+ *     its `poise` (the stagger a light round's flinch waits for: a big body soaks a stream).
  *     A body given a token picks one of its plays (by its own hash; a strong one only off its cooldown) and closes to
  *     where that play starts: in reach for a blow, a jump away for a leap, the ring's edge for a run. The thug, the
  *     knife, the charger (a rush from range), the jumper (leaps), the heavy (a big slow body that grabs).
@@ -94,16 +95,16 @@ export const CROWD_TYPES = Object.freeze({
   knife: type('quick and armed: a knife in the lead hand, two cuts and away, or a run in with the blade', { archetype: 'rushdown', hp: 180, weapon: 'knife', tune: { damage: 90, startup: 1, recovery: 2 }, plays: ['chain', 'chain', 'run'], combo: 2 }),
   charger: type('a rush from range: it lines up far off and runs the player down, or blows them away down the street', { archetype: 'all-rounder', hp: 300, tune: { damage: 90, startup: 2 }, plays: ['special.back', 'special.back', 'run', 'blowout'], combo: 2 }),
   jumper: type('it leaps: a leaping overhead, a flying kick, a dive kick from a jump away', { archetype: 'rushdown', hp: 220, tune: { damage: 85, startup: 1, recovery: 2 }, plays: ['special.down', 'kick', 'dive'], combo: 2 }),
-  heavy: type('a big slow body that grabs: it walks into the player, knees and throws, or swings its strong; held, it breaks out', { archetype: 'grappler', hp: 600, tune: { damage: 110, startup: 4, recovery: 5, cool: 140 }, plays: ['grab', 'grab', 'strong', 'break', 'desperate'], combo: 2, knees: 2 }),
+  heavy: type('a big slow body that grabs: it walks into the player, knees and throws, or swings its strong; held, it breaks out', { archetype: 'grappler', hp: 600, tune: { damage: 110, startup: 4, recovery: 5, cool: 140 }, plays: ['grab', 'grab', 'strong', 'break', 'desperate'], combo: 2, knees: 2, poise: 80 }),
   // THE ARMED CROWD (an armed brawl's own, any brawl's too): each its weapon the whole fight, the fight's blades
   sword: type('a sword in the lead hand: two cuts and a strong one, or a leaping cut', { archetype: 'all-rounder', hp: 240, weapon: 'sword', tune: { damage: 85, startup: 2, recovery: 3 }, plays: ['chain', 'chain', 'strong', 'kick'], combo: 2 }),
   spear: type('a spear in the rear hand: it pokes from far off, or runs in on its point; the longest reach, the slowest home', { archetype: 'zoner', hp: 220, weapon: 'spear', tune: { damage: 80, startup: 3, recovery: 4 }, plays: ['chain', 'chain', 'run', 'break'], combo: 2 }),
-  axe: type('a big body with an axe: slow, and one cut floors you; its strong, a chop to the floor, a dive from the air', { archetype: 'grappler', hp: 420, weapon: 'axe', tune: { damage: 105, startup: 4, recovery: 5, cool: 130 }, plays: ['strong', 'chain', 'break', 'dive'], combo: 2 }),
+  axe: type('a big body with an axe: slow, and one cut floors you; its strong, a chop to the floor, a dive from the air', { archetype: 'grappler', hp: 420, weapon: 'axe', tune: { damage: 105, startup: 4, recovery: 5, cool: 130 }, plays: ['strong', 'chain', 'break', 'dive'], combo: 2, poise: 60 }),
   // THE SHOOTING CROWD (the run & gun's): each its gun (brawl-guns.js), its rounds slow and warned of
-  rifleman: type('a rifle: it holds its range, aims a beat, one slow round', { archetype: 'all-rounder', hp: 160, gun: 'rifle', plays: ['shoot'], volley: 1 }),
-  gunner: type('a burst: a beat of aim, then three rounds close together', { archetype: 'rushdown', hp: 180, gun: 'burst', plays: ['shoot'], volley: 3 }),
-  grenadier: type('a lob: a grenade arced at where the player stands', { archetype: 'zoner', hp: 200, gun: 'lob', plays: ['shoot'], volley: 1 }),
-  bazooka: type('a big body with a rocket: a long aim, a slow rocket that bursts', { archetype: 'grappler', hp: 320, gun: 'bazooka', plays: ['shoot'], volley: 1 }),
+  rifleman: type('a rifle: it holds its range, aims a beat, one slow round', { archetype: 'all-rounder', hp: 160, gun: 'rifle', plays: ['shoot'], volley: 1, poise: 20 }),
+  gunner: type('a burst: a beat of aim, then three rounds close together', { archetype: 'rushdown', hp: 180, gun: 'burst', plays: ['shoot'], volley: 3, poise: 20 }),
+  grenadier: type('a lob: a grenade arced at where the player stands', { archetype: 'zoner', hp: 200, gun: 'lob', plays: ['shoot'], volley: 1, poise: 25 }),
+  bazooka: type('a big body with a rocket: a long aim, a slow rocket that bursts', { archetype: 'grappler', hp: 320, gun: 'bazooka', plays: ['shoot'], volley: 1, poise: 70 }),
   staff: type('a staff, long both ways: three blows, a sweep that blows the player down the street, a leaping strike; its wood is struck as it swings', { archetype: 'zoner', hp: 260, weapon: 'staff', tune: { damage: 85, startup: 2, recovery: 3 }, plays: ['chain', 'chain', 'blowout', 'kick'], combo: 3 }),
 });
 export const CROWD_TYPE_IDS = Object.freeze(Object.keys(CROWD_TYPES));
@@ -201,7 +202,7 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd } = {
       fighters.push(BF);
       bodies.push({ fighter: fighters.length - 1, side: 'crowd', x: 0, z: 0, wave: k }); kinds.push('boss');
     }
-    for (const c of w.crowd) for (let j = 0; j < c.n; j++) { bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].plays.includes('grab') ? {} : { grabs: false }), ...(CROWD_TYPES[c.type].gun ? { gun: armory.at[CROWD_TYPES[c.type].gun] } : {}) }); kinds.push(c.type); }
+    for (const c of w.crowd) for (let j = 0; j < c.n; j++) { bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].plays.includes('grab') ? {} : { grabs: false }), ...(CROWD_TYPES[c.type].gun ? { gun: armory.at[CROWD_TYPES[c.type].gun] } : {}), ...(CROWD_TYPES[c.type].poise ? { poise: CROWD_TYPES[c.type].poise } : {}) }); kinds.push(c.type); }
   });
   // the street's things, and each player's armed self for every weapon among them (in a box or not)
   const T = things ? readThings(things, belt) : [];

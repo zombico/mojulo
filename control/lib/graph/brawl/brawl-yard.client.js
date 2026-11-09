@@ -17,10 +17,13 @@
  * Gun); each round drawn as it flies (a tracer along its flight, warm a player's, hot red a foe's, its shadow on the
  * street so its depth reads), a foe's warning as a thin line along its aim, the gun out in the hand, a flash at the
  * muzzle and a burst where a rocket or a grenade lands; the gunner's buttons (fire, aim, plant, roll, jump, grenade).
+ * Its SOUNDS each gun's own (its shot, its landing; brawl-sfx.js), a foe's round whizzing past close, a gun run dry, a
+ * magazine seated; its IMPACT FRAMES (a gun's `impact`: a burst, a heavy round's flinch) the picture flashed a few
+ * frames, inverted in the anime register, white otherwise.
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, THREE, scene, camera, controls, renderer, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global BRAWL_YARD, THREE, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -551,11 +554,23 @@ function placeThings() {
 
 const FLASHES = [];
 const FLASH_GEO = new THREE.SphereGeometry(1, 12, 8);
-function flash(e, heavy) {
-  const m = new THREE.Mesh(FLASH_GEO, new THREE.MeshBasicMaterial({ color: heavy ? 0xffd23a : 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
+function flash(e, heavy, spark = false) {
+  const m = new THREE.Mesh(FLASH_GEO, new THREE.MeshBasicMaterial({ color: spark ? 0xffb347 : heavy ? 0xffd23a : 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
   m.position.set(e.x / 1000, (e.z ?? 0) / 1000, (e.y ?? 1100) / 1000);
-  YARD.add(m); FLASHES.push({ m, k: 0, n: heavy ? 12 : 8, r: heavy ? 0.45 : 0.3 });
+  // (a round's spark small and quick; a blow's flash; a heavy one's, or a burst's, big)
+  YARD.add(m); FLASHES.push({ m, k: 0, n: spark ? 5 : heavy ? 12 : 8, r: spark ? 0.14 : heavy ? 0.45 : 0.3 });
 }
+// IMPACT FRAMES: the picture flashed for a heavy landing (inverted under the anime register, white otherwise)
+const IMPACT = (() => {
+  const d = document.createElement('div');
+  d.id = 'brawl-impact';
+  const invert = BY.register === 'anime';
+  d.style.cssText = `position:absolute;inset:0;pointer-events:none;display:none;background:#fff;${invert ? 'mix-blend-mode:difference;' : 'opacity:0.55;'}`;
+  (typeof wrap !== 'undefined' && wrap ? wrap : document.body).appendChild(d);
+  return { el: d, left: 0 };
+})();
+const gunOf = (id) => (id && room.ctx.guns ? room.ctx.guns.find((g) => g.id === id) : null);
+function impactFrames(n) { if (n > IMPACT.left) IMPACT.left = n; }
 function stepFlashes() {
   for (let i = FLASHES.length - 1; i >= 0; i--) {
     const F = FLASHES[i]; F.k++;
@@ -575,8 +590,29 @@ function cueOf(e) {
 }
 function sound(e) {
   if (typeof __beatsCue !== 'function' || typeof __AUDIO === 'undefined' || !__AUDIO || !__AUDIO.cues) return;
-  const c = cueOf(e);
-  if (c && __AUDIO.cues[c]) __beatsCue(__AUDIO.cues[c], 0.8);
+  const [c, gain] = gunCue(e) ?? [cueOf(e), 0.8];
+  if (c && __AUDIO.cues[c]) __beatsCue(__AUDIO.cues[c], gain);
+}
+/** the range's sounds: a gun's shot and landing its own, a gun run dry, a magazine seated (null: the fight's) */
+function gunCue(e) {
+  if (e.t === 'fire') return [gunOf(e.gun)?.sound, 0.45];
+  if (e.t === 'hit' && e.kind === 'round') return [gunOf(e.gun)?.hit ?? 'flesh-impact', e.flinch ? 0.85 : 0.5];
+  if (e.t === 'burst') return [gunOf(e.gun)?.hit ?? 'burst', 1];
+  if (e.t === 'empty') return ['dry-fire', 0.7];
+  if (e.t === 'reload') return ['mag-in', 0.6];
+  return null;
+}
+// a foe's round whizzing past a player close (off its line, near enough to hear): once a round
+const WHIZZED = new Set();
+function flybys() {
+  if (!room.s.shots.length) return;
+  const players = room.s.bodies.slice(0, picks.length);
+  for (const r of room.s.shots) {
+    if (r.gun === undefined || r.side === 'player' || WHIZZED.has(r.id) || r.life <= 0) continue;
+    const near = players.some((p) => !p.gone && Math.abs(r.x - p.x) < Math.abs(r.vx) + 60 && Math.abs(r.z - p.z) > (r.line ?? 300) && Math.abs(r.z - p.z) < 1100);
+    if (near) { WHIZZED.add(r.id); if (typeof __beatsCue === 'function' && typeof __AUDIO !== 'undefined' && __AUDIO && __AUDIO.cues && __AUDIO.cues['bullet-flyby']) __beatsCue(__AUDIO.cues['bullet-flyby'], 0.7); }
+  }
+  if (WHIZZED.size > 200) WHIZZED.clear();
 }
 const unlock = () => { if (typeof __beatsUnlock === 'function') __beatsUnlock(); };
 addEventListener('keydown', unlock); addEventListener('pointerdown', unlock);
@@ -696,11 +732,15 @@ function tick() {
   room = stepYard(room, buttons);
   t++;
   for (const e of room.s.events) {
-    if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2);
+    if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2, e.kind === 'round' && !e.flinch);
     if (e.t === 'clash') flash(e, true);
     if (e.t === 'burst') flash({ ...e, y: 600 }, true);
+    // (a heavy landing's impact frames: a burst, a round that makes its body flinch)
+    if (e.t === 'burst' || (e.t === 'hit' && e.flinch)) impactFrames(gunOf(e.gun)?.impact ?? 0);
     sound(e);
   }
+  if (IMPACT.left > 0) IMPACT.left--;
+  flybys();
   const next = inputRun(runs, buttons[0]);
   runs.splice(0, runs.length, ...next);
 }
@@ -711,6 +751,7 @@ function draw() {
   placeThings();
   placeRounds();
   stepFlashes();
+  IMPACT.el.style.display = IMPACT.left > 0 ? 'block' : 'none';
   const read = yardRead(room, 0);
   Object.assign(UI.state.brawl.practice, yardHud(read, room.ctx.fighters[room.s.bodies[0].fi], project, runs.map((x) => ({ text: x.text }))));
 }

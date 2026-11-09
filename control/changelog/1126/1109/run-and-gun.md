@@ -39,3 +39,13 @@
   under the grip, inked, each gun its length and girth (`gunShape`: a carbine for the sidearm, a long barrel for the
   machine gun, a fat tube for the rocket). A round leaves where the drawn barrel ends (`GUN_MUZZLE`, out along the aim),
   so a tracer leaves the muzzle; a character holds it as the figure poses it (its reactions still its own clips).
+- Shot sounds, impact frames and hitstun by poise. Each gun names its voices on the SFX shelf (`sound`, `hit`: the
+  machine gun's round and a body hit, the rocket's and the bazooka's shot and burst, the grenade's throw and blast, the
+  flame's whoosh), a gun passed in bringing its own (`brawl/brawl-sfx.js` gunAudio, onto the range's page); the range
+  adds a foe's round whizzing past close, a gun run dry and a magazine seated. A gun's weight: its `hitstop` (the body
+  it makes flinch frozen), its `freeze` (a burst holds the whole street still) and its `impact` (IMPACT FRAMES: the
+  picture flashed a few frames as a burst or a heavy round lands, inverted under the anime register, white otherwise).
+  HITSTUN BY POISE: a light round staggers a body (its damage summed, drained a frame) and nudges it back; only past
+  the body's poise does it flinch (a big body soaks a stream: the bazooka, the axe, the heavy carry more; a rifleman
+  flinches almost at once), a flinch cuts short a foe's aim (its shot never comes), a heavy round floors; the range
+  reads each dummy's stagger on its line mark.

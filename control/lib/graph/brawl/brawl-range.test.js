@@ -87,6 +87,13 @@ describe('brawl range: a dummy that shoots back', () => {
     expect(yardRead(stepped.r).gun.struck).toBe(0);
     expect(yardRead(stood.r).gun.struck).toBeGreaterThan(0);
   });
+  it('a flinch during its warning cuts its shot short: no round comes', () => {
+    // (the player fires on the shooter through its first warning: a low-poise rifleman, the rifle's round never fired)
+    const r = ahead(range([{ mode: 'shoot', type: 'rifleman' }], { guns: ['machine-gun'] }), 2500);
+    const { ev } = run(r, 60, () => ({ a: true }));
+    expect(ev.some((e) => e.t === 'hit' && e.d === 1 && e.flinch)).toBe(true);
+    expect(ev.some((e) => e.t === 'fire' && e.p === 1)).toBe(false);
+  });
   it('a gun of its own passed in: a burst dummy', () => {
     const { ev } = run(shooter({ gun: { from: 'burst', telegraph: 10 } }), 200);
     expect(ev.some((e) => e.t === 'fire' && e.p === 1 && e.gun === 'burst-tuned')).toBe(true);

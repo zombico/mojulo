@@ -6,7 +6,7 @@
  *   brawlHash(state)                               a short, stable fingerprint (replays, determinism)
  *   ctx = { fighters: [compiled, …], belt?, guns? } (versus-compile.js; brawl-belt.js readBelt; brawl-guns.js readGun:
  *                                                   the guns its bodies carry; constant through a brawl)
- *   body = { fighter, side: 'player' | 'crowd', x, z, face?, grabs?, wave?, gun?, grenades? }    x mm along the belt, z mm across it (the
+ *   body = { fighter, side: 'player' | 'crowd', x, z, face?, grabs?, wave?, gun?, grenades?, poise? }    x mm along the belt, z mm across it (the
  *          band), y up; `grabs: false` never takes hold, `wave: k` waits offstage until its wave comes in (brawl-crowd.js)
  *   pad  = { x: -1 | 0 | 1, z: -1 | 0 | 1, mv?, jump?, dash? }    the stick along and across, and a command: `mv` a move's
  *                                                                 slot to start (or cancel into), `jump` a jump, `dash`
@@ -46,7 +46,12 @@
  *     across ones shallow), and lands on a body of the other side within its own `line` across the belt, `pierce` bodies
  *     at most, each once; a rocket or a grenade (`area`) bursts where it lands, flooring what is round it; a grenade is
  *     lobbed in an arc. A round's damage is whole (a stream is not scaled down by its own count), and a body already
- *     reeling takes a light round's damage and no fresh stun, so a stream cannot pin it. Firing, a body walks at `fireWalk`
+ *     reeling takes a light round's damage and no fresh stun, so a stream cannot pin it. HITSTUN by POISE: a light round
+ *     STAGGERS a body (`sg`, its damage summed, drained `poiseDrain` a frame) and nudges it back; only when the stagger
+ *     passes the body's poise (`poise`, its own or the rules') does it FLINCH (the round's stun, its gun's `hitstop`, the
+ *     stagger cleared): a big body soaks a stream, a small one flinches at once; a flinch cuts short what the body was
+ *     doing (a foe's aim: its shot never comes). A heavy round floors. A burst holds the whole street still its gun's
+ *     `freeze` frames. Firing, a body walks at `fireWalk`
  *     % and faces its aim. A pick-up gun holds its `ammo`; spent, the body is back on its sidearm. `roll` is the gunner's
  *     dodge: `roll` frames along or across the street, untouchable its first `rollInv`.
  *   • COOLDOWN: a move with a `cool` (the brawler's strong blows) leaves its body unable to start another with one for
@@ -100,6 +105,7 @@ export const BRAWL_RULES = Object.freeze({
   scaling: [100, 100, 80, 70, 60, 50, 40, 30, 20, 10],
   run: 100,         // % of the fighter's forward dash's speed a run goes at
   fireWalk: 70,     // % of its walk a body walks at while it fires
+  poise: 30, poiseDrain: 1,   // a body's stagger a light round's flinch waits for (damage), drained a frame
   roll: 20, rollSpeed: 70, rollInv: 14,   // the gunner's roll: its frames, mm a frame, its untouchable frames
   runJump: 160,     // % of a jump's carry along the belt a jump from a run has (the long jump)
 });
@@ -122,6 +128,7 @@ function newBody(i, b, ctx) {
     // (a body that never takes hold: `grabs: false`)
     ...(b.grabs === false ? { ng: 1 } : {}),
     // (a gunner: its sidearm, its grenades)
+    ...(Number.isInteger(b.poise) ? { po: b.poise } : {}),
     ...(Number.isInteger(b.gun) ? { gn: b.gun, sd: b.gun, fc: 0, nf: 0, ...(Number.isInteger(b.grenades) ? { gr: b.grenades, gi: b.grenadeGun } : {}) } : {}),
     // (a body of a wave waits offstage, gone, until its wave comes in: brawl-crowd.js)
     ...(b.wave !== undefined ? { gone: 1, wv: b.wave } : {}),
@@ -254,7 +261,7 @@ function fire(s, p, G, gi) {
   const mx = p.x + Math.round((ux * GUN_MUZZLE[0]) / 1000), mz = p.z + Math.round((uz * GUN_MUZZLE[0]) / 1000), my = p.y + GUN_MUZZLE[1];
   for (const [vx, vz] of vs) {
     s.shots.push({ id: s.nextShot++, o: p.id, side: p.side, gun: gi, x: mx, z: mz, y: my, vx, vz, w: G.size, h: G.size, life: G.life, hits: G.pierce, rehit: 0, hitAt: -999,
-      dmg: G.damage, hitstun: G.stun, hitstop: 2, push: 40, sup: 0, meter: 0, hl: [], line: G.line, knock: G.knock, area: G.area, ...(G.lob ? { lob: 1, vy: G.vy, g: G.g } : {}) });
+      dmg: G.damage, hitstun: G.stun, hitstop: G.hitstop ?? 2, freeze: G.freeze ?? 0, push: 40, sup: 0, meter: 0, hl: [], line: G.line, knock: G.knock, area: G.area, ...(G.lob ? { lob: 1, vy: G.vy, g: G.g } : {}) });
   }
   s.events.push({ t: 'fire', p: p.id, gun: G.id, n: vs.length, x: mx, z: mz, y: my });
 }
@@ -349,6 +356,8 @@ function advance(s, p, ctx) {
   if (p.gone) return;
   const F = ctx.fighters[p.fi], J = F.jump, R = s.rules;
   if (p.inv > 0) p.inv--;
+  // (a body's stagger drains)
+  if (p.sg > 0) { p.sg = Math.max(0, p.sg - R.poiseDrain); if (!p.sg) delete p.sg; }
   // (a cooldown runs on the clock, through a hitstop too)
   if (p.cd > 0 && --p.cd === 0) delete p.cd;
   if (p.wpn && (p.st === 'fall' || p.st === 'down')) drop(s, p);
@@ -688,7 +697,9 @@ const LIMBS = { fist: 'fist', toe: 'foot', ankle: 'foot', knee: 'knee', elbow: '
 function burst(s, ctx, t) {
   if (t.done) return;
   t.done = 1; t.hits = 0; t.life = 0;
-  s.events.push({ t: 'burst', p: t.o, x: t.x, z: t.z, y: t.y, area: t.area });
+  // (the street held still a moment where it goes off)
+  if (t.freeze) s.freeze = Math.max(s.freeze, t.freeze);
+  s.events.push({ t: 'burst', p: t.o, x: t.x, z: t.z, y: t.y, area: t.area, gun: ctx.guns?.[t.gun]?.id ?? null });
   const a = s.bodies[t.o];
   for (const o of s.bodies) {
     if (o.side === t.side || o.gone || o.ko || untouchable(o, ctx.fighters[o.fi], 'projectile')) continue;
@@ -701,14 +712,22 @@ function blow(s, ctx, { a: p, d, m, shot, at, box }) {
   // (a holder struck lets go)
   if (d.st === 'hold') letGo(s, d);
   const face = shot ? sgn(shot.vx) || (sgn(d.x - shot.x) || 1) : p.face;
-  // A ROUND on a body already reeling: its damage whole and no fresh stun (a stream cannot pin a body)
-  if (shot && shot.gun !== undefined && (shot.knock ?? 'none') === 'none' && (d.st === 'hit' || d.st === 'fall')) {
-    shot.hits--; shot.hitAt = s.f; shot.hl.push(d.id);
-    const dmg = stated(p, 'damage', shot.dmg);
-    d.hp -= dmg;
-    s.events.push({ t: 'hit', p: p.id, d: d.id, dmg, x: at[0], z: d.z, y: at[1], combo: d.combo, w: 0, limb: 'shot', kind: 'round' });
-    if (d.hp <= 0) knockOut(s, d, face);
-    return;
+  // A LIGHT ROUND (the run & gun's): its damage whole; it STAGGERS the body and nudges it back, and only past the
+  // body's POISE does it flinch (below: the round's stun and hitstop, the stagger cleared); a body already reeling takes
+  // its damage and no fresh stun (a stream cannot pin it)
+  const gunId = shot && shot.gun !== undefined ? ctx.guns?.[shot.gun]?.id ?? null : null;
+  if (shot && shot.gun !== undefined && (shot.knock ?? 'none') === 'none') {
+    const reeling = d.st === 'hit' || d.st === 'fall', dmg = stated(p, 'damage', shot.dmg), poise = d.po ?? s.rules.poise;
+    if (!reeling) d.sg = (d.sg ?? 0) + dmg;
+    if (reeling || d.sg < poise) {
+      shot.hits--; shot.hitAt = s.f; shot.hl.push(d.id);
+      d.hp -= dmg;
+      if (!reeling) { d.pushv = face * Math.max(1, Math.round((shot.push ?? 40) / 8)); d.pushn = 3; }
+      s.events.push({ t: 'hit', p: p.id, d: d.id, dmg, x: at[0], z: d.z, y: at[1], combo: d.combo, w: 0, limb: 'shot', kind: 'round', gun: gunId, stagger: reeling ? 100 : Math.round((d.sg * 100) / poise) });
+      if (d.hp <= 0) knockOut(s, d, face);
+      return;
+    }
+    delete d.sg;
   }
   const hitstop = src.hitstop ?? 10;
   if (shot) { shot.hits--; shot.hitAt = s.f; shot.hl.push(d.id); } else { const h = hitsOn(p, d.id); if (h) { h[1]++; h[2] = p.mf; } else p.hl.push([d.id, 1, p.mf]); }
@@ -768,7 +787,7 @@ function blow(s, ctx, { a: p, d, m, shot, at, box }) {
     d.pushv = face * Math.round((src.push ?? 150) / 8); d.pushn = 8;
   }
   const limb = shot ? 'shot' : m.armed ? 'blade' : LIMBS[m.limb.replace(/[FB]$/, '')] ?? 'fist';
-  s.events.push({ t: counter ? 'counter' : 'hit', p: p.id, d: d.id, dmg, x: at[0], z: d.z, y: at[1], combo: d.combo, w, limb, kind: shot ? (shot.gun !== undefined ? 'round' : 'shot') : m.kind });
+  s.events.push({ t: counter ? 'counter' : 'hit', p: p.id, d: d.id, dmg, x: at[0], z: d.z, y: at[1], combo: d.combo, w, limb, kind: shot ? (shot.gun !== undefined ? 'round' : 'shot') : m.kind, ...(gunId ? { gun: gunId, flinch: 1 } : {}) });
   if (d.hp <= 0) knockOut(s, d, face);
 }
 

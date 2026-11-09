@@ -1857,6 +1857,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const A = resolveWorldAudio(fa, { time, ref: sketch.ref });
       payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
     }
+    // the run & gun's range: every gun's shot and landing (the shelf's and those passed in), the range's own sounds
+    if (practice.range) {
+      const { gunAudio } = await import('@/lib/graph/brawl/brawl-sfx.js');
+      const { GUN_IDS, readGun } = await import('@/lib/graph/brawl/brawl-guns.js');
+      const ga = gunAudio([...GUN_IDS.map((g) => readGun(g)), ...(practice.range.guns ?? []).map((g) => readGun(g))]);
+      const A = resolveWorldAudio(ga, { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...(payload.audio.cues ?? {}), ...A.cues } } : A;
+    }
   }
   // an athletic meet on a track (contest/meet-arena.js): the event, the lanes, the register, the contest compiled, the
   // level wire's names; the page's meet channel runs it. Absent ⇒ nothing (scene/channels/contest.js). Each sport's
