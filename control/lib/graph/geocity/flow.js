@@ -23,6 +23,7 @@ import { TRAFFIC, buildSignals, pairLanes, laneCapacity, deriveClearance } from 
 import { streamOf } from '../city/plan/dice.js';
 import { carModel } from '../geotown/cars.js';
 import { fleetOf, pickOf } from './fleets.js';
+import { HIGHWAY } from './highways.js';
 
 const r2 = (v) => Math.round(v * 100) / 100 + 0, r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 export const FLOW = Object.freeze({
@@ -32,6 +33,8 @@ export const FLOW = Object.freeze({
   // (MARGIN: two lanes 3.3 m apart, the widest truck's 2.8 m with its mirrors, each grown by it, never touch)
   // a lane's speed (m/s: some 43 km/h), the gap its vehicles start at on average, the lane's own share of it
   speed: 12, spacing: 42, spread: [0.75, 1.35],
+  // a highway's (highways.js): faster, its vehicles farther apart, no signal on it
+  highway: { speed: 24, spacing: 55 },
   // what drives: each role's share (fleets.js), the core's taxis over it
   mix: [['civilian', 0.84], ['delivery', 0.07], ['taxi', 0.04], ['bus', 0.02], ['utility', 0.02], ['garbage', 0.01]],
   // the road's height along a lane sampled at the drape's cells (scene.js CELL), a kerb's ramp where a lane crosses a walk
@@ -75,7 +78,7 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
     const off = (b.from + b.to) / 2;
     raw.push({ axis: l.axis === 'ns' ? 'y' : 'x', cross: r4(l.at + off), lo: l.axis === 'ns' ? ly0 : lx0, hi: l.axis === 'ns' ? ly1 : lx1, dir: b.dir, line: l.id, ground: groundOf(l, off) });
   }
-  if (!raw.length) return null;
+  if (!raw.length && !(d.highways ?? []).length) return null;
   // what drives: each vehicle a role's (its model, paint and roof), measured
   const kinds = [], kindOf = new Map(), tints = [], tintOf = new Map();
   const pick = (R) => {
@@ -96,6 +99,17 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
     for (let k = 0; k < want * 2 && list.length < want; k++) { const p = pick(R); if (p) list.push(p); }
     return { list, start: R(), i };
   });
+  // the highways' lanes (highways.js): each way its lanes on the right of its median by the metro's hand, on its deck,
+  // nothing crossing them; their vehicles chosen with the rest (the longest of all sizes the boxes)
+  const hand = d.grammar?.traffic === 'left' ? -1 : 1, hw = [], own = new Map();
+  for (const h of d.highways ?? []) for (const dir of [1, -1]) for (let k = 0; k < h.lanes; k++) {
+    const sg = (h.axis === 'x' ? -dir : dir) * hand, off = sg * (HIGHWAY.median / 2 + HIGHWAY.shoulder + HIGHWAY.lane * (k + 0.5));
+    const L = { axis: h.axis, cross: r4(h.at + off), lo: h.lo, hi: h.hi, dir, total: r2(h.hi - h.lo), speed: FLOW.highway.speed, crossings: [], line: h.id, ground: h.stations };
+    const R = streamOf(seed, 'flow', `${h.id}:${dir}:${k}`), want = Math.max(1, Math.round(L.total / (FLOW.highway.spacing * (FLOW.spread[0] + (FLOW.spread[1] - FLOW.spread[0]) * R())))), list = [];
+    for (let j = 0; j < want * 2 && list.length < want; j++) { const p = pick(R); if (p) list.push(p); }
+    own.set(L, { list, start: R() });
+    hw.push(L);
+  }
   const T = { ...TRAFFIC, ...FLOW.T, CAR_LEN: Math.max(...kinds.map((k) => k.len)), CAR_WID: Math.max(...kinds.map((k) => k.wid)) };
   // the crossings: each north-south line over each east-west one, its box the two rights-of-way
   const junctions = [];
@@ -103,10 +117,10 @@ export function flowOf(d, { seed = 1, near = 320, kerb = 0.15 } = {}) {
   const widest = Math.max(1, ...junctions.map((j) => Math.max(j.wx, j.wy)));
   T.CLEARANCE = deriveClearance(widest, T.CAR_LEN, FLOW.speed, T.ACCEL);
   const signals = buildSignals(junctions, seed >>> 0, { w: d.frame.W, d: d.frame.D }, T);
-  const lanes = pairLanes(raw, signals, FLOW.speed, T);
+  const lanes = [...pairLanes(raw, signals, FLOW.speed, T), ...hw];
   const cars = [];
   lanes.forEach((L, li) => {
-    const P = picks[raw.findIndex((x) => x.line === L.line && x.cross === L.cross)], lenFor = (k) => kinds[P.list[k].kind].len;
+    const P = own.get(L) ?? picks[raw.findIndex((x) => x.line === L.line && x.cross === L.cross)], lenFor = (k) => kinds[P.list[k].kind].len;
     const n = laneCapacity(L.total, P.list.length, T, L.crossings, lenFor);
     L.cars = n;
     for (let k = 0; k < n; k++) cars.push([li, P.list[k].kind, P.list[k].tint, k ? 0 : r4(P.start)]);

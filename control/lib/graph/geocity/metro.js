@@ -48,6 +48,9 @@
  *     industry      { share, segments: { works, warehouse, storage, tanks }, block: [least, most] } or false: the share
  *                   of the outskirts' neighbourhoods built as industry (design.js; its edge's and its shore's first),
  *                   their blocks' segments by weight (segments.js), a substation in each, the length of a block's side
+ *     highways      { count, lanes, height, along? } or false: its expressways (highways.js), elevated on piers: by
+ *                   default four, a lakeshore expressway along its shore, a crosstown over its far arterial, two cross
+ *                   highways over its outermost arterials the other way; `along` names their lines ('shore' its shore)
  *     grade         the steepest arterial (rise over run): steeper is advice
  *     grades        { collector?, local? }: the steepest of a neighbourhood's streets (by default the gentler of a tenth
  *                   and an eighth or the arterials')
@@ -178,7 +181,7 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'industry', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'industry', 'highways', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
@@ -276,6 +279,15 @@ export function readGeocity(spec = {}) {
   const In = M.industry, INDS = ['works', 'warehouse', 'storage', 'tanks'];
   if (!isObj(In) || !num(In.share, 0, 0.6) || !isObj(In.segments) || Object.keys(In.segments).some((k) => !INDS.includes(k)) || !Object.values(In.segments).every((v) => num(v, 0, 100)) || !Object.values(In.segments).some((v) => v > 0)
     || !(Array.isArray(In.block) && In.block.length === 2 && num(In.block[0], 60, 400) && num(In.block[1], In.block[0], 400))) no(`industry is false or { share: 0–0.6 of the outskirts' neighbourhoods, segments: weights over ${INDS.join(', ')}, block: [least, most] metres a side, 60–400 }`);
+  // (its highways, highways.js: `false` none; else how many, their lanes each way, the deck's height over the ground,
+  // and the lines they run along by name, 'shore' its shore's)
+  const HWD = { count: 4, lanes: 3, height: 10 };
+  M.highways = M.highways === false ? { ...HWD, count: 0 } : merge(HWD, M.highways ?? {});
+  const Hw = M.highways;
+  if (!isObj(Hw) || !(Number.isInteger(Hw.count) && Hw.count >= 0 && Hw.count <= 6) || !(Number.isInteger(Hw.lanes) && Hw.lanes >= 1 && Hw.lanes <= 5) || !num(Hw.height, 7, 20)
+    || (Hw.along !== undefined && !(Array.isArray(Hw.along) && Hw.along.length && Hw.along.every((a) => typeof a === 'string'))) || Object.keys(Hw).some((k) => !['count', 'lanes', 'height', 'along'].includes(k)))
+    no('highways is false or { count: 0–6, lanes: 1–5 each way, height: 7–20 m, along?: [\'shore\' | an arterial\'s id, …] }');
+  if (Hw.along) Hw.count = Math.max(Hw.count, Hw.along.length);
   const Rd = M.roads;
   if (!isObj(Rd) || !num(Rd.lane, 2.5, 4.5) || !num(Rd.parking, 0, 4) || !num(Rd.bike, 0, 3) || !(Number.isInteger(Rd.lanes) && Rd.lanes >= 2 && Rd.lanes <= 8 && Rd.lanes % 2 === 0)) no('roads is { lane: 2.5–4.5 m, parking: m, bike: m, lanes: an even 2–8, median, oneway, streetcar }');
   if (!isObj(Rd.median) || !num(Rd.median.share, 0, 1) || !num(Rd.median.w, 1, 20)) no('roads.median is { share: 0–1, w: metres }');

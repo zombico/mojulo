@@ -64,6 +64,7 @@ import { fleetOf, pickOf, YARDS } from './fleets.js';
 import { flowOf, flowLaws } from './flow.js';
 import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON } from './industry.js';
 import { INDUSTRY_SEGMENTS } from './segments.js';
+import { HIGHWAY, deckAt } from './highways.js';
 import { assembleGeotownScene } from '../geotown/scene.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
@@ -158,6 +159,8 @@ const FINISHES = Object.freeze({
   'geocity:works': ['corrugated', 'wall'], 'geocity:works:roof': ['standing-seam', 'floor'], 'geocity:warehouse': ['cladding', 'wall'],
   'geocity:warehouse:roof': ['standing-seam', 'floor'], 'geocity:control': ['cmu', 'wall'], 'geocity:yard': ['pavement', 'floor'],
   'geocity:bund': ['gravel', 'floor'], 'geocity:switchyard': ['gravel', 'floor'], 'geocity:bund-wall': ['concrete', 'wall'],
+  // (its highways' decks: asphalt over concrete, highways.js)
+  'geocity:highway': ['asphalt', 'floor'], 'geocity:highway-side': ['concrete', 'wall'],
 });
 // an industrial block's ground: a works' concrete, a tank farm's and a switchyard's gravel
 const IND_GROUND = Object.freeze({ works: ['geocity:yard', '#a29f97'], warehouse: ['geocity:yard', '#a29f97'], storage: ['geocity:yard', '#a29f97'], tanks: ['geocity:bund', '#938e82'], substation: ['geocity:switchyard', '#8f8a7f'] });
@@ -853,6 +856,71 @@ export function assembleGeocityScene(m, ctx = {}) {
     counts.yards = { ...(counts.yards ?? {}), [yard]: (counts.yards?.[yard] ?? 0) + 1 };
   }
 
+  /** THE HIGHWAYS (highways.js): each deck laid along its run in its stations' steps (its asphalt, its concrete fascia and
+   *  underside, a barrier at each edge and down its median), on its piers (a pair of columns in its arterial's kerb
+   *  lanes under a cap beam, one under its middle over the water); its lanes' lines and the lamps down its median near
+   *  the camera; under it, nothing taller than its underside left standing (the street's lamps, its poles and their
+   *  wires, its trees). */
+  function highways() {
+    const hws = d.highways ?? [];
+    if (!hws.length) return;
+    const conc = '#b7b3aa', barrier = '#cfcbc2', under = [];
+    for (const h of hws) {
+      const ax = h.axis === 'x', P = (u, off) => (ax ? [u, h.at + off] : [h.at + off, u]), half = h.w / 2, g = h.stations, D = HIGHWAY.depth;
+      const across = ax ? [0, 1, 0] : [1, 0, 0], neg = across.map((v) => -v);
+      // (a strip of it, from u0 to u1, between two offsets, its top `dz` over the deck: its top and its two sides)
+      const strip = (u0, u1, o0, o1, dz, group, hex) => {
+        const z0 = deckAt(h, u0), z1 = deckAt(h, u1), [a, b, c, e] = [P(u0, o0), P(u1, o0), P(u1, o1), P(u0, o1)];
+        put([[a[0], a[1], z0 + dz], [b[0], b[1], z1 + dz], [c[0], c[1], z1 + dz], [e[0], e[1], z0 + dz]], group, hex);
+        put([[a[0], a[1], z0], [b[0], b[1], z1], [b[0], b[1], z1 + dz], [a[0], a[1], z0 + dz]], group, hex, neg);
+        put([[e[0], e[1], z0], [c[0], c[1], z1], [c[0], c[1], z1 + dz], [e[0], e[1], z0 + dz]], group, hex, across);
+      };
+      for (let i = 0; i + 2 < g.length; i += 2) {
+        const u0 = g[i], u1 = g[i + 2], z0 = g[i + 1], z1 = g[i + 3], [a, b, c, e] = [P(u0, -half), P(u1, -half), P(u1, half), P(u0, half)];
+        put([[a[0], a[1], z0], [b[0], b[1], z1], [c[0], c[1], z1], [e[0], e[1], z0]], 'geocity:highway', col.road);
+        put([[a[0], a[1], z0 - D], [b[0], b[1], z1 - D], [b[0], b[1], z1], [a[0], a[1], z0]], 'geocity:highway-side', conc, neg);
+        put([[e[0], e[1], z0 - D], [c[0], c[1], z1 - D], [c[0], c[1], z1], [e[0], e[1], z0]], 'geocity:highway-side', conc, across);
+        put([[a[0], a[1], z0 - D], [b[0], b[1], z1 - D], [c[0], c[1], z1 - D], [e[0], e[1], z0 - D]], 'geocity:highway-side', mix(conc, '#000000', 0.25), [0, 0, -1]);
+        for (const [o0, o1] of [[-half, -half + 0.45], [half - 0.45, half], [-HIGHWAY.median / 2 + 0.2, HIGHWAY.median / 2 - 0.2]]) strip(u0, u1, o0, o1, 0.85, 'geocity:barrier', barrier);
+      }
+      // its piers: columns up to its underside, a cap beam across under it
+      for (const pr of h.piers) {
+        const zt = deckAt(h, pr.u) - D, cw = h.water ? 2.4 : 1.6;
+        for (const o of pr.cols) {
+          const [x, y] = P(pr.u, o), zb = h.water ? zWater - 3 : S(x, y);
+          put([[x - cw / 2, y - cw / 2, zb], [x + cw / 2, y - cw / 2, zb], [x + cw / 2, y - cw / 2, zt], [x - cw / 2, y - cw / 2, zt]], 'geocity:highway-side', conc, [0, -1, 0]);
+          put([[x + cw / 2, y - cw / 2, zb], [x + cw / 2, y + cw / 2, zb], [x + cw / 2, y + cw / 2, zt], [x + cw / 2, y - cw / 2, zt]], 'geocity:highway-side', conc, [1, 0, 0]);
+          put([[x + cw / 2, y + cw / 2, zb], [x - cw / 2, y + cw / 2, zb], [x - cw / 2, y + cw / 2, zt], [x + cw / 2, y + cw / 2, zt]], 'geocity:highway-side', conc, [0, 1, 0]);
+          put([[x - cw / 2, y + cw / 2, zb], [x - cw / 2, y - cw / 2, zb], [x - cw / 2, y - cw / 2, zt], [x - cw / 2, y + cw / 2, zt]], 'geocity:highway-side', conc, [-1, 0, 0]);
+          colliders.push({ min: P3([x - cw / 2, y - cw / 2, zb]), max: P3([x + cw / 2, y + cw / 2, zt]), of: `${h.id}:pier` });
+        }
+        const [p0, p1] = [P(pr.u - 1, -half + 1), P(pr.u + 1, half - 1)], q = [Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1])];
+        put([[q[0], q[1], zt - 1.3], [q[2], q[1], zt - 1.3], [q[2], q[1], zt], [q[0], q[1], zt]], 'geocity:highway-side', conc, [0, -1, 0]);
+        put([[q[2], q[1], zt - 1.3], [q[2], q[3], zt - 1.3], [q[2], q[3], zt], [q[2], q[1], zt]], 'geocity:highway-side', conc, [1, 0, 0]);
+        put([[q[2], q[3], zt - 1.3], [q[0], q[3], zt - 1.3], [q[0], q[3], zt], [q[2], q[3], zt]], 'geocity:highway-side', conc, [0, 1, 0]);
+        put([[q[0], q[3], zt - 1.3], [q[0], q[1], zt - 1.3], [q[0], q[1], zt], [q[0], q[3], zt]], 'geocity:highway-side', conc, [-1, 0, 0]);
+        put([[q[0], q[1], zt - 1.3], [q[2], q[1], zt - 1.3], [q[2], q[3], zt - 1.3], [q[0], q[3], zt - 1.3]], 'geocity:highway-side', mix(conc, '#000000', 0.25), [0, 0, -1]);
+      }
+      // its lanes' lines (a dash between each two each way, a solid line at each shoulder) and its median's lamps
+      if (E?.evoke !== 'skyline') {
+        const lane = HIGHWAY.lane, inner = HIGHWAY.median / 2 + HIGHWAY.shoulder, rot = ax ? 0 : Math.PI / 2;
+        for (let u = h.lo + 2; u + 10 <= h.hi; u += 12) for (const sg of [-1, 1]) {
+          const zz = Math.max(deckAt(h, u), deckAt(h, u + 10)) + 0.04;
+          for (let k = 1; k < h.lanes; k++) { const [x, y] = P(u, sg * (inner + k * lane)); stamp('dash', [x, y, zz], rot); }
+          for (const o of [inner - 0.15, inner + h.lanes * lane + 0.15]) { const [x, y] = P(u, sg * o); stamp('line', [x, y, zz], rot); }
+        }
+        for (let u = h.lo + 20; u <= h.hi - 10; u += 48) { const [x, y] = P(u, 0); for (const f of ax ? ['n', 's'] : ['e', 'w']) stamp(`lamp:${f}`, [x, y, deckAt(h, u) + 0.85], 0); }
+      }
+      if (!h.water) under.push(ax ? [h.lo, h.at - half - 2, h.hi, h.at + half + 2] : [h.at - half - 2, h.lo, h.at + half + 2, h.hi]);
+      counts.highways = (counts.highways ?? 0) + 1;
+    }
+    // (under a deck: the street's lamps, its wooden poles and their wires, its trees taken out)
+    const inUnder = (x, y) => under.some((q) => x > q[0] && x < q[2] && y > q[1] && y < q[3]);
+    const TALLER = ['lamp', 'hydro', 'wire'];
+    for (const [k, list] of stamps) if (TALLER.includes(k.split(':')[0])) stamps.set(k, list.filter((t) => { const zd = hws.find((h) => !h.water && (h.axis === 'x' ? Math.abs(t.pos[1] - h.at) < h.w / 2 + 2 : Math.abs(t.pos[0] - h.at) < h.w / 2 + 2)); return !(zd && inUnder(t.pos[0], t.pos[1]) && t.pos[2] < deckAt(zd, zd.axis === 'x' ? t.pos[0] : t.pos[1]) - 1); }));
+    for (const [k, list] of trees) trees.set(k, list.filter((t) => !inUnder(t.x, t.y)));
+  }
+
   /** THE GRID (industry.js PYLON): each industrial neighbourhood's substation fed by a high-voltage line on lattice
    *  pylons from the country beyond the land's edge, straight out from its switchyard across the neighbourhood, a pylon
    *  every span or so (stood clear of its halls and off its streets), six conductors sagging between each two, in from
@@ -995,6 +1063,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   street();
   streetsNear();
   grid();
+  highways();
 
   // ── the blocks at a building's detail: their masses through the facade pipeline (its units), back to metres; at
   // night its windows lit on the facades' own grids (city/plan/night.js) ──
@@ -1442,6 +1511,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       } : { podium: null, why: underWhy } } : {}),
       ...(SUB ? { subway: { ...SUB.readout, ...(streetcars.length ? { streetcars } : {}) } } : {}),
       ledger: d.ledger, laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
+      ...(d.highways ? { highways: d.highways.map((h) => ({ id: h.id, role: h.role, along: h.along, length: Math.round(h.hi - h.lo), lanes: h.lanes, ...(h.joins ? { joins: h.joins } : {}), ...(h.over ? { over: h.over } : {}) })) } : {}),
       ...(F ? { flow: { lanes: F.lanes.length, vehicles: F.cars.length, signals: F.signals.length, cycle: F.signals[0].cycle, clearance: F.T.CLEARANCE, near: F.near } } : {}),
       // (its streets' profiles where it asks them: the arterials', and how many of each neighbourhood's streets)
       ...(d.profile ? { profile: { arterials: d.profile.arterials, neighbourhoods: Object.fromEntries(Object.entries(d.profile.neighbourhoods).map(([id, st]) => [id, st.length])), ...(d.spec.slope ? { slope: d.spec.slope } : {}) } } : {}),

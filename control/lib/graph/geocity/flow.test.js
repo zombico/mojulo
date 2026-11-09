@@ -8,12 +8,14 @@ import { createTrafficModel, stepTraffic, carFootprint, rectsTouch } from '../sc
 
 const geocity = { metro: { from: 'lakeshore', rings: { core: 350, frame: 700 } }, extent: [1800, 1500], water: { sides: ['s'], depth: 200 }, core: [0.5, 0.2] };
 const D = designGeocity(geocity, { seed: 2 }), F = flowOf(D, { seed: 2 });
+// (a street's lanes, and a highway's on its deck over them: highways.js)
+const onDeck = (L) => (D.highways ?? []).some((h) => h.id === L.line);
 
 describe('the metro\'s traffic, planned', () => {
   it('drives each arterial\'s travel lanes but a streetcar\'s, the land\'s length, each its way', () => {
     const travel = D.lines.flatMap((l) => l.bands.filter((b) => b.kind === 'travel' && !b.streetcar).map((b) => ({ l, b })));
-    expect(F.lanes.length).toBe(travel.length);
-    for (const L of F.lanes) {
+    expect(F.lanes.filter((L) => !onDeck(L)).length).toBe(travel.length);
+    for (const L of F.lanes.filter((x) => !onDeck(x))) {
       const l = D.lines.find((x) => x.id === L.line), b = l.bands.find((x) => x.kind === 'travel' && !x.streetcar && Math.abs(l.at + (x.from + x.to) / 2 - L.cross) < 1e-3);
       expect(b).toBeDefined();
       expect(L.dir).toBe(b.dir);
@@ -45,11 +47,30 @@ describe('the metro\'s traffic, planned', () => {
   });
 });
 
+describe('the metro\'s traffic on its highways', () => {
+  it('drives each highway\'s lanes each way on its deck, faster, through no signal', () => {
+    const hw = F.lanes.filter(onDeck);
+    expect(hw.length).toBe((D.highways ?? []).reduce((a, h) => a + 2 * h.lanes, 0));
+    for (const L of hw) {
+      const h = D.highways.find((x) => x.id === L.line);
+      expect(L.crossings).toHaveLength(0);
+      expect(L.speed).toBeGreaterThan(F.lanes.find((x) => !onDeck(x)).speed);
+      expect(L.ground).toEqual(h.stations);
+      expect(Math.abs(L.cross - h.at)).toBeLessThan(h.w / 2);
+    }
+    // (each way on its own side of the median)
+    const h0 = D.highways[0], sides = (dir) => new Set(hw.filter((L) => L.line === h0.id && L.dir === dir).map((L) => Math.sign(L.cross - h0.at)));
+    expect(sides(1).size).toBe(1);
+    expect([...sides(1)][0]).toBe(-[...sides(-1)][0]);
+  });
+});
+
 describe('the metro\'s traffic, driven as the page drives it', () => {
   it('never has two axes\' vehicles in one crossing, its lanes each entered at its own time', () => {
     const cycle = F.signals[0].cycle, T = F.T;
     // each lane its own model, come into reach at its own clock (the page's rule: from its cycle's last turn)
-    const lanes = F.lanes.map((L, li) => {
+    // (a highway's lanes run over the crossings on its deck, not through them)
+    const lanes = F.lanes.map((L, li) => [L, li]).filter(([L]) => !onDeck(L)).map(([L, li]) => {
       const cars = F.cars.filter((c) => c[0] === li), m = createTrafficModel([L], cars.map((c) => ({ lane: 0, startFrac: c[3], len: F.kinds[c[1]].len })), F.signals, T);
       return { L, m, cars, enter: (li * 7.3) % 50 };
     });
