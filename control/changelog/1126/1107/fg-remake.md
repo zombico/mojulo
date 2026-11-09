@@ -118,5 +118,21 @@ keeps its place.
   a projectile and the knockout. The arena's page carries them on its audio channel (one room, ten voices, each hit its
   own variant), joining what audio the level has; the runtime plays the cue for what landed (`fightCue`) and starts the
   sound on a first key or touch. An arena made before the register beeps as it did.
+- **The move primitives** (`versus-library.js`, a fighter takes the ones it wants; one that takes none fights to the byte
+  as before): command normals (forward + a button, `commands`) with the overhead families `axe` and `hammer`, slow and
+  blocked only standing, their priority a heavy's; traversal specials, a `slide` (low, it trips, under a fireball), a
+  `roll` and a `blink` (through the opponent, untouchable on the way, striking nothing) and a `hop` (over a low); charge
+  motions (`[4]6`, `[2]8`: the hold kept only on a fighter with one) with the charged shot `boom` and the flip kick
+  `flash`; a `rekka` (three stages, the same motion again on hit, block or whiff, typed through hitstop on its last
+  direction and a button); and air blocking (system `airblock`: holding back in the air blocks an air attack or a shot).
+  Throws, the fireball, the DP and the sweep's trip were there already.
+- **The move list** (`versus-movelist.js`): a fighter's moves by kind, each its input in the player's scheme (the
+  classic's motions and charges, the modern's special button), what it is for and its frame data, in mana-ui's command
+  list; a tab's label and a table's cell may be one of the runtime's words, said in the game's language.
+- **The lab**: training is fought on the game's training ground (its arena marked `lab`; a game minted with arenas of its
+  own gets one beside them), straight from character select (you and your training partner) with no stage to pick.
+  Under the register the arena carries mana-ui over the fight (`versus-lab.js`, in the register's look): the first
+  player's inputs along the foot, each a run with the frames it was held; the frame meter of the last move over them on
+  F (startup, active, recovery, what it left); and the move list from the pause, in the pausing player's scheme.
 - **CI**: `design-game.vary.test.js` pins its order's roll (it drew one at random each run, and about one roll in
   four hundred lifts most of a late tier's ornaments past their 0–3 scale, the gate leaving two variants of three).

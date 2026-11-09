@@ -499,6 +499,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // off the stick, a charge's hold) and versus-core.js (the charge kept, a rekka's next stage, the push boxes off while a
 // body passes through, a block in the air) and versus-movelist.js (a fighter's moves as its player reads them); the
 // fixture's fighters take none of them and fight as before.
+// Re-pinned 2026-11-09 (1107-fg-remake: the lab): `versus` only. Its page inlines versus-arena.client.js (the lab's
+// strips and its move list from the pause, under a register; the pause's items), versus-runtime.client.js (training's
+// panel under the lab) and versus-core.js (a rekka's next stage on its motion's last direction and a button, typed
+// through hitstop); the fixture's arena names no register and carries no lab.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

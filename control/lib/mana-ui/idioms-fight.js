@@ -208,7 +208,7 @@ export const FIGHT_IDIOMS = {
     node: screen({ title: P('title'), layer: 'modal', place: 'full' }, [{ use: 'tabs', props: { pages: P('kinds'), page: { use: 'split', children: [
       { use: 'window', children: [{ use: 'list', id: 'moves', props: { rows: I('moves'), row: row([txt(I('name'), 'heading'), { use: 'badge', props: { value: I('input') } }], 'apart') } }] },
       { use: 'window', props: { title: W('frameData') }, children: [col([
-        txt({ pick: 'moves.name' }, 'title'), { use: 'badge', props: { value: { pick: 'moves.input' }, variant: 'strong' } }, txt({ pick: 'moves.about' }),
+        txt({ pick: 'moves.name' }, 'title'), row([{ use: 'badge', props: { value: { pick: 'moves.input' }, variant: 'strong' } }], 'start'), txt({ pick: 'moves.about' }),
         { use: 'table', props: { columns: [{ key: 'what', label: '' }, { key: 'value', label: W('frames'), align: 'right' }], rows: { pick: 'moves.data' } } },
       ])] },
     ] } } }, legend(['tabNext', 'tabs'], ['back', 'back'])]),

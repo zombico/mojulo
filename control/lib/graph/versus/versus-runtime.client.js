@@ -552,6 +552,14 @@ function drawHud(g, W, H, m) {
 function drawTraining(g, m) {
   const mv = m.lastMove;
   const x = 24, y = 120;
+  // (under the lab, versus-lab.js, the inputs and the frame data are its own: the canvas keeps the dummy and the keys)
+  if (m.lab) {
+    g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(x - 10, y - 18, 300, 80);
+    vsText(g, `dummy: ${VS_DUMMY[RT.dummy]}  (R)`, x, y, 14, '#fff', 'left', 600);
+    vsText(g, `boxes: ${RT.showBoxes ? 'on' : 'off'}  (B)   frame data (F)`, x, y + 20, 14, '#fff', 'left', 600);
+    vsText(g, 'move list: pause', x, y + 40, 14, '#fff', 'left', 600);
+    return;
+  }
   g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(x - 10, y - 18, 300, mv ? 130 : 60);
   vsText(g, `dummy: ${VS_DUMMY[RT.dummy]}  (R)`, x, y, 14, '#fff', 'left', 600);
   vsText(g, `boxes: ${RT.showBoxes ? 'on' : 'off'}  (B)`, x, y + 20, 14, '#fff', 'left', 600);

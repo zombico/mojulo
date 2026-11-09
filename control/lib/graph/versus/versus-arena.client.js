@@ -26,7 +26,7 @@
  */
 
 /* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, renderer, makeFightFx, FX_SKINS, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
-   figureBase, characterBase, figurePose, figureSegments, segmentOf, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawnPose, drawEffects, drawHud, vsText, vsOutlined, pushBox */
+   figureBase, characterBase, figurePose, figureSegments, segmentOf, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawnPose, drawEffects, drawHud, vsText, vsOutlined, pushBox, moveList, signedFrames, manaUi, VERSUS_LAB */
 
 const AV = VERSUS_ARENA;
 const hosted = window.parent !== window;
@@ -632,7 +632,64 @@ const placeFighter = (B, p, F, drawn) => (B.played ? placePlayed(B, p, F, drawn)
 const ROSTER = AV.roster.map((r) => ({ ...r, F: compileFighter(r.recipe) }));
 let match = null, bodies = [], phase = 'wait', waited = 0, pauseIx = 0, pauseBy = 0, lastParams = null;
 
-installVersusInput((code) => { if (code === 'KeyR' && match && match.mode === 'training') RT.dummy = (RT.dummy + 1) % VS_DUMMY.length; });
+installVersusInput((code) => {
+  if (code === 'KeyR' && match && match.mode === 'training') RT.dummy = (RT.dummy + 1) % VS_DUMMY.length;
+  // (the lab's frame meter, on and off: F)
+  if (code === 'KeyF' && LAB && match && match.mode === 'training') LAB.state.lab.showFrames = !LAB.state.lab.showFrames;
+});
+
+// THE LAB (versus-lab.js, under a fight game's register): mana-ui over the fight in the register's look. In training,
+// the first player's inputs along the foot (each a run: its direction, its buttons, the frames it was held) and, on F,
+// the frame meter of their last move over them (startup, active, recovery as marks, what it left on hit or block); in any
+// mode the pause's move list (versus-movelist.js), the pausing player's fighter in their scheme, moved by their stick.
+const LAB_ARROWS = { 1: '↙', 2: '↓', 3: '↘', 4: '←', 5: '•', 6: '→', 7: '↖', 8: '↑', 9: '↗' };
+const LAB_BUTTONS = [[1, 'L'], [2, 'M'], [4, 'H'], [8, 'S'], [16, 'T']];
+const LAB = typeof VERSUS_LAB !== 'undefined' && VERSUS_LAB ? (() => {
+  const style = document.createElement('style');
+  style.textContent = VERSUS_LAB.css;
+  document.head.appendChild(style);
+  const state = { lab: { training: false, inputs: [], frames: [], advantage: '', showFrames: false, moves: [] } };
+  const el = document.createElement('div');
+  document.body.appendChild(el);
+  const rt = manaUi.runtime(VERSUS_LAB.spec, { read: (p) => manaUi.readPath(state, p), now: () => performance.now() / 1000 });
+  // (what each of the move list's actions is called: the fight's own keys, a pad's d-pad and buttons)
+  rt.glyphs({ keys: { up: 'W', down: 'S', tabPrev: 'A', tabNext: 'D', back: 'Esc', accept: 'J' }, pad: { xbox: { up: '↑', down: '↓', tabPrev: '←', tabNext: '→', back: 'B', accept: 'A' } } });
+  rt.input('keys');
+  const view = manaUi.mount(el, rt, { auto: true });
+  // (a press moves the screen at once: the auto loop repaints only on the clock's changes)
+  const press = (action) => { rt.press(action); view.paint(); };
+  return { state, rt, view, press, runs: [], key: null, move: null, connect: null };
+})() : null;
+// the lab's feed, a fight frame: the inputs as runs, the last move's frames and what it left
+function labTick() {
+  if (!LAB || !match) return;
+  const L = LAB.state.lab, s = match.s, p = s.p[0];
+  L.training = match.mode === 'training';
+  if (!L.training) return;
+  const e = p.hist[p.hist.length - 1] ?? 5, dir = e & 15, held = (p.held ?? 0) & 31, key = dir * 64 + held;
+  const last = LAB.runs[LAB.runs.length - 1];
+  if (last && LAB.key === key) last.n++;
+  else { LAB.runs.push({ dir, held, n: 1 }); if (LAB.runs.length > 10) LAB.runs.shift(); LAB.key = key; }
+  L.inputs = LAB.runs.map((r) => ({ text: `${LAB_ARROWS[r.dir] ?? '•'}${LAB_BUTTONS.filter(([b]) => r.held & b).map(([, w]) => ` ${w}`).join('')}  ${r.n > 99 ? '99+' : r.n}` }));
+  // (the move's frames once, as it starts; what it left once it connects)
+  const F = match.ctx.fighters[0], m = p.mv ? F.moves[p.mv] : null;
+  if (m && m !== LAB.move) {
+    LAB.move = m; LAB.connect = null;
+    const total = Math.min(60, m.total ?? m.startup + m.active - 1 + (m.recovery ?? 0));
+    L.frames = Array.from({ length: total }, (_, k) => {
+      const f = k + 1, variant = f < m.startup ? 'muted' : f < m.startup + m.active ? 'strong' : 'plain';
+      return { value: f === 1 || f === m.startup || f === m.startup + m.active ? String(f) : '', variant };
+    });
+    L.advantage = '';
+  }
+  for (const ev of s.events) if (ev.p === 0 && (ev.t === 'hit' || ev.t === 'block' || ev.t === 'counter') && LAB.move) {
+    LAB.connect = ev.t === 'block' ? 'block' : 'hit';
+    const adv = LAB.move.adv ? LAB.move.adv[LAB.connect] : null;
+    L.advantage = adv === null || adv === undefined ? '' : signedFrames(adv);
+  }
+}
+// the pause's items: resume, the move list (with the lab), then quit or restart
+const pauseItems = () => ['Resume', ...(LAB ? ['Move list'] : []), hosted ? 'Quit to character select' : 'Restart'];
 // (the fight's sound starts on a person's first key or touch, as a click on the world starts it: the page's audio channel
 // unlocks there, when the arena carries one; a browser plays nothing before a person acts)
 const fightUnlock = () => { if (typeof __beatsUnlock === 'function') __beatsUnlock(); };
@@ -650,6 +707,8 @@ function begin(params) {
   const rules = hostedRules(AV.rules, params.rules, Math.round(LANE.half * 1000));
   match = newMatch({ fighters, names: params.names, colors: params.colors, schemes: params.schemes, mode: params.mode, level: params.level, cpu: params.cpu, rules, seed: params.seed ?? 1 });
   if (FX) match.noSparks = true;
+  // (the lab draws training's readouts: the canvas keeps the dummy's line)
+  if (LAB) { match.lab = true; LAB.runs = []; LAB.key = null; LAB.move = null; Object.assign(LAB.state.lab, { inputs: [], frames: [], advantage: '' }); }
   bodies = params.colors.map((c, i) => {
     const skin = skinOf(params.characters && params.characters[i]);
     return skin ? (skin.pack.played ? makePlayed(skin) : makeCharacter(skin)) : makeBody(c, fighters[i]);
@@ -678,13 +737,26 @@ function tick() {
   }
   if (phase === 'paused') {
     // the menu is the seat's that opened it: only that player's controller moves it
-    const own = (k) => inp[pauseBy][k];
-    if (own('up') || own('down')) pauseIx = 1 - pauseIx;
+    const own = (k) => inp[pauseBy][k], items = pauseItems();
+    if (own('up')) pauseIx = (pauseIx + items.length - 1) % items.length;
+    if (own('down')) pauseIx = (pauseIx + 1) % items.length;
     if (own('ok')) {
-      if (pauseIx === 0) phase = 'fight';
+      const item = items[pauseIx];
+      if (item === 'Resume') phase = 'fight';
+      else if (item === 'Move list') { LAB.state.lab.moves = moveList(match.ctx.fighters[pauseBy], match.s.p[pauseBy].scheme); LAB.rt.open('moves'); LAB.view.paint(); phase = 'moves'; }
       else if (hosted) { post({ moj: AV.wire.outcome, envelope: { contractVersion: AV.wire.version, result: 'abort', events: [] } }); phase = 'done'; }
       else begin(lastParams);
     }
+    return;
+  }
+  // the move list open (the lab's command list): the pausing player's stick moves it, back returns to the pause
+  if (phase === 'moves') {
+    const own = (k) => inp[pauseBy][k];
+    if (own('up')) LAB.press('up');
+    if (own('down')) LAB.press('down');
+    if (own('left')) LAB.press('tabPrev');
+    if (own('right')) LAB.press('tabNext');
+    if (own('back') || own('pause')) { LAB.rt.close(); LAB.view.paint(); phase = 'paused'; }
     return;
   }
   if (phase === 'over') {
@@ -695,6 +767,7 @@ function tick() {
   if ((inp[0].pause || inp[1].pause) && match.s.phase !== 'matchEnd') { phase = 'paused'; pauseIx = 0; pauseBy = inp[0].pause ? 0 : 1; return; }
   if (match.slow > 0) { match.slow--; if (match.slow % 3) return; }
   stepMatch(match);
+  labTick();
   // (each of the step's events to the effects, a KO at the fallen body; then the effects' own tick)
   if (FX) { for (const e of match.s.events) FX.onEvent(e, match, e.t === 'ko' && match.s.p[e.p] ? [match.s.p[e.p].x, 1100] : null); FX.tick(); }
   if (match.end === 150) {
@@ -763,8 +836,10 @@ function draw() {
   if (phase === 'paused') {
     g2.fillStyle = 'rgba(0,0,0,0.65)'; g2.fillRect(0, 0, OW, OH);
     vsOutlined(g2, 'PAUSED', OW / 2, OH * 0.3, 54, '#fff');
-    ['Resume', hosted ? 'Quit to character select' : 'Restart'].forEach((it, k) => vsText(g2, it, OW / 2, OH * 0.45 + k * 50, 24, k === pauseIx ? '#ffd23a' : '#fff'));
+    pauseItems().forEach((it, k) => vsText(g2, it, OW / 2, OH * 0.45 + k * 50, 24, k === pauseIx ? '#ffd23a' : '#fff'));
   }
+  // (the move list is the lab's: the fight dimmed under it)
+  if (phase === 'moves') { g2.fillStyle = 'rgba(0,0,0,0.55)'; g2.fillRect(0, 0, OW, OH); }
   if (phase === 'over') vsOutlined(g2, 'PRESS START TO FIGHT AGAIN', OW / 2, OH * 0.62, 28, '#ffd23a');
 }
 

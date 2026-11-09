@@ -87,6 +87,17 @@ The machine read (`report.json`, advisory): each body bakes and plays without a 
 and on its line (its posed mesh's bounds against the lane), and what it weighs in the page (triangles, megabytes). The
 eyes gate is the operator's: `sheet.png`, two moments of each matchup.
 
+## The lab
+
+`lab.mjs` bakes the training ground under a register with a fighter carrying the new primitives (a rekka, a charged
+shot, a charged flip kick, a roll, an axe-kick overhead) and hosts it in training mode on a virtual clock, the first
+player's keys set between frames: the rekka run, the overhead, the charge; F for the frame meter; the pause's move list,
+tabbed to the specials. Shots: `lab.png`, `movelist.png`, `movelist-specials.png`.
+
+```bash
+node control/scripts/spikes/fighter/lab.mjs --out /tmp/fighter-lab [--register anime|western] [--scheme classic|modern]
+```
+
 ## Weapons: usable, and where the blade is a hurtbox
 
 `weapons.mjs` arms one all-rounder with each weapon on the shelf (`versus-library.js` WEAPONS) and reads it in the sim,

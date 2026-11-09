@@ -8,7 +8,7 @@
  * is regenerated on every read. No network, no CDN.
  *
  *   manifest = { kind: 'game', engine: 'versus', title?, roster?: [intent | { recipe }], stages?: [stage],
- *                arenas?: [{ ref, name?, says? }], rules?: { rounds?, timer?, systems?, … (versus-core readRules) } }
+ *                arenas?: [{ ref, name?, says?, lab? }] (lab: the training ground, where training is fought), rules?: { rounds?, timer?, systems?, … (versus-core readRules) } }
  *
  * A spawned game is extended by editing this manifest (update_sketch): a roster entry's weapon, tunes, own
  * specials and slot overrides (versus-solver.js, versus-compile.js), the rules and their systems.
@@ -88,7 +88,7 @@ export function versusGameData(manifest = {}) {
   // a fight kind's look draws the swing trails (versus-kinds.js); no kind, no look
   const look = manifest.rules?.kind && FIGHT_KINDS[manifest.rules.kind] ? FIGHT_KINDS[manifest.rules.kind].look : null;
   // arenas: scapeshift stage worlds carrying the fight channel, hosted in a frame (`src`: their World page)
-  const arenas = (manifest.arenas ?? []).map((a) => ({ ref: a.ref, name: a.name ?? a.ref, ...(a.says ? { says: a.says } : {}), src: a.src ?? `/api/sketches/${encodeURIComponent(a.ref)}/world?hud=0` }));
+  const arenas = (manifest.arenas ?? []).map((a) => ({ ref: a.ref, name: a.name ?? a.ref, ...(a.says ? { says: a.says } : {}), ...(a.lab ? { lab: true } : {}), src: a.src ?? `/api/sketches/${encodeURIComponent(a.ref)}/world?hud=0` }));
   return { title: manifest.title ?? 'Versus', roster, stages, rules, ...(look ? { look } : {}), ...(arenas.length ? { arenas } : {}), wire: VERSUS_WIRE };
 }
 

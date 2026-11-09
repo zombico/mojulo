@@ -128,6 +128,12 @@ describe('versus primitives: a rekka runs on the same motion again', () => {
     const { s, ctx } = fight(3000, [F, K]);
     const out = run(s, ctx, 90, (k) => [at.map((k0) => qcf(k0)(k)).find(Boolean) ?? pad(), pad()]);
     expect(out.moves.slice(0, 3)).toEqual(['special.forward.M', 'special.forward.M~2', 'special.forward.M~3']);
+    // (into the dummy: each stage typed through the blow's hitstop goes on, the buffer keeping the button)
+    const near = fight(700, [F, K]);
+    // (the motion again and again, as a player keeps at it: the hits' hitstops shift each stage's window)
+    const hit = run(near.s, near.ctx, 120, (k) => [k < 60 ? qcf(k - (k % 6))(k) ?? pad() : pad(), pad()]);
+    expect(hit.events.some(([, e]) => e.p === 0 && e.t === 'hit')).toBe(true);
+    expect(hit.moves.slice(0, 3)).toEqual(['special.forward.M', 'special.forward.M~2', 'special.forward.M~3']);
     // (once: no motion again, no second stage)
     const once = fight(3000, [F, K]);
     expect(run(once.s, once.ctx, 60, (k) => [qcf(0)(k) ?? pad(), pad()]).moves).toEqual(['special.forward.M']);

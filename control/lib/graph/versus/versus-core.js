@@ -267,6 +267,9 @@ function think(s, i, ctx) {
     // (a REKKA's stage goes on to the next on the same motion again, hit, block or whiff, from its first active frame)
     const onRekka = !!m.rekka && p.mf >= m.startup;
     if (p.mf > m.startup + m.active - 1 + R_CANCEL(s) || (!p.conn && !(onString && p.mf >= m.startup) && !onRekka)) return;
+    // (a rekka typed through its blow's hitstop: the buffer keeps the button while the body is frozen, not the motion's
+    // turns, so the motion's last direction and a button go on to the next stage, as the whole motion does)
+    if (onRekka && pressed(p.hist, BTN.L | BTN.M | BTN.H) && dir === Number(String(m.motion).slice(-1))) { start(s, i, ctx, { type: 'special', slot: m.rekka }); return; }
     const auto = p.scheme === 'simple' ? autoNext(F, p.mv) : null;
     const cmd = readCommand(p.hist, p.scheme, F, { ...opts, stance: p.st === 'air' ? 'air' : (downish(dir) ? 'crouch' : 'stand'), auto });
     if (!cmd) return;
