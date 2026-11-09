@@ -10,3 +10,9 @@
   each held screen's line on the road), its belt's words over the preset's; `brawlLevel` gives the greybox world and its
   `brawl` block. A greybox takes a `brawl` block as it takes a fight's `versus`.
 - The spike `scripts/spikes/brawler/belt.mjs` shoots the street from each angle.
+- The brawl's sim (`brawl/brawl-core.js`): many bodies down a belt, two sides, each body a compiled fighter, so a thug's
+  jab and a player's are the fight's frame data (the same frame, the same damage, the same recovery as in the fight,
+  checked frame by frame). A blow lands only on bodies lined up across the belt, on every one of the other side its box
+  meets; no block; a thrown body knocks down the bodies of its own side it flies into; a body rising from the floor is
+  untouchable a moment; bodies push each other only when lined up; each faces its nearest foe. The camera goes on with
+  the players and holds at a gate. Deterministic and hashed like the fight; the fight's own core is untouched.
