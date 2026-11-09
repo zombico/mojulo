@@ -99,5 +99,12 @@ keeps its place.
   Its looks are new theme cards of the family `fight`: `fight-clean` (the default), `fight-cel` (anime) and
   `fight-lit` (western), none leaning, stacking or slamming. The board draws a fight HUD, a training HUD and every
   fight screen. A table's column labelled by a word now reads as the word (it printed the object).
+- **Non-human fighters, in the game's look**: a roster's character may be any stored body that stands on two legs and
+  fights with two arms: a hero, a xeno (`xenoSpecies`, `xenoHeaddress`), beastfolk (the hero's `beast`: a kin, its tail,
+  a second pair of arms, a naga on its serpent's coil), a mascot or a two-legged creature, each measured off its own
+  skeleton (a non-hero's girth from its trunk's widest ring, its colour from its palette); a four-legged body or one
+  without arms is refused with the reason, and a fighter's own strikes (`moves`) stay a hero's. A body's face bones
+  (lids, lips, brows, ears, a snout, horns) ride its head, and a serpent's coil its hips, the rest planted on the ground. A posed body under a fight's register is drawn in it, as a played one is: the register's
+  material, casting and taking the key's shadows, its coats, no ink hull.
 - **CI**: `design-game.vary.test.js` pins its order's roll (it drew one at random each run, and about one roll in
   four hundred lifts most of a late tier's ornaments past their 0–3 scale, the gate leaving two variants of three).

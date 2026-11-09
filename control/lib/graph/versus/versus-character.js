@@ -11,6 +11,12 @@
  *
  * The calibration: the default male hero (create_character's `cast: 'male'`) is the fight's canonical body, arm, leg and
  * torso 1; a dial is the character's proportion over his. Height is the character's own (mm to the top of the head).
+ *
+ * NOT ONLY A PERSON: any stored body that stands on two legs and fights with two arms is a fighter, a hero, a mascot or a
+ * two-legged creature (create_character's doors), its skeleton the fight's joints (FIGHT_JOINTS). A body that is not a
+ * hero has no hero record to read its girth from: its girth is its trunk's breadth (its widest ring over its height)
+ * against the canonical body's, and its colour its palette's. A four-legged body, or one with no arms, is not a
+ * fighter, and says why. A fighter's own strikes (`moves`) are a hero's: their clips are made by the hero door.
  */
 import { BODY_DIALS } from './versus-compile.js';
 import { fighterSpec, fighterFromSheet, fighterName } from './versus-sheet.js';
@@ -26,6 +32,19 @@ export const isCharacterEntry = (e) => isObj(e) && e.hero !== undefined;
 
 const at = (j) => (Array.isArray(j) ? j : j.at);
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+/** The joints a fight measures and poses a body by: two legs, two arms, a trunk and a head. */
+export const FIGHT_JOINTS = Object.freeze(['headTop', 'neckHub', 'pelvisHub', 'shoulderR', 'elbowR', 'wristR', 'shoulderL', 'elbowL', 'wristL', 'hipR', 'kneeR', 'ankleR', 'hipL', 'kneeL', 'ankleL']);
+/** A body's breadth: its trunk's widest ring (its plan's trunk segments, the head's and the hair's left out), across
+ * and through, over its height: the girth of a body that is not a hero (a round mascot is broad, whatever its bones). */
+export function trunkBreadth(plan, joints) {
+  let w = 0;
+  for (const seg of plan?.segments ?? []) {
+    if (seg?.kind !== 'trunk' || /^(head|hair|neck|face|ear|tail)/i.test(seg.name ?? '')) continue;
+    for (const st of seg.stations ?? []) { const r = Array.isArray(st?.r) ? st.r : [st?.r, st?.r]; if (Number.isFinite(r[0]) && Number.isFinite(r[1])) w = Math.max(w, r[0] + r[1]); }
+  }
+  return w / at(joints.headTop)[2];
+}
 
 /** A skeleton's measures (m): stature, the arm's reach, the hip's height, the trunk from pelvis to neck. */
 export function measureSkeleton(joints) {
@@ -55,8 +74,8 @@ let REF = null;
 async function reference() {
   if (REF) return REF;
   const { heroRecord, expandLayeredManifest } = await layered();
-  const hero = heroRecord({ cast: 'male' });
-  REF = { m: measureSkeleton(expandLayeredManifest({ kind: 'layered', hero }).recipe.rig.joints), girth: heroGirth(hero) };
+  const hero = heroRecord({ cast: 'male' }), E = expandLayeredManifest({ kind: 'layered', hero }), joints = E.recipe.rig.joints;
+  REF = { m: measureSkeleton(joints), girth: heroGirth(hero), breadth: trunkBreadth(E.plan, joints) };
   return REF;
 }
 
@@ -81,17 +100,43 @@ async function heroFightOf(manifest, moves) {
   readHeroMoves(moves);
   return heroFight(validateRig(expandLayeredManifest(manifest).recipe.rig), moves);
 }
-/** A stored row's manifest → the character's body dials and colour; throws when the row is not a character. */
-export async function measureCharacter(manifest, where = 'fighter', ref = '?') {
-  if (!manifest || manifest.kind !== 'layered' || !isObj(manifest.hero)) {
-    throw new Error(`versus: ${where}.hero.ref '${ref}' is not a stored character (make one with create_character { as: 'hero' })`);
+/** What a stored row is to the fight, said when it is not a fighter (create_character's words for what it is). */
+function notAFighter(manifest, where, ref, joints) {
+  const at = `versus: ${where}.hero.ref '${ref}'`, two = 'a fighter stands on two legs and fights with two arms (a hero, a mascot or a two-legged creature: create_character)';
+  if (!manifest) return `${at} is not a stored character (make one with create_character)`;
+  if (manifest.kind !== 'layered') return `${at} is a ${manifest.kind ?? 'sketch'}, not a character: ${two}`;
+  if (manifest.species || manifest.fauna) return `${at} is a four-legged ${manifest.species ?? 'animal'}: ${two}`;
+  if (!joints) return `${at} has no skeleton to fight with: ${two}`;
+  const missing = FIGHT_JOINTS.filter((k) => !joints[k]);
+  const arms = missing.some((k) => /^(shoulder|elbow|wrist)/.test(k)), legs = missing.some((k) => /^(hip|knee|ankle)/.test(k));
+  return `${at}'s body has no ${arms && legs ? 'arms or legs' : arms ? 'arms' : legs ? 'legs' : missing.join(', ')} to fight with: ${two}`;
+}
+/** A stored row's manifest → the character's skeleton (the fight's joints); throws, saying why, when it is not a fighter. */
+async function fighterBody(manifest, where, ref) {
+  let joints = null, plan = null;
+  if (manifest?.kind === 'layered') {
+    const { expandLayeredManifest } = await layered();
+    try { const E = expandLayeredManifest(manifest); joints = E.recipe?.rig?.joints ?? null; plan = E.plan ?? manifest.plan ?? null; } catch { joints = null; }
   }
+  if (!joints || FIGHT_JOINTS.some((k) => !joints[k])) throw new Error(notAFighter(manifest, where, ref, joints));
+  return { joints, plan };
+}
+// a body's colour: a hero's top, a creature's palette's first colour (its body's, as the recipe lists it)
+async function paletteColour(manifest) {
+  // (a hero's is its top's or none, as it always was)
+  if (manifest.hero) { const top = manifest.hero.palette?.Top; return typeof top === 'string' && HEX.test(top) ? top : null; }
   const { expandLayeredManifest } = await layered();
-  const joints = expandLayeredManifest(manifest).recipe?.rig?.joints;
-  if (!joints) throw new Error(`versus: ${where}.hero.ref '${ref}' has no skeleton to measure`);
-  const { body, held } = bodyDials(measureSkeleton(joints), heroGirth(manifest.hero), await reference());
-  const top = manifest.hero.palette?.Top;
-  return { body, held, ...(typeof top === 'string' && HEX.test(top) ? { color: top } : {}) };
+  const pal = Object.values(expandLayeredManifest(manifest).recipe?.palette ?? {}).map((v) => (typeof v === 'string' ? v : v?.color ?? v?.base ?? null));
+  return pal.find((v) => typeof v === 'string' && HEX.test(v)) ?? null;
+}
+/** A stored row's manifest → the character's body dials and colour; throws when the row is not a fighter. */
+export async function measureCharacter(manifest, where = 'fighter', ref = '?') {
+  const { joints, plan } = await fighterBody(manifest, where, ref), R = await reference();
+  const breadth = manifest.hero ? 0 : trunkBreadth(plan, joints);
+  const girth = manifest.hero ? heroGirth(manifest.hero) : R.girth * (breadth > 0 ? breadth / R.breadth : 1);
+  const { body, held } = bodyDials(measureSkeleton(joints), girth, R);
+  const color = await paletteColour(manifest);
+  return { body, held, ...(color ? { color } : {}) };
 }
 
 /**
@@ -113,6 +158,7 @@ export async function resolveCharacters(roster, lookup, sheetOf = () => null) {
     const { body, color } = await measureCharacter(manifest, where, ref);
     // (its own strikes, solved on its own rig: versus-hero.js; the guard it stands in with them)
     let fight = null;
+    if (spec.moves !== undefined && !manifest.hero) throw new Error(`versus: ${where}.moves: a fighter's own strikes are a hero's (their clips are made by the hero door); '${ref}' fights in a tradition's moves (tradition)`);
     if (spec.moves !== undefined) {
       try { fight = await heroFightOf(manifest, spec.moves); } catch (err) { throw new Error(`versus: ${where}.${err.message.replace(/^versus(-hero)?: /, '')}`); }
     }

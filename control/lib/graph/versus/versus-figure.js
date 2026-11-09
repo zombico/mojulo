@@ -436,17 +436,25 @@ export function figureSegments(base, N) {
     const R = [0, 1, 2].map((i) => [0, 1, 2].map((j) => Fp[0][i] * Fr[0][j] + Fp[1][i] * Fr[1][j] + Fp[2][i] * Fr[2][j]));
     out[k] = { R, from: base[a], at: N[a] };
   }
+  // (the ground: what stands where it rests in the body's own frame whatever the body does, a serpent's coil on the floor)
+  out.ground = GROUND;
   return out;
 }
+const GROUND = Object.freeze({ R: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], from: [0, 0, 0], at: [0, 0, 0] });
 
 // the segment a character's bone rides, by its name (a side's bone on that side's segment)
 const FIG_RIDES = [
-  [/^(pelvis|lumbar|tail\d*)$/, 'pelvis'], [/^(torso|clavicle|bust|upperArm2|foreArm2|hand2)$/, 'torso'], [/^neck$/, 'neck'], [/^(head|jaw)$/, 'head'],
+  [/^(pelvis|lumbar|tail\d*)$/, 'pelvis'], [/^(torso|clavicle|bust|upperArm2|foreArm2|hand2)$/, 'torso'], [/^neck$/, 'neck'],
+  // (the head's, and the face's: a creature's lids, lips and brows, its ears, snout and horns move with its head)
+  [/^(head|jaw|lid|lip[UD]?|brow|eye|ear\d*|snout|muzzle|nose|horn\d*|cheek|crest)$/, 'head'],
   [/^upperArm$/, 'upperArm'], [/^(foreArm|hand|elbowFold|thumb\d|index\d|middle\d|ring\d|little\d|finger[A-Z]\d|wing.*)$/, 'foreArm'],
   [/^(thigh|hipFold)$/, 'thigh'], [/^(shank|shin|kneeFold|meta)$/, 'shin'], [/^(foot|toes)$/, 'foot'],
 ];
-/** The segment a packed rig's bone rides: `torso`, `head`, `foreArmR` …; a bone with no word rides the torso. */
+/** The segment a packed rig's bone rides: `torso`, `head`, `foreArmR` …; a bone with no word rides the torso. A serpent's
+ * coil (beast/serpent.js) rides as its rig has it: its first link the pelvis (`coil0`), the rest planted (`ground`). */
 export function segmentOf(id) {
+  const coil = /^coil(\d+)$/.exec(id);
+  if (coil) return Number(coil[1]) < 1 ? 'pelvis' : 'ground';
   const m = /^(.*?)([LR])$/.exec(id), base = m ? m[1] : id, S = m ? m[2] : '';
   for (const [re, seg] of FIG_RIDES) if (re.test(base)) return FIG_SEGMENTS[seg] ? seg : `${seg}${S || 'R'}`;
   return 'torso';

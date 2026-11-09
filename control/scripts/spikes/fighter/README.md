@@ -67,11 +67,16 @@ from the body rails (`gameworld/game-bodies.js`: `gameBody` → `lowerBody`, the
 minted into a scratch store, paired into matchups on greybox fight levels (a different preset each: flat, turned,
 rooftop, alley), CPU against CPU. The cases: the anime frame (Toji muscled, Kale), the realistic head on the Saikyo
 body (a boxer throwing its own punches), the realistic body, comic ink, Shonen High, the chibi and the lowpoly mascot.
+Six cases are not people, to read each in the register's look as a hero is: a bear and a hedgehog through
+create_character's mascot door (`as: 'mascot'`), fought against each other on the training ground (`creatures`) and
+against Shonen High (`crossover`); beastfolk through the hero door's `beast` (a wolf-kin against a naga on its serpent's
+coil, `beastfolk`) and a horn-crowned xeno (`xenoSpecies`) against a four-armed insectoid (`xenos`).
 
 ```bash
 node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles          # mint, bake, play, read, shoot
 node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --reuse  # re-shoot, the characters and arenas kept
 node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --reuse --level training  # every matchup on the training ground
+node control/scripts/spikes/fighter/styles.mjs --out /tmp/fighter-styles --only creatures,crossover --register anime   # the creatures
 ```
 
 Each body's top is its roster colour, so a matchup's two sides read apart. `--register anime|western` draws every body

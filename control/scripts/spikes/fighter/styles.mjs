@@ -38,6 +38,15 @@ const CASES = [
   { id: 'shonen', label: 'Anime · Shonen High', rail: 'realistic', style: 'anime', role: 'hero', pole: 'male', tradition: 'kung-fu', color: '#5a5fd8' },
   { id: 'chibi', label: 'Mascot · chibi', rail: 'mascot', style: 'mascot', role: 'hero', pole: 'female', tradition: 'capoeira', color: '#ef6b8a' },
   { id: 'lowpoly', label: 'Mascot · lowpoly, stout', rail: 'mascot', style: 'lowpoly', role: 'henchman', pole: 'male', tradition: 'brawler', color: '#8a8f99' },
+  // not a person: creatures through create_character's mascot door (`as`, its `spec`), fighting in a tradition
+  { id: 'bear', label: 'Creature · bear', as: 'mascot', spec: { brief: 'a round friendly bear', seed: 3 }, tradition: 'brawler', color: '#c0702f' },
+  { id: 'hedgehog', label: 'Creature · hedgehog', as: 'mascot', spec: { brief: 'a sonic-like mascot, but cheeky', seed: 2 }, tradition: 'capoeira', color: '#2f6fd8' },
+  // beastfolk (the hero door's `beast`: a kin on the tiered body, its tail, a serpent's coil, a second pair of arms) and a
+  // xeno (its `xenoSpecies`: a starter species' make-up)
+  { id: 'wolfkin', label: 'Beastfolk · wolf-kin', as: 'hero', spec: { cast: 'male', beast: { kin: 'lupine' }, palette: { Top: '#b8452e' } }, tradition: 'muay-thai', color: '#b8452e' },
+  { id: 'naga', label: 'Beastfolk · naga', as: 'hero', spec: { cast: 'female', beast: { kin: 'serpentine', legs: 'serpent' }, palette: { Top: '#2e8f6a' } }, tradition: 'kung-fu', color: '#2e8f6a' },
+  { id: 'insectoid', label: 'Beastfolk · four-armed insectoid', as: 'hero', spec: { cast: 'male', beast: { kin: 'insectoid', arms: 4 }, palette: { Top: '#7a5ad0' } }, tradition: 'boxing', color: '#7a5ad0' },
+  { id: 'xeno', label: 'Xeno · horn-crowned', as: 'hero', spec: { cast: 'male', xenoSpecies: 'horn-crowned', palette: { Top: '#d0a030' } }, tradition: 'karate', color: '#d0a030' },
 ];
 // THE MATCHUPS: two cases on a greybox preset, a different preset each so the loader is exercised with them
 const MATCHUPS = [
@@ -45,12 +54,17 @@ const MATCHUPS = [
   { id: 'turned', a: 'anime-toji', b: 'comic-ink' },
   { id: 'rooftop', a: 'shonen', b: 'anime-kale' },
   { id: 'alley', a: 'chibi', b: 'lowpoly' },
+  // creatures against each other, and against a hero (its own preset named: not a greybox preset's id)
+  { id: 'creatures', a: 'bear', b: 'hedgehog', preset: 'training' },
+  { id: 'crossover', a: 'shonen', b: 'bear', preset: 'flat' },
+  { id: 'beastfolk', a: 'wolfkin', b: 'naga', preset: 'training' },
+  { id: 'xenos', a: 'xeno', b: 'insectoid', preset: 'flat' },
 ];
 const only = opt.only ? new Set(opt.only.split(',')) : null;
 // (a matchup's files named for the level it is laid on: its own preset, or the one --level names for all)
-const matchups = MATCHUPS.filter((m) => !only || only.has(m.a) || only.has(m.b) || only.has(m.id)).map((m) => ({ ...m, preset: opt.level ?? m.id, id: [opt.level, opt.register, opt.elements && 'fx', m.id].filter(Boolean).join('-') }));
+const matchups = MATCHUPS.filter((m) => !only || only.has(m.a) || only.has(m.b) || only.has(m.id)).map((m) => ({ ...m, preset: opt.level ?? m.preset ?? m.id, id: [opt.level, opt.register, opt.elements && 'fx', m.id].filter(Boolean).join('-') }));
 // (each case's element, with --elements)
-const ELEMENT_OF = { 'anime-toji': 'fire', 'comic-ink': 'lightning', 'saikyo-real': { kind: 'void', on: 'fists' }, realistic: 'frost', shonen: 'lightning', 'anime-kale': { kind: 'fire', on: 'feet' }, chibi: 'frost', lowpoly: 'fire' };
+const ELEMENT_OF = { bear: 'fire', hedgehog: 'lightning', wolfkin: 'fire', naga: 'frost', insectoid: 'lightning', xeno: { kind: 'void', on: 'fists' }, 'anime-toji': 'fire', 'comic-ink': 'lightning', 'saikyo-real': { kind: 'void', on: 'fists' }, realistic: 'frost', shonen: 'lightning', 'anime-kale': { kind: 'fire', on: 'feet' }, chibi: 'frost', lowpoly: 'fire' };
 const AT = opt.at.split(',').map(Number);
 
 // ─── mint and bake (a scratch store: the operator's own is never touched) ─────────────────────────────────────────
@@ -66,6 +80,18 @@ const needed = [...new Set(matchups.flatMap((m) => [m.a, m.b]))].map((id) => CAS
   const { gameBody, lowerBody } = await import('@/lib/graph/gameworld/game-bodies.js');
   const { createCharacterHandler } = await import('@/lib/mcp/tools/create-character.js');
   for (const C of needed) {
+    // (a creature: its door's own words, no body rail)
+    if (C.as) {
+      report.cases[C.id] = { label: C.label, as: C.as, spec: C.spec };
+      if (refs[C.id]) continue;
+      const t0 = Date.now();
+      console.log(`minting ${C.id} …`);
+      const r = await createCharacterHandler({ as: C.as, title: C.label, spec: C.spec });
+      if (!r.ok) throw new Error(`${C.id}: the door refused: ${JSON.stringify(r.error ?? r).slice(0, 600)}`);
+      refs[C.id] = r.ref; report.cases[C.id].mintSeconds = Math.round((Date.now() - t0) / 1000);
+      writeFileSync(refsFile, JSON.stringify(refs));
+      continue;
+    }
     const B = gameBody(C.rail, C.role, { style: C.style, pole: C.pole, ...(C.muscle !== undefined ? { muscle: C.muscle } : {}) });
     // (its top in its roster colour, so the two bodies of a matchup read apart, as a fight's two sides do)
     const spec = lowerBody({ cast: C.pole, target: TARGET, palette: { Top: C.color }, ...(C.own ?? {}) }, B);

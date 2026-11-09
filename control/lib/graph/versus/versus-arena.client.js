@@ -232,7 +232,10 @@ function toonMaterial(opts) {
   return mat;
 }
 function makeCharacter(skin) {
-  const group = new THREE.Group(), lit = litMaterial(), ink = inkMaterial();
+  // (under the fight's register a posed body is drawn its one way too, as a played one is: the rig's material over its
+  // albedo, casting and taking the key's shadows, coated, no ink hull; without one, relit by its baked light and inked)
+  const coat = RIG ? bodyCoat() : null;
+  const group = new THREE.Group(), lit = RIG ? RIG.material({ vertexColors: true }, coat) : litMaterial(), ink = RIG ? null : inkMaterial();
   const meshes = skin.pack.parts.map((part) => {
     if (!part) return null;
     const pos = decodeF32(part.pos), nrm = smoothNormals(pos), rest = new Float32Array(pos.length / 3);
@@ -243,13 +246,14 @@ function makeCharacter(skin) {
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
     geo.setAttribute('restShade', new THREE.BufferAttribute(rest, 1));
     geo.computeBoundingSphere();
-    const fill = new THREE.Mesh(geo, lit), hull = new THREE.Mesh(geo, ink);
-    for (const m of [fill, hull]) { m.matrixAutoUpdate = false; m.frustumCulled = false; group.add(m); }   // matrices change every frame
+    const fill = new THREE.Mesh(geo, lit), hull = ink ? new THREE.Mesh(geo, ink) : null;
+    if (RIG) { fill.castShadow = true; fill.receiveShadow = true; }
+    for (const m of [fill, hull]) if (m) { m.matrixAutoUpdate = false; m.frustumCulled = false; group.add(m); }   // matrices change every frame
     return { fill, hull };
   });
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: RIG ? 0.2 : 0.32, depthWrite: false }));
   STAGE.add(group, shadow);
-  return { group, shadow, skin, meshes };
+  return { group, shadow, skin, meshes, coat };
 }
 const M4 = new THREE.Matrix4();
 function placeCharacter(B, p, F, drawn) {
@@ -268,7 +272,7 @@ function placeCharacter(B, p, F, drawn) {
     const ty = at[1] - (R[1][0] * from[0] + R[1][1] * from[1] + R[1][2] * from[2]);
     const tz = at[2] - (R[2][0] * from[0] + R[2][1] * from[1] + R[2][2] * from[2]);
     M4.set(R[0][0], R[0][1], R[0][2], tx, R[1][0], R[1][1], R[1][2], ty, R[2][0], R[2][1], R[2][2], tz, 0, 0, 0, 1);
-    m.fill.matrix.copy(M4); m.hull.matrix.copy(M4);
+    m.fill.matrix.copy(M4); if (m.hull) m.hull.matrix.copy(M4);
   }
   B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.8) * Math.max(0.4, 1 - p.y / 1600));

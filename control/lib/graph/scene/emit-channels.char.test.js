@@ -481,6 +481,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // fixture's arena names no register and draws its sparks as before.
 // Re-pinned 2026-11-08 (1107-fg-remake: the figure coated): `versus` only. Its page inlines versus-arena.client.js, whose
 // register materials carry a fresnel coat (bodyCoat) the effects drive; the fixture's arena names no register.
+// Re-pinned 2026-11-09 (1107-fg-remake: non-human fighters): `versus` only. Its page inlines versus-arena.client.js, whose
+// posed character body is drawn in the register under one (the rig's material, its shadows, its coat, no ink hull), and
+// versus-figure.js, whose face bones (lids, lips, brows, ears, a snout, horns) ride the head and a serpent's coil its
+// hips then the ground (a `ground` segment, planted); the fixture's fighters are no characters and its arena names no
+// register.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
