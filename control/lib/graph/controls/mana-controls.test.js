@@ -5,7 +5,7 @@ import { buildManaHost } from './mana-host.js';
 import { buildSeatsKernel } from './seats-kernel.js';
 import { SCHEMES } from './schemes.js';
 import { DEVICES } from './devices.js';
-import { manaUi } from '../../mana-ui/index.js';
+import { manaUi, PREVIEW_KEYS } from '../../mana-ui/index.js';
 
 // One input paradigm on a page: the controls layer (the schemes, their drivers, the seats) reads the devices and hands
 // mana-ui, a view, its intents, the device in hand and the seat that spoke; and says back what each control is called.
@@ -40,6 +40,41 @@ describe('the controls layer drives the view', () => {
     h.key(taken);
     expect(taken.stopped).toBe(true);
     expect(log).toEqual([{ emit: 'resume' }]);
+  });
+  it('past the two slots, the keys a player reaches for anyway: the keypad, Tab and Shift+Tab, the Page keys; a slot wins', () => {
+    const C = manaControls();
+    for (const a of SCHEMES.menu.actions) for (const c of a.also.keyboard) expect(C.keys[c], c).toBe(a.id);
+    expect([C.keys.Numpad8, C.keys.NumpadEnter, C.keys.Numpad0, C.keys.Tab, C.keys['Shift+Tab'], C.keys.PageDown]).toEqual(['up', 'accept', 'back', 'down', 'up', 'tabNext']);
+    const { over } = remap(SCHEMES.menu, null, { action: 'accept', family: 'keyboard', control: 'Numpad8' });
+    expect(manaControls({ over }).keys.Numpad8).toBe('accept');
+    // a preview's stand-in says the same as the scheme it stands in for
+    for (const [c, a] of Object.entries(PREVIEW_KEYS)) expect(C.keys[c], c).toBe(a);
+  });
+  it('a held key repeats a move and never a pick or a back; a chord stays the browser\'s; Shift+Tab moves up', () => {
+    const log = [], rt = manaUi.runtime({ start: 'a', screens: { a: scr([{ use: 'list', props: { rows: ['a', 'b', 'c'] }, on: { accept: { emit: 'pick' } } }]) } }, { read: () => undefined, act: (e) => log.push(e) });
+    const h = H.connect(rt, view(), { ...manaControls(), listen: false, loop: false });
+    const ev = (code, more = {}) => ({ code, key: '', prevented: false, stopPropagation() {}, preventDefault() { this.prevented = true; }, ...more });
+    h.key(ev('Numpad2')); h.key(ev('ArrowDown', { repeat: true }));
+    expect(rt.state().focus).toBe(2);
+    h.key(ev('Tab', { shiftKey: true }));
+    expect(rt.state().focus).toBe(1);
+    h.key(ev('NumpadEnter')); h.key(ev('NumpadEnter', { repeat: true }));
+    h.key(ev('Escape', { repeat: true }));
+    expect([log, rt.state().screen]).toEqual([[{ emit: 'pick' }], 'a']);
+    const chord = ev('KeyW', { ctrlKey: true });
+    expect(h.key(chord)).toBe(false);
+    expect([chord.prevented, rt.state().focus]).toEqual([false, 1]);
+  });
+  it('a text entry in focus is typed into from the keys: W types, Backspace erases, Enter is done; Esc still backs out', () => {
+    const S = { name: '' }, rt = manaUi.runtime({ start: 'a', screens: { a: scr([{ use: 'textentry', props: { value: { bind: 'name' } } }]) } }, { read: (p) => S[p], act: (e) => { if (e.set) S[e.set] = e.to; } });
+    const h = H.connect(rt, view(), { ...manaControls(), listen: false, loop: false });
+    const ev = (code, key) => ({ code, key, stopPropagation() {}, preventDefault() {} });
+    for (const [c, k] of [['KeyW', 'w'], ['KeyA', 'a'], ['KeyD', 'd'], ['KeyX', 'x'], ['Backspace', 'Backspace'], ['KeyE', 'e'], ['Enter', 'Enter']]) h.key(ev(c, k));
+    expect([S.name, rt.state().focus, rt.state().screen]).toEqual(['WADE', 0, 'a']);
+    h.key(ev('ArrowRight', 'ArrowRight'));
+    expect(rt.state().focus).toBe(1);
+    h.key(ev('Escape', 'Escape'));
+    expect(rt.state().screen).toBe(null);
   });
   it('each pad in its own printed layout, the seat it plays told by the seats kernel, never by its index', () => {
     const SK = buildSeatsKernel();
@@ -80,6 +115,42 @@ describe('the controls layer drives the view', () => {
     const once = H.connect(rt, view(), { ...manaControls(), drivers: [() => ({ name: 'xr2', input: 'xr', actions: { up: 1 } })], listen: false, loop: false, repeat: false, now: () => t });
     once.poll(); t = 5; once.poll();
     expect(rt.state().focus).toBe(3);                              // repeat: false, held never repeats
+  });
+  it('a held stick or d-pad repeats its move after a delay, then steadily; a held pick never does, nor what was held as a screen opened', () => {
+    let t = 0, held = [], axes = [0, 0, 0, 0];
+    const log = [];
+    stubPads(() => [{ ...pad('xbox', 0, held), axes }]);
+    const rt = manaUi.runtime({ screens: { a: scr([{ use: 'list', props: { rows: Array.from({ length: 20 }, (_, i) => 'r' + i) }, on: { accept: { emit: 'pick' } } }]) } }, { read: () => undefined, act: (e) => log.push(e) });
+    // (seconds on the host's clock; a delay of 0.4 and a rate of 0.1)
+    const h = H.connect(rt, view(), { ...manaControls(), now: () => t, repeat: { delay: 0.4, rate: 0.1 }, listen: false, loop: false });
+    const at = (s) => { t = s; h.poll(); return rt.state().focus; };
+    held = [DEVICES.gamepad.buttons.down];   // held as the screen opens: it does not act, nor repeat
+    rt.open('a'); at(0);
+    expect([at(0.5), at(1)]).toEqual([0, 0]);
+    held = []; at(1.1);
+    held = [DEVICES.gamepad.buttons.down];   // the d-pad: a press, then the delay, then a step every interval
+    expect([at(2), at(2.3), at(2.4), at(2.45), at(2.5), at(2.6)]).toEqual([1, 1, 2, 2, 3, 4]);
+    held = []; axes = [0, 1, 0, 0];          // the stick the same way
+    expect([at(3), at(3.4), at(3.5)]).toEqual([5, 6, 7]);
+    axes = [0, 0, 0, 0]; held = [DEVICES.gamepad.buttons[confirmOn('xbox')]];
+    at(4); at(5); at(6);
+    expect(log).toEqual([{ emit: 'pick' }]);
+    const once = H.connect(rt, view(), { ...manaControls(), now: () => t, repeat: false, listen: false, loop: false });
+    held = []; once.poll(); held = [DEVICES.gamepad.buttons.up]; t = 7; once.poll(); t = 9; once.poll();
+    expect(rt.state().focus).toBe(6);
+  });
+  it('a device that comes later (a headset\'s session) drives once it joins, and stops once it leaves', () => {
+    let now = {};
+    stubPads(() => []);
+    const rt = manaUi.runtime({ start: 'a', screens: { a: scr([{ use: 'list', props: { rows: ['a', 'b', 'c'] } }]) } }, { read: () => undefined });
+    const h = H.connect(rt, view(), { ...manaControls(), listen: false, loop: false });
+    h.poll();
+    const leave = h.drive(() => ({ name: 'xr', input: 'xr', actions: now }));
+    now = { down: 1 }; h.poll(); now = {}; h.poll();
+    expect(rt.state()).toMatchObject({ input: 'xr', focus: 1 });
+    leave();
+    now = { down: 1 }; h.poll();
+    expect(rt.state().focus).toBe(1);
   });
   it('the drawn pad only names its gamepad controls (the touch driver reads it); the view takes no device from it', () => {
     const rt = manaUi.runtime({ hud: { use: 'hud', children: [{ use: 'region', props: { at: 'bottom' }, children: [{ use: 'touchpad', props: { buttons: ['A', { label: 'Fire', control: 'rt' }] } }] }] }, screens: {} }, { read: () => undefined });

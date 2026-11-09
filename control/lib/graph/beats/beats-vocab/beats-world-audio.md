@@ -73,6 +73,10 @@ These read the controllable entity's state and never write back.
 - `dodge`: one gesture list fired per roll.
 - `weapon`: `{ shot, hit, reload }` gesture lists.
 - `strike`: `{ swing, hit }` gesture lists (melee).
+- `moves`: an action game's moveset (combos, a guard, a bow) by the ids of its `sfx.cues`: `swing` and `hit` as
+  `{ <weapon>: { light, heavy?, finisher? } }` (a heavy is a move its H beat took), and one cue each for `block`,
+  `parry`, `break`, `draw`, `loose`, `arrow` (a foe struck by no blade), `felled`, `cycle`, `foeSwing`, `hurt`. Name
+  the cues from the SFX shelf by word (`katana-swing`, `blade-hit`, `block`, `blade-clash`, `bow-shot`…).
 - `thruster`: `true` or `{ level }`, a roar that swells with boost.
 
 ## ambience

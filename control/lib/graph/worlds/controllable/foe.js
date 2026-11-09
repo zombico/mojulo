@@ -245,6 +245,22 @@ export function buildFoe(E) {
     if (p.vel) { p.vel[2] = Math.max(p.vel[2], DEF.hop); p.grounded = false; }
     if (Number.isFinite(p.poise)) armReaction(p, 'stagger');
   }
+  // a touch met by the pilot's guard up in front of it (combat-melee.js guardMeets): blocked (no hurt, the pilot set back
+  // off the foe, spared further touches its mercy) or parried (the foe staggered open as a parried blade is); either
+  // stops a rush's charge
+  function guarded(state, p, e) {
+    if (!p.guarding || !E.guardMeets || (p.foeMercyT || 0) > 0) return false;
+    const v = [p.transform.pos[0] - e.transform.pos[0], p.transform.pos[1] - e.transform.pos[1], 0], d = Math.hypot(v[0], v[1]) || 1e-6;
+    const met = E.guardMeets(p, e, v, d, state);
+    if (!met) return false;
+    p.foeMercyT = (p.rule.stomp || DEF).mercy ?? DEF.mercy;
+    if (met === 'block') { p.transform.pos[0] += (v[0] / d) * DEF.knock; p.transform.pos[1] += (v[1] / d) * DEF.knock; }
+    // (a rush stopped on the shield as on a wall: a block its short recover, a parry the wall's daze as well)
+    const R = e.rule.foe && e.rule.foe.rush;
+    if (R && e.foeRush === 'charge') { e.foeRush = 'stun'; e.foeT = 0; e.foeStunFor = met === 'parry' ? R.stun : R.recover; }
+    e.foeCharging = false;
+    return true;
+  }
   function stomp(state, p, e, top, held) {
     const S = p.rule.stomp, F = e.rule.foe, g = p.rule.gravity ?? 20;
     p.transform.pos[2] = top + eyeOf(p.rule); p.grounded = false; p.jumped = true;
@@ -275,7 +291,7 @@ export function buildFoe(E) {
         const efoot = e.transform.pos[2] - eyeOf(e.rule), top = efoot + (e.rule.collideHeight ?? 1), foot = p.transform.pos[2] - eyeOf(p.rule);
         if (foot > top + 0.05 || foot + (p.rule.collideHeight ?? 1.7) < efoot) continue;
         if (p.rule.stomp && p.vel && p.vel[2] <= 0 && foot0 >= top - Math.min(0.3, (e.rule.collideHeight ?? 1) / 2)) stomp(state, p, e, top, held);
-        else if (F.touch && (F.during !== 'charge' || e.foeCharging)) hurt(state, p, e);
+        else if (F.touch && (F.during !== 'charge' || e.foeCharging)) { if (!guarded(state, p, e)) hurt(state, p, e); }
       }
     }
     return state;

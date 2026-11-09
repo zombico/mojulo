@@ -1,0 +1,1091 @@
+{
+ "id": "keep-hero",
+ "name": "The Old Keep",
+ "topology": "interconnected",
+ "start": "overworld",
+ "levels": {
+  "overworld": {
+   "glyphs": {
+    "tile": 24,
+    "zoned": [
+     [
+      "A",
+      "B"
+     ]
+    ],
+    "plan": {
+     "size": 3,
+     "rows": [
+      "A B",
+      "C D"
+     ],
+     "route": [
+      "A",
+      "B",
+      "D"
+     ],
+     "joins": [
+      [
+       "A",
+       "C"
+      ],
+      [
+       "C",
+       "D"
+      ]
+     ],
+     "key": {
+      "A": {
+       "name": "the town"
+      },
+      "B": {
+       "name": "the fields",
+       "rise": 2
+      },
+      "C": {
+       "name": "the woods"
+      },
+      "D": {
+       "name": "the keep",
+       "rise": 4,
+       "goal": {
+        "use": "temple"
+       }
+      }
+     }
+    },
+    "segments": {
+     "A": {
+      "rows": [
+       ". . .",
+       "h # #",
+       ". # ."
+      ],
+      "key": {
+       "h": {
+        "use": "dwelling"
+       }
+      }
+     }
+    },
+    "sketch": {
+     "scenario": {
+      "pitch": "Reach the old keep before the bell tolls: out across the fields, past an ambush, up the switchback to its gate.",
+      "beats": [
+       {
+        "id": "set-out",
+        "at": "A",
+        "kind": "arrival",
+        "say": "The old keep on the skyline: reach it before the bell tolls",
+        "teach": "look",
+        "faces": "warden",
+        "pace": "calm"
+       },
+       {
+        "id": "reeve",
+        "at": "A",
+        "tile": [
+         1,
+         0
+        ],
+        "kind": "meet",
+        "say": "The reeve: \"East through the fields, then up to the keep. Mind the road; it is not safe.\"",
+        "pace": "calm"
+       },
+       {
+        "id": "lone",
+        "at": "A",
+        "tile": [
+         1,
+         2
+        ],
+        "kind": "fight",
+        "say": "A lone bandit at the town's east edge",
+        "foes": {
+         "bandit": 1
+        },
+        "teach": "strike",
+        "pace": "tension"
+       },
+       {
+        "id": "road",
+        "at": "B",
+        "tile": [
+         1,
+         0
+        ],
+        "kind": "traverse",
+        "say": "Run the old road east into the fields",
+        "teach": "sprint",
+        "pace": "calm"
+       },
+       {
+        "id": "bend",
+        "at": "B",
+        "tile": [
+         1,
+         1
+        ],
+        "kind": "fight",
+        "say": "Three bandits hold the bend",
+        "foes": {
+         "bandit": 3
+        },
+        "teach": [
+         "lock",
+         "dodge"
+        ],
+        "pace": "peak",
+        "opens": true
+       },
+       {
+        "id": "barn",
+        "at": "B",
+        "tile": [
+         2,
+         2
+        ],
+        "kind": "find",
+        "say": "The ruined barn: a supply cache under its fallen roof",
+        "item": "supply cache",
+        "pace": "rest"
+       },
+       {
+        "id": "shrine",
+        "at": "C",
+        "tile": [
+         2,
+         0
+        ],
+        "kind": "secret",
+        "say": "A moss-grown shrine in the woods holds the keep's side key",
+        "item": "the keep's side key",
+        "pace": "calm"
+       },
+       {
+        "id": "switchback",
+        "at": "D",
+        "tile": [
+         0,
+         1
+        ],
+        "kind": "climb",
+        "say": "Climb the switchback under the cliffs",
+        "pace": "tension"
+       },
+       {
+        "id": "warden",
+        "at": "D",
+        "tile": [
+         1,
+         1
+        ],
+        "kind": "climax",
+        "say": "The warden waits at the keep's gate",
+        "foes": {
+         "warden": 1
+        },
+        "pace": "peak"
+       }
+      ]
+     },
+     "segments": {
+      "A": {
+       "status": "approved",
+       "ground": [
+        "g . m",
+        ". . m",
+        "f . s"
+       ],
+       "height": [
+        "1 1 0",
+        "0 0 0",
+        "0 0 0"
+       ],
+       "marks": [
+        {
+         "at": [
+          1,
+          1
+         ],
+         "kind": "landmark",
+         "say": "The town square under the bell tower: the journey sets out here, the bell that will toll in sight, the old road running east"
+        },
+        {
+         "at": [
+          2,
+          1
+         ],
+         "kind": "landmark",
+         "say": "A weathered signpost at the town's south edge: east to the keep road, south into the woods"
+        }
+       ],
+       "notes": "The player arrives in a flat, open town square under the bell tower, with a low grove-topped rise behind it framing the square and a clear sight line east along the path into the meadows of the fields. The reeve at the dwelling west of the square gives the goal, and a signpost at the south gate marks the woods path as the other way on."
+      },
+      "B": {
+       "status": "approved",
+       "ground": [
+        "m r r",
+        "m m r",
+        "s m ."
+       ],
+       "height": [
+        "0 1 2",
+        "0 0 1",
+        "0 0 0"
+       ],
+       "marks": [
+        {
+         "at": [
+          1,
+          0
+         ],
+         "kind": "landmark",
+         "say": "A leaning milestone where the old road leaves the town: the road runs east across the open meadow, the rocky rise ahead on the left"
+        }
+       ],
+       "notes": "The old road runs east out of town across flat meadow with a clear sight line to the bend, where rocks climb to a 2-step outcrop on the north and east: the ambush drops from there as the road turns south. The ruined barn sits in the open just east of the southward road, a short detour after the fight, before the gate down to the keep."
+      },
+      "D": {
+       "status": "approved",
+       "ground": [
+        "r . c",
+        ". . c",
+        "s c c"
+       ],
+       "height": [
+        "1 0 3",
+        "0 1 4",
+        "1 3 4"
+       ],
+       "marks": [],
+       "notes": "Coming over the north gate the player sees straight down the switchback to the keep's gate, walled by cliffs to the east and behind, so the way up and the warden are read at once; one step up (3 m) puts the climax on a raised terrace, with the woods' side door as a flanking way in. The west gate tile stays at height 0 (4 m), the lowest this region can stand, so the C–D seam (woods at 0 m) is 4 m and needs the woods' author to raise their gate tile a step."
+      },
+      "C": {
+       "status": "approved",
+       "ground": [
+        "f . r",
+        "f f s",
+        "g f r"
+       ],
+       "height": [
+        "0 0 1",
+        "0 0 1",
+        "0 0 1"
+       ],
+       "marks": [
+        {
+         "at": [
+          1,
+          1
+         ],
+         "kind": "landmark",
+         "say": "A lightning-split oak where the track turns east; a deer trail slips south into the trees"
+        }
+       ],
+       "notes": "A forest track drops in from the town at ground level and turns east, climbing one 3 m step through scrub and rocks to meet the keep's 4 m ground. The shrine sits in a grove in the south-west corner, screened by forest on both sides, so it is found by leaving the track at the split oak, never seen from it."
+      }
+     }
+    },
+    "grass": {
+     "contact": false,
+     "sway": false
+    },
+    "far": true,
+    "play": {
+     "A": {
+      "pieces": [
+       {
+        "id": "signpost-east",
+        "kind": "marker",
+        "at": [
+         44,
+         -33,
+         1
+        ],
+        "yaw": 0,
+        "of": "signpost: east, to the keep",
+        "beat": "set-out",
+        "why": "Past the square's edge, a signpost steers the walk east along the road rather than down the south lane; it stands 8 m off the square so the reeve's square stays clear"
+       },
+       {
+        "id": "torn-notice",
+        "kind": "marker",
+        "at": [
+         47.5,
+         -33.6,
+         0.9
+        ],
+        "yaw": 270,
+        "of": "torn warning notice: beware the east road",
+        "beat": "lone",
+        "why": "The reeve's warning made physical on the way out: a torn notice nailed by the road says the road is not safe before the hero meets the bandit"
+       },
+       {
+        "id": "approach-crate",
+        "kind": "cover",
+        "at": [
+         55,
+         -33.4,
+         0.8
+        ],
+        "yaw": 10,
+        "of": "crate",
+        "beat": "lone",
+        "why": "A crate 2.6 m off the road's middle, where the hero first sees the bandit: something to step behind or round while learning lock-on and the strike"
+       },
+       {
+        "id": "lone-bandit",
+        "kind": "foe",
+        "at": [
+         62,
+         -36,
+         0.8
+        ],
+        "yaw": 180,
+        "of": "bandit",
+        "beat": "lone",
+        "why": "The must: one bandit alone where the road leaves the town, standing on the road facing back west so the first fight reads head-on"
+       },
+       {
+        "id": "field-wall-south",
+        "kind": "obstacle",
+        "at": [
+         61.5,
+         -40.2,
+         0.8
+        ],
+        "yaw": 0,
+        "of": "wall",
+        "beat": "lone",
+        "why": "A low field wall closes the south side of the bandit's spot; with the boulders to the north it makes a short lane, so the charger comes straight down the road and the fight frames itself"
+       },
+       {
+        "id": "spilled-crate",
+        "kind": "obstacle",
+        "at": [
+         66.5,
+         -37.8,
+         0.8
+        ],
+        "yaw": 25,
+        "of": "crate",
+        "beat": "lone",
+        "why": "Cargo spilled off the toppled cart behind the bandit, kept beside the road's middle line: what he was robbing"
+       },
+       {
+        "id": "toppled-cart",
+        "kind": "obstacle",
+        "at": [
+         70.4,
+         -38.6,
+         0.8
+        ],
+        "yaw": 15,
+        "of": "barricade",
+        "beat": "lone",
+        "why": "The may: a toppled cart on its side by the road out east says the road is not safe, and marks the exit beyond the fight"
+       }
+      ],
+      "suggestions": [
+       {
+        "from": "concept",
+        "say": "The lone bandit stands alone where the road leaves the town: the first fight is one foe",
+        "authority": "must",
+        "about": {
+         "kind": "foe",
+         "of": "bandit"
+        }
+       },
+       {
+        "from": "worlds",
+        "say": "Keep the town square clear: the reeve speaks there",
+        "authority": "should"
+       },
+       {
+        "from": "concept",
+        "say": "Something on the way out east that says the road is not safe (a toppled cart, a warning)",
+        "authority": "may"
+       }
+      ]
+     },
+     "B": {
+      "pieces": [
+       {
+        "id": "b-road-milestone",
+        "kind": "marker",
+        "at": [
+         76,
+         -35.2,
+         2.7
+        ],
+        "yaw": 0,
+        "of": "weathered milestone",
+        "beat": "road",
+        "why": "Where the old road leaves the trees: a carved stone that says the keep lies east and the hero's run starts here."
+       },
+       {
+        "id": "b-road-log",
+        "kind": "obstacle",
+        "at": [
+         81,
+         -37.6,
+         2.7
+        ],
+        "yaw": 0,
+        "of": "log",
+        "beat": "road",
+        "why": "A fallen trunk along the south verge: something to sprint past on the open stretch before the rock gap narrows the road."
+       },
+       {
+        "id": "b-road-crates",
+        "kind": "obstacle",
+        "at": [
+         95,
+         -33.5,
+         2.5
+        ],
+        "yaw": 15,
+        "of": "crate",
+        "beat": "road",
+        "why": "A traveller's spilled crate past the rock gap: the first sign of the bandits, seen at sprint speed before the bend."
+       },
+       {
+        "id": "b-bend-barricade-road",
+        "kind": "cover",
+        "at": [
+         99,
+         -33.2,
+         2.4
+        ],
+        "yaw": 90,
+        "of": "barricade",
+        "beat": "bend",
+        "why": "The bandits' barricade across the road's north half: it pinches the run into the bend and hides the first bandit."
+       },
+       {
+        "id": "b-bend-bandit-1",
+        "kind": "foe",
+        "at": [
+         101,
+         -30.8,
+         2.4
+        ],
+        "yaw": 200,
+        "of": "bandit",
+        "beat": "bend",
+        "why": "Springs from behind the road barricade, flanking from the north-west: the first charge the hero locks on to."
+       },
+       {
+        "id": "b-bend-wall",
+        "kind": "cover",
+        "at": [
+         109,
+         -29.5,
+         2.6
+        ],
+        "yaw": 0,
+        "of": "wall",
+        "beat": "bend",
+        "why": "A ruined field wall on the rocks north of the bend: the ambushers' hide, tall enough to hide them until the hero rounds the bend."
+       },
+       {
+        "id": "b-bend-bandit-2",
+        "kind": "foe",
+        "at": [
+         108.5,
+         -27.8,
+         2.8
+        ],
+        "yaw": 270,
+        "of": "bandit",
+        "beat": "bend",
+        "why": "Charges down from behind the ruined wall in the rocks north of the bend, the ambush's centre."
+       },
+       {
+        "id": "b-bend-barricade-east",
+        "kind": "cover",
+        "at": [
+         113,
+         -32.5,
+         2.5
+        ],
+        "yaw": 0,
+        "of": "barricade",
+        "beat": "bend",
+        "why": "A second barricade east of the wall: the ambush line reads as held ground, and the third charge comes late from its far end."
+       },
+       {
+        "id": "b-bend-bandit-3",
+        "kind": "foe",
+        "at": [
+         113.2,
+         -30.5,
+         2.6
+        ],
+        "yaw": 250,
+        "of": "bandit",
+        "beat": "bend",
+        "why": "Charges last, from the east barricade, while the hero is locked on to the others: the moment to learn the dodge."
+       },
+       {
+        "id": "b-bend-gate",
+        "kind": "gate",
+        "at": [
+         108,
+         -49,
+         1.5
+        ],
+        "yaw": 0,
+        "of": "the bend's bandits defeated",
+        "beat": "bend",
+        "why": "The bandits' chain across the south road: winning the bend opens the way on, and the open bend itself is the clear arena to fight in."
+       },
+       {
+        "id": "b-barn-track",
+        "kind": "marker",
+        "at": [
+         118,
+         -61,
+         1
+        ],
+        "yaw": 0,
+        "of": "broken fence post",
+        "beat": "barn",
+        "why": "A fence post off the south road marks the cart track east to the ruined barn, so the rest is found by looking, not by chance."
+       },
+       {
+        "id": "b-barn-door",
+        "kind": "obstacle",
+        "at": [
+         128.5,
+         -60,
+         1.2
+        ],
+        "yaw": 90,
+        "of": "arch",
+        "beat": "barn",
+        "why": "The barn's surviving doorway faces the road: the hero walks in through it to the rest after the fight."
+       },
+       {
+        "id": "b-barn-wall",
+        "kind": "obstacle",
+        "at": [
+         132,
+         -55.5,
+         1.2
+        ],
+        "yaw": 0,
+        "of": "wall",
+        "beat": "barn",
+        "why": "The barn's standing north wall: with the doorway, it frames the ruin and shelters the cache."
+       },
+       {
+        "id": "b-barn-cache",
+        "kind": "pickup",
+        "at": [
+         132,
+         -60,
+         1.2
+        ],
+        "yaw": 0,
+        "of": "supply cache",
+        "beat": "barn",
+        "why": "The supply cache under the barn's fallen roof: the reward and rest after the bend (concept's must)."
+       }
+      ],
+      "suggestions": [
+       {
+        "from": "concept",
+        "say": "The ambush comes from the rocks north of the bend",
+        "authority": "should",
+        "about": {
+         "kind": "foe",
+         "of": "bandit"
+        }
+       },
+       {
+        "from": "concept",
+        "say": "The barn holds the supply cache",
+        "authority": "must",
+        "about": {
+         "kind": "pickup",
+         "of": "supply cache"
+        }
+       },
+       {
+        "from": "casting",
+        "say": "Three bandits at the bend",
+        "authority": "should"
+       }
+      ]
+     },
+     "C": {
+      "pieces": [
+       {
+        "id": "waystone",
+        "kind": "marker",
+        "at": [
+         34.4,
+         -102,
+         -2.3
+        ],
+        "yaw": 180,
+        "of": "a lichen-crusted waystone with a key carved on its west face, leaning toward the trees",
+        "beat": "shrine",
+        "why": "The turn-off: at the bend, where the walk turns east, a stone leans west off the path; those who look read the key on it and step into the woods."
+       },
+       {
+        "id": "shrine-cloth",
+        "kind": "marker",
+        "at": [
+         21.5,
+         -104.6,
+         -2.5
+        ],
+        "of": "a strip of faded shrine-cloth tied to a low branch",
+        "beat": "shrine",
+        "why": "Confirms the hunch 13 m in: the deer trail is a pilgrims' way, and it bends south from here."
+       },
+       {
+        "id": "fallen-trunk",
+        "kind": "obstacle",
+        "at": [
+         16.5,
+         -110.5,
+         -2.5
+        ],
+        "yaw": 0,
+        "of": "log",
+        "why": "A fallen tree across the deer trail breaks the long run with a hop (0.7 m, the hero jumps 1.6 m); the east end is open for those who walk round."
+       },
+       {
+        "id": "campfire",
+        "kind": "hazard",
+        "at": [
+         19.6,
+         -118.2,
+         -2.5
+        ],
+        "of": "a bandits' smouldering campfire, its smoke rising through the canopy",
+        "why": "Something to discover: the smoke is seen from the path, and a fire is the heart of the camp the side fight turns on; stepping in it burns."
+       },
+       {
+        "id": "camp-log",
+        "kind": "cover",
+        "at": [
+         17.4,
+         -116.4,
+         -2.5
+        ],
+        "yaw": 0,
+        "of": "log",
+        "why": "The camp's sitting log screens it from the trail: cover to fight from, or to sneak past behind."
+       },
+       {
+        "id": "camp-crate",
+        "kind": "cover",
+        "at": [
+         22.2,
+         -119,
+         -2.5
+        ],
+        "yaw": 20,
+        "of": "crate",
+        "why": "The bandits' loot crate, the far side of the fire: a second piece of cover so the fight has two sides to circle."
+       },
+       {
+        "id": "camp-stash",
+        "kind": "pickup",
+        "at": [
+         22.4,
+         -117.2,
+         -2.5
+        ],
+        "of": "the bandits' stash of silver",
+        "why": "The reward for taking the optional fight: what the bandits robbed off the road, beside their crate."
+       },
+       {
+        "id": "bandit-fire",
+        "kind": "foe",
+        "at": [
+         20.8,
+         -116.6,
+         -2.5
+        ],
+        "yaw": 180,
+        "of": "bandit",
+        "why": "A small optional fight off the main walk: a bandit warming at the fire faces the trail, the charger who opens it (wolves would suit the woods; bandits camping here stand in until the roster has them)."
+       },
+       {
+        "id": "bandit-watch",
+        "kind": "foe",
+        "at": [
+         18.4,
+         -120.8,
+         -2.5
+        ],
+        "yaw": 150,
+        "of": "bandit",
+        "why": "The second bandit keeps watch south of the fire, so the fight is two chargers, one at a time across the fire, never on the shrine itself."
+       },
+       {
+        "id": "glade-arch",
+        "kind": "obstacle",
+        "at": [
+         15.9,
+         -130.4,
+         -2.6
+        ],
+        "yaw": 0,
+        "of": "arch",
+        "beat": "shrine",
+        "why": "The shrine's old stone gate, overgrown between two trunks: the threshold into the glade, framing the shrine as the hero comes through it."
+       },
+       {
+        "id": "shrine-stone",
+        "kind": "marker",
+        "at": [
+         10.2,
+         -132.6,
+         -2.6
+        ],
+        "of": "the moss-grown shrine, lit by a shaft of light through the canopy",
+        "beat": "shrine",
+        "why": "The beat's set piece: the calm, lit shrine the whole side way has pointed at, behind the key."
+       },
+       {
+        "id": "side-key",
+        "kind": "pickup",
+        "at": [
+         12,
+         -132,
+         -2.6
+        ],
+        "of": "the keep's side key",
+        "beat": "shrine",
+        "why": "The must: the shrine holds the keep's side key, the secret's payoff and the other way into the keep."
+       }
+      ],
+      "suggestions": [
+       {
+        "from": "concept",
+        "say": "The shrine holds the keep's side key",
+        "authority": "must",
+        "about": {
+         "kind": "pickup",
+         "of": "the keep's side key"
+        }
+       },
+       {
+        "from": "casting",
+        "say": "Wolves would suit the woods (none in the roster yet)",
+        "authority": "may"
+       }
+      ]
+     },
+     "D": {
+      "pieces": [
+       {
+        "id": "outwork-post-w",
+        "kind": "obstacle",
+        "of": "pillar",
+        "at": [
+         105.5,
+         -75,
+         1.9
+        ],
+        "yaw": 0,
+        "beat": "switchback",
+        "why": "West gatepost of the keep's ruined outworks: the fields' gate reads as the start of the climb"
+       },
+       {
+        "id": "outwork-post-e",
+        "kind": "obstacle",
+        "of": "pillar",
+        "at": [
+         110.5,
+         -75,
+         1.9
+        ],
+        "yaw": 0,
+        "beat": "switchback",
+        "why": "East gatepost pairing the west one, framing the narrow foot of the switchback between the boulders"
+       },
+       {
+        "id": "outwork-wall-low",
+        "kind": "cover",
+        "of": "wall",
+        "scale": 0.8,
+        "at": [
+         108.5,
+         -85.5,
+         2.2
+        ],
+        "yaw": 0,
+        "beat": "switchback",
+        "why": "First turn of the switchback: a broken outwork wall closes the east side of the climb, so the walk swings west past it"
+       },
+       {
+        "id": "bandit-rockfall",
+        "kind": "foe",
+        "of": "bandit",
+        "at": [
+         114.5,
+         -86,
+         2.5
+        ],
+        "yaw": 180,
+        "beat": "switchback",
+        "why": "A bandit hidden behind the eastern rocks charges as the hero rounds the wall: the climb is guarded"
+       },
+       {
+        "id": "rockfall",
+        "kind": "hazard",
+        "of": "rockfall",
+        "at": [
+         116,
+         -88,
+         4.386
+        ],
+        "beat": "switchback",
+        "why": "Stones shaken loose from the cliffs above: the climb is under the cliffs, and it pushes the fight back onto the path"
+       },
+       {
+        "id": "outwork-step",
+        "kind": "obstacle",
+        "of": "ledge",
+        "at": [
+         108,
+         -92.5,
+         3.5
+        ],
+        "yaw": 0,
+        "beat": "switchback",
+        "why": "Second turn: a collapsed outwork terrace on the west, to vault (1.1 m, under the hero's 1.6 m jump) or skirt east"
+       },
+       {
+        "id": "bandit-watch",
+        "kind": "foe",
+        "of": "bandit",
+        "at": [
+         115.5,
+         -98,
+         6.01
+        ],
+        "yaw": 160,
+        "beat": "switchback",
+        "why": "A sentry at the head of the climb, before the arch: the second guard, met with the step's cover behind"
+       },
+       {
+        "id": "brazier",
+        "kind": "marker",
+        "of": "lit brazier",
+        "at": [
+         116.5,
+         -98.5,
+         6.629
+        ],
+        "beat": "switchback",
+        "why": "Fire at the head of the climb seen from below: the walk steers to it, and to the arch beside it"
+       },
+       {
+        "id": "tonic-gate",
+        "kind": "pickup",
+        "of": "health tonic",
+        "at": [
+         107.5,
+         -97.5,
+         4.5
+        ],
+        "beat": "warden",
+        "why": "A breather on the landing before the keep's door: the climb paid for, the hero full for the warden"
+       },
+       {
+        "id": "keep-arch",
+        "kind": "obstacle",
+        "of": "arch",
+        "at": [
+         114,
+         -101,
+         5
+        ],
+        "yaw": 0,
+        "beat": "warden",
+        "why": "The keep's outer gate: an arch between the narthex corner and the trees, the threshold into the warden's court"
+       },
+       {
+        "id": "warden",
+        "kind": "foe",
+        "of": "warden",
+        "at": [
+         108.5,
+         -108.5,
+         5.5
+        ],
+        "yaw": 54,
+        "beat": "warden",
+        "why": "The warden waits at the keep's gate (the must), standing in the open court facing the arch the hero comes through"
+       },
+       {
+        "id": "court-pillar-sw",
+        "kind": "obstacle",
+        "of": "pillar",
+        "at": [
+         106,
+         -112.5,
+         5.5
+        ],
+        "yaw": 0,
+        "beat": "warden",
+        "why": "A standing column of the old cloister at the court's south-west, framing the arena against the keep's wall"
+       },
+       {
+        "id": "court-pillar-e",
+        "kind": "obstacle",
+        "of": "pillar",
+        "at": [
+         113.5,
+         -106.5,
+         5.5
+        ],
+        "yaw": 0,
+        "beat": "warden",
+        "why": "A column on the court's east, framing the arena under the cliffs and a pivot to dodge the brute's charge round"
+       },
+       {
+        "id": "court-stub",
+        "kind": "cover",
+        "of": "wall",
+        "scale": 0.6,
+        "at": [
+         110.5,
+         -111.5,
+         5.5
+        ],
+        "yaw": 0,
+        "beat": "warden",
+        "why": "A low broken wall stub at the court's south: one piece of cover in an otherwise open arena, to break the warden's line"
+       }
+      ],
+      "suggestions": [
+       {
+        "from": "concept",
+        "say": "The warden waits at the keep's gate",
+        "authority": "must",
+        "about": {
+         "kind": "foe",
+         "of": "warden"
+        }
+       },
+       {
+        "from": "concept",
+        "say": "The switchback climbs under the cliffs: make the climb feel guarded",
+        "authority": "should"
+       }
+      ]
+     }
+    }
+   },
+   "foes": {
+    "from": [
+     "bandit",
+     "warden"
+    ]
+   }
+  }
+ },
+ "mode": "autonomous",
+ "style": {
+  "palette": {
+   "seed": 427911948
+  }
+ },
+ "feel": {
+  "pole": "ebon-spirits",
+  "toward": "fallen-angel",
+  "t": 0.4
+ },
+ "camera": "orbit",
+ "characters": {
+  "hero": {
+   "looks": {
+    "body": {
+     "cast": "male"
+    },
+    "underlayer": {
+     "type": "outfit",
+     "style": "adventurer",
+     "dials": {
+      "fit": 0.3,
+      "stylize": 0.5
+     },
+     "language": {
+      "top": {
+       "family": "woven",
+       "sleeve": "long",
+       "hem": "hip"
+      },
+      "bottom": {
+       "family": "woven",
+       "leg": "long"
+      },
+      "feet": "boots"
+     }
+    },
+    "base": {
+     "ref": "keep-hero-hero",
+     "rev": 2,
+     "print": "f5a76370"
+    }
+   },
+   "adornment": {
+    "items": [
+     {
+      "id": "blade",
+      "slot": "right",
+      "build": {
+       "item": "sword"
+      },
+      "serves": [
+       "strike"
+      ]
+     }
+    ]
+   },
+   "motion": {
+    "vibe": [
+     "bold"
+    ]
+   },
+   "actions": {
+    "none": true,
+    "moves": [
+     "wall"
+    ]
+   }
+  },
+  "direction": {
+   "tradition": "western"
+  }
+ },
+ "screen": "screen",
+ "foes": {
+  "bandit": {
+   "class": "charger",
+   "skin": {
+    "people": "human"
+   }
+  },
+  "warden": {
+   "class": "brute",
+   "skin": {
+    "people": "human"
+   }
+  }
+ },
+ "mechanics": {
+  "legend": "menu"
+ },
+ "hud": "adventure"
+}

@@ -188,7 +188,7 @@ export async function renderWorldTraversal(html, ticks, {
       const probe = await page.evaluate((s, b) => {
         window[b.g][b.step](s);
         return window[b.g][b.probe]();
-      }, { dt, input: t.input || t, pos: t.pos, target: t.target }, BRIDGE);
+      }, { dt, input: t.input || t, pos: t.pos, target: t.target, ...(frames ? {} : { draw: false }) }, BRIDGE);   // (no frame kept: none drawn)
       probes.push(probe);
       if (frames) {
         // eslint-disable-next-line no-await-in-loop
@@ -226,7 +226,7 @@ function climbLeg(s, b) {
     const turn = ent.climbing ? 0 : Math.max(-1, Math.min(1, diff * 2 * sign));
     const input = { forward: ent.climbing || Math.abs(diff) < 0.6 ? 1 : 0.15, turn };
     const h0 = ent.transform.heading;
-    cap[b.step]({ dt: s.dt, input });
+    cap[b.step]({ dt: s.dt, input, draw: false });   // (a leg compiled draws nothing: scene-three's step)
     ticks.push(input);
     if (!signLocked && Math.abs(turn) > 0.05) {
       const dh = wrapA(ent.transform.heading - h0);

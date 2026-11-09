@@ -192,6 +192,11 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(still).not.toContain('THE FAR GRASS');
     expect(still).toContain('mojWindAt');
     expect(still.length).toBeLessThan(page(W).length);
+    // (the grass is walked through, never stood on: the field, the far grass and the cards it takes over take no ray, so a
+    // walker's ground probe finds the land under them and its eye holds over it)
+    const P = page(W);
+    expect(P).toContain('var __noFoot = function () {};');
+    for (const g of ["userData.g = 'far-grass'", "userData.g = 'live-grass'", "'mojulo-grass-cards'"]) expect(P.slice(P.indexOf(g), P.indexOf(g) + 200)).toMatch(/raycast = __noFoot/);
   });
 
   it('tells the form render where its plants stand, and nothing to any other read', () => {
@@ -273,6 +278,12 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(assembleStageScene({ ...M, grass: true }).liveGrass.wind.grass).toHaveLength(1);
     expect(() => assembleStageScene({ ...M, grass: { contact: { press: 3 } } })).toThrow(/press/);
     expect(() => assembleStageScene({ ...M, grass: { look: 'oil' } })).toThrow(/look/);
+    // `grass.sway: false`: the trees stand still in the grass's wind (no crowns bent), the grass moving as it did
+    const still = assembleStageScene({ ...M, wind: true, grass: { sway: false } }).liveGrass;
+    expect(W.liveGrass.crowns).toBeTruthy();
+    expect(still.crowns).toBeNull();
+    expect(still.wind).toEqual(W.liveGrass.wind);
+    expect(() => assembleStageScene({ ...M, grass: { sway: true } })).toThrow(/sway is false/);
   });
 
   it('flowers, opt-in: a share of the tufts carries wildflowers, each part windowed into the flowers\' ramp', () => {

@@ -6,8 +6,10 @@
  *                       draconic, dwarven, sylvan, feline, lupine, ursine, avian, insectoid): each a band of humanity,
  *                       on the hero door above DOOR_H (kin with ears and a tail) and below it the beast-kin's
  *                       tiered body (lib/graph/beast; egocube/plan.js beastOnTiered)
- *   readPeopleSkin(skin, at)   → { people, facets?, dress? } checked (throws teaching the words); a person's `dress`
- *                       (./dress.js) dresses it as a crew's, made through the hero door rather than the egocube's loop
+ *   readPeopleSkin(skin, at)   → { people, facets?, dress?, gear? } checked (throws teaching the words); a person's `dress`
+ *                       (./dress.js) dresses it as a crew's, made through the hero door rather than the egocube's loop;
+ *                       `gear` what it carries, the hero door's own words (hero-gear.js: a sword in the right hand, a
+ *                       shield on the left: a skeleton's basic arms), laid over its rolled person when it is made
  *   peopleBody(skin)    → the body ./fit.js measures: { support: 'two', wings: false, swimmer: false, size, extent,
  *                         height, scale: 1, gaits, people }; its height the build's and the age's (egocube/plan.js HEIGHT,
  *                         AGE_SCALE), the facets' when named, else the canonical adult's
@@ -29,9 +31,10 @@ import { FACETS } from '../egocube/facets.js';
 import { classOfExtent } from '../fauna/size-class.js';
 import { MOVES } from './vocab.js';
 import { readDress } from './dress.js';
+import { validateGear } from '../polygonizer/hero-gear.js';
 
 export const PEOPLE = Object.freeze(['human', ...Object.keys(LINEAGES)]);
-const SKIN_KEYS = ['people', 'facets', 'dress'];
+const SKIN_KEYS = ['people', 'facets', 'dress', 'gear'];
 // (the facets a skin may name: the egocube's own, its frame's build beside them)
 const FACET_KEYS = [...Object.keys(FACETS).filter((k) => k !== 'frame'), 'build', 'pole'];
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -52,7 +55,8 @@ export function readPeopleSkin(skin, at = 'foe: .skin') {
     const stray = Object.keys(skin.facets ?? {}).filter((k) => k !== 'pole');
     if (stray.length) throw new Error(`${at}.facets: a dressed person's build and age are its dress's; it names only its pole (not ${stray.join(', ')})`);
   }
-  return { people: skin.people, ...(skin.facets !== undefined ? { facets: { ...skin.facets } } : {}), ...(skin.dress !== undefined ? { dress: readDress(skin.dress, `${at}.dress`) } : {}) };
+  if (skin.gear !== undefined) { const errs = validateGear(skin.gear); if (errs.length) throw new Error(`${at}.gear: ${errs.join('; ')}`); }
+  return { people: skin.people, ...(skin.facets !== undefined ? { facets: { ...skin.facets } } : {}), ...(skin.dress !== undefined ? { dress: readDress(skin.dress, `${at}.dress`) } : {}), ...(skin.gear !== undefined ? { gear: structuredClone(skin.gear) } : {}) };
 }
 
 export function peopleBody(skin) {

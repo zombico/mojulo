@@ -42,6 +42,8 @@ import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './ou
 import { boundFaces } from './out-bounds.js';
 import { recolourCard, recolourFaces } from '../color-theorist/recolour.js';
 import { readGrade } from './grade.js';
+import { pathAlong } from './out-tile.js';
+export { pathAlong };
 
 export const NATURE_STYLES = Object.freeze({ 'nature-trail': NATURE_TRAIL });
 
@@ -164,6 +166,8 @@ export function groundFaces(st, site) {
  * two lanes, and a grass fringe either side, laid a little above the ground, stations every `step` metres.
  */
 export function trailFaces(st, site) {
+  // (a glyph map's tile, era/out-tile.js: its ribbon laid along each of its path's polylines, not along one line by depth)
+  if (site.tile) return tileTrailFaces(st, site);
   const out = [], { D, halfWAt, fringeAt } = site, T = st.tiles, step = 0.75;
   const surf = (k) => ({ key: T[k].key, scale: T[k].scale, tint: T[k].tint, group: 'trail:ground' });
   // lanes as fractions: [−edge−fringe, −edge], [−edge, 0], [0, edge], [edge, edge+fringe] at each station's own widths
@@ -188,6 +192,40 @@ export function trailFaces(st, site) {
 }
 
 // the ribbon's frame: a station's centre and its normal across the trail, and a point `off` across it `lift` over the ground
+// A TILE'S RIBBON: the same lanes (fringe, path, path, fringe) and the same surfaces, along each of the tile's path
+// polylines, square to the polyline's own way at each station; where branches meet at the tile's middle they overlap,
+// one lift for all, so a T or an X reads as one crossing of packed ground
+function tileTrailFaces(st, site) {
+  const out = [], { halfWAt, fringeAt, ground } = site, T = st.tiles;
+  const surf = (k) => ({ key: T[k].key, scale: T[k].scale, tint: T[k].tint, group: 'trail:ground' });
+  const lanes = [[-1, -2, 'fringe', 0.05], [-2, 0, 'trail', 0.05], [0, 2, 'trail', 0.05], [2, 1, 'fringe', 0.05]];
+  const offAt = (code, y) => (code === 0 ? 0 : code === -2 ? -halfWAt(y) : code === 2 ? halfWAt(y) : code === -1 ? -halfWAt(y) - fringeAt(y) : halfWAt(y) + fringeAt(y));
+  for (const P of site.tile.paths) {
+    // stations every ¾ m along the polyline, each with its normal (the way's right hand)
+    const st0 = [];
+    for (let i = 0; i < P.length; i++) {
+      const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
+      st0.push({ c: P[i], n: [dy / l, -dx / l] });
+    }
+    const S = [st0[0]];
+    let acc = 0;
+    for (let i = 1; i < st0.length; i++) { acc += Math.hypot(st0[i].c[0] - st0[i - 1].c[0], st0[i].c[1] - st0[i - 1].c[1]); if (acc >= 0.75 || i === st0.length - 1) { S.push(st0[i]); acc = 0; } }
+    const at = (A, off, lift) => { const x = A.c[0] + A.n[0] * off, y = A.c[1] + A.n[1] * off; return [x, y, ground(x, y) + lift]; };
+    let s0 = 0;
+    for (let k = 0; k + 1 < S.length; k++) {
+      const A = S[k], B = S[k + 1], s1 = s0 + Math.hypot(B.c[0] - A.c[0], B.c[1] - A.c[1]);
+      for (const [c0, c1, cls, lift] of lanes) {
+        const a0 = offAt(c0, A.c[1]), a1 = offAt(c1, A.c[1]), b0 = offAt(c0, B.c[1]), b1 = offAt(c1, B.c[1]);
+        const sf = surf(cls), cs = [at(A, a0, lift), at(A, a1, lift), at(B, b1, lift), at(B, b0, lift)];
+        quad(out, cs, facet(cs, [0, 0, 1]), sf, null, null, [[a0 / sf.scale, s0 / sf.scale], [a1 / sf.scale, s0 / sf.scale], [b1 / sf.scale, s1 / sf.scale], [b0 / sf.scale, s1 / sf.scale]]);
+        out[out.length - 1].cls = cls;
+      }
+      s0 = s1;
+    }
+  }
+  return out;
+}
+
 function ribbonFrame(site) {
   const { trailX, ground } = site;
   const station = (y) => { const sl = (trailX(y + 0.01) - trailX(y - 0.01)) / 0.02, l = Math.hypot(sl, 1); return { c: [trailX(y), y], n: [1 / l, -sl / l] }; };
@@ -288,14 +326,17 @@ export function grassBlendFaces(st, site, faces, trees, seed) {
  *  trail at a gate focus, and pebbles along the trail's edges. */
 export function rockItems(st, site, seed) {
   const R = st.rubble, { D, halfWAt, fringeAt, trailX, ground, inRadius, foci } = site, S = seed | 0, items = [];
+  // a point `u` (0…1) of the way along the path and its right hand: a trail's line by depth; a tile's polylines by
+  // their length (era/out-tile.js), none on a tile with no path
+  const along = pathAlong(site), len = site.tile ? along.length : D;
   // the talus: where the landform's own scree came to rest (power-law sizes, the big blocks on the thin distal edge)
   site.scree.slice(0, R.maxScree).forEach((r, i) => items.push({ x: r.x, y: r.y, size: r.size / (R.unit * 0.66), detail: 0, v: i % R.variants, role: 'talus' }));
   // (as many as the card strews, or the trail's own `rocks.boulders`: out-trail.js readRocks)
   let distinct = 0;
   const nb = site.boulders ?? R.boulders;
-  for (let i = 0; i < nb; i++) {
-    const y = D * (0.12 + 0.76 * (i + hash3(i, 5, S + 31)) / nb), side = hash3(i, 6, S + 37) < 0.5 ? -1 : 1;
-    const x = trailX(y) + side * (halfWAt(y) + fringeAt(y) + 1 + 2 * hash3(i, 7, S + 41)), inside = inRadius(x, y);
+  for (let i = 0; i < (len > 0 ? nb : 0); i++) {
+    const A = along.at(0.12 + 0.76 * (i + hash3(i, 5, S + 31)) / nb), side = hash3(i, 6, S + 37) < 0.5 ? -1 : 1, off = side * (halfWAt(A.c[1]) + fringeAt(A.c[1]) + 1 + 2 * hash3(i, 7, S + 41));
+    const x = A.c[0] + A.n[0] * off, y = A.c[1] + A.n[1] * off, inside = inRadius(x, y);
     if (site.water && site.water.clear(x, y)) continue;   // (none in a trail's water or on its shore: out-water.js)
     items.push({ x, y, size: 1.3 + 1.1 * hash3(i, 8, S + 43), detail: inside ? 1 : 0, v: inside ? distinct++ % R.variants : i % R.variants, role: 'boulder' });
   }
@@ -303,10 +344,10 @@ export function rockItems(st, site, seed) {
     const side = k ? 1 : -1, y = f.y + (k ? 0.8 : -0.6), x = trailX(y) + side * (halfWAt(y) + R.gate.off + size * 0.35);
     items.push({ x, y, size, detail: 1, v: distinct++ % R.variants, role: 'gate' });
   });
-  const np = Math.round(D * R.pebbles.perMetre);
+  const np = Math.round(len * R.pebbles.perMetre);
   for (let i = 0; i < np; i++) {
-    const y = D * hash3(i, 9, S + 47), side = hash3(i, 10, S + 53) < 0.5 ? -1 : 1;
-    const x = trailX(y) + side * (halfWAt(y) * (0.75 + 0.6 * hash3(i, 11, S + 59)));
+    const A = along.at(hash3(i, 9, S + 47)), side = hash3(i, 10, S + 53) < 0.5 ? -1 : 1, off = side * (halfWAt(A.c[1]) * (0.75 + 0.6 * hash3(i, 11, S + 59)));
+    const x = A.c[0] + A.n[0] * off, y = A.c[1] + A.n[1] * off;
     items.push({ x, y, size: mix(R.pebbles.size[0], R.pebbles.size[1], hash3(i, 12, S + 61)), detail: 0, v: i % R.variants, role: 'pebble' });
   }
   // a site's own stones (out-trail.js: the landmark), named so an engine can find them

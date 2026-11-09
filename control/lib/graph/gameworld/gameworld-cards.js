@@ -13,6 +13,7 @@
  *
  * Pure.
  */
+import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
 import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
@@ -106,6 +107,7 @@ function ledgerCard() {
     'a run would lay it), its remit filled from the quest (the act and its stage, the beat\'s foes and gains, the beats',
     'around it, the core loop; your words win key by key). { req: { quest: true } } asks for every built beat, in order.',
     'A chapter whole: { req: { unit: \'act:<id>\' } }, one req, its levels in play order and its departments one crew.',
+    'A planned map\'s segments: { req: { unit: \'level:<id>\', segments: true } }, an author a segment, each its gates and role in its brief.',
     'ITS JOBS ({ ref, req: { id, start: true } }; the view\'s `req.does` says what is next: start, work, keep, critique,',
     'probe, fix, review). Hand each issued job to one agent with its brief (`req.jobs`: what it reads, writes and reports): an author',
     'sends its pages as `patch` and its `decisions`, each with `because`; diverge authors each take an `angle`, their',
@@ -285,6 +287,11 @@ function worldCard() {
     '  civilization? } | { ref } | { complex } for the walk: played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
     '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
+    '  or glyphs: { rows, key?, regions?, tile? }: one world on one page as a glyph grid (# path, . land, a letter a place { use, goal? };',
+    '    regions: a second grid, each { name, rise?, biocube? }), walked from its far end to the goal\'s door.',
+    '    or planned: { plan: { size, rows, route, key }, segments? } for rows: segments walked in turn, each written apart, its gates the plan\'s.',
+    'megaworld: { shape: mandala | chain | hub | open, rings: [[zones]], gates?: { <zone>: { key, keyAt } | { needs } } }: maps joined as a topology, the links',
+    '  laid from it; the loaded map the current map (kept in the save; leaving by a way completes nothing; a mandala\'s core its end).',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'front: the game\'s title, start menu and credits (card front).',
@@ -1032,7 +1039,7 @@ function nextCard() {
 
 function intentCard() {
   return lines(
-    'WHAT GAME IT IS — intent: { from?, cube?, why? }. Say it before the world: the levels are laid for it.',
+    'WHAT GAME IT IS — intent: { from?, cube?, why? }. Say it before the world: the levels are laid for it. What it is ABOUT: gameworld-brief.',
     'A genre (from) is a preset cube, never a lock: cube overrides any value ({ space: { camera: \'top-down\' } }; facets',
     'reality, space, power, soul, mind, time; an unknown value is refused, naming the known ones). A world may mix two genres.',
     'design_game suggests from the brief (intent.suggest); a world that writes none is read from what it says (camera,',
@@ -1053,6 +1060,34 @@ function intentCard() {
   );
 }
 
+function briefCard() {
+  return lines(
+    'THE GAME BRIEF — what the game is about, above its genre, settled with the creator before anything is built. The genre says',
+    'how a moment plays; the brief says why it is played and what shape it has. A pillar: the creator accepts it.',
+    '  gameBrief: { gmn: { motivations: { <id>: share }, labours: { <id>: share } }, orders? }   (each mix sums to 1; the pitch stays in brief)',
+    '',
+    'ASK, IN ORDER, in conversation; never fill it in for them:',
+    '  1. the pitch, in their words (brief)',
+    '  2. why the hero goes on: the motivations, a mix',
+    '  3. what it asks of the player: the labours, a mix',
+    '  4. the first level: what it must show (it sets the tone everything after it follows)',
+    '  5. the climax: the citadel, or what stands in its place',
+    '',
+    `MOTIVATIONS (the Time facet: stakes, ending, the acts, the cast, the palette's arc): ${Object.entries(MOTIVATIONS).map(([id, m]) => `${id} (${m.script})`).join(', ')}.`,
+    `LABOURS (Space and Reality: the shape, the climax, what a beat is played as): ${Object.entries(LABOURS).map(([id, l]) => `${id} (${l.shape}, ${l.climax.kind})`).join(', ')}.`,
+    `SHAPES: ${Object.entries(WORLD_SHAPES).map(([k, v]) => `${k}: ${v.says}`).join('; ')}.`,
+    '',
+    `THE MIX, read once when written: the largest labour decides the structure, the others at ${SIDE_SHARE} or more bring their side content; the largest`,
+    'motivation decides the stakes and the script, the others add cast and flags; less is said and dropped. The readout\'s intent.gameBrief says what it',
+    'decided; intent.suggest offers the genres its labours suit (advice: the creator may mix any genre with any labour).',
+    '',
+    `THE ORDERS, laid with it, each yours to edit: { id, kind: ${Object.keys(ORDER_KINDS).join(' | ')}, role, words, for?, mood?: { script?, at?, light? }, budget? }.`,
+    'Two are always there: lv0, the first level, and the climax. mood is the colour theorist\'s note: how far along the script, and its light (even | drama | noir).',
+    'A list already there is kept through a change of the mix; orders: \'reroll\' lays them again. A map order runs as a planned map (gameworld-world: glyphs.plan).',
+    'What it seeds is not written for you: mainQuest is its own pillar, from the spine the readout offers (gameworld-main-quest).',
+  );
+}
+
 // one genre in full (`gameworld-intent-<genre>`): the index above names the genres, so a new genre is a row here, not
 // bytes on the index
 function genreCard(id) {
@@ -1070,6 +1105,39 @@ function genreCard(id) {
   );
 }
 
+// THE WORKSHOP (game/workshop.js): where a big game is made and where it is seen, said before the work commits. Served by
+// id from the readout's `workshop` step, not listed with the rail.
+function workshopCard() {
+  return lines(
+    'THE WORKSHOP — where this game is made, and where it is seen. Say it BEFORE the chapter is built, not after.',
+    '',
+    'When: design_game\'s readout carries `next: workshop` (a level estimated over this host\'s page limit: a glyph map of',
+    'many tiles, a long chapter on one map), or you plan one yourself on a cloud box (Claude Code on the web, a cloud task).',
+    'Tell the creator plainly, before the run: this box BUILDS the game and runs its machine checks (the laws, the walk,',
+    'the desktop smoke), but it cannot SHOW a level that size here: a page reaches them only under the limit (`says` names',
+    'it), it draws in software (no GPU: it checks, it does not play), and it forgets the work when the session ends.',
+    'Then ask which path, and hold to the answer for the rest of the work:',
+    '',
+    '  local     (recommended) install mojulo on their laptop and carry the work over. Here: `npx mojulo script pack-data`',
+    '            (the repo: node scripts/pack-data.mjs) writes the database as ONE gzipped file; send it. There: gunzip it as',
+    '            the data folder\'s mojulo-lite.db (an install: ~/.mojulo/data; the repo: control/data). Seen at speed on their',
+    '            GPU; each change on the next reload or export, nothing zipped again. Code: commit and push here; they pull.',
+    '  desktop   keep building here; each look is export_game { ref, target: \'desktop\' } zipped and downloaded, then',
+    '            npm install && npm start. Every look is a new download: say so, and say the checks still run here.',
+    '  small     keep each level under the limit (fewer tiles, open land instead of dressed tiles, a lighter biocube) and',
+    '            play it here as a page.',
+    '',
+    'Whatever the path: before a long session ends, pack the data (the box is ephemeral); `surface` unknown (MOJULO_SURFACE',
+    'unset) means the advice names the box as a possibility: ask where they are working if it is not plain. On their own',
+    'machine nothing here applies and the readout says nothing.',
+  );
+}
+
+/** The workshop card by id (`gameworld-workshop`), or null. Served by id from the readout's step, not listed. */
+export function workshopCardById(id) {
+  return id === 'gameworld-workshop' ? { id, name: 'The workshop', summary: 'where a big game is made and where it is seen: the laptop, a desktop download, or kept small', when: 'a game too big to see in a cloud box, a level over the page limit, where do I play it', scope: 'rail', body: workshopCard() } : null;
+}
+
 /** One genre's card by id (`gameworld-intent-<genre>`), or null. Served by id, not listed with the rail. */
 export function genreCardById(id) {
   const genre = typeof id === 'string' && id.startsWith('gameworld-intent-') ? id.slice('gameworld-intent-'.length) : null;
@@ -1083,6 +1151,7 @@ const CARDS = [
   ['gameworld-ledger', 'The ledger', 'a game made one unit at a time: a req per chapter or level, its jobs for agents, its received gate, the game built up to the last accepted level', 'one level at a time, requisition, req, remit, precedent, subagents, jobs, author, diverge, critic, probe, received, accepted, composite', ledgerCard],
   ['gameworld-main-quest', 'The main quest', 'the game\'s spine: acts of beats, each played as a level, a dungeon, an open world, a gauntlet, an errand; the core loop', 'a long game, an RPG, a campaign, the story from start to end, acts, how long is the game, beginning middle and end, the core loop', mainQuestCard],
   ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
+  ['gameworld-brief', 'The Game Brief', 'what the game is about, above its genre: the motivations and labours, and the orders they make for the composer', 'what my game is about, the story and its shape, save the princess, storm the citadel, catch them all', briefCard],
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],

@@ -32,6 +32,7 @@ your agent is the reasoning loop. Game engines, Blender, slicers, and image or v
 | **An MCP host** | Claude Code or Codex get the most out of it; Claude Desktop and other hosts wire by declared profile. Claude Code also takes it as a plugin ([plugins/mojulo](../plugins/mojulo/README.md)), and ChatGPT as a plugin ([plugins/mojulo-chatgpt](../plugins/mojulo-chatgpt/README.md)). | [scripts/mcp-init.mjs](../control/scripts/mcp-init.mjs) |
 | **A desktop OS** | macOS is the development and verification platform. Windows and Linux are handled by the installer and the native binaries below, but the engine gates are not verified there (see [Platform notes](#platform-notes)). | — |
 | **No GPU** | Headless WebGL bakes rasterize on the CPU via SwiftShader. A GPU only matters for optional workers you host yourself (Blender Cycles, ComfyUI). | [lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js) |
+| **Seeing a big game** | A level over a cloud box's page limit is played on the creator's own machine (its GPU): the workshop says so before it is built. | [workshop.md](workshop.md) |
 | **No provider key** | Studio, games, publications, research, apps: keyless. A key enters only when something must *paint* (image models) or when you use `mint_solid`'s prompt door. | [README](../README.md#quickstart) |
 | **RAM / CPU** | **No measured minimum.** Nothing in the tree states one. Do not put a number on the site until one is measured. | — |
 

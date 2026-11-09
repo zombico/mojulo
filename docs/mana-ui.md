@@ -141,6 +141,18 @@ widgets under a pointer (only the view knows where they are).
 - **The schemes in.** `controls/mana-controls.js manaControls()` resolves the menu scheme (the pilot's interact
   accepting too) onto the keyboard and each pad layout, in the shape the playscape menus read. A remap is the kernel's
   override.
+- **The keyboard's sane defaults.** Each menu action has two remappable slots (arrows or W A S D, Enter or Space, Esc or
+  Backspace, `[` `]`). Past them, the scheme's `also` carries the keys a player reaches for anyway: the keypad (8 4 6 2
+  move, 5 and its Enter accept, 0 backs out, + and − turn the tabs), Tab and Shift+Tab to move down and up, and Page
+  Down and Page Up to turn the tabs. They are never remapped or listed, and a slot's binding on the same key wins. The
+  host repeats a held key only for a move (never a pick or a back) and leaves a chord (Ctrl, Alt, Meta) to the browser.
+- **A held stick or d-pad repeats too.** A pad's move (and a driver's: a headset's sticks) repeats while held, after
+  0.4 s and then every 0.1 s (`connect`'s `repeat: { delay, every }` in ms, or `false`), a pick or a back never. What
+  was held as a screen opened neither acts nor repeats in it.
+- **Typing.** With a text entry in the keyboard's focus, the host types into it: a letter types (W does not move),
+  Backspace and Delete erase, Enter is done, and the arrows, Esc and Tab still move and back out. A pad still types
+  from the grid. The runtime takes text, never keys: `rt.typing(seat)`, `rt.type(text, seat)` (the entry's charset and
+  max kept, lower case read as capitals), `rt.erase(seat)`, `rt.submit(seat)`.
 - **The glyphs out.**
   - `manaGlyphs()` gives each action's control per family and layout. A `prompt` and a `legend` print the one in hand
     ("Enter", "A", "✕"), switching as the player picks up another device; a touch screen draws no legend.
@@ -149,7 +161,8 @@ widgets under a pointer (only the view knows where they are).
 - **The drawn touch pad** is a look only: its buttons are named by the gamepad controls they are (`data-control`). The
   virtual pad's driver is the controls layer's.
 - **Previews** (the board, `manaUiPage`) take the host as `host: { source: manaHostSource(), controls }`. Without one,
-  they drive their frames with `PREVIEW_KEYS`, a stand-in in the preview's own script, never in the kernel.
+  they drive their frames with `PREVIEW_KEYS` and `previewKey`, a stand-in in the preview's own script (the same keys,
+  held to the scheme by a test, and the same typing), never in the kernel.
 
 ## The components, by group
 
@@ -158,9 +171,9 @@ widgets under a pointer (only the view knows where they are).
 | group | for |
 |---|---|
 | layout | screens on the stack (`seats` > 1 gives each couch seat a cursor), windows, stacks, splits, tabs (fixed, or pages from data), `each` (a row per item that does not itself take focus), dividers |
-| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts |
+| value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts |
 | input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type) |
-| hud | the in-game layer: a `hud` of regions (the nine screen places) and layers: anchors (a part over each thing in the world at the screen x and y the game projects), edges (what is off screen, held at the edge with an arrow), a threat ring (where harm came from), the cinema bars; reticle, minimap, compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
+| hud | the in-game layer: a `hud` of regions (the nine screen places, a place that may be bound) and layers: anchors (a part over each thing in the world at the screen x and y the game projects; a row with an id is its own element, and `pass` rows rise and fade once: damage numbers), edges (what is off screen, held at the edge with an arrow), a threat ring (where harm came from), the cinema bars; reticle, minimap, compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
 | enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
 
 Left and right cross between the panes of a split (a list and its detail), landing on the row the list has active.
@@ -658,7 +671,7 @@ the menus around the play (the title, the team select, the pause, the results af
 frame, and the effects each frame emits are logged under it. A switcher lays each theme over the same frames and shows
 its advice. Click a frame to drive it:
 
-- arrows or WASD, Enter, Escape, and `[` `]` to turn tabs
+- arrows, WASD or the keypad, Enter, Escape, and `[` `]` (or Page Up and Down) to turn tabs; letters type into a name
 - a second seat on I J K L, with U to pick and O for back
 
 It is one self-contained page, and it is the eyes gate's view of the library.
@@ -677,7 +690,8 @@ rt.hold(on); rt.reduceMotion(on);       // the game's clock held (the HUD's moti
 rt.textScale(k); rt.subtitlePlate(a);   // the player's text size (1 to 2) and the subtitles' plate (0..1, null: the theme's)
 rt.reduceFlash(on);                     // the player's less-flash option, apart from less motion
 rt.press('down' | 'up' | 'left' | 'right' | 'accept' | 'back' | 'tabNext' | 'tabPrev', seat?);
-rt.open(id); rt.tick(); rt.view(); rt.state();
+rt.typing(seat?); rt.type(text, seat?); rt.erase(seat?); rt.submit(seat?);   // a text entry in focus, typed into
+rt.open(id); rt.tick(); rt.view(); rt.state();   // state: the stack, the screen up, each seat's focus, the open tabs
 manaUi.mount(el, rt, { auto: true });   // the DOM backend, a view: it patches what it drew, hit-tests a pointer, a frame loop
 ```
 
@@ -698,6 +712,58 @@ audit. `manaUiPage(spec, { state })` is a self-contained page over a plain state
 - **Tests.** Each concept is tested once (`kernel.test.js`). The sweep over every idiom (`idioms.deep.test.js`) checks
   that each draws on the sample state, a screen can be moved through and left (one that waits, a loading screen, has
   nothing to press until it is ready), and a HUD part takes no focus.
+
+## The surfaces on it
+
+### The RPG's battles, party menu and shops
+
+The first surface moved onto mana-ui. Its spec is `playscape/rpg/rpg-ui.js` (screens and a HUD of components, data
+only), and the page's RPG channel (`scene/channels/rpg-channel.js`) is its host:
+
+- **`read`** is a view model of the battle kernel's state, built once a frame (and again after a change the host made,
+  or a screen mana-ui opened or left): `battle.*` (the heads, the numbers, the foes, the turn order, the message, the
+  member's lists, the corners its boxes take), `party.*` and `shop.*`. Nothing in it is copied back: a row's id is all
+  an effect carries.
+- **`act`** answers the spec's effects (`{ emit: command | skill | item | target | undo | next | class | slot | equip |
+  learn | deal }`) with the kernel's own calls, and says on the bus what came of them. The kernel still says yes or no.
+- **The stack is the menu's depth:** `rpg-cmd`, then `rpg-skill` or `rpg-item`, then `rpg-target`, each one back from
+  the last; `rpg-watch` while a round plays (accept skips ahead); `rpg-party` and `rpg-equip`; `rpg-shop`. The host
+  opens the one the fight's phase calls for over nothing, so a new member starts at the top of its commands.
+- **The target in focus is derived, never told:** each target row names the rows it marks (`aim: { <id>: true }`: its
+  own, and the figure it stands on), and a head or a foe's row draws its marker
+  `when: { pick: { format: 'targets.aim.{id}' } }`.
+- **The look** is `rpgUiTheme(cfg)`: the world's UI guide lowered with the battles (`cfg.theme`, by `mana-theme.js`),
+  the greybox until the guide is settled, the `console` preset without one. The channel's own CSS is the screen's
+  flash, the window's jolt and the level's HUD stepping aside during a fight.
+- **Input** is mana-host's (`connect(rt, view, manaControls())`, polled on the page's frame). The channel keeps P and a
+  pad's select, which are play's bindings, not the menu's.
+
+## In a headset
+
+A WebXR session shows no DOM, so mana-ui reaches a headset as a picture of itself, never a second drawing of it:
+
+- **The snapshot** (`snapshot.js`, page source like the kernel) copies a mounted view's elements and the sheet they were
+  drawn under into an SVG image the browser renders (a `data:` URL: Chromium, the Quest's browser, lets a WebGL texture
+  take it; Safari taints it, so a headset on Safari draws none of it). Whatever is moving is baked at the value it holds
+  this instant (the Web Animations API names the animations, their keyframes the properties), so a snapshot each frame
+  plays the screen's motion. Layout, theme, focus words, ornaments and pseudo-elements carry over because they are the
+  same CSS drawn by the same engine.
+- **The transfer gate** (`snapshot.chrome.test.js`, the e2e tier) holds a view's screenshot and its snapshot together,
+  pixel by pixel: a settled screen in a theme that uses every feature of the sheet, a frame mid-motion, one box alone.
+  They agree to within the half pixel a centred box is anti-aliased across; the view snapped without its theme fails it.
+- **The panel** (`scene/channels/xr.js`, on a page with a headset and a mana-ui surface): every mounted view registers on
+  the page (`window.__manaViews`: `{ root, rt, css, host }`); while one has a screen up, its snapshot is drawn on a panel
+  at eye height ahead of the player, placed where they look as the screen opens and left there. It is drawn again when
+  the view changes and at most thirty times a second while something on it moves.
+- **The controllers are the view's game controllers**: the menu scheme's `xr` rows (either stick moves, A or the
+  trigger accepts, B backs out, the grips turn the tabs) are read as a driver of the view's own input owner (mana-host
+  `drive()`), so the presses, the seats and the legends are mana-ui's as with a pad, and `rt.input('xr')` makes the
+  legends print the controller's buttons. While a screen is up the world, the walk and the turn hold. No laser pointer:
+  a headset's menu is worked as a console's is.
+- **The marks in the world**: an anchor row may say its point in the game's world (`world: [x, y, z]`, written as
+  `data-world`). In a headset such anchors leave the panel and stand over their points instead: the view's anchors are
+  laid out apart on one more snapshot (an atlas, the same sheet and motion), each a card square to the eye, as large to
+  the eye as on the screen. The RPG's bars over the fighters and its damage numbers are drawn this way.
 
 ## What is next
 

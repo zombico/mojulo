@@ -14,6 +14,9 @@
  *     id, label,                 // the intent and how a menu names it
  *     group,                     // the remap menu's section
  *     bind: { <family>: [primary, secondary] },   // controls of each device family (devices.js), at most two
+ *     also?: { <family>: [control…] },   // the conventions every player carries past the two slots (a menu's keypad,
+ *                                // Tab, the Page keys): never remapped and never listed, a slot's binding on the same
+ *                                // control wins; a keyboard control may say 'Shift+<code>'
  *     hold?: true,               // read held, not on the press edge (the legend says "(hold)")
  *     in: [context],             // where it is live; two actions may share a control only in different contexts
  *   }
@@ -34,7 +37,8 @@ const PILOT = {
   id: 'pilot',
   label: '3D pilot: walk, platform, suit, glide, drive, fly',
   // `reach`: standing somewhere usable (a cue's use place); an overlay on the others, where interact takes its controls
-  contexts: ['ground', 'space', 'glide', 'vehicle', 'spectate', 'reach'],
+  // `melee`: a hero with a moveset (gameworld/combos.js): its light, heavy and special beats, the action game's layout
+  contexts: ['ground', 'space', 'glide', 'vehicle', 'spectate', 'reach', 'melee'],
   actions: [
     // a pad's left stick X turns in a tank-turn world and strafes under a mouselook camera (the runtime picks);
     // in VR the left thumbstick walks and strafes and the right one turns, the comfort convention
@@ -61,7 +65,14 @@ const PILOT = {
     { id: 'walk', label: 'walk', group: 'move', hold: true, in: ['ground'], bind: { keyboard: ['KeyZ'] } },
     { id: 'tackle', label: 'tackle', group: 'combat', in: ['ground'], bind: { keyboard: ['Shift'], gamepad: ['north'], xr: ['left.primary'] } },
     { id: 'fire', label: 'fire', group: 'combat', hold: true, in: ARMED, bind: { mouse: ['left'], gamepad: ['rt'], xr: ['right.trigger'], sim: ['button1'] } },
-    { id: 'cycleWeapon', label: 'next weapon', group: 'combat', in: ARMED, bind: { keyboard: ['KeyR'], gamepad: ['rb'], xr: ['right.squeeze'] } },
+    // an action game's three attacks (a hero with a moveset): light the left click and the pad's left face, heavy the
+    // right click and the top face, special the mouse's forward button and the right face; the bottom face jumps
+    { id: 'light', label: 'light attack', group: 'combat', in: ['melee'], bind: { mouse: ['left'], gamepad: ['west'] } },
+    { id: 'heavy', label: 'heavy attack', group: 'combat', in: ['melee'], bind: { mouse: ['right'], gamepad: ['north'] } },
+    { id: 'special', label: 'special', group: 'combat', in: ['melee'], bind: { mouse: ['forward'], gamepad: ['east'] } },
+    // the guard, held (a hero with a feel's guard: combat-melee.js stepGuard): Shift, the pad's left shoulder (block on L1)
+    { id: 'guard', label: 'guard', group: 'combat', hold: true, in: ['melee'], bind: { keyboard: ['Shift'], gamepad: ['lb'] } },
+    { id: 'cycleWeapon', label: 'next weapon', group: 'combat', in: ARMED, bind: { keyboard: ['KeyR'], mouse: ['back'], gamepad: ['rb'], xr: ['right.squeeze'] } },
     { id: 'weapon1', label: 'weapon 1', group: 'combat', in: ARMED, bind: { keyboard: ['Digit1'] } },
     { id: 'weapon2', label: 'weapon 2', group: 'combat', in: ARMED, bind: { keyboard: ['Digit2'] } },
     { id: 'weapon3', label: 'weapon 3', group: 'combat', in: ARMED, bind: { keyboard: ['Digit3'] } },
@@ -283,21 +294,25 @@ const POINT = {
   },
 };
 
-// Menus everywhere: arrows (or W A S D) or Tab to move, Enter / Space to accept, Esc to go back. On a pad accept and back
+// Menus everywhere: arrows (or W A S D) to move, Enter / Space to accept, Esc to go back, [ ] to turn the tabs; past those
+// two slots, what a player reaches for anyway (`also`): the keypad (8 4 6 2 move, 5 and its Enter accept, 0 backs out,
+// + and − turn the tabs), Tab and Shift+Tab to move down and up, Page Down and Page Up to turn the tabs. On a pad accept and back
 // are roles, not positions: the bottom button accepts on Xbox and PlayStation, A on the right does on Nintendo.
+// In a headset the controllers are a game's controllers still: either stick moves, A (or the trigger) accepts, B goes
+// back, the grips turn the tabs (the right one on, the left one back).
 const MENU = {
   id: 'menu',
   label: 'menus and overlays',
   contexts: ['menu'],
   actions: [
-    { id: 'up', label: 'up', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'], xr: ['right.thumbstickY-'] } },
-    { id: 'down', label: 'down', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'], xr: ['right.thumbstickY+'] } },
-    { id: 'left', label: 'left', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'], xr: ['right.thumbstickX-'] } },
-    { id: 'right', label: 'right', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'], xr: ['right.thumbstickX+'] } },
-    { id: 'accept', label: 'accept', group: 'navigate', in: ['menu'], bind: { keyboard: ['Enter', 'Space'], gamepad: ['confirm'], xr: ['right.trigger'] } },
-    { id: 'back', label: 'back', group: 'navigate', in: ['menu'], bind: { keyboard: ['Escape', 'Backspace'], gamepad: ['cancel'], xr: ['right.secondary'] } },
-    { id: 'tabNext', label: 'next tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketRight'], gamepad: ['rb'] } },
-    { id: 'tabPrev', label: 'previous tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketLeft'], gamepad: ['lb'] } },
+    { id: 'up', label: 'up', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'], xr: ['right.thumbstickY-', 'left.thumbstickY-'] }, also: { keyboard: ['Numpad8', 'Shift+Tab'] } },
+    { id: 'down', label: 'down', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'], xr: ['right.thumbstickY+', 'left.thumbstickY+'] }, also: { keyboard: ['Numpad2', 'Tab'] } },
+    { id: 'left', label: 'left', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'], xr: ['right.thumbstickX-', 'left.thumbstickX-'] }, also: { keyboard: ['Numpad4'] } },
+    { id: 'right', label: 'right', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'], xr: ['right.thumbstickX+', 'left.thumbstickX+'] }, also: { keyboard: ['Numpad6'] } },
+    { id: 'accept', label: 'accept', group: 'navigate', in: ['menu'], bind: { keyboard: ['Enter', 'Space'], gamepad: ['confirm'], xr: ['right.primary', 'right.trigger'] }, also: { keyboard: ['NumpadEnter', 'Numpad5'] } },
+    { id: 'back', label: 'back', group: 'navigate', in: ['menu'], bind: { keyboard: ['Escape', 'Backspace'], gamepad: ['cancel'], xr: ['right.secondary'] }, also: { keyboard: ['Numpad0'] } },
+    { id: 'tabNext', label: 'next tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketRight'], gamepad: ['rb'], xr: ['right.squeeze'] }, also: { keyboard: ['PageDown', 'NumpadAdd'] } },
+    { id: 'tabPrev', label: 'previous tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketLeft'], gamepad: ['lb'], xr: ['left.squeeze'] }, also: { keyboard: ['PageUp', 'NumpadSubtract'] } },
   ],
   legend: {
     keyboard: [

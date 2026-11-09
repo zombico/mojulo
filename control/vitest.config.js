@@ -13,6 +13,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 // A list, not a suffix: a rename would collide with every branch still editing these files.
 export const E2E = [
   'lib/graph/gameworld/door-probes.e2e.test.js',
+  // a glyph map built whole through the kit's builder, tile by tile, and its laws measured (level/grid-scene.js)
+  'lib/graph/level/grid-scene.e2e.test.js',
   // a whole physical geocity resolved through world-scene (its metro, its ring's blocks, pieces and load audit): minutes
   'lib/graph/rupa/city-ring.e2e.test.js',
   'lib/mcp/tools/gameworld-city.test.js',
@@ -45,6 +47,9 @@ export const E2E = [
   'lib/graph/table-rpg/table-rpg-page.live.test.js',
   'lib/mcp/tools/table-rpg-portraits.live.test.js',
   'lib/graph/game/play-shell-final.live.test.js',
+  'lib/graph/game/play-shell-atlas.live.test.js',
+  // a zoned map's four zones built to a folder and walked gate by gate in headless Chrome (scripts/worldmap.mjs)
+  'lib/graph/gameworld/worldmap-bed.live.test.js',
   'lib/graph/game/pause-owner.live.test.js',
   'lib/graph/scene/channels/controllable/seats.live.test.js',
   'lib/graph/worlds/controllable/vayo-air.live.test.js',
@@ -58,6 +63,7 @@ export const E2E = [
   'lib/graph/science-worlds/classical/conformance.chrome.test.js',
   'lib/mcp/tools/science-setting.test.js',
   'lib/graph/scene/live-light.chrome.test.js',
+  'lib/mana-ui/snapshot.chrome.test.js',
   'lib/graph/scene/visual-gate.chrome.test.js',
 ];
 

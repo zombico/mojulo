@@ -455,9 +455,42 @@ export function buildMind(E) {
     if (r.mind && r.mind.motivation === 'escort') { const w = wardOf(e, r, world); if (w) return w.transform.pos; }
     return Array.isArray(r.post) ? r.post : e.spawn ? e.spawn.pos : e.transform.pos;
   };
+  // FOOTSTEPS (`rule.trail`, a party RPG's party): an escort walks where its ward walked. The ward leaves a crumb every
+  // TRAIL_STEP of ground it covers (kept on the ward, the newest last, TRAIL_KEEP of them); the escort's goal is the
+  // point `followDist` back along them from where the ward stands: ground the ward has just walked, so no wall or corner
+  // stands between them however the ward turned. One farther than TRAIL_SNAP from its point (just woken, or left
+  // behind) is set down on it. Before the ward has walked that far, the point stands behind it along its heading. A
+  // member with a FLANK (`rule.flank`, metres, + to the right of the ward's way) stands that far across the steps from
+  // its point, square to the way they run there: the party walks as a group, not a file (a wall in the way: it slides).
+  const TRAIL_STEP = 0.3, TRAIL_KEEP = 80, TRAIL_SNAP = 8;
+  function trailOf(w) {
+    const p = w.transform.pos, T = w.trail || (w.trail = [[p[0], p[1], p[2]]]), last = T[T.length - 1];
+    if (Math.hypot(p[0] - last[0], p[1] - last[1]) >= TRAIL_STEP) { T.push([p[0], p[1], p[2]]); if (T.length > TRAIL_KEEP) T.shift(); }
+    return T;
+  }
+  // the point `back` along the ward's steps, and the way they run there (a unit vector, toward the ward)
+  function trailPoint(w, back) {
+    const T = trailOf(w), h = w.transform.heading || 0;
+    let prev = w.transform.pos, left = back;
+    for (let i = T.length - 1; i >= 0; i--) {
+      const q = T[i], d = Math.hypot(q[0] - prev[0], q[1] - prev[1]);
+      if (d >= left && d > 1e-9) { const k = left / d; return { at: [prev[0] + (q[0] - prev[0]) * k, prev[1] + (q[1] - prev[1]) * k, prev[2] + (q[2] - prev[2]) * k], way: [(prev[0] - q[0]) / d, (prev[1] - q[1]) / d] }; }
+      left -= d; prev = q;
+    }
+    return { at: [prev[0] - Math.cos(h) * left, prev[1] - Math.sin(h) * left, prev[2]], way: [Math.cos(h), Math.sin(h)] };
+  }
+  function followSteps(e, r, dt, world, w) {
+    const t = e.transform, P = trailPoint(w, r.followDist ?? 2), f = Number.isFinite(r.flank) ? r.flank : 0;
+    const g = [P.at[0] + P.way[1] * f, P.at[1] - P.way[0] * f, P.at[2]], dx = g[0] - t.pos[0], dy = g[1] - t.pos[1], d = Math.hypot(dx, dy);
+    if (d > TRAIL_SNAP) { t.pos[0] = g[0]; t.pos[1] = g[1]; t.pos[2] = g[2]; t.heading = w.transform.heading || t.heading; e.moving = false; return; }
+    if (d <= 0.25) { e.moving = false; return; }
+    // (a little quicker than its own pace while it lags, never past its point in one step)
+    walkToward(e, r, Math.atan2(dy, dx), dt, world, Math.min((r.speed ?? 6) * (d > 1 ? 1.25 : 1), d / Math.max(dt, 1e-3)));
+  }
   // returnToPost(e, r, dt, world) — walk back to the post and stand there (LOST, for a guard; for an escort, back to
-  // within `followDist` (6) of its ward)
+  // within `followDist` (6) of its ward; an escort on its ward's footsteps, `rule.trail`, along them)
   function returnToPost(e, r, dt, world) {
+    if (r.trail && r.mind && r.mind.motivation === 'escort') { const w = wardOf(e, r, world); if (w) { followSteps(e, r, dt, world, w); return; } }
     const t = e.transform, p = postOf(e, r, world);
     const dx = p[0] - t.pos[0], dy = p[1] - t.pos[1];
     const arrive = r.mind && r.mind.motivation === 'escort' ? (r.followDist ?? 6) : (r.arrive ?? 1.5);

@@ -48,7 +48,7 @@ describe('the screen a game is made for, carried from the world to each level an
     // the level's UI laid out once by the screen: its HUD clear of the notch and lifted over the touch pad
     expect(html).toContain('<html lang="en" data-screen="phone" data-orientation="portrait">');
     expect(html).toContain('html[data-screen] .moj-hud-bottom-left{left:calc(12px + var(--safe-l));bottom:calc(12px + var(--safe-b) + var(--thumb))}');
-    expect(html).toContain('html[data-orientation=portrait] .moj-rpg-bottom{flex-direction:column');
+    expect(html).toContain('html[data-orientation=portrait] .moj-w-legend{white-space:normal;text-align:center}');
     // absent: none of it
     const { payload: plain } = await resolveWorldScene({ ref: L.ref, manifest: { ...L.order.manifest, screen: undefined } });
     expect(plain.screen).toBeUndefined();

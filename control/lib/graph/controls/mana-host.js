@@ -8,21 +8,26 @@
  * references nothing outside itself, so a page runs the same code by emitting `buildManaHost.toString()`
  * (mana-controls.js manaHostSource). Node imports the live instance for tests.
  *
- *   connect(rt, view, { keys, pad, padLayout, seatOf?, drivers?, listen?, loop?, repeat?, now? }) → { key(ev), poll(), stop() }
+ *   connect(rt, view, { keys, pad, padLayout, seatOf?, drivers?, listen?, loop?, repeat?, now? }) → { key(ev), poll(), drive(fn), stop() }
  *     rt, view    a mana-ui runtime and its mount (view.paint after an intent)
  *     keys, pad   the menu scheme resolved (code → action; per printed layout, buttons and half axes → action)
  *     padLayout   the kernel's reader of a pad's printed layout (controls-kernel.js padLayout)
  *     seatOf      (controller) → the 0-based seat it plays ('keyboard', 'pad:<index>', a driver's name), or null for
  *                 none: the seats kernel's answer on a couch page (seats-kernel.js seatOf); without it, the keyboard and
  *                 the first pad are the first seat and pad n the nth
- *     drivers     [() → { <action>: 1 } | { name?, input?, actions }]: any other device (a headset, a wheel)
+ *     drivers     [() → { <action>: 1 } | { name?, input?, actions }]: any other device (a headset, a wheel); one that
+ *                 comes later (a headset's session starting) joins with the handle's drive(fn) → its removal
  *     listen      false: the page routes its keydowns to key(ev) itself;  loop: false: it calls poll() itself
  *     repeat      a direction held on a pad or a driver repeats, as a key held does: { delay, rate } in seconds
  *                 (0.38 then every 0.075 by default, estimates to tune by hand), false for none; now() the clock it is
- *                 timed on (the page's by default)
+ *                 timed on, in seconds (the page's by default)
  *   While a screen is up the menu holds the input: a key it knows is taken in the capture phase (the game's own
  *   listeners never see it), and every pad and driver acts on its press edges, what was held as the screen opened not
  *   acting in it. With no screen up, nothing is taken: play has the devices.
+ *   The sane defaults: the keyboard takes the scheme's slots and its `also` (the keypad, Tab and Shift+Tab, the Page
+ *   keys); a held key (as the browser repeats it), stick or d-pad (as `repeat` times it) repeats a move and never a pick
+ *   or a back; a chord (Ctrl, Alt, Meta) stays the browser's; and with a text entry in focus the keys type into it
+ *   (rt.type), Backspace and Delete erase, Enter is done.
  */
 export function buildManaHost() {
   const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -31,6 +36,9 @@ export function buildManaHost() {
     const o = opts || {}, keys = o.keys || {}, pad = o.pad || null;
     const seat = (controller, fallback) => { const s = o.seatOf ? o.seatOf(controller) : fallback; return s === null || s === undefined ? null : s; };
     const paint = () => { if (view && view.paint) view.paint(); };
+    // a held key, stick or d-pad repeats a move (a long list scrolls, a slider runs), never a pick or a back: a held
+    // Enter buys once, a held Esc leaves one screen
+    const REPEATS = { up: 1, down: 1, left: 1, right: 1 };
     const act = (a, mode, layout, controller, fallback) => {
       const n = seat(controller, fallback);
       if (n === null) return false;
@@ -39,35 +47,52 @@ export function buildManaHost() {
       return true;
     };
 
+    const take = (ev) => { if (ev.preventDefault) ev.preventDefault(); return true; };
+    // a text entry in the keyboard's focus: what is typed goes into it (a pad types from its grid), Backspace and Delete
+    // erase, Enter is done; the arrows, Esc and Tab still move and back out
+    function typed(ev, n) {
+      const k = ev.key;
+      if (k === 'Backspace' || k === 'Delete') { rt.erase(n); return take(ev); }
+      if (k === 'Enter') { if (!ev.repeat) rt.submit(n); return take(ev); }
+      if (typeof k === 'string' && [...k].length === 1) { rt.type(k, n); return take(ev); }
+      return false;
+    }
     function key(ev) {
       // no screen up: the key is play's; the HUD's prompts still learn the player is on the keys
       if (!rt.state().screen) { if (rt.state().input !== 'keys') { rt.input('keys'); paint(); } return false; }
       if (ev.stopPropagation) ev.stopPropagation();
-      const a = keys[ev.code];
+      // a chord (Ctrl, Alt or Meta held) is the browser's and the system's: a reload, a tab switch, a copy
+      if (ev.ctrlKey || ev.altKey || ev.metaKey) return false;
+      const n = seat('keyboard', 0);
+      if (n !== null && rt.typing(n) && typed(ev, n)) { rt.input('keys'); paint(); return true; }
+      const a = (ev.shiftKey && keys['Shift+' + ev.code]) || keys[ev.code];
       if (!a) return false;
-      if (ev.preventDefault) ev.preventDefault();
+      take(ev);
+      if (ev.repeat && !REPEATS[a]) return true;
       act(a, 'keys', null, 'keyboard', 0);
       paint();
       return true;
     }
 
-    const prev = new Map();
-    // a held direction repeats (a long list, a slider): after the delay, at the rate; keys repeat by the system's own
-    const REPEATS = ['up', 'down', 'left', 'right'];
-    const R = o.repeat === false ? null : { delay: 0.38, rate: 0.075, ...(isObj(o.repeat) ? o.repeat : {}) };
-    const clock = () => (o.now ? o.now() : typeof performance !== 'undefined' ? performance.now() / 1000 : 0);
-    const due = new Map();
+    // a held stick or d-pad repeats its move as a held key does (a long list scrolls, a slider runs): after `delay`
+    // seconds, then every `rate`; a pick or a back never repeats, and what was held as a screen opened does not repeat in it
+    const rep = o.repeat === false ? null : { delay: 0.38, rate: 0.075, ...(isObj(o.repeat) ? o.repeat : {}) };
+    const clock = typeof o.now === 'function' ? o.now : () => (typeof performance !== 'undefined' ? performance.now() / 1000 : 0);
+    const prev = new Map(), due = new Map(), drivers = (o.drivers || []).slice();
+    // a device that comes after the connection (a headset's session): its driver joins, and leaves with what it held
+    const drive = (fn) => { drivers.push(fn); return () => { const i = drivers.indexOf(fn); if (i >= 0) drivers.splice(i, 1); }; };
     let shown = rt.state().screen;
     const edges = (id, now, mode, layout, controller, fallback) => {
-      const was = prev.get(id) || {}, t = R ? clock() : 0, next = due.get(id) || {};
+      const was = prev.get(id) || {}, D = due.get(id) || {}, t = clock();
       prev.set(id, now);
-      due.set(id, next);
+      due.set(id, D);
       let did = false;
+      for (const a in D) if (!now[a]) delete D[a];
       for (const a in now) {
-        if (now[a] && !was[a]) { did = act(a, mode, layout, controller, fallback) || did; if (R && REPEATS.includes(a)) next[a] = t + R.delay; }
-        else if (now[a] && next[a] !== undefined && t >= next[a]) { did = act(a, mode, layout, controller, fallback) || did; next[a] = t + R.rate; }
+        if (!now[a]) continue;
+        if (!was[a]) { did = act(a, mode, layout, controller, fallback) || did; if (rep && REPEATS[a]) D[a] = t + rep.delay; }
+        else if (D[a] !== undefined && t >= D[a]) { did = act(a, mode, layout, controller, fallback) || did; D[a] = t + rep.rate; }
       }
-      for (const a in next) if (!now[a]) delete next[a];
       return did;
     };
     function poll() {
@@ -89,11 +114,11 @@ export function buildManaHost() {
         for (const b in P.b) { const x = g.buttons[b]; if (x && (x.pressed || x.value > 0.5)) held[P.b[b]] = 1; }
         for (const [ax, sg, a] of P.a) if ((g.axes[ax] || 0) * sg > 0.6) held[a] = 1;
         const id = 'pad:' + (g.index === undefined ? i : g.index);
-        if (opened) prev.set(id, held); else did = edges(id, held, 'pad', L, id, i) || did;
+        if (opened) { prev.set(id, held); due.delete(id); } else did = edges(id, held, 'pad', L, id, i) || did;
       }
-      (o.drivers || []).forEach((fn, i) => {
+      drivers.forEach((fn, i) => {
         const r = fn() || {}, held = isObj(r.actions) ? r.actions : r, id = r.name || 'driver:' + i;
-        if (opened) prev.set(id, held); else did = edges(id, held, r.input || 'pad', null, id, 0) || did;
+        if (opened) { prev.set(id, held); due.delete(id); } else did = edges(id, held, r.input || 'pad', null, id, 0) || did;
       });
       if (did) paint();
       return did || opened;
@@ -102,7 +127,7 @@ export function buildManaHost() {
     let live = true;
     if (o.listen !== false && typeof window !== 'undefined') window.addEventListener('keydown', key, true);
     if (o.loop !== false && typeof requestAnimationFrame === 'function') { const loop = () => { if (!live) return; poll(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
-    return { key, poll, stop: () => { live = false; if (o.listen !== false && typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('keydown', key, true); } };
+    return { key, poll, drive, stop: () => { live = false; if (o.listen !== false && typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('keydown', key, true); } };
   }
 
   return { connect };

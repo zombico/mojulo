@@ -10,6 +10,9 @@
  *     footsteps?:  true | { step?, jump?, land? (gesture lists) },
  *     wind?:       true | { level (dB), freq (Hz) },
  *     weather?:    true | { level? (0..1), surface? }   the world's sky, sounding (manifest.weather; beats/weather-audio.js)
+ *     moves?:      { swing?, hit?, block?, parry?, break?, draw?, loose?, arrow?, felled?, cycle?, foeSwing?, hurt? }
+ *                  a moveset's events (gameworld/combos.js, combat-melee.js) → the ids of sfx cues: `swing` and `hit`
+ *                  by weapon and weight ({ <weapon>: { light, heavy?, finisher? } }), the rest one cue each
  *     bindings?:   [{ source, entity?|point?, range: [from,to],
  *                     target: { channel, macro: tone|level|transpose, range: [a,b] } }]
  *   }
@@ -336,7 +339,33 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     if (Object.keys(sOut).length) out.strike = sOut;
   }
 
+  // a MOVESET's sounds (`moves`, the practice room's and an action game's: gameworld/combos.js): each of its events names
+  // one of the level's sfx cues; the swing and the hit by the weapon in hand and the move's weight. A cue it names that
+  // the level has not is refused, saying which
+  if (audioSpec.moves !== undefined) out.moves = resolveMoves(audioSpec.moves, out.cues || {});
+
   return Object.keys(out).length ? out : null;
+}
+
+export const MOVE_SOUNDS = Object.freeze({ weighted: ['swing', 'hit'], weights: ['light', 'heavy', 'finisher'], one: ['block', 'parry', 'break', 'draw', 'loose', 'arrow', 'felled', 'cycle', 'foeSwing', 'hurt'] });
+function resolveMoves(m, cues) {
+  const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  const say = (msg) => { throw new Error(`audio.moves${msg}`); };
+  if (!isObj(m)) say(` is { ${[...MOVE_SOUNDS.weighted, ...MOVE_SOUNDS.one].join(', ')} }: each a cue id of audio.sfx.cues`);
+  const cue = (id, at) => { if (typeof id !== 'string' || !cues[id]) say(`${at}: '${id}' is no cue of audio.sfx.cues (${Object.keys(cues).join(', ') || 'none'})`); return id; };
+  const out = {};
+  for (const [k, v] of Object.entries(m)) {
+    if (MOVE_SOUNDS.weighted.includes(k)) {
+      if (!isObj(v)) say(`.${k} is { <weapon>: { ${MOVE_SOUNDS.weights.join('?, ')}? } }`);
+      out[k] = Object.fromEntries(Object.entries(v).map(([w, W]) => {
+        if (!isObj(W)) say(`.${k}.${w} is { ${MOVE_SOUNDS.weights.join('?, ')}? }`);
+        for (const x of Object.keys(W)) if (!MOVE_SOUNDS.weights.includes(x)) say(`.${k}.${w}.${x}: a move's weight is ${MOVE_SOUNDS.weights.join(', ')}`);
+        return [w, Object.fromEntries(Object.entries(W).map(([x, id]) => [x, cue(id, `.${k}.${w}.${x}`)]))];
+      }));
+    } else if (MOVE_SOUNDS.one.includes(k)) out[k] = cue(v, `.${k}`);
+    else say(`.${k} is not a moveset's event (${[...MOVE_SOUNDS.weighted, ...MOVE_SOUNDS.one].join(', ')})`);
+  }
+  return out;
 }
 
 /**

@@ -43,6 +43,12 @@ describe('a people\'s body', () => {
     expect(f.stature).toBeCloseTo(f.measured.height * FOE_RANKS.boss.presence, 2);
     expect(f.strike).toBeNull();
   });
+  it('carries the hero door\'s gear (a skeleton\'s sword and shield), refusing a slot the door has not', () => {
+    const gear = { right: { item: 'sword' }, left: { item: 'shield' } };
+    expect(readPeopleSkin({ people: 'skeleton', gear })).toEqual({ people: 'skeleton', gear });
+    expect(() => readPeopleSkin({ people: 'skeleton', gear: { tail: { item: 'sword' } } })).toThrow(/gear\.tail: not a slot/);
+    expect(resolveFoe({ class: 'stalker', skin: { people: 'skeleton', gear } }).skin).toMatchObject({ people: 'skeleton', gear });
+  });
   it('refuses a word it does not know, naming the known ones', () => {
     expect(() => readPeopleSkin({ people: 'goblin' })).toThrow(/no people 'goblin'/);
     expect(() => readPeopleSkin({ people: 'human', facets: { ancestry: 'orcish' } })).toThrow(/say it as people/);

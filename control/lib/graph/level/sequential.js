@@ -39,6 +39,7 @@ export function sequentialLevel(recipe) {
   let street = G.paint?.domain ? geocubeTown(G.paint.cube, G.paint.domain.domain) : null;
   for (const id of order) {
     const n = G.nodes[id];
+    if (n.section === 'junction') throw new Error(`level: sequential: '${id}' is a junction; a junction is laid by the map layout`);
     if (prev && prev.section !== 'trail') throw new Error(`level: sequential: '${id}' follows the ${prev.section} '${prev.node}'; a section follows a trail (nothing follows a ${prev.section} yet)`);
     let manifest;
     if (n.section === 'trail') {
@@ -68,7 +69,7 @@ export function sequentialLevel(recipe) {
 }
 // a node's paint: its kit, or (painted by the level's geocube) the cube itself and the terrain (or the domain) the level
 // picked, and the hour the level lights it at (and the clouds it draws it under), so the stage carries what it is drawn by and lowers it on every read
-function paintOf(G, n) {
+export function paintOf(G, n) {
   if (!n.painted) return { kit: n.kit };
   const lit = { ...(G.paint.hour !== undefined ? { hour: G.paint.hour } : {}), ...(G.paint.clouds !== undefined ? { clouds: G.paint.clouds } : {}) };
   if (G.paint.domain) return { geocube: G.paint.cube, domain: G.paint.ask, ...lit };

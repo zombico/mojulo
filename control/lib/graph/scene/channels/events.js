@@ -23,6 +23,7 @@ import { EXPLOSIONS } from '../../playscape/elements/explosions.js';
 import { juiceFloor } from '../juice-style.js';
 import { listensForHits } from '../../playscape/ui/cast.js';
 import { buildStats } from '../../playscape/stats/kernel.js';
+import { gameHudCss } from '../../../mana-ui/theme.js';
 
 export { MENU_CSS };   // the menus' sheet lives with their runtime (interact-channel.js); the board's specimens read it here
 
@@ -33,7 +34,8 @@ export { MENU_CSS };   // the menus' sheet lives with their runtime (interact-ch
 // world carries hud rows — a hud-less events world is byte-identical. A settled play direction's
 // `events.register` (playscape/ui/register.js) lays its dials' sheet over this one, and its stylized
 // border and pixel tuning (borders.js) over that, from closed words only; absent, not a byte is
-// added. Exported for the UI board's specimens.
+// added. A world's HUD look (`events.look`, a mana-ui theme: mana-ui/theme.js gameHudCss) lays its sheet last: a bare
+// HUD's parts on the scene itself, never a card. Exported for the UI board's specimens.
 export const HUD_CSS = [
   '.moj-hud{position:absolute;inset:0;pointer-events:none;z-index:12;font-family:var(--moj-font);color:var(--moj-ink)}',
   '.moj-hud-col{position:absolute;display:flex;flex-direction:column;gap:8px;max-width:46%}',
@@ -76,7 +78,7 @@ const GATE_CSS = [
 // only), a var toast from the var's change since the last frame (first frame seeds, never fires).
 // `titles` (game/title-carve.js carveTitles, carried as events.titles) splices the title channel: the title widgets' words as
 // 3D letters (title-channel.js), their colour resolved here to the hex the letters are baked in. Absent ⇒ not a byte.
-function hudScript(widgets, style, register, menus = null, titles = null, juice = null) {
+function hudScript(widgets, style, register, menus = null, titles = null, juice = null, look = null) {
   // default colors: banners, event toasts and bars take the accent; a var toast with no color
   // takes NONE here — the page picks harm / goal by the sign of the change at fire time.
   const accentDefault = (w) => w.kind === 'banner' || w.kind === 'title' || (w.kind === 'toast' && !w.var) || (w.kind === 'readout' && w.as === 'bar');
@@ -97,7 +99,7 @@ const __hudGated = [], __UI_STATES = ${JSON.stringify(UI_STATES)};` : ''}${title
 const __hudTitles = [];   // the carved banners: fired and stepped by the title channel below` : ''}
 const __TOAST_CAP = 8, __TOAST_RISE = 28;
 (function () {
-  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${gated ? GATE_CSS : ''}${menus ? MENU_CSS : ''}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}${menus && register && register.inventory ? inventoryCss(register.inventory) : ''}`)}; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${gated ? GATE_CSS : ''}${menus ? MENU_CSS : ''}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}${menus && register && register.inventory ? inventoryCss(register.inventory) : ''}${look ? gameHudCss(look) : ''}`)}; document.head.appendChild(st);
   const layer = document.createElement('div'); layer.className = 'moj-hud';
   const cols = __hudCols;
   const col = (slot) => { if (!cols[slot]) { const c = document.createElement('div'); c.className = 'moj-hud-col moj-hud-' + slot; layer.appendChild(c); cols[slot] = c; } return cols[slot]; };
@@ -267,7 +269,7 @@ export function eventsChannelScript(events0, { fxDay = null } = {}) {
   // the bus's EVENTS; the letters are baked in the composed floor's register (anime unless the floor says western)
   const { titles = null, ...evPage } = events;
   const juiceRegister = titles && titles.register === 'western' ? 'western' : fxs && typeof fxs === 'object' && fxs.register === 'western' ? 'western' : 'anime';
-  const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus, titles, juiceRegister) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
+  const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus, titles, juiceRegister, events.look ?? null) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
   return `
 const EVENTS = ${safeJson(titles ? evPage : events)};
 const __BUS = (${buildBus.toString()})();
@@ -425,15 +427,6 @@ ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojC
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
-window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript() : ''}${quests ? questScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgGuide(events, !!(widgets.length || menus)) + rpgScript() : ''}`;
+window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript() : ''}${quests ? questScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
 }
 
-// the battle window dressed by the world's UI guide (play.ui, lowered to events.style and events.register): its tokens
-// on the root (already there where the HUD draws), its register's frame and plate and its border on the window's panels
-// (.moj-rpg .moj-w), as the HUD's are; a world with no guide keeps the window's own defaults
-function rpgGuide(events, hud) {
-  const style = events.style, register = events.register;
-  if (!style && !register) return '';
-  const css = `${style && !hud ? `:root{${styleVars(style)}}` : ''}${register ? registerCss(cleanDials(register), '.moj-rpg') + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }, '.moj-rpg') : ''}`;
-  return css ? `\n{ const st = document.createElement('style'); st.textContent = ${JSON.stringify(css)}; document.head.appendChild(st); }` : '';
-}

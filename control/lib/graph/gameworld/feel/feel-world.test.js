@@ -22,7 +22,10 @@ describe('a gameworld\'s feel', () => {
     const hero = felt.entities[0].rule;
     for (const [k, v] of Object.entries(want)) expect([k, hero[k]]).toEqual([k, v]);
     expect(hero.type).toBe(plain.entities[0].rule.type);
-    const strip = (m) => JSON.stringify({ ...m, entities: m.entities.map((e, i) => (i === 0 ? { ...e, rule: null } : e)) });
+    // (and a card that sprints says its key beside the run: the stamina's, rules-platform.js `stamina`)
+    const sprints = !!want.stamina, said = ` · F  sprint (stamina)${want.dodge ? ' · F F  dodge' : ''}`;
+    expect(felt.events.hud[0].text.includes(said)).toBe(sprints);
+    const strip = (m) => JSON.stringify({ ...m, entities: m.entities.map((e, i) => (i === 0 ? { ...e, rule: null } : e)), events: { ...m.events, hud: m.events.hud.map((h) => ({ ...h, text: h.text.replace(said, '') })) } });
     expect(strip(felt)).toBe(strip(plain));
   });
 
@@ -42,8 +45,9 @@ describe('a gameworld\'s feel', () => {
     expect(F.jumps.sort()).toEqual([...new Set(Object.values(TAKES))].sort());
     if (taken.entities[0].rule.dash) expect(JSON.stringify(taken.events)).toContain('F  dash');
     expect(JSON.stringify(plain.events)).not.toContain('F  dash');
-    // (the card's moves ride the takes: its wall and its dash, F named on the legend)
-    const strip = (m) => JSON.stringify({ ...m, events: null, entities: m.entities.map((e, i) => { if (i) return e; const { takes, cling, dash, ...rule } = e.rule; return { ...e, rule }; }), figures: Object.fromEntries(Object.entries(m.figures ?? {}).map(([k, f]) => [k, { ...f, clips: Object.fromEntries(Object.entries(f.clips ?? {}).filter(([st]) => !(st in TAKES))), jumps: null }])) });
+    // (the card's moves ride the takes: its wall and its dash, F named on the legend; F the takes' own, the plain feel's
+    // F its sprint on the stamina, feel/lower.js)
+    const strip = (m) => JSON.stringify({ ...m, events: null, entities: m.entities.map((e, i) => { if (i) return e; const { takes, cling, dash, sprint, stamina, boostSpeed, boostMax, boostRegen, overheatRegen, boostUnlockFrac, dodge, dodgeDur, dodgeSpeed, dodgeBoostCost, dodgeOverheat, dodgeCooldown, ...rule } = e.rule; return { ...e, rule }; }), figures: Object.fromEntries(Object.entries(m.figures ?? {}).map(([k, f]) => [k, { ...f, clips: Object.fromEntries(Object.entries(f.clips ?? {}).filter(([st]) => !(st in TAKES))), jumps: null }])) });
     expect(strip(taken)).toBe(strip({ ...plain, figures: Object.fromEntries(Object.entries(plain.figures ?? {}).map(([k, f]) => [k, { ...f, jumps: null }])) }));
   });
 });

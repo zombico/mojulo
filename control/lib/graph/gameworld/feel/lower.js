@@ -19,7 +19,8 @@
  *   lowerFeel(card, { gear? })   → { rule, lane, carried: [field], partly: [{ field, why }], lost: [{ field, why }] }
  *                       `rule` the platform rule's fields (speed, accel, decel, faceRate, jumpSpeed, gravity,
  *                       fallGravity, maxFall, coyote, buffer, jumpCut, airControl, jumpWindup, airJumps, airJumpMult,
- *                       strikeContact, combo, hitstop); `lane` the card holds the hero to a line (the level's own); `gear` the
+ *                       strikeContact, combo, hitstop, guard; a card that sprints, `sprint` with its stamina: boostSpeed, boostMax,
+ *                       boostRegen, overheatRegen, boostUnlockFrac); `lane` the card holds the hero to a line (the level's own); `gear` the
  *                       template's worn gear (the glider or the jetpack), said when it names one
  *   feelRule(feel)    → the rule a written feel lays over the hero's (its takes when it asks for them)
  *   TAKES             the hero's jumps the takes play (clip names: hero-jump.js), by the runtime's state
@@ -31,6 +32,9 @@ import { FPS, r4, POLES, POLE_IDS, variantsOf, poleCard, blendPoles, mergeDeep }
 import { jumpShares } from '../../polygonizer/hero-jump.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+/** A hero's STAMINA (the sprint's gauge), its defaults: seconds of sprint, seconds to refill from empty, and seconds to
+ * refill when WINDED (run dry: no sprint until full again). A card says its own as `stamina: { seconds?, refill?, winded? }`. */
+export const STAMINA = Object.freeze({ seconds: 6, refill: 4, winded: 6, dodge: 1 });
 const FEEL_KEYS = ['pole', 'variant', 'toward', 't', 'set', 'takes'];
 const fail = (m) => new Error(`gameworld: feel${m}`);
 
@@ -63,7 +67,7 @@ const LOST = Object.freeze({
   dodge: 'the dodge roll: the runtime\'s dodge is mobile-suit-arena\'s acrobatics on a double tap, not this roll and its invincible frames',
   dash: 'the dash: the platform rule\'s boost is a held thrust on a gauge (mobile-suit-arena\'s), not this dash',
   cling: 'the wall slide and the wall jump',
-  guard: 'the guard: the block, the parry and its window, witch time',
+  guard: 'the guard: the block, the parry and its window, witch time',   // (carried where the card has a block: lowerFeel)
   charge: 'the hold-release charge',
   pound: 'the stomp attack',
   'land.stomp': 'the stomp on a body\'s head (carried only where a level stands foes: gameworld/foes.js lays it on the hero there)',
@@ -126,10 +130,26 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
   if (Gd.decel > 0) put('ground.decel', 'decel', Gd.decel);
   if (Gd.turn != null) { rule.faceRate = Gd.turn === Infinity ? 60 : r4((Gd.turn * Math.PI) / 180); half('ground.turn', 'the facing\'s turn where the hero moves in the screen\'s frame or on a lane (faceRate); a tank-turned hero keeps its own'); }
   // the sprint: with the takes and no dash, the run button (F held), its speed built as a mascot platformer's run is, over
-  // SPRINT.build seconds of running; else one speed, the run
+  // SPRINT.build seconds of running (a takes' dash keeps one speed, the run); without the takes, the SPRINT on the hero's
+  // STAMINA: the boost held, on its gauge (rules-platform.js `stamina`), the card's `stamina` its seconds of sprint, its
+  // refill and its winded refill (STAMINA the defaults)
   const sprints = takes && Gd.sprint > Gd.run && !(C.dash && C.dash.kind === 'dash');
   if (sprints) { rule.sprint = { speed: Gd.sprint, ...SPRINT }; half('ground.sprint', `the run button (F held while running): the run built up to ${Gd.sprint} m/s over ${SPRINT.build} s, eased back over ${SPRINT.fall} s let go`); }
-  else if (Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
+  else if (takes && Gd.sprint > Gd.run) half('ground.sprint', 'one speed, the run: the walk is the stick\'s share, the sprint is not carried');
+  else if (Gd.sprint > Gd.run) {
+    const St = { ...STAMINA, ...(C.stamina ?? {}) };
+    put('ground.sprint', 'stamina', true); rule.boostSpeed = Gd.sprint;
+    rule.boostMax = St.seconds; rule.boostRegen = r4(St.seconds / St.refill); rule.overheatRegen = r4(St.seconds / St.winded); rule.boostUnlockFrac = 1;
+    carried.push('stamina');
+    // the DODGE, on the sprint's key (a double tap) and its stamina (`stamina.dodge` seconds of it, never the whole gauge):
+    // the card's dodge as the runtime's dash (maneuvers.js): its frames, its speed, invulnerable throughout; a roll's own
+    // tumble the body's clip where it has one
+    if (C.dodge && C.dodge.speed > 0) {
+      rule.dodge = true; rule.dodgeDur = r4(Math.max(6, C.dodge.frames) / FPS); rule.dodgeSpeed = C.dodge.speed;
+      rule.dodgeBoostCost = St.dodge; rule.dodgeOverheat = false; rule.dodgeCooldown = 0.2;
+      carried.push('dodge');
+    }
+  }
   // the jump: its speed from the height and the rise's gravity (as the runtime steps them), the fall's own, the windows in
   // seconds; the gather a half frame long so the take-off lands on the card's frame (the runtime counts the press's)
   const v0 = steppedSpeed(J.height, J.gRise);
@@ -179,6 +199,18 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
     half('dash', `the dash on F (a person's): the ground dash, ${A?.count ? 'the air dash, ' : ''}${D.jump ? 'the dash jump' : ''}${D.wall ? ', the dash wall kick' : ''}; a burst, the card's ${D.frames} frames whatever the button does${D.hold ? ' (its held dash is not carried)' : ''}${D.iframes ? '; its invincible frames are not carried' : ''}${D.cancel ? '; its cancel out of a move is not carried' : ''}`);
     moves.add('dash');
   }
+  // the GUARD (combat-melee.js stepGuard; held: Shift, a pad's left shoulder): a blow from the front blocked (the card's
+  // blockstun and push back, its stamina's cost; run dry, the guard breaks into a stagger), one met within the `parry`
+  // seconds of the guard going up PARRIED (null: any guard parries), the attacker staggered open the `riposte` seconds;
+  // the walk at the guard's share of the run. Every foe's blow is parryable (the zones are the lab's); the perfect
+  // dodge's witch time is not carried
+  if (C.guard && C.guard.block) {
+    const G = C.guard;
+    rule.guard = { move: r4(G.move ?? 0), push: r4(G.block.push ?? 0), stun: r4((G.block.stun ?? 0) / FPS), parry: G.parry == null ? null : r4(G.parry / FPS), riposte: r4((G.riposte ?? 0) / FPS),
+      ...(G.stamina ? { stamina: { max: G.stamina.max, cost: G.stamina.cost, regen: G.stamina.regen, break: r4(G.stamina.break / FPS) } } : {}) };
+    half('guard', `the guard held (Shift, the pad's left shoulder): the block from the front, the parry ${G.parry == null ? 'on any guard' : `within ${Math.round(G.parry)} frames of raising it`}, the riposte; every foe's blow parryable (the zones are the lab's)${G.perfect ? '; the perfect dodge\'s witch time is not carried' : ''}`);
+    moves.add('guard');
+  }
   for (const [field, why] of Object.entries(LOST)) {
     if (moves.has(field)) continue;
     // (the takes carry the look's squash and stretch on the hero's own jumps; its smears stay the renderer's)
@@ -188,8 +220,11 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
     if (field === 'armor') continue;
     if (field === 'jump.hang') { if (J.hang > 0) lost.push({ field, why }); continue; }
     if (field === 'glide' || field === 'jet') { if (gear === field) lost.push({ field, why }); continue; }   // worn only when the template names the gear
+    if (carried.includes(field)) continue;   // (the dodge, carried with a sprint's stamina)
     if (has(field)) lost.push({ field, why });
   }
+  // (a dodge carried as the runtime's dash: its roll's tumble is the body's clip, its i-frames the whole dash's)
+  if (carried.includes('dodge') && C.dodge.kind === 'roll') partly.push({ field: 'dodge.kind', why: 'the roll plays as the runtime\'s dash, invulnerable throughout: a body with no roll clip dashes on its run' });
   // the takes: the hero's own jumps on this flight, the landing its frames (the card's `land`, at least one)
   if (takes) { rule.takes = takesOf(J, C.look); carried.push('jump.land'); }
   return { rule, lane, carried, partly, lost };

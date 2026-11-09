@@ -13,7 +13,7 @@
  *                          familiar beside its keeper, picking for itself: play.rpg `auto`)
  *     packs?: [[foe ids]], the packs met along the way, in walking order across the game's trail stages; past the last,
  *                          the last again (default PACKS)
- *     per?: n,             packs on each trail stage (2), on its beats
+ *     per?: n,             packs on each trail stage (2), on its beats; on a glyph map, in each region past its first
  *     boss?: [foe ids],    the last trail stage's last pack, no escape from it
  *     foe?: <hero-door spec>,   how every foe on the map looks (each its own, FOE_LOOKS, by default)
  *     looks?: { <foe id>: beast | people | person },   each foe's own look in a character door's words (FOE_LOOKS):
@@ -50,6 +50,8 @@ import { statureOf } from '../egocube/cast.js';
 import { fieldOf } from './casting.js';
 import { settingOfGame } from './cast-setting.js';
 import { fieldFigure, libraryFigure } from './stage-figures.js';
+import { readGrid } from '../level/grid.js';
+import { mapItems } from '../level/map-items.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -263,7 +265,10 @@ export function battleBase(G) {
 // the beats a pack may stand on: along the way, the exit and the trailhead left free; in a building (its `rooms` and the
 // route to its goal room, `via`: levels.js buildingEnds), the rooms the way passes through, one spot in each on the
 // way, two in a long one, none in the room it starts in or the goal room (a room off the way, past the goal room, has none)
-const freeBeats = (ends) => (ends?.rooms && ends.via ? wayBeats(ends) : (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead'));
+// (a glyph map's, level/grid-ends.js: the beats along its way, in the order it walks them, none in its home region, the
+// town the party sets out from; its pockets and its places' doors are the story's)
+// (a planned map's packs stand where its pieces say, level/map-items.js: the passages' packs, the climax's boss)
+const freeBeats = (ends) => (ends?.rooms && ends.via ? wayBeats(ends) : ends?.map && ends.packs ? ends.packs : ends?.map ? (ends.beats ?? []).filter((b) => b.beat === 'along' && !(ends.home && b.region === ends.home)) : (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead'));
 const LONG_ROOM = 8, WAY_STEP = 0.25, CLEAR_OF_GOAL = 5.5;
 function wayBeats(ends) {
   const line = [ends.spawn, ...ends.via, ends.exit], pts = [];
@@ -304,8 +309,13 @@ export function battlePlan(G, stages, room = () => Infinity, lair = () => false)
   const rank = (i) => { const r = order.indexOf(stages[i].level); return r < 0 ? order.length : r; };
   const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s) && !(G.hub && s.level === G.hub)).map(([, i]) => i).sort((a, b) => rank(a) - rank(b) || a - b);
   const last = B.boss ? [...fought].reverse().find((i) => lair(i) || Math.min(per || 1, room(i)) > 0) : undefined;
+  // (a glyph map's stage is the whole chapter: `per` in each of its regions past the first, the town it sets out from)
+  // (its regions as the map reads them, level/grid.js: a planned map's segments, each its region, stitched)
+  // (a planned map: a pack where each of its pieces stands, the passages' and the climax's: level/map-items.js)
+  const mapPer = (grid) => { const G = readGrid(grid, 'level.grid'), it = mapItems(G).filter((x) => x.kind === 'pack' || x.kind === 'boss'); return G.plan && it.length ? it.length : per * Math.max(1, Object.keys(G.regions ?? {}).length - 1); };
+  const perOf = (i) => (stages[i].section === 'map' ? mapPer(stages[i].manifest.level.grid) : per);
   for (const i of fought) {
-    const den = i === last && lair(i), n = den ? Math.min(per, room(i)) + 1 : Math.min(i === last ? Math.max(per, 1) : per, room(i)), own = i === last ? n - 1 : n;
+    const pi = perOf(i), den = i === last && lair(i), n = den ? Math.min(pi, room(i)) + 1 : Math.min(i === last ? Math.max(pi, 1) : pi, room(i)), own = i === last ? n - 1 : n;
     plan[i] = [];
     for (let j = 0; j < own; j++) plan[i].push(packs[Math.min(k++, packs.length - 1)]);
     if (i === last) plan[i].push(B.boss);
