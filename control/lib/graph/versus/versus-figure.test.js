@@ -95,6 +95,12 @@ describe('versus: the fighter in 3D', () => {
     expect(rides).toMatchObject({ pelvis: 'pelvis', lumbar: 'pelvis', jaw: 'head', clavicleR: 'torso', thumb2L: 'foreArmL', handR: 'foreArmR', kneeFoldL: 'shinL', toesR: 'footR', hipFoldR: 'thighR' });
     // a creature's: digitigrade legs, fingers, a tail
     expect(['metaR', 'fingerB2L', 'tail3', 'shinL'].map(segmentOf)).toEqual(['shinR', 'foreArmL', 'pelvis', 'shinL']);
+    // a mascot's face, a beast's horns and ears: on the head, never left on the torso as the head turns
+    expect(['lidR', 'lipU', 'browL', 'earL', 'horn2R', 'snout'].map(segmentOf)).toEqual(Array(6).fill('head'));
+    // a serpent's coil (beast/serpent.js): its first link on the hips, the rest planted where they rest
+    expect(['coil0', 'coil1', 'coil8'].map(segmentOf)).toEqual(['pelvis', 'ground', 'ground']);
+    const S = figureSegments(figureBase({}), figureBase({}));
+    expect(S.ground).toEqual({ R: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], from: [0, 0, 0], at: [0, 0, 0] });
   });
 });
 

@@ -143,6 +143,19 @@ export const NORMAL_FAMILIES = Object.freeze({
   'air-stomp': {
     stance: 'air', limb: 'toeF', tempo: 1.1, guard: 'overhead', says: 'a jumping heavy kick angled down: deep and late',
     load: P(POSES.jump, { legF: [60, -40, 80] }), strike: P(POSES.jump, { torso: -12, legF: [38, 30, 70], legB: [60, -60, 70] }),
+  },  // THE OVERHEADS a stand normal can be (a COMMAND NORMAL: forward + a button on the ground, COMMAND_SLOTS): slow,
+  // blocked only standing, so a guard held low is opened
+  axe: {
+    stance: 'stand', limb: 'toeF', tempo: 2.6, guard: 'overhead', damage: 1.1, adv: { hit: 2, block: -3 },
+    says: 'an axe kick: the heel brought down from overhead, it must be blocked standing (a command normal: forward + a kick)',
+    load: P(POSES.guard, { torso: -12, legF: [150, 140, 120], armB: [20, 100] }), strike: P(POSES.guard, { torso: 20, legF: [74, 66, 110], legB: [-4, -4, 90] }),
+    follow: P(POSES.guard, { torso: 14, legF: [40, 10, 95] }),
+  },
+  hammer: {
+    stance: 'stand', limb: 'fistF', tempo: 2.4, guard: 'overhead', adv: { hit: 1, block: -2 },
+    says: 'a hammer fist: brought down over the guard, it must be blocked standing (a command normal: forward + a punch)',
+    load: P(POSES.guard, { torso: -6, armF: [165, 175], armB: [40, 110] }), strike: P(POSES.guard, { torso: 24, armF: [96, 104], armB: [50, 110] }),
+    follow: P(POSES.guard, { torso: 18, armF: [80, 110] }),
   },
 });
 
@@ -155,6 +168,9 @@ export const NORMAL_SLOTS = Object.freeze([
 // `limbs`, else the kind's defaults: versus-kinds.js limbsFor): 1 the lead hand, 2 the rear hand, 3 the lead leg, 4 the
 // rear leg
 export const LIMB_SLOTS = Object.freeze(['stand.1', 'stand.2', 'stand.3', 'stand.4', 'crouch.1', 'crouch.2', 'crouch.3', 'crouch.4']);
+// a COMMAND NORMAL: forward + a button on the ground (a recipe's `commands`: { 'forward.M': { family: 'axe' } }), a stand
+// normal read off the stick (the classic and modern schemes; an overhead to open a low guard)
+export const COMMAND_SLOTS = Object.freeze(['forward.L', 'forward.M', 'forward.H']);
 export const LIMB_POINTS = Object.freeze({ 1: ['fistF'], 2: ['fistB'], 3: ['toeF', 'ankleF', 'kneeF'], 4: ['toeB', 'ankleB', 'kneeB'] });
 
 // ── throws ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -225,6 +241,75 @@ export const SPECIALS = Object.freeze({
     },
     guard: 'overhead', hitstop: 12, push: 200, meter: 40, chip: 8,
     priority: 3,
+  },
+  // ── THE TRAVERSAL: moves that get somewhere, under, over or through ──
+  slide: {
+    rps: 'rush', limb: 'toeF', motion: '214', says: 'a slide: low along the floor, it trips (blocked low, it knocks down) and passes under a fireball',
+    load: P(POSES.crouch, { torso: 10 }),
+    strike: P(POSES.crouch, { torso: -30, legF: [88, 88, 100], legB: [30, -40, 70], hip: [80, -260] }),
+    at: {
+      L: { startup: 9, active: 10, recovery: 16, damage: 60, travel: 45, adv: { hit: 0, block: -8 } },
+      M: { startup: 10, active: 12, recovery: 18, damage: 70, travel: 55, adv: { hit: 0, block: -10 } },
+      H: { startup: 11, active: 14, recovery: 20, damage: 80, travel: 65, adv: { hit: 0, block: -12 } },
+    },
+    guard: 'low', knock: 'down', hitstop: 10, push: 160, meter: 30, chip: 6, profile: { low: 700 },
+    priority: { L: 1, M: 1, H: 2 },
+  },
+  roll: {
+    rps: 'traversal', limb: 'fistF', motion: '412', says: 'a roll: through the opponent, untouchable by a strike or a shot on the way; a throw catches it as it ends',
+    load: P(POSES.crouch, { torso: 30 }), strike: P(POSES.crouch, { torso: 80, head: 100, armF: [90, 120], armB: [80, 120], legF: [100, -10, 90], legB: [60, -40, 80], hip: [0, -300] }),
+    at: { L: { startup: 3, active: 14, recovery: 8, travel: 45 }, M: { startup: 3, active: 16, recovery: 9, travel: 55 }, H: { startup: 3, active: 18, recovery: 10, travel: 65 } },
+    nohit: true, through: true, invuln: ['strike', 'projectile'], meter: 0, priority: 0,
+  },
+  blink: {
+    rps: 'traversal', limb: 'fistF', motion: '421', says: 'a blink: a burst of speed through the opponent, untouchable on the way (a throw too), slow to recover',
+    load: P(POSES.guard, { torso: 30, hip: [-40, 0] }), strike: P(POSES.guard, { torso: 50, armF: [10, 20], armB: [-40, -20], hip: [140, -40] }),
+    at: { L: { startup: 6, active: 8, recovery: 18, travel: 140 }, M: { startup: 6, active: 9, recovery: 20, travel: 160 }, H: { startup: 6, active: 10, recovery: 22, travel: 180 } },
+    nohit: true, through: true, invuln: ['strike', 'projectile', 'throw'], meter: 0, priority: 0,
+  },
+  hop: {
+    rps: 'traversal', limb: 'toeF', motion: '28', says: 'a hop: a short low jump forward, over a low and a sweep, into a throw or a low',
+    load: P(POSES.crouch, {}), strike: P(POSES.jump, { torso: 10, legF: [80, 20, 90], legB: [40, -30, 80] }),
+    at: { L: { startup: 4, active: 1, landing: 6, vel: [18, 45] }, M: { startup: 4, active: 1, landing: 7, vel: [24, 50] }, H: { startup: 4, active: 1, landing: 8, vel: [30, 55] } },
+    nohit: true, airborne: 3, meter: 0, priority: 0,
+  },
+  // ── CHARGE: held one way, released the other (`[4]6`: back held, then forward; `[2]8`: down held, then up) ──
+  boom: {
+    rps: 'projectile', limb: 'fistF', motion: '[4]6', says: 'a charged shot: back held, then forward; quick to recover, it holds the ground from a crouch',
+    load: P(POSES.guard, { torso: -10, armF: [-20, 40], armB: [-30, 40] }),
+    strike: P(POSES.guard, { torso: 16, armF: [90, 90], armB: [80, 84], hip: [50, 0] }),
+    at: { L: { startup: 11, recovery: 26, speed: 50 }, M: { startup: 11, recovery: 26, speed: 65 }, H: { startup: 11, recovery: 26, speed: 85 } },
+    damage: 55, chip: 12, guard: 'mid', projectile: { w: 300, h: 160, y: -260, life: 150 }, adv: { hit: 0, block: 0 }, hitstop: 10, push: 160, meter: 40,
+    priority: 1,
+  },
+  flash: {
+    rps: 'reversal', limb: 'toeF', motion: '[2]8', says: 'a charged flip kick: down held, then up; invincible on the way up, an anti-air from a crouch',
+    load: P(POSES.crouch, { legF: [40, -60, 80] }),
+    strike: P(POSES.jump, { torso: -40, head: -50, legF: [170, 170, 120], legB: [20, -40, 70], armF: [-60, -30], armB: [-50, -20] }),
+    at: {
+      L: { startup: 4, active: 8, landing: 14, damage: 90, invuln: 5, vel: [-6, 95] },
+      M: { startup: 5, active: 10, landing: 18, damage: 110, invuln: 7, vel: [-8, 110] },
+      H: { startup: 6, active: 12, landing: 22, damage: 130, invuln: 9, vel: [-10, 125] },
+    },
+    guard: 'mid', knock: 'launch', juggle: true, airborne: 5, hitstop: 14, push: 0, meter: 60, chip: 10,
+    priority: 0,
+  },
+  // ── A REKKA: three strikes in a run, each the same motion again, on hit, on block or on a whiff ──
+  rekka: {
+    rps: 'rush', limb: 'fistF', motion: '236', says: 'a rekka: three blows in a run, the same motion each time; stop after any, the last knocks down',
+    load: P(POSES.guard, { torso: 6, armF: [40, 130] }),
+    strike: P(POSES.guard, { torso: 30, armF: [92, 92], legF: [44, -6, 90], legB: [-40, -34, 70], hip: [100, 0] }),
+    at: {
+      L: { startup: 10, active: 3, recovery: 18, damage: 45, travel: 30, adv: { hit: 1, block: -6 } },
+      M: { startup: 11, active: 3, recovery: 19, damage: 50, travel: 35, adv: { hit: 1, block: -7 } },
+      H: { startup: 12, active: 3, recovery: 20, damage: 55, travel: 40, adv: { hit: 1, block: -8 } },
+    },
+    guard: 'mid', hitstop: 10, push: 150, meter: 30, chip: 6, priority: { L: 2, M: 2, H: 3 },
+    stages: [
+      {},
+      { says: 'the rekka\'s second blow: a hook following the first', limb: 'fistB', strike: P(POSES.guard, { torso: 32, armB: [90, 70], twist: -30, legF: [44, -6, 90], legB: [-40, -34, 70], hip: [110, 0] }), scale: { damage: 1.1, startup: 0.9 } },
+      { says: 'the rekka\'s last blow: a leaping kick that knocks down', limb: 'toeF', strike: P(POSES.jump, { torso: -14, legF: [96, 92, 110], legB: [20, -40, 70] }), knock: 'down', scale: { damage: 1.4, startup: 1.1, recovery: 1.2 }, adv: { block: -12 } },
+    ],
   },
   grab: {
     rps: 'throw', limb: 'fistF', motion: '41236', says: 'a command throw: it beats a block from further away than a throw, a whiff is very punishable',
@@ -316,5 +401,6 @@ export const SYSTEMS = Object.freeze({
   strings: 'a fighter\'s strings (its recipe\'s `strings`): each press of the next in order follows on from the last, hit, block or whiff',
   bound: 'normals juggle a falling body (up to rules.juggle hits), and a heavy blow on one slams it down so it bounds back up, once a combo: the juggle goes on',
   sidestep: 'a tap of up steps aside (off the line, in 2D a dodge): strikes and shots pass through for rules.sidestepInvuln frames; a throw still catches',
+  airblock: 'holding back in the air blocks an air attack or a shot (a strike from the ground still hits a body in the air): the arc goes on, the body pushed back',
   spark: 'a counter hit struck on the strike\'s very first active frame is a SPARK: half again the damage, the moment held (rules.sparkStop) and drawn as a black spark, meter (rules.sparkMeter)',
 });

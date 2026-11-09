@@ -134,17 +134,17 @@ export const FIGHT_IDIOMS = {
     example: { calls: f('announcer') },
   },
   'input-display': {
-    kind: 'hud', about: 'training: the inputs as they come (a direction and its buttons, the frames it was held), the newest on top, a repeat merged (×3)',
-    reads: 'inputs: [{ text }] (newest first)', emits: '—',
+    kind: 'hud', about: 'training: the inputs as they come, along the foot of the screen (a direction and its buttons, the frames it was held), the newest at the right',
+    reads: 'inputs: [{ text }] (oldest first: the newest at the right)', emits: '—',
     params: ['inputs'],
-    node: region('left', [{ use: 'feed', props: { rows: P('inputs'), max: 12 } }]),
+    node: region('bottom', [{ use: 'each', props: { dir: 'row', rows: P('inputs'), row: { use: 'badge', props: { value: I('text') } } } }], {}, 'bare'),
     example: { inputs: f('training.inputs') },
   },
   'frame-meter': {
     kind: 'hud', about: 'training: the frames of the last exchange, each a mark: startup, active and recovery told by their shape (muted, strong, plain), the advantage at its end',
     reads: 'frames: [{ value, variant }] (variant: muted startup | strong active | plain recovery), advantage', emits: '—',
     params: ['frames', 'advantage'],
-    node: region('bottom', [row([txt(P('advantage'), 'heading'), { use: 'each', props: { dir: 'row', rows: P('frames'), row: { use: 'badge', props: { value: I('value'), variant: I('variant') } } } }], 'center')]),
+    node: region('bottom', [row([txt(P('advantage'), 'heading'), { use: 'each', props: { dir: 'row', rows: P('frames'), row: { use: 'badge', props: { value: I('value'), variant: I('variant') } } } }], 'center')], {}, 'bare'),
     example: { frames: f('training.frames'), advantage: f('training.advantage') },
   },
   'training-stats': {
@@ -208,7 +208,7 @@ export const FIGHT_IDIOMS = {
     node: screen({ title: P('title'), layer: 'modal', place: 'full' }, [{ use: 'tabs', props: { pages: P('kinds'), page: { use: 'split', children: [
       { use: 'window', children: [{ use: 'list', id: 'moves', props: { rows: I('moves'), row: row([txt(I('name'), 'heading'), { use: 'badge', props: { value: I('input') } }], 'apart') } }] },
       { use: 'window', props: { title: W('frameData') }, children: [col([
-        txt({ pick: 'moves.name' }, 'title'), { use: 'badge', props: { value: { pick: 'moves.input' }, variant: 'strong' } }, txt({ pick: 'moves.about' }),
+        txt({ pick: 'moves.name' }, 'title'), row([{ use: 'badge', props: { value: { pick: 'moves.input' }, variant: 'strong' } }], 'start'), txt({ pick: 'moves.about' }),
         { use: 'table', props: { columns: [{ key: 'what', label: '' }, { key: 'value', label: W('frames'), align: 'right' }], rows: { pick: 'moves.data' } } },
       ])] },
     ] } } }, legend(['tabNext', 'tabs'], ['back', 'back'])]),

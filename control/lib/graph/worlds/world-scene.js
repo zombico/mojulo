@@ -1821,6 +1821,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const measured = await withCharacters(sketch.manifest.versus);
     // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
     payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster, { register: measured.register ?? null }) });
+    // a fight game (one with a register) sounds its blows from the SFX shelf (versus/versus-sfx.js): its cues on the
+    // page's audio channel, joining what audio the level already has (its own cues win); an arena made before the
+    // register carries none and keeps its beeps
+    const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
+    const fa = fightAudio({ register: measured.register ?? null });
+    if (fa) {
+      const A = resolveWorldAudio(fa, { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
+    }
   }
   // an athletic meet on a track (contest/meet-arena.js): the event, the lanes, the register, the contest compiled, the
   // level wire's names; the page's meet channel runs it. Absent ⇒ nothing (scene/channels/contest.js). Each sport's

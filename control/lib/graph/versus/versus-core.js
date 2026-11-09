@@ -23,7 +23,7 @@
  * (the page cuts away: versus-runtime.client.js). Blocked, it is a blocked hit; whiffed, a whiff.
  */
 
-import { recordInput, readCommand, autoNext, consume, pressed, traced, currentDir, downish, BTN, SCHEMES, ZERO_PAD } from './versus-input.js';
+import { recordInput, readCommand, autoNext, consume, pressed, traced, currentDir, downish, BTN, SCHEMES, ZERO_PAD, CHARGE_KEEP } from './versus-input.js';
 import { METER_MAX, SYSTEMS } from './versus-library.js';
 import { kindRules } from './versus-kinds.js';
 
@@ -211,6 +211,7 @@ export function stepVersus(prev, pads, ctx) {
     }
     p.hist = rec.hist;
     p.held = rec.held;
+    if (ctx.fighters[i].charge && !frozen) chargeStep(p);
   }
 
   if (s.phase === 'intro') {
@@ -234,6 +235,17 @@ export function stepVersus(prev, pads, ctx) {
   return s;
 }
 
+// THE CHARGE (a fighter with a charge special, versus-input.js charged): how long back and down have been held, and
+// what was held when the stick left, kept CHARGE_KEEP frames. p.chg = [back, back kept, since, down, down kept, since];
+// a fighter with no charge special carries none (its state, its hash, as they were)
+function chargeStep(p) {
+  const c = p.chg ?? (p.chg = [0, 0, 99, 0, 0, 99]), dir = currentDir(p.hist);
+  const step = (k, on) => { if (on) { c[k]++; c[k + 2] = 0; c[k + 1] = 0; } else { if (c[k]) { c[k + 1] = c[k]; c[k + 2] = 0; c[k] = 0; } else if (c[k + 2] < 99) c[k + 2]++; } };
+  step(0, dir === 1 || dir === 4 || dir === 7);
+  step(3, dir === 1 || dir === 2 || dir === 3);
+}
+const chargeOf = (p) => (p.chg ? { b: Math.max(p.chg[0], p.chg[2] <= CHARGE_KEEP ? p.chg[1] : 0), d: Math.max(p.chg[3], p.chg[5] <= CHARGE_KEEP ? p.chg[4] : 0) } : undefined);
+
 // ── decisions ────────────────────────────────────────────────────────────────────────────────────────────────
 
 function think(s, i, ctx) {
@@ -245,19 +257,25 @@ function think(s, i, ctx) {
   if (p.hs > 0) return;
   const dir = currentDir(p.hist);
   const hasShot = s.shots.some((t) => t.o === i);
-  const opts = { hasShot, meter: p.meter };
+  const opts = { hasShot, meter: p.meter, ...(p.chg ? { charge: chargeOf(p) } : {}) };
 
   // a connected move cancels into what its record allows, while the hit is fresh
   if (p.mv && (p.st === 'move' || p.st === 'air')) {
     const m = F.moves[p.mv];
     // a string follows on hit, block or whiff, from its first active frame (strings); anything else only off a connect
     const onString = !!(F.strings && p.spath && sys(s, 'strings'));
-    if (p.mf > m.startup + m.active - 1 + R_CANCEL(s) || (!p.conn && !(onString && p.mf >= m.startup))) return;
+    // (a REKKA's stage goes on to the next on the same motion again, hit, block or whiff, from its first active frame)
+    const onRekka = !!m.rekka && p.mf >= m.startup;
+    if (p.mf > m.startup + m.active - 1 + R_CANCEL(s) || (!p.conn && !(onString && p.mf >= m.startup) && !onRekka)) return;
+    // (a rekka typed through its blow's hitstop: the buffer keeps the button while the body is frozen, not the motion's
+    // turns, so the motion's last direction and a button go on to the next stage, as the whole motion does)
+    if (onRekka && pressed(p.hist, BTN.L | BTN.M | BTN.H) && dir === Number(String(m.motion).slice(-1))) { start(s, i, ctx, { type: 'special', slot: m.rekka }); return; }
     const auto = p.scheme === 'simple' ? autoNext(F, p.mv) : null;
     const cmd = readCommand(p.hist, p.scheme, F, { ...opts, stance: p.st === 'air' ? 'air' : (downish(dir) ? 'crouch' : 'stand'), auto });
     if (!cmd) return;
     const path = onString && cmd.type === 'normal' ? stringStep(F, p.spath, cmd.slot) : null;
     if (path) { start(s, i, ctx, cmd); p.spath = path; return; }
+    if (onRekka && cmd.type === 'special' && cmd.slot.split('.')[1] === p.mv.split('.')[1]) { start(s, i, ctx, { type: 'special', slot: m.rekka }); return; }
     if (!p.conn) return;
     const kind = cmd.type === 'normal' ? cmd.slot : cmd.type;
     if (m.cancel.includes(kind) || m.chain.includes(cmd.slot) || (auto && cmd === auto) || gatling(s, p.mv, cmd)) start(s, i, ctx, cmd);
@@ -557,6 +575,7 @@ function advanceShots(s) {
   s.shots = s.shots.filter((t) => t.life > 0 && t.hits > 0 && Math.abs(t.x) < R.half + 800);
 }
 
+const passing = (p, F) => { const m = p.mv && p.st === 'move' ? F.moves[p.mv] : null; return !!(m && m.through && p.mf >= m.through[0] && p.mf <= m.through[1]); };
 function separate(s, ctx, before) {
   const R = s.rules;
   const [a, b] = s.p;
@@ -571,9 +590,9 @@ function separate(s, ctx, before) {
       p.x -= sign(p.x - s.p[1 - i].x) * Math.round(share[i]);
     }
   }
-  // push boxes
+  // push boxes (none while a body passes THROUGH: a roll, a blink, as it travels)
   const pa = pushBox(a, ctx.fighters[0]), pb = pushBox(b, ctx.fighters[1]);
-  if (overlap(pa, pb) && a.st !== 'thrown' && b.st !== 'thrown') {
+  if (overlap(pa, pb) && a.st !== 'thrown' && b.st !== 'thrown' && !passing(a, ctx.fighters[0]) && !passing(b, ctx.fighters[1])) {
     const left = a.x < b.x || (a.x === b.x && a.face > 0) ? 0 : 1;
     const L = s.p[left], Rr = s.p[1 - left];
     const pl = left === 0 ? pa : pb, pr = left === 0 ? pb : pa;
@@ -794,6 +813,19 @@ function applyHit(s, ctx, { a, m, shot, at: contact }) {
     else { d.pushv = face * per; d.pushn = 8; }
   };
 
+  // AIR BLOCKING (system 'airblock'): a body in the air, in no move of its own, holding back, blocks an air attack or a
+  // shot (a strike from the ground still hits it); its arc goes on, pushed back, no air normal after it
+  if (airborne && d.st === 'air' && !d.mv && sys(s, 'airblock') && (shot || m.stance === 'air') && [1, 4, 7].includes(currentDir(d.hist))) {
+    const lethal = shot ? shot.sup : m.kind === 'super';
+    d.hp = Math.max(lethal ? 0 : Math.min(d.hp, 1), d.hp - (src.chip ?? 0));
+    d.hs = hitstop - 2;
+    if (!shot) { p.hs = hitstop - 2; p.conn = p.conn || 2; }
+    d.vx = face * 12; d.airMove = 1;
+    d.meter = Math.min(METER_MAX, d.meter + 10);
+    s.events.push({ t: 'block', p: a, air: 1, x: shot ? shot.x : d.x - face * 200, y: shot ? shot.y : d.y + 1100, ...blow });
+    if (d.hp <= 0) ko(s, 1 - a, face);
+    return;
+  }
   if (!airborne && canBlock(d, guard)) {
     // the guard bar (system 'guard'): a block wears it, an empty one is crushed open
     if (d.gd !== undefined) {

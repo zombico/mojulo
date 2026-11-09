@@ -99,5 +99,40 @@ keeps its place.
   Its looks are new theme cards of the family `fight`: `fight-clean` (the default), `fight-cel` (anime) and
   `fight-lit` (western), none leaning, stacking or slamming. The board draws a fight HUD, a training HUD and every
   fight screen. A table's column labelled by a word now reads as the word (it printed the object).
+- **Non-human fighters, in the game's look**: a roster's character may be any stored body that stands on two legs and
+  fights with two arms: a hero, a xeno (`xenoSpecies`, `xenoHeaddress`), beastfolk (the hero's `beast`: a kin, its tail,
+  a second pair of arms, a naga on its serpent's coil), a mascot or a two-legged creature, each measured off its own
+  skeleton (a non-hero's girth from its trunk's widest ring, its colour from its palette); a four-legged body or one
+  without arms is refused with the reason, and a fighter's own strikes (`moves`) stay a hero's. A body's face bones
+  (lids, lips, brows, ears, a snout, horns) ride its head, and a serpent's coil its hips, the rest planted on the ground.
+  Beastfolk with a snout carry their heads low: a stance's `stoop` (degrees, 0 … 30) sinks a fighter's rests (the knees
+  bent, the trunk hinged over hips sat back), so the standing head comes down about 5 cm and the crouched about 20 at a
+  long muzzle's 26 (a short muzzle or a beak 16, a snake's head or mandibles 10, by the head's own word), the hurt box's
+  front where it was; the trade is the jabs thrown from the rest, about a tenth shorter. A head is posed over its own
+  carriage, so a beast's skull seated crown-forward keeps its snout on the fight (it pointed at the sky). A posed body under a fight's register is drawn in it, as a played one is: the register's
+  material, casting and taking the key's shadows, its coats, no ink hull.
+- **The fight's sounds, from the SFX shelf** (`versus/versus-sfx.js`): a fight game under its register sounds its blows
+  from the library every game hears (merged in from the SFX shelf), each cue built from the shelf's families at their
+  dials: a fist by its weight (a jab, a body blow over its flesh, a haymaker), a foot, a blade, a shot, a counter, the
+  spark, a block, a clash, a guard crushed, a grab and a throw slammed down, a body hitting the floor, a burst, a super,
+  a projectile and the knockout. The arena's page carries them on its audio channel (one room, ten voices, each hit its
+  own variant), joining what audio the level has; the runtime plays the cue for what landed (`fightCue`) and starts the
+  sound on a first key or touch. An arena made before the register beeps as it did.
+- **The move primitives** (`versus-library.js`, a fighter takes the ones it wants; one that takes none fights to the byte
+  as before): command normals (forward + a button, `commands`) with the overhead families `axe` and `hammer`, slow and
+  blocked only standing, their priority a heavy's; traversal specials, a `slide` (low, it trips, under a fireball), a
+  `roll` and a `blink` (through the opponent, untouchable on the way, striking nothing) and a `hop` (over a low); charge
+  motions (`[4]6`, `[2]8`: the hold kept only on a fighter with one) with the charged shot `boom` and the flip kick
+  `flash`; a `rekka` (three stages, the same motion again on hit, block or whiff, typed through hitstop on its last
+  direction and a button); and air blocking (system `airblock`: holding back in the air blocks an air attack or a shot).
+  Throws, the fireball, the DP and the sweep's trip were there already.
+- **The move list** (`versus-movelist.js`): a fighter's moves by kind, each its input in the player's scheme (the
+  classic's motions and charges, the modern's special button), what it is for and its frame data, in mana-ui's command
+  list; a tab's label and a table's cell may be one of the runtime's words, said in the game's language.
+- **The lab**: training is fought on the game's training ground (its arena marked `lab`; a game minted with arenas of its
+  own gets one beside them), straight from character select (you and your training partner) with no stage to pick.
+  Under the register the arena carries mana-ui over the fight (`versus-lab.js`, in the register's look): the first
+  player's inputs along the foot, each a run with the frames it was held; the frame meter of the last move over them on
+  F (startup, active, recovery, what it left); and the move list from the pause, in the pausing player's scheme.
 - **CI**: `design-game.vary.test.js` pins its order's roll (it drew one at random each run, and about one roll in
   four hundred lifts most of a late tier's ornaments past their 0–3 scale, the gate leaving two variants of three).

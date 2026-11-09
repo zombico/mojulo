@@ -29,9 +29,8 @@ import { smoothForm, bakeForm } from './road-form.js';
 import { wheelWell } from './road-wheel.js';
 import { milWheel } from './mil-wheel.js';
 import { formLight, skyMood } from './form-light.js';
-import { militaryBody, militaryAxles, trackedGear, sizeOf, MILITARY_CLASSES, MIL_MATERIALS } from './road-military.js';
+import { militaryBody, militaryAxles, trackedGear, sizeOf, MILITARY_CLASSES, MIL_MATERIALS, roadWorker } from './road-military.js';
 import { liveryBase } from './livery-cut.js';
-import { AIRSIDE_CLASSES } from './road-airside.js';
 import { readWear, soilFor, weather, weatherWheel, wetMaterials, wetFaces, groundOf } from './mil-wear.js';
 import { realisticCensus, most } from './realistic.js';
 
@@ -56,13 +55,13 @@ export function compileMilitary(sheet, { keys = 12, form = false, livery, wear, 
   const wells = tracked ? [] : smoothForm(wheels.flatMap((w) => wheelWell({ hub: w.hub, r: spec.r, width: spec.tyreW })));
   // its wear (mil-wear.js): the operator's word, else the sheet's when a brief asked one, else a working vehicle's; its
   // soil the setting's, read from the livery's camo
-  // (an airside vehicle works on concrete: kept clean unless a wear is asked)
-  const W = readWear(wear ?? (sheet.given?.includes('wear') ? sheet.facets.wear : AIRSIDE_CLASSES[cls] ? 'pristine' : 'used')), soil = soilFor(L);
+  // (an airside vehicle works on concrete, a city's on its streets: kept clean unless a wear is asked)
+  const W = readWear(wear ?? (sheet.given?.includes('wear') ? sheet.facets.wear : roadWorker(cls) ? 'pristine' : 'used')), soil = soilFor(L);
   // (in the rain, its setting's: the porous slots soaked darker, every slot glossier: mil-wear.js)
   const wet = !!setting?.wet, soak = (fs) => (wet ? wetFaces(fs) : fs);
   const body = soak(weather([...hull, ...wells, ...fittings], W, { hubs: wheels.map((w) => w.hub), r: spec.r, zones, seed: sheet.seed, soil, scale: sizeOf(cls) }));
   // (the rims in the livery's base: a camo's first colour, a mono's own; a tracked body's spinners its own)
-  const wheelForm = wheels.map((w) => soak(weatherWheel(w.faces ?? milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}), ...(AIRSIDE_CLASSES[cls] ? { lugs: 0 } : {}) }), W, { soil })));
+  const wheelForm = wheels.map((w) => soak(weatherWheel(w.faces ?? milWheel({ hub: w.hub, r: spec.r, width: spec.tyreW, ...(L ? { paint: liveryBase(L) } : {}), ...(roadWorker(cls) ? { lugs: 0 } : {}) }), W, { soil })));
   // centred on its footprint (the body is built centred; the census holds it); a part that turns on its own (a turret)
   // its own bone, its faces those its body tagged with it, held still by the roll
   const own = Object.keys(parts), onRoot = own.length ? body.filter((f) => !f.bone) : body;
