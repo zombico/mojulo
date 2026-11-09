@@ -34,7 +34,10 @@ export const SCENE_CSS = `
 /** Whether a page's scene program plays takes: a line of it names its script's clip (scene-script.js). */
 export const sceneTakesOn = (program) => (program || []).some((sc) => (sc.beats || []).some((b) => b && b.kind === 'line' && b.take && typeof b.take.clip === 'string'));
 
-export function sceneScript({ takes = false } = {}) {
+/** Whether a page's scene program has tempo beats (the world clock's: scenes.js), which the scene channel hands the clock. */
+export const sceneTempoOn = (program) => (program || []).some((sc) => (sc.beats || []).some((b) => b && b.kind === 'tempo'));
+
+export function sceneScript({ takes = false, tempo = false } = {}) {
   return `
 // SCENES: the runner (playscape/ui/scene-runner.js), the bars, the box, the keys
 const __SCN = (${buildSceneRunner.toString()})();
@@ -88,7 +91,10 @@ function __stepScenes(dtSec) {
   __scnNext = false; __scnSkip = false; __scnMove = 0; __scnPick = -1;
   // the beats' events first, and the cast ops they queue (a walk) handed down, so a skip's finish lands them too
   if (o.fire.length) { __BUS.processEvents(__busState, o.fire.map((type) => ({ type }))); __watchFix(); if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities, window.__mojCtrl.cast); }
-  if (o.ops.length && window.__mojCtrl && window.__mojCtrl.cast) window.__mojCtrl.cast(o.ops);
+  if (o.ops.length && window.__mojCtrl && window.__mojCtrl.cast) window.__mojCtrl.cast(o.ops);${tempo ? `
+  // the world clock (worlds/controllable/world-clock.js): a scene's moments fired, or ended early (a page without a clock
+  // has none to fire)
+  if (o.tempo.length && window.__mojTempo) for (const x of o.tempo) { if (x.end) window.__mojTempo.end(x.on); else window.__mojTempo.fire(x.on); }` : ''}
   const v = __SCN.view(__scn), bar = (v.bars * 11).toFixed(2) + 'vh';${takes ? `
   // THE TAKES (scene-takes.js): while a script's line plays, its cast plays the script's clip at the line's phase; held
   // (played out, waiting on the press) or between lines, each goes back to its own clips, the idle's breath and blink

@@ -1762,6 +1762,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the WORLD CLOCK (worlds/controllable/world-clock.js): moments that slow or hold a live world on what happens in it, the
   // camera keeping real time; the page composes the clock only then. Absent: every byte as it was.
   if (payload && sketch.manifest.tempo != null && sketch.manifest.tempo !== false) { const T = readTempo(sketch.manifest.tempo); if (T) payload.tempo = T; }
+  // (and a scene's own moments, its script's slow motion and freezes, playscape/ui/scenes.js sceneMoments: the clock
+  // composed for them, beside the world's own; none ⇒ as it was)
+  if (payload && playEv?.scenes) {
+    const { sceneMoments } = await import('@/lib/graph/playscape/ui/scenes.js'), own = sceneMoments(playEv.scenes);
+    if (own.length) payload.tempo = { moments: [...(payload.tempo?.moments ?? []), ...own.filter((m) => !(payload.tempo?.moments ?? []).some((x) => x.on === m.on))] };
+  }
 
   // the SCREEN a game is made for (game/screen.js): the page holds its frame, the least a player sees, and the cameras'
   // fov is derived at it. Absent: the page's own box, every byte as it was.

@@ -6,7 +6,7 @@ import { UI_STATES } from '../../playscape/ui/parts.js';
 import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
 import { inventoryCss } from '../../playscape/ui/inventory-dress.js';
 import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
-import { sceneScript, sceneTakesOn } from './scene-channel.js';
+import { sceneScript, sceneTakesOn, sceneTempoOn } from './scene-channel.js';
 import { questScript } from './quest-channel.js';
 import { rpgScript } from './rpg-channel.js';
 import { minigameScript } from './minigame-channel.js';
@@ -425,7 +425,7 @@ ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojC
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
-window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes) }) : ''}${quests ? questScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgGuide(events, !!(widgets.length || menus)) + rpgScript() : ''}`;
+window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes), tempo: sceneTempoOn(events.scenes) }) : ''}${quests ? questScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgGuide(events, !!(widgets.length || menus)) + rpgScript() : ''}`;
 }
 
 // the battle window dressed by the world's UI guide (play.ui, lowered to events.style and events.register): its tokens

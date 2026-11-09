@@ -28,8 +28,12 @@
  *   a turn                 { do: { walk: { who, to: where it stands, then: 'stay', face } } } (it turns where it stands)
  *   a wait                 { wait }
  *   the end                { do: [{ stop: who }…] }: each body handed back to its own rule (the player's to the player)
- * `looks at` is no beat: the face's take carries it (its gaze, scene-takes.js, played on the page). Slow motion, real time
- * and freezes are kept by the blocking and lowered to nothing yet: the world clock takes the time.
+ *   slow motion            { tempo: { on: <clip>:slow:<n>, scale, hold: SCENE_MOMENT_HOLD, ramp: SLOW_RAMP } }: the
+ *                          world slowed until `Real time.` ({ tempo: { end } }), the next slow motion, or the script's end
+ *   a freeze               { tempo: { on: <clip>:hold:<n>, scale: 0, hold } } and { wait: hold }: the world and the
+ *                          scene held its seconds, a slow stretch it fell in fired again after it
+ * `looks at` is no beat: the face's take carries it (its gaze, scene-takes.js, played on the page). The camera, the box
+ * and the takes keep real time through slow motion and freezes, so a line is never slowed (the director's slowed-line).
  *
  *   readScriptText(text, where)                 → the text, or throws, teaching
  *   lowerScript(text, { people, places, player, seed? }) → { beats, cast, cuts, scene }
@@ -52,6 +56,9 @@ import { readSpots, withStands } from './cast.js';
 
 /** the player's mark from the first other character it meets (m): a conversation's distance */
 export const HERO_APART = 1.8;
+/** a scene's own moment of the world clock: the longest it may hold (real seconds), and a slow stretch's ramp in and out
+ * (a slow stretch holds until its `Real time.`, or the script's end, this long at most) */
+export const SCENE_MOMENT_HOLD = 60, SLOW_RAMP = 0.25;
 /** the longest script a beat holds (characters), and a line in the box */
 export const SCRIPT_MAX = 6000, LINE_MAX = 400;
 
@@ -130,7 +137,8 @@ export function lowerScript(text, { people = {}, places = {}, player = null, see
   // line's), the segment the actor's take for it plays over while the box waits for the press
   // (with the clip the cast's takes for this script are packed under, and the scene's length it is sampled over)
   const takes = scene.turns.map((T, k) => ({ at: T.at, end: r3(Math.min(T.at + T.hold, scene.turns[k + 1]?.at ?? scene.seconds, scene.seconds)), ...(clip ? { clip, of: scene.seconds } : {}) }));
-  let said = 0;
+  let said = 0, slow = null, slows = 0, holds = 0;
+  const base = clip ?? 'script';
   scene.beats.forEach((b, i) => {
     beats.push(...shotsAt(i));
     if (b.kind === 'line') {
@@ -148,7 +156,22 @@ export function lowerScript(text, { people = {}, places = {}, player = null, see
       const target = b.to.actor ? pos[b.to.actor] : marks[b.to.mark];
       beats.push({ do: { walk: { who: b.who, to: spot(b.who), then: 'stay', face: faceTo(pos[b.who], target) } } });
     } else if (b.kind === 'wait') beats.push({ wait: Math.min(120, b.seconds) });
+    // THE SCREENPLAY'S TIME on the world clock (worlds/controllable/world-clock.js): the world slowed or held, the camera,
+    // the box and the takes on real time (slow the action, never the words)
+    else if (b.kind === 'slow') {
+      if (slow) beats.push({ tempo: { end: slow } });
+      slow = `${base}:slow:${++slows}`;
+      beats.push({ tempo: { on: slow, scale: b.speed, hold: SCENE_MOMENT_HOLD, ramp: SLOW_RAMP } });
+    } else if (b.kind === 'real') { if (slow) { beats.push({ tempo: { end: slow } }); slow = null; } }
+    else if (b.kind === 'hold') {
+      // (a freeze holds the scene as it holds the world; a slow stretch it fell in goes on after it)
+      const hold = `${base}:hold:${++holds}`;
+      beats.push({ tempo: { on: hold, scale: 0, hold: b.seconds } }, { wait: b.seconds });
+      // (ended as the scene's wait ends, whichever frame the clock's own hold ends on, so the slow takes the clock back)
+      if (slow) beats.push({ tempo: { end: hold } }, { tempo: slow });
+    }
   });
+  if (slow) beats.push({ tempo: { end: slow } });
   // every body handed back to its own rule
   beats.push({ do: named.map((w) => ({ stop: w })) });
   return { beats, cast: named, cuts, scene };

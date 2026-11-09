@@ -28,6 +28,11 @@
  *                                                  the player answers: 2 to 4 options under the question (its own
  *                                                  line, or the last one said); the one picked sets its flags at once
  *                                                  and plays its beats, then the scene goes on
+ *       { tempo: '<moment>' | { on, scale, hold, ramp? } | { end: '<moment>' } }
+ *                                                  the world clock (worlds/controllable/world-clock.js): a moment of the
+ *                                                  world's tempo by name, one of the scene's own (the page's clock takes
+ *                                                  it: sceneMoments), or one ended early. A skip fires none; a scene that
+ *                                                  ends with one going ends it
  *       { script: '<a screenplay>' }                 the scene as people write one (actor/screenplay.js), blocked on the
  *                                                  level's places by the actor and covered by the director's rules:
  *                                                  lowered at build into the beats above (scene-script.js)
@@ -66,7 +71,7 @@ import { readEffect, effectContext } from './cues.js';
 import { questFlags } from './quests.js';
 import { partyFlags } from './party.js';
 import { wonFlag } from '../rpg/rpg.js';
-import { readScriptText } from './scene-script.js';
+import { readScriptText, SCENE_MOMENT_HOLD } from './scene-script.js';
 
 export const SHOT_FRAMES = Object.freeze({
   wide: 'the place and everyone in it',
@@ -87,6 +92,7 @@ export const SCENE_BEATS = Object.freeze({
   line: 'the text box: { who, say?, expression? }, a click goes on',
   banter: 'two talk: { with: [a, b], lines: [{ who, say? }], frame? }',
   choose: 'the player answers: { who?, say?, options: [{ say?, sets?, beats? }] } (2 to 4)',
+  tempo: 'the world clock: a moment of the world\'s tempo by name, a moment of the scene\'s own { on, scale, hold, ramp? }, or { end: <name> } to end one early',
   script: 'a screenplay (NAME: the words. / Mayor crosses to gate. / Hero turns to Mayor.), blocked on the level\'s places and covered by the director\'s rules (scene-script.js)',
 });
 
@@ -140,6 +146,23 @@ function readShot(s, at) {
   for (const k of ['lerp', 'rate', 'fov', 'lookH']) if (s[k] !== undefined && !Number.isFinite(s[k])) throw err(`${at}.shot.${k} is a number`);
   if (s.cut !== undefined && typeof s.cut !== 'boolean') throw err(`${at}.shot.cut is true (a cut, the default) or false (eased in)`);
   return { ...s, frame, on };
+}
+
+// a tempo beat: a moment of the world's tempo by name (worlds/controllable/world-clock.js), a moment of the scene's own
+// (added to the world's clock as the page is built: sceneMoments), or the end of one
+const MOMENT = /^[a-z][a-z0-9:-]{0,79}$/;
+function readTempoBeat(T, at) {
+  if (typeof T === 'string') { if (!MOMENT.test(T)) throw err(`${at} names a moment of the world's tempo (a lowercase name)`); return { on: T }; }
+  if (isObj(T) && T.end !== undefined) {
+    if (Object.keys(T).length !== 1 || typeof T.end !== 'string' || !MOMENT.test(T.end)) throw err(`${at} is { end: '<moment>' }: the moment the world's clock eases out of early`);
+    return { end: T.end };
+  }
+  if (!isObj(T) || !(typeof T.on === 'string' && MOMENT.test(T.on))) throw err(`${at} is a moment's name, { on, scale, hold, ramp? } (a moment of the scene's own), or { end: '<moment>' }`);
+  for (const k of Object.keys(T)) if (!['on', 'scale', 'hold', 'ramp'].includes(k)) throw err(`${at}.${k} is not part of a scene's moment (on, scale, hold, ramp)`);
+  if (!(Number.isFinite(T.scale) && T.scale >= 0 && T.scale <= 1)) throw err(`${at}.scale is the world's speed, 0 (held) to 1`);
+  if (!(Number.isFinite(T.hold) && T.hold >= 0 && T.hold <= SCENE_MOMENT_HOLD)) throw err(`${at}.hold is real seconds, 0 to ${SCENE_MOMENT_HOLD}`);
+  if (T.ramp !== undefined && !(Number.isFinite(T.ramp) && T.ramp >= 0 && T.ramp <= 3)) throw err(`${at}.ramp is real seconds easing in and out, 0 to 3`);
+  return { on: T.on, moment: { on: T.on, scale: T.scale, hold: T.hold, ...(T.ramp !== undefined ? { ramp: T.ramp } : {}) } };
 }
 
 function readLine(l, at) {
@@ -203,6 +226,7 @@ function readBeat(b, at, ctx, depth = 0) {
     return { kind, wait: b.wait };
   }
   if (kind === 'script') return { kind, script: readScriptText(b.script, `play.scenes${at}.script`) };
+  if (kind === 'tempo') return { kind, tempo: readTempoBeat(b.tempo, `${at}.tempo`) };
   if (kind === 'line') return { kind, line: readLine(b.line, `${at}.line`) };
   if (kind === 'choose') return readChoose(b.choose, at, ctx, depth);
   const B = b.banter;
@@ -338,6 +362,7 @@ export function sceneProgram(play) {
       else if (b.kind === 'do') beats.push({ kind: 'fire', event: `scene:${sc.id}:${key}` });
       else if (b.kind === 'until') beats.push({ kind: 'until', event: `scene-heard:${sc.id}:${key}` });
       else if (b.kind === 'wait') beats.push({ kind: 'wait', wait: b.wait });
+      else if (b.kind === 'tempo') beats.push({ kind: 'tempo', ...b.tempo });
       else if (b.kind === 'line') line(b.line);
       else if (b.kind === 'choose') {
         const C = b.choose;
@@ -365,6 +390,14 @@ export function sceneProgram(play) {
     lay(sc.beats, '');
     return { id: sc.id, once: sc.once, ...(sc.if.length ? { if: sc.if.map(({ var: v, op, n }) => ({ var: v, op, n })) } : {}), beats };
   });
+}
+
+/** The moments a program's tempo beats bring to the world's clock (its own, each once; the world's tempo adds them). */
+export function sceneMoments(program) {
+  const out = new Map();
+  const walk = (beats) => { for (const b of beats || []) if (b && b.kind === 'tempo' && b.moment && !out.has(b.moment.on)) out.set(b.moment.on, { ...b.moment }); };
+  for (const sc of program || []) walk(sc.beats);
+  return [...out.values()];
 }
 
 /** The flags' bus rows: a var each, set when the flag is set here (`flag:<name>`) or carried in (`flag-carried:<name>`). */

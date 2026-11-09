@@ -22,6 +22,9 @@
  * firing while another plays takes over if it is as slow or slower, eased from the scale the world is at; a weaker one
  * waits its turn (it is dropped). `state.tempo` says where it is: `{ scale, real, playing: { on, t } | null }`.
  *
+ * A moment may be ended early by name, `tempoEnd(state, on)` (a scene's `Real time.`): the one playing eases back out
+ * at the start of its ramp out (one with no ramp is over at once). Any other moment ends on its own.
+ *
  * THE IMPACT CAM: a moment knows WHO (a strike: the striker and the struck; a down: the one who downed it and the downed;
  * a dodge: the pilot), and a moment's `cam` (a frame word, or { frame, on?, side?, move?, lerp?, cut? }: the shot rule's,
  * rules-basic.js; `on` names 'a' and 'b', the two it knows) takes the camera with the shot rule on them as it fires, eased
@@ -156,7 +159,18 @@ export function buildWorldClock(E) {
     for (const [on, who] of signals(state, t0)) fire(state, on, who);
     return state;
   };
+  // end a moment early (a scene's `Real time.`): the one playing, if it is `on`, eases out from where it is
+  function end(state, on) {
+    const T = state.tempo, p = T && T.playing;
+    if (!p || p.on !== on) return false;
+    // (to the start of its ramp out; one with no ramp is over at once, so a moment fired after it plays)
+    const m = p.m, out = m.ramp + m.hold;
+    if (!(m.ramp > 0)) { T.playing = null; T.scale = 1; giveCam(state); return true; }
+    if (p.t < out) p.t = out;
+    return true;
+  }
   E.tempoMoment = (state, on, who) => fire(state, on, who);
+  E.tempoEnd = (state, on) => end(state, on);
   E.tempoScale = (state) => (state.tempo ? state.tempo.scale : 1);
   E.tempoWeight = (state) => (state.tempo && state.tempo.playing ? weightOf(state.tempo.playing) : 0);
 }

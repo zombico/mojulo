@@ -6,7 +6,7 @@
  *   const R = buildSceneRunner(), S = R.create(program)
  *   R.hear(S, types)          the bus event types since the last step (a scene starts on `scene:<id>`; an until waits on
  *                             its `scene-heard:<id>:<n>`)
- *   R.step(S, dt, ctl)        → { fire: [type], ops: [cast op], started: [id], ended: [id] }
+ *   R.step(S, dt, ctl)        → { fire: [type], ops: [cast op], started: [id], ended: [id], tempo: [{ on, end? }] }
  *                             ctl: { next (a press this frame), held (the advance key is down), skip (Esc this frame),
  *                             vars (the bus vars: a scene's `if` is read against them when its happening comes),
  *                             move (±1: the choice's highlight), pick (an option's index, taken at once) }.
@@ -16,7 +16,9 @@
  *                             conditions are read as its happening comes and again as its turn comes (a scene before
  *                             it may have ruled it out); a scene is queued once.
  *                             `fire` goes to the bus (the beats' cues), `ops` to the cast (the camera's shot / unshot,
- *                             and `finish` when a scene is skipped: every walk lands where it was going)
+ *                             and `finish` when a scene is skipped: every walk lands where it was going), `tempo` to the
+ *                             world clock (a moment fired, or ended early; a skip fires none, and the moment a scene
+ *                             leaves going is ended as it ends)
  *   R.view(S)                 → { on, bars (0..1), line: { who, name, text (typed so far), full, expression?, take? } | null,
  *                               choice: { options: [text], sel } | null }   (a choice shows its question as the line)
  *                             take: { t, held, clip?, u? } for a line with a take (a script's, scene-script.js): t the script's clock
@@ -51,6 +53,7 @@ export function buildSceneRunner() {
 
   function end(S, out) {
     const A = S.active;
+    if (A.tempo) out.tempo.push({ on: A.tempo, end: true });
     out.ops.push({ op: 'unshot' });
     out.fire.push('scene-end:' + A.sc.id);
     out.ended.push(A.sc.id);
@@ -69,6 +72,8 @@ export function buildSceneRunner() {
       if (b.kind === 'fire') { out.fire.push(b.event); continue; }
       if (b.kind === 'until') { A.wait = { event: b.event }; return; }
       if (b.kind === 'wait') { A.wait = { time: b.wait }; return; }
+      // (the world clock: a moment fired or ended; the one it leaves going is ended with the scene)
+      if (b.kind === 'tempo') { out.tempo.push(b.end ? { on: b.end, end: true } : { on: b.on }); A.tempo = b.end ? (A.tempo === b.end ? null : A.tempo) : b.on; continue; }
       if (b.kind === 'line') { A.line = b; A.typed = 0; A.lt = 0; A.wait = { click: true }; return; }
       if (b.kind === 'choose') { choose(A, b); return; }
       if (b.kind === 'jump') { A.i = b.to - 1; continue; }
@@ -112,7 +117,7 @@ export function buildSceneRunner() {
   }
 
   function step(S, dt, ctl) {
-    const out = { fire: [], ops: [], started: [], ended: [] }, c = ctl || {};
+    const out = { fire: [], ops: [], started: [], ended: [], tempo: [] }, c = ctl || {};
     const heard = S.heard;
     S.heard = [];
     // each happening heard queues its scene if its conditions hold as it comes (never twice, never one that has played

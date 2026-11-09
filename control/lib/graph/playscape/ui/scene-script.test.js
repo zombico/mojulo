@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { createBusState, processEvents, watchEvents, syncToCtrl } from '../../worlds/event-bus.js';
 import { composeLive } from '../../worlds/controllable/compose.js';
 import { lowerPlay } from './direction.js';
-import { sceneCues, readScenes } from './scenes.js';
+import { sceneCues, readScenes, sceneMoments } from './scenes.js';
+import { sceneScript, sceneTempoOn } from '../../scene/channels/scene-channel.js';
 import { buildSceneRunner } from './scene-runner.js';
 import { lowerScript, withScripts, HERO_APART } from './scene-script.js';
 import { actScene } from '../../actor/scene.js';
@@ -30,7 +31,9 @@ HERO: Then I wait.`;
 function level(scenes) {
   const manifest = { entities: ENTITIES, play: { spots: SPOTS, scenes } };
   const ev = lowerPlay(manifest, { player: 'hero' });
-  const world = CW.createWorld({ entities: ENTITIES.map((e) => JSON.parse(JSON.stringify(e))), camera: { rule: 'follow', target: 'hero' } });
+  // (the scenes' own moments on the world clock, as the page's world takes them: world-scene.js)
+  const moments = sceneMoments(ev.scenes || []);
+  const world = CW.createWorld({ entities: ENTITIES.map((e) => JSON.parse(JSON.stringify(e))), camera: { rule: 'follow', target: 'hero' }, ...(moments.length ? { tempo: { moments } } : {}) });
   const bus = createBusState(ev, []), S = R.create(ev.scenes);
   const playerCam = world.camera.rule;
   let prev, seen = 0;
@@ -45,6 +48,8 @@ function level(scenes) {
     const o = R.step(S, DT, { ...ctl, vars: bus.vars });
     if (o.fire.length) { settle(o.fire.map((type) => ({ type }))); down(); }
     if (o.ops.length) CW.castOps(world, o.ops);
+    // (as the scene channel hands the clock its moments)
+    for (const x of o.tempo) { if (x.end) CW.tempoEnd(world, x.on); else CW.tempoMoment(world, x.on); }
     return o;
   };
   const begin = () => { settle(ev.initial || []); return tick(); };
@@ -233,5 +238,89 @@ describe('a script played in the level', () => {
     expect([m[0], m[1]]).toEqual([9, 4]);
     expect(L.world.byId.hero.held).toBe(false);
     expect(L.world.camera.rule).toBe(L.playerCam);
+  });
+});
+
+describe('the screenplay\'s time on the world clock', () => {
+  const TIMED = `MAYOR: The road is shut.
+Slow motion 0.2.
+Mayor crosses to gate.
+Freeze 0.5 seconds.
+MAYOR: Since the bell stopped.
+Real time.
+HERO: Then I wait.`;
+  const tempos = (beats) => beats.filter((b) => b.tempo !== undefined).map((b) => b.tempo);
+
+  it('slow motion is a moment of the script\'s own until real time; a freeze holds the world and the scene, the slow going on after it', () => {
+    const L = lowerScript(TIMED, { people: PEOPLE, places: PLACES, player: 'hero', clip: 'scene:s:0' });
+    expect(tempos(L.beats)).toEqual([
+      { on: 'scene:s:0:slow:1', scale: 0.2, hold: 60, ramp: 0.25 },
+      { on: 'scene:s:0:hold:1', scale: 0, hold: 0.5 },
+      { end: 'scene:s:0:hold:1' },
+      'scene:s:0:slow:1',                                                    // the slow stretch again, after the freeze
+      { end: 'scene:s:0:slow:1' },
+    ]);
+    const k = L.beats.findIndex((b) => b.tempo?.on === 'scene:s:0:hold:1');
+    expect(L.beats[k + 1]).toEqual({ wait: 0.5 });
+    // a slow stretch with no real time is ended at the script's end, before every body is handed back
+    const open = lowerScript('MAYOR: Hi.\nSlow motion.\nMAYOR: Bye.', { people: PEOPLE, places: PLACES, player: 'hero' });
+    expect(tempos(open.beats)).toEqual([{ on: 'script:slow:1', scale: 0.25, hold: 60, ramp: 0.25 }, { end: 'script:slow:1' }]);
+    expect(open.beats.at(-2)).toEqual({ tempo: { end: 'script:slow:1' } });
+  });
+
+  it('the page\'s clock takes the scene\'s own moments; a tempo beat is taught; the scene channel hands the clock its moments only when it has some', () => {
+    const ev = lowerPlay({ entities: ENTITIES, play: { spots: SPOTS, scenes: [{ id: 's', when: { start: true }, beats: [{ script: TIMED }] }] } }, { player: 'hero' });
+    expect(sceneMoments(ev.scenes)).toEqual([{ on: 'scene:s:0:slow:1', scale: 0.2, hold: 60, ramp: 0.25 }, { on: 'scene:s:0:hold:1', scale: 0, hold: 0.5 }]);
+    expect(sceneTempoOn(ev.scenes)).toBe(true);
+    expect(sceneTempoOn(lowerPlay({ entities: ENTITIES, play: { spots: SPOTS, scenes: [{ id: 's', when: { start: true }, beats: [{ script: SCRIPT }] }] } }, { player: 'hero' }).scenes)).toBe(false);
+    expect(sceneScript({ tempo: true })).toMatch(/window\.__mojTempo\.fire\(x\.on\)/);
+    expect(sceneScript()).not.toMatch(/__mojTempo/);
+    const bad = (tempo) => () => readScenes({ scenes: [{ id: 'x', when: { start: true }, beats: [{ tempo }] }] });
+    expect(bad('Slow')).toThrow(/names a moment of the world's tempo/);
+    expect(bad({ on: 'x', scale: 2, hold: 1 })).toThrow(/scale is the world's speed, 0 \(held\) to 1/);
+    expect(bad({ on: 'x', scale: 0.5, hold: 99 })).toThrow(/hold is real seconds, 0 to 60/);
+    expect(bad({ end: 'x', on: 'y' })).toThrow(/is \{ end: '<moment>' \}/);
+    // a hand-written scene may fire one of the world's own by name: nothing of its own to add
+    expect(sceneMoments(lowerPlay({ entities: ENTITIES, play: { scenes: [{ id: 'x', when: { start: true }, beats: [{ tempo: 'finisher' }] }] } }, { player: 'hero' }).scenes)).toEqual([]);
+  });
+
+  it('played: the cross is slowed, the freeze holds the world while the camera and the line keep real time, and real time comes back', () => {
+    const L = level([{ id: 'timed', when: { start: true }, beats: [{ script: TIMED }] }]);
+    L.begin();
+    expect(L.until(() => !!L.view().line)).toBe(true);
+    L.tick({ next: true }); L.tick({ next: true });                         // past the first line: slow motion
+    expect(L.until(() => CW.tempoScale(L.world) <= 0.2 + 1e-6, 60)).toBe(true);
+    // the mayor crosses at a fifth of its pace
+    const m0 = [...L.world.byId.mayor.transform.pos];
+    for (let i = 0; i < 30; i++) L.tick();
+    const slowStep = Math.hypot(L.world.byId.mayor.transform.pos[0] - m0[0], L.world.byId.mayor.transform.pos[1] - m0[1]);
+    expect(slowStep).toBeGreaterThan(0);
+    expect(slowStep).toBeLessThan(1.05 * 0.2 * 1.2);                        // a second of real time, a fifth of a second's walk
+    // the freeze: the world held, the scene waits it out
+    expect(L.until(() => CW.tempoScale(L.world) < 1e-3, 3000)).toBe(true);
+    const held = [...L.world.byId.mayor.transform.pos];
+    L.tick(); L.tick();
+    expect(L.world.byId.mayor.transform.pos).toEqual(held);
+    // the next line in slow motion: its take keeps real time (a line is never slowed)
+    expect(L.until(() => !!L.view().line, 600)).toBe(true);
+    expect(L.until(() => CW.tempoScale(L.world) <= 0.2 + 1e-6, 30)).toBe(true);   // the slow eased back in after the freeze
+    const t0 = L.view().line.take.t;
+    L.tick();
+    expect(L.view().line.take.t - t0).toBeCloseTo(DT, 3);
+    // real time: the world eases back
+    L.tick({ next: true }); L.tick({ next: true });
+    expect(L.until(() => CW.tempoScale(L.world) === 1, 60)).toBe(true);
+  });
+
+  it('a skip in slow motion ends it with the scene: the world is never left slowed', () => {
+    const L = level([{ id: 'timed', when: { start: true }, beats: [{ script: TIMED }] }]);
+    L.begin();
+    L.until(() => !!L.view().line);
+    L.tick({ next: true }); L.tick({ next: true });
+    L.until(() => CW.tempoScale(L.world) <= 0.2 + 1e-6, 60);
+    L.tick({ skip: true });
+    expect(L.view().on).toBe(false);
+    expect(L.until(() => CW.tempoScale(L.world) === 1, 60)).toBe(true);
+    expect(L.world.byId.hero.held).toBe(false);
   });
 });

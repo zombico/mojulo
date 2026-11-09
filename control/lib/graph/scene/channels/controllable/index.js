@@ -4306,7 +4306,7 @@ ${hangarHook}  __msHookParams();
   __updateTutorialHud();
 };
 ${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
-window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who) };
+window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who), end: (on) => __CW.tempoEnd(__world, on) };
 ` : ''}${backdrop ? `// THE ENCOUNTER'S BACKDROP (a fight staged on its own arena, rpg rules.stage 'backdrop'): the map drawn once from a pose
 // into a texture, stood as a full-frame quad behind the arena's camera (the same pose shifted by \`shift\`), so the arena
 // reads as the place the fight was met; the world itself stays where it is, out of the arena camera's sight

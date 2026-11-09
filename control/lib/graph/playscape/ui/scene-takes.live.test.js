@@ -30,6 +30,16 @@ beforeAll(async () => {
 }, 600000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
+// a plain page (a hero, a mayor who is a box) whose script slows and holds the world
+async function timedPage() {
+  const W = playerWorld({ hero: { cast: 'female' }, id: 'hero', library: false });
+  W.figures.hero = { hero: { cast: 'female' } };
+  W.entities.push({ id: 'mayor', rule: { type: 'static' }, transform: { pos: [3, 2, 0], heading: Math.PI }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } });
+  W.play = { scenes: [{ id: 'timed', when: { start: true }, beats: [{ script: 'MAYOR: Watch.\nSlow motion 0.2.\nMAYOR: The bell falls.\nReal time.\nMAYOR: Gone.' }] }] };
+  const { payload: P } = await resolveWorldScene({ ref: 'sk_scene_tempo', title: 'tempo', manifest: W });
+  return { P, html: emitThreeWorld({ ...P, inline: true }) };
+}
+
 describe('a script\'s takes on the page', () => {
   it('built: each actor carries its take, the realistic face its track on its own targets; its bytes within the budget', () => {
     const lines = payload.events.scenes[0].beats.filter((b) => b.kind === 'line');
@@ -93,4 +103,36 @@ describe('a script\'s takes on the page', () => {
     expect(errors).toEqual([]);
     await page.close();
   }, 180000);
+
+  it('the script\'s slow motion slows the page\'s world clock, real time brings it back, and a skip never leaves it slowed', async () => {
+    const { P, html: page0 } = await timedPage();
+    expect(P.tempo.moments.map((m) => m.on)).toEqual(['scene:timed:0:slow:1']);   // the clock composed for the scene's own moment
+    if (!browser) return;
+    const errors = [];
+    const open = async () => {
+      const page = await browser.newPage();
+      page.on('pageerror', (e) => errors.push(String(e)));
+      await page.setContent(page0, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => window.__mojTempo && window.__mojScenes && window.__mojScenes.view().line, { timeout: 60000 });
+      return page;
+    };
+    const press = (page) => page.evaluate(() => new Promise((r) => { window.__mojScenes.next(); setTimeout(r, 60); }));
+    const until = (page, fn) => page.waitForFunction(fn, { timeout: 10000 });
+    // played: the first line on real time, the slowed one's world at a fifth, then real time again
+    const page = await open();
+    expect(await page.evaluate(() => window.__mojTempo.now().scale)).toBe(1);
+    await press(page); await press(page);
+    await until(page, () => window.__mojTempo.now().scale <= 0.2 + 1e-6);
+    await press(page); await press(page);
+    await until(page, () => window.__mojTempo.now().scale === 1);
+    await page.close();
+    // skipped in the middle of the slow stretch: the scene's end ends it, the world back on real time
+    const skipped = await open();
+    await press(skipped); await press(skipped);
+    await until(skipped, () => window.__mojTempo.now().scale <= 0.2 + 1e-6);
+    await skipped.evaluate(() => window.__mojScenes.skip());
+    await until(skipped, () => !window.__mojScenes.view().on && window.__mojTempo.now().scale === 1);
+    await skipped.close();
+    expect(errors).toEqual([]);
+  }, 300000);
 });

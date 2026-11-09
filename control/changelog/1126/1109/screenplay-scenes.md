@@ -26,3 +26,9 @@
   whoever they are talking to. When a line has played out and waits for the player, or once the scene is over, everyone
   goes back to standing and breathing as normal. Characters whose faces the game doesn't animate yet still act with
   their bodies.
+- **Slow motion and freeze-frames in a written scene.** A script's "Slow motion." now slows the world in the level,
+  people walking and everything moving, until "Real time." brings it back; "Freeze." holds everything still for a
+  moment. The camera, the text box and the characters' speech stay at normal speed, so the action slows and the words
+  never drag. Skipping a scene in slow motion puts the world straight back to normal speed. A hand-written scene can
+  call on a game's own slow-motion moments the same way.
+

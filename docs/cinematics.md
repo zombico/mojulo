@@ -214,7 +214,14 @@ then this department directs it (`playscape/ui/scene-script.js`), lowered at bui
   body alone.
 - **What it costs.** A take is about 16 kB a scene-second for a realistic hero (its face about 3 of that) and 11 for a
   plain one, as the page ships it; `TAKE_BUDGET` and `TAKES_PAGE` say when a page's takes are advised against.
-- **What waits.** The screenplay's slow motion and freezes are lowered to nothing yet.
+- **The screenplay's time on the world clock.** In a level the world clock (`worlds/controllable/world-clock.js`) plays
+  the script's time: `Slow motion.` is a moment of the script's own (`{ tempo }`, `<clip>:slow:<n>`) that slows the world
+  until `Real time.`, the next slow motion or the script's end, eased in and out; `Freeze.` holds the world, and the
+  scene with it, for its seconds, and a slow stretch it fell in takes the clock back after it. The camera, the box and
+  the takes keep real time, so the action slows and the words never do. The page's clock is composed for a scene's own
+  moments (`scenes.js` `sceneMoments`), beside the world's tempo; a skip fires none of them, and a scene that ends with
+  one going ends it, so the world is never left slowed. A hand-written scene may fire one of the world's own moments by
+  name the same way.
 
 ## Where to look
 
