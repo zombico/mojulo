@@ -171,7 +171,10 @@ export function buildRulesPlatform(E) {
 
       // coyote (grace after walking off a ledge) + jump-buffer (press just before touchdown) timers.
       e.coyote = e.grounded ? 0 : Math.min((e.coyote ?? coyoteT) + dt, 1);
-      e.jumpBuf = input.jump ? bufferT : Math.max(0, (e.jumpBuf ?? 0) - dt);
+      // (the buffer remembers a PRESS, its first frame: a jump held through the gather is one jump, never a second
+      // launched off the first as the ground's snap still holds the body)
+      e.jumpBuf = input.jump && !e.jumpWas ? bufferT : Math.max(0, (e.jumpBuf ?? 0) - dt);
+      e.jumpWas = !!input.jump;
     }
 
     // movement basis (needed by the jump block below for directed charge leaps)
@@ -281,7 +284,7 @@ export function buildRulesPlatform(E) {
       if (e.jumpWind > 0) {
         e.jumpWind -= dt;
         e.gaitPhase = (1 - Math.max(0, e.jumpWind) / windup) * 0.9;   // quick dip down the same squat ramp
-        if (e.jumpWind <= 0) { e.jumpWind = 0; e.vel[2] = jumpV; e.grounded = false; e.coyote = coyoteT; jumped = true; }
+        if (e.jumpWind <= 0) { e.jumpWind = 0; e.vel[2] = jumpV; e.grounded = false; e.coyote = coyoteT; e.jumpBuf = 0; jumped = true; }
       }
       // THE WALL KICK (opt-in `cling`, a feel card's: gameworld/feel/lower.js): a jump pressed against a wall (or within
       // `cling.coyote` seconds of leaving it) kicks off it, before any air jump: up at `cling.kick`, away along the wall's

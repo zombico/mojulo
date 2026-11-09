@@ -412,10 +412,12 @@ export const POLES = Object.freeze({
   // THE MIDDLE OF THE SWORD (practice room, 1108): between Ebon Spirits and Fallen Angel, the action-adventure's: quicker
   // than the knight, never the stylish game's long air strings; a three-cut string, a charged spin, the shield
   'fable-of-artesia': { demo: ['move', 'sprint', 'jump', 'glide', 'attack', 'charge', 'dodge', 'guard', 'lock', 'spar'], name: 'Fable of Artesia', after: 'The Legend of Zelda', base: 'action', gear: 'glide', view: { camera: 'third-person', D: 4.5, h: 2.4 }, stage: 'field',
-    says: 'the action-adventure\'s sword and shield, between the knight and the stylish game: a ready run, a modest jump, a three-cut string with a short freeze, the charged spin, a side hop and a backflip on the lock, the shield up and its perfect guard',
+    says: 'the action-adventure\'s sword and shield, between the knight and the stylish game: a ready run, a consequential jump (nearly a metre and a half clear, carried from the run: gaps and ledges are play), a three-cut string with a short freeze, the charged spin, a side hop and a backflip on the lock, the shield up and its perfect guard',
     set: {
       ground: { walk: 1.8, run: 5.5, sprint: 7.5, accel: 30, decel: 40, turn: 1080 },
-      jump: { commit: 4, height: 0.9, hang: 2, cut: 0.6 }, air: null, cling: null, pound: null, dash: null,
+      // (a jump that counts in 3D: 1.45 m clear, just under the stylish game's, its flight two thirds of a second, a softer
+      // pull than the action base's so the arc reads without floating; a run's jump crosses 3.6 m of gap: feel/reach.js)
+      jump: { commit: 4, height: 1.45, gRise: 22, gFall: 32, hang: 2, cut: 0.6 }, air: null, cling: null, pound: null, dash: null,
       dodge: { kind: 'roll', frames: 22, speed: 6.5, iframes: [2, 12], back: { speed: 0.7, frames: 0.75 }, cancel: true },
       lock: { range: 14, turn: 1080, strafe: 0.75 },
       guard: { move: 0.5, block: { push: 1.5, stun: 12 }, parry: 8, riposte: 40, stamina: null, perfect: { window: 5, witch: 90 } },

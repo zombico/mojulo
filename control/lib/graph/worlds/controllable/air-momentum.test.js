@@ -26,3 +26,22 @@ describe('a jump carries its takeoff', () => {
     expect(planar(B.p)).toBeCloseTo(5, 1);
   });
 });
+
+// A JUMP HELD IS ONE JUMP (rules-platform.js): the buffer remembers a press's first frame and the launch consumes it, so
+// a button held through the gather (`jumpWindup`) never launches a second push off the first while the snap holds the body
+describe('a jump held is one jump', () => {
+  it('a press of one frame and a press held through the gather rise the same height', () => {
+    const peak = (frames) => {
+      const w = CW.createWorld({ entities: [{ id: 'p', rule: { type: 'platform', eye: 0, speed: 5, jumpSpeed: 8.17, gravity: 22, fallGravity: 32, jumpWindup: 0.1, buffer: 0.113 }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+      const p = w.byId.p; let top = 0;
+      for (let f = 0; f < 4; f++) CW.stepWorld(w, {}, 1 / 60, { ground: () => 0 });
+      // (the button held through the rise, as a player holds it; the press, `jump`, read for `frames` of it)
+      for (let f = 0; f < 90; f++) { CW.stepWorld(w, { ...(f < frames ? { jump: 1 } : {}), ...(f < 40 ? { jumpHeld: 1 } : {}) }, 1 / 60, { ground: () => 0 }); top = Math.max(top, p.transform.pos[2]); }
+      return top;
+    };
+    const one = peak(1);
+    expect(one).toBeGreaterThan(1.3);
+    expect(peak(3)).toBeCloseTo(one, 3);
+    expect(peak(8)).toBeCloseTo(one, 3);
+  });
+});

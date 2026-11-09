@@ -188,3 +188,12 @@
   and the air braked it back to its run (the stick still pushed): a sprint jump went no farther than a run's. The air now
   keeps the speed the body left with (`airPace`, its pace on the ground), the stick steering it and never braking it
   below; a run's jump is as it was. Measured in the room: a sprint jump 4.3 m → 5.8 m (7.5 m/s held through 0.73 s).
+- **A consequential jump** (`gameworld/feel/cards.js`, the Zelda-like template). `fable-of-artesia` jumps 1.45 m clear
+  (was 0.9), its flight two thirds of a second (a softer pull, 22 up and 32 down, than the action base's, so the arc
+  reads without floating), just under the stylish game's as the template's law asks; a run's jump crosses 3.6 m of
+  gap (`feel/reach.js`). The Old Keep the room plays was given the same jump through its feel's `set`.
+- **Fixed: a held jump launched twice** (`rules-platform.js`). The jump buffer re-armed on every frame the button was
+  held, through the gather (`jumpWindup`), so the launch left a buffered jump behind it that fired again while the
+  ground's snap still held the body: a jump held three frames or more rose a third higher than a tap (1.93 m for
+  1.45 m), which any person pressing the key did. The buffer now remembers a press's first frame and the launch
+  consumes it: a press of one frame and one held through the gather rise the same.
