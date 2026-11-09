@@ -13,3 +13,6 @@
   an open-world adventure on horseback waits on one seamless open land, which the map now describes more accurately: the
   world map's regions load as you walk into them, but by swapping the page at a gate, never streaming. The co-op street
   brawler now asks for the real beat-em-up street, so it shows the gap it actually has.
+- **The scrolling shared screen is counted as built, where it is.** The beat-em-up's street already scrolls one view on
+  as the players go, never back, holding at each wave; the map now says so, and that the co-op scrolling shooter waits
+  only on that camera reaching its kind of level.

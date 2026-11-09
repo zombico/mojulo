@@ -489,7 +489,8 @@ export const FIXTURES = Object.freeze([
       // a trail and the action runtime's melee stood in, and the probe read makeable)
       space: { camera: 'third-person', levelForm: 'belt', topology: 'linear' },
       power: { combat: ['brawl'], mechanics: ['waves', 'hp-pool', 'reach-exit'] },
-      soul: { hero: 'hero', seats: 'four', contest: 'co-op', dependence: 'parallel', frame: 'follow-all', input: 'real-time', pool: 'own', join: 'drop-in' },
+      // (the screen holding until each wave is beaten: the belt's scroll)
+      soul: { hero: 'hero', seats: 'four', contest: 'co-op', dependence: 'parallel', frame: 'scroll', input: 'real-time', pool: 'own', join: 'drop-in' },
     },
   },
   {

@@ -120,7 +120,10 @@ export const SOUL = Object.freeze({
       values: {
         'follow-all': { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'the side and top-down cameras hold every playing seat (rules-basic.js groupFrame, the group leash); a third-person camera follows seat 1 only', requires: TWO },
         fixed: { status: 'partial', effort: 'S', lowers: VERSUS, note: VERSUS_ONLY, requires: TWO },
-        scroll: { ...NOT_YET, effort: 'M', requires: TWO },
+        // local 11-09 (1109-gen-bodywork): the brawler's belt scrolls one shared view on as the players go (brawl-belt.js
+        // beltScroll: never back, held at a gate until its wave falls, every player kept in the band), up to four seats with
+        // drop-in; only in a brawl, so a run, a top-down field or a ride waits on it being lifted to the shared camera
+        scroll: { status: 'local', effort: 'M', pkg: 'scroll', lowers: 'lib/graph/brawl/brawl-belt.js', note: 'the brawler\'s belt scrolls one shared view on as the players go, never back, held at a gate until its wave falls, every player in its band (brawl-belt.js beltScroll, brawl-core.js); only in a brawl: a scrolling run, a top-down field or a ride waits on it in the shared camera', requires: TWO },
         split: { ...NOT_YET, effort: 'L', requires: TWO },
       },
     },

@@ -23,6 +23,8 @@ export const PACKAGES = Object.freeze({
   // the time map (11-02): the screen's clock built offline, the world clock in play (11-02); a replay in play and a grain to each layer
   // the brawler (11-09): its sim, crowd and belt built as their own, waiting on the door that makes one from a gameworld
   brawler: { name: 'The brawler from a gameworld: a world that says it is a beat-em-up laid down a belt, its crowd, waves and boss', effort: 'M' },
+  // the scrolling screen (11-10): built in the brawler's belt, waiting on the shared camera every group level plays under
+  scroll: { name: 'The scrolling screen: the belt\'s camera (on with the players, never back, held at a gate) for every level a group plays', effort: 'M' },
   replay: { name: 'Replay in play: a recorded world clock, a moment shown again slowed and from another camera (the kill cam\'s replay)', effort: 'M' },
   keying: { name: 'Keying: a body\'s clips stepped on twos or threes in play, each layer its own grain (characters on twos, the camera on ones)', effort: 'M' },
   // the main quest (11-04): what a long game's spine still waits on, priced so the sweep ranks it
