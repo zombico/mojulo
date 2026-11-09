@@ -94,7 +94,9 @@ describe('a cinematic staged on a level\'s page', () => {
     await esc(hf);
     await new Promise((r) => setTimeout(r, 1500));
     expect((await held.said()).some((x) => x.moj === MSG_SCENE_END)).toBe(false);
-    await held.ended('long', 10000);                                   // it keeps its time, then ends
+    // it keeps its time, then ends: its 4 s are the page's scene clock, which steps at most 0.05 s a frame, so on a
+    // slow runner's software WebGL (under 20 frames a second) they take longer than 4 s of the wall's
+    await held.ended('long', 60000);
     await held.page.close();
   }, 120000);
 });
