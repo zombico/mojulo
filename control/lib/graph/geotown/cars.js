@@ -16,7 +16,8 @@
  *   pickCar(fleet, R)               → one of the fleet by its weight (one die)
  *   parkCar(list, { x, y, z, heading, paint, model, extra? })   a car placed (heading 0: its nose along +y; radians
  *                                     about +z); `extra` one of ROOF_EXTRAS on its roof
- *   carRepeats(list, { group? })    → repeats: two a model parked (its paint tinted, its trim), and its roof extras'
+ *   carRepeats(list, { group?, pool? }) → repeats: two a model parked (its paint tinted, its trim), and its roof extras';
+ *                                     `pool` the models a moving traffic instances (keyed for the flow channel)
  *   CAR_PAINT_HEX                   the paints the town's cars are tinted by
  *
  * Pure and deterministic: the compile is the car shelf's, at its own seed.
@@ -96,17 +97,21 @@ export const ROOF_EXTRAS = Object.freeze({
   'taxi-sign': (y, z) => [...boxAt([-0.32, 0.32], [y - 0.1, y + 0.1], [z, z + 0.24], '#f4e9b0'), ...boxAt([-0.34, 0.34], [y - 0.12, y + 0.12], [z - 0.02, z], '#2b2b2b')],
 });
 
-/** The parked cars as repeats: each model's paint (tinted by each car's paint) and its trim, one transform a car. */
-export function carRepeats(list, { group = 'car' } = {}) {
+/** The parked cars as repeats: each model's paint (tinted by each car's paint) and its trim, one transform a car.
+ *  `pool` (a metro's traffic, geocity/flow.js: [{ model, extra? }]): each of those models' paint, trim and extra keyed
+ *  `<model>|paint`, `|trim`, `|<extra>` for the page's flow channel to instance, there with none parked if none is. */
+export function carRepeats(list, { group = 'car', pool = null } = {}) {
   const by = new Map();
   for (const c of list) (by.get(c.model) ?? by.set(c.model, []).get(c.model)).push(c);
+  const pooled = new Map();
+  for (const k of pool ?? []) { if (!by.has(k.model)) by.set(k.model, []); (pooled.get(k.model) ?? pooled.set(k.model, new Set()).get(k.model)); if (k.extra) pooled.get(k.model).add(k.extra); }
   const out = [];
   for (const [card, cars] of [...by].sort(([a], [b]) => a.localeCompare(b))) {
-    const M = carModel(card), at = (c) => ({ pos: c.pos, ...(c.rotZ ? { rotZ: c.rotZ } : {}) });
-    out.push({ group: `${group}-paint`, template: M.paint, transforms: cars.map((c) => ({ ...at(c), tint: TINTS.get(c.paint) ?? lin(c.paint) })) });
-    out.push({ group: `${group}-trim`, template: M.trim, transforms: cars.map(at) });
+    const M = carModel(card), at = (c) => ({ pos: c.pos, ...(c.rotZ ? { rotZ: c.rotZ } : {}) }), P = pooled.get(card), key = (part) => (P ? { pool: `${card}|${part}` } : {});
+    out.push({ group: `${group}-paint`, template: M.paint, transforms: cars.map((c) => ({ ...at(c), tint: TINTS.get(c.paint) ?? lin(c.paint) })), ...key('paint') });
+    out.push({ group: `${group}-trim`, template: M.trim, transforms: cars.map(at), ...key('trim') });
     // (its roof's extras, each on the same transforms: set back from the roof's top along its nose a little)
-    for (const ex of [...new Set(cars.filter((c) => c.extra).map((c) => c.extra))].sort()) out.push({ group: `${group}-${ex}`, template: ROOF_EXTRAS[ex](r4(M.roof.y - 0.3), M.roof.z), transforms: cars.filter((c) => c.extra === ex).map(at) });
+    for (const ex of [...new Set([...cars.filter((c) => c.extra).map((c) => c.extra), ...(P ?? [])])].sort()) out.push({ group: `${group}-${ex}`, template: ROOF_EXTRAS[ex](r4(M.roof.y - 0.3), M.roof.z), transforms: cars.filter((c) => c.extra === ex).map(at), ...(P?.has(ex) ? { pool: `${card}|${ex}` } : {}) });
   }
   return out;
 }

@@ -221,8 +221,11 @@ A cube that names no domains offers one per terrain and one per interior.
   level (geocity/frontage.js): windows in frames on every storey, storefronts with their signs and awnings on its
   shopping streets (arterials and collectors in the core and the frame, main streets, avenues), apartment entries on its
   residential streets, an office's lobby among shops, balconies on some, a cornice; an evocation's detailed facades
-  their ground floors dressed the same. Its vehicles are the vehicle registry's, each fleet by its role (geocity/fleets.js): the family cars at
-  every arterial's kerbs and in its car parks; its parking blocks each a yard (`yards`: a bus depot, a works yard with
+  their ground floors dressed the same. Its vehicles are the vehicle registry's, each fleet by its role (geocity/fleets.js): its TRAFFIC on every
+  arterial's travel lanes (geocity/flow.js: the family cars mostly, a taxi, a delivery van or truck, a bus, a works
+  pickup; a signal at each crossing, vehicles stopping behind its crosswalk on red, queueing, pulling away on green; the
+  page steps a lane and draws its vehicles only near the camera; `flow: false` none), its kerbs kept clear; the family
+  cars in its car parks; its parking blocks each a yard (`yards`: a bus depot, a works yard with
   its garbage trucks and works pickups, an emergency station with its fire engines, ambulances and police cars, the rest
   car parks); a vacant block by its construction sites their contractor's yard of mixers, tippers and loaders. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
   streets?, segments?, roads?, grammar?, outskirts?, evoke?, at?, along?, play?, profile?, slope? }`: `profile` its streets laid

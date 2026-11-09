@@ -61,6 +61,7 @@ import { kitTemplates } from './kit.js';
 import { frontageTemplates, frontsOf, wallsOf } from './frontage.js';
 import { parkCar, carRepeats, carModel } from '../geotown/cars.js';
 import { fleetOf, pickOf, YARDS } from './fleets.js';
+import { flowOf, flowLaws } from './flow.js';
 import { assembleGeotownScene } from '../geotown/scene.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
@@ -78,7 +79,9 @@ import { streetcarFaces, STREETCAR } from './streetcar.js';
 
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air', 'level', 'game',
   // (what plays in it: the world reads these, worlds/world-scene.js; a city with nobody in it reads none)
-  'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind']);
+  'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind',
+  // (its traffic: on unless `flow: false`, flow.js)
+  'flow']);
 // destructible physics (`destruction: 'physical'`, rupa/): the buildings within RING metres of where the walk starts, the
 // nearest RING_MAX of them, are handed over as blocks (rupa/shell-blocks.js: walls and a roof); the rest stay massing
 export const RING = 100, RING_MAX = 24;
@@ -214,6 +217,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   // (`cone`: gameplay's view cone, its far structures past it: scene/channels/view-cone.js, far-structures.js)
   if (m.cone !== undefined) readCone(m.cone);
   if (m.seed !== undefined && !Number.isInteger(m.seed)) no('seed is an integer');
+  if (m.flow !== undefined && typeof m.flow !== 'boolean') no('flow is true or false: the traffic on its arterials (on unless false)');
   if (m.cube === undefined || m.cube === null) no('cube is a preset id or a document');
   const cube = readGeocube(m.cube), seed = m.seed ?? 1, d = designGeocity(m.geocity ?? {}, { seed }), G = d.grammar, S = d.land.S;
   // ── the light: the cube's at its hour, under its clouds (city/plan/look.js: as it lights a city) ──
@@ -1228,22 +1232,10 @@ export function assembleGeocityScene(m, ctx = {}) {
       counts.fronts = (counts.fronts ?? 0) + 1;
     }
   }
-  // ── the KERBS (fleets.js): along every arterial's parking lanes (drawn near the camera, as the street's kit), a car in
-  // most stalls, a delivery van or truck now and then in the core and the frame, a taxi in the core; each nose the way
-  // its side drives ──
-  const ringAt = (x, y) => { const r = Math.hypot(x - d.seat[0], y - d.seat[1]), R0 = d.metro.rings; return r < R0.core ? 'core' : r < R0.frame ? 'frame' : 'outskirts'; };
-  if (E?.evoke !== 'skyline') for (const l of d.lines) for (const band of l.bands.filter((x) => x.kind === 'parking')) {
-    const off = (band.from + band.to) / 2, nose = l.axis === 'ns' ? [0, off > 0 ? 1 : -1] : [off > 0 ? -1 : 1, 0];
-    for (const [a, c] of l.axis === 'ns' ? runsNS : runsEW) for (let t = a + 8; t + 6 <= c - 8; t += 6.5) {
-      const [x, y] = l.axis === 'ns' ? [l.at + off, t] : [t, l.at + off];
-      // (an evocation's kerbs where it draws its neighbourhoods, never along its skyline's)
-      if (massed && !d.regions.some((r) => massed.has(r.id) && x > r.rect[0] - 40 && x < r.rect[2] + 40 && y > r.rect[1] - 40 && y < r.rect[3] + 40)) continue;
-      const Rk = streamOf(seed, 'kerb', `${l.id}:${band.from}:${Math.round(t)}`);
-      if (Rk() >= 0.7) continue;
-      const ring = ringAt(x, y), u = Rk(), role = ring !== 'outskirts' && u < 0.09 ? 'delivery' : ring === 'core' && u < 0.15 ? 'taxi' : 'civilian';
-      vehicleAt(role, x, y, S(x, y), nose, `kerb:${l.id}:${band.from}:${Math.round(t)}`);
-    }
-  }
+  // ── the TRAFFIC (flow.js): every arterial's travel lanes driven by the fleets' vehicles, a signal at each crossing; the
+  // page steps a lane and draws its vehicles only near the camera (scene/channels/flow.js); its kerbs kept clear ──
+  const F = E?.evoke === 'skyline' || m.flow === false ? null : flowOf(d, { seed, near: NEAR, kerb: KERB });
+  if (F) { laws.push(...flowLaws(F)); counts.flow = { lanes: F.lanes.length, vehicles: F.cars.length, signals: F.signals.length }; }
   // (the kit's repeats, each drawn near the camera only; the skyline draws none)
   // (the URBAN PIZZA VIEWER, a live page whose world asks for the view cone, scene/channels/city-cone.js: the kit drawn by
   // the cone's rule rather than the ring; an export, and a page without the cone, as before)
@@ -1252,7 +1244,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   if (E?.evoke !== 'skyline') {
     // (its vehicles: each model's paint and trim and its roof's extras, cars.js; its machines the shelf's assembly)
     // (none of them an occluder in the ambient bake: a parked car, a machine, a window darkens nothing the bake needs)
-    for (const r of carRepeats(vehicles, { group: 'geocity:vehicle' })) repeats.push({ ...r, near: NEAR, occlude: false, ...kit });
+    for (const r of carRepeats(vehicles, { group: 'geocity:vehicle', ...(F ? { pool: F.kinds } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, ...kit });
     for (const [arch, transforms] of [...machines].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:machine-${arch}`, template: siteFaces(LIGHT, `m:${arch}`, () => assembleMachine(arch, { laws: false })), transforms, near: NEAR, occlude: false, ...kit });
     const FT = frontageTemplates(LIGHT, { frames: FRONT_PAINT.frame });
     for (const [key, transforms] of [...frontStamps].sort(([a], [b]) => a.localeCompare(b))) { repeats.push({ group: `geocity:front-${key.split(':')[0]}`, template: FT[key], transforms, near: NEAR, occlude: false, ...kit }); counts.frontPieces = (counts.frontPieces ?? 0) + transforms.length; }
@@ -1308,7 +1300,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     counts.trees = [...trees.values()].reduce((a, l) => a + l.length, 0);
   }
   return {
-    faces, ...(repeats.length ? { repeats } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
@@ -1343,6 +1335,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       } : { podium: null, why: underWhy } } : {}),
       ...(SUB ? { subway: { ...SUB.readout, ...(streetcars.length ? { streetcars } : {}) } } : {}),
       ledger: d.ledger, laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
+      ...(F ? { flow: { lanes: F.lanes.length, vehicles: F.cars.length, signals: F.signals.length, cycle: F.signals[0].cycle, clearance: F.T.CLEARANCE, near: F.near } } : {}),
       // (its streets' profiles where it asks them: the arterials', and how many of each neighbourhood's streets)
       ...(d.profile ? { profile: { arterials: d.profile.arterials, neighbourhoods: Object.fromEntries(Object.entries(d.profile.neighbourhoods).map(([id, st]) => [id, st.length])), ...(d.spec.slope ? { slope: d.spec.slope } : {}) } } : {}),
     },

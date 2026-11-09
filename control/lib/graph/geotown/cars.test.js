@@ -52,5 +52,10 @@ describe('the town\'s cars: the registry\'s family cars, instanced', () => {
     expect(bar.transforms).toHaveLength(1);
     expect(Math.min(...bar.template.flatMap((f) => f.corners.map((c) => c[2])))).toBeGreaterThanOrEqual(m.roof.z - 0.03);
     expect(Object.keys(ROOF_EXTRAS)).toEqual(expect.arrayContaining(['lightbar-rb', 'lightbar-r', 'beacon', 'taxi-sign']));
+    // (a traffic's POOL: each model it drives keyed for the page, there with none parked; the parked ones' as they were)
+    const pooled = carRepeats(list, { group: 'g', pool: [{ model: 'loft:van', extra: 'beacon' }, { model: 'loft:van' }] });
+    expect(pooled.filter((r) => r.pool).map((r) => r.pool).sort()).toEqual(['loft:van|beacon', 'loft:van|paint', 'loft:van|trim']);
+    expect(pooled.find((r) => r.pool === 'loft:van|beacon').transforms).toHaveLength(0);
+    expect(pooled.map(({ pool: _p, ...r }) => r).filter((r) => r.transforms.length)).toEqual(reps);
   });
 });

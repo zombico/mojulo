@@ -23,6 +23,11 @@ registry words read to the realistic body each stands as. A row the registry bui
 police car, an ambulance, a fire engine) names the body it stands as. Each role is kept in its yard, a parking block the
 metro's design gives it.
 
+Its traffic ([geocity/flow.js](../control/lib/graph/geocity/flow.js)) drives the same fleets on every arterial's travel
+lanes, through a signal at each crossing: the old city's signalised model (`scene/channels/traffic-model.js`) in metres.
+The page ([scene/channels/flow.js](../control/lib/graph/scene/channels/flow.js)) steps a lane and draws its vehicles only
+near the camera, on the parked vehicles' own templates (a repeat's `pool`).
+
 ## Road
 
 The car designer ([car-designer/](../control/lib/graph/car-designer/)) builds road bodies.

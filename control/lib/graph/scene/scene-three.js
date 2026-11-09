@@ -56,6 +56,7 @@ import {
   rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
   strokeOverlayChannelScript, versusChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript,
 } from './channels/index.js';
+import { readFlow, flowChannelScript } from './channels/flow.js';
 import { xrModeScript, xrConfig } from './channels/xr.js';
 import { resampleScript } from './channels/resample.js';
 import { readCreases, creasesChannelScript } from './channels/creases.js';
@@ -268,7 +269,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-w-legend{white-space:normal;text-align:center}',
 ].join('\n');
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, grade = null, leaves = null, knock = null, guide = null, footless = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null, board = null, screen = null, runner = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, soften = null, seaway = null, captureSize = null, tempo = null, grade = null, leaves = null, knock = null, guide = null, footless = null } = {}) {
   if (board && !capture) walk = false;   // a board owns the keys and the view: no walking over it
   // (a room in the form render, channels/form.js: its faces' baked light rides each mesh as `aLit`; none, none packed)
   const litPack = !!(form && form.room && Array.isArray(form.room.lights));
@@ -369,7 +370,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // bake, so (a) the bake can ingest their instance-transformed phantoms as casters and
   // (b) the packing pass below reuses the same expansion.
   const repEntries = (Array.isArray(repeats) ? repeats : [])
-    .filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length)
+    // (a POOL, `pool`: a template the flow channel instances, drawn where it is parked too or nowhere else)
+    .filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && (r.transforms.length || typeof r.pool === 'string'))
     .map((r) => ({ r, tpl: expandSurfaceCards(r.template, { light }) }));
   const aoOpts = ao ? (typeof ao === 'object' ? ao : {}) : null;
   // Baked ambient occlusion (effects/ao-bake.js, opted in via the payload's `ao` setting). Runs
@@ -446,6 +448,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       ...(Number.isFinite(r.near) && r.near > 0 ? { near: r.near } : {}),
       // (and by the view cone's rule rather than the ring, channels/city-cone.js: in, out or kit)
       ...(Number.isFinite(r.near) && r.near > 0 && ['in', 'out', 'kit'].includes(r.cone) ? { cone: r.cone } : {}),
+      // (a pool's key: the flow channel's moving instances of it, channels/flow.js)
+      ...(typeof r.pool === 'string' ? { pool: r.pool } : {}),
     };
   });
   // widen the camera-framing bound so a mostly-instanced world still frames fully
@@ -548,6 +552,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
   const hasNear = packedRepeats.some((r) => r.near);   // absent: no near tiles, not one byte
+  const hasPool = packedRepeats.some((r) => r.pool);   // none: no pools, not one byte
   const hasConeTiles = packedRepeats.some((r) => r.cone);   // absent: the ring alone, not one byte of the cone's rule
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
   // the resampler (channels/resample.js): the plans for the textures this page draws; none, nothing emitted
@@ -998,6 +1003,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // the shared traffic model; without them the legacy constant-speed script is emitted, byte-identical
   const trafficSpec = Array.isArray(signals) && signals.length && Array.isArray(trafficLanes) ? { lanes: trafficLanes, signals, T: trafficConstants || undefined } : null;
   const carsBlock = carList.length ? carsChannelScript(carList, carBank, { cast: castsActors, traffic: trafficSpec }) : '';
+  // a metro's traffic (channels/flow.js): its lanes stepped and its vehicles drawn near the camera; none ⇒ ''
+  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec) : '';
   // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked
   // above fog (renderOrder 100001+i). Same shape as the fog quad, so fog stays byte-identical and
   // glow/wisp layers ride beside it. uTime rides window.__mojClock (pinned by frame()/step()).
@@ -1351,12 +1358,12 @@ scene.onBeforeRender = function (rd, sc, cam, rt) {
   const p = cam.position;
   ${hasConeTiles ? cityConeRule() : 'for (const n of __nearTiles) n.im.visible = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y) < n.r * n.r;'}
 };
-` : ''}for (const r of REPEATS) {
+` : ''}${hasPool ? '// POOLS: a template the flow channel instances by its key (its vehicles moving), drawn here where it stands too\nconst __POOLS = {};\n' : ''}for (const r of REPEATS) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(r.pos), 3));
   geo.setAttribute('color', new THREE.BufferAttribute(decodeF32(r.col), 3));
   geo.computeBoundingSphere();
-  ${hasNear ? 'if (r.near) { __nearRepeat(r, geo); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
+  ${hasPool ? 'if (r.pool) { __POOLS[r.pool] = geo; if (!r.t.length) continue; }\n  ' : ''}${hasNear ? 'if (r.near) { __nearRepeat(r, geo); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   r.t.forEach((t, i) => {
     Q.setFromAxisAngle(UP, t[3]);
@@ -1619,12 +1626,12 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${formBlock}${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide) : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
+${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide) : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
 // still works: the camera re-renders on control change. No ?t → the normal live loop, unchanged.
-${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}${marksList.length ? 'let stepMarks = () => {};\n' : ''}${shootBlock ? 'let stepShoot = () => {}, __shClock = (t) => t;\n' : ''}${shootSetBlock ? 'let stepShootSet = () => {}, __shSetShot = 0, __shSetT = null;\n' : ''}${versusBlock ? 'let stepFight = () => {};\n' : ''}${boardBlock ? 'let stepBoard = () => {};\n' : ''}${meetBlock ? 'let stepContest = () => {};\n' : ''}${courtBlock ? 'let stepCourt = () => {};\n' : ''}${turnsBlock ? 'let stepTurnSport = () => {};\n' : ''}${pitchBlock ? 'let stepPitch = () => {};\n' : ''}${holoBlock ? 'let stepHolo = () => {};\n' : ''}${inningsBlock ? 'let stepInnings = () => {};\n' : ''}${broadcastsBlock ? 'let stepBroadcasts = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${weatherBlock ? ' stepWeather(t);' : ''}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${doorsBlock ? ' stepDoors(t);' : ''}${shallowsBlock ? ' stepShallows(t);' : ''}${seawayBlock ? ' stepSeaway(t);' : ''}${jetBlock ? ' stepJets(t);' : ''}${wetSandBlock ? ' stepWetSand(t);' : ''}${softGroundBlock ? ' stepSoftGround(t);' : ''}${snowPrintsBlock ? ' stepSnowPrints(t);' : ''}${fireBlock ? ' stepFire(t);' : ''}${scienceBlock ? ' stepScience(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''}${marksList.length ? ' stepMarks(t);' : ''}${shootBlock ? ' stepShoot(t);' : ''}${shootSetBlock ? ' stepShootSet(t);' : ''}${versusBlock ? ' stepFight(t);' : ''}${boardBlock ? ' stepBoard(t);' : ''}${meetBlock ? ' stepContest(t);' : ''}${courtBlock ? ' stepCourt(t);' : ''}${turnsBlock ? ' stepTurnSport(t);' : ''}${pitchBlock ? ' stepPitch(t);' : ''}${holoBlock ? ' stepHolo(t);' : ''}${inningsBlock ? ' stepInnings(t);' : ''}${broadcastsBlock ? ' stepBroadcasts(t);' : ''} }
+${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}${marksList.length ? 'let stepMarks = () => {};\n' : ''}${shootBlock ? 'let stepShoot = () => {}, __shClock = (t) => t;\n' : ''}${shootSetBlock ? 'let stepShootSet = () => {}, __shSetShot = 0, __shSetT = null;\n' : ''}${versusBlock ? 'let stepFight = () => {};\n' : ''}${boardBlock ? 'let stepBoard = () => {};\n' : ''}${meetBlock ? 'let stepContest = () => {};\n' : ''}${courtBlock ? 'let stepCourt = () => {};\n' : ''}${turnsBlock ? 'let stepTurnSport = () => {};\n' : ''}${pitchBlock ? 'let stepPitch = () => {};\n' : ''}${holoBlock ? 'let stepHolo = () => {};\n' : ''}${inningsBlock ? 'let stepInnings = () => {};\n' : ''}${broadcastsBlock ? 'let stepBroadcasts = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${weatherBlock ? ' stepWeather(t);' : ''}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${flowBlock ? ' stepFlow(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${doorsBlock ? ' stepDoors(t);' : ''}${shallowsBlock ? ' stepShallows(t);' : ''}${seawayBlock ? ' stepSeaway(t);' : ''}${jetBlock ? ' stepJets(t);' : ''}${wetSandBlock ? ' stepWetSand(t);' : ''}${softGroundBlock ? ' stepSoftGround(t);' : ''}${snowPrintsBlock ? ' stepSnowPrints(t);' : ''}${fireBlock ? ' stepFire(t);' : ''}${scienceBlock ? ' stepScience(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''}${marksList.length ? ' stepMarks(t);' : ''}${shootBlock ? ' stepShoot(t);' : ''}${shootSetBlock ? ' stepShootSet(t);' : ''}${versusBlock ? ' stepFight(t);' : ''}${boardBlock ? ' stepBoard(t);' : ''}${meetBlock ? ' stepContest(t);' : ''}${courtBlock ? ' stepCourt(t);' : ''}${turnsBlock ? ' stepTurnSport(t);' : ''}${pitchBlock ? ' stepPitch(t);' : ''}${holoBlock ? ' stepHolo(t);' : ''}${inningsBlock ? ' stepInnings(t);' : ''}${broadcastsBlock ? ' stepBroadcasts(t);' : ''} }
 ${channelSetupSection('post-step', setupBlocks)}${fog ? `
 // ---- effects layer: volumetric fog composited over the rasterized world ----
 const __fogU = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${fogExtras} };
