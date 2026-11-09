@@ -53,6 +53,7 @@ export const WORD_MATTER = Object.freeze({
   'wire-brick': T('brick', 'wire-cut brick'), stucco: T('concrete', 'a cement coat over block'),
   'sawn-stone': T('stone', 'sawn stone'), precast: T('concrete', 'precast concrete'), concrete: T('concrete', 'concrete'),
   glass: T('glass', 'glass'), pavement: T('concrete', 'concrete paving'), asphalt: T('concrete', 'asphalt: concrete stands for it'),
+  corrugated: T('steel', 'corrugated steel sheet'), cladding: T('steel', 'steel-faced sheet panels'), cmu: T('concrete', 'concrete block'), 'standing-seam': T('steel', 'a standing-seam metal roof'),
 });
 
 export const KIT_MATTER = Object.freeze({

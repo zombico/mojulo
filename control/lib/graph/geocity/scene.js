@@ -62,6 +62,8 @@ import { frontageTemplates, frontsOf, wallsOf } from './frontage.js';
 import { parkCar, carRepeats, carModel } from '../geotown/cars.js';
 import { fleetOf, pickOf, YARDS } from './fleets.js';
 import { flowOf, flowLaws } from './flow.js';
+import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON } from './industry.js';
+import { INDUSTRY_SEGMENTS } from './segments.js';
 import { assembleGeotownScene } from '../geotown/scene.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
@@ -150,7 +152,15 @@ const FINISHES = Object.freeze({
   'geocity:platform': ['pavement', 'floor'], 'geocity:site': ['gravel', 'floor'], 'geocity:lot': ['asphalt', 'floor'], 'geocity:retain': ['sawn-stone', 'wall'], 'geocity:house': ['wire-brick', 'wall'], 'geocity:shops': ['wire-brick', 'wall'],
   'geocity:avenue': ['wire-brick', 'wall'], 'geocity:midrise': ['wire-brick', 'wall'], 'geocity:lowrise': ['wire-brick', 'wall'], 'geocity:walkup': ['wire-brick', 'wall'],
   'geocity:school': ['wire-brick', 'wall'], 'geocity:podium': ['sawn-stone', 'wall'], 'geocity:slab': ['precast', 'wall'],
+  // (the sheds and halls of its yards and its industry: corrugated steel, cladding, block, standing-seam roofs; their
+  // grounds concrete and gravel)
+  'geocity:shed': ['corrugated', 'wall'], 'geocity:shed:roof': ['standing-seam', 'floor'], 'geocity:station': ['wire-brick', 'wall'],
+  'geocity:works': ['corrugated', 'wall'], 'geocity:works:roof': ['standing-seam', 'floor'], 'geocity:warehouse': ['cladding', 'wall'],
+  'geocity:warehouse:roof': ['standing-seam', 'floor'], 'geocity:control': ['cmu', 'wall'], 'geocity:yard': ['pavement', 'floor'],
+  'geocity:bund': ['gravel', 'floor'], 'geocity:switchyard': ['gravel', 'floor'], 'geocity:bund-wall': ['concrete', 'wall'],
 });
+// an industrial block's ground: a works' concrete, a tank farm's and a switchyard's gravel
+const IND_GROUND = Object.freeze({ works: ['geocity:yard', '#a29f97'], warehouse: ['geocity:yard', '#a29f97'], storage: ['geocity:yard', '#a29f97'], tanks: ['geocity:bund', '#938e82'], substation: ['geocity:switchyard', '#8f8a7f'] });
 // a glass tower's sheen: the specular channel's strength and power (scene/channels/specular.js)
 const GLASS_SPEC = Object.freeze([0.55, 48]);
 // street trees: a pit's stride along a close-built arterial, a verge's along an outskirts street, their species, the
@@ -255,6 +265,9 @@ export function assembleGeocityScene(m, ctx = {}) {
   // loft, a construction shelf machine), parked where its role keeps it (a lot, a yard, a kerb, a site); a vehicle's
   // model and paint its own dice's; drawn as repeats near the camera (cars.js; a machine the shelf's assembly)
   const vehicles = [], machines = new Map();
+  // ITS INDUSTRY (industry.js): its pieces stamped by key, the halls a pylon keeps clear of
+  const indStamps = new Map(), halls = [];
+  counts.industry = {};
   // (a tipper the site's own waiting truck, SITE.truck: one template between them)
   const machineAt = (arch, pos, rotZ) => { counts.machines = (counts.machines ?? 0) + 1; if (arch === SITE.truck[0]) { siteNear('truck', pos, rotZ); return; } (machines.get(arch) ?? machines.set(arch, []).get(arch)).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}) }); };
   // (its nose along `nose`, [dx, dy])
@@ -391,12 +404,12 @@ export function assembleGeocityScene(m, ctx = {}) {
       const terraces = ts.map(([a, c]) => { const q = piece(a, c); return { q, z: Math.max(...[[q[0], q[1]], [q[2], q[1]], [q[2], q[3]], [q[0], q[3]]].map(([x, yy]) => S(x, yy))) + KERB }; });
       const zAt = (x, yy) => { const t = terraces.find((tt) => (longY ? yy <= tt.q[3] + 1e-6 : x <= tt.q[2] + 1e-6)) ?? terraces[terraces.length - 1]; return t.z; };
       const padHex = b.kind === 'park' ? col.park : ['tower', 'podium', 'square', 'midrise'].includes(b.kind) ? col.plaza : b.kind === 'construction' ? col.site : b.kind === 'parking' ? col.lot : b.kind === 'vacant' ? col.scrub : col.lawn;
-      const padGroup = padHex === col.plaza ? 'geocity:paving' : { construction: 'geocity:site', parking: 'geocity:lot', vacant: 'geocity:scrub' }[b.kind] ?? 'geocity:pad';
+      const padGroup = IND_GROUND[b.kind]?.[0] ?? (padHex === col.plaza ? 'geocity:paving' : { construction: 'geocity:site', parking: 'geocity:lot', vacant: 'geocity:scrub' }[b.kind] ?? 'geocity:pad');
       // (a block given to the geotown: its block built by the town, the green round it; no pad of the metro's)
       if (b.geotown) { blockTown(b, false); continue; }
       terraces.forEach((t, k) => {
         const [a0, b0, a1, b1] = t.q;
-        put([[a0, b0, t.z], [a1, b0, t.z], [a1, b1, t.z], [a0, b1, t.z]], padGroup, padHex);
+        put([[a0, b0, t.z], [a1, b0, t.z], [a1, b1, t.z], [a0, b1, t.z]], padGroup, IND_GROUND[b.kind]?.[1] ?? padHex);
         // its retaining faces: down to the walk on its street sides, down to the terrace below between them
         const edges = [[[a0, b0], [a1, b0], [0, -1, 0], 's'], [[a1, b0], [a1, b1], [1, 0, 0], 'e'], [[a1, b1], [a0, b1], [0, 1, 0], 'n'], [[a0, b1], [a0, b0], [-1, 0, 0], 'w']];
         for (const [p, q, nn, s] of edges) {
@@ -542,7 +555,7 @@ export function assembleGeocityScene(m, ctx = {}) {
             for (const sd of [-1, 1]) for (let s0 = a + 9 + (sd > 0 ? TREE.verge / 2 : 0); s0 <= b - 9; s0 += TREE.verge) {
               if (sd === side && Math.abs(((s0 - a - 6) % HYDRO + HYDRO) % HYDRO) < 2.5) continue;
               const [x, yy] = pt(sd, s0, st.w / 2 - WALK - 1.0);
-              plant('low', x, yy, S(x, yy), `${st.id}:${sd}:${Math.round(s0)}`);
+              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy), `${st.id}:${sd}:${Math.round(s0)}`);
             }
           } else {
             for (const sd of [-1, 1]) for (let s0 = a + 8 + (sd > 0 ? LAMP / 2 : 0); s0 <= b - 8; s0 += LAMP) { const [x, yy] = pt(sd, s0); stamp(`lamp:${face(sd)}`, [x, yy, S(x, yy) + KERB], 0); }
@@ -637,7 +650,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       if (b.kind === 'park') continue;
       const [x0, y0, x1, y1] = b.rect, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, z = S(cx, cy) + KERB, longY = y1 - y0 >= x1 - x0;
       if (b.geotown) { blockTown(b, true); continue; }
-      if (TALL.includes(b.kind) || b.kind === 'construction') { building(b, { x0, y0, x1, y1, longY, zAt: () => z, Rb: streamOf(seed, 'scene', b.id), far: true }); continue; }
+      if (TALL.includes(b.kind) || b.kind === 'construction' || INDUSTRY_SEGMENTS.includes(b.kind)) { building(b, { x0, y0, x1, y1, longY, zAt: () => z, Rb: streamOf(seed, 'scene', b.id), far: true }); continue; }
       if (b.kind === 'parking' || b.kind === 'vacant') continue;
       // the low fabric as the skyline sees it: a flat mass along each long side, at the block's storeys
       const dp = Math.min(HOUSE_D + SETBACK, (longY ? x1 - x0 : y1 - y0) / 2 - 3), zt = z + Math.max(1, b.storeys.median) * STOREY + 1.5, hex = mix(HOUSE_BRICK[strHash(b.id) % HOUSE_BRICK.length], col.road, 0.25);
@@ -729,6 +742,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (a vacant block by its neighbourhood's sites its contractor's yard, fleets.js: their machines staged on it)
     else if (b.kind === 'vacant' && d.yards?.[b.id]) { fenced(b, { x0, y0, x1, y1 }, zAt((x0 + x1) / 2, (y0 + y1) / 2), 'fence'); yardOf(b, d.yards[b.id], { x0, y0, x1, y1, longY, zAt }); }
     else if (b.kind === 'vacant') fenced(b, { x0, y0, x1, y1 }, zAt((x0 + x1) / 2, (y0 + y1) / 2), 'fence');
+    else if (INDUSTRY_SEGMENTS.includes(b.kind)) industrial(b, { zAt, Rb, far });
     else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb });
   }
 
@@ -839,6 +853,89 @@ export function assembleGeocityScene(m, ctx = {}) {
     counts.yards = { ...(counts.yards ?? {}), [yard]: (counts.yards?.[yard] ?? 0) + 1 };
   }
 
+  /** THE GRID (industry.js PYLON): each industrial neighbourhood's substation fed by a high-voltage line on lattice
+   *  pylons from the country beyond the land's edge, straight out from its switchyard across the neighbourhood, a pylon
+   *  every span or so (stood clear of its halls and off its streets), six conductors sagging between each two, in from
+   *  the switchyard's gantry. The skyline's draws its pylons, not its wires. */
+  function grid() {
+    const [Lx0, Ly0, Lx1, Ly1] = d.land.rect, sag = 0.035;
+    const onStreet = (x, y) => d.lines.some((l) => Math.abs((l.axis === 'ns' ? x : y) - l.at) < l.half + 4) || d.regions.some((r) => (r.streets ?? []).some((st) => x >= r.rect[0] && x <= r.rect[2] && y >= r.rect[1] && y <= r.rect[3] && Math.abs((st.axis === 'ns' ? x : y) - st.at) < st.w / 2 + 4));
+    const inHall = (x, y) => halls.some((q) => x > q[0] - 8 && x < q[2] + 8 && y > q[1] - 8 && y < q[3] + 8);
+    for (const r of d.regions) {
+      const sub = r.industrial && r.blocks.find((b) => b.kind === 'substation'), side = sub && ['e', 'w', 'n', 's'].find((k) => r.beyond.includes(k));
+      if (!side) continue;
+      const far = massed && !massed.has(r.id), [bx0, by0, bx1, by1] = sub.rect, c = [(bx0 + bx1) / 2, (by0 + by1) / 2];
+      const along = side === 'e' || side === 'w' ? 'x' : 'y', sg = side === 'e' || side === 'n' ? 1 : -1, perp = along === 'x' ? [0, 1] : [1, 0];
+      const from = along === 'x' ? (sg > 0 ? bx1 : bx0) : (sg > 0 ? by1 : by0), to = along === 'x' ? (sg > 0 ? Lx1 : Lx0) : (sg > 0 ? Ly1 : Ly0), run = Math.abs(to - from);
+      const at = (u) => (along === 'x' ? [u, c[1]] : [c[0], u]);
+      // (its pylons: evenly at about a span, each moved on along the line where it would stand in a hall or a street)
+      const n = Math.max(1, Math.round(run / PYLON.span)), towers = [];
+      for (let k = 1; k <= n; k++) {
+        let u = from + sg * Math.min(run - 4, (k * run) / n - (k === n ? 6 : 0)), tries = 0;
+        while (tries++ < 12 && (inHall(...at(u)) || onStreet(...at(u)))) u += sg * 5;
+        if (sg * (to - u) < 2) continue;
+        const [x, y] = at(u);
+        towers.push([x, y, S(x, y)]);
+        (indStamps.get(`pylon:${along}`) ?? indStamps.set(`pylon:${along}`, []).get(`pylon:${along}`)).push({ pos: P3([x, y, S(x, y)]) });
+      }
+      counts.industry.pylons = (counts.industry.pylons ?? 0) + towers.length;
+      if (far || !towers.length) continue;
+      // (its conductors: from the gantry over the switchyard, then pylon to pylon, each sagging a little in its span)
+      const zs = sub ? zOf.get(sub.id)?.(c[0], c[1]) ?? S(c[0], c[1]) : S(c[0], c[1]);
+      const anchors = [{ p: [c[0], c[1], zs], arms: PYLON.arms.map(([reach], k) => [reach * 0.45 + k * 0.5, 9.4]) }, ...towers.map((p) => ({ p, arms: PYLON.arms.map(([reach, z]) => [reach, z - PYLON.drop]) }))];
+      for (let k = 0; k + 1 < anchors.length; k++) {
+        const A = anchors[k], B = anchors[k + 1], span = Math.hypot(B.p[0] - A.p[0], B.p[1] - A.p[1]);
+        for (let a = 0; a < 3; a++) for (const s2 of [-1, 1]) {
+          const pa = [A.p[0] + perp[0] * s2 * A.arms[a][0], A.p[1] + perp[1] * s2 * A.arms[a][0], A.p[2] + A.arms[a][1]];
+          const pb = [B.p[0] + perp[0] * s2 * B.arms[a][0], B.p[1] + perp[1] * s2 * B.arms[a][0], B.p[2] + B.arms[a][1]];
+          const pt = (t) => [pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t, pa[2] + (pb[2] - pa[2]) * t - 4 * sag * span * t * (1 - t)];
+          for (let i = 0; i < 6; i++) { const p = pt(i / 6), q = pt((i + 1) / 6), w = 0.05; put([[p[0] - perp[0] * w, p[1] - perp[1] * w, p[2]], [q[0] - perp[0] * w, q[1] - perp[1] * w, q[2]], [q[0] + perp[0] * w, q[1] + perp[1] * w, q[2]], [p[0] + perp[0] * w, p[1] + perp[1] * w, p[2]]], 'geocity:wire', '#2a2c2e'); put([[p[0], p[1], p[2] - w], [q[0], q[1], q[2] - w], [q[0], q[1], q[2] + w], [p[0], p[1], p[2] + w]], 'geocity:wire', '#2a2c2e', [perp[0], perp[1], 0]); }
+        }
+      }
+      counts.industry.lines = (counts.industry.lines ?? 0) + 1;
+    }
+  }
+
+  /** An INDUSTRIAL block (segments.js: a works, a warehouse, storage, a tank farm, a substation): its plan's ops drawn
+   *  (industry.js industrialPlan): its halls and sheds in their cladding, their doors, its tanks, silos, containers,
+   *  transformers and gantries stamped (the tall ones seen across their district, the rest near the camera), its trucks
+   *  and its people's cars, its fence; far off (the skyline's), its halls and its tall pieces only. */
+  function industrial(b, { zAt, Rb, far = false }) {
+    const zg = (x, y) => zAt(x, y);
+    for (const o of industrialPlan(b, Rb, { far })) {
+      if (o.op === 'box' || o.op === 'gable') {
+        const [a0, b0, a1, b1] = o.q, z0 = zg((a0 + a1) / 2, (b0 + b1) / 2) + o.z;
+        if (o.op === 'box') box(a0, b0, a1, b1, z0, z0 + o.h, o.wall, o.roof, o.group);
+        else gable(a0, b0, a1, b1, z0, z0 + o.ze, z0 + o.zr, o.axis, o.wall, o.roof, o.group);
+        if (o.group !== 'geocity:works:lantern' && o.group !== 'geocity:canopy') halls.push(o.q);
+      } else if (o.op === 'door') {
+        const ns = o.side === 'w' || o.side === 'e', sg = o.side === 'e' || o.side === 'n' ? 1 : -1, p = o.at + sg * 0.04, A = ns ? [p, o.a - o.w / 2] : [o.a - o.w / 2, p], B = ns ? [p, o.a + o.w / 2] : [o.a + o.w / 2, p], z0 = zg(A[0], A[1]);
+        put([[A[0], A[1], z0], [B[0], B[1], z0], [B[0], B[1], z0 + o.h], [A[0], A[1], z0 + o.h]], 'geocity:door', '#3b4045', ns ? [sg, 0, 0] : [0, sg, 0]);
+      } else if (o.op === 'stamp') {
+        const [x, y] = o.at, name = o.key.split(':')[0];
+        if (far && !INDUSTRY_FAR.includes(name)) continue;
+        (indStamps.get(o.key) ?? indStamps.set(o.key, []).get(o.key)).push({ pos: P3([x, y, zg(x, y) + (o.z ?? 0)]), ...(o.scale ? { scale: o.scale } : {}), ...(o.tint ? { tint: linC(o.tint) } : {}) });
+        counts.industry[name] = (counts.industry[name] ?? 0) + 1;
+      } else if (o.op === 'vehicle' && !far) vehicleAt(o.role, o.at[0], o.at[1], zg(o.at[0], o.at[1]), o.nose, `${b.id}:${r5(o.at[0])}:${r5(o.at[1])}`);
+      else if (o.op === 'bund' && !far) {
+        const [a0, b0, a1, b1] = o.q, z0 = zg((a0 + a1) / 2, (b0 + b1) / 2);
+        for (const q of [[a0, b0, a1, b0 + 0.3], [a0, b1 - 0.3, a1, b1], [a0, b0, a0 + 0.3, b1], [a1 - 0.3, b0, a1, b1]]) box(q[0], q[1], q[2], q[3], z0, z0 + 1.2, '#b9b4a9', '#c4bfb4', 'geocity:bund-wall');
+      } else if (o.op === 'fence' && !far) {
+        // (its fence round it in panels, a gate's gap at the middle of its front)
+        const [a0, b0, a1, b1] = o.q;
+        for (const [ax, lo, hi, at] of [['x', a0, a1, b0], ['x', a0, a1, b1], ['y', b0, b1, a0], ['y', b0, b1, a1]]) {
+          const mid = (lo + hi) / 2;
+          for (let u = lo; u + 3 <= hi + 1e-6; u += 3) {
+            if (Math.abs(u + 1.5 - mid) < 4) continue;
+            const [x, y] = ax === 'x' ? [u, at] : [at, u];
+            (indStamps.get(`chainlink:${ax}`) ?? indStamps.set(`chainlink:${ax}`, []).get(`chainlink:${ax}`)).push({ pos: P3([x, y, zg(x, y)]) });
+          }
+        }
+      }
+    }
+    counts.industry.blocks = (counts.industry.blocks ?? 0) + 1;
+  }
+
   /** An outskirts block: two rows along its long sides, each the row its segment puts on that side. */
   function outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb }) {
     const sides = longY ? ['w', 'e'] : ['s', 'n'], med = Math.max(1, Math.round(b.storeys.median)), brickOf = () => HOUSE_BRICK[Math.floor(Rb() * HOUSE_BRICK.length)];
@@ -897,6 +994,7 @@ export function assembleGeocityScene(m, ctx = {}) {
 
   street();
   streetsNear();
+  grid();
 
   // ── the blocks at a building's detail: their masses through the facade pipeline (its units), back to metres; at
   // night its windows lit on the facades' own grids (city/plan/night.js) ──
@@ -1203,6 +1301,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     laws.push({ law: 'town-seams', ok: worst <= TOWN_SEAM.tol, value: `${seen} points round ${seamsOf.length} composed town${seamsOf.length === 1 ? '' : 's'}: their ground and the metro's apart by ${worst.toFixed(2)} m at most${where}`, want: `within ${TOWN_SEAM.tol} m (a kerb's)` });
   }
   counts.colliders = colliders.length;
+  if (!Object.keys(counts.industry).length) delete counts.industry;
   laws.push(...netLaws);
   const bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
   const kinds = d.regions.flatMap((r) => r.blocks).reduce((acc, b) => ({ ...acc, [b.kind]: (acc[b.kind] ?? 0) + 1 }), {});
@@ -1246,6 +1345,14 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (none of them an occluder in the ambient bake: a parked car, a machine, a window darkens nothing the bake needs)
     for (const r of carRepeats(vehicles, { group: 'geocity:vehicle', ...(F ? { pool: F.kinds } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, ...kit });
     for (const [arch, transforms] of [...machines].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:machine-${arch}`, template: siteFaces(LIGHT, `m:${arch}`, () => assembleMachine(arch, { laws: false })), transforms, near: NEAR, occlude: false, ...kit });
+    // (its industry's pieces, industry.js: the tall ones seen across their district, the rest near the camera)
+    if (indStamps.size) {
+      const IT = industryTemplates(LIGHT);
+      for (const [key, transforms] of [...indStamps].sort(([a], [b]) => a.localeCompare(b))) {
+        const [name, ax] = key.split(':');
+        repeats.push({ group: `geocity:industry-${name}`, template: ax ? IT[name][ax] : IT[name], transforms, near: INDUSTRY_FAR.includes(name) ? CRANE_NEAR : NEAR, occlude: false, ...kit });
+      }
+    }
     const FT = frontageTemplates(LIGHT, { frames: FRONT_PAINT.frame });
     for (const [key, transforms] of [...frontStamps].sort(([a], [b]) => a.localeCompare(b))) { repeats.push({ group: `geocity:front-${key.split(':')[0]}`, template: FT[key], transforms, near: NEAR, occlude: false, ...kit }); counts.frontPieces = (counts.frontPieces ?? 0) + transforms.length; }
   }
@@ -1300,7 +1407,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     counts.trees = [...trees.values()].reduce((a, l) => a + l.length, 0);
   }
   return {
-    faces, ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(counts.industry.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
@@ -1322,7 +1429,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       metro: d.metro.id, grammar: G.label, frame: d.frame, land: d.land.range, seat: d.seat, evoke: d.spec.evoke, play: d.spec.play,
       ...(E ? { evoked: { ...(E.at ? { at: E.at } : {}), ...(E.along ? { along: E.along } : {}), detail: E.blocks.length, massing: E.regions.length } } : {}),
       counts: { neighbourhoods: d.regions.length, blocks: Object.values(kinds).reduce((a, n) => a + n, 0), segments: kinds, ...counts, faces: faces.length },
-      neighbourhoods: d.regions.map((r) => ({ id: r.id, ring: r.ring, builds: r.builds, storeys: r.storeys.median, blocks: r.blocks.length, park: r.park || !!r.parkRect, ...(r.node ? { node: r.node } : {}), ...(r.beyond.length ? { beyond: r.beyond } : {}) })),
+      neighbourhoods: d.regions.map((r) => ({ id: r.id, ring: r.ring, builds: r.builds, ...(r.industrial ? { industrial: true } : {}), storeys: r.storeys.median, blocks: r.blocks.length, park: r.park || !!r.parkRect, ...(r.node ? { node: r.node } : {}), ...(r.beyond.length ? { beyond: r.beyond } : {}) })),
       graph: { nodes: d.graph.nodes.length, edges: d.graph.edges.length, beyond: d.graph.beyond },
       ...(Object.keys(towns).length ? { geotowns: towns } : {}),
       ...(UN ? { under: inside ? {

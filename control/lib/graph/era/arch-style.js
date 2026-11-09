@@ -107,6 +107,15 @@ export const MATERIAL_WORDS = Object.freeze({
     (X) => ({ params: { cut: 'pavement', face: 'floor', stone: [176, 174, 168], mortar: X.mortar, cols: 2, vary: 8, ...X.machine }, metres: 3 })),
   asphalt: W('modern', 'ground', '#3f3e3c', 'aggregate in its binder, patched and sealed',
     (X) => ({ params: { cut: 'asphalt', face: 'floor', stone: [70, 70, 72], mortar: X.mortar, vary: 8, ...X.machine }, metres: 4 })),
+  // MODERN, MADE: a shed's and a works' (matte-paint/dressed.js's made cuts): sheet steel, cladding, block, a metal roof
+  corrugated: W('modern', 'wall', '#a3a8ab', 'corrugated steel sheet, its ribs lapped at the top, fixings on the crowns, the weather streaked down',
+    (X) => ({ params: { cut: 'corrugated', stone: [163, 168, 171], mortar: X.mortar, cols: 12, ...X.machine }, metres: 3 })),
+  cladding: W('modern', 'wall', '#c7ccd0', 'insulated sheet panels, a reveal joint between each, a fastener at each corner',
+    (X) => ({ params: { cut: 'panel', stone: [199, 204, 208], mortar: [118, 122, 126], cols: 2, rows: 1, vary: 4, ...X.machine }, metres: 2.4 })),
+  cmu: W('modern', 'wall', '#bdb8ad', 'concrete block in a running bond, a coarse face, tooled joints',
+    (X) => ({ params: { cut: 'block', stone: [189, 184, 173], mortar: [150, 146, 138], rows: 10, cols: 5, ...X.machine }, metres: 2 })),
+  'standing-seam': W('modern', 'roof', '#8d949a', 'standing-seam metal, a folded rib between its pans',
+    (X) => ({ params: { cut: 'seam', stone: [141, 148, 154], mortar: X.mortar, cols: 6, ...X.machine }, metres: 3 })),
 });
 export const MATERIAL_WORD_IDS = Object.freeze(Object.keys(MATERIAL_WORDS));
 const wordsFor = (on) => MATERIAL_WORD_IDS.filter((w) => MATERIAL_WORDS[w].on === on);

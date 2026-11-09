@@ -78,7 +78,8 @@ export function blocksOf(d) {
       out[r.id] = { streets: [], blocks: [{ id: `${r.id}.park`, rect: r.rect, area: r.area, kind: 'park', ring, sides: r.sides, storeys: { median: 0, rail: [0, 0] }, surfaces: { park: r.area } }], park: r.rect, ledger: { area: r.area, streets: 0, blocks: 0, park: r.area, surfaces: { park: r.area } } };
       continue;
     }
-    const w = localRow(ring), sizes = ring === 'outskirts' ? { x: P.block.depth.map((v) => 2 * v), y: P.block.long } : { x: G.block.pitch.map((v) => v - w), y: G.block.pitch.map((v) => v - w) };
+    // (an industrial neighbourhood, design.js: its blocks big, its streets the collectors' width for its trucks)
+    const ind = !!r.industrial, w = ind ? collectorRow : localRow(ring), sizes = ind ? { x: M.industry.block, y: M.industry.block } : ring === 'outskirts' ? { x: P.block.depth.map((v) => 2 * v), y: P.block.long } : { x: G.block.pitch.map((v) => v - w), y: G.block.pitch.map((v) => v - w) };
     // the park, fitted to the streets: a strip under a block's least between it and an edge is the park's
     let pk = r.parkRect ? [...r.parkRect.rect] : null;
     if (pk) {
@@ -130,10 +131,14 @@ export function blocksOf(d) {
     const byNear = (cs) => cs.slice().sort((p, q) => near(p) - near(q));
     const calm = [...byNear(cells.filter((c) => !onAny(c, 'arterial'))), ...byNear(cells.filter((c) => onAny(c, 'arterial') && !onLong(c, 'arterial'))), ...byNear(cells.filter((c) => onLong(c, 'arterial')))];
     const Rs = R('segments');
-    const civic = ring === 'core' ? 'square' : ring === 'outskirts' ? 'school' : null, civicAt = civic && cells.length >= M.streets.civic ? calm.find((c) => civic !== 'school' || area(c.rect) >= M.streets.school) : null;
-    const mix = M.segments[ring];
+    // (an industrial neighbourhood's substation the block farthest from the seat: where its line comes in from the country)
+    const farthest = (cs) => cs.slice().sort((p, q) => Math.hypot((q.rect[0] + q.rect[2]) / 2 - d.seat[0], (q.rect[1] + q.rect[3]) / 2 - d.seat[1]) - Math.hypot((p.rect[0] + p.rect[2]) / 2 - d.seat[0], (p.rect[1] + p.rect[3]) / 2 - d.seat[1]))[0] ?? null;
+    const civic = ind ? 'substation' : ring === 'core' ? 'square' : ring === 'outskirts' ? 'school' : null, civicAt = ind ? farthest(cells) : civic && cells.length >= M.streets.civic ? calm.find((c) => civic !== 'school' || area(c.rect) >= M.streets.school) : null;
+    const mix = ind ? M.industry.segments : M.segments[ring];
     const blocks = cells.map((c) => {
       const kind = c === civicAt ? civic
+        // (industry: a warehouse's long side on an arterial, its docks off it; the rest by the metro's weights)
+        : ind ? (onLong(c, 'arterial') && (mix.warehouse ?? 0) > 0 && Rs() < 0.45 ? 'warehouse' : pick(Rs, mix))
         : ring === 'core' ? pick(Rs, mix)
           : ring === 'frame' ? (onLong(c, 'arterial') ? 'midrise' : pick(Rs, mix))
             : onLong(c, 'arterial') ? 'edge' : onLong(c, 'collector') ? 'main-street' : pick(Rs, mix);

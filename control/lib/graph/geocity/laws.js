@@ -181,11 +181,15 @@ export function geocityLaws(d) {
   out.push({ law: 'blocks', ok: !open_.length, value: open_.length ? open_.map((r) => r.id).join(', ') : `${lots.length} blocks, ${Math.round(L.streets / 1e4)} ha of their streets`, want: 'each neighbourhood' });
   const G = d.grammar, TP = d.spec.pattern;
   const rail = (ring) => (ring === 'outskirts' ? [[2 * TP.block.depth[0], 2 * TP.block.depth[1]], TP.block.long] : [G.block.pitch, G.block.pitch]);
-  const offPitch = lots.filter((b) => { const [rx, ry] = rail(b.ring), w = b.rect[2] - b.rect[0], h = b.rect[3] - b.rect[1]; return w < 0.5 * rx[0] || w > 1.5 * rx[1] || h < 0.5 * ry[0] || h > 1.5 * ry[1]; });
+  // (an industrial neighbourhood's blocks at its industry's own length, design.js)
+  const indus = new Set(built.filter((r) => r.industrial).map((r) => r.id)), isInd = (b) => indus.has(b.id.split('.')[0]);
+  const offPitch = lots.filter((b) => { const [rx, ry] = isInd(b) ? [M.industry.block, M.industry.block] : rail(b.ring), w = b.rect[2] - b.rect[0], h = b.rect[3] - b.rect[1]; return w < 0.5 * rx[0] || w > 1.5 * rx[1] || h < 0.5 * ry[0] || h > 1.5 * ry[1]; });
   out.push({ law: 'pitch', ok: offPitch.length <= 0.1 * lots.length, value: `${offPitch.length} of ${lots.length} off their ring's length`, want: '≤ 10%' });
   const ANY = ['construction', 'parking', 'vacant', 'geotown'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY] };
-  const wrong = lots.filter((b) => !OF[b.ring].includes(b.kind));
-  const civicLess = built.filter((r) => r.builds !== 'frame' && r.blocks.filter((b) => b.kind !== 'park').length >= M.streets.civic && !r.blocks.some((b) => b.kind === 'square' || b.kind === 'school'));
+  OF.industry = ['works', 'warehouse', 'storage', 'tanks', 'substation', ...ANY];
+  const wrong = lots.filter((b) => !OF[isInd(b) ? 'industry' : b.ring].includes(b.kind));
+  // (an industrial neighbourhood's civic block its substation, every one of them)
+  const civicLess = built.filter((r) => (r.industrial ? !r.blocks.some((b) => b.kind === 'substation') : r.builds !== 'frame' && r.blocks.filter((b) => b.kind !== 'park').length >= M.streets.civic && !r.blocks.some((b) => b.kind === 'square' || b.kind === 'school')));
   out.push({ law: 'segments', ok: !wrong.length && civicLess.length <= Math.ceil(0.2 * built.length), value: `${Object.entries(lots.reduce((m, b) => ({ ...m, [b.kind]: (m[b.kind] ?? 0) + 1 }), {})).map(([k, n]) => `${k} ${n}`).join(', ')}${wrong.length ? `; ${wrong.length} off their ring` : ''}${civicLess.length ? `; no civic block in ${civicLess.map((r) => r.id).join(', ')}` : ''}`, want: 'each its ring\'s' });
   const short = built.filter((r) => r.soft < 0.9 * r.green);
   out.push({ law: 'soft', ok: short.length <= Math.ceil(0.2 * built.length), value: `${Math.round(L.green.soft / 1e4)} ha green ground${short.length ? `; ${short.length} short of their quota (${short.slice(0, 5).map((r) => r.id).join(', ')}${short.length > 5 ? '…' : ''})` : ''}`, want: '≥ 90% each, most of them' });

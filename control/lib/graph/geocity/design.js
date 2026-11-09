@@ -259,7 +259,10 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   // town's; then the blocks inside every other neighbourhood, the park fitted to its streets
   const towns = townsOf({ seed, regions, metro: M }, T, L.N, S);
   for (const r of regions) if (towns[r.id]) { r.geotown = towns[r.id]; delete r.parkRect; }
-  const Bs = blocksOf({ seed, metro: M, grammar: G, spec: T, regions, heights: { storeysAt: Hs.storeysAt } });
+  // (its INDUSTRY: a share of its outskirts' neighbourhoods, the land's edge's and the shore's first, far from the seat,
+  // each one after the first drawn toward those already given; their blocks the industrial segments, blocks.js)
+  for (const id of industryOf(regions, M, seed)) { const r = regions.find((x) => x.id === id); r.industrial = true; delete r.parkRect; }
+  const Bs = blocksOf({ seed, metro: M, grammar: G, spec: T, regions, seat, heights: { storeysAt: Hs.storeysAt } });
   // (profiled: inside each neighbourhood its collectors and locals laid the same, its edges kept on its arterials'
   // ground; the metro's streets' ground its neighbourhood's where one is profiled, its arterials' elsewhere)
   const inner = {};
@@ -316,6 +319,18 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
     d.laws.push(evokesLaw(d, ref));
   }
   return d;
+}
+
+/** The neighbourhoods built as industry: `share` of the outskirts' (none a park or a geotown), each scored by its
+ *  edge to the country beyond, its shore and its distance from the seat, the dice a little, a neighbour of one given
+ *  more. → [id] */
+export function industryOf(regions, M, seed) {
+  const pool = regions.filter((r) => (r.builds ?? r.ring) === 'outskirts' && !r.park && !r.geotown), n = Math.round((M.industry?.share ?? 0) * pool.length);
+  if (n <= 0 || !pool.length) return [];
+  const far = Math.max(...pool.map((r) => r.dist)), R = streamOf(seed, 'industry', 'metro'), dice = new Map(pool.map((r) => [r.id, R()])), out = [];
+  const score = (r) => (r.beyond.length ? 2 : 0) + (r.waterfront ? 1 : 0) + r.dist / far + 0.6 * dice.get(r.id) + (out.some((id) => { const o = regions.find((x) => x.id === id); return Math.abs(o.i - r.i) + Math.abs(o.j - r.j) === 1; }) ? 1.5 : 0);
+  while (out.length < Math.min(n, pool.length)) out.push(pool.filter((r) => !out.includes(r.id)).sort((p, q) => score(q) - score(p) || (p.id < q.id ? -1 : 1))[0].id);
+  return out.sort();
 }
 
 /** What an evocation centres on, the blocks it draws at a building's detail and the neighbourhoods round them it draws

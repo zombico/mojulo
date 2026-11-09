@@ -228,7 +228,13 @@ A cube that names no domains offers one per terrain and one per interior.
   cars in its car parks; its parking blocks each a yard (`yards`: a bus depot, a works yard with
   its garbage trucks and works pickups, an emergency station with its fire engines, ambulances and police cars, the rest
   car parks); a vacant block by its construction sites their contractor's yard of mixers, tippers and loaders. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
-  streets?, segments?, roads?, grammar?, outskirts?, evoke?, at?, along?, play?, profile?, slope? }`: `profile` its streets laid
+  streets?, segments?, roads?, grammar?, outskirts?, industry?, evoke?, at?, along?, play?, profile?, slope? }`: `industry` its
+  industrial neighbourhoods (`false` none, or `{ share, segments: { works, warehouse, storage, tanks }, block: [least,
+  most] }`: a share of the outskirts' neighbourhoods, its land's edge and its shore first; big blocks: a works' corrugated
+  hall and its stack, a clad warehouse's docks and trucks, container stacks and silos, a tank farm's tanks, gas spheres or
+  a gasholder, and in each a substation of outdoor transformers, gantries and breakers, fed by a line on lattice pylons
+  in from the country beyond the land's edge; the sheds of its yards clad in corrugated steel under standing-seam
+  roofs); `profile` its streets laid
   as a hill town lays them (`true` or `{ walkable, curve }`: the arterials' crossings level, each block between graded on
   one ramp, the land's edges and its shore kept; each neighbourhood's collectors and locals the same inside it; its
   composed geotowns profiled on its ground unless their recipes say; `walkable` names a stretch too steep to walk); `slope:
