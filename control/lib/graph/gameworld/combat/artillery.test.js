@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { validateArtillery, layArtillery, artilleryOf, artilleryReadout, vehicleBase } from './artillery.js';
 import { VEHICLES, handlesOf } from '../../vehicle-registry/roster.js';
 import { MILITARY_CLASSES } from '../../car-designer/road-military.js';
+import { VEHICLES as PHYSICS } from '../../roads/vehicles.js';
 import { ORDNANCE, ORDNANCE_NAMES, DIRECT_BANDS, INDIRECT_BANDS } from './ordnance.js';
 import { MOUNTS, MOUNT_NAMES } from './mount.js';
 import { STANDS } from './terminal.js';
@@ -38,9 +39,10 @@ describe('the artillery range', () => {
     expect(validateArtillery({ base: 'boat' }).join()).toMatch(/base/);
     expect(validateArtillery({ sounds: { shot: 'no such sound at all' } }).join()).toMatch(/not a sound/);
     expect(() => artilleryOf({ ordnance: [] })).toThrow(/artillery range/);
-    // (a base from the library: a word it knows, a field vehicle; a road car carries no turret)
+    // (a base from the library: a word it knows, a vehicle the range drives; a site machine it does not)
     expect(validateArtillery({ base: { vehicle: 'no such machine at all' } }).join()).toMatch(/not a vehicle of the library/);
-    expect(validateArtillery({ base: { vehicle: 'sedan' } }).join()).toMatch(/no field vehicle/);
+    const site = Object.keys(VEHICLES).find((id) => { const H = handlesOf(id); return !H.car && !H.cycle && (H.physics ?? []).length && (H.physics ?? []).every((k) => PHYSICS[k]?.site); });
+    expect(validateArtillery({ base: { vehicle: site } }).join()).toMatch(/no vehicle the range drives/);
     expect(validateArtillery({ base: { vehicle: 'light tank', paint: 'red' } }).join()).toMatch(/base.paint/);
   });
 
@@ -75,6 +77,32 @@ describe('the artillery range', () => {
     expect(new Set(S.wheels.map((w) => Math.sign(w.x)))).toEqual(new Set([1, -1]));
     expect(Math.min(...S.wheels.map((w) => w.y))).toBeGreaterThan(0);
     expect(eight.rule.type).toBe('drive');
+  }, 30000);
+
+  it('a car of the car shelf on the range: its own build at its class\'s numbers, driven on its class, its front axle steered, a station fitted', () => {
+    const car = Object.keys(VEHICLES).find((id) => (handlesOf(id).car ?? []).length && (handlesOf(id).physics ?? []).length);
+    const B = vehicleBase({ vehicle: car });
+    expect(B.rule.type).toBe('drive');
+    expect(B.rule.vehicle).toBe(handlesOf(car).physics[0]);
+    expect(B.station).toBe(true);
+    expect(B.figure.steer.wheels).toHaveLength(2);
+    const A = artilleryOf({ base: { vehicle: car }, ordnance: ['he30'], quiet: true });
+    expect(A.road.car).toBe(handlesOf(car).car[0]);
+    expect(A.minted.pilot.turret.look.view).toBe('chase');
+    expect(artilleryReadout(A)[1]).toMatch(/drives as .* km\/h top/);
+  }, 30000);
+
+  it('a machine ridden astride: on its class\'s drive rule, leaning, its rider\'s gun aimed by hand; its rider built first', async () => {
+    // (a machine on two wheels in line, the lightest motorised one)
+    const bike = Object.keys(VEHICLES).filter((id) => { const k = (handlesOf(id).physics ?? [])[0]; return (handlesOf(id).cycle ?? []).length && PHYSICS[k]?.track === 0 && PHYSICS[k].power > 2 && !PHYSICS[k].layout; })
+      .sort((a, b) => PHYSICS[handlesOf(a).physics[0]].mass - PHYSICS[handlesOf(b).physics[0]].mass)[0];
+    expect(() => artilleryOf({ base: { vehicle: bike }, quiet: true })).toThrow(/artilleryReady/);
+    const A = artilleryOf({ base: { vehicle: bike, rider: false }, quiet: true });
+    expect(A.minted.pilot.rule.type).toBe('drive');
+    expect(A.minted.payload.figures.base.live.lean).toBe('rule');
+    expect(A.minted.pilot.turret.mount.stabilized).toBe(true);
+    expect(A.road.envelope.leans).toBe(true);
+    expect(validateArtillery({ base: { vehicle: 'sedan', rider: false } }).join()).toMatch(/base.rider/);
   }, 30000);
 
   it('the gun: its turret on its base, its rounds by key, the sight\'s marks from its flight, heard to the far field', () => {

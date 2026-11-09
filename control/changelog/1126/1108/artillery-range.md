@@ -198,3 +198,15 @@
   down on the sea short of the shore splashes, its column by its calibre and its charge. A gun stood high on a ship is
   measured laid down onto its near targets. Not yet: a model for a fitted gun, the boat's wake felt by another boat,
   rowing and sail, a submarine under the water.
+- **Cars and motorcycles on the land.** A car or a machine ridden astride is a vehicle base too (`base: { vehicle:
+  'sports car' }`, `'sedan'`, `'pickup'`, `'motocross bike'`, `'sport bike'`), driven on the drive rule at its class's own
+  row (`roads/vehicles.js`: its power, mass, drag, grip and turning radius, a 911's, a Camry's, an F-150's, a 450
+  motocross bike's, a litre sport bike's). A car is the car shelf's own build when the row names a card (its body, its
+  language, its trim and paint), else its class's realistic loft; its front axle steers, each wheel at its own angle, and
+  it is fitted the weapon station a truck is, on its roof. A motorcycle is the cycle shelf's machine ridden: its rider
+  astride (the realistic hero, built once a process: `artilleryReady(spec)` awaits it before the range is laid, or
+  `rider: false` rides it riderless), its front turned about its steering axis, the machine and its rider leaning into a
+  turn by the drive rule's own lean; its rider aims a 12.7 mm light gun fitted for the range, all round but behind, held
+  on its aim while the machine turns under it (`gameworld/combat/roadsters.js`; the shelf's ridden figure built at once
+  from a rider already solved, `cycle-figure.js` `riderOf` and `rideFigureOf`). Both start in the chase view; a car is
+  heard by its engine, a motorcycle by its own. A site machine is refused by name.

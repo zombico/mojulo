@@ -3,7 +3,7 @@
 // (terminal.js): a kinetic round through a plate it out-cuts, a blast shell's breach of a brick wall, a crater where a
 // round falls on the ground; the next round loaded by its key.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { artilleryHtml } from './artillery.js';
+import { artilleryReady, artilleryHtml } from './artillery.js';
 import { ORDNANCE, WEAPON_ROUNDS } from './ordnance.js';
 import { MECHA_ARCHETYPES } from '../../mecha-shelf/index.js';
 import { MECHA_BACKPACKS } from '../../mecha-shelf/mecha-backpacks.js';
@@ -345,4 +345,43 @@ describe('the artillery range, played', () => {
     expect(got.marks.every((m) => m.stand === 'water' && m.effect === 'splash')).toBe(true);
     expect(got.splashes).toBeGreaterThan(3);
   }, 300000);
+
+  it('a car and a motorcycle on the land: driven on their classes, the car\'s front wheels steered, the rider leaning the machine into a turn and firing on the move', async () => {
+    if (!browser) return;
+    const drive = async (base) => {
+      await artilleryReady({ base });
+      const page = await browser.newPage(), errors = [];
+      page.on('pageerror', (e) => errors.push(String(e)));
+      await page.setContent(artilleryHtml({ base, quiet: true }), { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => !!(window.__mojCtrl && window.__mojCtrl.turret), { timeout: 90000 });
+      const got = await page.evaluate(async () => {
+        const C = window.__mojCtrl, g = C.world.byId.gun, out = {};
+        const go = async (n, inp, k = 10) => { for (let i = 0; i < n; i += k) { for (let j = 0; j < k; j++) C.step(1 / 60, inp); await new Promise((r) => requestAnimationFrame(r)); } };
+        await go(10, {});
+        out.view = C.turret().view;
+        await go(240, { forward: 1 }); out.speed = g.speed;
+        // (the lean read as the turn is stepped: between frames the page's own step lets the bars back)
+        let lean = 0; for (let i = 0; i < 60; i++) { C.step(1 / 60, { forward: 1, turn: 1 }); lean = Math.max(lean, Math.abs(g.lean || 0)); if (i % 10 === 9) await new Promise((r) => requestAnimationFrame(r)); }
+        out.lean = lean; out.wheels = C.turret().wheels || null; out.heading = g.transform.heading;
+        await go(20, { lookDX: -20, lookDY: -10 }, 1);
+        const n0 = C.turret().marks.length; await go(30, { fire: 1 }, 1); await go(120, {});
+        out.marks = C.turret().marks.length - n0;
+        return out;
+      });
+      await page.close();
+      return { errors, ...got };
+    };
+    const car = await drive({ vehicle: 'sports car' });
+    expect(car.errors).toEqual([]);
+    expect(car.view).toBe('chase');
+    expect(car.speed).toBeGreaterThan(20);
+    expect(car.heading).toBeLessThan(-0.1);
+    expect(Object.values(car.wheels ?? {}).some((a) => Math.abs(a) > 0.5)).toBe(true);
+    expect(car.marks).toBeGreaterThan(0);
+    const bike = await drive({ vehicle: 'motocross bike' });
+    expect(bike.errors).toEqual([]);
+    expect(bike.speed).toBeGreaterThan(15);
+    expect(bike.lean).toBeGreaterThan(0.2);
+    expect(bike.marks).toBeGreaterThan(3);
+  }, 400000);
 });
