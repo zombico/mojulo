@@ -148,7 +148,9 @@ export function terminalLaws(byWord) {
       if (O.calib) law(`${w}: about ${O.calib.muzzle * 1000} mm of rolled armour near the muzzle, ${O.calib.far * 1000} at 2 km`, Math.abs(m.bands[ds[0]]['rha-100'].penetration - O.calib.muzzle) < 0.03 && (!m.bands[2000] || Math.abs(m.bands[2000]['rha-100'].penetration - O.calib.far) < 0.03), Object.fromEntries(ds.map((d, i) => [d, P[i]])));
       law(`${w}: a plate at 60° resists as twice its thickness`, ds.every((d) => Math.abs(m.bands[d]['rha-300-sloped'].effective - 0.6) < 1e-3), m.bands[ds[0]]['rha-300-sloped']);
       law(`${w}: it cuts deeper into concrete than into armour`, ds.every((d) => m.bands[d]['concrete-300'].penetration > m.bands[d]['rha-100'].penetration), null);
-      law(`${w}: it passes through a sandbag wall`, ds.every((d) => m.bands[d]['sandbags-600'].effect === 'hole'), null);
+      // (a long rod, eight diameters or more, goes through a sandbag wall; a bullet's or a short cannon core stops in it)
+      const long = O.rod.length / O.rod.diameter >= 8;
+      law(`${w}: ${long ? 'a long rod passes through' : 'a short core stops in'} a sandbag wall`, ds.every((d) => (m.bands[d]['sandbags-600'].effect === 'hole') === long), null);
     }
     if (O.jet) {
       const P = ds.map((d) => m.bands[d]['rha-100'].penetration);

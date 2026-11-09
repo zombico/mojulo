@@ -48,12 +48,37 @@ export const APPROACH = Object.freeze({ overStall: 1.3, flareEye: 2 });
  *            `stall` and `ceiling` are nominal, `lowPass` how near a surface it skims in a trench
  *   jet      a jet trainer (BAE Hawk class: stall ~100 kt, cruise ~400 kt, M0.84 low, 44,500 ft, ~5 t, one Adour
  *            of ~26 kN)
+ *   warbird  a piston fighter (P-51D class: stall ~100 mph, cruise ~362 mph, 437 mph, 41,900 ft, ~4.2 t, 1,490 hp)
+ *   navalWarbird  a carrier piston fighter (F4U-4 class: stall ~89 mph, cruise ~215 mph, 446 mph, 41,500 ft, ~5.6 t,
+ *            2,100 hp; its gear the deck's)
+ *   multirole  a single-engine multirole fighter (F-16 class: stall ~120 kt, cruise ~485 kt, ~M1.2 low, 50,000 ft,
+ *            ~12 t, ~129 kN with its afterburner)
+ *   deltaInterceptor  a tailless delta (Mirage III class: a high stall ~160 kt, ~M1.14 low, 56,000 ft, ~9.6 t, one
+ *            Atar of ~61 kN with its afterburner)
+ *   carrierFighter  a twin-engine carrier strike fighter (F/A-18C class: stall ~117 kt, ~M1.1 low, 50,000 ft, ~16.8 t,
+ *            two F404s of ~79 kN; its gear the deck's, its sink 7 m/s)
+ *   attack   a ground-attack jet (A-10 class: stall ~101 kt, cruise ~300 kt, 381 kt, 45,000 ft, ~14.8 t, two TF34s of
+ *            ~40 kN; it works low)
+ *   transport  a tactical transport (C-130H class: stall ~97 kt, cruise ~292 kt, 366 mph, 33,000 ft, ~70 t, four
+ *            turboprops; a transport's bank)
+ *   stealth  a stealth strike jet (F-117 class: stall ~145 kt, cruise ~M0.82, M0.92, 45,000 ft, ~23.8 t, two F404s
+ *            without afterburners)
  */
 export const CRAFT = Object.freeze({
   glider: { label: 'training glider', stall: 16, cruise: 24, max: 44, ceiling: 3000, lowPass: 30, bankMax: 45, sink: 2, engine: false, mass: 470, thrust: 0, glide: 23 },
   trainer: { label: 'piston trainer', stall: 25, cruise: 63, max: 84, ceiling: 4100, lowPass: 60, bankMax: 60, sink: 3, engine: true, mass: 1090, thrust: 2900, glide: 9 },
   fighter: { label: 'space fighter', stall: 20, cruise: 100, max: 160, ceiling: 20000, lowPass: 20, bankMax: 80, sink: 3, engine: true, mass: 10000, thrust: 64000, glide: 10, space: true },
   jet: { label: 'jet trainer', stall: 52, cruise: 206, max: 285, ceiling: 13500, lowPass: 150, bankMax: 80, sink: 3.6, engine: true, mass: 5000, thrust: 26000, glide: 12 },
+  // the craft shelf's military classes, each its type's published figures (thrust a jet's static, with its afterburner
+  // where it has one; a propeller's its power at climb speed)
+  warbird: { label: 'piston fighter', stall: 45, cruise: 160, max: 195, ceiling: 12700, lowPass: 50, bankMax: 80, sink: 3.5, engine: true, mass: 4200, thrust: 12000, glide: 14 },
+  navalWarbird: { label: 'carrier piston fighter', stall: 40, cruise: 96, max: 199, ceiling: 12600, lowPass: 50, bankMax: 80, sink: 4, engine: true, mass: 5600, thrust: 16700, glide: 12 },
+  multirole: { label: 'multirole jet fighter', stall: 62, cruise: 250, max: 410, ceiling: 15200, lowPass: 100, bankMax: 85, sink: 3.6, engine: true, mass: 12000, thrust: 129000, glide: 8 },
+  deltaInterceptor: { label: 'delta interceptor', stall: 82, cruise: 265, max: 390, ceiling: 17000, lowPass: 120, bankMax: 85, sink: 3.6, engine: true, mass: 9600, thrust: 60800, glide: 7 },
+  carrierFighter: { label: 'carrier strike fighter', stall: 60, cruise: 240, max: 380, ceiling: 15000, lowPass: 100, bankMax: 85, sink: 7, engine: true, mass: 16800, thrust: 158000, glide: 8 },
+  attack: { label: 'ground-attack jet', stall: 52, cruise: 155, max: 196, ceiling: 13700, lowPass: 30, bankMax: 80, sink: 3.6, engine: true, mass: 14800, thrust: 80600, glide: 11 },
+  transport: { label: 'tactical transport', stall: 50, cruise: 150, max: 164, ceiling: 10000, lowPass: 60, bankMax: 45, sink: 3, engine: true, mass: 70000, thrust: 120000, glide: 15 },
+  stealth: { label: 'stealth strike', stall: 75, cruise: 250, max: 290, ceiling: 13700, lowPass: 100, bankMax: 70, sink: 3.6, engine: true, mass: 23800, thrust: 96000, glide: 10 },
 });
 
 const FIELDS = ['stall', 'cruise', 'max', 'ceiling', 'lowPass', 'bankMax'];

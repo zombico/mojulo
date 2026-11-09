@@ -13,6 +13,9 @@
  *          stabilized  true: the gun holds its aim in the world while its base turns (as fast as its rates allow);
  *                      false or absent: the aim is carried by the base, as a crank-laid gun's is
  *          look        degrees the aim moves for a pixel of the hand (absent: 0.08)
+ *          fixed       true (opt-in): a gun fixed along its base's nose, an aircraft's: nothing slews, the hand's look is
+ *                      left to the base (the fly rule pitches by it), the round fired along the nose, pitch and all,
+ *                      carrying the craft's own velocity (its airspeed along its nose)
  *   gun    barrel      metres from the trunnion to the muzzle
  *   rounds (opt-in) the rounds the gun may load (weapon rows, gameworld/combat/ordnance.js): `input.slot` n loads the nth,
  *          the breech empty until its reload is done (the entity's weapon is the loaded round); a round's own `at` and
@@ -29,7 +32,8 @@
  * Field ownership: e.turret.yaw / pitch (the mount: yaw off the base's heading, the barrel's elevation, °), .vy / .vp (its
  * slew, °/s), .ty0 / .tp0 (the last step's ask on the mount), .h0 (the base's heading at the last step), .loaded (the round in
  * the breech, its index in .rounds), .want ({ yaw, pitch }: where the hand asks, in the world when stabilized, on the base when not), .muzzle,
- * .dir (the barrel's world point and direction, read by the page and the measures).
+ * .dir (the barrel's world point and direction, read by the page and the measures); a fixed gun's round its .carried
+ * (the craft's velocity added).
  */
 export function buildTurret(E) {
   const step = E.stepWorld;
@@ -64,8 +68,10 @@ export function buildTurret(E) {
     const T = e.turret, m = T.mount || {}, t = e.transform, h = t.heading * 180 / Math.PI, R = T.rounds && T.rounds[T.loaded || 0];
     // (a body of two forms carries its mount elsewhere in each: the round's own place in the form it is in, `atForm`)
     const at = (R && R.atForm && e.form && R.atForm[e.form]) || (R && R.at) || m.at || [0, 0, 0], ch = Math.cos(t.heading), sh = Math.sin(t.heading);
-    const piv = [t.pos[0] + ch * at[0] - sh * -(at[1] || 0), t.pos[1] + sh * at[0] + ch * -(at[1] || 0), t.pos[2] + (at[2] || 0)];
-    const yw = (h + T.yaw) * D, el = T.pitch * D, dir = [Math.cos(el) * Math.cos(yw), Math.cos(el) * Math.sin(yw), Math.sin(el)];
+    // (a fixed gun, an aircraft's: along the airframe's nose, its place pitched with it)
+    const bp = m.fixed ? (t.pitch || 0) : 0, cp = Math.cos(bp), sp = Math.sin(bp), af = at[0] * cp - (at[2] || 0) * sp, au = at[0] * sp + (at[2] || 0) * cp;
+    const piv = [t.pos[0] + ch * af - sh * -(at[1] || 0), t.pos[1] + sh * af + ch * -(at[1] || 0), t.pos[2] + au];
+    const yw = (h + T.yaw) * D, el = T.pitch * D + bp, dir = [Math.cos(el) * Math.cos(yw), Math.cos(el) * Math.sin(yw), Math.sin(el)];
     const L = (R && R.barrel) || (T.gun && T.gun.barrel) || 0;
     T.dir = dir; T.muzzle = [piv[0] + dir[0] * L, piv[1] + dir[1] * L, piv[2] + dir[2] * L];
     return T;
@@ -84,6 +90,12 @@ export function buildTurret(E) {
     const T = e.turret, m = T.mount || (T.mount = {}), tr = m.traverse || {}, el = m.elevation || {};
     if (T.loaded === undefined) T.loaded = 0;
     if (input.slot) load(e, input.slot);
+    // (a fixed gun: nothing to slew; the look is the craft's to fly by, the round fired along its nose)
+    if (m.fixed) {
+      T.yaw = 0; T.pitch = 0; T.vy = 0; T.vp = 0; T.want = { yaw: 0, pitch: 0 };
+      place(e);
+      return { ...input, ...(T.rounds ? { slot: 0 } : {}), aim: { from: T.muzzle.slice(), dir: T.dir.slice() } };
+    }
     const h = e.transform.heading * 180 / Math.PI;
     if (T.yaw === undefined) { T.yaw = into(0, tr); T.pitch = into(0, el); T.vy = 0; T.vp = 0; T.want = m.stabilized ? { yaw: h + T.yaw, pitch: T.pitch } : { yaw: T.yaw, pitch: T.pitch }; }
     // (the hand: the page's look is already the view's way round, a positive lookDX left, a positive lookDY up, as the
@@ -121,7 +133,13 @@ export function buildTurret(E) {
   E.stepWorld = function stepWithTurret(state, input, dt, hooks) {
     const p = state.pilotId ? state.byId[state.pilotId] : null;
     const inp = p && p.turret && input ? aim(p, input, dt) : input;
+    const seq0 = state.projSeq || 0;
     const out = step(state, inp, dt, hooks);
+    // (a fixed gun's rounds leave with the craft's own velocity, its airspeed along its nose, as a fired round does)
+    if (p && p.turret && p.turret.mount && p.turret.mount.fixed && (state.projSeq || 0) > seq0 && p.airspeed > 0) {
+      const v = p.airspeed, h = p.transform.heading, pt = p.transform.pitch || 0, u = [Math.cos(pt) * Math.cos(h), Math.cos(pt) * Math.sin(h), Math.sin(pt)];
+      for (const q of state.projectiles || []) if (q.owner === p.id && !q.carried) { q.vel[0] += u[0] * v; q.vel[1] += u[1] * v; q.vel[2] += u[2] * v; q.carried = true; }
+    }
     // (every turret's barrel placed where its base now stands: the page draws it, a measure reads it)
     for (const e of state.entities) if (e.turret && e.turret.yaw !== undefined) place(e);
     return out;

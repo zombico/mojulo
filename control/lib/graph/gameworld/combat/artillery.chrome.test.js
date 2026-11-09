@@ -235,4 +235,30 @@ describe('the artillery range, played', () => {
     expect(got.wheels.wheelFR).toBeGreaterThan(got.wheels.wheelFL);
     expect(got.wheels.wheelFR).toBeGreaterThan(got.wheels.wheelRR);
   }, 240000);
+
+  it('an aircraft: flown from the chase, its fixed gun fired in a dive, its rounds marked where they strike', async () => {
+    if (!browser) return;
+    const html = artilleryHtml({ base: { aircraft: 'jet fighter' }, quiet: true });
+    const page = await browser.newPage(), errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!(window.__mojCtrl && window.__mojCtrl.turret), { timeout: 90000 });
+    const got = await page.evaluate(() => {
+      const C = window.__mojCtrl, g = C.world.byId.gun, out = {};
+      const go = (n, inp) => { for (let i = 0; i < n; i++) C.step(1 / 60, inp); };
+      go(60, {});
+      out.view = C.turret().view; out.v = g.airspeed; out.z = g.transform.pos[2];
+      go(40, { lookDY: -6 });
+      const n0 = C.turret().marks.length; go(40, { fire: 1 }); go(240, {});
+      out.marks = C.turret().marks.slice(n0); out.pitch = g.transform.pitch;
+      return out;
+    });
+    await page.close();
+    expect(errors).toEqual([]);
+    expect(got.view).toBe('chase');
+    expect(got.z).toBeGreaterThan(200);
+    expect(got.v).toBeGreaterThan(200);
+    expect(got.marks.length).toBeGreaterThan(3);
+    expect(got.marks.some((m) => m.stand === 'ground' && m.effect === 'crater')).toBe(true);
+  }, 240000);
 });

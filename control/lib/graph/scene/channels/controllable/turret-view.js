@@ -101,7 +101,7 @@ function __tvBuild(e) {
 // a base drawn as its own figure (a tank from the vehicle library: its 'turret' bone, and its 'gun' bone where it has one,
 // car-designer/military.js 'gun') is turned on the rig itself, each frame, as the controllable channel poses it: the gun
 // elevated about its trunnion, then both turned about the turret's ring; hidden from the gunner's own sight
-const __tvQY = new THREE.Quaternion(), __tvQP = new THREE.Quaternion(), __tvO = new THREE.Vector3(), __TV_Z = new THREE.Vector3(0, 0, 1), __TV_X = new THREE.Vector3(1, 0, 0);
+const __tvQY = new THREE.Quaternion(), __tvQP = new THREE.Quaternion(), __tvO = new THREE.Vector3(), __TV_Z = new THREE.Vector3(0, 0, 1), __TV_X = new THREE.Vector3(1, 0, 0), __TV_Y = new THREE.Vector3(0, 1, 0);
 function __tvRigBone(e, fig, bi, Q, P, mesh) {
   // (a twin-mount gun's bones by their side: 'turretR' and 'gunR' turn together, 'turretL' and 'gunL')
   // (each body's mesh kept: a base transforming on the range stays solid, its beat's shimmer a game's tell, not a gun's)
@@ -119,6 +119,8 @@ function __tvRigBone(e, fig, bi, Q, P, mesh) {
       return;
     }
   }
+  // (a craft's propeller turned about its nose, faster with its throttle)
+  if (fig.bones[bi].id === 'prop' && e.rule && e.rule.type === 'fly') { __tvQP.setFromAxisAngle(__TV_Y, ((__world.time || 0) * (30 + 60 * (e.throttle || 0))) % (2 * Math.PI)); Q.premultiply(__tvQP); return; }
   const k = /^(turret|gun)(.*)$/.exec(fig.bones[bi].id);
   if (!k) return;
   const T = e.turret, map = fig.__tvTi || (fig.__tvTi = {}), ti = map[k[2]] !== undefined ? map[k[2]] : (map[k[2]] = fig.bones.findIndex((b) => b.id === 'turret' + k[2]));
@@ -165,9 +167,11 @@ function __tvCamera(g, dt) {
     const t = g.transform, H = (T.look && T.look.size) || 4, C = __TV.chase || (__TV.chase = { yaw: t.heading });
     const k = 1 - Math.exp(-(dt || 1 / 60) / (0.25 + 0.06 * H)), dh = Math.atan2(Math.sin(t.heading - C.yaw), Math.cos(t.heading - C.yaw));
     C.yaw += dh * k;
-    const back = 2 * H + 4.5, up = 0.65 * H + 1.5, fx = Math.cos(C.yaw), fy = Math.sin(C.yaw);
-    camera.position.set(t.pos[0] - fx * back, t.pos[1] - fy * back, t.pos[2] + up);
-    camera.up.set(0, 0, 1); camera.lookAt(t.pos[0] + fx * H * 1.5, t.pos[1] + fy * H * 1.5, t.pos[2] + H * 0.7);
+    // (a craft's chase follows its climb and its dive too: behind it along its flight path)
+    const fp = g.rule && g.rule.type === 'fly' ? (t.pitch || 0) : 0, cp = Math.cos(fp), spp = Math.sin(fp);
+    const back = 2 * H + 4.5, up = 0.65 * H + 1.5, fx = Math.cos(C.yaw) * cp, fy = Math.sin(C.yaw) * cp;
+    camera.position.set(t.pos[0] - fx * back, t.pos[1] - fy * back, t.pos[2] - spp * back + up);
+    camera.up.set(0, 0, 1); camera.lookAt(t.pos[0] + fx * H * 1.5, t.pos[1] + fy * H * 1.5, t.pos[2] + spp * H * 1.5 + H * 0.7);
     if (Math.abs(camera.fov - 55) > 1e-6) { camera.fov = 55; camera.updateProjectionMatrix(); }
   } else if (__TV.view === 3) {
     // (beside the base, square to its heading on its right, framing all of it: look.size its height, a tank's 4 m)
@@ -251,7 +255,8 @@ function __tvSound(g, dt) {
   const p = g.transform.pos, L = __tvHeard.last, v = L && dt > 0 ? Math.hypot(p[0] - L[0], p[1] - L[1]) / dt : 0;
   __tvHeard.last = [p[0], p[1], p[2]];
   const vmax = (g.rule && (g.rule.topSpeed || g.rule.speed)) || 6, pace = Math.min(1, v / vmax), walking = !!A.legs && g.form !== 'tank' && g.transformT == null;
-  if (__tvHeard.eng) __tvHeard.eng.set(Math.min(1, 0.1 + 0.9 * pace));
+  // (an aircraft's engine by its throttle lever, a ground machine's by its pace)
+  if (__tvHeard.eng) __tvHeard.eng.set(A.throttle ? Math.min(1, g.throttle || 0) : Math.min(1, 0.1 + 0.9 * pace));
   if (__tvHeard.hyd) __tvHeard.hyd.set(walking && g.moving ? Math.max(0.2, pace) : 0);
   // (each foot's count of plantings kept while it walks, standing or not: a footfall as one is added on the move)
   if (walking && A.step) {
@@ -264,6 +269,8 @@ function __tvFrame(dt) {
   for (const e of __world.entities) if (e.__tvMeshes) { for (const m of e.__tvMeshes) if (m.material) { m.material.opacity = 1; m.material.transparent = false; } if (e.transformT == null) e.__tvMeshes = null; }
   for (const e of __world.entities) if (e.turret && e.turret.dir) __tvPose(e);
   if (!g || !g.turret.dir) return;
+  // (a base that asks for it starts in the chase: an aircraft, flown from behind)
+  if (!__TV.v0) { __TV.v0 = true; if (g.turret.look && g.turret.look.view === 'chase') { __TV.view = 1; __TV.sight = false; __tvReticle(); } if (g.rule && g.rule.type === 'fly') __tvPanel.style.bottom = '160px'; }   // (a craft's flight instruments sit below)
   __tvCamera(g, dt);
   __tvAimPip(g);
   __tvSound(g, dt);

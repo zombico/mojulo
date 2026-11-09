@@ -42,6 +42,24 @@ export const ORDNANCE = Object.freeze({
   rocket: Object.freeze({ label: '70 mm unguided rocket', kind: 'blast', caliber: 70, mass: 6, v0: 700, drag: 1.5e-4, dispersion: 6, fuse: 15, filler: 1.0 }),
   // a launcher's missile fired without its guidance (a 150 mm body, a heavy warhead): slower, steadier than a rocket
   missile: Object.freeze({ label: 'a launcher\'s missile, fired unguided', kind: 'blast', caliber: 150, mass: 40, v0: 500, drag: 6e-5, dispersion: 3, fuse: 30, filler: 8 }),
+  // an aircraft's guns (the craft shelf's): a heavy machine gun's armour-piercing bullet (12.7 mm, a hard core), a rotary
+  // or revolver cannon's 20 mm armour-piercing incendiary (its hard core) and high-explosive incendiary shell, and a
+  // tank-busting rotary cannon's 30 mm armour-piercing incendiary (a depleted-uranium core)
+  ap127: Object.freeze({ label: '12.7 mm armour-piercing', kind: 'kinetic', caliber: 12.7, mass: 0.046, v0: 890, drag: 1.5e-4, dispersion: 3, fuse: 6, filler: 0,
+    rod: Object.freeze({ length: 0.06, diameter: 0.0108, density: 17600 }) }),
+  api20: Object.freeze({ label: '20 mm armour-piercing incendiary', kind: 'kinetic', caliber: 20, mass: 0.1, v0: 1030, drag: 3e-4, dispersion: 1, fuse: 6, filler: 0,
+    rod: Object.freeze({ length: 0.06, diameter: 0.012, density: 17600 }) }),
+  he20: Object.freeze({ label: '20 mm high-explosive incendiary', kind: 'blast', caliber: 20, mass: 0.1, v0: 1030, drag: 5e-4, dispersion: 1, fuse: 6, filler: 0.011 }),
+  api30: Object.freeze({ label: '30 mm armour-piercing incendiary (a depleted-uranium core)', kind: 'kinetic', caliber: 30, mass: 0.425, v0: 1010, drag: 1.2e-4, dispersion: 1, fuse: 8, filler: 0,
+    rod: Object.freeze({ length: 0.1, diameter: 0.02, density: 18600 }) }),
+});
+/** An aircraft's gun (the craft shelf's gun parts, craft-shelf/craft-odm.js): its rounds, its rate (rounds a second, as
+ *  the range fires it: a rotary's own is far more, held here so a page keeps up) and the rounds it carries a gun. */
+export const AIR_GUNS = Object.freeze({
+  'gun-heavy-mg': Object.freeze({ label: 'heavy machine gun', rounds: Object.freeze(['ap127']), rof: 13, load: 400 }),
+  'gun-rotary-20': Object.freeze({ label: '20 mm rotary cannon', rounds: Object.freeze(['api20', 'he20']), rof: 25, load: 511 }),
+  'gun-revolver-30': Object.freeze({ label: '30 mm revolver cannon', rounds: Object.freeze(['apds30', 'he30']), rof: 20, load: 125 }),
+  'gun-rotary-30': Object.freeze({ label: '30 mm rotary cannon', rounds: Object.freeze(['api30', 'he30']), rof: 25, load: 1174 }),
 });
 /** The rounds a mecha shelf weapon fires on the range (mecha-shelf/mecha-backpacks.js MECHA_WEAPONS): an autocannon its
  * two, a pod its rocket, a howitzer its shells, a launcher its missile unguided; a small arm, a sensor or a crate none
@@ -173,7 +191,9 @@ export function ordnanceLaws(m, all = {}) {
   const direct = Object.values(all).filter((x) => !ORDNANCE[x.ordnance].indirect);
   if (direct.length > 1 && m === direct[0]) {
     const far = Math.max(...Object.keys(direct[0].bands).map(Number)), by = [...direct].sort((a, b) => a.bands[far].tof - b.bands[far].tof);
-    law('at the far band, the round that arrives sooner is laid lower', by.every((x, i) => i === 0 || x.bands[far].elev > by[i - 1].bands[far].elev), Object.fromEntries(by.map((x) => [x.ordnance, [x.bands[far].elev, x.bands[far].tof]])));
+    // (of two that arrive apart, a tenth of the flight or more: near together, a draggy round's drag slows its fall too)
+    const apart = (a, b) => b.bands[far].tof > 1.1 * a.bands[far].tof;
+    law('at the far band, the round that arrives sooner is laid lower', by.every((x, i) => by.slice(0, i).every((y) => !apart(y, x) || x.bands[far].elev > y.bands[far].elev)), Object.fromEntries(by.map((x) => [x.ordnance, [x.bands[far].elev, x.bands[far].tof]])));
   }
   return L;
 }

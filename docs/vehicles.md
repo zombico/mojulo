@@ -91,6 +91,8 @@ The frames:
 
 [craft-shelf/](../control/lib/graph/craft-shelf/) is the ODM inventory of aircraft, rotorcraft and spacecraft parts.
 It assembles whole craft by archetype. The flight-game map is [flight-games.md](flight-games.md).
+The armed aircraft fly the artillery range on the fly rule, each at its type's envelope in the skyscape's `CRAFT`, its
+gun fixed along its nose: `gameworld/combat/aircraft.js`.
 
 Boats are on the same shelf: `boat-odm.js`, `boat-parts.js` and `boat-archetypes.js`.
 

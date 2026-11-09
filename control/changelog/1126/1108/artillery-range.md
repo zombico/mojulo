@@ -140,3 +140,16 @@
   heavy utility vehicle's roof ring, the truck's and the launcher's cab hatch ring) or else on its roof. A wheeled one
   steers its front axle (an eight-wheeler its front two), each wheel drawn at its own angle from the drive rule's own
   steering. The views stand back by a vehicle's size (its height, or a long one's share of its length).
+- **The aircraft.** The craft shelf's armed aircraft fly the range (`base: { aircraft }`: the warbird, the naval
+  warbird, the jet fighter, the delta interceptor, the carrier fighter, the attack jet) on the fly rule the civilian
+  trainer and jet already flew, each at its class's envelope in the skyscape's `CRAFT` from its type's published figures
+  (stall, cruise, top speed, ceiling, bank, sink, mass and thrust: a P-51D's, an F4U-4's, an F-16's, a Mirage III's, an
+  F/A-18C's, an A-10's; a transport's and a stealth jet's beside them). Each is drawn as its shelf rig, gear up, banked
+  and pitched as it flies, its propeller spinning. Its gun is fixed along its nose (the turret's new `fixed` mount: the
+  mouse flies it, the gun pitches with the airframe), fired at its calibre's rate from its load: a heavy machine gun, a
+  20 mm rotary cannon, a 30 mm revolver or rotary cannon (`AIR_GUNS`, with their rounds), a pair of wing guns from
+  between them. Its rounds leave at the gun's speed plus the craft's. It starts aloft behind the firing line at its
+  cruise, its lever set where its cruise holds, kept to the range by the rule's bound; mouse pitch, A / D bank, W / S
+  throttle, a chase view with an aim pip, a prop or jet engine heard by its throttle. Each envelope is its registry row's `sky` handle, so the
+  flight door's `craft` word flies them too. An aircraft with no gun on the range (the transport, the stealth jet) is
+  refused by name. Not yet: helicopters, bombs and missiles, landing, a crash.
