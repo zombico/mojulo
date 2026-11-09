@@ -175,3 +175,26 @@
   the engine heard is the helicopter's or a new multirotor buzz (`drone-motors`). Every rotorcraft is armed; the
   fixed-wing recon drones (hand-launched, twin-boom, quadplane, flying wing) are refused by name. Not yet: a model for
   the door gun and the pod, bombs from the fixed wings, landing on a pad, a crash.
+- **Boats driven on the water.** A boat of the craft shelf is a base (`base: { boat: 'combat rhib' }`, `'center
+  console'`, `'patrol boat'`, `'navy patrol boat'`, `'landing craft'`, `'destroyer'`, `'aircraft carrier'`,
+  `'submarine'` on the surface), driven on a new opt-in `boat` rule (`worlds/controllable/rules-boat.js`) at its class's
+  figures (`craft-shelf/boat-drive.js`: its shaft power, its top speed, its turning circle, a 20 hp skiff's to a
+  carrier's 260,000 shp): its throttle a lever that stays where it is set; its thrust its power over its speed, capped
+  standing at its bollard pull (a ship's big screws pull less a watt than an outboard); its hull's resistance set so its
+  power holds it at its top speed, a planing hull's hump below its planing speed (it climbs onto the plane bow up and runs
+  flatter on it) and a displacing hull's wall past its hull speed; its helm on its turning circle slow and no tighter
+  than its hull's grip fast (about 0.6 g planing, far less for a ship), an outboard's or a jet's thrust turned so it
+  turns standing, a rudder needing way; it slides out of a fast turn; it floats at its waterline on the swell, heaving,
+  pitching and rolling with the water under its ends and sides, banking into a turn on the plane, heeling out of it
+  displacing; the bottom within its draft runs it aground. The range is laid at sea for it: the water up to a shore 150 m
+  out, its bottom 8 m down, a beach to the land, the stands inland. The water is drawn live about it
+  (`scene/channels/controllable/boat-water.js`): one sheet fine near the hull and widening to the horizon, its swell the
+  rule's own, its Kelvin wake at its speed now (its wake's numbers at a ladder of its speeds, `boat-wake.js`), the white
+  water near the hull, a trail of foam where its stern has been (so a turn leaves its curve), spray off its chines and its
+  rooster tails on the plane. Its gun is its own, turned on its mount's bone (the RHIB's and the riverine boat's bow
+  machine gun, the landing craft's ring mount, the navy patrol boat's 30 mm cannon, the destroyer's 127 mm gun with its
+  high-explosive shell and its high arc onto the far field, the carrier's close-in gun) or a heavy machine gun fitted at
+  the bow of a boat built unarmed (the submarine's on its sail); its rounds carry the boat's way, and a round that comes
+  down on the sea short of the shore splashes, its column by its calibre and its charge. A gun stood high on a ship is
+  measured laid down onto its near targets. Not yet: a model for a fitted gun, the boat's wake felt by another boat,
+  rowing and sail, a submarine under the water.

@@ -106,6 +106,9 @@ Boats are on the same shelf: `boat-odm.js`, `boat-parts.js` and `boat-archetypes
   - `worlds/seaway-scene.js` and the `seaway` channel run it round a course on the World page's live water.
   - The wake's Kelvin field is `kelvin.js`.
 - Review renders: `scripts/render-boats.mjs`.
+- Driven: a boat's class figures (its power, its top speed, its turning circle) and its wake at each of its speeds are
+  `boat-drive.js`; the boat rule drives it (`worlds/controllable/rules-boat.js`), the artillery range at sea arms it and
+  draws its water (`gameworld/combat/boats.js`, `scene/channels/controllable/boat-water.js`).
 
 ## Rail: the rail shelf
 

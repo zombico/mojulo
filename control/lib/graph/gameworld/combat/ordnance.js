@@ -162,10 +162,12 @@ export function measureOrdnance(word, { mount = 'battle-tank', bands = null } = 
   const O = ORDNANCE[word], out = { ordnance: word, kind: O.kind, v0: O.v0, drag: O.drag, mount: typeof mount === 'string' ? mount : 'its own', bands: {} };
   if (O.drop) return measureDrop(word, bands, out);
   if (!O.indirect) {
+    // (a gun stood high, a ship's, laid down onto a near target: its search reaches below the line down to it)
+    const mat = (typeof mount === 'string' ? mountOf(mount) : mount).mount.at ?? [0, 0, 0], up = mat[2] ?? 0;
     for (const d of bands ?? DIRECT_BANDS) {
       // the elevation to put the round through the target's centre at d
       const height = (e) => { const c = at(shoot(word, e, mount).paths[0], d); return c ? c.z - AIM : -1e3; };
-      const e = solve(height, -3, 20);
+      const e = solve(height, Math.min(-3, -(Math.atan2(up, Math.max(1, d - (mat[0] ?? 0))) * 180) / Math.PI - 2), 20);
       const hit = at(shoot(word, e, mount).paths[0], d);
       // the drop: the gun laid level, where the round passes below its bore's line at d (stood high, so no ground meets
       // it first)

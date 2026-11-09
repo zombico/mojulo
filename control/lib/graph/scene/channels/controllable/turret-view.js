@@ -127,6 +127,16 @@ function __tvRigBone(e, fig, bi, Q, P, mesh) {
     const id = fig.bones[bi].id, tail = /tail/i.test(id), sg = /(^|[a-z])(F|A|C|front)/.test(id) === /-r$/.test(id) ? 1 : -1;
     __tvQP.setFromAxisAngle(tail ? __TV_X : __TV_Z, (sg * (__world.time || 0) * (24 + 30 * (e.throttle || 0))) % (2 * Math.PI)); Q.premultiply(__tvQP); return;
   }
+  // (a boat's gun on its own mount's bone, named by the range (its mount, its gun and its shield in one): turned about its
+  // own place by the mount's yaw; its other gun bones stand)
+  const GB = e.turret && e.turret.look && e.turret.look.gunBone;
+  if (GB) {
+    if (fig.bones[bi].id !== GB) return;
+    __tvQY.setFromAxisAngle(__TV_Z, (e.turret.yaw || 0) * Math.PI / 180); Q.premultiply(__tvQY);
+    mesh.visible = !(__TV.sight && e.id === __world.pilotId);
+    __TV.rig = { yaw: e.turret.yaw, pitch: e.turret.pitch };
+    return;
+  }
   const k = /^(turret|gun)(.*)$/.exec(fig.bones[bi].id);
   if (!k) return;
   const T = e.turret, map = fig.__tvTi || (fig.__tvTi = {}), ti = map[k[2]] !== undefined ? map[k[2]] : (map[k[2]] = fig.bones.findIndex((b) => b.id === 'turret' + k[2]));
@@ -212,6 +222,14 @@ function __tvStrike(g, rec, q) {
   if (!R) return;
   const K = __TV.kernels[g.id] || (__TV.kernels[g.id] = __terminalKernel(R.ordnance, R.matter));
   const stand = __tvStandAt(R, q), v = rec.vel, sp = Math.hypot(v[0], v[1], v[2]) || 1;
+  // (on a boat's range a round that comes down on the sea short of the shore splashes: its column the water's, thrown
+  // by its calibre and its charge: boat-water.js)
+  if (!stand && R.sea && q[0] < R.sea.shore) {
+    const O = R.ordnance[rec.word] || {};
+    if (window.__mojSplash) window.__mojSplash(q[0], q[1], (O.caliber || 20) / 1000, O.filler || 0);
+    __TV.marks.push({ stand: 'water', effect: 'splash', perforated: false, word: rec.word, v: Math.round(sp) });
+    return;
+  }
   // (a face's normal: a roof's up, a wall's back along the line, a sloped plate's laid back by its angle)
   const sa = stand && stand.angle ? stand.angle * Math.PI / 180 : 0;
   const n = stand && stand.face === 'top' ? [0, 0, 1] : stand ? [-Math.cos(sa), 0, Math.sin(sa)] : [0, 0, 1];
@@ -307,6 +325,9 @@ function __tvFrame(dt) {
     let best = null, bd = 1e9;
     for (const [id, r] of __TV.seen) { if (live.has(id) || !r.pos) continue; const d = Math.hypot(r.pos[0] - b.pos[0], r.pos[1] - b.pos[1], r.pos[2] - b.pos[2]); if (d < bd) { bd = d; best = id; } }
     if (best !== null) { const r = __TV.seen.get(best); __TV.seen.delete(best); const o = __world.byId[r.owner]; if (o && o.turret && r.word) __tvStrike(o, r, b.pos); }
+    // (a round that burst on the step it was fired, never seen in flight: a gun laid down onto the water at its feet; its
+    // round the one in the breech, its velocity along the barrel)
+    else if (g.turret && g.turret.dir && g.turret.rounds) { const R0 = g.turret.rounds[g.turret.loaded || 0], v0 = (R0 && R0.projectileSpeed) || 0, d = g.turret.dir; if (R0 && R0.ordnance) __tvStrike(g, { word: R0.ordnance, owner: g.id, vel: [d[0] * v0, d[1] * v0, d[2] * v0] }, b.pos); }
   }
   // the readout
   const T = g.turret, w = g.weapon, R = T.rounds && T.rounds[T.loaded || 0];

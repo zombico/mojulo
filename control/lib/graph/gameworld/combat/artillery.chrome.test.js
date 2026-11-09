@@ -310,4 +310,39 @@ describe('the artillery range, played', () => {
     expect(drone.marks.length).toBe(1);
     expect(drone.marks[0]).toMatchObject({ stand: 'ground', effect: 'crater', word: 'grenade30' });
   }, 300000);
+
+  it('a boat: driven on the water, its wake and its foam drawn at its speed, its gun splashing the sea short of the shore', async () => {
+    if (!browser) return;
+    const page = await browser.newPage(), errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(artilleryHtml({ base: { boat: 'combat rhib' }, quiet: true }), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!(window.__mojCtrl && window.__mojCtrl.turret), { timeout: 90000 });
+    const got = await page.evaluate(async () => {
+      const C = window.__mojCtrl, g = C.world.byId.gun, out = {};
+      // (k steps a frame, the water's frame between them; firing, one a frame as the page plays)
+      const go = async (n, inp, k = 10) => { for (let i = 0; i < n; i += k) { for (let j = 0; j < k; j++) C.step(1 / 60, inp); await new Promise((r) => requestAnimationFrame(r)); } };
+      await go(10, {});
+      out.view = C.turret().view; out.z = g.transform.pos[2];
+      await go(150, { forward: 1 }); await go(300, {});
+      out.speed = g.speed; out.trim = g.trim; out.water = { ...window.__mojBoatWater };
+      await go(60, { turn: 1 }); out.heading = g.transform.heading;
+      await go(20, { lookDY: -40 }, 1);
+      const n0 = C.turret().marks.length; await go(12, { fire: 1 }, 1); await go(10, {}, 1);
+      out.marks = C.turret().marks.slice(n0); out.splashes = window.__mojBoatWater.splashes;
+      return out;
+    });
+    await page.close();
+    expect(errors).toEqual([]);
+    expect(got.view).toBe('chase');
+    expect(got.z).toBeLessThan(0.5);
+    expect(got.speed).toBeGreaterThan(10);
+    expect(got.trim).toBeGreaterThan(0);
+    expect(got.water.regime).not.toBe('displacement');
+    expect(got.water.trail).toBeGreaterThan(5);
+    expect(got.water.foam).toBeGreaterThan(5);
+    expect(Math.abs(got.heading)).toBeGreaterThan(0.1);
+    expect(got.marks.length).toBeGreaterThan(3);
+    expect(got.marks.every((m) => m.stand === 'water' && m.effect === 'splash')).toBe(true);
+    expect(got.splashes).toBeGreaterThan(3);
+  }, 300000);
 });

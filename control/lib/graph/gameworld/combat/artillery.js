@@ -19,7 +19,9 @@
  *             light tank's unless `mount` names one); or { frame, stance?, palette? }: a frame of the mecha shelf (a
  *             word the library knows: 'utility walker', 'rover walker', 'siege walker'), standing at its stance, firing
  *             from its own backpack mounts or a gun mount fitted on its roof, its rounds its weapons' (frames.js;
- *             `ordnance` chooses among them)
+ *             `ordnance` chooses among them); or { aircraft, palette? }: a fighter, a helicopter or a drone of the craft
+ *             shelf, flown (aircraft.js, rotorcraft.js); or { boat, palette? }: a boat of the craft shelf, driven on the
+ *             range laid at sea (boats.js)
  *   reload    the gun's seconds to load a round (6)
  *   sounds    { shot?, reload?, burst? }, each a word of the SFX shelf; absent, a cannon, a breech worked, a large blast
  *
@@ -42,6 +44,7 @@ import { rollVehicleSheet } from '../../car-designer/sheet.js';
 import { compileMilitary } from '../../car-designer/military.js';
 import { frameBase, validateFrame, donated, FRAME_MOUNTS } from './frames.js';
 import { airBase, validateAircraft } from './aircraft.js';
+import { boatBase, validateBoat } from './boats.js';
 import { lowerAssemblerBuild } from '../../worlds/workbench-assembler.js';
 import { packVehicleFigure } from '../../vehicle-designer/vehicle-rig.js';
 import { WEAPON_ROUNDS } from './ordnance.js';
@@ -59,16 +62,17 @@ const BEARING = Object.freeze({ 250: 17, 500: 4.5, 1000: -2, 2000: -6 });
 const STAND = Object.freeze({ width: 3, height: 2.6, pitch: 5 });
 // the stands' colours by matter (values a gunner reads at 2 km)
 const COLOR = Object.freeze({ 'armour-steel': '#5c636b', steel: '#7d868f', 'reinforced-concrete': '#9d9b95', concrete: '#b1aea6', brick: '#9a5c4c', stone: '#8f8a7e', timber: '#a07b4f', sand: '#c7b183', loam: '#6b5a44' });
-const FLOOR = Object.freeze({ ground: ['#7d7a63', '#787560'], line: '#5f5d4c', track: '#6a665c', pad: '#a7a296' });
+const FLOOR = Object.freeze({ ground: ['#7d7a63', '#787560'], line: '#5f5d4c', track: '#6a665c', pad: '#a7a296', seabed: '#5d5a48', beach: '#b8a982' });
 const quad = (a, b, c, d, fill, group) => ({ corners: [a, b, c, d], fill, group });
 
 /** What is wrong with an artillery range's spec, by name; [] when it can be laid. */
 export function validateArtillery({ mount = 'battle-tank', ordnance = null, base = 'fixed', reload = 6, sounds = {} } = {}) {
   const errs = [], cls = typeof mount === 'string' ? mount : mount?.class;
   if (!MOUNTS[cls]) errs.push(`mount: one of ${MOUNT_NAMES.join(', ')}, or { class, ...its fields }`);
-  if (base !== 'fixed' && base !== 'hull' && !(base && typeof base === 'object')) errs.push(`base: 'fixed', 'hull', { vehicle, livery?, wear?, seed? } (a vehicle of the library with a turret) or { frame, stance?, palette? } (a frame of the mecha shelf)`);
+  if (base !== 'fixed' && base !== 'hull' && !(base && typeof base === 'object')) errs.push(`base: 'fixed', 'hull', { vehicle, livery?, wear?, seed? } (a vehicle of the library with a turret), { frame, stance?, palette? } (a frame of the mecha shelf), { aircraft, palette? } or { boat, palette? } (the craft shelf's)`);
   else if (typeof base === 'object' && base.frame !== undefined) errs.push(...validateFrame(base));
   else if (typeof base === 'object' && base.aircraft !== undefined) errs.push(...validateAircraft(base));
+  else if (typeof base === 'object' && base.boat !== undefined) errs.push(...validateBoat(base));
   else if (typeof base === 'object') {
     const v = vehicleClassOf(base.vehicle);
     if (!v.class) errs.push(`base.vehicle: ${v.why}`);
@@ -161,15 +165,21 @@ function steeringOf(c) {
 const roundsFor = (T) => (T.mount.elevation.max >= 45 ? ['apfsds', 'heat', 'he', 'indirect'] : ['apfsds', 'heat', 'he']);
 
 /** The range laid: its floor, its stands at their bands (and the far field), its colliders. Pure. */
-export function layArtillery({ indirect = false, base = 'fixed' } = {}) {
+export function layArtillery({ indirect = false, base = 'fixed', sea = null } = {}) {
   const faces = [], colliders = [], stands = [];
   // the floor: 250 m squares in two values, a darker line along each band; the range runs 250 m behind the gun to 5.75 km
   // ahead (2.25 km where no shell falls far), 750 m to each side
+  // (a boat's range: the sea up to a shore short of the first band, its bottom 8 m down and a beach rising to the land;
+  // the land's squares from the shore on)
   const far = indirect ? 5750 : 2250, step = 250, side = 750;
-  for (let x = -250; x < far; x += step) for (let y = -side; y < side; y += step) faces.push(quad([x, y, 0], [x + step, y, 0], [x + step, y + step, 0], [x, y + step, 0], FLOOR.ground[((x + y) / step) & 1 ? 1 : 0], 'floor'));
+  if (sea) {
+    const S = sea.shore, B = S - 100, W = 2500;
+    faces.push(quad([-4000, -W, -8], [B, -W, -8], [B, W, -8], [-4000, W, -8], FLOOR.seabed, 'floor'), quad([B, -W, -8], [S, -W, 0], [S, W, 0], [B, W, -8], FLOOR.beach, 'floor'));
+  }
+  for (let x = sea ? sea.shore : -250; x < far; x += step) for (let y = -side; y < side; y += step) faces.push(quad([x, y, 0], [x + step, y, 0], [x + step, y + step, 0], [x, y + step, 0], FLOOR.ground[((x + y) / step) & 1 ? 1 : 0], 'floor'));
   for (let x = step; x < far; x += step) faces.push(quad([x - 1.5, -side, 0.02], [x + 1.5, -side, 0.02], [x + 1.5, side, 0.02], [x - 1.5, side, 0.02], FLOOR.line, 'floor'));
   // the firing line's pad, and a hull's track across it
-  faces.push(quad([-12, -12, 0.03], [12, -12, 0.03], [12, 12, 0.03], [-12, 12, 0.03], FLOOR.pad, 'floor'));
+  if (!sea) faces.push(quad([-12, -12, 0.03], [12, -12, 0.03], [12, 12, 0.03], [-12, 12, 0.03], FLOOR.pad, 'floor'));
   if (base === 'hull') faces.push(quad([-6, -300, 0.025], [6, -300, 0.025], [6, 300, 0.025], [-6, 300, 0.025], FLOOR.track, 'floor'));
   const put = (s, x0, y0, x1, y1, h, z0 = 0) => {
     const B = box(x0, y0, x1, y1, h, COLOR[s.matter] ?? '#999', 'stand', z0);
@@ -235,13 +245,16 @@ export function artilleryOf(spec = {}) {
   const F = typeof base === 'object' && base.frame !== undefined ? frameBase(base) : null;
   // (an aircraft of the craft shelf: flown on the fly rule at its class's envelope, its gun fixed along its nose: aircraft.js)
   const AIR = typeof base === 'object' && base.aircraft !== undefined ? airBase(base, { reload }) : null;
-  const V = typeof base === 'object' && !F && !AIR ? vehicleBase(base, spec.mount ?? 'light-tank') : null, BV = V || AIR;
-  const cls = F ? `${F.mountClass} mount` : AIR ? AIR.gun.label : V ? (typeof spec.mount === 'object' ? spec.mount.class : spec.mount ?? 'light-tank') : typeof mount === 'string' ? mount : mount.class;
+  // (a boat of the craft shelf: driven on the water on the boat rule at its class's figures, its own gun or one fitted:
+  // boats.js)
+  const BOAT = typeof base === 'object' && base.boat !== undefined ? boatBase(base, { reload }) : null, OWN = AIR || BOAT;
+  const V = typeof base === 'object' && !F && !OWN ? vehicleBase(base, spec.mount ?? 'light-tank') : null, BV = V || OWN;
+  const cls = F ? `${F.mountClass} mount` : OWN ? OWN.gun.label : V ? (typeof spec.mount === 'object' ? spec.mount.class : spec.mount ?? 'light-tank') : typeof mount === 'string' ? mount : mount.class;
   const T = F ? F.turret : BV ? BV.turret : turretOf(mount);
   // (a frame's rounds are its weapons'; `ordnance` chooses among them)
   const own = F ? F.rounds.filter((r) => !spec.ordnance || spec.ordnance.includes(r.ordnance)) : null;
   if (own && !own.length) throw new Error(`artillery range: ordnance: the ${F.id} fires ${F.rounds.map((r) => r.ordnance).join(', ')}`);
-  const words = own ? own.map((r) => r.ordnance) : spec.ordnance ?? V?.rounds ?? AIR?.rounds.map((r) => r.ordnance) ?? roundsFor(T);
+  const words = own ? own.map((r) => r.ordnance) : spec.ordnance ?? V?.rounds ?? OWN?.rounds.map((r) => r.ordnance) ?? roundsFor(T);
   // (each round from its own mount, as it stands: a twin-mount frame's on the side that fires it)
   // (and in a form of its own, a walker's tank form: its mount where that form carries it)
   const from = (w, form = null) => { const r = own && own.find((x) => x.ordnance === w); return r ? { ...T, mount: { ...T.mount, at: (form && r.atForm?.[form]) || r.at }, gun: { ...T.gun, barrel: r.barrel } } : T; };
@@ -252,17 +265,19 @@ export function artilleryOf(spec = {}) {
   // (a rotorcraft's, which fires from the air, as a gun stood at least 1.5 m up: a chin gun's place on its parked rig is
   // under a metre)
   const laid = AIR ? mountOf('light-tank', { mount: { at: AIR.rotor ? [T.mount.at[0], T.mount.at[1], Math.max(1.5, T.mount.at[2])] : T.mount.at }, gun: { barrel: T.gun.barrel } }) : null;
-  for (const w of words) { flight[w] = measureOrdnance(w, { mount: F || V ? from(w) : laid ?? cls }); terminal[w] = measureTerminal(w, flight[w]); }
+  // (a boat's gun measured as a gun of its mount at its height over the water: a boat underway carries its tables)
+  const afloat = BOAT ? { ...T, mount: { ...T.mount, at: [0, 0, T.mount.at[2]], traverse: { ...T.mount.traverse, min: undefined, max: undefined } } } : null;
+  for (const w of words) { flight[w] = measureOrdnance(w, { mount: F || V ? from(w) : laid ?? afloat ?? cls }); terminal[w] = measureTerminal(w, flight[w]); }
   const laws = [...words.flatMap((w) => ordnanceLaws(flight[w], flight)), ...terminalLaws(terminal)];
   const indirect = words.includes('indirect');
-  const rolling = base === 'hull' || !!V, layout = layArtillery({ indirect, base: rolling ? 'hull' : 'fixed' });
+  const rolling = base === 'hull' || !!V, layout = layArtillery({ indirect, base: rolling ? 'hull' : 'fixed', ...(BOAT ? { sea: BOAT.sea } : {}) });
   // the sound: the gun's shot, the breech worked over the reload, the shell's burst far off (the mix heard to 6 km)
   const heard = quiet ? null : {
-    shot: cue(sounds.shot ?? (AIR ? AIR.shot ?? 'machine gun' : 'cannon')),
+    shot: cue(sounds.shot ?? (AIR ? AIR.shot ?? 'machine gun' : BOAT && /^(mg|ciws)$/.test(BOAT.gun.kind) ? 'machine gun' : 'cannon')),
     reload: sounds.reload ? cue(sounds.reload) : [...cue('mag out'), ...later(cue('mag in'), reload * 0.5), ...later(cue('rack'), reload * 0.85)],
     burst: cue(sounds.burst ?? 'big explosion'),
   };
-  const rounds = words.map((w) => { const r = own && own.find((x) => x.ordnance === w); return { ...(AIR?.rounds.find((x) => x.ordnance === w) ?? ordnanceWeapon(w, { reload })), ...(r ? { at: r.at, barrel: r.barrel, ...(r.atForm ? { atForm: r.atForm } : {}) } : {}), ...(heard ? { sfx: { shot: AIR?.rounds.find((x) => x.ordnance === w)?.shotSound ? cue(AIR.rounds.find((x) => x.ordnance === w).shotSound) : heard.shot, reload: heard.reload } } : {}) }; });
+  const rounds = words.map((w) => { const r = own && own.find((x) => x.ordnance === w); return { ...(OWN?.rounds.find((x) => x.ordnance === w) ?? ordnanceWeapon(w, { reload })), ...(r ? { at: r.at, barrel: r.barrel, ...(r.atForm ? { atForm: r.atForm } : {}) } : {}), ...(heard ? { sfx: { shot: AIR?.rounds.find((x) => x.ordnance === w)?.shotSound ? cue(AIR.rounds.find((x) => x.ordnance === w).shotSound) : heard.shot, reload: heard.reload } } : {}) }; });
   // (each round's marks from its own sight: its mount's height)
   const sightZ = (w, form) => (from(w, form).mount.at?.[2] ?? 0) + 0.35;
   const table = Object.fromEntries(words.filter((w) => !ORDNANCE[w].indirect && !ORDNANCE[w].drop).map((w) => [w, marksOf(flight[w], sightZ(w))]));
@@ -271,8 +286,8 @@ export function artilleryOf(spec = {}) {
   const chart = Object.fromEntries(words.filter((w) => ORDNANCE[w].indirect).map((w) => [w, Object.entries(flight[w].bands).map(([d, b]) => [Number(d), b.mils, b.tof])]));
   const matter = Object.fromEntries([...new Set([...layout.stands.map((s) => s.matter), 'loam'])].map((k) => [k, MATTER[k]]));
   const turret = {
-    ...T, rounds, look: { base: base === 'hull' ? 'hull' : cls === 'tower' ? 'tower' : cls === 'field-gun' ? 'field' : 'plinth', ...(F ? { back: Math.max(7, Math.round(F.height * 2.2)), up: Math.max(2, Math.round(F.height * 0.5)), size: F.height } : BV ? { size: BV.size, back: Math.max(18, Math.round(BV.size * 3.5)), up: Math.max(7, Math.round(BV.size * 1.4)), ...(AIR ? { view: 'chase', ...(AIR.drop ? { drop: true } : {}) } : {}) } : {}) },
-    range: { stands: layout.stands, ordnance: Object.fromEntries(words.map((w) => [w, ORDNANCE[w]])), matter, table, ...(tableForm ? { tableForm } : {}), chart, ground: 'loam' },
+    ...T, rounds, look: { base: base === 'hull' ? 'hull' : cls === 'tower' ? 'tower' : cls === 'field-gun' ? 'field' : 'plinth', ...(F ? { back: Math.max(7, Math.round(F.height * 2.2)), up: Math.max(2, Math.round(F.height * 0.5)), size: F.height } : BV ? { size: BV.size, back: Math.max(18, Math.round(BV.size * 3.5)), up: Math.max(7, Math.round(BV.size * 1.4)), ...(AIR ? { view: 'chase', ...(AIR.drop ? { drop: true } : {}) } : {}), ...(BOAT ? { view: 'chase', ...(BOAT.bone ? { gunBone: BOAT.bone } : {}) } : {}) } : {}) },
+    range: { stands: layout.stands, ordnance: Object.fromEntries(words.map((w) => [w, ORDNANCE[w]])), matter, table, ...(tableForm ? { tableForm } : {}), chart, ground: 'loam', ...(BOAT ? { sea: BOAT.sea } : {}) },
   };
   // (a vehicle drives on its own class's rule; the graybox hull walks; a fixed base stands)
   // (a frame walks at its gait's pace, its stride the clip's cycle: frames.js, mecha-shelf/mecha-gait.js; in its tank form
@@ -283,29 +298,31 @@ export function artilleryOf(spec = {}) {
   const driveRule = F?.drive ? { type: 'walk', speed: F.drive.speed, turn: F.drive.turn, stride: F.drive.stride, steer: F.drive.steer, eye: 0, collideRadius: Math.max(1, F.drive.track / 2 + 0.5), collideHeight: F.height } : null;
   const formsOf = driveRule ? { forms: { walker: { rule: walkRule }, tank: { rule: driveRule } }, form: F.form, transformDur: Math.round((1 + 0.25 * F.gait.L) * 10) / 10 } : {};
   const rule = F ? (driveRule ? (F.form === 'tank' ? driveRule : walkRule) : walkRule ?? { type: 'static' }) : BV ? BV.rule : base === 'hull' ? { type: 'walk', speed: 8, turn: 0.45, eye: 0, collideRadius: 3.5, collideHeight: 2.5 } : { type: 'static' };
-  const pilot = { id: 'gun', pilotable: true, rule, ...formsOf, turret, weapon: rounds[0], body: BV || F ? { type: 'figure-rig', figure: 'base' } : { type: 'none' }, transform: AIR ? AIR.transform : { pos: [0, 0, 0], heading: 0, pitch: 0 } };
-  const keys = AIR ? `${AIR.keys} · 1-${words.length}  load (${words.join(', ')}) · O  view` : `mouse  lay the gun · click  fire · 1-${words.length}  load (${words.join(', ')}) · right click  zoom · O  view${F ? (F.drive ? ' · W / S  walk or drive · A / D  turn or steer · B  transform' : F.gait ? ' · W / S  walk · A / D  turn' : ` · ${F.stance}`) : V ? ' · W / S  drive · A / D  steer' : base === 'hull' ? ' · W / S  drive · A / D  turn the hull' : ''}`;
+  const pilot = { id: 'gun', pilotable: true, rule, ...formsOf, turret, weapon: rounds[0], body: BV || F ? { type: 'figure-rig', figure: 'base' } : { type: 'none' }, transform: OWN ? OWN.transform : { pos: [0, 0, 0], heading: 0, pitch: 0 } };
+  const keys = OWN ? `${OWN.keys} · 1-${words.length}  load (${words.join(', ')}) · O  view` : `mouse  lay the gun · click  fire · 1-${words.length}  load (${words.join(', ')}) · right click  zoom · O  view${F ? (F.drive ? ' · W / S  walk or drive · A / D  turn or steer · B  transform' : F.gait ? ' · W / S  walk · A / D  turn' : ` · ${F.stance}`) : V ? ' · W / S  drive · A / D  steer' : base === 'hull' ? ' · W / S  drive · A / D  turn the hull' : ''}`;
   // the base heard (its own, from the shelf): a frame's footfalls by its weight at each foot's planting, its hydraulics by
   // its pace and its power pack; a tracked hull's engine and its tracks; a wheeled hull's diesel; a fixed gun nothing
   const held = (w) => sfxSound(w).sustain;
   const baseSound = !heard ? null : F ? { engine: held('diesel-engine'), ...(F.gait ? { hydraulics: held('walker-hydraulics'), step: cue(F.mass < 1500 ? 'heavy step' : F.mass < 12000 ? 'mech step' : 'giant step'), legs: Object.values(F.gait.phase), stepGain: r2(Math.min(1, 0.45 + F.mass / 40000)) } : {}) }
-    : AIR ? { engine: held(AIR.engine), throttle: true } : V ? { engine: held(V.tracked ? 'tank-engine' : 'diesel-engine') } : base === 'hull' ? { engine: held('tank-engine') } : null;
+    : OWN ? { engine: held(OWN.engine), throttle: true } : V ? { engine: held(V.tracked ? 'tank-engine' : 'diesel-engine') } : base === 'hull' ? { engine: held('tank-engine') } : null;
   const audio = heard ? { mix: { space: 'open', voices: 12, distance: true, reach: 6000 }, cues: { shot: heard.shot, reload: heard.reload, burst: heard.burst, ...(baseSound?.step ? { 'base:step': baseSound.step } : {}) }, weapon: { shot: heard.shot, reload: heard.reload }, burst: heard.burst, ...(baseSound ? { base: baseSound, sustains: Object.fromEntries(['engine', 'hydraulics'].filter((k) => baseSound[k]).map((k) => [k, baseSound[k]])) } : {}) } : null;
   // (the camera is the turret view's: the sight, or outside; a base of its own figure is drawn, its turret hidden in the
   // sight by the view)
   const payload = { camera: { rule: 'eye', target: 'gun', height: 0, mouseLook: true, ...(BV || F ? {} : { hideTarget: true }) }, events: { hud: [{ text: keys }] }, ...(BV || F ? { figures: { base: (BV || F).figure } } : {}), ...(audio ? { audio } : {}) };
-  return { minted: { pilot, payload }, mount: cls, base: F ? F.id : BV ? BV.id : base, ...(AIR ? { air: { archetype: AIR.archetype, ...(AIR.rotor ? { rotor: AIR.rotor } : { craft: AIR.craft }), envelope: AIR.envelope, gun: AIR.gun } } : {}), ...(F ? { frame: { archetype: F.archetype, stance: F.stance, armed: F.armed, weapons: F.weapons, height: F.height, ...(F.gait ? { gait: F.gait } : {}), ...(F.drive ? { drive: F.drive, form: F.form } : {}) } } : {}), ordnance: words, flight, terminal, laws, layout, name: spec.name ?? 'the artillery range' };
+  return { minted: { pilot, payload }, mount: cls, base: F ? F.id : BV ? BV.id : base, ...(AIR ? { air: { archetype: AIR.archetype, ...(AIR.rotor ? { rotor: AIR.rotor } : { craft: AIR.craft }), envelope: AIR.envelope, gun: AIR.gun } } : {}), ...(BOAT ? { boat: { archetype: BOAT.archetype, drive: BOAT.drive, gun: BOAT.gun, fitted: BOAT.fitted } } : {}), ...(F ? { frame: { archetype: F.archetype, stance: F.stance, armed: F.armed, weapons: F.weapons, height: F.height, ...(F.gait ? { gait: F.gait } : {}), ...(F.drive ? { drive: F.drive, form: F.form } : {}) } } : {}), ordnance: words, flight, terminal, laws, layout, name: spec.name ?? 'the artillery range' };
 }
 
 /** The readout's lines (short: a sign's width): each round's elevation (mils) at its bands, the indirect shell's flight to
  * the farthest, the laws. */
 export function artilleryReadout(A) {
-  const lines = [A.air ? `the ${A.base}, ${A.air.envelope.label}` : A.base === 'hull' ? `${A.mount}, on a hull` : A.base === 'fixed' ? `${A.mount}, fixed` : A.frame ? `the ${A.base}, ${A.frame.stance}${A.frame.armed ? '' : ', fitted'}` : `the ${A.base}'s gun`];
+  const lines = [A.boat ? `the ${A.base}, its ${A.boat.gun.label}${A.boat.fitted ? ', fitted' : ''}` : A.air ? `the ${A.base}, ${A.air.envelope.label}` : A.base === 'hull' ? `${A.mount}, on a hull` : A.base === 'fixed' ? `${A.mount}, fixed` : A.frame ? `the ${A.base}, ${A.frame.stance}${A.frame.armed ? '' : ', fitted'}` : `the ${A.base}'s gun`];
   // (a walking frame's gait: its pace and its stride, what set them)
   const g = A.frame?.gait;
   if (g) lines.push(`walks ${g.speed} m/s, ${g.stride} m a stride, ${g.stepsPerMinute} steps/min (${g.limitedBy === 'reach' ? 'its reach' : g.limitedBy === 'feet' ? 'its feet' : 'its size'})`);
   const ae = A.air?.envelope;
   if (ae) lines.push(A.air.rotor ? `hovers; ${ae.max} m/s top, climbs ${ae.climb} m/s, its disc to ${ae.tilt}°` : `flies ${ae.stall} / ${ae.cruise} / ${ae.max} m/s: stall, cruise, top`);
+  const bd = A.boat?.drive;
+  if (bd) lines.push(`${(bd.top / 0.514444).toFixed(0)} knots top, ${bd.planing ? 'onto the plane' : 'displacing'}, a ${Math.round(bd.circle)} m turning circle`);
   const dv = A.frame?.drive;
   if (dv) lines.push(`drives ${dv.speed} m/s on ${dv.wheels} wheels, ${dv.steered} steered, ${dv.circle} m at full lock`);
   const direct = A.ordnance.filter((w) => !ORDNANCE[w].indirect && !ORDNANCE[w].drop), high = A.ordnance.filter((w) => ORDNANCE[w].indirect), dropped = A.ordnance.filter((w) => ORDNANCE[w].drop);

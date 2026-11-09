@@ -42,7 +42,7 @@
  * the breech, its index in .rounds), .want ({ yaw, pitch }: where the hand asks, in the world when stabilized, on the base when not), .muzzle,
  * .dir (the barrel's world point and direction, read by the page and the measures), .start (where a striking base was
  * launched), .strikes (how many have struck); a flying base's round its .carried (the craft's velocity added: a fixed
- * gun's on the fly rule, every round of a rotorcraft's on the hover rule).
+ * gun's on the fly rule, every round of a rotorcraft's on the hover rule, of a boat's on the boat rule).
  */
 export function buildTurret(E) {
   const step = E.stepWorld;
@@ -144,10 +144,11 @@ export function buildTurret(E) {
     // the look was the turret's; the weapon fires along the barrel
     return { ...input, lookDX: 0, lookDY: 0, ...(T.rounds ? { slot: 0 } : {}), aim: { from: T.muzzle.slice(), dir: T.dir.slice() } };
   }
-  // a flying base's own velocity (the world's, m/s): a rotorcraft's, or a fixed wing's airspeed along its nose
+  // a flying (or a sailing) base's own velocity (the world's, m/s): a rotorcraft's or a boat's, or a fixed wing's
+  // airspeed along its nose
   function velOf(p) {
     const ty = p.rule && p.rule.type;
-    if (ty === 'hover' && p.vel) return p.vel;
+    if ((ty === 'hover' || ty === 'boat') && p.vel) return p.vel;
     if (ty === 'fly' && p.airspeed > 0) { const h = p.transform.heading, pt = p.transform.pitch || 0, v = p.airspeed; return [Math.cos(pt) * Math.cos(h) * v, Math.cos(pt) * Math.sin(h) * v, Math.sin(pt) * v]; }
     return null;
   }
