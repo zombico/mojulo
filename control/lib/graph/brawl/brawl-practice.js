@@ -4,7 +4,9 @@
  * learned by SPACE and CROWDS (lining up across the street, the chain and what drops it, the clinch, the desperation's
  * price, reading who swings next), so the room says those, not frames.
  *
- *   practiceOf({ belt, players, dummies, things?, health?, range? }) → a room: { ctx, s, mind, yard }
+ *   practiceOf({ belt, players, dummies, things?, health?, range?, waves?, loop? }) → a room: { ctx, s, mind, yard }
+ *     waves    the WAVE TESTER in the brawler's yard (the range's `waves` below, the same runner): groups of the crowd
+ *              come in, by their entrances, to their formations, hiding, lying in wait
  *     players  [{ recipe, style? }], one to four (a seat each)
  *     dummies  [{ type? (a CROWD_TYPES id, 'thug' by default) | recipe?, mode, at?, n? }]: at m along the belt and n m
  *              across it (spread along the room by default); a dummy's MODE (PRACTICE_MODES):
@@ -42,7 +44,7 @@
  *
  * Pure: no clock, no dice (the yard's frame is the core's).
  */
-import { newBrawl, stepBrawl, BRAWL_RULES } from './brawl-core.js';
+import { newBrawl, stepBrawl, enterBody, BRAWL_RULES } from './brawl-core.js';
 import { brawlFighter, newReader, readButtons, BRAWL_STYLES } from './brawl-moves.js';
 import { crowdPads, newCrowdMind, crowdFighter, CROWD_TYPES, aimAt } from './brawl-crowd.js';
 import { readGun } from './brawl-guns.js';
@@ -75,7 +77,7 @@ const sgn = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
 const chainDamage = (F) => Array.from({ length: F.brawl.chain }, (_, k) => F.moves[`chain.${k + 1}`].damage * (F.moves[`chain.${k + 1}`].hits || 1)).reduce((a, b) => a + b, 0);
 
 /** A practice room. */
-export function practiceOf({ belt, players, dummies = [], things, health = 'chains', range } = {}) {
+export function practiceOf({ belt, players, dummies = [], things, health = 'chains', range, waves, loop } = {}) {
   if (!belt) throw new Error('brawl: a practice room needs its belt');
   if (!Array.isArray(players) || !players.length || players.length > 4) throw new Error('brawl: a practice room has 1 to 4 players');
   if (!HEALTH_MODES.includes(health)) throw new Error(`brawl: a practice room's health is ${HEALTH_MODES.join(' | ')}`);
@@ -108,7 +110,8 @@ export function practiceOf({ belt, players, dummies = [], things, health = 'chai
   const ctx = { fighters, belt, ...(weapons.length ? { armed } : {}) };
   const homes = players.map((_, i) => [Math.round((half - 2 + i * 0.7) * 1000), Math.round(n0 * 1000 + ((i + 1) * (n1 - n0) * 1000) / (players.length + 1))]);
   // THE WAVES' bodies, each wave's waiting offstage (its own gun, poise and health where the wave says)
-  const W = range && range.waves ? readRangeWaves(range.waves) : null;
+  // (the range's waves, or the brawler yard's own)
+  const W = range && range.waves ? readRangeWaves(range.waves) : waves ? readRangeWaves(waves) : null;
   const waveSpec = [];
   if (W) W.forEach((w, k) => { for (const c of w.crowd) for (let j = 0; j < c.n; j++) {
     const key = `type:${c.type}`, T = CROWD_TYPES[c.type];
@@ -137,7 +140,7 @@ export function practiceOf({ belt, players, dummies = [], things, health = 'chai
   const yard = {
     players: P, health, hp: s.bodies.map((b) => b.hp), homes: [...homes, ...spec.map((d) => d.home), ...waveSpec.map(() => [0, 0])],
     modes: [...spec.map((d) => d.mode), ...waveSpec.map(() => 'wave')],
-    ...(W ? { wave: newWaveRun(W, range.loop !== false, waveSpec.map((w, j) => ({ id: P + spec.length + j, wave: w.wave, type: w.type }))), station: {} } : {}), things: T.map((t) => ({ ...t })), arms, volley: {},
+    ...(W ? { wave: newWaveRun(W, (range && range.waves ? range.loop : loop) !== false, waveSpec.map((w, j) => ({ id: P + spec.length + j, wave: w.wave, type: w.type }))), station: {}, ambush: {} } : {}), things: T.map((t) => ({ ...t })), arms, volley: {},
     ...(range ? { range: true, shots: players.map(() => ({ fired: 0, landed: 0, damage: 0, struck: 0 })) } : {}),
     readers: players.map(() => (range ? newGunReader() : newReader())), prev: players.map(() => ({})), pending: players.map(() => []),
     log: players.map(() => []), chain: players.map(() => ({ steps: [], last: null })), combo: players.map(() => ({ hits: 0, damage: 0, last: null })),
@@ -158,7 +161,7 @@ export function resetYard(room) {
   fresh.bodies.forEach((b, i) => { b.hp = yard.hp[i]; });
   if (yard.range) arm(fresh, yard.players, ctx.guns);
   fresh.f = room.s.f;
-  const waveReset = yard.wave ? { wave: newWaveRun(yard.wave.list, yard.wave.loop, yard.wave.bodies), station: {} } : {};
+  const waveReset = yard.wave ? { wave: newWaveRun(yard.wave.list, yard.wave.loop, yard.wave.bodies), station: {}, ambush: {} } : {};
   return { ...room, s: fresh, mind: newCrowdMind(room.mind.type), yard: { ...yard, readers: yard.readers.map(() => (yard.range ? newGunReader() : newReader())), volley: {}, ...waveReset, ...(yard.range ? { shots: yard.shots.map(() => ({ fired: 0, landed: 0, damage: 0, struck: 0 })) } : {}), prev: yard.prev.map(() => ({})), pending: yard.pending.map(() => []), log: yard.log.map(() => []), chain: yard.chain.map(() => ({ steps: [], last: null })), combo: yard.combo.map(() => ({ hits: 0, damage: 0, last: null })), ko: {}, free: {} } };
 }
 
@@ -243,7 +246,13 @@ function wavePads(room, pads) {
   if (W.state !== 'on') return;
   const w = W.list[W.k], T = s.bodies[0];
   const mine = W.bodies.filter((x) => x.wave === W.k).map((x) => s.bodies[x.id]).filter((b) => !b.gone && !b.ko);
-  const shooters = w.pattern === 'tokens' ? [] : mine.filter((b) => b.gn !== undefined);
+  // (lying in wait: hidden until a player comes near, then springing)
+  for (const d of mine) {
+    if (!yard.ambush[d.id]) continue;
+    const near = s.bodies.slice(0, yard.players).some((q) => !q.gone && Math.abs(q.x - d.x) < WAVE_RULES.ambush && Math.abs(q.z - d.z) < 1600);
+    if (near || d.st !== 'hide') { delete yard.ambush[d.id]; pads[d.id] = { pop: true }; } else pads[d.id] = {};
+  }
+  const shooters = w.pattern === 'tokens' ? [] : mine.filter((b) => b.gn !== undefined && !yard.ambush[b.id]);
   const gt = s.f - W.start;
   shooters.forEach((d, k) => {
     const i = d.id, at = yard.station[i];
@@ -257,8 +266,9 @@ function wavePads(room, pads) {
       return;
     }
     const off = volleyAt(w.pattern, k, shooters.length, sgn(d.x - T.x) || 1, w.beat);
-    if (FREE.has(d.st) && gt >= off && (gt - off) % w.beat === 0) { const aim = aimAt(d, T); yard.volley[i] = { t: 0, n: 0, aim }; pads[i] = { aim }; return; }
-    pads[i] = {};
+    if ((FREE.has(d.st) || d.st === 'hide') && gt >= off && (gt - off) % w.beat === 0) { const aim = aimAt(d, T); yard.volley[i] = { t: 0, n: 0, aim }; pads[i] = { aim }; return; }
+    // (behind its cover between volleys: down)
+    pads[i] = w.cover && FREE.has(d.st) ? { hide: true } : {};
   });
 }
 /** the wave run a frame on: a wave in after its breath (its bodies to their stations), cleared when its last falls */
@@ -272,10 +282,23 @@ function waveStep(room) {
     const w = W.list[W.k], ids = W.bodies.filter((x) => x.wave === W.k).map((x) => x.id), T = s.bodies[0];
     const stations = stationsOf(w.formation, ids.length, [T.x, T.z], band, view);
     ids.forEach((id, j) => {
-      const b = s.bodies[id], [ex, ez] = entryOf(stations[j], [T.x, T.z], band, view, w.formation);
-      Object.assign(b, { gone: 0, ko: 0, hp: yard.hp[id], st: 'stand', sf: 0, mv: null, x: ex, z: ez, y: 0, vx: 0, vy: 0, vz: 0, combo: 0, jug: 0, face: sgn(T.x - ex) || -1 });
-      delete b.sg;
-      yard.station[id] = stations[j];
+      const b = s.bodies[id], st = stations[j];
+      // its ENTRANCE: walking in from the view's edge (or the back), out of a door, dropping, digging, vaulting; or
+      // lying in wait where it stands
+      if (w.ambush) enterBody(s, ctx, id, { how: 'walk', x: st[0], z: st[1], hide: true });
+      else if (w.entrance === 'walk') { const [ex, ez] = entryOf(st, [T.x, T.z], band, view, w.formation); enterBody(s, ctx, id, { how: 'walk', x: ex, z: ez }); }
+      else enterBody(s, ctx, id, { how: w.entrance, x: st[0], z: st[1] });
+      b.hp = yard.hp[id]; b.face = sgn(T.x - b.x) || -1;
+      if (w.ambush) yard.ambush[id] = 1;
+      yard.station[id] = st;
+      // (its cover: a piece between its station and the player, cleared with the wave)
+      if (w.cover) {
+        s.things ??= []; s.nt ??= 1;
+        // (clear of its station by its own half-width and a body's, so its shooter stands right behind it)
+        const gap = Math.round((THINGS.cover[w.cover].w * 1000) / 2) + s.rules.body + WAVE_RULES.coverGap;
+        const c = { id: s.nt++, kind: 'cover', what: w.cover, x: st[0] + (sgn(T.x - st[0]) || -1) * gap, z: st[1], hp: THINGS.cover[w.cover].hp, wave: W.k };
+        s.things.push(c);
+      }
     });
     W.state = 'on'; W.start = s.f; W.struck = 0;
     s.events.push({ t: 'wave', k: W.k, of: W.list.length, name: w.name, n: ids.length });
@@ -284,6 +307,8 @@ function waveStep(room) {
   if (W.state !== 'on') return;
   const ids = W.bodies.filter((x) => x.wave === W.k).map((x) => x.id);
   if (!ids.every((id) => s.bodies[id].ko)) return;
+  // (its cover cleared with it)
+  if (s.things) s.things = s.things.filter((c) => c.wave !== W.k);
   // cleared: its time and the rounds taken kept; the next after its breath (or the set over again)
   W.cleared = [...W.cleared, { k: W.k, frames: s.f - W.start, struck: W.struck }].slice(-20);
   s.events.push({ t: 'waveCleared', k: W.k, frames: s.f - W.start, struck: W.struck });
@@ -354,7 +379,7 @@ function verdicts(room, i, buttons, before, after) {
 // ── the yard a frame on ──────────────────────────────────────────────────────────────────────────────────────
 
 export function stepYard(room, buttons = []) {
-  const yard = { ...room.yard, readers: room.yard.readers.slice(), prev: room.yard.prev.slice(), pending: room.yard.pending.map((q) => q.map((e) => ({ ...e }))), log: room.yard.log.map((l) => l.slice()), chain: room.yard.chain.map((c) => ({ ...c, steps: c.steps.slice() })), combo: room.yard.combo.map((c) => ({ ...c })), ko: { ...room.yard.ko }, free: { ...room.yard.free }, volley: { ...room.yard.volley }, ...(room.yard.range ? { shots: room.yard.shots.map((x) => ({ ...x })) } : {}), ...(room.yard.wave ? { wave: { ...room.yard.wave }, station: { ...room.yard.station } } : {}) };
+  const yard = { ...room.yard, readers: room.yard.readers.slice(), prev: room.yard.prev.slice(), pending: room.yard.pending.map((q) => q.map((e) => ({ ...e }))), log: room.yard.log.map((l) => l.slice()), chain: room.yard.chain.map((c) => ({ ...c, steps: c.steps.slice() })), combo: room.yard.combo.map((c) => ({ ...c })), ko: { ...room.yard.ko }, free: { ...room.yard.free }, volley: { ...room.yard.volley }, ...(room.yard.range ? { shots: room.yard.shots.map((x) => ({ ...x })) } : {}), ...(room.yard.wave ? { wave: { ...room.yard.wave }, station: { ...room.yard.station }, ambush: { ...room.yard.ambush } } : {}) };
   const mind = { ...room.mind, tok: Object.fromEntries(Object.entries(room.mind.tok).map(([k, v]) => [k, v.slice()])), b: Object.fromEntries(Object.entries(room.mind.b).map(([k, v]) => [k, { ...v }])) };
   const r0 = { ...room, yard, mind };
   const pads = dummyPads(r0, mind);

@@ -616,6 +616,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // the guns (their sounds, hitstop, freeze, impact), the core's poise and the client's sounds and impact frames.
 // Re-pinned 2026-11-09 (1109-run-and-gun: the wave tester): `brawl` only. Its page inlines brawl-waves.js and the range's
 // waves (the practice's wave run, the wave meter, the Waves setting).
+// Re-pinned 2026-11-09 (1109-run-and-gun: entrances, hiding, cover): `brawl` only. Its page inlines the core (enterBody,
+// the hide state, cover stopping rounds), the things' cover, the crowd's and the waves' entrances and ambushes, the poses
+// and the client's cover, dust and sounds; the brawler yard's own waves (practice.waves, its Waves setting).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

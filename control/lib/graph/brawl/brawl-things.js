@@ -9,6 +9,10 @@
  *              swings it (the body's armed fighter, versus-compile.js's blade rules); special throws it; a body knocked
  *              down drops it
  *     box      a breakable (`hp` the blows it takes, `w` and `h` its size in m): broken, it leaves what it `holds`
+ *     cover    COVER (the run & gun's, any street's): sandbags, a stack of crates, a low wall (`w` along, `d` across, `h`
+ *              in m, `hp`): a round meeting it is stopped (unless its shooter stands right behind it: a body fires over
+ *              its own cover), each round wearing it down; blows and bursts break it too; no body walks through it;
+ *              `sound` the shelf's voice a round makes on it
  *
  *   readThings(things, belt)   → the street's things as the core holds them (mm, along and across the belt), each
  *                                { id, kind, what, x, z, hp?, holds? } (throws naming the fault)
@@ -36,6 +40,11 @@ export const THINGS = Object.freeze({
     crate: row({ hp: 70, w: 0.9, h: 0.9, says: 'a crate: a few blows' }),
     booth: row({ hp: 160, w: 1.1, h: 2.3, says: 'a phone booth: a chain to break' }),
   }),
+  cover: Object.freeze({
+    sandbags: row({ hp: 320, w: 1.4, d: 0.7, h: 0.9, sound: 'dirt-impact', says: 'sandbags: low and long, they soak a stream' }),
+    crates: row({ hp: 180, w: 1.0, d: 1.0, h: 1.3, sound: 'wood-impact', says: 'a stack of crates: tall, splintered by a stream' }),
+    wall: row({ hp: 600, w: 2.2, d: 0.4, h: 1.1, sound: 'stone-impact', says: 'a low wall: long, it takes a rocket to bring down' }),
+  }),
 });
 export const THING_KINDS = Object.freeze(Object.keys(THINGS));
 export const BRAWL_WEAPONS = Object.freeze(Object.keys(THINGS.weapon));
@@ -44,7 +53,7 @@ function readOne(t, at, inBox = false) {
   if (!t || typeof t !== 'object') throw new Error(`brawl: ${at} is { kind, what, at, n?, holds? }`);
   if (!THINGS[t.kind]) throw new Error(`brawl: ${at}.kind is one of ${THING_KINDS.join(', ')}`);
   if (!THINGS[t.kind][t.what]) throw new Error(`brawl: ${at}.what is one of ${Object.keys(THINGS[t.kind]).join(', ')} (a ${t.kind})`);
-  if (inBox && t.kind === 'box') throw new Error(`brawl: ${at}: a box holds food, a power-up or a weapon, not another box`);
+  if (inBox && (t.kind === 'box' || t.kind === 'cover')) throw new Error(`brawl: ${at}: a box holds food, a power-up or a weapon, not another box`);
   if (t.holds !== undefined && t.kind !== 'box') throw new Error(`brawl: ${at}.holds: only a box holds a thing`);
   return { kind: t.kind, what: t.what, ...(t.holds ? { holds: readOne(t.holds, `${at}.holds`, true) } : {}) };
 }
@@ -58,6 +67,6 @@ export function readThings(things, belt) {
     if (!(typeof t.at === 'number' && t.at >= 0 && t.at <= belt.length)) throw new Error(`brawl: ${at}.at is metres along the belt, 0 to ${belt.length}`);
     const n = t.n ?? (n0 + n1) / 2;
     if (!(typeof n === 'number' && n >= n0 && n <= n1)) throw new Error(`brawl: ${at}.n is metres across the belt, in its band (${n0} to ${n1})`);
-    return { id: i, ...one, x: Math.round(t.at * 1000), z: Math.round(n * 1000), ...(one.kind === 'box' ? { hp: THINGS.box[one.what].hp } : {}) };
+    return { id: i, ...one, x: Math.round(t.at * 1000), z: Math.round(n * 1000), ...(one.kind === 'box' || one.kind === 'cover' ? { hp: THINGS[one.kind][one.what].hp } : {}) };
   });
 }

@@ -69,6 +69,15 @@
  *     walk its `speed` %, and under `armor` a blow lands its damage and no stun. An install super grants one as it
  *     starts; `grantState` grants one (a thing on the floor). A move's PRICE costs its thrower health the first time it
  *     lands, never the last of it.
+ *   • ENTRANCES (`enterBody`, for a crowd's mind or a wave's): a body comes in walking (from where it is put), out of a
+ *     door (the street's far side), DROPPING from above (`dropH` mm up, falling to a landing), DIGGING out of the ground
+ *     (`dig` frames rising from below, untouchable until out) or VAULTING over the back fence (an arc into the band).
+ *   • HIDING: a body HIDES (`pad.hide`: ducked down, its crouch's hurtboxes at 60% of their height, so a round at the
+ *     chest passes over it) until a
+ *     command brings it up (a blow, a shot, an aim, a step, `pad.pop`).
+ *   • COVER (the things' `cover`, brawl-things.js): a round meeting a cover piece is stopped there, wearing it down, unless
+ *     its shooter stands right behind it (`coverReach`: a body fires over its own cover); a lobbed grenade goes over it
+ *     and a burst reaches behind it and breaks it; blows break it; no body walks through it.
  *   • THE STREET'S THINGS (`things`, brawl-things.js readThings; absent, the state carries none): a player stood over
  *     one presses attack to take it (a moment, `pick`): food its health back, a power-up its state, a weapon held (the
  *     body plays its armed fighter, `ctx.armed['<fighter>:<weapon>']`, its chain swinging the blade; `pad.toss` throws it,
@@ -105,7 +114,8 @@ export const BRAWL_RULES = Object.freeze({
   scaling: [100, 100, 80, 70, 60, 50, 40, 30, 20, 10],
   run: 100,         // % of the fighter's forward dash's speed a run goes at
   fireWalk: 70,     // % of its walk a body walks at while it fires
-  poise: 30, poiseDrain: 1,   // a body's stagger a light round's flinch waits for (damage), drained a frame
+  poise: 30, poiseDrain: 1,
+  dropH: 3200, dig: 40, digDepth: 1700, coverReach: 1300,   // a drop's height, a dig's frames and depth, the reach over one's own cover   // a body's stagger a light round's flinch waits for (damage), drained a frame
   roll: 20, rollSpeed: 70, rollInv: 14,   // the gunner's roll: its frames, mm a frame, its untouchable frames
   runJump: 160,     // % of a jump's carry along the belt a jump from a run has (the long jump)
 });
@@ -133,6 +143,27 @@ function newBody(i, b, ctx) {
     // (a body of a wave waits offstage, gone, until its wave comes in: brawl-crowd.js)
     ...(b.wave !== undefined ? { gone: 1, wv: b.wave } : {}),
   };
+}
+
+/**
+ * A body COMES IN (on a state being stepped): `how` 'walk' | 'door' | 'drop' | 'dig' | 'vault', at `x`, `z` (mm; a door
+ * and a vault from the street's far side at `x`, toward `z`); `hide` it comes in hidden (crouched where it is put).
+ */
+export function enterBody(s, ctx, id, { how = 'walk', x, z, hide = false } = {}) {
+  const p = s.bodies[id], R = s.rules, F = ctx.fighters[p.fi];
+  const n1 = ctx.belt ? Math.round(ctx.belt.depth[1] * 1000) : R.depth;
+  Object.assign(p, { gone: 0, ko: 0, st: 'stand', sf: 0, mv: null, x, z, y: 0, vx: 0, vy: 0, vz: 0, combo: 0, jug: 0, wx: 0, wz: 0 });
+  delete p.sg;
+  if (how === 'drop') { p.st = 'drop'; p.y = R.dropH; }
+  else if (how === 'dig') { p.st = 'dig'; p.y = -R.digDepth; p.inv = Math.max(p.inv, R.dig); }
+  else if (how === 'door') p.z = n1;
+  else if (how === 'vault') {
+    // (from atop the back fence, an arc to where it is put: its jump's rise, its flight across)
+    const T = Math.max(20, Math.round((2 * F.jump.vy) / F.jump.g));
+    p.z = n1; p.y = 900; p.st = 'air'; p.vy = Math.round(F.jump.vy * 0.6); p.vz = Math.round((z - n1) / T); p.airMove = 1; p.jx = 0;
+  } else if (hide) p.st = 'hide';
+  s.events.push({ t: 'enter', p: id, how, x: p.x, z: p.z, ...(hide ? { hide: 1 } : {}) });
+  return s;
 }
 
 /** Grant a body a state (a STATES row) on a state being stepped: a new one in place of any held. */
@@ -170,15 +201,20 @@ function frameOf(p, F) {
   return m.frames[Math.max(1, Math.min(p.mf, m.total))];
 }
 function poseOf(p) {
+  if (p.st === 'hide' || p.st === 'dig') return 'crouch';
   if (p.st === 'air' || p.st === 'fall' || p.air || p.y > 0) return p.st === 'fall' || p.st === 'ko' ? 'fall' : 'air';
   if (p.mv) return p.mv.startsWith('crouch') ? 'crouch' : 'stand';
   return 'stand';
 }
 const OUT = new Set(['down', 'rise', 'thrown', 'throwing', 'ko', 'held']);
 /** A body's hurtboxes this frame, in the plane (none while it lies, rises, is gone or is in a throw). */
+// (a hidden body's height share: its crouch ducked down to this % of itself)
+const s_hideLow = 60;
 export function bodyHurt(p, F) {
   if (p.gone || OUT.has(p.st)) return [];
   const fr = frameOf(p, F);
+  // (hidden: ducked all the way down, its crouch's boxes at `hideLow` % of their height: a chest's round goes over)
+  if (!fr && p.st === 'hide') return F.idle.crouch.hurt.map((b) => placed([b[0], Math.round((b[1] * s_hideLow) / 100), b[2], Math.round((b[3] * s_hideLow) / 100)], p.x, p.y, p.face));
   return (fr ? fr.hurt : F.idle[poseOf(p)].hurt).map((b) => placed(b, p.x, p.y, p.face));
 }
 const pushOf = (p, F) => placed(F.idle[poseOf(p)].push, p.x, p.y, p.face);
@@ -215,6 +251,7 @@ export function stepBrawl(prev, pads, ctx) {
     if (t.area && t.life <= 0) t.boom = 1;
   }
   for (const t of s.shots) if (t.boom) burst(s, ctx, t);
+  if (s.things) coverStops(s, ctx);
   s.shots = s.shots.filter((t) => t.life > 0 && t.hits > 0);
   if (s.things) flying(s, ctx);
   separate(s, ctx);
@@ -269,6 +306,12 @@ function fire(s, p, G, gi) {
 function think(s, p, pad, ctx) {
   if (p.gone || p.ko || p.hs > 0) return;
   const F = ctx.fighters[p.fi];
+  // hidden: crouched until a command brings it up (a blow, a shot, an aim, a step, a pop)
+  if (p.st === 'hide') {
+    if (!(pad.pop || pad.mv || pad.fire || pad.aim || pad.lob || pad.x || pad.z || pad.jump)) return;
+    p.st = 'stand'; p.sf = 0;
+    s.events.push({ t: 'pop', p: p.id, x: p.x, z: p.z });
+  }
   if (p.gn !== undefined) gunThink(s, p, pad, ctx);
   // (a move on its body's cooldown is not started: the command waits, or its reader lets it go)
   const want = pad.mv && F.moves[pad.mv] && !(F.moves[pad.mv].cool && p.cd > 0) ? pad.mv : null;
@@ -318,6 +361,8 @@ function think(s, p, pad, ctx) {
   if (pad.jump) { p.st = 'prejump'; p.sf = 0; p.jx = sgn(pad.x); p.jz = sgn(pad.z); delete p.rj; return; }
   // the dashes: a run the way the stick points, a back-step facing the way it faced
   if (pad.dash === 'run' && sgn(pad.x)) { p.st = 'run'; p.sf = 0; p.face = sgn(pad.x); p.wx = 0; p.wz = sgn(pad.z); return; }
+  // hiding: down behind whatever is there
+  if (pad.hide) { p.st = 'hide'; p.sf = 0; p.wx = 0; p.wz = 0; return; }
   // the gunner's roll: any of four ways, untouchable as it goes
   if (pad.dash === 'roll' && (sgn(pad.x) || sgn(pad.z))) { p.st = 'roll'; p.sf = 0; p.rlx = sgn(pad.x); p.rlz = sgn(pad.x) ? 0 : sgn(pad.z); p.wx = 0; p.wz = 0; p.inv = Math.max(p.inv, s.rules.rollInv); return; }
   if (pad.dash === 'back') { if (sgn(pad.x)) p.face = -sgn(pad.x); p.st = 'back'; p.sf = 0; p.wx = 0; p.wz = 0; p.inv = Math.max(p.inv, F.dash.b.invuln ?? 0); return; }
@@ -366,6 +411,12 @@ function advance(s, p, ctx) {
   p.sf++;
   if (p.pushn > 0) { p.x += p.pushv; p.pushn--; }
   switch (p.st) {
+    case 'drop': fall(p, J.g); if (p.y <= 0 && p.vy < 0) { touchDown(p, 12); s.events.push({ t: 'land', p: p.id, x: p.x, z: p.z, drop: 1 }); } break;
+    case 'dig':
+      // (up out of the ground, out at its end)
+      p.y = Math.min(0, Math.round(-R.digDepth * (1 - p.sf / R.dig)));
+      if (p.sf >= R.dig) { p.y = 0; p.st = 'stand'; p.sf = 0; s.events.push({ t: 'dug', p: p.id, x: p.x, z: p.z }); }
+      break;
     case 'roll': {
       p.x += p.rlx * R.rollSpeed; p.z += p.rlz * Math.round(R.rollSpeed * 0.7);
       if (p.sf >= R.roll) { p.st = 'stand'; p.sf = 0; }
@@ -539,6 +590,16 @@ function separate(s, ctx) {
     if (!o) { p.gw = 0; continue; }
     if (++p.gw >= R.grab) clinch(s, p, o);
   }
+  // NO BODY WALKS THROUGH COVER: pushed out along the belt to its nearer side
+  if (s.things) for (const c of s.things) {
+    if (c.kind !== 'cover') continue;
+    const D = THINGS.cover[c.what], hw = Math.round((D.w * 1000) / 2), hd = Math.round((D.d * 1000) / 2);
+    for (const p of B) {
+      if (p.gone || p.y > 300 || p.st === 'thrown' || p.st === 'held') continue;
+      if (Math.abs(p.z - c.z) >= hd + R.body || Math.abs(p.x - c.x) >= hw + R.body) continue;
+      p.x = c.x + (p.x >= c.x ? 1 : -1) * (hw + R.body);
+    }
+  }
   // the camera goes on with the players; a player stays in its view, every body on the belt and in its band
   const belt = ctx.belt, players = B.filter((p) => p.side === 'player' && !p.ko && !p.gone);
   if (belt && players.length) s.cam = Math.round(beltScroll(belt, s.cam / 1000, players.map((p) => p.x / 1000), s.cleared) * 1000);
@@ -631,14 +692,14 @@ function resolve(s, ctx) {
     const m = p.side === 'player' ? live(p, F(p)) : null, hb = m && !m.throw ? strikeOf(p, F(p)) : null;
     if (!hb) continue;
     for (const t of s.things) {
-      if (t.kind !== 'box' || Math.abs(t.z - p.z) > s.rules.line || hitsOn(p, `t${t.id}`)) continue;
-      const D = THINGS.box[t.what], hw = Math.round((D.w * 1000) / 2);
+      if ((t.kind !== 'box' && t.kind !== 'cover') || Math.abs(t.z - p.z) > s.rules.line || hitsOn(p, `t${t.id}`)) continue;
+      const D = THINGS[t.kind][t.what], hw = Math.round((D.w * 1000) / 2);
       // (a box is struck as a body standing there is: a blow thrown at a body's height breaks a low barrel)
       if (!crosses(hb, [t.x - hw, 0, t.x + hw, Math.max(BOX_REACH, Math.round(D.h * 1000))])) continue;
       p.hl.push([`t${t.id}`, 1, p.mf]); p.conn = p.conn || 1; p.hs = Math.max(p.hs, 6);
       t.hp -= m.damage;
       s.events.push({ t: t.hp > 0 ? 'thud' : 'break', thing: t.id, what: t.what, p: p.id, x: t.x, z: t.z });
-      if (t.hp <= 0) breakBox(s, t);
+      if (t.hp <= 0) { if (t.kind === 'cover') s.things = s.things.filter((u) => u !== t); else breakBox(s, t); }
     }
   }
   for (const t of s.shots) {
@@ -701,6 +762,8 @@ function burst(s, ctx, t) {
   if (t.freeze) s.freeze = Math.max(s.freeze, t.freeze);
   s.events.push({ t: 'burst', p: t.o, x: t.x, z: t.z, y: t.y, area: t.area, gun: ctx.guns?.[t.gun]?.id ?? null });
   const a = s.bodies[t.o];
+  // (cover within it worn down by it, whatever side of it)
+  if (s.things) for (const c of s.things) if (c.kind === 'cover' && c.hp > 0 && Math.hypot(c.x - t.x, (c.z - t.z) * 2) <= t.area) wearCover(s, c, t.dmg, null);
   for (const o of s.bodies) {
     if (o.side === t.side || o.gone || o.ko || untouchable(o, ctx.fighters[o.fi], 'projectile')) continue;
     if (Math.hypot(o.x - t.x, (o.z - t.z) * 2) > t.area) continue;
@@ -803,10 +866,36 @@ const BOX_REACH = 1600;
 // ── the street's things ──────────────────────────────────────────────────────────────────────────────────────
 
 /** the thing a body stands over (not a box, not one in flight), nearest first */
+/** a round meeting a cover piece is stopped there (unless its shooter stands right behind it), wearing it down */
+function coverStops(s, ctx) {
+  const covers = s.things.filter((c) => c.kind === 'cover');
+  if (!covers.length) return;
+  for (const t of s.shots) {
+    if (t.lob || t.hits <= 0 || t.done) continue;
+    const o = s.bodies[t.o];
+    for (const c of covers) {
+      if (c.hp <= 0) continue;
+      const D = THINGS.cover[c.what], hw = Math.round((D.w * 1000) / 2), hd = Math.round((D.d * 1000) / 2);
+      if (Math.abs(t.z - c.z) > hd + 120 || t.x < c.x - hw - Math.abs(t.vx) || t.x > c.x + hw + Math.abs(t.vx)) continue;
+      // (the round crossed it this frame, coming from beyond it)
+      const was = t.x - t.vx;
+      if (!(Math.sign(was - c.x) !== Math.sign(t.x - c.x) || Math.abs(t.x - c.x) <= hw)) continue;
+      if (o && Math.abs(o.x - c.x) <= s.rules.coverReach && Math.abs(o.z - c.z) <= hd + 700) continue;
+      wearCover(s, c, t.dmg, t);
+      if (t.area) { t.boom = 1; burst(s, ctx, t); } else { t.hits = 0; t.life = 0; }
+      break;
+    }
+  }
+  s.things = s.things.filter((c) => c.kind !== 'cover' || c.hp > 0);
+}
+function wearCover(s, c, dmg, by) {
+  c.hp -= dmg;
+  s.events.push({ t: c.hp > 0 ? 'cover' : 'break', thing: c.id, what: c.what, x: by ? by.x : c.x, z: c.z, y: by ? by.y : 600, cover: 1 });
+}
 function underfoot(s, p) {
   let best = null;
   for (const t of s.things) {
-    if (t.kind === 'box' || t.fly || Math.abs(t.z - p.z) > s.rules.line || Math.abs(t.x - p.x) > s.rules.reachThing) continue;
+    if (t.kind === 'box' || t.kind === 'cover' || t.fly || Math.abs(t.z - p.z) > s.rules.line || Math.abs(t.x - p.x) > s.rules.reachThing) continue;
     if (!best || Math.abs(t.x - p.x) < Math.abs(best.x - p.x)) best = t;
   }
   return best;

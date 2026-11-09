@@ -111,6 +111,8 @@ export function brawlYardData(block, bodies = null) {
     belt: block.belt, register: block.register ?? null, ...(block.armed ? { armed: true } : {}), ...(block.sun ? { sun: block.sun } : {}),
     roster, players, dummies,
     things: P.things ?? [], health: P.health ?? 'chains',
+    // (the brawler yard's own wave tester, read here so a fault is said before the page)
+    ...(P.waves && !P.range ? { waves: readRangeWaves(P.waves), loop: P.loop !== false } : {}),
     // (THE RANGE, the run & gun's: the guns passed in to be tried, read here so a fault is said before the page)
     ...(P.range ? { range: { guns: (P.range.guns ?? RANGE_GUNS).map((g, k) => { readGun(g, `practice.range.guns[${k}]`); return g; }), grenades: P.range.grenades ?? 3,
       // (its waves, read here so a fault is said before the page: the sampler for `true`)

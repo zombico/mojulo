@@ -21,7 +21,7 @@ export const RIFLE = Object.freeze({ lead: Object.freeze([45, 100]), rear: Objec
 // a gunner's legs: the walk's stride, a jump's tuck, a landing's crouch, else its stance
 function gunLegs(p, own, guard, crouch, t, rules) {
   if (p.st === 'walk') { const w = wave(t, 0.22); return lerpPose(own.walkA ?? POSES.walkA, own.walkB ?? POSES.walkB, w); }
-  if (p.st === 'air' || p.st === 'prejump') return p.st === 'air' ? POSES.jump : POSES.prejump;
+  if (p.st === 'air' || p.st === 'prejump' || p.st === 'drop') return p.st === 'prejump' ? POSES.prejump : POSES.jump;
   if (p.st === 'land') return lerpPose(crouch, guard, Math.min(1, p.sf / Math.max(1, p.landing || 4)));
   return guard;
 }
@@ -39,6 +39,8 @@ export function brawlPoseOf(p, F, t = 0, rules = {}) {
   // angles found on the rig: each body type's hands land within a centimetre or two of it); its roll a tuck
   if (p.gn !== undefined) {
     if (p.st === 'roll') return { ...crouch, torso: (crouch.torso ?? 0) + 70, head: 60 };
+    // (down behind cover, coming up out of the ground: crouched, the rifle still held)
+    if (p.st === 'hide' || p.st === 'dig') return { ...crouch, armF: RIFLE.lead, armB: RIFLE.rear };
     return { ...gunLegs(p, own, guard, crouch, t, rules), torso: guard.torso ?? 0, armF: RIFLE.lead, armB: RIFLE.rear };
   }
   switch (p.st) {
@@ -54,6 +56,9 @@ export function brawlPoseOf(p, F, t = 0, rules = {}) {
       return { ...stride, torso: (stride.torso ?? 0) + 18, sway: s * 9, twist: 10 - s * 7, tilt: s * 4 };
     }
     case 'back': return own.backdash ?? POSES.backdash;
+    // hiding (behind cover, lying in wait) and coming up out of the ground: crouched; dropping in: the jump's tuck
+    case 'hide': case 'dig': return { ...crouch, torso: (crouch.torso ?? 0) + 10 };
+    case 'drop': return POSES.jump;
     case 'prejump': return POSES.prejump;
     case 'air': return POSES.jump;
     case 'land': return lerpPose(crouch, guard, Math.min(1, p.sf / Math.max(1, p.landing || 4)));

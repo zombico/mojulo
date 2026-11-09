@@ -60,3 +60,15 @@
   the next after its breath, the set over again. Its page: the wave meter on mana-ui's brawler shelf (`wave-meter`:
   which wave of how many, its name, its formation and pattern, the bodies left and its clock, the last clear) and the
   settings' Waves; the spike's `--waves` plays the sampler.
+- How the crowd comes in and where it hides, for both games (the brawler's and the run & gun's). ENTRANCES
+  (`brawl-core.js` enterBody): walking in from the view's edge, out of a door on the street's far side, DROPPING from
+  above onto its spot, DIGGING up out of the ground (untouchable until it is out) or VAULTING the back fence in an arc.
+  HIDING: a body ducks (`hide`: its crouch at 60% of its height, so a round at the chest passes over it) until a command
+  brings it up. COVER (`THINGS.cover`: sandbags, a stack of crates, a low wall, each its size, health and the voice a
+  round makes on it): a round meeting it is stopped and wears it down, unless its shooter stands right behind it (a body
+  fires over its own cover); a grenade goes over it, a burst reaches behind it and breaks it, blows break it, no body
+  walks through it. In the waves: a range wave's (and the brawler yard's own, `practice.waves`) `entrance`, `cover`
+  (a piece between each station and the player: its shooters down behind it between volleys, up to fire over it) and
+  `ambush` (hidden at its stations until the player comes near); a street wave's crowd entry `entrance` and `ambush`.
+  The sampler gains dug in, from above, out of the ground and lying in wait; the page draws cover, a dig's dirt and the
+  crouch, and sounds a round on cover and a body digging out; the spike's `--waves --melee` plays the brawler's.

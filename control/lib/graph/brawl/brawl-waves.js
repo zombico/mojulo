@@ -3,7 +3,7 @@
  * stands in a FORMATION round the player and fires to an ATTACK PATTERN, so a group's shape and its rhythm can be tried
  * on the range (brawl-practice.js `range.waves`) and approved before a street is laid with them.
  *
- *   wave = { crowd: [{ type, n, hp?, poise? }], formation?, pattern?, beat?, after?, name? }
+ *   wave = { crowd: [{ type, n, hp?, poise? }], formation?, pattern?, beat?, after?, name?, entrance?, cover?, ambush? }
  *     crowd      the crowd's types (brawl-crowd.js CROWD_TYPES), how many, each body's health and poise if the test
  *                wants them other than the type's
  *     formation  where it comes in from and stands (FORMATIONS), round the player as the wave starts
@@ -11,9 +11,16 @@
  *                street's crowd does (the tokens, the ring)
  *     beat       frames between two of its volleys (each shooter's own warning inside it)
  *     after      frames the range waits after the wave before it is cleared (the breath between waves)
+ *     entrance   how its bodies come in (ENTRANCES): walking in from the view's edge, out of a door on the street's far
+ *                side, dropping from above, digging out of the ground, vaulting the back fence (brawl-core.js enterBody)
+ *     cover      a cover piece (brawl-things.js THINGS.cover) set between each station and the player as it comes in:
+ *                its shooters duck behind it between volleys and pop up to fire over it; cleared with the wave
+ *     ambush     its bodies wait hidden at their stations until the player comes near (WAVE_RULES.ambush), then fight
  *
  *   FORMATIONS, FORMATION_IDS, PATTERNS, PATTERN_IDS, WAVE_RULES
- *   RANGE_WAVES           the range's sampler (its `waves: true`): one wave of each pattern, each its formation
+ *   RANGE_WAVES           the range's sampler (its `waves: true`): one wave of each pattern and formation, the
+ *                         entrances, cover and an ambush
+ *   ENTRANCES, ENTRANCE_IDS
  *   readRangeWaves(waves) → the waves, read (throws naming the fault)
  *   stationsOf(formation, n, at, band, view) → each body's station [x, z] (mm), round the player's `at`, held to the
  *                                              band (`[n0, n1]`) and the view (`[lo, hi]`)
@@ -25,6 +32,7 @@
  * Pure: no clock, no dice.
  */
 import { CROWD_TYPES } from './brawl-crowd.js';
+import { THINGS } from './brawl-things.js';
 
 export const FORMATIONS = Object.freeze({
   line: 'side by side across the street, ahead: a wall to cut down or slip past',
@@ -43,6 +51,14 @@ export const PATTERNS = Object.freeze({
   pincer: 'by sides, half a beat apart: ahead, then behind',
 });
 export const PATTERN_IDS = Object.freeze(Object.keys(PATTERNS));
+export const ENTRANCES = Object.freeze({
+  walk: 'walking in from the view\'s edge on its side',
+  door: 'out of a door on the street\'s far side, where it stands',
+  drop: 'dropping from above onto where it stands',
+  dig: 'digging up out of the ground where it stands (untouchable until it is out)',
+  vault: 'over the back fence in an arc, onto where it stands',
+});
+export const ENTRANCE_IDS = Object.freeze(Object.keys(ENTRANCES));
 export const WAVE_RULES = Object.freeze({
   beat: 120,       // frames between two volleys unless a wave says
   after: 90,       // frames between a wave cleared and the next coming in
@@ -52,6 +68,8 @@ export const WAVE_RULES = Object.freeze({
   ring: 3200,      // mm a surround stands round the player
   enter: 900,      // mm outside the view a body comes in from
   dead: 150,       // mm a body counts as at its station
+  ambush: 2600,    // mm the player comes within (along the street) for a hidden body to spring
+  coverGap: 150,   // mm between a wave's cover piece and the body behind it (past their half-widths), toward the player
 });
 
 /** the sampler: a volley's wall, a pincer by halves, a sweep down the stairs, a column to pierce, brawlers round you */
@@ -62,6 +80,10 @@ export const RANGE_WAVES = Object.freeze([
   { name: 'suppressed', crowd: [{ type: 'gunner', n: 2 }, { type: 'rifleman', n: 2 }], formation: 'back', pattern: 'alternate' },
   { name: 'a column', crowd: [{ type: 'rifleman', n: 3 }, { type: 'bazooka', n: 1 }], formation: 'column', pattern: 'volley' },
   { name: 'surrounded', crowd: [{ type: 'thug', n: 3 }, { type: 'grenadier', n: 1 }], formation: 'surround', pattern: 'tokens' },
+  { name: 'dug in', crowd: [{ type: 'rifleman', n: 3 }], formation: 'line', pattern: 'sweep', cover: 'sandbags' },
+  { name: 'from above', crowd: [{ type: 'gunner', n: 3 }], formation: 'stairs', pattern: 'volley', entrance: 'drop' },
+  { name: 'out of the ground', crowd: [{ type: 'thug', n: 4 }], formation: 'surround', pattern: 'tokens', entrance: 'dig' },
+  { name: 'lying in wait', crowd: [{ type: 'rifleman', n: 2 }, { type: 'thug', n: 2 }], formation: 'pincer', pattern: 'alternate', cover: 'crates', ambush: true },
 ].map((w) => Object.freeze(w)));
 
 /** Read a range's waves (`true`: the sampler). */
@@ -83,7 +105,11 @@ export function readRangeWaves(waves0) {
     if (!FORMATIONS[formation]) throw new Error(`brawl: ${at}.formation is one of ${FORMATION_IDS.join(', ')}`);
     if (!PATTERNS[pattern]) throw new Error(`brawl: ${at}.pattern is one of ${PATTERN_IDS.join(', ')}`);
     for (const k of ['beat', 'after']) if (w[k] !== undefined && !(Number.isInteger(w[k]) && w[k] >= 20 && w[k] <= 1200)) throw new Error(`brawl: ${at}.${k} is a whole number of frames from 20 to 1200`);
-    return { crowd, formation, pattern, beat: w.beat ?? WAVE_RULES.beat, after: w.after ?? WAVE_RULES.after, name: typeof w.name === 'string' ? w.name : `${formation} · ${pattern}` };
+    const entrance = w.entrance ?? 'walk';
+    if (!ENTRANCES[entrance]) throw new Error(`brawl: ${at}.entrance is one of ${ENTRANCE_IDS.join(', ')}`);
+    if (w.cover !== undefined && !THINGS.cover[w.cover]) throw new Error(`brawl: ${at}.cover is one of ${Object.keys(THINGS.cover).join(', ')}`);
+    if (w.ambush !== undefined && typeof w.ambush !== 'boolean') throw new Error(`brawl: ${at}.ambush is true or false`);
+    return { crowd, formation, pattern, entrance, ...(w.cover ? { cover: w.cover } : {}), ...(w.ambush ? { ambush: true } : {}), beat: w.beat ?? WAVE_RULES.beat, after: w.after ?? WAVE_RULES.after, name: typeof w.name === 'string' ? w.name : `${formation} · ${pattern}` };
   });
 }
 
