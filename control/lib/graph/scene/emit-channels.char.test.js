@@ -611,6 +611,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // runtime. The moveset's specials on the modifier held (`mod`), the MP pool, a move's `reach` and a `dash` travel, and the
 // sidearm silent under the modifier; no fixture names a moveset, so the runtime they embed changed, their worlds as they
 // were. (The page's moveset input reads the modifier only on a moveset's page: no fixture has one.)
+// Re-pinned 2026-11-09 (1109-cosmos-contraction merging 1108-practice-room again: Fallen Angel's air, the modifier and
+// its specials): `kitchen-sink` and `kitchen-sink-capture`, the two that carry both the controllable runtime those
+// commits changed and the game channel the flow runner did; each line's pin held its own change alone. No fixture names
+// a moveset, an air dash or a flow, so the sources they carry changed, their play as it was.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
