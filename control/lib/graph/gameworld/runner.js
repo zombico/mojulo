@@ -559,7 +559,9 @@ const foeSteps = (G, ref, ready) => {
     const roll = peopleRollOf(G, id, entry), manifest = { kind: 'egocube', roll, moves: true }, sheetRef = childRef(ref, `foes-${id}-sheet`);
     // (the body its game puts in its henchmen, where the book names one (game-bodies.js): the words it changes over the
     // sheet's person, laid over it when the character is made; a book that names none makes it as before)
-    const words = hench ? henchOverSheet(manifest, hench, setting, G) : null;
+    // (and what it carries, its skin's `gear`, foes/people.js: the hero door's words over the rolled person)
+    const body = hench ? henchOverSheet(manifest, hench, setting, G) : null, gear = entry.skin && entry.skin.gear;
+    const words = body || gear ? { ...(body ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}) } : null;
     return [
       { key: `foes-${id}-sheet`, ref: sheetRef, ...ready, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) },
       { key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { egocube: sheetRef, title, ...(words ? { spec: words } : {}) }, print: fingerprint({ roll, moves: true, ...(words ? { spec: words } : {}) }) },

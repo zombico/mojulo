@@ -75,6 +75,37 @@ describe('the moveset in the runtime', () => {
   });
 });
 
+describe('no spamming: the heavy\'s cooldown, the finisher\'s rest', () => {
+  const M = lowerCombos(BASIC_COMBOS);
+  it('a heavy opens again only once its cooldown has passed after it ends; a press inside it is dropped and said', () => {
+    expect(M.moves.thrust.cooldown).toBeCloseTo(40 / 60, 4);
+    const R = room(M), starts = [];
+    let n = 0;
+    for (let f = 0; f < 200; f++) { R.step(f % 6 === 0 ? { heavy: 1 } : {}); if ((R.p.swingCount || 0) > n) { n = R.p.swingCount; starts.push(f); } }
+    expect(R.log.some((l) => l.beat === 'H' && l.verdict === 'dropped' && /thrust cooling down/.test(l.why))).toBe(true);
+    // (one thrust a 32-frame move and its 40 frames of cooldown, a press every 6 frames taken at the first it can)
+    for (let i = 1; i < starts.length; i++) expect(starts[i] - starts[i - 1]).toBeGreaterThanOrEqual(32 + 40);
+    expect(starts.length).toBeGreaterThanOrEqual(2);
+  });
+  it('after a finisher, no string opens for the rest; a light pressed through it is dropped, and once it has passed, taken', () => {
+    expect(M.rest).toBeCloseTo(30 / 60, 4);
+    const R = room(M);
+    for (let f = 0; f < 90; f++) R.step(f === 0 || f === 17 || f === 34 ? { fire: 1 } : {});   // (L L L: the cleave ends by frame ~78)
+    expect(R.p.mvRole).toBe(null);
+    R.step({ fire: 1 });
+    expect(R.log[R.log.length - 1]).toMatchObject({ beat: 'L', verdict: 'dropped' });
+    expect(R.log[R.log.length - 1].why).toMatch(/resting after the finisher/);
+    for (let f = 0; f < 40; f++) R.step();
+    R.step({ fire: 1 }); R.step();
+    expect(R.log[R.log.length - 1]).toMatchObject({ beat: 'L', verdict: 'taken' });
+    // (a heavy is no way round it: the rest holds every string)
+    const H = room(M);
+    for (let f = 0; f < 90; f++) H.step(f === 0 || f === 17 || f === 34 ? { fire: 1 } : {});
+    H.step({ heavy: 1 });
+    expect(H.log[H.log.length - 1].why).toMatch(/resting after the finisher/);
+  });
+});
+
 // THE ARSENAL (combos.js): the weapons a hero steps through, each its own moves and strings; the fist's moves the body's
 // strikes (the figure's `moves`)
 import { BASIC_ARSENAL, readArsenal, lowerArsenal, strikesOf } from './combos.js';

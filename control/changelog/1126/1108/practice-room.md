@@ -145,3 +145,17 @@
   raising the guard it came; the room lays the game's feel's guard on a level stored before it was carried. Measured
   in the room headless against the bandit's rush: held, eight charges stopped on the shield; raised 0.117 s before the
   contact (the window 0.127 s), parried.
+- **No spamming: the heavy's cooldown, the finisher's rest** (`gameworld/combos.js`, `combat-melee.js` stepMoveset). A
+  move may carry a `cooldown` (frames after it ends before it opens a string again): the thrust and the uppercut 40, so a
+  heavy comes at most once in 72 frames. The timing's `rest` (30 frames) holds every string after a FINISHER, so a
+  string is not run straight back. A press inside either is held when the wait is inside the buffer, else dropped and
+  said (`thrust cooling down (0.42 s)`, `resting after the finisher (0.25 s)`); a chain inside a string is untouched.
+- **A people foe carries the hero door's gear** (`foes/people.js` the skin's `gear`, `gameworld/runner.js`): a bestiary
+  person's `{ people, gear }` (a skeleton's sword in the right hand and shield on the left) is read with the hero door's
+  own gear words and laid over its rolled person when the character is made; the step's print carries it.
+- **The room's foe falls and comes back.** Its hp is `--strings` (2.5) of the hero's first combo, measured headless on
+  the resolved hero and foe (the runtime's own blows: the sword's L L L deals 8, so 20 hp); felled, it plays its fall
+  and stands again where it was three seconds on. The HUD says its hp and the string it is measured in. Tried on the
+  Old Keep remade with a skeleton (`{ class: 'guard', skin: { people: 'skeleton', gear: { right: sword, left: shield } } }`,
+  in place of the bandit): felled in two strings and two cuts; against its swings, the guard held blocked ten of eleven
+  (the stamina breaking), and raised five frames before each blow, parried seven of seven.

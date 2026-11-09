@@ -1,4 +1,4 @@
-# The practice room: a game's swings, strings and weapons, tried on one foe that never dies
+# The practice room: a game's swings, strings and weapons, tried on one foe that falls and comes back
 
 The single-foe practice mode of a stylish action game is the whole game's engine: one foe, a bare room, every swing,
 string, weapon, guard and parry tried on it. This room is the game minus its level, on the runtime the game ships, so
@@ -9,7 +9,7 @@ what is tuned here is what every level plays. A spike: nothing registers a kind,
 export MOJULO_DATA_DIR=… MOJULO_OUTCOMES_DIR=…
 node scripts/spikes/practice-room/measure.mjs                    # the sword templates measured headless (machine gate)
 node scripts/spikes/practice-room/measure.mjs --page <level.html> --feel '<the game feel>'   # a built game's own pilot
-node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--combos my.json] [--cdn]  # the room page
+node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--combos my.json] [--strings 2.5] [--cdn]  # the room page
 ```
 
 ## The measures (`measure.mjs`)
@@ -25,7 +25,9 @@ The rule is a template's (`--feel`, the held weapon's `--class`) or a built leve
 A `controllable` manifest resolved by `world-scene.js` and emitted as `export_game` emits a level: a 24 m ring of 1 m
 tiles in two greys (distances read off the floor), a low wall, four pillars and a ledge (`hold: false`). The hero is the
 game's first level's pilot (its rule, its figures, its orbit camera, its lock-on); the foe is that level's first foe
-(`--pack n` for several), never dying and standing still until its AI is switched on.
+(`--pack n` for several), standing still until its AI is switched on. Its hp is `--strings` (2.5) of the hero's first
+combo, measured on the resolved hero and foe headless (the runtime's own blows, its combo scaling and all); felled, it
+plays its fall and comes back where it stood, whole, three seconds on.
 
 Inputs: L light (left click, a pad's left face), H heavy (right click, its top face), S the weapon's sidearm (the
 mouse's forward button, its right face; held: the bow draws and looses on release once ready, the pistols fire while

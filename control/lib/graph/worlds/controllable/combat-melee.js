@@ -578,11 +578,13 @@ export function buildCombatMelee(E) {
       S.buf = { beat, t: now };
     }
     // a dodge cancels the live move
-    if (ctx.dodging && e.swingT != null) { e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
+    // (a move ended: its own COOLDOWN before it opens a string again, a heavy's; a finisher's REST before any string opens)
+    const ended = () => { const m = M.moves[S.move]; if (m && m.cooldown > 0) (S.cool ??= {})[S.move] = now + m.cooldown; if (m && m.role === 'finisher' && M.rest > 0) S.restT = now + M.rest; };
+    if (ctx.dodging && e.swingT != null) { ended(); e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
     // the live move: its time, its end
     if (e.swingT != null && S.move) {
       e.swingT += dt / M.moves[S.move].dur;
-      if (e.swingT >= 1 || (!ctx.space && !e.grounded && (e.hoverGrace || 0) <= 0)) { e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
+      if (e.swingT >= 1 || (!ctx.space && !e.grounded && (e.hoverGrace || 0) <= 0)) { ended(); e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
     }
     // the buffered beat, taken where the tree and the timing allow
     if (S.buf && !ctx.charging && !ctx.kneeling && !ctx.dodging && (e.grounded || ctx.space)) {
@@ -596,7 +598,13 @@ export function buildCombatMelee(E) {
         const since = now - S.endT;
         if (N && N.pause && N.pause[b] && since >= M.pause[0] && since <= M.pause[1]) { next = N.pause[b]; how = 'chained on the pause'; }
         else if (N && N.next && N.next[b] && since <= M.late + 1e-9) { next = N.next[b]; how = 'chained after the move'; }
-        else if (M.tree[b]) { next = M.tree[b]; how = 'an opener'; }
+        else if (M.tree[b]) {
+          // (an opener waits out the finisher's rest and its own cooldown: held when the wait is inside the buffer, else dropped)
+          const op = M.tree[b].move, rest = (S.restT ?? -1e9) - now, cool = ((S.cool && S.cool[op]) ?? -1e9) - now, left = Math.max(rest, cool);
+          if (left <= 1e-9) { next = M.tree[b]; how = 'an opener'; }
+          else if (left <= M.buffer + 1e-9) wait = true;
+          else { say(b, 'dropped', rest >= cool ? `resting after the finisher (${left.toFixed(2)} s)` : `${op} cooling down (${left.toFixed(2)} s)`); S.buf = null; }
+        }
         else { say(b, 'dropped', `no move on ${b}`); S.buf = null; }
       }
       if (next) {

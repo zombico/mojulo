@@ -513,6 +513,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // rule's `guard` (a feel card's, lowered) is held up against a blow from the front, a blade's or a foe's touch: blocked,
 // or parried within its window, the attacker staggered for the riposte; the guard's walk and its pose. No fixture's rule
 // takes a guard, so nothing they play moved.
+// Re-pinned 2026-11-09 (1108-practice-room: no spamming): the 16 fixtures that embed the controllable runtime. A
+// moveset's move keeps its `cooldown` before it opens a string again, and its `rest` holds every string after a
+// finisher. No fixture's rule takes a moveset, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
