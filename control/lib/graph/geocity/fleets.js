@@ -22,8 +22,11 @@ import { handlesOf, resolveVehicle } from '../vehicle-registry/roster.js';
 import { streamOf } from '../city/plan/dice.js';
 import { CAR_PAINT_HEX, TOWN_CARS } from '../geotown/cars.js';
 
+// the family cars a metro parks (of the town's, cars.js TOWN_CARS)
+const METRO_CARS = Object.freeze(['sedan', 'hatchback', 'crossover', 'suv']);
 export const FLEETS = Object.freeze({
-  civilian: { read: 'the family cars people park', rows: Object.entries(TOWN_CARS).map(([word, weight]) => ({ word, weight })) },
+  // (four models: each a heavy template, a metro's page carries each once)
+  civilian: { read: 'the family cars people park', rows: Object.entries(TOWN_CARS).filter(([w]) => METRO_CARS.includes(w)).map(([word, weight]) => ({ word, weight })) },
   taxi: { read: 'taxis at their rank and on the kerb', rows: [{ word: 'taxi', stand: 'sedan', weight: 1, paint: ['#f2c230'], extra: 'taxi-sign' }] },
   police: { read: 'the police: patrol cars', rows: [{ word: 'police-car', stand: 'sedan', weight: 1, paint: ['#f1f1ee'], extra: 'lightbar-rb' }] },
   ambulance: { read: 'ambulances', rows: [{ word: 'ambulance', stand: 'cargo-van', weight: 1, paint: ['#f4f4f0'], extra: 'lightbar-r' }] },
@@ -32,7 +35,8 @@ export const FLEETS = Object.freeze({
   utility: { read: 'the city\'s works pickups and vans', rows: [{ word: 'pickup', weight: 2, paint: ['#f1f1ee', '#e07b25'], extra: 'beacon' }, { word: 'cargo-van', weight: 1, paint: ['#f1f1ee'], extra: 'beacon' }] },
   delivery: { read: 'vans and box trucks delivering', rows: [{ word: 'cargo-van', weight: 3, paint: ['#f1f1ee', '#5a3a22', '#2a3f6a', '#c9b48a'] }, { word: 'box-truck', weight: 1, paint: ['#f1f1ee', '#8a2a2a'] }] },
   bus: { read: 'the city\'s buses', rows: [{ word: 'bus', weight: 1, paint: ['#c8322a'] }] },
-  construction: { read: 'a site\'s machines: mixers, tippers, loaders, a telehandler', rows: [{ word: 'mixer-truck', weight: 3 }, { word: 'tipper-truck', weight: 3 }, { word: 'wheel-loader', weight: 2 }, { word: 'skid-steer', weight: 2 }, { word: 'telehandler', weight: 1 }, { word: 'backhoe-loader', weight: 1 }] },
+  // (two machines, the site's own tipper among them: each a heavy template, a page carries each once)
+  construction: { read: 'a site\'s machines: mixer trucks and tippers', rows: [{ word: 'mixer-truck', weight: 1 }, { word: 'tipper-truck', weight: 1 }] },
 });
 
 // what each yard keeps, by role and how often, and what stands in it besides

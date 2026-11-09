@@ -251,7 +251,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   // loft, a construction shelf machine), parked where its role keeps it (a lot, a yard, a kerb, a site); a vehicle's
   // model and paint its own dice's; drawn as repeats near the camera (cars.js; a machine the shelf's assembly)
   const vehicles = [], machines = new Map();
-  const machineAt = (arch, pos, rotZ) => { (machines.get(arch) ?? machines.set(arch, []).get(arch)).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}) }); counts.machines = (counts.machines ?? 0) + 1; };
+  // (a tipper the site's own waiting truck, SITE.truck: one template between them)
+  const machineAt = (arch, pos, rotZ) => { counts.machines = (counts.machines ?? 0) + 1; if (arch === SITE.truck[0]) { siteNear('truck', pos, rotZ); return; } (machines.get(arch) ?? machines.set(arch, []).get(arch)).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}) }); };
   // (its nose along `nose`, [dx, dy])
   const vehicleAt = (role, x, y, z, nose, key) => {
     const v = pickOf(fleetOf(role), streamOf(seed, 'fleet', key)), heading = Math.atan2(-nose[0], nose[1]);
@@ -764,9 +765,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     const bx = x1 - (x1 - q[2]) / 2, by = y0 + (q[1] - y0) / 2;
     if (x1 - q[2] >= 7) siteNear('digger', [bx, cy, zc], Math.PI / 2);
     if (q[1] - y0 >= 6) siteNear('truck', [cx, by, zc], -Math.PI / 2);
-    // (and its mixer on the band along its back, its loader on the band beside it: the construction shelf's)
+    // (and its mixer on the band along its back: the construction shelf's)
     if (y1 - q[3] >= 6) machineAt('mixerTruck', [cx, y1 - (y1 - q[3]) / 2, zc], Math.PI / 2);
-    if (q[0] - x0 >= 6) machineAt('wheelLoader', [x0 + (q[0] - x0) / 2, cy, zc], 0);
     // near: scaffolding up its two long faces, a bay every 2 m along and every lift up
     const faces2 = longY ? [['w', q[0], 'y', q[1], q[3]], ['e', q[2], 'y', q[1], q[3]]] : [['s', q[1], 'x', q[0], q[2]], ['n', q[3], 'x', q[0], q[2]]];
     for (const [f, at2, along, a, c] of faces2) for (let t = a + 1; t <= c - 1; t += 2) for (let z = zc; z + 2 <= top + 1e-6; z += 2) stamp(`scaffold:${f}`, along === 'y' ? [at2, t, z] : [t, at2, z], 0);
@@ -1236,6 +1236,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     const off = (band.from + band.to) / 2, nose = l.axis === 'ns' ? [0, off > 0 ? 1 : -1] : [off > 0 ? -1 : 1, 0];
     for (const [a, c] of l.axis === 'ns' ? runsNS : runsEW) for (let t = a + 8; t + 6 <= c - 8; t += 6.5) {
       const [x, y] = l.axis === 'ns' ? [l.at + off, t] : [t, l.at + off];
+      // (an evocation's kerbs where it draws its neighbourhoods, never along its skyline's)
+      if (massed && !d.regions.some((r) => massed.has(r.id) && x > r.rect[0] - 40 && x < r.rect[2] + 40 && y > r.rect[1] - 40 && y < r.rect[3] + 40)) continue;
       const Rk = streamOf(seed, 'kerb', `${l.id}:${band.from}:${Math.round(t)}`);
       if (Rk() >= 0.7) continue;
       const ring = ringAt(x, y), u = Rk(), role = ring !== 'outskirts' && u < 0.09 ? 'delivery' : ring === 'core' && u < 0.15 ? 'taxi' : 'civilian';

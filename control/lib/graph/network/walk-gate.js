@@ -13,8 +13,12 @@
  */
 export function walker(P) {
   const C = 2, tops = new Map(), walls = new Map(), key = (x, y) => `${Math.floor(x / C)},${Math.floor(y / C)}`;
+  // (a triangle over more cells than this, a sea's plane out past the map, is kept on its own list and asked by every
+  // query, rather than indexed into millions of cells: the same answers, a fraction of the memory)
+  const BIG = 4096, big = new Map([[tops, []], [walls, []]]);
   const index = (map, tri) => {
     const xs = tri.map((p) => p[0]), ys = tri.map((p) => p[1]);
+    if ((Math.floor(Math.max(...xs) / C) - Math.floor(Math.min(...xs) / C) + 1) * (Math.floor(Math.max(...ys) / C) - Math.floor(Math.min(...ys) / C) + 1) > BIG) { big.get(map).push(tri); return; }
     for (let i = Math.floor(Math.min(...xs) / C); i <= Math.floor(Math.max(...xs) / C); i++) for (let j = Math.floor(Math.min(...ys) / C); j <= Math.floor(Math.max(...ys) / C); j++) {
       const k = `${i},${j}`; if (!map.has(k)) map.set(k, []); map.get(k).push(tri);
     }
@@ -34,7 +38,7 @@ export function walker(P) {
   // the highest top under (x, y) no higher than `from`
   const ground = (x, y, from) => {
     let best = null;
-    for (const [a, b, c] of tops.get(key(x, y)) || []) {
+    for (const [a, b, c] of [...(tops.get(key(x, y)) || []), ...big.get(tops)]) {
       const d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
       if (Math.abs(d) < 1e-12) continue;
       const l1 = ((b[1] - c[1]) * (x - c[0]) + (c[0] - b[0]) * (y - c[1])) / d, l2 = ((c[1] - a[1]) * (x - c[0]) + (a[0] - c[0]) * (y - c[1])) / d, l3 = 1 - l1 - l2;
@@ -49,7 +53,7 @@ export function walker(P) {
     const dir = [q[0] - p[0], q[1] - p[1], 0], len = Math.hypot(dir[0], dir[1]);
     if (len < 1e-9) return false;
     const seen = new Set();
-    for (const k of new Set([key(p[0], p[1]), key(q[0], q[1])])) for (const tri of walls.get(k) || []) {
+    for (const k of new Set([key(p[0], p[1]), key(q[0], q[1])])) for (const tri of [...(walls.get(k) || []), ...big.get(walls)]) {
       if (seen.has(tri)) continue; seen.add(tri);
       const [a, b, c] = tri, e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
       const h = [dir[1] * e2[2] - dir[2] * e2[1], dir[2] * e2[0] - dir[0] * e2[2], dir[0] * e2[1] - dir[1] * e2[0]], det = e1[0] * h[0] + e1[1] * h[1] + e1[2] * h[2];
