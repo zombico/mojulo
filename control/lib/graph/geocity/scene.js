@@ -1207,6 +1207,8 @@ export function assembleGeocityScene(m, ctx = {}) {
       } : { podium: null, why: underWhy } } : {}),
       ...(SUB ? { subway: { ...SUB.readout, ...(streetcars.length ? { streetcars } : {}) } } : {}),
       ledger: d.ledger, laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
+      // (its streets' profiles where it asks them: the arterials', and how many of each neighbourhood's streets)
+      ...(d.profile ? { profile: { arterials: d.profile.arterials, neighbourhoods: Object.fromEntries(Object.entries(d.profile.neighbourhoods).map(([id, st]) => [id, st.length])), ...(d.spec.slope ? { slope: d.spec.slope } : {}) } } : {}),
     },
   };
 }

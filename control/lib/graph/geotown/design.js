@@ -29,7 +29,7 @@
  *   designGeotown(spec, { seed, field?, streets? }) → { spec, seed, pattern, row, sections, frame, depth, X, Y, streets, pieces,
  *     blocks, plots, surfaces, ledger, ports, land, parking, sites, beside, traffic, evoked?, laws }   (`field`: (x, y) → metres, in place of the hills;
  *     `streets`: the streets' ground given whole, a metro's, geocity/towns.js, in place of its own blur)
- *   geotownLand(hills, frame, seed, field?, streets?) → { N, S, range }: the natural ground and the streets' ground, (x, y) → m
+ *   geotownLand(hills, frame, seed, field?, streets?, lift?) → { N, S, range }: the natural ground and the streets' ground, (x, y) → m (`lift` (x, y) → m the slope's, over the land)
  *
  * Every surface is an axis-aligned rect [x0, y0, x1, y1]; a plot's own frame is its front corner `A`, `ex` along its
  * frontage and `ey` into it (ex × ey up), so a building is spoken in it as the town speaks one
@@ -40,7 +40,7 @@ import { sectionOf, SURFACE_IDS, SEGMENTS } from './pattern.js';
 const LATER_SURFACES = Object.freeze(['piazza']);
 import { streamOf } from '../city/plan/dice.js';
 import { terrainField } from '../terrain/terrain-field.js';
-import { profileStreets } from './profile.js';
+import { profileStreets, climbLift } from './profile.js';
 import { geotownLaws, plotShares } from './laws.js';
 import { sitePlan, siteShares } from './sites.js';
 
@@ -69,7 +69,7 @@ function hillsField(H, seed) {
 }
 
 /** The natural ground (`N`) and the streets' ground (`S`) over the frame and its margin, (x, y) → metres. */
-export function geotownLand(hills, frame, seed = 1, field = null, streets = null) {
+export function geotownLand(hills, frame, seed = 1, field = null, streets = null, lift = null) {
   const { W, D, margin: M } = frame, x0 = -M, y0 = -M, nx = Math.ceil((W + 2 * M) / S_CELL) + 1, ny = Math.ceil((D + 2 * M) / S_CELL) + 1;
   let N;
   if (field) N = field;
@@ -83,6 +83,8 @@ export function geotownLand(hills, frame, seed = 1, field = null, streets = null
     const k = hi > lo ? hills.height / (hi - lo) : 0;
     N = (x, y) => (raw(x, y) - lo) * k;
   }
+  // (the SLOPE's lift, read.js `slope`: the land rising toward a side, a climbing street's ground with it, over its hills)
+  if (lift) { const N0 = N; N = (x, y) => N0(x, y) + lift(x, y, N0); }
   // (a town composed into a metro, geocity/towns.js: its streets' ground the metro's own, `streets`, so its walks meet the
   // metro's round it at one height; never blurred again inside its frame)
   if (streets) {
@@ -291,6 +293,19 @@ const toWorld = (pl, [u0, v0, u1, v1]) => {
 };
 export { toWorld as plotRect };
 
+/** THE SLOPE's lift on the land (read.js `slope`), (x, y) → m, or null: the land rising `toward` a side at `grade`; each
+ *  climbing street's ground rising with it at its grade from its first crossing, full under the street and its lots,
+ *  eased out to nothing at its parallel neighbours (its cross streets graded between, stairs where they must be). */
+function slopeLift(slope, frame, X, Y) {
+  if (!slope) return null;
+  const g = slope.grade ?? 0, along = slope.toward ? { n: (x, y) => y, s: (x, y) => frame.D - y, e: (x) => x, w: (x) => frame.W - x }[slope.toward] : null;
+  const plane = along ? (x, y) => g * along(x, y) : () => 0;
+  // (a climbing street's lift over the land as the plane leaves it: its grade the street's own, whatever the land does)
+  const climbs = climbLift(slope.streets, { x: X.map((at, k) => ({ id: `ns-${k}`, at })), y: Y.map((at, j) => ({ id: `ew-${j}`, at })) });
+  if (!along && !climbs) return null;
+  return (x, y, N0) => plane(x, y) + (climbs ? climbs(x, y, (p, q) => N0(p, q) + plane(p, q)) : 0);
+}
+
 /** The design of a geotown: its map, its budget and its levels. */
 export function designGeotown(spec = {}, { seed = 1, field = null, streets: streetsGround = null } = {}) {
   const T = readGeotown(spec), P = T.pattern, [C, Rn] = T.grid, evoked = T.evoke !== 'metro', ST = P.evoke.stretch;
@@ -391,9 +406,11 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
   const ref = evoked ? designGeotown({ evoke: 'metro', ...Object.fromEntries(['pattern', 'streetscape', 'hills', 'access'].filter((k) => spec[k] !== undefined).map((k) => [k, spec[k]])) }, { seed, field }) : null;
   const win = ref && !field ? ((ox, oy) => (x, y) => ref.land.N(x + ox, y + oy))((ref.frame.W - frame.W) / 2, (ref.frame.D - frame.D) / 2) : field;
   // (THE STREETS' PROFILE, profile.js, `profile`: its streets laid on profiles over the land, crossings level, each block
-  // graded between them; a town on a metro's streets' ground keeps the metro's)
-  const land0 = geotownLand(T.hills, frame, seed, win, streetsGround);
-  const PF = T.profile && !streetsGround ? profileStreets({ S: land0.S, X, Y, SX, SY, frame }, T.profile) : null;
+  // graded between them, a street the slope names climbing at its grade; a town on a metro's streets' ground its
+  // perimeter streets kept on the metro's, its own between them profiled; the SLOPE's tilt its land's, never a metro's)
+  const lift = streetsGround ? null : slopeLift(T.slope, frame, X, Y);
+  const land0 = geotownLand(T.hills, frame, seed, win, streetsGround, lift);
+  const PF = T.profile ? profileStreets({ S: land0.S, X, Y, SX, SY, frame }, { ...T.profile, ...(streetsGround ? { keep: true } : {}), ...(T.slope?.streets ? { climb: T.slope.streets } : {}) }) : null;
   const land = PF ? { ...land0, S: PF.S, range: PF.range } : land0, walkZ = (x, y) => land.S(x, y) + SX[0].kerb;
   // ── 5, 6 the plots, each segment tuned to its cell, and their budget ──
   const blocks = [], plots = [], fits = [], sites = [], surfaces = pieces.map((p) => ({ cls: p.cls, rect: p.rect, ...(p.street ? { street: p.street } : { crossing: p.crossing }) }));

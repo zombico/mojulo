@@ -1096,6 +1096,8 @@ export function assembleGeotownScene(m, ctx = {}) {
       pattern: d.pattern.id, streetscape: d.pattern.streetscape, evoke: d.spec.evoke, grid: d.spec.grid, frame: d.frame, land: d.land.range, language: L.id ?? anchor,
       segments: d.blocks.map((b) => { const pads = d.plots.filter((pl) => pl.block === b.id).map((pl) => pl.pad); return { id: b.id, use: b.use, built: b.built, rows: (b.rows ?? []).map((r) => ({ side: r.side, kind: r.kind, count: r.count })), ...(pads.length ? { pads: [Math.min(...pads), Math.max(...pads)] } : {}) }; }),
       ports: d.ports, counts, ledger: d.ledger, laws: laws.map((l) => ({ law: l.law, ok: l.ok, value: l.value })),
+      // (its streets' profiles and its slope, where it asks them: each street's crossings, climb and stretches)
+      ...(d.profile ? { profile: d.profile } : {}), ...(d.spec.slope ? { slope: d.spec.slope } : {}),
       ...(evoked ? { stands: d.evoked.stands, shows: d.evoked.shows, yards: Object.fromEntries(d.plots.filter((pl) => pl.yard).map((pl) => [pl.id, pl.yard])), features: yardsOf, shopfronts: Object.fromEntries(d.plots.filter((pl) => pl.shopfront).map((pl) => [pl.id, { sign: pl.shopfront.sign, awning: pl.shopfront.awning }])) } : {}),
     },
   };

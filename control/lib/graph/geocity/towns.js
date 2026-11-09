@@ -72,7 +72,8 @@ export function townsOf(d, T, N, S = null) {
     if (r.park) throw new Error(`geocity: geotowns.${id} is the city's park; a geotown is laid in a built neighbourhood`);
     const seed = strHash(`${d.seed}|geotown|${id}`) % 100000, w = r.rect[2] - r.rect[0], h = r.rect[3] - r.rect[1];
     const own = evokeOf(ask === true ? {} : ask), told = own.evoke !== undefined;
-    let spec = { margin: 0, ...(own.pattern === undefined ? { pattern: townPattern(T) } : {}), ...(own.streetscape === undefined ? { streetscape: RING_STREETSCAPES[r.builds] } : {}), ...own };
+    // (a profiled metro's towns profiled too, their perimeter on its ground, unless its recipe says)
+    let spec = { margin: 0, ...(own.pattern === undefined ? { pattern: townPattern(T) } : {}), ...(own.streetscape === undefined ? { streetscape: RING_STREETSCAPES[r.builds] } : {}), ...(T.profile && own.profile === undefined ? { profile: T.profile } : {}), ...own };
     if (!told) {
       spec = { ...spec, evoke: 'metro', grid: own.grid ?? fitGrid({ ...spec, evoke: 'metro' }, seed, w, h) };
       // (one block to scale too big for it: a block segment of its ring's instead)
@@ -103,7 +104,7 @@ export function blockTownsOf(d, T, N, S = null) {
     if (r.geotown) throw new Error(`geocity: geotowns.${id} is in '${r.id}', a geotown already`);
     const seed = strHash(`${d.seed}|geotown|${id}`) % 100000, own = evokeOf(ask === true ? {} : ask), told = own.evoke !== undefined;
     const seg = TOWN_SEGMENTS.includes(b.kind) ? b.kind : RING_SEGMENTS[r.builds];
-    let spec = { margin: 0, ...(own.pattern === undefined ? { pattern: townPattern(T) } : {}), ...(own.streetscape === undefined ? { streetscape: RING_STREETSCAPES[r.builds] } : {}), ...(told ? {} : { evoke: 'segment', segment: seg }), ...own };
+    let spec = { margin: 0, ...(own.pattern === undefined ? { pattern: townPattern(T) } : {}), ...(own.streetscape === undefined ? { streetscape: RING_STREETSCAPES[r.builds] } : {}), ...(told ? {} : { evoke: 'segment', segment: seg }), ...(T.profile && own.profile === undefined ? { profile: T.profile } : {}), ...own };
     const blockOf = (D0) => D0.blocks.find((x) => x.built !== false && D0.plots.some((p) => p.block === x.id)) ?? D0.blocks[0];
     // a segment filled by count: its rows as long as the metro's block runs along them (its counts scaled, then cut
     // back until it stands inside)

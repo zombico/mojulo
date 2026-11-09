@@ -136,3 +136,23 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   and stretches its fewer, wider lots up to a tenth), and the parking law counts a single garage and its drive or apron.
   The pattern's dice take `compact` and `alley` shares, none by default: a town that asks neither is laid byte for byte
   as before (its layout's hash unchanged on seven towns across the evocations, streetscapes and patterns).
+- **The slope word: this climbs.** A geotown may say how it climbs (`slope`): `{ toward, grade }` its land rising toward
+  a side at a grade over its hills (its streets and its houses' pads with it), and `streets: { 'ns-1': 0.12 }` streets
+  that climb at their own grade toward their north or east end (one axis, so no crossing is set twice), laid on their
+  profiles (a profile on whether asked or not): each such street's crossings set at its grade from its first, its cross
+  streets graded to meet them, and the land under it and its lots lifted to its climb (geotown/profile.js `climbLift`),
+  full a third of the way to its parallel neighbours and eased out there, so its houses climb with it; where it outruns
+  them its cross streets are stairs, and `stairs` says so (a 14 % climb beside level streets: its cross streets at 33 %).
+  A town composed into a geocity takes no tilt of its own (its land the metro's).
+- **A geocity's streets on profiles.** A geocity may lay its streets as a hill town does (`profile`): its arterials'
+  crossings level at the land's height there, each block between them graded on one ramp, the land's edges kept on the
+  land's own ground (the shore where it falls to the water, the beyond where a town joins); then inside each
+  neighbourhood its collectors and locals the same, the neighbourhood's edges kept on its arterials' ground; and every
+  geotown it composes profiled too, unless its recipe says, its perimeter streets kept on the metro's ground so its
+  seams hold (`town-seams`: 0.20 m at most on a hilly lakeshore, against 0.27 m draped). A profile keeps lines given as
+  the edges it must meet (`keep`), names its lines (`ids`) and climbs the streets asked (`climb`). Arterials that climb at
+  their own grade: `slope: { streets: { 'ns-2': 0.04 } }`, the land under them lifted with them. On a hilly lakeshore
+  (30 m over 900 m) the arterials' crossings tilted up to 0.77 m and the neighbourhoods' up to 0.47; profiled, 0.00 and
+  0.03. The stretches past the walkable grade are said by a new law, `stairs`, the profiles by the page (`geocity.profile`).
+  Two crossings whose reaches meet are a step between them, their grade read on the run between their middles. A metro
+  that asks neither is designed byte for byte as before.

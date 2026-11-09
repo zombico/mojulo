@@ -60,6 +60,14 @@
  *                   compressed: the map, the arterials' spacing, the rings, the blocks, the streets; never a storey, a
  *                   lane or a door): PLAY. An evocation is 'game' unless it says, the metro 'real'
  *
+ *   and how its streets climb
+ *     profile       true | { walkable?, curve? }: its streets laid as a hill town lays them (geotown/profile.js): the
+ *                   arterials' crossings level, each block between them graded on one ramp, the land's edges kept;
+ *                   then inside each neighbourhood its collectors and locals the same, its edges kept on its arterials';
+ *                   a geotown composed in profiled too unless its recipe says; a stretch past `walkable` said (`stairs`)
+ *     slope         { streets: { 'ns-2': 0.06, … } }: arterials that CLIMB at their grade (rise over run, less than 0
+ *                   falls) toward their north or east end, on profiles (one axis; its profile on whether asked or not)
+ *
  *   and what it composes
  *     geotowns      { '<neighbourhood id>' | '<block id>': true | { …a geotown's recipe } }: the geotown composed in, at
  *                   any grain and anywhere (the edge or the core), on the metro's land (geocity/towns.js): a
@@ -163,9 +171,9 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
-const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway']);
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
 const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels', 'elevation']);
 const CITY_ELEVATIONS = Object.freeze(['deep', 'elevated']);
@@ -294,5 +302,26 @@ export function readGeocity(spec = {}) {
     if (subway.tunnels !== undefined && !['real', 'teleport'].includes(subway.tunnels)) no("subway.tunnels is 'real' (walked from one platform to the next) or 'teleport' (a stub out of each station, a warp to the next's platform, its arrival shown)");
     if (!['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('subway is an evocation\'s (a neighbourhood, a corridor or a segment): it is walked, drawn at a building\'s detail');
   }
-  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}) };
+  // HOW ITS STREETS CLIMB: `profile` (its streets on profiles) and `slope` (the arterials that climb at their own grade)
+  let profile = null, slope = null;
+  if (spec.profile !== undefined && spec.profile !== false) {
+    const p = spec.profile === true ? {} : spec.profile;
+    if (!isObj(p)) no('profile is true (its streets on profiles: crossings level, each block graded between them) or { walkable?, curve? }');
+    for (const k of Object.keys(p)) if (!['walkable', 'curve'].includes(k)) no(`profile.${k} is not a setting (walkable, curve)`);
+    if (p.walkable !== undefined && !num(p.walkable, 0.05, 0.4)) no('profile.walkable is the steepest grade a street is walked at (rise over run), 0.05 to 0.4: past it, a stair');
+    if (p.curve !== undefined && !num(p.curve, 0, 60)) no('profile.curve is the metres a ramp eases in and out over at each crossing, 0 to 60');
+    profile = { ...p };
+  }
+  if (spec.slope !== undefined) {
+    const S = spec.slope;
+    if (!isObj(S) || Object.keys(S).some((k) => k !== 'streets') || !isObj(S.streets) || !Object.keys(S.streets).length) no('slope is { streets: { \'ns-2\': 0.06, … } }: the arterials that climb and their grades (a metro\'s land itself falls by its `fall`)');
+    for (const [id, g] of Object.entries(S.streets)) {
+      if (!/^(ns|ew)-\d+$/.test(id)) no(`slope.streets '${id}' is an arterial's id ('ns-3', 'ew-1')`);
+      if (!num(g, -0.4, 0.4)) no(`slope.streets.${id} is its grade, rise over run, −0.4 to 0.4`);
+    }
+    if (new Set(Object.keys(S.streets).map((id) => id.slice(0, 2))).size > 1) no('slope.streets name arterials along one axis (all ns-… or all ew-…): two that cross would set their crossing twice');
+    slope = { streets: { ...S.streets } };
+    if (!profile) profile = {};
+  }
+  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
 }
