@@ -445,6 +445,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // and the converge crosshair is searched from the shooter's depth along the camera's ray (a wall at its back caught it
 // and sent the round backwards). On the `controllable` fixture 4 lines are replaced and 61 added; a weapon without a
 // round draws as before.
+// Re-pinned 2026-11-09 (1108-realism-combat-tester, the artillery range's phase 2: a shell's flight): the same fixtures.
+// A travelling round takes an opt-in `projectileDrag` (initWeapon keeps it, the launch carries it, stepProjectiles sheds
+// the speed along the velocity), and a lobbed round leaves through its weapon's seeded cone when it has one. On the
+// `controllable` fixture 2 lines are replaced and 6 added; a round without drag or a cone flies as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

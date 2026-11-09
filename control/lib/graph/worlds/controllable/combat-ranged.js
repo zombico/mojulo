@@ -194,6 +194,9 @@ export function buildCombatRanged(E) {
       projRadius: w.projRadius ?? 0.5,    // the round's own collision radius (added to a target's radius)
       armTime: w.armTime ?? 0.06,         // sec before the round can burst (so it clears the muzzle/owner)
       fuse: w.fuse ?? 4,                  // sec max flight before it bursts wherever it is
+      // DRAG (opt-in, 1/m): a shell's quadratic drag constant (½ρ·Cd·A / m): dv/dt = −k·|v|·v, a round slowing along its
+      // flight (a long rod hardly, a fat shell more); absent, a round flies on gravity alone, as before
+      ...(w.projectileDrag > 0 ? { projectileDrag: w.projectileDrag } : {}),
       // PROXIMITY FUZE (bazooka QoL, 2026-08-06): the round DETONATES when it passes within this
       // distance of a hittable body — a near-miss bursts beside the target and the splash catches
       // it, instead of sailing past. 0 (default) = contact-only, byte-identical.
@@ -394,13 +397,14 @@ export function buildCombatRanged(E) {
         // integrates it under gravity and adjudicates the burst. lastShot carries to:null so the
         // hitscan fx channel draws nothing — the projectile channel owns lob visuals.
         const la = (w.lobAngle || 0) * Math.PI / 180;
-        const dir = fwd3(baseH, baseP + la);
+        // (a gun's dispersion: the seeded cone above, when the weapon has one, carried by the round; absent, as aimed)
+        const dir = w.spread ? fwd3(Math.atan2(aim[1], aim[0]), Math.asin(clamp(aim[2], -1, 1)) + la) : fwd3(baseH, baseP + la);
         const sp = w.projectileSpeed || 60;
         state.projectiles.push({
           id: 'proj-' + (state.projSeq++), owner: e.id,
           pos: from.slice(), vel: [dir[0] * sp, dir[1] * sp, dir[2] * sp],
           gravity: w.projectileGravity || 0, splashRadius: w.splashRadius || 0, projRadius: w.projRadius || 0.5, prox: w.proximity || 0,
-          damage: w.damage || 0, impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4,
+          damage: w.damage || 0, impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4, ...(w.projectileDrag ? { drag: w.projectileDrag } : {}),
           fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false, ...(w.knock ? { knock: w.knock } : {}),
         });
         e.lastShot = { mode: 'launch', t: state.time, from, to: null, charged: chargedShot };
@@ -522,6 +526,8 @@ export function buildCombatRanged(E) {
         p.age += dt;
         const prev = [p.pos[0], p.pos[1], p.pos[2]];   // travel segment start (for the wall-hit test)
         if (p.homing) steerHoming(state, p, dt);   // a missile (stepMissiles) turns toward its target
+        // (a shell's drag, opt-in: the speed shed along the velocity this step, v / (1 + k·|v|·dt), stable at any step)
+        if (p.drag) { const f = 1 / (1 + p.drag * Math.hypot(p.vel[0], p.vel[1], p.vel[2]) * dt); p.vel[0] *= f; p.vel[1] *= f; p.vel[2] *= f; }
         p.vel[2] -= (p.gravity || 0) * dt;
         p.pos[0] += p.vel[0] * dt; p.pos[1] += p.vel[1] * dt; p.pos[2] += p.vel[2] * dt;
         let hitId = null;
