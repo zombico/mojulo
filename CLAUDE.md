@@ -313,5 +313,9 @@ Pointers only; each target carries its own design notes.
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image
   outcomes [graph/image-outcomes/](control/lib/graph/image-outcomes/), edifice
   [architecture/edifice.js](control/lib/graph/architecture/edifice.js).
+- Game sounds: [sfx-shelf/](control/lib/graph/sfx-shelf/) (the SFX library: one row per sound under the words people
+  say, voiced by style, the palettes frozen behind it; recipes, never samples: cues, held voices, and families that
+  build them from dials, a variation a dial point; measured on `measure.js`'s yardstick and held to `register.js`; a new
+  sound is a row first, a new variation a dial value): [docs/sfx-shelf.md](docs/sfx-shelf.md).
 - Rendering docs: [docs/scene-css3d-lighting.md](docs/scene-css3d-lighting.md),
   [docs/raymarch-effects-layer.md](docs/raymarch-effects-layer.md), [docs/local-blender-worker.md](docs/local-blender-worker.md).
