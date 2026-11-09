@@ -884,7 +884,8 @@ describe('design_game quick', () => {
     SketchRepository.create({ ref: 'mira', title: 'Mira', manifest: { kind: 'layered', hero: heroRecord({ cast: 'female', palette: { Top: '#2a8f6a' } }) } });
     const quick = { goal: 'fight', roster: [{ id: 'kai', role: 'frontline', archetype: 'hero', facets: { motivation: 0.1 } }, { id: 'mira', hero: { ref: 'mira' }, style: 'rushdown' }], arenas: [{ id: 'plaza', kit: 'island-plaza' }], world: { id: 'duel' } };
     const out = await designGameHandler({ quick, ref: 'du' });
-    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['fighter-kai-sheet', 'make'], ['fighter-kai', 'make'], ['level-arena-plaza', 'make'], ['game', 'make']]);
+    // (a fight made now names its arenas and still has its lab, the training ground, beside them)
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['fighter-kai-sheet', 'make'], ['fighter-kai', 'make'], ['level-arena-plaza', 'make'], ['level-arena-training', 'make'], ['game', 'make']]);
     // the sheet is an egocube; the character it made records it
     expect(stored('du-fighter-kai-sheet')).toMatchObject({ kind: 'egocube', sheet: { facets: { role: 'frontline', archetype: 'hero' } } });
     expect(stored('du-fighter-kai')).toMatchObject({ kind: 'layered', hero: expect.any(Object), egocube: { ref: 'du-fighter-kai-sheet' } });
