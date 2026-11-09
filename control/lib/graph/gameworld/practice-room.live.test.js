@@ -34,12 +34,27 @@ describe('the practice room in a browser', () => {
     await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world, { timeout: 120000 });
     await wait(1000);
     expect(await p.evaluate(() => document.getElementById('pr')?.innerText ?? '')).toMatch(/foe AI off/);
-    // (the first click takes the mouse; then three presses, each early enough to chain)
+    // (the first click takes the mouse; then three presses on the page's own clock: each held until the runtime has
+    // judged it, so a page drawing a few frames a second in software never misses a press between two frames, and each
+    // made while the move before it plays, so it is held to that move's cancel)
     await p.mouse.click(640, 360); await wait(300);
-    for (let i = 0; i < 3; i++) { await p.mouse.down(); await wait(60); await p.mouse.up(); await wait(250); }
-    await wait(1500);
+    const hero = () => p.evaluate(() => { const W = window.__mojCtrl.world, H = W.entities.find((e) => e.pilotable); return { seq: H.mvPress ? H.mvPress.seq : 0, n: H.swingCount || 0 }; });
+    for (let i = 0; i < 3; i++) {
+      const { seq } = await hero();
+      await p.mouse.down();
+      await p.waitForFunction((s) => { const H = window.__mojCtrl.world.entities.find((e) => e.pilotable); return !!H.mvPress && H.mvPress.seq > s; }, { timeout: 30000 }, seq);
+      await p.mouse.up();
+      // (the move it started under way, and the button seen up for a frame of the page's own before the next press: a
+      // release and a press between the same two frames read as the button held, and no new press)
+      await p.waitForFunction((k) => (window.__mojCtrl.world.entities.find((e) => e.pilotable).swingCount || 0) > k, { timeout: 30000 }, i);
+      const t0 = await p.evaluate(() => window.__mojCtrl.world.time);
+      await p.waitForFunction((t) => window.__mojCtrl.world.time > t + 0.02, { timeout: 30000 }, t0);
+    }
+    // (the string played out: the finisher ended)
+    await p.waitForFunction(() => window.__mojCtrl.world.entities.find((e) => e.pilotable).swingT == null, { timeout: 30000 });
+    await wait(500);
     const st = await p.evaluate(() => { const W = window.__mojCtrl.world, F = W.entities.find((e) => e.team === 'foes'); return { log: document.getElementById('pr-log').innerText, hits: F.hits || 0, hp: F.body.hp }; });
-    expect(st.log.match(/L taken/g) ?? []).toHaveLength(3);
+    expect(st.log.match(/L taken/g) ?? [], st.log).toHaveLength(3);
     expect(st.hits).toBe(3);
     expect(st.hp).toBeLessThan(page.foeHp);
     expect(errors).toEqual([]);
