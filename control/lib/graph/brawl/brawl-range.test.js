@@ -79,9 +79,10 @@ describe('brawl range: a dummy that shoots back', () => {
     expect(yardRead(r).gun.struck).toBeGreaterThan(0);
   });
   it('stepping off the round\'s line as its warning shows, the round passes where it was aimed', () => {
-    // (the player walks across the street while each warning shows, then stands; standing still, it is struck)
-    const stepped = run(shooter(), 220, (k, x) => ({ z: x.s.bodies[1].tl > 0 ? 1 : 0 }));
-    const stood = run(shooter(), 220);
+    // (the player walks across the street while the warning shows, then stands; standing still, it is struck)
+    // (one volley: its warning, its round's flight, before the next beat's lands)
+    const stepped = run(shooter(), 130, (k, x) => ({ z: x.s.bodies[1].tl > 0 ? 1 : 0 }));
+    const stood = run(shooter(), 130);
     expect(stepped.ev.some((e) => e.t === 'fire' && e.p === 1)).toBe(true);
     expect(yardRead(stepped.r).gun.struck).toBe(0);
     expect(yardRead(stood.r).gun.struck).toBeGreaterThan(0);

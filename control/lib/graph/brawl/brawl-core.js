@@ -79,7 +79,7 @@
 import { METER_MAX, STATES } from '../versus/versus-library.js';
 import { beltScroll, beltBounds } from './brawl-belt.js';
 import { THINGS } from './brawl-things.js';
-import { roundsOf } from './brawl-guns.js';
+import { roundsOf, aimVector, GUN_MUZZLE } from './brawl-guns.js';
 
 export const BRAWL_RULES = Object.freeze({
   line: 320,        // mm across the belt a blow reaches: two bodies further apart than this are not lined up
@@ -248,13 +248,15 @@ function gunThink(s, p, pad, ctx) {
 }
 /** a shot's rounds, from the muzzle, its fan and its stream's wander */
 function fire(s, p, G, gi) {
-  const vs = roundsOf(G, [p.ax ?? p.face, p.az ?? 0], p.face, p.nf);
-  const mx = p.x + p.face * 420, my = p.y + 1250;
+  const aim = [p.ax ?? p.face, p.az ?? 0], vs = roundsOf(G, aim, p.face, p.nf);
+  // (from the muzzle: the end of the rifle held at the chest, out along the aim)
+  const [ux, uz] = aimVector(aim, p.face);
+  const mx = p.x + Math.round((ux * GUN_MUZZLE[0]) / 1000), mz = p.z + Math.round((uz * GUN_MUZZLE[0]) / 1000), my = p.y + GUN_MUZZLE[1];
   for (const [vx, vz] of vs) {
-    s.shots.push({ id: s.nextShot++, o: p.id, side: p.side, gun: gi, x: mx, z: p.z, y: my, vx, vz, w: G.size, h: G.size, life: G.life, hits: G.pierce, rehit: 0, hitAt: -999,
+    s.shots.push({ id: s.nextShot++, o: p.id, side: p.side, gun: gi, x: mx, z: mz, y: my, vx, vz, w: G.size, h: G.size, life: G.life, hits: G.pierce, rehit: 0, hitAt: -999,
       dmg: G.damage, hitstun: G.stun, hitstop: 2, push: 40, sup: 0, meter: 0, hl: [], line: G.line, knock: G.knock, area: G.area, ...(G.lob ? { lob: 1, vy: G.vy, g: G.g } : {}) });
   }
-  s.events.push({ t: 'fire', p: p.id, gun: G.id, n: vs.length, x: mx, z: p.z, y: my });
+  s.events.push({ t: 'fire', p: p.id, gun: G.id, n: vs.length, x: mx, z: mz, y: my });
 }
 
 function think(s, p, pad, ctx) {

@@ -75,6 +75,17 @@ export function readGun(spec, where = 'gun') {
   return { ...base, ...dials, id: id ?? (from ? `${from}-tuned` : 'gun'), ...(name ? { name } : {}) };
 }
 
+/** where a round leaves a gunner: mm out along its aim from the body's middle, mm up from its feet (the end of the
+ * rifle it holds at the chest, the run & gun's: the page draws the barrel ending there) */
+export const GUN_MUZZLE = Object.freeze([880, 1220]);
+/** A gun as it is drawn, a rifle of sorts held at the chest in both hands (the run & gun's): its barrel past the lead
+ * hand, its stock behind the rear hand (m), its girth (m). By the gun's id, or the row it was tuned from. */
+const SHAPES = Object.freeze({
+  sidearm: [0.16, 0.12, 0.038], 'machine-gun': [0.36, 0.28, 0.05], spread: [0.3, 0.28, 0.058], flame: [0.34, 0.2, 0.066], rocket: [0.46, 0.38, 0.09],
+  grenade: [0.1, 0.1, 0.05], rifle: [0.42, 0.3, 0.04], burst: [0.3, 0.26, 0.046], bazooka: [0.5, 0.42, 0.1], lob: [0.26, 0.22, 0.06],
+});
+export const gunShape = (G) => SHAPES[G.id] ?? SHAPES[Object.keys(SHAPES).find((k) => G.id.startsWith(`${k}-`))] ?? SHAPES['machine-gun'];
+
 /** the eight ways on the floor plane: along the belt, across it, and the four between */
 export const AIMS = Object.freeze([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]].map((a) => Object.freeze(a)));
 /** across the street's share of the along in a diagonal (a shallow slant: its depth reads under the side camera) */

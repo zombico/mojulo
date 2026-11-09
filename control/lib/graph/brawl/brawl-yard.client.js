@@ -20,7 +20,7 @@
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, THREE, scene, camera, controls, renderer, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global BRAWL_YARD, THREE, scene, camera, controls, renderer, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -97,7 +97,7 @@ function dummiesOf() {
   return Array.from({ length: n }, () => ({ mode, type: mode === 'grab' ? 'heavy' : SET.type.toLowerCase() }));
 }
 function build() {
-  for (const B of bodies) { YARD.remove(B.group, B.shadow, B.line); if (B.blade) YARD.remove(B.blade.fill, B.blade.ink); if (B.gun) YARD.remove(B.gun.fill, B.gun.ink, B.gun.warn); }
+  for (const B of bodies) { YARD.remove(B.group, B.shadow, B.line); if (B.blade) YARD.remove(B.blade.fill, B.blade.ink); if (B.gun) YARD.remove(B.gun.barrel.fill, B.gun.barrel.ink, B.gun.mag.fill, B.gun.mag.ink, B.gun.warn); }
   // (on the range, the gun chosen held first)
   const g = RANGE ? Math.max(0, RANGE.names.indexOf(SET.gun)) : 0;
   const range = RANGE ? { range: { guns: [RANGE.guns[g], ...RANGE.guns.filter((_, k) => k !== g)], grenades: RANGE.grenades } } : {};
@@ -293,6 +293,8 @@ const CLIPPED = { stand: 1, hit: 1, fall: 1, ko: 1, down: 1, rise: 1 };
 /** the clip and its phase a body's state shows (versus-arena.client.js playedClip), or null: posed on its body */
 function yardClip(p, F, clips) {
   const has = (k) => !!clips[k];
+  // (a gunner holds its rifle as the figure poses it; its reactions are still its clips')
+  if (p.gn !== undefined && !REELING.has(p.st)) return null;
   if (p.mv) {
     const mv = F.moves[p.mv], fr = mv && mv.frames && mv.frames[Math.max(1, Math.min(p.mf, mv.total))];
     return mv && mv.hero && has(mv.id) ? [mv.id, fr && fr.u !== undefined ? fr.u : p.mf / mv.total] : null;
@@ -398,7 +400,7 @@ function placeBody(B, p, F) {
   else if (B.skin) placeCharacter(B, p, F, N);
   else placeStick(B, p, F, N);
   placeBlade(B, p, F, J, N);
-  if (p.gn !== undefined) placeGun(B, p);
+  if (p.gn !== undefined) placeGun(B, p, N);
   B.shadow.position.set(p.x / 1000, p.z / 1000, 0.01);
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.6) * Math.max(0.4, 1 - p.y / 1600));
   if (B.line) {
@@ -463,21 +465,40 @@ function placeStick(B, p, F, N) {
 
 const GUN_LOOK = new THREE.MeshBasicMaterial({ color: 0x2b2f36, vertexColors: true });
 const WARN_LOOK = new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.6, depthWrite: false });
-const vM = new THREE.Vector3(), vN = new THREE.Vector3();
-// (a point off a body along its aim: `k` metres out, at the chest)
-const alongAim = (p, k, out) => { const [ax, az] = aimVector([p.ax ?? p.face, p.az ?? 0], p.face); return out.set(p.x / 1000 + (ax / 1000) * k, p.z / 1000 + (az / 1000) * k, (p.y + 1250) / 1000); };
-function placeGun(B, p) {
+const vM = new THREE.Vector3(), vN = new THREE.Vector3(), vR = new THREE.Vector3(), vL = new THREE.Vector3(), vU = new THREE.Vector3(), vS = new THREE.Vector3();
+const REELING = new Set(['hit', 'fall', 'ko', 'down', 'rise']);
+/** THE RIFLE in a gunner's hands (the run & gun's, its figure's own hands: brawl-pose.js RIFLE): its stock behind the
+ * rear hand, its barrel on through the lead hand along the aim (reeling, along its hands, wherever they fly), a magazine
+ * under the grip; inked, so it reads as a held gun at a glance. Its warning: a thin red line on from the muzzle. */
+function placeGun(B, p, N) {
   if (!B.gun) {
-    const fill = castOn(new THREE.Mesh(CYL, RIG ? RIG.material({ color: 0x2b2f36 }) : GUN_LOOK)), ink = new THREE.Mesh(CYL, INK), warn = new THREE.Mesh(CYL, WARN_LOOK);
-    YARD.add(fill, ink, warn);
-    B.gun = { fill, ink, warn };
+    const mat = RIG ? RIG.material({ color: 0x2b2f36 }) : GUN_LOOK;
+    const part = () => { const fill = castOn(new THREE.Mesh(CYL, mat)), ink = new THREE.Mesh(CYL, INK); YARD.add(fill, ink); return { fill, ink }; };
+    const warn = new THREE.Mesh(CYL, WARN_LOOK);
+    YARD.add(warn);
+    B.gun = { barrel: part(), mag: part(), warn };
   }
+  const G = room.ctx.guns[p.gn], [ext, stock, girth] = gunShape(G);
   const shown = !p.gone && !p.ko && p.st !== 'roll';
-  B.gun.fill.visible = B.gun.ink.visible = shown;
-  if (shown) { alongAim(p, 0.18, vM); alongAim(p, 0.62, vN); cylinderAt(B.gun.fill, vM, vN, 0.045); cylinderAt(B.gun.ink, vM, vN, 0.06); }
-  // (its warning: a thin line along its aim while it aims, brighter as the shot comes)
+  for (const k of ['barrel', 'mag']) B.gun[k].fill.visible = B.gun[k].ink.visible = shown;
   B.gun.warn.visible = shown && p.tl > 0;
-  if (B.gun.warn.visible) { alongAim(p, 0.62, vM); alongAim(p, 7, vN); cylinderAt(B.gun.warn, vM, vN, 0.012 + 0.0006 * Math.min(30, p.tl)); WARN_LOOK.opacity = 0.35 + 0.3 * Math.abs(Math.sin(t * 0.3)); }
+  if (!shown) return;
+  const lead = p.face > 0 ? 'L' : 'R', rear = lead === 'L' ? 'R' : 'L';
+  worldOf(p, N[`fist${rear}`], vR); worldOf(p, N[`fist${lead}`], vL);
+  const span = Math.max(0.15, vL.distanceTo(vR));
+  if (REELING.has(p.st)) vU.subVectors(vL, vR).normalize();
+  else {
+    // (along the aim on the street's floor, at the slope its hands hold it)
+    const [ax, az] = aimVector([p.ax ?? p.face, p.az ?? 0], p.face), flat = Math.hypot(vL.x - vR.x, vL.y - vR.y) || 0.1;
+    vU.set(ax / 1000, az / 1000, (vL.z - vR.z) / flat).normalize();
+  }
+  vS.copy(vR).addScaledVector(vU, -stock); vM.copy(vR).addScaledVector(vU, span + ext);
+  cylinderAt(B.gun.barrel.fill, vS, vM, girth); cylinderAt(B.gun.barrel.ink, vS, vM, girth * 1.35);
+  // (the magazine: down from just ahead of the grip)
+  vN.copy(vR).addScaledVector(vU, 0.1); vL.copy(vN); vL.z -= 0.08 + girth * 1.5;
+  cylinderAt(B.gun.mag.fill, vN, vL, girth * 0.7); cylinderAt(B.gun.mag.ink, vN, vL, girth * 0.95);
+  // (its warning: on from the muzzle along its aim, brighter as the shot comes)
+  if (B.gun.warn.visible) { vN.copy(vM).addScaledVector(vU, 7); cylinderAt(B.gun.warn, vM, vN, 0.012 + 0.0006 * Math.min(30, p.tl)); WARN_LOOK.opacity = 0.35 + 0.3 * Math.abs(Math.sin(t * 0.3)); }
 }
 const ROUND_MINE = new THREE.MeshBasicMaterial({ color: 0xffe28a }), ROUND_FOE = new THREE.MeshBasicMaterial({ color: 0xff5a2a });
 const ROUND_SHADOW = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });

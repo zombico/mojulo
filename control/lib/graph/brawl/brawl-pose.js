@@ -16,6 +16,8 @@ import { reactionPose } from '../versus/versus-react.js';
 
 const wave = (t, k) => (Math.sin(t * k) + 1) / 2;
 
+/** the rifle's hold: the lead arm's [shoulder, elbow] and the rear's (degrees) */
+export const RIFLE = Object.freeze({ lead: Object.freeze([45, 100]), rear: Object.freeze([0, 130]) });
 // a gunner's legs: the walk's stride, a jump's tuck, a landing's crouch, else its stance
 function gunLegs(p, own, guard, crouch, t, rules) {
   if (p.st === 'walk') { const w = wave(t, 0.22); return lerpPose(own.walkA ?? POSES.walkA, own.walkB ?? POSES.walkB, w); }
@@ -32,15 +34,12 @@ export function brawlPoseOf(p, F, t = 0, rules = {}) {
   // (a held body reads as the fight's thrown: the held clip)
   const reacting = reactionPose(p.st === 'held' ? { ...p, st: 'thrown' } : p, rules, own);
   if (reacting) return reacting;
-  // A GUNNER (a body with a gun, the run & gun's): both hands out on the gun along its aim, whatever its legs do; its
-  // roll a tuck
+  // A GUNNER (a body with a gun, the run & gun's): a rifle of sorts held at the chest, always ready, whatever its legs
+  // do: the lead hand forward on the foregrip, the rear hand on the grip by the chest, the two on one level line (the
+  // angles found on the rig: each body type's hands land within a centimetre or two of it); its roll a tuck
   if (p.gn !== undefined) {
     if (p.st === 'roll') return { ...crouch, torso: (crouch.torso ?? 0) + 70, head: 60 };
-    const legs = gunLegs(p, own, guard, crouch, t, rules);
-    // (the aim's tilt: up the street a little higher, down it a little lower; held out while it aims or fires)
-    const out = p.lf !== undefined && p.lf < 30 || p.tl > 0;
-    const lift = p.az > 0 ? 18 : p.az < 0 ? -12 : 0;
-    return out ? { ...legs, torso: (guard.torso ?? 0) + 4, armF: [86 + lift, 6], armB: [74 + lift, 34] } : { ...legs, armF: [40, 50], armB: [30, 60] };
+    return { ...gunLegs(p, own, guard, crouch, t, rules), torso: guard.torso ?? 0, armF: RIFLE.lead, armB: RIFLE.rear };
   }
   switch (p.st) {
     case 'walk': {

@@ -32,3 +32,10 @@
   rounds left, the grenades, rounds landed of fired, their damage, the rounds taken). Rounds landing and bursts sound
   from the fight's shelf; a gunshot of its own is not there yet. The brawl yard's special in play no longer opens the
   move list (the back key does). The spike's `--range` plays it.
+- A gun reads as a rifle held in both hands: every gunner's hold is the genre's, a rifle of sorts at the chest, always
+  ready (`brawl-pose.js` RIFLE: the lead hand forward on the foregrip, the rear on the grip by the chest, on one level
+  line; the arm angles found on the rig, each body type's hands landing within a centimetre or two of it), drawn
+  through its own hands: its stock behind the rear hand, its barrel on past the lead hand along the aim, a magazine
+  under the grip, inked, each gun its length and girth (`gunShape`: a carbine for the sidearm, a long barrel for the
+  machine gun, a fat tube for the rocket). A round leaves where the drawn barrel ends (`GUN_MUZZLE`, out along the aim),
+  so a tracer leaves the muzzle; a character holds it as the figure poses it (its reactions still its own clips).

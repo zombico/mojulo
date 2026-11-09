@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GUNS, GUN_IDS, readGun, aimVector, roundsOf, AIMS, ACROSS } from './brawl-guns.js';
+import { GUNS, GUN_IDS, readGun, aimVector, roundsOf, AIMS, ACROSS, GUN_MUZZLE } from './brawl-guns.js';
 import { newBrawl, stepBrawl, brawlHash, BRAWL_RULES } from './brawl-core.js';
 import { brawlFighter } from './brawl-moves.js';
 import { solveFighter } from '../versus/versus-solver.js';
@@ -53,7 +53,8 @@ describe('brawl guns: a round flies', () => {
     const hit = hitsOn(ev, 1)[0];
     expect(hit).toBeTruthy();
     const frames = hit[0];
-    expect(frames).toBeGreaterThan(Math.floor((3500 - 420 - 600) / GUNS.sidearm.speed) - 1);
+    // (no sooner than its flight from the muzzle to the body's near side takes)
+    expect(frames).toBeGreaterThan(Math.floor((3500 - GUN_MUZZLE[0] - 600) / GUNS.sidearm.speed) - 1);
     expect(hit[1].kind).toBe('round');
   });
   it('off its line it passes: step across the street and it misses', () => {
