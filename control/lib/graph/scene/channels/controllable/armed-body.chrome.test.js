@@ -44,7 +44,8 @@ describe('a body that carries a loadout', () => {
 });
 
 // THE GUN IN THE HERO'S HANDS (gunplay-view.js __gpHold): over the shoulder a body that carries a kit holds the arm in
-// its hands, each hand closed on its station (arms/handling.js); in first person the eye's own view carries it instead.
+// its hands, each hand closed on its station (arms/handling.js); in first person the eye's own view carries it instead,
+// with the eye's own hands on it (the knife drawn in the free one through a cut).
 // A humanoid skeleton at rest (the made hero's joints), each bone a speck.
 const J = { pelvis: [[0, 0, 0.9], [0, 0, 1.134]], lumbar: [[0, 0, 0.9], [0, 0, 1.134]], torso: [[0, 0, 1.134], [0, 0, 1.413]], neck: [[0, 0, 1.413], [0, 0, 1.548]], head: [[0, 0, 1.548], [0, 0, 1.683]],
   clavicle: [[0.056, 0, 1.382], [0.223, 0, 1.382]], upperArm: [[0.223, 0, 1.382], [0.262, 0, 1.097]], foreArm: [[0.262, 0, 1.097], [0.328, 0, 0.851]], hand: [[0.328, 0, 0.851], [0.351, 0, 0.764]],
@@ -60,9 +61,9 @@ const skeleton = () => {
 };
 
 async function heldOf(camera) {
-  const { kitSlot } = await import('../../../gameworld/arms-kit.js');
+  const { kitSlot, knifeOf } = await import('../../../gameworld/arms-kit.js');
   const loadout = [kitSlot('rifle', {})];
-  const p = { id: 'p', pilotable: true, rule: { type: 'platform', eye: 0, gunplay: true, loadout }, weapon: loadout[0].weapon, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 }, body: { type: 'figure-rig', figure: 'hero' } };
+  const p = { id: 'p', pilotable: true, rule: { type: 'platform', eye: 0, gunplay: true, loadout, knife: knifeOf(4) }, weapon: loadout[0].weapon, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 }, body: { type: 'figure-rig', figure: 'hero' } };
   const page = await browser.newPage(), errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.setContent(emitThreeWorld({ entities: [p], figures: { hero: skeleton() }, camera, viewBox: { width: 160, height: 120 }, inline: true, capture: true, hud: false }), { waitUntil: 'domcontentloaded' });
@@ -72,8 +73,13 @@ async function heldOf(camera) {
     for (const [k, inp] of [['ready', {}], ['aimed', { aim: 1 }]]) {
       for (let i = 0; i < 45; i++) C.step(1 / 60, inp);
       const B = C.bodies.p, H = B.userData.rigFig.__hold;
-      out[k] = { held: B.children.some((o) => o.isGroup && o.visible && o.children.length > 3), missR: H ? H.R.miss : null, missL: H ? H.L.miss : null };
+      out[k] = { held: B.children.some((o) => o.isGroup && o.visible && o.children.length > 3), missR: H ? H.R.miss : null, missL: H ? H.L.miss : null, hands: C.hands() };
     }
+    // the knife cut on its key: out in the hand mid-cut, away after
+    for (let i = 0; i < 12; i++) C.step(1 / 60, { melee: i === 0 ? 1 : 0 });
+    out.cut = C.hands();
+    for (let i = 0; i < 40; i++) C.step(1 / 60, {});
+    out.after = C.hands();
     return out;
   });
   await page.close();
@@ -89,12 +95,16 @@ describe('the gun in the hero\'s hands', () => {
       expect(got[k].held).toBe(true);
       expect(got[k].missR).toBeLessThan(0.01);
       expect(got[k].missL).toBeLessThan(0.01);
+      expect(got[k].hands).toEqual({ R: false, L: false, knife: false });   // (the eye's hands are the eye's)
     }
   }, 120000);
-  it('in first person the body carries nothing: the eye\'s view holds the gun', async () => {
+  it('in first person the body carries nothing: the eye\'s view holds the gun, both hands on it; the knife out only through a cut', async () => {
     if (!browser) return;
     const { got, errors } = await heldOf({ rule: 'eye', target: 'p', height: 1.6, mouseLook: true, hideTarget: true });
     expect(errors).toEqual([]);
     expect(got.aimed.held).toBe(false);
+    expect(got.ready.hands).toEqual({ R: true, L: true, knife: false });
+    expect(got.cut).toEqual({ R: true, L: true, knife: true });
+    expect(got.after).toEqual({ R: true, L: true, knife: false });
   }, 120000);
 });

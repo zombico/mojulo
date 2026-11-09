@@ -18,6 +18,9 @@
 //           carried by the body: the chest side-on to the line, a long gun's butt in the right shoulder's pocket and a
 //           pistol out at the arms' reach, at a low ready until the sights come up or a round goes, each hand closed on
 //           its station (the kit's view.hands, arms/handling.js); laid over the rig's pose each time it is posed.
+//   THE HANDS (first person): gloved hands and sleeves closed on the gun's stations, the support hand to the magazine
+//           through a reload, a knife drawn in it and cut on V (a quick knife, rule.knife), a reach and a grab for what
+//           is picked up or used.
 // The viewmodel draws over the world (its depth cleared before it), so it never sinks into a wall.
 export function gunplayScript() {
   return `
@@ -27,7 +30,7 @@ __canvas.addEventListener('mousedown', (ev) => { if (ev.button === 2) __GP.aim =
 window.addEventListener('mouseup', (ev) => { if (ev.button === 2) __GP.aim = false; });
 __canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 __canvas.addEventListener('wheel', (ev) => { __GP.wheel += ev.deltaY > 0 ? 1 : -1; ev.preventDefault(); }, { passive: false });
-window.addEventListener('keydown', (ev) => { if (ev.code === 'KeyR' && !ev.repeat) __GP.reload = true; if (ev.code === 'ShiftLeft' || ev.code === 'ShiftRight') __GP.breath = true; });
+window.addEventListener('keydown', (ev) => { if (ev.code === 'KeyV' && !ev.repeat && __world.camera && __world.camera.rule && __world.camera.rule.type === 'eye') __GP.melee = true; if (ev.code === 'KeyR' && !ev.repeat) __GP.reload = true; if (ev.code === 'ShiftLeft' || ev.code === 'ShiftRight') __GP.breath = true; });
 window.addEventListener('keyup', (ev) => { if (ev.code === 'ShiftLeft' || ev.code === 'ShiftRight') __GP.breath = false; });
 window.addEventListener('blur', () => { __GP.aim = false; __GP.breath = false; });
 const __gpRead0 = __readInput;
@@ -41,6 +44,7 @@ __readInput = function () {
   if (__GP.wheel) { const n = lo.length, H = p.loadoutHeld, d = __GP.wheel > 0 ? 1 : -1; let i = p.loadoutIdx || 0; for (let k = 0; k < n; k++) { i = (i + d + n) % n; if (!H || H[i]) break; } if (i !== (p.loadoutIdx || 0)) inp.slot = i + 1; }
   __GP.wheel = 0;
   inp.aim = __GP.aim ? 1 : 0; inp.breath = __GP.breath ? 1 : 0; inp.reload = __GP.reload ? 1 : 0; __GP.reload = false;
+  if (__GP.melee) { inp.melee = 1; __GP.melee = false; }
   return inp;
 };
 // the scope's picture and the breath's bar
@@ -104,11 +108,132 @@ function __gpBuild(g, held) {
   return V;
 }
 function __gpEase(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
+// THE HANDS (first person): two gloved hands and their forearms, drawn with the gun in the view. A hand is a palm, a
+// block of four fingers hinged at the knuckles and a thumb, curled by how closed it is; its sleeve runs from the wrist
+// back toward an elbow below and behind the eye, out of the frame. Each frame a hand is posed in the camera's frame (the
+// fist's centre, its long axis, its index side, its curl) by what the hands are doing: closed on the gun's stations
+// (the kit's view.hands), the support hand to the magazine and back through a reload (the magazine in it), the knife
+// drawn in it and cut (rule.knife: a slash, then a thrust, by turns), a reach and a grab for what is picked up or used.
+const __gpHands = { R: null, L: null, knife: null, grabT: -1, reserve: null, uses: null, magK: null };
+function __gpShadeBox(s, c, at, into) {
+  const geo = new THREE.BoxGeometry(s[0], s[1], s[2]), base = new THREE.Color(c), n = geo.attributes.normal, col = new Float32Array(n.count * 3);
+  for (let i = 0; i < n.count; i++) { const k = n.getY(i) > 0.5 ? 1.2 : n.getY(i) < -0.5 ? 0.6 : Math.abs(n.getX(i)) > 0.5 ? 0.85 : 1.0; col[3 * i] = Math.min(1, base.r * k + 0.03); col[3 * i + 1] = Math.min(1, base.g * k + 0.03); col[3 * i + 2] = Math.min(1, base.b * k + 0.035); }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
+  m.position.set(at[0], at[1], at[2]); m.renderOrder = 1e6; m.frustumCulled = false; m.raycast = function () {}; into.add(m); return m;
+}
+// a hand's own frame: +x its index side, +y wrist to knuckles, the palm toward +z (the right's) or -z (the left's)
+function __gpHandBuild(side) {
+  const ps = side === 'R' ? 1 : -1, GLOVE = '#8d7656', SLEEVE = '#58604c';
+  const hand = new THREE.Group(), fingers = new THREE.Group(), thumb = new THREE.Group();
+  __gpShadeBox([0.084, 0.092, 0.032], GLOVE, [0, 0.046, 0], hand);
+  __gpShadeBox([0.072, 0.05, 0.062], GLOVE, [0, -0.02, 0], hand);
+  fingers.position.set(0, 0.09, 0); hand.add(fingers);
+  __gpShadeBox([0.08, 0.075, 0.024], GLOVE, [0, 0.036, 0], fingers);
+  thumb.position.set(0.036, 0.02, ps * 0.012); hand.add(thumb);
+  __gpShadeBox([0.024, 0.06, 0.024], GLOVE, [0, 0.03, 0], thumb);
+  const arm = new THREE.Group(); __gpShadeBox([0.08, 1, 0.08], SLEEVE, [0, 0.5, 0], arm);
+  hand.visible = false; arm.visible = false; camera.add(hand); camera.add(arm);
+  // (the elbow the forearm runs toward, in the camera's frame: below, out to the side, beside the eye)
+  return { hand, fingers, thumb, arm, ps, elbow: side === 'R' ? new THREE.Vector3(0.26, -0.4, 0.04) : new THREE.Vector3(-0.27, -0.38, -0.02) };
+}
+// a hand posed: the fist's centre, its long axis and index side (camera frame), how closed (0 open to 1 a fist)
+function __gpHandPose(H, fist, a, c, curl) {
+  const A = a.clone().normalize(), C = c.clone().addScaledVector(A, -c.dot(A)).normalize(), Z = C.clone().cross(A);
+  H.hand.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(C, A, Z));
+  const palm = Z.clone().multiplyScalar(H.ps);
+  const W = fist.clone().addScaledVector(A, -0.046).addScaledVector(palm, -0.012);
+  H.hand.position.copy(W);
+  H.fingers.rotation.x = H.ps * 1.75 * curl; H.thumb.rotation.set(H.ps * 0.9 * curl, 0, -0.45 - 0.35 * curl);
+  // the sleeve from the wrist toward its elbow, a forearm's length
+  const back = H.elbow.clone().sub(W), L = Math.min(0.3, back.length());
+  H.arm.position.copy(W); H.arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), back.normalize()); H.arm.scale.set(1, L, 1);
+  H.hand.visible = true; H.arm.visible = true;
+}
+function __gpHandsHide() { for (const k of ['R', 'L']) if (__gpHands[k]) { __gpHands[k].hand.visible = false; __gpHands[k].arm.visible = false; } }
+// a key pose of the free hand in the camera's frame: the fist, its long axis, its index side (the knife's blade)
+const __gpK = (p, a, c) => ({ p: new THREE.Vector3(p[0], p[1], p[2]), a: new THREE.Vector3(a[0], a[1], a[2]), c: new THREE.Vector3(c[0], c[1], c[2]) });
+const __gpCuts = [
+  // a slash, high on the left across to low on the right, the blade forward and out across the view
+  [[0.2, __gpK([-0.24, 0.02, -0.36], [0.5, 0.75, 0.4], [0.55, 0.45, -0.7])], [0.42, __gpK([-0.03, -0.08, -0.52], [0.9, 0.2, 0.4], [0.35, -0.1, -0.93])], [0.66, __gpK([0.2, -0.22, -0.42], [0.5, -0.6, 0.6], [0.6, -0.45, -0.65])]],
+  // a thrust, drawn back low with the point up, driven out along the line
+  [[0.2, __gpK([-0.1, -0.18, -0.28], [0.15, 0.85, 0.5], [0.3, 0.5, -0.8])], [0.42, __gpK([-0.03, -0.09, -0.7], [0.1, 0.9, 0.4], [0.18, 0.28, -0.94])], [0.66, __gpK([-0.08, -0.14, -0.42], [0.15, 0.85, 0.5], [0.25, 0.4, -0.88])]],
+];
+function __gpLerpPose(A, B, t) { const k = __gpEase(t); return { p: A.p.clone().lerp(B.p, k), a: A.a.clone().lerp(B.a, k), c: A.c.clone().lerp(B.c, k) }; }
+function __gpKnifeBuild(view) {
+  const g = new THREE.Group(), it = new THREE.Group();
+  // (the blade satin steel, the handle and guard as the kernel finishes them, so the blade reads against the ground)
+  for (const [lo, hi, c, part] of view.boxes) __gpShadeBox([0, 1, 2].map((i) => Math.max(0.15, hi[i] - lo[i]) / 100), /^blade/.test(part) ? '#a3a8ad' : c, [0, 1, 2].map((i) => (lo[i] + hi[i]) / 200), it);
+  // the item's frame onto the hand's: its z (the blade) the index side, its y the long axis, its x the back of the hand
+  it.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)));
+  const h = view.hold.at; it.position.copy(new THREE.Vector3(h[0], h[1], h[2]).multiplyScalar(-0.01).applyQuaternion(it.quaternion));
+  g.add(it); g.visible = false; return g;
+}
+// the hands posed for this frame (V the gun's view, its gunplay SG, its reload's progress k or null, the knife's state)
+function __gpHandsPose(p, w, V, SG, dt) {
+  const hands = SG.view && SG.view.hands;
+  if (!hands || V.kind === 'bow') { __gpHandsHide(); return; }
+  const R = __gpHands.R || (__gpHands.R = __gpHandBuild('R')), Lh = __gpHands.L || (__gpHands.L = __gpHandBuild('L'));
+  V.grp.updateMatrix();
+  const M = V.grp.matrix, q = V.grp.quaternion;
+  const at = (v) => new THREE.Vector3(-v[0] / 100, v[1] / 100, -v[2] / 100).applyMatrix4(M);
+  const dir = (v) => new THREE.Vector3(-v[0], v[1], -v[2]).applyQuaternion(q);
+  const pose = (s) => ({ p: at(s.at), a: dir(s.a), c: dir(s.c) });
+  // the strong hand never leaves the grip
+  const strong = pose(hands.strong);
+  __gpHandPose(R, strong.p, strong.a, strong.c, 1);
+  // the support hand: on its station (a pistol's wraps the strong one), else what it is doing
+  const sup = hands.support ? pose(hands.support) : { p: strong.p.clone().add(new THREE.Vector3(-0.05, -0.02, 0.02)), a: strong.a.clone(), c: strong.c.clone() };
+  let L = sup, curl = 0.85, knifeOn = false;
+  // a pickup or a use: the hand reaches low and out, closes, and comes back
+  if (__gpHands.reserve != null && w.reserve > __gpHands.reserve && !w.reloading) __gpHands.grabT = 0;
+  __gpHands.reserve = w.reserve;
+  const uses = window.__mojCtrl && window.__mojCtrl.interacts ? window.__mojCtrl.interacts() : 0;
+  if (__gpHands.uses != null && uses > __gpHands.uses) __gpHands.grabT = 0;
+  __gpHands.uses = uses;
+  if (p.knifeT != null) {
+    // the knife: drawn from the support station into the cut's keys, and back
+    const keys = __gpCuts[(p.knifeCount || 1) % 2], k = p.knifeT;
+    const seq = [[0, sup], ...keys.map(([t, P]) => [t, P]), [1, sup]];
+    let i = 0; while (i < seq.length - 2 && k > seq[i + 1][0]) i++;
+    L = __gpLerpPose(seq[i][1], seq[i + 1][1], (k - seq[i][0]) / Math.max(1e-6, seq[i + 1][0] - seq[i][0]));
+    curl = 1; knifeOn = k > 0.06 && k < 0.94;
+  } else if (w.reloading && w.reload > 0 && V.mag && SG.view.mag) {
+    // the reload: to the magazine's well, the magazine drawn down and away, a fresh one brought up and seated, back
+    const k = 1 - w.reloadT / w.reload, well = { p: at(SG.view.mag), a: dir([0, -0.3, 1]), c: dir([0, 1, 0.2]) };
+    const out = __gpK([-0.13, -0.25, -0.36], [0.2, -0.3, -0.9], [0.1, 0.95, -0.2]);
+    const seq = [[0, sup], [0.22, well], [0.42, out], [0.62, out], [0.78, well], [1, sup]];
+    let i = 0; while (i < seq.length - 2 && k > seq[i + 1][0]) i++;
+    L = __gpLerpPose(seq[i][1], seq[i + 1][1], (k - seq[i][0]) / Math.max(1e-6, seq[i + 1][0] - seq[i][0]));
+    curl = k > 0.15 && k < 0.85 ? 1 : 0.85;
+    __gpHands.magK = k > 0.22 && k < 0.78 ? L.p : null;
+  } else if (__gpHands.grabT >= 0) {
+    const k = __gpHands.grabT, reach = __gpK([-0.1, -0.2, -0.5], [0.1, 0.35, -0.93], [0.95, 0.3, 0.1]);
+    L = k < 0.4 ? __gpLerpPose(sup, reach, k / 0.4) : k < 0.55 ? reach : __gpLerpPose(reach, sup, (k - 0.55) / 0.45);
+    curl = k < 0.35 ? 0.1 : k < 0.55 ? 1 : 0.85;
+    __gpHands.grabT += dt / 0.6; if (__gpHands.grabT >= 1) __gpHands.grabT = -1;
+  }
+  __gpHandPose(Lh, L.p, L.a, L.c, curl);
+  // the magazine rides the hand while it is out of the gun
+  if (V.mag) {
+    if (V.mag0 == null) V.mag0 = V.mag.position.clone();
+    if (w.reloading && __gpHands.magK) V.mag.position.copy(new THREE.Vector3(0, 0.03, Lh.ps * -0.03).applyQuaternion(Lh.hand.quaternion).add(Lh.hand.position).applyMatrix4(M.clone().invert()));
+    else V.mag.position.copy(V.mag0);
+    V.mag.visible = true;
+  }
+  // the knife in the support hand while it cuts
+  const K = p.rule && p.rule.knife;
+  if (K && K.view) {
+    if (!__gpHands.knife) { __gpHands.knife = __gpKnifeBuild(K.view); Lh.hand.add(__gpHands.knife); __gpHands.knife.position.set(0, 0.046, -0.012); }
+    __gpHands.knife.visible = knifeOn;
+  }
+}
 function __gpFrame(dt) {
   const p = __world.pilotId && __world.byId[__world.pilotId];
   const lo = p && p.rule && p.rule.gunplay && Array.isArray(p.rule.loadout) ? p.rule.loadout : null;
   const idx = p ? p.loadoutIdx || 0 : 0, S = lo ? lo[idx] : null, g = S && S.gunplay, w = p && p.weapon;
   for (const k in __GP.views) __GP.views[k].grp.visible = false;
+  __gpHandsHide();
   if (!g || !w) { __gpScope.style.display = 'none'; return; }
   if (!__GP.scene) { scene.add(camera); if (camera.near > 0.03) { camera.near = 0.03; camera.updateProjectionMatrix(); } __GP.scene = true; }
   const G = p.gp || { aim: 0 }, a = __gpEase(G.aim);
@@ -153,9 +278,13 @@ function __gpFrame(dt) {
   // (a bow drawn comes onto the line as the sights do)
   const up = V.kind === 'bow' ? Math.max(a, __gpEase(G.draw || 0)) : a;
   const P = [0, 1, 2].map((i) => V.hip[i] + (V.ads[i] - V.hip[i]) * up);
-  V.grp.position.set(P[0] + bobX - __GP.lag[0] * hipK, P[1] - bobY - 0.32 * low - 0.06 * re, P[2] + 0.035 * __GP.kick);
-  V.grp.rotation.set(-0.9 * low + 0.05 * __GP.kick + 0.35 * re, -__GP.lag[0] * 2 * hipK, 0.45 * re + 0.05 * Math.sin(__GP.bob) * mv * hipK);
-  if (V.mag) V.mag.visible = re < 0.85;
+  // (while the knife cuts the strong hand carries the gun aside and down, out of the free hand's way)
+  const kn = p.knifeT != null ? Math.min(__gpEase(p.knifeT / 0.15), __gpEase((1 - p.knifeT) / 0.2)) : 0;
+  // (a reload tilts the gun over to the right and draws it in, its magazine well toward the support hand)
+  const rl = V.kind === 'bow' ? 0 : re;
+  V.grp.position.set(P[0] + bobX - __GP.lag[0] * hipK + 0.07 * kn - 0.05 * rl, P[1] - bobY - 0.32 * low - (V.kind === 'bow' ? 0.06 * re : 0.01 * rl) - 0.1 * kn, P[2] + 0.035 * __GP.kick + 0.05 * kn + 0.04 * rl);
+  V.grp.rotation.set(-0.9 * low + 0.05 * __GP.kick + (V.kind === 'bow' ? 0.35 * re : 0.12 * rl) + 0.25 * kn, -__GP.lag[0] * 2 * hipK - 0.3 * kn + 0.15 * rl, (V.kind === 'bow' ? 0.45 * re : -0.55 * rl) + 0.05 * Math.sin(__GP.bob) * mv * hipK - 0.35 * kn);
+  __gpHandsPose(p, w, V, SG, dt);
   for (const m of V.behind) m.visible = a < 0.3;
   if (V.kind === 'bow') {
     // the string drawn back by the draw, the arrow on it while one is nocked
@@ -358,6 +487,8 @@ if (typeof __syncRigEntity === 'function') {
   const __gpSync0 = __syncRigEntity;
   __syncRigEntity = function (e, m, rig, dt) { __gpSync0(e, m, rig, dt); if (e.rule && e.rule.gunplay) __gpHold(e, m, rig, dt || 0); };
 }
+// (what the hands show, for a page's check: each hand drawn, the knife out)
+window.__mojCtrl.hands = () => ({ R: !!(__gpHands.R && __gpHands.R.hand.visible), L: !!(__gpHands.L && __gpHands.L.hand.visible), knife: !!(__gpHands.knife && __gpHands.knife.visible && __gpHands.L.hand.visible) });
 const __gpStep0 = stepControllable;
 stepControllable = (dt, inputOverride) => { __gpStep0(dt, inputOverride); __gpFrame(dt || 0); __gpArrows(); };
 `;

@@ -67,3 +67,8 @@
 - **Fixed: rounds over the shoulder flew backwards.** The crosshair's point was searched from the camera, so a wall at
   the shooter's back (the page pulls its camera in front of one) caught it, and every round went into that wall, toward
   the camera. It is searched from the shooter's depth along the ray now.
+- **Hands in first person.** The eye's view drew the gun alone. Gloved hands and sleeves now hold it, closed where the
+  gun's model says a hand goes; through a reload the support hand takes the magazine out and seats a fresh one; a pickup
+  or a use is a reach and a grab. A kit's body carries a quick knife in its free hand (`rule.knife`, the arms kernel's
+  combat knife): V from the eye draws it and cuts, a slash then a thrust by turns, the gun carried aside, and the cut is
+  a melee strike the runtime adjudicates (two drop a body; its legend says "V  knife").

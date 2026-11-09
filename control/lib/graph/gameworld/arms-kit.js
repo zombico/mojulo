@@ -133,5 +133,16 @@ function handsOf(st) {
 
 /** A kit's loadout on a base round: its slots in order (kitSlot). */
 export const armsLoadout = (arms, base, where = {}) => arms.map((w) => kitSlot(w, base, where));
+// THE QUICK KNIFE a kit's body carries in its free hand (worlds/controllable/gunplay.js `rule.knife`): a cut reaches
+// 1.3 m from the hips across a 50 degree cone, the blade in it from 0.3 to 0.55 of its half second, a rest of 0.35 s
+// after; two cuts drop a body of `hp`. Its look is the arms kernel's combat knife (its parts' boxes, cm), held round the
+// handle with the blade out of the index side (`hold`: the fist's centre, its index side, its long axis), for the page
+// to draw in the hand.
+export const KNIFE = Object.freeze({ reach: 1.3, cone: 50, dur: 0.5, window: Object.freeze([0.3, 0.55]), cooldown: 0.35, impact: 1 });
+let knifeView = null;
+const knifeLook = () => knifeView || (knifeView = { boxes: armBoxes({ item: 'knife', model: 'combat' }).map(([lo, hi, c, part]) => [lo.map((v) => r2(v)), hi.map((v) => r2(v)), c, part]), hold: { at: [0, 0, 6], c: [0, 0, 1], a: [0, 1, 0] } });
+/** The quick knife against bodies of `hp` (a fresh object: a rule is the world's to change). */
+export const knifeOf = (hp) => ({ ...KNIFE, window: [...KNIFE.window], damage: Math.ceil(hp / 2), view: knifeLook() });
+
 /** A kit's legend (the keys it adds). */
 export const ARMS_LEGEND = 'click  fire · right click  aim · Shift  steady (scoped) · R  reload · 1-5 or wheel  switch';

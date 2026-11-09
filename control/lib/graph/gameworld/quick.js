@@ -151,7 +151,7 @@
  * Pure. `readQuick` reads the shape; `quickWorld` writes the gameworld; `goalMechanics` places the goal on a stage's own
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
-import { armsLoadout, validateArmsKit, ARMS_LEGEND } from './arms-kit.js';
+import { armsLoadout, validateArmsKit, ARMS_LEGEND, knifeOf } from './arms-kit.js';
 import { ROUNDS } from './rounds.js';
 import { readBodyWord } from './game-bodies.js';
 import { TD_WAVES } from '../board/board-td.js';
@@ -1333,10 +1333,11 @@ export function shootCast(quick, ends, ref, { hero = false, camera, G = null } =
   // the player, armed: hittable (a person's egg: over its feet, or under the eye it walks at), its eye's height known
   // (sight is eye to eye), the rifle at its eye; over the shoulder (shoulderOf) its rounds converge on the crosshair
   const over = shoulderOf(camera ?? quick.camera, hero);
-  // (a carried kit: its slots on the platform rule's loadout, the first in hand, the gunplay on: arms-kit.js)
+  // (a carried kit: its slots on the platform rule's loadout, the first in hand, the gunplay on, a knife in the free hand:
+  // arms-kit.js)
   const kit = quick.arms ? armsLoadout(quick.arms, SHOOT.rifle, { eye: hero ? 1.5 : 0, converge: !!over }) : null;
   const pilot = {
-    rule: { collideRadius: 0.3, collideHeight: 1.7, ...(kit ? { loadout: kit, gunplay: true } : {}) },
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...(kit ? { loadout: kit, gunplay: true, knife: knifeOf(SHOOT.foeHp) } : {}) },
     weapon: kit ? kit[0].weapon : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, ...(over ? { converge: true } : {}) },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
   };
@@ -1442,7 +1443,7 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
   const kit = quick.arms ? armsLoadout(quick.arms, P ? P.weapon : SHOOT.rifle, { eye: hero ? 1.5 : 0, hand: 'right', converge: !!over }) : null;
   const pilot = {
     ...(S ? { team: 'red' } : {}),
-    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}), ...(kit ? { loadout: kit, gunplay: true } : {}) },
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}), ...(kit ? { loadout: kit, gunplay: true, knife: knifeOf(P ? P.hp : SHOOT.foeHp) } : {}) },
     weapon: kit ? kit[0].weapon : P ? { ...P.weapon, eye: hero ? 1.5 : 0, ...conv } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right', ...conv },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
     transform: { pos: [s0[0], s0[1], s0[2] + (hero ? 0 : 1.7)], heading: face(s0) },

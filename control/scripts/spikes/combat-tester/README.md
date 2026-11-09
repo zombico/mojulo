@@ -314,6 +314,13 @@ the player as it should. The hero was not drawn at all, and two bugs in the game
   simulation's camera, which stays behind a wall the page pulls its camera in front of, so with a wall at the hero's
   back every round flew backwards into it, at the camera (`shoulder.test.js` holds the fix).
 
+- **Hands in first person.** The eye's view drew a gun with no hands. Gloved hands and sleeves now close on the gun's
+  stations; the support hand draws and seats the magazine through a reload; a reach and a grab for a pickup or a use;
+  a quick knife on V (`rule.knife`, the arms kernel's combat knife), drawn in the free hand and cut as a melee strike
+  the runtime adjudicates (gunplay.test.js: an arm's length taken, 3 m not, no round while it cuts, two cuts drop a
+  body). The page reports what the hands show (`__mojCtrl.hands()`), checked in Chromium. The knife cuts from the eye
+  only (V is the chase camera's reverse view over the shoulder).
+
 Still open over the shoulder: the head is not brought down onto the stock (no cheek weld), the support hand does not
 slide along a handguard, the bow is not carried, and the foes' guns are not in their hands.
 
