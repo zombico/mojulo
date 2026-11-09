@@ -84,12 +84,18 @@ const entities = [heroE, ...foes];
 // foe's swing and its fall, a blow taken; footsteps on the stone floor, the dodge, the jump and the landing. Through
 // the SFX mixer in an interior's space
 const soundStyle = opt('--sound', 'realistic');
-const SOUND_WORDS = { 'blade-light': 'katana-swing', 'blade-heavy': 'katana-heavy-swing', 'fist-swing': 'swing', 'blade-hit': 'blade-hit', 'finisher-hit': 'knockout-blow',
+// (a blade's swing is a swish into the air; the slash itself, the katana's "shhk-shing" from its cut on, sounds only
+// when it connects: SLASHES, laid over the blow's own hit)
+const SOUND_WORDS = { 'blade-light': 'blade-swing', 'blade-heavy': 'blunt-swing', 'fist-swing': 'swing', 'blade-hit': 'blade-hit', 'finisher-hit': 'knockout-blow',
   punch: 'punch', uppercut: 'uppercut', block: 'block', parry: 'blade-clash', 'guard-break': 'wood-break', 'bow-draw': 'bow-draw', 'bow-shot': 'bow-shot',
-  'arrow-hit': 'arrow-target', felled: 'down', cycle: 'weapon-switch', 'foe-swing': 'katana-swing', hurt: 'flesh-impact' };
+  'arrow-hit': 'arrow-target', felled: 'down', cycle: 'weapon-switch', 'foe-swing': 'blade-swing', hurt: 'flesh-impact' };
+const SLASHES = { 'blade-hit': 'katana-swing', 'finisher-hit': 'katana-heavy-swing' };
 const soundOf = (word) => { const v = sfxSound(word, { style: soundStyle }); return v && v.gestures ? v.gestures : null; };
+// (a slash from its cut on: its approach whooshes, the swing's already, left out, the rest brought to the contact)
+const fromCut = (g) => { const kept = g.filter((x) => (x.at ?? 0) >= 0.05); if (!kept.length) return g; const t0 = Math.min(...kept.map((x) => x.at)); return kept.map((x) => ({ ...x, at: Math.round((x.at - t0) * 1e4) / 1e4 })); };
+const cueOf = (id, word) => { const g = soundOf(word); if (!g) return null; const sl = SLASHES[id] && soundStyle === 'realistic' ? soundOf(SLASHES[id]) : null; return sl ? [...fromCut(sl), ...g] : g; };
 const audio = soundStyle === 'none' ? null : (() => {
-  const cues = Object.fromEntries(Object.entries(SOUND_WORDS).map(([id, w]) => [id, soundOf(w)]).filter(([, g]) => g));
+  const cues = Object.fromEntries(Object.entries(SOUND_WORDS).map(([id, w]) => [id, cueOf(id, w)]).filter(([, g]) => g));
   const has = (id) => (cues[id] ? id : undefined), clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
   // (each weapon by the figure it shows: a blade drawn, the fist sheathed)
   const blade = (W) => (W.figure ?? 'drawn') === 'drawn';

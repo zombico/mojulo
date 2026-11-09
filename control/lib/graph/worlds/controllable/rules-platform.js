@@ -431,6 +431,9 @@ export function buildRulesPlatform(E) {
       // skid owns the release instead and the drive starts from rest. The step is read back onto f/rt, so the gait and
       // the clips see what the direct step gave them. Absent `accel` → the direct step below, byte-identical.
       const d = e.drive || (e.drive = [0, 0]);
+      // (a hero sprinting on its stamina leaves the ground at its sprint and the air keeps it: the stick steers it, the
+      // run's pace never brakes it; its pace on the ground, `airPace`, is what a jump carries)
+      if (sprints && e.grounded) e.airPace = Math.hypot(d[0], d[1]);
       if (!halt) { d[0] = 0; d[1] = 0; }
       else if (boosting && !sprints) {
         const k = r.boostInertia > 0 ? 0 : boostSpeed * ctl / bn;
@@ -439,7 +442,7 @@ export function buildRulesPlatform(E) {
         const pushed = Math.abs(fwdIn) + Math.abs(sideIn) > 1e-3;
         if (pushed || e.grounded) {
           // (a sprint builds to its own speed as the run does to the run's)
-          const pace = boosting ? boostSpeed : speed;
+          const pace = Math.max(boosting ? boostSpeed : speed, sprints && !e.grounded ? e.airPace || 0 : 0);
           const wx = (f[0] * fwdIn + rt[0] * sideIn * strafe) * pace, wy = (f[1] * fwdIn + rt[1] * sideIn * strafe) * pace;
           const dx = wx - d[0], dy = wy - d[1], dl = Math.hypot(dx, dy);
           if (dl > 1e-12) {

@@ -180,3 +180,11 @@
   guard broken, the bow's draw, shot and arrow striking, the weapon switch, a foe going down, footsteps on stone, the
   dodge; through the SFX mixer in an interior. Counted headless: each action starts its sound (an idle room none).
   Heard by nobody yet: whether they sound right is the operator's ears.
+- **A swing into the air is a swish.** The room's blade swings sound as air (the shelf's `blade-swing`, the heavy cut
+  its `blunt-swing`); the katana's slash, from its cut on (its "shhk-shing", its approach whooshes left out and the
+  rest brought to the contact), sounds only when the blow connects, laid over the blade's hit (the finisher's heavy
+  slash over its knockout).
+- **A jump carries its takeoff** (`rules-platform.js`). A hero sprinting on its stamina left the ground at its sprint
+  and the air braked it back to its run (the stick still pushed): a sprint jump went no farther than a run's. The air now
+  keeps the speed the body left with (`airPace`, its pace on the ground), the stick steering it and never braking it
+  below; a run's jump is as it was. Measured in the room: a sprint jump 4.3 m → 5.8 m (7.5 m/s held through 0.73 s).

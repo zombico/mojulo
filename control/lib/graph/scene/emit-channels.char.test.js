@@ -516,6 +516,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-09 (1108-practice-room: no spamming): the 16 fixtures that embed the controllable runtime. A
 // moveset's move keeps its `cooldown` before it opens a string again, and its `rest` holds every string after a
 // finisher. No fixture's rule takes a moveset, so nothing they play moved.
+// Re-pinned 2026-11-09 (1108-practice-room: a jump carries its takeoff): the 16 fixtures that embed the controllable
+// runtime. A hero sprinting on its stamina keeps its sprint through the air (`airPace`) where the run's pace braked it;
+// no fixture's rule sprints on a stamina, so nothing they play moved.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
