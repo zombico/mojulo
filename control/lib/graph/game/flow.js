@@ -15,8 +15,9 @@
  *                a front screen, left by what the player picks there (its events: SCREEN_EVENTS); `next` stands for
  *                its one event; `idle` goes on by itself when the player leaves it alone (an attract loop)
  *     cinematic  { scene, stage, next, keep?, skip? }
- *                a scene (a story moment's id) played on a level's page (`stage`) with control held, left as it
- *                ends; `keep` hands the stage on to the level step after it, the page kept (the game-start
+ *                a scene (a story moment's id, or any scene the stage level has) played on that level's page
+ *                (`stage`, asked of it by game-init params.__stage) with control held, left as the level says it
+ *                ends (game-scene-end; at once when it has no such scene); `keep` hands the stage on to the level step after it, the page kept (the game-start
  *                animation: the prologue ends and the player has control); `skip: false` makes it unskippable
  *     level      { level: '<level ref>' | '$any', on: { won?, lost?, left?, door? } }
  *                a level, left by its outcome (won, lost, left) or a door; `$any` is the step any level plays in

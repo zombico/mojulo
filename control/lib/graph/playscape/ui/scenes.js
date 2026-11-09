@@ -52,6 +52,11 @@
  *
  * Carried flags arrive after the page starts (the shell's params), so in a level that carries, a scene on
  * { start: true } waits for `flags-ready`, which the game channel pushes once the held flags are on the bus.
+ *
+ * Scenes play one at a time: one whose happening comes while another plays waits its turn (scene-runner.js). Hosted in
+ * a shell, a level's scenes wait for the shell's params before any starts, and the shell's flow can STAGE a scene
+ * (game-init params.__stage: { scene, skip? }): the level plays it as a cinematic and tells the shell as it ends
+ * (game-scene-end). A scene only a flow stages names a happening nothing raises, e.g. { on: 'staged' }.
  */
 import { readEffect, effectContext } from './cues.js';
 import { questFlags } from './quests.js';

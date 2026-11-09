@@ -486,6 +486,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // (`game-shown`, two frames after ready) and when its end card is read (`game-card-done`: its time, a press after its
 // first moment, or at once with no card), so the play shell's flow goes on by events. Additions only: 14 lines each,
 // none removed.
+// Re-pinned 2026-11-09 (1109-flow-runner, phase 3: the stage): `game`, `kitchen-sink` and `kitchen-sink-capture`, the
+// fixtures that embed the game channel. Hosted, a level's scenes wait for the shell's params (`__mojWaitInit`, set as it
+// says ready, cleared as it starts), and a stage the shell's flow asks for (`params.__stage`) is handed to the scene
+// channel, or said missing at once by a level with no scenes. Additions only: 11 lines each, none removed.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

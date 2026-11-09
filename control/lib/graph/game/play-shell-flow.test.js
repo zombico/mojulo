@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { emitPlayShell } from './play-shell.js';
 import { normalizeGameManifest } from './game-manifest.js';
-import { normalizeLevelContract, CONTRACT_VERSION, MSG_READY, MSG_OUTCOME, MSG_SHOWN, MSG_CARD_DONE, MSG_DOOR } from './level-contract.js';
+import { normalizeLevelContract, CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_SHOWN, MSG_CARD_DONE, MSG_DOOR, MSG_SCENE_END } from './level-contract.js';
 
 // THE FLOW RUNNER, played: the play shell runs the game's flow (flow.js), the game's own or the one its front, levels and
 // run make. Every screen's buttons and every level's end are events the flow steps on; the level's sidecars say when its
@@ -22,7 +22,9 @@ function page(more) {
   const end = (result = 'success', extra = {}) => say({ moj: MSG_OUTCOME, envelope: { contractVersion: CONTRACT_VERSION, levelRef: level(), result, events: [], ...extra } });
   const click = (text, scope = 'button') => { const b = [...d.querySelectorAll(scope)].find((x) => x.textContent === text); if (!b) throw new Error(`no button '${text}' (${[...d.querySelectorAll(scope)].map((x) => x.textContent).join(', ')})`); b.click(); };
   const screen = () => d.getElementById('app').textContent;
-  return { w, d, frame, level, say, end, click, screen, veil: d.getElementById('veil') };
+  // the level says it is ready; what the shell sends it back (its params) is caught
+  const ready = () => { const got = []; frame.contentWindow.postMessage = (m) => got.push(m); say({ moj: MSG_READY, contractVersion: CONTRACT_VERSION, levelRef: level() }); return got.find((m) => m.moj === MSG_INIT) || null; };
+  return { w, d, frame, level, say, end, click, screen, ready, veil: d.getElementById('veil') };
 }
 
 describe('the play shell runs the game\'s flow', () => {
@@ -63,7 +65,7 @@ describe('the play shell runs the game\'s flow', () => {
     P.say({ moj: MSG_CARD_DONE });
     expect(P.screen()).toContain('cleared');
   });
-  it('a flow of its own: a beat between screens, a level straight on to the next, a cinematic gone straight on until its stage plays it', async () => {
+  it('a flow of its own: a beat between screens, a cinematic on its stage, a level straight on to the next', async () => {
     const P = page({ flow: {
       start: 'title',
       steps: {
@@ -77,11 +79,50 @@ describe('the play shell runs the game\'s flow', () => {
     P.click('play');
     expect(P.level()).toBeNull();
     await wait(120);
-    expect(P.level()).toBe('vale');
+    expect(P.level()).toBe('vale');                        // the cinematic's stage
+    P.say({ moj: MSG_SCENE_END, scene: 'intro' });
+    expect(P.level()).toBe('vale');                        // the level itself, its page anew
     P.end();
     expect(P.level()).toBe('gate');                        // straight on: no result between, no card to wait for
     P.end('fail');
     expect(P.level()).toBe('gate');
+  });
+  it('a cinematic plays on its stage, asked of the level; kept, its page goes on as the level, the player\'s', () => {
+    const P = page({ flow: {
+      start: 'opening',
+      steps: {
+        opening: { kind: 'cinematic', scene: 'opening', stage: 'keep', next: 'title', skip: false },
+        title: { kind: 'screen', screen: 'title', on: { play: 'prologue' } },
+        prologue: { kind: 'cinematic', scene: 'prologue', stage: 'vale', next: 'vale', keep: true },
+        vale: { kind: 'level', level: 'vale', on: { won: '$next', lost: '$again' } },
+        rest: { kind: 'level', level: '$any', on: { won: 'title', lost: '$again' } },
+      },
+    } });
+    expect(P.level()).toBe('keep');
+    expect(P.ready().params.__stage).toEqual({ scene: 'opening', skip: false });
+    expect(P.d.getElementById('pauseBtn').style.display).toBe('none');   // a cinematic has no pause: Esc is its skip
+    P.say({ moj: MSG_SCENE_END, scene: 'another' });                  // not the one staged: nothing moves
+    expect(P.level()).toBe('keep');
+    P.say({ moj: MSG_SCENE_END, scene: 'opening' });
+    expect(P.screen()).toContain('play');
+    P.click('play');
+    expect(P.level()).toBe('vale');
+    expect(P.ready().params.__stage).toEqual({ scene: 'prologue' });
+    const src = P.frame.getAttribute('src');
+    P.say({ moj: MSG_SCENE_END, scene: 'prologue' });
+    expect(P.frame.getAttribute('src')).toBe(src);                    // the same page: no reload
+    expect(P.d.getElementById('pauseBtn').style.display).toBe('block');
+    P.end();
+    expect(P.level()).toBe('gate');                                    // the kept level's outcome is the flow's, as any level's
+  });
+  it('a stage that has no such scene says so, and the flow goes on', () => {
+    const P = page({ flow: { start: 'opening', steps: {
+      opening: { kind: 'cinematic', scene: 'opening', stage: 'vale', next: 'title' },
+      title: { kind: 'screen', screen: 'title', on: { play: '$first' } },
+      any: { kind: 'level', level: '$any', on: { won: 'title' } },
+    } } });
+    P.say({ moj: MSG_SCENE_END, scene: 'opening', missing: true });
+    expect(P.screen()).toContain('play');
   });
   it('a door goes where its link says, carrying what the level gathered', () => {
     const P = page({ links: [{ from: { ref: 'vale', door: 'east' }, to: { ref: 'gate', door: 'west' } }] });

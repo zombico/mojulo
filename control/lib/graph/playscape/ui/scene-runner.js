@@ -11,7 +11,10 @@
  *                             vars (the bus vars: a scene's `if` is read against them when its happening comes),
  *                             move (±1: the choice's highlight), pick (an option's index, taken at once) }.
  *                             A scene plays once (its `once`) counting plays, not happenings: one whose conditions
- *                             failed plays when its happening comes again and they hold.
+ *                             failed plays when its happening comes again and they hold. Scenes play one at a time:
+ *                             a happening heard while one plays (or two on one frame) waits its turn in order. Its
+ *                             conditions are read as its happening comes and again as its turn comes (a scene before
+ *                             it may have ruled it out); a scene is queued once.
  *                             `fire` goes to the bus (the beats' cues), `ops` to the cast (the camera's shot / unshot,
  *                             and `finish` when a scene is skipped: every walk lands where it was going)
  *   R.view(S)                 → { on, bars (0..1), line: { who, name, text (typed so far), full, expression? } | null,
@@ -29,7 +32,7 @@ export function buildSceneRunner() {
   function create(program) {
     const byId = {};
     for (const sc of program || []) byId[sc.id] = sc;
-    return { byId, active: null, heard: [], bars: 0, played: {} };
+    return { byId, active: null, heard: [], queue: [], bars: 0, played: {} };
   }
 
   const CMP = { gte: (a, b) => a >= b, gt: (a, b) => a > b, lte: (a, b) => a <= b, lt: (a, b) => a < b, eq: (a, b) => a === b, ne: (a, b) => a !== b };
@@ -106,11 +109,20 @@ export function buildSceneRunner() {
     const out = { fire: [], ops: [], started: [], ended: [] }, c = ctl || {};
     const heard = S.heard;
     S.heard = [];
+    // each happening heard queues its scene if its conditions hold as it comes (never twice, never one that has played
+    // its once, never the one playing)
+    for (const t of heard) {
+      if (t.indexOf('scene:') !== 0) continue;
+      const sc = S.byId[t.slice(6)];
+      if (!sc || S.queue.indexOf(sc.id) >= 0 || (S.active && S.active.sc.id === sc.id) || (sc.once !== false && S.played[sc.id]) || !holds(sc, c.vars)) continue;
+      S.queue.push(sc.id);
+    }
     if (!S.active) {
-      for (const t of heard) {
-        if (t.indexOf('scene:') !== 0) continue;
-        const sc = S.byId[t.slice(6)];
-        if (!sc || (sc.once !== false && S.played[sc.id]) || !holds(sc, c.vars)) continue;
+      // the first queued plays if its conditions still hold (a scene before it may have set a flag that rules it out);
+      // one that no longer holds leaves the queue, and plays when its happening comes again and they hold
+      while (S.queue.length) {
+        const sc = S.byId[S.queue.shift()];
+        if ((sc.once !== false && S.played[sc.id]) || !holds(sc, c.vars)) continue;
         S.played[sc.id] = (S.played[sc.id] || 0) + 1;
         S.active = { sc, i: -1, wait: null, line: null, t: 0, typed: 0, holdT: 0, said: null, choice: null, sel: 0 };
         out.started.push(sc.id);

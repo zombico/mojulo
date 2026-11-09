@@ -32,7 +32,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
@@ -114,7 +114,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.run ? { run: { length: manifest.run.length } } : {}),
     // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
-    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, ...(links ? { door: MSG_DOOR } : {}) },
+    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
     // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
@@ -444,12 +444,15 @@ export function playShellRuntime(cfg, K) {
     warmStinger(src);
     stingerBlob[src].then((url) => { if (!url) return; stingerEl = stingerEl || new Audio(); stingerEl.src = url; stingerEl.volume = 0.6; stingerEl.play().catch(() => {}); });
   }
-  function launch(lv, arrive, carry) {
+  // `stage`: a cinematic the flow plays on the level's page ({ scene, skip? }, params.__stage): the level plays it, held,
+  // and says when it ends
+  function launch(lv, arrive, carry, stage) {
     if (stingerEl) stingerEl.pause();
     if (STINGERS) { warmStinger(STINGERS.victory); warmStinger(STINGERS.defeat); }
     launches += 1;
     const params = carry || paramsFor(lv);
     if (arrive) params.arrive = arrive;
+    if (stage) params.__stage = stage;
     session = { level: lv, params, seed: (run ? run.n * 100 + run.at + 1 : PLAYTEST ? launches : runLog.length + 1), ended: false };
     lastParams = session.params; lastErrors = null;
     ctlRows = null;
@@ -474,6 +477,9 @@ export function playShellRuntime(cfg, K) {
     if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
     if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; signal('shown'); return; }
+    // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
+    // kept when the cinematic hands its stage on to the level
+    if (d.moj === W.sceneEnd) { const cs = FLOW.steps[at.step]; if (cs && cs.kind === 'cinematic' && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
     // the level's own end card read (or put away): the flow goes on
     if (d.moj === W.cardDone) { if (waitCard) { const f = waitCard; waitCard = null; f(); } signal('card-done'); return; }
     if (d.moj === W.ready) {
@@ -586,7 +592,8 @@ export function playShellRuntime(cfg, K) {
   const padPrev = {};
   (function padPoll() {
     requestAnimationFrame(padPoll);
-    if (screen !== 'level' || !navigator.getGamepads) { for (const k in padPrev) delete padPrev[k]; return; }
+    const cine = FLOW.steps[at.step] && FLOW.steps[at.step].kind === 'cinematic';   // a cinematic has no pause
+    if (screen !== 'level' || cine || !navigator.getGamepads) { for (const k in padPrev) delete padPrev[k]; return; }
     const ps = navigator.getGamepads();
     for (let i = 0; i < ps.length; i++) {
       const p = ps[i];
@@ -753,6 +760,8 @@ export function playShellRuntime(cfg, K) {
     if (s.kind === 'level') {
       const lv = LEVELS.find((l) => l.ref === next.level);
       if (!lv) { toast('No level ' + next.level + '.'); return; }
+      // a cinematic kept its stage: the level it played on goes on, the same page, the player's now
+      if (m.keepPage && session && session.level.ref === lv.ref) { pauseBtn.style.display = 'block'; return; }
       // travel says where it came from, and arrives at that end of the level; a door carries what it brought
       if (m.travelTo === lv.ref && m.from) toast(levelTitle(m.from) + ' → ' + lv.title);
       launch(lv, m.travelTo === lv.ref ? m.from : null, m.doorTo === lv.ref ? m.carry : null);
@@ -760,8 +769,13 @@ export function playShellRuntime(cfg, K) {
     }
     if (s.kind === 'screen') { drawScreen(s.screen); if (s.idle) { idleAfter = s.idle.after; poke(); } return; }
     if (s.kind === 'hold') { if (s.for) holdTimer = setTimeout(() => { if (at === next) go('next'); }, s.for * 1000); else holdUntil = s.until; return; }
-    // a cinematic: played on its stage (the flow runner's next step); until then it goes straight on
-    holdTimer = setTimeout(() => { if (at === next) go('next'); }, 0);
+    // a cinematic: played on its stage, the level's page, with no pause button (Esc and a held key are the scene's skip);
+    // the level says when it ends. A level that never answers (a page from before stages) is given two minutes
+    const stage = LEVELS.find((l) => l.ref === s.stage);
+    if (!stage) { holdTimer = setTimeout(() => { if (at === next) go('next'); }, 0); return; }
+    launch(stage, null, null, { scene: s.scene, ...(s.skip === false ? { skip: false } : {}) });
+    pauseBtn.style.display = 'none';
+    holdTimer = setTimeout(() => { if (at === next) go('next', { keepPage: !!s.keep }); }, 120000);
   }
   function drawScreen(name) {
     session = null;

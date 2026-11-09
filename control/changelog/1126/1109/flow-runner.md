@@ -12,3 +12,9 @@
   the level has drawn its first picture rather than while it is still building, and after a level ends the game
   moves on as soon as its end card has been read, at once when the level shows no card, or early when the player
   presses a key.
+- **Cinematics between screens.** A game's flow can now play a cutscene on any of its levels as a step of its own:
+  an opening before the title, or a prologue after New Game that hands straight over to play on the same level with
+  no reload. A cutscene can be made unskippable. If the level has no such scene, the game simply moves on.
+- **Scenes no longer get lost.** When two cutscenes are triggered at once, or one is triggered while another plays,
+  they now play one after another instead of the later one being dropped. A scene that should open a level now waits
+  until the game has handed the level its saved progress, so it can no longer start too early.

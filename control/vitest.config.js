@@ -46,6 +46,7 @@ export const E2E = [
   'lib/mcp/tools/table-rpg-portraits.live.test.js',
   'lib/graph/game/play-shell-final.live.test.js',
   'lib/graph/game/pause-owner.live.test.js',
+  'lib/graph/game/stage.live.test.js',
   'lib/graph/scene/channels/controllable/seats.live.test.js',
   'lib/graph/worlds/controllable/vayo-air.live.test.js',
   'lib/graph/worlds/controllable/vayo-move.live.test.js',

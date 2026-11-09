@@ -71,7 +71,12 @@ export const MSG_SEATS = 'game-seats';
 //   level → shell  { moj: MSG_SHOWN }       — the level's first frame is drawn (ready is said before it): the veil lifts
 //   level → shell  { moj: MSG_CARD_DONE }   — the level's own end card is read (its time, or a press), or it has none:
 //                                             the shell's flow goes on to its next screen
+//   level → shell  { moj: MSG_SCENE_END, scene, missing?, skipped? }
+//                                           — the scene the shell staged here (game-init params.__stage: { scene,
+//                                             skip? }) has ended; missing: the level has no such scene; skipped: its
+//                                             conditions did not hold or it had played its once. The flow goes on
 export const MSG_SHOWN = 'game-shown';
+export const MSG_SCENE_END = 'game-scene-end';
 export const MSG_CARD_DONE = 'game-card-done';
 
 export function validateLevelContract(game, schema) {

@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE } from '../../game/level-contract.js';
+import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE, MSG_SCENE_END as GAME_MSG_SCENE_END } from '../../game/level-contract.js';
 import { FONTS } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 
@@ -47,6 +47,15 @@ const __GAME = ${safeJson(game)};
     st.params = params || {};
     if (typeof seed === 'number' && isFinite(seed)) st.seed = seed;
     st.onStart.splice(0).forEach((cb) => { try { cb(st.params, st.seed); } catch (e) { console.error('game onStart', e); } });
+    // the level is up: its scenes may start (a scene on its start waited for the shell's params)
+    window.__mojWaitInit = false;
+    // a STAGE: the shell's flow plays a cinematic here (params.__stage: { scene, skip? }); the scene channel plays it and
+    // says when it ends. A level with no scenes says so at once, so the flow never waits on it
+    const sg = st.params.__stage;
+    if (sg && typeof sg.scene === 'string' && sg.scene) {
+      if (window.__mojScenes) window.__mojStage = { scene: sg.scene, skip: sg.skip !== false, t: 0, on: false, asked: 0 };
+      else if (hosted) { try { window.parent.postMessage({ moj: '${GAME_MSG_SCENE_END}', scene: sg.scene, missing: true }, '*'); } catch (e) { /* opaque parent */ } }
+    }
   }
   function emit(ev) { if (!st.ended && ev && typeof ev === 'object' && ev.type) st.events.push(ev); }
   function end(result, stats${exits ? ', exit' : ''}) {
@@ -250,6 +259,8 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
   // the contract's default preset (1.5s grace for a slow shell; capture never waits).
   function fallback() { start((__GAME.presets && __GAME.presets.default) || {}, 1); }
   if (hosted && !capture) {
+    // hosted: the level's scenes wait for the shell's params (a scene on the level's start, a stage the shell asks for)
+    window.__mojWaitInit = true;
     window.addEventListener('message', (e) => {
       const d = e.data;
       if (!d || d.moj !== '${GAME_MSG_INIT}') return;
