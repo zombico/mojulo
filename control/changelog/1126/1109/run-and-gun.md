@@ -72,3 +72,15 @@
   `ambush` (hidden at its stations until the player comes near); a street wave's crowd entry `entrance` and `ambush`.
   The sampler gains dug in, from above, out of the ground and lying in wait; the page draws cover, a dig's dirt and the
   crouch, and sounds a round on cover and a body digging out; the spike's `--waves --melee` plays the brawler's.
+- MOUNTED FOES, for both games. A body RIDES in (`enterBody` how 'ride', on a mount of `MOUNTS` in brawl-things.js: the
+  motorcycle, fast with a hard ram, and the scooter, slower and nimbler) along the street from where it is put, steering
+  onto its target's line while it comes at it, running over a body in its way (knocked down, once a pass; a body in the
+  air clears it) and turning past the view for its `passes`. Knocked off (a blow, a flying kick the genre's answer, or a
+  stream of rounds past its poise), it flies on and its mount skids into a WRECK, cover on the street (`THINGS.cover`
+  motorcycle and scooter); `onFoot`, it gets up and fights on, else the crash knocks it out. Its passes done, it brakes
+  in the view and steps off (on foot, its mount left standing) or rides away. Nobody takes hold of a rider; a rider
+  with a gun fires from the saddle. In the waves: a range wave's (and the brawler yard's) `entrance: 'ride'` and its
+  `mount` (kind, passes, onFoot), riders coming in one behind another; a street wave's crowd entry the same. The
+  sampler gains the bikers. Its page: the mount drawn under its rider sat astride it, the wreck a mount on its side, the
+  crash's flash and impact frames; the street's own sounds (a crash, metal, the ground dug out of) voiced on any brawl,
+  with guns or without (`streetAudio`). Its engine and its tyres are held voices on the shelf, not played yet.

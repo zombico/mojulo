@@ -23,7 +23,7 @@
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, THREE, THINGS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global BRAWL_YARD, THREE, THINGS, MOUNTS, scene, camera, controls, renderer, wrap, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, gunShape, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -394,8 +394,38 @@ function drawnOf(B, p, F) {
   d.J = d.k >= 1 ? J : Object.fromEntries(Object.keys(J).map((k) => [k, [d.from[k][0] + (J[k][0] - d.from[k][0]) * e, d.from[k][1] + (J[k][1] - d.from[k][1]) * e]]));
   return d;
 }
+// ── a rider's mount (MOUNTS: its length, its saddle's height): a frame on two wheels, the bars ahead, drawn under its
+// rider while it rides; off it, the mount is the street's (a wreck, cover) ──
+const MOUNT_LOOK = { motorcycle: ['#2a2c32', '#b8bcc4'], scooter: ['#c8423a', '#e8e2d4'] };
+const WHEEL = shaded(new THREE.CylinderGeometry(1, 1, 1, 18));
+function mountOf(kind) {
+  const M = MOUNTS[kind], L = M.len / 1000, seat = M.seat / 1000, r = kind === 'scooter' ? 0.2 : 0.31;
+  const [paint, trim] = MOUNT_LOOK[kind] ?? MOUNT_LOOK.motorcycle, g = new THREE.Group(), tyre = lambert('#18181a');
+  for (const x of [-(L / 2 - r), L / 2 - r]) { const w = castOn(new THREE.Mesh(WHEEL, tyre)); w.scale.set(r, 0.13, r); w.position.set(x, 0, r); g.add(w); }
+  // (the body between the wheels, the tank and saddle on it, the forks up to the bars)
+  const box = (sx, sy, sz, x, z, c) => { const m = castOn(new THREE.Mesh(shaded(new THREE.BoxGeometry(sx, sy, sz)), lambert(c))); m.position.set(x, 0, z); g.add(m); return m; };
+  box(L * 0.55, 0.26, seat - r - 0.08, 0, (r + seat) / 2 - 0.04, paint);
+  box(L * 0.3, 0.3, 0.1, -L * 0.08, seat - 0.05, '#1c1c1e');
+  box(L * 0.2, 0.32, 0.18, L * 0.16, seat - 0.02, paint);
+  const fork = box(0.06, 0.06, seat * 0.75, L / 2 - r * 1.2, r + seat * 0.38, trim); fork.rotation.y = -0.35;
+  box(0.06, 0.72, 0.05, L / 2 - r * 1.45, seat + 0.26, trim);
+  g.userData.kind = kind;
+  return g;
+}
+function placeMount(B, p) {
+  const kind = p.st === 'ride' && !p.gone ? p.mk : null;
+  if (B.mount && B.mount.userData.kind !== kind) { YARD.remove(B.mount); B.mount = null; }
+  if (!kind || !MOUNTS[kind]) return 0;
+  if (!B.mount) { B.mount = mountOf(kind); YARD.add(B.mount); }
+  B.mount.position.set(p.x / 1000, p.z / 1000, 0);
+  B.mount.rotation.set(0, 0, p.face > 0 ? 0 : Math.PI);
+  // (the rider sat on its saddle: lifted from a stander's hip to the saddle's top)
+  return MOUNTS[kind].seat + 60 - RIDER_HIP;
+}
+const RIDER_HIP = 900;
 function placeBody(B, p, F) {
-  const hidden = !!p.gone;
+  const hidden = !!p.gone, lift = placeMount(B, p);
+  if (lift) p = { ...p, y: p.y + lift };
   B.group.visible = !hidden; B.shadow.visible = !hidden;
   if (B.blade) B.blade.fill.visible = B.blade.ink.visible = !hidden && !!F.weapon;
   if (B.line) B.line.visible = !hidden;
@@ -534,7 +564,7 @@ function placeRounds() {
 
 const THING_LOOK = { food: [0.32, 0.32, 0.22, '#e8803a'], power: [0.3, 0.3, 0.3, '#3ad2ff'], weapon: [0.9, 0.07, 0.07, '#9aa0a8'] };
 const BOX_LOOK = { barrel: '#8a5a32', crate: '#a0783e', booth: '#5a6a8a' };
-// cover: sandbags, a stack of crates, a low wall (THINGS.cover: its size along, across and up)
+// cover: sandbags, a stack of crates, a low wall, a mount's wreck (THINGS.cover: its size along, across and up)
 const COVER_LOOK = { sandbags: '#b39a6b', crates: '#9a7444', wall: '#8d8f93' };
 function placeThings() {
   const seen = new Set();
@@ -545,7 +575,9 @@ function placeThings() {
       if (m) YARD.remove(m);
       const box = T.kind === 'box', cover = T.kind === 'cover', D = box || cover ? null : THING_LOOK[T.kind];
       const C = cover ? THINGS.cover[T.what] : null, size = cover ? [C.w, C.d, C.h] : box ? [0.8, 0.8, 1] : D;
-      m = castOn(new THREE.Mesh(shaded(new THREE.BoxGeometry(size[0], size[1], size[2]).translate(0, 0, size[2] / 2)), lambert(cover ? COVER_LOOK[T.what] ?? '#9a8a70' : box ? BOX_LOOK[T.what] ?? '#8a6a4a' : D[3])));
+      // (a mount's wreck: the mount itself, down on its side)
+      if (cover && MOUNTS[T.what]) { m = new THREE.Group(); const w = mountOf(T.what); w.rotation.x = Math.PI / 2; w.position.z = 0.12; m.add(w); }
+      else m = castOn(new THREE.Mesh(shaded(new THREE.BoxGeometry(size[0], size[1], size[2]).translate(0, 0, size[2] / 2)), lambert(cover ? COVER_LOOK[T.what] ?? '#9a8a70' : box ? BOX_LOOK[T.what] ?? '#8a6a4a' : D[3])));
       m.userData.what = T.what;
       things.set(T.id, m); YARD.add(m);
     }
@@ -589,6 +621,7 @@ function stepFlashes() {
 
 const HIT_CUE = ['hit-light', 'hit-medium', 'hit-heavy'];
 function cueOf(e) {
+  if (e.t === 'hit' && e.kind === 'ram') return 'crush';
   if (e.t === 'hit' && e.limb !== 'shot') return e.kind === 'flung' ? 'crush' : e.limb === 'foot' ? (e.w >= 2 ? 'kick-heavy' : 'kick-light') : e.limb === 'blade' ? (e.w >= 2 ? 'blade-heavy' : 'blade-light') : HIT_CUE[Math.min(2, e.w ?? 1)];
   if (e.t === 'hit' && e.limb === 'shot') return 'shot-hit';
   return { burst: 'burst', clash: 'clash', grab: 'grab', throw: 'throw', land: 'land', ko: 'ko', break: 'crush', thud: 'block', armor: 'clash', state: 'super', toss: 'throw' }[e.t] ?? null;
@@ -606,6 +639,8 @@ function gunCue(e) {
   if (e.t === 'empty') return ['dry-fire', 0.7];
   if (e.t === 'cover' || (e.t === 'break' && e.cover)) return [THINGS.cover[e.what]?.sound ?? 'wood-impact', e.t === 'break' ? 1 : 0.5];
   if (e.t === 'enter' && e.how === 'dig') return ['dirt-impact', 0.9];
+  // (a rider's mount: its crash as it goes down)
+  if (e.t === 'crash') return ['car-crash', 1];
   if (e.t === 'reload') return ['mag-in', 0.6];
   return null;
 }
@@ -745,6 +780,8 @@ function tick() {
     if (e.t === 'burst') flash({ ...e, y: 600 }, true);
     // (a round on cover sparks on its face; a body coming up out of the ground throws its dirt up)
     if (e.t === 'cover') flash(e, false, true);
+    // (a mount going down: the heavy flash, the impact frames)
+    if (e.t === 'crash') { flash({ ...e, y: 600 }, true); impactFrames(3); }
     if (e.t === 'enter' && e.how === 'dig') flash({ ...e, y: 200 }, true);
     // (a heavy landing's impact frames: a burst, a round that makes its body flinch)
     if (e.t === 'burst' || (e.t === 'hit' && e.flinch)) impactFrames(gunOf(e.gun)?.impact ?? 0);

@@ -49,6 +49,7 @@ const manifest = brawlLevel({ kind: 'greybox', preset: 'yard' }, { title: 'pract
     { name: 'out of the ground', crowd: [{ type: 'thug', n: 4 }], formation: 'surround', entrance: 'dig' },
     { name: 'out of the doors', crowd: [{ type: 'knife', n: 2 }], formation: 'line', entrance: 'door' },
     { name: 'lying in wait', crowd: [{ type: 'heavy', n: 2 }], formation: 'pincer', cover: 'crates', ambush: true },
+    { name: 'bikers', crowd: [{ type: 'thug', n: 2 }, { type: 'knife', n: 1 }], formation: 'line', entrance: 'ride', mount: { kind: 'motorcycle', passes: 1, onFoot: true } },
   ] } : {}),
   ...((opt.range || opt.waves) && !opt.melee ? { range: { guns: ['machine-gun', 'spread', 'flame', 'rocket'], grenades: 3, ...(opt.waves ? { waves: true } : {}) } } : {}),
   dummies: opt.waves ? [] : opt.range ? [{ mode: 'stand', at: 8, n: 0, type: 'rifleman' }, { mode: 'walk', at: 10, n: 1, type: 'gunner' }, { mode: 'shoot', at: 13, n: -0.4, type: 'rifleman' }] : roster ? [{ mode: 'stand', at: 7, n: 0, fighter: 1 }, { mode: 'walk', at: 9.5, n: 1, fighter: 2 }, { mode: 'swing', at: 12, n: -1, fighter: 1 }] : [{ mode: 'stand', at: 7, n: 0 }, { mode: 'walk', at: 9.5, n: 1 }, { mode: 'swing', at: 12, n: -1 }].map((d, i) => (opt.armed ? { ...d, type: ['sword', 'spear', 'axe'][i] } : d)),
@@ -90,6 +91,16 @@ if (opt.waves) {
     // (a body coming in from above or out of the ground, shot as it comes)
     await play(14);
     await shot(`wave-${(await wave()).n}-in`);
+    // (riders: shot on their mounts as they come, then the stream (or blows) held at them till one comes off)
+    if (await tab.evaluate(() => window.__mojBrawl.room.s.bodies.some((b) => b.st === 'ride'))) {
+      await play(20);
+      await shot(`wave-${(await wave()).n}-ride`);
+      let crash = false;
+      for (let t = 0; t < 60 && !crash; t++) { await play(2, ['KeyK']); crash = await tab.evaluate(() => window.__mojBrawl.room.s.things.some((x) => x.kind === 'cover' && x.sl)); }
+      await play(6);
+      log.push(['crash', crash]);
+      await shot(`wave-${(await wave()).n}-crash`);
+    }
     await play(96);
     for (let t = 0; t < 160 && !(await tab.evaluate(() => window.__mojBrawl.room.s.bodies.some((b) => b.side === 'crowd' && !b.gone && b.tl > 8))); t++) await play(2);
     const w = await wave();

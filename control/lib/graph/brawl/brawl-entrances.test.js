@@ -49,7 +49,7 @@ describe('brawl entrances: how a body comes in', () => {
   it('out of a door: from the street\'s far side where it stands', () => {
     const s0 = two(); enterBody(s0, ctx, 1, { how: 'door', x: 7000, z: 0 });
     expect([s0.bodies[1].x, s0.bodies[1].z, s0.bodies[1].st]).toEqual([7000, n1, 'stand']);
-    expect(ENTRANCE_IDS).toEqual(['walk', 'door', 'drop', 'dig', 'vault']);
+    expect(ENTRANCE_IDS).toEqual(['walk', 'door', 'drop', 'dig', 'vault', 'ride']);
   });
 });
 

@@ -46,7 +46,7 @@
  */
 import { newBrawl, stepBrawl, enterBody, BRAWL_RULES } from './brawl-core.js';
 import { brawlFighter, newReader, readButtons, BRAWL_STYLES } from './brawl-moves.js';
-import { crowdPads, newCrowdMind, crowdFighter, CROWD_TYPES, aimAt } from './brawl-crowd.js';
+import { crowdPads, newCrowdMind, crowdFighter, CROWD_TYPES, aimAt, rideFire } from './brawl-crowd.js';
 import { readGun } from './brawl-guns.js';
 import { readRangeWaves, stationsOf, entryOf, volleyAt, WAVE_RULES } from './brawl-waves.js';
 import { newGunReader, readGunButtons, gunMoveList } from './brawl-gunner.js';
@@ -256,8 +256,9 @@ function wavePads(room, pads) {
   const gt = s.f - W.start;
   shooters.forEach((d, k) => {
     const i = d.id, at = yard.station[i];
-    // (a flinch cuts its volley short)
+    // (a flinch cuts its volley short; riding, it fires from the saddle)
     if (REELS.has(d.st)) { delete yard.volley[i]; pads[i] = {}; return; }
+    if (d.st === 'ride') { pads[i] = rideFire(d, T); return; }
     const v = yard.volley[i], G = ctx.guns[d.gn], count = CROWD_TYPES[W.bodies.find((x) => x.id === i).type].volley ?? 1;
     if (v) { const [pad, next] = volleyPad(d, v, G, count); pads[i] = pad; if (next) yard.volley[i] = next; else delete yard.volley[i]; return; }
     // to its station, then on the beat
@@ -286,6 +287,11 @@ function waveStep(room) {
       // its ENTRANCE: walking in from the view's edge (or the back), out of a door, dropping, digging, vaulting; or
       // lying in wait where it stands
       if (w.ambush) enterBody(s, ctx, id, { how: 'walk', x: st[0], z: st[1], hide: true });
+      else if (w.entrance === 'ride') {
+        // (riding in one behind another, a convoy's length apart, each from its own lane)
+        const [ex] = entryOf(st, [T.x, T.z], band, view, 'line'), dir = sgn(T.x - ex) || 1;
+        enterBody(s, ctx, id, { how: 'ride', x: ex - dir * j * WAVE_RULES.convoy, z: st[1], mount: { ...w.mount, dir } });
+      }
       else if (w.entrance === 'walk') { const [ex, ez] = entryOf(st, [T.x, T.z], band, view, w.formation); enterBody(s, ctx, id, { how: 'walk', x: ex, z: ez }); }
       else enterBody(s, ctx, id, { how: w.entrance, x: st[0], z: st[1] });
       b.hp = yard.hp[id]; b.face = sgn(T.x - b.x) || -1;

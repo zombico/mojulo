@@ -4,7 +4,7 @@
  * reacting plays the fight's reactions (versus-react.js: a hit, a fall, down, rising, held), as a fighter does; the
  * brawl's own states have their own: the walk along and across the street, the run and the back-step, the clinch
  * (the arms reaching to hold, a knee driven up as it lands), a held body as one thrown, a body bending to pick a thing
- * up.
+ * up, a rider sat astride its mount.
  *
  *   brawlPoseOf(p, F, t, rules) → a pose (the fight's pose words)
  *
@@ -34,6 +34,12 @@ export function brawlPoseOf(p, F, t = 0, rules = {}) {
   // (a held body reads as the fight's thrown: the held clip)
   const reacting = reactionPose(p.st === 'held' ? { ...p, st: 'thrown' } : p, rules, own);
   if (reacting) return reacting;
+  // RIDING (a mount under it, drawn by the page at its seat): sat astride, thighs forward and shins down to the pegs,
+  // leaning over the bars, the hands on them (a gunner's on its rifle)
+  if (p.st === 'ride') {
+    const seat = { torso: 24, head: -8, armF: [62, 150], armB: [55, 160], legF: [82, -78, 90], legB: [78, -84, 86], air: true };
+    return p.gn !== undefined ? { ...seat, torso: 12, armF: RIFLE.lead, armB: RIFLE.rear } : seat;
+  }
   // A GUNNER (a body with a gun, the run & gun's): a rifle of sorts held at the chest, always ready, whatever its legs
   // do: the lead hand forward on the foregrip, the rear hand on the grip by the chest, the two on one level line (the
   // angles found on the rig: each body type's hands land within a centimetre or two of it); its roll a tuck

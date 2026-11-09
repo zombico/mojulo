@@ -21,7 +21,8 @@
  *     into its screen (a held screen with no wave is open from the start), entering by turns from the view's right edge, its left and the street's back, at most `limit`
  *     on the street at once (the rest as others fall); the screen's gate opens (`cleared`) when the last falls. A crowd
  *     entry's ENTRANCE (brawl-waves.js ENTRANCES: walk, the default, by turns from the edges and the back; a door, a drop,
- *     a dig or a vault onto a spot in the view, brawl-core.js enterBody) and its AMBUSH (hidden in the view ahead,
+ *     a dig or a vault onto a spot in the view, brawl-core.js enterBody; a RIDE in on a mount from the view's edge, its
+ *     `mount` { kind, passes, onFoot }: knocked off it, a rider on foot fights on) and its AMBUSH (hidden in the view ahead,
  *     crouched behind whatever is there, until a player comes within `ambush` of it).
  *
  *   • THE SHOOTING CROWD (`shoot`): a body with a gun holds its range along the belt (SHOOT_RANGE), and given a token
@@ -56,7 +57,7 @@ import { brawlFighter, STRONG_SLOTS } from './brawl-moves.js';
 import { readGun, ACROSS } from './brawl-guns.js';
 import { newBrawl, stepBrawl, enterBody } from './brawl-core.js';
 import { viewHalf } from './brawl-belt.js';
-import { readThings } from './brawl-things.js';
+import { readThings, MOUNTS, MOUNT_IDS } from './brawl-things.js';
 
 /** THE PLAYS: a player's own moves, as the crowd throws them (each a body's command, as a player's buttons make it) */
 export const CROWD_PLAYS = Object.freeze({
@@ -74,7 +75,22 @@ export const CROWD_PLAYS = Object.freeze({
 });
 const STRONG_PLAYS = new Set(['strong', 'break', 'blowout', 'dive']);
 /** how a street's crowd may come in (brawl-waves.js ENTRANCES, brawl-core.js enterBody) */
-const STREET_ENTRANCES = ['walk', 'door', 'drop', 'dig', 'vault'];
+const STREET_ENTRANCES = ['walk', 'door', 'drop', 'dig', 'vault', 'ride'];
+/** a mount's options read (brawl-things.js MOUNTS): its kind, its passes, whether its rider fights on foot */
+export function readMount(m, where) {
+  if (m === undefined) return {};
+  if (!m || typeof m !== 'object') throw new Error(`brawl: ${where} is { kind?, passes?, onFoot? }`);
+  if (m.kind !== undefined && !MOUNTS[m.kind]) throw new Error(`brawl: ${where}.kind is one of ${MOUNT_IDS.join(', ')}`);
+  if (m.passes !== undefined && !(Number.isInteger(m.passes) && m.passes >= 0 && m.passes <= 6)) throw new Error(`brawl: ${where}.passes is 0 to 6`);
+  if (m.onFoot !== undefined && typeof m.onFoot !== 'boolean') throw new Error(`brawl: ${where}.onFoot is true or false`);
+  return { ...(m.kind ? { kind: m.kind } : {}), ...(m.passes !== undefined ? { passes: m.passes } : {}), ...(m.onFoot !== undefined ? { onFoot: m.onFoot } : {}) };
+}
+/** a rider's pad: from the saddle, a gun's rounds at a player ahead of it (its mount does the rest) */
+export function rideFire(p, T) {
+  if (p.gn === undefined || !T || T.gone || Math.sign(T.x - p.x) !== p.md || Math.abs(T.x - p.x) > 5500) return {};
+  const [, az] = aimAt(p, T);
+  return { fire: [p.md, az] };
+}
 /** where a shooter fires from: along the belt, at least and at most (mm) */
 export const SHOOT_RANGE = Object.freeze([2200, 4800]);
 /** the aim at a body from another: along it, across it at the diagonal's slant, or straight across (eight ways) */
@@ -124,6 +140,7 @@ export const CROWD_RULES = Object.freeze({
   dead: 120,          // mm a body counts as there
   ambush: 2600,       // mm a player comes within, along the street, for a hidden body to spring
   enter: 1200,        // mm outside the view a body enters from
+  convoy: 2600,       // mm between riders coming in together, one behind another
 });
 
 // (free: a body that may swing, or be swung at; a running player is fair game)
@@ -153,6 +170,7 @@ export function readWaves(waves, belt) {
       if (!(Number.isInteger(c.n) && c.n >= 1 && c.n <= 20)) throw new Error(`brawl: ${at}.crowd[${j}].n is 1 to 20`);
       if (c.entrance !== undefined && !STREET_ENTRANCES.includes(c.entrance)) throw new Error(`brawl: ${at}.crowd[${j}].entrance is one of ${STREET_ENTRANCES.join(', ')}`);
       if (c.ambush !== undefined && typeof c.ambush !== 'boolean') throw new Error(`brawl: ${at}.crowd[${j}].ambush is true or false`);
+      readMount(c.mount, `${at}.crowd[${j}].mount`);
     }
     if (w.boss !== undefined) {
       if (!sc.boss) throw new Error(`brawl: ${at}.boss: a boss stands on the belt's boss screen (its last)`);
@@ -162,7 +180,7 @@ export function readWaves(waves, belt) {
       if (w.boss.cpu !== undefined && !CPU_LEVELS[w.boss.cpu]) throw new Error(`brawl: ${at}.boss.cpu is one of ${Object.keys(CPU_LEVELS).join(', ')}`);
       if (w.boss.hp !== undefined && !(Number.isInteger(w.boss.hp) && w.boss.hp >= 1 && w.boss.hp <= 99999)) throw new Error(`brawl: ${at}.boss.hp is a whole number from 1 to 99999`);
     }
-    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n, ...(c.entrance && c.entrance !== 'walk' ? { entrance: c.entrance } : {}), ...(c.ambush ? { ambush: true } : {}) })), ...(w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? BOSS_PLAYS } } : {}) };
+    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n, ...(c.entrance && c.entrance !== 'walk' ? { entrance: c.entrance } : {}), ...(c.ambush ? { ambush: true } : {}), ...(c.mount ? { mount: readMount(c.mount, at) } : {}) })), ...(w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}), ...(w.boss.tune ? { tune: w.boss.tune } : {}), ...(w.boss.weapon ? { weapon: w.boss.weapon } : {}), plays: w.boss.plays ?? BOSS_PLAYS } } : {}) };
   }).sort((a, b) => a.screen - b.screen);
 }
 
@@ -212,7 +230,7 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd } = {
       fighters.push(BF);
       bodies.push({ fighter: fighters.length - 1, side: 'crowd', x: 0, z: 0, wave: k }); kinds.push('boss');
     }
-    for (const c of w.crowd) for (let j = 0; j < c.n; j++) { if (c.entrance || c.ambush) entries[bodies.length] = { how: c.entrance ?? 'walk', ...(c.ambush ? { ambush: 1 } : {}) }; bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].plays.includes('grab') ? {} : { grabs: false }), ...(CROWD_TYPES[c.type].gun ? { gun: armory.at[CROWD_TYPES[c.type].gun] } : {}), ...(CROWD_TYPES[c.type].poise ? { poise: CROWD_TYPES[c.type].poise } : {}) }); kinds.push(c.type); }
+    for (const c of w.crowd) for (let j = 0; j < c.n; j++) { if (c.entrance || c.ambush) entries[bodies.length] = { how: c.entrance ?? 'walk', ...(c.ambush ? { ambush: 1 } : {}), ...(c.mount ? { mount: c.mount } : {}) }; bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].plays.includes('grab') ? {} : { grabs: false }), ...(CROWD_TYPES[c.type].gun ? { gun: armory.at[CROWD_TYPES[c.type].gun] } : {}), ...(CROWD_TYPES[c.type].poise ? { poise: CROWD_TYPES[c.type].poise } : {}) }); kinds.push(c.type); }
   });
   // the street's things, and each player's armed self for every weapon among them (in a box or not)
   const T = things ? readThings(things, belt) : [];
@@ -325,6 +343,8 @@ function think(s, ctx, M) {
       pads[p.id] = {};
       continue;
     }
+    // riding: its mount does the going (brawl-core.js); a gun fires from the saddle
+    if (p.st === 'ride') { pads[p.id] = rideFire(p, T); continue; }
     // holding the player (the heavy): its knees, then the throw
     if (p.st === 'hold') {
       pads[p.id] = m.t % 16 === 8 ? { hold: (p.kn ?? 0) >= (kind.knees ?? 2) ? 'forward' : 'knee' } : {};
@@ -508,6 +528,13 @@ function waves(s, ctx, M) {
     const k = M.bosses[p.id] ? 0 : M.entered++ % 3;
     if (M.bosses[p.id]) s.events.push({ t: 'boss', p: p.id, name: M.bosses[p.id].name, hp: p.hp });
     const E = M.entries?.[p.id];
+    if (E && E.how === 'ride') {
+      // riding in from the view's edge (right or left by turns), toward the middle of the view, those coming together
+      // one behind another
+      const right = vary(p.id, 11) < 0.5, x = Math.max(0, Math.min(Math.round(belt.length * 1000), right ? cam + half + R.enter + k * R.convoy : cam - half - R.enter - k * R.convoy));
+      enterBody(s, ctx, p.id, { how: 'ride', x, z: Math.round(n0 + 300 + (n1 - n0 - 600) * vary(p.id, 3)), mount: { ...(E.mount ?? {}), dir: right ? -1 : 1 } });
+      continue;
+    }
     if (E && (E.how !== 'walk' || E.ambush)) {
       // its own ENTRANCE onto a spot in the view (a door, a drop, a dig, a vault), or lying in wait ahead, hidden
       const x = Math.max(0, Math.min(Math.round(belt.length * 1000), cam + Math.round((E.ambush ? 0.25 + vary(p.id, 9) * 0.6 : vary(p.id, 7) - 0.5) * half)));

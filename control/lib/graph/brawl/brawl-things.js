@@ -14,6 +14,7 @@
  *              its own cover), each round wearing it down; blows and bursts break it too; no body walks through it;
  *              `sound` the shelf's voice a round makes on it
  *
+ *   MOUNTS, MOUNT_IDS          what a foe rides in on (a motorcycle, a scooter): its speed, its steering, its ram, its wreck
  *   readThings(things, belt)   → the street's things as the core holds them (mm, along and across the belt), each
  *                                { id, kind, what, x, z, hp?, holds? } (throws naming the fault)
  *
@@ -44,8 +45,23 @@ export const THINGS = Object.freeze({
     sandbags: row({ hp: 320, w: 1.4, d: 0.7, h: 0.9, sound: 'dirt-impact', says: 'sandbags: low and long, they soak a stream' }),
     crates: row({ hp: 180, w: 1.0, d: 1.0, h: 1.3, sound: 'wood-impact', says: 'a stack of crates: tall, splintered by a stream' }),
     wall: row({ hp: 600, w: 2.2, d: 0.4, h: 1.1, sound: 'stone-impact', says: 'a low wall: long, it takes a rocket to bring down' }),
+    // (a mount's wreck, or one parked: left on the street where its rider came off it)
+    motorcycle: row({ hp: 160, w: 1.9, d: 0.6, h: 0.8, sound: 'metal-impact', says: 'a motorcycle on its side: low cover, metal' }),
+    scooter: row({ hp: 110, w: 1.5, d: 0.6, h: 0.7, sound: 'metal-impact', says: 'a scooter on its side: a little cover' }),
   }),
 });
+
+/**
+ * THE MOUNTS a foe comes in riding (brawl-core.js `ride`): its speed along the street (mm a frame), how fast it steers
+ * across it onto its target's line, the damage and knockdown of running a body over, its length (the ram's reach), the
+ * seat's height (where the rider sits, drawn), and the cover it leaves (`wreck`, a THINGS.cover row) when its rider
+ * comes off it or steps off it.
+ */
+export const MOUNTS = Object.freeze({
+  motorcycle: row({ speed: 150, steer: 28, ram: 70, len: 1900, seat: 800, wreck: 'motorcycle', says: 'a motorcycle: fast, it runs you down; knocked off, its rider goes flying' }),
+  scooter: row({ speed: 105, steer: 36, ram: 40, len: 1500, seat: 720, wreck: 'scooter', says: 'a scooter: slower, nimbler, a lighter knock' }),
+});
+export const MOUNT_IDS = Object.freeze(Object.keys(MOUNTS));
 export const THING_KINDS = Object.freeze(Object.keys(THINGS));
 export const BRAWL_WEAPONS = Object.freeze(Object.keys(THINGS.weapon));
 

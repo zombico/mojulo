@@ -16,6 +16,8 @@
  *     cover      a cover piece (brawl-things.js THINGS.cover) set between each station and the player as it comes in:
  *                its shooters duck behind it between volleys and pop up to fire over it; cleared with the wave
  *     ambush     its bodies wait hidden at their stations until the player comes near (WAVE_RULES.ambush), then fight
+ *     mount      riding in (entrance 'ride'): { kind (brawl-things.js MOUNTS), passes, onFoot (knocked off, it gets up and
+ *                fights; else the crash knocks it out) }
  *
  *   FORMATIONS, FORMATION_IDS, PATTERNS, PATTERN_IDS, WAVE_RULES
  *   RANGE_WAVES           the range's sampler (its `waves: true`): one wave of each pattern and formation, the
@@ -31,7 +33,7 @@
  *
  * Pure: no clock, no dice.
  */
-import { CROWD_TYPES } from './brawl-crowd.js';
+import { CROWD_TYPES, readMount } from './brawl-crowd.js';
 import { THINGS } from './brawl-things.js';
 
 export const FORMATIONS = Object.freeze({
@@ -57,6 +59,7 @@ export const ENTRANCES = Object.freeze({
   drop: 'dropping from above onto where it stands',
   dig: 'digging up out of the ground where it stands (untouchable until it is out)',
   vault: 'over the back fence in an arc, onto where it stands',
+  ride: 'riding in on a mount from the view\'s edge, making its passes at the player (its `mount`: kind, passes, onFoot)',
 });
 export const ENTRANCE_IDS = Object.freeze(Object.keys(ENTRANCES));
 export const WAVE_RULES = Object.freeze({
@@ -70,6 +73,7 @@ export const WAVE_RULES = Object.freeze({
   dead: 150,       // mm a body counts as at its station
   ambush: 2600,    // mm the player comes within (along the street) for a hidden body to spring
   coverGap: 150,   // mm between a wave's cover piece and the body behind it (past their half-widths), toward the player
+  convoy: 2600,    // mm between riders coming in one behind another (each steering onto the player's line)
 });
 
 /** the sampler: a volley's wall, a pincer by halves, a sweep down the stairs, a column to pierce, brawlers round you */
@@ -83,6 +87,7 @@ export const RANGE_WAVES = Object.freeze([
   { name: 'dug in', crowd: [{ type: 'rifleman', n: 3 }], formation: 'line', pattern: 'sweep', cover: 'sandbags' },
   { name: 'from above', crowd: [{ type: 'gunner', n: 3 }], formation: 'stairs', pattern: 'volley', entrance: 'drop' },
   { name: 'out of the ground', crowd: [{ type: 'thug', n: 4 }], formation: 'surround', pattern: 'tokens', entrance: 'dig' },
+  { name: 'bikers', crowd: [{ type: 'thug', n: 2 }, { type: 'gunner', n: 1 }], formation: 'line', pattern: 'tokens', entrance: 'ride', mount: { kind: 'motorcycle', passes: 2, onFoot: true } },
   { name: 'lying in wait', crowd: [{ type: 'rifleman', n: 2 }, { type: 'thug', n: 2 }], formation: 'pincer', pattern: 'alternate', cover: 'crates', ambush: true },
 ].map((w) => Object.freeze(w)));
 
@@ -109,7 +114,8 @@ export function readRangeWaves(waves0) {
     if (!ENTRANCES[entrance]) throw new Error(`brawl: ${at}.entrance is one of ${ENTRANCE_IDS.join(', ')}`);
     if (w.cover !== undefined && !THINGS.cover[w.cover]) throw new Error(`brawl: ${at}.cover is one of ${Object.keys(THINGS.cover).join(', ')}`);
     if (w.ambush !== undefined && typeof w.ambush !== 'boolean') throw new Error(`brawl: ${at}.ambush is true or false`);
-    return { crowd, formation, pattern, entrance, ...(w.cover ? { cover: w.cover } : {}), ...(w.ambush ? { ambush: true } : {}), beat: w.beat ?? WAVE_RULES.beat, after: w.after ?? WAVE_RULES.after, name: typeof w.name === 'string' ? w.name : `${formation} · ${pattern}` };
+    const mount = readMount(w.mount, `${at}.mount`);
+    return { crowd, formation, pattern, entrance, ...(w.cover ? { cover: w.cover } : {}), ...(w.ambush ? { ambush: true } : {}), ...(entrance === 'ride' ? { mount } : {}), beat: w.beat ?? WAVE_RULES.beat, after: w.after ?? WAVE_RULES.after, name: typeof w.name === 'string' ? w.name : `${formation} · ${pattern}` };
   });
 }
 
