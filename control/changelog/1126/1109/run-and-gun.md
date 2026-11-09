@@ -11,3 +11,16 @@
   pierce as their gun says, burst where they land (a rocket, a lobbed grenade), and never re-stun a body already reeling
   (a stream cannot pin it; its damage is whole, not scaled by its own count). A pick-up gun's ammo spent, the body is
   back on its sidearm; firing, it walks slower and faces its aim; `roll` is the gunner's dodge, untouchable as it goes.
+- The gunner's buttons (`brawl/brawl-gunner.js`), no melee: the stick walks and aims (eight ways) while attack is held
+  (auto-fire at the gun's rate), strong held plants the body so the stick only aims, special lobs a grenade, jump
+  jumps (it fires in the air too), the stick tapped twice any way rolls.
+- The shooting crowd: the rifleman, the gunner (a burst of three), the grenadier and the bazooka, each its gun and the
+  `shoot` play: it holds its range along the belt and, given a token (its fire token), aims for its gun's warning (the
+  aim fixed as the warning starts: the round goes where it pointed, so a player who steps off it is missed), then fires
+  its volley.
+- THE RANGE, the run & gun's practice room (`practiceOf({ …, range: { guns?, grenades? } })`): the guns passed in to be
+  tried (names, or dials over one: `{ from: 'machine-gun', rate: 3 }`), the player holding the first over its sidearm;
+  dummies that stand, walk, crowd as the shooting crowd, or SHOOT back on a slow beat (`{ mode: 'shoot', gun? }`); it
+  never runs dry (a spent gun loaded again, the grenades back); it reads the rounds fired and landed, their damage, the
+  rounds taken and each press's verdict (a shot taken, by its gun; a press while rolling dropped as rolling); its move
+  list each gun's numbers (its round's speed, its rate, its reach, its burst, its ammo).

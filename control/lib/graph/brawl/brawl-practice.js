@@ -4,7 +4,7 @@
  * learned by SPACE and CROWDS (lining up across the street, the chain and what drops it, the clinch, the desperation's
  * price, reading who swings next), so the room says those, not frames.
  *
- *   practiceOf({ belt, players, dummies, things?, health? }) → a room: { ctx, s, mind, yard }
+ *   practiceOf({ belt, players, dummies, things?, health?, range? }) → a room: { ctx, s, mind, yard }
  *     players  [{ recipe, style? }], one to four (a seat each)
  *     dummies  [{ type? (a CROWD_TYPES id, 'thug' by default) | recipe?, mode, at?, n? }]: at m along the belt and n m
  *              across it (spread along the room by default); a dummy's MODE (PRACTICE_MODES):
@@ -13,6 +13,14 @@
  *                swing   steps onto the player's line and throws its blow on a slow beat (reading a blow)
  *                crowd   the street's own crowd mind, its tokens and its ring (being surrounded)
  *                grab    walks into the player to take hold, knees and throws (getting out of a hold)
+ *                shoot   stands its ground and, on a slow beat, aims its gun (its warning) and fires at the player
+ *                        (`gun`: a gun's name or dials, brawl-guns.js; the rifle by default): stepping off a round's line
+ *     range    THE RANGE (the run & gun's practice room): `{ guns?, grenades? }`, the guns passed in to be tried (each a
+ *              name or dials over one, brawl-guns.js readGun; the machine gun, the spread, the flame and the rocket by
+ *              default), the player holding the first, its sidearm under it; the buttons read by the gunner's reader
+ *              (brawl-gunner.js: fire, aim, plant, roll, jump, grenade; no melee). The range never runs dry: a spent
+ *              gun is loaded again, the grenades back. Its readouts: rounds fired and landed, their damage, the rounds
+ *              taken. A dummy keeps its own health (a crowd type's).
  *     things   the street's (brawl-things.js), in the belt's metres: put back as they were on a reset
  *     health   'chains' (a dummy's health a few of the player's chains: it falls, and is back on its spot BACK frames
  *              later) or 'refill' (its health back whenever it is free: it never falls)
@@ -24,12 +32,15 @@
  *   yardRead(room, player?) → what the room shows a player: the line to each dummy, the chain (its steps landed, how it
  *              ended and why), the press log, the clinch, the last combo, the tokens, a state held, a weapon held
  *   brawlMoveList(F) → a brawler's moves as its player reads them, by kind (the command-list idiom's `kinds`)
+ *   rangeMoveList(room) → the range's guns and the gunner's moves, the same way
  *
  * Pure: no clock, no dice (the yard's frame is the core's).
  */
 import { newBrawl, stepBrawl, BRAWL_RULES } from './brawl-core.js';
 import { brawlFighter, newReader, readButtons, BRAWL_STYLES } from './brawl-moves.js';
-import { crowdPads, newCrowdMind, crowdFighter, CROWD_TYPES } from './brawl-crowd.js';
+import { crowdPads, newCrowdMind, crowdFighter, CROWD_TYPES, aimAt } from './brawl-crowd.js';
+import { readGun } from './brawl-guns.js';
+import { newGunReader, readGunButtons, gunMoveList } from './brawl-gunner.js';
 import { readThings, THINGS } from './brawl-things.js';
 import { viewHalf } from './brawl-belt.js';
 
@@ -39,7 +50,10 @@ export const PRACTICE_MODES = Object.freeze({
   swing: 'steps onto your line and throws its blow on a slow beat: read it, step off the line, answer',
   crowd: 'the street\'s own crowd: a few close in at once and the rest circle; learn to read who swings next',
   grab: 'walks into you to take hold, knees and throws: get out with the desperation',
+  shoot: 'stands its ground and, on a slow beat, aims its gun and fires at you: step off the round\'s line, or roll',
 });
+/** the range's guns unless it says (the sidearm is always under them) */
+export const RANGE_GUNS = Object.freeze(['machine-gun', 'spread', 'flame', 'rocket']);
 export const PRACTICE_MODE_IDS = Object.freeze(Object.keys(PRACTICE_MODES));
 export const HEALTH_MODES = Object.freeze(['chains', 'refill']);
 /** frames a felled dummy lies before it is back on its spot; a dummy's health in the player's chains; the swing's beat */
@@ -54,12 +68,17 @@ const sgn = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
 const chainDamage = (F) => Array.from({ length: F.brawl.chain }, (_, k) => F.moves[`chain.${k + 1}`].damage * (F.moves[`chain.${k + 1}`].hits || 1)).reduce((a, b) => a + b, 0);
 
 /** A practice room. */
-export function practiceOf({ belt, players, dummies = [], things, health = 'chains' } = {}) {
+export function practiceOf({ belt, players, dummies = [], things, health = 'chains', range } = {}) {
   if (!belt) throw new Error('brawl: a practice room needs its belt');
   if (!Array.isArray(players) || !players.length || players.length > 4) throw new Error('brawl: a practice room has 1 to 4 players');
   if (!HEALTH_MODES.includes(health)) throw new Error(`brawl: a practice room's health is ${HEALTH_MODES.join(' | ')}`);
   if (!Array.isArray(dummies) || dummies.length > 8) throw new Error('brawl: a practice room has up to 8 dummies');
   const fighters = players.map((p) => brawlFighter(p.recipe, { style: p.style }));
+  // THE RANGE's guns: the sidearm, the guns passed in, the grenade, and each shooting dummy's
+  if (range !== undefined && (!range || typeof range !== 'object')) throw new Error('brawl: a practice room\'s range is { guns?, grenades? }');
+  const guns = range ? [readGun('sidearm'), ...(range.guns ?? RANGE_GUNS).map((g, k) => readGun(g, `range.guns[${k}]`)), readGun('grenade')] : [];
+  if (range && guns.length < 3) throw new Error('brawl: a range has a gun or more to try');
+  const gunIx = (spec, where) => { const g = readGun(spec, where); let k = guns.findIndex((h) => JSON.stringify(h) === JSON.stringify(g)); if (k < 0) { k = guns.length; guns.push(g); } return k; };
   const L = belt.length, [n0, n1] = belt.depth;
   const half = viewHalf(belt);
   // the dummies' fighters (a crowd type's, or a recipe's), their spots, their modes
@@ -70,7 +89,9 @@ export function practiceOf({ belt, players, dummies = [], things, health = 'chai
     if (kinds[key] === undefined) { kinds[key] = fighters.length; fighters.push(d.recipe ? brawlFighter(d.recipe) : crowdFighter(d.type ?? 'thug')); }
     const at = d.at ?? Math.min(L - 1, half + 2 + i * 1.6), n = d.n ?? ((i % 3) - 1) * 1.2;
     if (!(at >= 0 && at <= L && n >= n0 && n <= n1)) throw new Error(`brawl: dummies[${i}] stands on the belt, in its band`);
-    return { fighter: kinds[key], mode: d.mode ?? 'stand', type: d.recipe ? 'thug' : d.type ?? 'thug', home: [Math.round(at * 1000), Math.round(n * 1000)] };
+    // (a dummy that shoots: its own gun, a shooting crowd type's, or the rifle)
+    const gunSpec = d.gun ?? (d.type && CROWD_TYPES[d.type].gun) ?? (d.mode === 'shoot' ? 'rifle' : null);
+    return { fighter: kinds[key], mode: d.mode ?? 'stand', type: d.recipe ? 'thug' : d.type ?? 'thug', home: [Math.round(at * 1000), Math.round(n * 1000)], ...(gunSpec ? { gun: gunIx(gunSpec, `dummies[${i}].gun`) } : {}) };
   });
   // each player's armed self for every weapon on the floor (a box's too), as the street compiles them
   const T = things ? readThings(things, belt) : [];
@@ -79,19 +100,27 @@ export function practiceOf({ belt, players, dummies = [], things, health = 'chai
   players.forEach((pl, i) => { for (const w of weapons) { armed[`${i}:${w}`] = fighters.length; fighters.push(brawlFighter({ ...pl.recipe, weapon: w }, { style: pl.style })); } });
   const ctx = { fighters, belt, ...(weapons.length ? { armed } : {}) };
   const homes = players.map((_, i) => [Math.round((half - 2 + i * 0.7) * 1000), Math.round(n0 * 1000 + ((i + 1) * (n1 - n0) * 1000) / (players.length + 1))]);
+  if (guns.length) ctx.guns = guns;
+  // (each body's arms: a player on the range its first gun over its sidearm, its grenades; a shooting dummy its gun)
+  const arms = [
+    ...players.map(() => (range ? { gun: 1, grenades: range.grenades ?? 3, grenadeGun: 1 + (range.guns ?? RANGE_GUNS).length } : {})),
+    ...spec.map((d) => (d.gun !== undefined ? { gun: d.gun } : {})),
+  ];
   const bodies = [
-    ...players.map((_, i) => ({ fighter: i, side: 'player', x: homes[i][0], z: homes[i][1] })),
-    ...spec.map((d) => ({ fighter: d.fighter, side: 'crowd', x: d.home[0], z: d.home[1], face: -1, ...(d.mode === 'grab' ? {} : { grabs: false }) })),
+    ...players.map((_, i) => ({ fighter: i, side: 'player', x: homes[i][0], z: homes[i][1], ...arms[i] })),
+    ...spec.map((d, j) => ({ fighter: d.fighter, side: 'crowd', x: d.home[0], z: d.home[1], face: -1, ...(d.mode === 'grab' ? {} : { grabs: false }), ...arms[players.length + j] })),
   ];
   const s = newBrawl(ctx, { bodies, ...(T.length ? { things: T } : {}) });
+  if (range) arm(s, players.length, guns);
   // (a dummy's health: a few of the first player's chains, or its own refilled)
   const hpOf = Math.max(1, Math.round(chainDamage(fighters[0]) * CHAINS));
-  if (health === 'chains') for (const d of s.bodies.slice(players.length)) d.hp = hpOf;
+  if (health === 'chains' && !range) for (const d of s.bodies.slice(players.length)) d.hp = hpOf;
   const P = players.length;
   const yard = {
     players: P, health, hp: s.bodies.map((b) => b.hp), homes: [...homes, ...spec.map((d) => d.home)],
-    modes: spec.map((d) => d.mode), things: T.map((t) => ({ ...t })),
-    readers: players.map(() => newReader()), prev: players.map(() => ({})), pending: players.map(() => []),
+    modes: spec.map((d) => d.mode), things: T.map((t) => ({ ...t })), arms, volley: {},
+    ...(range ? { range: true, shots: players.map(() => ({ fired: 0, landed: 0, damage: 0, struck: 0 })) } : {}),
+    readers: players.map(() => (range ? newGunReader() : newReader())), prev: players.map(() => ({})), pending: players.map(() => []),
     log: players.map(() => []), chain: players.map(() => ({ steps: [], last: null })), combo: players.map(() => ({ hits: 0, damage: 0, last: null })),
     ko: {}, free: {},
   };
@@ -99,13 +128,18 @@ export function practiceOf({ belt, players, dummies = [], things, health = 'chai
   return { ctx, s, mind, yard };
 }
 
+/** a range's players: the gun they hold over their sidearm (index 0), loaded */
+function arm(s, P, guns) {
+  for (let i = 0; i < P; i++) { const p = s.bodies[i]; p.sd = 0; p.am = guns[p.gn].ammo ?? undefined; if (p.am === undefined) delete p.am; }
+}
 /** Everyone on their spots and whole, the things put back, the logs cleared. */
 export function resetYard(room) {
   const { yard, ctx } = room;
-  const fresh = newBrawl(ctx, { bodies: room.s.bodies.map((b, i) => ({ fighter: i < yard.players ? i : b.fb ?? b.fi, side: b.side, x: yard.homes[i][0], z: yard.homes[i][1], face: i < yard.players ? 1 : -1, ...(b.ng ? { grabs: false } : {}) })), ...(yard.things.length ? { things: yard.things.map((t) => ({ ...t })) } : {}) });
+  const fresh = newBrawl(ctx, { bodies: room.s.bodies.map((b, i) => ({ fighter: i < yard.players ? i : b.fb ?? b.fi, side: b.side, x: yard.homes[i][0], z: yard.homes[i][1], face: i < yard.players ? 1 : -1, ...(b.ng ? { grabs: false } : {}), ...(yard.arms?.[i] ?? {}) })), ...(yard.things.length ? { things: yard.things.map((t) => ({ ...t })) } : {}) });
   fresh.bodies.forEach((b, i) => { b.hp = yard.hp[i]; });
+  if (yard.range) arm(fresh, yard.players, ctx.guns);
   fresh.f = room.s.f;
-  return { ...room, s: fresh, mind: newCrowdMind(room.mind.type), yard: { ...yard, readers: yard.readers.map(() => newReader()), prev: yard.prev.map(() => ({})), pending: yard.pending.map(() => []), log: yard.log.map(() => []), chain: yard.chain.map(() => ({ steps: [], last: null })), combo: yard.combo.map(() => ({ hits: 0, damage: 0, last: null })), ko: {}, free: {} } };
+  return { ...room, s: fresh, mind: newCrowdMind(room.mind.type), yard: { ...yard, readers: yard.readers.map(() => (yard.range ? newGunReader() : newReader())), volley: {}, ...(yard.range ? { shots: yard.shots.map(() => ({ fired: 0, landed: 0, damage: 0, struck: 0 })) } : {}), prev: yard.prev.map(() => ({})), pending: yard.pending.map(() => []), log: yard.log.map(() => []), chain: yard.chain.map(() => ({ steps: [], last: null })), combo: yard.combo.map(() => ({ hits: 0, damage: 0, last: null })), ko: {}, free: {} } };
 }
 
 // ── the dummies' practice mind ───────────────────────────────────────────────────────────────────────────────
@@ -132,6 +166,20 @@ function dummyPads(room, M) {
       continue;
     }
     if (!T) { pads[i] = {}; continue; }
+    if (mode === 'shoot') {
+      // its ground held; on the beat its aim (the gun's warning, the aim kept from its start), then its round where it aimed
+      const G = ctx.guns[d.gn], v = yard.volley[i];
+      if (v) {
+        const t = v.t + 1;
+        pads[i] = t <= G.telegraph ? { aim: v.aim } : t === G.telegraph + 1 ? { fire: v.aim } : {};
+        if (t > G.telegraph + 1) delete yard.volley[i]; else yard.volley[i] = { t, aim: v.aim };
+        continue;
+      }
+      if (Math.abs(d.x - home[0]) > 300 && FREE.has(d.st)) { pads[i] = { x: sgn(home[0] - d.x) }; continue; }
+      if (FREE.has(d.st) && s.f % BEAT === 0) { const aim = aimAt(d, T); yard.volley[i] = { t: 0, aim }; pads[i] = { aim }; continue; }
+      pads[i] = {};
+      continue;
+    }
     if (mode === 'grab') {
       if (d.st === 'hold') { pads[i] = s.f % 16 === 8 ? { hold: (d.kn ?? 0) >= 2 ? 'forward' : 'knee' } : {}; continue; }
       pads[i] = Math.abs(d.z - T.z) > line ? { z: sgn(T.z - d.z) } : { x: sgn(T.x - d.x) };
@@ -208,7 +256,7 @@ function verdicts(room, i, buttons, before, after) {
 // ── the yard a frame on ──────────────────────────────────────────────────────────────────────────────────────
 
 export function stepYard(room, buttons = []) {
-  const yard = { ...room.yard, readers: room.yard.readers.slice(), prev: room.yard.prev.slice(), pending: room.yard.pending.map((q) => q.map((e) => ({ ...e }))), log: room.yard.log.map((l) => l.slice()), chain: room.yard.chain.map((c) => ({ ...c, steps: c.steps.slice() })), combo: room.yard.combo.map((c) => ({ ...c })), ko: { ...room.yard.ko }, free: { ...room.yard.free } };
+  const yard = { ...room.yard, readers: room.yard.readers.slice(), prev: room.yard.prev.slice(), pending: room.yard.pending.map((q) => q.map((e) => ({ ...e }))), log: room.yard.log.map((l) => l.slice()), chain: room.yard.chain.map((c) => ({ ...c, steps: c.steps.slice() })), combo: room.yard.combo.map((c) => ({ ...c })), ko: { ...room.yard.ko }, free: { ...room.yard.free }, volley: { ...room.yard.volley }, ...(room.yard.range ? { shots: room.yard.shots.map((x) => ({ ...x })) } : {}) };
   const mind = { ...room.mind, tok: Object.fromEntries(Object.entries(room.mind.tok).map(([k, v]) => [k, v.slice()])), b: Object.fromEntries(Object.entries(room.mind.b).map(([k, v]) => [k, { ...v }])) };
   const r0 = { ...room, yard, mind };
   const pads = dummyPads(r0, mind);
@@ -216,20 +264,64 @@ export function stepYard(room, buttons = []) {
   const readerAfter = [];
   for (let i = 0; i < yard.players; i++) {
     const p = room.s.bodies[i];
-    const [pad, r] = readButtons(yard.readers[i], buttons[i] ?? {}, p, room.ctx.fighters[p.fi]);
+    const [pad, r] = yard.range ? readGunButtons(yard.readers[i], buttons[i] ?? {}, p) : readButtons(yard.readers[i], buttons[i] ?? {}, p, room.ctx.fighters[p.fi]);
     yard.readers[i] = r; readerAfter[i] = r; pads[i] = pad;
   }
   const s = stepBrawl(room.s, pads, room.ctx);
   const out = { ...r0, s };
-  for (let i = 0; i < yard.players; i++) verdicts(out, i, buttons[i] ?? {}, before[i], readerAfter[i]);
+  for (let i = 0; i < yard.players; i++) { if (yard.range) gunVerdicts(out, i, buttons[i] ?? {}, room.s.bodies[i]); else verdicts(out, i, buttons[i] ?? {}, before[i], readerAfter[i]); }
   rules(out);
   return out;
 }
 
+// a range press's verdict: a shot fired (its gun) or not, and why; a grenade thrown or not
+const GUN_FREE = new Set(['stand', 'walk', 'air', 'prejump', 'land']);
+function gunWhy(p, what) {
+  if (p.st === 'roll') return 'rolling: a roll fires nothing';
+  if (p.st === 'hit' || p.st === 'fall' || p.st === 'down' || p.st === 'rise') return 'reeling: a body being hit fires nothing';
+  if (what === 'grenade') return p.lc > 0 ? 'a grenade still in the air' : 'no grenades';
+  return 'busy';
+}
+function gunVerdicts(room, i, buttons, was) {
+  const { yard, s, ctx } = room, p = s.bodies[i], prev = yard.prev[i], log = yard.log[i];
+  const say = (e) => { log.push({ f: s.f, ...e }); if (log.length > LOG) log.shift(); };
+  const fired = s.events.filter((e) => e.t === 'fire' && e.p === i);
+  if (buttons.a && !prev.a) {
+    const shot = fired.find((e) => e.gun !== ctx.guns[p.gi]?.id);
+    if (shot) say({ words: 'fire', verdict: 'taken', what: shot.gun, late: 0 });
+    else if (!GUN_FREE.has(was.st) || was.st === 'roll') say({ words: 'fire', verdict: 'dropped', why: gunWhy(was, 'fire') });
+    else yard.pending[i].push({ f: s.f, words: 'fire', want: 'fire' });
+  }
+  if (buttons.s && !prev.s) {
+    const lob = fired.find((e) => e.gun === ctx.guns[p.gi]?.id);
+    say(lob ? { words: 'grenade', verdict: 'taken', what: 'grenade', late: 0 } : { words: 'grenade', verdict: 'dropped', why: gunWhy(was, 'grenade') });
+  }
+  // (a fire press waiting out its gun's rate: taken by the next round, or dropped as the trigger is let go)
+  yard.pending[i] = yard.pending[i].filter((q) => {
+    const shot = fired.find((e) => e.gun !== ctx.guns[p.gi]?.id);
+    if (shot) { say({ words: q.words, verdict: 'taken', what: shot.gun, late: s.f - q.f }); return false; }
+    if (!buttons.a) { say({ words: q.words, verdict: 'dropped', why: 'let go before the gun was ready (its rate)' }); return false; }
+    return true;
+  });
+  yard.prev[i] = { ...buttons };
+}
+
 // the room's own rules after each frame: no player dies, a felled dummy comes back, refilled health, the chain and the
-// combo kept for the readouts
+// combo kept for the readouts; on the range, the rounds counted, a spent gun loaded again, the grenades back
 function rules(room) {
   const { s, yard, ctx } = room, P = yard.players;
+  if (yard.range) {
+    for (const e of s.events) {
+      if (e.t === 'fire' && e.p < P) yard.shots[e.p].fired += e.n;
+      if (e.t === 'hit' && e.kind === 'round' && e.p < P) { yard.shots[e.p].landed++; yard.shots[e.p].damage += e.dmg; }
+      if (e.t === 'hit' && e.d < P && (e.kind === 'round' || e.kind === 'shot')) yard.shots[e.d].struck++;
+    }
+    for (let i = 0; i < P; i++) {
+      const p = s.bodies[i], want = yard.arms[i].gun;
+      if (p.gn !== want) { p.gn = want; p.am = ctx.guns[want].ammo ?? undefined; if (p.am === undefined) delete p.am; s.events.push({ t: 'reload', p: i }); }
+      if (!(p.gr > 0) && !(p.lc > 0)) p.gr = yard.arms[i].grenades;
+    }
+  }
   for (const e of s.events) {
     if (e.t === 'hit' && e.p < P) {
       const c = yard.combo[e.p];
@@ -280,7 +372,7 @@ export function yardRead(room, i = 0) {
   const reach = F.moves['chain.1'].reach;
   const line = s.bodies.slice(P).filter((d) => !d.gone).map((d) => {
     const dz = d.z - p.z, dx = d.x - p.x;
-    return { id: d.id, at: [d.x, d.z], dz, dx, lined: Math.abs(dz) <= s.rules.line, inReach: Math.abs(dx) <= reach + F.idle.stand.push[2], ko: !!d.ko, hp: d.hp, hpMax: yard.hp[d.id], mode: yard.modes[d.id - P], token: (mind.tok[i] ?? []).includes(d.id) };
+    return { id: d.id, at: [d.x, d.z], dz, dx, lined: Math.abs(dz) <= (yard.range ? ctx.guns[p.gn].line : s.rules.line), inReach: Math.abs(dx) <= reach + F.idle.stand.push[2], ko: !!d.ko, hp: d.hp, hpMax: yard.hp[d.id], mode: yard.modes[d.id - P], token: (mind.tok[i] ?? []).includes(d.id) };
   });
   const ch = yard.chain[i];
   return {
@@ -293,7 +385,15 @@ export function yardRead(room, i = 0) {
     state: p.ist ? { id: p.ist[0], left: p.ist[1] } : null,
     weapon: p.wpn ?? null,
     hp: p.hp, hpMax: F.hp,
+    // (on the range: the gun held, its ammo, the rounds fired and landed, their damage, the rounds taken; a grenade's)
+    ...(yard.range ? { gun: { id: ctx.guns[p.gn].id, name: ctx.guns[p.gn].name ?? null, ammo: p.am ?? null, of: ctx.guns[p.gn].ammo, line: ctx.guns[p.gn].line, grenades: p.gr ?? 0, aim: [p.ax ?? p.face, p.az ?? 0], ...yard.shots[i] } } : {}),
   };
+}
+
+/** The range's guns as its player reads them (each its numbers) and the gunner's moves: the command list's kinds. */
+export function rangeMoveList(room) {
+  const a = room.yard.arms[0];
+  return gunMoveList(room.ctx.guns.slice(1, a.grenadeGun), a.grenades);
 }
 
 // ── the move list ────────────────────────────────────────────────────────────────────────────────────────────

@@ -20,6 +20,9 @@
  *     into its screen (a held screen with no wave is open from the start), entering by turns from the view's right edge, its left and the street's back, at most `limit`
  *     on the street at once (the rest as others fall); the screen's gate opens (`cleared`) when the last falls.
  *
+ *   • THE SHOOTING CROWD (`shoot`): a body with a gun holds its range along the belt (SHOOT_RANGE), and given a token
+ *     AIMS at the player for its gun's warning (its `telegraph`, the aim fixed as it starts: the round goes where the
+ *     warning pointed, so a player who steps off it is missed), then fires its volley. The tokens are its fire tokens.
  *   • THE BOSS (a wave's `boss: { recipe, cpu?, hp?, tune?, plays?, weapon? }`, the belt's boss screen only): any of
  *     the fight's characters, a body as every other is (a brawler's fighter, its own `tune`, its own `weapon` the whole
  *     fight: an armed boss, the fight's blade), played by the fight's own
@@ -46,6 +49,7 @@ import { WEAPONS } from '../versus/versus-library.js';
 import { cpuPad, newCpuMemory, CPU_LEVELS } from '../versus/versus-cpu.js';
 import { BTN } from '../versus/versus-input.js';
 import { brawlFighter, STRONG_SLOTS } from './brawl-moves.js';
+import { readGun, ACROSS } from './brawl-guns.js';
 import { newBrawl, stepBrawl } from './brawl-core.js';
 import { viewHalf } from './brawl-belt.js';
 import { readThings } from './brawl-things.js';
@@ -62,8 +66,23 @@ export const CROWD_PLAYS = Object.freeze({
   grab: 'it walks into the player to take hold, knees and throws',
   special: '`special.<neutral | forward | back | down>`: its special at that direction',
   desperate: 'held: it breaks out with its desperation, paying its price',
+  shoot: 'a gun\'s (the run & gun\'s crowd): it holds its range, aims a beat (its gun\'s warning), then fires its volley',
 });
 const STRONG_PLAYS = new Set(['strong', 'break', 'blowout', 'dive']);
+/** where a shooter fires from: along the belt, at least and at most (mm) */
+export const SHOOT_RANGE = Object.freeze([2200, 4800]);
+/** the aim at a body from another: along it, across it at the diagonal's slant, or straight across (eight ways) */
+export function aimAt(p, T) {
+  const dx = T.x - p.x, dz = T.z - p.z, ax = Math.sign(dx);
+  if (Math.abs(dx) < 300) return [0, Math.sign(dz) || 1];
+  return [ax || p.face, Math.abs(dz) < Math.abs(dx) * ACROSS * 0.5 ? 0 : Math.sign(dz)];
+}
+/** the guns a crowd's types carry: { ids (each its index in ctx.guns), guns } */
+export function crowdGuns(types, guns = []) {
+  const out = guns.slice(), at = {};
+  for (const t of types) { const g = CROWD_TYPES[t]?.gun; if (g && at[g] === undefined) { at[g] = out.length; out.push(readGun(g)); } }
+  return { at, guns: out };
+}
 /** a boss's plays unless its wave says (its grabs are the fight's throw, the CPU's) */
 export const BOSS_PLAYS = Object.freeze(['strong', 'break', 'blowout', 'run', 'kick', 'dive', 'desperate']);
 /** frames a boss fights as the fight's CPU between two plays of its own (and up to a second more, its own) */
@@ -80,6 +99,11 @@ export const CROWD_TYPES = Object.freeze({
   sword: type('a sword in the lead hand: two cuts and a strong one, or a leaping cut', { archetype: 'all-rounder', hp: 240, weapon: 'sword', tune: { damage: 85, startup: 2, recovery: 3 }, plays: ['chain', 'chain', 'strong', 'kick'], combo: 2 }),
   spear: type('a spear in the rear hand: it pokes from far off, or runs in on its point; the longest reach, the slowest home', { archetype: 'zoner', hp: 220, weapon: 'spear', tune: { damage: 80, startup: 3, recovery: 4 }, plays: ['chain', 'chain', 'run', 'break'], combo: 2 }),
   axe: type('a big body with an axe: slow, and one cut floors you; its strong, a chop to the floor, a dive from the air', { archetype: 'grappler', hp: 420, weapon: 'axe', tune: { damage: 105, startup: 4, recovery: 5, cool: 130 }, plays: ['strong', 'chain', 'break', 'dive'], combo: 2 }),
+  // THE SHOOTING CROWD (the run & gun's): each its gun (brawl-guns.js), its rounds slow and warned of
+  rifleman: type('a rifle: it holds its range, aims a beat, one slow round', { archetype: 'all-rounder', hp: 160, gun: 'rifle', plays: ['shoot'], volley: 1 }),
+  gunner: type('a burst: a beat of aim, then three rounds close together', { archetype: 'rushdown', hp: 180, gun: 'burst', plays: ['shoot'], volley: 3 }),
+  grenadier: type('a lob: a grenade arced at where the player stands', { archetype: 'zoner', hp: 200, gun: 'lob', plays: ['shoot'], volley: 1 }),
+  bazooka: type('a big body with a rocket: a long aim, a slow rocket that bursts', { archetype: 'grappler', hp: 320, gun: 'bazooka', plays: ['shoot'], volley: 1 }),
   staff: type('a staff, long both ways: three blows, a sweep that blows the player down the street, a leaping strike; its wood is struck as it swings', { archetype: 'zoner', hp: 260, weapon: 'staff', tune: { damage: 85, startup: 2, recovery: 3 }, plays: ['chain', 'chain', 'blowout', 'kick'], combo: 3 }),
 });
 export const CROWD_TYPE_IDS = Object.freeze(Object.keys(CROWD_TYPES));
@@ -166,6 +190,8 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd } = {
   const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((i + 1) * (n1 - n0)) / (players.length + 1)) }));
   const kinds = [];
   const bosses = {};
+  // (the shooting crowd's guns, each its index in ctx.guns)
+  const armory = crowdGuns(types);
   W.forEach((w, k) => {
     // (the boss first of its wave: it comes in as the wave does)
     if (w.boss) {
@@ -175,14 +201,14 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd } = {
       fighters.push(BF);
       bodies.push({ fighter: fighters.length - 1, side: 'crowd', x: 0, z: 0, wave: k }); kinds.push('boss');
     }
-    for (const c of w.crowd) for (let j = 0; j < c.n; j++) { bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].plays.includes('grab') ? {} : { grabs: false }) }); kinds.push(c.type); }
+    for (const c of w.crowd) for (let j = 0; j < c.n; j++) { bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].plays.includes('grab') ? {} : { grabs: false }), ...(CROWD_TYPES[c.type].gun ? { gun: armory.at[CROWD_TYPES[c.type].gun] } : {}) }); kinds.push(c.type); }
   });
   // the street's things, and each player's armed self for every weapon among them (in a box or not)
   const T = things ? readThings(things, belt) : [];
   const weapons = [...new Set(T.flatMap((t) => [t, t.holds].filter(Boolean)).filter((t) => t.kind === 'weapon').map((t) => t.what))];
   const armed = {};
   players.forEach((pl, i) => { for (const w of weapons) { armed[`${i}:${w}`] = fighters.length; fighters.push(brawlFighter({ ...pl.recipe, weapon: w }, { style: pl.style })); } });
-  const ctx = { fighters, belt, ...(weapons.length ? { armed } : {}) };
+  const ctx = { fighters, belt, ...(weapons.length ? { armed } : {}), ...(armory.guns.length ? { guns: armory.guns } : {}) };
   const s = newBrawl(ctx, { bodies, rules, ...(T.length ? { things: T } : {}) });
   // (a held screen with no wave holds nothing: its gate is open from the start)
   s.cleared = belt.screens.map((sc, i) => (sc.gate && !W.some((w) => w.screen === i) ? i : -1)).filter((i) => i >= 0);
@@ -277,7 +303,7 @@ function think(s, ctx, M) {
     // held, a body with the desperation in its plays breaks out with it (paying its price), a moment in
     if (p.st === 'held' && kind.plays.includes('desperate') && p.sf >= 24 && p.hp > (F.moves.desperate.price ?? 0)) { giveBack(M, p.id); pads[p.id] = { mv: 'desperate' }; continue; }
     if (HURT.has(p.st)) {
-      giveBack(M, p.id);
+      giveBack(M, p.id); delete m.fire;
       if (m.mode !== 'recover') { m.mode = 'recover'; m.t = 0; m.cool = Math.max(m.cool, R.cool[0] + Math.round((R.cool[1] - R.cool[0]) * vary(p.id, s.f))); }
       pads[p.id] = {};
       continue;
@@ -292,6 +318,15 @@ function think(s, ctx, M) {
     const side0 = sgn(p.x - T.x) || (p.id % 2 ? 1 : -1);
     const mine = holding(M, T.id);
     const has = mine.includes(p.id);
+    // ── a volley under way: its aim held for its gun's warning, then its rounds, then done ──
+    if (m.fire) {
+      // (its aim kept from the warning's start: the round goes where the warning pointed)
+      const G = ctx.guns[p.gn], aim = m.fire.aim;
+      m.swung = 1; m.fire = { ...m.fire, t: m.fire.t + 1 };
+      if (m.fire.t <= G.telegraph) { pads[p.id] = { aim }; continue; }
+      if (m.fire.n < (kind.volley ?? 1)) { if ((p.fc ?? 0) <= 1) m.fire = { ...m.fire, n: m.fire.n + 1 }; pads[p.id] = { fire: aim }; continue; }
+      delete m.fire; pads[p.id] = {}; continue;
+    }
     // ── its play under way: the chain run on (to its ender), the run to its blow, the leap to its kick ──
     const going = underWay(p, T, F, m, kind);
     if (going) { m.swung = 1; pads[p.id] = going; continue; }
@@ -309,6 +344,16 @@ function think(s, ctx, M) {
       const dx = Math.abs(p.x - T.x);
       // (a run from too close: the chain instead)
       if (play === 'run' && dx < RUN_FROM - 400) m.play = 'chain';
+      // a SHOOTER holds its range along the belt (in from too far, back from too near), then aims and fires
+      if (play === 'shoot') {
+        if (p.gn === undefined) { m.play = 'chain'; pads[p.id] = {}; continue; }
+        const [near, far] = SHOOT_RANGE;
+        if (dx > far) { pads[p.id] = { x: -side }; continue; }
+        if (dx < near) { pads[p.id] = { x: side }; continue; }
+        if (FREE.has(T.st) && !claimed.has(T.id) && FREE.has(p.st) && p.st !== 'run') { claimed.add(T.id); const aim = aimAt(p, T); m.fire = { t: 0, n: 0, aim }; pads[p.id] = { aim }; continue; }
+        pads[p.id] = {};
+        continue;
+      }
       // where the play starts: in its blow's reach; a leap a jump's carry away; a run from the ring's edge; a grab
       // walking into the body
       const leap = play === 'kick' || play === 'dive', run = m.play === 'run';
