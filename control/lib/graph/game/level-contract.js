@@ -67,6 +67,12 @@ export const MSG_AI = 'game-ai';
 //                                                          pause menu names the seat that opened it, and only that
 //                                                          seat's controller closes it with its start
 export const MSG_SEATS = 'game-seats';
+// the flow's sidecars (unversioned, safe to ignore: a shell that does not listen waits as it always did):
+//   level → shell  { moj: MSG_SHOWN }       — the level's first frame is drawn (ready is said before it): the veil lifts
+//   level → shell  { moj: MSG_CARD_DONE }   — the level's own end card is read (its time, or a press), or it has none:
+//                                             the shell's flow goes on to its next screen
+export const MSG_SHOWN = 'game-shown';
+export const MSG_CARD_DONE = 'game-card-done';
 
 export function validateLevelContract(game, schema) {
   const errors = [];

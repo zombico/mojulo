@@ -105,7 +105,7 @@ describe('a game that says no flow has the one it always had', () => {
       'several levels, no front': { levels: lv(LEVELS) },
       'a front with an attract, credits and an end': { levels: lv(LEVELS), front: { press: true, credits: { roll: [{ role: 'made by', names: ['a'] }] } } },
       'a run': { levels: lv(LEVELS), run: { length: 2 }, front: {} },
-      'a map with doors and a final level': { levels: lv(LEVELS, { vale: { exits: [{ id: 'east', to: 'gate' }] } }), links: { vale: { d1: { ref: 'gate', door: 'd1' } } }, final: 'keep' },
+      'a map with doors and a final level': { levels: lv(LEVELS, { vale: { exits: [{ id: 'east', to: 'gate' }] } }), links: [{ from: { ref: 'vale', door: 'd1' }, to: { ref: 'gate', door: 'd1' } }], final: 'keep' },
     };
     for (const [name, g] of Object.entries(shapes)) expect(read(g), name).toEqual([]);
   });
@@ -132,7 +132,8 @@ describe('a game that says no flow has the one it always had', () => {
   });
   it('a map: a win by an open exit travels on, a door goes where its link says, the final level\'s clear never travels', () => {
     const levels = lv(LEVELS, { vale: { exits: [{ id: 'east', to: 'gate' }] }, keep: { exits: [{ id: 'west', to: 'vale' }] } });
-    const F = defaultFlow({ levels, links: { gate: { d1: { ref: 'keep', door: 'd2' } } }, final: 'keep' });
+    const F = defaultFlow({ levels, links: [{ from: { ref: 'gate', door: 'd1' }, to: { ref: 'keep', door: 'd2' } }], final: 'keep' });
+    expect(F.steps.play.on.door).toBe('$door');           // the manifest's door pairs give the level a way through its doors
     const { ctx, S, won } = shell(LEVELS, { exits: { vale: { east: 'gate' }, keep: { west: 'vale' } }, links: { gate: { d1: 'keep' } } });
     S.cleared.add('vale'); S.cleared.add('gate');
     expect(walk(F, ctx, S, [{ event: 'pick', picked: 'vale' }, won({ exit: 'east' }), { event: 'door', door: 'd1' }, won({ exit: 'west' })])).toEqual([

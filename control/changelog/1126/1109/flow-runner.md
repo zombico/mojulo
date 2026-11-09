@@ -5,3 +5,10 @@
   checker explains every mistake: a step nothing reaches, a step with no way out, a level the game does not have, or
   cinematics that would loop forever with nothing for the player to press. A game that says nothing gets the flow it
   has always had, worked out from its title screen, its levels, its runs and its ending.
+- **Games now run on their flow.** Every game that uses the light shell (every game the studio designs) now moves
+  between its screens and levels by following its flow, so a game that describes its own order plays in that order:
+  a beat between screens, a level that goes straight on to the next, a title that moves on by itself when left alone.
+  A game that describes nothing plays exactly as before. Two small fixes come with it: the loading veil now lifts once
+  the level has drawn its first picture rather than while it is still building, and after a level ends the game
+  moves on as soon as its end card has been read, at once when the level shows no card, or early when the player
+  presses a key.

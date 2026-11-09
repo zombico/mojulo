@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR } from '../../game/level-contract.js';
+import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR, MSG_SHOWN as GAME_MSG_SHOWN, MSG_CARD_DONE as GAME_MSG_CARD_DONE } from '../../game/level-contract.js';
 import { FONTS } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 
@@ -70,6 +70,17 @@ const __GAME = ${safeJson(game)};
       const kp = st.envelope.stats && st.envelope.stats.kept;
       if (kp) o.querySelector('.moj-complete').textContent = title + ' · ' + kp.map((k) => k.label + ' ' + k.value + (k.unit || '')).join(' · ');` : ''}
       document.body.appendChild(o);
+    }
+    // the card read: its time (longer with a table to read), or a press after its first moment; none, at once. The shell's
+    // flow goes on to its next screen when it hears it
+    if (hosted && !capture) {
+      let said = false;
+      const done = () => { if (said) return; said = true; try { window.parent.postMessage({ moj: '${GAME_MSG_CARD_DONE}' }, '*'); } catch (e) { /* opaque parent */ } };
+      if (__GAME.complete === false) done();
+      else {
+        setTimeout(done, stats ? 2400 : 1600);
+        setTimeout(() => { window.addEventListener('keydown', done, { once: true }); window.addEventListener('pointerdown', done, { once: true }); }, 450);
+      }
     }
     return st.envelope;
   }
@@ -247,6 +258,9 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
       start(d.params, d.seed);
     });
     try { window.parent.postMessage({ moj: '${GAME_MSG_READY}', contractVersion: __CV, levelRef: __GAME.levelRef }, '*'); } catch (e) { /* opaque parent */ }
+    // shown: the first frame drawn (two frames on: the world's loop draws in the first), so the shell's veil lifts on a
+    // picture, never on a page still building
+    requestAnimationFrame(() => requestAnimationFrame(() => { try { window.parent.postMessage({ moj: '${GAME_MSG_SHOWN}' }, '*'); } catch (e) { /* opaque parent */ } }));
     // (the grace is 1.5 s of waiting, not of a busy page: a timer that fires late, the page having been building its
     // world, gives the shell's answer, already queued, another grace before the presets run in its place)
     (function grace(due) { setTimeout(() => { if (st.started) return; if (performance.now() - due > 250) grace(performance.now() + 1500); else fallback(); }, Math.max(0, due - performance.now())); })(performance.now() + 1500);
