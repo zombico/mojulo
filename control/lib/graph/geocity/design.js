@@ -55,6 +55,7 @@ import { isSoft } from './segments.js';
 import { streamOf } from '../city/plan/dice.js';
 import { terrainField } from '../terrain/terrain-field.js';
 import { profileStreets, climbLift } from '../geotown/profile.js';
+import { assignYards } from './fleets.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -288,6 +289,10 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
     r.soft = r3(Object.entries(b.ledger.surfaces).filter(([k]) => isSoft(k)).reduce((s, [, v]) => s + v, 0));
   }
 
+  // (its YARDS, fleets.js: each parking block a role's (a car park, a bus depot, a works yard, an emergency station), a
+  // vacant block by a neighbourhood's sites its contractor's, by the metro's own dice)
+  const yards = assignYards(regions, seed);
+
   // 9 the ledger: every square metre of the frame once (a crossing counted on one arterial)
   const waterArea = water.reduce((s, w) => s + area(w.rect), 0);
   const rowArea = NS.reduce((a, l) => a + 2 * l.half * (land[3] - land[1]), 0) + EW.reduce((a, l) => a + 2 * l.half * (land[2] - land[0]), 0) - NS.reduce((a, p) => a + EW.reduce((b, q) => b + 4 * p.half * q.half, 0), 0);
@@ -299,7 +304,7 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   ledger.streets = r3(regions.reduce((s, r) => s + r.ledger.streets, 0));
 
   const d = { spec: T, seed, metro: M, grammar: G, frame: { W, D }, land: { rect: land, ...L, ...(PFA ? { S } : {}) }, water, seat, section, lines, crossings, regions, graph,
-    heights: { reach: Hs.reach, nodes: Hs.nodes, storeysAt: Hs.storeysAt }, ledger };
+    heights: { reach: Hs.reach, nodes: Hs.nodes, storeysAt: Hs.storeysAt }, ledger, ...(Object.keys(yards).length ? { yards } : {}) };
   // (its streets' profiles: the arterials', each neighbourhood's, and the stairs a stretch past walkable wants)
   if (PFA) d.profile = { arterials: PFA.streets, neighbourhoods: Object.fromEntries(Object.entries(inner).map(([id, Pn]) => [id, Pn.streets])) };
   d.laws = geocityLaws(d);

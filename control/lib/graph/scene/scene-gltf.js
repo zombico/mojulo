@@ -1545,7 +1545,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const repExpanded = repeatList.map((r) => expandSurfaceCards(r.template, { light }));
   const aoOpts = ao ? (typeof ao === 'object' ? ao : {}) : null;
   const aoPhantoms = aoOpts && repeatList.length
-    ? repeatList.flatMap((r, i) => instanceOccluderFaces(repExpanded[i], r.transforms))
+    ? repeatList.flatMap((r, i) => (r.occlude === false ? [] : instanceOccluderFaces(repExpanded[i], r.transforms)))   // (`occlude: false`: no phantoms, as the page)
     : [];
   const expanded2 = aoOpts
     ? bakeAmbientOcclusion(expanded1, aoPhantoms.length ? { ...aoOpts, extraOccluders: aoPhantoms } : aoOpts)

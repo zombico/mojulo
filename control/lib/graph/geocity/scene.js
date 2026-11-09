@@ -59,6 +59,8 @@ import { ORGANIC_SHAPES } from '../city/plan/organic.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { kitTemplates } from './kit.js';
 import { frontageTemplates, frontsOf, wallsOf } from './frontage.js';
+import { parkCar, carRepeats, carModel } from '../geotown/cars.js';
+import { fleetOf, pickOf, YARDS } from './fleets.js';
 import { assembleGeotownScene } from '../geotown/scene.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
@@ -245,6 +247,17 @@ export function assembleGeocityScene(m, ctx = {}) {
   // hoarding near the camera only, like the kit
   const siteStamps = new Map(), siteNears = new Map();
   const siteNear = (key, pos, rotZ) => { if (!siteNears.has(key)) siteNears.set(key, []); siteNears.get(key).push({ pos: P3(pos), rotZ: r5(rotZ) }); };
+  // THE METRO'S VEHICLES (fleets.js): each of a role's fleet, its body the registry's realistic one (a car shelf card, a
+  // loft, a construction shelf machine), parked where its role keeps it (a lot, a yard, a kerb, a site); a vehicle's
+  // model and paint its own dice's; drawn as repeats near the camera (cars.js; a machine the shelf's assembly)
+  const vehicles = [], machines = new Map();
+  const machineAt = (arch, pos, rotZ) => { (machines.get(arch) ?? machines.set(arch, []).get(arch)).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}) }); counts.machines = (counts.machines ?? 0) + 1; };
+  // (its nose along `nose`, [dx, dy])
+  const vehicleAt = (role, x, y, z, nose, key) => {
+    const v = pickOf(fleetOf(role), streamOf(seed, 'fleet', key)), heading = Math.atan2(-nose[0], nose[1]);
+    if (v.model.startsWith('site:')) machineAt(v.model.slice(5), [x, y, z], heading);
+    else { parkCar(vehicles, { x, y, z, heading, paint: v.paint, model: v.model, ...(v.extra ? { extra: v.extra } : {}) }); counts.vehicles = (counts.vehicles ?? 0) + 1; }
+  };
   // the street trees, by species, grown after the cameras (their detail is what the cameras see)
   const trees = new Map();
   const plant = (where, x, y, z, key) => {
@@ -708,6 +721,8 @@ export function assembleGeocityScene(m, ctx = {}) {
       frontOf(b, q, zc, med, resid, 'residential');
     } else if (b.kind === 'construction') going(b, { x0, y0, x1, y1, longY, zAt, Rb, far });
     else if (b.kind === 'parking') parked(b, { x0, y0, x1, y1, longY, zAt, Rb });
+    // (a vacant block by its neighbourhood's sites its contractor's yard, fleets.js: their machines staged on it)
+    else if (b.kind === 'vacant' && d.yards?.[b.id]) { fenced(b, { x0, y0, x1, y1 }, zAt((x0 + x1) / 2, (y0 + y1) / 2), 'fence'); yardOf(b, d.yards[b.id], { x0, y0, x1, y1, longY, zAt }); }
     else if (b.kind === 'vacant') fenced(b, { x0, y0, x1, y1 }, zAt((x0 + x1) / 2, (y0 + y1) / 2), 'fence');
     else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb });
   }
@@ -749,6 +764,9 @@ export function assembleGeocityScene(m, ctx = {}) {
     const bx = x1 - (x1 - q[2]) / 2, by = y0 + (q[1] - y0) / 2;
     if (x1 - q[2] >= 7) siteNear('digger', [bx, cy, zc], Math.PI / 2);
     if (q[1] - y0 >= 6) siteNear('truck', [cx, by, zc], -Math.PI / 2);
+    // (and its mixer on the band along its back, its loader on the band beside it: the construction shelf's)
+    if (y1 - q[3] >= 6) machineAt('mixerTruck', [cx, y1 - (y1 - q[3]) / 2, zc], Math.PI / 2);
+    if (q[0] - x0 >= 6) machineAt('wheelLoader', [x0 + (q[0] - x0) / 2, cy, zc], 0);
     // near: scaffolding up its two long faces, a bay every 2 m along and every lift up
     const faces2 = longY ? [['w', q[0], 'y', q[1], q[3]], ['e', q[2], 'y', q[1], q[3]]] : [['s', q[1], 'x', q[0], q[2]], ['n', q[3], 'x', q[0], q[2]]];
     for (const [f, at2, along, a, c] of faces2) for (let t = a + 1; t <= c - 1; t += 2) for (let z = zc; z + 2 <= top + 1e-6; z += 2) stamp(`scaffold:${f}`, along === 'y' ? [at2, t, z] : [t, at2, z], 0);
@@ -771,16 +789,50 @@ export function assembleGeocityScene(m, ctx = {}) {
   /** A surface parking lot (segments.js `parking`): rows of stalls across its short side, an aisle between each two,
    *  their lines and cars in most, near the camera. */
   function parked(b, { x0, y0, x1, y1, longY, zAt, Rb }) {
+    // (a parking block given to a role, design.js `yards`: its yard; else a car park)
+    const yard = d.yards?.[b.id] ?? 'lot';
+    if (yard !== 'lot') { yardOf(b, yard, { x0, y0, x1, y1, longY, zAt }); return; }
     const z = zAt((x0 + x1) / 2, (y0 + y1) / 2), [s0, s1] = longY ? [x0, x1] : [y0, y1], [a0, a1] = longY ? [y0, y1] : [x0, x1];
     for (let m = s0 + 2; m + 10 <= s1 - 2; m += 16.5) for (const row of [m, m + 11.5]) for (let t = a0 + 3; t + 2.6 <= a1 - 3; t += 2.6) {
-      // its line (across its row, 5 m) and, in most stalls, a car
+      // its line (across its row, 5 m) and, in most stalls, a car, its nose to the aisle (the registry's: fleets.js)
       stamp('stall', longY ? [row, t, z + 0.03] : [t, row, z + 0.03], longY ? 0 : Math.PI / 2);
       if (Rb() < 0.72) {
-        const c = longY ? [row + 2.5, t + 1.3] : [t + 1.3, row + 2.5], paint = CAR_TINTS[Math.floor(Rb() * CAR_TINTS.length)];
-        stamps.has(longY ? 'car:e' : 'car:n') || stamps.set(longY ? 'car:e' : 'car:n', []);
-        stamps.get(longY ? 'car:e' : 'car:n').push({ pos: P3([c[0], c[1], z]), tint: paint });
+        const c = longY ? [row + 2.5, t + 1.3] : [t + 1.3, row + 2.5], out = row === m ? 1 : -1;
+        Rb();   // (its paint's die, as it was: the fleet's own dice paint it now)
+        vehicleAt('civilian', c[0], c[1], z, longY ? [out, 0] : [0, out], `${b.id}:${r5(c[0])}:${r5(c[1])}`);
       }
     }
+  }
+
+  /** A YARD (fleets.js YARDS): a parking block a role keeps its vehicles in; its building at its far end (a station with
+   *  its bays, a shed), its vehicles in pairs of rows across it, each nose to the aisle between, a stall each. */
+  function yardOf(b, yard, { x0, y0, x1, y1, longY, zAt }) {
+    const Y = YARDS[yard], z = zAt((x0 + x1) / 2, (y0 + y1) / 2), Ry = streamOf(seed, 'yard', b.id);
+    const [s0, s1] = longY ? [x0, x1] : [y0, y1], [a0, a1] = longY ? [y0, y1] : [x0, x1], P = (a, sv) => (longY ? [sv, a] : [a, sv]);
+    // its building: a station of brick, its bay doors to the yard; a shed of sheeting
+    const station = Y.building === 'station', bd = station ? 16 : 12, bh = station ? 8 : 6.5, b0 = a1 - 2 - bd;
+    if (a1 - a0 > bd + 30) {
+      const p = P(b0, s0 + 3), q = P(a1 - 2, s1 - 3);
+      box(Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), z, z + bh, station ? '#8a3b2c' : '#9aa0a3', ROOFS[0], `geocity:${station ? 'station' : 'shed'}`);
+      // (its doors to the yard: a station's tall bays, a shed's roller doors)
+      const n = Math.max(1, Math.floor((s1 - s0 - 8) / 6)), dw = station ? 4 : 3.6, dh = station ? 4.4 : 4;
+      for (let k = 0; k < n; k++) {
+        const c = s0 + 4 + ((k + 0.5) * (s1 - s0 - 8)) / n, A = P(b0 - 0.03, c - dw / 2), B = P(b0 - 0.03, c + dw / 2);
+        put([[A[0], A[1], z], [B[0], B[1], z], [B[0], B[1], z + dh], [A[0], A[1], z + dh]], 'geocity:door', '#2d3033', longY ? [0, -1, 0] : [-1, 0, 0]);
+      }
+    }
+    // its stalls: a vehicle's length deep, its width and a walk between wide, in pairs of rows about an aisle
+    const roles = Object.entries(Y.roles), deep = yard === 'depot' ? 14 : yard === 'contractor' ? 11.5 : 10.5, wide = yard === 'depot' ? 4.2 : yard === 'contractor' ? 4.6 : 3.8, aisle = yard === 'depot' ? 14 : 9;
+    const roleOf = () => { const t = Ry() * roles.reduce((s2, [, w]) => s2 + w, 0); let u = 0; for (const [r, w] of roles) { u += w; if (t <= u) return r; } return roles[roles.length - 1][0]; };
+    const end = (a1 - a0 > bd + 30 ? b0 - 3 : a1 - 3);
+    for (let a = a0 + 3; a + 2 * deep + aisle <= end; a += 2 * deep + aisle) for (const [r0, out] of [[a, 1], [a + deep + aisle, -1]]) {
+      for (let sv = s0 + 3; sv + wide <= s1 - 3; sv += wide) {
+        if (Ry() >= 0.82) continue;
+        const c = P(r0 + deep / 2, sv + wide / 2);
+        vehicleAt(roleOf(), c[0], c[1], z, longY ? [0, out] : [out, 0], `${b.id}:${r5(c[0])}:${r5(c[1])}`);
+      }
+    }
+    counts.yards = { ...(counts.yards ?? {}), [yard]: (counts.yards?.[yard] ?? 0) + 1 };
   }
 
   /** An outskirts block: two rows along its long sides, each the row its segment puts on that side. */
@@ -1176,14 +1228,32 @@ export function assembleGeocityScene(m, ctx = {}) {
       counts.fronts = (counts.fronts ?? 0) + 1;
     }
   }
+  // ── the KERBS (fleets.js): along every arterial's parking lanes (drawn near the camera, as the street's kit), a car in
+  // most stalls, a delivery van or truck now and then in the core and the frame, a taxi in the core; each nose the way
+  // its side drives ──
+  const ringAt = (x, y) => { const r = Math.hypot(x - d.seat[0], y - d.seat[1]), R0 = d.metro.rings; return r < R0.core ? 'core' : r < R0.frame ? 'frame' : 'outskirts'; };
+  if (E?.evoke !== 'skyline') for (const l of d.lines) for (const band of l.bands.filter((x) => x.kind === 'parking')) {
+    const off = (band.from + band.to) / 2, nose = l.axis === 'ns' ? [0, off > 0 ? 1 : -1] : [off > 0 ? -1 : 1, 0];
+    for (const [a, c] of l.axis === 'ns' ? runsNS : runsEW) for (let t = a + 8; t + 6 <= c - 8; t += 6.5) {
+      const [x, y] = l.axis === 'ns' ? [l.at + off, t] : [t, l.at + off];
+      const Rk = streamOf(seed, 'kerb', `${l.id}:${band.from}:${Math.round(t)}`);
+      if (Rk() >= 0.7) continue;
+      const ring = ringAt(x, y), u = Rk(), role = ring !== 'outskirts' && u < 0.09 ? 'delivery' : ring === 'core' && u < 0.15 ? 'taxi' : 'civilian';
+      vehicleAt(role, x, y, S(x, y), nose, `kerb:${l.id}:${band.from}:${Math.round(t)}`);
+    }
+  }
   // (the kit's repeats, each drawn near the camera only; the skyline draws none)
   // (the URBAN PIZZA VIEWER, a live page whose world asks for the view cone, scene/channels/city-cone.js: the kit drawn by
   // the cone's rule rather than the ring; an export, and a page without the cone, as before)
   const coned = !!ctx.live && m.cone !== undefined && m.cone !== null, kit = coned ? { cone: 'kit' } : {};
   const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR, ...kit }));
   if (E?.evoke !== 'skyline') {
+    // (its vehicles: each model's paint and trim and its roof's extras, cars.js; its machines the shelf's assembly)
+    // (none of them an occluder in the ambient bake: a parked car, a machine, a window darkens nothing the bake needs)
+    for (const r of carRepeats(vehicles, { group: 'geocity:vehicle' })) repeats.push({ ...r, near: NEAR, occlude: false, ...kit });
+    for (const [arch, transforms] of [...machines].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:machine-${arch}`, template: siteFaces(LIGHT, `m:${arch}`, () => assembleMachine(arch, { laws: false })), transforms, near: NEAR, occlude: false, ...kit });
     const FT = frontageTemplates(LIGHT, { frames: FRONT_PAINT.frame });
-    for (const [key, transforms] of [...frontStamps].sort(([a], [b]) => a.localeCompare(b))) { repeats.push({ group: `geocity:front-${key.split(':')[0]}`, template: FT[key], transforms, near: NEAR, ...kit }); counts.frontPieces = (counts.frontPieces ?? 0) + transforms.length; }
+    for (const [key, transforms] of [...frontStamps].sort(([a], [b]) => a.localeCompare(b))) { repeats.push({ group: `geocity:front-${key.split(':')[0]}`, template: FT[key], transforms, near: NEAR, occlude: false, ...kit }); counts.frontPieces = (counts.frontPieces ?? 0) + transforms.length; }
   }
   // the street trees grown (vegetation/pool.js): a few variants a species, each at the detail the cameras see it at,
   // their crowns raised over the walk, drawn near the camera only like the kit

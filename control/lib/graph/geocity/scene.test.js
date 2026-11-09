@@ -254,3 +254,18 @@ describe('the metro at a person\'s height: its frontage', () => {
     expect((sky.repeats ?? []).some((r) => r.group.startsWith('geocity:front-'))).toBe(false);
   });
 });
+
+describe('the metro\'s vehicles, in their yards and at their kerbs', () => {
+  it('parks the registry\'s vehicles: cars at its kerbs and in its lots, its yards\' fleets, its sites\' machines', async () => {
+    const { assembleGeocityScene: A } = await import('./scene.js');
+    const p = A({ kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, geocity: {} }), C = p.geocity.counts;
+    expect(C.vehicles).toBeGreaterThan(1000);
+    expect(C.machines).toBeGreaterThan(10);
+    for (const y of ['depot', 'works', 'emergency', 'contractor']) expect(C.yards[y]).toBeGreaterThan(0);
+    const groups = new Set(p.repeats.map((r) => r.group));
+    for (const g of ['geocity:vehicle-paint', 'geocity:vehicle-trim', 'geocity:vehicle-lightbar-rb', 'geocity:vehicle-taxi-sign', 'geocity:machine-mixerTruck']) expect(groups.has(g)).toBe(true);
+    // (no kit box car left; none of them an occluder in the ambient bake; every one drawn near the camera)
+    expect([...groups].some((g) => g === 'geocity:car')).toBe(false);
+    for (const r of p.repeats.filter((x) => /geocity:(vehicle|machine)/.test(x.group))) { expect(r.occlude).toBe(false); expect(r.near).toBeGreaterThan(0); }
+  });
+});

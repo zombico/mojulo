@@ -16,6 +16,7 @@ export const GEOCITY_LAWS = Object.freeze({
   closes: 'every square metre of the map is one thing: water, an arterial, a park or a neighbourhood',
   grade: 'no street steeper than its rank\'s grade: an arterial the metro\'s `grade`, a collector and a local its `grades`',
   walkable: 'a profiled metro\'s every stretch no steeper than a street is walked (geotown/profile.js): one past it said, too steep to walk',
+  yards: 'a metro with car parks keeps its buses, its works and its emergencies each in a yard (fleets.js)',
   rings: 'a core, a frame and outskirts, in that order out from the seat',
   green: 'the city\'s green share given out, and no neighbourhood\'s quota more than its most of its ground',
   holds: 'every outskirts neighbourhood holds a geotown neighbourhood of its outskirts\' pattern (two blocks by two)',
@@ -127,6 +128,12 @@ export function geocityLaws(d) {
   // along their runs, 4 m a step, against the metro's grade and its `grades`
   const GR = gradesOf(d), byRank = Object.entries(GR.ranks).map(([rank, x]) => `${rank} ${x.id} ${r2(x.g * 100)}% (most ${r2(x.most * 100)}%)`);
   out.push({ law: 'grade', ok: !GR.over.length, value: `${GR.over.length ? `${GR.over.length} street${GR.over.length === 1 ? '' : 's'} over its rank's most: ${GR.over.slice(0, 10).map((s) => `${s.id} ${r2(s.g * 100)}%`).join(', ')}${GR.over.length > 10 ? ' …' : ''}; ` : ''}the steepest ${byRank.join(', ') || 'none'}`, want: `arterials ≤ ${r2(M.grade * 100)}%, collectors ≤ ${r2(GR.most.collector * 100)}%, locals ≤ ${r2(GR.most.local * 100)}%` });
+  // its YARDS (fleets.js): a bus depot, a works yard and an emergency station where it has car parks to give them
+  if (d.yards) {
+    const n = {}; for (const y of Object.values(d.yards)) n[y] = (n[y] ?? 0) + 1;
+    const lack = ['depot', 'works', 'emergency'].filter((y) => !n[y]);
+    out.push({ law: 'yards', ok: !lack.length, value: `${Object.entries(n).map(([y, k]) => `${k} ${y}`).join(', ')}${lack.length ? `; no ${lack.join(', no ')} (too few car parks to give them)` : ''}`, want: GEOCITY_LAWS.yards });
+  }
   // a profiled metro's WALKABLE streets: every stretch, an arterial's or a neighbourhood's street's, past the walkable grade
   if (d.profile) {
     const all = [...d.profile.arterials, ...Object.values(d.profile.neighbourhoods).flat()], st = all.flatMap((q) => q.stretches.filter((x) => x.steep).map((x) => `${q.id} at ${Math.round(x.grade * 100)}%`));

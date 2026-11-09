@@ -380,7 +380,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // transformed per instance, join the bake as occluder-only phantoms — a tree canopy darkens
   // the terrain under every instance without the phantoms ever entering the render payload.
   const aoPhantoms = aoOpts && repEntries.length
-    ? repEntries.flatMap(({ r, tpl }) => instanceOccluderFaces(tpl, r.transforms))
+    ? repEntries.flatMap(({ r, tpl }) => (r.occlude === false ? [] : instanceOccluderFaces(tpl, r.transforms)))   // (a repeat that says `occlude: false`, a parked car, a window, darkens nothing)
     : [];
   const expanded2 = aoOpts
     ? bakeAmbientOcclusion(expanded1, aoPhantoms.length ? { ...aoOpts, extraOccluders: aoPhantoms } : aoOpts)

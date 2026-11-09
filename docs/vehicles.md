@@ -16,6 +16,13 @@ race machines, the craft shelf) are frozen behind the registry.
 - `doors.js` is how the doors resolve a vehicle word.
 - `tier.js` and `ride.js` cover how a vehicle is ridden at its tier.
 
+## In a metro
+
+A geocity keeps its vehicles by role ([geocity/fleets.js](../control/lib/graph/geocity/fleets.js)): each fleet's rows are
+registry words read to the realistic body each stands as. A row the registry builds no realistic body for yet (a taxi, a
+police car, an ambulance, a fire engine) names the body it stands as. Each role is kept in its yard, a parking block the
+metro's design gives it.
+
 ## Road
 
 The car designer ([car-designer/](../control/lib/graph/car-designer/)) builds road bodies.

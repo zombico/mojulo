@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { townFleet, carModel, pickCar, parkCar, carRepeats, TOWN_CARS, CAR_PAINT_HEX } from './cars.js';
+import { townFleet, carModel, pickCar, parkCar, carRepeats, TOWN_CARS, CAR_PAINT_HEX, ROOF_EXTRAS } from './cars.js';
 import { mulberry32 } from '../city/plan/dice.js';
 
 describe('the town\'s cars: the registry\'s family cars, instanced', () => {
@@ -36,5 +36,21 @@ describe('the town\'s cars: the registry\'s family cars, instanced', () => {
     expect(trim.every((r) => r.transforms.every((t) => t.tint === undefined))).toBe(true);
     // (the same list, the same repeats)
     expect(JSON.stringify(carRepeats(list, { group: 'g' }).map((r) => r.transforms))).toBe(JSON.stringify(reps.map((r) => r.transforms)));
+  });
+
+  it('compiles a realistic loft by its class as a model too, its roof found on its cab, an extra stood on it', () => {
+    const m = carModel('loft:van');
+    expect(m.paint.length).toBeGreaterThan(50);
+    expect(m.L).toBeGreaterThan(5);
+    // (a van's roof extra on its cab, the front third)
+    expect(m.roof.y).toBeGreaterThan(m.L / 6 - 0.5);
+    expect(m.roof.z).toBeGreaterThan(2);
+    const list = [];
+    parkCar(list, { x: 1, y: 2, z: 0, heading: 0.5, paint: '#f4f4f0', model: 'loft:van', extra: 'lightbar-r' });
+    parkCar(list, { x: 9, y: 2, z: 0, heading: 0.5, paint: '#f4f4f0', model: 'loft:van' });
+    const reps = carRepeats(list, { group: 'g' }), bar = reps.find((r) => r.group === 'g-lightbar-r');
+    expect(bar.transforms).toHaveLength(1);
+    expect(Math.min(...bar.template.flatMap((f) => f.corners.map((c) => c[2])))).toBeGreaterThanOrEqual(m.roof.z - 0.03);
+    expect(Object.keys(ROOF_EXTRAS)).toEqual(expect.arrayContaining(['lightbar-rb', 'lightbar-r', 'beacon', 'taxi-sign']));
   });
 });
