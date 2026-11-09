@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { streetOf, stepStreet, readWaves, crowdFighter, CROWD_TYPES, CROWD_TYPE_IDS, CROWD_RULES } from './brawl-crowd.js';
+import { streetOf, stepStreet, readWaves, crowdFighter, readPlays, playSlot, CROWD_TYPES, CROWD_TYPE_IDS, CROWD_RULES, CROWD_PLAYS } from './brawl-crowd.js';
+import { brawlFighter } from './brawl-moves.js';
 import { newReader, readButtons } from './brawl-moves.js';
 import { readBelt, viewHalf } from './brawl-belt.js';
 import { brawlHash } from './brawl-core.js';
@@ -38,15 +39,29 @@ function bot() {
 }
 
 describe('brawl crowd: its words', () => {
-  it('every type is a fighter; the knife is armed, the heavy alone grabs', () => {
+  it('every type is a brawler\'s body: its fighter, its plays all on it; the knife is armed, the heavy alone grabs', () => {
     for (const id of CROWD_TYPE_IDS) {
       const F = crowdFighter(id);
       expect(F.hp, id).toBe(CROWD_TYPES[id].hp);
       if (CROWD_TYPES[id].weapon) expect(F.weapon?.kind, id).toBe(CROWD_TYPES[id].weapon);
-      if (CROWD_TYPES[id].attack !== 'chain' && CROWD_TYPES[id].attack !== 'grab') expect(F.moves[CROWD_TYPES[id].attack], id).toBeTruthy();
+      expect(() => readPlays(CROWD_TYPES[id].plays, F, id)).not.toThrow();
+      // (every move a player has, a thug has too)
+      for (const slot of ['chain.1', 'strong', 'strong.break', 'strong.out', 'strong.air', 'strong.dive', 'run.attack', 'air.L', 'air.M', 'desperate']) expect(F.moves[slot], `${id} ${slot}`).toBeTruthy();
     }
+    expect(() => readPlays(['chain', 'sing'], crowdFighter('thug'))).toThrow(/play/);
     const st = streetOf({ belt, players: [hero()], waves: [{ screen: 1, crowd: [{ type: 'thug', n: 1 }, { type: 'heavy', n: 1 }] }] });
     expect(st.s.bodies.map((p) => !!p.ng)).toEqual([false, true, false]);
+  });
+  it('a type\'s own timing and damage: its blows later and lighter (or heavier) than the same fighter\'s untuned', () => {
+    const T = CROWD_TYPES.heavy, F = crowdFighter('heavy');
+    const plain = brawlFighter({ ...solveFighter({ id: 'heavy', archetype: T.archetype }).recipe, archetype: T.archetype, hp: T.hp });
+    for (const slot of ['chain.1', 'run.attack', 'air.M']) {
+      expect(F.moves[slot].startup, slot).toBe(plain.moves[slot].startup + T.tune.startup);
+      expect(F.moves[slot].recovery, slot).toBe(plain.moves[slot].recovery + T.tune.recovery);
+      expect(F.moves[slot].damage, slot).toBe(Math.round((plain.moves[slot].damage * T.tune.damage) / 100));
+    }
+    expect(F.moves.strong.cool).toBe(Math.round((plain.moves.strong.cool * T.tune.cool) / 100));
+    expect(F.moves.desperate.damage).toBe(Math.round((plain.moves.desperate.damage * (plain.moves.desperate.hits || 1) * T.tune.damage) / 100 / (plain.moves.desperate.hits || 1)));
   });
   it('a wave holds a held screen, once; its crowd is a known type', () => {
     expect(() => readWaves([{ screen: 0, crowd: [{ type: 'thug', n: 1 }] }], belt)).toThrow(/held/);
@@ -78,20 +93,44 @@ describe('brawl crowd: the tokens', () => {
   });
 });
 
-describe('brawl crowd: each type throws its own', () => {
-  for (const id of ['charger', 'jumper', 'heavy']) {
-    it(`${id}: ${CROWD_TYPES[id].says}`, () => {
-      const log = standing([{ type: id, n: 1 }], 600);
-      const ev = log.flatMap((st) => st.s.events);
-      if (CROWD_TYPES[id].attack === 'grab') {
-        expect(ev.some((e) => e.t === 'grab' && e.clinch && e.d === 0)).toBe(true);
-        expect(ev.some((e) => e.t === 'throw' && e.d === 0)).toBe(true);
-      } else {
-        expect(log.some((st) => st.s.bodies[1].mv === CROWD_TYPES[id].attack)).toBe(true);
-        expect(ev.some((e) => e.t === 'hit' && e.d === 0 && e.p === 1)).toBe(true);
-      }
+describe('brawl crowd: every play a player\'s move', () => {
+  // (one test a play: a street of one type that has it, the moves its body threw, and whether one landed on the player)
+  const typeWith = (play) => CROWD_TYPE_IDS.find((id) => CROWD_TYPES[id].plays.includes(play));
+  const thrown = (id, frames = 2400) => {
+    const log = standing([{ type: id, n: 1 }], frames);
+    return { mvs: new Set(log.map((st) => st.s.bodies[1].mv).filter(Boolean)), sts: new Set(log.map((st) => st.s.bodies[1].st)), ev: log.flatMap((st) => st.s.events) };
+  };
+  const cases = { chain: 'chain.1', break: 'strong.break', blowout: 'strong.out', strong: 'strong', run: 'run.attack', kick: 'air.M', dive: 'strong.dive', 'special.back': 'special.back.M', 'special.down': 'special.down.M' };
+  for (const [play, slot] of Object.entries(cases)) {
+    it(`${play}: ${CROWD_PLAYS[play.startsWith('special.') ? 'special' : play]}`, () => {
+      const id = typeWith(play);
+      expect(id, play).toBeTruthy();
+      expect(playSlot(play)).toBe(play === 'break' || play === 'blowout' ? 'chain.1' : slot);
+      const { mvs, ev } = thrown(id);
+      expect([...mvs], `${id} ${play}`).toContain(slot);
+      expect(ev.some((e) => e.t === 'hit' && e.d === 0 && e.p === 1), id).toBe(true);
     });
   }
+  it('grab: it walks into the player, takes hold, knees and throws', () => {
+    const { ev } = thrown(typeWith('grab'), 900);
+    expect(ev.some((e) => e.t === 'grab' && e.clinch && e.d === 0)).toBe(true);
+    expect(ev.some((e) => e.t === 'throw' && e.d === 0)).toBe(true);
+  });
+  it('desperate: held by a player, it breaks out with its desperation', () => {
+    const id = typeWith('desperate');
+    // (the player walks into it and holds on)
+    let st = streetOf({ belt, players: [hero(99999)], waves: [{ screen: 1, crowd: [{ type: id, n: 1 }] }] });
+    st.s.bodies[0].x = 22000;
+    let r = newReader(), broke = false;
+    for (let k = 0; k < 900 && !broke; k++) {
+      const me = st.s.bodies[0], t = st.s.bodies[1];
+      const b = t.gone ? {} : Math.abs(t.z - me.z) > 150 ? { z: Math.sign(t.z - me.z) } : { x: Math.sign(t.x - me.x) || 1 };
+      const [pad, r2] = readButtons(r, me.st === 'hold' ? {} : b, me, st.ctx.fighters[0]); r = r2;
+      st = stepStreet(st, [pad]);
+      broke = st.s.bodies[1].mv === 'desperate';
+    }
+    expect(broke).toBe(true);
+  });
 });
 
 describe('brawl crowd: the waves', () => {
@@ -130,7 +169,8 @@ describe('brawl crowd: the waves', () => {
     const struck = ev.find(([, e]) => e.t === 'hit' && e.p === 0 && e.kind !== 'flung');
     const id = struck[1].d, at = log.indexOf(struck[2]);
     const after = log.slice(at, at + 200);
-    expect(after.slice(0, 3).every((x) => !(x.mind.tok[0] ?? []).includes(id))).toBe(true);
+    // (from the frame after the blow: the mind thinks before the step the blow lands in)
+    expect(after.slice(1, 4).every((x) => !(x.mind.tok[0] ?? []).includes(id))).toBe(true);
     expect(after.some((x) => { const p = x.s.bodies[id]; return p.ko || Math.abs(p.x - x.s.bodies[0].x) > CROWD_RULES.ring / 2; })).toBe(true);
   });
 });

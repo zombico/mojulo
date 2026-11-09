@@ -29,7 +29,10 @@
  *                slots, in order), the forward finisher's slot, its grabs' strength (% of the brawl's knee and suplex,
  *                of the fighter's throw), its strong blow ({ slot, air, cool }: the fight's slots it is thrown with,
  *                standing and in the air, and its cooldown), its running blow's slot (`run`)
- *   brawlFighter(recipe, { style? })  → the fight's compiled fighter (versus-compile.js) with the brawler's rows:
+ *   brawlFighter(recipe, { style?, tune? })  → the fight's compiled fighter (versus-compile.js) with the brawler's rows
+ *                (`tune`, BRAWL_TUNE: a body's own timing and damage, a foe's: { damage %, startup ±, recovery ±,
+ *                cool % }, laid on every normal, special, the throw and the desperation through the fight's own
+ *                per-move `tune`, so its frames are re-laid, before the brawler's rows are made over them):
  *                `chain.1` … `chain.n` (each following on to the next on a connect), `chain.nf` the forward finisher,
  *                the strong blows `strong`, `strong.break`, `strong.out`, `strong.air`, `strong.dive` (each with its `cool`),
  *                `run.attack`,
@@ -75,14 +78,55 @@ export const DIVES = Object.freeze({ stomp: Object.freeze([0, 70]), kick: Object
 /** frames between a stick's two taps the same way that make a dash */
 export const DASH_WAIT = 12;
 
+/** A body's own timing and damage (a foe's; a player's is the fight's): what each key reads, its range. */
+export const BRAWL_TUNE = Object.freeze({
+  damage: Object.freeze([10, 400]),     // % of each blow's damage
+  startup: Object.freeze([-20, 40]),    // frames on each blow's startup (never under one)
+  recovery: Object.freeze([-20, 40]),   // frames on each blow's recovery (never under one; an airborne move has none)
+  cool: Object.freeze([25, 400]),       // % of the strong's cooldown
+});
+function readBrawlTune(T) {
+  if (T === undefined || T === null) return null;
+  if (typeof T !== 'object' || Array.isArray(T)) throw new Error('brawl: a tune is { damage?, startup?, recovery?, cool? }');
+  for (const [k, v] of Object.entries(T)) {
+    const r = BRAWL_TUNE[k];
+    if (!r) throw new Error(`brawl: a tune has no '${k}' (${Object.keys(BRAWL_TUNE).join(', ')})`);
+    if (!(Number.isInteger(v) && v >= r[0] && v <= r[1])) throw new Error(`brawl: tune.${k} is a whole number from ${r[0]} to ${r[1]}`);
+  }
+  return T;
+}
+/** the fight's per-move tune that lays a body's tune on one compiled move (only what the move reads) */
+function tuneOn(m, T) {
+  if (!m) return {};
+  const out = {};
+  if (T.startup) out.startup = Math.max(1, m.startup + T.startup);
+  if (T.recovery && !m.airborne && Number.isInteger(m.recovery)) out.recovery = Math.max(1, m.recovery + T.recovery);
+  if (T.damage !== undefined && T.damage !== 100 && m.damage > 0 && !m.nohit && !m.projectile) out.damage = Math.max(1, Math.round((m.damage * (m.hits || 1) * T.damage) / 100));   // (a tune's damage is the move's whole)
+  return out;
+}
+// (a special's tune per strength, over its own)
+const strengthsOn = (F0, slot, T, own = {}) => Object.fromEntries([...Object.entries(own), ...['L', 'M', 'H'].filter((st) => F0.moves[`${slot}.${st}`]).map((st) => [st, { ...(own[st] ?? {}), ...tuneOn(F0.moves[`${slot}.${st}`], T) }])]);
+/** a recipe with a body's tune laid on its normals, its specials and its throw */
+function tunedRecipe(recipe, T) {
+  const F0 = compileFighter(recipe);
+  const normals = Object.fromEntries(Object.entries(recipe.normals ?? {}).map(([slot, n]) => [slot, { ...n, tune: { ...(n.tune ?? {}), ...tuneOn(F0.moves[slot], T) } }]));
+  const specials = recipe.specials ? Object.fromEntries(Object.entries(recipe.specials).map(([d, sp]) => [d, { ...sp, tune: strengthsOn(F0, `special.${d}`, T, sp.tune) }])) : undefined;
+  const th = F0.moves.throw && T.damage !== undefined && T.damage !== 100 ? { throw: { ...(recipe.throw ?? {}), tune: { ...(recipe.throw?.tune ?? {}), damage: Math.max(1, Math.round((F0.moves.throw.damage * T.damage) / 100)) } } } : {};
+  return { ...recipe, normals, ...(specials ? { specials } : {}), ...th };
+}
+
 /** The brawler's fighter: the fight's compiled record and the brawler's rows over it. */
-export function brawlFighter(recipe, { style: id } = {}) {
-  const sid = id ?? recipe.archetype ?? 'all-rounder';
+export function brawlFighter(recipe0, { style: id, tune } = {}) {
+  const sid = id ?? recipe0.archetype ?? 'all-rounder';
   const S = BRAWL_STYLES[sid];
   if (!S) throw new Error(`brawl: a style is one of ${BRAWL_STYLE_IDS.join(', ')}`);
+  const T = readBrawlTune(tune);
+  const recipe = T ? tunedRecipe(recipe0, T) : recipe0;
   const F = compileFighter(recipe);
-  // (the desperation compiled on the same body and stance, as a special at down; the brawler's own slot)
-  const D = compileFighter({ ...recipe, specials: { ...(recipe.specials ?? {}), down: { id: DESPERATION } } }).moves['special.down.M'];
+  // (the desperation compiled on the same body and stance, as a special at down; the brawler's own slot; tuned as the
+  // rest of the body is)
+  const desperate = (tn) => compileFighter({ ...recipe, specials: { ...(recipe.specials ?? {}), down: { id: DESPERATION, ...(tn ? { tune: tn } : {}) } } });
+  const D = T ? desperate(strengthsOn(desperate(null), 'special.down', T)).moves['special.down.M'] : desperate(null).moves['special.down.M'];
   const moves = { ...F.moves, desperate: { ...D, slot: 'desperate' } };
   const n = S.chain.length;
   S.chain.forEach((src, k) => {
@@ -96,7 +140,7 @@ export function brawlFighter(recipe, { style: id } = {}) {
   for (const k of ['slot', 'air']) if (!F.moves[S.strong[k]]) throw new Error(`brawl: style ${sid}'s strong names ${S.strong[k]}, which the fighter has not`);
   const heavy = (src, slot, extra) => {
     const m = F.moves[src];
-    return { ...m, slot, damage: Math.round((m.damage * STRONG.damage) / 100), hitstun: m.hitstun + STRONG.stun, cool: Math.max(S.strong.cool, m.total + STRONG.rest), strong: 1, ...extra };
+    return { ...m, slot, damage: Math.round((m.damage * STRONG.damage) / 100), hitstun: m.hitstun + STRONG.stun, cool: Math.round((Math.max(S.strong.cool, m.total + STRONG.rest) * (T?.cool ?? 100)) / 100), strong: 1, ...extra };
   };
   moves.strong = heavy(S.strong.slot, 'strong', { chain: ['chain.2'].filter((x) => moves[x]), knock: 'none' });
   moves['strong.break'] = heavy(S.strong.slot, 'strong.break', { chain: [], knock: 'down' });

@@ -69,3 +69,14 @@
   KICK; strong straight up the STOMP (straight down), with a direction the DIVE KICK (down at a slant: an air move's
   `dive` sets its flight), both knocking down. A move that passes THROUGH (the fight's roll, its blink) has no push box
   while it travels, so it goes through the crowd it would bump.
+- Foes are bodies: a thug is a brawler as a player is, with every move a player has (the chain, the strong and its
+  enders, the run, every air blow, the desperation, its specials), only its own TIMING AND DAMAGE and its REPERTOIRE.
+  `brawlFighter(recipe, { tune })` lays a body's tune (`BRAWL_TUNE`: damage %, startup and recovery ± frames, the
+  strong's cooldown %) on every normal, special, the throw and the desperation through the fight's own per-move tune, so
+  its frames are re-laid; a crowd type (`CROWD_TYPES`) carries its tune and its `plays` (`CROWD_PLAYS`: chain, strong,
+  break, blowout, run, kick, dive, grab, a special by direction, desperate: held, it breaks out). A body given a token
+  picks one of its plays (by its own hash; a strong one only off its cooldown) and closes to where it starts: in reach
+  for a blow (stopping as it touches, or its walk would take hold), a jump away for a leap, the ring's edge for a run.
+  The token and one-attacker-at-a-time rules hold for every play. The thug sometimes breaks its chain off with a
+  knockdown or leaps in; the knife runs in; the charger blows the player away; the jumper flying-kicks and dive-kicks;
+  the heavy, slow and hard-hitting, swings its strong and breaks out of a hold.

@@ -9,10 +9,13 @@
  *     other body is already swinging at them, so a player always gets a frame to act between two attackers' blows.
  *   • BACK OFF WHEN HURT: a body struck gives its token back; once up, it backs away to the ring and waits `cool` frames
  *     before it asks again (as after any attack of its own).
- *   • TYPES as recipes (CROWD_TYPES): a fighter from the fight's solver (an archetype, a weapon, its health) and a role:
- *     what it throws (`chain` its first blows, a special by its slot, or `grab`: it walks into the player to take hold,
- *     knees and throws), how much of its chain. The thug, the knife, the charger (a rush from range), the jumper (a
- *     leaping overhead), the heavy (a big body that grabs).
+ *   • EVERYONE IS A BODY: a thug is a brawler as a player is (brawl-moves.js brawlFighter: the chain, the strong, the
+ *     run, every air blow, the desperation, its specials), only its own TIMING AND DAMAGE (`tune`, BRAWL_TUNE) and its
+ *     REPERTOIRE (`plays`, CROWD_PLAYS: the player's own moves as its commands). TYPES as recipes (CROWD_TYPES): a
+ *     fighter from the fight's solver (an archetype, a weapon, its health), its tune, its plays, how much of its chain.
+ *     A body given a token picks one of its plays (by its own hash; a strong one only off its cooldown) and closes to
+ *     where that play starts: in reach for a blow, a jump away for a leap, the ring's edge for a run. The thug, the
+ *     knife, the charger (a rush from range), the jumper (leaps), the heavy (a big slow body that grabs).
  *   • WAVES: each held screen's crowd (`waves: [{ screen, crowd: [{ type, n }] }]`), waiting offstage until a player walks
  *     into its screen (a held screen with no wave is open from the start), entering by turns from the view's right edge, its left and the street's back, at most `limit`
  *     on the street at once (the rest as others fall); the screen's gate opens (`cleared`) when the last falls.
@@ -37,19 +40,33 @@
 import { solveFighter } from '../versus/versus-solver.js';
 import { cpuPad, newCpuMemory, CPU_LEVELS } from '../versus/versus-cpu.js';
 import { BTN } from '../versus/versus-input.js';
-import { brawlFighter } from './brawl-moves.js';
+import { brawlFighter, STRONG_SLOTS } from './brawl-moves.js';
 import { newBrawl, stepBrawl } from './brawl-core.js';
 import { viewHalf } from './brawl-belt.js';
 import { readThings } from './brawl-things.js';
 
-/** what a thug is: its fighter (an archetype, a weapon, its health) and what it throws */
-const type = (says, o) => Object.freeze({ says, ...o });
+/** THE PLAYS: a player's own moves, as the crowd throws them (each a body's command, as a player's buttons make it) */
+export const CROWD_PLAYS = Object.freeze({
+  chain: 'in reach: its chain, `combo` blows of it',
+  strong: 'in reach: the strong opener, its chain after it',
+  break: 'its chain, ended early by the breaker',
+  blowout: 'its chain, ended by the blowout: the player flung',
+  run: 'from the ring\'s edge: it runs in and throws the running blow',
+  kick: 'from a jump away: it leaps in, the flying kick',
+  dive: 'from a jump away: it leaps in, the dive kick down at a slant',
+  grab: 'it walks into the player to take hold, knees and throws',
+  special: '`special.<neutral | forward | back | down>`: its special at that direction',
+  desperate: 'held: it breaks out with its desperation, paying its price',
+});
+const STRONG_PLAYS = new Set(['strong', 'break', 'blowout', 'dive']);
+/** what a thug is: its fighter (an archetype, a weapon, its health), its timing and damage, what it throws */
+const type = (says, o) => Object.freeze({ says, ...o, tune: Object.freeze(o.tune ?? {}), plays: Object.freeze(o.plays) });
 export const CROWD_TYPES = Object.freeze({
-  thug: type('the street\'s own: walks in, throws two or three of its chain', { archetype: 'all-rounder', hp: 260, attack: 'chain', combo: 3 }),
-  knife: type('quick and armed: a knife in the lead hand, two cuts and away', { archetype: 'rushdown', hp: 180, weapon: 'knife', attack: 'chain', combo: 2 }),
-  charger: type('a rush from range: it lines up far off and runs the player down', { archetype: 'all-rounder', hp: 300, attack: 'special.back.M' }),
-  jumper: type('a leaping overhead: it comes down on the player from a step away', { archetype: 'rushdown', hp: 220, attack: 'special.down.M' }),
-  heavy: type('a big body that grabs: it walks into the player, knees and throws', { archetype: 'grappler', hp: 600, attack: 'grab', combo: 2, knees: 2 }),
+  thug: type('the street\'s own: walks in, throws two or three of its chain (now and then broken off with a knockdown), or leaps in with a kick; a beat slow, a little weaker than a player', { archetype: 'all-rounder', hp: 260, tune: { damage: 80, startup: 2, recovery: 3 }, plays: ['chain', 'chain', 'break', 'kick'], combo: 3 }),
+  knife: type('quick and armed: a knife in the lead hand, two cuts and away, or a run in with the blade', { archetype: 'rushdown', hp: 180, weapon: 'knife', tune: { damage: 90, startup: 1, recovery: 2 }, plays: ['chain', 'chain', 'run'], combo: 2 }),
+  charger: type('a rush from range: it lines up far off and runs the player down, or blows them away down the street', { archetype: 'all-rounder', hp: 300, tune: { damage: 90, startup: 2 }, plays: ['special.back', 'special.back', 'run', 'blowout'], combo: 2 }),
+  jumper: type('it leaps: a leaping overhead, a flying kick, a dive kick from a jump away', { archetype: 'rushdown', hp: 220, tune: { damage: 85, startup: 1, recovery: 2 }, plays: ['special.down', 'kick', 'dive'], combo: 2 }),
+  heavy: type('a big slow body that grabs: it walks into the player, knees and throws, or swings its strong; held, it breaks out', { archetype: 'grappler', hp: 600, tune: { damage: 110, startup: 4, recovery: 5, cool: 140 }, plays: ['grab', 'grab', 'strong', 'break', 'desperate'], combo: 2, knees: 2 }),
 });
 export const CROWD_TYPE_IDS = Object.freeze(Object.keys(CROWD_TYPES));
 
@@ -100,11 +117,24 @@ export function readWaves(waves, belt) {
   }).sort((a, b) => a.screen - b.screen);
 }
 
-/** A thug's fighter: its archetype's recipe from the fight's solver, its weapon and health. */
+/** A thug's fighter: its archetype's recipe from the fight's solver, its weapon and health, its own timing and damage. */
 export function crowdFighter(id) {
   const T = CROWD_TYPES[id];
   const recipe = { ...solveFighter({ id, archetype: T.archetype }).recipe, archetype: T.archetype, id, name: id, hp: T.hp, ...(T.weapon ? { weapon: T.weapon } : {}) };
-  return brawlFighter(recipe);
+  return brawlFighter(recipe, { tune: T.tune });
+}
+/** a play's move slot (a special's at its strength M), or null for one that is not a single blow */
+export const playSlot = (play) => (play.startsWith('special.') ? `${play}.M` : { chain: 'chain.1', break: 'chain.1', blowout: 'chain.1', strong: 'strong', run: 'run.attack', kick: 'air.M', dive: 'strong.dive', desperate: 'desperate' }[play] ?? null);
+/** a type's plays read: each one a play, its moves on the fighter */
+export function readPlays(plays, F, where = 'plays') {
+  if (!Array.isArray(plays) || !plays.length) throw new Error(`brawl: ${where} is a list of plays (${Object.keys(CROWD_PLAYS).join(', ')})`);
+  for (const p of plays) {
+    const base = p.startsWith('special.') ? 'special' : p;
+    if (!CROWD_PLAYS[base]) throw new Error(`brawl: ${where} has no play '${p}' (${Object.keys(CROWD_PLAYS).join(', ')})`);
+    const slot = playSlot(p);
+    if (slot && !F.moves[slot]) throw new Error(`brawl: ${where}'s ${p} needs ${slot}, which the fighter has not`);
+  }
+  return plays;
 }
 
 /** A street to fight down: the players at its start, every wave's crowd waiting offstage, the crowd's mind. */
@@ -127,7 +157,7 @@ export function streetOf({ belt, players, waves = [], things, rules, crowd } = {
       fighters.push(brawlFighter({ ...w.boss.recipe, ...(w.boss.hp ? { hp: w.boss.hp } : {}) }));
       bodies.push({ fighter: fighters.length - 1, side: 'crowd', x: 0, z: 0, wave: k }); kinds.push('boss');
     }
-    for (const c of w.crowd) for (let j = 0; j < c.n; j++) { bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].attack === 'grab' ? {} : { grabs: false }) }); kinds.push(c.type); }
+    for (const c of w.crowd) for (let j = 0; j < c.n; j++) { bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].plays.includes('grab') ? {} : { grabs: false }) }); kinds.push(c.type); }
   });
   // the street's things, and each player's armed self for every weapon among them (in a box or not)
   const T = things ? readThings(things, belt) : [];
@@ -160,13 +190,21 @@ const holding = (M, pid) => (M.tok[pid] ??= []);
 function giveBack(M, id) {
   for (const k of Object.keys(M.tok)) M.tok[k] = M.tok[k].filter((j) => j !== id);
 }
-/** where a body's blow reaches from (mm, its front to the foe's centre), by what it throws */
-function reachOf(F, attack) {
-  if (attack === 'grab') return 0;
-  const m = F.moves[attack === 'chain' ? 'chain.1' : attack];
+/** where a body's blow reaches from (mm, its front to the foe's centre), by its move's slot */
+function reachOf(F, slot) {
+  const m = F.moves[slot];
   if (!m) return 700;
   // (a move that travels reaches its travel further)
   return Math.round(m.reach + (m.travel ?? 0) * Math.max(0, m.startup + m.active - 2));
+}
+/** how far a jump carries along the belt, over its flight (mm) */
+const jumpCarry = (F) => Math.round((F.jump.vx * 2 * F.jump.vy) / F.jump.g);
+// (a run starts from this far at least: closer, the body throws its chain instead)
+const RUN_FROM = 1600;
+/** the play a body given a token throws: one of its type's, by its own hash; a strong play only off its cooldown */
+function pickPlay(kind, p, s) {
+  const can = kind.plays.filter((q) => q !== 'desperate' && !(STRONG_PLAYS.has(q) && p.cd > 0));
+  return can.length ? can[Math.floor(vary(p.id, s.f) * can.length)] : 'chain';
 }
 // a pad that walks toward a point, still within `dead` of it
 const toward = (p, x, z, dead) => ({ x: Math.abs(x - p.x) > dead ? sgn(x - p.x) : 0, z: Math.abs(z - p.z) > dead ? sgn(z - p.z) : 0 });
@@ -193,6 +231,8 @@ function think(s, ctx, M) {
     const kind = CROWD_TYPES[M.type[p.id]], F = ctx.fighters[p.fi];
     if (m.cool > 0) m.cool--;
     // struck: the token given back; once up, back off and wait
+    // held, a body with the desperation in its plays breaks out with it (paying its price), a moment in
+    if (p.st === 'held' && kind.plays.includes('desperate') && p.sf >= 24 && p.hp > (F.moves.desperate.price ?? 0)) { giveBack(M, p.id); pads[p.id] = { mv: 'desperate' }; continue; }
     if (HURT.has(p.st)) {
       giveBack(M, p.id);
       if (m.mode !== 'recover') { m.mode = 'recover'; m.t = 0; m.cool = Math.max(m.cool, R.cool[0] + Math.round((R.cool[1] - R.cool[0]) * vary(p.id, s.f))); }
@@ -209,14 +249,31 @@ function think(s, ctx, M) {
     const side0 = sgn(p.x - T.x) || (p.id % 2 ? 1 : -1);
     const mine = holding(M, T.id);
     const has = mine.includes(p.id);
-    // ── what it throws (its blow under way: the chain run on, a grab held on to) ──
-    if (p.st === 'move' && p.mv && p.mv.startsWith('chain.')) {
-      const k = parseInt(p.mv.slice(6), 10);
-      pads[p.id] = k < Math.min(kind.combo ?? 1, F.brawl.chain) ? { mv: `chain.${k + 1}` } : {};
+    // ── its play under way: the chain run on (to its ender), the run to its blow, the leap to its kick ──
+    const dxT = Math.abs(p.x - T.x);
+    if (p.st === 'move' && p.mv && (p.mv.startsWith('chain.') || p.mv === 'strong')) {
+      const k = p.mv === 'strong' ? 1 : parseInt(p.mv.slice(6), 10), n = Math.min(kind.combo ?? 1, F.brawl.chain);
+      const ender = m.play === 'break' ? 'strong.break' : m.play === 'blowout' ? 'strong.out' : null;
+      // (the ender once its chain is thrown, never off the chain's last blow)
+      pads[p.id] = k < n ? { mv: `chain.${k + 1}` } : ender && k < F.brawl.chain && p.mv !== 'strong' ? { mv: ender } : {};
       m.swung = 1;
       continue;
     }
-    if (p.st === 'move' || p.st === 'air' || p.st === 'prejump' || p.st === 'throwing') { m.swung = 1; pads[p.id] = {}; continue; }
+    if (p.st === 'run') {
+      m.swung = 1;
+      // (on toward the player, the running blow once in its reach; too long a run, it stops)
+      pads[p.id] = dxT <= reachOf(F, 'run.attack') - 100 ? { mv: 'run.attack', x: p.face } : m.t > 150 || sgn(T.x - p.x) !== p.face ? {} : { x: p.face };
+      continue;
+    }
+    if (p.st === 'air' || p.st === 'prejump') {
+      m.swung = 1;
+      // (the leap's blow: the dive kick from its height as it turns down, the flying kick as it comes into reach)
+      const blow = m.play === 'dive' ? 'strong.dive' : m.play === 'kick' ? 'air.M' : null;
+      const now = blow && p.st === 'air' && !p.airMove && (blow === 'strong.dive' ? p.vy <= 0 : p.vy <= 30 && dxT <= reachOf(F, 'air.M') + 300);
+      pads[p.id] = now ? { mv: blow } : {};
+      continue;
+    }
+    if (p.st === 'move' || p.st === 'throwing') { m.swung = 1; pads[p.id] = {}; continue; }
     // ── its blow over: the token back, away to the ring, a while before it asks again ──
     if (has && m.swung && FREE.has(p.st)) {
       giveBack(M, p.id); m.swung = 0; m.mode = 'recover'; m.t = 0;
@@ -224,20 +281,31 @@ function think(s, ctx, M) {
     }
     if (m.mode === 'approach' && (!has || m.t > R.approach)) { giveBack(M, p.id); m.mode = 'recover'; m.t = 0; m.cool = R.cool[0]; }
     // ── a token, when one is free and its wait is over ──
-    if (m.mode !== 'approach' && m.cool === 0 && mine.length < R.tokens && !mine.includes(p.id)) { mine.push(p.id); m.mode = 'approach'; m.t = 0; m.swung = 0; }
+    if (m.mode !== 'approach' && m.cool === 0 && mine.length < R.tokens && !mine.includes(p.id)) { mine.push(p.id); m.mode = 'approach'; m.t = 0; m.swung = 0; m.play = pickPlay(kind, p, s); }
     if (m.mode === 'approach') {
-      const reach = reachOf(F, kind.attack), front = F.idle.stand.push[2];
+      const play = m.play ?? 'chain', front = F.idle.stand.push[2];
       const side = side0;
-      // (lined up across the belt first, then in to the blow's reach; the grab walks into the body)
-      const zOk = Math.abs(p.z - T.z) <= lineUp;
-      const want = kind.attack === 'grab' ? 0 : Math.max(front + 150, reach - 160);
       const dx = Math.abs(p.x - T.x);
+      // (a run from too close: the chain instead)
+      if (play === 'run' && dx < RUN_FROM - 400) m.play = 'chain';
+      // where the play starts: in its blow's reach; a leap a jump's carry away; a run from the ring's edge; a grab
+      // walking into the body
+      const leap = play === 'kick' || play === 'dive', run = m.play === 'run';
+      const want = play === 'grab' ? 0 : run ? RUN_FROM : leap ? Math.max(front + 150, Math.round(jumpCarry(F) * 0.6)) : Math.max(front + 150, reachOf(F, playSlot(m.play)) - 160);
+      // (touching, a blow's walk in stops there: walked on into a body, it would take hold of it, as a player's walk does)
+      const touching = dx <= front + ctx.fighters[T.fi].idle.stand.push[2] + 30;
+      // (lined up across the belt first, then in to where it starts)
+      const zOk = Math.abs(p.z - T.z) <= lineUp;
       if (!zOk) { pads[p.id] = { x: dx < want ? side : 0, z: sgn(T.z - p.z) }; continue; }
-      if (kind.attack === 'grab') { pads[p.id] = { x: -side, z: 0 }; continue; }
-      if (dx > want + R.dead) { pads[p.id] = { x: -side, z: 0 }; continue; }
-      // in reach and facing: it swings only when the player is free and no one else is swinging at them
+      if (play === 'grab') { pads[p.id] = { x: -side, z: 0 }; continue; }
+      if (dx > want + R.dead && !touching) { pads[p.id] = { x: -side, z: 0 }; continue; }
+      // there and facing: it starts only when the player is free and no one else is swinging at them
       const busy = swinging(B, T, p.id);
-      if (FREE.has(T.st) && !busy && !claimed.has(T.id) && p.face === -side && FREE.has(p.st)) { claimed.add(T.id); pads[p.id] = { mv: kind.attack === 'chain' ? 'chain.1' : kind.attack }; continue; }
+      if (FREE.has(T.st) && !busy && !claimed.has(T.id) && p.face === -side && FREE.has(p.st) && p.st !== 'run') {
+        claimed.add(T.id);
+        pads[p.id] = run ? { dash: 'run', x: -side } : leap ? { jump: true, x: -side } : { mv: playSlot(m.play) };
+        continue;
+      }
       pads[p.id] = {};
       continue;
     }
@@ -259,8 +327,9 @@ function think(s, ctx, M) {
   return pads;
 }
 
-/** another body of the crowd swinging at this player (in a move, holding, throwing) */
-const swinging = (B, T, id) => B.some((o) => o.side === 'crowd' && o.id !== id && !o.gone && !o.ko && o.tg === T.id && (o.st === 'move' || o.st === 'hold' || o.st === 'throwing'));
+/** another body of the crowd swinging at this player (in a move, holding, throwing, or on its way to a blow: a run in,
+ * a leap in) */
+const swinging = (B, T, id) => B.some((o) => o.side === 'crowd' && o.id !== id && !o.gone && !o.ko && o.tg === T.id && (o.st === 'move' || o.st === 'hold' || o.st === 'throwing' || o.st === 'run' || o.st === 'prejump' || o.st === 'air'));
 
 // ── the boss ─────────────────────────────────────────────────────────────────────────────────────────────────
 
