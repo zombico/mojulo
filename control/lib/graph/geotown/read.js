@@ -34,7 +34,12 @@
  *                                                                   // streetlights (0 none), `signals` a signal every n
  *                                                                   // crossings along a main or major street, `stops`
  *                                                                   // the share of local crossings stopped all ways
- *     blocks?:  { '<A1>': { use?: <segment type>, built?: false } },   // a block by hand, on the grid's board
+ *     access?:  'none' | 'lane' | 'mutual' | 'compact' | 'alley',  // how every houses block's households reach their
+ *                                                                   // cars (else each block's by the pattern's dice):
+ *                                                                   // compact, a drive and a one-car garage each beside
+ *                                                                   // the house; alley, a rear lane and a one-car garage
+ *                                                                   // each off it behind its apron
+ *     blocks?:  { '<A1>': { use?: <segment type>, built?: false, access? } },   // a block by hand, on the grid's board
  *     margin?:  metres of the land drawn round the town, its border (0–120, 12)
  *   }
  *
@@ -48,7 +53,10 @@ import { PATTERNS, PATTERN_IDS, DEFAULT_PATTERN, SEGMENTS, SEGMENT_IDS, SEGMENT_
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geotown: ${msg}`); };
-const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin', 'profile'];
+const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin', 'profile', 'access'];
+// a houses block's ACCESS (pattern.js `access`): how its households reach their cars
+export const ACCESS_IDS = Object.freeze(['none', 'lane', 'mutual', 'compact', 'alley']);
+const ACCESS_SAY = 'none, lane (a rear lane, garages off it here and there), mutual (shared drives between houses to garages at the back), compact (each house its own drive to its one-car garage beside it) or alley (a rear alley, every house its one-car garage off it behind an apron)';
 /**
  * THE EVOCATIONS: a game does not lay a neighbourhood out, it EVOKES one. A BLOCK SEGMENT (a block: houses back to back,
  * or shops on a main street, or a walk-up among houses, or a park) is the unit, a few buildings each designed on its
@@ -207,12 +215,13 @@ export function readGeotown(spec = {}) {
   }
   const blocks = {};
   if (spec.blocks !== undefined) {
-    if (!isObj(spec.blocks)) no('blocks is { \'A1\': { use?, built? } }, a block by its name on the grid');
+    if (!isObj(spec.blocks)) no('blocks is { \'A1\': { use?, built?, access? } }, a block by its name on the grid');
     for (const [id, b] of Object.entries(spec.blocks)) {
       const m = /^([A-D])([1-4])$/.exec(id);
       if (!m || LETTERS.indexOf(m[1]) >= grid[0] || Number(m[2]) > grid[1]) no(`blocks.${id} is not a block of a ${grid[0]} × ${grid[1]} grid (columns A… west to east, rows 1… south to north)`);
-      if (!isObj(b)) no(`blocks.${id} is { use?, built? }`);
-      for (const k of Object.keys(b)) if (!['use', 'built'].includes(k)) no(`blocks.${id}.${k} is not a setting (use, built)`);
+      if (!isObj(b)) no(`blocks.${id} is { use?, built?, access? }`);
+      for (const k of Object.keys(b)) if (!['use', 'built', 'access'].includes(k)) no(`blocks.${id}.${k} is not a setting (use, built, access)`);
+      if (b.access !== undefined && !ACCESS_IDS.includes(b.access)) no(`blocks.${id}.access is ${ACCESS_SAY}`);
       if (b.use !== undefined && !SEGMENT_IDS.includes(b.use)) no(`blocks.${id}.use is ${SEGMENT_IDS.join(', ')}`);
       if (b.use !== undefined && evoke === 'metro' && !['houses', 'park', 'school', 'sports'].includes(b.use)) no(`blocks.${id}.use is houses, park, school or sports in the town to scale (metro)`);
       if (b.built !== undefined && typeof b.built !== 'boolean') no(`blocks.${id}.built is false (laid, not yet built) or true`);
@@ -233,5 +242,6 @@ export function readGeotown(spec = {}) {
     if (p.curve !== undefined && !(typeof p.curve === 'number' && p.curve >= 0 && p.curve <= 30)) no('profile.curve is the metres a ramp eases in and out over at each crossing, 0 to 30');
     profile = { ...p };
   }
-  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin, ...(profile ? { profile } : {}) };
+  if (spec.access !== undefined && !ACCESS_IDS.includes(spec.access)) no(`access is ${ACCESS_SAY}`);
+  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin, ...(profile ? { profile } : {}), ...(spec.access !== undefined ? { access: spec.access } : {}) };
 }

@@ -114,3 +114,25 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   200 m (48 % and 31 %). Graded blocks step their pads more than draped ones (25 m over 400 m: 1.47 m against 0.94), so
   `pad-step` advises there. A town composed into a geocity keeps the metro's streets' ground. A town without `profile` is
   laid as before.
+- **A geotown parks the registry's cars.** Its parked cars were two painted boxes each (a body and a cabin). They are
+  now the vehicle registry's family cars (geotown/cars.js: a sedan, a hatchback, a crossover, an SUV, an estate, a
+  minivan, a supermini, each word read through its row to its car shelf card and compiled realistic), at the kerbs (each
+  nose the way its side of the street drives), on the front pads, the forecourts, a walk-up's lot, a shop's yard and a
+  school's or sports field's lot. A town parks hundreds, so each model is drawn once as an instanced repeat: its painted
+  body baked pale and tinted per car by its paint, its trim (glass, tyres, wheels, lamps) a second repeat on the same
+  transforms; the town's dice that placed and painted its cars are as they were, a model chosen by its own. A town's
+  counts say its `cars` and `carModels`. A page carries about 24,000 faces of templates more, and its box cars' faces
+  fewer. In the seventh generation the cars are the studio's bake, not lit by the form's light.
+- **Drives and one-car garages: a houses block's `access`.** A geotown's houses blocks reached their cars by a rear lane
+  (garages off it for a share), mutual drives between houses, or neither, by the pattern's dice. Now a town may say
+  which (`access`, every houses block's) and a block its own (`blocks: { A1: { access } }`), and two more are laid:
+  `compact`, each house its own drive from the walk, across its boulevard to the kerb, to a one-car garage beside the
+  house, its door a little back of the house's front (its lot a garage's bay wider, a semi's garage on its outer side,
+  no mansion on the block, the drive cutting the kerb's stalls, a car on a share of the drives); and `alley`, a rear
+  alley, every house a one-car garage at its yard's back off it, behind an apron ramped from its door down (or up) to the
+  alley, its sides retained, a car on a share of the aprons and the street's front yards whole. Each garage is solid
+  (`<plot>:garage`). The ledger closes over the new drives and garages; the laws read a compact lot's frontage and
+  coverage without its bay (a compact row laid to scale fills tight, a building at its least where its roll did not fit,
+  and stretches its fewer, wider lots up to a tenth), and the parking law counts a single garage and its drive or apron.
+  The pattern's dice take `compact` and `alley` shares, none by default: a town that asks neither is laid byte for byte
+  as before (its layout's hash unchanged on seven towns across the evocations, streetscapes and patterns).

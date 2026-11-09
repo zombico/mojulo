@@ -17,7 +17,7 @@
  *   stadium(w, h) → the area of a stadium (a rect w × h, its short ends half discs)
  *
  *   the drawn things, each → [{ corners, out, role, hex? }] in the block's frame, z up from the site's level:
- *   pitchOf(rect, R), trackOf(rect, band), diamondOf(rect, R), courtsOf(rect, n), hoopsOf(rect), lotOf(rect, R),
+ *   pitchOf(rect, R), trackOf(rect, band), diamondOf(rect, R), courtsOf(rect, n), hoopsOf(rect), lotOf(rect, R) (→ { faces, cars }),
  *   fieldhouseOf(rect), bleachersOf(u0, u1, v, toward), lightsOf(rect), flagOf(u, v), playgroundOf(rect, R),
  *   pavilionOf(rect), benchOf(u, v, along, facing), picnicOf(u, v)
  *
@@ -278,9 +278,10 @@ export function hoopsOf([u0, v0, u1, v1]) {
   return out;
 }
 
-/** A parking lot: its stalls painted, cars in some (yards.js, as a walk-up's lot). */
+/** A parking lot: its stalls painted, cars in some (yards.js, as a walk-up's lot) → { faces, cars: [{ u, v, along, hex }] }. */
 export function lotOf([u0, v0, u1, v1], R) {
-  return serviceOf('apartments', { w: u1 - u0, v0: v0, v1: v1, R }).faces.map((f) => ({ ...f, corners: f.corners.map(([u, v, z]) => [r4(u + u0), v, z]) }));
+  const L = serviceOf('apartments', { w: u1 - u0, v0: v0, v1: v1, R });
+  return { faces: L.faces.map((f) => ({ ...f, corners: f.corners.map(([u, v, z]) => [r4(u + u0), v, z]) })), cars: L.cars.map((c) => ({ ...c, u: r4(c.u + u0) })) };
 }
 
 /** A field house: its walls, a low hip roof over them, its doors and a light or two. */

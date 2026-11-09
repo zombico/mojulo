@@ -22,8 +22,9 @@
  *   carOf(u, v, along, hex) → a car's faces standing at (u, v), its length along 'u' or 'v', its body painted `hex`
  *   CAR_PAINTS   the cars' paints
  *   garageOf(rect, door?) → a garage's faces, its door at v0 (a mansion's drive) or v1 (a lane behind)
- *   serviceOf(kind, { w, v0, v1, R }) → { faces }: a shop's service yard (its bins, now and then a car) or a walk-up's lot
- *                (its stalls painted, cars in some), from the building's back wall (v0) to the plot's back line (v1)
+ *   serviceOf(kind, { w, v0, v1, R }) → { faces, cars }: a shop's service yard (its bins, now and then a car) or a
+ *                walk-up's lot (its stalls painted, cars in some), from the building's back wall (v0) to the plot's back
+ *                line (v1); its cars where they stand ({ u, v, along, hex }: the scene parks the town's, cars.js)
  *
  * `role` says how the scene paints a face: timber, deck, paving, soil, leaf, sand, shed, roof, door, canvas, metal,
  * gravel, mat, grill, mulch, compost, glass (a face's own `hex` over its role's: a trampoline's rim, a slide).
@@ -306,20 +307,20 @@ export function carOf(u, v, along, hex) {
 
 /** A shop's service yard or a walk-up's lot, built. */
 export function serviceOf(kind, { w, v0, v1, R }) {
-  const out = [], depth = v1 - v0;
+  const out = [], cars = [], depth = v1 - v0;
   if (kind === 'apartments' || kind === 'lowrise') {
     // stalls across the lot, their lines painted, a car in some
     const vA = v0 + 2.5, vB = Math.min(v1 - 1, vA + 5.2);
     for (let u = 1; u + 2.6 <= w - 1; u += 2.6) {
       out.push({ corners: [P(u - 0.05, vA, 0.02), P(u + 0.05, vA, 0.02), P(u + 0.05, vB, 0.02), P(u - 0.05, vB, 0.02)], out: [0, 0, 1], role: 'line' });
-      if (R() < 0.55 && vB - vA > 4.6) out.push(...carOf(u + 1.3, (vA + vB) / 2, 'v', CAR_PAINTS[Math.floor(R() * CAR_PAINTS.length)]));
+      if (R() < 0.55 && vB - vA > 4.6) cars.push({ u: u + 1.3, v: (vA + vB) / 2, along: 'v', hex: CAR_PAINTS[Math.floor(R() * CAR_PAINTS.length)] });
     }
-    return { faces: out };
+    return { faces: out, cars };
   }
   // a shop: two bins by its back wall, and a car in its yard now and then
   for (const k of [0, 1]) { const u = 0.8 + k * 1.1; if (u + 0.9 < w) out.push(...box(u, v0 + 0.4, u + 0.9, v0 + 1.4, 0, 1.2, 'bin')); }
-  if (depth > 6.5 && w > 2.6 && R() < 0.5) out.push(...carOf(w / 2, v0 + Math.min(depth - 2.5, 4.5), 'v', CAR_PAINTS[Math.floor(R() * CAR_PAINTS.length)]));
-  return { faces: out };
+  if (depth > 6.5 && w > 2.6 && R() < 0.5) cars.push({ u: w / 2, v: v0 + Math.min(depth - 2.5, 4.5), along: 'v', hex: CAR_PAINTS[Math.floor(R() * CAR_PAINTS.length)] });
+  return { faces: out, cars };
 }
 
 /** A garage over [u0, v0, u1, v1] in its plot's frame: its walls, a gable roof along v, its door to the drive (a

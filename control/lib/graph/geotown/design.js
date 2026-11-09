@@ -49,6 +49,8 @@ const roll = (R, [lo, hi]) => r3(lo + (hi - lo) * R());
 const area = (r) => (r[2] - r[0]) * (r[3] - r[1]);
 // a dwelling's least width (era/out-structures.js STRUCTURE_USES.dwelling.lot.w), a hair over it
 const HOUSE_LEAST = 5.55;
+// a compact drive long enough to stand a car on before its garage (m, from the walk to the garage's door)
+export const DRIVE_STAND = 5.2;
 // a site composed among its neighbours asks this much of its least rails; its surfaces grouped by what the ground is for
 const SITE_YIELD = 0.75;
 const SITE_GROUPS = Object.freeze({ building: ['house'], lot: ['front', 'path', 'side'], play: ['field', 'track', 'infield', 'court', 'play'], green: ['grounds', 'park'], paved: ['service', 'park-path', 'piazza'] });
@@ -171,7 +173,7 @@ export function rowsOf(type, main = {}) {
 
 /** A row's frontage cut into houses: semis in pairs and detached houses by the pattern's mix, the leftover spread over
  *  them so they fill it, a corner plot wider at each end. → [{ form, w, pair? }] in walking order along the row. */
-function cutRow(P, L, R) {
+function cutRow(P, L, R, tight = false) {
   const C = P.plot.corner, want = L - 2 * C, semiP = P.mix.semi / (P.mix.semi + P.mix.detached), out = [];
   let used = 0, pair = 0;
   for (let guard = 0; guard < 400; guard++) {
@@ -180,6 +182,15 @@ function cutRow(P, L, R) {
     for (const form of first === 'semi' ? ['semi', 'detached'] : ['detached', 'semi']) {
       if (P.mix[form] <= 0) continue;
       const w = roll(R, P.plot[form]), need = form === 'semi' ? 2 * w : w;
+      if (used + need > want + 1e-9) continue;
+      if (form === 'semi') { out.push({ form, w, pair: pair, half: 'L' }, { form, w, pair: pair, half: 'R' }); pair++; } else out.push({ form, w });
+      used += need; placed = true; break;
+    }
+    // (a TIGHT row, a compact block's wider lots: a building at its form's least where its roll did not fit, so the row's
+    // leftover, spread over fewer lots, stretches them no further than a plain row's)
+    if (!placed && tight) for (const form of ['detached', 'semi']) {
+      if (P.mix[form] <= 0) continue;
+      const w = P.plot[form][0], need = form === 'semi' ? 2 * w : w;
       if (used + need > want + 1e-9) continue;
       if (form === 'semi') { out.push({ form, w, pair: pair, half: 'L' }, { form, w, pair: pair, half: 'R' }); pair++; } else out.push({ form, w });
       used += need; placed = true; break;
@@ -248,13 +259,22 @@ function kindOf(P, kind, depth) {
 
 /** A row's cut: by count (an evocation, `big` of its houses mansions) or filling its length (the town to scale). */
 function cutOf(P, K, n, R, L = null, big = 0) {
-  if (L !== null) return cutRow(P, L, R);
+  if (L !== null) return cutRow(P, L, R, !!P.bayed);
   return K.kind === 'houses' ? cutCount(P, n, R, big) : cutPlain(K, K.kind, n, R);
 }
 
 /** The way between a segment's rows' backs: an edge's lane, a main street's alley behind its shops, a houses cell's
  *  rear lane where its access is one, else none. */
-const laneOf = (P, c) => (SEGMENTS[c.type].lane === 'alley' ? P.alley?.w ?? 0 : SEGMENTS[c.type].lane || c.access === 'lane' ? P.lane?.w ?? 0 : 0);
+const laneOf = (P, c) => (SEGMENTS[c.type].lane === 'alley' ? P.alley?.w ?? 0 : SEGMENTS[c.type].lane || c.access === 'lane' || c.access === 'alley' ? P.lane?.w ?? 0 : 0);
+
+/** A compact cell's pattern: each house's frontage wider by its garage's bay (its drive and its one-car garage beside it). */
+const BAYED = new WeakMap();
+function bayed(P) {
+  let Q = BAYED.get(P);
+  if (!Q) { const b = P.access.single.w, add = ([lo, hi]) => [r3(lo + b), r3(hi + b)]; Q = { ...P, bayed: true, plot: { ...P.plot, semi: add(P.plot.semi), detached: add(P.plot.detached) } }; BAYED.set(P, Q); }
+  return Q;
+}
+const patternOf = (P, c) => (c.access === 'compact' ? bayed(P) : P);
 
 /** A school's lot (sites.js `plan.plot`) as a plot's measures: its frontage and depth, its setback, its building's
  *  envelope and side yards, its path, its allocation (its rear its schoolyard, a court). */
@@ -283,8 +303,10 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
   const cells = [];
   for (let j = 0; j < Rn; j++) for (let i = 0; i < C; i++) {
     const rk = SEGMENTS[T.cells[j][i]].major ? 'major' : 'main', id = blockId(i, j), type = T.cells[j][i], main = { w: SX[i].rank === rk, e: SX[i + 1].rank === rk, s: SY[j].rank === rk, n: SY[j + 1].rank === rk };
-    // (a houses cell's ACCESS, by its own dice: a rear lane, mutual drives between its buildings, or none)
-    const A = P.access, ad = streamOf(seed, 'access', id)(), access = type === 'houses' && A ? (ad < A.lane ? 'lane' : ad < A.lane + A.mutual ? 'mutual' : 'none') : 'none';
+    // (a houses cell's ACCESS: the block's word, else the town's, else its own dice: a rear lane, mutual drives between
+    // its buildings, a compact drive and garage each, a rear alley and a garage each, or none)
+    const A = P.access, ad = streamOf(seed, 'access', id)(), said = T.blocks[id]?.access ?? T.access;
+    const access = type === 'houses' && A ? (said ?? (ad < A.lane ? 'lane' : ad < A.lane + A.mutual ? 'mutual' : ad < A.lane + A.mutual + (A.compact ?? 0) ? 'compact' : ad < A.lane + A.mutual + (A.compact ?? 0) + (A.alley ?? 0) ? 'alley' : 'none')) : 'none';
     cells.push({ id, i, j, type, built: T.blocks[id]?.built ?? true, access, ...rowsOf(type, main) });
   }
   // wide segments side by side (a park, a school, a sports field) are ONE block, no street between them: each rectangle
@@ -318,7 +340,8 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
   // none on a block that touches a main or a major street (a mansion stands back from the traffic, on a quiet street)
   if (evoked && P.mansion) for (const c of cells) {
     const homes = c.rows.filter((r) => r.kind === 'houses'), Rm = streamOf(seed, 'mansions', c.id), [lo, hi] = P.evoke.mansions ?? [0, 0];
-    const busy = [SX[c.i], SX[c.i + 1], SY[c.j], SY[c.j + 1]].some((S) => S.rank !== 'street');
+    // (nor on a compact block: its lots are its drives' and its garages')
+    const busy = [SX[c.i], SX[c.i + 1], SY[c.j], SY[c.j + 1]].some((S) => S.rank !== 'street') || c.access === 'compact';
     const m = homes.length && !busy ? lo + Math.floor(Rm() * (hi - lo + 1)) : 0;
     for (const r of homes) r.big = 0;
     for (let k = 0; k < m; k++) homes[Math.floor(Rm() * homes.length)].big++;
@@ -329,7 +352,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
     r.need = { depth: r.kind === 'houses' ? depth : roll(R, K.depth) };
     if (evoked) {
       r.n = r.kind === 'houses' ? K.count[0] + Math.floor(streamOf(seed, 'frame', `count:${c.j}`)() * (K.count[1] - K.count[0] + 1)) : K.count[0] + Math.floor(R() * (K.count[1] - K.count[0] + 1));
-      r.cut = cutOf(P, K, r.n, R, null, r.big ?? 0);
+      r.cut = cutOf(patternOf(P, c), K, r.n, R, null, r.big ?? 0);
       r.need.len = r3(r.cut.reduce((a, p) => a + p.w, 0) + 2 * K.corner);
     } else r.need.len = lengths[c.j];
   }
@@ -365,7 +388,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
   const pieces = streetPieces(X, Y, SX, SY, gone);
   // ── 7 the land (read before the plots: a pad is levelled over its walk); an evocation's is a window of the town to
   // scale's, its middle over that town's middle, so its slopes are the town's and not its hills squeezed into a block ──
-  const ref = evoked ? designGeotown({ evoke: 'metro', ...Object.fromEntries(['pattern', 'streetscape', 'hills'].filter((k) => spec[k] !== undefined).map((k) => [k, spec[k]])) }, { seed, field }) : null;
+  const ref = evoked ? designGeotown({ evoke: 'metro', ...Object.fromEntries(['pattern', 'streetscape', 'hills', 'access'].filter((k) => spec[k] !== undefined).map((k) => [k, spec[k]])) }, { seed, field }) : null;
   const win = ref && !field ? ((ox, oy) => (x, y) => ref.land.N(x + ox, y + oy))((ref.frame.W - frame.W) / 2, (ref.frame.D - frame.D) / 2) : field;
   // (THE STREETS' PROFILE, profile.js, `profile`: its streets laid on profiles over the land, crossings level, each block
   // graded between them; a town on a metro's streets' ground keeps the metro's)
@@ -415,26 +438,28 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
       used = r3(used + dep);
       // tuned to its cell: a row the cell stretches past the rail recut by count, then spread to fill it
       let cut = r.cut;
+      // (a compact cell's houses each a garage's bay wider: its drive and its one-car garage beside the house)
+      const bay = c.access === 'compact' && r.kind === 'houses' ? P.access.single.w : 0;
       if (evoked) {
         const k = along / r.need.len;
         if (k < ST[0] || k > ST[1]) {
           // (the counts round its estimate, each cut by its own dice: the one whose frontages spread nearest their own)
           const n0 = Math.round(r.n * k), least = r.kind === 'houses' ? 2 : 1;
-          const tries = [...new Set([n0 - 1, n0, n0 + 1].map((n) => Math.max(least, n)))].map((n) => { const cc = cutOf(P, K, n, streamOf(seed, 'plots', `${c.id}:${r.side}:n${n}`), null, r.big ?? 0); return { n, cc, off: Math.abs(along / (cc.reduce((a, p) => a + p.w, 0) + 2 * K.corner) - 1) }; });
+          const tries = [...new Set([n0 - 1, n0, n0 + 1].map((n) => Math.max(least, n)))].map((n) => { const cc = cutOf(patternOf(P, c), K, n, streamOf(seed, 'plots', `${c.id}:${r.side}:n${n}`), null, r.big ?? 0); return { n, cc, off: Math.abs(along / (cc.reduce((a, p) => a + p.w, 0) + 2 * K.corner) - 1) }; });
           const best = tries.reduce((a, b) => (b.off < a.off - 1e-9 ? b : a));
           cut = best.cc; r.n = best.n;
         }
         // (how far its frontages spread to fill its cell, and how much deeper its plots run than they need; a row of houses
         // squeezed under a dwelling's least frontage takes a house fewer)
         let sum0 = cut.reduce((a, p) => a + p.w, 0) + 2 * K.corner, fitted = fitRow(cut.map((p) => ({ ...p })), along, K.corner);
-        while (r.kind === 'houses' && r.n > 2 && fitted.some((p) => p.w < HOUSE_LEAST + 0.05)) {
+        while (r.kind === 'houses' && r.n > 2 && fitted.some((p) => p.w < HOUSE_LEAST + bay + 0.05)) {
           r.n -= 1;
-          cut = cutOf(P, K, r.n, streamOf(seed, 'plots', `${c.id}:${r.side}:n${r.n}`), null, r.big ?? 0);
+          cut = cutOf(patternOf(P, c), K, r.n, streamOf(seed, 'plots', `${c.id}:${r.side}:n${r.n}`), null, r.big ?? 0);
           sum0 = cut.reduce((a, p) => a + p.w, 0) + 2 * K.corner; fitted = fitRow(cut.map((p) => ({ ...p })), along, K.corner);
         }
         cut = fitted;
         fits.push({ block: c.id, side: r.side, kind: r.kind, n: cut.length, stretch: r3(along / sum0), deep: r3(dep / r.need.depth) });
-      } else cut = cutOf(P, K, 0, r.R, along);
+      } else cut = cutOf(patternOf(P, c), K, 0, r.R, along);
       B.rows.push({ side: r.side, kind: r.kind, setback: r.F, depth: dep, count: cut.length });
       const { ex, ey } = FRAMES[r.side], A0 = startOf(r.side, rect), R = r.R, F = r.F, pairs = new Map();
       let s = 0;
@@ -485,6 +510,15 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
         const flank = r.kind === 'shops' ? 0 : K.corner;
         if (cc.corner === 'start' || cc.corner === 'both') sL = r3(sL + flank);
         if (cc.corner === 'end' || cc.corner === 'both') sR = r3(sR + flank);
+        // a COMPACT house's bay: its drive and its one-car garage beside it, on a semi's outer side or by its own dice,
+        // the house beyond them (never under a dwelling's least, nor a garage deeper than the house)
+        let bayOf = null;
+        if (bay && cc.form !== 'mansion') {
+          const SG = P.access.single, left = cc.form === 'semi' ? cc.half === 'L' : streamOf(seed, 'garage', `${B.id}-${r.side}${k + 1}`)() < 0.5;
+          // (the bay's side yard gives way first, down to none: a garage may stand on its lot line)
+          const short = Math.max(0, HOUSE_LEAST - (w - sL - sR - SG.w)), s0 = r3((left ? sL : sR) - short);
+          if (s0 >= -1e-9 && Hd - SG.set >= 4) { bayOf = { left, s0: Math.max(0, s0) }; if (left) sL = r3(bayOf.s0 + SG.w); else sR = r3(bayOf.s0 + SG.w); }
+        }
         const F1 = r3(F + (big?.extra ?? 0)), env = [sL, F1, r3(w - sR), r3(F1 + Hd)], pw = F1 > 0 ? Math.min(P.path * (r.kind === 'apartments' || r.kind === 'lowrise' ? 1.6 : 1), Math.max(0.6, env[2] - env[0] - 0.4)) : 0;
         const pl = { id: `${B.id}-${r.side}${k + 1}`, block: B.id, side: r.side, k, kind: r.kind, use: K.use, form: cc.form, ...(cc.form === 'semi' ? { pair: `${B.id}-${r.side}p${cc.pair + 1}`, half: cc.half } : {}), ...(cc.corner ? { corner: cc.corner } : {}),
           ...(cc.type ? { type: cc.type, ...(K.types[cc.type].paved ? { paved: true } : {}) } : {}), ...(laneW ? { lane: true } : {}), A, ex, ey, w, d: dep, setback: F, rear: K.rear, house: { depth: Hd, sides: [sL, sR], env }, built: B.built };
@@ -496,10 +530,30 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
         if (pl.paved) pl.alloc = { ...pl.alloc, front: 0, service: r3(pl.alloc.service + pl.alloc.front) };
         // a house backing onto a lane: a share keep a garage off it, at the back of its yard
         const LG = P.lane?.garage;
-        if (laneW && r.kind === 'houses' && cc.form !== 'mansion' && dep - env[3] >= LG.d + 5 && w >= LG.w + 1 && R() < P.lane.garages) {
+        if (c.access !== 'alley' && laneW && r.kind === 'houses' && cc.form !== 'mansion' && dep - env[3] >= LG.d + 5 && w >= LG.w + 1 && R() < P.lane.garages) {
           const left = cc.form === 'semi' ? cc.half === 'L' : R() < 0.5, u0 = left ? 0.4 : r3(w - 0.4 - LG.w), g = [u0, r3(dep - 0.3 - LG.d), r3(u0 + LG.w), r3(dep - 0.3)], gA = r3(LG.w * LG.d);
           pl.laneGarage = g;
           pl.alloc = { ...pl.alloc, house: r3(pl.alloc.house + gA), back: r3(pl.alloc.back - gA) };
+        }
+        // its COMPACT drive: from the walk across the front yard to its garage's door, `set` back of the house's front;
+        // the garage beside the house, its bay's side yard beyond the drive kept
+        if (bayOf) {
+          const SG = P.access.single, u0 = bayOf.left ? bayOf.s0 : r3(w - bayOf.s0 - SG.w), u1 = r3(u0 + SG.w), gv0 = r3(F1 + SG.set), gv1 = r3(F1 + Math.min(Hd, SG.set + SG.d));
+          pl.bay = SG.w;
+          pl.drive = { side: bayOf.left ? 'L' : 'R', strip: [u0, u1], garage: [u0, gv0, u1, gv1] };
+          pl.path.u = r3(bayOf.left ? Math.max(pl.path.u, u1 + pw / 2 + 0.1) : Math.min(pl.path.u, u0 - pw / 2 - 0.1));
+          pl.alloc = { ...pl.alloc, front: r3(pl.alloc.front - SG.w * F1), side: r3(pl.alloc.side - SG.w * (gv1 - F1)), drive: r3(pl.alloc.drive + SG.w * gv0), house: r3(pl.alloc.house + SG.w * (gv1 - gv0)) };
+        }
+        // its ALLEY garage: one car's, at the back of its yard, its door to the alley behind its apron (a car's stand off
+        // the alley); none where the yard is too shallow to keep a garden before it
+        if (c.access === 'alley' && r.kind === 'houses' && cc.form !== 'mansion') {
+          const SG = P.access.single, ap = P.access.apron;
+          if (dep - env[3] >= SG.d + ap + 2 && w >= SG.w + 0.8) {
+            const left = cc.form === 'semi' ? cc.half === 'L' : streamOf(seed, 'garage', pl.id)() < 0.5, u0 = left ? 0.4 : r3(w - 0.4 - SG.w), u1 = r3(u0 + SG.w);
+            pl.alley = { side: left ? 'L' : 'R', garage: [u0, r3(dep - ap - SG.d), u1, r3(dep - ap)], apron: [u0, r3(dep - ap), u1, dep] };
+            const gA = r3(SG.w * SG.d), aA = r3(SG.w * ap);
+            pl.alloc = { ...pl.alloc, house: r3(pl.alloc.house + gA), drive: r3(pl.alloc.drive + aA), back: r3(pl.alloc.back - gA - aA) };
+          }
         }
         // its MUTUAL drive: its side yard on the drive's side the drive's (from the walk across the front yard, past the
         // house), a garage at that side's back corner where the yard is deep enough and its household keeps one
@@ -550,7 +604,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
   const TF = P.traffic ?? { lights: 0, signals: 0, stops: 0 }, lights = [], crossings = [], busy = (S) => S.rank !== 'street';
   const facing = (id, side) => { const k = Number(id.slice(3)); return id.startsWith('ns') ? (side === 'w' ? k > 0 : k < C) : (side === 's' ? k > 0 : k < Rn); };
   const drives = new Map();
-  for (const pl of plots) for (const [u0, u1] of [pl.mansion?.drive, pl.mutual?.strip].filter(Boolean)) {
+  for (const pl of plots) for (const [u0, u1] of [pl.mansion?.drive, pl.mutual?.strip, pl.drive?.strip].filter(Boolean)) {
     const B = blocks.find((b) => b.id === pl.block), [id, side] = { w: [`ns-${B.i}`, 'e'], e: [`ns-${B.i1 + 1}`, 'w'], s: [`ew-${B.j}`, 'n'], n: [`ew-${B.j1 + 1}`, 's'] }[pl.side], ax = id.startsWith('ns') ? 1 : 0;
     const p = pl.A[ax] + pl.ex[ax] * u0, q = pl.A[ax] + pl.ex[ax] * u1;
     (drives.get(`${id}:${side}`) ?? drives.set(`${id}:${side}`, []).get(`${id}:${side}`)).push([Math.min(p, q), Math.max(p, q)]);
@@ -617,7 +671,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
   // of the crossings and of every drive across it ──
   const PK = P.parking ?? { sides: 'none', pads: 0 }, PAD = { w: 2.7, deep: 5.2, rise: 0.6 };
   for (const pl of plots) {
-    if (pl.kind !== 'houses' || pl.form === 'mansion' || pl.mutual || pl.setback < PAD.deep || !(PK.pads > 0)) continue;
+    if (pl.kind !== 'houses' || pl.form === 'mansion' || pl.mutual || pl.drive || pl.alley || pl.setback < PAD.deep || !(PK.pads > 0)) continue;
     const Rp = streamOf(seed, 'parking', pl.id), rise = pl.pad - walkZ(...at(pl, pl.w / 2, 0)), pw = pl.path.w;
     if (Rp() >= PK.pads || Math.abs(rise) > PAD.rise || pl.w < PAD.w + pw + 0.8) continue;
     const left = pl.form === 'semi' ? pl.half === 'L' : Rp() < 0.5;
@@ -630,11 +684,13 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
   const frontOn = (pl) => { const B = blocks.find((b) => b.id === pl.block); return { w: [`ns-${B.i}`, 'e'], e: [`ns-${B.i1 + 1}`, 'w'], s: [`ew-${B.j}`, 'n'], n: [`ew-${B.j1 + 1}`, 's'] }[pl.side]; };
   const cuts = new Map();
   for (const pl of plots) {
-    const open = [pl.park, pl.mansion?.drive, pl.mutual?.strip].filter(Boolean);
+    const open = [pl.park, pl.mansion?.drive, pl.mutual?.strip, pl.drive?.strip].filter(Boolean);
     if (!open.length) continue;
     const [id, side] = frontOn(pl), key = `${id}:${side}`, ax = id.startsWith('ns') ? 1 : 0;
     for (const [u0, u1] of open) { const p = at(pl, u0, 0)[ax], q = at(pl, u1, 0)[ax]; (cuts.get(key) ?? cuts.set(key, []).get(key)).push([r3(Math.min(p, q) - 0.75), r3(Math.max(p, q) + 0.75)]); }
   }
+  // (a compact drive's CROSSING: on over its street's verge (or furnishing strip) to the kerb, its stalls clear of it)
+  for (const pl of plots) if (pl.drive) { const [id] = frontOn(pl), k = Number(id.slice(3)), Sx = id.startsWith('ns') ? SX[k] : SY[k]; if (Sx.verge > 0) pl.drive.cross = [r3(Sx.walk), r3(Sx.walk + Sx.verge), Sx.edge === 'furnish' ? 'furnish' : 'verge']; }
   const STALL = 6.2, CLEAR = 6, lanes = [];
   const faces = (id, side) => { const k = Number(id.slice(3)); return id.startsWith('ns') ? (side === 'w' ? k > 0 : k < C) : (side === 's' ? k > 0 : k < Rn); };
   for (const p of pieces) {
@@ -655,7 +711,8 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
       surfaces.push({ cls: 'parking', rect, street: p.street, inside: 'road' });
     }
   }
-  const parking = { sides: PK.sides, lanes, cuts: Object.fromEntries(cuts), stalls: lanes.reduce((a, l) => a + l.stalls.length, 0), pads: plots.filter((pl) => pl.park).length, garages: plots.filter((pl) => pl.mansion?.garage).length, laneGarages: plots.filter((pl) => pl.laneGarage).length, mutualGarages: plots.filter((pl) => pl.mutual?.garage).length, mutuals: plots.filter((pl) => pl.mutual).length };
+  const parking = { sides: PK.sides, lanes, cuts: Object.fromEntries(cuts), stalls: lanes.reduce((a, l) => a + l.stalls.length, 0), pads: plots.filter((pl) => pl.park).length, garages: plots.filter((pl) => pl.mansion?.garage).length, laneGarages: plots.filter((pl) => pl.laneGarage).length, mutualGarages: plots.filter((pl) => pl.mutual?.garage).length, mutuals: plots.filter((pl) => pl.mutual).length,
+    ...(plots.some((pl) => pl.drive || pl.alley) ? { singles: plots.filter((pl) => pl.drive || pl.alley).length, stands: plots.filter((pl) => (pl.drive && pl.drive.garage[1] >= DRIVE_STAND) || pl.alley).length } : {}) };
   // the surfaces each plot allocates (its path inside its front yard: the front's own area is the yard less the path)
   for (const pl of plots) {
     const { env } = pl.house, F = pl.setback, d = pl.d, w = pl.w, pu = pl.path.u, pw = pl.path.w;
@@ -666,6 +723,15 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
       if (Mn) surfaces.push({ cls: 'drive', rect: toWorld(pl, [Mn.drive[0], 0, Mn.drive[1], F1]), ...at0, inside: 'front' });
       if (pl.park) surfaces.push({ cls: 'drive', rect: toWorld(pl, [pl.park[0], 0, pl.park[1], F1]), ...at0, inside: 'front' });
       if (pl.mutual) surfaces.push({ cls: 'drive', rect: toWorld(pl, [pl.mutual.strip[0], 0, pl.mutual.strip[1], F1]), ...at0, inside: 'front' });
+      if (pl.drive) surfaces.push({ cls: 'drive', rect: toWorld(pl, [pl.drive.strip[0], 0, pl.drive.strip[1], F1]), ...at0, inside: 'front' });
+    }
+    // (a compact drive on past the house's front to its garage's door, the garage beside the house: its bay's side yard;
+    // and its crossing over the street's verge, the street's ground)
+    if (pl.drive?.cross) surfaces.push({ cls: 'drive', rect: toWorld(pl, [pl.drive.strip[0], -pl.drive.cross[1], pl.drive.strip[1], -pl.drive.cross[0]]), inside: pl.drive.cross[2] });
+    if (pl.drive) {
+      const [u0, gv0, u1] = pl.drive.garage;
+      surfaces.push({ cls: 'drive', rect: toWorld(pl, [u0, F1, u1, gv0]), ...at0, inside: 'side' });
+      surfaces.push({ cls: 'house', rect: toWorld(pl, pl.drive.garage), ...at0, inside: 'side', use: 'garage', kind: 'garage' });
     }
     surfaces.push({ cls: 'house', rect: toWorld(pl, env), ...at0, use: pl.use, kind: pl.kind, ...(Mn ? { mansion: true } : {}) });
     // (a mansion's drive-side yard is its drive)
@@ -678,6 +744,10 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
     }
     if (env[3] < d) surfaces.push({ cls: pl.rear, rect: toWorld(pl, [0, env[3], w, d]), ...at0 });
     if (pl.laneGarage) surfaces.push({ cls: 'house', rect: toWorld(pl, pl.laneGarage), ...at0, inside: pl.rear, use: 'garage', kind: 'garage' });
+    if (pl.alley) {
+      surfaces.push({ cls: 'house', rect: toWorld(pl, pl.alley.garage), ...at0, inside: pl.rear, use: 'garage', kind: 'garage' });
+      surfaces.push({ cls: 'drive', rect: toWorld(pl, pl.alley.apron), ...at0, inside: pl.rear });
+    }
     if (Mn?.garage) {
       surfaces.push({ cls: 'drive', rect: toWorld(pl, [Mn.drive[0], env[3], Mn.drive[1], Mn.garage[1]]), ...at0, inside: pl.rear });
       surfaces.push({ cls: 'house', rect: toWorld(pl, Mn.garage), ...at0, inside: pl.rear, use: 'garage', kind: 'garage' });

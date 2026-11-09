@@ -157,7 +157,7 @@ A cube that names no domains offers one per terrain and one per interior.
   recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;
   `show: 'geotown'` a town on the cube's own land, its map first and LEVELLED: its streets keep the land's grade,
   each building a level pad over its walk, a front bank and its steps between, a retaining wall where pads meet
-  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, streetscape?, grid?, hills?, blocks?, margin? }`: `evoke` how
+  (geotown/). `geotown: { evoke?, segment?, neighbourhood?, pattern?, streetscape?, grid?, hills?, profile?, access?, blocks?, margin? }`: `evoke` how
   it is told: `segment` (the default) one BLOCK SEGMENT, a few buildings back to back, each its own (`segment`: `houses`
   six or eight, mostly semis, a share of the pairs split into two flats each (`pattern.duplex`: two doors at the porch,
   a porch over the porch, a steel stair up the back), each a type of its pattern with a bay, a porch, its own roof,
@@ -180,8 +180,13 @@ A cube that names no domains offers one per terrain and one per interior.
   letters north to south, H houses, M main-street, A apartments, L lowrise, P park, S school, F sports, E edge, a wide letter side
   by side one block; `main` the streets that are main, wider, their walks paved to the kerb; `major` the arterials an
   edge faces; `bike` the streets with bike lanes; a local street two lanes and a parked side each way, a main or major
-  street four lanes and parking each side, bike lanes on some, all painted; a houses segment's access a rear lane with
-  garages or mutual drives to garages at the back; hydro poles and wires, street-name signs, hydrants, a main street's
+  street four lanes and parking each side, bike lanes on some, all painted; a houses segment's ACCESS (`access`, or a
+  block's own, `blocks: { A1: { access } }`; else the pattern's dice): `lane` a rear lane with garages off it here and
+  there, `mutual` shared drives between houses to garages at the back, `compact` each house its own drive from the walk
+  across its boulevard to a one-car garage beside it (its lot a garage's bay wider, no mansion), `alley` a rear alley,
+  every house a one-car garage off it behind an apron ramped to it, `none`; its parked cars the vehicle registry's
+  family cars (sedans, hatchbacks, crossovers, SUVs, an estate, a minivan, superminis) at the kerbs and on the pads,
+  drives, aprons and lots, each tinted its paint; hydro poles and wires, street-name signs, hydrants, a main street's
   bins, bike rings and post box, a major street's bus shelters), each segment tuned to its cell (its rows recut and spread, its `fits`
   law), its `ports` its perimeter streets (a geocity's graph joins neighbourhoods at
   them); `metro` every plot to scale (`grid` its blocks, up to 4 × 4). An evocation keeps the town to scale's measures
@@ -198,7 +203,9 @@ A cube that names no domains offers one per terrain and one per interior.
   crown reaches a building (`room`); its border is bare. Read in the seventh generation its lawns grow the form's mown
   grass, its trees grow as form (their litter round their feet), its hedges, beds, planters and foundation plantings
   are the plant library's bushes and shrubs (`pattern.houseplants`), no trail's rubble or patches. `pattern` a block pattern (`bay-and-gable`, a
-  Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `style` over the pattern's
+  Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `profile` its streets
+  laid as a hill town lays them (`true` or `{ walkable, curve }`: its crossings level, each block graded on one ramp, a
+  stretch past `walkable` said by the `stairs` law), `style` over the pattern's
   houses'. The answer's `geotown` carries the ledger (every surface's square metres, the buildings' by use), the
   segments, the ports and the laws;
   `show: 'geocity'` a METRO on the cube's own land, its major streets first (geocity/): a spine through its core's

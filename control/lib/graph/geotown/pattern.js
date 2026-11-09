@@ -90,8 +90,12 @@ const BAY_AND_GABLE = {
     alley: { w: 3.4 },
     // a houses segment's ACCESS by its dice: a rear LANE (its houses' garages off it, the lane's), MUTUAL drives (a
     // shared drive straddling two buildings' side yards, `drive` m of each, from the walk past them to their garages at
-    // the back, the share of the gaps between buildings that take one), or none
-    access: { lane: 0.3, mutual: 0.4, drives: 0.6, drive: 1.3, garage: { w: 3.2, d: 5.8 }, garages: 0.85 },
+    // the back, the share of the gaps between buildings that take one), COMPACT (each house its own drive from the walk
+    // to its one-car garage beside it, `single`, its door `set` back of the house's front: each lot wider by the garage),
+    // ALLEY (a rear lane, every house its one-car garage off it behind an `apron` it parks on), or none; `parked` the
+    // share of drives and aprons with a car on them
+    access: { lane: 0.3, mutual: 0.4, compact: 0, alley: 0, drives: 0.6, drive: 1.3, garage: { w: 3.2, d: 5.8 }, garages: 0.85,
+      single: { w: 3.3, d: 6.2, set: 0.9 }, apron: 5.5, parked: 0.6 },
     // what its ground is finished in (era/arch-style.js MATERIAL_WORDS), laid as each word's tiles
     finishes: { road: 'asphalt', walk: 'pavement', furnish: 'brick-paving', path: 'brick-paving', side: 'gravel', service: 'asphalt', 'park-path': 'gravel', step: 'pavement', kerb: 'sawn-stone', drive: 'brick-paving', lane: 'asphalt', 'fence-board': 'boards', 'fence-brick': 'hand-brick', 'fence-stone': 'rubble' },
     // a block's length along its houses' street (one per row of blocks), and each row of plots' depth (one per town: the
