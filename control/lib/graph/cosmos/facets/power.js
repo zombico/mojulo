@@ -18,7 +18,9 @@ export const POWER = Object.freeze({
         // priced 10-25 (the comic hero pack): a blow that moves its target, a body or a prop lifted and hurled, street props
         // that break; none exists yet
         knockback: { status: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.combat=melee'], note: 'a landed blow carries its target back along the blow, by the attack\'s weight; a wall stops it with a burst' },
-        throw: { status: 'absent', effort: 'M', pkg: 'comic-blows', requires: ['power.mechanics=knockback'], note: 'lift a body or a prop and hurl it; what it lands on takes the hit' },
+        // (11-10: local, the brawler's clinch throws the body it holds, forward into the crowd or behind, and a weapon is
+        // thrown with special at the first foe lined up ahead: brawl-core.js; nothing else throws a body yet)
+        throw: { status: 'local', effort: 'M', pkg: 'comic-blows', requires: ['power.mechanics=knockback'], lowers: 'lib/graph/brawl/brawl-core.js', note: 'lift a body or a prop and hurl it; what it lands on takes the hit. Built in the brawler alone: its clinch throws the body it holds into the crowd, a weapon is thrown at the first foe lined up (brawl-core.js); an action hero, a stealth game or a comic hero has none' },
         destructible: { status: 'absent', effort: 'M', pkg: 'comic-street', note: 'a street prop (a crate, a hydrant, a lamp, a car) breaks under a blow or a thrown body into a few pieces and a puff' },
       },
     },
@@ -50,6 +52,10 @@ export const POWER = Object.freeze({
         // waves, the clinch and its throws, the street's things, a boss; built as its own sim and its practice yard, reached
         // from a greybox's `brawl` block, not yet from design_game
         brawl: { status: 'local', effort: 'M', pkg: 'brawler', requires: ['space.levelForm=belt'], lowers: 'lib/graph/brawl/brawl-core.js', note: 'a beat-em-up down a belt (brawl-core.js, brawl-crowd.js, brawl-moves.js): many bodies, the crowd taking turns, waves held at gates, the clinch and its throws, the street\'s things, a boss; its practice yard (brawl-practice.js) and readouts in mana-ui; reached from a greybox\'s brawl block and the spikes, not yet from a gameworld' },
+        // local 11-08 (1108-realism-combat-tester): a big gun on a mount (worlds/controllable/turret.js), aimed by hand on any
+        // base, its rounds' flight and drag (ordnance.js) and what they do to matter (terminal.js: a hole, a breach, a
+        // spall, a crater); played on the artillery range, not yet from a gameworld
+        artillery: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/artillery.js', note: 'one gun on a mount aimed by hand on any base (a plinth, a tracked hull, a field vehicle, a walker, a fighter, a helicopter, a boat), its rounds flown with drag and answered by matter (ordnance.js, terminal.js); the artillery range only, not yet from a gameworld' },
       },
     },
     // built 11-10 (1110-practice-room-slice): how a hero's melee is played. `strike` the body's own blow, one swing a
@@ -58,6 +64,16 @@ export const POWER = Object.freeze({
     // `arsenal` (arsenal.js), a template's kit (Fallen Angel's, Fable of Artesia's) or edits over it, laid on every
     // level's hero that strikes. Its practice room (practice-room.js) plays it before any level; its measures
     // (feel/measure.js) hold the runtime to what each move asks
+    // built 11-08 (1108-realism-combat-tester): how a gun plays. `simple` a round on its cone and a cooldown; `realistic`
+    // small arms as small arms: a spread that builds and settles once the trigger rests, a climbing recoil, rounds by
+    // cartridge with their flash and their blow marking what they hit by its matter, the gun in the hero's hands over the
+    // shoulder or gloved in first person, a quick knife in the free hand; measured by the combat book (combat/measure.js)
+    gunplay: {
+      values: {
+        simple: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js', note: 'a round on its cone, its cooldown and magazine' },
+        realistic: { status: 'built', requires: ['power.combat=ranged'], lowers: 'lib/graph/gameworld/rounds.js', note: 'a spread that builds and settles, a climbing recoil, rounds by cartridge, their blow marking matter, the gun in the hero\'s hands, a quick knife; a shooter\'s goal or a hero carrying arms; measured by the combat book' },
+      },
+    },
     moveset: {
       values: {
         strike: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-melee.js', note: 'the held weapon\'s swing, one a press, its contact the swing\'s downstroke' },

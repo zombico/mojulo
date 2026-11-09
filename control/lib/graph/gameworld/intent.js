@@ -45,6 +45,8 @@ const WORDS = Object.freeze({
   'top-down-adventure': ['top-down', 'top down', 'adventure', 'overworld', 'zelda-like', 'explore'],
   'stylish-action': ['stylish action', 'character action', 'devil may cry', 'bayonetta', 'juggle', 'launcher', 'air combo', 'style rank'],
   'open-adventure': ['open-world adventure', 'open world adventure', 'breath of the wild', 'horseback', 'ride a horse', 'open land', 'sword and shield'],
+  'military-sim': ['military sim', 'milsim', 'arma', 'battlefield', 'squad', 'tank', 'armoured vehicle', 'recoil', 'ballistics'],
+  'tactical-espionage': ['tactical espionage', 'metal gear', 'cqc', 'close quarters', 'silenced pistol', 'operative', 'infiltration'],
   shooter: ['shooter', 'shoot', 'gun', 'guns', 'rifle', 'fps', 'first-person shooter', 'firefight', 'cover', 'ammo'],
   'arena-shooter': ['deathmatch', 'death match', 'arena shooter', 'frags', 'frag', 'free for all', 'free-for-all', 'bots', 'respawn', 'quake', 'unreal tournament'],
   jrpg: ['rpg', 'jrpg', 'party', 'turn-based', 'turn based', 'battle', 'battles', 'role-playing'],

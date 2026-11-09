@@ -28,10 +28,11 @@ describe('comic hero pack: cubes', () => {
       for (const w of c.wants) expect(said, c.id).not.toContain(w);
     }
   });
-  it('report: every want is a registry word, planned and absent today; no cube is blocked by its own words', () => {
+  it('report: every want is a registry word, planned and not built today; no cube is blocked by its own words', () => {
     const R = packReport();
     expect(R.wants.length).toBeGreaterThan(0);
-    for (const w of R.wants) expect(w.status, w.value).toBe('absent');
+    // (not built for a comic hero: absent, or built elsewhere alone, `local`: the brawler's clinch throws a body, 11-10)
+    for (const w of R.wants) expect(['absent', 'local'], w.value).toContain(w.status);
     for (const c of R.cubes) expect(c.blocked, c.id).toEqual([]);
     // the report is the dry run's: a cube the core already names a gap for says so
     expect(R.cubes.find((c) => c.id === 'rooftop-courier').gaps).toEqual(['space.topology=open']);

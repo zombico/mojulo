@@ -80,6 +80,31 @@ export const FIXTURES = Object.freeze([
       soul: { hero: 'hero', equipment: ['sword', 'shield', 'bow'], mount: 'horse' },
     },
   },
+  // the combat tester's games (11-10, 1108-realism-combat-tester): gunplay as small arms, and machines crewed
+  {
+    id: 'military-sim',
+    name: 'Military sim',
+    anchor: false,
+    why: 'a soldier whose rifle sprays and climbs, rounds marking what they hit by its matter, who drives an armoured vehicle and crews its gun',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'first-person', topology: 'linear', levelForm: 'trail' },
+      power: { combat: ['ranged', 'artillery'], gunplay: 'realistic', mechanics: ['defeat-all', 'hp-pool'] },
+      soul: { hero: 'hero', mount: 'vehicle' },
+    },
+  },
+  {
+    id: 'tactical-espionage',
+    name: 'Tactical espionage',
+    anchor: false,
+    why: 'seen from above, a lone operative slips past guards who see what is in front of them, takes one down with a grab and a throw, a silenced pistol for the rest (Steel Serpents)',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'top-down', topology: 'linear', levelForm: 'floormap', links: 'door' },
+      power: { combat: ['melee', 'ranged'], gunplay: 'realistic', mechanics: ['unseen', 'reach-exit', 'throw'] },
+      soul: { hero: 'hero' },
+    },
+  },
   {
     id: 'shooter',
     name: 'First-person shooter',

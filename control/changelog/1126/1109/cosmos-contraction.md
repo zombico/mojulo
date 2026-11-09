@@ -16,3 +16,11 @@
 - **The scrolling shared screen is counted as built, where it is.** The beat-em-up's street already scrolls one view on
   as the players go, never back, holding at each wave; the map now says so, and that the co-op scrolling shooter waits
   only on that camera reaching its kind of level.
+- **The planning map knows about realistic gunplay, big guns and crewed machines.** It now tells simple gunplay apart from
+  small arms played as small arms (spread and recoil that build and settle, rounds by cartridge marking what they hit,
+  the gun in the hero's hands), which shooter games already get. The artillery range's big guns and the tanks, trucks,
+  walkers, boats, helicopters and fighters it drives and flies are listed as built but not yet reachable when designing
+  a game, priced together as one piece of work. A thrown body, which the beat-em-up's clinch already does, is counted
+  the same way.
+- **Two more kinds of game to check against:** a military sim (rifle, armour, its gun crewed) and tactical espionage
+  (guards, a grab and a throw, a silenced pistol), each showing the gap it has today.

@@ -89,6 +89,11 @@ export const SOUL = Object.freeze({
       values: {
         none: { status: 'built' },
         horse: { status: 'built', lowers: 'lib/graph/worlds/mount-units.js', note: 'a world\'s mounts: horses beside each walking level\'s spawn, ridden through walk, trot, canter and gallop, jumping a low wall; the mount lane to tune the ride' },
+        // local 11-08 (1108-realism-combat-tester): the machines the artillery range drives and flies as a gun's base, each on
+        // its own class's rule; a hero does not yet get into one in a gameworld
+        vehicle: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/artillery.js', note: 'a field vehicle of the library (a tank, an APC, a truck, a car, a motorcycle) or a walker of the mecha shelf, driven on its class\'s rule, its turret manned; the artillery range only' },
+        aircraft: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/rotorcraft.js', note: 'a fighter on the fly rule at its type\'s envelope, a helicopter or a drone on the hover rule (rules-hover.js), its gun aimed by hand; the artillery range only' },
+        boat: { status: 'local', effort: 'L', pkg: 'crewed', lowers: 'lib/graph/gameworld/combat/boats.js', note: 'a boat of the craft shelf driven on the water (rules-boat.js, boat-water.js) at sea off the range\'s shore; the artillery range only' },
       },
     },
     // built 11-09 (screenplay scenes): how the cast plays a scene, the actor's (actor/): its takes on the page
