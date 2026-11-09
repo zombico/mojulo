@@ -507,6 +507,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // page inlines versus-library.js (the STATES shelf, the install super, the whirl), versus-compile.js (a super's
 // `install` and `nohit`, a special's `around` and `price`) and versus-core.js (a state granted, run down and read: damage,
 // speed, iron; a price paid the first time a move lands); the fixture's fighters take none of them and fight as before.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the street's things): `versus` only. Its page inlines versus-library.js, whose
+// WEAPONS gain the pipe (a brawler picks it up off the street; any fighter may hold it); the fixture's fighters hold none.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

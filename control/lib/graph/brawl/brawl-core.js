@@ -35,6 +35,11 @@
  *     walk its `speed` %, and under `armor` a blow lands its damage and no stun. An install super grants one as it
  *     starts; `grantState` grants one (a thing on the floor). A move's PRICE costs its thrower health the first time it
  *     lands, never the last of it.
+ *   • THE STREET'S THINGS (`things`, brawl-things.js readThings; absent, the state carries none): a player stood over
+ *     one presses attack to take it (a moment, `pick`): food its health back, a power-up its state, a weapon held (the
+ *     body plays its armed fighter, `ctx.armed['<fighter>:<weapon>']`, its chain swinging the blade; `pad.toss` throws it,
+ *     a blow of its own that hits the first foe lined up with it, then lies where it stopped; knocked down, the body
+ *     drops it). A box gives way to a player's blows (`hp`) and leaves what it holds.
  *   • Each body faces its TARGET (the nearest standing body of the other side) when it is free, unless it walks along
  *     the belt, which faces it the way it walks.
  * The fight's 1v1 core (versus-core.js) is not touched: the brawl is its own sim over the same records.
@@ -44,6 +49,7 @@
  */
 import { METER_MAX, STATES } from '../versus/versus-library.js';
 import { beltScroll, beltBounds } from './brawl-belt.js';
+import { THINGS } from './brawl-things.js';
 
 export const BRAWL_RULES = Object.freeze({
   line: 320,        // mm across the belt a blow reaches: two bodies further apart than this are not lined up
@@ -59,6 +65,8 @@ export const BRAWL_RULES = Object.freeze({
   gap: 420,         // mm, a held body in front of its holder
   knees: 3, knee: 40, kneeFrames: 10, kneeStop: 6,   // the knees a hold allows (the last knocks down), each's damage, its time, its hitstop
   suplex: 150,      // the damage of a body taken from behind, slammed down
+  pick: 12,         // frames a body takes to pick a thing up (or throw its weapon)
+  reachThing: 500,  // mm along the belt a thing lies within to be picked up
   scaling: [100, 100, 80, 70, 60, 50, 40, 30, 20, 10],
 });
 const SIDES = ['player', 'crowd'];
@@ -98,14 +106,14 @@ export function newBrawl(ctx, opts = {}) {
   const rules = { ...BRAWL_RULES, ...(opts.rules ?? {}) };
   const bodies = (opts.bodies ?? []).map((b, i) => newBody(i, b, ctx));
   if (!bodies.length) throw new Error('brawl: a brawl has bodies');
-  const s = { f: 0, rules, bodies, shots: [], events: [], nextShot: 1, freeze: 0, cleared: [] };
+  const s = { f: 0, rules, bodies, shots: [], events: [], nextShot: 1, freeze: 0, cleared: [], ...(opts.things?.length ? { things: opts.things.map((t) => ({ ...t })), nt: Math.max(...opts.things.map((t) => t.id)) + 1 } : {}) };
   if (ctx.belt) s.cam = opts.cam ?? Math.round(beltScroll(ctx.belt, 0, 0) * 1000);
   for (const p of s.bodies) faceTarget(s, p);
   return s;
 }
 
 function cloneBrawl(s) {
-  return { ...s, bodies: s.bodies.map((p) => ({ ...p, hl: p.hl.map((h) => h.slice()), ...(p.fh ? { fh: p.fh.slice() } : {}) })), shots: s.shots.map((t) => ({ ...t })), events: [], cleared: s.cleared.slice() };
+  return { ...s, bodies: s.bodies.map((p) => ({ ...p, hl: p.hl.map((h) => h.slice()), ...(p.fh ? { fh: p.fh.slice() } : {}) })), shots: s.shots.map((t) => ({ ...t })), events: [], cleared: s.cleared.slice(), ...(s.things ? { things: s.things.map((t) => ({ ...t, ...(t.hl ? { hl: t.hl.slice() } : {}) })) } : {}) };
 }
 
 // ── boxes (the fight's, in the plane along the belt; the line across it is the brawl's) ─────────────────────────
@@ -158,6 +166,7 @@ export function stepBrawl(prev, pads, ctx) {
   for (const p of s.bodies) advance(s, p, ctx);
   for (const t of s.shots) { t.x += t.vx; t.life--; }
   s.shots = s.shots.filter((t) => t.life > 0 && t.hits > 0);
+  if (s.things) flying(s, ctx);
   separate(s, ctx);
   for (const p of s.bodies) faceTarget(s, p);
   resolve(s, ctx);
@@ -199,6 +208,11 @@ function think(s, p, pad, ctx) {
   if (!FREE.has(p.st)) return;
   p.combo = 0;
   p.jug = 0;
+  if (s.things) {
+    if (pad.toss && p.wpn) { toss(s, p, ctx); return; }
+    // (attack over a thing takes it, a player's)
+    if (want && p.side === 'player') { const t = underfoot(s, p); if (t && pick(s, p, t, ctx)) return; }
+  }
   if (want && F.moves[want].stance !== 'air') { start(s, p, F, want); return; }
   if (pad.jump) { p.st = 'prejump'; p.sf = 0; p.jx = sgn(pad.x); p.jz = sgn(pad.z); return; }
   const wx = sgn(pad.x), wz = sgn(pad.z);
@@ -230,6 +244,7 @@ function advance(s, p, ctx) {
   if (p.gone) return;
   const F = ctx.fighters[p.fi], J = F.jump, R = s.rules;
   if (p.inv > 0) p.inv--;
+  if (p.wpn && (p.st === 'fall' || p.st === 'down')) drop(s, p);
   if (p.ist && --p.ist[1] <= 0) { delete p.ist; s.events.push({ t: 'stateEnd', p: p.id }); }
   if (p.hs > 0) { p.hs--; return; }
   p.sf++;
@@ -250,6 +265,7 @@ function advance(s, p, ctx) {
       if (p.y <= 0 && p.vy < 0) touchDown(p, J.landing);
       break;
     case 'land': if (p.sf >= p.landing) { p.st = 'stand'; p.sf = 0; } break;
+    case 'pick': if (p.sf >= R.pick) { p.st = 'stand'; p.sf = 0; } break;
     case 'move': {
       const m = F.moves[p.mv];
       p.mf++;
@@ -458,6 +474,21 @@ function resolve(s, ctx) {
       if (hurt) contacts.push({ a: p, d: o, m, at: mid(hb, hurt), box: hb });
     }
   }
+  // a player's blow on a box: its damage off the box's, once a move; broken, it leaves what it holds
+  if (s.things) for (const p of B) {
+    const m = p.side === 'player' ? live(p, F(p)) : null, hb = m && !m.throw ? strikeOf(p, F(p)) : null;
+    if (!hb) continue;
+    for (const t of s.things) {
+      if (t.kind !== 'box' || Math.abs(t.z - p.z) > s.rules.line || hitsOn(p, `t${t.id}`)) continue;
+      const D = THINGS.box[t.what], hw = Math.round((D.w * 1000) / 2);
+      // (a box is struck as a body standing there is: a blow thrown at a body's height breaks a low barrel)
+      if (!crosses(hb, [t.x - hw, 0, t.x + hw, Math.max(BOX_REACH, Math.round(D.h * 1000))])) continue;
+      p.hl.push([`t${t.id}`, 1, p.mf]); p.conn = p.conn || 1; p.hs = Math.max(p.hs, 6);
+      t.hp -= m.damage;
+      s.events.push({ t: t.hp > 0 ? 'thud' : 'break', thing: t.id, what: t.what, p: p.id, x: t.x, z: t.z });
+      if (t.hp <= 0) breakBox(s, t);
+    }
+  }
   for (const t of s.shots) {
     if (s.f - t.hitAt < t.rehit) continue;
     const sb = shotRect(t);
@@ -570,6 +601,70 @@ function knockOut(s, d, face) {
   d.hp = 0; d.ko = 1; d.st = 'fall'; d.sf = 0; d.vy = Math.max(d.vy, 70); d.vx = face * 24; d.vz = 0; d.mv = null;
   if (d.y <= 0) d.y = 1;
   s.events.push({ t: 'ko', p: d.id });
+}
+
+// a box is as tall as a body's chest to the blows thrown at it (mm)
+const BOX_REACH = 1600;
+
+// ── the street's things ──────────────────────────────────────────────────────────────────────────────────────
+
+/** the thing a body stands over (not a box, not one in flight), nearest first */
+function underfoot(s, p) {
+  let best = null;
+  for (const t of s.things) {
+    if (t.kind === 'box' || t.fly || Math.abs(t.z - p.z) > s.rules.line || Math.abs(t.x - p.x) > s.rules.reachThing) continue;
+    if (!best || Math.abs(t.x - p.x) < Math.abs(best.x - p.x)) best = t;
+  }
+  return best;
+}
+const takeThing = (s, t) => { s.things = s.things.filter((u) => u !== t); };
+function pick(s, p, t, ctx) {
+  const F = ctx.fighters[p.fi];
+  if (t.kind === 'weapon') {
+    const armed = ctx.armed?.[`${p.fb ?? p.fi}:${t.what}`];
+    if (armed === undefined) return false;   // (a body with no armed self cannot hold it)
+    if (p.wpn) drop(s, p);
+    p.fb = p.fb ?? p.fi; p.fi = armed; p.wpn = t.what;
+  } else if (t.kind === 'food') p.hp = Math.min(F.hp, p.hp + THINGS.food[t.what].hp);
+  else if (t.kind === 'power') grantState(s, p.id, THINGS.power[t.what].state);
+  takeThing(s, t);
+  p.st = 'pick'; p.sf = 0; p.mv = null; p.wx = 0; p.wz = 0;
+  s.events.push({ t: 'pick', p: p.id, kind: t.kind, what: t.what, x: t.x, z: t.z });
+  return true;
+}
+const newThing = (s, t) => { s.things.push({ id: s.nt++, ...t }); return s.things[s.things.length - 1]; };
+/** a body lets its weapon go: it lies a step behind, the body its unarmed self again */
+function drop(s, p) {
+  newThing(s, { kind: 'weapon', what: p.wpn, x: p.x - p.face * 300, z: p.z });
+  s.events.push({ t: 'drop', p: p.id, what: p.wpn, x: p.x, z: p.z });
+  p.fi = p.fb; delete p.fb; delete p.wpn;
+}
+function toss(s, p, ctx) {
+  const t = newThing(s, { kind: 'weapon', what: p.wpn, x: p.x + p.face * 400, z: p.z, y: 1100, vx: p.face * 90, fly: 30, side: p.side, by: p.id });
+  s.events.push({ t: 'toss', p: p.id, what: p.wpn, x: t.x, z: t.z });
+  p.fi = p.fb; delete p.fb; delete p.wpn;
+  p.st = 'pick'; p.sf = 0; p.mv = null; p.wx = 0; p.wz = 0;
+}
+/** a thrown weapon in flight: the first foe lined up with it it meets is struck, and it falls where it is */
+function flying(s, ctx) {
+  for (const t of s.things) {
+    if (!t.fly) continue;
+    t.x += t.vx; t.fly--;
+    const box = [t.x - 160, t.y - 160, t.x + 160, t.y + 160];
+    const o = s.bodies.find((q) => q.side !== t.side && !q.gone && !q.ko && Math.abs(q.z - t.z) <= s.rules.line && !untouchable(q, ctx.fighters[q.fi], 'projectile') && bodyHurt(q, ctx.fighters[q.fi]).some((h) => crosses(box, h)));
+    if (o) {
+      const shot = { vx: t.vx, dmg: THINGS.weapon[t.what].throw, hitstun: 24, hitstop: 8, push: 200, hits: 1, hl: [], sup: 0, meter: 0 };
+      blow(s, ctx, { a: s.bodies[t.by], d: o, shot, at: [o.x, t.y], box });
+      t.fly = 0;
+    }
+    if (!t.fly) { t.y = 0; delete t.vx; delete t.side; delete t.by; delete t.fly; }
+  }
+  s.things = s.things.filter((t) => t.x >= -2000 && t.x <= 1e7);
+}
+function breakBox(s, t) {
+  const i = s.things.indexOf(t);
+  if (t.holds) s.things[i] = { id: t.id, ...t.holds, x: t.x, z: t.z };
+  else s.things.splice(i, 1);
 }
 
 /** A short, stable fingerprint of a state: all of it but the rules it was given and the frame's events. */

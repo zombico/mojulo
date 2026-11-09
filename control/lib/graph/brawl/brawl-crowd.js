@@ -26,7 +26,9 @@
  *
  *   CROWD_TYPES, CROWD_RULES
  *   readWaves(waves, belt)                  → the waves, settled (throws naming the fault)
- *   streetOf({ belt, players, waves, rules?, crowd? }) → a street: { ctx, s, mind } (players: [{ recipe, style? }])
+ *   streetOf({ belt, players, waves, things?, rules?, crowd? }) → a street: { ctx, s, mind } (players: [{ recipe,
+ *                                           style? }]; things the street's, brawl-things.js, in the belt's metres: each
+ *                                           player's armed self compiled for every weapon on the street)
  *   stepStreet(street, playerPads)          → the street a frame on: the crowd's pads, the core's step, the waves
  *
  * Pure and deterministic: its only variety is a hash of a body's id (no dice, no clock).
@@ -37,6 +39,7 @@ import { BTN } from '../versus/versus-input.js';
 import { brawlFighter } from './brawl-moves.js';
 import { newBrawl, stepBrawl } from './brawl-core.js';
 import { viewHalf } from './brawl-belt.js';
+import { readThings } from './brawl-things.js';
 
 /** what a thug is: its fighter (an archetype, a weapon, its health) and what it throws */
 const type = (says, o) => Object.freeze({ says, ...o });
@@ -103,7 +106,7 @@ export function crowdFighter(id) {
 }
 
 /** A street to fight down: the players at its start, every wave's crowd waiting offstage, the crowd's mind. */
-export function streetOf({ belt, players, waves = [], rules, crowd } = {}) {
+export function streetOf({ belt, players, waves = [], things, rules, crowd } = {}) {
   if (!belt) throw new Error('brawl: a street needs its belt');
   if (!Array.isArray(players) || !players.length || players.length > 4) throw new Error('brawl: a street has 1 to 4 players');
   const W = readWaves(waves, belt);
@@ -124,8 +127,13 @@ export function streetOf({ belt, players, waves = [], rules, crowd } = {}) {
     }
     for (const c of w.crowd) for (let j = 0; j < c.n; j++) { bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].attack === 'grab' ? {} : { grabs: false }) }); kinds.push(c.type); }
   });
-  const ctx = { fighters, belt };
-  const s = newBrawl(ctx, { bodies, rules });
+  // the street's things, and each player's armed self for every weapon among them (in a box or not)
+  const T = things ? readThings(things, belt) : [];
+  const weapons = [...new Set(T.flatMap((t) => [t, t.holds].filter(Boolean)).filter((t) => t.kind === 'weapon').map((t) => t.what))];
+  const armed = {};
+  players.forEach((pl, i) => { for (const w of weapons) { armed[`${i}:${w}`] = fighters.length; fighters.push(brawlFighter({ ...pl.recipe, weapon: w }, { style: pl.style })); } });
+  const ctx = { fighters, belt, ...(weapons.length ? { armed } : {}) };
+  const s = newBrawl(ctx, { bodies, rules, ...(T.length ? { things: T } : {}) });
   // (a held screen with no wave holds nothing: its gate is open from the start)
   s.cleared = belt.screens.map((sc, i) => (sc.gate && !W.some((w) => w.screen === i) ? i : -1)).filter((i) => i >= 0);
   // (each crowd body's type, by its id)

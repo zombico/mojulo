@@ -49,3 +49,8 @@
   reads, its combos), stepping onto the player's line before it swings and keeping the crowd's turn. It comes in first
   with its bar, its crowd behind it; beaten, the rest flee and the stage is clear. A held screen with no wave is open
   from the start, and two attackers can no longer start on the same player on the same frame.
+- The street's things (`brawl/brawl-things.js`): food (an apple, a roast chicken, a joint of meat) gives health back,
+  power-ups grant the fight's timed states, weapons (a pipe, a knife, a katana: the fight's own, the pipe new to its
+  shelf) are picked up and swung by the chain, thrown with special at the first foe lined up ahead, and dropped when
+  knocked down; barrels, crates and phone booths give way to a player's blows and leave what they hold. A player stands
+  over a thing and presses attack to take it. A level places them along the street.

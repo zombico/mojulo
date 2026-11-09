@@ -13,7 +13,8 @@
  *   A + J        the DESPERATION (the library's `whirl`): invincible, all round, it knocks down what it meets and
  *                costs a slice of health when it lands; it breaks a hold on the held body
  *   special (S)  the fighter's signature special from the library (S with the stick toward or away the special at
- *                that direction, otherwise at neutral; across the street, at down)
+ *                that direction, otherwise at neutral; across the street, at down); holding a weapon, it throws it
+ *   (attack over a thing on the street picks it up: the core's, brawl-core.js)
  *
  *   BRAWL_STYLES[archetype] = { says, chain, finisher?, grab }   the fighting style: its chain (the fight's slots, in
  *                order), the forward finisher's slot, its grabs' strength (% of the brawl's knee and suplex, of the
@@ -73,7 +74,7 @@ export function brawlFighter(recipe, { style: id } = {}) {
 }
 
 /** A seat's reader: the presses it remembers. */
-export const newReader = () => ({ pa: 0, pj: 0, ps: 0, a: 99, j: 99, s: 99, want: null, keep: 0, jump: -1, hold: null, hk: 0, kn: 0 });
+export const newReader = () => ({ pa: 0, pj: 0, ps: 0, a: 99, j: 99, s: 99, want: null, keep: 0, jump: -1, hold: null, hk: 0, kn: 0, tk: 0 });
 
 /** What the next press of attack is, for this body now. */
 function attackOf(body, F, x) {
@@ -117,9 +118,12 @@ export function readButtons(reader, buttons, body, F) {
   } else {
     if (jP) r.jump = JUMP_WAIT;
     if (aP) { const w = attackOf(body, F, x); if (w) { r.want = w; r.keep = BUFFER; } }
-    if (sP) { const w = specialOf(body, F, x, z); if (w) { r.want = w; r.keep = BUFFER; } }
+    if (sP && body.wpn) r.tk = BUFFER;
+    else if (sP) { const w = specialOf(body, F, x, z); if (w) { r.want = w; r.keep = BUFFER; } }
   }
   if (r.jump >= 0 && r.jump-- === 0) pad.jump = true;
+  // (a throw of the weapon, kept until the body is free to throw it)
+  if (r.tk > 0) { if (body.wpn) { pad.toss = true; r.tk--; } else r.tk = 0; }
   if (r.want) pad.mv = r.want;
   return [pad, r];
 }

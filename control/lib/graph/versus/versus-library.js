@@ -417,6 +417,7 @@ export const WEAPONS = Object.freeze({
   spear: { grip: 'B', length: 0.72, width: 35, butt: 0.3, angle: -4, tempo: 1.05, damage: 1, hurt: 'recovery', color: '#c9b089', says: 'a spear in the rear hand: the longest poke, the lead hand stays free' },
   staff: { grip: 'B', length: 0.5, width: 45, butt: 0.45, angle: 0, tempo: 1.02, damage: 0.95, hurt: 'always', color: '#a57b4f', says: 'a staff: long both ways, its wood is hit as it swings' },
   claws: { grip: 'F', length: 0.1, width: 60, angle: 0, tempo: 0.92, damage: 0.95, hurt: 'recovery', color: '#c8ccd2', says: 'claws: a fist that cuts, a frame faster' },
+  pipe: { grip: 'F', length: 0.34, width: 50, angle: 4, tempo: 1.08, damage: 1.3, hurt: 'recovery', color: '#8d939b', says: 'a length of pipe: blunt and slow, it hits like a heavy (a street\'s, picked up)' },
 });
 
 export const WEAPON_HURT = Object.freeze(['recovery', 'none', 'always']);
