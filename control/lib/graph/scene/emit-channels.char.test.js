@@ -537,6 +537,11 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-09 (1108-practice-room: the sword arts): `court`, `turns` and `pitch`, which inline the swing system
 // (hero-swing.js). The upswing (a moveset's launcher only) chambers its blade higher, off the floor under a body's crouch;
 // no contest swings it, so the source they carry changed, their play as it was. The runtime is untouched.
+// Re-pinned 2026-11-09 (1108-practice-room: the templates' kits): the 16 fixtures that embed the controllable runtime,
+// and `court`, `turns` and `pitch`, which inline the swing system (hero-swing.js). A move's `arc` and `spin` (the spin
+// attack: its blow all round, the body turned through it), the swing system's `around` (a moveset's level sweep, baked as
+// a move's clip only), and the hitstop keeping the pilot's presses through its own freeze; no fixture names a moveset or
+// taps through a freeze, so the sources they carry changed, their play as it was.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

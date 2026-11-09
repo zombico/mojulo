@@ -241,3 +241,20 @@
   and above the floor; inspired's elbow at most a forearm over the shoulder line. The practice room takes `--art`,
   inspired by default (the Zelda-like hero's flair). Fixed on the way: the launcher's upswing chambered its blade a few
   centimetres into the floor under the body's crouch; its coil and cock now hold it off.
+- **The templates' kits** (`gameworld/combos.js` `TEMPLATE_ARSENALS`, `arsenalFor`). What the practice room settled on is
+  pinned as a game template's starter arsenal, found from a game's feel (its template, or the nearer of a blend that has
+  one). Fallen Angel (the stylish game) keeps the room's kit as it stood: the sword's and the fist's strings, the
+  launcher on back + heavy, the juggle, the air strings ending in a slam, the bow, swung `freestyle`. A brief for fast
+  slashing (`slashing`, `air combos`, `juggles`, `launcher`, beside the stylish game's names) points at it
+  (`feel/suggest.js`). Fable of Artesia (the action-adventure) is its own: the sword and shield on the ground, no
+  launcher, no juggle, no air strings, swung `inspired`, and deliberate (a press remembered 14 frames early and chained
+  18 late, cuts of 27 frames that chain at 18, 36 frames of rest after the finisher: the stylish game's 12, 14, 24 at
+  15, 30). Its back + heavy is the SPIN ATTACK: the blade swept level all round (`arc: 360`), the body turned once through
+  the blow (`spin: 1`), every foe in reach struck once and knocked back, never up; a move's `arc` and `spin` are new
+  move words (combat-melee.js), and `around` a moveset's level sweep. The room takes its kit from the game's feel
+  (`--kit` over it).
+- **Artesia's jump a little lower** (`feel/cards.js`): 1.2 m clear (was 1.45; the first card's 0.9), its flight 0.6 s,
+  a run's jump across 3.25 m.
+- **Fixed: a tap on the freeze was lost** (`hitstop.js`). A body frozen on its blow sits its step out, so an attack
+  pressed for a frame inside the freeze never reached it: a quick tap timed on the hit dropped the next cut. The pilot's
+  attack presses made through its own freeze are kept and handed to its first free frame.

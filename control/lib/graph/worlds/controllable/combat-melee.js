@@ -627,6 +627,11 @@ export function buildCombatMelee(E) {
       e.swingT += dt / live.dur;
       // (a ground move ends on leaving the ground; an AIR move lives in the air and ends on landing)
       if (e.swingT >= 1 || (live.air ? e.grounded : airborne)) { ended(); e.swingT = null; e.mvTravel = null; S.move = null; S.endT = now; }
+      // THE SPIN (a move's `spin`): the body turned through its turns from a little before the blow to a little after it
+      else if (e.mvSpin && e.strikeParams) {
+        const P = e.strikeParams, a = Math.max(0, P.from - 0.12), z = Math.min(1, P.to + 0.1), q = Math.max(0, Math.min(1, (e.swingT - a) / (z - a)));
+        t.heading = (e.mvSpin.h0 + 2 * Math.PI * e.mvSpin.turns * q * q * (3 - 2 * q)) % (2 * Math.PI);
+      }
       // THE RISE (a launcher's `rise`): its blow launched a foe and the heavy is still held: the hero leaves the ground
       // with it, the move cut there, into the air string
       else if (live.rise && e.mvLaunched && input.heavy && e.grounded) {
@@ -636,6 +641,7 @@ export function buildCombatMelee(E) {
       }
     }
     e.mvLaunched = false;
+    if (e.swingT == null) e.mvSpin = null;
     // THE HANG (air stickiness, the moveset's `air`): an air move holds the hero aloft, its gravity `hang` of its own
     // while the move plays (rules-platform.js reads `mvHang`)
     e.mvHang = e.swingT != null && S.move && M.moves[S.move].air && M.air ? M.air.hang : null;
@@ -681,6 +687,10 @@ export function buildCombatMelee(E) {
         e.swingCount = (e.swingCount || 0) + 1; e.struckThisSwing = {}; e.lastSwingDir = mv.swing;
         const fw = fwdXY(t.heading), P = e.strikeParams;
         if (mv.contact) { P.from = mv.contact[0]; P.to = mv.contact[1]; }
+        // (an ARC: the blow's reach round the hero, its cone's half; 360 all round, a spin attack's) and a SPIN: the body
+        // turned through `spin` turns over the blow, back to the facing it was taken at
+        if (mv.arc) P.cosCone = Math.cos(Math.min(180, mv.arc / 2) * Math.PI / 180);
+        e.mvSpin = mv.spin ? { h0: t.heading, turns: mv.spin } : null;
         // (the travel waits out the blend into the move, at most half its way to the blow: hero-swing-body.js travelAt)
         const tTo = mv.travel ? Math.max(0.05, mv.travel.kind === 'step' ? P.from : P.to) : 0;
         e.mvTravel = travels ? { dir: [fw[0], fw[1]], kind: mv.travel.kind, m: mv.travel.m, from: Math.min(mv.travel.wait || 0, tTo * 0.5), to: tTo, done: 0 } : null;

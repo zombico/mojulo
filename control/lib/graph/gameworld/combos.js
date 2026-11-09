@@ -5,7 +5,8 @@
  * A MOVE is an attack primitive:
  *   swing    the runtime's swing it plays (worlds/controllable/combat-melee.js `swing_<dir>`, a held weapon's: neutral the
  *            hero's own cut, forward the thrust, back the two-handed cleave, left and right the rising cuts; up the
- *            upswing, a move's only: straight up in front, a launcher's); or
+ *            upswing, a move's only: straight up in front, a launcher's; around the level sweep a spin attack turns through);
+ *            or
  *   strike   a body's strike the hero's motion solves (hero-strike.js jab, cross; hero-box.js hook, uppercut), its clip
  *            baked on the figure by name (world-scene.js `moves`): the fist's
  *   contact  [from, to] the blow's window as shares of its length (absent: the swing's, where the hero was baked to land)
@@ -49,7 +50,7 @@ export const TRAVEL = Object.freeze(['none', 'step', 'lunge']);
 // SWING_STYLES, docs/sword-arts.md): realistic (the game type's own swing, the default), inspired (real technique
 // performed for the camera), freestyle (the anime sword: anything goes)
 export const ARTS = Object.freeze(['realistic', 'inspired', 'freestyle']);
-export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right', 'up']);
+export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right', 'up', 'around']);
 /** the body strikes a move may play (hero-strike.js STRIKES, hero-box.js BOX_STRIKES): the fist's */
 export const STRIKES = Object.freeze(['jab', 'cross', 'hook', 'uppercut']);
 // (bH: back + heavy, the heavy pressed with the stick pulled away from where the hero faces: the launcher's beat)
@@ -101,7 +102,9 @@ export function readCombos(C) {
   for (const [id, m] of Object.entries(C.moves)) {
     const at = `moves.${id}`;
     if (!isObj(m)) no(`${at} is { swing | strike, role, frames, cancel?, contact?, travel?, damage?, impact?, topple?, launch?, cooldown? }`);
-    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch', 'cooldown', 'air', 'slam', 'rise'].includes(k)) no(`${at}.${k} is not part of a move`);
+    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch', 'cooldown', 'air', 'slam', 'rise', 'arc', 'spin'].includes(k)) no(`${at}.${k} is not part of a move`);
+    if (m.arc !== undefined && !num(m.arc, 30, 360)) no(`${at}.arc is the degrees round the hero its blow reaches, 30 to 360 (360: all round, a spin attack's)`);
+    if (m.spin !== undefined && !num(m.spin, 0, 3)) no(`${at}.spin is the turns the body makes through the blow, 0 to 3`);
     if (m.air !== undefined && typeof m.air !== 'boolean') no(`${at}.air is true (a move made in the air) or false`);
     if (m.slam !== undefined && !(num(m.slam, 0, 40) && m.air)) no(`${at}.slam is the foe's speed down (m/s) an air move drives it into the ground at`);
     if (m.rise !== undefined && !(typeof m.rise === 'boolean' && m.launch > 0)) no(`${at}.rise is true on a launching move: the hero rising with the foe while the button is held`);
@@ -170,6 +173,7 @@ export function lowerCombos(C0, { prefix = '' } = {}) {
     damage: m.damage ?? 1, ...(m.impact != null ? { impact: m.impact } : {}), ...(m.topple ? { topple: true } : {}), ...(m.launch ? { launch: m.launch } : {}),
     ...(m.cooldown > 0 ? { cooldown: r4(m.cooldown / FPS) } : {}),
     ...(m.air ? { air: true } : {}), ...(m.slam > 0 ? { slam: m.slam } : {}), ...(m.rise ? { rise: true } : {}),
+    ...(m.arc ? { arc: m.arc } : {}), ...(m.spin ? { spin: m.spin } : {}),
   }]));
   // (the ground's tree and the air's: a string made in the air opens from a jump or a launch, the ground's from the feet)
   const tree = {}, airTree = {};
@@ -228,6 +232,52 @@ export const BASIC_ARSENAL = Object.freeze({
     { id: 'bow', name: 'Bow', mode: 'draw', draw: 0.45, early: 'none', speed: 45, drop: 9, damage: 3, impact: 30, quiver: 30, nock: 0.3, hand: 'left' },
   ],
 });
+/**
+ * THE TEMPLATES' KITS (a game template's starter arsenal: gameworld/feel/cards.js POLES; docs/sword-arts.md). What the
+ * practice room settled on for each, so a game tuned toward the template starts from it:
+ *   fallen-angel       the stylish game (Devil May Cry): the basic arsenal as it stands, the sword and the fist, their
+ *                      strings, the launcher on back + heavy, the juggle and the air strings ending in a slam, the bow;
+ *                      swung freestyle (the anime sword)
+ *   fable-of-artesia   the action-adventure (Zelda): the sword and shield, deliberate (a press remembered longer, a string
+ *                      that must play further before it chains, a longer rest after the finisher), no launcher, no juggle,
+ *                      no air strings; back + heavy is the SPIN ATTACK, the blade swept all round the hero, the body turned
+ *                      through it, every foe in reach knocked back; swung inspired (real technique, performed)
+ * arsenalFor(feel) → { template, arsenal } for a feel (a template's id, or { pole, toward?, t? }: the nearer template that
+ * has a kit, else the other), or null.
+ */
+export const ARTESIA_ARSENAL = Object.freeze({
+  art: 'inspired',
+  // (deliberate: a press remembered 14 frames early and chained up to 18 late, a pause string from 18 to 54, a 5-frame blend,
+  // 36 frames of rest after a finisher; the stylish game's 12, 14, 16 to 50, 4, 30)
+  timing: { buffer: 14, late: 18, pause: [18, 54], blend: 5, rest: 36 },
+  weapons: [
+    { id: 'sword', name: 'Sword', figure: 'drawn',
+      moves: {
+        'cut-1': { swing: 'neutral', role: 'opener', frames: 27, cancel: 18, travel: { kind: 'step', m: 0.25 }, damage: 1 },
+        'cut-2': { swing: 'left', role: 'filler', frames: 27, cancel: 18, travel: { kind: 'step', m: 0.25 }, damage: 1 },
+        cleave: { swing: 'back', role: 'finisher', frames: 46, travel: { kind: 'lunge', m: 0.5 }, damage: 2, impact: 3, topple: true },
+        thrust: { swing: 'forward', role: 'opener', frames: 34, travel: { kind: 'lunge', m: 0.6 }, damage: 1.5, impact: 1.5, cooldown: 40 },
+        // the SPIN ATTACK (back + heavy): the blade swept level all round, the body turned once through the blow, every foe
+        // in reach struck once and knocked back (not up: there is no juggle here), a long cooldown
+        spin: { swing: 'around', role: 'finisher', frames: 44, contact: [0.3, 0.72], arc: 360, spin: 1, damage: 1.5, impact: 3, cooldown: 50 },
+      },
+      combos: [
+        { id: 'three-cuts', name: 'Three cuts', beats: ['L', 'L', 'L'], moves: ['cut-1', 'cut-2', 'cleave'] },
+        { id: 'thrust', name: 'Thrust', beats: ['H'], moves: ['thrust'] },
+        { id: 'spin', name: 'Spin attack', beats: ['bH'], moves: ['spin'] },
+      ] },
+  ],
+  ranged: BASIC_ARSENAL.ranged,
+});
+export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle' });
+export const TEMPLATE_ARSENALS = Object.freeze({ 'fallen-angel': FALLEN_ANGEL_ARSENAL, 'fable-of-artesia': ARTESIA_ARSENAL });
+export function arsenalFor(feel) {
+  const of = (id) => (typeof id === 'string' && TEMPLATE_ARSENALS[id] ? { template: id, arsenal: TEMPLATE_ARSENALS[id] } : null);
+  if (typeof feel === 'string') return of(feel);
+  if (!isObj(feel)) return null;
+  const near = feel.toward && (feel.t ?? 0.5) > 0.5 ? [feel.toward, feel.pole] : [feel.pole, feel.toward];
+  return of(near[0]) ?? of(near[1]);
+}
 /**
  * THE SIDEARM (an arsenal's `ranged`: one, on S, every weapon's: the weapon cycle never changes it; a weapon's own `sidearm: false` carries none), in the designer's words, lowered to the
  * runtime's ranged weapon (worlds/controllable/combat-ranged.js initWeapon):

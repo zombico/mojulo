@@ -12,9 +12,15 @@
  */
 
 export function buildHitstop(E) {
+  const LATCH = ['fire', 'heavy', 'special'];
   const step = E.stepWorld;
   E.stepWorld = function stepWithHitstop(state, input, dt, hooks) {
     dt = dt || 1 / 60;
+    // (the PILOT's presses through its own freeze: an attack pressed while it is held is kept, `pressLatch`, and handed to
+    // the first frame it moves again, so a tap that lands on the freeze is never lost)
+    const P = state.pilotId && state.byId ? state.byId[state.pilotId] : null;
+    if (P && P.hitstopT > 0) { if (input) for (const k of LATCH) if (input[k]) (state.pressLatch || (state.pressLatch = {}))[k] = 1; }
+    else if (state.pressLatch) { input = { ...(input || {}), ...state.pressLatch }; state.pressLatch = null; }
     const t0 = state.time, all = state.entities, frozen = all.filter((e) => e.hitstopT > 0);
     // (a float's residue is no frame)
     for (const e of frozen) e.hitstopT = e.hitstopT - dt > 1e-9 ? e.hitstopT - dt : 0;

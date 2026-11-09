@@ -6,7 +6,7 @@
  *
  *   cd control
  *   export MOJULO_DATA_DIR=… MOJULO_OUTCOMES_DIR=…          # a database a game was made in (README of the-old-keep)
- *   node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--strings 2.5] [--art inspired] [--cdn]
+ *   node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--strings 2.5] [--kit fallen-angel] [--art inspired] [--cdn]
  *
  * The room is a `controllable` manifest resolved by world-scene.js and emitted as export_game emits a level: the hero is
  * the game's first level's pilot (its rule, its figures, its camera, its lock), the foe that level's first foe, so what
@@ -35,18 +35,21 @@ const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js
 const { asked } = await import('./measure.mjs');
 const { feelRule } = await import('../../../lib/graph/gameworld/feel/lower.js');
 const { sfxSound } = await import('../../../lib/graph/sfx-shelf/resolve.js');
-const { BASIC_ARSENAL, readCombos, readArsenal, lowerArsenal, comboList, lowerJuggle } = await import('../../../lib/graph/gameworld/combos.js');
+const { BASIC_ARSENAL, TEMPLATE_ARSENALS, arsenalFor, readCombos, readArsenal, lowerArsenal, comboList, lowerJuggle } = await import('../../../lib/graph/gameworld/combos.js');
 // the arsenal the room plays (--combos <file>: an arsenal, or one weapon's combo manifest; the basic sword and fist by
 // default), every combo unlocked, the weapons stepped through on the cycle
 const given = opt('--combos') ? JSON.parse(await fs.readFile(opt('--combos'), 'utf8')) : null;
-const arsenal0 = !given ? structuredClone(BASIC_ARSENAL) : given.weapons ? given : { ...(given.timing ? { timing: given.timing } : {}), weapons: [{ id: 'sword', name: 'Sword', figure: 'drawn', ...readCombos(given) }] };
-// (--art realistic | inspired | freestyle: how the blades are swung, the sword art the hero's clips bake in; inspired by
-// default, the Zelda-like hero's flair; an arsenal that names its own keeps it)
-const arsenal = readArsenal({ ...arsenal0, art: arsenal0.art ?? opt('--art', 'inspired') });
-const weapons = lowerArsenal(arsenal);
-
 const G = SketchRepository.getByRef(game)?.manifest;
 if (!G) throw new Error(`room: no gameworld '${game}' in this database (MOJULO_DATA_DIR)`);
+// (the KIT: the game template's starter arsenal, combos.js TEMPLATE_ARSENALS, found from the game's feel, arsenalFor;
+// --kit fallen-angel | fable-of-artesia over it; none found, the basic arsenal)
+const kit = opt('--kit') ?? arsenalFor(G.feel)?.template ?? null;
+if (kit && !TEMPLATE_ARSENALS[kit]) throw new Error(`room: --kit is ${Object.keys(TEMPLATE_ARSENALS).join(' | ')}`);
+const arsenal0 = given ? (given.weapons ? given : { ...(given.timing ? { timing: given.timing } : {}), weapons: [{ id: 'sword', name: 'Sword', figure: 'drawn', ...readCombos(given) }] }) : structuredClone(kit ? TEMPLATE_ARSENALS[kit] : BASIC_ARSENAL);
+// (--art realistic | inspired | freestyle: how the blades are swung, the sword art the hero's clips bake in; over the
+// kit's own, else inspired)
+const arsenal = readArsenal({ ...arsenal0, art: opt('--art') ?? arsenal0.art ?? 'inspired' });
+const weapons = lowerArsenal(arsenal);
 const lv = SketchRepository.getByRef(`${game}-level-${G.start ?? Object.keys(G.levels)[0]}-0`);
 if (!lv) throw new Error(`room: '${game}' has no first level built (design_game run)`);
 const L = lv.manifest, hero = L.entities.find((e) => e.pilotable), foe0 = L.entities.find((e) => e.team === 'foes');
@@ -233,6 +236,6 @@ const file = path.join(out, 'practice-room.html');
 await fs.writeFile(file, html);
 // THE COMBO MANIFEST: what the room played, every combo unlocked, for the game's director
 await fs.writeFile(path.join(out, 'combos.json'), JSON.stringify(arsenal, null, 2));
-console.log(`room: ${arsenal.weapons.map((W) => `${W.name ?? W.id}: ${comboList({ moves: W.moves, combos: W.combos }).map((c) => `${c.beats} ${c.name}`).join(', ')}`).join(' · ')} → ${path.join(out, 'combos.json')}`);
+console.log(`room (${kit ?? "basic"} kit, ${arsenal.art}): ${arsenal.weapons.map((W) => `${W.name ?? W.id}: ${comboList({ moves: W.moves, combos: W.combos }).map((c) => `${c.beats} ${c.name}`).join(', ')}`).join(' · ')} → ${path.join(out, 'combos.json')}`);
 console.log(`room: ${file} (${(html.length / 1e6).toFixed(1)} MB) · the hero '${pilot.body.figure}' (strike ${rule.strike ?? 'none'}, ${rule.strikeDur ?? '—'} s), ${pack} ${foe0.body.figure} at ${foeHp} hp (${strings} × ${SD.beats}: ${SD.damage} a string, ${SD.hits} hits)`);
 process.exit(0);

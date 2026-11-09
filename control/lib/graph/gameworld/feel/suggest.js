@@ -20,7 +20,7 @@ import { QUICK_GENRE } from '../intent.js';
 import { readPole } from '../shooter-pole.js';
 
 export const FEEL_WORDS = Object.freeze({
-  'fallen-angel': ['devil may cry', 'dmc', 'bayonetta', 'character action', 'stylish action', 'hack and slash', 'hack-and-slash'],
+  'fallen-angel': ['devil may cry', 'dmc', 'bayonetta', 'character action', 'stylish action', 'hack and slash', 'hack-and-slash', 'slashing', 'air combo', 'air combos', 'juggle', 'juggles', 'juggling', 'launcher', 'launchers'],
   'ebon-spirits': ['souls', 'soulslike', 'souls-like', 'dark souls', 'elden ring', 'bloodborne', 'god of war'],
   'fable-of-artesia': ['zelda', 'zelda-like', 'legend of zelda', 'breath of the wild', 'botw', 'tears of the kingdom', 'action adventure', 'action-adventure', 'sword and shield'],
   'cogs-of-combat': ['gears of war', 'cover shooter', 'third-person shooter', 'third person shooter', 'roadie run'],

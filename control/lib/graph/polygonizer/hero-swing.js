@@ -212,9 +212,9 @@ export function swingTiming(cls, flavor) {
  * thrust forward, the cleave back (the runtime's topple), the rising diagonal to either side.
  */
 export const HELD_SWINGS = Object.freeze({ neutral: null, forward: 'thrust', back: 'cleave', left: 'rising', right: 'rising' });
-/** A moveset's swings (gameworld/combos.js SWINGS): the held swings and `up`, the launcher's upswing straight up in front,
- * baked only as a move's own clip (world-kinds.js moveClip), never a held strike's */
-export const MOVE_SWINGS = Object.freeze({ ...HELD_SWINGS, up: 'upswing' });
+/** A moveset's swings (gameworld/combos.js SWINGS): the held swings, `up` (the launcher's upswing straight up in front) and
+ * `around` (the level forehand a spin attack turns through), baked only as a move's own clip (world-kinds.js moveClip), never a held strike's */
+export const MOVE_SWINGS = Object.freeze({ ...HELD_SWINGS, up: 'upswing', around: 'forehand' });
 /** the held strike's numbers by class: its seconds a swing (the runtime's strikeDur), its damage (hits, as the runtime's
  * conformance counts them) */
 export const HELD_STRIKE = Object.freeze({ light: { seconds: 0.35, damage: 1 }, normal: { seconds: 0.5, damage: 2 }, heavy: { seconds: 0.72, damage: 3 } });
