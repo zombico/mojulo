@@ -49,6 +49,7 @@ import { gauntletCast } from './gauntlet-cast.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
+import { interfaceLook } from '../playscape/ui/interface-look.js';
 import { defaultFlow } from '../game/flow.js';
 import { SIDE_KITS } from '../contest/team-arena.js';
 import { sportTeams } from './sport-concept.js';
@@ -171,6 +172,12 @@ export function composedStages(stages, refs, map, composite) {
 /** A composite's audit steps: the kept levels' alone (the others are not in the game to be walked). */
 const composedAudits = (audits, C, composite) => (Array.isArray(composite) ? audits.filter((a) => C.refs.includes(a.ref)) : audits);
 
+// the game's ui as the play shell takes it (game/play-shell-mana.js): the world's look resolved by the interface department
+// (playscape/ui/interface-look.js), its languages; a world without `ui` gives none, its game's screens the shell's own
+function shellUi(G) {
+  if (G.ui === undefined) return {};
+  return { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}) } };
+}
 export function childRef(ref, part) {
   const plain = `${ref}-${part}`;
   if (plain.length <= REF_MAX) return plain;
@@ -444,7 +451,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const links = onBoard ? [] : gameLinks(C.stages, C.refs);
     const theme = paletteTheme(G);
     const final = onBoard ? levelRefs[maps[maps.length - 1].at.slice(-1)[0]] : null;
-    const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
     // THE GAME'S FLOW (game-flow.js): the world's own, its levels the refs of their first stages and a story moment's
     // cinematic on the stage the moment is bound to; else the flow the game has always had, with the story's opening,
     // prologue and ending placed in it (story.js GAME_SLOTS; the main quest's ending, played as a moment, when the story
@@ -638,7 +645,7 @@ function worldSteps(world, G, ref, composite) {
   const C = composedStages(stages, levelRefs, map, composite);
   if (C.stages.length) {
     const links = gameLinks(C.stages, C.refs), theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(C.stages, C.refs, C.map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(G.front ? { front: G.front } : {}) };
     // (a composite's game waits on the levels in it, not on parts the creator is still working one at a time)
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(Array.isArray(composite) ? stamps.map((x) => x.id).filter((id) => !id.startsWith('level:') || composite.includes(id.slice(6))) : stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
     steps.push(...composedAudits(auditSteps(steps, stages), C, composite));
@@ -993,7 +1000,7 @@ function quickSteps(world, G, ref, lookup) {
   const links = gameLinks(stages, levelRefs);
   // a run draws its levels: none waits on another
   const lvls = gameLevels(stages, levelRefs, map).map((l) => (Q.run ? (({ gate: _g, ...x }) => x)(l) : l));
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}) };
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}) };
   steps.push({ key: 'game', ref: gameRef, ready: true, order: game, print: fingerprint(game) });
   steps.push(...auditSteps(steps, stages));
   return steps;

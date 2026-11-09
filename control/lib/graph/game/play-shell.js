@@ -40,6 +40,7 @@ import { DEVICES } from '../controls/devices.js';
 import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
 import { readScreen } from './screen.js';
 import { buildFlowKernel, defaultFlow } from './flow.js';
+import { shellManaConfig, shellManaCss, shellManaScript } from './play-shell-mana.js';
 
 const CTL = buildControlsKernel();
 const PAUSE_BUTTONS = CTL.resolve(SCHEMES.shell, { gamepad: DEVICES.gamepad }).bind.gamepad.pause.map((c) => DEVICES.gamepad.buttons[c]);
@@ -120,8 +121,11 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
     // THE FLOW (flow.js): what plays when, the game's own, else the one its front, levels and run make
     flow: manifest.flow || defaultFlow({ levels: levelTable, links: manifest.links, run: manifest.run, final: manifest.final, front: manifest.front }),
+    // THE SCREENS IN MANA-UI (play-shell-mana.js): the game's ui, its look resolved; absent, no key and none of it inlined
+    ...(manifest.ui ? { mana: shellManaConfig(manifest.ui) } : {}),
   };
-  const front = !!cfg.front;
+  // (with mana-ui the front's words are drawn by it: the front's own sheet and code stay out)
+  const mana = !!cfg.mana, front = !!cfg.front && !mana;
   // THE SCREEN (screen.js): the game is made for a phone, a tablet or a monitor; its levels hold the frame, and the shell
   // fills the device to its edges with its chrome clear of the notch and the home bar, its buttons a thumb's size.
   // Absent: no attribute, no rule, the page as it was
@@ -183,7 +187,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   #debug pre{margin:4px 0 10px;white-space:pre-wrap;word-break:break-word}
   #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}${screen ? `
   ${SCREEN_CSS}` : ''}${front ? `
-  ${FRONT_CSS}` : ''}
+  ${FRONT_CSS}` : ''}${mana ? `
+  ${shellManaCss(manifest.ui)}` : ''}
 </style></head>
 <body>
 <main id="app"></main>${front ? `
@@ -196,7 +201,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
 <details id="debug"><summary>debug</summary><div class="body" id="debugBody"></div></details>
 <div id="toast" role="status"></div>
 <script>${front ? `
-const __mojFront = (${playFrontRuntime.toString()});` : ''}
+const __mojFront = (${playFrontRuntime.toString()});` : ''}${mana ? `
+${shellManaScript()}` : ''}
 const K = (${buildGameStoreKernel.toString()})();
 const __mojFlowK = (${buildFlowKernel.toString()})();
 (${playShellRuntime.toString()})(${scriptJson(cfg)}, K);
@@ -316,7 +322,8 @@ export function playShellRuntime(cfg, K) {
   // home: the flow's (its `home`, else the first screen past an attract): where quitting and resetting go
   const home = () => enter({ step: FK.homeOf(FLOW), level: at.level });
   // what the result and the pause call home: the front's title, else the levels or the title
-  const homeWord = () => (front ? 'title' : LEVELS.length > 1 ? 'levels' : 'title');
+  // (said from the flow's home: the screen quitting goes to, whoever draws it)
+  const homeWord = () => { const h = FLOW.steps[FK.homeOf(FLOW)]; return h && h.screen === 'levels' ? 'levels' : 'title'; };
 
   // ---- RUNS (manifest.run): each run draws `length` of the levels in an order rolled from its number; a clear goes on
   // to the next, a death ends the run; the store carries over from run to run; the deepest run is kept ----
@@ -465,10 +472,11 @@ export function playShellRuntime(cfg, K) {
     lastParams = session.params; lastErrors = null;
     ctlRows = null;
     show('level');
-    $('veilText').textContent = lv.title;
-    veil.style.display = 'flex';
+    // the veil while it loads: mana-ui's loading screen when the game draws its screens with it
+    if (MANA) MANA.loading(lv.title);
+    else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; }
     clearTimeout(veilCap);
-    veilCap = setTimeout(() => { veil.style.display = 'none'; }, 45000);   // a level without the bridge still shows
+    veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 45000);   // a level without the bridge still shows
     frame.src = lv.src;
   }
   function post(msg) { try { if (frame.contentWindow) frame.contentWindow.postMessage(msg, '*'); } catch (e) { /* opaque frame */ } }
@@ -484,15 +492,15 @@ export function playShellRuntime(cfg, K) {
     if (d.moj === W.seats) { seatList = Array.isArray(d.seats) ? d.seats : []; if (paused) renderPause(); return; }
     if (d.moj === W.controls) { ctlRows = Array.isArray(d.rows) && d.rows.length ? d.rows : null; if (paused) renderPause(); return; }
     // the level's first frame drawn: the veil lifts (a level from before game-shown lifts it a moment after it is ready)
-    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; signal('shown'); return; }
+    if (d.moj === W.shown) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); signal('shown'); return; }
     // the scene the flow staged here has ended (or the level had none, or it never started): the flow goes on, the page
     // kept when the cinematic hands its stage on to the level
     if (d.moj === W.sceneEnd) { const cs = FLOW.steps[at.step]; if (cs && cs.kind === 'cinematic' && d.scene === cs.scene) go('next', { keepPage: !!cs.keep }); return; }
     // the level's own end card read (or put away): the flow goes on
     if (d.moj === W.cardDone) { if (waitCard) { const f = waitCard; waitCard = null; f(); } signal('card-done'); return; }
     if (d.moj === W.ready) {
-      clearTimeout(veilCap); veilCap = setTimeout(() => { veil.style.display = 'none'; }, 1200);
-      if (d.contractVersion !== W.version) { clearTimeout(veilCap); veil.style.display = 'none'; toast('This level speaks a newer contract (v' + d.contractVersion + '); re-make the game.'); return; }
+      clearTimeout(veilCap); veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 1200);
+      if (d.contractVersion !== W.version) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); toast('This level speaks a newer contract (v' + d.contractVersion + '); re-make the game.'); return; }
       post({ moj: W.init, contractVersion: W.version, params: session.params, seed: session.seed, theme: cfg.theme });
       pushPrefs();
       return;
@@ -516,7 +524,7 @@ export function playShellRuntime(cfg, K) {
     if (d.moj === W.outcome && !session.ended) {
       session.ended = true;
       // THE END: a game with a final level (M.final) is cleared by its first win alone
-      const before = (front || M.final) && allCleared();
+      const before = (cfg.front || M.final) && allCleared();
       const env = d.envelope || {};
       lastEnvelope = env;
       const r = K.applyOutcome(SCHEMA, state, session.level.contract, env);
@@ -544,7 +552,7 @@ export function playShellRuntime(cfg, K) {
         return;
       }
       // the game first completed (the flow's `complete`): the end, not on through the level's exit
-      const fin = (front || M.final) && !before && r.ok && env.result === 'success' && allCleared();
+      const fin = (cfg.front || M.final) && !before && r.ok && env.result === 'success' && allCleared();
       // TRAVEL (a map game, the flow's $travel): a success through an open exit goes on to the level it leads to
       const travelTo = !(fin && M.final) && r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
       lastOutcome = { lv: session.level, env, ok: r.ok, fin };
@@ -717,6 +725,36 @@ export function playShellRuntime(cfg, K) {
     reset: () => { resetStore(); persist(); },
   }) : null;
 
+  // ---- the screens in mana-ui (play-shell-mana.js), when the game has a ui: the same flow, drawn by the game UI runtime ----
+  // a result as data: its outcome, what it gained and kept, what next (the steps the flow has a way on from)
+  function resultInfo() {
+    const o = lastOutcome;
+    if (!o) return null;
+    const lv = o.lv, env = o.env, won = env.result === 'success', next = MAP ? null : LEVELS[LEVELS.indexOf(lv) + 1];
+    const items = [];
+    if (won && next && isOpen(next) && onOf('next')) items.push({ label: 'next: ' + next.title, then: { emit: 'next' } });
+    if (onOf('again')) items.push({ label: won ? 'play again' : 'try again', then: { emit: 'again' } });
+    if (onOf('home')) items.push({ label: homeWord(), then: { emit: 'home' } });
+    const kept = env.stats && Array.isArray(env.stats.kept) ? env.stats.kept.map((k) => ({ label: k.label, value: String(k.value) + (k.unit || '') })) : [];
+    return { outcome: (won ? 'cleared' : env.result === 'fail' ? 'failed' : 'left') + ' · ' + lv.title, stats: (o.ok ? gainsOf(env.events || []) : []).map((g) => ({ label: g, value: '' })).concat(kept), rank: o.fin && M.final ? 'complete' : '', items };
+  }
+  // a run's end as data (the run is over once it is said)
+  function runInfo() {
+    if (!run || !lastOutcome) return null;
+    const r = run, deep = lastOutcome.deep, won = r.at >= r.order.length, gains = lastOutcome.ok ? gainsOf(lastOutcome.env.events || []) : [];
+    run = null; session = null;
+    const items = [{ label: 'new run', then: { emit: 'again' } }, { label: 'title', then: { emit: 'home' } }].concat(onOf('credits') ? [{ label: 'credits', then: { emit: 'credits' } }] : []);
+    return { outcome: won ? 'run complete' : 'run over', stats: [{ label: 'run ' + r.n, value: r.at + ' of ' + r.order.length }, { label: r.at > deep ? 'the deepest yet' : 'deepest', value: String(Math.max(deep, r.at)) }].concat(gains.map((g) => ({ label: g, value: '' }))), rank: '', items };
+  }
+  const MANA = cfg.mana && typeof __mojMana === 'function' ? __mojMana(cfg, {
+    go, onOf, show, app, continueTo, saveSettings, pushPrefs, title: M.title, front: cfg.front || null,
+    progress: () => (runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
+    settings: () => settings,
+    reset: () => { resetStore(); persist(); },
+    levels: () => LEVELS.map((lv) => ({ ref: lv.ref, title: lv.title, open: isOpen(lv), cleared: cleared(lv.ref), lock: isOpen(lv) ? null : lv.gate && !K.evalGate(SCHEMA, state, lv.gate) ? needs(lv.gate) : 'not found yet' })),
+    result: resultInfo, run: runInfo,
+  }) : null;
+
   // ---- the flow runner ----
   // what each special lands on, from what the shell knows (flow.js FLOW_SPECIALS), and the guard it keeps
   function flowCtx(more) {
@@ -790,6 +828,7 @@ export function playShellRuntime(cfg, K) {
   }
   function drawScreen(name) {
     session = null;
+    if (MANA && MANA.draw(name)) return;
     if (name === 'attract') return front ? front.attract() : renderPress();
     if (name === 'title') return front ? front.title() : RUN ? renderRunTitle() : renderTitle();
     if (name === 'levels') return renderLevels();

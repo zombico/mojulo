@@ -30,8 +30,10 @@
  *                                          // order; a clear goes on, a death ends the run; the store carries over
  *     final?: <level ref>,                 // THE END (the play shell): that level's first win completes the game (the
  *                                          // front's end plays; a map game does not travel on from it), cleared alone
- *     flow?: { start, steps } }            // THE FLOW (flow.js): what plays when, screens, cinematics, levels and holds;
+ *     flow?: { start, steps },             // THE FLOW (flow.js): what plays when, screens, cinematics, levels and holds;
  *                                          // absent: the flow its front, levels and run make (defaultFlow)
+ *     ui?: { theme, languages?, language? } }   // the play shell's screens drawn by mana-ui in this look
+ *                                          // (play-shell-mana.js); absent, the shell's own
  *
  * `setup` is the optional PRE-LEVEL presentation, per party slice — how the setup screen renders
  * that slice's pick (the default is the plain radio/checkbox picker). Two styles:
@@ -88,6 +90,7 @@ import { buildGameStoreKernel } from './store-kernel.js';
 import { validateHudStyle } from './hud-widgets.js';
 import { readFront } from './play-front.js';
 import { readFlow } from './flow.js';
+import { readShellUi } from './play-shell-mana.js';
 
 const K = buildGameStoreKernel();
 
@@ -316,6 +319,13 @@ export function validateGameManifest(manifest) {
   if (manifest.flow !== undefined) {
     if (manifest.shell !== 'play') errors.push("flow is what the play shell runs, from the first screen to the credits: add shell: 'play'");
     readFlow(manifest.flow, { levels: Array.isArray(manifest.levels) ? manifest.levels.map((l) => l && l.ref).filter(Boolean) : [] }).forEach((e) => errors.push(e));
+  }
+
+  // UI (play-shell-mana.js): the play shell's screens drawn by mana-ui in this look (the theme resolved, the game's
+  // languages); absent, the shell's own screens
+  if (manifest.ui !== undefined) {
+    if (manifest.shell !== 'play') errors.push("ui is the play shell's screens drawn by the game UI runtime: add shell: 'play'");
+    readShellUi(manifest.ui).forEach((e) => errors.push(e));
   }
 
   // SCREEN (screen.js): the screen the game is made for; its levels hold the frame, the shell leaves room for the

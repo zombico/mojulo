@@ -80,4 +80,7 @@ cinematics a save has seen beside it, so an opening plays on a first boot, and f
 - Holding the world through a scene: the world freeze stops the clock the scene itself runs on, so a hold needs a
   narrower freeze (foes and hazards still, the scene's cast and camera moving).
 - The arena shell, versus, tabletop, table-rpg and pixelizer keep their own screen machines.
-- The play shell's screens are its own DOM and the front's; drawing them with mana-ui is the next integration.
+- The play shell's screens are drawn by mana-ui only for a game with a `ui` (play-shell-mana.js: the look resolved,
+  the game's languages; design_game writes it from a world's `ui`); without one they stay the shell's own DOM and the
+  front's. Under mana-ui the pause panel is still the shell's, the theme's UI sounds are not played, and the title's
+  key art is mana-ui's placeholder (its image component draws no picture yet, so the front's cover does not reach it).

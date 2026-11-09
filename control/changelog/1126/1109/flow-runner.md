@@ -28,3 +28,8 @@
   storyboard: each step, which part of the studio it comes from, what it waits for and where it leads. If the main
   quest's ending is played as a story moment, that moment now becomes the game's ending cutscene, unless the story
   has an ending of its own. The studio's guidance makes the flow the main agent's own page, never handed off.
+- **A game's menus can now be drawn in its own look.** A game that sets a look for its interface now has its title,
+  press-start, level list, options (with its language picker), credits, end card, results and loading screen drawn
+  in that look, and they work with a keyboard or a gamepad. The studio carries the look over from the game's design.
+  A game without one keeps its screens as before. The pause menu, menu sounds and cover art on the title are not
+  drawn this way yet.
