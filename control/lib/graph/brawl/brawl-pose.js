@@ -16,6 +16,13 @@ import { reactionPose } from '../versus/versus-react.js';
 
 const wave = (t, k) => (Math.sin(t * k) + 1) / 2;
 
+// a gunner's legs: the walk's stride, a jump's tuck, a landing's crouch, else its stance
+function gunLegs(p, own, guard, crouch, t, rules) {
+  if (p.st === 'walk') { const w = wave(t, 0.22); return lerpPose(own.walkA ?? POSES.walkA, own.walkB ?? POSES.walkB, w); }
+  if (p.st === 'air' || p.st === 'prejump') return p.st === 'air' ? POSES.jump : POSES.prejump;
+  if (p.st === 'land') return lerpPose(crouch, guard, Math.min(1, p.sf / Math.max(1, p.landing || 4)));
+  return guard;
+}
 export function brawlPoseOf(p, F, t = 0, rules = {}) {
   if (p.mv && F.moves[p.mv]) {
     const m = F.moves[p.mv];
@@ -25,6 +32,16 @@ export function brawlPoseOf(p, F, t = 0, rules = {}) {
   // (a held body reads as the fight's thrown: the held clip)
   const reacting = reactionPose(p.st === 'held' ? { ...p, st: 'thrown' } : p, rules, own);
   if (reacting) return reacting;
+  // A GUNNER (a body with a gun, the run & gun's): both hands out on the gun along its aim, whatever its legs do; its
+  // roll a tuck
+  if (p.gn !== undefined) {
+    if (p.st === 'roll') return { ...crouch, torso: (crouch.torso ?? 0) + 70, head: 60 };
+    const legs = gunLegs(p, own, guard, crouch, t, rules);
+    // (the aim's tilt: up the street a little higher, down it a little lower; held out while it aims or fires)
+    const out = p.lf !== undefined && p.lf < 30 || p.tl > 0;
+    const lift = p.az > 0 ? 18 : p.az < 0 ? -12 : 0;
+    return out ? { ...legs, torso: (guard.torso ?? 0) + 4, armF: [86 + lift, 6], armB: [74 + lift, 34] } : { ...legs, armF: [40, 50], armB: [30, 60] };
+  }
   switch (p.st) {
     case 'walk': {
       // the stride: along the street the chest opens to the way it walks, across it the body steps square

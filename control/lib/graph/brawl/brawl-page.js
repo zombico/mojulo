@@ -26,13 +26,15 @@ import { buildSeatsKernel } from '../controls/seats-kernel.js';
 import { DEVICES } from '../controls/devices.js';
 import { yardOf, YARD_SETTINGS } from './brawl-yard.js';
 import { BRAWL_STYLES } from './brawl-moves.js';
+import { readGun } from './brawl-guns.js';
+import { RANGE_GUNS } from './brawl-practice.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/brawl');
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
 // (the order matters: each module only uses names from the ones before it)
 export const BRAWL_VERSUS_MODULES = Object.freeze(['versus-rig.js', 'versus-library.js', 'versus-traditions.js', 'versus-react.js', 'versus-fx.js', 'versus-compile.js', 'versus-input.js', 'versus-cpu.js', 'versus-solver.js', 'versus-figure.js']);
-export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-crowd.js', 'brawl-practice.js', 'brawl-pose.js', 'brawl-yard-read.js']);
+export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-crowd.js', 'brawl-practice.js', 'brawl-pose.js', 'brawl-yard-read.js']);
 
 /** The names a module exports (one per `export function|const|let|class` line). */
 export function exportsOf(src) {
@@ -108,6 +110,8 @@ export function brawlYardData(block, bodies = null) {
     belt: block.belt, register: block.register ?? null, ...(block.armed ? { armed: true } : {}), ...(block.sun ? { sun: block.sun } : {}),
     roster, players, dummies,
     things: P.things ?? [], health: P.health ?? 'chains',
+    // (THE RANGE, the run & gun's: the guns passed in to be tried, read here so a fault is said before the page)
+    ...(P.range ? { range: { guns: (P.range.guns ?? RANGE_GUNS).map((g, k) => { readGun(g, `practice.range.guns[${k}]`); return g; }), grenades: P.range.grenades ?? 3, names: (P.range.guns ?? RANGE_GUNS).map((g) => { const G = readGun(g); return G.name ?? G.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' '); }) } } : {}),
     ...(bodies ? { bodies } : {}),
     yard: { spec: Y.spec, css: Y.css, settings: YARD_SETTINGS },
   };

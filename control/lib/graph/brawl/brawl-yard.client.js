@@ -13,10 +13,14 @@
  * weapon's colour; each player's LINE on the floor (the strip a blow must share, the yard's first lesson); a flash where a
  * blow lands; the fight's sounds by event where the page carries them.
  *
+ * ON THE RANGE (the run & gun's practice room, `BRAWL_YARD.range`): the guns passed in, the one held first (the settings'
+ * Gun); each round drawn as it flies (a tracer along its flight, warm a player's, hot red a foe's, its shadow on the
+ * street so its depth reads), a foe's warning as a thin line along its aim, the gun out in the hand, a flash at the
+ * muzzle and a burst where a rocket or a grenade lands; the gunner's buttons (fire, aim, plant, roll, jump, grenade).
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, THREE, scene, camera, controls, renderer, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global BRAWL_YARD, THREE, scene, camera, controls, renderer, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, rangeMoveList, aimVector, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -79,10 +83,11 @@ const footShadow = () => new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THR
 
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
 const FIRST = BY.dummies[0] || {};
-const SET = { mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
+const RANGE = BY.range || null;
+const SET = { gun: RANGE ? RANGE.names[0] : null, mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
 let picks = BY.players.slice(0, 4);
 let dummies = BY.dummies;
-let room = null, bodies = [], things = new Map(), t = 0;
+let room = null, bodies = [], things = new Map(), rounds = new Map(), t = 0;
 const runs = [];
 function dummiesOf() {
   const n = Number(SET.count) || 1, mode = SET.mode.toLowerCase();
@@ -92,8 +97,13 @@ function dummiesOf() {
   return Array.from({ length: n }, () => ({ mode, type: mode === 'grab' ? 'heavy' : SET.type.toLowerCase() }));
 }
 function build() {
-  for (const B of bodies) { YARD.remove(B.group, B.shadow, B.line); if (B.blade) YARD.remove(B.blade.fill, B.blade.ink); }
-  room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase() });
+  for (const B of bodies) { YARD.remove(B.group, B.shadow, B.line); if (B.blade) YARD.remove(B.blade.fill, B.blade.ink); if (B.gun) YARD.remove(B.gun.fill, B.gun.ink, B.gun.warn); }
+  // (on the range, the gun chosen held first)
+  const g = RANGE ? Math.max(0, RANGE.names.indexOf(SET.gun)) : 0;
+  const range = RANGE ? { range: { guns: [RANGE.guns[g], ...RANGE.guns.filter((_, k) => k !== g)], grenades: RANGE.grenades } } : {};
+  room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase(), ...range });
+  for (const m of rounds.values()) YARD.remove(m.tracer, m.shadow);
+  rounds.clear();
   // (who each body is: a player's roster pick, a dummy's roster entry when it names one, else a thug of the street's)
   const entryOf = (i) => (i < picks.length ? BY.roster[picks[i]] : Number.isInteger(dummies[i - picks.length]?.roster) ? BY.roster[dummies[i - picks.length].roster] : null);
   bodies = room.s.bodies.map((b, i) => {
@@ -388,6 +398,7 @@ function placeBody(B, p, F) {
   else if (B.skin) placeCharacter(B, p, F, N);
   else placeStick(B, p, F, N);
   placeBlade(B, p, F, J, N);
+  if (p.gn !== undefined) placeGun(B, p);
   B.shadow.position.set(p.x / 1000, p.z / 1000, 0.01);
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.6) * Math.max(0.4, 1 - p.y / 1600));
   if (B.line) {
@@ -448,6 +459,50 @@ function placeStick(B, p, F, N) {
   B.head.ink.position.copy(vA); B.head.ink.scale.setScalar(hr * 1.12);
 }
 
+// ── the range: a gun in the hand, a foe's warning, the rounds in flight ─────────────────────────────────────────
+
+const GUN_LOOK = new THREE.MeshBasicMaterial({ color: 0x2b2f36, vertexColors: true });
+const WARN_LOOK = new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.6, depthWrite: false });
+const vM = new THREE.Vector3(), vN = new THREE.Vector3();
+// (a point off a body along its aim: `k` metres out, at the chest)
+const alongAim = (p, k, out) => { const [ax, az] = aimVector([p.ax ?? p.face, p.az ?? 0], p.face); return out.set(p.x / 1000 + (ax / 1000) * k, p.z / 1000 + (az / 1000) * k, (p.y + 1250) / 1000); };
+function placeGun(B, p) {
+  if (!B.gun) {
+    const fill = castOn(new THREE.Mesh(CYL, RIG ? RIG.material({ color: 0x2b2f36 }) : GUN_LOOK)), ink = new THREE.Mesh(CYL, INK), warn = new THREE.Mesh(CYL, WARN_LOOK);
+    YARD.add(fill, ink, warn);
+    B.gun = { fill, ink, warn };
+  }
+  const shown = !p.gone && !p.ko && p.st !== 'roll';
+  B.gun.fill.visible = B.gun.ink.visible = shown;
+  if (shown) { alongAim(p, 0.18, vM); alongAim(p, 0.62, vN); cylinderAt(B.gun.fill, vM, vN, 0.045); cylinderAt(B.gun.ink, vM, vN, 0.06); }
+  // (its warning: a thin line along its aim while it aims, brighter as the shot comes)
+  B.gun.warn.visible = shown && p.tl > 0;
+  if (B.gun.warn.visible) { alongAim(p, 0.62, vM); alongAim(p, 7, vN); cylinderAt(B.gun.warn, vM, vN, 0.012 + 0.0006 * Math.min(30, p.tl)); WARN_LOOK.opacity = 0.35 + 0.3 * Math.abs(Math.sin(t * 0.3)); }
+}
+const ROUND_MINE = new THREE.MeshBasicMaterial({ color: 0xffe28a }), ROUND_FOE = new THREE.MeshBasicMaterial({ color: 0xff5a2a });
+const ROUND_SHADOW = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });
+function placeRounds() {
+  const seen = new Set();
+  for (const r of room.s.shots) {
+    if (r.gun === undefined || r.life <= 0 || r.done) continue;
+    seen.add(r.id);
+    let m = rounds.get(r.id);
+    if (!m) {
+      const mine = r.side === 'player', big = r.area > 0 || r.lob;
+      m = { tracer: new THREE.Mesh(big ? BALL : CYL, mine ? ROUND_MINE : ROUND_FOE), shadow: new THREE.Mesh(new THREE.CircleGeometry(1, 12), ROUND_SHADOW), big };
+      YARD.add(m.tracer, m.shadow);
+      rounds.set(r.id, m);
+    }
+    const rad = Math.min(0.09, Math.max(0.025, r.w / 2000));
+    vM.set(r.x / 1000, r.z / 1000, r.y / 1000);
+    if (m.big) { m.tracer.position.copy(vM); m.tracer.scale.setScalar(rad * 1.4); }
+    else { vN.set((r.x - r.vx * 2.5) / 1000, (r.z - (r.vz || 0) * 2.5) / 1000, r.y / 1000); cylinderAt(m.tracer, vN, vM, rad); }
+    m.shadow.position.set(r.x / 1000, r.z / 1000, 0.006);
+    m.shadow.scale.setScalar(rad * 1.6);
+  }
+  for (const [id, m] of rounds) if (!seen.has(id)) { YARD.remove(m.tracer, m.shadow); rounds.delete(id); }
+}
+
 // ── the street's things ──────────────────────────────────────────────────────────────────────────────────────
 
 const THING_LOOK = { food: [0.32, 0.32, 0.22, '#e8803a'], power: [0.3, 0.3, 0.3, '#3ad2ff'], weapon: [0.9, 0.07, 0.07, '#9aa0a8'] };
@@ -493,8 +548,9 @@ function stepFlashes() {
 
 const HIT_CUE = ['hit-light', 'hit-medium', 'hit-heavy'];
 function cueOf(e) {
-  if (e.t === 'hit') return e.kind === 'flung' ? 'crush' : e.limb === 'foot' ? (e.w >= 2 ? 'kick-heavy' : 'kick-light') : e.limb === 'blade' ? (e.w >= 2 ? 'blade-heavy' : 'blade-light') : HIT_CUE[Math.min(2, e.w ?? 1)];
-  return { clash: 'clash', grab: 'grab', throw: 'throw', land: 'land', ko: 'ko', break: 'crush', thud: 'block', armor: 'clash', state: 'super', toss: 'throw' }[e.t] ?? null;
+  if (e.t === 'hit' && e.limb !== 'shot') return e.kind === 'flung' ? 'crush' : e.limb === 'foot' ? (e.w >= 2 ? 'kick-heavy' : 'kick-light') : e.limb === 'blade' ? (e.w >= 2 ? 'blade-heavy' : 'blade-light') : HIT_CUE[Math.min(2, e.w ?? 1)];
+  if (e.t === 'hit' && e.limb === 'shot') return 'shot-hit';
+  return { burst: 'burst', clash: 'clash', grab: 'grab', throw: 'throw', land: 'land', ko: 'ko', break: 'crush', thud: 'block', armor: 'clash', state: 'super', toss: 'throw' }[e.t] ?? null;
 }
 function sound(e) {
   if (typeof __beatsCue !== 'function' || typeof __AUDIO === 'undefined' || !__AUDIO || !__AUDIO.cues) return;
@@ -549,6 +605,7 @@ const UI = (() => {
   document.head.appendChild(style);
   // (the fighter from the roster; the dummies' type the street's crowd or anyone on the roster)
   const settings = [{ kind: 'cycler', label: 'Fighter', var: 'brawl.practice.set.fighter', options: BY.roster.map((r) => r.name) },
+    ...(RANGE ? [{ kind: 'cycler', label: 'Gun', var: 'brawl.practice.set.gun', options: RANGE.names }] : []),
     ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
   const state = { brawl: { practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
   const el = document.createElement('div');
@@ -577,7 +634,9 @@ function applySettings() {
 }
 const MENU_PREV = {};
 function menuEdges(b) {
-  const now = { up: b.z > 0, down: b.z < 0, left: b.x < 0, right: b.x > 0, accept: b.a || b.j, back: b.back || b.s, start: b.start };
+  // (in a screen, special backs out as the back key does; in play only the back key opens the move list, special is a
+  // special's, or a grenade's)
+  const now = { up: b.z > 0, down: b.z < 0, left: b.x < 0, right: b.x > 0, accept: b.a || b.j, back: b.back || b.s, list: b.back, start: b.start };
   const edge = {};
   for (const k of Object.keys(now)) edge[k] = now[k] && !MENU_PREV[k];
   Object.assign(MENU_PREV, now);
@@ -609,7 +668,7 @@ function tick() {
     return;
   }
   if (edge.start) { UI.rt.open('settings'); UI.view.paint(); return; }
-  if (edge.back) { UI.state.brawl.practice.moves = brawlMoveList(room.ctx.fighters[0]); UI.rt.open('moves'); UI.view.paint(); return; }
+  if (edge.list) { UI.state.brawl.practice.moves = RANGE ? rangeMoveList(room) : brawlMoveList(room.ctx.fighters[0]); UI.rt.open('moves'); UI.view.paint(); return; }
   // (a second controller sat down: it drops in as the next player)
   if (seated() > picks.length && picks.length < 4) { picks = [...picks, (picks.length) % BY.roster.length]; build(); }
   const buttons = picks.map((_, i) => buttonsOf(i));
@@ -618,6 +677,7 @@ function tick() {
   for (const e of room.s.events) {
     if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2);
     if (e.t === 'clash') flash(e, true);
+    if (e.t === 'burst') flash({ ...e, y: 600 }, true);
     sound(e);
   }
   const next = inputRun(runs, buttons[0]);
@@ -628,6 +688,7 @@ function draw() {
   if (RIG) RIG.follow(room.s.cam / 1000);
   room.s.bodies.forEach((p, i) => placeBody(bodies[i], p, room.ctx.fighters[p.fi]));
   placeThings();
+  placeRounds();
   stepFlashes();
   const read = yardRead(room, 0);
   Object.assign(UI.state.brawl.practice, yardHud(read, room.ctx.fighters[room.s.bodies[0].fi], project, runs.map((x) => ({ text: x.text }))));

@@ -113,6 +113,8 @@ export const SAMPLE_STATE = Object.freeze({
       ended: 'Dropped: the blow before missed',
       clinch: { left: 64, of: 100, knees: 2, behind: 'Suplex', holding: true },
       presses: [{ press: 'A', verdict: 'Jab', kind: 'heal' }, { press: 'A', verdict: '2f late: Straight', kind: 'heal' }, { press: 'A', verdict: 'Dropped: the blow before missed', kind: 'miss' }],
+      // (the run & gun range's gun)
+      gun: { on: true, name: 'Machine Gun', ammo: 142, of: 200, grenades: 3, shots: '41 of 58 landed · 369 damage · struck 2' },
     },
   },
   fight: {

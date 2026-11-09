@@ -5,12 +5,14 @@
 // list. The strong: the opener and the chain after it, then the blowout. The dashes, the long jump's flying kick, the
 // dive kick. The eyes gate is the operator's: the shots.
 //
-//   node control/scripts/spikes/brawler/practice.mjs [--out dir] [--characters] [--register anime|western] [--armed]
+//   node control/scripts/spikes/brawler/practice.mjs [--out dir] [--characters] [--register anime|western] [--armed] [--range]
 //
 // --characters mints two characters into the spike's own scratch store (a wolf-kin hero, a mascot bear: a few minutes)
 // and plays the wolf-kin against the bear, each in its own body, beside a fighter of the solver's (the operator's store
 // is never touched); --register draws the yard in the fight's look (cel or lit, one key that casts), the characters
-// played by their own clips; --armed the armed brawler (every hero its own weapon, the street laying none)
+// played by their own clips; --armed the armed brawler (every hero its own weapon, the street laying none); --range the
+// run & gun's range (the guns passed in: a stream, a shot aimed across, a shooter's warning stepped off, the rocket,
+// a grenade, the guns' list)
 import { register as registerLoader, createRequire } from 'node:module';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -19,7 +21,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-practice') }, characters: { type: 'boolean', default: false }, register: { type: 'string' }, armed: { type: 'boolean', default: false } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-practice') }, characters: { type: 'boolean', default: false }, register: { type: 'string' }, armed: { type: 'boolean', default: false }, range: { type: 'boolean', default: false } } });
 const out = path.resolve(opt.out); mkdirSync(out, { recursive: true });
 process.chdir(CONTROL);
 registerLoader(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
@@ -40,8 +42,9 @@ if (opt.characters) {
 }
 const manifest = brawlLevel({ kind: 'greybox', preset: 'yard' }, { title: 'practice', ...(opt.register ? { register: opt.register } : {}), ...(opt.armed ? { armed: true } : {}), practice: {
   ...(roster ? { roster, players: [0] } : {}),
-  dummies: roster ? [{ mode: 'stand', at: 7, n: 0, fighter: 1 }, { mode: 'walk', at: 9.5, n: 1, fighter: 2 }, { mode: 'swing', at: 12, n: -1, fighter: 1 }] : [{ mode: 'stand', at: 7, n: 0 }, { mode: 'walk', at: 9.5, n: 1 }, { mode: 'swing', at: 12, n: -1 }].map((d, i) => (opt.armed ? { ...d, type: ['sword', 'spear', 'axe'][i] } : d)),
-  things: [...(opt.armed ? [] : [{ kind: 'weapon', what: 'pipe', at: 5.5, n: 2 }]), { kind: 'food', what: 'chicken', at: 3, n: 2 }, { kind: 'box', what: 'barrel', at: 14, n: 1.6, holds: { kind: 'power', what: 'power' } }],
+  ...(opt.range ? { range: { guns: ['machine-gun', 'spread', 'flame', 'rocket'], grenades: 3 } } : {}),
+  dummies: opt.range ? [{ mode: 'stand', at: 8, n: 0, type: 'rifleman' }, { mode: 'walk', at: 10, n: 1, type: 'gunner' }, { mode: 'shoot', at: 13, n: -0.4, type: 'rifleman' }] : roster ? [{ mode: 'stand', at: 7, n: 0, fighter: 1 }, { mode: 'walk', at: 9.5, n: 1, fighter: 2 }, { mode: 'swing', at: 12, n: -1, fighter: 1 }] : [{ mode: 'stand', at: 7, n: 0 }, { mode: 'walk', at: 9.5, n: 1 }, { mode: 'swing', at: 12, n: -1 }].map((d, i) => (opt.armed ? { ...d, type: ['sword', 'spear', 'axe'][i] } : d)),
+  things: opt.range ? [] : [...(opt.armed ? [] : [{ kind: 'weapon', what: 'pipe', at: 5.5, n: 2 }]), { kind: 'food', what: 'chicken', at: 3, n: 2 }, { kind: 'box', what: 'barrel', at: 14, n: 1.6, holds: { kind: 'power', what: 'power' } }],
 } });
 const { payload } = await resolveWorldScene({ ref: 'practice', title: 'practice', manifest }, {});
 writeFileSync(path.join(out, 'practice.html'), emitThreeWorld({ ...payload, hud: false, inline: true }));
@@ -70,6 +73,44 @@ const log = [];
 await play(30);
 await play(2, ['KeyK']); await play(10);   // (the keyboard sits down: attack, K)
 await shot('yard');
+if (opt.range) {
+  const gun = () => tab.evaluate(() => { const r = window.__mojBrawl.read; return { gun: r.gun, log: r.log.slice(-3).map((e) => `${e.words} ${e.verdict} ${e.what ?? e.why}`) }; });
+  // the stream held into the standing rifleman (K)
+  await play(45, ['KeyK']);
+  log.push(['stream', await gun()]);
+  await shot('range-stream');
+  // planted (I), aimed up the street at a slant at the walker (W D), firing
+  await play(40, ['KeyI', 'KeyW', 'KeyD', 'KeyK']);
+  log.push(['aimed across', await gun()]);
+  await shot('range-aim');
+  // the shooter's warning, then a step off its line (S, down the street)
+  for (let k = 0; k < 120 && !(await tab.evaluate(() => window.__mojBrawl.room.s.bodies.some((b) => b.side === 'crowd' && b.tl > 12))); k++) await play(2);
+  await shot('range-warning');
+  await play(24, ['KeyS']); await play(40);
+  log.push(['stepped off', await gun()]);
+  // the settings: the Gun (the second field) to the rocket, and a rocket into them
+  await play(2, ['Enter']); await play(6);
+  await shot('range-settings');
+  await play(2, ['KeyS']); await play(4);
+  for (let k = 0; k < 3; k++) { await play(2, ['KeyD']); await play(4); }
+  await play(2, ['Escape']); await play(6);
+  await play(14, ['KeyK']); await play(16);
+  log.push(['rocket', await gun()]);
+  await shot('range-rocket');
+  // a grenade (L) over the near one, and a roll (S S) out
+  await play(2, ['KeyL']); await play(40);
+  await shot('range-grenade');
+  await play(1, ['KeyS']); await play(2); await play(1, ['KeyS']); await play(10);
+  log.push(['grenade, roll', await gun()]);
+  // the guns' list (Escape)
+  await play(2, ['Escape']); await play(6);
+  await shot('range-moves');
+  console.log(JSON.stringify(log));
+  console.log('errors', JSON.stringify([...new Set(errs)].slice(0, 8)));
+  await browser.close();
+  console.log(out);
+  process.exit(0);
+}
 // walk in to the standing dummy and chain on it
 await play(75, ['KeyD']);
 for (let k = 0; k < 6; k++) { await play(2, ['KeyK']); await play(5); }
