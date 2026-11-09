@@ -42,7 +42,7 @@
  */
 
 import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, stoopPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
-import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT, PRIORITY, PRIORITY_MAX } from './versus-library.js';
+import { POSES, STRENGTHS, NORMAL_SLOTS, LIMB_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, COMMAND_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT, PRIORITY, PRIORITY_MAX } from './versus-library.js';
 import { FAMILIES, TRADITIONS, traditionRests } from './versus-traditions.js';
 import { readElement } from './versus-fx.js';
 
@@ -348,9 +348,13 @@ const perStrength = (at) => (at && STRENGTH_KEYS.some((k) => at[k]) ? at : { L: 
 
 /** A classic motion as written: numpad digits, 2 to 8 of them ('236', '623', '41236'). */
 export function readMotion(v, where) {
-  if (typeof v !== 'string' || !/^[1-9]{2,8}$/.test(v)) throw new Error(`versus: ${where} motion is 2 to 8 numpad digits (6 toward the opponent: '236', '623', '214')`);
+  // (a CHARGE: a direction held, then another: `[4]6` back held then forward, `[2]8` down held then up)
+  if (typeof v === 'string' && /^\[[1-9]\][1-9]$/.test(v)) return v;
+  if (typeof v !== 'string' || !/^[1-9]{2,8}$/.test(v)) throw new Error(`versus: ${where} motion is 2 to 8 numpad digits (6 toward the opponent: '236', '623', '214'), or a charge: '[4]6' (back held, then forward), '[2]8' (down held, then up)`);
   return v;
 }
+/** Is a motion a charge (a direction held, then another)? */
+export const isCharge = (motion) => typeof motion === 'string' && motion[0] === '[';
 
 /** A recipe's own special (maybe `from` a shipped one) → a record compileSpecial reads. */
 function readSpecial(id, rec, specials) {
@@ -769,9 +773,31 @@ export function compileSpecial(body, slot, id, strength = 'M', o = {}) {
     m.blockstun = stunFor(m, adv.block);
   }
   if (Object.keys(T).length) m.tuned = Object.keys(T);
+  // THE TRAVERSAL's: a move that strikes nothing (`nohit`: a roll, a blink, a hop), untouchable by `invuln`'s kinds while
+  // it moves, and passing `through` the opponent while it travels (the push boxes off)
+  if (Array.isArray(sp.invuln) && sp.invuln.every((k) => typeof k === 'string')) for (const k of sp.invuln) m.invuln.push([1, m.startup + m.active - 1, k]);
+  if (sp.through) m.through = [2, m.startup + m.active - 1];
   m.frames = layFrames(body, m, { ...sp, after: sp.after ?? (m.airborne ? POSES.fall : undefined) }, o.weapon, o.rests);
+  if (sp.nohit) {
+    for (const fr of m.frames) if (fr && fr.hit) delete fr.hit;
+    m.nohit = true; m.damage = 0; m.chip = 0;
+  }
   m.reach = reachOf(m.frames);
   return m;
+}
+
+/**
+ * A REKKA's stages (a special with `stages`): stage 1 the special as it is, each later one its record over the first's
+ * (its limb, its strike, its knock), its frame rows scaled (`scale`: damage, startup, recovery). → the stage records,
+ * each a special compileSpecial reads.
+ */
+export function rekkaStages(base) {
+  return base.stages.map((st, k) => {
+    if (!k) return { ...base, stages: undefined };
+    const sc = st.scale ?? {}, row = (r) => ({ ...r, ...Object.fromEntries(['damage', 'startup', 'recovery'].filter((f) => sc[f] !== undefined && r[f] !== undefined).map((f) => [f, Math.max(f === 'damage' ? 1 : 2, Math.round(r[f] * sc[f]))])), ...(st.adv ? { adv: { ...(r.adv ?? {}), ...st.adv } } : {}) });
+    const { scale: _s, adv: _a, ...own } = st;
+    return { ...base, ...own, stages: undefined, at: Object.fromEntries(Object.entries(base.at).map(([k2, r]) => [k2, row(r)])) };
+  });
 }
 
 /**
@@ -968,12 +994,39 @@ export function compileFighter(recipe) {
     }
   }
   moves.throw = compileThrow(body, 'throw', { tune: recipe.throw?.tune, rests });
+  // its COMMAND NORMALS (forward + a button: an overhead, COMMAND_SLOTS), each a stand normal read off the stick
+  if (recipe.commands !== undefined) {
+    if (!recipe.commands || typeof recipe.commands !== 'object' || Array.isArray(recipe.commands)) throw new Error(`versus: ${recipe.id ?? 'fighter'} commands is { ${COMMAND_SLOTS.join(', ')} }`);
+    for (const [slot, n] of Object.entries(recipe.commands)) {
+      if (!COMMAND_SLOTS.includes(slot)) throw new Error(`versus: ${recipe.id ?? 'fighter'} commands.${slot} is not a command (${COMMAND_SLOTS.join(', ')}: forward + a button)`);
+      const st = slot.split('.')[1];
+      const m = compileNormal(body, `stand.${st}`, { ...n, strength: n?.strength ?? st }, weapon, rests);
+      m.slot = slot; m.command = 'forward';
+      // (an overhead is slow on purpose: its level a heavy's, so no faster button outranks it, versus-laws.js priority-pays)
+      if (n?.tune?.priority === undefined) m.priority = STRENGTHS.H.priority;
+      moves[slot] = m;
+    }
+  }
   for (const dir of SPECIAL_SLOTS) {
     const s = recipe.specials?.[dir];
     if (!s) continue;
+    const motion = readMotion(s.motion ?? specials[s.id].motion, `special.${dir}`);
     for (const st of ['L', 'M', 'H']) {
+      // (a rekka: each later stage its own move, the one before naming it: the same motion again goes on to it)
+      if (specials[s.id].stages) {
+        const stages = rekkaStages(specials[s.id]);
+        stages.forEach((rec, k) => {
+          const key = k ? `special.${dir}.${st}~${k + 1}` : `special.${dir}.${st}`;
+          const m = compileSpecial(body, k ? `special.${dir}~${k + 1}` : `special.${dir}`, s.id, st, { lib: { [s.id]: rec }, tune: s.tune, weapon, rests });
+          m.motion = motion;
+          if (k + 1 < stages.length) m.rekka = `special.${dir}.${st}~${k + 2}`;
+          if (k) m.stage = k + 1;
+          moves[key] = m;
+        });
+        continue;
+      }
       const m = compileSpecial(body, `special.${dir}`, s.id, st, { lib: specials, tune: s.tune, weapon, rests });
-      m.motion = readMotion(s.motion ?? specials[s.id].motion, `special.${dir}`);
+      m.motion = motion;
       moves[`special.${dir}.${st}`] = m;
     }
   }
@@ -1004,6 +1057,8 @@ export function compileFighter(recipe) {
     ...(own ? { ...(recipe.tradition ? { tradition: recipe.tradition } : {}), poses: { guard: own.stand, crouch: own.crouch, walkA: own.walkA, walkB: own.walkB }, ...(recipe.tradition ? { rhythm: TRADITIONS[recipe.tradition].rhythm } : {}) } : {}),
     ...(weapon ? { weapon } : {}),
     ...(element ? { element } : {}),
+    // (a fighter with a CHARGE special keeps how long it has held back and down: versus-core.js chargeStep)
+    ...(Object.values(moves).some((m) => isCharge(m.motion)) ? { charge: true } : {}),
     moves,
   };
 }

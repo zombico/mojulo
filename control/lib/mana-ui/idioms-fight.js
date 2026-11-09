@@ -134,17 +134,17 @@ export const FIGHT_IDIOMS = {
     example: { calls: f('announcer') },
   },
   'input-display': {
-    kind: 'hud', about: 'training: the inputs as they come (a direction and its buttons, the frames it was held), the newest on top, a repeat merged (×3)',
-    reads: 'inputs: [{ text }] (newest first)', emits: '—',
+    kind: 'hud', about: 'training: the inputs as they come, along the foot of the screen (a direction and its buttons, the frames it was held), the newest at the right',
+    reads: 'inputs: [{ text }] (oldest first: the newest at the right)', emits: '—',
     params: ['inputs'],
-    node: region('left', [{ use: 'feed', props: { rows: P('inputs'), max: 12 } }]),
+    node: region('bottom', [{ use: 'each', props: { dir: 'row', rows: P('inputs'), row: { use: 'badge', props: { value: I('text') } } } }], {}, 'bare'),
     example: { inputs: f('training.inputs') },
   },
   'frame-meter': {
     kind: 'hud', about: 'training: the frames of the last exchange, each a mark: startup, active and recovery told by their shape (muted, strong, plain), the advantage at its end',
     reads: 'frames: [{ value, variant }] (variant: muted startup | strong active | plain recovery), advantage', emits: '—',
     params: ['frames', 'advantage'],
-    node: region('bottom', [row([txt(P('advantage'), 'heading'), { use: 'each', props: { dir: 'row', rows: P('frames'), row: { use: 'badge', props: { value: I('value'), variant: I('variant') } } } }], 'center')]),
+    node: region('bottom', [row([txt(P('advantage'), 'heading'), { use: 'each', props: { dir: 'row', rows: P('frames'), row: { use: 'badge', props: { value: I('value'), variant: I('variant') } } } }], 'center')], {}, 'bare'),
     example: { frames: f('training.frames'), advantage: f('training.advantage') },
   },
   'training-stats': {

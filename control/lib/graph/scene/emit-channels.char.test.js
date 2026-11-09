@@ -493,6 +493,12 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // whose blows play the SFX shelf's cues where the page's audio channel carries them (fightCue, fightSound; the beep
 // where it does not), and versus-arena.client.js, which starts the sound on a first key or touch; the fixture's arena
 // names no register, carries no audio and beeps as before.
+// Re-pinned 2026-11-09 (1107-fg-remake: the move primitives): `versus` only. Its page inlines versus-library.js (the
+// overhead families, the traversal, charge and rekka specials, the airblock system), versus-compile.js (command normals,
+// a charge's motion, a rekka's stages, a move that passes through or strikes nothing), versus-input.js (a command normal
+// off the stick, a charge's hold) and versus-core.js (the charge kept, a rekka's next stage, the push boxes off while a
+// body passes through, a block in the air) and versus-movelist.js (a fighter's moves as its player reads them); the
+// fixture's fighters take none of them and fight as before.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
