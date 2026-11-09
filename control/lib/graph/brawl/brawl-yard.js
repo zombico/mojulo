@@ -21,6 +21,7 @@ import { themeCss } from '../../mana-ui/theme.js';
 import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { PRACTICE_MODE_IDS } from './brawl-practice.js';
 import { CROWD_TYPES } from './brawl-crowd.js';
+export { yardHud, inputRun } from './brawl-yard-read.js';
 
 const USES = ['line-marks', 'token-marks', 'chain-beats', 'clinch-meter', 'press-log', 'input-display', 'command-list', 'training-settings'];
 const b = (path) => ({ bind: `brawl.practice.${path}` });
@@ -56,48 +57,4 @@ export function yardSpec() {
 
 export function yardOf() {
   return { spec: yardSpec(), css: `${manaCss()}\n${themeCss(cardTheme('brawl-yard'))}`, theme: 'brawl-yard' };
-}
-
-const PRESS = { attack: 'A', jump: 'J', special: 'S', 'attack + jump': 'A+J', 'attack + special': 'A+S', 'jump + special': 'J+S' };
-const nameOf = (slot) => (slot === 'desperate' ? 'Desperation' : slot.split('.').map(cap).join(' '));
-/** the chain's blows by name, from its style (brawl-moves.js keeps each blow's source on the move's own `id`) */
-const blowName = (slot, F) => {
-  const m = F.moves[slot];
-  if (m && slot.startsWith('chain.')) return cap(String(m.id ?? 'blow').replace(/-/g, ' '));
-  return nameOf(slot);
-};
-
-/** The `brawl.practice` state the yard's HUD reads, from the room's readouts (yardRead), the player's fighter and the
- * page's camera. */
-export function yardHud(read, F, project, inputs = []) {
-  const n = read.chain.of, landed = read.chain.now.length ? read.chain.now : read.chain.last?.steps ?? [];
-  const marks = read.line.filter((d) => !d.ko).map((d) => {
-    const [x, y] = project(d.at[0], d.at[1], 0);
-    return { id: `d${d.id}`, x, y, text: d.lined ? (d.inReach ? 'LINED' : 'LINED · CLOSER') : `${d.dz > 0 ? '+' : '−'}${Math.round(Math.abs(d.dz) / 10)} CM`, kind: d.lined ? 'heal' : 'miss' };
-  });
-  const heads = read.line.filter((d) => d.token && !d.ko).map((d) => { const [x, y] = project(d.at[0], d.at[1], 2100); return { id: `t${d.id}`, x, y }; });
-  const last = read.chain.last;
-  const ended = read.chain.now.length ? '' : !last ? '' : last.end === 'finisher' ? 'Finisher' : `Dropped: ${last.why}`;
-  const presses = read.log.slice(-6).map((e) => ({
-    press: PRESS[e.words] ?? e.words,
-    verdict: e.verdict === 'taken' ? `${e.late ? `${e.late}f late: ` : ''}${e.what ? blowName(e.what, F) : 'taken'}${e.note ? ` (${e.note})` : ''}` : `Dropped: ${e.why}`,
-    kind: e.verdict === 'taken' ? 'heal' : 'miss',
-  }));
-  const c = read.clinch;
-  return {
-    marks, heads,
-    beats: Array.from({ length: n }, (_, k) => ({ value: String(k + 1), variant: landed.includes(k + 1) ? 'strong' : 'muted' })),
-    ended, presses, inputs,
-    clinch: c ? { left: c.left, of: c.of, knees: c.knees, behind: c.back ? 'Suplex' : '', holding: true } : { left: 0, of: 1, knees: 0, behind: '', holding: false },
-  };
-}
-
-const ARROW = { '-1,-1': '↙', '0,-1': '↓', '1,-1': '↘', '-1,0': '←', '0,0': '•', '1,0': '→', '-1,1': '↖', '0,1': '↑', '1,1': '↗' };
-/** The input strip after a frame: a run a direction and its buttons, extended while they stay the same. */
-export function inputRun(runs, { x = 0, z = 0, a, j, s } = {}) {
-  const dir = ARROW[`${Math.sign(x)},${Math.sign(z)}`], btn = `${a ? 'A' : ''}${j ? 'J' : ''}${s ? 'S' : ''}`;
-  const key = `${dir}${btn}`, last = runs[runs.length - 1];
-  if (last && last.key === key) return [...runs.slice(0, -1), { ...last, n: last.n + 1, text: `${dir}${btn ? ` + ${btn}` : ''} (${last.n + 1}f)` }];
-  if (key === '•' && !btn && last && last.key === '•') return runs;
-  return [...runs, { key, n: 1, text: `${dir}${btn ? ` + ${btn}` : ''}` }].slice(-10);
 }

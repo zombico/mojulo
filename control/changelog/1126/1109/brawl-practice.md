@@ -21,3 +21,12 @@
   that may close in next, the chain's blows lit as they land and how the last chain ended, the clinch's time and knees,
   and the press log; the yard's screen over them (`brawl/brawl-yard.js`: the HUD, the move list, the practice settings)
   in a brawler's look (the `brawl-yard` theme card); the board draws them as the brawler practice HUD.
+- The brawler's page, its first the practice yard: a world's `brawl` block with its `practice` (`brawlLevel(level, {
+  practice })`) is played by the page's brawl channel (`scene/channels/brawl.js`, `brawl/brawl-page.js`,
+  `brawl/brawl-yard.client.js`): the room stepped at 60 a second from four seats (the controls layer's new `brawl`
+  scheme: the stick, attack, jump and special; a second controller drops in), each body drawn in the round as the fight
+  draws its fighters (its move's or its reaction's pose, `brawl/brawl-pose.js`, jointed by the fight's rig), each
+  player's line on the floor, the street's things, a flash where a blow lands and the fight's sounds by event, under the
+  belt's locked camera; the yard's screen in mana-ui (start the practice settings: the fighter, the dummies' mode, type,
+  number and health, the marks and the log; back the move list; R a reset). Absent, a page carries none of it.
+- The spike `scripts/spikes/brawler/practice.mjs` plays the yard on a virtual clock as a person would and shoots it.

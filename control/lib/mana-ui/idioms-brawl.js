@@ -38,7 +38,7 @@ export const BRAWL_IDIOMS = {
     kind: 'hud', about: 'the chain\'s blows as marks, each lit as it lands, and how the last chain ended: the finisher, or dropped and why (it missed, too late, reeling)',
     reads: 'beats: [{ value, variant }] (strong a blow landed, muted one still to come), ended: words', emits: '—',
     params: ['beats', 'ended'],
-    node: region('left', [col([
+    node: region('top-left', [col([
       row([{ use: 'each', props: { dir: 'row', rows: P('beats'), row: { use: 'badge', props: { value: I('value'), variant: I('variant') } } } }], 'start'),
       txt(P('ended'), 'caption'),
     ], 'start')]),
@@ -58,7 +58,7 @@ export const BRAWL_IDIOMS = {
     kind: 'hud', about: 'each press and its verdict, the newest at the foot: taken (frames late) or dropped, and why, so a missed chain or a lost press says what went wrong',
     reads: 'presses: [{ press, verdict, kind }] (kind: taken | dropped)', emits: '—',
     params: ['presses'],
-    node: region('right', [{ use: 'each', props: { rows: P('presses'), row: row([{ use: 'badge', props: { value: I('press') } }, txt(I('verdict'), 'caption', I('kind'))], 'start') } }], 'bare'),
+    node: region('top-right', [{ use: 'each', props: { rows: P('presses'), row: row([{ use: 'badge', props: { value: I('press') } }, txt(I('verdict'), 'caption', I('kind'))], 'start') } }], 'bare'),
     example: { presses: b('practice.presses') },
   },
 };

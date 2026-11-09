@@ -34,7 +34,8 @@ import { SPECIALS } from '../versus/versus-library.js';
 /** the desperation: the library's special with a price (the whirl) */
 export const DESPERATION = Object.keys(SPECIALS).find((id) => SPECIALS[id].price);
 /** frames a press is kept for until the body can take it; frames a jump waits for an attack to make it the desperation */
-export const PRESS_BUFFER = 4, JUMP_WAIT = 2;
+export const PRESS_BUFFER = 4;
+export const JUMP_WAIT = 2;
 
 const style = (says, chain, finisher, grab) => Object.freeze({ says, chain: Object.freeze(chain), finisher, grab: Object.freeze(grab) });
 /**

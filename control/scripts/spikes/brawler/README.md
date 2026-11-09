@@ -12,3 +12,11 @@ node control/scripts/spikes/brawler/belt.mjs --out /tmp/brawler-belt
 ```
 
 The machine gate is `lib/graph/brawl/brawl-belt.test.js`; the eyes gate is the operator's.
+
+`practice.mjs` builds the practice yard (`brawlLevel` `yard` with a practice: dummies standing, walking and swinging, a
+pipe, a chicken and a barrel), emits its World page and plays it from the keyboard on a virtual clock: in to a dummy
+and a chain on it, onto a walker's line, the practice settings, the move list; a shot of each.
+
+```bash
+node control/scripts/spikes/brawler/practice.mjs --out /tmp/brawler-practice
+```

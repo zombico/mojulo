@@ -43,7 +43,9 @@ export const PRACTICE_MODES = Object.freeze({
 export const PRACTICE_MODE_IDS = Object.freeze(Object.keys(PRACTICE_MODES));
 export const HEALTH_MODES = Object.freeze(['chains', 'refill']);
 /** frames a felled dummy lies before it is back on its spot; a dummy's health in the player's chains; the swing's beat */
-export const BACK = 180, CHAINS = 2.5, BEAT = 90;
+export const BACK = 180;
+export const CHAINS = 2.5;
+export const BEAT = 90;
 const LOG = 8;
 const FREE = new Set(['stand', 'walk', 'land']);
 const sgn = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
@@ -288,6 +290,8 @@ export function yardRead(room, i = 0) {
 // ── the move list ────────────────────────────────────────────────────────────────────────────────────────────
 
 const words = (slot) => slot.split('.').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+// a blow by its own name (its family's: jab, straight, roundhouse), else its slot's
+const blowWords = (m, slot) => (m && typeof m.id === 'string' ? m.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') : words(slot));
 const dataOf = (m) => [
   { what: 'startup', value: String(m.startup) }, { what: 'active', value: String(m.active) }, { what: 'recovery', value: String(m.recovery ?? '—') },
   { what: 'damage', value: String((m.damage ?? 0) * (m.hits || 1)) },
@@ -298,9 +302,9 @@ export function brawlMoveList(F) {
   const S = BRAWL_STYLES[F.brawl.style], n = F.brawl.chain;
   const chain = Array.from({ length: n }, (_, k) => {
     const m = F.moves[`chain.${k + 1}`];
-    return { name: `${k + 1}. ${words(S.chain[k])}`, input: 'A', about: k === n - 1 ? 'the last of the chain: it knocks down' : k ? 'on a hit, the next' : 'the first blow; a whiff ends the chain', data: dataOf(m) };
+    return { name: `${k + 1}. ${blowWords(m, S.chain[k])}`, input: 'A', about: k === n - 1 ? 'the last of the chain: it knocks down' : k ? 'on a hit, the next' : 'the first blow; a whiff ends the chain', data: dataOf(m) };
   });
-  if (F.moves[`chain.${n}f`]) chain.push({ name: `${n}. ${words(S.finisher)} (finisher)`, input: '→ + A', about: 'toward the foe on the last press: the other finisher', data: dataOf(F.moves[`chain.${n}f`]) });
+  if (F.moves[`chain.${n}f`]) chain.push({ name: `${n}. ${blowWords(F.moves[`chain.${n}f`], S.finisher)} (finisher)`, input: '→ + A', about: 'toward the foe on the last press: the other finisher', data: dataOf(F.moves[`chain.${n}f`]) });
   const D = F.moves.desperate;
   const special = ['neutral', 'forward', 'back', 'down'].filter((d) => F.moves[`special.${d}.M`]).map((d) => ({ name: `${words(F.moves[`special.${d}.M`].id ?? d)}`, input: d === 'neutral' ? 'S' : d === 'forward' ? '→ + S' : d === 'back' ? '← + S' : '↕ + S', about: 'the fighter\'s special', data: dataOf(F.moves[`special.${d}.M`]) }));
   return [

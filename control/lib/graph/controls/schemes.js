@@ -365,6 +365,31 @@ const VERSUS = {
     gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['light', 'medium', 'heavy', 'special', 'throw'], label: 'light / medium / heavy / special / throw' }, { ids: ['start'], label: 'pause' }],
   },
 };
+// THE BRAWLER (lib/graph/brawl): a stick and three buttons, Final Fight's: attack, jump and special (attack and jump
+// together the desperation). The stick walks along the street and across it (up is away from the camera, down toward
+// it), never a jump or a crouch. Each player a controller (controls/seats-kernel.js): the keyboard one, WASD or the
+// arrows, J attack, K jump, L special; a pad another, the D-pad or the left stick, X attack, A jump, B special.
+const BR_IN = ['brawl'];
+const BRAWL = {
+  id: 'brawl',
+  label: 'brawler: a stick and three buttons',
+  contexts: BR_IN,
+  actions: [
+    { id: 'up', label: 'away (across the street)', group: 'move', in: BR_IN, bind: { keyboard: ['KeyW', 'ArrowUp'], gamepad: ['up', 'leftY-'] } },
+    { id: 'down', label: 'near (across the street)', group: 'move', in: BR_IN, bind: { keyboard: ['KeyS', 'ArrowDown'], gamepad: ['down', 'leftY+'] } },
+    { id: 'left', label: 'left', group: 'move', in: BR_IN, bind: { keyboard: ['KeyA', 'ArrowLeft'], gamepad: ['left', 'leftX-'] } },
+    { id: 'right', label: 'right', group: 'move', in: BR_IN, bind: { keyboard: ['KeyD', 'ArrowRight'], gamepad: ['right', 'leftX+'] } },
+    { id: 'attack', label: 'attack', group: 'attack', in: BR_IN, bind: { keyboard: ['KeyJ'], gamepad: ['west'] } },
+    { id: 'jump', label: 'jump', group: 'move', in: BR_IN, bind: { keyboard: ['KeyK'], gamepad: ['south'] } },
+    { id: 'special', label: 'special', group: 'attack', in: BR_IN, bind: { keyboard: ['KeyL'], gamepad: ['east'] } },
+    { id: 'start', label: 'start / pause', group: 'system', in: BR_IN, bind: { keyboard: ['Enter'], gamepad: ['start'] } },
+    { id: 'back', label: 'back', group: 'system', in: BR_IN, bind: { keyboard: ['Escape'], gamepad: ['select'] } },
+  ],
+  legend: {
+    keyboard: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['attack', 'jump', 'special'], label: 'attack / jump / special' }, { ids: ['start'], label: 'pause' }],
+    gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['attack', 'jump', 'special'], label: 'attack / jump / special' }, { ids: ['start'], label: 'pause' }],
+  },
+};
 // THE ACTION VERBS (gameworld/feel: the action lab and its kernel's buttons, kernel.js BTN): move, jump, attack, dodge,
 // dash, lock, guard, shoot, switch, sprint. A direction's first pad control is the D-pad, its second the left stick, so
 // `axis` reads the stick analog and the D-pad wins while pressed. On a Quest's Touch pair, the same verb on the same
@@ -399,5 +424,5 @@ const ACTION = {
   },
 };
 
-export const SCHEMES = { pilot: PILOT, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL, versus: VERSUS, action: ACTION };
+export const SCHEMES = { pilot: PILOT, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL, versus: VERSUS, brawl: BRAWL, action: ACTION };
 export const SCHEME_IDS = Object.keys(SCHEMES);
