@@ -33,7 +33,9 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
 
   it('holds every mass it draws in a box, the walk clear of them', () => {
     // (the metro to scale draws every block at block scale: a box for each mass, none more)
-    expect(P.colliders.length).toBe(P.geocity.counts.buildings);
+    // (and a highway's piers each a column's box, highways.js)
+    expect(P.colliders.filter((c) => !c.of.endsWith(':pier')).length).toBe(P.geocity.counts.buildings);
+    expect(P.colliders.filter((c) => c.of.endsWith(':pier')).length).toBe((D.highways ?? []).reduce((a, h) => a + h.piers.reduce((b, q) => b + q.cols.length, 0), 0));
     expect(P.geocity.counts.colliders).toBe(P.colliders.length);
     for (const c of P.colliders) for (let k = 0; k < 3; k++) expect(c.max[k]).toBeGreaterThan(c.min[k]);
     // each tower in its own box, from its terrace to its roof

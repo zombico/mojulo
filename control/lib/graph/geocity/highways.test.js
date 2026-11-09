@@ -58,7 +58,10 @@ describe('the metro\'s highways, built', () => {
     expect(p.geocity.highways.map((h) => h.role)).toEqual(H.map((h) => h.role));
     const deck = p.faces.filter((f) => f.group === 'geocity:highway');
     expect(deck.length).toBeGreaterThan(H.reduce((a, h) => a + h.stations.length / 2 - 1, 0) - 1);
-    expect(p.colliders.filter((c) => c.of.endsWith(':pier')).length).toBe(H.reduce((a, h) => a + h.piers.reduce((b, q) => b + q.cols.length, 0), 0));
+    // (a column a walker's box where the evocation masses its neighbourhoods; none out past them)
+    const piers = p.colliders.filter((c) => c.of.endsWith(':pier')), massed = d.regions.filter((r) => d.evoked.regions.includes(r.id));
+    expect(piers.length).toBeLessThanOrEqual(H.reduce((a, h) => a + h.piers.reduce((b, q) => b + q.cols.length, 0), 0));
+    for (const c of piers) expect(massed.some((r) => c.min[0] >= r.rect[0] - 2 && c.max[0] <= r.rect[2] + 2 && c.min[1] >= r.rect[1] - 2 && c.max[1] <= r.rect[3] + 2)).toBe(true);
     expect(p.flow.lanes.filter((L) => H.some((h) => h.id === L.line)).length).toBe(H.reduce((a, h) => a + 2 * h.lanes, 0));
     // (no street lamp under a deck lower than it)
     const town = role('crosstown')[0];

@@ -892,7 +892,8 @@ export function assembleGeocityScene(m, ctx = {}) {
           put([[x + cw / 2, y - cw / 2, zb], [x + cw / 2, y + cw / 2, zb], [x + cw / 2, y + cw / 2, zt], [x + cw / 2, y - cw / 2, zt]], 'geocity:highway-side', conc, [1, 0, 0]);
           put([[x + cw / 2, y + cw / 2, zb], [x - cw / 2, y + cw / 2, zb], [x - cw / 2, y + cw / 2, zt], [x + cw / 2, y + cw / 2, zt]], 'geocity:highway-side', conc, [0, 1, 0]);
           put([[x - cw / 2, y + cw / 2, zb], [x - cw / 2, y - cw / 2, zb], [x - cw / 2, y - cw / 2, zt], [x - cw / 2, y + cw / 2, zt]], 'geocity:highway-side', conc, [-1, 0, 0]);
-          colliders.push({ min: P3([x - cw / 2, y - cw / 2, zb]), max: P3([x + cw / 2, y + cw / 2, zt]), of: `${h.id}:pier` });
+          // (a walker's collider where the metro is walked: none on the skyline, an evocation's in what it masses)
+          if (E?.evoke !== 'skyline' && (!massed || d.regions.some((r) => massed.has(r.id) && x >= r.rect[0] && x <= r.rect[2] && y >= r.rect[1] && y <= r.rect[3]))) colliders.push({ min: P3([x - cw / 2, y - cw / 2, zb]), max: P3([x + cw / 2, y + cw / 2, zt]), of: `${h.id}:pier` });
         }
         const [p0, p1] = [P(pr.u - 1, -half + 1), P(pr.u + 1, half - 1)], q = [Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.max(p0[0], p1[0]), Math.max(p0[1], p1[1])];
         put([[q[0], q[1], zt - 1.3], [q[2], q[1], zt - 1.3], [q[2], q[1], zt], [q[0], q[1], zt]], 'geocity:highway-side', conc, [0, -1, 0]);
