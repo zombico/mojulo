@@ -28,3 +28,12 @@
 - The desperation (`whirl` in the specials): an invincible spin at shoulder height that strikes behind as far as in
   front and knocks down, costing its thrower a slice of health the first time it lands, never the last of it. Any
   fighter may take it as a special; the brawler's attack and jump together throw it.
+- The brawler's moves (`brawl/brawl-moves.js`): attack, jump, special and the stick. Attack runs a CHAIN, each press on
+  a connect the next blow, the last knocking down, the stick toward the foe on the last press a different finisher; a
+  whiff starts it over. In the air, a jump straight up and attack is a stomp, a jump with a direction a jump kick.
+  Attack and jump together is the desperation. Special throws the fighter's signature special. A fighting style per
+  archetype: the rushdown's longer, quicker chain, the grappler's heavy chain and its strongest grabs.
+- The clinch, in the brawl's sim: walk into a foe lined up in front to take hold of it, then knee it (the third knocks
+  it down), throw it forward into the crowd or behind, or, taken from behind, suplex it. A held body breaks free after a
+  while, a holder struck lets go, and the desperation breaks out of a hold. A power-up's state works in the brawl as in
+  the fight.

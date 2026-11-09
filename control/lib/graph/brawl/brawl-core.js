@@ -24,6 +24,16 @@
  *   • WAKE-UP: a body rising from the floor is untouchable `wake` frames more, so a crowd cannot keep it down.
  *   • THE BELT: with a belt, the camera scrolls on as the players go (beltScroll: never back, held at an uncleared gate),
  *     a player stays in its view and every body on the belt and in its band; without one, a floor `half` each way.
+ *   • THE CLINCH: a body that walks into a foe lined up in front of it for `grab` frames takes hold of it (a foe standing,
+ *     walking or reeling, never one in the air, down or untouchable). Held, a command (`pad.hold`): 'knee' a knee to the
+ *     body (the `knees`-th knocks it down), 'forward' or 'back' a throw that way (the fighter's throw's damage, the body
+ *     flung), and a body taken from behind is SUPLEXED instead (slammed down behind). A held body breaks free after
+ *     `hold` frames; a holder struck lets go; the desperation (a move with a `price`) breaks out of a hold. A fighter's
+ *     `brawl` (brawl-moves.js, its style) sets its knee, suplex and throw; without one, the rules' and its throw's.
+ *   • STATES (versus-library.js STATES, `ist` [id, frames left] while held): a body's blows its state's `damage` %, its
+ *     walk its `speed` %, and under `armor` a blow lands its damage and no stun. An install super grants one as it
+ *     starts; `grantState` grants one (a thing on the floor). A move's PRICE costs its thrower health the first time it
+ *     lands, never the last of it.
  *   • Each body faces its TARGET (the nearest standing body of the other side) when it is free, unless it walks along
  *     the belt, which faces it the way it walks.
  * The fight's 1v1 core (versus-core.js) is not touched: the brawl is its own sim over the same records.
@@ -31,7 +41,7 @@
  * Pure: plain integers and small arrays, no clock, no dice; the same start and the same pads are the same brawl to the
  * byte.
  */
-import { METER_MAX } from '../versus/versus-library.js';
+import { METER_MAX, STATES } from '../versus/versus-library.js';
 import { beltScroll, beltBounds } from './brawl-belt.js';
 
 export const BRAWL_RULES = Object.freeze({
@@ -43,9 +53,16 @@ export const BRAWL_RULES = Object.freeze({
   down: 36, rise: 10, wake: 40, juggle: 3, cancelLate: 8,
   flung: 60,        // the damage a flung body deals each body it meets
   vanish: 90,       // frames a beaten body of the crowd lies before it is gone
+  grab: 10,         // frames walking into a lined-up foe before taking hold of it (0: no clinch)
+  hold: 100,        // frames a held body breaks free after
+  gap: 420,         // mm, a held body in front of its holder
+  knees: 3, knee: 40, kneeFrames: 10, kneeStop: 6,   // the knees a hold allows (the last knocks down), each's damage, its time, its hitstop
+  suplex: 150,      // the damage of a body taken from behind, slammed down
   scaling: [100, 100, 80, 70, 60, 50, 40, 30, 20, 10],
 });
 const SIDES = ['player', 'crowd'];
+const stateOf = (p, k) => (p.ist ? STATES[p.ist[0]][k] ?? 100 : 100);
+const stated = (p, k, v) => (p.ist ? Math.floor((v * stateOf(p, k)) / 100) : v);
 const FREE = new Set(['stand', 'walk']);
 const sgn = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
 const ZERO = Object.freeze({ x: 0, z: 0 });
@@ -58,11 +75,22 @@ function newBody(i, b, ctx) {
   return {
     id: i, fi: b.fighter, side: b.side, x: b.x ?? 0, z: b.z ?? 0, y: 0, vx: 0, vz: 0, vy: 0, face: b.face === -1 ? -1 : 1,
     hp: F.hp, meter: 0, st: 'stand', sf: 0, mv: null, mf: 0, hs: 0, stun: 0, wx: 0, wz: 0, jx: 0, jz: 0,
-    hl: [], conn: 0, combo: 0, jug: 0, pushv: 0, pushn: 0, air: 0, airMove: 0, landing: 0, inv: 0, ko: 0, gone: 0, tg: -1,
+    hl: [], conn: 0, combo: 0, jug: 0, pushv: 0, pushn: 0, air: 0, airMove: 0, landing: 0, inv: 0, ko: 0, gone: 0, tg: -1, gw: 0,
+    // (a body that never takes hold: `grabs: false`)
+    ...(b.grabs === false ? { ng: 1 } : {}),
   };
 }
 
-/** A brawl's first state. opts: { bodies: [{ fighter, side, x, z, face? }], rules?: {…overrides}, cam?: mm } */
+/** Grant a body a state (a STATES row) on a state being stepped: a new one in place of any held. */
+export function grantState(s, id, state) {
+  if (!STATES[state]) throw new Error(`brawl: a state is one of ${Object.keys(STATES).join(', ')}`);
+  const p = s.bodies[id];
+  p.ist = [state, STATES[state].frames];
+  s.events.push({ t: 'state', p: id, id: state, x: p.x, z: p.z });
+  return s;
+}
+
+/** A brawl's first state. opts: { bodies: [{ fighter, side, x, z, face?, grabs? }], rules?: {…overrides}, cam?: mm } */
 export function newBrawl(ctx, opts = {}) {
   const rules = { ...BRAWL_RULES, ...(opts.rules ?? {}) };
   const bodies = (opts.bodies ?? []).map((b, i) => newBody(i, b, ctx));
@@ -92,7 +120,7 @@ function poseOf(p) {
   if (p.mv) return p.mv.startsWith('crouch') ? 'crouch' : 'stand';
   return 'stand';
 }
-const OUT = new Set(['down', 'rise', 'thrown', 'throwing', 'ko']);
+const OUT = new Set(['down', 'rise', 'thrown', 'throwing', 'ko', 'held']);
 /** A body's hurtboxes this frame, in the plane (none while it lies, rises, is gone or is in a throw). */
 export function bodyHurt(p, F) {
   if (p.gone || OUT.has(p.st)) return [];
@@ -139,9 +167,23 @@ function think(s, p, pad, ctx) {
   if (p.gone || p.ko || p.hs > 0) return;
   const F = ctx.fighters[p.fi];
   const want = pad.mv && F.moves[pad.mv] ? pad.mv : null;
+  // held: only the desperation breaks out
+  if (p.st === 'held') {
+    if (want && F.moves[want].price) { letGo(s, s.bodies[p.hold]); start(s, p, F, want); }
+    return;
+  }
+  // holding: a knee, or a throw one way or the other (from behind, the suplex)
+  if (p.st === 'hold') {
+    if (p.kf > 0) return;
+    if (pad.hold === 'knee') knee(s, p, ctx);
+    else if (pad.hold === 'forward' || pad.hold === 'back') throwHeld(s, p, pad.hold === 'back', ctx);
+    return;
+  }
   // a connected move cancels into what its record allows, while the hit is fresh (the fight's rule)
   if (p.mv && (p.st === 'move' || p.st === 'air')) {
     const m = F.moves[p.mv];
+    // (the desperation pressed a frame or two late, attack before jump: it takes the move's place as it starts)
+    if (want && F.moves[want].price && !F.moves[p.mv].price && p.mf <= 2 && p.st === 'move') { start(s, p, F, want); return; }
     if (!want || !p.conn || p.mf > m.startup + m.active - 1 + s.rules.cancelLate) return;
     const kind = F.moves[want].kind === 'normal' ? want : F.moves[want].kind;
     if ((m.cancel.includes(kind) || m.chain.includes(want)) && (F.moves[want].stance === 'air') === (p.st === 'air')) start(s, p, F, want);
@@ -171,6 +213,7 @@ function start(s, p, F, slot) {
     p.meter -= m.cost;
     s.freeze = m.freeze;
     s.events.push({ t: 'super', p: p.id, x: p.x, z: p.z });
+    if (m.install) grantState(s, p.id, m.install);
   }
   if (m.kind === 'special') s.events.push({ t: 'special', p: p.id, slot });
 }
@@ -184,11 +227,17 @@ function advance(s, p, ctx) {
   if (p.gone) return;
   const F = ctx.fighters[p.fi], J = F.jump, R = s.rules;
   if (p.inv > 0) p.inv--;
+  if (p.ist && --p.ist[1] <= 0) { delete p.ist; s.events.push({ t: 'stateEnd', p: p.id }); }
   if (p.hs > 0) { p.hs--; return; }
   p.sf++;
   if (p.pushn > 0) { p.x += p.pushv; p.pushn--; }
   switch (p.st) {
-    case 'walk': p.x += p.wx * F.walk.f; p.z += Math.round((p.wz * F.walk.f * R.walkZ) / 100); break;
+    case 'walk': { const v = stated(p, 'speed', F.walk.f); p.x += p.wx * v; p.z += Math.round((p.wz * v * R.walkZ) / 100); break; }
+    case 'hold':
+      if (p.kf > 0) p.kf--;
+      // (held long enough, the body breaks free: both stagger apart)
+      if (p.sf >= R.hold) { const o = s.bodies[p.hold]; letGo(s, p); for (const [q, d] of [[p, -p.face], [o, p.face]]) { q.pushv = d * 30; q.pushn = 8; } s.events.push({ t: 'free', p: o.id, d: p.id, x: o.x, z: o.z }); }
+      break;
     case 'prejump':
       if (p.sf >= J.prejump) { p.st = 'air'; p.sf = 0; p.vy = J.vy; p.vx = p.jx * J.vx; p.vz = Math.round((p.jz * J.vx) / 2); p.y = 0; p.airMove = 0; }
       break;
@@ -226,7 +275,7 @@ function advance(s, p, ctx) {
     case 'rise': if (p.sf >= R.rise) { p.st = 'stand'; p.sf = 0; p.inv = R.wake; } break;
     case 'throwing': {
       const o = s.bodies[p.hold];
-      if (p.sf >= p.clinch) fling(s, p, o, ctx);
+      if (p.sf >= p.clinch) { const m = ctx.fighters[p.fi].moves[p.mv]; fling(s, p, o, p.throwDmg, m.meter ?? 0, !!p.tb); }
       break;
     }
     default: break;   // (thrown: the thrower carries it)
@@ -239,31 +288,80 @@ function shoot(s, p, m) {
 }
 
 // a throw's end: the held body flung away (behind on a back throw), hurt, a blow of its own until it lands
-function fling(s, p, o, ctx) {
-  const m = ctx.fighters[p.fi].moves[p.mv];
-  o.hp -= scaledOn(s, o, p.throwDmg);
+function fling(s, p, o, dmg, meter, back) {
+  o.hp -= stated(p, 'damage', scaledOn(s, o, dmg));
   o.st = 'fall'; o.sf = 0; o.vy = 60; o.vz = 0;
-  const away = p.tb ? -p.face : p.face;
-  if (p.tb) o.x = p.x - p.face * 300;
+  const away = back ? -p.face : p.face;
+  if (back) o.x = p.x - p.face * 300;
   o.vx = away * 22;
   o.combo++;
   o.fl = 1; o.fh = [o.id, p.id];
   o.rx = { k: 'throw', h: 1, w: 2, c: 0 };
   if (o.hp <= 0) { o.hp = 0; o.ko = 1; s.events.push({ t: 'ko', p: o.id }); }
   delete o.hold;
-  p.st = 'land'; p.sf = 0; p.landing = 12; p.mv = null; delete p.hold;
-  p.meter = Math.min(METER_MAX, p.meter + (m.meter ?? 0));
-  s.events.push({ t: 'throw', p: p.id, d: o.id, x: o.x, z: o.z, y: 900 });
+  p.st = 'land'; p.sf = 0; p.landing = 12; p.mv = null; delete p.hold; delete p.tb;
+  p.meter = Math.min(METER_MAX, p.meter + meter);
+  s.events.push({ t: 'throw', p: p.id, d: o.id, x: o.x, z: o.z, y: 900, back: back ? 1 : 0 });
+}
+
+// ── the clinch ───────────────────────────────────────────────────────────────────────────────────────────────
+
+function clinch(s, p, o) {
+  p.st = 'hold'; p.sf = 0; p.mv = null; p.hold = o.id; p.kn = 0; p.kf = 0; p.gw = 0; p.wx = 0; p.wz = 0;
+  // (its back to the holder: the holder took it from behind, and throws it as a suplex)
+  p.back = o.face === p.face ? 1 : 0;
+  o.st = 'held'; o.sf = 0; o.mv = null; o.hold = p.id; o.pushn = 0; o.vx = 0; o.vz = 0; o.wx = 0; o.wz = 0;
+  o.rx = { k: 'grab', h: 1, w: 1, c: 0 };
+  s.events.push({ t: 'grab', p: p.id, d: o.id, x: (p.x + o.x) / 2, z: p.z, clinch: 1, back: p.back });
+}
+// a hold let go of: the held body on its feet again, the holder free
+function letGo(s, p) {
+  const o = s.bodies[p.hold];
+  if (o && o.st === 'held') { o.st = 'stand'; o.sf = 0; delete o.hold; }
+  if (p.st === 'hold') { p.st = 'stand'; p.sf = 0; }
+  delete p.hold; delete p.kn; delete p.kf; delete p.back;
+}
+function knee(s, p, ctx) {
+  const R = s.rules, o = s.bodies[p.hold];
+  const dmg = stated(p, 'damage', scaledOn(s, o, ctx.fighters[p.fi].brawl?.knee ?? R.knee));
+  o.hp -= dmg; o.combo++; p.kn++;
+  p.hs = R.kneeStop; o.hs = R.kneeStop; p.kf = R.kneeFrames;
+  o.rx = { k: 'hit', h: 1, w: 1, c: 0 };
+  s.events.push({ t: 'hit', p: p.id, d: o.id, dmg, x: o.x - p.face * 150, z: o.z, y: 1000, combo: o.combo, w: 1, limb: 'knee', kind: 'knee' });
+  if (o.hp <= 0 || p.kn >= R.knees) {
+    // (the last knee knocks the body away; the holder stands back)
+    delete o.hold; o.st = 'fall'; o.sf = 0; o.vy = 45; o.vx = p.face * 20; o.y = 1; o.jug++;
+    o.rx = { k: 'down', h: 1, w: 2, c: 0 };
+    p.st = 'land'; p.sf = 0; p.landing = 10; delete p.hold; delete p.kn; delete p.kf; delete p.back;
+    if (o.hp <= 0) knockOut(s, o, p.face);
+  }
+}
+function throwHeld(s, p, back, ctx) {
+  const o = s.bodies[p.hold], R = s.rules;
+  if (p.back) {
+    // THE SUPLEX: a body taken from behind slammed down behind the holder
+    const dmg = stated(p, 'damage', scaledOn(s, o, ctx.fighters[p.fi].brawl?.suplex ?? R.suplex));
+    o.hp -= dmg; o.combo++;
+    delete o.hold; o.st = 'fall'; o.sf = 0; o.x = p.x - p.face * 500; o.y = 1; o.vy = 20; o.vx = -p.face * 4; o.vz = 0; o.jug++;
+    o.rx = { k: 'throw', h: 1, w: 2, c: 0 };
+    p.st = 'land'; p.sf = 0; p.landing = 22; delete p.hold; delete p.kn; delete p.kf; delete p.back;
+    s.events.push({ t: 'throw', p: p.id, d: o.id, x: o.x, z: o.z, y: 400, kind: 'suplex' });
+    if (o.hp <= 0) knockOut(s, o, -p.face);
+    return;
+  }
+  const T = ctx.fighters[p.fi].moves.throw;
+  delete p.kn; delete p.kf; delete p.back;
+  fling(s, p, o, ctx.fighters[p.fi].brawl?.throw ?? T.damage, T.meter ?? 0, back);
 }
 
 // ── room: pushes along the belt, the view, the band ─────────────────────────────────────────────────────────
 
 function separate(s, ctx) {
   const R = s.rules, B = s.bodies;
-  // a thrown body rides the thrower's hands
-  for (const p of B) if (p.st === 'throwing') { const o = B[p.hold]; o.x = p.x + p.face * 360; o.z = p.z; o.y = 0; }
+  // a thrown body rides the thrower's hands, a held one its holder's
+  for (const p of B) if (p.st === 'throwing' || p.st === 'hold') { const o = B[p.hold]; o.x = p.x + p.face * (p.st === 'hold' ? R.gap : 360); o.z = p.z; o.y = 0; }
   // push boxes, pair by pair (in order: the same bodies, the same pushes), only between bodies lined up across the belt
-  const solid = (p) => !p.gone && p.st !== 'thrown' && p.st !== 'throwing' && p.st !== 'ko' && !p.fl;
+  const solid = (p) => !p.gone && p.st !== 'thrown' && p.st !== 'throwing' && p.st !== 'hold' && p.st !== 'held' && p.st !== 'ko' && !p.fl;
   for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
     const a = B[i], b = B[j];
     if (!solid(a) || !solid(b) || Math.abs(a.z - b.z) >= 2 * R.body) continue;
@@ -273,6 +371,15 @@ function separate(s, ctx) {
     const [pl, pr] = aLeft ? [pa, pb] : [pb, pa], [L, Rt] = aLeft ? [a, b] : [b, a];
     const over = pl[2] - pr[0];
     if (over > 0) { const h = Math.ceil(over / 2); L.x -= h; Rt.x += over - h; }
+  }
+  // THE CLINCH: walking into a foe lined up in front, touching it, for `grab` frames takes hold of it
+  if (R.grab > 0) for (const p of B) {
+    if (p.st !== 'walk' || !p.wx || p.ng || p.gone || p.ko) { p.gw = 0; continue; }
+    const mine = pushOf(p, ctx.fighters[p.fi]);
+    const o = B.find((q) => q.side !== p.side && !q.gone && !q.ko && q.hold === undefined && q.inv <= 0 && q.y <= 0 && (FREE.has(q.st) || q.st === 'hit') && lined(s, p, q) && Math.sign(q.x - p.x) === p.wx
+      && (() => { const b = pushOf(q, ctx.fighters[q.fi]); return (p.wx > 0 ? b[0] - mine[2] : mine[0] - b[2]) <= 40; })());
+    if (!o) { p.gw = 0; continue; }
+    if (++p.gw >= R.grab) clinch(s, p, o);
   }
   // the camera goes on with the players; a player stays in its view, every body on the belt and in its band
   const belt = ctx.belt, players = B.filter((p) => p.side === 'player' && !p.ko && !p.gone);
@@ -387,7 +494,7 @@ function resolve(s, ctx) {
   }
   // a grab lands where its thrower still throws and its body is free to be taken
   for (const [p, o, m] of grabs) {
-    if (p.st !== 'move' || o.st === 'hit' || o.st === 'fall' || o.st === 'thrown' || o.st === 'throwing' || o.hold !== undefined) continue;
+    if (p.st !== 'move' || o.st === 'hit' || o.st === 'fall' || o.st === 'thrown' || o.st === 'throwing' || o.st === 'hold' || o.hold !== undefined) continue;
     p.hl = [[o.id, 1, p.mf]];
     p.st = 'throwing'; p.sf = 0; p.clinch = m.throw.clinch; p.throwDmg = m.damage; p.hold = o.id;
     o.st = 'thrown'; o.sf = 0; o.mv = null; o.pushn = 0; o.hold = p.id;
@@ -399,6 +506,8 @@ function resolve(s, ctx) {
 const LIMBS = { fist: 'fist', toe: 'foot', ankle: 'foot', knee: 'knee', elbow: 'elbow', head: 'head' };
 function blow(s, ctx, { a: p, d, m, shot, at }) {
   const src = shot ?? m, Fd = ctx.fighters[d.fi];
+  // (a holder struck lets go)
+  if (d.st === 'hold') letGo(s, d);
   const face = shot ? sgn(shot.vx) : p.face;
   const hitstop = src.hitstop ?? 10;
   if (shot) { shot.hits--; shot.hitAt = s.f; shot.hl.push(d.id); } else { const h = hitsOn(p, d.id); if (h) { h[1]++; h[2] = p.mf; } else p.hl.push([d.id, 1, p.mf]); }
@@ -414,10 +523,21 @@ function blow(s, ctx, { a: p, d, m, shot, at }) {
     if (d.hp <= 0) knockOut(s, d, face);
     return;
   }
+  // IRON (a state's `armor`): the blow lands its damage, not its stun
+  if (stateOf(d, 'armor') === true) {
+    d.hp -= stated(p, 'damage', scaledOn(s, d, src.dmg ?? src.damage));
+    d.hs = hitstop;
+    if (!shot) { p.hs = Math.max(p.hs, hitstop); p.conn = 1; }
+    s.events.push({ t: 'armor', p: p.id, d: d.id, x: d.x, z: d.z, y: 1100, state: d.ist[0] });
+    if (d.hp <= 0) knockOut(s, d, face);
+    return;
+  }
   const counter = !!dm && d.mf < dm.startup;
-  let dmg = scaledOn(s, d, src.dmg ?? src.damage);
+  let dmg = stated(p, 'damage', scaledOn(s, d, src.dmg ?? src.damage));
   if (counter) dmg = Math.floor((dmg * 6) / 5);
   d.hp -= dmg; d.combo++; d.mv = null; d.air = 0;
+  // (a move's PRICE, the first time it lands: the thrower's own health, never the last of it)
+  if (!shot && m.price && !p.conn) p.hp = Math.max(1, p.hp - m.price);
   d.hs = hitstop;
   if (!shot) { p.hs = Math.max(p.hs, d.hs); p.conn = 1; }
   p.meter = Math.min(METER_MAX, p.meter + (src.meter ?? 20));
