@@ -83,6 +83,12 @@ describe('the frames on the range', () => {
     for (let i = 0; i < nb; i++) { expect(Math.abs(first[i * 7 + 3])).toBeCloseTo(1, 3); for (let j = 0; j < 3; j++) expect(first[i * 7 + 4 + j]).toBeCloseTo(F.figure.bones[i].head[j], 2); }
     const last = key(C['transform:tank'], C['transform:tank'].k - 1), idle = key(C['tank:idle'], 0);
     for (let i = 0; i < last.length; i++) expect(last[i]).toBeCloseTo(idle[i], 2);
+    // (its front axle steered, both sides, the circle's centre on the fixed axles' line behind it)
+    const front = MECHA_ARCHETYPES[T].wheels.filter((w) => w.axle === 'front').map((w) => w.id);
+    expect(F.figure.steer.wheels.map((w) => w.id)).toEqual(front);
+    expect(new Set(F.figure.steer.wheels.map((w) => Math.sign(w.x)))).toEqual(new Set([1, -1]));
+    expect(F.figure.steer.wheelbase).toBeGreaterThan(0);
+    expect(F.drive.circle).toBeCloseTo(F.drive.steer.wheelbase / Math.tan((F.drive.steer.max * Math.PI) / 180), 2);
     // (its gun lower in its tank form)
     for (const r of F.rounds) expect(r.atForm.tank[2]).toBeLessThan(r.at[2]);
     // (and starts in its tank form when its stance says roll)

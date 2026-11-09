@@ -155,9 +155,10 @@ export function frameBase(base, { mounts = FRAME_MOUNTS } = {}) {
     clips['transform:tank'] = { k: fold.length, once: true, b: fold.flatMap((it) => keyed(it)) };
     clips['transform:walker'] = { k: fold.length, once: true, b: [...fold].reverse().flatMap((it) => keyed(it)) };
   }
-  if (Object.keys(clips).length) figure = { ...figure, clips, ...(drive ? { forms: { base: 'walker' } } : {}) };
+  // (its steered wheels as the page turns them: each one's place off the fixed axles' line, the steering wheelbase)
+  if (Object.keys(clips).length) figure = { ...figure, clips, ...(drive ? { forms: { base: 'walker' }, steer: { wheelbase: drive.steer.wheelbase, wheels: drive.steer.wheels } } : {}) };
   const T = mountOf('light-tank', { mount: M.mount, gun: M.gun });
-  return { id, archetype, stance, ...(transforms ? { form: stance === 'roll' ? 'tank' : 'walker', walkStance: bakeAt } : {}), armed, weapons, mountClass, figure, rounds, ...(gait ? { gait } : {}), ...(drive ? { drive: drive.out } : {}), turret: { ...T, mount: { ...T.mount, at: rounds[0].at }, gun: { ...T.gun, barrel: rounds[0].barrel } }, height: r3(B.faces.reduce((a, f) => f.corners.reduce((b, c) => (c[2] > b ? c[2] : b), a), 0)) };
+  return { id, archetype, stance, ...(transforms ? { form: stance === 'roll' ? 'tank' : 'walker', walkStance: bakeAt } : {}), armed, weapons, mountClass, figure, rounds, ...(gait ? { gait } : {}), ...(drive ? { drive: { ...drive.out, steer: { wheelbase: drive.steer.wheelbase, max: drive.steer.max, rate: drive.steer.rate } } } : {}), turret: { ...T, mount: { ...T.mount, at: rounds[0].at }, gun: { ...T.gun, barrel: rounds[0].barrel } }, height: r3(B.faces.reduce((a, f) => f.corners.reduce((b, c) => (c[2] > b ? c[2] : b), a), 0)) };
 }
 
 // a body's orientation from its item's `rotate` (degrees, Rz·Ry·Rx: the assembler's)
@@ -213,7 +214,8 @@ function foldKeys(archetype, words, key, from) {
  * A transforming walker's drive in its tank form, from its structure: its wheels (their hubs, their radius: the hub's
  * height on the ground), its wheelbase and track, its centre of mass rolled. Its pace by its size as a walker's is, a
  * wheeled machine's at Froude 4 on its wheelbase (an off-road pace); its turn as quick as keeps its lateral grip within
- * half of what would roll it over (g · half its track over its centre of mass's height). → { wheels, out }
+ * half of what would roll it over (g · half its track over its centre of mass's height); its front axle steered (Ackermann:
+ * the circle's centre on its fixed axles' line). → { wheels, steer, out }
  */
 function driveOf(key, row, roll) {
   const ids = row.wheels.map((w) => w.id), hubs = ids.map((id) => roll.get(id).t);
@@ -221,7 +223,16 @@ function driveOf(key, row, roll) {
   const wheelbase = Math.max(...ys) - Math.min(...ys), track = Math.max(...xs) - Math.min(...xs);
   const P = posedFrame(key, 'roll'), hcg = massOf(key, P.joints, P.root).com[2];
   const speed = Math.sqrt(DRIVE.froude * 9.81 * Math.max(wheelbase, 2 * r)), grip = (0.5 * 9.81 * track) / 2 / hcg;
-  return { wheels: new Set(ids), out: { wheels: ids.length, radius: r3(r), wheelbase: r3(wheelbase), track: r3(track), cg: r3(hcg), speed: r3(speed), stride: r3(2 * Math.PI * r), turn: r3(Math.min(0.8, grip / speed)), lateral: r3(grip) } };
+  // its steering: the front axle's wheels steered, the others fixed, the circle's centre on the fixed axles' line; the
+  // steered axle's distance from that line the wheelbase its turn is set by; each steered wheel's place from it (its own
+  // angle, the inner one more: Ackermann); its lock and how quickly it is steered, a bigger machine's slower
+  const front = row.wheels.filter((w) => w.axle === 'front').map((w) => w.id), fixed = ids.filter((id) => !front.includes(id));
+  const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length, yc = mean(fixed.map((id) => roll.get(id).t[1]));
+  const steerBase = mean(front.map((id) => roll.get(id).t[1])) - yc;
+  const steer = { wheelbase: r3(steerBase), max: DRIVE.lock, rate: r3(DRIVE.steerRate / Math.sqrt(Math.max(1, steerBase))), wheels: front.map((id) => ({ id, x: r3(roll.get(id).t[0]), y: r3(roll.get(id).t[1] - yc) })) };
+  const tightest = steerBase / Math.tan((DRIVE.lock * Math.PI) / 180);
+  return { wheels: new Set(ids), steer, out: { wheels: ids.length, radius: r3(r), wheelbase: r3(wheelbase), track: r3(track), cg: r3(hcg), speed: r3(speed), stride: r3(2 * Math.PI * r), turn: r3(Math.min(0.8, grip / speed)), lateral: r3(grip), steered: front.length, steerBase: steer.wheelbase, lock: steer.max, steerRate: steer.rate, circle: r3(tightest) } };
 }
-/** A tank form's pace: Froude 4 on its wheelbase. */
-export const DRIVE = Object.freeze({ froude: 4 });
+/** A tank form's pace (Froude 4 on its wheelbase), its steered wheels' lock (°) and their steering rate (°/s at a metre
+ * of steering wheelbase, slower as 1/√ of it). */
+export const DRIVE = Object.freeze({ froude: 4, lock: 30, steerRate: 90 });

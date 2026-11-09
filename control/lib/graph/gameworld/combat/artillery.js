@@ -219,11 +219,12 @@ export function artilleryOf(spec = {}) {
   // it stands)
   const walkRule = F?.gait ? { type: 'walk', speed: F.gait.speed, turn: F.gait.turn, stride: F.gait.stride, eye: 0, collideRadius: Math.max(1, F.gait.track || F.gait.L / 2), collideHeight: F.height } : null;
   // (a transforming walker's tank form: it drives on its wheels at its drive's pace, its clip's cycle a wheel's turn)
-  const driveRule = F?.drive ? { type: 'walk', speed: F.drive.speed, turn: F.drive.turn, stride: F.drive.stride, eye: 0, collideRadius: Math.max(1, F.drive.track / 2 + 0.5), collideHeight: F.height } : null;
+  // (steered: it turns about a point beside it by its front wheels' angle, never in place: worlds/controllable/steer.js)
+  const driveRule = F?.drive ? { type: 'walk', speed: F.drive.speed, turn: F.drive.turn, stride: F.drive.stride, steer: F.drive.steer, eye: 0, collideRadius: Math.max(1, F.drive.track / 2 + 0.5), collideHeight: F.height } : null;
   const formsOf = driveRule ? { forms: { walker: { rule: walkRule }, tank: { rule: driveRule } }, form: F.form, transformDur: Math.round((1 + 0.25 * F.gait.L) * 10) / 10 } : {};
   const rule = F ? (driveRule ? (F.form === 'tank' ? driveRule : walkRule) : walkRule ?? { type: 'static' }) : V ? V.rule : base === 'hull' ? { type: 'walk', speed: 8, turn: 0.45, eye: 0, collideRadius: 3.5, collideHeight: 2.5 } : { type: 'static' };
   const pilot = { id: 'gun', pilotable: true, rule, ...formsOf, turret, weapon: rounds[0], body: V || F ? { type: 'figure-rig', figure: 'base' } : { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 } };
-  const keys = `mouse  lay the gun · click  fire · 1-${words.length}  load (${words.join(', ')}) · right click  zoom · O  view${F ? (F.drive ? ' · W / S  walk or drive · A / D  turn · B  transform' : F.gait ? ' · W / S  walk · A / D  turn' : ` · ${F.stance}`) : V ? ' · W / S  drive · A / D  steer' : base === 'hull' ? ' · W / S  drive · A / D  turn the hull' : ''}`;
+  const keys = `mouse  lay the gun · click  fire · 1-${words.length}  load (${words.join(', ')}) · right click  zoom · O  view${F ? (F.drive ? ' · W / S  walk or drive · A / D  turn or steer · B  transform' : F.gait ? ' · W / S  walk · A / D  turn' : ` · ${F.stance}`) : V ? ' · W / S  drive · A / D  steer' : base === 'hull' ? ' · W / S  drive · A / D  turn the hull' : ''}`;
   const audio = heard ? { mix: { space: 'open', voices: 12, distance: true, reach: 6000 }, cues: { shot: heard.shot, reload: heard.reload, burst: heard.burst }, weapon: { shot: heard.shot, reload: heard.reload }, burst: heard.burst } : null;
   // (the camera is the turret view's: the sight, or outside; a base of its own figure is drawn, its turret hidden in the
   // sight by the view)
@@ -239,7 +240,7 @@ export function artilleryReadout(A) {
   const g = A.frame?.gait;
   if (g) lines.push(`walks ${g.speed} m/s, ${g.stride} m a stride, ${g.stepsPerMinute} steps/min (${g.limitedBy === 'reach' ? 'its reach' : g.limitedBy === 'feet' ? 'its feet' : 'its size'})`);
   const dv = A.frame?.drive;
-  if (dv) lines.push(`drives ${dv.speed} m/s on ${dv.wheels} wheels (B transforms)`);
+  if (dv) lines.push(`drives ${dv.speed} m/s on ${dv.wheels} wheels, ${dv.steered} steered, ${dv.circle} m at full lock`);
   const direct = A.ordnance.filter((w) => !ORDNANCE[w].indirect), high = A.ordnance.filter((w) => ORDNANCE[w].indirect);
   if (direct.length) lines.push(`mils at ${DIRECT_BANDS.join(' ')} m`);
   for (const w of direct) { const B = A.flight[w].bands; lines.push(`${w} ${DIRECT_BANDS.map((d) => (Math.abs(B[d].mils) < 0.05 ? 0 : B[d].mils).toFixed(1)).join(' ')}`); }

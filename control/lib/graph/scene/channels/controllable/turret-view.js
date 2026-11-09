@@ -15,7 +15,8 @@
 //               breach and its rubble, a spall, a dent, a scorch; on the ground a crater and its rim
 //   THE READOUT the round loaded (or loading), the gun's elevation and traverse in mils, the last round's strike
 //
-// `window.__mojCtrl.turret()` says the sight, the zoom and the marks (a page's check).
+// `window.__mojCtrl.turret()` says the sight, the zoom and the marks, a figure base's turned bones and its steered wheels'
+// angles (° to the right) (a page's check).
 import { terminalKernel } from '../../../gameworld/combat/terminal.js';
 
 export function turretScript() {
@@ -105,6 +106,17 @@ function __tvRigBone(e, fig, bi, Q, P, mesh) {
   // (a twin-mount gun's bones by their side: 'turretR' and 'gunR' turn together, 'turretL' and 'gunL')
   // (each body's mesh kept: a base transforming on the range stays solid, its beat's shimmer a game's tell, not a gun's)
   if (e.transformT != null) (e.__tvMeshes || (e.__tvMeshes = new Set())).add(mesh);
+  // (a steered wheel turned to its own angle about its hub, over its spin: the circle's centre on the fixed axles' line,
+  // a right turn's to the right, the inner wheel more; worlds/controllable/steer.js e.steer)
+  if (fig.steer && e.steer) {
+    const by = fig.__steerBy || (fig.__steerBy = Object.fromEntries(fig.steer.wheels.map((w) => [w.id, w]))), W = by[fig.bones[bi].id];
+    if (W) {
+      const R = fig.steer.wheelbase / Math.tan(e.steer * Math.PI / 180), a = Math.atan(W.y / (R - W.x));
+      __tvQY.setFromAxisAngle(__TV_Z, -a); Q.premultiply(__tvQY);
+      (__TV.wheels || (__TV.wheels = {}))[W.id] = Math.round(a * 1800 / Math.PI) / 10;
+      return;
+    }
+  }
   const k = /^(turret|gun)(.*)$/.exec(fig.bones[bi].id);
   if (!k) return;
   const T = e.turret, map = fig.__tvTi || (fig.__tvTi = {}), ti = map[k[2]] !== undefined ? map[k[2]] : (map[k[2]] = fig.bones.findIndex((b) => b.id === 'turret' + k[2]));
@@ -234,7 +246,7 @@ function __tvFrame() {
 }
 const __tvStep0 = stepControllable;
 stepControllable = (dt, inputOverride) => { __tvStep0(dt, inputOverride); __tvFrame(); };
-window.__mojCtrl.turret = () => ({ sight: __TV.sight, view: ['sight', 'behind', 'beside'][__TV.view], zoom: __TV_ZOOM[__TV.zoom], marks: __TV.marks.slice(), ...(__TV.rig ? { rig: { ...__TV.rig } } : {}) });
+window.__mojCtrl.turret = () => ({ sight: __TV.sight, view: ['sight', 'behind', 'beside'][__TV.view], zoom: __TV_ZOOM[__TV.zoom], marks: __TV.marks.slice(), ...(__TV.rig ? { rig: { ...__TV.rig } } : {}), ...(__TV.wheels ? { wheels: { ...__TV.wheels } } : {}) });
 window.__tvReady = true;
 setTimeout(__tvReticle, 0);
 `;

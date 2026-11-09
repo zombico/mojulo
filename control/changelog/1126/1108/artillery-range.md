@@ -114,3 +114,11 @@
   outline in plan, turned with its leg, passes its neighbour's clear: a new law. The brood walker walks a diagonal
   sequence, its feet 15% wider, a 2.6 m stride at 1.1 m/s (from 5 m at 2.1, its bays meeting); no two of its legs'
   bodies touch at any key.
+- **Steered wheels** (`worlds/controllable/steer.js`, opt-in; emitted only into a page with a steered body). A
+  transforming walker's tank form steers its front wheels: A / D steer them toward their lock at their rate, and it
+  turns as a wheeled machine turns, about a point on its fixed axles' line, at v · tan(δ) / its steering wheelbase:
+  standing it does not turn (its wheels do), reversing it turns the other way. At speed its lock is what its grip allows,
+  so its wheels point along the circle it drives and never scrub; slow or standing, its full lock (30°, steered more
+  slowly the bigger the machine). Each steered wheel is drawn at its own angle, the inner one more (Ackermann: the rover
+  walker's inner wheel 52° at full lock, its outer 20°); the brood walker steers its front bays' wheels. Held to laws on
+  the runtime: the circle at full lock, no turn standing, the other way reversing, the steering rate, the lock at speed.

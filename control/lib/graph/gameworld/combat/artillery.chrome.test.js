@@ -125,6 +125,13 @@ describe('the artillery range, played', () => {
         const p1 = g.transform.pos.slice();
         go(60, { forward: 1 });
         Object.assign(out, { form: g.form, drove: Math.hypot(g.transform.pos[0] - p1[0], g.transform.pos[1] - p1[1]), driveSpeed: g.rule.speed, lower: T.muzzle[2] < z0 - 0.2 });
+        // (steered right at full lock: its wheels turned, its heading turning at v·tan(lock) over its steering wheelbase)
+        // (standing at full right lock: each front wheel turned right, the inner (right) one more: Ackermann)
+        go(60, { turn: 1 });
+        out.wheels = C.turret().wheels;
+        go(90, { forward: 1, turn: 1 });
+        const h0 = g.transform.heading; go(30, { forward: 1, turn: 1 });
+        Object.assign(out, { steer: g.steer, lock: g.rule.steer.max, yawRate: -(g.transform.heading - h0) * 2, wantRate: (g.rule.speed * Math.tan(g.rule.steer.max * Math.PI / 180)) / g.rule.steer.wheelbase, cap: g.rule.turn, gripLock: Math.atan((g.rule.steer.wheelbase * g.rule.turn) / g.rule.speed) * 180 / Math.PI });
       }
       return out;
     });
@@ -139,6 +146,13 @@ describe('the artillery range, played', () => {
       expect(got.form).toBe('tank');
       expect(got.drove).toBeCloseTo(got.driveSpeed, 1);
       expect(got.lower).toBe(true);
+      // (at its pace, its lock what its grip allows: its heading's rate its turn's cap, its wheels along that circle)
+      expect(got.steer).toBeCloseTo(Math.min(got.lock, got.gripLock), 2);
+      expect(got.yawRate).toBeCloseTo(Math.min(got.wantRate, got.cap), 2);
+      const W = Object.entries(got.wheels), byName = (re) => W.filter(([id]) => re.test(id)).map(([, a]) => a);
+      expect(W.length).toBeGreaterThan(1);
+      for (const [, a] of W) expect(a).toBeGreaterThan(0);
+      expect(Math.max(...byName(/R$/))).toBeGreaterThan(Math.max(...byName(/L$/)));
     }
   }, 240000);
 });
