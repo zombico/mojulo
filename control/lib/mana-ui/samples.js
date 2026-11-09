@@ -104,6 +104,17 @@ export const SAMPLE_STATE = Object.freeze({
   versus: { p1: { name: 'Ayla', hp: 620, hpMax: 1000, ghost: 780, rounds: 1, super: 2, superMax: 3 }, p2: { name: 'Bram', hp: 410, hpMax: 1000, ghost: 410, rounds: 1, super: 1, superMax: 3 }, time: 47, combo: 7 },
   // a fighting game's (idioms-fight.js): the two sides, the round, the callouts and the announcer, training, the roster,
   // the command list and the match's end
+  // a brawler's practice room (idioms-brawl.js): the line at each body's feet, the tokens, the chain, the clinch, the presses
+  brawl: {
+    practice: {
+      marks: [{ id: 'd1', x: 0.62, y: 0.78, text: 'LINED', kind: 'hit' }, { id: 'd2', x: 0.4, y: 0.7, text: '+60 cm', kind: 'miss' }],
+      heads: [{ id: 'd1', x: 0.62, y: 0.42 }],
+      beats: [{ value: '1', variant: 'strong' }, { value: '2', variant: 'strong' }, { value: '3', variant: 'muted' }, { value: '4', variant: 'muted' }],
+      ended: 'Dropped: the blow before missed',
+      clinch: { left: 64, of: 100, knees: 2, behind: 'Suplex', holding: true },
+      presses: [{ press: 'A', verdict: 'Jab', kind: 'heal' }, { press: 'A', verdict: '2f late: Straight', kind: 'heal' }, { press: 'A', verdict: 'Dropped: the blow before missed', kind: 'miss' }],
+    },
+  },
   fight: {
     p1: { tag: 'P1', name: 'Ayla', style: 'Rushdown', hp: 620, hpMax: 1000, ghost: 780, rounds: 1, super: 2.4, stock: 2, guard: 640, burst: 1, combo: 7, comboDamage: 238,
       calls: [{ id: 'c1', text: 'Counter', sub: '+62', weight: 'normal' }, { id: 'c2', text: 'Spark', sub: '+141', weight: 'major', tier: 'rare' }] },

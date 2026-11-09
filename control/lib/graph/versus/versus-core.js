@@ -16,6 +16,11 @@
  * with each other, invincibility, meter, supers with a freeze, and rounds: an intro, a timer, KO, time over,
  * best of three.
  *
+ * A STATE (versus-library.js STATES; an install super grants one as it starts, `p.ist` [id, frames left], carried only
+ * while held): the holder's blows deal its `damage` %, its walk and dashes go at its `speed` %, and under `armor` a strike
+ * or a shot lands its damage without its stun. A move with a PRICE (the desperation's) costs its thrower that much
+ * health the first time it lands, never the last of it.
+ *
  * A LOCK super (its move's `lock`, versus-compile.js): the first blow that lands (not blocked) catches, and the rest
  * is a script, no longer boxes: `s.lock` counts its frames, a blow every `every` (each its share of the damage, scaled
  * once by the combo it caught), the caught body held `gap` in front, both untouchable and unthrowable, then the finish (down or
@@ -24,7 +29,7 @@
  */
 
 import { recordInput, readCommand, autoNext, consume, pressed, traced, currentDir, downish, BTN, SCHEMES, ZERO_PAD, CHARGE_KEEP } from './versus-input.js';
-import { METER_MAX, SYSTEMS } from './versus-library.js';
+import { METER_MAX, SYSTEMS, STATES } from './versus-library.js';
 import { kindRules } from './versus-kinds.js';
 
 export const VERSUS_RULES = Object.freeze({
@@ -89,6 +94,9 @@ const sys = (s, w) => !!s.rules.systems && s.rules.systems.includes(w);
 
 const NEUTRAL = new Set(['stand', 'walkF', 'walkB', 'crouch']);
 const sign = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
+// a STATE's factor on a body (100 when it holds none, or its state does not touch it)
+const stateFactor = (p, k) => (p.ist ? STATES[p.ist[0]][k] ?? 100 : 100);
+const byState = (p, k, v) => (p.ist ? Math.floor((v * stateFactor(p, k)) / 100) : v);
 
 function newPlayer(i, fighter, rules, meter = 0, scheme = 'modern') {
   return {
@@ -366,6 +374,8 @@ function start(s, i, ctx, cmd) {
     s.freeze = m.freeze;
     s.freezeBy = i;
     s.events.push({ t: 'super', p: i, x: p.x });
+    // (an install: its state from now, a new one in place of any held)
+    if (m.install) { p.ist = [m.install, STATES[m.install].frames]; s.events.push({ t: 'state', p: i, id: m.install, x: p.x }); }
   }
   if (cmd.type === 'special') s.events.push({ t: 'special', p: i, slot: cmd.slot });
 }
@@ -377,6 +387,7 @@ function advance(s, i, ctx) {
   const F = ctx.fighters[i];
   if (p.inv > 0) p.inv--;
   if (p.tinv > 0) p.tinv--;
+  if (p.ist && --p.ist[1] <= 0) { delete p.ist; s.events.push({ t: 'stateEnd', p: i }); }
   if (p.gd !== undefined && p.st !== 'block') {
     p.gdT++;
     if (p.gdT > s.rules.guardRest) p.gd = Math.min(s.rules.guardMax, p.gd + s.rules.guardRegen);
@@ -386,8 +397,8 @@ function advance(s, i, ctx) {
   if (p.pushn > 0) { p.x += p.pushv; p.pushn--; }
   const J = F.jump;
   switch (p.st) {
-    case 'walkF': p.x += F.walk.f * p.face; break;
-    case 'walkB': p.x -= F.walk.b * p.face; break;
+    case 'walkF': p.x += byState(p, 'speed', F.walk.f) * p.face; break;
+    case 'walkB': p.x -= byState(p, 'speed', F.walk.b) * p.face; break;
     case 'prejump':
       // a tap of up let go before take-off steps aside (sidestep): strikes pass through while it is off the line
       if (sys(s, 'sidestep') && p.sf < J.prejump && currentDir(p.hist) < 7) { p.st = 'side'; p.sf = 0; p.inv = s.rules.sidestepInvuln; s.events.push({ t: 'sidestep', p: i, x: p.x }); break; }
@@ -402,14 +413,14 @@ function advance(s, i, ctx) {
     case 'side': if (p.sf >= s.rules.sidestepFrames) { p.st = 'stand'; p.sf = 0; } break;
     case 'dashF': {
       const d = F.dash.f;
-      p.x += Math.round(d.dist / d.frames) * p.face;
+      p.x += byState(p, 'speed', Math.round(d.dist / d.frames)) * p.face;
       if (p.sf >= d.frames) { p.st = 'stand'; p.sf = 0; }
       break;
     }
     case 'dashB': {
       const d = F.dash.b;
       if (p.sf === 1) p.inv = d.invuln;
-      p.x -= Math.round(d.dist / d.frames) * p.face;
+      p.x -= byState(p, 'speed', Math.round(d.dist / d.frames)) * p.face;
       if (p.sf >= d.frames) { p.st = 'stand'; p.sf = 0; }
       break;
     }
@@ -855,6 +866,15 @@ function applyHit(s, ctx, { a, m, shot, at: contact }) {
     return;
   }
 
+  // IRON (a state's `armor`): the blow lands its damage, not its stun
+  if (stateFactor(d, 'armor') === true) {
+    d.hp -= byState(p, 'damage', scaled(s, d, src.dmg ?? src.damage));
+    d.hs = hitstop;
+    if (!shot) { p.hs = hitstop; p.conn = 1; }
+    s.events.push({ t: 'armor', p: a, x: shot ? shot.x : d.x - face * 200, y: shot ? shot.y : 1100, state: d.ist[0] });
+    if (d.hp <= 0) ko(s, 1 - a, face);
+    return;
+  }
   // a lock super catches: the rest is its script (lockStep)
   if (!shot && m.lock) {
     p.st = 'locking'; p.sf = 0; p.hitN = m.hits; p.conn = 1; p.air = 0; p.vx = 0;
@@ -868,10 +888,12 @@ function applyHit(s, ctx, { a, m, shot, at: contact }) {
   // the SPARK (system 'spark'): a counter hit struck on the strike's very first active frame, the blow and the opening
   // met in one frame: half again the damage, the moment held (rules.sparkStop more hitstop), meter
   const spark = !shot && counter && sys(s, 'spark') && p.mf === m.startup;
-  let dmg = scaled(s, d, src.dmg ?? src.damage);
+  let dmg = byState(p, 'damage', scaled(s, d, src.dmg ?? src.damage));
   if (spark) dmg = Math.floor((dmg * 3) / 2);
   else if (counter) dmg = Math.floor((dmg * 6) / 5);
   d.hp -= dmg;
+  // (a move's PRICE, the first time it lands: the thrower's own health, never the last of it)
+  if (!shot && m.price && !p.conn) p.hp = Math.max(1, p.hp - m.price);
   d.combo++;
   d.mv = null;
   d.air = 0;

@@ -62,12 +62,14 @@ let server;
 let listTools;
 let hasRegisteredTool;
 
+// (the whole server imported and every tool registered: as no-dead-pointers.test.js, more than the default hook's 30 s
+// on a loaded box; 2026-11-09, 1109-gen-bodywork merging 1108-practice-room, about 40 s here)
 beforeAll(async () => {
   server = await import('@/lib/mcp/server');
   await server.ensureToolsRegistered();
   listTools = server.listTools;
   hasRegisteredTool = server.hasRegisteredTool;
-});
+}, 120000);
 
 function withPacksMode(fn) {
   process.env.MOJULO_TOOL_PACKS = 'on';

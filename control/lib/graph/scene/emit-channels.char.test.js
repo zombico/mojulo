@@ -615,6 +615,36 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // its specials): `kitchen-sink` and `kitchen-sink-capture`, the two that carry both the controllable runtime those
 // commits changed and the game channel the flow runner did; each line's pin held its own change alone. No fixture names
 // a moveset, an air dash or a flow, so the sources they carry changed, their play as it was.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: timed states and the desperation, shared with the brawler): `versus` only. Its
+// page inlines versus-library.js (the STATES shelf, the install super, the whirl), versus-compile.js (a super's
+// `install` and `nohit`, a special's `around` and `price`) and versus-core.js (a state granted, run down and read: damage,
+// speed, iron; a price paid the first time a move lands); the fixture's fighters take none of them and fight as before.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the street's things): `versus` only. Its page inlines versus-library.js, whose
+// WEAPONS gain the pipe (a brawler picks it up off the street; any fighter may hold it); the fixture's fighters hold none.
+// Re-pinned 2026-11-09 (1109-gen-bodywork merging 1108-practice-room): the fixtures both lines moved, together (the
+// practice room's controllable runtime, swing system and mana-ui HUD look; this line's fight, its states and its
+// things), and mana-ui's sheet and kernel as the two met (the trunk's dials and the practice room's `hud`, passing
+// anchors and text entry side by side); no fixture's play changed by the meeting itself.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the practice yard plays its characters by their clips, in its register's look):
+// `brawl` only. Its page inlines the yard's client, which gains the register's rig and the played body; the fixture's
+// yard carries neither, so its play is unchanged.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the brawler's jump on the face's west, as the operator asked): `brawl` only.
+// Its page carries the brawl scheme's bindings: the jump on a pad's X and the keyboard's J, the attack on A and K.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the brawler's strong, on the face's north): `brawl` only. Its page inlines
+// the brawl's moves, core and practice (the strong blows and their cooldown) and the scheme's strong (Y, I).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the brawler's dashes, its air split, through-moves): `brawl` only. Its page
+// inlines the brawl's core, moves, pose, crowd and practice: the run and the back-step, the air punch, the flying kick,
+// the stomp and the dive kick, a roll's way through a crowd.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: foes are bodies): `brawl` only. Its page inlines the brawl's moves (a body's
+// tune) and crowd (each type's tune and plays).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the boss a body as every other): `brawl` only. Its page inlines the crowd
+// (the boss's tune and its plays between its CPU's own).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the armed brawler): `brawl` only. Its page inlines the brawl's core (blades
+// that clash, a body keeping its own weapon) and the yard's client (a held blade drawn).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the armed crowd and the armed boss): `brawl` only. Its page inlines the crowd
+// (the sword, the spear, the axe, the staff; a boss's weapon).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the weapon arts): `brawl` only. Its page inlines the brawl's moves (each
+// weapon's own chain).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

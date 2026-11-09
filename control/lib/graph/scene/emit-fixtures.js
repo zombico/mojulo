@@ -17,6 +17,8 @@ import { resolveWorldAudio } from '../beats/beats-world.js';
 import { normalizeShoot, lowerShoot } from '../shoot/plan.js';
 import { shootSubjects } from '../shoot/subjects.js';
 import { versusArenaData } from '../versus/versus-page.js';
+import { brawlYardData } from '../brawl/brawl-page.js';
+import { brawlLevel } from '../brawl/brawl-levels.js';
 import { meetArenaData } from '../contest/meet-arena.js';
 import { matchArenaData } from '../contest/match-arena.js';
 import { turnsArenaData } from '../contest/turn-arena.js';
@@ -271,6 +273,9 @@ export const EMIT_FIXTURES = [
   ['game', { faces: [floor()], game: GAME }],
   // versus (a side-view fight on an arena): the fight block, its own frame step (`stepFight`), the camera owned
   ['versus', { faces: [floor()], versus: versusArenaData({ plane: 2.2, half: 6, roster: [{ id: 'a', archetype: 'all-rounder' }, { id: 'b', archetype: 'grappler' }] }) }],
+  // brawl (the practice yard, lib/graph/brawl): the brawl block, its own frame step (`stepBrawlPage`), the camera owned,
+  // the yard's screen in mana-ui; its belt the yard preset's, one dummy standing
+  ['brawl', { faces: [floor()], brawl: brawlYardData(brawlLevel({ kind: 'greybox', preset: 'yard' }, { practice: { dummies: [{ mode: 'stand' }] } }).brawl) }],
   // meet (an athletic meet on a track): the meet block, its own frame step (`stepContest`), the camera owned
   ['meet', { faces: [floor()], meet: meetArenaData({ event: 'hurdles', lanes: 3, players: 1 }) }],
   // court (a net game on a court): the court block, its own frame step (`stepCourt`), the camera owned

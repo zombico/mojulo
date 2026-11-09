@@ -120,7 +120,9 @@ describe('mana-ui: blows over the world', () => {
   it('damage numbers are bare with the halo, toned by their kind, a crit larger, popping and rising', () => {
     const I = IDIOMS['damage-numbers'], rt = manaUi.runtime(withIdioms({ hud: { use: 'hud', children: [{ use: 'damage-numbers', props: I.example }] }, screens: {} }), { read: sample });
     const html = rt.view();
-    expect(html).toContain('class="mana-anchors" data-pass="yes" data-variant="bare"');
+    // (bare, and passing: each rises once from where it lands)
+    expect(html).toMatch(/class="mana-anchors"[^>]*data-variant="bare"/);
+    expect(html).toMatch(/class="mana-anchors"[^>]*data-pass="yes"/);
     const kinds = new Set(SAMPLE_STATE.pops.map((p) => p.kind));
     for (const k of kinds) expect(html).toContain(`data-tone="${k}"`);
     expect(sheet).toMatch(/\[data-variant=bare\] \.mana-anchor>\*\{[^}]*text-shadow:var\(--mana-halo\)/);

@@ -33,6 +33,7 @@ export const BOARD_HUDS = Object.freeze({
   'boss fight HUD': ['boss-bar', 'party-strip', 'target-frame', 'score-timer', 'moment-banner', 'enemy-plates'],
   'fight HUD': ['fight-health', 'fight-meters', 'fight-combo', 'fight-callouts', 'fight-announcer'],
   'training HUD': ['fight-health', 'input-display', 'frame-meter', 'training-stats'],
+  'brawler practice HUD': ['line-marks', 'token-marks', 'chain-beats', 'clinch-meter', 'press-log', 'input-display'],
   'explore HUD': ['vitals', 'compass-strip', 'minimap-corner', 'objective-tracker', 'interact-prompt'],
   'fighting HUD': ['versus-bars', 'super-meters', 'combo-counter'],
   'racing HUD': ['race-standing', 'speedometer', 'minimap-corner', 'offscreen-markers'],
@@ -47,7 +48,7 @@ export const BOARD_HUDS = Object.freeze({
 });
 
 // a screen idiom's board section, by its shelf (the HUD frames come first, as 'In game')
-const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play', fight: 'Fight' };
+const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play', fight: 'Fight', brawl: 'Brawler' };
 // a preview's stand-in for the controls layer: the menu scheme's default keys and its `also` (the keypad, Tab, the Page
 // keys), used only when no host is given
 export const PREVIEW_KEYS = Object.freeze({
@@ -56,26 +57,6 @@ export const PREVIEW_KEYS = Object.freeze({
   Numpad8: 'up', Numpad2: 'down', Numpad4: 'left', Numpad6: 'right', NumpadEnter: 'accept', Numpad5: 'accept', Numpad0: 'back',
   Tab: 'down', 'Shift+Tab': 'up', PageDown: 'tabNext', PageUp: 'tabPrev', NumpadAdd: 'tabNext', NumpadSubtract: 'tabPrev',
 });
-/** The stand-in's keydown, inlined as page source (as controls/mana-host.js does it): a key the screen up takes, a held
- *  one repeating only a move, a chord left to the browser, and a text entry in focus typed into. */
-export function previewKey(rt, view, keys, ev) {
-  if (!rt.state().screen || ev.ctrlKey || ev.altKey || ev.metaKey) return false;
-  const k = ev.key;
-  if (rt.typing()) {
-    let t = true;
-    if (k === 'Backspace' || k === 'Delete') rt.erase();
-    else if (k === 'Enter') { if (!ev.repeat) rt.submit(); }
-    else if (typeof k === 'string' && [...k].length === 1) rt.type(k);
-    else t = false;
-    if (t) { ev.preventDefault(); rt.input('keys'); view.paint(); return true; }
-  }
-  const a = (ev.shiftKey && keys['Shift+' + ev.code]) || keys[ev.code];
-  if (!a) return false;
-  ev.preventDefault();
-  if (ev.repeat && !['up', 'down', 'left', 'right'].includes(a)) return true;
-  rt.input('keys'); rt.press(a); view.paint();
-  return true;
-}
 // the page's ear: a sound effect played from the theme's set through the beats kernel, its engine made on the first sound
 // (a key or a tap has been pressed by then, so the browser lets it start)
 // a screen that opens ripples a soft tick down the rows it fills with, on the theme's own lead and stagger (read off the
@@ -96,6 +77,26 @@ export const AUDIO_SCRIPT = `const hear = (SOUNDS, e) => {
     }
   } catch (err) { /* no audio here: the UI goes on silent */ }
 };`;
+/** The stand-in's keydown, inlined as page source (as controls/mana-host.js does it): a key the screen up takes, a held
+ *  one repeating only a move, a chord left to the browser, and a text entry in focus typed into. */
+export function previewKey(rt, view, keys, ev) {
+  if (!rt.state().screen || ev.ctrlKey || ev.altKey || ev.metaKey) return false;
+  const k = ev.key;
+  if (rt.typing()) {
+    let t = true;
+    if (k === 'Backspace' || k === 'Delete') rt.erase();
+    else if (k === 'Enter') { if (!ev.repeat) rt.submit(); }
+    else if (typeof k === 'string' && [...k].length === 1) rt.type(k);
+    else t = false;
+    if (t) { ev.preventDefault(); rt.input('keys'); view.paint(); return true; }
+  }
+  const a = (ev.shiftKey && keys['Shift+' + ev.code]) || keys[ev.code];
+  if (!a) return false;
+  ev.preventDefault();
+  if (ev.repeat && !['up', 'down', 'left', 'right'].includes(a)) return true;
+  rt.input('keys'); rt.press(a); view.paint();
+  return true;
+}
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const use = (id) => ({ use: id, props: IDIOMS[id].example });

@@ -1855,6 +1855,24 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
     }
   }
+  // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
+  // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
+  // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).
+  if (payload && sketch.manifest.brawl && typeof sketch.manifest.brawl === 'object' && sketch.manifest.brawl.practice) {
+    const { brawlYardData } = await import('@/lib/graph/brawl/brawl-page.js');
+    // its roster's characters measured from the store as a fight's are, each played in its own body with its own clips
+    // (under a register, its lit export, for the yard to draw every body the register's one way), as a fight's arena does
+    const { withCharacters, characterBodies } = await import('@/lib/graph/versus/versus-character.js');
+    const practice = await withCharacters(sketch.manifest.brawl.practice);
+    const bodies = Array.isArray(practice.roster) ? await characterBodies(practice.roster, { register: sketch.manifest.brawl.register ?? null }) : null;
+    payload.brawl = brawlYardData({ ...sketch.manifest.brawl, practice }, bodies);
+    const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
+    const fa = fightAudio({ register: sketch.manifest.brawl.register ?? 'western' });
+    if (fa) {
+      const A = resolveWorldAudio(fa, { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, vary: payload.audio.vary ?? A.vary, mix: payload.audio.mix ?? A.mix } : A;
+    }
+  }
   // an athletic meet on a track (contest/meet-arena.js): the event, the lanes, the register, the contest compiled, the
   // level wire's names; the page's meet channel runs it. Absent ⇒ nothing (scene/channels/contest.js). Each sport's
   // athletes (characters by ref, contest/athletes.js) are packed here, so a sport follows its characters' edits

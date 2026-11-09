@@ -183,7 +183,7 @@ export function buildManaUi() {
     // a load: the unglamorous rules each game relearns (docs/mana-ui.md, loading)
     loader: { group: 'value', about: 'a load in progress, honest about it: the progress never goes back (null: not known, a sweep), an activity mark that moves even while the page is busy, the step it is on, a still-loading line once nothing has moved for `stall` seconds, tips that turn every `turn` seconds (left and right turn them too; `seed` mixes their order), a failure said with its words; `auto` goes on by itself once ready (after `least` seconds on screen, or at once if ready before `grace`), else it waits for the player (a press made in the first moment after ready is not an answer); on the game\'s clock (host.now)', props: { progress: [A], max: [N, 100], step: [T], tips: [L, []], tip: [T], ready: [B, false], error: [T], auto: [B, false], stall: [N, 10], turn: [N, 8], seed: [N, 0], least: [N, 1], grace: [N, 0.3] }, verbs: ['done'] },
     stat: { group: 'value', about: 'a label and its number; `count` counts it up from zero as it first shows (a results row, on the game\'s clock with host.countUp)', props: { label: [T, '', true], value: [T, '', true], max: [T], count: [B, false] } },
-    bar: { group: 'value', about: 'a value against its max; segments mark phases or chunks; `ghost` the value before the last hit (drawn hatched, the chip a fighting game shows; given as the value once the combo ends, it drains); rtl fills from the right (the second fighter); `size: large` a bar that is a frame (a fighter\'s health along the top), thicker, `thin` one that rides under another (a guard under the health), its meaning still its variant\'s; `figures: false` (or `numbers: false`) draws no value/max (a fight\'s health, a foe\'s, read by its length, never its number)', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0], ghost: [N, 0], dir: [['ltr', 'rtl'], 'ltr'], size: [['normal', 'large', 'thin'], 'normal'], figures: [B, true], numbers: [B, true] } },
+    bar: { group: 'value', about: 'a value against its max; segments mark phases or chunks; `ghost` the value before the last hit (drawn hatched, the chip a fighting game shows; given as the value once the combo ends, it drains); rtl fills from the right (the second fighter); `size: large` a bar that is a frame (a fighter\'s health along the top), thicker, `thin` one that rides under another (a guard under the health), its meaning still its variant\'s; `figures: false` (or `numbers: false`) draws no value/max (a fight\'s health, a foe\'s, read by its length)', props: { value: [N, 0, true], max: [N, 1, true], variant: [['plain', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'], 'plain'], label: [T], segments: [N, 0], ghost: [N, 0], dir: [['ltr', 'rtl'], 'ltr'], size: [['normal', 'large', 'thin'], 'normal'], figures: [B, true], numbers: [B, true] } },
     pips: { group: 'value', about: 'a count as marks: hearts, pips', props: { value: [N, 0, true], max: [N, 3, true], shape: [Object.keys(PIP_SHAPES), 'pip'], label: [T] } },
     counter: { group: 'value', about: 'an icon and a count (ammo, coins, keys)', props: { label: [T, '', true], value: [T, '', true], max: [T], icon: [T] } },
     timer: { group: 'value', about: 'seconds as a clock', props: { seconds: [N, 0, true], format: [['mmss', 'ss', 'hmmss'], 'mmss'], label: [T] } },
@@ -571,6 +571,8 @@ export function buildManaUi() {
         for (let s = 0; s < seats; s++) if (U.at[s] === undefined) { U.at[s] = 0; again = true; } else if (ctx.focus.length && U.at[s] >= ctx.focus.length) { U.at[s] = ctx.focus.length - 1; again = true; }
         if (again) return render();
       }
+      // (the HUD drawn once the screen is, so a HUD that reads the screen's pick reads this frame's; first in the root,
+      // under the screen)
       if (hud) parts.unshift(drawIn(hud, '$hud', {}, ctx, uiOf('$hud'), false, 1));
       // the player's options that are the sheet's: the text size, the subtitles' plate
       const own = [S.text !== 1 ? `--mana-text:${S.text}` : null, S.plate !== null ? `--mana-sub-plate:${S.plate}` : null].filter(Boolean).join(';');
@@ -694,9 +696,10 @@ export function buildManaUi() {
             // the chip: drawn while a ghost is given, at nothing once the value has caught up to it (so it drains, not vanishes)
             // (from the start, under the fill: what shows of it is what the last combo took)
             const chip = p.ghost > 0 ? ['u', { style: `width:${pct(Math.max(g, r))}` }] : null;
-            return ['div', { class: cls, 'data-variant': p.variant, 'data-dir': p.dir === 'rtl' ? 'rtl' : null, 'data-size': p.size === 'normal' ? null : p.size, 'data-figures': p.figures && p.numbers ? null : 'no', 'data-low': warns && r <= 0.25 ? 'yes' : null, 'data-ready': (seg > 1 ? r * seg >= 1 : r >= 1) ? 'yes' : null }, ['span', { class: 'mana-label' }, p.label || ''],
+            const figures = p.figures && p.numbers;
+            return ['div', { class: cls, 'data-variant': p.variant, 'data-dir': p.dir === 'rtl' ? 'rtl' : null, 'data-size': p.size === 'normal' ? null : p.size, 'data-figures': figures ? null : 'no', 'data-low': warns && r <= 0.25 ? 'yes' : null, 'data-ready': (seg > 1 ? r * seg >= 1 : r >= 1) ? 'yes' : null }, ['span', { class: 'mana-label' }, p.label || ''],
               ['span', { class: 'mana-track' }, ['i', { style: `width:${pct(r)}` }], chip, moved, ...Array.from({ length: seg > 1 ? seg - 1 : 0 }, (_, k) => ['b', { style: `left:${pct((k + 1) / seg)}` }])],
-              p.figures && p.numbers ? ['span', { class: 'mana-num', ...chOf(c) }, `${p.value}/${p.max}`] : null];
+              figures ? ['span', { class: 'mana-num', ...chOf(c) }, `${p.value}/${p.max}`] : null];
           }
           case 'pips': {
             const [on, offc] = PIP_SHAPES[p.shape] || PIP_SHAPES.pip, max = clamp(Math.floor(p.max), 0, 40), v = clamp(Math.round(p.value), 0, max);
