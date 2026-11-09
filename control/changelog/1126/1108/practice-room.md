@@ -281,3 +281,9 @@
   whirlwind all round, 3.2 m, knocking down), its meter built only by landing blows (4 a hit); Artesia has the leaping
   strike (an overhead on a 2 m dash), the rising slash (the upswing knocking down) and the fire burst (MP 50: all round, 4 m,
   knocking down), its meter refilling at 4 a second. The room's HUD shows the MP and names the specials.
+- **The specials palette** (`scene/channels/controllable/specials-palette.js`). While the modifier is held, the page
+  shows the hero's specials in a row at the foot of the screen: each with the buttons that take it (as the device in
+  hand names them: RT + X on a pad, Ctrl + Left click on a keyboard), its name and its MP (or free), and the MP pool
+  beside them; one the pool cannot pay, cooling down or resting after a finisher is dimmed and says why. The lowered
+  moveset carries its `specials` (each root special beat's move, its combo's name and its MP). Emitted only into a page
+  whose hero plays a moveset; every other page keeps every byte.

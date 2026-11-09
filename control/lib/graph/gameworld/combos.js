@@ -197,8 +197,14 @@ export function lowerCombos(C0, { prefix = '' } = {}) {
     }
     if (node) node.ends = [...(node.ends ?? []), c.id];
   }
+  // (the SPECIALS, the modifier's: each root special beat's move, its combo's name and its MP, for the page's palette)
+  const specials = {};
+  for (const b of ['mL', 'mH', 'mS']) if (tree[b]) {
+    const c = C.combos.find((x) => !x.air && x.beats.length === 1 && x.beats[0] === b), mv = moves[tree[b].move];
+    specials[b] = { move: tree[b].move, name: (c && (c.name ?? c.id)) ?? tree[b].move, ...(mv.mp ? { mp: mv.mp } : {}) };
+  }
   // (`ready`: the fighting stance its moves start and end in, the hero's idle in combat with this moveset)
-  return { moves, tree, ...(Object.keys(airTree).length ? { airTree } : {}), ready: `mv_${prefix}ready`, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)], blend: r4(T.blend / FPS), ...(T.rest > 0 ? { rest: r4(T.rest / FPS) } : {}) };
+  return { moves, tree, ...(Object.keys(airTree).length ? { airTree } : {}), ...(Object.keys(specials).length ? { specials } : {}), ready: `mv_${prefix}ready`, buffer: r4(T.buffer / FPS), late: r4(T.late / FPS), pause: [r4(T.pause[0] / FPS), r4(T.pause[1] / FPS)], blend: r4(T.blend / FPS), ...(T.rest > 0 ? { rest: r4(T.rest / FPS) } : {}) };
 }
 
 /** The director's list: each combo's beats and its moves, read whole. */
@@ -282,7 +288,7 @@ export const ARTESIA_ARSENAL = Object.freeze({
         { id: 'spin', name: 'Spin attack', beats: ['bH'], moves: ['spin'] },
         { id: 'leap-strike', name: 'Leaping strike', beats: ['mL'], moves: ['leap-strike'] },
         { id: 'rising-slash', name: 'Rising slash', beats: ['mH'], moves: ['rising-slash'] },
-        { id: 'fire-burst', name: 'Fire burst (MP)', beats: ['mS'], moves: ['fire-burst'] },
+        { id: 'fire-burst', name: 'Fire burst', beats: ['mS'], moves: ['fire-burst'] },
       ] },
   ],
   ranged: BASIC_ARSENAL.ranged,
@@ -301,7 +307,7 @@ const FA_SPECIALS = {
   combos: [
     { id: 'stinger', name: 'Stinger', beats: ['mL'], moves: ['stinger'] },
     { id: 'drive', name: 'Drive', beats: ['mH'], moves: ['drive'] },
-    { id: 'devil-burst', name: 'Devil burst (MP)', beats: ['mS'], moves: ['devil-burst'] },
+    { id: 'devil-burst', name: 'Devil burst', beats: ['mS'], moves: ['devil-burst'] },
   ],
 };
 // (its sidearm the stylish game's pistols: two guns, held they fire at their rate and never run dry, weak; every weapon's)
