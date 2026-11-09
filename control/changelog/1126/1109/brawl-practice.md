@@ -45,3 +45,6 @@
 - The brawler's buttons on the face's diamond with the JUMP ON ITS WEST (the controls' `brawl` scheme): a pad's X jumps, A
   attacks, B the special; the keyboard's diamond under the right hand the same (I J K L: J jumps, K attacks, L the
   special). The stick never jumps: up walks away across the street, down toward the camera.
+- The yard reads the strong: its press in the log (a strong on its cooldown dropped, saying how long is left), a chain
+  ended by the breaker or the blowout said so, one opened by the strong too; the move list's Strong tab (each blow, its
+  frames and its cooldown); on the move list the stick turns its tabs.

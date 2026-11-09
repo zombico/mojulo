@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { brawlFighter, newReader, readButtons, BRAWL_STYLES, BRAWL_STYLE_IDS, DESPERATION } from './brawl-moves.js';
+import { brawlFighter, newReader, readButtons, BRAWL_STYLES, BRAWL_STYLE_IDS, DESPERATION, STRONG } from './brawl-moves.js';
 import { newBrawl, stepBrawl, brawlHash, grantState, BRAWL_RULES } from './brawl-core.js';
 import { solveFighter } from '../versus/versus-solver.js';
 import { SPECIALS, STATES } from '../versus/versus-library.js';
@@ -37,7 +37,7 @@ describe('brawl moves: the styles', () => {
       expect(F.brawl.chain, id).toBe(n);
       expect(F.moves[`chain.${n}`].knock, id).toBe('down');
       expect(F.moves[`chain.${n}f`].knock, id).toBe('down');
-      expect(F.moves[`chain.${n - 1}`].chain, id).toEqual([`chain.${n}`, `chain.${n}f`]);
+      expect(F.moves[`chain.${n - 1}`].chain.slice(0, 2), id).toEqual([`chain.${n}`, `chain.${n}f`]);
       expect(F.moves.desperate.price, id).toBe(SPECIALS[DESPERATION].price);
     }
   });
@@ -67,6 +67,45 @@ describe('brawl moves: the chain', () => {
     const out = play(newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 700)] }), 120, (k, s) => ({ a: k % 6 === 0, x: s.bodies[0].mv === `chain.${n - 1}` ? 1 : 0 }));
     expect(out.moves).toContain(`chain.${n}f`);
     expect(out.moves).not.toContain(`chain.${n}`);
+  });
+});
+
+describe('brawl moves: the strong', () => {
+  const near = () => newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 700)] });
+  const S = BRAWL_STYLES['all-rounder'].strong;
+  it('from a stand, the opener: heavier than the fight\'s blow, staggering longer, and the chain follows from its second', () => {
+    const out = play(near(), 80, (k, s) => ({ h: k === 0, a: s.bodies[0].mv === 'strong' && k % 4 === 0 }));
+    expect(out.moves.slice(0, 2)).toEqual(['strong', 'chain.2']);
+    const hit = hitsOn(out.ev, 1)[0][1];
+    expect(hit.dmg).toBe(Math.round((P.moves[S.slot].damage * STRONG.damage) / 100));
+    expect(P.moves.strong.hitstun).toBe(P.moves[S.slot].hitstun + STRONG.stun);
+  });
+  it('on its cooldown it is not thrown again; past it, it is', () => {
+    const cool = P.moves.strong.cool;
+    expect(cool).toBeGreaterThan(P.moves.strong.total);
+    const s0 = newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 4000)] });
+    // (pressed again `at` frames on: ten frames later, is it throwing a strong?)
+    const again = (at) => play(s0, at + 10, (k) => ({ h: k === 0 || k === at })).s.bodies[0].mv;
+    expect(again(P.moves.strong.total + 4)).toBe(null);
+    expect(again(cool + 1)).toBe('strong');
+    // (the fast attack keeps its own rhythm meanwhile)
+    expect(play(s0, 60, (k) => ({ h: k === 0, a: k === P.moves.strong.total + 4 })).moves).toEqual(['strong', 'chain.1']);
+  });
+  it('after a fast blow that hit, the breaker: the chain ended early, the body knocked down', () => {
+    const out = play(near(), 90, (k, s) => ({ a: k === 0, h: s.bodies[0].mv === 'chain.1' && s.bodies[0].conn > 0 }));
+    expect(out.moves.slice(0, 2)).toEqual(['chain.1', 'strong.break']);
+    expect(out.ev.some(([, e]) => e.t === 'land' && e.p === 1)).toBe(true);
+  });
+  it('toward the foe, the blowout: the body flung down the street, bowling over the one behind it', () => {
+    const s0 = newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 700), body('crowd', 1600)] });
+    const out = play(s0, 90, (k, s) => { const on = s.bodies[0].mv === 'chain.1' && s.bodies[0].conn > 0; return { a: k === 0, h: on, x: on ? 1 : 0 }; });
+    expect(out.moves.slice(0, 2)).toEqual(['chain.1', 'strong.out']);
+    expect(out.ev.some(([, e]) => e.t === 'hit' && e.kind === 'flung' && e.p === 1 && e.d === 2)).toBe(true);
+  });
+  it('in the air, the dive: it knocks down', () => {
+    const out = play(near(), 60, (k) => ({ j: k === 0, x: k < 6 ? 1 : 0, h: k === 12 }));
+    expect(out.moves).toEqual(['strong.air']);
+    expect(P.moves['strong.air'].knock).toBe('down');
   });
 });
 

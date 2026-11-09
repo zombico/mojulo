@@ -8,12 +8,16 @@
  * Pure: no clock, no dice.
  */
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
-const PRESS = { attack: 'A', jump: 'J', special: 'S', 'attack + jump': 'A+J', 'attack + special': 'A+S', 'jump + special': 'J+S' };
+const PRESS = { attack: 'A', strong: 'St', jump: 'J', special: 'S', 'attack + jump': 'A+J', 'attack + special': 'A+S', 'jump + special': 'J+S', 'attack + strong': 'A+St', 'strong + jump': 'St+J', 'strong + special': 'St+S' };
 const nameOf = (slot) => (slot === 'desperate' ? 'Desperation' : slot.split('.').map(cap).join(' '));
+// the strong blows by what they do (the blow's own name beside it)
+const STRONG_WORDS = { strong: 'Strong', 'strong.break': 'Breaker', 'strong.out': 'Blowout', 'strong.air': 'Dive' };
+const ENDS = { finisher: 'Finisher', breaker: 'Breaker', blowout: 'Blowout' };
 /** the chain's blows by name, from its style (brawl-moves.js keeps each blow's source on the move's own `id`) */
 const blowName = (slot, F) => {
   const m = F.moves[slot];
   if (m && slot.startsWith('chain.')) return cap(String(m.id ?? 'blow').replace(/-/g, ' '));
+  if (m && STRONG_WORDS[slot]) return `${STRONG_WORDS[slot]}: ${cap(String(m.id ?? 'blow').replace(/-/g, ' '))}`;
   return nameOf(slot);
 };
 
@@ -27,7 +31,7 @@ export function yardHud(read, F, project, inputs = []) {
   });
   const heads = read.line.filter((d) => d.token && !d.ko).map((d) => { const [x, y] = project(d.at[0], d.at[1], 2100); return { id: `t${d.id}`, x, y }; });
   const last = read.chain.last;
-  const ended = read.chain.now.length ? '' : !last ? '' : last.end === 'finisher' ? 'Finisher' : `Dropped: ${last.why}`;
+  const ended = read.chain.now.length ? '' : !last ? '' : ENDS[last.end] ? `${last.open ? 'Strong opener, ' : ''}${ENDS[last.end]}` : `Dropped: ${last.why}`;
   const presses = read.log.slice(-6).map((e) => ({
     press: PRESS[e.words] ?? e.words,
     // (taken: the move, and how many frames the press waited for the body, held through a hitstop or a recovery)
@@ -45,8 +49,8 @@ export function yardHud(read, F, project, inputs = []) {
 
 const ARROW = { '-1,-1': '↙', '0,-1': '↓', '1,-1': '↘', '-1,0': '←', '0,0': '•', '1,0': '→', '-1,1': '↖', '0,1': '↑', '1,1': '↗' };
 /** The input strip after a frame: a run a direction and its buttons, extended while they stay the same. */
-export function inputRun(runs, { x = 0, z = 0, a, j, s } = {}) {
-  const dir = ARROW[`${Math.sign(x)},${Math.sign(z)}`], btn = `${a ? 'A' : ''}${j ? 'J' : ''}${s ? 'S' : ''}`;
+export function inputRun(runs, { x = 0, z = 0, a, h, j, s } = {}) {
+  const dir = ARROW[`${Math.sign(x)},${Math.sign(z)}`], btn = [a && 'A', h && 'St', j && 'J', s && 'S'].filter(Boolean).join('+');
   const key = `${dir}${btn}`, last = runs[runs.length - 1];
   if (last && last.key === key) return [...runs.slice(0, -1), { ...last, n: last.n + 1, text: `${dir}${btn ? ` + ${btn}` : ''} (${last.n + 1}f)` }];
   if (key === '•' && !btn && last && last.key === '•') return runs;

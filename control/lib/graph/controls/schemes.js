@@ -365,16 +365,17 @@ const VERSUS = {
     gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['light', 'medium', 'heavy', 'special', 'throw'], label: 'light / medium / heavy / special / throw' }, { ids: ['start'], label: 'pause' }],
   },
 };
-// THE BRAWLER (lib/graph/brawl): a stick and three buttons, Final Fight's: attack, jump and special (attack and jump
-// together the desperation). The stick walks along the street and across it (up is away from the camera, down toward
-// it), never a jump or a crouch: the jump is a button. The buttons on the face's diamond (north, west, south, east),
-// the jump on its WEST: a pad's X jumps, A attacks, B the special; the keyboard's diamond under the right hand the same
-// (I north, J west, K south, L east), so J jumps, K attacks, L the special. Each player a controller
+// THE BRAWLER (lib/graph/brawl): a stick and four buttons, Final Fight's three and a strong: attack, strong, jump and
+// special (attack and jump together the desperation). The stick walks along the street and across it (up is away from
+// the camera, down toward it), never a jump or a crouch: the jump is a button. The buttons on the face's diamond
+// (north, west, south, east), the jump on its WEST, the strong on its NORTH: a pad's X jumps, A attacks, Y the strong,
+// B the special; the keyboard's diamond under the right hand the same (I north, J west, K south, L east), so J jumps,
+// K attacks, I the strong, L the special. Each player a controller
 // (controls/seats-kernel.js): the keyboard one, WASD or the arrows; a pad another, the D-pad or the left stick.
 const BR_IN = ['brawl'];
 const BRAWL = {
   id: 'brawl',
-  label: 'brawler: a stick and three buttons',
+  label: 'brawler: a stick and four buttons',
   contexts: BR_IN,
   actions: [
     { id: 'up', label: 'away (across the street)', group: 'move', in: BR_IN, bind: { keyboard: ['KeyW', 'ArrowUp'], gamepad: ['up', 'leftY-'] } },
@@ -382,14 +383,15 @@ const BRAWL = {
     { id: 'left', label: 'left', group: 'move', in: BR_IN, bind: { keyboard: ['KeyA', 'ArrowLeft'], gamepad: ['left', 'leftX-'] } },
     { id: 'right', label: 'right', group: 'move', in: BR_IN, bind: { keyboard: ['KeyD', 'ArrowRight'], gamepad: ['right', 'leftX+'] } },
     { id: 'attack', label: 'attack', group: 'attack', in: BR_IN, bind: { keyboard: ['KeyK'], gamepad: ['south'] } },
+    { id: 'strong', label: 'strong', group: 'attack', in: BR_IN, bind: { keyboard: ['KeyI'], gamepad: ['north'] } },
     { id: 'jump', label: 'jump', group: 'move', in: BR_IN, bind: { keyboard: ['KeyJ'], gamepad: ['west'] } },
     { id: 'special', label: 'special', group: 'attack', in: BR_IN, bind: { keyboard: ['KeyL'], gamepad: ['east'] } },
     { id: 'start', label: 'start / pause', group: 'system', in: BR_IN, bind: { keyboard: ['Enter'], gamepad: ['start'] } },
     { id: 'back', label: 'back', group: 'system', in: BR_IN, bind: { keyboard: ['Escape'], gamepad: ['select'] } },
   ],
   legend: {
-    keyboard: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'special'], label: 'jump / attack / special' }, { ids: ['start'], label: 'pause' }],
-    gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'special'], label: 'jump / attack / special' }, { ids: ['start'], label: 'pause' }],
+    keyboard: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'strong', 'special'], label: 'jump / attack / strong / special' }, { ids: ['start'], label: 'pause' }],
+    gamepad: [{ quad: ['up', 'left', 'down', 'right'], label: 'move' }, { ids: ['jump', 'attack', 'strong', 'special'], label: 'jump / attack / strong / special' }, { ids: ['start'], label: 'pause' }],
   },
 };
 // THE ACTION VERBS (gameworld/feel: the action lab and its kernel's buttons, kernel.js BTN): move, jump, attack, dodge,

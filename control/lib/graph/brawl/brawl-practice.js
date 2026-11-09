@@ -150,19 +150,21 @@ function dummyPads(room, M) {
 
 /** why a press asked for `want` was not taken, from the body as the press ran out */
 function whyNot(p, F, want, rules) {
+  if (F.moves[want]?.cool && p.cd > 0) return `on cooldown: the strong back in ${p.cd} frames`;
+  if (p.st === 'hold') return 'holding a body: attack knees it or throws it';
   if (p.st === 'hit' || p.st === 'fall' || p.st === 'down' || p.st === 'rise' || p.st === 'held' || p.st === 'thrown') return 'reeling: a body being hit acts on nothing';
   if (p.st === 'air' || p.st === 'prejump') return p.mv || p.airMove ? 'in the air, its air attack spent' : 'in the air';
   if (p.hs > 0) return 'held in the blow\'s hitstop';
   if (p.mv) {
     const m = F.moves[p.mv];
-    if (!p.conn && want.startsWith('chain.')) return 'the blow before missed: a chain goes on only from a hit';
+    if (!p.conn && (want.startsWith('chain.') || want === 'strong.break' || want === 'strong.out')) return 'the blow before missed: a chain goes on only from a hit';
     if (p.mf > m.startup + m.active - 1 + rules.cancelLate) return 'too late: the blow\'s window had closed';
     return 'not from this blow';
   }
   if (p.st === 'land' || p.st === 'pick') return 'landing: a moment\'s recovery';
   return 'busy';
 }
-const PRESS_WORDS = { a: 'attack', j: 'jump', s: 'special' };
+const PRESS_WORDS = { a: 'attack', h: 'strong', j: 'jump', s: 'special' };
 
 function verdicts(room, i, buttons, before, after) {
   const { yard, s } = room, p = s.bodies[i], F = room.ctx.fighters[p.fi], prev = yard.prev[i], log = yard.log[i];
@@ -175,7 +177,7 @@ function verdicts(room, i, buttons, before, after) {
     else if (after.want && after.want !== (yard.pending[i].at(-1)?.want)) yard.pending[i].push({ f: s.f, words, want: after.want });
     else if (pressed.includes('a') && p.st === 'pick') say({ words, verdict: 'taken', what: 'picked up', late: 0 });
     else if (pressed.includes('j') && !after.want) yard.pending[i].push({ f: s.f, words, want: 'jump' });
-    else if (!after.want && !after.tk) say({ words, verdict: 'dropped', why: whyNot(p, F, 'chain.1', s.rules) });
+    else if (!after.want && !after.tk) say({ words, verdict: 'dropped', why: whyNot(p, F, pressed.includes('h') ? 'strong' : 'chain.1', s.rules) });
   }
   // the presses waiting: taken once the body starts what they asked, dropped once the reader lets them go
   yard.pending[i] = yard.pending[i].filter((q) => {
@@ -193,9 +195,11 @@ function verdicts(room, i, buttons, before, after) {
     if (p.mv === q.want) { say({ words: q.words, verdict: 'taken', what: q.want, late, ...(q.note ? { note: q.note } : {}) }); return false; }
     // (a chain's next blow, its last missed: the reader made it a fresh chain once the body was free)
     if (after.want === 'chain.1' && q.want.startsWith('chain.') && q.want !== 'chain.1') { q.note = 'the blow before missed: a new chain'; q.want = 'chain.1'; return true; }
+    // (the breaker or the blowout, its blow before missed: the reader made it the opener once the body was free)
+    if (after.want === 'strong' && (q.want === 'strong.break' || q.want === 'strong.out')) { q.note = 'the blow before missed: the opener'; q.want = 'strong'; return true; }
     if (after.want !== q.want) { say({ words: q.words, verdict: 'dropped', want: q.want, why: q.why ?? whyNot(p, F, q.want, s.rules) }); return false; }
     // (why it waits, while it waits: what the body is doing that it cannot be taken)
-    if (!FREE.has(p.st)) q.why = whyNot(p, F, q.want, s.rules);
+    if (!FREE.has(p.st) || (F.moves[q.want]?.cool && p.cd > 0)) q.why = whyNot(p, F, q.want, s.rules);
     return true;
   });
   yard.prev[i] = { ...buttons };
@@ -204,7 +208,7 @@ function verdicts(room, i, buttons, before, after) {
 // ── the yard a frame on ──────────────────────────────────────────────────────────────────────────────────────
 
 export function stepYard(room, buttons = []) {
-  const yard = { ...room.yard, readers: room.yard.readers.slice(), prev: room.yard.prev.slice(), pending: room.yard.pending.map((q) => q.map((e) => ({ ...e }))), log: room.yard.log.map((l) => l.slice()), chain: room.yard.chain.map((c) => ({ steps: c.steps.slice(), last: c.last })), combo: room.yard.combo.map((c) => ({ ...c })), ko: { ...room.yard.ko }, free: { ...room.yard.free } };
+  const yard = { ...room.yard, readers: room.yard.readers.slice(), prev: room.yard.prev.slice(), pending: room.yard.pending.map((q) => q.map((e) => ({ ...e }))), log: room.yard.log.map((l) => l.slice()), chain: room.yard.chain.map((c) => ({ ...c, steps: c.steps.slice() })), combo: room.yard.combo.map((c) => ({ ...c })), ko: { ...room.yard.ko }, free: { ...room.yard.free } };
   const mind = { ...room.mind, tok: Object.fromEntries(Object.entries(room.mind.tok).map(([k, v]) => [k, v.slice()])), b: Object.fromEntries(Object.entries(room.mind.b).map(([k, v]) => [k, { ...v }])) };
   const r0 = { ...room, yard, mind };
   const pads = dummyPads(r0, mind);
@@ -233,16 +237,21 @@ function rules(room) {
       c.hits++; c.damage += e.dmg;
       const mv = s.bodies[e.p].mv;
       if (mv && mv.startsWith('chain.')) { const k = parseInt(mv.slice(6), 10); if (!yard.chain[e.p].steps.includes(k)) yard.chain[e.p].steps.push(k); }
+      // (the strong in the chain: the opener stands for its first blow; the breaker and the blowout end it)
+      if (mv === 'strong' && !yard.chain[e.p].steps.includes(1)) { yard.chain[e.p].steps.push(1); yard.chain[e.p].open = 'strong'; }
+      if (mv === 'strong.break' || mv === 'strong.out') yard.chain[e.p].ender = mv;
     }
   }
   for (let i = 0; i < P; i++) {
     const p = s.bodies[i], ch = yard.chain[i];
     // a chain ends when the body leaves it: the finisher landed, or dropped (the press log says why)
-    if (ch.steps.length && !(p.mv && p.mv.startsWith('chain.'))) {
+    if (ch.steps.length && !(p.mv && (p.mv.startsWith('chain.') || p.mv.startsWith('strong')))) {
       const n = ctx.fighters[p.fi].brawl.chain, done = ch.steps.includes(n) || ch.steps.some((k) => k > n);
       const lastWhy = yard.log[i].slice().reverse().find((e) => e.verdict === 'dropped');
-      ch.last = { steps: ch.steps.slice(), of: n, end: done ? 'finisher' : 'dropped', ...(done ? {} : { why: lastWhy?.why ?? 'no press after the last hit' }) };
-      ch.steps = [];
+      // (how it ended: the finisher, the breaker, the blowout, or dropped and why; opened by the strong, said so)
+      const end = ch.ender === 'strong.break' ? 'breaker' : ch.ender === 'strong.out' ? 'blowout' : done ? 'finisher' : 'dropped';
+      ch.last = { steps: ch.steps.slice(), of: n, end, ...(ch.open ? { open: ch.open } : {}), ...(end === 'dropped' ? { why: lastWhy?.why ?? 'no press after the last hit' } : {}) };
+      ch.steps = []; delete ch.ender; delete ch.open;
     }
     // a combo over: once no dummy reels from it
     const c = yard.combo[i];
@@ -297,7 +306,7 @@ const dataOf = (m) => [
   { what: 'damage', value: String((m.damage ?? 0) * (m.hits || 1)) },
 ];
 /** A brawler's moves as its player reads them, by kind: the chain (its style's), in the air, the clinch, the desperation,
- * the special, the street's things. */
+ * the special, the street's things; the strong blows and their cooldown. */
 export function brawlMoveList(F) {
   const S = BRAWL_STYLES[F.brawl.style], n = F.brawl.chain;
   const chain = Array.from({ length: n }, (_, k) => {
@@ -307,8 +316,16 @@ export function brawlMoveList(F) {
   if (F.moves[`chain.${n}f`]) chain.push({ name: `${n}. ${blowWords(F.moves[`chain.${n}f`], S.finisher)} (finisher)`, input: '→ + A', about: 'toward the foe on the last press: the other finisher', data: dataOf(F.moves[`chain.${n}f`]) });
   const D = F.moves.desperate;
   const special = ['neutral', 'forward', 'back', 'down'].filter((d) => F.moves[`special.${d}.M`]).map((d) => ({ name: `${words(F.moves[`special.${d}.M`].id ?? d)}`, input: d === 'neutral' ? 'S' : d === 'forward' ? '→ + S' : d === 'back' ? '← + S' : '↕ + S', about: 'the fighter\'s special', data: dataOf(F.moves[`special.${d}.M`]) }));
+  const cool = `${F.brawl.cool} frames from its start`;
+  const strong = [
+    { name: `Strong: ${blowWords(F.moves.strong, S.strong.slot)}`, input: 'St', about: 'from a stand, the opener: heavier and slower, it staggers long, and the chain follows on from its second blow (St, A, A …)', data: [...dataOf(F.moves.strong), { what: 'cooldown', value: cool }] },
+    { name: 'Breaker', input: 'A …, St', about: 'after a fast blow that hit: the chain ended early, the body knocked down', data: [...dataOf(F.moves['strong.break']), { what: 'cooldown', value: cool }] },
+    { name: 'Blowout', input: 'A …, → + St', about: 'after a fast blow that hit, toward the foe: the body flung down the street, bowling over the crowd behind it', data: [...dataOf(F.moves['strong.out']), { what: 'cooldown', value: cool }] },
+    { name: 'Dive', input: 'J, St', about: 'in the air: a strong blow down that knocks down', data: [...dataOf(F.moves['strong.air']), { what: 'cooldown', value: cool }] },
+  ];
   return [
     { label: 'Chain', moves: chain },
+    { label: 'Strong', moves: strong },
     { label: 'Air', moves: [
       { name: 'Stomp', input: 'J, A', about: 'a jump straight up, then attack: straight down', data: dataOf(F.moves['air.M']) },
       { name: 'Jump kick', input: '→ J, A', about: 'a jump with a direction, then attack', data: dataOf(F.moves['air.H']) },

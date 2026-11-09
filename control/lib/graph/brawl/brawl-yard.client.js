@@ -12,7 +12,7 @@
  * street's things; each player's LINE on the floor (the strip a blow must share, the yard's first lesson); a flash where a
  * blow lands; the fight's sounds by event where the page carries them.
  *
- * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, jump, special; start the practice settings, back
+ * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
 /* global BRAWL_YARD, THREE, scene, camera, controls, renderer, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, brawlPoseOf, rigJoints, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
@@ -495,13 +495,13 @@ function pollSeats() {
   SEATS = __BR_SEATK.step(SEATS, frame);
   READS = reads;
 }
-const NO_BUTTONS = Object.freeze({ x: 0, z: 0, a: false, j: false, s: false, start: false, back: false });
+const NO_BUTTONS = Object.freeze({ x: 0, z: 0, a: false, h: false, j: false, s: false, start: false, back: false });
 function buttonsOf(i) {
   const s = __BR_SEATK.seat(SEATS, i + 1);
   if (!s || s.away || !READS[s.controller]) return NO_BUTTONS;
   const fam = s.controller === 'keyboard' ? 'keyboard' : 'gamepad', rd = READS[s.controller];
   const on = (id) => __BR_CTL.held(__BR_BIND, id, fam, rd);
-  return { x: (on('right') ? 1 : 0) - (on('left') ? 1 : 0), z: (on('up') ? 1 : 0) - (on('down') ? 1 : 0), a: on('attack'), j: on('jump'), s: on('special'), start: on('start'), back: on('back') };
+  return { x: (on('right') ? 1 : 0) - (on('left') ? 1 : 0), z: (on('up') ? 1 : 0) - (on('down') ? 1 : 0), a: on('attack'), h: on('strong'), j: on('jump'), s: on('special'), start: on('start'), back: on('back') };
 }
 const seated = () => SEATS.seats.filter((x) => !x.away).length;
 
@@ -565,7 +565,9 @@ function tick() {
   pollSeats();
   const b0 = buttonsOf(0), edge = menuEdges(b0), screen = UI.rt.state().screen;
   if (screen) {
-    for (const a of ['up', 'down', 'left', 'right', 'accept', 'back']) if (edge[a]) UI.press(a);
+    // (on the move list the stick's left and right turn its tabs; on the settings they cycle a value)
+    const tabs = screen === 'moves';
+    for (const a of ['up', 'down', 'left', 'right', 'accept', 'back']) if (edge[a]) UI.press(tabs && a === 'left' ? 'tabPrev' : tabs && a === 'right' ? 'tabNext' : a);
     if (edge.start) UI.press('back');
     if (!UI.rt.state().screen) applySettings();
     return;

@@ -594,6 +594,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // yard carries neither, so its play is unchanged.
 // Re-pinned 2026-11-09 (1109-gen-bodywork: the brawler's jump on the face's west, as the operator asked): `brawl` only.
 // Its page carries the brawl scheme's bindings: the jump on a pad's X and the keyboard's J, the attack on A and K.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the brawler's strong, on the face's north): `brawl` only. Its page inlines
+// the brawl's moves, core and practice (the strong blows and their cooldown) and the scheme's strong (Y, I).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

@@ -54,3 +54,10 @@
   shelf) are picked up and swung by the chain, thrown with special at the first foe lined up ahead, and dropped when
   knocked down; barrels, crates and phone booths give way to a player's blows and leave what they hold. A player stands
   over a thing and presses attack to take it. A level places them along the street.
+- The STRONG, a fourth button on the face's north (a pad's Y, the keyboard's I): one heavier blow of the style's
+  (`BRAWL_STYLES[…].strong`: its slot, its air slot, its cooldown), slower than the fast attack and on its own cooldown
+  (`cool`, frames from its start: the core starts no move with one while its body's `cd` runs), its effect by when it is
+  thrown: from a stand the OPENER (it staggers long and the chain follows on from its second blow: St, A, A …), after a
+  fast blow that hit the BREAKER (the chain ended early, the body knocked down: A, A, St) or, toward the foe, the BLOWOUT
+  (a blow whose `knock` is 'fling': the body flung down the street as a thrown one, bowling over the crowd behind it),
+  and in the air the DIVE (it knocks down). The rushdown's comes back soonest, the grappler's last.

@@ -21,7 +21,10 @@
  *   • THE LINE: a blow lands only on a body within `line` across the belt of its striker (line up to land); a throw, a shot
  *     and a flung body the same.
  *   • NO BLOCK (the genre's): a body is beaten by moving, lining up, throwing and the specials.
- *   • A FLUNG BODY: a thrown body flies as a blow of its own, knocking down the bodies of its side it meets, each once.
+ *   • A FLUNG BODY: a thrown body flies as a blow of its own, knocking down the bodies of its side it meets, each once;
+ *     a blow whose `knock` is 'fling' (the brawler's blowout) flings the body it lands on the same way.
+ *   • COOLDOWN: a move with a `cool` (the brawler's strong blows) leaves its body unable to start another with one for
+ *     `cool` frames from its start (`cd`, frames left; absent when none); asked for meanwhile, it is not started.
  *   • WAKE-UP: a body rising from the floor is untouchable `wake` frames more, so a crowd cannot keep it down.
  *   • THE BELT: with a belt, the camera scrolls on as the players go (beltScroll: never back, held at an uncleared gate),
  *     a player stays in its view and every body on the belt and in its band; without one, a floor `half` each way.
@@ -178,7 +181,8 @@ export function stepBrawl(prev, pads, ctx) {
 function think(s, p, pad, ctx) {
   if (p.gone || p.ko || p.hs > 0) return;
   const F = ctx.fighters[p.fi];
-  const want = pad.mv && F.moves[pad.mv] ? pad.mv : null;
+  // (a move on its body's cooldown is not started: the command waits, or its reader lets it go)
+  const want = pad.mv && F.moves[pad.mv] && !(F.moves[pad.mv].cool && p.cd > 0) ? pad.mv : null;
   // held: only the desperation breaks out
   if (p.st === 'held') {
     if (want && F.moves[want].price) { letGo(s, s.bodies[p.hold]); start(s, p, F, want); }
@@ -224,6 +228,7 @@ function think(s, p, pad, ctx) {
 function start(s, p, F, slot) {
   const m = F.moves[slot];
   p.mv = slot; p.mf = 0; p.conn = 0; p.hl = []; p.air = 0;
+  if (m.cool) p.cd = m.cool;
   if (m.stance === 'air') { p.airMove = 1; return; }
   p.st = 'move'; p.sf = 0; p.vx = 0; p.vz = 0; p.wx = 0; p.wz = 0;
   if (m.kind === 'super') {
@@ -244,6 +249,8 @@ function advance(s, p, ctx) {
   if (p.gone) return;
   const F = ctx.fighters[p.fi], J = F.jump, R = s.rules;
   if (p.inv > 0) p.inv--;
+  // (a cooldown runs on the clock, through a hitstop too)
+  if (p.cd > 0 && --p.cd === 0) delete p.cd;
   if (p.wpn && (p.st === 'fall' || p.st === 'down')) drop(s, p);
   if (p.ist && --p.ist[1] <= 0) { delete p.ist; s.events.push({ t: 'stateEnd', p: p.id }); }
   if (p.hs > 0) { p.hs--; return; }
@@ -580,7 +587,14 @@ function blow(s, ctx, { a: p, d, m, shot, at, box }) {
   const w = (shot && shot.sup) || (!shot && m.kind === 'super') ? 2 : (src.dmg ?? src.damage ?? 30) < 45 ? 0 : (src.dmg ?? src.damage) < 85 ? 1 : 2;
   const top = Math.max(...bodyHurt(d, Fd).map((b) => b[3]), d.y + 1);
   const h = !shot && m.guard === 'low' ? 2 : (() => { const rel = ((box[1] + box[3]) / 2 - d.y) / Math.max(1, top - d.y); return rel > 0.7 ? 0 : rel < 0.38 ? 2 : 1; })();
-  if (airborne || knock === 'launch' || knock === 'down') {
+  if (knock === 'fling') {
+    // (the blowout: the body flung down the street as a thrown one is, a blow of its own to its side it meets)
+    d.st = 'fall'; d.sf = 0; d.vy = 60; d.vx = face * 22; d.vz = 0;
+    d.rx = { k: 'throw', h, w: 2, c: counter ? 1 : 0 };
+    d.fl = 1; d.fh = [d.id, p.id];
+    if (d.y <= 0) d.y = 1;
+    d.jug++;
+  } else if (airborne || knock === 'launch' || knock === 'down') {
     d.st = 'fall'; d.sf = 0;
     d.rx = { k: knock === 'launch' ? 'launch' : airborne ? 'air' : !shot && m.guard === 'low' ? 'sweep' : 'down', h, w, c: counter ? 1 : 0 };
     d.vy = knock === 'launch' ? 105 : airborne ? 55 : 45;

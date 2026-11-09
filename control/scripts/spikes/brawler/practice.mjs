@@ -2,7 +2,7 @@
 // brawler practice — the practice yard played: the yard (brawlLevel 'yard' with a practice) built, resolved and
 // emitted as its World page, then driven from the keyboard as a person would, on a virtual clock (each frame stepped by
 // the spike, the keys set between frames): walk in, chain on a dummy, line up on a walker, the settings screen, the move
-// list. The eyes gate is the operator's: the shots.
+// list. The strong: the opener and the chain after it, then the blowout. The eyes gate is the operator's: the shots.
 //
 //   node control/scripts/spikes/brawler/practice.mjs [--out dir] [--characters] [--register anime|western]
 //
@@ -77,12 +77,26 @@ await shot('chain');
 await play(30, ['KeyW', 'KeyD']); await play(10);
 log.push(['walker', await read()]);
 await shot('line');
+// the strong: back to the spots (R), in again, the opener (I) and the chain after it (K)
+await play(2, ['KeyR']); await play(10);
+await play(75, ['KeyD']);
+await play(2, ['KeyI']); await play(14);
+for (let k = 0; k < 5; k++) { await play(2, ['KeyK']); await play(5); }
+log.push(['strong', await read()]);
+await shot('strong');
+// its cooldown run out, a jab and the blowout (toward, I): the dummy flung down the street
+await play(90);
+await play(2, ['KeyK']); await play(3); await play(2, ['KeyD', 'KeyI']); await play(20);
+log.push(['blowout', await read()]);
+await shot('blowout');
 // the settings, then the move list
 await play(2, ['Enter']); await play(6);
 await shot('settings');
 await play(2, ['Escape']); await play(6);
 await play(2, ['Escape']); await play(6);
 await shot('moves');
+await play(2, ['KeyD']); await play(6);
+await shot('moves-strong');
 console.log(JSON.stringify(log));
 console.log('errors', JSON.stringify([...new Set(errs)].slice(0, 8)));
 await browser.close();

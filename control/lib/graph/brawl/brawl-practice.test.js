@@ -122,6 +122,22 @@ describe('brawl practice: every press has its verdict', () => {
     expect(yardRead(cut).chain.last).toMatchObject({ end: 'dropped' });
     expect(yardRead(cut).chain.last.steps).toEqual([1, 2]);
   });
+  it('a strong on its cooldown is dropped, saying how long is left', () => {
+    const r = room([{ mode: 'stand', at: 20, n: 0 }]), F = r.ctx.fighters[0];
+    const log = run(r, F.moves.strong.total + 20, (k) => ({ h: k === 0 || k === F.moves.strong.total + 4 })).r.yard.log[0];
+    expect(log[0]).toMatchObject({ words: 'strong', verdict: 'taken', what: 'strong' });
+    expect(log[1]).toMatchObject({ words: 'strong', verdict: 'dropped' });
+    expect(log[1].why).toMatch(/cooldown/);
+  });
+  it('a chain ended by the strong reads as the breaker, by the blowout as the blowout; opened by it, says so', () => {
+    const on = (x) => x.s.bodies[0].mv === 'chain.1' && x.s.bodies[0].conn > 0;
+    const broke = run(near(), 120, (k, x) => ({ a: k === 0, h: on(x) })).r;
+    expect(yardRead(broke).chain.last).toMatchObject({ end: 'breaker', steps: [1] });
+    const out = run(near(), 120, (k, x) => ({ a: k === 0, h: on(x), x: on(x) ? 1 : 0 })).r;
+    expect(yardRead(out).chain.last).toMatchObject({ end: 'blowout' });
+    const opened = run(near(), 160, (k, x) => ({ h: k === 0, a: k > 0 && k % 6 === 0 })).r;
+    expect(yardRead(opened).chain.last).toMatchObject({ end: 'finisher', open: 'strong' });
+  });
 });
 
 describe('brawl practice: what the room shows', () => {
@@ -151,7 +167,9 @@ describe('brawl practice: what the room shows', () => {
 describe('brawl practice: the move list', () => {
   it('the chain by its style, the air, the clinch, the desperation and its price, the street', () => {
     const F = room([]).ctx.fighters[0], L = brawlMoveList(F);
-    expect(L.map((k) => k.label)).toEqual(expect.arrayContaining(['Chain', 'Air', 'Clinch', 'Desperation', 'Street']));
+    expect(L.map((k) => k.label)).toEqual(expect.arrayContaining(['Chain', 'Strong', 'Air', 'Clinch', 'Desperation', 'Street']));
+    // (the strong blows each say their cooldown)
+    expect(L.find((k) => k.label === 'Strong').moves.every((m) => m.data.some((d) => d.what === 'cooldown'))).toBe(true);
     expect(L[0].moves.length).toBe(F.brawl.chain + 1);
     expect(L.find((k) => k.label === 'Desperation').moves[0].data.find((d) => d.what === 'price').value).toBe(String(F.moves.desperate.price));
   });
