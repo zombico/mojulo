@@ -272,7 +272,8 @@ Pointers only; each target carries its own design notes.
   its weapons by fire type and numbers, skins optional, measured and played before there are levels; the turret's mounts
   by class and their measures, `mount.js`, the runtime's turret `worlds/controllable/turret.js`: one gun on a mount,
   aimed by hand on any base; its rounds `ordnance.js`, what they do to matter `terminal.js`, the artillery range
-  `artillery.js`, the mecha shelf's frames as its bases `frames.js`, the craft shelf's fighters `aircraft.js`, its page's view
+  `artillery.js`, the mecha shelf's frames as its bases `frames.js`, the craft shelf's fighters `aircraft.js` and its
+  helicopters and drones `rotorcraft.js` (on the runtime's `worlds/controllable/rules-hover.js`), its page's view
   `scene/channels/controllable/turret-view.js`); the tester's spike, its findings and the grown arena are
   `control/scripts/spikes/combat-tester/`.
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's

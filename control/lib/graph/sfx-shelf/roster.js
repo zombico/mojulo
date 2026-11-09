@@ -216,6 +216,7 @@ const ROWS = {
   'walker-hydraulics': made('machinery', null, 'hold', 'a walking machine\'s hydraulics by its pace: its pump straining, its valves chuffing with its steps', ['hydraulics', 'walker servo', 'mech hydraulics'], 'servo', { kind: 'walker' }),
   'boat-engine': made('machinery', null, 'hold', 'an outboard by its throttle', ['boat', 'speedboat', 'outboard'], 'engine', { kind: 'boat' }),
   'helicopter': made('machinery', null, 'hold', 'a helicopter by its throttle', ['chopper', 'rotor'], 'engine', { kind: 'helicopter' }),
+  'drone-motors': made('machinery', null, 'hold', 'a multirotor drone\'s motors and props by its throttle', ['quadcopter buzz', 'drone buzz', 'multirotor'], 'engine', { kind: 'multirotor' }),
   // adventure
   'spell-cast': made('magic', 'shoot', 'on', 'a spell cast', ['cast', 'magic missile', 'spell'], 'magic', { act: 'cast' }),
   heal: made('magic', 'pickup', 'on', 'a healing spell', ['healing', 'cure', 'restore'], 'magic', { act: 'heal', school: 'light' }),

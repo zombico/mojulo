@@ -5,7 +5,7 @@
  *   booster  a thruster: `jet` a boost whine, the audio channel's thruster synth (scene/channels/audio.js) ported
  *            range for range; `rocket` a rough combustion roar; `ion` a sci-fi drive's hum
  *   engine   a motor by its throttle, idling at 0: a car, a motorbike, a jet's turbine, a propeller's chop, a heavy diesel, a
- *            tracked vehicle's diesel and its tracks
+ *            tracked vehicle's diesel and its tracks, a multirotor drone's motors and props
  *   beam     a held beam weapon by its power: a laser's buzz, a plasma stream's roar
  *   servo    a machine gathering itself: the audio channel's jump servo and its piston chuffs, ported; a walking
  *            machine's hydraulics by its pace
@@ -63,7 +63,7 @@ export const engine = {
   label: 'a motor by its throttle, idling at 0',
   sustain: true,
   ordered: [],
-  dials: { kind: ['car', 'motorbike', 'jet', 'prop', 'kart', 'boat', 'helicopter', 'diesel', 'tracked'] },
+  dials: { kind: ['car', 'motorbike', 'jet', 'prop', 'kart', 'boat', 'helicopter', 'diesel', 'tracked', 'multirotor'] },
   defaults: { kind: 'car' },
   idle: 'running',
   build(d) {
@@ -102,6 +102,14 @@ export const engine = {
         noise([0.04, 0.15], { band: { hi: 150 }, lfo: { to: 'gain', wave: 'sawtooth', rate: [7, 14], depth: -0.9 } }),
         osc('sine', [1800, 3200], [0.02, 0.1], { pan: 0.25 }),
         noise([0.02, 0.2], { band: { lo: 3000 }, cutoff: [6000, 11000], pan: -0.25 }),
+      ] };
+      case 'multirotor': return { attack: 0.25, release: 0.5, layers: [
+        // a multirotor drone: its props' blade-pass buzz rising with the throttle, two motors a little apart beating
+        // against each other, their windings' whine over it and the air torn under the props
+        osc('sawtooth', [120, 380], [0.16, 0.38], { cutoff: [900, 4200], q: 1.4 }),
+        osc('sawtooth', [126, 396], [0.1, 0.26], { cutoff: [900, 4200], pan: 0.2 }),
+        osc('sine', [1500, 5200], [0.02, 0.08], { pan: -0.2 }),
+        noise([0.04, 0.22], { band: { lo: 600 }, cutoff: [2000, 7000], pan: 0.1 }),
       ] };
       case 'diesel': return { attack: 0.5, release: 0.9, layers: [
         // a heavy diesel (a truck, a carrier, a walking machine's power pack): a slow knock low down, its firing pulses

@@ -128,7 +128,7 @@ export function measureTerminal(word, flight) {
   for (const [d, b] of Object.entries(flight.bands)) {
     // (a direct round strikes a stand's face square; an indirect one falls onto it, its obliquity off the face's normal
     // what its fall leaves: a wall's face takes it glancing, earth takes it square)
-    out.bands[d] = Object.fromEntries(STANDS.map((s) => [s.id, strike(word, { v: b.v, obliquity: O.indirect && s.thickness !== undefined && MATTER[s.matter].family !== 'soil' ? 90 - b.fall : 0 }, s)]));
+    out.bands[d] = Object.fromEntries(STANDS.map((s) => [s.id, strike(word, { v: b.v, obliquity: (O.indirect || O.drop) && s.thickness !== undefined && MATTER[s.matter].family !== 'soil' ? 90 - b.fall : 0 }, s)]));
   }
   return out;
 }

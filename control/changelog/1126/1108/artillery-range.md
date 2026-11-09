@@ -152,4 +152,26 @@
   cruise, its lever set where its cruise holds, kept to the range by the rule's bound; mouse pitch, A / D bank, W / S
   throttle, a chase view with an aim pip, a prop or jet engine heard by its throttle. Each envelope is its registry row's `sky` handle, so the
   flight door's `craft` word flies them too. An aircraft with no gun on the range (the transport, the stealth jet) is
-  refused by name. Not yet: helicopters, bombs and missiles, landing, a crash.
+  refused by name. Not yet: bombs, landing, a crash.
+- **Helicopters and drones.** A rotorcraft is a base by its word too (`base: { aircraft: 'attack helicopter' }`, `'camera
+  drone'`, `'fpv drone'`), flown on a new opt-in `hover` rule (`worlds/controllable/rules-hover.js`): its rotors' thrust
+  along its disc, the disc tilted to move it, quadratic drag; the collective (Space / Shift) asks a climb or holds its
+  height, the cyclic (W / S, Q / E) a helicopter's disc's tilt (let go it levels and coasts) or a drone's speed (its flight
+  controller: let go it brakes to a hover), the pedals (A / D) its turn, at speed a coordinated, banked turn that holds its
+  height. Each flies at its type's published figures (`skyscape/rotor.js` ROTOR, a registry row's new `rotor` handle: a
+  Bell 206's, a UH-60's, an AH-64's, a CH-47's; a Mavic-class camera quad's, a five-inch racing quad's, an enterprise
+  quad's, the heavy lifters'), so full cyclic comes to its top speed holding its height and the collective to its best
+  climb. Armed as such machines are: the attack helicopter's chin chain gun on its turret, aimed by the hand and
+  stabilized (a 30 mm dual-purpose round, `hedp30`), its rocket pods and missile rails fired along its nose; a utility or
+  heavy-lift helicopter's door gun on its pintle in the right door (a 12.7 mm door gun); a light helicopter's gun pod
+  along its nose; a multirotor drone lets go below it what it lifts (a 30 mm grenade, a 60 mm mortar bomb, a
+  shaped-charge bomblet on its drogue: rounds that are released, `drop`, measured falling from 10 to 100 m to the speed
+  their drag allows), its chase view's ring where it will land; a racing quad is itself the munition, an RPG warhead
+  released on its path when it is flown into the ground or on the click, and the next one launched where the first
+  started. Two fixed-wing drones join the aircraft: the long-endurance drone (MQ-9 class) with its missiles along its
+  nose, the loitering munition (Switchblade 300 class) flown into what it strikes. A helicopter's weapons and a drone's
+  stores are each a store of its own (the turret's `store`): switched to at once, its count kept. Every round fired from
+  a rotorcraft carries its velocity. The rotors turn on the rig, the helicopter's chin gun turns with its turret, and
+  the engine heard is the helicopter's or a new multirotor buzz (`drone-motors`). Every rotorcraft is armed; the
+  fixed-wing recon drones (hand-launched, twin-boom, quadplane, flying wing) are refused by name. Not yet: a model for
+  the door gun and the pod, bombs from the fixed wings, landing on a pad, a crash.

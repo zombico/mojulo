@@ -121,15 +121,23 @@ function __tvRigBone(e, fig, bi, Q, P, mesh) {
   }
   // (a craft's propeller turned about its nose, faster with its throttle)
   if (fig.bones[bi].id === 'prop' && e.rule && e.rule.type === 'fly') { __tvQP.setFromAxisAngle(__TV_Y, ((__world.time || 0) * (30 + 60 * (e.throttle || 0))) % (2 * Math.PI)); Q.premultiply(__tvQP); return; }
+  // (a rotorcraft's rotors turned about their masts, a tail rotor about its own axle, faster with its thrust; a
+  // multirotor's turn each way in pairs, the front right with the rear left)
+  if (e.rule && e.rule.type === 'hover' && /rotor/i.test(fig.bones[bi].id)) {
+    const id = fig.bones[bi].id, tail = /tail/i.test(id), sg = /(^|[a-z])(F|A|C|front)/.test(id) === /-r$/.test(id) ? 1 : -1;
+    __tvQP.setFromAxisAngle(tail ? __TV_X : __TV_Z, (sg * (__world.time || 0) * (24 + 30 * (e.throttle || 0))) % (2 * Math.PI)); Q.premultiply(__tvQP); return;
+  }
   const k = /^(turret|gun)(.*)$/.exec(fig.bones[bi].id);
   if (!k) return;
   const T = e.turret, map = fig.__tvTi || (fig.__tvTi = {}), ti = map[k[2]] !== undefined ? map[k[2]] : (map[k[2]] = fig.bones.findIndex((b) => b.id === 'turret' + k[2]));
-  if (ti < 0) return;
+  // (a gun with no turret bone, on a mount that slews (a helicopter's chin gun): turned about its own trunnion; a fixed
+  // gun's, along the nose, stands)
+  if (ti < 0 && (k[1] !== 'gun' || (T.mount && T.mount.fixed))) return;
   // (the turret's pivot where the clip has carried it this frame, a walking frame's mount bobbing with its body: kept as
   // the turret bone is posed, before the gun is)
   const PV = fig.__tvPiv || (fig.__tvPiv = {});
   if (k[1] === 'turret') PV[k[2]] = [P[0], P[1], P[2]];
-  const piv = PV[k[2]] || fig.bones[ti].head;
+  const piv = ti < 0 ? P.slice() : PV[k[2]] || fig.bones[ti].head;
   if (k[1] === 'gun') { __tvQP.setFromAxisAngle(__TV_X, (T.pitch || 0) * Math.PI / 180); Q.premultiply(__tvQP); }
   __tvQY.setFromAxisAngle(__TV_Z, (T.yaw || 0) * Math.PI / 180);
   __tvO.set(P[0] - piv[0], P[1] - piv[1], P[2] - piv[2]).applyQuaternion(__tvQY);
@@ -236,7 +244,12 @@ function __tvAimPip(g) {
   const T = g.turret, m = T.muzzle, d = T.dir;
   if (__TV.view !== 1 || !m) { __tvPip.style.display = 'none'; __TV.pip = null; return; }
   camera.updateMatrixWorld();
-  __tvPV.set(m[0] + d[0] * 600, m[1] + d[1] * 600, m[2] + d[2] * 600).project(camera);
+  // (a drone's drop: where what it lets go now lands, carried on by its own velocity as it falls)
+  if (T.look && T.look.drop) {
+    const v = g.vel || [0, 0, 0], h = Math.max(0, m[2] - (__ground([m[0], m[1], m[2]]) ?? 0)), t = (-v[2] + Math.sqrt(v[2] * v[2] + 2 * 9.81 * h)) / 9.81;
+    __tvPV.set(m[0] + v[0] * t, m[1] + v[1] * t, m[2] - h);
+  } else __tvPV.set(m[0] + d[0] * 600, m[1] + d[1] * 600, m[2] + d[2] * 600);
+  __tvPV.project(camera);
   const on = __tvPV.z < 1 && Math.abs(__tvPV.x) <= 1 && Math.abs(__tvPV.y) <= 1;
   __tvPip.style.display = on ? 'block' : 'none';
   if (on) { const x = (__tvPV.x + 1) / 2 * innerWidth, y = (1 - __tvPV.y) / 2 * innerHeight; __tvPip.style.left = x + 'px'; __tvPip.style.top = y + 'px'; __TV.pip = [Math.round(x), Math.round(y)]; } else __TV.pip = null;

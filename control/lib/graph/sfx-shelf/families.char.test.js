@@ -118,7 +118,9 @@ const PINS = {
   'diesel-engine': 'c096cf2c7466',
   'tank-engine': '603e700a05e4',
   'walker-hydraulics': '94b48bc613a7',
+  // (the helicopter and a multirotor drone's motors: the artillery range's rotorcraft)
   'helicopter': '6a1db48b91b1',
+  'drone-motors': 'f9e1b6875b8b',
   'spell-cast': 'e05c1b18f22f',
   'heal': '346509c7e2b9',
   'buff': '9dbc608cb701',

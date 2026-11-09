@@ -63,6 +63,10 @@ export const APPROACH = Object.freeze({ overStall: 1.3, flareEye: 2 });
  *            turboprops; a transport's bank)
  *   stealth  a stealth strike jet (F-117 class: stall ~145 kt, cruise ~M0.82, M0.92, 45,000 ft, ~23.8 t, two F404s
  *            without afterburners)
+ *   male     a medium-altitude long-endurance drone (MQ-9 class: stall ~90 kt, cruise ~170 kt, 240 kt, 50,000 ft, ~4.8 t,
+ *            one 900 shp turboprop pushing)
+ *   loiter   a tube-launched loitering munition (Switchblade 300 class: cruise ~63 mph, a ~100 mph dive, ~2.5 kg, an
+ *            electric pusher)
  */
 export const CRAFT = Object.freeze({
   glider: { label: 'training glider', stall: 16, cruise: 24, max: 44, ceiling: 3000, lowPass: 30, bankMax: 45, sink: 2, engine: false, mass: 470, thrust: 0, glide: 23 },
@@ -78,6 +82,8 @@ export const CRAFT = Object.freeze({
   carrierFighter: { label: 'carrier strike fighter', stall: 60, cruise: 240, max: 380, ceiling: 15000, lowPass: 100, bankMax: 85, sink: 7, engine: true, mass: 16800, thrust: 158000, glide: 8 },
   attack: { label: 'ground-attack jet', stall: 52, cruise: 155, max: 196, ceiling: 13700, lowPass: 30, bankMax: 80, sink: 3.6, engine: true, mass: 14800, thrust: 80600, glide: 11 },
   transport: { label: 'tactical transport', stall: 50, cruise: 150, max: 164, ceiling: 10000, lowPass: 60, bankMax: 45, sink: 3, engine: true, mass: 70000, thrust: 120000, glide: 15 },
+  male: { label: 'long-endurance drone', stall: 46, cruise: 87, max: 123, ceiling: 15200, lowPass: 60, bankMax: 45, sink: 3, engine: true, mass: 4760, thrust: 8900, glide: 20 },
+  loiter: { label: 'loitering munition', stall: 15, cruise: 28, max: 45, ceiling: 4500, lowPass: 20, bankMax: 60, sink: 3, engine: true, mass: 2.5, thrust: 14, glide: 8 },
   stealth: { label: 'stealth strike', stall: 75, cruise: 250, max: 290, ceiling: 13700, lowPass: 100, bankMax: 70, sink: 3.6, engine: true, mass: 23800, thrust: 96000, glide: 10 },
 });
 

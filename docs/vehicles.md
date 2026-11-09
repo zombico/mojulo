@@ -93,6 +93,8 @@ The frames:
 It assembles whole craft by archetype. The flight-game map is [flight-games.md](flight-games.md).
 The armed aircraft fly the artillery range on the fly rule, each at its type's envelope in the skyscape's `CRAFT`, its
 gun fixed along its nose: `gameworld/combat/aircraft.js`.
+Its helicopters and multirotor drones fly the range on the hover rule (`worlds/controllable/rules-hover.js`) at their
+types' figures (`skyscape/rotor.js`), armed as such machines are: `gameworld/combat/rotorcraft.js`.
 
 Boats are on the same shelf: `boat-odm.js`, `boat-parts.js` and `boat-archetypes.js`.
 

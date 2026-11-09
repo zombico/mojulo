@@ -15,12 +15,20 @@
  *          look        degrees the aim moves for a pixel of the hand (absent: 0.08)
  *          fixed       true (opt-in): a gun fixed along its base's nose, an aircraft's: nothing slews, the hand's look is
  *                      left to the base (the fly rule pitches by it), the round fired along the nose, pitch and all,
- *                      carrying the craft's own velocity (its airspeed along its nose)
+ *                      carrying the craft's own velocity (its airspeed along its nose); `fixedPitch` (°, 0) its own
+ *                      elevation off the nose (a drone's drop chute: −90, straight down)
+ *          strike      { min? } (opt-in): the base is itself the munition (a racing quad's warhead, a loitering
+ *                      munition): fire, or meeting the ground faster than `min` m/s (4), releases its loaded round on
+ *                      its path at its own velocity, and the next one is launched where the first started
  *   gun    barrel      metres from the trunnion to the muzzle
  *   rounds (opt-in) the rounds the gun may load (weapon rows, gameworld/combat/ordnance.js): `input.slot` n loads the nth,
  *          the breech empty until its reload is done (the entity's weapon is the loaded round); a round's own `at` and
  *          `barrel` (opt-in) its mount's, for a turret of twin mounts (a walker's backpack: gameworld/combat/frames.js), and
- *          `atForm` ({ <form>: at }, opt-in) its mount's place in each of a body's forms (forms.js: a walker's tank form)
+ *          `atForm` ({ <form>: at }, opt-in) its mount's place in each of a body's forms (forms.js: a walker's tank form);
+ *          `fixed` (opt-in) a round fired along the base's nose whatever the mount is aimed at (a helicopter's rocket
+ *          pods and missile rails beside its chin gun), `fixedPitch` its elevation off the nose; `store` (opt-in) a weapon of
+ *          its own (a helicopter's gun, its rockets, its missiles; a drone's grenades and its bomblets): switched to at
+ *          once, its count kept while another is selected, never a breech reloaded for it
  *
  * THE HAND: the pilot's look (input.lookDX / lookDY, a mouse's pixels, a pad's stick through the page) moves where the
  * gunner asks the gun to point; the mount slews toward it at its rates, braking to stop on it, never past its limits.
@@ -32,8 +40,9 @@
  * Field ownership: e.turret.yaw / pitch (the mount: yaw off the base's heading, the barrel's elevation, °), .vy / .vp (its
  * slew, °/s), .ty0 / .tp0 (the last step's ask on the mount), .h0 (the base's heading at the last step), .loaded (the round in
  * the breech, its index in .rounds), .want ({ yaw, pitch }: where the hand asks, in the world when stabilized, on the base when not), .muzzle,
- * .dir (the barrel's world point and direction, read by the page and the measures); a fixed gun's round its .carried
- * (the craft's velocity added).
+ * .dir (the barrel's world point and direction, read by the page and the measures), .start (where a striking base was
+ * launched), .strikes (how many have struck); a flying base's round its .carried (the craft's velocity added: a fixed
+ * gun's on the fly rule, every round of a rotorcraft's on the hover rule).
  */
 export function buildTurret(E) {
   const step = E.stepWorld;
@@ -68,10 +77,11 @@ export function buildTurret(E) {
     const T = e.turret, m = T.mount || {}, t = e.transform, h = t.heading * 180 / Math.PI, R = T.rounds && T.rounds[T.loaded || 0];
     // (a body of two forms carries its mount elsewhere in each: the round's own place in the form it is in, `atForm`)
     const at = (R && R.atForm && e.form && R.atForm[e.form]) || (R && R.at) || m.at || [0, 0, 0], ch = Math.cos(t.heading), sh = Math.sin(t.heading);
-    // (a fixed gun, an aircraft's: along the airframe's nose, its place pitched with it)
-    const bp = m.fixed ? (t.pitch || 0) : 0, cp = Math.cos(bp), sp = Math.sin(bp), af = at[0] * cp - (at[2] || 0) * sp, au = at[0] * sp + (at[2] || 0) * cp;
+    // (a fixed gun, an aircraft's, or a round fired along the nose: along the airframe's nose, its place pitched with it)
+    const fx = !!(m.fixed || (R && R.fixed)), fp = R && R.fixed ? (R.fixedPitch || 0) : (m.fixedPitch || 0);
+    const bp = fx ? (t.pitch || 0) : 0, cp = Math.cos(bp), sp = Math.sin(bp), af = at[0] * cp - (at[2] || 0) * sp, au = at[0] * sp + (at[2] || 0) * cp;
     const piv = [t.pos[0] + ch * af - sh * -(at[1] || 0), t.pos[1] + sh * af + ch * -(at[1] || 0), t.pos[2] + au];
-    const yw = (h + T.yaw) * D, el = T.pitch * D + bp, dir = [Math.cos(el) * Math.cos(yw), Math.cos(el) * Math.sin(yw), Math.sin(el)];
+    const yw = (h + (fx ? 0 : T.yaw)) * D, el = (fx ? fp : T.pitch) * D + bp, dir = [Math.cos(el) * Math.cos(yw), Math.cos(el) * Math.sin(yw), Math.sin(el)];
     const L = (R && R.barrel) || (T.gun && T.gun.barrel) || 0;
     T.dir = dir; T.muzzle = [piv[0] + dir[0] * L, piv[1] + dir[1] * L, piv[2] + dir[2] * L];
     return T;
@@ -80,9 +90,13 @@ export function buildTurret(E) {
   function load(e, n) {
     const T = e.turret, R = T.rounds;
     if (!Array.isArray(R) || !(n >= 1 && n <= R.length) || T.loaded === n - 1 || !E.initWeapon) return;
+    // (a store of its own: the one put down keeps its count, the one taken up is ready with its own)
+    const was = T.loaded || 0, kept = T.kept || (T.kept = {});
+    if (R[was] && R[was].store && e.weapon) kept[was] = { ammo: e.weapon.ammo, reserve: e.weapon.reserve, reloading: e.weapon.reloading, reloadT: e.weapon.reloadT };
     T.loaded = n - 1;
     const w = E.initWeapon(R[n - 1]);
-    w.ammo = 0; w.reloading = true; w.reloadT = w.reload;
+    if (R[n - 1].store) Object.assign(w, kept[n - 1] || {});
+    else { w.ammo = 0; w.reloading = true; w.reloadT = w.reload; }
     e.weapon = w;
   }
   // a turret's step, before the world's: the hand moves the ask, the mount slews to it
@@ -130,16 +144,43 @@ export function buildTurret(E) {
     // the look was the turret's; the weapon fires along the barrel
     return { ...input, lookDX: 0, lookDY: 0, ...(T.rounds ? { slot: 0 } : {}), aim: { from: T.muzzle.slice(), dir: T.dir.slice() } };
   }
+  // a flying base's own velocity (the world's, m/s): a rotorcraft's, or a fixed wing's airspeed along its nose
+  function velOf(p) {
+    const ty = p.rule && p.rule.type;
+    if (ty === 'hover' && p.vel) return p.vel;
+    if (ty === 'fly' && p.airspeed > 0) { const h = p.transform.heading, pt = p.transform.pitch || 0, v = p.airspeed; return [Math.cos(pt) * Math.cos(h) * v, Math.cos(pt) * Math.sin(h) * v, Math.sin(pt) * v]; }
+    return null;
+  }
+  // a striking base launched again where the first started (the next drone off the rack)
+  function relaunch(p) {
+    const S = p.turret.start, t = p.transform;
+    t.pos = S.pos.slice(); t.heading = S.heading; t.pitch = S.pitch || 0;
+    if (p.vel) p.vel = [0, 0, 0];
+    if (p.rule && p.rule.type === 'fly') p.airspeed = p.rule.launchSpeed || 0;
+    p.bank = 0; p.yawV = 0; p.tilt = { pitch: 0, roll: 0 };
+  }
   E.stepWorld = function stepWithTurret(state, input, dt, hooks) {
     const p = state.pilotId ? state.byId[state.pilotId] : null;
-    const inp = p && p.turret && input ? aim(p, input, dt) : input;
-    const seq0 = state.projSeq || 0;
-    const out = step(state, inp, dt, hooks);
-    // (a fixed gun's rounds leave with the craft's own velocity, its airspeed along its nose, as a fired round does)
-    if (p && p.turret && p.turret.mount && p.turret.mount.fixed && (state.projSeq || 0) > seq0 && p.airspeed > 0) {
-      const v = p.airspeed, h = p.transform.heading, pt = p.transform.pitch || 0, u = [Math.cos(pt) * Math.cos(h), Math.cos(pt) * Math.sin(h), Math.sin(pt)];
-      for (const q of state.projectiles || []) if (q.owner === p.id && !q.carried) { q.vel[0] += u[0] * v; q.vel[1] += u[1] * v; q.vel[2] += u[2] * v; q.carried = true; }
+    let inp = p && p.turret && input ? aim(p, input, dt) : input;
+    const T = p && p.turret, S = T && T.strike;
+    // (a striking base: its round released on its path, at its velocity, when it is fired or when it met the ground)
+    let striking = false;
+    if (S && inp) {
+      if (!T.start) T.start = { pos: p.transform.pos.slice(), heading: p.transform.heading, pitch: p.transform.pitch || 0 };
+      const v = T.struck || velOf(p), n = v && Math.hypot(v[0], v[1], v[2]);
+      const ready = p.weapon && p.weapon.ammo > 0 && !p.weapon.reloading;
+      if (ready && n > 0.5 && (T.struck || inp.fire)) { striking = true; inp = { ...inp, fire: 1, aim: { from: p.transform.pos.slice(), dir: [v[0] / n, v[1] / n, v[2] / n] } }; }
+      else inp = { ...inp, fire: 0 };
+      T.struck = null;
     }
+    const seq0 = state.projSeq || 0, v0 = p && velOf(p) ? velOf(p).slice() : null;
+    const out = step(state, inp, dt, hooks);
+    // (a flying base's rounds leave with its own velocity, as a fired round does)
+    if (p && T && (state.projSeq || 0) > seq0) {
+      const v = striking ? v0 : velOf(p);
+      if (v) for (const q of state.projectiles || []) if (q.owner === p.id && !q.carried) { q.vel[0] += v[0]; q.vel[1] += v[1]; q.vel[2] += v[2]; q.carried = true; }
+      if (striking) { T.strikes = (T.strikes || 0) + 1; relaunch(p); }
+    } else if (S && p && v0 && (p.impact > (S.min ?? 4) || (p.touchdown && Math.hypot(v0[0], v0[1], v0[2]) > (S.min ?? 4)))) T.struck = v0;   // (met the ground: it strikes on the next step)
     // (every turret's barrel placed where its base now stands: the page draws it, a measure reads it)
     for (const e of state.entities) if (e.turret && e.turret.yaw !== undefined) place(e);
     return out;

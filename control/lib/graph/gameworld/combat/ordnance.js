@@ -5,13 +5,18 @@
  *
  *   ORDNANCE                    the rounds: `apfsds` (a kinetic long rod), `heat` (a shaped charge), `he` (a blast
  *                               shell), `indirect` (a shell fired high to fall on what the gun cannot see); a walker's:
- *                               `apds30` and `he30` (an autocannon's), `rocket` (a pod's), `missile` (a launcher's, unguided)
+ *                               `apds30` and `he30` (an autocannon's), `rocket` (a pod's), `missile` (a launcher's, unguided);
+ *                               an aircraft's guns' (`ap127`, `api20`, `he20`, `api30`), a helicopter's chain gun's
+ *                               `hedp30`; and the rounds a drone RELEASES (`drop`: let go at its own
+ *                               velocity and falling, or carried into what it strikes): `grenade30`, `mortar60`, `bomblet`,
+ *                               `warhead`
  *   WEAPON_ROUNDS               a mecha shelf weapon's rounds
  *   ordnanceWeapon(word, over?) → the runtime's weapon row: a travelling round at its muzzle velocity, on gravity and its
  *                               drag, its gun's dispersion as a seeded cone, a magazine of one reloaded at the gun's rate
  *   measureOrdnance(word, { mount, bands }) → (`mount` a class, or a turret as it stands: mountOf's shape) its flight at each band: the elevation to hit (° and mils), the time of
  *                               flight, the speed it arrives at and its share kept, the drop below the bore's line; an
- *                               indirect round's high arc to land at each band, its apex; the spread of a dozen rounds
+ *                               indirect round's high arc to land at each band, its apex; a released round's fall from
+ *                               each height (DROP_BANDS), its time and the speed it lands at; the spread of a dozen rounds
  *   ordnanceLaws(m)             → [{ name, ok, info }]
  *
  * Each round's numbers: `caliber` (mm), `mass` (kg, the flying body), `v0` (m/s at the muzzle), `drag` (the quadratic
@@ -52,6 +57,19 @@ export const ORDNANCE = Object.freeze({
   he20: Object.freeze({ label: '20 mm high-explosive incendiary', kind: 'blast', caliber: 20, mass: 0.1, v0: 1030, drag: 5e-4, dispersion: 1, fuse: 6, filler: 0.011 }),
   api30: Object.freeze({ label: '30 mm armour-piercing incendiary (a depleted-uranium core)', kind: 'kinetic', caliber: 30, mass: 0.425, v0: 1010, drag: 1.2e-4, dispersion: 1, fuse: 8, filler: 0,
     rod: Object.freeze({ length: 0.1, diameter: 0.02, density: 18600 }) }),
+  // a helicopter's chain gun's 30 mm dual-purpose round (a small shaped charge in a fragmenting body: about 50 mm of
+  // rolled armour)
+  hedp30: Object.freeze({ label: '30 mm high-explosive dual-purpose', kind: 'shaped', caliber: 30, mass: 0.23, v0: 805, drag: 3.5e-4, dispersion: 5, fuse: 8, filler: 0.022,
+    jet: Object.freeze({ rha: 0.05 }) }),
+  // what a drone lets go (`drop`): released at its own velocity, the round's own speed hardly any; it falls on its drag
+  // (its speed at most √(g/k)): a 30 mm grenade with its fuze set to strike, a 60 mm mortar bomb, a shaped-charge bomblet
+  // slowed by its drogue so it falls nose down, and the RPG warhead a racing quad carries into what it strikes
+  grenade30: Object.freeze({ label: '30 mm grenade, dropped', kind: 'blast', caliber: 30, mass: 0.35, v0: 0.5, drag: 4e-3, dispersion: 3, fuse: 30, filler: 0.036, drop: true }),
+  mortar60: Object.freeze({ label: '60 mm mortar bomb, dropped', kind: 'blast', caliber: 60, mass: 1.7, v0: 0.5, drag: 7e-4, dispersion: 3, fuse: 30, filler: 0.36, drop: true }),
+  bomblet: Object.freeze({ label: 'a shaped-charge bomblet, dropped on its drogue', kind: 'shaped', caliber: 70, mass: 1.07, v0: 0.5, drag: 1.6e-2, dispersion: 3, fuse: 30, filler: 0.57, drop: true,
+    jet: Object.freeze({ rha: 0.2 }) }),
+  warhead: Object.freeze({ label: 'an RPG warhead, carried in', kind: 'shaped', caliber: 93, mass: 2.6, v0: 0.5, drag: 1e-3, dispersion: 3, fuse: 30, filler: 0.7, drop: true,
+    jet: Object.freeze({ rha: 0.5 }) }),
 });
 /** An aircraft's gun (the craft shelf's gun parts, craft-shelf/craft-odm.js): its rounds, its rate (rounds a second, as
  *  the range fires it: a rotary's own is far more, held here so a page keeps up) and the rounds it carries a gun. */
@@ -60,12 +78,17 @@ export const AIR_GUNS = Object.freeze({
   'gun-rotary-20': Object.freeze({ label: '20 mm rotary cannon', rounds: Object.freeze(['api20', 'he20']), rof: 25, load: 511 }),
   'gun-revolver-30': Object.freeze({ label: '30 mm revolver cannon', rounds: Object.freeze(['apds30', 'he30']), rof: 20, load: 125 }),
   'gun-rotary-30': Object.freeze({ label: '30 mm rotary cannon', rounds: Object.freeze(['api30', 'he30']), rof: 25, load: 1174 }),
+  // a helicopter's: an attack helicopter's chin chain gun, and the heavy machine gun a door gunner fires (a GAU-21's)
+  'gun-heli-chin': Object.freeze({ label: '30 mm chain gun', rounds: Object.freeze(['hedp30']), rof: 10, load: 1200 }),
+  'door-gun': Object.freeze({ label: '12.7 mm door gun', rounds: Object.freeze(['ap127']), rof: 18, load: 600 }),
 });
 /** The rounds a mecha shelf weapon fires on the range (mecha-shelf/mecha-backpacks.js MECHA_WEAPONS): an autocannon its
  * two, a pod its rocket, a howitzer its shells, a launcher its missile unguided; a small arm, a sensor or a crate none
  * (the minigun is the firing range's) */
 export const WEAPON_ROUNDS = Object.freeze({ autocannon: Object.freeze(['apds30', 'he30']), rocketPod: Object.freeze(['rocket']), howitzer: Object.freeze(['he', 'indirect']), missiles: Object.freeze(['missile']) });
 export const ORDNANCE_NAMES = Object.freeze(Object.keys(ORDNANCE));
+/** The heights a released round is measured falling from (m). */
+export const DROP_BANDS = Object.freeze([10, 25, 50, 100]);
 const G = 9.81, MIL = 360 / 6400;   // a NATO mil, in degrees
 
 /** The runtime's weapon row for a round (`over`: its fields, and `reload`: the gun's seconds to load the next). */
@@ -137,6 +160,7 @@ const AIM = 1.2;   // a target's centre over the ground (m)
 
 export function measureOrdnance(word, { mount = 'battle-tank', bands = null } = {}) {
   const O = ORDNANCE[word], out = { ordnance: word, kind: O.kind, v0: O.v0, drag: O.drag, mount: typeof mount === 'string' ? mount : 'its own', bands: {} };
+  if (O.drop) return measureDrop(word, bands, out);
   if (!O.indirect) {
     for (const d of bands ?? DIRECT_BANDS) {
       // the elevation to put the round through the target's centre at d
@@ -170,11 +194,40 @@ export function measureOrdnance(word, { mount = 'battle-tank', bands = null } = 
   return out;
 }
 
+// a released round let go from each height (a mount at the ground's own point, no barrel: the round from where it is
+// let go), straight down at its own small speed: its fall's time, the speed and the angle it lands at; a dozen let go
+// from the middle height, where they land
+const DROPPER = mountOf('light-tank', { mount: { at: [0, 0, 0] }, gun: { barrel: 0 } });
+function measureDrop(word, bands, out) {
+  const O = ORDNANCE[word];
+  out.mount = 'let go';
+  for (const h of bands ?? DROP_BANDS) {
+    const P = shoot(word, -90, DROPPER, { z0: h }).paths[0], q = P[P.length - 1], vh = Math.hypot(q.vel[0], q.vel[1]);
+    out.bands[h] = { tof: r3(q.t), v: r2(Math.hypot(vh, q.vel[2])), fall: r2(Math.atan2(-q.vel[2], vh) * 180 / Math.PI) };
+  }
+  const H = (bands ?? DROP_BANDS)[2], { paths } = shoot(word, -90, DROPPER, { z0: H, shots: 12 });
+  const hits = paths.filter(Boolean).map((p) => p[p.length - 1].pos);
+  const sd = (xs) => { const m = xs.reduce((a, b) => a + b, 0) / xs.length; return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length); };
+  const across = sd(hits.map((p) => p[1])), along = sd(hits.map((p) => p[0]));
+  out.spread = { at: H, rounds: hits.length, across: r2(across), along: r2(along), mils: r2(Math.max(across, along) / H * 6400 / (2 * Math.PI)) };
+  out.terminal = r2(Math.sqrt(G / O.drag));
+  return out;
+}
+
 /** The ordnance's laws on its measures (`all`: { <word>: measure } for the laws between rounds). */
 export function ordnanceLaws(m, all = {}) {
   const L = [], law = (name, ok, info) => L.push({ name, ok: !!ok, ...(info !== undefined ? { info } : {}) });
   const O = ORDNANCE[m.ordnance], ds = Object.keys(m.bands).map(Number), B = (d) => m.bands[d];
   const rising = (k) => ds.every((d, i) => i === 0 || B(d)[k] > B(ds[i - 1])[k]);
+  if (O.drop) {
+    // (a released round: the higher, the longer it falls and the faster it lands, never faster than its drag lets it,
+    // never sooner than a free fall from its height; and it lands about where it was let go)
+    const tFree = (h) => (-O.v0 + Math.sqrt(O.v0 * O.v0 + 2 * G * h)) / G;
+    law(`${m.ordnance}: the higher it is let go, the longer it falls and the faster it lands`, rising('tof') && rising('v'), Object.fromEntries(ds.map((d) => [d, [B(d).tof, B(d).v]])));
+    law(`${m.ordnance}: it lands no faster than its drag lets it (${m.terminal} m/s) and no sooner than a free fall`, ds.every((d) => B(d).v <= m.terminal * 1.001 && B(d).tof >= tFree(d) - 0.02), Object.fromEntries(ds.map((d) => [d, [B(d).tof, r3(tFree(d)), B(d).v]])));
+    law(`${m.ordnance}: it lands within its dispersion of where it was let go`, m.spread.mils <= O.dispersion * 2, { mils: m.spread.mils, asked: O.dispersion });
+    return L;
+  }
   if (!O.indirect) {
     law(`${m.ordnance}: the farther, the longer its flight and the higher the gun is laid`, rising('tof') && rising('elev'), Object.fromEntries(ds.map((d) => [d, [B(d).tof, B(d).elev]])));
     law(`${m.ordnance}: the farther, the more it drops below its bore's line`, rising('drop'), Object.fromEntries(ds.map((d) => [d, B(d).drop])));
@@ -188,7 +241,7 @@ export function ordnanceLaws(m, all = {}) {
   law(`${m.ordnance}: its rounds scatter as its dispersion says`, m.spread.mils > O.dispersion * 0.4 && m.spread.mils < O.dispersion * 2, { mils: m.spread.mils, asked: O.dispersion });
   // (between the direct rounds: at the far band, the round that arrives sooner is laid lower, its drop its flight's; by
   // its arrival, not its muzzle velocity: a blunt small shell leaves faster than a big one and arrives later)
-  const direct = Object.values(all).filter((x) => !ORDNANCE[x.ordnance].indirect);
+  const direct = Object.values(all).filter((x) => !ORDNANCE[x.ordnance].indirect && !ORDNANCE[x.ordnance].drop);
   if (direct.length > 1 && m === direct[0]) {
     const far = Math.max(...Object.keys(direct[0].bands).map(Number)), by = [...direct].sort((a, b) => a.bands[far].tof - b.bands[far].tof);
     // (of two that arrive apart, a tenth of the flight or more: near together, a draggy round's drag slows its fall too)

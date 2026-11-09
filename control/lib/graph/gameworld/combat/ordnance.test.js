@@ -3,13 +3,14 @@ import { ORDNANCE, ORDNANCE_NAMES, ordnanceWeapon, measureOrdnance, ordnanceLaws
 
 // THE ORDNANCE (ordnance.js): a gun's rounds by what they do, their flight measured on the runtime from a turret and
 // held to their laws. One case per procedure, chosen from the table: a direct round (its bands, its drop, its drag),
-// the indirect shell (its high arc onto a far hill); and between direct rounds, the faster laid lower and sooner.
-const direct = ORDNANCE_NAMES.filter((n) => !ORDNANCE[n].indirect).sort((a, b) => ORDNANCE[b].v0 - ORDNANCE[a].v0);
-const fast = direct[0], slow = direct.at(-1), high = ORDNANCE_NAMES.find((n) => ORDNANCE[n].indirect);
+// the indirect shell (its high arc onto a far hill), a released round (a drone's: its fall from each height); and
+// between direct rounds, the faster laid lower and sooner.
+const direct = ORDNANCE_NAMES.filter((n) => !ORDNANCE[n].indirect && !ORDNANCE[n].drop).sort((a, b) => ORDNANCE[b].v0 - ORDNANCE[a].v0);
+const fast = direct[0], slow = direct.at(-1), high = ORDNANCE_NAMES.find((n) => ORDNANCE[n].indirect), drop = ORDNANCE_NAMES.find((n) => ORDNANCE[n].drop);
 
 describe('the ordnance', () => {
-  const M = { [fast]: measureOrdnance(fast), [slow]: measureOrdnance(slow), [high]: measureOrdnance(high, { mount: 'howitzer' }) };
-  for (const n of [fast, high]) {
+  const M = { [fast]: measureOrdnance(fast), [slow]: measureOrdnance(slow), [high]: measureOrdnance(high, { mount: 'howitzer' }), [drop]: measureOrdnance(drop) };
+  for (const n of [fast, high, drop]) {
     it(`${n}: every law holds on its flight`, () => {
       expect(ordnanceLaws(M[n], M).filter((l) => !l.ok).map((l) => `${l.name} ${JSON.stringify(l.info)}`)).toEqual([]);
     });

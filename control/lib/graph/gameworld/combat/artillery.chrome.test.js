@@ -261,4 +261,53 @@ describe('the artillery range, played', () => {
     expect(got.marks.length).toBeGreaterThan(3);
     expect(got.marks.some((m) => m.stand === 'ground' && m.effect === 'crater')).toBe(true);
   }, 240000);
+
+  it('a rotorcraft: a helicopter hovering, its chin gun slewed by the hand and fired, its rockets taken up at once; a drone\'s drop landing below it', async () => {
+    if (!browser) return;
+    const fly = async (word, script) => {
+      const page = await browser.newPage(), errors = [];
+      page.on('pageerror', (e) => errors.push(String(e)));
+      await page.setContent(artilleryHtml({ base: { aircraft: word }, quiet: true }), { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => !!(window.__mojCtrl && window.__mojCtrl.turret), { timeout: 90000 });
+      const got = await page.evaluate(script);
+      await page.close();
+      return { errors, ...got };
+    };
+    const heli = await fly('attack helicopter', () => {
+      const C = window.__mojCtrl, g = C.world.byId.gun, out = {};
+      const go = (n, inp) => { for (let i = 0; i < n; i++) C.step(1 / 60, inp); };
+      go(60, {});
+      out.view = C.turret().view; out.z = g.transform.pos[2];
+      go(30, { lookDX: -10, lookDY: -6 });
+      out.rig = C.turret().rig;
+      const n0 = C.turret().marks.length; go(60, { fire: 1 }); go(120, {});
+      out.marks = C.turret().marks.slice(n0).map((m) => m.word);
+      go(1, { slot: 2 }); out.ready = g.weapon.ammo > 0 && !g.weapon.reloading;
+      go(30, { fire: 1 }); go(240, {});
+      out.rockets = C.turret().marks.filter((m) => m.word === 'rocket').length;
+      go(180, { forward: 1 }); out.v = g.airspeed; out.pitch = g.transform.pitch;
+      return out;
+    });
+    expect(heli.errors).toEqual([]);
+    expect(heli.view).toBe('chase');
+    expect(heli.z).toBeGreaterThan(30);
+    expect(heli.rig.yaw).toBeLessThan(-5);
+    expect(heli.marks.length).toBeGreaterThan(3);
+    expect(heli.ready).toBe(true);
+    expect(heli.rockets).toBeGreaterThan(0);
+    expect(heli.v).toBeGreaterThan(10);
+    expect(heli.pitch).toBeLessThan(0);
+    const drone = await fly('camera drone', () => {
+      const C = window.__mojCtrl, g = C.world.byId.gun, out = {};
+      const go = (n, inp) => { for (let i = 0; i < n; i++) C.step(1 / 60, inp); };
+      go(180, { forward: 1 });
+      out.x = g.transform.pos[0];
+      go(1, { fire: 1 }); go(300, {});
+      out.marks = C.turret().marks.slice();
+      return out;
+    });
+    expect(drone.errors).toEqual([]);
+    expect(drone.marks.length).toBe(1);
+    expect(drone.marks[0]).toMatchObject({ stand: 'ground', effect: 'crater', word: 'grenade30' });
+  }, 300000);
 });
