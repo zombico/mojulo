@@ -132,6 +132,11 @@ describe('the artillery range, played', () => {
         go(90, { forward: 1, turn: 1 });
         const h0 = g.transform.heading; go(30, { forward: 1, turn: 1 });
         Object.assign(out, { steer: g.steer, lock: g.rule.steer.max, yawRate: -(g.transform.heading - h0) * 2, wantRate: (g.rule.speed * Math.tan(g.rule.steer.max * Math.PI / 180)) / g.rule.steer.wheelbase, cap: g.rule.turn, gripLock: Math.atan((g.rule.steer.wheelbase * g.rule.turn) / g.rule.speed) * 180 / Math.PI });
+        // (the chase: O once from the sight; driven on round the curve, the camera behind the hull and over it, the pip on)
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyO' }));
+        go(120, { forward: 1, turn: 1 });
+        const cam = C.turret().camera, fwd = [Math.cos(g.transform.heading), Math.sin(g.transform.heading)];
+        Object.assign(out, { view: C.turret().view, behind: (cam[0] - g.transform.pos[0]) * fwd[0] + (cam[1] - g.transform.pos[1]) * fwd[1], above: cam[2] - g.transform.pos[2], pip: C.turret().pip || null });
       }
       return out;
     });
@@ -149,6 +154,10 @@ describe('the artillery range, played', () => {
       // (at its pace, its lock what its grip allows: its heading's rate its turn's cap, its wheels along that circle)
       expect(got.steer).toBeCloseTo(Math.min(got.lock, got.gripLock), 2);
       expect(got.yawRate).toBeCloseTo(Math.min(got.wantRate, got.cap), 2);
+      expect(got.view).toBe('chase');
+      expect(got.behind).toBeLessThan(0);
+      expect(got.above).toBeGreaterThan(1);
+      expect(got.pip).toHaveLength(2);
       const W = Object.entries(got.wheels), byName = (re) => W.filter(([id]) => re.test(id)).map(([, a]) => a);
       expect(W.length).toBeGreaterThan(1);
       for (const [, a] of W) expect(a).toBeGreaterThan(0);

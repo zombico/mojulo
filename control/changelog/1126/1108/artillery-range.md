@@ -122,3 +122,7 @@
   slowly the bigger the machine). Each steered wheel is drawn at its own angle, the inner one more (Ackermann: the rover
   walker's inner wheel 52° at full lock, its outer 20°); the brood walker steers its front bays' wheels. Held to laws on
   the runtime: the circle at full lock, no turn standing, the other way reversing, the steering rate, the lock at speed.
+- **A chase view to drive from.** O now steps through the gunner's sight, a chase view behind the hull (a driver's
+  third-person view: behind and over the base by its size, following its heading eased so a steered curve swings the world
+  and not the camera, the gun's aim a pip on the glass), the view behind the gun and the view beside the base. The mouse
+  lays the gun in every view; W / S / A / D drive in every view.
