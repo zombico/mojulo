@@ -128,13 +128,13 @@ export const FIXTURES = Object.freeze([
     id: 'story-adventure',
     name: 'Story adventure',
     anchor: false,
-    why: 'one town that changes chapter by chapter; people give quests, talk face to face, and the camera directs the turns',
+    why: 'one town that changes chapter by chapter; people give quests, talk face to face, and the camera directs the turns; it opens on a cinematic, and its scenes are written as scripts the cast act',
     cube: {
       reality: { medium: '3d' },
       space: { camera: 'third-person', topology: 'hub' },
-      soul: { hero: 'hero' },
+      soul: { hero: 'hero', acting: 'acted' },
       mind: { motivation: 'ambient', social: 'talk' },
-      time: { progression: 'linear', chapters: 'overlays', passage: 'seasons', advance: 'quests', shots: ['in-world', 'banter'], framing: ['wide'] },
+      time: { progression: 'linear', sequence: ['own', 'cinematics'], chapters: 'overlays', passage: 'seasons', advance: 'quests', shots: ['in-world', 'staged', 'banter', 'covered'], framing: ['wide'] },
     },
   },
   {

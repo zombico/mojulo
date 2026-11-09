@@ -81,6 +81,13 @@ export const SOUL = Object.freeze({
         four: { status: 'built', lowers: LEVELS, note: SEATS_KERNEL },
       },
     },
+    // built 11-09 (screenplay scenes): how the cast plays a scene, the actor's (actor/): its takes on the page
+    acting: {
+      values: {
+        still: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', note: 'the cast stand and walk where the beats send them; the words go in the box, a line\'s expression a word' },
+        acted: { status: 'built', requires: ['time.shots=covered'], lowers: 'lib/graph/playscape/ui/scene-takes.js', note: 'a script\'s cast act it on the page: the body\'s act on each line, the listener nodding, a realistic face\'s take with its gaze on its partners; each in its own style, role and register (a character\'s actor); a head the page draws no face on acts with its body' },
+      },
+    },
     contest: {
       given: GIVEN,
       values: {

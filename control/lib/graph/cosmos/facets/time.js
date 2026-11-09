@@ -33,6 +33,13 @@
  * down, a dodge) and scale the world's step while the camera keeps real time (worlds/controllable/world-clock.js); a
  * game's tempo is laid on every level (gameworld/tempo.js), and a firing moment cues the live shoot plan's shot waiting on
  * it. Web only: Godot and Roblox step on real time. A replay in play waits on a recorded world clock.
+ *
+ * Built 11-09 (the flow runner, game/flow.js): the game's SEQUENCE, from the first screen to the credits, one thing the
+ * play shell runs (`sequence`): Time sequencing over Space's graph, its level steps, doors and travel Space's links. And
+ * screenplay scenes (playscape/ui/scene-script.js): a scene's shots chosen by the director's coverage (`shots: covered`),
+ * its slow motion and freezes on the world clock (the scene fires `tempo`), its cast acting it (Soul's `acting`). Space
+ * stays the stage; Time is the track the beats run on: what a world carries on (consequence) is Time's, how worlds join
+ * (reachability) Space's. Still open: the world held through a cinematic (`sequence: held`).
  */
 const CUES = 'lib/graph/playscape/ui/cues.js';
 const QUEST_LOG = 'lib/graph/playscape/ui/quests.js';
@@ -69,6 +76,17 @@ export const TIME = Object.freeze({
         map: { status: 'built', requires: ['space.board=spots'], lowers: 'lib/graph/board/board-map.js', note: 'a map level: a diorama with a dot a level, roads between, a dot open once the one before it is won; the party walks there and the game travels by the dot (the map mechanic); skirmishes to fight again' },
         // local 10-19 (mobile genres): the match-3 saga's map (a level a time, each a move budget for a goal, three stars)
         saga: { status: 'local', effort: 'M', lowers: 'lib/graph/pixelizer/philosophers-stone-saga.js', note: 'Stone Saga\'s map: levels generated from its seed, opened one at a time, three stars each kept in the browser; a world game\'s levels do not take stars or a map yet' },
+      },
+    },
+    // built 11-09 (the flow runner, game/flow.js): the game's whole order, from the first screen to the credits, run by the
+    // play shell's flow runner; Time sequencing over Space's graph (a level step, a door, a travel are Space's links)
+    sequence: {
+      multi: true,
+      values: {
+        screens: { status: 'built', lowers: 'lib/graph/game/play-shell.js', note: 'the order the shell has always made: its title, its levels, a result, the end card (game/flow.js defaultFlow), stepped on events, never timers' },
+        own: { status: 'built', lowers: 'lib/graph/game/flow.js', note: 'a game\'s own flow: screens, cinematics, levels and holds, each left by what the player picks, its outcome or its idle, with guarded alternatives (complete, unseen)' },
+        cinematics: { status: 'built', requires: ['time.shots=staged'], lowers: 'lib/graph/gameworld/story.js', note: 'a cinematic step staged on a level\'s page; the story\'s opening (first boot, the attract), prologue (after New Game, kept into play) and ending (the first full clear) placed in the flow' },
+        held: { status: 'partial', effort: 'M', requires: ['time.sequence=cinematics'], lowers: 'lib/graph/worlds/controllable/world-clock.js', note: 'the world held through a cinematic, its foes and hazards still while the scene\'s cast and camera move: the world freeze stops the clock the scene runs on, so it waits on a narrower freeze' },
       },
     },
     chapters: {
@@ -136,6 +154,9 @@ export const TIME = Object.freeze({
         staged: { ...SHOT, status: 'built', lowers: SCENES, note: 'beats in order: shots, the cast, waits, lines; letterboxed, input held, skippable to its end state' },
         // banter rides the shot (10-11: the sweep paired them in worlds neither made alone): one package, one build
         banter: { ...SHOT, status: 'built', effort: 'S', lowers: SCENES, note: 'two talk: a two-shot, then a cut to whoever speaks, the line typed on; words are a slot; a portrait beside them on a board (shots board); no face set yet' },
+        // built 11-09 (screenplay scenes): a scene written as a screenplay, blocked on the level's places and covered by the
+        // cinematics department's rules (actor/coverage.js), lowered into the staged beats
+        covered: { ...SHOT, status: 'built', requires: ['time.shots=staged'], lowers: 'lib/graph/playscape/ui/scene-script.js', note: 'a screenplay blocked on the level\'s places and shot by the director\'s coverage: a wide to open, over the shoulder, close on a line with a face, the wide on a cross, one side of the line; the hero walks to its mark; each line on its take\'s clock, held for the press' },
         // built 10-19 (the strategy board): a scene told on the board itself, its slots before and after a battle
         // priced 10-25 (the comic hero pack): the comic panel, a shot held still with a border and a caption
         panel: { ...SHOT, status: 'absent', effort: 'S', pkg: 'comic-panel', requires: ['time.shots=staged'], note: 'a beat held as a still: the frame drawn in a border, a caption box, an onomatopoeia over the blow; cut back to play' },
@@ -147,9 +168,9 @@ export const TIME = Object.freeze({
       multi: true,
       values: {
         'real-time': { status: 'built', note: 'a screen second a world second' },
-        slow: { ...CLOCK, note: 'the world slowed: offline a shot\'s time ({ span, speed }: a film, an actor scene, a shoot plan\'s page); in play a tempo moment ({ on, scale, hold }: the finisher, the kill cam) while the camera keeps real time' },
+        slow: { ...CLOCK, note: 'the world slowed: offline a shot\'s time ({ span, speed }: a film, an actor scene, a shoot plan\'s page); in play a tempo moment ({ on, scale, hold }: the finisher, the kill cam) while the camera keeps real time; a scene\'s script fires it (scenes.js tempo beats: Slow motion until Real time, Freeze n)' },
         ramp: { ...CLOCK, note: 'a speed ramp, eased down and back: offline time: { span, speed, ramp }; in play a moment\'s ramp' },
-        freeze: { ...CLOCK, note: 'the world held: offline time: { at, hold } (the screenplay\'s Freeze.); in play a moment at scale 0 (impact: a heavy blow holds the world for a beat), beside the per-body hitstop' },
+        freeze: { ...CLOCK, note: 'the world held: offline time: { at, hold } (the screenplay\'s Freeze.); in play a moment at scale 0 (impact: a heavy blow holds the world for a beat), beside the per-body hitstop; a scene\'s script fires it (scenes.js tempo beats: Slow motion until Real time, Freeze n)' },
         bullet: { ...CLOCK, requires: ['time.tempo=slow'], note: 'the camera free while the world crawls: offline a shot\'s clock: \'screen\'; in play a dodge slows the world (tempo bullet), the camera on real time' },
       },
     },
