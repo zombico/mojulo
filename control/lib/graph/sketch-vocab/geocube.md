@@ -244,7 +244,11 @@ A cube that names no domains offers one per terrain and one per interior.
   or a restaurant and boats along them; a restaurant row's patios under parasols; a park's lawn, trees and rock
   revetment; a beach's sand under pink parasols and loungers, a boardwalk behind; a marina's clubhouse, lot, pontoons and
   boats; timber steps down to the water), a promenade along its edge with lamps, benches and railings, the ground falling
-  from the land's edge to the promenade a little over the water; `profile` its streets laid
+  from the land's edge to the promenade a little over the water. Its details: an industrial hall glazed in a ribbon high
+  on its walls and its offices a row of windows a storey; a transformer's can on every fourth wooden pole; on the flat
+  roofs of its low and mid-rise buildings air handlers, cell sites, microwave dishes, masts and satellite dishes; cell
+  towers in some yards and car parks; aviation lights blinking red on its tallest towers and on each cell tower (the
+  beacons channel); `profile` its streets laid
   as a hill town lays them (`true` or `{ walkable, curve }`: the arterials' crossings level, each block between graded on
   one ramp, the land's edges and its shore kept; each neighbourhood's collectors and locals the same inside it; its
   composed geotowns profiled on its ground unless their recipes say; `walkable` names a stretch too steep to walk); `slope:

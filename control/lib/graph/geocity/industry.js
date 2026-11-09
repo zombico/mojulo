@@ -23,6 +23,8 @@
  *   PYLON          the pylon's conductors' points (along y: its arms' reach each side, their heights) and its spacing
  *   INDUSTRY_FINISHES  each building's family (works, warehouse, control, shed) and its variants, each a wall's material
  *                  word and a roof's; finishOf(family, R) → { group, wall, roof } one by the dice
+ *                  (`ribbon` and `punched` ops: a hall's ribbon of glazing high along its walls, an office's windows a row
+ *                  a storey; a `celltower` stamp: a monopole at a works' or storage's back corner, geocity/rooftop.js)
  *   industrialPlan(b, R, { far? }) → [op]: a block's plan, each op one the scene draws: { op: 'box', q, z, h, group, wall,
  *                    roof }, { op: 'gable', q, z, ze, zr, axis, group, wall, roof }, { op: 'door', side, a, w, h, q, z },
  *                    { op: 'stamp', key, at, z?, scale? }, { op: 'vehicle', role, at, nose }, { op: 'fence', q }; `z`
@@ -282,8 +284,16 @@ export function industrialPlan(b, R, { far = false } = {}) {
       const mid = (hallS0 + hallS1) / 2, rq = Q(la0 + 6, mid - 2, la1 - 6, mid + 2), zr = eave + Math.min(q[2] - q[0], q[3] - q[1]) * 0.07;
       if (!far) ops.push({ op: 'box', q: rq, z: zr - 0.3, h: 1.6, group: 'geocity:works:lantern', wall: INDUSTRY_PAINT.lantern, roof });
     }
+    // (its windows: a ribbon of glazing high along its long walls; a warehouse's along its back and its ends)
+    const backKey = longY ? (front < 0 ? 'e' : 'w') : (front < 0 ? 'n' : 's'), ends = longY ? ['s', 'n'] : ['w', 'e'];
+    if (!far) ops.push(ware ? { op: 'ribbon', q, z: eave - 2.4, h: 1.1, sides: [backKey, ...ends], pitch: 4.2, w: 3.6 } : { op: 'ribbon', q, z: eave - 2.8, h: 1.6, sides: longY ? ['w', 'e'] : ['s', 'n'], pitch: 3.4, w: 3 });
     // its office at its front end, in block: two or three storeys
-    if (!ware) { const cf = finishOf('control', R); ops.push({ op: 'box', q: Q(a1 - 24, Math.min(sFront + inward * 6, sFront + inward * 20), a1 - 6, Math.max(sFront + inward * 6, sFront + inward * 20)), z: 0, h: 3.6 * (2 + Math.floor(R() * 2)), group: cf.group, wall: cf.wall, roof: cf.roof }); }
+    if (!ware) {
+      const cf = finishOf('control', R), cq = Q(a1 - 24, Math.min(sFront + inward * 6, sFront + inward * 20), a1 - 6, Math.max(sFront + inward * 6, sFront + inward * 20)), st = 2 + Math.floor(R() * 2);
+      ops.push({ op: 'box', q: cq, z: 0, h: 3.6 * st, group: cf.group, wall: cf.wall, roof: cf.roof });
+      // (its office's windows, a row a storey on every side)
+      if (!far) ops.push({ op: 'punched', q: cq, storeys: st, floorH: 3.6, sides: ['s', 'e', 'n', 'w'], pitch: 2.8, w: 1.6, h: 1.5 });
+    }
     if (far) return ops;
     // its doors on its yard side: a warehouse's docks every 4.5 m (a canopy over them, a truck backed in to some), a
     // works' roller doors wider apart
@@ -302,7 +312,9 @@ export function industrialPlan(b, R, { far = false } = {}) {
     // a lot for its people at its far end
     for (let k = 0; k < 6; k++) if (R() < 0.6) ops.push({ op: 'vehicle', role: 'civilian', at: P(a0 + 4 + k * 2.6 * 1.0, sFront + inward * 5), nose: noseIn(inward) });
     fence();
+    if (b.kind === 'works' && R() < 0.3) ops.push({ op: 'stamp', key: 'celltower', at: P(a0 + 5, sBack - inward * 5) });
   } else if (b.kind === 'storage') {
+    if (R() < 0.3) ops.push({ op: 'stamp', key: 'celltower', at: P(a1 - 5, sBack - inward * 5) });
     // container stacks in rows along it, two to four high, a straddle lane between each two rows; a bank of silos
     const silo = R() < 0.6, la1 = silo ? a1 - 34 : a1 - 6;
     for (let s = s0 + 8; s + 2.6 <= s1 - 8; s += 2.6 * 2 + 9) for (const ds of [0, 2.6]) for (let a = a0 + 10; a + 12.4 <= la1; a += 12.6) {
@@ -311,7 +323,7 @@ export function industrialPlan(b, R, { far = false } = {}) {
       for (let k = 0; k < n; k++) ops.push({ op: 'stamp', key: `container:${axisAlong}`, at: P(a + 6.1, s + ds + 1.3), z: k * 2.6, tint: pick(R, CONTAINER_PAINT) });
     }
     if (silo) ops.push({ op: 'stamp', key: `silos:${axisAcross}`, at: P(a1 - 20, s0 + 8) });
-    { const sf = finishOf('shed', R); ops.push({ op: 'box', q: Q(a0 + 2, sFront + inward * 2, a0 + 14, sFront + inward * 10), z: 0, h: 4, group: sf.group, wall: sf.wall, roof: sf.roof }); }
+    { const sf = finishOf('shed', R), sq = Q(a0 + 2, sFront + inward * 2, a0 + 14, sFront + inward * 10); ops.push({ op: 'box', q: sq, z: 0, h: 4, group: sf.group, wall: sf.wall, roof: sf.roof }); if (!far) ops.push({ op: 'punched', q: sq, storeys: 1, floorH: 4, sides: ['s', 'e', 'n', 'w'], pitch: 3, w: 1.4, h: 1.2 }); }
     fence();
   } else if (b.kind === 'tanks') {
     // the tank farm: tanks in bunded rows, a pipe rack down its middle; gas spheres at one end; a gasholder where
@@ -337,7 +349,7 @@ export function industrialPlan(b, R, { far = false } = {}) {
       ops.push({ op: 'stamp', key: `gantry:${axisAcross}`, at: P(a, s0 + D * 0.62) });
       for (const ds of [-0.2, 0.2]) ops.push({ op: 'stamp', key: 'breaker', at: P(a, s0 + D * (0.46 + ds * 0.4)) });
     }
-    { const cf = finishOf('control', R); ops.push({ op: 'box', q: Q(a1 - 22, sFront + inward * 4, a1 - 6, sFront + inward * 14), z: 0, h: 4.8, group: cf.group, wall: cf.wall, roof: cf.roof }); }
+    { const cf = finishOf('control', R), cq = Q(a1 - 22, sFront + inward * 4, a1 - 6, sFront + inward * 14); ops.push({ op: 'box', q: cq, z: 0, h: 4.8, group: cf.group, wall: cf.wall, roof: cf.roof }); if (!far) ops.push({ op: 'punched', q: cq, storeys: 1, floorH: 4.8, sides: ['s', 'e', 'n', 'w'], pitch: 2.8, w: 1.6, h: 1.4 }); }
     fence();
   }
   return ops;

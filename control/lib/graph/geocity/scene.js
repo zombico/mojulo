@@ -66,6 +66,7 @@ import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON, INDUSTRY_FINISH
 import { INDUSTRY_SEGMENTS } from './segments.js';
 import { HIGHWAY, deckAt } from './highways.js';
 import { WATERFRONT, WATERFRONT_PAINT, frameOf, waterfrontTemplates } from './waterfront.js';
+import { rooftopTemplates, rooftopPlan, beaconsOf, BEACON } from './rooftop.js';
 import { assembleGeotownScene } from '../geotown/scene.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { dressTownFace } from '../era/town-dress.js';
@@ -280,6 +281,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   const indStamps = new Map(), halls = [];
   // ITS WATERFRONT'S KIT (waterfront.js): parasols, patios, loungers, bollards, railings, piles, planters, boats
   const wfStamps = new Map();
+  // ITS CELL TOWERS (rooftop.js: a monopole's foot) and its tall buildings' tops, for their aviation lights
+  const towersAt = [];
   counts.industry = {};
   // (a tipper the site's own waiting truck, SITE.truck: one template between them)
   const machineAt = (arch, pos, rotZ) => { counts.machines = (counts.machines ?? 0) + 1; if (arch === SITE.truck[0]) { siteNear('truck', pos, rotZ); return; } (machines.get(arch) ?? machines.set(arch, []).get(arch)).push({ pos: P3(pos), ...(rotZ ? { rotZ: r5(rotZ) } : {}) }); };
@@ -553,10 +556,12 @@ export function assembleGeocityScene(m, ctx = {}) {
         for (const [a, b] of st.runs) {
           if (b - a < 20) continue;
           if (low) {
-            let prev = null;
+            let prev = null, pole = 0;
             for (let s0 = a + 6; s0 <= b - 6; s0 += HYDRO) {
               const [x, yy] = pt(side, s0), z = S(x, yy) + KERB;
               stamp(`hydro:${face(side)}`, [x, yy, z], 0);
+              // (a transformer's can hung on every fourth pole)
+              if (pole++ % 4 === 2) stamp(`can:${face(side)}`, [x, yy, z], 0);
               if (prev) for (const o of [-0.9, 0, 0.9]) {
                 const p0 = ns ? [prev[0] + o, prev[1]] : [prev[0], prev[1] + o];
                 stamp('wire', [p0[0], p0[1], (prev[2] + z) / 2 + 10.05], ns ? Math.PI / 2 : 0, [HYDRO, 1, 1]);
@@ -823,6 +828,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (a parking block given to a role, design.js `yards`: its yard; else a car park)
     const yard = d.yards?.[b.id] ?? 'lot';
     if (yard !== 'lot') { yardOf(b, yard, { x0, y0, x1, y1, longY, zAt }); return; }
+    // (a cell tower in a corner of some, rooftop.js)
+    if (streamOf(seed, 'celltower', b.id)() < 0.2) towersAt.push([x0 + 3, y0 + 3, zAt(x0 + 3, y0 + 3)]);
     const z = zAt((x0 + x1) / 2, (y0 + y1) / 2), [s0, s1] = longY ? [x0, x1] : [y0, y1], [a0, a1] = longY ? [y0, y1] : [x0, x1];
     for (let m = s0 + 2; m + 10 <= s1 - 2; m += 16.5) for (const row of [m, m + 11.5]) for (let t = a0 + 3; t + 2.6 <= a1 - 3; t += 2.6) {
       // its line (across its row, 5 m) and, in most stalls, a car, its nose to the aisle (the registry's: fleets.js)
@@ -1104,7 +1111,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     }
     // (under a deck: the street's lamps, its wooden poles and their wires, its trees taken out)
     const inUnder = (x, y) => under.some((q) => x > q[0] && x < q[2] && y > q[1] && y < q[3]);
-    const TALLER = ['lamp', 'hydro', 'wire'];
+    const TALLER = ['lamp', 'hydro', 'wire', 'can'];
     for (const [k, list] of stamps) if (TALLER.includes(k.split(':')[0])) stamps.set(k, list.filter((t) => { const zd = hws.find((h) => !h.water && (h.axis === 'x' ? Math.abs(t.pos[1] - h.at) < h.w / 2 + 2 : Math.abs(t.pos[0] - h.at) < h.w / 2 + 2)); return !(zd && inUnder(t.pos[0], t.pos[1]) && t.pos[2] < deckAt(zd, zd.axis === 'x' ? t.pos[0] : t.pos[1]) - 1); }));
     for (const [k, list] of trees) trees.set(k, list.filter((t) => !inUnder(t.x, t.y)));
   }
@@ -1167,6 +1174,26 @@ export function assembleGeocityScene(m, ctx = {}) {
       } else if (o.op === 'door') {
         const ns = o.side === 'w' || o.side === 'e', sg = o.side === 'e' || o.side === 'n' ? 1 : -1, p = o.at + sg * 0.04, A = ns ? [p, o.a - o.w / 2] : [o.a - o.w / 2, p], B = ns ? [p, o.a + o.w / 2] : [o.a + o.w / 2, p], z0 = zg(A[0], A[1]);
         put([[A[0], A[1], z0], [B[0], B[1], z0], [B[0], B[1], z0 + o.h], [A[0], A[1], z0 + o.h]], 'geocity:door', '#3b4045', ns ? [sg, 0, 0] : [0, sg, 0]);
+      } else if (o.op === 'ribbon' || o.op === 'punched') {
+        // (its windows: glazing proud of its wall, lit at night by the dice)
+        const [a0, b0, a1, b1] = o.q, z0 = zg((a0 + a1) / 2, (b0 + b1) / 2), rows = o.op === 'ribbon' ? [o.z] : Array.from({ length: o.storeys }, (_, k) => k * o.floorH + 0.95);
+        for (const f of o.sides) {
+          const ns = f === 'w' || f === 'e', at = f === 'w' ? a0 - 0.05 : f === 'e' ? a1 + 0.05 : f === 's' ? b0 - 0.05 : b1 + 0.05, lo = ns ? b0 : a0, hi = ns ? b1 : a1, n = [f === 'e' ? 1 : f === 'w' ? -1 : 0, f === 'n' ? 1 : f === 's' ? -1 : 0, 0];
+          const cnt = Math.floor((hi - lo - 1.5) / o.pitch);
+          if (cnt < 1) continue;
+          const start = lo + (hi - lo - cnt * o.pitch) / 2 + o.pitch / 2;
+          for (const zr of rows) for (let i = 0; i < cnt; i++) {
+            const c = start + i * o.pitch, p = ns ? [at, c - o.w / 2] : [c - o.w / 2, at], q = ns ? [at, c + o.w / 2] : [c + o.w / 2, at], zA = z0 + zr, zB = zA + o.h;
+            const corners = [[p[0], p[1], zA], [q[0], q[1], zA], [q[0], q[1], zB], [p[0], p[1], zB]];
+            put(corners, 'geocity:glass', '#46525c', n); faces[faces.length - 1].spec = GLASS_SPEC;
+            // (past dusk some of them lit: a pane over the glass, the room's own light)
+            if (night && Rb() < G.night.windows * 0.6) pane(corners.map(([x, y, z]) => [x + n[0] * 0.02, y + n[1] * 0.02, z]), n, G.night.palette[Math.floor(Rb() * G.night.palette.length)]);
+          }
+        }
+        counts.industry.windows = (counts.industry.windows ?? 0) + 1;
+      } else if (o.op === 'stamp' && o.key === 'celltower') {
+        const [x, y] = o.at, z = zg(x, y);
+        towersAt.push([x, y, z]);
       } else if (o.op === 'stamp') {
         const [x, y] = o.at, name = o.key.split(':')[0];
         if (far && !INDUSTRY_FAR.includes(name)) continue;
@@ -1593,6 +1620,23 @@ export function assembleGeocityScene(m, ctx = {}) {
   // page steps a lane and draws its vehicles only near the camera (scene/channels/flow.js); its kerbs kept clear ──
   const F = E?.evoke === 'skyline' || m.flow === false ? null : flowOf(d, { seed, near: NEAR, kerb: KERB });
   if (F) { laws.push(...flowLaws(F)); counts.flow = { lanes: F.lanes.length, vehicles: F.cars.length, signals: F.signals.length }; }
+  // ── THE ROOFTOPS AND MASTS (rooftop.js): each low or mid-rise flat roof its air handlers, a cell site, dishes, a mast, a
+  // satellite dish by its dice; the cell towers on the ground; the aviation lights over the tallest and on each tower ──
+  const roofStamps = new Map(), beaconAt = [];
+  if (E?.evoke !== 'skyline') {
+    for (const it of rooftopPlan(shells, seed)) (roofStamps.get(it.key) ?? roofStamps.set(it.key, []).get(it.key)).push({ pos: P3(it.at) });
+    for (const [x, y, z] of towersAt) { (roofStamps.get('celltower') ?? roofStamps.set('celltower', []).get('celltower')).push({ pos: P3([x, y, z]) }); beaconAt.push([r5(x), r5(y), r5(z + 30.6)]); }
+    counts.rooftop = Object.fromEntries([...roofStamps].map(([k, v]) => [k.split(':')[0], v.length]).reduce((m, [k, n]) => m.set(k, (m.get(k) ?? 0) + n), new Map()));
+  }
+  {
+    const tall = [];
+    for (const r of d.regions) for (const b of r.blocks ?? []) for (const t of b.towers ?? []) {
+      const [a0, b0, a1, b1] = t.rect, cx = (a0 + a1) / 2, cy = (b0 + b1) / 2, z0 = zOf.get(b.id)?.(cx, cy) ?? S(cx, cy) + KERB;
+      tall.push({ rect: t.rect, z0, z1: z0 + t.storeys * office });
+    }
+    beaconAt.push(...beaconsOf(tall));
+    if (beaconAt.length) counts.beacons = beaconAt.length;
+  }
   // (the kit's repeats, each drawn near the camera only; the skyline draws none)
   // (the URBAN PIZZA VIEWER, a live page whose world asks for the view cone, scene/channels/city-cone.js: the kit drawn by
   // the cone's rule rather than the ring; an export, and a page without the cone, as before)
@@ -1609,6 +1653,14 @@ export function assembleGeocityScene(m, ctx = {}) {
       for (const [key, transforms] of [...indStamps].sort(([a], [b]) => a.localeCompare(b))) {
         const [name, ax] = key.split(':');
         repeats.push({ group: `geocity:industry-${name}`, template: ax ? IT[name][ax] : IT[name], transforms, near: INDUSTRY_FAR.includes(name) ? CRANE_NEAR : NEAR, occlude: false, ...kit });
+      }
+    }
+    // (its rooftops' kit near the camera, its cell towers seen across their district, rooftop.js)
+    if (roofStamps.size) {
+      const RT = rooftopTemplates(LIGHT);
+      for (const [key, transforms] of [...roofStamps].sort(([a], [b]) => a.localeCompare(b))) {
+        const [name, f] = key.split(':');
+        repeats.push({ group: `geocity:roof-${name}`, template: f ? RT[name][f] : RT[name], transforms, near: name === 'celltower' ? CRANE_NEAR : NEAR, occlude: false, ...kit });
       }
     }
     // (its waterfront's kit and its boats, waterfront.js: near the camera)
@@ -1673,7 +1725,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     counts.trees = [...trees.values()].reduce((a, l) => a + l.length, 0);
   }
   return {
-    faces, ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(counts.industry.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
