@@ -286,6 +286,8 @@ function worldCard() {
     '  or city: { grammar?, civilization?, from?, to?, stalker?, … } (card city-plan), played by its segments (stalker: true, by the hero).',
     '  or glyphs: { rows, key?, regions?, tile? }: one world on one page as a glyph grid (# path, . land, a letter a place { use, goal? };',
     '    regions: a second grid, each { name, rise?, biocube? }), walked from its far end to the goal\'s door.',
+    '    ~ water: its edge a beach or a cliff (a region\'s shore: beach | cliff). ways: ranked (roads by places, tracks, paths,',
+    '    traces; a region\'s path: a rank | { rank?, surface?, width? }) | one. The style\'s geocube paints it.',
     '    or planned: { plan: { size, rows, route, key }, segments? } for rows: segments walked in turn, each written apart, its gates the plan\'s.',
     'megaworld: { shape: mandala | chain | hub | open, rings: [[zones]], gates?: { <zone>: { key, keyAt } | { needs } } }: maps joined as a topology, the links',
     '  laid from it; the loaded map the current map (kept in the save; leaving by a way completes nothing; a mandala\'s core its end).',

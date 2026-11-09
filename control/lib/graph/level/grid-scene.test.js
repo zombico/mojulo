@@ -132,3 +132,41 @@ describe('the map takes what a stage gives', () => {
     await expect(assembleGridScene({ level: levelR(['# #'], snowy) }, {}, { buildStage: tileStage(() => 0) })).rejects.toThrow(/region 'a' says snow/);
   });
 });
+
+// WHAT EACH TILE IS HANDED: the map's cube lowered onto it, its way's rank, the water near it (the tiles' own stages are
+// stand-ins here: what reaches them is what is tested; a built map is the e2e tier's)
+describe('what a glyph map hands its tiles', () => {
+  const handed = async (lv) => { const got = new Map(); await assembleGridScene({ level: lv }, {}, { buildStage: async (m) => { got.set(m.tile.origin.join(','), m); return tileStage(() => 0)(m); } }); return got; };
+  const at = (got, r, c) => got.get(`${c * T},${-(r + 1) * T}`);
+
+  it('a geocube paints every tile: each lowered under it, the cube\'s look its kit; its words without a cube refused', async () => {
+    const { kit: _k, ...lv } = level(['# #', '. #']);
+    const got = await handed({ ...lv, geocube: 'valley-morning' });
+    for (const m of got.values()) { expect(m.geocube).toBeUndefined(); expect(typeof m.kit).toBe('string'); expect(m.kit).not.toBe('isekai-meadow'); }
+    await expect(assembleGridScene({ level: { ...level(['# #']), hour: 'dusk' } }, {}, { buildStage: tileStage(() => 0) })).rejects.toThrow(/name the level's geocube/);
+  });
+
+  it('each path tile its way: its rank\'s width and dress, its edges; `ways: \'one\'` the kit\'s one width', async () => {
+    const lv = level(['h # #', '. . #'], { h: { use: 'dwelling' } });
+    const got = await handed(lv), m = at(got, 0, 1);
+    expect(m.tile.way.width).toBeGreaterThan(at(got, 1, 2).tile.way.width);   // (the road by the house, the track beyond)
+    expect(m.tile.dress.surface).not.toBe('earth');
+    expect(at(got, 1, 0).tile.way).toBeUndefined();                          // (open land: no way)
+    for (const t of (await handed({ ...lv, ways: 'one' })).values()) expect(t.tile.way).toBeUndefined();
+    await expect(assembleGridScene({ level: { ...lv, ways: 'lanes' } }, {}, { buildStage: tileStage(() => 0) })).rejects.toThrow(/ways is/);
+  });
+
+  it('the tiles near water are handed it, at the kit\'s own cell; the map reads its bodies out', async () => {
+    const lv = level(['. ~ . . .', '# # # # #']);
+    const got = await handed(lv);
+    expect(at(got, 0, 1).tile.water.cells).toEqual([[0, 1, 0]]);
+    expect(at(got, 0, 2).tile.water).toBeDefined();
+    expect(at(got, 0, 2).tile.cell).toBeUndefined();                        // (a shore: drawn fine)
+    expect(at(got, 0, 4).tile.water).toBeUndefined();                       // (three tiles off: none)
+    expect(at(got, 0, 4).tile.cell).toBe(1);
+    const P = await assembleGridScene({ level: lv }, {}, { buildStage: tileStage(() => 0) });
+    expect(P.map.water).toHaveLength(1);
+    expect(P.map.water[0].tiles).toEqual([[0, 1]]);
+    expect(law(P, 'paths-dry')).toBeDefined();
+  });
+});

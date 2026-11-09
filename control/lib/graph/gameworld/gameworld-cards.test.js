@@ -63,7 +63,8 @@ describe('the rail\'s cards', () => {
     // (2026-11-06: gameworld-world 4864 → 5248: the megaworld, two lines, 5120 bytes)
     // the actions card too (2026-11-05, 1104-vayo-effects: the vayo moves join the powers' line, the vayo jump, its air
     // dash and its jetpack, each with the words that say it; 4031 bytes before, 4542 with them)
-    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 5248, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4352, 'gameworld-actions': 4608 };
+    // (2026-11-09: gameworld-world 5248 → 5376: a glyph map's water and its ways' ranks, and its style's geocube, two lines)
+    const CEIL = { 'gameworld-guide': 4512, 'gameworld-world': 5376, 'gameworld-foes': 5120, 'gameworld-wcd': 4608, 'gameworld-battles': 5248, 'gameworld-next': 4352, 'gameworld-actions': 4608 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

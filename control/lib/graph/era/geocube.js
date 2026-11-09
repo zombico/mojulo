@@ -1058,7 +1058,8 @@ export function geocubeContrastOf(manifest, { value = false } = {}) {
 }
 
 // the cube a world manifest is painted by: a stage's `geocube`, the geocube kind's `cube`, a city's `paint.geocube`
-const cubeSpecOf = (m) => (m.kind === 'geocube' ? m.cube : m.kind === 'city' ? m.paint?.geocube : m.geocube);
+// (a glyph map's cube is its level's: level/grid-scene.js lowers every tile under it)
+const cubeSpecOf = (m) => (m.kind === 'geocube' ? m.cube : m.kind === 'city' ? m.paint?.geocube : m.kind === 'map' && m.level?.grid ? m.level.geocube : m.geocube);
 
 /**
  * The crease pass's terms (scene/channels/creases.js) the REGISTER of the cube a world manifest is painted by asks for:
@@ -1228,6 +1229,16 @@ export function withGeocube(manifest) {
       // (and its snow, era/snow.js: the cube's when the recipe names none)
       ...(own && m.snow === undefined && cube.snow !== undefined ? { snow: cube.snow } : {}),
       // (and its wind, vegetation/wind.js: the cube's when the recipe names none)
+      ...(m.wind === undefined && cube.wind !== undefined ? { wind: cube.wind } : {}) };
+  }
+  // a TILE of a glyph map (era/out-tile.js; level/grid-scene.js lowers every tile under the map's cube): painted as a
+  // trail is, the outside's look on its square of the level's one land, its land drawn as the cube's (its shading), its
+  // flora and wind the cube's where the recipe names none. The cube's water, cliff and dunes are a trail's: the map lays
+  // its own water across its tiles (out-tile-water.js), so they are not carried onto a tile
+  if (m.tile !== undefined) {
+    if ((H !== undefined || clouds !== undefined) && m.kit !== undefined) no(`${H !== undefined ? 'hour' : 'clouds'} lights the cube's look; a tile in its own kit takes none (drop kit, or hour and clouds)`);
+    const low = lowerGeocube(cube, 'outside', T?.name, H, m.kit === undefined ? Wr : undefined), own = m.kit === undefined;
+    return { ...m, kit: m.kit ?? low.kit, ...(own && m.shading === undefined && low.meru?.shading ? { shading: low.meru.shading } : {}), ...(own && m.biocube === undefined && cube.biocube !== undefined ? { biocube: cube.biocube } : {}),
       ...(m.wind === undefined && cube.wind !== undefined ? { wind: cube.wind } : {}) };
   }
   if (m.meru !== undefined) {

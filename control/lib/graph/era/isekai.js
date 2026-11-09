@@ -425,7 +425,7 @@ function heroSpot(Hr, site, manifest) {
   if (!manifest.tile?.hero) return null;
   const A = pathAlong(site);
   if (!A.length) return null;
-  const p = A.at(0.5), d = Hr.side * (site.halfW + Hr.off), x = p.c[0] + p.n[0] * d, y = p.c[1] + p.n[1] * d;
+  const p = A.at(0.5), d = Hr.side * ((p.h ?? site.halfW) + Hr.off), x = p.c[0] + p.n[0] * d, y = p.c[1] + p.n[1] * d;
   // (kept its own offset clear of every seam, so its crown is the tile's whole: a tile too small for one has none)
   if (Math.min(x, y, site.W - x, site.D - y) < Hr.off) return null;
   return { x: r5(x), y: r5(y) };
@@ -467,8 +467,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
   const keep = manifest._keepOut ?? null;
   // the trail's dress (era/trail-dress.js): its surface, its rubble, its patches
-  // (`dirt`: the dirt trail; `inDirt`: it, or an outdoor surface laid in the dirt, its edge the dirt trail's)
-  const TD = readTrailDress(manifest.trail), dirt = TD.surface === 'earth', inDirt = dirt || TD.surface in IN_DIRT;
+  // (`dirt`: the dirt trail; `inDirt`: it, or an outdoor surface laid in the dirt, its edge the dirt trail's; a glyph map's
+  // tile its way's dress, level/path-ranks.js)
+  const TD = readTrailDress(manifest.tile?.dress ?? manifest.trail), dirt = TD.surface === 'earth', inDirt = dirt || TD.surface in IN_DIRT;
   // (a TILE of a glyph map, era/out-tile.js: its square of the level's one land, its path's shape through it)
   const site = reserveSite(manifest.tile !== undefined ? outTileSite(st, manifest.tile, seed) : manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed, readGrade(manifest._grade)) : natureSite(st, seed), keep), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // ── the geometry ──
@@ -890,7 +891,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     ...(dirt ? trailPatches({ site, lanes: land.slice(nb, nb + ribbon.length).map((f, i) => ({ ...f, cls: ribbon[i].cls })), kinds: TD.patches, grit: broken, seed, keep }) : [])] : [];
   // (no dirt patch, turf or spill lies over the snow)
   const patchesS = SF ? patches.filter((f) => !(SF(...mean(f.corners), [0, 0, 1]) > 0)) : patches;
-  const faces = [...landD, ...talusEdge, ...patchesS, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (f.textureLit ? null : f._ramp ? st.palette[f._ramp] : st.lock[f.group] ? st.palette[st.lock[f.group]] : null)).map((f) => (f._ramp === undefined ? f : (({ _ramp: _r, ...g }) => g)(f))), ...real, ...(site.out ? streamFaces(site, st) : [])];
+  const faces = [...landD, ...talusEdge, ...patchesS, ...lockFaces([...drawn, ...cel, ...ridges], (f) => (f.textureLit ? null : f._ramp ? st.palette[f._ramp] : st.lock[f.group] ? st.palette[st.lock[f.group]] : null)).map((f) => (f._ramp === undefined ? f : (({ _ramp: _r, ...g }) => g)(f))), ...real, ...(site.out ? streamFaces(site, st) : []), ...(site.tile && site.water ? site.water.faces : [])];
   if (Gl) glowFaces(faces, Gl, trees, st);
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));

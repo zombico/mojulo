@@ -12,6 +12,17 @@ describe('a zoned map made into a game', () => {
     expect(S[0].manifest.level.zoned).toBeUndefined();
   });
 
+  it('is painted by its style\'s geocube, its hour with it; a world with no cube keeps its kit', () => {
+    const painted = { ...WORLDMAP_SAMPLE, style: { ...(WORLDMAP_SAMPLE.style ?? {}), geocube: 'valley-morning', hour: 'dusk' } };
+    const [P] = gameStages(painted), [U] = gameStages(WORLDMAP_SAMPLE);
+    expect(P.manifest.level.geocube).toBe('valley-morning');
+    expect(P.manifest.level.hour).toBe('dusk');
+    expect(P.manifest.level.kit).toBeUndefined();
+    expect(P.unlit).toBeUndefined();
+    expect(U.manifest.level.geocube).toBeUndefined();
+    expect(U.manifest.level.kit).toBe('isekai-meadow');
+  });
+
   it('leaves each zone by its gates, named by side, toward the zone across; arrives by the zone come from', () => {
     const M = worldmapGame(WORLDMAP_SAMPLE, { ref: 'wm' }), ref = (S) => M.levels.find((l) => l.zone === S).ref;
     const exits = Object.fromEntries(M.game.levels.map((l) => [M.levels.find((x) => x.ref === l.ref).zone, (l.exits ?? []).map((e) => `${e.id}>${M.levels.find((x) => x.ref === e.to).zone}`)]));

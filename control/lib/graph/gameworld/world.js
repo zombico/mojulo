@@ -259,7 +259,7 @@ export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) 
 // (`sketch`: the planned map decided in miniature before it is built, level/map-sketch.js: its concept, its segments'
 // ground, heights and marks; read by the miniature, not yet by the build)
 // (`far`: a zoned map's pages see the rest of the map far off, level/far-view.js)
-const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play'];
+const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play', 'ways'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -912,7 +912,11 @@ export function resolveLevel(world, id) {
   if (L.glyphs) {
     const { tile, rows, key, regions, plan, segments, kit = 'isekai-meadow', ...words } = L.glyphs;
     const grid = gridOfGlyphs(L.glyphs);
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, glyphs: { kit, seed: seed >>> 0, grid, ...words } };
+    // (the style's geocube paints the map, every tile lowered under it, level/grid-scene.js: its terrain and its hour with
+    // it; a map's own kit or cube wins)
+    const painted = style.geocube !== undefined && L.glyphs.kit === undefined && words.geocube === undefined;
+    const cube = painted ? { geocube: cubeInPalette(style.geocube, style.palette), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}), ...(style.hour !== undefined ? { hour: style.hour } : {}) } : {};
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, glyphs: { ...(painted ? {} : { kit }), seed: seed >>> 0, grid, ...cube, ...words } };
   }
   // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh
   // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light

@@ -167,7 +167,7 @@ export async function buildWorldmap(world, { ref = world.id, outDir, log = () =>
     const laws = payload.map?.laws ?? [];
     pages.push({ ref: L.ref, zone: L.zone, bytes: Buffer.byteLength(html), buildMs, emitMs, tiles: payload.map?.cells?.length ?? 0, laws, ...(payload.map?.sketch ? { sketch: payload.map.sketch } : {}) });
     const SK = payload.map?.sketch;
-    if (SK) log(`zone ${L.zone}: the sketch of ${SK.approved.join(', ')} lowered (${SK.laid.height} tiles' heights, ${SK.laid.ground} tiles' ground, ${SK.laid.boulders} rocky paths, ${SK.marks.length} marks on this page)${SK.unlaid ? `; not laid: ${SK.unlaid.join('; ')}` : ''}`);
+    if (SK) log(`zone ${L.zone}: the sketch of ${SK.approved.join(', ')} lowered (${SK.laid.height} tiles' heights, ${SK.laid.ground} tiles' ground, ${SK.laid.boulders} rocky paths, ${SK.laid.water ?? 0} water tiles, ${SK.laid.cliffs ?? 0} cliffs over water, ${SK.marks.length} marks on this page)${SK.unlaid ? `; not laid: ${SK.unlaid.join('; ')}` : ''}`);
     log(`zone ${L.zone ?? '-'} (${L.ref}): ${payload.map?.cells?.length ?? '?'} tiles, built ${(buildMs / 1000).toFixed(1)} s, emitted ${(emitMs / 1000).toFixed(1)} s, ${(Buffer.byteLength(html) / 1e6).toFixed(1)} MB; laws ${laws.filter((l) => !l.ok).map((l) => l.law).join(', ') || 'all hold'}`);
   }
   const byRef = new Map(made.levels.map((l) => [l.ref, l]));

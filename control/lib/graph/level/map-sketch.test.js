@@ -84,7 +84,7 @@ describe('a sketched segment built', () => {
     // (the sample: the town approved, the fields and the keep drafts)
     const L = levelGrid(level(g.sketch));
     expect(L.sketch.approved).toEqual(['A']);
-    expect(L.sketch.laid).toEqual({ height: 9, ground: 5, boulders: 0, marks: 2 });
+    expect(L.sketch.laid).toEqual({ height: 9, ground: 5, boulders: 0, water: 0, cliffs: 0, marks: 2 });
     // (the town's corner tile a step up; the fields, a draft, at its region's rise alone)
     expect(L.rise.z[2 * G.cols + 0]).toBe(SKETCH.step);
     expect(L.rise.z[0 * G.cols + 4]).toBe(G.rise.z[0 * G.cols + 4]);
@@ -114,9 +114,22 @@ describe('a sketched segment built', () => {
     expect(JSON.stringify(built)).toBe(JSON.stringify(b));
   });
 
-  it('says what it could not lay: a cliff, water, rocks off the path', () => {
+  it('says what it could not lay: a cliff away from water, rocks off the path', () => {
     const wet = { ...g.sketch, segments: { ...g.sketch.segments, B: { ...g.sketch.segments.B, status: 'approved' } } };
-    expect(levelGrid(level(wet)).sketch.unlaid.map((u) => u.says)).toEqual(['B row 1 column 3: rocks off the path (boulders are laid along a path)', 'B row 2 column 3: rocks off the path (boulders are laid along a path)', 'B row 3 column 3: cliff']);
+    expect(levelGrid(level(wet)).sketch.unlaid.map((u) => u.says)).toEqual(['B row 1 column 3: rocks off the path (boulders are laid along a path)', 'B row 2 column 3: rocks off the path (boulders are laid along a path)', 'B row 3 column 3: cliff away from water (a cliff is laid as a water\'s edge)']);
+  });
+
+  it('lays water on open land, and a cliff beside it as its edge (level/map-water.js)', () => {
+    // (the fields' rocky corner made a pond with a cliff over it: open land, never the path)
+    const B = g.sketch.segments.B, ground = B.ground.map((row, r) => (r === 2 ? row.replace(/\S(?=\s*$)/, 'c') : row));
+    const open = G.cells.filter((x) => x.kind === 'land' && x.r >= G.plan.segments.B.at[0] && x.r < G.plan.segments.B.at[0] + G.plan.size && x.c >= G.plan.segments.B.at[1] && x.c < G.plan.segments.B.at[1] + G.plan.size);
+    const [w] = open.filter((x) => Math.abs(x.r - (G.plan.segments.B.at[0] + 2)) + Math.abs(x.c - (G.plan.segments.B.at[1] + 2)) === 1);
+    expect(w).toBeDefined();
+    const gw = ground.map((row, r) => { const cells = row.split(/\s+/); if (r === w.r - G.plan.segments.B.at[0]) cells[w.c - G.plan.segments.B.at[1]] = 'w'; return cells.join(' '); });
+    const L = levelGrid(level({ ...g.sketch, segments: { ...g.sketch.segments, B: { ...B, ground: gw, status: 'approved' } } }));
+    expect(L.sketch.laid.water).toBe(1);
+    expect(L.sketch.laid.cliffs).toBe(1);
+    expect(L.sketch.ground.get(`${w.r},${w.c}`)).toBe('w');
   });
 });
 

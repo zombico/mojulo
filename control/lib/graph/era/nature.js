@@ -196,10 +196,12 @@ export function trailFaces(st, site) {
 // polylines, square to the polyline's own way at each station; where branches meet at the tile's middle they overlap,
 // one lift for all, so a T or an X reads as one crossing of packed ground
 function tileTrailFaces(st, site) {
-  const out = [], { halfWAt, fringeAt, ground } = site, T = st.tiles;
+  const out = [], { ground } = site, T = st.tiles;
+  // (a way of rank, era/out-tile.js: its width and verge read where each station stands; else the kit's one)
+  const halfWAt = site.tile.halfAt ? (y, x) => site.tile.halfAt(x, y) : site.halfWAt, fringeAt = site.tile.fringeAt ? (y, x) => site.tile.fringeAt(x, y) : site.fringeAt;
   const surf = (k) => ({ key: T[k].key, scale: T[k].scale, tint: T[k].tint, group: 'trail:ground' });
   const lanes = [[-1, -2, 'fringe', 0.05], [-2, 0, 'trail', 0.05], [0, 2, 'trail', 0.05], [2, 1, 'fringe', 0.05]];
-  const offAt = (code, y) => (code === 0 ? 0 : code === -2 ? -halfWAt(y) : code === 2 ? halfWAt(y) : code === -1 ? -halfWAt(y) - fringeAt(y) : halfWAt(y) + fringeAt(y));
+  const offAt = (code, y, x) => (code === 0 ? 0 : code === -2 ? -halfWAt(y, x) : code === 2 ? halfWAt(y, x) : code === -1 ? -halfWAt(y, x) - fringeAt(y, x) : halfWAt(y, x) + fringeAt(y, x));
   for (const P of site.tile.paths) {
     // stations every ¾ m along the polyline, each with its normal (the way's right hand)
     const st0 = [];
@@ -215,7 +217,7 @@ function tileTrailFaces(st, site) {
     for (let k = 0; k + 1 < S.length; k++) {
       const A = S[k], B = S[k + 1], s1 = s0 + Math.hypot(B.c[0] - A.c[0], B.c[1] - A.c[1]);
       for (const [c0, c1, cls, lift] of lanes) {
-        const a0 = offAt(c0, A.c[1]), a1 = offAt(c1, A.c[1]), b0 = offAt(c0, B.c[1]), b1 = offAt(c1, B.c[1]);
+        const a0 = offAt(c0, A.c[1], A.c[0]), a1 = offAt(c1, A.c[1], A.c[0]), b0 = offAt(c0, B.c[1], B.c[0]), b1 = offAt(c1, B.c[1], B.c[0]);
         const sf = surf(cls), cs = [at(A, a0, lift), at(A, a1, lift), at(B, b1, lift), at(B, b0, lift)];
         quad(out, cs, facet(cs, [0, 0, 1]), sf, null, null, [[a0 / sf.scale, s0 / sf.scale], [a1 / sf.scale, s0 / sf.scale], [b1 / sf.scale, s1 / sf.scale], [b0 / sf.scale, s1 / sf.scale]]);
         out[out.length - 1].cls = cls;
@@ -335,10 +337,12 @@ export function rockItems(st, site, seed) {
   let distinct = 0;
   const nb = site.boulders ?? R.boulders;
   for (let i = 0; i < (len > 0 ? nb : 0); i++) {
-    const A = along.at(0.12 + 0.76 * (i + hash3(i, 5, S + 31)) / nb), side = hash3(i, 6, S + 37) < 0.5 ? -1 : 1, off = side * (halfWAt(A.c[1]) + fringeAt(A.c[1]) + 1 + 2 * hash3(i, 7, S + 41));
-    const x = A.c[0] + A.n[0] * off, y = A.c[1] + A.n[1] * off, inside = inRadius(x, y);
+    const A = along.at(0.12 + 0.76 * (i + hash3(i, 5, S + 31)) / nb), side = hash3(i, 6, S + 37) < 0.5 ? -1 : 1, off = side * ((A.h ?? halfWAt(A.c[1])) + (A.f ?? fringeAt(A.c[1])) + 1 + 2 * hash3(i, 7, S + 41));
+    const x = A.c[0] + A.n[0] * off, y = A.c[1] + A.n[1] * off, inside = inRadius(x, y), size = 1.3 + 1.1 * hash3(i, 8, S + 43);
     if (site.water && site.water.clear(x, y)) continue;   // (none in a trail's water or on its shore: out-water.js)
-    items.push({ x, y, size: 1.3 + 1.1 * hash3(i, 8, S + 43), detail: inside ? 1 : 0, v: inside ? distinct++ % R.variants : i % R.variants, role: 'boulder' });
+    // (a tile's way of rank: none set off one branch onto another, at a fork's middle, its stone and the verge clear)
+    if (A.h !== undefined && site.trailDist(x, y) < halfWAt(y) + A.f + size * R.unit * 0.6) continue;
+    items.push({ x, y, size, detail: inside ? 1 : 0, v: inside ? distinct++ % R.variants : i % R.variants, role: 'boulder' });
   }
   for (const f of foci.filter((f) => f.gate)) R.gate.sizes.forEach((size, k) => {
     const side = k ? 1 : -1, y = f.y + (k ? 0.8 : -0.6), x = trailX(y) + side * (halfWAt(y) + R.gate.off + size * 0.35);
@@ -346,7 +350,7 @@ export function rockItems(st, site, seed) {
   });
   const np = Math.round(len * R.pebbles.perMetre);
   for (let i = 0; i < np; i++) {
-    const A = along.at(hash3(i, 9, S + 47)), side = hash3(i, 10, S + 53) < 0.5 ? -1 : 1, off = side * (halfWAt(A.c[1]) * (0.75 + 0.6 * hash3(i, 11, S + 59)));
+    const A = along.at(hash3(i, 9, S + 47)), side = hash3(i, 10, S + 53) < 0.5 ? -1 : 1, off = side * ((A.h ?? halfWAt(A.c[1])) * (0.75 + 0.6 * hash3(i, 11, S + 59)));
     const x = A.c[0] + A.n[0] * off, y = A.c[1] + A.n[1] * off;
     items.push({ x, y, size: mix(R.pebbles.size[0], R.pebbles.size[1], hash3(i, 12, S + 61)), detail: 0, v: i % R.variants, role: 'pebble' });
   }
@@ -820,7 +824,7 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
   const decals = contactShadows(st, site, trees, rocks);
   const y0 = 2.5, x0 = site.trailX(y0), y1 = 28, x1 = site.trailX(y1);
   const eye = [x0, y0, site.ground(x0, y0) + 1.7];
-  const after = [...puddleFaces(st, site, puddles), ...(site.out ? streamFaces(site, st) : []), ...ridgeFaces(st, site)];
+  const after = [...puddleFaces(st, site, puddles), ...(site.out ? streamFaces(site, st) : []), ...(site.tile && site.water ? site.water.faces : []), ...ridgeFaces(st, site)];
   const faces = [...lit, ...decals, ...(P ? recolourFaces(after, P) : after)];
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));

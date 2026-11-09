@@ -45,7 +45,7 @@ export function placeShrubs(card, ask, site, { rocks = [], trees = [], unit = 1,
   for (let tries = 0; at.length < C.n && tries < C.n * 40; tries++) {
     const v = 3 + rand() * (D - 6), side = rand() < 0.5 ? -1 : 1, off = C.band[0] + (C.band[1] - C.band[0]) * rand();
     // (a trail's: across its line at a depth; a tile's: off its own path's right hand, its point as far along it)
-    const S = along ? along.at((v - 3) / (D - 6)) : null, w = halfWAt(v) + fringeAt(v) + off;
+    const S = along ? along.at((v - 3) / (D - 6)) : null, w = (S?.h ?? halfWAt(v)) + (S?.f ?? fringeAt(v)) + off;
     const x = S ? S.c[0] + side * S.n[0] * w : trailX(v) + side * w, y = S ? S.c[1] + side * S.n[1] * w : v;
     if (!ok(x, y) || (S && site.trailDist(x, y) < halfWAt(y) + fringeAt(y))) continue;
     if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - x, r.y - y) < r.size * unit * 0.6 + 1)) continue;

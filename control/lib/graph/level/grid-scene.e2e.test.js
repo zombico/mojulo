@@ -26,5 +26,18 @@ describe('a glyph map, built', () => {
     expect(Object.values(P.map.regions).map((r) => r.name)).toEqual(['the town', 'the woods', 'the shrine']);
     expect(P.anchors.some((a) => /temple|G-4-4/.test(JSON.stringify(a)))).toBe(true);
   }, 300000);
-});
 
+  it('lays its water across the tiles, a beach and a cliff at its edge, and its ways by rank, its laws held', async () => {
+    // (a pond under a risen bluff on the east, a town's house on the west: a road by the house, a track on, the shore's
+    // beach on the low side and its cliff under the bluff)
+    const level = { kit: 'isekai-meadow', seed: 6, grid: { tile: 24, rows: ['h # # #', '. ~ ~ #', '. . # #'], key: { h: { use: 'dwelling' } }, regions: { rows: ['. . . R', '. . . R', '. . . R'], key: { R: { name: 'the bluff', rise: 4 } } } } };
+    const { payload: P } = await resolveWorldScene({ ref: 'glyph-water', manifest: { kind: 'map', level } });
+    for (const l of P.map.laws) expect(l.ok, `${l.law}: ${l.value}`).toBe(true);
+    expect(P.map.water[0].shore.beach).toBeGreaterThan(0);
+    expect(P.map.water[0].shore.cliff).toBeGreaterThan(0);
+    expect(P.faces.some((f) => f.group === 'isekai:water')).toBe(true);
+    expect(P.faces.some((f) => f.group === 'isekai:sand')).toBe(true);
+    expect(P.faces.some((f) => f.group === 'isekai:cliff')).toBe(true);
+    expect(Object.keys(P.map.ways.count)).toContain('road');
+  }, 300000);
+});

@@ -229,7 +229,7 @@ export function gameStages(world) {
   // no cube paints (a section in its own kit, a level with no cube, a building, a city, a track…) is lit as before, and
   // says so (`unlit`: stageLevelOrder's advice). An inside has no outside to light. No hour: every stage as it was
   if (!Object.keys(hours).length) return out;
-  const lit = (s) => ((s.section === 'trail' || s.section === 'meru') && s.manifest?.geocube !== undefined) || s.section === 'geotown';
+  const lit = (s) => ((s.section === 'trail' || s.section === 'meru') && s.manifest?.geocube !== undefined) || s.section === 'geotown' || (s.section === 'map' && s.manifest?.level?.geocube !== undefined);
   return out.map((s) => (hours[s.level] === undefined || s.section === 'interior' || lit(s) ? s : { ...s, unlit: hours[s.level] }));
 }
 
