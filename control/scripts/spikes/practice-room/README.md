@@ -71,6 +71,13 @@ Fable of Artesia is 23 and 2. Two numbers of the card fall short on every templa
 The first measures, before the moveset (every swing the held weapon's 0.5 s, the next press only at its end), are in the
 git history of this file.
 
+## The door (`lib/graph/gameworld/practice.js`)
+
+A game's practice rooms, chosen by how it plays: this room for a template that fights hand to hand (or a world with an
+arsenal), the platform room for a platformer's template (`scripts/spikes/platform-room/`, `gameworld/platform-room.js`),
+the mount lane for a world with `mounts` (`scripts/spikes/mount-treadmill/`, `gameworld/mount-lane.js`). The fighting
+game's lab and the RPG's battles are their own practice, and say so. Served as `bible?book=practice&room=…`.
+
 ## The game's arsenal (`lib/graph/gameworld/arsenal.js`)
 
 What the room settles reaches the game through its `arsenal` key: a template's kit by name (`'fallen-angel'`), the kit

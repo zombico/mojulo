@@ -774,6 +774,8 @@ function mountsCard() {
     '  speed), Space jumps at a trot or faster (a low wall cleared); E at a walk or halted gets off. Any hero rides: its',
     '  riding clips are solved on its own rig to the horse\'s saddle, irons and bit.',
     'A world whose levels walk lays them on each; a level whose hero is a car or a craft leaves them standing loose.',
+    'The mount lane (`bible?book=practice&room=mount`, before any level) tunes the ride: the gaits, the jump, the fences.',
+    'A template that rides (the action-adventure) is suggested two (a `mounts` step in design_game\'s readout), never laid.',
   );
 }
 

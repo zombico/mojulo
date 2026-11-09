@@ -41,3 +41,28 @@
   rooms: every kit carried move by move. The card's stun falls short on every template that asks it (13 or 14 frames
   where it asks 27 or 30: its hitstun is not lowered onto the foe), and the dodge is invincible all through where the
   card opens a window.
+- **The practice door** (`gameworld/practice.js`): which practice rooms a game's play has, chosen by how it plays, each
+  built from the world alone before any level.
+  - The action room (`room=practice`): a template that fights hand to hand, or any world with an arsenal.
+  - The platform room (`room=platform`, `gameworld/platform-room.js`): a platformer's template. Its course has steps, a
+    gap, the double jump's ledge and the wall kick's chimney, with walkers and a hopper to stomp. The hero stomps and is
+    touched as a level's hero is.
+  - The mount lane (`room=mount`, `gameworld/mount-lane.js`): any world with `mounts`. The world's horse stands at the
+    start of a posted 200 m lane, with a timed 100 m split, three fences at the horse's jump heights and a ring to turn
+    in.
+
+  The run's hero and foes play where they have been made, stand-ins (the template's body, a person of the foe's class)
+  where they have not.
+- **Templates whose fights are another runtime's have no action room.** The fighting game is practised in its own lab;
+  the RPG's fights are its battles. The door says so.
+- **Mounts suggested for a template that rides** (Fable of Artesia, after Zelda's horse): design_game's readout has a
+  `mounts` step with its patch, never laid.
+- **Served and linked:**
+  - `bible?book=practice&room=…`: the first room by default; a room the world lacks is a 422 saying which it has;
+  - design_game's readout `practice` (each room's link);
+  - the rail's exits (one per room, each its icon).
+
+  The platform room's and the mount lane's spikes are now CLIs over their pages.
+- **Checked in headless Chrome** (`practice-room.live.test.js`): each room comes up with no error. The action room's
+  string lands; the platform room's hero jumps, its four foes standing; the mount lane's hero gets on and rides the
+  horse on down the lane.

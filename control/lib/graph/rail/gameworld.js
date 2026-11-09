@@ -3,7 +3,7 @@
 // game it is, its world, its characters, its systems, its levels, its story, and play. Its parts are what a run made
 // (runner.js), each fresh or not by the runner's own `decide`; it is read in its world bible and its character bible
 // (and, where it fields foes, its cast sheet: a Foes outcome of its own), and played as its game.
-import { roomEligible } from '../gameworld/practice-room.js';
+import { practiceFor } from '../gameworld/practice.js';
 import { registerRail, sketchHref } from './rail.js';
 import { isGameworldKind, gameworldOf } from '../gameworld/gameworld-kind.js';
 import { reviewState, fingerprint } from '../gameworld/review.js';
@@ -116,7 +116,8 @@ export default registerRail({
     if (ref) exits.push({ id: 'book', href: sketchHref(ref, 'bible') });
     if (ref && world.characters) exits.push({ id: 'characters', href: `${sketchHref(ref, 'bible')}?book=characters` });
     if (ref && world.feel !== undefined && world.feel !== null) exits.push({ id: 'feel', href: `${sketchHref(ref, 'bible')}?book=feel` });
-    if (ref && !roomEligible(world)) exits.push({ id: 'practice', href: `${sketchHref(ref, 'bible')}?book=practice` });
+    // (each practice room the world's play has, practice.js: the action room, the platform room, the mount lane)
+    if (ref) for (const room of practiceFor(world).rooms) exits.push({ id: room, href: `${sketchHref(ref, 'bible')}?book=practice&room=${room}` });
     if (ref && fielding) exits.push({ id: 'foes', href: `${sketchHref(ref, 'bible')}?book=foes` });
     const gameRef = made.game?.ref;
     if (gameRef && row(gameRef)) exits.push({ id: 'play', href: sketchHref(gameRef, 'game') }, { id: 'playtest', href: sketchHref(gameRef, 'playtest') });

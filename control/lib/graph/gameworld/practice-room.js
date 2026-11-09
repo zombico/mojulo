@@ -16,8 +16,9 @@
  *     kit       the template whose kit it is, or null; from: 'world' | 'feel' | 'basic' | 'given'
  *     stage     the feel template's stage (feel/cards.js STAGES) the floor is laid from, or 'ring'
  *     hero      'own' | 'stand-in'; foe: { eid, class, made: true | false }
- *   roomEligible(G) → null, or why the world has no room (it writes no feel, or its feel's template does not fight hand
- *     to hand and it writes no arsenal)
+ *   roomEligible(G) → null, or why the world has no room (it writes no feel; its feel's template fights on another
+ *     runtime, FIGHTS_ELSEWHERE; or it does not fight hand to hand and the world writes no arsenal)
+ *   floorOf(S), dummyFigure(cast)   the greybox floor and the stand-in foe the platform room and the mount lane share
  *   ROOM_LEGEND   the keys, said at the foot of the page
  *
  * Pure. The page that plays it (practice-room-page.js) measures the foe's health on the resolved bodies and lays the HUD.
@@ -46,29 +47,40 @@ const RING = Object.freeze({ half: 12, blocks: [[-7, -7], [7, -7], [-7, 7], [7, 
 
 export const ROOM_LEGEND = 'W A S D  run · mouse  look · click  light · right click  heavy · mouse forward  sidearm (hold) · left Ctrl  specials · mouse back / R  weapon · Shift  guard (hold) · F  sprint · F F  dodge · C  lock on · P  foe AI · K  reset · H  HUD';
 
+/** A person standing in for a foe the run has not made: the other cast from the hero's, on the library's clips. */
+export const dummyFigure = (cast = 'male') => ({ hero: { cast: cast === 'male' ? 'female' : 'male' }, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } });
+
+// THE TEMPLATES THAT FIGHT ELSEWHERE: a template whose game's fights are not the action runtime's has no action room
+// (practice.js says which room it has instead)
+export const FIGHTS_ELSEWHERE = Object.freeze({
+  'mojulo-fighter': 'a fighting game is practised in its own training lab, on the fight\'s page (the versus runtime)',
+  'isekai-party': 'its fights are the party\'s battles, played in the battle screen (turn by turn)',
+});
+
 /** Why the world has no practice room, or null. */
 export function roomEligible(G) {
   if (G?.feel === undefined || G?.feel === null) return 'this world writes no feel (feel: \'<template>\' | { pole, … }): the room is its feel played';
   const pole = readFeel(G.feel).pole;
+  if (FIGHTS_ELSEWHERE[pole]) return FIGHTS_ELSEWHERE[pole];
   if (!POLES[pole].demo.includes('attack') && !arsenalOfGame(G)) return `its feel's template (${POLES[pole].name}) does not fight hand to hand, and the world writes no arsenal`;
   return null;
 }
 
 // the stage's floor, its blocks and a low wall round it, as faces and colliders (a block stands, never held: hold false)
-function floorOf(S) {
+export function floorOf(S) {
   const faces = [], colliders = [], H = S.half;
   const quad = (a, b, c, d, fill, group) => ({ corners: [a, b, c, d], fill, group, doubleSided: true });
   for (let i = -H; i < H; i++) for (let j = -H; j < H; j++) faces.push(quad([i, j, 0], [i + 1, j, 0], [i + 1, j + 1, 0], [i, j + 1, 0], GREY[(i + j + 2 * H) % 2], 'room:floor'));
-  const box = ([x0, x1], [y0, y1], h, group) => {
-    faces.push(quad([x0, y0, h], [x1, y0, h], [x1, y1, h], [x0, y1, h], WALL, group),
-      quad([x0, y0, 0], [x1, y0, 0], [x1, y0, h], [x0, y0, h], WALL, group), quad([x1, y1, 0], [x0, y1, 0], [x0, y1, h], [x1, y1, h], WALL, group),
-      quad([x0, y1, 0], [x0, y0, 0], [x0, y0, h], [x0, y1, h], WALL, group), quad([x1, y0, 0], [x1, y1, 0], [x1, y1, h], [x1, y0, h], WALL, group));
+  const box = ([x0, x1], [y0, y1], h, group, fill = WALL) => {
+    faces.push(quad([x0, y0, h], [x1, y0, h], [x1, y1, h], [x0, y1, h], fill, group),
+      quad([x0, y0, 0], [x1, y0, 0], [x1, y0, h], [x0, y0, h], fill, group), quad([x1, y1, 0], [x0, y1, 0], [x0, y1, h], [x1, y1, h], fill, group),
+      quad([x0, y1, 0], [x0, y0, 0], [x0, y0, h], [x0, y1, h], fill, group), quad([x1, y0, 0], [x1, y1, 0], [x1, y1, h], [x1, y0, h], fill, group));
     colliders.push({ min: [x0, y0, 0], max: [x1, y1, h], hold: false });
   };
   const T = 0.5;
   box([-H - T, H + T], [-H - T, -H], 1.2, 'room:wall'); box([-H - T, H + T], [H, H + T], 1.2, 'room:wall');
   box([-H - T, -H], [-H, H], 1.2, 'room:wall'); box([H, H + T], [-H, H], 1.2, 'room:wall');
-  for (const b of S.blocks ?? []) box(b.x, b.y, b.h, `room:${b.id}`);
+  for (const b of S.blocks ?? []) box(b.x, b.y, b.h, b.group ?? `room:${b.id}`, b.fill ?? WALL);
   return { faces, colliders };
 }
 
@@ -140,7 +152,7 @@ export function practiceRoom(G, { refs = {}, cast = 'male', pack = 1, sound = 'r
   // class standing in; `pack` of them round where the template's dummy stands, facing the hero
   const B = bestiaryOf(G), eid = Object.keys(B)[0], entry = B[eid], made = typeof refs.foes?.[eid] === 'string';
   const part = { figures, entities: [heroE] };
-  const dummy = { hero: { cast: cast === 'male' ? 'female' : 'male' }, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } };
+  const dummy = dummyFigure(cast);
   for (let k = 0; k < Math.max(1, pack); k++) {
     const a = pack === 1 ? 0 : (k / pack) * 2 * Math.PI;
     const at = pack === 1 ? [dx, dy, 0] : [r3(dx + 3 * Math.sin(a)), r3(dy + 3 * Math.cos(a)), 0];

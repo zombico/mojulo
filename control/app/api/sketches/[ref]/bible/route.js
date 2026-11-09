@@ -77,15 +77,20 @@ export async function GET(request, { params }) {
       if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes' or 'atlas'" }, { status: 400 });
       // the practice room (lib/graph/gameworld/practice-room-page.js): its feel played on the runtime the game ships
       if (book === 'practice') {
-        const { roomEligible } = await import('@/lib/graph/gameworld/practice-room');
-        const why = roomEligible(world);
-        if (why) return NextResponse.json({ eligible: false, reason: why }, { status: 422 });
+        // (which rooms the world has, practice.js: the action room, the platform room, the mount lane; `room` picks one,
+        // the first by default)
+        const { practiceFor, PRACTICE_ROOMS } = await import('@/lib/graph/gameworld/practice');
+        const door = practiceFor(world);
+        if (!door.rooms.length) return NextResponse.json({ eligible: false, reason: door.why }, { status: 422 });
+        const room = request.nextUrl.searchParams.get('room') ?? door.rooms[0];
+        if (!PRACTICE_ROOMS[room]) return NextResponse.json({ error: `room is ${Object.keys(PRACTICE_ROOMS).join(', ')}` }, { status: 400 });
+        if (!door.rooms.includes(room)) return NextResponse.json({ eligible: false, reason: `this world has no ${PRACTICE_ROOMS[room].name.replace(/^The /, '').toLowerCase()} (it has ${door.rooms.join(', ')})` }, { status: 422 });
         const cast = request.nextUrl.searchParams.get('cast') ?? 'male';
         if (!['male', 'female'].includes(cast)) return NextResponse.json({ error: 'cast is male or female' }, { status: 400 });
-        const { practiceRoomHtml, roomRefs } = await import('@/lib/graph/gameworld/practice-room-page');
+        const { practiceHtml, roomRefs } = await import('@/lib/graph/gameworld/practice-room-page');
         const refs = await roomRefs(world, ref, (r) => !!SketchRepository.getByRef(r));
-        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${cast}:${JSON.stringify(refs)}`, async () => (await practiceRoomHtml(world, { refs, cast })).html);
-        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-practice`;
+        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:practice:${room}:${cast}:${JSON.stringify(refs)}`, async () => (await practiceHtml(world, room, { refs, cast })).html);
+        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${room === 'practice' ? 'practice' : room}`;
       } else
       // the atlas (lib/graph/gameworld/atlas-html.js): the world's levels, trails and ways drawn as a map, in a look
       if (book === 'atlas') {

@@ -7,6 +7,11 @@
  *
  *   practiceRoomHtml(G, { refs?, cast?, pack?, strings?, sound?, cdn? }) → { html, room, string, foeHp }
  *     (room: practice-room.js's result; string: { combo, beats, damage, hits } the first combo measured)
+ *   platformRoomHtml(G, { refs?, cast?, sound?, cdn? }) → { html, room, card }: the platform room, the card's jump, air
+ *     jumps, wall kick and stomp beside the live ones (each jump's top, the double jump, wall kicks, stomps, touches)
+ *   mountLaneHtml(G, { refs?, cast?, coat?, sound?, cdn? }) → { html, room, card }: the mount lane, each gait's speed, the
+ *     jump's clearance and the rein-back beside the live speed, the 100 m split, the jumps and the fences cleared or refused
+ *   practiceHtml(G, id, opts) → the page of the door's room `id` (practice.js)
  *   roomRefs(world, ref, exists) → the refs above, by the run's names, each only where its row exists
  *   cardAsked(feel) → what the feel card asks of one swing: { startup, total, cancel, string, lunge, hitstop, stun, dodge,
  *     guard } in frames
@@ -14,6 +19,9 @@
  * Served on read as the gameworld's `bible?book=practice` (app/api/sketches/[ref]/bible); the spike's room.mjs is its CLI.
  */
 import { practiceRoom } from './practice-room.js';
+import { platformRoom, COURSE } from './platform-room.js';
+import { mountLane, FENCES } from './mount-lane.js';
+import { feelReport, readFeel } from './feel/lower.js';
 import { comboList } from './combos.js';
 import { feelCard } from './feel/lower.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
@@ -147,4 +155,142 @@ export async function practiceRoomHtml(G, { refs = {}, cast = 'male', pack = 1, 
 </script>`;
   html = html.includes('</body>') ? html.replace('</body>', `${HUD}</body>`) : html + HUD;
   return { html, room, string: SD, foeHp };
+}
+
+async function resolved(manifest, ref) {
+  const { resolveWorldScene } = await import('../worlds/world-scene.js');
+  const { payload } = await resolveWorldScene({ ref, manifest }, {});
+  if (!payload) throw new Error('practice: the room did not resolve');
+  return payload;
+}
+const emitted = async (payload, cdn) => (await import('../scene/scene-three.js')).emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: false, decollide: true, hud: false, inline: !cdn, cdn });
+
+/** The platform room's page (see the header). */
+export async function platformRoomHtml(G, { refs = {}, cast = 'male', sound = 'realistic', cdn = false } = {}) {
+  const room = platformRoom(G, { refs, cast, sound });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-platform-room`);
+  const R = payload.entities.find((e) => e.pilotable).rule;
+  // (what the card asks of the hero beside what the room measures: its jump, its air jumps, its wall, its stomp)
+  const report = G.feel != null ? feelReport(G.feel) : null;
+  const CARD = { jump: G.feel != null ? feelCard(readFeel(G.feel)).jump.height : null, airJumps: R.airJumps ?? 0, cling: !!R.cling, stomp: R.stomp ?? null, sprint: R.sprint ? R.sprint.speed : null, run: R.speed,
+    // (the stomp the room lays, as a level does where foes stand: carried here, whatever the card's report says)
+    lost: report ? report.lost.map((x) => x.field).filter((f) => !(f === 'land.stomp' && R.stomp)) : [] };
+  let html = await emitted(payload, cdn);
+  const HUD = `<style>#pf{position:fixed;top:10px;left:10px;width:350px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#pf b{color:#fff}#pf .k{color:#9aa0a8}#pf h4{margin:6px 0 2px;font-size:11px;color:#c9a96a;text-transform:uppercase;letter-spacing:.05em}#pf .ok{color:#8fd18f}#pf .bad{color:#f08a7a}</style>
+<div id="pf"><b>Platform room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><div id="pf-ai"></div><h4>the card</h4><div id="pf-c"></div><h4>live</h4><div id="pf-l"></div><h4>the course</h4><div class="k">${COURSE.filter(([n]) => n).map(([n]) => n).join('<br>')}</div><h4>log</h4><div id="pf-log"></div></div>
+<script>
+(() => {
+  const CARD = ${JSON.stringify(CARD)}, BACK = 3;
+  const $ = (id) => document.getElementById(id);
+  let W = null, H = null, foes = [], homes = null, hp0 = null, show = true, log = [], air = null, kicks = 0, stomps = 0, hits0 = 0, wasKick = false;
+  const say = (t, text, ok = true) => { log.push({ t, text, ok }); if (log.length > 9) log.shift(); };
+  const setAi = (on) => { W.aiEnabled = on; $('pf-ai').innerHTML = 'foe AI <b class="' + (on ? 'bad' : 'ok') + '">' + (on ? 'ON' : 'off') + '</b> · Shift+F · K resets'; };
+  const back = (f, k) => { f.transform.pos = homes[k].slice(); f.staggerT = null; f.reactClip = null; f.downed = false; f.gone = false; f.dormant = false; f.body.hp = f.hpMax; f.hits = 0; f.backAt = null; f.foeStomped = false; f.foeEnds = null; f.vel = [0, 0, 0]; };
+  addEventListener('keydown', (e) => {
+    if (!W) return;
+    if (e.code === 'KeyF' && e.shiftKey) setAi(!W.aiEnabled);
+    if (e.code === 'KeyH') { show = !show; $('pf').style.display = show ? '' : 'none'; }
+    if (e.code === 'KeyK') { foes.forEach((f, k) => back(f, k)); if (H.body && hp0 != null) { H.body.hp = hp0; H.downed = false; } hits0 = H.hits || 0; }
+  });
+  $('pf-c').innerHTML = 'jump <b>' + CARD.jump + ' m</b> · air jumps <b>' + CARD.airJumps + '</b> · wall kick <b>' + (CARD.cling ? 'yes' : 'no') + '</b><br>run <b>' + CARD.run + '</b>' + (CARD.sprint ? ' · sprint <b>' + CARD.sprint + '</b> m/s' : '')
+    + (CARD.stomp ? '<br>stomp: bounce <b>' + CARD.stomp.low + '</b> m, <b>' + CARD.stomp.high + '</b> m with Space held · blow <b>' + CARD.stomp.blow + '</b> · a touch <b>' + (CARD.stomp.hurt || 0) + '</b> hp' : '')
+    + (CARD.lost.length ? '<br><span class="k">not carried yet: ' + CARD.lost.join(', ') + '</span>' : '');
+  function tick() {
+    if (!W && window.__mojCtrl && window.__mojCtrl.world) {
+      W = window.__mojCtrl.world; H = W.byId[W.pilotId] || W.entities.find((e) => e.pilotable); foes = W.entities.filter((e) => e.team === 'foes');
+      homes = foes.map((f) => f.transform.pos.slice()); foes.forEach((f) => { f.hpMax = f.hpMax ?? f.body.hp; }); hp0 = H.body ? H.body.hp : null; hits0 = H.hits || 0; setAi(true);
+    }
+    if (W && H) {
+      const t = W.time || 0, feet = H.transform.pos[2] - (H.rule.eye || 0);
+      // (a jump: from the ground it left to the top of its arc, and where it came down)
+      if (!H.grounded && !air) air = { from: feet, top: feet, t0: t, doubled: false };
+      if (air) { air.top = Math.max(air.top, feet); if ((H.airJumpsUsed || 0) > 0) air.doubled = true; }
+      if (H.grounded && air && air.top - air.from < 0.1) air = null;   // (a settle, a step down: no jump)
+      if (H.grounded && air && t - air.t0 > 0.05) { say(t, 'jump ' + (air.top - air.from).toFixed(2) + ' m' + (air.doubled ? ' (with the double jump)' : '') + ', landed at ' + feet.toFixed(2) + ' m'); air = null; }
+      const kick = (H.kickT || 0) > 0; if (kick && !wasKick) { kicks++; say(t, 'wall kick ' + kicks); } wasKick = kick;
+      if ((H.hits || 0) > hits0) { say(t, 'touched: hurt (' + (H.body ? Math.round(H.body.hp) : '—') + ' hp left)', false); hits0 = H.hits || 0; }
+      foes.forEach((f, k) => {
+        if ((f.downed || f.gone || f.body.hp <= 0) && f.backAt == null) { f.backAt = t + BACK; stomps++; say(t, 'stomped: ' + (f.rule.foe.move === 'hop' ? 'the hopper' : 'a walker')); }
+        else if (f.backAt != null && t >= f.backAt) back(f, k);
+      });
+      $('pf-l').innerHTML = 'feet <b>' + feet.toFixed(2) + ' m</b> · ' + (H.grounded ? 'grounded' : 'in the air') + (H.cling ? ' · <b>on the wall</b>' : '') + ' · air jumps used <b>' + (H.airJumpsUsed || 0) + '</b>'
+        + '<br>wall kicks <b>' + kicks + '</b> · stomps <b>' + stomps + '</b> · hp <b>' + (H.body && H.body.hp != null ? Math.round(H.body.hp) : '—') + '</b>' + (H.downed ? ' <b class="bad">DOWN (K)</b>' : '');
+      $('pf-log').innerHTML = log.slice().reverse().map((x) => '<div class="' + (x.ok ? '' : 'bad') + '">' + x.t.toFixed(2) + 's ' + x.text + '</div>').join('');
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>`;
+  html = html.includes('</body>') ? html.replace('</body>', `${HUD}</body>`) : html + HUD;
+  return { html, room, card: CARD };
+}
+
+/** The mount lane's page (see the header). */
+export async function mountLaneHtml(G, { refs = {}, cast = 'male', coat: given = null, sound = 'realistic', cdn = false } = {}) {
+  const room = mountLane(G, { refs, cast, coat: given, sound });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-mount-lane`);
+  const horse = payload.entities.find((e) => e.rule && e.rule.type === 'ride');
+  if (!horse) throw new Error('practice: the mount lane laid no horse');
+  const HR = horse.rule, coat = room.coat, START = room.start;
+  const CARD = { coat, gaits: (HR.gaits || []).map((g) => ({ gait: g.clip.replace('ride_', ''), v: g.v, stride: g.stride })), jump: HR.jump ? { clear: HR.jump.clear, v: HR.jump.v, s: HR.jump.s } : null,
+    fences: FENCES, reach: horse.mount ? horse.mount.reach : null };
+  if (!CARD.gaits.length) throw new Error('practice: the horse stands loose: no hero rides it (the hero\'s riding clips were not solved)');
+  let html = await emitted(payload, cdn);
+  const HUD = `<style>#mt{position:fixed;top:10px;left:10px;width:350px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#mt b{color:#fff}#mt .k{color:#9aa0a8}#mt h4{margin:6px 0 2px;font-size:11px;color:#c9a96a;text-transform:uppercase;letter-spacing:.05em}#mt .on{color:#c9a96a;font-weight:700}#mt .bad{color:#f08a7a}</style>
+<div id="mt"><b>Mount treadmill</b> <span class="k">${G.name ?? G.id ?? 'game'} · a ${coat} horse</span><h4>the horse</h4><div id="mt-c"></div><h4>live</h4><div id="mt-l"></div><h4>log</h4><div id="mt-log"></div></div>
+<script>
+(() => {
+  const CARD = ${JSON.stringify(CARD)}, START = ${JSON.stringify(START)};
+  const $ = (id) => document.getElementById(id);
+  let W = null, H = null, M = null, show = true, log = [], prev = null, v = 0, top = 0, split = null, fenceHit = {}, wasJump = false, phase0 = null;
+  const say = (t, text, bad) => { log.push({ t, text, bad }); if (log.length > 9) log.shift(); };
+  addEventListener('keydown', (e) => {
+    if (!W) return;
+    if (e.code === 'KeyH') { show = !show; $('mt').style.display = show ? '' : 'none'; }
+    if (e.code === 'KeyK') { M.transform.pos = [START.horse[0], START.horse[1], M.transform.pos[2]]; M.transform.heading = Math.PI / 2; M.speed = 0; if (!H.mountedOn) { H.transform.pos = [START.hero[0], START.hero[1], H.transform.pos[2]]; H.transform.heading = Math.PI / 2; } split = null; top = 0; }
+  });
+  const gaitRow = () => CARD.gaits.map((g, i) => '<span class="' + (M && M.riderId && (M.gaitIx ?? -1) === i ? 'on' : '') + '">' + g.gait + ' ' + g.v + '</span>').join(' · ');
+  function tick() {
+    if (!W && window.__mojCtrl && window.__mojCtrl.world) { W = window.__mojCtrl.world; H = W.entities.find((e) => e.rides) || W.byId.hero; M = W.entities.find((e) => e.rule && e.rule.type === 'ride'); }
+    if (W && H && M) {
+      const t = W.time || 0, p = M.transform.pos;
+      // (the horse's speed measured off its ground travel, eased)
+      if (prev) { const dt = t - prev.t; if (dt > 0) { const inst = Math.hypot(p[0] - prev.x, p[1] - prev.y) / dt; v += (inst - v) * Math.min(1, dt * 8); } }
+      prev = { t, x: p[0], y: p[1] }; top = Math.max(top, v);
+      const phase = H.mountPhase || 'on foot';
+      if (phase !== phase0) { if (phase0 != null) say(t, phase === 'ride' ? 'in the saddle' : phase === 'on foot' ? 'on foot' : phase); phase0 = phase; }
+      // the 100 m split: from the start line to the 100 m line, ridden up the lane
+      if (M.riderId && p[1] >= 0 && prev && split == null && Math.abs(p[0]) < 5) split = { t0: null };
+      if (split && split.t0 == null && p[1] >= 0 && p[1] < 2) split.t0 = t;
+      if (split && split.t0 != null && split.done == null && p[1] >= 100) { split.done = t - split.t0; say(t, '100 m in ' + split.done.toFixed(2) + ' s (' + (100 / split.done).toFixed(1) + ' m/s)'); }
+      // the jumps and the fences: a jump taken, a fence cleared (past it, its height) or refused (stopped at it)
+      const jumping = M.jumpT != null; if (jumping && !wasJump) say(t, 'jump at ' + v.toFixed(1) + ' m/s'); wasJump = jumping;
+      for (const [fy, fh] of CARD.fences) { const k = String(fy);
+        if (Math.abs(p[0]) < 5 && p[1] > fy + 0.5 && !fenceHit[k]) { fenceHit[k] = 'cleared'; say(t, 'cleared the ' + fh + ' m fence'); }
+        if (Math.abs(p[0]) < 5 && p[1] < fy && p[1] > fy - 2 && v < 0.4 && M.riderId && !fenceHit[k + 'r']) { fenceHit[k + 'r'] = 1; say(t, 'stopped at the ' + fh + ' m fence' + (CARD.jump && fh > CARD.jump.clear ? ' (above the jump\\'s ' + CARD.jump.clear + ' m)' : ''), true); }
+        if (p[1] < fy - 5) { fenceHit[k] = null; fenceHit[k + 'r'] = null; } }
+      if (p[1] < -1) split = null;
+      $('mt-c').innerHTML = 'gaits (m/s): ' + gaitRow() + (CARD.back ? '<br>rein back <b>' + CARD.back + '</b> m/s' : '') + (CARD.jump ? '<br>jump: clears <b>' + CARD.jump.clear + ' m</b> · carried at <b>' + CARD.jump.v + '</b> m/s' : '')
+        + '<br><span class="k">fences ' + CARD.fences.map(([y, h]) => h + ' m at ' + y).join(' · ') + '</span>';
+      $('mt-l').innerHTML = (M.riderId ? '<b>riding</b>' : '<b>' + phase + '</b>') + ' · speed <b>' + v.toFixed(1) + '</b> m/s · top <b>' + top.toFixed(1) + '</b>'
+        + '<br>along the lane <b>' + p[1].toFixed(1) + ' m</b>' + (M.jumpT != null ? ' · <b>in the air</b>' : '') + (split && split.done != null ? ' · 100 m <b>' + split.done.toFixed(2) + ' s</b>' : '');
+      $('mt-log').innerHTML = log.slice().reverse().map((x) => '<div class="' + (x.bad ? 'bad' : '') + '">' + x.t.toFixed(1) + 's ' + x.text + '</div>').join('');
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>`;
+  html = html.includes('</body>') ? html.replace('</body>', `${HUD}</body>`) : html + HUD;
+  return { html, room, card: CARD };
+}
+
+/** The page of one of the door's rooms. */
+export async function practiceHtml(G, id, opts = {}) {
+  const { practiceFor, PRACTICE_ROOMS } = await import('./practice.js');
+  if (!PRACTICE_ROOMS[id]) throw new Error(`practice: room is ${Object.keys(PRACTICE_ROOMS).join(', ')}`);
+  const { rooms, why } = practiceFor(G);
+  if (!rooms.includes(id)) throw new Error(`practice: this world has no ${PRACTICE_ROOMS[id].name.replace(/^The /, '').toLowerCase()}${rooms.length ? ` (it has ${rooms.join(', ')})` : `: ${why}`}`);
+  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : mountLaneHtml(G, opts);
 }

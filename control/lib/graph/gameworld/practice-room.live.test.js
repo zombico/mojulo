@@ -1,10 +1,12 @@
 // The practice room's page played in a real browser (an e2e suite: skipped when no browser is installed). A template's
 // room, built from the recipe before any level (practice-room-page.js): it comes up with no error, its HUD reads the live
-// world, and three clicks play the kit's three-beat string, each press taken, every blow landing on the foe.
+// world, and three clicks play the kit's three-beat string, each press taken, every blow landing on the foe. The door's
+// other rooms the same way: the platform room's hero jumps, the mount lane's hero gets on its horse and rides it.
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { practiceRoomHtml } from './practice-room-page.js';
+import { practiceRoomHtml, practiceHtml } from './practice-room-page.js';
+import { POLES } from './feel/cards.js';
 import { TEMPLATE_ARSENALS } from './combos.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
 
@@ -43,4 +45,54 @@ describe('the practice room in a browser', () => {
     expect(errors).toEqual([]);
     await p.close();
   }, 300000);
+
+  const boot = async (html) => {
+    const p = await browser.newPage();
+    await p.setViewport({ width: 1280, height: 720 });
+    const errors = [];
+    p.on('pageerror', (e) => errors.push(e.message));
+    await p.setContent(html, { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world, { timeout: 120000 });
+    return { p, errors, wait: (ms) => new Promise((r) => setTimeout(r, ms)) };
+  };
+  const PLATFORMER = Object.keys(POLES).find((id) => POLES[id].base === 'platformer' && !POLES[id].demo.includes('attack'));
+
+  it('the platform room: up with no error, its hero leaving the ground on a jump, its foes standing', async () => {
+    const page2 = await practiceHtml({ id: 'room-live-p', feel: PLATFORMER }, 'platform', { sound: 'none' });
+    if (!browser) return;
+    const { p, errors, wait } = await boot(page2.html);
+    await wait(800);
+    await p.mouse.click(640, 360); await wait(300);
+    const z = () => p.evaluate(() => window.__mojCtrl.world.entities.find((e) => e.pilotable).transform.pos[2]);
+    const z0 = await z();
+    let top = z0;
+    await p.keyboard.down('Space');
+    for (let i = 0; i < 12; i++) { await wait(60); top = Math.max(top, await z()); }
+    await p.keyboard.up('Space');
+    expect(top - z0).toBeGreaterThan(0.5);
+    expect(await p.evaluate(() => window.__mojCtrl.world.entities.filter((e) => e.team === 'foes').length)).toBe(4);
+    expect(errors).toEqual([]);
+    await p.close();
+  }, 300000);
+
+  it('the mount lane: up with no error, E puts the hero on its horse, W rides it on', async () => {
+    const page3 = await practiceHtml({ id: 'room-live-m', mounts: [{ coat: 'chestnut' }] }, 'mount', { sound: 'none' });
+    if (!browser) return;
+    const { p, errors, wait } = await boot(page3.html);
+    await wait(800);
+    await p.mouse.click(640, 360); await wait(300);
+    // (held a few frames, so a page drawing slowly in software reads it; getting on takes the hero a moment)
+    await p.keyboard.down('KeyE'); await wait(250); await p.keyboard.up('KeyE');
+    await p.waitForFunction(() => !!window.__mojCtrl.world.entities.find((e) => e.pilotable).mountedOn, { timeout: 20000 });
+    // (urged on, the horse covers ground down the lane: read while W is still held, as letting go reins it back)
+    const y = () => p.evaluate(() => window.__mojCtrl.world.entities.find((e) => e.rule && e.rule.type === 'ride').transform.pos[1]);
+    const y0 = await y();
+    // (getting on plays out first, then the horse comes up through its gaits: waited for on the page's clock)
+    await p.keyboard.down('KeyW');
+    await p.waitForFunction((y0) => window.__mojCtrl.world.entities.find((e) => e.rule && e.rule.type === 'ride').transform.pos[1] > y0 + 1, { timeout: 60000 }, y0);
+    expect((await y()) - y0).toBeGreaterThan(1);
+    await p.keyboard.up('KeyW');
+    expect(errors).toEqual([]);
+    await p.close();
+  }, 600000);
 });
