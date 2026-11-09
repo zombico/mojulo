@@ -22,3 +22,13 @@
 - **A shell's drag and its gun's dispersion on the runtime.** A travelling round takes `projectileDrag` (quadratic: it
   sheds speed as e^(−k·x)), and a weapon's seeded cone scatters its shells as it does its bullets. Absent, a round
   flies as it did.
+- **The matter answering** (`gameworld/combat/terminal.js`): what each round does to what it strikes, seen as it is (a
+  hole, a breach, a spall, a dent, a crater, a scorch), computed from the round's numbers and the matter's, drawn
+  plausibly and never broken physically. A long rod by a simplified Lanz–Odermatt law (calibrated to about 650 mm of
+  rolled armour at the muzzle and 600 at 2 km; a plate at an angle its thickness over the cosine); a shaped charge's jet
+  the same at any range, scaled by density; a blast holing only thin steel, breaching a wall when its filler is the
+  engineers' breaching charge for it (by its thickness cubed and its material, untamped) and spalling it otherwise,
+  cratering earth by its dig energy. The range's stands: armour plates at 100 to 700 mm and one sloped at 60°, mild
+  steel, reinforced and plain concrete, brick, granite, timber, sandbags, earth. Held to laws: a thicker plate stops what
+  a thinner one stopped, the rod slows and cuts less, a jet does not, a shell holes no thick armour and breaches no
+  metre of reinforced concrete, more filler digs a wider crater.

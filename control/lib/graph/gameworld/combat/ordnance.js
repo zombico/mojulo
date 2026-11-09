@@ -14,17 +14,19 @@
  *
  * Each round's numbers: `caliber` (mm), `mass` (kg, the flying body), `v0` (m/s at the muzzle), `drag` (the quadratic
  * constant, 1/m: ½ρ·Cd·A / m, so a round sheds speed as v·e^(−k·x) on a flat path), `dispersion` (mils, the gun's and
- * the round's), `fuse` (s, the longest flight), `filler` (kg of explosive, TNT-equivalent; phase 3 reads it with the
- * penetration words).
+ * the round's), `fuse` (s, the longest flight), `filler` (kg of explosive, TNT-equivalent), and what bites: a kinetic
+ * round's `rod` (its length, diameter and density, m and kg/m³), a shaped charge's `jet` (the armour it cuts, m of RHA).
  */
 import { composeLive } from '../../worlds/controllable/compose.js';
 import { mountOf } from './mount.js';
 
 export const ORDNANCE = Object.freeze({
   // a fin-stabilized long rod: very fast, very thin, hardly slowed (about 55 m/s a kilometre)
-  apfsds: Object.freeze({ label: 'armour-piercing fin-stabilized discarding sabot', kind: 'kinetic', caliber: 120, mass: 4.6, v0: 1650, drag: 3.4e-5, dispersion: 0.2, fuse: 10, filler: 0 }),
+  apfsds: Object.freeze({ label: 'armour-piercing fin-stabilized discarding sabot', kind: 'kinetic', caliber: 120, mass: 4.6, v0: 1650, drag: 3.4e-5, dispersion: 0.2, fuse: 10, filler: 0,
+    rod: Object.freeze({ length: 0.57, diameter: 0.025, density: 17600 }) }),
   // a shaped charge: its jet does the work, so it need not be fast; fatter, so slowed more
-  heat: Object.freeze({ label: 'high-explosive anti-tank (a shaped charge)', kind: 'shaped', caliber: 120, mass: 11.4, v0: 1140, drag: 1.1e-4, dispersion: 0.3, fuse: 10, filler: 1.6 }),
+  heat: Object.freeze({ label: 'high-explosive anti-tank (a shaped charge)', kind: 'shaped', caliber: 120, mass: 11.4, v0: 1140, drag: 1.1e-4, dispersion: 0.3, fuse: 10, filler: 1.6,
+    jet: Object.freeze({ rha: 0.5 }) }),
   // a blast shell: the fattest and the slowest of the direct rounds
   he: Object.freeze({ label: 'high explosive', kind: 'blast', caliber: 120, mass: 15, v0: 900, drag: 1.0e-4, dispersion: 0.4, fuse: 10, filler: 2.2 }),
   // a low charge fired high (a mortar's bomb, a howitzer's least charge): slow, subsonic, a long flight onto a far hill
@@ -119,7 +121,8 @@ export function measureOrdnance(word, { mount = 'battle-tank', bands = null } = 
       const reach = (e) => { const L = landing(shoot(word, e, mount).paths[0]); return d - L.x; };
       const e = solve(reach, 45, 85);
       const L = landing(shoot(word, e, mount).paths[0]);
-      out.bands[d] = { elev: r3(e), mils: r2(e / MIL), tof: r2(L.t), landed: Math.round(L.x), apex: Math.round(L.apex) };
+      const P = shoot(word, e, mount).paths[0], q = P[P.length - 1], vh = Math.hypot(q.vel[0], q.vel[1]);
+      out.bands[d] = { elev: r3(e), mils: r2(e / MIL), tof: r2(L.t), landed: Math.round(L.x), apex: Math.round(L.apex), v: Math.round(Math.hypot(vh, q.vel[2])), fall: r2(Math.atan2(-q.vel[2], vh) * 180 / Math.PI) };
     }
   }
   // the spread: a dozen rounds at the middle band, their impacts' scatter (m, and as mils of the range)
