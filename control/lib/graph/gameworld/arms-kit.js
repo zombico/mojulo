@@ -140,7 +140,17 @@ export const armsLoadout = (arms, base, where = {}) => arms.map((w) => kitSlot(w
 // to draw in the hand.
 export const KNIFE = Object.freeze({ reach: 1.3, cone: 50, dur: 0.5, window: Object.freeze([0.3, 0.55]), cooldown: 0.35, impact: 1 });
 let knifeView = null;
-const knifeLook = () => knifeView || (knifeView = { boxes: armBoxes({ item: 'knife', model: 'combat' }).map(([lo, hi, c, part]) => [lo.map((v) => r2(v)), hi.map((v) => r2(v)), c, part]), hold: { at: [0, 0, 6], c: [0, 0, 1], a: [0, 1, 0] } });
+/** A blade's look from its build words ({ item: 'knife', model?, parts? }; the combat knife by default): its parts' boxes
+ * and its hold, round the middle of its handle. */
+export function bladeLook(build = null) {
+  if (!build && knifeView) return knifeView;
+  const boxes = armBoxes(build ?? { item: 'knife', model: 'combat' }).map(([lo, hi, c, part]) => [lo.map((v) => r2(v)), hi.map((v) => r2(v)), c, part]);
+  const handle = boxes.find((b) => b[3] === 'handle'), mid = handle ? r2((handle[0][2] + handle[1][2]) / 2) : 6;
+  const look = { boxes, hold: { at: [0, 0, mid], c: [0, 0, 1], a: [0, 1, 0] } };
+  if (!build) knifeView = look;
+  return look;
+}
+const knifeLook = () => bladeLook();
 /** The quick knife against bodies of `hp` (a fresh object: a rule is the world's to change). */
 export const knifeOf = (hp) => ({ ...KNIFE, window: [...KNIFE.window], damage: Math.ceil(hp / 2), view: knifeLook() });
 

@@ -204,7 +204,12 @@ export function gymReadout(m, gate) {
   const M = m.mobility, A = m.asked, lines = [];
   lines.push(`rule ${m.rule} · run ${M.top} m/s in ${M.toTop} s · stop ${M.stop.s} s, ${M.stop.m ?? '–'} m · strafe reversed in ${M.strafe?.reverse ?? '–'} s`);
   if (A) lines.push(`the card (${A.template}): walk ${A.ground.walk} · run ${A.ground.run} · sprint ${A.ground.sprint} · jump ${A.jump} m`);
-  for (const [k, s] of Object.entries(m.slots)) if (!s.skipped) lines.push(`${k}: cone ${s.cone.first}° · ${s.cone.moving}° moving · ${s.cone.aimed}° aimed · reload ${s.reload.asked} s`);
+  for (const [k, s] of Object.entries(m.slots)) {
+    if (s.skipped) continue;
+    if (s.fire === 'projectile') lines.push(`${k}: a round at ${s.speed} m/s (${Object.keys(s.ttk).map((d) => `${s.ttk[d].flight} s to ${d} m`).join(', ')}) · burst ${s.splash} m · reload ${s.reload.asked} s`);
+    else lines.push(`${k}: cone ${s.cone.first}° · ${s.cone.moving}° moving · ${s.cone.aimed}° aimed · reload ${s.reload.asked} s`);
+  }
+  if (m.melee) lines.push(`${m.melee.name}: reach ${m.melee.reach} m · drops a body in ${m.melee.cuts} cuts, ${m.melee.s} s · ${m.melee.past ? 'nothing past its reach is cut' : 'it cuts past its reach'}`);
   if (m.switching) lines.push(`switch: ${Object.entries(m.switching).map(([k, v]) => `${k} ${v.s} s`).join(' · ')}`);
   lines.push(`the gym's gate: ${gate.filter((g) => g.ok).length} of ${gate.filter((g) => g.ok !== null).length} stations as meant`);
   const fails = m.laws.filter((l) => !l.ok).map((l) => l.name);
@@ -217,7 +222,8 @@ export function gymPageHtml(minted, m, gym, gate, { cam = null, extraRule = {}, 
   const { pilot, foe, payload } = minted;
   const P = { ...JSON.parse(JSON.stringify(pilot)), rule: { ...pilot.rule, ...extraRule }, transform: { pos: [gym.spawn[0], gym.spawn[1], gym.spawn[2] + (pilot.rule.eye ?? 0)], heading: gym.heading ?? 0, pitch: 0 } };
   const foeFig = foe?.body?.figure;
-  const dummies = gym.dummies.map((d) => ({ id: d.id, rule: { type: 'static' }, body: { ...(foe?.body ?? { type: 'none' }), hittable: true }, transform: { pos: d.at, heading: d.heading ?? Math.PI } }));
+  // (a foe that stands centred on its own height, the firing range's box, `lift`ed onto the floor)
+  const dummies = gym.dummies.map((d) => ({ id: d.id, rule: { type: 'static' }, body: { ...(foe?.body ?? { type: 'none' }), hittable: true }, transform: { pos: [d.at[0], d.at[1], d.at[2] + (foe?.lift ?? 0)], heading: d.heading ?? Math.PI } }));
   const figures = Object.fromEntries(Object.entries(payload.figures ?? {}).filter(([k]) => k === pilot.body?.figure || k === foeFig));
   const legend = (payload.events?.hud ?? []).filter((h) => h.text);
   const signs = [...gym.signs, { id: 'readout', variant: 'popup', anchor: { kind: 'slot', slot: 'top-right' }, text: `the ${kind} · ${m.game}${tag ? ` · ${tag}` : ''}`, body: lines ?? gymReadout(m, gate), pageLines: 8, chrome: { ...CHROME, fontSize: 11, padding: '6px 8px' } }];

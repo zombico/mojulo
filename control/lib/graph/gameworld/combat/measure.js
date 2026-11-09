@@ -211,7 +211,7 @@ function switching(pilot) {
   if (lo.length < 2) return null;
   const pairs = {};
   for (let i = 0; i < lo.length; i++) for (let j = 0; j < lo.length; j++) {
-    if (i === j || lo[i].weapon?.fireClass === 'lob' || lo[j].weapon?.fireClass === 'lob') continue;
+    if (i === j || !lo[i].weapon || !lo[j].weapon) continue;
     const { w, e } = soloWorld(pilot, { colliders: [{ min: [40, -50, -10], max: [41, 50, 50] }] });
     // in hand: slot i, settled (any switch it took is over)
     for (let f = 0; f < 3 * FPS; f++) E.stepWorld(w, f === 0 ? { slot: i + 1 } : {}, DT, flat);
@@ -237,6 +237,26 @@ function reloading(pilot, slot) {
   return out;
 }
 
+// ── the free hand's blade ────────────────────────────────────────────────────────────────────────────────────────────
+// a quick knife (rule.knife, gunplay.js): the cuts and seconds to drop the foe stood at three quarters of its reach (V
+// pressed as soon as it may be), and whether a body half a metre past its reach is ever touched
+function cutting(pilot, foe) {
+  const K = pilot.rule.knife;
+  if (!K) return null;
+  const at = (d) => {
+    const egg = foe?.body?.egg ?? { ...EGG, cz: EGG.c }, hp = foe?.body?.hp ?? 100;
+    // (the foe on the ground the body stands on: under an eye it walks at, or at its feet)
+    const under = pilot.body?.egg?.cz < 0 ? -(pilot.rule.collideHeight ?? 1.7) : 0;
+    const dummy = { id: 'dummy', body: { type: foe?.body?.type ?? 'figure-rig', hittable: true, hp, radius: 0.5, egg: { ...egg } }, transform: { pos: [d, 0, footZ(pilot.rule) + under + (foe?.lift ?? 0)], heading: Math.PI } };
+    const { w, e } = soloWorld(pilot, { entities: [dummy] }), T = w.byId.dummy;
+    let f = 0;
+    for (; f < 10 * FPS && T.body.hp > 0; f++) E.stepWorld(w, { melee: f % 2 === 0 }, DT, flat);
+    return { cuts: e.knifeCount ?? 0, s: T.body.hp > 0 ? null : r2(f * DT), hp: T.body.hp, of: hp };
+  };
+  const near = at(K.reach * 0.75), far = at(K.reach + 0.5);
+  return { name: K.name ?? 'knife', reach: K.reach, damage: K.damage, dur: K.dur, cuts: near.s == null ? `>${near.cuts}` : near.cuts, s: near.s ?? '>10', past: far.hp === far.of };
+}
+
 // ── a game, measured ─────────────────────────────────────────────────────────────────────────────────────────────────
 /**
  * A game's player and foe as its level ships them (the payload's pilot entity, a hittable foe with its hp), measured.
@@ -248,14 +268,22 @@ export function measureCombat(pilot, foe, { feel = null, camera = null, name = n
   const R = pilot.rule, slots = R.loadout?.length ? R.loadout : [{ name: 'gun', weapon: pilot.weapon }];
   const out = { game: name, says, rule: R.type ?? 'platform', camera, asked: askedOf(feel), foe: foe ? { hp: foe.body.hp } : null, mobility: mobility(pilot), slots: {} };
   for (const s of slots) {
-    if (!s.weapon || s.weapon.fireClass === 'lob') { out.slots[s.name] = { skipped: s.weapon ? 'a travelling round (lob): its own measure, later' : 'no weapon' }; continue; }
-    const ttk = {};
+    if (!s.weapon) { out.slots[s.name] = { skipped: 'no weapon' }; continue; }
+    // a travelling round (lob: a rocket, a grenade, an arrow) is timed as a round that lands at once is, with its flight
+    // and its burst beside; it has no cone the runtime reports and marks a wall by its burst, not its round
+    const lob = s.weapon.fireClass === 'lob', ttk = {};
     // (an automatic also aimed in bursts: `burst`, the way it is fired at range)
-    for (const d of BANDS) ttk[d] = { still: duel(pilot, s, foe, d), moving: duel(pilot, s, foe, d, { moving: true }), aimed: duel(pilot, s, foe, d, { aim: true }), head: duel(pilot, s, foe, d, { at: 'head', aim: true }), ...(s.weapon.auto ? { burst: duel(pilot, s, foe, d, { aim: true, burst: true }) } : {}) };
-    const walls = Object.fromEntries(MATTERS.map((m) => [m, marks(pilot, s, m)]));
-    out.slots[s.name] = { dmg: s.weapon.damage, rof: s.weapon.rof ?? null, cooldown: s.weapon.cooldown ?? null, headshot: s.weapon.headshot ?? null, cone: cones(pilot, s), reload: reloading(pilot, s), ttk, walls };
+    for (const d of BANDS) {
+      ttk[d] = lob ? { still: duel(pilot, s, foe, d), moving: duel(pilot, s, foe, d, { moving: true }), aimed: duel(pilot, s, foe, d, { aim: true }), flight: r2(d / (s.weapon.projectileSpeed || 1)) }
+        : { still: duel(pilot, s, foe, d), moving: duel(pilot, s, foe, d, { moving: true }), aimed: duel(pilot, s, foe, d, { aim: true }), head: duel(pilot, s, foe, d, { at: 'head', aim: true }), ...(s.weapon.auto ? { burst: duel(pilot, s, foe, d, { aim: true, burst: true }) } : {}) };
+    }
+    out.slots[s.name] = { fire: lob ? 'projectile' : 'hitscan', dmg: s.weapon.damage, rof: s.weapon.rof ?? null, cooldown: s.weapon.cooldown ?? null, headshot: s.weapon.headshot ?? null,
+      ...(lob ? { speed: s.weapon.projectileSpeed ?? null, splash: s.weapon.splashRadius ?? 0 } : { cone: cones(pilot, s) }), reload: reloading(pilot, s), ttk,
+      ...(lob ? {} : { walls: Object.fromEntries(MATTERS.map((m) => [m, marks(pilot, s, m)])) }) };
   }
   out.switching = switching(pilot);
+  const cut = cutting(pilot, foe);
+  if (cut) out.melee = cut;
   return out;
 }
 
@@ -285,6 +313,11 @@ export function combatLaws(m) {
   law('a stop is finite (from the run to rest inside 2 s)', typeof M.stop.s === 'number');
   for (const [k, s] of Object.entries(m.slots)) {
     if (s.skipped) continue;
+    if (s.fire === 'projectile') {
+      // (a travelling round: it reaches every band and drops the body there, standing)
+      law(`${k}: its round drops a body standing at every band`, BANDS.every((d) => typeof s.ttk[d].still.rounds === 'number'), Object.fromEntries(BANDS.map((d) => [d, s.ttk[d].still.rounds])));
+      continue;
+    }
     law(`${k}: the cone widens on the move`, s.cone.moving > s.cone.first, s.cone);
     law(`${k}: the cone tightens aimed`, s.cone.aimed < s.cone.first, s.cone);
     if (s.rof) law(`${k}: a held spray blooms (the 10th round's cone wider than the first's)`, s.cone.spray10 > s.cone.first, s.cone);
@@ -294,7 +327,14 @@ export function combatLaws(m) {
     // (a body dropped by one round leaves the head nothing to beat: it is enough that the head is no slower)
     if (s.headshot) law(`${k}: at 15 m, aimed, the head drops faster than the body`, typeof t.head.rounds === 'number' && typeof t.aimed.rounds === 'number' && (t.aimed.rounds > 1 ? t.head.rounds < t.aimed.rounds : t.head.rounds <= 1), { body: t.aimed.rounds, head: t.head.rounds });
   }
-  const guns = Object.entries(m.slots).filter(([, s]) => !s.skipped);
+  const guns = Object.entries(m.slots).filter(([, s]) => !s.skipped && s.walls);
+  for (const [k, s] of Object.entries(m.slots).filter(([, s]) => !s.skipped && !s.walls)) {
+    if (s.reload.asked != null) law(`${k}: an empty magazine reloads in the gun's time`, s.reload.empty != null && Math.abs(s.reload.empty - s.reload.asked) <= 0.1 + (s.cooldown ?? 1 / (s.rof || 10)), { asked: s.reload.asked, runtime: s.reload.empty });
+  }
+  if (m.melee) {
+    law(`${m.melee.name}: it drops a body within its reach`, typeof m.melee.cuts === 'number', { cuts: m.melee.cuts, s: m.melee.s });
+    law(`${m.melee.name}: nothing past its reach is cut`, m.melee.past, { reach: m.melee.reach });
+  }
   for (const [k, s] of guns) {
     const W = s.walls;
     law(`${k}: every round that met a wall left its mark there`, MATTERS.every((mt) => W[mt].met > 0 && W[mt].placed === W[mt].met), Object.fromEntries(MATTERS.map((mt) => [mt, `${W[mt].placed}/${W[mt].met}`])));

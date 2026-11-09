@@ -72,3 +72,11 @@
   or a use is a reach and a grab. A kit's body carries a quick knife in its free hand (`rule.knife`, the arms kernel's
   combat knife): V from the eye draws it and cuts, a slash then a thrust by turns, the gun carried aside, and the cut is
   a melee strike the runtime adjudicates (two drop a body; its legend says "V  knife").
+- **The firing range, for a game being designed.** `gameworld/combat/range.js` takes the weapons a game needs, each a
+  kit word, a fire type and its numbers (`hitscan`, `projectile`, `melee`; what is not given, a typical gun's) or a
+  runtime weapon row, and optionally a skin for each (a kit word or an arm's build words: the look, never the numbers;
+  absent, a graybox of its fire type). A person carries them into the gym from the eye, and the range measures each on
+  the runtime the game will ship: rounds and seconds to drop a body at 5, 15 and 30 m, a rocket's flight, a blade's cuts
+  and its reach, cones, climb, marks, reloads and every switch, with the laws beside (an automatic given no climb
+  fails "a held spray climbs"). Travelling rounds and melee are measured now, in the combat book too.
+  `scripts/spikes/combat-tester/range.mjs --spec '<json>'` prints it and writes the page.

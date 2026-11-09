@@ -344,3 +344,24 @@ hero-less first person, the boost a person cannot have, the walk. Still open:
 Travelling rounds (lob, the bow: their own measure), the floor's pocks and a burst's crater, the stances (none exist),
 the camera's aim (the shoulder's look and the peek: the gym plays them, nothing measures them), animation (the clips
 at these speeds), a team or control arena (the grammar lays them; the grown laws have not been run on one).
+
+## The firing range, for a game being designed
+
+The gym and the book measure a game already made. The range comes before: its inputs are the weapons the game needs
+and their fire types, optionally their skins (lib: `gameworld/combat/range.js`; `range.mjs` here prints it and writes
+the page).
+
+    node scripts/spikes/combat-tester/range.mjs [--spec '<json>'] [--out page.html] [--json out.json]
+
+    { weapons: [ 'rifle'                                                   a kit word: its numbers and look the kit's
+               | { name, fire: 'hitscan' | 'projectile' | 'melee', ... }    a fire type and the numbers it asks
+               | { name, weapon } ],                                       a runtime weapon row as it is
+      skins?: { <name>: <kit word> | { item, model?, parts? } },           the look only; absent, a graybox
+      foe?: { hp } }
+
+A person (the made first-person shooter's walk, its eye at 1.7 m) carries them; a body's box stands at 5, 15 and 30 m.
+Hitscan is measured as the kit's guns are; a projectile adds its flight to each band and its burst; a melee weapon is
+the body's quick knife (V), its cuts to drop a body at three quarters of its reach and whether one half a metre past it
+is touched. The example spec (a kit rifle, an automatic of its own skinned as an SMG, a rocket launcher with no skin, a
+blade skinned as a tanto) found an automatic given no climb fails "a held spray climbs"; given a fire type's defaults it
+holds every law. A rocket is drawn at a person's launcher's scale (`fxScale` 0.5; the page's default is a mech's).

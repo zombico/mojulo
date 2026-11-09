@@ -5,6 +5,7 @@ import { combatBookHtml, combatSample, combatGame } from './book.js';
 import { feelRule } from '../feel/lower.js';
 import { armsLoadout } from '../arms-kit.js';
 import { SHOOT, PERSON } from '../quick.js';
+import { rangeOf, rangeBody, validateRange, FIRE } from './range.js';
 
 // the combat tester's measures, gym and book, promoted: a game's player and foe as a level ships them, measured on the
 // runtime and set in the gym laid from the numbers. The smallest game that exercises them: a person on the platform rule
@@ -76,3 +77,38 @@ describe('the combat book', () => {
     expect(() => combatBookHtml(payload, {}, { view: 'top' })).toThrow(/view is one of/);
   });
 });
+
+// THE FIRING RANGE (range.js): a game being designed, its weapons tried before its levels: by fire type and numbers, a
+// skin for the look alone. The smallest set that exercises each fire type: a hitscan automatic, a rocket, a blade.
+describe('the firing range', () => {
+  const spec = { weapons: [{ name: 'carbine', fire: 'hitscan', rof: 10, damage: 20, recoil: { kick: 0.4, recover: 4, max: 4, wait: 0.15 } }, { name: 'rocket', fire: 'projectile', speed: 30, damage: 60 }, { name: 'blade', fire: 'melee' }], foe: { hp: 100 } };
+  it('names what it cannot set up', () => {
+    expect(validateRange(spec)).toEqual([]);
+    expect(validateRange({ weapons: [] })[0]).toMatch(/1 to 5/);
+    expect(validateRange({ weapons: [{ name: 'x', fire: 'laser' }] })[0]).toMatch(/hitscan, projectile, melee/);
+    expect(validateRange({ weapons: ['rifle'], skins: { gun: 'smg' } })[0]).toMatch(/no weapon of that name/);
+    expect(validateRange({ weapons: [{ name: 'a', fire: 'melee' }, { name: 'b', fire: 'melee' }] }).join()).toMatch(/one melee weapon/);
+    expect(validateRange({ weapons: [{ name: 'b', fire: 'melee' }], skins: { b: 'smg' } }).join()).toMatch(/a knife's build words/);
+  });
+  it('the fire types onto the runtime: a hitscan round, a travelling one, a blade in the free hand; a skin changes the look, never the numbers', () => {
+    const { pilot } = rangeBody(spec), [c, r] = pilot.rule.loadout;
+    expect(c.weapon).toMatchObject({ fireClass: 'sight', auto: true, rof: 10, damage: 20 });
+    expect(r.weapon).toMatchObject({ fireClass: 'lob', projectileSpeed: 30, damage: 60, splashRadius: FIRE.projectile.splashRadius });
+    expect(pilot.rule.knife).toMatchObject({ reach: FIRE.melee.reach, damage: FIRE.melee.damage, name: 'blade' });
+    const skinned = rangeBody({ ...spec, skins: { carbine: 'smg', blade: { item: 'knife', model: 'tanto' } } }).pilot;
+    expect(skinned.rule.loadout[0].weapon).toEqual(c.weapon);
+    expect(skinned.rule.loadout[0].gunplay.view.boxes).not.toEqual(c.gunplay.view.boxes);
+    expect(skinned.rule.knife.damage).toBe(pilot.rule.knife.damage);
+    expect(skinned.rule.knife.view.boxes).not.toEqual(pilot.rule.knife.view.boxes);
+  });
+  it('measured on the runtime: each fire type drops the body at its bands, the rocket by its flight, the blade within its reach and not past it', () => {
+    const { m } = rangeOf(spec);
+    expect(m.slots.carbine.fire).toBe('hitscan');
+    expect(m.slots.rocket.fire).toBe('projectile');
+    expect(m.slots.rocket.ttk[30].flight).toBe(1);
+    for (const d of BANDS) expect(typeof m.slots.rocket.ttk[d].still.rounds).toBe('number');
+    expect(m.melee).toMatchObject({ name: 'blade', cuts: 2, past: true });
+    expect(m.laws.filter((l) => !l.ok).map((l) => l.name)).toEqual([]);
+  });
+});
+
