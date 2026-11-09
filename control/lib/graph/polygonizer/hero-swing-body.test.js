@@ -263,3 +263,82 @@ describe('an air move', () => {
     expect(p.feet).toBeUndefined();
   });
 });
+
+// THE SWORD ARTS (SWING_STYLES inspired and freestyle, artTiming; docs/sword-arts.md): the swing past the realistic law,
+// each register's own laws. Every art, every key: both planted legs reach their feet and the blade passes clear of the
+// head and above the floor. Inspired keeps a chamber's discipline (jodan's: an elbow at most a forearm over the shoulder line);
+// freestyle raises the arm overhead. Both carry the arm further than the realistic swing, and hold the finish.
+// One case a procedure: a forehand (the chop), a backhand (the rising cut), a two-handed heavy (the cleave).
+import { artTiming, SWORD_ARTS } from './hero-swing-body.js';
+import { MOVE_SWINGS } from './hero-swing.js';
+import { gearMounts, gearRestPoint } from './hero-gear.js';
+import { boneFrames } from './station-loft-rig.js';
+describe('the sword arts', () => {
+  const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const segDist = (p, a, b) => { const ab = sub3(b, a), t = Math.max(0, Math.min(1, dot3(sub3(p, a), ab) / dot3(ab, ab))); return Math.hypot(...sub3(p, [a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t])); };
+  const heroOf = (item) => heroRecord({ cast: 'male', gesture: 'chop', gear: { right: { item } } });
+  const held = (R, g, pose) => {
+    const { nodes } = rigNodesAt(R, pose), F = boneFrames(R, R.joints, nodes)[g.boneIndex];
+    const P = (q) => { const d = sub3(gearRestPoint(g, q), F.restHead); return F.m.map((r, j) => F.head[j] + dot3(r, d)); };
+    return { nodes, grip: P(g.sockets.grip.origin), end: P(g.sockets.tip?.origin || g.sockets.focal?.origin), head: [0, 1, 2].map((k) => (nodes.headBase[k] + nodes.headTop[k]) / 2) };
+  };
+  const cases = [['chop', 'sword', 'normal'], ['rising', 'sword', 'normal'], ['cleave', 'greatsword', 'heavy']];
+  it('names its registers', () => expect(SWORD_ARTS).toEqual(['realistic', 'inspired', 'freestyle']));
+  for (const art of ['inspired', 'freestyle']) for (const [word, item, cls] of cases) {
+    it(`${art} ${word}: every key's legs reach, the blade clear of the head and the floor`, () => {
+      const hero = heroOf(item), R = validateRig(expandLayeredManifest({ kind: 'layered', hero }).recipe.rig), [g] = gearMounts(hero, R);
+      const keys = swingBody(word, cls, swingClipKeys(word, cls, { base: STRUCTURED_SWING_BASE }), R, rigNodesAt, art);
+      let up = -Infinity;
+      for (const k of keys) {
+        const { report } = rigNodesAt(R, k);
+        expect(Object.values(report.legs).every((l) => !l.metaError || l.metaError < 1e-3)).toBe(true);
+        const h = held(R, g, k);
+        expect(segDist(h.head, h.grip, h.end)).toBeGreaterThan(0.1);
+        expect(Math.min(h.grip[2], h.end[2])).toBeGreaterThan(0);
+        up = Math.max(up, h.nodes.elbowR[2] - h.nodes.shoulderR[2]);
+      }
+      if (art === 'inspired') expect(up).toBeLessThan(0.25);
+    });
+  }
+  // (and between the keys: an art's clip, eased through its held anticipation and its fast cut, keeps the blade off the
+  // head and out of the floor at every sample; one forehand, the two-handed cleave, the low upswing)
+  for (const art of ['inspired', 'freestyle']) it(`${art}: the blade clear of the head and above the floor all through its clips`, () => {
+    const hero = heroOf('sword'), R = validateRig(expandLayeredManifest({ kind: 'layered', hero }).recipe.rig), [g] = gearMounts(hero, R);
+    const M = lowerCombos(BASIC_COMBOS), ctx = { R, cls: 'normal', base: STRUCTURED_SWING_BASE, grip: [], own: 'chop', body: true, style: art, timing: artTiming('normal', art), contact: CONTACT, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS: MOVE_SWINGS };
+    for (const id of ['cut-1', 'cleave', 'launcher']) {
+      const fn = moveClip({ ...M.moves[id], travel: null }, ctx);
+      for (let i = 0; i <= 48; i++) {
+        const h = held(R, g, fn(i / 48));
+        expect(segDist(h.head, h.grip, h.end), `${id} ${i}`).toBeGreaterThan(0.15);
+        expect(Math.min(h.grip[2], h.end[2]), `${id} ${i}`).toBeGreaterThan(0);
+      }
+    }
+  });
+  it('freestyle raises the sword arm overhead at the chop\'s cock; the realistic swing keeps it under the head', () => {
+    const R = rig('male', 'sword'), cockOf = (st) => at(swingBody('chop', 'normal', swingClipKeys('chop', 'normal', { base: STRUCTURED_SWING_BASE }), R, rigNodesAt, st), 'normal', 'cock');
+    expect(cockOf('freestyle').shR.pitch).toBeGreaterThan(140);
+    expect(cockOf(null).shR.pitch).toBeLessThanOrEqual(110);
+  });
+  it('an art straightens the arm at the blow and turns the hips further through it than the action style', () => {
+    const R = rig('male', 'sword'), strikeOf = (st) => at(swingBody('chop', 'normal', swingClipKeys('chop', 'normal', { base: STRUCTURED_SWING_BASE }), R, rigNodesAt, st), 'normal', 'strike');
+    const followOf = (st) => at(swingBody('chop', 'normal', swingClipKeys('chop', 'normal', { base: STRUCTURED_SWING_BASE }), R, rigNodesAt, st), 'normal', 'follow');
+    expect(strikeOf('inspired').elbowR).toBeLessThan(strikeOf('action').elbowR);
+    expect(strikeOf('freestyle').elbowR).toBeLessThan(strikeOf('inspired').elbowR);
+    expect(followOf('action').facing).toBeLessThan(followOf('inspired').facing);
+    expect(followOf('inspired').facing).toBeLessThan(followOf('freestyle').facing);
+  });
+  it('the timing holds the anticipation at the cock and the finish at the follow-through, the strike inside its window', () => {
+    for (const art of ['inspired', 'freestyle']) {
+      const T = artTiming('normal', art), N = 6;
+      expect(T.strike).toBeGreaterThan(T.window[0]);
+      expect(T.strike).toBeLessThan(T.window[1]);
+      // (held at the cock: a span of the clip where the pose stays on the cock key; held at the follow-through's key)
+      const at = (k) => { let n = 0; for (let i = 0; i <= 200; i++) if (Math.abs(T.warp(i / 200) - k / N) < 1e-9) n++; return n / 201; };
+      expect(at(2)).toBeGreaterThan(0.05);
+      expect(at(4)).toBeGreaterThan(0.12);
+      // the warp never runs back
+      let prev = -1; for (let i = 0; i <= 200; i++) { const v = T.warp(i / 200); expect(v).toBeGreaterThanOrEqual(prev - 1e-12); prev = v; }
+    }
+    expect(artTiming('normal', 'action')).toBeNull();
+  });
+});

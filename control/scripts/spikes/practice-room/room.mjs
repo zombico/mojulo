@@ -6,7 +6,7 @@
  *
  *   cd control
  *   export MOJULO_DATA_DIR=… MOJULO_OUTCOMES_DIR=…          # a database a game was made in (README of the-old-keep)
- *   node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--strings 2.5] [--cdn]
+ *   node scripts/spikes/practice-room/room.mjs --game keep-hero --out /abs/dir [--pack 3] [--strings 2.5] [--art inspired] [--cdn]
  *
  * The room is a `controllable` manifest resolved by world-scene.js and emitted as export_game emits a level: the hero is
  * the game's first level's pilot (its rule, its figures, its camera, its lock), the foe that level's first foe, so what
@@ -39,7 +39,10 @@ const { BASIC_ARSENAL, readCombos, readArsenal, lowerArsenal, comboList, lowerJu
 // the arsenal the room plays (--combos <file>: an arsenal, or one weapon's combo manifest; the basic sword and fist by
 // default), every combo unlocked, the weapons stepped through on the cycle
 const given = opt('--combos') ? JSON.parse(await fs.readFile(opt('--combos'), 'utf8')) : null;
-const arsenal = readArsenal(!given ? structuredClone(BASIC_ARSENAL) : given.weapons ? given : { ...(given.timing ? { timing: given.timing } : {}), weapons: [{ id: 'sword', name: 'Sword', figure: 'drawn', ...readCombos(given) }] });
+const arsenal0 = !given ? structuredClone(BASIC_ARSENAL) : given.weapons ? given : { ...(given.timing ? { timing: given.timing } : {}), weapons: [{ id: 'sword', name: 'Sword', figure: 'drawn', ...readCombos(given) }] };
+// (--art realistic | inspired | freestyle: how the blades are swung, the sword art the hero's clips bake in; inspired by
+// default, the Zelda-like hero's flair; an arsenal that names its own keeps it)
+const arsenal = readArsenal({ ...arsenal0, art: arsenal0.art ?? opt('--art', 'inspired') });
 const weapons = lowerArsenal(arsenal);
 
 const G = SketchRepository.getByRef(game)?.manifest;

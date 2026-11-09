@@ -229,3 +229,15 @@
   lead leg kicking down and back through the blow while the other draws up, tucked again after. A launch remembers the
   foe it threw (`mvThrown`): while the hero is in the air after it, it turns to that foe (18 rad/s, the stick's turn held
   off), and each air move is taken facing it; landed, it lets go.
+- **Sword arts: how a hero swings a blade** (`polygonizer/hero-swing-body.js`, `gameworld/combos.js`;
+  [docs/sword-arts.md](../../../../docs/sword-arts.md)). A study of the swing system found the realistic law holding back
+  every read of drama: the arm capped at a level raise, the hips at about 40°, the timing even. An arsenal now names its
+  `art`, how its blades are swung, and its moveset's clips bake in it: `realistic` (the game type's own swing, the
+  default), `inspired` (real technique performed for the camera: jodan and hasso chambers, a deep stance, the arm and
+  blade one line at the blow, the off hand flung back, the eyes held on the target, the anticipation and the finish
+  held), `freestyle` (the anime sword: the arm fully overhead, the hips spun through past the target, the stance low and
+  wide, the cut near-instant, the finish held long). Each keeps its own laws on the rig, between the keys as well as at
+  them: the legs reach their feet (an art's clip sinks or draws its stance in until they do), the blade clear of the head
+  and above the floor; inspired's elbow at most a forearm over the shoulder line. The practice room takes `--art`,
+  inspired by default (the Zelda-like hero's flair). Fixed on the way: the launcher's upswing chambered its blade a few
+  centimetres into the floor under the body's crouch; its coil and cock now hold it off.

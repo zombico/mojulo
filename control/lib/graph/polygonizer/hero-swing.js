@@ -62,8 +62,8 @@ const VERBS = {
   // the blade trailing near the floor; then the legs drive up as the arm rises along the centreline, the blade swept from
   // the floor to the sky in front of the chest, the elbow under the shoulder line (the law: never over the head)
   upswing: {
-    coil: { crouch: 0.14, shR: { yaw: 8, pitch: 12, roll: 0 }, elbowR: 30, shoulders: 6, spine: { curl: 0.1 }, hinge: 10 },
-    cock: { crouch: 0.18, shR: { yaw: 10, pitch: 14, roll: 0 }, elbowR: 18, shoulders: 10, spine: { curl: 0.16 }, hinge: 16, head: { pitch: 6 } },
+    coil: { crouch: 0.12, shR: { yaw: 8, pitch: 34, roll: 0 }, elbowR: 30, shoulders: 6, spine: { curl: 0.1 }, hinge: 10 },
+    cock: { crouch: 0.14, shR: { yaw: 10, pitch: 30, roll: 0 }, elbowR: 18, shoulders: 10, spine: { curl: 0.14 }, hinge: 14, head: { pitch: 6 } },
     strike: { crouch: 0.08, shR: { yaw: 4, pitch: 92, roll: 0 }, elbowR: 14, shoulders: -6, spine: { arch: 0.12 }, head: { pitch: -6 } },
     follow: { crouch: 0.04, shR: { yaw: 2, pitch: 104, roll: 0 }, elbowR: 22, shoulders: -10, spine: { arch: 0.16 }, head: { pitch: -10 } },
     recover: { crouch: 0.08, shR: { yaw: 4, pitch: 70, roll: 0 }, elbowR: 30, shoulders: -4 },

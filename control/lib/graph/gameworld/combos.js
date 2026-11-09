@@ -45,6 +45,10 @@
  */
 export const ROLES = Object.freeze(['opener', 'filler', 'finisher', 'launcher']);
 export const TRAVEL = Object.freeze(['none', 'step', 'lunge']);
+// THE SWORD ARTS (an arsenal's `art`: how its blades are swung, the clips baked in it; polygonizer/hero-swing-body.js
+// SWING_STYLES, docs/sword-arts.md): realistic (the game type's own swing, the default), inspired (real technique
+// performed for the camera), freestyle (the anime sword: anything goes)
+export const ARTS = Object.freeze(['realistic', 'inspired', 'freestyle']);
 export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right', 'up']);
 /** the body strikes a move may play (hero-strike.js STRIKES, hero-box.js BOX_STRIKES): the fist's */
 export const STRIKES = Object.freeze(['jab', 'cross', 'hook', 'uppercut']);
@@ -290,8 +294,9 @@ export function lowerJuggle(J0) {
 }
 export function readArsenal(A) {
   if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, sidearm?, reach?, damage?, moves, combos }], ranged?: [one sidearm] }');
-  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle)`);
+  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art)`);
   if (A.juggle !== undefined) readJuggle(A.juggle);
+  if (A.art !== undefined && !ARTS.includes(A.art)) no(`art is how the blades are swung: ${ARTS.join(' | ')} (realistic the game type's own swing)`);
   if (A.ranged !== undefined && !Array.isArray(A.ranged)) no('ranged is a list of sidearms');
   // (ONE sidearm a loadout: the weapon cycle steps the blades and the fists, never the ranged weapon, so every weapon
   // carries the same one, its quiver kept across the cycle)
@@ -333,6 +338,6 @@ export function lowerArsenal(A0) {
     ...(guardOf(W) ? { guard: { clip: `mv_guard_${W.id}`, pose: guardOf(W), ...(guardOf(W) === 'shield' ? { prop: 'shield' } : {}) } } : {}),
     ...(sidOf(W) ? { sidearm: sideOf(sidOf(W)) } : {}),
     // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
-    moveset: { ...lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }), ...(A.juggle ? { air: lowerJuggle(A.juggle).air } : {}) } }));
+    moveset: { ...lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }), ...(A.juggle ? { air: lowerJuggle(A.juggle).air } : {}), ...(A.art && A.art !== 'realistic' ? { art: A.art } : {}) } }));
 }
 export const strikesOf = (A) => [...new Set(readArsenal(A).weapons.flatMap((W) => Object.values(W.moves).filter((m) => m.strike).map((m) => m.strike)))];

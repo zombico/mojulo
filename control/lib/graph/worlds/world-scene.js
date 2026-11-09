@@ -172,7 +172,9 @@ function movesOf(rule, name) {
   const aims = [...new Map([...Ws.filter((W) => W.sidearm && W.sidearm.aim).map((W) => [W.sidearm.aim, { clip: W.sidearm.aim, pose: W.sidearm.pose, hand: W.sidearm.hand }]),
     // (and each weapon's guard: its pose while the guard is up, combat-melee.js stepGuard)
     ...Ws.filter((W) => W.guard && W.guard.clip).map((W) => [W.guard.clip, { clip: W.guard.clip, pose: W.guard.pose }])]).values()];
-  return { moves, readies, ...(aims.length ? { aims } : {}) };
+  // (and the arsenal's sword art: how the blades are swung, hero-swing-body.js SWING_STYLES)
+  const art = mine.map((W) => W.moveset.art).find(Boolean);
+  return { moves, readies, ...(aims.length ? { aims } : {}), ...(art ? { art } : {}) };
 }
 export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null } = {}) {
   let manifest, body;

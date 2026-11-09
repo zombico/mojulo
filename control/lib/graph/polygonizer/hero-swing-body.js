@@ -40,17 +40,71 @@ export const SWING_STYLES = Object.freeze({
       forehand: { ready: { facing: -12, w: 0 }, coil: { facing: -32, w: -0.04 }, cock: { facing: -26, w: -0.07 }, load: { facing: -30, w: -0.08 }, strike: { facing: 28, w: 0.1, heel: 30, pivot: 26 }, follow: { facing: 42, w: 0.12, heel: 38, pivot: 34 }, recover: { facing: 14, w: 0.04, heel: 12, pivot: 10 } },
       backhand: { ready: { facing: -12, w: 0 }, coil: { facing: 10, w: -0.03 }, cock: { facing: 24, w: -0.06 }, load: { facing: 28, w: -0.07 }, strike: { facing: -26, w: 0.08 }, follow: { facing: -38, w: 0.1 }, recover: { facing: -16, w: 0.03 } },
     }) }),
+  // THE SWORD ARTS (a moveset's `art`, gameworld/combos.js; docs/sword-arts.md): the swing performed past the realistic
+  // law, over the same verbs and the same body layer. Each adds to a style:
+  //   raise    the arm's pitch cap on the wings (the realistic law's 110: the elbow never over the head)
+  //   bend     the trunk's forward bend cap on the wings (degrees of hinge: a deep blow's blade off the floor)
+  //   gaze     the share of the body's turn the head turns back against (`glance`): the eyes kept on the target
+  //   extend   the share of the elbow's bend straightened at the blow and the follow-through (the arm and the blade one
+  //            line, the reach full)
+  //   timing   its own segments (artTiming): `hold` the anticipation held at the cock, `finish` the follow-through's pose
+  //            held before the recovery (zanshin)
+  // INSPIRED (realistic-inspired: kenjutsu's and the long sword's chambers, performed for the camera): the blade chambered
+  // high (hasso, jodan: the elbow may rise past the shoulder line), the stance deep and long, the hips committed, the arm
+  // and blade one line at the blow, the off hand flung back as a counterweight, the finish held a beat.
+  inspired: Object.freeze({ stance: 2.05, stagger: 0.42, crouch: 0.1, wind: 1.85, after: 1.7, weight: 1.6, off: 2.0, raise: 140, bend: 22, extend: 0.55, gaze: 0.6,
+    turn: Object.freeze({
+      forehand: { ready: { facing: -16, w: 0 }, coil: { facing: -42, w: -0.05 }, cock: { facing: -36, w: -0.08 }, load: { facing: -40, w: -0.09 }, strike: { facing: 36, w: 0.12, heel: 34, pivot: 30 }, follow: { facing: 58, w: 0.14, heel: 42, pivot: 40 }, recover: { facing: 18, w: 0.05, heel: 14, pivot: 12 } },
+      backhand: { ready: { facing: -16, w: 0 }, coil: { facing: 16, w: -0.04 }, cock: { facing: 34, w: -0.07 }, load: { facing: 38, w: -0.08 }, strike: { facing: -34, w: 0.1 }, follow: { facing: -52, w: 0.12 }, recover: { facing: -20, w: 0.04 } },
+    }),
+    timing: Object.freeze({ wind: 1.7, act: 0.34, after: 1.15, settle: 0.8, hold: Object.freeze({ light: 0.2, normal: 0.6, heavy: 1.0 }), finish: 1.2 }) }),
+  // FREESTYLE (the anime sword: anything goes, the sword's weight and the stance's balance no law): the blade wound fully
+  // overhead or far behind, the body coiled and HELD, then the cut near-instant, the hips spun through past the target
+  // (the pass-through: the back half turned to it), the stance low and very wide, the arm thrown to full reach and the
+  // off hand flung wide, the finish pose held long.
+  freestyle: Object.freeze({ stance: 2.4, stagger: 0.52, crouch: 0.16, wind: 2.4, after: 2.2, weight: 1.9, off: 2.5, raise: 172, bend: 18, extend: 0.85, gaze: 0.85,
+    turn: Object.freeze({
+      forehand: { ready: { facing: -20, w: 0 }, coil: { facing: -62, w: -0.06 }, cock: { facing: -56, w: -0.1 }, load: { facing: -64, w: -0.11 }, strike: { facing: 52, w: 0.15, heel: 40, pivot: 40 }, follow: { facing: 88, w: 0.17, heel: 50, pivot: 55 }, recover: { facing: 26, w: 0.06, heel: 18, pivot: 16 } },
+      backhand: { ready: { facing: -20, w: 0 }, coil: { facing: 26, w: -0.05 }, cock: { facing: 52, w: -0.09 }, load: { facing: 58, w: -0.1 }, strike: { facing: -50, w: 0.13 }, follow: { facing: -82, w: 0.15 }, recover: { facing: -26, w: 0.05 } },
+    }),
+    timing: Object.freeze({ wind: 1.6, act: 0.22, after: 0.9, settle: 0.7, hold: Object.freeze({ light: 0.35, normal: 0.7, heavy: 1.3 }), finish: 2.0 }) }),
 });
+/** the sword arts by name: `realistic` the game type's own swing (no art), the others the styles above */
+export const SWORD_ARTS = Object.freeze(['realistic', 'inspired', 'freestyle']);
 export const SWING_BODY = Object.freeze({ phases: BODY_PHASES, turn: BODY_TURN, of: BODY_OF, offHand: OFF_HAND, styles: SWING_STYLES });
+/**
+ * AN ART'S TIMING (its style's `timing`), as hero-swing.js swingTiming re-times a game type's: each key segment by its role
+ * (wind, act, after, settle), the anticipation HELD at the strike's start (`hold`, the cock still before the cut) and the
+ * FINISH held at the follow-through's key (`finish`, zanshin) before the recovery. → { cls, warp, strike, window } or null.
+ */
+const ART_ROLES = Object.freeze({ light: ['wind', 'act', 'after', 'settle', 'settle'], normal: ['wind', 'wind', 'act', 'after', 'settle', 'settle'], heavy: ['wind', 'wind', 'wind', 'act', 'after', 'settle', 'settle'] });
+export function artTiming(cls, art) {
+  const T = SWING_STYLES[art] && SWING_STYLES[art].timing, roles = ART_ROLES[cls];
+  if (!T || !roles) return null;
+  const N = roles.length, spans = [];
+  let finished = false;
+  roles.forEach((r, i) => {
+    if (r === 'act' && T.hold[cls]) spans.push({ from: i, hold: true, d: T.hold[cls] });
+    if (r === 'settle' && !finished) { finished = true; if (T.finish) spans.push({ from: i, hold: true, d: T.finish }); }
+    spans.push({ from: i, d: T[r] });
+  });
+  const total = spans.reduce((a, x) => a + x.d, 0);
+  let acc = 0; for (const x of spans) { x.a = acc; acc += x.d / total; x.b = acc; }
+  spans.at(-1).b = 1;
+  const warp = (u) => { const x = spans.find((y) => u < y.b) ?? spans.at(-1); return x.hold ? x.from / N : (x.from + Math.min(1, Math.max(0, (u - x.a) / (x.b - x.a)))) / N; };
+  const act = spans.find((x) => !x.hold && roles[x.from] === 'act'), cock = spans.find((x) => x.hold && roles[x.from] === 'act') ?? act, after = spans.find((x) => !x.hold && roles[x.from] === 'after');
+  return { cls, flavor: art, warp, strike: +act.b.toFixed(3), window: [+cock.a.toFixed(3), +after.b.toFixed(3)] };
+}
 // a key's reach from ready scaled by `g` (the WINGS): the arms' and the trunk's angles, the twist's share, the hinge, the crouch
 const WING_ANGLES = (a, r, g) => (Number.isFinite(a) && Number.isFinite(r) ? Math.round((r + (a - r) * g) * 100) / 100 : a);
-function wing(k, ready, g) {
+function wing(k, ready, g, raise = 110, bend = Infinity) {
   if (g === 1) return k;
   const o = { ...k };
   // (the arm's arc widened, its yaw and its pitch, the pitch held under the head: the swing's law, the elbow low, never over
-  // the head; its roll, the forearm's turn that carries the blade's edge, is the swing's own)
-  for (const j of ['shR', 'shL']) if (k[j] && ready[j]) o[j] = Object.fromEntries(Object.entries(k[j]).map(([a, v]) => [a, a === 'roll' ? v : a === 'pitch' ? Math.min(Math.max(v, 110), WING_ANGLES(v, ready[j][a] ?? 0, g)) : WING_ANGLES(v, ready[j][a] ?? 0, g)]));
-  for (const j of ['hinge']) if (Number.isFinite(k[j])) o[j] = Math.max(0, WING_ANGLES(k[j], ready[j] ?? 0, g));
+  // the head, unless an art raises it, `raise`; its roll, the forearm's turn that carries the blade's edge, is the swing's own)
+  for (const j of ['shR', 'shL']) if (k[j] && ready[j]) o[j] = Object.fromEntries(Object.entries(k[j]).map(([a, v]) => [a, a === 'roll' ? v : a === 'pitch' ? Math.min(Math.max(v, raise), WING_ANGLES(v, ready[j][a] ?? 0, g)) : WING_ANGLES(v, ready[j][a] ?? 0, g)]));
+  // (the trunk's bend over the hips widened too, at most an art's `bend`: a deep blow's blade kept off the floor)
+  for (const j of ['hinge']) if (Number.isFinite(k[j])) o[j] = Math.max(0, Math.min(Math.max(k[j], bend), WING_ANGLES(k[j], ready[j] ?? 0, g)));
   if (Number.isFinite(k.shoulders)) o.shoulders = WING_ANGLES(k.shoulders, ready.shoulders ?? 0, g);
   if (k.spine) o.spine = Object.fromEntries(Object.entries(k.spine).map(([a, v]) => [a, Array.isArray(v) ? [v[0], Math.min(0.6, v[1] * g)] : Number.isFinite(v) ? Math.min(0.5, v * g) : v]));
   if (k.head?.pitch != null) o.head = { ...k.head, pitch: WING_ANGLES(k.head.pitch, ready.head?.pitch ?? 0, Math.min(g, 1.3)) };
@@ -71,7 +125,11 @@ export function swingBody(word, cls, keys, R, nodesAt, style = null) {
     const ready = keys[0];
     keys = keys.map((k, i) => {
       const ph = phases[i] ?? 'recover', g = ['coil', 'cock', 'load'].includes(ph) ? St.wind : ['follow'].includes(ph) ? St.after : ph === 'recover' ? 1 + (St.after - 1) * 0.5 : 1;
-      return { ...wing(k, ready, g), stance: St.stance, stagger: St.stagger, crouch: Math.min(0.4, (k.crouch ?? 0) + St.crouch) };
+      const w = wing(k, ready, g, St.raise ?? 110, St.bend ?? Infinity);
+      // (an art's EXTENSION: at the blow and through the follow the sword arm's elbow straightened by its share, arm and blade
+      // one line)
+      if (St.extend && (ph === 'strike' || ph === 'follow') && Number.isFinite(w.elbowR)) w.elbowR = Math.round(w.elbowR * (1 - St.extend) * 100) / 100;
+      return { ...w, stance: St.stance, stagger: St.stagger, crouch: Math.min(0.4, (k.crouch ?? 0) + St.crouch) };
     });
   }
   // (a verb that moves its own off hand: its keys' left arm leaves the ready key's)
@@ -80,7 +138,10 @@ export function swingBody(word, cls, keys, R, nodesAt, style = null) {
     const ph = phases[i] ?? 'recover', B0 = T[ph] ?? T.recover;
     const B = St ? (St.turn[side][ph] ?? St.turn[side].recover) : B0;
     const off = !ownOff && OFF_HAND[side][ph] ? (St ? wing(OFF_HAND[side][ph], { shL: keys[0].shL, elbowL: keys[0].elbowL }, St.off) : OFF_HAND[side][ph]) : {};
-    const out = { ...k, facing: B.facing, ...(B.heel ? { heelR: B.heel, splayR: -B.pivot } : {}), ...off };
+    // (an art's GAZE: the head turned back against the body's turn by its share, the eyes held on the target while the body
+    // coils away from it and spins through past it)
+    const gaze = St && St.gaze ? { glance: Math.round(Math.max(-75, Math.min(75, -B.facing * St.gaze)) * 100) / 100 } : {};
+    const out = { ...k, facing: B.facing, ...(B.heel ? { heelR: B.heel, splayR: -B.pivot } : {}), ...off, ...gaze };
     // the weight, and the least sink the legs reach with (a strike solver's reachSink, stepped)
     for (let w = B.w; ; w = w > 0 ? Math.max(0, w - 0.02) : Math.min(0, w + 0.02)) {
       const at = { ...out, shift: { x: 0, y: Math.round(w * 1e4) / 1e4 } };
@@ -88,8 +149,17 @@ export function swingBody(word, cls, keys, R, nodesAt, style = null) {
         const pose = { ...at, crouch: Math.round(c * 1e4) / 1e4 };
         if (legsReach(R, pose, nodesAt)) return pose;
       }
-      if (w === 0) return { ...out, crouch: k.crouch ?? 0 };
+      if (w === 0) break;
     }
+    // (an art's stance too wide for the turn, no weight given up reaching: the stance drawn in a step at a time, the
+    // weight centred; the realistic and the action styles always reach before this)
+    for (let st = (out.stance ?? 1) - 0.1; St && st >= 1 - 1e-9; st -= 0.1) {
+      for (let c = k.crouch ?? 0; c <= 0.45 + 1e-9; c += 0.02) {
+        const pose = { ...out, stance: Math.round(st * 100) / 100, shift: { x: 0, y: 0 }, crouch: Math.round(c * 1e4) / 1e4 };
+        if (legsReach(R, pose, nodesAt)) return pose;
+      }
+    }
+    return { ...out, crouch: k.crouch ?? 0 };
   });
 }
 
@@ -164,6 +234,24 @@ export function withFootwork(arm, travel, { R, rigNodesAt, plantedFoot }) {
   };
 }
 /**
+ * THE ART'S REACH GUARD (a sword art's clips, `ctx.style` an art: SWING_STYLES with a `timing`): an art's keys stand at
+ * the edge of what the legs reach (the least sink, the widest stance), so a moment between two keys, or a lunge out of
+ * the art's wide stance, can outstretch a leg. Any sample that does sinks on until both reach (`sink`, at most 0.6 m),
+ * and a stance with no footwork's feet is drawn in a step at a time. The realistic and the action clips never take it.
+ */
+const isArt = (style) => !!(style && SWING_STYLES[style] && SWING_STYLES[style].timing);
+function reachGuard(fn, R, nodesAt) {
+  const g = (u) => {
+    const p = fn(u);
+    if (p.support === 'none' || legsReach(R, p, nodesAt)) return p;
+    for (let s = 0.005; s <= 0.6 + 1e-9; s += 0.005) { const q = { ...p, sink: Math.round(((p.sink ?? 0) + s) * 1e4) / 1e4 }; if (legsReach(R, q, nodesAt)) return q; }
+    if (!p.feet) for (let st = (p.stance ?? 1) - 0.1; st >= 1 - 1e-9; st -= 0.1) for (let c = p.crouch ?? 0; c <= 0.45 + 1e-9; c += 0.02) { const q = { ...p, stance: Math.round(st * 100) / 100, crouch: Math.round(c * 1e4) / 1e4 }; if (legsReach(R, q, nodesAt)) return q; }
+    return p;
+  };
+  for (const k of Object.keys(fn)) g[k] = fn[k];
+  return g;
+}
+/**
  * AN AIR MOVE'S BODY (a moveset's `air` move, gameworld/combos.js: played in the air, a launch's or a jump's): the swing
  * or the strike as its arms and trunk play it, the feet off the floor (no support, no planted foot, no sink or step) and
  * the legs their own: TUCKED as it gathers, one kicking down and back through the blow while the other draws up, tucked
@@ -199,7 +287,8 @@ export function moveClip(move, ctx) {
   // the travel as the runtime carries it (combat-melee.js: a step's to the window's start, a lunge's to its end)
   const tTo = move.travel ? Math.max(0.05, move.travel.kind === 'step' ? contact[0] : contact[1]) : 0;
   const travel = move.travel && move.travel.kind !== 'none' && move.travel.m > 0 ? { kind: move.travel.kind, m: move.travel.m, from: Math.min(move.travel.wait || 0, tTo * 0.5), to: tTo } : null;
-  const fn = move.air ? (u) => airBody(arm(u), u, from) : travel && ctx.footwork ? withFootwork(arm, travel, ctx) : arm;
+  const fn0 = move.air ? (u) => airBody(arm(u), u, from) : travel && ctx.footwork ? withFootwork(arm, travel, ctx) : arm;
+  const fn = isArt(ctx.style) ? reachGuard(fn0, R, rigNodesAt) : fn0;
   fn.keys = 24;
   fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, contact[1]], ...(travel ? { travel } : {}), ...(move.air ? { air: true } : {}) };
   return fn;
