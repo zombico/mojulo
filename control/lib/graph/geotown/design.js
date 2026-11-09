@@ -26,9 +26,10 @@
  *   9 traffic   streetlights at their stride along the walks; each crossing's control (signals, stops) by its streets'
  *               ranks, at the streetscape's intervals
  *
- *   designGeotown(spec, { seed, field? }) → { spec, seed, pattern, row, sections, frame, depth, X, Y, streets, pieces,
- *     blocks, plots, surfaces, ledger, ports, land, parking, sites, beside, traffic, evoked?, laws }   (`field`: (x, y) → metres, in place of the hills)
- *   geotownLand(hills, frame, seed, field?) → { N, S, range }: the natural ground and the streets' ground, (x, y) → m
+ *   designGeotown(spec, { seed, field?, streets? }) → { spec, seed, pattern, row, sections, frame, depth, X, Y, streets, pieces,
+ *     blocks, plots, surfaces, ledger, ports, land, parking, sites, beside, traffic, evoked?, laws }   (`field`: (x, y) → metres, in place of the hills;
+ *     `streets`: the streets' ground given whole, a metro's, geocity/towns.js, in place of its own blur)
+ *   geotownLand(hills, frame, seed, field?, streets?) → { N, S, range }: the natural ground and the streets' ground, (x, y) → m
  *
  * Every surface is an axis-aligned rect [x0, y0, x1, y1]; a plot's own frame is its front corner `A`, `ex` along its
  * frontage and `ey` into it (ex × ey up), so a building is spoken in it as the town speaks one
@@ -65,7 +66,7 @@ function hillsField(H, seed) {
 }
 
 /** The natural ground (`N`) and the streets' ground (`S`) over the frame and its margin, (x, y) → metres. */
-export function geotownLand(hills, frame, seed = 1, field = null) {
+export function geotownLand(hills, frame, seed = 1, field = null, streets = null) {
   const { W, D, margin: M } = frame, x0 = -M, y0 = -M, nx = Math.ceil((W + 2 * M) / S_CELL) + 1, ny = Math.ceil((D + 2 * M) / S_CELL) + 1;
   let N;
   if (field) N = field;
@@ -78,6 +79,13 @@ export function geotownLand(hills, frame, seed = 1, field = null) {
     for (let j = 0; j < ny; j += 2) for (let i = 0; i < nx; i += 2) { const z = raw(x0 + i * S_CELL, y0 + j * S_CELL); if (z < lo) lo = z; if (z > hi) hi = z; }
     const k = hi > lo ? hills.height / (hi - lo) : 0;
     N = (x, y) => (raw(x, y) - lo) * k;
+  }
+  // (a town composed into a metro, geocity/towns.js: its streets' ground the metro's own, `streets`, so its walks meet the
+  // metro's round it at one height; never blurred again inside its frame)
+  if (streets) {
+    let lo = Infinity, hi = -Infinity;
+    for (let j = 0; j < ny; j += 2) for (let i = 0; i < nx; i += 2) { const z = streets(x0 + i * S_CELL, y0 + j * S_CELL); if (z < lo) lo = z; if (z > hi) hi = z; }
+    return { N, S: streets, range: [r3(lo), r3(hi)] };
   }
   // S: N on the grid, box-blurred twice each way (near a gaussian of S_BLUR), clamped at the edges, read bilinearly
   let g = new Float64Array(nx * ny);
@@ -263,7 +271,7 @@ const toWorld = (pl, [u0, v0, u1, v1]) => {
 export { toWorld as plotRect };
 
 /** The design of a geotown: its map, its budget and its levels. */
-export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
+export function designGeotown(spec = {}, { seed = 1, field = null, streets: streetsGround = null } = {}) {
   const T = readGeotown(spec), P = T.pattern, [C, Rn] = T.grid, evoked = T.evoke !== 'metro', ST = P.evoke.stretch;
   // ── 1 segments: each cell's kind, its rows turned to its main streets ──
   const rank = (id) => (T.mains.includes(id) ? 'main' : T.majors.includes(id) ? 'major' : 'street');
@@ -358,7 +366,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null } = {}) {
   // scale's, its middle over that town's middle, so its slopes are the town's and not its hills squeezed into a block ──
   const ref = evoked ? designGeotown({ evoke: 'metro', ...Object.fromEntries(['pattern', 'streetscape', 'hills'].filter((k) => spec[k] !== undefined).map((k) => [k, spec[k]])) }, { seed, field }) : null;
   const win = ref && !field ? ((ox, oy) => (x, y) => ref.land.N(x + ox, y + oy))((ref.frame.W - frame.W) / 2, (ref.frame.D - frame.D) / 2) : field;
-  const land = geotownLand(T.hills, frame, seed, win), walkZ = (x, y) => land.S(x, y) + SX[0].kerb;
+  const land = geotownLand(T.hills, frame, seed, win, streetsGround), walkZ = (x, y) => land.S(x, y) + SX[0].kerb;
   // ── 5, 6 the plots, each segment tuned to its cell, and their budget ──
   const blocks = [], plots = [], fits = [], sites = [], surfaces = pieces.map((p) => ({ cls: p.cls, rect: p.rect, ...(p.street ? { street: p.street } : { crossing: p.crossing }) }));
   for (const c of units) {

@@ -1,7 +1,7 @@
 // THE GEOCITY BUILT: a metro's map stood on the cube's land as massing. The smallest metro that still rings: a small
 // shore, one built at noon and one at night.
 import { describe, it, expect } from 'vitest';
-import { assembleGeocityScene, GEOCITY_FACES } from './scene.js';
+import { assembleGeocityScene, GEOCITY_FACES, FORM_GROUND } from './scene.js';
 import { designGeocity } from './design.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
 
@@ -209,4 +209,30 @@ describe('the geotown composed in, built', () => {
     const K = assembleGeocityScene({ ...M, geocity: { ...geocity, evoke: 'skyline', geotowns: { [r.id]: true } } });
     expect(K.faces.some((f) => String(f.group).startsWith('geotown:'))).toBe(false);
   });
+
+  it('stands its composed towns on the metro\'s ground, its town-seams law held on the page as built', () => {
+    const r = D.regions.find((x) => x.builds !== 'outskirts' && !x.park && x.blocks.length > 2);
+    const C = assembleGeocityScene({ ...M, geocity: { ...geocity, geotowns: { [r.id]: true } } }), L = C.geocity.laws.find((l) => l.law === 'town-seams');
+    expect(L).toBeDefined();
+    expect(L.ok, L.value).toBe(true);
+  });
 });
+
+// READ BY THE SEVENTH GENERATION (ctx.form): the metro's soft ground the form's land, its street trees and its towns' the
+// form's plants; a painted read none of it
+describe('the geocity read in the form render', () => {
+  it('hands its soft ground to the form as land and its trees as plants, its towns\' with them', () => {
+    const r = D.regions.find((x) => x.builds !== 'outskirts' && !x.park && x.blocks.length > 2);
+    const m = { ...M, geocity: { ...geocity, evoke: 'neighbourhood', geotowns: { [r.id]: true } } };
+    const F = assembleGeocityScene(m, { form: true }), P = assembleGeocityScene(m);
+    expect(F.faces.some((f) => f.group === 'isekai:ground')).toBe(true);
+    expect(F.faces.some((f) => FORM_GROUND.includes(f.group))).toBe(false);
+    expect(F.plants.trees.length).toBeGreaterThan(0);
+    expect(F.plants.clear.length).toBeGreaterThanOrEqual(F.plants.trees.length);
+    // (no street tree drawn as paint where the form grows it)
+    expect((F.repeats ?? []).some((rp) => String(rp.group).startsWith('geocity:tree-'))).toBe(false);
+    expect(P.plants).toBeUndefined();
+    expect(P.faces.some((f) => f.group === 'isekai:ground')).toBe(false);
+  });
+});
+

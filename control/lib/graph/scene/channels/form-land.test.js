@@ -82,3 +82,13 @@ describe('a far land\'s own haze', () => {
     expect(hazed).toContain(JSON.stringify({ ...FAR_LAND, air: [0.08, 0.42] }));
   });
 });
+
+// A LAND READ WITHOUT FAR STRUCTURES (a metro's, worlds/world-scene.js: its buildings keep their own tiers): no card baked;
+// absent, the channel as it was
+describe('a land read that asks for no far structures', () => {
+  it('leaves the far structures out only when the land read says so', () => {
+    expect(formLandScript(land)).toContain('the far structures: what stands');
+    expect(formLandScript({ ...land, structures: false })).not.toContain('the far structures: what stands');
+  });
+});
+

@@ -82,3 +82,22 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   continuous. The law advises; the tolerance is the meadow's.
 - **The game book's world card** (`gameworld-world`) says the water, the ways and the style's geocube; its ceiling moves
   5248 → 5376.
+- **A composed town stands on the metro's land.** A geotown composed into a geocity (a neighbourhood or a block, geocity
+  /towns.js) took the metro's natural ground and blurred its own streets' ground from it inside its frame, its edges
+  clamped: along its frame it differed from the metro's by 0.05 to 0.09 m on average and up to 0.23 m (lakeshore and
+  harbour-island, 56 to 60 m of relief), a step against the metro's walks round it. Its streets' ground is now the
+  metro's own (`streets`, geotown/design.js geotownLand, threaded through the town's design and scene), equal to the
+  millimetre. A new law on the page as built, `town-seams`, reads each composed town's street-level ground (its roads,
+  walks, verges, lanes and margin; never a house's pad, stepped on purpose and closed by its own bank or wall) just inside
+  its outline against the metro's green just outside, within 0.3 m (a kerb's): 0.19 m at most now, 0.62 m before.
+- **A seventh generation metro is the form render's.** A gen-7 geocity was painted massing and drapes under the form's
+  sky: its builder was never told the read was a form read, and none of its ground was the land the form reads. Now
+  (ctx.form, worlds/world-kinds.js) its soft ground (parks, medians' lawns, the green round its towns, its lawned pads:
+  `FORM_GROUND`) is the form's land, its street trees the form's plants (`plants`, grown as form, form/flora-read.js), and
+  its composed towns are built in the form too, their trees, bushes and shrubs carried into the metro's (a block town's
+  on its block, its bushes' kinds merged into one list). Its land is read as a town's (lawns mown, no trail's rubble), and
+  it says what it got (`geocity.form`). Its buildings keep their own tiers (detail, massing, skyline) under the live
+  light: the far structures' cards (channels/far-structures.js) are not baked for a metro (`structures: false` on the land
+  read, emitted only when a page asks), since a card reads a painted fill a metro's textured faces do not carry, and they
+  stood in black. The form's land read takes a face without a fill at its first corner's colour, where it threw. A
+  gen-6 metro is as it was.

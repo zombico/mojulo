@@ -589,7 +589,7 @@ export const WORLD_KINDS = {
       // played, the level's pilot and game layered over it by the page
       if (m.show === 'side') return assembleSideStrip(m, { title: ctx.title });
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
-      if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}) }));
+      if (m.show === 'geocity') return attachDummy(assembleGeocityScene(m, { title: ctx.title, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

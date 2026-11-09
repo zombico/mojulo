@@ -517,7 +517,7 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
   { const H = new Set(D.hides); scene.traverse((o) => { if (o.isMesh && H.has(o.userData.g)) o.visible = false; }); }` : ''}
   // (what stands, once what the form draws in its place is hidden: a painted crown, trunk or rock the form grows or lays
   // is no structure, and never a card or a batch of its own)
-${farStructuresScript()}
+${form.structures === false ? '' : farStructuresScript()}
   if (D.depth) for (const o of __formBefore) if (o.isMesh && !__formNamed.has(o) && o.material.isMeshBasicMaterial && o.material.transparent && o.geometry.getAttribute('color')?.itemSize === 4) o.visible = false;
   for (const o of __formBefore) for (const m of [].concat(o.material)) { m.toneMapped = false; m.needsUpdate = true; }
   renderer.toneMapping = THREE.NeutralToneMapping; renderer.toneMappingExposure = 1;

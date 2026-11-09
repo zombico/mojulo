@@ -819,7 +819,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // level's cube, hour, clouds and biocube the recipe's words)
   const formMap = sketch.manifest.kind === 'map' && sketch.manifest.level?.grid && sketch.manifest.level.geocube !== undefined;
   if (payload && (!unshaded || viewOpts.handoff === true) && viewOpts.paint !== true && (sketch.manifest.kind === 'geocube' || formMap) && ERAS[era]?.surface === 'form') {
-    const M = formMap ? { ...sketch.manifest.level, cube: sketch.manifest.level.geocube } : sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown';
+    // (a metro's land a town's too, geocity/scene.js: its lawns mown, no trail's rubble)
+    const M = formMap ? { ...sketch.manifest.level, cube: sketch.manifest.level.geocube } : sketch.manifest, path = M.path && typeof M.path === 'object' ? M.path : {}, town = M.show === 'geotown' || M.show === 'geocity';
     // (a town, geotown: its land a lawn's, no trail's rubble, dust, clay or patches)
     const dress = town ? { ...DRESS_DEFAULT, rubble: 0, dust: 0, clay: 0, patches: [] } : { ...DRESS_DEFAULT, ...(path.rubble === false ? { rubble: 0 } : {}), ...(path.patches === false ? { patches: [] } : Array.isArray(path.patches) ? { patches: path.patches } : {}) };
     // (the biocube's words the form render reads: the rock's moss, `flora.moss`; the grass's length, `flora.grass.sward`;
@@ -854,6 +855,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const flora = read && payload.plants ? floraRead(payload.plants, { kinds: payload.plants.kinds, bushKinds: payload.plants.bushKinds, colours: cube.colour, bases: read.light.linearBases, autumn: F?.autumn ?? 0 }) : null;
     // (a glyph map says what of the form it got: a gen-7 map is the form render's, never paint under the live light)
     if (formMap && payload.map) payload.map.form = read ? { read: true, plants: !!flora, far: 'range' } : { read: false, why: 'the map has no land the form reads' };
+    // (and a metro says what of the form it got, geocity/scene.js: its lawns, its street trees and its towns' grown)
+    if (M.show === 'geocity' && payload.geocity) payload.geocity.form = read ? { read: true, plants: !!flora } : { read: false, why: 'the metro has no soft ground the form reads' };
+    // (a metro's buildings keep their own tiers, detail, massing and skyline, geocity/scene.js, lit by the live light: no
+    // far structure's card is baked for them, channels/far-structures.js, whose cards read a painted fill a metro's
+    // textured faces do not carry)
+    if (read && M.show === 'geocity') payload.form.land.structures = false;
     if (flora) {
       const stamped = (payload.repeats || []).map((r) => r.group).filter((g) => g && g.startsWith('isekai:trees:'));
       payload.form = { ...payload.form, land: { ...payload.form.land, hides: [...new Set([...payload.form.land.hides, ...FLORA_HIDES, ...stamped])] }, flora };

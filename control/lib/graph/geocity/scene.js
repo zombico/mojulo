@@ -92,6 +92,34 @@ const PAIR = 13.6, GAP = 1.4, HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14
 // the skyline's ground cells (m); what it draws of a neighbourhood (its tall buildings); what a block at detail wears
 // facades on (the core's and the frame's: an outskirts block keeps its massing until it is a geotown's)
 // the street's kit: drawn within NEAR metres of the camera (the page's near repeats), a lamp every LAMP metres along a
+// (read by the seventh generation, ctx.form) the metro's soft ground the form's land draws and grows its grass on: its
+// parks, its medians' lawns, the green round its towns, its lawned pads (the paved, the lots, the sites and the scrub stay
+// paint, as a geotown's paving does)
+export const FORM_GROUND = Object.freeze(['geocity:park', 'geocity:median', 'geocity:margin', 'geocity:pad']);
+/** The PLANTS a form read grows (form/flora-read.js): the metro's street trees, each its species at its height, and its
+ *  composed towns' (their trees, bushes and shrubs moved into the metro's frame; a block town's those on its block, its
+ *  bushes' kinds merged into one list), with the ground every trunk and claim takes from the grass. */
+function metroPlants(trees, towns) {
+  const T = [], B = [], Sh = [], clear = [], kinds = [], kindKey = new Map();
+  for (const sp of [...trees.keys()].sort()) for (const t of trees.get(sp)) T.push({ x: t.x, y: t.y, z: r5(t.z0 - 0.15), h: t.height, kind: -1, cluster: T.length, species: sp });
+  // (the street trees' trunks claim their ground; a town's claims come with it)
+  const street = T.map((t) => [t.x, t.y, 0.6]);
+  for (const { p, at, keep } of towns) {
+    const ok = (q) => !keep || keep(q.x, q.y), mv = (q) => ({ ...q, x: r5(q.x + at[0]), y: r5(q.y + at[1]) });
+    for (const t of (p.trees ?? []).filter(ok)) T.push({ ...mv(t), cluster: T.length });
+    // (a bush's kind its town's: the merged list's index for it)
+    const remap = (p.bushKinds ?? []).map((k) => { const key = JSON.stringify(k); if (!kindKey.has(key)) { kindKey.set(key, kinds.length); kinds.push(k); } return kindKey.get(key); });
+    for (const b of (p.bushes ?? []).filter(ok)) B.push({ ...mv(b), kind: remap[b.kind] ?? b.kind });
+    for (const q of (p.shrubs ?? []).filter(ok)) Sh.push(mv(q));
+    for (const c of (p.clear ?? []).filter(([x, y]) => !keep || keep(x, y))) clear.push([r5(c[0] + at[0]), r5(c[1] + at[1]), c[2]]);
+  }
+  if (!T.length && !B.length && !Sh.length) return null;
+  return { form: 'blob', kinds: null, bushKinds: kinds.length ? kinds : null, trees: T, bushes: B, shrubs: Sh, clear: [...street, ...clear] };
+}
+// (the town-seams law: a composed town's ground and the metro's round it, read this far either side of its outline,
+// within this: a kerb's height and the drapes' cells)
+export const TOWN_SEAM = Object.freeze({ probe: 0.6, tol: 0.3 });
+const STREET_LEVEL = /^geotown:(road|walk|verge|furnish|lane|margin)$/;
 // kerb (the metro's stride, fractal-city.js METRO_LAMP_STEP), a streetcar's poles every POLE
 const NEAR = 320, LAMP = 31, POLE = 35;
 // the furniture's strides (m): a hydrant, a bench and its bike rings, a residential street's hydro poles
@@ -214,6 +242,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     const xs = cuts(r[0], r[2], cell), ys = cuts(r[1], r[3], cell);
     for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) put([[xs[i], ys[j]], [xs[i + 1], ys[j]], [xs[i + 1], ys[j + 1]], [xs[i], ys[j + 1]]].map(([x, y]) => [x, y, S(x, y) + lift]), group, hex);
   };
+  // (each composed town's outline and its faces, for the town-seams law: its ground meets the metro's round it)
+  const seamsOf = [];
   // (each building as it is laid: its footprint, foot, eave and top, its group, for the physical ring)
   const shells = [], shell = (x0, y0, x1, y1, z0, ze, z1, group, flat = false) => shells.push({ id: `geocity-b${shells.length}`, min: [x0, y0, z0], max: [x1, y1, z1], eave: ze, group, ...(flat ? { flat: true } : {}) });
   const box = (x0, y0, x1, y1, z0, z1, wall, roof, group) => {
@@ -294,6 +324,9 @@ export function assembleGeocityScene(m, ctx = {}) {
   let firstBlock = null;
   // (what the composed geotowns hand back: their trees, their readouts, and the textures of all)
   const townRepeats = [], towns = {};
+  // (read by the seventh generation, ctx.form: the metro's soft ground is the form's land and its trees the form's own,
+  // FORM_GROUND and `plants`; its composed towns built so too, their plants carried into the metro's)
+  const form = !!ctx.form, townPlants = [];
   let textures = null;
   // an evocation's tiers: its blocks at a building's detail, the neighbourhoods round them as massing, the rest its
   // skyline (each neighbourhood's ground one coarse drape, its tall buildings on it, nothing low)
@@ -511,9 +544,11 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
       return;
     }
-    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: T.spec, walk: false }, { field: T.field });
-    const mv = (p) => [r5(p[0] + ox), r5(p[1] + oy), p[2]];
+    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: T.spec, walk: false }, { field: T.field, ...(T.streets ? { streets: T.streets } : {}), ...(form ? { form: true } : {}) });
+    const mv = (p) => [r5(p[0] + ox), r5(p[1] + oy), p[2]], at0 = faces.length;
     for (const f of P.faces) faces.push({ ...f, corners: f.corners.map(mv) });
+    seamsOf.push({ id: r.id, rect: [ox, oy, ox + W, oy + D], from: at0, to: faces.length });
+    if (P.plants) townPlants.push({ p: P.plants, at: [ox, oy] });
     // (its houses' boxes, in the metro's frame)
     for (const c of P.colliders ?? []) colliders.push({ ...c, min: P3(mv(c.min)), max: P3(mv(c.max)), of: `${r.id}:${c.of}` });
     for (const rp of P.repeats ?? []) townRepeats.push({ ...rp, group: `geocity:town-${rp.group ?? 'repeat'}`, transforms: rp.transforms.map((t) => ({ ...t, pos: mv(t.pos) })), near: NEAR });
@@ -536,12 +571,14 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
       return;
     }
-    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: T.spec, walk: false }, { field: T.field });
-    const mv = (p) => [r5(p[0] + dx), r5(p[1] + dy), p[2]];
+    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: T.spec, walk: false }, { field: T.field, ...(T.streets ? { streets: T.streets } : {}), ...(form ? { form: true } : {}) });
+    const mv = (p) => [r5(p[0] + dx), r5(p[1] + dy), p[2]], at0 = faces.length;
     for (const f of P.faces) {
       const c = f.corners, cx = c.reduce((a, p) => a + p[0], 0) / c.length, cy = c.reduce((a, p) => a + p[1], 0) / c.length;
       if (inside(cx, cy)) faces.push({ ...f, corners: c.map(mv) });
     }
+    seamsOf.push({ id: b.id, rect: q, from: at0, to: faces.length });
+    if (P.plants) townPlants.push({ p: P.plants, at: [dx, dy], keep: (x, y) => inside(x, y) });
     // (the boxes of what stands on its block, in the metro's frame, cut to the block: a front's steps the crop leaves
     // out never stand on the metro's walk)
     for (const c of P.colliders ?? []) {
@@ -1042,6 +1079,39 @@ export function assembleGeocityScene(m, ctx = {}) {
   const within = (p, c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1] && p[2] > c.min[2] && p[2] < c.max[2];
   const blocked = [...route, P3(eye)].filter((p) => colliders.some((c) => within([p[0], p[1], p[2] + 0.5], c))).length;
   laws.push({ law: 'walk-clear', ok: blocked === 0, value: blocked ? `${blocked} of the walk's points inside a building's box` : `the walk clear of ${colliders.length} boxes`, want: 'the route round the seat\'s block and the spawn outside every box' });
+  // the TOWNS' SEAMS (towns.js: a composed town on the metro's own streets' ground): along each town's outline, its own
+  // street-level ground just inside (its roads, walks, verges, lanes and margin; never a house's pad, stepped over its
+  // walk on purpose and closed by its own bank or wall) and the metro's green just outside stand at one height, as built
+  // (within TOWN_SEAM: a kerb's)
+  if (seamsOf.length) {
+    const flat = (f) => { const c = f.corners; if (c.length < 3) return false; const u = [c[1][0] - c[0][0], c[1][1] - c[0][1], c[1][2] - c[0][2]], v = [c[2][0] - c[0][0], c[2][1] - c[0][1], c[2][2] - c[0][2]], n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; return Math.abs(n[2]) > 0.9 * Math.hypot(...n); };
+    // (the height of the flat faces in a list at (x, y): the face whose footprint holds it, on its plane)
+    const zIn = (list, x, y) => {
+      for (const f of list) {
+        const c = f.corners; let inPoly = false;
+        for (let i = 0, j = c.length - 1; i < c.length; j = i++) if ((c[i][1] > y) !== (c[j][1] > y) && x < ((c[j][0] - c[i][0]) * (y - c[i][1])) / (c[j][1] - c[i][1] || 1e-12) + c[i][0]) inPoly = !inPoly;
+        if (!inPoly) continue;
+        const [a, b, e] = c, u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [e[0] - a[0], e[1] - a[1], e[2] - a[2]], n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+        return a[2] - (n[0] * (x - a[0]) + n[1] * (y - a[1])) / n[2];
+      }
+      return null;
+    };
+    const metro = faces.filter((f) => f.group === 'geocity:margin' && flat(f));
+    let worst = 0, where = '', seen = 0;
+    for (const T of seamsOf) {
+      const [x0, y0, x1, y1] = T.rect, own = faces.slice(T.from, T.to).filter((f) => flat(f) && STREET_LEVEL.test(f.group ?? '')), e = TOWN_SEAM.probe;
+      const near = (L, x, y) => L.filter((f) => f.corners.some((c) => Math.abs(c[0] - x) < 30 && Math.abs(c[1] - y) < 30));
+      const sides = [[[x0, y0], [x1, y0], [0, -1]], [[x1, y0], [x1, y1], [1, 0]], [[x1, y1], [x0, y1], [0, 1]], [[x0, y1], [x0, y0], [-1, 0]]];
+      for (const [p, q, o] of sides) for (let t = 0.05; t < 1; t += 0.1) {
+        const x = p[0] + (q[0] - p[0]) * t, y = p[1] + (q[1] - p[1]) * t;
+        const zi = zIn(near(own, x, y), x - o[0] * e, y - o[1] * e), zo = zIn(near(metro, x, y), x + o[0] * e, y + o[1] * e);
+        if (zi === null || zo === null) continue;
+        seen++;
+        if (Math.abs(zi - zo) > worst) { worst = Math.abs(zi - zo); where = ` (${T.id})`; }
+      }
+    }
+    laws.push({ law: 'town-seams', ok: worst <= TOWN_SEAM.tol, value: `${seen} points round ${seamsOf.length} composed town${seamsOf.length === 1 ? '' : 's'}: their ground and the metro's apart by ${worst.toFixed(2)} m at most${where}`, want: `within ${TOWN_SEAM.tol} m (a kerb's)` });
+  }
   counts.colliders = colliders.length;
   laws.push(...netLaws);
   const bg = night ? air.fog.color : rgbToHex(air.dome.horizon);
@@ -1053,7 +1123,10 @@ export function assembleGeocityScene(m, ctx = {}) {
   const repeats = E?.evoke === 'skyline' ? [] : [...stamps].map(([key, transforms]) => ({ group: `geocity:${key.split(':')[0]}`, template: templateOf(key), transforms, near: NEAR, ...kit }));
   // the street trees grown (vegetation/pool.js): a few variants a species, each at the detail the cameras see it at,
   // their crowns raised over the walk, drawn near the camera only like the kit
-  if (E?.evoke !== 'skyline' && trees.size) {
+  // (read by the seventh generation: the street trees the form grows, each its species at its height, form/flora-read.js)
+  let plants = null;
+  if (form && E?.evoke !== 'skyline') plants = metroPlants(trees, townPlants);
+  if (!form && E?.evoke !== 'skyline' && trees.size) {
     const eyes = cameras.map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: 1280 / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
     for (const sp of [...trees.keys()].sort()) {
       const pool = plantPool({ species: sp, variants: 2, seed: `geocity::${sp}`, light: LIGHT, maxLevel: TREE.level, group: `geocity:tree-${sp}`, clear: TREE.raise });
@@ -1092,8 +1165,14 @@ export function assembleGeocityScene(m, ctx = {}) {
   }
   repeats.push(...townRepeats.map((r) => ({ ...r, ...kit })));
   counts.kit = repeats.reduce((a, r) => a + r.transforms.length, 0);
+  // (read by the seventh generation: the metro's soft ground the form's own, `isekai:ground`, where its land read draws it
+  // and grows its grass, form/land-read.js, worlds/world-scene.js; its street trees counted as the form grows them)
+  if (form) {
+    for (const f of faces) if (FORM_GROUND.includes(f.group)) f.group = 'isekai:ground';
+    counts.trees = [...trees.values()].reduce((a, l) => a + l.length, 0);
+  }
   return {
-    faces, ...(repeats.length ? { repeats } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(repeats.length ? { repeats } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },

@@ -241,11 +241,11 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
 
   // 8 the geotowns it composes (towns.js): a neighbourhood laid by the geotown on the metro's land, its own park the
   // town's; then the blocks inside every other neighbourhood, the park fitted to its streets
-  const towns = townsOf({ seed, regions, metro: M }, T, L.N);
+  const towns = townsOf({ seed, regions, metro: M }, T, L.N, L.S);
   for (const r of regions) if (towns[r.id]) { r.geotown = towns[r.id]; delete r.parkRect; }
   const Bs = blocksOf({ seed, metro: M, grammar: G, spec: T, regions, heights: { storeysAt: Hs.storeysAt } });
   // (and the blocks given to the geotown: each one of its block segments, its ground the town block's)
-  const blockTowns = blockTownsOf({ seed, regions: regions.map((r) => ({ ...r, blocks: Bs[r.id].blocks })), metro: M }, T, L.N);
+  const blockTowns = blockTownsOf({ seed, regions: regions.map((r) => ({ ...r, blocks: Bs[r.id].blocks })), metro: M }, T, L.N, L.S);
   for (const r of regions) {
     const B = Bs[r.id];
     if (!B.blocks.some((b) => blockTowns[b.id])) continue;

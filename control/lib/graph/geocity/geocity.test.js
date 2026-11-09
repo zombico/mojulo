@@ -373,6 +373,10 @@ describe('the geotown composed in', () => {
     expect(r.ledger.streets + r.ledger.blocks + r.ledger.park).toBeCloseTo(r.area, 0);
     const [x, y] = [T.frame.W / 2, T.frame.D / 2];
     expect(T.field(x, y)).toBeCloseTo(d.land.N(x + T.origin[0], y + T.origin[1]), 6);
+    // ONE LAND: its streets' ground the metro's own along its frame and inside it, so its walks meet the metro's round it
+    for (const [u, v] of [[0, 0.5], [1, 0.5], [0.5, 0], [0.5, 1], [0.3, 0.7]]) expect(T.design.land.S(u * T.frame.W, v * T.frame.D)).toBeCloseTo(d.land.S(u * T.frame.W + T.origin[0], v * T.frame.D + T.origin[1]), 6);
+    const b = d.regions.flatMap((q) => q.blocks).find((q) => q.id === blk.id).geotown, g = b.rect;
+    expect(b.design.land.S(g[0], g[1])).toBeCloseTo(d.land.S(g[0] + b.shift[0], g[1] + b.shift[1]), 6);
   });
 
   it('lays a block by one of the geotown\'s segments, its rows filling the metro\'s block, its ground the town block\'s', () => {
