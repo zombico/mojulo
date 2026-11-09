@@ -2757,7 +2757,8 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
     moveX: mx, moveY: -my,                     // stick up = forward
     lookX: lx, lookY: ly,
     fire: pb('fire'), boost: pb('boost'),${moveset ? `
-    light: pb('light', rb), heavy: pb('heavy', rb), special: pb('special', rb),   // a moveset's beats: the left, top and right faces` : ''}${guards ? `
+    light: pb('light', rb), heavy: pb('heavy', rb), special: pb('special', rb),   // a moveset's beats: the left, top and right faces
+    mod: pb('modifier'),   // the modifier held: the right trigger (a face with it is its special)` : ''}${guards ? `
     guard: pb('guard'),   // the guard held: the left shoulder` : ''}
     // analog trigger VALUES — the vehicle rules (drive/fly) read RT/LT as throttle/brake, the
     // console-driving standard; suits keep the pressed reads above untouched.
@@ -2894,8 +2895,9 @@ function __readInput() {
     boost: __k('boost') || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
     walk: __k('walk') ? 1 : 0,       // a person's walk, held (platform rule, walkSpeed); a pad walks by the stick's travel
     kneel: __k('kneel') || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
-    fire: __fireDown || (__pad && (__pad.fire${moveset ? ' || __pad.light' : ''}) && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)${moveset ? `
-    heavy: __heavyDown || (__pad && __pad.heavy) ? 1 : 0, special: __specialDown || (__pad && __pad.special) ? 1 : 0,   // a moveset's heavy and special beats` : ''}${guards ? `
+    fire: __fireDown || (__pad && (${moveset ? '__pad.light' : '__pad.fire'}) && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)${moveset ? `
+    heavy: __heavyDown || (__pad && __pad.heavy) ? 1 : 0, special: __specialDown || (__pad && __pad.special) ? 1 : 0,   // a moveset's heavy and special beats
+    mod: __k('modifier') || (__pad && __pad.mod) ? 1 : 0,   // the modifier held (left Ctrl, the right trigger): a moveset's specials` : ''}${guards ? `
     guard: __k('guard') || (__pad && __pad.guard) ? 1 : 0,   // the guard held (Shift, the left shoulder)` : ''}
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits

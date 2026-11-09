@@ -153,7 +153,7 @@ let html = emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: fals
 
 // ─── the HUD: the live world read each frame (window.__mojCtrl), the card's numbers beside it ───
 const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.84);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#pr b{color:#fff}#pr .k{color:#9aa0aa}#pr .bad{color:#f0a070}#pr .ok{color:#9fd49a}#pr .on{color:#ffd76a}#pr table{border-collapse:collapse;width:100%}#pr td{padding:0 4px 0 0;vertical-align:top}#pr .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#pr h4{margin:6px 0 2px;font-size:11px;color:#9aa0aa;font-weight:normal}</style>
-<div id="pr"><b>Practice room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><div id="pr-ai"></div><h4>combos (all unlocked)</h4><div id="pr-c"></div><div id="pr-s"></div><div id="pr-g"></div><div id="pr-j"></div><h4>last move</h4><table id="pr-t"></table><h4>presses</h4><div class="log" id="pr-log"></div></div>
+<div id="pr"><b>Practice room</b> <span class="k">${JSON.stringify(G.feel ?? 'no feel').replace(/"/g, '')}</span><div id="pr-ai"></div><h4>combos (all unlocked)</h4><div id="pr-c"></div><div id="pr-s"></div><div id="pr-g"></div><div id="pr-j"></div><div id="pr-mp"></div><h4>last move</h4><table id="pr-t"></table><h4>presses</h4><div class="log" id="pr-log"></div></div>
 <script>
 (() => {
   const STRINGS = ${strings}, SDN = ${JSON.stringify(SD.beats)}, SDD = ${SD.damage}, BACK = 3, foeHp = ${foeHp};
@@ -173,7 +173,7 @@ const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/
   const row = (k, a, b, cls) => '<tr><td class="k">' + k + '</td><td>' + (a ?? '') + '</td><td class="' + (cls || '') + '">' + (b ?? '—') + '</td></tr>';
   function draw() {
     const live = H.mvCombos || [], k = H.mvHit || 0, Wn = LISTS[H.mvWeapon || Object.keys(LISTS)[0]], LIST = Wn.list;
-    $('pr-c').innerHTML = '<div>weapon <b>' + Wn.name + '</b> <span class="k">(' + Object.values(LISTS).map((x) => x.name).join(' · ') + ': mouse back / R)</span></div>' + LIST.map((c) => { const on = H.swingT != null && live.indexOf(c.id) >= 0; const beats = c.beats.split(' ').map((b, i) => { let n = -1, j = 0; for (const x of c.beats.split(' ')) { if (x !== '.') n++; if (j++ === i) break; } return '<span class="' + (on && b !== '.' && n < k ? 'on' : '') + '">' + (b === 'bH' ? 'back+H' : b) + '</span>'; }).join(' ');
+    $('pr-c').innerHTML = '<div>weapon <b>' + Wn.name + '</b> <span class="k">(' + Object.values(LISTS).map((x) => x.name).join(' · ') + ': mouse back / R)</span></div>' + LIST.map((c) => { const on = H.swingT != null && live.indexOf(c.id) >= 0; const beats = c.beats.split(' ').map((b, i) => { let n = -1, j = 0; for (const x of c.beats.split(' ')) { if (x !== '.') n++; if (j++ === i) break; } return '<span class="' + (on && b !== '.' && n < k ? 'on' : '') + '">' + (b === 'bH' ? 'back+H' : b[0] === 'm' ? 'R2+' + ({ L: 'W', H: 'N', S: 'E' })[b[1]] : b) + '</span>'; }).join(' ');
       return '<div>' + (c.air ? '<span class="k">in the air:</span> ' : '') + beats + ' <span class="k">' + c.name + ' · ' + c.moves.map((m) => m.id).join(' → ') + '</span></div>'; }).join('');
     // the sidearm on S: its name, its rounds (a quiver's arrows, a magazine, or endless), the draw and its readiness
     const G = H.mvRanged, w = H.weapon;
@@ -185,6 +185,8 @@ const HUD = `<style>#pr{position:fixed;top:10px;left:10px;width:360px;font:12px/
     // the juggle (combos.js juggle, combat-hit.js): the foe in the air, its stun left (the budget), its air blows; its
     // recovery (an invincible flip out) or its knockdown
     const Fj = foes[0];
+    // (the MP pool the specials draw on: the modifier held (the right trigger, left Ctrl), a face pressed)
+    $('pr-mp').innerHTML = H.mp != null ? 'MP <b>' + Math.floor(H.mp) + '</b> <span class="k">specials: hold R2 (left Ctrl) + W / N / E (left click / right click / mouse forward)</span>' : '';
     $('pr-j').innerHTML = Fj && Fj.comboCfg && Fj.comboCfg.juggle ? 'juggle <b>' + (Fj.juggle ? (Fj.juggle.recover ? 'RECOVERING' : Fj.juggle.knock ? 'SLAMMED' : 'IN THE AIR') : Fj.reactClip === 'topple' || Fj.reactClip === 'downpause' || Fj.reactClip === 'getup' ? 'KNOCKED DOWN' : 'grounded') + '</b> <span class="k">back+H to launch (away from the foe) · hold H to rise</span>' + (Fj.juggle && !Fj.juggle.recover ? ' · stun ' + Math.max(0, Fj.juggle.stunT || 0).toFixed(2) + ' s · blows ' + (Fj.comboHits || 0) : '') + ' · recoveries ' + (Fj.airRecoveries || 0) : '';
     const m = last, mv = m && MOVES[m.id];
     $('pr-t').innerHTML = (m ? row('move', m.id + ' · ' + mv.role, m.clip) + row('frames', mv.frames + (mv.cancel ? ' · cancel ' + mv.cancel : ' · no cancel'), (m.end != null ? m.end + ' f' : '…'))

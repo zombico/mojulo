@@ -545,6 +545,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-09 (1108-practice-room: Fallen Angel's air): the 16 fixtures that embed the controllable runtime. An
 // air dash alone (`dash.ground: false`, F on the ground left to the sprint) and a glide held once the air jumps are spent
 // (`glideSpent`); no fixture's rule names either, so the runtime they embed changed, their worlds as they were.
+// Re-pinned 2026-11-09 (1108-practice-room: the modifier and its specials): the 16 fixtures that embed the controllable
+// runtime. The moveset's specials on the modifier held (`mod`), the MP pool, a move's `reach` and a `dash` travel, and the
+// sidearm silent under the modifier; no fixture names a moveset, so the runtime they embed changed, their worlds as they
+// were. (The page's moveset input reads the modifier only on a moveset's page: no fixture has one.)
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

@@ -653,7 +653,7 @@ export function buildCombatRanged(E) {
     const firesForPilot = !e.pilotable || state.pilotId === e.id || E.seated(state, e);
     if (e.weapon && !suppressed && e.rule && e.rule.type === 'ai') stepWeapon(e, { fire: e.aiFire ? 1 : 0 }, dt, state);
     // (a moveset's hero, gameworld/combos.js: its sidearm on S, never mid-swing; L and H are its blades)
-    else if (e.weapon && !suppressed && e.tackleT == null && firesForPilot) stepWeapon(e, e.rule && e.rule.moveset ? { ...input, fire: input.special && e.swingT == null && !e.guarding ? 1 : 0, ...(e.mvAim ? { aim: e.mvAim } : {}) } : input, dt, state);   // a tackle owns the body — no firing mid-charge
+    else if (e.weapon && !suppressed && e.tackleT == null && firesForPilot) stepWeapon(e, e.rule && e.rule.moveset ? { ...input, fire: input.special && !input.mod && e.swingT == null && !e.guarding ? 1 : 0, ...(e.mvAim ? { aim: e.mvAim } : {}) } : input, dt, state);   // a tackle owns the body — no firing mid-charge
   }, 10);
   // MISSILES (opt-in `rule.missiles`: skyscape/dogfight.js): { count?, lockTime?, cone?, range?, speed?, turn?, damage?,
   // splash?, prox?, fuse?, cooldown?, flares?, flareTime?, flareAt?, hitsAs? } (`hitsAs`: the hits a burst counts). Each step the body's LOCK builds on the hittable foe nearest

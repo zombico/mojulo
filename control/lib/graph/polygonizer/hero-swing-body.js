@@ -285,9 +285,10 @@ export function moveClip(move, ctx) {
   const play = layeredClip(keys, R), fit = fitSwing(T ? T.strike : swingPhases(keys.length).strike, from);
   const arm = T ? (u) => play(T.warp(fit(u))) : (u) => play(fit(u));
   // the travel as the runtime carries it (combat-melee.js: a step's to the window's start, a lunge's to its end)
-  const tTo = move.travel ? Math.max(0.05, move.travel.kind === 'step' ? contact[0] : contact[1]) : 0;
+  const tTo = move.travel ? Math.max(0.05, move.travel.kind === 'step' || move.travel.kind === 'dash' ? contact[0] : contact[1]) : 0;
   const travel = move.travel && move.travel.kind !== 'none' && move.travel.m > 0 ? { kind: move.travel.kind, m: move.travel.m, from: Math.min(move.travel.wait || 0, tTo * 0.5), to: tTo } : null;
-  const fn0 = move.air ? (u) => airBody(arm(u), u, from) : travel && ctx.footwork ? withFootwork(arm, travel, ctx) : arm;
+  // (a DASH glides: its feet held in the stance while the runtime carries the body, no footwork)
+  const fn0 = move.air ? (u) => airBody(arm(u), u, from) : travel && ctx.footwork && travel.kind !== 'dash' ? withFootwork(arm, travel, ctx) : arm;
   const fn = isArt(ctx.style) ? reachGuard(fn0, R, rigNodesAt) : fn0;
   fn.keys = 24;
   fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, contact[1]], ...(travel ? { travel } : {}), ...(move.air ? { air: true } : {}) };

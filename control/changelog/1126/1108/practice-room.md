@@ -269,3 +269,15 @@
   Justice's cape glide is carried with it; Artesia's paraglider, opened by a press, is not yet. The level's controls say
   the air's keys. Checked in the room on a Fallen Angel copy of the Old Keep: six rounds in two thirds of a second, an air
   dash of 1.65 m, a glide held 98 frames at 2 m/s.
+- **The modifier and its specials** (`gameworld/combos.js`, `combat-melee.js`). A face pressed with the MODIFIER held is
+  that face's SPECIAL: new beats `mL`, `mH`, `mS` (the light, heavy and special buttons, W, N, E on a pad); `mS` is the MP
+  ability in the sidearm's place (the sidearm never fires with the modifier held). The modifier is its own control
+  (`modifier`, `controls/schemes.js`): the right trigger on a pad (a sword's hero fires nothing on it: its sidearm is the
+  special's button, so on a moveset's page the trigger no longer doubles the light), left Ctrl on a keyboard; the guard
+  stays the left shoulder and Shift. An arsenal's `mp` pool (`max`, `regen` a second, `onHit` a blow landed) pays a move's `mp` cost, and
+  a press the pool cannot pay is refused and says so. New move words: a travel `dash` (the body carried in a glide to the
+  blow, the feet held, closing on what is ahead, up to 4 m) and a move's own `reach`. The kits: Fallen Angel's sword has
+  the stinger (a thrust on a 3.5 m dash), the drive (an overhead reaching 5 m) and the devil burst (MP 40: a two-turn
+  whirlwind all round, 3.2 m, knocking down), its meter built only by landing blows (4 a hit); Artesia has the leaping
+  strike (an overhead on a 2 m dash), the rising slash (the upswing knocking down) and the fire burst (MP 50: all round, 4 m,
+  knocking down), its meter refilling at 4 a second. The room's HUD shows the MP and names the specials.
