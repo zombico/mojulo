@@ -177,7 +177,8 @@ describe('the city changing', () => {
       expect(P.repeats.some((r) => r.group === 'geocity:scaffold')).toBe(true);
       expect(P.repeats.some((r) => r.group === 'geocity:hoarding' || r.group === 'geocity:fence')).toBe(true);
     }
-    if (parked) { const cars = P.repeats.find((r) => r.group === 'geocity:car'); expect(cars.transforms.every((t) => Array.isArray(t.tint))).toBe(true); }
+    // (its lots' cars the registry's, fleets.js: each model's body tinted its paint)
+    if (parked) { const cars = P.repeats.filter((r) => r.group === 'geocity:vehicle-paint'); expect(cars.length).toBeGreaterThan(0); expect(cars.every((r) => r.transforms.every((t) => Array.isArray(t.tint)))).toBe(true); }
     expect(going || parked).toBe(true);
   });
   it('stocks a site drawn in detail from the construction shelf: its tower crane over its core, an excavator and a tipper in its hoarding', () => {
