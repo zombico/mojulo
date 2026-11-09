@@ -297,3 +297,14 @@
   live ones (the feet's height, each jump's top, the double jump, wall kicks, stomps, touches). Checked headless: a held
   jump of 1.81 m (the card's 1.806), the double jump onto the ledge, a stomp downing a walker and bouncing the hero (1.74 m
   with the jump held), a touch counted, the wall clung to and kicked from. Not carried yet: the ground pound.
+- **The mount treadmill** (`scripts/spikes/mount-treadmill/room.mjs`). A greybox lane for a game's hero and its horse
+  (the game's `mounts`, its coat): a 200 m sand lane with a post either side every 10 m (red at each 50), the 100 m split
+  timed from the start line, three fences across it (0.5, 0.8 and 1.1 m, against the horse's jump clearance), open ground
+  past it with a ring of pylons to turn. Its HUD sets the horse's numbers (each gait's speed, the rein-back, the jump's
+  clearance and speed) beside the live ones (riding or on foot, the speed off its ground travel, the top speed, the 100 m
+  split, the jumps, each fence cleared or refused). The Artesia test game (the Old Keep) now names its horse (`mounts`: a
+  chestnut beside each walking level's spawn). Checked headless: E got the hero on, the horse up through walk, trot,
+  canter and gallop (15 m/s), the 0.5 and 0.8 m fences cleared, the 1.1 m fence refused, halted and got off.
+- **Fixed: a horse galloped on the spot against a wall** (`worlds/controllable/mount.js`). The ride rule moved the body
+  and let the walls push it back but kept its speed, so a horse run into a fence above its jump stood still in a full
+  gallop. A wall that takes most of a step now pulls it up: its speed what it covered, its gait come down with it.
