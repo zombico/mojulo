@@ -601,6 +601,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // the stomp and the dive kick, a roll's way through a crowd.
 // Re-pinned 2026-11-09 (1109-gen-bodywork: foes are bodies): `brawl` only. Its page inlines the brawl's moves (a body's
 // tune) and crowd (each type's tune and plays).
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the boss a body as every other): `brawl` only. Its page inlines the crowd
+// (the boss's tune and its plays between its CPU's own).
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

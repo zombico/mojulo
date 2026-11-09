@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { streetOf, stepStreet, readWaves, crowdFighter, readPlays, playSlot, CROWD_TYPES, CROWD_TYPE_IDS, CROWD_RULES, CROWD_PLAYS } from './brawl-crowd.js';
+import { streetOf, stepStreet, readWaves, crowdFighter, readPlays, playSlot, CROWD_TYPES, CROWD_TYPE_IDS, CROWD_RULES, CROWD_PLAYS, BOSS_PLAYS } from './brawl-crowd.js';
 import { brawlFighter } from './brawl-moves.js';
 import { newReader, readButtons } from './brawl-moves.js';
 import { readBelt, viewHalf } from './brawl-belt.js';
@@ -219,6 +219,26 @@ describe('brawl crowd: the boss', () => {
       for (const e of log[k].s.events) if (e.t === 'hit' && e.d === 0) { if (lastBy !== null && e.p !== lastBy) expect(free).toBe(true); lastBy = e.p; free = false; }
       if (FREE.has(me.st)) free = true;
     }
+  });
+  it('a body as every other: its plays the brawler\'s, thrown between the fight\'s CPU\'s own', () => {
+    const F = st.ctx.fighters[st.s.bodies[bossId].fi];
+    const moves = new Set(log.map((x) => x.s.bodies[bossId].mv).filter(Boolean));
+    // (the brawler's rows its plays throw, and the fight's own normals and specials the CPU throws)
+    const brawler = [...moves].filter((mv) => /^(strong|run\.|chain\.)/.test(mv) || (mv === 'air.M' && log.some((x) => x.mind.b[bossId]?.play === 'kick')));
+    expect(brawler.length, [...moves].join(' ')).toBeGreaterThanOrEqual(2);
+    expect([...moves].some((mv) => /^(stand|crouch|special|throw)/.test(mv))).toBe(true);
+    expect(st.mind.bosses[bossId].plays).toEqual(BOSS_PLAYS);
+    expect(F.moves['strong.dive']).toBeTruthy();
+  });
+  it('its own timing and damage (a tune), and no grab among its plays (its grab is the CPU\'s throw)', () => {
+    const tune = { damage: 130, startup: -1, recovery: 2, cool: 80 };
+    const t = streetOf({ belt, players: [hero()], waves: [wave({ tune })] });
+    const id = Number(Object.keys(t.mind.bosses)[0]), F = t.ctx.fighters[t.s.bodies[id].fi];
+    const plain = brawlFighter(bossRecipe);
+    expect(F.moves['stand.H'].startup).toBe(plain.moves['stand.H'].startup - 1);
+    expect(F.moves['stand.H'].damage).toBe(Math.round((plain.moves['stand.H'].damage * 130) / 100));
+    expect(() => readWaves([wave({ plays: ['grab'] })], belt)).toThrow(/grab/);
+    expect(() => streetOf({ belt, players: [hero()], waves: [wave({ plays: ['sing'] })] })).toThrow(/play/);
   });
   it('it takes no token', () => {
     expect(log.every((x) => !(x.mind.tok[0] ?? []).includes(bossId))).toBe(true);

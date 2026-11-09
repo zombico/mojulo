@@ -80,3 +80,9 @@
   The token and one-attacker-at-a-time rules hold for every play. The thug sometimes breaks its chain off with a
   knockdown or leaps in; the knife runs in; the charger blows the player away; the jumper flying-kicks and dive-kicks;
   the heavy, slow and hard-hitting, swings its strong and breaks out of a hold.
+- The boss is a body as every other: a wave's `boss` takes a `tune` (its own timing and damage, as a crowd type's) and
+  `plays` (`BOSS_PLAYS` by default: the strong and its enders, the run, the flying kick and the dive kick, the
+  desperation when held; a boss's grab stays the fight's throw). The fight's CPU still fights it; every while
+  (`BOSS_REST` frames after its last, and its own share of a second more) it throws a play of its own once it stands
+  where the play starts, under the crowd's one-attacker-at-a-time rule. Its chain runs to the blow before its last, so a
+  breaker or a blowout has a place.
