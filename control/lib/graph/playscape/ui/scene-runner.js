@@ -17,8 +17,13 @@
  *                             it may have ruled it out); a scene is queued once.
  *                             `fire` goes to the bus (the beats' cues), `ops` to the cast (the camera's shot / unshot,
  *                             and `finish` when a scene is skipped: every walk lands where it was going)
- *   R.view(S)                 → { on, bars (0..1), line: { who, name, text (typed so far), full, expression? } | null,
+ *   R.view(S)                 → { on, bars (0..1), line: { who, name, text (typed so far), full, expression?, take? } | null,
  *                               choice: { options: [text], sel } | null }   (a choice shows its question as the line)
+ *                             take: { t, held } for a line with a take (a script's, scene-script.js): t the script's clock
+ *                             at this frame, from the line's own start to its end; held once it has played out, the cast
+ *                             holding (listening) until the press. A press shows the words; the take plays on; the next
+ *                             press goes on, and the next line's take starts at its own start (a held or hurried line
+ *                             never drifts the next)
  *
  * A line types on at RATE characters a second; a press shows it whole, the next goes on. Holding the advance key for
  * HOLD seconds, or Esc, skips: the scene's remaining beats fire at once (their effects land), the walks finish, and the
@@ -63,7 +68,7 @@ export function buildSceneRunner() {
       if (b.kind === 'fire') { out.fire.push(b.event); continue; }
       if (b.kind === 'until') { A.wait = { event: b.event }; return; }
       if (b.kind === 'wait') { A.wait = { time: b.wait }; return; }
-      if (b.kind === 'line') { A.line = b; A.typed = 0; A.wait = { click: true }; return; }
+      if (b.kind === 'line') { A.line = b; A.typed = 0; A.lt = 0; A.wait = { click: true }; return; }
       if (b.kind === 'choose') { choose(A, b); return; }
       if (b.kind === 'jump') { A.i = b.to - 1; continue; }
     }
@@ -145,7 +150,7 @@ export function buildSceneRunner() {
           if (k >= 0) answer(S, out, k);
         }
         else if (w && w.click) {
-          A.typed += dt * RATE;
+          A.typed += dt * RATE; A.lt += dt;
           if (c.next) { if (A.typed < A.line.text.length) A.typed = A.line.text.length; else go = true; }
         }
         if (go) advance(S, out);
@@ -156,12 +161,16 @@ export function buildSceneRunner() {
     return out;
   }
 
+  // a line's take on its script's clock: from its own start, never past its end, where the cast holds (listening) until
+  // the press; the next line's take starts at its own start, however long this one was held or however soon pressed
+  function takeAt(T, lt) { const len = T.end - T.at, u = Math.min(lt || 0, len); return { t: Math.round((T.at + u) * 1000) / 1000, held: (lt || 0) >= len }; }
+
   function view(S) {
     const A = S.active, L = A && A.line;
     return {
       on: !!A,
       bars: S.bars,
-      line: L ? { who: L.who, name: L.name, text: L.text.slice(0, Math.floor(A.typed)), full: A.typed >= L.text.length, ...(L.expression ? { expression: L.expression } : {}) } : null,
+      line: L ? { who: L.who, name: L.name, text: L.text.slice(0, Math.floor(A.typed)), full: A.typed >= L.text.length, ...(L.expression ? { expression: L.expression } : {}), ...(L.take && !A.choice ? { take: takeAt(L.take, A.lt) } : {}) } : null,
       choice: A && A.choice ? { options: A.choice.options.map((o) => o.text), sel: A.sel } : null,
     };
   }

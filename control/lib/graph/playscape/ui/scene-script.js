@@ -18,8 +18,11 @@
  * Lowered (a script reads as if its beats were written by hand):
  *   each cut               { shot: { frame, on, side } } (a close at the eyes, CLOSE_LOOK); a cut that lands inside a
  *                          beat before it plays, the ones before it held `for` the time between (the establishing wide)
- *   a line                 { line: { who, say, expression? } }: the words in the box, the read's markup taken out, the
- *                          parenthetical's emotion its expression
+ *   a line                 { line: { who, say, expression?, take } }: the words in the box, the read's markup taken out,
+ *                          the parenthetical's emotion its expression; `take` its span on the scene's clock ({ at, end }:
+ *                          its words and the gap after, never into the next line's), which the runner plays the line's
+ *                          take over (scene-runner.js: a press shows the words, the take plays on, at its end the cast
+ *                          holds until the press; the next line's take starts at its own start)
  *   a cross                { do: { walk: { who, to, then: 'stay', speed: WALK } } } and { until: [{ arrive: who },
  *                          { stuck: who }] } (a walk the level's walls stop still lets the scene go on)
  *   a turn                 { do: { walk: { who, to: where it stands, then: 'stay', face } } } (it turns where it stands)
@@ -118,12 +121,17 @@ export function lowerScript(text, { people = {}, places = {}, player = null, see
   const others = named.filter((w) => w !== player);
   if (others.length) beats.push({ do: others.map((w) => ({ walk: { who: w, to: spot(w), then: 'stay', face: open(w) } })) });
 
+  // each line's take: its span on the scene's clock, from its words' start through the gap after (never into the next
+  // line's), the segment the actor's take for it plays over while the box waits for the press
+  const takes = scene.turns.map((T, k) => ({ at: T.at, end: r3(Math.min(T.at + T.hold, scene.turns[k + 1]?.at ?? scene.seconds, scene.seconds)) }));
+  let said = 0;
   scene.beats.forEach((b, i) => {
     beats.push(...shotsAt(i));
     if (b.kind === 'line') {
       const say = boxWords(b.text);
       if (say.length > LINE_MAX) throw new Error(`script: ${b.who.toUpperCase()}'s line is ${say.length} characters; the box holds ${LINE_MAX}: break it into two lines`);
-      beats.push({ line: { who: b.who, ...(say ? { say } : {}), ...(b.face ? { expression: b.face } : {}) } });
+      const take = takes[said++];
+      beats.push({ line: { who: b.who, ...(say ? { say } : {}), ...(b.face ? { expression: b.face } : {}), ...(take.end > take.at ? { take } : {}) } });
     } else if (b.kind === 'cross') {
       const to = marks[b.to.mark];
       if (Math.hypot(to[0] - pos[b.who][0], to[1] - pos[b.who][1]) <= 1e-3) return;

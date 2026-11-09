@@ -61,7 +61,7 @@ describe('a script, lowered', () => {
     expect(shots.map((s) => [s.frame, s.on, s.side])).toEqual(L.cuts.map((c) => [c.frame, c.on, c.side]));
     expect(shots[0].frame).toBe('wide');                                    // establish first
     for (const s of shots.filter((x) => x.frame === 'close')) expect(s.lookH).toBe(1.52);
-    expect(L.beats.filter((b) => b.line).map((b) => b.line)).toEqual([
+    expect(L.beats.filter((b) => b.line).map(({ line: { take: _, ...l } }) => l)).toEqual([
       { who: 'mayor', say: 'The road is shut.' },
       { who: 'hero', say: 'Since when?', expression: 'worried' },
       { who: 'mayor', say: 'Since the bell stopped.' },
@@ -114,7 +114,7 @@ describe('a script, lowered', () => {
     const plain = { scenes: [{ id: 'x', when: { start: true }, beats: [{ line: { who: 'mayor', say: 'Hi.' } }] }] };
     expect(withScripts(plain, { people: PEOPLE, places: PLACES, player: 'hero' })).toBe(plain);
     const chose = withScripts({ scenes: [{ id: 'x', when: { start: true }, beats: [{ choose: { options: [{ say: 'Yes', beats: [{ script: 'MAYOR: Good.' }] }, { say: 'No' }] } }] }] }, { people: PEOPLE, places: PLACES, player: 'hero' });
-    expect(chose.scenes[0].beats[0].choose.options[0].beats.find((b) => b.line).line).toEqual({ who: 'mayor', say: 'Good.' });
+    expect(chose.scenes[0].beats[0].choose.options[0].beats.find((b) => b.line).line).toMatchObject({ who: 'mayor', say: 'Good.' });
     // an unlowered script never reaches the runner unsaid
     expect(() => sceneCues({ scenes: [{ id: 'x', when: { start: true }, beats: [{ script: 'MAYOR: Hi.' }] }] })).toThrow(/is a script, which is lowered on the page's characters and places first/);
   });
@@ -124,6 +124,66 @@ describe('a script, lowered', () => {
     const cues = sceneCues(play).filter((c) => c.then.emit?.startsWith('scene-heard:x:'));
     const heard = Object.groupBy(cues, (c) => c.then.emit);
     for (const list of Object.values(heard)) expect(list.map((c) => Object.keys(c.when)[0]).sort()).toEqual(['arrive', 'stuck']);
+  });
+});
+
+describe('the line clock and the press', () => {
+  it('each line carries its take: its span on the scene\'s clock, from its words\' start, never into the next line\'s', () => {
+    const L = lowerScript(SCRIPT, { people: PEOPLE, places: PLACES, player: 'hero' });
+    const takes = L.beats.filter((b) => b.line).map((b) => b.line.take);
+    expect(takes.map((t) => t.at)).toEqual(L.scene.turns.map((T) => T.at));
+    takes.forEach((t, k) => {
+      expect(t.end).toBeGreaterThan(t.at);
+      expect(t.end).toBeGreaterThanOrEqual(L.scene.turns[k].end);            // the words are in it
+      if (takes[k + 1]) expect(t.end).toBeLessThanOrEqual(takes[k + 1].at);  // never into the next
+    });
+    // read as a scene's line, and carried to the runner's program
+    const P = lowerPlay({ entities: ENTITIES, play: { spots: SPOTS, scenes: [{ id: 's', when: { start: true }, beats: [{ script: SCRIPT }] }] } }, { player: 'hero' }).scenes[0];
+    expect(P.beats.filter((b) => b.kind === 'line').map((b) => b.take)).toEqual(takes);
+    expect(() => readScenes({ scenes: [{ id: 'x', when: { start: true }, beats: [{ line: { who: 'a', take: { at: 2, end: 1 } } }] }] })).toThrow(/take is \{ at, end \}/);
+  });
+
+  // the scene played to its first line; then each line's take read off the runner's view
+  const SCENE = { id: 'clock', when: { start: true }, beats: [{ script: 'MAYOR: The road is *shut*, and it has been shut since spring.\nHERO: Since when?\nMAYOR: Since the bell stopped.' }] };
+  const toLine = (L) => { L.begin(); expect(L.until(() => !!L.view().line)).toBe(true); return L; };
+  const take = (L) => L.view().line.take;
+
+  it('a press shows the words and the take plays on; the next press goes on, and the next take starts at its own start', () => {
+    const L = toLine(level([SCENE])), T = L.ev.scenes[0].beats.filter((b) => b.kind === 'line').map((b) => b.take);
+    expect(take(L).t).toBeCloseTo(T[0].at, 1);
+    L.tick({ next: true });                                                   // the words whole at once
+    expect(L.view().line.full).toBe(true);
+    expect(take(L).held).toBe(false);                                         // the take still playing
+    L.tick(); L.tick();
+    expect(take(L).t).toBeGreaterThan(T[0].at);
+    L.tick({ next: true });                                                   // on, early
+    expect(L.view().line.text).toBe('');
+    expect(take(L).t).toBeCloseTo(T[1].at, 1);                                // its own start, not where the first was cut
+  });
+
+  it('left alone, a line\'s take plays out and holds at its end until the press; however long, the next starts at its own start', () => {
+    const L = toLine(level([SCENE])), T = L.ev.scenes[0].beats.filter((b) => b.kind === 'line').map((b) => b.take);
+    for (let i = 0; i < Math.ceil((T[0].end - T[0].at + 3) * 30); i++) L.tick();
+    expect(take(L)).toEqual({ t: T[0].end, held: true });                     // held, not drifting on
+    expect(L.view().line.full).toBe(true);
+    L.tick({ next: true });
+    expect(take(L).t).toBeCloseTo(T[1].at, 1);
+    // a held line and a hurried one land the same next line on the same clock
+    const H = toLine(level([SCENE]));
+    H.tick({ next: true }); H.tick({ next: true });
+    expect(take(H).t).toBeCloseTo(take(L).t, 2);
+  });
+
+  it('a skip lands it all the same; a choice\'s question carries no take', () => {
+    const L = toLine(level([SCENE]));
+    L.tick({ skip: true });
+    expect(L.view()).toMatchObject({ on: false, line: null });
+    const C = level([{ id: 'ask', when: { start: true }, beats: [{ script: 'MAYOR: Will you go?' }, { choose: { options: [{ say: 'Yes' }, { say: 'No' }] } }] }]);
+    toLine(C);
+    C.tick({ next: true }); C.tick({ next: true });
+    expect(C.until(() => !!C.view().choice)).toBe(true);
+    expect(C.view().line.text).toBe('Will you go?');                         // the question stays in the box
+    expect(C.view().line.take).toBeUndefined();
   });
 });
 

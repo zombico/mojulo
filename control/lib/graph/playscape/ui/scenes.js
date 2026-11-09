@@ -144,11 +144,13 @@ function readShot(s, at) {
 
 function readLine(l, at) {
   if (!isObj(l)) throw err(`${at} is { who, say?, expression? }`);
-  for (const k of Object.keys(l)) if (!['who', 'say', 'expression'].includes(k)) throw err(`${at}.${k} is not part of a line (who, say, expression)`);
+  for (const k of Object.keys(l)) if (!['who', 'say', 'expression', 'take'].includes(k)) throw err(`${at}.${k} is not part of a line (who, say, expression, take)`);
   if (typeof l.who !== 'string' || !l.who) throw err(`${at}.who is the speaker's entity id`);
   if (l.say !== undefined && !words(l.say)) throw err(`${at}.say is the line, in words (leave it out for a placeholder)`);
   if (l.expression !== undefined && !(typeof l.expression === 'string' && ID.test(l.expression))) throw err(`${at}.expression is a word (smiling, worried…)`);
-  return { who: l.who, ...(l.say !== undefined ? { say: l.say.trim() } : {}), ...(l.expression ? { expression: l.expression } : {}) };
+  // (take: the line's span on its script's clock, scene-script.js writes it: the actor's take for the line plays over it)
+  if (l.take !== undefined && !(isObj(l.take) && Object.keys(l.take).length === 2 && Number.isFinite(l.take.at) && Number.isFinite(l.take.end) && l.take.at >= 0 && l.take.end > l.take.at)) throw err(`${at}.take is { at, end }: the line's span on its script's clock, seconds (at ≥ 0, end > at)`);
+  return { who: l.who, ...(l.say !== undefined ? { say: l.say.trim() } : {}), ...(l.expression ? { expression: l.expression } : {}), ...(l.take ? { take: { at: l.take.at, end: l.take.end } } : {}) };
 }
 
 function readChoose(C, at, ctx, depth) {
@@ -323,7 +325,7 @@ export function sceneProgram(play) {
   return readScenes(play).map((sc) => {
     const beats = [];
     let said = 0;
-    const lineOf = (l) => { said++; return { kind: 'line', who: l.who, name: nameOf(sc.names, l.who), text: l.say ?? `[${nameOf(sc.names, l.who)}: line ${said}]`, ...(l.expression ? { expression: l.expression } : {}) }; };
+    const lineOf = (l) => { said++; return { kind: 'line', who: l.who, name: nameOf(sc.names, l.who), text: l.say ?? `[${nameOf(sc.names, l.who)}: line ${said}]`, ...(l.expression ? { expression: l.expression } : {}), ...(l.take ? { take: l.take } : {}) }; };
     const line = (l) => beats.push(lineOf(l));
     // flattened: a choice's options play inline after it, each ending in a jump past the rest
     const lay = (list, pre) => list.forEach((b, n) => {

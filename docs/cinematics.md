@@ -198,7 +198,12 @@ then this department directs it (`playscape/ui/scene-script.js`), lowered at bui
   conversation from whom it meets, toward where it came from) and turns everyone to face as the blocking opens: the
   coverage is framed from the marks, so the marks are made true. As it ends every body is handed back to its rule.
 - **A walk the level stops never stalls the scene**: it waits on the walk's arrive or its stuck.
-- **What waits.** Lines go by on the player's press; the actor's takes (the face and the body), `looks at`, and the
+- **The line's clock and the player's press.** The actor times each line; the box waits for the player. Each line
+  carries its span on the scene's clock (`take`: its words and the gap after, never into the next line's), and the
+  runner keeps that clock while the line is up: a press shows the words whole and the take plays on; left alone, the
+  take plays out and the cast holds, listening, until the press; the next press goes on, and the next line's take
+  starts at its own start. A held line or a hurried one never drifts the next, so the takes cut at build stay true.
+- **What waits.** The actor's takes themselves (the face and the body, driven by that clock), `looks at`, and the
   screenplay's slow motion and freezes are lowered to nothing yet, so a scene reads as blocked and shot, not yet acted.
 
 ## Where to look

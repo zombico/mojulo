@@ -15,3 +15,8 @@
   built and reported by name, while the rest of the game builds.
 - **A blocked walk no longer stalls a scene.** A scene that waits for someone to walk somewhere now goes on if the walk
   is stopped by a wall, instead of waiting for ever.
+- **A written scene keeps its own timing while the player reads.** Each line of a script now carries how long it
+  takes to say, and the scene keeps that time while the line is on screen. A press shows the whole line at once while
+  the moment plays on; a line left alone plays out and then waits, the cast listening, for the press. However quickly
+  or slowly the player reads, the next line starts on its own beat, so the acting that follows in a later step stays
+  in step with the words.
