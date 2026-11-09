@@ -46,6 +46,8 @@
  *     lively        { <ring>: { construction, parking, vacant } }: the share of a ring's blocks (off its civic one) a
  *                   building going up, a surface parking lot, a vacant lot takes in place of its segment (blocks.js)
  *     grade         the steepest arterial (rise over run): steeper is advice
+ *     grades        { collector?, local? }: the steepest of a neighbourhood's streets (by default the gentler of a tenth
+ *                   and an eighth or the arterials')
  *     grammar       its city grammar (city/plan/grammars.js: an Earth flavour or a world grammar): its streets' sections,
  *                   its towers, its skins
  *     outskirts     the geotown pattern its outskirts are made of (geotown/pattern.js PATTERNS)
@@ -171,7 +173,7 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
@@ -267,7 +269,8 @@ export function readGeocity(spec = {}) {
   if (!isObj(Rd.median) || !num(Rd.median.share, 0, 1) || !num(Rd.median.w, 1, 20)) no('roads.median is { share: 0–1, w: metres }');
   if (!isObj(Rd.oneway) || !(Number.isInteger(Rd.oneway.pairs) && Rd.oneway.pairs >= 0 && Rd.oneway.pairs <= 4) || !(Number.isInteger(Rd.oneway.lanes) && Rd.oneway.lanes >= 1 && Rd.oneway.lanes <= 5)) no('roads.oneway is { pairs: 0–4, lanes: 1–5 }');
   if (!isObj(Rd.streetcar) || typeof Rd.streetcar.spine !== 'boolean' || !num(Rd.streetcar.share, 0, 1) || !num(Rd.streetcar.gauge, 0.6, 2) || !num(Rd.streetcar.row, 4, 20)) no('roads.streetcar is { spine: boolean, share: 0–1, gauge: metres, row: metres }');
-  if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');  // what is under it (geocity/podium.js): a podium walked into, its concourse below the street; an evocation's, at a
+  if (!num(M.grade, 0.01, 0.3)) no('grade is the steepest arterial, rise over run, 0.01 to 0.3');
+  if (M.grades !== undefined && (!isObj(M.grades) || Object.keys(M.grades).some((k) => !['collector', 'local'].includes(k)) || Object.values(M.grades).some((g) => !num(g, 0.01, 0.4)))) no('grades is { collector?, local? }: the steepest of each neighbourhood street, rise over run, 0.01 to 0.4');  // what is under it (geocity/podium.js): a podium walked into, its concourse below the street; an evocation's, at a
   // building's detail
   const under = spec.under === undefined ? null : spec.under === true ? {} : spec.under;
   if (under !== null && (!isObj(under) || Object.keys(under).some((k) => k !== 'at') || (under.at !== undefined && (typeof under.at !== 'string' || !/^[A-Z]+[0-9]+\.[0-9]+\.[0-9]+$/.test(under.at))))) no('under is true or { at?: \'<block id>\' }: the podiums walked into from their streets, their concourses under them and the passages between, or the one `at` names alone');

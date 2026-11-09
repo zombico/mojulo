@@ -64,3 +64,22 @@ describe('a metro\'s `profile`: its streets climb as a hill town\'s do', () => {
     expect(law(d, 'walkable')).toBeDefined();
   });
 });
+
+describe('a metro\'s grade law reads every street by its rank', () => {
+  it('holds its arterials to its grade and its neighbourhoods\' collectors and locals to its `grades`', async () => {
+    const { gradesOf } = await import('./laws.js');
+    const G = gradesOf(plain);
+    expect(Object.keys(G.ranks)).toEqual(expect.arrayContaining(['arterial', 'local']));
+    expect(G.most.collector).toBeGreaterThan(G.most.arterial);
+    expect(G.most.arterial).toBe(plain.metro.grade);
+    // (the hilly metro's arterials over their most, named; its locals within theirs)
+    const l = law(plain, 'grade');
+    expect(l.ok).toBe(false);
+    expect(G.over.every((s) => s.rank === 'arterial')).toBe(true);
+    expect(l.value).toMatch(new RegExp(`${G.over[0].id} `));
+    // (its own grades for its neighbourhood streets, read and refused off their rails)
+    expect(gradesOf(designGeocity({ ...HILLY, grades: { local: 0.03 } }, { seed: 2 })).over.some((s) => s.rank === 'local')).toBe(true);
+    expect(() => readGeocity({ grades: { arterial: 0.1 } })).toThrow(/grades is \{ collector\?, local\? \}/);
+    expect(law(designGeocity({}, { seed: 2 }), 'grade').ok).toBe(true);
+  });
+});

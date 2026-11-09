@@ -118,8 +118,10 @@ const BAY_AND_GABLE = {
     path: 1.2,
     // the share of a plot the house's envelope covers
     coverage: [0.2, 0.5],
-    // the steepest street (rise over run): steeper is advice
+    // the steepest street (rise over run): steeper is advice; a local street's, and `grades` a main and a major street's,
+    // gentler (they carry the traffic, the buses, the deliveries)
     grade: 0.08,
+    grades: { main: 0.06, major: 0.05 },
     // a pad over the walk at its front: at least `least`, at most `most`, in risers of `riser`; neighbours step at most `step`
     pad: { least: 0.3, most: 2.7, riser: 0.15, step: 1.2 },
     // the least share of the map that is soft (green) ground
@@ -294,6 +296,7 @@ const OLD_TOWN = {
   path: 1,
   coverage: [0.3, 0.7],
   grade: 0.1,
+  grades: { main: 0.08, major: 0.06 },
   pad: { least: 0.15, most: 1.2, riser: 0.15, step: 0.9 },
   green: 0.1,
   grow: { stride: 16, back: [0, 1], front: 0, park: 40, street: ['beech'], trees: ['cherry', 'oak'], shade: 'beech', parkTrees: ['oak', 'beech'] },

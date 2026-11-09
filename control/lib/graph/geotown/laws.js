@@ -16,7 +16,7 @@ export const GEOTOWN_LAWS = Object.freeze({
   coverage: 'a house\'s envelope covers its share of its plot, inside the pattern\'s rail',
   frontage: 'every plot\'s frontage inside its form\'s rail (a corner\'s wider by the corner)',
   setback: 'a block face holds one front yard depth',
-  grade: 'no street steeper than the pattern\'s grade',
+  grade: 'no street steeper than its rank\'s grade: a local street the pattern\'s `grade`, a main or a major street its `grades`',
   walkable: 'a profiled town\'s every stretch no steeper than a street is walked (profile.js): one past it said, too steep to walk',
   'pad-step': 'neighbouring pads along a row step at most the pattern\'s step beyond their walk\'s own fall',
   green: 'the soft ground (verges, yards, parks) at least the pattern\'s share of the map',
@@ -84,13 +84,17 @@ export function geotownLaws(d) {
   law('frontage', offRail === 0, `${d.plots.length} plots, ${offRail} off their rail`);
   const faces = d.blocks.flatMap((b) => (b.rows ?? []).map((r) => ({ b: b.id, s: r.side, F: r.setback, held: d.plots.filter((pl) => pl.block === b.id && pl.side === r.side).every((pl) => pl.setback === r.setback) })));
   law('setback', faces.every((f) => f.held), faces.length ? faces.map((f) => `${f.b}${f.s} ${f.F} m`).join(', ') : 'no block faces');
-  // a street's grade: its ground along its centre, 4 m a step
-  let steep = 0, where = null;
-  for (const s of d.streets) {
+  // each street's GRADE by its rank: its ground along its centre, 4 m a step, against its rank's most (a local street the
+  // pattern's `grade`, a main or a major street its `grades`)
+  const most = (rank) => (rank === 'street' ? P.grade : P.grades?.[rank] ?? P.grade);
+  const graded = d.streets.map((s) => {
     const z = (t) => (s.axis === 'y' ? d.land.S(s.at, t) : d.land.S(t, s.at));
-    for (let t = s.from; t + 4 <= s.to + 1e-9; t += 4) { const g = Math.abs(z(t + 4) - z(t)) / 4; if (g > steep) { steep = g; where = s.id; } }
-  }
-  law('grade', steep <= P.grade + 1e-9, `the steepest ${r3(steep)} (${where ?? 'none'}), the pattern's most ${P.grade}`);
+    let g = 0;
+    for (let t = s.from; t + 4 <= s.to + 1e-9; t += 4) g = Math.max(g, Math.abs(z(t + 4) - z(t)) / 4);
+    return { id: s.id, rank: s.rank, g, most: most(s.rank) };
+  });
+  const over = graded.filter((s) => s.g > s.most + 1e-9), top = graded.reduce((a, s) => (s.g > (a?.g ?? -1) ? s : a), null);
+  law('grade', !over.length, `${over.length ? `${over.length} street${over.length === 1 ? '' : 's'} over its rank's most: ${over.map((s) => `${s.id} ${r3(s.g)} (${s.rank}, most ${s.most})`).join(', ')}; ` : 'every street within its rank\'s most; '}the steepest ${r3(top?.g ?? 0)} (${top?.id ?? 'none'})`);
   // a profiled town's WALKABLE streets (profile.js): every stretch past the grade a street is walked at, said where it stands
   if (d.profile) {
     const st = d.profile.flatMap((s) => s.stretches.filter((x) => x.steep).map((x) => `${s.id} ${x.from}–${x.to} m at ${Math.round(x.grade * 100)}%`));

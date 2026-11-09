@@ -208,7 +208,8 @@ A cube that names no domains offers one per terrain and one per interior.
   stretch past `walkable` said too steep to walk by the `walkable` law; a street's stairs are its buildings' front steps), `slope` THIS CLIMBS (`{ toward: n | e | s | w, grade }` the land
   rising toward a side over its hills, the houses' pads with it; `streets: { 'ns-1': 0.12 }` each named street, one
   axis, climbing at its grade toward its north or east end on its profile, the land under it lifted with it and eased
-  out at its neighbours, its cross streets said where too steep to walk), `style` over the pattern's
+  out at its neighbours, its cross streets said where too steep to walk); its `grade` law reads every street by its rank
+  (a local street the pattern's `grade`, a main or a major street its gentler `grades`); `style` over the pattern's
   houses'. The answer's `geotown` carries the ledger (every surface's square metres, the buildings' by use), the
   segments, the ports and the laws;
   `show: 'geocity'` a METRO on the cube's own land, its major streets first (geocity/): a spine through its core's
@@ -221,7 +222,9 @@ A cube that names no domains offers one per terrain and one per interior.
   as a hill town lays them (`true` or `{ walkable, curve }`: the arterials' crossings level, each block between graded on
   one ramp, the land's edges and its shore kept; each neighbourhood's collectors and locals the same inside it; its
   composed geotowns profiled on its ground unless their recipes say; `walkable` names a stretch too steep to walk); `slope:
-  { streets: { 'ns-2': 0.04 } }` arterials that climb at their grade, the land under them lifted with them; `roads` each arterial's section
+  { streets: { 'ns-2': 0.04 } }` arterials that climb at their grade, the land under them lifted with them; `grades: { collector, local }`
+  the steepest of each neighbourhood street, its `grade` law reading every street by its rank (the arterials the metro's
+  `grade`); `roads` each arterial's section
   (`{ lane, parking, bike, lanes, median: { share, w }, oneway: { pairs, lanes }, streetcar: { spine, share, gauge,
   row } }`: four lanes, a spacer on some, one-way pairs of three by the core, streetcars on the spines and some, the
   metro's round lamps, signals, signs, crosswalks, paint, rails and overhead drawn near the camera, with its benches,

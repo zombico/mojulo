@@ -158,3 +158,11 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   0.03. The stretches past the walkable grade are said by a new law, `walkable`, the profiles by the page (`geocity.profile`).
   Two crossings whose reaches meet are a step between them, their grade read on the run between their middles. A metro
   that asks neither is designed byte for byte as before.
+- **Too steep to walk, said; every street's grade by its rank.** A profile's stretch past its walkable grade is `steep`,
+  and the law naming them is `walkable` (in the geotown and the geocity): too steep to walk, never a stair wanted (a
+  street's stairs are its buildings' front steps and stoops). The `grade` laws read every street by its rank: a geotown's
+  local streets against the pattern's `grade`, its main and major streets against its gentler `grades` (6 % and 5 %; the
+  old town's 8 % and 6 %), naming each street over its own most and the steepest; a geocity's arterials against its
+  `grade` and, newly, each neighbourhood's collectors and locals along their runs against its `grades` (a recipe's
+  `grades: { collector, local }`, by default the gentler of 10 % and 12 % or the arterials'), each measured every 4 m on
+  the streets' ground as built (profiled where asked), naming each street over and the steepest of each rank.
