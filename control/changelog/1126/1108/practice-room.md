@@ -258,3 +258,14 @@
 - **Fixed: a tap on the freeze was lost** (`hitstop.js`). A body frozen on its blow sits its step out, so an attack
   pressed for a frame inside the freeze never reached it: a quick tap timed on the hit dropped the next cut. The pilot's
   attack presses made through its own freeze are kept and handed to its first free frame.
+- **Fallen Angel: the guns back, and the air** (`gameworld/combos.js`, `feel/cards.js`, `feel/lower.js`,
+  `rules-platform.js`). The stylish game's kit carries the two pistols as its sidearm (held, they fire at nine rounds a
+  second and never run dry, weak); Artesia keeps the bow. Its template now has the stylish game's air: the double jump it
+  had, the AIR DASH on F in the air (a card's `dash.ground: false`: the air dash alone, the ground's F left to the sprint
+  and the dodge; one an airtime, 9 m/s for 14 frames, the fall stopped), and the GLIDE (the template wears the glider,
+  `gear: 'glide'`): the jump held in the air caps the fall at 2 m/s once the air jumps are spent (`glideSpent`: jump,
+  jump, hold; a first jump held never glides early). A worn glider the template holds (`kind: 'glide'`) is now carried
+  by the lowering as the runtime's capped fall, and a level's feel reads its template's gear (`feelRule`): Vigilante
+  Justice's cape glide is carried with it; Artesia's paraglider, opened by a press, is not yet. The level's controls say
+  the air's keys. Checked in the room on a Fallen Angel copy of the Old Keep: six rounds in two thirds of a second, an air
+  dash of 1.65 m, a glide held 98 frames at 2 m/s.

@@ -191,6 +191,23 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
     rule.cling = { slide: K.slide, toward: K.toward, kick: steppedSpeed(J.height * (K.up ?? 1), J.gRise), away: K.away, lock: r4(K.lock / FPS), coyote: r4(K.coyote / FPS) };
     carried.push('cling'); moves.add('cling');
   }
+  // (the AIR DASH alone, a card's `dash.ground: false`: F in the air, the takes or not; on the ground F stays the
+  // sprint's and the dodge's)
+  if (!takes && C.dash && C.dash.kind === 'dash' && C.dash.ground === false && C.dash.air?.count > 0) {
+    const A = C.dash.air;
+    rule.dash = { ground: false, air: { count: A.count, speed: A.speed, time: r4(A.frames / FPS) } };
+    half('dash', `the air dash on F in the air (${A.count} an airtime, ${A.speed} m/s for ${A.frames} frames, the fall stopped); on the ground F stays the sprint and the dodge${C.dash.iframes ? '; its invincible frames are not carried' : ''}`);
+    moves.add('dash');
+  }
+  // (the GLIDE, worn when the template names the glider (`gear`) and holds it (`kind: 'glide'`): the jump held in the air
+  // caps the fall at the card's `fall` (the runtime's glideFall), once the air jumps are spent; a paraglider opened and
+  // folded by a press, and a float, are not carried)
+  if (gear === 'glide' && C.glide && C.glide.kind === 'glide' && C.glide.fall > 0) {
+    rule.glideFall = C.glide.fall;
+    if (airJumps > 0) rule.glideSpent = true;
+    half('glide', `the glide: the jump held in the air caps the fall at ${C.glide.fall} m/s${airJumps > 0 ? ', once the air jumps are spent (jump, jump, hold)' : ''}; its forward speed and its turn are the air's own, not the card's`);
+    moves.add('glide');
+  }
   if (takes && C.dash && C.dash.kind === 'dash') {
     const D = C.dash, A = D.air;
     // (a burst the card's frames long: a dash held longer is not carried, a dash is not a run)
@@ -233,7 +250,8 @@ export function lowerFeel(card, { gear = null, takes = false } = {}) {
 /** The rule a written feel lays over the hero's platform rule: its card lowered, with its takes when it asks for them. */
 export function feelRule(feel) {
   const F = readFeel(feel);
-  return lowerFeel(feelCard(F), { takes: !!F.takes }).rule;
+  // (the template's worn gear with it: a glider it holds is carried, lowerFeel)
+  return lowerFeel(feelCard(F), { gear: POLES[F.pole]?.gear ?? null, takes: !!F.takes }).rule;
 }
 
 /**

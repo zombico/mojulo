@@ -85,3 +85,52 @@ describe('a press through the hitstop', () => {
     expect(A.log.some((x) => /L taken: .*cut-2/.test(x))).toBe(true);
   });
 });
+
+// THE STYLISH GAME'S AIR (feel/cards.js fallen-angel, lowered by feel/lower.js; rules-platform.js): the double jump, the
+// air dash alone on F (the ground's F the sprint and the dodge), and the glide held once the air jumps are spent.
+import { feelRule, feelReport } from './feel/lower.js';
+describe('the stylish game\'s air', () => {
+  const R = feelRule('fallen-angel');
+  const air = () => {
+    const w = CW.createWorld({ entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', eye: 0, ...R }, body: { type: 'box', size: [0.6, 0.6, 1.8], radius: 0.35 }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+    const p = w.byId.p, hooks = { ground: () => 0 }, step = (inp = {}, n = 1) => { for (let i = 0; i < n; i++) CW.stepWorld(w, inp, 1 / 60, hooks); };
+    step({}, 3);
+    return { p, step };
+  };
+  it('lowers a double jump, an air dash alone and a glide after the air jumps, the ground\'s F left to the sprint', () => {
+    expect(R.airJumps).toBe(1);
+    expect(R.dash).toMatchObject({ ground: false, air: { count: 1 } });
+    expect(R).toMatchObject({ glideFall: 2, glideSpent: true, stamina: true, dodge: true });
+    const rep = feelReport('fallen-angel');
+    expect(rep.partly.map((x) => x.field)).toEqual(expect.arrayContaining(['dash', 'glide']));
+    expect(rep.lost.map((x) => x.field)).not.toContain('dash');
+  });
+  it('F on the ground sprints and never dashes; F in the air dashes, once an airtime', () => {
+    const A = air();
+    A.step({ forward: 1, boost: 1 }, 30);
+    expect(A.p.dashT > 0).toBe(false);
+    expect(A.p.boosting).toBe(true);
+    // (half a second at the sprint's pace: further than the run's would carry it)
+    const x0 = A.p.transform.pos[0]; A.step({ forward: 1, boost: 1 }, 30);
+    expect(A.p.transform.pos[0] - x0).toBeGreaterThan(R.speed * 0.5 + 0.5);
+    const B = air();
+    B.step({ jump: 1, jumpHeld: 1 }, 1); B.step({ jumpHeld: 1 }, 10);
+    expect(B.p.grounded).toBe(false);
+    B.step({ boost: 1 }, 1);
+    expect(B.p.dashT > 0 && B.p.dashAir).toBe(true);
+    B.step({}, 30); B.step({ boost: 1 }, 1);
+    expect(B.p.dashT > 0 && !B.p.grounded).toBe(false);
+  });
+  it('the glide: a first jump held falls freely; jump, jump, hold falls no faster than the glide', () => {
+    const A = air(), fallOf = (A) => -A.p.vel[2];
+    A.step({ jump: 1, jumpHeld: 1 }, 1);
+    let fast = 0; for (let i = 0; i < 50; i++) { A.step({ jumpHeld: 1 }); fast = Math.max(fast, fallOf(A)); }
+    expect(fast).toBeGreaterThan(R.glideFall + 1);
+    const B = air();
+    B.step({ jump: 1, jumpHeld: 1 }, 1); B.step({ jumpHeld: 1 }, 18);
+    B.step({}, 1); B.step({ jump: 1, jumpHeld: 1 }, 1);
+    expect(B.p.airJumpsUsed).toBe(1);
+    let most = 0; for (let i = 0; i < 90 && !(B.p.grounded && i > 5); i++) { B.step({ jumpHeld: 1 }); most = Math.max(most, fallOf(B)); }
+    expect(most).toBeLessThanOrEqual(R.glideFall + 1e-6);
+  });
+});

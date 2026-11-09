@@ -236,8 +236,8 @@ export const BASIC_ARSENAL = Object.freeze({
  * THE TEMPLATES' KITS (a game template's starter arsenal: gameworld/feel/cards.js POLES; docs/sword-arts.md). What the
  * practice room settled on for each, so a game tuned toward the template starts from it:
  *   fallen-angel       the stylish game (Devil May Cry): the basic arsenal as it stands, the sword and the fist, their
- *                      strings, the launcher on back + heavy, the juggle and the air strings ending in a slam, the bow;
- *                      swung freestyle (the anime sword)
+ *                      strings, the launcher on back + heavy, the juggle and the air strings ending in a slam; its
+ *                      sidearm the two pistols; swung freestyle (the anime sword)
  *   fable-of-artesia   the action-adventure (Zelda): the sword and shield, deliberate (a press remembered longer, a string
  *                      that must play further before it chains, a longer rest after the finisher), no launcher, no juggle,
  *                      no air strings; back + heavy is the SPIN ATTACK, the blade swept all round the hero, the body turned
@@ -269,7 +269,9 @@ export const ARTESIA_ARSENAL = Object.freeze({
   ],
   ranged: BASIC_ARSENAL.ranged,
 });
-export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle' });
+// (its sidearm the stylish game's pistols: two guns, held they fire at their rate and never run dry, weak; every weapon's)
+export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle',
+  ranged: [{ id: 'pistols', name: 'Pistols', mode: 'auto', rof: 9, damage: 0.4, impact: 3, range: 30, infinite: true, hand: 'right', dual: true }] });
 export const TEMPLATE_ARSENALS = Object.freeze({ 'fallen-angel': FALLEN_ANGEL_ARSENAL, 'fable-of-artesia': ARTESIA_ARSENAL });
 export function arsenalFor(feel) {
   const of = (id) => (typeof id === 'string' && TEMPLATE_ARSENALS[id] ? { template: id, arsenal: TEMPLATE_ARSENALS[id] } : null);

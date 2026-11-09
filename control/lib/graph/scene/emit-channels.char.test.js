@@ -542,6 +542,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // attack: its blow all round, the body turned through it), the swing system's `around` (a moveset's level sweep, baked as
 // a move's clip only), and the hitstop keeping the pilot's presses through its own freeze; no fixture names a moveset or
 // taps through a freeze, so the sources they carry changed, their play as it was.
+// Re-pinned 2026-11-09 (1108-practice-room: Fallen Angel's air): the 16 fixtures that embed the controllable runtime. An
+// air dash alone (`dash.ground: false`, F on the ground left to the sprint) and a glide held once the air jumps are spent
+// (`glideSpent`); no fixture's rule names either, so the runtime they embed changed, their worlds as they were.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

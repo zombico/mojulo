@@ -161,7 +161,9 @@ describe('the stage laid for the game, and its laws', () => {
     const back = [low.at[0] * 2 - target.at[0], low.at[1] * 2 - target.at[1]];
     const w = E.createWorld({ colliders: standBlocks(blocks).colliders, entities: [{ ...hero, body: { type: 'none' }, transform: { pos: [back[0], back[1], ground(back) + 0.05], heading: Math.atan2(target.at[1] - back[1], target.at[0] - back[0]) } }] });
     let top = 0;
-    for (let i = 0; i < 150; i++) { E.stepWorld(w, { forward: 1, strafe: 0, turn: 0, lookDX: 0, lookDY: 0, jump: i % 20 < 2 ? 1 : 0, jumpHeld: i % 20 < 8 ? 1 : 0 }, 1 / 30, { ground }); top = Math.max(top, w.byId.hero.transform.pos[2] - ground(target.at)); }
+    // (a player's presses: jump again as each jump lands, the button held through the rise; a jump buffer arms on a press,
+    // never on a button held into the landing, rules-platform.js)
+    for (let i = 0; i < 150; i++) { const H = w.byId.hero; E.stepWorld(w, { forward: 1, strafe: 0, turn: 0, lookDX: 0, lookDY: 0, jump: H.grounded && i % 2 === 0 ? 1 : 0, jumpHeld: 1 }, 1 / 30, { ground }); top = Math.max(top, w.byId.hero.transform.pos[2] - ground(target.at)); }
     expect(top).toBeGreaterThan(1.2);
     expect(jumpHeight(hero.rule)).toBeCloseTo(1.056, 2);
   });
