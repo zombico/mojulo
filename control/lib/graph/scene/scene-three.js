@@ -41,7 +41,7 @@ import path from 'node:path';
 
 import { faceListToMesh, decollideFaces, faceColorLinear, collectGlowSprites, collectShadowDecals, collectWaterMesh } from '../figures/face-mesh.js';
 import { b64, safeJson, escapeHtml, VENDOR_IMPORTMAP, CDN_IMPORTMAP, inlineImportmap } from './emit-util.js';
-import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO, CAPTURE_VIEW } from './capture-contract.js';
+import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO, CAPTURE_VIEW, CAPTURE_GROUND, CAPTURE_HOVER } from './capture-contract.js';
 import { MSG_PAUSE as GAME_MSG_PAUSE, MSG_CONTROLS as GAME_MSG_CONTROLS } from '../game/level-contract.js';
 import { MSG_VIEW, MSG_VIEW_READY, MSG_FOCUS, VIEW_DIRS, STATIC_GROUP, STATIC_METAL_GROUP, STATIC_ORGANIC_GROUP, STATIC_LAND_GROUP } from './view-cube-contract.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
@@ -1280,7 +1280,7 @@ function __grpCol(g) { if (!g.c8) return decodeF32(g.col); const c8 = decodeU8(g
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow${resampled ? `
     if (__RESAMPLE[t.key]) __resample(tm.material, __RESAMPLE[t.key]);   // (read again so it does not repeat: channels/resample.js)` : ''}
-    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || formLandBlock || skyBlock2 || cone || arenaClip || (Array.isArray(footless) && footless.length) ? 'tm.userData.g = grp.name; ' : ''}${formBlock || leafBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock || previewTextured || formBlock || formLandBlock || skyBlock2 || cone || arenaClip || (Array.isArray(footless) && footless.length) || capture ? 'tm.userData.g = grp.name; ' : ''}${formBlock || leafBlock ? 'tm.userData.key = t.key; ' : ''}${creasesCfg ? "if (grp.crease) tm.userData.crease = grp.crease === 'land' ? 0.5 : 1; " : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 
@@ -1718,7 +1718,7 @@ if (_capture) {
   //   probe()     — the assertion surface: entity transforms + HUD/bus vars + physics bodies.
   controls.update(); updateCutaway(); __mojStep(0); ${prePass}renderer.render(scene, camera);
   let __capT = 0;   // traversal clock, ms
-  window.${CAPTURE_GLOBAL} = {
+  ${capture ? "const __hoverRay = new THREE.Raycaster(), __hoverDown = new THREE.Vector3(0, 0, -1);   // the hover bot's cast, down onto the world\n  " : ''}window.${CAPTURE_GLOBAL} = {
     ${CAPTURE_READY}: true,
     ${CAPTURE_FRAME}(spec) {
       spec = spec || {};
@@ -1797,6 +1797,38 @@ if (_capture) {
       // bg: the level's own background (its sky colour, a space level's black), the look a first frame is judged against
       const bg = scene.background && scene.background.isColor ? '#' + scene.background.getHexString() : null;
       return { eye: camera.position.toArray(), dir: d.toArray(), fov: camera.fov, aspect: camera.aspect, bg };
+    },
+    // ground(x, y, from?) — the HOVER BOT's (scene/hover-bot.js): the highest surface the world draws under (x, y), cast
+    // down from \`from\` (else the sky: under a tree's crown, from a person's headroom) past whatever cannot be stood on (a
+    // footless group's, a hidden one's): { z, group, nz } or null (a hole)
+    ${CAPTURE_GROUND}(x, y, from) {
+      const top = Number.isFinite(from) ? from : 5000;
+      __hoverRay.set(new THREE.Vector3(x, y, top), __hoverDown); __hoverRay.far = top + 5000; __hoverRay.camera = camera;   // (a sprite's cast reads the camera)
+      scene.updateMatrixWorld();
+      // (the world's solids, what a walk collides with, where the page keeps them)
+      for (const h of __hoverRay.intersectObjects(typeof solids !== 'undefined' && solids.length ? solids : scene.children, true)) {
+        let seen = true;
+        for (let o = h.object; o; o = o.parent) if (o.visible === false) { seen = false; break; }
+        const g = h.object.userData && h.object.userData.g;
+        if (!seen || typeof g !== 'string') continue;
+        const n = h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : null;
+        return { z: h.point.z, group: g, nz: n ? n.z : null };
+      }
+      // (cast from a height and nothing under it: a rise past it, cast again from the sky)
+      return Number.isFinite(from) ? this.${CAPTURE_GROUND}(x, y) : null;
+    },
+    // hover(spec) — the bot's eye its height over the surface at its point (or at its pos outright), looking at its look or
+    // along its heading (radians, 0 along +x) and pitch, rendered: { eye, ground, triangles, calls }; render: false casts only
+    ${CAPTURE_HOVER}(spec) {
+      spec = spec || {};
+      const at = spec.at || (spec.pos ? spec.pos.slice(0, 2) : [camera.position.x, camera.position.y]), g = this.${CAPTURE_GROUND}(at[0], at[1], spec.from);
+      const eye = Array.isArray(spec.pos) ? spec.pos.slice() : [at[0], at[1], (g ? g.z : 0) + (Number.isFinite(spec.height) ? spec.height : 1.7)];
+      if (spec.render === false) return { eye, ground: g };
+      const h = Number.isFinite(spec.heading) ? spec.heading : 0, p = Number.isFinite(spec.pitch) ? spec.pitch : 0;
+      const target = Array.isArray(spec.look) ? spec.look : [eye[0] + Math.cos(h) * Math.cos(p) * 20, eye[1] + Math.sin(h) * Math.cos(p) * 20, eye[2] + Math.sin(p) * 20];
+      this.${CAPTURE_FRAME}({ pos: eye, target, vfov: spec.vfov, t: spec.t });
+      const info = renderer.info.render;
+      return { eye, ground: g, triangles: info.triangles, calls: info.calls };
     },
     ` : ''}// WAYPOINT COMPILER (renderer-convergence step 3): compile "walk to [x,y]" into the tick
     // script Phase-3 traversals replay. Greedy closed-loop steering against the LIVE rule —
