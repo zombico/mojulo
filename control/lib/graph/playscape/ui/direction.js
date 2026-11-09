@@ -37,6 +37,7 @@ import { STAT_OPS } from '../stats/kernel.js';
 import { readSpots, spotAnchors, withStands, CAST_WHEN } from './cast.js';
 import { withChapterCues, chapterBus } from './chapters.js';
 import { withSceneCues, sceneProgram, sceneBus } from './scenes.js';
+import { hasScripts, withScripts } from './scene-script.js';
 import { questProgram } from './quests.js';
 import { withPartyCues } from './party.js';
 import { withRoutineCues } from './routines.js';
@@ -217,6 +218,18 @@ export function uiSettled(ui) {
 /** The items still waiting on the operator. */
 export const uiPending = (ui) => UI_ITEMS.filter((k) => !(isObj(ui) && isObj(ui.status) && (ui.status[k] === 'approved' || ui.status[k] === 'auto')));
 
+// the stage a script is blocked on: the page's characters (every body and the player) where they stand, its places
+// (the play's spots, the map's anchors and their stand points)
+function scriptStage(manifest, play, anchors, player) {
+  const people = {}, places = {};
+  for (const e of Array.isArray(manifest.entities) ? manifest.entities : []) {
+    if (!isObj(e) || typeof e.id !== 'string' || !isObj(e.transform) || !Array.isArray(e.transform.pos)) continue;
+    if (e.id === player || (isObj(e.body) && !e.isCamera)) people[e.id] = { at: e.transform.pos, heading: Number.isFinite(e.transform.heading) ? e.transform.heading : 0 };
+  }
+  for (const p of [...readSpots(play), ...withStands(anchors || [])]) if (p && typeof p.id === 'string' && Array.isArray(p.at)) places[p.id] ??= p.at;
+  return { people, places, player };
+}
+
 /**
  * THE BUILD'S READ (pure, no dice): play.parts lowered to hud rows, play.cues and play.menus to their rows and bus
  * channels (`anchors`, the built map's, place a cue named by an anchor); with a direction, the style tokens and the
@@ -224,7 +237,10 @@ export const uiPending = (ui) => UI_ITEMS.filter((k) => !(isObj(ui) && isObj(ui.
  */
 export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   // chapters (chapters.js) and scenes (scenes.js) lower to cues, so the play below reads them as its own
-  const play = withMinigames(withRpg(withBattle(withRoutineCues(withPartyCues(withSceneCues(withChapterCues(manifest && manifest.play)))))));
+  // a scene's script beats (scene-script.js) are lowered first, on the page's characters and places, into the beats the
+  // scenes below read as their own
+  const base = manifest && manifest.play, scripted = hasScripts(base) ? withScripts(base, scriptStage(manifest, base, anchors, player)) : base;
+  const play = withMinigames(withRpg(withBattle(withRoutineCues(withPartyCues(withSceneCues(withChapterCues(scripted)))))));
   if (!isObj(play)) return null;
   phasesOf(play);
   // the cues (cues.js) and the menus' picks (menus.js) ride beside the parts' rows: their hud rows after, their bus

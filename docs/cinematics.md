@@ -181,6 +181,26 @@ in Blender, never baked:
 The export is the lit one: the realistic body's smooth normals and no light baked into its colours, so either look
 shades it.
 
+## The scene in a game
+
+In a level a scene plays live, on the page (`playscape/ui/scenes.js`, its runner `scene-runner.js`): the player's
+input held, the bars drawn, a line in the box until a press. A scene's beats may be a screenplay (`{ script }`), and
+then this department directs it (`playscape/ui/scene-script.js`), lowered at build into the beats the runner plays:
+
+- **Blocked on the level's own places.** The names are the page's characters by id (MAYOR is `mayor`); the marks are
+  its places (a stage's start, exit, pockets, landmarks, a spot) and where each character stands. The actor
+  (`actor/scene.js`) blocks it there.
+- **Covered as the film is.** The coverage's cuts (`actor/coverage.js` `sceneCuts`, the same cuts `coverScene` keys
+  its cameras by) become the scene's `shot` beats, each on its side of the line; the directing camera on the page
+  frames them live, with the scenes card's own framings. A cut that lands inside a line plays before it; one at a
+  line's end, after it, so the opening wide holds through the first line as the coverage holds it.
+- **Hit your mark.** The player is wherever it is when a scene starts, so the scene walks it to its mark first (a
+  conversation from whom it meets, toward where it came from) and turns everyone to face as the blocking opens: the
+  coverage is framed from the marks, so the marks are made true. As it ends every body is handed back to its rule.
+- **A walk the level stops never stalls the scene**: it waits on the walk's arrive or its stuck.
+- **What waits.** Lines go by on the player's press; the actor's takes (the face and the body), `looks at`, and the
+  screenplay's slow motion and freezes are lowered to nothing yet, so a scene reads as blocked and shot, not yet acted.
+
 ## Where to look
 
 - **The dailies** (`control/scripts/spikes/actor/dailies.mjs`): every take on one clock, its timeline and its readings

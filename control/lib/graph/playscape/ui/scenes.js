@@ -18,7 +18,8 @@
  *                                                  frame: SHOT_FRAMES; on: the characters, or spots, it frames (a
  *                                                  lone spot is seen from where the pilot stands); `for` holds it
  *       { do: effect | [effect] }                  the cast and the world, as a cue's then (walk, spawn, say, set…)
- *       { until: a when }                          waits for a happening (a walk's arrive, a var, an event)
+ *       { until: a when | [when, …] }              waits for a happening (a walk's arrive, a var, an event); a list of
+ *                                                  2 to 4: any one of them
  *       { wait: s }                                waits that many seconds
  *       { line: { who, say?, expression? } }        the text box: the speaker's name, the line typed on; a click goes on
  *       { banter: { with: [a, b], lines: [{ who, say?, expression? }], frame?: 'over' | 'close' } }
@@ -27,6 +28,9 @@
  *                                                  the player answers: 2 to 4 options under the question (its own
  *                                                  line, or the last one said); the one picked sets its flags at once
  *                                                  and plays its beats, then the scene goes on
+ *       { script: '<a screenplay>' }                 the scene as people write one (actor/screenplay.js), blocked on the
+ *                                                  level's places by the actor and covered by the director's rules:
+ *                                                  lowered at build into the beats above (scene-script.js)
  *     ] }]
  *
  * The words are a slot: a line without `say` shows its placeholder, `[Name: line n]`; an option without one, `[Choice n]`. Mojulo supplies the speaker, the
@@ -62,6 +66,7 @@ import { readEffect, effectContext } from './cues.js';
 import { questFlags } from './quests.js';
 import { partyFlags } from './party.js';
 import { wonFlag } from '../rpg/rpg.js';
+import { readScriptText } from './scene-script.js';
 
 export const SHOT_FRAMES = Object.freeze({
   wide: 'the place and everyone in it',
@@ -77,11 +82,12 @@ export const SHOT_MOVES = Object.freeze({ hold: 'stands where it cut, turning wi
 export const SCENE_BEATS = Object.freeze({
   shot: 'the camera directs: { frame, on: [who], move? }, for? s',
   do: 'the cast and the world, as a cue\'s then',
-  until: 'waits for a happening (a cue\'s when)',
+  until: 'waits for a happening (a cue\'s when), or any of a list of them',
   wait: 'waits seconds',
   line: 'the text box: { who, say?, expression? }, a click goes on',
   banter: 'two talk: { with: [a, b], lines: [{ who, say? }], frame? }',
   choose: 'the player answers: { who?, say?, options: [{ say?, sets?, beats? }] } (2 to 4)',
+  script: 'a screenplay (NAME: the words. / Mayor crosses to gate. / Hero turns to Mayor.), blocked on the level\'s places and covered by the director\'s rules (scene-script.js)',
 });
 
 const ID = /^[a-z][a-z0-9-]*$/;
@@ -183,13 +189,15 @@ function readBeat(b, at, ctx, depth = 0) {
     return { kind, do: list };
   }
   if (kind === 'until') {
-    if (!isObj(b.until)) throw err(`${at}.until is a cue's when: { arrive: 'who' }, { on: '<event>' }, { var, gte }…`);
+    // (a list: any one of them goes on, a walk's arrive or its stuck)
+    if (!(isObj(b.until) || (Array.isArray(b.until) && b.until.length >= 2 && b.until.length <= 4 && b.until.every(isObj)))) throw err(`${at}.until is a cue's when: { arrive: 'who' }, { on: '<event>' }, { var, gte }…, or 2 to 4 of them, any one going on`);
     return { kind, until: b.until };
   }
   if (kind === 'wait') {
     if (!(Number.isFinite(b.wait) && b.wait > 0 && b.wait <= 120)) throw err(`${at}.wait is seconds, more than 0 and at most 120`);
     return { kind, wait: b.wait };
   }
+  if (kind === 'script') return { kind, script: readScriptText(b.script, `play.scenes${at}.script`) };
   if (kind === 'line') return { kind, line: readLine(b.line, `${at}.line`) };
   if (kind === 'choose') return readChoose(b.choose, at, ctx, depth);
   const B = b.banter;
@@ -272,6 +280,8 @@ function carried(play) {
 }
 const carries = (play) => !!carried(play);
 
+// a script beat plays once it is lowered on the page's people and places (scene-script.js withScripts, at the build)
+const unlowered = (sc, n) => err(`: the scene '${sc.id}' beat ${n} is a script, which is lowered on the page's characters and places first (scene-script.js withScripts)`);
 const nameOf = (names, who) => names[who] || who.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
 /** The cues the scenes lower to: each scene's start, each `do` beat, each `until`. */
@@ -284,8 +294,12 @@ export function sceneCues(play) {
     cues.push({ id: `scene-${sc.id}`, when, then: { emit: `scene:${sc.id}` } });
     if (sc.sets.length) cues.push({ id: `scene-${sc.id}-sets`, when: { on: `scene-end:${sc.id}` }, then: sc.sets.map((f) => ({ emit: flagEvent(f) })) });
     eachBeat(sc.beats, (b, n) => {
+      if (b.kind === 'script') throw unlowered(sc, n);
       if (b.kind === 'do') cues.push({ id: `scene-${sc.id}-do-${n}`, when: { on: `scene:${sc.id}:${n}` }, then: b.do });
-      if (b.kind === 'until') cues.push({ id: `scene-${sc.id}-until-${n}`, when: b.until, then: { emit: `scene-heard:${sc.id}:${n}` } });
+      if (b.kind === 'until') {
+        if (Array.isArray(b.until)) b.until.forEach((w, k) => cues.push({ id: `scene-${sc.id}-until-${n}-${k}`, when: w, then: { emit: `scene-heard:${sc.id}:${n}` } }));
+        else cues.push({ id: `scene-${sc.id}-until-${n}`, when: b.until, then: { emit: `scene-heard:${sc.id}:${n}` } });
+      }
     });
   }
   return cues;
@@ -314,6 +328,7 @@ export function sceneProgram(play) {
     // flattened: a choice's options play inline after it, each ending in a jump past the rest
     const lay = (list, pre) => list.forEach((b, n) => {
       const key = `${pre}${n}`;
+      if (b.kind === 'script') throw unlowered(sc, key);
       if (b.kind === 'shot') beats.push({ kind: 'shot', shot: place(b.shot), ...(b.for ? { for: b.for } : {}) });
       else if (b.kind === 'do') beats.push({ kind: 'fire', event: `scene:${sc.id}:${key}` });
       else if (b.kind === 'until') beats.push({ kind: 'until', event: `scene-heard:${sc.id}:${key}` });

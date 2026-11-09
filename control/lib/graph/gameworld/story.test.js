@@ -10,6 +10,7 @@ import { reviewParts } from './review.js';
 import { gameworldBibleHtml } from './bible-html.js';
 import { storyReport } from './runner.js';
 import { readMade } from './made.js';
+import { lowerPlay } from '../playscape/ui/direction.js';
 
 // The cast (characters.cast) and the story (gameworld story): people made as the hero is, placed in the levels by the
 // moments that name them, bound to the world as laid; what cannot bind is reported, never thrown.
@@ -116,6 +117,22 @@ describe('the story, bound', () => {
     expect(m.play.scenes.map((s) => s.id)).toEqual(['welcome']);
     expect(m.play.carry).toBe('story');
     expect(gameStore(W({ story: [WELCOME] }), null).slices.map((s) => s.name)).toContain('story');
+  }, 120_000);
+
+  it('a moment written as a screenplay: blocked on the stage it binds to, lowered on the page to the coverage\'s shots and its lines; one naming what the stage lacks is unplaced, by name', () => {
+    const SCRIPTED = { ...WELCOME, beats: [{ script: 'MAYOR: Welcome to the *gate*.\nHERO (worried): Is it safe?\nMayor crosses to exit.\nMAYOR: Safe enough.' }] };
+    const b = bind([SCRIPTED, { ...SCRIPTED, id: 'lost', beats: [{ script: 'Mayor crosses to the well.' }] }, { ...SCRIPTED, id: 'stranger', beats: [{ script: 'GUARD: Halt.' }] }]);
+    const why = Object.fromEntries(b.unplaced.map((u) => [u.id, u.why]));
+    expect(why.lost).toMatch(/its script on gate\/path: line 1: 'well' is neither in the cast \(hero, mayor\) nor a mark \(start, exit, pocket/);
+    expect(why.stranger).toMatch(/'GUARD' is not in the cast \(hero, mayor\)/);
+    expect(b.bound.map((x) => x.id)).toEqual(['welcome']);
+    const G = readGameworld(W({ story: [SCRIPTED] }));
+    const m = stageLevelOrder(G, stages[0], { ref: 'gw-level-gate-0', heroRef: 'gw-hero', story: bindStory(G, stages, { castRefs, layout: LAYOUT }).byStage['gate/path'] }).args.manifest;
+    expect(m.play.scenes[0].beats).toEqual(SCRIPTED.beats);                  // the recipe keeps the script; the page lowers it
+    const P = lowerPlay(m, { player: 'hero' }).scenes[0].beats;
+    expect(P.filter((x) => x.kind === 'line').map((x) => [x.name, x.text])).toEqual([['Mayor Ilse', 'Welcome to the gate.'], ['Hero', 'Is it safe?'], ['Mayor Ilse', 'Safe enough.']]);
+    expect(P[0]).toMatchObject({ kind: 'shot', shot: { frame: 'wide', on: ['mayor', 'hero'] } });
+    expect(P.filter((x) => x.kind === 'shot').map((x) => x.shot.frame)).toContain('close');
   }, 120_000);
 
   it('design_game passes each stage its share: the bound stage changes, the others are not remade', () => {

@@ -46,6 +46,7 @@
  */
 import { readScenes } from '../playscape/ui/scenes.js';
 import { readQuests } from '../playscape/ui/quests.js';
+import { lowerScript, scriptsIn } from '../playscape/ui/scene-script.js';
 
 const ID = /^[a-z][a-z0-9-]*$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -192,6 +193,15 @@ export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = 
       stands.push({ id: w, at, heading: r3(h + Math.PI) });
     });
     if (lost) { unplaced.push({ id: m.id, why: lost }); continue; }
+    // its scripts, blocked on this stage as the page will (scene-script.js): the hero at the start, the moment's people
+    // at their stands, the stage's places as marks; a name or a mark the stage lacks leaves the moment unplaced
+    const scripts = scriptsIn(m.beats);
+    if (scripts.length) {
+      const people = { hero: { at: ends.spawn, heading: ends.heading }, ...Object.fromEntries(stands.map((s) => [s.id, { at: s.at, heading: s.heading }])) };
+      const places = Object.fromEntries(spots.map((s) => [s.id, s.at]));
+      const bad = scripts.map((text) => { try { lowerScript(text, { people, places, player: 'hero' }); return null; } catch (e) { return e.message; } }).find(Boolean);
+      if (bad) { unplaced.push({ id: m.id, why: `its script on ${stage.level}/${stage.node}: ${bad.replace(/^(script|screenplay|scene): /, '')}` }); continue; }
+    }
     const key = `${stage.level}/${stage.node}`, slot = (byStage[key] ||= { scenes: [], cast: [] });
     // reach: the moment starts as the hero comes to it (its place, or where its first person stands)
     let scene = storyScene(m, cast);
