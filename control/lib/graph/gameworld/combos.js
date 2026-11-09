@@ -175,8 +175,8 @@ export function comboList(C0) {
 export const BASIC_ARSENAL = Object.freeze({
   timing: BASIC_COMBOS.timing,
   weapons: [
-    { id: 'sword', name: 'Sword', figure: 'drawn', sidearm: 'bow', moves: BASIC_COMBOS.moves, combos: BASIC_COMBOS.combos },
-    { id: 'fist', name: 'Fist', figure: 'sheathed', sidearm: 'pistols', reach: 0.95, damage: 0.5,
+    { id: 'sword', name: 'Sword', figure: 'drawn', moves: BASIC_COMBOS.moves, combos: BASIC_COMBOS.combos },
+    { id: 'fist', name: 'Fist', figure: 'sheathed', reach: 0.95, damage: 0.5,
       moves: {
         // (each move's window where its solver lands its blow: the jab at 0.44 of its clip, the cross 0.46, the hook 0.49, the
         // uppercut 0.68)
@@ -190,15 +190,14 @@ export const BASIC_ARSENAL = Object.freeze({
         { id: 'uppercut', name: 'Uppercut', beats: ['H'], moves: ['uppercut'] },
       ] },
   ],
-  // the sidearms on S: the action-adventure's bow (held, it draws; let go once drawn, it looses; let go early, nothing)
-  // and the stylish game's pistols (held, they fire at their rate, never running dry, weak)
+  // the sidearm on S, the loadout's one, whatever is in hand: the action-adventure's bow (held, it draws; let go once
+  // drawn, it looses; let go early, nothing)
   ranged: [
     { id: 'bow', name: 'Bow', mode: 'draw', draw: 0.45, early: 'none', speed: 45, drop: 9, damage: 3, impact: 30, quiver: 30, nock: 0.3, hand: 'left' },
-    { id: 'pistols', name: 'Pistols', mode: 'auto', rof: 9, damage: 0.4, impact: 3, range: 30, infinite: true, hand: 'right', dual: true },
   ],
 });
 /**
- * THE SIDEARMS (an arsenal's `ranged`, on S; a weapon names its own: `sidearm`), in the designer's words, lowered to the
+ * THE SIDEARM (an arsenal's `ranged`: one, on S, every weapon's: the weapon cycle never changes it; a weapon's own `sidearm: false` carries none), in the designer's words, lowered to the
  * runtime's ranged weapon (worlds/controllable/combat-ranged.js initWeapon):
  *   auto   held, it fires at `rof` rounds a second (hitscan) until the magazine is dry and reloads (`magazine`, `reload`),
  *          or never runs dry (`infinite`: a stylish game's pistols, weak to match); `damage`, `impact`, `range` (m),
@@ -230,9 +229,12 @@ export function lowerSidearm(G) {
     damage: G.tap?.damage ?? 0, impact: G.tap?.impact ?? 0, chargedDamage: G.damage ?? 3, chargedImpact: G.impact ?? 30, chargedRangeMul: 1 };
 }
 export function readArsenal(A) {
-  if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, sidearm?, reach?, damage?, moves, combos }], ranged? }');
+  if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, sidearm?, reach?, damage?, moves, combos }], ranged?: [one sidearm] }');
   for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged)`);
   if (A.ranged !== undefined && !Array.isArray(A.ranged)) no('ranged is a list of sidearms');
+  // (ONE sidearm a loadout: the weapon cycle steps the blades and the fists, never the ranged weapon, so every weapon
+  // carries the same one, its quiver kept across the cycle)
+  if ((A.ranged ?? []).length > 1) no(`ranged is the loadout's one sidearm (not ${A.ranged.length}): the weapon cycle steps the melee weapons, never the ranged one`);
   const sidearms = new Set((A.ranged ?? []).map((G, i) => readSidearm(G, `ranged[${i}]`).id));
   if (!Array.isArray(A.weapons) || !A.weapons.length) no('weapons is a list, one at least');
   const ids = new Set();
@@ -243,7 +245,7 @@ export function readArsenal(A) {
     ids.add(W.id);
     for (const k of Object.keys(W)) if (!['id', 'name', 'figure', 'sidearm', 'guard', 'reach', 'damage', 'moves', 'combos'].includes(k)) no(`${at}.${k} is not part of a weapon`);
     if (W.guard !== undefined && W.guard !== false && !GUARDS.includes(W.guard)) no(`${at}.guard is how the weapon guards (${GUARDS.join(', ')}), or false: none`);
-    if (W.sidearm !== undefined && !sidearms.has(W.sidearm)) no(`${at}.sidearm '${W.sidearm}' is none of the arsenal's ranged (${[...sidearms].join(', ') || 'none'})`);
+    if (W.sidearm !== undefined && W.sidearm !== false && !sidearms.has(W.sidearm)) no(`${at}.sidearm '${W.sidearm}' is not the arsenal's ranged (${[...sidearms].join(', ') || 'none'}); false: none in this hand`);
     if (W.figure !== undefined && !['drawn', 'sheathed'].includes(W.figure)) no(`${at}.figure is drawn (in hand) or sheathed (on the back)`);
     if (W.reach !== undefined && !num(W.reach, 0.3, 6)) no(`${at}.reach is metres, 0.3 to 6`);
     if (W.damage !== undefined && !num(W.damage, 0, 20)) no(`${at}.damage is × the held weapon's, 0 to 20`);
@@ -260,12 +262,15 @@ export const AIM_OF = Object.freeze({ draw: 'archer', auto: 'gunslinger' });
 export function lowerArsenal(A0) {
   const A = readArsenal(A0);
   const G = Object.fromEntries((A.ranged ?? []).map((g) => [g.id, g]));
+  // (every weapon carries the loadout's sidearm, the same one: the cycle never changes it; `sidearm: false`, none)
+  const sidOf = (W) => (W.sidearm === false ? null : W.sidearm ?? A.ranged?.[0]?.id ?? null);
+  const sideOf = (id) => ({ id, name: G[id].name ?? id, mode: G[id].mode, weapon: lowerSidearm(G[id]), aim: `mv_aim_${id}`, pose: AIM_OF[G[id].mode], hand: G[id].hand ?? (G[id].mode === 'draw' ? 'left' : 'right'), ...(G[id].dual ? { dual: true } : {}) });
   return A.weapons.map((W) => ({ id: W.id, name: W.name ?? W.id, figure: W.figure ?? 'drawn', ...(W.reach != null ? { reach: W.reach } : {}), ...(W.damage != null ? { damage: W.damage } : {}),
     // (its sidearm on S, lowered to the runtime's ranged weapon, and the aim the hero holds it in: its clip `mv_aim_<id>`,
     // a draw's the archer's, an auto's the gunslinger's, hero-swing-body.js aimClip)
     // (its GUARD's pose while the guard is up, `mv_guard_<weapon>`: a blade's the shield, the fist's the cover; false none)
     ...(guardOf(W) ? { guard: { clip: `mv_guard_${W.id}`, pose: guardOf(W), ...(guardOf(W) === 'shield' ? { prop: 'shield' } : {}) } } : {}),
-    ...(W.sidearm ? { sidearm: { id: W.sidearm, name: G[W.sidearm].name ?? W.sidearm, mode: G[W.sidearm].mode, weapon: lowerSidearm(G[W.sidearm]), aim: `mv_aim_${W.sidearm}`, pose: AIM_OF[G[W.sidearm].mode], hand: G[W.sidearm].hand ?? (G[W.sidearm].mode === 'draw' ? 'left' : 'right'), ...(G[W.sidearm].dual ? { dual: true } : {}) } } : {}),
+    ...(sidOf(W) ? { sidearm: sideOf(sidOf(W)) } : {}),
     // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
     moveset: lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }) }));
 }

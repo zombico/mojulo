@@ -7,7 +7,7 @@ import { swingClipKeys } from './hero-swing.js';
 import { swingBody, SWING_BODY } from './hero-swing-body.js';
 import { STRUCTURED_SWING_BASE } from './hero-gesture.js';
 import { validateRig, rigNodesAt } from './station-loft-rig.js';
-import { aimClip } from './hero-swing-body.js';
+import { aimClip, carryArm, carryClip, CARRY } from './hero-swing-body.js';
 import { heroStance, reachArm } from './hero-stance.js';
 import { elbowsDown } from './hero-elbow.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
@@ -201,5 +201,33 @@ describe('the aims', () => {
       expect(c(0)[`elbow${s}`]).toBeLessThan(15);
     }
     expect(n.wristL[0]).toBeCloseTo(-n.wristR[0], 3);
+  });
+});
+
+// THE CARRY (carryArm, carryClip): a moveset's hero runs with the blade drawn held out low at its side, aimed back; its
+// other arm swings with the gait. Measured on the sword's own geometry (the far end of its posed faces).
+describe('the run with the blade drawn', () => {
+  it('the sword arm held out at the side, the blade aimed out, down and back; still but for a sway; the other arm swings', async () => {
+    const { heroRecord: rec } = await import('../../mcp/tools/layered.js');
+    const { gearMounts, gearRestPoint, gearFaces } = await import('./hero-gear.js');
+    const { boneFrames } = await import('./station-loft-rig.js');
+    const { DEFAULT_LIGHT } = await import('./vexar.js');
+    const { layeredClip } = await import('./station-loft-rig.js');
+    const hero = rec({ cast: 'male', gesture: 'chop', gear: { right: { item: 'sword' } } });
+    const R = rig('male', 'sword'), hg = gearMounts(hero, R).find((g) => g.slot === 'right');
+    const tip = gearRestPoint(hg, hg.sockets.tip.origin), arm = carryArm({ R, rigNodesAt, boneFrames, tip });
+    const n = rigNodesAt(R, { shR: arm.shR, elbowR: arm.elbowR }).nodes, faces = gearFaces([hg], { frames: boneFrames(R, R.joints, n), light: DEFAULT_LIGHT });
+    let far = null, fd = -1;
+    for (const f of faces) for (const c of f.corners) { const d = Math.hypot(c[0] - n.wristR[0], c[1] - n.wristR[1], c[2] - n.wristR[2]); if (d > fd) { fd = d; far = c; } }
+    const v = far.map((x, i) => x - n.wristR[i]);
+    expect(v[0]).toBeGreaterThan(0.2); expect(v[1]).toBeLessThan(-0.1); expect(v[2]).toBeLessThan(-0.4);   // (out, back, down)
+    expect(n.wristR[0]).toBeGreaterThan(R.joints.shoulderR[0]);                                           // (held out from the body)
+    expect(n.wristR[2]).toBeLessThan(R.joints.shoulderR[2] - 0.15);                                       // (low, never thrown up)
+    // over a gait: the sword arm the carry's (but for its sway), the other arm the gait's own swing
+    const gait = layeredClip([{ shL: { pitch: 30 }, shR: { pitch: -30 }, elbowR: 60 }, { shL: { pitch: -30 }, shR: { pitch: 30 }, elbowR: 20 }], R), C = carryClip(gait, arm, layeredClip, R);
+    const a = C(0), b = C(0.5);
+    expect(a.elbowR).toBe(arm.elbowR); expect(b.elbowR).toBe(arm.elbowR);
+    expect(Math.abs(a.shR.pitch - b.shR.pitch)).toBeLessThanOrEqual(2 * CARRY.sway + 1e-9);
+    expect(a.shL.pitch).not.toBeCloseTo(b.shL.pitch, 0);
   });
 });

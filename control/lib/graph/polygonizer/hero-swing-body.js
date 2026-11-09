@@ -296,3 +296,50 @@ function lerpPose(a, b, k) {
   const mix = (x, y) => (typeof x === 'number' && typeof y === 'number' ? x + (y - x) * k : x && y && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries([...new Set([...Object.keys(x), ...Object.keys(y)])].map((c) => [c, mix(x[c] ?? (typeof y[c] === 'number' ? 0 : y[c]), y[c] ?? (typeof x[c] === 'number' ? 0 : x[c]))])) : Array.isArray(x) && Array.isArray(y) && x.length === y.length ? x.map((v, i) => mix(v, y[i])) : k < 0.5 ? x : y);
   return mix(a, b);
 }
+
+// ─── the run with the blade drawn: the sword arm carried, the other arm swinging (hero-motion.js gaits) ──────────────
+/**
+ * THE CARRY (a moveset's hero with a blade in hand: its walk, jog and sprint): the sword arm held out from the body,
+ * trailing a little behind the hip, the blade aimed out and down and a little back, still through the stride but
+ * for a small sway with it; the other arm, the legs and the trunk keep the gait's own. Solved once on the rig: the
+ * shoulder's pitch, yaw and roll and the elbow searched for the hand's place and the blade's line, weighed alike (the
+ * hand rides the forearm, so the blade's tip rides the forearm's frame; with no forearm twist and the shoulder's roll
+ * at most 120°, the blade leans back only as far as the arm trails). ctx: { R, rigNodesAt, boneFrames, tip (the
+ * blade's point at rest on the hand) }.
+ */
+export const CARRY = Object.freeze({ blade: [0.55, -0.45, -0.7], hand: { out: 0.18, back: -0.38, up: 0.16 }, sway: 4 });
+export function carryArm(ctx) {
+  const { R, rigNodesAt, boneFrames, tip } = ctx;
+  const fi = R.bones.findIndex((b) => b.id === 'foreArmR' || (b.head === 'elbowR' && b.tail === 'wristR'));
+  if (fi < 0 || !tip) return null;
+  const unit = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return v.map((x) => x / l); };
+  const want = unit(CARRY.blade), J = R.joints, hipZ = (J.hipR ?? J[R.legs.R.hip])[2];
+  const goal = [J.shoulderR[0] + CARRY.hand.out, J.shoulderR[1] + CARRY.hand.back, hipZ + CARRY.hand.up];
+  const at = (x) => {
+    const pose = { shR: { pitch: x[0], yaw: x[1], roll: x[2] }, elbowR: x[3] }, n = rigNodesAt(R, pose).nodes, F = boneFrames(R, J, n)[fi];
+    const d = [0, 1, 2].map((c) => tip[c] - F.restHead[c]), p = [0, 1, 2].map((r) => F.head[r] + F.m[r][0] * d[0] + F.m[r][1] * d[1] + F.m[r][2] * d[2]);
+    return { pose, n, dir: unit([p[0] - n.wristR[0], p[1] - n.wristR[1], p[2] - n.wristR[2]]) };
+  };
+  // (the blade's line and the hand's place weighed alike: the arm held out low at the side, never thrown back)
+  const cost = (x) => { const A = at(x), w = A.n.wristR; return 4 * (1 - (A.dir[0] * want[0] + A.dir[1] * want[1] + A.dir[2] * want[2])) + 12 * ((w[0] - goal[0]) ** 2 + (w[1] - goal[1]) ** 2 + (w[2] - goal[2]) ** 2); };
+  let best = null;
+  for (let p = -30; p <= 60; p += 15) for (let y = -60; y <= 60; y += 20) for (let r = -180; r < 180; r += 30) for (let e = 0; e <= 90; e += 30) { const c = cost([p, y, r, e]); if (!best || c < best.c) best = { x: [p, y, r, e], c }; }
+  for (const step of [8, 4, 2, 1, 0.5]) {
+    let moved = true;
+    while (moved) {
+      moved = false;
+      for (let i = 0; i < 4; i++) for (const s of [1, -1]) { const x = [...best.x]; x[i] += s * step; x[3] = Math.max(0, Math.min(150, x[3])); const c = cost(x); if (c < best.c - 1e-12) { best = { x, c }; moved = true; } }
+    }
+  }
+  const A = at(best.x), r1 = (v) => Math.round(v * 10) / 10;
+  return { shR: { pitch: r1(best.x[0]), yaw: r1(best.x[1]), roll: r1(best.x[2]) }, elbowR: r1(best.x[3]), blade: A.dir.map((v) => Math.round(v * 1e3) / 1e3), hand: A.n.wristR.map((v) => Math.round(v * 1e3) / 1e3), goal };
+}
+/** a gait (its clip: keys or a function of the phase) with the sword arm carried: the arm's angles over the gait's, a
+ * small sway with the stride; the other channels the gait's own */
+export function carryClip(gait, arm, layeredClip, R) {
+  const base = typeof gait === 'function' ? gait : layeredClip(gait, R);
+  const fn = (u) => { const p = base(u); return { ...p, shR: { ...arm.shR, pitch: Math.round((arm.shR.pitch + CARRY.sway * Math.sin(2 * Math.PI * u)) * 100) / 100 }, elbowR: arm.elbowR }; };
+  fn.keys = typeof gait === 'function' ? gait.keys ?? 24 : 24;
+  for (const k of ['once', 'move', 'held', 'air', 'stop', 'rest']) if (typeof gait === 'function' && gait[k] !== undefined) fn[k] = gait[k];
+  return fn;
+}

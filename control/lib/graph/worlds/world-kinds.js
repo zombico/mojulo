@@ -62,7 +62,8 @@ import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroCl
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
-import { swingBody, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip } from '@/lib/graph/polygonizer/hero-swing-body';
+import { swingBody, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip, carryArm, carryClip } from '@/lib/graph/polygonizer/hero-swing-body';
+const CARRY_GAITS = ['walk', 'jog', 'sprint', 'run', 'strafe'];   // (the gaits a drawn blade is carried through)
 import { heroStrike } from '@/lib/graph/polygonizer/hero-strike';
 import { heroStance, reachArm } from '@/lib/graph/polygonizer/hero-stance';
 import { elbowsDown } from '@/lib/graph/polygonizer/hero-elbow';
@@ -1002,6 +1003,12 @@ export const WORLD_KINDS = {
             }
           }
           clipsIn = { ...clipsIn, ...swings };
+          // A MOVESET's hero runs with the blade drawn CARRIED (hero-swing-body.js carryArm): the sword arm held out low at
+          // its side, the blade aimed back, over its walk, jog, sprint and strafe; the other arm swings with the gait
+          if (Array.isArray(ctx.swings.moves) && tip) {
+            const arm = carryArm({ R, rigNodesAt, boneFrames, tip });
+            if (arm) for (const g of CARRY_GAITS) if (clipsIn[g]) clipsIn = { ...clipsIn, [g]: carryClip(clipsIn[g], arm, layeredClip, R) };
+          }
           held = { item: hg.item, class: cls, reach: Math.round((hg.length + 0.65) * 100) / 100, seconds: HELD_STRIKE[cls].seconds, damage: HELD_STRIKE[cls].damage };
         }
         // A MOVESET's body strikes (`swings.moves` with `strike`: the fist's, hero-swing-body.js strikeMoveClip): the punch

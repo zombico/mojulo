@@ -2028,7 +2028,7 @@ function __poseLayers(e, fig, dt) {
   const L = e.body.layers, W = e.__plw || (e.__plw = {}), out = [];
   if (!fig.__pl) fig.__pl = {};
   const busy = e.swingT != null || e.dodgeT != null || e.staggerT != null${moveset ? ' || !!e.mvPose' : ''};${moveset ? '   // (a sidearm\'s aim owns the body as a swing does)' : ''}
-  const want = { run: e.moving && !e.combat && (e.locomotion === 'forward' || e.locomotion === 'sprint') ? 1 : 0, combat: e.combat && !busy ? 1 : 0 };
+  const want = { run: e.moving && !e.combat && (e.locomotion === 'forward' || e.locomotion === 'sprint') ? 1 : 0, combat: e.combat && !busy${moveset ? ' && !(e.moving && e.rule && e.rule.moveset)' : ''} ? 1 : 0 };${moveset ? '   // (a moveset\'s hero on the move carries its blade in its gaits: hero-swing-body.js carryArm)' : ''}
   for (const name in L) {
     W[name] = (W[name] || 0) + ((want[name] || 0) - (W[name] || 0)) * Math.min(1, (dt || 0) * 8);
     if (W[name] < 1e-3) continue;

@@ -159,3 +159,13 @@
   Old Keep remade with a skeleton (`{ class: 'guard', skin: { people: 'skeleton', gear: { right: sword, left: shield } } }`,
   in place of the bandit): felled in two strings and two cuts; against its swings, the guard held blocked ten of eleven
   (the stamina breaking), and raised five frames before each blow, parried seven of seven.
+- **One sidearm a loadout: the bow** (`gameworld/combos.js`). The weapon cycle steps the melee weapons and never the
+  ranged one, so an arsenal names one sidearm (`ranged`, a second refused, saying why) and every weapon carries it (a
+  weapon's `sidearm: false` none): the fist draws the same bow as the sword, its quiver kept across the cycle. The
+  starter's pistols are out; an autofire sidearm stays a mode an arsenal may name in the bow's place.
+- **The run with the blade drawn** (`hero-swing-body.js` `carryArm`, `carryClip`; `world-kinds.js`). A moveset's hero
+  holding a blade runs, walks and strafes with the sword arm held out low at its side, the hand trailing a little behind
+  the hip and the blade aimed out, down and a little back, still but for a small sway with the stride; the other arm
+  swings with the gait. Solved once on the rig (the shoulder's pitch, yaw and roll and the elbow searched for the hand's
+  place and the blade's line), measured on the sword's own posed faces. On the page the combat lean (which raised the
+  weapon arm) eases out while a moveset's hero moves.
