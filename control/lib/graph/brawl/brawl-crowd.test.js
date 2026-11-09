@@ -98,10 +98,11 @@ describe('brawl crowd: the waves', () => {
   const waves = [{ screen: 1, crowd: [{ type: 'thug', n: 4 }, { type: 'knife', n: 2 }, { type: 'jumper', n: 1 }] }, { screen: 2, crowd: [{ type: 'thug', n: 3 }, { type: 'charger', n: 1 }, { type: 'heavy', n: 1 }] }];
   let st = streetOf({ belt, players: [hero(99999)], waves });
   const play = bot(), log = [];
-  for (let k = 0; k < 9000 && st.s.cleared.length < waves.length; k++) { st = stepStreet(st, [play(st)]); log.push(st); }
+  for (let k = 0; k < 9000 && !(st.s.cleared.includes(1) && st.s.cleared.includes(2)); k++) { st = stepStreet(st, [play(st)]); log.push(st); }
   const ev = log.flatMap((x) => x.s.events.map((e) => [x.s.f, e, x]));
   it('a scripted player beats every wave, and each gate opens as its last falls', () => {
-    expect(st.s.cleared).toEqual([1, 2]);
+    // (the boss screen, waveless here, open from the start; then each wave's gate in turn)
+    expect(st.s.cleared).toEqual([3, 1, 2]);
     const crowd = st.s.bodies.filter((p) => p.side === 'crowd');
     expect(crowd.every((p) => p.ko)).toBe(true);
   });
@@ -138,5 +139,57 @@ describe('brawl crowd: determinism', () => {
   it('the same street and buttons are the same brawl', () => {
     const run = () => { let st = streetOf({ belt, players: [hero(99999)], waves: [{ screen: 1, crowd: [{ type: 'thug', n: 3 }, { type: 'heavy', n: 1 }] }] }); const play = bot(); for (let k = 0; k < 900; k++) st = stepStreet(st, [play(st)]); return brawlHash(st.s) + JSON.stringify(st.mind.tok); };
     expect(run()).toBe(run());
+  });
+});
+
+describe('brawl crowd: the boss', () => {
+  // (one of the fight's characters: a fighter from its solver, by name)
+  const bossRecipe = { ...solveFighter({ id: 'bruno', archetype: 'grappler' }).recipe, id: 'bruno', name: 'Bruno', archetype: 'grappler' };
+  const last = belt.screens.length - 1;
+  const wave = (o = {}) => ({ screen: last, crowd: [{ type: 'thug', n: 2 }], boss: { recipe: bossRecipe, ...o } });
+  it('a boss stands on the boss screen only, as a fighter\'s recipe', () => {
+    expect(() => readWaves([{ screen: 1, crowd: [], boss: { recipe: bossRecipe } }], belt)).toThrow(/boss screen/);
+    expect(() => readWaves([{ ...wave(), boss: { recipe: bossRecipe, cpu: 'godlike' } }], belt)).toThrow(/cpu/);
+    expect(readWaves([{ screen: last, boss: { recipe: bossRecipe } }], belt)[0].crowd).toEqual([]);
+  });
+  // (a passive player stood in the boss's screen: the boss and its crowd on their own)
+  // (walked in until its wave comes, then left alone)
+  const log = [];
+  const walkIn = (st) => { for (let k = 0; k < 3000 && st.mind.begun !== 0; k++) { st = stepStreet(st, [{ x: 1 }]); log.push(st); } return st; };
+  let st = walkIn(streetOf({ belt, players: [hero(99999)], waves: [wave()] }));
+  for (let k = 0; k < 2400; k++) { st = stepStreet(st, [{}]); log.push(st); }
+  const bossId = Number(Object.keys(st.mind.bosses)[0]);
+  const ev = log.flatMap((x) => x.s.events.map((e) => [x, e]));
+  it('it comes in first, from the right, with its own bar', () => {
+    const boss = ev.find(([, e]) => e.t === 'boss');
+    expect(boss[1]).toMatchObject({ p: bossId, name: 'Bruno', hp: st.ctx.fighters[st.s.bodies[bossId].fi].hp });
+    expect(ev.find(([, e]) => e.t === 'enter')[1]).toMatchObject({ p: bossId, from: 'right' });
+  });
+  it('the fight\'s opponent plays it: its normals, its specials, its throw, landing on the player', () => {
+    const moves = new Set(log.map((x) => x.s.bodies[bossId].mv).filter(Boolean));
+    const kinds = new Set([...moves].map((m) => st.ctx.fighters[st.s.bodies[bossId].fi].moves[m].kind));
+    expect(kinds.size).toBeGreaterThanOrEqual(2);
+    expect(ev.some(([, e]) => (e.t === 'hit' || e.t === 'grab') && e.p === bossId && e.d === 0)).toBe(true);
+  });
+  it('it steps onto the player\'s line before it swings, and keeps the crowd\'s turn', () => {
+    let free = true, lastBy = null;
+    for (let k = 1; k < log.length; k++) {
+      const a = log[k - 1].s.bodies[bossId], b = log[k].s.bodies[bossId], me = log[k].s.bodies[0];
+      if (b.st === 'move' && a.st !== 'move' && !b.ko) expect(Math.abs(b.z - log[k].s.bodies[0].z)).toBeLessThanOrEqual(log[k].s.rules.line);
+      for (const e of log[k].s.events) if (e.t === 'hit' && e.d === 0) { if (lastBy !== null && e.p !== lastBy) expect(free).toBe(true); lastBy = e.p; free = false; }
+      if (FREE.has(me.st)) free = true;
+    }
+  });
+  it('it takes no token', () => {
+    expect(log.every((x) => !(x.mind.tok[0] ?? []).includes(bossId))).toBe(true);
+  });
+  it('beaten, the rest of its wave flees and the stage is clear', () => {
+    let s2 = streetOf({ belt, players: [hero(99999)], waves: [{ ...wave({ hp: 400 }), crowd: [{ type: 'thug', n: 3 }] }] });
+    expect(s2.s.cleared).toEqual([1, 2]);
+    const play = bot(), seen = [];
+    for (let k = 0; k < 8000 && !s2.s.cleared.includes(last); k++) { s2 = stepStreet(s2, [play(s2)]); seen.push(...s2.s.events); }
+    expect(s2.s.cleared).toEqual([1, 2, last]);
+    expect(seen.some((e) => e.t === 'stageClear')).toBe(true);
+    expect(s2.s.bodies.filter((p) => p.side === 'crowd').every((p) => p.ko)).toBe(true);
   });
 });

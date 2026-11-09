@@ -45,3 +45,7 @@
 - Waves: each held screen's crowd waits offstage until a player walks into the screen, then comes in from the right
   edge, the left and the street's back, six at most at once, and the gate opens when the last falls. A scripted player
   beats them all.
+- The boss: any of the fight's characters at the stage's end, played by the fight's own opponent (its moveset, its
+  reads, its combos), stepping onto the player's line before it swings and keeping the crowd's turn. It comes in first
+  with its bar, its crowd behind it; beaten, the rest flee and the stage is clear. A held screen with no wave is open
+  from the start, and two attackers can no longer start on the same player on the same frame.

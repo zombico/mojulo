@@ -14,8 +14,15 @@
  *     knees and throws), how much of its chain. The thug, the knife, the charger (a rush from range), the jumper (a
  *     leaping overhead), the heavy (a big body that grabs).
  *   • WAVES: each held screen's crowd (`waves: [{ screen, crowd: [{ type, n }] }]`), waiting offstage until a player walks
- *     into its screen, entering by turns from the view's right edge, its left and the street's back, at most `limit`
+ *     into its screen (a held screen with no wave is open from the start), entering by turns from the view's right edge, its left and the street's back, at most `limit`
  *     on the street at once (the rest as others fall); the screen's gate opens (`cleared`) when the last falls.
+ *
+ *   • THE BOSS (a wave's `boss: { recipe, cpu?, hp? }`, the belt's boss screen only): any of the fight's characters,
+ *     played by the fight's own opponent (versus-cpu.js cpuPad), shown the duel it reads (the boss and its target along
+ *     the belt) and its modern buttons turned into the brawl's commands; it steps onto the player's line before it
+ *     swings, takes no token and, like the crowd, never starts a blow on a player another body is already swinging at
+ *     or who is still reeling (its own combo goes on). It enters from the right edge as its wave comes in, with its own
+ *     bar (`mind.boss`, its name); when it falls, the rest of its wave flees and the stage is clear.
  *
  *   CROWD_TYPES, CROWD_RULES
  *   readWaves(waves, belt)                  → the waves, settled (throws naming the fault)
@@ -25,6 +32,8 @@
  * Pure and deterministic: its only variety is a hash of a body's id (no dice, no clock).
  */
 import { solveFighter } from '../versus/versus-solver.js';
+import { cpuPad, newCpuMemory, CPU_LEVELS } from '../versus/versus-cpu.js';
+import { BTN } from '../versus/versus-input.js';
 import { brawlFighter } from './brawl-moves.js';
 import { newBrawl, stepBrawl } from './brawl-core.js';
 import { viewHalf } from './brawl-belt.js';
@@ -61,7 +70,8 @@ const vary = (id, k = 0) => { let h = (id * 2654435761 + k * 40503) >>> 0; h ^= 
 export function readWaves(waves, belt) {
   if (!Array.isArray(waves)) throw new Error('brawl: waves is a list of { screen, crowd: [{ type, n }] }');
   const seen = new Set();
-  return waves.map((w, i) => {
+  return waves.map((w0, i) => {
+    let w = w0;
     const at = `waves[${i}]`;
     if (!w || typeof w !== 'object') throw new Error(`brawl: ${at} is { screen, crowd: [{ type, n }] }`);
     const sc = belt.screens[w.screen];
@@ -69,12 +79,19 @@ export function readWaves(waves, belt) {
     if (!sc.gate) throw new Error(`brawl: ${at}.screen ${w.screen} is not held: a wave holds a gated screen`);
     if (seen.has(w.screen)) throw new Error(`brawl: ${at}.screen ${w.screen} has a wave already`);
     seen.add(w.screen);
-    if (!Array.isArray(w.crowd) || !w.crowd.length) throw new Error(`brawl: ${at}.crowd is a list of { type, n }`);
+    if (!Array.isArray(w.crowd ?? []) || (!(w.crowd ?? []).length && !w.boss)) throw new Error(`brawl: ${at}.crowd is a list of { type, n } (or none, under a boss)`);
+    w = { ...w, crowd: w.crowd ?? [] };
     for (const [j, c] of w.crowd.entries()) {
       if (!CROWD_TYPES[c.type]) throw new Error(`brawl: ${at}.crowd[${j}].type is one of ${CROWD_TYPE_IDS.join(', ')}`);
       if (!(Number.isInteger(c.n) && c.n >= 1 && c.n <= 20)) throw new Error(`brawl: ${at}.crowd[${j}].n is 1 to 20`);
     }
-    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n })) };
+    if (w.boss !== undefined) {
+      if (!sc.boss) throw new Error(`brawl: ${at}.boss: a boss stands on the belt's boss screen (its last)`);
+      if (!w.boss || typeof w.boss !== 'object' || !w.boss.recipe) throw new Error(`brawl: ${at}.boss is { recipe, cpu?, hp? } (a fighter's recipe: the fight's characters)`);
+      if (w.boss.cpu !== undefined && !CPU_LEVELS[w.boss.cpu]) throw new Error(`brawl: ${at}.boss.cpu is one of ${Object.keys(CPU_LEVELS).join(', ')}`);
+      if (w.boss.hp !== undefined && !(Number.isInteger(w.boss.hp) && w.boss.hp >= 1 && w.boss.hp <= 99999)) throw new Error(`brawl: ${at}.boss.hp is a whole number from 1 to 99999`);
+    }
+    return { screen: w.screen, crowd: w.crowd.map((c) => ({ type: c.type, n: c.n })), ...(w.boss ? { boss: { recipe: w.boss.recipe, cpu: w.boss.cpu ?? 'regular', ...(w.boss.hp ? { hp: w.boss.hp } : {}) } } : {}) };
   }).sort((a, b) => a.screen - b.screen);
 }
 
@@ -97,18 +114,29 @@ export function streetOf({ belt, players, waves = [], rules, crowd } = {}) {
   const half = viewHalf(belt), [n0, n1] = belt.depth.map((v) => Math.round(v * 1000));
   const bodies = players.map((p, i) => ({ fighter: i, side: 'player', x: Math.round((half - 3 + i * 0.6) * 1000), z: Math.round(n0 + ((i + 1) * (n1 - n0)) / (players.length + 1)) }));
   const kinds = [];
-  W.forEach((w, k) => { for (const c of w.crowd) for (let j = 0; j < c.n; j++) { bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].attack === 'grab' ? {} : { grabs: false }) }); kinds.push(c.type); } });
+  const bosses = {};
+  W.forEach((w, k) => {
+    // (the boss first of its wave: it comes in as the wave does)
+    if (w.boss) {
+      bosses[bodies.length] = { cpu: w.boss.cpu, name: w.boss.recipe.name ?? w.boss.recipe.id ?? 'boss' };
+      fighters.push(brawlFighter({ ...w.boss.recipe, ...(w.boss.hp ? { hp: w.boss.hp } : {}) }));
+      bodies.push({ fighter: fighters.length - 1, side: 'crowd', x: 0, z: 0, wave: k }); kinds.push('boss');
+    }
+    for (const c of w.crowd) for (let j = 0; j < c.n; j++) { bodies.push({ fighter: typeAt[c.type], side: 'crowd', x: 0, z: 0, wave: k, ...(CROWD_TYPES[c.type].attack === 'grab' ? {} : { grabs: false }) }); kinds.push(c.type); }
+  });
   const ctx = { fighters, belt };
   const s = newBrawl(ctx, { bodies, rules });
+  // (a held screen with no wave holds nothing: its gate is open from the start)
+  s.cleared = belt.screens.map((sc, i) => (sc.gate && !W.some((w) => w.screen === i) ? i : -1)).filter((i) => i >= 0);
   // (each crowd body's type, by its id)
   const type = Object.fromEntries(kinds.map((t, j) => [players.length + j, t]));
-  return { ctx, s, mind: { rules: { ...CROWD_RULES, ...(crowd ?? {}) }, waves: W, wave: 0, type, tok: {}, b: {}, entered: 0 } };
+  return { ctx, s, mind: { rules: { ...CROWD_RULES, ...(crowd ?? {}) }, waves: W, wave: 0, type, tok: {}, b: {}, entered: 0, bosses, cpu: Object.fromEntries(Object.keys(bosses).map((id) => [id, newCpuMemory()])) } };
 }
 
 /** The street a frame on: the crowd thinks, the core steps, the waves come in and their gates open. */
 export function stepStreet(street, playerPads = []) {
   const { ctx } = street;
-  const mind = { ...street.mind, tok: Object.fromEntries(Object.entries(street.mind.tok).map(([k, v]) => [k, v.slice()])), b: Object.fromEntries(Object.entries(street.mind.b).map(([k, v]) => [k, { ...v }])) };
+  const mind = { ...street.mind, tok: Object.fromEntries(Object.entries(street.mind.tok).map(([k, v]) => [k, v.slice()])), b: Object.fromEntries(Object.entries(street.mind.b).map(([k, v]) => [k, { ...v }])), cpu: { ...street.mind.cpu } };
   const pads = think(street.s, ctx, mind);
   for (const [i, p] of playerPads.entries()) if (p) pads[i] = p;
   const s = stepBrawl(street.s, pads, ctx);
@@ -137,6 +165,8 @@ function think(s, ctx, M) {
   const R = M.rules, B = s.bodies, pads = [];
   const [n0, n1] = ctx.belt.depth.map((v) => Math.round(v * 1000));
   const lineUp = Math.round(s.rules.line / 3);
+  // (a player a body has chosen to swing at this frame: no other starts on them in the same frame)
+  const claimed = new Set();
   for (const p of B) {
     if (p.side !== 'crowd' || p.gone || p.ko) { if (p.side === 'crowd') giveBack(M, p.id); continue; }
     const m = (M.b[p.id] ??= { mode: 'circle', t: 0, cool: Math.round(R.cool[0] * vary(p.id)) });
@@ -157,6 +187,7 @@ function think(s, ctx, M) {
       continue;
     }
     if (!T) { pads[p.id] = {}; continue; }
+    if (M.bosses[p.id]) { pads[p.id] = bossPad(s, ctx, M, p, T, lineUp, claimed); continue; }
     const side0 = sgn(p.x - T.x) || (p.id % 2 ? 1 : -1);
     const mine = holding(M, T.id);
     const has = mine.includes(p.id);
@@ -187,8 +218,8 @@ function think(s, ctx, M) {
       if (kind.attack === 'grab') { pads[p.id] = { x: -side, z: 0 }; continue; }
       if (dx > want + R.dead) { pads[p.id] = { x: -side, z: 0 }; continue; }
       // in reach and facing: it swings only when the player is free and no one else is swinging at them
-      const busy = mine.some((j) => j !== p.id && (B[j].st === 'move' || B[j].st === 'hold' || B[j].st === 'throwing'));
-      if (FREE.has(T.st) && !busy && p.face === -side && FREE.has(p.st)) { pads[p.id] = { mv: kind.attack === 'chain' ? 'chain.1' : kind.attack }; continue; }
+      const busy = swinging(B, T, p.id);
+      if (FREE.has(T.st) && !busy && !claimed.has(T.id) && p.face === -side && FREE.has(p.st)) { claimed.add(T.id); pads[p.id] = { mv: kind.attack === 'chain' ? 'chain.1' : kind.attack }; continue; }
       pads[p.id] = {};
       continue;
     }
@@ -208,6 +239,53 @@ function think(s, ctx, M) {
     pads[p.id] = toward(p, gx, gz, R.dead * 2);
   }
   return pads;
+}
+
+/** another body of the crowd swinging at this player (in a move, holding, throwing) */
+const swinging = (B, T, id) => B.some((o) => o.side === 'crowd' && o.id !== id && !o.gone && !o.ko && o.tg === T.id && (o.st === 'move' || o.st === 'hold' || o.st === 'throwing'));
+
+// ── the boss ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+// a body as the fight's opponent reads one (versus-core's player: its states' names, its walk forward or back)
+const duelBody = (q) => ({ x: q.x, y: q.y, vx: q.vx, face: q.face, st: q.st === 'walk' ? (Math.sign(q.wx) === q.face ? 'walkF' : q.wx ? 'walkB' : 'stand') : q.st === 'hold' || q.st === 'held' ? 'hit' : q.st, mv: q.mv, mf: q.mf, conn: q.conn, meter: q.meter, combo: q.combo, ko: q.ko, hp: q.hp });
+/** the modern scheme's buttons (versus-input.js readCommand) as the brawl's command for this body */
+function modernCommand(pad, p, F) {
+  const fx = pad.x * p.face, b = pad.b, air = p.st === 'air' || p.st === 'prejump';
+  if (b & BTN.S) {
+    if (!air && b & BTN.H && F.moves.super && p.meter >= F.moves.super.cost) return { mv: 'super' };
+    const dir = pad.y < 0 ? 'down' : fx > 0 ? 'forward' : fx < 0 ? 'back' : 'neutral';
+    for (const d of [dir, 'neutral']) if (!air && F.moves[`special.${d}.M`]) return { mv: `special.${d}.M` };
+    return null;
+  }
+  if (b & BTN.T) return air ? null : { mv: 'throw' };
+  if (b & (BTN.L | BTN.M | BTN.H)) {
+    const st = b & BTN.H ? 'H' : b & BTN.M ? 'M' : 'L';
+    if (air) return { mv: `air.${st}` };
+    if (pad.y < 0) return { mv: `crouch.${st}` };
+    if (fx > 0 && F.moves[`forward.${st}`]) return { mv: `forward.${st}` };
+    return { mv: `stand.${st}` };
+  }
+  if (pad.y > 0 && !air) return { jump: true };
+  return null;
+}
+function bossPad(s, ctx, M, p, T, lineUp, claimed) {
+  const F = ctx.fighters[p.fi], B = s.bodies;
+  if (HURT.has(p.st)) return {};
+  // the duel the fight's opponent reads: the boss and its target along the belt, their shots
+  const view = { phase: 'fight', f: s.f, p: [duelBody(p), duelBody(T)], shots: s.shots.filter((t) => t.o === p.id || t.o === T.id).map((t) => ({ ...t, o: t.o === p.id ? 0 : 1 })) };
+  const { pad, mem } = cpuPad(view, { fighters: [F, ctx.fighters[T.fi]] }, 0, M.cpu[p.id], { ...CPU_LEVELS[M.bosses[p.id].cpu], seed: 7 + p.id });
+  M.cpu[p.id] = mem;
+  const dz = T.z - p.z, lined = Math.abs(dz) <= lineUp;
+  // (across the belt first: onto the player's line; along it, where the duel walks)
+  const out = { x: pad.x, z: lined ? 0 : Math.sign(dz) };
+  const cmd = modernCommand(pad, p, F);
+  if (!cmd) return out;
+  if (cmd.jump) return lined ? { ...out, jump: true } : out;
+  // a blow: lined up, and from neutral only on a free player no one else is swinging at (its own combo goes on)
+  const ownCombo = p.mv && p.conn && (p.st === 'move' || p.st === 'air');
+  if (!lined || (!ownCombo && (!FREE.has(T.st) || swinging(B, T, p.id) || claimed.has(T.id)))) return out;
+  if (!ownCombo) claimed.add(T.id);
+  return { ...out, mv: cmd.mv };
 }
 
 // ── the waves ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -230,12 +308,22 @@ function waves(s, ctx, M) {
   // the next waiting bodies in, up to the limit, by turns from the right edge, the left and the street's back
   const half = Math.round(viewHalf(belt) * 1000), cam = s.cam;
   const [n0, n1] = belt.depth.map((v) => Math.round(v * 1000));
-  for (const p of waiting.slice(0, Math.max(0, R.limit - standing.length))) {
-    const k = M.entered++ % 3;
+  // (the boss first, from the right edge)
+  const order = [...waiting.filter((p) => M.bosses[p.id]), ...waiting.filter((p) => !M.bosses[p.id])];
+  for (const p of order.slice(0, Math.max(0, R.limit - standing.length))) {
+    const k = M.bosses[p.id] ? 0 : M.entered++ % 3;
+    if (M.bosses[p.id]) s.events.push({ t: 'boss', p: p.id, name: M.bosses[p.id].name, hp: p.hp });
     const x = k === 0 ? cam + half + R.enter : k === 1 ? cam - half - R.enter : cam + Math.round((vary(p.id, 7) - 0.5) * half);
     p.gone = 0; p.x = Math.max(0, Math.min(Math.round(belt.length * 1000), x)); p.z = k === 2 ? n1 : Math.round(n0 + (n1 - n0) * vary(p.id, 3));
     p.face = sgn(cam - p.x) || -1; p.st = 'stand'; p.sf = 0;
     s.events.push({ t: 'enter', p: p.id, from: ['right', 'left', 'back'][k], x: p.x, z: p.z });
+  }
+  // its boss fallen: the rest of its wave flees, and the stage is clear
+  const boss = mine.find((p) => M.bosses[p.id]);
+  if (boss && boss.ko && M.down !== M.wave) {
+    M.down = M.wave;
+    for (const p of mine) if (!p.ko) { p.ko = 1; p.gone = 1; s.events.push({ t: 'flee', p: p.id }); }
+    s.events.push({ t: 'stageClear', screen: W.screen });
   }
   // the last of it fallen: its gate opens, the next wave waits for its screen
   if (!waiting.length && mine.every((p) => p.ko)) {
