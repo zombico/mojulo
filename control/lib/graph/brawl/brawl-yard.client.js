@@ -5,15 +5,17 @@
  * uses is theirs or the page's (THREE, scene, camera, controls).
  *
  * What it draws: each body as the fight draws its fighters (the move's pose or the reaction's, jointed by the fight's rig
- * and stood in the round by its figure, versus-figure.js), a CHARACTER in its own body (its parts riding the figure's
- * segments, as the fight draws a posed character), anyone else as the fight's stick figure, on the belt: along it the body's x, across it its z; the
+ * and stood in the round by its figure, versus-figure.js), a CHARACTER in its own body (PLAYED: its own clips where it has
+ * one for what it is doing, its bones riding the figure's segments where it has none; or posed, its parts riding them),
+ * anyone else as the fight's stick figure, all in the yard's REGISTER where it has one (the fight's look: cel or lit
+ * under one key that casts), on the belt: along it the body's x, across it its z; the
  * street's things; each player's LINE on the floor (the strip a blow must share, the yard's first lesson); a flash where a
  * blow lands; the fight's sounds by event where the page carries them.
  *
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, THREE, scene, camera, controls, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, brawlPoseOf, rigJoints, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global BRAWL_YARD, THREE, scene, camera, controls, renderer, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, brawlPoseOf, rigJoints, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -23,6 +25,54 @@ const YARD = new THREE.Group();
 YARD.position.set(BELT.at[0], BELT.at[1], BELT.floor);
 YARD.rotation.z = (BELT.heading * Math.PI) / 180;
 scene.add(YARD);
+
+// ── the register (the fight's look, versus-arena.client.js fightRig): every body drawn the one way under one key ─────
+// 'anime' cel, three tones stepped from the key, its shadows stepped and cool; 'western' lit as an engine lights it, its
+// shadows soft. The key from the greybox's own sun where the yard carries it (the room and the bodies share a light), else
+// the camera's side above; a cool fill, a rim from behind, a sky; a catcher over the street's floor takes the shadows. The
+// key and its shadow's box follow the camera along the belt. A yard with no register lights its bodies as it always did.
+const REGISTER = BY.register === 'anime' || BY.register === 'western' ? BY.register : null;
+const MID = (BELT.depth[0] + BELT.depth[1]) / 2;
+function yardRig(register) {
+  const toon = register === 'anime', KEY_DIR = new THREE.Vector3(), KEY_TO = new THREE.Vector3();
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = toon ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+  const g = new THREE.Group();
+  if (BY.sun) KEY_DIR.set(BY.sun[0], BY.sun[1], BY.sun[2]).normalize().applyAxisAngle(new THREE.Vector3(0, 0, 1), (-BELT.heading * Math.PI) / 180);
+  else KEY_DIR.set(-0.35, -0.6, 0.72).normalize();
+  const key = new THREE.DirectionalLight(toon ? 0xfff6ea : 0xffeedb, toon ? 2.4 : 3.3);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  // (the shadow's box: the screen's width, the bodies spread across it, and the band)
+  const box = viewHalf(BELT) + 1.5, sc = key.shadow.camera;
+  sc.left = -box; sc.right = box; sc.top = box; sc.bottom = -box; sc.near = 0.5; sc.far = 30;
+  key.shadow.bias = -0.0004; key.shadow.normalBias = 0.025;
+  if (!toon) key.shadow.radius = 3;
+  const fill = new THREE.DirectionalLight(0xb9ccff, toon ? 0 : 0.28), rim = new THREE.DirectionalLight(0xffffff, toon ? 0.7 : 1.3);
+  g.add(key, key.target, fill, fill.target, rim, rim.target, toon ? new THREE.HemisphereLight(0xc6d2ff, 0x5c5068, 0.75) : new THREE.HemisphereLight(0xdfe7f2, 0x2e2925, 0.3));
+  const span = BELT.depth[1] - BELT.depth[0];
+  const catcher = new THREE.Mesh(new THREE.PlaneGeometry(BELT.length + 12, span + 6), new THREE.ShadowMaterial({ color: toon ? 0x1c1830 : 0x000000, opacity: toon ? 0.6 : 0.55 }));
+  catcher.position.set(BELT.length / 2, MID, 0.004); catcher.receiveShadow = true; catcher.renderOrder = 1;
+  g.add(catcher);
+  YARD.add(g);
+  const ramp = toon ? new THREE.DataTexture(new Uint8Array([92, 92, 92, 255, 165, 165, 165, 255, 255, 255, 255, 255]), 3, 1) : null;
+  if (ramp) { ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true; }
+  return {
+    toon,
+    follow(x) {
+      KEY_TO.set(x, MID, 1); key.target.position.copy(KEY_TO); key.position.copy(KEY_TO).addScaledVector(KEY_DIR, 12);
+      fill.target.position.copy(KEY_TO); fill.position.set(x + 2.8, MID - 2.4, 1.4);
+      rim.target.position.copy(KEY_TO); rim.position.set(x + 0.6, MID + 3.4, 3);
+    },
+    material(o) {
+      return toon ? new THREE.MeshToonMaterial({ side: THREE.DoubleSide, gradientMap: ramp, ...o })
+        : new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.62, metalness: 0, ...o });
+    },
+  };
+}
+const RIG = REGISTER ? yardRig(REGISTER) : null;
+const castOn = (m) => { if (RIG) { m.castShadow = true; m.receiveShadow = true; } return m; };
+const footShadow = () => new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: RIG ? 0.2 : 0.3, depthWrite: false }));
 
 // ── the room ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -47,7 +97,7 @@ function build() {
   const entryOf = (i) => (i < picks.length ? BY.roster[picks[i]] : Number.isInteger(dummies[i - picks.length]?.roster) ? BY.roster[dummies[i - picks.length].roster] : null);
   bodies = room.s.bodies.map((b, i) => {
     const E = entryOf(i), skin = skinOf(E && E.character), player = i < picks.length;
-    const B = skin ? makeCharacter(skin) : makeBody(E ? E.color : '#9a8f86', room.ctx.fighters[b.fi], false);
+    const B = skin ? (skin.pack.played ? makePlayed(skin) : makeCharacter(skin)) : makeBody(E ? E.color : '#9a8f86', room.ctx.fighters[b.fi], false);
     if (player) B.line = lineOf(E.color);
     return B;
   });
@@ -79,15 +129,16 @@ const LIMBS = [
 ];
 const JOINTS = [['pelvisHub', 1.6], ...['L', 'R'].flatMap((S) => [[`shoulder${S}`, 1.2], [`elbow${S}`, 1], [`fist${S}`, 1.5], [`knee${S}`, 1.1], [`ankle${S}`, 1]])];
 const farOf = (name, face) => { const S = name.slice(-1); return (S === 'L' && face > 0) || (S === 'R' && face < 0); };
-function lambert(color) { return new THREE.MeshBasicMaterial({ color, vertexColors: true }); }
+// (under the register, the rig's surface; without one, the colour over the baked shading)
+function lambert(color) { return RIG ? RIG.material({ color }) : new THREE.MeshBasicMaterial({ color, vertexColors: true }); }
 function makeBody(color, F, player) {
   const near = lambert(color), far = lambert(new THREE.Color(color).multiplyScalar(0.6));
   const group = new THREE.Group();
-  const part = (geo, mat) => { const fill = new THREE.Mesh(geo, mat), ink = new THREE.Mesh(geo, INK); group.add(fill, ink); return { fill, ink }; };
+  const part = (geo, mat) => { const fill = castOn(new THREE.Mesh(geo, mat)), ink = new THREE.Mesh(geo, INK); group.add(fill, ink); return { fill, ink }; };
   const limbs = LIMBS.map(([a, b, w]) => ({ a, b, w, ...part(CYL, near) }));
   const joints = JOINTS.map(([j, w]) => ({ j, w, ...part(BALL, near) }));
   const head = part(BALL, near);
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }));
+  const shadow = footShadow();
   YARD.add(group, shadow);
   return { group, limbs, joints, head, shadow, line: null, near, far, base: figureBase(F.body), drawn: null };
 }
@@ -105,7 +156,9 @@ const SKINS = {};
 function skinOf(ref) {
   const pack = ref && BY.bodies && BY.bodies[ref];
   if (!pack || !pack.parts) return null;
-  return SKINS[ref] || (SKINS[ref] = { pack, base: characterBase(pack.bones), seg: pack.bones.map((b) => segmentOf(b.id)) });
+  // (a played body samples its clips, and rides the segments where it has none for what the yard is doing: its hands,
+  // the fingers' and the wrist's, kept as its guard holds them)
+  return SKINS[ref] || (SKINS[ref] = { pack, base: characterBase(pack.bones), seg: pack.bones.map((b) => segmentOf(b.id)), ...(pack.played ? { hand: pack.bones.map((b) => /^foreArm[LR]$/.test(segmentOf(b.id)) && !/^(foreArm|elbowFold)[LR]?$/.test(b.id)) } : {}) });
 }
 const REST_KEY = new THREE.Vector3(0.35, -0.55, 0.75).normalize();
 // the yard's key: from the camera's side and above, in the belt's frame turned into the world's
@@ -137,7 +190,8 @@ function inkMaterial() {
   return mat;
 }
 function makeCharacter(skin) {
-  const group = new THREE.Group(), lit = litMaterial(), ink = inkMaterial();
+  // (under the register drawn its one way, as every body is: the rig's surface over its albedo, casting, no ink hull)
+  const group = new THREE.Group(), lit = RIG ? RIG.material({ vertexColors: true }) : litMaterial(), ink = RIG ? null : inkMaterial();
   const meshes = skin.pack.parts.map((part) => {
     if (!part) return null;
     const pos = decodeF32(part.pos), nrm = smoothNormals(pos), rest = new Float32Array(pos.length / 3);
@@ -148,11 +202,11 @@ function makeCharacter(skin) {
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
     geo.setAttribute('restShade', new THREE.BufferAttribute(rest, 1));
     geo.computeBoundingSphere();
-    const fill = new THREE.Mesh(geo, lit), hull = new THREE.Mesh(geo, ink);
-    for (const m of [fill, hull]) { m.matrixAutoUpdate = false; m.frustumCulled = false; group.add(m); }   // matrices change every frame
+    const fill = castOn(new THREE.Mesh(geo, lit)), hull = ink ? new THREE.Mesh(geo, ink) : null;
+    for (const m of [fill, hull]) if (m) { m.matrixAutoUpdate = false; m.frustumCulled = false; group.add(m); }   // matrices change every frame
     return { fill, hull };
   });
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }));
+  const shadow = footShadow();
   YARD.add(group, shadow);
   return { group, shadow, skin, meshes, line: null, base: skin.base, drawn: null };
 }
@@ -170,8 +224,135 @@ function placeCharacter(B, p, F, N) {
     const ty = at[1] - (R[1][0] * from[0] + R[1][1] * from[1] + R[1][2] * from[2]);
     const tz = at[2] - (R[2][0] * from[0] + R[2][1] * from[1] + R[2][2] * from[2]);
     M4.set(R[0][0], R[0][1], R[0][2], tx, R[1][0], R[1][1], R[1][2], ty, R[2][0], R[2][1], R[2][2], tz, 0, 0, 0, 1);
-    m.fill.matrix.copy(M4); m.hull.matrix.copy(M4);
+    m.fill.matrix.copy(M4); if (m.hull) m.hull.matrix.copy(M4);
   }
+}
+
+// ── a character PLAYED in its own body (versus-arena.client.js's): one skinned mesh of its parts, its painted skin over
+// it; each frame its bones set from its own clip at the moment the yard's state names (yardClip), or riding the figure's
+// segments where it has no clip for it (the brawl's own: walking the street, a hold, being held, a pick-up, a throw) ──
+function makePlayed(skin) {
+  const pack = skin.pack, group = new THREE.Group();
+  const bones = pack.bones.map(() => { const o = new THREE.Bone(); o.matrixAutoUpdate = false; group.add(o); return o; });
+  let n = 0; for (const P of pack.parts) if (P) n += P.faces * 3;
+  const painted = !!(pack.paintTex && pack.parts.some((P) => P && P.uv));
+  const pos = new Float32Array(n * 3), col = new Uint8Array(n * 3), jnt = new Uint16Array(n * 4), wgt = new Float32Array(n * 4), uv = painted ? new Float32Array(n * 2) : null;
+  const lit = !!pack.lit, nrm = lit ? new Float32Array(n * 3) : null, relief = !!(lit && pack.normalTex && pack.parts.every((P) => !P || P.tan));
+  const tan = relief ? new Float32Array(n * 4) : null;
+  let o = 0;
+  for (const P of pack.parts) {
+    if (!P) continue;
+    const pp = decodeF32(P.pos), m = pp.length / 3;
+    pos.set(pp, o * 3); col.set(decodeU8(P.col), o * 3); jnt.set(decodeU8(P.jnt), o * 4); wgt.set(decodeF32(P.wgt), o * 4);
+    if (nrm && P.nrm) nrm.set(decodeF32(P.nrm), o * 3);
+    if (tan) tan.set(decodeF32(P.tan), o * 4);
+    if (uv) { if (P.uv) uv.set(decodeF32(P.uv), o * 2); else for (let k = 0; k < m; k++) { uv[(o + k) * 2] = pack.paintTex.white[0]; uv[(o + k) * 2 + 1] = pack.paintTex.white[1]; } }
+    o += m;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+  geo.setAttribute('skinIndex', new THREE.BufferAttribute(jnt, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(wgt, 4));
+  if (uv) geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geo.setAttribute('normal', new THREE.BufferAttribute(nrm || smoothNormals(pos), 3));
+  if (tan) geo.setAttribute('tangent', new THREE.BufferAttribute(tan, 4));
+  geo.computeBoundingSphere();
+  let map = null;
+  if (painted) { map = new THREE.TextureLoader().load(pack.paintTex.url); map.colorSpace = THREE.SRGBColorSpace; }
+  const alpha = map && pack.paintTex.alphaMask ? { alphaTest: 0.4 } : {};
+  const tex = (t) => { const x = new THREE.TextureLoader().load(t.url); x.colorSpace = THREE.NoColorSpace; return x; };
+  // (under the register the rig's surface over its albedo, its relief and roughness where lit; else its baked light,
+  // relit by the yard's key as a posed body is)
+  const material = RIG
+    ? RIG.material({ vertexColors: true, ...(map ? { map } : {}), ...alpha, ...(!RIG.toon && relief ? { normalMap: tex(pack.normalTex) } : {}), ...(!RIG.toon && pack.ormTex ? { roughness: 1, roughnessMap: tex(pack.ormTex) } : {}) })
+    : new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, ...(map ? { map } : {}), ...alpha });
+  const mesh = castOn(new THREE.SkinnedMesh(geo, material));
+  mesh.frustumCulled = false;
+  group.add(mesh); YARD.add(group);
+  group.updateMatrixWorld(true);
+  mesh.bind(new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4())));
+  const shadow = footShadow();
+  YARD.add(shadow);
+  return { group, shadow, skin, played: true, bones, mesh, line: null, base: skin.base, drawn: null };
+}
+// the states a played body shows by its own clips (the fight's: a blow, a reaction, a fall, the guard); the brawl's own
+// (walking, a hold, held, a pick-up, a throw, a jump with no blow) are posed by the yard on its body
+const CLIPPED = { stand: 1, hit: 1, fall: 1, ko: 1, down: 1, rise: 1 };
+/** the clip and its phase a body's state shows (versus-arena.client.js playedClip), or null: posed on its body */
+function yardClip(p, F, clips) {
+  const has = (k) => !!clips[k];
+  if (p.mv) {
+    const mv = F.moves[p.mv], fr = mv && mv.frames && mv.frames[Math.max(1, Math.min(p.mf, mv.total))];
+    return mv && mv.hero && has(mv.id) ? [mv.id, fr && fr.u !== undefined ? fr.u : p.mf / mv.total] : null;
+  }
+  if (!CLIPPED[p.st]) return null;
+  const r = p.rx || { k: 'hit', h: 1 }, stunT = p.sf / Math.max(1, p.sf + (p.stun || 0));
+  switch (p.st) {
+    case 'hit': { const k = r.k === 'crush' ? 'guardStagger' : p.low || r.h === 2 ? 'guardHitLow' : r.h === 0 ? 'guardHitHigh' : 'guardHitBody'; return has(k) ? [k, stunT] : null; }
+    case 'fall': case 'ko': return has('knockedOutDown') ? ['knockedOutDown', Math.min(1, p.sf / 40)] : null;
+    case 'down': return has('knockedOutDown') ? ['knockedOutDown', 1] : null;
+    case 'rise': return has('knockedOutUp') ? ['knockedOutUp', Math.min(1, p.sf / 20)] : null;
+    default: return has('guard') && Object.values(F.moves).some((m) => m.hero) ? ['guard', 1] : null;
+  }
+}
+const PQ = new THREE.Quaternion(), PV = new THREE.Vector3(), PH = new THREE.Vector3(), PR = new THREE.Vector3(), PONE = new THREE.Vector3(1, 1, 1);
+/** one bone's rotation and head from a clip at a phase (its keys' frame pair) */
+function playedBone(pack, clip, phase, bi, outQ, outP) {
+  const bone = pack.bones[bi];
+  if (!clip) { outQ.set(0, 0, 0, 1); outP.set(bone.head[0], bone.head[1], bone.head[2]); return; }
+  const nb = pack.bones.length, K = clip.k, B = clip.b;
+  let i0, i1, u;
+  if (clip.once) { const kf = Math.min(1, Math.max(0, phase)) * (K - 1); i0 = Math.min(K - 1, Math.floor(kf)); i1 = Math.min(K - 1, i0 + 1); u = kf - i0; }
+  else { const kf = (((phase % 1) + 1) % 1) * K; i0 = Math.floor(kf) % K; i1 = (i0 + 1) % K; u = kf - Math.floor(kf); }
+  const o0 = (i0 * nb + bi) * 7, o1 = (i1 * nb + bi) * 7;
+  const sg = (B[o0] * B[o1] + B[o0 + 1] * B[o1 + 1] + B[o0 + 2] * B[o1 + 2] + B[o0 + 3] * B[o1 + 3]) < 0 ? -1 : 1;
+  outQ.set(B[o0] + (sg * B[o1] - B[o0]) * u, B[o0 + 1] + (sg * B[o1 + 1] - B[o0 + 1]) * u, B[o0 + 2] + (sg * B[o1 + 2] - B[o0 + 2]) * u, B[o0 + 3] + (sg * B[o1 + 3] - B[o0 + 3]) * u).normalize();
+  outP.set(B[o0 + 4] + (B[o1 + 4] - B[o0 + 4]) * u, B[o0 + 5] + (B[o1 + 5] - B[o0 + 5]) * u, B[o0 + 6] + (B[o1 + 6] - B[o0 + 6]) * u);
+}
+// (a knockdown is flown by the yard's fall, so its clip's own slide across the floor is taken off)
+const PINNED = { knockedOutDown: 1, knockedOutUp: 1 };
+const GM = new THREE.Matrix4(), GF = new THREE.Matrix4(), GQ = new THREE.Quaternion(), GH = new THREE.Vector3(), GV = new THREE.Vector3();
+function clipMatrix(pack, clip, phase, bi, out) {
+  playedBone(pack, clip, phase, bi, GQ, GH);
+  const h = pack.bones[bi].head;
+  GV.set(h[0], h[1], h[2]).applyQuaternion(GQ);
+  return out.compose(GV.set(GH.x - GV.x, GH.y - GV.y, GH.z - GV.z), GQ, PONE);
+}
+/** a played body posed by the yard: each bone riding its segment of the figure, a hand's bones as its guard clip holds
+ * them on its forearm, so a fist stays a fist */
+function placeFromPose(B, N) {
+  const pack = B.skin.pack, S = figureSegments(B.skin.base, N), guard = pack.clips && pack.clips.guard;
+  const fore = {};
+  if (guard) for (let bi = 0; bi < B.bones.length; bi++) if (/^foreArm[LR]$/.test(pack.bones[bi].id)) fore[pack.bones[bi].id] = clipMatrix(pack, guard, 1, bi, new THREE.Matrix4()).invert();
+  for (let bi = 0; bi < B.bones.length; bi++) {
+    const sg = B.skin.seg[bi], { R, from, at } = S[sg];
+    const tx = at[0] - (R[0][0] * from[0] + R[0][1] * from[1] + R[0][2] * from[2]);
+    const ty = at[1] - (R[1][0] * from[0] + R[1][1] * from[1] + R[1][2] * from[2]);
+    const tz = at[2] - (R[2][0] * from[0] + R[2][1] * from[1] + R[2][2] * from[2]);
+    const M = B.bones[bi].matrix.set(R[0][0], R[0][1], R[0][2], tx, R[1][0], R[1][1], R[1][2], ty, R[2][0], R[2][1], R[2][2], tz, 0, 0, 0, 1);
+    const inv = B.skin.hand[bi] && fore[sg];
+    if (inv) M.multiply(GF.copy(inv).multiply(clipMatrix(pack, guard, 1, bi, GM)));
+  }
+}
+function placePlayed(B, p, F, N) {
+  const pack = B.skin.pack, pick = yardClip(p, F, pack.clips || {});
+  B.group.position.set(p.x / 1000, p.z / 1000, p.y / 1000);
+  B.group.rotation.set(0, 0, p.face > 0 ? -Math.PI / 2 : Math.PI / 2);
+  if (!pick) placeFromPose(B, N);
+  else {
+    const [name, phase] = pick, clip = pack.clips[name];
+    let rx = 0, ry = 0;
+    if (PINNED[name]) { playedBone(pack, clip, phase, 0, PQ, PR); rx = PR.x - pack.bones[0].head[0]; ry = PR.y - pack.bones[0].head[1]; }
+    for (let bi = 0; bi < B.bones.length; bi++) {
+      playedBone(pack, clip, phase, bi, PQ, PH);
+      PH.x -= rx; PH.y -= ry;
+      const h = pack.bones[bi].head;
+      PV.set(h[0], h[1], h[2]).applyQuaternion(PQ);
+      B.bones[bi].matrix.compose(PV.set(PH.x - PV.x, PH.y - PV.y, PH.z - PV.z), PQ, PONE);
+    }
+  }
+  B.group.updateMatrixWorld(true);
 }
 const vA = new THREE.Vector3(), vB = new THREE.Vector3(), UP = new THREE.Vector3(0, 0, 1), vD = new THREE.Vector3();
 function cylinderAt(mesh, a, b, r) {
@@ -201,10 +382,11 @@ function placeBody(B, p, F) {
   if (hidden) return;
   const { pose, J } = drawnOf(B, p, F);
   const N = figurePose(B.skin ? B.skin.base : B.base, J, { face: p.face, air: !!pose.air, blade: BLADE_OF[p.st] ?? 1, stance: F.stance, twist: pose.twist ?? 0, sway: pose.sway ?? 0, tilt: pose.tilt ?? 0, spin: pose.spin ?? 0, bank: pose.bank ?? 0, lie: !!pose.lie, ...(pose.hands ? { hands: pose.hands } : {}), ...(pose.feet ? { feet: pose.feet } : {}) });
-  if (B.skin) placeCharacter(B, p, F, N);
+  if (B.played) placePlayed(B, p, F, N);
+  else if (B.skin) placeCharacter(B, p, F, N);
   else placeStick(B, p, F, N);
   B.shadow.position.set(p.x / 1000, p.z / 1000, 0.01);
-  B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.6 * Math.max(0.4, 1 - p.y / 1600));
+  B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.6) * Math.max(0.4, 1 - p.y / 1600));
   if (B.line) {
     const half = viewHalf(BELT);
     B.line.position.set(p.x / 1000, p.z / 1000, 0.008);
@@ -243,7 +425,7 @@ function placeThings() {
       if (m) YARD.remove(m);
       const box = T.kind === 'box', D = box ? null : THING_LOOK[T.kind];
       const size = box ? [0.8, 0.8, 1] : D;
-      m = new THREE.Mesh(shaded(new THREE.BoxGeometry(size[0], size[1], size[2]).translate(0, 0, size[2] / 2)), lambert(box ? BOX_LOOK[T.what] ?? '#8a6a4a' : D[3]));
+      m = castOn(new THREE.Mesh(shaded(new THREE.BoxGeometry(size[0], size[1], size[2]).translate(0, 0, size[2] / 2)), lambert(box ? BOX_LOOK[T.what] ?? '#8a6a4a' : D[3])));
       m.userData.what = T.what;
       things.set(T.id, m); YARD.add(m);
     }
@@ -404,6 +586,7 @@ function tick() {
 }
 function draw() {
   frameCamera();
+  if (RIG) RIG.follow(room.s.cam / 1000);
   room.s.bodies.forEach((p, i) => placeBody(bodies[i], p, room.ctx.fighters[p.fi]));
   placeThings();
   stepFlashes();

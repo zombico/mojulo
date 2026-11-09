@@ -589,6 +589,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // practice room's controllable runtime, swing system and mana-ui HUD look; this line's fight, its states and its
 // things), and mana-ui's sheet and kernel as the two met (the trunk's dials and the practice room's `hud`, passing
 // anchors and text entry side by side); no fixture's play changed by the meeting itself.
+// Re-pinned 2026-11-09 (1109-gen-bodywork: the practice yard plays its characters by their clips, in its register's look):
+// `brawl` only. Its page inlines the yard's client, which gains the register's rig and the played body; the fixture's
+// yard carries neither, so its play is unchanged.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

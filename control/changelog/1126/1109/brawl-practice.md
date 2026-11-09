@@ -36,3 +36,9 @@
   street's crowd types still there beside them; each character drawn in its own body, its parts riding the fight's figure
   as the fight draws a posed character, relit by the yard's key and inked. The settings offer the roster as the fighter
   and as the dummies' type. The spike's `--characters` mints a wolf-kin and a mascot bear and plays one against the other.
+- The yard's characters PLAYED and its REGISTER's look: a character is played in its own body by its own clips (its
+  blows, a blow taken, its knockdown, its guard; the brawl's own states, walking the street, a hold, being held, a
+  pick-up, a throw, posed on its body by the figure, its hands kept as its guard holds them), as the fight's arena plays
+  them; a yard with a `register` (`brawlLevel(level, { register: 'anime' | 'western', practice })`) draws every body the
+  fight's one way, cel or lit, under one key from the greybox's own sun that casts onto the street and across the body,
+  the key following the camera along the belt. The spike's `--register` shoots it.
