@@ -23,6 +23,8 @@ The car designer ([car-designer/](../control/lib/graph/car-designer/)) builds ro
 - A military class's realistic body comes from the hull kit: `road-military.js` over `mil-hull.js`. A tracked class's
   running gear is `mil-track.js`.
 - The airfield's ground crew (the catering truck, belt loader and stairs) is `road-airside.js`.
+- The city's utility vehicles (works, the refuse fleet, emergency, aerial lifts, delivery) are `road-civic.js` over
+  `civic-kit.js`; review: `scripts/render-civic.mjs`.
 
 ## Cars: the car shelf
 
