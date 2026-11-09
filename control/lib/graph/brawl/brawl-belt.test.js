@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readBelt, beltPoint, screenAt, heldAt, viewHalf, beltScroll, beltBounds, beltCamera, BELT_ANGLES, BELT_ANGLE_IDS } from './brawl-belt.js';
-import { brawlLevel, brawlPreset, readBrawlLevel, BRAWL_PRESETS } from './brawl-levels.js';
+import { brawlLevel, brawlPreset, readBrawlLevel, BRAWL_PRESETS, BRAWL_STAGE_KITS } from './brawl-levels.js';
+import { STAGE_KITS } from '../era/stage.js';
 import { readGreybox } from '../level/greybox-scene.js';
 
 // THE BELT: a straight run of street with a depth band, cut into screens the camera scrolls through, some held until
@@ -127,5 +128,39 @@ describe('brawl levels: a street\'s band is the street\'s', () => {
     const id = Object.keys(BRAWL_PRESETS)[0];
     expect(() => brawlPreset(id, { depth: [-2.5, 4] })).toThrow(/band/);
     expect(brawlPreset(id, { depth: [-2, 2] }).belt.depth).toEqual([-2, 2]);
+  });
+});
+
+describe('brawl levels: the belt in the indoor designer\'s rooms', () => {
+  // (one roofed kit and the open-air one: the two procedures, a room a screen and one long street)
+  const roofed = BRAWL_STAGE_KITS.find((k) => STAGE_KITS[k].shell !== 'plaza'), open = BRAWL_STAGE_KITS.find((k) => STAGE_KITS[k].shell === 'plaza');
+  it('a room a screen, in a row along the belt, its camera side open, each into the next through a doorway as wide as the band', () => {
+    const m = brawlLevel({ kind: 'stage', kit: roofed });
+    const { belt } = m.brawl, band = belt.depth[1] - belt.depth[0];
+    expect(m.kind).toBe('stage');
+    expect(m.rooms.length).toBe(belt.screens.length);
+    m.rooms.forEach((r, i) => {
+      expect([r.x, r.w]).toEqual([belt.screens[i].from, belt.screens[i].length]);
+      expect(r.open).toEqual(['-y']);
+    });
+    expect(m.links.length).toBe(m.rooms.length - 1);
+    for (const l of m.links) expect(l.width).toBeGreaterThanOrEqual(band);
+    // (the band inside the room, centred, with room before it for the views to reach the floor)
+    const D = m.rooms[0].d;
+    expect(beltPoint(belt, 0, belt.depth[0])[1]).toBeGreaterThanOrEqual(2);
+    expect(beltPoint(belt, 0, belt.depth[1])[1]).toBeLessThanOrEqual(D - 2);
+    // (it opens framed by the belt's locked angle)
+    expect(m.camera.worldFraming.lookAt).toEqual(beltCamera(belt, viewHalf(belt)).lookAt);
+  });
+  it('on the open-air kit, one long street; its screens are the kit\'s grid', () => {
+    const m = brawlLevel({ kind: 'stage', kit: open, screens: [{ length: 13.6 }, { length: 16.2, boss: true }] });
+    expect(m.rooms.length).toBe(1);
+    expect(m.rooms[0].w).toBe(m.brawl.belt.length);
+    expect(m.brawl.belt.screens.map((s) => s.length)).toEqual([14, 16]);
+    expect(m.dress).toBe(false);
+    expect(m.reference).toBeTruthy();
+  });
+  it('refuses a kit it has no rooms for', () => {
+    expect(() => readBrawlLevel({ kind: 'stage', kit: 'moon-base' })).toThrow(/kit/);
   });
 });

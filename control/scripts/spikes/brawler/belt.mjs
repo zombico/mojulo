@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// brawler belt — the greybox street a brawl is fought down, seen as the brawl sees it: from its belt's locked angle at
-// each screen's middle (and each angle at the first held screen's), one shot each, on one sheet. The eyes gate is the
-// operator's: the shots.
+// brawler belt — the streets a brawl is fought down, seen as the brawl sees it: the greybox street from its belt's
+// locked angle at each screen's middle (and each angle at the first held screen's), then the belt laid in the indoor
+// designer's rooms on each kit (the first screen, and the first held screen's end, where the camera holds), one shot
+// each, on one sheet. The eyes gate is the operator's: the shots.
 //
-//   node control/scripts/spikes/brawler/belt.mjs [--out dir] [--preset street]
+//   node control/scripts/spikes/brawler/belt.mjs [--out dir] [--preset street] [--kits a,b] [--only greybox|stage]
 import { register as registerLoader, createRequire } from 'node:module';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -12,19 +13,19 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), CONTROL = path.resolve(HERE, '../../..');
-const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-belt') }, preset: { type: 'string', default: 'street' } } });
+const { values: opt } = parseArgs({ options: { out: { type: 'string', default: path.join(os.tmpdir(), 'brawler-belt') }, preset: { type: 'string', default: 'street' }, kits: { type: 'string' }, only: { type: 'string' } } });
 const out = path.resolve(opt.out); mkdirSync(out, { recursive: true });
 process.chdir(CONTROL);
 registerLoader(pathToFileURL(path.join(CONTROL, 'scripts/mcp-stdio-loader.mjs')).href);
 process.env.SQLITE_PATH = path.join(out, 'store.db'); process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
-const { brawlLevel } = await import('@/lib/graph/brawl/brawl-levels.js');
+const { brawlLevel, BRAWL_STAGE_KITS } = await import('@/lib/graph/brawl/brawl-levels.js');
 const { beltCamera, viewHalf, BELT_ANGLE_IDS } = await import('@/lib/graph/brawl/brawl-belt.js');
 const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('@/lib/graph/scene/scene-three.js');
 
 const shots = [];
-for (const angle of BELT_ANGLE_IDS) {
+for (const angle of opt.only === 'stage' ? [] : BELT_ANGLE_IDS) {
   const manifest = brawlLevel({ kind: 'greybox', preset: opt.preset, belt: { angle } }, { title: 'street' });
   const B = manifest.brawl.belt, half = viewHalf(B);
   // (the classic angle down the whole street, screen by screen; the others at the first held screen's end)
@@ -36,6 +37,17 @@ for (const angle of BELT_ANGLE_IDS) {
   const { payload } = await resolveWorldScene({ ref: 'street', title: 'street', manifest: world }, {});
   for (const cam of at) {
     const name = `${angle}-${cam.toFixed(1)}`;
+    writeFileSync(path.join(out, `${name}.html`), emitThreeWorld({ ...payload, cameras: [{ name, worldFraming: beltCamera(B, cam) }], hud: false, inline: true }));
+    shots.push(name);
+  }
+}
+// the belt in the indoor designer's rooms, kit by kit (its `brawl` block rides on the stage recipe, as a fight's `versus`)
+for (const kit of opt.only === 'greybox' ? [] : opt.kits ? opt.kits.split(',') : BRAWL_STAGE_KITS) {
+  const manifest = brawlLevel({ kind: 'stage', kit }, { title: kit });
+  const B = manifest.brawl.belt, half = viewHalf(B);
+  const { payload } = await resolveWorldScene({ ref: kit, title: kit, manifest }, {});
+  for (const cam of [half, B.screens.find((sc) => sc.gate).to - half]) {
+    const name = `${kit}-${cam.toFixed(1)}`;
     writeFileSync(path.join(out, `${name}.html`), emitThreeWorld({ ...payload, cameras: [{ name, worldFraming: beltCamera(B, cam) }], hud: false, inline: true }));
     shots.push(name);
   }

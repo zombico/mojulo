@@ -16,3 +16,8 @@
   meets; no block; a thrown body knocks down the bodies of its own side it flies into; a body rising from the floor is
   untouchable a moment; bodies push each other only when lined up; each faces its nearest foe. The camera goes on with
   the players and holds at a gate. Deterministic and hashed like the fight; the fight's own core is untouched.
+- A brawl laid in the indoor level's rooms: the `stage` brawl level builds the belt on the stage kind building levels are
+  made in, on its kits (the plaza's sunlit street, the nave, the stone hall, the catacomb, the lab): a room a screen,
+  open to the camera, each into the next through a doorway the band runs through, deep enough before the band for the
+  locked angle to see the floor; the open-air plaza one long street; a kit whose furnishing would stand on the fighting
+  floor left undressed unless asked. It opens framed by the belt's angle. The spike shoots every kit.

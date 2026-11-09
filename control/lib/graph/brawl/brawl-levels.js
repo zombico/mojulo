@@ -9,6 +9,12 @@
  *              doorways, a kerb and a pavement on the far side, lamps and a few things on it (bins, a barrel, a phone
  *              booth, crates), the near side open to the camera, each held screen's line marked across the band, the
  *              street closed at its start and at its end
+ *     stage    the belt laid in the indoor level's designer (era/stage.js, the stage kind a building level is built in:
+ *              rooms on a kit's grid joined by doorways, dressed and lit by the kit): each screen a room in a row along
+ *              the belt, its camera side open, the next screen through a doorway as wide as the band (the band runs on
+ *              through it), the room as deep as the band and the room the locked angle's view needs in front of it and
+ *              behind; on an open-air kit (the plaza) the street one long room, its fronts the far side. Its sizes are the
+ *              belt's: the screens' lengths to the kit's grid, the band's depth, the angle the stage opens framed on
  *
  *   BRAWL_PRESETS, brawlPreset(id, beltOver)  → { reads, belt, blocks }
  *   readBrawlLevel(level)                     → { kind, words } (throws naming the fault)
@@ -17,9 +23,11 @@
  *
  * Pure: no clock, no dice.
  */
-import { readBelt, beltPoint } from './brawl-belt.js';
+import { readBelt, beltPoint, beltCamera, viewHalf, BELT_DEPTH } from './brawl-belt.js';
 import { readGreybox, GREYBOX_SUN } from '../level/greybox-scene.js';
 import { FIGHT_REGISTERS } from '../versus/versus-levels.js';
+import { ARENA_KITS } from '../versus/versus-arena.js';
+import { STAGE_KITS } from '../era/stage.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
@@ -94,6 +102,50 @@ export function brawlPreset(id, beltOver = {}) {
   return { reads: P.reads, belt, blocks: P.blocks(belt) };
 }
 
+/**
+ * THE STAGE: the belt in the indoor designer's rooms. Across the belt (y, m, the camera side y 0): the room's front
+ * strip `front` before the band (the locked angles' views reach the floor there, the lowest the nearest), the band, the
+ * same behind it (so the doorway, centred on the shared wall, takes the whole band), the far wall. The rooms' height a
+ * kit's hall's. The kits the fight's arena stands on, a sunlit one with its look.
+ */
+const STAGE = Object.freeze({ front: 2.5, height: 7, door: 1 });
+const STAGE_LOOK = { 'island-plaza': 'island-noon' };
+// (a kit whose dressing stands on the floor, the plaza's fountain, the lab's benches and its tank, is dressed only when
+// asked: the band is a fighting floor)
+const STAGE_CENTRE_PIECE = new Set(['island-plaza', 'research-lab']);
+export const BRAWL_STAGE_KITS = ARENA_KITS;
+const STAGE_SCREENS = Object.freeze([{ length: 14 }, { length: 16, gate: true }, { length: 16, gate: true }, { length: 16, boss: true }]);
+
+/** The stage a belt is laid in: { manifest (a `kind: 'stage'` recipe), belt }. */
+function brawlStage(words) {
+  const kit = words.kit ?? 'gothic-stone';
+  if (!BRAWL_STAGE_KITS.includes(kit)) throw new Error(`brawl: a stage street's kit is one of ${BRAWL_STAGE_KITS.join(', ')}`);
+  const K = STAGE_KITS[kit], g = K.grid ?? 1, open = K.shell === 'plaza';
+  const height = words.height ?? STAGE.height;
+  if (!(typeof height === 'number' && height >= 4 && height <= 16)) throw new Error('brawl: a stage street is 4 to 16 m high');
+  // (the screens on the kit's grid: each length to the nearest whole cell)
+  const screens = (words.screens ?? STAGE_SCREENS).map((sc) => (isObj(sc) && typeof sc.length === 'number' ? { ...sc, length: Math.max(g, Math.round(sc.length / g) * g) } : sc));
+  const depth = words.depth ?? BELT_DEPTH, front = STAGE.front;
+  const band = Array.isArray(depth) && depth.length === 2 ? depth[1] - depth[0] : NaN;
+  // (the room's depth on the grid, the band centred in it)
+  const D = Math.ceil((band + 2 * front) / g) * g;
+  const belt = readBelt({ at: [0, r3(D / 2 - (depth[0] + depth[1]) / 2)], heading: 0, floor: 0, depth, screens, angle: words.angle ?? 'classic' }, 'level');
+  const rooms = open
+    ? [{ id: 'street', x: 0, y: 0, w: belt.length, d: D, h: height, open: ['-y'] }]
+    : belt.screens.map((sc, i) => ({ id: `screen-${i + 1}`, x: sc.from, y: 0, w: sc.length, d: D, h: height, open: ['-y'] }));
+  const links = open ? [] : rooms.slice(1).map((r, i) => ({ from: rooms[i].id, to: r.id, width: Math.min(D - 2 * (K.door?.frame ?? 0.3) - (K.wall ?? 0.5) - 0.01, r3(band + STAGE.door)), height: height - 1 }));
+  const look = words.look ?? STAGE_LOOK[kit];
+  return {
+    manifest: {
+      kind: 'stage', kit, ...(look ? { reference: look } : {}), ...(words.title ? { title: words.title } : {}),
+      ...((words.dress ?? !STAGE_CENTRE_PIECE.has(kit)) ? {} : { dress: false }),
+      viewBox: { width: 1280, height: 720 }, rooms, ...(links.length ? { links } : {}), lights: 'auto',
+      camera: { name: 'brawl', worldFraming: { ...beltCamera(belt, viewHalf(belt)), pictureCenter: [640, 360] } },
+    },
+    belt,
+  };
+}
+
 export const BRAWL_LEVELS = Object.freeze({
   greybox: Object.freeze({
     reads: `a street blocked out in boxes, from a preset (${BRAWL_PRESET_IDS.join(', ')}), its belt's words over the preset's`,
@@ -103,6 +155,11 @@ export const BRAWL_LEVELS = Object.freeze({
       const P = brawlPreset(words.preset, words.belt);
       return { manifest: { kind: 'greybox', ...(words.title ? { title: words.title } : {}), blocks: readGreybox({ blocks: P.blocks }).blocks }, belt: P.belt };
     },
+  }),
+  stage: Object.freeze({
+    reads: `the belt laid in the indoor level's rooms (a kit: ${BRAWL_STAGE_KITS.join(', ')}), a room a screen through doorways as wide as the band, its camera side open; the plaza one long street`,
+    words: ['kit', 'look', 'height', 'screens', 'depth', 'angle', 'dress', 'title'],
+    build: brawlStage,
   }),
 });
 export const BRAWL_LEVEL_KINDS = Object.freeze(Object.keys(BRAWL_LEVELS));
