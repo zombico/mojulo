@@ -20,7 +20,10 @@ let browser = null;
 beforeAll(async () => {
   let exe;
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
-  browser = await launchChromium({ executablePath: exe, headless: true, args: ['--disable-threaded-animation', '--disable-threaded-scrolling'] });
+  // (--disable-lcd-text: a desktop Chrome draws the page's text with sub-pixel anti-aliasing, coloured fringes for a
+  // monitor's stripes, and an image of it in grey; a panel in a headset is a texture and has no stripes, so the gate
+  // compares the grey both draw. Without it a box of text is a twelfth fringe on such a browser, and the gate cries wolf.)
+  browser = await launchChromium({ executablePath: exe, headless: true, args: ['--disable-threaded-animation', '--disable-threaded-scrolling', '--disable-lcd-text'] });
 }, 60000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
