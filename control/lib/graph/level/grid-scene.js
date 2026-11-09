@@ -492,6 +492,13 @@ export function gridScene(m, ctx = {}, { buildStage, tileCasters = null, dry = f
     if (!first) first = { payload, F };
     cells.push({ r: cell.r, c: cell.c, glyph: cell.glyph, kind: cell.kind, ...(cell.shape ? { shape: cell.shape } : {}), ...(cell.open?.length ? { open: cell.open } : {}), ...(cell.region ? { region: cell.region } : {}), at });
   }
+  // THE PATHS KEPT CLEAR of what the tiles were asked to make solid (`tile.solid`: a tree's trunk, a boulder): a tile
+  // stands its flora without knowing where a neighbour's path runs or how an author wrote a segment's, so a trunk or a
+  // boulder whose collider would stand on a path's line (a walker's width either side) is left drawn and not solid
+  const WALKER = 0.3;
+  const onPath = [];
+  for (const C of cells) if (C.kind === 'path' && C.open?.length) { const o = [C.c * T, -(C.r + 1) * T]; for (const L of tilePath(T, C.open)) for (const q of L) onPath.push([o[0] + q[0], o[1] + q[1]]); }
+  if (onPath.length) out.colliders = out.colliders.filter((b) => !(b && /^flora:/.test(b.of ?? '') && onPath.some(([x, y]) => x >= b.min[0] - WALKER && x <= b.max[0] + WALKER && y >= b.min[1] - WALKER && y <= b.max[1] + WALKER)));
   // the map's spawn: where a walk of it starts (grid.js mapStart: the path end farthest from its goal, else its first),
   // at its path's middle
   const start = mapStart(G);

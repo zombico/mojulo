@@ -117,7 +117,8 @@ describe('a script\'s takes on the page', () => {
       return page;
     };
     const press = (page) => page.evaluate(() => new Promise((r) => { window.__mojScenes.next(); setTimeout(r, 60); }));
-    const until = (page, fn) => page.waitForFunction(fn, { timeout: 10000 });
+    // (each wait is on the page's own clock, so its ceiling is only a guard: a loaded runner draws slowly)
+    const until = (page, fn) => page.waitForFunction(fn, { timeout: 60000 });
     // played: the first line on real time, the slowed one's world at a fifth, then real time again
     const page = await open();
     expect(await page.evaluate(() => window.__mojTempo.now().scale)).toBe(1);
