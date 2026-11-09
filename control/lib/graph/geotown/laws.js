@@ -17,6 +17,7 @@ export const GEOTOWN_LAWS = Object.freeze({
   frontage: 'every plot\'s frontage inside its form\'s rail (a corner\'s wider by the corner)',
   setback: 'a block face holds one front yard depth',
   grade: 'no street steeper than the pattern\'s grade',
+  stairs: 'a profiled town\'s every stretch walkable, or a stair wanted where it is not (profile.js)',
   'pad-step': 'neighbouring pads along a row step at most the pattern\'s step beyond their walk\'s own fall',
   green: 'the soft ground (verges, yards, parks) at least the pattern\'s share of the map',
   mansions: 'a midtown mansion\'s property much larger than its street\'s houses\', two at most in a block segment, none on a block touching a main or major street',
@@ -85,6 +86,11 @@ export function geotownLaws(d) {
     for (let t = s.from; t + 4 <= s.to + 1e-9; t += 4) { const g = Math.abs(z(t + 4) - z(t)) / 4; if (g > steep) { steep = g; where = s.id; } }
   }
   law('grade', steep <= P.grade + 1e-9, `the steepest ${r3(steep)} (${where ?? 'none'}), the pattern's most ${P.grade}`);
+  // a profiled town's STAIRS (profile.js): every stretch past the grade a street is walked at, said where it stands
+  if (d.profile) {
+    const st = d.profile.flatMap((s) => s.stretches.filter((x) => x.stairs).map((x) => `${s.id} ${x.from}–${x.to} m at ${Math.round(x.grade * 100)}%`));
+    law('stairs', !st.length, st.length ? `${st.length} stretch${st.length === 1 ? '' : 'es'} past the walkable grade, a stair wanted: ${st.join(', ')}` : 'every stretch walkable');
+  }
   // pads along each row, in walking order; and the wall where a block's two rows meet at their back line
   let step = 0, wall = 0;
   // (a step beyond the street's own fall between the two fronts: a long frontage on a slope falls with its walk)

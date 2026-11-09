@@ -20,6 +20,7 @@
  *     grid?:    [cols, rows],                                       // the town laid to scale (metro): blocks across (x,
  *                                                                   // east) and along (y, north), 1–4
  *     hills?:   false | { height?, span?, from? },                  // the land: metres from its lowest to its highest
+ *     profile?: true | { walkable?, curve? },                       // its streets on profiles (profile.js): crossings level
  *                                                                   // (0–40, 10), metres its painting spans (100–2000,
  *                                                                   // 600), the painted landscape it is read from
  *     streetscape?: <id> | { from?, setback?, gates?, parking?, trees?, lights?, signals?, stops? },
@@ -47,7 +48,7 @@ import { PATTERNS, PATTERN_IDS, DEFAULT_PATTERN, SEGMENTS, SEGMENT_IDS, SEGMENT_
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (msg) => { throw new Error(`geotown: ${msg}`); };
-const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin'];
+const KEYS = ['evoke', 'segment', 'neighbourhood', 'pattern', 'streetscape', 'grid', 'hills', 'blocks', 'margin', 'profile'];
 /**
  * THE EVOCATIONS: a game does not lay a neighbourhood out, it EVOKES one. A BLOCK SEGMENT (a block: houses back to back,
  * or shops on a main street, or a walk-up among houses, or a park) is the unit, a few buildings each designed on its
@@ -222,5 +223,15 @@ export function readGeotown(spec = {}) {
   if (!(typeof margin === 'number' && margin >= 0 && margin <= 120)) no('margin is the metres of land drawn round the town, 0 to 120');
   // (a block by hand changes its cell's segment)
   for (const [id, b] of Object.entries(blocks)) if (b.use) cells[Number(id[1]) - 1][LETTERS.indexOf(id[0])] = b.use;
-  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin };
+  // THE STREETS' PROFILE (profile.js): true, or { walkable?, curve? }: crossings level, each block graded between them
+  let profile = null;
+  if (spec.profile !== undefined && spec.profile !== false) {
+    const p = spec.profile === true ? {} : spec.profile;
+    if (!isObj(p)) no('profile is true (its streets laid on profiles: crossings level, each block graded between them) or { walkable?, curve? }');
+    for (const k of Object.keys(p)) if (!['walkable', 'curve'].includes(k)) no(`profile.${k} is not a setting (walkable, curve)`);
+    if (p.walkable !== undefined && !(typeof p.walkable === 'number' && p.walkable >= 0.05 && p.walkable <= 0.4)) no('profile.walkable is the steepest grade a street is walked at (rise over run), 0.05 to 0.4: past it, a stair');
+    if (p.curve !== undefined && !(typeof p.curve === 'number' && p.curve >= 0 && p.curve <= 30)) no('profile.curve is the metres a ramp eases in and out over at each crossing, 0 to 30');
+    profile = { ...p };
+  }
+  return { evoke, pattern, grid, cells, mains, majors, bikes, hills, blocks, margin, ...(profile ? { profile } : {}) };
 }

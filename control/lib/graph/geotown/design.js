@@ -40,6 +40,7 @@ import { sectionOf, SURFACE_IDS, SEGMENTS } from './pattern.js';
 const LATER_SURFACES = Object.freeze(['piazza']);
 import { streamOf } from '../city/plan/dice.js';
 import { terrainField } from '../terrain/terrain-field.js';
+import { profileStreets } from './profile.js';
 import { geotownLaws, plotShares } from './laws.js';
 import { sitePlan, siteShares } from './sites.js';
 
@@ -366,7 +367,11 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
   // scale's, its middle over that town's middle, so its slopes are the town's and not its hills squeezed into a block ──
   const ref = evoked ? designGeotown({ evoke: 'metro', ...Object.fromEntries(['pattern', 'streetscape', 'hills'].filter((k) => spec[k] !== undefined).map((k) => [k, spec[k]])) }, { seed, field }) : null;
   const win = ref && !field ? ((ox, oy) => (x, y) => ref.land.N(x + ox, y + oy))((ref.frame.W - frame.W) / 2, (ref.frame.D - frame.D) / 2) : field;
-  const land = geotownLand(T.hills, frame, seed, win, streetsGround), walkZ = (x, y) => land.S(x, y) + SX[0].kerb;
+  // (THE STREETS' PROFILE, profile.js, `profile`: its streets laid on profiles over the land, crossings level, each block
+  // graded between them; a town on a metro's streets' ground keeps the metro's)
+  const land0 = geotownLand(T.hills, frame, seed, win, streetsGround);
+  const PF = T.profile && !streetsGround ? profileStreets({ S: land0.S, X, Y, SX, SY, frame }, T.profile) : null;
+  const land = PF ? { ...land0, S: PF.S, range: PF.range } : land0, walkZ = (x, y) => land.S(x, y) + SX[0].kerb;
   // ── 5, 6 the plots, each segment tuned to its cell, and their budget ──
   const blocks = [], plots = [], fits = [], sites = [], surfaces = pieces.map((p) => ({ cls: p.cls, rect: p.rect, ...(p.street ? { street: p.street } : { crossing: p.crossing }) }));
   for (const c of units) {
@@ -687,6 +692,8 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
   const fieldy = blocks.filter((b) => b.site && b.site.type !== 'park' && b.site.type !== 'square'), touch = (a, b) => (a.i1 + 1 === b.i || b.i1 + 1 === a.i) && a.j <= b.j1 && b.j <= a.j1 || (a.j1 + 1 === b.j || b.j1 + 1 === a.j) && a.i <= b.i1 && b.i <= a.i1;
   const beside = fieldy.flatMap((a, k) => fieldy.slice(k + 1).filter((b) => touch(a, b)).map((b) => [a.id, b.id]));
   const D = { spec: T, seed, pattern: P, row: sectionOf(P, 'street'), sections: { x: SX, y: SY }, frame, depth, X, Y, streets, pieces, blocks, plots, surfaces, ledger, ports, land, parking, sites, beside, traffic, units: plots.filter((pl) => (pl.kind ?? 'houses') === 'houses').length + plots.filter((pl) => pl.duplex).length };
+  // (its streets' profiles, profile.js: each street's crossings and stretches, the stairs a stretch past walkable wants)
+  if (PF) D.profile = PF.streets;
   // an evocation stands for the town laid to scale: its houses' measures are read against that town's (laws.js `evokes`)
   if (evoked) D.evoked = { level: T.evoke, stands: { plots: ref.plots.length, blocks: ref.blocks.length }, shows: plots.length, ref: plotShares(ref), fits };
   D.laws = geotownLaws(D);

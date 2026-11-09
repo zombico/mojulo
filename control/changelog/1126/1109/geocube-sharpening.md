@@ -101,3 +101,16 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   read, emitted only when a page asks), since a card reads a painted fill a metro's textured faces do not carry, and they
   stood in black. The form's land read takes a face without a fill at its first corner's colour, where it threw. A
   gen-6 metro is as it was.
+- **Uphill and downhill streets: a geotown's streets on profiles.** A geotown's streets rode its land blurred 24 m, so on
+  hills a crossing tilted (1.3 m across one on the default hills, 4.5 m on 25 m over 400 m, 13 m on 40 m over 200 m) and
+  each block rose and fell with every hummock under it. With `profile` (geotown/profile.js, opt-in: `true` or
+  `{ walkable, curve }`) each street is laid as a hill town lays it: its crossings held level at the land's height there,
+  each block between two crossings graded on one ramp (the hummock between cut and filled) with its ends eased in vertical
+  curves, and past the outermost streets each runs on level to the frame's edge. The streets' ground is the profiles
+  filled over each cell of the grid (a Coons patch, its shares eased over each crossing), so every street's line is its
+  profile and every crossing is level corner to corner (0.00 m on all three). The town says its profiles (`profile`: each
+  street's crossings and stretches, rise and grade), and a new law, `stairs`, names every stretch steeper than a street is
+  walked at (20 % by default), where a stair street is wanted: none on 25 m over 400 m (19.5 % at most), two on 40 m over
+  200 m (48 % and 31 %). Graded blocks step their pads more than draped ones (25 m over 400 m: 1.47 m against 0.94), so
+  `pad-step` advises there. A town composed into a geocity keeps the metro's streets' ground. A town without `profile` is
+  laid as before.
