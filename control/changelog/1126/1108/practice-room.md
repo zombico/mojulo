@@ -287,3 +287,24 @@
   beside them; one the pool cannot pay, cooling down or resting after a finisher is dimmed and says why. The lowered
   moveset carries its `specials` (each root special beat's move, its combo's name and its MP). Emitted only into a page
   whose hero plays a moveset; every other page keeps every byte.
+- **The platform room** (`scripts/spikes/platform-room/room.mjs`). The practice room's sibling for a 3D platformer's hero:
+  a game tuned toward the mascot platformer (`jumping-giuseppe`, its takes) under a chase camera (no lane: the whole
+  floor), its hero and its foes the game's own from its built levels. A greybox course: a stair of three steps (0.6, 1.2,
+  1.8 m), two platforms at 1.8 m across a 2.5 m gap, a ledge at 3 m for the double jump, a chimney of two 5 m walls 1.6 m
+  apart for the wall kick; walkers on the floor, on a platform and on the ledge (each paces its stretch and turns at its
+  edge), a hopper on the floor; a felled foe back where it stood 3 s on. Its HUD sets the card's numbers (the jump, the
+  air jumps, the wall kick, the sprint, the stomp's bounces and blow, what the lowering does not carry yet) beside the
+  live ones (the feet's height, each jump's top, the double jump, wall kicks, stomps, touches). Checked headless: a held
+  jump of 1.81 m (the card's 1.806), the double jump onto the ledge, a stomp downing a walker and bouncing the hero (1.74 m
+  with the jump held), a touch counted, the wall clung to and kicked from. Not carried yet: the ground pound.
+- **The mount treadmill** (`scripts/spikes/mount-treadmill/room.mjs`). A greybox lane for a game's hero and its horse
+  (the game's `mounts`, its coat): a 200 m sand lane with a post either side every 10 m (red at each 50), the 100 m split
+  timed from the start line, three fences across it (0.5, 0.8 and 1.1 m, against the horse's jump clearance), open ground
+  past it with a ring of pylons to turn. Its HUD sets the horse's numbers (each gait's speed, the rein-back, the jump's
+  clearance and speed) beside the live ones (riding or on foot, the speed off its ground travel, the top speed, the 100 m
+  split, the jumps, each fence cleared or refused). The Artesia test game (the Old Keep) now names its horse (`mounts`: a
+  chestnut beside each walking level's spawn). Checked headless: E got the hero on, the horse up through walk, trot,
+  canter and gallop (15 m/s), the 0.5 and 0.8 m fences cleared, the 1.1 m fence refused, halted and got off.
+- **Fixed: a horse galloped on the spot against a wall** (`worlds/controllable/mount.js`). The ride rule moved the body
+  and let the walls push it back but kept its speed, so a horse run into a fence above its jump stood still in a full
+  gallop. A wall that takes most of a step now pulls it up: its speed what it covered, its gait come down with it.
