@@ -245,7 +245,7 @@ export function readGeotown(spec = {}) {
     const p = spec.profile === true ? {} : spec.profile;
     if (!isObj(p)) no('profile is true (its streets laid on profiles: crossings level, each block graded between them) or { walkable?, curve? }');
     for (const k of Object.keys(p)) if (!['walkable', 'curve'].includes(k)) no(`profile.${k} is not a setting (walkable, curve)`);
-    if (p.walkable !== undefined && !(typeof p.walkable === 'number' && p.walkable >= 0.05 && p.walkable <= 0.4)) no('profile.walkable is the steepest grade a street is walked at (rise over run), 0.05 to 0.4: past it, a stair');
+    if (p.walkable !== undefined && !(typeof p.walkable === 'number' && p.walkable >= 0.05 && p.walkable <= 0.4)) no('profile.walkable is the steepest grade a street is walked at (rise over run), 0.05 to 0.4: past it, too steep to walk');
     if (p.curve !== undefined && !(typeof p.curve === 'number' && p.curve >= 0 && p.curve <= 30)) no('profile.curve is the metres a ramp eases in and out over at each crossing, 0 to 30');
     profile = { ...p };
   }

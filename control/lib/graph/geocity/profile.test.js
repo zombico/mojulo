@@ -28,8 +28,8 @@ describe('a metro\'s `profile`: its streets climb as a hill town\'s do', () => {
     expect(inner(prof)).toBeLessThan(0.05);
     expect(prof.profile.arterials.map((s) => s.id)).toEqual(prof.lines.map((l) => l.id));
     expect(Object.keys(prof.profile.neighbourhoods).length).toBeGreaterThan(4);
-    expect(law(prof, 'stairs')).toBeDefined();
-    expect(law(plain, 'stairs')).toBeUndefined();
+    expect(law(prof, 'walkable')).toBeDefined();
+    expect(law(plain, 'walkable')).toBeUndefined();
   });
 
   it('keeps the land\'s edges on its ground (the shore where it falls to the water), and adds nothing unasked', () => {
@@ -52,7 +52,7 @@ describe('a metro\'s `profile`: its streets climb as a hill town\'s do', () => {
     for (const s of [0.2, 0.6]) { const y = T.frame.D * s; expect(T.land.S(T.X[0], y)).toBeCloseTo(d.land.S(T.X[0] + o[0], y + o[1]), 6); }
   });
 
-  it('climbs a named arterial at its grade, the land under it lifted with it, its cross streets\' stairs said', () => {
+  it('climbs a named arterial at its grade, the land under it lifted with it, its cross streets said where too steep to walk', () => {
     const id = prof.lines.find((l) => l.axis === 'ns' && l.rank !== 'spine').id;
     const d = designGeocity({ ...HILLY, slope: { streets: { [id]: 0.04 } } }, { seed: 2 }), st = d.profile.arterials.find((s) => s.id === id);
     expect(st.climb).toBe(0.04);
@@ -61,6 +61,6 @@ describe('a metro\'s `profile`: its streets climb as a hill town\'s do', () => {
     st.nodes.slice(0, -1).forEach((z, k) => expect(z - st.nodes[0]).toBeCloseTo(0.04 * (Y[k] - Y[0]), 2));
     const l = d.lines.find((q) => q.id === id), y = Y[Y.length - 2] - 30;
     expect(d.land.N(l.at, y) - plain.land.N(l.at, y)).not.toBeCloseTo(0, 0);
-    expect(law(d, 'stairs')).toBeDefined();
+    expect(law(d, 'walkable')).toBeDefined();
   });
 });

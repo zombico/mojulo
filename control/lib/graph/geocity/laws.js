@@ -15,7 +15,7 @@ const r2 = (v) => Math.round(v * 100) / 100;
 export const GEOCITY_LAWS = Object.freeze({
   closes: 'every square metre of the map is one thing: water, an arterial, a park or a neighbourhood',
   grade: 'no arterial steeper than the metro\'s grade',
-  stairs: 'a profiled metro\'s every stretch walkable, or a stair wanted where it is not (geotown/profile.js)',
+  walkable: 'a profiled metro\'s every stretch no steeper than a street is walked (geotown/profile.js): one past it said, too steep to walk',
   rings: 'a core, a frame and outskirts, in that order out from the seat',
   green: 'the city\'s green share given out, and no neighbourhood\'s quota more than its most of its ground',
   holds: 'every outskirts neighbourhood holds a geotown neighbourhood of its outskirts\' pattern (two blocks by two)',
@@ -125,10 +125,10 @@ export function geocityLaws(d) {
   out.push({ law: 'closes', ok: Math.abs(sum - L.total) < 1, value: `${Math.round(sum)} of ${Math.round(L.total)} m²`, want: 'the map' });
   const steep = d.lines.reduce((b, l) => (l.grade > (b?.grade ?? -1) ? l : b), null);
   out.push({ law: 'grade', ok: !steep || steep.grade <= M.grade, value: steep ? `${steep.id} ${r2(steep.grade * 100)}%` : 'none', want: `≤ ${r2(M.grade * 100)}%` });
-  // a profiled metro's STAIRS: every stretch, an arterial's or a neighbourhood's street's, past the walkable grade
+  // a profiled metro's WALKABLE streets: every stretch, an arterial's or a neighbourhood's street's, past the walkable grade
   if (d.profile) {
-    const all = [...d.profile.arterials, ...Object.values(d.profile.neighbourhoods).flat()], st = all.flatMap((q) => q.stretches.filter((x) => x.stairs).map((x) => `${q.id} at ${Math.round(x.grade * 100)}%`));
-    out.push({ law: 'stairs', ok: !st.length, value: st.length ? `${st.length} stretch${st.length === 1 ? '' : 'es'} past the walkable grade, a stair wanted: ${st.slice(0, 12).join(', ')}${st.length > 12 ? ' …' : ''}` : `every stretch walkable (${all.length} streets)`, want: GEOCITY_LAWS.stairs });
+    const all = [...d.profile.arterials, ...Object.values(d.profile.neighbourhoods).flat()], st = all.flatMap((q) => q.stretches.filter((x) => x.steep).map((x) => `${q.id} at ${Math.round(x.grade * 100)}%`));
+    out.push({ law: 'walkable', ok: !st.length, value: st.length ? `${st.length} stretch${st.length === 1 ? '' : 'es'} too steep to walk: ${st.slice(0, 12).join(', ')}${st.length > 12 ? ' …' : ''}` : `every stretch walkable (${all.length} streets)`, want: GEOCITY_LAWS.walkable });
   }
   const ringsOf = (k) => d.regions.filter((r) => r.ring === k);
   const far = (k) => Math.max(...ringsOf(k).map((r) => r.dist)), near = (k) => Math.min(...ringsOf(k).map((r) => r.dist));

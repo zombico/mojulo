@@ -64,7 +64,7 @@
  *     profile       true | { walkable?, curve? }: its streets laid as a hill town lays them (geotown/profile.js): the
  *                   arterials' crossings level, each block between them graded on one ramp, the land's edges kept;
  *                   then inside each neighbourhood its collectors and locals the same, its edges kept on its arterials';
- *                   a geotown composed in profiled too unless its recipe says; a stretch past `walkable` said (`stairs`)
+ *                   a geotown composed in profiled too unless its recipe says; a stretch past `walkable` said (`walkable`)
  *     slope         { streets: { 'ns-2': 0.06, … } }: arterials that CLIMB at their grade (rise over run, less than 0
  *                   falls) toward their north or east end, on profiles (one axis; its profile on whether asked or not)
  *
@@ -308,7 +308,7 @@ export function readGeocity(spec = {}) {
     const p = spec.profile === true ? {} : spec.profile;
     if (!isObj(p)) no('profile is true (its streets on profiles: crossings level, each block graded between them) or { walkable?, curve? }');
     for (const k of Object.keys(p)) if (!['walkable', 'curve'].includes(k)) no(`profile.${k} is not a setting (walkable, curve)`);
-    if (p.walkable !== undefined && !num(p.walkable, 0.05, 0.4)) no('profile.walkable is the steepest grade a street is walked at (rise over run), 0.05 to 0.4: past it, a stair');
+    if (p.walkable !== undefined && !num(p.walkable, 0.05, 0.4)) no('profile.walkable is the steepest grade a street is walked at (rise over run), 0.05 to 0.4: past it, too steep to walk');
     if (p.curve !== undefined && !num(p.curve, 0, 60)) no('profile.curve is the metres a ramp eases in and out over at each crossing, 0 to 60');
     profile = { ...p };
   }

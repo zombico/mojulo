@@ -3,7 +3,7 @@
  * a PROFILE along its line: its CROSSINGS held level at the land's height there (a cross street meets it on the flat),
  * each block between two crossings GRADED on one ramp (cut and filled from the land: the hummock between levelled out),
  * its ends eased in vertical curves, so a street reads as climbing one rise after another. A stretch steeper than a street
- * may be walked (WALKABLE) is flagged as stairs: said in the readout, for the stair street to be built there.
+ * may be walked (WALKABLE) is flagged steep: said in the readout, too steep to walk (a street's stairs are its buildings').
  *
  * The streets' ground is then the profiles FILLED over each cell of the grid (a Coons patch between the four street lines
  * round it): on every street's line it is that street's profile, at every crossing its level, between them a smooth
@@ -11,7 +11,7 @@
  *
  *   PROFILE                       the profile's numbers: the ramp's eased ends (`curve`, m), the walkable grade
  *   profileStreets({ S, X, Y, SX, SY, frame }, opts?) → { S (the profiled ground, (x, y) → m), range, streets: [{ id,
- *                                 axis, at, nodes: [z…], climb?, stretches: [{ from, to, rise, grade, stairs? }] }] }
+ *                                 axis, at, nodes: [z…], climb?, stretches: [{ from, to, rise, grade, steep? }] }] }
  *                                 S the land's streets' ground (geotownLand's), X and Y the lines' places, SX and SY their
  *                                 sections (`half`: half the right-of-way, the crossing's reach); opts { walkable?, curve?,
  *                                 keep?, ids?, climb? }:
@@ -53,7 +53,7 @@ function lineProfile(places, halves, zs, { curve, walkable }) {
     if (b - a < 1) { const m = (a + b) / 2; a = m - 0.5; b = m + 0.5; }
     const run = b - a, rise = zs[k + 1] - zs[k], c = Math.min(0.45, curve / run);
     const grade = run > 1 + 1e-9 ? Math.abs(rise) / run / (1 - c) : Math.abs(rise) / Math.max(1, places[k + 1] - places[k]);
-    ramps.push({ a, b, c, from: r3(a), to: r3(b), rise: r3(rise), grade: r3(grade), ...(grade > walkable ? { stairs: true } : {}) });
+    ramps.push({ a, b, c, from: r3(a), to: r3(b), rise: r3(rise), grade: r3(grade), ...(grade > walkable ? { steep: true } : {}) });
   }
   const at = (t) => {
     for (let k = 0; k < ramps.length; k++) { const R = ramps[k]; if (t <= R.a) return zs[k]; if (t <= R.b) return zs[k] + (zs[k + 1] - zs[k]) * ramp((t - R.a) / (R.b - R.a), R.c); }

@@ -295,7 +295,7 @@ export { toWorld as plotRect };
 
 /** THE SLOPE's lift on the land (read.js `slope`), (x, y) → m, or null: the land rising `toward` a side at `grade`; each
  *  climbing street's ground rising with it at its grade from its first crossing, full under the street and its lots,
- *  eased out to nothing at its parallel neighbours (its cross streets graded between, stairs where they must be). */
+ *  eased out to nothing at its parallel neighbours (its cross streets graded between, said where too steep to walk). */
 function slopeLift(slope, frame, X, Y) {
   if (!slope) return null;
   const g = slope.grade ?? 0, along = slope.toward ? { n: (x, y) => y, s: (x, y) => frame.D - y, e: (x) => x, w: (x) => frame.W - x }[slope.toward] : null;
@@ -779,7 +779,7 @@ export function designGeotown(spec = {}, { seed = 1, field = null, streets: stre
   const fieldy = blocks.filter((b) => b.site && b.site.type !== 'park' && b.site.type !== 'square'), touch = (a, b) => (a.i1 + 1 === b.i || b.i1 + 1 === a.i) && a.j <= b.j1 && b.j <= a.j1 || (a.j1 + 1 === b.j || b.j1 + 1 === a.j) && a.i <= b.i1 && b.i <= a.i1;
   const beside = fieldy.flatMap((a, k) => fieldy.slice(k + 1).filter((b) => touch(a, b)).map((b) => [a.id, b.id]));
   const D = { spec: T, seed, pattern: P, row: sectionOf(P, 'street'), sections: { x: SX, y: SY }, frame, depth, X, Y, streets, pieces, blocks, plots, surfaces, ledger, ports, land, parking, sites, beside, traffic, units: plots.filter((pl) => (pl.kind ?? 'houses') === 'houses').length + plots.filter((pl) => pl.duplex).length };
-  // (its streets' profiles, profile.js: each street's crossings and stretches, the stairs a stretch past walkable wants)
+  // (its streets' profiles, profile.js: each street's crossings and stretches, each stretch past walkable said)
   if (PF) D.profile = PF.streets;
   // an evocation stands for the town laid to scale: its houses' measures are read against that town's (laws.js `evokes`)
   if (evoked) D.evoked = { level: T.evoke, stands: { plots: ref.plots.length, blocks: ref.blocks.length }, shows: plots.length, ref: plotShares(ref), fits };

@@ -109,8 +109,9 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   curves, and past the outermost streets each runs on level to the frame's edge. The streets' ground is the profiles
   filled over each cell of the grid (a Coons patch, its shares eased over each crossing), so every street's line is its
   profile and every crossing is level corner to corner (0.00 m on all three). The town says its profiles (`profile`: each
-  street's crossings and stretches, rise and grade), and a new law, `stairs`, names every stretch steeper than a street is
-  walked at (20 % by default), where a stair street is wanted: none on 25 m over 400 m (19.5 % at most), two on 40 m over
+  street's crossings and stretches, rise and grade), and a new law, `walkable`, names every stretch steeper than a street is
+  walked at (20 % by default), too steep to walk (a street's stairs are its buildings' front steps, never the street's
+  own): none on 25 m over 400 m (19.5 % at most), two on 40 m over
   200 m (48 % and 31 %). Graded blocks step their pads more than draped ones (25 m over 400 m: 1.47 m against 0.94), so
   `pad-step` advises there. A town composed into a geocity keeps the metro's streets' ground. A town without `profile` is
   laid as before.
@@ -142,7 +143,8 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   profiles (a profile on whether asked or not): each such street's crossings set at its grade from its first, its cross
   streets graded to meet them, and the land under it and its lots lifted to its climb (geotown/profile.js `climbLift`),
   full a third of the way to its parallel neighbours and eased out there, so its houses climb with it; where it outruns
-  them its cross streets are stairs, and `stairs` says so (a 14 % climb beside level streets: its cross streets at 33 %).
+  them its cross streets are too steep to walk, and `walkable` says so (a 14 % climb beside level streets: its cross
+  streets at 33 %).
   A town composed into a geocity takes no tilt of its own (its land the metro's).
 - **A geocity's streets on profiles.** A geocity may lay its streets as a hill town does (`profile`): its arterials'
   crossings level at the land's height there, each block between them graded on one ramp, the land's edges kept on the
@@ -153,6 +155,6 @@ asked: the cube's look on every tile, ways told apart by what they carry, and wa
   the edges it must meet (`keep`), names its lines (`ids`) and climbs the streets asked (`climb`). Arterials that climb at
   their own grade: `slope: { streets: { 'ns-2': 0.04 } }`, the land under them lifted with them. On a hilly lakeshore
   (30 m over 900 m) the arterials' crossings tilted up to 0.77 m and the neighbourhoods' up to 0.47; profiled, 0.00 and
-  0.03. The stretches past the walkable grade are said by a new law, `stairs`, the profiles by the page (`geocity.profile`).
+  0.03. The stretches past the walkable grade are said by a new law, `walkable`, the profiles by the page (`geocity.profile`).
   Two crossings whose reaches meet are a step between them, their grade read on the run between their middles. A metro
   that asks neither is designed byte for byte as before.

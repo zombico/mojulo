@@ -36,14 +36,14 @@ describe('the streets\' profile: crossings level, each block graded between them
     }
   });
 
-  it('flags a stretch past the walkable grade as a stair, and only those', () => {
+  it('flags a stretch past the walkable grade steep, and only those', () => {
     const steep = profileStreets({ S: (x, y) => 0.2 * y, X, Y, SX, SY, frame: {} });
     const ns = steep.streets.filter((s) => s.axis === 'y').flatMap((s) => s.stretches), ew = steep.streets.filter((s) => s.axis === 'x').flatMap((s) => s.stretches);
-    expect(ns.every((r) => r.stairs && r.grade > PROFILE.walkable)).toBe(true);
-    expect(ew.every((r) => !r.stairs && r.grade === 0)).toBe(true);
-    // a town that walks steeper asks no stair
+    expect(ns.every((r) => r.steep && r.grade > PROFILE.walkable)).toBe(true);
+    expect(ew.every((r) => !r.steep && r.grade === 0)).toBe(true);
+    // a town that walks steeper finds none too steep
     const lax = profileStreets({ S: (x, y) => 0.2 * y, X, Y, SX, SY, frame: {} }, { walkable: 0.4 });
-    expect(lax.streets.flatMap((s) => s.stretches).some((r) => r.stairs)).toBe(false);
+    expect(lax.streets.flatMap((s) => s.stretches).some((r) => r.steep)).toBe(false);
   });
 
   it('runs each street on level past the outermost lines, to the frame\'s edge', () => {
@@ -104,7 +104,7 @@ describe('a geotown\'s `profile`', () => {
   it('adds nothing when absent: a town without it is laid as before', () => {
     const a = designGeotown(hilly, { seed: 3 }), b = designGeotown({ ...hilly, profile: false }, { seed: 3 });
     expect(a.profile).toBeUndefined();
-    expect(law(a, 'stairs')).toBeUndefined();
+    expect(law(a, 'walkable')).toBeUndefined();
     expect(JSON.stringify(b.plots)).toBe(JSON.stringify(a.plots));
     expect(a.land.S(37, 41)).toBe(b.land.S(37, 41));
   });
@@ -123,13 +123,13 @@ describe('a geotown\'s `profile`', () => {
     };
     expect(tilt(p)).toBeLessThan(1e-9);
     expect(tilt(a)).toBeGreaterThan(tilt(p) * 5);
-    // and the town says, by law, where it wants a stair
-    expect(law(p, 'stairs')).toBeDefined();
+    // and the town says, by law, where it is too steep to walk
+    expect(law(p, 'walkable')).toBeDefined();
   });
 
-  it('says the stairs a steep town wants, street by street', () => {
+  it('says where a steep town is too steep to walk, street by street', () => {
     const d = designGeotown({ evoke: 'metro', grid: [2, 2], hills: { height: 40, span: 200 }, profile: true }, { seed: 3 });
-    const l = law(d, 'stairs');
+    const l = law(d, 'walkable');
     expect(l.ok).toBe(false);
     expect(l.detail ?? l.note ?? l.said ?? JSON.stringify(l)).toMatch(/(ns|ew)-\d+ .* at \d+%/);
   });
@@ -158,16 +158,16 @@ describe('a geotown\'s `slope`: this climbs', () => {
     expect(pads[pads.length - 1][1] - pads[0][1]).toBeGreaterThan(0.06 * (pads[pads.length - 1][0] - pads[0][0]) * 0.7);
   });
 
-  it('climbs a named street at its grade on its profile, its ground rising with it, the stairs its cross streets want said', () => {
+  it('climbs a named street at its grade on its profile, its ground rising with it, its cross streets said where too steep to walk', () => {
     const d = designGeotown({ ...flat, slope: { streets: { 'ns-1': 0.12 } } }, { seed: 3 }), st = d.profile.find((s) => s.id === 'ns-1');
     expect(st.climb).toBe(0.12);
     st.nodes.forEach((z, k) => expect(z - st.nodes[0]).toBeCloseTo(0.12 * (d.Y[k] - d.Y[0]), 2));
     // (the land beside it lifted with it, eased out toward its neighbours)
     const at = (dx) => d.land.N(d.X[1] + dx, d.Y[2] - 20);
     expect(at(0)).toBeGreaterThan(at(d.X[1] - d.X[0]) + 0.12 * (d.Y[2] - 20 - d.Y[0]) * 0.8);
-    const stairs = d.laws.find((l) => l.law === 'stairs');
-    expect(stairs.ok).toBe(false);
-    expect(stairs.value).toMatch(/ew-\d/);
+    const steep = d.laws.find((l) => l.law === 'walkable');
+    expect(steep.ok).toBe(false);
+    expect(steep.value).toMatch(/ew-\d/);
   });
 
   it('adds nothing when absent, and a town on a metro\'s ground keeps its perimeter on it', () => {
