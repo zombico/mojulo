@@ -14,8 +14,8 @@ describe('the ordnance', () => {
       expect(ordnanceLaws(M[n], M).filter((l) => !l.ok).map((l) => `${l.name} ${JSON.stringify(l.info)}`)).toEqual([]);
     });
   }
-  it('between the direct rounds, at the far band the faster is laid lower and arrives sooner', () => {
-    const L = ordnanceLaws(M[fast], { [fast]: M[fast], [slow]: M[slow] }).find((l) => /faster round/.test(l.name));
+  it('between the direct rounds, at the far band the round that arrives sooner is laid lower', () => {
+    const L = ordnanceLaws(M[fast], { [fast]: M[fast], [slow]: M[slow] }).find((l) => /arrives sooner/.test(l.name));
     expect(L.ok).toBe(true);
   });
   it('a round onto the runtime: a travelling round at its muzzle velocity, its drag, its cone, a magazine of one', () => {

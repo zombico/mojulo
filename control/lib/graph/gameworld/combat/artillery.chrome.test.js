@@ -4,7 +4,10 @@
 // round falls on the ground; the next round loaded by its key.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { artilleryHtml } from './artillery.js';
-import { ORDNANCE } from './ordnance.js';
+import { ORDNANCE, WEAPON_ROUNDS } from './ordnance.js';
+import { MECHA_ARCHETYPES } from '../../mecha-shelf/index.js';
+import { MECHA_BACKPACKS } from '../../mecha-shelf/mecha-backpacks.js';
+import { VEHICLES, handlesOf } from '../../vehicle-registry/roster.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../../scene/chromium.js';
 
 let browser = null;
@@ -85,6 +88,36 @@ describe('the artillery range, played', () => {
     expect(got.rig.pitch).toBeCloseTo(8, 0);
     expect(Math.abs(got.turned)).toBeGreaterThan(5);
     expect(Math.abs(got.world - 40)).toBeLessThan(1);   // (the stabilizer a little behind a hull still turning)
+    expect(got.marks).toMatchObject([{ stand: 'rha-100@500', effect: 'hole', perforated: true }]);
+  }, 240000);
+
+  it('on a walker of the mecha shelf: both mounts turned by the one aim, its kinetic round fired from its own mount', async () => {
+    if (!browser) return;
+    // (the lightest frame carrying its own guns, found on the shelf)
+    const armed = Object.keys(MECHA_ARCHETYPES).filter((a) => MECHA_ARCHETYPES[a].backpack && MECHA_BACKPACKS[MECHA_ARCHETYPES[a].backpack].takes.some((w) => WEAPON_ROUNDS[w])).sort((a, b) => MECHA_ARCHETYPES[a].mass - MECHA_ARCHETYPES[b].mass)[0];
+    const frame = VEHICLES[Object.keys(VEHICLES).find((id) => (handlesOf(id).mecha ?? []).includes(armed))].label;
+    const kinetic = Object.keys(ORDNANCE).find((k) => ORDNANCE[k].rod && Object.values(WEAPON_ROUNDS).flat().includes(k));
+    const html = artilleryHtml({ base: { frame }, ordnance: [kinetic], quiet: true });
+    const page = await browser.newPage(), errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!(window.__mojCtrl && window.__mojCtrl.turret), { timeout: 90000 });
+    const got = await page.evaluate(() => {
+      const C = window.__mojCtrl, g = C.world.byId.gun, T = g.turret, R = T.range, r = T.rounds[0];
+      const go = (n, inp) => { for (let f = 0; f < n; f++) C.step(1 / 60, inp); };
+      const st = R.stands.find((s) => s.id === 'rha-100@500'), m = R.table[r.ordnance].find((x) => x[0] === 500);
+      T.want.yaw = Math.atan2((st.min[1] + st.max[1]) / 2 + r.at[1], st.min[0] - r.at[0]) * 180 / Math.PI;
+      T.want.pitch = Math.atan2(1.2 - (r.at[2] + 0.35), st.min[0]) * 180 / Math.PI + m[1];
+      go(400, {});
+      // (the muzzle on the round's own mount's side)
+      const side = Math.sign(-(T.muzzle[1]));
+      const n0 = C.turret().marks.length; go(1, { fire: 1 }); go(150, {});
+      return { rig: C.turret().rig, yaw: T.yaw, side, right: Math.sign(r.at[1]), marks: C.turret().marks.slice(n0) };
+    });
+    await page.close();
+    expect(errors).toEqual([]);
+    expect(got.rig.yaw).toBeCloseTo(got.yaw, 3);
+    expect(got.side).toBe(got.right);
     expect(got.marks).toMatchObject([{ stand: 'rha-100@500', effect: 'hole', perforated: true }]);
   }, 240000);
 });

@@ -65,3 +65,23 @@
   `compileRealistic`): a turret's gun and mantlet split off onto a `gun` bone, its head the trunnion (the mantlet's back
   on the barrel's axis), and `gun: { trunnion, muzzle }` said, so a turret runtime can elevate it. Absent, the figure is
   as it was, byte for byte.
+- **The mecha shelf's frames on the range** (`gameworld/combat/frames.js`). The range's `base` takes a frame of the mecha
+  shelf by its library word (`{ frame: 'rover walker', stance?, palette? }`): the work frames (utility, heavy and
+  giant-arm walkers), the walkers (all-terrain, field), the transforming walkers (the rover walker, the siege walkers,
+  the brood walker) and the big walkers, standing at a stance (braced to fire where it braces, else standing; `roll`
+  its tank form, its legs folded onto its wheels). None walks on a page yet: no frame's gait is built. A frame with
+  guns fires from its own backpack mounts (the rover walker's autocannon and rocket pod, the siege walkers' howitzer and
+  missiles); one that takes a gun backpack is given it (the field walker's rocket pod); one with none is fitted the
+  shelf's own traverse ring, cradle and autocannon on its roof, a field conversion. The frame is lowered body by body
+  into a rig: each mount's ring and its cradle with its weapon a bone, turned by the one turret, both mounts following
+  the gunner's aim and the loaded round's mount firing (a round's own trunnion and reach, opt-in in the turret runtime).
+  The mounts slew at a backpack's rates, a siege backpack's slower and high enough for the indirect arc. The outside
+  view stands back by the base's size.
+- **A walker's rounds.** A 30 mm armour-piercing core and a 30 mm high-explosive shell for the autocannon, an unguided
+  70 mm rocket for the pods, a launcher's missile fired unguided; the howitzer fires the HE and indirect shells. Held to
+  the same laws: the 30 mm core goes through about 120 mm of armour at a kilometre; its HE shell spalls a brick wall and
+  does not breach it, where a rocket's or a missile's warhead does. Two laws were found too narrow and restated: the
+  long rod's 650 mm calibration is the 120 mm round's own (a round that carries a calibration is held to it), and at the
+  far band it is the round that arrives sooner, not the one that leaves faster, that is laid lower (a blunt 30 mm shell
+  leaves faster than a 120 mm one and arrives later). A wide cone's scatter is measured from a gun stood high, so its
+  low rounds are not lost to the ground short of the band.

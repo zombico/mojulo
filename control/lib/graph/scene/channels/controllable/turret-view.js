@@ -99,10 +99,13 @@ function __tvBuild(e) {
 // elevated about its trunnion, then both turned about the turret's ring; hidden from the gunner's own sight
 const __tvQY = new THREE.Quaternion(), __tvQP = new THREE.Quaternion(), __tvO = new THREE.Vector3(), __TV_Z = new THREE.Vector3(0, 0, 1), __TV_X = new THREE.Vector3(1, 0, 0);
 function __tvRigBone(e, fig, bi, Q, P, mesh) {
-  const id = fig.bones[bi].id;
-  if (id !== 'turret' && id !== 'gun') return;
-  const T = e.turret, ti = fig.__tvTi !== undefined ? fig.__tvTi : (fig.__tvTi = fig.bones.findIndex((b) => b.id === 'turret')), piv = fig.bones[ti].head;
-  if (id === 'gun') { __tvQP.setFromAxisAngle(__TV_X, (T.pitch || 0) * Math.PI / 180); Q.premultiply(__tvQP); }
+  // (a twin-mount gun's bones by their side: 'turretR' and 'gunR' turn together, 'turretL' and 'gunL')
+  const k = /^(turret|gun)(.*)$/.exec(fig.bones[bi].id);
+  if (!k) return;
+  const T = e.turret, map = fig.__tvTi || (fig.__tvTi = {}), ti = map[k[2]] !== undefined ? map[k[2]] : (map[k[2]] = fig.bones.findIndex((b) => b.id === 'turret' + k[2]));
+  if (ti < 0) return;
+  const piv = fig.bones[ti].head;
+  if (k[1] === 'gun') { __tvQP.setFromAxisAngle(__TV_X, (T.pitch || 0) * Math.PI / 180); Q.premultiply(__tvQP); }
   __tvQY.setFromAxisAngle(__TV_Z, (T.yaw || 0) * Math.PI / 180);
   __tvO.set(P[0] - piv[0], P[1] - piv[1], P[2] - piv[2]).applyQuaternion(__tvQY);
   P[0] = piv[0] + __tvO.x; P[1] = piv[1] + __tvO.y; P[2] = piv[2] + __tvO.z;
@@ -124,15 +127,18 @@ function __tvPose(e) {
 }
 // the camera: the gunner's sight beside the barrel and along it, or a commander's view behind the gun
 function __tvCamera(g) {
-  const T = g.turret, d = T.dir, m = T.muzzle, L = (T.gun && T.gun.barrel) || 5;
+  const T = g.turret, d = T.dir, m = T.muzzle, R = T.rounds && T.rounds[T.loaded || 0], L = (R && R.barrel) || (T.gun && T.gun.barrel) || 5;
   const piv = [m[0] - d[0] * L, m[1] - d[1] * L, m[2] - d[2] * L], left = [-d[1], d[0], 0], ln = Math.hypot(left[0], left[1]) || 1;
+  // (the sight on the mount's outer side: a right-hand mount's to its right, clear of the frame it rides)
+  const at = (R && R.at) || (T.mount && T.mount.at) || [0, 0, 0], side = at[1] > 0.2 ? -1 : 1;
   if (__TV.sight) {
-    camera.position.set(piv[0] + left[0] / ln * 0.75 + d[0] * 0.6, piv[1] + left[1] / ln * 0.75 + d[1] * 0.6, piv[2] + 0.35);
+    camera.position.set(piv[0] + side * left[0] / ln * 0.75 + d[0] * 0.6, piv[1] + side * left[1] / ln * 0.75 + d[1] * 0.6, piv[2] + 0.35);
     camera.up.set(0, 0, 1); camera.lookAt(camera.position.x + d[0] * 100, camera.position.y + d[1] * 100, camera.position.z + d[2] * 100);
     const f = __TV_ZOOM[__TV.zoom]; if (Math.abs(camera.fov - f) > 1e-6) { camera.fov = f; camera.updateProjectionMatrix(); }
   } else {
-    const h = Math.hypot(d[0], d[1]) || 1;
-    camera.position.set(piv[0] - d[0] / h * 18, piv[1] - d[1] / h * 18, piv[2] + 7);
+    // (behind the gun by its base's size: look.back and look.up, a tank's 18 m and 7 m when absent)
+    const h = Math.hypot(d[0], d[1]) || 1, LK = T.look || {}, bk = LK.back || 18, up = LK.up || 7;
+    camera.position.set(piv[0] - d[0] / h * bk, piv[1] - d[1] / h * bk, piv[2] + up);
     camera.up.set(0, 0, 1); camera.lookAt(piv[0] + d[0] / h * 40, piv[1] + d[1] / h * 40, piv[2]);
     if (Math.abs(camera.fov - 55) > 1e-6) { camera.fov = 55; camera.updateProjectionMatrix(); }
   }

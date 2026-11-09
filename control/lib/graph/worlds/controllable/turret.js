@@ -15,7 +15,8 @@
  *          look        degrees the aim moves for a pixel of the hand (absent: 0.08)
  *   gun    barrel      metres from the trunnion to the muzzle
  *   rounds (opt-in) the rounds the gun may load (weapon rows, gameworld/combat/ordnance.js): `input.slot` n loads the nth,
- *          the breech empty until its reload is done (the entity's weapon is the loaded round)
+ *          the breech empty until its reload is done (the entity's weapon is the loaded round); a round's own `at` and
+ *          `barrel` (opt-in) its mount's, for a turret of twin mounts (a walker's backpack: gameworld/combat/frames.js)
  *
  * THE HAND: the pilot's look (input.lookDX / lookDY, a mouse's pixels, a pad's stick through the page) moves where the
  * gunner asks the gun to point; the mount slews toward it at its rates, braking to stop on it, never past its limits.
@@ -56,12 +57,14 @@ export function buildTurret(E) {
   const into = (v, ax) => clamp(v, Number.isFinite(ax.min) ? ax.min : -Infinity, Number.isFinite(ax.max) ? ax.max : Infinity);
   // the barrel in the world: its direction from the base's heading and the mount's yaw and elevation, its muzzle from
   // the trunnion along it
+  // (a gun of twin mounts, a walker's backpack: the loaded round names its own mount's trunnion and reach, `at` and
+  // `barrel`; both mounts follow the one aim)
   function place(e) {
-    const T = e.turret, m = T.mount || {}, t = e.transform, h = t.heading * 180 / Math.PI;
-    const at = m.at || [0, 0, 0], ch = Math.cos(t.heading), sh = Math.sin(t.heading);
+    const T = e.turret, m = T.mount || {}, t = e.transform, h = t.heading * 180 / Math.PI, R = T.rounds && T.rounds[T.loaded || 0];
+    const at = (R && R.at) || m.at || [0, 0, 0], ch = Math.cos(t.heading), sh = Math.sin(t.heading);
     const piv = [t.pos[0] + ch * at[0] - sh * -(at[1] || 0), t.pos[1] + sh * at[0] + ch * -(at[1] || 0), t.pos[2] + (at[2] || 0)];
     const yw = (h + T.yaw) * D, el = T.pitch * D, dir = [Math.cos(el) * Math.cos(yw), Math.cos(el) * Math.sin(yw), Math.sin(el)];
-    const L = (T.gun && T.gun.barrel) || 0;
+    const L = (R && R.barrel) || (T.gun && T.gun.barrel) || 0;
     T.dir = dir; T.muzzle = [piv[0] + dir[0] * L, piv[1] + dir[1] * L, piv[2] + dir[2] * L];
     return T;
   }

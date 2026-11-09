@@ -400,3 +400,13 @@ vehicle registry's light tank as itself, driven on its own class, the turret's m
 the mount. The graybox bases have their own looks by mount: the tower's tower, the field gun's carriage, a plinth for
 the others. Found on the way: the tank's gun rode in its turret's faces (an elevation bone was waiting for a parented
 rig), now split opt-in; the stabilized gun trails a hull still turning by about half a degree.
+
+And a frame of the mecha shelf: `base: { frame: 'rover walker', stance?: 'brace' | 'roll' | …, palette? }`
+(`gameworld/combat/frames.js`). The armed walkers fire from their own backpack mounts, the field walker takes its weapons
+backpack, the rest (the work frames, the all-terrain walker, the brood walker) are fitted the shelf's own ring, cradle
+and autocannon on their roof. Each frame stands at its stance (no gait is built). New rounds for the walkers' weapons
+(`ordnance.js` WEAPON_ROUNDS): a 30 mm core and HE shell, an unguided rocket, a launcher's missile. Found on the way: the
+rod's 650 mm law was the 120 mm round's own; "the faster round is laid lower" fails across calibres (a 30 mm HE shell
+leaves faster than a 120 mm one and arrives later), restated by arrival; a rocket's 6-mil scatter read as 2 because its
+low rounds struck the ground short of the band (now measured from a gun stood high); a big frame's 200k corners overflow
+`Math.max(...)`.

@@ -4,7 +4,9 @@
  * arc), never one maker's tables. Pure but for the measures' time.
  *
  *   ORDNANCE                    the rounds: `apfsds` (a kinetic long rod), `heat` (a shaped charge), `he` (a blast
- *                               shell), `indirect` (a shell fired high to fall on what the gun cannot see)
+ *                               shell), `indirect` (a shell fired high to fall on what the gun cannot see); a walker's:
+ *                               `apds30` and `he30` (an autocannon's), `rocket` (a pod's), `missile` (a launcher's, unguided)
+ *   WEAPON_ROUNDS               a mecha shelf weapon's rounds
  *   ordnanceWeapon(word, over?) → the runtime's weapon row: a travelling round at its muzzle velocity, on gravity and its
  *                               drag, its gun's dispersion as a seeded cone, a magazine of one reloaded at the gun's rate
  *   measureOrdnance(word, { mount, bands }) → (`mount` a class, or a turret as it stands: mountOf's shape) its flight at each band: the elevation to hit (° and mils), the time of
@@ -23,7 +25,7 @@ import { mountOf } from './mount.js';
 export const ORDNANCE = Object.freeze({
   // a fin-stabilized long rod: very fast, very thin, hardly slowed (about 55 m/s a kilometre)
   apfsds: Object.freeze({ label: 'armour-piercing fin-stabilized discarding sabot', kind: 'kinetic', caliber: 120, mass: 4.6, v0: 1650, drag: 3.4e-5, dispersion: 0.2, fuse: 10, filler: 0,
-    rod: Object.freeze({ length: 0.57, diameter: 0.025, density: 17600 }) }),
+    rod: Object.freeze({ length: 0.57, diameter: 0.025, density: 17600 }), calib: Object.freeze({ muzzle: 0.65, far: 0.6 }) }),
   // a shaped charge: its jet does the work, so it need not be fast; fatter, so slowed more
   heat: Object.freeze({ label: 'high-explosive anti-tank (a shaped charge)', kind: 'shaped', caliber: 120, mass: 11.4, v0: 1140, drag: 1.1e-4, dispersion: 0.3, fuse: 10, filler: 1.6,
     jet: Object.freeze({ rha: 0.5 }) }),
@@ -31,7 +33,20 @@ export const ORDNANCE = Object.freeze({
   he: Object.freeze({ label: 'high explosive', kind: 'blast', caliber: 120, mass: 15, v0: 900, drag: 1.0e-4, dispersion: 0.4, fuse: 10, filler: 2.2 }),
   // a low charge fired high (a mortar's bomb, a howitzer's least charge): slow, subsonic, a long flight onto a far hill
   indirect: Object.freeze({ label: 'an indirect-fire shell (a high arc)', kind: 'blast', caliber: 120, mass: 15, v0: 260, drag: 3.0e-5, dispersion: 1.5, fuse: 60, filler: 2.5, indirect: true }),
+  // an autocannon's rounds (a walker's backpack gun, 30 mm): a sub-calibre tungsten core, about 110 mm of rolled armour
+  // at a kilometre; and its small high-explosive shell, slowed hard by its blunt nose
+  apds30: Object.freeze({ label: '30 mm armour-piercing discarding sabot', kind: 'kinetic', caliber: 30, mass: 0.24, v0: 1385, drag: 6e-5, dispersion: 0.5, fuse: 8, filler: 0,
+    rod: Object.freeze({ length: 0.145, diameter: 0.016, density: 17600 }) }),
+  he30: Object.freeze({ label: '30 mm high explosive', kind: 'blast', caliber: 30, mass: 0.36, v0: 1080, drag: 4e-4, dispersion: 0.6, fuse: 8, filler: 0.05 }),
+  // an unguided rocket (a pod's, 70 mm): its motor burnt out near the launcher, flown on as a shell; wide in its scatter
+  rocket: Object.freeze({ label: '70 mm unguided rocket', kind: 'blast', caliber: 70, mass: 6, v0: 700, drag: 1.5e-4, dispersion: 6, fuse: 15, filler: 1.0 }),
+  // a launcher's missile fired without its guidance (a 150 mm body, a heavy warhead): slower, steadier than a rocket
+  missile: Object.freeze({ label: 'a launcher\'s missile, fired unguided', kind: 'blast', caliber: 150, mass: 40, v0: 500, drag: 6e-5, dispersion: 3, fuse: 30, filler: 8 }),
 });
+/** The rounds a mecha shelf weapon fires on the range (mecha-shelf/mecha-backpacks.js MECHA_WEAPONS): an autocannon its
+ * two, a pod its rocket, a howitzer its shells, a launcher its missile unguided; a small arm, a sensor or a crate none
+ * (the minigun is the firing range's) */
+export const WEAPON_ROUNDS = Object.freeze({ autocannon: Object.freeze(['apds30', 'he30']), rocketPod: Object.freeze(['rocket']), howitzer: Object.freeze(['he', 'indirect']), missiles: Object.freeze(['missile']) });
 export const ORDNANCE_NAMES = Object.freeze(Object.keys(ORDNANCE));
 const G = 9.81, MIL = 360 / 6400;   // a NATO mil, in degrees
 
@@ -127,7 +142,9 @@ export function measureOrdnance(word, { mount = 'battle-tank', bands = null } = 
   }
   // the spread: a dozen rounds at the middle band, their impacts' scatter (m, and as mils of the range)
   const D = O.indirect ? (bands ?? INDIRECT_BANDS)[2] : (bands ?? DIRECT_BANDS)[2], e = out.bands[D].elev;
-  const { paths } = shoot(word, e, mount, { shots: 12 });
+  // (a direct gun stood high, as for its drop: a wide cone's low rounds would meet the ground short of the band and leave
+  // the sample, its scatter read narrower than it is)
+  const { paths } = shoot(word, e, mount, { shots: 12, ...(O.indirect ? {} : { z0: 1000 }) });
   const hits = paths.filter(Boolean).map((p) => (O.indirect ? { y: landing(p).x, z: p[p.length - 1].pos[1] } : at(p, D))).filter(Boolean);
   const sd = (xs) => { const m = xs.reduce((a, b) => a + b, 0) / xs.length; return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length); };
   const across = sd(hits.map((h) => (O.indirect ? h.z : h.y))), along = sd(hits.map((h) => (O.indirect ? h.y : h.z)));
@@ -151,11 +168,12 @@ export function ordnanceLaws(m, all = {}) {
   }
   // (a dozen rounds scatter as the gun's dispersion says, within a factor of two)
   law(`${m.ordnance}: its rounds scatter as its dispersion says`, m.spread.mils > O.dispersion * 0.4 && m.spread.mils < O.dispersion * 2, { mils: m.spread.mils, asked: O.dispersion });
-  // (between the direct rounds: at the far band, the faster round is laid lower and arrives sooner)
+  // (between the direct rounds: at the far band, the round that arrives sooner is laid lower, its drop its flight's; by
+  // its arrival, not its muzzle velocity: a blunt small shell leaves faster than a big one and arrives later)
   const direct = Object.values(all).filter((x) => !ORDNANCE[x.ordnance].indirect);
   if (direct.length > 1 && m === direct[0]) {
-    const far = Math.max(...Object.keys(direct[0].bands).map(Number)), by = [...direct].sort((a, b) => ORDNANCE[b.ordnance].v0 - ORDNANCE[a.ordnance].v0);
-    law('at the far band, the faster round is laid lower and arrives sooner', by.every((x, i) => i === 0 || (x.bands[far].elev > by[i - 1].bands[far].elev && x.bands[far].tof > by[i - 1].bands[far].tof)), Object.fromEntries(by.map((x) => [x.ordnance, [x.bands[far].elev, x.bands[far].tof]])));
+    const far = Math.max(...Object.keys(direct[0].bands).map(Number)), by = [...direct].sort((a, b) => a.bands[far].tof - b.bands[far].tof);
+    law('at the far band, the round that arrives sooner is laid lower', by.every((x, i) => i === 0 || x.bands[far].elev > by[i - 1].bands[far].elev), Object.fromEntries(by.map((x) => [x.ordnance, [x.bands[far].elev, x.bands[far].tof]])));
   }
   return L;
 }

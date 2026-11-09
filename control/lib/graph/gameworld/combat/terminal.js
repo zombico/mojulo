@@ -144,7 +144,8 @@ export function terminalLaws(byWord) {
     if (O.rod) {
       const P = ds.map((d) => m.bands[d]['rha-100'].penetration);
       law(`${w}: a long rod cuts less the farther it flies (it slows)`, P.every((p, i) => i === 0 || p < P[i - 1]), Object.fromEntries(ds.map((d, i) => [d, P[i]])));
-      law(`${w}: about 650 mm of rolled armour near the muzzle, 600 at 2 km`, Math.abs(m.bands[ds[0]]['rha-100'].penetration - 0.65) < 0.03 && (!m.bands[2000] || Math.abs(m.bands[2000]['rha-100'].penetration - 0.6) < 0.03), Object.fromEntries(ds.map((d, i) => [d, P[i]])));
+      // (the law's calibration: the round that carries one is held to it)
+      if (O.calib) law(`${w}: about ${O.calib.muzzle * 1000} mm of rolled armour near the muzzle, ${O.calib.far * 1000} at 2 km`, Math.abs(m.bands[ds[0]]['rha-100'].penetration - O.calib.muzzle) < 0.03 && (!m.bands[2000] || Math.abs(m.bands[2000]['rha-100'].penetration - O.calib.far) < 0.03), Object.fromEntries(ds.map((d, i) => [d, P[i]])));
       law(`${w}: a plate at 60° resists as twice its thickness`, ds.every((d) => Math.abs(m.bands[d]['rha-300-sloped'].effective - 0.6) < 1e-3), m.bands[ds[0]]['rha-300-sloped']);
       law(`${w}: it cuts deeper into concrete than into armour`, ds.every((d) => m.bands[d]['concrete-300'].penetration > m.bands[d]['rha-100'].penetration), null);
       law(`${w}: it passes through a sandbag wall`, ds.every((d) => m.bands[d]['sandbags-600'].effect === 'hole'), null);
@@ -155,7 +156,9 @@ export function terminalLaws(byWord) {
     }
     if (!O.rod && !O.jet) {
       law(`${w}: a blast never holes thick armour`, ds.every((d) => !m.bands[d]['rha-100'].perforated), null);
-      law(`${w}: it craters earth and breaches a brick wall`, ds.every((d) => m.bands[d].earth.effect === 'crater' && (O.indirect || m.bands[d]['brick-250'].effect === 'breach')), null);
+      // (a brick wall breached by a filler that is its breaching charge: a shell's, not a 30 mm round's)
+      const brick = STANDS.find((s) => s.id === 'brick-250'), opens = O.filler >= breachCharge(brick.matter, brick.thickness);
+      law(`${w}: it craters earth, and ${opens ? 'breaches' : 'does not breach'} a brick wall (its filler ${opens ? 'is' : 'is less than'} the wall's breaching charge)`, ds.every((d) => m.bands[d].earth.effect === 'crater' && (O.indirect || (m.bands[d]['brick-250'].effect === 'breach') === opens)), null);
       law(`${w}: reinforced concrete holds better than plain`, ds.every((d) => (m.bands[d]['rc-500'].hole ?? 0) <= (m.bands[d]['concrete-300'].hole ?? 0)), null);
       law(`${w}: a shell does not breach a metre of reinforced concrete`, ds.every((d) => !m.bands[d]['rc-1000'].perforated), null);
     }
