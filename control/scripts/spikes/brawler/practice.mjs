@@ -66,11 +66,11 @@ const read = () => tab.evaluate(() => { const r = window.__mojBrawl.read; const 
 const shot = async (name) => { await tab.waitForTimeout(1200); await tab.screenshot({ path: path.join(out, `${name}.png`) }); };
 const log = [];
 await play(30);
-await play(2, ['KeyJ']); await play(10);   // (the keyboard sits down)
+await play(2, ['KeyK']); await play(10);   // (the keyboard sits down: attack, K)
 await shot('yard');
 // walk in to the standing dummy and chain on it
 await play(75, ['KeyD']);
-for (let k = 0; k < 6; k++) { await play(2, ['KeyJ']); await play(5); }
+for (let k = 0; k < 6; k++) { await play(2, ['KeyK']); await play(5); }
 log.push(['chain', await read()]);
 await shot('chain');
 // up onto the walker's line and in

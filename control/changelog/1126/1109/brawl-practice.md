@@ -42,3 +42,6 @@
   them; a yard with a `register` (`brawlLevel(level, { register: 'anime' | 'western', practice })`) draws every body the
   fight's one way, cel or lit, under one key from the greybox's own sun that casts onto the street and across the body,
   the key following the camera along the belt. The spike's `--register` shoots it.
+- The brawler's buttons on the face's diamond with the JUMP ON ITS WEST (the controls' `brawl` scheme): a pad's X jumps, A
+  attacks, B the special; the keyboard's diamond under the right hand the same (I J K L: J jumps, K attacks, L the
+  special). The stick never jumps: up walks away across the street, down toward the camera.
