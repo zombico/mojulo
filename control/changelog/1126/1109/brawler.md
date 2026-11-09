@@ -86,3 +86,10 @@
   (`BOSS_REST` frames after its last, and its own share of a second more) it throws a play of its own once it stands
   where the play starts, under the crowd's one-attacker-at-a-time rule. Its chain runs to the blow before its last, so a
   breaker or a blowout has a place.
+- The ARMED brawler (`brawlLevel(level, { armed: true })`): a brawl where every hero carries its own weapon the whole
+  game (a roster entry's `weapon`, any of the fight's; absent, the armed roster: the all-rounder's katana, the
+  rushdown's claws, the zoner's staff, the grappler's axe) and the street lays none. The blade is the fight's: disjointed
+  (no hurtbox while it swings), hurtable where its weapon says. In the brawl's core, blades that meet clash (two bodies
+  of the two sides lined up, their armed blows' blades crossing on a frame: neither lands that blow, both recoil), and a
+  body with its own weapon keeps it (it picks no other up and is never disarmed). The yard draws a held blade along the
+  line the sim strikes with, in a played character's own hand.

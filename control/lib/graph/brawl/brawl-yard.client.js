@@ -9,13 +9,14 @@
  * one for what it is doing, its bones riding the figure's segments where it has none; or posed, its parts riding them),
  * anyone else as the fight's stick figure, all in the yard's REGISTER where it has one (the fight's look: cel or lit
  * under one key that casts), on the belt: along it the body's x, across it its z; the
- * street's things; each player's LINE on the floor (the strip a blow must share, the yard's first lesson); a flash where a
+ * street's things; a held BLADE along the line the sim strikes with (its weapon's, versus-rig.js weaponLine), in the
+ * weapon's colour; each player's LINE on the floor (the strip a blow must share, the yard's first lesson); a flash where a
  * blow lands; the fight's sounds by event where the page carries them.
  *
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, strong, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, THREE, scene, camera, controls, renderer, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, brawlPoseOf, rigJoints, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global BRAWL_YARD, THREE, scene, camera, controls, renderer, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, brawlPoseOf, rigJoints, weaponLine, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -91,7 +92,7 @@ function dummiesOf() {
   return Array.from({ length: n }, () => ({ mode, type: mode === 'grab' ? 'heavy' : SET.type.toLowerCase() }));
 }
 function build() {
-  for (const B of bodies) YARD.remove(B.group, B.shadow, B.line);
+  for (const B of bodies) { YARD.remove(B.group, B.shadow, B.line); if (B.blade) YARD.remove(B.blade.fill, B.blade.ink); }
   room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase() });
   // (who each body is: a player's roster pick, a dummy's roster entry when it names one, else a thug of the street's)
   const entryOf = (i) => (i < picks.length ? BY.roster[picks[i]] : Number.isInteger(dummies[i - picks.length]?.roster) ? BY.roster[dummies[i - picks.length].roster] : null);
@@ -378,6 +379,7 @@ function drawnOf(B, p, F) {
 function placeBody(B, p, F) {
   const hidden = !!p.gone;
   B.group.visible = !hidden; B.shadow.visible = !hidden;
+  if (B.blade) B.blade.fill.visible = B.blade.ink.visible = !hidden && !!F.weapon;
   if (B.line) B.line.visible = !hidden;
   if (hidden) return;
   const { pose, J } = drawnOf(B, p, F);
@@ -385,6 +387,7 @@ function placeBody(B, p, F) {
   if (B.played) placePlayed(B, p, F, N);
   else if (B.skin) placeCharacter(B, p, F, N);
   else placeStick(B, p, F, N);
+  placeBlade(B, p, F, J, N);
   B.shadow.position.set(p.x / 1000, p.z / 1000, 0.01);
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * (RIG ? 1.25 : 1.6) * Math.max(0.4, 1 - p.y / 1600));
   if (B.line) {
@@ -392,6 +395,39 @@ function placeBody(B, p, F) {
     B.line.position.set(p.x / 1000, p.z / 1000, 0.008);
     B.line.scale.set(half * 2, (room.s.rules.line * 2) / 1000, 1);
   }
+}
+// ── a held blade (versus-arena.client.js's): from the grip hand along the sim's own line, so what is drawn is what
+// strikes; made as the body first holds one, changed as it changes weapon ──
+function placeBlade(B, p, F, J, N) {
+  const W = F.weapon;
+  if (!W) { if (B.blade) B.blade.fill.visible = B.blade.ink.visible = false; return; }
+  if (!B.blade || B.blade.kind !== W.kind) {
+    if (B.blade) YARD.remove(B.blade.fill, B.blade.ink);
+    const fill = castOn(new THREE.Mesh(CYL, lambert(W.color))), ink = new THREE.Mesh(CYL, INK);
+    YARD.add(fill, ink);
+    B.blade = { kind: W.kind, fill, ink };
+  }
+  B.blade.fill.visible = B.blade.ink.visible = true;
+  const L = weaponLine(J, W);
+  const grip = W.grip === 'B' ? (p.face > 0 ? 'R' : 'L') : (p.face > 0 ? 'L' : 'R');
+  const depth = N[`wrist${grip}`] ? N[`wrist${grip}`][0] : 0;
+  worldOf(p, [depth, L.butt[0] / 1000, L.butt[1] / 1000], vA);
+  worldOf(p, [depth, L.tip[0] / 1000, L.tip[1] / 1000], vB);
+  // (a played body's hand is its clip's: the blade held in that hand, pointing the sim's way)
+  const hand = B.played ? handOf(B, grip) : null;
+  if (hand) { worldOf(p, [depth, L.grip[0] / 1000, L.grip[1] / 1000], vG); vA.sub(vG).add(hand); vB.sub(vG).add(hand); }
+  const wr = (W.width / 1000) * 0.55;
+  cylinderAt(B.blade.fill, vA, vB, wr); cylinderAt(B.blade.ink, vA, vB, wr * 1.6);
+}
+const vG = new THREE.Vector3(), vH = new THREE.Vector3();
+/** a played body's hand (`L` or `R`), the middle of its hand bone, in the yard's frame; null if it has none */
+function handOf(B, side) {
+  const pack = B.skin.pack;
+  B.hands ??= { L: pack.bones.findIndex((b) => b.id === 'handL'), R: pack.bones.findIndex((b) => b.id === 'handR') };
+  const bi = B.hands[side];
+  if (bi < 0) return null;
+  const b = pack.bones[bi];
+  return vH.set((b.head[0] + b.tail[0]) / 2, (b.head[1] + b.tail[1]) / 2, (b.head[2] + b.tail[2]) / 2).applyMatrix4(B.bones[bi].matrix).applyMatrix4(B.group.matrix);
 }
 function placeStick(B, p, F, N) {
   const r = F.body.limbR / 1000;
@@ -458,7 +494,7 @@ function stepFlashes() {
 const HIT_CUE = ['hit-light', 'hit-medium', 'hit-heavy'];
 function cueOf(e) {
   if (e.t === 'hit') return e.kind === 'flung' ? 'crush' : e.limb === 'foot' ? (e.w >= 2 ? 'kick-heavy' : 'kick-light') : e.limb === 'blade' ? (e.w >= 2 ? 'blade-heavy' : 'blade-light') : HIT_CUE[Math.min(2, e.w ?? 1)];
-  return { grab: 'grab', throw: 'throw', land: 'land', ko: 'ko', break: 'crush', thud: 'block', armor: 'clash', state: 'super', toss: 'throw' }[e.t] ?? null;
+  return { clash: 'clash', grab: 'grab', throw: 'throw', land: 'land', ko: 'ko', break: 'crush', thud: 'block', armor: 'clash', state: 'super', toss: 'throw' }[e.t] ?? null;
 }
 function sound(e) {
   if (typeof __beatsCue !== 'function' || typeof __AUDIO === 'undefined' || !__AUDIO || !__AUDIO.cues) return;
@@ -581,6 +617,7 @@ function tick() {
   t++;
   for (const e of room.s.events) {
     if (e.t === 'hit') flash(e, (e.w ?? 1) >= 2);
+    if (e.t === 'clash') flash(e, true);
     sound(e);
   }
   const next = inputRun(runs, buttons[0]);

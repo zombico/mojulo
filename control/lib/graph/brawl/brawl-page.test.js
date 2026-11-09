@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { brawlPageSource, brawlSource, brawlYardData, exportsOf, BRAWL_PAGE_MODULES, BRAWL_VERSUS_MODULES, BRAWL_ROSTER } from './brawl-page.js';
+import { brawlPageSource, brawlSource, brawlYardData, exportsOf, BRAWL_PAGE_MODULES, BRAWL_VERSUS_MODULES, BRAWL_ROSTER, BRAWL_ARMED_ROSTER } from './brawl-page.js';
+import { WEAPONS } from '../versus/versus-library.js';
 import { brawlLevel } from './brawl-levels.js';
 import { brawlChannelScript } from '../scene/channels/brawl.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -64,5 +65,25 @@ describe('brawl page: characters in the yard', () => {
     expect(D.dummies[0]).toMatchObject({ mode: 'swing', roster: 0, recipe: D.roster[0].recipe });
     expect(D.dummies[1]).toEqual({ mode: 'stand', type: 'heavy' });
     expect(() => brawlYardData({ ...world.brawl, practice: { ...world.brawl.practice, dummies: [{ fighter: 9 }] } })).toThrow(/roster index/);
+  });
+});
+
+describe('brawl page: the armed brawler', () => {
+  const armed = (practice = {}) => brawlLevel({ kind: 'greybox', preset: 'yard' }, { armed: true, practice });
+  it('every hero carries its own weapon: the armed roster by default, one of each archetype, each a weapon of the fight\'s', () => {
+    const D = brawlYardData(armed().brawl);
+    expect(D.armed).toBe(true);
+    expect(D.roster).toBe(BRAWL_ARMED_ROSTER);
+    expect(D.roster.every((r) => WEAPONS[r.recipe.weapon])).toBe(true);
+    expect(new Set(D.roster.map((r) => r.recipe.weapon)).size).toBe(D.roster.length);
+    // (a roster entry's own weapon; one without, or a weapon laid on its street, refused)
+    expect(brawlYardData(armed({ roster: [{ id: 'kai', archetype: 'rushdown', weapon: 'spear' }] }).brawl).roster[0].recipe.weapon).toBe('spear');
+    expect(() => brawlYardData(armed({ roster: [{ id: 'kai', archetype: 'rushdown' }] }).brawl)).toThrow(/no weapon/);
+    expect(() => brawlYardData(armed({ things: [{ kind: 'weapon', what: 'pipe', at: 5, n: 0 }] }).brawl)).toThrow(/keeps its own/);
+  });
+  it('an unarmed brawl is as it was: no armed word, the plain roster', () => {
+    const D = brawlYardData(brawlLevel({ kind: 'greybox', preset: 'yard' }, { practice: {} }).brawl);
+    expect(D.armed).toBeUndefined();
+    expect(D.roster).toBe(BRAWL_ROSTER);
   });
 });

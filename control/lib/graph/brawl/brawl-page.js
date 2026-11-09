@@ -67,11 +67,21 @@ export const BRAWL_ROSTER = Object.freeze(Object.keys(ARCHETYPES).map((a, i) => 
   color: ['#e8502a', '#2a8ae8', '#e8b82a', '#7a4ae8'][i % 4], recipe: { ...solveFighter({ id: a, archetype: a }).recipe, archetype: a },
 })));
 
+/** THE ARMED BRAWLER's fighters (a brawl's `armed`): one of each archetype, each its own weapon for the whole game, the
+ * weapon fitted to the style (the all-rounder's katana, the rushdown's claws, the zoner's staff, the grappler's axe). */
+export const BRAWL_ARMS = Object.freeze({ 'all-rounder': 'katana', rushdown: 'claws', zoner: 'staff', grappler: 'axe' });
+export const BRAWL_ARMED_ROSTER = Object.freeze(BRAWL_ROSTER.map((r) => {
+  const weapon = BRAWL_ARMS[r.style] ?? 'sword';
+  return { ...r, id: `${r.id}-${weapon}`, name: `${r.name} (${weapon})`, recipe: { ...r.recipe, weapon } };
+}));
+
 /**
  * What the yard's page reads, from a world's `brawl` block (its belt, register, practice) and its characters' bodies.
  * The practice's `roster` is who can be played and fought: each entry a CHARACTER (`{ hero: { ref }, style? }`, measured
  * from the store before it reaches here: versus-character.js resolveCharacters, as a fight's roster is) or a fighter's
- * intent (`{ archetype }`); absent, one fighter of each archetype. `players` are roster indices (one to four);
+ * intent (`{ archetype }`), either with its own `weapon` (versus-library.js WEAPONS) carried the whole game; absent, one
+ * fighter of each archetype. In the ARMED brawler (`block.armed`) every entry carries a weapon (absent, the armed
+ * roster) and the street lays none (a hero keeps its own). `players` are roster indices (one to four);
  * `dummies` each `{ mode, fighter?: a roster index | type?: a crowd type, at?, n? }`. `bodies` (versus-character.js
  * characterBodies: { <ref>: its body, played with its clips }) draws each character in its own body; one with none is
  * drawn as the fight's stick figure.
@@ -80,8 +90,12 @@ export function brawlYardData(block, bodies = null) {
   const P = block.practice ?? {};
   const Y = yardOf();
   const roster = Array.isArray(P.roster) && P.roster.length
-    ? P.roster.map((e, k) => { const r = rosterEntry(e, k); const style = BRAWL_STYLES[r.archetype] ? r.archetype : 'all-rounder'; return { ...r, style }; })
-    : BRAWL_ROSTER;
+    ? P.roster.map((e, k) => { const r = rosterEntry(e, k); const style = BRAWL_STYLES[r.archetype] ? r.archetype : 'all-rounder'; return { ...r, style, ...(e.weapon ? { recipe: { ...r.recipe, weapon: e.weapon } } : {}) }; })
+    : block.armed ? BRAWL_ARMED_ROSTER : BRAWL_ROSTER;
+  if (block.armed) {
+    roster.forEach((r, k) => { if (!r.recipe.weapon) throw new Error(`brawl: an armed brawl's roster[${k}] (${r.name}) carries no weapon: every hero its own`); });
+    (P.things ?? []).forEach((t, k) => { if (t.kind === 'weapon') throw new Error(`brawl: an armed brawl's things[${k}] is a weapon: every hero keeps its own`); });
+  }
   const pick = (k, where) => { if (!(Number.isInteger(k) && k >= 0 && k < roster.length)) throw new Error(`brawl: ${where} is a roster index, 0 to ${roster.length - 1}`); return k; };
   const players = (P.players ?? [0]).map((k, i) => pick(k, `practice.players[${i}]`));
   const dummies = (P.dummies ?? [{ mode: 'stand' }, { mode: 'walk' }, { mode: 'swing' }]).map((d, i) => {
@@ -90,7 +104,7 @@ export function brawlYardData(block, bodies = null) {
     return { ...rest, recipe: roster[k].recipe, roster: k };
   });
   return {
-    belt: block.belt, register: block.register ?? null, ...(block.sun ? { sun: block.sun } : {}),
+    belt: block.belt, register: block.register ?? null, ...(block.armed ? { armed: true } : {}), ...(block.sun ? { sun: block.sun } : {}),
     roster, players, dummies,
     things: P.things ?? [], health: P.health ?? 'chains',
     ...(bodies ? { bodies } : {}),

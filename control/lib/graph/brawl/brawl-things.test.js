@@ -104,6 +104,41 @@ describe('brawl things: weapons', () => {
   });
 });
 
+describe('brawl things: blades', () => {
+  // (two bodies each carrying its own katana, of the two sides, facing: their first blows on the same frame)
+  const K = brawlFighter({ ...recipe, weapon: 'katana' }), kctx = { fighters: [K] };
+  const duel = (gap, zb = 0) => newBrawl(kctx, { bodies: [{ fighter: 0, side: 'player', x: 0 }, { fighter: 0, side: 'crowd', x: gap, z: zb, face: -1, grabs: false }] });
+  const both = (s, n) => { const ev = []; for (let k = 0; k < n; k++) { s = stepBrawl(s, [k === 0 ? { mv: 'chain.1' } : {}, k === 0 ? { mv: 'chain.1' } : {}], kctx); ev.push(...s.events); } return { s, ev }; };
+  it('blades that meet clash: neither lands, both recoil; off the line they pass', () => {
+    // (the gap their blades meet in and their bodies are out of each other's reach: the blades' sum less a little)
+    const reach = K.moves['chain.1'].reach, gap = 2 * reach - 200;
+    const met = both(duel(gap), 30);
+    expect(met.ev.some((e) => e.t === 'clash')).toBe(true);
+    expect(met.ev.some((e) => e.t === 'hit')).toBe(false);
+    const off = both(duel(gap, 1200), 30);
+    expect(off.ev.some((e) => e.t === 'clash')).toBe(false);
+  });
+  it('a blade is no hurtbox while it swings: the frames that hit with it carry none of it', () => {
+    const m = K.moves['chain.1'];
+    for (let f = m.startup; f < m.startup + m.active; f++) {
+      const fr = m.frames[f];
+      expect(fr.blade, `frame ${f}`).toBeTruthy();
+      // (the blade's tip beyond every hurtbox of the body)
+      expect(Math.max(...fr.hurt.map((h) => h[2]))).toBeLessThan(fr.blade[2]);
+    }
+  });
+  it('a body with its own weapon keeps it: it takes no other off the street, and is never disarmed', () => {
+    const c = { fighters: [K], armed: { '0:pipe': 0 } };
+    let s = newBrawl(c, { bodies: [{ fighter: 0, side: 'player', x: 0 }], things: [thing('weapon', 'pipe', 200)] }), r = newReader();
+    let swung = false;
+    for (let k = 0; k < 20; k++) { const [pad, r2] = readButtons(r, { a: k === 0 }, s.bodies[0], K); r = r2; s = stepBrawl(s, [pad], c); swung ||= s.bodies[0].mv === 'chain.1'; }
+    // (attack over it swings its own blade instead)
+    expect(swung).toBe(true);
+    expect(s.things.some((t) => t.what === 'pipe')).toBe(true);
+    expect(s.bodies[0].wpn).toBeUndefined();
+  });
+});
+
 describe('brawl things: boxes', () => {
   it('a player\'s blows break a box, which leaves what it held; off the line, untouched', () => {
     const s = world([thing('box', 'barrel', 800, 0, { holds: { kind: 'food', what: 'meat' } })]);

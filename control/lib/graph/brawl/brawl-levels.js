@@ -207,11 +207,13 @@ export function readBrawlLevel(level, where = 'level') {
 }
 
 /** The world manifest a brawl is fought on: the level's recipe with its `brawl` block (the belt; the game's register and,
- * on a greybox, the sun the bodies are lit by, as a fight's). */
-export function brawlLevel(level, { title, register, practice } = {}) {
+ * on a greybox, the sun the bodies are lit by, as a fight's; `armed`, the ARMED brawler: every hero carries its own
+ * weapon the whole game, brawl-page.js). */
+export function brawlLevel(level, { title, register, practice, armed } = {}) {
+  if (armed !== undefined && typeof armed !== 'boolean') throw new Error('brawl: a brawl\'s armed is true (every hero its own weapon) or false');
   const { kind, words } = readBrawlLevel(level);
   if (register !== undefined && !FIGHT_REGISTERS.includes(register)) throw new Error(`brawl: a brawl's register is ${FIGHT_REGISTERS.join(' | ')}`);
   if (practice !== undefined && !isObj(practice)) throw new Error('brawl: a level\'s practice is { players?, dummies?, things?, health? } (brawl-practice.js)');
   const { manifest, belt } = BRAWL_LEVELS[kind].build({ ...words, ...(title && !words.title ? { title } : {}) });
-  return { ...manifest, brawl: { belt, ...(register ? { register, ...(manifest.kind === 'greybox' ? { sun: [...GREYBOX_SUN] } : {}) } : {}), ...(practice ? { practice } : {}) } };
+  return { ...manifest, brawl: { belt, ...(armed ? { armed: true } : {}), ...(register ? { register, ...(manifest.kind === 'greybox' ? { sun: [...GREYBOX_SUN] } : {}) } : {}), ...(practice ? { practice } : {}) } };
 }

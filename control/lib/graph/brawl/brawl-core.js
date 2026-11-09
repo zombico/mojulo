@@ -29,6 +29,9 @@
  *     from a run a move starts (the brawler's running blow) and a jump carries `runJump` % further (the long jump).
  *     `dash: 'back'` is the fighter's back dash (`dash.b`: its distance, its frames, untouchable its first `invuln`), the
  *     body still facing the way it faced.
+ *   • BLADES (an armed blow's blade, the fight's: disjointed, hurtable only where its weapon says): two bodies of the two
+ *     sides lined up whose armed blows' blades cross on a frame CLASH: neither lands the move again, both recoil. A body
+ *     that carries its OWN weapon (its fighter's) keeps it: it picks no other up, and never drops it.
  *   • THROUGH: a move that passes through (the fight's roll, its blink: `through` frames) has no push box on them, so it
  *     goes through the crowd it would bump.
  *   • A DIVE: an air move with a `dive` ([along, down] mm a frame) sets the body's flight as it starts: down at a slant,
@@ -250,7 +253,7 @@ function think(s, p, pad, ctx) {
 
 function start(s, p, F, slot) {
   const m = F.moves[slot];
-  p.mv = slot; p.mf = 0; p.conn = 0; p.hl = []; p.air = 0;
+  p.mv = slot; p.mf = 0; p.conn = 0; p.hl = []; p.air = 0; delete p.cl;
   if (m.cool) p.cd = m.cool;
   if (m.stance === 'air') {
     p.airMove = 1;
@@ -501,9 +504,20 @@ const scaledOn = (s, d, dmg) => { const T = s.rules.scaling; return Math.max(1, 
 function resolve(s, ctx) {
   const F = (p) => ctx.fighters[p.fi], B = s.bodies;
   const contacts = [], grabs = [];
+  // BLADES THAT MEET clash: two bodies of the two sides, lined up, their armed blows' blades crossing on this frame:
+  // neither lands this move again (`cl`), both recoil
+  const bladeOf = (p) => { const m = p.gone || p.ko ? null : live(p, F(p)); const fr = m && m.armed && !p.cl ? frameOf(p, F(p)) : null; return fr && fr.blade ? placed(fr.blade, p.x, p.y, p.face) : null; };
+  const blades = B.map(bladeOf);
+  for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
+    const a = B[i], b = B[j];
+    if (!blades[i] || !blades[j] || a.side === b.side || !lined(s, a, b) || !crosses(blades[i], blades[j])) continue;
+    for (const p of [a, b]) { p.cl = 1; p.hs = Math.max(p.hs, 12); p.pushv = -p.face * 30; p.pushn = 8; }
+    const at = mid(blades[i], blades[j]);
+    s.events.push({ t: 'clash', p: a.id, d: b.id, x: at[0], y: at[1], z: Math.round((a.z + b.z) / 2) });
+  }
   for (const p of B) {
     const m = live(p, F(p));
-    if (!m || p.gone || p.ko) continue;
+    if (!m || p.gone || p.ko || p.cl) continue;
     // a throw: its active frames, the nearest throwable foe in front of it, lined up and within reach
     if (m.throw) {
       if (p.hl.length) continue;
@@ -681,6 +695,8 @@ const takeThing = (s, t) => { s.things = s.things.filter((u) => u !== t); };
 function pick(s, p, t, ctx) {
   const F = ctx.fighters[p.fi];
   if (t.kind === 'weapon') {
+    // (a body with its own weapon keeps it: it takes no other)
+    if (F.weapon && !p.wpn) return false;
     const armed = ctx.armed?.[`${p.fb ?? p.fi}:${t.what}`];
     if (armed === undefined) return false;   // (a body with no armed self cannot hold it)
     if (p.wpn) drop(s, p);
