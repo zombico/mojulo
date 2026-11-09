@@ -63,5 +63,7 @@ forearm (25 cm) over it. `freestyle` keeps no elbow law.
 - An arsenal: `{ art: 'inspired', weapons: [...] }` (`readArsenal` refuses any other word). The templates' kits
   (`gameworld/combos.js` `TEMPLATE_ARSENALS`) carry theirs: Fallen Angel's `freestyle`, Fable of Artesia's `inspired`.
   The practice room takes its kit's, `--art realistic | inspired | freestyle` over it.
+- A game: its `arsenal` key (`gameworld/arsenal.js`), a kit by name, `{ from: <kit>, art: 'realistic', … }` (a kit with
+  edits), `'auto'` (the feel template's kit) or a whole arsenal, laid on every level's hero that strikes.
 - A new register is a style in `SWING_STYLES` with a `timing`, and its row in this table. Whether it reads as intended
   is the eyes gate: these are machine gates only.

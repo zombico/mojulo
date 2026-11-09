@@ -23,6 +23,7 @@ import { UNDERLAYERS } from './hero-looks.js';
 import { AXES, VIBES } from './hero-vibe.js';
 import { POLES, POLE_IDS, variantsOf } from './feel/cards.js';
 import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
+import { TEMPLATE_ARSENALS } from './combos.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
@@ -373,6 +374,9 @@ function feelCard() {
     'does not carry yet (the parry, the charge, offense armor, the roll\'s invincible frames, the runner): advice, never a refusal.',
     'The motion (gameworld-motion) is how the walk LOOKS; the feel is how the controls PLAY. Both may be set.',
     'takes: true plays the hero\'s own jumps (a stand\'s, a run\'s, an air jump\'s) on the card\'s flight, landing and squash.',
+    `ARSENAL, its weapons and strings (the practice room's): arsenal: 'auto' (the feel template's kit) | false | a template's`,
+    `kit (${Object.keys(TEMPLATE_ARSENALS).join(', ')}) | { from: <kit>, …edits by id } | an arsenal { weapons, timing?, ranged?, juggle?, art?, mp? },`,
+    'laid on every level\'s hero that strikes (a right-hand blade). Suggested, never laid: an `arsenal` step where the kit exists.',
     '',
     'templates (after · base feel · viewer):',
     ...POLE_IDS.map((id) => { const P = POLES[id], v = variantsOf(id); return `  ${id}  ${P.name} (after ${P.after}) · ${P.base} · ${P.view.camera}${v.length ? ` · variants ${v.join(', ')}` : ''}`; }),

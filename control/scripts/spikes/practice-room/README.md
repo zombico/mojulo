@@ -50,6 +50,16 @@ string is the opener and one follow-up in another direction, then 2.5 s locked. 
 card's hitstun and the guard and parry are lost; the dodge is invincible all through. Each is the room's next fix, one
 a step, each moving its number.
 
+## The game's arsenal (`lib/graph/gameworld/arsenal.js`)
+
+What the room settles reaches the game through its `arsenal` key: a template's kit by name (`'fallen-angel'`), the kit
+with edits over it (`{ from: 'fallen-angel', timing: { buffer: 16 }, weapons: [{ id: 'sword', moves: { stinger: { frames:
+28 } } }] }`: moves merged move by move, a weapon or a combo `{ id, drop: true }` dropped, a move `null` dropped),
+`'auto'` (the feel template's kit), or a whole arsenal. Every level lays it on its hero that strikes (a right-hand blade):
+the weapons, the moveset, the sidearm, and the juggle's rules on the foes. The room plays the game's arsenal when it
+writes one (`--kit` over it). design_game's readout suggests `'auto'` for a striking hero whose feel's template has a kit;
+it is never laid unasked.
+
 ## Combos (`lib/graph/gameworld/combos.js`)
 
 The room plays a combo manifest, every combo unlocked, and writes it beside the page (`combos.json`): the list a game's

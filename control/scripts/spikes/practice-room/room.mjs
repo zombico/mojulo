@@ -41,11 +41,14 @@ const { BASIC_ARSENAL, TEMPLATE_ARSENALS, arsenalFor, readCombos, readArsenal, l
 const given = opt('--combos') ? JSON.parse(await fs.readFile(opt('--combos'), 'utf8')) : null;
 const G = SketchRepository.getByRef(game)?.manifest;
 if (!G) throw new Error(`room: no gameworld '${game}' in this database (MOJULO_DATA_DIR)`);
-// (the KIT: the game template's starter arsenal, combos.js TEMPLATE_ARSENALS, found from the game's feel, arsenalFor;
-// --kit fallen-angel | fable-of-artesia over it; none found, the basic arsenal)
-const kit = opt('--kit') ?? arsenalFor(G.feel)?.template ?? null;
+// (the ARSENAL: the game's own, its `arsenal` key, gameworld/arsenal.js; else the KIT, the game template's starter arsenal,
+// combos.js TEMPLATE_ARSENALS, found from the game's feel, arsenalFor; --kit fallen-angel | fable-of-artesia over both;
+// none found, the basic arsenal)
+const { arsenalOfGame } = await import('../../../lib/graph/gameworld/arsenal.js');
+const written = opt('--kit') ? null : arsenalOfGame(G);
+const kit = opt('--kit') ?? (written ? null : arsenalFor(G.feel)?.template ?? null);
 if (kit && !TEMPLATE_ARSENALS[kit]) throw new Error(`room: --kit is ${Object.keys(TEMPLATE_ARSENALS).join(' | ')}`);
-const arsenal0 = given ? (given.weapons ? given : { ...(given.timing ? { timing: given.timing } : {}), weapons: [{ id: 'sword', name: 'Sword', figure: 'drawn', ...readCombos(given) }] }) : structuredClone(kit ? TEMPLATE_ARSENALS[kit] : BASIC_ARSENAL);
+const arsenal0 = given ? (given.weapons ? given : { ...(given.timing ? { timing: given.timing } : {}), weapons: [{ id: 'sword', name: 'Sword', figure: 'drawn', ...readCombos(given) }] }) : structuredClone(written ? written.arsenal : kit ? TEMPLATE_ARSENALS[kit] : BASIC_ARSENAL);
 // (--art realistic | inspired | freestyle: how the blades are swung, the sword art the hero's clips bake in; over the
 // kit's own, else inspired)
 const arsenal = readArsenal({ ...arsenal0, art: opt('--art') ?? arsenal0.art ?? 'inspired' });
