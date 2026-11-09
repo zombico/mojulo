@@ -30,6 +30,7 @@
  *                                           style? }]; things the street's, brawl-things.js, in the belt's metres: each
  *                                           player's armed self compiled for every weapon on the street)
  *   stepStreet(street, playerPads)          → the street a frame on: the crowd's pads, the core's step, the waves
+ *   crowdPads(s, ctx, M), newCrowdMind(type) the crowd's mind alone, for bodies already on the street (a practice room's)
  *
  * Pure and deterministic: its only variety is a hash of a body's id (no dice, no clock).
  */
@@ -169,6 +170,12 @@ function reachOf(F, attack) {
 // a pad that walks toward a point, still within `dead` of it
 const toward = (p, x, z, dead) => ({ x: Math.abs(x - p.x) > dead ? sgn(x - p.x) : 0, z: Math.abs(z - p.z) > dead ? sgn(z - p.z) : 0 });
 
+/** The crowd's pads this frame (its mind `M` changed in place: tokens, each body's mode): the bodies of the crowd it is
+ * given a type for (`M.type`), any boss among them by `M.bosses`. A practice room's crowd thinks with it. */
+export const crowdPads = (s, ctx, M) => think(s, ctx, M);
+/** A crowd mind for bodies already on the street: their types by id. */
+export const newCrowdMind = (type, rules) => ({ rules: { ...CROWD_RULES, ...(rules ?? {}) }, waves: [], wave: 0, type: { ...type }, tok: {}, b: {}, entered: 0, bosses: {}, cpu: {} });
+
 function think(s, ctx, M) {
   const R = M.rules, B = s.bodies, pads = [];
   const [n0, n1] = ctx.belt.depth.map((v) => Math.round(v * 1000));
@@ -177,6 +184,8 @@ function think(s, ctx, M) {
   const claimed = new Set();
   for (const p of B) {
     if (p.side !== 'crowd' || p.gone || p.ko) { if (p.side === 'crowd') giveBack(M, p.id); continue; }
+    // (only the bodies it is given: a practice room's other dummies are not its)
+    if (M.type[p.id] === undefined) continue;
     const m = (M.b[p.id] ??= { mode: 'circle', t: 0, cool: Math.round(R.cool[0] * vary(p.id)) });
     m.t++;
     const T = p.tg >= 0 ? B[p.tg] : null;

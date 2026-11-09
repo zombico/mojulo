@@ -176,3 +176,12 @@ describe('brawl moves: a press kept', () => {
     expect(late.ev.filter(([, e]) => e.kind === 'knee').length).toBe(2);
   });
 });
+
+describe('brawl moves: a press through the hitstop', () => {
+  it('attack pressed once while the blow before holds its hitstop is kept, and the chain follows on', () => {
+    const s = newBrawl(ctx, { bodies: [body('player', 0), body('crowd', 700)] });
+    // (the first blow lands on frame 3; one press in the middle of its freeze, none after)
+    const out = play(s, 60, (k) => ({ a: k === 0 || k === 6 }));
+    expect(out.moves.slice(0, 2)).toEqual(['chain.1', 'chain.2']);
+  });
+});

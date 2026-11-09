@@ -23,7 +23,7 @@
  *                `chain.1` … `chain.n` (each following on to the next on a connect), `chain.nf` the forward finisher,
  *                `desperate`, and `brawl` { style, chain, knee, suplex, throw } (the core reads its grabs' strength)
  *   newReader() / readButtons(reader, buttons, body, F) → [pad, reader']: a seat's buttons this frame
- *                ({ x, z, a, j, s }, held) into the core's command (brawl-core.js pad), the press remembered BUFFER
+ *                ({ x, z, a, j, s }, held) into the core's command (brawl-core.js pad), the press remembered PRESS_BUFFER
  *                frames until the body takes it
  *
  * Pure: no clock, no dice.
@@ -34,7 +34,7 @@ import { SPECIALS } from '../versus/versus-library.js';
 /** the desperation: the library's special with a price (the whirl) */
 export const DESPERATION = Object.keys(SPECIALS).find((id) => SPECIALS[id].price);
 /** frames a press is kept for until the body can take it; frames a jump waits for an attack to make it the desperation */
-export const BUFFER = 4, JUMP_WAIT = 2;
+export const PRESS_BUFFER = 4, JUMP_WAIT = 2;
 
 const style = (says, chain, finisher, grab) => Object.freeze({ says, chain: Object.freeze(chain), finisher, grab: Object.freeze(grab) });
 /**
@@ -100,26 +100,30 @@ export function readButtons(reader, buttons, body, F) {
   r.a = aP ? 0 : Math.min(99, r.a + 1); r.j = jP ? 0 : Math.min(99, r.j + 1); r.s = sP ? 0 : Math.min(99, r.s + 1);
   // (a press taken: the body has started what it asked for)
   if (r.want && body.mv === r.want) { r.want = null; r.keep = 0; }
-  if (r.keep > 0) r.keep--; else r.want = null;
+  // (the press is kept while the body is frozen in a blow's hitstop, as the fight's buffer is: a press typed through the
+  // hit's freeze still follows on)
+  if (r.keep > 0) { if (!body.hs) r.keep--; } else r.want = null;
+  // (a chain's next blow asked for while the last missed, kept until the body is free: a fresh chain, its first blow)
+  if (r.want && r.want.startsWith('chain.') && r.want !== 'chain.1' && (body.st === 'stand' || body.st === 'walk')) r.want = 'chain.1';
   const pad = { x, z };
   // holding a body: a knee, or a throw toward or away (kept, as a press is, until the body is free to take it)
   if (body.st === 'hold') {
     // (taken once the body has kneed since the press)
     if (r.hk > 0 && body.kn !== r.kn) r.hk = 0;
-    if (aP) { r.hold = x === body.face ? 'forward' : x === -body.face ? 'back' : 'knee'; r.hk = BUFFER; r.kn = body.kn; }
+    if (aP) { r.hold = x === body.face ? 'forward' : x === -body.face ? 'back' : 'knee'; r.hk = PRESS_BUFFER; r.kn = body.kn; }
     const out = { x: 0, z: 0 };
-    if (r.hk > 0) { out.hold = r.hold; r.hk--; }
+    if (r.hk > 0) { out.hold = r.hold; if (!body.hs) r.hk--; }
     return [out, r];
   }
   r.hk = 0;
   // attack and jump together, within the jump's wait: the desperation (the jump not taken)
   if ((aP && r.j <= JUMP_WAIT) || (jP && r.a <= JUMP_WAIT)) {
-    r.want = 'desperate'; r.keep = BUFFER; r.jump = -1; r.a = 99; r.j = 99;
+    r.want = 'desperate'; r.keep = PRESS_BUFFER; r.jump = -1; r.a = 99; r.j = 99;
   } else {
     if (jP) r.jump = JUMP_WAIT;
-    if (aP) { const w = attackOf(body, F, x); if (w) { r.want = w; r.keep = BUFFER; } }
-    if (sP && body.wpn) r.tk = BUFFER;
-    else if (sP) { const w = specialOf(body, F, x, z); if (w) { r.want = w; r.keep = BUFFER; } }
+    if (aP) { const w = attackOf(body, F, x); if (w) { r.want = w; r.keep = PRESS_BUFFER; } }
+    if (sP && body.wpn) r.tk = PRESS_BUFFER;
+    else if (sP) { const w = specialOf(body, F, x, z); if (w) { r.want = w; r.keep = PRESS_BUFFER; } }
   }
   if (r.jump >= 0 && r.jump-- === 0) pad.jump = true;
   // (a throw of the weapon, kept until the body is free to throw it)

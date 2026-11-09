@@ -8,7 +8,8 @@
  *              its words over it (the screens, the angle, where it runs): `street`, a road along building fronts with
  *              doorways, a kerb and a pavement on the far side, lamps and a few things on it (bins, a barrel, a phone
  *              booth, crates), the near side open to the camera, each held screen's line marked across the band, the
- *              street closed at its start and at its end
+ *              street closed at its start and at its end; `yard`, the practice room's (brawl-practice.js): one long open
+ *              screen ruled a metre along and every half metre across the band, a back wall and a rack
  *     stage    the belt laid in the indoor level's designer (era/stage.js, the stage kind a building level is built in:
  *              rooms on a kit's grid joined by doorways, dressed and lit by the kit): each screen a room in a row along
  *              the belt, its camera side open, the next screen through a doorway as wide as the band (the band runs on
@@ -80,6 +81,32 @@ function streetBlocks(B) {
   return out;
 }
 
+/**
+ * THE YARD (the practice room's, brawl-practice.js): one long open screen ruled for a brawler. Along the belt a line a
+ * metre (every fifth the lightest); across it the band ruled every half metre, its edges and its middle bold, so how far
+ * across a body stands reads off the floor (the line a blow must share); a back wall ruled the same, a low rack along its
+ * foot where the street's things are laid, the ends walled, the near side open to the camera.
+ */
+const YARD = Object.freeze({ back: 1.5, wall: 4, line: 0.03, bold: 0.08, proud: 0.006, rack: [0.9, 0.5] });
+function yardBlocks(B) {
+  const Y = YARD, L = B.length, [n0, n1] = B.depth, out = [];
+  const far = n1 + Y.back, near = n0 - 3;
+  out.push(beltBlock(B, L / 2, (near + far) / 2, -0.3, [L + 6, far - near, 0.3], 'floor'));
+  // along: a line a metre across the band, every fifth the lightest
+  for (let s = 1; s < L; s++) out.push(beltBlock(B, s, (n0 + n1) / 2, 0, [s % 5 ? Y.line : Y.bold, n1 - n0, Y.proud], s % 5 ? 'prop' : 'edge'));
+  // across: the band ruled every half metre, its edges and its middle bold
+  for (let k = 0; k <= Math.round((n1 - n0) * 2); k++) {
+    const n = n0 + k / 2, bold = k === 0 || Math.abs(n - n1) < 1e-6 || Math.abs(n - (n0 + n1) / 2) < 1e-6;
+    out.push(beltBlock(B, L / 2, n, 0, [L, bold ? Y.bold : Y.line, Y.proud * (bold ? 2 : 1)], bold ? 'edge' : 'prop'));
+  }
+  // the back wall, ruled a metre along; the rack at its foot
+  out.push(beltBlock(B, L / 2, far + 0.2, 0, [L + 6, 0.4, Y.wall], 'wall'));
+  for (let s = 1; s < L; s++) out.push(beltBlock(B, s, far - Y.proud / 2, 0, [s % 5 ? Y.line : Y.bold, Y.proud, Y.wall], s % 5 ? 'prop' : 'edge'));
+  out.push(beltBlock(B, L / 2, far - Y.rack[1] / 2, 0, [L - 2, Y.rack[1], Y.rack[0]], 'prop'));
+  for (const s of [-0.4, L + 0.4]) out.push(beltBlock(B, s, (n0 + far) / 2, 0, [0.5, far - n0, 2.6], 'wall'));
+  return out;
+}
+
 /** THE PRESETS: each a belt and the blocks laid along it (in its frame, so a belt that runs elsewhere carries its street) */
 // (`room`: the most of the street across the belt its band may take, from the near kerb to just short of what stands on
 // the far pavement)
@@ -89,6 +116,9 @@ export const BRAWL_PRESETS = Object.freeze({
     at: [0, 0], heading: 0, depth: [-2.5, 2.5], angle: 'classic',
     screens: [{ length: 14 }, { length: 16, gate: true }, { length: 16, gate: true }, { length: 16, boss: true }],
   }, [STREET.nearKerb, 2.5], streetBlocks),
+  yard: preset('the practice yard: one long open screen, the floor ruled a metre along and every half metre across the band (its edges and middle bold), a back wall ruled the same and a rack at its foot', {
+    at: [0, 0], heading: 0, depth: [-2.5, 2.5], angle: 'classic', screens: [{ length: 24 }],
+  }, [-4, 4], yardBlocks),
 });
 export const BRAWL_PRESET_IDS = Object.freeze(Object.keys(BRAWL_PRESETS));
 
