@@ -1844,8 +1844,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
   // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).
   if (payload && sketch.manifest.brawl && typeof sketch.manifest.brawl === 'object' && sketch.manifest.brawl.practice) {
-    const { brawlYardData } = await import('@/lib/graph/brawl/brawl-page.js');
-    payload.brawl = brawlYardData(sketch.manifest.brawl);
+    const { brawlYardData, brawlBodies } = await import('@/lib/graph/brawl/brawl-page.js');
+    // its roster's characters measured from the store as a fight's are, each drawn in its own body
+    const { withCharacters, characterBody } = await import('@/lib/graph/versus/versus-character.js');
+    const practice = await withCharacters(sketch.manifest.brawl.practice);
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const bodies = Array.isArray(practice.roster) ? await brawlBodies(practice.roster, (ref) => SketchRepository.getByRef(ref)?.manifest ?? null, (m) => characterBody(m)) : null;
+    payload.brawl = brawlYardData({ ...sketch.manifest.brawl, practice }, bodies);
     const { fightAudio } = await import('@/lib/graph/versus/versus-sfx.js');
     const fa = fightAudio({ register: sketch.manifest.brawl.register ?? 'western' });
     if (fa) {

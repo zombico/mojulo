@@ -5,14 +5,15 @@
  * uses is theirs or the page's (THREE, scene, camera, controls).
  *
  * What it draws: each body as the fight draws its fighters (the move's pose or the reaction's, jointed by the fight's rig
- * and stood in the round by its figure, versus-figure.js) on the belt: along it the body's x, across it its z; the
+ * and stood in the round by its figure, versus-figure.js), a CHARACTER in its own body (its parts riding the figure's
+ * segments, as the fight draws a posed character), anyone else as the fight's stick figure, on the belt: along it the body's x, across it its z; the
  * street's things; each player's LINE on the floor (the strip a blow must share, the yard's first lesson); a flash where a
  * blow lands; the fight's sounds by event where the page carries them.
  *
  * Its keys (the brawl scheme, controls/schemes.js): the stick, attack, jump, special; start the practice settings, back
  * the move list; R a reset. A second controller pressing attack or start drops in as the next player (four at most).
  */
-/* global BRAWL_YARD, THREE, scene, camera, controls, manaUi, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, brawlPoseOf, rigJoints, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
+/* global BRAWL_YARD, THREE, scene, camera, controls, manaUi, decodeF32, decodeU8, characterBase, figureSegments, segmentOf, __BR_CTL, __BR_DEV, __BR_BIND, __BR_SEATK, practiceOf, stepYard, resetYard, yardRead, brawlMoveList, brawlPoseOf, rigJoints, figureBase, figurePose, beltCamera, beltPoint, viewHalf, yardHud, inputRun, BRAWL_RULES, PRACTICE_MODE_IDS */
 const BY = BRAWL_YARD;
 const BELT = BY.belt;
 controls.enabled = false;
@@ -26,19 +27,30 @@ scene.add(YARD);
 // ── the room ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 const cap = (w) => w[0].toUpperCase() + w.slice(1);
-const SET = { mode: 'Stand', type: 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
+const FIRST = BY.dummies[0] || {};
+const SET = { mode: FIRST.mode ? FIRST.mode[0].toUpperCase() + FIRST.mode.slice(1) : 'Stand', type: Number.isInteger(FIRST.roster) ? BY.roster[FIRST.roster].name : FIRST.type ? FIRST.type[0].toUpperCase() + FIRST.type.slice(1) : 'Thug', count: '3', health: BY.health === 'refill' ? 'Refill' : 'Chains', fighter: BY.roster[BY.players[0] ?? 0].name, marks: true, log: true };
 let picks = BY.players.slice(0, 4);
 let dummies = BY.dummies;
 let room = null, bodies = [], things = new Map(), t = 0;
 const runs = [];
 function dummiesOf() {
-  const n = Number(SET.count) || 1, mode = SET.mode.toLowerCase(), type = SET.type.toLowerCase();
-  return Array.from({ length: n }, () => ({ mode, type: mode === 'grab' ? 'heavy' : type }));
+  const n = Number(SET.count) || 1, mode = SET.mode.toLowerCase();
+  // (a type of the street's crowd, or one of the roster: a character fought as a dummy, in its own body)
+  const k = BY.roster.findIndex((r) => r.name === SET.type);
+  if (k >= 0) return Array.from({ length: n }, () => ({ mode, recipe: BY.roster[k].recipe, roster: k }));
+  return Array.from({ length: n }, () => ({ mode, type: mode === 'grab' ? 'heavy' : SET.type.toLowerCase() }));
 }
 function build() {
   for (const B of bodies) YARD.remove(B.group, B.shadow, B.line);
   room = practiceOf({ belt: BELT, players: picks.map((i) => ({ recipe: BY.roster[i].recipe, style: BY.roster[i].style })), dummies, things: BY.things, health: SET.health.toLowerCase() });
-  bodies = room.s.bodies.map((b, i) => makeBody(i < picks.length ? BY.roster[picks[i]].color : '#9a8f86', room.ctx.fighters[b.fi], i < picks.length));
+  // (who each body is: a player's roster pick, a dummy's roster entry when it names one, else a thug of the street's)
+  const entryOf = (i) => (i < picks.length ? BY.roster[picks[i]] : Number.isInteger(dummies[i - picks.length]?.roster) ? BY.roster[dummies[i - picks.length].roster] : null);
+  bodies = room.s.bodies.map((b, i) => {
+    const E = entryOf(i), skin = skinOf(E && E.character), player = i < picks.length;
+    const B = skin ? makeCharacter(skin) : makeBody(E ? E.color : '#9a8f86', room.ctx.fighters[b.fi], false);
+    if (player) B.line = lineOf(E.color);
+    return B;
+  });
   for (const m of things.values()) YARD.remove(m);
   things.clear();
   runs.length = 0;
@@ -76,11 +88,90 @@ function makeBody(color, F, player) {
   const joints = JOINTS.map(([j, w]) => ({ j, w, ...part(BALL, near) }));
   const head = part(BALL, near);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }));
-  // a player's LINE: the strip along the street a blow must share (the core's `line` each side of its body)
-  const line = player ? new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false })) : null;
   YARD.add(group, shadow);
-  if (line) YARD.add(line);
-  return { group, limbs, joints, head, shadow, line, near, far, base: figureBase(F.body), drawn: null };
+  return { group, limbs, joints, head, shadow, line: null, near, far, base: figureBase(F.body), drawn: null };
+}
+// a player's LINE: the strip along the street a blow must share (the core's `line` each side of its body)
+function lineOf(color) {
+  const line = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false }));
+  YARD.add(line);
+  return line;
+}
+
+// ── a character in its own body (versus-arena.client.js's posed character): its parts, relit by the yard's key as it
+// turns (the rest light its pack baked in taken back out by the face's rest normal) and inked, each riding its segment
+// of the fight's figure ──
+const SKINS = {};
+function skinOf(ref) {
+  const pack = ref && BY.bodies && BY.bodies[ref];
+  if (!pack || !pack.parts) return null;
+  return SKINS[ref] || (SKINS[ref] = { pack, base: characterBase(pack.bones), seg: pack.bones.map((b) => segmentOf(b.id)) });
+}
+const REST_KEY = new THREE.Vector3(0.35, -0.55, 0.75).normalize();
+// the yard's key: from the camera's side and above, in the belt's frame turned into the world's
+const WORLD_KEY = new THREE.Vector3(-0.35, -0.6, 0.72).normalize().applyAxisAngle(new THREE.Vector3(0, 0, 1), (BELT.heading * Math.PI) / 180);
+function smoothNormals(pos) {
+  const acc = new Map(), n = new Float32Array(pos.length), key = (i) => `${Math.round(pos[i] * 2e4)},${Math.round(pos[i + 1] * 2e4)},${Math.round(pos[i + 2] * 2e4)}`;
+  for (let i = 0; i < pos.length; i += 9) {
+    const ax = pos[i + 3] - pos[i], ay = pos[i + 4] - pos[i + 1], az = pos[i + 5] - pos[i + 2];
+    const bx = pos[i + 6] - pos[i], by = pos[i + 7] - pos[i + 1], bz = pos[i + 8] - pos[i + 2];
+    const f = [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+    for (let k = 0; k < 9; k += 3) { const kk = key(i + k), v = acc.get(kk) || [0, 0, 0]; v[0] += f[0]; v[1] += f[1]; v[2] += f[2]; acc.set(kk, v); }
+  }
+  for (let i = 0; i < pos.length; i += 3) { const v = acc.get(key(i)), l = Math.hypot(v[0], v[1], v[2]) || 1; n[i] = v[0] / l; n[i + 1] = v[1] / l; n[i + 2] = v[2] / l; }
+  return n;
+}
+function litMaterial() {
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uKey = { value: WORLD_KEY };
+    sh.vertexShader = 'attribute float restShade;\nuniform vec3 uKey;\nvarying float vRelight;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\n  vec3 wn = normalize(mat3(modelMatrix) * normal);\n  vRelight = (0.55 + 0.45 * max(0.0, dot(wn, uKey))) / max(0.4, restShade);');
+    sh.fragmentShader = 'varying float vRelight;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb *= vRelight;');
+  };
+  return mat;
+}
+function inkMaterial() {
+  const mat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
+  mat.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  transformed += normalize(normal) * 0.0110;'); };
+  return mat;
+}
+function makeCharacter(skin) {
+  const group = new THREE.Group(), lit = litMaterial(), ink = inkMaterial();
+  const meshes = skin.pack.parts.map((part) => {
+    if (!part) return null;
+    const pos = decodeF32(part.pos), nrm = smoothNormals(pos), rest = new Float32Array(pos.length / 3);
+    for (let i = 0; i < rest.length; i++) rest[i] = 0.55 + 0.45 * Math.max(0, nrm[i * 3] * REST_KEY.x + nrm[i * 3 + 1] * REST_KEY.y + nrm[i * 3 + 2] * REST_KEY.z);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
+    geo.setAttribute('restShade', new THREE.BufferAttribute(rest, 1));
+    geo.computeBoundingSphere();
+    const fill = new THREE.Mesh(geo, lit), hull = new THREE.Mesh(geo, ink);
+    for (const m of [fill, hull]) { m.matrixAutoUpdate = false; m.frustumCulled = false; group.add(m); }   // matrices change every frame
+    return { fill, hull };
+  });
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }));
+  YARD.add(group, shadow);
+  return { group, shadow, skin, meshes, line: null, base: skin.base, drawn: null };
+}
+const M4 = new THREE.Matrix4();
+function placeCharacter(B, p, F, N) {
+  const S = figureSegments(B.skin.base, N);
+  // the figure faces +y in its own frame: turned to face the way the body faces along the belt, its feet on the floor
+  B.group.position.set(p.x / 1000, p.z / 1000, p.y / 1000);
+  B.group.rotation.set(0, 0, p.face > 0 ? -Math.PI / 2 : Math.PI / 2);
+  for (let i = 0; i < B.meshes.length; i++) {
+    const m = B.meshes[i];
+    if (!m) continue;
+    const { R, from, at } = S[B.skin.seg[i]];
+    const tx = at[0] - (R[0][0] * from[0] + R[0][1] * from[1] + R[0][2] * from[2]);
+    const ty = at[1] - (R[1][0] * from[0] + R[1][1] * from[1] + R[1][2] * from[2]);
+    const tz = at[2] - (R[2][0] * from[0] + R[2][1] * from[1] + R[2][2] * from[2]);
+    M4.set(R[0][0], R[0][1], R[0][2], tx, R[1][0], R[1][1], R[1][2], ty, R[2][0], R[2][1], R[2][2], tz, 0, 0, 0, 1);
+    m.fill.matrix.copy(M4); m.hull.matrix.copy(M4);
+  }
 }
 const vA = new THREE.Vector3(), vB = new THREE.Vector3(), UP = new THREE.Vector3(0, 0, 1), vD = new THREE.Vector3();
 function cylinderAt(mesh, a, b, r) {
@@ -109,7 +200,18 @@ function placeBody(B, p, F) {
   if (B.line) B.line.visible = !hidden;
   if (hidden) return;
   const { pose, J } = drawnOf(B, p, F);
-  const N = figurePose(B.base, J, { face: p.face, air: !!pose.air, blade: BLADE_OF[p.st] ?? 1, stance: F.stance, twist: pose.twist ?? 0, sway: pose.sway ?? 0, tilt: pose.tilt ?? 0, spin: pose.spin ?? 0, bank: pose.bank ?? 0, lie: !!pose.lie, ...(pose.hands ? { hands: pose.hands } : {}), ...(pose.feet ? { feet: pose.feet } : {}) });
+  const N = figurePose(B.skin ? B.skin.base : B.base, J, { face: p.face, air: !!pose.air, blade: BLADE_OF[p.st] ?? 1, stance: F.stance, twist: pose.twist ?? 0, sway: pose.sway ?? 0, tilt: pose.tilt ?? 0, spin: pose.spin ?? 0, bank: pose.bank ?? 0, lie: !!pose.lie, ...(pose.hands ? { hands: pose.hands } : {}), ...(pose.feet ? { feet: pose.feet } : {}) });
+  if (B.skin) placeCharacter(B, p, F, N);
+  else placeStick(B, p, F, N);
+  B.shadow.position.set(p.x / 1000, p.z / 1000, 0.01);
+  B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.6 * Math.max(0.4, 1 - p.y / 1600));
+  if (B.line) {
+    const half = viewHalf(BELT);
+    B.line.position.set(p.x / 1000, p.z / 1000, 0.008);
+    B.line.scale.set(half * 2, (room.s.rules.line * 2) / 1000, 1);
+  }
+}
+function placeStick(B, p, F, N) {
   const r = F.body.limbR / 1000;
   for (const L of B.limbs) {
     worldOf(p, N[L.a], vA); worldOf(p, N[L.b], vB);
@@ -126,13 +228,6 @@ function placeBody(B, p, F) {
   const hr = F.body.head / 1000;
   B.head.fill.position.copy(vA); B.head.fill.scale.setScalar(hr);
   B.head.ink.position.copy(vA); B.head.ink.scale.setScalar(hr * 1.12);
-  B.shadow.position.set(p.x / 1000, p.z / 1000, 0.01);
-  B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.6 * Math.max(0.4, 1 - p.y / 1600));
-  if (B.line) {
-    const half = viewHalf(BELT);
-    B.line.position.set(p.x / 1000, p.z / 1000, 0.008);
-    B.line.scale.set(half * 2, (room.s.rules.line * 2) / 1000, 1);
-  }
 }
 
 // ── the street's things ──────────────────────────────────────────────────────────────────────────────────────
@@ -234,7 +329,9 @@ const UI = (() => {
   const style = document.createElement('style');
   style.textContent = BY.yard.css;
   document.head.appendChild(style);
-  const settings = [{ kind: 'cycler', label: 'Fighter', var: 'brawl.practice.set.fighter', options: BY.roster.map((r) => r.name) }, ...BY.yard.settings];
+  // (the fighter from the roster; the dummies' type the street's crowd or anyone on the roster)
+  const settings = [{ kind: 'cycler', label: 'Fighter', var: 'brawl.practice.set.fighter', options: BY.roster.map((r) => r.name) },
+    ...BY.yard.settings.map((f) => (f.label === 'Type' ? { ...f, options: [...f.options, ...BY.roster.map((r) => r.name)] } : f))];
   const state = { brawl: { practice: { set: SET, settings, moves: [], marks: [], heads: [], beats: [], ended: '', presses: [], inputs: [], clinch: { holding: false, left: 0, of: 1, knees: 0, behind: '' } } } };
   const el = document.createElement('div');
   document.body.appendChild(el);

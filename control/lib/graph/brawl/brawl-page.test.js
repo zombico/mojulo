@@ -48,3 +48,21 @@ describe('brawl page: the yard\'s data and the channel', () => {
     expect(script).toContain('stepBrawlPage = stepBrawlYard;');
   });
 });
+
+describe('brawl page: characters in the yard', () => {
+  // (a roster as it reaches here: a character measured from the store, as resolveCharacters leaves it, and an intent)
+  const measured = { id: 'wolf', name: 'Wolf', archetype: 'grappler', body: { height: 1850 }, character: 'sk_wolf', color: '#b8452e' };
+  const world = brawlLevel({ kind: 'greybox', preset: 'yard' }, { practice: { roster: [measured, { id: 'kai', archetype: 'rushdown' }], players: [1], dummies: [{ mode: 'swing', fighter: 0 }, { mode: 'stand', type: 'heavy' }] } });
+  const bodies = { sk_wolf: { bones: [{ id: 'pelvis' }], parts: [null] } };
+  const D = brawlYardData(world.brawl, bodies);
+  it('the practice\'s roster is who can be played and fought: a character keeps its ref and its style', () => {
+    expect(D.roster.map((r) => [r.id, r.style, r.character ?? null])).toEqual([['wolf', 'grappler', 'sk_wolf'], ['kai', 'rushdown', null]]);
+    expect(D.players).toEqual([1]);
+    expect(D.bodies).toBe(bodies);
+  });
+  it('a dummy may be anyone on the roster, fought in its own recipe; or one of the street\'s crowd', () => {
+    expect(D.dummies[0]).toMatchObject({ mode: 'swing', roster: 0, recipe: D.roster[0].recipe });
+    expect(D.dummies[1]).toEqual({ mode: 'stand', type: 'heavy' });
+    expect(() => brawlYardData({ ...world.brawl, practice: { ...world.brawl.practice, dummies: [{ fighter: 9 }] } })).toThrow(/roster index/);
+  });
+});

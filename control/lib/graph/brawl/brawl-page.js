@@ -10,14 +10,16 @@
  *   brawlSource(file)        a brawl module as a page fragment: `const { …its exports } = (() => { …; return {…}; })();`
  *   brawlPageSource()        the whole: the fight's modules, the controls (the brawl scheme, the seats), the brawl's, the
  *                            yard's client
- *   brawlYardData(block)     a world's `brawl` block with its `practice` → what the yard's page reads (the belt, the
- *                            roster its players pick from, the dummies, the things, the yard's screen)
+ *   brawlYardData(block, bodies?) a world's `brawl` block with its `practice` → what the yard's page reads (the belt,
+ *                            the roster its players and dummies pick from, characters among them, the things, the
+ *                            yard's screen, each character's body)
+ *   brawlBodies(roster, lookup, bodyOf) each character's body in a measured roster
  *   BRAWL_ROSTER             the yard's fighters: one of each archetype the fight's solver knows
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
-import { versusSource } from '../versus/versus-page.js';
+import { versusSource, rosterEntry } from '../versus/versus-page.js';
 import { solveFighter, ARCHETYPES } from '../versus/versus-solver.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES as CONTROL_SCHEMES } from '../controls/schemes.js';
@@ -66,15 +68,44 @@ export const BRAWL_ROSTER = Object.freeze(Object.keys(ARCHETYPES).map((a, i) => 
   color: ['#e8502a', '#2a8ae8', '#e8b82a', '#7a4ae8'][i % 4], recipe: { ...solveFighter({ id: a, archetype: a }).recipe, archetype: a },
 })));
 
-/** What the yard's page reads, from a world's `brawl` block (its belt, register, practice). */
-export function brawlYardData(block) {
+/**
+ * What the yard's page reads, from a world's `brawl` block (its belt, register, practice) and its characters' bodies.
+ * The practice's `roster` is who can be played and fought: each entry a CHARACTER (`{ hero: { ref }, style? }`, measured
+ * from the store before it reaches here: versus-character.js resolveCharacters, as a fight's roster is) or a fighter's
+ * intent (`{ archetype }`); absent, one fighter of each archetype. `players` are roster indices (one to four);
+ * `dummies` each `{ mode, fighter?: a roster index | type?: a crowd type, at?, n? }`. `bodies` ({ <ref>: { bones, parts }
+ * }) draws each character in its own body; one with none is drawn as the fight's stick figure.
+ */
+export function brawlYardData(block, bodies = null) {
   const P = block.practice ?? {};
   const Y = yardOf();
+  const roster = Array.isArray(P.roster) && P.roster.length
+    ? P.roster.map((e, k) => { const r = rosterEntry(e, k); const style = BRAWL_STYLES[r.archetype] ? r.archetype : 'all-rounder'; return { ...r, style }; })
+    : BRAWL_ROSTER;
+  const pick = (k, where) => { if (!(Number.isInteger(k) && k >= 0 && k < roster.length)) throw new Error(`brawl: ${where} is a roster index, 0 to ${roster.length - 1}`); return k; };
+  const players = (P.players ?? [0]).map((k, i) => pick(k, `practice.players[${i}]`));
+  const dummies = (P.dummies ?? [{ mode: 'stand' }, { mode: 'walk' }, { mode: 'swing' }]).map((d, i) => {
+    if (d.fighter === undefined) return d;
+    const k = pick(d.fighter, `practice.dummies[${i}].fighter`), { fighter: _f, ...rest } = d;
+    return { ...rest, recipe: roster[k].recipe, roster: k };
+  });
   return {
     belt: block.belt, register: block.register ?? null,
-    roster: BRAWL_ROSTER, players: P.players ?? [0],
-    dummies: P.dummies ?? [{ mode: 'stand' }, { mode: 'walk' }, { mode: 'swing' }],
+    roster, players, dummies,
     things: P.things ?? [], health: P.health ?? 'chains',
+    ...(bodies ? { bodies } : {}),
     yard: { spec: Y.spec, css: Y.css, settings: YARD_SETTINGS },
   };
+}
+
+/** Each character's body in a measured roster, posed (its parts riding the fight's figure): { <ref>: body } or null.
+ * `bodyOf(manifest)` → the body (versus-character.js characterBody), `lookup(ref)` → the character's manifest. */
+export async function brawlBodies(roster, lookup, bodyOf) {
+  const out = {};
+  for (const e of roster ?? []) {
+    if (typeof e?.character !== 'string' || out[e.character]) continue;
+    const body = await bodyOf(lookup(e.character)).catch(() => null);
+    if (body) out[e.character] = body;
+  }
+  return Object.keys(out).length ? out : null;
 }

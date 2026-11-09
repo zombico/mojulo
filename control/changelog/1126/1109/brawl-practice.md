@@ -30,3 +30,9 @@
   belt's locked camera; the yard's screen in mana-ui (start the practice settings: the fighter, the dummies' mode, type,
   number and health, the marks and the log; back the move list; R a reset). Absent, a page carries none of it.
 - The spike `scripts/spikes/brawler/practice.mjs` plays the yard on a virtual clock as a person would and shoots it.
+- Characters in the yard: a practice's `roster` is who can be played and fought, each entry a character by ref
+  (`{ hero: { ref }, style? }`: a hero, beastfolk, a xeno or a mascot, measured from the store as a fight's roster is) or
+  a fighter's intent; the players and every dummy pick from it (`dummies: [{ mode, fighter: <roster index> }]`), the
+  street's crowd types still there beside them; each character drawn in its own body, its parts riding the fight's figure
+  as the fight draws a posed character, relit by the yard's key and inked. The settings offer the roster as the fighter
+  and as the dummies' type. The spike's `--characters` mints a wolf-kin and a mascot bear and plays one against the other.
