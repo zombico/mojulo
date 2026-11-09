@@ -62,7 +62,7 @@ import { frontageTemplates, frontsOf, wallsOf } from './frontage.js';
 import { parkCar, carRepeats, carModel } from '../geotown/cars.js';
 import { fleetOf, pickOf, YARDS } from './fleets.js';
 import { flowOf, flowLaws } from './flow.js';
-import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON } from './industry.js';
+import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON, INDUSTRY_FINISHES, finishOf } from './industry.js';
 import { INDUSTRY_SEGMENTS } from './segments.js';
 import { HIGHWAY, deckAt } from './highways.js';
 import { WATERFRONT, WATERFRONT_PAINT, frameOf, waterfrontTemplates } from './waterfront.js';
@@ -158,13 +158,17 @@ const FINISHES = Object.freeze({
   // grounds concrete and gravel)
   'geocity:shed': ['corrugated', 'wall'], 'geocity:shed:roof': ['standing-seam', 'floor'], 'geocity:station': ['wire-brick', 'wall'],
   'geocity:works': ['corrugated', 'wall'], 'geocity:works:roof': ['standing-seam', 'floor'], 'geocity:warehouse': ['cladding', 'wall'],
-  'geocity:warehouse:roof': ['standing-seam', 'floor'], 'geocity:control': ['cmu', 'wall'], 'geocity:yard': ['pavement', 'floor'],
-  'geocity:bund': ['gravel', 'floor'], 'geocity:switchyard': ['gravel', 'floor'], 'geocity:bund-wall': ['concrete', 'wall'],
+  'geocity:warehouse:roof': ['membrane', 'floor'], 'geocity:control': ['cmu', 'wall'], 'geocity:yard': ['hardstanding', 'floor'],
+  'geocity:bund': ['gravel', 'floor'], 'geocity:switchyard': ['ballast', 'floor'], 'geocity:bund-wall': ['concrete', 'wall'],
   // (its highways' decks: asphalt over concrete, highways.js)
   'geocity:highway': ['asphalt', 'floor'], 'geocity:highway-side': ['concrete', 'wall'],
   // (its waterfront, waterfront.js: granite quays, concrete walls, timber decks, a promenade, rocks, sand)
-  'geocity:quay': ['flags', 'floor'], 'geocity:quay-wall': ['concrete', 'wall'], 'geocity:deck': ['boards', 'floor'],
-  'geocity:promenade': ['pavement', 'floor'], 'geocity:riprap': ['stone-road', 'floor'], 'geocity:sand': ['sand', 'floor'],
+  'geocity:quay': ['granite', 'floor'], 'geocity:quay-wall': ['concrete', 'wall'], 'geocity:deck': ['decking', 'floor'],
+  'geocity:promenade': ['pavement', 'floor'], 'geocity:riprap': ['armour-stone', 'floor'], 'geocity:sand': ['sand', 'floor'],
+  // (a marina's and a pier's quay wall steel sheet piling)
+  'geocity:quay-wall-steel': ['sheet-pile', 'wall'],
+  // (each industrial family's variants, industry.js INDUSTRY_FINISHES: its wall's word and its roof's)
+  ...Object.fromEntries(Object.entries(INDUSTRY_FINISHES).flatMap(([fam, vs]) => Object.entries(vs).flatMap(([v, [w, r]]) => [[`geocity:${fam}-${v}`, [w, 'wall']], [`geocity:${fam}-${v}:roof`, [r, 'floor']]]))),
 });
 // an industrial block's ground: a works' concrete, a tank farm's and a switchyard's gravel
 const IND_GROUND = Object.freeze({ works: ['geocity:yard', '#a29f97'], warehouse: ['geocity:yard', '#a29f97'], storage: ['geocity:yard', '#a29f97'], tanks: ['geocity:bund', '#938e82'], substation: ['geocity:switchyard', '#8f8a7f'] });
@@ -840,7 +844,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     const station = Y.building === 'station', bd = station ? 16 : 12, bh = station ? 8 : 6.5, b0 = a1 - 2 - bd;
     if (a1 - a0 > bd + 30) {
       const p = P(b0, s0 + 3), q = P(a1 - 2, s1 - 3);
-      box(Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), z, z + bh, station ? '#8a3b2c' : '#9aa0a3', ROOFS[0], `geocity:${station ? 'station' : 'shed'}`);
+      const sf = station ? null : finishOf('shed', Ry);
+      box(Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), z, z + bh, station ? '#8a3b2c' : sf.wall, station ? ROOFS[0] : sf.roof, station ? 'geocity:station' : sf.group);
       // (its doors to the yard: a station's tall bays, a shed's roller doors)
       const n = Math.max(1, Math.floor((s1 - s0 - 8) / 6)), dw = station ? 4 : 3.6, dh = station ? 4.4 : 4;
       for (let k = 0; k < n; k++) {
@@ -939,7 +944,8 @@ export function assembleGeocityScene(m, ctx = {}) {
           }
           for (const [p, q] of cut(g.a0, g.a1, CELL)) wall(p, q, D + 2 * n, (a) => zw + 0.3, zw - 1.5, 'geocity:quay-wall', col2.wall);
         } else for (const [p, q] of cut(g.a0, g.a1, CELL)) {
-          wall(p, q, D, zqA, zw - 1.5, 'geocity:quay-wall', col2.wall);
+          const steel = g.kind === 'marina' || g.kind === 'pier';
+          wall(p, q, D, zqA, zw - 1.5, steel ? 'geocity:quay-wall-steel' : 'geocity:quay-wall', steel ? '#3e403e' : col2.wall);
           quad(p, q, D - 0.5, D, (a) => zq(a) + 0.12, 'geocity:quay-wall', mix(col2.wall, '#ffffff', 0.25));
         }
         // its promenade's lamps and benches facing the water; a railing where it drops (bollards on a quay instead)
@@ -989,7 +995,7 @@ export function assembleGeocityScene(m, ctx = {}) {
           for (let t = D + 3; t <= t1; t += 6) for (const aa of [pa0 + 0.3, pa1 - 0.3]) wfs('pile', [...P(aa, t), zw - 2], { scale: [1, 1, r5(zp - 0.7 - (zw - 2))] });
           for (let t = D; t + 3 <= t1; t += 3) for (const aa of [pa0 + 0.2, pa1 - 0.2]) wfs(`rail:${axT}`, [...P(aa, t), zp]);
           const shed = R() < 0.55;
-          if (shed) { const p = P(pa0 + 2, D + 8), q = P(pa1 - 2, D + 8 + pr.len * 0.55); box(Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), zp, zp + 7, '#a3a8ab', '#7b8287', 'geocity:shed'); }
+          if (shed) { const p = P(pa0 + 2, D + 8), q = P(pa1 - 2, D + 8 + pr.len * 0.55), sf = finishOf('shed', R); box(Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), zp, zp + 7, sf.wall, sf.roof, sf.group); }
           else {
             const p = P(pa0 + 3, t1 - 26), q = P(pa1 - 3, t1 - 6); box(Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), zp, zp + 5, '#9fb3bd', '#8a6a48', 'geocity:pavilion');
             for (let t = D + 10; t <= t1 - 32; t += 5) for (const aa of [pr.a - pr.w / 4, pr.a + pr.w / 4]) { wfs('patio', [...P(aa, t), zp]); wfs('parasol', [...P(aa, t), zp], { tint: linC(WATERFRONT_PAINT.patio[Math.floor(R() * WATERFRONT_PAINT.patio.length)]) }); }

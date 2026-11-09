@@ -40,6 +40,7 @@ const DRESSED_CUT = Object.freeze({
   boards: T('pine', 'its tile is boards'), brick: T('brick', 'its tile is brick'), tile: T('ceramic', 'its tile is clay tile'),
   slate: T('stone', 'its tile is slate'), gravel: T('gravel', 'its tile is gravel'), setts: T('stone', 'its tile is setts'),
   render: T('stone', 'its tile is a render over stone'),
+  sheetpile: T('steel', 'its tile is steel sheet piling'), decking: T('pine', 'its tile is timber decking'),
 });
 
 export const WORD_MATTER = Object.freeze({
@@ -53,7 +54,12 @@ export const WORD_MATTER = Object.freeze({
   'wire-brick': T('brick', 'wire-cut brick'), stucco: T('concrete', 'a cement coat over block'),
   'sawn-stone': T('stone', 'sawn stone'), precast: T('concrete', 'precast concrete'), concrete: T('concrete', 'concrete'),
   glass: T('glass', 'glass'), pavement: T('concrete', 'concrete paving'), asphalt: T('concrete', 'asphalt: concrete stands for it'),
-  sand: T('sand', 'sand'), corrugated: T('steel', 'corrugated steel sheet'), cladding: T('steel', 'steel-faced sheet panels'), cmu: T('concrete', 'concrete block'), 'standing-seam': T('steel', 'a standing-seam metal roof'),
+  sand: T('sand', 'sand'), corrugated: T('steel', 'corrugated steel sheet'),
+  'corrugated-red': T('steel', 'corrugated steel sheet'), 'corrugated-green': T('steel', 'corrugated steel sheet'), 'corrugated-cream': T('steel', 'corrugated steel sheet'),
+  'corrugated-blue': T('steel', 'corrugated steel sheet'), 'corrugated-rusted': T('steel', 'corrugated steel sheet, rusted'), 'cladding-grey': T('steel', 'steel-faced sheet panels'),
+  'cladding-blue': T('steel', 'steel-faced sheet panels'), 'tilt-up': T('concrete', 'tilt-up concrete panels'), 'factory-brick': T('brick', 'an old works\' brick'),
+  'sheet-pile': T('steel', 'steel sheet piling'), membrane: T('concrete', 'a membrane over a concrete roof deck: concrete stands for it'), granite: T('stone', 'granite pavers'),
+  hardstanding: T('concrete', 'concrete hardstanding'), ballast: T('gravel', 'crushed stone'), decking: T('pine', 'timber decking'), 'armour-stone': T('stone', 'quarried armour stone'), cladding: T('steel', 'steel-faced sheet panels'), cmu: T('concrete', 'concrete block'), 'standing-seam': T('steel', 'a standing-seam metal roof'),
 });
 
 export const KIT_MATTER = Object.freeze({

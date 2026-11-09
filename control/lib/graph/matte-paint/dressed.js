@@ -54,7 +54,12 @@
  * (a floor) a poured coat, saw-cut joints (`cols` a repeat), a broadcast fleck, the lanes tracked; `'grating'` (a
  * floor) bar grating read opaque, bearing bars every 30 mm, cross bars every 100 mm over a dark pit; `'corrugated'` a
  * trapezoid sheet profile (`cols` ribs a repeat), lapped at the repeat's top with fasteners on the crowns, the weather
- * streaked down; `'perforated'` punched metal, round holes on a staggered pitch over the dark behind; `'terrazzo'` (a
+ * streaked down (with `rust`, 0…1, the coat failing: rust run down from the lap's fasteners and bloomed through it,
+ * heaviest in the troughs); `'sheetpile'` steel sheet piling, wide trapezoid pans (`cols` a repeat) interlocked at their
+ * clutches, a heavy coat chalked and rust run down through it at grit; `'decking'` (a floor) timber boards along u
+ * (`rows` a repeat), gapped, a butt joint each, a screw pair at each joist (`cols` a repeat), the grain along them, gone
+ * silver at grit; `'membrane'` (a floor) a flat roof's sheets (`rows` a repeat) welded at their laps, wrinkled a hair,
+ * rings where ponds dried at grit; `'perforated'` punched metal, round holes on a staggered pitch over the dark behind; `'terrazzo'` (a
  * floor) chips of marble at two sizes in a polished matrix, divider strips in a grid; `'glazed'` ceramic tile (`cols` ×
  * `rows`) in grout, each tile's glaze a hair domed and its own shade, crazed at grit; `'studded'` (a floor) rubber with
  * round studs, their tops scuffed; `'seam'` standing-seam cladding (`cols` panels a repeat), a folded rib between the
@@ -799,8 +804,12 @@ const MADE = {
   // of fasteners across each lap; the paint's weather streaked down the ribs at grit
   corrugated(c, size, seed) {
     const M = c.metres, g = c.grit, rib = M / c.cols, depth = 0.018, body = rampOf(c.stone), lap = new Float32Array(size * size);
+    // (`rust`, 0…1, opt-in: the coat failing, rust run down from each lap's fasteners and gathered in the troughs; absent,
+    // not one byte changes)
+    const rusts = c.rust > 0, trough = rusts ? new Float32Array(size * size) : null;
     return paintedTile(c, size, LIGHT, (x, y, k) => {
       const t = (x / rib) - Math.floor(x / rib), prof = t < 0.2 ? 1 : t < 0.35 ? 1 - (t - 0.2) / 0.15 : t < 0.85 ? 0 : (t - 0.85) / 0.15;
+      if (rusts) trough[k] = 1 - prof;
       let z = depth * (prof - 0.5);
       // the lap across the sheet at the repeat's top, its fasteners on the ribs' crowns
       const dl = Math.min(y, M - y);
@@ -811,7 +820,78 @@ const MADE = {
     }, (x, y, k, lit) => {
       const v = (lit.value[k] - 1) * 1.2 - 0.25 * lit.cavity[k];
       const streak = Math.max(0, sfbm(x, y, M, 0.08, 1.2, 2, seed + 5) - 0.05) * (0.05 + 0.2 * g);
-      return rampAt(body, 0.6 + v + 0.03 * lap[k] - streak);
+      const col = rampAt(body, 0.6 + v + 0.03 * lap[k] - streak);
+      if (!rusts) return col;
+      // its rust: a run below each crown's fastener (the lap at the repeat's top, y down the wall), a bloom where the coat
+      // has failed, the troughs where the water stands darker with it
+      const below = y < M / 2 ? y - 0.03 : M - y + 0.03, rx = toLattice(x, rib, 0.1 * rib), len = 0.15 + 0.6 * c.rust;
+      const run = below > 0 && below < len && rx < 0.012 ? (1 - rx / 0.012) * (1 - below / len) : 0;
+      const bloom = clamp((sfbm(x, y, M, 0.18, 0.3, 3, seed + 17) + 0.35 * c.rust - 0.25) * 2.2, 0, 1) * c.rust;
+      const r = clamp(Math.max(run * 0.9, bloom * (0.55 + 0.45 * trough[k])), 0, 1), rc = [124, 64, 36].map((q, i) => q * (0.9 + 0.5 * v) + (i === 0 ? 10 * sfbm(x, y, M, 0.05, 0.05, 2, seed + 19) : 0));
+      return col.map((q, i) => q + (rc[i] - q) * r);
+    });
+  },
+  // steel SHEET PILING (a quay's wall): wide trapezoid pans (`cols` a repeat) interlocked at their clutches, a heavy
+  // coat over them chalked by the weather, rust bloomed through it and run down the pans at grit, the clutches darker
+  sheetpile(c, size, seed) {
+    const M = c.metres, g = c.grit, pw = M / c.cols, depth = 0.09, body = rampOf(c.stone), rust = [116, 60, 34], clutch = new Uint8Array(size * size), face = new Float32Array(size * size);
+    return paintedTile(c, size, LIGHT, (x, y, k) => {
+      const t = (x / pw) - Math.floor(x / pw), prof = t < 0.3 ? 1 : t < 0.42 ? 1 - (t - 0.3) / 0.12 : t < 0.88 ? 0 : (t - 0.88) / 0.12;
+      face[k] = prof;
+      const d = Math.min(t, 1 - t) * pw;
+      if (d < 0.012) { clutch[k] = 1; return depth * 0.5 + 0.006; }
+      return depth * (prof - 0.5) + 0.0006 * sfbm(x, y, M, 0.02, 0.02, 2, seed + 3);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.2 - 0.3 * lit.cavity[k];
+      if (clutch[k]) return rampAt(body, 0.3 + v);
+      let col = rampAt(body, 0.55 + v + 0.05 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 5) + 0.06 * face[k]);
+      const streak = clamp((sfbm(x, y, M, 0.07, 1.4, 2, seed + 7) - 0.1) * 2, 0, 1) * (0.25 + 0.6 * g);
+      const bloom = clamp((sfbm(x, y, M, 0.15, 0.25, 3, seed + 9) - 0.2) * 2.5, 0, 1) * g;
+      const r = clamp(Math.max(streak * 0.7, bloom), 0, 1);
+      col = col.map((q, i) => q + (rust[i] * (0.8 + 0.2 * (0.6 + v)) - q) * r);
+      return col;
+    });
+  },
+  // timber DECKING (a floor): boards along u (`rows` boards a repeat across v), a gap between each, each board's butt
+  // joint somewhere along it, a pair of screws at every joist (`cols` joists a repeat), the grain run along it; the
+  // weather turning it silver at grit
+  decking(c, size, seed) {
+    const M = c.metres, g = c.grit, bw = M / c.rows, jp = M / c.cols, body = rampOf(c.stone), silver = [158, 154, 144];
+    const gap = new Uint8Array(size * size), tone = new Float32Array(size * size), screw = new Uint8Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const b = Math.floor(y / bw), fy = y - b * bw, bi = ((b % c.rows) + c.rows) % c.rows, butt = hash01(bi, 3, seed + 3) * M;
+      tone[k] = (hash01(bi, 5, seed + 5) - 0.5) * 2 * c.vary / 255;
+      if (fy < 0.006 || toLattice(x, M, butt) < 0.003) { gap[k] = 1; return -0.008; }
+      // (its screws: two at each joist, a little in from its edges)
+      const jx = toLattice(x, jp, jp / 2), sy = Math.min(Math.abs(fy - bw * 0.25), Math.abs(fy - bw * 0.75));
+      if (Math.hypot(jx, sy) < 0.004) { screw[k] = 1; return -0.0015; }
+      // (each board crowned a little, its grain along it)
+      return 0.0012 * (1 - ((2 * fy) / bw - 1) ** 2) + 0.0004 * sfbm(x, y + bi * 0.37, M, 0.4, 0.004, 2, seed + 7);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1 - 0.3 * lit.cavity[k];
+      if (gap[k]) return [24, 20, 16];
+      if (screw[k]) return [70, 70, 72];
+      const bi = Math.floor(y / bw), grain = 0.07 * sfbm(x, y + bi * 0.37, M, 0.6, 0.006, 3, seed + 9);
+      const col = rampAt(body, 0.6 + v + tone[k] + grain);
+      const w = clamp(0.25 + 0.6 * g + 0.2 * sfbm(x, y, M, 0.5, 0.5, 2, seed + 11), 0, 1) * g;
+      return col.map((q, i) => q + (silver[i] - q) * w);
+    });
+  },
+  // a flat roof's MEMBRANE: sheets across v (`rows` a repeat) heat-welded at their laps (a strip proud, its edge a fine
+  // dark line), the sheet a hair wrinkled, dirt where the water stood and dried in rings at grit
+  membrane(c, size, seed) {
+    const M = c.metres, g = c.grit, sh = M / c.rows, body = rampOf(c.stone), lap = new Uint8Array(size * size), pond = new Float32Array(size * size);
+    return paintedTile(c, size, FLOOR_LIGHT, (x, y, k) => {
+      const fy = y - Math.floor(y / sh) * sh;
+      pond[k] = clamp((sfbm(x, y, M, 0.9, 0.9, 3, seed + 3) - 0.25) * 3, 0, 1) * g;
+      if (fy < 0.1) { lap[k] = fy < 0.004 ? 2 : 1; return 0.0015; }
+      return 0.0005 * sfbm(x, y, M, 0.12, 0.05, 2, seed + 5);
+    }, (x, y, k, lit) => {
+      const v = (lit.value[k] - 1) * 1.1 - 0.2 * lit.cavity[k];
+      if (lap[k] === 2) return rampAt(body, 0.35 + v);
+      // (a ring where a pond dried: its edge darker than its middle)
+      const ring = pond[k] > 0 ? Math.min(1, pond[k] * 4) * (1 - pond[k] * 0.6) : 0;
+      return rampAt(body, 0.68 + v + 0.02 * lap[k] - 0.18 * ring + 0.02 * sfbm(x, y, M, 0.3, 0.3, 2, seed + 7));
     });
   },
   // ── the coats a modern fitting wears ──

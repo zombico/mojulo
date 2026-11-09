@@ -4,7 +4,11 @@
 import { describe, it, expect } from 'vitest';
 import { designGeocity, industryOf } from './design.js';
 import { readGeocity } from './metro.js';
-import { industrialPlan, industryTemplates, INDUSTRY_FAR, PYLON } from './industry.js';
+import { industrialPlan, industryTemplates, INDUSTRY_FAR, PYLON, INDUSTRY_FINISHES, finishOf } from './industry.js';
+import { MATERIAL_WORDS, materialContext, wordTile } from '../era/arch-style.js';
+import { matterOfWord } from '../rupa/look-matter.js';
+import { readGeocube } from '../era/geocube.js';
+import { normalizeTileSpec } from '../era/tile-specs.js';
 import { INDUSTRY_SEGMENTS, CARDS } from './segments.js';
 import { assembleGeocityScene } from './scene.js';
 import { mulberry32 } from '../city/plan/dice.js';
@@ -47,9 +51,9 @@ describe('an industrial block\'s plan', () => {
 
   it('stands each kind with its own: a works\' hall under a gable, a warehouse\'s docks, storage\'s containers, a tank farm\'s tanks in their bunds, a substation\'s transformers and gantries', () => {
     const works = plan('works'), ware = plan('warehouse'), store = plan('storage'), tanks = plan('tanks'), sub = plan('substation');
-    expect(has(works, (o) => o.op === 'gable' && o.group === 'geocity:works')).toBe(true);
+    expect(has(works, (o) => o.op === 'gable' && o.group.startsWith('geocity:works-'))).toBe(true);
     expect(ware.filter((o) => o.op === 'door').length).toBeGreaterThan(10);
-    expect(has(ware, (o) => o.op === 'box' && o.group === 'geocity:warehouse')).toBe(true);
+    expect(has(ware, (o) => o.op === 'box' && o.group.startsWith('geocity:warehouse-'))).toBe(true);
     expect(store.filter((o) => o.key?.startsWith('container:')).length).toBeGreaterThan(20);
     expect(tanks.filter((o) => o.key === 'tank').length).toBeGreaterThan(2);
     expect(has(tanks, (o) => o.op === 'bund')).toBe(true);
@@ -71,6 +75,20 @@ describe('an industrial block\'s plan', () => {
   it('draws only its halls and tall pieces far off', () => {
     const far = plan('works', { far: true });
     expect(far.every((o) => o.op === 'box' || o.op === 'gable' || (o.op === 'stamp' && INDUSTRY_FAR.includes(o.key.split(':')[0])))).toBe(true);
+  });
+});
+
+describe('the industrial finishes', () => {
+  it('dresses each family from its variants by the dice, each variant a wall\'s word and a roof\'s in the library', () => {
+    for (const [fam, vs] of Object.entries(INDUSTRY_FINISHES)) {
+      for (const [w, r] of Object.values(vs)) { expect(MATERIAL_WORDS[w]?.on, `${fam} ${w}`).toBe('wall'); expect(MATERIAL_WORDS[r]?.on, `${fam} ${r}`).toBe('roof'); expect(matterOfWord(w)).not.toBe(null); }
+      const seen = new Set(Array.from({ length: 60 }, (_, k) => finishOf(fam, mulberry32(k + 1)).group));
+      expect(seen.size).toBe(Object.keys(vs).length);
+      for (const g of seen) expect(g.startsWith(`geocity:${fam}-`)).toBe(true);
+    }
+    // (each a tile the library paints: its cut, its colours on their rails)
+    const X = materialContext(readGeocube('valley-morning'));
+    for (const w of new Set(Object.values(INDUSTRY_FINISHES).flatMap((vs) => Object.values(vs).flat()))) expect(normalizeTileSpec(wordTile(w, X, 7).spec).gen, w).toBe('dressed');
   });
 });
 
@@ -102,7 +120,7 @@ describe('the metro\'s industry, built', () => {
     const groups = new Set(p.repeats.map((r) => r.group));
     for (const g of ['geocity:industry-pylon', 'geocity:industry-transformer', 'geocity:industry-gantry', 'geocity:industry-chainlink']) expect(groups.has(g)).toBe(true);
     // (its halls dressed in their cladding: a textured face among them)
-    expect(p.faces.some((f) => (f.group === 'geocity:works' || f.group === 'geocity:warehouse') && f.texture)).toBe(true);
+    expect(p.faces.some((f) => /^geocity:(works|warehouse)-/.test(f.group) && f.texture)).toBe(true);
     expect(p.geocity.neighbourhoods.find((r) => r.id === at).industrial).toBe(true);
     for (const l of p.geocity.laws.filter((x) => ['segments', 'pitch'].includes(x.law))) expect(l.ok, l.value).toBe(true);
   });

@@ -70,6 +70,12 @@ describe('the metro\'s waterfront, built', () => {
     for (const f of p.faces.filter((x) => x.group === 'geocity:promenade')) for (const c of f.corners) expect(c[2]).toBeGreaterThan(zw + 1);
     expect(p.flow.lanes.filter((L) => L.line === `wf-${W.side}`)).toHaveLength(2 * W.boulevard.lanes);
     expect(p.geocity.waterfront.find((x) => x.main).segments).toEqual(W.segments.map((g) => g.kind));
+    // (its materials: granite quays, timber decking, armour stone, sand, a marina's and a pier's steel sheet piling)
+    const tex = (g) => p.faces.some((f) => f.group === g && f.texture);
+    for (const g of ['geocity:quay', 'geocity:deck', 'geocity:promenade']) expect(tex(g), g).toBe(true);
+    if (W.segments.some((g) => g.kind === 'marina' || g.kind === 'pier')) expect(tex('geocity:quay-wall-steel')).toBe(true);
+    if (W.segments.some((g) => g.kind === 'beach')) expect(tex('geocity:sand')).toBe(true);
+    if (W.segments.some((g) => g.kind === 'park')) expect(tex('geocity:riprap')).toBe(true);
     for (const id of ['waterfront', 'faces', 'highway-clear']) expect(p.geocity.laws.find((l) => l.law === id).ok).toBe(true);
   });
 });
